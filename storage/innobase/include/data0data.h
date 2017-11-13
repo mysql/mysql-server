@@ -588,6 +588,13 @@ struct dfield_t{
 	dfield_t* clone(mem_heap_t* heap);
 
 	byte*	blobref() const;
+
+	dfield_t()
+	  : data(nullptr),
+	    ext(0),
+	    spatial_status(0),
+	    len(0),
+	    type({0, 0, 0, 0}) {}
 };
 
 /** Structure for an SQL data tuple of fields (logical record) */

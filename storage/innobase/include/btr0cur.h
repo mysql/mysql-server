@@ -764,6 +764,8 @@ struct btr_path_t {
 
 /** Values for the flag documenting the used search method */
 enum btr_cur_method {
+	BTR_CUR_UNSET = 0,      /*!< Flag for initialization only,
+				not in real use. */
 	BTR_CUR_HASH = 1,	/*!< successful shortcut using
 				the hash index */
 	BTR_CUR_HASH_FAIL,	/*!< failure using hash, success using
@@ -784,16 +786,16 @@ enum btr_cur_method {
 /** The tree cursor: the definition appears here only for the compiler
 to know struct size! */
 struct btr_cur_t {
-	dict_index_t*	index;		/*!< index where positioned */
+	dict_index_t*	index{nullptr};	/*!< index where positioned */
 	page_cur_t	page_cur;	/*!< page cursor */
-	purge_node_t*	purge_node;	/*!< purge node, for BTR_DELETE */
-	buf_block_t*	left_block;	/*!< this field is used to store
+	purge_node_t*	purge_node{nullptr};	/*!< purge node, for BTR_DELETE */
+	buf_block_t*	left_block{nullptr};	/*!< this field is used to store
 					a pointer to the left neighbor
 					page, in the cases
 					BTR_SEARCH_PREV and
 					BTR_MODIFY_PREV */
 	/*------------------------------*/
-	que_thr_t*	thr;		/*!< this field is only used
+	que_thr_t*	thr{nullptr};	/*!< this field is only used
 					when btr_cur_search_to_nth_level
 					is called for an index entry
 					insertion: the calling query
@@ -803,11 +805,11 @@ struct btr_cur_t {
 	/** The following fields are used in
 	btr_cur_search_to_nth_level to pass information: */
 	/* @{ */
-	enum btr_cur_method	flag;	/*!< Search method used */
-	ulint		tree_height;	/*!< Tree height if the search is done
+	btr_cur_method	flag{BTR_CUR_UNSET};	/*!< Search method used */
+	ulint		tree_height{0};	/*!< Tree height if the search is done
 					for a pessimistic insert or update
 					operation */
-	ulint		up_match;	/*!< If the search mode was PAGE_CUR_LE,
+	ulint		up_match{0};	/*!< If the search mode was PAGE_CUR_LE,
 					the number of matched fields to the
 					the first user record to the right of
 					the cursor record after
@@ -821,11 +823,11 @@ struct btr_cur_t {
 					record if that record is on a
 					different leaf page! (See the note in
 					row_ins_duplicate_error_in_clust.) */
-	ulint		up_bytes;	/*!< number of matched bytes to the
+	ulint		up_bytes{0};	/*!< number of matched bytes to the
 					right at the time cursor positioned;
 					only used internally in searches: not
 					defined after the search */
-	ulint		low_match;	/*!< if search mode was PAGE_CUR_LE,
+	ulint		low_match{0};	/*!< if search mode was PAGE_CUR_LE,
 					the number of matched fields to the
 					first user record AT THE CURSOR or
 					to the left of it after
@@ -833,24 +835,22 @@ struct btr_cur_t {
 					NOT defined for PAGE_CUR_GE or any
 					other search modes; see also the NOTE
 					in up_match! */
-	ulint		low_bytes;	/*!< number of matched bytes to the
+	ulint		low_bytes{0};	/*!< number of matched bytes to the
 					left at the time cursor positioned;
 					only used internally in searches: not
 					defined after the search */
-	ulint		n_fields;	/*!< prefix length used in a hash
+	ulint		n_fields{0};	/*!< prefix length used in a hash
 					search if hash_node != NULL */
-	ulint		n_bytes;	/*!< hash prefix bytes if hash_node !=
+	ulint		n_bytes{0};	/*!< hash prefix bytes if hash_node !=
 					NULL */
-	ulint		fold;		/*!< fold value used in the search if
+	ulint		fold{0};	/*!< fold value used in the search if
 					flag is BTR_CUR_HASH */
 	/* @} */
-	btr_path_t*	path_arr;	/*!< in estimating the number of
+	btr_path_t*	path_arr{nullptr};	/*!< in estimating the number of
 					rows in range, we store in this array
 					information of the path through
 					the tree */
-	rtr_info_t*	rtr_info;	/*!< rtree search info */
-	btr_cur_t():thr(NULL), rtr_info(NULL) {}
-					/* default values */
+	rtr_info_t*	rtr_info{nullptr};	/*!< rtree search info */
 };
 
 /** The following function is used to set the deleted bit of a record.

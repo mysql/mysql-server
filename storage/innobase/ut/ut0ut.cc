@@ -631,6 +631,10 @@ ut_strerr(
 	case DB_COMPUTE_VALUE_FAILED:
 		return("Compute generated column failed");
 
+	case DB_ERROR_UNSET:
+		;
+                /* Fall through. */
+
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
 	}

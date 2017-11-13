@@ -26,6 +26,7 @@ Created 2012-02-08 by Sunny Bains.
 #include <errno.h>
 #include <my_aes.h>
 #include <sys/types.h>
+#include <memory>
 #include <vector>
 
 #include "btr0pcur.h"
@@ -240,7 +241,6 @@ public:
 	/** Default constructor */
 	RecIterator() UNIV_NOTHROW
 	{
-		memset(&m_cur, 0x0, sizeof(m_cur));
 	}
 
 	/** Position the cursor on the first user record. */
@@ -2605,7 +2605,7 @@ row_import_cfg_read_index_fields(
 
 	dict_field_t*	field = index->m_fields;
 
-	memset(field, 0x0, sizeof(*field) * n_fields);
+        std::uninitialized_fill_n(field, n_fields, dict_field_t());
 
 	for (ulint i = 0; i < n_fields; ++i, ++field) {
 		byte*		ptr = row;
@@ -3572,8 +3572,6 @@ row_import_for_mysql(
 
 	row_import	cfg;
 	ulint		space_flags = 0;
-
-	memset(&cfg, 0x0, sizeof(cfg));
 
 	err = row_import_read_cfg(table, table_def, trx->mysql_thd, cfg);
 

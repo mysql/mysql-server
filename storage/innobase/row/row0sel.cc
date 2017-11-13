@@ -3699,6 +3699,9 @@ sel_restore_position_for_mysql(
 	/* The position may need be adjusted for rel_pos and moves_up. */
 
 	switch (pcur->rel_pos) {
+	case BTR_PCUR_UNSET:
+		ut_ad(0);
+		return(TRUE);
 	case BTR_PCUR_ON:
 		if (!success && moves_up) {
 next:

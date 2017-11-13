@@ -763,6 +763,13 @@ be REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes */
 
 /** Data structure for a field in an index */
 struct dict_field_t{
+	dict_field_t()
+	  : col(nullptr),
+	    prefix_len(0),
+	    fixed_len(0),
+	    is_ascending(0)
+	{}
+
 	dict_col_t*	col;		/*!< pointer to the table column */
 	id_name_t	name;		/*!< name of the column */
 	unsigned	prefix_len:12;	/*!< 0 or the length of the column

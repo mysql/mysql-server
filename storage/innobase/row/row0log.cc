@@ -1813,6 +1813,7 @@ row_log_table_apply_delete_low(
 			      pcur, mtr);
 #ifdef UNIV_DEBUG
 		switch (btr_pcur_get_btr_cur(pcur)->flag) {
+		case BTR_CUR_UNSET:
 		case BTR_CUR_DELETE_REF:
 		case BTR_CUR_DEL_MARK_IBUF:
 		case BTR_CUR_DELETE_IBUF:
@@ -1904,6 +1905,7 @@ row_log_table_apply_delete(
 		      &pcur, &mtr);
 #ifdef UNIV_DEBUG
 	switch (btr_pcur_get_btr_cur(&pcur)->flag) {
+	case BTR_CUR_UNSET:
 	case BTR_CUR_DELETE_REF:
 	case BTR_CUR_DEL_MARK_IBUF:
 	case BTR_CUR_DELETE_IBUF:
@@ -2057,6 +2059,7 @@ row_log_table_apply_update(
 		      BTR_MODIFY_TREE, &pcur, &mtr);
 #ifdef UNIV_DEBUG
 	switch (btr_pcur_get_btr_cur(&pcur)->flag) {
+	case BTR_CUR_UNSET:
 	case BTR_CUR_DELETE_REF:
 	case BTR_CUR_DEL_MARK_IBUF:
 	case BTR_CUR_DELETE_IBUF:

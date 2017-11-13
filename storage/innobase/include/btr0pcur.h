@@ -40,6 +40,7 @@ Created 2/23/1996 Heikki Tuuri
 
 /* Relative positions for a stored cursor position */
 enum btr_pcur_pos_t {
+	BTR_PCUR_UNSET		= 0,
 	BTR_PCUR_ON		= 1,
 	BTR_PCUR_BEFORE		= 2,
 	BTR_PCUR_AFTER		= 3,
@@ -501,40 +502,40 @@ struct btr_pcur_t{
 	positioned:
 	we say then that the cursor is detached; it can be restored to
 	attached if the old position was stored in old_rec */
-	ulint		latch_mode;
+	ulint		latch_mode{0};
 	/** true if old_rec is stored */
-	bool		old_stored;
+	bool		old_stored{false};
 	/** if cursor position is stored, contains an initial segment of the
 	latest record cursor was positioned either on, before or after */
-	rec_t*		old_rec;
+	rec_t*		old_rec{nullptr};
 	/** number of fields in old_rec */
-	ulint		old_n_fields;
+	ulint		old_n_fields{0};
 	/** BTR_PCUR_ON, BTR_PCUR_BEFORE, or BTR_PCUR_AFTER, depending on
 	whether cursor was on, before, or after the old_rec record */
-	enum btr_pcur_pos_t	rel_pos;
+	btr_pcur_pos_t	rel_pos{BTR_PCUR_UNSET};
 	/** buffer block when the position was stored */
-	buf_block_t*	block_when_stored;
+	buf_block_t*	block_when_stored{nullptr};
 	/** the modify clock value of the buffer block when the cursor position
 	was stored */
-	ib_uint64_t	modify_clock;
+	ib_uint64_t	modify_clock{0};
 	/** the withdraw clock value of the buffer pool when the cursor
 	position was stored */
-	ulint		withdraw_clock;
+	ulint		withdraw_clock{0};
 	/** btr_pcur_store_position() and btr_pcur_restore_position() state. */
-	enum pcur_pos_t	pos_state;
+	pcur_pos_t	pos_state{BTR_PCUR_NOT_POSITIONED};
 	/** PAGE_CUR_G, ... */
-	page_cur_mode_t	search_mode;
+	page_cur_mode_t	search_mode{PAGE_CUR_UNSUPP};
 	/** the transaction, if we know it; otherwise this field is not defined;
 	can ONLY BE USED in error prints in fatal assertion failures! */
-	trx_t*		trx_if_known;
+	trx_t*		trx_if_known{nullptr};
 	/*-----------------------------*/
 	/* NOTE that the following fields may possess dynamically allocated
 	memory which should be freed if not needed anymore! */
 
 	/** NULL, or a dynamically allocated buffer for old_rec */
-	byte*		old_rec_buf;
+	byte*		old_rec_buf{nullptr};
 	/** old_rec_buf size if old_rec_buf is not NULL */
-	ulint		buf_size;
+	ulint		buf_size{0};
 
 	/** Return the index of this persistent cursor */
 	dict_index_t*	index() const { return(btr_cur.index); }

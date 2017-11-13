@@ -507,6 +507,7 @@ class IORequest {
 public:
 	/** Flags passed in the request, they can be ORred together. */
 	enum {
+		UNSET = 0,
 		READ = 1,
 		WRITE = 2,
 
