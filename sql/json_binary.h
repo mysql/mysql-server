@@ -265,7 +265,8 @@ public:
   bool update_in_shadow(const Field_json *field,
                         size_t pos, Json_wrapper *new_value,
                         size_t data_offset, size_t data_length,
-                        const char *original, char *destination) const;
+                        const char *original, char *destination,
+                        bool *changed) const;
   bool remove_in_shadow(const Field_json *field, size_t pos,
                         const char *original, char *destination) const;
 

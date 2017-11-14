@@ -85,7 +85,7 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
 {
   int error;
   empty_record(table);
-  memset(info, 0, sizeof(*info));
+  new (info) READ_RECORD;
   info->thd= thd;
   info->table= table;
   info->record= table->record[0];

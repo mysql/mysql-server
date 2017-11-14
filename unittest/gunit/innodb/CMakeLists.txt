@@ -43,11 +43,11 @@ IF (MERGE_UNITTESTS)
     ADD_TEST merge_innodb_tests)
 
   TARGET_LINK_LIBRARIES(merge_innodb_tests-t
-    sql_main binlog rpl master slave sql_main sql_gis)
+    sql_main binlog rpl master slave sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(merge_innodb_tests-t
     gunit_large strings dbug regex mysys)
   TARGET_LINK_LIBRARIES(merge_innodb_tests-t
-    sql_main binlog rpl master slave sql_main sql_gis sql_main)
+    sql_main binlog rpl master slave sql_main sql_gis sql_dd sql_main sql_dd sql_gis)
 
   # Download TBB from https://www.threadingbuildingblocks.org
   #SET(TBB_INCDIR /path/to/tbb43_20150611oss/include)
@@ -71,10 +71,10 @@ FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
 
   TARGET_LINK_LIBRARIES(${test}-t
-    sql_main binlog rpl master slave sql_main sql_gis)
+    sql_main binlog rpl master slave sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
   TARGET_LINK_LIBRARIES(${test}-t
-    sql_main binlog rpl master slave sql_main sql_gis sql_main)
+    sql_main binlog rpl master slave sql_main sql_gis sql_dd sql_main sql_dd sql_gis)
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(${test}-t perfschema)

@@ -58,7 +58,6 @@ Rpl_info_file::Rpl_info_file(const int nparam,
 {
   DBUG_ENTER("Rpl_info_file::Rpl_info_file");
 
-  memset(&info_file, 0, sizeof(info_file));
   fn_format(pattern_fname, param_pattern_fname, mysql_data_home, "", 4 + 32);
   fn_format(info_fname, param_info_fname, mysql_data_home, "", 4 + 32);
 

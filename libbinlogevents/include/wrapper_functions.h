@@ -31,6 +31,7 @@
 #endif
 
 #ifdef HAVE_MYSYS
+#include "my_config.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 

@@ -15,9 +15,12 @@
 
 
 #include "rows_event.h"
+
 #include <stdlib.h>
 #include <cstring>
 #include <string>
+
+#include "byteorder.h"
 
 namespace binary_log
 {

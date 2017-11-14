@@ -1518,6 +1518,17 @@ protected:
   bool wf_semantics(THD *thd, SELECT_LEX *select,
                     Window::Evaluation_requirements *r,
                     bool min);
+  /**
+    This function implements the optimized version of retrieving min/max
+    value. When we have "ordered ASC" results in a window, min will always
+    be the first value in the result set (neglecting the NULL's) and max
+    will always be the last value (or the other way around, if ordered DESC).
+    It is based on the implementation of FIRST_VALUE/LAST_VALUE, except for
+    the NULL handling.
+
+    @return true if computation yielded a NULL or error
+  */
+  bool compute();
 
 public:
   Item_sum_hybrid(Item *item_par,int sign)
@@ -1548,7 +1559,6 @@ public:
   void clear() override;
   void split_sum_func(THD* thd, Ref_item_array ref_item_array,
                       List<Item>& fields) override;
-  void compute();
   double val_real() override;
   longlong val_int() override;
   longlong val_time_temporal() override;

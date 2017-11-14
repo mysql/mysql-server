@@ -644,4 +644,6 @@ call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace .*, name 
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Ignoring tablespace `s_missing` because it could not be opened");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=delete_me.ibd\\);");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Trying to access missing tablespace .*");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: '.*s_.k.ibd' read failed! - attempted to read 4 bytes, read only 0 bytes at offset 16418");
+call mtr.add_suppression("\\[Warning\\].*InnoDB: Ignoring '.*s_.k.ibd' invalid tablespace ID in the header");
 --enable_query_log

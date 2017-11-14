@@ -2160,7 +2160,7 @@ PFS_key_host::match(const PFS_setup_actor *pfs)
 }
 
 bool
-PFS_key_host::match(const char *hostname, uint hostname_length)
+PFS_key_host::match(const char *hostname, size_t hostname_length)
 {
   bool record_null = (hostname_length == 0);
   return do_match(record_null, hostname, hostname_length);
@@ -2207,7 +2207,7 @@ PFS_key_name::match(const LEX_STRING *name)
 }
 
 bool
-PFS_key_name::match(const char *name, uint name_length)
+PFS_key_name::match(const char *name, size_t name_length)
 {
   bool record_null = (name_length == 0);
   return do_match(record_null, name, name_length);
@@ -2221,7 +2221,7 @@ PFS_key_group_name::match(const LEX_STRING *name)
 }
 
 bool
-PFS_key_group_name::match(const char *name, uint name_length)
+PFS_key_group_name::match(const char *name, size_t name_length)
 {
   bool record_null = (name_length == 0);
   return do_match(record_null, name, name_length);
@@ -2282,7 +2282,7 @@ PFS_key_ip::match(const PFS_socket *pfs)
 }
 
 bool
-PFS_key_ip::match(const char *ip, uint ip_length)
+PFS_key_ip::match(const char *ip, size_t ip_length)
 {
   bool record_null = (ip_length == 0);
   return do_match(record_null, ip, ip_length);
@@ -2417,7 +2417,7 @@ PFS_key_object_schema::match(const PFS_setup_object *pfs)
 }
 
 bool
-PFS_key_object_schema::match(const char *schema_name, uint schema_name_length)
+PFS_key_object_schema::match(const char *schema_name, size_t schema_name_length)
 {
   bool record_null = (schema_name_length == 0);
   return do_match(record_null, schema_name, schema_name_length);
@@ -2464,7 +2464,7 @@ PFS_key_object_name::match(const PFS_setup_object *pfs)
 }
 
 bool
-PFS_key_object_name::match(const char *object_name, uint object_name_length)
+PFS_key_object_name::match(const char *object_name, size_t object_name_length)
 {
   bool record_null = (object_name_length == 0);
   return do_match(record_null, object_name, object_name_length);

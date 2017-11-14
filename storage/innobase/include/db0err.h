@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,7 +37,9 @@ enum dberr_t {
 	DB_ERROR,
 	DB_INTERRUPTED,
 	DB_OUT_OF_MEMORY,
-	DB_OUT_OF_FILE_SPACE,
+	DB_OUT_OF_FILE_SPACE,		/*!< the tablespace could not be
+					auto-extending */
+	DB_OUT_OF_DISK_SPACE,
 	DB_LOCK_WAIT,
 	DB_DEADLOCK,
 	DB_ROLLBACK,

@@ -3258,12 +3258,12 @@ static int get_int_val(DYNAMIC_STRING *ds_retry)
     if(size != ds_retry->length)
       retry= -1;
   }
-  catch(std::out_of_range)
+  catch(const std::out_of_range &)
   {
     fprintf(stderr, "Retry value is out of range. ");
     retry= -1;
   }
-  catch(std::invalid_argument)
+  catch(const std::invalid_argument &)
   {
     retry= -1;
   }
@@ -10831,9 +10831,9 @@ void replace_numeric_round_append(int round, DYNAMIC_STRING* result,
 struct POINTER_ARRAY
 {		/* when using array-strings */
   TYPELIB typelib;				/* Pointer to strings */
-  uchar	*str;					/* Strings is here */
-  uint8 *flag;					/* Flag about each var. */
-  uint	array_allocs,max_count,length,max_length;
+  uchar	*str{nullptr};					/* Strings is here */
+  uint8 *flag{nullptr};					/* Flag about each var. */
+  uint	array_allocs{0},max_count{0},length{0},max_length{0};
 };
 
 REPLACE *init_replace(char * *from, char * *to, uint count,
@@ -10860,8 +10860,6 @@ void do_get_replace(struct st_command *command)
 
   free_replace();
 
-  memset(&to_array, 0, sizeof(to_array));
-  memset(&from_array, 0, sizeof(from_array));
   if (!*from)
     die("Missing argument in %s", command->query);
   start= buff= (char*)my_malloc(PSI_NOT_INSTRUMENTED,

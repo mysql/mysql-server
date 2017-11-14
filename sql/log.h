@@ -298,7 +298,7 @@ private:
 
 public:
   Query_logger()
-    : file_log_handler(NULL)
+    : file_log_handler(nullptr)
   { }
 
   /**
@@ -402,6 +402,17 @@ public:
      @param log_type  QUERY_LOG_SLOW or QUERY_LOG_GENERAL
   */
   bool reopen_log_file(enum_log_table_type log_type);
+
+  /**
+     Read log file name from global variable opt_*_logname.
+     If called from a sys_var update function, the caller
+     must hold a lock protecting the sys_var
+     (LOCK_global_system_variables, a polylock for the
+     variable, etc.).
+
+     @param log_type  QUERY_LOG_SLOW or QUERY_LOG_GENERAL
+  */
+  bool set_log_file(enum_log_table_type log_type);
 
   /**
      Check if given TABLE_LIST has a query log table name and

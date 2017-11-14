@@ -19,6 +19,7 @@
 #include <string>
 
 #include "binary_log_types.h"
+#include "byteorder.h"
 #include "my_io.h"
 #include "statement_events.h"
 #include "mysql_com.h"             // net_field_length_ll, net_field_length_size

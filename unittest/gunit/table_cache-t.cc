@@ -160,8 +160,8 @@ public:
   TABLE *create_table(THD *thd)
   {
     TABLE *result= (TABLE *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(TABLE), MYF(0));
+    new (result) TABLE;
 
-    memset(result, 0, sizeof(TABLE));
     result->s= this;
     // We create TABLE which is already marked as used
     result->in_use= thd;

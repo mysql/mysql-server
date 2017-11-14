@@ -30,6 +30,7 @@
 
 #include <sys/types.h>
 
+#include "byteorder.h"
 #include "statement_events.h"
 #include "table_id.h"
 

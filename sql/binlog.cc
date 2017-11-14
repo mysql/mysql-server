@@ -3609,11 +3609,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
     called only in main(). Doing initialization here would make it happen
     before main().
   */
-  memset(&log_file, 0, sizeof(log_file));
   index_file_name[0] = 0;
-  memset(&index_file, 0, sizeof(index_file));
-  memset(&purge_index_file, 0, sizeof(purge_index_file));
-  memset(&crash_safe_index_file, 0, sizeof(crash_safe_index_file));
 }
 
 
@@ -6145,7 +6141,7 @@ int MYSQL_BIN_LOG::close_crash_safe_index_file()
     end_io_cache(&crash_safe_index_file);
     error= my_close(crash_safe_index_file.file, MYF(0));
   }
-  memset(&crash_safe_index_file, 0, sizeof(crash_safe_index_file));
+  crash_safe_index_file= IO_CACHE();
 
   DBUG_RETURN(error);
 }

@@ -1983,8 +1983,6 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
 
   relay_log_number_to_name(start_relay_number, file_name);
 
-  memset(&relay_io, 0, sizeof(IO_CACHE));
-
   while (!arrive_end)
   {
     Log_event *ev= NULL;

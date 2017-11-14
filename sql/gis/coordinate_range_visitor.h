@@ -18,7 +18,7 @@
 
 #include <cmath>  // M_PI, M_PI_2
 
-#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/geometry_visitor.h"
 
 namespace gis {
@@ -70,7 +70,7 @@ class Coordinate_range_visitor : public Nop_visitor {
   double coordinate_value() const { return m_coordinate; }
 
   using Nop_visitor::visit_enter;
-  bool visit_enter(Geometry *g) override {
+  bool visit_enter(Geometry *) override {
     if (m_srs == nullptr || m_srs->is_cartesian())
       return true;  // Don't descend into each child.
 

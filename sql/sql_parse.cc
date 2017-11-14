@@ -1633,6 +1633,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
         LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
       });
+      DBUG_EXECUTE_IF("parser_stmt_to_error_log_with_system_prio", {
+        LogErr(SYSTEM_LEVEL, ER_PARSER_TRACE, thd->query().str);
+      });
     }
     break;
   }
@@ -1716,6 +1719,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
     DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
         LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
+      });
+    DBUG_EXECUTE_IF("parser_stmt_to_error_log_with_system_prio", {
+        LogErr(SYSTEM_LEVEL, ER_PARSER_TRACE, thd->query().str);
       });
 
     while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
@@ -3964,9 +3970,7 @@ mysql_execute_command(THD *thd, bool first_level)
         }
         else if (is_acl_user(thd, user->host.str, user->user.str) &&
                  user->auth.str &&
-                 check_change_password (thd, user->host.str, user->user.str,
-                                        user->auth.str,
-                                        user->auth.length))
+                 check_change_password(thd, user->host.str, user->user.str))
           goto error;
       }
     }

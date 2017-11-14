@@ -752,6 +752,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_WRONG_FILE_NAME,		ER_DEFAULT(ER_WRONG_FILE_NAME));
   SETMSG(HA_ERR_NOT_ALLOWED_COMMAND,		ER_DEFAULT(ER_NOT_ALLOWED_COMMAND));
   SETMSG(HA_ERR_COMPUTE_FAILED,		"Compute virtual column value failed");
+  SETMSG(HA_ERR_DISK_FULL,		ER_DEFAULT(ER_DISK_FULL));
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -977,7 +978,7 @@ void ha_end()
   my_free(handler_errmsgs);
 }
 
-static bool dropdb_handlerton(THD *unused1, plugin_ref plugin,
+static bool dropdb_handlerton(THD *, plugin_ref plugin,
                               void *path)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
@@ -994,7 +995,7 @@ void ha_drop_database(char* path)
 
 
 static bool closecon_handlerton(THD *thd, plugin_ref plugin,
-                                void *unused)
+                                void *)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   /*
@@ -2507,7 +2508,7 @@ int ha_start_consistent_snapshot(THD *thd)
 }
 
 
-static bool flush_handlerton(THD *thd, plugin_ref plugin,
+static bool flush_handlerton(THD *, plugin_ref plugin,
                              void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
@@ -2589,11 +2590,11 @@ const char *get_canonical_filename(handler *file, const char *path,
 class Ha_delete_table_error_handler: public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
+  virtual bool handle_condition(THD *,
+                                uint,
+                                const char*,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*)
   {
     /* Downgrade errors to warnings. */
     if (*level == Sql_condition::SL_ERROR)
@@ -3161,7 +3162,7 @@ int handler::ha_ft_read(uchar *buf)
 
 
 int handler::ha_sample_init(double sampling_percentage, int sampling_seed,
-                            enum_sampling_method sampling_method)
+                            enum_sampling_method)
 {
   DBUG_ENTER("handler::ha_sample_init");
   DBUG_ASSERT(sampling_percentage >= 0.0);
@@ -4012,10 +4013,12 @@ void handler::column_bitmaps_signal()
   reserved to "positive infinite".
 */
 
-void handler::get_auto_increment(ulonglong offset, ulonglong increment,
-                                 ulonglong nb_desired_values,
-                                 ulonglong *first_value,
-                                 ulonglong *nb_reserved_values)
+void handler::get_auto_increment
+  (ulonglong offset MY_ATTRIBUTE((unused)),
+   ulonglong increment MY_ATTRIBUTE((unused)),
+   ulonglong nb_desired_values MY_ATTRIBUTE((unused)),
+   ulonglong *first_value,
+   ulonglong *nb_reserved_values)
 {
   ulonglong nr;
   int error;
@@ -4360,6 +4363,13 @@ void handler::print_error(int error, myf errflag)
     errflag|= ME_ERRORLOG;
     break;
   }
+  case HA_ERR_DISK_FULL:
+  {
+    textno=ER_DISK_FULL;
+    /* Write the error message to error log */
+    errflag|= ME_ERRORLOG;
+    break;
+  }
   case HA_ERR_LOCK_WAIT_TIMEOUT:
     textno=ER_LOCK_WAIT_TIMEOUT;
     break;
@@ -4525,7 +4535,8 @@ void handler::print_error(int error, myf errflag)
   @return
     Returns true if this is a temporary error
 */
-bool handler::get_error_message(int error, String* buf)
+bool handler::get_error_message(int error MY_ATTRIBUTE((unused)),
+                                String* buf MY_ATTRIBUTE((unused)))
 {
   return FALSE;
 }
@@ -4731,8 +4742,8 @@ int handler::delete_table(const char *name, const dd::Table *)
 
 
 int handler::rename_table(const char * from, const char * to,
-                          const dd::Table *from_table_def,
-                          dd::Table *to_table_def)
+                          const dd::Table *from_table_def MY_ATTRIBUTE((unused)),
+                          dd::Table *to_table_def MY_ATTRIBUTE((unused)))
 {
   int error= 0;
   const char **ext, **start_ext;
@@ -5095,8 +5106,9 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
 */
 
 enum_alter_inplace_result
-handler::check_if_supported_inplace_alter(TABLE *altered_table,
-                                          Alter_inplace_info *ha_alter_info)
+handler::check_if_supported_inplace_alter
+  (TABLE *altered_table MY_ATTRIBUTE((unused)),
+   Alter_inplace_info *ha_alter_info)
 {
   DBUG_ENTER("check_if_supported_alter");
 
@@ -5493,7 +5505,13 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
 
   get_canonical_filename(table.file, path, path);
-  error=table.file->ha_create(path, &table, &create_info, NULL);
+  std::unique_ptr<dd::Table> table_def_clone(table_def->clone());
+  error=table.file->ha_create(path, &table, &create_info, table_def_clone.get());
+  /*
+    Note that the table_def_clone is not stored into the DD,
+    necessary changes to the table_def should already have
+    been done in ha_discover/import_serialized_meta_data.
+  */
   (void) closefrm(&table, 1);
 
   DBUG_RETURN(error != 0);
@@ -5629,7 +5647,6 @@ bool ha_check_if_supported_system_table(handlerton *hton, const char *db,
   @details The primary purpose of introducing this function is to stop system
   tables to be created or being moved to undesired storage engines.
 
-  @param   unused  unused THD*
   @param   plugin  Points to specific SE.
   @param   arg     Is of type struct st_sys_tbl_chk_params.
 
@@ -5644,7 +5661,7 @@ bool ha_check_if_supported_system_table(handlerton *hton, const char *db,
     @retval  false There was no match found.
                    Other SE's will be checked to find a match.
 */
-static bool check_engine_system_table_handlerton(THD *unused,
+static bool check_engine_system_table_handlerton(THD *,
                                                  plugin_ref plugin,
                                                  void *arg)
 {
@@ -5741,7 +5758,7 @@ bool ha_rm_tmp_tables(THD *thd, List<LEX_STRING> *files)
   of handler::delete_table() method.
 */
 
-bool default_rm_tmp_tables(handlerton *hton, THD *thd, List<LEX_STRING> *files)
+bool default_rm_tmp_tables(handlerton *hton, THD *, List<LEX_STRING> *files)
 {
   List_iterator<LEX_STRING> files_it(*files);
   LEX_STRING *file_path;
@@ -5800,7 +5817,7 @@ void HA_CHECK_OPT::init()
 /**
   Init a key cache if it has not been initied before.
 */
-int ha_init_key_cache(const char *name, KEY_CACHE *key_cache)
+int ha_init_key_cache(const char *, KEY_CACHE *key_cache)
 {
   DBUG_ENTER("ha_init_key_cache");
 
@@ -6071,7 +6088,7 @@ struct binlog_func_st
 /** @brief
   Listing handlertons first to avoid recursive calls and deadlock
 */
-static bool binlog_func_list(THD *thd, plugin_ref plugin, void *arg)
+static bool binlog_func_list(THD *, plugin_ref plugin, void *arg)
 {
   hton_list_st *hton_list= (hton_list_st *)arg;
   handlerton *hton= plugin_data<handlerton*>(plugin);
@@ -6345,7 +6362,9 @@ Cost_estimate handler::table_scan_cost()
 }
 
   
-Cost_estimate handler::index_scan_cost(uint index, double ranges, double rows)
+Cost_estimate handler::index_scan_cost(uint index,
+                                       double ranges MY_ATTRIBUTE((unused)),
+                                       double rows)
 {
   /*
     This function returns a Cost_estimate object. The function should be
@@ -6454,7 +6473,8 @@ static bool key_uses_partial_cols(TABLE *table, uint keyno)
 
 ha_rows 
 handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
-                                     void *seq_init_param, uint n_ranges_arg,
+                                     void *seq_init_param,
+                                     uint n_ranges_arg MY_ATTRIBUTE((unused)),
                                      uint *bufsz, uint *flags, 
                                      Cost_estimate *cost)
 {
@@ -6665,7 +6685,8 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 
 int
 handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
-                               uint n_ranges, uint mode, HANDLER_BUFFER *buf)
+                               uint n_ranges, uint mode,
+                               HANDLER_BUFFER *buf MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("handler::multi_range_read_init");
   mrr_iter= seq_funcs->init(seq_init_param, n_ranges, mode);
@@ -7645,7 +7666,7 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 int handler::read_range_first(const key_range *start_key,
 			      const key_range *end_key,
 			      bool eq_range_arg,
-                              bool sorted /* ignored */)
+                              bool sorted MY_ATTRIBUTE((unused)))
 {
   int result;
   DBUG_ENTER("handler::read_range_first");
@@ -7975,8 +7996,7 @@ uint calculate_key_len(TABLE *table, uint key,
   @retval
     pointer		pointer to TYPELIB structure
 */
-static bool exts_handlerton(THD *unused, plugin_ref plugin,
-                            void *arg)
+static bool exts_handlerton(THD *, plugin_ref plugin, void *arg)
 {
   List<char> *found_exts= (List<char> *) arg;
   handlerton *hton= plugin_data<handlerton*>(plugin);
@@ -9225,17 +9245,20 @@ std::string row_to_string(const uchar* mysql_row, TABLE* mysql_table) {
   }
 
   const uint number_of_fields = mysql_table->s->fields;
-  DBUG_ASSERT(number_of_fields > 0);
 
   /* See where the fields currently point to. */
   uchar* fields_orig_buf;
-  Field* first_field = mysql_table->field[0];
-  if (first_field->ptr >= buf0 && first_field->ptr < buf0 + mysql_row_length) {
-    fields_orig_buf = buf0;
+  if (number_of_fields == 0) {
+    fields_orig_buf = buf_used_by_mysql;
   } else {
-    DBUG_ASSERT(first_field->ptr >= buf1);
-    DBUG_ASSERT(first_field->ptr < buf1 + mysql_row_length);
-    fields_orig_buf = buf1;
+    Field* first_field = mysql_table->field[0];
+    if (first_field->ptr >= buf0 && first_field->ptr < buf0 + mysql_row_length) {
+      fields_orig_buf = buf0;
+    } else {
+      DBUG_ASSERT(first_field->ptr >= buf1);
+      DBUG_ASSERT(first_field->ptr < buf1 + mysql_row_length);
+      fields_orig_buf = buf1;
+    }
   }
 
   /* Repoint if necessary. */

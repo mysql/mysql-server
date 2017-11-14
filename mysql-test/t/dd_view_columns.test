@@ -513,3 +513,18 @@ CREATE FUNCTION f2() RETURNS INT return 2;
 DROP FUNCTION f2;
 DROP VIEW v1, v2, z1;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #27041536 "TRANS_TABLE || !CHANGED || THD->GET_TRANSACTION()->
+--echo #                CANNOT_SAFELY_ROLLBACK..."
+--echo #
+--echo # Create view with dependency on table to be created by
+--echo # CREATE TABLE SELECT.
+CREATE TABLE t1 (i INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+DROP TABLE t1;
+--echo # The below statement caused assertion failure before the fix.
+CREATE TABLE t1 ENGINE=MyISAM SELECT 1 AS i;
+DROP TABLE t1;
+DROP VIEW v1;

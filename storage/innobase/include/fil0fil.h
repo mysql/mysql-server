@@ -773,7 +773,7 @@ protected:
 extern Fil_path	MySQL_datadir_path;
 
 /** Initial size of a single-table tablespace in pages */
-constexpr size_t	FIL_IBD_FILE_INITIAL_SIZE = 6;
+constexpr size_t	FIL_IBD_FILE_INITIAL_SIZE = 5;
 
 /** 'null' (undefined) page offset in the context of file spaces */
 constexpr page_no_t	FIL_NULL = std::numeric_limits<page_no_t>::max();

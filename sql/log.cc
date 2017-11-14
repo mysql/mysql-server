@@ -71,6 +71,8 @@
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
 #include "sql/derror.h"     // ER_DEFAULT
 #include "sql/discrete_interval.h"
 #include "sql/error_handler.h" // Internal_error_handler
@@ -290,6 +292,7 @@ static void ull2timeval(ulonglong utime, struct timeval *tv)
   tv->tv_usec=utime % 1000000;
 }
 
+
 class File_query_log
 {
   File_query_log(enum_log_table_type log_type);
@@ -297,6 +300,11 @@ class File_query_log
   ~File_query_log()
   {
     DBUG_ASSERT(!is_open());
+    if (name != nullptr)
+    {
+      my_free(name);
+      name= nullptr;
+    }
     mysql_mutex_destroy(&LOCK_log);
   }
 
@@ -319,6 +327,11 @@ class File_query_log
      The internal structures are not freed until the destructor is called.
   */
   void close();
+
+  /**
+     Change what file we log to
+  */
+  bool set_file(const char *new_name);
 
   /**
      Check if we have already printed ER_ERROR_ON_WRITE and if not,
@@ -360,7 +373,7 @@ class File_query_log
      @param sql_text_len      The length of sql_text string
 
      @return true if error, false otherwise.
-  */
+*/
   bool write_slow(THD *thd, ulonglong current_utime,
                   const char *user_host, size_t user_host_len,
                   ulonglong query_utime, ulonglong lock_utime, bool is_command,
@@ -505,32 +518,42 @@ static File mysql_file_real_name_reopen(File file,
 }
 
 
+bool File_query_log::set_file(const char *new_name)
+{
+  char *nn;
+
+  DBUG_ASSERT(new_name && new_name[0]);
+
+  if (!(nn= my_strdup(key_memory_File_query_log_name,
+                      new_name, MYF(MY_WME))))
+    return true;
+
+  if (name != nullptr)
+    my_free(name);
+
+  name= nn;
+
+  // We can do this here since we're not actually resolving symlinks etc.
+  fn_format(log_file_name, name, mysql_data_home, "", MY_UNPACK_FILENAME);
+
+  return false;
+}
+
+
 bool File_query_log::open()
 {
   File file= -1;
   my_off_t pos= 0;
-  const char *log_name= NULL;
   char buff[FN_REFLEN];
   MY_STAT f_stat;
   DBUG_ENTER("File_query_log::open");
 
-  if (m_log_type == QUERY_LOG_SLOW)
-    log_name= opt_slow_logname;
-  else if (m_log_type == QUERY_LOG_GENERAL)
-    log_name= opt_general_logname;
-  else
-    DBUG_ASSERT(false);
-  DBUG_ASSERT(log_name && log_name[0]);
+  DBUG_ASSERT(name != nullptr);
+
+  if (is_open())
+    DBUG_RETURN(false);
 
   write_error= false;
-
-  if (!(name= my_strdup(key_memory_File_query_log_name, log_name, MYF(MY_WME))))
-  {
-    name= const_cast<char *>(log_name); // for the error message
-    goto err;
-  }
-
-  fn_format(log_file_name, name, mysql_data_home, "", 4);
 
   /* File is regular writable file */
   if (my_stat(log_file_name, &f_stat, MYF(0)) && !MY_S_ISREG(f_stat.st_mode))
@@ -627,8 +650,7 @@ err:
   if (file >= 0)
     mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
-  my_free(name);
-  name= NULL;
+
   log_open= false;
   DBUG_RETURN(true);
 }
@@ -649,8 +671,7 @@ void File_query_log::close()
     check_and_print_write_error();
 
   log_open= false;
-  my_free(name);
-  name= NULL;
+
   DBUG_VOID_RETURN;
 }
 
@@ -1578,6 +1599,29 @@ void Query_logger::deactivate_log_handler(enum_log_table_type log_type)
   file_log_handler->get_query_log(log_type)->close();
   // table_list_handler has no state, nothing to close
   mysql_rwlock_unlock(&LOCK_logger);
+}
+
+
+bool Query_logger::set_log_file(enum_log_table_type log_type)
+{
+  const char *log_name= nullptr;
+
+  mysql_rwlock_wrlock(&LOCK_logger);
+
+  DEBUG_SYNC(current_thd, "log_set_file_holds_lock");
+
+  if (log_type == QUERY_LOG_SLOW)
+    log_name= opt_slow_logname;
+  else if (log_type == QUERY_LOG_GENERAL)
+    log_name= opt_general_logname;
+  else
+    DBUG_ASSERT(false);
+
+  bool res= file_log_handler->get_query_log(log_type)->set_file(log_name);
+
+  mysql_rwlock_unlock(&LOCK_logger);
+
+  return res;
 }
 
 

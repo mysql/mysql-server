@@ -1629,13 +1629,13 @@ static bool migrate_table_to_dd(THD *thd,
     }
 
     // Fix pointers in TABLE, TABLE_SHARE
-    memset(table, 0, sizeof(*table));
     table->s= &share;
     table->in_use= thd;
     table->mem_root= std::move(mem_root);
   }
 
   // Object to handle cleanup.
+  LEX lex;
   Table_upgrade_guard table_guard(thd, table, &table->mem_root);
 
   // Dont upgrade tables, we are fixing dependency for views.
@@ -1791,7 +1791,6 @@ static bool migrate_table_to_dd(THD *thd,
   // open_table_from_share and partition expression parsing needs a
   // valid SELECT_LEX to parse generated columns
   LEX *lex_saved= thd->lex;
-  LEX lex;
   thd->lex= &lex;
   lex_start(thd);
   table_guard.update_lex(lex_saved);

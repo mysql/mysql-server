@@ -6010,10 +6010,31 @@ bool Item_func_set_user_var::resolve_type(THD*)
   else
     collation.collation= args[0]->collation.collation;
 
-  set_data_type(Item::type_for_variable(args[0]->data_type(),
-                                        args[0]->max_length));
-  max_length= args[0]->max_length;
+  enum_field_types data_type= Item::type_for_variable(args[0]->data_type());
+  switch (data_type)
+  {
+  case MYSQL_TYPE_LONGLONG:
+    set_data_type_longlong();
+    max_length= args[0]->max_length; // Preserves "length" of integer constants
+    break;
+  case MYSQL_TYPE_NEWDECIMAL:
+    set_data_type_decimal(args[0]->decimal_precision(), args[0]->decimals);
+    break;
+  case MYSQL_TYPE_DOUBLE:
+    set_data_type_double();
+    break;
+  case MYSQL_TYPE_VARCHAR:
+    set_data_type_string(args[0]->max_char_length());
+    break;
+  case MYSQL_TYPE_NULL:
+  default:
+    DBUG_ASSERT(false);
+    set_data_type(MYSQL_TYPE_NULL);
+    break;
+  }
+
   unsigned_flag= args[0]->unsigned_flag;
+
   return false;
 }
 
@@ -9199,7 +9220,6 @@ longlong Item_func_can_access_column::val_int()
 
   // Check access
   GRANT_INFO grant_info;
-  memset(&grant_info, 0, sizeof (grant_info));
 
   if (check_access(thd, SELECT_ACL, schema_name_ptr->ptr(),
                    &grant_info.privilege, nullptr, false, true))
@@ -9313,7 +9333,6 @@ longlong Item_func_can_access_view::val_int()
 
   TABLE_LIST table_list;
   uint view_access;
-  memset(&table_list, 0, sizeof(table_list));
   table_list.db= schema_name_ptr->ptr();
   table_list.table_name= table_name_ptr->ptr();
   table_list.grant.privilege= thd->col_access;

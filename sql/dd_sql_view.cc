@@ -244,12 +244,9 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
     if (prepared_view_ids.find(view_ids.at(idx)) == prepared_view_ids.end())
     {
       // Prepare TABLE_LIST object for the view and push_back
-      TABLE_LIST *vw=
-        static_cast<TABLE_LIST *>(alloc_root(thd->mem_root,
-                                             sizeof(TABLE_LIST)));
+      TABLE_LIST *vw= new (thd->mem_root) TABLE_LIST;
       if (vw == nullptr)
         DBUG_RETURN(true);
-      memset(vw, 0, sizeof(TABLE_LIST));
 
       const char *db_name= strmake_root(thd->mem_root, schema_name.c_str(),
                                         schema_name.length());

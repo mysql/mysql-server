@@ -1927,9 +1927,6 @@ Geometry *Item_func_spatial_operation::
 intersection_operation(Geometry *g1, Geometry *g2,
                        String *result)
 {
-  typedef typename Geom_types::Coordinate_type Coord_type;
-  typedef typename Geom_types::Coordinate_system Coordsys;
-
   BG_setop_wrapper<Geom_types> wrap(this);
   Geometry *retgeo= NULL;
   Geometry::wkbType gt1= g1->get_type();
@@ -2081,9 +2078,6 @@ template <typename Geom_types>
 Geometry *Item_func_spatial_operation::
 union_operation(Geometry *g1, Geometry *g2, String *result)
 {
-  typedef typename Geom_types::Coordinate_type Coord_type;
-  typedef typename Geom_types::Coordinate_system Coordsys;
-
   BG_setop_wrapper<Geom_types> wrap(this);
   Geometry *retgeo= NULL;
   Geometry::wkbType gt1= g1->get_type();
@@ -2397,7 +2391,6 @@ template <typename Geom_types>
 Geometry *Item_func_spatial_operation::
 symdifference_operation(Geometry *g1, Geometry *g2, String *result)
 {
-  typedef typename Geom_types::Coordinate_type Coord_type;
   typedef typename Geom_types::Coordinate_system Coordsys;
 
   BG_setop_wrapper<Geom_types> wrap(this);

@@ -182,7 +182,6 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
     group_master_log_name[0]= 0;
   ign_master_log_name_end[0]= 0;
   set_timespec_nsec(&last_clock, 0);
-  memset(&cache_buf, 0, sizeof(cache_buf));
   cached_charset_invalidate();
   inited_hash_workers= FALSE;
   commit_timestamps_status= COMMIT_TS_UNKNOWN;
