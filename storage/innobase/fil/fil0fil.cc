@@ -7252,6 +7252,12 @@ fil_tablespace_iterate(
 
 	err = os_file_read(request, file, page, 0, UNIV_ZIP_SIZE_MIN);
 
+	/** Get tablespace page size */
+	ulint flags = fsp_header_get_flags(page);
+
+	/* Read full page 0 now */
+	err = os_file_read(request, file, page, 0, page_size_t(flags).physical());
+
 	if (err != DB_SUCCESS) {
 
 		err = DB_IO_ERROR;
