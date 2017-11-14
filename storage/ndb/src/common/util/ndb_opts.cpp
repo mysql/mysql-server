@@ -200,8 +200,8 @@ Ndb_opts::~Ndb_opts()
   ndb_end(0);  // ndb_end() can safely be called more than once
 }
 
-int Ndb_opts::handle_options(my_bool (*get_opt_fn)
-                              (int, const struct my_option *, char *)) const
+int Ndb_opts::handle_options(bool (*get_opt_fn)
+                             (int, const struct my_option *, char *)) const
 {
   return ::handle_options(main_argc_ptr, main_argv_ptr, options, get_opt_fn);
 };

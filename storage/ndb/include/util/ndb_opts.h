@@ -158,8 +158,8 @@ public:
   void set_usage_funcs(void(*short_usage_fn)(void),
                        void(* long_usage_fn)(void) = 0);
 
-  int handle_options(my_bool (*get_opt_fn)(int, const struct my_option *,
-                                           char *) = ndb_std_get_one_option) const;
+  int handle_options(bool (*get_opt_fn)(int, const struct my_option *,
+                                        char *) = ndb_std_get_one_option) const;
   void usage() const;
 
   static void registerUsage(Ndb_opts *);
