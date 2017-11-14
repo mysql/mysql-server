@@ -1561,7 +1561,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     "1M",
     "512K",
-    "16M" },
+    STR_VALUE(MAX_INT_RNIL) },
 
   { 
     CFG_DB_BACKUP_LOG_BUFFER_MEM,
@@ -1585,7 +1585,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     "256K",
     "32K",
-    "1M" },
+    STR_VALUE(MAX_INT_RNIL) },
 
   { 
     CFG_DB_BACKUP_MAX_WRITE_SIZE,
@@ -1597,7 +1597,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     "1M",
     "256K",
-    "2M" },
+    STR_VALUE(MAX_INT_RNIL) },
 
   { 
     CFG_DB_STRING_MEMORY,
