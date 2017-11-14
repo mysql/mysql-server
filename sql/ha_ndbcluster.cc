@@ -5516,6 +5516,9 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   NdbTransaction *trans;
   uint32 part_id;
   int error= 0;
+  Uint64 auto_value;
+  longlong func_value= 0;
+  const Uint32 authorValue = 1;
   NdbOperation::SetValueSpec sets[3];
   Uint32 num_sets= 0;
   DBUG_ENTER("ha_ndbcluster::ndb_write_row");
@@ -5575,7 +5578,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
 
   bool uses_blobs= uses_blob_value(table->write_set);
 
-  Uint64 auto_value;
   const NdbRecord *key_rec;
   const uchar *key_row;
   if (table_share->primary_key == MAX_KEY)
@@ -5615,7 +5617,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   if (m_user_defined_partitioning)
   {
     DBUG_ASSERT(m_use_partition_pruning);
-    longlong func_value= 0;
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
     error= m_part_info->get_partition_id(m_part_info, &part_id, &func_value);
     dbug_tmp_restore_column_map(table->read_set, old_map);
@@ -5660,7 +5661,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   const bool need_flush=
       thd_ndb->add_row_check_if_batch_full(m_bytes_per_write);
 
-  const Uint32 authorValue = 1;
   if ((thd->slave_thread) &&
       (m_table->getExtraRowAuthorBits()))
   {
