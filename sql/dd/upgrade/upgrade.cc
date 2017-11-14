@@ -1289,14 +1289,6 @@ bool fill_dd_and_finalize(THD *thd)
   error|= migrate_events_to_dd(thd);
   error|= migrate_routines_to_dd(thd);
 
-  if (error)
-  {
-    // Reset error log output behavior.
-    bootstrap_error_handler.set_log_error(true);
-    terminate(thd);
-    return true;
-  }
-
   // We will not get error in this step unless its a fatal error.
   for (it= db_name.begin(); it != db_name.end(); it++)
   {
