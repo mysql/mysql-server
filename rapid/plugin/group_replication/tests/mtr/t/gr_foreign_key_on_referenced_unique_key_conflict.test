@@ -52,8 +52,8 @@ INSERT INTO t1 VALUES (1,1);
 # Outcome: T1 must abort, T2 must commit.
 #
 
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction= DELETE FROM t1 WHERE c1=1
 --let $remote_transaction=INSERT INTO t2 VALUES (1,1)
@@ -79,8 +79,8 @@ INSERT INTO t1 VALUES (3,3);
 # Outcome: T1 and T2 must commit.
 #
 
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction= DELETE FROM t1 WHERE c1=2
 --let $remote_transaction=INSERT INTO t2 VALUES (3,3)

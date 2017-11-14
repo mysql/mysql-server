@@ -44,8 +44,8 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT UNIQUE KEY);
 --echo
 --echo ###########################################################
 --echo # Scenario 1: UNIQUE NULL KEY, conflicting case
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction=INSERT INTO t1 VALUES (1, 2)
 --let $remote_transaction=INSERT INTO t1 VALUES (3, 2)
@@ -56,8 +56,8 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT UNIQUE KEY);
 --echo ############################################################
 --echo # Scenario 2: UNIQUE NULL KEY, non-conflicting case
 --echo
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction=INSERT INTO t1 VALUES (5, 6)
 --let $remote_transaction=INSERT INTO t1 VALUES (7, 8)
@@ -89,8 +89,8 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT UNIQUE KEY);
 --echo ##################################################################
 --echo # Scenario 3: UNIQUE NULL KEY, non-conflicting case (NULL vs NULL)
 --echo
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction=INSERT INTO t1 VALUES (8, NULL)
 --let $remote_transaction=INSERT INTO t1 VALUES (9, NULL)
@@ -122,8 +122,8 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT, UNIQUE KEY(c2,c3));
 --echo # Scenario 4: COMPOSITE UNIQUE KEY
 --echo #    non-conflicting case (x,NULL) vs (x,NULL)
 --echo ##################################################################
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction=INSERT INTO t1 VALUES (1, 2, NULL)
 --let $remote_transaction=INSERT INTO t1 VALUES (2, 2, NULL)
@@ -136,8 +136,8 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT, UNIQUE KEY(c2,c3));
 --echo #    (non-conflicting case (NULL,NULL) vs (NULL,NULL)
 --echo ##################################################################
 --echo
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction=INSERT INTO t1 VALUES (3, NULL, NULL)
 --let $remote_transaction=INSERT INTO t1 VALUES (4, NULL, NULL)
@@ -172,8 +172,8 @@ INSERT INTO t1 VALUES (1, NULL);
 --echo # Scenario 6: Non-conflicting case (NULL tuple does not care for
 --echo #  a matching tuple in parent table)
 --echo
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction= UPDATE t1 SET c2=10
 --let $remote_transaction= INSERT INTO t2 VALUES (1, NULL);
