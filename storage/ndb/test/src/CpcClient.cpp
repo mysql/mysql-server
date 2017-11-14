@@ -416,12 +416,24 @@ SimpleCpcClient::~SimpleCpcClient() {
   port = 0;
 
   if (my_socket_valid(cpc_sock)) {
-    my_socket_close(cpc_sock);
-    my_socket_invalidate(&cpc_sock);
+    close_connection();
   }
 }
 
 int SimpleCpcClient::connect() {
+  int res = open_connection();
+  if (res != 0) return -1;
+
+  res = negotiate_client_protocol();
+  if (res != 0) {
+    close_connection();
+    return -1;
+  }
+
+  return 0;
+}
+
+int SimpleCpcClient::open_connection() {
   struct sockaddr_in sa;
   struct hostent *hp;
 
@@ -439,30 +451,30 @@ int SimpleCpcClient::connect() {
 
   memcpy(&sa.sin_addr, hp->h_addr, hp->h_length);
   sa.sin_port = htons(port);
-  if (my_connect_inet(cpc_sock, &sa) < 0) return -1;
 
-  try {
-    Properties p;
-    int res = show_version(p);
-    if (res != 0) throw "Failure to get CPCD version";
+  return my_connect_inet(cpc_sock, &sa);
+}
 
-    Uint32 version = 1;
-    p.get("version", &version);
+int SimpleCpcClient::negotiate_client_protocol() {
+  Properties p;
+  int res = show_version(p);
+  if (res != 0) return -1;
 
-    m_cpcd_protocol_version = version;
-    if (m_cpcd_protocol_version < CPC_PROTOCOL_VERSION) {
-      throw "Unsupported protocol";
-    }
+  Uint32 version = 1;
+  p.get("version", &version);
 
-    res = select_protocol(p);
-    if (res != 0) throw "Unable to set client's protocol";
-  } catch (const char *msg) {
-    my_socket_close(cpc_sock);
-    my_socket_invalidate(&cpc_sock);
-    return -1;
-  }
+  if (version < CPC_PROTOCOL_VERSION) return -1;
 
+  res = select_protocol(p);
+  if (res != 0) return -1;
+
+  m_cpcd_protocol_version = version;
   return 0;
+}
+
+void SimpleCpcClient::close_connection() {
+  my_socket_close(cpc_sock);
+  my_socket_invalidate(&cpc_sock);
 }
 
 int SimpleCpcClient::cpc_send(const char *cmd, const Properties &args) {
