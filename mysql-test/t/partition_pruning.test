@@ -3,8 +3,9 @@
 # prune, so the test is EXPLAINs.
 #
 
-# Skipping the test when log-bin is enabled due to Bug#22508362
---source include/not_log_bin.inc
+# Skipping the test when log-bin is enabled and binlog_format due to unsafe statement:
+# LIMIT clause.
+--source include/not_binlog_format_statement.inc
 
 --source include/no_valgrind_without_big.inc
 let $verify_without_partitions=0;

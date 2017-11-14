@@ -5,7 +5,6 @@
 --source include/big_test.inc
 # Disable in valgrind because of timeout, cf. Bug#22755816
 --source include/not_valgrind.inc
---source include/not_log_bin.inc
 
 DELIMITER |;
 CREATE PROCEDURE populate_t1()

@@ -2,11 +2,12 @@
 # Partition locking related tests that result in an different output when run
 # under --ps.
 #
-
 --source include/have_ps_protocol.inc
-# Test is skipped with log-bin enabled as the count of commit and prepare handlers
-# increase when binary logging is enabled.
---source include/not_log_bin.inc
+
+# Test have expected differences in count of commit and prepare handlers
+# when run with and without binlog and/or with different binlog formats.
+# Test skips when log_bin is disabled OR binlog_format != ROW.
+--source include/have_binlog_format_row.inc
 
 --echo #
 --echo # Test CREATE SELECT

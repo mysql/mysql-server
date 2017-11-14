@@ -1,8 +1,5 @@
 # Test the detection of innodb_data_file_path mismatch.
 
-# Temporarily skipping the test when log-bin is enabled due to Bug#22269500
---source include/not_log_bin.inc
-
 --source include/not_valgrind.inc
 
 # Can be 0, depends on where the mysqld process was killed
