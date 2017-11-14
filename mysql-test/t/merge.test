@@ -5,13 +5,9 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_myisam.inc 
 
-# Skip the test when log-bin is enabled due to presence of many unsafe statements
---source include/not_log_bin.inc
-
-# Set session binlog_format to STATEMENT to avoid BUG#20574550
---disable_query_log
-SET binlog_format=STATEMENT;
---enable_query_log
+# Skip the test when log-bin is enabled and binlog_format=STATEMENT due to
+# presence of many unsafe statements.
+--source include/not_binlog_format_statement.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc

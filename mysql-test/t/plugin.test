@@ -1,7 +1,13 @@
-# The test contains queries which are impossible to write to binary log if binlog-format is row (which
-# is the default) and has tables which use a storage engine limited to statement-based logging. Hence,
-# it is skipped when log-bin is enabled.
---source include/not_log_bin.inc
+# The test contains a storage engine limited to statement-based logging, since,
+# 'example' plugin doesn't support binlog_format=ROW. Thus, test now sets
+# binlog_format=STATEMENT when log-bin is enabled and binlog_format=ROW.
+if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
+{
+  --disable_query_log
+  SET @saved_binlog_format= @@SESSION.binlog_format;
+  SET SESSION binlog_format= STATEMENT;
+  --enable_query_log
+}
 
 --source include/have_example_plugin.inc
 --source include/have_debug.inc
@@ -397,3 +403,9 @@ let $path = `select CONCAT_WS('/', '..', '$EXAMPLE_PLUGIN')`;
 --error ER_UDF_NO_PATHS
 eval INSTALL PLUGIN example SONAME '$path';
 
+if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
+{
+  --disable_query_log
+  SET SESSION binlog_format= @saved_binlog_format;
+  --enable_query_log
+}

@@ -15,8 +15,9 @@ SHOW CREATE TABLE performance_schema.session_status;
 FLUSH STATUS;
 CREATE TABLE t2 SELECT a, b FROM t1 WHERE a in (0, 1, 13, 113);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	12
+Handler_commit	14
 Handler_external_lock	183
+Handler_prepare	4
 Handler_read_first	3
 Handler_read_key	26
 Handler_read_next	6
@@ -31,8 +32,9 @@ DROP TABLE t2;
 FLUSH STATUS;
 CREATE TABLE t2 SELECT a, b FROM t1 WHERE b LIKE 'First%';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	12
+Handler_commit	14
 Handler_external_lock	183
+Handler_prepare	4
 Handler_read_key	36
 Handler_read_next	5
 Handler_update	12
@@ -51,8 +53,9 @@ INSERT INTO t1 VALUES (1), (3), (9), (2), (8), (7);
 FLUSH STATUS;
 CREATE TABLE t2 SELECT * FROM t1 PARTITION (p1, p2);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	11
+Handler_commit	13
 Handler_external_lock	181
+Handler_prepare	4
 Handler_read_first	2
 Handler_read_key	22
 Handler_read_rnd_next	4
@@ -68,8 +71,9 @@ DROP TABLE t2;
 FLUSH STATUS;
 CREATE TABLE t2 SELECT * FROM t1 WHERE a IN (1, 3, 9);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	11
+Handler_commit	13
 Handler_external_lock	181
+Handler_prepare	4
 Handler_read_first	2
 Handler_read_key	22
 Handler_read_rnd_next	4

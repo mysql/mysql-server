@@ -4771,7 +4771,6 @@ Handler_read_first	1
 Handler_read_key	6
 Handler_read_rnd	1
 Handler_read_rnd_next	27
-Handler_update	1
 Sort_rows	1
 Sort_scan	1
 
@@ -5164,7 +5163,7 @@ Handler_read_first	1
 Handler_read_key	9
 Handler_read_rnd	5
 Handler_read_rnd_next	27
-Handler_update	5
+Handler_update	4
 Sort_rows	5
 Sort_scan	1
 
@@ -6501,7 +6500,8 @@ EXPLAIN
             "data_read_per_join": "64"
           } /* cost_info */,
           "used_columns": [
-            "a"
+            "a",
+            "b"
           ] /* used_columns */
         } /* table */
       }
@@ -6660,7 +6660,8 @@ EXPLAIN
             "data_read_per_join": "64"
           } /* cost_info */,
           "used_columns": [
-            "a"
+            "a",
+            "b"
           ] /* used_columns */
         } /* table */
       }

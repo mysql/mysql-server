@@ -4,8 +4,10 @@
 # Created by Mattias Jonsson
 #
 
-# Skipping the test when log-bin is enabled due to Bug#22689960
---source include/not_log_bin.inc
+# Skipping the test when log-bin is enabled and binlog_format != ROW, due to
+# Bug#22689960.
+--source include/not_binlog_format_statement.inc
+--source include/not_binlog_format_mixed.inc
 
 --source include/have_debug_sync.inc
 --source include/have_debug.inc

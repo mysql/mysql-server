@@ -1,6 +1,6 @@
-# Test is skipped with log-bin enabled as the count of commit and prepare handlers
-# increase when binary logging is enabled.
---source include/not_log_bin.inc
+# Skipping it for binlog_format=STATEMENT due to Unsafe statements:
+# unsafe auto-increment column, LIMIT clause.
+--source include/not_binlog_format_statement.inc
 
 #
 # test of updating of keys
@@ -523,12 +523,15 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 FLUSH STATUS; # FLUSH is autocommit, so we put it outside of transaction
 START TRANSACTION;
 UPDATE t2 SET d = 10 WHERE b = 10 LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
+# There is one handler_update less when the binary log is enabled.
+SET @binlog_handler_update= IF(@@global.log_bin AND @@global.binlog_format != 'STATEMENT', 1, 0);
+--let $handler_update_statement= SELECT VARIABLE_VALUE + @binlog_handler_update FROM performance_schema.session_status WHERE VARIABLE_NAME = 'HANDLER_UPDATE'
+--eval $handler_update_statement
 ROLLBACK;
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
+--eval $handler_update_statement
 ROLLBACK;
 
 --echo Same test with a different UPDATE.
@@ -537,12 +540,12 @@ ALTER TABLE t2 DROP INDEX idx, ADD INDEX idx2 (a, b);
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET c = 10 LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
+--eval $handler_update_statement
 ROLLBACK;
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
+--eval $handler_update_statement
 ROLLBACK;
 DROP TABLE t1, t2;
 

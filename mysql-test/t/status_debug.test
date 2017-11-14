@@ -1,12 +1,12 @@
 #
 --source include/have_debug_sync.inc
 
+# Skipping the test when binlog_format=STATEMENT due to unsafe statements:
+# unsafe operation on auto-increment column, and performance_schema table.
+--source include/not_binlog_format_statement.inc
+
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
-
-# Test is skipped with log-bin enabled as the count of commit and prepare handlers
-# increase when binary logging is enabled.
---source include/not_log_bin.inc
 
 --echo #
 --echo # Bug#18591145 - SOME MONOTONICALLY INCREASING STATUS VARIABLES DECREASES UNEXPECTEDLY
@@ -38,7 +38,9 @@ CONNECTION default;
 INSERT INTO t1(name, val) SELECT * FROM performance_schema.global_status WHERE variable_name='Handler_commit';
 
 --echo # With fix, Handler_commit status should be 2 (select insert during switch user + dictionary).
-SELECT (SELECT val FROM t1 WHERE id = 3) - (SELECT val FROM t1 WHERE id = 2);
+--echo # With binlog enabled, there is one more Handler_commit call.
+SET @binlog_handler_commit= IF(@@global.log_bin, 1, 0);
+SELECT (SELECT val FROM t1 WHERE id = 3) - (SELECT val FROM t1 WHERE id = 2) = 1 + @binlog_handler_commit;
 
 # Cleanup
 DISCONNECT con1;

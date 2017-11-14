@@ -1,8 +1,19 @@
 
 --source include/no_valgrind_without_big.inc
 
-# Skipping the test when log-bin is enabled due to Bug#22164698
---source include/not_log_bin.inc
+# Skipping the test when binlog_format=STATEMENT due to unsafe statements:
+# UPDATE IGNORE, INSERT... SELECT... ON DUPLICATE KEY UPDATE, REPLACE... SELECT.
+--source include/not_binlog_format_statement.inc
+
+# The test fails with log_bin ON and binlog_format=ROW due to Bug#22164698.
+# Temporarily, overriding binlog_format to MIXED when log_bin is ON.
+if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
+{
+  --disable_query_log
+  SET @saved_binlog_format= @@SESSION.binlog_format;
+  SET SESSION binlog_format= MIXED;
+  --enable_query_log
+}
 
 #
 # Test of refering to old values
@@ -904,3 +915,10 @@ disconnect root;
 connection default;
 
 DROP DATABASE meow;
+
+if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
+{
+  --disable_query_log
+  SET SESSION binlog_format= @saved_binlog_format;
+  --enable_query_log
+}
