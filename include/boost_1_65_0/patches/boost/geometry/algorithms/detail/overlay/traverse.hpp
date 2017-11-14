@@ -62,7 +62,7 @@ public :
         typename RobustPolicy,
         typename Turns,
         typename Rings,
-       typename TurnInfoMap,
+        typename TurnInfoMap,
         typename Clusters,
         typename Visitor
     >

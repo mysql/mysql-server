@@ -182,6 +182,7 @@ inline signed_size_type add_turn_to_cluster(Turn const& turn,
 
     if (cid0 == -1 && cid1 == -1)
     {
+        // Because of this, first cluster ID will be 1
         ++cluster_id;
         add_cluster_id(turn.operations[0], cluster_per_segment, cluster_id);
         add_cluster_id(turn.operations[1], cluster_per_segment, cluster_id);
@@ -315,7 +316,7 @@ inline void assign_cluster_to_turns(Turns& turns,
             if (it != cluster_per_segment.end())
             {
 #if defined(BOOST_GEOMETRY_DEBUG_HANDLE_COLOCATIONS)
-                if (turn.cluster_id != -1
+                if (turn.is_clustered()
                         && turn.cluster_id != it->second)
                 {
                     std::cout << " CONFLICT " << std::endl;
@@ -656,6 +657,10 @@ inline bool handle_colocations(Turns& turns, Clusters& clusters,
         > cluster_per_segment_type;
 
     cluster_per_segment_type cluster_per_segment;
+
+    // Assign to zero, because of pre-increment later the cluster_id
+    // effectively starts with 1
+    // (and can later be negated to use uniquely with turn_index)
     signed_size_type cluster_id = 0;
 
     for (typename map_type::const_iterator it = map.begin();
