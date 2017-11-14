@@ -29,8 +29,8 @@ CREATE TABLE t1 (
 --echo
 --echo ######################################################################
 --echo # Execute in concurrency transaction with equivalent keys under latin1
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction= INSERT INTO t1 (u_str, value)  VALUES ('Ã',  "A value");
 --let $remote_transaction=INSERT INTO t1 (u_str, value)  VALUES ('á',  "Another value");
