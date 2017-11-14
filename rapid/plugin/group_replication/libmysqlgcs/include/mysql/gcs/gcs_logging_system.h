@@ -241,13 +241,6 @@ class Gcs_async_buffer
     My_xp_cond *m_wait_for_events_cond;
 
     /**
-      Mutex variable that is used by the producer to notify the consumer that
-      it should wake up.
-    */
-    My_xp_mutex *m_wait_for_events_mutex;
-
-
-    /**
       Conditional variable that is used by the consumer to notify the producer
       that there are free slots.
     */
@@ -364,13 +357,7 @@ class Gcs_async_buffer
 
     void sleep_consumer() const
     {
-      struct timespec ts;
-      unsigned long wait_ms= 500;
-
-      m_wait_for_events_mutex->lock();
-      My_xp_util::set_timespec_nsec(&ts, wait_ms * 1000000);
-      m_wait_for_events_cond->timed_wait(m_wait_for_events_mutex->get_native_mutex(), &ts);
-      m_wait_for_events_mutex->unlock();
+      m_wait_for_events_cond->wait(m_free_buffer_mutex->get_native_mutex());
     }
 
 
