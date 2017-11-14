@@ -34,12 +34,6 @@
 #include "my_macros.h"
 #include "mysql_com.h"
 
-#define bfill please_use_memset_rather_than_bfill
-#define bzero please_use_memset_rather_than_bzero
-#define bmove please_use_memmove_rather_than_bmove
-#define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov
-#define strnmov please_use_my_stpncpy_or_my_stpnmov_rather_than_strnmov
-
 /**
   Definition of the null string (a null pointer of type char *),
   used in some of our string handling code. New code should use
