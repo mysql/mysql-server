@@ -381,6 +381,68 @@ inline bool intersection_pattern_common_interior5(std::size_t& selected_rank,
     return true;
 }
 
+inline bool intersection_pattern_common_interior6(std::size_t& selected_rank,
+           std::vector<sort_by_side::rank_with_rings> const& aggregation)
+{
+    // Pattern: isolated regions in between
+
+    // See #case_recursive_boxes_75
+
+    // Incoming: one region
+    // In between: several rings having isolated region, all the same
+    // Outging == incoming
+
+    std::size_t const n = aggregation.size();
+    if (n < 3)
+    {
+        return false;
+    }
+
+    sort_by_side::rank_with_rings const& incoming = aggregation.front();
+    sort_by_side::rank_with_rings const& outgoing = aggregation.back();
+    sort_by_side::rank_with_rings const& first_isolated = aggregation[2];
+
+    bool const incoming_ok =
+        incoming.all_from()
+        && incoming.has_unique_region_id()
+        && ! incoming.is_isolated();
+
+    if (! incoming_ok)
+    {
+        return false;
+    }
+
+    signed_size_type const incoming_region_id = incoming.region_id();
+
+    bool const outgoing_ok =
+        outgoing.all_to()
+        && outgoing.has_unique_region_id()
+        && ! outgoing.is_isolated()
+        && outgoing.region_id() == incoming_region_id;
+
+    if (! outgoing_ok)
+    {
+        return false;
+    }
+
+    const signed_size_type isolated_region_id = first_isolated.region_id();
+
+    for (std::size_t i = 1; i < n - 1; i++)
+    {
+        sort_by_side::rank_with_rings const& rwr = aggregation[i];
+        if (! rwr.has_unique_region_id()
+                || ! rwr.is_isolated()
+                || rwr.region_id() != isolated_region_id)
+        {
+            return false;
+        }
+    }
+
+    selected_rank = n - 1;
+
+    return true;
+}
+
 }} // namespace detail::overlay
 #endif // DOXYGEN_NO_DETAIL
 

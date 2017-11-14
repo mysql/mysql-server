@@ -206,7 +206,7 @@ struct traversal_ring_creator
             return traverse_error_none;
         }
 
-        if (start_turn.cluster_id >= 0)
+        if (start_turn.is_clustered())
         {
             turn_type const& turn = m_turns[current_turn_index];
             if (turn.cluster_id == start_turn.cluster_id)
