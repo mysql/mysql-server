@@ -422,6 +422,7 @@ void handle_print_restored_rows(const char *file_input)
     BackupFormat::LCPCtlFile lcpCtlFilePtr;
     char extra_space[4 * BackupFormat::NDB_MAX_LCP_PARTS];
   };
+  (void)extra_space;
   if (!readLCPCtlFile(f, &lcpCtlFilePtr))
   {
     ndbout << "Invalid LCP Control file!" << endl;
@@ -933,6 +934,7 @@ main(int argc, const char * argv[])
       BackupFormat::LCPCtlFile lcpCtlFilePtr;
       char extra_space[4 * BackupFormat::NDB_MAX_LCP_PARTS];
     };
+    (void)extra_space;
     if (!readLCPCtlFile(f, &lcpCtlFilePtr))
     {
       ndbout << "Invalid LCP Control file!" << endl;
