@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -524,9 +524,6 @@ my_long_options[] =
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 
-const char*
-load_default_groups[]= { "mysql_cluster", 0 };
-
 static void
 short_usage_sub()
 {
@@ -540,7 +537,6 @@ static void
 usage()
 {
   printf("%s: check and repair blobs\n", my_progname);
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 static int
@@ -598,10 +594,9 @@ freeall()
 int
 main(int argc, char** argv)
 {
-  NDB_INIT("ndb_blob_tool");
-  int ret;
+  Ndb_opts opts(argc, argv, my_long_options);
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  ret = handle_options(&argc, &argv, my_long_options, ndb_std_get_one_option);
+  int ret = opts.handle_options();
   if (ret != 0 || checkopts(argc, argv) != 0)
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 

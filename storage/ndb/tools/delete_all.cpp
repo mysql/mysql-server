@@ -26,8 +26,6 @@
 static int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
                        bool fetch_across_commit, int parallelism=240);
 
-const char *load_default_groups[]= { "mysql_cluster",0 };
-
 static const char* _dbname = "TEST_DB";
 static bool _transactional = false;
 static bool _tupscan = 0;
@@ -51,27 +49,12 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-static void short_usage_sub(void)
-{
-  ndb_short_usage_sub(NULL);
-}
-
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
-
 int main(int argc, char** argv){
-  NDB_INIT(argv[0]);
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  MEM_ROOT alloc;
-  ndb_load_defaults(NULL,load_default_groups,&argc,&argv, &alloc);
-  int ho_error;
+  Ndb_opts opts(argc, argv, my_long_options);
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_delete_all.trace";
 #endif
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-			       ndb_std_get_one_option)))
+  if (opts.handle_options())
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);

@@ -440,10 +440,6 @@ static void short_usage_sub(void)
 {
   ndb_short_usage_sub("[<path to backup files>]");
 }
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
 
 static bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
@@ -581,21 +577,18 @@ exclude_privilege_tables()
 
 
 bool
-readArguments(int *pargc, char*** pargv) 
+readArguments(Ndb_opts & opts, char*** pargv)
 {
   Uint32 i;
   BaseString tmp;
   debug << "Load defaults" << endl;
-  const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
 
   init_nodegroup_map();
-  MEM_ROOT alloc;
-  ndb_load_defaults(NULL,load_default_groups,pargc,pargv,&alloc);
   debug << "handle_options" << endl;
 
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
+  opts.set_usage_funcs(short_usage_sub);
 
-  if (handle_options(pargc, pargv, my_long_options, get_one_option))
+  if (opts.handle_options(get_one_option))
   {
     exit(NDBT_ProgramExit(NDBT_WRONGARGS));
   }
@@ -1262,10 +1255,11 @@ check_data_truncations(const TableS * table)
 int
 main(int argc, char** argv)
 {
-  NDB_INIT(argv[0]);
+  const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
+  Ndb_opts opts(argc, argv, my_long_options, load_default_groups);
 
   debug << "Start readArguments" << endl;
-  if (!readArguments(&argc, &argv))
+  if (!readArguments(opts, &argv))
   {
     exitHandler(NDBT_FAILED);
   }

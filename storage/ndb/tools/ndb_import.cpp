@@ -302,9 +302,6 @@ my_long_options[] =
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 
-const char*
-load_default_groups[]= { "mysql_cluster", 0 };
-
 static void
 short_usage_sub(void)
 {
@@ -332,7 +329,6 @@ static void
 usage()
 {
   printf("%s: load data from files to tables\n", my_progname);
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 // check opts and args
@@ -916,13 +912,9 @@ int
 main(int argc, char** argv)
 {
   my_progname = "ndb_import";
-  ndb_init();
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  MEM_ROOT alloc;
-  ndb_load_defaults(NULL, load_default_groups, &argc, &argv,&alloc);
-  if (handle_options(&argc, &argv,
-                     my_long_options,
-                     ndb_std_get_one_option) != 0)
+  Ndb_opts opts(argc, argv, my_long_options);
+  opts.set_usage_funcs(short_usage_sub, usage);
+  if (opts.handle_options() != 0)
     return 1;
   if (listerrins())
     return 0;

@@ -62,12 +62,6 @@ static const NdbDictionary::Table* g_targettab = 0;
     break; \
   }
 
-inline void ndb_end_and_exit(int exitcode)
-{
-  ndb_end(0);
-  exit(exitcode);
-}
-
 static NdbError
 getNdbError(Ndb_cluster_connection* ncc)
 {
@@ -285,10 +279,9 @@ short_usage_sub(void)
 }
 
 static void
-usage()
+usage_extra()
 {
   printf("%s: move rows from source table to target table\n", my_progname);
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 static void
@@ -352,23 +345,22 @@ checkopts(int argc, char** argv)
 int
 main(int argc, char** argv)
 {
-  my_progname = "ndb_move_data";
-  set_staging_tries_default();
   int ret;
 
-  ndb_init();
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  ret = handle_options(&argc, &argv, my_long_options, ndb_std_get_one_option);
+  set_staging_tries_default();
+  Ndb_opts opts(argc, argv, my_long_options);
+  opts.set_usage_funcs(short_usage_sub, usage_extra);
+  ret = opts.handle_options();
   if (ret != 0 || checkopts(argc, argv) != 0)
   {
-    ndb_end_and_exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+    exit(NDBT_ProgramExit(NDBT_WRONGARGS));
   }
   setOutputLevel(opt_verbose ? 2 : 0);
 
   ret = doall();
   if (ret == -1)
   {
-    ndb_end_and_exit(NDBT_ProgramExit(NDBT_FAILED));
+    exit(NDBT_ProgramExit(NDBT_FAILED));
   }
-  ndb_end_and_exit(NDBT_ProgramExit(NDBT_OK));
+  exit(NDBT_ProgramExit(NDBT_OK));
 }

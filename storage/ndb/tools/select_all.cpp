@@ -41,8 +41,6 @@ static const char* _delimiter = "\t";
 static int _header, _parallelism, _useHexFormat, _lock,
   _order, _descending;
 
-const char *load_default_groups[]= { "mysql_cluster",0 };
-
 static int _tup = 0;
 static int _dumpDisk = 0;
 static int use_rowid = 0;
@@ -110,34 +108,25 @@ static void short_usage_sub(void)
   printf("index : order rows by given index, requires --order option\n");
 }
 
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
-
 int main(int argc, char** argv){
-  NDB_INIT(argv[0]);
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  MEM_ROOT alloc;
-  ndb_load_defaults(NULL, load_default_groups,&argc,&argv,&alloc);
+  Ndb_opts opts(argc, argv, my_long_options);
+  opts.set_usage_funcs(short_usage_sub);
   const char* _tabname;
-  int ho_error;
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_select_all.trace";
 #endif
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-			       ndb_std_get_one_option)))
+  if (opts.handle_options())
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   if (argc == 0) {
     ndbout << "Missing table name. Please see the below usage for correct command." << endl;
-    usage();
+    opts.usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
   if (argc > (!_order? 1 : 2))
   {
     ndbout << "Error. TOO MANY ARGUMENTS GIVEN." << endl;
     ndbout << "Please see the below usage for correct command." << endl;
-    usage();
+    opts.usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 

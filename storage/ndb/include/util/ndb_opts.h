@@ -140,23 +140,41 @@ ndb_std_get_one_option(int optid,
 		       const struct my_option *opt MY_ATTRIBUTE((unused)),
                        char *argument);
 
-void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
-               struct my_option *my_long_options);
 void ndb_short_usage_sub(const char* extra);
 
 bool ndb_is_load_default_arg_separator(const char* arg);
 
-/* Read the given [groups] from <conf_file> and return in argc/argv */
-struct MEM_ROOT;
-int ndb_load_defaults(const char* conf_file,
-                      const char** groups,
-                      int *argc, char*** argv,
-                      MEM_ROOT *mem_root);
-/* Free memory returned from ndb_load_defaults() */
-void ndb_free_defaults(MEM_ROOT *mem_root);
-
 #ifdef __cplusplus
 }
+
+class Ndb_opts {
+public:
+  Ndb_opts(int & argc_ref, char** & argv_ref,
+           struct my_option * long_options,
+           const char * default_groups[] = 0);
+
+  ~Ndb_opts();
+
+  void set_usage_funcs(void(*short_usage_fn)(void),
+                       void(* long_usage_fn)(void) = 0);
+
+  int handle_options(bool (*get_opt_fn)(int, const struct my_option *,
+                                        char *) = ndb_std_get_one_option) const;
+  void usage() const;
+
+  static void registerUsage(Ndb_opts *);
+  static void release();
+
+private:
+  struct MEM_ROOT opts_mem_root;
+  int * main_argc_ptr;
+  char *** main_argv_ptr;
+  const char ** mycnf_default_groups;
+  struct my_option * options;
+  void (*short_usage_fn)(void), (*long_usage_extra_fn)(void);
+};
+
+
 #endif
 
 #endif /*_NDB_OPTS_H */
