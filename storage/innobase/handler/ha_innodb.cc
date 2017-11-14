@@ -2340,7 +2340,7 @@ innobase_check_identifier_length(
 		cs, id, id + strlen(id),
 		NAME_CHAR_LEN, &well_formed_error);
 
-	if (well_formed_error || len == NAME_CHAR_LEN) {
+	if (well_formed_error || len != strlen(id)) {
 		my_error(ER_TOO_LONG_IDENT, MYF(0), id);
 		DBUG_RETURN(true);
 	}
