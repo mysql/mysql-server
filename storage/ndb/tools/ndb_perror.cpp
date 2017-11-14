@@ -52,6 +52,7 @@ static void short_usage_sub(void)
   ndb_short_usage_sub("[ERRORCODE [ERRORCODE...]]");
 }
 
+
 static
 int mgmapi_error_string(int err_no, char *str, int size)
 {

@@ -911,7 +911,6 @@ doall()
 int
 main(int argc, char** argv)
 {
-  my_progname = "ndb_import";
   Ndb_opts opts(argc, argv, my_long_options);
   opts.set_usage_funcs(short_usage_sub, usage);
   if (opts.handle_options() != 0)

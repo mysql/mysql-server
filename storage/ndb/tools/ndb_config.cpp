@@ -220,7 +220,6 @@ main(int argc, char** argv){
   Ndb_opts opts(argc, argv, my_long_options);
   opts.set_usage_funcs(short_usage_sub, usage_extra);
   bool print_headers = false;
-
   if (opts.handle_options())
     exit(255);
 
