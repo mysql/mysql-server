@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -846,15 +846,17 @@ TransporterRegistry::removeTransporter(NodeId nodeId) {
   theTransporters[nodeId] = NULL;        
 }
 
+
+template <typename AnySectionArg>
 SendStatus
-TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
-                                 const SignalHeader * const signalHeader,
-				 Uint8 prio,
-				 const Uint32 * const signalData,
-				 NodeId nodeId, 
-				 const LinearSectionPtr ptr[3]){
-
-
+TransporterRegistry::prepareSendTemplate(
+                                 TransporterSendBufferHandle *sendHandle,
+                                 const SignalHeader * signalHeader,
+                                 Uint8 prio,
+                                 const Uint32 * signalData,
+                                 NodeId nodeId,
+                                 AnySectionArg section)
+{
   Transporter *t = theTransporters[nodeId];
   if(t != NULL && 
      (((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
@@ -862,11 +864,11 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
        (signalHeader->theReceiversBlockNumber == 4002)))) {
 	 
     if(t->isConnected()){
-      Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
+      Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, section.m_ptr);
       if(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE){
 	Uint32 * insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
 	if(insertPtr != 0){
-	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
+	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, section);
 	  updateWritePtr(sendHandle, nodeId, lenBytes, prio);
 	  return SEND_OK;
 	}
@@ -884,7 +886,7 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
           /* FC : Consider counting sleeps here */
 	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
 	  if(insertPtr != 0){
-	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
+	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, section);
 	    updateWritePtr(sendHandle, nodeId, lenBytes, prio);
 	    break;
 	  }
@@ -932,158 +934,41 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 
 SendStatus
 TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
-                                 const SignalHeader * const signalHeader,
-				 Uint8 prio,
-				 const Uint32 * const signalData,
-				 NodeId nodeId, 
-				 class SectionSegmentPool & thePool,
-				 const SegmentedSectionPtr ptr[3]){
-  
-
-  Transporter *t = theTransporters[nodeId];
-  if(t != NULL && 
-     (((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
-      ((signalHeader->theReceiversBlockNumber == 252)|| 
-       (signalHeader->theReceiversBlockNumber == 4002)))) {
-    
-    if(t->isConnected()){
-      Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
-      if(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE){
-	Uint32 * insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-	if(insertPtr != 0){
-	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, thePool, ptr);
-	  updateWritePtr(sendHandle, nodeId, lenBytes, prio);
-	  return SEND_OK;
-	}
-	
-	/**
-	 * @note: on linux/i386 the granularity is 10ms
-	 *        so sleepTime = 2 generates a 10 ms sleep.
-	 */
-        set_status_overloaded(nodeId, true);
-        int sleepTime = 2;
-	for(int i = 0; i<50; i++){
-	  if((nSHMTransporters+nSCITransporters) == 0)
-	    NdbSleep_MilliSleep(sleepTime); 
-	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-	  if(insertPtr != 0){
-	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, thePool, ptr);
-	    updateWritePtr(sendHandle, nodeId, lenBytes, prio);
-	    break;
-	  }
-	}
-	
-	if(insertPtr != 0){
-	  /**
-	   * Send buffer full, but resend works
-	   */
-	  report_error(nodeId, TE_SEND_BUFFER_FULL);
-	  return SEND_OK;
-	}
-	
-	WARNING("Signal to " << nodeId << " lost(buffer)");
-	report_error(nodeId, TE_SIGNAL_LOST_SEND_BUFFER_FULL);
-	return SEND_BUFFER_FULL;
-      } else {
-	return SEND_MESSAGE_TOO_BIG;
-      }
-    } else {
-#ifdef ERROR_INSERT
-      if (m_blocked.get(nodeId))
-      {
-        /* Looks like it disconnected while blocked.  We'll pretend
-         * not to notice for now
-         */
-        WARNING("Signal to " << nodeId << " discarded as node blocked + disconnected");
-        return SEND_OK;
-      }
-#endif
-      DEBUG("Signal to " << nodeId << " lost(disconnect) ");
-      return SEND_DISCONNECTED;
-    }
-  } else {
-    DEBUG("Discarding message to block: " 
-	  << signalHeader->theReceiversBlockNumber 
-	  << " node: " << nodeId);
-    
-    if(t == NULL)
-      return SEND_UNKNOWN_NODE;
-    
-    return SEND_BLOCKED;
-  }
+                                 const SignalHeader *signalHeader,
+                                 Uint8 prio,
+                                 const Uint32 *signalData,
+                                 NodeId nodeId,
+                                 const LinearSectionPtr ptr[3])
+{
+  const Packer::LinearSectionArg section(ptr);
+  return prepareSendTemplate(sendHandle, signalHeader, prio, signalData, nodeId, section);
 }
 
 
 SendStatus
 TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
-                                 const SignalHeader * const signalHeader,
-				 Uint8 prio,
-				 const Uint32 * const signalData,
-				 NodeId nodeId, 
-				 const GenericSectionPtr ptr[3]){
+                                 const SignalHeader *signalHeader,
+                                 Uint8 prio,
+                                 const Uint32 *signalData,
+                                 NodeId nodeId,
+                                 class SectionSegmentPool &thePool,
+                                 const SegmentedSectionPtr ptr[3])
+{
+  const Packer::SegmentedSectionArg section(thePool,ptr);
+  return prepareSendTemplate(sendHandle, signalHeader, prio, signalData, nodeId, section);
+}
 
 
-  Transporter *t = theTransporters[nodeId];
-  if(t != NULL && 
-     (((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
-      ((signalHeader->theReceiversBlockNumber == 252) ||
-       (signalHeader->theReceiversBlockNumber == 4002)))) {
-	 
-    if(t->isConnected()){
-      Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
-      if(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE){
-        Uint32 * insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-        if(insertPtr != 0){
-          t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
-          updateWritePtr(sendHandle, nodeId, lenBytes, prio);
-          return SEND_OK;
-	}
-
-	/**
-	 * @note: on linux/i386 the granularity is 10ms
-	 *        so sleepTime = 2 generates a 10 ms sleep.
-	 */
-        set_status_overloaded(nodeId, true);
-        int sleepTime = 2;
-	for(int i = 0; i<50; i++){
-	  if((nSHMTransporters+nSCITransporters) == 0)
-	    NdbSleep_MilliSleep(sleepTime); 
-	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-	  if(insertPtr != 0){
-	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
-	    updateWritePtr(sendHandle, nodeId, lenBytes, prio);
-	    break;
-	  }
-	}
-	
-	if(insertPtr != 0){
-	  /**
-	   * Send buffer full, but resend works
-	   */
-	  report_error(nodeId, TE_SEND_BUFFER_FULL);
-	  return SEND_OK;
-	}
-	
-	WARNING("Signal to " << nodeId << " lost(buffer)");
-	report_error(nodeId, TE_SIGNAL_LOST_SEND_BUFFER_FULL);
-	return SEND_BUFFER_FULL;
-      } else {
-	return SEND_MESSAGE_TOO_BIG;
-      }
-    } else {
-      DEBUG("Signal to " << nodeId << " lost(disconnect) ");
-      return SEND_DISCONNECTED;
-    }
-  } else {
-    DEBUG("Discarding message to block: " 
-	  << signalHeader->theReceiversBlockNumber 
-	  << " node: " << nodeId);
-    
-    if(t == NULL)
-      return SEND_UNKNOWN_NODE;
-    
-    return SEND_BLOCKED;
-  }
+SendStatus
+TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
+                                 const SignalHeader *signalHeader,
+                                 Uint8 prio,
+                                 const Uint32 *signalData,
+                                 NodeId nodeId,
+                                 const GenericSectionPtr ptr[3])
+{
+  const Packer::GenericSectionArg section(ptr);
+  return prepareSendTemplate(sendHandle, signalHeader, prio, signalData, nodeId, section);
 }
 
 void
