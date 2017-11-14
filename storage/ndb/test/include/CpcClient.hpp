@@ -86,6 +86,10 @@ class SimpleCpcClient {
   int select_protocol(Properties &reply);
 
  private:
+  int open_connection();
+  int negotiate_client_protocol();
+  void close_connection();
+
   int cpc_send(const char *cmd, const Properties &args);
 
   Parser_t::ParserStatus cpc_recv(const ParserRow_t *syntax,
