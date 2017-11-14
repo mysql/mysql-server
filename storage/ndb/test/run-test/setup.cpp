@@ -245,7 +245,8 @@ bool load_deployment_options_for_process(atrt_process& proc,
   const char* argv[] = {"cluster_deployment", suffix.c_str(), 0};
   char** tmp = (char**)argv;
 
-  int ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
+  MEM_ROOT* alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512, 0}; // LEAK
+  int ret = load_defaults(g_my_cnf, groups, &argc, &tmp, alloc);
   if (ret != 0) {
     g_logger.error("Failed to load defaults for cluster %s's process %d",
                    cluster_name.c_str(), proc.m_type);
