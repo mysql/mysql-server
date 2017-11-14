@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,8 +19,7 @@
 #define NDB_WAITER_HPP
 
 #include <ndb_global.h>
-#include <NdbTick.h>
-#include <NdbOut.hpp>
+#include "trp_client.hpp"
 
 enum WaitSignalType { 
   NO_WAIT           = 0,
@@ -47,28 +46,24 @@ enum WaitSignalType {
 
 class NdbWaiter {
 public:
-  NdbWaiter(class trp_client*);
-  ~NdbWaiter();
+  explicit NdbWaiter(trp_client* clnt)
+    : m_clnt(clnt), m_node(0), m_state(NO_WAIT)
+  {}
 
   void signal(Uint32 state);
   void nodeFail(Uint32 node);
 
-  void clear_wait_state() { m_state = NO_WAIT; }
-  Uint32 get_wait_state() { return m_state; }
-  void set_wait_state(Uint32 s) { m_state = s;}
-
   void set_state(Uint32 state) { m_state= state; }
-  void set_node(Uint32 node) { m_node= node; }
-  Uint32 get_state() { return m_state; }
-private:
+  Uint32 get_state() const { return m_state; }
 
+  void set_node(Uint32 node) { m_node= node; }
+
+private:
+  trp_client* const m_clnt;
   Uint32 m_node;
   Uint32 m_state;
-  class trp_client* m_clnt;
 };
 
-
-#include "trp_client.hpp"
 
 inline
 void
