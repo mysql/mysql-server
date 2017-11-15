@@ -1361,9 +1361,8 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
               << " records ..." << endl;
       }
       int start = (row_step == 1) ? (remaining_records - remove_records) : part;
-      int num_records = (row_step == 1) ? remaining_records : records;
       CHECK(hugoTrans.pkDelRecords(pNdb,
-                                   num_records,
+                                   remove_records,
                                    batch,
                                    true,
                                    0,
