@@ -208,3 +208,47 @@ CONSTRAINT fk6 FOREIGN KEY (sixty) REFERENCES t1(sixty)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ERROR HY000: Cannot add foreign key constraint
 DROP TABLE t1;
+#
+# Bug#27014308 - UPGRADING TO 8.0.3 FAILS IF FOREIGN KEYS OF EXACTLY 64 CHARACTERS ARE PRESENT
+#
+# test with FK identifier of length exactly 64 characters;
+CREATE TABLE parent (
+id INT NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=INNODB;
+CREATE TABLE child (
+id INT,
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+INT,
+INDEX par_ind
+(xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx),
+CONSTRAINT
+`xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+FOREIGN
+KEY (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+REFERENCES parent(id)
+ON DELETE CASCADE
+) ENGINE=INNODB;
+DROP TABLE child;
+DROP TABLE parent;
+# test with FK identifier of length exactly 65 characters,
+# child table creation should fail
+CREATE TABLE parent (
+id INT NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=INNODB;
+CREATE TABLE child (
+id INT,
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+INT,
+INDEX par_ind
+(xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx),
+CONSTRAINT
+`xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+FOREIGN
+KEY (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+REFERENCES parent(id)
+ON DELETE CASCADE
+) ENGINE=INNODB;
+ERROR 42000: Identifier name 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' is too long
+DROP TABLE parent;
