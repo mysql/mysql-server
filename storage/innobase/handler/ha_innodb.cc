@@ -4549,6 +4549,7 @@ innodb_init(
 		innobase_is_valid_tablespace_name;
 	innobase_hton->alter_tablespace = innobase_alter_tablespace;
 	innobase_hton->upgrade_tablespace = dd_upgrade_tablespace;
+	innobase_hton->upgrade_space_version = upgrade_space_version;
 	innobase_hton->upgrade_logs = dd_upgrade_logs;
 	innobase_hton->finish_upgrade = dd_upgrade_finish;
 	innobase_hton->pre_dd_shutdown = innodb_pre_dd_shutdown;

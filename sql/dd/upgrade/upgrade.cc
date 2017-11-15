@@ -562,6 +562,11 @@ bool add_sdi_info(THD *thd)
                       "with engine %s", ts->name().c_str(),
                       ts->engine().c_str());
 
+    // In case of error, we will continue with upgrade.
+    if (hton && hton->upgrade_space_version(ts))
+      sql_print_error("Error in updating version number in %s tablespace",
+                      ts->name().c_str());
+
     if (hton && hton->sdi_create)
     {
       // Error handling not possible at this stage, upgrade should complete.
@@ -579,6 +584,7 @@ bool add_sdi_info(THD *thd)
       trans_commit_stmt(thd);
       trans_commit(thd);
     }
+
   }
   thd->pop_internal_handler();
 
