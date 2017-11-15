@@ -483,7 +483,7 @@ SHOW CREATE TABLE t77_restart;
 --mkdir $ALT_DIR_MOVED
 --mkdir $ALT_DIR_MOVED/$SCHEMA_NAME
 --copy_files_wildcard $ALT_DIR/$SCHEMA_NAME $ALT_DIR_MOVED/$SCHEMA_NAME *
---remove_files_wildcard $ALT_DIR/$SCHEMA_NAME
+--remove_files_wildcard $ALT_DIR/$SCHEMA_NAME *
 --rmdir $ALT_DIR/$SCHEMA_NAME
 --replace_result #P# #p#  #SP# #sp#
 --list_files $ALT_DIR_MOVED/$SCHEMA_NAME
