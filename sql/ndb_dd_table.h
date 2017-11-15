@@ -52,4 +52,9 @@ dd::String_type ndb_dd_table_get_engine(const dd::Table* table_def);
 */
 void ndb_dd_table_mark_as_hidden(dd::Table* table_def);
 
+/*
+   Return number of columns in the table definition
+*/
+size_t ndb_dd_table_get_num_columns(const dd::Table* table_def);
+
 #endif

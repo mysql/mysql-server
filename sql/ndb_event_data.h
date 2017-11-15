@@ -20,55 +20,52 @@
 
 #include "my_alloc.h" // MEM_ROOT
 #include "sql/ndb_bitmap.h"
-#include "storage/ndb/include/ndbapi/ndbapi_limits.h"
 
 namespace dd {
   class Table;
 }
 
 struct NDB_SHARE;
+struct TABLE;
 
 /*
   Ndb_event_data holds information related to
-  receiving events from NDB
+  receiving events from NDB. It's created when
+  the table is setup for binlogging or schema
+  distribution.
 */
 
 class Ndb_event_data
 {
-  Ndb_event_data(); // Not implemented
-  Ndb_event_data(const Ndb_event_data&); // Not implemented
-  Ndb_event_data(NDB_SHARE* the_share);
-public:
+  Ndb_event_data() = delete;
+  Ndb_event_data(const Ndb_event_data&) = delete;
+
+  Ndb_event_data(NDB_SHARE* the_share, size_t num_columns);
   ~Ndb_event_data();
 
-  MEM_ROOT mem_root;
-  struct TABLE *shadow_table;
-  NDB_SHARE *share;
-  union NdbValue *ndb_value[2];
-
-  MY_BITMAP stored_columns;
   void init_stored_columns();
-
-  // Does the table have blobs
-  bool have_blobs;
-
-private:
-  /* Bitmap with bit set for all primary key columns. */
-  MY_BITMAP *pk_bitmap;
-  my_bitmap_map pk_bitbuf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
-                            8*sizeof(my_bitmap_map) - 1) /
-                           (8*sizeof(my_bitmap_map))];
-public:
   void init_pk_bitmap();
-  void generate_minimal_bitmap(MY_BITMAP *before, MY_BITMAP *after);
-
-private:
   TABLE *open_shadow_table(class THD* thd,
                            const char *db, const char *table_name,
                            const char *key, const dd::Table *table_def,
                            class THD *owner_thd);
 public:
-  // Factory function
+  MEM_ROOT mem_root;
+  TABLE *shadow_table;
+  NDB_SHARE *share;
+  union NdbValue *ndb_value[2];
+
+  // Bitmap with all stored columns
+  MY_BITMAP stored_columns;
+  /* Bitmap with all primary key columns. */
+  MY_BITMAP pk_bitmap;
+  // The NDB table have blobs
+  bool have_blobs;
+
+  void generate_minimal_bitmap(MY_BITMAP *before, MY_BITMAP *after) const;
+
+  // Factory function to create Ndb_event_data, open the shadow_table and
+  // initialize bitmaps.
   static Ndb_event_data* create_event_data(class THD* thd,
                                            NDB_SHARE *share,
                                            const char *db,
@@ -76,6 +73,7 @@ public:
                                            const char *key,
                                            class THD* owner_thd,
                                            const dd::Table *table_def);
+  static void destroy(const Ndb_event_data*);
 };
 
 #endif

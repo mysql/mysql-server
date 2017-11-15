@@ -2368,8 +2368,7 @@ ndbcluster_binlog_event_operation_teardown(THD *thd,
   mysql_mutex_unlock(&injector_event_mutex);
 
   // Finally delete the event_data and thus it's mem_root, shadow_table etc.
-  DBUG_PRINT("info", ("Deleting event_data"));
-  delete event_data;
+  Ndb_event_data::destroy(event_data);
 
   DBUG_VOID_RETURN;
 }
@@ -2470,7 +2469,7 @@ public:
 
     // Release the event_data saved for inplace alter, it's very
     // unlikley that the event_data is still around, but just in case
-    delete m_inplace_alter_event_data;
+    Ndb_event_data::destroy(m_inplace_alter_event_data);
     m_inplace_alter_event_data = nullptr;
   }
 
@@ -3218,7 +3217,7 @@ class Ndb_schema_event_handler {
       {
         const Ndb_event_data *event_data=
           static_cast<const Ndb_event_data*>(share->op->getCustomData());
-        delete event_data;
+        Ndb_event_data::destroy(event_data);
         share->op->setCustomData(NULL);
         {
           Mutex_guard injector_mutex_g(injector_event_mutex);
@@ -3314,7 +3313,7 @@ class Ndb_schema_event_handler {
           m_schema_dist_data.get_inplace_alter_event_data();
       if (old_event_data)
       {
-        delete old_event_data;
+        Ndb_event_data::destroy(old_event_data);
         m_schema_dist_data.save_inplace_alter_event_data(nullptr);
       }
 
@@ -3486,7 +3485,7 @@ class Ndb_schema_event_handler {
       {
         // New event_data was created(that's the default) but the table didn't
         // have event operations and thus the event_data is unused, free it
-        delete event_data;
+        Ndb_event_data::destroy(event_data);
       }
 
       ndb_log_verbose(9, "NDB Binlog: handling online alter/rename done");
@@ -3501,7 +3500,7 @@ class Ndb_schema_event_handler {
         const Ndb_event_data *event_data=
           static_cast<const Ndb_event_data*>(share->op->getCustomData());
         share->op->setCustomData(NULL);
-        delete event_data;
+        Ndb_event_data::destroy(event_data);
 
         // Drop old event operation
         {
@@ -5547,7 +5546,7 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
       }
       // Delete the event data, caller should create new before calling
       // this function again
-      delete event_data;
+      Ndb_event_data::destroy(event_data);
       DBUG_RETURN(-1);
     }
     break;
@@ -6458,7 +6457,7 @@ remove_event_operations(Ndb* ndb)
     NDB_SHARE *share= event_data->share;
     DBUG_ASSERT(share != NULL);
     DBUG_ASSERT(share->op == op);
-    delete event_data;
+    Ndb_event_data::destroy(event_data);
     op->setCustomData(NULL);
 
     mysql_mutex_lock(&share->mutex);

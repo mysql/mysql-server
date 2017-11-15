@@ -17,24 +17,27 @@
 
 #include "sql/ndb_event_data.h"
 
-#include "my_pointer_arithmetic.h"
 #include "sql/dd_table_share.h"
+#include "sql/ndb_dd_table.h"
 #include "sql/ndb_table_map.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/table.h"
 
 
-Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share) :
+Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share, size_t num_columns) :
   shadow_table(nullptr),
-  share(the_share),
-  pk_bitmap(NULL)
+  share(the_share)
 {
-  ndb_value[0]= nullptr;
-  ndb_value[1]= nullptr;
+  ndb_value[0] = nullptr;
+  ndb_value[1] = nullptr;
 
-  // Mark the stored_columns bitmap as not initialized
-  stored_columns.bitmap = nullptr;
+  // Initialize bitmaps, using dynamically allocated bitbuf
+  bitmap_init(&stored_columns, nullptr, num_columns, false);
+  bitmap_init(&pk_bitmap, nullptr, num_columns, false);
+
+  // Initialize mem_root where the shadow_table will be allocated
+  init_sql_alloc(PSI_INSTRUMENT_ME, &mem_root, 1024, 0);
 }
 
 
@@ -42,15 +45,13 @@ Ndb_event_data::~Ndb_event_data()
 {
   if (shadow_table)
     closefrm(shadow_table, 1);
-  shadow_table= NULL;
-
-  delete pk_bitmap;
-  pk_bitmap = NULL;
+  shadow_table = nullptr;
 
   bitmap_free(&stored_columns);
+  bitmap_free(&pk_bitmap);
 
   free_root(&mem_root, MYF(0));
-  share= NULL;
+  share = nullptr;
   /*
     ndbvalue[] allocated with my_multi_malloc -> only
     first pointer need to be freed
@@ -81,16 +82,15 @@ void Ndb_event_data::init_pk_bitmap()
     // Table without pk, no need for pk_bitmap since minimal is full
     return;
   }
-  pk_bitmap = new MY_BITMAP();
-  ndb_bitmap_init(*pk_bitmap, pk_bitbuf, shadow_table->s->fields);
+
   KEY* key = shadow_table->key_info + shadow_table->s->primary_key;
   KEY_PART_INFO* key_part_info = key->key_part;
   const uint key_parts = key->user_defined_key_parts;
   for (uint i = 0; i < key_parts; i++, key_part_info++)
   {
-    bitmap_set_bit(pk_bitmap, key_part_info->fieldnr - 1);
+    bitmap_set_bit(&pk_bitmap, key_part_info->fieldnr - 1);
   }
-  assert(!bitmap_is_clear_all(pk_bitmap));
+  assert(!bitmap_is_clear_all(&pk_bitmap));
 }
 
 
@@ -106,33 +106,30 @@ void Ndb_event_data::init_pk_bitmap()
  *  - before and after bitmaps are identical
  *  - bitmaps contain all/updated cols as per ndb_log_updated_only
  */
-void Ndb_event_data::generate_minimal_bitmap(MY_BITMAP *before, MY_BITMAP *after)
+void Ndb_event_data::generate_minimal_bitmap(MY_BITMAP *before,
+                                             MY_BITMAP *after) const
 {
-  if (pk_bitmap)
-  {
-    assert(!bitmap_is_clear_all(pk_bitmap));
-    // set Before Image to contain only primary keys
-    bitmap_copy(before, pk_bitmap);
-    // remove primary keys from After Image
-    bitmap_subtract(after, pk_bitmap);
-  }
-  else
+  if (shadow_table->s->primary_key == MAX_KEY)
   {
     // no usable PK bitmap, set Before Image = After Image
     bitmap_copy(before, after);
+    return;
   }
+
+  assert(!bitmap_is_clear_all(&pk_bitmap));
+  // set Before Image to contain only primary keys
+  bitmap_copy(before, &pk_bitmap);
+  // remove primary keys from After Image
+  bitmap_subtract(after, &pk_bitmap);
 }
 
 
 
 void Ndb_event_data::init_stored_columns()
 {
-  const int n_fields = shadow_table->s->fields;
-  bitmap_init(&stored_columns, 0, n_fields, false);
-
   if (Ndb_table_map::has_virtual_gcol(shadow_table))
   {
-    for(int i = 0 ; i < n_fields; i++)
+    for(uint i = 0 ; i < shadow_table->s->fields; i++)
     {
       Field * field = shadow_table->field[i];
       if (field->stored_in_db)
@@ -203,13 +200,14 @@ Ndb_event_data* Ndb_event_data::create_event_data(
   DBUG_ENTER("Ndb_event_data::create_event_data");
   DBUG_ASSERT(table_def);
 
-  Ndb_event_data* event_data = new Ndb_event_data(share);
+  const size_t num_columns = ndb_dd_table_get_num_columns(table_def);
+
+  Ndb_event_data* event_data = new Ndb_event_data(share, num_columns);
 
   // Setup THR_MALLOC to allocate memory from the MEM_ROOT in the
   // newly created Ndb_event_data
   MEM_ROOT** root_ptr = THR_MALLOC;
   MEM_ROOT* old_root = *root_ptr;
-  init_sql_alloc(PSI_INSTRUMENT_ME, &event_data->mem_root, 1024, 0);
   *root_ptr = &event_data->mem_root;
 
   // Create the shadow table
@@ -221,9 +219,14 @@ Ndb_event_data* Ndb_event_data::create_event_data(
     *root_ptr = old_root;
     DBUG_RETURN(nullptr);
   }
+
+  // Check that number of columns from table_def match the
+  // number in shadow_table
+  DBUG_ASSERT(num_columns == shadow_table->s->fields);
+
   event_data->shadow_table = shadow_table;
 
-  // Calculate event_data bitmaps after assigning the shadow_table
+  // Calculate bitmaps after assigning the shadow_table
   event_data->init_pk_bitmap();
   event_data->init_stored_columns();
 
@@ -235,4 +238,13 @@ Ndb_event_data* Ndb_event_data::create_event_data(
   *root_ptr = old_root;
 
   DBUG_RETURN(event_data);
+}
+
+void Ndb_event_data::destroy(const Ndb_event_data* event_data)
+{
+  DBUG_ENTER("delete_event_data");
+
+  delete event_data;
+
+  DBUG_VOID_RETURN;
 }
