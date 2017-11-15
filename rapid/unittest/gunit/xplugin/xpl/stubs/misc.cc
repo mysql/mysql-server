@@ -20,6 +20,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "plugin/x/src/xpl_performance_schema.h"
+#include "mysql/service_plugin_registry.h"
 #include "sql/replication.h"
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
@@ -162,3 +163,7 @@ long ssl_wrapper_sess_accept_good(struct st_VioSSLFd*)
 {
   return 0;
 }
+
+SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() { return nullptr; }
+
+int mysql_plugin_registry_release(SERVICE_TYPE(registry) *) { return 0; }

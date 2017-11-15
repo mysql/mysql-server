@@ -71,9 +71,13 @@ void Insert_statement_builder::add_row(const Field_list &row,
 
 void Insert_statement_builder::add_upsert(const bool is_relational) const {
   if (is_relational)
-    throw ngs::Error_code(ER_X_BAD_INSERT_DATA,
-                        "Unable update on duplicate key for TABLE data model");
-  m_builder.put(" ON DUPLICATE KEY UPDATE "
-      "doc = JSON_SET(VALUES(doc), '$._id', JSON_EXTRACT(doc, '$._id'))");
+    throw ngs::Error_code(
+        ER_X_BAD_INSERT_DATA,
+        "Unable update on duplicate key for TABLE data model");
+  m_builder.put(
+      " ON DUPLICATE KEY UPDATE"
+      " doc = IF(JSON_EXTRACT(doc, '$._id') = JSON_EXTRACT(VALUES(doc),"
+      " '$._id'), VALUES(doc), MYSQLX_ERROR("
+      STRINGIFY_ARG(ER_X_BAD_UPSERT_DATA) "))");
 }
 }  // namespace xpl

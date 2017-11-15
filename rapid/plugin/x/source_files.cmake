@@ -75,6 +75,8 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/notices.h"
   "${MYSQLX_PROJECT_DIR}/src/cap_handles_expired_passwords.h"
   "${MYSQLX_PROJECT_DIR}/src/mysql_function_names.h"
+  "${MYSQLX_PROJECT_DIR}/src/udf/registrator.h"
+  "${MYSQLX_PROJECT_DIR}/src/udf/mysqlx_error.h"
   ${ngs_HDRS}
 )
 
@@ -123,6 +125,8 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/view_statement_builder.cc"
   "${MYSQLX_PROJECT_DIR}/src/insert_statement_builder.cc"
   "${MYSQLX_PROJECT_DIR}/src/notices.cc"
+  "${MYSQLX_PROJECT_DIR}/src/udf/registrator.cc"
+  "${MYSQLX_PROJECT_DIR}/src/udf/mysqlx_error.cc"
   ${ngs_SRC}
 )
 
