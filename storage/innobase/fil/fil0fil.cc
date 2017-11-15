@@ -11190,29 +11190,17 @@ Fil_system::get_tablespace_id(const std::string& filename)
 		    || (ifs.rdstate() & std::ifstream::failbit) != 0
 		    || (ifs.rdstate() & std::ifstream::badbit) != 0) {
 
-			ib::error()
-				<< "'" << filename << "' seek to"
-				<< " " << off << " failed!";
 
-			ifs.close();
-
-			return(ULINT32_UNDEFINED);
+			err = DB_FAIL;
+			break;
 		}
 
 		ifs.read(buf, sizeof(buf));
 
 		if (!ifs.good() || (size_t) ifs.gcount() < sizeof(buf)) {
 
-			ib::error()
-				<< "'" << filename
-				<< "' read failed! - attempted to read"
-				<< " " << sizeof(buf) << " bytes, read only"
-				<< " " << ifs.gcount() << " bytes at offset "
-				<< off;
-
-			ifs.close();
-
-			return(ULINT32_UNDEFINED);
+			err = DB_FAIL;
+			break;
 		}
 
 		space_id = mach_read_from_4(reinterpret_cast<byte*>(buf));
