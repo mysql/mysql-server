@@ -2503,8 +2503,23 @@ buf_pool_clear_hash_index(void)
 					continue;
 				}
 
-				ut_ad(buf_block_get_state(block)
-				      == BUF_BLOCK_FILE_PAGE);
+				switch(buf_block_get_state(block)) {
+				case BUF_BLOCK_FILE_PAGE:
+					break;
+				case BUF_BLOCK_REMOVE_HASH:
+					/* It is possible that a parallel thread
+					might have set this state. It means AHI
+					for this block is being removed. After
+					this function, AHI entries would anyway
+					be removed. So its Ok to reset block
+					index/pointers here otherwise it would
+					be pointing to removed AHI entries. */
+					break;
+				default:
+					/* No other state should have AHI */
+					ut_ad(block->index == nullptr);
+					ut_ad(block->n_pointers == 0);
+				}
 
 # if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 				block->n_pointers = 0;
