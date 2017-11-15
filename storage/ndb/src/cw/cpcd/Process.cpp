@@ -89,6 +89,8 @@ CPCD::Process::Process(const Properties &props, class CPCD *cpcd) {
   props.get("ulimit", m_ulimit);
   props.get("shutdown", m_shutdown_options);
   m_status = STOPPED;
+  m_remove_on_stopped = false;
+  m_stopping_time = 0;
 
   if (strcasecmp(m_type.c_str(), "temporary") == 0) {
     m_processType = TEMPORARY;
@@ -103,26 +105,50 @@ CPCD::Process::Process(const Properties &props, class CPCD *cpcd) {
   m_cpcd = cpcd;
 }
 
-void CPCD::Process::monitor() {
-  switch (m_status) {
+bool CPCD::Process::should_be_erased() const
+{
+  return (m_status == STOPPED) && m_remove_on_stopped;
+}
+
+void CPCD::Process::monitor()
+{
+  switch (m_status)
+  {
+    case STOPPED:
+      break;
+
     case STARTING:
       break;
+
     case RUNNING:
-      if (!isRunning()) {
-        if (m_processType == TEMPORARY) {
-          m_status = STOPPED;
-        } else {
-          start();
-        }
+      if (isRunning())
+      {
+        break;
+      }
+
+      switch (m_processType)
+      {
+      case TEMPORARY:
+        m_pid = bad_pid;
+        m_status = STOPPED;
+        break;
+
+      case PERMANENT:
+        start();
+        break;
       }
       break;
-    case STOPPED:
-      if (!isRunning()) {
-        logger.critical("STOPPED process still isRunning(%d) invalid pid: %d",
-                        m_id, m_pid);
-      }
-      break;
+
     case STOPPING:
+      if (!isRunning())
+      {
+        m_pid = bad_pid;
+        m_status = STOPPED;
+      }
+      else if (time(NULL) > m_stopping_time + m_stop_timeout)
+      {
+        do_shutdown(true /* force sigkill */);
+      }
       break;
   }
 }
@@ -201,7 +227,9 @@ int CPCD::Process::readPid() {
   errno = 0;
   size_t r = fread(buf, 1, sizeof(buf), f);
   fclose(f);
-  if (r > 0) m_pid = strtol(buf, (char **)NULL, 0);
+  if (r > 0) {
+    m_pid = strtol(buf, (char **)NULL, 0);
+  }
 
   if (errno == 0) {
     return m_pid;
@@ -253,6 +281,13 @@ int CPCD::Process::writePid(int pid) {
     return -1;
   }
   return 0;
+}
+
+void CPCD::Process::removePid()
+{
+  char filename[PATH_MAX * 2 + 1];
+  BaseString::snprintf(filename, sizeof(filename), "%d", m_id);
+  unlink(filename);
 }
 
 static void setup_environment(const char *env) {
@@ -646,7 +681,8 @@ int CPCD::Process::start() {
     logger.error("pgid and m_pid don't match: %d %d (%d)", pgid, m_pid, pid);
   }
 
-  if (isRunning()) {
+  if (isRunning())
+  {
     m_status = RUNNING;
     return 0;
   }
@@ -655,74 +691,74 @@ int CPCD::Process::start() {
   return -1;
 }
 
-void CPCD::Process::stop() {
-  char filename[PATH_MAX * 2 + 1];
-  BaseString::snprintf(filename, sizeof(filename), "%d", m_id);
-  unlink(filename);
-
+void CPCD::Process::stop()
+{
   if (is_bad_pid(m_pid)) {
     logger.critical("Stopping process with bogus pid: %d id: %d", m_pid, m_id);
     return;
   }
 
   m_status = STOPPING;
-
-#ifndef _WIN32
-  errno = 0;
-  int signo = SIGTERM;
-  if (m_shutdown_options == "SIGKILL") signo = SIGKILL;
-
-  int ret = kill(-m_pid, signo);
-  switch (ret) {
-    case 0:
-      logger.debug("Sent SIGTERM to pid %d", (int)-m_pid);
-      break;
-    default:
-      logger.debug("kill pid: %d : %s", (int)-m_pid, strerror(errno));
-      break;
+  if (isRunning())
+  {
+    time(&m_stopping_time);
+    do_shutdown();
   }
 
-  if (isRunning()) {
-    errno = 0;
-    ret = kill(-m_pid, SIGKILL);
+  removePid();
+}
+
+void CPCD::Process::do_shutdown(bool force_sigkill)
+{
+#ifndef _WIN32
+  bool do_sigkill = (m_shutdown_options == "SIGKILL" || force_sigkill);
+
+  errno = 0;
+  if (!do_sigkill)
+  {
+    int ret = kill(-m_pid, SIGTERM);
+    switch (ret)
+    {
+      case 0:
+        logger.debug("Sent SIGTERM to pid %d", (int)-m_pid);
+        break;
+      default:
+        logger.error("kill pid: %d : %s", (int)-m_pid, strerror(errno));
+        break;
+    }
+  }
+  else
+  {
+    int ret = kill(-m_pid, SIGKILL);
     switch (ret) {
       case 0:
         logger.debug("Sent SIGKILL to pid %d", (int)-m_pid);
-        /* Keep state STOPPING until process group is verified gone */
-        return;
         break;
       default:
         switch (errno) {
-          case ESRCH:
-            logger.debug("kill pid: %d : %s\n", (int)-m_pid, strerror(errno));
-            /* Process group stopped, continue mark process STOPPED */
+          case ESRCH:  // Process group stopped
+            logger.error("kill pid: %d : %s\n", (int)-m_pid, strerror(errno));
             break;
           case EPERM:
           case EINVAL:
-          default:
+          default:  // Process not safely stopped
             logger.error("kill pid: %d : %s\n", (int)-m_pid, strerror(errno));
-            /* Process not safely stopped, keep STOPPING */
-            return;
+            break;
         }
         break;
     }
   }
 #else
-  if (isRunning()) {
-    BOOL truth;
-    HANDLE proc;
-    require(proc = OpenProcess(PROCESS_QUERY_INFORMATION, 0, m_pid));
-    require(IsProcessInJob(proc, m_job, &truth));
-    require(truth == TRUE);
-    require(CloseHandle(proc));
-    // Terminate process with exit code 37
-    require(TerminateJobObject(m_job, 37));
-    require(CloseHandle(m_job));
-  }
+  BOOL truth;
+  HANDLE proc;
+  require(proc = OpenProcess(PROCESS_QUERY_INFORMATION, 0, m_pid));
+  require(IsProcessInJob(proc, m_job, &truth));
+  require(truth == TRUE);
+  require(CloseHandle(proc));
+  // Terminate process with exit code 37
+  require(TerminateJobObject(m_job, 37));
+  require(CloseHandle(m_job));
 #endif
-
-  m_pid = bad_pid;
-  m_status = STOPPED;
 }
 
 bool CPCD::Process::setCPUAffinity() {

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,8 +62,20 @@ CPCD::Monitor::run() {
 
     proc.lock();
 
-    for(unsigned i = 0; i < proc.size(); i++) {
+    for (unsigned i = 0; i < proc.size(); i++)
+    {
       proc[i]->monitor();
+    }
+
+    // Erase in reverse order to let i always step down
+    for (unsigned i = proc.size(); i > 0; i--)
+    {
+      if (!proc[i - 1]->should_be_erased())
+      {
+        continue;
+      }
+
+      proc.erase(i - 1, false /* already locked */);
     }
 
     proc.unlock();
