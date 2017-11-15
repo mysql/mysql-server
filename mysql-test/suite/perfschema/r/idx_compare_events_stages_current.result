@@ -104,7 +104,7 @@ SELECT * FROM performance_schema.events_stages_current WHERE thread_id > @target
 
 OK: Handler_read_key
 
-*** ERROR ***: Result set: Empty  Expected: Non-empty
+OK: Result set: Empty  Expected: Empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========
@@ -112,7 +112,7 @@ SELECT * FROM performance_schema.events_stages_current WHERE thread_id < @target
 
 OK: Handler_read_key
 
-*** ERROR ***: Result set: Empty  Expected: Non-empty
+OK: Result set: Empty  Expected: Empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========
