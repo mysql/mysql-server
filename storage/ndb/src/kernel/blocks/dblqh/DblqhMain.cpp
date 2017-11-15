@@ -2802,6 +2802,7 @@ Dblqh::execPREP_DROP_TAB_REQ(Signal* signal){
   case Tablerec::DROP_TABLE_TUX:
     jam();
     errCode = PrepDropTabRef::DropInProgress;
+    break;
   case Tablerec::TABLE_READ_ONLY:
     jam();
     errCode = PrepDropTabRef::InvalidTableState;
