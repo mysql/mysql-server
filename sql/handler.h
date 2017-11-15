@@ -1407,6 +1407,17 @@ typedef int (*upgrade_tablespace_t)(THD *thd);
 
 
 /**
+  Get the tablespace data from SE and insert it into Data dictionary
+
+  @param[in]  tablespace     tablespace object
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (handler error code returned)
+*/
+typedef bool (*upgrade_space_version_t)(dd::Tablespace *tablespace);
+
+/**
   Finish upgrade process inside storage engines.
   This includes resetting flags to indicate upgrade process
   and cleanup after upgrade.
@@ -1978,6 +1989,7 @@ struct handlerton
   get_tablespace_t get_tablespace;
   alter_tablespace_t alter_tablespace;
   upgrade_tablespace_t upgrade_tablespace;
+  upgrade_space_version_t upgrade_space_version;
   upgrade_logs_t upgrade_logs;
   finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;
