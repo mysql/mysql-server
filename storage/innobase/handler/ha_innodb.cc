@@ -16936,7 +16936,17 @@ innobase_get_tablespace_statistics(
 		}
 	}
 
-	ut_a(file != nullptr);
+	if (file == nullptr) {
+
+		ib::warn()
+			<< "Tablespace '" << tablespace_name << "'"
+			<< " filename is unknown. Use --innodb-directories"
+			<< " to locate of the file.";
+
+		my_error(ER_TABLESPACE_MISSING, MYF(0), tablespace_name);
+
+		return(true);
+	}
 
 	stats->m_initial_size = file->init_size * page_size.physical();
 
