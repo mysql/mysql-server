@@ -71,9 +71,6 @@ public:
   void commit();
   void rollback();
 
-  bool check_table_exists(const char* schema_name, const char* table_name,
-                          int& table_id, int& table_version,
-                          dd::String_type* engine);
   bool get_engine(const char* schema_name, const char* table_name,
                   dd::String_type* engine);
 

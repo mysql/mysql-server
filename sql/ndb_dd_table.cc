@@ -92,3 +92,9 @@ ndb_dd_table_mark_as_hidden(dd::Table* table_def)
 
   DBUG_VOID_RETURN;
 }
+
+
+dd::String_type ndb_dd_table_get_engine(const dd::Table* table_def)
+{
+  return table_def->engine();
+}

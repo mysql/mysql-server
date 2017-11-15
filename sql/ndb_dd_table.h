@@ -18,6 +18,8 @@
 #ifndef NDB_DD_TABLE_H
 #define NDB_DD_TABLE_H
 
+#include "sql/dd/string_type.h"
+
 namespace dd {
   class Table;
 }
@@ -37,6 +39,11 @@ void ndb_dd_table_set_object_id_and_version(dd::Table* table_def,
 bool
 ndb_dd_table_get_object_id_and_version(const dd::Table* table_def,
                                        int& object_id, int& object_version);
+
+/*
+  Return engine of table definition
+*/
+dd::String_type ndb_dd_table_get_engine(const dd::Table* table_def);
 
 
 /*

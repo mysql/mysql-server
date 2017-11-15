@@ -33,6 +33,7 @@
 #include "sql/ndb_bitmap.h"
 #include "sql/ndb_dd.h"
 #include "sql/ndb_dd_client.h"
+#include "sql/ndb_dd_table.h"
 #include "sql/ndb_global_schema_lock.h"
 #include "sql/ndb_global_schema_lock_guard.h"
 #include "sql/ndb_local_connection.h"
@@ -941,8 +942,8 @@ ndb_create_table_from_engine(THD *thd,
   This involves:
    - synchronizing the local mysqld data dictionary with that in NDB
    - subscribing to changes that happen in NDB, thus allowing:
-    -- local mysqld data dictionary to be kept in synch
-    -- binlog of changes in NDB to be written
+    -- local Data Dictionary to be kept in synch
+    -- changes in NDB to be written to binlog
 
 */
 
@@ -1263,48 +1264,96 @@ class Ndb_binlog_setup {
       }
     }
 
-    bool need_install = false;
-    bool need_overwrite = false;
-    int table_id, table_version;
-    dd::String_type engine;
-    if (!ndb_dd_does_table_exist(m_thd, schema_name, table_name,
-                                 table_id, table_version, &engine))
+    Ndb_dd_client dd_client(m_thd);
+
+    // Acquire MDL lock on table
+    if (!dd_client.mdl_lock_table(schema_name, table_name))
     {
-      need_install = true;
-      ndb_log_info("Table %s.%s does not exist in DD, installing...",
-                   schema_name, table_name);
-    }
-    else
-    {
-      if (engine != "ndbcluster")
-      {
-        ndb_log_info("Skipping table %s.%s with same name which is in "
-                     "different engine '%s'",
-                     schema_name, table_name, engine.c_str());
-      }
-      else
-      {
-      if (ndbtab->getObjectId() != table_id ||
-          ndbtab->getObjectVersion() != table_version)
-      {
-        need_install = true;
-        need_overwrite = true;
-        ndb_log_info("Table %s.%s have different version in DD, installing",
-                     schema_name, table_name);
-      }
-    }
+      ndb_log_error("Failed to acquire MDL lock for table '%s.%s'",
+                    schema_name, table_name);
+      return false;
     }
 
-    if (need_install)
+    const dd::Table* existing;
+    if (!dd_client.get_table(schema_name, table_name, &existing))
     {
+      ndb_log_error("Failed to open table '%s.%s' from DD",
+                    schema_name, table_name);
+      return false;
+    }
+
+    if (existing == nullptr)
+    {
+      ndb_log_info("Table '%s.%s' does not exist in DD, installing...",
+                   schema_name, table_name);
+
       if (ndb_create_table_from_engine(m_thd, schema_name, table_name,
-                                       need_overwrite))
+                                       false /* need overwrite */))
       {
-        // Failed to create table from NDB
-        ndb_log_error("Failed to install table %s.%s from NDB",
+        // Failed to install into DD or setup binlogging
+        ndb_log_error("Failed to install table '%s.%s'",
                       schema_name, table_name);
         return false;
       }
+      return true; // OK
+    }
+
+    // Skip if table exists in DD, but is in other engine
+    const dd::String_type engine = ndb_dd_table_get_engine(existing);
+    if (engine != "ndbcluster")
+    {
+      ndb_log_info("Skipping table '%s.%s' with same name which is in "
+                   "engine '%s'",
+                   schema_name, table_name,
+                   engine.c_str());
+      return true; // Skipped
+    }
+
+    int table_id, table_version;
+    if (!ndb_dd_table_get_object_id_and_version(existing,
+                                                table_id, table_version))
+    {
+      //
+      ndb_log_error("Failed to extract id and version from table definition "
+                    "for table '%s.%s'", schema_name, table_name);
+      DBUG_ASSERT(false);
+      return false;
+    }
+
+    // Check that latest version of table definition for this NDB table
+    // is installed in DD
+    if (ndbtab->getObjectId() != table_id ||
+        ndbtab->getObjectVersion() != table_version)
+    {
+      ndb_log_info("Table '%s.%s' have different version in DD, reinstalling...",
+                     schema_name, table_name);
+      if (ndb_create_table_from_engine(m_thd, schema_name, table_name,
+                                       true /* need overwrite */))
+      {
+        // Failed to create table from NDB
+        ndb_log_error("Failed to install table '%s.%s' from NDB",
+                      schema_name, table_name);
+        return false;
+      }
+    }
+
+    // Check if table need to be setup for binlogging or
+    // schema distribution
+    const dd::Table* table_def;
+    if (!dd_client.get_table(schema_name, table_name, &table_def))
+    {
+      ndb_log_error("Failed to open table '%s.%s' from DD",
+                    schema_name, table_name);
+      return false;
+    }
+
+    if (ndbcluster_binlog_setup_table(m_thd, ndb,
+                                      schema_name, table_name,
+                                      table_def) != 0)
+    {
+      ndb_log_error("Failed to setup binlog for table '%s.%s'",
+                    schema_name, table_name);
+      return false;
     }
 
     return true;
@@ -1362,7 +1411,7 @@ class Ndb_binlog_setup {
 
     // Iterate over remaining NDB tables found in DD, they
     // don't exist in NDB anymore as they haven't
-    // been removed
+    // been removed from the list
 
     for (const auto ndb_table_name : ndb_tables_in_DD)
     {
@@ -1422,109 +1471,6 @@ class Ndb_binlog_setup {
     return true;
   }
 
-  bool
-  setup_binlogging_for_table(const char* schema_name, const char* table_name,
-                             const dd::Table* table_def)
-  {
-    Ndb* ndb = get_thd_ndb(m_thd)->ndb;
-
-    // Check if binlogging should be setup for this table
-    if (ndbcluster_binlog_setup_table(m_thd, ndb,
-                                      schema_name, table_name,
-                                      table_def))
-    {
-      return false;
-    }
-
-    return true;
-  }
-
-
-  bool
-  setup_binlogging_for_schema(const char* schema_name)
-  {
-
-    Ndb_dd_client dd_client(m_thd);
-
-    ndb_log_info("  Setting up schema '%s'", schema_name);
-
-    // Lock the schema in DD
-    if (!dd_client.mdl_lock_schema(schema_name))
-    {
-      ndb_log_info("Failed to MDL lock schema");
-      return false;
-    }
-
-    // Fetch list of NDB tables in DD, also acquire MDL lock on
-    // table names
-    std::unordered_set<std::string> ndb_tables_in_DD;
-    if (!dd_client.get_ndb_table_names_in_schema(schema_name,
-                                                 &ndb_tables_in_DD))
-    {
-      ndb_log_info("Failed to get list of NDB tables in DD");
-      return false;
-    }
-
-    // Iterate over each table in NDB and setup for binlogging
-    for (const auto ndb_table_name : ndb_tables_in_DD)
-    {
-      const dd::Table* table_def;
-      if (!dd_client.get_table(schema_name, ndb_table_name.c_str(), &table_def))
-      {
-        ndb_log_info("Failed to get table '%s.%s'",
-                     schema_name, ndb_table_name.c_str());
-        return false;
-      }
-
-      if (!setup_binlogging_for_table(schema_name, ndb_table_name.c_str(),
-                                      table_def))
-      {
-        ndb_log_info("Failed to setup binlogging for table '%s.%s'",
-                     schema_name, ndb_table_name.c_str());
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-
-  bool
-  setup_binlogging(void)
-  {
-
-    Ndb_dd_client dd_client(m_thd);
-
-    ndb_log_info("Setting up binlogging...");
-
-    // Fetch list of schemas in DD
-    std::vector<std::string> schema_names;
-    if (!dd_client.fetch_schema_names(&schema_names))
-    {
-      ndb_log_verbose(19,
-                      "Failed to synchronize metadata, could not "
-                      "fetch schema names");
-      return false;
-    }
-
-    // Iterate over each schema and synchronize it one by one,
-    // the assumption is that even large deployments have
-    // a manageable number of tables in each schema
-    for (const auto name : schema_names)
-    {
-      if (!setup_binlogging_for_schema(name.c_str()))
-      {
-        ndb_log_info("Failed to setup binlogging, schema: '%s'",
-                     name.c_str());
-        return false;
-      }
-    }
-
-    ndb_log_info("Completed setup of binlogging");
-
-    return true;
-  }
-
   static bool
   create_cluster_sys_table(THD *thd, const char* db, size_t db_length,
                            const char* table, size_t table_length,
@@ -1548,13 +1494,10 @@ class Ndb_binlog_setup {
       return true; // failed
     }
 
-    int table_id;
-    int table_version;
-    dd::String_type engine;
-    if (dd_client.check_table_exists(db, table,
-                                     table_id, table_version, &engine))
+    const dd::Table* existing;
+    if (dd_client.get_table(db, table, &existing))
     {
-      ndb_log_verbose(1, "Dropping %s.%s from DD", db, table);
+      ndb_log_verbose(1, "Dropping '%s.%s' from DD", db, table);
 
       if (!dd_client.drop_table(db, table))
       {
@@ -1738,12 +1681,6 @@ public:
        if (!synchronize_dd())
        {
          ndb_log_verbose(9, "Failed to synchronize DD with NDB");
-         break;
-       }
-
-       if (!setup_binlogging())
-       {
-         ndb_log_verbose(9, "Failed to setup binlogging");
          break;
        }
 

@@ -203,34 +203,6 @@ void Ndb_dd_client::rollback()
 
 
 bool
-Ndb_dd_client::check_table_exists(const char* schema_name,
-                                  const char* table_name,
-                                  int& table_id, int& table_version,
-                                  dd::String_type* engine)
-{
-
-
-  const dd::Table *existing= nullptr;
-  if (m_client->acquire(schema_name, table_name, &existing))
-  {
-    return false;
-  }
-
-  if (existing == nullptr)
-  {
-    // Table does not exist in DD
-    return false;
-  }
-
-  ndb_dd_table_get_object_id_and_version(existing, table_id, table_version);
-  *engine = existing->engine();
-
-  return true;
-
-}
-
-
-bool
 Ndb_dd_client::get_engine(const char* schema_name,
                           const char* table_name,
                           dd::String_type* engine)

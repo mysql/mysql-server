@@ -13381,9 +13381,7 @@ bool ndbcluster_is_connected(uint max_wait_sec)
   return connected;
 }
 
-/**
- * Components
- */
+
 Ndb_index_stat_thread ndb_index_stat_thread;
 
 extern THD * ndb_create_thd(char * stackptr);
