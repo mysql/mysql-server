@@ -38,6 +38,22 @@ let MYSQLD_DATADIR = `select @@datadir`;
 #    set threshold and then wait and see if it is being truncated.
 #
 
+# Storing the initial sizes of the tablespaces before DML action
+
+let CHECKFILE = $MYSQLTEST_VARDIR/tmp/check.txt;
+
+perl;
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$ini1)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_001");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$ini2)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_002");
+open(OUT, ">$ENV{CHECKFILE}") || die;
+print OUT "let \$ini1= $ini1;\n";
+print OUT "let \$ini2= $ini2;\n";
+close(OUT);
+EOF
+--source $CHECKFILE
+
 # Start of the first transaction that performs sufficient DML action
 --connect(con1,localhost,root,,test)
 --connection con1
@@ -73,6 +89,7 @@ update t1 set c3= 'mysql' where keyc > 10000;
 update t1 set c4= 'mysql' where keyc > 10000;
 update t1 set c5= 'mysql' where keyc > 10000;
 update t1 set c6= 'mysql' where keyc > 10000;
+
 # Starting a new transaction for both tablespaces to get utilized
 --connect(con2,localhost,root,,test)
 --connection con2
@@ -139,6 +156,21 @@ close(OUT);
 EOF
 
 SET GLOBAL innodb_purge_run_now=ON;
+
+# Sourcing file check.txt to compare initial sizes with sizes after DML action
+
+--source $CHECKFILE
+
+if($ini1 == $size1)
+{
+   echo Size increase did not happen for undo_001: initial size: $ini1 final size: $size1;
+}
+
+if($ini2 == $size2)
+{
+   echo Size increase did not happen for undo_002: initial size: $ini2 final size: $size2;
+}
+
 
 # Shutting down the server
 SET GLOBAL innodb_fast_shutdown=0;
