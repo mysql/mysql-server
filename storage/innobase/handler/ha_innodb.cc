@@ -16928,7 +16928,7 @@ innobase_get_tablespace_statistics(
 
 			file = &f;
 
-			ib::warn()
+			ib::info()
 				<< "Tablespace '" << tablespace_name << "'"
 				<< " DD filename '" << name << "' doesn't "
 				<< " match the InnoDB filename '"
