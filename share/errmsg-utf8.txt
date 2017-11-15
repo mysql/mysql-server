@@ -10956,6 +10956,18 @@ ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
 ER_CANT_START_ERROR_LOG_SERVICE
   eng "Failed to set %s at or around \"%s\" -- service is valid, but can not be initialized; please check its configuration and make sure it can read its input(s) and write to its output(s)."
 
+ER_SCHEMA_DIR_EXISTS
+  eng "Schema directory '%.192s' already exists. This must be resolved manually (e.g. by moving the schema directory to another location)."
+
+ER_SCHEMA_DIR_MISSING
+  eng "Schema directory '%.192s' does not exist"
+
+ER_SCHEMA_DIR_CREATE_FAILED
+  eng "Failed to create schema directory '%.192s' (errno: %d - %s)"
+
+ER_SCHEMA_DIR_UNKNOWN
+  eng "Schema '%.192s' does not exist, but schema directory '%.192s' was found. This must be resolved manually (e.g. by moving the schema directory to another location)."
+
 #
 #  End of 8.0 error messages.
 #
