@@ -7,6 +7,8 @@
 
 --source include/count_sessions.inc
 
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
 ###########################################################################
 
 --echo ###################################################################
@@ -97,7 +99,8 @@ SET GLOBAL DEBUG= '-d, fail_while_acquiring_dd_object';
 --echo # 1.3b No schema found during drop.
 
 SET DEBUG= '+d, pretend_no_schema_in_drop_schema';
---error ER_DB_DROP_EXISTS
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_UNKNOWN 
 DROP SCHEMA s1;
 SET DEBUG= '-d, pretend_no_schema_in_drop_schema';
 

@@ -64,7 +64,7 @@ SET GLOBAL DEBUG= '-d, fail_while_acquiring_dd_object';
 # 1.3b No schema found during drop.
 SET DEBUG= '+d, pretend_no_schema_in_drop_schema';
 DROP SCHEMA s1;
-ERROR HY000: Can't drop database 's1'; database doesn't exist
+ERROR HY000: Schema 's1' does not exist, but schema directory './s1/' was found. This must be resolved manually (e.g. by moving the schema directory to another location).
 SET DEBUG= '-d, pretend_no_schema_in_drop_schema';
 # 1.3c Fail while dropping dd object during drop.
 SET DEBUG= '+d, fail_while_dropping_dd_object';

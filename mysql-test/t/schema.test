@@ -9,6 +9,8 @@
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
 # MDL blocking concurrent drop schema is different with --ps-protocol
 let $drop_schema_target_state='Waiting for schema metadata lock';
 if (`SELECT $PS_PROTOCOL = 1`)
@@ -345,7 +347,8 @@ ALTER SCHEMA s DEFAULT COLLATE= utf8_general_ci;
 SHOW CREATE SCHEMA s;
 
 # DROP SCHEMA verifies directory existence, and fails.
---error ER_DB_DROP_EXISTS
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_MISSING
 DROP SCHEMA s;
 
 # Re-create the directory, then DROP will work.
@@ -640,3 +643,73 @@ SET DEBUG_SYNC= 'now SIGNAL continue_alter';
 --echo # Reaping connection con3
 --connection con3
 --reap
+
+
+--echo #
+--echo # Bug#26043994: CREATE DATABASE/DIRECTORY INCONSISTENCY
+--echo #
+
+--echo # Dropping a non-existing schema fails
+--error ER_DB_DROP_EXISTS
+DROP SCHEMA s1;
+
+--echo # but drop succeeds (with a warning) when using IF EXISTS
+DROP SCHEMA IF EXISTS s1;
+
+--echo # Verify that schema can be created successfully
+CREATE SCHEMA s1;
+
+--echo # Verify that trying to create it again fails
+--error ER_DB_CREATE_EXISTS
+CREATE SCHEMA s1;
+
+--echo # but create succeds (with a warning) when using IF NOT EXITSTS
+CREATE SCHEMA IF NOT EXISTS s1;
+DROP SCHEMA s1;
+
+--echo # Create a directory in datadir manually
+--mkdir $MYSQLD_DATADIR/bogus__
+
+--echo # Creating a schema with the same name as directory in datadir fails
+--echo # but with new error message
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_EXISTS
+CREATE SCHEMA bogus__;
+
+--echo # Creating a schema with the same name as a directory in datadir
+--echo # with IF NOT EXISTS fails.
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_EXISTS
+CREATE SCHEMA IF NOT EXISTS bogus__;
+
+--echo # Drop a non-existent schema with the same name as a directory in
+--echo # datadir fails.
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_UNKNOWN
+DROP SCHEMA bogus__;
+
+--echo # Drop a non-existent schema with the same name as a directory in
+--echo # datadir with IF EXISTS fails.
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_UNKNOWN
+DROP SCHEMA IF EXISTS bogus__;
+
+--rmdir $MYSQLD_DATADIR/bogus__
+
+CREATE SCHEMA broken;
+--echo # Remove the schema directory for an existing schema
+--rmdir $MYSQLD_DATADIR/broken
+
+--echo # Drop then fails with new error message
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_MISSING
+DROP SCHEMA broken;
+
+--echo # but drop succeeds (with warning) when adding IF EXISTS
+--echo # Suppress output since it is not stable across platforms
+--disable_warnings ONCE
+DROP SCHEMA IF EXISTS broken;
+
+--echo # Create and drop schema again to make sure nothing is left behind
+CREATE SCHEMA broken;
+DROP SCHEMA broken;
