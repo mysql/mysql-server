@@ -210,7 +210,6 @@ const char *my_get_err_msg(int nr)
 void my_error(int nr, myf MyFlags, ...)
 {
   const char *format;
-  va_list args;
   char ebuff[ERRMSGSIZE];
   DBUG_ENTER("my_error");
   DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d", nr, MyFlags, errno));
@@ -219,6 +218,7 @@ void my_error(int nr, myf MyFlags, ...)
     (void) my_snprintf(ebuff, sizeof(ebuff), "Unknown error %d", nr);
   else
   {
+    va_list args;
     va_start(args,MyFlags);
     (void) my_vsnprintf_ex(&my_charset_utf8_general_ci, ebuff,
                            sizeof(ebuff), format, args);
