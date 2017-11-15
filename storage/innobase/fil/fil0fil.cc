@@ -10923,7 +10923,7 @@ Tablespace_dirs::tokenize_paths(
 				dirs.push_back(value(d, cur_path));
 
 			} else {
-				ib::warn()
+				ib::info()
 					<< "'" << path << "' ignored"
 					<< ", not a directory.";
 			}
@@ -10958,7 +10958,7 @@ Tablespace_dirs::tokenize_paths(
 		}),
 		dirs.end());
 
-	/* Eliminate sub-tress */
+	/* Eliminate sub-trees */
 
 	Dirs	scan_dirs;
 
