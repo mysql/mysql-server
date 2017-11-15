@@ -31,12 +31,16 @@ Pattern "Table mismatch_frms/t1_col_name is not found in InnoDB dictionary" foun
 # Copy the remote tablespace & DB zip files from suite location to working location.
 # Check that the file exists in the working folder.
 # Unzip the zip file.
+#
+# BUG#26743291 : VIEW WITH EXPLICIT COLUMN NAME > 64 IS MARKED
+#                INVALID WHEN UPGRADED TO 8.0.
 # Starting the DB server will fail since the data dir contains
 # a table and a stored program with a too long enum literals.
 Pattern "Error in Creating DD entry for test.t_long_enum" found
 Pattern "Error in creating stored program 'test.p_long_enum'" found
 Pattern "Error in processing generated columns for table test.t_gcol_dep" found
 Pattern "No database selected" not found
+Pattern "Incorrect column name 'a123456789012345678901234567890123456789012345678901234567890123456789'" found
 # Remove copied files
 # Restart the server with default options.
 # restart

@@ -164,20 +164,22 @@ int yylex(void *yylval, void *yythd);
   do                                                    \
   {                                                     \
     std::remove_reference<decltype(*x)>::type::context_t pc(YYTHD, Select); \
-    if (YYTHD->is_error() || (x)->contextualize(&pc))   \
-      MYSQL_YYABORT;                                    \
+    if (YYTHD->is_error() ||                                            \
+        (YYTHD->lex->will_contextualize && (x)->contextualize(&pc)))    \
+      MYSQL_YYABORT;                                                    \
   } while(0)
 
 
 /**
   Item::itemize() function call wrapper
 */
-#define ITEMIZE(x, y)                                  \
-  do                                                   \
-  {                                                    \
-    Parse_context pc(YYTHD, Select);                   \
-    if (YYTHD->is_error() || (x)->itemize(&pc, (y)))   \
-      MYSQL_YYABORT;                                   \
+#define ITEMIZE(x, y)                                                   \
+  do                                                                    \
+  {                                                                     \
+    Parse_context pc(YYTHD, Select);                                    \
+    if (YYTHD->is_error() ||                                            \
+        (YYTHD->lex->will_contextualize && (x)->itemize(&pc, (y))))     \
+      MYSQL_YYABORT;                                                    \
   } while(0)
 
 /**
@@ -185,13 +187,11 @@ int yylex(void *yylval, void *yythd);
 
   @note x may be NULL because of OOM error.
 */
-#define MAKE_CMD(x)                                                      \
-  do                                                                     \
-  {                                                                      \
-    if (YYTHD->is_error() ||                                             \
-        (Lex->m_sql_cmd= (x)->make_cmd(YYTHD)) == NULL)                  \
-      MYSQL_YYABORT;                                                     \
-    DBUG_ASSERT(Lex->m_sql_cmd->sql_command_code() == Lex->sql_command); \
+#define MAKE_CMD(x)                                    \
+  do                                                   \
+  {                                                    \
+    if (assign_cmd(YYTHD, Lex, (x)))                   \
+      MYSQL_YYABORT;                                   \
   } while(0)
 
 
@@ -410,6 +410,33 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 #include "sql/parse_tree_items.h"
 #include "sql/parse_tree_nodes.h"
 #include "sql/parse_tree_partitions.h"
+
+/**
+  Uses parse_tree to instantiate an Sql_cmd object and assigns it to the Lex.
+
+  @param thd Needed to make an Sql_cmd.
+  @param lex The Lex to assign to.
+  @param parse_tree The parse tree.
+
+  @retval false OK
+  @retval true A fatal error occured, MYSQL_YYABORT should be called.
+*/
+static bool assign_cmd(THD *thd, LEX *lex, Parse_tree_root *parse_tree)
+{
+  if (thd->is_error())
+    return true;
+
+  if (!lex->will_contextualize)
+    return false;
+
+  lex->m_sql_cmd= parse_tree->make_cmd(thd);
+  if (lex->m_sql_cmd == nullptr)
+    return true;
+
+  DBUG_ASSERT(lex->m_sql_cmd->sql_command_code() == lex->sql_command);
+
+  return false;
+}
 
 %}
 

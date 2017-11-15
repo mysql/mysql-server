@@ -48,17 +48,24 @@ template
 >
 struct traversal_switch_detector
 {
-    enum isolation_type { isolation_unknown = -1, isolation_no = 0, isolation_yes = 1 };
+    enum isolation_type
+    {
+        isolation_unknown = -1,
+        isolation_no = 0,
+        isolation_yes = 1,
+        isolation_multiple = 2
+    };
 
     typedef typename boost::range_value<Turns>::type turn_type;
     typedef typename turn_type::turn_operation_type turn_operation_type;
+    typedef std::set<signed_size_type> set_type;
 
     // Per ring, first turns are collected (in turn_indices), and later
     // a region_id is assigned
     struct merged_ring_properties
     {
         signed_size_type region_id;
-        std::set<signed_size_type> turn_indices;
+        set_type turn_indices;
 
         merged_ring_properties()
             : region_id(-1)
@@ -68,7 +75,8 @@ struct traversal_switch_detector
     struct connection_properties
     {
         std::size_t count;
-        std::set<signed_size_type> cluster_indices;
+        // Contains turn-index OR, if clustered, minus-cluster_id
+        set_type unique_turn_ids;
         connection_properties()
             : count(0)
         {}
@@ -82,6 +90,7 @@ struct traversal_switch_detector
     {
         signed_size_type region_id;
         isolation_type isolated;
+        set_type unique_turn_ids;
 
         // Maps from connected region_id to their properties
         connection_map connected_region_counts;
@@ -96,7 +105,7 @@ struct traversal_switch_detector
     typedef std::map<ring_identifier, merged_ring_properties > merge_map;
     typedef std::map<signed_size_type, region_properties> region_connection_map;
 
-    typedef std::set<signed_size_type>::const_iterator set_iterator;
+    typedef set_type::const_iterator set_iterator;
 
     inline traversal_switch_detector(Geometry1 const& geometry1, Geometry2 const& geometry2,
             Turns& turns, Clusters& clusters,
@@ -110,111 +119,232 @@ struct traversal_switch_detector
     {
     }
 
-    isolation_type get_isolation(region_properties const& properties,
-                                 signed_size_type parent_region_id,
-                                 const std::set<signed_size_type>& visited)
+    bool inspect_difference(set_type& turn_id_difference,
+            set_type const& turn_ids,
+            set_type const& other_turn_ids) const
     {
-        if (properties.isolated != isolation_unknown)
+        // TODO: consider if std::set_difference can be used in the final version
+        int const turn_count = turn_ids.size();
+        int const other_turn_count = other_turn_ids.size();
+
+        // First quick check on size (TODO: implement multiple-multiple connections)
+        if (turn_count - other_turn_count > 1)
         {
-            return properties.isolated;
+            return false;
         }
 
-        bool all_colocated = true;
-        signed_size_type unique_cluster_id = -1;
-        for (typename connection_map::const_iterator it = properties.connected_region_counts.begin();
-             all_colocated && it != properties.connected_region_counts.end(); ++it)
+        // Check if all turns are also present in the connection.
+        // The difference is returned
+        for (set_iterator it = turn_ids.begin(); it != turn_ids.end(); ++it)
+        {
+            signed_size_type const& id = *it;
+            if (other_turn_ids.count(id) == 0)
+            {
+                turn_id_difference.insert(id);
+            }
+        }
+        return true;
+    }
+
+    bool one_connection_to_another_region(region_properties const& region) const
+    {
+        // For example:
+        // +----------------------+
+        // |                   __ |
+        // |                  /  \|
+        // |                 |    x
+        // |                  \__/|
+        // |                      |
+        // +----------------------+
+
+        if (region.connected_region_counts.size() == 1)
+        {
+            connection_properties const& cprop = region.connected_region_counts.begin()->second;
+            return cprop.count <= 1;
+        }
+        return region.connected_region_counts.empty();
+    }
+
+    // TODO: might be combined with previous
+    bool multiple_connections_to_one_region(region_properties const& region) const
+    {
+        // For example:
+        // +----------------------+
+        // |                   __ |
+        // |                  /  \|
+        // |                 |    x
+        // |                  \  /|
+        // |                  /  \|
+        // |                 |    x
+        // |                  \__/|
+        // |                      |
+        // +----------------------+
+
+        if (region.connected_region_counts.size() == 1)
+        {
+            connection_properties const& cprop = region.connected_region_counts.begin()->second;
+            return cprop.count > 1;
+        }
+        return false;
+    }
+
+    bool one_connection_to_multiple_regions(region_properties const& region) const
+    {
+        // For example:
+        // +----------------------+
+        // |                   __ | __
+        // |                  /  \|/  |
+        // |                 |    x   |
+        // |                  \__/|\__|
+        // |                      |
+        // +----------------------+
+
+        bool first = true;
+        signed_size_type first_turn_id = 0;
+        for (typename connection_map::const_iterator it = region.connected_region_counts.begin();
+             it != region.connected_region_counts.end(); ++it)
         {
             connection_properties const& cprop = it->second;
-            if (cprop.cluster_indices.size() != 1)
+
+            if (cprop.count != 1)
             {
-                // Either no cluster (non colocated point), or more clusters
-                all_colocated = false;
+                return false;
             }
-            signed_size_type const cluster_id = *cprop.cluster_indices.begin();
-            if (cluster_id == -1)
+            signed_size_type const unique_turn_id = *cprop.unique_turn_ids.begin();
+            if (first)
             {
-                all_colocated = false;
+                first_turn_id = unique_turn_id;
+                first = false;
             }
-            else if (unique_cluster_id == -1)
+            else if (first_turn_id != unique_turn_id)
             {
-                unique_cluster_id = cluster_id;
-            }
-            else if (unique_cluster_id != cluster_id)
-            {
-                all_colocated = false;
+                return false;
             }
         }
-        if (all_colocated)
-        {
-            return isolation_yes;
-        }
+        return true;
+    }
 
+    bool has_only_isolated_children(region_properties const& region) const
+    {
+        bool first_with_turn = true;
+        bool first_with_multiple = true;
+        signed_size_type first_turn_id = 0;
+        signed_size_type first_multiple_region_id = 0;
 
-        // It is isolated if there is only one connection, or if there are more connections but all
-        // of them are isolated themselves, or if there are more connections
-        // but they are all colocated
-        std::size_t non_isolation_count = 0;
-        bool child_not_isolated = false;
-        for (typename connection_map::const_iterator it = properties.connected_region_counts.begin();
-             it != properties.connected_region_counts.end(); ++it)
+        for (typename connection_map::const_iterator it = region.connected_region_counts.begin();
+             it != region.connected_region_counts.end(); ++it)
         {
             signed_size_type const region_id = it->first;
             connection_properties const& cprop = it->second;
 
-            if (region_id == parent_region_id)
-            {
-                // Normal situation, skip its direct parent
-                continue;
-            }
-            if (visited.count(region_id) > 0)
-            {
-                // Find one of its ancestors again, this is a ring. Not isolated.
-                return isolation_no;
-            }
-            if (cprop.count > 1)
-            {
-                return isolation_no;
-            }
-
-            typename region_connection_map::iterator mit = m_connected_regions.find(region_id);
+            typename region_connection_map::const_iterator mit = m_connected_regions.find(region_id);
             if (mit == m_connected_regions.end())
             {
                 // Should not occur
-                continue;
+                return false;
             }
 
-            std::set<signed_size_type> vis = visited;
-            vis.insert(parent_region_id);
+            region_properties const& connected_region = mit->second;
 
-            region_properties& prop = mit->second;
-            if (prop.isolated == isolation_unknown)
+            bool const multiple = connected_region.isolated == isolation_multiple;
+
+            if (cprop.count != 1)
             {
-                isolation_type const iso = get_isolation(prop, properties.region_id, vis);
-                prop.isolated = iso;
-                if (iso == isolation_no)
+                if (! multiple)
                 {
-                    child_not_isolated = true;
+                    return false;
+                }
+
+                // It connects multiple times to an isolated region.
+                // This is allowed as long as it happens only once
+                if (first_with_multiple)
+                {
+                    first_multiple_region_id = connected_region.region_id;
+                    first_with_multiple = false;
+                }
+                else if (first_multiple_region_id != connected_region.region_id)
+                {
+                    return false;
+                }
+
+                // Turns in region should be either present in the connection,
+                // of form part of the connection with the other region
+                set_type diff;
+                if (! inspect_difference(diff, region.unique_turn_ids,
+                                  connected_region.unique_turn_ids))
+                {
+                    return false;
+                }
+                if (diff.size() > 1)
+                {
+                    // For now:
+                    return false;
                 }
             }
-            if (prop.isolated == isolation_no)
+
+            if (connected_region.isolated != isolation_yes && ! multiple)
             {
-                non_isolation_count++;
+                signed_size_type const unique_turn_id = *cprop.unique_turn_ids.begin();
+                if (first_with_turn)
+                {
+                    first_turn_id = unique_turn_id;
+                    first_with_turn = false;
+                }
+                else if (first_turn_id != unique_turn_id)
+                {
+                    return false;
+                }
             }
         }
-
-        return child_not_isolated || non_isolation_count > 1 ? isolation_no : isolation_yes;
+        // If there is only one connection (with a 'parent'), and all other
+        // connections are itself isolated, it is isolated
+        return true;
     }
 
     void get_isolated_regions()
     {
-        for (typename region_connection_map::iterator it = m_connected_regions.begin();
+        typedef typename region_connection_map::iterator it_type;
+
+        // First time: check regions isolated (one connection only),
+        // semi-isolated (multiple connections between same region),
+        // and complex isolated (connection with multiple rings but all
+        // at same point)
+        for (it_type it = m_connected_regions.begin();
              it != m_connected_regions.end(); ++it)
         {
             region_properties& properties = it->second;
-            if (properties.isolated == isolation_unknown)
+            if (one_connection_to_another_region(properties))
             {
-                std::set<signed_size_type> visited;
-                properties.isolated = get_isolation(properties, properties.region_id, visited);
+                properties.isolated = isolation_yes;
+            }
+            else if (multiple_connections_to_one_region(properties))
+            {
+                properties.isolated = isolation_multiple;
+            }
+            else if (one_connection_to_multiple_regions(properties))
+            {
+                properties.isolated = isolation_yes;
+            }
+        }
+
+        // Propagate isolation to next level
+        // TODO: should be optimized
+        std::size_t defensive_check = 0;
+        bool changed = true;
+        while (changed && defensive_check++ < m_connected_regions.size())
+        {
+            changed = false;
+            for (it_type it = m_connected_regions.begin();
+                 it != m_connected_regions.end(); ++it)
+            {
+                region_properties& properties = it->second;
+
+                if (properties.isolated == isolation_unknown
+                        && has_only_isolated_children(properties))
+                {
+                    properties.isolated = isolation_yes;
+                    changed = true;
+                }
             }
         }
     }
@@ -238,7 +368,7 @@ struct traversal_switch_detector
         }
     }
 
-    void assign_regions()
+    void assign_region_ids()
     {
         for (typename merge_map::const_iterator it
              = m_turns_per_ring.begin(); it != m_turns_per_ring.end(); ++it)
@@ -259,39 +389,53 @@ struct traversal_switch_detector
                         op.enriched.region_id = properties.region_id;
                     }
                 }
-                signed_size_type const& id0 = turn.operations[0].enriched.region_id;
-                signed_size_type const& id1 = turn.operations[1].enriched.region_id;
-                if (id0 != id1 && id0 != -1 && id1 != -1)
+            }
+        }
+    }
+
+    void assign_connected_regions()
+    {
+        for (std::size_t turn_index = 0; turn_index < m_turns.size(); ++turn_index)
+        {
+            turn_type const& turn = m_turns[turn_index];
+
+            signed_size_type const unique_turn_id
+                    = turn.is_clustered() ? -turn.cluster_id : turn_index;
+
+            turn_operation_type op0 = turn.operations[0];
+            turn_operation_type op1 = turn.operations[1];
+
+            signed_size_type const& id0 = op0.enriched.region_id;
+            signed_size_type const& id1 = op1.enriched.region_id;
+
+            // Add region (by assigning) and add involved turns
+            if (id0 != -1)
+            {
+                m_connected_regions[id0].region_id = id0;
+                m_connected_regions[id0].unique_turn_ids.insert(unique_turn_id);
+            }
+            if (id1 != -1 && id0 != id1)
+            {
+                m_connected_regions[id1].region_id = id1;
+                m_connected_regions[id1].unique_turn_ids.insert(unique_turn_id);
+            }
+
+            if (id0 != id1 && id0 != -1 && id1 != -1)
+            {
+                // Assign connections
+                connection_properties& prop0 = m_connected_regions[id0].connected_region_counts[id1];
+                connection_properties& prop1 = m_connected_regions[id1].connected_region_counts[id0];
+
+                // Reference this turn or cluster to later check uniqueness on ring
+                if (prop0.unique_turn_ids.count(unique_turn_id) == 0)
                 {
-                    // Force insertion
-                    m_connected_regions[id0].region_id = id0;
-                    m_connected_regions[id1].region_id = id1;
-
-                    connection_properties& prop0 = m_connected_regions[id0].connected_region_counts[id1];
-                    connection_properties& prop1 = m_connected_regions[id1].connected_region_counts[id0];
-
-                    if (turn.cluster_id < 0)
-                    {
-                        // Turn is not colocated, add reference to connection
-                        prop0.count++;
-                        prop1.count++;
-                    }
-                    else
-                    {
-                        // Turn is colocated, only add region reference if it was not yet registered
-                        if (prop0.cluster_indices.count(turn.cluster_id) == 0)
-                        {
-                            prop0.count++;
-                        }
-                        if (prop1.cluster_indices.count(turn.cluster_id) == 0)
-                        {
-                            prop1.count++;
-                        }
-                    }
-                    // Insert cluster-id (also -1 is inserted - reinsertion of
-                    // same cluster id is OK)
-                    prop0.cluster_indices.insert(turn.cluster_id);
-                    prop1.cluster_indices.insert(turn.cluster_id);
+                    prop0.count++;
+                    prop0.unique_turn_ids.insert(unique_turn_id);
+                }
+                if (prop1.unique_turn_ids.count(unique_turn_id) == 0)
+                {
+                    prop1.count++;
+                    prop1.unique_turn_ids.insert(unique_turn_id);
                 }
             }
         }
@@ -306,7 +450,7 @@ struct traversal_switch_detector
             return false;
         }
 
-        if (turn.cluster_id == -1)
+        if (! turn.is_clustered())
         {
             // If it is a uu/ii-turn (non clustered), it is never same region
             return ! (turn.both(operation_union) || turn.both(operation_intersection));
@@ -320,28 +464,11 @@ struct traversal_switch_detector
                     == turn.operations[1].enriched.zone;
         }
 
-        // If a cluster contains an ii/cc it is not same region (for intersection)
-        typename Clusters::const_iterator it = m_clusters.find(turn.cluster_id);
-        if (it == m_clusters.end())
-        {
-            // Should not occur
-            return true;
-        }
-
-        cluster_info const& cinfo = it->second;
-        for (set_iterator sit = cinfo.turn_indices.begin();
-             sit != cinfo.turn_indices.end(); ++sit)
-        {
-            turn_type const& cluster_turn = m_turns[*sit];
-            if (cluster_turn.both(operation_union)
-                   || cluster_turn.both(operation_intersection))
-            {
-                return false;
-            }
-        }
-
-        // It is the same region
-        return false;
+        // For an intersection, two regions connect if they are not ii
+        // (ii-regions are isolated) or, in some cases, not iu (for example
+        // when a multi-polygon is inside an interior ring and connecting it)
+        return ! (turn.both(operation_intersection)
+                  || turn.combination(operation_intersection, operation_union));
     }
 
 
@@ -438,7 +565,7 @@ struct traversal_switch_detector
             }
         }
 
-        // All rings having turns are in the map. Now iterate them
+        // All rings having turns are in turns/ring map. Process them.
         {
             signed_size_type new_region_id = 1;
             for (typename merge_map::iterator it
@@ -447,7 +574,8 @@ struct traversal_switch_detector
                 create_region(new_region_id, it->first, it->second);
             }
 
-            assign_regions();
+            assign_region_ids();
+            assign_connected_regions();
             get_isolated_regions();
             assign_isolation();
         }
@@ -464,9 +592,8 @@ struct traversal_switch_detector
             }
 
             // A touching cluster, gather regions
-            std::set<signed_size_type> regions;
-
-            std::set<signed_size_type> const& ids = cinfo.turn_indices;
+            set_type regions;
+            set_type const& ids = cinfo.turn_indices;
 
 #if defined(BOOST_GEOMETRY_DEBUG_TRAVERSAL_SWITCH_DETECTOR)
                 std::cout << "SWITCH EXAMINE CLUSTER " << it->first << std::endl;
@@ -493,7 +620,7 @@ struct traversal_switch_detector
 
             if (turn.discarded
                     || turn.blocked()
-                    || turn.cluster_id >= 0
+                    || turn.is_clustered()
                     || ! (turn.both(operation_union) || turn.both(operation_intersection)))
             {
                 // Skip discarded, blocked, non-uu/ii and clustered turns
@@ -525,7 +652,7 @@ struct traversal_switch_detector
             turn_type const& turn = m_turns[turn_index];
 
             if ((turn.both(operation_union) || turn.both(operation_intersection))
-                 && turn.cluster_id < 0)
+                 && ! turn.is_clustered())
             {
                 std::cout << "UU/II SWITCH RESULT "
                              << turn_index << " -> "

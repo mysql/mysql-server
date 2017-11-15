@@ -73,15 +73,14 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */)
   DBUG_ENTER("partition_info::get_clone");
   List_iterator<partition_element> part_it(partitions);
   partition_element *part;
-  partition_info *clone= new (*THR_MALLOC) partition_info();
+  partition_info *clone= new (*THR_MALLOC) partition_info(*this);
   if (!clone)
   {
     mem_alloc_error(sizeof(partition_info));
     DBUG_RETURN(NULL);
   }
-  memcpy(clone, this, sizeof(partition_info));
-  memset(&(clone->read_partitions), 0, sizeof(clone->read_partitions));
-  memset(&(clone->lock_partitions), 0, sizeof(clone->lock_partitions));
+  new (&(clone->read_partitions)) MY_BITMAP;
+  new (&(clone->lock_partitions)) MY_BITMAP;
   clone->bitmaps_are_initialized= FALSE;
   clone->partitions.empty();
   clone->temp_partitions.empty();
@@ -90,13 +89,12 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */)
   {
     List_iterator<partition_element> subpart_it(part->subpartitions);
     partition_element *subpart;
-    partition_element *part_clone= new (*THR_MALLOC) partition_element();
+    partition_element *part_clone= new (*THR_MALLOC) partition_element(*part);
     if (!part_clone)
     {
       mem_alloc_error(sizeof(partition_element));
       DBUG_RETURN(NULL);
     }
-    memcpy(part_clone, part, sizeof(partition_element));
 
     /* Explicitly copy the tablespace name, use the thd->mem_root. */
     if (part->tablespace_name != nullptr)
@@ -125,13 +123,12 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */)
     part_clone->subpartitions.empty();
     while ((subpart= (subpart_it++)))
     {
-      partition_element *subpart_clone= new (*THR_MALLOC) partition_element();
+      partition_element *subpart_clone= new (*THR_MALLOC) partition_element(*subpart);
       if (!subpart_clone)
       {
         mem_alloc_error(sizeof(partition_element));
         DBUG_RETURN(NULL);
       }
-      memcpy(subpart_clone, subpart, sizeof(partition_element));
 
       /* Explicitly copy the tablespace name, use the thd->mem_root. */
       if (subpart->tablespace_name != nullptr)
@@ -1885,7 +1882,6 @@ void partition_info::print_no_partition_found(THD *thd, TABLE *table_arg)
   char *buf_ptr= (char*)&buf;
   TABLE_LIST table_list;
 
-  memset(&table_list, 0, sizeof(table_list));
   table_list.db= table_arg->s->db.str;
   table_list.table_name= table_arg->s->table_name.str;
 

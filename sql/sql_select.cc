@@ -797,38 +797,47 @@ static bool check_locking_clause_access(THD *thd, Global_tables_list tables)
 
 bool Sql_cmd_select::precheck(THD *thd)
 {
-  bool res;
   /*
     lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
     requires FILE_ACL access.
   */
-  ulong privileges_requested= (lex->result != nullptr &&
-                               lex->result->needs_file_privilege()) ?
-    SELECT_ACL | FILE_ACL : SELECT_ACL;
+  bool check_file_acl= (lex->result != nullptr &&
+                        lex->result->needs_file_privilege());
 
+  /*
+    Check following,
+
+    1) Check FILE privileges for current user who runs a query if needed.
+
+    2) Check privileges for every user specified as a definer for a view or
+       check privilege to access any DB in case a table wasn't specified.
+       Although calling of check_access() when no tables are specified results
+       in returning false value immediately, this call has important side
+       effect: the counter 'stage/sql/checking permissions' in performance
+       schema is incremented. Therefore, this function is called in order to
+       save backward compatibility.
+
+    3) Performs access check for the locking clause, if present.
+
+    @todo: The condition below should be enabled when this function is
+    extended to handle SHOW statements as well.
+
+      || (first_table && first_table->schema_table_reformed &&
+       check_show_access(thd, first_table));
+  */
   TABLE_LIST *tables= lex->query_tables;
-  //TABLE_LIST *first_table= tables;
 
+  if (check_file_acl && check_global_access(thd, FILE_ACL))
+    return true;
+
+  bool res;
   if (tables)
-  {
-    res= check_table_access(thd,
-                            privileges_requested,
-                            tables, false, UINT_MAX, false); // ||
-         /*
-           @todo: The lines below should be enabled when this function is
-           extended to handle SHOW statements as well.
-
-         (first_table && first_table->schema_table_reformed &&
-          check_show_access(thd, first_table));
-         */
-  }
+    res= check_table_access(thd, SELECT_ACL, tables, false,
+                            UINT_MAX, false);
   else
-    res= check_access(thd, privileges_requested, any_db, NULL, NULL, 0, 0);
+    res= check_access(thd, SELECT_ACL, any_db, nullptr, nullptr, 0, 0);
 
-  if (!res)
-    res= check_locking_clause_access(thd, tables);
-
-  return res;
+  return res || check_locking_clause_access(thd, tables);
 }
 
 

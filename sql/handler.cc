@@ -752,7 +752,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_WRONG_FILE_NAME,		ER_DEFAULT(ER_WRONG_FILE_NAME));
   SETMSG(HA_ERR_NOT_ALLOWED_COMMAND,		ER_DEFAULT(ER_NOT_ALLOWED_COMMAND));
   SETMSG(HA_ERR_COMPUTE_FAILED,		"Compute virtual column value failed");
-  SETMSG(HA_ERR_DISK_FULL,		ER_DEFAULT(ER_DISK_FULL));
+  SETMSG(HA_ERR_DISK_FULL_NOWAIT,	ER_DEFAULT(ER_DISK_FULL_NOWAIT));
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -1368,7 +1368,7 @@ void ha_pre_dd_shutdown(void)
 
 */
 void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
-                       const ulonglong *trxid)
+                       const ulonglong *trxid MY_ATTRIBUTE((unused)))
 {
   Ha_trx_info *ha_info;
   Transaction_ctx *trn_ctx= thd->get_transaction();
@@ -2630,8 +2630,6 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   TABLE_SHARE dummy_share;
   DBUG_ENTER("ha_delete_table");
 
-  memset(&dummy_table, 0, sizeof(dummy_table));
-  memset(&dummy_share, 0, sizeof(dummy_share));
   dummy_table.s= &dummy_share;
 
   /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
@@ -4363,9 +4361,9 @@ void handler::print_error(int error, myf errflag)
     errflag|= ME_ERRORLOG;
     break;
   }
-  case HA_ERR_DISK_FULL:
+  case HA_ERR_DISK_FULL_NOWAIT:
   {
-    textno=ER_DISK_FULL;
+    textno=ER_DISK_FULL_NOWAIT;
     /* Write the error message to error log */
     errflag|= ME_ERRORLOG;
     break;

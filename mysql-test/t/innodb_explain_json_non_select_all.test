@@ -1,7 +1,12 @@
 -- source include/big_test.inc
-# There are expected differences in Handler_update output, thus disabling the
-# test with binary logging ON.
---source include/not_log_bin.inc
+
+# There are expected differences in Handler_update output when run with and
+# without log-bin. Thus, test is updated to run with binary logging ON.
+# Testcase is skipped for binlog_format=STATEMENT due to unsafe statements:
+# LIMIT clause, REPLACE... SELECT.
+# Testcase is also skipped for binlog_format=MIXED, since it mismatches result
+# file for used_columns output (Bug#22472365).
+--source include/have_binlog_format_row.inc
 
 #
 # Run explain_non_select.inc on InnoDB with all of the so-called 6.0 features.

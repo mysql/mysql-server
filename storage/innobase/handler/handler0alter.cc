@@ -363,7 +363,7 @@ my_error_innodb(
 		my_error(ER_RECORD_FILE_FULL, MYF(0), table);
 		break;
 	case DB_OUT_OF_DISK_SPACE:
-		my_error(ER_DISK_FULL, MYF(0), table);
+		my_error(ER_DISK_FULL_NOWAIT, MYF(0), table);
 		break;
 	case DB_TEMP_FILE_WRITE_FAIL:
 		my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));

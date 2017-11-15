@@ -40,6 +40,7 @@
 #include "sql/item_func.h"            // Item_func
 #include "sql/parse_tree_node_base.h"
 #include "sql/sql_const.h"
+#include "sql/sql_digest.h"  // DIGEST_HASH_TO_STRING[_LENGTH]
 #include "sql_string.h"
 
 class MY_LOCALE;
@@ -224,6 +225,51 @@ public:
   bool resolve_type(THD *) override;
   const char *func_name() const override { return "to_base64"; }
 };
+
+
+class Item_func_statement_digest final : public Item_str_ascii_func
+{
+public:
+  Item_func_statement_digest(const POS &pos, Item *query_string)
+    : Item_str_ascii_func(pos, query_string)
+  {}
+
+  const char *func_name() const override { return "statement_digest"; }
+  bool check_gcol_func_processor(uchar *) override { return true; }
+
+  bool resolve_type(THD *) override
+  {
+    set_data_type_string(DIGEST_HASH_TO_STRING_LENGTH, default_charset());
+    return false;
+  }
+
+  String *val_str_ascii(String *) override;
+};
+
+
+class Item_func_statement_digest_text final : public Item_str_func
+{
+public:
+  Item_func_statement_digest_text(const POS &pos, Item *query_string)
+    : Item_str_func(pos, query_string)
+  {}
+
+  const char *func_name() const override { return "statement_digest_text"; }
+
+  /**
+    The type is always LONGTEXT, just like the digest_text columns in
+    Performance Schema
+  */
+  bool resolve_type(THD *) override
+  {
+    set_data_type_string(MAX_BLOB_WIDTH, args[0]->collation);
+    return false;
+  }
+
+  bool check_gcol_func_processor(uchar *) override { return true; }
+  String *val_str(String *) override;
+};
+
 
 class Item_func_from_base64 final :public Item_str_func
 {

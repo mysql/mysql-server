@@ -2557,7 +2557,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   DBUG_ENTER("create_table_from_items");
 
-  memset(&tmp_table, 0, sizeof(tmp_table));
   tmp_table.s= &share;
   init_tmp_table_share(thd, &share, "", 0, "", "", nullptr);
 
@@ -2960,7 +2959,6 @@ int Query_result_create::binlog_show_create_table()
   int result;
   TABLE_LIST tmp_table_list;
 
-  memset(&tmp_table_list, 0, sizeof(tmp_table_list));
   tmp_table_list.table= table;
   query.length(0);      // Have to zero it since constructor doesn't
 
