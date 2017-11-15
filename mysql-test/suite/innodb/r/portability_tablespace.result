@@ -13,8 +13,8 @@ ENGINE=InnoDB ROW_FORMAT=COMPRESSED
 PARTITION by hash(empno) (
 PARTITION P0 DATA DIRECTORY 'db_directory1/db_directory1',
 PARTITION P1 DATA DIRECTORY 'db_directory1/db_directory1');
-CREATE TABLESPACE ts2 ADD DATAFILE '/home/viswanatham/work/wl8619/mysql/mysql-test/var/tmp/db_directory1/ts2.ibd' Engine=InnoDB;
-ERROR HY000: Incorrect File Name '/home/viswanatham/work/wl8619/mysql/mysql-test/var/tmp/db_directory1/ts2.ibd'.
+CREATE TABLESPACE ts2 ADD DATAFILE 'db_directory1/db_directory1/ts2.ibd' Engine=InnoDB;
+ERROR HY000: Incorrect File Name 'db_directory1/db_directory1/ts2.ibd'.
 CREATE INDEX ix1 ON tab3(ename) USING BTREE;
 INSERT INTO tab3 VALUES (100,'VISWANATH',100);
 INSERT INTO tab3 VALUES (300,'VISWANATH',100);
@@ -54,10 +54,10 @@ SELECT @@datadir;
 NEW_DATADIR/
 SELECT @@innodb_undo_directory;
 @@innodb_undo_directory
-/home/viswanatham/work/wl8619/mysql/mysql-test/var/tmp/undo_directory
+UNDO_DIRECTORY/undo_directory
 SELECT @@innodb_data_home_dir;
 @@innodb_data_home_dir
-/home/viswanatham/work/wl8619/mysql/mysql-test/var/tmp/data_home_dir
+DATA_HOME_DIR/data_home_dir
 SHOW CREATE TABLE tab3;
 Table	Create Table
 tab3	CREATE TABLE `tab3` (
@@ -71,17 +71,17 @@ tab3	CREATE TABLE `tab3` (
  PARTITION P1 DATA DIRECTORY = 'db_directory2/undo_directory' ENGINE = InnoDB) */
 ## Stop DB server
 ## Start with new --datadir only
-# restart: --datadir=NEW_DATADIR --innodb_undo_directory=/home/viswanatham/work/wl8619/mysql/mysql-test/var/tmp/undo_directory --innodb_data_home_dir=/home/viswanatham/work/wl8619/mysql/mysql-test/var/tmp/data_home_dir
+# restart: --datadir=NEW_DATADIR --innodb_undo_directory=MYSQL_TMP_DIR/undo_directory --innodb_data_home_dir=MYSQL_TMP_DIR/data_home_dir
 ## Check with new --datadir
 SELECT @@datadir;
 @@datadir
 NEW_DATADIR/
 SELECT @@innodb_undo_directory;
 @@innodb_undo_directory
-/home/viswanatham/work/wl8619/mysql/mysql-test/var/tmp/undo_directory
+UNDO_DIRECTORY/undo_directory
 SELECT @@innodb_data_home_dir;
 @@innodb_data_home_dir
-/home/viswanatham/work/wl8619/mysql/mysql-test/var/tmp/data_home_dir
+DATA_HOME_DIR/data_home_dir
 ## Check the tables with SHOW
 SHOW CREATE TABLE tab1;
 Table	Create Table
@@ -137,7 +137,7 @@ SELECT * FROM tab3;
 empno	ename	sal	c3
 100	VISWANATH	100	New Column
 300	VISWANATH	100	New Column
-CREATE TABLESPACE ts2 ADD DATAFILE '/home/viswanatham/work/wl8619/mysql/mysql-test/var/tmp/data_home_dir/ts2.ibd' Engine=InnoDB;
+CREATE TABLESPACE ts2 ADD DATAFILE 'DATA_HOME_DIR/data_home_dir/ts2.ibd' Engine=InnoDB;
 CREATE TABLE tab4(c1 int, c2 varchar(10)) TABLESPACE=ts2;
 SHOW CREATE TABLE tab4;
 Table	Create Table
@@ -146,7 +146,7 @@ tab4	CREATE TABLE `tab4` (
   `c2` varchar(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 INSERT INTO tab4 VALUES(1, 'VISH');
-CREATE TABLESPACE ts3 ADD DATAFILE '/home/viswanatham/work/wl8619/mysql/mysql-test/var/tmp/undo_directory/ts3.ibd' Engine=InnoDB;
+CREATE TABLESPACE ts3 ADD DATAFILE 'UNDO_DIRECTORY/undo_directory/ts3.ibd' Engine=InnoDB;
 CREATE TABLE tab5(c1 int, c2 varchar(10)) TABLESPACE=ts3;
 SHOW CREATE TABLE tab5;
 Table	Create Table
@@ -162,7 +162,7 @@ DROP TABLESPACE ts1;
 ## Copy back --datadir and *.ibd files into old location
 ## Cleanup the new DATA DIRECTORY *.ibd files
 # Re-start with old --datadir with --innodb-directories as remote *.ibd files are existing.
-# restart: --datadir=/home/viswanatham/work/wl8619/mysql/mysql-test/var/mysqld.1/data/ --innodb-directories=/../../home/viswanatham/work/wl8619/mysql/mysql-test/var/tmp/db_directory1
+# restart: --datadir=OLD_DATADIR --innodb-directories=/../..MYSQL_TMP_DIR/db_directory1
 # Check --datadir started with old
 SELECT @@datadir;
 @@datadir
@@ -194,12 +194,12 @@ tab5	CREATE TABLE `tab5` (
 SHOW VARIABLES LIKE '%directories%';
 Variable_name	Value
 innodb_directories	/../..db_directory1/db_directory1
-CREATE TABLESPACE ts4 ADD DATAFILE '/home/viswanatham/work/wl8619/mysql/mysql-test/var/tmp/db_directory1/ts4.ibd' Engine=InnoDB;
+CREATE TABLESPACE ts4 ADD DATAFILE 'db_directory1/db_directory1/ts4.ibd' Engine=InnoDB;
 CREATE TABLE tab6(c1 int, c2 varchar(10)) TABLESPACE=ts4;
 INSERT INTO tab6 VALUES(1, 'VISH');
 # Stop DB server
 # Re-start with old --datadir only
-# restart: --datadir=/home/viswanatham/work/wl8619/mysql/mysql-test/var/mysqld.1/data/
+# restart: --datadir=OLD_DATADIR
 DELETE FROM tab3;
 DELETE FROM tab4;
 DELETE FROM tab5;

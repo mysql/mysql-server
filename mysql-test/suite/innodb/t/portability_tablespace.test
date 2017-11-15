@@ -54,6 +54,7 @@ PARTITION by hash(empno) (
 PARTITION P0 DATA DIRECTORY '$MYSQL_TMP_DIR/db_directory1',
 PARTITION P1 DATA DIRECTORY '$MYSQL_TMP_DIR/db_directory1');
 
+--replace_result $MYSQL_TMP_DIR db_directory1
 --error ER_WRONG_FILE_NAME
 eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/db_directory1/ts2.ibd' Engine=InnoDB;
 
@@ -106,6 +107,7 @@ SHOW CREATE TABLE tab3;
 --remove_files_wildcard $MYSQLD_OLD_DATADIR/mtr/ *
 
 --echo ## Start with --innodb-directories along with other initDB options
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR 
 let $innodb_dirs='$MYSQL_TMP_DIR/undo_directory';
 --let $restart_parameters="restart: --datadir=$MYSQLD_NEW_DATADIR --innodb_undo_directory=$MYSQL_TMP_DIR/undo_directory --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb-directories=$innodb_dirs"
 --source include/start_mysqld_no_echo.inc
@@ -114,10 +116,10 @@ let $innodb_dirs='$MYSQL_TMP_DIR/undo_directory';
 --replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR
 SELECT @@datadir;
 
---replace_result $MYSQLD_NEW_DATADIR innodb_undo_directory
+--replace_result $MYSQL_TMP_DIR UNDO_DIRECTORY
 SELECT @@innodb_undo_directory;
 
---replace_result $MYSQLD_NEW_DATADIR innodb_data_home_dir
+--replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
 SELECT @@innodb_data_home_dir;
 
 --replace_result $MYSQL_TMP_DIR db_directory2
@@ -127,7 +129,7 @@ SHOW CREATE TABLE tab3;
 --source include/shutdown_mysqld.inc
 
 --echo ## Start with new --datadir only
---replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR
+--replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --let $restart_parameters="restart: --datadir=$MYSQLD_NEW_DATADIR --innodb_undo_directory=$MYSQL_TMP_DIR/undo_directory --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home_dir"
 --source include/start_mysqld.inc
 
@@ -135,10 +137,10 @@ SHOW CREATE TABLE tab3;
 --replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR
 SELECT @@datadir;
 
---replace_result $MYSQLD_NEW_DATADIR innodb_undo_directory
+--replace_result $MYSQL_TMP_DIR UNDO_DIRECTORY
 SELECT @@innodb_undo_directory;
 
---replace_result $MYSQLD_NEW_DATADIR innodb_data_home_dir
+--replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
 SELECT @@innodb_data_home_dir;
 
 --echo ## Check the tables with SHOW
@@ -179,6 +181,7 @@ SELECT * FROM tab2;
 SELECT * FROM tab3;
 
 # Creating general tablespace in known DIR location
+--replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
 eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/data_home_dir/ts2.ibd' Engine=InnoDB;
 
 CREATE TABLE tab4(c1 int, c2 varchar(10)) TABLESPACE=ts2;
@@ -188,6 +191,7 @@ SHOW CREATE TABLE tab4;
 INSERT INTO tab4 VALUES(1, 'VISH');
 
 # Creating general tablespace in known DIR location
+--replace_result $MYSQL_TMP_DIR UNDO_DIRECTORY
 eval CREATE TABLESPACE ts3 ADD DATAFILE '$MYSQL_TMP_DIR/undo_directory/ts3.ibd' Engine=InnoDB;
 
 CREATE TABLE tab5(c1 int, c2 varchar(10)) TABLESPACE=ts3;
@@ -248,8 +252,8 @@ DROP TABLESPACE ts1;
 
 # Test with by providing the relative path
 --echo # Re-start with old --datadir with --innodb-directories as remote *.ibd files are existing.
+--replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
 let $innodb_dirs='$MYSQL_TMP_DIR/db_directory1';
-#--let $restart_parameters="restart: --datadir=$MYSQLD_OLD_DATADIR --innodb-directories=$MYSQL_TMP_DIR/db_directory1"
 --let $restart_parameters="restart: --datadir=$MYSQLD_OLD_DATADIR --innodb-directories=$MYSQL_OLD_DATADIR/../..$MYSQL_TMP_DIR/db_directory1"
 --source include/start_mysqld.inc
 
@@ -268,6 +272,7 @@ SHOW CREATE TABLE tab5;
 SHOW VARIABLES LIKE '%directories%';
 
 # Creating general tablespace in known DIR location (DATA DIRECTORY)
+--replace_result $MYSQL_TMP_DIR db_directory1
 eval CREATE TABLESPACE ts4 ADD DATAFILE '$MYSQL_TMP_DIR/db_directory1/ts4.ibd' Engine=InnoDB;
 
 CREATE TABLE tab6(c1 int, c2 varchar(10)) TABLESPACE=ts4;
@@ -278,6 +283,8 @@ INSERT INTO tab6 VALUES(1, 'VISH');
 --source include/shutdown_mysqld.inc
 
 --echo # Re-start with old --datadir only
+
+--replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR
 let $innodb_dirs='$MYSQL_TMP_DIR/db_directory1';
 --let $restart_parameters="restart: --datadir=$MYSQLD_OLD_DATADIR"
 --source include/start_mysqld.inc
