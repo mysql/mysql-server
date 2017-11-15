@@ -4314,7 +4314,7 @@ int handler::check_old_types()
     if (table->s->mysql_version == 0) // prior to MySQL 5.0
     {
       /* check for bad DECIMAL field */
-      if ((*field)->type() == MYSQL_TYPE_NEWDECIMAL) // TODO: error? MYSQL_TYPE_DECIMAL?
+      if ((*field)->type() == MYSQL_TYPE_NEWDECIMAL)
       {
         return HA_ADMIN_NEEDS_ALTER;
       }
@@ -4323,6 +4323,19 @@ int handler::check_old_types()
         return HA_ADMIN_NEEDS_ALTER;
       }
     }
+
+    /*
+      Check for old DECIMAL field.
+
+      Above check does not take into account for pre 5.0 decimal types which can
+      be present in the data directory if user did in-place upgrade from
+      mysql-4.1 to mysql-5.0.
+    */
+    if ((*field)->type() == MYSQL_TYPE_DECIMAL)
+    {
+      return HA_ADMIN_NEEDS_DUMP_UPGRADE;
+    }
+
     if ((*field)->type() == MYSQL_TYPE_YEAR && (*field)->field_length == 2)
       return HA_ADMIN_NEEDS_ALTER; // obsolete YEAR(2) type
 
@@ -4582,7 +4595,9 @@ int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
   DBUG_ASSERT(result == HA_ADMIN_NOT_IMPLEMENTED ||
               ha_table_flags() & HA_CAN_REPAIR);
 
-  if (result == HA_ADMIN_OK)
+  int old_types_error= check_old_types();
+
+  if (old_types_error != HA_ADMIN_NEEDS_DUMP_UPGRADE && result == HA_ADMIN_OK)
     result= update_frm_version(table);
   return result;
 }

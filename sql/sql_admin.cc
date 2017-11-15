@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -972,6 +972,25 @@ send_result_message:
       length= my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPG_PART),
                           table->db, table->table_name);
       protocol->store(buf, length, system_charset_info);
+      break;
+    }
+
+    case HA_ADMIN_NEEDS_DUMP_UPGRADE:
+    {
+      char buf[MYSQL_ERRMSG_SIZE];
+      size_t length;
+
+      /*
+        mysql_upgrade avoids calling REPAIR TABLE for pre 5.0 decimal types
+        based on the text of following error message. If this error message is
+        changed, mysql_upgrade code should be fixed accordingly.
+      */
+      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+      length= my_snprintf(buf, sizeof(buf), "Table upgrade required for "
+                          "`%-.64s`.`%-.64s`. Please dump/reload table to "
+                          "fix it!", table->db, table->table_name);
+      protocol->store(buf, length, system_charset_info);
+      fatal_error=1;
       break;
     }
 
