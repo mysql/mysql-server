@@ -15,6 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <memory>
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
@@ -210,7 +211,7 @@ int scanReadRecords(Ndb* pNdb,
   NdbScanOperation	       *pOp;
   NdbIndexScanOperation * pIOp= 0;
 
-  NDBT_ResultRow * row = new NDBT_ResultRow(*pTab, delimiter);
+  std::unique_ptr<NDBT_ResultRow> row(new NDBT_ResultRow(*pTab, delimiter));
 
   while (true){
 
@@ -273,51 +274,7 @@ int scanReadRecords(Ndb* pNdb,
       pNdb->closeTransaction(pTrans);
       return -1;
     }
-    
-    if(0){
-      NdbScanFilter sf(pOp);
-#if 0
-      sf.begin(NdbScanFilter::AND);
-      sf.le(0, (Uint32)10);
-      
-      sf.end();
-#elif 0
-      sf.begin(NdbScanFilter::OR);
-      sf.begin(NdbScanFilter::AND);
-      sf.ge(0, (Uint32)10);
-      sf.lt(0, (Uint32)20);
-      sf.end();
-      sf.begin(NdbScanFilter::AND);
-      sf.ge(0, (Uint32)30);
-      sf.lt(0, (Uint32)40);
-      sf.end();
-      sf.end();
-#elif 1
-      sf.begin(NdbScanFilter::AND);
-      sf.begin(NdbScanFilter::OR);
-      sf.begin(NdbScanFilter::AND);
-      sf.ge(0, (Uint32)10);
-      sf.lt(0, (Uint32)20);
-      sf.end();
-      sf.begin(NdbScanFilter::AND);
-      sf.ge(0, (Uint32)30);
-      sf.lt(0, (Uint32)40);
-      sf.end();
-      sf.end();
-      sf.begin(NdbScanFilter::OR);
-      sf.begin(NdbScanFilter::AND);
-      sf.ge(0, (Uint32)0);
-      sf.lt(0, (Uint32)50);
-      sf.end();
-      sf.begin(NdbScanFilter::AND);
-      sf.ge(0, (Uint32)100);
-      sf.lt(0, (Uint32)200);
-      sf.end();
-      sf.end();
-      sf.end();
-#endif
-    }
-    
+
     bool disk= false;
     for(int a = 0; a<pTab->getNoOfColumns(); a++)
     {
