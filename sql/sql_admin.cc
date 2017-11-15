@@ -1166,6 +1166,26 @@ send_result_message:
                       system_charset_info);
       break;
 
+    case HA_ADMIN_NEEDS_DUMP_UPGRADE:
+    {
+      /*
+        In-place upgrade does not allow pre 5.0 decimal to 8.0. Recreation of tables
+        will not create pre 5.0 decimal types. Hence, control should never reach here.
+      */
+      DBUG_ASSERT(FALSE);
+
+      char buf[MYSQL_ERRMSG_SIZE];
+      size_t length;
+
+      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+      length= my_snprintf(buf, sizeof(buf), "Table upgrade required for "
+                          "`%-.64s`.`%-.64s`. Please dump/reload table to "
+                          "fix it!", table->db, table->table_name);
+      protocol->store(buf, length, system_charset_info);
+      fatal_error=1;
+      break;
+    }
+
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       {
         char buf[MYSQL_ERRMSG_SIZE];

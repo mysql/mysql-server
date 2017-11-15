@@ -165,6 +165,8 @@ extern ulong total_ha_2pc;
 #define HA_ADMIN_NEEDS_ALTER    -11
 #define HA_ADMIN_NEEDS_CHECK    -12
 #define HA_ADMIN_STATS_UPD_ERR  -13
+/** User needs to dump and re-create table to fix pre 5.0 decimal types */
+#define HA_ADMIN_NEEDS_DUMP_UPGRADE -14
 
 /**
    Return values for check_if_supported_inplace_alter().
