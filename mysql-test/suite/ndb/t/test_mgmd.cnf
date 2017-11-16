@@ -1,6 +1,6 @@
 #
 # config to use for running testMgmd(which start
-# ndb_mgmd serves on its own)
+# ndb_mgmd servers on its own)
 #
 !include include/default_my.cnf
 
