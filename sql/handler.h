@@ -5437,7 +5437,9 @@ public:
 
     @remark Engine is responsible for resetting the auto-increment counter.
 
-    @remark The table is locked in exclusive mode.
+    @remark The table is locked in exclusive mode. All open TABLE/handler
+            instances except the one which is used for truncate() call
+            are closed.
 
     @note   It is assumed that transactional storage engines implementing
             this method can revert its effects if transaction is rolled

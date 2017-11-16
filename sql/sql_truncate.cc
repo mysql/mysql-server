@@ -277,6 +277,15 @@ static truncate_result handler_truncate_base(THD *thd,
     if (fk_truncate_illegal_if_parent(thd, table_ref->table))
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
 
+  /*
+    Remove all TABLE/handler instances except the one to be used for
+    handler::ha_truncate() call. This is necessary for InnoDB to be
+    able to correctly handle truncate as atomic drop and re-create
+    internally. If we under LOCK TABLES the caller will re-open tables
+    as necessary later.
+  */
+  close_all_tables_for_name(thd, table_ref->table->s, false, table_ref->table);
+
   int error= table_ref->table->file->ha_truncate(table_def);
 
   if (error)
