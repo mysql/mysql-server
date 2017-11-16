@@ -540,7 +540,11 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
       log_members_leaving_message(new_view);
 
     //update the Group Manager with all the received states
-    this->update_group_info_manager(new_view, exchanged_data, is_leaving);
+    if (update_group_info_manager(new_view, exchanged_data, is_joining, is_leaving))
+    {
+      view_change_notifier->cancel_view_modification();
+      return;
+    }
 
     if (!is_joining && new_view.get_joined_members().size() > 0)
       log_members_joining_message(new_view);
@@ -938,18 +942,22 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
   delete all_members_info;
 }
 
-void Plugin_gcs_events_handler::
+int Plugin_gcs_events_handler::
 update_group_info_manager(const Gcs_view& new_view,
                           const Exchanged_data &exchanged_data,
+                          bool is_joining,
                           bool is_leaving) const
 {
+  int error= 0;
+
   //update the Group Manager with all the received states
   vector<Group_member_info*> to_update;
 
   if(!is_leaving)
   {
     //Process local state of exchanged data.
-    process_local_exchanged_data(exchanged_data);
+    if ((error= process_local_exchanged_data(exchanged_data, is_joining)))
+      goto err;
 
     to_update.insert(to_update.end(),
                      temporary_states->begin(),
@@ -977,7 +985,10 @@ update_group_info_manager(const Gcs_view& new_view,
     }
   }
   group_member_mgr->update(&to_update);
+
+err:
   temporary_states->clear();
+  return error;
 }
 
 void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
@@ -1197,9 +1208,12 @@ is_member_on_vector(const vector<Gcs_member_identifier>& members,
 
 int
 Plugin_gcs_events_handler::
-process_local_exchanged_data(const Exchanged_data &exchanged_data)
+process_local_exchanged_data(const Exchanged_data &exchanged_data,
+                             bool is_joining)
                              const
 {
+  uint local_uuid_found= 0;
+
   /*
   For now, we are only carrying Group Member Info on Exchangeable data
   Since we are receiving the state from all Group members, one shall
@@ -1241,6 +1255,12 @@ process_local_exchanged_data(const Exchanged_data &exchanged_data)
         member_infos_it != member_infos->end();
         member_infos_it++)
     {
+      if (is_joining &&
+          local_member_info->get_uuid() == (*member_infos_it)->get_uuid())
+      {
+        local_uuid_found++;
+      }
+
       /*
         Accept only the information the member has about himself
         Information received about other members is probably outdated
@@ -1257,6 +1277,15 @@ process_local_exchanged_data(const Exchanged_data &exchanged_data)
 
     member_infos->clear();
     delete member_infos;
+
+    if (is_joining && local_uuid_found > 1)
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "There is already a member with server_uuid %s. "
+                  "The member will now exit the group.",
+                  local_member_info->get_uuid().c_str());
+      return 1;
+    }
   }
 
   return 0;
