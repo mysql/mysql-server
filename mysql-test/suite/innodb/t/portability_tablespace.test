@@ -217,8 +217,6 @@ DROP TABLESPACE ts1;
 --copy_file $MYSQL_TMP_DIR/data_home_dir/ib_buffer_pool $MYSQLD_OLD_DATADIR/ib_buffer_pool
 --copy_file $MYSQL_TMP_DIR/data_home_dir/ibdata1 $MYSQLD_OLD_DATADIR/ibdata1
 --copy_files_wildcard $MYSQLD_NEW_DATADIR $MYSQLD_OLD_DATADIR  *.ibd
---copy_files_wildcard $MYSQL_TMP_DIR/undo_directory $MYSQLD_OLD_DATADIR  undo*
---copy_files_wildcard $MYSQL_TMP_DIR/data_home_dir $MYSQLD_OLD_DATADIR  ib_log*
 
 --copy_files_wildcard $MYSQLD_NEW_DATADIR/sys/ $MYSQLD_OLD_DATADIR/sys/ *
 --copy_files_wildcard $MYSQLD_NEW_DATADIR/performance_schema/ $MYSQLD_OLD_DATADIR/performance_schema/ *

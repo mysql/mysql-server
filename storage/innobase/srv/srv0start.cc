@@ -1913,6 +1913,8 @@ srv_start(bool create_new_db, const std::string& scan_directories)
 	ib::info() << (ut_crc32_cpu_enabled ? "Using" : "Not using")
 		<< " CPU crc32 instructions";
 
+	os_create_block_cache();
+
 	fil_init(srv_max_n_open_files);
 
 	err = fil_scan_for_tablespaces(scan_directories);

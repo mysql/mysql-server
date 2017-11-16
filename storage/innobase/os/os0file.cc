@@ -7187,7 +7187,6 @@ os_create_block_cache()
 void
 meb_free_block_cache()
 {
-
 	if (block_cache ==  NULL) {
 		return;
 	}
@@ -7229,8 +7228,6 @@ os_aio_init(
 		limit = SRV_N_PENDING_IOS_PER_THREAD;
 	}
 #endif /* _WIN32 */
-
-	os_create_block_cache();
 
 	/* Get sector size for DIRECT_IO. In this case, we need to
 	know the sector size for aligning the write buffer. */

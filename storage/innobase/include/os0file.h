@@ -1945,6 +1945,17 @@ void
 meb_free_block_cache();
 #endif /* UNIV_HOTBACKUP */
 
+/** Creates and initializes block_cache. Creates array of MAX_BLOCKS
+and allocates the memory in each block to hold BUFFER_BLOCK_SIZE
+of data.
+
+This function is called by InnoDB during AIO init (os_aio_init()).
+It is also by MEB while applying the redo logs on TDE tablespaces, the
+"Blocks" allocated in this block_cache are used to hold the decrypted page
+data. */
+void
+os_create_block_cache();
+
 /** Initializes the asynchronous io system. Creates one array each for ibuf
 and log i/o. Also creates one array each for read and write where each
 array is divided logically into n_read_segs and n_write_segs
