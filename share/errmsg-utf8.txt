@@ -10907,9 +10907,6 @@ ER_INVALID_USE_OF_FORCE_OPTION
 ER_GROUP_REPLICATION_COMMAND_FAILURE
   eng "The %s command encountered a failure. %s"
 
-ER_CANT_START_ERROR_LOG_SERVICE
-  eng "Failed to set %s at or around \"%s\" -- service is valid, but can not be initialized; please check its configuration and make sure it can read its input(s) and write to its output(s)."
-
 ER_SDI_OPERATION_FAILED
   eng "Failed to %s SDI '%.192s.%.192s' in tablespace '%.192s'."
 
@@ -10955,6 +10952,9 @@ ER_PARSE_ERROR_IN_DIGEST_FN
 
 ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
   eng "Could not parse argument to digest function."
+
+ER_CANT_START_ERROR_LOG_SERVICE
+  eng "Failed to set %s at or around \"%s\" -- service is valid, but can not be initialized; please check its configuration and make sure it can read its input(s) and write to its output(s)."
 
 ER_SCHEMA_DIR_EXISTS
   eng "Schema directory '%.192s' already exists. This must be resolved manually (e.g. by moving the schema directory to another location)."
