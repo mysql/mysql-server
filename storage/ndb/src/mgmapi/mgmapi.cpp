@@ -1661,6 +1661,7 @@ ndb_mgm_get_clusterlog_severity_filter(NdbMgmHandle handle,
   for(unsigned int i=0; i < severity_size; i++) {
     reply->get(clusterlog_severity_names[severity[i].category], &severity[i].value);
   }
+  delete reply;
   DBUG_RETURN(severity_size);
 }
 
@@ -1694,6 +1695,7 @@ ndb_mgm_get_clusterlog_severity_filter_old(NdbMgmHandle handle)
   for(int i=0; i < (int)NDB_MGM_EVENT_SEVERITY_ALL; i++) {
     reply->get(clusterlog_severity_names[i], &enabled[i]);
   }
+  delete reply;
   DBUG_RETURN(enabled);
 }
 
@@ -1824,6 +1826,7 @@ ndb_mgm_get_clusterlog_loglevel(NdbMgmHandle handle,
   for(int i=0; i < loglevel_count; i++) {
     reply->get(clusterlog_names[loglevel[i].category], &loglevel[i].value);
   }
+  delete reply;
   DBUG_RETURN(loglevel_count);
 }
 
@@ -1862,6 +1865,7 @@ ndb_mgm_get_clusterlog_loglevel_old(NdbMgmHandle handle)
   for(int i=0; i < loglevel_count; i++) {
     reply->get(clusterlog_names[i], &loglevel[i]);
   }
+  delete reply;
   DBUG_RETURN(loglevel);
 }
 
