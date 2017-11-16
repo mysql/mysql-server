@@ -11178,29 +11178,60 @@ Fil_system::get_tablespace_id(const std::string& filename)
 		return(ULINT32_UNDEFINED);
 	}
 
+	auto	page_size = srv_page_size;
+
 	for (page_no_t page_no = 0; page_no < MAX_PAGES_TO_CHECK; ++page_no) {
 
 		off_t	off;
 
-		off = page_no * srv_page_size + FIL_PAGE_SPACE_ID;
+		off = page_no * page_size + FIL_PAGE_SPACE_ID;
 
-		ifs.seekg(off,  ifs.beg);
+		if (off == FIL_PAGE_SPACE_ID) {
+
+			/* Figure out the page size of the tablespace. If it's
+			a compressed tablespace. */
+			ifs.seekg(FSP_SPACE_FLAGS, ifs.beg);
+
+			if ((ifs.rdstate() & std::ifstream::eofbit) != 0
+			    || (ifs.rdstate() & std::ifstream::failbit) != 0
+			    || (ifs.rdstate() & std::ifstream::badbit) != 0) {
+
+				return(ULINT32_UNDEFINED);;
+			}
+
+			ifs.read(buf, sizeof(buf));
+
+			if (!ifs.good()
+			    || (size_t) ifs.gcount() < sizeof(buf)) {
+
+				return(ULINT32_UNDEFINED);
+			}
+
+			ulint	flags;
+
+			flags  = mach_read_from_4(reinterpret_cast<byte*>(buf));
+
+			const page_size_t       space_page_size(flags);
+
+			page_size = space_page_size.physical();
+		}
+
+		ifs.seekg(off, ifs.beg);
 
 		if ((ifs.rdstate() & std::ifstream::eofbit) != 0
 		    || (ifs.rdstate() & std::ifstream::failbit) != 0
 		    || (ifs.rdstate() & std::ifstream::badbit) != 0) {
 
-
-			err = DB_FAIL;
-			break;
+			/* Trucated files can be a single page */
+			return(page_no > 0 ? space_id : ULINT32_UNDEFINED);
 		}
 
 		ifs.read(buf, sizeof(buf));
 
 		if (!ifs.good() || (size_t) ifs.gcount() < sizeof(buf)) {
 
-			err = DB_FAIL;
-			break;
+			/* Trucated files can be a single page */
+			return(page_no > 0 ? space_id : ULINT32_UNDEFINED);
 		}
 
 		space_id = mach_read_from_4(reinterpret_cast<byte*>(buf));
