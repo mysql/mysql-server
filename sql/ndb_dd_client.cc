@@ -208,8 +208,6 @@ Ndb_dd_client::get_engine(const char* schema_name,
                           const char* table_name,
                           dd::String_type* engine)
 {
-  dd::cache::Dictionary_client::Auto_releaser ar{m_client};
-
   const dd::Table *existing= nullptr;
   if (m_client->acquire(schema_name, table_name, &existing))
   {
@@ -235,8 +233,6 @@ Ndb_dd_client::rename_table(const char* old_schema_name,
                             const char* new_table_name,
                             int new_table_id, int new_table_version)
 {
-  dd::cache::Dictionary_client::Auto_releaser releaser(m_client);
-
   // Read new schema from DD
   const dd::Schema *new_schema= nullptr;
   if (m_client->acquire(new_schema_name, &new_schema))
@@ -288,8 +284,6 @@ Ndb_dd_client::drop_table(const char* schema_name,
                           const char* table_name)
 
 {
-  dd::cache::Dictionary_client::Auto_releaser releaser{m_client};
-
   const dd::Table *existing= nullptr;
   if (m_client->acquire(schema_name, table_name, &existing))
   {
@@ -319,8 +313,6 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
                              int ndb_table_id, int ndb_table_version,
                              bool force_overwrite)
 {
-  dd::cache::Dictionary_client::Auto_releaser ar{m_client};
-
   const dd::Schema *schema= nullptr;
 
   if (m_client->acquire(schema_name, &schema))
