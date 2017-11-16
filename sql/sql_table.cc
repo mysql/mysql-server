@@ -10043,6 +10043,43 @@ adjust_fks_for_complex_alter_table(THD *thd, TABLE_LIST *table_list,
 
 
 /**
+  Check if a table is empty, i.e., it has no rows.
+
+  @param[in] table The table.
+  @param[out] is_empty Set to true if the table is empty.
+
+  @retval false Success.
+  @retval true An error occurred (and has been reported with print_error).
+*/
+static bool table_is_empty(TABLE * table, bool *is_empty)
+{
+  *is_empty= false;
+  int error= 0;
+  if (!(error= table->file->ha_rnd_init(true)))
+  {
+    do
+    {
+      error= table->file->ha_rnd_next(table->record[0]);
+    } while (error == HA_ERR_RECORD_DELETED);
+    if (error == HA_ERR_END_OF_FILE)
+      *is_empty= true;
+  }
+  if (error && error != HA_ERR_END_OF_FILE)
+  {
+    table->file->print_error(error, MYF(0));
+    table->file->ha_rnd_end();
+    return true;
+  }
+  if ((error= table->file->ha_rnd_end()))
+  {
+    table->file->print_error(error, MYF(0));
+    return true;
+  }
+  return false;
+}
+
+
+/**
   Perform in-place alter table.
 
   @param thd                Thread handle.
@@ -10176,16 +10213,10 @@ static bool mysql_inplace_alter_table(THD *thd,
   {
     DBUG_ASSERT(table->mdl_ticket->get_type() == MDL_EXCLUSIVE);
 
-    // Check if the handler supports ha_records()
-    if (!(table_list->table->file->ha_table_flags() & HA_HAS_RECORDS))
-    {
-      // If ha_records() is not supported, be conservative.
-      my_error(ER_INVALID_USE_OF_NULL, MYF(0));
+    bool empty_table= false;
+    if (table_is_empty(table_list->table, &empty_table))
       goto cleanup;
-    }
-
-    ha_rows tmp= 0;
-    if (table_list->table->file->ha_records(&tmp) || tmp > 0)
+    if (!empty_table)
     {
       if (alter_ctx->error_if_not_empty &
           Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT)
