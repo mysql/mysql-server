@@ -2678,12 +2678,12 @@ dd_filename_to_spacename(
 	char			part_buf[NAME_LEN + 1];
 	char			sub_buf[NAME_LEN + 1];
 	char			orig_tablespace[NAME_LEN + 1];
-	bool			is_part_tmp = false;
+	bool			is_tmp = false;
 
 	db_buf[0] = tbl_buf[0] = part_buf[0] = sub_buf[0] = '\0';
 
 	dd_parse_tbl_name(
-		space_name, db_buf, tbl_buf, part_buf, sub_buf, &is_part_tmp);
+		space_name, db_buf, tbl_buf, part_buf, sub_buf, &is_tmp);
 
 	if (db_buf[0] == '\0') {
 		filename_to_tablename((char*) space_name, orig_tablespace,
@@ -2706,9 +2706,8 @@ dd_filename_to_spacename(
 		tablespace_name->append(sub_buf);
 	}
 
-	if (is_part_tmp) {
-		ut_ad(part_buf[0] != '\0');
-		tablespace_name->append("#tmp");
+	if (is_tmp) {
+		tablespace_name->append(TMP_POSTFIX);
 	}
 
 	/* Name should not exceed schema/table#P#partition#SP#subpartition. */
