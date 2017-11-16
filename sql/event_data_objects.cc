@@ -59,6 +59,7 @@
 #include "sql/sql_time.h"                      // interval_type_to_name
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/transaction.h"
 #include "sql/thr_malloc.h"
                                                // date_add_interval,
                                                // calc_time_diff.
@@ -1286,6 +1287,11 @@ end:
       ulong saved_master_access;
 
       thd->set_query(sp_sql.c_ptr_safe(), sp_sql.length());
+      /*
+        Drop should be executed as a separate transaction.
+        Commit any open transaction before executing the drop event.
+      */
+      ret= trans_commit_stmt(thd) || trans_commit(thd);
 
       // Prevent InnoDB from automatically committing the InnoDB transaction
       // after updating the data-dictionary table.
