@@ -2,6 +2,8 @@ set optimizer_switch='batched_key_access=on,block_nested_loop=off,mrr_cost_based
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 DROP DATABASE IF EXISTS world;
 set names utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE DATABASE world;
 use world;
 CREATE TABLE country (
@@ -2350,6 +2352,8 @@ insert into t7 values("2000-01-01"),("2000-01-02");
 CREATE TABLE t3 (
 col582 char(230) CHARACTER SET utf8 DEFAULT NULL
 )  ;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t3 VALUES ('cymej'),('spb');
 CREATE TABLE t5 (
 col712 time

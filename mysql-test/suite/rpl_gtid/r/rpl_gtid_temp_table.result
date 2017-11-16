@@ -16,6 +16,8 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
 ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 START TRANSACTION;
@@ -136,6 +138,8 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
 ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 START TRANSACTION;
@@ -256,6 +260,8 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
 RETURN 0;
 END;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
 ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 START TRANSACTION;
@@ -376,6 +382,8 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
 RETURN 0;
 END;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
 ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 START TRANSACTION;
@@ -496,6 +504,8 @@ BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
 ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 START TRANSACTION;
@@ -616,6 +626,8 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 RETURN 0;
 END;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
 ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 START TRANSACTION;
@@ -736,6 +748,8 @@ BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
 ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 START TRANSACTION;
@@ -856,6 +870,8 @@ BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
 ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 START TRANSACTION;
@@ -976,6 +992,8 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 RETURN 0;
 END;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
 ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 START TRANSACTION;
@@ -1096,6 +1114,8 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 RETURN 0;
 END;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
 ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 START TRANSACTION;

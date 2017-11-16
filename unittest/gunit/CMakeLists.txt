@@ -362,6 +362,7 @@ ENDFOREACH()
 
 # Add tests (link them with gunit/gmock libraries and the server libraries) 
 SET(SERVER_TESTS
+  character_set_deprecation
   copy_info
   create_field
   dd_column_statistics

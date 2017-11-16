@@ -374,6 +374,8 @@ SELECT regexp_instr( _utf8mb4'aöb', _utf8mb4'ö' );
 regexp_instr( _utf8mb4'aöb', _utf8mb4'ö' )
 2
 SET NAMES utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT regexp_instr( 'aöb', 'ö' );
 regexp_instr( 'aöb', 'ö' )
 2
@@ -382,6 +384,8 @@ SET NAMES DEFAULT;
 # Bug#30241: Regular expression problems
 #
 SET NAMES utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT regexp_instr( 'אב רק', /*k*/'^[^ב]' );
 regexp_instr( 'אב רק', /*k*/'^[^ב]' )
 1

@@ -123,6 +123,8 @@ WARNING | 3090 | Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will 
 
 0 rows affected
 Statement prepared
+Warnings generated:
+WARNING | 11265 | 'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 0 rows affected
 
@@ -1299,7 +1301,7 @@ Try to enable fixed notice, should be ok
 
 command ok
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 168]
-Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 863]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 864]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]

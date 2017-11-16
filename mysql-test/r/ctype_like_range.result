@@ -284,6 +284,8 @@ id	name	val
 32	mx	63616161616161616161616161616161
 32	sp	--------------------------------
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT * FROM v1;
 id	name	val
 1	a	
@@ -415,6 +417,8 @@ id	name	val
 32	mx	6361616161
 32	sp	--------------------------------
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT * FROM v1;
 id	name	val
 1	a	
@@ -546,6 +550,8 @@ id	name	val
 32	mx	6361616161
 32	sp	--------------------------------
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_czech_ci;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT * FROM v1;
 id	name	val
 1	a	
@@ -677,6 +683,8 @@ id	name	val
 32	mx	6361616161
 32	sp	--------------------------------
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_danish_ci;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT * FROM v1;
 id	name	val
 1	a	

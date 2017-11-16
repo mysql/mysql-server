@@ -77,6 +77,8 @@ concat((select x from (select 'a' as x) as t1 ),
 ab
 ab
 create table t1(f1 varchar(6)) charset=utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ("123456");
 select concat(f1, 2) a from t1 union select 'x' a from t1;
 a
@@ -101,6 +103,8 @@ d TEXT NOT NULL,
 PRIMARY KEY (a, b, c),
 KEY (a)
 ) DEFAULT CHARSET=utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('gui_A', 'a', 'b', 'str1'),
 ('gui_AB', 'a', 'b', 'str2'), ('gui_ABC', 'a', 'b', 'str3');
 CREATE TABLE t2 (

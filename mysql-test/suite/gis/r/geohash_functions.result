@@ -1431,6 +1431,8 @@ ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_persian_ci)
 -179.55743439816956
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1439,6 +1441,8 @@ ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_czech_ci)
 -179.55743439816956
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1447,6 +1451,8 @@ ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_unicode_ci)
 -179.55743439816956
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1455,6 +1461,8 @@ ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_hungarian_ci)
 -179.55743439816956
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1471,6 +1479,8 @@ ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_persian_ci)
 -82.77450549262497
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1479,6 +1489,8 @@ ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_czech_ci)
 -82.77450549262497
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1487,6 +1499,8 @@ ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_unicode_ci)
 -82.77450549262497
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1495,6 +1509,8 @@ ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_hungarian_ci)
 -82.77450549262497
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1519,6 +1535,8 @@ CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
 )
 )
 POINT(-82.77450549262497 -179.55743439816956)
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_ASTEXT(
 ST_POINTFROMGEOHASH(
@@ -1535,6 +1553,8 @@ CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
 )
 )
 POINT(-82.77450549262497 -179.55743439816956)
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_ASTEXT(
 ST_POINTFROMGEOHASH(
@@ -1551,6 +1571,8 @@ CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
 )
 )
 POINT(-82.77450549262497 -179.55743439816956)
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_ASTEXT(
 ST_POINTFROMGEOHASH(
@@ -1567,6 +1589,8 @@ CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
 )
 )
 POINT(-82.77450549262497 -179.55743439816956)
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_ASTEXT(
 ST_POINTFROMGEOHASH(
