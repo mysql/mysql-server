@@ -8572,8 +8572,8 @@ alter_part::build_partition_name(
 	ut_ad(len < FN_REFLEN);
 
 	if (temp) {
-		strcpy(name + len, "#tmp");
-		ut_ad(len + sizeof "#tmp" < FN_REFLEN);
+		strcpy(name + len, TMP_POSTFIX);
+		ut_ad(len + sizeof TMP_POSTFIX < FN_REFLEN);
 	}
 }
 
@@ -11164,9 +11164,9 @@ ha_innopart::exchange_partition_low(
 	char*	swap_name = strdup(swap->name.m_name);
 	char*	part_name = strdup(part->name.m_name);
 
-	/* Define the temporary table name, by appending "#tmp" */
+	/* Define the temporary table name, by appending TMP_POSTFIX */
 	char			temp_name[FN_REFLEN];
-	snprintf(temp_name, sizeof temp_name, "%s#tmp", swap_name);
+	snprintf(temp_name, sizeof temp_name, "%s%s", swap_name, TMP_POSTFIX);
 
 	int	error = 0;
 	error = innobase_basic_ddl::rename_impl<dd::Table>(
