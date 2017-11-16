@@ -1126,7 +1126,7 @@ void Dblqh::startphase3Lab(Signal* signal)
       locLogFilePtr.i = logPartPtr.p->firstLogfile;
       ptrCheckGuard(locLogFilePtr, clogFileFileSize, logFileRecord);
       locLogFilePtr.p->logFileStatus = LogFileRecord::OPEN_SR_FRONTPAGE;
-      openFileRw(signal, locLogFilePtr);
+      openFileRw(signal, locLogFilePtr, false); /* No write buffering */
     }//for
     break;
   case NodeState::ST_INITIAL_START:
@@ -18231,6 +18231,12 @@ void Dblqh::readSrLastMbyteLab(Signal* signal)
       logPartPtr.p->lastMbyte = clogFileSize - 1;
     }//if
   }//if
+  if (ERROR_INSERTED(5092))
+  {
+    jam();
+    suspendFile(signal, logFilePtr, 3000); // Slow close
+  }
+
   logFilePtr.p->logFileStatus = LogFileRecord::CLOSING_SR;
   closeFile(signal, logFilePtr, __LINE__);
 
@@ -18268,7 +18274,7 @@ void Dblqh::readSrLastMbyteLab(Signal* signal)
     findLogfile(signal, fileNo, logPartPtr, &locLogFilePtr);
     ndbrequire(locLogFilePtr.p->logFileStatus == LogFileRecord::CLOSED);
     locLogFilePtr.p->logFileStatus = LogFileRecord::OPEN_SR_NEXT_FILE;
-    openFileRw(signal, locLogFilePtr);
+    openFileRw(signal, locLogFilePtr, false); /* No write buffering */
     return;
   }//if
   /* ------------------------------------------------------------------------
@@ -18296,6 +18302,11 @@ void Dblqh::readSrNextFileLab(Signal* signal)
     initGciInLogFileRec(signal, logPartPtr.p->srRemainingFiles);
   }//if
   releaseLogpage(signal);
+  if (ERROR_INSERTED(5092))
+  {
+    jam();
+    suspendFile(signal, logFilePtr, 3000); // Slow close
+  }
   logFilePtr.p->logFileStatus = LogFileRecord::CLOSING_SR;
   closeFile(signal, logFilePtr, __LINE__);
   if (logPartPtr.p->srRemainingFiles > cmaxValidLogFilesInPageZero) {
@@ -18320,11 +18331,17 @@ void Dblqh::readSrNextFileLab(Signal* signal)
     
     /* Check we're making progress */
     ndbrequire(fileNo != logFilePtr.p->fileNo);
+
+    /**
+     * Note that we are opening another file without waiting for
+     * the previous FSCLOSECONF.
+     * This can result in > 4 concurrently open files.
+     */
     LogFileRecordPtr locLogFilePtr;
     findLogfile(signal, fileNo, logPartPtr, &locLogFilePtr);
     ndbrequire(locLogFilePtr.p->logFileStatus == LogFileRecord::CLOSED);
     locLogFilePtr.p->logFileStatus = LogFileRecord::OPEN_SR_NEXT_FILE;
-    openFileRw(signal, locLogFilePtr);
+    openFileRw(signal, locLogFilePtr, false); /* No write buffering */
   }//if
   /* ------------------------------------------------------------------------
    *   THERE WERE NO NEED TO READ ANY MORE PAGE ZERO IN OTHER FILES. 
@@ -18360,7 +18377,7 @@ void Dblqh::closingSrFrontPage(Signal* signal)
   
   /* And now open the head file to begin redo meta reload */
   oldHead.p->logFileStatus = LogFileRecord::OPEN_SR_LAST_FILE;
-  openFileRw(signal, oldHead);
+  openFileRw(signal, oldHead, false); /* No write buffering */
   return;
 }
 
@@ -26844,7 +26861,7 @@ Dblqh::openFileRw_cache(Signal* signal,
   }
 
   filePtr.p->logFileStatus = LogFileRecord::OPEN_EXEC_LOG;
-  openFileRw(signal, filePtr, false);
+  openFileRw(signal, filePtr, false); /* No write buffering */
 }
 
 void
