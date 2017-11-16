@@ -490,7 +490,7 @@ ACL_PROXY_USER::store_data_record(TABLE *table,
   @param[in] str input which should be matched against pattern
   @param[in] str_len length of the input string
   @param[in] wildstr pattern with wildcards
-  @paramp[in] wildstr_len length of the wildcards pattern
+  @param[in] wildstr_len length of the wildcards pattern
 
   @return 0 if input string match with the pattern
   @return 1 otherwise
