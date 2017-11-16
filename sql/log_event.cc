@@ -10212,7 +10212,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       DBUG_RETURN(-1);
     }
     else if (state == GTID_STATEMENT_SKIP)
-      DBUG_RETURN(0);
+      goto end;
 
     /*
       The current statement is just about to begin and 

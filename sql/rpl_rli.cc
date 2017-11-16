@@ -1620,9 +1620,19 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   }
   if (rows_query_ev)
   {
+    /*
+      In order to avoid invalid memory access, THD::reset_query() should be
+      called before deleting the rows_query event.
+    */
+    info_thd->reset_query();
     delete rows_query_ev;
     rows_query_ev= NULL;
-    info_thd->reset_query();
+    DBUG_EXECUTE_IF("after_deleting_the_rows_query_ev",
+                    {
+                      const char action[]="now SIGNAL deleted_rows_query_ev WAIT_FOR go_ahead";
+                      DBUG_ASSERT(!debug_sync_set_action(info_thd,
+                                                       STRING_WITH_LEN(action)));
+                    };);
   }
   m_table_map.clear_tables();
   slave_close_thread_tables(thd);
