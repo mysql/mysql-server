@@ -481,6 +481,20 @@ ACL_PROXY_USER::store_data_record(TABLE *table,
   DBUG_RETURN(FALSE);
 }
 
+/**
+  Performs wildcard matching, aka globbing, on the input string with
+  the given wildcard pattern, and the specified wildcard characters.
+  This method does case insensitive comparisons.
+
+  @param[in] cs character set of the input string and wildcard pattern
+  @param[in] str input which should be matched against pattern
+  @param[in] str_len length of the input string
+  @param[in] wildstr pattern with wildcards
+  @paramp[in] wildstr_len length of the wildcards pattern
+
+  @return 0 if input string match with the pattern
+  @return 1 otherwise
+*/
 int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
                       const char *wildstr, size_t wildstr_len)
 {
@@ -489,6 +503,21 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
   DBUG_PRINT("enter",("str: '%s'  wildstr: '%s'",str,wildstr));
   const char *wildstr_end= wildstr + wildstr_len;
   const char *str_end= str + str_len;
+
+  /*
+    Empty string matches only if there is only a wild_many(%) char
+    in the string to be matched with.
+  */
+  if (str_len == 0)
+  {
+    bool ret_value = true;
+    if (wildstr_len == 1)
+    {
+      ret_value = !(*wildstr == wild_many);
+    }
+    DBUG_RETURN(ret_value);
+  }
+
   while (wildstr != wildstr_end && str != str_end)
   {
     while (wildstr != wildstr_end &&
@@ -499,15 +528,24 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
       if (my_toupper(cs, *wildstr++) != my_toupper(cs, *str++))
         DBUG_RETURN(1);
     }
-    if (wildstr == wildstr_end) DBUG_RETURN (str != str_end);
+    if (wildstr == wildstr_end)
+    {
+      DBUG_RETURN(str != str_end);
+    }
     if (*wildstr++ == wild_one)
     {
       ++str;
-      if (str == str_end) DBUG_RETURN (wildstr != wildstr_end);    /* One char; skip */
+      if (str == str_end) /* One char; skip */
+      {
+        DBUG_RETURN(wildstr != wildstr_end);
+      }
     }
     else
     {                                           /* Found '*' */
-      if (wildstr == wildstr_end) DBUG_RETURN(0);            /* '*' as last char: OK */
+      if (wildstr == wildstr_end)
+      {
+         DBUG_RETURN(0);  /* '*' as last char: OK */
+      }
       flag=(*wildstr != wild_many && *wildstr != wild_one);
       do
       {

@@ -542,6 +542,7 @@ void Security_context::assign_user(const char *user_arg,
   Setter method for member m_host.
   Function just sets the host_arg pointer value to the
   m_host, host_arg value is *not* copied.
+  host_arg value must not be NULL.
 
   @param[in]    host_arg         New user value for m_host.
   @param[in]    host_arg_length  Length of "host_arg" param.
@@ -550,6 +551,8 @@ void Security_context::assign_user(const char *user_arg,
 void Security_context::set_host_ptr(const char *host_arg, const size_t host_arg_length)
 {
   DBUG_ENTER("Security_context::set_host_ptr");
+
+  DBUG_ASSERT(host_arg != nullptr);
 
   if (host_arg == m_host.ptr())
     DBUG_VOID_RETURN;
@@ -565,25 +568,34 @@ void Security_context::set_host_ptr(const char *host_arg, const size_t host_arg_
   Setter method for member m_host.
 
   Copies host_arg value to the m_host if it is not null else m_user is set
-  to NULL.
+  to empty string.
 
 
   @param[in]    host_arg         New user value for m_host.
   @param[in]    host_arg_length  Length of "host_arg" param.
 */
 
-void Security_context::assign_host(const char *host_arg, const size_t host_arg_length)
+void Security_context::assign_host(const char *host_arg,
+                                   const size_t host_arg_length)
 {
   DBUG_ENTER("Security_context::assign_host");
 
-  if (host_arg == m_host.ptr())
-    DBUG_VOID_RETURN;
-
-  if (host_arg)
+  if (host_arg == nullptr)
+  {
+    m_host.set("", 0, system_charset_info);
+    goto end;
+  }
+  else if (host_arg == m_host.ptr())
+  {
+    goto end;
+  }
+  else if (*host_arg)
+  {
     m_host.copy(host_arg, host_arg_length, system_charset_info);
-  else
-    m_host.set((const char *) 0, 0, system_charset_info);
+    goto end;
+  }
 
+end:
   DBUG_VOID_RETURN;
 }
 
