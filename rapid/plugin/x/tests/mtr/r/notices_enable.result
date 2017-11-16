@@ -657,6 +657,12 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 11265\nmsg: \"\\\'utf8\\\' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.\"\n }"
+}
+
+Mysqlx.Notice.Frame {
   type: 3
   scope: LOCAL
   payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
@@ -7593,7 +7599,7 @@ Try to enable fixed notice, should be ok
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 169]
-Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 863]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 864]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]

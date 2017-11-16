@@ -368,16 +368,18 @@ create table t1 (a text, fulltext key (a)) ENGINE = InnoDB;
 insert into t1 select "xxxx yyyy zzzz";
 drop table t1;
 SET NAMES latin1;
-CREATE TABLE t1 (t text character set utf8 not null, fulltext(t)) ENGINE = InnoDB;
+CREATE TABLE t1 (t text character set utf8mb4 not null, fulltext(t)) ENGINE = InnoDB;
 INSERT t1 VALUES ('Mit freundlichem GrЭъ'), ('aus OsnabrЭck');
 SET NAMES koi8r;
 INSERT t1 VALUES ("Это мы - опилки"),("Отлезь, гнида!"),
 ("Не влезай, убьет!"),("и будет прав!");
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('ОПИЛКИ');
 t	collation(t)
-Это мы - опилки	utf8_general_ci
+Это мы - опилки	utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) ENGINE = InnoDB DEFAULT CHARSET=utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 (s) values ('pДra para para'),('para para para');
 select * from t1 where match(s) against('para' in boolean mode);
 s
@@ -407,6 +409,8 @@ insert t2 values (10, "aaaa"), (2, "cccc");
 replace t1 select * from t2;
 drop table t1, t2;
 CREATE TABLE t1 (t VARCHAR(200) CHARACTER SET utf8 COLLATE utf8_unicode_ci, FULLTEXT (t)) ENGINE = InnoDB;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET NAMES latin1;
 INSERT INTO t1 VALUES('Mit freundlichem GrЭъ aus OsnabrЭck');
 SELECT COUNT(*) FROM t1 WHERE MATCH(t) AGAINST ('"osnabrЭck"' IN BOOLEAN MODE);

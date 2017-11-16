@@ -57,7 +57,7 @@ SET DEBUG="-d,fts_instrument_ignore_ngram_check";
 
 DROP TABLE articles;
 
-SET NAMES utf8;
+SET NAMES utf8mb4;
 
 -- echo # Test Case 2: Test Stopwords
 # Compare with results without stopword check.

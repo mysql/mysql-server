@@ -1,6 +1,8 @@
 # Test of the conversion from JSON data type to MySQL types
 # ----------------------------------------------------------------------
 SET NAMES utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Set up auxiliary table with possible JSON values. The idea here is to
 # enumerate all possible types of JSON values, including the different
 # opaque values we could possibly end up with. A difficulty here is that

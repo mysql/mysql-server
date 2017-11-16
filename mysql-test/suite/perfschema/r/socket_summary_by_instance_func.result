@@ -7,6 +7,10 @@
 # - the test might abort
 #
 # 0. Check, build or set prequisites
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 UPDATE performance_schema.threads
 SET INSTRUMENTED='NO' WHERE PROCESSLIST_ID = CONNECTION_ID();
 # 1. Basic checks

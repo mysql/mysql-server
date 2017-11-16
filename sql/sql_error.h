@@ -718,6 +718,15 @@ private:
 void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
                   uint code, const char *message_text);
 
+/**
+  Convenience function for sending a warning with level SL_WARNING and no
+  arguments to the message.
+
+  @param thd The session to send the warning to.
+  @param code The warning number.
+*/
+void push_warning(THD *thd, uint code);
+
 /*
   Note that this MY_ATTRIBUTE check cannot detect number/type mismatch
   since the format string is not known at compile time.

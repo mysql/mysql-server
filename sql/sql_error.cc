@@ -766,6 +766,10 @@ void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
   DBUG_VOID_RETURN;
 }
 
+void push_warning(THD *thd, uint code)
+{
+  push_warning(thd, Sql_condition::SL_WARNING, code, nullptr);
+}
 
 /**
   Push the warning to error list if there is still room in the list
