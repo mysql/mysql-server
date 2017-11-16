@@ -5992,10 +5992,10 @@ int mysqld_main(int argc, char **argv)
         char        buff[512];
         size_t      len;
 
-        len= my_snprintf(buff, sizeof(buff) - 1,
-                         ER_DEFAULT(ER_CANT_START_ERROR_LOG_SERVICE),
-                         var_name, problem);
-        buff[sizeof(buff) - 1]= '\0';
+        len= snprintf(buff, sizeof(buff),
+                      ER_DEFAULT(ER_CANT_START_ERROR_LOG_SERVICE),
+                      var_name, problem);
+        len= std::min(len, sizeof(buff) - 1);
 
         log_write_errstream(buff, len);
 
