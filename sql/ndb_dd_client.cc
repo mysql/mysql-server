@@ -36,7 +36,6 @@
 Ndb_dd_client::Ndb_dd_client(THD* thd) :
   m_thd(thd),
   m_client(thd->dd_client()),
-  m_mdl_locks_acquired(false),
   m_save_option_bits(0),
   m_comitted(false)
 {
@@ -53,10 +52,8 @@ Ndb_dd_client::Ndb_dd_client(THD* thd) :
 Ndb_dd_client::~Ndb_dd_client()
 {
 
-  // Automatically release any acquired MDL locks
-  if (m_mdl_locks_acquired)
-    mdl_locks_release();
-  assert(!m_mdl_locks_acquired);
+  // Automatically release acquired MDL locks
+  mdl_locks_release();
 
   // Automatically restore the option_bits in THD if they have
   // been modified
@@ -83,10 +80,10 @@ Ndb_dd_client::mdl_lock_table(const char* schema_name,
   MDL_request mdl_request;
   MDL_REQUEST_INIT(&schema_request,
                    MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
-                   MDL_TRANSACTION);
+                   MDL_EXPLICIT);
   MDL_REQUEST_INIT(&mdl_request,
                    MDL_key::TABLE, schema_name, table_name, MDL_SHARED,
-                   MDL_TRANSACTION);
+                   MDL_EXPLICIT);
 
   mdl_requests.push_front(&schema_request);
   mdl_requests.push_front(&mdl_request);
@@ -97,8 +94,9 @@ Ndb_dd_client::mdl_lock_table(const char* schema_name,
     return false;
   }
 
-  // Remember that MDL locks where acquired
-  m_mdl_locks_acquired = true;
+  // Remember tickets of the acquired mdl locks
+  m_acquired_mdl_tickets.push_back(schema_request.ticket);
+  m_acquired_mdl_tickets.push_back(mdl_request.ticket);
 
   return true;
 }
@@ -111,7 +109,7 @@ Ndb_dd_client::mdl_lock_schema(const char* schema_name)
   MDL_request schema_request;
   MDL_REQUEST_INIT(&schema_request,
                    MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
-                   MDL_TRANSACTION);
+                   MDL_EXPLICIT);
   mdl_requests.push_front(&schema_request);
 
   if (m_thd->mdl_context.acquire_locks(&mdl_requests,
@@ -120,8 +118,8 @@ Ndb_dd_client::mdl_lock_schema(const char* schema_name)
     return false;
   }
 
-  // Remember that MDL locks where acquired
-  m_mdl_locks_acquired = true;
+  // Remember ticket of the acquired mdl lock
+  m_acquired_mdl_tickets.push_back(schema_request.ticket);
 
   return true;
 }
@@ -136,10 +134,10 @@ Ndb_dd_client::mdl_locks_acquire_exclusive(const char* schema_name,
 
   MDL_REQUEST_INIT(&schema_request,
                    MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
-                   MDL_TRANSACTION);
+                   MDL_EXPLICIT);
   MDL_REQUEST_INIT(&mdl_request,
                    MDL_key::TABLE, schema_name, table_name, MDL_EXCLUSIVE,
-                   MDL_TRANSACTION);
+                   MDL_EXPLICIT);
 
   mdl_requests.push_front(&schema_request);
   mdl_requests.push_front(&mdl_request);
@@ -150,8 +148,9 @@ Ndb_dd_client::mdl_locks_acquire_exclusive(const char* schema_name,
     return false;
   }
 
-  // Remember that MDL locks where acquired
-  m_mdl_locks_acquired = true;
+  // Remember tickets of the acquired mdl locks
+  m_acquired_mdl_tickets.push_back(schema_request.ticket);
+  m_acquired_mdl_tickets.push_back(mdl_request.ticket);
 
   return true;
 }
@@ -159,8 +158,10 @@ Ndb_dd_client::mdl_locks_acquire_exclusive(const char* schema_name,
 
 void Ndb_dd_client::mdl_locks_release()
 {
-  m_thd->mdl_context.release_transactional_locks();
-  m_mdl_locks_acquired = false;
+  for (MDL_ticket* ticket : m_acquired_mdl_tickets)
+  {
+    m_thd->mdl_context.release_lock(ticket);
+  }
 }
 
 

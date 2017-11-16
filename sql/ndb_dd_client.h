@@ -49,7 +49,7 @@ class Ndb_dd_client {
   class THD* const m_thd;
   dd::cache::Dictionary_client* m_client;
   void* m_auto_releaser; // Opaque pointer
-  bool m_mdl_locks_acquired;
+  std::vector<class MDL_ticket*> m_acquired_mdl_tickets;
   ulonglong m_save_option_bits;
   bool m_comitted;
 
