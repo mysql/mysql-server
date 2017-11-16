@@ -9091,7 +9091,7 @@ Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
 bool Item_insert_value::eq(const Item *item, bool binary_cmp) const
 {
   return item->type() == INSERT_VALUE_ITEM &&
-    ((Item_default_value *)item)->arg->eq(arg, binary_cmp);
+    (down_cast<const Item_insert_value *>(item))->arg->eq(arg, binary_cmp);
 }
 
 
