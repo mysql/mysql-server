@@ -217,6 +217,7 @@ The following options may be given as the first argument:
  Skip the check for non-natively partitioned tables during
  bootstrap. This option is deprecated along with the
  partition engine.
+ (Defaults to on; use --skip-disable-partition-engine-check to disable.)
  --disabled-storage-engines=name 
  Limit CREATE TABLE for the storage engines listed
  --disconnect-on-expired-password 
@@ -1292,7 +1293,7 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
-disable-partition-engine-check FALSE
+disable-partition-engine-check TRUE
 disabled-storage-engines 
 disconnect-on-expired-password TRUE
 disconnect-slave-event-count 0
