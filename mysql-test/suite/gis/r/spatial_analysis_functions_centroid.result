@@ -428,10 +428,9 @@ POINT(0 0)
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 2000)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 2000)))
 POINT(0 0)
-# Geographic SRS (should pass)
+# Geographic SRS (should fail)
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 4326)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 4326)))
-POINT(0 0)
+ERROR 22S00: st_centroid(POINT) has not been implemented for geographic spatial reference systems.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
@@ -439,3 +438,9 @@ VALUES (7000001, 1, 'TEST7000001', 'Foo', 7000001, 'FOOBAR', '');
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 7000001)));
 ERROR SR002: Can't parse the spatial reference system definition of SRID 7000001.
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 7000001;
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_CENTROID(x'0A000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
