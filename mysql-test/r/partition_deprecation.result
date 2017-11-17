@@ -92,11 +92,13 @@ TABLE_SCHEMA	TABLE_NAME
 test	t1
 Warnings:
 Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-# Verify that the startup option --disable-partition-engine-check skips the I_S query.
-# restart: --disable-partition-engine-check --no-console --log-error=LOG_FILE
-# No deprecation warning found.
-# Verify that the I_S query on bootstrap prints warnings in the error log.
+# Verify that the startup by default skips the I_S query, since the
+# option --disable-partition-engine-check defaults to TRUE.
 # restart: --no-console --log-error=LOG_FILE
+# No deprecation warning found.
+# Verify that the I_S query on bootstrap prints warnings in the error log
+# when '--disable-partition-engine-check=0'.
+# restart: --disable-partition-engine-check=0 --no-console --log-error=LOG_FILE
 # Deprecation warning found.
 # Restart the server without additional options.
 # restart:
