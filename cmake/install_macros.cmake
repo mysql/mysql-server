@@ -45,7 +45,7 @@ MACRO (INSTALL_DEBUG_SYMBOLS targets)
 	  SET(comp Server)
     ELSE()
       SET(comp Debuginfo)
-    ENDIF()	  
+    ENDIF()
     # No .pdb file for static libraries.
     IF(NOT type MATCHES "STATIC_LIBRARY")
       INSTALL(FILES ${pdb_location}
