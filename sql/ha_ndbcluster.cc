@@ -9142,13 +9142,11 @@ ndb_column_is_dynamic(THD *thd,
     For COLUMN_STORAGE defined as DISK dynamic COLUMN_FORMAT is not supported
     and a warning will be issued if explicitly declared.
    */
-  const bool default_is_fixed= ((opt_ndb_default_column_format ==
+  const bool default_was_fixed= ((opt_ndb_default_column_format ==
                                  NDB_DEFAULT_COLUMN_FORMAT_FIXED) ||
                                 (field->table->s->mysql_version <
                                  MYSQL_VERSION_NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC));
-  bool dynamic=
-    (default_is_fixed || (field->flags & PRI_KEY_FLAG)) ? false : true;
-
+  bool dynamic;
   switch (field->column_format()) {
   case(COLUMN_FORMAT_TYPE_FIXED):
     dynamic= false;
@@ -9159,8 +9157,18 @@ ndb_column_is_dynamic(THD *thd,
   case(COLUMN_FORMAT_TYPE_DEFAULT):
   default:
     if (create_info->row_type == ROW_TYPE_DEFAULT)
-      dynamic= (default_is_fixed || (field->flags & PRI_KEY_FLAG)) ?
-        default_format : TRUE;
+    {
+      if (default_was_fixed || // Created in old version where fixed was
+                               // the default choice
+          (field->flags & PRI_KEY_FLAG)) // Primary key
+      {
+        dynamic = (default_format == COLUMN_FORMAT_TYPE_DYNAMIC);
+      }
+      else
+      {
+        dynamic = true;
+      }
+    }
     else
       dynamic= (create_info->row_type == ROW_TYPE_DYNAMIC);
     break;
