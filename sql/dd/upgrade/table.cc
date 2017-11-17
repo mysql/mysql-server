@@ -1719,7 +1719,13 @@ static bool migrate_table_to_dd(THD *thd,
 
   if (error)
   {
-    LogErr(ERROR_LEVEL, ER_TABLE_NEEDS_UPGRADE, table_name.c_str());
+    if (error == HA_ADMIN_NEEDS_DUMP_UPGRADE)
+      sql_print_error("Table upgrade required for "
+                      "`%-.64s`.`%-.64s`. Please dump/reload table to "
+                      "fix it!", schema_name.c_str(), table_name.c_str());
+    else
+      LogErr(ERROR_LEVEL, ER_TABLE_NEEDS_UPGRADE, table_name.c_str());
+
     return true;
   }
 

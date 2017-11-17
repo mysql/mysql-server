@@ -4634,7 +4634,7 @@ int check_table_for_old_types(const TABLE *table)
     if (table->s->mysql_version == 0) // prior to MySQL 5.0
     {
       /* check for bad DECIMAL field */
-      if ((*field)->type() == MYSQL_TYPE_NEWDECIMAL) // TODO: error? MYSQL_TYPE_DECIMAL?
+      if ((*field)->type() == MYSQL_TYPE_NEWDECIMAL)
       {
         return HA_ADMIN_NEEDS_ALTER;
       }
@@ -4643,6 +4643,19 @@ int check_table_for_old_types(const TABLE *table)
         return HA_ADMIN_NEEDS_ALTER;
       }
     }
+
+    /*
+      Check for old DECIMAL field.
+
+      Above check does not take into account for pre 5.0 decimal types which can
+      be present in the data directory if user did in-place upgrade from
+      mysql-4.1 to mysql-5.0.
+    */
+    if ((*field)->type() == MYSQL_TYPE_DECIMAL)
+    {
+      return HA_ADMIN_NEEDS_DUMP_UPGRADE;
+    }
+
     if ((*field)->type() == MYSQL_TYPE_YEAR && (*field)->field_length == 2)
       return HA_ADMIN_NEEDS_ALTER; // obsolete YEAR(2) type
 
