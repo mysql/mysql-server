@@ -42,9 +42,7 @@
 
 Ndb_dd_client::Ndb_dd_client(THD* thd) :
   m_thd(thd),
-  m_client(thd->dd_client()),
-  m_save_option_bits(0),
-  m_comitted(false)
+  m_client(thd->dd_client())
 {
   disable_autocommit();
 
@@ -67,9 +65,12 @@ Ndb_dd_client::~Ndb_dd_client()
   if (m_save_option_bits)
     m_thd->variables.option_bits = m_save_option_bits;
 
-  // Automatically rollback unless commit has been called
-  if (!m_comitted)
-    rollback();
+  if (m_auto_rollback)
+  {
+    // Automatically rollback unless commit has been called
+    if (!m_comitted)
+      rollback();
+  }
 
   // Free the dictionary client auto releaser
   dd::cache::Dictionary_client::Auto_releaser* ar =
@@ -664,6 +665,38 @@ Ndb_dd_client::schema_exists(const char* schema_name,
 
   // The schema exists
   *schema_exists = true;
+  DBUG_RETURN(true);
+}
+
+
+bool Ndb_dd_client::lookup_tablespace_id(const char* tablespace_name,
+                                         dd::Object_id* tablespace_id)
+{
+  DBUG_ENTER("lookup_tablespace_id");
+  DBUG_PRINT("enter", ("tablespace_name: %s", tablespace_name));
+
+  DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
+                MDL_key::TABLESPACE,
+                "", tablespace_name,
+                MDL_INTENTION_EXCLUSIVE));
+
+  // Acquire tablespace.
+  dd::cache::Dictionary_client::Auto_releaser releaser(m_thd->dd_client());
+  const dd::Tablespace* ts_obj= NULL;
+  if (m_thd->dd_client()->acquire(tablespace_name, &ts_obj))
+  {
+    // acquire() always fails with a error being reported.
+    DBUG_RETURN(false);
+  }
+
+  if (!ts_obj)
+  {
+    DBUG_RETURN(false);
+  }
+
+  *tablespace_id = ts_obj->id();
+  DBUG_PRINT("exit", ("tablespace_id: %llu", *tablespace_id));
+
   DBUG_RETURN(true);
 }
 

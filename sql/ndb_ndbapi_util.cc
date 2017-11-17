@@ -121,3 +121,45 @@ ndb_table_has_hidden_pk(const NdbDictionary::Table *ndbtab)
   return false;
 }
 
+
+
+bool
+ndb_table_has_tablespace(const NdbDictionary::Table* ndbtab)
+{
+  // NOTE! There is a slight ambiguity in the NdbDictionary::Table.
+  // Depending on wheter it has been retrieved from NDB or created
+  // by user as part of defining a new table in NDB, different methods
+  // need to be used for determining if table has tablespace
+
+  if (ndb_table_tablespace_name(ndbtab) != nullptr)
+  {
+    // Has tablespace
+    return true;
+  }
+
+  if (ndbtab->getTablespace())
+  {
+    // Retrieved from NDB, the tablespace id and version
+    // are avaliable in the table definition -> has tablespace.
+    // NOTE! Fetching the name would require another roundtrip to NDB
+    return true;
+  }
+
+  // Neither name or id of tablespace is set -> no tablespace
+  return false;
+
+}
+
+const char*
+ndb_table_tablespace_name(const NdbDictionary::Table* ndbtab)
+{
+  // NOTE! The getTablespaceName() returns zero length string
+  // to indicate no tablespace
+  const char* tablespace_name = ndbtab->getTablespaceName();
+  if (strlen(tablespace_name) == 0)
+  {
+    // Just the zero length name, no tablespace name
+    return nullptr;
+  }
+  return tablespace_name;
+}
