@@ -5556,22 +5556,8 @@ longlong Item_func_issimple::val_int()
     DBUG_RETURN(error_int());
   }
 
-  if (arg->get_srid() != 0)
-  {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, arg->get_srid(), &srs_exists))
-      DBUG_RETURN(error_int()); // Error has already been flagged.
-
-    if (!srs_exists)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          arg->get_srid(),
-                          func_name());
-    }
-  }
+  if (verify_cartesian_srs(arg, func_name()))
+    DBUG_RETURN(error_int());
 
   DBUG_RETURN(issimple(arg));
 }
