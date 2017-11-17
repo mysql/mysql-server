@@ -37,7 +37,6 @@
 Ndb_dd_client::Ndb_dd_client(THD* thd) :
   m_thd(thd),
   m_client(thd->dd_client()),
-  m_mdl_locks_acquired(false),
   m_save_option_bits(0),
   m_comitted(false)
 {
@@ -54,10 +53,8 @@ Ndb_dd_client::Ndb_dd_client(THD* thd) :
 Ndb_dd_client::~Ndb_dd_client()
 {
 
-  // Automatically release any acquired MDL locks
-  if (m_mdl_locks_acquired)
-    mdl_locks_release();
-  assert(!m_mdl_locks_acquired);
+  // Automatically release acquired MDL locks
+  mdl_locks_release();
 
   // Automatically restore the option_bits in THD if they have
   // been modified
@@ -84,10 +81,10 @@ Ndb_dd_client::mdl_lock_table(const char* schema_name,
   MDL_request mdl_request;
   MDL_REQUEST_INIT(&schema_request,
                    MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
-                   MDL_TRANSACTION);
+                   MDL_EXPLICIT);
   MDL_REQUEST_INIT(&mdl_request,
                    MDL_key::TABLE, schema_name, table_name, MDL_SHARED,
-                   MDL_TRANSACTION);
+                   MDL_EXPLICIT);
 
   mdl_requests.push_front(&schema_request);
   mdl_requests.push_front(&mdl_request);
@@ -98,8 +95,9 @@ Ndb_dd_client::mdl_lock_table(const char* schema_name,
     return false;
   }
 
-  // Remember that MDL locks where acquired
-  m_mdl_locks_acquired = true;
+  // Remember tickets of the acquired mdl locks
+  m_acquired_mdl_tickets.push_back(schema_request.ticket);
+  m_acquired_mdl_tickets.push_back(mdl_request.ticket);
 
   return true;
 }
@@ -112,7 +110,7 @@ Ndb_dd_client::mdl_lock_schema(const char* schema_name)
   MDL_request schema_request;
   MDL_REQUEST_INIT(&schema_request,
                    MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
-                   MDL_TRANSACTION);
+                   MDL_EXPLICIT);
   mdl_requests.push_front(&schema_request);
 
   if (m_thd->mdl_context.acquire_locks(&mdl_requests,
@@ -121,8 +119,8 @@ Ndb_dd_client::mdl_lock_schema(const char* schema_name)
     return false;
   }
 
-  // Remember that MDL locks where acquired
-  m_mdl_locks_acquired = true;
+  // Remember ticket of the acquired mdl lock
+  m_acquired_mdl_tickets.push_back(schema_request.ticket);
 
   return true;
 }
@@ -137,10 +135,10 @@ Ndb_dd_client::mdl_locks_acquire_exclusive(const char* schema_name,
 
   MDL_REQUEST_INIT(&schema_request,
                    MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
-                   MDL_TRANSACTION);
+                   MDL_EXPLICIT);
   MDL_REQUEST_INIT(&mdl_request,
                    MDL_key::TABLE, schema_name, table_name, MDL_EXCLUSIVE,
-                   MDL_TRANSACTION);
+                   MDL_EXPLICIT);
 
   mdl_requests.push_front(&schema_request);
   mdl_requests.push_front(&mdl_request);
@@ -151,8 +149,9 @@ Ndb_dd_client::mdl_locks_acquire_exclusive(const char* schema_name,
     return false;
   }
 
-  // Remember that MDL locks where acquired
-  m_mdl_locks_acquired = true;
+  // Remember tickets of the acquired mdl locks
+  m_acquired_mdl_tickets.push_back(schema_request.ticket);
+  m_acquired_mdl_tickets.push_back(mdl_request.ticket);
 
   return true;
 }
@@ -160,8 +159,10 @@ Ndb_dd_client::mdl_locks_acquire_exclusive(const char* schema_name,
 
 void Ndb_dd_client::mdl_locks_release()
 {
-  m_thd->mdl_context.release_transactional_locks();
-  m_mdl_locks_acquired = false;
+  for (MDL_ticket* ticket : m_acquired_mdl_tickets)
+  {
+    m_thd->mdl_context.release_lock(ticket);
+  }
 }
 
 
@@ -204,40 +205,10 @@ void Ndb_dd_client::rollback()
 
 
 bool
-Ndb_dd_client::check_table_exists(const char* schema_name,
-                                  const char* table_name,
-                                  int& table_id, int& table_version,
-                                  dd::String_type* engine)
-{
-
-
-  const dd::Table *existing= nullptr;
-  if (m_client->acquire(schema_name, table_name, &existing))
-  {
-    return false;
-  }
-
-  if (existing == nullptr)
-  {
-    // Table does not exist in DD
-    return false;
-  }
-
-  ndb_dd_table_get_object_id_and_version(existing, table_id, table_version);
-  *engine = existing->engine();
-
-  return true;
-
-}
-
-
-bool
 Ndb_dd_client::get_engine(const char* schema_name,
                           const char* table_name,
                           dd::String_type* engine)
 {
-  dd::cache::Dictionary_client::Auto_releaser ar{m_client};
-
   const dd::Table *existing= nullptr;
   if (m_client->acquire(schema_name, table_name, &existing))
   {
@@ -263,8 +234,6 @@ Ndb_dd_client::rename_table(const char* old_schema_name,
                             const char* new_table_name,
                             int new_table_id, int new_table_version)
 {
-  dd::cache::Dictionary_client::Auto_releaser releaser(m_client);
-
   // Read new schema from DD
   const dd::Schema *new_schema= nullptr;
   if (m_client->acquire(new_schema_name, &new_schema))
@@ -316,8 +285,6 @@ Ndb_dd_client::drop_table(const char* schema_name,
                           const char* table_name)
 
 {
-  dd::cache::Dictionary_client::Auto_releaser releaser{m_client};
-
   const dd::Table *existing= nullptr;
   if (m_client->acquire(schema_name, table_name, &existing))
   {
@@ -347,8 +314,6 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
                              int ndb_table_id, int ndb_table_version,
                              bool force_overwrite)
 {
-  dd::cache::Dictionary_client::Auto_releaser ar{m_client};
-
   const dd::Schema *schema= nullptr;
 
   if (m_client->acquire(schema_name, &schema))
@@ -440,6 +405,18 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
     return false;
   }
 
+  return true;
+}
+
+bool
+Ndb_dd_client::get_table(const char *schema_name, const char *table_name,
+                         const dd::Table **table_def)
+{
+  if (m_client->acquire(schema_name, table_name, table_def))
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), schema_name, table_name);
+    return false;
+  }
   return true;
 }
 

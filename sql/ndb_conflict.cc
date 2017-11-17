@@ -22,6 +22,7 @@
 #include "sql/mysqld.h" // lower_case_table_names
 #include "sql/ndb_binlog_extra_row_info.h"
 #include "sql/ndb_log.h"
+#include "sql/ndb_ndbapi_util.h"
 #include "sql/ndb_table_guard.h"
 
 extern st_ndb_slave_state g_ndb_slave_state;
@@ -2691,7 +2692,6 @@ setup_conflict_fn(Ndb* ndb,
                   NDB_CONFLICT_FN_SHARE** ppcfn_share,
                   const char* dbName,
                   const char* tabName,
-                  bool tableUsesBlobs,
                   bool tableBinlogUseUpdate,
                   const NDBTAB *ndbtab,
                   char *msg, uint msg_len,
@@ -2822,7 +2822,7 @@ setup_conflict_fn(Ndb* ndb,
     }
 
     /* Check that table doesn't have Blobs as we don't support that */
-    if (tableUsesBlobs)
+    if (ndb_table_has_blobs(ndbtab))
     {
       snprintf(msg, msg_len, "Table has Blob column(s), not suitable for %s.",
                   conflict_fn->name);

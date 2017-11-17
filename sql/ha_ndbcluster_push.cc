@@ -29,7 +29,6 @@
 #include "sql/abstract_query_plan.h"
 #include "sql/current_thd.h"
 #include "sql/ha_ndbcluster.h"
-#include "sql/ha_ndbcluster_binlog.h"
 #include "sql/ha_ndbcluster_cond.h"
 #include "sql/ndb_thd.h"
 #include "sql/sql_class.h"
@@ -38,6 +37,8 @@
 #include "storage/ndb/include/ndbapi/NdbInterpretedCode.hpp"
 #include "storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
 #include "storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
+
+typedef NdbDictionary::Table NDBTAB;
 
 /*
   Explain why an operation could not be pushed

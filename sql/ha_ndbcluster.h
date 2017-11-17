@@ -29,9 +29,6 @@
 #define NDB_MAX_DDL_NAME_BYTESIZE 63
 #define NDB_MAX_DDL_NAME_BYTESIZE_STR "63"
 
-/* Blob tables and events are internal to NDB and must never be accessed */
-#define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
-
 #include "sql/ndb_conflict.h"
 #include "sql/ndb_table_map.h"
 #include "sql/partitioning/partition_handler.h"
@@ -207,8 +204,6 @@ private:
   uint first_running_range;
   uint first_range_in_batch;
   uint first_unstarted_range;
-  /* TRUE <=> need range association */
-  bool mrr_need_range_assoc;
 
   int multi_range_start_retrievals(uint first_range);
 
@@ -754,14 +749,13 @@ private:
                         bool commit_alter);
 };
 
-static const char ndbcluster_hton_name[]= "ndbcluster";
-static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
-
 // Global handler synchronization
 extern mysql_mutex_t ndbcluster_mutex;
 extern mysql_cond_t  ndbcluster_cond;
 
 extern int ndb_setup_complete;
+
+static const int NDB_INVALID_SCHEMA_OBJECT = 241;
 
 
 int ndb_to_mysql_error(const NdbError *ndberr);

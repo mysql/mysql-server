@@ -987,7 +987,7 @@ ndb_index_stat_ref_count(Ndb_index_stat *st, bool flag)
 
 /* Find or add entry under the share */
 
-/* Saved in get_share() under stat_mutex */
+/* Saved in ndb_index_stat_get_share() under stat_mutex */
 struct Ndb_index_stat_snap {
   time_t load_time;
   uint sample_version;

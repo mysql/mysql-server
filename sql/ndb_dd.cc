@@ -22,6 +22,7 @@
 #include "sql/ndb_dd_client.h"
 #include "sql/ndb_dd_table.h"
 #include "sql/ndb_dd_sdi.h"
+#include "sql/ndb_name_util.h"
 
 #include "sql/sql_class.h"
 
@@ -38,7 +39,7 @@ bool ndb_sdi_serialize(THD *thd,
   // or else have temporary name
   DBUG_ASSERT(table_def->hidden() == dd::Abstract_table::HT_VISIBLE ||
               table_def->hidden() == dd::Abstract_table::HT_HIDDEN_SE ||
-              is_prefix(table_def->name().c_str(), tmp_file_prefix));
+              ndb_name_is_temp(table_def->name().c_str()));
 
   // Make a copy of the table definition to allow it to
   // be modified before serialization
@@ -81,42 +82,12 @@ void ndb_dd_fix_inplace_alter_table_def(dd::Table* table_def,
   DBUG_PRINT("enter", ("proper_table_name: %s", proper_table_name));
 
   // Check that the proper_table_name is not a temporary name
-  DBUG_ASSERT(!is_prefix(proper_table_name, tmp_file_prefix));
+  DBUG_ASSERT(!ndb_name_is_temp(proper_table_name));
 
   table_def->set_name(proper_table_name);
   table_def->set_hidden(dd::Abstract_table::HT_VISIBLE);
 
   DBUG_VOID_RETURN;
-}
-
-
-bool ndb_dd_does_table_exist(class THD *thd,
-                             const char* schema_name,
-                             const char* table_name,
-                             int& table_id,
-                             int& table_version,
-                             dd::String_type* engine)
-
-{
-  DBUG_ENTER("ndb_dd_does_table_exist");
-
-  Ndb_dd_client dd_client(thd);
-
-  // First acquire MDL locks on schema and table
-  if (!dd_client.mdl_lock_table(schema_name, table_name))
-  {
-    DBUG_RETURN(false);
-  }
-
-  if (!dd_client.check_table_exists(schema_name, table_name,
-                                    table_id, table_version, engine))
-  {
-    DBUG_RETURN(false);
-  }
-
-  dd_client.commit();
-
-  DBUG_RETURN(true); // OK!
 }
 
 

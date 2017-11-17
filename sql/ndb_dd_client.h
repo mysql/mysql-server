@@ -30,6 +30,7 @@ namespace dd {
   namespace cache {
     class Dictionary_client;
   }
+  class Table;
 }
 
 
@@ -48,7 +49,7 @@ class Ndb_dd_client {
   class THD* const m_thd;
   dd::cache::Dictionary_client* m_client;
   void* m_auto_releaser; // Opaque pointer
-  bool m_mdl_locks_acquired;
+  std::vector<class MDL_ticket*> m_acquired_mdl_tickets;
   ulonglong m_save_option_bits;
   bool m_comitted;
 
@@ -70,9 +71,6 @@ public:
   void commit();
   void rollback();
 
-  bool check_table_exists(const char* schema_name, const char* table_name,
-                          int& table_id, int& table_version,
-                          dd::String_type* engine);
   bool get_engine(const char* schema_name, const char* table_name,
                   dd::String_type* engine);
 
@@ -84,6 +82,8 @@ public:
                      const dd::sdi_t &sdi,
                      int ndb_table_id, int ndb_table_version,
                      bool force_overwrite);
+  bool get_table(const char* schema_name, const char* table_name,
+                 const dd::Table **table_def);
 
   bool fetch_schema_names(class std::vector<std::string>*);
   bool get_ndb_table_names_in_schema(const char* schema_name,

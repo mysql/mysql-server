@@ -18,6 +18,8 @@
 #ifndef NDB_DD_TABLE_H
 #define NDB_DD_TABLE_H
 
+#include "sql/dd/string_type.h"
+
 namespace dd {
   class Table;
 }
@@ -38,11 +40,21 @@ bool
 ndb_dd_table_get_object_id_and_version(const dd::Table* table_def,
                                        int& object_id, int& object_version);
 
+/*
+  Return engine of table definition
+*/
+dd::String_type ndb_dd_table_get_engine(const dd::Table* table_def);
+
 
 /*
    Mark the table as being hidden, thus avoiding that it shows
    up in SHOW TABLES and information_schema queries.
 */
 void ndb_dd_table_mark_as_hidden(dd::Table* table_def);
+
+/*
+   Return number of columns in the table definition
+*/
+size_t ndb_dd_table_get_num_columns(const dd::Table* table_def);
 
 #endif
