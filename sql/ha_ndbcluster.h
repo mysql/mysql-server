@@ -475,7 +475,7 @@ private:
                       const key_range *start_key,
                       const key_range *end_key,
                       uchar *buf);
-  int flush_bulk_insert(bool allow_batch= FALSE);
+  int flush_bulk_insert(bool allow_batch= false);
   int ndb_write_row(uchar *record, bool primary_key_update,
                     bool batched_update);
 
@@ -554,7 +554,6 @@ private:
   int read_multi_range_fetch_next();
   
   int primary_key_cmp(const uchar * old_row, const uchar * new_row);
-  void print_results();
 
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,

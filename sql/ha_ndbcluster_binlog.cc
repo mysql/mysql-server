@@ -155,12 +155,12 @@ static mysql_cond_t  injector_data_cond;
 */
 
 /*
-  Flag showing if the ndb binlog should be created, if so == TRUE
-  FALSE if not
+  Flag showing if the ndb binlog should be created, if so == true
+  false if not
 */
-bool ndb_binlog_running= FALSE;
-static bool ndb_binlog_tables_inited= FALSE;  //injector_data_mutex, relaxed
-static bool ndb_binlog_is_ready= FALSE;       //injector_data_mutex, relaxed
+bool ndb_binlog_running= false;
+static bool ndb_binlog_tables_inited= false;  //injector_data_mutex, relaxed
+static bool ndb_binlog_is_ready= false;       //injector_data_mutex, relaxed
  
 bool
 ndb_binlog_is_read_only(void)
@@ -1690,7 +1690,7 @@ public:
        DBUG_ASSERT(!ndb_binlog_running || ndb_apply_status_share);
 
        Mutex_guard injector_mutex_g(injector_data_mutex);
-       ndb_binlog_tables_inited= TRUE;
+       ndb_binlog_tables_inited= true;
        return true;     // Setup completed -> OK
     }
 
@@ -2433,7 +2433,7 @@ public:
         bitmap_init(&subscriber_bitmap[i],
                     (Uint32*)my_malloc(PSI_INSTRUMENT_ME,
                                        max_ndb_nodes/8, MYF(MY_WME)),
-                    max_ndb_nodes, FALSE);
+                    max_ndb_nodes, false);
         DBUG_ASSERT(bitmap_is_clear_all(&subscriber_bitmap[i]));
         bitmap_set_bit(&subscriber_bitmap[i], own_nodeid); //'self' is always active
       }
@@ -2570,7 +2570,7 @@ private:
     // Build bitmask of current participants
     uint32 participants_buf[256/32];
     MY_BITMAP participants;
-    bitmap_init(&participants, participants_buf, 256, FALSE);
+    bitmap_init(&participants, participants_buf, 256, false);
     get_subscriber_bitmask(&participants);
 
     // Check all Client's for wakeup
@@ -2604,7 +2604,7 @@ class Ndb_schema_event_handler {
         {
           my_free(blobs_buffer);
           DBUG_PRINT("info", ("blob read error"));
-          DBUG_ASSERT(FALSE);
+          DBUG_ASSERT(false);
         }
       }
       /* db varchar 1 length uchar */
@@ -2685,7 +2685,7 @@ class Ndb_schema_event_handler {
       Ndb_schema_op* schema_op=
         (Ndb_schema_op*)sql_alloc(sizeof(Ndb_schema_op));
       bitmap_init(&schema_op->slock,
-                  schema_op->slock_buf, 8*SCHEMA_SLOCK_SIZE, FALSE);
+                  schema_op->slock_buf, 8*SCHEMA_SLOCK_SIZE, false);
       schema_op->unpack_event(event_data);
       schema_op->any_value= any_value;
       DBUG_PRINT("exit", ("%s.%s: query: '%s'  type: %d",
@@ -4213,7 +4213,7 @@ class Ndb_schema_event_handler {
         break;
 
       default:
-        DBUG_ASSERT(FALSE);
+        DBUG_ASSERT(false);
       }
     }
 
@@ -4296,8 +4296,8 @@ public:
       NDB_SHARE::release_reference(ndb_schema_share, "ndb_schema_share");
       ndb_schema_share= NULL;
 
-      ndb_binlog_tables_inited= FALSE;
-      ndb_binlog_is_ready= FALSE;
+      ndb_binlog_tables_inited= false;
+      ndb_binlog_is_ready= false;
       mysql_mutex_unlock(&injector_data_mutex);
 
       ndb_tdc_close_cached_tables();
@@ -5273,7 +5273,7 @@ Ndb_binlog_client::create_event(Ndb *ndb, const NdbDictionary::Table*ndbtab,
     }
   }
   if (ndb_table_has_blobs(ndbtab))
-    my_event.mergeEvents(TRUE);
+    my_event.mergeEvents(true);
 
   /* add all columns to the event */
   const int n_cols = ndbtab->getNoOfColumns();
@@ -5435,7 +5435,7 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
     }
 
     if (ndb_table_has_blobs(ndbtab))
-      op->mergeEvents(TRUE); // currently not inherited from event
+      op->mergeEvents(true); // currently not inherited from event
 
     const uint n_columns= ndbtab->getNoOfColumns();
     const uint n_stored_fields= Ndb_table_map::num_stored_fields(table);
@@ -5774,7 +5774,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
             DBUG_PRINT("info", ("bit field H'%.8X", 
                                 (*value).rec->u_32_value()));
             field_bit->Field_bit::store((longlong) (*value).rec->u_32_value(),
-                                        TRUE);
+                                        true);
           }
           else
           {
@@ -5789,10 +5789,10 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
                                         |
                                         ((((longlong)*(buf+1)) << 32)
                                          & 0xFFFFFFFF00000000LL),
-                                        TRUE);
+                                        true);
 #else
             field_bit->Field_bit::store((longlong)
-                                        (*value).rec->u_64_value(), TRUE);
+                                        (*value).rec->u_64_value(), true);
 #endif
           }
           /*
@@ -5915,7 +5915,7 @@ handle_non_data_event(THD *thd,
       ndb_apply_status_share= NULL;
 
       Mutex_guard injector_g(injector_data_mutex);
-      ndb_binlog_tables_inited= FALSE;
+      ndb_binlog_tables_inited= false;
     }
 
     ndbcluster_binlog_event_operation_teardown(thd, injector_ndb, pOp);
@@ -6860,7 +6860,7 @@ restart_cluster_failure:
 
   if (opt_bin_log && opt_ndb_log_bin)
   {
-    ndb_binlog_running= TRUE;
+    ndb_binlog_running= true;
   }
   log_verbose(1, "Setup completed");
 
@@ -7014,7 +7014,7 @@ restart_cluster_failure:
     no longer read only
   */
   mysql_mutex_lock(&injector_data_mutex);
-  ndb_binlog_is_ready= TRUE;
+  ndb_binlog_is_ready= true;
   mysql_mutex_unlock(&injector_data_mutex);
 
   log_verbose(1, "ndb tables writable");
@@ -7661,7 +7661,7 @@ restart_cluster_failure:
   mysql_mutex_unlock(&injector_event_mutex);
 
   mysql_mutex_lock(&injector_data_mutex);
-  ndb_binlog_tables_inited= FALSE;
+  ndb_binlog_tables_inited= false;
   mysql_mutex_unlock(&injector_data_mutex);
 
   thd->reset_db(NULL_CSTR); // as not to try to free memory
@@ -7707,7 +7707,7 @@ restart_cluster_failure:
   thd_manager->remove_thd(thd);
   delete thd;
 
-  ndb_binlog_running= FALSE;
+  ndb_binlog_running= false;
   mysql_cond_broadcast(&injector_data_cond);
 
   log_info("Stopped");
