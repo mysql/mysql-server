@@ -1,6 +1,5 @@
 #ifndef SQL_GIS_FUNCTOR_H_INCLUDED
 #define SQL_GIS_FUNCTOR_H_INCLUDED
-
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify it under
@@ -18,7 +17,7 @@
 
 /// @file
 ///
-/// This file contains the superclass for GIS functors.
+/// This file contains the superclasses for GIS functors.
 ///
 /// Each GIS function is split in two: a functor class (for internal use) and a
 /// function (for external use) that uses the functor. The functor provides the
@@ -135,74 +134,6 @@ class not_implemented_exception : public std::exception {
 /// returns can be detected before calling the functor, but not always.
 class null_value_exception : public std::exception {};
 
-/// The base class of all functors that takes one geometry argument.
-///
-/// Subclasses of this unary functor base class will implement operator()
-/// and call apply() to do type dispatching. The actual body
-/// of the unary functor is in the eval() member function, which must be
-/// implemented for each different parameter type.
-///
-/// The functor may throw exceptions.
-///
-/// @tparam T The return type of the functor.
-template <typename T>
-class Unary_functor {
- public:
-  virtual T operator()(const Geometry *g1) = 0;
-  virtual ~Unary_functor() {}
-
- protected:
-  template <typename F>
-  static inline T apply(F &f, const Geometry *g1) {
-    switch (g1->coordinate_system()) {
-      case Coordinate_system::kCartesian:
-        switch (g1->type()) {
-          case Geometry_type::kPoint:
-            return f.eval(down_cast<const Cartesian_point *>(g1));
-          case Geometry_type::kLinestring:
-            return f.eval(down_cast<const Cartesian_linestring *>(g1));
-          case Geometry_type::kPolygon:
-            return f.eval(down_cast<const Cartesian_polygon *>(g1));
-          case Geometry_type::kGeometrycollection:
-            return f.eval(down_cast<const Cartesian_geometrycollection *>(g1));
-          case Geometry_type::kMultipoint:
-            return f.eval(down_cast<const Cartesian_multipoint *>(g1));
-          case Geometry_type::kMultilinestring:
-            return f.eval(down_cast<const Cartesian_multilinestring *>(g1));
-          case Geometry_type::kMultipolygon:
-            return f.eval(down_cast<const Cartesian_multipolygon *>(g1));
-          case Geometry_type::kGeometry:
-            DBUG_ASSERT(false); /* purecov: inspected */
-            throw std::exception();
-        }
-        break;
-      case Coordinate_system::kGeographic:
-        switch (g1->type()) {
-          case Geometry_type::kPoint:
-            return f.eval(down_cast<const Geographic_point *>(g1));
-          case Geometry_type::kLinestring:
-            return f.eval(down_cast<const Geographic_linestring *>(g1));
-          case Geometry_type::kPolygon:
-            return f.eval(down_cast<const Geographic_polygon *>(g1));
-          case Geometry_type::kGeometrycollection:
-            return f.eval(down_cast<const Geographic_geometrycollection *>(g1));
-          case Geometry_type::kMultipoint:
-            return f.eval(down_cast<const Geographic_multipoint *>(g1));
-          case Geometry_type::kMultilinestring:
-            return f.eval(down_cast<const Geographic_multilinestring *>(g1));
-          case Geometry_type::kMultipolygon:
-            return f.eval(down_cast<const Geographic_multipolygon *>(g1));
-          case Geometry_type::kGeometry:
-            DBUG_ASSERT(false); /* purecov: inspected */
-            throw std::exception();
-        }
-        break;
-    }
-
-    DBUG_ASSERT(false); /* purecov: inspected */
-    throw std::exception();
-  }
-};
 /// The base class of all functors that takes two geometry arguments.
 ///
 /// Subclasses of this functor base class will implement operator() and call
@@ -650,6 +581,80 @@ class Functor {
 
     DBUG_ASSERT(false); /* purecov: inspected */
     throw not_implemented_exception::for_non_projected(*g1, *g2);
+  }
+};
+
+/// The base class of all functors that take one geometry argument.
+///
+/// Subclasses of this functor base class will implement operator() and call
+/// apply() to do type combination dispatching. The actual body of the functor
+/// is in the eval() member function, which must be implemented for each
+/// different parameter type combination.
+///
+/// The functor may throw exceptions.
+///
+/// @tparam T The return type of the functor.
+template <typename T>
+class Unary_functor {
+ public:
+  virtual T operator()(const Geometry &) const = 0;
+  virtual ~Unary_functor() {}
+
+ protected:
+  template <class F>
+  static inline T apply(F &f, const Geometry &g) {
+    switch (g.coordinate_system()) {
+      case Coordinate_system::kCartesian: {
+        switch (g.type()) {
+          case Geometry_type::kPoint:
+            return f.eval(down_cast<const Cartesian_point &>(g));
+          case Geometry_type::kLinestring:
+            return f.eval(down_cast<const Cartesian_linestring &>(g));
+          case Geometry_type::kPolygon:
+            return f.eval(down_cast<const Cartesian_polygon &>(g));
+          case Geometry_type::kGeometrycollection:
+            return f.eval(down_cast<const Cartesian_geometrycollection &>(g));
+          case Geometry_type::kMultipoint:
+            return f.eval(down_cast<const Cartesian_multipoint &>(g));
+          case Geometry_type::kMultilinestring:
+            return f.eval(down_cast<const Cartesian_multilinestring &>(g));
+          case Geometry_type::kMultipolygon:
+            return f.eval(down_cast<const Cartesian_multipolygon &>(g));
+          case Geometry_type::kGeometry:
+            DBUG_ASSERT(false); /* purecov: inspected */
+            // We don't know here whether the geometry is Cartesan or projected.
+            // Assume Cartesian. This is dead code anyway.
+            throw not_implemented_exception::for_non_projected(g);
+        }
+      }
+      case Coordinate_system::kGeographic: {
+        switch (g.type()) {
+          case Geometry_type::kPoint:
+            return f.eval(down_cast<const Geographic_point &>(g));
+          case Geometry_type::kLinestring:
+            return f.eval(down_cast<const Geographic_linestring &>(g));
+          case Geometry_type::kPolygon:
+            return f.eval(down_cast<const Geographic_polygon &>(g));
+          case Geometry_type::kGeometrycollection:
+            return f.eval(down_cast<const Geographic_geometrycollection &>(g));
+          case Geometry_type::kMultipoint:
+            return f.eval(down_cast<const Geographic_multipoint &>(g));
+          case Geometry_type::kMultilinestring:
+            return f.eval(down_cast<const Geographic_multilinestring &>(g));
+          case Geometry_type::kMultipolygon:
+            return f.eval(down_cast<const Geographic_multipolygon &>(g));
+          case Geometry_type::kGeometry:
+            DBUG_ASSERT(false); /* purecov: inspected */
+            // We don't know here whether the geometry is Cartesan or projected.
+            // Assume Cartesian. This is dead code anyway.
+            throw not_implemented_exception::for_non_projected(g);
+        }
+      }
+    }
+    DBUG_ASSERT(false); /* purecov: inspected */
+    // We don't know here whether the geometry is Cartesan or projected.
+    // Assume Cartesian. This is dead code anyway.
+    throw not_implemented_exception::for_non_projected(g);
   }
 };
 
