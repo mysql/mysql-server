@@ -83,10 +83,12 @@ tablespace.t1                                      OK
 tablespace.t2                                      OK
 tablespace.t3                                      OK
 tablespace.t4                                      OK
+test.child                                         OK
 test.geom                                          OK
 test.jemp                                          OK
 test.jemp_myisam                                   OK
 test.opening_lines                                 OK
+test.parent                                        OK
 test.t_blackhole                                   OK
 test.t_blob                                        OK
 test.t_blob_myisam                                 OK
