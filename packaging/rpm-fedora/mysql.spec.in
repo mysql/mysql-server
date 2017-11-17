@@ -142,7 +142,7 @@ Obsoletes:      mysql-server < %{version}-%{release}
 %if 0%{?compatlib}
 %else
 Obsoletes:      mysql-community-embedded-compat < 5.7.20
-Obsoletes:      mysql-community-libs-compat < 5.7.20
+Obsoletes:      mysql-community-libs-compat < 5.7.21
 %endif
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
