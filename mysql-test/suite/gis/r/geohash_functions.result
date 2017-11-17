@@ -1770,10 +1770,9 @@ ERROR 22023: Invalid GIS data provided to function linestring.
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 0), 10);
 ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 0), 10)
 s000000000
-# Projected SRS (should pass)
+# Projected SRS (should fail)
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 2000), 10);
-ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 2000), 10)
-s000000000
+ERROR 22S00: Function st_geohash is only defined for SRID 0 and SRID 4326.
 # Geographic SRS (should pass)
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 10);
 ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 10)
@@ -1801,3 +1800,12 @@ SELECT ST_AsText(ST_PointFromGeohash(col1, 4326)) FROM t1;
 ST_AsText(ST_PointFromGeohash(col1, 4326))
 POINT(49.3 -145)
 DROP TABLE t1;
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_GEOHASH(x'0A000000010100000000000000000000000000000000000000', 10);
+ERROR SR001: There's no spatial reference system with SRID 10.
+# The only geographic SRS allowed is 4326.
+DO ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 3819), 10);
+ERROR 22S00: Function st_geohash is only defined for SRID 0 and SRID 4326.

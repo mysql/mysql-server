@@ -1504,7 +1504,8 @@ DO ST_Disjoint(
 --echo # SRID 0 (should pass)
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 0), 10);
 
---echo # Projected SRS (should pass)
+--echo # Projected SRS (should fail)
+--error ER_ONLY_IMPLEMENTED_FOR_SRID_0_AND_4326
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 2000), 10);
 
 --echo # Geographic SRS (should pass)
@@ -1529,3 +1530,15 @@ SELECT ST_LatFromGeohash(col1) FROM t1;
 SELECT ST_LongFromGeohash(col1) FROM t1;
 SELECT ST_AsText(ST_PointFromGeohash(col1, 4326)) FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_GEOHASH(x'0A000000010100000000000000000000000000000000000000', 10);
+
+--echo # The only geographic SRS allowed is 4326.
+--error ER_ONLY_IMPLEMENTED_FOR_SRID_0_AND_4326
+DO ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 3819), 10);
