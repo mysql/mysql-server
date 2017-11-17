@@ -540,7 +540,8 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
       log_members_leaving_message(new_view);
 
     //update the Group Manager with all the received states
-    if (update_group_info_manager(new_view, exchanged_data, is_joining, is_leaving))
+    if (update_group_info_manager(new_view, exchanged_data, is_joining, is_leaving) &&
+        is_joining)
     {
       view_change_notifier->cancel_view_modification();
       return;
@@ -985,9 +986,10 @@ update_group_info_manager(const Gcs_view& new_view,
     }
   }
   group_member_mgr->update(&to_update);
+  temporary_states->clear();
 
 err:
-  temporary_states->clear();
+  DBUG_ASSERT(temporary_states->size() == 0);
   return error;
 }
 
@@ -1255,8 +1257,7 @@ process_local_exchanged_data(const Exchanged_data &exchanged_data,
         member_infos_it != member_infos->end();
         member_infos_it++)
     {
-      if (is_joining &&
-          local_member_info->get_uuid() == (*member_infos_it)->get_uuid())
+      if (local_member_info->get_uuid() == (*member_infos_it)->get_uuid())
       {
         local_uuid_found++;
       }
@@ -1265,7 +1266,8 @@ process_local_exchanged_data(const Exchanged_data &exchanged_data,
         Accept only the information the member has about himself
         Information received about other members is probably outdated
       */
-      if ((*member_infos_it)->get_gcs_member_id() == *member_id)
+      if (local_uuid_found < 2 &&
+          (*member_infos_it)->get_gcs_member_id() == *member_id)
       {
         this->temporary_states->insert((*member_infos_it));
       }
@@ -1278,12 +1280,27 @@ process_local_exchanged_data(const Exchanged_data &exchanged_data,
     member_infos->clear();
     delete member_infos;
 
-    if (is_joining && local_uuid_found > 1)
+    if (local_uuid_found > 1)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "There is already a member with server_uuid %s. "
-                  "The member will now exit the group.",
-                  local_member_info->get_uuid().c_str());
+      if (is_joining)
+      {
+        log_message(MY_ERROR_LEVEL,
+                    "There is already a member with server_uuid %s. "
+                    "The member will now exit the group.",
+                    local_member_info->get_uuid().c_str());
+      }
+
+      // Clean up temporary states.
+      std::set<Group_member_info*,Group_member_info_pointer_comparator>::iterator
+          temporary_states_it;
+      for (temporary_states_it= temporary_states->begin();
+           temporary_states_it != temporary_states->end();
+           temporary_states_it++)
+      {
+        delete (*temporary_states_it);
+      }
+      temporary_states->clear();
+
       return 1;
     }
   }
