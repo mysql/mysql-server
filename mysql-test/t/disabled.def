@@ -22,5 +22,3 @@ main.internal_tmp_disk_storage_engine : Bug#26917416 2017-04-13 Allen Disabled i
 main.innodb_mysql_sync           : Bug#25887335 2017-04-13 Allen Disabled it since it's failing on pb2.
 
 # log_components_syslog    : WL#9343 2017-02-07 Tatiana provided for review/QA; should not be run routinely to prevent spamming the test host's log. may be removed later.
-
-main.ps_sys_upgrade      : Bug#24619634 2017-11-15 MTRS CHECK-TESTCASE FAILS IN SOME TESTS DUE TO A AN IS CHANGE BY NEWDD

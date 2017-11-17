@@ -514,11 +514,6 @@ static bool open_views_and_update_metadata(
     }
     thd->pop_internal_handler();
 
-    view_lex->create_view_algorithm= view->algorithm;
-    view_lex->definer= &view->definer;
-    view_lex->create_view_suid= view->view_suid;
-    view_lex->create_view_check= view->with_check;
-
     /*
       If we are not going commit changes immediately we need to ensure
       that entries for uncommitted views are removed from TDC on error/
@@ -528,9 +523,16 @@ static bool open_views_and_update_metadata(
     if (!commit_dd_changes)
       uncommitted_tables->add_table(view);
 
-    // Update view metadata. mysql_register_view with VIEW_ALTER mode, drops
-    // old view object and recreates the new one with the new definition.
-    bool res= mysql_register_view(thd, view, enum_view_create_mode::VIEW_ALTER);
+    // Update view metadata in the data-dictionary tables.
+    view->updatable_view= is_updatable_view(thd, view);
+    dd::View *new_view= nullptr;
+    if (thd->dd_client()->acquire_for_modification(view->db,
+                                                   view->table_name,
+                                                   &new_view))
+      DBUG_RETURN(true);
+    DBUG_ASSERT(new_view != nullptr);
+    bool res= dd::update_view(thd, new_view, view);
+
     if (commit_dd_changes)
     {
       Disable_gtid_state_update_guard disabler(thd);
