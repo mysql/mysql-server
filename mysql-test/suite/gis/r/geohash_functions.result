@@ -1806,6 +1806,8 @@ DROP TABLE t1;
 # Assume SRID 10 is not defined.
 DO ST_GEOHASH(x'0A000000010100000000000000000000000000000000000000', 10);
 ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_POINTFROMGEOHASH('0', 10);
+ERROR SR001: There's no spatial reference system with SRID 10.
 # The only geographic SRS allowed is 4326.
 DO ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 3819), 10);
 ERROR 22S00: Function st_geohash is only defined for SRID 0 and SRID 4326.
