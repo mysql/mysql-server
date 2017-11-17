@@ -2944,6 +2944,8 @@ bool Item_func_geohash::fill_and_check_fields()
   longlong geohash_length_arg= -1;
   if (arg_count == 2)
   {
+    Geometry *geom= nullptr;
+    Geometry_buffer geometry_buffer;
     // First argument is point, second argument is geohash output length.
     String string_buffer;
     String *swkb= args[0]->val_str(&string_buffer);
@@ -2955,8 +2957,6 @@ bool Item_func_geohash::fill_and_check_fields()
     }
     else
     {
-      Geometry *geom;
-      Geometry_buffer geometry_buffer;
       if (!(geom= Geometry::construct(&geometry_buffer, swkb)))
       {
         my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
@@ -2966,6 +2966,28 @@ bool Item_func_geohash::fill_and_check_fields()
                geom->get_x(&longitude) || geom->get_y(&latitude))
       {
         my_error(ER_INCORRECT_TYPE, MYF(0), "point", func_name());
+        return true;
+      }
+    }
+
+    if (geom != nullptr && geom->get_srid() != 0)
+    {
+      THD *thd= current_thd;
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      Srs_fetcher fetcher(thd);
+      const dd::Spatial_reference_system *srs= nullptr;
+      if (fetcher.acquire(geom->get_srid(), &srs))
+        return true; // Error has already been flagged.
+
+      if (srs == nullptr)
+      {
+        my_error(ER_SRS_NOT_FOUND, MYF(0), geom->get_srid());
+        return true;
+      }
+
+      if (srs->id() != 4326)
+      {
+        my_error(ER_ONLY_IMPLEMENTED_FOR_SRID_0_AND_4326, MYF(0), func_name());
         return true;
       }
     }
