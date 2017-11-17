@@ -670,8 +670,8 @@ enum_return_status Gtid_state::add_lost_gtids(const Gtid_set *gtid_set)
 	if(!super_read_only)
 	{
 					
-    BINLOG_ERROR((ER(ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY)),
-                 (ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY,
+    BINLOG_ERROR((ER(ER_CANT_SET_GTID_PURGED_WHEN_SUPER_READ_ONLY_IS_OFF)),
+                 (ER_CANT_SET_GTID_PURGED_WHEN_SUPER_READ_ONLY_IS_OFF,
                  MYF(0)));
     RETURN_REPORTED_ERROR;
 	

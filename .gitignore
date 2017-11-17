@@ -8,7 +8,6 @@ tags
 .gitignore
 
 #build
-cmake-build-debug/
 cmake-build-release/
 mysql-test/collections/default.release
 mysql-test/collections/default.release.done
