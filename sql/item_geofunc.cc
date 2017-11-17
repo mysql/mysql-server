@@ -6697,6 +6697,32 @@ double Item_func_distance_sphere::val_real()
     DBUG_RETURN(error_real());
   }
 
+  if (g1->get_srid() != 0)
+  {
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(g1->get_srid(), &srs))
+      DBUG_RETURN(error_real()); // Error has already been flagged.
+
+    if (srs == nullptr)
+    {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), g1->get_srid());
+      DBUG_RETURN(error_real());
+    }
+
+    if (!srs->is_cartesian())
+    {
+      DBUG_ASSERT(srs->is_geographic());
+      std::string parameters(g1->get_class_info()->m_name.str);
+      parameters.append(", ").append(g2->get_class_info()->m_name.str);
+      my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
+               parameters.c_str());
+      DBUG_RETURN(error_real());
+    }
+  }
+
   if (arg_count == 3)
   {
     earth_radius= args[2]->val_real();
