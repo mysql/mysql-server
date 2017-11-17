@@ -1127,3 +1127,11 @@ SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()', 32100000));
 # Cleanup.
 DELETE FROM mysql.st_spatial_reference_systems
 WHERE id >= 30000000 AND id <= 33000000;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined. Should raise warning.
+DO ST_ASTEXT(x'0A000000010100000000000000000000000000000000000000');
+DO ST_ASWKT(x'0A000000010100000000000000000000000000000000000000');

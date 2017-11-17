@@ -256,6 +256,37 @@ static bool verify_cartesian_srs(const Geometry *g, const char *func_name)
 }
 
 
+/**
+  Verify that an SRID is defined.
+
+  If the SRID is undefined, raise an error.
+
+  @param[in] srid The SRID to check
+
+  @retval true An error has occured (and my_error has been called).
+  @retval false Success.
+*/
+static bool verify_srid_is_defined(gis::srid_t srid)
+{
+  if (srid != 0)
+  {
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
+    bool srs_exists= false;
+    if (fetcher.srs_exists(thd, srid, &srs_exists))
+      return true; // Error has already been flagged.
+
+    if (!srs_exists)
+    {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
+      return true;
+    }
+  }
+  return false;
+}
+
+
 Item_geometry_func::Item_geometry_func(const POS &pos, PT_item_list *list)
   :Item_str_func(pos, list)
 {}
@@ -985,23 +1016,8 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
 
     m_user_provided_srid= true;
 
-    if (m_user_srid != 0)
-    {
-      Srs_fetcher fetcher(current_thd);
-      const dd::Spatial_reference_system *srs= nullptr;
-      dd::cache::Dictionary_client
-               ::Auto_releaser releaser(current_thd->dd_client());
-      if (fetcher.acquire(m_user_srid, &srs))
-      {
-        return error_str(); /* purecov: inspected */
-      }
-
-      if (srs == nullptr)
-      {
-        my_error(ER_SRS_NOT_FOUND, MYF(0), m_user_srid);
-        return error_str();
-      }
-    }
+    if (verify_srid_is_defined(m_user_srid))
+      return error_str();
   }
 
   Json_wrapper wr;
@@ -3882,6 +3898,10 @@ String *Item_func_geometry_type::val_str_ascii(String *str)
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_str();
+
   /* String will not move */
   str->copy(geom->get_class_info()->m_name.str,
 	    geom->get_class_info()->m_name.length,
@@ -4897,6 +4917,9 @@ String *Item_func_spatial_decomp::val_str(String *str)
     return error_str();
   }
 
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_str();
+
   srid= uint4korr(swkb->ptr());
   str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE, 512))
@@ -4947,6 +4970,9 @@ String *Item_func_spatial_decomp_n::val_str(String *str)
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_str();
 
   str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE, 512))
@@ -5101,22 +5127,8 @@ String *Item_func_pointfromgeohash::val_str(String *str)
   if ((null_value= (args[0]->null_value || args[1]->null_value)))
     return NULL;
 
-  if (srid != 0)
-  {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    dd::cache::Dictionary_client::Auto_releaser releaser(current_thd->dd_client());
-    if (fetcher.acquire(srid, &srs))
-    {
-      return error_str();
-    }
-
-    if (srs == nullptr)
-    {
-      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
-      return error_str();
-    }
-  }
+  if (verify_srid_is_defined(srid))
+    return error_str();
 
   if (str->mem_realloc(GEOM_HEADER_SIZE + POINT_DATA_SIZE))
     return make_empty_result();
@@ -5520,6 +5532,9 @@ longlong Item_func_isempty::val_int()
     return error_int();
   }
 
+  if (verify_srid_is_defined(g->get_srid()))
+    return error_int();
+
   return (null_value || is_empty_geocollection(g)) ? 1 : 0;
 }
 
@@ -5918,6 +5933,10 @@ longlong Item_func_dimension::val_int()
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_int();
+
   null_value= geom->dimension(&dim);
   return (longlong) dim;
 }
@@ -5938,6 +5957,10 @@ longlong Item_func_numinteriorring::val_int()
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_int();
+
   null_value= geom->num_interior_ring(&num);
   return (longlong) num;
 }
@@ -5958,6 +5981,10 @@ longlong Item_func_numgeometries::val_int()
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_int();
+
   null_value= geom->num_geometries(&num);
   return (longlong) num;
 }
@@ -5978,6 +6005,10 @@ longlong Item_func_numpoints::val_int()
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_int();
+
   null_value= geom->num_points(&num);
   return (longlong) num;
 }
@@ -6024,6 +6055,9 @@ String *Item_func_set_x::val_str(String *str)
              geom->get_class_info()->m_name.str, func_name());
     return error_str();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_str();
 
   str->copy(*swkb);
   float8store(str->c_ptr_safe() + GEOM_HEADER_SIZE, x_coordinate);
@@ -6073,6 +6107,9 @@ String *Item_func_set_y::val_str(String *str)
     return error_str();
   }
 
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_str();
+
   str->copy(*swkb);
   float8store(str->c_ptr_safe() + GEOM_HEADER_SIZE + SIZEOF_STORED_DOUBLE,
               y_coordinate);
@@ -6115,6 +6152,10 @@ double Item_func_get_x::val_real()
              geom->get_class_info()->m_name.str, func_name());
     return error_real();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_real();
+
   null_value= geom->get_x(&res);
   return res;
 }
@@ -6156,6 +6197,10 @@ double Item_func_get_y::val_real()
              geom->get_class_info()->m_name.str, func_name());
     return error_real();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_real();
+
   null_value= geom->get_y(&res);
   return res;
 }
@@ -6190,6 +6235,9 @@ String *Item_func_swap_xy::val_str(String *str)
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_str();
 
   geom->reverse_coordinates();
 

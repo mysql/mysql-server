@@ -1241,3 +1241,14 @@ SELECT ST_Crosses(
   ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 2 2), '
                   'LINESTRING(1 1, 2 2))', 4326)
 ) AS res;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_CROSSES(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);
