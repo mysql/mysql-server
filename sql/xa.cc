@@ -413,7 +413,7 @@ static Transaction_ctx* find_trn_for_recover_and_check_its_state(
     my_error(ER_XAER_NOTA, MYF(0));
     return nullptr;
   }
-  else if (thd->in_multi_stmt_transaction_mode())
+  else if (thd->in_active_multi_stmt_transaction())
   {
     my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
     return nullptr;
