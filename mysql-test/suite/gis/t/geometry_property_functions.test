@@ -1775,7 +1775,8 @@ CALL geom_prop_func(0);
 --echo # Projected SRS (should pass)
 CALL geom_prop_func(2000);
 
---echo # Geographic SRS (should pass)
+--echo # Geographic SRS (should fail)
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
 CALL geom_prop_func(4326);
 
 --echo # Unparseable SRS definition (should fail)
@@ -1789,3 +1790,11 @@ CALL geom_prop_func(44444444);
 # clean up
 DROP PROCEDURE geom_prop_func;
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 44444444;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_ISCLOSED(x'0A0000000102000000020000000000000000000000000000000000000000000000000000000000000000000000');

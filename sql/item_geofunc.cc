@@ -5704,6 +5704,9 @@ longlong Item_func_isclosed::val_int()
     return error_int();
   }
 
+  if (verify_cartesian_srs(geom, func_name()))
+    return error_int();
+
   null_value= geom->is_closed(&isclosed);
 
   return (longlong) isclosed;
