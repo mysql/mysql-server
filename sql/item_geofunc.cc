@@ -215,6 +215,46 @@ static bool validate_srid_arg(Item *arg, gis::srid_t *srid,
 }
 
 
+/**
+  Verify that a geometry is in a Cartesian SRS.
+
+  If the SRID is undefined, or if the SRS is geographic, raise an error.
+
+  @param[in] g The geometry to check.
+  @param[in] func_name The function name to use in error messages.
+
+  @retval true An error has occured (and my_error has been called).
+  @retval false Success.
+*/
+static bool verify_cartesian_srs(const Geometry *g, const char *func_name)
+{
+  if (g->get_srid() != 0)
+  {
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(g->get_srid(), &srs))
+      return true; // Error has already been flagged.
+
+    if (srs == nullptr)
+    {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), g->get_srid());
+      return true;
+    }
+
+    if (!srs->is_cartesian())
+    {
+      DBUG_ASSERT(srs->is_geographic());
+      my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name,
+               g->get_class_info()->m_name.str);
+      return true;
+    }
+  }
+  return false;
+}
+
+
 Item_geometry_func::Item_geometry_func(const POS &pos, PT_item_list *list)
   :Item_str_func(pos, list)
 {}
@@ -6318,22 +6358,8 @@ double Item_func_area::val_real()
     return error_real();
   }
 
-  if (geom->get_srid() != 0)
-  {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
-      return error_real(); // Error has already been flagged.
-
-    if (!srs_exists)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          geom->get_srid(),
-                          func_name());
-    }
-  }
+  if (verify_cartesian_srs(geom, func_name()))
+    return error_real();
 
   res= bg_area<bgcs::cartesian>(geom);
 
