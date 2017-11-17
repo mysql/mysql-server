@@ -2323,16 +2323,22 @@ void Query_result_insert::send_error(uint errcode,const char *err)
 }
 
 
+bool Query_result_insert::stmt_binlog_is_trans() const
+{
+  return table->file->has_transactions();
+}
+
+
 bool Query_result_insert::send_eof()
 {
   int error;
-  bool const trans_table= table->file->has_transactions();
   ulonglong id, row_count;
   bool changed MY_ATTRIBUTE((unused));
   THD::killed_state killed_status= thd->killed;
   DBUG_ENTER("Query_result_insert::send_eof");
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
-                       trans_table, table->file->table_type()));
+                       table->file->has_transactions(),
+                       table->file->table_type()));
 
   error= (bulk_insert_started ?
           table->file->ha_end_bulk_insert() : 0);
@@ -2340,7 +2346,12 @@ bool Query_result_insert::send_eof()
     error= thd->get_stmt_da()->mysql_errno();
 
   changed= (info.stats.copied || info.stats.deleted || info.stats.updated);
-  DBUG_ASSERT(trans_table || !changed || 
+
+  /*
+    INSERT ... SELECT on non-transactional table which changes any rows
+    must be marked as unsafe to rollback.
+  */
+  DBUG_ASSERT(table->file->has_transactions() || !changed ||
               thd->get_transaction()->cannot_safely_rollback(
                 Transaction_ctx::STMT));
 
@@ -2361,7 +2372,7 @@ bool Query_result_insert::send_eof()
       errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
     if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                           thd->query().str, thd->query().length,
-                          trans_table, false, false, errcode))
+                          stmt_binlog_is_trans(), false, false, errcode))
     {
       table->file->ha_release_auto_increment();
       DBUG_RETURN(1);
@@ -3017,6 +3028,16 @@ void Query_result_create::send_error(uint errcode,const char *err)
   Query_result_insert::send_error(errcode, err);
 
   DBUG_VOID_RETURN;
+}
+
+
+bool Query_result_create::stmt_binlog_is_trans() const
+{
+  /*
+    Binary logging code assumes that CREATE TABLE statements are
+    written to transactional cache iff they support atomic DDL.
+  */
+  return (table->s->db_type()->flags & HTON_SUPPORTS_ATOMIC_DDL);
 }
 
 
