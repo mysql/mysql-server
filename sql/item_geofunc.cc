@@ -3901,27 +3901,8 @@ String *Item_func_validate::val_str(String*)
   if (!(geom= Geometry::construct(&buffer, swkb)))
     return error_str();
 
-  if (geom->get_srid() != 0)
-  {
-    THD *thd= current_thd;
-    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
-    Srs_fetcher fetcher(thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
-      return error_str(); // Error has already been flagged.
-
-    if (srs == nullptr)
-    {
-      my_error(ER_SRS_NOT_CARTESIAN_UNDEFINED, MYF(0), func_name(),
-               geom->get_srid());
-      return error_str();
-    }
-    if (!srs->is_cartesian())
-    {
-      my_error(ER_SRS_NOT_CARTESIAN, MYF(0), func_name(), geom->get_srid());
-      return error_str();
-    }
-  }
+  if (verify_cartesian_srs(geom, func_name()))
+    return error_str();
 
   int isvalid= 0;
 
