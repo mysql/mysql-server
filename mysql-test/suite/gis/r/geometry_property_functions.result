@@ -1845,10 +1845,9 @@ NULL
 SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
 ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 2000))
 NULL
-# Geographic SRS (should pass)
+# Geographic SRS (should fail)
 SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
-ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 4326))
-NULL
+ERROR 22S00: st_length(POINT) has not been implemented for geographic spatial reference systems.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
@@ -1911,4 +1910,6 @@ DELETE FROM mysql.st_spatial_reference_systems WHERE id = 44444444;
 #
 # Assume SRID 10 is not defined.
 DO ST_ISCLOSED(x'0A0000000102000000020000000000000000000000000000000000000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_LENGTH(x'0A0000000102000000020000000000000000000000000000000000000000000000000000000000000000000000');
 ERROR SR001: There's no spatial reference system with SRID 10.

@@ -6342,22 +6342,8 @@ double Item_func_glength::val_real()
     return error_real();
   }
 
-  if (geom->get_srid() != 0)
-  {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
-      return error_real(); // Error has already been flagged.
-
-    if (!srs_exists)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          geom->get_srid(),
-                          func_name());
-    }
-  }
+  if (verify_cartesian_srs(geom, func_name()))
+    return error_real();
 
   if ((null_value= geom->geom_length(&res)))
     return res;
