@@ -344,8 +344,7 @@ SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star,0)));
 ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star,0)))
 POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_elem_vertical,4145)));
-ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_elem_vertical,4145)))
-POLYGON((5 0,15 25,25 0,5 0))
+ERROR 22S00: st_convexhull(POLYGON) has not been implemented for geographic spatial reference systems.
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_of_elems,4294967296)));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)));
@@ -433,10 +432,9 @@ POINT(0 0)
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(0 0)', 2000)));
 ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(0 0)', 2000)))
 POINT(0 0)
-# Geographic SRS (should pass)
+# Geographic SRS (should fail)
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(0 0)', 4326)));
-ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(0 0)', 4326)))
-POINT(0 0)
+ERROR 22S00: st_convexhull(POINT) has not been implemented for geographic spatial reference systems.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
@@ -444,3 +442,9 @@ VALUES (9000001, 1, 'TEST9000001', 'Foo', 9000001, 'FOOBAR', '');
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(0 0)', 9000001)));
 ERROR SR002: Can't parse the spatial reference system definition of SRID 9000001.
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 9000001;
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_CONVEXHULL(x'0A000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
