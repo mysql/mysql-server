@@ -579,6 +579,7 @@ trx_purge_rseg_get_next_history_log(
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
+#ifdef UNIV_DEBUG
 		mutex_enter(&trx_sys->mutex);
 
 		/* Add debug code to track history list corruption reported
@@ -595,15 +596,19 @@ trx_purge_rseg_get_next_history_log(
 				"  InnoDB: Warning: purge reached the"
 				" head of the history list,\n"
 				"InnoDB: but its length is still"
-				" reported as %lu! Make a detailed bug\n"
-				"InnoDB: report, and submit it"
-				" to http://bugs.mysql.com\n",
+				" reported as %lu!.\n"
+				"This can happen for multiple reasons\n"
+				"1. A long running transaction is"
+				" withholding purging of undo logs or a read"
+				" view is open. Please try to commit the long"
+				" running transaction.\n"
+				"2. Try increasing the number of purge"
+				" threads to expedite purging of undo logs.",
 				(ulong) trx_sys->rseg_history_len);
-			ut_ad(0);
 		}
 
 		mutex_exit(&trx_sys->mutex);
-
+#endif
 		return;
 	}
 
