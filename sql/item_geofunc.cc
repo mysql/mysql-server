@@ -3984,12 +3984,17 @@ String *Item_func_make_envelope::val_str(String *str)
 
     if (srs == nullptr)
     {
-      my_error(ER_SRS_NOT_CARTESIAN_UNDEFINED, MYF(0), func_name(), geom1->get_srid());
+      my_error(ER_SRS_NOT_FOUND, MYF(0), geom1->get_srid());
       return error_str();
     }
+
     if (!srs->is_cartesian())
     {
-      my_error(ER_SRS_NOT_CARTESIAN, MYF(0), func_name(), geom1->get_srid());
+      DBUG_ASSERT(srs->is_geographic());
+      std::string parameters(geom1->get_class_info()->m_name.str);
+      parameters.append(", ").append(geom2->get_class_info()->m_name.str);
+      my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
+               parameters.c_str());
       return error_str();
     }
   }
