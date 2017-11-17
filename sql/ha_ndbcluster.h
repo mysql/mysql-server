@@ -204,8 +204,6 @@ private:
   uint first_running_range;
   uint first_range_in_batch;
   uint first_unstarted_range;
-  /* TRUE <=> need range association */
-  bool mrr_need_range_assoc;
 
   int multi_range_start_retrievals(uint first_range);
 
