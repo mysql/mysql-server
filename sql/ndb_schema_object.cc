@@ -68,7 +68,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
                      MY_MUTEX_INIT_FAST);
     mysql_cond_init(PSI_INSTRUMENT_ME, &ndb_schema_object->cond);
     bitmap_init(&ndb_schema_object->slock_bitmap, ndb_schema_object->slock,
-                sizeof(ndb_schema_object->slock)*8, FALSE);
+                sizeof(ndb_schema_object->slock)*8, false);
     //slock_bitmap is intially cleared due to 'ZEROFILL-malloc'
     break;
   }

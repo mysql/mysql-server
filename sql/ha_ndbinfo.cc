@@ -59,7 +59,7 @@ static MYSQL_THDVAR_BOOL(
   "Control if tables should be visible or not",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  FALSE                              /* default */
+  false                              /* default */
 );
 
 static char* opt_ndbinfo_dbname = (char*)"ndbinfo";

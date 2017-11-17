@@ -150,7 +150,7 @@ bool ndb_pushed_join::match_definition(
                 "not executable as %s",
                 NdbQueryOperationDef::getTypeName(def_type),
                 NdbQueryOperationDef::getTypeName((NdbQueryOperationDef::Type)type)));
-    return FALSE;
+    return false;
   }
   const NdbDictionary::Index* const expected_index= root_operation->getIndex();
 
@@ -171,7 +171,7 @@ bool ndb_pushed_join::match_definition(
                           "Therefore, join cannot be pushed.", 
                           idx->unique_index->getName(),
                           expected_index->getName()));
-      return FALSE;
+      return false;
     }
     break;
 
@@ -188,7 +188,7 @@ bool ndb_pushed_join::match_definition(
                           "Therefore, join cannot be pushed.", 
                           idx->index->getName(),
                           expected_index->getName()));
-      return FALSE;
+      return false;
     }
     break;
 
@@ -209,11 +209,11 @@ bool ndb_pushed_join::match_definition(
     {
       DBUG_PRINT("info", 
                  ("paramValue is NULL, can not execute as pushed join"));
-      return FALSE;
+      return false;
     }
   }
 
-  return TRUE;
+  return true;
 }
 
 NdbQuery* ndb_pushed_join::make_query_instance(
