@@ -126,20 +126,24 @@ CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
     return false;
   }
 
-  switch(proc->m_status){
-  case RUNNING:
-  case STOPPED:
-  case STOPPING:
-  case STARTING:
-    proc->stop();
-    if (proc->isRunning())
-    {
-      rs->err(Error, "Still running");
-      return false;
-    }
-    m_processes.erase(i, false /* Already locked */);
+  if (proc->m_remove_on_stopped)
+  {
+    rs->err(Error, "Undefine already in progress");
+    return false;
   }
-  
+
+  proc->m_remove_on_stopped = true;
+
+  switch (proc->m_status)
+  {
+  case STARTING:
+  case RUNNING:
+    proc->stop();
+    break;
+  case STOPPING:
+  case STOPPED:
+    break;
+  }
   
   notifyChanges();
   
@@ -166,6 +170,12 @@ CPCD::startProcess(CPCD::RequestStatus *rs, int id) {
       return false;
     }
     
+    if (proc->m_remove_on_stopped)
+    {
+      rs->err(Error, "Undefine in progress, start not allowed.");
+      return false;
+    }
+
     switch(proc->m_status){
     case STOPPED:
       proc->m_status = STARTING;

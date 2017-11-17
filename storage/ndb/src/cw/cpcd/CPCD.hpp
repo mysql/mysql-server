@@ -100,6 +100,8 @@ class CPCD {
    *  @brief Manages a process
    */
   class Process {
+    static const unsigned m_stop_timeout = 5; /* 5 seconds */
+
     pid_t m_pid;
 #ifdef _WIN32
     HANDLE m_job;
@@ -147,10 +149,15 @@ class CPCD {
      */
     int writePid(int pid);
 
+    /** @brief remove pid from stable storage */
+    void removePid();
+
     /**
      *  @brief Prints a textual description of the process on a file
      */
     void print(FILE *);
+
+    bool should_be_erased() const;
 
     /** Id number of the Process.
      *
@@ -241,6 +248,12 @@ class CPCD {
     /** @brief Status of the process */
     enum ProcessStatus m_status;
 
+    /** @bried Indicator that process should be removed when STOPPED */
+    bool m_remove_on_stopped;
+
+    /** @bried Time when status changed to STOPPING */
+    time_t m_stopping_time;
+
     /**
      * @brief ulimits for process
      * @desc Format c:unlimited d:0 ...
@@ -255,6 +268,7 @@ class CPCD {
    private:
     class CPCD *m_cpcd;
     void do_exec();
+    void do_shutdown(bool force_sigkill = false);
     bool setCPUAffinity();
   };
 
