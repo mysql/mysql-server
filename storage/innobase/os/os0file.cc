@@ -6313,6 +6313,37 @@ os_file_read_func(
 	return(os_file_read_page(type, file, buf, offset, n, NULL, true));
 }
 
+/** NOTE! Use the corresponding macro os_file_read_first_page(), not
+directly this function!
+Requests a synchronous positioned read operation of page 0 of IBD file
+@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure
+@param[in]	type		IO flags
+@param[in]	file		handle to an open file
+@param[out]	buf		buffer where to read
+@param[in]	n		number of bytes to read, starting from offset
+@return DB_SUCCESS or error code */
+dberr_t
+os_file_read_first_page_func(
+	IORequest&	type,
+	os_file_t	file,
+	void*		buf,
+	ulint		n)
+{
+	ut_ad(type.is_read());
+
+	dberr_t err = os_file_read_page(type, file, buf, 0, UNIV_ZIP_SIZE_MIN,
+					NULL, true);
+
+	if (err == DB_SUCCESS) {
+		ulint flags = fsp_header_get_flags(static_cast<byte*>(buf));
+		const page_size_t page_size(flags);
+		ut_ad(page_size.physical() <= n);
+		err = os_file_read_page(type, file, buf, 0, page_size.physical(),
+					NULL, true);
+	}
+	return(err);
+}
+
 /** copy data from one file to another file using read, write.
 @param[in]	src_file	file handle to copy from
 @param[in]	src_offset	offset to copy from

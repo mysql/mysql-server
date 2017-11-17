@@ -25,6 +25,8 @@ SET GLOBAL innodb_dict_stats_disabled_debug = 1;
 SET GLOBAL innodb_master_thread_disabled_debug = 1;
 INSERT INTO test.t_compressed VALUES (1, 'hello'), (2, 'hi');
 INSERT INTO test.t_compressed VALUES (3, 'satya'), (4, 'bodapati');
+INSERT INTO test.t_blob VALUES ('hello', 'hi', 'satya', 'bodapati');
+INSERT INTO test.t_blob VALUES ('hi', 'hello', 'satya', 'bodapati');
 # Kill and restart: --loose-skip-log-bin --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_LOG --innodb_page_size=16k
 SELECT * FROM test.t_compressed;
 c1	c2
@@ -32,5 +34,9 @@ c1	c2
 2	hi
 3	satya
 4	bodapati
+SELECT * FROM test.t_blob;
+a	b	c	d
+hello	hi	satya	bodapati
+hi	hello	satya	bodapati
 # Restart the server with default options.
 # restart
