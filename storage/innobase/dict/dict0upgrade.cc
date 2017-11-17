@@ -1171,6 +1171,63 @@ int dd_upgrade_tablespace(THD* thd) {
   DBUG_RETURN(0);
 }
 
+/** Add server version number to tablespace while upgrading.
+@param[in]      space_id              space id of tablespace
+@return false on success, true on failure. */
+bool upgrade_space_version(const uint32 space_id)
+{
+  buf_block_t*    block;
+  page_t*         page;
+  mtr_t           mtr;
+
+  fil_space_t*    space = fil_space_acquire(space_id);
+
+  if (space == nullptr) {
+    return(true);
+  }
+
+  const page_size_t       page_size(space->flags);
+
+  mtr_start(&mtr);
+
+  block = buf_page_get(page_id_t(space_id, 0),
+                             page_size,
+                             RW_SX_LATCH, &mtr);
+
+  page = buf_block_get_frame(block);
+
+
+  mlog_write_ulint(page + FIL_PAGE_SRV_VERSION,
+                   DD_SPACE_CURRENT_SRV_VERSION,
+                   MLOG_4BYTES,
+                   &mtr);
+
+  mlog_write_ulint(page + FIL_PAGE_SPACE_VERSION,
+                   DD_SPACE_CURRENT_SPACE_VERSION,
+                   MLOG_4BYTES,
+                   &mtr);
+
+  mtr_commit(&mtr);
+  fil_space_release(space);
+  return(false);
+}
+
+/** Add server version number to tablespace while upgrading.
+@param[in]      tablespace              dd::Tablespace
+@return false on success, true on failure. */
+bool upgrade_space_version(dd::Tablespace* tablespace)
+{
+  uint32  space_id;
+
+  if (tablespace->se_private_data().get_uint32("id", &space_id)) {
+    /* error, attribute not found */
+    ut_ad(0);
+    return(true);
+  }
+  return(upgrade_space_version(space_id));
+}
+
+
 /** Upgrade innodb undo logs after upgrade. Also increment the table_id
 offset by DICT_MAX_DD_TABLES. This offset increment is because the
 first 256 table_ids are reserved for dictionary.

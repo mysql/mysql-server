@@ -397,6 +397,8 @@ void
 btr_search_enable()
 {
 	os_rmb;
+	/* Don't allow enabling AHI if buffer pool resize is hapenning.
+	Ignore it sliently.  */
 	if (srv_buf_pool_old_size != srv_buf_pool_size)
 		return;
 

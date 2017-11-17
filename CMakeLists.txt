@@ -369,10 +369,10 @@ MACRO(MY_SANITIZER_CHECK SAN_OPT ADD_OPTIMIZATION RESULT)
 ENDMACRO()
 
 OPTION(WITH_ASAN "Enable address sanitizer" OFF)
-OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" OFF)
 IF(WITH_ASAN)
   MY_SANITIZER_CHECK("-fsanitize=address" TRUE WITH_ASAN_OK)
   IF(WITH_ASAN_OK)
+    OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" ON)
     SET(HAVE_ASAN 1)
     # This works with clang, but not gcc it seems.
     MY_CHECK_CXX_COMPILER_FLAG(

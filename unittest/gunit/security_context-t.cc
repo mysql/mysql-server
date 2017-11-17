@@ -76,6 +76,10 @@ TEST(Security_context, string_data_member)
   EXPECT_EQ(sctx.proxy_user().length, (size_t)0);
   EXPECT_EQ(sctx.priv_host().length, (size_t)0);
 
+  // using  method assign_host() but passing the nullptr to it
+  sctx.assign_host(nullptr, 0);
+  EXPECT_EQ(sctx.host().length, (size_t)0);
+
   // Case 3: Set non-empty string to Securtiy context members and check values.
   sctx.set_user_ptr(STRING_WITH_LEN("user_test"));
   sctx.set_host_ptr(STRING_WITH_LEN("localhost"));

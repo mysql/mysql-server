@@ -844,6 +844,21 @@ CREATE EVENT e1 ON SCHEDULE EVERY 2 HOUR DO SELECT 1;
 ALTER EVENT e1 ON SCHEDULE EVERY
 EXISTS (SELECT 1 AS x ORDER BY x LIMIT 0) NOT IN (2) MINUTE_SECOND;
 DROP EVENT e1;
+#
+# Bug#27041552 - M_THD->GET_TRANSACTION()->IS_EMPTY(TRANSACTION_CTX::STMT) ETC. ASSERTION
+#
+SET GLOBAL event_scheduler= 'ON';
+CREATE TABLE t1(_userid CHAR (1)KEY) ENGINE=InnoDB;
+SET @save_autocommit_value= @@global.autocommit;
+SET @@global.autocommit= OFF;
+SET @@session.TIMESTAMP=200;
+CREATE EVENT e1 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY DO INSERT INTO t1 VALUES(1);
+SELECT SLEEP(3);
+SLEEP(3)
+0
+SET @@global.autocommit=@save_autocommit_value;
+SET @@session.TIMESTAMP=default;
+DROP TABLE t1;
 DROP DATABASE events_test;
 SET GLOBAL event_scheduler= 'ON';
 SET @@global.concurrent_insert= @concurrent_insert;

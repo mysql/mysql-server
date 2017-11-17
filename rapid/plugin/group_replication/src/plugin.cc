@@ -716,8 +716,12 @@ int configure_group_member_manager(char *hostname, char *uuid,
                     local_version= plugin_version + (0x010000);
                   };);
   Member_version local_member_plugin_version(local_version);
-  delete local_member_info;
 
+  DBUG_EXECUTE_IF("group_replication_force_member_uuid",
+                  {
+                    uuid= const_cast<char*>("cccccccc-cccc-cccc-cccc-cccccccccccc");
+                  };);
+  delete local_member_info;
   local_member_info= new Group_member_info(hostname,
                                            port,
                                            uuid,

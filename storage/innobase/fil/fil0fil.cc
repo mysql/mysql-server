@@ -5993,8 +5993,7 @@ fil_ibd_open(
 	}
 
 #ifdef UNIV_DEBUG
-	/* TODO: WL#11063 will deal with import and upgrade tablespace */
-	if (0 && validate && !old_space && !for_import) {
+	if (validate && !old_space && !for_import) {
 		ut_ad(df.server_version() == DD_SPACE_CURRENT_SRV_VERSION);
 		ut_ad(df.space_version() == DD_SPACE_CURRENT_SPACE_VERSION);
 	}

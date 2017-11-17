@@ -2575,9 +2575,14 @@ dd_fill_dict_table(
 		This way the compatibility with 5.7 FTS AUX tables is also
 		maintained. */
 		if (m_table->is_fts_aux()) {
-			  if ((strcmp(field->field_name, "doc_id") == 0)
-			      || (strcmp(field->field_name, "key") == 0)) {
-				nulls_allowed = 0;
+
+			const dd::Table& dd_table = dd_tab->table();
+			const dd::Column* dd_col = dd_find_column(&dd_table, field->field_name);
+			const dd::Properties& p = dd_col->se_private_data();
+			if (p.exists("nullable")) {
+				bool nullable;
+				p.get_bool("nullable", &nullable);
+				nulls_allowed = nullable ? 0 : DATA_NOT_NULL;
 			}
 		}
 
@@ -2680,12 +2685,12 @@ dd_filename_to_spacename(
 	char			part_buf[NAME_LEN + 1];
 	char			sub_buf[NAME_LEN + 1];
 	char			orig_tablespace[NAME_LEN + 1];
-	bool			is_part_tmp = false;
+	bool			is_tmp = false;
 
 	db_buf[0] = tbl_buf[0] = part_buf[0] = sub_buf[0] = '\0';
 
 	dd_parse_tbl_name(
-		space_name, db_buf, tbl_buf, part_buf, sub_buf, &is_part_tmp);
+		space_name, db_buf, tbl_buf, part_buf, sub_buf, &is_tmp);
 
 	if (db_buf[0] == '\0') {
 		filename_to_tablename((char*) space_name, orig_tablespace,
@@ -2709,9 +2714,8 @@ dd_filename_to_spacename(
 		tablespace_name->append(sub_buf);
 	}
 
-	if (is_part_tmp) {
-		ut_ad(part_buf[0] != '\0');
-		tablespace_name->append("#tmp");
+	if (is_tmp) {
+		tablespace_name->append(TMP_POSTFIX);
 	}
 
 	/* Name should not exceed schema/table#P#partition#SP#subpartition. */
@@ -5009,6 +5013,20 @@ dd_set_fts_table_options(
 	}
 }
 
+/** Add nullability info to column se_private_data
+@param[in,out]	dd_col	DD table column
+@param[in]	col	InnoDB table column */
+static
+void
+dd_set_fts_nullability(
+	dd::Column*		dd_col,
+	const dict_col_t*	col)
+{
+	bool is_nullable = !(col->prtype & DATA_NOT_NULL);
+	dd::Properties& p = dd_col->se_private_data();
+	p.set_bool("nullable", is_nullable);
+}
+
 /** Create dd table for fts aux index table
 @param[in]	parent_table	parent table of fts table
 @param[in,out]	table		fts table
@@ -5060,12 +5078,16 @@ dd_create_fts_index_table(
 
 	/* Fill columns */
 	/* 1st column: word */
+	const char* col_name = nullptr;
 	dd::Column*	col = dd_table->add_column();
-	col->set_name("word");
+	col_name = "word";
+	col->set_name(col_name);
 	col->set_type(dd::enum_column_types::VARCHAR);
 	col->set_char_length(FTS_INDEX_WORD_LEN);
 	col->set_nullable(false);
 	col->set_collation_id(charset->number);
+	ut_ad(strcmp(col_name, table->get_col_name(0)) == 0);
+	dd_set_fts_nullability(col, table->get_col(0));
 
 	dd::Column*	key_col1 = col;
 
@@ -5199,18 +5221,22 @@ dd_create_fts_common_table(
 	dd_table->set_schema_id(schema->id());
 
 	dd_set_fts_table_options(dd_table, table);
+	const char* col_name = nullptr;
 
 	/* Fill columns */
 	if (!is_config) {
 		/* 1st column: doc_id */
 		dd::Column*	col = dd_table->add_column();
-		col->set_name("doc_id");
+		col_name= "doc_id";
+		col->set_name(col_name);
 		col->set_type(dd::enum_column_types::LONGLONG);
 		col->set_char_length(20);
 		col->set_numeric_scale(0);
 		col->set_nullable(false);
 		col->set_unsigned(true);
 		col->set_collation_id(my_charset_bin.number);
+		ut_ad(strcmp(col_name, table->get_col_name(0)) == 0);
+		dd_set_fts_nullability(col, table->get_col(0));
 
 		dd::Column*	key_col1 = col;
 
@@ -5234,11 +5260,14 @@ dd_create_fts_common_table(
 		/* Fill columns */
 		/* 1st column: key */
 		dd::Column*	col = dd_table->add_column();
-		col->set_name("key");
+		col_name = "key";
+		col->set_name(col_name);
 		col->set_type(dd::enum_column_types::VARCHAR);
 		col->set_char_length(FTS_CONFIG_TABLE_KEY_COL_LEN);
 		col->set_nullable(false);
 		col->set_collation_id(my_charset_latin1.number);
+		ut_ad(strcmp(col_name, table->get_col_name(0)) == 0);
+		dd_set_fts_nullability(col, table->get_col(0));
 
 		dd::Column*	key_col1 = col;
 

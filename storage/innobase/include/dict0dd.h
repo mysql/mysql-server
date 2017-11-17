@@ -59,17 +59,25 @@ class MDL_ticket;
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
 
-static const char innobase_hton_name[]= "InnoDB";
+static const char innobase_hton_name[] = "InnoDB";
 #endif /* !UNIV_HOTBACKUP */
 
+/** Postfix for a table name which is being altered. Since during
+ALTER TABLE ... PARTITION, new partitions have to be created before
+dropping existing partitions, so a postfix is appended to the name
+to prevent name conflicts. This is also used for EXCHANGE PARTITION */
+static constexpr char TMP_POSTFIX[] = "#tmp";
+static constexpr size_t TMP_POSTFIX_LEN = sizeof(TMP_POSTFIX) - 1;
+
+/** Max space name length */
 static constexpr size_t MAX_SPACE_NAME_LEN =
 	(4 * NAME_LEN)
 	 + PART_SEPARATOR_LEN
 	 + SUB_PART_SEPARATOR_LEN
-	 + 4; // 4 == strlen("#tmp"))
+	 + TMP_POSTFIX_LEN;
 
 #ifndef UNIV_HOTBACKUP
-/* Maximum hardcoded data dictionary tables. */
+/** Maximum hardcoded data dictionary tables. */
 #define DICT_MAX_DD_TABLES	1024
 
 /** InnoDB private keys for dd::Table */
@@ -918,14 +926,15 @@ thd_to_innodb_session(
 	THD*	thd);
 #endif /* !UNIV_HOTBACKUP */
 
-/** Parse a table file name into table name and database name
+/** Parse a table file name into table name and database name.
+Note the table name may have trailing TMP_POSTFIX for temporary table name.
 @param[in]	tbl_name	table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
 @param[in,out]	dd_tbl_name	table name buffer to be filled
 @param[in,out]	dd_part_name	partition name to be filled if not nullptr
 @param[in,out]	dd_sub_name	sub-partition name to be filled it not nullptr
-@param[in,out]	is_temp_part	true if it is a temporary partition name which
-				ends with "#tmp".
+@param[in,out]	is_temp		true if it is a temporary table name which
+				ends with TMP_POSTFIX.
 @return	true if table name is parsed properly, false if the table name
 is invalid */
 UNIV_INLINE
@@ -936,7 +945,7 @@ dd_parse_tbl_name(
 	char*		dd_tbl_name,
 	char*		dd_part_name,
 	char*		dd_sub_name,
-	bool*		is_temp_part);
+	bool*		is_temp);
 
 #ifndef UNIV_HOTBACKUP
 /** Look up a column in a table using the system_charset_info collation.

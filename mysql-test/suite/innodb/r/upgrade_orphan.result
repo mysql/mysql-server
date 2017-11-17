@@ -203,10 +203,12 @@ jemp_myisam	CREATE TABLE `jemp_myisam` (
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT
 FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
 TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT
+test	child	BASE TABLE	InnoDB	10	Dynamic
 test	geom	BASE TABLE	InnoDB	10	Dynamic
 test	jemp	BASE TABLE	InnoDB	10	Dynamic
 test	jemp_myisam	BASE TABLE	MyISAM	10	Dynamic
 test	opening_lines	BASE TABLE	InnoDB	10	Dynamic
+test	parent	BASE TABLE	InnoDB	10	Dynamic
 test	t_blackhole	BASE TABLE	BLACKHOLE	10	Fixed
 test	t_blob	BASE TABLE	InnoDB	10	Dynamic
 test	t_blob_myisam	BASE TABLE	InnoDB	10	Dynamic

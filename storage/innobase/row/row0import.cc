@@ -49,6 +49,7 @@ Created 2012-02-08 by Sunny Bains.
 #include "dict0crea.h"
 #include "lob0lob.h"
 #include "dict0dd.h"
+#include "dict0upgrade.h"
 
 #include <vector>
 
@@ -3936,6 +3937,10 @@ row_import_for_mysql(
 		dict_sdi_remove_from_cache(table->space, NULL, true);
 		btr_sdi_create_index(table->space, true);
 		dict_mutex_exit_for_mysql();
+		/* Update server version number in the page 0 of tablespace */
+		if (upgrade_space_version(table->space)) {
+			return(row_import_error(prebuilt, trx, DB_TABLESPACE_NOT_FOUND));
+		}
 	} else {
 		ut_ad(space->flags == space_flags_from_disk);
 	}

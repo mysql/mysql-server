@@ -25,7 +25,7 @@
 # Pass --define 'with_cluster 1' to build with cluster support
 %{?with_cluster: %global cluster 1}
 
-# By default, a build will include the bundeled "yaSSL" library for SSL.
+# Pass on choice of SSL to build with
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
 
 # Pass path to mecab lib
@@ -557,6 +557,11 @@ fi
 
 # Build compat libs
 %if 0%{?compatlib}
+%if 0%{?commercial}
+%global compat_ssl_option -DWITH_SSL=system
+%else
+%global compat_ssl_option -DWITH_SSL=bundled
+%endif
 %if 0%{?rhel} < 7
 (
   export CFLAGS="%{optflags} -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv"
@@ -603,7 +608,7 @@ fi
     -DFEATURE_SET="%{feature_set}" \
     -DWITH_EMBEDDED_SERVER=1 \
     -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
-    %{?ssl_option} \
+    %{?compat_ssl_option} \
     -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
     -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
@@ -1358,9 +1363,10 @@ fi
 %endif
 
 %changelog
-* Tue Oct 31 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
+* Wed Nov 15 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
 - Add meb as sub package
 - Remove obsoleted mysqltest man pages
+- Independently choose SSL for the 5.6 compat lib, depending on commercial
 
 * Tue Aug 29 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
 - Change the global milestone to 'dmr'

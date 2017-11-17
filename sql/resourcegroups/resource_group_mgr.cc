@@ -319,6 +319,9 @@ bool Resource_group_mgr::post_init()
   if (!m_resource_group_support)
     DBUG_RETURN(false);
 
+  if (!m_thread_priority_available)
+    LogErr(INFORMATION_LEVEL, ER_THREAD_PRIORITY_IGNORED);
+
   // Create temporary THD to read Resource groups from disk.
   std::unique_ptr<THD> thd(new (std::nothrow) THD());
   if (thd.get() == nullptr)
@@ -365,8 +368,6 @@ bool Resource_group_mgr::init()
   mysql_rwlock_init(key_rwlock_resource_group_mgr_map_lock, &m_map_rwlock);
 
   m_thread_priority_available= platform::can_thread_priority_be_set();
-  if (!m_thread_priority_available)
-    LogErr(INFORMATION_LEVEL, ER_THREAD_PRIORITY_IGNORED);
 
   m_registry_svc= mysql_plugin_registry_acquire();
   if (!m_registry_svc)

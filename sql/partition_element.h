@@ -149,7 +149,9 @@ public:
     engine_type(part_elem->engine_type),
     part_state(part_elem->part_state),
     nodegroup_id(part_elem->nodegroup_id),
-    has_null_value(FALSE)
+    has_null_value(FALSE),
+    signed_flag(false),
+    max_value(false)
   {
   }
   inline void set_from_info(const HA_CREATE_INFO* info)

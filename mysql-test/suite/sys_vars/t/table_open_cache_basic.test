@@ -54,7 +54,7 @@ SELECT @@global.table_open_cache;
 ############################################### 
 
 SET @@global.table_open_cache = Default;
-SELECT IF(@@open_files_limit < 5000, 2000, @@global.table_open_cache) = 2000;
+SELECT IF(@@open_files_limit < 5000, 2000, @@global.table_open_cache) = 4000;
 
 --echo '#--------------------FN_DYNVARS_001_03------------------------#'
 ######################################################################## 

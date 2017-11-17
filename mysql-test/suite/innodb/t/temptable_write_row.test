@@ -4,6 +4,8 @@
 # select distinct 1 from t1,t2 where t1.a=t2.a;								  #
 ###############################################################################
 
+--source include/have_debug.inc
+
 SET DEBUG='d';
 CREATE TABLE t1 (a INT(10) UNSIGNED NOT NULL PRIMARY KEY,b INT(10) UNSIGNED);
 INSERT INTO t1 VALUES (1,1),(2,1),(3,1),(4,1);

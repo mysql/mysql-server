@@ -360,7 +360,7 @@ fi
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_EMBEDDED_SERVER=1 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
-           %{?ssl_option} \
+           -DWITH_SSL=bundled \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
@@ -905,9 +905,10 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %endif # compatlib
 
 %changelog
-* Tue Oct 31 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
+* Wed Nov 15 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
 - Change the global milestone to 'dmr'
 - Remove obsoleted mysqltest man pages
+- Do not pass SSL option to 5.6 compat build, just use bundled
 
 * Wed Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
 - Updated for 8.0.3 release

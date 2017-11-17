@@ -50,6 +50,16 @@ table by DICT_MAX_DD_TABLES
 @return MySQL error code*/
 int dd_upgrade_tablespace(THD* thd);
 
+/** Add server version number to tablespace while upgrading.
+@param[in]	space_id		space id of tablespace
+@return false on success, true on failure. */
+bool upgrade_space_version(const uint32 space_id);
+
+/** Add server version number to tablespace while upgrading.
+@param[in]	tablespace		dd::Tablespace
+@return false on success, true on failure. */
+bool upgrade_space_version(dd::Tablespace* tablespace);
+
 /** Upgrade innodb undo logs after upgrade. Also increment the table_id
 offset by DICT_MAX_DD_TABLES. This offset increment is because the
 first 256 table_ids are reserved for dictionary

@@ -149,6 +149,8 @@ extern ulong total_ha_2pc;
 #define HA_ADMIN_NEEDS_ALTER    -11
 #define HA_ADMIN_NEEDS_CHECK    -12
 #define HA_ADMIN_STATS_UPD_ERR  -13
+/** User needs to dump and re-create table to fix pre 5.0 decimal types */
+#define HA_ADMIN_NEEDS_DUMP_UPGRADE -14
 
 /**
    Return values for check_if_supported_inplace_alter().
@@ -1273,6 +1275,17 @@ typedef int (*upgrade_tablespace_t)(THD *thd);
 
 
 /**
+  Get the tablespace data from SE and insert it into Data dictionary
+
+  @param[in]  tablespace     tablespace object
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (handler error code returned)
+*/
+typedef bool (*upgrade_space_version_t)(dd::Tablespace *tablespace);
+
+/**
   Finish upgrade process inside storage engines.
   This includes resetting flags to indicate upgrade process
   and cleanup after upgrade.
@@ -1844,6 +1857,7 @@ struct handlerton
   get_tablespace_t get_tablespace;
   alter_tablespace_t alter_tablespace;
   upgrade_tablespace_t upgrade_tablespace;
+  upgrade_space_version_t upgrade_space_version;
   upgrade_logs_t upgrade_logs;
   finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;
@@ -5425,7 +5439,9 @@ public:
 
     @remark Engine is responsible for resetting the auto-increment counter.
 
-    @remark The table is locked in exclusive mode.
+    @remark The table is locked in exclusive mode. All open TABLE/handler
+            instances except the one which is used for truncate() call
+            are closed.
 
     @note   It is assumed that transactional storage engines implementing
             this method can revert its effects if transaction is rolled

@@ -747,7 +747,58 @@ XA PREPARE 'xid1';
 XA RECOVER;
 XA COMMIT 'xid1';
 
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
 --connection default
 DROP USER u1;
 
 --echo # End of tests fro WL#7194
+
+--echo #
+--echo # Bug #26848877 -- XA COMMIT/ROLLBACK REJECTED BY NON-AUTOCOMMIT SESSION
+--echo #                  WITH NO ACTIVE TRANSACTION
+--echo #
+
+--connect(con1,localhost,root,'',)
+
+--echo # Check that XA COMMIT finalizes XA transaction branch in case
+--echo # XA transaction was prepared successfully and after session reconnect
+--echo # a user turned off autocommit before running XA COMMIT
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+
+SET autocommit = 0;
+XA RECOVER;
+# Without patch the following statement would fail with error message:
+# 'XA COMMIT 'xid1'' failed: 1399: XAER_RMFAIL: The command can't be executed
+# when global transaction is in the  NON-EXISTING state
+XA COMMIT 'xid1';
+
+--echo # Check that XA ROLLBACK finalizes XA transaction branch in case
+--echo # XA transaction was prepared successfully and after reconnect
+--echo # a user turned off autocommit before running XA ROLLBACK
+
+--connect(con1,localhost,root,'',)
+
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+
+SET autocommit = 0;
+XA RECOVER;
+# Without patch the following statement would fail with error message:
+# 'XA ROLLBACK 'xid1'' failed: 1399: XAER_RMFAIL: The command cannot be
+# executed when global transaction is in the  NON-EXISTING state
+XA ROLLBACK 'xid1';

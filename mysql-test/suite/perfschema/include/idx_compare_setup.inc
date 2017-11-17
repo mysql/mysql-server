@@ -238,12 +238,10 @@ DROP PROCEDURE IF EXISTS index_test;
 # Parameters:
 #    table_name    - Name of table
 #    where_clause  - WHERE clause with indexes
-#    rows_expected - TRUE if a non-empty result set is expected
 
 DELIMITER $$;
 CREATE PROCEDURE index_test(IN table_name VARCHAR(1024),
-                            IN where_clause VARCHAR(1024),
-                            IN rows_expected BOOL)
+                            IN where_clause VARCHAR(1024))
 BEGIN
   DROP TABLE IF EXISTS test.indexes_off;
   SET @table_name = table_name;
@@ -255,7 +253,7 @@ BEGIN
 
   ## Indexes disabled ##
  
-  # Create table from result set with autoincrmented sequence for each row (use AUTOINC?)
+  # Create table from result set with autoincremented sequence for each row (use AUTOINC?)
   SET @row:=0;
   SET @query_no_idx = CONCAT("SELECT ", @pfs_columns," FROM performance_schema.", @table_name, " USE INDEX () ", @where_clause);
   SET @main_query = CONCAT("CREATE TABLE test.indexes_off AS (SELECT @row:=@row+1 SEQ, output.* FROM (", @query_no_idx, ") output);");
@@ -309,14 +307,13 @@ BEGIN
 
   ## Verify that the expected result set was generated
 
-  SELECT COUNT(*) > 0 INTO @actual FROM test.indexes_off;
+  SELECT COUNT(*) > 0 INTO @expected FROM test.indexes_off;
+  SELECT COUNT(*) > 0 INTO @actual FROM test.indexes_on;
 
-  IF rows_expected = TRUE THEN
-    SET @expected = 1;
+  IF @expected = 1 THEN
     SET @result_set = "Non-empty";
     SET @bad_result_set = "Empty";
   ELSE
-    SET @expected = 0;
     SET @result_set = "Empty";
     SET @bad_result_set = "Non-empty";
   END IF;
