@@ -1,3 +1,9 @@
+#cscope
+cscope.files
+gencs.sh
+tags
+
+
 #.gitignore
 .gitignore
 
