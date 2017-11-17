@@ -3954,7 +3954,7 @@ String *Item_func_make_envelope::val_str(String *str)
   if (geom1->get_srid() != 0)
   {
     THD *thd= current_thd;
-    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs= nullptr;
     if (fetcher.acquire(geom1->get_srid(), &srs))
@@ -4108,22 +4108,8 @@ String *Item_func_envelope::val_str(String *str)
     return error_str();
   }
 
-  if (geom->get_srid() != 0)
-  {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
-      return error_str(); // Error has already been flagged.
-
-    if (!srs_exists)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          geom->get_srid(),
-                          func_name());
-    }
-  }
+  if (verify_cartesian_srs(geom, func_name()))
+    return error_str();
 
   srid= uint4korr(swkb->ptr());
   str->set_charset(&my_charset_bin);
