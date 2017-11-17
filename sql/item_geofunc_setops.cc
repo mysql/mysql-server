@@ -40,6 +40,8 @@
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/spatial_reference_system.h"
 #include "sql/derror.h"                        // ER_THD
 #include "sql/gis/srid.h"
 #include "sql/inplace_vector.h"
@@ -48,6 +50,7 @@
 #include "sql/item_geofunc.h"
 #include "sql/item_geofunc_internal.h"
 #include "sql/spatial.h"
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_error.h"
 #include "sql/sql_exception_handler.h"
 #include "sql/srs_fetcher.h"
@@ -3147,18 +3150,27 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
 
   if (g1->get_srid() != 0)
   {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, g1->get_srid(), &srs_exists))
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(g1->get_srid(), &srs))
       DBUG_RETURN(error_str()); // Error has already been flagged.
 
-    if (!srs_exists)
+    if (srs == nullptr)
     {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          g1->get_srid(),
-                          func_name());
+      my_error(ER_SRS_NOT_FOUND, MYF(0), g1->get_srid());
+      DBUG_RETURN(error_str());
+    }
+
+    if (!srs->is_cartesian())
+    {
+      DBUG_ASSERT(srs->is_geographic());
+      std::string parameters(g1->get_class_info()->m_name.str);
+      parameters.append(", ").append(g2->get_class_info()->m_name.str);
+      my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
+               parameters.c_str());
+      DBUG_RETURN(error_str());
     }
   }
 
