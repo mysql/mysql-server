@@ -7168,67 +7168,6 @@ static void get_default_value(void *def_val, Field *field)
   }
 }
 
-/*
-    DBUG_EXECUTE("value", print_results(););
-*/
-
-void ha_ndbcluster::print_results()
-{
-  DBUG_ENTER("print_results");
-
-#ifndef DBUG_OFF
-
-  char buf_type[MAX_FIELD_WIDTH], buf_val[MAX_FIELD_WIDTH];
-  String type(buf_type, sizeof(buf_type), &my_charset_bin);
-  String val(buf_val, sizeof(buf_val), &my_charset_bin);
-  for (uint f= 0; f < table_share->fields; f++)
-  {
-    /* Use DBUG_PRINT since DBUG_FILE cannot be filtered out */
-    char buf[2000];
-    Field *field;
-    void* ptr;
-    NdbValue value;
-
-    buf[0]= 0;
-    field= table->field[f];
-    if (!(value= m_value[f]).ptr)
-    {
-      my_stpcpy(buf, "not read");
-      goto print_value;
-    }
-
-    ptr= field->ptr;
-
-    if (! (field->flags & BLOB_FLAG))
-    {
-      if (value.rec->isNULL())
-      {
-        my_stpcpy(buf, "NULL");
-        goto print_value;
-      }
-      type.length(0);
-      val.length(0);
-      field->sql_type(type);
-      field->val_str(&val);
-      my_snprintf(buf, sizeof(buf), "%s %s", type.c_ptr(), val.c_ptr());
-    }
-    else
-    {
-      NdbBlob *ndb_blob= value.blob;
-      bool isNull= true;
-      assert(ndb_blob->getState() == NdbBlob::Active);
-      ndb_blob->getNull(isNull);
-      if (isNull)
-        my_stpcpy(buf, "NULL");
-    }
-
-print_value:
-    DBUG_PRINT("value", ("%u,%s: %s", f, field->field_name, buf));
-  }
-#endif
-  DBUG_VOID_RETURN;
-}
-
 
 int ha_ndbcluster::index_init(uint index, bool sorted)
 {
