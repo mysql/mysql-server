@@ -6903,6 +6903,9 @@ ER_CANT_SET_GTID_PURGED_WHEN_GTID_MODE_IS_OFF
 ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY
   eng "@@GLOBAL.GTID_PURGED can only be set when @@GLOBAL.GTID_EXECUTED is empty."
 
+ER_CANT_SET_GTID_PURGED_WHEN_SUPER_READ_ONLY_IS_OFF
+  eng "@@GLOBAL.GTID_PURGED can only be set when super_read_only is on."
+
 ER_CANT_SET_GTID_PURGED_WHEN_OWNED_GTIDS_IS_NOT_EMPTY
   eng "@@GLOBAL.GTID_PURGED can only be set when there are no ongoing transactions (not even in other clients)."
 

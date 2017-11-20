@@ -655,7 +655,10 @@ enum_return_status Gtid_state::add_lost_gtids(const Gtid_set *gtid_set)
   sid_lock->assert_some_wrlock();
 
   gtid_set->dbug_print("add_lost_gtids");
-
+/*
+ *there is a no need check for analyze database if super_read_only == on.
+ *
+ *
   if (!executed_gtids.is_empty())
   {
     BINLOG_ERROR((ER(ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY)),
@@ -663,6 +666,17 @@ enum_return_status Gtid_state::add_lost_gtids(const Gtid_set *gtid_set)
                  MYF(0)));
     RETURN_REPORTED_ERROR;
   }
+*/
+	if(!super_read_only)
+	{
+					
+    BINLOG_ERROR((ER(ER_CANT_SET_GTID_PURGED_WHEN_SUPER_READ_ONLY_IS_OFF)),
+                 (ER_CANT_SET_GTID_PURGED_WHEN_SUPER_READ_ONLY_IS_OFF,
+                 MYF(0)));
+    RETURN_REPORTED_ERROR;
+	
+	}	
+
   if (!owned_gtids.is_empty())
   {
     BINLOG_ERROR((ER(ER_CANT_SET_GTID_PURGED_WHEN_OWNED_GTIDS_IS_NOT_EMPTY)),
@@ -670,7 +684,12 @@ enum_return_status Gtid_state::add_lost_gtids(const Gtid_set *gtid_set)
                  MYF(0)));
     RETURN_REPORTED_ERROR;
   }
-  DBUG_ASSERT(lost_gtids.is_empty());
+
+  /*check log_gtids.is_empty()is not needed.
+   *
+   *
+   */
+ // DBUG_ASSERT(lost_gtids.is_empty());
 
   if (save(gtid_set))
     RETURN_REPORTED_ERROR;
