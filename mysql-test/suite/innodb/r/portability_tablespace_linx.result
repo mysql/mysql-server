@@ -1,7 +1,7 @@
 # Skip other platfoms and run only on Linux.
 CREATE TABLE tab(c1 int);
 INSERT INTO tab VALUES(10);
-# copy the win datadir zip into destination location 
+# copy the win datadir zip into destination location
 # Unzip the zip file.
 ## Stop DB server
 ## Start winDB with --innodb-directories
@@ -48,25 +48,25 @@ SUBPARTITION BY HASH (to_days(`purchased`))
   SUBPARTITION s3 DATA DIRECTORY = 'db_directory1/part3' ENGINE = InnoDB)) */
 SELECT TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
 TABLESPACE_NAME	FILE_TYPE	TABLE_NAME	ENGINE
-mysql	TABLESPACE	NULL	InnoDB
-innodb_system	NULL	NULL	InnoDB
-innodb_system	NULL	NULL	InnoDB
-innodb_temporary	TEMPORARY	NULL	InnoDB
-innodb_undo_001	UNDO LOG	NULL	InnoDB
-innodb_undo_002	UNDO LOG	NULL	InnoDB
-innodb_undo_003	UNDO LOG	NULL	InnoDB
-innodb_undo_004	UNDO LOG	NULL	InnoDB
-innodb_undo_005	UNDO LOG	NULL	InnoDB
-sys/sys_config	TABLESPACE	NULL	InnoDB
-ts1	TABLESPACE	NULL	InnoDB
-test/tab2	TABLESPACE	NULL	InnoDB
-test/purchase?p?p0?sp?s0	TABLESPACE	NULL	InnoDB
-test/purchase?p?p0?sp?s1	TABLESPACE	NULL	InnoDB
-test/purchase?p?p1?sp?s2	TABLESPACE	NULL	InnoDB
-test/purchase?p?p1?sp?s3	TABLESPACE	NULL	InnoDB
-test/tab3?p?p0	TABLESPACE	NULL	InnoDB
-test/tab3?p?p1	TABLESPACE	NULL	InnoDB
-ts2	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	NULL	NULL	InnoDB
+#	NULL	NULL	InnoDB
+#	TEMPORARY	NULL	InnoDB
+#	UNDO LOG	NULL	InnoDB
+#	UNDO LOG	NULL	InnoDB
+#	UNDO LOG	NULL	InnoDB
+#	UNDO LOG	NULL	InnoDB
+#	UNDO LOG	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
 ## Stop DB server
 ## restart the server with --datadir and without scan DIR option
 ## Check new datadir
