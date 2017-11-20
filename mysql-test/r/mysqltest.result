@@ -1565,3 +1565,9 @@ reason: Skipping bug25929826.test
 #
 REPLACE_STRING
 mysqltest: At line 1: query 'SELECT REPLACE_STRING FROM t1' failed: 1146: Table 'test.t1' doesn't exist
+#
+# BUG#27136445: MTR: EXPORT AND USE # OF AVAILABLE CPUS IN TESTS
+#
+SELECT NUMBER_OF_CPUS;
+NUMBER_OF_CPUS
+NUMBER_OF_CPUS

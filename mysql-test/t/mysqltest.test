@@ -3983,3 +3983,11 @@ EOF
 --replace_result $replace_string REPLACE_STRING tab1 t1
 --error 1
 --exec echo "SELECT $replace_string FROM tab1;" | $MYSQL_TEST  2>&1
+
+--echo #
+--echo # BUG#27136445: MTR: EXPORT AND USE # OF AVAILABLE CPUS IN TESTS
+--echo #
+
+# Print the value of environment variable storing number of CPUs
+--replace_result $NUMBER_OF_CPUS NUMBER_OF_CPUS
+--eval SELECT $NUMBER_OF_CPUS
