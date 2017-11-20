@@ -135,7 +135,7 @@ struct st_ndb_status {
   const char * system_name;
 };
 
-int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
+int ndbcluster_commit(handlerton*, THD *thd, bool all);
 
 class ha_ndbcluster: public handler, public Partition_handler
 {
@@ -150,10 +150,11 @@ class ha_ndbcluster: public handler, public Partition_handler
   int close(void);
   void local_close(THD *thd, bool release_metadata);
 
-  int optimize(THD* thd, HA_CHECK_OPT* check_opt);
-  int analyze(THD* thd, HA_CHECK_OPT* check_opt);
-  int analyze_index(THD* thd);
-
+  int optimize(THD* thd, HA_CHECK_OPT*);
+private:
+  int analyze_index();
+public:
+  int analyze(THD* thd, HA_CHECK_OPT*);
   int write_row(uchar *buf);
   int update_row(const uchar *old_data, uchar *new_data);
   int delete_row(const uchar *buf);
@@ -195,10 +196,10 @@ class ha_ndbcluster: public handler, public Partition_handler
                                 uint *bufsz, uint *flags, Cost_estimate *cost);
 
   virtual void append_create_info(String *packet);
-private:
+
+ private:
   bool choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
-                       uint *bufsz, uint *flags,
-                       Cost_estimate *cost);
+                       uint *bufsz, uint *flags, Cost_estimate *);
 
 private:
   uint first_running_range;
@@ -220,7 +221,7 @@ public:
   int reset();
   int external_lock(THD *thd, int lock_type);
   void unlock_row();
-  int start_stmt(THD *thd, thr_lock_type lock_type);
+  int start_stmt(THD *thd, thr_lock_type);
   void update_create_info(HA_CREATE_INFO *create_info);
   void update_comment_info(THD* thd, HA_CREATE_INFO *create_info,
                            const NdbDictionary::Table *tab);
@@ -235,10 +236,10 @@ public:
   uint max_supported_key_length() const;
   uint max_supported_key_part_length() const;
 
-  virtual bool is_fk_defined_on_table_or_index(uint index);
-  int get_child_or_parent_fk_list(THD *thd,
-                                  List<FOREIGN_KEY_INFO>*f_key_list,
+private:
+  int get_child_or_parent_fk_list(List<FOREIGN_KEY_INFO>*f_key_list,
                                   bool is_child, bool is_parent);
+public:
   virtual int get_foreign_key_list(THD *thd,
                                    List<FOREIGN_KEY_INFO>*f_key_list);
   virtual int get_parent_foreign_key_list(THD *thd,
@@ -415,16 +416,16 @@ private:
 
   void check_read_before_write_removal();
 
-  int prepare_inplace__add_index(THD *thd, TABLE *table_arg,
-                                 KEY *key_info, uint num_of_keys) const;
+  int prepare_inplace__add_index(THD *thd, KEY *key_info,
+                                 uint num_of_keys) const;
   int create_ndb_index(THD *thd, const char *name, KEY *key_info,
                        bool unique) const;
   int create_ordered_index(THD *thd, const char *name, KEY *key_info) const;
   int create_unique_index(THD *thd, const char *name, KEY *key_info) const;
-  int create_index(THD *thd, const char *name, KEY *key_info, 
-                   NDB_INDEX_TYPE idx_type, uint idx_no) const;
-// Index list management
-  int create_indexes(THD *thd, Ndb *ndb, TABLE *tab) const;
+  int create_index(THD *thd, const char *name, KEY *key_info,
+                   NDB_INDEX_TYPE idx_type) const;
+  // Index list management
+  int create_indexes(THD *thd, TABLE *tab) const;
   int open_indexes(Ndb *ndb, TABLE *tab);
   void release_indexes(NdbDictionary::Dictionary* dict, int invalidate);
   void inplace__renumber_indexes(uint dropped_index_num);
@@ -464,13 +465,12 @@ private:
 
   int ndb_pk_update_row(THD *thd, 
                         const uchar *old_data, uchar *new_data);
-  int pk_read(const uchar *key, uint key_len, uchar *buf, uint32 *part_id);
+  int pk_read(const uchar *key, uchar *buf, uint32 *part_id);
   int ordered_index_scan(const key_range *start_key,
                          const key_range *end_key,
                          bool sorted, bool descending, uchar* buf,
                          part_id_range *part_spec);
-  int unique_index_read(const uchar *key, uint key_len, 
-                        uchar *buf);
+  int unique_index_read(const uchar *key, uchar *buf);
   int full_table_scan(const KEY* key_info, 
                       const key_range *start_key,
                       const key_range *end_key,
@@ -556,7 +556,7 @@ private:
   int primary_key_cmp(const uchar * old_row, const uchar * new_row);
 
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
-                                  ulonglong nb_desired_values,
+                                  ulonglong number_of_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
   bool uses_blob_value(const MY_BITMAP *bitmap) const;
@@ -578,8 +578,7 @@ private:
                              key_range *max_key,
                              ha_rows *rows_out);
   int ndb_index_stat_set_rpk(uint inx);
-  int ndb_index_stat_analyze(Ndb *ndb,
-                             uint *inx_list,
+  int ndb_index_stat_analyze(uint *inx_list,
                              uint inx_count);
 
   NdbTransaction *start_transaction_part_id(uint32 part_id, int &error);
@@ -609,7 +608,7 @@ private:
                                                    NdbTransaction*,
                                                    const NdbOperation*,
                                                    uint *ignore_count);
-  friend int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
+  friend int ndbcluster_commit(handlerton*, THD *thd, bool all);
   int start_statement(THD *thd, Thd_ndb *thd_ndb, uint table_count);
   int init_handler_for_statement(THD *thd);
   /*
@@ -619,7 +618,7 @@ private:
   { return static_cast<Partition_handler*>(this); }
   uint alter_flags(uint flags) const;
   void get_dynamic_partition_info(ha_statistics *stat_info,
-                                  ha_checksum *check_sum,
+                                  ha_checksum *checksum,
                                   uint part_id);
   int get_default_num_partitions(HA_CREATE_INFO *info);
   bool get_num_parts(const char *name, uint *num_parts);

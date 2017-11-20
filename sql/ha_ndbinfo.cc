@@ -102,8 +102,8 @@ static bool opt_ndbinfo_offline;
 
 static
 void
-offline_update(THD* thd, struct st_mysql_sys_var* var,
-               void* var_ptr, const void* save)
+offline_update(THD*, struct st_mysql_sys_var*, void*,
+               const void* save)
 {
   DBUG_ENTER("offline_update");
 
@@ -330,13 +330,9 @@ warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
   DBUG_VOID_RETURN;
 }
 
-int ha_ndbinfo::create(const char *name, TABLE *form,
-                       HA_CREATE_INFO *create_info,
-                       dd::Table *)
+int ha_ndbinfo::create(const char*, TABLE*, HA_CREATE_INFO*, dd::Table*)
 {
   DBUG_ENTER("ha_ndbinfo::create");
-  DBUG_PRINT("enter", ("name: %s", name));
-
   DBUG_RETURN(0);
 }
 
@@ -350,8 +346,7 @@ bool ha_ndbinfo::is_offline(void) const
   return m_impl.m_offline;
 }
 
-int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked,
-                     const dd::Table *)
+int ha_ndbinfo::open(const char* name, int mode, uint, const dd::Table*)
 {
   DBUG_ENTER("ha_ndbinfo::open");
   DBUG_PRINT("enter", ("name: %s, mode: %d", name, mode));
@@ -677,10 +672,9 @@ void ha_ndbinfo::position(const uchar *record)
   DBUG_VOID_RETURN;
 }
 
-int ha_ndbinfo::info(uint flag)
+int ha_ndbinfo::info(uint)
 {
   DBUG_ENTER("ha_ndbinfo::info");
-  DBUG_PRINT("enter", ("flag: %d", flag));
   DBUG_RETURN(0);
 }
 
@@ -854,7 +848,7 @@ ndbinfo_init(void *plugin)
 
 static
 int
-ndbinfo_deinit(void *plugin)
+ndbinfo_deinit(void*)
 {
   DBUG_ENTER("ndbinfo_deinit");
 

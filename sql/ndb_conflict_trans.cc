@@ -75,19 +75,19 @@ st_row_event_key_info::equal(const st_row_event_key_info* other) const
     ((tableObj == other->tableObj) &&
      (packed_key_len == other->packed_key_len) &&
      (memcmp(packed_key, other->packed_key, packed_key_len) == 0));
-};
+}
 
 st_row_event_key_info*
 st_row_event_key_info::getNext() const
 {
   return hash_next;
-};
+}
 
 void
 st_row_event_key_info::setNext(st_row_event_key_info* _next)
 {
   hash_next = _next;
-};
+}
 
 
 /* st_trans_dependency implementation */
@@ -101,7 +101,7 @@ st_trans_dependency(st_transaction* _target_transaction,
     next_entry(_next),
     hash_next(NULL)
 {
-};
+}
 
 st_transaction*
 st_trans_dependency::getTargetTransaction() const
@@ -138,26 +138,26 @@ st_trans_dependency::hashValue() const
   }
 
   return 17 + (37 * (Uint32)p);
-};
+}
 
 bool
 st_trans_dependency::equal(const st_trans_dependency* other) const
 {
   return ((target_transaction == other->target_transaction) &&
           (dependent_transaction == other->dependent_transaction));
-};
+}
 
 st_trans_dependency*
 st_trans_dependency::getNext() const
 {
   return hash_next;
-};
+}
 
 void
 st_trans_dependency::setNext(st_trans_dependency* _next)
 {
   hash_next = _next;
-};
+}
 
 
 /* st_transaction implementation */
@@ -206,25 +206,25 @@ st_transaction::hashValue() const
 {
   return 17 + (37 * ((transaction_id & 0xffffffff) ^
                      (transaction_id >> 32 & 0xffffffff)));
-};
+}
 
 bool
 st_transaction::equal(const st_transaction* other) const
 {
   return transaction_id == other->transaction_id;
-};
+}
 
 st_transaction*
 st_transaction::getNext() const
 {
     return hash_next;
-};
+}
 
 void
 st_transaction::setNext(st_transaction* _next)
 {
   hash_next = _next;
-};
+}
 
 
 
@@ -295,7 +295,7 @@ pack_key_to_buffer(const NdbDictionary::Table* table,
 
   buff_len = buff_offset;
   return 0;
-};
+}
 
 static
 Uint32 determine_packed_key_size(const NdbDictionary::Table* table,
@@ -310,7 +310,7 @@ Uint32 determine_packed_key_size(const NdbDictionary::Table* table,
                      NULL,
                      key_size);
   return key_size;
-};
+}
 
 /* st_mem_root_allocator implementation */
 void*
@@ -318,7 +318,7 @@ st_mem_root_allocator::alloc(void* ctx, size_t bytes)
 {
   st_mem_root_allocator* a = (st_mem_root_allocator*) ctx;
   return alloc_root(a->mem_root, bytes);
-};
+}
 
 void*
 st_mem_root_allocator::mem_calloc(void* ctx, size_t nelem, size_t bytes)
@@ -328,18 +328,16 @@ st_mem_root_allocator::mem_calloc(void* ctx, size_t nelem, size_t bytes)
                     nelem * bytes);
 }
 
-void
-st_mem_root_allocator::mem_free(void* ctx, void* mem)
-{
+void st_mem_root_allocator::mem_free(void*, void*) {
   /* Do nothing, will be globally freed when arena (mem_root)
    * released
    */
-};
+}
 
 st_mem_root_allocator::st_mem_root_allocator(MEM_ROOT* _mem_root)
   : mem_root(_mem_root)
 {
-};
+}
 
 
 /* DependencyTracker implementation */
@@ -371,7 +369,7 @@ DependencyTracker(MEM_ROOT* mem_root)
   key_hash.setSize(1024);
   trans_hash.setSize(100);
   dependency_hash.setSize(100);
-};
+}
 
 
 int
@@ -474,7 +472,7 @@ track_operation(const NdbDictionary::Table* table,
   }
 
   DBUG_RETURN(0);
-};
+}
 
 int
 DependencyTracker::
@@ -546,7 +544,7 @@ DependencyTracker::in_conflict(Uint64 trans_id)
     assert(! TRACK_ALL_TRANSACTIONS);
   }
   DBUG_RETURN(false);
-};
+}
 
 st_transaction*
 DependencyTracker::
@@ -633,14 +631,14 @@ add_dependency(Uint64 trans_id, Uint64 dependent_trans_id)
   assert(verify_graph());
 
   DBUG_RETURN(0);
-};
+}
 
 void
 DependencyTracker::
 reset_dependency_iterator()
 {
   iteratorTodo.reset();
-};
+}
 
 st_transaction*
 DependencyTracker::
@@ -685,7 +683,7 @@ get_next_dependency(const st_transaction* current,
   assert(iteratorTodo.size() == 0);
   DBUG_PRINT("info", ("No more dependencies to visit"));
   DBUG_RETURN(NULL);
-};
+}
 
 void
 DependencyTracker::
@@ -715,7 +713,7 @@ dump_dependents(Uint64 trans_id)
   {
     fprintf(stderr, "None\n");
   }
-};
+}
 
 bool
 DependencyTracker::
@@ -776,7 +774,7 @@ const char*
 DependencyTracker::get_error_text() const
 {
   return error_text;
-};
+}
 
 Uint32
 DependencyTracker::get_conflict_count() const

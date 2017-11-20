@@ -306,6 +306,22 @@ private:
   };
   Ndb_share_references* refs;
 #endif
+  void refs_insert(const char* reference MY_ATTRIBUTE((unused)))
+  {
+    DBUG_ASSERT(refs->insert(reference));
+  }
+  void refs_insert(const class ha_ndbcluster* reference MY_ATTRIBUTE((unused)))
+  {
+    DBUG_ASSERT(refs->insert(reference));
+  }
+  void refs_erase(const char* reference MY_ATTRIBUTE((unused)))
+  {
+    DBUG_ASSERT(refs->erase(reference));
+  }
+  void refs_erase(const class ha_ndbcluster* reference MY_ATTRIBUTE((unused)))
+  {
+    DBUG_ASSERT(refs->erase(reference));
+  }
 };
 
 /**

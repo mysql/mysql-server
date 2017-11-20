@@ -638,7 +638,7 @@ Ndb_dist_priv_util::priv_tables_are_in_ndb(THD* thd)
 */
 
 static void
-ndbcluster_binlog_log_query(handlerton *hton, THD *thd,
+ndbcluster_binlog_log_query(handlerton*, THD *thd,
                             enum_binlog_command binlog_command,
                             const char *query, uint query_length,
                             const char *db, const char *table_name)
@@ -647,7 +647,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd,
   DBUG_PRINT("enter", ("db: %s  table_name: %s  query: %s",
                        db, table_name, query));
 
-  DBUG_EXECUTE_IF("ndb_binlog_random_tableid",
+  if (DBUG_EVALUATE_IF("ndb_binlog_random_tableid", true, false))
   {
     /**
      * Simulate behaviour immediately after mysql_main() init:
@@ -656,7 +656,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd,
      *   in the same sequence of random numbers being produced on all mysqlds.
      */ 
     srand(1);
-  });
+  }
 
   enum SCHEMA_OP_TYPE type;
   /**
@@ -774,11 +774,8 @@ static void ndbcluster_reset_slave(THD *thd)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Initialize the binlog part of the ndb handlerton
-*/
 
-static int ndbcluster_binlog_func(handlerton *hton, THD *thd, 
+static int ndbcluster_binlog_func(handlerton*, THD *thd,
                                   enum_binlog_func fn, 
                                   void *arg)
 {
@@ -805,6 +802,9 @@ static int ndbcluster_binlog_func(handlerton *hton, THD *thd,
   DBUG_RETURN(res);
 }
 
+/*
+  Initialize the binlog part of the ndb handlerton
+*/
 void ndbcluster_binlog_init(handlerton* h)
 {
   h->binlog_func=      ndbcluster_binlog_func;
@@ -5997,7 +5997,7 @@ ndb_find_binlog_index_row(ndb_binlog_index_row **rows,
 
 
 static int
-handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
+handle_data_event(NdbEventOperation *pOp,
                   ndb_binlog_index_row **rows,
                   injector::transaction &trans,
                   unsigned &trans_row_count,
@@ -6200,10 +6200,10 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
     event_conflict_flags |= NDB_ERIF_CFT_READ_OP;
   }
     
-  DBUG_EXECUTE_IF("ndb_injector_set_event_conflict_flags",
-                  {
-                    event_conflict_flags = 0xfafa;
-                  });
+  if (DBUG_EVALUATE_IF("ndb_injector_set_event_conflict_flags", true, false))
+  {
+    event_conflict_flags = 0xfafa;
+  }
   if (event_conflict_flags != 0)
   {
     erif_flags |= Ndb_binlog_extra_row_info::NDB_ERIF_CFT_FLAGS;
@@ -7494,7 +7494,7 @@ restart_cluster_failure:
 
           if ((unsigned) i_pOp->getEventType() <
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
-            handle_data_event(thd, i_ndb, i_pOp, &rows, trans,
+            handle_data_event(i_pOp, &rows, trans,
                               trans_row_count, trans_slave_row_count);
           else
           {

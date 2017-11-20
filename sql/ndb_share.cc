@@ -277,11 +277,11 @@ NDB_SHARE::create_and_acquire_reference(const char *key,
 
   // Add share refcount from 'ndbcluster_open_tables'
   share->increment_use_count();
-  DBUG_ASSERT(share->refs->insert("ndbcluster_open_tables"));
+  share->refs_insert("ndbcluster_open_tables");
 
   // Add refcount for returned 'share'.
   share->increment_use_count();
-  DBUG_ASSERT(share->refs->insert(reference));
+  share->refs_insert(reference);
 
   DBUG_RETURN(share);
 }
@@ -297,7 +297,7 @@ NDB_SHARE::acquire_for_handler(const char* key,
   NDB_SHARE* share = acquire_reference_impl(key);
   if (share)
   {
-    DBUG_ASSERT(share->refs->insert(reference));
+    share->refs_insert(reference);
     DBUG_PRINT("NDB_SHARE", ("'%s' reference: 'ha_ndbcluster(%p)', "
                              "use_count: %u",
                              share->key_string(), reference,
@@ -321,7 +321,7 @@ NDB_SHARE::release_for_handler(NDB_SHARE* share,
                            "use_count: %u",
                            share->key_string(), reference, share->use_count()));
 
-  DBUG_ASSERT(share->refs->erase(reference));
+  share->refs_erase(reference);
   NDB_SHARE::free_share(&share);
   mysql_mutex_unlock(&ndbcluster_mutex);
 
@@ -345,7 +345,7 @@ NDB_SHARE::acquire_reference_on_existing(NDB_SHARE *share,
   DBUG_ASSERT(share->use_count() == share->refs->size());
 
   share->increment_use_count();
-  DBUG_ASSERT(share->refs->insert(reference));
+  share->refs_insert(reference);
 
   DBUG_PRINT("NDB_SHARE", ("'%s', reference: '%s', use_count: %u",
                            share->key_string(), reference, share->use_count()));
@@ -368,7 +368,7 @@ NDB_SHARE::acquire_reference_by_key(const char* key,
   NDB_SHARE* share = acquire_reference_impl(key);
   if (share)
   {
-    DBUG_ASSERT(share->refs->insert(reference));
+    share->refs_insert(reference);
     DBUG_PRINT("NDB_SHARE", ("'%s', reference: '%s', use_count: %u",
                              share->key_string(), reference,
                              share->use_count()));
@@ -388,7 +388,7 @@ NDB_SHARE::acquire_reference_by_key_have_lock(const char* key,
   NDB_SHARE* share = acquire_reference_impl(key);
   if (share)
   {
-    DBUG_ASSERT(share->refs->insert(reference));
+    share->refs_insert(reference);
     DBUG_PRINT("NDB_SHARE", ("'%s', reference: '%s', use_count: %u",
                              share->key_string(), reference,
                              share->use_count()));
@@ -406,7 +406,7 @@ NDB_SHARE::release_reference(NDB_SHARE* share,
   DBUG_PRINT("NDB_SHARE", ("release '%s', reference: '%s', use_count: %u",
                            share->key_string(), reference, share->use_count()));
 
-  DBUG_ASSERT(share->refs->erase(reference));
+  share->refs_erase(reference);
   NDB_SHARE::free_share(&share);
 
   mysql_mutex_unlock(&ndbcluster_mutex);
@@ -422,7 +422,7 @@ NDB_SHARE::release_reference_have_lock(NDB_SHARE* share,
   DBUG_PRINT("NDB_SHARE", ("release '%s', reference: '%s', use_count: %u",
                            share->key_string(), reference, share->use_count()));
 
-  DBUG_ASSERT(share->refs->erase(reference));
+  share->refs_erase(reference);
   NDB_SHARE::free_share(&share);
 }
 
@@ -766,7 +766,7 @@ void NDB_SHARE::real_free_share(NDB_SHARE **share_ptr)
     assert(found); (void)found;
 
     // Share is no longer referenced by 'ndbcluster_dropped_tables'
-    DBUG_ASSERT(share->refs->erase("ndbcluster_dropped_tables"));
+    share->refs_erase("ndbcluster_dropped_tables");
 
     // A DROPPED share, should not be in the open list.
     assert(ndbcluster_open_tables->erase(share->key_string()) == 0);
@@ -824,7 +824,7 @@ NDB_SHARE::mark_share_dropped(NDB_SHARE** share_ptr)
   // Share is no longer referenced by 'ndbcluster_open_tables'
   // after the above decrement_use_count() although it's not taken out of
   // the list yet
-  DBUG_ASSERT(share->refs->erase("ndbcluster_open_tables"));
+  share->refs_erase("ndbcluster_open_tables");
 
   // index_stat not needed anymore, free it.
   ndb_index_stat_free(share);
@@ -850,7 +850,7 @@ NDB_SHARE::mark_share_dropped(NDB_SHARE** share_ptr)
       ndbcluster_dropped_tables->emplace(share->key_string(), share);
 
       // Share is referenced by 'ndbcluster_dropped_tables'
-      DBUG_ASSERT(share->refs->insert("ndbcluster_dropped_tables"));
+      share->refs_insert("ndbcluster_dropped_tables");
     }
   }
   else

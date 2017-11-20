@@ -456,7 +456,8 @@ mdl_namespace_name(const MDL_key* mdl_key)
 
 static
 bool
-ndbcluster_notify_alter_table(THD *thd, const MDL_key *mdl_key,
+ndbcluster_notify_alter_table(THD *thd,
+                              const MDL_key *mdl_key MY_ATTRIBUTE((unused)),
                               ha_notification_type notification)
 {
   DBUG_ENTER("ndbcluster_notify_alter_table");
@@ -499,7 +500,8 @@ ndbcluster_notify_alter_table(THD *thd, const MDL_key *mdl_key,
 
 static
 bool
-ndbcluster_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
+ndbcluster_notify_exclusive_mdl(THD *thd,
+                                const MDL_key *mdl_key MY_ATTRIBUTE((unused)),
                                 ha_notification_type notification,
                                 bool *victimized)
 {
