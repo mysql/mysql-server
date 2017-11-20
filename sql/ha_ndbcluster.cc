@@ -114,7 +114,8 @@ static bool opt_ndb_read_backup;
 static ulong opt_ndb_data_node_neighbour;
 static bool opt_ndb_fully_replicated;
 
-#define MYSQL_VERSION_NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC 50711
+// The version where ndbcluster uses DYNAMIC by default when creating columns
+static ulong NDB_VERSION_DYNAMIC_IS_DEFAULT = 50711;
 enum ndb_default_colum_format_enum {
   NDB_DEFAULT_COLUMN_FORMAT_FIXED= 0,
   NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC= 1
@@ -131,9 +132,9 @@ static MYSQL_SYSVAR_ENUM(
   default_column_format,               /* name */
   opt_ndb_default_column_format,       /* var */
   PLUGIN_VAR_RQCMDARG,
-  "Change COLUMN_FORMAT DEFAULT (fixed or dynamic) "
-  "for backward compatibility. Also affects the default "
-  "for ROW_FORMAT.",
+  "Change COLUMN_FORMAT default value (fixed or dynamic) "
+  "for backward compatibility. Also affects the default value "
+  "of ROW_FORMAT.",
   NULL,                                /* check func. */
   NULL,                                /* update func. */
   NDB_DEFAULT_COLUMN_FORMAT_FIXED,     /* default */
@@ -9066,25 +9067,28 @@ static bool
 ndb_column_is_dynamic(THD *thd,
                       Field *field,
                       HA_CREATE_INFO *create_info,
-                      column_format_type default_format,
+                      bool use_dynamic_as_default,
                       NDBCOL::StorageType type)
 {
   DBUG_ENTER("ndb_column_is_dynamic");
   /*
     Check if COLUMN_FORMAT is declared FIXED or DYNAMIC.
-    The COLUMN_FORMAT for all non-pk columns defaults to DYNAMIC,
+
+    The COLUMN_FORMAT for all non primary key columns defaults to DYNAMIC,
     unless ROW_FORMAT is explictly defined.
+
     If an explicit declaration of ROW_FORMAT as FIXED contradicts
     with a dynamic COLUMN_FORMAT a warning will be issued.
-    the COLUMN_FORMAT can also be overridden with the configuration option
-    --ndb-default-column-format.
-    For COLUMN_STORAGE defined as DISK dynamic COLUMN_FORMAT is not supported
-    and a warning will be issued if explicitly declared.
+
+    The COLUMN_FORMAT can also be overridden with --ndb-default-column-format.
+
+    NOTE! For COLUMN_STORAGE defined as DISK, the DYNAMIC COLUMN_FORMAT is not
+    supported and a warning will be issued if explicitly declared.
    */
-  const bool default_was_fixed= ((opt_ndb_default_column_format ==
-                                 NDB_DEFAULT_COLUMN_FORMAT_FIXED) ||
-                                (field->table->s->mysql_version <
-                                 MYSQL_VERSION_NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC));
+  const bool default_was_fixed=
+      (opt_ndb_default_column_format == NDB_DEFAULT_COLUMN_FORMAT_FIXED) ||
+      (field->table->s->mysql_version < NDB_VERSION_DYNAMIC_IS_DEFAULT);
+
   bool dynamic;
   switch (field->column_format()) {
   case(COLUMN_FORMAT_TYPE_FIXED):
@@ -9101,7 +9105,7 @@ ndb_column_is_dynamic(THD *thd,
                                // the default choice
           (field->flags & PRI_KEY_FLAG)) // Primary key
       {
-        dynamic = (default_format == COLUMN_FORMAT_TYPE_DYNAMIC);
+        dynamic = use_dynamic_as_default;
       }
       else
       {
@@ -9175,7 +9179,7 @@ create_ndb_column(THD *thd,
                   NDBCOL &col,
                   Field *field,
                   HA_CREATE_INFO *create_info,
-                  column_format_type default_format= COLUMN_FORMAT_TYPE_DEFAULT)
+                  bool use_dynamic_as_default = false)
 {
   DBUG_ENTER("create_ndb_column");
   NDBCOL::StorageType type= NDBCOL::StorageTypeMemory;
@@ -9601,8 +9605,9 @@ create_ndb_column(THD *thd,
     break;
   }
 
-  const bool
-    dynamic= ndb_column_is_dynamic(thd, field, create_info, default_format, type);
+  const bool dynamic=
+      ndb_column_is_dynamic(thd, field, create_info, use_dynamic_as_default,
+                            type);
 
   DBUG_PRINT("info", ("Format %s, Storage %s", (dynamic)?"dynamic":"fixed",(type == NDBCOL::StorageTypeDisk)?"disk":"memory"));
   col.setStorageType(type);
@@ -16617,7 +16622,7 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
          /* Create new field to check if it can be added */
          const int create_column_result =
              create_ndb_column(thd, col, field, create_info,
-                               COLUMN_FORMAT_TYPE_DYNAMIC);
+                               true /* use_dynamic_as_default */);
          if (create_column_result)
          {
            DBUG_PRINT("info", ("Failed to create NDB column, error %d",
@@ -16889,15 +16894,15 @@ ha_ndbcluster::check_if_supported_inplace_alter(TABLE *altered_table,
   {
     /*
       The ALTER TABLE is not supported inplace and will fall back
-      to use copying ALTER TABLE. If --ndb-default-column-format is dynamic (default),
-      the table is created in an older mysql version and the algorithm for the alter
-      table is not specified to be inplace then then heck for implicit changes and
-      print warnings.
+      to use copying ALTER TABLE. If --ndb-default-column-format is dynamic
+      by default, the table was created by an older MySQL version and the
+      algorithm for the alter table is not  inplace then then check for
+      implicit changes and print warnings.
     */
-    if ((opt_ndb_default_column_format ==
-         NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC) &&
-        (table->s->mysql_version < MYSQL_VERSION_NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC) &&
-        (alter_info->requested_algorithm != Alter_info::ALTER_TABLE_ALGORITHM_INPLACE))
+    if ((opt_ndb_default_column_format == NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC) &&
+        (table->s->mysql_version < NDB_VERSION_DYNAMIC_IS_DEFAULT) &&
+        (alter_info->requested_algorithm !=
+         Alter_info::ALTER_TABLE_ALGORITHM_INPLACE))
     {
       check_implicit_column_format_change(altered_table, ha_alter_info);
     }
@@ -17212,7 +17217,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
 
        DBUG_PRINT("info", ("Found new field %s", field->field_name));
        if (create_ndb_column(thd, col, field, create_info,
-                                 COLUMN_FORMAT_TYPE_DYNAMIC) != 0)
+                             true /* use_dynamic_as_default */) != 0)
        {
          // Failed to create column in NDB
          goto abort;
