@@ -29,8 +29,8 @@
 #include "sql/sql_class.h"                      // THD
 #include "typelib.h"
 
-ReplSemiSyncMaster repl_semisync;
-Ack_receiver ack_receiver;
+ReplSemiSyncMaster *repl_semisync= nullptr;
+Ack_receiver *ack_receiver= nullptr;
 
 /* The places at where semisync waits for binlog ACKs. */
 enum enum_wait_point {
@@ -55,14 +55,14 @@ static int repl_semi_report_binlog_update(Binlog_storage_param*,
 {
   int  error= 0;
 
-  if (repl_semisync.getMasterEnabled())
+  if (repl_semisync->getMasterEnabled())
   {
     /*
       Let us store the binlog file name and the position, so that
       we know how long to wait for the binlog to the replicated to
       the slave in synchronous replication.
     */
-    error= repl_semisync.writeTranxInBinlog(log_file,
+    error= repl_semisync->writeTranxInBinlog(log_file,
                                             log_pos);
   }
 
@@ -74,7 +74,7 @@ static int repl_semi_report_binlog_sync(Binlog_storage_param*,
                                         my_off_t log_pos)
 {
   if (rpl_semi_sync_master_wait_point == WAIT_AFTER_SYNC)
-    return repl_semisync.commitTrx(log_file, log_pos);
+    return repl_semisync->commitTrx(log_file, log_pos);
   return 0;
 }
 
@@ -102,7 +102,7 @@ static int repl_semi_report_commit(Trans_param *param)
       is_real_trans && param->log_pos)
   {
     const char *binlog_name= param->log_file;
-    return repl_semisync.commitTrx(binlog_name, param->log_pos);
+    return repl_semisync->commitTrx(binlog_name, param->log_pos);
   }
   return 0;
 }
@@ -127,7 +127,7 @@ static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
 
   if (semi_sync_slave != 0)
   {
-    if (ack_receiver.add_slave(current_thd))
+    if (ack_receiver->add_slave(current_thd))
     {
       sql_print_error("Failed to register slave to semi-sync ACK receiver "
                       "thread.");
@@ -137,7 +137,7 @@ static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
     THR_RPL_SEMI_SYNC_DUMP= true;
 
     /* One more semi-sync slave */
-    repl_semisync.add_slave();
+    repl_semisync->add_slave();
 
     /* Tell server it will observe the transmission.*/
     param->set_observe_flag();
@@ -146,7 +146,7 @@ static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
       Let's assume this semi-sync slave has already received all
       binlog events before the filename and position it requests.
     */
-    repl_semisync.handleAck(param->server_id, log_file, log_pos);
+    repl_semisync->handleAck(param->server_id, log_file, log_pos);
   }
   else
     param->set_dont_observe_flag();
@@ -167,9 +167,9 @@ static int repl_semi_binlog_dump_end(Binlog_transmit_param *param)
                         param->server_id);
   if (semi_sync_slave)
   {
-    ack_receiver.remove_slave(current_thd);
+    ack_receiver->remove_slave(current_thd);
     /* One less semi-sync slave */
-    repl_semisync.remove_slave();
+    repl_semisync->remove_slave();
     THR_RPL_SEMI_SYNC_DUMP= false;
   }
   return 0;
@@ -180,7 +180,7 @@ static int repl_semi_reserve_header(Binlog_transmit_param* ,
                                     unsigned long size, unsigned long *len)
 {
   if (is_semi_sync_dump())
-    *len +=  repl_semisync.reserveSyncHeader(header, size);
+    *len +=  repl_semisync->reserveSyncHeader(header, size);
   return 0;
 }
 
@@ -191,7 +191,7 @@ static int repl_semi_before_send_event(Binlog_transmit_param *param,
   if (!is_semi_sync_dump())
     return 0;
 
-  return repl_semisync.updateSyncHeader(packet,
+  return repl_semisync->updateSyncHeader(packet,
 					log_file,
 					log_pos,
 					param->server_id);
@@ -205,7 +205,7 @@ static int repl_semi_after_send_event(Binlog_transmit_param *param,
   if (is_semi_sync_dump())
   {
     if(skipped_log_pos>0)
-      repl_semisync.skipSlaveReply(event_buf, param->server_id,
+      repl_semisync->skipSlaveReply(event_buf, param->server_id,
                                    skipped_log_file, skipped_log_pos);
     else
     {
@@ -215,7 +215,7 @@ static int repl_semi_after_send_event(Binlog_transmit_param *param,
         because we do not want dump thread to quit on this. Error
         messages are already reported.
       */
-      (void) repl_semisync.readSlaveReply(
+      (void) repl_semisync->readSlaveReply(
         thd->get_protocol_classic()->get_net(),
         event_buf);
       thd->clear_error();
@@ -226,7 +226,7 @@ static int repl_semi_after_send_event(Binlog_transmit_param *param,
 
 static int repl_semi_reset_master(Binlog_transmit_param*)
 {
-  if (repl_semisync.resetMaster())
+  if (repl_semisync->resetMaster())
     return 1;
   return 0;
 }
@@ -340,7 +340,7 @@ static void fix_rpl_semi_sync_master_timeout(MYSQL_THD,
                                              const void *val)
 {
   *(unsigned long *)ptr= *(unsigned long *)val;
-  repl_semisync.setWaitTimeout(rpl_semi_sync_master_timeout);
+  repl_semisync->setWaitTimeout(rpl_semi_sync_master_timeout);
   return;
 }
 
@@ -350,8 +350,8 @@ static void fix_rpl_semi_sync_master_trace_level(MYSQL_THD,
                                                  const void *val)
 {
   *(unsigned long *)ptr= *(unsigned long *)val;
-  repl_semisync.setTraceLevel(rpl_semi_sync_master_trace_level);
-  ack_receiver.setTraceLevel(rpl_semi_sync_master_trace_level);
+  repl_semisync->setTraceLevel(rpl_semi_sync_master_trace_level);
+  ack_receiver->setTraceLevel(rpl_semi_sync_master_trace_level);
   return;
 }
 
@@ -363,19 +363,19 @@ static void fix_rpl_semi_sync_master_enabled(MYSQL_THD,
   *(char *)ptr= *(char *)val;
   if (rpl_semi_sync_master_enabled)
   {
-    if (repl_semisync.enableMaster() != 0)
+    if (repl_semisync->enableMaster() != 0)
       rpl_semi_sync_master_enabled = false;
-    else if (ack_receiver.start())
+    else if (ack_receiver->start())
     {
-      repl_semisync.disableMaster();
+      repl_semisync->disableMaster();
       rpl_semi_sync_master_enabled = false;
     }
   }
   else
   {
-    if (repl_semisync.disableMaster() != 0)
+    if (repl_semisync->disableMaster() != 0)
       rpl_semi_sync_master_enabled = true;
-    ack_receiver.stop();
+    ack_receiver->stop();
   }
 
   return;
@@ -386,7 +386,7 @@ static void fix_rpl_semi_sync_master_wait_for_slave_count(MYSQL_THD,
                                                           void*,
                                                           const void *val)
 {
-  (void) repl_semisync.setWaitSlaveCount(*(unsigned int*) val);
+  (void) repl_semisync->setWaitSlaveCount(*(unsigned int*) val);
   return;
 }
 
@@ -398,7 +398,7 @@ static void fix_rpl_semi_sync_master_wait_no_slave(MYSQL_THD,
   if (rpl_semi_sync_master_wait_no_slave != *(char *)val)
   {
     *(char *)ptr= *(char *)val;
-    repl_semisync.set_wait_no_slave(val);
+    repl_semisync->set_wait_no_slave(val);
   }
   return;
 }
@@ -438,7 +438,7 @@ Binlog_transmit_observer transmit_observer = {
 #define DEF_SHOW_FUNC(name, show_type)					\
   static  int SHOW_FNAME(name)(MYSQL_THD, SHOW_VAR *var, char*)         \
   {									\
-    repl_semisync.setExportStats();					\
+    repl_semisync->setExportStats();					\
     var->type= show_type;						\
     var->value= (char *)&rpl_semi_sync_master_##name;				\
     return 0;								\
@@ -585,9 +585,12 @@ static int semi_sync_master_plugin_init(void *p)
 
   THR_RPL_SEMI_SYNC_DUMP= false;
 
-  if (repl_semisync.initObject())
+  repl_semisync= new ReplSemiSyncMaster();
+  ack_receiver= new Ack_receiver();
+
+  if (repl_semisync->initObject())
     return 1;
-  if (ack_receiver.init())
+  if (ack_receiver->init())
     return 1;
   if (register_trans_observer(&trans_observer, p))
     return 1;
@@ -600,7 +603,7 @@ static int semi_sync_master_plugin_init(void *p)
 
 static int semi_sync_master_plugin_deinit(void *p)
 {
-  ack_receiver.stop();
+  ack_receiver->stop();
   THR_RPL_SEMI_SYNC_DUMP= false;
 
   if (unregister_trans_observer(&trans_observer, p))
@@ -618,6 +621,10 @@ static int semi_sync_master_plugin_deinit(void *p)
     sql_print_error("unregister_binlog_transmit_observer failed");
     return 1;
   }
+  delete ack_receiver;
+  ack_receiver= nullptr;
+  delete repl_semisync;
+  repl_semisync= nullptr;
 
   sql_print_information("unregister_replicator OK");
   return 0;
