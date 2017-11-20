@@ -92,7 +92,9 @@ EOF
   $ENV{'PATH'}="$bindir:$ENV{'PATH'}";
 
   my $init_file_args= $ENV{'INIT_FILE_ARGS'};
-  (system("mysqld $init_file_args") == 0) ||
+  my $binary= $ENV{'MYSQLD'};
+  $binary =~ s|$bdir/||;
+  (system("$binary $init_file_args") == 0) ||
     die "system failed on 'mysqld $init_file_args': $!";
 
   my $mysqld_log= $ENV{'MYSQLD_LOG'};
