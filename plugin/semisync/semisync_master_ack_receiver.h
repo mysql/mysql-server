@@ -128,5 +128,5 @@ private:
   void wait_for_slave_connection();
 };
 
-extern Ack_receiver ack_receiver;
+extern Ack_receiver *ack_receiver;
 #endif
