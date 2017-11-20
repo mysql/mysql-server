@@ -3156,7 +3156,7 @@ fil_op_replay_rename_for_ddl(
 
 	fil_space_t*	space = fil_space_get(space_id);
 
-	if (space == nullptr) {
+	if (space == nullptr && Log_DDL::is_in_recovery()) {
 		/* If can't find the space, try to load it by
 		the information in tablespace.open.*. */
 		fil_system->m_open.open_for_recovery(space_id);
