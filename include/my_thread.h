@@ -170,7 +170,9 @@ void my_thread_exit(void *value_ptr) MY_ATTRIBUTE((noreturn));
 extern bool my_thread_global_init();
 extern void my_thread_global_reinit();
 extern void my_thread_global_end();
-extern bool my_thread_init();
-extern void my_thread_end();
+
+// Need to be extern "C" for the time being, due to memcached.
+extern "C" bool my_thread_init();
+extern "C" void my_thread_end();
 
 #endif /* MY_THREAD_INCLUDED */

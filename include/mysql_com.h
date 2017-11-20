@@ -1042,8 +1042,15 @@ const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 
 /* Some other useful functions */
 
+// Need to be extern "C" for the time being, due to memcached.
+#ifdef __cplusplus
+extern "C" {
+#endif
 bool my_thread_init(void);
 void my_thread_end(void);
+#ifdef __cplusplus
+}
+#endif
 
 #ifdef STDCALL
 unsigned long STDCALL net_field_length(unsigned char **packet);
