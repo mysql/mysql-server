@@ -15630,7 +15630,11 @@ innodb_rec_per_key(
 				/ (n_diff - n_null);
 		}
 	} else {
-		DEBUG_SYNC_C("after_checking_for_0");
+#ifdef UNIV_DEBUG
+		if (!index->table->is_dd_table) {
+			DEBUG_SYNC_C("after_checking_for_0");
+		}
+#endif /* UNIV_DEBUG */
 		rec_per_key = static_cast<rec_per_key_t>(records) / n_diff;
 	}
 
@@ -16471,11 +16475,12 @@ innobase_get_index_column_cardinality(
 				fixed as 1.0 */
 				*cardinality = ib_table->stat_n_rows;
 			} else {
-				double records = (ib_table->stat_n_rows
+				uint64_t n_rows = ib_table->stat_n_rows;
+				double records = (n_rows
 					/ innodb_rec_per_key(
 						index,
 						(ulint) column_ordinal_position,
-						ib_table->stat_n_rows));
+						n_rows));
 				*cardinality=
 				   static_cast<ulonglong>(round(records));
 			}
