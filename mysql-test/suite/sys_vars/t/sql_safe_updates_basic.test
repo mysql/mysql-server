@@ -93,15 +93,15 @@ SET @@session.sql_safe_updates = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_safe_updates = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_safe_updates = TRÜE;
+SET @@session.sql_safe_updates = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_safe_updates = ÕN;
+SET @@session.sql_safe_updates = Ã•N;
 --error ER_PARSE_ERROR
 SET @@session.sql_safe_updates = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_safe_updates = ÓFF;
+SET @@session.sql_safe_updates = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_safe_updates = '¹';
+SET @@session.sql_safe_updates = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_safe_updates = NO;
 

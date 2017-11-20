@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ Dbtup::alloc_fix_rec(EmulatedJamBuffer* jamBuf,
 /* ---------------------------------------------------------------- */
 // No prepared tuple header page with free entries exists.
 /* ---------------------------------------------------------------- */
-    pagePtr.i = allocFragPage(jamBuf, err, regFragPtr);
+    pagePtr.i = allocFragPage(jamBuf, err, regFragPtr, regTabPtr);
     if (pagePtr.i != RNIL) {
       thrjam(jamBuf);
 /* ---------------------------------------------------------------- */
@@ -90,12 +90,6 @@ Dbtup::alloc_fix_rec(EmulatedJamBuffer* jamBuf,
 // convert it into a tuple header page and put it in thFreeFirst-list.
 /* ---------------------------------------------------------------- */
       c_page_pool.getPtr(pagePtr);
-
-      convertThPage((Fix_page*)pagePtr.p, regTabPtr, MM);
-      pagePtr.p->page_state = ZTH_MM_FREE;
-      
-      Local_Page_fifo free_pages(c_page_pool, regFragPtr->thFreeFirst);
-      free_pages.addFirst(pagePtr);
     } else {
       thrjam(jamBuf);
 /* ---------------------------------------------------------------- */
@@ -136,9 +130,21 @@ void Dbtup::convertThPage(Fix_page* regPagePtr,
 #ifdef VM_TRACE
   memset(regPagePtr->m_data, 0xF1, 4*Fix_page::DATA_WORDS);
 #endif
-  Uint32 gci_pos = 2;
-  Uint32 gci_val = 0xF1F1F1F1;
-  if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
+  Uint32 gci_pos;
+  Uint32 gci_val;
+  /**
+   * All tables must have GCI entry since it is mandatory for node
+   * restart to work. It is however reset during restore temporarily
+   * We do however need to initialise GCI entry to 0 also for
+   * restore's. Old code is kept commented here.
+   *
+   * We initialise GCI to 0 to ensure that we properly count the changed
+   * rows between LCPs.
+   *
+   * Uint32 gci_pos = 2;
+   * Uint32 gci_val = 0xF1F1F1F1;
+   * if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
+   */
   {
     Tuple_header* ptr = 0;
     gci_pos = Uint32(ptr->get_mm_gci(regTabPtr) - (Uint32*)ptr);
@@ -152,7 +158,7 @@ void Dbtup::convertThPage(Fix_page* regPagePtr,
     prev = pos;
     pos += nextTuple;
     cnt ++;
-  } 
+  }
   
   regPagePtr->m_data[prev] |= 0xFFFF;
   regPagePtr->next_free_index= 0;

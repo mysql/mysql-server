@@ -1355,8 +1355,10 @@ var processParameterDefaults= {
                 label: "Arbitration",
                 docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                         "-ndbd-definition.html#ndbparam-ndbd-arbitration", 
-                tooltip: "Attempt using O_DIRECT writes for LCP, backups, " +
-                         "and redo logs; Linux kernel 2.6+",
+                tooltip: "Choice of arbitration schemes. Use only in the [ndbd default] "+
+                         "section of the cluster configuration file. The behavior of " +
+                         "the cluster is unspecified when Arbitration is set to different " +
+                         "values for individual data nodes.",
                 attribute: "Arbitration",
                 destination: "config.ini",
                 overridableType: true,

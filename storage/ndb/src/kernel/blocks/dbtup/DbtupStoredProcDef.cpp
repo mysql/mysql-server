@@ -52,14 +52,14 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
    * It can be done here since seize/release always succeeds.
    * The count is only used under -DERROR_INSERT via DUMP.
    */
-#if defined VM_TRACE || defined ERROR_INSERT
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   BlockReference apiBlockref = signal->theData[5];
 #endif
   switch (requestInfo) {
   case ZSCAN_PROCEDURE:
   {
     jamDebug();
-#if defined VM_TRACE || defined ERROR_INSERT
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     storedProcCountNonAPI(apiBlockref, +1);
 #endif
     SectionHandle handle(this);
@@ -75,14 +75,14 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
   }
   case ZCOPY_PROCEDURE:
     jamDebug();
-#if defined VM_TRACE || defined ERROR_INSERT
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     storedProcCountNonAPI(apiBlockref, +1);
 #endif
     copyProcedure(signal, regTabPtr, regOperPtr.p);
     break;
   case ZSTORED_PROCEDURE_DELETE:
     jamDebug();
-#if defined VM_TRACE || defined ERROR_INSERT
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     storedProcCountNonAPI(apiBlockref, -1);
 #endif
     deleteScanProcedure(signal, regOperPtr.p);

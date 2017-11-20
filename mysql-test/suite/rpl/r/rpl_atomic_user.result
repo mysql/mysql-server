@@ -102,6 +102,7 @@ Note	3162	Authorization ID 'u_failed1'@'%' does not exist.
 Note	3162	Authorization ID 'r7'@'%' does not exist.
 Note	3162	Authorization ID 'u9'@'%' does not exist.
 # Search warnings in the server log
+Pattern "Following users were specified in CREATE USER" found
 # DROP USER IF EXISTS statement test
 DROP USER IF EXISTS u7, u8, u_failed;
 Warnings:

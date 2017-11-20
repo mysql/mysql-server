@@ -83,7 +83,7 @@ version_tokens_edit("token1= 123;         token3     =         asdf")
 2 version tokens updated.
 select version_tokens_show();
 version_tokens_show()
-token2=def;token3=asdf;token1=123;
+token1=123;token2=def;token3=asdf;
 
 do version_tokens_set("token1    =     def;;;;      ;invalid_token; token2= abc;;");
 Warnings:
@@ -109,14 +109,14 @@ token1=none;
 do version_tokens_set("token1=def;token2= abc;          ;token3=ghi");
 select version_tokens_show();
 version_tokens_show()
-token1=def;token3=ghi;token2=abc;
+token1=def;token2=abc;token3=ghi;
 
 select version_tokens_delete("invalid=token");
 version_tokens_delete("invalid=token")
 0 version tokens deleted.
 select version_tokens_show();
 version_tokens_show()
-token1=def;token3=ghi;token2=abc;
+token1=def;token2=abc;token3=ghi;
 
 select version_tokens_delete("token1;token3");
 version_tokens_delete("token1;token3")
@@ -135,7 +135,7 @@ token2=abc;
 do version_tokens_set("token1=def;token2= abc;token3=111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112");
 select version_tokens_show();
 version_tokens_show()
-token1=def;token3=111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112;token2=abc;
+token1=def;token2=abc;token3=111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112;
 
 # Connection: con1
 
@@ -260,6 +260,7 @@ SHOW PRIVILEGES;
 Privilege	Context	Comment
 Alter	Tables	To alter the table
 Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
+BACKUP_ADMIN	Server Admin	
 BINLOG_ADMIN	Server Admin	
 CONNECTION_ADMIN	Server Admin	
 Create	Databases,Tables,Indexes	To create new databases and tables
@@ -285,6 +286,8 @@ PERSIST_RO_VARIABLES_ADMIN	Server Admin
 Process	Server Admin	To view the plain text of currently executing queries
 Proxy	Server Admin	To make proxy user possible
 REPLICATION_SLAVE_ADMIN	Server Admin	
+RESOURCE_GROUP_ADMIN	Server Admin	
+RESOURCE_GROUP_USER	Server Admin	
 ROLE_ADMIN	Server Admin	
 References	Databases,Tables	To have references on tables
 Reload	Server Admin	To reload or refresh tables, logs and privileges

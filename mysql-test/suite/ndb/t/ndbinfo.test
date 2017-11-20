@@ -906,3 +906,29 @@ SELECT node_type, count(*),
  GROUP_CONCAT(node_id order by 1 asc separator " ") ids
  FROM config_nodes group by node_type order by node_type;
 
+
+
+--echo #
+--echo # Bug#26048272  IMPLEMENT NDBINFO TABLE FOR LOOKUP OF ERROR CODES AND MESSAGES
+--echo #
+
+# Check that row is returned for NDB error 920
+select *
+  from ndbinfo.error_messages
+  where error_code = 920;
+
+
+# Check that row is returned for NDB exit code 2304
+select *
+  from ndbinfo.error_messages
+  where error_code = 2304;
+
+# Check that row is returned for MgmApi error code 5001
+select *
+  from ndbinfo.error_messages
+  where error_code = 5001;
+
+# Check that there are at last 700 rows in the error_message table, don't
+# use a hard limit as it will grow when someone add a new error message
+select count(*) > 700
+  from ndbinfo.error_messages;

@@ -77,7 +77,6 @@
 #cmakedefine HAVE_CUSERID 1
 #cmakedefine HAVE_DIRECTIO 1
 #cmakedefine HAVE_FTRUNCATE 1
-#cmakedefine HAVE_CRYPT 1
 #cmakedefine HAVE_FCHMOD 1
 #cmakedefine HAVE_FCNTL 1
 #cmakedefine HAVE_FDATASYNC 1

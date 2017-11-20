@@ -21,19 +21,20 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "field.h"
-#include "handler.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
-#include "my_inttypes.h"
 #include "mysql/service_rules_table.h"
-#include "sql_base.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/sql_base.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction.h"
 #include "sql_string.h"
-#include "table.h"
 #include "thr_lock.h"
-#include "transaction.h"
 
 class THD;
 

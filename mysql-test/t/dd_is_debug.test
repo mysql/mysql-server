@@ -6,8 +6,7 @@
 --echo #
 --echo # Bug#24487414 - SIG 11 IN DD::INFO_SCHEMA::STATISTICS_CACHE::READ_STAT_BY_OPEN_TABLE
 --echo #
-SET @old_information_schema_stats= @@session.information_schema_stats;
-SET @@session.information_schema_stats= latest;
+SET SESSION information_schema_stats_expiry=0;
 
 # time_zone table name is used here to set debug point
 # kill_query_on_open_table_from_tz_find from the
@@ -25,6 +24,18 @@ SET SESSION DEBUG="-d,simulate_kill_query_on_open_table";
 
 DROP TABLE time_zone;
 
-SET @@session.information_schema_stats= @old_information_schema_stats;
+SET SESSION information_schema_stats_expiry=default;
+--echo #
+--echo # Bug#26318759 ASSERT IN ROW_DROP_TABLE_FOR_MYSQL IN ROW/ROW0MYSQL.CC
+--echo #
 
-###########################################################################
+SET SESSION information_schema_stats_expiry=0;
+SET SESSION debug= "+d,information_schema_fetch_table_stats";
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+INSERT INTO t1 VALUES ('a','b');
+# This SELECT should dump if it end-ups calling SE API. (Without fix).
+SELECT table_name, cardinality  FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE cardinality > 0 and table_schema='test';
+DROP TABLE t1;
+SET SESSION debug= "-d,information_schema_fetch_table_stats";
+SET SESSION information_schema_stats_expiry=default;

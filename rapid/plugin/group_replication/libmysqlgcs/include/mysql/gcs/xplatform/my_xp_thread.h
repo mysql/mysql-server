@@ -16,197 +16,21 @@
 #ifndef MY_XP_THREAD_INCLUDED
 #define MY_XP_THREAD_INCLUDED
 
-#include <errno.h>
+#ifndef XCOM_STANDALONE
+
+#include <my_sys.h>
+#include "mysql/psi/psi_thread.h"
+
+typedef my_thread_t        native_thread_t;
+typedef my_thread_handle   native_thread_handle;
+typedef my_thread_attr_t   native_thread_attr_t;
+typedef my_start_routine   native_start_routine;
+
+#define NATIVE_THREAD_CREATE_DETACHED MY_THREAD_CREATE_DETACHED
+#define NATIVE_THREAD_CREATE_JOINABLE MY_THREAD_CREATE_JOINABLE
+#endif
+
 #include "mysql/gcs/xplatform/my_xp_cond.h"
-
-#ifndef ETIME
-#define ETIME ETIMEDOUT                         /* For FreeBSD */
-#endif
-
-#ifndef ETIMEDOUT
-#define ETIMEDOUT 145                           /* Win32 doesn't have this */
-#endif
-
-
-typedef unsigned int uint32;
-typedef uint32 native_thread_id;
-
-#ifdef _WIN32
-
-typedef volatile LONG    native_thread_once_t;
-typedef DWORD            native_thread_t;
-typedef struct thread_attr
-{
-  DWORD dwStackSize;
-} native_thread_attr_t;
-typedef void *(__cdecl *native_start_routine)(void *);
-#define MY_THREAD_ONCE_INIT       0
-#define MY_THREAD_ONCE_INPROGRESS 1
-#define MY_THREAD_ONCE_DONE       2
-
-#include <process.h>
-#include <signal.h>
-
-struct thread_start_parameter
-{
-  native_start_routine func;
-  void *arg;
-};
-
-
-static unsigned int __stdcall win_thread_start(void *p)
-{
-  struct thread_start_parameter *par= (struct thread_start_parameter *)p;
-  native_start_routine func=          par->func;
-  void *arg=                          par->arg;
-
-  free(p);
-  (*func)(arg);
-  return 0;
-}
-
-
-/* All thread specific variables are in the following struct */
-struct st_native_thread_var
-{
-  int thr_errno;
-  /*
-    thr_winerr is used for returning the original OS error-code in Windows,
-    my_osmaperr() returns EINVAL for all unknown Windows errors, hence we
-    preserve the original Windows Error code in thr_winerr.
-  */
-  int thr_winerr;
-  native_cond_t suspend;
-  native_thread_id id;
-  int volatile abort;
-  struct st_native_thread_var *next, **prev;
-  void *opt_info;
-#ifndef DBUG_OFF
-  void *dbug;
-#endif
-};
-
-
-int set_mysys_thread_var(struct st_native_thread_var *mysys_var);
-
-#ifndef DBUG_OFF
-/**
-  Returns pointer to DBUG for holding current state.
-*/
-void **my_thread_var_dbug();
-#endif
-
-#define my_errno mysys_thread_var()->thr_errno
-
-struct errentry
-{
-  unsigned long oscode;                         /* OS return value */
-  int sysv_errno;                               /* System V error code */
-};
-
-static struct errentry errtable[]= {
-  {  ERROR_INVALID_FUNCTION,       EINVAL    },  /* 1 */
-  {  ERROR_FILE_NOT_FOUND,         ENOENT    },  /* 2 */
-  {  ERROR_PATH_NOT_FOUND,         ENOENT    },  /* 3 */
-  {  ERROR_TOO_MANY_OPEN_FILES,    EMFILE    },  /* 4 */
-  {  ERROR_ACCESS_DENIED,          EACCES    },  /* 5 */
-  {  ERROR_INVALID_HANDLE,         EBADF     },  /* 6 */
-  {  ERROR_ARENA_TRASHED,          ENOMEM    },  /* 7 */
-  {  ERROR_NOT_ENOUGH_MEMORY,      ENOMEM    },  /* 8 */
-  {  ERROR_INVALID_BLOCK,          ENOMEM    },  /* 9 */
-  {  ERROR_BAD_ENVIRONMENT,        E2BIG     },  /* 10 */
-  {  ERROR_BAD_FORMAT,             ENOEXEC   },  /* 11 */
-  {  ERROR_INVALID_ACCESS,         EINVAL    },  /* 12 */
-  {  ERROR_INVALID_DATA,           EINVAL    },  /* 13 */
-  {  ERROR_INVALID_DRIVE,          ENOENT    },  /* 15 */
-  {  ERROR_CURRENT_DIRECTORY,      EACCES    },  /* 16 */
-  {  ERROR_NOT_SAME_DEVICE,        EXDEV     },  /* 17 */
-  {  ERROR_NO_MORE_FILES,          ENOENT    },  /* 18 */
-  {  ERROR_LOCK_VIOLATION,         EACCES    },  /* 33 */
-  {  ERROR_BAD_NETPATH,            ENOENT    },  /* 53 */
-  {  ERROR_NETWORK_ACCESS_DENIED,  EACCES    },  /* 65 */
-  {  ERROR_BAD_NET_NAME,           ENOENT    },  /* 67 */
-  {  ERROR_FILE_EXISTS,            EEXIST    },  /* 80 */
-  {  ERROR_CANNOT_MAKE,            EACCES    },  /* 82 */
-  {  ERROR_FAIL_I24,               EACCES    },  /* 83 */
-  {  ERROR_INVALID_PARAMETER,      EINVAL    },  /* 87 */
-  {  ERROR_NO_PROC_SLOTS,          EAGAIN    },  /* 89 */
-  {  ERROR_DRIVE_LOCKED,           EACCES    },  /* 108 */
-  {  ERROR_BROKEN_PIPE,            EPIPE     },  /* 109 */
-  {  ERROR_DISK_FULL,              ENOSPC    },  /* 112 */
-  {  ERROR_INVALID_TARGET_HANDLE,  EBADF     },  /* 114 */
-  {  ERROR_INVALID_NAME,           ENOENT    },  /* 123 */
-  {  ERROR_INVALID_HANDLE,         EINVAL    },  /* 124 */
-  {  ERROR_WAIT_NO_CHILDREN,       ECHILD    },  /* 128 */
-  {  ERROR_CHILD_NOT_COMPLETE,     ECHILD    },  /* 129 */
-  {  ERROR_DIRECT_ACCESS_HANDLE,   EBADF     },  /* 130 */
-  {  ERROR_NEGATIVE_SEEK,          EINVAL    },  /* 131 */
-  {  ERROR_SEEK_ON_DEVICE,         EACCES    },  /* 132 */
-  {  ERROR_DIR_NOT_EMPTY,          ENOTEMPTY },  /* 145 */
-  {  ERROR_NOT_LOCKED,             EACCES    },  /* 158 */
-  {  ERROR_BAD_PATHNAME,           ENOENT    },  /* 161 */
-  {  ERROR_MAX_THRDS_REACHED,      EAGAIN    },  /* 164 */
-  {  ERROR_LOCK_FAILED,            EACCES    },  /* 167 */
-  {  ERROR_ALREADY_EXISTS,         EEXIST    },  /* 183 */
-  {  ERROR_FILENAME_EXCED_RANGE,   ENOENT    },  /* 206 */
-  {  ERROR_NESTING_NOT_ALLOWED,    EAGAIN    },  /* 215 */
-  {  ERROR_NOT_ENOUGH_QUOTA,       ENOMEM    }    /* 1816 */
-};
-
-/* size of the table */
-#define ERRTABLESIZE (sizeof(errtable)/sizeof(errtable[0]))
-
-/*
-  The following two constants must be the minimum and maximum
-  values in the (contiguous) range of Exec Failure errors.
-*/
-#define MIN_EXEC_ERROR ERROR_INVALID_STARTING_CODESEG
-#define MAX_EXEC_ERROR ERROR_INFLOOP_IN_RELOC_CHAIN
-
-/*
-  These are the low and high value in the range of errors that are access
-  violations.
-*/
-#define MIN_EACCES_RANGE ERROR_WRITE_PROTECT
-#define MAX_EACCES_RANGE ERROR_SHARING_BUFFER_EXCEEDED
-
-
-static int get_errno_from_oserr(unsigned long oserrno)
-{
-  int i;
-
-  /* check the table for the OS error code */
-  for (i= 0; i < ERRTABLESIZE; ++i)
-  {
-    if (oserrno == errtable[i].oscode)
-    {
-      return  errtable[i].sysv_errno;
-    }
-  }
-
-  /*
-    The error code wasn't in the table.  We check for a range of
-    EACCES errors or exec failure errors (ENOEXEC).  Otherwise
-    EINVAL is returned.
-  */
-
-  if (oserrno >= MIN_EACCES_RANGE && oserrno <= MAX_EACCES_RANGE)
-    return EACCES;
-  else if (oserrno >= MIN_EXEC_ERROR && oserrno <= MAX_EXEC_ERROR)
-    return ENOEXEC;
-  else
-    return EINVAL;
-}
-
-#else
-#include <pthread.h>
-
-typedef pthread_once_t   native_thread_once_t;
-typedef pthread_t        native_thread_t;
-typedef pthread_attr_t   native_thread_attr_t;
-typedef void *(*native_start_routine)(void *);
-#define MY_THREAD_ONCE_INIT       PTHREAD_ONCE_INIT
-#endif
 
 /**
   @class My_xp_thread
@@ -217,8 +41,8 @@ typedef void *(*native_start_routine)(void *);
 
   @code{.cpp}
 
-  My_xp_thread thread= My_xp_thread::get_thread();
-  thread->create(NULL, &function, &args);
+  My_xp_thread *thread= new My_xp_thread_impl();
+  thread->create(key, NULL, &function, &args);
 
   void *result;
   thread->join(&result);
@@ -231,24 +55,31 @@ public:
   /**
     Creates thread.
 
+    @param key thread instrumentation key
     @param attr thread attributes
     @param func routine function
     @param arg function parameters
     @return success status
   */
 
-  virtual int create(const native_thread_attr_t *attr,
+  virtual int create(PSI_thread_key key, const native_thread_attr_t *attr,
                      native_start_routine func, void *arg)= 0;
 
 
   /**
-    One time initialization.
+    Creates a detached thread.
 
-    @param init_routine init routine to invoke
+    @param key thread instrumentation key
+    @param attr thread attributes
+    @param func routine function
+    @param arg function parameters
     @return success status
   */
 
-  virtual int once(void (*init_routine)(void))= 0;
+  virtual int create_detached(PSI_thread_key key,
+                              native_thread_attr_t *attr,
+                              native_start_routine func,
+                              void *arg)= 0;
 
 
   /**
@@ -271,15 +102,6 @@ public:
 
 
   /**
-    Detach this thread, i.e. its resources can be reclaimed when it terminates.
-
-    @return success status
-  */
-
-  virtual int detach()= 0;
-
-
-  /**
     Retrieves native thread reference
 
     @return native thread pointer
@@ -290,57 +112,37 @@ public:
   virtual ~My_xp_thread() {}
 };
 
-#ifdef _WIN32
-class My_xp_thread_win : public My_xp_thread
+
+#ifndef XCOM_STANDALONE
+class My_xp_thread_server : public My_xp_thread
 {
-private:
-  HANDLE m_handle;
-  void my_osmaperr( unsigned long oserrno);
-  st_native_thread_var *m_thread_var;
-  /*
-    Disabling the copy constructor and assignment operator.
-  */
-  My_xp_thread_win(My_xp_thread_win const&);
-  My_xp_thread_win& operator=(My_xp_thread_win const&);
 public:
-  explicit My_xp_thread_win();
-  virtual ~My_xp_thread_win();
-#else
-class My_xp_thread_pthread : public My_xp_thread
-{
-private:
-  /*
-    Disabling the copy constructor and assignment operator.
-  */
-  My_xp_thread_pthread(My_xp_thread_pthread const&);
-  My_xp_thread_pthread& operator=(My_xp_thread_pthread const&);
-public:
-  explicit My_xp_thread_pthread();
-  virtual ~My_xp_thread_pthread();
-#endif
-  int create(const native_thread_attr_t *attr, native_start_routine func,
-             void *arg);
-  int once(void (*init_routine)(void));
+  explicit My_xp_thread_server();
+  virtual ~My_xp_thread_server();
+
+  int create(PSI_thread_key key, const native_thread_attr_t *attr,
+             native_start_routine func, void *arg);
+  int create_detached(PSI_thread_key key, native_thread_attr_t *attr,
+                      native_start_routine func, void *arg);
   int join(void **value_ptr);
   int cancel();
-  int detach();
   native_thread_t *get_native_thread();
 
 protected:
-  native_thread_t *m_thread;
-  native_thread_once_t *m_thread_once;
+  native_thread_handle *m_thread_handle;
 };
+#endif
 
-#ifdef _WIN32
-class My_xp_thread_impl : public My_xp_thread_win
-#else
-class My_xp_thread_impl : public My_xp_thread_pthread
+
+#ifndef XCOM_STANDALONE
+class My_xp_thread_impl : public My_xp_thread_server
 #endif
 {
 public:
   explicit My_xp_thread_impl() {}
   ~My_xp_thread_impl() {}
 };
+
 
 class My_xp_thread_util
 {
@@ -381,6 +183,67 @@ public:
   */
 
   static native_thread_t self();
+
+
+  /**
+    Compares two thread identifiers.
+
+    @param t1 identifier of one thread
+    @param t2 identifier of another thread
+    @retval 0 if ids are different
+    @retval some other value if ids are equal
+  */
+
+  static int equal(native_thread_t t1, native_thread_t t2);
+
+
+  /**
+    Sets the stack size attribute of the thread attributes object referred
+    to by attr to the value specified in stacksize.
+
+    @param attr thread attributes
+    @param stacksize new attribute stack size
+    @retval 0 on success
+    @retval nonzero error number, on error
+  */
+
+  static int attr_setstacksize(native_thread_attr_t *attr, size_t stacksize);
+
+
+  /**
+    Returns the stack size attribute of the thread attributes object referred
+    to by attr in the buffer pointed to by stacksize.
+
+    @param attr thread attributes
+    @param stacksize pointer to attribute stack size returning placeholder
+    @retval 0 on success
+    @retval nonzero error number, on error
+  */
+
+  static int attr_getstacksize(native_thread_attr_t *attr, size_t *stacksize);
+
+
+  /**
+    Sets the detach state attribute of the thread attributes object referred
+    to by attr to the value specified in detachstate.
+
+    @param attr thread attributes
+    @param detachstate determines if the thread is to be created in a joinable
+    (MY_THREAD_CREATE_JOINABLE) or a detached state (MY_THREAD_CREATE_DETACHED)
+    @retval 0 on success
+    @retval nonzero error number, on error
+  */
+
+  static int attr_setdetachstate(native_thread_attr_t *attr, int detachstate);
+
+
+  /**
+    Causes the calling thread to relinquish the CPU, and to be moved to the
+    end of the queue and another thread gets to run.
+  */
+
+  static void yield();
+
 };
 
 #endif // MY_XP_THREAD_INCLUDED

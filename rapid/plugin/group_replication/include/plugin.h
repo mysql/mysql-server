@@ -54,6 +54,8 @@ extern rpl_sidno group_sidno;
 extern bool wait_on_engine_initialization;
 extern bool server_shutdown_status;
 extern const char *available_bindings_names[];
+extern char *communication_debug_options_var;
+extern char *communication_debug_file_var;
 //Flag to register server rest master command invocations
 extern bool known_server_reset;
 //Certification latch
@@ -66,7 +68,8 @@ extern Recovery_module *recovery_module;
 extern Registry_module_interface *registry_module;
 extern Group_member_info_manager_interface *group_member_mgr;
 extern Channel_observation_manager *channel_observation_manager;
-extern Asynchronous_channels_state_observer *asynchronous_channels_state_observer;
+extern Asynchronous_channels_state_observer
+        *asynchronous_channels_state_observer;
 //Lock for the applier and recovery module to prevent the race between STOP
 //Group replication and ongoing transactions.
 extern Shared_writelock *shared_plugin_stop_lock;
@@ -90,6 +93,7 @@ int configure_compatibility_manager();
 int terminate_applier_module();
 int initialize_recovery_module();
 void initialize_group_partition_handler();
+void set_auto_increment_handler();
 int terminate_recovery_module();
 int configure_group_communication(st_server_ssl_variables *ssl_variables);
 int start_group_communication();
@@ -103,6 +107,7 @@ ulong get_transaction_size_limit();
 void initialize_asynchronous_channels_observer();
 void terminate_asynchronous_channels_observer();
 bool is_plugin_waiting_to_set_server_read_mode();
+bool check_async_channel_running_on_secondary();
 
 //Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);

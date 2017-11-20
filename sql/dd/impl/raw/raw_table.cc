@@ -13,22 +13,23 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/raw/raw_table.h"
+#include "sql/dd/impl/raw/raw_table.h"
 
 #include <stddef.h>
 #include <algorithm>
 #include <new>
 
-#include "dd/impl/object_key.h"              // dd::Object_key
-#include "dd/impl/raw/raw_key.h"             // dd::Raw_key
-#include "dd/impl/raw/raw_record.h"          // dd::Raw_record
-#include "dd/impl/raw/raw_record_set.h"      // dd::Raw_record_set
-#include "handler.h"
 #include "m_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/dd/impl/object_key.h"          // dd::Object_key
+#include "sql/dd/impl/raw/raw_key.h"         // dd::Raw_key
+#include "sql/dd/impl/raw/raw_record.h"      // dd::Raw_record
+#include "sql/dd/impl/raw/raw_record_set.h"  // dd::Raw_record_set
+#include "sql/handler.h"
 
 namespace dd {
 

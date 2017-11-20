@@ -39,8 +39,8 @@ SELECT variable_value FROM performance_schema.global_status
 SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 	i.name index_name, i.page_no root_page, i.type,
 	i.n_fields, i.merge_threshold
-	FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
-		INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+	FROM	INFORMATION_SCHEMA.INNODB_TABLES  t,
+		INFORMATION_SCHEMA.INNODB_INDEXES i
 	WHERE	t.table_id = i.table_id
 	AND	t.name LIKE 'mysql%'
         AND     t.name NOT LIKE 'mysql/ndb_binlog_index'
@@ -58,8 +58,8 @@ CREATE TABLE t4 (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
 SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 	i.name index_name, i.page_no root_page, i.type,
 	i.n_fields, i.merge_threshold
-	FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
-		INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+	FROM	INFORMATION_SCHEMA.INNODB_TABLES  t,
+		INFORMATION_SCHEMA.INNODB_INDEXES i
 	WHERE	t.table_id = i.table_id
 	AND	t.name LIKE 'test%'
 	ORDER BY t.name, i.name;

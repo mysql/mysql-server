@@ -15,23 +15,24 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/sql_alter_instance.h"         /* Alter_instance class */
 
-#include "auth_acls.h"
-#include "derror.h"                     /* ER_THD */
-#include "handler.h"                    /* ha_resolve_by_legacy_type */
+#include <utility>
+
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"                     /* my_error */
 #include "mysqld_error.h"
-#include "sql_class.h"                  /* THD */
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
-#include "sql_table.h"                  /* write_to_binlog */
-#include "mysql/components/services/dynamic_privilege.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"                 /* ER_THD */
+#include "sql/handler.h"                /* ha_resolve_by_legacy_type */
+#include "sql/key.h"
+#include "sql/sql_class.h"              /* THD */
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_table.h"              /* write_to_binlog */
 
 /*
   @brief

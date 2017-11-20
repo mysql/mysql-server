@@ -533,8 +533,7 @@ Group_member_info::comparator_group_member_weight(Group_member_info *m1,
 bool
 Group_member_info::has_greater_version(Group_member_info *other)
 {
-  if (this->member_version->get_major_version() >
-        other->member_version->get_major_version())
+  if (*member_version > *(other->member_version))
     return true;
 
   return false;
@@ -564,7 +563,7 @@ Group_member_info_manager(Group_member_info* local_member_info)
   members= new map<string, Group_member_info*>();
   this->local_member_info= local_member_info;
 
-  mysql_mutex_init(key_GR_LOCK_group_info_manager, &update_lock,
+  mysql_mutex_init(PSI_NOT_INSTRUMENTED, &update_lock,
                    MY_MUTEX_INIT_FAST);
 
   add(local_member_info);
@@ -572,6 +571,7 @@ Group_member_info_manager(Group_member_info* local_member_info)
 
 Group_member_info_manager::~Group_member_info_manager()
 {
+  mysql_mutex_destroy(&update_lock);
   clear_members();
   delete members;
 }
@@ -864,6 +864,26 @@ get_primary_member_uuid(std::string &primary_member_uuid)
   if (primary_member_uuid.empty() ||
       Group_member_info::MEMBER_ERROR == local_member_info->get_recovery_status())
     primary_member_uuid= "UNDEFINED";
+}
+
+bool Group_member_info_manager::is_majority_unreachable()
+{
+  bool ret= false;
+  int unreachables= 0;
+
+  mysql_mutex_lock(&update_lock);
+  map<string, Group_member_info*>::iterator it= members->begin();
+
+  for (it= members->begin(); it != members->end(); it++)
+  {
+    Group_member_info* info= (*it).second;
+    if (info->is_unreachable())
+      unreachables++;
+  }
+  ret= (members->size() - unreachables) <= (members->size() / 2);
+  mysql_mutex_unlock(&update_lock);
+
+  return ret;
 }
 
 Group_member_info_manager_message::Group_member_info_manager_message()

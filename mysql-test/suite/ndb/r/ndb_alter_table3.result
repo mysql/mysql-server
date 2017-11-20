@@ -89,7 +89,7 @@ t2	CREATE TABLE `t2` (
 insert into t1 values (1,10), (2,20), (3,30), (4,40);
 insert into t2 values (1,10,100), (2,20,200);
 insert into t2 values (5,50,500);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk_name` FOREIGN KEY (`col_name`) REFERENCES `t1` (`col_name`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 #create a table t3 with an fk refering to t2(c)
 create table t3(
 a int,
@@ -113,9 +113,9 @@ t2	CREATE TABLE `t2` (
 #verify that the fks are intact in t2 and t3
 insert into t2 values (3,30,300), (4,40,400);
 insert into t2 values (5,50,500);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk_name` FOREIGN KEY (`col_name`) REFERENCES `t1` (`col_name`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 insert into t3 values (100), (200);
 insert into t3 values (500);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `fk3` FOREIGN KEY (`a`) REFERENCES `t2` (`c`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 #cleanup
 drop table t3, t2, t1;

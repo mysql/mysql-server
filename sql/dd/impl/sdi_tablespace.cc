@@ -13,21 +13,27 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <algorithm>
 
-#include "dd/cache/dictionary_client.h"  // dd::Dictionary_client
-#include "dd/dd_tablespace.h"            // dd::get_tablespace_name
-#include "dd/impl/sdi.h"                 // dd::serialize
-#include "dd/impl/sdi_utils.h"           // sdi_utils::checked_return
-#include "dd/properties.h"               // dd::Properties
-#include "dd/string_type.h"              // dd::String_type
-#include "dd/types/schema.h"             // dd::Schema
-#include "dd/types/table.h"              // dd::Table
-#include "dd/types/tablespace.h"         // dd::Tablespace
-#include "handler.h"
-#include "mdl.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "sql_class.h"                   // THD
+#include "my_dbug.h"                     // DBUG_PRINT
+#include "my_inttypes.h"                 // uint32
+#include "sql/dd/cache/dictionary_client.h" // dd::Dictionary_client
+#include "sql/dd/collection.h"           // dd::Collection
+#include "sql/dd/dd_tablespace.h"        // dd::get_tablespace_name
+#include "sql/dd/impl/sdi.h"             // dd::serialize
+#include "sql/dd/impl/sdi_utils.h"       // sdi_utils::checked_return
+#include "sql/dd/properties.h"           // dd::Properties
+#include "sql/dd/string_type.h"          // dd::String_type
+#include "sql/dd/types/index.h"          // dd::Index
+#include "sql/dd/types/partition.h"      // dd::Partition
+#include "sql/dd/types/partition_index.h" // dd::Partition_index
+#include "sql/dd/types/schema.h"         // dd::Schema
+#include "sql/dd/types/table.h"          // dd::Table
+#include "sql/dd/types/tablespace.h"     // dd::Tablespace
+#include "sql/handler.h"                 // sdi_set
+#include "sql/mdl.h"                     // MDL_key::TABLESPACE
+#include "sql/sql_class.h"               // THD
+
 
 /**
   @file
@@ -40,299 +46,256 @@
 using namespace dd::sdi_utils;
 
 namespace {
-bool is_valid(const dd::Tablespace *ts MY_ATTRIBUTE((unused)))
+
+using DC= dd::cache::Dictionary_client;
+
+// Workaround since we don't get generic lambdas until C++14
+struct Apply_to_tsid
 {
-  // return ts && ts->se_private_data().exists("id");
-  // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
+  template <typename T, typename CLOSURE_TYPE>
+  bool operator()(const T &t, CLOSURE_TYPE &&clos)
+  {
+    return clos(t.tablespace_id());
+  }
+};
+
+template <typename FTOR_TYPE, typename CLOSURE_TYPE>
+bool apply_to_table_graph(const dd::Table &table,
+                          FTOR_TYPE &&ftor, CLOSURE_TYPE &&clos)
+{
+  if (ftor(table, std::forward<CLOSURE_TYPE>(clos)))
+  {
+    return true;
+  }
+
+  for (auto &&ix : table.indexes())
+  {
+    if (ftor(*ix, std::forward<CLOSURE_TYPE>(clos)))
+    {
+      return true;
+    }
+  }
+
+  for (auto &&part : table.partitions())
+  {
+    if (ftor(*part, std::forward<CLOSURE_TYPE>(clos)))
+    {
+      return true;
+    }
+
+    for (auto &&part_ix : part->indexes())
+    {
+      if (ftor(*part_ix, std::forward<CLOSURE_TYPE>(clos)))
+      {
+        return true;
+      }
+    }
+  }
   return false;
 }
 
-bool lock_tablespace(THD *thd, const dd::Table *table)
+
+template <class CLOSURE_TYPE>
+bool apply_to_tablespaces(THD *thd, const dd::Table &table,
+                          CLOSURE_TYPE &&clos)
 {
-  // Need to the tablespace name in order to obtain MDL.
-  const char *tablespace_name= nullptr;
-  if (dd::get_tablespace_name(thd, table, &tablespace_name, thd->mem_root))
-  {
-    checked_return(true);
-  }
+  DC::Auto_releaser tblspcrel(thd->dd_client());
+  std::vector<dd::Object_id> tsids;
+  return apply_to_table_graph
+    (table, Apply_to_tsid{}, [&] (dd::Object_id tsid)
+     {
+       if (tsid == dd::INVALID_OBJECT_ID)
+       {
+         return false;
+       }
+       if (std::find(tsids.begin(), tsids.end(), tsid) != tsids.end())
+       {
+         // already saved sdi in this tablespace
+         return false;
+       }
+       tsids.push_back(tsid);
 
-  if (tablespace_name == nullptr)
-  {
-    return false; // Ok as not all tables have tablespace objects in
-    // the dd yet. See wl#7141
-  }
+       // The tablespace object may not have MDL
+       // Need to use acquire_uncached_uncommitted to get name for MDL
+       dd::Tablespace *tblspc_= nullptr;
+       if (thd->dd_client()->acquire_uncached_uncommitted(tsid, &tblspc_))
+       {
+         return true;
+       }
+       if (tblspc_ == nullptr)
+       {
+         // When dropping a table in an implicit tablespace, the
+         // refrenced tablespace may already have been removed. This
+         // is ok since this means that the sdis in the tablespace
+         // have been removed also. Note that since tsids is only used
+         // to check for duplicates, it makes sense to leave tsid
+         // there and return false so that we can proceed.
+         return false;
+       }
 
-  // MDL is needed to acquire object into the dd cache,
-  return checked_return
-    (mdl_lock(thd, MDL_key::TABLESPACE, "", tablespace_name,
-                  MDL_INTENTION_EXCLUSIVE));
+       if (mdl_lock(thd, MDL_key::TABLESPACE, "", tblspc_->name(),
+                    MDL_INTENTION_EXCLUSIVE))
+       {
+         return true;
+       }
+
+       // Re-acquire after getting lock to make sure it is still there...
+       const dd::Tablespace *tblspc= nullptr;
+       if (thd->dd_client()->acquire(tsid, &tblspc))
+       {
+         return true;
+       }
+       DBUG_ASSERT(tblspc != nullptr);
+
+       return clos(*tblspc);
+     });
 }
 
-bool acquire_tablespace(THD *thd, const dd::Table *table,
-                        const dd::Tablespace **tablespace)
-{
-  if (table->tablespace_id() == dd::INVALID_OBJECT_ID)
-  {
-    *tablespace= nullptr;
-    return false;
-  }
 
-  if (lock_tablespace(thd, table))
-  {
-    return checked_return(true);
-  }
-
-  if (thd->dd_client()->acquire(table->tablespace_id(), tablespace))
-  {
-    checked_return(true);
-  }
-  return false;
-}
-
-
-// FIXME: The follwing enum and utility functions are only needed in
+// The follwing enum and utility functions are only needed in
 // this translation unit. But maybe it would be better to move them
 // together with the sdi_key_t definition in tablespace.h?
 
 enum struct Sdi_type : uint32
 {
   SCHEMA,
-    TABLE,
-    TABLESPACE,
+  TABLE,
+  TABLESPACE,
 };
 
 dd::sdi_key_t get_sdi_key(const dd::Schema &schema)
 {
-  return dd::sdi_key_t {schema.id(), static_cast<uint32>(Sdi_type::SCHEMA)};
+  return dd::sdi_key_t {static_cast<uint32>(Sdi_type::SCHEMA), schema.id()};
 }
 
 dd::sdi_key_t get_sdi_key(const dd::Table &table)
 {
-  return dd::sdi_key_t {table.id(), static_cast<uint32>(Sdi_type::TABLE)};
+  return dd::sdi_key_t {static_cast<uint32>(Sdi_type::TABLE), table.id()};
 }
 
 dd::sdi_key_t get_sdi_key(const dd::Tablespace &tablespace)
 {
-  return dd::sdi_key_t {tablespace.id(), static_cast<uint32>(Sdi_type::TABLESPACE)};
+  return dd::sdi_key_t {static_cast<uint32>(Sdi_type::TABLESPACE),
+      tablespace.id()};
 }
 
-bool operator==(const dd::sdi_key_t &a, const dd::sdi_key_t &b)
+void check_error_state(THD *thd, const char *operation,
+                       const dd::Schema *sch,
+                       const dd::Table *tbl,
+                       const dd::Tablespace &tspc)
 {
-  return a.id == b.id && a.type == b.type;
+  // TODO: Bug#26516584 - Handle SDI API error
+  // Gopal: What is expected here ?
+  if (thd->is_error() || thd->killed)
+  {
+    // An error should not be set here, but if it is, we don't want to report
+    // ER_SDI_OPERATION_FAILED
+    return;
+  }
+  my_error(ER_SDI_OPERATION_FAILED, MYF(0), operation,
+           (sch?sch->name().c_str():"<no schema>"),
+           (tbl?tbl->name().c_str():"<no table>"),
+           tspc.name().c_str());
 }
 
-
-}
+} // namespace
 
 namespace dd {
 namespace sdi_tablespace {
-bool store(THD *thd, handlerton *hton, const MYSQL_LEX_CSTRING &sdi,
-           const Schema *schema, const Table *table)
+bool store_sch_sdi(THD *thd, const handlerton &hton,
+                   const Sdi_type &sdi, const dd::Schema &schema,
+                   const dd::Table &table)
 {
-  dd::cache::Dictionary_client::Auto_releaser scope_releaser(thd->dd_client());
-  const Tablespace *tablespace= nullptr;
-  if (acquire_tablespace(thd, table, &tablespace))
-  {
-    return checked_return(true);
-  }
-  // FIXME: Cannot call sdi hton api until the se_private_data
-  // contains an id key - will assert. Needs wl#7141
-  if (!is_valid(tablespace))
-  {
-    return false;
-  }
-  const dd::sdi_key_t schema_key= get_sdi_key(*schema);
-  return checked_return(hton->sdi_set(*tablespace, &schema_key,
-                                      sdi.str, sdi.length)) ||
-    checked_return(hton->sdi_flush(*tablespace));
+  const dd::sdi_key_t schema_key= get_sdi_key(schema);
+  return apply_to_tablespaces
+    (thd, table,
+     [&] (const dd::Tablespace &tblspc)
+     {
+       DBUG_PRINT("ddsdi", ("store_sch_sdi(Schema" ENTITY_FMT
+                            ", Table" ENTITY_FMT ")",
+                            ENTITY_VAL(schema), ENTITY_VAL(table)));
+
+       if (hton.sdi_set(tblspc,
+                        &table,
+                        &schema_key,
+                        sdi.c_str(), sdi.size()))
+       {
+         check_error_state(thd, "store schema", &schema,
+                           &table, tblspc);
+         return true;
+       }
+       return false;
+     });
 }
 
-bool store(THD *thd, handlerton *hton, const MYSQL_LEX_CSTRING &sdi,
-           const dd::Table *table, const dd::Schema *schema)
+bool store_tbl_sdi(THD *thd, const handlerton &hton,
+                   const dd::Sdi_type &sdi, const dd::Table &table,
+                   const dd::Schema &schema)
 {
-  if (table->se_private_id() == INVALID_OBJECT_ID)
-  {
-    // OK this is a preliminary store of the object - before SE has
-    // added SE-specific data. Cannot, and should not, store sdi at
-    // this point. TODO: Push this check down to SE.
-    return false;
-  }
+  const dd::sdi_key_t key= get_sdi_key(table);
+  const dd::sdi_key_t schema_key= get_sdi_key(schema);
+  const dd::Sdi_type schema_sdi= dd::serialize(schema);
 
-  dd::cache::Dictionary_client::Auto_releaser scope_releaser(thd->dd_client());
-
-  // FIXME: Iterate across dictionary to see if this is the first
-  // store of a table in this schema in this tablespace?
-  const dd::Tablespace *tablespace= nullptr;
-  if (acquire_tablespace(thd, table, &tablespace))
+  auto store_sdi_with_schema= [&] (const dd::Tablespace &tblspc) -> bool
   {
-    checked_return(true);
-  }
-  // FIXME: Cannot call sdi hton api until the se_private_data
-  // contains an id key - will assert. Needs wl#7141
-  if (!is_valid(tablespace))
-  {
-    return false;
-  }
-
-  dd::sdi_vector_t sdikeys;
-  if (hton->sdi_get_keys(*tablespace, sdikeys, 0/*FIXME: is this correct? */))
-  {
-    return false;
-  }
-
-  const dd::sdi_key_t schema_key= get_sdi_key(*schema);
-  bool schema_sdi_stored= false;
-  for (const auto &k : sdikeys.m_vec)
-  {
-    if (k == schema_key)
+    DBUG_PRINT("ddsdi",("store_sdi_with_schema[](Schema" ENTITY_FMT
+                        ", Table" ENTITY_FMT ")",
+                        ENTITY_VAL(schema), ENTITY_VAL(table)));
+    if (hton.sdi_set(tblspc, &table, &key, sdi.c_str(), sdi.size()))
     {
-      schema_sdi_stored= true;
-      break;
+      check_error_state(thd, "store table", &schema, &table, tblspc);
+      return true;
     }
-  }
 
-  if (!schema_sdi_stored)
-  {
-    dd::sdi_t schema_sdi= dd::serialize(*schema);
-    if (hton->sdi_set(*tablespace, &schema_key, schema_sdi.c_str(),
+    if (hton.sdi_set(tblspc, &table, &schema_key, schema_sdi.c_str(),
                      schema_sdi.size()))
     {
+      check_error_state(thd, "store schema", &schema, &table, tblspc);
       return true;
     }
-  }
 
-  const dd::sdi_key_t table_key= get_sdi_key(*table);
-  if (hton->sdi_set(*tablespace, &table_key, sdi.str,
-                    sdi.length))
-  {
-    return true;
-  }
-
-  // FIXME: For update - need to delete the SDI with the old key?
-  return checked_return(hton->sdi_flush(*tablespace)); // FIXME: copy_num=0
-}
-
-
-bool store(handlerton *hton, const MYSQL_LEX_CSTRING &sdi,
-           const Tablespace *tablespace)
-{
-  if (!tablespace->se_private_data().exists("id"))
-  {
-    return false; // FIXME - needs wl#7141
-  }
-  const dd::sdi_key_t key= get_sdi_key(*tablespace);
-  if (hton->sdi_set(*tablespace, &key, sdi.str, sdi.length))
-  {
-    return true;
-  }
-  // FIXME: Delete SDI with old key on update?
-  return checked_return(hton->sdi_flush(*tablespace)); // FIXME: copy_num=0
-}
-
-
-bool remove(THD *thd, handlerton *hton, const Schema *schema,
-            const Table *table)
-{
-  dd::cache::Dictionary_client::Auto_releaser scope_releaser(thd->dd_client());
-  const Tablespace *tablespace= nullptr;
-  if (acquire_tablespace(thd, table, &tablespace))
-  {
-    return checked_return(true);
-  }
-  // FIXME: Cannot call sdi hton api until the se_private_data
-  // contains an id key - will assert. Needs wl#7141
-  if (!is_valid(tablespace))
-  {
     return false;
-  }
-  const dd::sdi_key_t schema_key= get_sdi_key(*schema);
-  return checked_return(hton->sdi_delete(*tablespace, &schema_key)) ||
-    checked_return(hton->sdi_flush(*tablespace));
+  };
+
+  return apply_to_tablespaces(thd, table, store_sdi_with_schema);
 }
 
 
-
-bool remove(THD *thd, handlerton *hton, const Table *table,
-            const Schema *schema)
+bool store_tsp_sdi(THD *thd, const handlerton &hton, const Sdi_type &sdi,
+                   const Tablespace &tblspc)
 {
-  // Find the number of tables in schema s which belong to the same
-  // tablespace as table t. Note that we assume that both t and s
-  // have a suitable MDL. It should then not be necessary to
-  // acquire MDL for each schema component since they cannot be
-  // concurrently modified in a way that affects the reference count.
+  dd::sdi_key_t key= get_sdi_key(tblspc);
 
-// Commented out for now as it creates additional commits
-//     std::unique_ptr<dd::Iterator<const dd::Abstract_table> > iter;
-//     if (dc.fetch_schema_components(s, &iter))
-//     {
-//       return true;
-//     }
-
-  int schema_refs_in_ts= 0;
-//     const Object_id ts_id= table->tablespace_id();
-//     const dd::Abstract_table *at;
-//     while ((at= iter->next()) != nullptr)
-//     {
-//       const Table *tbl= dynamic_cast<const Table*>(at);
-//       if (!tbl)
-//       {
-//         continue;
-//       }
-
-//       if (table->tablespace_id() == ts_id)
-//       {
-//         ++schema_refs_in_ts;
-//       }
-//     }
-
-  // Acquire the tablespace object in order to access the SDIs in it.
-  dd::cache::Dictionary_client::Auto_releaser scope_releaser(thd->dd_client());
-  const dd::Tablespace *tablespace= nullptr;
-  if (acquire_tablespace(thd, table, &tablespace))
+  DBUG_PRINT("ddsdi",("store_tsp_sdi(" ENTITY_FMT ")", ENTITY_VAL(tblspc)));
+  if (hton.sdi_set(tblspc, nullptr, &key, sdi.c_str(), sdi.size()))
   {
-    return checked_return(true);
-  }
-  // FIXME: Cannot call sdi hton api until the se_private_data
-  // contains an id key - will assert. Needs wl#7141
-  if (!is_valid(tablespace))
-  {
-    return false;
-  }
-
-  // If t is the last table in the tablespace which belongs to schema s,
-  // s' SDI must also be deleted from the tablespace.
-  if (schema_refs_in_ts == 1)
-  {
-    sdi_key_t schema_sdi_key= get_sdi_key(*schema);
-    if (hton->sdi_delete(*tablespace, &schema_sdi_key))
-    {
-      return true;
-    }
-  }
-
-  // Finally t's SDI can be deleted from the tablespace.
-  sdi_key_t sdi_key= get_sdi_key(*table);
-  if (hton->sdi_delete(*tablespace, &sdi_key))
-  {
+    check_error_state(thd, "store tablespace", nullptr, nullptr, tblspc);
     return true;
   }
-  return checked_return(hton->sdi_flush(*tablespace)); // FIXME: copy_num=0
+  return false;
 }
 
-bool remove(handlerton *hton, const Tablespace *tablespace)
+
+bool drop_tbl_sdi(THD *thd, const handlerton &hton,
+                  const Table &table, const Schema &schema)
 {
-  DBUG_ASSERT(hton->db_type == DB_TYPE_INNODB);
-  DBUG_ASSERT(hton->sdi_set != nullptr);
-  if (!tablespace->se_private_data().exists("id"))
-  {
-    return false; // FIXME; Needs wl#7141
-  }
-  const dd::sdi_key_t key= get_sdi_key(*tablespace);
-  if (hton->sdi_delete(*tablespace, &key))
-  {
-    return true;
-  }
-  return checked_return(hton->sdi_flush(*tablespace)); // FIXME: copy_num=0
+  DBUG_PRINT("ddsdi",("store_tbl_sdi(Schema" ENTITY_FMT
+                      ", Table" ENTITY_FMT ")",
+                      ENTITY_VAL(schema), ENTITY_VAL(table)));
+
+  sdi_key_t sdi_key= get_sdi_key(table);
+  return apply_to_tablespaces
+    (thd, table,
+      [&] (const dd::Tablespace &tblspc)
+      {
+        if (hton.sdi_delete(tblspc, &table, &sdi_key))
+        {
+          check_error_state(thd, "drop table", &schema, &table,
+                            tblspc);
+          return true;
+        }
+        return false;
+      });
 }
-}
-}
+} // namespace sdi_tablespace
+} // namespace dd

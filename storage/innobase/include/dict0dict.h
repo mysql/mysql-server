@@ -28,7 +28,7 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0dict_h
 
 #include "univ.i"
-#include "dd/object_id.h"
+#include "sql/dd/object_id.h"
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0mem.h"
@@ -55,11 +55,9 @@ Created 1/8/1996 Heikki Tuuri
 /* Maximum hardcoded dictionary tables. */
 #define DICT_MAX_DD_TABLES	1024
 
-/** The Maximum number of SDI Indexes in a tablespace
-Note: Increasing this will not increase number of SDI copies stored
-in tablespace because we only have limited space in Page 0 & 1 to
-store the SDI Index root page numbers */
-const ulint	MAX_SDI_COPIES	= 2;
+/** SDI version. Written on Page 1 & 2 at FIL_PAGE_FILE_FLUSH_LSN offset. */
+const uint32_t	SDI_VERSION = 1;
+
 /** Space id of system tablespace */
 const space_id_t	SYSTEM_TABLE_SPACE = TRX_SYS_SPACE;
 
@@ -129,16 +127,6 @@ enum dict_table_op_t {
 	DICT_TABLE_OP_LOAD_TABLESPACE
 };
 
-/**********************************************************************//**
-Returns a table object based on table id.
-@return table, NULL if does not exist */
-dict_table_t*
-dict_table_open_on_id(
-/*==================*/
-	table_id_t	table_id,	/*!< in: table id */
-	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
-	dict_table_op_t	table_op)	/*!< in: operation to perform */
-	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Decrements the count of open handles to a table. */
 void
@@ -320,25 +308,6 @@ bool
 dict_table_has_autoinc_col(
 	const dict_table_t*	table);
 
-/** Set the persisted autoinc value of the table to the new counter,
-and write the table's dynamic metadata back to DDTableBuffer. This function
-should only be used in DDL operation functions like
-1. create_table_info_t::initialize_autoinc()
-2. ha_innobase::commit_inplace_alter_table()
-3. row_rename_table_for_mysql()
-4. When we do TRUNCATE TABLE
-@param[in,out]	table		table
-@param[in]	counter		new autoinc counter
-@param[in]	log_reset	if true, it means that the persisted
-				autoinc is updated to a smaller one,
-				an autoinc change log with value of 0
-				would be written, otherwise nothing to do */
-void
-dict_table_set_and_persist_autoinc(
-	dict_table_t*	table,
-	ib_uint64_t	counter,
-	bool		log_reset);
-
 #endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**
 Adds system columns to a table object. */
@@ -371,6 +340,13 @@ void
 dict_table_remove_from_cache(
 /*=========================*/
 	dict_table_t*	table);	/*!< in, own: table */
+
+/** Try to invalidate an entry from the dict cache, for a partitioned table,
+if any table found.
+@param[in]	name	Table name */
+void
+dict_partitioned_table_remove_from_cache(
+	const char*	name);
 
 #ifdef UNIV_DEBUG
 /** Removes a table object from the dictionary cache, for debug purpose
@@ -1419,6 +1395,23 @@ void
 dict_table_allow_eviction(
 	dict_table_t*	table);
 
+/** Move this table to non-LRU list for DDL operations if it's
+currently not there. This also prevents later opening table via DD objects,
+when the table name in InnoDB doesn't match with DD object.
+@param[in,out]	table	Table to put in non-LRU list */
+UNIV_INLINE
+void
+dict_table_ddl_acquire(
+	dict_table_t*	table);
+
+/** Move this table to LRU list after DDL operations if it was moved
+to non-LRU list
+@param[in,out]	table	Table to put in LRU list */
+UNIV_INLINE
+void
+dict_table_ddl_release(
+	dict_table_t*	table);
+
 /**********************************************************************//**
 Move a table to the non LRU end of the LRU list. */
 void
@@ -1484,6 +1477,7 @@ struct dict_sys_t{
 	lint		size;		/*!< varying space in bytes occupied
 					by the data dictionary table and
 					index objects */
+	/** Handler to sys_* tables, they're only for upgrade */
 	dict_table_t*	sys_tables;	/*!< SYS_TABLES table */
 	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
 	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
@@ -1494,6 +1488,8 @@ struct dict_sys_t{
 	dict_table_t*	table_stats;
 	/** Permanent handle to mysql.innodb_index_stats */
 	dict_table_t*	index_stats;
+	/** Permanent handle to mysql.innodb_ddl_log */
+	dict_table_t*	ddl_log;
 	/** Permanent handle to mysql.innodb_dynamic_metadata */
 	dict_table_t*	dynamic_metadata;
 
@@ -1532,69 +1528,81 @@ struct dict_sys_t{
 	@param[in]	space	tablespace id to check
 	@return true if a reserved tablespace id, otherwise false */
 	static bool is_reserved(space_id_t space)
-	{ return(space >= dict_sys_t::reserved_space_id); }
+	{ return(space >= dict_sys_t::s_reserved_space_id); }
 
-	/** Check if a table is hardcoded.
+	/** Check if a table is hardcoded. it only includes the dd tables
 	@param[in]	id	table ID
-	@retval	true	if the table is a persistent hard-coded table
+	@retval true	if the table is a persistent hard-coded table
 			(dict_table_t::is_temporary() will not hold)
-	@retval	false	if the table is not hard-coded
+	@retval false	if the table is not hard-coded
 			(it can be persistent or temporary) */
 	static bool is_hardcoded(table_id_t id)
 	{
-		/* WL#9535 TODO: Remove this 16 once we get rid of SYS_* tables */
-		return(id < NUM_HARD_CODED_TABLES + INNODB_SYS_TABLE_ID_MAX);
+		return(id <= s_num_hard_coded_tables);
 	}
 
-	/** Number of hard coded table */
-	static constexpr table_id_t	NUM_HARD_CODED_TABLES = 31;
+	/** Number of hard coded new dd tables */
+	static constexpr table_id_t	s_num_hard_coded_tables = 33;
+
+	/** Max table id for DD table */
+	static constexpr uint	INNODB_DD_TABLE_ID_MAX = 60;
 
 	/** The first ID of the redo log pseudo-tablespace */
-	static constexpr space_id_t	log_space_first_id = 0xFFFFFFF0UL;
+	static constexpr space_id_t	s_log_space_first_id = 0xFFFFFFF0UL;
+
+	/** Use maximum UINT value to indicate invalid space ID. */
+	static constexpr space_id_t	s_invalid_space_id = 0xFFFFFFFF;
 
 	/** The data dictionary tablespace ID. */
-	static constexpr space_id_t	space_id = 0xFFFFFFFE;
+	static constexpr space_id_t	s_space_id = 0xFFFFFFFE;
 
 	/** The innodb_temporary tablespace ID. */
-	static constexpr space_id_t	temp_space_id = 0xFFFFFFFD;
+	static constexpr space_id_t	s_temp_space_id = 0xFFFFFFFD;
 
 	/** The lowest undo tablespace ID. */
-	static constexpr space_id_t	min_undo_space_id
-		= log_space_first_id - TRX_SYS_N_RSEGS;
+	static constexpr space_id_t	s_min_undo_space_id
+		= s_log_space_first_id - TRX_SYS_N_RSEGS;
 
 	/** The highest undo  tablespace ID. */
-	static constexpr space_id_t	max_undo_space_id
-		= log_space_first_id - 1;
+	static constexpr space_id_t	s_max_undo_space_id
+		= s_log_space_first_id - 1;
 
 	/** The first reserved tablespace ID */
-	static constexpr space_id_t	reserved_space_id = min_undo_space_id;
+	static constexpr space_id_t	s_reserved_space_id =
+		s_min_undo_space_id;
 
 	/** The dd::Tablespace::id of the dictionary tablespace. */
-	static constexpr dd::Object_id	dd_space_id = 1;
+	static constexpr dd::Object_id	s_dd_space_id = 1;
 
 	/** The dd::Tablespace::id of innodb_system. */
-	static constexpr dd::Object_id	dd_sys_space_id = 2;
+	static constexpr dd::Object_id	s_dd_sys_space_id = 2;
 
 	/** The dd::Tablespace::id of innodb_temporary. */
-	static constexpr dd::Object_id	dd_temp_space_id = 3;
+	static constexpr dd::Object_id	s_dd_temp_space_id = 3;
 
 	/** The name of the data dictionary tablespace. */
-	static const char*		dd_space_name;
+	static const char*		s_dd_space_name;
 
 	/** The file name of the data dictionary tablespace. */
-	static const char*		dd_space_file_name;
+	static const char*		s_dd_space_file_name;
 
 	/** The name of the hard-coded system tablespace. */
-	static const char*		sys_space_name;
+	static const char*		s_sys_space_name;
 
 	/** The name of the predefined temporary tablespace. */
-	static const char*		temp_space_name;
+	static const char*		s_temp_space_name;
 
 	/** The file name of the predefined temporary tablespace. */
-	static const char*		temp_space_file_name;
+	static const char*		s_temp_space_file_name;
 
 	/** The hard-coded tablespace name innodb_file_per_table. */
-	static const char*		file_per_table_name;
+	static const char*		s_file_per_table_name;
+
+	/** The table ID of mysql.innodb_dynamic_metadata */
+	static constexpr table_id_t	s_dynamic_meta_table_id = 33;
+
+	/** The clustered index ID of mysql.innodb_dynamic_metadata */
+        static constexpr space_index_t	s_dynamic_meta_index_id = 90;
 };
 
 /** Structure for persisting dynamic metadata of data dictionary */
@@ -1691,13 +1699,15 @@ public:
 
 	/** Replace the dynamic metadata for a specific table
 	@param[in]	id		table id
+	@param[in]	version		table dynamic metadata version
 	@param[in]	metadata	the metadata we want to replace
 	@param[in]	len		the metadata length
 	@return DB_SUCCESS or error code */
 	dberr_t	replace(
 		table_id_t	id,
+		uint64_t	version,
 		const byte*	metadata,
-		ulint		len);
+		size_t		len);
 
 	/** Remove the whole row for a specific table
 	@param[in]	id	table id
@@ -1712,16 +1722,21 @@ public:
 	/** Get the buffered metadata for a specific table, the caller
 	has to delete the returned std::string object by UT_DELETE
 	@param[in]	id	table id
+	@param[out]	version	table dynamic metadata version
 	@return the metadata saved in a string object, if nothing, the
 	string would be of length 0 */
 	std::string* get(
-		table_id_t	id);
+		table_id_t	id,
+		uint64*		version);
 
 private:
 
 	/** Initialize m_index, the in-memory clustered index of the table
 	and two tuples used in this class */
 	void init();
+
+	/** Open the mysql.innodb_dynamic_metadata when DD is not fully up */
+	void open();
 
 	/** Create the search and replace tuples */
 	void create_tuples();
@@ -1770,8 +1785,11 @@ private:
 	/** Column number of mysql.innodb_dynamic_metadata.table_id */
 	static constexpr unsigned	TABLE_ID_COL_NO = 0;
 
+	/** Column number of mysql.innodb_dynamic_metadata.version */
+	static constexpr unsigned	VERSION_COL_NO = 1;
+
 	/** Column number of mysql.innodb_dynamic_metadata.metadata */
-	static constexpr unsigned	METADATA_COL_NO = 1;
+	static constexpr unsigned	METADATA_COL_NO = 2;
 
 	/** Number of user columns */
 	static constexpr unsigned	N_USER_COLS = METADATA_COL_NO + 1;
@@ -1782,6 +1800,11 @@ private:
 	/** Clustered index field number of
 	mysql.innodb_dynamic_metadata.table_id */
 	static constexpr unsigned	TABLE_ID_FIELD_NO = TABLE_ID_COL_NO;
+
+	/** Clustered index field number of
+	mysql.innodb_dynamic_metadata.version */
+	static constexpr unsigned	VERSION_FIELD_NO = VERSION_COL_NO + 2;
+
 	/** Clustered index field number of
 	mysql.innodb_dynamic_metadata.metadata
 	Plusing 2 here skips the DATA_TRX_ID and DATA_ROLL_PTR fields */
@@ -2030,20 +2053,6 @@ dict_table_decode_n_col(
 	ulint*	n_col,
 	ulint*	n_v_col);
 
-/** Look for any dictionary objects that are found in the given tablespace.
-@param[in]	space_id	Tablespace ID to search for.
-@return true if tablespace is empty. */
-bool
-dict_space_is_empty(
-	space_id_t	space_id);
-
-/** Find the space_id for the given name in sys_tablespaces.
-@param[in]	name	Tablespace name to search for.
-@return the tablespace ID. */
-space_id_t
-dict_space_get_id(
-	const char*	name);
-
 /** Free the virtual column template
 @param[in,out]	vc_templ	virtual column template */
 UNIV_INLINE
@@ -2071,32 +2080,30 @@ dict_table_have_virtual_index(
 
 /** Retrieve in-memory index for SDI table.
 @param[in]	tablespace_id	innodb tablespace id
-@param[in]	copy_num	SDI table copy
 @return dict_index_t structure or NULL*/
 dict_index_t*
 dict_sdi_get_index(
-	space_id_t	tablespace_id,
-	uint32_t	copy_num);
+	space_id_t	tablespace_id);
 
 /** Retrieve in-memory table object for SDI table.
 @param[in]	tablespace_id	innodb tablespace id
-@param[in]	copy_num	SDI table copy
 @param[in]	dict_locked	true if dict_sys mutex is acquired
+@param[in]	is_create	true when creating SDI Index
 @return dict_table_t structure */
 dict_table_t*
 dict_sdi_get_table(
 	space_id_t	tablespace_id,
-	uint32_t	copy_num,
-	bool		dict_locked);
+	bool		dict_locked,
+	bool		is_create);
 
 /** Remove the SDI table from table cache.
-@param[in]	space_id	InnoDB tablespace_id
-@param[in,out]	sdi_tables	Array of sdi table
+@param[in]	space_id	InnoDB tablesapce_id
+@param[in]	sdi_table	SDI table
 @param[in]	dict_locked	true if dict_sys mutex acquired */
 void
 dict_sdi_remove_from_cache(
 	space_id_t	space_id,
-	dict_table_t**	sdi_tables,
+	dict_table_t*	sdi_table,
 	bool		dict_locked);
 
 /** Check if the index is SDI index
@@ -2115,13 +2122,71 @@ bool
 dict_table_is_sdi(
 	uint64_t	table_id);
 
-/** Extract SDI copy number from table id
-@param[in]	table_id	InnoDB table id
-@return SDI copy number */
-UNIV_INLINE
-uint32_t
-dict_sdi_get_copy_num(
-	table_id_t	table_id);
+/** Close SDI table.
+@param[in]	table		the in-meory SDI table object */
+void
+dict_sdi_close_table(
+	dict_table_t*	table);
+
+/** Acquire exclusive MDL on SDI tables. This is acquired to
+prevent concurrent DROP table/tablespace when there is purge
+happening on SDI table records. Purge will acquired shared
+MDL on SDI table.
+
+Exclusive MDL is transactional(released on trx commit). So
+for successful acquistion, there should be valid thd with
+trx associated.
+
+Acquistion order of SDI MDL and SDI table has to be in same
+order:
+
+1. dd_sdi_acquire_exclusive_mdl
+2. row_drop_table_from_cache()/innobase_drop_tablespace()
+   ->dd_sdi_remove_from_cache()->dd_table_open_on_id()
+
+In purge:
+
+1. dd_sdi_acquire_shared_mdl
+2. dd_table_open_on_id()
+
+@param[in]	thd		server thread instance
+@param[in]	space_id	InnoDB tablespace id
+@param[in,out]	sdi_mdl		MDL ticket on SDI table
+@retval	DB_SUCESS		on success
+@retval	DB_LOCK_WAIT_TIMEOUT	on error */
+dberr_t
+dd_sdi_acquire_exclusive_mdl(
+        THD*		thd,
+        space_id_t	space_id,
+        MDL_ticket**	sdi_mdl);
+
+/** Acquire shared MDL on SDI tables. This is acquired by purge to
+prevent concurrent DROP table/tablespace.
+DROP table/tablespace will acquire exclusive MDL on SDI table
+
+Acquistion order of SDI MDL and SDI table has to be in same
+order:
+
+1. dd_sdi_acquire_exclusive_mdl
+2. row_drop_table_from_cache()/innobase_drop_tablespace()
+   ->dict_sdi_remove_from_cache()->dd_table_open_on_id()
+
+In purge:
+
+1. dd_sdi_acquire_shared_mdl
+2. dd_table_open_on_id()
+
+MDL should be released by caller
+@param[in]	thd		server thread instance
+@param[in]	space_id	InnoDB tablespace id
+@param[in,out]	sdi_mdl		MDL ticket on SDI table
+@retval	DB_SUCESS		on success
+@retval	DB_LOCK_WAIT_TIMEOUT	on error */
+dberr_t
+dd_sdi_acquire_shared_mdl(
+        THD*		thd,
+        space_id_t	space_id,
+        MDL_ticket**	sdi_mdl);
 
 /** Check whether the dict_table_t is a partition.
 A partitioned table on the SQL level is composed of InnoDB tables,

@@ -1,0 +1,66 @@
+--source include/master-slave.inc
+
+# no need to run multiple times
+--source include/have_binlog_format_row.inc
+
+#############################################################
+# WL#6959: Deprecate master.info and relay-log.info files   #
+#############################################################
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+
+--let $rpl_server_number= 2
+--let $rpl_omit_print_server_parameters=1
+--let $ofile= $MYSQLTEST_VARDIR/tmp/info-file-start-warn.err
+
+# assert no deprecation warning (TABLE), deprecation warning (FILE) and revert
+SET @@global.master_info_repository="TABLE";
+SET @@global.master_info_repository="FILE";
+SET @@global.master_info_repository="TABLE";
+
+# assert no deprecation warning (TABLE), deprecation warning (FILE) and revert
+SET @@global.relay_log_info_repository="TABLE";
+SET @@global.relay_log_info_repository="FILE";
+SET @@global.relay_log_info_repository="TABLE";
+
+# Check bootstrap warnings ######
+
+# assert deprecation warning for relay-log-info-repository=FILE
+--let $rpl_server_parameters= --relay-log-info-repository=FILE --skip-slave-start --log_error=$ofile --no-console
+--source include/rpl_restart_server.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when relay-log-info-repository=FILE
+--let $assert_file= $ofile
+--let $assert_select= The syntax '--relay-log-info-repository=FILE' is deprecated and will be removed in a future release. Please use '--relay-log-info-repository=TABLE' instead.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+# clean up the error log
+--remove_file $ofile
+
+# assert deprecation warning for master-info-repository=FILE
+--let $rpl_server_parameters= --master-info-repository=FILE --skip-slave-start --log_error=$ofile --no-console
+--source include/rpl_restart_server.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when master-info-repository=FILE
+--let $assert_file= $ofile
+--let $assert_select= The syntax '--master-info-repository=FILE' is deprecated and will be removed in a future release. Please use '--master-info-repository=TABLE' instead.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+# revert to vanilla options
+--remove_file $ofile
+--let $rpl_server_parameters=
+--let $rpl_omit_print_server_parameters=0
+--let $ofile=
+--source include/rpl_restart_server.inc
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+# End of WL#6959
+
+--source include/rpl_end.inc

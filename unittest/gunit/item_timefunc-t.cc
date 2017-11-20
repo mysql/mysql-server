@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,22 +15,21 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
+
 #include <gtest/gtest.h>
-#include "test_utils.h"
-
-#include "decimal.h"
-#include "my_decimal.h"
-#include "my_time.h"
-#include "mysql_time.h"
-#include "sql_time.h"
-#include "m_ctype.h"
-
-#include "item.h"
-#include "item_timefunc.h"
-
 #include <string.h>
 #include <sstream>
 #include <string>
+
+#include "decimal.h"
+#include "m_ctype.h"
+#include "my_time.h"
+#include "mysql_time.h"
+#include "sql/item.h"
+#include "sql/item_timefunc.h"
+#include "sql/my_decimal.h"
+#include "sql/sql_time.h"
+#include "test_utils.h"
 
 namespace item_timefunc_unittest {
 

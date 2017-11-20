@@ -542,8 +542,8 @@ int Certification_handler::wait_for_local_transaction_execution()
   Sql_service_command_interface *sql_command_interface=
       new Sql_service_command_interface();
 
-  if (sql_command_interface->establish_session_connection(PSESSION_USE_THREAD) ||
-      sql_command_interface->set_interface_user(GROUPREPL_USER)
+  if (sql_command_interface->establish_session_connection(PSESSION_USE_THREAD,
+                                                          GROUPREPL_USER)
     )
   {
     /* purecov: begin inspected */

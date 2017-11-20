@@ -23,7 +23,7 @@
 
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
-#include "sql_alloc.h"
+#include "sql/sql_alloc.h"
 
 class THD;
 class Prepared_statement;

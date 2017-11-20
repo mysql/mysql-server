@@ -18,12 +18,14 @@
  */
 syntax = "proto2";
 
+
 // ifdef PROTOBUF_LITE: option optimize_for = LITE_RUNTIME;
 
 // Basic CRUD operations
 package Mysqlx.Crud;
 option java_package = "com.mysql.cj.mysqlx.protobuf";
 
+import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
 import "mysqlx_expr.proto";
 import "mysqlx_datatypes.proto";
 
@@ -94,6 +96,7 @@ message UpdateOperation {
     ITEM_MERGE = 5;     // source and value must be documents
     ARRAY_INSERT = 6;   // insert the value in the array at the index identified in the source path
     ARRAY_APPEND = 7;   // append the value on the array at the identified path
+    MERGE_PATCH = 8;    // merge JSON object value with the provided patch expression
   }
   required Mysqlx.Expr.ColumnIdentifier source = 1;
   required UpdateType operation = 2;
@@ -116,8 +119,14 @@ message UpdateOperation {
 // :param order: sort-order in which the rows/document shall be returned in
 // :param grouping: column expression list for aggregation (GROUP BY)
 // :param grouping_criteria: filter criteria for aggregated groups
+// :param locking: perform row locking on matches
 // :Returns: :protobuf:msg:`Mysqlx.Resultset::`
 message Find {
+  enum RowLock {
+    SHARED_LOCK = 1;   // Lock matching rows against updates
+    EXCLUSIVE_LOCK = 2;  // Lock matching rows so no other transaction can read or write to it
+  };
+
   required Collection collection = 2;
 
   optional DataModel data_model = 3;
@@ -128,6 +137,9 @@ message Find {
   repeated Order order = 7;
   repeated Mysqlx.Expr.Expr grouping = 8;
   optional Mysqlx.Expr.Expr grouping_criteria = 9;
+  optional RowLock locking = 12;
+
+  option (client_message_id) = CRUD_FIND; // comment_out_if PROTOBUF_LITE
 };
 
 // Insert documents/rows into a collection/table
@@ -151,6 +163,8 @@ message Insert {
   repeated TypedRow row = 4;
   repeated Mysqlx.Datatypes.Scalar args = 5;
   optional bool upsert = 6 [default = false];
+
+  option (client_message_id) = CRUD_INSERT; // comment_out_if PROTOBUF_LITE
 };
 
 // Update documents/rows in a collection/table
@@ -173,6 +187,8 @@ message Update {
   repeated Order order = 6;
 
   repeated UpdateOperation operation = 7;
+
+  option (client_message_id) = CRUD_UPDATE; // comment_out_if PROTOBUF_LITE
 };
 
 // Delete documents/rows from a Collection/Table
@@ -192,6 +208,8 @@ message Delete {
   repeated Mysqlx.Datatypes.Scalar args = 6;
   optional Limit limit = 4;
   repeated Order order = 5;
+
+  option (client_message_id) = CRUD_DELETE; // comment_out_if PROTOBUF_LITE
 };
 
 
@@ -241,6 +259,8 @@ message CreateView {
   repeated string column = 6;
   required Find stmt = 7;
   optional bool replace_existing = 8 [default = false];
+
+  option (client_message_id) = CRUD_CREATE_VIEW; // comment_out_if PROTOBUF_LITE
 }
 
 
@@ -264,6 +284,8 @@ message ModifyView {
 
   repeated string column = 6;
   optional Find stmt = 7;
+
+  option (client_message_id) = CRUD_MODIFY_VIEW; // comment_out_if PROTOBUF_LITE
 }
 
 
@@ -275,4 +297,6 @@ message ModifyView {
 message DropView {
   required Collection collection = 1;
   optional bool if_exists = 2 [ default = false ];
+
+  option (client_message_id) = CRUD_DROP_VIEW; // comment_out_if PROTOBUF_LITE
 }

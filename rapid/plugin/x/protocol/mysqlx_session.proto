@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,6 +17,8 @@
  * 02110-1301  USA
  */
 syntax = "proto2";
+
+import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
 
 // ifdef PROTOBUF_LITE: option optimize_for = LITE_RUNTIME;
 
@@ -57,6 +59,8 @@ message AuthenticateStart {
   required string mech_name = 1;
   optional bytes auth_data = 2;
   optional bytes initial_response = 3;
+
+  option (client_message_id) = SESS_AUTHENTICATE_START; // comment_out_if PROTOBUF_LITE
 }
 
 // send by client or server after a :protobuf:msg:`Mysqlx.Session::AuthenticateStart` to
@@ -66,6 +70,9 @@ message AuthenticateStart {
 // :Returns: :protobuf:msg:`Mysqlx.Session::AuthenticateContinue`
 message AuthenticateContinue {
   required bytes auth_data = 1;
+
+  option (server_message_id) = SESS_AUTHENTICATE_CONTINUE; // comment_out_if PROTOBUF_LITE
+  option (client_message_id) = SESS_AUTHENTICATE_CONTINUE; // comment_out_if PROTOBUF_LITE
 }
 
 // sent by the server after successful authentication
@@ -73,17 +80,21 @@ message AuthenticateContinue {
 // :param auth_data: authentication data
 message AuthenticateOk {
   optional bytes auth_data = 1;
+
+  option (server_message_id) = SESS_AUTHENTICATE_OK; // comment_out_if PROTOBUF_LITE
 }
 
 // reset the current session
 //
 // :Returns: :protobuf:msg:`Mysqlx::Ok`
 message Reset {
+  option (client_message_id) = SESS_RESET; // comment_out_if PROTOBUF_LITE
 }
 
 // close the current session
 //
 // :Returns: :protobuf:msg:`Mysqlx::Ok`
 message Close {
+  option (client_message_id) = SESS_CLOSE; // comment_out_if PROTOBUF_LITE
 }
 

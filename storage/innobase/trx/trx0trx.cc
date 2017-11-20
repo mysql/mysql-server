@@ -28,6 +28,8 @@ Created 3/26/1996 Heikki Tuuri
 #include <new>
 #include <set>
 
+#include <sql_thd_internal_api.h>
+
 #include "btr0sea.h"
 #include "dict0dd.h"
 #include "fsp0sysspace.h"
@@ -150,7 +152,7 @@ trx_init(
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
 
-	trx->table_id = 0;
+	trx->ddl_operation = false;
 
 	trx->error_state = DB_SUCCESS;
 
@@ -168,12 +170,13 @@ trx_init(
 
 	trx->will_lock = 0;
 
-	trx->ddl = false;
-
 	trx->internal = false;
 
+	trx->in_truncate = false;
 #ifdef UNIV_DEBUG
 	trx->is_dd_trx  = false;
+	trx->in_rollback = false;
+	trx->lock.in_rollback = false;
 #endif /* UNIV_DEBUG */
 
 	ut_d(trx->start_file = 0);
@@ -791,7 +794,7 @@ trx_resurrect_locks()
 		for (table_id_set::const_iterator i = tables.begin();
 		     i != tables.end(); i++) {
 			dict_table_t* table = dd_table_open_on_id(
-				*i, NULL, NULL, false);
+				*i, NULL, NULL, false, true);
 			if (table) {
 				ut_ad(!table->is_temporary());
 
@@ -807,6 +810,8 @@ trx_resurrect_locks()
 				if (trx->state == TRX_STATE_PREPARED) {
 					trx->mod_tables.insert(table);
 				}
+				DICT_TF2_FLAG_SET(
+				table, DICT_TF2_RESURRECT_PREPARED);
 
 				lock_table_ix_resurrect(table, trx);
 
@@ -903,9 +908,10 @@ trx_resurrect_insert(
 		trx->start_time = ut_time();
 	}
 
+	trx->ddl_operation = undo->dict_operation;
+
 	if (undo->dict_operation) {
 		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
-		trx->table_id = undo->table_id;
 	}
 
 	if (!undo->empty) {
@@ -989,11 +995,6 @@ trx_resurrect_update(
 	if (trx->state == TRX_STATE_ACTIVE
 	    || trx->state == TRX_STATE_PREPARED) {
 		trx->start_time = ut_time();
-	}
-
-	if (undo->dict_operation) {
-		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
-		trx->table_id = undo->table_id;
 	}
 
 	if (!undo->empty && undo->top_undo_no >= trx->undo_no) {
@@ -1328,6 +1329,7 @@ trx_start_low(
 	ut_ad(trx->start_line != 0);
 	ut_ad(trx->start_file != 0);
 	ut_ad(trx->roll_limit == 0);
+	ut_ad(!trx->lock.in_rollback);
 	ut_ad(trx->error_state == DB_SUCCESS);
 	ut_ad(trx->rsegs.m_redo.rseg == NULL);
 	ut_ad(trx->rsegs.m_noredo.rseg == NULL);
@@ -1344,8 +1346,7 @@ trx_start_low(
 
 	trx->read_only =
 		(trx->api_trx && !trx->read_write)
-		|| (!trx->ddl && !trx->internal
-		    && thd_trx_is_read_only(trx->mysql_thd))
+		|| (!trx->internal && thd_trx_is_read_only(trx->mysql_thd))
 		|| srv_read_only_mode;
 
 	if (!trx->auto_commit) {
@@ -1364,6 +1365,10 @@ trx_start_low(
 		      || trx->isolation_level == TRX_ISO_READ_COMMITTED);
 	}
 #endif /* UNIV_DEBUG */
+
+	if (trx->mysql_thd != nullptr && !trx->ddl_operation) {
+		trx->ddl_operation = thd_is_dd_update_stmt(trx->mysql_thd);
+	}
 
 	/* The initial value for trx->no: TRX_ID_MAX is used in
 	read_view_open_now: */
@@ -1392,7 +1397,7 @@ trx_start_low(
 	list too. */
 
 	if (!trx->read_only
-	    && (trx->mysql_thd == 0 || read_write || trx->ddl)) {
+	    && (trx->mysql_thd == 0 || read_write || trx->ddl_operation)) {
 
 		trx_assign_rseg_durable(trx);
 
@@ -1464,6 +1469,9 @@ trx_start_low(
 	} else {
 		trx->start_time = ut_time();
 	}
+
+	trx->age = 0;
+	trx->age_updated = 0;
 
 	ut_a(trx->error_state == DB_SUCCESS);
 
@@ -1813,7 +1821,13 @@ trx_flush_log_if_needed(
 	trx_t*	trx)	/*!< in/out: transaction */
 {
 	trx->op_info = "flushing log";
-	trx_flush_log_if_needed_low(lsn);
+
+	if (trx->ddl_operation || trx->ddl_must_flush) {
+		log_write_up_to(lsn, true);
+	} else {
+		trx_flush_log_if_needed_low(lsn);
+	}
+
 	trx->op_info = "";
 }
 
@@ -1915,6 +1929,7 @@ trx_commit_in_memory(
 				written */
 {
 	trx->must_flush_log_later = false;
+	trx->ddl_must_flush = false;
 
 	if (trx_is_autocommit_non_locking(trx)) {
 		ut_ad(trx->id == 0);
@@ -2036,9 +2051,15 @@ trx_commit_in_memory(
 		} else if (trx->flush_log_later) {
 			/* Do nothing yet */
 			trx->must_flush_log_later = true;
-		} else if (srv_flush_log_at_trx_commit == 0
-			   || thd_requested_durability(trx->mysql_thd)
-			   == HA_IGNORE_DURABILITY) {
+
+			/* Remember current ddl_operation, because trx_init()
+			later will set ddl_operation to false. And the final
+			flush is even later. */
+			trx->ddl_must_flush = trx->ddl_operation;
+		} else if ((srv_flush_log_at_trx_commit == 0
+			    || thd_requested_durability(trx->mysql_thd)
+			    == HA_IGNORE_DURABILITY)
+			   && (!trx->ddl_operation)) {
 			/* Do nothing */
 		} else {
 			trx_flush_log_if_needed(lsn, trx);
@@ -2102,8 +2123,6 @@ trx_commit_low(
 	assert_trx_nonlocking_or_in_list(trx);
 	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 	ut_ad(!mtr || mtr->is_active());
-	ut_ad(!mtr == !(trx_is_rseg_updated(trx)));
-
 	/* undo_no is non-zero if we're doing the final commit. */
 	if (trx->fts_trx != NULL && trx->undo_no != 0
 	    && trx->lock.que_state != TRX_QUE_ROLLING_BACK) {
@@ -2454,6 +2473,7 @@ trx_commit_complete_for_mysql(
 	trx_flush_log_if_needed(trx->commit_lsn, trx);
 
 	trx->must_flush_log_later = false;
+	trx->ddl_must_flush = false;
 }
 
 /**********************************************************************//**
@@ -2867,6 +2887,9 @@ trx_prepare(
 
 		We must not be holding any mutexes or latches here. */
 
+		/* We should trust trx->ddl_operation instead of
+		ddl_must_flush here */
+		trx->ddl_must_flush = false;
 		trx_flush_log_if_needed(lsn, trx);
 	}
 }
@@ -3127,50 +3150,6 @@ trx_start_internal_read_only_low(
 	trx->internal = true;
 
 	trx_start_low(trx, false);
-}
-
-/*************************************************************//**
-Starts the transaction for a DDL operation. */
-void
-trx_start_for_ddl_low(
-/*==================*/
-	trx_t*		trx,	/*!< in/out: transaction */
-	trx_dict_op_t	op)	/*!< in: dictionary operation type */
-{
-	switch (trx->state) {
-	case TRX_STATE_NOT_STARTED:
-	case TRX_STATE_FORCED_ROLLBACK:
-
-		/* Flag this transaction as a dictionary operation, so that
-		the data dictionary will be locked in crash recovery. */
-
-		trx_set_dict_operation(trx, op);
-
-		/* Ensure it is not flagged as an auto-commit-non-locking
-		transation. */
-		trx->will_lock = 1;
-
-		trx->ddl= true;
-
-		trx_start_internal_low(trx);
-		return;
-
-	case TRX_STATE_ACTIVE:
-
-		/* We have this start if not started idiom, therefore we
-		can't add stronger checks here. */
-		trx->ddl = true;
-
-		ut_ad(trx->dict_operation != TRX_DICT_OP_NONE);
-		ut_ad(trx->will_lock > 0);
-		return;
-
-	case TRX_STATE_PREPARED:
-	case TRX_STATE_COMMITTED_IN_MEMORY:
-		break;
-	}
-
-	ut_error;
 }
 
 /*************************************************************//**

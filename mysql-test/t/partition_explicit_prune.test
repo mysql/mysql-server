@@ -357,19 +357,19 @@ connection default;
 
 --echo # Test that EXPLAIN PARTITION works
 --error ER_UNKNOWN_PARTITION
-EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (pNonexistent);
-EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp2);
+EXPLAIN SELECT * FROM t1 PARTITION (pNonexistent);
+EXPLAIN SELECT * FROM t1 PARTITION (subp2);
 FLUSH STATUS;
-EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp2,pNeg) AS tablealias;
+EXPLAIN SELECT * FROM t1 PARTITION (subp2,pNeg) AS tablealias;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
 connection default;
 
-EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp3) AS tablealias;
-EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 PARTITION (`p10-99`);
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 1000000;
-EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (pNeg) WHERE a = 100;
+EXPLAIN SELECT * FROM t1 PARTITION (subp3) AS tablealias;
+EXPLAIN SELECT COUNT(*) FROM t1 PARTITION (`p10-99`);
+EXPLAIN SELECT * FROM t1 WHERE a = 1000000;
+EXPLAIN SELECT * FROM t1 PARTITION (pNeg) WHERE a = 100;
 
 --echo # Test how it changes the alias/keywords/reserved words
 --error ER_PARSE_ERROR
@@ -576,7 +576,7 @@ connection default;
 --echo # 2 read key (innobase_get_index from rnd_init +
 --echo #             read next row from second rnd_next)
 --echo # 1 update (update the row)
-EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated');
+EXPLAIN UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated');
 SELECT * FROM t1 PARTITION (subp0) ORDER BY a;
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = -2;
@@ -589,7 +589,7 @@ connection default;
 --echo # 4 lock
 --echo # 1 read key
 --echo # 1 update
-EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = -2;
+EXPLAIN UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = -2;
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2')
 WHERE a = -2;
@@ -603,7 +603,7 @@ connection default;
 --echo # 2 read key - (2 index read)
 --echo # 1 read rnd - rnd_pos
 --echo # 1 update
-EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2');
+EXPLAIN UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2');
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
 
@@ -612,7 +612,7 @@ connection monitor;
 connection default;
 
 --echo # Nothing, since impossible PARTITION+WHERE clause.
-EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
+EXPLAIN UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET a = -2, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
@@ -622,7 +622,7 @@ connection monitor;
 connection default;
 
 --echo # Nothing, since impossible PARTITION+WHERE clause.
-EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0)
+EXPLAIN UPDATE t1 PARTITION(subp0)
 SET a = -2, b = concat(b, ', Updated from a = 100') WHERE a = 100;
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
@@ -809,6 +809,12 @@ connection monitor;
 connection default;
 
 TRUNCATE TABLE t2;
+--echo # Warm-up data-dictionary cache
+--disable_query_log
+--disable_result_log
+SHOW CREATE TABLE t2;
+--enable_result_log
+--enable_query_log
 FLUSH STATUS;
 INSERT INTO t2 SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
 
@@ -859,6 +865,10 @@ connection default;
 --echo #             + 2 innodb_get_index in index_init in t1)
 --echo # 3 read rnd next (3 rnd next in t2, 2 rows + 1 empty) 
 --echo # Multi table delete matching all rows in subp3 (2 rows in per table)
+--echo # Pull-in all objects in Table and DD caches first.
+--disable_query_log
+DELETE FROM t2, t3 USING t2, t3, t1 WHERE 0;
+--enable_query_log
 FLUSH STATUS;
 DELETE FROM t2, t3 USING t2 PARTITION (`p0-9`), t3, t1 PARTITION (subp3)
 WHERE t1.a = t3.a AND t3.b = 'subp3' AND t2.a = t1.a;
@@ -1051,10 +1061,10 @@ drop table t1,t2,t3,t4,t5;
 # Tests for working together with partition pruning.
 create table t1 (a int) partition by hash(a) partitions 3;
 insert into t1 values(1),(2),(3);
-explain partitions select * from t1 where a=1;
-explain partitions select * from t1 partition (p1) where a=1;
-explain partitions select * from t1 partition (p1) where a=1 or a=2;
-explain partitions select * from t1 partition (p2) where a=1;
+explain select * from t1 where a=1;
+explain select * from t1 partition (p1) where a=1;
+explain select * from t1 partition (p1) where a=1 or a=2;
+explain select * from t1 partition (p2) where a=1;
 
 drop table t1;
 

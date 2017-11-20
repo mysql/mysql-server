@@ -249,3 +249,109 @@ TRUNCATE TABLE t1;
 set session debug = "-d,partition_truncate_no_reset";
 ALTER TABLE t1 ADD INDEX(b), ALGORITHM = INPLACE;
 DROP TABLE t1;
+#
+# Scenario 4: Test ALTER TABLE .. AUTO_INCREMENT to a smaller value
+# and maybe crash
+#
+CREATE TABLE t1(a TINYINT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 35` FROM t1;
+Expect 35
+35
+DELETE FROM t1 WHERE a >= 30;
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+# restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` tinyint(4) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 23` FROM t1;
+Expect 23
+23
+DROP TABLE t1;
+CREATE TABLE t1(a TINYINT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 35` FROM t1;
+Expect 35
+35
+DELETE FROM t1 WHERE a >= 30;
+SET SESSION debug="+d, ib_ddl_crash_before_update_stats";
+# Write file to make mysql-test-run.pl expect crash
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart mysqld after the crash and reconnect.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` tinyint(4) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 38` FROM t1;
+Expect 38
+38
+DROP TABLE t1;
+CREATE TABLE t1 (a INT AUTO_INCREMENT NOT NULL, KEY(a))
+PARTITION BY RANGE (a)
+( PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (50));
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 35` FROM t1;
+Expect 35
+35
+DELETE FROM t1 WHERE a >= 30;
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+# restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  KEY `a` (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (50) ENGINE = InnoDB) */
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 23` FROM t1;
+Expect 23
+23
+DROP TABLE t1;
+CREATE TABLE t1 (a INT AUTO_INCREMENT NOT NULL, KEY(a))
+PARTITION BY RANGE (a)
+( PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (50));
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 35` FROM t1;
+Expect 35
+35
+DELETE FROM t1 WHERE a >= 30;
+SET SESSION debug="+d, ib_ddl_crash_before_update_stats";
+# Write file to make mysql-test-run.pl expect crash
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart mysqld after the crash and reconnect.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  KEY `a` (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (50) ENGINE = InnoDB) */
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 38` FROM t1;
+Expect 38
+38
+DROP TABLE t1;

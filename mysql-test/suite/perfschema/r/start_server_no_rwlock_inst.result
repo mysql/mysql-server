@@ -89,6 +89,7 @@ select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
+select * from performance_schema.setup_threads;
 select * from performance_schema.setup_timers;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
@@ -118,7 +119,7 @@ show engine PERFORMANCE_SCHEMA status;
 show global status like "performance_schema%";
 show global variables like "performance_schema_max_rwlock_classes";
 Variable_name	Value
-performance_schema_max_rwlock_classes	50
+performance_schema_max_rwlock_classes	60
 select count(*) > 0 from performance_schema.setup_instruments
 where name like "wait/synch/rwlock/%";
 count(*) > 0

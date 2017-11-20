@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -63,6 +63,18 @@ ut_dbg_assertion_failed(
 #define ut_ad(EXPR)
 /** Debug statement. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_d(EXPR)
+#endif
+
+/** Debug crash point */
+#ifdef UNIV_DEBUG
+# define DBUG_INJECT_CRASH(prefix, count)			\
+do {								\
+	char	buf[64];					\
+	snprintf(buf, sizeof buf, prefix "_%u", count);		\
+	DBUG_EXECUTE_IF(buf, DBUG_SUICIDE(););			\
+} while (0)
+#else
+# define DBUG_INJECT_CRASH(prefix, count)
 #endif
 
 /** Silence warnings about an unused variable by doing a null assignment.

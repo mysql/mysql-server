@@ -25,9 +25,9 @@
 #include "m_ctype.h"
 #include "my_macros.h"
 #include "my_sys.h"
-#include "mysql/psi/psi_memory.h"
-#include "mysqld.h"
-#include "sql_servers.h"
+#include "sql/mysqld.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_servers.h"
 #include "sql_string.h"
 
 using std::min;

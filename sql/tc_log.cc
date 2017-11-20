@@ -14,35 +14,40 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "tc_log.h"
+#include "sql/tc_log.h"
+
+#include "my_config.h"
 
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
 
-#include "my_config.h"
+#include "map_helpers.h"
+#include "my_alloc.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysqld_error.h"
+#include "sql/histograms/histogram.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
 
-#include "handler.h"
-#include "hash.h"
-#include "log.h"
-#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld.h"         // mysql_data_home
-#include "psi_memory_key.h" // key_memory_TC_LOG_MMAP_pages
-#include "sql_class.h"      // THD
-#include "sql_const.h"
+#include "sql/handler.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"     // mysql_data_home
+#include "sql/psi_memory_key.h" // key_memory_TC_LOG_MMAP_pages
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_const.h"
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 #include "thr_mutex.h"
-#include "transaction_info.h"
-#include "xa.h"
 
 TC_LOG::enum_result TC_LOG_DUMMY::commit(THD *thd, bool all)
 {

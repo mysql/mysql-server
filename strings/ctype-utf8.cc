@@ -5888,7 +5888,8 @@ static uint my_mbcharlen_utf8(const CHARSET_INFO *cs  MY_ATTRIBUTE((unused)),
 
 static MY_COLLATION_HANDLER my_collation_utf8_general_ci_handler =
 {
-    NULL,               /* init */
+    nullptr,               /* init */
+    nullptr,
     my_strnncoll_utf8,
     my_strnncollsp_utf8,
     my_strnxfrm_unicode,
@@ -5904,7 +5905,8 @@ static MY_COLLATION_HANDLER my_collation_utf8_general_ci_handler =
 
 static MY_COLLATION_HANDLER my_collation_utf8_bin_handler =
 {
-    NULL,		/* init */
+    nullptr,		/* init */
+    nullptr,
     my_strnncoll_mb_bin,
     my_strnncollsp_mb_bin,
     my_strnxfrm_unicode,
@@ -7319,7 +7321,8 @@ my_wc_mb_filename(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
 static MY_COLLATION_HANDLER my_collation_filename_handler =
 {
-    NULL,               /* init */
+    nullptr,               /* init */
+    nullptr,
     my_strnncoll_utf8,
     my_strnncollsp_utf8,
     my_strnxfrm_unicode,
@@ -8168,7 +8171,8 @@ my_mbcharlen_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), uint c)
 
 static MY_COLLATION_HANDLER my_collation_utf8mb4_general_ci_handler=
 {
-  NULL,               /* init */
+  nullptr,               /* init */
+  nullptr,
   my_strnncoll_utf8mb4,
   my_strnncollsp_utf8mb4,
   my_strnxfrm_unicode,
@@ -8184,7 +8188,8 @@ static MY_COLLATION_HANDLER my_collation_utf8mb4_general_ci_handler=
 
 static MY_COLLATION_HANDLER my_collation_utf8mb4_bin_handler =
 {
-    NULL,		/* init */
+    nullptr,		/* init */
+    nullptr,
     my_strnncoll_mb_bin,
     my_strnncollsp_mb_bin,
     my_strnxfrm_unicode_full_bin,

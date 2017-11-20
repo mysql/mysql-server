@@ -131,13 +131,13 @@ Mysqlx.Crud.Delete {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
 SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo;
 
--- "try xmessage within transaction"
+#-- "try xmessage within transaction"
 START TRANSACTION;
 -->endsql
 
@@ -168,7 +168,7 @@ Mysqlx.Crud.Delete {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -207,7 +207,7 @@ Mysqlx.Crud.Delete {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql

@@ -22,15 +22,15 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "binary_log_types.h"
-#include "item.h"
 #include "m_ctype.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_time.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "sql/item.h"
+#include "sql/my_decimal.h"
+#include "sql/system_variables.h"
 #include "sql_string.h"
-#include "system_variables.h"
 
 /* Procedure items used by procedures to store values for send_result_set_metadata */
 

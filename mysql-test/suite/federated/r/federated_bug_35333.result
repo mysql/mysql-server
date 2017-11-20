@@ -25,13 +25,13 @@ CONNECTION='mysql://root@127.0.0.1:63333/realdb/t0';
 #
 # Trigger a federated system error during a INFORMATION_SCHEMA.TABLES query
 #
-SET information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, TABLE_ROWS, DATA_LENGTH, TABLE_COMMENT
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = 'realdb' OR TABLE_SCHEMA = 'federated'
   ORDER BY TABLE_SCHEMA, TABLE_NAME;
 TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	ROW_FORMAT	TABLE_ROWS	DATA_LENGTH	TABLE_COMMENT
-federated	t0	BASE TABLE	FEDERATED	Dynamic	0	0	Unable to connect to foreign data source: Can't connect to MySQL server on '127.0.0.1' (socket errno)
+federated	t0	BASE TABLE	FEDERATED	Dynamic	NULL	0	Unable to connect to foreign data source: Can't connect to MySQL server on '127.0.0.1' (socket errno)
 realdb	t0	BASE TABLE	MyISAM	Dynamic	0	0	
 Warnings:
 Warning	1429	Unable to connect to foreign data source: Can't connect to MySQL server on '127.0.0.1' (socket errno)
@@ -64,7 +64,7 @@ Warning	1017	Can't find file: 't1' (errno: 2 - No such file or directory)
 DROP TABLE IF EXISTS realdb.t0;
 DROP TABLE IF EXISTS federated.t0;
 DROP DATABASE realdb;
-SET information_schema_stats=default;
+SET SESSION information_schema_stats_expiry=default;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE federated;
 DROP TABLE IF EXISTS federated.t1;

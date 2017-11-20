@@ -39,10 +39,9 @@
 #include <map>
 #include <utility>
 
-#include "client_priv.h"
-#include "log_event.h"
+#include "caching_sha2_passwordopt-vars.h"
+#include "client/client_priv.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_default.h"
 #include "my_dir.h"
 #include "my_io.h"
@@ -51,8 +50,10 @@
 #include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"
 #include "print_version.h"
-#include "rpl_constants.h"
-#include "rpl_gtid.h"
+#include "sql/log_event.h"
+#include "sql/my_decimal.h"
+#include "sql/rpl_constants.h"
+#include "sql/rpl_gtid.h"
 #include "sql_common.h"
 #include "sql_string.h"
 #include "sslopt-vars.h"
@@ -198,6 +199,7 @@ Query_log_event::rewrite_db_in_buffer(char **buf, ulong *event_len,
   char* ptr= *buf;
   uint sv_len= 0;
 
+  DBUG_EXECUTE_IF("simulate_corrupt_event_len", *event_len=0;);
   /* Error if the event content is too small */
   if (*event_len < (common_header_len + query_header_len))
     return true;
@@ -327,7 +329,6 @@ static int port= 0;
 static uint my_end_arg;
 static const char* sock= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
-static bool opt_secure_auth= TRUE;
 
 #if defined (_WIN32)
 static char *shared_memory_base_name= 0;
@@ -1261,6 +1262,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
     case binary_log::WRITE_ROWS_EVENT_V1:
     case binary_log::UPDATE_ROWS_EVENT_V1:
     case binary_log::DELETE_ROWS_EVENT_V1:
+    case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
     {
       bool stmt_end= FALSE;
       Table_map_log_event *ignored_map= NULL;
@@ -1269,7 +1271,8 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
           ev_type == binary_log::UPDATE_ROWS_EVENT ||
           ev_type == binary_log::WRITE_ROWS_EVENT_V1 ||
           ev_type == binary_log::DELETE_ROWS_EVENT_V1 ||
-          ev_type == binary_log::UPDATE_ROWS_EVENT_V1)
+          ev_type == binary_log::UPDATE_ROWS_EVENT_V1 ||
+          ev_type == binary_log::PARTIAL_UPDATE_ROWS_EVENT)
       {
         Rows_log_event *new_ev= (Rows_log_event*) ev;
         if (new_ev->get_flags(Rows_log_event::STMT_END_F))
@@ -1549,9 +1552,6 @@ static struct my_option my_long_options[] =
    "prefix for the file names.",
    &output_file, &output_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
-    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"server-id", OPT_SERVER_ID,
    "Extract only binlog entries created by the server having the given id.",
    &filter_server_id, &filter_server_id, 0, GET_ULONG,
@@ -1579,6 +1579,7 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &sock, &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
+#include <caching_sha2_passwordopt-longopts.h>
 #include <sslopt-longopts.h>
 
   {"start-datetime", OPT_START_DATETIME,
@@ -1774,19 +1775,6 @@ static void usage()
 Dumps a MySQL binary log in a format usable for viewing or for piping to\n\
 the mysql command line client.\n\n");
   printf("Usage: %s [options] log-files\n", my_progname);
-  /*
-    Turn default for zombies off so that the help on how to 
-    turn them off text won't show up.
-    This is safe to do since it's followed by a call to exit().
-  */
-  for (struct my_option *optp= my_long_options; optp->name; optp++)
-  {
-    if (optp->id == OPT_SECURE_AUTH)
-    {
-      optp->def_value= 0;
-      break;
-    }
-  }
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
@@ -1913,17 +1901,13 @@ get_one_option(int optid, const struct my_option *opt,
   case '?':
     usage();
     exit(0);
-  case OPT_SECURE_AUTH:
-    /* --secure-auth is a zombie option. */
-    if (!opt_secure_auth)
-    {
-      fprintf(stderr, "mysqlbinlog: [ERROR] --skip-secure-auth is not supported.\n");
-      exit(1);
-    }
-    else
-      CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+  case 's':
+    warning(CLIENT_WARN_DEPRECATED_NO_REPLACEMENT_MSG("--short-form"));
+    short_form= TRUE;
     break;
-
+  case OPT_WAIT_SERVER_ID:
+    warning(CLIENT_WARN_DEPRECATED_MSG("--stop-never-slave-server-id", "--connection-server-id"));
+    break;
   }
   if (tty_password)
     pass= get_tty_password(NullS);
@@ -1992,6 +1976,7 @@ static Exit_status safe_connect()
                  "program_name", "mysqlbinlog");
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                 "_client_role", "binary_log_listener");
+  set_get_server_public_key_option(mysql);
 
   if (!mysql_real_connect(mysql, host, user, pass, 0, port, sock, 0))
   {
@@ -2045,7 +2030,7 @@ static Exit_status dump_multiple_logs(int argc, char **argv)
   DBUG_ENTER("dump_multiple_logs");
   Exit_status rc= OK_CONTINUE;
 
-  PRINT_EVENT_INFO print_event_info{};
+  PRINT_EVENT_INFO print_event_info;
   if (!print_event_info.init_ok())
     DBUG_RETURN(ERROR_STOP);
   /*
@@ -2260,6 +2245,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   my_off_t old_off= start_position_mot;
   char log_file_name[FN_REFLEN + 1];
   Exit_status retval= OK_CONTINUE;
+  char *event_buf= NULL;
+  ulong event_len;
 
   DBUG_ENTER("dump_remote_log_entries");
 
@@ -2344,13 +2331,20 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     Log_event_type type= (Log_event_type) rpl.buffer[1 + EVENT_TYPE_OFFSET];
     Log_event *ev= NULL;
     Destroy_log_event_guard del(&ev);
+    event_buf= (char*) rpl.buffer + 1;
+    event_len= rpl.size - 1;
+    if (rewrite_db_filter(&event_buf, &event_len, glob_description_event))
+    {
+      error("Got a fatal error while applying rewrite db filter.");
+      DBUG_RETURN(ERROR_STOP);
+    }
 
     if (!raw_mode || (type == binary_log::ROTATE_EVENT) ||
         (type == binary_log::FORMAT_DESCRIPTION_EVENT))
     {
       const char *error_msg= NULL;
-      if (!(ev= Log_event::read_log_event((const char*) rpl.buffer + 1,
-                                          rpl.size - 1, &error_msg,
+      if (!(ev= Log_event::read_log_event((const char*) event_buf,
+                                          event_len, &error_msg,
                                           glob_description_event,
                                           opt_verify_binlog_checksum)))
       {

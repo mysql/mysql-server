@@ -13,8 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#include <vector>
+
+#include "gcs_base_test.h"
 
 #include "mysql/gcs/gcs_interface.h"
 #include "gcs_xcom_state_exchange.h"
@@ -25,17 +26,8 @@
 
 #include "gcs_xcom_utils.h"
 #include "gcs_internal_message.h"
-#include "mysql/gcs/gcs_log_system.h"
 
 #include "synode_no.h"
-
-#include <vector>
-
-using ::testing::_;
-using ::testing::Return;
-using std::vector;
-using ::testing::Invoke;
-using ::testing::WithArgs;
 
 namespace gcs_xcom_state_exchange_unittest
 {
@@ -76,15 +68,13 @@ public:
 };
 
 
-class XComStateExchangeTest : public ::testing::Test
+class XComStateExchangeTest : public GcsBaseTest
 {
 protected:
   XComStateExchangeTest() {};
 
   virtual void SetUp()
   {
-    logger= new Gcs_simple_ext_logger_impl();
-    Gcs_logger::initialize(logger);
     control_mock= new mock_gcs_control_interface();
     comm_mock= new mock_gcs_xcom_communication_interface();
     state_exchange= new Gcs_xcom_state_exchange(comm_mock);
@@ -95,15 +85,11 @@ protected:
     delete state_exchange;
     delete comm_mock;
     delete control_mock;
-    Gcs_logger::finalize();
-    logger->finalize();
-    delete logger;
   }
 
   Gcs_xcom_state_exchange                 *state_exchange;
   mock_gcs_control_interface              *control_mock;
   mock_gcs_xcom_communication_interface   *comm_mock;
-  Gcs_simple_ext_logger_impl *logger;
 };
 
 
@@ -117,16 +103,16 @@ TEST_F(XComStateExchangeTest, StateExchangeBroadcastJoinerTest)
   std::string member_2_addr("127.0.0.1:12346");
 
   // Set up parameters
-  vector<Gcs_member_identifier *> total_members;
+  std::vector<Gcs_member_identifier *> total_members;
   total_members.push_back(new Gcs_member_identifier(member_1_addr));
   total_members.push_back(new Gcs_member_identifier(member_2_addr));
 
-  vector<Gcs_member_identifier *> joined_members;
+  std::vector<Gcs_member_identifier *> joined_members;
   joined_members.push_back(new Gcs_member_identifier(member_2_addr));
 
-  vector<Gcs_member_identifier *> left_members;
+  std::vector<Gcs_member_identifier *> left_members;
 
-  vector<Gcs_message_data *> data_to_exchange;
+  std::vector<Gcs_message_data *> data_to_exchange;
 
   std::string group_name("group_name");
 
@@ -179,21 +165,21 @@ TEST_F(XComStateExchangeTest, StateExchangeProcessStatesPhase)
   std::string member_2_addr("127.0.0.1:12346");
   Gcs_member_identifier *member_id_2= new Gcs_member_identifier(member_2_addr);
 
-  vector<Gcs_member_identifier *> total_members;
+  std::vector<Gcs_member_identifier *> total_members;
   total_members.push_back(new Gcs_member_identifier(member_1_addr));
   total_members.push_back(new Gcs_member_identifier(member_2_addr));
 
-  vector<Gcs_member_identifier *> joined_members;
+  std::vector<Gcs_member_identifier *> joined_members;
   joined_members.push_back(new Gcs_member_identifier(member_1_addr));
   joined_members.push_back(new Gcs_member_identifier(member_2_addr));
 
-  vector<Gcs_member_identifier *> left_members;
+  std::vector<Gcs_member_identifier *> left_members;
 
   /*
     No application metadata shall be sent during the state exchange
     process.
   */
-  vector<Gcs_message_data *> data_to_exchange;
+  std::vector<Gcs_message_data *> data_to_exchange;
 
   /*
     Send a state exchange message on behalf of member 1.
@@ -355,16 +341,26 @@ TEST_F(XComStateExchangeTest, StateExchangeChoosingView)
   delete member_id_4;
 }
 
-#ifdef WITH_LOG_DEBUG
 TEST_F(XComStateExchangeTest, StateExchangeWrongAssumptionsView)
 {
+  /*
+    This test requires that all debug modes are set but it is not safe to
+    set it only here because if it fails, the system may start logging
+    messages that are not supposed to do so.
+  */
+  if (Gcs_debug_manager::get_current_debug_options() != GCS_DEBUG_ALL)
+  {
+/* purecov: begin deadcode */
+    return;
+/* purecov: end */
+  }
+
   /*
     Prepare configuration to simulate state exchanges when there
     is a bug in the state exchange messages and members are not
     proposing the correct views.
   */
   Gcs_xcom_view_identifier *new_view_id= NULL;
-  synode_no configuration_id= null_synode;
   std::map<Gcs_member_identifier, Xcom_member_state *>::iterator state_it;
 
   std::string member_1_addr("127.0.0.1:12345");
@@ -391,6 +387,7 @@ TEST_F(XComStateExchangeTest, StateExchangeWrongAssumptionsView)
     zero but the fixed parts don't match. This situation cannot happen
     in practice.
   */
+  synode_no configuration_id= null_synode;
   Gcs_xcom_view_identifier view_id_1(99999, 1);
   Xcom_member_state *state_1=
     new Xcom_member_state(view_id_1, configuration_id, NULL, 0);
@@ -425,6 +422,7 @@ TEST_F(XComStateExchangeTest, StateExchangeWrongAssumptionsView)
   new_view_id= state_exchange->get_new_view_id();
   ASSERT_EQ(member_states->size(), 2u);
   ASSERT_TRUE(new_view_id == NULL);
+  (void) new_view_id;
 
   for (state_it= member_states->begin(); state_it != member_states->end();
        state_it++)
@@ -436,7 +434,6 @@ TEST_F(XComStateExchangeTest, StateExchangeWrongAssumptionsView)
   delete member_id_3;
   delete member_id_4;
 }
-#endif
 
 
 TEST_F(XComStateExchangeTest, StateExchangeDiscardSynodes)
@@ -460,19 +457,19 @@ TEST_F(XComStateExchangeTest, StateExchangeDiscardSynodes)
   std::string member_1_addr("127.0.0.1:12345");
   Gcs_member_identifier *member_id_1= new Gcs_member_identifier(member_1_addr);
 
-  vector<Gcs_member_identifier *> total_members;
+  std::vector<Gcs_member_identifier *> total_members;
   total_members.push_back(new Gcs_member_identifier(member_1_addr));
 
-  vector<Gcs_member_identifier *> joined_members;
+  std::vector<Gcs_member_identifier *> joined_members;
   joined_members.push_back(new Gcs_member_identifier(member_1_addr));
 
-  vector<Gcs_member_identifier *> left_members;
+  std::vector<Gcs_member_identifier *> left_members;
 
   /*
     No application metadata shall be sent during the state exchange
     process.
   */
-  vector<Gcs_message_data *> data_to_exchange;
+  std::vector<Gcs_message_data *> data_to_exchange;
 
   /*
     Send a state exchange message on behalf of member 1.

@@ -48,7 +48,7 @@ SHOW STATUS like 'Mysqlx_stmt_execute_sql%';
 SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%';
 -->endsql
 
--- "Create table table2 in xplugintest "
+#-- "Create table table2 in xplugintest "
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"
   args {
@@ -271,7 +271,7 @@ Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 -->recvresult
--- statement retunin error counted as well
+#-- statement retunin error counted as well
 Mysqlx.Sql.StmtExecute {
   stmt: "list_objects"
   args {
@@ -286,7 +286,7 @@ Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
--- Invalid Mysqlx.Sql.StmtExecute operation conted
+#-- Invalid Mysqlx.Sql.StmtExecute operation conted
 Mysqlx.Sql.StmtExecute {
   stmt: "errorstatement"
   args {
@@ -310,9 +310,9 @@ Mysqlx.Sql.StmtExecute {
 
 -->sql
 SHOW STATUS like 'Mysqlx_stmt_execute_sql%';
--- "Insert not counted in Mysqlx_stmt_execute_xplugin"
+#-- "Insert not counted in Mysqlx_stmt_execute_xplugin"
 SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%';
--- "Insert counted in Mysqlx_crud_insert"
+#-- "Insert counted in Mysqlx_crud_insert"
 SHOW STATUS like 'Mysqlx_crud_insert%';
 SHOW STATUS like 'Mysqlx_stmt_list_objects%';
 -->endsql
@@ -366,7 +366,7 @@ SHOW STATUS like 'Mysqlx_bytes_sent%';
 
 -->endsql
 
--- "Create table table2 in xplugintest "
+#-- "Create table table2 in xplugintest "
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"
   args {

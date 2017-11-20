@@ -19,35 +19,35 @@
 #include <limits.h>
 #include <string.h>
 #include <time.h>
+#include <memory>
 
-#include "debug_sync.h"
-#include "handler.h"
-#include "hash.h"                           // HASH
 #include "lex_string.h"
-#include "log.h"
-#include "log_event.h"                      // Query_log_event
 #include "m_string.h"
-#include "mdl.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_stage.h"
-#include "mysqld.h"                         // stage_worker_....
 #include "mysqld_error.h"
-#include "query_options.h"
-#include "rpl_filter.h"
-#include "rpl_rli.h"                        // Relay_log_info
-#include "rpl_rli_pdb.h"                    // db_worker_hash_entry
-#include "rpl_slave.h"
-#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
-#include "sql_class.h"                      // THD
-#include "sql_plugin_ref.h"
-#include "system_variables.h"
-#include "table.h"
+#include "sql/debug_sync.h"
+#include "sql/log.h"
+#include "sql/log_event.h"                  // Query_log_event
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                     // stage_worker_....
+#include "sql/query_options.h"
+#include "sql/rpl_filter.h"
+#include "sql/rpl_rli.h"                    // Relay_log_info
+#include "sql/rpl_rli_pdb.h"                // db_worker_hash_entry
+#include "sql/rpl_slave.h"
+#include "sql/rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql/sql_class.h"                  // THD
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
 
 /**
@@ -116,7 +116,6 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
                                                  Slave_worker *ignore)
 {
   uint ret= 0;
-  HASH *hash= &rli->mapping_db_to_worker;
   THD *thd= rli->info_thd;
   bool cant_sync= FALSE;
   char llbuf[22];
@@ -128,20 +127,16 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
                       "procedure when scheduling event relay-log: %s "
                       "pos: %s", rli->get_event_relay_log_name(), llbuf));
 
-  for (uint i= 0, ret= 0; i < hash->records; i++)
+  mysql_mutex_lock(&rli->slave_worker_hash_lock);
+
+  for (const auto &key_and_value : rli->mapping_db_to_worker)
   {
-    db_worker_hash_entry *entry;
-
-    mysql_mutex_lock(&rli->slave_worker_hash_lock);
-
-    entry= (db_worker_hash_entry*) my_hash_element(hash, i);
-
+    db_worker_hash_entry *entry= key_and_value.second.get();
     DBUG_ASSERT(entry);
 
     // the ignore Worker retains its active resources
     if (ignore && entry->worker == ignore && entry->usage > 0)
     {
-      mysql_mutex_unlock(&rli->slave_worker_hash_lock);
       continue;
     }
 
@@ -177,7 +172,10 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
     entry->temporary_tables= NULL;
     if (entry->worker->running_status != Slave_worker::RUNNING)
       cant_sync= TRUE;
+    mysql_mutex_lock(&rli->slave_worker_hash_lock);
   }
+
+  mysql_mutex_unlock(&rli->slave_worker_hash_lock);
 
   if (!ignore)
   {

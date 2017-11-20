@@ -21,15 +21,14 @@
 #include <sys/types.h>
 
 #include "binary_log_types.h"
-#include "field.h"                              // Create_field
 #include "lex_string.h"
-#include "mem_root_array.h"                     // Mem_root_array
 #include "my_dbug.h"
 #include "mysql_com.h"
-#include "sql_alloc.h"
-#include "sql_error.h"
-#include "sql_list.h"
-#include "sql_plugin_ref.h"
+#include "sql/field.h"                          // Create_field
+#include "sql/mem_root_array.h"                 // Mem_root_array
+#include "sql/sql_alloc.h"
+#include "sql/sql_error.h"
+#include "sql/sql_list.h"
 
 class Item;
 class String;

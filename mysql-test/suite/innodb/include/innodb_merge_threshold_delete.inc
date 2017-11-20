@@ -8,8 +8,8 @@
 --echo # check MERGE_THRESHOLD
 --replace_result tab1#P tab1#p
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
-from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+from INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 
 # turn on flags
 --disable_query_log
@@ -38,9 +38,10 @@ insert into tab1 values (14, repeat('a',2048));
 # | 1,..,7 | 8,..,14 |
 
 select PAGE_NUMBER, NUMBER_RECORDS
-from INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES s1,
-INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
-where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
+from INFORMATION_SCHEMA.INNODB_TABLESPACES s1,
+INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2,
+INFORMATION_SCHEMA.INNODB_TABLES s3
+where s1.SPACE = s2.SPACE AND s1.SPACE = s3.SPACE AND s3.NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 
 set global innodb_purge_stop_now=ON;
@@ -63,11 +64,11 @@ SELECT name,count_reset FROM information_schema.innodb_metrics
 WHERE name like 'index_page_merge_%';
 
 select PAGE_NUMBER, NUMBER_RECORDS
-from INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES s1,
-INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
-where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
+from INFORMATION_SCHEMA.INNODB_TABLESPACES s1,
+INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2,
+INFORMATION_SCHEMA.INNODB_TABLES s3
+where s1.SPACE = s2.SPACE AND s1.SPACE = s3.SPACE AND s3.NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
-
 
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 11;

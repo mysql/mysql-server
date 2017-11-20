@@ -67,11 +67,14 @@
 #include "task_net.h"
 #include "task_os.h"
 #include "xcom_cfg.h"
+#ifndef _WIN32
 #ifndef USE_SELECT
 #include <poll.h>
 #endif
+#endif
 
 #include "retry.h"
+#include "xdr_utils.h"
 
 extern char *pax_op_to_str(int x);
 
@@ -89,10 +92,25 @@ struct iotasks {
   linkage tasks; /* OHKFIX Should be one each for read and write */
 };
 #else
+typedef struct {
+  u_int pollfd_array_len;
+  pollfd *pollfd_array_val;
+} pollfd_array;
+
+typedef task_env* task_env_p;
+
+typedef struct {
+  u_int task_env_p_array_len;
+  task_env_p *task_env_p_array_val;
+} task_env_p_array;
+
+define_xdr_funcs(pollfd)
+define_xdr_funcs(task_env_p)
+
 struct iotasks {
   int nwait;
-  struct pollfd fd[MAXFILES];
-  task_env *tasks[MAXFILES];
+  pollfd_array fd;
+  task_env_p_array tasks;
 };
 #endif
 int task_errno = 0;
@@ -100,6 +118,7 @@ static task_env *extract_first_delayed();
 static task_env *task_ref(task_env *t);
 static task_env *task_unref(task_env *t);
 static void wake_all_io();
+static void task_sys_deinit();
 
 /* Return time as seconds */
 static double _now = 0.0;
@@ -137,6 +156,8 @@ static void task_queue_init(task_queue *q) { q->curn = 0; }
 static void task_queue_debug(task_queue *q) {
   int i;
   GET_GOUT;
+    if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
+      return;
   STRLIT("task_queue_debug ");
   for (i = 1; i <= q->curn; i++) {
     NDBG(i, d);
@@ -504,6 +525,7 @@ static void task_delete(task_env *t) {
 #if 1
   free(deactivate(t)); /* Deactivate and free task */
 #else
+  deactivate(t);
   link_into(&t->l, &free_tasks);
 #endif
   active_tasks--;
@@ -534,7 +556,7 @@ task_env *task_deactivate(task_env *t) { return deactivate(t); }
 /* Set terminate flag and activate task */
 task_env *task_terminate(task_env *t) {
   if (t) {
-    MAY_DBG(FN; PTREXP(t); STREXP(t->name));
+    DBGOUT(FN; PTREXP(t); STREXP(t->name); NDBG(t->refcnt, d));
     t->terminate = KILL; /* Set terminate flag */
     activate(t);         /* and get it running */
   }
@@ -575,10 +597,17 @@ static void iotasks_init(iotasks *iot) {
   link_init(&iot->tasks, type_hash("task_env"));
 }
 
+static void iotasks_deinit(iotasks *iot)
+{
+	DBGOUT(FN);
+}
+
 #if TASK_DBUG_ON
 static void poll_debug() MY_ATTRIBUTE((unused));
 static void poll_debug() {
   GET_GOUT;
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
+    return;
 #if 0
 	NDBG(FD_SETSIZE, d);
 	PTREXP(&iot.tasks);
@@ -702,14 +731,20 @@ void remove_and_wakeup(int fd) {
 }
 
 #else
-static int active_io() { return iot.nwait > 0; }
-
-static void iotasks_init(iotasks *iot) {
-  int i;
+static void iotasks_init(iotasks *iot)
+ {
+  DBGOUT(FN);
   iot->nwait = 0;
-  for (i = 0; i < MAXFILES; i++) {
-    iot->tasks[i] = 0;
-  }
+  init_pollfd_array(&iot->fd);
+  init_task_env_p_array(&iot->tasks);
+ }
+
+static void iotasks_deinit(iotasks *iot)
+{
+  DBGOUT(FN);
+  iot->nwait = 0;
+  free_pollfd_array(&iot->fd);
+  free_task_env_p_array(&iot->tasks);
 }
 
 #if TASK_DBUG_ON
@@ -725,26 +760,27 @@ static void poll_debug() {
 }
 #endif
 
-static void poll_wakeup(int i) {
-  activate(task_unref(iot.tasks[i]));
-  iot.tasks[i] = NULL;
+static void poll_wakeup(int i)
+{
+  activate(task_unref(get_task_env_p(&iot.tasks,i)));
+  set_task_env_p(&iot.tasks, NULL,i);
   iot.nwait--; /* Shrink array of pollfds */
-  iot.fd[i] = iot.fd[iot.nwait];
-  iot.tasks[i] = iot.tasks[iot.nwait];
+  set_pollfd(&iot.fd, get_pollfd(&iot.fd,iot.nwait),i);
+  set_task_env_p(&iot.tasks, get_task_env_p(&iot.tasks,iot.nwait),i);
 }
 
 static int poll_wait(int ms) {
   result nfds = {0, 0};
+  int wake = 0;
 
   /* Wait at most ms milliseconds */
   MAY_DBG(FN; NDBG(ms, d));
-  int wake = 0;
   if (ms < 0 || ms > 1000) ms = 1000; /* Wait at most 1000 ms */
   SET_OS_ERR(0);
-  while ((nfds.val = poll(iot.fd, iot.nwait, ms)) == -1) {
-    nfds.err = to_errno(GET_OS_ERR);
-    if (nfds.err != SOCK_EINTR) {
-      task_dump_err(nfds.err);
+  while ((nfds.val = poll(iot.fd.pollfd_array_val, iot.nwait, ms)) == -1) {
+    nfds.funerr = to_errno(GET_OS_ERR);
+    if (nfds.funerr != SOCK_EINTR) {
+      task_dump_err(nfds.funerr);
       MAY_DBG(FN; STRLIT("poll failed"));
       abort();
     }
@@ -756,11 +792,12 @@ static int poll_wait(int ms) {
     int interrupt = 0;
     while (i < iot.nwait) {
       interrupt =
-          (iot.tasks[i]->time != 0.0 && iot.tasks[i]->time < task_now());
+        (get_task_env_p(&iot.tasks,i)->time != 0.0 &&
+        get_task_env_p(&iot.tasks,i)->time < task_now());
       if (interrupt || /* timeout ? */
-          iot.fd[i].revents) {
+        get_pollfd(&iot.fd,i).revents) {
         /* if(iot.fd[i].revents & POLLERR) abort(); */
-        iot.tasks[i]->interrupt = interrupt;
+        get_task_env_p(&iot.tasks,i)->interrupt = interrupt;
         poll_wakeup(i);
         wake = 1;
       } else {
@@ -775,28 +812,37 @@ static void add_fd(task_env *t, int fd, int op) {
   int events = 'r' == op ? POLLIN | POLLRDNORM : POLLOUT;
   MAY_DBG(FN; PTREXP(t); NDBG(fd, d); NDBG(op, d));
   assert(fd >= 0);
-  assert(fd < MAXFILES);
   t->waitfd = fd;
   deactivate(t);
   task_ref(t);
-  iot.tasks[iot.nwait] = t;
-  iot.fd[iot.nwait].fd = fd;
-  iot.fd[iot.nwait].events = events;
-  iot.fd[iot.nwait].revents = 0;
+  set_task_env_p(&iot.tasks, t, iot.nwait);
+  {
+    pollfd x;
+    x.fd = fd;
+    x.events = events;
+    x.revents = 0;
+    set_pollfd(&iot.fd, x, iot.nwait);
+  }
   iot.nwait++;
 }
 
 void unpoll(int i) {
-  assert(i < MAXFILES);
-  iot.tasks[i] = NULL;
-  iot.fd[i].fd = -1;
+  task_unref(get_task_env_p(&iot.tasks, i));
+  set_task_env_p(&iot.tasks, NULL,i);
+  {
+    pollfd x;
+    x.fd = -1;
+    x.events = 0;
+    x.revents = 0;
+    set_pollfd(&iot.fd, x, i);
+  }
 }
 
 static void wake_all_io() {
   int i;
   for (i = 0; i < iot.nwait; i++) {
+    activate(get_task_env_p(&iot.tasks,i));
     unpoll(i);
-    activate(task_unref(iot.tasks[i]));
   }
   iot.nwait = 0;
 }
@@ -805,7 +851,7 @@ void remove_and_wakeup(int fd) {
   int i = 0;
   MAY_DBG(FN; NDBG(fd, d));
   while (i < iot.nwait) {
-    if (iot.fd[i].fd == fd) {
+    if (get_pollfd(&iot.fd,i).fd == fd) {
       poll_wakeup(i);
     } else {
       i++;
@@ -815,36 +861,6 @@ void remove_and_wakeup(int fd) {
 
 #endif
 task_env *stack = NULL;
-/* Locks needed to get atomic reads and writes by protecting file descriptors
-                   while the task has been suspended by wait_io */
-static task_env *io_wait_locks[MAXFILES][2];
-/* purecov: begin deadcode */
-int is_locked(int fd) { return io_wait_locks[fd][0] || io_wait_locks[fd][1]; }
-
-int lock_fd(int fd, task_env *t, int lock) {
-  if (fd < 0) return 0;
-  lock = lock != 'r';
-  if (io_wait_locks[fd][lock]) {
-    DBGOUT(FN; NDBG(fd, d); PTREXP(t); STRLIT(" failed"));
-    return 0;
-  } else {
-    io_wait_locks[fd][lock] = t;
-    return 1;
-  }
-}
-
-int unlock_fd(int fd, task_env *t, int lock) {
-  if (fd < 0) return 0;
-  lock = lock != 'r';
-  if (io_wait_locks[fd][lock] != t) {
-    DBGOUT(FN; NDBG(fd, d); PTREXP(t); STRLIT(" failed"));
-    return 0;
-  } else {
-    io_wait_locks[fd][lock] = NULL;
-    return 1;
-  }
-}
-/* purecov: end */
 
 task_env *wait_io(task_env *t, int fd, int op) {
   t->time = 0.0;
@@ -1154,6 +1170,7 @@ void task_loop() {
       idle_time += seconds() - time;
     }
   }
+  task_sys_deinit();
 }
 
 static int init_sockaddr(char *server, struct sockaddr_in *sock_addr,
@@ -1179,6 +1196,8 @@ static int init_sockaddr(char *server, struct sockaddr_in *sock_addr,
 static void print_sockaddr(struct sockaddr *a) {
   u_int i;
   GET_GOUT;
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
+    return;
   NDBG(a->sa_family, u);
   NDBG(a->sa_family, d);
   STRLIT(" data ");
@@ -1463,6 +1482,13 @@ void task_sys_init() {
   iotasks_init(&iot);
   seconds(); /* Needed to initialize _now */
              /* task_new(statistics_task, null_arg, "statistics_task", 1);  */
+}
+
+
+static void task_sys_deinit()
+{
+  DBGOUT(FN);
+  iotasks_deinit(&iot);
 }
 
 /* purecov: begin deadcode */

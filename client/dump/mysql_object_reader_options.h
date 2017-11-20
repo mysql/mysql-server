@@ -18,9 +18,9 @@
 #ifndef MYSQL_OBJECT_READER_OPTIONS_INCLUDED
 #define MYSQL_OBJECT_READER_OPTIONS_INCLUDED
 
-#include "base/abstract_options_provider.h"
+#include "client/base/abstract_options_provider.h"
+#include "client/dump/mysql_chain_element_options.h"
 #include "my_inttypes.h"
-#include "mysql_chain_element_options.h"
 
 namespace Mysql{
 namespace Tools{

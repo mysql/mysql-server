@@ -93,20 +93,19 @@
 #include <algorithm>
 
 #include "../myisam/ha_myisam.h"
-#include "current_thd.h"
-#include "debug_sync.h"
 #include "ha_myisammrg.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "myrg_def.h"
-#include "mysqld.h"
-#include "sql_cache.h"                          // query_cache_*
-#include "sql_class.h"                          // THD
-#include "sql_show.h"                           // append_identifier
-#include "sql_table.h"                         // build_table_filename
-#include "thr_malloc.h"                         // int_sql_alloc
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"                      // THD
+#include "sql/sql_show.h"                       // append_identifier
+#include "sql/sql_table.h"                     // build_table_filename
+#include "sql/thr_malloc.h"                     // int_sql_alloc
 #include "typelib.h"
 
 using std::min;
@@ -810,7 +809,6 @@ int ha_myisammrg::attach_children(void)
     goto err;
   }
   DBUG_PRINT("myrg", ("calling myrg_extrafunc"));
-  myrg_extrafunc(file, &query_cache_invalidate_by_MyISAM_filename);
   if (!(test_if_locked == HA_OPEN_WAIT_IF_LOCKED ||
 	test_if_locked == HA_OPEN_ABORT_IF_LOCKED))
     myrg_extra(file,HA_EXTRA_NO_WAIT_LOCK,0);

@@ -45,6 +45,7 @@ include/wait_for_slave_sql_error.inc [errno=1593]
 set @@global.slave_checkpoint_group= @save.slave_checkpoint_group;
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 set @@global.debug= @save.debug;
+include/assert.inc [Verified that their is no orphaned SQL worker thread]
 include/start_slave.inc
 include/rpl_reset.inc
 include/stop_slave.inc

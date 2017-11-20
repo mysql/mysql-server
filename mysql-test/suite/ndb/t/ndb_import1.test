@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source include/not_windows.inc
 
 perl;
 use strict;
@@ -120,7 +119,7 @@ my $t7 = {
 my $t8attrs = [
   { name=>"a", type=>"int", unsigned=>1, pk=>1 },
   { name=>"b", type=>"smallint", notnull=>1 },
-  { name=>"c", type=>"char", len=>10, notnull=>1 },
+  { name=>"c", type=>"char", len=>10, minlen=>1, notnull=>1 },
 ];
 my $t8 = {
   name => 't8',
@@ -137,7 +136,7 @@ my $test1 = {
   csvfmt => get_csvfmt1(),
   rejectsopt => 0,      # option to ndb_import
   rejectsgen => 0,      # number of bad rows to generate
-  verify => 1,
+  verify => 'all',
 };
 
 my $test2 = {
@@ -148,7 +147,7 @@ my $test2 = {
   rejectsopt => 0,
   rejectsgen => 0,
   resumeopt => 0,
-  verify => 1,
+  verify => 'all',
 };
 
 my $test3 = {
@@ -159,7 +158,8 @@ my $test3 = {
   rejectsopt => 100,
   rejectsgen => 100,
   resumeopt => 0,
-  verify => 1,
+  verify => 'pk',
+  dumpdata => 1,
 };
 
 my $test4 = {
@@ -170,7 +170,8 @@ my $test4 = {
   rejectsopt => 0,
   rejectsgen => 10,
   resumeopt => 1,
-  verify => 1,
+  verify => 'pk',
+  dumpdata => 1,
 };
 
 my $tests = {

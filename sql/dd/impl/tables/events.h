@@ -18,14 +18,15 @@
 
 #include <string>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/entity_object_table_impl.h"
-#include "dd/object_id.h"
-#include "dd/types/event.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/entity_object_table_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/event.h"
 
 namespace dd {
-class Object_key;
 class Item_name_key;
+class Object_key;
 
 namespace tables {
 

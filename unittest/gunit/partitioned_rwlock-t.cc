@@ -21,7 +21,7 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "auth/partitioned_rwlock.h"
+#include "sql/auth/partitioned_rwlock.h"
 #include "thread_utils.h"
 
 

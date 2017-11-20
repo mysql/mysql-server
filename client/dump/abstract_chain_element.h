@@ -22,12 +22,12 @@
 #include <atomic>
 #include <functional>
 
-#include "abstract_progress_reporter.h"
-#include "base/message_data.h"
-#include "i_chain_element.h"
-#include "item_processing_data.h"
+#include "client/base/message_data.h"
+#include "client/dump/abstract_progress_reporter.h"
+#include "client/dump/i_chain_element.h"
+#include "client/dump/item_processing_data.h"
+#include "client/dump/simple_id_generator.h"
 #include "my_inttypes.h"
-#include "simple_id_generator.h"
 
 namespace Mysql{
 namespace Tools{

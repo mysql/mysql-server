@@ -18,7 +18,10 @@
  */
 
 #include "ngs/client.h"
+#include "ngs/protocol_encoder.h"
 
+
+#include "ngs/interface/protocol_monitor_interface.h"
 #ifndef WIN32
 #include <arpa/inet.h>
 #endif
@@ -33,10 +36,10 @@
 #include "ngs/capabilities/handler_tls.h"
 #include "ngs/interface/server_interface.h"
 #include "ngs/interface/session_interface.h"
+#include "ngs/interface/protocol_monitor_interface.h"
 #include "ngs/log.h"
 #include "ngs/ngs_error.h"
 #include "ngs/protocol/protocol_config.h"
-#include "ngs/protocol_monitor.h"
 #include "ngs/scheduler.h"
 #include "ngs_common/operations_factory.h"
 
@@ -94,7 +97,10 @@ void Client::activate_tls()
 {
   log_debug("%s: enabling TLS for client", client_id());
 
-  if (m_server.ssl_context()->activate_tls(connection(), chrono::to_seconds(m_server.get_config()->connect_timeout)))
+  const auto connection_timeout = static_cast<int>(
+      chrono::to_seconds(m_server.get_config()->connect_timeout));
+
+  if (m_server.ssl_context()->activate_tls(connection(), connection_timeout))
   {
     if (connection().options()->active_tls())
       session()->mark_as_tls_session();
@@ -152,7 +158,16 @@ void Client::set_capabilities(const Mysqlx::Connection::CapabilitiesSet &setcap)
 
 void Client::handle_message(Request &request)
 {
+  ngs::shared_ptr<Session_interface> s(session());
+
   log_message_recv(request);
+
+  if (m_state != Client_accepted && s)
+  {
+    // pass the message to the session
+    s->handle_message(request);
+    return;
+  }
 
   Client_state expected_state = Client_accepted;
 
@@ -541,14 +556,8 @@ void Client::run(const bool skip_name_resolve)
         disconnect_and_trigger_close();
         break;
       }
-      ngs::shared_ptr<Session_interface> s(session());
-      if (m_state != Client_accepted && s)
-      {
-        // pass the message to the session
-        s->handle_message(*message);
-      }
-      else
-        handle_message(*message);
+
+      handle_message(*message);
     }
   }
   catch (std::exception &e)
@@ -557,7 +566,7 @@ void Client::run(const bool skip_name_resolve)
   }
 
   {
-    Mutex_lock lock(server().get_client_exit_mutex());
+    MUTEX_LOCK(lock, server().get_client_exit_mutex());
     m_state = Client_closed;
 
     remove_client_from_server();

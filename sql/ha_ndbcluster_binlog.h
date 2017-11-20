@@ -15,6 +15,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <memory>
+
+#include "map_helpers.h"
+
 
 // Typedefs for long names
 typedef NdbDictionary::Object NDBOBJ;
@@ -32,7 +36,8 @@ typedef NdbDictionary::Event  NDBEVENT;
 
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 
-extern HASH ndbcluster_open_tables;
+extern std::unique_ptr<collation_unordered_map<std::string, NDB_SHARE *>>
+  ndbcluster_open_tables;
 
 /*
   Initialize the binlog part of the ndb handlerton

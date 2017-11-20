@@ -248,14 +248,14 @@ int extract_user_salt(char **salt_begin,
 #undef DS
 
 /* ARGSUSED4 */
-extern "C"
 char *
 my_crypt_genhash(char *ctbuffer,
                    size_t ctbufflen,
                    const char *plaintext,
                    size_t plaintext_len,
                    const char *switchsalt,
-                   const char **)
+                   const char **,
+                   unsigned int *num_rounds)  /* = NULL */
 {
   int salt_len;
   size_t i;
@@ -265,12 +265,18 @@ my_crypt_genhash(char *ctbuffer,
   unsigned char DP[DIGEST_LEN];
   unsigned char DS[DIGEST_LEN];
   DIGEST_CTX ctxA, ctxB, ctxC, ctxDP, ctxDS;
-  uint rounds = ROUNDS_DEFAULT;
+  unsigned int rounds =  num_rounds &&
+                 (*num_rounds <= ROUNDS_MAX &&
+                  *num_rounds >= ROUNDS_MIN) ?
+                 *num_rounds : ROUNDS_DEFAULT;
   int srounds = 0;
   bool custom_rounds= false;
   char *p;
   char *P, *Pp;
   char *S, *Sp;
+
+  if (num_rounds)
+    *num_rounds= rounds;
 
   /* Refine the salt */
   salt = (char *)switchsalt;
@@ -440,7 +446,6 @@ my_crypt_genhash(char *ctbuffer,
   Stdlib rand and srand are used to produce pseudo random numbers between 
   with about 7 bit worth of entropty between 1-127.
 */
-extern "C"
 void generate_user_salt(char *buffer, int buffer_len)
 {
   char *end= buffer + buffer_len - 1;

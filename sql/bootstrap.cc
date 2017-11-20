@@ -19,43 +19,44 @@
 
 #include "my_config.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
 #include <string>
 
-#include "bootstrap_impl.h"
-#include "error_handler.h"       // Internal_error_handler
-#include "lex_string.h"
-#include "log.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_thread.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"              // key_file_init
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "protocol_classic.h"
-#include "query_options.h"
-#include "set_var.h"
-#include "sql_bootstrap.h"
-#include "sql_class.h"           // THD
-#include "sql_connect.h"         // close_connection
-#include "sql_error.h"
-#include "sql_initialize.h"
-#include "sql_lex.h"
-#include "sql_parse.h"           // mysql_parse
-#include "sql_plugin.h"
-#include "sql_profile.h"
-#include "sql_security_ctx.h"
-#include "sys_vars_shared.h"     // intern_find_sys_var
-#include "system_variables.h"
-#include "transaction_info.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/bootstrap_impl.h"
+#include "sql/error_handler.h"   // Internal_error_handler
+#include "sql/log.h"
+#include "sql/mysqld.h"          // key_file_init
+#include "sql/mysqld_thd_manager.h" // Global_THD_manager
+#include "sql/protocol_classic.h"
+#include "sql/query_options.h"
+#include "sql/set_var.h"
+#include "sql/sql_bootstrap.h"
+#include "sql/sql_class.h"       // THD
+#include "sql/sql_connect.h"     // close_connection
+#include "sql/sql_error.h"
+#include "sql/sql_initialize.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"       // mysql_parse
+#include "sql/sql_profile.h"
+#include "sql/sys_vars_shared.h" // intern_find_sys_var
+#include "sql/system_variables.h"
+#include "sql/transaction_info.h"
 
 namespace bootstrap {
 
@@ -328,7 +329,7 @@ static void *handle_bootstrap(void *arg)
 
     // Set tx_read_only to false to allow installing DD tables even
     // if the server is started with --transaction-read-only=true.
-    thd->variables.tx_read_only= false;
+    thd->variables.transaction_read_only= false;
     thd->tx_read_only= false;
 
     if (bootstrap_handler)

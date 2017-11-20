@@ -21,15 +21,14 @@
 
 #include "my_base.h"
 #include "my_sqlcommand.h"
-#include "query_result.h"    // Query_result_interceptor
-#include "sql_cmd_dml.h"     // Sql_cmd_dml
-#include "sql_lex.h"
-#include "sql_list.h"
+#include "sql/query_result.h" // Query_result_interceptor
+#include "sql/sql_cmd_dml.h" // Sql_cmd_dml
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
 
 class COPY_INFO;
 class Copy_field;
 class Item;
-class JOIN;
 class THD;
 class Temp_table_param;
 struct TABLE;

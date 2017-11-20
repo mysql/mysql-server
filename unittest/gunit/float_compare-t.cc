@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,10 @@
 
 #include "my_config.h"
 
-#include <climits>
 #include <gtest/gtest.h>
+#include <climits>
 
-#include "float_compare.h"
+#include "sql/float_compare.h"
 
 namespace float_compare_unittest {
 

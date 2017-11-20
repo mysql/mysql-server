@@ -7,32 +7,32 @@ drop table if exists t1;
 --enable_warnings                                                               
 
 select floor(5.5),floor(-5.5);
-explain extended select floor(5.5),floor(-5.5);
+explain select floor(5.5),floor(-5.5);
 select ceiling(5.5),ceiling(-5.5);
-explain extended select ceiling(5.5),ceiling(-5.5);
+explain select ceiling(5.5),ceiling(-5.5);
 select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2), truncate(-52.64,1),truncate(-52.64,-1);
-explain extended select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2), truncate(-52.64,1),truncate(-52.64,-1);
+explain select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2), truncate(-52.64,1),truncate(-52.64,-1);
 select round(5.5),round(-5.5);
-explain extended select round(5.5),round(-5.5);
+explain select round(5.5),round(-5.5);
 select round(5.64,1),round(5.64,2),round(5.64,-1),round(5.64,-2);
 select abs(-10), sign(-5), sign(5), sign(0);
-explain extended select abs(-10), sign(-5), sign(5), sign(0);
+explain select abs(-10), sign(-5), sign(5), sign(0);
 --replace_numeric_round 15
 select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
-explain extended select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
+explain select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
 select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
-explain extended select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
+explain select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
 select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
-explain extended select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
+explain select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
 select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
-explain extended select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
+explain select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
 select pow(10,log10(10)),power(2,4);
-explain extended select pow(10,log10(10)),power(2,4);
+explain select pow(10,log10(10)),power(2,4);
 set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select rand(999999),rand();
-explain extended select rand(999999),rand();
+explain select rand(999999),rand();
 select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(abs(tan(pi())),6),format(cot(1),6),format(asin(1),6),format(acos(0),6),format(atan(1),6);
-explain extended select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(abs(tan(pi())),6),format(cot(1),6),format(asin(1),6),format(acos(0),6),format(atan(1),6);
+explain select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(abs(tan(pi())),6),format(cot(1),6),format(asin(1),6),format(acos(0),6),format(atan(1),6);
 select degrees(pi()),radians(360);
 
 select format(atan(-2, 2), 6);
@@ -65,7 +65,7 @@ SELECT ASIN(1.2-0.2);
 #
 select format(4.55, 1), format(4.551, 1);
 
-explain extended select degrees(pi()),radians(360);
+explain select degrees(pi()),radians(360);
 
 #
 # Bug #7281: problem with rand()

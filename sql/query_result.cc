@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "query_result.h"
+#include "sql/query_result.h"
 
 #include "my_config.h"
 
@@ -26,26 +26,26 @@
 #endif
 #include <algorithm>
 
-#include "derror.h"            // ER_THD
-#include "item.h"
-#include "item_func.h"
-#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
-#include "mysqld.h"            // key_select_to_file
-#include "parse_tree_nodes.h"  // PT_select_var
-#include "protocol.h"
-#include "session_tracker.h"
-#include "sp_rcontext.h"       // sp_rcontext
-#include "sql_class.h"         // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "system_variables.h"
+#include "sql/derror.h"        // ER_THD
+#include "sql/item.h"
+#include "sql/item_func.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"        // key_select_to_file
+#include "sql/parse_tree_nodes.h" // PT_select_var
+#include "sql/protocol.h"
+#include "sql/sp_rcontext.h"   // sp_rcontext
+#include "sql/sql_class.h"     // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/system_variables.h"
 
 using std::min;
 

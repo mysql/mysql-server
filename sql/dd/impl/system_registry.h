@@ -23,11 +23,12 @@
 #include <utility>
 #include <vector>
 
-#include "dd/string_type.h"                    // dd::String_type
-#include "dd/types/object_table.h"
-#include "dd/types/system_view.h"
 #include "my_dbug.h"
 #include "mysqld_error.h"                      // ER_NO_SYSTEM_TABLE_...
+#include "sql/dd/string_type.h"                // dd::String_type
+#include "sql/dd/types/object_table.h"
+#include "sql/dd/types/system_view.h"
+#include "sql/handler.h"
 
 class Plugin_tablespace;
 

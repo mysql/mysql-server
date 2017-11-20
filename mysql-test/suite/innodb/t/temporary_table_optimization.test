@@ -258,13 +258,13 @@ CREATE TABLE t6469_1 ( i INT ) ENGINE = Innodb;
 CREATE TEMPORARY TABLE t6469_2 ( i INT ) ENGINE = Innodb;
 CREATE TEMPORARY table t6469_3 ( i INT ) ENGINE = Innodb ROW_FORMAT=compressed;
 SELECT count(*) FROM information_schema.files WHERE file_name LIKE '%t6469%';
-SELECT count(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%t6469%';
-SELECT count(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%t6469%';
+SELECT count(*) FROM information_schema.INNODB_DATAFILES WHERE PATH LIKE '%t6469%';
+SELECT count(*) FROM information_schema.INNODB_TABLES WHERE NAME LIKE '%t6469%';
 
 DROP TABLE t6469_1,t6469_2,t6469_3;
 SELECT * FROM information_schema.files WHERE file_name LIKE '%t6469%';
-SELECT * FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%t6469%';
-SELECT * FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%t6469%';
+SELECT * FROM information_schema.INNODB_DATAFILES WHERE PATH LIKE '%t6469%';
+SELECT * FROM information_schema.INNODB_TABLES WHERE NAME LIKE '%t6469%';
 
 #-------------------------------------------------------------
 #

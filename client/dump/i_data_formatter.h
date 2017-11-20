@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 #ifndef I_DATA_FORMATTER_INCLUDED
 #define I_DATA_FORMATTER_INCLUDED
 
-#include "i_chain_element.h"
-#include "item_processing_data.h"
+#include "client/dump/i_chain_element.h"
+#include "client/dump/item_processing_data.h"
 
 namespace Mysql{
 namespace Tools{

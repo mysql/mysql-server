@@ -1,14 +1,24 @@
 # Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 set @@persist_only.back_log=80;
 set @@persist_only.binlog_gtid_simple_recovery=1;
-set @@persist_only.date_format='%Y-%m-%d';
-set @@persist_only.datetime_format='%Y-%m-%d %H:%i:%s';
 set @@persist_only.disabled_storage_engines='';
 set @@persist_only.ft_max_word_len=84;
 set @@persist_only.ft_min_word_len=4;
 set @@persist_only.ft_query_expansion_limit=20;
-set @@persist_only.ignore_builtin_innodb=0;
 set @@persist_only.innodb_adaptive_hash_index_parts=8;
 set @@persist_only.innodb_api_disable_rowlock=0;
 set @@persist_only.innodb_api_enable_binlog=0;
@@ -94,7 +104,6 @@ set @@persist_only.slave_type_conversions='';
 set @@persist_only.table_open_cache_instances=16;
 set @@persist_only.thread_handling='one-thread-per-connection';
 set @@persist_only.thread_stack=286720;
-set @@persist_only.time_format='%H:%i:%s';
 set @@persist_only.tls_version='TLSv1,TLSv1.1';
 set @@persist_only.report_host=NULL;
 set @@persist_only.report_port=21000;

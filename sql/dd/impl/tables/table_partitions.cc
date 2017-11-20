@@ -13,20 +13,20 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/table_partitions.h"
+#include "sql/dd/impl/tables/table_partitions.h"
 
 #include <memory>
 #include <new>
 
-#include "dd/impl/object_key.h"
-#include "dd/impl/raw/object_keys.h"     // dd::Parent_id_range_key
-#include "dd/impl/raw/raw_record.h"      // dd::Raw_record
-#include "dd/impl/raw/raw_table.h"       // dd::Raw_table
-#include "dd/impl/transaction_impl.h"    // dd::Transaction_ro
-#include "dd/impl/types/object_table_definition_impl.h"
-#include "dd/types/table.h"
-#include "handler.h"
 #include "my_dbug.h"
+#include "sql/dd/impl/object_key.h"
+#include "sql/dd/impl/raw/object_keys.h" // dd::Parent_id_range_key
+#include "sql/dd/impl/raw/raw_record.h"  // dd::Raw_record
+#include "sql/dd/impl/raw/raw_table.h"   // dd::Raw_table
+#include "sql/dd/impl/transaction_impl.h" // dd::Transaction_ro
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/types/table.h"
+#include "sql/handler.h"
 
 namespace dd {
 namespace tables {
@@ -50,9 +50,9 @@ Table_partitions::Table_partitions()
   m_target_def.add_field(FIELD_TABLE_ID,
                          "FIELD_TABLE_ID",
                          "table_id BIGINT UNSIGNED NOT NULL");
-  m_target_def.add_field(FIELD_LEVEL,
-                         "FIELD_LEVEL",
-                         "level TINYINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_PARENT_PARTITION_ID,
+                         "FIELD_PARENT_PARTITION_ID",
+                         "parent_partition_id BIGINT UNSIGNED");
   m_target_def.add_field(FIELD_NUMBER,
                          "FIELD_NUMBER",
                          "number SMALLINT UNSIGNED NOT NULL");
@@ -62,6 +62,9 @@ Table_partitions::Table_partitions()
   m_target_def.add_field(FIELD_ENGINE,
                          "FIELD_ENGINE",
                          "engine VARCHAR(64) NOT NULL");
+  m_target_def.add_field(FIELD_DESCRIPTION_UTF8,
+                         "FIELD_DESCRIPTION_UTF8",
+                         "description_utf8 TEXT");
   m_target_def.add_field(FIELD_COMMENT,
                          "FIELD_COMMENT",
                          "comment VARCHAR(2048) NOT NULL");
@@ -80,7 +83,7 @@ Table_partitions::Table_partitions()
 
   m_target_def.add_index("PRIMARY KEY(id)");
   m_target_def.add_index("UNIQUE KEY(table_id, name)");
-  m_target_def.add_index("UNIQUE KEY(table_id, level, number)");
+  m_target_def.add_index("UNIQUE KEY(table_id, parent_partition_id, number)");
   m_target_def.add_index("UNIQUE KEY(engine, se_private_id)");
   m_target_def.add_index("KEY(engine)");
 
@@ -95,6 +98,19 @@ Table_partitions::Table_partitions()
 Object_key *Table_partitions::create_key_by_table_id(Object_id table_id)
 {
   return new (std::nothrow) Parent_id_range_key(1, FIELD_TABLE_ID, table_id);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Object_key *Table_partitions::create_key_by_parent_partition_id(
+                       Object_id table_id, Object_id parent_partition_id)
+{
+  const int PARENT_PARTITION_INDEX_NO= 2;
+
+  return new (std::nothrow) Sub_partition_range_key(
+                              PARENT_PARTITION_INDEX_NO,
+                              FIELD_TABLE_ID, table_id,
+                              FIELD_PARENT_PARTITION_ID, parent_partition_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -114,15 +130,13 @@ Object_key *Table_partitions::create_se_private_key(
   Object_id se_private_id)
 {
   const int SE_PRIVATE_ID_INDEX_ID= 3;
-  const int ENGINE_COLUMN_NO=5;
-  const int SE_PRIVATE_ID_COLUMN_NO= 9;
 
   return
     new (std::nothrow) Se_private_id_key(
       SE_PRIVATE_ID_INDEX_ID,
-      ENGINE_COLUMN_NO,
+      FIELD_ENGINE,
       engine,
-      SE_PRIVATE_ID_COLUMN_NO,
+      FIELD_SE_PRIVATE_ID,
       se_private_id);
 }
 /* purecov: end */

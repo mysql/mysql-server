@@ -55,12 +55,15 @@ NdbImportCsv_yyerror(NdbImportCsv::Parse& csvparse, const char* msg);
 %type <m_chunk> T_BYTE
 
 %token T_FIELDSEP
+%token T_FIELDSEP2      /* for lex if length > 1 */
 %token T_QUOTE
 %token T_QUOTEQUOTE     /* for lex */
 %token T_ESCAPE
 %token T_LINEEND
+%token T_LINEEND2       /* for lex if length > 1 */
 %token T_DATA
 %token T_BYTE
+%token T_NUL            /* NUL byte 0x00 */
 
 %%
 
@@ -76,7 +79,7 @@ line_list:
   line
   {
     NdbImportCsv::Line* line = $2;
-    line->m_lineno = csvparse.m_line_list.m_cnt;
+    line->m_lineno = csvparse.m_line_list.cnt();
     csvparse.m_line_list.push_back(line);
   }
   |
@@ -84,7 +87,7 @@ line_list:
   {
     NdbImportCsv::Line* line = $1;
     line->m_lineno = 0;
-    require(csvparse.m_line_list.m_cnt == 0);
+    require(csvparse.m_line_list.cnt() == 0);
     csvparse.m_line_list.push_back(line);
   }
   ;
@@ -106,11 +109,11 @@ line:
   {
     NdbImportCsv::Line* line = csvparse.m_input.alloc_line();
     NdbImportCsv::FieldList& field_list = csvparse.m_field_list;
-    require(field_list.m_cnt == 0);
+    require(field_list.cnt() == 0);
     NdbImportCsv::Chunk chunk_lineend = $1;
     line->m_pos = chunk_lineend.m_pos;
     line->m_end = chunk_lineend.m_end;
-    require(line->m_field_list.m_cnt == 0);
+    require(line->m_field_list.cnt() == 0);
     line->m_field_list.push_back(field_list);
     $$ = line;
   }
@@ -122,7 +125,7 @@ field_list:
   field
   {
     NdbImportCsv::Field* field = $3;
-    field->m_fieldno = csvparse.m_field_list.m_cnt;
+    field->m_fieldno = csvparse.m_field_list.cnt();
     csvparse.m_field_list.push_back(field);
   }
   |
@@ -130,7 +133,7 @@ field_list:
   {
     NdbImportCsv::Field* field = $1;
     field->m_fieldno = 0;
-    require(csvparse.m_field_list.m_cnt == 0);
+    require(csvparse.m_field_list.cnt() == 0);
     csvparse.m_field_list.push_back(field);
   }
   ;
@@ -143,7 +146,7 @@ field:
     field->m_pos = data_list.front()->m_pos;
     field->m_end = data_list.back()->m_end;
     field->m_null = false;
-    require(field->m_data_list.m_cnt == 0);
+    require(field->m_data_list.cnt() == 0);
     field->m_data_list.push_back(csvparse.m_data_list);
     $$ = field;
   }
@@ -154,7 +157,7 @@ field:
     field->m_pos = buf.m_pos;
     field->m_end = buf.m_pos;
     field->m_null = false;
-    require(field->m_data_list.m_cnt == 0);
+    require(field->m_data_list.cnt() == 0);
     $$ = field;
   }
   |
@@ -168,7 +171,7 @@ field:
     field->m_pos = chunk_quote1.m_pos;
     field->m_end = chunk_quote2.m_end;
     field->m_null = false;
-    require(field->m_data_list.m_cnt == 0);
+    require(field->m_data_list.cnt() == 0);
     field->m_data_list.push_back(csvparse.m_data_list);
     $$ = field;
   }
@@ -181,7 +184,7 @@ field:
     field->m_pos = buf.m_pos;
     field->m_end = buf.m_pos;
     field->m_null = false;
-    require(field->m_data_list.m_cnt == 0);
+    require(field->m_data_list.cnt() == 0);
     $$ = field;
   }
   ;
@@ -197,7 +200,7 @@ data_list:
   data
   {
     NdbImportCsv::Data* data = $1;
-    require(csvparse.m_data_list.m_cnt == 0);
+    require(csvparse.m_data_list.cnt() == 0);
     csvparse.m_data_list.push_back(data);
   }
   ;

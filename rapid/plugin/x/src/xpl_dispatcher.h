@@ -21,9 +21,10 @@
 #define _XPL_DISPATCHER_H_
 
 #include "ngs_common/protocol_protobuf.h"
-#include "ngs/protocol_encoder.h"
+#include "ngs/protocol/message.h"
 
 namespace xpl {
+
 class Session;
 class Crud_command_handler;
 class Sql_data_context;
@@ -33,10 +34,8 @@ class Session_options;
 namespace dispatcher {
 bool dispatch_command(Session &session, Crud_command_handler &crudh,
                       Expectation_stack &expect, ngs::Request &command);
-};
 
-ngs::Error_code show_warnings_and_send(Sql_data_context &da,
-                                       ngs::Protocol_encoder &proto);
-}
+}  // namespace dispatcher
+}  // namespace xpl
 
 #endif

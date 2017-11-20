@@ -1009,7 +1009,7 @@ static void create_log_file(const char * log_name)
 #ifdef HAVE_PSI_INTERFACE
 static PSI_thread_key key_thread_session_info = PSI_NOT_INSTRUMENTED;
 static PSI_thread_info session_info_threads[] = {
-  { &key_thread_session_info, "session_info", 0 }
+  { &key_thread_session_info, "session_info", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif // HAVE_PSI_INTERFACE
 

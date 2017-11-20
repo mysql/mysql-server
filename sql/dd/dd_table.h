@@ -16,21 +16,27 @@
 #ifndef DD_TABLE_INCLUDED
 #define DD_TABLE_INCLUDED
 
-#include <memory>                    // std:unique_ptr
 #include <sys/types.h>
+#include <memory>                    // std:unique_ptr
 #include <string>
 
 #include "binary_log_types.h"        // enum_field_types
-#include "dd/types/column.h"         // dd::enum_column_types
-#include "handler.h"                 // legacy_db_type
 #include "my_inttypes.h"
-#include "sql_alter.h"               // Alter_info::enum_enable_or_disable
-
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/column.h"     // dd::enum_column_types
+#include "sql/handler.h"             // legacy_db_type
+#include "sql/sql_alter.h"           // Alter_info::enum_enable_or_disable
+#include "sql/system_variables.h"
 
 class Create_field;
-class KEY;
 class FOREIGN_KEY;
+class KEY;
 class THD;
+namespace dd {
+class Schema;
+}  // namespace dd
+struct TABLE;
+
 typedef struct st_ha_create_information HA_CREATE_INFO;
 template <class T> class List;
 

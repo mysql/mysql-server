@@ -20,19 +20,19 @@
 #include <sys/types.h>
 
 #include "fake_table.h"
-#include "item.h"
-#include "item_cmpfunc.h"
-#include "item_create.h"
-#include "item_strfunc.h"
-#include "item_timefunc.h"
 #include "lex_string.h"
 #include "mock_field_timestamp.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_table_map.h"
-#include "sql_class.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_create.h"
+#include "sql/item_strfunc.h"
+#include "sql/item_timefunc.h"
+#include "sql/sql_class.h"
+#include "sql/tztime.h"
 #include "test_utils.h"
-#include "tztime.h"
 
 namespace item_unittest {
 
@@ -359,24 +359,6 @@ TEST_F(ItemTest, ItemEqual)
   
   EXPECT_FALSE(item_equal->fix_fields(thd(), NULL));
   EXPECT_EQ(0, item_equal->val_int());
-}
-
-
-TEST_F(ItemTest, ItemFuncDesDecrypt)
-{
-  // Bug #59632 Assertion failed: arg_length > length
-  const uint length= 1U;
-  Item_int *item_one= new Item_int(1, length);
-  Item_int *item_two= new Item_int(2, length);
-  Item *item_decrypt=
-    new Item_func_des_decrypt(POS(), item_two, item_one);
-  Parse_context pc(thd(), thd()->lex->current_select());
-  EXPECT_FALSE(item_decrypt->itemize(&pc, &item_decrypt));
-  
-  EXPECT_FALSE(item_decrypt->fix_fields(thd(), NULL));
-  EXPECT_EQ(length, item_one->max_length);
-  EXPECT_EQ(length, item_two->max_length);
-  EXPECT_LE(item_decrypt->max_length, length);
 }
 
 

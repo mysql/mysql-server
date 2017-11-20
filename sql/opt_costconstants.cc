@@ -14,15 +14,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "opt_costconstants.h"
+#include "sql/opt_costconstants.h"
 
-#include "handler.h"
-#include "key.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "mysql/psi/psi_base.h"
-#include "sql_plugin_ref.h"
-#include "table.h"              // TABLE
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/table.h"          // TABLE
 
 /**
   The default value for storage device type. If device type information

@@ -1,0 +1,35 @@
+-->macro_varg Crud	%CMD%
+-->callmacro Crud_set_%CMD% %VAR_ARGS%
+-->endmacro
+
+
+-->macro Crud_set_
+-->endmacro
+
+
+-->macro_varg Crud_set_Table2	%TABLE%	%SCHEMA%
+-->varlet %PAYLOAD% %PAYLOAD% collection { name: '%TABLE%' schema: '%SCHEMA%' }
+-->varlet %PAYLOAD% %PAYLOAD% data_model: TABLE
+-->callmacro Crud %VAR_ARGS%
+-->endmacro
+
+
+-->macro_varg Crud_set_Table1	%TABLE%
+-->varlet %PAYLOAD% %PAYLOAD% collection { name: %TABLE% }
+-->varlet %PAYLOAD% %PAYLOAD% data_model: TABLE
+-->callmacro Crud %VAR_ARGS%
+-->endmacro
+
+
+-->macro_varg Crud_set_Collection2	%TABLE%	%SCHEMA%
+-->varlet %PAYLOAD% %PAYLOAD% collection { name: %TABLE% schema: %SCHEMA% }
+-->varlet %PAYLOAD% %PAYLOAD% data_model: DOCUMENT
+-->callmacro Crud %VAR_ARGS%
+-->endmacro
+
+
+-->macro_varg Crud_set_Collection1	%TABLE%
+-->varlet %PAYLOAD% %PAYLOAD% collection { name: %TABLE% }
+-->varlet %PAYLOAD% %PAYLOAD% data_model: DOCUMENT
+-->callmacro Crud %VAR_ARGS%
+-->endmacro

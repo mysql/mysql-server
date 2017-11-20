@@ -15,7 +15,6 @@
 
 INCLUDE_DIRECTORIES(
 ${CMAKE_SOURCE_DIR}/include 
-${ZLIB_INCLUDE_DIR}
 ${LZ4_INCLUDE_DIR})
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
@@ -24,12 +23,13 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 SET(MYSQL_INSTALL_COMPONENT Server)
 
 IF(NOT CMAKE_CROSSCOMPILING)
- ADD_EXECUTABLE(comp_err comp_err.cc)
- TARGET_LINK_LIBRARIES(comp_err mysys mysys_ssl)
+  MYSQL_ADD_EXECUTABLE(comp_err comp_err.cc SKIP_INSTALL)
+  TARGET_LINK_LIBRARIES(comp_err mysys mysys_ssl)
 ENDIF()
 
-ADD_EXECUTABLE(comp_client_err
-  comp_client_err.cc ${CMAKE_SOURCE_DIR}/libmysql/errmsg.cc)
+MYSQL_ADD_EXECUTABLE(comp_client_err
+  comp_client_err.cc ${CMAKE_SOURCE_DIR}/libmysql/errmsg.cc
+  SKIP_INSTALL)
 TARGET_LINK_LIBRARIES(comp_client_err mysys mysys_ssl)
 
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h
@@ -52,32 +52,35 @@ IF (BUILD_BUNDLED_LZ4)
   )
 ENDIF()
 
+FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR})
+
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqld_error.h 
-                   ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys
+                   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
                    COMMAND comp_err
-                    --charset=${PROJECT_SOURCE_DIR}/sql/share/charsets 
-                    --out-dir=${PROJECT_BINARY_DIR}/sql/share/
+                    --charset=${PROJECT_SOURCE_DIR}/share/charsets
+                    --out-dir=${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/
                     --header_file=${PROJECT_BINARY_DIR}/include/mysqld_error.h 
                     --name_file=${PROJECT_BINARY_DIR}/include/mysqld_ername.h
-                    --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt
-                   DEPENDS ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt
+                    --in_file=${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt
+                   DEPENDS ${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt
                    ${CMAKE_CURRENT_SOURCE_DIR}/comp_err.cc)
 
 ADD_CUSTOM_TARGET(GenError
                   ALL
                   DEPENDS 
                   ${PROJECT_BINARY_DIR}/include/mysqld_error.h
-                  ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys 
-                  ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt)
+                  ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
+                  ${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt)
 
 # Set InnoDB mutex type
 ADD_DEFINITIONS(-DMUTEX_EVENT)
 
 ## Most executables depend on libeay32.dll (through mysys_ssl).
 ## For 'comp_err' we need it to be available during build.
-COPY_OPENSSL_DLLS(copy_openssl_extra)
 IF (WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL)
-  ADD_DEPENDENCIES(GenError copy_openssl_extra)
+  ADD_DEPENDENCIES(GenError copy_openssl_dlls)
+  ADD_DEPENDENCIES(comp_client_err copy_openssl_dlls)
+  ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
 ENDIF()
 
 
@@ -114,7 +117,7 @@ IF (BUILD_BUNDLED_LZ4)
   TARGET_LINK_LIBRARIES(lz4_decompress ${LZ4_LIBRARY} mysys)
 ENDIF()
 
-IF (BUILD_BUNDLED_ZLIB)
+IF (BUILD_BUNDLED_ZLIB OR NOT OPENSSL_EXECUTABLE_HAS_ZLIB)
   MYSQL_ADD_EXECUTABLE(zlib_decompress zlib_decompress.cc)
   TARGET_LINK_LIBRARIES(zlib_decompress ${ZLIB_LIBRARY} mysys)
 ENDIF()
@@ -154,7 +157,6 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
   INCLUDE_DIRECTORIES(
     ${CMAKE_SOURCE_DIR}/storage/innobase/
     ${CMAKE_SOURCE_DIR}/storage/innobase/include
-    ${CMAKE_SOURCE_DIR}/sql
   )
 
   # We use the InnoDB code directly in case the code changes.

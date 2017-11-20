@@ -17,19 +17,13 @@
 ///
 /// This file implements the within functor and function.
 
-#include "relops.h"
-#include "within_functor.h"
-
+#include <boost/geometry.hpp>
 #include <cmath>  // std::isfinite
 #include <limits>
-
 #include <memory>  // std::unique_ptr
-
-#include <boost/geometry.hpp>
 
 #include "box.h"
 #include "box_traits.h"
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "difference_functor.h"
 #include "equals_functor.h"
 #include "gc_utils.h"
@@ -37,8 +31,11 @@
 #include "geometries_traits.h"
 #include "intersects_functor.h"
 #include "mbr_utils.h"
-#include "sql_exception_handler.h"  // handle_gis_exception
+#include "relops.h"
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/sql_exception_handler.h" // handle_gis_exception
 #include "template_utils.h"         // down_cast
+#include "within_functor.h"
 
 namespace bg = boost::geometry;
 

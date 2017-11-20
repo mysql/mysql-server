@@ -44,4 +44,9 @@
 */
 #define TRANSACTION_KILL_TIMEOUT 50
 
+/*
+  Default name of debug and trace file that will be created
+  by GCS.
+*/
+#define GCS_DEBUG_TRACE_FILE "GCS_DEBUG_TRACE"
 #endif /* PLUGIN_CONSTANTS_INCLUDE */

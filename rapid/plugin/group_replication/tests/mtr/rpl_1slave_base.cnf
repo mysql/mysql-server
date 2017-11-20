@@ -9,7 +9,6 @@ relay-log=                  server-relay-log
 
 binlog-format=              row
 binlog-checksum=            NONE
-log-slave-updates
 enforce-gtid-consistency
 gtid-mode=                  on
 transaction-write-set-extraction=XXHASH64

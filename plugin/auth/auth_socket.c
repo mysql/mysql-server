@@ -111,7 +111,8 @@ static struct st_mysql_auth socket_auth_handler=
   generate_auth_string_hash,
   validate_auth_string_hash,
   set_salt,
-  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE
+  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE,
+  NULL
 };
 
 mysql_declare_plugin(socket_auth)

@@ -24,11 +24,11 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 # WL988.R-1.4
 SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user NOT IN ('root', 'mysql.sys', 'mysql.session');
 user	host	plugin	IF(account_locked = 'Y',"Account is locked","ERROR")
-ident with space	%	mysql_native_password	Account is locked
-role	%	mysql_native_password	Account is locked
-role1	%	mysql_native_password	Account is locked
-role2	%	mysql_native_password	Account is locked
-text string	%	mysql_native_password	Account is locked
+ident with space	%	<default_plugin>	Account is locked
+role	%	<default_plugin>	Account is locked
+role1	%	<default_plugin>	Account is locked
+role2	%	<default_plugin>	Account is locked
+text string	%	<default_plugin>	Account is locked
 # Creating roles which already exist should not cause an error to be raised
 # WL988.I-1
 CREATE ROLE IF NOT EXISTS role1, role2;
@@ -154,7 +154,7 @@ CURRENT_ROLE()
 SHOW GRANTS FOR current_user() USING `engineering`@`%`,`role`@`%`;
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 GRANT `engineering`@`%`,`role`@`%` TO `root`@`localhost`
 GRANT role1 TO current_user();
@@ -718,7 +718,7 @@ ALTER USER u1@localhost DEFAULT ROLE r1,r2;
 SHOW GRANTS;
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 --------------------------
 SHOW GRANTS FOR u1@localhost USING r1;
@@ -840,6 +840,7 @@ SHOW PRIVILEGES;
 Privilege	Context	Comment
 Alter	Tables	To alter the table
 Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
+BACKUP_ADMIN	Server Admin	
 BINLOG_ADMIN	Server Admin	
 CONNECTION_ADMIN	Server Admin	
 Create	Databases,Tables,Indexes	To create new databases and tables
@@ -865,6 +866,8 @@ PERSIST_RO_VARIABLES_ADMIN	Server Admin
 Process	Server Admin	To view the plain text of currently executing queries
 Proxy	Server Admin	To make proxy user possible
 REPLICATION_SLAVE_ADMIN	Server Admin	
+RESOURCE_GROUP_ADMIN	Server Admin	
+RESOURCE_GROUP_USER	Server Admin	
 ROLE_ADMIN	Server Admin	
 References	Databases,Tables	To have references on tables
 Reload	Server Admin	To reload or refresh tables, logs and privileges
@@ -1041,8 +1044,8 @@ GRANT r2 TO r1;
 SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.sys`@`localhost`"]');
 ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.sys`@`localhost`"]')
 
-SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session_user`@`localhost`"]');
-ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session_user`@`localhost`"]')
+SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session`@`localhost`"]');
+ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session`@`localhost`"]')
 
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
 num_nodes
@@ -1053,8 +1056,8 @@ num_edges
 SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.sys`@`localhost`"]');
 ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.sys`@`localhost`"]')
 
-SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session_user`@`localhost`"]');
-ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session_user`@`localhost`"]')
+SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session`@`localhost`"]');
+ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session`@`localhost`"]')
 
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
 num_nodes
@@ -1140,7 +1143,9 @@ Note	3162	Authorization ID 'admin1'@'%' does not exist.
 Note	3162	Authorization ID 'admin2'@'%' does not exist.
 Note	3162	Authorization ID 'r1'@'%' does not exist.
 Note	3162	Authorization ID 'r2'@'%' does not exist.
-CREATE USER baseuser, admin1, admin2;
+CREATE USER baseuser IDENTIFIED WITH mysql_native_password,
+admin1 IDENTIFIED WITH mysql_native_password,
+admin2 IDENTIFIED WITH mysql_native_password;
 GRANT PROXY ON baseuser TO admin1;
 GRANT PROXY ON baseuser TO admin2;
 SET @@global.check_proxy_users = ON;
@@ -1175,3 +1180,51 @@ baseuser@%
 DROP USER baseuser, admin1, admin2, r1, r2;
 SET @@global.check_proxy_users = OFF;
 SET @@global.mysql_native_password_proxy_users = OFF;
+#
+# SHOW CREATE USER DOESN'T SHOW DEFAULT ROLE
+#
+CREATE USER u1 IDENTIFIED BY 'foo' DEFAULT ROLE a,a@localhost,`b`,`b`@local,`c c`,`aaa`, `a`@`a`;
+SHOW CREATE USER u1;
+CREATE USER for u1@%
+CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER u1;
+ERROR HY000: Operation CREATE USER failed for 'u1'@'%'
+# Same as before and don't crash.
+SHOW CREATE USER u1;
+CREATE USER for u1@%
+CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+# check that we can combine different properties with default roles.
+CREATE USER u2 DEFAULT ROLE r1 REQUIRE SSL ACCOUNT LOCK;
+SHOW CREATE USER u2;
+CREATE USER for u2@%
+CREATE USER 'u2'@'%' IDENTIFIED WITH 'mysql_native_password' DEFAULT ROLE `r1`@`%` REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+SELECT user,host FROM mysql.user;
+user	host
+u1	%
+u2	%
+mysql.session	localhost
+mysql.sys	localhost
+root	localhost
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+%	u1	%	a
+%	u1	%	aaa
+%	u1	%	b
+%	u1	%	c c
+%	u1	a	a
+%	u1	local	b
+%	u1	localhost	a
+%	u2	%	r1
+DROP USER u1,u2;
+CREATE USER u1;
+# If I alter user this will show up in show create user
+ALTER USER u1 DEFAULT ROLE r1;
+SHOW CREATE USER u1;
+CREATE USER for u1@%
+CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' DEFAULT ROLE `r1`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+%	u1	%	r1
+DROP USER u1;
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER

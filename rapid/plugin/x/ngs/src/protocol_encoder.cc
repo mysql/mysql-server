@@ -31,7 +31,6 @@
 #include "ngs/protocol/output_buffer.h"
 #include "ngs/protocol/protocol_config.h"
 #include "ngs/protocol_encoder.h"
-#include "ngs/protocol_monitor.h"
 #include "ngs_common/connection_vio.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
@@ -116,7 +115,6 @@ bool Protocol_encoder::send_ok(const std::string &message)
   return send_message(Mysqlx::ServerMessages::OK, ok);
 }
 
-
 bool Protocol_encoder::send_init_error(const Error_code& error_code)
 {
   m_protocol_monitor->on_init_error_send();
@@ -130,35 +128,6 @@ bool Protocol_encoder::send_init_error(const Error_code& error_code)
 
   return send_message(Mysqlx::ServerMessages::ERROR, error);
 }
-
-
-void Protocol_encoder::send_local_notice(Notice_type type,
-                                         const std::string &data,
-                                         bool force_flush)
-{
-  get_protocol_monitor().on_notice_other_send();
-
-  send_notice(type, data, FRAME_SCOPE_LOCAL, force_flush);
-}
-
-/*
-NOTE: Commented for coverage. Uncomment when needed.
-
-void Protocol_encoder::send_global_notice(Notice_type type, const std::string &data)
-{
-  get_protocol_monitor().on_notice_other_send();
-
-  send_notice(type, data, FRAME_SCOPE_GLOBAL, true);
-}
-*/
-
-void Protocol_encoder::send_local_warning(const std::string &data, bool force_flush)
-{
-  get_protocol_monitor().on_notice_warning_send();
-
-  send_notice(k_notice_warning, data, FRAME_SCOPE_LOCAL, force_flush);
-}
-
 
 void Protocol_encoder::send_auth_ok(const std::string &data)
 {
@@ -290,15 +259,24 @@ void Protocol_encoder::log_protobuf(int8_t type MY_ATTRIBUTE((unused)))
 }
 
 
-void Protocol_encoder::send_notice(uint32_t type, const std::string &data,
-  Frame_scope scope, bool force_flush)
-{
-  int iscope = (scope == FRAME_SCOPE_GLOBAL) ? static_cast<int>(Mysqlx::Notice::Frame_Scope_GLOBAL) :
-    static_cast<int>(Mysqlx::Notice::Frame_Scope_LOCAL);
+void Protocol_encoder::send_notice(
+    const Frame_type type,
+    const Frame_scope scope,
+    const std::string &data,
+    const bool force_flush) {
+
+  if (Frame_type::WARNING == type)
+    get_protocol_monitor().on_notice_warning_send();
+  else
+    get_protocol_monitor().on_notice_other_send();
 
   log_raw_message_send(Mysqlx::ServerMessages::NOTICE);
 
-  m_notice_builder.encode_frame(m_buffer.get(), type, data, iscope);
+  m_notice_builder.encode_frame(
+      m_buffer.get(),
+      static_cast<int>(type),
+      data,
+      static_cast<int>(scope));
   enqueue_buffer(Mysqlx::ServerMessages::NOTICE, force_flush);
 }
 
@@ -312,11 +290,11 @@ void Protocol_encoder::send_rows_affected(uint64_t value)
 }
 
 bool Protocol_encoder::send_column_metadata(const std::string &catalog,
-  const std::string &db_name,
-  const std::string &table_name, const std::string &org_table_name,
-  const std::string &col_name, const std::string &org_col_name,
-  uint64_t collation, int type, int decimals,
-  uint32_t flags, uint32_t length, uint32_t content_type)
+                                            const std::string &db_name,
+                                            const std::string &table_name, const std::string &org_table_name,
+                                            const std::string &col_name, const std::string &org_col_name,
+                                            uint64_t collation, int type, int decimals,
+                                            uint32_t flags, uint32_t length, uint32_t content_type)
 {
   m_metadata_builder.encode_metadata(m_buffer.get(),
     catalog, db_name, table_name, org_table_name,

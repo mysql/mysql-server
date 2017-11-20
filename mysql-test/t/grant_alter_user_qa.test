@@ -41,13 +41,13 @@ CREATE USER "user2"@'%';
 query_vertical SELECT host,user,plugin,authentication_string FROM mysql.user
 WHERE USER='user2';
 
-# IDENTIFIED BY PASSWORD with plaintest
+# IDENTIFIED WITH 'mysql_native_password' AS with plaintest
 --error ER_PASSWORD_FORMAT
-CREATE USER user9@localhost IDENTIFIED BY PASSWORD 'auth_string';
+CREATE USER user9@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
 --echo
-# IDENTIFIED BY PASSWORD with hash_string password
+# IDENTIFIED WITH 'mysql_native_password' AS with hash_string password
 CREATE USER user10@localhost
-            IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+            IDENTIFIED WITH 'caching_sha2_password' AS '$A$005$ABCDEFGHIJKLMNOPQRSTabcdefgh01234567ijklmnop89012345ABCDEFGH678';
 
 --echo
 CREATE USER u1@localhost;
@@ -729,6 +729,7 @@ CREATE USER u1@localhost;
 SHOW CREATE USER u1@localhost;
 
 CREATE USER u2@localhost IDENTIFIED BY 'auth_string';
+--replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
 SHOW CREATE USER u2@localhost;
 --echo # DDL output for SHOW CREATE USER u2@localhost and recreating user
 DROP USER u2@localhost;
@@ -770,11 +771,13 @@ SHOW CREATE USER u5@localhost;
 
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string'
                          REQUIRE X509 PASSWORD EXPIRE INTERVAL 5 DAY;
+--replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
 SHOW CREATE USER u6@localhost;
 
 ALTER USER u6@localhost IDENTIFIED BY 'auth_string'
                         REQUIRE X509 PASSWORD EXPIRE INTERVAL 19 DAY;
 --echo # SHOW CREATE USER after ALTER user attributes
+--replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
 SHOW CREATE USER u6@localhost;
 --echo # Recreating user from SHOW CREATE output
 DROP USER u6@localhost;
@@ -818,6 +821,7 @@ SHOW CREATE USER u11@localhost;
 
 CREATE USER u12@localhost IDENTIFIED BY 'auth_string'
                           WITH MAX_QUERIES_PER_HOUR 2;
+--replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
 SHOW CREATE USER u12@localhost;
 
 CREATE USER u13@localhost IDENTIFIED WITH 'sha256_password'
@@ -899,25 +903,25 @@ max_questions,max_updates,max_connections FROM mysql.user WHERE USER='user2';
 
 
 CREATE USER user3@localhost IDENTIFIED BY 'auth_string';
-# IDENTIFIED BY PASSWORD with plaintext password
+# IDENTIFIED WITH 'mysql_native_password' AS with plaintext password
 --error ER_PASSWORD_FORMAT
-GRANT SELECT ON  mysql.user TO user3@localhost IDENTIFIED BY PASSWORD 'auth_string';
+GRANT SELECT ON  mysql.user TO user3@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
 
 GRANT SELECT ON mysql.* TO user3@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
       REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
       ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
       WITH MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
       MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100;
-# IDENTIFIED BY PASSWORD with plaintext password
+# IDENTIFIED WITH 'mysql_native_password' AS with plaintext password
 --error ER_PASSWORD_FORMAT
-GRANT SELECT ON mysql.* TO user4@localhost IDENTIFIED BY PASSWORD 'auth_string';
+GRANT SELECT ON mysql.* TO user4@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
 --echo
-# IDENTIFIED BY PASSWORD with hash string password
+# IDENTIFIED WITH 'mysql_native_password' AS with hash string password
 GRANT SELECT ON mysql.user TO user5@localhost
-      IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+      IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 
 GRANT SELECT ON mysql.user TO user3@localhost
-      IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+      IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 
 --echo # Cleanup
 DROP USER user1@localhost,user2@localhost,user3@localhost,user5@localhost;
@@ -1060,7 +1064,7 @@ let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --source include/wait_until_disconnected.inc
 
 --echo # Restart server.
---exec echo "restart:--log-builtin-as-identified-by-password=OFF --log-bin" > $expect_file
+--exec echo "restart:--log-builtin-as-identified-by-password=OFF" > $expect_file
 
 # Turn on reconnect
 --enable_reconnect
@@ -1105,12 +1109,12 @@ ALTER USER user12@localhost IDENTIFIED WITH 'mysql_native_password'
 CREATE USER user13@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
 ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22
                             MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user14@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK;
 CREATE USER user15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'azundris1'
                              PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
 ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
-CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user16@localhost IDENTIFIED WITH 'mysql_native_password' AS  '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK PASSWORD EXPIRE NEVER;
 ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
 --connect(con1, localhost, u1, 'azundris1')
@@ -1123,12 +1127,14 @@ GRANT SELECT ON test.* TO u3@localhost IDENTIFIED BY 'azundris1'
                                        WITH GRANT OPTION;
 SET PASSWORD FOR u3@localhost = 'def';
 CREATE USER user10@localhost
-            IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+            IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 GRANT SELECT ON mysql.user TO user8@localhost
-      IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+      IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 
 --echo # Show binlog events
+--let $mask_user_password_events= 1
 --source include/show_binlog_events.inc
+--let $mask_user_password_events= 0
 
 # Cleanup
 DROP USER user1@localhost,user8@localhost,user10@localhost,user11@localhost,
@@ -1178,12 +1184,12 @@ ALTER USER user12@localhost IDENTIFIED WITH 'mysql_native_password'
 CREATE USER user13@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
 ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22
                             MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user14@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK;
 CREATE USER user15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'azundris1'
                              PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
 ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
-CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user16@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK PASSWORD EXPIRE NEVER;
 ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
 --connect(con1, localhost, u1, 'azundris1')
@@ -1194,9 +1200,9 @@ disconnect con1;
 
 GRANT SELECT ON test.* TO u3@localhost IDENTIFIED BY 'azundris1' WITH GRANT OPTION;
 SET PASSWORD FOR u3@localhost = 'def';
-CREATE USER user10@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+CREATE USER user10@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 GRANT SELECT ON mysql.user TO user8@localhost
-      IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+      IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 
 CREATE TABLE test_log_off (argument TEXT);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
@@ -1242,7 +1248,7 @@ SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 --source include/wait_until_disconnected.inc
 
 --echo # Restart server.
---exec echo "restart:--log-builtin-as-identified-by-password=ON --log-bin" > $expect_file
+--exec echo "restart:--log-builtin-as-identified-by-password=ON" > $expect_file
 
 # Turn on reconnect
 --enable_reconnect
@@ -1287,12 +1293,12 @@ ALTER USER user12@localhost IDENTIFIED WITH 'mysql_native_password'
 CREATE USER user13@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
 ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22
                             MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user14@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK;
 CREATE USER user15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'azundris1'
                              PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
 ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
-CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user16@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK PASSWORD EXPIRE NEVER;
 ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
 --connect(con1, localhost, u1, 'azundris1')
@@ -1305,12 +1311,14 @@ GRANT SELECT ON test.* TO u3@localhost IDENTIFIED BY 'azundris1'
                                        WITH GRANT OPTION;
 SET PASSWORD FOR u3@localhost = 'def';
 CREATE USER user10@localhost
-            IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+            IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 GRANT SELECT ON mysql.user TO user8@localhost
-      IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+      IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 
 --echo # Show binlog events
+--let $mask_user_password_events= 1
 --source include/show_binlog_events.inc
+--let $mask_user_password_events= 0
 
 # Cleanup
 DROP USER user1@localhost,user8@localhost,user10@localhost,user11@localhost,
@@ -1361,12 +1369,12 @@ ALTER USER user12@localhost IDENTIFIED WITH 'mysql_native_password'
 CREATE USER user13@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
 ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22
                             MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user14@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK;
 CREATE USER user15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'azundris1'
                              PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
 ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
-CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user16@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK PASSWORD EXPIRE NEVER;
 ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
 --connect(con1, localhost, u1, 'azundris1')
@@ -1379,9 +1387,9 @@ GRANT SELECT ON test.* TO u3@localhost IDENTIFIED BY 'azundris1'
                                        WITH GRANT OPTION;
 SET PASSWORD FOR u3@localhost = 'def';
 CREATE USER user10@localhost
-            IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+            IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 GRANT SELECT ON mysql.user TO user8@localhost
-      IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+      IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 
 CREATE TABLE test_log (argument TEXT);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
@@ -1515,7 +1523,7 @@ let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --source include/wait_until_disconnected.inc
 
 --echo # Restart server.
---exec echo "restart:--log-builtin-as-identified-by-password=OFF --log-bin" > $expect_file
+--exec echo "restart:--log-builtin-as-identified-by-password=OFF" > $expect_file
 
 # Turn on reconnect
 --enable_reconnect
@@ -1545,7 +1553,9 @@ GRANT SELECT ON mysql.* TO user1@localhost;
 --connect(con1, localhost, user1,)
 SELECT USER(), CURRENT_USER();
 SHOW CREATE USER user1@localhost;
+--replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
 SHOW CREATE USER user1@47.9.9.9;
+--replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
 SHOW CREATE USER user2;
 --error ER_CANNOT_USER
 SHOW CREATE USER invalid_user;
@@ -1592,6 +1602,7 @@ GRANT PROXY ON bug20625566_dest@localhost TO bug20625566_user@localhost;
 SELECT USER(), CURRENT_USER();
 --error ER_DBACCESS_DENIED_ERROR
 SHOW CREATE USER bug20625566_user@localhost;
+--replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
 SHOW CREATE USER bug20625566_dest@localhost;
 disconnect con1;
 connection default;

@@ -31,15 +31,15 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "lex_string.h"
-#include "m_string.h"
-#include "mdl.h"              // enum_mdl_type
+#include "my_psi_config.h"
 #include "my_sqlcommand.h"    // SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER
-#include "sql_cmd.h"          // Sql_cmd
+#include "sql/mdl.h"          // enum_mdl_type
+#include "sql/sql_cmd.h"      // Sql_cmd
 
-class String;
 class THD;
 struct TABLE;
 struct TABLE_LIST;
+
 namespace dd {
   class Table;
 }

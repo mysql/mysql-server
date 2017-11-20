@@ -27,6 +27,7 @@ Mysqlx.Sql.StmtExecute {
 
 EOF
 
+
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/result_types.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/result_types.tmp
 

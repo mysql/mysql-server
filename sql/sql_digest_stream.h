@@ -16,7 +16,7 @@
 #ifndef SQL_DIGEST_STREAM_H
 #define SQL_DIGEST_STREAM_H
 
-#include "sql_digest.h"
+#include "sql/sql_digest.h"
 
 /**
   State data storage for @c digest_start, @c digest_add_token.

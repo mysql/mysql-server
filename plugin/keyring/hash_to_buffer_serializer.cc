@@ -29,21 +29,24 @@ namespace keyring
     return FALSE;
   }
 
-  bool Hash_to_buffer_serializer::store_keys_in_buffer(HASH *keys_hash,
-                                                       Buffer *buffer)
+  bool Hash_to_buffer_serializer::store_keys_in_buffer
+    (const collation_unordered_map<std::string, std::unique_ptr<IKey>>
+       &keys_hash,
+     Buffer *buffer)
   {
-    for (uint i= 0 ; i < keys_hash->records ; ++i)
+    for (const auto &key_and_value : keys_hash)
     {
-      if(store_key_in_buffer(reinterpret_cast<const IKey *>(my_hash_element(keys_hash, i)),
-                             buffer))
+      if (store_key_in_buffer(key_and_value.second.get(), buffer))
         return TRUE;
     }
     return FALSE;
   }
 
-  ISerialized_object* Hash_to_buffer_serializer::serialize(HASH *keys_hash,
-                                                           IKey *key,
-                                                           const Key_operation operation)
+  ISerialized_object* Hash_to_buffer_serializer::serialize
+    (const collation_unordered_map<std::string, std::unique_ptr<IKey>>
+       &keys_hash,
+     IKey *key,
+     const Key_operation operation)
   {
     size_t memory_needed_for_buffer_after_operation= memory_needed_for_buffer;
 

@@ -13,59 +13,66 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/system_registry.h"
+#include "sql/dd/impl/system_registry.h"
 
-#include <stddef.h>
+#include "sql/dd/impl/system_views/character_sets.h"     // Character_sets
+#include "sql/dd/impl/system_views/collation_charset_applicability.h" // Collati...
+#include "sql/dd/impl/system_views/collations.h"         // Collations
+#include "sql/dd/impl/system_views/column_statistics.h"  // Column_statistics
+#include "sql/dd/impl/system_views/columns.h"            // Columns
+#include "sql/dd/impl/system_views/events.h"             // Events
+#include "sql/dd/impl/system_views/files.h"              // Files
+#include "sql/dd/impl/system_views/innodb_datafiles.h"   // Innodb_datafiles
+#include "sql/dd/impl/system_views/innodb_foreign.h"     // Innodb_foreign
+#include "sql/dd/impl/system_views/innodb_foreign_cols.h"// Innodb_foreign_cols
+#include "sql/dd/impl/system_views/innodb_fields.h"      // Innodb_fields
+#include "sql/dd/impl/system_views/innodb_tablespaces_brief.h"   // Innodb_tablespace_brief
+#include "sql/dd/impl/system_views/key_column_usage.h"   // key_column_usage
+#include "sql/dd/impl/system_views/parameters.h"         // Parameters
+#include "sql/dd/impl/system_views/partitions.h"         // Partitions
+#include "sql/dd/impl/system_views/referential_constraints.h" // Referential_con...
+#include "sql/dd/impl/system_views/routines.h"           // Routines
+#include "sql/dd/impl/system_views/resource_groups.h"    // Resource_groups
+#include "sql/dd/impl/system_views/schemata.h"           // Schemata
+#include "sql/dd/impl/system_views/st_geometry_columns.h"// st_geometry_columns
+#include "sql/dd/impl/system_views/st_spatial_reference_systems.h" // St_spatial...
+#include "sql/dd/impl/system_views/statistics.h"         // Statistics
+#include "sql/dd/impl/system_views/table_constraints.h"  // Table_constraints
+#include "sql/dd/impl/system_views/tables.h"             // Tables
+#include "sql/dd/impl/system_views/triggers.h"           // Triggers
+#include "sql/dd/impl/system_views/views.h"              // Views
 
-#include "dd/impl/system_views/character_sets.h"     // Character_sets
-#include "dd/impl/system_views/collations.h"         // Collations
-#include "dd/impl/system_views/columns.h"            // Columns
-#include "dd/impl/system_views/column_statistics.h"  // Column_statistics
-#include "dd/impl/system_views/collation_charset_applicability.h" // Collati...
-#include "dd/impl/system_views/events.h"             // Events
-#include "dd/impl/system_views/key_column_usage.h"   // key_column_usage
-#include "dd/impl/system_views/parameters.h"         // Parameters
-#include "dd/impl/system_views/routines.h"           // Routines
-#include "dd/impl/system_views/schemata.h"           // Schemata
-#include "dd/impl/system_views/st_spatial_reference_systems.h" // St_spatial...
-#include "dd/impl/system_views/st_geometry_columns.h"// st_geometry_columns
-#include "dd/impl/system_views/statistics.h"         // Statistics
-#include "dd/impl/system_views/tables.h"             // Tables
-#include "dd/impl/system_views/table_constraints.h"  // Table_constraints
-#include "dd/impl/system_views/triggers.h"           // Triggers
-#include "dd/impl/system_views/views.h"              // Views
+#include "sql/dd/impl/tables/catalogs.h"                 // Catalog
+#include "sql/dd/impl/tables/character_sets.h"           // Character_sets
+#include "sql/dd/impl/tables/collations.h"               // Collations
+#include "sql/dd/impl/tables/column_statistics.h"        // Column_statistics
+#include "sql/dd/impl/tables/column_type_elements.h"     // Column_type_elements
+#include "sql/dd/impl/tables/columns.h"                  // Columns
+#include "sql/dd/impl/tables/dd_properties.h"            // DD_properties
+#include "sql/dd/impl/tables/events.h"                   // Events
+#include "sql/dd/impl/tables/foreign_key_column_usage.h" // Foreign_key_column_usage
+#include "sql/dd/impl/tables/foreign_keys.h"             // Foreign_keys
+#include "sql/dd/impl/tables/index_column_usage.h"       // Index_column_usage
+#include "sql/dd/impl/tables/index_partitions.h"         // Index_partitions
+#include "sql/dd/impl/tables/index_stats.h"              // Index_stats
+#include "sql/dd/impl/tables/indexes.h"                  // Indexes
+#include "sql/dd/impl/tables/parameter_type_elements.h"  // Parameter_type_elements
+#include "sql/dd/impl/tables/parameters.h"               // Parameters
+#include "sql/dd/impl/tables/resource_groups.h"          // Resource_groups
+#include "sql/dd/impl/tables/routines.h"                 // Routines
+#include "sql/dd/impl/tables/schemata.h"                 // Schemata
+#include "sql/dd/impl/tables/spatial_reference_systems.h"// Spatial_reference_systems
+#include "sql/dd/impl/tables/table_partition_values.h"   // Table_partition_values
+#include "sql/dd/impl/tables/table_partitions.h"         // Table_partitions
+#include "sql/dd/impl/tables/table_stats.h"              // Table_stats
+#include "sql/dd/impl/tables/tables.h"                   // Tables
+#include "sql/dd/impl/tables/tablespace_files.h"         // Tablespace_files
+#include "sql/dd/impl/tables/tablespaces.h"              // Tablespaces
+#include "sql/dd/impl/tables/triggers.h"                 // Triggers
+#include "sql/dd/impl/tables/view_routine_usage.h"       // View_routine_usage
+#include "sql/dd/impl/tables/view_table_usage.h"         // View_table_usage
 
-#include "dd/impl/tables/catalogs.h"                 // Catalog
-#include "dd/impl/tables/character_sets.h"           // Character_sets
-#include "dd/impl/tables/collations.h"               // Collations
-#include "dd/impl/tables/column_type_elements.h"     // Column_type_elements
-#include "dd/impl/tables/column_statistics.h"        // Column_statistics
-#include "dd/impl/tables/columns.h"                  // Columns
-#include "dd/impl/tables/dd_properties.h"            // DD_properties
-#include "dd/impl/tables/events.h"                   // Events
-#include "dd/impl/tables/foreign_key_column_usage.h" // Foreign_key_column_usage
-#include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
-#include "dd/impl/tables/index_column_usage.h"       // Index_column_usage
-#include "dd/impl/tables/index_partitions.h"         // Index_partitions
-#include "dd/impl/tables/index_stats.h"              // Index_stats
-#include "dd/impl/tables/indexes.h"                  // Indexes
-#include "dd/impl/tables/parameter_type_elements.h"  // Parameter_type_elements
-#include "dd/impl/tables/parameters.h"               // Parameters
-#include "dd/impl/tables/routines.h"                 // Routines
-#include "dd/impl/tables/schemata.h"                 // Schemata
-#include "dd/impl/tables/spatial_reference_systems.h"// Spatial_reference_systems
-#include "dd/impl/tables/table_partition_values.h"   // Table_partition_values
-#include "dd/impl/tables/table_partitions.h"         // Table_partitions
-#include "dd/impl/tables/table_stats.h"              // Table_stats
-#include "dd/impl/tables/tables.h"                   // Tables
-#include "dd/impl/tables/tablespace_files.h"         // Tablespace_files
-#include "dd/impl/tables/tablespaces.h"              // Tablespaces
-#include "dd/impl/tables/triggers.h"                 // Triggers
-#include "dd/impl/tables/view_routine_usage.h"       // View_routine_usage
-#include "dd/impl/tables/view_table_usage.h"         // View_table_usage
-#include "lex_string.h"
-#include "m_string.h"
-#include "table.h"                                   // MYSQL_SYSTEM_SCHEMA
+#include "sql/table.h"                               // MYSQL_SYSTEM_SCHEMA
 
 using namespace dd::tables;
 
@@ -154,6 +161,7 @@ void System_tables::init()
   register_table<Parameters>(second);
   register_table<Parameter_type_elements>(second);
   register_table<Triggers>(core);
+  register_table<Resource_groups>(core);
 }
 
 void System_views::init()
@@ -167,19 +175,25 @@ void System_views::init()
   register_view<dd::system_views::Columns>(is);
   register_view<dd::system_views::Column_statistics>(is);
   register_view<dd::system_views::Events>(is);
+  register_view<dd::system_views::Files>(is);
+  register_view<dd::system_views::Innodb_datafiles>(is);
+  register_view<dd::system_views::Innodb_foreign>(is);
+  register_view<dd::system_views::Innodb_foreign_cols>(is);
+  register_view<dd::system_views::Innodb_fields>(is);
+  register_view<dd::system_views::Innodb_tablespaces_brief>(is);
   register_view<dd::system_views::Key_column_usage>(is);
   register_view<dd::system_views::Parameters>(is);
+  register_view<dd::system_views::Partitions>(is);
+  register_view<dd::system_views::Referential_constraints>(is);
+  register_view<dd::system_views::Resource_groups>(is);
   register_view<dd::system_views::Routines>(is);
   register_view<dd::system_views::Schemata>(is);
   register_view<dd::system_views::Show_statistics>(is);
-  register_view<dd::system_views::Show_statistics_dynamic>(is);
   register_view<dd::system_views::St_spatial_reference_systems>(is);
   register_view<dd::system_views::St_geometry_columns>(is);
   register_view<dd::system_views::Statistics>(is);
-  register_view<dd::system_views::Statistics_dynamic>(is);
   register_view<dd::system_views::Table_constraints>(is);
   register_view<dd::system_views::Tables>(is);
-  register_view<dd::system_views::Tables_dynamic>(is);
   register_view<dd::system_views::Triggers>(is);
   register_view<dd::system_views::Views>(is);
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -402,7 +402,7 @@ NdbIndexStat::get_cache_info(CacheInfo& info, CacheType type) const
     info.m_ref_count += c->m_ref_count;
     c = c->m_nextClean;
   }
-  // build and query cache have at most one instance
+  // build has at most one instance
   require(type == CacheClean || info.m_count <= 1);
   NdbMutex_Unlock(m_impl.m_query_mutex);
 }

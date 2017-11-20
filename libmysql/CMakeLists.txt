@@ -18,12 +18,10 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}/libmysql
   ${CMAKE_SOURCE_DIR}/extra/regex
-  ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/strings
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${SSL_INCLUDE_DIRS}
-  ${SSL_INTERNAL_INCLUDE_DIRS}
-  ${ZLIB_INCLUDE_DIR})
+  ${SSL_INTERNAL_INCLUDE_DIRS})
 ADD_DEFINITIONS(${SSL_DEFINES})
 
 SET(CLIENT_API_FUNCTIONS
@@ -171,14 +169,12 @@ SET(CLIENT_SOURCES
   ../sql-common/client_plugin.c 
   ../sql-common/client_authentication.cc
   ../sql-common/net_serv.cc
-  ../sql/auth/password.c
+  ../sql/auth/password.cc
+  ../sql/auth/sha2_password_common.cc
 )
 
 IF (WIN32 AND OPENSSL_APPLINK_C)
-  SET_SOURCE_FILES_PROPERTIES(
-    ../sql-common/client_authentication.cc
-    PROPERTIES COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
-  )
+  LIST(APPEND CLIENT_SOURCES "${OPENSSL_APPLINK_C}")
 ENDIF()
 
 #
@@ -273,6 +269,7 @@ IF(NOT DISABLE_SHARED)
       )
     ENDIF()
 
+    GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
     IF(LINK_FLAG_NO_UNDEFINED)
       SET(libmysql_link_flags
         "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
@@ -313,7 +310,8 @@ CONFIGURE_FILE(api_test.c.in ${CMAKE_CURRENT_BINARY_DIR}/api_test.c)
 # from @CLIENT_API_FUNCTIONS@ are declared by <mysql.h>. It will fail
 # to run if not all of these symbols are exported by the library.
 #
-ADD_EXECUTABLE(libmysql_api_test ${CMAKE_CURRENT_BINARY_DIR}/api_test.c)
+MYSQL_ADD_EXECUTABLE(libmysql_api_test
+  ${CMAKE_CURRENT_BINARY_DIR}/api_test.c SKIP_INSTALL)
 SET_TARGET_PROPERTIES(libmysql_api_test PROPERTIES LINKER_LANGUAGE CXX)
 IF(LIBRT)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBRT})

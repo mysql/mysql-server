@@ -10,5 +10,6 @@ select 'Ok, the server started' as result;
 # Should contain ANSI, since we started the server with -a (stands for --ansi)
 select @@SQL_MODE;
 
-# Should be 2, since we started the server with -W2
-select @@log_warnings;
+# Should be utf8
+select @@character_set_server;
+show global variables like 'character_set_system';

@@ -32,7 +32,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql/psi/psi_statement.h"
-#include "sql_digest.h"
+#include "sql/sql_digest.h"
 
 struct PSI_digest_locker;
 struct sql_digest_storage;

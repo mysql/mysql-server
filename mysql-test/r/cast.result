@@ -18,11 +18,10 @@ cast(-5 as unsigned) -1	cast(-5 as unsigned) + 1
 select ~5, cast(~5 as signed);
 ~5	cast(~5 as signed)
 18446744073709551610	-6
-explain extended select ~5, cast(~5 as signed);
+explain select ~5, cast(~5 as signed);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select ~(5) AS `~5`,cast(~(5) as signed) AS `cast(~5 as signed)`
 select cast(5 as unsigned) -6.0;
 cast(5 as unsigned) -6.0
@@ -530,17 +529,17 @@ SELECT CAST( 'a' AS BINARY(429496729));
 CAST( 'a' AS BINARY(429496729))
 NULL
 Warnings:
-Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (67108864) - truncated
 SELECT CAST( 'a' AS BINARY(4294967294));
 CAST( 'a' AS BINARY(4294967294))
 NULL
 Warnings:
-Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (67108864) - truncated
 SELECT CAST( 'a' AS BINARY(4294967295));
 CAST( 'a' AS BINARY(4294967295))
 NULL
 Warnings:
-Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (67108864) - truncated
 SELECT CAST( 'a' AS BINARY(4294967296));
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
 SELECT CAST( 'a' AS BINARY(4294967296784564));

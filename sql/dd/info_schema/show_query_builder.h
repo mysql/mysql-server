@@ -17,8 +17,7 @@
 #define SQL_DD_SHOW_QUERY_BUILDER_H
 
 #include "lex_string.h"
-#include "mem_root_array.h"
-#include "mysql/mysql_lex_string.h"    // LEX_STRING
+#include "sql/mem_root_array.h"
 
 class Item;
 class PT_derived_table;
@@ -29,8 +28,8 @@ class SELECT_LEX;
 class String;
 class THD;
 struct YYLTYPE;
+
 typedef YYLTYPE POS;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 namespace dd {
 namespace info_schema {

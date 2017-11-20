@@ -22,25 +22,26 @@
 #include <vector>
 
 #include "binary_log_types.h"
-#include "enum_query_type.h"
-#include "field.h"
-#include "gis/srid.h"
-/* This file defines all spatial functions */
-#include "inplace_vector.h"
-#include "item.h"
-#include "item_cmpfunc.h"      // Item_bool_func2
-#include "item_func.h"
-#include "item_json_func.h"    // Item_json_func
-#include "item_strfunc.h"      // Item_str_func
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "parse_tree_node_base.h"
 #include "prealloced_array.h"
-#include "spatial.h"           // gis_wkb_raw_free
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/gis/srid.h"
+/* This file defines all spatial functions */
+#include "sql/inplace_vector.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"  // Item_bool_func2
+#include "sql/item_func.h"
+#include "sql/item_json_func.h" // Item_json_func
+#include "sql/item_strfunc.h"  // Item_str_func
+#include "sql/parse_tree_node_base.h"
+#include "sql/spatial.h"       // gis_wkb_raw_free
 #include "sql_string.h"
 
 class Json_array;

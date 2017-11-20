@@ -201,7 +201,7 @@ PSI_rwlock_key key_rwlock_LOCK_table_;
 
 static PSI_rwlock_info all_rewrite_rwlocks[]=
 {
-  { &key_rwlock_LOCK_table_, "LOCK_plugin_rewriter_table_", 0 }
+  { &key_rwlock_LOCK_table_, "LOCK_plugin_rewriter_table_", 0, 0, PSI_DOCUMENT_ME}
 };
 
 

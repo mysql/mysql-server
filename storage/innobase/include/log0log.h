@@ -39,6 +39,11 @@ Created 12/9/1995 Heikki Tuuri
 #include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 
+extern const char* const ib_logfile_basename;
+
+/* base name length(10) + length for decimal digits(22) */
+const uint MAX_LOG_FILE_NAME = 32;
+
 /* Type used for all log sequence number storage and arithmetics */
 typedef	ib_uint64_t		lsn_t;
 
@@ -484,6 +489,19 @@ void
 log_shutdown(void);
 /*==============*/
 
+/** Get last redo block from redo buffer and end LSN
+@param[out]	last_lsn	end lsn of last mtr
+@param[out]	last_block	last redo block */
+void
+log_get_last_block(lsn_t& last_lsn, byte* last_block);
+
+/** Fill redo log header
+@param[out]	buf		filled buffer
+@param[in]	start_lsn	log start LSN
+@param[in]	creator		creator of the header */
+void
+log_header_fill(byte* buf, lsn_t start_lsn, const char* creator);
+
 /** Redo log system */
 extern log_t*	log_sys;
 
@@ -568,6 +586,8 @@ or the MySQL version that created the redo log file. */
 #define LOG_HEADER_CREATOR_END	(LOG_HEADER_CREATOR + 32)
 /** Contents of the LOG_HEADER_CREATOR field */
 #define LOG_HEADER_CREATOR_CURRENT	"MySQL " INNODB_VERSION_STR
+/** Header is created during DB clone */
+#define LOG_HEADER_CREATOR_CLONE	"MySQL Clone"
 
 /** Supported redo log formats. Stored in LOG_HEADER_FORMAT. */
 enum log_header_format_t
@@ -648,7 +668,7 @@ struct log_group_t{
 
 /** Redo log buffer */
 struct log_t{
-	char		pad1[CACHE_LINE_SIZE];
+	char		pad1[INNOBASE_CACHE_LINE_SIZE];
 					/*!< Padding to prevent other memory
 					update hotspots from residing on the
 					same memory cache line */
@@ -656,11 +676,11 @@ struct log_t{
 	ulint		buf_free;	/*!< first free offset within the log
 					buffer in use */
 #ifndef UNIV_HOTBACKUP
-	char		pad2[CACHE_LINE_SIZE];/*!< Padding */
+	char		pad2[INNOBASE_CACHE_LINE_SIZE];/*!< Padding */
 	LogSysMutex	mutex;		/*!< mutex protecting the log */
 	LogSysMutex	write_mutex;	/*!< mutex protecting writing to log
 					file and accessing to log_group_t */
-	char		pad3[CACHE_LINE_SIZE];/*!< Padding */
+	char		pad3[INNOBASE_CACHE_LINE_SIZE];/*!< Padding */
 	FlushOrderMutex	log_flush_order_mutex;/*!< mutex to serialize access to
 					the flush list when we are putting
 					dirty blocks in the list. The idea
@@ -840,6 +860,16 @@ lsn_t
 log_group_calc_lsn_offset(
 	lsn_t			lsn,
 	const log_group_t*	group);
+
+/** Writes a log file header to a log file space.
+@param[in]	group		log group
+@param[in]	nth_file	header to the nth file in the log file space
+@param[in]	start_lsn	log file data starts at this lsn */
+void
+log_group_file_header_flush(
+	log_group_t*	group,
+	ulint		nth_file,
+	lsn_t		start_lsn);
 
 #include "log0log.ic"
 

@@ -16,6 +16,7 @@
 
 #include <stddef.h>
 
+#include "lex_string.h"
 #include "m_ctype.h"  /* my_charset_utf8_bin */
 #include "m_string.h"
 #include "my_dbug.h"   /* DBUG_ASSERT */
@@ -24,8 +25,8 @@
 #include "mysql/plugin.h"
 #include "mysql/plugin_validate_password.h" /* validate_password plugin */
 #include "mysqld_error.h" /* To get ER_NOT_VALID_PASSWORD */
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
+#include "sql/sql_plugin.h"
+#include "sql/sql_plugin_ref.h"
 #include "sql_string.h"
 
 

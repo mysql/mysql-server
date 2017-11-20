@@ -94,15 +94,15 @@ SET @@session.sql_warnings = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_warnings = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_warnings = TRÜE;
+SET @@session.sql_warnings = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_warnings = ÕN;
+SET @@session.sql_warnings = Ã•N;
 --error ER_PARSE_ERROR
 SET @@session.sql_warnings = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_warnings = ÓFF;
+SET @@session.sql_warnings = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_warnings = '¹';
+SET @@session.sql_warnings = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_warnings = NO;
 

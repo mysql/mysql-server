@@ -9,6 +9,25 @@
 # 2. Apply the new binlog file ( with database rewritten ) to a new database
 #    and check if it works.
 #
+# Bug26117735: MYSQLBINLOG READ-FROM-REMOTE-SERVER NOT HONORING REWRITE_DB
+# FILTERING
+#
+# Problem:
+# When running mysqlbinlog with the --read-from-remote-server option,
+# the processing of the binlog entries accepts rewrite_db as an argument, but
+# ignores the rewrite rule.  Therefore no filtering is done on the binlog
+# entries, resulting in failures to write data in the target DB.
+#
+# Test case1:
+# Verify that rewrite_db filter works fine when reading binary log from remote
+# server.
+#
+# Test case2:
+# Verify that error scenario is handled properly in a case where rewrite_db
+# filter fails to rewrite the databases.
+#
+# mysqlbinlog should be debug compiled.
+--source include/mysqlbinlog_have_debug.inc
 --source include/have_binlog_format_row.inc
 
 RESET MASTER;
@@ -23,24 +42,35 @@ UPDATE t1 SET i= i+1;
 DELETE FROM t1 WHERE i=2;
 
 --let $MYSQLD_DATADIR= `select @@datadir`
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event.sql
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/row_event.sql
 
 # Using the new option to apply the row event on some other database (from db1 -> db2 in the current case)
 
 --echo [Syntax error in the use of the new option: The from database name is missing]
 --error 1
---exec $MYSQL_BINLOG --force-if-open --rewrite-db="->db2" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="->db2" $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 
 --echo [Syntax error in the use of the new option: The '->' is missing]
 --error 1
---exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1 db2" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1 db2" $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 
 --echo [Syntax error in the use of the new option: The to database name is missing]
 --error 1
---exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->" $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 
 --echo [VALID SYNTAX,The from->to database names is correctly mentioned]
---exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->db2" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->db2" $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+# Bug26117735: MYSQLBINLOG READ-FROM-REMOTE-SERVER NOT HONORING REWRITE_DB FILTERING
+--echo [VALID SYNTAX read from remote server ,The from->to database names are correctly mentioned]
+--exec $MYSQL_BINLOG --force-if-open --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --rewrite-db="db1->db2" $binlog_file > $MYSQLTEST_VARDIR/tmp/row_event_from_remote_server_rewrite.sql
+
+--echo [VALID SYNTAX, but during the application of rewrite_db filter an invalid event is found. Hence mysqlbinlog tool should exit with an appropriate error]
+--echo [ERROR: Got fatal error while applying rewrite db filter.]
+--error 1
+--exec $MYSQL_BINLOG --force-if-open -#d,'simulate_corrupt_event_len' --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --rewrite-db="db1->db2" $binlog_file > $MYSQLTEST_VARDIR/tmp/tmp.sql
 
 --echo #Dropping the database db1 and creating the table in the new database db2.
 
@@ -69,9 +99,23 @@ RESET MASTER;
 --let $assert_cond= `SELECT COUNT(*)=1 from db2.t1`
 --source include/assert.inc
 
+DROP DATABASE db1;
+DROP DATABASE db2;
+CREATE DATABASE db2;
+# With gtid-mode=on we need purge gtid_executed, if not transactions
+# replayed through mysqlbinlog will be skipped.
+RESET MASTER;
+--echo [The event of table db1.t1 has been successfully applied to db2.t1]
+--exec $MYSQL  --database=db2 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/row_event_from_remote_server_rewrite.sql
+--let $assert_text= Assert that table db2.t1 has one row after applying the sql file.
+--let $assert_cond= `SELECT COUNT(*)=1 from db2.t1`
+--source include/assert.inc
+
 --echo CLEANUP
 
 --remove_file $MYSQLTEST_VARDIR/tmp/row_event.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/row_event_from_remote_server_rewrite.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/tmp.sql
 DROP DATABASE db1;
 DROP DATABASE db2;

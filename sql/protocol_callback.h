@@ -27,17 +27,22 @@
 #include <sys/types.h>
 
 #include "my_command.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "mysql/service_command.h"
-#include "protocol.h"
-#include "sql_list.h"               // List
-#include "thr_malloc.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_time.h"
+#include "sql/my_decimal.h"
+#include "sql/protocol.h"
+#include "sql/thr_malloc.h"
+#include "sql_string.h"
 #include "violite.h"
 
+class Item_param;
 class Proto_field;
 class Send_field;
 class String;
+class my_decimal;
+template <class T> class List;
 union COM_DATA;
 
 class Protocol_callback : public Protocol

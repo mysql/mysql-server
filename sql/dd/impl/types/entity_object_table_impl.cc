@@ -13,13 +13,14 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/entity_object_table_impl.h"
+#include "sql/dd/impl/types/entity_object_table_impl.h"
 
 #include <stddef.h>
 #include <memory>
 
-#include "dd/impl/types/entity_object_impl.h"
 #include "my_dbug.h"
+#include "sql/dd/impl/types/entity_object_impl.h"
+#include "sql/dd/types/entity_object.h"
 
 namespace dd {
 

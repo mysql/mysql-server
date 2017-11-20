@@ -15,87 +15,8 @@
 
 #include "sql/auth/sql_authorization.h"
 
-#include <limits.h>
-#include <string.h>
-#include <sys/types.h>
-#include <algorithm>
-#include <cstdlib>
-#include <iosfwd>
-#include <iterator>
-#include <map>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <utility>
-#include <vector>
-
-#include "auth_acls.h"
-#include "auth_common.h"
-#include "auth_internal.h"
-#include "current_thd.h"
-#include "dd/dd_table.h"                // dd::table_exists
-#include "debug_sync.h"
-#include "derror.h"                     /* ER_THD */
-#include "error_handler.h"              /* error_handler */
-#include "field.h"
-#include "handler.h"
-#include "hash.h"
-#include "item.h"
-#include "key.h"
-#include "key_spec.h"                   /* Key_spec */
-#include "lex_string.h"
-#include "log.h"
-#include "m_ctype.h"
-#include "m_string.h"
-#include "mdl.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
-#include "my_sqlcommand.h"
-#include "my_sys.h"
-#include "mysql/mysql_lex_string.h"
-#include "mysql/service_my_snprintf.h"
-#include "mysql/service_mysql_alloc.h"
-#include "mysql_com.h"
-#include "mysqld.h"                     /* lower_case_table_names */
-#include "mysqld_error.h"
-#include "prealloced_array.h"
-#include "protocol.h"
-#include "role_tables.h"
-#include "session_tracker.h"
-#include "sp.h"                         /* sp_exist_routines */
-#include "sql_admin.h"
-#include "sql_alter.h"
-#include "sql_auth_cache.h"
-#include "sql_authentication.h"
-#include "sql_base.h"                   /* open_and_lock_tables */
-#include "sql_class.h"                  /* THD */
-#include "sql_connect.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                  /* get_current_user */
-#include "sql_plugin.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "sql_show.h"                   /* append_identifier */
-#include "sql_string.h"
-#include "sql_user_table.h"
-#include "sql_view.h"                   /* VIEW_ANY_ACL */
-#include "system_variables.h"
-#include "table.h"
-#include "template_utils.h"
-#include "thr_lock.h"
-#include "violite.h"
-#include <set>
-
-class Item;
-namespace dd {
-class Abstract_table;
-}  // namespace dd
 #include <boost/concept/usage.hpp>
+#include <boost/function.hpp>
 #include <boost/graph/adjacency_iterator.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
@@ -112,11 +33,87 @@ class Abstract_table;
 #include <boost/smart_ptr/make_shared_object.hpp>
 #include <boost/smart_ptr/shared_ptr.hpp>
 #include <boost/tuple/tuple.hpp>
-#include <boost/function.hpp>
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <cstdlib>
+#include <iosfwd>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <ostream>
+#include <set>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "map_helpers.h"
+#include "mf_wcomp.h"
+#include "my_alloc.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
+#include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "dynamic_privilege_table.h"
-#include "sql_db.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "prealloced_array.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/auth_internal.h"
+#include "sql/auth/dynamic_privilege_table.h"
+#include "sql/auth/role_tables.h"
+#include "sql/auth/sql_auth_cache.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/auth/sql_user_table.h"
+#include "sql/current_thd.h"
+#include "sql/dd/dd_table.h"            // dd::table_exists
+#include "sql/debug_sync.h"
+#include "sql/derror.h"                 /* ER_THD */
+#include "sql/error_handler.h"          /* error_handler */
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/key_spec.h"               /* Key_spec */
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                 /* lower_case_table_names */
+#include "sql/protocol.h"
+#include "sql/sp.h"                     /* sp_exist_routines */
+#include "sql/sql_alter.h"
+#include "sql/sql_base.h"               /* open_and_lock_tables */
+#include "sql/sql_class.h"              /* THD */
+#include "sql/sql_connect.h"
+#include "sql/sql_db.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"              /* get_current_user */
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"               /* append_identifier */
+#include "sql/sql_view.h"               /* VIEW_ANY_ACL */
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql_string.h"
+#include "template_utils.h"
+#include "thr_lock.h"
+#include "violite.h"
 
 /**
    @file sql_authorization.cc
@@ -129,14 +126,14 @@ class Abstract_table;
   @page AUTHORIZATION_PAGE Authorization IDs, roles and users
 
   @section AUTHORIZATION_ID Authentication ID
-  @subsection DEFINITION Definition
+  @subsection AUTH_ID_DEFINITION Definition
  Each row in the mysql.user table is identified by a user and host tuple. This
  tuple is the authorization ID.
  A client can authenticate with an authorization ID and a password. The ID is
  then referred to as a user or user name.
 
   @section AUTHORIZATION_PRIVILEGES Privileges ID
-  @subsection DEFINITION Definition
+  @subsection AUTH_PRIV_DEFINITION Definition
  A privilege ID is a named token which can be granted to an authorization ID.
 
  A privilege can either be effective or not effective. An effective privilege is
@@ -145,7 +142,7 @@ class Abstract_table;
  privileges are effective.
 
   @section AUTHORIZATION_ROLES Roles
-  @subsection DEFINITION Definition
+  @subsection AUTH_ROLES_DEFINITION Definition
  A role is an authorization ID which can be granted to another authorization ID
  by forming an directed edge between them in the role graph where every vertex
  is a unique authorization ID. When the effective privilege is calculated, all
@@ -1189,16 +1186,17 @@ void make_table_privilege_statement(THD *thd, ACL_USER *role,
   }
 }
 
-void get_sp_access_map(ACL_USER *acl_user, SP_access_map *sp_map,
-                       HASH *hash)
+void get_sp_access_map
+  (ACL_USER *acl_user, SP_access_map *sp_map,
+   malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>
+     *hash)
 {
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
-  uint index;
   /* Add routine access */
-  for (index=0 ; index < hash->records ; index++)
+  for (const auto &key_and_value : *hash)
   {
+    GRANT_NAME *grant_proc= key_and_value.second.get();
     const char *user, *host;
-    GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, index);
     if (!(user=grant_proc->user))
       user= "";
     if (!(host= grant_proc->host.get_host()))
@@ -1233,11 +1231,10 @@ void get_table_access_map(ACL_USER *acl_user,
 {
   DBUG_ENTER("get_table_access_map");
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
-  for (ulong index= 0 ; index < column_priv_hash.records ; ++index)
+  for (const auto &key_and_value : *column_priv_hash)
   {
+    GRANT_TABLE *grant_table= key_and_value.second.get();
     const char *user, *host;
-    GRANT_TABLE *grant_table= (GRANT_TABLE*)
-      my_hash_element(&column_priv_hash, index);
 
     if (!(user=grant_table->user))
       user= "";
@@ -1279,19 +1276,15 @@ void get_table_access_map(ACL_USER *acl_user,
         {
           DBUG_PRINT("info",("Collecting column privileges for %s@%s",
                              acl_user->user, acl_user->host.get_host()));
-          for (ulong col_idx= 0; col_idx < grant_table->hash_columns.records;
-               ++col_idx)
+          // Iterate over all column ACLs for this table.
+          for (const auto &key_and_value : grant_table->hash_columns)
           {
             String q_col_name;
-            // Iterate over all column ACLs for this table
-            GRANT_COLUMN *col=
-              (GRANT_COLUMN *)my_hash_element(&(grant_table->hash_columns),
-                                               col_idx);
+            GRANT_COLUMN *col= key_and_value.second.get();
             // TODO why can this be 0x0 ?!
             if (col)
             {
-              std::string str_column_name(col->column,
-                                          col->key_length);
+              std::string str_column_name(col->column);
               ulong col_access= agg.columns[str_column_name];
               col_access |= col->rights;
               agg.columns[str_column_name]= col_access;
@@ -1432,10 +1425,10 @@ public:
     get_table_access_map(&acl_user, m_table_map);
 
     /* Add stored procedure access */
-    get_sp_access_map(&acl_user, m_sp_map, &proc_priv_hash);
+    get_sp_access_map(&acl_user, m_sp_map, proc_priv_hash.get());
 
     /* Add user function access */
-    get_sp_access_map(&acl_user, m_sp_map, &func_priv_hash);
+    get_sp_access_map(&acl_user, m_sp_map, func_priv_hash.get());
 
     /* Add dynamic privileges */
     get_dynamic_privileges(&acl_user, m_dynamic_acl);
@@ -1680,8 +1673,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
       goto err;
   }
 
-  if (check_fk_parent_table_access(thd, create_table->db, lex->create_info,
-                                   lex->alter_info))
+  if (check_fk_parent_table_access(thd, lex->create_info, lex->alter_info))
     goto err;
 
   error= FALSE;
@@ -2511,6 +2503,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   bool is_privileged_user= false;
   bool result= false;
   int ret= 0;
+  std::set<LEX_USER *> existing_users;
 
   DBUG_ENTER("mysql_table_grant");
 
@@ -2598,7 +2591,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
         }
       }
       ulong missing_privilege= rights & ~table_list->grant.privilege;
-      DBUG_ASSERT(missing_privilege == table_list->grant.want_privilege);
       if (missing_privilege)
       {
         char command[128];
@@ -2666,11 +2658,16 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     }
 
     if (set_and_validate_user_attributes(thd, Str, what_to_set,
-                                         is_privileged_user, false))
+                                         is_privileged_user, false,
+                                         &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL))
     {
       result= true;
       continue;
     }
+
+    ACL_USER *this_user= find_acl_user(Str->host.str, Str->user.str, true);
+    if (this_user && (what_to_set & PLUGIN_ATTR))
+      existing_users.insert(tmp_Str);
 
     /* Create user if needed */
     if ((error= replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table, Str,
@@ -2709,12 +2706,14 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       DBUG_EXECUTE_IF("mysql_table_grant_out_of_memory",
                       DBUG_SET("-d,simulate_out_of_memory"););
 
-      if (!grant_table ||
-        my_hash_insert(&column_priv_hash,(uchar*) grant_table))
+      if (!grant_table)
       {
         result= true;                           /* purecov: deadcode */
         break;                               /* purecov: deadcode */
       }
+      column_priv_hash->emplace
+        (grant_table->hash_key,
+          unique_ptr_destroy_only<GRANT_TABLE>(grant_table));
     }
 
     /* If revoke_grant, calculate the new column privilege for tables_priv */
@@ -2735,10 +2734,9 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       }
       /* scan trough all columns to get new column grant */
       column_priv= 0;
-      for (uint idx=0 ; idx < grant_table->hash_columns.records ; idx++)
+      for (const auto &key_and_value : grant_table->hash_columns)
       {
-        grant_column= (GRANT_COLUMN*)
-          my_hash_element(&grant_table->hash_columns, idx);
+        grant_column= key_and_value.second.get();
         grant_column->rights&= ~rights;         // Fix other columns
         column_priv|= grant_column->rights;
       }
@@ -2750,7 +2748,10 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
     /* update table and columns */
 
-    if ((error= replace_table_table(thd, grant_table,
+    // Hold on to grant_table if it gets deleted, since we use it below.
+    std::unique_ptr<GRANT_TABLE, Destroy_only<GRANT_TABLE>> deleted_grant_table;
+
+    if ((error= replace_table_table(thd, grant_table, &deleted_grant_table,
                                     tables[ACL_TABLES::TABLE_TABLES_PRIV].table,
                                     *Str, db_name, table_name,
                                     rights, column_priv, revoke_grant)))
@@ -2783,6 +2784,22 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   DBUG_ASSERT(!result || thd->is_error());
 
   result= log_and_commit_acl_ddl(thd, transactional_tables);
+
+  {
+    /* Notify audit plugin. We will ignore the return value. */
+    LEX_USER * existing_user;
+    for (LEX_USER * one_user : existing_users)
+    {
+      if ((existing_user= get_current_user(thd, one_user)))
+        mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+                           thd->is_error(),
+                           existing_user->user.str,
+                           existing_user->host.str,
+                           existing_user->plugin.str,
+                           is_role_id(existing_user),
+                           NULL, NULL);
+    }
+  }
 
   if (!result) /* success */
     my_ok(thd);
@@ -2823,6 +2840,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   bool is_privileged_user= false;
   bool result= false;
   int ret;
+  std::set<LEX_USER *> existing_users;
 
   DBUG_ENTER("mysql_routine_grant");
 
@@ -2883,11 +2901,16 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     }
 
     if (set_and_validate_user_attributes(thd, Str, what_to_set,
-                                         is_privileged_user, false))
+                                         is_privileged_user, false,
+                                         &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL))
     {
       result= true;
       continue;
     }
+
+    ACL_USER *this_user= find_acl_user(Str->host.str, Str->user.str, true);
+    if (this_user && (what_to_set & PLUGIN_ATTR))
+      existing_users.insert(tmp_Str);
 
     /* Create user if needed */
     if ((error= replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table, Str,
@@ -2918,13 +2941,17 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       grant_name= new (*THR_MALLOC) GRANT_NAME(Str->host.str, db_name,
                                                Str->user.str, table_name,
                                                rights, TRUE);
-      if (!grant_name ||
-        my_hash_insert(is_proc ?
-                       &proc_priv_hash : &func_priv_hash,(uchar*) grant_name))
+      if (!grant_name)
       {
         result= true;
         break;
       }
+      if (is_proc)
+        proc_priv_hash->emplace(grant_name->hash_key,
+                                unique_ptr_destroy_only<GRANT_NAME>(grant_name));
+      else
+        func_priv_hash->emplace(grant_name->hash_key,
+                                unique_ptr_destroy_only<GRANT_NAME>(grant_name));
     }
 
     if ((error= replace_routine_table(thd, grant_name, tables[4].table, *Str,
@@ -2962,6 +2989,23 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   result= log_and_commit_acl_ddl(thd, transactional_tables, NULL, result,
                                  write_to_binlog, write_to_binlog);
+
+  {
+    /* Notify audit plugin. We will ignore the return value. */
+    for (LEX_USER * one_user : existing_users)
+    {
+      LEX_USER * existing_user;
+      if ((existing_user= get_current_user(thd, one_user)))
+        mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+                           thd->is_error(),
+                           existing_user->user.str,
+                           existing_user->host.str,
+                           existing_user->plugin.str,
+                           is_role_id(existing_user),
+                           NULL, NULL);
+    }
+  }
+
   get_global_acl_cache()->increase_version();
   DBUG_RETURN(result);
 }
@@ -3217,6 +3261,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   bool error= false;
   int ret;
   TABLE *dynpriv_table;
+  std::set<LEX_USER *> existing_users;
 
   DBUG_ENTER("mysql_grant");
   if (!initialized)
@@ -3273,7 +3318,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     }
 
     if (set_and_validate_user_attributes(thd, user, what_to_set,
-                                         is_privileged_user, false))
+                                         is_privileged_user, false,
+                                         &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL))
     {
       error= true;
       continue;
@@ -3290,6 +3336,10 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       */
       rights= 0;
     }
+
+    ACL_USER *this_user= find_acl_user(user->host.str, user->user.str, true);
+    if (this_user && (what_to_set & PLUGIN_ATTR))
+      existing_users.insert(target_user);
 
     if ((ret= replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
                                  user, (!db ? rights : 0), revoke_grant,
@@ -3436,6 +3486,22 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   error= log_and_commit_acl_ddl(thd, transactional_tables);
 
+  {
+    /* Notify audit plugin. We will ignore the return value. */
+    LEX_USER * existing_user;
+    for (LEX_USER * one_user : existing_users)
+    {
+      if ((existing_user= get_current_user(thd, one_user)))
+        mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+                           thd->is_error(),
+                           existing_user->user.str,
+                           existing_user->host.str,
+                           existing_user->plugin.str,
+                           is_role_id(existing_user),
+                           NULL, NULL);
+    }
+  }
+
   if (!error)
     my_ok(thd);
 
@@ -3522,9 +3588,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
            Depend on the controls in the P_S table itself.
         */
         t_ref->grant.privilege|= TMP_TABLE_ACLS;
-#ifndef DBUG_OFF
-        t_ref->grant.want_privilege= 0;
-#endif
         continue;
       case ACL_INTERNAL_ACCESS_DENIED:
         goto err;
@@ -3540,26 +3603,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 
     if (!(~t_ref->grant.privilege & want_access) ||
         t_ref->is_derived() || t_ref->schema_table)
-    {
-      /*
-        It is subquery in the FROM clause. VIEW set t_ref->derived after
-        table opening, but this function always called before table opening.
-      */
-      if (!t_ref->referencing_view)
-      {
-        /*
-          If it's a temporary table created for a subquery in the FROM
-          clause, or an INFORMATION_SCHEMA table, drop the request for
-          a privilege.
-        */
-
-// TODO Why would we make a difference between debug and non-debug here?
-#ifndef DBUG_OFF
-        t_ref->grant.want_privilege= 0;
-#endif
-      }
       continue;
-    }
 
     if (is_temporary_table(t_ref))
     {
@@ -3570,9 +3614,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
         if user has CREATE_TMP_ACL.
       */
       t_ref->grant.privilege|= TMP_TABLE_ACLS;
-#ifndef DBUG_OFF
-      t_ref->grant.want_privilege= 0;
-#endif
       continue;
     }
 
@@ -3605,7 +3646,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       if (any_combination_will_do)
         continue;
       t_ref->grant.privilege= aggr.table_access;
-      t_ref->set_want_privilege(want_access & COL_ACLS);
       if (!(~t_ref->grant.privilege & want_access))
       {
         DBUG_PRINT("info",("Access not denied because of column acls for %s.%s."
@@ -3651,7 +3691,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       t_ref->grant.grant_table= grant_table; // Remember for column test
       t_ref->grant.version= grant_version;
       t_ref->grant.privilege|= grant_table->privs;
-      t_ref->set_want_privilege(want_access & COL_ACLS);
 
       DBUG_PRINT("info",("t_ref->grant.privilege = %lu",
                          t_ref->grant.privilege));
@@ -3712,12 +3751,6 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
   DBUG_ENTER("check_grant_column");
   DBUG_PRINT("enter", ("table: %s  want_privilege: %lu",
                        table_name, want_privilege));
-
-  /*
-    Make sure that the privilege request is aligned with the overall privileges
-    granted to and requested for the table.
-  */
-  DBUG_ASSERT(!(want_privilege & ~(grant->want_privilege | grant->privilege)));
 
   // Adjust wanted privileges based on privileges granted to table:
   want_privilege&= ~grant->privilege;
@@ -4030,7 +4063,10 @@ err:
 }
 
 
-static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
+static bool check_grant_db_routine
+  (THD *thd, const char *db,
+   malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>
+     *hash)
 {
   DBUG_ENTER("check_grant_db_routine");
   Security_context *sctx= thd->security_context();
@@ -4044,9 +4080,9 @@ static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
   }
   else
   {
-    for (uint idx= 0; idx < hash->records; ++idx)
+    for (const auto &key_and_value : *hash)
     {
-      GRANT_NAME *item= (GRANT_NAME*) my_hash_element(hash, idx);
+      GRANT_NAME *item= key_and_value.second.get();
 
       if (strcmp(item->user, sctx->priv_user().str) == 0 &&
           strcmp(item->db, db) == 0 &&
@@ -4093,10 +4129,7 @@ bool check_grant_db(THD *thd,const char *db)
   DBUG_ENTER("check_table_and_sp_access");
   Security_context *sctx= thd->security_context();
   LEX_CSTRING priv_user= sctx->priv_user();
-  char helping [NAME_LEN+USERNAME_LENGTH+2];
-  uint len;
   bool error= true;
-  size_t copy_length;
 
   if (sctx->get_active_roles()->size() > 0)
   {
@@ -4107,30 +4140,20 @@ bool check_grant_db(THD *thd,const char *db)
     DBUG_RETURN(!has_any_table_acl(sctx, {db, db_len}) &&
                 !has_any_routine_acl(sctx, {db, db_len}));
   }
-  /* Added 1 at the end to avoid buffer overflow at strmov()*/
-  copy_length= ((priv_user.str ? strlen(priv_user.str) : 0) +
-                (db ? strlen(db) : 0)) + 1;
 
-  /*
-    Make sure that my_stpcpy() operations do not result in buffer overflow.
-  */
-  if (copy_length >= (NAME_LEN+USERNAME_LENGTH+2))
-    return true;
-
-  len= (uint) (my_stpcpy(my_stpcpy(helping, priv_user.str) + 1, db) -
-               helping) + 1;
+  std::string key= to_string(priv_user);
+  key.push_back('\0');
+  key.append(db);
+  key.push_back('\0');
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock())
     return true;
 
-  for (uint idx=0 ; idx < column_priv_hash.records ; idx++)
+  for (const auto &key_and_value : *column_priv_hash)
   {
-    GRANT_TABLE *grant_table= (GRANT_TABLE*)
-      my_hash_element(&column_priv_hash,
-                      idx);
-    if (len < grant_table->key_length &&
-        !memcmp(grant_table->hash_key,helping,len) &&
+    GRANT_TABLE *grant_table= key_and_value.second.get();
+    if (grant_table->hash_key.compare(0, key.size(), key) == 0 &&
         grant_table->host.compare_hostname(sctx->host().str,
                                            sctx->ip().str))
     {
@@ -4144,8 +4167,8 @@ bool check_grant_db(THD *thd,const char *db)
   {
     DBUG_PRINT("info",("No table level acl in column_priv_hash; checking "
                        "for schema level acls"));
-    error= check_grant_db_routine(thd, db, &proc_priv_hash) &&
-           check_grant_db_routine(thd, db, &func_priv_hash);
+    error= check_grant_db_routine(thd, db, proc_priv_hash.get()) &&
+           check_grant_db_routine(thd, db, func_priv_hash.get());
   }
 
   DBUG_RETURN(error);
@@ -4585,9 +4608,9 @@ void get_privilege_access_maps(ACL_USER *acl_user,
   // Get table- and column privileges
   get_table_access_map(acl_user, table_map);
   // get stored procedure privileges
-  get_sp_access_map(acl_user, sp_map, &proc_priv_hash);
+  get_sp_access_map(acl_user, sp_map, proc_priv_hash.get());
   // get user function privileges
-  get_sp_access_map(acl_user, func_map, &func_priv_hash);
+  get_sp_access_map(acl_user, func_map, func_priv_hash.get());
   // get dynamic privileges
   get_dynamic_privileges(acl_user, dynamic_acl);
 
@@ -4934,7 +4957,8 @@ static int remove_column_access_privileges(THD *thd,
                                            TABLE *columns_priv_table,
                                            const LEX_USER &lex_user)
 {
-  int revoked, result= 0;
+  bool revoked= false;
+  int result= 0;
   /*
     Remove column access.
     Because column_priv_hash shrink and may re-order as privileges are removed,
@@ -4942,12 +4966,18 @@ static int remove_column_access_privileges(THD *thd,
   */
   do
   {
-    uint counter;
-    for (counter= 0, revoked= 0 ; counter < column_priv_hash.records ; )
+    revoked= false;
+    for (auto it= column_priv_hash->begin(), next_it= it;
+         it != column_priv_hash->end(); it= next_it)
     {
+      /*
+        Store an iterator pointing to the next element now, since
+        replace_table_table could delete elements, invalidating "it".
+      */
+      next_it= next(it);
+
       const char *user, *host;
-      GRANT_TABLE *grant_table=
-        (GRANT_TABLE*) my_hash_element(&column_priv_hash, counter);
+      GRANT_TABLE *grant_table= it->second.get();
       if (!(user= grant_table->user))
         user= "";
       if (!(host= grant_table->host.get_host()))
@@ -4956,30 +4986,36 @@ static int remove_column_access_privileges(THD *thd,
       if (!strcmp(lex_user.user.str, user) &&
           !strcmp(lex_user.host.str, host))
       {
-        int ret;
-        ret= replace_table_table(thd, grant_table, tables_priv_table,
-                                 lex_user,
-                                 grant_table->db,
-                                 grant_table->tname,
-                                 ~(ulong)0, 0, true);
+        // Hold on to grant_table if it gets deleted, since we use it below.
+        std::unique_ptr<GRANT_TABLE, Destroy_only<GRANT_TABLE>>
+          deleted_grant_table;
+
+        int ret= replace_table_table(thd, grant_table, &deleted_grant_table,
+                                     tables_priv_table,
+                                     lex_user,
+                                     grant_table->db,
+                                     grant_table->tname,
+                                     ~(ulong)0, 0, true);
         if (ret < 0)
         {
           return ret;
         }
         else if (ret > 0)
+        {
           /*
             For the case when replace_table_table() returns 1 we continue
             iteration in order to remove all column access privileges.
-            It is safe since this function is called as part of handling
-            the statement REVOKE ALL.
           */
           result= 1;
+          revoked= true;
+          break;
+        }
         else
         {
           if (!grant_table->cols)
           {
-            revoked= 1;
-            continue;
+            revoked= true;
+            break;
           }
           List<LEX_COLUMN> columns;
           ret= replace_column_table(thd, grant_table, columns_priv_table,
@@ -4990,8 +5026,8 @@ static int remove_column_access_privileges(THD *thd,
                                     ~(ulong)0, true);
           if (!ret)
           {
-            revoked= 1;
-            continue;
+            revoked= true;
+            break;
           }
           /*
             If we come there then the variable ret always has a value < 0 since
@@ -5002,7 +5038,6 @@ static int remove_column_access_privileges(THD *thd,
           return ret;
         }
       }
-      counter++;
     }
   }
   while (revoked);
@@ -5031,16 +5066,25 @@ static int remove_procedure_access_privileges(THD *thd,
                                               const LEX_USER &lex_user)
 {
   /* Remove procedure access */
-  int revoked, is_proc, result= 0;
-  for (is_proc=0; is_proc<2; is_proc++)
+  int result= 0;
+  bool revoked;
+  for (int is_proc=0; is_proc<2; is_proc++)
     do
     {
-      HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
-      uint counter;
-      for (counter= 0, revoked= 0 ; counter < hash->records ; )
+      malloc_unordered_multimap<std::string,
+                                unique_ptr_destroy_only<GRANT_NAME>> *hash=
+        is_proc ? proc_priv_hash.get() : func_priv_hash.get();
+      revoked= false;
+      for (auto it= hash->begin(), next_it= it; it != hash->end(); it= next_it)
       {
+        /*
+          Store an iterator pointing to the next element now, since
+          replace_routine_table could delete elements, invalidating "it".
+        */
+        next_it= next(it);
+
         const char *user,*host;
-        GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, counter);
+        GRANT_NAME *grant_proc= it->second.get();
         if (!(user=grant_proc->user))
           user= "";
         if (!(host=grant_proc->host.get_host()))
@@ -5072,7 +5116,6 @@ static int remove_procedure_access_privileges(THD *thd,
             */
             result= 1;
         }
-        counter++;
       }
     } while (revoked);
 
@@ -5255,10 +5298,9 @@ private:
 bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
                           bool is_proc)
 {
-  uint counter, revoked;
+  bool revoked;
   int result= 0;
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
-  HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
   Silence_routine_definer_errors error_handler;
   bool transactional_tables;
   DBUG_ENTER("sp_revoke_privileges");
@@ -5284,11 +5326,19 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   /* Remove procedure access */
+  malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>
+    *hash= is_proc ? proc_priv_hash.get() : func_priv_hash.get();
   do
   {
-    for (counter= 0, revoked= 0 ; counter < hash->records ; )
+    revoked= false;
+    for (auto it= hash->begin(), next_it= it; it != hash->end(); it= next_it)
     {
-      GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, counter);
+      /*
+        Store an iterator pointing to the next element now, since
+        replace_routine_table could delete elements, invalidating "it".
+      */
+      next_it= next(it);
+      GRANT_NAME *grant_proc= it->second.get();
       if (!my_strcasecmp(&my_charset_utf8_bin, grant_proc->db, sp_db) &&
           !my_strcasecmp(system_charset_info, grant_proc->tname, sp_name))
       {
@@ -5312,11 +5362,10 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
         }
         else if (ret == 0)
         {
-          revoked= 1;
+          revoked= true;
           continue;
         }
       }
-      counter++;
     }
   } while (revoked);
 
@@ -5332,10 +5381,10 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 /**
   Grant EXECUTE,ALTER privilege for a stored procedure
 
-  @param thd The current thread.
-  @param sp_db
-  @param sp_name
-  @param is_proc
+  @param      thd                  The current thread.
+  @param      sp_db                DB of the stored procedure.
+  @param      sp_name              Name of the stored procedure
+  @param      is_proc              True if this is a SP rather than a function
 
   @return
     @retval FALSE Success
@@ -5396,11 +5445,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   thd->lex->ssl_cipher= thd->lex->x509_subject= thd->lex->x509_issuer= 0;
   memset(&thd->lex->mqh, 0, sizeof(thd->lex->mqh));
   /* set default values */
-  thd->lex->alter_password.update_password_expired_column= false;
-  thd->lex->alter_password.use_default_password_lifetime= true;
-  thd->lex->alter_password.expire_after_days= 0;
-  thd->lex->alter_password.update_account_locked_column= false;
-  thd->lex->alter_password.account_locked= false;
+  thd->lex->alter_password.cleanup();
 
   combo->alter_status= thd->lex->alter_password;
 
@@ -5765,7 +5810,6 @@ err:
 int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   int error= 0;
-  uint index;
   char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",
@@ -5777,11 +5821,13 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
   if (!acl_cache_lock.lock())
     DBUG_RETURN(1);
 
-  for (index=0 ; index < column_priv_hash.records ; index++)
+  if (column_priv_hash == nullptr)
+    DBUG_RETURN(error);
+
+  for (const auto &key_and_value : *column_priv_hash)
   {
     const char *user, *host, *is_grantable= "YES";
-    GRANT_TABLE *grant_table= (GRANT_TABLE*) my_hash_element(&column_priv_hash,
-                                                          index);
+    GRANT_TABLE *grant_table= key_and_value.second.get();
     if (!(user=grant_table->user))
       user= "";
     if (!(host= grant_table->host.get_host()))
@@ -5846,7 +5892,6 @@ err:
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   int error= 0;
-  uint index;
   char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",
@@ -5858,11 +5903,13 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
   if (!acl_cache_lock.lock())
     DBUG_RETURN(1);
 
-  for (index=0 ; index < column_priv_hash.records ; index++)
+  if (column_priv_hash == nullptr)
+    DBUG_RETURN(error);
+
+  for (const auto &key_and_value : *column_priv_hash)
   {
     const char *user, *host, *is_grantable= "YES";
-    GRANT_TABLE *grant_table= (GRANT_TABLE*) my_hash_element(&column_priv_hash,
-                                                          index);
+    GRANT_TABLE *grant_table= key_and_value.second.get();
     if (!(user=grant_table->user))
       user= "";
     if (!(host= grant_table->host.get_host()))
@@ -5891,18 +5938,15 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
         {
           if (test_access & j)
           {
-            for (uint col_index=0 ;
-                 col_index < grant_table->hash_columns.records ;
-                 col_index++)
+            for (const auto &key_and_value : grant_table->hash_columns)
             {
-              GRANT_COLUMN *grant_column = (GRANT_COLUMN*)
-                my_hash_element(&grant_table->hash_columns,col_index);
+              GRANT_COLUMN *grant_column = key_and_value.second.get();
               if ((grant_column->rights & j) && (table_access & j))
               {
                 if (update_schema_privilege(thd, table, buff, grant_table->db,
                                             grant_table->tname,
-                                            grant_column->column,
-                                            grant_column->key_length,
+                                            grant_column->column.data(),
+                                            grant_column->column.size(),
                                             command_array[cnt],
                                             command_lengths[cnt], is_grantable))
                 {
@@ -6075,7 +6119,6 @@ bool check_global_access(THD *thd, ulong want_access)
   Checks foreign key's parent table access.
 
   @param [in] thd               Thread handler
-  @param [in] child_table_db    Database of child table
   @param [in] create_info       Create information (like MAX_ROWS, ENGINE or
                                 temporary table flag)
   @param [in] alter_info        Initial list of columns and indexes for the
@@ -6087,7 +6130,6 @@ bool check_global_access(THD *thd, ulong want_access)
    true	  error or access denied. Error is sent to client in this case.
 */
 bool check_fk_parent_table_access(THD *thd,
-                                  const char *child_table_db,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info)
 {
@@ -6105,57 +6147,11 @@ bool check_fk_parent_table_access(THD *thd,
     if (key->type == KEYTYPE_FOREIGN)
     {
       TABLE_LIST parent_table;
-      bool is_qualified_table_name;
       const Foreign_key_spec *fk_key= down_cast<const Foreign_key_spec*>(key);
-      LEX_STRING db_name;
-      LEX_STRING table_name= { (char *) fk_key->ref_table.str,
-                               fk_key->ref_table.length };
 
-      // Check if tablename is valid or not.
-      DBUG_ASSERT(table_name.str != NULL);
-      if (check_table_name(table_name.str, table_name.length) !=
-          Ident_name_check::OK)
-      {
-        my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name.str);
-        return true;
-      }
-
-      if (fk_key->ref_db.str)
-      {
-        is_qualified_table_name= true;
-        db_name.str= (char *) thd->memdup(fk_key->ref_db.str,
-                                          fk_key->ref_db.length+1);
-        db_name.length= fk_key->ref_db.length;
-
-        // Check if database name is valid or not.
-        if (fk_key->ref_db.str &&
-            (check_and_convert_db_name(&db_name, false) !=
-             Ident_name_check::OK))
-          return true;
-      }
-      else
-      {
-        /*
-          If database name for parent table is not specified explicitly
-          SEs assume that it is the same as database name of child table.
-          We do the same here.
-        */
-        is_qualified_table_name= false;
-        db_name.str= const_cast<char*>(child_table_db);
-        db_name.length= strlen(child_table_db);
-      }
-
-      // if lower_case_table_names is set then convert tablename to lower case.
-      if (lower_case_table_names)
-      {
-        table_name.str= (char *) thd->memdup(fk_key->ref_table.str,
-                                             fk_key->ref_table.length+1);
-        table_name.length= my_casedn_str(files_charset_info, table_name.str);
-      }
-
-      parent_table.init_one_table(db_name.str, db_name.length,
-                                  table_name.str, table_name.length,
-                                  table_name.str, TL_IGNORE);
+      parent_table.init_one_table(fk_key->ref_db.str, fk_key->ref_db.length,
+                    fk_key->ref_table.str, fk_key->ref_table.length,
+                    fk_key->ref_table.str, TL_IGNORE);
 
       /*
        Check if user has REFERENCES_ACL privilege at table level on
@@ -6170,22 +6166,14 @@ bool check_fk_parent_table_access(THD *thd,
            check_grant(thd, REFERENCES_ACL, &parent_table, false, 1, true)) ||
           (parent_table.grant.privilege & REFERENCES_ACL) == 0)
       {
-        if (is_qualified_table_name)
-        {
-          const size_t qualified_table_name_len= NAME_LEN + 1 + NAME_LEN + 1;
-          char *qualified_table_name=
-            (char *) thd->alloc(qualified_table_name_len);
-
-          my_snprintf(qualified_table_name, qualified_table_name_len, "%s.%s",
-                      db_name.str, table_name.str);
-          table_name.str= qualified_table_name;
-        }
-
+        char fqtn_buff[NAME_LEN + 1 + NAME_LEN + 1];
+        my_snprintf(fqtn_buff, sizeof(fqtn_buff), "%s.%s",
+                    fk_key->ref_db.str, fk_key->ref_table.str);
         my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
                  "REFERENCES",
                  thd->security_context()->priv_user().str,
                  thd->security_context()->host_or_ip().str,
-                 table_name.str);
+                 fqtn_buff);
 
         return true;
       }
@@ -6598,6 +6586,19 @@ bool mysql_alter_user_set_default_roles_all(THD *thd, LEX_USER *user)
   get_global_acl_cache()->increase_version();
   return errors;
 }
+
+
+/**
+  Set the default roles for a particular user.
+
+  @param thd           Thread handle
+  @param table         Table handle to an open table
+  @param user          AST component for the user for which we set def roles
+  @param new_auth_ids  Default roles to set
+  @return
+   @retval true  Operation failed
+   @retval false Operation was successful.
+*/
 
 bool alter_user_set_default_roles(THD *thd, TABLE *table, LEX_USER *user,
                                   const List_of_auth_id_refs &new_auth_ids)

@@ -13,28 +13,70 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "persisted_variable.h"
-#include "current_thd.h"
-#include "derror.h"           // ER_THD
-#include "json_dom.h"
+#include "sql/persisted_variable.h"
+
+#include "my_config.h"
+
+#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <memory>
+#include <new>
+#include <utility>
+
 #include "lex_string.h"
-#include "log.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_default.h"                 // check_file_permissions
-#include "mysqld.h"
-#include "mysql/psi/mysql_mutex.h"
+#include "my_getopt.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_file_bits.h"
+#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
-#include "psi_memory_key.h"
-#include "set_var.h"
-#include "sql_class.h"
-#include "sql_lex.h"
-#include "sys_vars_shared.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_version.h"
+#include "mysqld_error.h"
+#include "pfs_mutex_provider.h"
+#include "prealloced_array.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"       // ER_THD
+#include "sql/item.h"
+#include "sql/json_dom.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"
+#include "sql/psi_memory_key.h"
+#include "sql/set_var.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"
+#include "sql/sql_table.h"
+#include "sql/sys_vars_shared.h"
+#include "sql_string.h"
+#include "thr_mutex.h"
+#include "typelib.h"
 
 PSI_file_key key_persist_file_cnf;
 
 #ifdef HAVE_PSI_FILE_INTERFACE
 static PSI_file_info all_persist_files[]=
 {
-  { &key_persist_file_cnf, "cnf", 0}
+  { &key_persist_file_cnf, "cnf", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
@@ -43,8 +85,8 @@ PSI_mutex_key key_persist_file, key_persist_hash;
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 static PSI_mutex_info all_persist_mutexes[]=
 {
-  { &key_persist_file, "m_LOCK_persist_file", 0, 0},
-  { &key_persist_hash, "m_LOCK_persist_hash", 0, 0}
+  { &key_persist_file, "m_LOCK_persist_file", 0, 0, PSI_DOCUMENT_ME},
+  { &key_persist_hash, "m_LOCK_persist_hash", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
@@ -53,7 +95,7 @@ PSI_memory_key key_memory_persisted_variables;
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 static PSI_memory_info all_options[]=
 {
-  {&key_memory_persisted_variables, "persisted_options_root", PSI_FLAG_GLOBAL}
+  {&key_memory_persisted_variables, "persisted_options_root", 0, PSI_FLAG_ONLY_GLOBAL_STAT, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 
@@ -70,7 +112,7 @@ void my_init_persist_psi_keys(void)
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   count= static_cast<int>(array_elements(all_persist_mutexes));
-  PSI_MUTEX_CALL(register_mutex)(category, all_persist_mutexes, count);
+  mysql_mutex_register(category, all_persist_mutexes, count);
 #endif
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
@@ -555,7 +597,25 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
   }
   if (sql_set_variables(thd, &tmp_var_list, false))
   {
-    LogErr(ERROR_LEVEL, ER_CANT_SET_PERSISTED);
+    /*
+     If there is a connection and an error occurred during install plugin
+     then report error at sql layer, else log the error in server log.
+    */
+    if (current_thd && plugin_options)
+    {
+      if (thd->is_error())
+        my_error(ER_CANT_SET_PERSISTED, MYF(0),
+          thd->get_stmt_da()->message_text());
+      else
+        my_error(ER_CANT_SET_PERSISTED, MYF(0));
+    }
+    else
+    {
+      if (thd->is_error())
+        sql_print_error("%s", thd->get_stmt_da()->message_text());
+      else
+        LogErr(ERROR_LEVEL, ER_CANT_SET_PERSISTED);
+    }
     result= 1;
     goto err;
   }

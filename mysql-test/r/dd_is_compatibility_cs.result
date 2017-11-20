@@ -13,24 +13,22 @@ USE test;
 #########################################################
 # Issue WL#6599/HLS/6a): Analyze table needed in FDS mode.
 #########################################################
-SET @old_information_schema_stats= @@session.information_schema_stats;
-SET @@session.information_schema_stats= cached;
-# Getting cached statistics needs ANALYZE.
-CREATE TABLE t1 (i INTEGER, KEY cached_key(i));
-INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
-# Before ANALYZE, cardinality is NULL.
+SET information_schema_stats_expiry=default;
+CREATE TABLE t1 (i INTEGER, KEY cached_key(i)) ENGINE=INNODB STATS_PERSISTENT=0;
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
+(11), (12), (13), (14), (15), (16), (17), (18), (19);
 SHOW KEYS FROM t1 WHERE key_name LIKE 'cached%';
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	cached_key	1	i	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	1	cached_key	1	i	A	19	NULL	NULL	YES	BTREE			YES
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 # After ANALYZE, cardinality is correct.
 SHOW KEYS FROM t1 WHERE key_name LIKE 'cached%';
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	cached_key	1	i	A	10	NULL	NULL	YES	BTREE			YES
+t1	1	cached_key	1	i	A	19	NULL	NULL	YES	BTREE			YES
 DROP TABLE t1;
-SET @@session.information_schema_stats= latest;
+SET information_schema_stats_expiry=0;
 # Getting latest statistics does not need ANALYZE.
 CREATE TABLE t1 (i INTEGER, KEY latest_key(i));
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
@@ -40,7 +38,7 @@ SHOW KEYS FROM t1 WHERE key_name LIKE 'latest%';
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	latest_key	1	i	A	#	NULL	NULL	YES	BTREE			YES
 DROP TABLE t1;
-SET @@session.information_schema_stats= @old_information_schema_stats;
+SET information_schema_stats_expiry=default;
 #########################################################
 # Issue WL#6599/HLS/6b): DD tables listed in I_S query output.
 #########################################################
@@ -66,7 +64,7 @@ tables_priv
 # I_S view definitions.
 SHOW CREATE TABLE information_schema.tables;
 View	Create View	character_set_client	collation_connection
-TABLES	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`TABLES` AS select `cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,`tbl`.`type` AS `TABLE_TYPE`,if((`tbl`.`type` = 'BASE TABLE'),`tbl`.`engine`,NULL) AS `ENGINE`,if((`tbl`.`type` = 'VIEW'),NULL,10) AS `VERSION`,`tbl`.`row_format` AS `ROW_FORMAT`,`stat`.`table_rows` AS `TABLE_ROWS`,`stat`.`avg_row_length` AS `AVG_ROW_LENGTH`,`stat`.`data_length` AS `DATA_LENGTH`,`stat`.`max_data_length` AS `MAX_DATA_LENGTH`,`stat`.`index_length` AS `INDEX_LENGTH`,`stat`.`data_free` AS `DATA_FREE`,`stat`.`auto_increment` AS `AUTO_INCREMENT`,`tbl`.`created` AS `CREATE_TIME`,`stat`.`update_time` AS `UPDATE_TIME`,`stat`.`check_time` AS `CHECK_TIME`,`col`.`name` AS `TABLE_COLLATION`,`stat`.`checksum` AS `CHECKSUM`,if((`tbl`.`type` = 'VIEW'),NULL,get_dd_create_options(`tbl`.`options`,if((ifnull(`tbl`.`partition_expression`,'NOT_PART_TBL') = 'NOT_PART_TBL'),0,1))) AS `CREATE_OPTIONS`,internal_get_comment_or_error(`sch`.`name`,`tbl`.`name`,`tbl`.`type`,`tbl`.`options`,`tbl`.`comment`) AS `TABLE_COMMENT` from ((((`mysql`.`tables` `tbl` join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) left join `mysql`.`collations` `col` on((`tbl`.`collation_id` = `col`.`id`))) left join `mysql`.`table_stats` `stat` on(((`tbl`.`name` = `stat`.`table_name`) and (`sch`.`name` = `stat`.`schema_name`)))) where (can_access_table(`sch`.`name`,`tbl`.`name`) and is_visible_dd_object(`tbl`.`hidden`))	utf8	utf8_general_ci
+TABLES	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`TABLES` AS select `cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,`tbl`.`type` AS `TABLE_TYPE`,if((`tbl`.`type` = 'BASE TABLE'),`tbl`.`engine`,NULL) AS `ENGINE`,if((`tbl`.`type` = 'VIEW'),NULL,10) AS `VERSION`,`tbl`.`row_format` AS `ROW_FORMAT`,internal_table_rows(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,if(isnull(`stat`.`table_rows`),0,`stat`.`table_rows`),if(isnull(`stat`.`cached_time`),0,`stat`.`cached_time`)) AS `TABLE_ROWS`,internal_avg_row_length(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,if(isnull(`stat`.`avg_row_length`),0,`stat`.`avg_row_length`),if(isnull(`stat`.`cached_time`),0,`stat`.`cached_time`)) AS `AVG_ROW_LENGTH`,internal_data_length(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,if(isnull(`stat`.`data_length`),0,`stat`.`data_length`),if(isnull(`stat`.`cached_time`),0,`stat`.`cached_time`)) AS `DATA_LENGTH`,internal_max_data_length(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,if(isnull(`stat`.`max_data_length`),0,`stat`.`max_data_length`),if(isnull(`stat`.`cached_time`),0,`stat`.`cached_time`)) AS `MAX_DATA_LENGTH`,internal_index_length(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,if(isnull(`stat`.`index_length`),0,`stat`.`index_length`),if(isnull(`stat`.`cached_time`),0,`stat`.`cached_time`)) AS `INDEX_LENGTH`,internal_data_free(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,if(isnull(`stat`.`data_free`),0,`stat`.`data_free`),if(isnull(`stat`.`cached_time`),0,`stat`.`cached_time`)) AS `DATA_FREE`,internal_auto_increment(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,if(isnull(`stat`.`auto_increment`),0,`stat`.`auto_increment`),if(isnull(`stat`.`cached_time`),0,`stat`.`cached_time`),`tbl`.`se_private_data`) AS `AUTO_INCREMENT`,`tbl`.`created` AS `CREATE_TIME`,internal_update_time(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,if(isnull(`stat`.`update_time`),0,`stat`.`update_time`),if(isnull(`stat`.`cached_time`),0,`stat`.`cached_time`)) AS `UPDATE_TIME`,internal_check_time(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,if(isnull(`stat`.`check_time`),0,`stat`.`check_time`),if(isnull(`stat`.`cached_time`),0,`stat`.`cached_time`)) AS `CHECK_TIME`,`col`.`name` AS `TABLE_COLLATION`,internal_checksum(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,if(isnull(`stat`.`checksum`),0,`stat`.`checksum`),if(isnull(`stat`.`cached_time`),0,`stat`.`cached_time`)) AS `CHECKSUM`,if((`tbl`.`type` = 'VIEW'),NULL,get_dd_create_options(`tbl`.`options`,if((ifnull(`tbl`.`partition_expression`,'NOT_PART_TBL') = 'NOT_PART_TBL'),0,1))) AS `CREATE_OPTIONS`,internal_get_comment_or_error(`sch`.`name`,`tbl`.`name`,`tbl`.`type`,`tbl`.`options`,`tbl`.`comment`) AS `TABLE_COMMENT` from (((((`mysql`.`tables` `tbl` join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) left join `mysql`.`collations` `col` on((`tbl`.`collation_id` = `col`.`id`))) left join `mysql`.`tablespaces` `ts` on((`tbl`.`tablespace_id` = `ts`.`id`))) left join `mysql`.`table_stats` `stat` on(((`tbl`.`name` = `stat`.`table_name`) and (`sch`.`name` = `stat`.`schema_name`)))) where (can_access_table(`sch`.`name`,`tbl`.`name`) and is_visible_dd_object(`tbl`.`hidden`))	utf8	utf8_general_ci
 #########################################################
 # Issue WL#6599/HLS/6c): Capital cased I_S table column names.
 #########################################################
@@ -172,6 +170,7 @@ PLUGINS
 PROCESSLIST
 PROFILING
 REFERENTIAL_CONSTRAINTS
+RESOURCE_GROUPS
 ROUTINES
 SCHEMATA
 SCHEMA_PRIVILEGES
@@ -246,7 +245,7 @@ SET @@session.max_join_size= @old_join_size;
 # WL#6599 HLS/6k
 # ANALYZE TABLE under innodb read only mode fails with
 # error/warning. This would be a restrictions with wl6599. It is
-# recommended to use 'information_schema_stats=latest' to get latest
+# recommended to use 'information_schema_stats_expiry=0' to get latest
 # statistics from IS queries in read only mode.
 #########################################################
 use test;
@@ -254,6 +253,7 @@ CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
+call mtr.add_suppression('Skipped updating resource group metadata in InnoDB read only mode.');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Warning	InnoDB: Running in read-only mode
@@ -319,18 +319,18 @@ CREATE TABLE t1 ( a INT, KEY (a) INVISIBLE );
 CREATE TABLE t2 ( a INT, KEY (a) INVISIBLE ) ENGINE=MyISAM;
 SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			NO
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO
 SHOW KEYS FROM t2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t2	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			NO
 CREATE TABLE t3 ( a INT, KEY (a));
 SHOW KEYS FROM t3;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t3	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+t3	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
 ALTER TABLE t3 ALTER INDEX a INVISIBLE;
 SHOW KEYS FROM t3;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t3	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			NO
+t3	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO
 CREATE TABLE t4 ( a INT, KEY (a)) ENGINE=MyISAM;
 SHOW KEYS FROM t4;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible

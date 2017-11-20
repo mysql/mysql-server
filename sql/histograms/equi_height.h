@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_EQUI_HEIGHT_INCLUDED
 #define HISTOGRAMS_EQUI_HEIGHT_INCLUDED
 
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,15 +68,22 @@
 */
 
 #include <cstddef>                     // size_t
+#include <new>
 #include <string>                      // std::string
 #include <vector>                      // std::vector
 
-#include "equi_height_bucket.h"        // equi_height::Bucket, IWYU pragma: keep
-#include "histogram.h"                 // Histogram, value_map_type
 #include "my_base.h"                   // ha_rows
+#include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/histograms/equi_height_bucket.h" // equi_height::Bucket, IWYU pragma: keep
+#include "sql/histograms/histogram.h"  // Histogram, value_map_type
 #include "sql/histograms/value_map.h"  // Value_map
-#include "thr_malloc.h"
+#include "sql/my_decimal.h"
+#include "sql/thr_malloc.h"
+#include "sql_string.h"
+#include "template_utils.h"
 
+class Json_array;
 class Json_object;
 template <class T> class Memroot_allocator;
 
@@ -94,9 +101,9 @@ private:
   static constexpr const char *equi_height_str() { return "equi-height"; }
 
   /// The buckets for this histogram.
-  std::vector<equi_height::Bucket<T>,
-              Memroot_allocator<equi_height::Bucket<T>> > m_buckets;
-
+  std::set<equi_height::Bucket<T>,
+           Histogram_comparator,
+           Memroot_allocator<equi_height::Bucket<T>>> m_buckets;
 
   /**
     Create Equi-height buckets from a JSON array.
@@ -110,6 +117,17 @@ private:
   */
   bool add_bucket_from_json(const Json_array *json_bucket);
 
+  /**
+    Find the fraction of values that is less than or equal to 'value'.
+
+    This function will estimate the fraction of values that is less than or
+    equal to the provided value.
+
+    @param value The value to estimate the selectivity for.
+
+    @return the selectivity between 0.0 and 1.0 inclusive.
+  */
+  double get_less_than_equal_selectivity(const T& value) const;
 protected:
   /**
     Populate this histogram with contents from a JSON object.
@@ -122,6 +140,42 @@ protected:
 
 public:
   /**
+    Find the fraction of values equal to 'value'.
+
+    This function will estimate the fraction of values that is equal to the
+    provided value.
+
+    @param value The value to estimate the selectivity for.
+
+    @return the selectivity between 0.0 and 1.0 inclusive.
+  */
+  double get_equal_to_selectivity(const T& value) const;
+
+  /**
+    Find the fraction of values that is less than 'value'.
+
+    This function will estimate the fraction of values that is less than the
+    provided value.
+
+    @param value The value to estimate the selectivity for.
+
+    @return the selectivity between 0.0 and 1.0 inclusive.
+  */
+  double get_less_than_selectivity(const T& value) const;
+
+  /**
+    Find the fraction of values that is greater than 'value'.
+
+    This function will estimate the fraction of values that is greater than the
+    provided value.
+
+    @param value The value to estimate the selectivity for.
+
+    @return the selectivity between 0.0 and 1.0 inclusive.
+  */
+  double get_greater_than_selectivity(const T& value) const;
+
+  /**
     Equi-height constructor.
 
     This will not build the histogram, but only set its properties.
@@ -130,9 +184,11 @@ public:
     @param db_name  name of the database this histogram represents
     @param tbl_name name of the table this histogram represents
     @param col_name name of the column this histogram represents
+    @param data_type the type of data that this histogram contains
   */
   Equi_height(MEM_ROOT *mem_root, const std::string &db_name,
-              const std::string &tbl_name, const std::string &col_name);
+              const std::string &tbl_name, const std::string &col_name,
+              Value_map_type data_type);
 
   /**
     Equi-height copy-constructor

@@ -16,8 +16,17 @@
 #ifndef DD_UPGRADE__GLOBAL_H_INCLUDED
 #define DD_UPGRADE__GLOBAL_H_INCLUDED
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "sql/dd/string_type.h"
+#include "sql/item_create.h"
 #include "sql/sql_class.h"
+#include "sql/sql_servers.h"
 #include "sql/table.h"                            // Table_check_intact
+
+class THD;
+class Time_zone;
 
 using sql_mode_t= ulonglong;
 
@@ -72,7 +81,7 @@ class Routine_event_context_guard
 {
   THD *m_thd;
   sql_mode_t m_sql_mode;
-  Time_zone *m_saved_time_zone;
+  ::Time_zone *m_saved_time_zone;
   const CHARSET_INFO *m_client_cs;
   const CHARSET_INFO *m_connection_cl;
 

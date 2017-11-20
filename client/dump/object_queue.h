@@ -19,19 +19,18 @@
 #define OBJECT_QUEUE_INCLUDED
 
 #include <sys/types.h>
-
 #include <atomic>
 #include <functional>
 #include <map>
 #include <queue>
 
-#include "abstract_dump_task.h"
-#include "abstract_object_reader_wrapper.h"
-#include "base/abstract_program.h"
-#include "base/mutex.h"
-#include "i_object_reader.h"
+#include "client/base/abstract_program.h"
+#include "client/base/mutex.h"
+#include "client/dump/abstract_dump_task.h"
+#include "client/dump/abstract_object_reader_wrapper.h"
+#include "client/dump/i_object_reader.h"
+#include "client/dump/thread_group.h"
 #include "my_inttypes.h"
-#include "thread_group.h"
 
 namespace Mysql{
 namespace Tools{

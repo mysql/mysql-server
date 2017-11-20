@@ -252,7 +252,7 @@ CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' ENGINE=InnoDB;
 ALTER TABLESPACE ts ADD DATAFILE 'TOO_LONG_PATH';
 ERROR HY000: The path specified for DATAFILE is too long.
 ALTER TABLESPACE ts DROP DATAFILE 'no_such_file.ibd';
-ERROR HY000: Incorrect File Name 'no_such_file.ibd'.
+ERROR HY000: Tablespace 'ts' does not have a file named 'no_such_file.ibd'
 DROP TABLESPACE ts;
 #
 # Validate tablespace names in the SE.
@@ -270,7 +270,7 @@ ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
 DROP TABLESPACE innodb_system;
 ERROR 42000: InnoDB: `innodb_system` is a reserved tablespace name.
 DROP TABLESPACE innodb_file_per_table;
-ERROR 42000: InnoDB: `innodb_file_per_table` is a reserved tablespace name.
+ERROR HY000: Tablespace innodb_file_per_table doesn't exist.
 DROP TABLESPACE innodb_temporary;
 ERROR 42000: InnoDB: `innodb_temporary` is a reserved tablespace name.
 DROP TABLESPACE mysql;
@@ -279,15 +279,15 @@ ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
 CREATE TABLESPACE `innodb_file_per_table.2` ADD DATAFILE 'f.ibd' ENGINE InnoDB;
 ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
 DROP TABLESPACE `innodb_file_per_table.2`;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR HY000: Tablespace innodb_file_per_table.2 doesn't exist.
 CREATE TABLESPACE innodb_file_per_table_whatever ADD DATAFILE 'f.ibd' ENGINE InnoDB;
 ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
 DROP TABLESPACE innodb_file_per_table_whatever;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR HY000: Tablespace innodb_file_per_table_whatever doesn't exist.
 CREATE TABLESPACE innodb_file_per_table ADD DATAFILE 'f.ibd' ENGINE InnoDB;
 ERROR 42000: InnoDB: `innodb_file_per_table` is a reserved tablespace name.
 DROP TABLESPACE innodb_file_per_table;
-ERROR 42000: InnoDB: `innodb_file_per_table` is a reserved tablespace name.
+ERROR HY000: Tablespace innodb_file_per_table doesn't exist.
 # 2. Non partitioned table DDL.
 # 2.1 Create table.
 CREATE TABLE t1 (i INTEGER) TABLESPACE innodb_file_per_table ENGINE InnoDB;
@@ -449,3 +449,312 @@ ALTER TABLE t_subpart REORGANIZE PARTITION s11 INTO
 ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
 DROP TABLE t_part;
 DROP TABLE t_subpart;
+#
+# Tescases for wl#8972. Rename a general tablespace
+#
+CREATE TABLESPACE ts ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+CREATE TABLE t1(i INT) TABLESPACE ts;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+# Negative tests
+ALTER TABLESPACE ts RENAME TO innodb_system;
+ERROR HY000: Tablespace 'innodb_system' exists.
+ALTER TABLESPACE ts RENAME TO innodb_file_per_table;
+ERROR 42000: InnoDB: `innodb_file_per_table` is a reserved tablespace name.
+ALTER TABLESPACE ts RENAME TO innodb_temporary;
+ERROR HY000: Tablespace 'innodb_temporary' exists.
+ALTER TABLESPACE ts RENAME TO mysql;
+ERROR HY000: Tablespace 'mysql' exists.
+ALTER TABLESPACE innodb_system RENAME TO ts3;
+ERROR 42000: InnoDB: `innodb_system` is a reserved tablespace name.
+ALTER TABLESPACE innodb_temporary RENAME TO ts3;
+ERROR 42000: InnoDB: `innodb_temporary` is a reserved tablespace name.
+ALTER TABLESPACE mysql RENAME TO ts3;
+ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
+ALTER TABLESPACE ts RENAME TO `innodb_file_per_table.2`;
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ALTER TABLESPACE ts RENAME TO innodb_file_per_table_whatever;
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ALTER TABLESPACE ts RENAME TO innodb_file_per_table;
+ERROR 42000: InnoDB: `innodb_file_per_table` is a reserved tablespace name.
+SELECT (COUNT(*)=1) FROM INFORMATION_SCHEMA.FILES WHERE TABLESPACE_NAME = 'ts';
+(COUNT(*)=1)
+1
+ALTER TABLESPACE ts RENAME TO ts2;
+SELECT (COUNT(*)=1) FROM INFORMATION_SCHEMA.FILES WHERE TABLESPACE_NAME = 'ts2';
+(COUNT(*)=1)
+1
+SELECT (COUNT(*)=0) FROM INFORMATION_SCHEMA.FILES WHERE TABLESPACE_NAME = 'ts';
+(COUNT(*)=0)
+1
+# Should display ts2 as tablespace name
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+# Check that table in renamed tablespace is accessible
+SELECT * FROM t1;
+i
+ALTER TABLE t1 ADD COLUMN j VARCHAR(32);
+# Should display ts2 as tablespace name, and new column
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  `j` varchar(32) DEFAULT NULL
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+INSERT INTO t1 VALUES (0,'0'),(1,'1'),(2,'2'),(3,'3');
+# Check that a new table can be created in the renamed tablespace
+CREATE TABLE t2(j int) TABLESPACE ts2;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `j` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+INSERT INTO t2 VALUES (0),(1),(2),(3);
+DROP TABLE t2;
+DROP TABLE t1;
+DROP TABLESPACE ts2;
+# 1. Verify that ENGINE attribute is not needed for ALTER and DROP
+# TABLESPACE
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+SET default_storage_engine=myisam;
+# No need to add ENGINE - looked up in DD
+ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd';
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+# Specifying correct ENGINE is allowed, but triggers deprecation
+# warning
+ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd' ENGINE=INNODB;
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+# Specifying a different ENGINE than the one stored in the DD is an
+# error
+ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd' ENGINE=MYISAM;
+ERROR HY000: Engine 'MYISAM' does not match stored engine 'InnoDB' for tablespace 'ts1'
+SET default_storage_engine=InnoDB;
+DROP TABLESPACE ts1;
+# 2. Tablespace operations without required privileges are rejected
+# Create user without any privileges.
+CREATE USER noprivs@localhost;
+REVOKE ALL ON *.* FROM noprivs@localhost;
+# Connect as user noprivs@localhost;
+# Should fail due to missing privileges
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+ERROR 42000: Access denied; you need (at least one of) the CREATE TABLESPACE privilege(s) for this operation
+ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd';
+ERROR 42000: Access denied; you need (at least one of) the CREATE TABLESPACE privilege(s) for this operation
+ALTER TABLESPACE ts1 DROP DATAFILE 'df2.ibd';
+ERROR 42000: Access denied; you need (at least one of) the CREATE TABLESPACE privilege(s) for this operation
+ALTER TABLESPACE ts1 RENAME TO ts2;
+ERROR 42000: Access denied; you need (at least one of) the CREATE TABLESPACE privilege(s) for this operation
+DROP TABLESPACE ts1;
+ERROR 42000: Access denied; you need (at least one of) the CREATE TABLESPACE privilege(s) for this operation
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M;
+ERROR 42000: Access denied; you need (at least one of) the CREATE TABLESPACE privilege(s) for this operation
+DROP LOGFILE GROUP lg1;
+ERROR 42000: Access denied; you need (at least one of) the CREATE TABLESPACE privilege(s) for this operation
+DROP USER noprivs@localhost;
+# Tablespace operations are autocommited
+SET AUTOCOMMIT=OFF;
+BEGIN WORK;
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+ROLLBACK WORK;
+BEGIN WORK;
+ALTER TABLESPACE ts1 RENAME TO ts2;
+ROLLBACK WORK;
+BEGIN WORK;
+DROP TABLESPACE ts2;
+ROLLBACK WORK;
+SET AUTOCOMMIT=ON;
+#
+# Additional test cases requested by QA
+#
+# Test ALTER TABLESPACE RENAME with partition tables
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+CREATE TABLE tab (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION p1 VALUES LESS THAN (100) TABLESPACE=ts1,
+PARTITION p2 VALUES LESS THAN (200) TABLESPACE=ts2,
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE innodb_file_per_table,
+PARTITION p4 VALUES LESS THAN (400) TABLESPACE innodb_system);
+INSERT INTO tab VALUES(99,99);
+INSERT INTO tab VALUES(199,199);
+INSERT INTO tab VALUES(299,299);
+INSERT INTO tab VALUES(399,399);
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (100) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (200) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (300) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (400) TABLESPACE = `innodb_system` ENGINE = InnoDB) */
+ALTER TABLESPACE ts1 RENAME TO ts11 ;
+ALTER TABLESPACE ts2 RENAME TO ts22 ;
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (100) TABLESPACE = `ts11` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (200) TABLESPACE = `ts22` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (300) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (400) TABLESPACE = `innodb_system` ENGINE = InnoDB) */
+DELETE FROM tab;
+SELECT COUNT(*) FROM tab;
+COUNT(*)
+0
+ALTER TABLE tab ADD PARTITION (PARTITION p5 VALUES LESS THAN (500) TABLESPACE ts22);
+INSERT INTO tab VALUES(99,99);
+INSERT INTO tab VALUES(199,199);
+INSERT INTO tab VALUES(299,299);
+INSERT INTO tab VALUES(399,399);
+INSERT INTO tab VALUES(499,499);
+SELECT COUNT(*) FROM tab;
+COUNT(*)
+5
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (100) TABLESPACE = `ts11` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (200) TABLESPACE = `ts22` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (300) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (400) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (500) TABLESPACE = `ts22` ENGINE = InnoDB) */
+ALTER TABLE tab ROW_FORMAT=COMPACT;
+ALTER TABLESPACE ts11 RENAME TO ts1 ;
+ALTER TABLESPACE ts22 RENAME TO ts2 ;
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (100) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (200) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (300) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (400) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (500) TABLESPACE = `ts2` ENGINE = InnoDB) */
+ALTER TABLE tab ROW_FORMAT=REDUNDANT;
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (100) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (200) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (300) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (400) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (500) TABLESPACE = `ts2` ENGINE = InnoDB) */
+# failed: 1478: InnoDB: Tablespace `ts1` cannot contain a COMPRESSED table
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (100) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (200) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (300) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (400) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (500) TABLESPACE = `ts2` ENGINE = InnoDB) */
+DROP TABLE tab;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+# Check ALTER TABLESPACE RENAME with STORED PROCEDURE
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=InnoDB;
+CREATE TABLE tab1(c1 int) ENGINE=InnoDB TABLESPACE=ts1;
+CREATE TABLE tab2(c1 int) ENGINE=InnoDB TABLESPACE=ts2;
+CREATE PROCEDURE proc_alter()
+BEGIN
+ALTER TABLESPACE ts1 RENAME TO ts11 ;
+INSERT INTO tab1 VALUES(1);
+ALTER TABLESPACE ts2 RENAME TO ts22 ;
+INSERT INTO tab2 VALUES(1);
+END|
+CALL proc_alter();
+SELECT COUNT(*) FROM tab1;
+COUNT(*)
+1
+SELECT COUNT(*) FROM tab2;
+COUNT(*)
+1
+SHOW CREATE TABLE tab1;
+Table	Create Table
+tab1	CREATE TABLE `tab1` (
+  `c1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts11` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SHOW CREATE TABLE tab2;
+Table	Create Table
+tab2	CREATE TABLE `tab2` (
+  `c1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts22` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP PROCEDURE proc_alter;
+DROP TABLE tab1,tab2;
+DROP TABLESPACE ts11;
+DROP TABLESPACE ts22;
+#
+# Bug#26428558: INNODB: ASSERTION FAILURE:
+# HA_INNOPART.CC:2431:PART_ELEM->TABLESPACE_NAME == __N
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+CREATE TABLE tab (a INT, b INT) ENGINE=InnoDB #ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION p1 VALUES LESS THAN (100) TABLESPACE=ts1);
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (100) TABLESPACE = `ts1` ENGINE = InnoDB) */
+ALTER TABLESPACE ts1 RENAME TO ts11 ;
+# Crash
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (100) TABLESPACE = `ts11` ENGINE = InnoDB) */
+DROP TABLE tab;
+DROP TABLESPACE ts11;
+#
+# Bug#26435800: DD::PROPERTIES_IMPL::GET_UINT64 (THIS=0X7FAC6822B0A0,
+# KEY=...,PROPERTIES_IMPL.H:
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+CREATE TABLE t1 (a INT, b INT) ENGINE = InnoDB TABLESPACE=ts1;
+ALTER TABLESPACE ts1 RENAME TO ts11;
+TRUNCATE TABLE t1;
+DROP TABLE t1;
+DROP TABLESPACE ts11;

@@ -13,15 +13,16 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/spatial_reference_systems.h"
+#include "sql/dd/impl/tables/spatial_reference_systems.h"
 
 #include <string.h>
 #include <new>
 
-#include "dd/impl/raw/object_keys.h"                    // Parent_id_range_key
-#include "dd/impl/types/object_table_definition_impl.h"
-#include "dd/impl/types/spatial_reference_system_impl.h"// dd::Spatial_refere...
 #include "m_ctype.h"
+#include "sql/dd/impl/raw/object_keys.h"                // Parent_id_range_key
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/impl/types/spatial_reference_system_impl.h"// dd::Spatial_refere...
 
 namespace dd {
 namespace tables {

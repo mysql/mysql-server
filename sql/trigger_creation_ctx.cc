@@ -18,17 +18,20 @@
 #include "sql/trigger_creation_ctx.h"
 
 #include <stddef.h>
+#include <atomic>
 
-#include "derror.h"
-#include "log.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysqld_error.h"
-#include "sql_class.h"
-#include "sql_db.h" // get_default_db_collation()
-#include "sql_error.h"
-#include "system_variables.h"
+#include "sql/derror.h"
+#include "sql/log.h"
+#include "sql/sql_class.h"
+#include "sql/sql_db.h" // get_default_db_collation()
+#include "sql/sql_error.h"
+#include "sql/system_variables.h"
 
 Trigger_creation_ctx *
 Trigger_creation_ctx::create(THD *thd,

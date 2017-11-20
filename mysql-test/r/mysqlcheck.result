@@ -17,9 +17,11 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_ddl_log                               OK
 mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
@@ -80,6 +82,10 @@ status   : OK
 mysql.help_topic
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
+mysql.innodb_ddl_log
+note     : Table does not support optimize, doing recreate + analyze instead
+error    : The used command is not allowed with this MySQL version
+status   : Operation failed
 mysql.innodb_dynamic_metadata
 note     : Table does not support optimize, doing recreate + analyze instead
 error    : The used command is not allowed with this MySQL version
@@ -92,6 +98,9 @@ mysql.innodb_table_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 error    : The used command is not allowed with this MySQL version
 status   : Operation failed
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.password_history
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.plugin
@@ -161,9 +170,11 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_ddl_log                               OK
 mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
@@ -221,6 +232,10 @@ status   : OK
 mysql.help_topic
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
+mysql.innodb_ddl_log
+note     : Table does not support optimize, doing recreate + analyze instead
+error    : The used command is not allowed with this MySQL version
+status   : Operation failed
 mysql.innodb_dynamic_metadata
 note     : Table does not support optimize, doing recreate + analyze instead
 error    : The used command is not allowed with this MySQL version
@@ -233,6 +248,9 @@ mysql.innodb_table_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 error    : The used command is not allowed with this MySQL version
 status   : Operation failed
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.password_history
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.plugin

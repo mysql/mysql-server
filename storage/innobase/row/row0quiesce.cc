@@ -199,7 +199,7 @@ row_quiesce_write_indexes(
 	bool		has_sdi = FSP_FLAGS_HAS_SDI(flags);
 
 	if (has_sdi) {
-		num_indexes += MAX_SDI_COPIES;
+		num_indexes += 1;
 	}
 
 	num_indexes += static_cast<uint32_t>(UT_LIST_GET_LEN(table->indexes));
@@ -221,21 +221,17 @@ row_quiesce_write_indexes(
 
 	dberr_t	err = DB_SUCCESS;
 
-	/* Write SDI Indexes */
+	/* Write SDI Index */
 	if (has_sdi) {
-		for (uint32_t copy_num = 0; copy_num < MAX_SDI_COPIES;
-			++copy_num) {
 
-			dict_mutex_enter_for_mysql();
+		dict_mutex_enter_for_mysql();
 
-			dict_index_t*	index = dict_sdi_get_index(
-				table->space, copy_num);
+		dict_index_t*	index = dict_sdi_get_index(table->space);
 
-			dict_mutex_exit_for_mysql();
+		dict_mutex_exit_for_mysql();
 
-			ut_ad(index != NULL);
-			err = row_quiesce_write_one_index(index, file, thd);
-		}
+		ut_ad(index != NULL);
+		err = row_quiesce_write_one_index(index, file, thd);
 	}
 
 	/* Write the table indexes meta data. */
@@ -487,7 +483,7 @@ row_quiesce_write_cfg(
 	dberr_t			err;
 	char			name[OS_FILE_MAX_PATH];
 
-	srv_get_meta_data_filename(table, name, sizeof(name));
+	dd_get_meta_data_filename(table, NULL, name, sizeof(name));
 
 	ib::info() << "Writing table metadata to '" << name << "'";
 
@@ -876,7 +872,7 @@ row_quiesce_table_complete(
 	the user tries to drop the database (remove directory). */
 	char		cfg_name[OS_FILE_MAX_PATH];
 
-	srv_get_meta_data_filename(table, cfg_name, sizeof(cfg_name));
+	dd_get_meta_data_filename(table, NULL, cfg_name, sizeof(cfg_name));
 
 	os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 

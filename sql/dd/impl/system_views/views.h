@@ -16,8 +16,9 @@
 #ifndef DD_SYSTEM_VIEWS__VIEWS_INCLUDED
 #define DD_SYSTEM_VIEWS__VIEWS_INCLUDED
 
-#include "dd/impl/system_views/system_view_definition_impl.h"
-#include "dd/impl/system_views/system_view_impl.h"
+#include "sql/dd/impl/system_views/system_view_definition_impl.h"
+#include "sql/dd/impl/system_views/system_view_impl.h"
+#include "sql/dd/string_type.h"
 
 namespace dd {
 namespace system_views {

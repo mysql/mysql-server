@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -46,16 +46,6 @@ dict_table_t*
 dict_table_check_if_in_cache_low(
 /*=============================*/
 	const char*	table_name);		/*!< in: table name */
-
-/** Returns a table object based on table id.
-@param[in]	table_id	table id
-@param[in]	ignore_err	errors to ignore when loading the table
-@return table, NULL if does not exist */
-UNIV_INLINE
-dict_table_t*
-dict_table_open_on_id_low(
-	table_id_t		table_id,
-	dict_err_ignore_t	ignore_err);
 
 #include "dict0priv.ic"
 

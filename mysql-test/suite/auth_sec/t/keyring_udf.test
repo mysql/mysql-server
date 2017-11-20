@@ -125,3 +125,5 @@ drop function keyring_key_remove;
 drop function keyring_key_generate;
 drop function keyring_key_type_fetch;
 drop function keyring_key_length_fetch;
+
+--source include/force_restart.inc

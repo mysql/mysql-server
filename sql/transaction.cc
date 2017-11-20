@@ -19,35 +19,38 @@
 #include <assert.h>
 #include <stddef.h>
 
-#include "auth_common.h"      // SUPER_ACL
-#include "dd/cache/dictionary_client.h"
-#include "debug_sync.h"       // DEBUG_SYNC
-#include "handler.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
-#include "mdl.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
+#include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_transaction.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"           // opt_readonly
 #include "mysqld_error.h"
-#include "query_options.h"
-#include "rpl_context.h"
-#include "rpl_gtid.h"
-#include "rpl_rli.h"
-#include "session_tracker.h"
-#include "sql_class.h"        // THD
-#include "sql_lex.h"
-#include "system_variables.h"
-#include "tc_log.h"
-#include "transaction_info.h"
-#include "xa.h"
+#include "sql/auth/auth_common.h" // SUPER_ACL
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/debug_sync.h"   // DEBUG_SYNC
+#include "sql/handler.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"       // opt_readonly
+#include "sql/query_options.h"
+#include "sql/rpl_context.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_rli.h"
+#include "sql/rpl_transaction_write_set_ctx.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h"    // THD
+#include "sql/sql_lex.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/tc_log.h"
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 
 
 /**
@@ -77,8 +80,8 @@ void trans_reset_one_shot_chistics(THD *thd)
     tst->set_isol_level(thd, TX_ISOL_INHERIT);
   }
 
-  thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-  thd->tx_read_only= thd->variables.tx_read_only;
+  thd->tx_isolation= (enum_tx_isolation) thd->variables.transaction_isolation;
+  thd->tx_read_only= thd->variables.transaction_read_only;
 }
 
 /**

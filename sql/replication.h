@@ -16,9 +16,9 @@
 #ifndef REPLICATION_H
 #define REPLICATION_H
 
-#include "handler.h"                  // enum_tx_isolation
 #include "my_thread_local.h"          // my_thread_id
 #include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
+#include "sql/handler.h"              // enum_tx_isolation
 
 typedef struct st_mysql MYSQL;
 typedef struct st_io_cache IO_CACHE;
@@ -637,6 +637,20 @@ typedef int (*after_queue_event_t)(Binlog_relay_IO_param *param,
 */
 typedef int (*after_reset_slave_t)(Binlog_relay_IO_param *param);
 
+
+/**
+  This callback is called before event gets applied
+
+  @param param  Observer common parameter
+  @param reason Event skip reason
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*applier_log_event_t)(Binlog_relay_IO_param *param,
+                                   Trans_param *trans_param,
+                                   int& out);
+
 /**
    Observes and extends the service of slave IO thread.
 */
@@ -651,6 +665,7 @@ typedef struct Binlog_relay_IO_observer {
   after_read_event_t after_read_event;
   after_queue_event_t after_queue_event;
   after_reset_slave_t after_reset_slave;
+  applier_log_event_t applier_log_event;
 } Binlog_relay_IO_observer;
 
 

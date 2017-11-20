@@ -990,7 +990,6 @@ NdbTableImpl::assign(const NdbTableImpl& org)
     NdbColumnImpl * col = new NdbColumnImpl();
     if (col == NULL)
     {
-      errno = ENOMEM;
       DBUG_RETURN(-1);
     }
     const NdbColumnImpl * iorg = org.m_columns[i];
@@ -1061,6 +1060,12 @@ NdbTableImpl::assign(const NdbTableImpl& org)
                       m_read_backup,
                       m_version));
 
+  computeAggregates();
+  if (buildColumnHash() != 0)
+  {
+    DBUG_RETURN(-1);
+  }
+         
   DBUG_RETURN(0);
 }
 
@@ -1551,9 +1556,113 @@ NdbTableImpl::updateMysqlName()
   return !m_mysqlName.assign("");
 }
 
+static Uint32 Hash( const char* str ){
+  Uint32 h = 0;
+  size_t len = strlen(str);
+  while(len >= 4){
+    h = (h << 5) + h + str[0];
+    h = (h << 5) + h + str[1];
+    h = (h << 5) + h + str[2];
+    h = (h << 5) + h + str[3];
+    len -= 4;
+    str += 4;
+  }
+  
+  switch(len){
+  case 3:
+    h = (h << 5) + h + *str++;
+  case 2:
+    h = (h << 5) + h + *str++;
+  case 1:
+    h = (h << 5) + h + *str++;
+  }
+  return h;
+}
+
+
+/**
+ * Column name hash
+ * 
+ * First (#cols) entries are hash buckets
+ * which are either single values (unibucket)
+ * or chain headers, referring to contiguous
+ * entries stored at indices > #cols.
+ *
+ * Lookup hashes passed name, then
+ * checks stored hash(es), then
+ * uses strcmp, should get close to
+ * 1 strcmp / lookup.
+ * 
+ * UniBucket / Chain entry
+ * 
+ * 31                             0
+ * ccccccccccuhhhhhhhhhhhhhhhhhhhhh
+ * 10        1     21          bits
+ *
+ * c = col number
+ * u = Unibucket(1)
+ * h = hashvalue
+ *
+ * Chain header
+ *
+ * 31                             0
+ * lllllllllluppppppppppppppppppppp
+ * 10        1     21          bits
+ * 
+ * l = chain length
+ * u = Unibucket(0)
+ * p = Chain pos 
+ *     (Offset from chain header bucket)
+ */
+static const Uint32 UniBucket       = 0x00200000;
+static const Uint32 ColNameHashMask = 0x001FFFFF;
+static const Uint32 ColShift = 22;
+
+NdbColumnImpl *
+NdbTableImpl::getColumnByHash(const char * name) const
+{
+  Uint32 sz = m_columns.size();
+  NdbColumnImpl* const * cols = m_columns.getBase();
+  const Uint32 * hashtable = m_columnHash.getBase(); 
+ 
+  const Uint32 hashValue = Hash(name) & ColNameHashMask;
+  Uint32 bucket = hashValue & m_columnHashMask;
+  bucket = (bucket < sz ? bucket : bucket - sz);
+  hashtable += bucket;
+  Uint32 tmp = * hashtable;
+  if(tmp & UniBucket)
+  { // No chaining
+    sz = 1;
+  } 
+  else 
+  {
+    sz = (tmp >> ColShift);
+    hashtable += (tmp & ColNameHashMask);
+    tmp = * hashtable;
+  }
+  do 
+  {
+    if(hashValue == (tmp & ColNameHashMask))
+    {
+      NdbColumnImpl* col = cols[tmp >> ColShift];
+      if(strncmp(name, col->m_name.c_str(), col->m_name.length()) == 0)
+      {
+        return col;
+      }
+    }
+    hashtable++;
+    tmp = * hashtable;
+  } while(--sz > 0);
+
+  return NULL;
+}
+
 int
-NdbTableImpl::buildColumnHash(){
+NdbTableImpl::buildColumnHash()
+{
   const Uint32 size = m_columns.size();
+
+  /* Find mask size needed */ 
   int i;
   for(i = 31; i >= 0; i--){
     if(((1 << i) & size) != 0){
@@ -1562,14 +1671,33 @@ NdbTableImpl::buildColumnHash(){
     }
   }
 
+#ifndef NDEBUG
+  /**
+   * Guards to ensure we can represent all columns
+   * correctly
+   * Reduce stored hash bits if more columns supported 
+   * in future
+   */  
+  const Uint32 ColBits
+    ((sizeof(Uint32) * 8) - ColShift); 
+  const Uint32 MaxCols = Uint32(1) << ColBits;
+  assert(MaxCols >= MAX_ATTRIBUTES_IN_TABLE);
+  assert((UniBucket & ColNameHashMask) == 0);
+  assert((UniBucket >> ColShift) == 0);
+  assert((UniBucket << ColBits) == 0x80000000);
+  assert(m_columnHashMask <= ColNameHashMask);
+#endif
+
+  /* Build 2d hash as precursor to 1d hash array */
   Vector<Uint32> hashValues;
   Vector<Vector<Uint32> > chains;
   if (chains.fill(size, hashValues))
   {
     return -1;
   }
+
   for(i = 0; i< (int) size; i++){
-    Uint32 hv = Hash(m_columns[i]->getName()) & 0xFFFE;
+    Uint32 hv = Hash(m_columns[i]->getName()) & ColNameHashMask;
     Uint32 bucket = hv & m_columnHashMask;
     bucket = (bucket < size ? bucket : bucket - size);
     assert(bucket < size);
@@ -1580,32 +1708,38 @@ NdbTableImpl::buildColumnHash(){
     }
   }
 
+  /* Now build 1d hash array */
   m_columnHash.clear();
-  Uint32 tmp = 1; 
+  Uint32 tmp = UniBucket;
   if (m_columnHash.fill((unsigned)size-1, tmp))   // Default no chaining
   {
     return -1;
   }
 
   Uint32 pos = 0; // In overflow vector
-  for(i = 0; i< (int) size; i++){
-    Uint32 sz = chains[i].size();
-    if(sz == 1){
+  for(i = 0; i< (int) size; i++)
+  {
+    const Uint32 sz = chains[i].size();
+    if(sz == 1)
+    {
+      /* UniBucket */
+      const Uint32 col = chains[i][0];
+      const Uint32 hv = hashValues[col];
+      Uint32 bucket = hv & m_columnHashMask;
+      bucket = (bucket < size ? bucket : bucket - size);
+      m_columnHash[bucket] = (col << ColShift) | UniBucket | hv;
+    } 
+    else if(sz > 1)
+    {
       Uint32 col = chains[i][0];
       Uint32 hv = hashValues[col];
       Uint32 bucket = hv & m_columnHashMask;
       bucket = (bucket < size ? bucket : bucket - size);
-      m_columnHash[bucket] = (col << 16) | hv | 1;
-    } else if(sz > 1){
-      Uint32 col = chains[i][0];
-      Uint32 hv = hashValues[col];
-      Uint32 bucket = hv & m_columnHashMask;
-      bucket = (bucket < size ? bucket : bucket - size);
-      m_columnHash[bucket] = (sz << 16) | (((size - bucket) + pos) << 1);
+      m_columnHash[bucket] = (sz << ColShift) | ((size - bucket) + pos);
       for(unsigned j = 0; j<sz; j++, pos++){
 	Uint32 col = chains[i][j];	
 	Uint32 hv = hashValues[col];
-	if (m_columnHash.push_back((col << 16) | hv))
+        if (m_columnHash.push_back((col << ColShift) | hv))
         {
           return -1;
         }
@@ -1613,25 +1747,142 @@ NdbTableImpl::buildColumnHash(){
     }
   }
 
-  if (m_columnHash.push_back(0)) // Overflow when looping in end of array
-  {
-    return -1;
-  }
+  DBUG_PRINT("info", ("Column hash initialised with size %u for %u cols",
+                      m_columnHash.size(),
+                      m_columns.size()));
 
-#if 0
+  assert(checkColumnHash());
+
+  return 0;
+}
+
+void
+NdbTableImpl::dumpColumnHash() const
+{
+  const Uint32 size = m_columns.size();
+
+  printf("Table %s column hash stores %u columns in hash table size %u\n",
+         getName(),
+         size,
+         m_columnHash.size());
+  
+  Uint32 comparisons = 0;
+
   for(size_t i = 0; i<m_columnHash.size(); i++){
     Uint32 tmp = m_columnHash[i];
-    int col = -1;
-    if(i < size && (tmp & 1) == 1){
-      col = (tmp >> 16);
-    } else if(i >= size){
-      col = (tmp >> 16);
+    if(i < size)
+    {
+      if (tmp & UniBucket)
+      {
+        if (tmp == UniBucket)
+        {
+          printf("  m_columnHash[%d]  %x NULL\n", (Uint32) i, tmp);
+        }
+        else
+        {
+          Uint32 hash = m_columnHash[i] & ColNameHashMask;
+          Uint32 bucket = (m_columnHash[i] & ColNameHashMask) & m_columnHashMask;
+          printf("  m_columnHash[%d] %x %s HashVal %d Bucket %d Bucket2 %d\n", 
+                 (Uint32) i, 
+                 tmp,
+                 m_columns[tmp >> ColShift]->getName(), 
+                 hash,
+                 bucket,
+                 (bucket < size? bucket : bucket - size));
+          comparisons++;
+        }
+      }
+      else
+      {
+        /* Chain header */
+        Uint32 chainStart = Uint32(i) + (tmp & ColNameHashMask);
+        Uint32 chainLen = tmp >> ColShift;
+        printf("  m_columnHash[%d] %x chain header of size %u @ +%u = %u\n",
+               (Uint32) i,
+               tmp,
+               chainLen,
+               (tmp & ColNameHashMask),
+               chainStart);
+        
+        /* Always 1 comparison, sometimes more */
+        comparisons += ((chainLen * (chainLen + 1)) / 2);
+      }
+    } 
+    else /* i > size */
+    { 
+      /* Chain body  */
+      Uint32 hash = m_columnHash[i] & ColNameHashMask;
+      Uint32 bucket = (m_columnHash[i] & ColNameHashMask) & m_columnHashMask;
+      printf("  m_columnHash[%d] %x %s HashVal %d Bucket %d Bucket2 %d\n", 
+             (Uint32) i, 
+             tmp,
+             m_columns[tmp >> ColShift]->getName(), 
+             hash,
+             bucket,
+             (bucket < size? bucket : bucket - size));
     }
-    ndbout_c("m_columnHash[%d] %s = %x", 
-	     i, col > 0 ? m_columns[col]->getName() : "" , m_columnHash[i]);
   }
-#endif
-  return 0;
+
+  Uint32 sigdig = comparisons/size;
+  Uint32 places = 10000;
+  printf("Entries = %u Hash Total comparisons = %u Average comparisons = %u.%u "
+         "Expected average strcmps = 1\n",
+         size,
+         comparisons,
+         sigdig,
+         (comparisons * places / size) - (sigdig * places));
+  /* Basic implementation behaviour (linear string search) */
+  comparisons = (size * (size+1)) / 2;
+  sigdig = comparisons / size;
+  printf("Entries = %u Basic Total strcmps = %u Average strcmps = %u.%u\n",
+         size,
+         comparisons,
+         sigdig,
+         (comparisons * places / size) - (sigdig * places));
+}
+
+bool
+NdbTableImpl::checkColumnHash() const
+{
+  bool ok = true;
+
+  /**
+   * Check hash lookup on a column object's name
+   * maps back to itself
+   */
+  for (Uint32 i=0; i < m_columns.size(); i++)
+  {
+    const NdbColumnImpl* col = m_columns[i];
+    
+    const NdbColumnImpl* hashLookup = getColumnByHash(col->getName());
+    if (hashLookup != col)
+    {
+      /**
+       * We didn't get the column we expected
+       * Can be hit in testcases checking tables having
+       * duplicate column names for different columns.
+       * If the column name is the same then it's not a 
+       * hashing problem
+       */
+      if (strcmp(col->getName(), hashLookup->getName()) != 0)
+      {
+        printf("NdbDictionaryImpl.cpp::checkColumnHash() : "
+               "Failed lookup on table %s col %u %s - gives %p %s\n",
+               getName(),
+               i, col->getName(),
+               hashLookup,
+               (hashLookup?hashLookup->getName():""));
+        ok = false;
+      }
+    }
+  }
+
+  if (!ok)
+  {
+    dumpColumnHash();
+  }
+
+  return ok;
 }
 
 Uint32
@@ -2949,13 +3200,6 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
 				fullyQualifiedNames);
   if(rt)
   {
-    if (rt->buildColumnHash())
-    {
-      m_error.code = 4000;
-      delete rt;
-      return NULL;
-     }
-
     if (rt->m_fragmentType == NdbDictionary::Object::HashMapPartition)
     {
       NdbHashMapImpl tmp;
@@ -3415,6 +3659,12 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   }
 
   impl->computeAggregates();
+  if (impl->buildColumnHash() != 0)
+  {
+    delete impl;
+    free(tableDesc);
+    DBUG_RETURN(4000);
+  }
 
   if(tableDesc->ReplicaDataLen > 0)
   {
@@ -4692,6 +4942,9 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
       if (!dropTableAllowDropChildFK(impl, fk, cascade_constraints))
       {
         m_receiver.m_error.code = 21080;
+        /* Save the violated FK id in error.details
+         * To provide additional context of the failure */
+        m_receiver.m_error.details = (char *)UintPtr(fk.getObjectId());
         return -1;
       }
       if ((res = dropForeignKey(fk)) != 0)
@@ -4780,6 +5033,9 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl, int flags)
         if (!dropTableAllowDropChildFK(impl, fk, flags))
         {
           m_receiver.m_error.code = 21080;
+          /* Save the violated FK id in error.details
+           * To provide additional context of the failure */
+          m_receiver.m_error.details = (char *)UintPtr(fk.getObjectId());
           ERR_RETURN(getNdbError(), -1);
         }
       }
@@ -6620,7 +6876,7 @@ NdbDictionaryImpl::listObjects(List& list,
 }
 
 int
-NdbDictionaryImpl::listIndexes(List& list, Uint32 indexId)
+NdbDictionaryImpl::listIndexes(List& list, Uint32 indexId, bool fullyQualified)
 {
   ListTablesReq req;
   req.init();
@@ -6628,7 +6884,7 @@ NdbDictionaryImpl::listIndexes(List& list, Uint32 indexId)
   req.setTableType(0);
   req.setListNames(true);
   req.setListIndexes(true);
-  return m_receiver.listObjects(list, req, m_ndb.usingFullyQualifiedNames());
+  return m_receiver.listObjects(list, req, fullyQualified);
 }
 
 int

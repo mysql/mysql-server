@@ -26,15 +26,9 @@ CREATE USER user1;
 CREATE VIEW v1 as SELECT 1;
 include/sync_slave_sql_with_master.inc
 #
-# Verify that the REPLICATE_REWRITE_DB filter is hit 6 times on slave
+# Wait until the REPLICATE_REWRITE_DB filter is hit 6 times on slave
 # and all the data was replicated to db2.t1.
 #
-SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
-CHANNEL_NAME	
-FILTER_NAME	REPLICATE_REWRITE_DB
-FILTER_RULE	(db1,db2)
-CONFIGURED_BY	CHANGE_REPLICATION_FILTER
-COUNTER	6
 SELECT COUNT(*) FROM db2.t1;
 COUNT(*)
 3

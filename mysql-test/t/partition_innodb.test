@@ -275,15 +275,15 @@ INSERT INTO t1 VALUES (100);
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 insert INTO t1 VALUES (110);
 ANALYZE TABLE t1;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 90;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 90;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 90;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 89;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 89;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 89;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 100;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 100;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 100;
+EXPLAIN SELECT * FROM t1 WHERE a > 90;
+EXPLAIN SELECT * FROM t1 WHERE a >= 90;
+EXPLAIN SELECT * FROM t1 WHERE a = 90;
+EXPLAIN SELECT * FROM t1 WHERE a = 89;
+EXPLAIN SELECT * FROM t1 WHERE a >= 89;
+EXPLAIN SELECT * FROM t1 WHERE a > 89;
+EXPLAIN SELECT * FROM t1 WHERE a = 100;
+EXPLAIN SELECT * FROM t1 WHERE a >= 100;
+EXPLAIN SELECT * FROM t1 WHERE a > 100;
 DROP TABLE t1;
 
 --echo #
@@ -372,7 +372,7 @@ PARTITION BY RANGE(id) (
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8),
                       (9,9), (10,10), (11,11);
 
-SET @old_tx_isolation := @@session.tx_isolation;
+SET @old_transaction_isolation := @@session.transaction_isolation;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
 SET autocommit = 0;
@@ -395,7 +395,7 @@ UPDATE t1 SET data = data*2 WHERE data = 2;
 #--replace_regex /.*---TRANSACTION [0-9]+ [0-9]+, .*, OS thread id [0-9]+// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
 #SHOW ENGINE InnoDB STATUS;
 
-SET @@session.tx_isolation = @old_tx_isolation;
+SET @@session.transaction_isolation = @old_transaction_isolation;
 
 DROP TABLE t1;
 
@@ -538,7 +538,7 @@ engine = innodb
 partition by range (year(a))
 (partition p0 values less than (2006),
  partition p1 values less than (2007));
-explain partitions select * from t1
+explain select * from t1
 where a between '2006-01-01' and '2007-06-01';
 drop table t1;
 
@@ -1046,9 +1046,11 @@ INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
 
 ANALYZE TABLE t1;
 
+# Remove workaround of "OR FALSE" from the end of WHERE clause after fix
+# of Bug#26389402 for I_S views definitions.
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
 CREATE_TIME IS NOT NULL AND UPDATE_TIME IS NOT NULL
-AND TABLE_NAME='t1';
+AND TABLE_NAME='t1' OR FALSE;
 
 DROP TABLE t1;
 
@@ -1216,3 +1218,48 @@ DROP TABLESPACE ts1;
 
 --rmdir $MYSQL_TMP_DIR/temp_dir/test
 --rmdir $MYSQL_TMP_DIR/temp_dir
+
+--echo
+--echo Bug #25942592    INNODB: FAILING ASSERTION: INDEX->PAGE != 0XFFFFFFFF
+--echo                   IN BTR0CUR.CC LINE 816
+--echo
+call mtr.add_suppression("Missing .ibd file for table");
+
+#Unnamed Partitioins
+CREATE TABLE t1(c1 INT,c2 CHAR (1),c3 DATE) ENGINE=InnoDB PARTITION BY HASH
+(TO_DAYS(c3)) PARTITIONS 12;
+ALTER TABLE t1 ADD INDEX(c1);
+ALTER TABLE t1 DISCARD PARTITION p2 TABLESPACE;
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*)FROM t1,t1 AS b WHERE t1.c1=''AND t1.c2=b.c1;
+
+#Named partitions
+CREATE TABLE t2 (c1 int,c2 CHAR (1),c3 date,key(c1)) ENGINE=InnoDB
+PARTITION BY RANGE (TO_DAYS(c3))
+(
+PARTITION p0 VALUES LESS THAN (TO_DAYS('1979-01-01')),
+PARTITION p1 VALUES LESS THAN (TO_DAYS('1989-01-01')),
+PARTITION p2 VALUES LESS THAN (TO_DAYS('1999-01-01'))
+);
+
+ALTER TABLE t2 DISCARD PARTITION p2 TABLESPACE;
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*)FROM t2,t2 AS b WHERE t2.c1=''AND t2.c2=b.c1;
+DROP TABLE t1,t2;
+
+--echo
+--echo Bug #26034430    ASSERTION `PART_REC_BUF_PTR' FAILED.
+--echo
+--echo
+
+CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, PRIMARY KEY(a,b)) PARTITION BY RANGE (a)(PARTITION x1 VALUES LESS THAN (1));
+
+SELECT * FROM t1 WHERE (a = 1 and b = 1 and c = 'b') OR (a > 2) ORDER BY a DESC;
+
+CREATE TABLE t(id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT, dttm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, msg
+TEXT,PRIMARY KEY (id,dttm))ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 ROW_FORMAT=DYNAMIC PARTITION BY RANGE
+COLUMNS(dttm) (PARTITION pf_201612 VALUES LESS THAN ('20170101') ENGINE = INNODB);
+
+SELECT * FROM t WHERE dttm > '2017-01-19' ORDER BY id DESC;
+
+DROP TABLE t,t1;

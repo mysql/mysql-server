@@ -153,8 +153,7 @@ Filename::MYSQLD_DATADIR/test/tab#.ibd
 ==============================================================================
 #::0|		File Space Header		|	-
 #::#|		Insert Buffer Bitmap		|	-
-#::#|		SDI Index page			|	index id=#(copy_num=0), page level=0, No. of records=0, garbage=0, -
-#::#|		SDI Index page			|	index id=#(copy_num=#), page level=0, No. of records=0, garbage=0, -
+#::#|		SDI Index page			|	index id=#, page level=0, No. of records=#, garbage=#, -
 #::#|		Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
 #::#|		Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
 #::#|		Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
@@ -169,8 +168,7 @@ Filename::MYSQLD_DATADIR/test/tab#.ibd
 ==============================================================================
 #::0|		File Space Header		|	-
 #::#|		Insert Buffer Bitmap		|	-
-#::#|		SDI Index page			|	index id=#(copy_num=0), page level=0, No. of records=0, garbage=0, -
-#::#|		SDI Index page			|	index id=#(copy_num=#), page level=0, No. of records=0, garbage=0, -
+#::#|		SDI Index page			|	index id=#, page level=0, No. of records=#, garbage=#, -
 #::#|		Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
 #::#|		Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
 #::#|		Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
@@ -186,8 +184,20 @@ Filename::MYSQLD_DATADIR/test/tab#.ibd
 # both short and long options "allow-mismatches" and "end-page"
 [9]: check the both short and long options "page" and "start-page" when
 # seek value is larger than file size.
+Pattern "Error: Unable to seek to necessary offset: Invalid argument" found
+Pattern "Error: Unable to seek to necessary offset: Invalid argument" found
+Pattern "Error: Unable to seek to necessary offset: Invalid argument" found
+Pattern "Error: Unable to seek to necessary offset: Invalid argument" found
 [34]: check the invalid upper bound values for options, allow-mismatches, end-page, start-page and page.
 # innochecksum will fail with error code: 1
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
 # Restart the server
 # restart: --innodb_checksum_algorithm=strict_none --default_storage_engine=InnoDB
 DROP TABLE tab1;

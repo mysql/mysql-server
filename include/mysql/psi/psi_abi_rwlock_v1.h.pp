@@ -22,25 +22,15 @@ typedef int myf;
 #include "my_sharedlib.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
-typedef unsigned int PSI_mutex_key;
-typedef unsigned int PSI_rwlock_key;
-typedef unsigned int PSI_cond_key;
-typedef unsigned int PSI_thread_key;
-typedef unsigned int PSI_file_key;
-typedef unsigned int PSI_stage_key;
-typedef unsigned int PSI_statement_key;
-typedef unsigned int PSI_socket_key;
 struct PSI_placeholder
 {
   int m_placeholder;
 };
+#include "mysql/components/services/psi_rwlock_bits.h"
+#include "my_macros.h"
+typedef unsigned int PSI_rwlock_key;
 struct PSI_rwlock;
 typedef struct PSI_rwlock PSI_rwlock;
-struct PSI_rwlock_bootstrap
-{
-  void *(*get_interface)(int version);
-};
-typedef struct PSI_rwlock_bootstrap PSI_rwlock_bootstrap;
 struct PSI_rwlock_locker;
 typedef struct PSI_rwlock_locker PSI_rwlock_locker;
 enum PSI_rwlock_operation
@@ -61,7 +51,9 @@ struct PSI_rwlock_info_v1
 {
   PSI_rwlock_key *m_key;
   const char *m_name;
-  int m_flags;
+  uint m_flags;
+  int m_volatility;
+  const char *m_documentation;
 };
 typedef struct PSI_rwlock_info_v1 PSI_rwlock_info_v1;
 struct PSI_rwlock_locker_state_v1
@@ -86,7 +78,7 @@ typedef struct PSI_rwlock_locker *(*start_rwlock_rdwait_v1_t)(
   struct PSI_rwlock *rwlock,
   enum PSI_rwlock_operation op,
   const char *src_file,
-  uint src_line);
+  unsigned int src_line);
 typedef void (*end_rwlock_rdwait_v1_t)(struct PSI_rwlock_locker *locker,
                                        int rc);
 typedef struct PSI_rwlock_locker *(*start_rwlock_wrwait_v1_t)(
@@ -94,10 +86,17 @@ typedef struct PSI_rwlock_locker *(*start_rwlock_wrwait_v1_t)(
   struct PSI_rwlock *rwlock,
   enum PSI_rwlock_operation op,
   const char *src_file,
-  uint src_line);
+  unsigned int src_line);
 typedef void (*end_rwlock_wrwait_v1_t)(struct PSI_rwlock_locker *locker,
                                        int rc);
 typedef void (*unlock_rwlock_v1_t)(struct PSI_rwlock *rwlock);
+typedef struct PSI_rwlock_info_v1 PSI_rwlock_info;
+typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state;
+struct PSI_rwlock_bootstrap
+{
+  void *(*get_interface)(int version);
+};
+typedef struct PSI_rwlock_bootstrap PSI_rwlock_bootstrap;
 struct PSI_rwlock_service_v1
 {
   register_rwlock_v1_t register_rwlock;
@@ -110,6 +109,4 @@ struct PSI_rwlock_service_v1
   unlock_rwlock_v1_t unlock_rwlock;
 };
 typedef struct PSI_rwlock_service_v1 PSI_rwlock_service_t;
-typedef struct PSI_rwlock_info_v1 PSI_rwlock_info;
-typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state;
 extern PSI_rwlock_service_t *psi_rwlock_service;

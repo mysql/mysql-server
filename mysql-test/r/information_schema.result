@@ -4,7 +4,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5;
 DROP VIEW IF EXISTS v1;
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 #
 # Bug#11763174 INFORMATION_SCHEMA.PARAMETERS.NUMERIC_PRECISION SHOULD BE BIGINT 
 #
@@ -83,6 +83,7 @@ PLUGINS
 PROCESSLIST
 PROFILING
 REFERENTIAL_CONSTRAINTS
+RESOURCE_GROUPS
 ROUTINES
 SCHEMATA
 SCHEMA_PRIVILEGES
@@ -109,6 +110,7 @@ help_category
 help_keyword
 help_relation
 help_topic
+password_history
 plugin
 procs_priv
 proxies_priv
@@ -198,8 +200,8 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 c	varchar(64)	utf8_bin	NO		NULL		select,insert,update,references	
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a" order by table_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
-def	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
+def	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
 show columns from mysqltest.t1 where field like "%a%";
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -661,6 +663,8 @@ max_user_connections	select,insert,update,references
 password_expired	select,insert,update,references
 password_last_changed	select,insert,update,references
 password_lifetime	select,insert,update,references
+Password_reuse_history	select,insert,update,references
+Password_reuse_time	select,insert,update,references
 Process_priv	select,insert,update,references
 Reload_priv	select,insert,update,references
 Show_db_priv	select,insert,update,references
@@ -776,15 +780,10 @@ EVENTS	ENDS	datetime
 EVENTS	EXECUTE_AT	datetime
 EVENTS	LAST_EXECUTED	datetime
 EVENTS	STARTS	datetime
-FILES	CHECK_TIME	datetime
-FILES	CREATE_TIME	datetime
-FILES	CREATION_TIME	datetime
-FILES	LAST_ACCESS_TIME	datetime
-FILES	LAST_UPDATE_TIME	datetime
-FILES	UPDATE_TIME	datetime
 PARTITIONS	CHECK_TIME	datetime
-PARTITIONS	CREATE_TIME	datetime
 PARTITIONS	UPDATE_TIME	datetime
+TABLES	CHECK_TIME	datetime
+TABLES	UPDATE_TIME	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS
 (SELECT * FROM INFORMATION_SCHEMA.COLUMNS B
@@ -845,8 +844,8 @@ table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
-information_schema	30
-mysql	30
+information_schema	31
+mysql	31
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
@@ -1145,16 +1144,16 @@ DROP TABLE t1;
 DROP VIEW v1;
 DROP FUNCTION func1;
 DROP FUNCTION func2;
-SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name), COUNT(*) AS num
+SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name ORDER BY table_name), COUNT(*) AS num
 FROM information_schema.columns WHERE
 table_schema='information_schema' AND
 (column_type = 'varchar(7)' OR column_type = 'varchar(20)'
  OR column_type = 'varchar(30)')
 GROUP BY column_type ORDER BY num;
-COLUMN_TYPE	GROUP_CONCAT(table_schema, '.', table_name)	num
-varchar(7)	information_schema.VIEWS	1
+COLUMN_TYPE	GROUP_CONCAT(table_schema, '.', table_name ORDER BY table_name)	num
 varchar(30)	information_schema.PROFILING,information_schema.PROFILING	2
-varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	6
+varchar(7)	information_schema.INNODB_TABLESPACES_BRIEF,information_schema.VIEWS	2
+varchar(20)	information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	4
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
 select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
@@ -1309,6 +1308,7 @@ PLUGINS	information_schema.PLUGINS	1
 PROCESSLIST	information_schema.PROCESSLIST	1
 PROFILING	information_schema.PROFILING	1
 REFERENTIAL_CONSTRAINTS	information_schema.REFERENTIAL_CONSTRAINTS	1
+RESOURCE_GROUPS	information_schema.RESOURCE_GROUPS	1
 ROUTINES	information_schema.ROUTINES	1
 SCHEMATA	information_schema.SCHEMATA	1
 SCHEMA_PRIVILEGES	information_schema.SCHEMA_PRIVILEGES	1
@@ -1423,7 +1423,10 @@ user3148	test
 drop user user3148@localhost;
 DROP TABLE IF EXISTS server_status;
 DROP EVENT IF EXISTS event_status;
-SET GLOBAL event_scheduler=1;
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
 CREATE EVENT event_status
 ON SCHEDULE AT NOW()
 ON COMPLETION NOT PRESERVE
@@ -1440,7 +1443,6 @@ variable_name
 Aborted_connects
 Binlog_cache_disk_use
 DROP TABLE server_status;
-SET GLOBAL event_scheduler=0;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME = 'mysqltest';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
@@ -1479,9 +1481,9 @@ WHERE TABLE_SCHEMA='mysql' and TABLE_NAME= 'db';
 TABLE_COLLATION
 utf8_bin
 select * from information_schema.columns where table_schema = NULL;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
 select * from `information_schema`.`COLUMNS` where `TABLE_NAME` = NULL;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
 select * from `information_schema`.`key_column_usage` where `TABLE_SCHEMA` = NULL;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
 select * from `information_schema`.`key_column_usage` where `TABLE_NAME` = NULL;
@@ -1518,7 +1520,7 @@ select * from `information_schema`.`VIEWS` where `TABLE_SCHEMA` = NULL;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
 select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-explain extended select 1 from information_schema.tables;
+explain select 1 from information_schema.tables;
 use information_schema;
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
@@ -1721,17 +1723,6 @@ unlock tables;
 # Switching to connection 'con3726_2'
 # Switching to connection 'default'
 drop tables t1, t3;
-EXPLAIN SELECT * FROM information_schema.PARTITIONS WHERE TABLE_NAME='t1';
-id	select_type	table	PARTITIONS	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	PARTITIONS	NULL	ALL	NULL	TABLE_NAME	NULL	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
-Warnings:
-Note	1003	/* select#1 */ select `information_schema`.`PARTITIONS`.`TABLE_CATALOG` AS `TABLE_CATALOG`,`information_schema`.`PARTITIONS`.`TABLE_SCHEMA` AS `TABLE_SCHEMA`,`information_schema`.`PARTITIONS`.`TABLE_NAME` AS `TABLE_NAME`,`information_schema`.`PARTITIONS`.`PARTITION_NAME` AS `PARTITION_NAME`,`information_schema`.`PARTITIONS`.`SUBPARTITION_NAME` AS `SUBPARTITION_NAME`,`information_schema`.`PARTITIONS`.`PARTITION_ORDINAL_POSITION` AS `PARTITION_ORDINAL_POSITION`,`information_schema`.`PARTITIONS`.`SUBPARTITION_ORDINAL_POSITION` AS `SUBPARTITION_ORDINAL_POSITION`,`information_schema`.`PARTITIONS`.`PARTITION_METHOD` AS `PARTITION_METHOD`,`information_schema`.`PARTITIONS`.`SUBPARTITION_METHOD` AS `SUBPARTITION_METHOD`,`information_schema`.`PARTITIONS`.`PARTITION_EXPRESSION` AS `PARTITION_EXPRESSION`,`information_schema`.`PARTITIONS`.`SUBPARTITION_EXPRESSION` AS `SUBPARTITION_EXPRESSION`,`information_schema`.`PARTITIONS`.`PARTITION_DESCRIPTION` AS `PARTITION_DESCRIPTION`,`information_schema`.`PARTITIONS`.`TABLE_ROWS` AS `TABLE_ROWS`,`information_schema`.`PARTITIONS`.`AVG_ROW_LENGTH` AS `AVG_ROW_LENGTH`,`information_schema`.`PARTITIONS`.`DATA_LENGTH` AS `DATA_LENGTH`,`information_schema`.`PARTITIONS`.`MAX_DATA_LENGTH` AS `MAX_DATA_LENGTH`,`information_schema`.`PARTITIONS`.`INDEX_LENGTH` AS `INDEX_LENGTH`,`information_schema`.`PARTITIONS`.`DATA_FREE` AS `DATA_FREE`,`information_schema`.`PARTITIONS`.`CREATE_TIME` AS `CREATE_TIME`,`information_schema`.`PARTITIONS`.`UPDATE_TIME` AS `UPDATE_TIME`,`information_schema`.`PARTITIONS`.`CHECK_TIME` AS `CHECK_TIME`,`information_schema`.`PARTITIONS`.`CHECKSUM` AS `CHECKSUM`,`information_schema`.`PARTITIONS`.`PARTITION_COMMENT` AS `PARTITION_COMMENT`,`information_schema`.`PARTITIONS`.`NODEGROUP` AS `NODEGROUP`,`information_schema`.`PARTITIONS`.`TABLESPACE_NAME` AS `TABLESPACE_NAME` from `information_schema`.`PARTITIONS` where (`information_schema`.`PARTITIONS`.`TABLE_NAME` = 't1')
-EXPLAIN SELECT * FROM information_schema.REFERENTIAL_CONSTRAINTS
-WHERE CONSTRAINT_SCHEMA='test';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	REFERENTIAL_CONSTRAINTS	NULL	ALL	NULL	CONSTRAINT_SCHEMA	NULL	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
-Warnings:
-Note	1003	/* select#1 */ select `information_schema`.`REFERENTIAL_CONSTRAINTS`.`CONSTRAINT_CATALOG` AS `CONSTRAINT_CATALOG`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`CONSTRAINT_SCHEMA` AS `CONSTRAINT_SCHEMA`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`CONSTRAINT_NAME` AS `CONSTRAINT_NAME`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`UNIQUE_CONSTRAINT_CATALOG` AS `UNIQUE_CONSTRAINT_CATALOG`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`UNIQUE_CONSTRAINT_SCHEMA` AS `UNIQUE_CONSTRAINT_SCHEMA`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`UNIQUE_CONSTRAINT_NAME` AS `UNIQUE_CONSTRAINT_NAME`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`MATCH_OPTION` AS `MATCH_OPTION`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`UPDATE_RULE` AS `UPDATE_RULE`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`DELETE_RULE` AS `DELETE_RULE`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`TABLE_NAME` AS `TABLE_NAME`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`REFERENCED_TABLE_NAME` AS `REFERENCED_TABLE_NAME` from `information_schema`.`REFERENTIAL_CONSTRAINTS` where (`information_schema`.`REFERENTIAL_CONSTRAINTS`.`CONSTRAINT_SCHEMA` = 'test')
 create table information_schema.t1 (f1 INT);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 drop table information_schema.t1;
@@ -1782,7 +1773,7 @@ LEFT JOIN INFORMATION_SCHEMA.COLUMNS
 USING (TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME)
 WHERE COLUMNS.TABLE_SCHEMA = 'test'
 AND COLUMNS.TABLE_NAME = 't1';
-TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	TABLE_CATALOG	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	TABLE_CATALOG	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
 #
 # A test case for Bug#56540 "Exception (crash) in sql_show.cc
 # during rqg_info_schema test on Windows"
@@ -1864,7 +1855,7 @@ rename table t1 to t3, t2 to t1, t3 to t2;
 # Switching to connection 'con12828477_2'. 
 #
 # Wait while the above RENAME is blocked.
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 # Without WL9494, issuing a query to I_S will open 't0' and get
 # blocked on 't1' because of RENAME. With WL9494, I_S query is just
 # a scan over dictionary tables and do not really open the table,
@@ -2063,7 +2054,7 @@ user	db
 DROP USER user_name_len_22_01234@localhost;
 DROP USER очень_очень_очень_длинный_юзер__@localhost;
 set names default;
-SET SESSION information_schema_stats=cached;
+SET SESSION information_schema_stats_expiry=default;
 set sql_mode= @orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -2334,11 +2325,12 @@ DROP TABLE t1;
 # The test case crashes if server requests for cardinality for
 # InnoDB SE even for hidden index.
 #
-set information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry= 0;
 SELECT INDEX_NAME FROM INFORMATION_SCHEMA.`STATISTICS` WHERE `TABLE_NAME` = 'innodb_table_stats' AND Cardinality ;
 INDEX_NAME
 PRIMARY
 PRIMARY
+SET SESSION information_schema_stats_expiry= default;
 #
 # Bug#25188540 FIELD_TINY::VAL_INT(): ASSERTION `!TABLE || (!TABLE->READ_SET |......)' FAILED
 #
@@ -2366,17 +2358,10 @@ eucjpms	eucjpms_japanese_ci	UJIS for Windows Japanese	3
 #
 # Make sure user does not access following
 # INFORMATION_SCHEMA tables:
-#   TABLES_DYNAMIC, STATISTICS_DYNAMIC
-#   SHOW_STATISTICS, SHOW_STATISTICS_DYNAMIC,
+#   SHOW_STATISTICS,
 #
-SELECT * FROM INFORMATION_SCHEMA.TABLES_DYNAMIC;
-ERROR HY000: Access to system view INFORMATION_SCHEMA.'TABLES_DYNAMIC' is rejected.
-SELECT * FROM INFORMATION_SCHEMA.STATISTICS_DYNAMIC;
-ERROR HY000: Access to system view INFORMATION_SCHEMA.'STATISTICS_DYNAMIC' is rejected.
 SELECT * FROM INFORMATION_SCHEMA.SHOW_STATISTICS;
 ERROR HY000: Access to system view INFORMATION_SCHEMA.'SHOW_STATISTICS' is rejected.
-SELECT * FROM INFORMATION_SCHEMA.SHOW_STATISTICS_DYNAMIC;
-ERROR HY000: Access to system view INFORMATION_SCHEMA.'SHOW_STATISTICS_DYNAMIC' is rejected.
 #
 # Bug#25793429 CAN'T RETURN
 # INFORMATION_SCHEMA.TABLES.CREATE_OPTION IN UPPERCASE
@@ -2394,4 +2379,143 @@ SELECT privileges, UPPER(privileges)
 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 't1';
 PRIVILEGES	UPPER(privileges)
 select,insert,update,references	SELECT,INSERT,UPDATE,REFERENCES
+DROP TABLE t1;
+#
+# Bug#18925: subqueries with MIN/MAX functions on INFORMARTION_SCHEMA 
+#
+SELECT t.table_name, c1.column_name
+FROM information_schema.tables t
+INNER JOIN
+information_schema.columns c1
+ON t.table_schema = c1.table_schema AND
+t.table_name = c1.table_name
+WHERE t.table_schema = 'information_schema' AND
+c1.ordinal_position =
+( SELECT COALESCE(MIN(c2.ordinal_position),1)
+FROM information_schema.columns c2
+WHERE c2.table_schema = t.table_schema AND
+c2.table_name = t.table_name AND
+c2.column_name LIKE '%SCHEMA%'
+        )
+AND t.table_name NOT LIKE 'ndb%'
+  AND t.table_name NOT LIKE 'INNODB%'
+  ORDER BY t.table_name COLLATE utf8_general_ci,
+c1.column_name COLLATE utf8_general_ci;
+TABLE_NAME	COLUMN_NAME
+CHARACTER_SETS	CHARACTER_SET_NAME
+COLLATIONS	COLLATION_NAME
+COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME
+COLUMNS	TABLE_SCHEMA
+COLUMN_PRIVILEGES	TABLE_SCHEMA
+COLUMN_STATISTICS	SCHEMA_NAME
+ENGINES	ENGINE
+EVENTS	EVENT_SCHEMA
+FILES	TABLE_SCHEMA
+KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
+OPTIMIZER_TRACE	QUERY
+PARAMETERS	SPECIFIC_SCHEMA
+PARTITIONS	TABLE_SCHEMA
+PLUGINS	PLUGIN_NAME
+PROCESSLIST	ID
+PROFILING	QUERY_ID
+REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA
+RESOURCE_GROUPS	RESOURCE_GROUP_NAME
+ROUTINES	ROUTINE_SCHEMA
+SCHEMATA	SCHEMA_NAME
+SCHEMA_PRIVILEGES	TABLE_SCHEMA
+STATISTICS	TABLE_SCHEMA
+ST_GEOMETRY_COLUMNS	TABLE_SCHEMA
+ST_SPATIAL_REFERENCE_SYSTEMS	SRS_NAME
+TABLES	TABLE_SCHEMA
+TABLESPACES	TABLESPACE_NAME
+TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
+TABLE_PRIVILEGES	TABLE_SCHEMA
+TRIGGERS	TRIGGER_SCHEMA
+USER_PRIVILEGES	GRANTEE
+VIEWS	TABLE_SCHEMA
+SELECT t.table_name, c1.column_name
+FROM information_schema.tables t
+INNER JOIN
+information_schema.columns c1
+ON t.table_schema = c1.table_schema AND
+t.table_name = c1.table_name
+WHERE t.table_schema = 'information_schema' AND
+c1.ordinal_position =
+( SELECT COALESCE(MIN(c2.ordinal_position),1)
+FROM information_schema.columns c2
+WHERE c2.table_schema = 'information_schema' AND
+c2.table_name = t.table_name AND
+c2.column_name LIKE '%SCHEMA%'
+        )
+AND t.table_name NOT LIKE 'ndb%'
+  AND t.table_name NOT LIKE 'INNODB%'
+  ORDER BY t.table_name COLLATE utf8_general_ci,
+c1.column_name COLLATE utf8_general_ci;
+TABLE_NAME	COLUMN_NAME
+CHARACTER_SETS	CHARACTER_SET_NAME
+COLLATIONS	COLLATION_NAME
+COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME
+COLUMNS	TABLE_SCHEMA
+COLUMN_PRIVILEGES	TABLE_SCHEMA
+COLUMN_STATISTICS	SCHEMA_NAME
+ENGINES	ENGINE
+EVENTS	EVENT_SCHEMA
+FILES	TABLE_SCHEMA
+KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
+OPTIMIZER_TRACE	QUERY
+PARAMETERS	SPECIFIC_SCHEMA
+PARTITIONS	TABLE_SCHEMA
+PLUGINS	PLUGIN_NAME
+PROCESSLIST	ID
+PROFILING	QUERY_ID
+REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA
+RESOURCE_GROUPS	RESOURCE_GROUP_NAME
+ROUTINES	ROUTINE_SCHEMA
+SCHEMATA	SCHEMA_NAME
+SCHEMA_PRIVILEGES	TABLE_SCHEMA
+STATISTICS	TABLE_SCHEMA
+ST_GEOMETRY_COLUMNS	TABLE_SCHEMA
+ST_SPATIAL_REFERENCE_SYSTEMS	SRS_NAME
+TABLES	TABLE_SCHEMA
+TABLESPACES	TABLESPACE_NAME
+TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
+TABLE_PRIVILEGES	TABLE_SCHEMA
+TRIGGERS	TRIGGER_SCHEMA
+USER_PRIVILEGES	GRANTEE
+VIEWS	TABLE_SCHEMA
+#
+# BUG#24679166: TABLE CREATION WITH BINARY TYPE COLUMN IS RESULTING IN
+#               ASSERT CONDITION FAILURE.
+# Without patch, the server exits in debug build and
+# an error is reported in release build.
+CREATE TABLE t1(fld1 BINARY(10) NOT NULL DEFAULT 'a',
+fld2 BINARY(10) NOT NULL DEFAULT 0xAA,
+fld3 BINARY(10) NOT NULL DEFAULT 0xA,
+fld4 BINARY(10) NOT NULL DEFAULT b'1001',
+fld5 VARBINARY(5) NOT NULL DEFAULT 'a',
+fld6 VARBINARY(5) NOT NULL DEFAULT 0xAA,
+fld7 VARBINARY(5) NOT NULL DEFAULT 0xA,
+fld8 VARBINARY(5) NOT NULL DEFAULT b'1001');
+# With the patch, default value is displayed in the hex format.
+SHOW COLUMNS from t1;
+Field	Type	Null	Key	Default	Extra
+fld1	binary(10)	NO		0x61	
+fld2	binary(10)	NO		0xAA	
+fld3	binary(10)	NO		0x0A	
+fld4	binary(10)	NO		0x09	
+fld5	varbinary(5)	NO		0x61	
+fld6	varbinary(5)	NO		0xAA	
+fld7	varbinary(5)	NO		0x0A	
+fld8	varbinary(5)	NO		0x09	
+SELECT COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME= 't1';
+COLUMN_DEFAULT
+0x61
+0xAA
+0x0A
+0x09
+0x61
+0xAA
+0x0A
+0x09
+# Cleanup.
 DROP TABLE t1;

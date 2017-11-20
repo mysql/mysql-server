@@ -20,6 +20,9 @@ typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
+#include "mysql/components/services/psi_thread_bits.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_thread.h"
 #include "my_io.h"
 static inline int is_directory_separator(char c)
@@ -30,30 +33,12 @@ typedef int File;
 typedef mode_t MY_MODE;
 typedef socklen_t socket_len_t;
 typedef int my_socket;
-#include "psi_base.h"
-#include "my_psi_config.h"
-typedef unsigned int PSI_mutex_key;
-typedef unsigned int PSI_rwlock_key;
-typedef unsigned int PSI_cond_key;
 typedef unsigned int PSI_thread_key;
-typedef unsigned int PSI_file_key;
-typedef unsigned int PSI_stage_key;
-typedef unsigned int PSI_statement_key;
-typedef unsigned int PSI_socket_key;
-struct PSI_placeholder
-{
-  int m_placeholder;
-};
 struct opaque_THD
 {
   int dummy;
 };
 typedef struct opaque_THD THD;
-struct PSI_thread_bootstrap
-{
-  void *(*get_interface)(int version);
-};
-typedef struct PSI_thread_bootstrap PSI_thread_bootstrap;
 typedef int opaque_vio_type;
 struct PSI_thread;
 typedef struct PSI_thread PSI_thread;
@@ -61,7 +46,9 @@ struct PSI_thread_info_v1
 {
   PSI_thread_key *m_key;
   const char *m_name;
-  int m_flags;
+  uint m_flags;
+  int m_volatility;
+  const char *m_documentation;
 };
 typedef struct PSI_thread_info_v1 PSI_thread_info_v1;
 typedef void (*register_thread_v1_t)(const char *category,
@@ -90,12 +77,12 @@ typedef void (*set_connection_type_v1_t)(opaque_vio_type conn_type);
 typedef void (*set_thread_start_time_v1_t)(time_t start_time);
 typedef void (*set_thread_state_v1_t)(const char *state);
 typedef void (*set_thread_info_v1_t)(const char *info, uint info_len);
-typedef int (*set_thread_resource_group_v1_t)(const char* group_name,
+typedef int (*set_thread_resource_group_v1_t)(const char *group_name,
                                               int group_name_len,
                                               void *user_data);
 typedef int (*set_thread_resource_group_by_id_v1_t)(PSI_thread *thread,
                                                     ulonglong thread_id,
-                                                    const char* group_name,
+                                                    const char *group_name,
                                                     int group_name_len,
                                                     void *user_data);
 typedef void (*set_thread_v1_t)(struct PSI_thread *thread);
@@ -126,23 +113,28 @@ typedef struct PSI_thread_attrs_v1 PSI_thread_attrs;
 typedef void (*PSI_notification_cb)(const PSI_thread_attrs *thread_attrs);
 struct PSI_notification_v1
 {
-    PSI_notification_cb thread_create;
-    PSI_notification_cb thread_destroy;
-    PSI_notification_cb session_connect;
-    PSI_notification_cb session_disconnect;
-    PSI_notification_cb session_change_user;
+  PSI_notification_cb thread_create;
+  PSI_notification_cb thread_destroy;
+  PSI_notification_cb session_connect;
+  PSI_notification_cb session_disconnect;
+  PSI_notification_cb session_change_user;
 };
 typedef struct PSI_notification_v1 PSI_notification;
 typedef int (*get_thread_system_attrs_v1_t)(PSI_thread_attrs *thread_attrs);
-typedef int (*get_thread_system_attrs_by_id_v1_t)(PSI_thread *thread,
-                                                ulonglong thread_id,
-                                                PSI_thread_attrs *thread_attrs);
+typedef int (*get_thread_system_attrs_by_id_v1_t)(
+  PSI_thread *thread, ulonglong thread_id, PSI_thread_attrs *thread_attrs);
 typedef int (*register_notification_v1_t)(const PSI_notification *callbacks,
                                           bool with_ref_count);
 typedef int (*unregister_notification_v1_t)(int handle);
 typedef void (*notify_session_connect_v1_t)(PSI_thread *thread);
 typedef void (*notify_session_disconnect_v1_t)(PSI_thread *thread);
 typedef void (*notify_session_change_user_v1_t)(PSI_thread *thread);
+typedef struct PSI_thread_info_v1 PSI_thread_info;
+struct PSI_thread_bootstrap
+{
+  void *(*get_interface)(int version);
+};
+typedef struct PSI_thread_bootstrap PSI_thread_bootstrap;
 struct PSI_thread_service_v1
 {
   register_thread_v1_t register_thread;
@@ -176,5 +168,4 @@ struct PSI_thread_service_v1
   notify_session_change_user_v1_t notify_session_change_user;
 };
 typedef struct PSI_thread_service_v1 PSI_thread_service_t;
-typedef struct PSI_thread_info_v1 PSI_thread_info;
 extern PSI_thread_service_t *psi_thread_service;

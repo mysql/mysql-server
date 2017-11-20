@@ -18,30 +18,19 @@
   Temporary tables implementation.
 */
 
-#include "sql_tmp_table.h"
+#include "sql/sql_tmp_table.h"
 
-#include <cstring>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <string.h>
 #include <algorithm>
+#include <cstring>
 #include <new>
 
-#include "auth_common.h"
 #include "binary_log_types.h"
-#include "current_thd.h"
-#include "debug_sync.h"           // DEBUG_SYNC
-#include "field.h"
-#include "filesort.h"             // filesort_free_buffers
-#include "handler.h"
-#include "item_func.h"            // Item_func
-#include "item_sum.h"             // Item_sum
-#include "key.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mem_root_array.h"       // Mem_root_array
+#include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_compare.h"
 #include "my_compiler.h"
@@ -54,30 +43,42 @@
 #include "myisam.h"               // MI_COLUMNDEF
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
-#include "mysqld.h"               // heap_hton
 #include "mysqld_error.h"
-#include "opt_range.h"            // QUICK_SELECT_I
-#include "opt_trace.h"            // Opt_trace_object
-#include "opt_trace_context.h"    // Opt_trace_context
-#include "parse_tree_nodes.h"     // PT_order_list
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "sql_base.h"             // free_io_cache
-#include "sql_bitmap.h"
-#include "sql_class.h"            // THD
-#include "sql_const.h"
-#include "sql_executor.h"         // SJ_TMP_TABLE
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_plugin.h"           // plugin_unlock
-#include "sql_plugin_ref.h"
-#include "sql_servers.h"
-#include "system_variables.h"
-#include "temp_table_param.h"
+#include "sql/auth/auth_common.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"       // DEBUG_SYNC
+#include "sql/field.h"
+#include "sql/filesort.h"         // filesort_free_buffers
+#include "sql/handler.h"
+#include "sql/item_func.h"        // Item_func
+#include "sql/item_sum.h"         // Item_sum
+#include "sql/key.h"
+#include "sql/mem_root_array.h"   // Mem_root_array
+#include "sql/mysqld.h"           // heap_hton
+#include "sql/opt_range.h"        // QUICK_SELECT_I
+#include "sql/opt_trace.h"        // Opt_trace_object
+#include "sql/opt_trace_context.h" // Opt_trace_context
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/sql_base.h"         // free_io_cache
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"        // THD
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h"     // SJ_TMP_TABLE
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_parse.h"
+#include "sql/sql_plugin.h"       // plugin_unlock
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_select.h"
+#include "sql/sql_servers.h"
+#include "sql/system_variables.h"
+#include "sql/temp_table_param.h"
+#include "sql/thr_malloc.h"
+#include "sql/window.h"
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "typelib.h"
 
 using std::max;
 using std::min;
@@ -1709,7 +1710,7 @@ update_hidden:
     hash_key->user_defined_key_parts= 1;
     hash_key->set_rec_per_key_array(NULL, NULL);
     hash_key->algorithm= table->file->get_default_index_algorithm();
-    keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
+    hash_key->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
     if (distinct)
       hash_key->name= (char*) "<hash_distinct_key>";
     else
@@ -2201,7 +2202,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
                        cdef->maybe_null, cdef->is_zerofill,
                        cdef->is_unsigned, cdef->decimals,
                        cdef->treat_bit_as_char,
-                       cdef->pack_length_override);
+                       cdef->pack_length_override, cdef->m_srid);
     if (!*field)
       goto error;
     (*field)->init(table);

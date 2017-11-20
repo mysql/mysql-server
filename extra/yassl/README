@@ -12,6 +12,14 @@ before calling SSL_new();
 
 *** end Note ***
 
+yaSSL Release notes, version 2.4.4 (8/8/2017)
+    This release of yaSSL fixes an interop issue. A fix for detecting cipher
+    suites with non leading zeros is included as yaSSL only supports cipher
+    suites with leading zeros.  Thanks for the report from Security Innovation
+    and Oracle.
+
+    Users interoping with other SSL stacks should update.
+
 yaSSL Release notes, version 2.4.2 (9/22/2016)
     This release of yaSSL fixes a medium security vulnerability. A fix for
     potential AES side channel leaks is included that a local user monitoring

@@ -16,10 +16,11 @@
 #ifndef DD__INDEX_INCLUDED
 #define DD__INDEX_INCLUDED
 
-#include "dd/collection.h"             // dd::Collection
-#include "dd/sdi_fwd.h"                // dd::Sdi_wcontext
-#include "dd/types/entity_object.h"    // dd::Entity_object
 #include "my_inttypes.h"
+#include "sql/dd/collection.h"         // dd::Collection
+#include "sql/dd/sdi_fwd.h"            // dd::Sdi_rcontext
+#include "sql/dd/sdi_fwd.h"            // dd::Sdi_wcontext
+#include "sql/dd/types/entity_object.h" // dd::Entity_object
 
 namespace dd {
 

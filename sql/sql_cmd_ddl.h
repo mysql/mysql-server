@@ -16,7 +16,7 @@
 #ifndef SQL_CMD_DDL_INCLUDED
 #define SQL_CMD_DDL_INCLUDED
 
-#include "sql_cmd.h"
+#include "sql/sql_cmd.h"
 
 
 class Sql_cmd_ddl : public Sql_cmd

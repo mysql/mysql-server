@@ -12,6 +12,6 @@ my $sdi_type = $ENV{'SDI_TYPE'} or die;
 
 sdi_switch_table($memcached_table);
 
-sdi_get($sdi_id, $sdi_type);
+sdi_get($sdi_type, $sdi_id);
 sdi_disconnect();
 EOF

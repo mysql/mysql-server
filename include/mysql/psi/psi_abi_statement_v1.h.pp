@@ -22,23 +22,14 @@ typedef int myf;
 #include "my_sharedlib.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
-typedef unsigned int PSI_mutex_key;
-typedef unsigned int PSI_rwlock_key;
-typedef unsigned int PSI_cond_key;
-typedef unsigned int PSI_thread_key;
-typedef unsigned int PSI_file_key;
-typedef unsigned int PSI_stage_key;
-typedef unsigned int PSI_statement_key;
-typedef unsigned int PSI_socket_key;
 struct PSI_placeholder
 {
   int m_placeholder;
 };
-struct PSI_statement_bootstrap
-{
-  void *(*get_interface)(int version);
-};
-typedef struct PSI_statement_bootstrap PSI_statement_bootstrap;
+#include "mysql/components/services/psi_statement_bits.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+typedef unsigned int PSI_statement_key;
 struct PSI_statement_locker;
 typedef struct PSI_statement_locker PSI_statement_locker;
 struct PSI_prepared_stmt;
@@ -53,7 +44,8 @@ struct PSI_statement_info_v1
 {
   PSI_statement_key m_key;
   const char *m_name;
-  int m_flags;
+  uint m_flags;
+  const char *m_documentation;
 };
 typedef struct PSI_statement_info_v1 PSI_statement_info_v1;
 struct PSI_statement_locker_state_v1
@@ -86,6 +78,9 @@ struct PSI_statement_locker_state_v1
   char m_schema_name[(64 * 3)];
   uint m_schema_name_length;
   uint m_cs_number;
+  const char *m_query_sample;
+  uint m_query_sample_length;
+  bool m_query_sample_truncated;
   PSI_sp_share *m_parent_sp_share;
   PSI_prepared_stmt *m_parent_prepared_stmt;
 };
@@ -181,6 +176,14 @@ typedef void (*drop_sp_v1_t)(uint object_type,
                              uint schema_name_length,
                              const char *object_name,
                              uint object_name_length);
+typedef struct PSI_statement_info_v1 PSI_statement_info;
+typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
+typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
+struct PSI_statement_bootstrap
+{
+  void *(*get_interface)(int version);
+};
+typedef struct PSI_statement_bootstrap PSI_statement_bootstrap;
 struct PSI_statement_service_v1
 {
   register_statement_v1_t register_statement;
@@ -218,7 +221,4 @@ struct PSI_statement_service_v1
   drop_sp_v1_t drop_sp;
 };
 typedef struct PSI_statement_service_v1 PSI_statement_service_t;
-typedef struct PSI_statement_info_v1 PSI_statement_info;
-typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
-typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
 extern PSI_statement_service_t *psi_statement_service;

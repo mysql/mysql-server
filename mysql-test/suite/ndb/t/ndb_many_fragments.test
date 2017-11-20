@@ -56,7 +56,7 @@ eval $query;
 
 drop table parent, child;
 
-CREATE TABLE partitioned ( server_id int(11) NOT NULL, t12counter int(11) NOT NULL, pt12counter int(10) unsigned NOT NULL, updatetime timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (server_id) USING HASH ) ENGINE=ndb DEFAULT CHARSET=latin1 PARTITION BY KEY (server_id) PARTITIONS 56;
+CREATE TABLE partitioned ( server_id int(11) NOT NULL, t12counter int(11) NOT NULL, pt12counter int(10) unsigned NOT NULL, updatetime timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (server_id) USING HASH ) ENGINE=ndb DEFAULT CHARSET=latin1 PARTITION BY KEY (server_id) PARTITIONS 56;
 
 insert into partitioned values (1,0,0,NULL);
 
@@ -66,7 +66,7 @@ select partition_name,table_rows from information_schema.PARTITIONS where  table
 
 ## Partition ID for row 1 = 52 (big-endian) or 19 (little-endian)
 --replace_regex /p52/pX/ /p19/pX/
-explain partitions select * from partitioned where server_id=1;
+explain select * from partitioned where server_id=1;
 
 insert into partitioned values (2,0,0,NULL);
 
@@ -76,6 +76,6 @@ select partition_name,table_rows from information_schema.PARTITIONS where  table
 
 ## Partition ID for row 2 = 30 (big-endian) or 1 (little-endian)
 --replace_regex /p30/pY/ /p1/pY/
-explain partitions select * from partitioned where server_id=2;
+explain select * from partitioned where server_id=2;
 
 drop table partitioned;

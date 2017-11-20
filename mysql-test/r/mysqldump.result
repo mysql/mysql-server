@@ -4600,6 +4600,7 @@ BEGIN
 SELECT COUNT(*) INTO param1 FROM t2;
 END//
 # Events.
+SET GLOBAL EVENT_SCHEDULER = OFF;
 CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE BUG52792;
 CREATE EVENT e2 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE BUG52792;
 # Functions.
@@ -5017,6 +5018,7 @@ RETURN CONCAT(']]]]><![CDATA[>, ', s, '!')
 DROP DATABASE BUG52792;
 SET NAMES default;
 USE test;
+SET GLOBAL EVENT_SCHEDULER = ON;
 #
 # End of 5.1 tests
 #
@@ -5567,7 +5569,11 @@ SHOW VARIABLES LIKE "relay_log_info_repository";
 Variable_name	Value
 relay_log_info_repository	TABLE
 SET GLOBAL master_info_repository= 'FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 SET GLOBAL relay_log_info_repository= 'FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 SHOW VARIABLES LIKE "master_info_repository";
 Variable_name	Value
 master_info_repository	FILE

@@ -170,25 +170,6 @@ Plugin_gcs_events_handler::handle_recovery_message(const Gcs_message& message) c
     log_message(MY_INFORMATION_LEVEL,
                 "This server was declared online within the replication group");
 
-    /**
-    Disable the read mode in the server if the member is:
-    - joining
-    - doesn't have a higher possible incompatible version
-    - We are not on Primary mode.
-    */
-    if (*joiner_compatibility_status != READ_COMPATIBLE &&
-        (local_member_info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY ||
-         !local_member_info->in_primary_mode()))
-    {
-      if (disable_server_read_mode(PSESSION_INIT_THREAD))
-      {
-        log_message(MY_WARNING_LEVEL,
-                    "When declaring the plugin online it was not possible to "
-                    "disable the server read mode settings. "
-                    "Try to disable it manually."); /* purecov: inspected */
-      }
-    }
-
     /*
      The member is declared as online upon receiving this message
 
@@ -199,6 +180,26 @@ Plugin_gcs_events_handler::handle_recovery_message(const Gcs_message& message) c
       member_uuid,
       Group_member_info::MEMBER_ONLINE,
       m_notification_ctx);
+
+    /**
+      Disable the read mode in the server if the member is:
+      - joining
+      - doesn't have a higher possible incompatible version
+      - We are not on Primary mode.
+    */
+    if (*joiner_compatibility_status != READ_COMPATIBLE &&
+        (local_member_info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY ||
+         !local_member_info->in_primary_mode()))
+    {
+      if (disable_server_read_mode(PSESSION_DEDICATED_THREAD))
+      {
+        log_message(MY_WARNING_LEVEL,
+                    "When declaring the plugin online it was not possible to "
+                      "disable the server read mode settings. "
+                      "Try to disable it manually."); /* purecov: inspected */
+      }
+    }
+
   }
   else
   {
@@ -581,8 +582,20 @@ Plugin_gcs_events_handler::sort_and_get_lowest_version_member_position(
     first_member->get_member_version().get_major_version();
 
   /* to avoid read compatibility issue leader should be picked only from lowest
-     version members so save position where member version differs
-   */
+     version members so save position where member version differs.
+
+     set lowest_version_end when major version changes
+
+     eg: for a list: 5.7.18, 5.7.18, 5.7.19, 5.7.20, 5.7.21, 8.0.2
+         the members to be considered for election will be:
+            5.7.18, 5.7.18, 5.7.19, 5.7.20, 5.7.21
+         and server_uuid based algorithm will be used to elect primary
+
+     eg: for a list: 5.7.20, 5.7.21, 8.0.2, 8.0.2
+         the members to be considered for election will be:
+            5.7.20, 5.7.21
+         and member weight based algorithm will be used to elect primary
+  */
   for(it= all_members_info->begin() + 1; it != all_members_info->end(); it++)
   {
     if (lowest_major_version != (*it)->get_member_version().get_major_version())
@@ -600,11 +613,10 @@ void Plugin_gcs_events_handler::sort_members_for_election(
        std::vector<Group_member_info*>::iterator lowest_version_end) const
 {
   Group_member_info* first_member= *(all_members_info->begin());
-  uint32 lowest_major_version=
-    first_member->get_member_version().get_major_version();
+  Member_version lowest_version= first_member->get_member_version();
 
   // sort only lower version members as they only will be needed to pick leader
-  if (lowest_major_version >= PRIMARY_ELECTION_MEMBER_WEIGHT_VERSION)
+  if (lowest_version >= PRIMARY_ELECTION_MEMBER_WEIGHT_VERSION)
     std::sort(all_members_info->begin(), lowest_version_end,
               Group_member_info::comparator_group_member_weight);
   else
@@ -676,9 +688,9 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
     bool skip_set_super_readonly= false;
     if (sql_command_interface == NULL ||
         sql_command_interface->
-            establish_session_connection(PSESSION_INIT_THREAD,
-                                         get_plugin_pointer()) ||
-        sql_command_interface->set_interface_user(GROUPREPL_USER))
+            establish_session_connection(PSESSION_DEDICATED_THREAD,
+                                         GROUPREPL_USER,
+                                         get_plugin_pointer()))
     {
       log_message(MY_WARNING_LEVEL,
                   "Unable to open session to (re)set read only mode. Skipping."); /* purecov: inspected */
@@ -891,7 +903,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
     /**
       Set the read mode if not set during start (auto-start)
     */
-    if (enable_server_read_mode(PSESSION_INIT_THREAD))
+    if (enable_server_read_mode(PSESSION_DEDICATED_THREAD))
     {
       log_message(MY_ERROR_LEVEL,
                   "Error when activating super_read_only mode on start. "
@@ -915,7 +927,8 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
     */
     ulong auto_increment_increment= get_auto_increment_increment();
 
-    if (new_view.get_members().size() > auto_increment_increment)
+    if (!local_member_info->in_primary_mode() &&
+        new_view.get_members().size() > auto_increment_increment)
     {
       log_message(MY_ERROR_LEVEL,
                   "Group contains %lu members which is greater than"
@@ -1142,9 +1155,9 @@ Plugin_gcs_events_handler::get_exchangeable_data() const
       new Sql_service_command_interface();
 
   if (sql_command_interface->
-          establish_session_connection(PSESSION_INIT_THREAD,
-                                       get_plugin_pointer()) ||
-      sql_command_interface->set_interface_user(GROUPREPL_USER)
+          establish_session_connection(PSESSION_DEDICATED_THREAD,
+                                       GROUPREPL_USER,
+                                       get_plugin_pointer())
      )
   {
     log_message(MY_WARNING_LEVEL,

@@ -89,6 +89,7 @@ select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
+select * from performance_schema.setup_threads;
 select * from performance_schema.setup_timers;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
@@ -118,7 +119,7 @@ show engine PERFORMANCE_SCHEMA status;
 show global status like "performance_schema%";
 select * from performance_schema.setup_instruments
 where name in ('error') and enabled='YES';
-NAME	ENABLED	TIMED
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 use non_existing_db;
 ERROR 42000: Unknown database 'non_existing_db'
 SELECT * from non_existing_table;

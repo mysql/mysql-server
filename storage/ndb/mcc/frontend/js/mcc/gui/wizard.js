@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -230,6 +230,7 @@ var configWizardPages = {
                         <div id='addHostsButton'></div>\
                         <div id='removeHostsButton'></div>\
                         <div id='editHostsButton'></div>\
+                        <div id='refreshHostsButton'></div>\
                     </span>\
                 </div>\
             </div>",                   
@@ -596,6 +597,7 @@ var configWizardPages = {
             mcc.configuration.setupContext().then(function () {
                 mcc.gui.deploymentTreeSetup();
                 mcc.gui.startStatusPoll(true);
+                dijit.byId("configWizardStopCluster").setDisabled(true);
             });
         },
         exit: function () {
@@ -722,7 +724,7 @@ function helpMenuSetup() {
                     title: "About MySQL Cluster Configuration Tool",
                     content: "\
                             <div><img src='img/content-title.png'></div>\
-                            <p>Version: mysql-5.6-cluster-7.3</p>\
+                            <p>Version: mysql-5.7-cluster-7.6</p>\
                             <button id='termsButton' \
                                     data-dojo-type='dijit.form.Button'\
                                     type='button'>\

@@ -793,39 +793,6 @@ ndbinfo_find_files(handlerton*, THD* thd,
   DBUG_RETURN(0);
 }
 
-
-static
-bool store_schema_sdi_dummy(THD*, handlerton *, const LEX_CSTRING&,
-                            const dd::Schema*, const dd::Table*)
-{
-  return false; // Success
-}
-
-
-static
-bool remove_schema_sdi_dummy(THD*, handlerton*,
-                             const dd::Schema*, const dd::Table*)
-{
-  return false; // Success
-}
-
-
-static
-bool store_table_sdi_dummy(THD*, handlerton*, const LEX_CSTRING&,
-                           const dd::Table*, const dd::Schema*)
-{
-  return false; // Success
-}
-
-
-static
-bool remove_table_sdi_dummy(THD*, handlerton*,
-                            const dd::Table*, const dd::Schema*)
-{
-  return false; // Success
-}
-
-
 static
 int
 ndbinfo_init(void *plugin)
@@ -839,21 +806,6 @@ ndbinfo_init(void *plugin)
     HTON_ALTER_NOT_SUPPORTED;
   hton->find_files = ndbinfo_find_files;
 
-  {
-    // Install dummy callbacks to avoid writing <tablename>_<id>.SDI files
-    // in the data directory, those are redundant since the ndbinfo tables
-    // are hardcoded(some in NDB and some in ha_ndbinfo)
-    //
-    // NOTE! Install also store_schema_sdi since setting it to NULL will
-    // cause default implementation for store_table_sdi and
-    // remove_table_sdi to be installed
-    hton->store_schema_sdi = store_schema_sdi_dummy;
-    hton->remove_schema_sdi = remove_schema_sdi_dummy;
-
-    hton->store_table_sdi = store_table_sdi_dummy;
-    hton->remove_table_sdi = remove_table_sdi_dummy;
-  }
-
   if (ndbcluster_is_disabled())
   {
     // Starting in limited mode since ndbcluster is disabled
@@ -865,8 +817,9 @@ ndbinfo_init(void *plugin)
                        opt_ndbinfo_dbname, opt_ndbinfo_table_prefix, "", 0);
   DBUG_PRINT("info", ("prefix: '%s'", prefix));
   assert(g_ndb_cluster_connection);
-  g_ndbinfo = new NdbInfo(g_ndb_cluster_connection, prefix,
-                          opt_ndbinfo_dbname, opt_ndbinfo_table_prefix);
+  g_ndbinfo = new (std::nothrow) NdbInfo(g_ndb_cluster_connection, prefix,
+                                         opt_ndbinfo_dbname,
+                                         opt_ndbinfo_table_prefix);
   if (!g_ndbinfo)
   {
     ndb_log_error("Failed to create NdbInfo");

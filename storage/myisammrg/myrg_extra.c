@@ -61,18 +61,6 @@ int myrg_extra(MYRG_INFO *info,enum ha_extra_function function,
 }
 
 
-void myrg_extrafunc(MYRG_INFO *info, invalidator_by_filename inv)
-{
-  MYRG_TABLE *file;
-  DBUG_ENTER("myrg_extrafunc");
-
-  for (file=info->open_tables ; file != info->end_table ; file++)
-    file->table->s->invalidator = inv;
-
-  DBUG_VOID_RETURN;
-}
-
-
 int myrg_reset(MYRG_INFO *info)
 {
   int save_error= 0;

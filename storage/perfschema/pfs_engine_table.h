@@ -16,18 +16,18 @@
 #ifndef PFS_ENGINE_TABLE_H
 #define PFS_ENGINE_TABLE_H
 
+#include <mysql/components/services/pfs_plugin_table_service.h>
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "auth_common.h" /* struct ACL_* */
-#include "key.h"
-#include <mysql/components/services/pfs_plugin_table_service.h>
 #include "lex_string.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "pfs.h"
+#include "sql/auth/auth_common.h" /* struct ACL_* */
+#include "sql/key.h"
 
 class PFS_engine_key;
 class PFS_engine_index;
@@ -497,18 +497,10 @@ public:
   }
 
   void
-  init_mutex()
-  {
-    mysql_mutex_register("pfs", &pfs_share_list_mutex, 1);
-    mysql_mutex_init(key_LOCK_pfs_share_list, &LOCK_pfs_share_list,
-                     MY_MUTEX_INIT_FAST);
-  }
+  init_mutex();
 
   void
-  destroy_mutex()
-  {
-    mysql_mutex_destroy(&LOCK_pfs_share_list);
-  }
+  destroy_mutex();
 
   void
   lock_share_list()
@@ -537,9 +529,6 @@ public:
 private:
   std::vector<PFS_engine_table_share *> shares_vector;
   mysql_mutex_t LOCK_pfs_share_list;
-  PSI_mutex_key key_LOCK_pfs_share_list;
-  PSI_mutex_info pfs_share_list_mutex=
-  { &key_LOCK_pfs_share_list, "LOCK_pfs_share_list", 0, 0};
 };
 
 /* List of table shares added by plugin/component */

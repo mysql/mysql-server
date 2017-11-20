@@ -18,26 +18,29 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 
 #include "../scripts/sql_commands_help_data.h"
 #include "../scripts/sql_commands_sys_schema.h"
 #include "../scripts/sql_commands_system_data.h"
 #include "../scripts/sql_commands_system_tables.h"
-#include "current_thd.h"
-#include "log.h"
+#include "components/mysql_server/log_builtins_filter_imp.h" // verbosity
 #include "m_ctype.h"
 #include "my_dir.h"
+#include "my_inttypes.h"
 #include "my_io.h"
+#include "my_loglevel.h"
 #include "my_rnd.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"
-#include "sql_bootstrap.h"
-#include "sql_class.h"
-#include "sql_error.h"
-#include "components/mysql_server/log_builtins_filter_imp.h" // verbosity
+#include "mysqld_error.h"
+#include "sql/current_thd.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"
+#include "sql/sql_bootstrap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
 
 static const char *initialization_cmds[] =
 {

@@ -16,7 +16,7 @@
 #include <assert.h>
 #include <stddef.h>
 
-#include "mysql/gcs/gcs_logging.h"
+#include "mysql/gcs/gcs_logging_system.h"
 #include "gcs_xcom_notification.h"
 #include "my_compiler.h"
 
@@ -150,6 +150,9 @@ void *process_notification_thread(void *ptr_object)
 {
   Gcs_xcom_engine *engine= static_cast<Gcs_xcom_engine* >(ptr_object);
   engine->process();
+
+  My_xp_thread_util::exit(0);
+
   return NULL;
 }
 
@@ -175,7 +178,8 @@ void Gcs_xcom_engine::initialize(
 {
   assert(m_notification_queue.empty());
   assert(m_schedule);
-  m_engine_thread.create(NULL, process_notification_thread, (void *) this);
+  m_engine_thread.create(key_GCS_THD_Gcs_xcom_engine_m_engine_thread,
+                         NULL, process_notification_thread, (void *) this);
 }
 
 
@@ -207,13 +211,12 @@ void Gcs_xcom_engine::process()
     m_wait_for_notification_mutex.unlock();
 
     MYSQL_GCS_LOG_TRACE(
-      "Started executing during regular phase: " << notification
+      "Started executing during regular phase: %p", notification
     )
     stop= (*notification)();
     MYSQL_GCS_LOG_TRACE(
-      "Finish executing during regular phase: " << notification
+      "Finish executing during regular phase: %p", notification
     )
-
     delete notification;
   }
 }
@@ -233,11 +236,11 @@ void Gcs_xcom_engine::cleanup()
     m_notification_queue.pop();
 
     MYSQL_GCS_LOG_TRACE(
-      "Started executing during clean up phase: " << notification
+      "Started executing during clean up phase: %p", notification
     )
     (*notification)();
     MYSQL_GCS_LOG_TRACE(
-      "Finished executing during clean up phase: " << notification
+      "Finished executing during clean up phase: %p", notification
     )
 
     delete notification;

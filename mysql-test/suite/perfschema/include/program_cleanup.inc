@@ -29,3 +29,6 @@ DROP TABLE table_t;
 
 DROP DATABASE stored_programs;
 --enable_warnings
+SET GLOBAL event_scheduler=ON;
+--source include/running_event_scheduler.inc
+

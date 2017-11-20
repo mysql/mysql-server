@@ -22,7 +22,7 @@ create table t1 (ID int(8) unsigned zerofill not null auto_increment,UNIQ bigint
 insert into t1 set UNIQ=0x38afba1d73e6a18a;
 insert into t1 set UNIQ=123;
 analyze table t1;
-explain extended select * from t1 where UNIQ=0x38afba1d73e6a18a;
+explain select * from t1 where UNIQ=0x38afba1d73e6a18a;
 drop table t1;
 
 #
@@ -137,7 +137,6 @@ BIT_COUNT(b), HEX(~b), HEX(b << 1), HEX(b >> 1)
 FROM t1;
 
 CALL test_bin_op();
-RESET QUERY CACHE;
 CALL test_bin_op();
 DROP PROCEDURE test_bin_op;
 
@@ -145,7 +144,6 @@ CREATE PROCEDURE test_bin_op()
 SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1 GROUP BY a;
 
 CALL test_bin_op();
-RESET QUERY CACHE;
 CALL test_bin_op();
 DROP PROCEDURE test_bin_op;
 
@@ -153,7 +151,6 @@ CREATE PROCEDURE test_bin_op()
 SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1;
 
 CALL test_bin_op();
-RESET QUERY CACHE;
 CALL test_bin_op();
 DROP PROCEDURE test_bin_op;
 
@@ -173,17 +170,14 @@ BIT_COUNT(b), HEX( ~b), HEX(b << 1), HEX(b >> 1)
 FROM t1;";
 
 EXECUTE s1;
-RESET QUERY CACHE;
 EXECUTE s1;
 
 PREPARE s2 from "SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1 GROUP BY a";
 EXECUTE s2;
-RESET QUERY CACHE;
 EXECUTE s2;
 
 PREPARE s2 from "SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1";
 EXECUTE s2;
-RESET QUERY CACHE;
 EXECUTE s2;
 
 --echo #
@@ -203,7 +197,6 @@ BIT_COUNT(b), HEX(~b), HEX(b << 1), HEX(b >> 1)
 FROM t1;
 --enable_ps_protocol
 SELECT * from v1;
-RESET QUERY CACHE;
 SELECT * from v1;
 
 --disable_ps_protocol
@@ -211,7 +204,6 @@ CREATE VIEW v2 AS
 SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1 GROUP BY a;
 --enable_ps_protocol
 SELECT * from v2;
-RESET QUERY CACHE;
 SELECT * from v2;
 
 --disable_ps_protocol
@@ -219,7 +211,6 @@ CREATE VIEW v3 AS
 SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1;
 --enable_ps_protocol
 SELECT * from v3;
-RESET QUERY CACHE;
 SELECT * from v3;
 
 DROP VIEW v1,v2,v3;

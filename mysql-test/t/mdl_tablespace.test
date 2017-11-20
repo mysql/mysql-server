@@ -1059,6 +1059,15 @@ SELECT event_name, object_name, object_type, operation
   FROM performance_schema.events_waits_current
   WHERE object_type LIKE 'TABLESPACE';
 
+# Disable all waits except wait/lock/metadata/sql/mdl and empty the table
+# so that the table doesn't get full and the event that we need to wait on
+# doesn't get removed from the table.
+--replace_regex /[0-9]+/X/
+CALL sys.ps_setup_disable_instrument('wait');
+CALL sys.ps_setup_enable_instrument('wait/lock/metadata/sql/mdl');
+
+TRUNCATE TABLE performance_schema.events_waits_history_long;
+
 SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 
 --echo #
@@ -1083,6 +1092,10 @@ LET $wait_condition=
 --source include/wait_condition.inc
 
 SELECT event_name, object_name, object_type, operation
+  FROM performance_schema.events_waits_current
+  WHERE object_type LIKE 'TABLESPACE';
+
+SELECT event_name, object_name, object_type, operation
   FROM performance_schema.events_waits_history_long
   WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 
@@ -1098,7 +1111,8 @@ SELECT event_name, object_name, object_type, operation
 --connection default
 DROP TABLESPACE ts1;
 SET DEBUG_SYNC= 'RESET';
-
+--replace_regex /[0-9]+/X/
+CALL sys.ps_setup_enable_instrument('wait');
 
 --echo ###########################################################
 --echo #
@@ -1127,7 +1141,6 @@ SET DEBUG_SYNC= 'RESET';
 
 --connection default
 --disable_connect_log
-
 
 --echo # Bug#21376265 - ENHANCEMENT: ACQUIRE MDL LOCKS ON ALL TABLESPACE
 --echo #                REFERRED BY A STATEMENT
@@ -1338,3 +1351,129 @@ DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
+
+
+--echo #
+--echo # Tescases for wl#8972. Rename a general tablespace.
+--echo #
+--echo # Verify atomicity of rename
+--echo #
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+ALTER TABLESPACE ts1 RENAME TO ts2;
+ALTER TABLESPACE ts2 RENAME TO ts1;
+
+SET SESSION debug="+d,tspr_post_se";
+--error ER_UNKNOWN_ERROR
+ALTER TABLESPACE ts1 RENAME TO ts2;
+
+SET SESSION debug="-d,tspr_post_se";
+ALTER TABLESPACE ts1 RENAME TO ts2;
+
+SET SESSION debug="+d,tspr_post_update";
+--error ER_UNKNOWN_ERROR
+ALTER TABLESPACE ts2 RENAME TO ts3;
+
+SET SESSION debug="-d,tspr_post_update";
+ALTER TABLESPACE ts2 RENAME TO ts3;
+
+SET SESSION debug="+d,tspr_post_intcmt";
+--error ER_UNKNOWN_ERROR
+ALTER TABLESPACE ts3 RENAME TO ts4;
+
+SET SESSION debug="-d,tspr_post_intcmt";
+ALTER TABLESPACE ts3 RENAME TO ts4;
+
+DROP TABLESPACE ts4;
+
+
+--echo #
+--echo # Verify that rename is rejected under FLUSH TABLES WITH READ LOCK
+--echo #
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+
+FLUSH TABLES WITH READ LOCK;
+connect (con1, localhost, root);
+SET @@session.lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLESPACE ts1 RENAME TO ts2;
+
+connection default;
+disconnect con1;
+
+UNLOCK TABLES;
+
+--echo #
+--echo # Verify that rename is rejected under LOCK TABLES on a table in
+--echo # the tablepsace
+--echo #
+
+CREATE TABLE t1(i INT) TABLESPACE ts1;
+LOCK TABLES t1 READ;
+
+connect (con1, localhost, root);
+SET @@session.lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLESPACE ts1 RENAME TO ts2;
+
+connection default;
+disconnect con1;
+UNLOCK TABLES;
+
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+
+--echo #
+--echo # Verify proper MDL locking on tablespace
+--echo #
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+connect (con1, localhost, root);
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send ALTER TABLESPACE ts1 RENAME TO ts2
+
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+SET @@session.lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+DROP TABLESPACE ts1;
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+
+connection con1;
+--reap
+
+connection default;
+disconnect con1;
+DROP TABLESPACE ts2;
+
+--echo #
+--echo # Verify that MDL on tables in a tablespace blocks rename
+--echo #
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+CREATE TABLE t1(i INT) TABLESPACE ts1;
+
+connect (con1, localhost, root);
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send ALTER TABLE t1 RENAME TO t2
+
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+SET @@session.lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLESPACE ts1 RENAME TO t1;
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+
+connection con1;
+--reap
+
+connection default;
+disconnect con1;
+DROP TABLE t2;
+DROP TABLESPACE ts1;
+SET @@session.lock_wait_timeout= DEFAULT;

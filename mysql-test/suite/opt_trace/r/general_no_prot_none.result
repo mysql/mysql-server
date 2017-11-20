@@ -2001,16 +2001,15 @@ set optimizer_switch=@old_opt_switch;
 CREATE TABLE t1 (s1 CHAR(5),
 s2 CHAR(5)) CHARSET utf8mb4;
 INSERT INTO t1 VALUES ('z','?'),('y','!');
-explain extended select * from t1 where s1 > any (select s2 from t1);
+explain select * from t1 where s1 > any (select s2 from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where <nop>((`test`.`t1`.`s1` > (/* select#2 */ select min(`test`.`t1`.`s2`) from `test`.`t1`)))
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-explain extended select * from t1 where s1 > any (select s2 from t1)	{
+explain select * from t1 where s1 > any (select s2 from t1)	{
   "steps": [
     {
       "join_preparation": {
@@ -2110,14 +2109,17 @@ explain extended select * from t1 where s1 > any (select s2 from t1)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
-                      "resulting_rows": 1,
+                      "resulting_rows": 2,
                       "cost": 0.705,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "condition_filtering_pct": 100,
+                "condition_filtering_pct": 50,
                 "rows_for_plan": 1,
                 "cost_for_plan": 0.705,
                 "chosen": true
@@ -2244,16 +2246,15 @@ explain extended select * from t1 where s1 > any (select s2 from t1)	{
     }
   ] /* steps */
 }	0	0
-explain extended select * from t1 where s1 > any (select max(s2) from t1);
+explain select * from t1 where s1 > any (select max(s2) from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where <nop>((`test`.`t1`.`s1` > <min>(/* select#2 */ select max(`test`.`t1`.`s2`) from `test`.`t1`)))
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-explain extended select * from t1 where s1 > any (select max(s2) from t1)	{
+explain select * from t1 where s1 > any (select max(s2) from t1)	{
   "steps": [
     {
       "join_preparation": {
@@ -2353,14 +2354,17 @@ explain extended select * from t1 where s1 > any (select max(s2) from t1)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
-                      "resulting_rows": 1,
+                      "resulting_rows": 2,
                       "cost": 0.705,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "condition_filtering_pct": 100,
+                "condition_filtering_pct": 50,
                 "rows_for_plan": 1,
                 "cost_for_plan": 0.705,
                 "chosen": true
@@ -2487,16 +2491,15 @@ explain extended select * from t1 where s1 > any (select max(s2) from t1)	{
     }
   ] /* steps */
 }	0	0
-explain extended select * from t1 where s1 in (select s2 from t1);
+explain select * from t1 where s1 in (select s2 from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`s1`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`s1`) = `test`.`t1`.`s2`)))
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-explain extended select * from t1 where s1 in (select s2 from t1)	{
+explain select * from t1 where s1 in (select s2 from t1)	{
   "steps": [
     {
       "join_preparation": {
@@ -2606,6 +2609,9 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.705,
@@ -2707,6 +2713,9 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.705,
@@ -2768,16 +2777,15 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
     }
   ] /* steps */
 }	0	0
-explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1);
+explain select * from t1 where (s1,s2) in (select s2,s1 from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`s1`,`test`.`t1`.`s2`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` where ((<cache>(`test`.`t1`.`s1`) = `test`.`t1`.`s2`) and (<cache>(`test`.`t1`.`s2`) = `test`.`t1`.`s1`))))
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
+explain select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
   "steps": [
     {
       "join_preparation": {
@@ -2887,6 +2895,9 @@ explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.705,
@@ -2988,6 +2999,9 @@ explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.705,
@@ -3382,18 +3396,17 @@ insert into t3_16 values
 (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
 insert into t3_16 values
 (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select b1 from t2_16 where b1 > '0');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_16	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_16	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`))))
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select b1 from t2_16 where b1 > '0')	{
   "steps": [
@@ -3505,6 +3518,9 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 3,
                       "cost": 0.8073,
@@ -3606,6 +3622,9 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.3333,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.8073,
@@ -3818,6 +3837,9 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 3,
                       "cost": 0.8013,
@@ -3838,6 +3860,9 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 3,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -3862,6 +3887,9 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 3,
                       "cost": 0.8013,
@@ -3970,6 +3998,9 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.3333,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.8013,
@@ -4574,6 +4605,9 @@ concat(c1,'y') IN
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 3,
                       "cost": 0.8013,
@@ -4675,6 +4709,9 @@ concat(c1,'y') IN
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 3,
                       "cost": 0.8013,
@@ -4784,6 +4821,9 @@ concat(c1,'y') IN
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 3,
                       "cost": 0.8013,
@@ -5624,6 +5664,9 @@ select * from t1 left join t2 on t2.a=500 where t2.a is NULL	{
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 2,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 0.5,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -5919,6 +5962,9 @@ select * from t1 where (t1.a,t1.b) not in (select c,d from t2 where c>0)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.5,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.7011,
@@ -6135,6 +6181,9 @@ trace
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 2,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 0.5,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -6161,6 +6210,9 @@ trace
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.5,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.7011,
@@ -6897,6 +6949,9 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "d"
@@ -7108,6 +7163,9 @@ delete t6 from t5, t6 where d>7000	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "d"
@@ -7526,15 +7584,15 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal('c', `t2`.`s`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal('c', `t2`.`s`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal('c', `t2`.`s`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -7579,6 +7637,9 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 4,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.25,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.9188,
@@ -7718,15 +7779,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -7877,15 +7938,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -8036,15 +8097,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -8195,15 +8256,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -8354,15 +8415,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -8561,15 +8622,15 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -8614,6 +8675,9 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 4,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.25,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.9188,
@@ -8630,13 +8694,13 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))",
+              "original_condition": "((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t2`",
-                  "attached": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "attached": "((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -8745,15 +8809,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -8904,15 +8968,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -9063,15 +9127,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -9222,15 +9286,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -9674,15 +9738,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -9837,15 +9901,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -10000,15 +10064,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -10163,15 +10227,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -10634,15 +10698,15 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -10687,6 +10751,9 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 8,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.125,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 1.3376,
@@ -10703,13 +10770,13 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))",
+              "original_condition": "((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t2`",
-                  "attached": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "attached": "((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -10818,15 +10885,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -10977,15 +11044,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -11136,15 +11203,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -11295,15 +11362,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -11490,15 +11557,15 @@ explain select * from v1 where id="b"	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t1`.`id` = 'b') and (`t1`.`id` < 'c'))"
+                  "resulting_condition": "(('b' < 'c') and multiple equal('b', `t1`.`id`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t1`.`id` = 'b') and ('b' < 'c'))"
+                  "resulting_condition": "(('b' < 'c') and multiple equal('b', `t1`.`id`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`t1`.`id` = 'b')"
+                  "resulting_condition": "multiple equal('b', `t1`.`id`)"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -11543,6 +11610,9 @@ explain select * from v1 where id="b"	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.5,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.7126,
@@ -11794,6 +11864,9 @@ explain select * from v1 where id="b"	{
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 3,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 0.3333,
                             "access_type": "scan",
                             "resulting_rows": 1,
                             "cost": 0.8126,
@@ -11838,15 +11911,15 @@ explain select * from v1 where id="b"	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`v1`.`id` = 'b')"
+                  "resulting_condition": "multiple equal('b', `v1`.`id`)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`v1`.`id` = 'b')"
+                  "resulting_condition": "multiple equal('b', `v1`.`id`)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`v1`.`id` = 'b')"
+                  "resulting_condition": "multiple equal('b', `v1`.`id`)"
                 }
               ] /* steps */
             } /* condition_processing */

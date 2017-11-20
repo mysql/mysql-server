@@ -208,15 +208,13 @@
 */
 
 
-#include "protocol_classic.h"
+#include "sql/protocol_classic.h"
 
 #include <string.h>
 #include <algorithm>
+#include <limits>
 
 #include "decimal.h"
-#include "field.h"
-#include "item.h"
-#include "item_func.h"                          // Item_func_set_user_var
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -228,15 +226,23 @@
 #include "my_time.h"
 #include "mysql/com_data.h"
 #include "mysql/psi/mysql_socket.h"
-#include "mysqld.h"                             // global_system_variables
+#include "mysql/psi/mysql_statement.h"
 #include "mysqld_error.h"
-#include "session_tracker.h"
-#include "sql_class.h"                          // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_prepare.h"                        // Prepared_statement
-#include "system_variables.h"
+#include "openssl/ssl.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/field.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item.h"
+#include "sql/item_func.h"                      // Item_func_set_user_var
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"                         // global_system_variables
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h"                      // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_prepare.h"                    // Prepared_statement
+#include "sql/system_variables.h"
 
 
 using std::min;
@@ -1564,7 +1570,7 @@ bool Protocol_classic::store_ps_status(ulong stmt_id, uint column_count,
 {
   DBUG_ENTER("Protocol_classic::store_ps_status");
 
-  uchar buff[12];
+  uchar buff[13];
   buff[0]= 0;                                   /* OK packet indicator */
   int4store(buff + 1, stmt_id);
   int2store(buff + 5, column_count);
@@ -1573,8 +1579,14 @@ bool Protocol_classic::store_ps_status(ulong stmt_id, uint column_count,
   uint16 tmp= min(static_cast<uint16>(cond_count),
                   std::numeric_limits<uint16>::max());
   int2store(buff + 10, tmp);
+  if (has_client_capability(CLIENT_OPTIONAL_RESULTSET_METADATA))
+  {
+    /* Store resultset metadata flag. */
+    buff[12]= static_cast<uchar>(m_thd->variables.resultset_metadata);
 
-  DBUG_RETURN(my_net_write(&m_thd->net, buff, sizeof(buff)));
+    DBUG_RETURN(my_net_write(&m_thd->net, buff, sizeof(buff)));
+  }
+  DBUG_RETURN(my_net_write(&m_thd->net, buff, sizeof(buff) - 1));
 }
 
 
@@ -1594,14 +1606,33 @@ Protocol_classic::start_result_metadata(uint num_cols, uint flags,
   send_metadata= true;
   field_count= num_cols;
   sending_flags= flags;
+  /*
+    We don't send number of column for PS, as it's sent in a preceding packet.
+  */
   if (flags & Protocol::SEND_NUM_ROWS)
   {
-    ulonglong tmp;
-    uchar *pos = net_store_length((uchar *) &tmp, num_cols);
-    my_net_write(&m_thd->net, (uchar *) &tmp, (size_t) (pos - ((uchar *) &tmp)));
+    uchar tmp[sizeof(ulonglong) + 1];
+    uchar *pos= net_store_length((uchar *) &tmp, num_cols);
+
+    if (has_client_capability(CLIENT_OPTIONAL_RESULTSET_METADATA))
+    {
+      /* Store resultset metadata flag. */
+      *pos= static_cast<uchar>(m_thd->variables.resultset_metadata);
+      pos++;
+    }
+
+    my_net_write(&m_thd->net, (uchar *) &tmp, (size_t) (pos - (uchar *) &tmp));
   }
 #ifndef DBUG_OFF
-  field_types= (enum_field_types*) m_thd->alloc(sizeof(field_types) * num_cols);
+  /*
+    field_types will be filled only if we send metadata.
+    Set it to NULL if we skip resultset metadata to avoid
+    ::storeXXX() method's asserts failures.
+  */
+  if (m_thd->variables.resultset_metadata == RESULTSET_METADATA_FULL)
+    field_types= (enum_field_types*) m_thd->alloc(sizeof(field_types) * num_cols);
+  else
+    field_types= 0;
   count= 0;
 #endif
 

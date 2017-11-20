@@ -1,1 +1,1 @@
---binlog-direct-non-transactional-updates
+--binlog-direct-non-transactional-updates --event-scheduler=OFF

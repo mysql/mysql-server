@@ -15,45 +15,36 @@
 
 #include "sql/binlog.h"
 
-#include "my_config.h"
-
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 
+#include "config.h"
 #include "lex_string.h"
+#include "map_helpers.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_systime.h"
+#include "my_thread.h"
+#include "mysql/components/services/log_shared.h"
+#include "sql/check_stack.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <algorithm>
 #include <list>
+#include <map>
 #include <new>
 #include <string>
 
 #include "binary_log_types.h"
 #include "control_events.h"
-#include "current_thd.h"
-#include "debug_sync.h"                     // DEBUG_SYNC
 #include "debug_vars.h"
-#include "derror.h"                         // ER_THD
-#include "discrete_interval.h"
 #include "dur_prop.h"
-#include "field.h"
-#include "handler.h"
-#include "hash.h"
-#include "item_func.h"                      // user_var_entry
-#include "key.h"
-#include "log.h"
-#include "log_event.h"                      // Rows_log_event
 #include "m_ctype.h"
-#include "mdl.h"
 #include "mf_wcomp.h"                       // wild_one, wild_many
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -66,53 +57,59 @@
 #include "my_thread_local.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/psi_stage.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
-#include "mysqld.h"                         // sync_binlog_period ...
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h"             // Global_THD_manager
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
 #include "rows_event.h"
-#include "rpl_filter.h"
-#include "rpl_gtid.h"
-#include "rpl_handler.h"                    // RUN_HOOK
-#include "rpl_mi.h"                         // Master_info
-#include "rpl_record.h"
-#include "rpl_rli.h"                        // Relay_log_info
-#include "rpl_rli_pdb.h"                    // Slave_worker
-#include "rpl_slave.h"
-#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
-#include "rpl_transaction_ctx.h"
-#include "rpl_trx_boundary_parser.h"        // Transaction_boundary_parser
-#include "rpl_context.h"
-#include "rpl_utility.h"
-#include "sql_bitmap.h"
-#include "sql_class.h"                      // THD
-#include "sql_const.h"
-#include "sql_data_change.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                      // sqlcom_can_generate_row_events
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
-#include "sql_servers.h"
-#include "sql_show.h"                       // append_identifier
-#include "sql_udf.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"                 // DEBUG_SYNC
+#include "sql/derror.h"                     // ER_THD
+#include "sql/discrete_interval.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item_func.h"                  // user_var_entry
+#include "sql/json_diff.h"                      // Json_diff_vector
+#include "sql/json_dom.h"                       // Json_dom
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/log_event.h"                  // Rows_log_event
+#include "sql/mysqld.h"                     // sync_binlog_period ...
+#include "sql/mysqld_thd_manager.h"         // Global_THD_manager
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/rpl_filter.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_handler.h"                // RUN_HOOK
+#include "sql/rpl_mi.h"                     // Master_info
+#include "sql/rpl_record.h"
+#include "sql/rpl_rli.h"                    // Relay_log_info
+#include "sql/rpl_rli_pdb.h"                // Slave_worker
+#include "sql/rpl_slave.h"
+#include "sql/rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql/rpl_transaction_ctx.h"
+#include "sql/rpl_trx_boundary_parser.h"    // Transaction_boundary_parser
+#include "sql/rpl_utility.h"
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"                  // THD
+#include "sql/sql_const.h"
+#include "sql/sql_data_change.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"                  // sqlcom_can_generate_row_events
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"                   // append_identifier
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 #include "statement_events.h"
-#include "system_variables.h"
-#include "table.h"
 #include "table_id.h"
 #include "thr_lock.h"
-#include "transaction_info.h"
-#include "xa.h"
 
 class Item;
-class Gtid_event;
 
 using std::max;
 using std::min;
@@ -514,6 +511,9 @@ public:
       cache_state state;
       state.with_rbr= flags.with_rbr;
       state.with_sbr= flags.with_sbr;
+      state.with_start= flags.with_start;
+      state.with_end= flags.with_end;
+      state.with_content= flags.with_content;
       state.event_counter= event_counter;
       cache_state_map[pos_to_checkpoint]= state;
     }
@@ -529,6 +529,9 @@ public:
       {
         flags.with_rbr= it->second.with_rbr;
         flags.with_sbr= it->second.with_sbr;
+        flags.with_start= it->second.with_start;
+        flags.with_end= it->second.with_end;
+        flags.with_content= it->second.with_content;
         event_counter= it->second.event_counter;
       }
       else
@@ -539,6 +542,9 @@ public:
     {
       flags.with_rbr= false;
       flags.with_sbr= false;
+      flags.with_start= false;
+      flags.with_end= false;
+      flags.with_content= false;
       event_counter= 0;
     }
   }
@@ -574,6 +580,9 @@ public:
     flags.finalized= false;
     flags.with_sbr= false;
     flags.with_rbr= false;
+    flags.with_start= false;
+    flags.with_end= false;
+    flags.with_content= false;
     /*
       The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
       which may increase disk_writes. This breaks the disk_writes use by the
@@ -648,6 +657,46 @@ public:
     return flags.with_sbr || !flags.with_rbr;
   }
 
+  /**
+    Check if the binlog cache contains an empty transaction, which has
+    two binlog events "BEGIN" and "COMMIT".
+
+    @return true  The binlog cache contains an empty transaction.
+    @return false Otherwise.
+  */
+  bool has_empty_transaction()
+  {
+    /*
+      The empty transaction has two events in trx/stmt binlog cache
+      and no changes: one is a transaction start and other is a transaction
+      end (there should be no SBR changing content and no RBR events).
+    */
+    if (flags.with_start &&  // Has transaction start statement
+        flags.with_end &&    // Has transaction end statement
+        !flags.with_content) // Has no other content than START/END
+    {
+      DBUG_ASSERT(event_counter == 2); // Two events in the cache only
+      DBUG_ASSERT(!flags.with_sbr); // No statements changing content
+      DBUG_ASSERT(!flags.with_rbr); // No rows changing content
+      DBUG_ASSERT(!flags.immediate);// Not a DDL
+      DBUG_ASSERT(!flags.with_xid); // Not a XID trx and not an atomic DDL Query
+      return true;
+    }
+    return false;
+  }
+
+  /**
+    Check if the binlog cache is empty or contains an empty transaction,
+    which has two binlog events "BEGIN" and "COMMIT".
+
+    @return true  The binlog cache is empty or contains an empty transaction.
+    @return false Otherwise.
+  */
+  bool is_empty_or_has_empty_transaction()
+  {
+    return is_binlog_empty() || has_empty_transaction();
+  }
+
 protected:
   /*
     This structure should have all cache variables/flags that should be restored
@@ -657,6 +706,9 @@ protected:
   {
     bool with_sbr;
     bool with_rbr;
+    bool with_start;
+    bool with_end;
+    bool with_content;
     size_t event_counter;
   };
   /*
@@ -750,6 +802,21 @@ protected:
       This indicates that the cache contain RBR event changing content.
     */
     bool with_rbr:1;
+
+    /*
+      This indicates that the cache contain s transaction start statement.
+    */
+    bool with_start:1;
+
+    /*
+      This indicates that the cache contain a transaction end event.
+    */
+    bool with_end:1;
+
+    /*
+      This indicates that the cache contain content other than START/END.
+    */
+    bool with_content:1;
   } flags;
 
 private:
@@ -1014,6 +1081,23 @@ public:
       return error;
     *bytes_written= stmt_bytes + trx_bytes;
     return 0;
+  }
+
+  /**
+    Check if at least one of transacaction and statement binlog caches
+    contains an empty transaction, other one is empty or contains an
+    empty transaction.
+
+    @return true  At least one of transacaction and statement binlog
+                  caches an empty transaction, other one is emptry
+                  or contains an empty transaction.
+    @return false Otherwise.
+  */
+  bool has_empty_transaction()
+  {
+    return (trx_cache.is_empty_or_has_empty_transaction() &&
+            stmt_cache.is_empty_or_has_empty_transaction() &&
+            !is_binlog_empty());
   }
 
   binlog_stmt_cache_data stmt_cache;
@@ -1387,6 +1471,13 @@ int binlog_cache_data::write_event(THD*, Log_event *ev)
       flags.with_sbr= true;
     if (ev->is_rbr_logging_format())
       flags.with_rbr= true;
+    /* With respect to empty transactions */
+    if (ev->starts_group())
+      flags.with_start= true;
+    if (ev->ends_group())
+      flags.with_end= true;
+    if (!ev->starts_group() && !ev->ends_group())
+      flags.with_content= true;
     event_counter++;
     DBUG_PRINT("debug",("event_counter= %lu",
                         static_cast<ulong>(event_counter)));
@@ -2999,6 +3090,21 @@ err:
   DBUG_RETURN(-1);
 }
 
+
+bool is_empty_transaction_in_binlog_cache(const THD* thd)
+{
+  DBUG_ENTER("is_empty_transaction_in_binlog_cache");
+
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
+  if (cache_mngr != NULL && cache_mngr->has_empty_transaction())
+  {
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+
+
 /** 
   This function checks if a transactional table was updated by the
   current transaction.
@@ -3478,9 +3584,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
                              enum cache_type io_cache_type_arg)
   :name(NULL), write_error(false), inited(false),
    io_cache_type(io_cache_type_arg),
-#ifdef HAVE_PSI_INTERFACE
    m_key_LOCK_log(key_LOG_LOCK_log),
-#endif
    bytes_written(0), file_id(1), open_count(1),
    sync_period_ptr(sync_period), sync_counter(0),
    is_relay_log(0), signal_cnt(0),
@@ -3540,14 +3644,11 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   mysql_mutex_init(m_key_LOCK_xids, &LOCK_xids, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond);
   mysql_cond_init(m_key_prep_xids_cond, &m_prep_xids_cond);
-  stage_manager.init(
-#ifdef HAVE_PSI_MUTEX_INTERFACE
-                   m_key_LOCK_flush_queue,
-                   m_key_LOCK_sync_queue,
-                   m_key_LOCK_commit_queue,
-                   m_key_LOCK_done, m_key_COND_done
-#endif
-                   );
+  stage_manager.init(m_key_LOCK_flush_queue,
+                     m_key_LOCK_sync_queue,
+                     m_key_LOCK_commit_queue,
+                     m_key_LOCK_done,
+                     m_key_COND_done);
 }
 
 
@@ -3781,9 +3882,7 @@ bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
 */
 
 bool MYSQL_BIN_LOG::open(
-#ifdef HAVE_PSI_INTERFACE
                      PSI_file_key log_file_key,
-#endif
                      const char *log_name,
                      const char *new_name,
                      uint32 new_index_number)
@@ -3811,10 +3910,8 @@ bool MYSQL_BIN_LOG::open(
 
   db[0]= 0;
 
-#ifdef HAVE_PSI_INTERFACE
   /* Keep the key for reopen */
   m_log_file_key= log_file_key;
-#endif
 
   if ((file= mysql_file_open(log_file_key,
                              log_file_name, O_CREAT | O_WRONLY,
@@ -5064,11 +5161,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   write_error= 0;
 
   /* open the main log file */
-  if (open(
-#ifdef HAVE_PSI_INTERFACE
-                      m_key_file_log,
-#endif
-                      log_name, new_name, new_index_number))
+  if (open(m_key_file_log,
+           log_name, new_name, new_index_number))
   {
     close_purge_index_file();
     DBUG_RETURN(1);                            /* all warnings issued */
@@ -7238,6 +7332,7 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi)
   lock_binlog_end_pos();
   mi->rli->ign_master_log_name_end[0]= 0;
   update_binlog_end_pos(false /*need_lock*/);
+  harvest_bytes_written(&mi->rli->log_space_total);
   unlock_binlog_end_pos();
 
   DBUG_RETURN(error);
@@ -7878,35 +7973,67 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
 
   // @todo make this work with the group log. /sven
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
-  if (cache_mngr == NULL)
-    DBUG_RETURN(error);
 
-  if (!cache_mngr->stmt_cache.is_binlog_empty())
+#ifndef DBUG_OFF
+  if (DBUG_EVALUATE_IF("simulate_write_incident_event_into_binlog_directly",
+                       1, 0) && !cache_mngr->stmt_cache.is_binlog_empty())
   {
     /* The stmt_cache contains corruption data, so we can reset it. */
     cache_mngr->stmt_cache.reset();
   }
-  if (!cache_mngr->trx_cache.is_binlog_empty())
-  {
-    /* The trx_cache contains corruption data, so we can reset it. */
-    cache_mngr->trx_cache.reset();
-  }
-  /*
-    Write the incident event into stmt_cache, so that a GTID is generated and
-    written for it prior to flushing the stmt_cache.
-  */
-  binlog_cache_data *cache_data= cache_mngr->get_binlog_cache_data(false);
-  if ((error= cache_data->write_event(thd, ev)))
-  {
-    sql_print_error("Failed to write an incident event into stmt_cache.");
-    cache_mngr->stmt_cache.reset();
-    DBUG_RETURN(error);
-  }
+#endif
 
-  if (need_lock_log)
-    mysql_mutex_lock(&LOCK_log);
-  else
-    mysql_mutex_assert_owner(&LOCK_log);
+  /*
+    If there is no binlog cache then we write incidents directly
+    into the binlog. If caller needs GTIDs it has to setup the
+    binlog cache (for the injector thread).
+  */
+  if (cache_mngr == NULL ||
+      DBUG_EVALUATE_IF("simulate_write_incident_event_into_binlog_directly",
+                       1, 0))
+  {
+    if (need_lock_log)
+      mysql_mutex_lock(&LOCK_log);
+    else
+      mysql_mutex_assert_owner(&LOCK_log);
+    /* Write an incident event into binlog directly. */
+    error= ev->write(&log_file);
+    /*
+      Write an error to log. So that user might have a chance
+      to be alerted and explore incident details.
+    */
+    if (!error)
+      LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_INCIDENT_TO_STOP_SLAVES, err_msg);
+  }
+  else // (cache_mngr != NULL)
+  {
+    if (!cache_mngr->stmt_cache.is_binlog_empty())
+    {
+      /* The stmt_cache contains corruption data, so we can reset it. */
+      cache_mngr->stmt_cache.reset();
+    }
+    if (!cache_mngr->trx_cache.is_binlog_empty())
+    {
+      /* The trx_cache contains corruption data, so we can reset it. */
+      cache_mngr->trx_cache.reset();
+    }
+    /*
+      Write the incident event into stmt_cache, so that a GTID is generated and
+      written for it prior to flushing the stmt_cache.
+    */
+    binlog_cache_data *cache_data= cache_mngr->get_binlog_cache_data(false);
+    if ((error= cache_data->write_event(thd, ev)))
+    {
+      sql_print_error("Failed to write an incident event into stmt_cache.");
+      cache_mngr->stmt_cache.reset();
+      DBUG_RETURN(error);
+    }
+
+    if (need_lock_log)
+      mysql_mutex_lock(&LOCK_log);
+    else
+      mysql_mutex_assert_owner(&LOCK_log);
+  }
 
   if (do_flush_and_sync)
   {
@@ -7929,7 +8056,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
     Write an error to log. So that user might have a chance
     to be alerted and explore incident details.
   */
-  if (!error)
+  if (!error && cache_mngr != NULL)
     LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_INCIDENT_TO_STOP_SLAVES, err_msg);
 
   DBUG_RETURN(error);
@@ -11316,6 +11443,10 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
     (between Write, Update and Delete), or not the same affected columns, or
     going to be too big, flush this event to disk and create a new pending
     event.
+
+    We do not need to check that the pending event and the new event
+    have the same setting for partial json updates, because
+    partialness of json can only be changed outside transactions.
   */
   if (!pending ||
       pending->server_id != serv_id || 
@@ -11351,7 +11482,8 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
 }
 
 /* Declare in unnamed namespace. */
-namespace {
+namespace
+{
 
   /**
      Class to handle temporary allocation of memory for row data.
@@ -11360,10 +11492,9 @@ namespace {
      packing one or two rows of packed data (depending on what
      constructor is called).
 
-     In order to make the allocation more efficient for "simple" rows,
-     i.e., rows that do not contain any blobs, a pointer to the
-     allocated memory is of memory is stored in the table structure
-     for simple rows.  If memory for a table containing a blob field
+     In order to make the allocation more efficient for rows without blobs,
+     a pointer to the allocated memory is stored in the table structure
+     for such rows.  If memory for a table containing a blob field
      is requested, only memory for that is allocated, and subsequently
      released when the object is destroyed.
 
@@ -11377,26 +11508,29 @@ namespace {
       @param table
       Table where the pre-allocated memory is stored.
 
-      @param length
-      Length of data that is needed, if the record contain blobs.
+      @param data
+      Pointer to the table record.
      */
-    Row_data_memory(TABLE *table, size_t const len1)
+    Row_data_memory(TABLE *table, const uchar *data)
       : m_memory(0)
     {
 #ifndef DBUG_OFF
       m_alloc_checked= FALSE;
 #endif
-      allocate_memory(table, len1);
+      allocate_memory(table, max_row_length(table, data));
       m_ptr[0]= has_memory() ? m_memory : 0;
       m_ptr[1]= 0;
     }
 
-    Row_data_memory(TABLE *table, size_t const len1, size_t const len2)
+    Row_data_memory(TABLE *table, const uchar *data1, const uchar *data2,
+                    ulonglong value_options= 0)
       : m_memory(0)
     {
 #ifndef DBUG_OFF
       m_alloc_checked= FALSE;
 #endif
+      size_t len1= max_row_length(table, data1);
+      size_t len2= max_row_length(table, data2, value_options);
       allocate_memory(table, len1 + len2);
       m_ptr[0]= has_memory() ? m_memory        : 0;
       m_ptr[1]= has_memory() ? m_memory + len1 : 0;
@@ -11430,7 +11564,132 @@ namespace {
     }
 
   private:
-    void allocate_memory(TABLE *const table, size_t const total_length)
+    /**
+      Compute an upper bound on the amount of memory needed.
+
+      This may return an over-approximation.
+
+      @param table The table
+      @param data The server's row record.
+      @param value_options The value of @@global.binlog_row_value_options
+    */
+    size_t max_row_length(TABLE *table, const uchar *data,
+                          ulonglong value_options= 0)
+    {
+      TABLE_SHARE *table_s= table->s;
+      /*
+        The server stores rows using "records".  A record is a
+        sequence of bytes which contains values or pointers to values
+        for all fields (columns).  The server uses table_s->reclength
+        bytes for a row record.
+
+        The layout of a record is roughly:
+
+        - N+1+B bits, packed into CEIL((N+1+B)/8) bytes, where N is
+          the number of nullable columns in the table, and B is the
+          sum of the number of bits of all BIT columns.
+
+        - A sequence of serialized fields, each corresponding to a
+          non-BIT, non-NULL column in the table.
+
+          For variable-length columns, the first component of the
+          serialized field is a length, stored using 1, 2, 3, or 4
+          bytes depending on the maximum length for the data type.
+
+          For most data types, the next component of the serialized
+          field is the actual data.  But for for VARCHAR, VARBINARY,
+          TEXT, BLOB, and JSON, the next component of the serialized
+          field is a serialized pointer, i.e. sizeof(pointer) bytes,
+          which point to another memory area where the actual data is
+          stored.
+
+        The layout of a row image in the binary log is roughly:
+
+        - If this is an after-image and partial JSON is enabled, 1
+          byte containing value_options.  If the PARTIAL_JSON bit of
+          value_options is set, this is followed by P bits (the
+          "partial_bits"), packed into CEIL(P) bytes, where P is the
+          number of JSON columns in the table.
+
+        - M bits (the "null_bits"), packed into CEIL(M) bytes, where M
+          is the number of columns in the image.
+
+        - A sequence of serialized fields, each corresponding to a
+          non-NULL column in the row image.
+
+          For variable-length columns, the first component of the
+          serialized field is a length, stored using 1, 2, 3, or 4
+          bytes depending on the maximum length for the data type.
+
+          For most data types, the next component of the serialized
+          field is the actual field data.  But for JSON fields where
+          the corresponding bit of the partial_bits is 1, this is a
+          sequence of diffs instead.
+
+        Now we try to use table_s->reclength to estimate how much
+        memory to allocate for a row image in the binlog.  Due to the
+        differences this will only be an upper bound.  Notice the
+        differences:
+
+        - The binlog may only include a subset of the fields (the row
+          image), whereas reclength contains space for all fields.
+
+        - BIT columns are not packed together with NULL bits in the
+          binlog, so up to 1 more byte per BIT column may be needed.
+
+        - The binlog has a null bit even for non-nullable fields,
+          whereas the reclength only contains space nullable fields,
+          so the binlog may need up to CEIL(table_s->fields/8) more
+          bytes.
+
+        - The binlog only has a null bit for fields in the image,
+          whereas the reclength contains space for all fields.
+
+        - The binlog contains the full blob whereas the record only
+          contains sizeof(pointer) bytes.
+
+        - The binlog contains value_options and partial_bits.  So this
+          may use up to 1+CEIL(table_s->fields/8) more bytes.
+
+        - The binlog may contain partial JSON.  This is guaranteed to
+          be smaller than the size of the full value.
+
+        For those data types that are not stored using a pointer, the
+        size of the field in the binary log is at most 2 bytes more
+        than what the field contributes to in table_s->reclength,
+        because those data types use at most 1 byte for the length and
+        waste less than a byte on extra padding and extra bits in
+        null_bits or BIT columns.
+
+        For those data types that are stored using a pointer, the size
+        of the field in the binary log is at most 2 bytes more than
+        what the field contributes to in table_s->reclength, plus the
+        size of the data.  The size of the pointer is at least 4 on
+        all supported platforms, so it is bigger than what is used by
+        partial_bits, value_format, or any waste due to extra padding
+        and extra bits in null_bits.
+      */
+      size_t length= table_s->reclength + 2 * table_s->fields;
+
+      for (uint i= 0; i < table_s->blob_fields; i++)
+      {
+        Field *field= table->field[table_s->blob_field[i]];
+        Field_blob *field_blob= down_cast<Field_blob *>(field);
+
+        if (field_blob->type() == MYSQL_TYPE_JSON &&
+            (value_options & PARTIAL_JSON_UPDATES) != 0)
+        {
+          Field_json *field_json= down_cast<Field_json*>(field_blob);
+          length+= field_json->get_diff_vector_and_length(value_options);
+        }
+        else
+          length+=
+            field_blob->get_length(data + field_blob->offset(table->record[0]));
+      }
+      return length;
+    }
+
+    void allocate_memory(TABLE *const table, const size_t total_length)
     {
       if (table->s->blob_fields == 0)
       {
@@ -11485,13 +11744,14 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
     Pack records into format for transfer. We are allocating more
     memory than needed, but that doesn't matter.
   */
-  Row_data_memory memory(table, max_row_length(table, record));
+  Row_data_memory memory(table, record);
   if (!memory.has_memory())
     return HA_ERR_OUT_OF_MEM;
 
   uchar *row_data= memory.slot(0);
 
-  size_t const len= pack_row(table, table->write_set, row_data, record);
+  size_t const len= pack_row(table, table->write_set, row_data, record,
+                             enum_row_image_type::WRITE_AI);
 
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id, len, is_trans,
@@ -11526,20 +11786,21 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
    */
   binlog_prepare_row_images(table);
 
-  size_t const before_maxlen = max_row_length(table, before_record);
-  size_t const after_maxlen  = max_row_length(table, after_record);
-
-  Row_data_memory row_data(table, before_maxlen, after_maxlen);
+  Row_data_memory row_data(table, before_record, after_record,
+                           variables.binlog_row_value_options);
   if (!row_data.has_memory())
     return HA_ERR_OUT_OF_MEM;
 
   uchar *before_row= row_data.slot(0);
   uchar *after_row= row_data.slot(1);
 
-  size_t const before_size= pack_row(table, table->read_set, before_row,
-                                        before_record);
-  size_t const after_size= pack_row(table, table->write_set, after_row,
-                                       after_record);
+  size_t const before_size=
+    pack_row(table, table->read_set, before_row, before_record,
+             enum_row_image_type::UPDATE_BI);
+  size_t const after_size=
+    pack_row(table, table->write_set, after_row, after_record,
+             enum_row_image_type::UPDATE_AI,
+             variables.binlog_row_value_options);
 
   DBUG_DUMP("before_record", before_record, table->s->reclength);
   DBUG_DUMP("after_record",  after_record, table->s->reclength);
@@ -11592,14 +11853,15 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
      Pack records into format for transfer. We are allocating more
      memory than needed, but that doesn't matter.
   */
-  Row_data_memory memory(table, max_row_length(table, record));
+  Row_data_memory memory(table, record);
   if (unlikely(!memory.has_memory()))
     return HA_ERR_OUT_OF_MEM;
 
   uchar *row_data= memory.slot(0);
 
   DBUG_DUMP("table->read_set", (uchar*) table->read_set->bitmap, (table->s->fields + 7) / 8);
-  size_t const len= pack_row(table, table->read_set, row_data, record);
+  size_t const len= pack_row(table, table->read_set, row_data, record,
+                             enum_row_image_type::DELETE_BI);
 
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id, len, is_trans,

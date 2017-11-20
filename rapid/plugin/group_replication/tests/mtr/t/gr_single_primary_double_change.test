@@ -34,6 +34,7 @@
 
 set session sql_log_bin=0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 set session sql_log_bin=1;
 
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -174,6 +175,10 @@ SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
 DROP TABLE t1;
+
+SET GLOBAL group_replication_member_weight= DEFAULT;
+
 --source ../inc/group_replication_end.inc
 

@@ -70,6 +70,7 @@ CREATE TABLESPACE test/s_bad ADD DATAFILE 's_bad.ibd';
 --error ER_WRONG_TABLESPACE_NAME
 CREATE TABLESPACE `test/s_bad` ADD DATAFILE 's_bad.ibd';
 LET $TWOFIFTYFIVE=../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
+call mtr.add_suppression("\\[ERROR\\] InnoDB: File .* 'delete' returned OS error .*");
 --error ER_CREATE_FILEGROUP_FAILED
 eval CREATE TABLESPACE `s_too_long_file_name` ADD DATAFILE '$TWOFIFTYFIVE.ibd';
 --error ER_FILEGROUP_OPTION_ONLY_ONCE
@@ -103,7 +104,7 @@ DROP TABLESPACE s#bad;
 DROP TABLESPACE s@bad;
 --error ER_PARSE_ERROR
 DROP TABLESPACE s-bad;
---error ER_WRONG_TABLESPACE_NAME
+--error ER_TABLESPACE_MISSING_WITH_NAME
 DROP TABLESPACE `test/s_bad`;
 --error ER_TABLESPACE_MISSING_WITH_NAME
 DROP TABLESPACE s_does_not_exist;
@@ -199,7 +200,7 @@ DROP TABLESPACE `InnoDB_Temporary`;
 --error ER_WRONG_TABLESPACE_NAME
 CREATE TABLESPACE `innodb_custom` ADD DATAFILE 's_bad.ibd';
 SHOW WARNINGS;
---error ER_WRONG_TABLESPACE_NAME
+--error ER_TABLESPACE_MISSING_WITH_NAME
 DROP TABLESPACE `innodb_custom`;
 CREATE TABLESPACE `InnoDB_Custom` ADD DATAFILE 's_InnoDB_Custom.ibd';
 DROP TABLESPACE `InnoDB_Custom`;
@@ -580,48 +581,69 @@ DROP TABLESPACE s_multiple;
 --echo #
 --echo # Try the syntax that InnoDB does not support.
 --echo #
---error ER_PARSE_ERROR
-CREATE TABLESPACE s_bad USE LOGFILE GROUP logfile_group;
---error ER_PARSE_ERROR
-CREATE TABLESPACE s_bad EXTENT_SIZE = 1G;
---error ER_PARSE_ERROR
-CREATE TABLESPACE s_bad INITIAL_SIZE = 100M;
+
+--echo # Try NDB settings for CREATE TABLESPACE. These are currently accepted
+--echo # even if they probably should not be. This is valid syntax from the
+--echo # parser's POW
+
+CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd'
+       USE LOGFILE GROUP logfile_group;
+DROP TABLESPACE s_bad;
+CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' EXTENT_SIZE = 100M;
+DROP TABLESPACE s_bad;
+CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' NO_WAIT;
+DROP TABLESPACE s_bad;
+
+--echo #
+--echo # Checking LOGFILE GROUP commands (only supported by NDB)
+--echo #
 --error ER_PARSE_ERROR
 CREATE LOGFILE GROUP s_bad;
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE LOGFILE GROUP s_bad ADD UNDOFILE 'undo_1.dat';
-
+--error ER_PARSE_ERROR
+ALTER LOGFILE GROUP s_bad;
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER LOGFILE GROUP s_bad ADD UNDOFILE 'undo_1.dat'
+      INITIAL_SIZE = 100M, NO_WAIT;
 --error ER_CHECK_NOT_IMPLEMENTED
 DROP LOGFILE GROUP s_bad;
 
+--echo #
+--echo # Checking ALTER TABLESPACE (only NDB in 5.7)
+--echo #
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd';
 
 --error ER_PARSE_ERROR
-ALTER LOGFILE GROUP s_bad;
---error ER_PARSE_ERROR
 ALTER TABLESPACE s_bad;
+
 --error ER_CHECK_NOT_IMPLEMENTED
 ALTER TABLESPACE s_bad ADD DATAFILE 'bad2.ibd';
 --error ER_CHECK_NOT_IMPLEMENTED
 ALTER TABLESPACE s_bad DROP DATAFILE 's_bad.ibd';
+
 --error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLESPACE s_bad ADD DATAFILE 'bad2.ibd' INITIAL_SIZE = 1G;
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLESPACE s_def ADD DATAFILE 'bad2.ibd' NO_WAIT;
+
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLESPACE s_bad DROP DATAFILE 's_bad.ibd' INITIAL_SIZE = 1G;
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLESPACE s_bad DROP DATAFILE 's_bad.ibd' NO_WAIT;
+
+--echo #
+--echo # Undocumented ALTER TABLESPACE syntax which was removed by wl#8972
+--echo #
+--error ER_PARSE_ERROR
+ALTER TABLESPACE s_bad CHANGE 's_bad.ibd'
+      INITIAL_SIZE = 1G, AUTOEXTEND_SIZE = 100M, MAX_SIZE = 2G;
+--error ER_PARSE_ERROR
 ALTER TABLESPACE s_bad READ_ONLY;
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_PARSE_ERROR
 ALTER TABLESPACE s_bad READ_WRITE;
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_PARSE_ERROR
 ALTER TABLESPACE s_bad NOT ACCESSIBLE;
---error ER_PARSE_ERROR
-ALTER TABLESPACE s_def INITIAL_SIZE = 1G;
---error ER_PARSE_ERROR
-ALTER TABLESPACE s_def MAX_SIZE = 1G;
---error ER_PARSE_ERROR
-ALTER TABLESPACE s_def AUTOEXTEND_SIZE = 10M;
---error ER_PARSE_ERROR
-ALTER TABLESPACE s_def NODEGROUP = 5;
---error ER_PARSE_ERROR
-ALTER TABLESPACE s_def WAIT;
---error ER_PARSE_ERROR
-ALTER TABLESPACE s_def COMMENT = 'This comment is ignored';
 
 DROP TABLESPACE s_bad;
 
@@ -988,7 +1010,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* i
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number .* means");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create file");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Invalid use of ':' in");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The file .* already exists though the corresponding table did not exist in the InnoDB data dictionary");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The file .* already exists though the corresponding table did not exist.");
 --enable_query_log
 --echo #
 --echo # Bug #20763179 SEGV WHEN CREATE TABLESPACE IS EXECUTED IN READ ONLY MODE
@@ -998,6 +1020,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: The file .* already exists though 
 --disable_query_log
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
 call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
 --enable_query_log
 
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;

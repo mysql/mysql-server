@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -79,20 +79,20 @@ namespace ngs
 
       bool empty()
       {
-        Mutex_lock guard(m_access_mutex);
+        MUTEX_LOCK(guard, m_access_mutex);
         return m_list.empty();
       }
 
       bool push(const Element_type &t)
       {
-        Mutex_lock guard(m_access_mutex);
+        MUTEX_LOCK(guard, m_access_mutex);
         m_list.push_back(t);
         return true;
       }
 
       bool pop(Element_type &result)
       {
-        Mutex_lock guard(m_access_mutex);
+        MUTEX_LOCK(guard, m_access_mutex);
         if (m_list.empty())
           return false;
 
@@ -104,7 +104,7 @@ namespace ngs
 
       bool remove_if(Element_type &result, ngs::function<bool(Element_type &)> matches)
       {
-        Mutex_lock guard(m_access_mutex);
+        MUTEX_LOCK(guard, m_access_mutex);
         for (typename std::list<Element_type>::iterator it = m_list.begin(); it != m_list.end(); ++it)
         {
           if (matches(*it))

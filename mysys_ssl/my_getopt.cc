@@ -38,6 +38,7 @@
 #include "mysql_version.h"             // MYSQL_PERSIST_CONFIG_NAME
 #include "mysql/service_mysql_alloc.h"
 #include "typelib.h"
+#include <array>
 
 typedef void (*init_func_p)(const struct my_option *option, void *variable,
                             longlong value);
@@ -93,6 +94,21 @@ void my_getopt_register_get_addr(my_getopt_value func_addr)
   getopt_get_addr= func_addr;
 }
 
+bool is_key_cache_variable_suffix(const char *suffix)
+{
+  static std::array<const char *, 4> key_cache_components= {{
+    "key_buffer_size",
+    "key_cache_block_size",
+    "key_cache_division_limit",
+    "key_cache_age_threshold"
+    }};
+
+  for (auto component : key_cache_components)
+    if (!my_strcasecmp(&my_charset_latin1, component, suffix))
+      return true;
+
+  return false;
+}
 
 /**
   Wrapper around my_handle_options() for interface compatibility.
@@ -344,6 +360,22 @@ int my_handle_options(int *argc, char ***argv,
 	else
 	  optend= 0;
 
+        /*
+         * For component system variables key_name is the component name and
+         * opt_str is the variable_name. For structured system variables
+         * opt_str will have key_cache_**** and key_name is the variable
+         * instance name And for all other variable key_name will be 0.
+         */
+        if (*key_name)
+        {
+          std::string tmp_name(opt_str, 0, length);
+
+          if (!is_key_cache_variable_suffix(tmp_name.c_str()))
+          {
+            opt_str= cur_arg;
+            length= (uint) ((optend - opt_str) - 1);
+          }
+        }
 	/*
 	  Find first the right option. Return error in case of an ambiguous,
 	  or unknown option

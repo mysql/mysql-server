@@ -15,15 +15,41 @@
 
 
 #include "sql/dd/upgrade/routine.h"
-#include "sql/dd/upgrade/global.h"
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "log.h"                              // LogErr()
+
+#include <string.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
 #include "my_user.h"                          // parse_user
-#include "sql_base.h"                         // open_tables
-#include "sp.h"                               // db_load_routine
-#include "sp_head.h"                          // sp_head
-#include "table.h"                            // Table_check_intact
-#include "transaction.h"                      // trans_commit
+#include "mysql/components/services/log_shared.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "sql/dd/upgrade/global.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/log.h"                          // LogErr()
+#include "sql/sp.h"                           // db_load_routine
+#include "sql/sp_head.h"                      // sp_head
+#include "sql/sql_base.h"                     // open_tables
+#include "sql/sql_class.h"
+#include "sql/sql_connect.h"
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_servers.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"                        // Table_check_intact
+#include "sql/thr_malloc.h"
+#include "sql_string.h"
+#include "thr_lock.h"
 
 namespace dd {
 namespace upgrade {

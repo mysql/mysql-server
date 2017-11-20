@@ -1,1 +1,1 @@
--a -n -Cutf8 --collation-server=utf8_bin -T12 -W2
+-a -n -Cutf8 --collation-server=utf8_bin -T12

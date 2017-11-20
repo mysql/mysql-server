@@ -21,12 +21,16 @@
 
 #include "my_inttypes.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"            // NAME_LEN
-#include "rpl_info_handler.h"     // Rpl_info_handler
-#include "rpl_reporting.h"        // Slave_reporting_capability
+#include "sql/rpl_info_handler.h" // Rpl_info_handler
+#include "sql/rpl_reporting.h"    // Slave_reporting_capability
 
 class THD;
 
@@ -71,9 +75,9 @@ public:
   THD *info_thd;
 
   bool inited;
-  volatile bool abort_slave;
-  volatile uint slave_running;
-  volatile ulong slave_run_id;
+  std::atomic<bool> abort_slave;
+  std::atomic<uint> slave_running;
+  std::atomic<ulong> slave_run_id;
 
 #ifndef DBUG_OFF
   int events_until_exit;

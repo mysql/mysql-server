@@ -52,6 +52,7 @@ void hint_lex_init_maps(charset_info_st *cs,
   hint_map[(uchar) '$']= HINT_CHR_IDENT;
   hint_map[(uchar) '/']= HINT_CHR_SLASH;
   hint_map[(uchar) '\n']= HINT_CHR_NL;
+  hint_map[(uchar) '\'']= HINT_CHR_QUOTE;
 }
 
 

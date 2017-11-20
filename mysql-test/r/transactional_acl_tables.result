@@ -1417,7 +1417,7 @@ Host	Db	User	Table_name	Column_name	Timestamp	Column_priv
 SELECT * FROM mysql.tables_priv WHERE host = 'h' AND user = 'u1';
 Host	Db	User	Table_name	Grantor	Timestamp	Table_priv	Column_priv
 SELECT * FROM mysql.user WHERE host = 'h' AND user = 'u1';
-Host	User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	authentication_string	password_expired	password_last_changed	password_lifetime	account_locked	Create_role_priv	Drop_role_priv
+Host	User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	authentication_string	password_expired	password_last_changed	password_lifetime	account_locked	Create_role_priv	Drop_role_priv	Password_reuse_history	Password_reuse_time
 SET debug="-d,wl7158_replace_column_table_5";
 DROP TABLE t1;
 CREATE TABLE t1 (a INT);
@@ -1788,9 +1788,11 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_ddl_log                               OK
 mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.procs_priv_bak                               OK
@@ -1875,7 +1877,7 @@ INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session',
 'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N',
 'N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,
 'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE',
-'N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N');
+'N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL);
 INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql',
 'mysql.session', 'user', 'root\@localhost',
 CURRENT_TIMESTAMP, 'Select', '');

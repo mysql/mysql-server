@@ -18,10 +18,9 @@
 #include "my_config.h"
 
 #include <algorithm>
+#include <atomic>
 #include <new>
 
-#include "current_thd.h"
-#include "derror.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -29,7 +28,9 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"
+#include "sql/sql_class.h"
 
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue
@@ -42,7 +43,7 @@
 #endif
 
 #ifndef DBUG_OFF
-long max_stack_used;
+std::atomic<long> max_stack_used;
 #endif
 
 
@@ -84,7 +85,7 @@ bool check_stack_overrun(const THD *thd, long margin,
     return true;
   }
 #ifndef DBUG_OFF
-  max_stack_used= std::max(max_stack_used, stack_used);
+  max_stack_used= std::max(max_stack_used.load(), stack_used);
 #endif
   return false;
 }

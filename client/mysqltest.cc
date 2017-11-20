@@ -32,21 +32,20 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <hash.h>
 #include <limits.h>
 #include <m_ctype.h>
 #include <mf_wcomp.h>   // wild_compare
 #include <my_dir.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
-#include <sql_common.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <violite.h>
 #include <cmath> // std::isinf
 
-#include "client_priv.h"
+#include "client/client_priv.h"
+#include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -57,6 +56,7 @@
 #include "my_regex.h" /* Our own version of regex */
 #include "my_thread_local.h"
 #include "mysql/service_my_snprintf.h"
+#include "sql_common.h"
 #include "typelib.h"
 #ifndef _WIN32
 #include <sys/wait.h>
@@ -134,6 +134,9 @@ extern CHARSET_INFO my_charset_utf16le_bin;
   }                                                                            \
 }
 
+using std::string;
+using std::unique_ptr;
+
 C_MODE_START
 static void signal_handler(int sig);
 static bool get_one_option(int optid, const struct my_option *,
@@ -185,10 +188,9 @@ static bool is_windows= 0;
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
-#if !defined(HAVE_YASSL)
 static const char *opt_server_public_key= 0;
-#endif
 static bool can_handle_expired_passwords= TRUE;
+#include "caching_sha2_passwordopt-vars.h"
 
 /* Info on properties that can be set with --enable_X and --disable_X */
 
@@ -355,7 +357,12 @@ typedef struct
 /*Perl/shell-like variable registers */
 VAR var_reg[10];
 
-HASH var_hash;
+struct var_free
+{
+  void operator() (VAR *var) const;
+};
+
+collation_unordered_map<string, unique_ptr<VAR, var_free>> *var_hash;
 
 struct st_connection
 {
@@ -1293,7 +1300,8 @@ static void free_used_memory()
   if (connections)
     close_connections();
   close_files();
-  my_hash_free(&var_hash);
+  delete var_hash;
+  var_hash= nullptr;
 
   struct st_command **q;
   for (q= q_lines->begin(); q != q_lines->end(); ++q)
@@ -2007,19 +2015,8 @@ static void strip_parentheses(struct st_command *command)
           static_cast<int>(command->first_word_len), command->query, '(', ')');
 }
 
-
-static const uchar *get_var_key(const uchar* var, size_t *len)
+void var_free::operator() (VAR *var) const
 {
-  char* key;
-  key = ((VAR*)var)->name;
-  *len = ((VAR*)var)->name_len;
-  return (uchar*)key;
-}
-
-
-static void var_free(void *v)
-{
-  VAR *var= (VAR*) v;
   my_free(var->str_val);
   if (var->alloced)
     my_free(var);
@@ -2095,7 +2092,7 @@ VAR* var_from_env(const char *name, const char *def_val)
     tmp = def_val;
 
   v = var_init(0, name, strlen(name), tmp, strlen(tmp));
-  my_hash_insert(&var_hash, (uchar*)v);
+  var_hash->emplace(name, unique_ptr<VAR, var_free>(v));
   return v;
 }
 
@@ -2128,8 +2125,7 @@ VAR* var_get(const char *var_name, const char **var_name_end, bool raw,
     if (length >= MAX_VAR_NAME_LENGTH)
       die("Too long variable name: %s", save_var_name);
 
-    if (!(v = (VAR*) my_hash_search(&var_hash, (const uchar*) save_var_name,
-                                    length)))
+    if (!(v = find_or_nullptr(*var_hash, string(save_var_name, length))))
     {
       char buff[MAX_VAR_NAME_LENGTH+1];
       strmake(buff, save_var_name, length);
@@ -2159,11 +2155,12 @@ err:
 
 static VAR *var_obtain(const char *name, int len)
 {
-  VAR* v;
-  if ((v = (VAR*)my_hash_search(&var_hash, (const uchar *) name, len)))
-    return v;
-  v = var_init(0, name, len, "", 0);
-  my_hash_insert(&var_hash, (uchar*)v);
+  VAR* v= find_or_nullptr(*var_hash, string(name, len));
+  if (v == nullptr)
+  {
+    v = var_init(0, name, len, "", 0);
+    var_hash->emplace(string(name, len), unique_ptr<VAR, var_free>(v));
+  }
   return v;
 }
 
@@ -2729,8 +2726,14 @@ void eval_expr(VAR *v, const char *p, const char **p_end,
 {
 
   DBUG_ENTER("eval_expr");
-  DBUG_PRINT("enter", ("p: '%s'", p));
-
+  if (p_end)
+  {
+    DBUG_PRINT("enter", ("p: '%.*s'", (int)(*p_end - p), p));
+  }
+  else
+  {
+    DBUG_PRINT("enter", ("p: '%s'", p));
+  }
   /* Skip to treat as pure string if no evaluation */
   if (! do_eval)
     goto NO_EVAL;
@@ -6556,13 +6559,13 @@ static void do_connect(struct st_command *command)
   if (ds_default_auth.length)
     mysql_options(&con_slot->mysql, MYSQL_DEFAULT_AUTH, ds_default_auth.str);
 
-#if !defined(HAVE_YASSL)
   /* Set server public_key */
   if (opt_server_public_key && *opt_server_public_key)
     mysql_options(&con_slot->mysql, MYSQL_SERVER_PUBLIC_KEY,
                   opt_server_public_key);
-#endif
-  
+
+  set_get_server_public_key_option(&con_slot->mysql);
+
   if (con_cleartext_enable)
     mysql_options(&con_slot->mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                   (char*) &con_cleartext_enable);
@@ -6848,7 +6851,7 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
     }
 
     v.is_int= TRUE;
-    var_free(&v2);
+    var_free()(&v2);
   } else
   {
     if (*expr_start != '`' && ! my_isdigit(charset_info, *expr_start))
@@ -6888,7 +6891,7 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
   
   DBUG_PRINT("info", ("OK: %d", cur_block->ok));
 
-  var_free(&v);
+  var_free()(&v);
   DBUG_VOID_RETURN;
 }
 
@@ -7568,6 +7571,7 @@ static struct my_option my_long_options[] =
   {"no-skip", OPT_NO_SKIP, "Force the test to run without skip.",
    &no_skip, &no_skip, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#include "caching_sha2_passwordopt-longopts.h"
 #include "sslopt-longopts.h"
 
   {"tail-lines", OPT_TAIL_LINES,
@@ -7612,12 +7616,10 @@ static struct my_option my_long_options[] =
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
     &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#if !defined(HAVE_YASSL) 
   {"server-public-key-path", OPT_SERVER_PUBLIC_KEY,
    "File path to the server public RSA key in PEM format.",
    &opt_server_public_key, &opt_server_public_key, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7915,9 +7917,9 @@ void init_win_path_patterns()
                           "$MYSQL_LIBDIR",
                           "./test/",
                           ".ibd",
-                          "ibdata",
-                          "ibtmp",
-                          "undo"};
+                          ".\\ibdata",
+                          ".\\ibtmp",
+                          ".\\undo"};
   int num_paths= sizeof(paths)/sizeof(char*);
   int i;
   char* p;
@@ -9641,10 +9643,8 @@ int main(int argc, char **argv)
 
   q_lines= new Q_lines(PSI_NOT_INSTRUMENTED);
 
-  if (my_hash_init(&var_hash, charset_info,
-                   1024, 0, get_var_key, var_free, 0,
-                   PSI_NOT_INSTRUMENTED))
-    die("Variable hash initialization failed");
+  var_hash= new collation_unordered_map<string, unique_ptr<VAR, var_free>>
+    (charset_info, PSI_NOT_INSTRUMENTED);
 
   {
     char path_separator[]= { FN_LIBCHAR, 0 };

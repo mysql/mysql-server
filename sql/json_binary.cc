@@ -13,27 +13,31 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "json_binary.h"
+#include "sql/json_binary.h"
 
 #include <string.h>
 #include <algorithm>            // std::min
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 
-#include "check_stack.h"
-#include "field.h"              // Field_json
-#include "json_dom.h"           // Json_dom
 #include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "table.h"              // TABLE::add_binary_diff()
-#include "sql_class.h"          // THD
-#include "sql_const.h"
+#ifdef MYSQL_SERVER
+#include "sql/check_stack.h"
+#endif
+#include "sql/field.h"          // Field_json
+#include "sql/json_dom.h"       // Json_dom
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_const.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"          // TABLE::add_binary_diff()
 #include "sql_string.h"
-#include "system_variables.h"
 #include "template_utils.h"     // down_cast
 
 namespace
@@ -110,12 +114,15 @@ enum enum_serialization_result
   FAILURE
 };
 
+#ifdef MYSQL_SERVER
 static enum_serialization_result
 serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
                      String *dest, size_t depth, bool small_parent);
 static void write_offset_or_size(char *dest, size_t offset_or_size, bool large);
+#endif // ifdef MYSQL_SERVER
 static uint8 offset_size(bool large);
 
+#ifdef MYSQL_SERVER
 bool serialize(const THD *thd, const Json_dom *dom, String *dest)
 {
   // Reset the destination buffer.
@@ -275,6 +282,7 @@ static bool append_variable_length(String *dest, size_t length)
   // Successfully appended the length.
   return false;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -335,6 +343,7 @@ static bool read_variable_length(const char *data, size_t data_length,
   @return true if offset_or_size is too big for the format, false
     otherwise
 */
+#ifdef MYSQL_SERVER
 static bool is_too_big_for_json(size_t offset_or_size, bool large)
 {
   if (offset_or_size > UINT_MAX16)
@@ -403,6 +412,7 @@ append_key_entries(const Json_object *object, String *dest,
 
   return OK;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -472,6 +482,7 @@ static uint8 value_entry_size(bool large)
   @param[in] large true if the large storage format is used
   @return true if the value was inlined, false if it was not
 */
+#ifdef MYSQL_SERVER
 static bool attempt_inline_value(const Json_dom *value, String *dest,
                                  size_t pos, bool large)
 {
@@ -561,9 +572,9 @@ serialize_json_array(const THD *thd, const Json_array *array, String *dest,
   if (dest->fill(dest->length() + size * entry_size, 0))
     return FAILURE;                             /* purecov: inspected */
 
-  for (uint32 i= 0; i < size; i++)
+  for (const auto &child : *array)
   {
-    const Json_dom *elt= (*array)[i];
+    const Json_dom *elt= child.get();
     if (!attempt_inline_value(elt, dest, entry_pos, large))
     {
       size_t offset= dest->length() - start_pos;
@@ -647,26 +658,24 @@ serialize_json_object(const THD *thd, const Json_object *object, String *dest,
   dest->fill(dest->length() + size * value_entry_size, 0);
 
   // Add the actual keys.
-  for (Json_object::const_iterator it= object->begin(); it != object->end();
-       ++it)
+  for (const auto &member : *object)
   {
-    if (dest->append(it->first.c_str(), it->first.length()))
+    if (dest->append(member.first.c_str(), member.first.length()))
       return FAILURE;                         /* purecov: inspected */
   }
 
   // Add the values, and update the value entries accordingly.
   size_t entry_pos= start_of_value_entries;
-  for (Json_object::const_iterator it= object->begin(); it != object->end();
-       ++it)
+  for (const auto &member : *object)
   {
-    if (!attempt_inline_value(it->second, dest, entry_pos, large))
+    const Json_dom *child= member.second.get();
+    if (!attempt_inline_value(child, dest, entry_pos, large))
     {
       size_t offset= dest->length() - start_pos;
       if (is_too_big_for_json(offset, large))
         return VALUE_TOO_BIG;
       insert_offset_or_size(dest, entry_pos + 1, offset, large);
-      res= serialize_json_value(thd, it->second, entry_pos, dest, depth,
-                                !large);
+      res= serialize_json_value(thd, child, entry_pos, dest, depth, !large);
       if (res != OK)
         return res;
     }
@@ -944,56 +953,7 @@ serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
 
   return result;
 }
-
-
-// Constructor for literals and errors.
-Value::Value(enum_type t)
-  : m_data(nullptr), m_element_count(), m_length(), m_field_type(), m_type(t),
-    m_large()
-{
-  DBUG_ASSERT(t == LITERAL_NULL || t == LITERAL_TRUE || t == LITERAL_FALSE ||
-              t == ERROR);
-}
-
-
-// Constructor for int and uint.
-Value::Value(enum_type t, int64 val)
-  : m_int_value(val), m_element_count(), m_length(), m_field_type(), m_type(t),
-    m_large()
-{
-  DBUG_ASSERT(t == INT || t == UINT);
-}
-
-
-// Constructor for double.
-Value::Value(double d)
-  : m_double_value(d), m_element_count(), m_length(), m_field_type(),
-    m_type(DOUBLE), m_large()
-{}
-
-
-// Constructor for string.
-Value::Value(const char *data, uint32 len)
-  : m_data(data), m_element_count(), m_length(len), m_field_type(),
-    m_type(STRING), m_large()
-{}
-
-
-// Constructor for arrays and objects.
-Value::Value(enum_type t, const char *data, uint32 bytes,
-             uint32 element_count, bool large)
-  : m_data(data), m_element_count(element_count), m_length(bytes),
-    m_field_type(), m_type(t), m_large(large)
-{
-  DBUG_ASSERT(t == ARRAY || t == OBJECT);
-}
-
-
-// Constructor for opaque values.
-Value::Value(enum_field_types ft, const char *data, uint32 len)
-  : m_data(data), m_element_count(), m_length(len), m_field_type(ft),
-    m_type(OPAQUE), m_large()
-{}
+#endif // ifdef MYSQL_SERVER
 
 
 bool Value::is_valid() const
@@ -1040,80 +1000,6 @@ bool Value::is_valid() const
     // This is a valid scalar value.
     return true;
   }
-}
-
-
-/**
-  Get a pointer to the beginning of the STRING or OPAQUE data
-  represented by this instance.
-*/
-const char *Value::get_data() const
-{
-  DBUG_ASSERT(m_type == STRING || m_type == OPAQUE);
-  return m_data;
-}
-
-
-/**
-  Get the length in bytes of the STRING or OPAQUE value represented by
-  this instance.
-*/
-uint32 Value::get_data_length() const
-{
-  DBUG_ASSERT(m_type == STRING || m_type == OPAQUE);
-  return m_length;
-}
-
-
-/**
-  Get the value of an INT.
-*/
-int64 Value::get_int64() const
-{
-  DBUG_ASSERT(m_type == INT);
-  return m_int_value;
-}
-
-
-/**
-  Get the value of a UINT.
-*/
-uint64 Value::get_uint64() const
-{
-  DBUG_ASSERT(m_type == UINT);
-  return static_cast<uint64>(m_int_value);
-}
-
-
-/**
-  Get the value of a DOUBLE.
-*/
-double Value::get_double() const
-{
-  DBUG_ASSERT(m_type == DOUBLE);
-  return m_double_value;
-}
-
-
-/**
-  Get the number of elements in an array, or the number of members in
-  an object.
-*/
-uint32 Value::element_count() const
-{
-  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
-  return m_element_count;
-}
-
-
-/**
-  Get the MySQL field type of an opaque value. Identifies the type of
-  the value stored in the data portion of an opaque value.
-*/
-enum_field_types Value::field_type() const
-{
-  DBUG_ASSERT(m_type == OPAQUE);
-  return m_field_type;
 }
 
 
@@ -1315,11 +1201,13 @@ static Value parse_value(uint8 type, const char *data, size_t len)
 
 Value parse_binary(const char *data, size_t len)
 {
+  DBUG_ENTER("json_binary::parse_binary");
   // Each document should start with a one-byte type specifier.
   if (len < 1)
-    return err();                             /* purecov: inspected */
+    DBUG_RETURN(err());                             /* purecov: inspected */
 
-  return parse_value(data[0], data + 1, len - 1);
+  Value ret= parse_value(data[0], data + 1, len - 1);
+  DBUG_RETURN(ret);
 }
 
 
@@ -1509,6 +1397,7 @@ bool Value::is_backed_by(const String *str) const
   @param buf  the receiving buffer
   @return false on success, true otherwise
 */
+#ifdef MYSQL_SERVER
 bool Value::raw_binary(const THD *thd, String *buf) const
 {
   // It's not safe to overwrite ourselves.
@@ -1572,6 +1461,7 @@ bool Value::raw_binary(const THD *thd, String *buf) const
   return true;
   /* purecov: end */
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -1829,6 +1719,7 @@ inline size_t Value::value_entry_offset(size_t pos) const
 }
 
 
+#ifdef MYSQL_SERVER
 bool space_needed(const THD *thd, const Json_wrapper *value,
                   bool large, size_t *needed)
 {
@@ -2360,6 +2251,7 @@ bool Value::get_free_space(const THD *thd, size_t *space) const
   *space+= m_length - next_value_offset;
   return false;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 } // end namespace json_binary

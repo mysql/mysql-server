@@ -23,22 +23,25 @@
 #include "my_config.h"
 
 #include <stddef.h>
+#include <string.h>
 #include <sys/types.h>
+#include <string>
 #include <vector>
 
 #include "lex_string.h"
+#include "map_helpers.h"
 #include "my_getopt.h"        // get_opt_arg_type
 #include "my_inttypes.h"
+#include "my_systime.h"
 #include "mysql/plugin.h"     // enum_mysql_show_type
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"        // Item_result
 #include "prealloced_array.h" // Prealloced_array
-#include "sql_alloc.h"        // Sql_alloc
-#include "sql_const.h"        // SHOW_COMP_OPTION
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"   // plugin_ref
-#include "thr_malloc.h"
+#include "sql/sql_alloc.h"    // Sql_alloc
+#include "sql/sql_const.h"    // SHOW_COMP_OPTION
+#include "sql/sql_plugin_ref.h" // plugin_ref
+#include "sql/thr_malloc.h"
 #include "typelib.h"          // TYPELIB
-#include "my_systime.h"
 
 class Item;
 class Item_func_set_user_var;
@@ -50,6 +53,7 @@ class set_var;
 class sys_var;
 class sys_var_pluginvar;
 struct st_lex_user;
+template <class Key, class Value> class collation_unordered_map;
 
 typedef ulonglong sql_mode_t;
 typedef enum enum_mysql_show_type SHOW_TYPE;
@@ -99,7 +103,8 @@ public:
     ALLOCATED=    0x0800, // 2048
     INVISIBLE=    0x1000, // 4096
     TRI_LEVEL=    0x2000, // 8192 - default is neither GLOBAL nor SESSION
-    NOTPERSIST=   0x4000
+    NOTPERSIST=   0x4000,
+    HINT_UPDATEABLE= 0x8000 // Variable is updateable using SET_VAR hint
   };
   static const int PARSE_EARLY= 1;
   static const int PARSE_NORMAL= 2;
@@ -158,7 +163,14 @@ public:
   virtual bool is_default(THD *thd, set_var *var);
   virtual longlong get_min_value() { return option.min_value; }
   virtual ulonglong get_max_value() { return option.max_value; }
+  /**
+    Returns variable type.
+
+    @return variable type
+  */
+  virtual ulong get_var_type() { return (option.var_type & GET_TYPE_MASK); }
   virtual void set_arg_source(get_opt_arg_source*) {}
+  virtual void set_is_plugin(bool) {}
   enum_variable_source get_source() { return source.m_source; }
   const char* get_source_name() { return source.m_path_name; }
   void set_source(enum_variable_source src) { option.arg_source->m_source= src; }
@@ -193,6 +205,13 @@ public:
   bool is_readonly() const { return flags & READONLY; }
   bool not_visible() const { return flags & INVISIBLE; }
   bool is_trilevel() const { return flags & TRI_LEVEL; }
+  /**
+    Check if the variable can be set using SET_VAR hint.
+
+    @return true if the variable can be set using SET_VAR hint,
+            false otherwise.
+  */
+  bool is_hint_updateable() const { return flags & HINT_UPDATEABLE; }
   /**
     the following is only true for keycache variables,
     that support the syntax @@keycache_name.variable_name
@@ -231,7 +250,15 @@ public:
       (array->push_back(option), false);
   }
   void do_deprecated_warning(THD *thd);
+  /**
+    Create item from system variable value.
 
+    @param  thd  pointer to THD object
+
+    @return pointer to Item object or NULL if it's
+            impossible to obtain the value.
+  */
+  Item *copy_value(THD *thd);
 private:
   virtual bool do_check(THD *thd, set_var *var) = 0;
   /**
@@ -280,7 +307,7 @@ public:
   virtual int resolve(THD *thd)=0;         ///< Check privileges & fix_fields
   virtual int check(THD *thd)=0;           ///< Evaluate the expression
   virtual int update(THD *thd)=0;          ///< Set the value
-  virtual void print(THD *thd, String *str)=0;	///< To self-print
+  virtual void print(THD *thd, String *str)=0;   ///< To self-print
 
   /**
     @returns whether this variable is @@@@optimizer_trace.
@@ -324,7 +351,13 @@ public:
   void update_source();
   void update_user_host_timestamp(THD *thd);
   int light_check(THD *thd);
-  void print(THD*, String *str);	/* To self-print */
+  /**
+    Print variable in short form.
+
+    @param str String buffer to append the partial assignment to.
+  */
+  void print_short(String *str);
+  void print(THD*, String *str);   /* To self-print */
   bool is_global_persist()
   {
     return (type == OPT_GLOBAL || type == OPT_PERSIST ||
@@ -404,7 +437,6 @@ extern SHOW_COMP_OPTION have_profiling;
 extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
-extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
 extern SHOW_COMP_OPTION have_statement_timeout;
 
@@ -413,6 +445,11 @@ extern SHOW_COMP_OPTION have_statement_timeout;
 */
 ulong get_system_variable_hash_records(void);
 ulonglong get_system_variable_hash_version(void);
+collation_unordered_map<std::string, sys_var *>
+  *get_system_variable_hash(void);
+
+extern bool get_sysvar_source(const char *name, uint length,
+                              enum enum_variable_source* source);
 
 bool enumerate_sys_vars(Show_var_array *show_var_array,
                         bool sort, enum enum_var_type type, bool strict);
@@ -433,6 +470,8 @@ extern sys_var *Sys_autocommit_ptr;
 extern sys_var *Sys_gtid_next_ptr;
 extern sys_var *Sys_gtid_next_list_ptr;
 extern sys_var *Sys_gtid_purged_ptr;
+
+extern ulonglong system_variable_hash_version;
 
 const CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 

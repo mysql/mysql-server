@@ -15,15 +15,19 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
-#include "options_parser.h"
+#include "sql/options_parser.h"
 
+#include <stddef.h>
 #include <algorithm>
 #include <cctype>
-#include <iterator>
+#include <stdexcept>
+#include <utility>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sys.h"
 #include "mysqld_error.h"
+#include "sql_string.h"
 
 namespace options_parser {
 

@@ -21,7 +21,7 @@
 #include <sys/types.h>
 
 #include "fake_key.h"                             // Fake_KEY
-#include "key.h"                                  // KEY
+#include "sql/key.h"                              // KEY
 
 namespace recperkey_unittest {
 

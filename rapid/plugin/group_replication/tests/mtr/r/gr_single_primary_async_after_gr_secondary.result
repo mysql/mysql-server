@@ -10,7 +10,14 @@ include/start_and_bootstrap_group_replication.inc
 [connection server2]
 include/start_group_replication.inc
 
-# 2. Add some data to server1 & 3
+# 2. Create new channel ch3_2: server2(slave), server3(master)
+[connection server2]
+CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=SERVER_3_PORT for channel 'ch3_2';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+
+# 3. Add some data to server1 & 3
 [connection server1]
 CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO test.t1 VALUES (1);
@@ -18,14 +25,10 @@ INSERT INTO test.t1 VALUES (1);
 CREATE TABLE test.t2 (c1 INT NOT NULL) ENGINE=InnoDB;
 INSERT INTO test.t2 VALUES (1);
 
-# 3. Create new channel ch3_2: server2(slave), server3(master)
-[connection server2]
-CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=SERVER_3_PORT for channel 'ch3_2';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+# 4. Verify the error scenarios.
 
 # 4.1 start slave and verify for error ER_SLAVE_FATAL_ERROR
+[connection server2]
 START SLAVE FOR CHANNEL 'ch3_2';
 include/wait_for_slave_io_error.inc [errno=1593 FOR CHANNEL 'ch3_2']
 include/wait_for_slave_sql_error.inc [errno=1593 FOR CHANNEL 'ch3_2']

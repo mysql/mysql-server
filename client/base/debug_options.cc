@@ -21,8 +21,8 @@
 #include <sys/types.h>
 #include <functional>
 
-#include "abstract_program.h"
-#include "client_priv.h"
+#include "client/base/abstract_program.h"
+#include "client/client_priv.h"
 #include "my_dbug.h"
 
 using namespace Mysql::Tools::Base::Options;

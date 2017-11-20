@@ -31,10 +31,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <m_string.h>
 #include <my_getopt.h>
 #include <welcome_copyright_notice.h>
+#include <zlib.h>
 #include <iostream>
 #include <map>
 
 #include "btr0cur.h"
+#include "dict0sdi-decompress.h"
 #include "fil0fil.h"
 #include "fsp0fsp.h"
 #include "lob0lob.h"
@@ -52,7 +54,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 #include "ut0byte.h"
 #include "ut0crc32.h"
-#include "zlib.h"
 
 typedef enum {
 	SUCCESS = 0,
@@ -65,6 +66,12 @@ static const uint32_t	REC_DATA_ID_LEN = 8;
 
 /** Length of TYPE field in record of SDI Index. */
 static const uint32_t	REC_DATA_TYPE_LEN = 4;
+
+/** Length of UNCOMPRESSED_LEN field in record of SDI Index. */
+static const uint32_t	REC_DATA_UNCOMP_LEN = 4;
+
+/** Length of COMPRESSED_LEN field in record of SDI Index. */
+static const uint32_t	REC_DATA_COMP_LEN = 4;
 
 /** SDI Index record Origin. */
 static const uint32_t	REC_ORIGIN = 0;
@@ -79,18 +86,18 @@ static const uint32_t	REC_OFF_TYPE = 3;
 /** Stored at rec_origin minus 2nd byte and length 2 bytes. */
 static const uint32_t	REC_OFF_NEXT = 2;
 
-/** Offset of ID field in record (0). */
-static const uint32_t	REC_OFF_DATA_ID = REC_ORIGIN;
+/** Offset of TYPE field in record (0). */
+static const uint32_t	REC_OFF_DATA_TYPE = REC_ORIGIN;
 //ut_ad(REC_OFF_DATA_ID == 0);
 
-/** Offset of TYPE field in record (8). */
-static const uint32_t	REC_OFF_DATA_TYPE =
-	REC_OFF_DATA_ID + REC_DATA_ID_LEN;
+/** Offset of ID field in record (4). */
+static const uint32_t	REC_OFF_DATA_ID =
+	REC_OFF_DATA_TYPE + REC_DATA_TYPE_LEN;
 //ut_ad(REC_OFF_DATA_TYPE == 8);
 
 /** Offset of 6-byte trx id (12). */
 static const uint32_t	REC_OFF_DATA_TRX_ID =
-	REC_OFF_DATA_TYPE + REC_DATA_TYPE_LEN;
+	REC_OFF_DATA_ID + REC_DATA_ID_LEN;
 //ut_ad(REC_OFF_DATA_TRX_ID == 12);
 
 /** 7-byte roll-ptr (18). */
@@ -98,18 +105,27 @@ static const uint32_t	REC_OFF_DATA_ROLL_PTR =
 	REC_OFF_DATA_TRX_ID + DATA_TRX_ID_LEN;
 //ut_ad(REC_OFF_DATA_ROLL_PTR == 18);
 
-/** Variable length Data (25). */
-static const uint32_t	REC_OFF_DATA_VARCHAR =
+/** 4-byte un-compressed len (25) */
+static const uint32_t	REC_OFF_DATA_UNCOMP_LEN =
 	REC_OFF_DATA_ROLL_PTR + DATA_ROLL_PTR_LEN;
-//ut_ad(REC_OFF_DATA_VARCHAR == 25);
+
+/** 4-byte compressed len (29) */
+static const uint32_t	REC_OFF_DATA_COMP_LEN =
+	REC_OFF_DATA_UNCOMP_LEN + REC_DATA_UNCOMP_LEN;
+
+/** Variable length Data (33). */
+static const uint32_t	REC_OFF_DATA_VARCHAR =
+	REC_OFF_DATA_COMP_LEN + REC_DATA_COMP_LEN;
+
+//ut_ad(REC_OFF_DATA_VARCHAR == 33);
 
 /** Record size in page. This will be used determine the maximum number
 of records on a page. */
 static const uint32_t	SDI_REC_SIZE =
 	1 /* rec_len */
 	+ REC_MIN_HEADER_SIZE /* rec_header */
-	+ REC_DATA_ID_LEN /* id field len */
 	+ REC_DATA_TYPE_LEN /* type field size */
+	+ REC_DATA_ID_LEN /* id field len */
 	+ DATA_ROLL_PTR_LEN /* roll ptr len */
 	+ DATA_TRX_ID_LEN /* TRX_ID len */;
 
@@ -123,9 +139,8 @@ static const uint32_t	IB_ERROR_32 = (~((uint32) 0));
 
 /** SDI BLOB not expected before the following page number.
 0 (tablespace header), 1 (tabespace bitmap), 2 (ibuf bitmap)
-3 (SDI Index root page of copy 0), 4 (SDI Index root page of
-copy 1). */
-static const uint64_t	SDI_BLOB_ALLOWED = 5;
+3 (SDI Index root page) */
+static const uint64_t	SDI_BLOB_ALLOWED = 4;
 
 /** Replaces declaration in srv0srv.c */
 ulong			srv_page_size;
@@ -135,11 +150,9 @@ page_size_t		univ_page_size(0, 0, false);
 /** Global options structure. Option values passed at command line are
 stored in this structure */
 struct sdi_options {
-	uint32_t	copy_num;
 	uint64_t	sdi_rec_id;
 	uint64_t	sdi_rec_type;
 	bool		skip_data;
-	bool		is_read_from_copy;
 	bool		is_sdi_id;
 	bool		is_sdi_type;
 	bool		is_sdi_rec;
@@ -180,9 +193,6 @@ static struct my_option ibd2sdi_options[] = {
     " Without the filename, it will default to stdout",
     &opts.dump_filename, &opts.dump_filename, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"read", 'r', "Read from this Copy of SDI in tablespace.",
-    &opts.copy_num, &opts.copy_num, 0, GET_UINT, REQUIRED_ARG,
-    0, 0, 1, 0, 1, 0},
   {"skip-data", 's', "Skip retrieving data from SDI records. Retrieve only"
     " id and type.", &opts.skip_data, &opts.skip_data, 0, GET_BOOL, NO_ARG,
     0, 0, 0, 0, 0, 0},
@@ -227,8 +237,11 @@ ut_dbg_assertion_failed(
 }
 
 /** Create a file in a system's temporary directory.
-@param[in]	temp_file_buf	Buffer to hold the temporary file
+@param[in,out]	temp_file_buf	Buffer to hold the temporary file
 				name generated
+@param[in]	dir		directory used for creation of
+				temporary file, nullptr if system
+				tmpdir to be used
 @param[in]	prefix_pattern	the temp file name is prefixed with
 				this string
 @return File pointer of the created file */
@@ -236,11 +249,12 @@ static
 FILE*
 create_tmp_file(
 	char*		temp_file_buf,
+	const char*	dir,
 	const char*	prefix_pattern)
 {
 	FILE*	file = NULL;
 	File	fd = create_temp_file(
-		temp_file_buf, NullS, prefix_pattern,
+		temp_file_buf, dir, prefix_pattern,
 		O_CREAT | O_RDWR , MYF(0));
 
 	if (fd >= 0) {
@@ -250,8 +264,8 @@ create_tmp_file(
 	DBUG_EXECUTE_IF("ib_tmp_file_fail", file = NULL;);
 
 	if (file == NULL) {
-		ib::error() << "Unable to create temporary file; errno: " <<
-			errno;
+		ib::error() << "Unable to create temporary file. err: " <<
+			strerror(errno);
 
 		if (fd >= 0) {
 			my_close(fd, MYF(0));
@@ -327,9 +341,6 @@ ibd2sdi_get_one_option(
 		break;
 	case 'd':
 		opts.is_dump_file = true;
-		break;
-	case 'r':
-		opts.is_read_from_copy = true;
 		break;
 	case 'i':
 		opts.is_sdi_id = true;
@@ -507,8 +518,7 @@ public:
 		m_file_vec(),
 		m_page_num_recs(0),
 		m_max_recs_per_page(page_size.logical() / SDI_REC_SIZE),
-		m_sdi_copy_0(0),
-		m_sdi_copy_1(0),
+		m_sdi_root(0),
 		m_tot_pages(0)
 	{
 	}
@@ -533,8 +543,7 @@ public:
 		m_file_vec(copy.m_file_vec),
 		m_page_num_recs(copy.m_page_num_recs),
 		m_max_recs_per_page(copy.m_max_recs_per_page),
-		m_sdi_copy_0(copy.m_sdi_copy_0),
-		m_sdi_copy_1(copy.m_sdi_copy_1),
+		m_sdi_root(copy.m_sdi_root),
 		m_tot_pages(copy.m_tot_pages)
 	{
 	}
@@ -557,33 +566,21 @@ public:
 	}
 
 	/** Add the SDI root page numbers to tablespace.
-	@param[in]	copy_0	root page number of SDI copy 0
-	@param[in]	copy_1	root page number of SDI copy 1 */
+	@param[in]	copy	root page number of SDI */
 	inline
 	void
 	add_sdi(
-		page_no_t	copy_0,
-		page_no_t	copy_1)
+		page_no_t	root)
 	{
-		m_sdi_copy_0 = copy_0;
-		m_sdi_copy_1 = copy_1;
+		m_sdi_root = root;
 	}
 
-	/** Get the SDI root page number of a copy.
-	@param[in]	copy_num	SDI copy number
-	@return SDI root page number of a copy */
+	/** @return SDI root page number */
 	inline
 	page_no_t
-	get_sdi_copy(uint32_t copy_num) const
+	get_sdi_root() const
 	{
-		switch(copy_num) {
-		case 0:
-			return(m_sdi_copy_0);
-		case 1:
-			return(m_sdi_copy_1);
-		default:
-			ut_error;
-		}
+		return(m_sdi_root);
 	}
 
 	/** Return space id of the tablespace.
@@ -705,15 +702,13 @@ public:
 	}
 
 	/** Check if SDI exists in a tablespace. If SDI exists, retrieve
-	SDI root page numbers.
-	@param[in,out]	copy_0	SDI root page number of copy 0
-	@param[in,out]	copy_1	SDI root page number of copy 1
+	SDI root page number.
+	@param[in,out]	root	SDI root page number
 	@return false on success, true on failure */
 	inline
 	bool
 	check_sdi(
-		page_no_t&	copy_0,
-		page_no_t&	copy_1);
+		page_no_t&	root);
 
 	/** Return the total number of pages of the tablespaces.
 	This includes pages of all datafiles (ibdata*)
@@ -728,28 +723,11 @@ public:
 private:
 	/** Return the SDI Root page number stored in a page.
 	@param[in]	byte		Page read from buffer
-	@param[in]	copy_num	SDI copy num
 	@return SDI root page number */
 	inline
 	page_no_t
 	get_sdi_root_page_num(
-		byte*		buf,
-		uint16_t	copy_num);
-
-	/** Determine the better root page number based on the page type
-	FIL_PAGE_SDI
-	@param[in]	buf_len			buffer length
-	@param[in]	buf			buffer containing the page
-	@param[in]	first_copy_num		root page number of first copy
-	@param[in]	second_copy_num		root page number of second copy
-	@return best copy number if determined, else IB_ERROR on failure */
-	inline
-	page_no_t
-	determine_good_root_page_num(
-		uint32_t	buf_len,
-		byte*		buf,
-		page_no_t	first_copy_num,
-		page_no_t	second_copy_num);
+		byte*		buf);
 
 	/** Space id of tablespace. */
 	space_id_t		m_space_id;
@@ -767,11 +745,8 @@ private:
 	/** Maximum number of records possible on a page. */
 	uint64_t		m_max_recs_per_page;
 
-	/** Root page number of SDI copy 0. */
-	page_no_t		m_sdi_copy_0;
-
-	/** Root page number of SDI copy 1. */
-	page_no_t		m_sdi_copy_1;
+	/** Root page number of SDI. */
+	page_no_t		m_sdi_root;
 
 	/** Total number of pages of all data files. */
 	page_no_t		m_tot_pages;
@@ -881,7 +856,7 @@ fetch_page(
 				" compressed page " << page_id;
 
 			/* Page is decompressed. */
-			memset(buf, 0, UNIV_PAGE_SIZE_MAX);
+			memset(buf, 0, buf_len);
 			ut_ad(buf_len >= page_size.logical());
 			memcpy(buf, uncomp_page, page_size.logical());
 		}
@@ -1085,16 +1060,15 @@ tablespace_creator::create()
 				space_id, page_size);
 			m_tablespace->add_data_file(ibd_file);
 
-			page_no_t	copy_0;
-			page_no_t	copy_1;
-			if (m_tablespace->check_sdi(copy_0, copy_1)) {
+			page_no_t	root;
+			if (m_tablespace->check_sdi(root)) {
 				ib::error() << "SDI doesn't exist for"
 					" this tablespace or the SDI"
 					" root page numbers couldn't"
 					" be determined";
 				DBUG_RETURN(true);
 			} else {
-				m_tablespace->add_sdi(copy_0, copy_1);
+				m_tablespace->add_sdi(root);
 			}
 
 		} else {
@@ -1392,17 +1366,16 @@ tablespace_creator::get_page_size_corruption_count(
 
 /** Check if SDI exists in a tablespace. If SDI exists, retrieve
 SDI root page numbers.
-@param[in,out]	copy_0	SDI root page number of copy 0
-@param[in,out]	copy_1	SDI root page number of copy 1
-@return false on success, true on failure and copy_0 & copy1
-are filled with IB_ERROR on failure. */
+@param[in,out]	root	SDI root page number of copy
+@return false on success, true on failure and copy
+are filled with IB_ERROR_32 on failure. */
 inline
 bool
 ib_tablespace::check_sdi(
-	page_no_t&	copy_0,
-	page_no_t&	copy_1)
+	page_no_t&	root)
 {
 	DBUG_ENTER("ib_tablespace::check_sdi");
+	root = IB_ERROR_32;
 
 	byte	buf[UNIV_PAGE_SIZE_MAX];
 
@@ -1420,172 +1393,56 @@ ib_tablespace::check_sdi(
 	/* 1. Check if SDI flag is set or not */
 	if (FSP_FLAGS_HAS_SDI(space_flags)) {
 		ib::dbug() << "Tablespace has SDI space flag set. Lets"
-			" read page 1 & 2 to confirm";
+			" read SDI root page number offsets to confirm";
 		has_sdi = true;
 	} else {
 		ib::dbug() << "Tablespace do not have SDI"
-			" space flag set. Lets read page 1 & 2 to"
-			" confirm";
+			" space flag set. Lets read SDI root page number"
+			" offsets to confirm";
 		has_sdi = false;
 	}
 
-	/* 2. Seek to page 1 & 2, and read FIL_SDI_ROOT_PAGE_NUM */
+	page_no_t	sdi_root  = get_sdi_root_page_num(buf);
 
-	if(fetch_page(this, 1, UNIV_PAGE_SIZE_MAX, buf) == IB_ERROR) {
-		ib::error() << "Couldn't read page 1";
-		DBUG_RETURN(true);
-	} else {
-		ib::dbug() << "Read page number: 1";
-	}
+	DBUG_EXECUTE_IF("ib_no_sdi", sdi_root = 0;);
 
-	page_no_t	copy_0_from_page_1 = get_sdi_root_page_num(
-		buf, 0);
-	page_no_t	copy_1_from_page_1 = get_sdi_root_page_num(
-		buf, 1);
-
-	ib::dbug() << "SDI copy 0 root page num from page 1 is "
-		<< copy_0_from_page_1;
-
-	ib::dbug() << "SDI copy 1 root page num from page 1 is "
-		<< copy_1_from_page_1;
-
-	if (fetch_page(this, 2, UNIV_PAGE_SIZE_MAX, buf) == IB_ERROR) {
-		ib::error() << "Couldn't read page 2";
-		DBUG_RETURN(true);
-	} else {
-		ib::dbug() << "Read page number: 2";
-	}
-
-	page_no_t	copy_0_from_page_2 =
-		get_sdi_root_page_num(buf, 0);
-	page_no_t	copy_1_from_page_2 =
-		get_sdi_root_page_num(buf, 1);
-
-	ib::dbug() << "copy 0 root page num from page 2 is "
-		<< copy_0_from_page_2;
-	ib::dbug() << "copy 1 root page num from page 2 is "
-		<< copy_1_from_page_2;
-
-	copy_0 = determine_good_root_page_num(
-		UNIV_PAGE_SIZE_MAX, buf, copy_0_from_page_1,
-		copy_0_from_page_2);
-
-	if (copy_0 == IB_ERROR_32) {
-		ib::error() << "Couldn't determine the best root"
-			" page numbers";
-		DBUG_RETURN(true);
-	}
-
-	copy_1 = determine_good_root_page_num(
-		UNIV_PAGE_SIZE_MAX, buf, copy_1_from_page_1,
-		copy_1_from_page_2);
-
-	if (copy_1 == IB_ERROR_32) {
-		ib::error() << "Couldn't determine the best root"
-			" page numbers";
+	if (sdi_root == 0) {
+		ib::error() << "Couldn't find valid root"
+			" page number";
 		DBUG_RETURN(true);
 	}
 
 	/* If tablespace flags suggest that we don't have SDI but
-	reading from Page 1 & 2 suggest that we have SDI index
+	reading from SDI offsets uggest that we have SDI index
 	pages, we warn and process the SDI pages. */
 	if (!has_sdi) {
 		ib::warn() << "Tablespace flags suggest SDI INDEX"
-			" didn't exist but found SDI root page"
-			" numbers in page 1 & page 2";
+			" didn't exist but found valid SDI root page"
+			" numbers at SDI offsets in Page 0";
 	}
 
+	root = sdi_root;
 	DBUG_RETURN(false);
-}
-/** Determine the better root page number based on the page type
-FIL_PAGE_SDI
-@param[in]	buf_len			buffer length
-@param[in]	buf			buffer containing the page
-@param[in]	first_copy_num		root page number of first copy
-@param[in]	second_copy_num		root page number of second copy
-@return best copy number if determined, else IB_ERROR on failure */
-inline
-page_no_t
-ib_tablespace::determine_good_root_page_num(
-	uint32_t	buf_len,
-	byte*		buf,
-	page_no_t	first_copy_num,
-	page_no_t	second_copy_num)
-{
-	if (fetch_page(this, first_copy_num, buf_len, buf) == IB_ERROR) {
-		ib::error() << "Unable to read page " << first_copy_num;
-		return(IB_ERROR_32);
-	}
-
-	ulint	page_type_from_1 = fil_page_get_type(buf);
-
-	if (fetch_page(this, second_copy_num, buf_len, buf) == IB_ERROR) {
-		ib::error() << "Unable to read page " << second_copy_num;
-		return(IB_ERROR_32);
-	}
-
-	ulint		page_type_from_2 = fil_page_get_type(buf);
-	page_no_t	best_copy_num = IB_ERROR_32;
-
-	DBUG_EXECUTE_IF("ib_no_sdi",
-			page_type_from_1 = page_type_from_2 = 0;);
-
-	if (page_type_from_1 == page_type_from_2
-	    && page_type_from_1 == FIL_PAGE_SDI) {
-		/* We can use any copy */
-		best_copy_num = first_copy_num;
-		return(best_copy_num);
-	}
-
-	if (first_copy_num == second_copy_num
-	    && page_type_from_1 == page_type_from_2
-	    && page_type_from_1 != FIL_PAGE_SDI) {
-
-		ib::error() << "Root page numbers and page types are"
-			" equal but they are of type: " << page_type_from_1
-			<< " expected page type is " <<  FIL_PAGE_SDI;
-			return(IB_ERROR_32);
-	}
-
-	ib::error() << "From Page 1: root page number: "
-		<< first_copy_num
-		<< ". From Page 2: root page number: "
-		<< second_copy_num << " are mismatching";
-
-	ib::error() << "Verifying page types to select the"
-		" better root page number";
-
-	if (page_type_from_1 == FIL_PAGE_SDI
-	    && page_type_from_2 != FIL_PAGE_SDI) {
-
-		best_copy_num = first_copy_num;
-
-	} else if (page_type_from_2 == FIL_PAGE_SDI
-		&& page_type_from_1 != FIL_PAGE_SDI) {
-
-		best_copy_num = second_copy_num;
-	}
-
-	if (best_copy_num != IB_ERROR_32) {
-		ib::info() << "Selected page no: " << best_copy_num;
-	}
-
-	return(best_copy_num);
 }
 
 /** Return the SDI Root page number stored in a page.
 @param[in]	buf		Page of tablespace
-@param[in]	copy_num	SDI copy num
 @return SDI root page number */
 inline
 page_no_t
 ib_tablespace::get_sdi_root_page_num(
-	byte*		buf,
-	uint16_t	copy_num)
+	byte*		buf)
 {
-	ut_ad(copy_num < MAX_SDI_COPIES);
 	ut_ad(buf != NULL);
-	return(mach_read_from_4(buf + FIL_SDI_ROOT_PAGE_NUM + copy_num * 4));
+	ulint		sdi_offset = fsp_header_get_sdi_offset(m_page_size);
+	uint32_t	version = mach_read_from_4(buf + sdi_offset);
+
+	if (version != SDI_VERSION) {
+		ib::warn() << "Unexpected SDI version. Expected: " << SDI_VERSION
+			<< " Got: " << version;
+	}
+
+	return(mach_read_from_4(buf + sdi_offset + 4));
 }
 
 /** Class to dump SDI */
@@ -1595,19 +1452,15 @@ public:
 	@param[in]	num_files	number of ibd files
 	@param[in]	ibd_files	array of ibd files
 	@param[in,out]	out_stream	Stream to dump SDI
-	@param[in]	copy_num	SDI copy number: 0, 1 or
-					UINT32_MAX to dump from both copies
 	@param[in]	skip_data	if true, dump only SDI id & type */
 	ibd2sdi(
 		uint32_t	num_files,
 		char**		ibd_files,
 		FILE*		out_stream,
-		uint32_t	copy_num,
 		bool		skip_data) :
 		m_num_files(num_files),
 		m_ibd_files(ibd_files),
 		m_out_stream(out_stream),
-		m_copy_num(copy_num),
 		m_skip_data(skip_data),
 		m_is_specific_rec(false),
 		m_specific_id(UINT64_MAX),
@@ -1676,18 +1529,6 @@ private:
 		page_no_t	root_page_num,
 		FILE*		out_stream);
 
-	/** Reach to page level zero and then iterate over the records
-	in both SDI copies and compare them
-	@param[in]	ts			tablespace structure
-	@param[in]	root_page_num_copy_0	root page of SDI copy 0
-	@param[in]	root_page_num_copy_1	root page of SDI copy 1
-	@return false on success, true on failure */
-	bool
-	dump_all_recs_in_leaf_level_compare(
-		ib_tablespace*	ts,
-		page_no_t	root_page_num_copy_0,
-		page_no_t	root_page_num_copy_1);
-
 	/** Read page from file into buffer passed and return the page level.
 	@param[in]	ts		tablespace structure
 	@param[in]	buf_len		buffer length
@@ -1755,16 +1596,17 @@ private:
 	/** Extract SDI record fields
 	@param[in]	ts		tablespace structure
 	@param[in]	rec		pointer to record
-	@param[in,out]	sdi_id		sdi id
 	@param[in,out]	sdi_type	sdi type
+	@param[in,out]	sdi_id		sdi id
 	@param[in,out]	sdi_data	sdi blob
-	@param[in,out]	sdi_data_len	length of sdi blob */
-	void
+	@param[in,out]	sdi_data_len	length of sdi blob
+	@return DB_SUCCESS on success, else error code */
+	dberr_t
 	parse_fields_in_rec(
 		ib_tablespace*	ts,
 		byte*		rec,
-		uint64_t*	sdi_id,
 		uint64_t*	sdi_type,
+		uint64_t*	sdi_id,
 		byte**		sdi_data,
 		uint64_t*	sdi_data_len);
 
@@ -1793,89 +1635,45 @@ private:
 
 	/** Write the extracted SDI record fields to outfile
 	if passed, else to stdout
-	@param[in]	sdi_id		sdi id
 	@param[in]	sdi_type	sdi type
+	@param[in]	sdi_id		sdi id
 	@param[in]	sdi_data	sdi data
 	@param[in]	sdi_data_len	sdi data len
 	@param[in]	out_stream	file stream to dump SDI */
 	void
 	dump_sdi_rec(
-		uint64_t	sdi_id,
 		uint64_t	sdi_type,
+		uint64_t	sdi_id,
 		byte*		sdi_data,
 		uint64_t	sdi_data_len,
 		FILE*		out_stream);
 
-	/** Iterate over the records in both SDI copies and compare them
-	@param[in]	ts		tablespace structure
-	@param[in]	buf_copy_0_len	length of buffer containing copy 0
-	@param[in]	buf_copy_0	buffer containing the left-most page
-					number of copy 0
-	@param[in]	buf_copy_0_len	length of buffer containing copy 0
-	@param[in]	buf_copy_1	buffer containing the left-most page
-					number of copy 1
-	@return false on success, true on corruption */
-	bool
-	dump_recs_on_page_compare(
-		ib_tablespace*	ts,
-		uint32_t	buf_copy_0_len,
-		byte*		buf_copy_0,
-		uint32_t	buf_copy_1_len,
-		byte*		buf_copy_1);
-
 	/** Return pointer to the first user record in a page
+	@param[in]	ts	tablespace object
 	@param[in]	buf_len	buffer length
 	@param[in]	buf	Memory containing entire page
 	@return pointer to first user record in page */
 	byte*
 	get_first_user_rec(
+		ib_tablespace*	ts,
 		uint32_t	buf_len,
 		byte*		buf);
 
-	/** Compare two SDI records, if they are equal store the fields
-	@param[in]	ts			tablespace structure
-	@param[in]	rec_0			sdi rec from copy 0
-	@param[in]	rec_1			sdi rec from copy 1
-	@param[in,out]	sdi_id			sdi id
-	@param[in,out]	sdi_type		sdi type
-	@param[in,out]	sdi_data		sdi data
-	@param[in,out]	sdi_data_len		sdi data len
-	@return true if sdi recs are equal, else false */
-	bool
-	compare_sdi_recs(
-		ib_tablespace*	ts,
-		byte*		rec_0,
-		byte*		rec_1,
-		uint64_t*	sdi_id,
-		uint64_t*	sdi_type,
-		byte**		sdi_data,
-		uint64_t*	sdi_data_len);
-
 	/** Check the SDI record with user passed SDI record id & type
 	and dump only if id & type matches
-	@param[in]	sdi_id		sdi id
 	@param[in]	sdi_type	sdi type
+	@param[in]	sdi_id		sdi id
 	@param[in]	sdi_data	sdi data
 	@param[in]	sdi_data_len	sdi data len
 	@param[in]	out_stream	file stream to dump SDI
 	@return true if the record matched with the user passed SDI record */
 	bool
 	check_and_dump_record(
-		uint64_t	sdi_id,
 		uint64_t	sdi_type,
+		uint64_t	sdi_id,
 		byte*		sdi_data,
 		uint64_t	sdi_data_len,
 		FILE*		out_stream);
-
-	/** Dump SDI copy of a tablespace to temporary file.
-	@param[in]	ts			tablespace structure
-	@param[in]	root_page_num		root page number of SDI copy
-	@param[in]	copy_num		SDI copy number */
-	void
-	dump_sdi_to_err_file(
-		ib_tablespace*	ts,
-		page_no_t	root_page_num,
-		uint32_t	copy_num);
 
 	/** Number of ibd files. */
 	uint32_t			m_num_files;
@@ -1883,9 +1681,6 @@ private:
 	char**				m_ibd_files;
 	/** Output stream to dump the parsed SDI. */
 	FILE*				m_out_stream;
-	/** SDI copy number (0 or 1). UINT32_MAX to read
-	from both copies. */
-	uint32_t			m_copy_num;
 	/** True if we just want to dump SDI keys to output
 	stream without data. */
 	bool				m_skip_data;
@@ -1906,19 +1701,8 @@ bool
 ibd2sdi::process_sdi_from_copy(
 	ib_tablespace*	ts)
 {
-	switch (m_copy_num) {
-	case UINT32_MAX:
-		return(dump_all_recs_in_leaf_level_compare(
-			ts, ts->get_sdi_copy(0), ts->get_sdi_copy(1)));
-	case 0:
-		return(dump_all_recs_in_leaf_level(
-			ts,ts->get_sdi_copy(0), m_out_stream));
-	case 1:
-		return(dump_all_recs_in_leaf_level(
-			ts, ts->get_sdi_copy(1), m_out_stream));
-	default:
-		return(true);
-	}
+	return(dump_all_recs_in_leaf_level(
+			ts, ts->get_sdi_root(), m_out_stream));
 }
 
 /** Iterate over record from a single SDI copy. There is no comparision
@@ -1935,10 +1719,17 @@ ibd2sdi::dump_all_recs_in_leaf_level(
 {
 	DBUG_ENTER("dump_all_recs_in_leaf_level");
 
-	byte	buf[UNIV_PAGE_SIZE_MAX];
+	byte	buf_unalign[2 * UNIV_PAGE_SIZE_MAX];
+
+	page_size_t page_size(ts->get_page_size());
+
+	byte*	buf = static_cast<byte*>(
+			ut_align(buf_unalign, page_size.logical()));
+
+	memset(buf, 0, page_size.logical());
 
 	switch (reach_to_leftmost_leaf_level(
-		ts, UNIV_PAGE_SIZE_MAX, buf, root_page_num)) {
+		ts, page_size.logical(), buf, root_page_num)) {
 	case SUCCESS:
 		break;
 	case FALIURE:
@@ -1951,7 +1742,7 @@ ibd2sdi::dump_all_recs_in_leaf_level(
 	}
 
 	bool		explicit_sdi_rec_found = false;
-	byte*		current_rec = get_first_user_rec(UNIV_PAGE_SIZE_MAX,
+	byte*		current_rec = get_first_user_rec(ts, page_size.logical(),
 							 buf);
 	uint64_t	sdi_id;
 	uint64_t	sdi_type;
@@ -1959,144 +1750,36 @@ ibd2sdi::dump_all_recs_in_leaf_level(
 	uint64_t	sdi_data_len = 0;
 	bool		corrupt = false;
 
+	/* Check and Dump records */
+	fprintf(out_stream, "%s","[\"ibd2sdi\"\n");
 	while (current_rec != NULL
 	       && get_rec_type(current_rec) != REC_STATUS_SUPREMUM
 	       && !explicit_sdi_rec_found
 	       && !corrupt) {
 
-		parse_fields_in_rec(ts, current_rec,
-				    &sdi_id, &sdi_type, &sdi_data,
+		dberr_t err = parse_fields_in_rec(ts, current_rec,
+				    &sdi_type, &sdi_id, &sdi_data,
 				    &sdi_data_len);
 
-		explicit_sdi_rec_found = check_and_dump_record(
-			sdi_id, sdi_type, sdi_data,
-			sdi_data_len, out_stream);
+		if (err == DB_SUCCESS) {
+			explicit_sdi_rec_found = check_and_dump_record(
+				sdi_type, sdi_id, sdi_data,
+				sdi_data_len, out_stream);
 
-		free(sdi_data);
-		sdi_data = NULL;
+			free(sdi_data);
+			sdi_data = NULL;
+		}
 
 		if (explicit_sdi_rec_found) {
 			break;
 		}
 
 		current_rec = get_next_rec(ts, current_rec,
-					   UNIV_PAGE_SIZE_MAX, buf, &corrupt);
+					   page_size.logical(), buf, &corrupt);
 	}
+	fprintf(out_stream, "%s", "]\n");
 
 	DBUG_RETURN(corrupt);
-}
-
-/** Dump SDI copy of a tablespace to temporary file.
-@param[in]	ts			tablespace structure
-@param[in]	root_page_num		root page number of SDI copy
-@param[in]	copy_num		SDI copy number */
-void
-ibd2sdi::dump_sdi_to_err_file(
-	ib_tablespace*	ts,
-	page_no_t	root_page_num,
-	uint32_t	copy_num)
-{
-	/* Buffer to hold temporary file name. */
-	char	temp_filename_buf[FN_REFLEN];
-	char	pattern[100];
-
-	my_snprintf(pattern, 100, "%s_%d_%s_%d_", "ib_sdi",
-		    ts->get_space_id(), "copy", copy_num);
-
-	FILE*	dump_file = create_tmp_file(temp_filename_buf, pattern);
-
-	if (dump_file == NULL) {
-		ib::error() << "Unable to create temporary"
-			<< " file to dump SDI copy:"
-			<< strerror(errno);
-		return;
-	} else {
-		ib::error() << "Dumping SDI Copy: " << copy_num
-			<< " into file: " << temp_filename_buf;
-	}
-
-	dump_all_recs_in_leaf_level(ts, root_page_num, dump_file);
-	my_fclose(dump_file, MYF(0));
-}
-
-/** Reach to page level zero and then iterate over the records in both SDI
-copies and compare them
-@param[in]	ts			tablespace structure
-@param[in]	root_page_num_copy_0	root page of SDI copy 0
-@param[in]	root_page_num_copy_1	root page of SDI copy 1
-@return false on success, true on failure */
-bool
-ibd2sdi::dump_all_recs_in_leaf_level_compare(
-	ib_tablespace*	ts,
-	page_no_t	root_page_num_copy_0,
-	page_no_t	root_page_num_copy_1)
-{
-	DBUG_ENTER("dump_all_recs_in_leaf_level_compare");
-
-	byte	buf0[UNIV_PAGE_SIZE_MAX];
-	byte	buf1[UNIV_PAGE_SIZE_MAX];
-
-	err_t	err_0 = reach_to_leftmost_leaf_level(
-		ts, UNIV_PAGE_SIZE_MAX, buf0, root_page_num_copy_0);
-
-	err_t	err_1 = reach_to_leftmost_leaf_level(
-		ts, UNIV_PAGE_SIZE_MAX, buf1, root_page_num_copy_1);
-
-	if (err_0 == NO_RECORDS && err_1 == NO_RECORDS) {
-		/* No records from both copies. */
-		ib::info() << "SDI from both copies is empty";
-		DBUG_RETURN(false);
-	}
-
-	if (err_0 == SUCCESS && err_1 == SUCCESS) {
-		bool	ret_comp = dump_recs_on_page_compare(
-			ts, UNIV_PAGE_SIZE_MAX, buf0,
-			UNIV_PAGE_SIZE_MAX, buf1);
-		if (ret_comp) {
-			for (uint32_t i = 0; i < MAX_SDI_COPIES; i++) {
-				dump_sdi_to_err_file(
-					ts,
-					i == 0 ? root_page_num_copy_0
-					: root_page_num_copy_1, i);
-			}
-			ib::error() << "Please compare the above files to find"
-				<< " the difference between two SDI copies";
-			DBUG_RETURN(true);
-		} else {
-			DBUG_RETURN(false);
-		}
-	}
-
-	if (err_0 == SUCCESS) {
-		/* Print records from copy 0 but there is problem with
-		copy 1. */
-		if (err_1 == NO_RECORDS) {
-			ib::error() << "No records from copy 1 but there"
-			" are records from copy 0";
-		} else if (err_1 ==  FALIURE) {
-			ib::error() << "Error while reaching to leaf level"
-				" of copy 1 but there are records from"
-				" copy 0";
-		}
-		dump_sdi_to_err_file(ts, root_page_num_copy_0, 0);
-		DBUG_RETURN(true);
-	}
-
-	if (err_1 == SUCCESS) {
-		/* Print records from copy 0 but there is problem with
-		copy 1. */
-		if (err_0 == NO_RECORDS) {
-			ib::error() << "No records from copy 0 but there"
-			" are records from copy 1";
-		} else if (err_0 == FALIURE) {
-			ib::error() << "Error while reaching to leaf level"
-				" of copy 0 but there are records from"
-				" copy 1";
-		}
-		dump_sdi_to_err_file(ts, root_page_num_copy_1, 1);
-		DBUG_RETURN(true);
-	}
-	DBUG_RETURN(true);
 }
 
 /** Read page from file into buffer passed and return the page level.
@@ -2407,7 +2090,7 @@ ibd2sdi::reach_to_leftmost_leaf_level(
 
 		page_no_t	child_page_num = mach_read_from_4(
 			buf + PAGE_NEW_INFIMUM + next_rec_off_t
-			+ REC_DATA_ID_LEN + REC_DATA_TYPE_LEN);
+			+ REC_DATA_TYPE_LEN + REC_DATA_ID_LEN);
 
 		ib::dbug() << "Next leftmost child page number is "
 			<< child_page_num;
@@ -2441,28 +2124,35 @@ ibd2sdi::reach_to_leftmost_leaf_level(
 /** Extract SDI record fields
 @param[in]	ts		tablespace structure
 @param[in]	rec		pointer to record
-@param[in,out]	sdi_id		sdi id
 @param[in,out]	sdi_type	sdi type
+@param[in,out]	sdi_id		sdi id
 @param[in,out]	sdi_data	sdi blob
-@param[in,out]	sdi_data_len	length of sdi blob */
-void
+@param[in,out]	sdi_data_len	length of sdi blob
+@return DB_SUCCESS on success, else error code */
+dberr_t
 ibd2sdi::parse_fields_in_rec(
 	ib_tablespace*	ts,
 	byte*		rec,
-	uint64_t*	sdi_id,
 	uint64_t*	sdi_type,
+	uint64_t*	sdi_id,
 	byte**		sdi_data,
 	uint64_t*	sdi_data_len)
 {
 	DBUG_ENTER("parse_fields_in_rec");
 
+	if (page_rec_is_infimum(rec) || page_rec_is_supremum(rec)) {
+		DBUG_RETURN(DB_CORRUPTION);
+	}
+
 	const page_size_t&	page_size = ts->get_page_size();
 
-	*sdi_id = mach_read_from_8(rec + REC_OFF_DATA_ID);
 	*sdi_type = mach_read_from_4(rec + REC_OFF_DATA_TYPE);
+	*sdi_id = mach_read_from_8(rec + REC_OFF_DATA_ID);
+	uint32_t sdi_uncomp_len = mach_read_from_4(rec + REC_OFF_DATA_UNCOMP_LEN);
+	uint32_t sdi_comp_len = mach_read_from_4(rec + REC_OFF_DATA_COMP_LEN);
 
 	if (m_skip_data) {
-		DBUG_VOID_RETURN;
+		DBUG_RETURN(DB_SUCCESS);
 	}
 
 	byte	rec_data_len_partial = *(rec - REC_MIN_HEADER_SIZE - 1);
@@ -2540,7 +2230,27 @@ ibd2sdi::parse_fields_in_rec(
 	*sdi_data_len = rec_data_length;
 	*sdi_data = str;
 
-	DBUG_VOID_RETURN;
+	ut_ad(rec_data_length == sdi_comp_len);
+
+	if (rec_data_length != sdi_comp_len) {
+		/* Record Corruption */
+		ib::error() << "Record corruption";
+		free(str);
+		return(DB_CORRUPTION);
+	}
+
+	byte* uncompressed_sdi = static_cast<byte*>(malloc(sdi_uncomp_len + 20));
+	Sdi_Decompressor decompressor(uncompressed_sdi,
+				      sdi_uncomp_len + 20,
+				      str,
+				      sdi_comp_len);
+	decompressor.decompress();
+
+	*sdi_data_len = sdi_uncomp_len;
+	*sdi_data = uncompressed_sdi;
+	free(str);
+
+	DBUG_RETURN(DB_SUCCESS);
 }
 
 /** Return the record type
@@ -2574,23 +2284,26 @@ ibd2sdi::get_next_rec(
 {
 	DBUG_ENTER("get_next_rec");
 
-	byte*		next_rec;
 	page_no_t	page_num = mach_read_from_4(buf + FIL_PAGE_OFFSET);
-	ulint		next_rec_off_t = mach_read_from_2(
-		current_rec - REC_OFF_NEXT);
+	bool		is_comp = page_is_comp(buf);
+	ulint		next_rec_offset = rec_get_next_offs(
+		current_rec, is_comp);
 
-	if (next_rec_off_t == 0) {
+	if (next_rec_offset == 0) {
 		ib::error() << "Record Corruption detected. Aborting";
 		*corrupt = true;
 		DBUG_RETURN(NULL);
 	}
 
-	if ((next_rec_off_t >> 15) == 1) {
-		/* offset is negative */
-		next_rec_off_t = 0x10000 - next_rec_off_t;
-		next_rec = current_rec - next_rec_off_t;
-	} else {
-		next_rec = current_rec + next_rec_off_t;
+	byte*	next_rec = buf + next_rec_offset;
+
+	/* Next rec should be within page */
+	ut_ad(static_cast<uint32_t>(next_rec - buf) <= buf_len);
+
+	/* If rec is delete marked, skip and fetch next_rec */
+	if (rec_get_deleted_flag(next_rec, is_comp) != 0) {
+		byte* current_rec = next_rec;
+		DBUG_RETURN(get_next_rec(ts, current_rec, buf_len, buf, corrupt));
 	}
 
 	if (get_rec_type(next_rec) == REC_STATUS_SUPREMUM) {
@@ -2644,7 +2357,7 @@ ibd2sdi::get_next_rec(
 			*corrupt = true;
 			DBUG_RETURN(NULL);
 		}
-		next_rec = get_first_user_rec(buf_len, buf);
+		next_rec = get_first_user_rec(ts, buf_len, buf);
 	} else {
 		if (ts->inc_num_of_recs_on_page(page_num)) {
 			*corrupt = true;
@@ -2659,112 +2372,46 @@ ibd2sdi::get_next_rec(
 
 /** Write the extracted SDI record fields to outfile
 if passed, else to stdout.
-@param[in]	sdi_id		sdi id
 @param[in]	sdi_type	sdi type
+@param[in]	sdi_id		sdi id
 @param[in]	sdi_data	sdi data
 @param[in]	sdi_data_len	sdi data len
 @param[in]	out_stream	file stream to dump SDI */
 void
 ibd2sdi::dump_sdi_rec(
-	uint64_t	sdi_id,
 	uint64_t	sdi_type,
+	uint64_t	sdi_id,
 	byte*		sdi_data,
 	uint64_t	sdi_data_len,
 	FILE*		out_stream)
 {
-	fprintf(out_stream, "[\n");
-	fprintf(out_stream, " [\"ibd2sdi\", {\"id\":" UINT64PF ", \"type\":"
-		UINT64PF "}],\n", sdi_id, sdi_type);
+	fprintf(out_stream, ",\n");
+	fprintf(out_stream, "{\n");
+	fprintf(out_stream, "\t\"type\": " UINT64PF ",\n", sdi_type);
+	fprintf(out_stream, "\t\"id\": " UINT64PF , sdi_id);
+
 	if (!m_skip_data) {
 		ut_ad(sdi_data != NULL);
-		fprintf(out_stream, " [");
+		fprintf(out_stream, ",\n");
+		fprintf(out_stream, "\t\"object\":\n");
+		fprintf(out_stream, "\t\t");
 		fwrite(sdi_data, 1, static_cast<size_t>(sdi_data_len),
 		       out_stream);
-		fprintf(out_stream, "]\n");
 	}
 
-	fprintf(out_stream, "],\n");
+	fprintf(out_stream, "\n}\n");
 	fflush(out_stream);
 }
 
-/** Iterate over the records in both SDI copies and compare them
-@param[in]	ts		tablespace structure
-@param[in]	buf_copy_0_len	length of buffer containing copy 0
-@param[in]	buf_copy_0	buffer containing the left-most page number of
-				copy 0
-@param[in]	buf_copy_1_len	length of buffer containing copy 1
-@param[in]	buf_copy_1	buffer containing the left-most page number of
-				copy 1
-@return false on success, true on corruption */
-bool
-ibd2sdi::dump_recs_on_page_compare(
-	ib_tablespace*	ts,
-	uint32_t	buf_copy_0_len,
-	byte*		buf_copy_0,
-	uint32_t	buf_copy_1_len,
-	byte*		buf_copy_1)
-{
-	DBUG_ENTER("dump_recs_on_page_compare");
-
-	byte*		rec_0 = get_first_user_rec(buf_copy_0_len, buf_copy_0);
-	byte*		rec_1 = get_first_user_rec(buf_copy_1_len, buf_copy_1);
-	bool		explicit_sdi_rec_found = false;
-	uint64_t	sdi_id;
-	uint64_t	sdi_type;
-	byte*		sdi_data = NULL;
-	uint64_t	sdi_data_len;
-	bool		corrupt_0 = false;
-	bool		corrupt_1 = false;
-
-	while (rec_0 != NULL
-	       && rec_1 != NULL
-	       && !explicit_sdi_rec_found
-	       && !corrupt_0
-	       && !corrupt_1) {
-
-		int recs_equal = compare_sdi_recs(
-			ts, rec_0, rec_1,
-			&sdi_id, &sdi_type, &sdi_data,
-			&sdi_data_len);
-
-		if (!recs_equal) {
-			corrupt_0 = true;
-			corrupt_1 = true;
-			break;
-		}
-
-		explicit_sdi_rec_found = check_and_dump_record(
-			sdi_id, sdi_type, sdi_data,
-			sdi_data_len, m_out_stream);
-
-		free(sdi_data);
-		sdi_data = NULL;
-
-		if (explicit_sdi_rec_found) {
-			break;
-		}
-
-		rec_0 = get_next_rec(ts, rec_0, buf_copy_0_len, buf_copy_0,
-				     &corrupt_0);
-		rec_1 = get_next_rec(ts, rec_1, buf_copy_1_len, buf_copy_1,
-				     &corrupt_1);
-	}
-
-	if (!corrupt_0 && !corrupt_1) {
-		DBUG_RETURN(false);
-	} else {
-		ib::error() << "Corruption detected when comparing records";
-		DBUG_RETURN(true);
-	}
-}
-
 /** Return pointer to the first user record in a page
+@param[in]	ts	tablespace object
 @param[in]	buf_len	buffer length
 @param[in]	buf	Memory containing entire page
 @return pointer to first user record in page or NULL
 if corruption detected. */
 byte*
 ibd2sdi::get_first_user_rec(
+	ib_tablespace*	ts,
 	uint32_t	buf_len,
 	byte*		buf)
 {
@@ -2792,77 +2439,36 @@ ibd2sdi::get_first_user_rec(
 
 	byte*	current_rec = buf + PAGE_NEW_INFIMUM + next_rec_off_t;
 
-	DBUG_RETURN(current_rec);
-}
+	/* current rec should be within page */
+	ut_ad(static_cast<uint32_t>(current_rec - buf) <= buf_len);
 
-/** Compare two SDI records, if they are equal store the fields
-@param[in]	ts			tablespace structure
-@param[in]	rec_0			sdi rec from copy 0
-@param[in]	rec_1			sdi rec from copy 1
-@param[in,out]	sdi_id			sdi id
-@param[in,out]	sdi_type		sdi type
-@param[in,out]	sdi_data		sdi data
-@param[in,out]	sdi_data_len		sdi data len
-@return true if sdi recs are equal, else false */
-bool
-ibd2sdi::compare_sdi_recs(
-	ib_tablespace*	ts,
-	byte*		rec_0,
-	byte*		rec_1,
-	uint64_t*	sdi_id,
-	uint64_t*	sdi_type,
-	byte**		sdi_data,
-	uint64_t*	sdi_data_len)
-{
-	DBUG_ENTER("compare_sdi_recs");
-	uint64_t	sdi_id_0;
-	uint64_t	sdi_id_1;
-	uint64_t	sdi_type_0;
-	uint64_t	sdi_type_1;
-	byte*		sdi_data_0 = NULL;
-	byte*		sdi_data_1 = NULL;
-	uint64_t	sdi_data_len_0 = 0;
-	uint64_t	sdi_data_len_1 = 0;
-
-	parse_fields_in_rec(ts, rec_0, &sdi_id_0, &sdi_type_0, &sdi_data_0,
-			    &sdi_data_len_0);
-
-	parse_fields_in_rec(ts, rec_1, &sdi_id_1, &sdi_type_1, &sdi_data_1,
-			    &sdi_data_len_1);
-
-	if ((sdi_id_0 == sdi_id_1)
-	    && (sdi_type_0 == sdi_type_1)
-	    && (sdi_data_len_0 == sdi_data_len_1)
-	    && (m_skip_data
-	        || memcmp(sdi_data_0, sdi_data_1,
-			  static_cast<size_t>(sdi_data_len_0)) == 0)) {
-		*sdi_id = sdi_id_0;
-		*sdi_type = sdi_type_0;
-		*sdi_data_len = sdi_data_len_0;
-		*sdi_data = sdi_data_0;
-
-		free(sdi_data_1);
-		DBUG_RETURN(true);
-	} else {
-		/* Recs are not equal */
-		free(sdi_data_0);
-		free(sdi_data_1);
-		DBUG_RETURN(false);
+	bool	is_comp = page_is_comp(buf);
+	/* record is delete marked, get next record */
+	if (rec_get_deleted_flag(current_rec, is_comp) != 0) {
+		page_size_t	page_size(ts->get_page_size());
+		bool		corrupt;
+		current_rec = get_next_rec(ts, current_rec,
+					   page_size.logical(), buf, &corrupt);
+		if (corrupt) {
+			DBUG_RETURN(NULL);
+		}
 	}
+
+	DBUG_RETURN(current_rec);
 }
 
 /** Check the SDI record with user passed SDI record id & type
 and dump only if id & type matches
-@param[in]	sdi_id		sdi id
 @param[in]	sdi_type	sdi type
+@param[in]	sdi_id		sdi id
 @param[in]	sdi_data	sdi data
 @param[in]	sdi_data_len	sdi data len
 @param[in]	out_stream	file stream to dump SDI
 @return true if the record matched with the user passed SDI record */
 bool
 ibd2sdi::check_and_dump_record(
-	uint64_t	sdi_id,
 	uint64_t	sdi_type,
+	uint64_t	sdi_id,
 	byte*		sdi_data,
 	uint64_t	sdi_data_len,
 	FILE*		out_stream)
@@ -2870,24 +2476,24 @@ ibd2sdi::check_and_dump_record(
 	bool	explicit_sdi_rec_found = false;
 
 	if (m_is_specific_rec) {
-		if (m_specific_id == sdi_id
-		    && m_specific_type == sdi_type) {
+		if (m_specific_type == sdi_type
+		    && m_specific_id == sdi_id) {
 			explicit_sdi_rec_found = true;
 			dump_sdi_rec(
-				sdi_id, sdi_type, sdi_data,
+				sdi_type, sdi_id, sdi_data,
 				sdi_data_len, out_stream);
-		} else if (sdi_id > m_specific_id
-			   && sdi_type > m_specific_type) {
+		} else if (sdi_type > m_specific_type
+			   && sdi_id > m_specific_id) {
 			/* This is set to make search for specific SDI
 			record end faster. */
 			explicit_sdi_rec_found = true;
 		}
 	} else {
-		if(m_specific_id == sdi_id
-		   || m_specific_type == sdi_type
-		   || (m_specific_id == UINT64_MAX
-		       && m_specific_type == UINT64_MAX)) {
-			dump_sdi_rec(sdi_id, sdi_type, sdi_data,
+		if(m_specific_type == sdi_type
+		   || m_specific_id == sdi_id
+		   || (m_specific_type== UINT64_MAX
+		       && m_specific_id == UINT64_MAX)) {
+			dump_sdi_rec(sdi_type, sdi_id, sdi_data,
 				     sdi_data_len, out_stream);
 		}
 	}
@@ -2999,7 +2605,14 @@ main(
 	}
 
 	if (opts.is_dump_file) {
-		dump_file = create_tmp_file(tmp_filename_buf, "ib_sdi");
+		char	dir_buf[FN_REFLEN];
+		size_t	dir_length;
+		memset(dir_buf, 0, FN_REFLEN);
+		if (dirname_part(dir_buf, opts.dump_filename, &dir_length) == 0) {
+			sprintf(dir_buf, "./");
+		}
+
+		dump_file = create_tmp_file(tmp_filename_buf, dir_buf, "ib_sdi");
 
 		if (dump_file == NULL) {
 			ib::error() << "Invalid Dumpfile passed";
@@ -3011,7 +2624,6 @@ main(
 
 	ibd2sdi	sdi(
 		argc, argv, dump_file,
-		opts.is_read_from_copy ? opts.copy_num : UINT32_MAX,
 		opts.skip_data);
 
 	if (sdi.process_files()) {

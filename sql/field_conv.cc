@@ -26,30 +26,33 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 
 #include "binary_log_types.h"
-#include "field.h"
-#include "item_timefunc.h"               // Item_func_now_local
 #include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_compare.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_time.h"
-#include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql_class.h"                          // THD
-#include "sql_const.h"
-#include "sql_error.h"
+#include "sql/current_thd.h"
+#include "sql/field.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item_timefunc.h"           // Item_func_now_local
+#include "sql/my_decimal.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h"                      // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_time.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_time.h"
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"              // down_cast
 
 
@@ -785,8 +788,13 @@ Copy_field::get_copy_func(Field *to,Field *from)
         to->maybe_null() != from->maybe_null())
       return do_conv_blob;
 
-    Field_geom *to_geom= down_cast<Field_geom*>(to);
-    Field_geom *from_geom= down_cast<Field_geom*>(from);
+    const Field_geom *to_geom= down_cast<const Field_geom*>(to);
+    const Field_geom *from_geom= down_cast<const Field_geom*>(from);
+
+    // If changing the SRID property of the field, we must do a full conversion.
+    if (to_geom->get_srid() != from_geom->get_srid() &&
+        to_geom->get_srid().has_value())
+      return do_conv_blob;
 
     // to is same as or a wider type than from
     if (to_geom->get_geometry_type() == from_geom->get_geometry_type() ||

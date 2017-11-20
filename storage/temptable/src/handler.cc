@@ -22,33 +22,45 @@ TempTable public handler API implementation. */
 #include <thread> /* std::thread* */
 #endif
 
-#include "handler.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "sql/handler.h"
+#include "sql/mysqld.h" /* temptable_max_ram */
+#include "sql/table.h"
 #include "temptable/handler.h"
 #include "temptable/row.h"
 #include "temptable/storage.h" /* temptable::Storage */
 #include "temptable/table.h"
 #include "temptable/test.h"
-#include "my_base.h"
-#include "my_dbug.h"
-#include "sql/mysqld.h" /* temptable_max_ram */
-#include "table.h"
 
 namespace temptable {
+
+#if defined(HAVE_WINNUMA)
+/** Page size used in memory allocation. */
+DWORD	win_page_size;
+#endif /* HAVE_WINNUMA */
 
 #define DBUG_RET(result) DBUG_RETURN(static_cast<int>(result))
 
 Handler::Handler(handlerton* hton, TABLE_SHARE* table_share)
     : ::handler(hton, table_share),
-      m_opened_table(nullptr),
+      m_opened_table(),
       m_rnd_iterator(),
-      m_rnd_iterator_is_positioned(false),
+      m_rnd_iterator_is_positioned(),
       m_index_cursor(),
-      m_deleted_rows(0) {
+      m_deleted_rows() {
   handler::ref_length = sizeof(Storage::Element*);
+
+#if defined(HAVE_WINNUMA)
+  SYSTEM_INFO systemInfo;
+  GetSystemInfo(&systemInfo);
+
+  win_page_size = systemInfo.dwPageSize;
+#endif /* HAVE_WINNUMA */
 
 #ifndef DBUG_OFF
   m_owner = std::this_thread::get_id();
-#endif
+#endif /* DBUG_OFF */
 }
 
 Handler::~Handler() {}
@@ -1102,12 +1114,6 @@ bool Handler::get_error_message(int, String*) {
   DBUG_ENTER("temptable::Handler::get_error_message");
   DBUG_ABORT();
   DBUG_RETURN(false);
-}
-
-uint8 Handler::table_cache_type() {
-  DBUG_ENTER("temptable::Handler::table_cache_type");
-  DBUG_ABORT();
-  DBUG_RETURN(0);
 }
 
 bool Handler::primary_key_is_clustered() const {

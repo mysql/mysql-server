@@ -193,6 +193,12 @@ INSERT INTO t1 VALUES ('dd'), ('a'), (_utf16 0x00E5), ('e'), ('d'), ('dz'),
 SELECT v, HEX(CONVERT(v USING utf16)) AS HEX, HEX(WEIGHT_STRING(v)) FROM t1 ORDER BY v, HEX(v);
 DROP TABLE t1;
 
+CREATE TABLE t1 (a VARCHAR(10)) COLLATE utf8mb4_ru_0900_ai_ci;
+INSERT INTO t1 VALUES(_utf16 0x0452), (_utf16 0x0453), (_utf16 0x0403),
+       (_utf16 0x0439), (_utf16 0x048B), (_utf16 0x048A), (_utf16 0x043B),
+       (_utf16 0x1D2B), (_utf16 0x045B), (_utf16 0x045C), (_utf16 0x040C);
+SELECT HEX(CONVERT(a USING utf16)) AS codepoint FROM t1 ORDER BY a, HEX(a);
+DROP TABLE t1;
 --echo #
 --echo # End of 8.0 tests
 --echo #

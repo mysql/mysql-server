@@ -25,22 +25,11 @@
                         // Execute_load_query_log_event,
                         // LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <atomic>
 
-#include "auth_acls.h"
-#include "binlog.h"
-#include "derror.h"
-#include "field.h"
-#include "handler.h"
-#include "item.h"
-#include "item_func.h"
-#include "item_timefunc.h"  // Item_func_now_local
-#include "lex_string.h"
 #include "load_data_events.h"
-#include "log.h"
-#include "log_event.h"  // Delete_file_log_event,
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -49,6 +38,7 @@
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
@@ -56,33 +46,42 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                             // mysql_real_data_home
 #include "mysqld_error.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"
-#include "query_result.h"
-#include "rpl_rli.h"     // Relay_log_info
-#include "rpl_slave.h"
-#include "session_tracker.h"
-#include "sql_base.h"          // fill_record_n_invoke_before_triggers
-#include "sql_cache.h"                          // query_cache_*
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_insert.h" // check_that_all_fields_are_given_values,
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_security_ctx.h"
-#include "sql_show.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/binlog.h"
+#include "sql/derror.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_func.h"
+#include "sql/item_timefunc.h" // Item_func_now_local
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/log_event.h" // Delete_file_log_event,
+#include "sql/mysqld.h"                         // mysql_real_data_home
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_result.h"
+#include "sql/rpl_rli.h" // Relay_log_info
+#include "sql/rpl_slave.h"
+#include "sql/sql_base.h"      // fill_record_n_invoke_before_triggers
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_insert.h" // check_that_all_fields_are_given_values,
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_show.h"
+#include "sql/sql_view.h"                       // check_key_in_view
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/thr_malloc.h"
+#include "sql/transaction_info.h"
+#include "sql/trigger_def.h"
 #include "sql_string.h"
-#include "sql_view.h"                           // check_key_in_view
-#include "system_variables.h"
-#include "table.h"
-#include "table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "transaction_info.h"
-#include "trigger_def.h"
 
 class READ_INFO;
 
@@ -389,6 +388,20 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
         DBUG_RETURN(true);
       }
+      if (item->type() == Item::STRING_ITEM)
+      {
+        /*
+          This item represents a user variable. Create a new item with the
+          same name that can be added to LEX::set_var_list. This ensures
+          that corresponding Item_func_get_user_var items are resolved as
+          non-const items.
+        */
+        Item_func_set_user_var *user_var= new (thd->mem_root)
+          Item_func_set_user_var(item->item_name, item, false);
+        if (user_var == NULL)
+          DBUG_RETURN(true);
+        thd->lex->set_var_list.push_back(user_var);
+      }
     }
     /* We explicitly ignore the return value */
     (void)check_that_all_fields_are_given_values(thd, table, table_list);
@@ -608,13 +621,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                     thd->killed= THD::KILL_QUERY;
                   };);
 
-  killed_status= (error == 0) ? THD::NOT_KILLED : thd->killed;
+  killed_status= (error == 0) ? THD::NOT_KILLED : thd->killed.load();
 
-  /*
-    We must invalidate the table in query cache before binlog writing and
-    ha_autocommit_...
-  */
-  query_cache.invalidate_single(thd, insert_table_ref, false);
   if (error)
   {
     if (read_file_from_client)

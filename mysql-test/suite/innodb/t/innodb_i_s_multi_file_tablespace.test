@@ -1,0 +1,11 @@
+-- source include/have_innodb_max_16k.inc
+
+--echo # WL#9814 Implement INFORMATION_SCHEMA system views for
+--echo #         FILES/PARTITIONS/REFERENTIAL_CONSTRAINTS.
+--echo #
+--echo # Test INFORMATION_SCHEMA.FILES with multiple data file per tablespace.
+--echo # --bootstrap --innodb-data-file-path=ibdata1:50M;ibdata2:50M:autoextend
+--echo # The SELECT asserts without the fix.
+
+--replace_column 32 #
+SELECT * FROM INFORMATION_SCHEMA.FILES WHERE TABLESPACE_NAME='innodb_system';

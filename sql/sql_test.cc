@@ -16,8 +16,6 @@
 
 /* Write some debug info */
 
-#include "sql/sql_test.h"
-
 #include "my_config.h"
 
 #include <float.h>
@@ -26,13 +24,6 @@
 #include <algorithm>
 #include <functional>
 
-#include "events.h"
-#include "field.h"
-#include "hash.h"
-#include "item.h"
-#include "key.h"
-#include "keycache.h"
-#include "keycaches.h"
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
@@ -44,27 +35,35 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysqld.h"         // LOCK_status
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "opt_explain.h"    // join_type_str
-#include "opt_range.h"      // QUICK_SELECT_I
-#include "opt_trace.h"
-#include "opt_trace_context.h"
+#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"
-#include "psi_memory_key.h"
-#include "sql_base.h" // table_def_cache, table_cache_count, unused_tables
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_executor.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_optimizer.h"  // JOIN
-#include "sql_select.h"
-#include "sql_show.h" // calc_sum_of_all_status
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/events.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/keycaches.h"
+#include "sql/mysqld.h"     // LOCK_status
+#include "sql/mysqld_thd_manager.h" // Global_THD_manager
+#include "sql/opt_explain.h" // join_type_str
+#include "sql/opt_range.h"  // QUICK_SELECT_I
+#include "sql/opt_trace.h"
+#include "sql/opt_trace_context.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_admin.h"
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h" // JOIN
+#include "sql/sql_select.h"
+#include "sql/sql_show.h" // calc_sum_of_all_status
+#include "sql/sql_test.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/table_cache.h" // table_cache_manager
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
-#include "table_cache.h" // table_cache_manager
 
 #if defined(HAVE_MALLOC_INFO) && defined(HAVE_MALLOC_H)
 #include <malloc.h>

@@ -33,6 +33,9 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"  // mysql_cond_t
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_stage.h"   // PSI_stage_info

@@ -15,14 +15,14 @@
 
 
 #include <boost/optional/optional.hpp>
-#include <current_thd.h>
-#include <sql_class.h> // THD
 #include <stdio.h>
 #include <sys/types.h>
 #include <new>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "sql/current_thd.h"
+#include "sql/sql_class.h" // THD
 
 #define MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS 16384
 #define MAX_KEYRING_UDF_KEY_TEXT_LENGTH MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS/8

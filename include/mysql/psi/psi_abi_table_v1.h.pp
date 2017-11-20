@@ -20,20 +20,9 @@ typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "psi_base.h"
-#include "my_psi_config.h"
-typedef unsigned int PSI_mutex_key;
-typedef unsigned int PSI_rwlock_key;
-typedef unsigned int PSI_cond_key;
-typedef unsigned int PSI_thread_key;
-typedef unsigned int PSI_file_key;
-typedef unsigned int PSI_stage_key;
-typedef unsigned int PSI_statement_key;
-typedef unsigned int PSI_socket_key;
-struct PSI_placeholder
-{
-  int m_placeholder;
-};
+#include "mysql/components/services/psi_table_bits.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 struct TABLE_SHARE;
 struct PSI_table_locker;
 typedef struct PSI_table_locker PSI_table_locker;
@@ -58,11 +47,6 @@ struct PSI_table_locker_state
   uint m_index;
 };
 typedef struct PSI_table_locker_state PSI_table_locker_state;
-struct PSI_table_bootstrap
-{
-  void *(*get_interface)(int version);
-};
-typedef struct PSI_table_bootstrap PSI_table_bootstrap;
 struct PSI_table_share;
 typedef struct PSI_table_share PSI_table_share;
 struct PSI_table;
@@ -107,6 +91,11 @@ typedef struct PSI_table_locker *(*start_table_lock_wait_v1_t)(
   uint src_line);
 typedef void (*end_table_lock_wait_v1_t)(struct PSI_table_locker *locker);
 typedef void (*unlock_table_v1_t)(struct PSI_table *table);
+struct PSI_table_bootstrap
+{
+  void *(*get_interface)(int version);
+};
+typedef struct PSI_table_bootstrap PSI_table_bootstrap;
 struct PSI_table_service_v1
 {
   get_table_share_v1_t get_table_share;

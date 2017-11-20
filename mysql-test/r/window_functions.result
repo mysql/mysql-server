@@ -5,17 +5,17 @@ SET NAMES utf8;
 Flag unsupported aggregates as window functions
 
 select json_objectagg('a','3') over ();
-ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+ERROR 42000: This version of MySQL doesn't yet support 'json_objectagg as window function'
 select json_arrayagg('3') over ();
-ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+ERROR 42000: This version of MySQL doesn't yet support 'json_arrayagg as window function'
 select group_concat('3') over ();
-ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+ERROR 42000: This version of MySQL doesn't yet support 'group_concat as window function'
 select bit_or(3) over ();
-ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+ERROR 42000: This version of MySQL doesn't yet support 'bit_or as window function'
 select bit_and(3) over ();
-ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+ERROR 42000: This version of MySQL doesn't yet support 'bit_and as window function'
 select bit_xor(3) over ();
-ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+ERROR 42000: This version of MySQL doesn't yet support 'bit_xor as window function'
 Single window function (plus ORDER BY).
 CREATE TABLE t(i INT, j INT);
 INSERT INTO t VALUES (1,1);
@@ -560,19 +560,19 @@ SELECT ADDTIME(NTH_VALUE(time'18:00:00', 1) OVER (ORDER BY NULL), '01:00:00');
 ADDTIME(NTH_VALUE(time'18:00:00', 1) OVER (ORDER BY NULL), '01:00:00')
 19:00:00
 SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE INTERVAL -1 HOUR PRECEDING) FROM t_time;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE INTERVAL NULL HOUR PRECEDING) FROM t_time;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL -1 HOUR PRECEDING AND INTERVAL 2 HOUR PRECEDING) FROM t_time;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL 1 HOUR PRECEDING AND INTERVAL -2 HOUR PRECEDING) FROM t_time;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL 1 HOUR PRECEDING AND INTERVAL '-2:2' HOUR_MINUTE PRECEDING) FROM t_time;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL 1 HOUR PRECEDING AND INTERVAL NULL HOUR PRECEDING) FROM t_time;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL NULL HOUR PRECEDING AND INTERVAL 1 HOUR PRECEDING) FROM t_time;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 Dynamic ? parameter checking
 PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS BETWEEN ? PRECEDING and ? PRECEDING) FROM t1";
 SET @p1= 1;
@@ -626,37 +626,37 @@ PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS BETWEEN ? FOLLOWING
 SET @p1= -1;
 SET @p2= 2;
 EXECUTE p USING @p2, @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 EXECUTE p USING @p1, @p2;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 DROP PREPARE p;
 PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS ? PRECEDING) FROM t1";
 SET @p1= -1;
 EXECUTE p USING @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 DROP PREPARE p;
 PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS BETWEEN CURRENT ROW AND ? FOLLOWING) FROM t1";
 SET @p1= -1;
 EXECUTE p USING @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 DROP PREPARE p;
 PREPARE p FROM "SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE INTERVAL ? HOUR PRECEDING) FROM t_time";
 SET @p1= -1;
 EXECUTE p USING @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 PREPARE p FROM "SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL ? HOUR PRECEDING AND INTERVAL ? HOUR PRECEDING) FROM t_time";
 SET @p2= 2;
 EXECUTE p USING @p1, @p2;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 EXECUTE p USING @p2, @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SET @p1= NULL;
 EXECUTE p USING @p2, @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 PREPARE p FROM "SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL ? HOUR PRECEDING AND INTERVAL ? HOUR_MINUTE PRECEDING) FROM t_time";
 SET @p1= '-2:2';
 EXECUTE p USING @p2, @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SET @p1= '2:2';
 EXECUTE p USING @p2, @p1;
 t	FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL ? HOUR PRECEDING AND INTERVAL ? HOUR_MINUTE PRECEDING)
@@ -5064,6 +5064,17 @@ SELECT * FROM t HAVING 1 = rank() OVER (ORDER BY a);
 ERROR HY000: You cannot use the window function 'rank' in this context.'
 SELECT 1 FROM t HAVING 1=(SELECT 1 FROM (SELECT 1) foo) AND COUNT(a) OVER ();
 ERROR HY000: You cannot use the window function 'count' in this context.'
+#
+# Bug#26502118: WINDOW FUNCTIONS: CRASH AND LARGE MEMORY ALLOCATION,
+#               FIRST_VALUE, BLOBS
+#
+# This was really missing error detection
+#
+CREATE TABLE tb(a LONGBLOB NOT NULL);
+INSERT INTO tb VALUES ('1'), ('2'), ('3'), ('4'), ('5');
+SELECT (SELECT 1 FROM tb WHERE (SELECT 1 FROM tb WHERE FIRST_VALUE(a) OVER()));
+ERROR HY000: You cannot use the window function 'first_value' in this context.'
+DROP TABLE tb;
 Windows should only be allowed in order by of a simple table query
 (select a from t) union (select a from t) order by (row_number() over ());
 ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION
@@ -8473,7 +8484,7 @@ FROM t  GROUP BY a);
 rnk
 DROP TABLE twf,t;
 #
-# That that user hasn't changed default internal temporary table storage
+# Check that user hasn't changed default internal temporary table storage
 # engine
 #
 SET @savmode=@@GLOBAL.INTERNAL_TMP_MEM_STORAGE_ENGINE;
@@ -8481,3 +8492,108 @@ SET INTERNAL_TMP_MEM_STORAGE_ENGINE='MEMORY';
 SELECT ROW_NUMBER() OVER () FROM DUAL;
 ERROR HY000: Windowing requires @@internal_tmp_mem_storage_engine=TempTable.
 SET INTERNAL_TMP_MEM_STORAGE_ENGINE=@savmode;
+#
+# Bug#26500442: WINDOW FUNCTIONS: CRASH IN WINDOW::HAS_WINDOWING_STEPS
+#
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1), (2), (3), (4);
+SELECT ISNULL(COS(RANK() OVER())) FROM t;
+ISNULL(COS(RANK() OVER()))
+0
+0
+0
+0
+DROP TABLE t;
+#
+# Bug #26496733: WINDOW FUNCTIONS: ASSERT FALSE WITH JSON COLUMN
+#
+SET @savmode=@@SESSION.SQL_MODE;
+SET SQL_MODE='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t(a JSON NOT NULL);
+INSERT INTO t VALUES();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+SELECT PERCENT_RANK() OVER (ORDER BY a RANGE CURRENT ROW) FROM t;
+PERCENT_RANK() OVER (ORDER BY a RANGE CURRENT ROW)
+0
+SET SESSION SQL_MODE=@savmode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+DROP TABLE t;
+# End of test for Bug#26496733
+#
+# Bug#26497353: ASSERTION FAILED: M_OPENED_TABLE != NULLPTR
+#
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES (1), (2), (3);
+SELECT DENSE_RANK() OVER w2 FROM t GROUP BY 'a' WITH ROLLUP
+WINDOW w2 AS (ROWS UNBOUNDED PRECEDING);
+DENSE_RANK() OVER w2
+1
+1
+DROP TABLE t;
+# End of test for Bug#26497353
+#
+# Bug #26496645: WINDOW FUNCTIONS: CRASH IN
+#                WINDOW::RESTORE_SPECIAL_RECORD
+#
+CREATE TABLE t (
+b VARCHAR(20) DEFAULT NULL,
+d INT DEFAULT NULL);
+INSERT INTO t VALUES(1,-1);
+INSERT INTO t VALUES(1,-1);
+SELECT b,d,LAST_VALUE(b) OVER(ORDER BY d RANGE BETWEEN 1 FOLLOWING AND
+UNBOUNDED FOLLOWING) FROM t;
+b	d	LAST_VALUE(b) OVER(ORDER BY d RANGE BETWEEN 1 FOLLOWING AND
+UNBOUNDED FOLLOWING)
+1	-1	NULL
+1	-1	NULL
+DROP TABLE t;
+# End of test for Bug#26496645
+#
+# Bug#26411055: WINDOW FRAME ACCEPTS NON-INTEGER ARG FOR ROWS
+#
+CREATE TABLE t(w INT);
+INSERT INTO t VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9);
+SELECT w, SUM(w) OVER (ROWS 3.14 PRECEDING) FROM t;
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
+SELECT w, SUM(w) OVER (ROWS BETWEEN 3 PRECEDING AND 3.4 FOLLOWING) FROM t;
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
+SELECT w, SUM(w) OVER (ROWS BETWEEN CURRENT ROW AND 3.4 FOLLOWING) FROM t;
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
+PREPARE stmt FROM "SELECT w, SUM(w) OVER (ROWS 3.14 PRECEDING) FROM t";
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
+PREPARE stmt FROM "SELECT w, SUM(w) OVER (ROWS ? PRECEDING) FROM t";
+SET @p1= 2;
+EXECUTE stmt USING @p1;
+w	SUM(w) OVER (ROWS ? PRECEDING)
+1	1
+2	3
+3	6
+4	9
+5	12
+6	15
+7	18
+8	21
+9	24
+SET @p1= 2.3;
+EXECUTE stmt USING @p1;
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
+DROP PREPARE stmt;
+DROP TABLE t;
+# End of test for Bug#26411055
+#
+# Bug#26497247:WINDOW FUNCTIONS: CRASH IN DO_COPY_MAYBE_NULL
+#
+CREATE TABLE t(a INTEGER NOT NULL);
+INSERT INTO t VALUES ('1'), ('2'), ('3');
+SELECT LEAD(a,1) OVER() FROM t GROUP BY a WITH ROLLUP;
+LEAD(a,1) OVER()
+2
+3
+NULL
+NULL
+DROP TABLE t;
+#End of test for Bug#26497247

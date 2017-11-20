@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -279,6 +279,20 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_LCP_STATUS_REQ, printLCP_STATUS_REQ }
   ,{ GSN_LCP_STATUS_CONF, printLCP_STATUS_CONF }
   ,{ GSN_LCP_STATUS_REF, printLCP_STATUS_REF }
+
+  ,{ GSN_LCP_PREPARE_REQ, printLCP_PREPARE_REQ }
+  ,{ GSN_LCP_PREPARE_CONF, printLCP_PREPARE_CONF }
+  ,{ GSN_LCP_PREPARE_REF, printLCP_PREPARE_REF }
+
+  ,{ GSN_SYNC_PAGE_CACHE_REQ, printSYNC_PAGE_CACHE_REQ }
+  ,{ GSN_SYNC_PAGE_CACHE_CONF, printSYNC_PAGE_CACHE_CONF }
+
+  ,{ GSN_END_LCPREQ, printEND_LCPREQ }
+  ,{ GSN_END_LCPCONF, printEND_LCPCONF }
+
+  ,{ GSN_RESTORE_LCP_REQ, printRESTORE_LCP_REQ }
+  ,{ GSN_RESTORE_LCP_CONF, printRESTORE_LCP_CONF }
+  ,{ GSN_RESTORE_LCP_REF, printRESTORE_LCP_REF }
 
   ,{ GSN_ISOLATE_ORD, printISOLATE_ORD }
 

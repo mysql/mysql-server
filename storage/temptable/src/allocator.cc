@@ -34,10 +34,10 @@ PSI_memory_key mem_key_physical_ram;
 
 PSI_memory_info pfs_info[] = {
 #ifdef TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL
-    {&mem_key_logical, "logical", 0},
+    {&mem_key_logical, "logical", 0, 0, PSI_DOCUMENT_ME},
 #endif /* TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL */
-    {&mem_key_physical_disk, "physical_disk", 0},
-    {&mem_key_physical_ram, "physical_ram", 0},
+    {&mem_key_physical_disk, "physical_disk", 0, 0, PSI_DOCUMENT_ME},
+    {&mem_key_physical_ram, "physical_ram", 0, 0, PSI_DOCUMENT_ME},
 };
 #endif /* TEMPTABLE_PFS_MEMORY */
 

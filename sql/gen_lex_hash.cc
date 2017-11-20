@@ -85,9 +85,11 @@ So, we can read full search-structure as 32-bit word
 #include <set>
 #include <utility>
 
-#include "lex.h"
-#include "lex_symbol.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/lex.h"
+#include "sql/lex_symbol.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 

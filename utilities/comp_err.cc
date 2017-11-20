@@ -48,7 +48,7 @@
 #define MAX_ROWS  2500
 #define HEADER_LENGTH 32                /* Length of header in errmsg.sys */
 #define ERRMSG_VERSION 3                /* Version number of errmsg.sys */
-#define DEFAULT_CHARSET_DIR "../sql/share/charsets"
+#define DEFAULT_CHARSET_DIR "../share/charsets"
 #define ER_PREFIX "ER_"
 #define WARN_PREFIX "WARN_"
 #define OBSOLETE_ER_PREFIX "OBSOLETE_ER_"
@@ -56,8 +56,8 @@
 static char *OUTFILE= (char*) "errmsg.sys";
 static char *HEADERFILE= (char*) "mysqld_error.h";
 static char *NAMEFILE= (char*) "mysqld_ername.h";
-static char *TXTFILE= (char*) "../sql/share/errmsg-utf8.txt";
-static char *DATADIRECTORY= (char*) "../sql/share/";
+static char *TXTFILE= (char*) "../share/errmsg-utf8.txt";
+static char *DATADIRECTORY= (char*) "../share/";
 #ifndef DBUG_OFF
 static char *default_dbug_option= (char*) "d:t:O,/tmp/comp_err.trace";
 #endif

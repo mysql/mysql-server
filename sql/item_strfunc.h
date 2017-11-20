@@ -24,25 +24,25 @@
 
 #include "control_events.h"
 #include "crypt_genhash_impl.h"       // CRYPT_MAX_PASSWORD_SIZE
-#include "enum_query_type.h"
-#include "field.h"
-#include "item.h"
-#include "item_cmpfunc.h"             // Item_bool_func
-#include "item_func.h"                // Item_func
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "my_time.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "parse_tree_node_base.h"
-#include "sql_const.h"
+#include "sql/derror.h"
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"         // Item_bool_func
+#include "sql/item_func.h"            // Item_func
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/sql_const.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_udf.h"
-#include "system_variables.h"
-#include "table.h"
 
 class MY_LOCALE;
 class PT_item_list;
@@ -590,121 +590,6 @@ public:
   String *val_str_ascii(String *str) override;
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "password"; }
-  static char *create_password_hash_buffer(THD *thd, const char *password,
-                                           size_t pass_len);
-};
-
-
-class Item_func_des_encrypt :public Item_str_func
-{
-  String tmp_value,tmp_arg;
-public:
-  Item_func_des_encrypt(const POS &pos, Item *a) :Item_str_func(pos, a) {}
-  Item_func_des_encrypt(const POS &pos, Item *a, Item *b)
-    : Item_str_func(pos, a, b)
-  {}
-  String *val_str(String *) override;
-  bool resolve_type(THD *) override
-  {
-    maybe_null= true;
-    /* 9 = MAX ((8- (arg_len % 8)) + 1) */
-    set_data_type_string(args[0]->max_length + 9U);
-    return false;
-  }
-  const char *func_name() const override { return "des_encrypt"; }
-};
-
-class Item_func_des_decrypt :public Item_str_func
-{
-  String tmp_value;
-public:
-  Item_func_des_decrypt(const POS &pos, Item *a) :Item_str_func(pos, a) {}
-  Item_func_des_decrypt(const POS &pos, Item *a, Item *b)
-    : Item_str_func(pos, a, b)
-  {}
-  String *val_str(String *) override;
-  bool resolve_type(THD *) override
-  {
-    maybe_null= true;
-    /* 9 = MAX ((8- (arg_len % 8)) + 1) */
-    max_length= args[0]->max_length;
-    if (max_length >= 9U)
-      max_length-= 9U;
-    set_data_type_string(max_length);
-    return false;
-  }
-  const char *func_name() const override { return "des_decrypt"; }
-};
-
-class Item_func_encrypt final : public Item_str_func
-{
-  typedef Item_str_func super;
-
-  String tmp_value;
-
-  /* Encapsulate common constructor actions */
-  void constructor_helper()
-  {
-    collation.set(&my_charset_bin);
-  }
-public:
-  Item_func_encrypt(const POS &pos, Item *a) :Item_str_func(pos, a)
-  {
-    constructor_helper();
-  }
-  Item_func_encrypt(const POS &pos, Item *a, Item *b): Item_str_func(pos, a, b)
-  {
-    constructor_helper();
-  }
-
-  bool itemize(Parse_context *pc, Item **res) override;
-  String *val_str(String *) override;
-  bool resolve_type(THD *) override
-  {
-    maybe_null= true;
-    set_data_type_string(13U);
-    return false;
-  }
-  const char *func_name() const override { return "encrypt"; }
-  bool check_gcol_func_processor(uchar *) override { return true; }
-};
-
-#include "sql_crypt.h"
-
-
-class Item_func_encode : public Item_str_func
-{
-private:
-  /** Whether the PRNG has already been seeded. */
-  bool seeded;
-  /// Holds result in case we need to allocate our own result buffer.
-  String tmp_value_res;
-protected:
-  SQL_CRYPT sql_crypt;
-public:
-  Item_func_encode(const POS &pos, Item *a, Item *seed)
-    :Item_str_func(pos, a, seed)
-  {}
-  String *val_str(String *) override;
-  bool resolve_type(THD *) override;
-  const char *func_name() const override { return "encode"; }
-protected:
-  virtual void crypto_transform(String *);
-private:
-  /** Provide a seed for the PRNG sequence. */
-  bool seed();
-};
-
-
-class Item_func_decode final : public Item_func_encode
-{
-public:
-  Item_func_decode(const POS &pos, Item *a, Item *seed)
-    :Item_func_encode(pos, a, seed)
-  {}
-  const char *func_name() const override { return "decode"; }
-protected:
-  void crypto_transform(String *) override;
 };
 
 
@@ -718,7 +603,7 @@ public:
   explicit Item_func_sysconst(const POS &pos) : super(pos)
   { collation.set(system_charset_info,DERIVATION_SYSCONST); }
 
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   /*
     Used to create correct Item name in new converted item in
     safe_charset_converter, return string representation of this function
@@ -1209,41 +1094,51 @@ public:
   }
 };
 
+
 class Item_func_conv_charset final : public Item_str_func
 {
+  /// Marks weather the underlying Item is constant and may be cached.
   bool use_cached_value;
   String tmp_value;
 public:
+  /**
+    The following types of conversions are considered safe:
+
+    Conversion to and from "binary".
+    Conversion to Unicode.
+    Other kind of conversions are potentially lossy.
+  */
   bool safe;
   const CHARSET_INFO *conv_charset; // keep it public
   Item_func_conv_charset(const POS &pos, Item *a, const CHARSET_INFO *cs)
   : Item_str_func(pos, a)
-  { conv_charset= cs; use_cached_value= 0; safe= 0; }
-  Item_func_conv_charset(Item *a, const CHARSET_INFO *cs,
+  {
+    conv_charset= cs;
+    use_cached_value= false;
+    safe= false;
+  }
+
+  Item_func_conv_charset(THD *thd, Item *a, const CHARSET_INFO *cs,
                          bool cache_if_const) :Item_str_func(a)
   {
     DBUG_ASSERT(is_fixed_or_outer_ref(args[0]));
 
     conv_charset= cs;
-    if (cache_if_const && args[0]->const_item())
+    if (cache_if_const && args[0]->may_evaluate_const(thd))
     {
       uint errors= 0;
       String tmp, *str= args[0]->val_str(&tmp);
       if (!str || str_value.copy(str->ptr(), str->length(),
                                  str->charset(), conv_charset, &errors))
         null_value= 1;
-      use_cached_value= 1;
+      use_cached_value= true;
       str_value.mark_as_const();
       safe= (errors == 0);
     }
     else
     {
-      use_cached_value= 0;
-      /*
-        Conversion from and to "binary" is safe.
-        Conversion to Unicode is safe.
-        Other kind of conversions are potentially lossy.
-      */
+      use_cached_value= false;
+      // Marks weather the conversion is safe
       safe= (args[0]->collation.collation == &my_charset_bin ||
              cs == &my_charset_bin ||
              (cs->state & MY_CS_UNICODE));
@@ -1404,6 +1299,7 @@ public:
   Item_func_uuid(const POS &pos): Item_str_func(pos) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
+  table_map get_initial_pseudo_tables() const override {return RAND_TABLE_BIT;}
   bool resolve_type(THD *) override;
   const char *func_name() const override { return "uuid"; }
   String *val_str(String *) override;
@@ -1507,5 +1403,140 @@ public:
   String *val_str(String *) override;
 };
 
+class Item_func_get_dd_tablespace_private_data final : public Item_str_func
+{
+public:
+  Item_func_get_dd_tablespace_private_data(const POS &pos, Item *a, Item *b)
+    :Item_str_func(pos, a, b)
+  {}
+
+  bool resolve_type(THD *) override
+  {
+    /* maximum string length of the property value is expected
+    to be less than 256 characters. */
+    max_length= 256;
+    maybe_null= false;
+
+    return false;
+  }
+
+  const char *func_name() const override { return "get_dd_tablespace_private_data"; }
+
+  String *val_str(String *) override;
+};
+
+class Item_func_get_dd_index_private_data final : public Item_str_func
+{
+public:
+  Item_func_get_dd_index_private_data(const POS &pos, Item *a, Item *b)
+    :Item_str_func(pos, a, b)
+  {}
+
+  bool resolve_type(THD *) override
+  {
+    /* maximum string length of the property value is expected
+    to be less than 256 characters. */
+    max_length= 256;
+    maybe_null= false;
+
+    return false;
+  }
+
+  const char *func_name() const override { return "get_dd_index_private_data"; }
+
+  String *val_str(String *) override;
+};
+
+class Item_func_get_partition_nodegroup final : public Item_str_func
+{
+public:
+  Item_func_get_partition_nodegroup(const POS &pos, Item *a)
+    :Item_str_func(pos, a)
+  {}
+
+  bool resolve_type(THD *) override
+  {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    set_data_type_string(256, default_charset());
+    maybe_null= 1;
+
+    return false;
+  }
+
+  const char *func_name() const override
+  { return "internal_get_partition_nodegroup"; }
+
+  String *val_str(String *) override;
+};
+
+
+class Item_func_internal_tablespace_type : public Item_str_func
+{
+public:
+  Item_func_internal_tablespace_type(const POS &pos, Item *a, Item *b,
+                                     Item *c, Item *d)
+    :Item_str_func(pos, a, b, c, d)
+  {}
+
+  bool resolve_type(THD *) override
+  {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    set_data_type_string(256, default_charset());
+    maybe_null= 1;
+
+    return false;
+  }
+
+  const char *func_name() const override { return "internal_tablespace_type"; }
+  String *val_str(String *) override;
+};
+
+
+class Item_func_internal_tablespace_status : public Item_str_func
+{
+public:
+  Item_func_internal_tablespace_status(const POS &pos, Item *a, Item *b,
+                                       Item *c, Item *d)
+    :Item_str_func(pos, a, b, c, d)
+  {}
+
+  bool resolve_type(THD *) override
+  {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    set_data_type_string(256, default_charset());
+    maybe_null= 1;
+
+    return false;
+  }
+
+  const char *func_name() const override
+  { return "internal_tablespace_status"; }
+  String *val_str(String *) override;
+};
+
+
+class Item_func_convert_cpu_id_mask final : public Item_str_func
+{
+public:
+  Item_func_convert_cpu_id_mask(const POS &pos, Item *list)
+    :Item_str_func(pos, list)
+  {}
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 1024;
+    maybe_null= false;
+    set_data_type_string(1024, &my_charset_bin);
+    return false;
+  }
+
+  const char *func_name() const override
+  {  return "convert_cpu_id_mask"; }
+
+  String *val_str(String *) override;
+};
 
 #endif /* ITEM_STRFUNC_INCLUDED */

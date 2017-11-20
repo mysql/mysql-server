@@ -9,8 +9,8 @@ drop table if exists t1;
 create table t1 (a varchar(10), key(a)) charset utf8mb4;
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 analyze table t1;
-explain extended select * from t1 where a like 'abc%';
-explain extended select * from t1 where a like concat('abc','%');
+explain select * from t1 where a like 'abc%';
+explain select * from t1 where a like concat('abc','%');
 select * from t1 where a like "abc%";
 select * from t1 where a like concat("abc","%");
 select * from t1 where a like "ABC%";
@@ -134,7 +134,6 @@ DROP TABLE t1, t2;
 --echo #
 --echo # Bug#59149 valgrind warnings with "like .. escape .." function
 --echo #
---error ER_WRONG_ARGUMENTS
 SELECT '' LIKE '1' ESCAPE COUNT(1);
 
 --echo End of 5.1 tests

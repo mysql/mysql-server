@@ -17,9 +17,9 @@
 #include <sys/types.h>
 #include <vector>
 
-#include "merge_sort.h"
 #include "my_inttypes.h"
-#include "sql_select.h"
+#include "sql/merge_sort.h"
+#include "sql/sql_select.h"
 #include "test_utils.h"
 
 namespace join_tab_sort_unittest {

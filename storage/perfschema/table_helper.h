@@ -326,8 +326,19 @@ void set_field_varchar_utf8mb4(Field *f, const char *str, uint len);
   @param val the value to assign
   @param len the length of the string to assign
 */
-void set_field_blob(Field *f, const char *val, uint len);
+void set_field_blob(Field *f, const char *val, size_t len);
 
+/**
+  Helper, assign a value to a text field.
+  @param f the field to set
+  @param val the value to assign
+  @param len the length of the string to assign
+  @param cs the charset of the string
+*/
+void set_field_text(Field *f,
+                    const char *val,
+                    size_t len,
+                    const CHARSET_INFO *cs);
 /**
   Helper, read a value from a @c blob field.
   @param f the field to read
@@ -350,6 +361,20 @@ void set_field_enum(Field *f, ulonglong value);
   @return the field value
 */
 ulonglong get_field_enum(Field *f);
+
+/**
+  Helper, assign a value to a @c set field.
+  @param f the field to set
+  @param value the value to assign
+*/
+void set_field_set(Field *f, ulonglong value);
+
+/**
+  Helper, read a value from a @c set field.
+  @param f the field to read
+  @return the field value
+*/
+ulonglong get_field_set(Field *f);
 
 /**
   Helper, assign a value to a @c date field.
@@ -440,6 +465,21 @@ void set_field_year(Field *f, ulong value);
 */
 ulong get_field_year(Field *f);
 
+/**
+  Helper, format sql text for output.
+
+  @param source_sqltext  raw sqltext, possibly truncated
+  @param source_length  length of source_sqltext
+  @param source_cs  character set of source_sqltext
+  @param truncated true if source_sqltext was truncated
+  @param sqltext sqltext formatted for output
+ */
+void format_sqltext(const char *source_sqltext,
+                    size_t source_length,
+                    const CHARSET_INFO *source_cs,
+                    bool truncated,
+                    String &sqltext);
+
 /** Name space, internal views used within table setup_instruments. */
 struct PFS_instrument_view_constants
 {
@@ -456,15 +496,16 @@ struct PFS_instrument_view_constants
   static const uint VIEW_METADATA = 8;
   static const uint LAST_VIEW = 8;
 
-  static const uint VIEW_THREAD = 9;
-  static const uint VIEW_STAGE = 10;
-  static const uint VIEW_STATEMENT = 11;
-  static const uint VIEW_TRANSACTION = 12;
-  static const uint VIEW_BUILTIN_MEMORY = 13;
-  static const uint VIEW_MEMORY = 14;
-  static const uint VIEW_ERROR = 15;
+  /* THREAD are displayed in table setup_threads instead of setup_instruments. */
 
-  static const uint LAST_INSTRUMENT = 15;
+  static const uint VIEW_STAGE = 9;
+  static const uint VIEW_STATEMENT = 10;
+  static const uint VIEW_TRANSACTION = 11;
+  static const uint VIEW_BUILTIN_MEMORY = 12;
+  static const uint VIEW_MEMORY = 13;
+  static const uint VIEW_ERROR = 14;
+
+  static const uint LAST_INSTRUMENT = 14;
 };
 
 /** Name space, internal views used within object summaries. */
@@ -1298,20 +1339,6 @@ public:
   }
 
   bool match(ulonglong engine_transaction_id);
-};
-
-class PFS_key_processlist_id_int : public PFS_key_long
-{
-public:
-  PFS_key_processlist_id_int(const char *name) : PFS_key_long(name)
-  {
-  }
-
-  ~PFS_key_processlist_id_int()
-  {
-  }
-
-  bool match(const PFS_thread *pfs);
 };
 
 class PFS_key_thread_os_id : public PFS_key_ulonglong

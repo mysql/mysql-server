@@ -9,12 +9,12 @@
 # Unlike the referred (mostly) acl specific file this one provides merely
 # "stub" checks after some of simulated crashes for cases that are not fully
 # 2pc-ready.
-# TODO: WL#9173, WL#9536 to refine, complete or reuse
+# TODO: WL#9536 to refine, complete or reuse
 # the stub checks.
 #
 # ==== References ====
 # WL#9175  Correct recovery of DDL statements/transactions by binary log
-# WL#9536,WL#9173 are responsible for adding  to 2pc support to some
+# WL#9536 is responsible for adding  to 2pc support to some
 # of DDL:s. The current testing skips the crash-recovery testing in those case
 # with tagging them as todo objects for a host WL.
 #
@@ -30,8 +30,6 @@
 #
 # ALTER TABLESPACE
 # Not supported by Innodb.
-#
-# {CREATE|DROP} {EVENT|FUNCTION|PROCEDURE|VIEW} (WL#9173)
 #
 # === Limitations ===
 # --force-restart is required to run the test.
@@ -50,6 +48,10 @@
 --source include/have_log_bin.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_mixed.inc
+
+--disable_query_log
+call mtr.add_suppression("Could not find a valid tablespace file for");
+--enable_query_log
 
 # The *internal* var is used by gtid_step_assert.inc
 --let $gtid_mode_on= `SELECT @@GLOBAL.GTID_MODE = 'ON'`

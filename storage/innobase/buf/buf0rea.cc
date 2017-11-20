@@ -792,6 +792,7 @@ buf_read_recv_pages(
 	ulint			n_stored)
 {
 	ulint			count;
+	bool			success;
 	dberr_t			err;
 	ulint			i;
 	fil_space_t*		space	= fil_space_get(space_id);
@@ -802,6 +803,22 @@ buf_read_recv_pages(
 	}
 
 	fil_space_open_if_needed(space);
+
+	/* Extend the tablespace if needed. Required only while
+	recovering from cloned database. */
+	page_no_t	last_page = page_nos[n_stored - 1];
+
+	/* Align size to multiple of extent size */
+	success = fil_space_extend(space,
+		ut_calc_align(last_page + 1, FSP_EXTENT_SIZE));
+
+	if (!success) {
+		ib::error()
+			<< "Could not extend tablespace: " << space->id
+			<< " space name: " << space->name
+			<< " for page number: " << last_page
+			<< " during recovery.";
+	}
 
 	const page_size_t	page_size(space->flags);
 
@@ -850,4 +867,3 @@ buf_read_recv_pages(
 	DBUG_PRINT("ib_buf", ("recovery read-ahead (%u pages)",
 			      unsigned(n_stored)));
 }
-

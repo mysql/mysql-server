@@ -18,7 +18,7 @@
 
 #include <sys/types.h>
 
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // IWYU pragma: keep
 #include "my_sharedlib.h"
 
 class MY_LOCALE_ERRMSGS;

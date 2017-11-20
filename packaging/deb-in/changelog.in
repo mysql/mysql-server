@@ -1,44 +1,9 @@
 mysql-@DEB_PRODUCTNAME@ (@DEB_SERVERVERSION@@DEB_PLATFORMRELEASE@) @DEB_CODENAME@; urgency=low
 
-  [ Horst Hunger ]
-  * Added new test_string components/plugin to source/include-binaries, mysql-*-test.install
-  * added new plugin to source/include-binaries, mysql-*-test.install
-    component_test_string_service
-    component_test_string_service_chsarset
-    component_test_string_service_long
+  * New Release. For release notes, please refer to
+    https://dev.mysql.com/doc/relnotes/mysql/@MYSQL_BASE_VERSION@/en/news-@MAJOR_VERSION@-@MINOR_VERSION@-@PATCH_VERSION@.html
 
-  [ Akhil Mohan ]
-  * new upstream release
-  * Added new libtest_* plugins to source/include-binaries, mysql-*-test.install
-  * added new plugin to source/include-binaries, mysql-*-test.install
-    libtest_framework
-    libtest_services
-    libtest_services_threaded
-    locking_service
-    test_security_context
-    version_token
-  * added support for MECAB in
-    d/{control,rules,mysql-*-server.install,source/include-binaries}
-    (Closes: #20315007)
-  * added automatic setup of ssl certs in
-    d/mysql-*-server.mysql.init
-    d/extra/mysql-systemd-start
-    (Closes: #20650118)
-  * removed pkg mysql-*-bench; sqlbench will not be packaged
-    (Closes: #21303289)
-  * removed cleanup statement for client lib symlinks *_r in d/rules
-    (Closes: #21311067)
-
-  [ Balasubramanian Kandasamy ]
-  * Added mysqlpump man page to d/mysql-*-client.install
-  * Added new decompression utilities lz4_decompress and zlib_decompress
-    binaries.
-  * Added mysqlx plugin
-
-  [ Lars Tangvald ]
-  * Added keyring directory and plugin
-
- -- Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>  Wed, 26 Aug 2015 15:20:12 +0530
+ -- MySQL Release Engineering <mysql-build@oss.oracle.com>  @DEB_CHANGELOG_TIMESTAMP@
 
 mysql-@DEB_PRODUCTNAME@ (5.7.7-rc-3ubuntu15.04) vivid; urgency=low
 

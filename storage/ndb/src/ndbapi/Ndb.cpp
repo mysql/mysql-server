@@ -2656,6 +2656,49 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
         DBUG_RETURN(NULL);
       }
     }
+    case 255: /* ZFK_NO_PARENT_ROW_EXISTS - Insert/Update failure */
+    case 256: /* ZFK_CHILD_ROW_EXISTS - Update/Delete failure */
+    case 21080: /* Drop parent failed - child row exists */
+    {
+      /* Foreign key violation errors.
+       * `details` has the violated fk id.
+       * We'll fetch the fully qualified fk name
+       * and put that in caller's buffer */
+      const UintPtr uip = (UintPtr) err.details;
+      const Uint32 foreignKeyId = (Uint32) (uip - (UintPtr(0)));
+
+      NdbDictionary::Dictionary::List allForeignKeys;
+      int rc = theDictionary->listObjects(allForeignKeys,
+                                          NdbDictionary::Object::ForeignKey,
+                                          true); // FullyQualified names
+      if (rc)
+      {
+        DBUG_PRINT("info", ("listObjects call 1 failed with rc %u", rc));
+        DBUG_RETURN(NULL);
+      }
+
+      DBUG_PRINT("info", ("Retrieved details for %u foreign keys",
+                          allForeignKeys.count));
+
+      for (unsigned i = 0; i < allForeignKeys.count; i++)
+      {
+        if (allForeignKeys.elements[i].id == foreignKeyId)
+        {
+          const char *foreignKeyName = allForeignKeys.elements[i].name;
+          DBUG_PRINT("info", ("Found the Foreign Key : %s", foreignKeyName));
+
+          /* Copy foreignKeyName to caller's buffer.
+           * If the buffer size is not enough, fk name will be truncated */
+          strncpy(buff, foreignKeyName, buffLen);
+          buff[buffLen-1] = 0;
+
+          DBUG_RETURN(buff);
+        }
+      }
+
+      DBUG_PRINT("info", ("Foreign key id %u not found", foreignKeyId));
+      DBUG_RETURN(NULL);
+    }
     default:
     {
       /* Unhandled details type */

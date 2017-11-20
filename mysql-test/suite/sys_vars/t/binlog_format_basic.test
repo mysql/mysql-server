@@ -110,5 +110,14 @@ SELECT COUNT(@@SESSION.binlog_format);
 SELECT COUNT(@@GLOBAL.binlog_format);
 --echo 1 Expected
 
-SET @@global.binlog_format= @start_value;
+--echo #########################################################################
+--echo # Bug #26269280: SET SESSION BINLOG_FORMAT = ROW GIVES SYNTAX ERROR     #
+--echo #########################################################################
 
+SET binlog_format = ROW;
+SET SESSION binlog_format = ROW;
+SET @@session.binlog_format= ROW;
+
+--echo #########################################################################
+
+SET @@global.binlog_format= @start_value;

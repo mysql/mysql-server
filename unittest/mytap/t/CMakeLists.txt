@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved. 
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,5 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/unittest/mytap)
 
-ADD_EXECUTABLE(basic-t basic-t.c)
+MYSQL_ADD_EXECUTABLE(basic-t basic-t.c ADD_TEST basic)
 TARGET_LINK_LIBRARIES(basic-t mytap)
-ADD_TEST(basic basic-t)

@@ -28,32 +28,40 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "../components/mysql_server/dynamic_loader.h"
 #include "../components/mysql_server/persistent_dynamic_loader.h"
 #include "../components/mysql_server/server_component.h"
-#include "auth_common.h" // commit_and_close_mysql_tables
-#include "derror.h"
-#include "field.h"
-#include "handler.h"
-#include "key.h"
-#include "log.h" // error_log_print
 #include "m_string.h"
-#include "mdl.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/components/service.h"
 #include "mysql/components/service_implementation.h"
-#include "mysqld.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "records.h"
-#include "sql_base.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_error.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // commit_and_close_mysql_tables
+#include "sql/derror.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/log.h" // error_log_print
+#include "sql/mysqld.h"
+#include "sql/records.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_base.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/table.h"
+#include "sql/transaction.h"
 #include "sql_string.h"
-#include "table.h"
 #include "thr_lock.h"
-#include "transaction.h"
+#include "thr_mutex.h"
 
 typedef std::string my_string;
 
@@ -179,13 +187,12 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
     static PSI_mutex_info all_dyloader_mutexes[]=
     {
       { &key_component_id_by_urn_mutex,
-        "key_component_id_by_urn_mutex", 0, 0
+        "key_component_id_by_urn_mutex", 0, 0, PSI_DOCUMENT_ME
       }
     };
 
     int count= (int) array_elements(all_dyloader_mutexes);
-    PSI_MUTEX_CALL(register_mutex)("p_dyn_loader",
-                                   all_dyloader_mutexes, count);
+    mysql_mutex_register("p_dyn_loader", all_dyloader_mutexes, count);
 
     mysql_mutex_init(key_component_id_by_urn_mutex,
                      &component_id_by_urn_mutex,
@@ -257,7 +264,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
 
       component_groups[component_group_id].push_back(component_urn);
       {
-        Mutex_lock lock(&component_id_by_urn_mutex);
+        MUTEX_LOCK(lock, &component_id_by_urn_mutex);
         mysql_persistent_dynamic_loader_imp::component_id_by_urn.emplace(
           component_urn, component_id);
       }
@@ -353,14 +360,14 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
       return true;
     }
 
-    Mutex_lock lock(&component_id_by_urn_mutex);
+    MUTEX_LOCK(lock, &component_id_by_urn_mutex);
 
     /* We don't replicate INSTALL COMPONENT */
     Disable_binlog_guard binlog_guard(thd);
 
     TABLE* component_table;
     auto guard_close_tables= create_scope_guard(
-      [&thd, &component_table]
+      [&thd]
     {
       trans_rollback_stmt(thd);
       close_mysql_tables(thd);
@@ -378,7 +385,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
     }
 
     /* Unload components if anything goes wrong with handling changes. */
-    auto guard= create_scope_guard([&thd, &urns, &component_count]()
+    auto guard= create_scope_guard([&urns, &component_count]()
     {
       mysql_dynamic_loader_imp::unload(urns, component_count);
     });
@@ -467,7 +474,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
       return true;
     }
 
-    Mutex_lock lock(&component_id_by_urn_mutex);
+    MUTEX_LOCK(lock, &component_id_by_urn_mutex);
 
     int res;
 
@@ -482,7 +489,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
     Disable_binlog_guard binlog_guard(thd);
 
     auto guard_close_tables= create_scope_guard(
-    [&thd, &component_table]()
+    [&thd]()
     {
       trans_rollback_stmt(thd);
       close_mysql_tables(thd);

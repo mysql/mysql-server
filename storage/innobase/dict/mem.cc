@@ -198,6 +198,7 @@ dict_mem_table_create(
 	/* lazy creation of table autoinc latch */
 	dict_table_autoinc_create_lazy(table);
 
+	table->version = 0;
 	table->autoinc = 0;
 	table->autoinc_persisted = 0;
 	table->autoinc_field_no = ULINT_UNDEFINED;

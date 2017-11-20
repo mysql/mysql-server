@@ -17,11 +17,11 @@
 #include <gtest/gtest.h>
 #include <m_ctype.h>
 #include <mf_wcomp.h>     // wild_compare_full, wild_one, wild_any
-#include <sql_class.h>
+#include <string>
 
 #include "my_inttypes.h"
-#include <string>
-#include "strfunc.h"      // casedn
+#include "sql/sql_class.h"
+#include "sql/strfunc.h"  // casedn
 
 namespace strings_utf8_unittest {
 

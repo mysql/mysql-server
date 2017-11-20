@@ -13,25 +13,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd/info_schema/show.h"
+#include "sql/dd/info_schema/show.h"
 
 #include <string.h>
-#include <string>
 
-#include "dd/info_schema/show_query_builder.h" // Select_lex_builder
-#include "dd/info_schema/stats.h"
 #include "lex_string.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_sqlcommand.h"
-#include "mysqld.h"
-#include "session_tracker.h"
-#include "sql_class.h"
-#include "sql_lex.h"
-#include "sql_list.h"
+#include "sql/dd/info_schema/show_query_builder.h" // Select_lex_builder
+#include "sql/dd/info_schema/table_stats.h"
+#include "sql/dd/string_type.h"
+#include "sql/key.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "table.h"
-#include "thr_lock.h"
 
 namespace dd {
 namespace info_schema {

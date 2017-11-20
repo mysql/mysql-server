@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -115,7 +115,7 @@ sub my_find_file {
 #
 # Example:
 #    my $charset_set= my_find_dir($basedir,
-#                                 ["mysql/share","sql/share", "share"],
+#                                 ["mysql/share", "share"],
 #                                 ["charset"]);
 # or
 #    my $charset_set= my_find_dir($basedir,
@@ -149,10 +149,6 @@ sub my_find_paths {
   my (@names, @paths);
   push(@names, ref $names eq "ARRAY" ? @$names : $names);
   push(@paths, ref $paths eq "ARRAY" ? @$paths : $paths);
-
-  #print "base: $base\n";
-  #print "names: @names\n";
-  #print "paths: @paths\n";
 
   # User can select to look in a special build dir
   # which is a subdirectory of any of the paths

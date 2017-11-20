@@ -1,0 +1,37 @@
+--source setup.inc
+
+
+# Alter tables to InnoDB and verify that DD on all
+# servers are identical
+let $counter = 1;
+while ($counter <= $num_tables)
+{
+  # Default table name is t$counter, ie. t1, t2, etc
+  let $tx=t$counter;
+
+  eval ALTER TABLE $tx
+          ENGINE=Innodb;
+
+  inc $counter;
+}
+
+--source verify_mysql_dd.inc
+
+
+# Alter tables back to NDB and verify that DD on all
+# servers are identical
+let $counter = 1;
+while ($counter <= $num_tables)
+{
+  # Default table name is t$counter, ie. t1, t2, etc
+  let $tx=t$counter;
+
+  eval ALTER TABLE $tx
+          ENGINE=NDB;
+
+  inc $counter;
+}
+
+--source verify_mysql_dd.inc
+
+--source cleanup.inc

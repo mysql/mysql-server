@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -16,11 +16,12 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <atomic>
 
-#include "key.h"
 #include "my_thread_local.h"
-#include "sql_class.h"
-#include "srv_session.h"
+#include "sql/key.h"
+#include "sql/sql_class.h"
+#include "sql/srv_session.h"
 #include "violite.h"
 
 /**

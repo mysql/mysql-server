@@ -16,7 +16,6 @@
 # Common defines and includes
 INCLUDE_DIRECTORIES(${LIBEVENT_INCLUDE_DIR}
 		    ${CMAKE_SOURCE_DIR}/include
-		    ${CMAKE_SOURCE_DIR}/sql
 		    ${CMAKE_SOURCE_DIR}/include/mysql
 		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include
 		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include/memcached

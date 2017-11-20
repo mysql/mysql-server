@@ -8,8 +8,8 @@ column_type	mediumtext	NO		NULL
 is_signed	int(1)	NO		0	
 is_unsigned	int(1)	NO		0	
 max_value	bigint(21) unsigned	YES		NULL	
-auto_increment	bigint(20) unsigned	YES		NULL	
-auto_increment_ratio	decimal(24,4) unsigned	YES		NULL	
+auto_increment	bigint(21) unsigned	YES		NULL	
+auto_increment_ratio	decimal(25,4) unsigned	YES		NULL	
 SELECT * FROM sys.schema_auto_increment_columns;
 CREATE DATABASE auto_incs;
 CREATE TABLE auto_incs.tinyintcol (

@@ -871,7 +871,8 @@ int my_wc_mb_tis620(const CHARSET_INFO *cs  MY_ATTRIBUTE((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
-    NULL,		/* init */
+    nullptr,		/* init */
+    nullptr,
     my_strnncoll_tis620,
     my_strnncollsp_tis620,
     my_strnxfrm_tis620,

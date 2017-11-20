@@ -14,7 +14,7 @@ SET @@session.max_allowed_packet = 1024;
 ERROR HY000: SESSION variable 'max_allowed_packet' is read-only. Use SET GLOBAL to assign the value
 SELECT @@session.max_allowed_packet;
 @@session.max_allowed_packet
-4194304
+67108864
 SET @@session.net_buffer_length = 1024;
 ERROR HY000: SESSION variable 'net_buffer_length' is read-only. Use SET GLOBAL to assign the value
 SELECT @@session.net_buffer_length;

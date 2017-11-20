@@ -21,6 +21,7 @@
 #define _NGS_CLIENT_H_
 
 #include "my_inttypes.h"
+#include "ngs/interface/protocol_encoder_interface.h"
 #include "ngs/capabilities/configurator.h"
 #include "ngs/interface/client_interface.h"
 #include "ngs/memory.h"
@@ -63,6 +64,7 @@ namespace ngs
     void on_server_shutdown() override;
 
     Server_interface &server() const override { return m_server; }
+    Protocol_encoder_interface &protocol() const override { return *m_encoder; }
     Connection_vio  &connection() override { return *m_connection; };
 
     void on_session_auth_success(Session_interface &s) override;
@@ -100,7 +102,7 @@ namespace ngs
 
     ngs::chrono::time_point m_accept_time;
 
-    ngs::Memory_instrumented<Protocol_encoder>::Unique_ptr m_encoder;
+    ngs::Memory_instrumented<Protocol_encoder_interface>::Unique_ptr m_encoder;
     std::string m_client_addr;
     std::string m_client_host;
     uint16      m_client_port;

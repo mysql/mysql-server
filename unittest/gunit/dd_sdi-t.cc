@@ -13,42 +13,42 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <gtest/gtest.h>
 #include <m_string.h>
-#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/stringbuffer.h>
 #include <stddef.h>
 
-#include "../../sql/dd/dd.h"
-#include "../../sql/dd/impl/sdi.h"
-#include "../../sql/dd/impl/sdi_impl.h"
-#include "../../sql/dd/impl/types/column_impl.h"
-#include "../../sql/dd/impl/types/entity_object_impl.h"
-#include "../../sql/dd/impl/types/index_impl.h"
-#include "../../sql/dd/impl/types/table_impl.h"
-#include "../../sql/dd/impl/types/weak_object_impl.h"
-#include "../../sql/dd/sdi_file.h"
-#include "../../sql/dd/types/column.h"
-#include "../../sql/dd/types/column_statistics.h"
-#include "../../sql/dd/types/column_type_element.h"
-#include "../../sql/dd/types/foreign_key.h"
-#include "../../sql/dd/types/foreign_key_element.h"
-#include "../../sql/dd/types/index.h"
-#include "../../sql/dd/types/index_element.h"
-#include "../../sql/dd/types/object_type.h"
-#include "../../sql/dd/types/partition.h"
-#include "../../sql/dd/types/partition_index.h"
-#include "../../sql/dd/types/partition_value.h"
-#include "../../sql/dd/types/schema.h"
-#include "../../sql/dd/types/table.h"
-#include "../../sql/dd/types/tablespace.h"
-#include "../../sql/dd/types/tablespace_file.h"
-#include "histograms/equi_height.h"
-#include "histograms/histogram.h"
-#include "histograms/value_map.h"
 #include "my_inttypes.h"
+#include "sql/dd/dd.h"
+#include "sql/dd/impl/sdi.h"
+#include "sql/dd/impl/sdi_impl.h"
+#include "sql/dd/impl/types/column_impl.h"
+#include "sql/dd/impl/types/entity_object_impl.h"
+#include "sql/dd/impl/types/index_impl.h"
+#include "sql/dd/impl/types/table_impl.h"
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/sdi_file.h"
+#include "sql/dd/types/column.h"
+#include "sql/dd/types/column_statistics.h"
+#include "sql/dd/types/column_type_element.h"
+#include "sql/dd/types/foreign_key.h"
+#include "sql/dd/types/foreign_key_element.h"
+#include "sql/dd/types/index.h"
+#include "sql/dd/types/index_element.h"
+#include "sql/dd/types/object_type.h"
+#include "sql/dd/types/partition.h"
+#include "sql/dd/types/partition_index.h"
+#include "sql/dd/types/partition_value.h"
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/table.h"
+#include "sql/dd/types/tablespace.h"
+#include "sql/dd/types/tablespace_file.h"
+#include "sql/histograms/equi_height.h"
+#include "sql/histograms/histogram.h"
+#include "sql/histograms/value_map.h"
 
 namespace {
 int FANOUT= 3;
@@ -110,6 +110,7 @@ static void mock_dd_obj(dd::Column *c)
   c->set_default_option("mocked default option");
   c->set_update_option("mocked update option");
   c->set_comment("mocked column comment");
+  c->set_srs_id({4326});
   mock_properties(c->se_private_data(), FANOUT);
 
   for (int i= 0; i < FANOUT; ++i)
@@ -130,12 +131,14 @@ static void mock_column_statistics_obj(dd::Column_statistics *c,
   c->set_table_name("my_table");
   c->set_column_name("my_column");
 
-  histograms::Value_map<longlong> int_values(&my_charset_latin1);
+  histograms::Value_map<longlong> int_values(&my_charset_latin1,
+                                             histograms::Value_map_type::INT);
   int_values.add_values(0LL, 10);
 
   histograms::Equi_height<longlong> *equi_height=
     new (mem_root) histograms::Equi_height<longlong>(mem_root, "my_schema",
-                                                     "my_table", "my_column");
+                                                     "my_table", "my_column",
+                                               histograms::Value_map_type::INT);
 
   EXPECT_FALSE(equi_height->build_histogram(int_values, 1024));
   c->set_histogram(equi_height);
@@ -180,7 +183,7 @@ static void mock_dd_obj(dd::Foreign_key *fk)
   fk->set_match_option(Foreign_key::OPTION_PARTIAL);
   fk->set_update_rule(Foreign_key::RULE_CASCADE);
   fk->set_delete_rule(Foreign_key::RULE_CASCADE);
-  fk->referenced_table_name("mocked referenced table name");
+  fk->set_referenced_table_name("mocked referenced table name");
   for (int i= 0; i < FANOUT; ++i)
   {
     mock_dd_obj(fk->add_element());
@@ -205,7 +208,6 @@ static void mock_dd_obj(dd::Partition_value *pv)
 
 static void mock_dd_obj(dd::Partition *p, dd::Index *ix= NULL)
 {
-  p->set_level(0);
   p->set_number(42);
   p->set_engine("mocked partition engine");
   p->set_comment("mocked comment");
@@ -369,11 +371,11 @@ template <typename AP>
 void api_test(const AP &ap)
 {
   typedef typename AP::element_type T;
-  dd::sdi_t sdi= api_serialize(ap.get());
+  dd::Sdi_type sdi= api_serialize(ap.get());
   std::unique_ptr<T> d(dd::create_object<T>());
   dd::deserialize(nullptr, sdi, d.get());
 
-  dd::sdi_t d_sdi= api_serialize(d.get());
+  dd::Sdi_type d_sdi= api_serialize(d.get());
 
   EXPECT_EQ(d_sdi.size(), sdi.size());
   EXPECT_EQ(d_sdi, sdi);
@@ -515,7 +517,7 @@ TEST(SdiTest, Serialization_perf)
 
 TEST(SdiTest, CharPromotion)
 {
-  char x= 127;
+  signed char x= 127;
   unsigned char ux= x;
   EXPECT_EQ(127u, ux);
 
@@ -526,7 +528,7 @@ TEST(SdiTest, CharPromotion)
   EXPECT_EQ(127u, usx);
 
   unsigned char tmp= 0xe0;
-  x= static_cast<char>(tmp);
+  x= static_cast<signed char>(tmp);
   EXPECT_EQ(-32,x);
 
   ux= x;
@@ -552,7 +554,7 @@ TEST(SdiTest, Utf8Filename)
   dd::Table_impl x{};
   x.set_name("\xe0\xa0\x80");
   x.set_id(42);
-  dd::String_type path= dd::sdi_file::sdi_filename<dd::Table>(&x, "foobar");
+  dd::String_type path= dd::sdi_file::sdi_filename(x.id(), x.name(), "foobar");
   std::replace(path.begin(), path.end(), '\\', '/');
   EXPECT_EQ("./foobar/@0800_42.sdi", path);
 }
@@ -569,7 +571,7 @@ TEST(SdiTest, Utf8FilenameTrunc)
   dd::Table_impl x{};
   x.set_name(name);
   x.set_id(42);
-  dd::String_type fn= dd::sdi_file::sdi_filename<dd::Table>(&x, "foobar");
+  dd::String_type fn= dd::sdi_file::sdi_filename(x.id(), x.name(), "foobar");
   std::replace(fn.begin(), fn.end(), '\\', '/');
   EXPECT_EQ(96u, fn.length());
   EXPECT_EQ("./foobar/@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800_42.sdi", fn);

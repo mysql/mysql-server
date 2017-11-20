@@ -17,264 +17,124 @@
 
 #include <errno.h>
 
-#ifdef _WIN32
-My_xp_thread_win::My_xp_thread_win()
-  :m_handle(NULL), m_thread_var(NULL),
-   m_thread(static_cast<native_thread_t *>(malloc(sizeof(native_thread_t)))),
-   m_thread_once(static_cast<native_thread_once_t *>(malloc(sizeof(native_thread_once_t))))
+#ifndef XCOM_STANDALONE
+My_xp_thread_server::My_xp_thread_server()
+  : m_thread_handle(
+     static_cast<native_thread_handle *>(malloc(sizeof(native_thread_handle))))
 {}
 
 
-My_xp_thread_win::~My_xp_thread_win()
+My_xp_thread_server::~My_xp_thread_server()
 {
-  free(m_thread);
-  free((void *) m_thread_once);
+  free(m_thread_handle);
 }
 
 
-native_thread_t *My_xp_thread_win::get_native_thread()
+native_thread_t *My_xp_thread_server::get_native_thread()
 {
-  return m_thread;
+  return &m_thread_handle->thread;
 }
 
 
-int My_xp_thread_win::create(const native_thread_attr_t *attr,
-                             native_start_routine func,
-                             void *arg)
+int My_xp_thread_server::create(PSI_thread_key key,
+                              const native_thread_attr_t *attr,
+                              native_start_routine func,
+                              void *arg)
 {
-  struct thread_start_parameter *par;
-  unsigned int  stack_size;
-
-  par= (struct thread_start_parameter *)malloc(sizeof(*par));
-  if (!par)
-    goto error_return;
-
-  par->func=  func;
-  par->arg=   arg;
-  stack_size= attr ? attr->dwStackSize : 0;
-
-  m_handle= (HANDLE)_beginthreadex(NULL, stack_size, win_thread_start,
-                                    par, 0, (unsigned int *)m_thread);
-  if (m_handle)
-    return 0;
-
-  my_osmaperr(GetLastError());
-  free(par);
-
-error_return:
-  m_thread= 0;
-  m_handle= NULL;
-  return 1;
+  return mysql_thread_create(key, m_thread_handle, attr, func, arg);
 };
 
 
-int My_xp_thread_win::once(void(*init_routine)(void))
+int My_xp_thread_server::create_detached(PSI_thread_key key,
+                                         native_thread_attr_t *attr,
+                                         native_start_routine func,
+                                         void *arg)
 {
-  LONG state;
+  native_thread_attr_t my_attr;
+  bool using_my_attr;
 
-  /*
-    Do "dirty" read to find out if initialization is already done, to
-    save an interlocked operation in common case. Memory barriers are ensured
-    by Visual C++ volatile implementation.
-  */
-  if (*m_thread_once == MY_THREAD_ONCE_DONE)
-    return 0;
-
-  state= InterlockedCompareExchange(m_thread_once, MY_THREAD_ONCE_INPROGRESS,
-                                    MY_THREAD_ONCE_INIT);
-
-  switch (state)
+  if(attr == NULL)
   {
-  case MY_THREAD_ONCE_INIT:
-    /* This is the initializer thread */
-    (*init_routine)();
-    *m_thread_once= MY_THREAD_ONCE_DONE;
-    break;
-
-  case MY_THREAD_ONCE_INPROGRESS:
-    /* init_routine in progress. Wait for its completion */
-    while (*m_thread_once == MY_THREAD_ONCE_INPROGRESS)
-    {
-      Sleep(1);
-    }
-    break;
-  case MY_THREAD_ONCE_DONE:
-    /* Nothing to do */
-    break;
+    My_xp_thread_util::attr_init(&my_attr);
+    attr = &my_attr;
+    using_my_attr = true;
   }
-  return 0;
+
+  My_xp_thread_util::attr_setdetachstate(attr,
+                                         NATIVE_THREAD_CREATE_DETACHED);
+
+  int ret_status = create(key, attr, func, arg);
+
+  if(using_my_attr)
+    My_xp_thread_util::attr_destroy(&my_attr);
+
+  return ret_status;
+};
+
+
+int My_xp_thread_server::join(void **value_ptr)
+{
+  return my_thread_join(m_thread_handle, value_ptr);
 }
 
 
-int My_xp_thread_win::join(void **value_ptr)
+int My_xp_thread_server::cancel()
 {
-  int result= 0;
-  DWORD ret=  WaitForSingleObject(m_handle, INFINITE);
-
-  if (ret != WAIT_OBJECT_0)
-  {
-    my_osmaperr(GetLastError());
-    result= 1;
-  }
-
-  if (m_handle)
-    CloseHandle(m_handle);
-
-  m_thread= 0;
-  m_handle= NULL;
-
-  return result;
-}
-
-
-int My_xp_thread_win::cancel()
-{
-  BOOL ok= FALSE;
-
-  if (m_handle)
-  {
-    ok= TerminateThread(m_handle, 0);
-    CloseHandle(m_handle);
-  }
-
-  if (ok)
-    return 0;
-
-  errno= EINVAL;
-  return -1;
-}
-
-
-int My_xp_thread_win::detach()
-{
-  BOOL ok= FALSE;
-
-  if (m_handle)
-  {
-    ok= CloseHandle(m_handle);
-  }
-
-  if (ok)
-    return 0;
-
-  errno= EINVAL;
-  return -1;
+  return my_thread_cancel(m_thread_handle);
 }
 
 
 void My_xp_thread_util::exit(void *value_ptr)
 {
-  _endthreadex(0);
+  my_thread_end();
+  my_thread_exit(value_ptr);
 }
 
 
 int My_xp_thread_util::attr_init(native_thread_attr_t *attr)
 {
-  attr->dwStackSize= 0;
-  return 0;
+  return my_thread_attr_init(attr);
 }
 
 
 int My_xp_thread_util::attr_destroy(native_thread_attr_t *attr)
 {
-  memset(attr, 0, sizeof(*attr));
-  return 0;
+  return my_thread_attr_destroy(attr);
 }
 
 
 native_thread_t My_xp_thread_util::self()
 {
-  return GetCurrentThreadId();
+  return my_thread_self();
 }
 
 
-/**
-  Sets errno corresponding to GetLastError() value.
-*/
-
-void My_xp_thread_win::my_osmaperr(unsigned long oserrno)
+int My_xp_thread_util::equal(native_thread_t t1, native_thread_t t2)
 {
-  /*
-    set thr_winerr so that we could return the Windows Error Code
-    when it is EINVAL.
-  */
-  m_thread_var= (st_native_thread_var *)malloc(sizeof(*m_thread_var));
-  m_thread_var->thr_winerr= oserrno;
-  m_thread_var->thr_errno= get_errno_from_oserr(oserrno);
-}
-#else
-My_xp_thread_pthread::My_xp_thread_pthread()
-  :m_thread(static_cast<native_thread_t *>(malloc(sizeof(native_thread_t)))),
-   m_thread_once(static_cast<native_thread_once_t *>(malloc(sizeof(native_thread_once_t))))
-{}
-
-
-My_xp_thread_pthread::~My_xp_thread_pthread()
-{
-  free(m_thread);
-  free(m_thread_once);
-}
-
-/* purecov: begin deadcode */
-native_thread_t *My_xp_thread_pthread::get_native_thread()
-{
-  return m_thread;
-}
-/* purecov: end */
-
-int My_xp_thread_pthread::create(const native_thread_attr_t *attr,
-                                 native_start_routine func,
-                                 void *arg)
-{
-  return pthread_create(m_thread, attr, func, arg);
-};
-
-
-int My_xp_thread_pthread::once(void (*init_routine)(void))
-{
-  return pthread_once(m_thread_once, init_routine);
+  return my_thread_equal(t1, t2);
 }
 
 
-int My_xp_thread_pthread::join(void **value_ptr)
+int My_xp_thread_util::attr_setstacksize(native_thread_attr_t *attr, size_t stacksize)
 {
-  return pthread_join(*m_thread, value_ptr);
-}
-
-/* purecov: begin deadcode */
-int My_xp_thread_pthread::cancel()
-{
-  return pthread_cancel(*m_thread);
-}
-/* purecov: end */
-
-int My_xp_thread_pthread::detach()
-{
-  return pthread_detach(*m_thread);
+  return my_thread_attr_setstacksize(attr, stacksize);
 }
 
 
-void My_xp_thread_util::exit(void *value_ptr)
+int My_xp_thread_util::attr_setdetachstate(native_thread_attr_t *attr, int detachstate)
 {
-  pthread_exit(value_ptr);
-}
-
-/* purecov: begin deadcode */
-int My_xp_thread_util::attr_init(native_thread_attr_t *attr)
-{
-  return pthread_attr_init(attr);
+  return my_thread_attr_setdetachstate(attr, detachstate);
 }
 
 
-int My_xp_thread_util::attr_destroy(native_thread_attr_t *attr)
+int My_xp_thread_util::attr_getstacksize(native_thread_attr_t *attr, size_t *stacksize)
 {
-  return pthread_attr_destroy(attr);
+  return my_thread_attr_getstacksize(attr, stacksize);
 }
 
 
-native_thread_t My_xp_thread_util::self()
+void My_xp_thread_util::yield()
 {
-  return pthread_self();
+  my_thread_yield();
 }
-/* purecov: end */
 #endif

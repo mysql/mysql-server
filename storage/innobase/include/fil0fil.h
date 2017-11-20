@@ -679,6 +679,22 @@ void
 fil_close_log_files(
 /*================*/
 	bool	free);	/*!< in: whether to free the memory object */
+
+/** File Node Iterator callback. */
+using fil_node_cbk_t = dberr_t (fil_node_t* node, void* context);
+
+/** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
+returning the nodes via callback function cbk.
+@param[in]	include_log	include log files
+@param[in]	context		callback function context
+@param[in]	callback	callback function
+@return any error returned by the callback function. */
+dberr_t
+fil_iterate_tablespace_files(
+	bool		include_log,
+	void*		context,
+	fil_node_cbk_t*	callback);
+
 /*******************************************************************//**
 Sets the max tablespace id counter if the given number is bigger than the
 previous value. */
@@ -924,7 +940,9 @@ The fil_node_t::handle will not be left open.
 @param[in]	flags		tablespace flags
 @param[in]	space_name	tablespace name of the datafile
 If file-per-table, it is the table name in the databasename/tablename format
+@param[in]	table_name	table name in case need to build filename from it
 @param[in]	path_in		expected filepath, usually read from dictionary
+@param[in]	strict		whether to report error when open ibd failed
 @return DB_SUCCESS or error code */
 dberr_t
 fil_ibd_open(
@@ -933,7 +951,9 @@ fil_ibd_open(
 	space_id_t	id,
 	ulint		flags,
 	const char*	space_name,
-	const char*	path_in)
+	const char*	table_name,
+	const char*	path_in,
+	bool		strict)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
@@ -1315,19 +1335,16 @@ const fil_node_t*
 fil_node_next(
 	const fil_node_t*	prev_node);
 
-/** Generate redo log for swapping two .ibd files
+/** Check if swapping two .ibd files can be done without failure
 @param[in]	old_table	old table
 @param[in]	new_table	new table
 @param[in]	tmp_name	temporary table name
-@param[in,out]	mtr		mini-transaction
 @return innodb error code */
 dberr_t
-fil_mtr_rename_log(
+fil_rename_precheck(
 	const dict_table_t*	old_table,
 	const dict_table_t*	new_table,
-	const char*		tmp_name,
-	mtr_t*			mtr)
-	MY_ATTRIBUTE((warn_unused_result));
+	const char*		tmp_name);
 
 /** Set the compression type for the tablespace of a table
 @param[in]	table		Table that should be compressesed
@@ -1345,6 +1362,12 @@ fil_set_compression(
 Compression::Type
 fil_get_compression(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
+
+void
+fil_io_set_encryption(
+	IORequest&		req_type,
+	const page_id_t&	page_id,
+	fil_space_t*		space);
 
 /** Set the encryption type for the tablespace
 @param[in] space_id		Space ID of tablespace for which to set
@@ -1471,4 +1494,49 @@ fil_tablespace_open_clear();
 /** Create tablespaces.open.* files */
 void
 fil_tablespace_open_create();
+
+/** Replay a file rename operation if possible.
+@param[in]	page_id		Space ID and first page number in the file
+@param[in]	name		old file name
+@param[in]	new_name	new file name
+@return	whether the operation was successfully applied
+(the name did not exist, or new_name did not exist and
+name was successfully renamed to new_name)  */
+bool
+fil_op_replay_rename(
+	const page_id_t&	page_id,
+	const char*		name,
+	const char*		new_name);
+
+/** Replay a file rename operation for ddl replay.
+@param[in]	page_id		Space ID and first page number in the file
+@param[in]	name		old file name
+@param[in]	new_name	new file name
+@return	whether the operation was successfully applied
+(the name did not exist, or new_name did not exist and
+name was successfully renamed to new_name)  */
+bool
+fil_op_replay_rename_for_ddl(
+	const page_id_t&	page_id,
+	const char*		name,
+	const char*		new_name);
+
+/** Callback to check tablespace size with space header size and extend
+@param[in]	node	file node
+@param[in]	context	callers context, currently unused
+@return	error code */
+dberr_t
+fil_check_extend_space(
+	fil_node_t*	node,
+	void* 		context MY_ATTRIBUTE((unused)));
+
+/* Rename a tablespace by its name only
+@param[in]	old_name	old tablespace name
+@param[in]	new_name	new tablespace name
+@return DB_SUCCESS on success */
+dberr_t
+fil_rename_tablespace_by_name(
+        const char*	old_name,
+        const char*     new_name);
+
 #endif /* fil0fil_h */

@@ -389,11 +389,12 @@ select * from t1;
 
 --error 1
 --exec $INNOCHECKSUM $MYSQLD_DATADIR/test/t1.ibd 2> $SEARCH_FILE
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 let SEARCH_PATTERN=Error: Unable to lock file:: $MYSQLD_DATADIR/test/t1.ibd;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 let SEARCH_PATTERN=fcntl: Resource temporarily unavailable;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --echo # Test[5] end

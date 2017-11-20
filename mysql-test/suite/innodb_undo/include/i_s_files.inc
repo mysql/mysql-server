@@ -20,7 +20,6 @@ SELECT "==I_S.FILES==", TABLESPACE_NAME, FILE_NAME, FILE_TYPE, STATUS,
        ENGINE, EXTENT_SIZE, INITIAL_SIZE, MAXIMUM_SIZE, AUTOEXTEND_SIZE
 FROM information_schema.files WHERE file_name LIKE '%ibtmp1%';
 
---replace_regex /innodb_file_per_table_[0-9]*/innodb_file_per_table_##/
 --replace_result ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR/ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/
 SELECT "==I_S.FILES==", TABLESPACE_NAME, FILE_NAME, FILE_TYPE, STATUS, ENGINE,
        DATA_FREE, FREE_EXTENTS, TOTAL_EXTENTS, EXTENT_SIZE,
@@ -47,7 +46,6 @@ CALL populate_t1();
 FLUSH TABLE t1;
 
 --disable_query_log
---replace_regex /innodb_file_per_table_[0-9]*/innodb_file_per_table_##/
 --replace_result ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR/ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/
 SELECT "==I_S.FILES==", TABLESPACE_NAME, FILE_NAME, FILE_TYPE, STATUS, ENGINE, DATA_FREE,
        FREE_EXTENTS, TOTAL_EXTENTS, EXTENT_SIZE,
@@ -61,7 +59,6 @@ FROM information_schema.files WHERE file_name LIKE '%t1%';
 CALL populate_t1();
 FLUSH TABLE t1;
 --disable_query_log
---replace_regex /innodb_file_per_table_[0-9]*/innodb_file_per_table_##/
 --replace_result ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR/ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/
 SELECT "==I_S.FILES==", TABLESPACE_NAME, FILE_NAME, FILE_TYPE, STATUS, ENGINE, DATA_FREE,
        FREE_EXTENTS, TOTAL_EXTENTS, EXTENT_SIZE,
@@ -76,7 +73,6 @@ DELETE FROM t1 WHERE a % 2 = 1;
 FLUSH TABLE t1;
 
 --disable_query_log
---replace_regex /innodb_file_per_table_[0-9]*/innodb_file_per_table_##/
 --replace_result ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR/ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/
 SELECT "==I_S.FILES==", TABLESPACE_NAME, FILE_NAME, FILE_TYPE, STATUS, ENGINE, DATA_FREE,
        FREE_EXTENTS, TOTAL_EXTENTS, EXTENT_SIZE,

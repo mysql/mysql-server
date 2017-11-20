@@ -18,12 +18,12 @@
 
 #include <algorithm>
 
-#include "handler.h"
-#include "key.h"                                // rec_per_key_t, KEY
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_macros.h"
-#include "table.h"                              // TABLE
+#include "sql/handler.h"
+#include "sql/key.h"                            // rec_per_key_t, KEY
+#include "sql/table.h"                          // TABLE
 
 using std::max;
 

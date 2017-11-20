@@ -22,12 +22,12 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 drop table t1;
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO t1 VALUES (NULL);
-SELECT sql_no_cache a, last_insert_id() FROM t1 WHERE a IS NULL;
+SELECT a, last_insert_id() FROM t1 WHERE a IS NULL;
 a	last_insert_id()
 1	1
-SELECT sql_no_cache a, last_insert_id() FROM t1 WHERE a IS NULL;
+SELECT a, last_insert_id() FROM t1 WHERE a IS NULL;
 a	last_insert_id()
-SELECT sql_no_cache a, last_insert_id() FROM t1;
+SELECT a, last_insert_id() FROM t1;
 a	last_insert_id()
 1	1
 DROP TABLE t1;

@@ -14,19 +14,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
 #include <gtest/gtest.h>
-
 #include <cstring>
 
 #include "dd.h"
-#include "dd/impl/dictionary_impl.h"
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/column_statistics_impl.h"
 #include "my_inttypes.h"
+#include "sql/dd/impl/dictionary_impl.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/column_statistics_impl.h"
+#include "sql/histograms/equi_height.h"
+#include "sql/histograms/singleton.h"
+#include "sql/histograms/value_map.h"
+#include "sql/histograms/value_map_type.h"
 #include "test_utils.h"
-
-#include "histograms/equi_height.h"
-#include "histograms/singleton.h"
-#include "histograms/value_map.h"
 
 namespace dd_column_statistics_unittest {
 
@@ -41,38 +40,6 @@ using my_testing::Server_initializer;
 using ::testing::Invoke;
 using ::testing::WithArgs;
 
-template <typename T>
-class ColumnStatisticsTest : public ::testing::Test
-{
-public:
-  ColumnStatisticsTest()
-  {}
-
-  virtual void SetUp()
-  {
-    m_dict= new Dictionary_impl();
-
-    // Dummy server initialization.
-    m_init.SetUp();
-  }
-
-  virtual void TearDown()
-  {
-    delete m_dict;
-
-    // Tear down dummy server.
-    m_init.TearDown();
-  }
-
-  // Return dummy thd.
-  THD *thd()
-  {
-    return m_init.thd();
-  }
-
-  Dictionary_impl *m_dict;                // Dictionary instance.
-  my_testing::Server_initializer m_init;  // Server initializer.
-};
 
 void add_values(histograms::Value_map<longlong> &value_map)
 {
@@ -116,11 +83,9 @@ void add_values(histograms::Value_map<my_decimal> &value_map)
   value_map.add_values(my_decimal, 10);
 }
 
-typedef ::testing::Types
-<longlong, ulonglong, double, String, MYSQL_TIME, my_decimal> HistogramTypes;
-TYPED_TEST_CASE(ColumnStatisticsTest, HistogramTypes);
 
-TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesEquiHeight)
+template <class T>
+void equi_height_test(histograms::Value_map_type value_map_type)
 {
   List<Field> m_field_list;
   Fake_TABLE_SHARE dummy_share(1); // Keep Field_varstring constructor happy.
@@ -147,8 +112,7 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesEquiHeight)
   bitmap_set_all(table.write_set);
   dd::Raw_record r(&table);
 
-  MEM_ROOT mem_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256, 0);
 
   dd::Column_statistics_impl column_statistics;
 
@@ -157,11 +121,11 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesEquiHeight)
       Create a new scope, so that value_map goes out of scope before the
       MEM_ROOT is freed.
     */
-    histograms::Value_map<TypeParam> value_map(&my_charset_latin1);
+    histograms::Value_map<T> value_map(&my_charset_latin1, value_map_type);
     add_values(value_map);
 
-    histograms::Equi_height<TypeParam> equi_height(&mem_root, "schema", "table",
-                                                  "column");
+    histograms::Equi_height<T> equi_height(&mem_root, "schema", "table",
+                                           "column", value_map_type);
 
     EXPECT_FALSE(equi_height.build_histogram(value_map, 1024));
 
@@ -175,8 +139,12 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesEquiHeight)
       Note: We cannot mock away and make expectations store_json/val_json since
       the function is not virtual.
     */
-    EXPECT_CALL(catalog_id, store(_, _)).Times(1);
-    EXPECT_CALL(name, store(_, _, _)).Times(1);
+    ON_CALL(catalog_id, store(_, _)).
+      WillByDefault(Invoke(&catalog_id, &Mock_dd_field_longlong::fake_store));
+
+    ON_CALL(name, store(_, _, _)).
+      WillByDefault(WithArgs<0>(Invoke(&name,
+                                       &Mock_dd_field_varstring::fake_store)));
 
     ON_CALL(schema_name, store(_, _, _)).
       WillByDefault(WithArgs<0>(Invoke(&schema_name,
@@ -202,6 +170,8 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesEquiHeight)
                     Invoke(&column_name,
                            &Mock_dd_field_varstring::fake_val_str)));
 
+    EXPECT_CALL(catalog_id, store(_, _)).Times(1);
+    EXPECT_CALL(name, store(_, _, _)).Times(1);
     EXPECT_CALL(schema_name,
                 store(column_statistics.schema_name().c_str(), _, _)).Times(1);
     EXPECT_CALL(table_name,
@@ -249,11 +219,10 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesEquiHeight)
       column_statistics.histogram()->get_sampling_rate(),
       column_statistics_restored.histogram()->get_sampling_rate());
   }
-
-  free_root(&mem_root, MYF(0));
 }
 
-TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton)
+template <class T>
+void singleton_test(histograms::Value_map_type value_map_type)
 {
   List<Field> m_field_list;
   Fake_TABLE_SHARE dummy_share(1); // Keep Field_varstring constructor happy.
@@ -280,8 +249,7 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton)
   bitmap_set_all(table.write_set);
   dd::Raw_record r(&table);
 
-  MEM_ROOT mem_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256, 0);
 
   dd::Column_statistics_impl column_statistics;
 
@@ -290,11 +258,11 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton)
       Create a new scope, so that value_map goes out of scope before the
       MEM_ROOT is freed.
     */
-    histograms::Value_map<TypeParam> value_map(&my_charset_latin1);
+    histograms::Value_map<T> value_map(&my_charset_latin1, value_map_type);
     add_values(value_map);
 
-    histograms::Singleton<TypeParam> singleton(&mem_root, "schema", "table",
-                                               "column");
+    histograms::Singleton<T> singleton(&mem_root, "schema", "table",
+                                       "column", value_map_type);
 
     EXPECT_FALSE(singleton.build_histogram(value_map, 1024));
 
@@ -308,8 +276,12 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton)
       Note: We cannot mock away and make expectations store_json/val_json since
       the function is not virtual.
     */
-    EXPECT_CALL(catalog_id, store(_, _)).Times(1);
-    EXPECT_CALL(name, store(_, _, _)).Times(1);
+    ON_CALL(catalog_id, store(_, _)).
+      WillByDefault(Invoke(&catalog_id, &Mock_dd_field_longlong::fake_store));
+
+    ON_CALL(name, store(_, _, _)).
+      WillByDefault(WithArgs<0>(Invoke(&name,
+                                       &Mock_dd_field_varstring::fake_store)));
 
     ON_CALL(schema_name, store(_, _, _)).
       WillByDefault(WithArgs<0>(Invoke(&schema_name,
@@ -335,6 +307,8 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton)
                     Invoke(&column_name,
                            &Mock_dd_field_varstring::fake_val_str)));
 
+    EXPECT_CALL(catalog_id, store(_, _)).Times(1);
+    EXPECT_CALL(name, store(_, _, _)).Times(1);
     EXPECT_CALL(schema_name,
                 store(column_statistics.schema_name().c_str(), _, _)).Times(1);
     EXPECT_CALL(table_name,
@@ -373,8 +347,42 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton)
       column_statistics.histogram()->get_null_values_fraction(),
       column_statistics_restored.histogram()->get_null_values_fraction());
   }
-
-  free_root(&mem_root, MYF(0));
 }
+
+TEST(ColumnStatisticsTest, StoreAndRestoreAttributesEquiHeight)
+{
+  //Dictionary_impl *m_dict;                // Dictionary instance.
+  my_testing::Server_initializer m_init;  // Server initializer.
+  m_init.SetUp();
+  equi_height_test<longlong>(histograms::Value_map_type::INT);
+  equi_height_test<longlong>(histograms::Value_map_type::SET);
+  equi_height_test<longlong>(histograms::Value_map_type::ENUM);
+  equi_height_test<ulonglong>(histograms::Value_map_type::UINT);
+  equi_height_test<String>(histograms::Value_map_type::STRING);
+  equi_height_test<my_decimal>(histograms::Value_map_type::DECIMAL);
+  equi_height_test<MYSQL_TIME>(histograms::Value_map_type::DATE);
+  equi_height_test<MYSQL_TIME>(histograms::Value_map_type::TIME);
+  equi_height_test<MYSQL_TIME>(histograms::Value_map_type::DATETIME);
+  equi_height_test<double>(histograms::Value_map_type::DOUBLE);
+  m_init.TearDown();
+}
+
+TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton)
+{
+  my_testing::Server_initializer m_init;  // Server initializer.
+  m_init.SetUp();
+  singleton_test<longlong>(histograms::Value_map_type::INT);
+  singleton_test<longlong>(histograms::Value_map_type::SET);
+  singleton_test<longlong>(histograms::Value_map_type::ENUM);
+  singleton_test<ulonglong>(histograms::Value_map_type::UINT);
+  singleton_test<String>(histograms::Value_map_type::STRING);
+  singleton_test<my_decimal>(histograms::Value_map_type::DECIMAL);
+  singleton_test<MYSQL_TIME>(histograms::Value_map_type::DATE);
+  singleton_test<MYSQL_TIME>(histograms::Value_map_type::TIME);
+  singleton_test<MYSQL_TIME>(histograms::Value_map_type::DATETIME);
+  singleton_test<double>(histograms::Value_map_type::DOUBLE);
+  m_init.TearDown();
+}
+
 
 }

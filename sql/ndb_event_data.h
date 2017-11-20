@@ -24,9 +24,6 @@
 #include "ndb_bitmap.h"
 #include <ndbapi/ndbapi_limits.h>
 
-#include <ndbapi/ndbapi_limits.h>
-
-#include "ndb_bitmap.h"
 
 class Ndb_event_data
 {

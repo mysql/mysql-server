@@ -20,8 +20,7 @@
 #include "field_temporal_utils.h"
 #include "test_utils.h"
 #include "fake_table.h"
-
-#include "field.h"
+#include "sql/field.h"
 
 namespace field_date_unittests {
 

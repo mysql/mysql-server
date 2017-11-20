@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,10 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_info_handler.h"
+#include "sql/rpl_info_handler.h"
 
 #include "my_dbug.h"
-#include "rpl_info_values.h"   // Rpl_info_values
+#include "sql/rpl_info_values.h" // Rpl_info_values
 
 
 Rpl_info_handler::Rpl_info_handler(const int nparam)

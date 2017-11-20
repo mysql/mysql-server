@@ -809,115 +809,115 @@ DROP TABLE t;
 DROP VIEW v_processlist;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_processlist` AS SELECT * FROM performance_schema.threads where type = 'FOREGROUND'
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_utf8mb4'Found 10 prepared XA transactions' COLLATE 'utf8mb4_0900_ai_ci'))
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_utf8mb4'Found 1 prepared XA transactions' COLLATE 'utf8mb4_0900_ai_ci'))
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t (a INT) ENGINE=innodb
-master-bin.000001	#	Query	#	#	XA START X'7472785f30',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=0
-master-bin.000001	#	Query	#	#	XA END X'7472785f30',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f30',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f31',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f31',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f31',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f32',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=2
-master-bin.000001	#	Query	#	#	XA END X'7472785f32',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f32',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f33',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f33',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f33',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f34',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=4
-master-bin.000001	#	Query	#	#	XA END X'7472785f34',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f34',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f35',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f35',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f35',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f36',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=6
-master-bin.000001	#	Query	#	#	XA END X'7472785f36',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f36',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f37',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f37',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f37',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f38',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=8
-master-bin.000001	#	Query	#	#	XA END X'7472785f38',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f38',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f39',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f39',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f39',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3130',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=10
-master-bin.000001	#	Query	#	#	XA END X'7472785f3130',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3130',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3131',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f3131',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3131',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3132',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=12
-master-bin.000001	#	Query	#	#	XA END X'7472785f3132',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3132',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3133',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f3133',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3133',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3134',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=14
-master-bin.000001	#	Query	#	#	XA END X'7472785f3134',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3134',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3135',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f3135',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3135',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3136',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=16
-master-bin.000001	#	Query	#	#	XA END X'7472785f3136',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3136',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3137',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f3137',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3137',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3138',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=18
-master-bin.000001	#	Query	#	#	XA END X'7472785f3138',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3138',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3139',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f3139',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3139',X'',1
-master-bin.000001	#	Query	#	#	XA ROLLBACK X'7472785f30',X'',1
-master-bin.000001	#	Query	#	#	XA ROLLBACK X'7472785f31',X'',1
-master-bin.000001	#	Query	#	#	XA ROLLBACK X'7472785f32',X'',1
-master-bin.000001	#	Query	#	#	XA ROLLBACK X'7472785f33',X'',1
-master-bin.000001	#	Query	#	#	XA ROLLBACK X'7472785f34',X'',1
-master-bin.000001	#	Query	#	#	XA COMMIT X'7472785f35',X'',1
-master-bin.000001	#	Query	#	#	XA COMMIT X'7472785f36',X'',1
-master-bin.000001	#	Query	#	#	XA COMMIT X'7472785f37',X'',1
-master-bin.000001	#	Query	#	#	XA COMMIT X'7472785f38',X'',1
-master-bin.000001	#	Query	#	#	XA COMMIT X'7472785f39',X'',1
-master-bin.000001	#	Stop	#	#	
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_processlist` AS SELECT * FROM performance_schema.threads where type = 'FOREGROUND'
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_utf8mb4'Found 10 prepared XA transactions' COLLATE 'utf8mb4_0900_ai_ci'))
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_utf8mb4'Found 1 prepared XA transactions' COLLATE 'utf8mb4_0900_ai_ci'))
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t (a INT) ENGINE=innodb
+binlog.000001	#	Query	#	#	XA START X'7472785f30',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=0
+binlog.000001	#	Query	#	#	XA END X'7472785f30',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f30',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f31',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f31',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f31',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f32',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=2
+binlog.000001	#	Query	#	#	XA END X'7472785f32',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f32',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f33',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f33',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f33',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f34',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=4
+binlog.000001	#	Query	#	#	XA END X'7472785f34',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f34',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f35',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f35',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f35',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f36',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=6
+binlog.000001	#	Query	#	#	XA END X'7472785f36',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f36',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f37',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f37',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f37',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f38',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=8
+binlog.000001	#	Query	#	#	XA END X'7472785f38',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f38',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f39',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f39',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f39',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3130',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=10
+binlog.000001	#	Query	#	#	XA END X'7472785f3130',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3130',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3131',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f3131',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3131',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3132',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=12
+binlog.000001	#	Query	#	#	XA END X'7472785f3132',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3132',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3133',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f3133',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3133',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3134',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=14
+binlog.000001	#	Query	#	#	XA END X'7472785f3134',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3134',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3135',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f3135',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3135',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3136',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=16
+binlog.000001	#	Query	#	#	XA END X'7472785f3136',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3136',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3137',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f3137',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3137',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3138',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=18
+binlog.000001	#	Query	#	#	XA END X'7472785f3138',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3138',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3139',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f3139',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3139',X'',1
+binlog.000001	#	Query	#	#	XA ROLLBACK X'7472785f30',X'',1
+binlog.000001	#	Query	#	#	XA ROLLBACK X'7472785f31',X'',1
+binlog.000001	#	Query	#	#	XA ROLLBACK X'7472785f32',X'',1
+binlog.000001	#	Query	#	#	XA ROLLBACK X'7472785f33',X'',1
+binlog.000001	#	Query	#	#	XA ROLLBACK X'7472785f34',X'',1
+binlog.000001	#	Query	#	#	XA COMMIT X'7472785f35',X'',1
+binlog.000001	#	Query	#	#	XA COMMIT X'7472785f36',X'',1
+binlog.000001	#	Query	#	#	XA COMMIT X'7472785f37',X'',1
+binlog.000001	#	Query	#	#	XA COMMIT X'7472785f38',X'',1
+binlog.000001	#	Query	#	#	XA COMMIT X'7472785f39',X'',1
+binlog.000001	#	Stop	#	#	
 include/assert.inc [committed gno 131]
 RESET MASTER;
 include/assert.inc [committed gno 131]
@@ -929,6 +929,7 @@ XA START 'xa1';
 INSERT INTO t SET a = 1;
 XA END 'xa1';
 SET @@SESSION.pseudo_slave_mode=1;
+ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
 XA PREPARE 'xa1';
 # restart
 XA ROLLBACK 'xa1';
@@ -937,6 +938,7 @@ INSERT INTO t SET a = 1;
 XA END 'xa1';
 XA PREPARE 'xa1';
 SET @@SESSION.pseudo_slave_mode=1;
+ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
 XA COMMIT 'xa1';
 DROP TABLE t;
 include/gtid_utils_end.inc

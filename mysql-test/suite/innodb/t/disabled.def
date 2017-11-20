@@ -9,20 +9,11 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-alter_crash        : WL#9536 2015-05-11 jhauglid Uses functionality removed by WL#8186. To be enabled when WL#9536 is impemented
 # For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
-innodb_wl6501_crash_1     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
-innodb_wl6501_crash_2     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
-innodb_wl6501_crash_6     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
-innodb_wl6501_crash_7     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
-innodb_wl6501_crash_8     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
-alter_foreign_crash       : WL#9536, 2017-04-07 Bin
 innodb.bootstrap        @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 innodb.log_corruption   @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 innodb.log_corruption_1 @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too often on PB2 due to timeout
 innodb.innodb_tsof_use_2  @windows : Bug#25716110 2017-03-14 Anitha Fails consistently on windows
-
 innodb.skip_locked_nowait  : Bug#25886814 2017-04-13 Allen Failing sporadically on PB2
-innodb.table_compress      : Bug#22916982 2017-05-04 Satya To be fixed by new fix for Bug#22916982
 innodb.innodb_tsof_use_1  : Bug#26161492  2017-05-29 Erlend Fails sporadically

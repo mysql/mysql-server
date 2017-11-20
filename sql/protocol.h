@@ -17,10 +17,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_dbug.h"
-#include "my_decimal.h"                // my_decimal
 #include "mysql/mysql_lex_string.h"    // LEX_STRING
 #include "mysql_com.h"                 // mysql_enum_shutdown_level
 #include "mysql_time.h"                // MYSQL_TIME
+#include "sql/my_decimal.h"            // my_decimal
 #include "sql_string.h"                // String
 #include "violite.h"                            /* SSL && enum_vio_type */
 #ifdef HAVE_OPENSSL
@@ -109,10 +109,6 @@ public:
   */
   enum enum_protocol_type
   {
-    /*
-      Before adding a new type, please make sure
-      there is enough storage for it in Query_cache_query_flags.
-    */
     PROTOCOL_TEXT= 0,            // text Protocol type used mostly
                                  // for the old (MySQL 4.0 protocol)
     PROTOCOL_BINARY= 1,          // binary protocol type

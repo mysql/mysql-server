@@ -153,7 +153,8 @@ rtr_rec_cal_increase(
 				has an equal number or more fields than
 				dtuple */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	double*		area);	/*!< out: increased area */
+	double*		area,	/*!< out: increased area */
+	const dd::Spatial_reference_system*	srs); /*!< in: SRS of R-tree */
 
 /****************************************************************//**
 Following the right link to find the proper block for insert.

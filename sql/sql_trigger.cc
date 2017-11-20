@@ -18,45 +18,54 @@
 #include "sql/sql_trigger.h"
 
 #include <stddef.h>
+#include <string.h>
+#include <string>
+#include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"              // check_table_access
-#include "binlog.h"
-#include "dd/cache/dictionary_client.h"
-#include "dd/dd_schema.h"
-#include "dd/string_type.h"
-#include "dd/types/abstract_table.h"  // dd::enum_table_type
-#include "dd/types/table.h"
-#include "debug_sync.h"               // DEBUG_SYNC
-#include "derror.h"                   // ER_THD
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_base.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql_com.h"
-#include "mysqld.h"                   // trust_function_creators
 #include "mysqld_error.h"
-#include "sp_cache.h"                 // sp_invalidate_cache()
-#include "sp_head.h"                  // sp_name
-#include "sql_base.h"                 // find_temporary_table()
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_handler.h"              // mysql_ha_rm_tables()
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_plugin.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"     // check_table_access
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd_schema.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/abstract_table.h" // dd::enum_table_type
+#include "sql/dd/types/table.h"
+#include "sql/dd/types/trigger.h"
+#include "sql/debug_sync.h"           // DEBUG_SYNC
+#include "sql/derror.h"               // ER_THD
+#include "sql/key.h"
+#include "sql/mysqld.h"               // trust_function_creators
+#include "sql/sp_cache.h"             // sp_invalidate_cache()
+#include "sql/sp_head.h"              // sp_name
+#include "sql/sql_base.h"             // find_temporary_table()
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_handler.h"          // mysql_ha_rm_tables()
+#include "sql/sql_lex.h"
+#include "sql/sql_table.h"            // build_table_filename()
+#include "sql/stateless_allocator.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/transaction.h"          // trans_commit_stmt, trans_commit
 #include "sql_string.h"
-#include "sql_table.h"                // build_table_filename()
-#include "system_variables.h"
-#include "table.h"
-#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "thr_lock.h"
-#include "transaction.h"              // trans_commit_stmt, trans_commit
-#include "trigger.h"                  // Trigger
+
+namespace dd {
+class Schema;
+}  // namespace dd
 ///////////////////////////////////////////////////////////////////////////
 
 bool get_table_for_trigger(THD *thd,
@@ -557,6 +566,12 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
   result|= finalize_trigger_ddl(thd, m_trigger_table->db, table, stmt_query,
                                 !result);
 
+  DBUG_EXECUTE_IF("simulate_create_trigger_failure",
+                  {
+                    result= true;
+                    my_error(ER_UNKNOWN_ERROR, MYF(0));
+                  });
+
   if (result)
   {
     trans_rollback_stmt(thd);
@@ -689,6 +704,12 @@ bool Sql_cmd_drop_trigger::execute(THD *thd)
     result= stmt_query.append(thd->query().str, thd->query().length);
 
   result|= finalize_trigger_ddl(thd, tables->db, table, stmt_query, !result);
+
+  DBUG_EXECUTE_IF("simulate_drop_trigger_failure",
+                  {
+                    result= true;
+                    my_error(ER_UNKNOWN_ERROR, MYF(0));
+                  });
 
   if (result)
   {

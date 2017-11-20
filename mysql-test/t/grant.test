@@ -133,6 +133,15 @@ flush privileges;
 drop table t1;
 
 #
+# Test grants on long column names (causes std::string to allocate memory)
+#
+create table t1 (abcdefghijklmnopqrstuvwxyz int);
+GRANT select (abcdefghijklmnopqrstuvwxyz) on t1 to mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+select table_priv,column_priv from mysql.tables_priv where user="mysqltest_1";
+drop table t1;
+
+#
 # Test some error conditions
 #
 --error ER_WRONG_USAGE

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ struct Undo_buffer
    *
    * @return 0 if unable to alloc space
    */
-  Uint32 * alloc_copy_tuple(Local_key* dst, Uint32 words);
+  Uint32 * alloc_copy_tuple(Local_key* dst, Uint32 words, bool locked = false);
 
   /**
    * Shrink size of copy tuple

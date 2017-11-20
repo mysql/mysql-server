@@ -1,4 +1,5 @@
 call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression("ACL table mysql.global_grants missing. Some operations may fail.");
 #
 # Bug25303916 WL8131:FLUSH DOES NOT UPDATE THE GRANT STATUS IN
 # mysql.global_grants
@@ -11,12 +12,15 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	RESOURCE_GROUP_ADMIN	Y
+root	localhost	RESOURCE_GROUP_USER	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
@@ -31,12 +35,15 @@ GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	RESOURCE_GROUP_ADMIN	Y
+root	localhost	RESOURCE_GROUP_USER	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
@@ -50,12 +57,15 @@ GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	RESOURCE_GROUP_ADMIN	Y
+root	localhost	RESOURCE_GROUP_USER	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
@@ -82,12 +92,15 @@ GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 ** Only one dynamic entry
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	RESOURCE_GROUP_ADMIN	Y
+root	localhost	RESOURCE_GROUP_USER	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
@@ -106,12 +119,15 @@ GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	RESOURCE_GROUP_ADMIN	Y
+root	localhost	RESOURCE_GROUP_USER	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
@@ -125,12 +141,15 @@ GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	RESOURCE_GROUP_ADMIN	Y
+root	localhost	RESOURCE_GROUP_USER	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
@@ -167,12 +186,15 @@ GRANT RUBBISH ON *.* TO `u1`@`localhost`
 DROP USER u1@localhost;
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	RESOURCE_GROUP_ADMIN	Y
+root	localhost	RESOURCE_GROUP_USER	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
@@ -200,12 +222,15 @@ ERROR 42000: There is no such grant defined for user 'u1' on host 'localhost'
 ** privileges are affected by RENAME
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	RESOURCE_GROUP_ADMIN	Y
+root	localhost	RESOURCE_GROUP_USER	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
@@ -241,12 +266,15 @@ GRANT SELECT ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	RESOURCE_GROUP_ADMIN	Y
+root	localhost	RESOURCE_GROUP_USER	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
@@ -586,7 +614,7 @@ GRANT ALL ON *.* to u1;
 SHOW GRANTS FOR u1;
 Grants for u1@%
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u1`@`%`
-GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,HELLOWORLD,NON_DOCUMENTED_PRIVILEGE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,ROUTINE_GRANT,RUBBISH,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,HELLOWORLD,NON_DOCUMENTED_PRIVILEGE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,ROUTINE_GRANT,RUBBISH,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
 GRANT `r2`@`%` TO `u1`@`%`
 # Boundary value test for privilege_id
 INSERT INTO mysql.global_grants VALUES('u1', '%',
@@ -599,6 +627,7 @@ SHOW PRIVILEGES;
 Privilege	Context	Comment
 Alter	Tables	To alter the table
 Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
+BACKUP_ADMIN	Server Admin	
 BINLOG_ADMIN	Server Admin	
 CONNECTION_ADMIN	Server Admin	
 Create	Databases,Tables,Indexes	To create new databases and tables
@@ -627,6 +656,8 @@ PERSIST_RO_VARIABLES_ADMIN	Server Admin
 Process	Server Admin	To view the plain text of currently executing queries
 Proxy	Server Admin	To make proxy user possible
 REPLICATION_SLAVE_ADMIN	Server Admin	
+RESOURCE_GROUP_ADMIN	Server Admin	
+RESOURCE_GROUP_USER	Server Admin	
 ROLE_ADMIN	Server Admin	
 ROUTINE_GRANT	Server Admin	
 RUBBISH	Server Admin	
@@ -647,6 +678,8 @@ Usage	Server Admin	No privileges - allow connect only
 XA_RECOVER_ADMIN	Server Admin	
 TRUNCATE TABLE mysql.global_grants;
 FLUSH PRIVILEGES;
+# restore root privileges
+GRANT ALL ON *.* to root@localhost WITH GRANT OPTION;
 # REPLICATION_SLAVE_ADMIN test
 DROP USER u1@localhost;
 CREATE USER u1@localhost IDENTIFIED BY 'pwd';
@@ -694,9 +727,11 @@ HOST CHAR(60) BINARY DEFAULT '' NOT NULL,
 PRIV CHAR(32) COLLATE UTF8_GENERAL_CI DEFAULT '' NOT NULL, 
 WITH_GRANT_OPTION ENUM('N','Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
 PRIMARY KEY (USER,HOST,PRIV)
-) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin;
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin TABLESPACE=mysql;
 # restart
 DROP USER u1@localhost;
+# restore root privileges
+GRANT ALL ON *.* TO root@localhost WITH GRANT OPTION;
 #
 # Test for WL#7194
 # This test checks that a user who granted XA_RECOVER_ADMIN with

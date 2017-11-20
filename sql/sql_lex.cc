@@ -17,41 +17,44 @@
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
 
-#include "sql_lex.h"
+#include "sql/sql_lex.h"
 
 #include <limits.h>
 #include <stdlib.h>
 #include <algorithm>                   // find_if, iter_swap, reverse
 
-#include "current_thd.h"
-#include "key.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
+#include "my_macros.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"             // MYSQL_VERSION_ID
-#include "mysqld.h"                    // table_alias_charset
 #include "mysqld_error.h"
-#include "parse_location.h"
-#include "parse_tree_nodes.h"          // PT_with_clause
 #include "prealloced_array.h"          // Prealloced_array
-#include "protocol.h"
-#include "select_lex_visitor.h"
-#include "session_tracker.h"
-#include "sp_head.h"                   // sp_head
-#include "sql_class.h"                 // THD
-#include "sql_error.h"
-#include "sql_insert.h"                // Sql_cmd_insert_base
-#include "sql_lex_hash.h"
-#include "sql_lex_hints.h"
-#include "sql_optimizer.h"             // JOIN
-#include "sql_parse.h"                 // add_to_list
-#include "sql_plugin.h"                // plugin_unlock_list
-#include "sql_profile.h"
-#include "sql_security_ctx.h"
-#include "sql_show.h"                  // append_identifier
-#include "sql_table.h"                 // primary_key_name
-#include "sql_yacc.h"
-#include "system_variables.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"                // table_alias_charset
+#include "sql/parse_location.h"
+#include "sql/parse_tree_nodes.h"      // PT_with_clause
+#include "sql/protocol.h"
+#include "sql/select_lex_visitor.h"
+#include "sql/sp_head.h"               // sp_head
+#include "sql/sql_class.h"             // THD
+#include "sql/sql_error.h"
+#include "sql/sql_insert.h"            // Sql_cmd_insert_base
+#include "sql/sql_lex_hash.h"
+#include "sql/sql_lex_hints.h"
+#include "sql/sql_optimizer.h"         // JOIN
+#include "sql/sql_parse.h"             // add_to_list
+#include "sql/sql_plugin.h"            // plugin_unlock_list
+#include "sql/sql_profile.h"
+#include "sql/sql_show.h"              // append_identifier
+#include "sql/sql_table.h"             // primary_key_name
+#include "sql/sql_tmp_table.h"
+#include "sql/sql_yacc.h"
+#include "sql/system_variables.h"
+#include "sql/window.h"
 #include "template_utils.h"
 
 extern int HINT_PARSER_parse(THD *thd,
@@ -504,7 +507,6 @@ void LEX::reset()
   is_lex_started= true;
   used_tables= 0;
   reset_slave_info.all= false;
-  alter_tablespace_info= NULL;
   mi.channel= NULL;
 
   wild= NULL;
@@ -544,7 +546,8 @@ bool lex_start(THD *thd)
   DBUG_ASSERT(lex->current_select() == NULL);
   lex->m_current_select= lex->select_lex;
 
-  lex->m_IS_dyn_stat_cache.invalidate_cache();
+  lex->m_IS_table_stats.invalidate_cache();
+  lex->m_IS_tablespace_stats.invalidate_cache();
 
   DBUG_RETURN(status);
 }
@@ -614,10 +617,11 @@ SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select)
   if (!select)
     DBUG_RETURN(NULL);       /* purecov: inspected */
 
+  enum_parsing_context parsing_place=
+    curr_select ? curr_select->parsing_place : CTX_NONE;
+
   SELECT_LEX_UNIT *const sel_unit=
-    new (thd->mem_root) SELECT_LEX_UNIT(curr_select ?
-                                        curr_select->parsing_place :
-                                        CTX_NONE);
+    new (thd->mem_root) SELECT_LEX_UNIT(parsing_place);
   if (!sel_unit)
     DBUG_RETURN(NULL);       /* purecov: inspected */
 
@@ -637,10 +641,10 @@ SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select)
     Assume that a subquery has an outer name resolution context.
     If not (ie. if this is a derived table), set it to NULL later
   */
-  if (select_lex == NULL)    // Outer-most query block
+  if (parsing_place == CTX_NONE)    // Outer-most query block
   {
   }
-  else if (select->outer_select()->parsing_place == CTX_ON)
+  else if (parsing_place == CTX_ON)
   {
     /*
       This subquery is part of an ON clause, so we need to link the
@@ -660,9 +664,16 @@ SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select)
     */
     select->context.outer_context= outer_context;
   }
-  else if (select->outer_select()->parsing_place == CTX_DERIVED)
+  else if (parsing_place == CTX_DERIVED ||
+           parsing_place == CTX_INSERT_VALUES ||
+           parsing_place == CTX_INSERT_UPDATE)
   {
-    // Currently, outer references are not allowed for a derived table
+    /*
+      Outer references are not allowed for
+      - derived tables
+      - subqueries in INSERT ... VALUES clauses
+      - subqueries in INSERT ON DUPLICATE KEY UPDATE clauses
+    */
     DBUG_ASSERT(select->context.outer_context == NULL);
   }
   else
@@ -2253,7 +2264,9 @@ SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context) :
       break;
     case CTX_HAVING:                         // A subquery elsewhere
     case CTX_SELECT_LIST:
-    case CTX_UPDATE_VALUE_LIST:
+    case CTX_UPDATE_VALUE:
+    case CTX_INSERT_VALUES:
+    case CTX_INSERT_UPDATE:
     case CTX_WHERE:
     case CTX_DERIVED:
     case CTX_NONE:                           // A subquery in a non-select
@@ -2282,8 +2295,8 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
   m_query_result(NULL),
   m_base_options(0),
   m_active_options(0),
-  sql_cache(SQL_CACHE_UNSPECIFIED),
   uncacheable(0),
+  skip_local_transforms(false),
   linkage(UNSPECIFIED_TYPE),
   no_table_names_allowed(false),
   context(),
@@ -2561,12 +2574,31 @@ void SELECT_LEX::make_active_options(ulonglong added_options,
 
   @param last Pointer to last SELECT_LEX struct, before which all
               SELECT_LEX are marked as as dependent.
+  @param aggregate true if the dependency is due to a set function, such as
+                   COUNT(*), which is aggregated within the query block 'last'.
+                   Such functions must have a dependency on all tables of
+                   the aggregating query block.
 
   @note
     last should be reachable from this SELECT_LEX
+
+  @todo Update OUTER_REF_TABLE_BIT for intermediate subquery items, by
+        replacing the below "if (aggregate)" block with:
+        if (last == s->outer_select())
+        {
+          if (aggregate)
+            munit->item->accumulate_used_tables(last->all_tables_map());
+        }
+        else
+        {
+          munit->item->accumulate_used_tables(OUTER_REF_TABLE_BIT);
+        }
+        and remove settings from Item_field::fix_outer_field(),
+        Item_ref::fix_fields() and mark_select_range_as_dependent().
+
 */
 
-void SELECT_LEX::mark_as_dependent(SELECT_LEX *last)
+void SELECT_LEX::mark_as_dependent(SELECT_LEX *last, bool aggregate)
 {
   // The top level query block cannot be dependent, so do not go above this:
   DBUG_ASSERT(last != NULL);
@@ -2579,12 +2611,12 @@ void SELECT_LEX::mark_as_dependent(SELECT_LEX *last)
        s && s != last;
        s= s->outer_select())
   {
+    SELECT_LEX_UNIT *munit= s->master_unit();
     if (!(s->uncacheable & UNCACHEABLE_DEPENDENT))
     {
       // Select is dependent of outer select
       s->uncacheable= (s->uncacheable & ~UNCACHEABLE_UNITED) |
                        UNCACHEABLE_DEPENDENT;
-      SELECT_LEX_UNIT *munit= s->master_unit();
       munit->uncacheable= (munit->uncacheable & ~UNCACHEABLE_UNITED) |
                        UNCACHEABLE_DEPENDENT;
       for (SELECT_LEX *sl= munit->first_select(); sl ; sl= sl->next_select())
@@ -2593,6 +2625,13 @@ void SELECT_LEX::mark_as_dependent(SELECT_LEX *last)
             !(sl->uncacheable & (UNCACHEABLE_DEPENDENT | UNCACHEABLE_UNITED)))
           sl->uncacheable|= UNCACHEABLE_UNITED;
       }
+    }
+    if (aggregate)
+    {
+      munit->item->accumulate_used_tables(
+        last == s->outer_select() ?
+          last->all_tables_map() :
+          OUTER_REF_TABLE_BIT);
     }
   }
 }
@@ -3222,19 +3261,6 @@ void SELECT_LEX::print(THD *thd, String *str, enum_query_type query_type)
     str->append(STRING_WITH_LEN("sql_buffer_result "));
   if (active_options() & OPTION_FOUND_ROWS)
     str->append(STRING_WITH_LEN("sql_calc_found_rows "));
-  switch (sql_cache)
-  {
-    case SQL_NO_CACHE:
-      str->append(STRING_WITH_LEN("sql_no_cache "));
-      break;
-    case SQL_CACHE:
-      str->append(STRING_WITH_LEN("sql_cache "));
-      break;
-    case SQL_CACHE_UNSPECIFIED:
-      break;
-    default:
-      DBUG_ASSERT(0);
-  }
 
   //Item List
   bool first= 1;
@@ -3472,6 +3498,7 @@ void LEX::clear_privileges()
   alter_password.cleanup();
   memset(&mqh, 0, sizeof(mqh));
   dynamic_privileges.empty();
+  default_roles= 0;
 }
 
 
@@ -3544,12 +3571,11 @@ void Query_tables_list::reset_query_tables_list(bool init)
       We delay real initialization of hash (and therefore related
       memory allocation) until first insertion into this hash.
     */
-    my_hash_clear(&sroutines);
+    sroutines.reset();
   }
-  else if (sroutines.records)
+  else if (sroutines != nullptr)
   {
-    /* Non-zero sroutines.records means that hash was initialized. */
-    my_hash_reset(&sroutines);
+    sroutines->clear();
   }
   sroutines_list.empty();
   sroutines_list_own_last= sroutines_list.next;
@@ -3574,7 +3600,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
 
 void Query_tables_list::destroy_query_tables_list()
 {
-  my_hash_free(&sroutines);
+  sroutines.reset();
 }
 
 
@@ -3909,7 +3935,7 @@ bool SELECT_LEX_UNIT::merge_heuristic() const
   List_iterator<Item> it(select->fields_list);
   while ((item= it++))
   {
-    if (item->has_subquery() && item->used_tables())
+    if (item->has_subquery() && !item->const_for_execution())
       return false;
   }
   return true;
@@ -4294,10 +4320,31 @@ bool LEX::table_or_sp_used()
 {
   DBUG_ENTER("table_or_sp_used");
 
-  if (sroutines.records || query_tables)
+  if ((sroutines != nullptr && !sroutines->empty()) || query_tables)
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Locate an assignment to a user variable with a given name, within statement.
+
+  @param name Name of variable to search for
+
+  @returns true if variable is assigned to, false otherwise.
+*/
+
+bool LEX::locate_var_assignment(const Name_string &name)
+{
+  List_iterator<Item_func_set_user_var> li(set_var_list);
+  Item_func_set_user_var *var;
+  while ((var= li++))
+  {
+    if (var->name.eq(name))
+      return true;
+  }
+  return false;
 }
 
 
@@ -4680,7 +4727,6 @@ bool SELECT_LEX::validate_outermost_option(LEX *lex,
           SELECT_BIG_RESULT
           OPTION_BUFFER_RESULT
           OPTION_FOUND_ROWS
-          OPTION_TO_QUERY_CACHE
           OPTION_SELECT_FOR_SHOW
   DELETE: OPTION_QUICK
           LOW_PRIORITY
@@ -4701,7 +4747,6 @@ bool SELECT_LEX::validate_base_options(LEX *lex, ulonglong options_arg) const
                                 SELECT_BIG_RESULT |
                                 OPTION_BUFFER_RESULT |
                                 OPTION_FOUND_ROWS |
-                                OPTION_TO_QUERY_CACHE |
                                 OPTION_SELECT_FOR_SHOW)));
 
   if (options_arg & SELECT_DISTINCT &&
@@ -4754,71 +4799,13 @@ bool Query_options::merge(const Query_options &a,
                           const Query_options &b)
 {
   query_spec_options= a.query_spec_options | b.query_spec_options;
-
-  if (b.sql_cache == SELECT_LEX::SQL_NO_CACHE)
-  {
-    if (a.sql_cache == SELECT_LEX::SQL_NO_CACHE)
-    {
-      my_error(ER_DUP_ARGUMENT, MYF(0), "SQL_NO_CACHE");
-      return true;
-    }
-    else if (a.sql_cache == SELECT_LEX::SQL_CACHE)
-    {
-      my_error(ER_WRONG_USAGE, MYF(0), "SQL_CACHE", "SQL_NO_CACHE");
-      return true;
-    }
-  }
-  else if (b.sql_cache == SELECT_LEX::SQL_CACHE)
-  {
-    if (a.sql_cache == SELECT_LEX::SQL_CACHE)
-    {
-      my_error(ER_DUP_ARGUMENT, MYF(0), "SQL_CACHE");
-      return true;
-    }
-    else if (a.sql_cache == SELECT_LEX::SQL_NO_CACHE)
-    {
-      my_error(ER_WRONG_USAGE, MYF(0), "SQL_NO_CACHE", "SQL_CACHE");
-      return true;
-    }
-  }
-  sql_cache= b.sql_cache;
   return false;
 }
-
 
 bool Query_options::save_to(Parse_context *pc)
 {
   LEX *lex= pc->thd->lex;
   ulonglong options= query_spec_options;
-
-  switch (sql_cache) {
-  case SELECT_LEX::SQL_CACHE_UNSPECIFIED:
-    break;
-  case SELECT_LEX::SQL_NO_CACHE:
-    if (pc->select != lex->select_lex)
-    {
-      my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_NO_CACHE");
-      return true;
-    }
-    DBUG_ASSERT(pc->select->sql_cache == SELECT_LEX::SQL_CACHE_UNSPECIFIED);
-    lex->safe_to_cache_query= false;
-    options&= ~OPTION_TO_QUERY_CACHE;
-    pc->select->sql_cache= SELECT_LEX::SQL_NO_CACHE;
-    break;
-  case SELECT_LEX::SQL_CACHE:
-    if (pc->select != lex->select_lex)
-    {
-      my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_CACHE");
-      return true;
-    }
-    DBUG_ASSERT(pc->select->sql_cache == SELECT_LEX::SQL_CACHE_UNSPECIFIED);
-    lex->safe_to_cache_query= true;
-    options|= OPTION_TO_QUERY_CACHE;
-    pc->select->sql_cache= SELECT_LEX::SQL_CACHE;
-    break;
-  default:
-    DBUG_ASSERT(!"Unexpected cache option!");
-  }
   if (pc->select->validate_base_options(lex, options))
     return true;
   pc->select->set_base_options(options);

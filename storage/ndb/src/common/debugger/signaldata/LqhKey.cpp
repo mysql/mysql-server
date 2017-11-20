@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -148,6 +148,10 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     printed = true;
   }
 
+  /**
+   * Key info is only sent here if short signal, we assume it
+   * is a long signal.
+   *
   const UintR keyLen = LqhKeyReq::getKeyLen(reqInfo);
   if(keyLen > 0){
     fprintf(output, " KeyInfo: ");
@@ -155,6 +159,7 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
       fprintf(output, "H\'%.8x ", sig->variableData[nextPos]);
     fprintf(output, "\n");
   }
+  */
 
   if (LqhKeyReq::getRowidFlag(reqInfo))
   {

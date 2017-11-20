@@ -16,10 +16,7 @@
 #ifndef DD__UTILS_INCLUDED
 #define DD__UTILS_INCLUDED
 
-#include <ostream>
-#include <string>
-
-#include "dd/string_type.h"                    // dd::String_type
+#include "sql/dd/string_type.h"                // dd::String_type
 
 namespace dd {
 

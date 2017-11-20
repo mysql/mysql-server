@@ -148,6 +148,18 @@ EOF
 
 
 --write_file $MYSQL_TMP_DIR/plain_connection.tmp
+
+-->echo #
+-->echo # Match capabilities with the result file,
+-->echo # must contain PLAIN and MYSQL41
+-->echo #
+Mysqlx.Connection.CapabilitiesGet {
+}
+-->recv capabilities[0].value.array
+
+-->echo #
+-->echo # Do plain authentication (must be available)
+-->echo #
 Mysqlx.Session.AuthenticateStart {
     mech_name: "PLAIN"
     auth_data: "\0root\0"
@@ -158,7 +170,9 @@ EOF
 --exec $MYSQLXTEST -q -n --socket=$MASTER_X_MYSOCK -uroot --password='' --file=$MYSQL_TMP_DIR/plain_connection.tmp 2>&1
 
 
-# Lets confirm that Mysqlx plugin can use the UNIX socket connection as secure one
+--echo #
+--echo # Lets confirm that user can connect through UNIX socket connection is secure one
+--echo #
 SET GLOBAL require_secure_transport:=1;
 --exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uroot --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
 --exec $MYSQLXTEST -q -n --socket=$MASTER_X_MYSOCK -uroot --password='' --file=$MYSQL_TMP_DIR/plain_connection.tmp 2>&1
@@ -182,7 +196,7 @@ let $restart_parameters = restart: --mysqlx-socket=$MYSQL_TMP_DIR/valid_mysqlx.s
 --error 1
 --file_exists $MASTER_X_MYSOCK.lock
 
-# Check if the X Plugin is accessable through 
+# Check if the X Plugin is accessible through
 # new file
 --exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/valid_mysqlx.sock -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 

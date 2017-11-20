@@ -15,7 +15,7 @@
 
 # Build comp_sql - used for embedding SQL in C or C++ programs
 IF(NOT CMAKE_CROSSCOMPILING)
- ADD_EXECUTABLE(comp_sql comp_sql.c)
+ MYSQL_ADD_EXECUTABLE(comp_sql comp_sql.c SKIP_INSTALL)
  TARGET_LINK_LIBRARIES(comp_sql)
 ENDIF()
 
@@ -23,19 +23,21 @@ ENDIF()
 SET(COMPILER_ID_AND_VERSION
   "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
-# Check that mysql_system_tables.sql is up-to-date
-IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
-  IF(NOT TARGET ndbinfo_sql_run)
-    MESSAGE(FATAL "TARGET ndbinfo_sql_run missing, needed to generate storage/ndb/tools/ndbinfo.sql.")
+IF(NOT WITHOUT_SERVER)
+  # Check that mysql_system_tables.sql is up-to-date
+  IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
+    IF(NOT TARGET ndbinfo_sql_run)
+      MESSAGE(FATAL_ERROR "TARGET ndbinfo_sql_run missing, needed to generate storage/ndb/tools/ndbinfo.sql.")
+    ENDIF()
+    SET(MYSQL_SYSTEM_TABLES_PATCHES
+        ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql)
+    SET(MYSQL_SYSTEM_TABLES_DEPENDS
+        ndbinfo_sql_run)
   ENDIF()
-  SET(MYSQL_SYSTEM_TABLES_PATCHES
-      ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql)
-  SET(MYSQL_SYSTEM_TABLES_DEPENDS
-      ndbinfo_sql_run)
 ENDIF()
 
 IF(DEFINED MYSQL_SYSTEM_TABLES_PATCHES)
-  ADD_EXECUTABLE(patch_file patch_file.cc)
+  MYSQL_ADD_EXECUTABLE(patch_file patch_file.cc SKIP_INSTALL)
   ADD_CUSTOM_TARGET(Check_mysql_system_tables_sql
     ALL
     patch_file ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
@@ -402,6 +404,16 @@ IF (WITH_SSL STREQUAL "system")
   STRING(REPLACE "-lcrypto" "" CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
   STRING(REGEX REPLACE "[ ]+" " " CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
 ENDIF()
+
+# libmysqlclient.dylib will depend on @loader_path/libssl.1.0.0.dylib
+IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+  STRING(REPLACE "-lssl" "" CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS}")
+  STRING(REPLACE "-lcrypto" "" CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS}")
+  STRING(REGEX REPLACE "[ ]+" " " CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS}")
+ENDIF()
+
+MESSAGE(STATUS "CONFIG_CLIENT_LIBS ${CONFIG_CLIENT_LIBS}")
+MESSAGE(STATUS "CONFIG_LIBS_PRIVATE ${CONFIG_LIBS_PRIVATE}")
 
 SET(mysql_config_COMPONENT COMPONENT Development)
 

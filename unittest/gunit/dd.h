@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,31 +25,32 @@
 #include "base_mock_field.h"
 #include "fake_table.h"
 
-#include "dd/types/charset.h"
-#include "dd/types/collation.h"
-#include "dd/types/column.h"
-#include "dd/types/column_statistics.h"
-#include "dd/types/column_type_element.h"
-#include "dd/types/foreign_key.h"
-#include "dd/types/foreign_key_element.h"
-#include "dd/types/index.h"
-#include "dd/types/index_element.h"
-#include "dd/types/partition.h"
-#include "dd/types/partition_value.h"
-#include "dd/types/partition_index.h"
+#include "sql/dd/types/charset.h"
+#include "sql/dd/types/collation.h"
+#include "sql/dd/types/column.h"
+#include "sql/dd/types/column_statistics.h"
+#include "sql/dd/types/column_type_element.h"
+#include "sql/dd/types/foreign_key.h"
+#include "sql/dd/types/foreign_key_element.h"
+#include "sql/dd/types/index.h"
+#include "sql/dd/types/index_element.h"
+#include "sql/dd/types/partition.h"
+#include "sql/dd/types/partition_value.h"
+#include "sql/dd/types/partition_index.h"
 
-#include "dd/types/schema.h"
-#include "dd/types/table.h"
-#include "dd/types/tablespace.h"
-#include "dd/types/tablespace_file.h"
-#include "dd/types/view.h"
-#include "dd/types/view_table.h"
-#include "dd/types/event.h"
-#include "dd/types/procedure.h"
-#include "dd/types/parameter.h"
-#include "dd/types/trigger.h"
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/table.h"
+#include "sql/dd/types/tablespace.h"
+#include "sql/dd/types/tablespace_file.h"
+#include "sql/dd/types/view.h"
+#include "sql/dd/types/view_table.h"
+#include "sql/dd/types/event.h"
+#include "sql/dd/types/procedure.h"
+#include "sql/dd/types/parameter.h"
+#include "sql/dd/types/trigger.h"
 
-#include "histograms/histogram.h"
+#include "sql/histograms/histogram.h"
+#include "sql/histograms/value_map.h"
 
 class Json_wrapper;
 
@@ -312,7 +313,6 @@ inline void set_attributes(dd::Table *obj, const dd::String_type &name,
 
   dd::Partition *part_obj= obj->add_partition();
   part_obj->set_name("table_part1");
-  part_obj->set_level(1);
   part_obj->set_number(2);
   part_obj->set_comment("Partition comment");
   part_obj->set_tablespace_id(1);
@@ -409,8 +409,8 @@ inline void set_attributes(dd::Foreign_key *obj, const dd::String_type &name)
   obj->set_match_option(dd::Foreign_key::OPTION_FULL);
   obj->set_update_rule(dd::Foreign_key::RULE_SET_DEFAULT);
   obj->set_delete_rule(dd::Foreign_key::RULE_CASCADE);
-  obj->referenced_table_schema_name("mysql");
-  obj->referenced_table_name("dual");
+  obj->set_referenced_table_schema_name("mysql");
+  obj->set_referenced_table_name("dual");
 
   // Create Foreign key column
   dd::Foreign_key_element *fke= obj->add_element();
@@ -437,7 +437,8 @@ inline void set_attributes(dd::Column_statistics *obj,
   obj->set_table_name("table");
   obj->set_column_name("column");
 
-  histograms::Value_map<longlong> value_map(&my_charset_numeric);
+  histograms::Value_map<longlong> value_map(&my_charset_numeric,
+                                            histograms::Value_map_type::INT);
   value_map.add_values(100, 10);
   value_map.add_values(-1, 10);
   value_map.add_values(1, 10);

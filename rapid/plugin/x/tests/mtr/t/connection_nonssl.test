@@ -97,7 +97,7 @@ ALTER USER user2_mysqlx@localhost PASSWORD EXPIRE;
 # Expecting error since MYSQLXTEST trying to take connection using ssl option to Non-SSL enabled server.
 --let $expected_error_msg= Capability prepare failed for 'tls' \(code 5001\)
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -u user2_mysqlx --password='set-new-auth' --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp --file=$MYSQL_TMP_DIR/mysqlx-set-pwd.tmp 2>&1
+--exec $MYSQLXTEST -u user2_mysqlx --password='set-new-auth' --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --ssl-mode=required --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
 
 --exec $MYSQLXTEST -u user2_mysqlx --password='set-new-auth' --file=$MYSQL_TMP_DIR/mysqlx-set-pwd.tmp 2>&1
 

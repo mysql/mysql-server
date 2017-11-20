@@ -16,10 +16,10 @@
 #ifndef DD__ABSTRACT_TABLE_INCLUDED
 #define DD__ABSTRACT_TABLE_INCLUDED
 
-#include "dd/collection.h"                // dd::Collection
-#include "dd/object_id.h"                 // dd::Object_id
-#include "dd/types/entity_object.h"       // dd::Entity_object
 #include "my_inttypes.h"
+#include "sql/dd/collection.h"            // dd::Collection
+#include "sql/dd/object_id.h"             // dd::Object_id
+#include "sql/dd/types/entity_object.h"   // dd::Entity_object
 
 namespace dd {
 
@@ -141,14 +141,14 @@ public:
   // created.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created() const = 0;
+  virtual ulonglong created(bool convert_time) const = 0;
   virtual void set_created(ulonglong created) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // last altered.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered() const = 0;
+  virtual ulonglong last_altered(bool convert_time) const = 0;
   virtual void set_last_altered(ulonglong last_altered) = 0;
 
   virtual enum_table_type type() const = 0;

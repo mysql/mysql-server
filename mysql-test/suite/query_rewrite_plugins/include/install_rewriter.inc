@@ -22,15 +22,12 @@ BEGIN
   DECLARE message_text VARCHAR(100);
   COMMIT;
   SELECT load_rewrite_rules() INTO message_text;
-  RESET QUERY CACHE;
   IF NOT message_text IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = message_text;
   END IF;
 END //
 
 DELIMITER ;//
-
-RESET QUERY CACHE;
 
 enable_query_log;
 echo # Query rewrite plugin was installed.;

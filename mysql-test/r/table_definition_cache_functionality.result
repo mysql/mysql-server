@@ -78,7 +78,7 @@ TRUE Expected
 '#---------------------WL6372_VAR_5_07----------------------#'
 flush tables;
 flush status;
-set @dd_definitions = 13;
+set @dd_definitions = 14;
 set @Open_table_definitions = (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') + @dd_definitions;
 set @Opened_table_definitions = (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') + @dd_definitions;
 # create 2 tables 

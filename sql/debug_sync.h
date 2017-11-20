@@ -29,6 +29,7 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
+#include "mysql/udf_registration_types.h"
 
 class THD;
 

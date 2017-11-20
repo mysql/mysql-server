@@ -539,8 +539,8 @@ INSERT INTO t1 (a,b) VALUES
 ('Sævör grét', 'áðan því úlpan var ónýt');
 "In connection 2"
 SET NAMES UTF8;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 Warnings:
@@ -653,8 +653,8 @@ INSERT INTO t1 (a,b) VALUES
 ('Я могу есть стекло', 'оно мне Mне вредит');
 "In connection 2"
 SET NAMES UTF8;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 Warnings:
@@ -797,8 +797,8 @@ INSERT INTO t1 (a,b) VALUES
 ('Sævör grét', 'áðan því úlpan var ónýt');
 "In connection 2"
 SET NAMES UTF8;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 Warnings:
@@ -916,8 +916,8 @@ INSERT INTO t1 (a,b) VALUES
 ('Я могу есть стекло', 'оно мне Mне вредит');
 "In connection 2"
 SET NAMES UTF8;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 Warnings:

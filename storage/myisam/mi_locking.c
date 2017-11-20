@@ -232,7 +232,6 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       (void) _mi_test_if_changed(info);
         
       info->lock_type=lock_type;
-      info->invalidator=info->s->invalidator;
       share->w_locks++;
       share->tot_locks++;
       info->s->in_use= list_add(info->s->in_use, &info->in_use);
@@ -420,7 +419,6 @@ int _mi_readinfo(MI_INFO *info, int lock_type, int check_keybuffer)
     }
     if (check_keybuffer)
       (void) _mi_test_if_changed(info);
-    info->invalidator=info->s->invalidator;
   }
   else if (lock_type == F_WRLCK && info->lock_type == F_RDLCK)
   {

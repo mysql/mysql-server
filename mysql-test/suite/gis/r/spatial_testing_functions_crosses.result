@@ -1285,3 +1285,69 @@ ST_GEOMFROMTEXT('POINT(0 0)', 10000001)
 );
 ERROR SR002: Can't parse the spatial reference system definition of SRID 10000001.
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 10000001;
+#
+# WL#10827 Ellipsoidal R-tree support functions
+#
+SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
+SELECT ST_Crosses(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+ERROR 22S03: Latitude -91.000000 is out of range in function st_crosses. It must be within [-90.000000, 90.000000].
+SELECT ST_Crosses(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+ERROR 22S03: Latitude 91.000000 is out of range in function st_crosses. It must be within [-90.000000, 90.000000].
+SELECT ST_Crosses(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+ERROR 22S02: Longitude -181.000000 is out of range in function st_crosses. It must be within (-180.000000, 180.000000].
+SELECT ST_Crosses(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+ERROR 22S02: Longitude 181.000000 is out of range in function st_crosses. It must be within (-180.000000, 180.000000].
+CREATE TABLE t1 (
+id INT,
+c GEOMETRY NOT NULL,
+g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL,
+SPATIAL INDEX c_idx (c),
+SPATIAL INDEX g_idx (g)
+);
+INSERT INTO t1 (id, c) VALUES
+(0, ST_GeomFromText('LINESTRING(0 10, 10 10)')),
+(1, ST_GeomFromText('LINESTRING(0 10, 5 10)')),
+(2, ST_GeomFromText('LINESTRING(-10 10, 5 10)')),
+(3, ST_GeomFromText('LINESTRING(0 10.00001, 10 10.00001)')),
+(4, ST_GeomFromText('LINESTRING(0 9.99999, 10 9.99999)')),
+(5, ST_GeomFromText('LINESTRING(1 10, 2 10)')),
+(6, ST_GeomFromText('LINESTRING(2 0, 2 20)')),
+(7, ST_GeomFromText('LINESTRING(2 10, 8 10)'));
+SET @ls = 'LINESTRING(-5 10, 5 10)';
+SET @cart_ls = ST_GeomFromText(@ls);
+SET @geo_ls = ST_GeomFromText(@ls, 4326, 'axis-order=long-lat');
+# Cartesian ST_Crosses
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE ST_Crosses(c, @cart_ls)
+ORDER BY id;
+id	ST_AsText(c)
+6	LINESTRING(2 0,2 20)
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE ST_Crosses(c, @cart_ls)
+ORDER BY id;
+id	ST_AsText(c)
+6	LINESTRING(2 0,2 20)
+# Geographic ST_Crosses
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE ST_Crosses(g, @geo_ls)
+ORDER BY id;
+id	ST_AsText(g)
+0	LINESTRING(10 0,10 10)
+3	LINESTRING(10.00001 0,10.00001 10)
+4	LINESTRING(9.99999 0,9.99999 10)
+6	LINESTRING(0 2,20 2)
+7	LINESTRING(10 2,10 8)
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE ST_Crosses(g, @geo_ls)
+ORDER BY id;
+id	ST_AsText(g)
+0	LINESTRING(10 0,10 10)
+3	LINESTRING(10.00001 0,10.00001 10)
+4	LINESTRING(9.99999 0,9.99999 10)
+6	LINESTRING(0 2,20 2)
+7	LINESTRING(10 2,10 8)
+DROP TABLE t1;

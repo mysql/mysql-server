@@ -1,0 +1,30 @@
+# ==== Implementation ====
+#
+# In a chain replication scenario with 3 servers, setup the first slave without
+# partial replication. Check that replication works as expected.
+#
+# ==== Related Worklog ====
+#
+# WL#2955 RBR replication of partial JSON updates
+#
+
+--source include/have_binlog_format_row.inc
+--let $rpl_topology=1->2->3
+--source include/rpl_init.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+CREATE TABLE t (i INT, j JSON);
+
+INSERT INTO t VALUES (1, '{"name": "strawberry", "price": 1}');
+--source include/rpl_sync.inc
+
+UPDATE t SET j= JSON_REPLACE(j, '$.name', "apple");
+--source include/rpl_sync.inc
+
+--let $diff_tables= server_1:test.t, server_2:test.t, server_3:test.t
+--source include/diff_tables.inc
+
+DROP TABLE t;
+--source include/rpl_sync.inc
+--source include/rpl_end.inc

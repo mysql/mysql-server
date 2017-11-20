@@ -20,15 +20,19 @@
 #include <new>
 #include <string>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/sdi_fwd.h"
-#include "dd/types/entity_object_table.h"     // dd::Entity_object_table
-#include "dd/types/object_type.h"             // dd::Object_type
-#include "dd/types/tablespace.h"              // dd::Tablespace
-#include "dd/types/tablespace_file.h"         // dd::Tablespace_file
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/entity_object_table.h" // dd::Entity_object_table
+#include "sql/dd/types/object_type.h"         // dd::Object_type
+#include "sql/dd/types/tablespace.h"          // dd::Tablespace
+#include "sql/dd/types/tablespace_file.h"     // dd::Tablespace_file
+
+class THD;
 
 namespace dd {
 
@@ -40,6 +44,7 @@ class Sdi_rcontext;
 class Sdi_wcontext;
 class Tablespace_file;
 class Weak_object;
+class Object_table;
 
 class Tablespace_impl : public Entity_object_impl,
                         public Tablespace
@@ -176,6 +181,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+} // namespace dd
 
 #endif // DD__TABLESPACE_IMPL_INCLUDED

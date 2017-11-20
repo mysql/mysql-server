@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -68,3 +68,8 @@ TARGET_LINK_LIBRARIES(ndb_cpcc ndbNDBT)
 TARGET_LINK_LIBRARIES(ndb_cpcc ndbclient_static)
 INSTALL(TARGETS ndb_cpcc DESTINATION bin)
 
+ADD_EXECUTABLE(spj_performance_test spj_performance_test.cpp)
+TARGET_LINK_LIBRARIES(spj_performance_test ndbNDBT)
+TARGET_LINK_LIBRARIES(spj_performance_test ndbclient_so)
+TARGET_LINK_LIBRARIES(spj_performance_test mysqlclient)
+INSTALL(TARGETS spj_performance_test DESTINATION bin)

@@ -13,23 +13,47 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "init.h"
+#include "sql/init.h"
 
-#include "bootstrap.h"                     // bootstrap::run_bootstrap_thread
-#include "dd/dd.h"                         // enum_dd_init_type
-#include "dd/dd_table.h"                   // dd::table_exists
-#include "dd/dd_schema.h"                  // dd::schema_exists
-#include "dd/properties.h"                 // dd::Properties
-#include "dd/cache/dictionary_client.h"    // dd::cache::Dictionary_client
+#include <sys/types.h>
+#include <list>
+#include <new>
+#include <ostream>
+#include <string>
+#include <vector>
 
-#include "dd/impl/dictionary_impl.h"       // dd::Dictionary_impl
-#include "dd/impl/bootstrapper.h"          // execute_query
-#include "dd/impl/system_registry.h"       // dd::System_tables
-#include "dd/impl/tables/dd_properties.h"  // dd::tables::UNKNOWN_P_S_VERSION
-#include "dd/impl/types/plugin_table_impl.h"  // dd::Plugin_table_impl
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "mysql/thread_type.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/bootstrap.h"                 // bootstrap::run_bootstrap_thread
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                     // enum_dd_init_type
+#include "sql/dd/dd_schema.h"              // dd::schema_exists
+#include "sql/dd/dd_table.h"               // dd::table_exists
+#include "sql/dd/impl/bootstrapper.h"      // execute_query
+#include "sql/dd/impl/dictionary_impl.h"   // dd::Dictionary_impl
+#include "sql/dd/impl/system_registry.h"   // dd::System_tables
+#include "sql/dd/impl/tables/dd_properties.h" // dd::tables::UNKNOWN_P_S_VERSION
+#include "sql/dd/impl/types/plugin_table_impl.h" // dd::Plugin_table_impl
+#include "sql/dd/properties.h"             // dd::Properties
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/object_table.h"
+#include "sql/dd/types/object_table_definition.h"
+#include "sql/dd/types/table.h"
+#include "sql/derror.h"
+#include "sql/handler.h"                   // Plugin_table
+#include "sql/set_var.h"
+#include "sql/sql_class.h"                 // THD
+#include "sql/sql_list.h"
+#include "sql/stateless_allocator.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
-#include "handler.h"                       // Plugin_table
-#include "sql_class.h"                     // THD
+namespace dd {
+class Schema;
+}  // namespace dd
 
 using namespace dd;
 
@@ -258,7 +282,7 @@ bool initialize_pfs(THD *thd)
     Set tx_read_only to false to allow installing DD tables even
     if the server is started with --transaction-read-only=true.
   */
-  thd->variables.tx_read_only= false;
+  thd->variables.transaction_read_only= false;
   thd->tx_read_only= false;
 
   Disable_autocommit_guard autocommit_guard(thd);

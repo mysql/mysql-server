@@ -5,11 +5,11 @@ CRUD UPDATE ITEM_MERGE SCENARIOS
 ================================================================================
 PREAMBLE
 ================================================================================
-create user updateitemmerge@localhost identified by 'updateitemmerge';
-grant all on *.* to updateitemmerge@localhost;
 install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+create user updateitemmerge@localhost identified by 'updateitemmerge';
+grant all on *.* to updateitemmerge@localhost;
 ================================================================================
 TEST START
 ================================================================================
@@ -967,7 +967,7 @@ send Mysqlx.Crud.Update {
   }
 }
 
-Got expected error: Invalid JSON text in argument 2 to function json_merge: "Missing a comma or '}' after an object member." at position 26. (code 3141)
+Got expected error: Invalid JSON text in argument 2 to function json_merge_preserve: "Missing a comma or '}' after an object member." at position 26. (code 3141)
 Update with item_merge with } missing at the start
 send Mysqlx.Crud.Update {
   collection {
@@ -1013,7 +1013,7 @@ send Mysqlx.Crud.Update {
   }
 }
 
-Got expected error: Invalid JSON text in argument 2 to function json_merge: "The document root must not be followed by other values." at position 11. (code 3141)
+Got expected error: Invalid JSON text in argument 2 to function json_merge_preserve: "The document root must not be followed by other values." at position 11. (code 3141)
 Update with missing comma
 send Mysqlx.Crud.Update {
   collection {
@@ -1059,7 +1059,7 @@ send Mysqlx.Crud.Update {
   }
 }
 
-Got expected error: Invalid JSON text in argument 2 to function json_merge: "Missing a comma or '}' after an object member." at position 18. (code 3141)
+Got expected error: Invalid JSON text in argument 2 to function json_merge_preserve: "Missing a comma or '}' after an object member." at position 18. (code 3141)
 ================================================================================
 CLEAN UP
 ================================================================================

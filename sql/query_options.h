@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@
 #define SELECT_SMALL_RESULT     (1ULL << 3)     // SELECT, user
 #define SELECT_BIG_RESULT       (1ULL << 4)     // SELECT, user
 #define OPTION_FOUND_ROWS       (1ULL << 5)     // SELECT, user
-#define OPTION_TO_QUERY_CACHE   (1ULL << 6)     // SELECT, user
+                                                // 1ULL << 6 is free
 #define SELECT_NO_JOIN_CACHE    (1ULL << 7)     // intern
 /** always the opposite of OPTION_NOT_AUTOCOMMIT except when in fix_autocommit() */
 #define OPTION_AUTOCOMMIT       (1ULL << 8)    // THD, user
@@ -114,4 +114,6 @@
 
 #define OPTION_SELECT_FOR_SHOW          (1ULL << 37) // SELECT for SHOW over DD.
 
+// Is set while thread is updating the data dictionary tables.
+#define OPTION_DD_UPDATE_CONTEXT        (1ULL << 38) // intern
 #endif  /* QUERY_OPTIONS_INCLUDED */

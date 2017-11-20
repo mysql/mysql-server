@@ -53,11 +53,11 @@ select partition_method, partition_expression, partition_description
 INSERT INTO t1 VALUES ('2007-03-01 12:00:00'), ('2007-03-07 12:00:00');
 INSERT INTO t1 VALUES ('2007-03-08 12:00:00'), ('2007-03-15 12:00:00');
 analyze table t1;
-explain partitions select * from t1 where a < '2007-03-08 00:00:00';
-explain partitions select * from t1 where a < '2007-03-08 00:00:01';
-explain partitions select * from t1 where a <= '2007-03-08 00:00:00';
-explain partitions select * from t1 where a <= '2007-03-07 23:59:59';
-explain partitions select * from t1 where a < '2007-03-07 23:59:59';
+explain select * from t1 where a < '2007-03-08 00:00:00';
+explain select * from t1 where a < '2007-03-08 00:00:01';
+explain select * from t1 where a <= '2007-03-08 00:00:00';
+explain select * from t1 where a <= '2007-03-07 23:59:59';
+explain select * from t1 where a < '2007-03-07 23:59:59';
 show create table t1;
 drop table t1;
 #
@@ -70,9 +70,9 @@ partition by range(to_seconds(a))
 insert into t1 values ('2003-12-30'),('2004-12-31');
 select * from t1;
 analyze table t1;
-explain partitions select * from t1 where a <= '2003-12-31';
+explain select * from t1 where a <= '2003-12-31';
 select * from t1 where a <= '2003-12-31';
-explain partitions select * from t1 where a <= '2005-01-01';
+explain select * from t1 where a <= '2005-01-01';
 select * from t1 where a <= '2005-01-01';
 show create table t1;
 drop table t1;
@@ -84,9 +84,9 @@ partition by range(to_seconds(a))
 insert into t1 values ('2004-01-01 11:59:29'),('2005-01-01 11:59:59');
 select * from t1;
 analyze table t1;
-explain partitions select * from t1 where a <= '2004-01-01 11:59.59';
+explain select * from t1 where a <= '2004-01-01 11:59.59';
 select * from t1 where a <= '2004-01-01 11:59:59';
-explain partitions select * from t1 where a <= '2005-01-01';
+explain select * from t1 where a <= '2005-01-01';
 select * from t1 where a <= '2005-01-01';
 show create table t1;
 drop table t1;
@@ -218,11 +218,11 @@ select * from t1 where a < 0;
 select * from t1 where a <= 0;
 select * from t1 where a > 1;
 analyze table t1;
-explain partitions select * from t1 where a is null;
-explain partitions select * from t1 where a >= 0;
-explain partitions select * from t1 where a < 0;
-explain partitions select * from t1 where a <= 0;
-explain partitions select * from t1 where a > 1;
+explain select * from t1 where a is null;
+explain select * from t1 where a >= 0;
+explain select * from t1 where a < 0;
+explain select * from t1 where a <= 0;
+explain select * from t1 where a > 1;
 drop table t1;
 
 create table t1 (a int unsigned, b int unsigned)
@@ -240,11 +240,11 @@ select * from t1 where a < 0;
 select * from t1 where a <= 0;
 select * from t1 where a > 1;
 analyze table t1;
-explain partitions select * from t1 where a is null;
-explain partitions select * from t1 where a >= 0;
-explain partitions select * from t1 where a < 0;
-explain partitions select * from t1 where a <= 0;
-explain partitions select * from t1 where a > 1;
+explain select * from t1 where a is null;
+explain select * from t1 where a >= 0;
+explain select * from t1 where a < 0;
+explain select * from t1 where a <= 0;
+explain select * from t1 where a > 1;
 
 drop table t1;
 
@@ -885,12 +885,12 @@ INSERT INTO t1 VALUES ('2006-07-13'),('2006-07-20'),('2006-07-30');
 SELECT * FROM t1
 WHERE a >= '2004-07-01' AND a <= '2004-09-30';
 analyze table t1;
-EXPLAIN PARTITIONS SELECT * FROM t1
+EXPLAIN SELECT * FROM t1
 WHERE a >= '2004-07-01' AND a <= '2004-09-30';
 SELECT * from t1
 WHERE (a >= '2004-07-01' AND a <= '2004-09-30') OR
       (a >= '2005-07-01' AND a <= '2005-09-30');
-EXPLAIN PARTITIONS SELECT * from t1
+EXPLAIN SELECT * from t1
 WHERE (a >= '2004-07-01' AND a <= '2004-09-30') OR
       (a >= '2005-07-01' AND a <= '2005-09-30');
 DROP TABLE t1;
@@ -909,12 +909,12 @@ DROP TABLE t1;
 #insert into t1 values ("1234567890123456789");
 #insert into t1 values ("1234567890123456");
 #select * from t1;
-#explain partitions select * from t1 where a = "12345678901234567890";
-#explain partitions select * from t1 where a = "12345678901234567890" OR
+#explain select * from t1 where a = "12345678901234567890";
+#explain select * from t1 where a = "12345678901234567890" OR
 #                                          a = "A2345678901234567890" OR
 #                                          a = "B2345678901234567890" OR
 #                                          a = "C2345678901234567890";
-#explain partitions select * from t1 where a = "01234567890123456";
+#explain select * from t1 where a = "01234567890123456";
 #select * from t1 where a = "01234567890123456";
 #select * from t1 where a = "12345678901234567890" OR
 #                       a = "A2345678901234567890" OR

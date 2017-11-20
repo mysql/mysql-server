@@ -99,6 +99,7 @@ int Delayed_initialization_thread::launch_initialization_thread()
                           launch_handler_thread,
                           (void*)this))
   {
+    mysql_mutex_unlock(&run_lock); /* purecov: inspected */
     DBUG_RETURN(1); /* purecov: inspected */
   }
 
@@ -164,8 +165,8 @@ int Delayed_initialization_thread::initialization_thread_handler()
     sql_command_interface= new Sql_service_command_interface();
     if (sql_command_interface->
             establish_session_connection(PSESSION_INIT_THREAD,
-                                         get_plugin_pointer()) ||
-        sql_command_interface->set_interface_user(GROUPREPL_USER))
+                                         GROUPREPL_USER,
+                                         get_plugin_pointer()))
     {
       /* purecov: begin inspected */
       log_message(MY_ERROR_LEVEL,
@@ -205,6 +206,16 @@ int Delayed_initialization_thread::initialization_thread_handler()
                                                 server_version)))
       goto err; /* purecov: inspected */
 
+    if (check_async_channel_running_on_secondary())
+    {
+      error= 1;
+      log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
+                                  " member with single primary-mode while"
+                                  " asynchronous replication channels are"
+                                  " running.");
+      goto err; /* purecov: inspected */
+    }
+
     configure_compatibility_manager();
 
     // need to be initialized before applier, is called on kill_pending_transactions
@@ -219,7 +230,9 @@ int Delayed_initialization_thread::initialization_thread_handler()
       goto err;
     }
 
+    initialize_asynchronous_channels_observer();
     initialize_group_partition_handler();
+    set_auto_increment_handler();
 
     if ((error= start_group_communication()))
     {

@@ -19,14 +19,15 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "mdl.h"                       // MDL_savepoint
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"                    // strmake_root
-#include "rpl_transaction_ctx.h"       // Rpl_transaction_ctx
-#include "rpl_transaction_write_set_ctx.h" // Transaction_write_set_ctx
-#include "thr_malloc.h"
-#include "xa.h"                        // XID_STATE
+#include "mysql/udf_registration_types.h"
+#include "sql/mdl.h"                   // MDL_savepoint
+#include "sql/rpl_transaction_ctx.h"   // Rpl_transaction_ctx
+#include "sql/rpl_transaction_write_set_ctx.h" // Transaction_write_set_ctx
+#include "sql/thr_malloc.h"
+#include "sql/xa.h"                    // XID_STATE
 
 class Ha_trx_info;
 class THD;
@@ -186,12 +187,6 @@ private:
 
   XID_STATE m_xid_state;
 
-  /*
-    Tables changed in transaction (that must be invalidated in query cache).
-    List contain only transactional tables, that not invalidated in query
-    cache (instead of full list of changed in transaction tables).
-  */
-  CHANGED_TABLE_LIST* m_changed_tables;
   MEM_ROOT m_mem_root; // Transaction-life memory allocation pool
 
 public:
@@ -254,7 +249,6 @@ public:
   void cleanup()
   {
     DBUG_ENTER("Transaction_ctx::cleanup");
-    m_changed_tables= NULL;
     m_savepoints= NULL;
     m_xid_state.cleanup();
     m_rpl_transaction_ctx.cleanup();

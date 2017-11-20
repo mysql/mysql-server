@@ -89,7 +89,8 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 --source include/rpl_connection.inc
 
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("There was an error when connecting to the donor server. Check group replication recovery's connection credentials.");
+call mtr.add_suppression("There was an error when connecting to the donor server.*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 SET SESSION sql_log_bin= 1;
 
 --disable_warnings

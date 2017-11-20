@@ -19,16 +19,16 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "item.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "prealloced_array.h"             // Prealloced_array
-#include "query_result.h"                 // Query_result_interceptor
-#include "sql_alloc.h"
-#include "sql_array.h"
-#include "sql_error.h"
-#include "table.h"
+#include "sql/item.h"
+#include "sql/query_result.h"             // Query_result_interceptor
+#include "sql/sql_alloc.h"
+#include "sql/sql_array.h"
+#include "sql/sql_error.h"
+#include "sql/table.h"
 
 class Field;
 class Query_arena;

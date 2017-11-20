@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_info_file.h"
+#include "sql/rpl_info_file.h"
 
 #include "my_config.h"
 
@@ -21,21 +21,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "my_inttypes.h"
+#include "my_loglevel.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
-#include "dynamic_ids.h"       // Server_ids
-#include "log.h"
 #include "m_string.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"            // MY_STAT
 #include "my_thread_local.h"   // my_errno
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld.h"            // mysql_data_home
 #include "mysqld_error.h"      // ER_*
-#include "psi_memory_key.h"
+#include "sql/dynamic_ids.h"   // Server_ids
+#include "sql/log.h"
+#include "sql/mysqld.h"        // mysql_data_home
+#include "sql/psi_memory_key.h"
 #include "sql_string.h"
 
 

@@ -10,9 +10,10 @@ connect (test_con2, localhost, root,,);
 SET @@session.wait_timeout = <session_value> - 1;
 connection default;
 wait until connections ready
-SELECT info FROM information_schema.processlist;
+SELECT info FROM information_schema.processlist ORDER BY info;
 info
-SELECT info FROM information_schema.processlist
+NULL
+SELECT info FROM information_schema.processlist ORDER BY info
 '#--------------------FN_DYNVARS_186_03-------------------------#'
 SET @@global.wait_timeout= <global_value>;
 SELECT @@session.wait_timeout = @start_value AS 'Expect 1';
@@ -23,9 +24,10 @@ SELECT @@session.wait_timeout = @@global.wait_timeout AS 'Expect 1';
 Expect 1
 1
 connection default;
-SELECT info FROM information_schema.processlist;
+SELECT info FROM information_schema.processlist  ORDER BY info;
 info
-SELECT info FROM information_schema.processlist
+NULL
+SELECT info FROM information_schema.processlist  ORDER BY info
 SELECT UNIX_TIMESTAMP() - @start_time >= <global_value> + <session_value>;;
 UNIX_TIMESTAMP() - @start_time >= <global_value> + <session_value>;
 1

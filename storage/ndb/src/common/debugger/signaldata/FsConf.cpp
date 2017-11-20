@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ printFSCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBl
 
   if (len > 1){
     // Only valid if this is a FSOPENCONF
-    fprintf(output, " FilePointer: %d\n", sig->filePointer);
+    fprintf(output, " FilePointer/Bytes_read: %d\n", sig->filePointer);
   }
 
   if (len > 2)

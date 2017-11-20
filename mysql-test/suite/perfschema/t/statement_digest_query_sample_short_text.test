@@ -1,0 +1,38 @@
+####################################################
+# WL#9830 - PERFORMANCE_SCHEMA DIGEST QUERY SAMPLE #
+####################################################
+#                                                  #
+# Test Author - Mohit Joshi                        #
+# Creation date - 18-Aug-2017                      #
+####################################################
+
+--source include/no_protocol.inc
+--echo
+--echo #### Test 1 - VERIFY QUERY_SAMPLE_TEXT LENGTH IS LIMITED BY PERFORMANCE_SCHEMA_MAX_SQL_TEXT_LENGTH
+--echo
+
+--echo
+--echo # 1.1 Verify sql text length = 10
+SELECT @@global.performance_schema_max_sql_text_length;
+--echo
+
+USE test;
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (s1 int);
+INSERT INTO t1 values (100), (200), (300);
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+UPDATE t1 SET s1 = 500;
+
+--echo
+--echo ## 1.2 Verify that QUERY_SAMPLE_TEXT is truncated to 10 bytes
+--echo
+SELECT length(query_sample_text) = 10 AS 'Expect 1 as QUERY_SAMPLE_TEXT is 10'
+FROM performance_schema.events_statements_summary_by_digest
+WHERE digest_text = "UPDATE `t1` SET `s1` = ?";
+
+--echo
+--echo ## CLEANUP
+--echo
+DROP TABLE t1;

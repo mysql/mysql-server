@@ -23,17 +23,18 @@
 
 #include "binary_log_types.h" // enum_field_types
 #include "lex_string.h"
-#include "mem_root_array.h" // Mem_root_array
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"
-#include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
-#include "sql_alloc.h"
-#include "sql_cmd.h"  // Sql_cmd
-#include "sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
-#include "sql_list.h" // List
-#include "thr_malloc.h"
+#include "nullable.h"
+#include "sql/gis/srid.h"
+#include "sql/mem_root_array.h" // Mem_root_array
+#include "sql/sql_alloc.h"
+#include "sql/sql_cmd.h" // Sql_cmd
+#include "sql/sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
+#include "sql/sql_list.h" // List
+#include "sql/thr_malloc.h"
 
 class Create_field;
 class FOREIGN_KEY;
@@ -42,6 +43,8 @@ class Key_spec;
 class String;
 class THD;
 struct TABLE_LIST;
+
+using Mysql::Nullable;
 
 /**
   Class representing DROP COLUMN, DROP KEY and DROP FOREIGN KEY
@@ -64,19 +67,50 @@ public:
 
 
 /**
-  Class representing SET DEFAULT and DROP DEFAULT clauses in
-  ALTER TABLE statement.
+  Class representing SET DEFAULT, DROP DEFAULT and RENAME
+  COLUMN clause in ALTER TABLE statement.
 */
 
 class Alter_column : public Sql_alloc
 {
 public:
+  /// The column name being altered.
   const char *name;
+
+  /// The default value supplied.
   Item *def;
 
+  /// The new colum name.
+  const char *m_new_name;
+
+  enum class Type { SET_DEFAULT, DROP_DEFAULT, RENAME_COLUMN };
+
+public:
+
+  /// Type of change requested in ALTER TABLE.
+  inline Type change_type() const
+  { return m_type; }
+
+  /// Constructor used when changing field DEFAULT value.
   Alter_column(const char *par_name, Item *literal)
-    :name(par_name), def(literal)
+    :name(par_name), def(literal), m_new_name(nullptr)
+  {
+    if (def)
+      m_type= Type::SET_DEFAULT;
+    else
+      m_type= Type::DROP_DEFAULT;
+  }
+
+  /// Constructor used while renaming field name.
+  Alter_column(const char *old_name, const char *new_name)
+    :name(old_name),
+     def(nullptr),
+     m_new_name(new_name),
+     m_type(Type::RENAME_COLUMN)
   { }
+
+private:
+  Type m_type;
 };
 
 
@@ -379,7 +413,8 @@ public:
                  const CHARSET_INFO *cs,
                  uint uint_geom_type,
                  class Generated_column *gcol_info,
-                 const char *opt_after);
+                 const char *opt_after,
+                 Nullable<gis::srid_t> srid);
 private:
   Alter_info &operator=(const Alter_info &rhs); // not implemented
   Alter_info(const Alter_info &rhs);            // not implemented

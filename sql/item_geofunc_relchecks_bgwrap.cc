@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,18 +13,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <algorithm>
-#include <utility>
+#include "sql/item_geofunc_relchecks_bgwrap.h"
 
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/equals.hpp>
+#include <boost/geometry/algorithms/intersects.hpp>
+#include <boost/geometry/algorithms/touches.hpp>
+#include <boost/geometry/algorithms/within.hpp>
 #include <boost/geometry/geometries/box.hpp>
 #include <boost/geometry/index/rtree.hpp>
+#include <algorithm>
+#include <utility>
 
-#include "item_geofunc_internal.h"
-#include "item_geofunc_relchecks_bgwrap.h"
 #include "my_dbug.h"
-#include "spatial.h"
+#include "sql/item_geofunc_internal.h"
+#include "sql/spatial.h"
 
 /**
   Dispatcher for 'point WITHIN xxx'.

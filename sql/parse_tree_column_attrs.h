@@ -16,15 +16,18 @@
 #ifndef PARSE_TREE_COL_ATTRS_INCLUDED
 #define PARSE_TREE_COL_ATTRS_INCLUDED
 
-#include "item_timefunc.h"
 #include "my_dbug.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql_com.h"
-#include "parse_tree_node_base.h"
-#include "sql_alter.h"
-#include "sql_class.h"
-#include "sql_parse.h"
+#include "nullable.h"
+#include "sql/gis/srid.h"
+#include "sql/item_timefunc.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/sql_alter.h"
+#include "sql/sql_class.h"
+#include "sql/sql_parse.h"
 
+using Mysql::Nullable;
 
 /**
   Parse context for column type attribyte specific parse tree nodes.
@@ -61,6 +64,7 @@ public:
   virtual void apply_comment(LEX_STRING*) const {}
   virtual void apply_default_value(Item**) const {}
   virtual void apply_on_update_value(Item**) const {}
+  virtual void apply_srid_modifier(Nullable<gis::srid_t>*) const {}
   virtual bool apply_collation(const CHARSET_INFO**) const { return false; }
 };
 
@@ -367,6 +371,21 @@ public:
   }
 };
 
+
+/// Node for the SRID column attribute
+class PT_srid_column_attr : public PT_column_attr_base
+{
+  typedef PT_column_attr_base super;
+
+  gis::srid_t m_srid;
+
+public:
+  explicit
+  PT_srid_column_attr(gis::srid_t srid) : m_srid(srid) {}
+
+  void apply_srid_modifier(Nullable<gis::srid_t> *srid) const override
+  { *srid= m_srid; }
+};
 
 // Type nodes:
 
@@ -765,6 +784,7 @@ public:
   Item *default_value;
   Item *on_update_value;
   Generated_column *gcol_info;
+  Nullable<gis::srid_t> m_srid;
 
 protected:
   PT_type *type_node;
@@ -809,6 +829,7 @@ protected:
         attr->apply_comment(&comment);
         attr->apply_default_value(&default_value);
         attr->apply_on_update_value(&on_update_value);
+        attr->apply_srid_modifier(&m_srid);
         if (attr->apply_collation(&charset))
           return true;
       }

@@ -20,11 +20,11 @@
 #include <vector>
 
 #include "fake_table.h"
-#include "item_cmpfunc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "parse_tree_helpers.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/parse_tree_helpers.h"
 #include "test_utils.h"
 
 namespace item_filter_unittest {
@@ -122,7 +122,7 @@ protected:
     SCOPED_TRACE(called_from_line);
     Item *item= create_item(type, fld, val1, val2);
 
-    const float filter= item->get_filtering_effect(m_table_list->map(),
+    const float filter= item->get_filtering_effect(thd(), m_table_list->map(),
                                                    used_tables,
                                                    fields_to_ignore,
                                                    rows_in_table);
@@ -147,7 +147,8 @@ protected:
     Item *itm= static_cast<Item*>(and_item);
     and_item->fix_fields(thd(), &itm);
 
-    const float filter= and_item->get_filtering_effect(m_table_list->map(),
+    const float filter= and_item->get_filtering_effect(thd(),
+                                                       m_table_list->map(),
                                                        used_tables,
                                                        fields_to_ignore,
                                                        rows_in_table);
@@ -173,7 +174,8 @@ protected:
     Item *itm= static_cast<Item*>(or_item);
     or_item->fix_fields(thd(), &itm);
 
-    const float filter= or_item->get_filtering_effect(m_table_list->map(),
+    const float filter= or_item->get_filtering_effect(thd(),
+                                                      m_table_list->map(),
                                                       used_tables,
                                                       fields_to_ignore,
                                                       rows_in_table);
@@ -203,7 +205,8 @@ protected:
     Item *itm= static_cast<Item*>(in_item);
     in_item->fix_fields(thd(), &itm);
 
-    const float filter= in_item->get_filtering_effect(m_table_list->map(),
+    const float filter= in_item->get_filtering_effect(thd(),
+                                                      m_table_list->map(),
                                                       used_tables,
                                                       fields_to_ignore,
                                                       rows_in_table);
@@ -438,7 +441,7 @@ TEST_F(ItemFilterTest, BasicConstAnd)
   */
   bitmap_set_bit(&ignore_flds, m_field[0]->field_index);
   
-  float filter= and_it->get_filtering_effect(m_table_list->map(),
+  float filter= and_it->get_filtering_effect(thd(), m_table_list->map(),
                                              used_tables,
                                              &ignore_flds,
                                              rows_in_table);
@@ -449,7 +452,7 @@ TEST_F(ItemFilterTest, BasicConstAnd)
     while ignoring predicates on field0 and field1
   */
   bitmap_set_bit(&ignore_flds, m_field[1]->field_index);
-  filter= and_it->get_filtering_effect(m_table_list->map(),
+  filter= and_it->get_filtering_effect(thd(), m_table_list->map(),
                                        used_tables,
                                        &ignore_flds,
                                        rows_in_table);
@@ -460,7 +463,7 @@ TEST_F(ItemFilterTest, BasicConstAnd)
     while ignoring predicates on field0, field1 and field2
   */
   bitmap_set_bit(&ignore_flds, m_field[2]->field_index);
-  filter= and_it->get_filtering_effect(m_table_list->map(),
+  filter= and_it->get_filtering_effect(thd(), m_table_list->map(),
                                        used_tables,
                                        &ignore_flds,
                                        rows_in_table);
@@ -531,7 +534,7 @@ TEST_F(ItemFilterTest, BasicConstOr)
 
   */
   bitmap_set_bit(&ignore_flds, m_field[0]->field_index);
-  const float filt_ign0= or_it->get_filtering_effect(m_table_list->map(),
+  const float filt_ign0= or_it->get_filtering_effect(thd(), m_table_list->map(),
                                                      used_tables,
                                                      &ignore_flds,
                                                      rows_in_table);
@@ -542,7 +545,7 @@ TEST_F(ItemFilterTest, BasicConstOr)
     ignoring predicates on m_field[0] and m_field[1]
   */
   bitmap_set_bit(&ignore_flds, m_field[1]->field_index);
-  const float filt_ign1= or_it->get_filtering_effect(m_table_list->map(),
+  const float filt_ign1= or_it->get_filtering_effect(thd(), m_table_list->map(),
                                                      used_tables,
                                                      &ignore_flds,
                                                      rows_in_table);
@@ -554,7 +557,7 @@ TEST_F(ItemFilterTest, BasicConstOr)
   */
   bitmap_clear_all(&ignore_flds);
   bitmap_set_bit(&ignore_flds, m_field[2]->field_index);
-  const float filt_ign2= or_it->get_filtering_effect(m_table_list->map(),
+  const float filt_ign2= or_it->get_filtering_effect(thd(), m_table_list->map(),
                                                      used_tables,
                                                      &ignore_flds,
                                                      rows_in_table);
@@ -618,7 +621,7 @@ TEST_F(ItemFilterTest, InPredicate)
     ignored.
   */
   bitmap_set_bit(&ignore_flds, m_field[0]->field_index);
-  const float filt_ign= in_it->get_filtering_effect(m_table_list->map(),
+  const float filt_ign= in_it->get_filtering_effect(thd(), m_table_list->map(),
                                                     used_tables,
                                                     &ignore_flds,
                                                     rows_in_table);

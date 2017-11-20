@@ -20,22 +20,26 @@
 #include <new>
 #include <string>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-#include "dd/types/index_stat.h"              // dd::Index_stats
-#include "dd/types/object_type.h"             // dd::Object_type
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/object_id.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/entity_object_table.h"
+#include "sql/dd/types/index_stat.h"          // dd::Index_stats
+#include "sql/dd/types/object_type.h"         // dd::Object_type
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Charset;
-class Raw_table;
-class Transaction;
 class Object_key;
 class Open_dictionary_tables_ctx;
+class Raw_table;
+class Transaction;
 class Weak_object;
+class Object_table;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -44,7 +48,8 @@ class Index_stat_impl : public Entity_object_impl,
 {
 public:
   Index_stat_impl()
-   :m_cardinality(0)
+   :m_cardinality(0),
+    m_cached_time(0)
   { }
 
 public:
@@ -110,6 +115,16 @@ public:
   virtual void set_cardinality(ulonglong cardinality)
   { m_cardinality= cardinality; }
 
+  /////////////////////////////////////////////////////////////////////////
+  // cached_time.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual ulonglong cached_time() const
+  { return m_cached_time; }
+
+  virtual void set_cached_time(ulonglong cached_time)
+  { m_cached_time= cached_time; }
+
 public:
   virtual Object_key *create_primary_key() const;
   virtual bool has_new_primary_key() const;
@@ -136,7 +151,7 @@ private:
   String_type m_column_name;
 
   ulonglong m_cardinality;
-
+  ulonglong m_cached_time;
 };
 
 ///////////////////////////////////////////////////////////////////////////

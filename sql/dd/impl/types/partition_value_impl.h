@@ -19,23 +19,23 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <new>
-#include <string>
 
-#include "dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
-#include "dd/sdi_fwd.h"
-#include "dd/types/object_type.h"            // dd::Object_type
-#include "dd/types/partition_value.h"        // dd::Partition_value
+#include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/object_type.h"        // dd::Object_type
+#include "sql/dd/types/partition_value.h"    // dd::Partition_value
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Open_dictionary_tables_ctx;
-class Partition_impl;
-class Raw_record;
 class Object_key;
 class Object_table;
+class Open_dictionary_tables_ctx;
 class Partition;
+class Partition_impl;
+class Raw_record;
 class Sdi_rcontext;
 class Sdi_wcontext;
 class Weak_object;

@@ -306,7 +306,7 @@ CREATE TABLE t1(a INT PRIMARY KEY);
 CREATE TABLE T2(a INT, FOREIGN KEY(a) REFERENCES t1(a));
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 'T2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 'T2' ORDER BY constraint_name;
@@ -315,7 +315,7 @@ t2_ibfk_1
 RENAME TABLE T2 TO T3;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 'T3' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t3_ibfk_1
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 'T3' ORDER BY constraint_name;
@@ -324,7 +324,7 @@ t3_ibfk_1
 RENAME TABLE t3 TO T4;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 'T4' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t4_ibfk_1
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 'T4' ORDER BY constraint_name;
@@ -334,7 +334,7 @@ DROP TABLE T4;
 CREATE TABLE T2(a INT, CONSTRAINT T2_ibfk_1 FOREIGN KEY(a) REFERENCES t1(a));
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 'T2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 T2_ibfk_1
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 'T2' ORDER BY constraint_name;
@@ -343,7 +343,7 @@ T2_ibfk_1
 RENAME TABLE T2 TO T3;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 'T3' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 T2_ibfk_1
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 'T3' ORDER BY constraint_name;

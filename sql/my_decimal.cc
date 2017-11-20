@@ -13,28 +13,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_decimal.h"
+#include "sql/my_decimal.h"
+
+#include "my_config.h"
 
 #include <stdio.h>
 
-#include "my_config.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 
-#include "current_thd.h"                        // current_thd
 #include "decimal.h"
-#include "derror.h"                             // ER_THD
-#include "field.h"                              // my_charset_numeric
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "my_time.h"                            // TIME_to_ulonglong_date
 #include "mysql_time.h"                         // MYSQL_TIME
 #include "mysqld_error.h"                       // ER_*
-#include "sql_const.h"
-#include "sql_error.h"                          // Sql_condition
-#include "system_variables.h"
+#include "sql/current_thd.h"                    // current_thd
+#include "sql/derror.h"                         // ER_THD
+#include "sql/field.h"                          // my_charset_numeric
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"                      // Sql_condition
+#include "sql/system_variables.h"
 
 
 /**

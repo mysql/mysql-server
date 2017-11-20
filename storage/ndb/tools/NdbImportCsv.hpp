@@ -19,6 +19,7 @@
 #define NDB_IMPORT_CSV_HPP
 
 #include <ndb_global.h>
+#include <stdint.h>
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
 #include <NdbImport.hpp>
@@ -107,15 +108,24 @@ public:
     bool m_escape;
   };
 
-  struct DataList : List {
-    Data* pop_front() {
-      return static_cast<Data*>(List::pop_front());
-    }
+  struct DataList : private List {
     Data* front() {
       return static_cast<Data*>(List::m_front);
     }
     Data* back() {
       return static_cast<Data*>(List::m_back);
+    }
+    void push_back(Data* data) {
+      List::push_back(data);
+    }
+    Data* pop_front() {
+      return static_cast<Data*>(List::pop_front());
+    }
+    void push_back(DataList& list2) {
+      List::push_back(list2);
+    }
+    uint cnt() const {
+      return m_cnt;
     }
   };
 
@@ -140,12 +150,21 @@ public:
     DataList m_data_list;
   };
 
-  struct FieldList : List {
+  struct FieldList : private List {
+    Field* front() {
+      return static_cast<Field*>(List::m_front);
+    }
+    void push_back(Field* field) {
+      List::push_back(field);
+    }
     Field* pop_front() {
       return static_cast<Field*>(List::pop_front());
     }
-    Field* front() {
-      return static_cast<Field*>(List::m_front);
+    void push_back(FieldList& list2) {
+      List::push_back(list2);
+    }
+    uint cnt() const {
+      return m_cnt;
     }
   };
 
@@ -166,15 +185,24 @@ public:
     FieldList m_field_list;
   };
 
-  struct LineList : List {
-    Line* pop_front() {
-      return static_cast<Line*>(List::pop_front());
-    }
+  struct LineList : private List {
     Line* front() {
       return static_cast<Line*>(List::m_front);
     }
     Line* back() {
       return static_cast<Line*>(List::m_back);
+    }
+    void push_back(Line* line) {
+      List::push_back(line);
+    }
+    Line* pop_front() {
+      return static_cast<Line*>(List::pop_front());
+    }
+    void push_back(LineList& list2) {
+      List::push_back(list2);
+    }
+    uint cnt() const {
+      return m_cnt;
     }
   };
 

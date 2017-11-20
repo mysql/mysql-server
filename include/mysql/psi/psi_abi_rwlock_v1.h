@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,8 +19,7 @@
   This file is only used to automate detection of changes between versions.
   Do not include this file, include mysql/psi/psi_rwlock.h instead.
 */
-#define USE_PSI_RWLOCK_1
-#define HAVE_PSI_INTERFACE
+#define HAVE_PSI_RWLOCK_INTERFACE
 #define MY_GLOBAL_INCLUDED
 #define MY_PSI_CONFIG_INCLUDED
 #include "mysql/psi/psi_rwlock.h"

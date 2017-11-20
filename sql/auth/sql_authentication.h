@@ -16,8 +16,6 @@
 #ifndef SQL_AUTHENTICATION_INCLUDED
 #define SQL_AUTHENTICATION_INCLUDED
 
-#include "my_config.h"
-
 #include <sys/types.h>
 
 #include "lex_string.h"
@@ -26,10 +24,12 @@
 #include "mysql/plugin.h"
 #include "mysql/plugin_auth.h"          // MYSQL_SERVER_AUTH_INFO
 #include "mysql/plugin_auth_common.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"             // plugin_ref
-#include "thr_malloc.h"
+#include "sql/sql_plugin_ref.h"         // plugin_ref
+#include "sql/thr_malloc.h"
+
+#include <string>
 
 class THD;
 
@@ -37,7 +37,6 @@ typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_show_var SHOW_VAR;
 class ACL_USER;
 class Protocol_classic;
-class String;
 
 typedef struct st_net NET;
 
@@ -95,12 +94,15 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO
 };
 
 #if defined(HAVE_OPENSSL)
-#ifndef HAVE_YASSL
+class String;
+
 bool init_rsa_keys(void);
 void deinit_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
 
+#ifndef HAVE_YASSL
 typedef struct rsa_st RSA;
+#endif
 class Rsa_authentication_keys
 {
 private:
@@ -108,15 +110,24 @@ private:
   RSA *m_private_key;
   int m_cipher_len;
   char *m_pem_public_key;
+  char **m_private_key_path;
+  char **m_public_key_path;
 
   void get_key_file_path(char *key, String *key_file_path);
   bool read_key_file(RSA **key_ptr, bool is_priv_key, char **key_text_buffer);
 
 public:
-  Rsa_authentication_keys();
+  Rsa_authentication_keys(char **private_key_path,
+                          char **public_key_path)
+    : m_public_key(0),
+      m_private_key(0),
+      m_cipher_len(0),
+      m_pem_public_key(0),
+      m_private_key_path(private_key_path),
+      m_public_key_path(public_key_path)
+  {}
   ~Rsa_authentication_keys()
-  {
-  }
+  {}
 
   void free_memory();
   void *allocate_pem_buffer(size_t buffer_len);
@@ -139,7 +150,6 @@ public:
   
 };
 
-#endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */
 
 /* Data Structures */
@@ -148,9 +158,13 @@ extern LEX_CSTRING native_password_plugin_name;
 extern LEX_CSTRING sha256_password_plugin_name;
 extern LEX_CSTRING validate_password_plugin_name;
 extern LEX_CSTRING default_auth_plugin_name;
+extern LEX_CSTRING caching_sha2_password_plugin_name;
 
 extern bool allow_all_hosts;
 
 extern plugin_ref native_password_plugin;
+
+#define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
+#define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
 
 #endif /* SQL_AUTHENTICATION_INCLUDED */

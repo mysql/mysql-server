@@ -22,7 +22,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/extra/zlib
 # We omit core-t here, since it will always fail.
 SET(TESTS simple skip todo skip_all no_plan)
 FOREACH(test ${TESTS})
-  ADD_EXECUTABLE(${test}-t ${test}-t.c)
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.c ADD_TEST ${test})
   TARGET_LINK_LIBRARIES(${test}-t mytap)
-  ADD_TEST(${test} ${test}-t)
 ENDFOREACH()

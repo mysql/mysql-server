@@ -22,8 +22,8 @@
 #include <chrono>
 #include <functional>
 
-#include "abstract_chain_element.h"
-#include "i_progress_watcher.h"
+#include "client/dump/abstract_chain_element.h"
+#include "client/dump/i_progress_watcher.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

@@ -13,25 +13,31 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/column_statistics_impl.h"
+#include "sql/dd/impl/types/column_statistics_impl.h"
 
-#include <stdint.h>
+#include <string.h>
 
-#include "current_thd.h"                   // current_thd
-#include "dd/impl/dictionary_impl.h"       // Dictionary_impl
-#include "dd/impl/raw/object_keys.h"       // id_key_type
-#include "dd/impl/raw/raw_record.h"        // Raw_record
-#include "dd/impl/sdi_impl.h"              // sdi read/write functions
-#include "dd/impl/tables/column_statistics.h"   // Column_statistics
-#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
-#include "histograms/histogram.h"          // histograms::Histogram
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+
 #include "include/my_md5.h"                // array_to_hex
 #include "include/sha1.h"                  // compute_sha1_hash
-#include "json_dom.h"                      // Json_*
+#include "m_ctype.h"
 #include "m_string.h"                      // STRING_WITH_LEN
-#include "mysqld.h"                        // system_charset_info
-#include "rapidjson/document.h"
-#include "rapidjson/prettywriter.h"
+#include "my_dbug.h"
+#include "mysql_com.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"               // current_thd
+#include "sql/dd/impl/dictionary_impl.h"   // Dictionary_impl
+#include "sql/dd/impl/raw/object_keys.h"   // id_key_type
+#include "sql/dd/impl/raw/raw_record.h"    // Raw_record
+#include "sql/dd/impl/sdi_impl.h"          // sdi read/write functions
+#include "sql/dd/impl/tables/column_statistics.h" // Column_statistics
+#include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
+#include "sql/histograms/histogram.h"      // histograms::Histogram
+#include "sql/json_dom.h"                  // Json_*
+#include "template_utils.h"
 
 namespace dd {
 

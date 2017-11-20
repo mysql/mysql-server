@@ -59,12 +59,12 @@ baseline.COUNT_ALLOC AS 'BASE ALLOC',
 after_create.COUNT_ALLOC AS 'POST ALLOC',
 diffs.COUNT_ALLOC_DIFF AS DELTA,
 percents.ALLOC_PCT AS PCT_CHANGE,
-'Exceeds threshold of +15%' AS REASON
+'Exceeds threshold of +17%' AS REASON
 FROM baseline JOIN (after_create, diffs, percents) ON
 (baseline.EVENT_NAME = after_create.EVENT_NAME AND
 baseline.EVENT_NAME = diffs.EVENT_NAME AND
 baseline.EVENT_NAME = percents.EVENT_NAME)
-WHERE percents.ALLOC_PCT > 15;
+WHERE percents.ALLOC_PCT > 17;
 PSI MEMORY EVENT NAME	BASE ALLOC	POST ALLOC	DELTA	PCT_CHANGE	REASON
 #
 # Checking increase in the number of bytes allocated (threshold 25%)
@@ -75,12 +75,12 @@ baseline.SUM_NUMBER_OF_BYTES_ALLOC AS 'BASE ALLOC BYTES',
 after_create.SUM_NUMBER_OF_BYTES_ALLOC AS 'POST ALLOC BYTES',
 diffs.SUM_NUMBER_OF_BYTES_ALLOC_DIFF AS DELTA,
 percents.BYTES_ALLOC_PCT AS PCT_CHANGE,
-'Exceeds threshold of +25%' AS REASON
+'Exceeds threshold of +29%' AS REASON
 FROM baseline JOIN (after_create, diffs, percents) ON
 (baseline.EVENT_NAME = after_create.EVENT_NAME AND
 baseline.EVENT_NAME = diffs.EVENT_NAME AND
 baseline.EVENT_NAME = percents.EVENT_NAME)
-WHERE percents.BYTES_ALLOC_PCT > 25;
+WHERE percents.BYTES_ALLOC_PCT > 29;
 PSI MEMORY EVENT NAME	BASE ALLOC BYTES	POST ALLOC BYTES	DELTA	PCT_CHANGE	REASON
 #
 # Cleaning up

@@ -28,28 +28,28 @@
 #include <functional>
 
 #include "binary_log_types.h"
-#include "field.h"
-#include "item.h"
-#include "item_cmpfunc.h"             // Item_cond_and
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_table_map.h"
-#include "opt_costmodel.h"
-#include "opt_explain_format.h"       // Explain_sort_clause
-#include "set_var.h"
-#include "sql_alloc.h"
-#include "sql_bitmap.h"
-#include "sql_class.h"                // THD
-#include "sql_cmd_dml.h"              // Sql_cmd_dml
-#include "sql_const.h"
-#include "sql_lex.h"
-#include "sql_opt_exec_shared.h"      // join_type
-#include "sql_opt_exec_shared.h"      // join_type
-#include "system_variables.h"
-#include "table.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"         // Item_cond_and
+#include "sql/opt_costmodel.h"
+#include "sql/set_var.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"            // THD
+#include "sql/sql_cmd_dml.h"          // Sql_cmd_dml
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_opt_exec_shared.h"  // join_type
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
 
 class Item_func;
 class JOIN_TAB;
@@ -1182,6 +1182,7 @@ static inline Item_bool_func *and_items(Item *cond, Item_bool_func *item)
 uint actual_key_parts(const KEY *key_info);
 
 class ORDER_with_src;
+
 uint get_index_for_order(ORDER_with_src *order, QEP_TAB *tab,
                          ha_rows limit, bool *need_sort, bool *reverse);
 int test_if_order_by_key(ORDER_with_src *order, TABLE *table, uint idx,

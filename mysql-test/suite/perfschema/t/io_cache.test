@@ -9,6 +9,7 @@
 
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
+--source include/have_log_bin.inc
 
 --echo
 --echo ## Connection default

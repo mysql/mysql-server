@@ -16,18 +16,19 @@
    02110-1301 USA */
 
 #include <stddef.h>
+#include <memory>
+#include <unordered_map>
+#include <utility>
 
-#include "hash.h"
-#include "m_ctype.h"
+#include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld_error.h"      // ER_*
 #include "prealloced_array.h"
-#include "psi_memory_key.h"
-#include "rpl_gtid.h"
+#include "sql/psi_memory_key.h"
+#include "sql/rpl_gtid.h"
 
 Owned_gtids::Owned_gtids(Checkable_rwlock *_sid_lock)
   : sid_lock(_sid_lock), sidno_to_hash(key_memory_Owned_gtids_sidno_to_hash)
@@ -44,9 +45,7 @@ Owned_gtids::~Owned_gtids()
   rpl_sidno max_sidno= get_max_sidno();
   for (int sidno= 1; sidno <= max_sidno; sidno++)
   {
-    HASH *hash= get_hash(sidno);
-    my_hash_free(hash);
-    my_free(hash);
+    delete get_hash(sidno);
   }
   sid_lock->unlock();
   //sid_lock->assert_no_lock();
@@ -62,21 +61,12 @@ enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno)
   {
     for (int i= max_sidno; i < sidno; i++)
     {
-      HASH *hash= (HASH *)my_malloc(key_memory_Owned_gtids_sidno_to_hash,
-                                    sizeof(HASH), MYF(MY_WME));
-      if (hash == NULL)
-        goto error;
-      my_hash_init(hash, &my_charset_bin, 20, 0,
-                   node_get_key,
-                   my_free, 0,
-                   key_memory_Owned_gtids_sidno_to_hash);
-      sidno_to_hash.push_back(hash);
+      sidno_to_hash.push_back
+        (new malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>>
+          (key_memory_Owned_gtids_sidno_to_hash));
     }
   }
   RETURN_OK;
-error:
-  BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
-  RETURN_REPORTED_ERROR;
 }
 
 
@@ -95,12 +85,7 @@ enum_return_status Owned_gtids::add_gtid_owner(const Gtid &gtid,
   printf("Owned_gtids(%p)::add sidno=%d gno=%lld n=%p n->owner=%u\n",
          this, sidno, gno, n, n?n->owner:0);
   */
-  if (my_hash_insert(get_hash(gtid.sidno), (const uchar *)n) != 0)
-  {
-    my_free(n);
-    BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
-    RETURN_REPORTED_ERROR;
-  }
+  get_hash(gtid.sidno)->emplace(gtid.gno, unique_ptr_my_free<Node>(n));
   RETURN_OK;
 }
 
@@ -110,23 +95,15 @@ void Owned_gtids::remove_gtid(const Gtid &gtid, const my_thread_id owner)
   DBUG_ENTER("Owned_gtids::remove_gtid(Gtid)");
   //printf("Owned_gtids::remove(sidno=%d gno=%lld)\n", sidno, gno);
   //DBUG_ASSERT(contains_gtid(sidno, gno)); // allow group not owned
-  HASH_SEARCH_STATE state;
-  HASH *hash= get_hash(gtid.sidno);
-  DBUG_ASSERT(hash != NULL);
-
-  for (Node *node= (Node *)my_hash_search(hash, (const uchar *)&gtid.gno, sizeof(rpl_gno));
-       node != NULL;
-       node= (Node*) my_hash_next(hash, (const uchar *)&gtid.gno, sizeof(rpl_gno), &state))
+  malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>>
+    *hash= get_hash(gtid.sidno);
+  auto it_range= hash->equal_range(gtid.gno);
+  for (auto it= it_range.first; it != it_range.second; ++it)
   {
-    if (node->owner == owner)
+    if (it->second->owner == owner)
     {
-#ifdef DBUG_OFF
-      my_hash_delete(hash, (uchar *)node);
-#else
-      // my_hash_delete returns nonzero if the element does not exist
-      DBUG_ASSERT(my_hash_delete(hash, (uchar *)node) == 0);
-#endif
-      break;
+      hash->erase(it);
+      DBUG_VOID_RETURN;
     }
   }
   DBUG_VOID_RETURN;
@@ -170,28 +147,25 @@ void Owned_gtids::get_gtids(Gtid_set &gtid_set) const
 
 bool Owned_gtids::contains_gtid(const Gtid &gtid) const
 {
-  HASH *hash= get_hash(gtid.sidno);
-  DBUG_ASSERT(hash != NULL);
+  malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>>
+    *hash= get_hash(gtid.sidno);
   sid_lock->assert_some_lock();
-
-  return my_hash_search(hash, (const uchar *)&gtid.gno, sizeof(rpl_gno)) != NULL;
+  return hash->count(gtid.gno) != 0;
 }
 
 bool Owned_gtids::is_owned_by(const Gtid &gtid, const my_thread_id thd_id) const
 {
-  HASH_SEARCH_STATE state;
-  HASH *hash= get_hash(gtid.sidno);
-  DBUG_ASSERT(hash != NULL);
-  Node *node= (Node*) my_hash_first(hash, (const uchar *)&gtid.gno,
-                                    sizeof(rpl_gno), &state);
+  malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>>
+    *hash= get_hash(gtid.sidno);
+  auto it_range= hash->equal_range(gtid.gno);
+
   if (thd_id == 0)
-    return node == NULL;
-  while (node)
+    return it_range.first == it_range.second;
+
+  for (auto it= it_range.first; it != it_range.second; ++it)
   {
-    if (node->owner == thd_id)
+    if (it->second->owner == thd_id)
       return true;
-    node= (Node*) my_hash_next(hash, (const uchar *)&gtid.gno,
-                               sizeof(rpl_gno), &state);
   }
   return false;
 }

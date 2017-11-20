@@ -20,12 +20,12 @@
 
 #include "storage/perfschema/table_host_cache.h"
 
-#include "current_thd.h"
-#include "field.h"
-#include "hostname.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/field.h"
+#include "sql/hostname.h"
+#include "sql/sql_class.h"
 
 THR_LOCK table_host_cache::m_table_lock;
 
@@ -80,7 +80,10 @@ PFS_engine_table_share table_host_cache::m_share = {
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool
@@ -157,8 +160,6 @@ table_host_cache::table_host_cache()
 void
 table_host_cache::materialize(THD *thd)
 {
-  Host_entry *current;
-  Host_entry *first;
   uint size;
   uint index;
   row_host_cache *rows;
@@ -186,15 +187,14 @@ table_host_cache::materialize(THD *thd)
   index = 0;
   row = rows;
 
-  first = hostname_cache_first();
-  current = first;
-
-  while ((current != NULL) && (index < size))
   {
-    make_row(current, row);
-    index++;
-    row++;
-    current = current->next();
+    auto end = hostname_cache_end();
+    for (auto it = hostname_cache_begin(); it != end; ++it)
+    {
+      make_row(it->get(), row);
+      index++;
+      row++;
+    }
   }
 
   m_all_rows = rows;

@@ -19,15 +19,16 @@
 
 #include "base64.h"
 #include "base_mock_field.h"
+#include "benchmark.h"
 #include "fake_table.h"
-#include "json_binary.h"
-#include "json_diff.h"
-#include "json_dom.h"
-#include "json_path.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
+#include "sql/json_binary.h"
+#include "sql/json_diff.h"
+#include "sql/json_dom.h"
+#include "sql/json_path.h"
+#include "sql/my_decimal.h"
+#include "sql/sql_time.h"
 #include "sql_string.h"
-#include "sql_time.h"
 #include "template_utils.h"     // down_cast
 #include "test_utils.h"
 
@@ -63,7 +64,7 @@ protected:
 
    @param d The DOM object to be formatted
 */
-std::string format(const Json_dom &d)
+static std::string format(const Json_dom &d)
 {
   String buffer;
   Json_wrapper w(d.clone());
@@ -72,7 +73,12 @@ std::string format(const Json_dom &d)
   return std::string(buffer.ptr(), buffer.length());
 }
 
-std::string format(const Json_dom *ptr)
+static std::string format(const Json_dom *ptr)
+{
+  return format(*ptr);
+}
+
+static std::string format(const Json_dom_ptr &ptr)
 {
   return format(*ptr);
 }
@@ -82,13 +88,10 @@ std::string format(const Json_dom *ptr)
   @param json_text null-terminated string of JSON text
   @return a DOM representing the JSON document
 */
-static std::unique_ptr<Json_dom> parse_json(const char *json_text)
+static Json_dom_ptr parse_json(const char *json_text)
 {
-  const char *msg;
-  size_t msg_offset;
-  std::unique_ptr<Json_dom> dom(Json_dom::parse(json_text,
-                                                std::strlen(json_text),
-                                                &msg, &msg_offset));
+  auto dom= Json_dom::parse(json_text, std::strlen(json_text),
+                            nullptr, nullptr);
   EXPECT_FALSE(dom == nullptr);
   return dom;
 }
@@ -212,12 +215,15 @@ TEST_F(JsonDomTest, BasicTest)
   }
 
   /* Test uniqueness of keys */
-  Json_string js6(std::string("should be discarded"));
-  o.add_clone(std::string("key1"), &js6);
+  Json_string js6(std::string("js6"));
+  o.add_clone("key1", &js6);
   EXPECT_EQ(2U, o.cardinality());
-  EXPECT_EQ(std::string("{\"key1\": null, \"key2\": [\"val1\", \"val2\"]}"),
+  EXPECT_EQ(std::string("{\"key1\": \"js6\", \"key2\": [\"val1\", \"val2\"]}"),
             format(o));
   EXPECT_EQ(3U, o.depth());
+  o.add_clone("key1", &null);
+  EXPECT_EQ(std::string("{\"key1\": null, \"key2\": [\"val1\", \"val2\"]}"),
+            format(o));
 
   /* Nested array inside object and object inside array,
    * and object cloning
@@ -271,18 +277,17 @@ TEST_F(JsonDomTest, BasicTest)
   EXPECT_EQ(m_d, m_out_d);
 
   a.append_clone(&jd);
-  std::unique_ptr<Json_array> b(static_cast<Json_array *>(a.clone()));
   EXPECT_EQ(std::string("[\"val1\", \"val2\", 3.14]"), format(a));
-  EXPECT_EQ(std::string("[\"val1\", \"val2\", 3.14]"), format(b.get()));
+  EXPECT_EQ(std::string("[\"val1\", \"val2\", 3.14]"), format(a.clone()));
 
   /* Array insert beyond end appends at end */
   a.clear();
-  a.insert_alias(0, new (std::nothrow) Json_int(0));
-  a.insert_alias(2, new (std::nothrow) Json_int(2));
+  a.insert_alias(0, create_dom_ptr<Json_int>(0));
+  a.insert_alias(2, create_dom_ptr<Json_int>(2));
   EXPECT_EQ(std::string("[0, 2]"), format(a));
   a.clear();
-  a.insert_alias(0, new (std::nothrow) Json_int(0));
-  a.insert_alias(1, new (std::nothrow) Json_int(1));
+  a.insert_alias(0, create_dom_ptr<Json_int>(0));
+  a.insert_alias(1, create_dom_ptr<Json_int>(1));
   EXPECT_EQ(std::string("[0, 1]"), format(a));
 
   /* Array clear, null type, boolean literals, including cloning */
@@ -293,9 +298,8 @@ TEST_F(JsonDomTest, BasicTest)
   a.append_clone(&jn);
   a.append_clone(&jbf);
   a.append_clone(&jbt);
-  std::unique_ptr<const Json_dom> c(a.clone());
   EXPECT_EQ(std::string("[null, false, true]"), format(a));
-  EXPECT_EQ(std::string("[null, false, true]"), format(c.get()));
+  EXPECT_EQ(std::string("[null, false, true]"), format(a.clone()));
 
   /* DATETIME scalar */
   MYSQL_TIME dt;
@@ -354,21 +358,21 @@ TEST_F(JsonDomTest, BasicTest)
     "{\"abc\": 3, \"foo\": [1, 2, {\"foo\": 3.24}, null]}";
   auto dom= parse_json(sample_doc);
   EXPECT_EQ(4U, dom->depth());
-  EXPECT_EQ(std::string(sample_doc), format(dom.get()));
+  EXPECT_EQ(std::string(sample_doc), format(dom));
 
   const char *sample_array=
     "[3, {\"abc\": \"\\u0000inTheText\"}]";
   dom= parse_json(sample_array);
   EXPECT_EQ(3U, dom->depth());
-  EXPECT_EQ(std::string(sample_array), format(dom.get()));
+  EXPECT_EQ(std::string(sample_array), format(dom));
 
   const char *sample_scalar_doc= "2";
   dom= parse_json(sample_scalar_doc);
-  EXPECT_EQ(std::string(sample_scalar_doc), format(dom.get()));
+  EXPECT_EQ(std::string(sample_scalar_doc), format(dom));
 
   const char *max_uint_scalar= "18446744073709551615";
   dom= parse_json(max_uint_scalar);
-  EXPECT_EQ(std::string(max_uint_scalar), format(dom.get()));
+  EXPECT_EQ(std::string(max_uint_scalar), format(dom));
 
   /*
     Test that duplicate keys are eliminated, and that the returned
@@ -380,11 +384,11 @@ TEST_F(JsonDomTest, BasicTest)
     "\"\":9, \"\":10}";
   const std::string expected[8][2]=
     {
-      { "",        "9" },
+      { "",        "10" },
       { "a",       "6" },
       { "b",       "8" },
       { "ab",      "7" },
-      { "key1",    "1" },
+      { "key1",    "3" },
       { "key2",    "2" },
       { std::string("key1\0x", 6), "4" },
       { std::string("key1\0y", 6), "5" },
@@ -406,31 +410,52 @@ TEST_F(JsonDomTest, BasicTest)
   /* Try to build DOM for JSON text using rapidjson on invalid text
      Included so we test error recovery
   */
-  const char *msg;
-  size_t msg_offset;
   const char *half_object_item= "{\"label\": ";
-  dom.reset(Json_dom::parse(half_object_item, std::strlen(half_object_item),
-                            &msg, &msg_offset));
-  const Json_dom *null_dom= NULL;
-  EXPECT_EQ(null_dom, dom.get());
+  dom= Json_dom::parse(half_object_item, std::strlen(half_object_item),
+                       nullptr, nullptr);
+  EXPECT_EQ(nullptr, dom);
 
   const char *half_array_item= "[1,";
-  dom.reset(Json_dom::parse(half_array_item, std::strlen(half_array_item),
-                            &msg, &msg_offset));
-  EXPECT_EQ(null_dom, dom.get());
+  dom= Json_dom::parse(half_array_item, std::strlen(half_array_item),
+                       nullptr, nullptr);
+  EXPECT_EQ(nullptr, dom);
+}
+
+/*
+  Test that special characters are escaped when a Json_string is
+  converted to text, so that it is possible to parse the resulting
+  string. The JSON parser requires all characters in the range [0x00,
+  0x1F] and the characters " (double-quote) and \ (backslash) to be
+  escaped.
+*/
+TEST_F(JsonDomTest, EscapeSpecialChars)
+{
+  // Create a JSON string with all characters in the range [0, 127].
+  char input[128];
+  for (size_t i= 0; i < sizeof(input); ++i)
+    input[i]= static_cast<char>(i);
+  const Json_string str(input, sizeof(input));
+
+  // Now convert that value from JSON to text and back to JSON.
+  Json_dom_ptr dom= parse_json(format(str).c_str());
+  EXPECT_EQ(enum_json_type::J_STRING, dom->json_type());
+
+  // Expect to get the same string back, including all the special characters.
+  const Json_string *str2= down_cast<const Json_string *>(dom.get());
+  EXPECT_EQ(str.value(), str2->value());
 }
 
 void vet_wrapper_length(const THD *thd, const char *text,
                         size_t expected_length)
 {
-  auto dom= parse_json(text).release();
-  Json_wrapper dom_wrapper(dom);
+  Json_wrapper dom_wrapper(parse_json(text));
 
   EXPECT_EQ(expected_length, dom_wrapper.length())
     << "Wrapped DOM: " << text << "\n";
 
   String  serialized_form;
-  EXPECT_FALSE(json_binary::serialize(thd, dom, &serialized_form));
+  EXPECT_FALSE(json_binary::serialize(thd, dom_wrapper.to_dom(thd),
+                                      &serialized_form));
   json_binary::Value binary=
     json_binary::parse_binary(serialized_form.ptr(),
                               serialized_form.length());
@@ -476,8 +501,9 @@ TEST_F(JsonDomTest, WrapperTest)
 
   Json_wrapper w_6;
   EXPECT_EQ(enum_json_type::J_ERROR, w_6.type());
+  EXPECT_EQ(nullptr, w_6.to_dom(thd));
+  EXPECT_EQ(nullptr, w_6.clone_dom(thd));
   EXPECT_EQ(0U, w_6.length());
-  EXPECT_EQ(0U, w_6.depth(thd));
 
   Json_dom *i= new (std::nothrow) Json_int(1);
   Json_wrapper w_7(i);
@@ -509,10 +535,8 @@ TEST_F(JsonDomTest, WrapperTest)
 
 void vet_merge(char * left_text, char * right_text, std::string expected )
 {
-  auto left_dom= parse_json(left_text);
-  auto right_dom= parse_json(right_text);
-  std::unique_ptr<Json_dom> result_dom(merge_doms(left_dom.release(),
-                                                  right_dom.release()));
+  Json_dom_ptr result_dom= merge_doms(parse_json(left_text),
+                                      parse_json(right_text));
   EXPECT_EQ(expected, format(*result_dom));
 }
 
@@ -774,10 +798,10 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate)
     EXPECT_TRUE(replaced);
     EXPECT_EQ(1U, diffs->size());
 
-    auto array= down_cast<Json_array*>(dom->clone());
+    Json_array_ptr array(down_cast<Json_array*>(dom->clone().release()));
     array->remove(i);
     array->insert_clone(i, jint.to_dom(thd()));
-    EXPECT_EQ(0, doc.compare(Json_wrapper(array)));
+    EXPECT_EQ(0, doc.compare(Json_wrapper(std::move(array))));
 
     EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));
     verify_binary_diffs(&m_field, diffs, buffer, shadow);
@@ -809,7 +833,7 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate)
     EXPECT_TRUE(replaced);
     EXPECT_EQ(2U, diffs->size()) << i;
 
-    auto array= down_cast<Json_array*>(dom->clone());
+    Json_array_ptr array(down_cast<Json_array*>(dom->clone().release()));
     array->remove(i);
     array->insert_clone(i, jint.to_dom(thd()));
     String dbg;
@@ -817,7 +841,7 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate)
     wp.to_string(&dbg, true, "dbg");
     String dbg2;
     doc.to_string(&dbg2, true, "dbg2");
-    EXPECT_EQ(0, doc.compare(Json_wrapper(array)));
+    EXPECT_EQ(0, doc.compare(Json_wrapper(std::move(array))));
 
     EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));
     verify_binary_diffs(&m_field, diffs, buffer, shadow);
@@ -874,7 +898,7 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate)
     Json_wrapper doc(binary);
     EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));
     EXPECT_FALSE(m_field.val_json(&doc));
-    auto array= down_cast<Json_array*>(dom->clone());
+    auto array= down_cast<Json_array*>(dom->clone().release());
     Json_wrapper array_wrapper(array);
     String shadow;
     // Replace all elements with short strings which fit at the old location.
@@ -967,8 +991,8 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate_AllTypes)
   {
     m_table.clear_partial_update_diffs();
 
-    std::unique_ptr<Json_dom> original_dom(
-      new (std::nothrow) Json_array(new (std::nothrow) Json_string(20, 'x')));
+    Json_array_ptr original_dom(new (std::nothrow) Json_array);
+    original_dom->append_alias(new (std::nothrow) Json_string(20, 'x'));
 
     /*
       Write an array with one element into the JSON column. Make sure the
@@ -1021,8 +1045,11 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate_AllTypes)
     String str;
     new_value.to_string(&str, true, "test");
     // Verify the updated document.
-    EXPECT_EQ(0, doc.compare(Json_wrapper(new (std::nothrow)
-                                          Json_array(dom->clone()))));
+    {
+      Json_array_ptr a(new (std::nothrow) Json_array);
+      a->append_clone(dom);
+      EXPECT_EQ(0, doc.compare(Json_wrapper(std::move(a))));
+    }
 
     // Verify the binary diffs.
     EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));
@@ -1040,7 +1067,7 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate_Error)
 {
   EXPECT_FALSE(m_table.mark_column_for_partial_update(&m_field));
   EXPECT_FALSE(m_table.setup_partial_update(true));
-  Json_wrapper doc(parse_json("[1,2,3,4]").release());
+  Json_wrapper doc(parse_json("[1,2,3,4]"));
   EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));
   EXPECT_FALSE(m_field.val_json(&doc));
 
@@ -1158,20 +1185,25 @@ static void do_apply_json_diffs_tests(Field_json *field)
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$.a"), enum_json_diff_operation::REPLACE,
-                       new (std::nothrow) Json_int(3));
+    Json_int *int_ptr= new (std::nothrow) Json_int(3);
+    Json_dom_ptr dom_ptr= int_ptr->clone();
+    diffs.add_diff(parse_path("$.a"), enum_json_diff_operation::REPLACE,
+                   dom_ptr);
     expect_success("{\"a\": 1, \"b\": 2}", "{\"a\": 3, \"b\": 2}");
     expect_rejected("{\"b\": 2}");
     expect_rejected("[1,2,3]");
     expect_rejected("123");
     expect_rejected(nullptr);
+    delete int_ptr;
   }
 
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$.a[1]"), enum_json_diff_operation::REPLACE,
-                       new (std::nothrow) Json_int(3));
+    Json_int *int_ptr= new (std::nothrow) Json_int(3);
+    Json_dom_ptr dom_ptr= int_ptr->clone();
+    diffs.add_diff(parse_path("$.a[1]"), enum_json_diff_operation::REPLACE,
+                   dom_ptr);
     expect_success("{\"a\": [1,2], \"b\": 2}", "{\"a\":[1,3], \"b\": 2}");
     expect_rejected("{\"a\": 2}");
     expect_rejected("{\"b\": 2}");
@@ -1179,13 +1211,16 @@ static void do_apply_json_diffs_tests(Field_json *field)
     expect_rejected("[1,2,3]");
     expect_rejected("123");
     expect_rejected(nullptr);
+    delete int_ptr;
   }
 
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$.a[2]"), enum_json_diff_operation::INSERT,
-                       new (std::nothrow) Json_int(3));
+    Json_int *int_ptr= new (std::nothrow) Json_int(3);
+    Json_dom_ptr dom_ptr= int_ptr->clone();
+    diffs.add_diff(parse_path("$.a[2]"), enum_json_diff_operation::INSERT,
+                   dom_ptr);
     expect_success("{\"a\":[]}", "{\"a\":[3]}");
     expect_success("{\"a\":[1]}", "{\"a\":[1,3]}");
     expect_success("{\"a\":[1,2]}", "{\"a\":[1,2,3]}");
@@ -1193,25 +1228,29 @@ static void do_apply_json_diffs_tests(Field_json *field)
     expect_rejected("{\"a\": 1, \"b\": 2}");
     expect_rejected("[]");
     expect_rejected(nullptr);
+    delete int_ptr;
   }
 
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$.a.b"), enum_json_diff_operation::INSERT,
-                       new (std::nothrow) Json_int(3));
+    Json_int *int_ptr= new (std::nothrow) Json_int(3);
+    Json_dom_ptr dom_ptr= int_ptr->clone();
+    diffs.add_diff(parse_path("$.a.b"), enum_json_diff_operation::INSERT,
+                   dom_ptr);
     expect_success("{\"a\":{\"c\":1}}", "{\"a\":{\"b\":3,\"c\":1}}");
     expect_rejected("{}");
     expect_rejected("[]");
     expect_rejected("{\"a\":{\"b\":1}}");
     expect_rejected(nullptr);
+    delete int_ptr;
   }
 
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$.a.b"),
-                       enum_json_diff_operation::REMOVE, nullptr);
+    diffs.add_diff(parse_path("$.a.b"),
+                   enum_json_diff_operation::REMOVE);
     expect_success("{\"a\":{\"b\":3,\"c\":1}}", "{\"a\":{\"c\":1}}");
     expect_rejected("{}");
     expect_rejected("[]");
@@ -1221,8 +1260,8 @@ static void do_apply_json_diffs_tests(Field_json *field)
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$[2]"),
-                       enum_json_diff_operation::REMOVE, nullptr);
+    diffs.add_diff(parse_path("$[2]"),
+                   enum_json_diff_operation::REMOVE);
     expect_success("[1,2,3,4]", "[1,2,4]");
     expect_success("[1,2,3]", "[1,2]");
     expect_rejected("[1,2]");
@@ -1234,10 +1273,10 @@ static void do_apply_json_diffs_tests(Field_json *field)
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$[2]"),
-                       enum_json_diff_operation::REMOVE, nullptr);
-    diffs.emplace_back(parse_path("$[3]"),
-                       enum_json_diff_operation::REMOVE, nullptr);
+    diffs.add_diff(parse_path("$[2]"),
+                   enum_json_diff_operation::REMOVE);
+    diffs.add_diff(parse_path("$[3]"),
+                   enum_json_diff_operation::REMOVE);
     expect_success("[1,2,3,4,5,6]", "[1,2,4,6]");
     expect_rejected("[1,2,3,4]");
     expect_rejected("[]");
@@ -1247,8 +1286,8 @@ static void do_apply_json_diffs_tests(Field_json *field)
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$[2][3]"),
-                       enum_json_diff_operation::REMOVE, nullptr);
+    diffs.add_diff(parse_path("$[2][3]"),
+                   enum_json_diff_operation::REMOVE);
     expect_success("[1,2,[3,4,5,6,7]]", "[1,2,[3,4,5,7]]");
     expect_rejected("[]");
     expect_rejected("[1,2,3,4,5,6]");
@@ -1258,8 +1297,8 @@ static void do_apply_json_diffs_tests(Field_json *field)
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$[0][0]"),
-                       enum_json_diff_operation::REMOVE, nullptr);
+    diffs.add_diff(parse_path("$[0][0]"),
+                   enum_json_diff_operation::REMOVE);
     expect_success("[[1]]", "[[]]");
     expect_success("[[1,2,3],4,5]", "[[2,3],4,5]");
     expect_rejected("[1]");
@@ -1275,9 +1314,12 @@ static void do_apply_json_diffs_tests(Field_json *field)
                      enum_json_diff_operation::REMOVE })
     {
       diffs.clear();
-      diffs.emplace_back(parse_path("$"), op, new (std::nothrow) Json_int(1));
+      Json_int *int_ptr= new (std::nothrow) Json_int(1);
+      Json_dom_ptr dom_ptr= int_ptr->clone();
+      diffs.add_diff(parse_path("$"), op, dom_ptr);
       expect_rejected("[1,2,3]");
       expect_rejected(nullptr);
+      delete int_ptr;
     }
   }
 }
@@ -1293,5 +1335,232 @@ TEST_F(JsonDomTest, ApplyJsonDiffs_CollectBinaryDiffs)
   EXPECT_FALSE(m_table.setup_partial_update(true));
   do_apply_json_diffs_tests(&m_field);
 }
+
+/**
+  Run a microbenchmarks that tests how fast Json_wrapper::seek() is on
+  a wrapper that wraps a Json_dom.
+
+  @param num_iterations  the number of iterations to run
+  @param path            the JSON path to search for
+  @param need_only_one   true if the search should stop after the first match
+  @param expected_hits   the number of expected matches
+*/
+static void benchmark_dom_seek(size_t num_iterations, const Json_path &path,
+                               bool need_only_one, size_t expected_matches)
+{
+  StopBenchmarkTiming();
+
+  Json_object o;
+  for (size_t i= 0; i < 1000; ++i)
+    o.add_alias(std::to_string(i), new (std::nothrow) Json_object());
+
+  Json_wrapper wr(&o);
+  wr.set_alias();
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    Json_wrapper_vector hits(PSI_NOT_INSTRUMENTED);
+    wr.seek(path, path.leg_count(), &hits, true, need_only_one);
+    EXPECT_EQ(expected_matches, hits.size());
+  }
+
+  StopBenchmarkTiming();
+}
+
+/**
+  Microbenchmark which tests how fast a lookup with an ellipsis is in
+  a wrapper that wraps a Json_dom.
+*/
+static void BM_JsonDomSearchEllipsis(size_t num_iterations)
+{
+  benchmark_dom_seek(num_iterations, parse_path("$**.\"432\""), false, 1);
+}
+BENCHMARK(BM_JsonDomSearchEllipsis);
+
+/**
+  Microbenchmark which tests how fast a lookup with an ellipsis is in
+  a wrapper that wraps a Json_dom, with the `need_only_one` flag set.
+*/
+static void BM_JsonDomSearchEllipsis_OnlyOne(size_t num_iterations)
+{
+  benchmark_dom_seek(num_iterations, parse_path("$**.\"432\""), true, 1);
+}
+BENCHMARK(BM_JsonDomSearchEllipsis_OnlyOne);
+
+/**
+  Microbenchmark which tests how fast a lookup of a JSON object member
+  is in a wrapper that wraps a Json_dom.
+*/
+static void BM_JsonDomSearchKey(size_t num_iterations)
+{
+  benchmark_dom_seek(num_iterations, parse_path("$.\"432\""), false, 1);
+}
+BENCHMARK(BM_JsonDomSearchKey);
+
+/**
+  Run a microbenchmarks that tests how fast Json_wrapper::seek() is on
+  a wrapper that wraps a binary JSON value.
+
+  @param num_iterations  the number of iterations to run
+  @param path            the JSON path to search for
+  @param need_only_one   true if the search should stop after the first match
+  @param expected_hits   the number of expected matches
+*/
+static void benchmark_binary_seek(size_t num_iterations, const Json_path &path,
+                                  bool need_only_one, size_t expected_matches)
+{
+  StopBenchmarkTiming();
+
+  Json_object o;
+  for (size_t i= 0; i < 1000; ++i)
+    o.add_alias(std::to_string(i), new (std::nothrow) Json_object());
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  String buffer;
+  EXPECT_FALSE(json_binary::serialize(initializer.thd(), &o, &buffer));
+  json_binary::Value val=
+    json_binary::parse_binary(buffer.ptr(), buffer.length());
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    Json_wrapper wr(val);
+    Json_wrapper_vector hits(PSI_NOT_INSTRUMENTED);
+    wr.seek(path, path.leg_count(), &hits, true, need_only_one);
+    EXPECT_EQ(expected_matches, hits.size());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+
+/**
+  Microbenchmark which tests how fast a lookup with an ellipsis is in
+  a Json_wrapper which wraps a binary JSON value.
+*/
+static void BM_JsonBinarySearchEllipsis(size_t num_iterations)
+{
+  benchmark_binary_seek(num_iterations, parse_path("$**.\"432\""), false, 1);
+}
+BENCHMARK(BM_JsonBinarySearchEllipsis);
+
+/**
+  Microbenchmark which tests how fast a lookup with an ellipsis is in
+  a Json_wrapper which wraps a binary JSON value, with the `need_only_one`
+  flag set.
+*/
+static void BM_JsonBinarySearchEllipsis_OnlyOne(size_t num_iterations)
+{
+  benchmark_binary_seek(num_iterations, parse_path("$**.\"432\""), true, 1);
+}
+BENCHMARK(BM_JsonBinarySearchEllipsis_OnlyOne);
+
+/**
+  Microbenchmark which tests how fast a lookup of a JSON object member
+  is in a Json_wrapper which wraps a binary JSON value.
+*/
+static void BM_JsonBinarySearchKey(size_t num_iterations)
+{
+  benchmark_binary_seek(num_iterations, parse_path("$.\"432\""), false, 1);
+}
+BENCHMARK(BM_JsonBinarySearchKey);
+
+/**
+  Microbenchmark which tests the performance of
+  Json_wrapper::to_string() when it's called on a JSON string value
+  with no special characters that need quoting.
+*/
+static void BM_JsonStringToString_Plain(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  const Json_string str("This is a plain string with no special characters!");
+  const Json_wrapper wr(str.clone());
+  const size_t quoted_length= str.size() + 2;
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    String buf;
+    wr.to_string(&buf, true, "test");
+    EXPECT_EQ(quoted_length, buf.length());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonStringToString_Plain);
+
+/**
+  Microbenchmark which tests the performance of
+  Json_wrapper::to_string() when it's called on a JSON string value
+  which contains some special characters that need quoting.
+*/
+static void BM_JsonStringToString_SpecialChars(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  const Json_string str("This\nstring\nspans\nmultiple\nlines.\f\nabc\x1Dxyz");
+  const Json_wrapper wr(str.clone());
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    String buf;
+    wr.to_string(&buf, true, "test");
+    EXPECT_LT(str.size(), buf.length());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonStringToString_SpecialChars);
+
+/**
+  Microbenchmark which tests the performance of
+  Json_wrapper::to_string() when it's called on a JSON object with
+  nested values.
+*/
+static void BM_JsonObjectToString(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  const Json_wrapper wr(parse_json("{\"name\": \"John Doe\", \"age\": 42, "
+                                   "\"points\": [1, 3.14e0, 2.7, null], "
+                                   "\"id\": \"xyzxyzxyzxyz\"}"));
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    String buf;
+    wr.to_string(&buf, true, "test");
+    EXPECT_LT(0U, buf.length());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonObjectToString);
 
 }  // namespace

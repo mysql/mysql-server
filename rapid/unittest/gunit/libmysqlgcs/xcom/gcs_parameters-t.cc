@@ -13,20 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gtest/gtest.h>
-
-#include "gcs_xcom_interface.h"
-#include "gcs_message_stage_lz4.h"
-
 #include <vector>
 #include <string>
+
+#include "gcs_base_test.h"
+
+#include "gcs_message_stage_lz4.h"
 
 using std::vector;
 
 namespace gcs_parameters_unittest
 {
 
-class GcsParametersTest : public ::testing::Test
+class GcsParametersTest : public GcsBaseTest
 {
 protected:
   GcsParametersTest() : m_gcs(NULL) {};

@@ -15,10 +15,7 @@
 
 #include "sql/rpl_rli_pdb.h"
 
-#include "my_config.h"
-
 #include <assert.h>
-#include <stdio.h>
 #include <string.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -26,41 +23,45 @@
 
 #include <algorithm>
 #include <atomic>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
-#include "binlog.h"
-#include "current_thd.h"
-#include "debug_sync.h"
-#include "handler.h"
-#include "hash.h"
+#include "config.h"
 #include "lex_string.h"
-#include "log.h"
-#include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
+#include "map_helpers.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/thread_type.h"
-#include "mysqld.h"                         // key_mutex_slave_parallel_worker
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "rpl_info_handler.h"
-#include "rpl_reporting.h"
-#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_plugin_ref.h"
+#include "sql/binlog.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                     // key_mutex_slave_parallel_worker
+#include "sql/psi_memory_key.h"
+#include "sql/rpl_info_handler.h"
+#include "sql/rpl_reporting.h"
+#include "sql/rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/table.h"
+#include "sql/transaction_info.h"
 #include "sql_string.h"
-#include "table.h"
-#include "template_utils.h"
 #include "thr_mutex.h"
-#include "transaction_info.h"
 
 #ifndef DBUG_OFF
   ulong w_rr= 0;
@@ -725,22 +726,8 @@ void Slave_worker::rollback_positions(Slave_job_group* ptr_g)
   }
 }
 
-static const uchar *get_key(const uchar *record, size_t *length)
+static void free_entry(db_worker_hash_entry *entry)
 {
-  DBUG_ENTER("get_key");
-
-  db_worker_hash_entry *entry=(db_worker_hash_entry *) record;
-  *length= strlen(entry->db);
-
-  DBUG_PRINT("info", ("get_key  %s, %d", entry->db, (int) *length));
-
-  DBUG_RETURN((uchar*) entry->db);
-}
-
-
-static void free_entry(void *arg)
-{
-  db_worker_hash_entry *entry= pointer_cast<db_worker_hash_entry*>(arg);
   THD *c_thd= current_thd;
 
   DBUG_ENTER("free_entry");
@@ -770,19 +757,12 @@ bool init_hash_workers(Relay_log_info *rli)
 {
   DBUG_ENTER("init_hash_workers");
 
-  rli->inited_hash_workers=
-    (my_hash_init(&rli->mapping_db_to_worker, &my_charset_bin,
-                 0, 0, get_key,
-                 free_entry, 0,
-                 key_memory_db_worker_hash_entry) == 0);
-  if (rli->inited_hash_workers)
-  {
-    mysql_mutex_init(key_mutex_slave_worker_hash, &rli->slave_worker_hash_lock,
-                     MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_cond_slave_worker_hash, &rli->slave_worker_hash_cond);
-  }
+  rli->inited_hash_workers= true;
+  mysql_mutex_init(key_mutex_slave_worker_hash, &rli->slave_worker_hash_lock,
+                   MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_cond_slave_worker_hash, &rli->slave_worker_hash_cond);
 
-  DBUG_RETURN (!rli->inited_hash_workers);
+  DBUG_RETURN (false);
 }
 
 void destroy_hash_workers(Relay_log_info *rli)
@@ -790,7 +770,7 @@ void destroy_hash_workers(Relay_log_info *rli)
   DBUG_ENTER("destroy_hash_workers");
   if (rli->inited_hash_workers)
   {
-    my_hash_free(&rli->mapping_db_to_worker);
+    rli->mapping_db_to_worker.clear();
     mysql_mutex_destroy(&rli->slave_worker_hash_lock);
     mysql_cond_destroy(&rli->slave_worker_hash_cond);
     rli->inited_hash_workers= false;
@@ -976,7 +956,6 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
     DBUG_RETURN(NULL);
 
   db_worker_hash_entry *entry= NULL;
-  my_hash_value_type hash_value;
   size_t dblength= strlen(dbname);
 
 
@@ -997,14 +976,11 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 
   DBUG_PRINT("info", ("Searching for %s, %zu", dbname, dblength));
 
-  hash_value= my_calc_hash(&rli->mapping_db_to_worker, (uchar*) dbname,
-                           dblength);
 
   mysql_mutex_lock(&rli->slave_worker_hash_lock);
 
-  entry= (db_worker_hash_entry *)
-    my_hash_search_using_hash_value(&rli->mapping_db_to_worker, hash_value,
-                                    (uchar*) dbname, dblength);
+  std::string key(dbname, dblength);
+  entry= find_or_nullptr(rli->mapping_db_to_worker, key);
   if (!entry)
   {
     /*
@@ -1047,52 +1023,37 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
     entry->worker= (!last_worker) ?
       get_least_occupied_worker(rli, workers, NULL) : last_worker;
     entry->worker->usage_partition++;
-    if (rli->mapping_db_to_worker.records > mts_partition_hash_soft_max)
+    if (rli->mapping_db_to_worker.size() > mts_partition_hash_soft_max)
     {
       /*
-        A dynamic array to store the mapping_db_to_worker hash elements
-        that needs to be deleted, since deleting the hash entires while
-        iterating over it is wrong.
-      */
-      Prealloced_array<db_worker_hash_entry*, HASH_DYNAMIC_INIT>
-        hash_element(key_memory_db_worker_hash_entry);
-      /*
         remove zero-usage (todo: rare or long ago scheduled) records.
-        Store the element of the hash in a dynamic array after checking whether
-        the usage of the hash entry is 0 or not. We later free it from the HASH.
+        Free the element if the usage of the hash entry is 0 or not.
       */
-      for (uint i= 0; i < rli->mapping_db_to_worker.records; i++)
+      for (auto it= rli->mapping_db_to_worker.begin();
+           it != rli->mapping_db_to_worker.end(); )
       {
         DBUG_ASSERT(!entry->temporary_tables || !entry->temporary_tables->prev);
         DBUG_ASSERT(!thd->temporary_tables || !thd->temporary_tables->prev);
 
-        db_worker_hash_entry *entry=
-          (db_worker_hash_entry*) my_hash_element(&rli->mapping_db_to_worker, i);
-
+        db_worker_hash_entry *entry= it->second.get();
         if (entry->usage == 0)
         {
           mts_move_temp_tables_to_thd(thd, entry->temporary_tables);
           entry->temporary_tables= NULL;
-
-          /* Push the element in the dynamic array*/
-          hash_element.push_back(entry);
+          it= rli->mapping_db_to_worker.erase(it);
         }
-      }
-
-      /* Delete the hash element based on the usage */
-      for (size_t i=0 ; i < hash_element.size(); i++)
-      {
-        db_worker_hash_entry *temp_entry= hash_element[i];
-        my_hash_delete(&rli->mapping_db_to_worker, (uchar*) temp_entry);
+        else
+          ++it;
       }
     }
 
-    ret= my_hash_insert(&rli->mapping_db_to_worker, (uchar*) entry);
+    ret= !rli->mapping_db_to_worker.emplace
+      (entry->db,
+       unique_ptr_with_deleter<db_worker_hash_entry>(entry, free_entry)).second;
 
     if (ret)
     {
       my_free(db);
-      my_free(entry);
       entry= NULL;
       goto err;
     }
@@ -1319,9 +1280,6 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
       if (entry->worker != this) // Coordinator is waiting
       {
-#ifndef DBUG_OFF
-        // TODO: open it! DBUG_ASSERT(usage_partition || !entry->worker->jobs.len);
-#endif
         DBUG_PRINT("info",
                    ("Notifying entry %p release by worker %lu", entry, this->id));
 
@@ -1408,38 +1366,6 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
   curr_group_seen_gtid= curr_group_seen_begin= false;
 
   DBUG_VOID_RETURN;
-}
-
-
-/**
-   Similar to de_queue() but removing an item from the tail side.
-
-   return  the queue's array index that the de-queued item
-           located at, or an error.
-*/
-template <typename Element_type>
-ulong circular_buffer_queue<Element_type>::de_tail(Element_type *val)
-{
-  if (entry == size)
-  {
-    DBUG_ASSERT(len == 0);
-    return (ulong) -1;
-  }
-
-  avail= (entry + len - 1) % size;
-  *val= m_Q[avail];
-  len--;
-
-  // post boundary cond
-  if (avail == entry)
-    entry= size;
-
-  DBUG_ASSERT(entry == size ||
-              (len == (avail >= entry)? (avail - entry) :
-               (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
-
-  return avail;
 }
 
 
@@ -2162,18 +2088,9 @@ static db_worker_hash_entry *find_entry_from_db_map(const char *dbname,
                                                     Relay_log_info *rli)
 {
   db_worker_hash_entry *entry= NULL;
-  my_hash_value_type hash_value;
-  uchar dblength= (uint) strlen(dbname);
-
-  hash_value= my_calc_hash(&rli->mapping_db_to_worker, (const uchar*) dbname,
-                           dblength);
 
   mysql_mutex_lock(&rli->slave_worker_hash_lock);
-
-  entry= (db_worker_hash_entry *)
-    my_hash_search_using_hash_value(&rli->mapping_db_to_worker, hash_value,
-                                    (uchar*) dbname, dblength);
-
+  entry= find_or_nullptr(rli->mapping_db_to_worker, dbname);
   mysql_mutex_unlock(&rli->slave_worker_hash_lock);
   return entry;
 }
@@ -2799,7 +2716,7 @@ err:
     report_error_to_coordinator(worker);
     DBUG_PRINT("info", ("Worker %lu is exiting: killed %i, error %i, "
                         "running_status %d",
-                        worker->id, thd->killed, thd->is_error(),
+                        worker->id, thd->killed.load(), thd->is_error(),
                         worker->running_status));
     worker->slave_worker_ends_group(ev, error); /* last done sets post exec */
   }

@@ -210,8 +210,8 @@ struct pfs_lock
 
     uint32 new_val = (old_val & VERSION_MASK) + PFS_LOCK_DIRTY;
 
-    bool pass = atomic_compare_exchange_strong(
-      &m_version_state, &old_val, new_val);
+    bool pass =
+      atomic_compare_exchange_strong(&m_version_state, &old_val, new_val);
 
     if (pass)
     {

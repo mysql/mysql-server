@@ -1,12 +1,5 @@
 #include <mysql/plugin.h>
-typedef void * MYSQL_PLUGIN;
-struct st_mysql_xid {
-  long formatID;
-  long gtrid_length;
-  long bqual_length;
-  char data[128];
-};
-typedef struct st_mysql_xid MYSQL_XID;
+#include "status_var.h"
 enum enum_mysql_show_type
 {
   SHOW_UNDEF, SHOW_BOOL,
@@ -14,12 +7,26 @@ enum enum_mysql_show_type
   SHOW_LONG,
   SHOW_LONGLONG,
   SHOW_CHAR, SHOW_CHAR_PTR,
-  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
+  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
+  SHOW_KEY_CACHE_LONG,
+  SHOW_KEY_CACHE_LONGLONG,
+  SHOW_LONG_STATUS,
+  SHOW_DOUBLE_STATUS,
+  SHOW_HAVE,
+  SHOW_MY_BOOL,
+  SHOW_HA_ROWS,
+  SHOW_SYS,
+  SHOW_LONG_NOFLUSH,
+  SHOW_LONGLONG_STATUS,
+  SHOW_LEX_STRING,
+  SHOW_SIGNED_LONG
 };
 enum enum_mysql_show_scope
 {
   SHOW_SCOPE_UNDEF,
-  SHOW_SCOPE_GLOBAL
+  SHOW_SCOPE_GLOBAL,
+  SHOW_SCOPE_SESSION,
+  SHOW_SCOPE_ALL
 };
 struct st_mysql_show_var
 {
@@ -29,6 +36,14 @@ struct st_mysql_show_var
   enum enum_mysql_show_scope scope;
 };
 typedef int (*mysql_show_var_func)(void*, struct st_mysql_show_var*, char *);
+typedef void * MYSQL_PLUGIN;
+struct st_mysql_xid {
+  long formatID;
+  long gtrid_length;
+  long bqual_length;
+  char data[128];
+};
+typedef struct st_mysql_xid MYSQL_XID;
 struct st_mysql_sys_var;
 struct st_mysql_value;
 typedef int (*mysql_var_check_func)(void* thd,
@@ -106,9 +121,6 @@ void thd_binlog_pos(const void* thd,
                     unsigned long long *pos_var);
 unsigned long thd_get_thread_id(const void* thd);
 void thd_get_xid(const void* thd, MYSQL_XID *xid);
-void mysql_query_cache_invalidate4(void* thd,
-                                   const char *key, unsigned int key_length,
-                                   int using_trx);
 void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
 void thd_set_ha_data(void* thd, const struct handlerton *hton,
                      const void *ha_data);
@@ -146,6 +158,11 @@ typedef int (*generate_authentication_string_t)(char *outbuf,
 typedef int (*validate_authentication_string_t)(char* const inbuf, unsigned int buflen);
 typedef int (*set_salt_t)(const char *password, unsigned int password_len,
                           unsigned char* salt, unsigned char *salt_len);
+typedef int
+(*compare_password_with_hash_t)(const char *hash, unsigned long hash_length,
+                                const char *cleartext,
+                                unsigned long cleartext_length,
+                                int *is_error);
 struct st_mysql_auth
 {
   int interface_version;
@@ -155,4 +172,5 @@ struct st_mysql_auth
   validate_authentication_string_t validate_authentication_string;
   set_salt_t set_salt;
   const unsigned long authentication_flags;
+  compare_password_with_hash_t compare_password_with_hash;
 };

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ public class DynamicObjectTest extends AbstractClusterJModelTest {
 
     private Object[] expectedTBasicJavaTypes = new Object[] {int.class, String.class, Integer.class, int.class};
 
-    private Object[] expectedTBasicMaximumLengths = new Object[] {1, 32, 1, 1};
+    private Object[] expectedTBasicMaximumLengths = new Object[] {1, 128, 1, 1};
 
     private Object[] expectedTBasicNumbers = new Object[] {0, 1, 2, 3};
 
@@ -56,7 +56,7 @@ public class DynamicObjectTest extends AbstractClusterJModelTest {
 
     private Object[] expectedTBasicNullables = new Object[] {false, true, true, false};
 
-    private Object[] expectedTBasicCharsetNames = new Object[] {null, "latin1", null, null};
+    private Object[] expectedTBasicCharsetNames = new Object[] {null, "utf8mb4", null, null};
     
     @Override
     public void localSetUp() {

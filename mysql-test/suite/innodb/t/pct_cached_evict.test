@@ -8,8 +8,8 @@ let $get_n_cached_pages=
 SELECT cached.n_cached_pages AS n_cached_pages
 FROM
 information_schema.innodb_cached_indexes AS cached,
-information_schema.innodb_sys_indexes AS indexes,
-information_schema.innodb_sys_tables AS tables
+information_schema.innodb_indexes AS indexes,
+information_schema.innodb_tables AS tables
 WHERE
 cached.index_id = indexes.index_id
 AND cached.space_id = indexes.space
@@ -65,8 +65,8 @@ if ($before_evict <= $after_evict)
                 cached.n_cached_pages AS n_cached_pages
                 FROM
                 information_schema.innodb_cached_indexes AS cached,
-                information_schema.innodb_sys_indexes AS indexes,
-                information_schema.innodb_sys_tables AS tables
+                information_schema.innodb_indexes AS indexes,
+                information_schema.innodb_tables AS tables
                 WHERE
                 cached.index_id = indexes.index_id
                 AND cached.space_id = indexes.space

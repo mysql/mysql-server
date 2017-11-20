@@ -60,6 +60,12 @@ EXPLAIN SELECT (SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
   FROM t1 AS t1_outer) x2 FROM t1 AS t1_outer2;
 
 CREATE TABLE t3 LIKE t1;
+--echo # Ensure that t3 is loaded into data-dictionary cache.
+--disable_query_log
+--disable_result_log
+SHOW CREATE TABLE t3;
+--enable_result_log
+--enable_query_log
 FLUSH STATUS;
 INSERT INTO t3 SELECT a,MAX(b) FROM t1 GROUP BY a;
 SHOW STATUS LIKE 'handler_read__e%';

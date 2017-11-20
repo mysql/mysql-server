@@ -105,6 +105,7 @@ let $script=
   s{SQL_LOAD-[a-z,0-9,-]*.[a-z]*}{SQL_LOAD-<SERVER UUID>-<MASTER server-id>-<file-id>.<extension>};
   s{rand_seed1=[0-9]*,rand_seed2=[0-9]*}{rand_seed1=<seed 1>,rand_seed2=<seed 2>};
   s{((?:master|slave|slave-relay)-bin\.[0-9]{6};pos=)[0-9]+DOLLAR}{DOLLAR1POS};
+  s{(binlog\.[0-9]{6};pos=)[0-9]+DOLLAR}{DOLLAR1POS};
   s{SONAME ".*"}{SONAME "LIB"};
   s{DOLLARmysqltest_vardir}{MYSQLTEST_VARDIR}g;
 ||
@@ -139,6 +140,12 @@ if ($mask_anonymous_gtid_events)
   --let $script= $script s{Anonymous_Gtid}{Gtid};
   --let $script= $script s{ANONYMOUS}{Gtid_set};
 }
+# To mask random password generated with create/alter user
+if ($mask_user_password_events)
+{
+ --let $script= $script s{'caching_sha2_password' AS '.*' REQUIRE?}{'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE}g;
+ --let $script= $script s{SET PASSWORD FOR .*}{SET PASSWORD FOR '<some_user>'='<non-deterministic-password-hash>'};
+ }
 if (!$keep_ddl_xid)
 {
   --let $script= $script s{ /\* XID # \*/}{};

@@ -20,18 +20,20 @@
 #include "my_config.h"
 
 #include <string.h>
+
+#include "sql/dd/properties.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/types.h>
 
 #include "my_inttypes.h"
-#include "mysql/mysql_lex_string.h"   // LEX_STRING
 #include "mysql_com.h"
-#include "sql_alloc.h"                // Sql_alloc
-#include "table.h"                    // GRANT_INFO
-#include "trigger_def.h"              // enum_trigger_event_type
-#include "typelib.h"
+#include "sql/key.h"
+#include "sql/sql_alloc.h"            // Sql_alloc
+#include "sql/table.h"                // GRANT_INFO
+#include "sql/thr_malloc.h"
+#include "sql/trigger_def.h"          // enum_trigger_event_type
 
 class Query_tables_list;
 class String;

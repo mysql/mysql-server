@@ -13,22 +13,22 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/table_partition_values.h"
+#include "sql/dd/impl/tables/table_partition_values.h"
 
 #include <new>
 #include <sstream>      // std::stringstream
 
-#include "dd/impl/object_key.h"             // dd::Object_key
-#include "dd/impl/raw/object_keys.h"        // dd::Parent_id_range_key
-#include "dd/impl/raw/raw_key.h"            // dd::Raw_key
-#include "dd/impl/raw/raw_table.h"          // dd::Raw_table
-#include "dd/impl/types/object_table_definition_impl.h"
-#include "dd/string_type.h"                 // dd::String_type
-#include "field.h"                          // Field
-#include "key.h"
 #include "my_base.h"                        // HA_WHOLE_KEY
-#include "my_inttypes.h"
-#include "table.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/dd/impl/object_key.h"         // dd::Object_key
+#include "sql/dd/impl/raw/object_keys.h"    // dd::Parent_id_range_key
+#include "sql/dd/impl/raw/raw_key.h"        // dd::Raw_key
+#include "sql/dd/impl/raw/raw_table.h"      // dd::Raw_table
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/string_type.h"             // dd::String_type
+#include "sql/field.h"                      // Field
+#include "sql/key.h"
+#include "sql/table.h"
 
 namespace dd {
 namespace tables {

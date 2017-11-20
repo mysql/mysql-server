@@ -67,9 +67,11 @@ def	mysql	PRIMARY	mysql	help_keyword
 def	mysql	PRIMARY	mysql	help_relation
 def	mysql	name	mysql	help_topic
 def	mysql	PRIMARY	mysql	help_topic
+def	mysql	PRIMARY	mysql	innodb_ddl_log
 def	mysql	PRIMARY	mysql	innodb_dynamic_metadata
 def	mysql	PRIMARY	mysql	innodb_index_stats
 def	mysql	PRIMARY	mysql	innodb_table_stats
+def	mysql	PRIMARY	mysql	password_history
 def	mysql	PRIMARY	mysql	plugin
 def	mysql	PRIMARY	mysql	procs_priv
 def	mysql	PRIMARY	mysql	proxies_priv
@@ -160,6 +162,7 @@ def	performance_schema	PRIMARY	performance_schema	setup_actors
 def	performance_schema	PRIMARY	performance_schema	setup_consumers
 def	performance_schema	PRIMARY	performance_schema	setup_instruments
 def	performance_schema	OBJECT	performance_schema	setup_objects
+def	performance_schema	PRIMARY	performance_schema	setup_threads
 def	performance_schema	PRIMARY	performance_schema	setup_timers
 def	performance_schema	PRIMARY	performance_schema	socket_instances
 def	performance_schema	PRIMARY	performance_schema	socket_summary_by_event_name

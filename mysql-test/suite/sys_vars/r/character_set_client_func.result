@@ -9,12 +9,12 @@ SELECT @@global.character_set_client;
 utf8
 SELECT @@session.character_set_client;
 @@session.character_set_client
-latin1
+utf8mb4
 '#--------------------FN_DYNVARS_010_02-------------------------#'
 'connection default'
 SHOW VARIABLES like 'character_set_client';
 Variable_name	Value
-character_set_client	latin1
+character_set_client	utf8mb4
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(a CHAR(3) character set utf8);
 '---verifying character_set_client with a utf8 character----'

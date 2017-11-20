@@ -10,6 +10,7 @@
 ##================================================================##
 # 1 - Tests to check error log verbosity on command line           #
 ##================================================================##
+--source include/have_log_bin.inc
 
 # Setup
 CREATE TABLE t1(a int);
@@ -17,7 +18,7 @@ CREATE TABLE t1(a int);
 # 1.1 Set log_error_verbosity= 1 
 #-------------------------------
 --let LOG_FILE1= $MYSQLTEST_VARDIR/tmp/test1.err
---let restart_parameters="restart: --log-error=$LOG_FILE1 --log-error-verbosity=1 --log-bin --binlog-format=statement"
+--let restart_parameters="restart: --log-error=$LOG_FILE1 --log-error-verbosity=1 --binlog-format=statement"
 --replace_result $LOG_FILE1 LOG_FILE1
 --source include/restart_mysqld.inc
 
@@ -33,7 +34,7 @@ connect(con1,localhost,unknown_user,,*NO-ONE*);
 # 1.2 Set log_error_verbosity= 2 
 #-------------------------------
 --let LOG_FILE2= $MYSQLTEST_VARDIR/tmp/test2.err
---let restart_parameters="restart: --log-error=$LOG_FILE2 --log-error-verbosity=2 --log-bin --binlog-format=statement"
+--let restart_parameters="restart: --log-error=$LOG_FILE2 --log-error-verbosity=2 --binlog-format=statement"
 --replace_result $LOG_FILE2 LOG_FILE2
 --source include/restart_mysqld.inc
 
@@ -49,7 +50,7 @@ connect(con2,localhost,unknown_user,,*NO-ONE*);
 # 1.3 Set log_error_verbosity= 7 (reset to default - 3) 
 #------------------------------------------------------
 --let LOG_FILE3= $MYSQLTEST_VARDIR/tmp/test3.err
---let restart_parameters="restart: --log-error=$LOG_FILE3 --log-error-verbosity=7 --log-bin --binlog-format=statement"
+--let restart_parameters="restart: --log-error=$LOG_FILE3 --log-error-verbosity=7 --binlog-format=statement"
 --replace_result $LOG_FILE3 LOG_FILE3
 --source include/restart_mysqld.inc
 
@@ -71,28 +72,28 @@ DROP TABLE t1;
 # 2.1. Invalid verbosity with --initialize(reverts to default - 2)
 #------------------------------------------------------------------
 --let LOG_FILE4 = $MYSQLTEST_VARDIR/tmp/bootstrap1.err
---let CMD1= $MYSQLD --no-defaults --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE4 --log-error-verbosity=-1 2>&1
+--let CMD1= $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE4 --log-error-verbosity=-1 2>&1
 --exec $CMD1
 --force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
 
 # 2.2. Set verbosity to 1 explicitly with --initialize
 #-----------------------------------------------------
 --let LOG_FILE5 = $MYSQLTEST_VARDIR/tmp/bootstrap3.err
---let CMD3 = $MYSQLD --no-defaults --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE5 --log-error-verbosity=1 2>&1
+--let CMD3 = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE5 --log-error-verbosity=1 2>&1
 --exec $CMD3
 --force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
 
 # 2.3. Set verbosity to 2 explicitly with --initialize
 #-----------------------------------------------------
 --let LOG_FILE6 = $MYSQLTEST_VARDIR/tmp/bootstrap2.err
---let CMD2 = $MYSQLD --no-defaults --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE6 --log-error-verbosity=2 2>&1
+--let CMD2 = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE6 --log-error-verbosity=2 2>&1
 --exec $CMD2
 --force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
 
 # 2.4. Set verbosity to 3 explicitly with --initialize
 #-----------------------------------------------------
 --let LOG_FILE7 = $MYSQLTEST_VARDIR/tmp/bootstrap4.err
---let CMD4 = $MYSQLD --no-defaults --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE7 --log-error-verbosity=3 2>&1
+--let CMD4 = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE7 --log-error-verbosity=3 2>&1
 --exec $CMD4
 --force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
 

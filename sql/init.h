@@ -18,7 +18,7 @@
 
 #include <sys/types.h>
 
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // IWYU pragma: keep
 
 void unireg_init(ulong options);
 

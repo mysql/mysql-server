@@ -47,7 +47,12 @@ void free_bit_set(bit_set *bs) {
 /* purecov: begin deadcode */
 void dbg_bit_set(bit_set *bs) {
   unsigned int i = 0;
+
   GET_GOUT;
+
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
+    return;
+
   for (i = 0;
        i < bs->bits.bits_len * sizeof(*bs->bits.bits_val) * BITS_PER_BYTE;
        i++) {

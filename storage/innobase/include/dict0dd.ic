@@ -60,13 +60,19 @@ dd_get_space_id(const dd::Partition& partition)
 }
 
 /** partition name separator */
-extern	const char* part_sep;
+extern const char*	part_sep;
+
+/** sub-partition name separator */
+extern const char*	sub_sep;
 
 /** Parse a table file name into table name and database name
 @param[in]	tbl_name	table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
 @param[in,out]	dd_tbl_name	table name buffer to be filled
-@param[in,out]	dd_ptn_name	partition name to be filled if not NULL
+@param[in,out]	dd_part_name	partition name to be filled if not nullptr
+@param[in,out]	dd_sub_name	sub-partition name to be filled if not nullptr
+@param[in,out]	is_temp_part	true if it is a temporary partition name which
+				ends with "#tmp".
 @return true if table name is parsed properly, false if the table name
 is invalid */
 inline
@@ -75,12 +81,16 @@ dd_parse_tbl_name(
 	const char*	tbl_name,
 	char*		dd_db_name,
 	char*		dd_tbl_name,
-	char*		dd_ptn_name)
+	char*		dd_part_name,
+	char*		dd_sub_name,
+	bool*		is_temp_part)
 {
 	char	db_buf[MAX_DATABASE_NAME_LEN + 1];
 	char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
 	ulint	db_len = dict_get_db_name_len(tbl_name);
 	char*	is_part;
+	char*	is_sub;
+	char*	trailing_sharp;
 
 	if (db_len == 0) {
 		return(false);
@@ -101,8 +111,8 @@ dd_parse_tbl_name(
 
 	is_part = strstr(tbl_buf, part_sep);
 
-	if (is_part) {
-		*is_part = 0;
+	if (is_part != nullptr) {
+		*is_part = '\0';
 	}
 
 	filename_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1
@@ -111,9 +121,37 @@ dd_parse_tbl_name(
 #endif /* DBUG_OFF */
 	);
 
-	if (is_part && dd_ptn_name) {
-		filename_to_tablename((is_part + 3), dd_ptn_name,
+	if (is_part == nullptr || dd_part_name == nullptr) {
+		return(true);
+	}
+
+	is_sub = strstr(is_part + strlen(part_sep), sub_sep);
+
+	if (is_sub == nullptr) {
+		trailing_sharp = strchr(is_part + strlen(part_sep), '#');
+	} else {
+		*is_sub = '\0';
+		trailing_sharp = strchr(is_sub + strlen(sub_sep), '#');
+	}
+
+	if (trailing_sharp != nullptr) {
+		ut_ad(strcmp(trailing_sharp, "#tmp") == 0);
+		*trailing_sharp = '\0';
+
+		if (is_temp_part != nullptr) {
+			*is_temp_part = true;
+		}
+	}
+
+	if (is_part && dd_part_name) {
+		filename_to_tablename(is_part + strlen(part_sep), dd_part_name,
 				      MAX_TABLE_NAME_LEN + 1);
+
+		if (is_sub && dd_sub_name) {
+			filename_to_tablename(
+				is_sub + strlen(sub_sep), dd_sub_name,
+				MAX_TABLE_NAME_LEN + 1);
+		}
 	}
 
 	return(true);
@@ -416,4 +454,23 @@ dd_mdl_acquire(
 	ret = dd::acquire_shared_table_mdl(thd, db, namep, false, mdl);
 
 	return(ret);
+}
+
+/** Get the version attribute.
+@param[in]	dd_table	dd::Table
+@return table dynamic metadata version if exists, otherwise 0 */
+inline
+uint64_t
+dd_get_version(
+	const dd::Table*	dd_table)
+{
+	uint64_t		version = 0;
+	const dd::Properties&	p = dd_table->se_private_data();
+	if (!p.exists(dd_table_key_strings[DD_TABLE_VERSION])
+	    || p.get_uint64(dd_table_key_strings[DD_TABLE_VERSION],
+			    reinterpret_cast<uint64*>(&version))) {
+		return(0);
+	}
+
+	return(version);
 }

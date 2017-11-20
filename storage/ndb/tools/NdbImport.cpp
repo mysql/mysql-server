@@ -58,6 +58,7 @@ NdbImport::Opt::Opt()
   m_database = 0;
   m_state_dir = ".";
   m_keep_state = false;
+  m_stats = false;
   m_table = 0;
   m_input_type = "csv";
   m_input_file = 0;
@@ -91,6 +92,11 @@ NdbImport::Opt::Opt()
   m_idlespin = 0;
   m_idlesleep = 1;
   m_rejects = 0;
+  // character set
+  m_charset_name = "binary";
+  m_charset = 0;
+  // csv options
+  m_csvopt = 0;
   // debug options
   m_verbose = 0;
   m_abort_on_error = false;
@@ -99,7 +105,7 @@ NdbImport::Opt::Opt()
 }
 
 int
-NdbImport::set_opt(const Opt& opt)
+NdbImport::set_opt(Opt& opt)
 {
   NdbImportUtil& util = m_impl.m_util;
   NdbImportCsv& csv = m_impl.m_csv;
@@ -177,6 +183,16 @@ NdbImport::set_opt(const Opt& opt)
                          "invalid autoincrement options");
     return -1;
   }
+  // character set
+  require(opt.m_charset_name != 0);
+  opt.m_charset = get_charset_by_name(opt.m_charset_name, MYF(0));
+  if (opt.m_charset == 0)
+  {
+    util.set_error_usage(util.c_error, __LINE__,
+                         "unknown character set: %s", opt.m_charset_name);
+    return -1;
+  }
+  // csv options
   NdbImportCsv::Spec csvspec;
   if (csv.set_spec(csvspec, opt.m_optcsv, OptCsv::ModeInput) == -1)
   {
@@ -188,12 +204,6 @@ NdbImport::set_opt(const Opt& opt)
 }
 
 // connect
-
-int
-NdbImport::set_connections(int cnt, Ndb_cluster_connection** connections)
-{
-  return m_impl.set_connections(cnt, connections);
-}
 
 int
 NdbImport::do_connect()
@@ -216,17 +226,7 @@ NdbImport::do_disconnect()
 int
 NdbImport::add_table(const char* database, const char* table, uint& tabid)
 {
-  if (m_impl.add_table(database, table, tabid) == -1)
-    return -1;
-  return 0;
-}
-
-int
-NdbImport::set_tabid(uint tabid)
-{
-  if (m_impl.set_tabid(tabid) == -1)
-    return -1;
-  return 0;
+  return m_impl.add_table(database, table, tabid, m_impl.m_error);
 }
 
 // job
@@ -311,6 +311,24 @@ NdbImport::Job::do_destroy()
   NdbImportImpl::Job* jobImpl = impl.find_job(m_jobno);
   impl.destroy_job(jobImpl);
   m_jobno = Inval_uint;
+}
+ 
+int
+NdbImport::Job::add_table(const char* database,
+                          const char* table,
+                          uint& tabid)
+{
+  NdbImportImpl& impl = m_imp.m_impl;
+  NdbImportImpl::Job* jobImpl = impl.find_job(m_jobno);
+  return jobImpl->add_table(database, table, tabid);
+}
+
+void
+NdbImport::Job::set_table(uint tabid)
+{
+  NdbImportImpl& impl = m_imp.m_impl;
+  NdbImportImpl::Job* jobImpl = impl.find_job(m_jobno);
+  jobImpl->set_table(tabid);
 }
 
 bool

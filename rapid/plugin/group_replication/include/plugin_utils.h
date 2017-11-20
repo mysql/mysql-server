@@ -56,6 +56,11 @@ public:
     mysql_cond_init(key_GR_COND_synchronized_queue, &cond);
   }
 
+  ~Synchronized_queue()
+  {
+    mysql_mutex_destroy(&lock);
+  }
+
   /**
     Checks if the queue is empty
     @return if is empty

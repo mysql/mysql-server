@@ -21,15 +21,16 @@
   Statement Digest data structures (declarations).
 */
 
+#include <atomic>
 #include <sys/types.h>
 
 #include "lf.h"
 #include "my_inttypes.h"
 #include "pfs_column_types.h"
+#include "pfs_histogram.h"
 #include "pfs_lock.h"
 #include "pfs_stat.h"
-#include "pfs_histogram.h"
-#include "sql_digest.h"
+#include "sql/sql_digest.h"
 
 extern bool flag_statements_digest;
 extern size_t digest_max;
@@ -61,6 +62,21 @@ struct PFS_ALIGNED PFS_statements_digest_stat
   /** Statement stat. */
   PFS_statement_stat m_stat;
 
+  /** Query sample SQL text. */
+  char *m_query_sample;
+  /** Length of @c m_query_sample. */
+  size_t m_query_sample_length;
+  /** True if @c m_query_sample was truncated. */
+  bool m_query_sample_truncated;
+  /** Statement character set number. */
+  uint m_query_sample_cs_number;
+  /** Query sample seen timestamp.*/
+  ulonglong m_query_sample_seen;
+  /** Query sample timer wait.*/
+  std::atomic<std::uint64_t> m_query_sample_timer_wait;
+  /** Query sample reference count. */
+  std::atomic<std::uint32_t> m_query_sample_refs;
+
   /** First and last seen timestamps.*/
   ulonglong m_first_seen;
   ulonglong m_last_seen;
@@ -69,9 +85,48 @@ struct PFS_ALIGNED PFS_statements_digest_stat
   PFS_histogram m_histogram;
 
   /** Reset data for this record. */
-  void reset_data(unsigned char *token_array, size_t length);
+  void reset_data(unsigned char *token_array, size_t token_array_length,
+                  char *query_sample_array);
   /** Reset data and remove index for this record. */
   void reset_index(PFS_thread *thread);
+
+  /** Get the age in micro seconds of the last query sample. */
+  ulonglong
+  get_sample_age()
+  {
+    ulonglong age = m_last_seen - m_query_sample_seen;
+    return age;
+  }
+
+  /** Set the query sample wait time. */
+  void
+  set_sample_timer_wait(ulonglong wait_time)
+  {
+    m_query_sample_timer_wait.store(wait_time);
+  }
+
+  /** Get the query sample wait time. */
+  ulonglong
+  get_sample_timer_wait()
+  {
+    return m_query_sample_timer_wait.load();
+  }
+
+  /** Increment the query sample reference count. */
+  uint
+  inc_sample_ref()
+  {
+    /* Return value prior to increment. */
+    return (uint)m_query_sample_refs.fetch_add(1);
+  }
+
+  /** Decrement the query sample reference count. */
+  uint
+  dec_sample_ref()
+  {
+    /* Return value prior to decrement. */
+    return (uint)m_query_sample_refs.fetch_sub(1);
+  }
 };
 
 int init_digest(const PFS_global_param *param);

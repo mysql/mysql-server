@@ -16,7 +16,7 @@
 #ifndef TEST_MDL_CONTEXT_OWNER_INCLUDED
 #define TEST_MDL_CONTEXT_OWNER_INCLUDED
 
-#include <mdl.h>
+#include "sql/mdl.h"
 
 class Test_MDL_context_owner : public MDL_context_owner
 {

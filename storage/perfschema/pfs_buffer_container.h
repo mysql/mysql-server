@@ -92,8 +92,20 @@ public:
       return NULL;
     }
 
-    monotonic = m_monotonic.m_u32++;
+    monotonic = m_monotonic.m_size_t++;
     monotonic_max = monotonic + m_max;
+
+    if (unlikely(monotonic >= monotonic_max))
+    {
+      /*
+        This will happen once every 2^64 - m_max calls.
+        Computation of monotonic_max just overflowed,
+        so reset monotonic counters and start again from the beginning.
+      */
+      m_monotonic.m_size_t.store(0);
+      monotonic = 0;
+      monotonic_max = m_max;
+    }
 
     while (monotonic < monotonic_max)
     {
@@ -104,7 +116,7 @@ public:
       {
         return pfs;
       }
-      monotonic = m_monotonic.m_u32++;
+      monotonic = m_monotonic.m_size_t++;
     }
 
     m_full = true;
@@ -131,7 +143,7 @@ public:
   }
 
   bool m_full;
-  PFS_cacheline_atomic_uint32 m_monotonic;
+  PFS_cacheline_atomic_size_t m_monotonic;
   T *m_ptr;
   size_t m_max;
   /** Container. */
@@ -154,7 +166,7 @@ public:
   {
     array->m_ptr = NULL;
     array->m_full = true;
-    array->m_monotonic.m_u32.store(0);
+    array->m_monotonic.m_size_t.store(0);
 
     if (array->m_max > 0)
     {
@@ -203,14 +215,14 @@ public:
     m_array.m_full = true;
     m_array.m_ptr = NULL;
     m_array.m_max = 0;
-    m_array.m_monotonic.m_u32 = 0;
+    m_array.m_monotonic.m_size_t = 0;
     m_lost = 0;
     m_max = 0;
     m_allocator = allocator;
   }
 
   int
-  init(ulong max_size)
+  init(size_t max_size)
   {
     if (max_size > 0)
     {
@@ -233,19 +245,19 @@ public:
     m_allocator->free_array(&m_array);
   }
 
-  ulong
+  size_t
   get_row_count() const
   {
     return m_max;
   }
 
-  ulong
+  size_t
   get_row_size() const
   {
     return sizeof(value_type);
   }
 
-  ulong
+  size_t
   get_memory() const
   {
     return get_row_count() * get_row_size();
@@ -416,7 +428,7 @@ private:
     return NULL;
   }
 
-  ulong m_max;
+  size_t m_max;
   array_type m_array;
   allocator_type *m_allocator;
 };
@@ -477,8 +489,8 @@ public:
     m_max_page_count = PFS_PAGE_COUNT;
     m_last_page_size = PFS_PAGE_SIZE;
     m_lost = 0;
-    m_monotonic.m_u32.store(0);
-    m_max_page_index.m_u32.store(0);
+    m_monotonic.m_size_t.store(0);
+    m_max_page_index.m_size_t.store(0);
 
     for (i = 0; i < PFS_PAGE_COUNT; i++)
     {
@@ -554,21 +566,21 @@ public:
     m_initialized = false;
   }
 
-  ulong
+  size_t
   get_row_count()
   {
-    ulong page_count = m_max_page_index.m_u32.load();
+    size_t page_count = m_max_page_index.m_size_t.load();
 
     return page_count * PFS_PAGE_SIZE;
   }
 
-  ulong
+  size_t
   get_row_size() const
   {
     return sizeof(value_type);
   }
 
-  ulong
+  size_t
   get_memory()
   {
     return get_row_count() * get_row_size();
@@ -583,22 +595,34 @@ public:
       return NULL;
     }
 
-    uint index;
-    uint monotonic;
-    uint monotonic_max;
-    uint current_page_count;
+    size_t index;
+    size_t monotonic;
+    size_t monotonic_max;
+    size_t current_page_count;
     value_type *pfs;
     array_type *array;
 
     /*
       1: Try to find an available record within the existing pages
     */
-    current_page_count = m_max_page_index.m_u32.load();
+    current_page_count = m_max_page_index.m_size_t.load();
 
     if (current_page_count != 0)
     {
-      monotonic = m_monotonic.m_u32.load();
+      monotonic = m_monotonic.m_size_t.load();
       monotonic_max = monotonic + current_page_count;
+
+      if (unlikely(monotonic >= monotonic_max))
+      {
+        /*
+          This will happen once every 2^64 - current_page_count calls.
+          Computation of monotonic_max just overflowed,
+          so reset monotonic counters and start again from the beginning.
+        */
+        m_monotonic.m_size_t.store(0);
+        monotonic = 0;
+        monotonic_max = current_page_count;
+      }
 
       while (monotonic < monotonic_max)
       {
@@ -638,7 +662,7 @@ public:
           counter faster and then move on to the detection of new pages,
           in part 2: below.
         */
-        monotonic = m_monotonic.m_u32++;
+        monotonic = m_monotonic.m_size_t++;
       };
     }
 
@@ -650,7 +674,7 @@ public:
       /* Peek for pages added by collaborating threads */
 
       /* (2-a) Atomic Load, array= m_pages[current_page_count] */
-      array= m_pages[current_page_count].load();
+      array = m_pages[current_page_count].load();
 
       if (array == NULL)
       {
@@ -687,7 +711,7 @@ public:
 
         /* (2-b) Atomic Load, array= m_pages[current_page_count] */
 
-        array= m_pages[current_page_count].load();
+        array = m_pages[current_page_count].load();
 
         if (array == NULL)
         {
@@ -714,7 +738,7 @@ public:
           m_pages[current_page_count].store(array);
 
           /* Advertise the new page */
-          ++m_max_page_index.m_u32;
+          ++m_max_page_index.m_size_t;
         }
 
         native_mutex_unlock(&m_critical_section);
@@ -1060,10 +1084,10 @@ private:
   bool m_initialized;
   bool m_full;
   size_t m_max;
-  PFS_cacheline_atomic_uint32 m_monotonic;
-  PFS_cacheline_atomic_uint32 m_max_page_index;
-  ulong m_max_page_count;
-  ulong m_last_page_size;
+  PFS_cacheline_atomic_size_t m_monotonic;
+  PFS_cacheline_atomic_size_t m_max_page_index;
+  size_t m_max_page_count;
+  size_t m_last_page_size;
   std::atomic<array_type *> m_pages[PFS_PAGE_COUNT];
   allocator_type *m_allocator;
   native_mutex_t m_critical_section;
@@ -1195,10 +1219,10 @@ public:
     }
   }
 
-  ulong
+  size_t
   get_row_count() const
   {
-    ulong sum = 0;
+    size_t sum = 0;
 
     for (int i = 0; i < PFS_PARTITION_COUNT; i++)
     {
@@ -1208,16 +1232,16 @@ public:
     return sum;
   }
 
-  ulong
+  size_t
   get_row_size() const
   {
     return sizeof(value_type);
   }
 
-  ulong
+  size_t
   get_memory() const
   {
-    ulong sum = 0;
+    size_t sum = 0;
 
     for (int i = 0; i < PFS_PARTITION_COUNT; i++)
     {

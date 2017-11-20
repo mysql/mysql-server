@@ -16,17 +16,19 @@
 #include "sql/rpl_tblmap.h"
 
 #include <stddef.h>
+#include <unordered_map>
+#include <utility>
 
 #ifdef MYSQL_SERVER
-#include "table.h"       // TABLE
+#include "sql/table.h"   // TABLE
+#else
+#include "sql/log_event.h" // Table_map_log_event
 #endif
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
-#include "psi_memory_key.h"
-#include "sql_plugin_ref.h"
+#include "sql/psi_memory_key.h"
 
 #ifndef MYSQL_SERVER
 #define MAYBE_TABLE_NAME(T) ("")
@@ -36,28 +38,18 @@
 #define TABLE_ID_HASH_SIZE 32
 #define TABLE_ID_CHUNK 256
 
-table_mapping::table_mapping()
-  : m_free(0)
-{
-  PSI_memory_key psi_key;
-
 #ifndef MYSQL_SERVER
-  psi_key= PSI_NOT_INSTRUMENTED;
+static const PSI_memory_key table_psi_key= PSI_NOT_INSTRUMENTED;
 #else
-  psi_key= key_memory_table_mapping_root;
+static const PSI_memory_key table_psi_key= key_memory_table_mapping_root;
 #endif
 
-  /*
-    No "free_element" function for entries passed here, as the entries are
-    allocated in a MEM_ROOT (freed as a whole in the destructor), they cannot
-    be freed one by one.
-    Note that below we don't test if my_hash_init() succeeded. This
-    constructor is called at startup only.
-  */
-  (void) my_hash_init(&m_table_ids,&my_charset_bin,TABLE_ID_HASH_SIZE,
-                      0, table_id_get_key, nullptr, 0, psi_key);
+table_mapping::table_mapping()
+  : m_free(0),
+    m_table_ids(table_psi_key)
+{
   /* We don't preallocate any block, this is consistent with m_free=0 above */
-  init_alloc_root(psi_key,
+  init_alloc_root(table_psi_key,
                   &m_mem_root, TABLE_ID_HASH_SIZE*sizeof(entry), 0);
 }
 
@@ -66,17 +58,16 @@ table_mapping::~table_mapping()
 #ifndef MYSQL_SERVER
   clear_tables();
 #endif
-  my_hash_free(&m_table_ids);
-  free_root(&m_mem_root, MYF(0));
 }
 
-TABLE* table_mapping::get_table(ulonglong table_id)
+Mapped_table* table_mapping::get_table(ulonglong table_id)
 {
   DBUG_ENTER("table_mapping::get_table(ulonglong)");
   DBUG_PRINT("enter", ("table_id: %llu", table_id));
-  entry *e= find_entry(table_id);
-  if (e) 
+  auto it= m_table_ids.find(table_id);
+  if (it != m_table_ids.end())
   {
+    entry *e= it->second;
     DBUG_PRINT("info", ("tid %llu -> table %p (%s)",
 			table_id, e->table,
 			MAYBE_TABLE_NAME(e->table)));
@@ -113,14 +104,15 @@ int table_mapping::expand()
   return 0;
 }
 
-int table_mapping::set_table(ulonglong table_id, TABLE* table)
+int table_mapping::set_table(ulonglong table_id, Mapped_table* table)
 {
-  DBUG_ENTER("table_mapping::set_table(ulong,TABLE*)");
+  DBUG_ENTER("table_mapping::set_table(ulonglong, Mapped_table*)");
   DBUG_PRINT("enter", ("table_id: %llu  table: %p (%s)",
 		       table_id, 
 		       table, MAYBE_TABLE_NAME(table)));
-  entry *e= find_entry(table_id);
-  if (e == 0)
+  entry *e;
+  auto it= m_table_ids.find(table_id);
+  if (it == m_table_ids.end())
   {
     if (m_free == 0 && expand())
       DBUG_RETURN(ERR_MEMORY_ALLOCATION); // Memory allocation failed      
@@ -129,20 +121,15 @@ int table_mapping::set_table(ulonglong table_id, TABLE* table)
   }
   else
   {
+    e= it->second;
 #ifndef MYSQL_SERVER
-    free_table_map_log_event(e->table);
+    delete e->table;
 #endif
-    my_hash_delete(&m_table_ids,(uchar *)e);
+    m_table_ids.erase(table_id);
   }
   e->table_id= table_id;
   e->table= table;
-  if (my_hash_insert(&m_table_ids,(uchar *)e))
-  {
-    /* we add this entry to the chain of free (free for use) entries */
-    e->next= m_free;
-    m_free= e;
-    DBUG_RETURN(ERR_MEMORY_ALLOCATION);
-  }
+  m_table_ids.emplace(table_id, e);
 
   DBUG_PRINT("info", ("tid %llu -> table %p (%s)",
 		      table_id, e->table,
@@ -152,13 +139,13 @@ int table_mapping::set_table(ulonglong table_id, TABLE* table)
 
 int table_mapping::remove_table(ulonglong table_id)
 {
-  entry *e= find_entry(table_id);
-  if (e)
+  auto it= m_table_ids.find(table_id);
+  if (it != m_table_ids.end())
   {
-    my_hash_delete(&m_table_ids,(uchar *)e);
     /* we add this entry to the chain of free (free for use) entries */
-    e->next= m_free;
-    m_free= e;
+    it->second->next= m_free;
+    m_free= it->second;
+    m_table_ids.erase(it);
     return 0;			// All OK
   }
   return 1;			// No table to remove
@@ -171,15 +158,15 @@ int table_mapping::remove_table(ulonglong table_id)
 void table_mapping::clear_tables()
 {
   DBUG_ENTER("table_mapping::clear_tables()");
-  for (uint i= 0; i < m_table_ids.records; i++)
+  for (const auto &key_and_value : m_table_ids)
   {
-    entry *e= (entry *)my_hash_element(&m_table_ids, i);
+    entry *e= key_and_value.second;
 #ifndef MYSQL_SERVER
-    free_table_map_log_event(e->table);
+    delete e->table;
 #endif
     e->next= m_free;
     m_free= e;
   }
-  my_hash_reset(&m_table_ids);
+  m_table_ids.clear();
   DBUG_VOID_RETURN;
 }

@@ -56,6 +56,8 @@ SELECT @@global.keyring_file_data;
 --echo
 
 UNINSTALL PLUGIN keyring_file;
+
+
 # Check keyring plugin
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
@@ -64,5 +66,7 @@ FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 
 # Cleanup
 DROP TABLE t1;
+
+--source include/force_restart.inc
 --echo
 --echo #End:

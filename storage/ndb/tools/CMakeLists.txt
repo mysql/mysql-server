@@ -23,7 +23,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
   ${CMAKE_BINARY_DIR}/storage/ndb/tools)
 
-IF(NOT WIN32)
 ADD_CONVENIENCE_LIBRARY(ndbtools
   NdbImport.cpp
   NdbImportImpl.cpp
@@ -50,7 +49,6 @@ RUN_BISON(
   ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.hpp
   NdbImportCsv_yy
 )
-ENDIF()
 
 MYSQL_ADD_EXECUTABLE(ndb_waiter
   waiter.cpp
@@ -92,6 +90,13 @@ MYSQL_ADD_EXECUTABLE(ndb_select_count
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_select_count ndbclient_static ndbNDBT)
 
+MYSQL_ADD_EXECUTABLE(ndb_perror
+  ndb_perror.cpp
+  ${NDB_SOURCE_DIR}/src/mgmapi/mgmapi_error.c
+  ${NDB_SOURCE_DIR}/src/kernel/error/ndbd_exit_codes.c
+  COMPONENT ClusterTools)
+TARGET_LINK_LIBRARIES(ndb_perror ndbclient_static)
+
 MYSQL_ADD_EXECUTABLE(ndb_restore
   restore/restore_main.cpp
   restore/consumer.cpp
@@ -102,7 +107,6 @@ MYSQL_ADD_EXECUTABLE(ndb_restore
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_restore ndbclient_static ndbNDBT)
 
-IF(NOT WIN32)
 MYSQL_ADD_EXECUTABLE(ndb_import
   ndb_import.cpp
   COMPONENT ClusterTools)
@@ -113,7 +117,6 @@ NDB_ADD_TEST(NdbImportUtil-t NdbImportUtil.cpp
 
 NDB_ADD_TEST(NdbImportCsv-t NdbImportCsv.cpp
              LIBS ndbtools ndbclient_static regex)
-ENDIF()
 
 MYSQL_ADD_EXECUTABLE(ndb_config
   ndb_config.cpp
@@ -152,6 +155,46 @@ MYSQL_ADD_EXECUTABLE(ndb_move_data
   ndb_lib_move_data.cpp
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_move_data ndbclient_static ndbNDBT)
+
+IF(NOT WIN32)
+IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  IF (HAVE_NCURSESW_1 OR HAVE_NCURSESW_2 OR HAVE_NCURSESW_3 OR HAVE_NCURSESW_4 OR HAVE_NCURSESW_5)
+    MESSAGE("-- Adding ndb_top executable")
+    FIND_LIBRARY(NCURSESW_LIB
+                 NAMES ncursesw)
+    IF (NOT NCURSESW_LIB)
+      FIND_LIBRARY(NCURSESW_LIB
+                   NAMES ncurses)
+    ENDIF()
+
+    IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+      # Suppress warnings for undefined identifiers in ndb_top
+      ADD_COMPILE_FLAGS(${CMAKE_CURRENT_SOURCE_DIR}/ndb_top.cpp
+                        COMPILE_FLAGS "-Wno-undef")
+    ENDIF()
+
+    CHECK_LIBRARY_EXISTS("${NCURSESW_LIB}"
+      stdscr "" NCURSES_HAS_STDSCR)
+    IF(NOT NCURSES_HAS_STDSCR)
+      FIND_LIBRARY(NCURSES_TINFO_LIB
+                   NAMES tinfo)
+    ENDIF()
+    MYSQL_ADD_EXECUTABLE(ndb_top
+      ndb_top.cpp
+      COMPONENT ClusterTools)
+    IF(NCURSES_HAS_STDSCR)
+      TARGET_LINK_LIBRARIES(ndb_top mysqlclient ${NCURSESW_LIB})
+    ELSE()
+      TARGET_LINK_LIBRARIES(ndb_top
+                            mysqlclient
+                            ${NCURSESW_LIB}
+                            ${NCURSES_TINFO_LIB})
+    ENDIF()
+  ELSE()
+    MESSAGE(FATAL_ERROR "ndb_top executable could not be built, install ncursesw library")
+  ENDIF()
+ENDIF()
+ENDIF()
 
 # Install the ndb_dist_priv.sql script
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/ndb_dist_priv.sql

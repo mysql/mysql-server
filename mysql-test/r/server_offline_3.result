@@ -21,7 +21,7 @@ connection default;
 SET GLOBAL offline_mode = ON;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-1
+2
 SET GLOBAL offline_mode = OFF;
 disconnect conu1;
 disconnect conu2;
@@ -40,7 +40,7 @@ connection default;
 SET GLOBAL offline_mode = ON;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-1
+2
 disconnect conu1;
 disconnect conu2;
 DROP USER 'user1'@'localhost';

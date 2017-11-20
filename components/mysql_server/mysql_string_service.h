@@ -18,7 +18,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/mysql_string.h>
-#include <sql_string.h>
+
+#include "sql_string.h"
 
 /*
   This header file is used in mysql_server component, which is not

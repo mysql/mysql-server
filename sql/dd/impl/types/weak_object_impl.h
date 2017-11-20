@@ -16,8 +16,8 @@
 #ifndef DD__WEAK_OBJECT_IMPL_INCLUDED
 #define DD__WEAK_OBJECT_IMPL_INCLUDED
 
-#include "dd/object_id.h"          // Object_id
-#include "dd/types/weak_object.h"  // dd::Weak_object
+#include "sql/dd/object_id.h"      // Object_id
+#include "sql/dd/types/weak_object.h" // dd::Weak_object
 
 namespace dd {
 

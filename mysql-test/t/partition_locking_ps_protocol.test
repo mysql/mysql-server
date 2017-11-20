@@ -4,6 +4,9 @@
 #
 
 --source include/have_ps_protocol.inc
+# Test is skipped with log-bin enabled as the count of commit and prepare handlers
+# increase when binary logging is enabled.
+--source include/not_log_bin.inc
 
 --echo #
 --echo # Test CREATE SELECT

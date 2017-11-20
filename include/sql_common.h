@@ -115,7 +115,7 @@ struct st_mysql_options_extention {
   char *server_public_key_path;
   size_t connection_attributes_length;
   bool enable_cleartext_plugin;
-  bool unused0;                              /* Former ssl_enforce */
+  bool get_server_public_key;       /* Former ssl_enforce */
   char *tls_version; /* TLS version option */
   long ssl_ctx_flags; /* SSL ctx options flag */
   unsigned int ssl_mode;

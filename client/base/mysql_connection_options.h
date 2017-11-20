@@ -20,11 +20,11 @@
 
 #include <vector>
 
-#include "abstract_program.h"
-#include "base/mutex.h"
-#include "client_priv.h"
-#include "composite_options_provider.h"
-#include "i_connection_factory.h"
+#include "client/base/abstract_program.h"
+#include "client/base/composite_options_provider.h"
+#include "client/base/i_connection_factory.h"
+#include "client/base/mutex.h"
+#include "client/client_priv.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "nullable.h"
@@ -112,7 +112,6 @@ private:
   void pipe_protocol_callback(char* not_used MY_ATTRIBUTE((unused)));
 #endif
   void protocol_callback(char* not_used MY_ATTRIBUTE((unused)));
-  void secure_auth_callback(char* argument MY_ATTRIBUTE((unused)));
 
   static bool mysql_inited;
 
@@ -128,7 +127,6 @@ private:
   Nullable<std::string> m_shared_memory_base_name;
 #endif
   Nullable<std::string> m_default_auth;
-  bool m_secure_auth;
   Nullable<std::string> m_plugin_dir;
   uint32 m_net_buffer_length;
   uint32 m_max_allowed_packet;
@@ -136,6 +134,7 @@ private:
   Nullable<std::string> m_user;
   Nullable<std::string> m_password;
   Nullable<std::string> m_default_charset;
+  bool m_get_server_public_key;
 };
 
 }

@@ -16,9 +16,9 @@
 #ifndef DD__FUNCTION_INCLUDED
 #define DD__FUNCTION_INCLUDED
 
-#include "dd/types/column.h"              // dd::Column::enum_column_types
-#include "dd/types/routine.h"             // dd::Routine
 #include "my_inttypes.h"
+#include "sql/dd/types/column.h"          // dd::Column::enum_column_types
+#include "sql/dd/types/routine.h"         // dd::Routine
 
 namespace dd {
 

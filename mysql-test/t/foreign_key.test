@@ -499,4 +499,1993 @@ CREATE TABLE t2 (FK VARCHAR(100), FOREIGN KEY(FK) REFERENCES t1 (PK), KEY(FK));
 ALTER TABLE t2 DROP INDEX FK, ADD INDEX FK2(FK(10));
 DROP TABLE t2, t1;
 
-SET @@foreign_key_checks= DEFAULT;
+
+--echo # Bug#25817660: Combination of virtual index, foreign key and trigger
+--echo #               result in assert failure
+
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=0;
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+		FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+
+UPDATE t1 SET fld1= 2;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--echo # The same test but with server restart before UPDATE.
+--echo # Triggers different code path in InnoDB which was not
+--echo # covered by original fix for the bug.
+
+--source include/restart_mysqld.inc
+UPDATE t1 SET fld1= 3;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#20021917: WORK AROUND FOR CHARSET CONVERSION WITH FKS CAN
+--echo # RESULT IN WRONG DATA
+--echo #
+
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100) UNIQUE);
+
+CREATE TABLE t2 (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), fname VARCHAR(100), FOREIGN KEY (fname) REFERENCES t1 (name) ON UPDATE CASCADE ON DELETE CASCADE);
+
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+
+--error ER_FK_COLUMN_CANNOT_CHANGE
+ALTER TABLE t2 CONVERT TO CHARACTER SET latin1;
+
+SET foreign_key_checks= OFF;
+
+ALTER TABLE t2 CONVERT TO CHARACTER SET latin1;
+
+SET foreign_key_checks= ON;
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+
+INSERT INTO t1(name) VALUES ('test1');
+INSERT INTO t2(name, fname) VALUES ('test1', 'test1');
+UPDATE t1 SET name=CONCAT('St', UNHEX('C3A5') ,'le') WHERE name = 'test1';
+
+--echo # Should not get any rows here
+SELECT t1.name, t2.fname FROM t1, t2 WHERE t1.name <> t2.fname;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+
+--echo #
+--echo # WL#6049: Meta-data locking for FOREIGN KEY tables
+--echo #
+--echo # Test case to check MDL on tables related by FK constraints.
+--echo #
+
+--enable_connect_log
+CREATE TABLE grandparent (gpf1 INT PRIMARY KEY, gpf2 INT);
+
+INSERT INTO grandparent VALUES (1,10), (2,20);
+ 
+CREATE TABLE parent (
+  pf1 INT PRIMARY KEY, pf2 INT, sleep_dummy INT,
+  CONSTRAINT pc1 FOREIGN KEY (pf2) REFERENCES grandparent (gpf1)
+  ON DELETE NO ACTION ON UPDATE NO ACTION);
+
+INSERT INTO parent VALUES (1,1,0), (2,2,0);
+
+CREATE TABLE child (
+  cf1 INT PRIMARY KEY, cf2 INT,
+  CONSTRAINT cc1 FOREIGN KEY (cf2) REFERENCES parent (pf1)
+  ON DELETE NO ACTION ON UPDATE NO ACTION);
+
+INSERT INTO child VALUES (1,1), (2,2);
+
+--connect (con_A,localhost,root,,test)
+--let $conA=`SELECT CONNECTION_ID()`
+SET @@session.lock_wait_timeout= 1;
+--send UPDATE parent SET pf2= 2, sleep_dummy= SLEEP(2)
+
+--connection default
+--replace_result $conA <conA>
+--eval set @conA_id = $conA
+let $wait_condition=
+  SELECT COUNT(*) = 1
+    FROM information_schema.processlist
+    WHERE id = @conA_id AND state LIKE 'user sleep';
+--echo # Waiting for connection A to start udpate
+--source include/wait_condition.inc
+
+SET @@session.lock_wait_timeout= 1;
+
+--echo # Updates not invoving the FK related column should succeed
+UPDATE grandparent SET gpf2= 4;
+UPDATE grandparent SET gpf2= 100 * gpf1;
+
+--echo # DDL on child will have conflicting locks.
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE child ADD COLUMN (i INT);
+SET @@session.lock_wait_timeout= DEFAULT;
+
+--connection con_A
+--reap
+--disconnect con_A
+--source include/wait_until_disconnected.inc
+
+--connection default
+--disable_connect_log
+
+DROP TABLE child;
+DROP TABLE parent;
+DROP TABLE grandparent;
+
+
+--echo #
+--echo # Systemic test coverage for metadata locks related to foreign
+--echo # keys acquired by various DDL statements.
+--echo #
+--echo # Also provides coverage for data-dictionary cache invalidation
+--echo # and cases when we fail to acquire necessary locks.
+
+--enable_connect_log
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connect (con1, localhost, root,,);
+connect (con2, localhost, root,,);
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connection default;
+
+--echo #
+--echo # 1) CREATE TABLE
+--echo #
+
+--echo # 1.1) CREATE TABLE must acquire X lock on parent table
+--echo #      (if table doesn't exist).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+--send CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+
+connection con1;
+--echo # Wait until CREATE TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "CREATE TABLE child%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap CREATE TABLE
+--reap
+
+--echo # 1.2) CREATE TABLE for existing table should not acquire X lock
+--echo #      parent table
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+CREATE TABLE IF NOT EXISTS child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+
+connection con1;
+COMMIT;
+
+connection default;
+DROP TABLE child;
+
+--echo # 1.3) CREATE TABLE which acquires lock on parent table and fails
+--echo #      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+connection default;
+DROP TABLE parent;
+
+--echo # 1.4) CREATE TABLE which adds parent to orphan child must acquire X
+--echo #      on child table.
+
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+SET FOREIGN_KEY_CHECKS=1;
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+--send CREATE TABLE parent (pk INT PRIMARY KEY);
+
+connection con1;
+--echo # Wait until CREATE TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "CREATE TABLE parent%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap CREATE TABLE
+--reap
+
+--echo # 1.5) CREATE TABLE for existing table must not acquire X lock
+--echo #      on child table
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+CREATE TABLE IF NOT EXISTS parent (pk INT PRIMARY KEY);
+
+connection con1;
+COMMIT;
+
+connection default;
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE parent;
+SET FOREIGN_KEY_CHECKS=1;
+
+--echo # 1.6) CREATE TABLE which acquires lock on child table and fails
+--echo #      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE TABLE parent (pk INT PRIMARY KEY);
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+connection default;
+DROP TABLE child;
+
+--echo # 1.7) CREATE TABLE which adds FK should invalidate entries
+--echo #      in TC/TDC and DD caches for the parent table.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+SELECT * FROM parent;
+
+connection con1;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+
+connection default;
+LOCK TABLE parent WRITE;
+
+connection con1;
+--echo # The above LOCK TABLE should have noticed new table definition
+--echo # and acquired SNRW lock on child table.
+--send SELECT * FROM child;
+
+connection default;
+--echo # Wait until SELECT is blocked by default connection and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "SELECT * FROM child";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap SELECT
+--reap
+
+connection default;
+DROP TABLES child, parent;
+
+
+--echo #
+--echo # 2) CREATE TABLE ... LIKE
+--echo #
+
+--echo # 2.1) CREATE TABLE ... LIKE doesn't copy foreign keys
+--echo #      so it should not any locks on FK parent tables.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+
+connection con1;
+LOCK TABLES parent WRITE;
+
+connection default;
+CREATE TABLE child2 LIKE child;
+
+connection con1;
+UNLOCK TABLES;
+
+connection default;
+
+--echo # 2.2) CREATE TABLE LIKE which adds parent to orphan child must
+--echo #      acquire X on child table.
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLES child2, parent;
+SET FOREIGN_KEY_CHECKS=1;
+CREATE TABLE parent_source (pk INT PRIMARY KEY);
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+--send CREATE TABLE parent LIKE parent_source;
+
+connection con1;
+--echo # Wait until CREATE TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "CREATE TABLE parent%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap CREATE TABLE
+--reap
+
+--echo # 2.3) CREATE TABLE LIKE for existing table must not acquire X lock
+--echo #      on child table
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+CREATE TABLE IF NOT EXISTS parent LIKE parent_source;
+
+connection con1;
+COMMIT;
+
+connection default;
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE parent;
+SET FOREIGN_KEY_CHECKS=1;
+
+--echo # 2.4) CREATE TABLE LIKE which acquires lock on child table and fails
+--echo #      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE TABLE IF NOT EXISTS parent LIKE parent_source;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+connection default;
+DROP TABLE child, parent_source;
+
+
+--echo #
+--echo # 3) CREATE TABLE ... SELECT
+--echo #
+
+--echo # 3.1) CREATE TABLE ... SELECT must start by acquiring SU lock on parent
+--echo #      table (if table doesn't exist).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE source (fk INT);
+INSERT INTO source VALUES (NULL);
+
+connection con1;
+BEGIN;
+SELECT * FROM source FOR UPDATE;
+
+connection default;
+--send CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT fk FROM source;
+
+connection con1;
+--echo # Wait until CREATE TABLE is blocked by con1 because of row locks.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Sending data" AND
+        info LIKE "CREATE TABLE child%";
+--source include/wait_condition.inc
+
+--echo # Demonstrate that CREATE TABLE holds SU lock on parent
+--echo # which allows DML but not DDL.
+INSERT INTO parent VALUES (1);
+
+connection con2;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE parent ADD COLUMN a INT;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+--echo # Resume CREATE TABLE.
+COMMIT;
+
+connection default;
+--echo # Reap CREATE TABLE
+--reap
+
+DROP TABLES child, source;
+
+--echo # 3.2) CREATE TABLE ... SELECT should upgrade SU lock on parent to X
+--echo #      before commit (i.e eventually X lock should be acquired).
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+--send CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
+
+connection con1;
+--echo # Wait until CREATE TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "CREATE TABLE child%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap CREATE TABLE
+--reap
+
+--echo # 3.3) CREATE TABLE ... SELECT for existing table should not acquire
+--echo #      any locks on parent table.
+connection con1;
+CREATE TABLE parent2 (pk INT PRIMARY KEY);
+LOCK TABLE parent2 WRITE;
+
+connection default;
+CREATE TABLE IF NOT EXISTS child (fk INT, FOREIGN KEY (fk) REFERENCES parent2(pk)) SELECT NULL AS fk;
+
+connection con1;
+UNLOCK TABLES;
+
+connection default;
+DROP TABLE child;
+DROP TABLE parent2;
+
+--echo # 3.4) CREATE TABLE ... SELECT which tries to acquire SU lock on parent
+--echo #      table and fails due to lock timeout.
+connection con1;
+LOCK TABLE parent WRITE;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+UNLOCK TABLES;
+
+--echo # 3.5) CREATE TABLE ... SELECT which tries to upgrade to X lock on
+--echo #      parent table and fails due to lock timeout.
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+connection default;
+DROP TABLE parent;
+
+--echo # 3.6) CREATE TABLE ... SELECT which adds parent to orphan child must
+--echo #      acquire X on child table.
+
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+SET FOREIGN_KEY_CHECKS=1;
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+--send CREATE TABLE parent (pk INT PRIMARY KEY) SELECT 1 AS pk;
+
+connection con1;
+--echo # Wait until CREATE TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "CREATE TABLE parent%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap CREATE TABLE
+--reap
+
+--echo # 3.7) CREATE TABLE ... SELECT for existing table must not
+--echo #      acquire X lock on child table
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+CREATE TABLE IF NOT EXISTS parent (pk INT PRIMARY KEY) SELECT 1 AS pk;
+
+connection con1;
+COMMIT;
+
+connection default;
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE parent;
+SET FOREIGN_KEY_CHECKS=1;
+
+--echo # 3.8) CREATE TABLE ... SELECT which acquires lock on child table
+--echo #      and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE TABLE parent (pk INT PRIMARY KEY) SELECT 1 AS pk;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+connection default;
+DROP TABLE child;
+
+--echo # 3.9) CREATE TABLE ... SELECT which adds FK should invalidate entries
+--echo #      in TC/TDC and DD caches for the parent table.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+SELECT * FROM parent;
+
+connection con1;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE) SELECT NULL AS fk;
+
+connection default;
+LOCK TABLE parent WRITE;
+
+connection con1;
+--echo # The above LOCK TABLE should have noticed new table definition
+--echo # and acquired SNRW lock on child table.
+--send SELECT * FROM child;
+
+connection default;
+--echo # Wait until SELECT is blocked by default connection and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "SELECT * FROM child";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap SELECT
+--reap
+
+connection default;
+DROP TABLES child, parent;
+
+
+--echo #
+--echo # 4) DROP TABLES
+--echo #
+
+--echo # 4.1) DROP TABLES must acquire X lock on parent table for FKs
+--echo #      when child is dropped.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+--send DROP TABLES child;
+
+connection con1;
+--echo # Wait until DROP TABLES is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "DROP TABLES child";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap DROP TABLES
+--reap
+
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+
+--echo # 4.2) DROP TABLES which acquires lock on parent table and fails
+--echo #      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+DROP TABLES child;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 4.3) DROP TABLES which tries to remove parent table must acquire X
+--echo #      lock on child table.
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+--send DROP TABLES parent;
+
+connection con1;
+--echo # Wait until DROP TABLES is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "DROP TABLES parent";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap DROP TABLES
+--error ER_ROW_IS_REFERENCED
+--reap
+
+--echo # 4.4) DROP TABLES which acquires lock on child table and fails
+--echo #      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+DROP TABLES parent;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 4.5) DROP TABLES which deletes child should invalidate entries
+--echo #      in TC/TDC and DD caches for the parent table.
+DROP TABLES child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+SELECT * FROM parent;
+
+connection con1;
+DROP TABLES child;
+
+connection default;
+LOCK TABLE parent WRITE;
+
+connection con1;
+--echo # The above LOCK TABLE should have noticed new table definition
+--echo # and avoid acquiring SNRW lock on child table.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM child;
+
+connection default;
+UNLOCK TABLES;
+
+DROP TABLES parent;
+
+
+--echo #
+--echo # 5) RENAME TABLES
+--echo #
+
+--echo # 5.1) RENAME TABLES must acquire X lock on parent table for FKs
+--echo #      when child is renamed.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+--send RENAME TABLES child TO child1;
+
+connection con1;
+--echo # Wait until RENAME TABLES is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "RENAME TABLES child%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap RENAME TABLES
+--reap
+
+RENAME TABLES child1 TO child;
+
+--echo # 5.2) RENAME TABLES which acquires lock on parent table and fails
+--echo #      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+RENAME TABLES child TO child1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 5.3) RENAME TABLES which tries to rename parent table must acquire X
+--echo #      lock on child table.
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+--send RENAME TABLES parent TO parent1;
+
+connection con1;
+--echo # Wait until RENAME TABLES is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "RENAME TABLES parent%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap RENAME TABLES
+--reap
+
+RENAME TABLES parent1 TO parent;
+
+--echo # 5.4) RENAME TABLES which acquires lock on child table and fails
+--echo #      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+RENAME TABLES parent TO parent1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 5.5) RENAME TABLES which adds parent table for orphan child
+--echo #      must acquire X lock on this child table.
+connection default;
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+--send RENAME TABLES parent TO parent1;
+
+connection con1;
+--echo # Wait until RENAME TABLES is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "RENAME TABLES parent%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap RENAME TABLES
+--reap
+
+RENAME TABLES parent1 TO parent;
+
+--echo # 5.6) RENAME TABLES which acquires lock on orphan child table
+--echo #      and fails due to timeout.
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+RENAME TABLES parent TO parent1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+connection default;
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+
+--echo # 5.7) RENAME TABLES on the child table should invalidate entries
+--echo #      in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+
+connection con1;
+RENAME TABLES child TO child1;
+
+connection default;
+LOCK TABLE parent WRITE;
+
+connection con1;
+--echo # The above LOCK TABLE should have noticed new table definition
+--echo # and acquire SNRW lock on new child table name.
+--send SELECT * FROM child1;
+
+connection default;
+--echo # Wait until SELECT is blocked by default connection and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "SELECT * FROM child1";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap SELECT
+--reap
+
+connection default;
+DROP TABLES child1, parent;
+
+
+--echo #
+--echo # 6) Simple ALTER TABLE ... RENAME
+--echo #
+
+--echo # 6.1) ALTER TABLE ... RENAME must acquire X lock on parent table
+--echo #      for FKs when child is renamed.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+--send ALTER TABLE child RENAME TO child1;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE child%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+RENAME TABLES child1 TO child;
+
+--echo # 6.2) ALTER TABLE ... RENAME which acquires lock on parent table and
+--echo #      fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE child RENAME TO child1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 6.3) ALTER TABLE ... RENAME which tries to rename parent table must
+--echo #      acquire X lock on child table.
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+--send ALTER TABLE parent RENAME TO parent1;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE parent%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+RENAME TABLES parent1 TO parent;
+
+--echo # 6.4) ALTER TABLE ... RENAME which acquires lock on child table and
+--echo #      fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE parent RENAME TO parent1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 6.5) ALTER TABLE ... RENAME which adds parent table for orphan child
+--echo #      must acquire X lock on this child table.
+connection default;
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+--send ALTER TABLE parent RENAME TO parent1;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE parent%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+RENAME TABLES parent1 TO parent;
+
+--echo # 6.6) ALTER TABLE ... RENAME which acquires lock on orphan child table
+--echo #      and fails due to timeout.
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE parent RENAME TO parent1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+connection default;
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+
+--echo # 6.7) ALTER TABLE ... RENAME on the child table should invalidate
+--echo #      entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+
+connection con1;
+ALTER TABLE child RENAME TO child1;
+
+connection default;
+LOCK TABLE parent WRITE;
+
+connection con1;
+--echo # The above LOCK TABLE should have noticed new table definition
+--echo # and acquire SNRW lock on new child table name.
+--send SELECT * FROM child1;
+
+connection default;
+--echo # Wait until SELECT is blocked by default connection and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "SELECT * FROM child1";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap SELECT
+--reap
+
+connection default;
+DROP TABLES child1, parent;
+
+
+--echo #
+--echo # 7) ALTER TABLE ... INPLACE
+--echo #
+
+--echo # 7.1) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE must start by
+--echo #      acquiring SU lock on parent table.
+
+--echo #
+--echo # This test uses debug_sync feature so resides in foreign_key_debug.test
+--echo #
+
+--echo # 7.2) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE should upgrade SU
+--echo #      lock on parent to X before commit (i.e eventually X lock should
+--echo #      be acquired).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT);
+
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+SET FOREIGN_KEY_CHECKS=0;
+--send ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=INPLACE;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE child%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+SET FOREIGN_KEY_CHECKS=1;
+
+ALTER TABLE child DROP FOREIGN KEY fk;
+
+--echo # 7.3) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE which tries to
+--echo #      acquire SU lock on parent table and fails due to lock timeout.
+connection con1;
+LOCK TABLE parent WRITE;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=INPLACE;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+UNLOCK TABLES;
+
+--echo # 7.4) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE which tries to
+--echo #      upgrade to X lock on parent table and fails due to lock timeout.
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+SET FOREIGN_KEY_CHECKS=0;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS=1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 7.5) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE should invalidate
+--echo #      entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+
+connection con1;
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS=1;
+
+connection default;
+LOCK TABLE parent WRITE;
+
+connection con1;
+--echo # The above LOCK TABLE should have noticed new table definition
+--echo # and acquired SNRW lock on child table.
+--send SELECT * FROM child;
+
+connection default;
+--echo # Wait until SELECT is blocked by default connection and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "SELECT * FROM child";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap SELECT
+--reap
+
+--echo # 7.6) ALTER TABLE ... DROP FOREIGN KEY ... INPLACE should acquire
+--echo #      lock on parent to X before commit.
+
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+--send ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=INPLACE;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE child%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE;
+
+--echo # 7.7) ALTER TABLE ... DROP FOREIGN KEY ... INPLACE which tries to
+--echo #      upgrade to X lock on parent table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=INPLACE;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 7.8) ALTER TABLE ... DROP FOREIGN KEY ... INPLACE should invalidate entries
+--echo #      in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+
+connection con1;
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=INPLACE;
+
+connection default;
+LOCK TABLE parent WRITE;
+
+connection con1;
+--echo # The above LOCK TABLE should have noticed new table definition
+--echo # and avoid acquiring SNRW lock on child table.
+SELECT * FROM child;
+
+connection default;
+UNLOCK TABLES;
+
+
+--echo # 7.9) ALTER TABLE ... INPLACE which changes parent key must acquire X
+--echo #      lock on child table.
+DROP TABLES child, parent;
+CREATE TABLE parent (pk INT NOT NULL, UNIQUE u(pk));
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+--send ALTER TABLE parent RENAME KEY u TO u1, ALGORITHM=INPLACE;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE parent%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+--echo # 7.10) ALTER TABLE ... INPLACE which changes parent key, so tries to
+--echo #       acquire X lock on child table, but fails due to timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE parent RENAME KEY u1 TO u, ALGORITHM=INPLACE;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 7.11) ALTER TABLE ... RENAME ... INPLACE must acquire X lock on
+--echo #       parent table for FKs when child is renamed.
+
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+--send ALTER TABLE child RENAME TO child1, ADD COLUMN a INT, ALGORITHM=INPLACE;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE child%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+RENAME TABLES child1 TO child;
+
+--echo # 7.12) ALTER TABLE ... RENAME ... INPLACE which acquires lock on
+--echo #       parent table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE child RENAME TO child1, ADD COLUMN b INT, ALGORITHM=INPLACE;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 7.13) ALTER TABLE ... RENAME ... INPLACE which tries to rename parent
+--echo #       table must acquire X lock on child table.
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+--send ALTER TABLE parent RENAME TO parent1, ADD COLUMN a INT, ALGORITHM=INPLACE;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE parent%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+RENAME TABLES parent1 TO parent;
+
+--echo # 7.14) ALTER TABLE ... RENAME ... INPLACE which acquires lock on child
+--echo #       table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN b INT, ALGORITHM=INPLACE;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 7.15) ALTER TABLE ... RENAME ... INPLACE which adds parent table for
+--echo #       orphan child must acquire X lock on this child table.
+connection default;
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+--send ALTER TABLE parent RENAME TO parent1, ADD COLUMN c INT, ALGORITHM=INPLACE;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE parent%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+RENAME TABLES parent1 TO parent;
+
+--echo # 7.16) ALTER TABLE ... RENAME ... INPLACE which acquires lock on
+--echo #       orphan child table and fails due to timeout.
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN d INT, ALGORITHM=INPLACE;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+connection default;
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+
+--echo # 7.17) ALTER TABLE ... RENAME ... INPLACE on the child table should
+--echo #       invalidate entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+
+connection con1;
+ALTER TABLE child RENAME TO child1, ADD COLUMN a INT, ALGORITHM=INPLACE;
+
+connection default;
+LOCK TABLE parent WRITE;
+
+connection con1;
+--echo # The above LOCK TABLE should have noticed new table definition
+--echo # and acquire SNRW lock on new child table name.
+--send SELECT * FROM child1;
+
+connection default;
+--echo # Wait until SELECT is blocked by default connection and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "SELECT * FROM child1";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap SELECT
+--reap
+
+connection default;
+DROP TABLES child1, parent;
+
+
+--echo #
+--echo # 8) ALTER TABLE ... COPY
+--echo #
+
+--echo # 8.1) ALTER TABLE ... ADD FOREIGN KEY ... COPY must start by
+--echo #      acquiring SU lock on parent table.
+
+--echo # 8.1') ALTER TABLE ... ADD FOREIGN KEY ... COPY due to workaround
+--echo #       must upgrade SU lock on parent table SRO lock.
+
+--echo #
+--echo # These tests use debug_sync feature so reside in foreign_key_debug.test
+--echo #
+
+--echo # 8.2) ALTER TABLE ... ADD FOREIGN KEY ... COPY should upgrade SU (SRO)
+--echo #      lock on parent to X before commit (i.e eventually X lock should
+--echo #      be acquired).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT);
+
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+--send ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=COPY;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE child%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+ALTER TABLE child DROP FOREIGN KEY fk;
+
+--echo # 8.3) ALTER TABLE ... ADD FOREIGN KEY ... COPY which tries to
+--echo #      acquire SU lock on parent table and fails due to lock timeout.
+connection con1;
+LOCK TABLE parent WRITE;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=COPY;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+UNLOCK TABLES;
+
+--echo # 8.3') ALTER TABLE ... ADD FOREIGN KEY ... COPY which due to workaround
+--echo #       tries to upgrade SU lock on parent table to SRO and fails due to
+--echo #       lock timeout.
+connection con1;
+BEGIN;
+DELETE FROM parent;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=COPY;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 8.4) ALTER TABLE ... ADD FOREIGN KEY ... COPY which tries to
+--echo #      upgrade to X lock on parent table and fails due to lock timeout.
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=COPY;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 8.5) ALTER TABLE ... ADD FOREIGN KEY ... COPY should invalidate
+--echo #      entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+
+connection con1;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE, ALGORITHM=COPY;
+
+connection default;
+LOCK TABLE parent WRITE;
+
+connection con1;
+--echo # The above LOCK TABLE should have noticed new table definition
+--echo # and acquired SNRW lock on child table.
+--send SELECT * FROM child;
+
+connection default;
+--echo # Wait until SELECT is blocked by default connection and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "SELECT * FROM child";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap SELECT
+--reap
+
+--echo # 8.6) ALTER TABLE ... DROP FOREIGN KEY ... COPY should acquire
+--echo #      lock on parent to X before commit.
+
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+--send ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=COPY;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE child%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE;
+
+--echo # 8.7) ALTER TABLE ... DROP FOREIGN KEY ... COPY which tries to
+--echo #      upgrade to X lock on parent table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=COPY;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 8.8) ALTER TABLE ... DROP FOREIGN KEY ... COPY should invalidate entries
+--echo #      in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+
+connection con1;
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=COPY;
+
+connection default;
+LOCK TABLE parent WRITE;
+
+connection con1;
+--echo # The above LOCK TABLE should have noticed new table definition
+--echo # and avoid acquiring SNRW lock on child table.
+SELECT * FROM child;
+
+connection default;
+UNLOCK TABLES;
+
+
+--echo # 8.9) ALTER TABLE ... COPY which changes parent key must acquire X
+--echo #      lock on child table.
+DROP TABLES child, parent;
+CREATE TABLE parent (pk INT NOT NULL, UNIQUE u(pk));
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+--send ALTER TABLE parent RENAME KEY u TO u1, ALGORITHM=COPY;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE parent%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+--echo # 8.10) ALTER TABLE ... COPY which changes parent key, so tries to
+--echo #       acquire X lock on child table, but fails due to timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE parent RENAME KEY u1 TO u, ALGORITHM=COPY;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 8.11) ALTER TABLE ... RENAME ... COPY must acquire X lock on
+--echo #       parent table for FKs when child is renamed.
+
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+--send ALTER TABLE child RENAME TO child1, ADD COLUMN a INT, ALGORITHM=COPY;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE child%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+RENAME TABLES child1 TO child;
+
+--echo # 8.12) ALTER TABLE ... RENAME ... COPY which acquires lock on
+--echo #       parent table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE child RENAME TO child1, ADD COLUMN b INT, ALGORITHM=COPY;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 8.13) ALTER TABLE ... RENAME ... COPY which tries to rename parent
+--echo #       table must acquire X lock on child table.
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+--send ALTER TABLE parent RENAME TO parent1, ADD COLUMN a INT, ALGORITHM=COPY;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE parent%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+RENAME TABLES parent1 TO parent;
+
+--echo # 8.14) ALTER TABLE ... RENAME ... COPY which acquires lock on child
+--echo #       table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN b INT, ALGORITHM=COPY;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+--echo # 8.15) ALTER TABLE ... RENAME ... COPY which adds parent table for
+--echo #       orphan child must acquire X lock on this child table.
+connection default;
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+--send ALTER TABLE parent RENAME TO parent1, ADD COLUMN c INT, ALGORITHM=COPY;
+
+connection con1;
+--echo # Wait until ALTER TABLE is blocked by con1 and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "ALTER TABLE parent%";
+--source include/wait_condition.inc
+COMMIT;
+
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+RENAME TABLES parent1 TO parent;
+
+--echo # 8.16) ALTER TABLE ... RENAME ... COPY which acquires lock on
+--echo #       orphan child table and fails due to timeout.
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+
+connection con1;
+BEGIN;
+SELECT * FROM child;
+
+connection default;
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN d INT, ALGORITHM=COPY;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection con1;
+COMMIT;
+
+connection default;
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+
+--echo # 8.17) ALTER TABLE ... RENAME ... COPY on the child table should
+--echo #       invalidate entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+
+connection con1;
+ALTER TABLE child RENAME TO child1, ADD COLUMN a INT, ALGORITHM=COPY;
+
+connection default;
+LOCK TABLE parent WRITE;
+
+connection con1;
+--echo # The above LOCK TABLE should have noticed new table definition
+--echo # and acquire SNRW lock on new child table name.
+--send SELECT * FROM child1;
+
+connection default;
+--echo # Wait until SELECT is blocked by default connection and then resume it.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "SELECT * FROM child1";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap SELECT
+--reap
+
+connection default;
+DROP TABLES child1, parent;
+
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection con2;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+connection default;
+--disable_connect_log
+
+
+--echo #
+--echo # Validation of FK and referred column names.
+--echo #
+
+--echo # Too long constraint name.
+--error ER_TOO_LONG_IDENT
+CREATE TABLE t (pk INTEGER PRIMARY KEY, fk_i INTEGER,
+  CONSTRAINT xxxxxxxxx1xxxxxxxxx2xxxxxxxxx3xxxxxxxxx4xxxxxxxxx5xxxxxxxxx6xxxxx
+  FOREIGN KEY (fk_i) REFERENCES x(x));
+
+--echo # Too long column name.
+--error ER_WRONG_COLUMN_NAME
+CREATE TABLE t (pk INTEGER PRIMARY KEY, fk_i INTEGER,
+  FOREIGN KEY (fk_i) REFERENCES x(xxxxxxxxx1xxxxxxxxx2xxxxxxxxx3xxxxxxxxx4xxxxxxxxx5xxxxxxxxx6xxxxx));
+
+--echo # Column name having trailing space.
+--error ER_WRONG_COLUMN_NAME
+CREATE TABLE t (pk INTEGER PRIMARY KEY, fk_i INTEGER,
+  FOREIGN KEY (fk_i) REFERENCES x(`x `));
+
+--echo #
+--echo # Test DROP of table with FKs under LOCK TABLES.
+--echo #
+
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, i INTEGER, fk_i INTEGER,
+  UNIQUE KEY parent_i_key(i),
+  FOREIGN KEY (fk_i) REFERENCES parent(i));
+
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk_i INTEGER,
+  FOREIGN KEY (fk_i) REFERENCES parent(i));
+
+SET @@session.foreign_key_checks= 1;
+--echo # Drop only parent with FKC == 0.
+LOCK TABLE parent WRITE;
+--error ER_ROW_IS_REFERENCED
+DROP TABLES parent;
+UNLOCK TABLE;
+
+SET @@session.foreign_key_checks= 0;
+--echo # Drop only parent.
+LOCK TABLE parent WRITE;
+DROP TABLES parent;
+UNLOCK TABLE;
+SET @@session.foreign_key_checks= 1;
+
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, i INTEGER,
+  UNIQUE KEY parent_i_key(i));
+
+--echo # Drop both child and parent.
+LOCK TABLES child WRITE, parent WRITE;
+DROP TABLES child, parent;
+UNLOCK TABLES;
+
+SET @@session.foreign_key_checks= DEFAULT;
+
+--echo #
+--echo # Test ALTER TABLE ... ADD FOREIGN KEY under LOCK TABLES.
+--echo #
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT);
+LOCK TABLES child WRITE;
+--error ER_TABLE_NOT_LOCKED
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk);
+UNLOCK TABLES;
+--echo # With parent table locked for read it should be possible to add FK.
+LOCK TABLES child WRITE, parent READ;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk);
+UNLOCK TABLES;
+
+--echo #
+--echo # Test ALTER TABLE ... RENAME with FKs under LOCK TABLES.
+--echo #
+--echo # ALTER TABLE ... RENAME on tables which participate or
+--echo # will participate as result of this ALTER in FKs is
+--echo # prohibited.
+LOCK TABLES child WRITE;
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE child RENAME TO child1;
+UNLOCK TABLES;
+LOCK TABLES parent WRITE;
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE parent RENAME TO parent1;
+UNLOCK TABLES;
+ALTER TABLE child DROP FOREIGN KEY fk;
+LOCK TABLES child WRITE, parent READ;
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE child RENAME TO child1, ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk);
+UNLOCK TABLES;
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY(fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+LOCK TABLE parent WRITE;
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE parent RENAME TO parent1;
+UNLOCK TABLES;
+DROP TABLES child, parent;
+
+
+--echo #
+--echo # Temporary limitation on ALTER TABLE ... INPLACE renaming parent
+--echo # columns participating in FK.
+--echo #
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE parent RENAME COLUMN pk TO pk2, ALGORITHM=INPLACE;
+DROP TABLES child, parent;
+--echo # Works if FK is dropped at the same time however.
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT,
+                   CONSTRAINT fk FOREIGN KEY (fk) REFERENCES self(pk));
+ALTER TABLE self RENAME COLUMN fk TO b, DROP FOREIGN KEY fk, ALGORITHM=INPLACE;
+DROP TABLE self;
+
+
+--echo #
+--echo # WL#6049, bug#26654674 "TABLE_CACHE_MANAGER::FREE_TABLE(THD*,
+--echo #                        ENUM_TDC_REMOVE_TABLE_TYPE, TABLE_SHARE*)".
+--echo #
+CREATE TABLE t1 (u INT NOT NULL, UNIQUE u(u));
+--echo # First, check that we correctly handle open HANDLERs during
+--echo # parent invalidation.
+HANDLER t1 OPEN;
+CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (u));
+HANDLER t1 CLOSE;
+HANDLER t1 OPEN AS a;
+HANDLER t1 OPEN AS b;
+CREATE TABLE t3 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (u));
+HANDLER a CLOSE;
+HANDLER b CLOSE;
+--echo # Then, check that we correctly handle HANDLERs on child table
+--echo # during parent definiton change.
+HANDLER t2 OPEN;
+HANDLER t3 OPEN AS a;
+HANDLER t3 OPEN AS b;
+ALTER TABLE t1 RENAME KEY u TO u1;
+HANDLER t2 CLOSE;
+HANDLER a CLOSE;
+HANDLER b CLOSE;
+--echo # Now, let us check what happens when parent is renamed.
+HANDLER t2 OPEN;
+HANDLER t3 OPEN AS a;
+HANDLER t3 OPEN AS b;
+ALTER TABLE t1 RENAME TO t4;
+HANDLER t2 CLOSE;
+HANDLER a CLOSE;
+HANDLER b CLOSE;
+--echo # Finally, check what happens when parent table is deleted.
+--echo # Do clean-up as side-effect.
+HANDLER t2 OPEN;
+HANDLER t3 OPEN AS a;
+HANDLER t3 OPEN AS b;
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE t4;
+DROP TABLES t2, t3;
+SET FOREIGN_KEY_CHECKS=1;
+
+
+--echo #
+--echo # Additional test coverage for foreign keys and prepared statement
+--echo # validation.
+--echo #
+CREATE TABLE t1 (i INT PRIMARY KEY);
+CREATE TABLE t2 (j INT, FOREIGN KEY (j) REFERENCES t1 (i) ON DELETE CASCADE);
+CREATE TABLE t3 (k INT);
+DELIMITER |;
+CREATE TRIGGER bi_t3 BEFORE INSERT ON t3 FOR EACH ROW
+BEGIN
+IF @a = 1234567890 THEN
+  DELETE FROM t1;
+END IF;
+END|
+DELIMITER ;|
+PREPARE stmt FROM 'INSERT INTO t3 VALUES (1)';
+EXECUTE stmt;
+DROP TABLES t2, t1;
+--echo # Statement should succeed even though we won't be able check
+--echo # prelocked set element for child table.
+EXECUTE stmt;
+CREATE TABLE t1 (i INT PRIMARY KEY);
+CREATE TABLE t2 (j INT, FOREIGN KEY (j) REFERENCES t1 (i) ON DELETE CASCADE);
+EXECUTE stmt;
+DROP TABLES t2, t1;
+CREATE VIEW t2 AS SELECT 1 AS j;
+--echo # Again statement should succeed, even though we have view instead
+--echo # of child table.
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t3;
+DROP VIEW t2;

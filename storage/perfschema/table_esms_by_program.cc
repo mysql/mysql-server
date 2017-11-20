@@ -20,7 +20,6 @@
 
 #include "storage/perfschema/table_esms_by_program.h"
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
@@ -32,6 +31,7 @@
 #include "pfs_program.h"
 #include "pfs_timer.h"
 #include "pfs_visitor.h"
+#include "sql/field.h"
 
 THR_LOCK table_esms_by_program::m_table_lock;
 
@@ -89,7 +89,10 @@ PFS_engine_table_share table_esms_by_program::m_share = {
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool

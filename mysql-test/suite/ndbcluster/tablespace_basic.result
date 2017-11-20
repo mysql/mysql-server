@@ -6,7 +6,7 @@ ENGINE=NDB;
 CREATE TABLESPACE ts1
 ADD DATAFILE 'ts1_datafile.dat'
   USE LOGFILE GROUP lg1
-INITIAL_SIZE 1M
+INITIAL_SIZE 2M
 ENGINE NDB;
 CREATE TABLE t1 (
 a int PRIMARY KEY,
@@ -22,23 +22,28 @@ UPDATE t1 SET b = CONCAT(b, " test") WHERE a = 1;
 SELECT * FROM t1 WHERE a = 1;
 a	b
 1	MySQL Server with NDB test
-REPLACE t1 (a, b) VALUES (12, "Another layer");
+REPLACE t1 (a, b) VALUES (1, "Another layer");
 SELECT * FROM t1 WHERE a = 12 ORDER BY a;
 a	b
-12	Another layer
 DELETE FROM t1 WHERE a = 11;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
-2
+1
 SELECT b FROM t1 WHERE b LIKE "MySQL%";
 b
-MySQL Server with NDB test
 DELETE FROM t1 ORDER BY b DESC;
 DROP TABLE t1;
+# Need to implement rename in handlerton::alter_tablespace
+ALTER TABLESPACE ts1 RENAME TO ts2;
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... RENAME TO
 ALTER TABLESPACE ts1
 DROP DATAFILE 'ts1_datafile.dat'
   ENGINE=NDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
 DROP TABLESPACE ts1
 ENGINE=NDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
 DROP LOGFILE GROUP lg1
 ENGINE=NDB;

@@ -20,14 +20,13 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "mem_root_array.h"
 #include "my_base.h"
 #include "my_inttypes.h"
-#include "parse_tree_helpers.h"
-#include "parse_tree_node_base.h"
-#include "partition_element.h"
-#include "partition_info.h"
-#include "sql_udf.h"
+#include "sql/mem_root_array.h"
+#include "sql/parse_tree_helpers.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/partition_element.h"
+#include "sql/partition_info.h"
 
 class Item;
 class THD;

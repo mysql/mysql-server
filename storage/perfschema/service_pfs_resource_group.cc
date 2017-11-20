@@ -24,23 +24,19 @@
 #include <mysql/components/services/pfs_resource_group.h>
 #include "pfs_server.h"
 
-extern int
-pfs_set_thread_resource_group_v1(const char *group_name,
-                                 int group_name_len,
-                                 void *user_data);
-extern int
-pfs_set_thread_resource_group_by_id_v1(PSI_thread *thread,
-                                       ulonglong thread_id,
-                                       const char *group_name,
-                                       int group_name_len,
-                                       void *user_data);
-extern int
-pfs_get_thread_system_attrs_v1(PSI_thread_attrs *thread_attrs);
+extern int pfs_set_thread_resource_group_v1(const char *group_name,
+                                            int group_name_len,
+                                            void *user_data);
+extern int pfs_set_thread_resource_group_by_id_v1(PSI_thread *thread,
+                                                  ulonglong thread_id,
+                                                  const char *group_name,
+                                                  int group_name_len,
+                                                  void *user_data);
+extern int pfs_get_thread_system_attrs_v1(PSI_thread_attrs *thread_attrs);
 
-extern int
-pfs_get_thread_system_attrs_by_id_v1(PSI_thread *thread,
-                                     ulonglong thread_id,
-                                     PSI_thread_attrs *thread_attrs);
+extern int pfs_get_thread_system_attrs_by_id_v1(PSI_thread *thread,
+                                                ulonglong thread_id,
+                                                PSI_thread_attrs *thread_attrs);
 
 int
 impl_pfs_set_thread_resource_group(const char *group_name,

@@ -176,10 +176,10 @@ grant select on *.* to 'mysqltest_2';
 grant insert on test.* to 'mysqltest_2';
 grant update on test.t1 to 'mysqltest_2';
 grant update (c2) on test.t2 to 'mysqltest_2';
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
-host	user	authentication_string
-%	mysqltest_1	
-%	mysqltest_2	*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+host	user	length(authentication_string)
+%	mysqltest_1	0
+%	mysqltest_2	41
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 host	db	user
 %	test	mysqltest_2
@@ -200,9 +200,9 @@ GRANT INSERT ON "test".* TO "mysqltest_2"@"%"
 GRANT UPDATE ON "test"."t1" TO "mysqltest_2"@"%"
 GRANT UPDATE ("c2") ON "test"."t2" TO "mysqltest_2"@"%"
 drop user 'mysqltest_1';
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
-host	user	authentication_string
-%	mysqltest_2	*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+host	user	length(authentication_string)
+%	mysqltest_2	41
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 host	db	user
 %	test	mysqltest_2
@@ -216,9 +216,9 @@ host	db	user	table_name	column_name
 show grants for 'mysqltest_1';
 ERROR 42000: There is no such grant defined for user 'mysqltest_1' on host '%'
 rename user 'mysqltest_2' to 'mysqltest_1';
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
-host	user	authentication_string
-%	mysqltest_1	*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+host	user	length(authentication_string)
+%	mysqltest_1	41
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 host	db	user
 %	test	mysqltest_1
@@ -264,9 +264,7 @@ select host,db,user,table_name,column_name from mysql.columns_priv where user = 
 host	db	user	table_name	column_name
 create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
-create user 'mysqltest_1', 'mysqltest_2' identified by 'Mysqltest-2', 'mysqltest_3' identified by password '*ffffffffffffffffffffffffffffffffffffffff';
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
+create user 'mysqltest_1', 'mysqltest_2' identified by 'Mysqltest-2', 'mysqltest_3' identified by 'haha';
 rename user 'mysqltest_1' to 'mysqltest_1a', 'mysqltest_2' TO 'mysqltest_2a', 'mysqltest_3' TO 'mysqltest_3a';
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 ERROR HY000: Operation DROP USER failed for 'mysqltest_1'@'%','mysqltest_2'@'%','mysqltest_3'@'%'
@@ -304,7 +302,7 @@ GRANT SELECT ON "mysql".* TO "%@a"@"a"
 drop user '%@a'@'a';
 create user mysqltest_2@localhost;
 grant create user on *.* to mysqltest_2@localhost;
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 ERROR 42000: SELECT command denied to user 'mysqltest_2'@'localhost' for table 'user'
 create user mysqltest_A@'%';
 rename user mysqltest_A@'%' to mysqltest_B@'%';
@@ -316,7 +314,7 @@ show grants;
 Grants for mysqltest_3@localhost
 GRANT USAGE ON *.* TO `mysqltest_3`@`localhost`
 GRANT INSERT, UPDATE, DELETE ON `mysql`.* TO `mysqltest_3`@`localhost`
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for table 'user'
 insert ignore into mysql.user set host='%', user='mysqltest_B';
 Warnings:
@@ -503,28 +501,28 @@ USE mysql;
 SELECT LEFT(CURRENT_USER(),INSTR(CURRENT_USER(),'@')-1) INTO @u;
 SELECT MID(CURRENT_USER(),INSTR(CURRENT_USER(),'@')+1)  INTO @h;
 SELECT authentication_string FROM user WHERE user=@u AND host=@h INTO @pwd;
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
-user	host	authentication_string	insert_priv
-root	localhost		Y
+SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	length(authentication_string)	insert_priv
+root	localhost	0	Y
 UPDATE user SET insert_priv='N' WHERE user=@u AND host=@h;
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
-user	host	authentication_string	insert_priv
-root	localhost		N
+SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	length(authentication_string)	insert_priv
+root	localhost	0	N
 GRANT INSERT ON *.* TO CURRENT_USER();
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
-user	host	authentication_string	insert_priv
-root	localhost		Y
+SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	length(authentication_string)	insert_priv
+root	localhost	0	Y
 UPDATE user SET insert_priv='N' WHERE user=@u AND host=@h;
 GRANT INSERT ON *.* TO CURRENT_USER() IDENTIFIED BY 'keksdose';
 Warnings:
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
-user	host	authentication_string	insert_priv
-root	localhost	*0BB7188CF0DE9B403BA66E9DD810D82652D002EB	Y
+SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	length(authentication_string)	insert_priv
+root	localhost	41	Y
 UPDATE user SET authentication_string=@pwd WHERE user=@u AND host=@h;
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
-user	host	authentication_string	insert_priv
-root	localhost		Y
+SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	length(authentication_string)	insert_priv
+root	localhost	0	Y
 FLUSH PRIVILEGES;
 USE test;
 End of 5.1 tests
@@ -588,6 +586,8 @@ CREATE DEFINER = mysqltest_u3@localhost PROCEDURE mysqltest_db1.p3()
 SELECT * FROM t4 ORDER BY x;
 # We need separate key cache to test CACHE INDEX and LOAD INDEX.
 SET GLOBAL keycache1.key_buffer_size = 128 * 1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 CREATE TABLE mysqltest_db2.t2_1(a INT);
 ###########################################################################
 # Check that CREATE_TMP_ACL is enough to issue almost any supported
@@ -904,6 +904,8 @@ DROP TEMPORARY TABLE t9;
 # -- disconnect con3
 # -- disconnect con4
 SET GLOBAL keycache1.key_buffer_size = 0;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 DROP DATABASE mysqltest_db1;
 DROP DATABASE mysqltest_db2;
 DROP USER mysqltest_u1@localhost;

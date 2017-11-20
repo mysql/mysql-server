@@ -11,6 +11,7 @@ call mtr.add_suppression("Tablespace innodb_temporary ran out of space. Please a
 call mtr.add_suppression("The table 't1' is full");
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
 call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
 --enable_query_log
 
 ################################################################################
@@ -171,7 +172,7 @@ create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb
 --error 1
 --exec $MYSQLD_CMD $nameconflicts
 let SEARCH_PATTERN = innodb_temporary and innodb_system file names seem to be the same;
---source ./include/search_pattern_in_file.inc
+--source ./include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --echo "restarting server in normal mode"
 --enable_reconnect
@@ -607,13 +608,13 @@ set innodb_strict_mode = OFF;
 --error 1
 --exec $MYSQLD_CMD $rawdevice1
 let SEARCH_PATTERN = support raw device;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --echo "testing temp tablespace non-support for raw device"
 --error 1
 --exec $MYSQLD_CMD $rawdevice2
 let SEARCH_PATTERN = support raw device;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 let $restart_parameters = restart;
@@ -634,13 +635,13 @@ drop table t1;
 --error 1,42
 --exec $MYSQLD_CMD $sizeoftempfile1
 let SEARCH_PATTERN = Tablespace size must be at least;
---source ./include/search_pattern_in_file.inc
+--source ./include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --echo "try starting server with sys-tablespace size < min. threshold"
 --error 1
 --exec $MYSQLD_CMD $sizeoftempfile2
 let SEARCH_PATTERN = Tablespace size must be at least;
---source ./include/search_pattern_in_file.inc
+--source ./include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --source include/start_mysqld.inc
@@ -661,7 +662,7 @@ drop table t1;
 --error 1
 --exec $MYSQLD_CMD $notemptablespacefile
 let SEARCH_PATTERN = init function returned error;
---source ./include/search_pattern_in_file.inc
+--source ./include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --source include/start_mysqld.inc

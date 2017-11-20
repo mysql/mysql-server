@@ -32,9 +32,7 @@ extern "C" {
 #define SY_FMT_DEF "%x %" PRIu64 " %u"
 #define SY_MEM(s) (s).group_id, (uint64_t)(s).msgno, (s).node
 
-d_xdr_funcs(synode_no)
-
-    int synode_eq(synode_no x, synode_no y);
+int synode_eq(synode_no x, synode_no y);
 int synode_gt(synode_no x, synode_no y);
 int synode_lt(synode_no x, synode_no y);
 static const synode_no null_synode = NULL_SYNODE;

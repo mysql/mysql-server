@@ -16,12 +16,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "item_cmpfunc.h"  // Item_bool_func
-#include "item_func.h"
-#include "item_strfunc.h"  // Item_str_func
 #include "m_ctype.h"
 #include "my_inttypes.h"
-#include "parse_tree_node_base.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/item_cmpfunc.h" // Item_bool_func
+#include "sql/item_func.h"
+#include "sql/item_strfunc.h" // Item_str_func
+#include "sql/parse_tree_node_base.h"
 
 class Item;
 class String;

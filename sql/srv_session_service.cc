@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -23,9 +23,6 @@
 #include <stddef.h>
 #include <new>
 
-#include "conn_handler/connection_handler_manager.h"
-#include "current_thd.h" // current_thd
-#include "derror.h"  // ER_DEFAULT
 #include "my_dbug.h"
 /*
  service_srv_session.h should not be first to be included as it will include
@@ -37,10 +34,13 @@
  declared after the includes.
  */
 #include "mysql/service_srv_session.h" 
-#include "mysqld.h"  // SERVER_OPERATING
 #include "mysqld_error.h"
-#include "sql_class.h"
-#include "srv_session.h"
+#include "sql/conn_handler/connection_handler_manager.h"
+#include "sql/current_thd.h" // current_thd
+#include "sql/derror.h" // ER_DEFAULT
+#include "sql/mysqld.h" // SERVER_OPERATING
+#include "sql/sql_class.h"
+#include "sql/srv_session.h"
 
 extern "C"
 {

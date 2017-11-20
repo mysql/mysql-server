@@ -46,18 +46,9 @@
 #include "my_thread.h"
 #include "thr_cond.h"
 #include "thr_mutex.h"
+#include "mysql/components/services/thr_rwlock_bits.h"
 
 C_MODE_START
-
-#ifdef _WIN32
-typedef struct st_my_rw_lock_t
-{
-  SRWLOCK srwlock;             /* native reader writer lock */
-  BOOL have_exclusive_srwlock; /* used for unlock */
-} native_rw_lock_t;
-#else
-typedef pthread_rwlock_t native_rw_lock_t;
-#endif
 
 static inline int native_rw_init(native_rw_lock_t *rwp)
 {
@@ -139,61 +130,6 @@ static inline int native_rw_unlock(native_rw_lock_t *rwp)
   return pthread_rwlock_unlock(rwp);
 #endif
 }
-
-
-/**
-  Portable implementation of special type of read-write locks.
-
-  These locks have two properties which are unusual for rwlocks:
-  1) They "prefer readers" in the sense that they do not allow
-     situations in which rwlock is rd-locked and there is a
-     pending rd-lock which is blocked (e.g. due to pending
-     request for wr-lock).
-     This is a stronger guarantee than one which is provided for
-     PTHREAD_RWLOCK_PREFER_READER_NP rwlocks in Linux.
-     MDL subsystem deadlock detector relies on this property for
-     its correctness.
-  2) They are optimized for uncontended wr-lock/unlock case.
-     This is scenario in which they are most oftenly used
-     within MDL subsystem. Optimizing for it gives significant
-     performance improvements in some of tests involving many
-     connections.
-
-  Another important requirement imposed on this type of rwlock
-  by the MDL subsystem is that it should be OK to destroy rwlock
-  object which is in unlocked state even though some threads might
-  have not yet fully left unlock operation for it (of course there
-  is an external guarantee that no thread will try to lock rwlock
-  which is destroyed).
-  Putting it another way the unlock operation should not access
-  rwlock data after changing its state to unlocked.
-
-  TODO/FIXME: We should consider alleviating this requirement as
-  it blocks us from doing certain performance optimizations.
-*/
-
-typedef struct st_rw_pr_lock_t {
-  /**
-    Lock which protects the structure.
-    Also held for the duration of wr-lock.
-  */
-  native_mutex_t lock;
-  /**
-    Condition variable which is used to wake-up
-    writers waiting for readers to go away.
-  */
-  native_cond_t no_active_readers;
-  /** Number of active readers. */
-  uint active_readers;
-  /** Number of writers waiting for readers to go away. */
-  uint writers_waiting_readers;
-  /** Indicates whether there is an active writer. */
-  bool active_writer;
-#ifdef SAFE_MUTEX
-  /** Thread holding wr-lock (for debug purposes only). */
-  my_thread_t writer_thread;
-#endif
-} rw_pr_lock_t;
 
 extern int rw_pr_init(rw_pr_lock_t *);
 extern int rw_pr_rdlock(rw_pr_lock_t *);

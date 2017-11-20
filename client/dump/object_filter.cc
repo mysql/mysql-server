@@ -16,16 +16,16 @@
 */
 
 #ifndef UNITTEST_OBJECT_FILTER_PARSER
-#include "object_filter.h"
+#include "client/dump/object_filter.h"
 
-#include "database.h"
-#include "event_scheduler_event.h"
-#include "mysql_function.h"
-#include "pattern_matcher.h"
-#include "privilege.h"
-#include "stored_procedure.h"
-#include "table.h"
-#include "trigger.h"
+#include "client/dump/database.h"
+#include "client/dump/event_scheduler_event.h"
+#include "client/dump/mysql_function.h"
+#include "client/dump/pattern_matcher.h"
+#include "client/dump/privilege.h"
+#include "client/dump/stored_procedure.h"
+#include "client/dump/table.h"
+#include "client/dump/trigger.h"
 #endif
 #include <boost/algorithm/string.hpp>
 #include <boost/tokenizer.hpp>
@@ -181,11 +181,10 @@ bool Object_filter::is_user_included_by_lists(
   std::vector<std::pair<std::string, std::string> >* include_list,
   std::vector<std::pair<std::string, std::string> >* exclude_list)
 {
-  std::vector<std::string> user_host;
-  boost::split(user_host, user_name,
-        boost::is_any_of("@"), boost::token_compress_on);
-  return is_object_included_by_lists(user_host[0],
-          user_host[1], include_list, exclude_list);
+  size_t separator_idx= user_name.find('@');
+  return is_object_included_by_lists(user_name.substr(0, separator_idx),
+                                     user_name.substr(separator_idx + 1),
+                                     include_list, exclude_list);
 }
 
 bool Object_filter::is_object_included_by_lists(

@@ -16,12 +16,12 @@
 
 #include <stddef.h>
 
-#include "current_thd.h"
 #include "my_inttypes.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_keyring.h" /* keyring plugin */
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
+#include "sql/current_thd.h"
+#include "sql/sql_plugin.h"
+#include "sql/sql_plugin_ref.h"
 
 class THD;
 

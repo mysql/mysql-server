@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-#include "i_option_changed_listener.h"
+#include "client/base/i_option_changed_listener.h"
 #include "my_dbug.h"
 #include "my_getopt.h"
 #include "mysql/service_mysql_alloc.h"

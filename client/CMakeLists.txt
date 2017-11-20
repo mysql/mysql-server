@@ -14,10 +14,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/client
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/mysys_ssl
-  ${ZLIB_INCLUDE_DIR}
   ${LZ4_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/libmysql
@@ -34,9 +32,6 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_SUBDIRECTORY(base)
 ## Subdirectory for mysqlpump code.
 ADD_SUBDIRECTORY(dump)
-
-## We will need libeay32.dll and ssleay32.dll when running client executables.
-COPY_OPENSSL_DLLS(copy_openssl_client)
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
@@ -77,6 +72,10 @@ TARGET_LINK_LIBRARIES(mysqlshow mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
 SET(MYSQLBINLOG_LIB_SOURCES
   ${CMAKE_SOURCE_DIR}/strings/decimal.cc
+  ${CMAKE_SOURCE_DIR}/sql/json_binary.cc
+  ${CMAKE_SOURCE_DIR}/sql/json_dom.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
+  ${CMAKE_SOURCE_DIR}/sql/sql_time.cc
   ${CMAKE_SOURCE_DIR}/sql/log_event.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_utility.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_sid_map.cc

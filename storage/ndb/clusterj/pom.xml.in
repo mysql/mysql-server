@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,9 +34,6 @@
     <module>clusterj-core</module>
     <module>clusterj-test</module>
     <module>clusterj-tie</module>
-    <module>clusterj-jdbc</module>
-    <module>clusterj-jpatest</module>
-    <module>clusterj-openjpa</module>
     <module>clusterj-unit</module>
   </modules>
   <build>
@@ -66,19 +63,9 @@
   <dependencyManagement>
     <dependencies>
     <dependency>
-      <groupId>org.antlr</groupId>
-      <artifactId>antlr</artifactId>
-      <version>3.2</version>
-    </dependency>
-      <dependency>
-        <groupId>org.apache.openjpa</groupId>
-        <artifactId>openjpa</artifactId>
-        <version>2.2.2</version>
-      </dependency>
-    <dependency>
       <groupId>mysql</groupId>
       <artifactId>mysql-connector-java</artifactId>
-      <version>5.1.17</version>
+      <version>5.1.42</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -99,11 +86,6 @@
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-tie</artifactId>
-      <version>@JAVA_NDB_VERSION@@JAVA_MVN_SUFFIX@</version>
-    </dependency>
-    <dependency>
-      <groupId>com.mysql.clusterj</groupId>
-      <artifactId>clusterj-jpatest</artifactId>
       <version>@JAVA_NDB_VERSION@@JAVA_MVN_SUFFIX@</version>
     </dependency>
     <dependency>

@@ -22,12 +22,14 @@
   the cache.
 */
 
-#include <hash.h>
 #include <keycache.h>
 #include <string.h>
 #include <sys/types.h>
 
+#include <string>
+
 #include "m_ctype.h"
+#include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -35,6 +37,8 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_priv.h"
 #include "template_utils.h"
+
+using std::string;
 
 /*****************************************************************************
   General functions to handle SAFE_HASH objects.
@@ -54,44 +58,21 @@
 
 typedef struct st_safe_hash_entry
 {
-  uchar *key;
+  char *key;
   uint length;
   uchar *data;
   struct st_safe_hash_entry *next, **prev;
 } SAFE_HASH_ENTRY;
 
 
-typedef struct st_safe_hash_with_default
+struct SAFE_HASH
 {
   mysql_rwlock_t lock;
-  HASH hash;
+  malloc_unordered_map<string, unique_ptr_my_free<SAFE_HASH_ENTRY>>
+    hash{key_memory_SAFE_HASH_ENTRY};
   uchar *default_value;
   SAFE_HASH_ENTRY *root;
-} SAFE_HASH;
-
-
-/*
-  Free a SAFE_HASH_ENTRY
-
-  This function is called by the hash object on delete
-*/
-
-static void safe_hash_entry_free(void *entry)
-{
-  DBUG_ENTER("free_assign_entry");
-  my_free(entry);
-  DBUG_VOID_RETURN;
-}
-
-
-/* Get key and length for a SAFE_HASH_ENTRY */
-
-static const uchar *safe_hash_entry_get(const uchar *arg, size_t *length)
-{
-  const SAFE_HASH_ENTRY *entry= pointer_cast<const SAFE_HASH_ENTRY*>(arg);
-  *length=entry->length;
-  return entry->key;
-}
+};
 
 
 /*
@@ -112,18 +93,9 @@ static const uchar *safe_hash_entry_get(const uchar *arg, size_t *length)
     1  error
 */
 
-static bool safe_hash_init(SAFE_HASH *hash, uint elements,
-                           uchar *default_value)
+static bool safe_hash_init(SAFE_HASH *hash, uchar *default_value)
 {
   DBUG_ENTER("safe_hash");
-  if (my_hash_init(&hash->hash, &my_charset_bin, elements, 0,
-                   safe_hash_entry_get,
-                   safe_hash_entry_free, 0,
-                   key_memory_SAFE_HASH_ENTRY))
-  {
-    hash->default_value= 0;
-    DBUG_RETURN(1);
-  }
   mysql_rwlock_init(key_SAFE_HASH_lock, &hash->lock);
   hash->default_value= default_value;
   hash->root= 0;
@@ -146,7 +118,7 @@ static void safe_hash_free(SAFE_HASH *hash)
   */
   if (hash->default_value)
   {
-    my_hash_free(&hash->hash);
+    hash->hash.clear();
     mysql_rwlock_destroy(&hash->lock);
     hash->default_value=0;
   }
@@ -161,12 +133,12 @@ static uchar *safe_hash_search(SAFE_HASH *hash, const uchar *key, uint length)
   uchar *result;
   DBUG_ENTER("safe_hash_search");
   mysql_rwlock_rdlock(&hash->lock);
-  result= my_hash_search(&hash->hash, key, length);
-  mysql_rwlock_unlock(&hash->lock);
-  if (!result)
+  auto it= hash->hash.find(string(pointer_cast<const char *>(key), length));
+  if (it == hash->hash.end())
     result= hash->default_value;
   else
-    result= ((SAFE_HASH_ENTRY*) result)->data;
+    result= it->second->data;
+  mysql_rwlock_unlock(&hash->lock);
   DBUG_PRINT("exit",("data: %p", result));
   DBUG_RETURN(result);
 }
@@ -199,9 +171,10 @@ static bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
   bool error= 0;
   DBUG_ENTER("safe_hash_set");
   DBUG_PRINT("enter",("key: %.*s  data: %p", length, key, data));
+  string key_str(pointer_cast<const char *>(key), length);
 
   mysql_rwlock_wrlock(&hash->lock);
-  entry= (SAFE_HASH_ENTRY*) my_hash_search(&hash->hash, key, length);
+  entry= find_or_nullptr(hash->hash, key_str);
 
   if (data == hash->default_value)
   {
@@ -215,7 +188,7 @@ static bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
     /* unlink entry from list */
     if ((*entry->prev= entry->next))
       entry->next->prev= entry->prev;
-    my_hash_delete(&hash->hash, (uchar*) entry);
+    hash->hash.erase(key_str);
     goto end;
   }
   if (entry)
@@ -232,7 +205,7 @@ static bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
       error= 1;
       goto end;
     }
-    entry->key= (uchar*) (entry +1);
+    entry->key= (char*) (entry +1);
     memcpy((char*) entry->key, (char*) key, length);
     entry->length= length;
     entry->data= data;
@@ -241,13 +214,9 @@ static bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
       entry->next->prev= &entry->next;
     entry->prev= &hash->root;
     hash->root= entry;
-    if (my_hash_insert(&hash->hash, (uchar*) entry))
-    {
-      /* This can only happen if hash got out of memory */
-      my_free(entry);
-      error= 1;
-      goto end;
-    }
+    hash->hash.emplace(string(pointer_cast<const char *>(entry->key),
+                              entry->length),
+                       unique_ptr_my_free<SAFE_HASH_ENTRY>(entry));
   }
 
 end:
@@ -287,7 +256,7 @@ static void safe_hash_change(SAFE_HASH *hash, uchar *old_data, uchar *new_data)
       {
         if ((*entry->prev= entry->next))
           entry->next->prev= entry->prev;
-	my_hash_delete(&hash->hash, (uchar*) entry);
+        hash->hash.erase(string(entry->key, entry->length));
       }
       else
 	entry->data= new_data;
@@ -309,7 +278,7 @@ static SAFE_HASH key_cache_hash;
 
 bool multi_keycache_init(void)
 {
-  return safe_hash_init(&key_cache_hash, 16, (uchar*) dflt_key_cache);
+  return safe_hash_init(&key_cache_hash, (uchar*) dflt_key_cache);
 }
 
 
@@ -337,7 +306,7 @@ void multi_keycache_free(void)
 
 KEY_CACHE *multi_key_cache_search(uchar *key, uint length)
 {
-  if (!key_cache_hash.hash.records)
+  if (key_cache_hash.hash.empty())
     return dflt_key_cache;
   return (KEY_CACHE*) safe_hash_search(&key_cache_hash, key, length);
 }

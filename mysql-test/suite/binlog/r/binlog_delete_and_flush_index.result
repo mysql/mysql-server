@@ -1,50 +1,50 @@
 RESET MASTER;
 CREATE TABLE t1 (a int);
 ### assertion: index file contains regular entries
-SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//binlog.index');
 SELECT @index;
 @index
-master-bin.000001
+binlog.000001
 
 ### assertion: show original binlogs
 show binary logs;
 Log_name	File_size
-master-bin.000001	#
+binlog.000001	#
 ### assertion: binlog contents from regular entries
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a int)
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a int)
 FLUSH LOGS;
 ### assertion: index file contains renamed binlog and the new one
-SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//binlog.index');
 SELECT @index;
 @index
-master-bin-b34582.000001
-master-bin.000002
+binlog-b34582.000001
+binlog.000002
 
 ### assertion: original binlog content still exists, despite we
 ###            renamed and changed the index file 
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin-b34582.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a int)
+binlog-b34582.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a int)
 ### assertion: user changed binlog index shows correct entries
 show binary logs;
 Log_name	File_size
-master-bin-b34582.000001	#
-master-bin.000002	#
+binlog-b34582.000001	#
+binlog.000002	#
 DROP TABLE t1;
 ### assertion: purging binlogs up to binlog created after instrumenting index file should work
-PURGE BINARY LOGS TO 'master-bin.000002';
+PURGE BINARY LOGS TO 'binlog.000002';
 ### assertion: show binary logs should only contain latest binlog
 show binary logs;
 Log_name	File_size
-master-bin.000002	#
+binlog.000002	#
 ### assertion: assert that binlog files were indeed purged (using file_exists calls)
 ### assertion: assert that not purged binlog file exists
 ### assertion: show index file contents and these should match show binary logs issued above
-SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//binlog.index');
 SELECT @index;
 @index
-master-bin.000002
+binlog.000002
 
 RESET MASTER;

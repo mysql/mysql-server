@@ -19,9 +19,11 @@
 #include "my_config.h"
 
 #include <sys/types.h>
+#include <list>
+#include <memory>
 
-#include "hash_filo.h"
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 
 #ifdef HAVE_NETINET_IN_H
@@ -130,12 +132,9 @@ public:
   Host name can be empty (that means DNS look up failed),
   but errors still are counted.
 */
-class Host_entry : public hash_filo_element
+class Host_entry
 {
 public:
-  Host_entry *next()
-  { return (Host_entry*) hash_filo_element::next(); }
-
   /**
     Client IP address. This is the key used with the hash table.
 
@@ -184,6 +183,7 @@ uint hostname_cache_size();
 void hostname_cache_resize(uint size);
 void hostname_cache_lock();
 void hostname_cache_unlock();
-Host_entry *hostname_cache_first();
+std::list<std::unique_ptr<Host_entry>>::iterator hostname_cache_begin();
+std::list<std::unique_ptr<Host_entry>>::iterator hostname_cache_end();
 
 #endif /* HOSTNAME_INCLUDED */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -219,6 +219,7 @@
 #define CFG_DB_SCHED_SCAN_PRIORITY    647
 
 #define CFG_DB_DISK_DATA_FORMAT       648
+#define CFG_DB_ENABLE_PARTIAL_LCP     649
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201

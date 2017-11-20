@@ -13,17 +13,18 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/column_statistics.h"
+#include "sql/dd/impl/tables/column_statistics.h"
 
 #include <new>
+#include <string>
 
-#include "dd/impl/raw/object_keys.h"                    // Parent_id_range_key
-#include "dd/impl/types/object_table_definition_impl.h" // Object_table_defi ...
-#include "dd/impl/types/column_statistics_impl.h"       // Column_statistic_impl
+#include "sql/dd/impl/raw/object_keys.h"                // Parent_id_range_key
+#include "sql/dd/impl/types/column_statistics_impl.h"   // Column_statistic_impl
+#include "sql/dd/impl/types/object_table_definition_impl.h" // Object_table_defi ...
+#include "sql/mysqld.h"
+#include "sql/stateless_allocator.h"
 
 namespace dd {
-class Dictionary_object;
-class Object_key;
 class Raw_record;
 }  // namespace dd
 

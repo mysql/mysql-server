@@ -13,7 +13,6 @@ create table t1 (a int not null,b int not null, primary key using BTREE (a)) eng
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
 delete from t1 where a=1 or a=0;
 #show table status like "t1";
-analyze table t1;
 show keys from t1;
 select * from t1;
 select * from t1 where a=4;
@@ -233,11 +232,9 @@ DROP TABLE t1;
 #
 CREATE TABLE t1(val INT, KEY USING BTREE(val)) ENGINE=memory;
 INSERT INTO t1 VALUES(0);
-ANALYZE TABLE t1;
 --replace_result 37 21
 SELECT INDEX_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t1';
 UPDATE t1 SET val=1;
-ANALYZE TABLE t1;
 --replace_result 37 21
 SELECT INDEX_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t1';
 DROP TABLE t1;

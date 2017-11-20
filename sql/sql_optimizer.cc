@@ -24,59 +24,64 @@
   @{
 */
 
-#include "sql_optimizer.h"
+#include "sql/sql_optimizer.h"
+
+#include "my_config.h"
 
 #include <limits.h>
 #include <algorithm>
+#include <atomic>
 #include <new>
 #include <utility>
 
-#include "abstract_query_plan.h" // Join_plan
 #include "binary_log_types.h"
-#include "check_stack.h"
-#include "debug_sync.h"          // DEBUG_SYNC
-#include "derror.h"              // ER_THD
-#include "enum_query_type.h"
 #include "ft_global.h"
-#include "handler.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_row.h"
-#include "item_sum.h"            // Item_sum
-#include "key.h"
-#include "lock.h"                // mysql_unlock_some_tables
 #include "m_ctype.h"
 #include "my_bit.h"              // my_count_bits
 #include "my_bitmap.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"              // stage_optimizing
 #include "mysqld_error.h"
-#include "opt_costmodel.h"
-#include "opt_explain.h"         // join_type_str
-#include "opt_hints.h"           // hint_table_state
-#include "opt_range.h"           // QUICK_SELECT_I
-#include "opt_trace.h"           // Opt_trace_object
-#include "opt_trace_context.h"
-#include "query_options.h"
-#include "query_result.h"
-#include "sql_base.h"            // init_ftfuncs
-#include "sql_bitmap.h"
-#include "sql_cache.h"           // query_cache
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_join_buffer.h"     // JOIN_CACHE
-#include "sql_planner.h"         // calculate_condition_filter
-#include "sql_resolver.h"        // subquery_allows_materialization
+#include "sql/abstract_query_plan.h" // Join_plan
+#include "sql/check_stack.h"
+#include "sql/debug_sync.h"      // DEBUG_SYNC
+#include "sql/derror.h"          // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/handler.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_row.h"
+#include "sql/item_sum.h"        // Item_sum
+#include "sql/key.h"
+#include "sql/key_spec.h"
+#include "sql/lock.h"            // mysql_unlock_some_tables
+#include "sql/mysqld.h"          // stage_optimizing
+#include "sql/opt_costmodel.h"
+#include "sql/opt_explain.h"     // join_type_str
+#include "sql/opt_hints.h"       // hint_table_state
+#include "sql/opt_range.h"       // QUICK_SELECT_I
+#include "sql/opt_trace.h"       // Opt_trace_object
+#include "sql/opt_trace_context.h"
+#include "sql/query_options.h"
+#include "sql/query_result.h"
+#include "sql/sql_base.h"        // init_ftfuncs
+#include "sql/sql_bitmap.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_join_buffer.h" // JOIN_CACHE
+#include "sql/sql_planner.h"     // calculate_condition_filter
+#include "sql/sql_resolver.h"    // subquery_allows_materialization
+#include "sql/sql_test.h"        // print_where
+#include "sql/sql_tmp_table.h"   // get_max_key_and_part_length
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
+#include "sql/window.h"
 #include "sql_string.h"
-#include "sql_test.h"            // print_where
-#include "sql_tmp_table.h"       // get_max_key_and_part_length
-#include "system_variables.h"
-#include "thr_malloc.h"
 
 using std::max;
 using std::min;
@@ -195,7 +200,7 @@ int
 JOIN::optimize()
 {
   uint no_jbuf_after= UINT_MAX;
-  const bool no_w= m_windows.elements == 0;
+  const bool has_windows= m_windows.elements != 0;
 
   DBUG_ENTER("JOIN::optimize");
   DBUG_ASSERT(select_lex->leaf_table_count == 0 ||
@@ -599,7 +604,7 @@ JOIN::optimize()
   /*
     It's necessary to check const part of HAVING cond as
     there is a chance that some cond parts may become
-    const items after make_join_statisctics(for example
+    const items after make_join_plan() (for example
     when Item is a reference to const table field from
     outer join).
     This check is performed only for those conditions
@@ -608,7 +613,7 @@ JOIN::optimize()
     elements may be lost during further having
     condition transformation in JOIN::exec.
   */
-  if (having_cond && const_table_map && !having_cond->has_aggregation())
+  if (having_cond && !having_cond->has_aggregation() && (const_tables > 0))
   {
     having_cond->update_used_tables();
     if (remove_eq_conds(thd, having_cond, &having_cond,
@@ -702,35 +707,66 @@ JOIN::optimize()
 
   /*
     Check if we need to create a temporary table prior to any windowing.
-    This has to be done if all tables are not already read (const tables)
-    and one of the following conditions holds:
-    - We are using DISTINCT (simple distinct's have already been optimized away)
-      and we have no windows
-    - We are using an ORDER BY and no windows, or GROUP BY on fields not in the 
-      first table
-    - We are using different ORDER BY and GROUP BY orders and we have no windows
-    - The user wants us to buffer the result and we have no windowing
-      (if we do, we make a final windowing step temporary table,
-       cf computation of Temp_table_param::m_window_short_circuit)
-    - We have windowing and the first window requires sorting
-    When the WITH ROLLUP modifier is present, we cannot skip temporary table
-    creation for the DISTINCT clause just because there are only const tables.
+
+    (1) If there is ROLLUP, which happens before DISTINCT, windowing and ORDER BY,
+    any of those clauses needs the result of ROLLUP in a tmp table.
+    We needn't test ORDER BY in the condition as it's forbidden with ROLLUP.
+
+    Rows which ROLLUP adds to the result are visible only to DISTINCT,
+    windowing and ORDER BY which we handled above. So for the rest of
+    conditions ((2), etc), we can do as if there were no ROLLUP.
+
+    (2) If all tables are constant, the query's result is guaranteed to have 0
+    or 1 row only, so all SQL clauses discussed below (DISTINCT, ORDER BY,
+    GROUP BY, windowing, SQL_BUFFER_RESULT) are useless and need no tmp
+    table.
+
+    (3) If there is GROUP BY which isn't resolved by using an index or sorting
+    the first table, we need a tmp table to compute the grouped rows.
+    GROUP BY happens before windowing; so it is a pre-windowing tmp
+    table.
+
+    (4) (5) If there is DISTINCT, or ORDER BY which isn't resolved by using an
+    index or sorting the first table, those clauses need an input tmp table.
+    If we have windowing, as those clauses are used after windowing, they can
+    use the last window's tmp table.
+
+    (6) If there are different ORDER BY and GROUP BY orders, ORDER BY needs an
+    input tmp table, so it's like (5).
+
+    (7) If the user wants us to buffer the result, we need a tmp table. But
+    windowing creates one anyway, and so does the materialization of a derived
+    table.
+
+    See also the computation of Temp_table_param::m_window_short_circuit,
+    where we make sure to create a tmp table if the clauses above want one.
+
+    (8) If the first windowing step needs sorting, filesort() will be used; it
+    can sort one table but not a join of tables, so we need a tmp table
+    then. If GROUP BY was optimized away, the pre-windowing result is 0 or 1
+    row so doesn't need sorting.
   */
-  need_tmp_before_win=
-           ((!plan_is_const() &&
-             (((select_distinct && no_w) ||
-               (order && !simple_order && no_w) ||
-               (group_list && !simple_group)) ||
-              (group_list && order && no_w) ||
-              (select_lex->active_options() & OPTION_BUFFER_RESULT && no_w))) ||
-            /*
-              If the first window step needs sorting, we need a tmp file,
-              but only if there's more than one non-const table in join.
-            */
-            (!no_w && (primary_tables - const_tables) > 1 &&
-             m_windows[0]->needs_sorting() &&
-             !group_optimized_away) ||
-            (rollup.state != ROLLUP::STATE_NONE && select_distinct));
+
+  if (rollup.state != ROLLUP::STATE_NONE &&     // (1)
+      (select_distinct || has_windows))
+    need_tmp_before_win= true;
+
+  if (!plan_is_const())                         // (2)
+  {
+    if ((group_list && !simple_group) ||        // (3)
+        (!has_windows &&
+         (select_distinct ||                    // (4)
+          (order && !simple_order) ||           // (5)
+          (group_list && order))) ||            // (6)
+        ((select_lex->active_options() & OPTION_BUFFER_RESULT) &&
+         !has_windows &&
+         !(unit->derived_table &&
+           unit->derived_table->uses_materialization())) ||    // (7)
+        (has_windows && (primary_tables - const_tables) > 1 && // (8)
+         m_windows[0]->needs_sorting() &&
+         !group_optimized_away))
+      need_tmp_before_win= true;
+  }
 
   DBUG_EXECUTE("info", TEST_join(this););
 
@@ -3712,14 +3748,14 @@ static bool check_simple_equality(THD *thd,
     if (left_item->type() == Item::FIELD_ITEM &&
         (field_item= down_cast<Item_field *>(left_item)) &&
         field_item->depended_from == NULL &&
-        right_item->const_item())
+        right_item->const_for_execution())
     {
       const_item= right_item;
     }
     else if (right_item->type() == Item::FIELD_ITEM &&
              (field_item= down_cast<Item_field *>(right_item)) &&
              field_item->depended_from == NULL &&
-             left_item->const_item())
+             left_item->const_for_execution())
     {
       const_item= left_item;
     }
@@ -4929,7 +4965,8 @@ void JOIN::update_depend_map(ORDER *order)
   {
     table_map depend_map;
     order->item[0]->update_used_tables();
-    order->depend_map=depend_map=order->item[0]->used_tables();
+    order->depend_map= depend_map=
+      order->item[0]->used_tables() & ~INNER_TABLE_BIT;
     order->used= 0;
     // Not item_sum(), RAND() and no reference to table outside of sub select
     if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT))
@@ -6082,6 +6119,36 @@ void semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
   DBUG_VOID_RETURN;
 }
 
+/**
+  Index dive can be skipped if the following conditions are satisfied:
+  F1) For a single table query:
+     a) FORCE INDEX applies to a single index.
+     b) No subquery is present.
+     c) Fulltext Index is not involved.
+     d) No GROUP-BY or DISTINCT clause.
+     e) No ORDER-BY clause.
+
+  F2) Not applicable to multi-table query.
+
+  F3) This optimization is not applicable to EXPLAIN queries.
+
+  @param tab   JOIN_TAB object.
+  @param thd   THD object.
+*/
+static bool check_skip_records_in_range_qualification(JOIN_TAB *tab, THD *thd)
+{
+    SELECT_LEX *select= thd->lex->current_select();
+    TABLE *table= tab->table();
+    return ((table->force_index &&
+             table->pos_in_table_list->index_hints->elements == 1) && // F1.a
+            select->parent_lex->is_single_level_stmt() &&             // F1.b
+            !select->has_ft_funcs() &&                                // F1.c
+            (!select->is_grouped() && !select->is_distinct()) &&      // F1.d
+            !select->is_ordered() &&                                  // F1.e
+            select->join_list->elements == 1 &&                       // F2
+            !thd->lex->describe);                                     // F3
+}
+
 
 /*****************************************************************************
   Create JOIN_TABS, make a guess about the table types,
@@ -6126,6 +6193,8 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit)
     DBUG_RETURN(0);                           // Fatal error flag is set
 
   TABLE_LIST *const tl= tab->table_ref;
+  tab->set_skip_records_in_range(check_skip_records_in_range_qualification(tab,
+                                                                           thd));
 
   // Derived tables aren't filled yet, so no stats are available.
   if (!tl->uses_materialization())
@@ -6370,6 +6439,7 @@ static void add_not_null_conds(JOIN *join)
      DML statements) from within the storage engine. This does not work against
      all SEs.
   c) Subqueries might contain nested subqueries and involve more tables.
+     TODO: ROY: CHECK THIS
 
   @param  item           Expression to check
   @param  tbl            The table having the index
@@ -6386,6 +6456,7 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
   if (item->has_stored_program() || item->has_subquery())
     return false;
 
+  // No table fields in const items
   if (item->const_item())
     return true;
 
@@ -7158,7 +7229,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
       bool is_const= true;
       for (uint i=0; i<num_values; i++)
       {
-        if (!(is_const&= value[i]->const_item()))
+        if (!(is_const&= value[i]->const_for_execution()))
           break;
       }
       if (is_const)
@@ -8894,7 +8965,7 @@ static bool test_if_ref(const Item *root_cond,
       /* remove equalities injected by IN->EXISTS transformation */
       else if (right_item->type() == Item::CACHE_ITEM)
         return ((Item_cache *)right_item)->eq_def (field);
-      if (right_item->const_item() && !(right_item->is_null()))
+      if (right_item->const_for_execution() && !(right_item->is_null()))
       {
         /*
           We can remove all fields except:
@@ -9885,8 +9956,7 @@ static bool make_join_select(JOIN *join, Item *cond)
       Opt_trace_object trace_one_table(trace);
       trace_one_table.add_utf8_table(tab->table_ref).
         add("attached", cond);
-      if (cond &&
-          cond->has_subquery() /* traverse only if needed */ )
+      if (cond && cond->has_subquery())  // traverse only if needed
       {
         /*
           Why we pass walk_subquery=false: imagine
@@ -10493,7 +10563,7 @@ static bool internal_remove_eq_conds(THD *thd, Item *cond,
           return true;
       }
     }
-    if (cond->const_item())
+    if (cond->const_for_execution())
     {
       bool value;
       if (eval_const_cond(thd, cond, &value))
@@ -10503,7 +10573,7 @@ static bool internal_remove_eq_conds(THD *thd, Item *cond,
       return false;
     }
   }
-  else if (cond->const_item() && !cond->is_expensive())
+  else if (cond->const_for_execution() && !cond->is_expensive())
   {
     bool value;
     if (eval_const_cond(thd, cond, &value))
@@ -10581,8 +10651,6 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
 	  (thd->first_successful_insert_id_in_prev_stmt > 0 &&
            thd->substitute_null_with_insert_id))
       {
-	query_cache.abort(thd);
-
         cond= new Item_func_eq(
                 args[0],
                 new Item_int(NAME_STRING("last_insert_id()"),
@@ -10860,6 +10928,7 @@ get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables)
       DBUG_RETURN(0);
     map|=a->item[0]->used_tables();
   }
+  map&= ~INNER_TABLE_BIT;
   if (!map || (map & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT)))
     DBUG_RETURN(0);
 
@@ -10966,7 +11035,8 @@ void JOIN::optimize_keyuse()
     */
     keyuse->ref_table_rows= ~(ha_rows) 0;	// If no ref
     if (keyuse->used_tables &
-	(map= (keyuse->used_tables & ~const_table_map & ~OUTER_REF_TABLE_BIT)))
+	(map= (keyuse->used_tables &
+               ~(const_table_map | OUTER_REF_TABLE_BIT))))
     {
       uint tableno;
       for (tableno= 0; ! (map & 1) ; map>>=1, tableno++)

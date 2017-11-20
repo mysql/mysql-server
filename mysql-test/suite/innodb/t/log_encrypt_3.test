@@ -27,10 +27,11 @@ USE tde_db;
 # Expected Result : Variable is ignored.
 # bug : expect warning or error
 SET GLOBAL innodb_redo_log_encrypt = 1;
---sleep 1
 
 SHOW WARNINGS;
-SELECT @@global.innodb_redo_log_encrypt ;
+--let $wait_condition=SELECT @@global.innodb_redo_log_encrypt = 0
+--source include/wait_condition.inc
+
 CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
 INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t4;

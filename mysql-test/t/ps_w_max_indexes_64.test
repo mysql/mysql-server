@@ -1,8 +1,5 @@
 --source include/have_max_indexes_64.inc
 
-# This test should skip with QC until Bug#16451494 is fixed.
---source include/have_query_cache_disabled.inc
-
 ###################### ps_general.test #######################
 #                                                            #
 #   basic and miscellaneous tests for prepared statements    #

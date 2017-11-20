@@ -56,8 +56,8 @@ log_notification_to_test_table(std::string msg)
   ss.str("");
   ss.clear();
   ss << "Openning session.";
-  if (sql_cmd->establish_session_connection(trx_iso, get_plugin_pointer()) ||
-      sql_cmd->set_interface_user(GROUPREPL_USER))
+  if (sql_cmd->establish_session_connection(trx_iso, GROUPREPL_USER,
+                                            get_plugin_pointer()))
   {
     res= 1;    /* purecov: inspected */
     goto end;  /* purecov: inspected */

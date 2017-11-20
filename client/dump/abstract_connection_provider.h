@@ -20,8 +20,8 @@
 
 #include <functional>
 
-#include "base/i_connection_factory.h"
-#include "i_connection_provider.h"
+#include "client/base/i_connection_factory.h"
+#include "client/dump/i_connection_provider.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

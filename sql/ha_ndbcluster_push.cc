@@ -38,6 +38,8 @@
 #include "my_dbug.h"
 #include "current_thd.h"
 
+#include "ndb_thd.h"
+
 /*
   Explain why an operation could not be pushed
   @param[in] msgfmt printf style format string.
@@ -45,7 +47,7 @@
 #define EXPLAIN_NO_PUSH(msgfmt, ...)                              \
 do                                                                \
 {                                                                 \
-  if (unlikely(current_thd->lex->describe))   \
+  if (unlikely(current_thd->lex->describe))                       \
   {                                                               \
     push_warning_printf(current_thd,                              \
                         Sql_condition::SL_NOTE, ER_YES,           \
@@ -450,7 +452,7 @@ ndb_pushed_builder_ctx::make_pushed_join(
     if (unlikely(error))
       DBUG_RETURN(error);
 
-    const NdbQueryDef* const query_def= m_builder->prepare();
+    const NdbQueryDef* const query_def= m_builder->prepare(get_thd_ndb(current_thd)->ndb);
     if (unlikely(query_def == NULL))
       DBUG_RETURN(-1);  // Get error with ::getNdbError()
 
@@ -1476,7 +1478,7 @@ ndb_pushed_builder_ctx::build_key(const AQP::Table_access* table,
       const Item* const item= join_items[i];
       op_key[map[i]]= NULL;
 
-      DBUG_ASSERT(item->const_item() == item->const_during_execution());
+      DBUG_ASSERT(item->const_item() == item->const_for_execution());
       if (item->const_item())
       {
         /** 

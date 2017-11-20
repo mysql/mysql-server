@@ -1138,6 +1138,7 @@ update t1 set name='U+9FA3 <CJK>' where ujis=0x8FEDE2;
 update t1 set name='U+9FA5 <CJK>' where ujis=0x8FEDE3;
 update t1 set name='User defined range #2' where ujis >= 0x8FF5A1 and ujis <= 0x8FFEFE;
 update t1 set name='UNASSIGNED' where name='';
+SET @@session.max_error_count = 64;
 update ignore t1 set ucs2=ujis, ujis2=ucs2;
 Warnings:
 Warning	1366	Incorrect string value: '\xA2\xAF' for column 'ucs2' at row 237
@@ -1204,6 +1205,7 @@ Warning	1366	Incorrect string value: '\xA3\xBE' for column 'ucs2' at row 346
 Warning	1366	Incorrect string value: '\xA3\xBF' for column 'ucs2' at row 347
 Warning	1366	Incorrect string value: '\xA3\xC0' for column 'ucs2' at row 348
 Warning	1366	Incorrect string value: '\xA3\xDB' for column 'ucs2' at row 375
+SET @@session.max_error_count = DEFAULT;
 Characters with safe Unicode round trip
 select hex(ujis), hex(ucs2), hex(ujis2), name from t1 where ujis=ujis2 order by ujis;
 hex(ujis)	hex(ucs2)	hex(ujis2)	name

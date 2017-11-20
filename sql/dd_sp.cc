@@ -21,31 +21,32 @@
 #include <ostream>
 #include <string>
 
-#include "dd/collection.h"
-#include "dd/properties.h"                     // Properties
-#include "dd/string_type.h"                    // dd::Stringstream_type
-#include "dd/types/column.h"
-#include "dd/types/parameter.h"                // dd::Parameter
-#include "dd/types/parameter_type_element.h"   // dd::Parameter_type_element
-#include "dd/types/view.h"
-#include "dd_table_share.h"                    // dd_get_mysql_charset
-#include "field.h"
-#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sp.h"                                // SP_DEFAULT_ACCESS_MAPPING
-#include "sql_class.h"                         // THD
-#include "sql_lex.h"
-#include "sql_plugin.h"
-#include "sql_security_ctx.h"
-#include "sql_show.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/collection.h"
+#include "sql/dd/properties.h"                 // Properties
+#include "sql/dd/string_type.h"                // dd::Stringstream_type
+#include "sql/dd/types/column.h"
+#include "sql/dd/types/parameter.h"            // dd::Parameter
+#include "sql/dd/types/parameter_type_element.h" // dd::Parameter_type_element
+#include "sql/dd/types/view.h"
+#include "sql/dd_table_share.h"                // dd_get_mysql_charset
+#include "sql/field.h"
+#include "sql/key.h"
+#include "sql/sp.h"                            // SP_DEFAULT_ACCESS_MAPPING
+#include "sql/sql_class.h"                     // THD
+#include "sql/sql_lex.h"
+#include "sql/sql_show.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
 #include "typelib.h"
 
 
@@ -182,7 +183,8 @@ static void prepare_type_string_from_dd_param(THD *thd,
                        dd_get_mysql_charset(param->collation_id()),
                        geom_type, Field::NONE, interval, "", false,
                        param->is_zerofill(), param->is_unsigned(),
-                       numeric_scale, 0, 0));
+                       numeric_scale, 0, 0, {}));
+
   field->init(&table);
   field->sql_type(*type_str);
 

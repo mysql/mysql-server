@@ -16,26 +16,27 @@
 
 /* Functions to handle keys and fields in forms */
 
-#include "key.h"                                // key_rec_cmp
+#include "sql/key.h"                            // key_rec_cmp
 
 #include <string.h>
 #include <algorithm>
 
 #include "binary_log_types.h"
-#include "field.h"                              // Field
-#include "handler.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compare.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
-#include "sql_const.h"
-#include "sql_error.h"
+#include "sql/field.h"                          // Field
+#include "sql/handler.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
 
 using std::min;
 using std::max;

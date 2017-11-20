@@ -23,7 +23,6 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_thread.h"
@@ -32,6 +31,7 @@
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
+#include "sql/field.h"
 
 THR_LOCK table_mutex_instances::m_table_lock;
 
@@ -61,7 +61,10 @@ PFS_engine_table_share table_mutex_instances::m_share = {
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool
@@ -323,7 +326,10 @@ PFS_engine_table_share table_rwlock_instances::m_share = {
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool
@@ -588,7 +594,10 @@ PFS_engine_table_share table_cond_instances::m_share = {
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool

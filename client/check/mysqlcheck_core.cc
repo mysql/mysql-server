@@ -22,10 +22,10 @@
 #include <string>
 #include <vector>
 
-#include "client_priv.h"
+#include "client/check/mysqlcheck.h"
+#include "client/client_priv.h"
 #include "my_default.h"
 #include "my_inttypes.h"
-#include "mysqlcheck.h"
 
 using namespace Mysql::Tools::Check;
 

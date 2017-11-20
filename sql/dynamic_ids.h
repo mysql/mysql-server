@@ -18,6 +18,7 @@
 
 #include <sys/types.h>
 
+#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"
 
 class String;

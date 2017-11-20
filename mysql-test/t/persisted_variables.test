@@ -223,7 +223,7 @@ SET PERSIST concurrent_insert=AUTO;
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 
 --echo # negative tests persist session only variables
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_LOCAL_VARIABLE
 SET @@persist.sql_log_bin=0;
 
 --echo # Test persisted-globals-load

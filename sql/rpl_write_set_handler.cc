@@ -15,6 +15,7 @@
 
 #include "sql/rpl_write_set_handler.h"
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 #include <map>
@@ -22,9 +23,6 @@
 #include <vector>
 
 #include "../extra/lz4/my_xxhash.h"  // IWYU pragma: keep
-#include "field.h"         // Field
-#include "handler.h"
-#include "key.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -34,18 +32,23 @@
 #include "my_inttypes.h"
 #include "my_murmur3.h"    // murmur3_32
 #include "my_stacktrace.h" // my_safe_itoa
+#include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
-#include "psi_memory_key.h"
-#include "rpl_transaction_write_set_ctx.h"
-#include "sql_class.h"     // THD
-#include "sql_const.h"
-#include "sql_list.h"      // List
-#include "sql_plugin_ref.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/field.h"     // Field
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/rpl_transaction_write_set_ctx.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h" // THD
+#include "sql/sql_const.h"
+#include "sql/sql_list.h"  // List
+#include "sql/system_variables.h"
+#include "sql/table.h"     // TABLE
+#include "sql/transaction_info.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"         // TABLE
-#include "transaction_info.h"
-#include "rpl_handler.h"
 
 #define NAME_READ_BUFFER_SIZE 1024
 #define HASH_STRING_SEPARATOR "½"

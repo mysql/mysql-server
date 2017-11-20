@@ -1,6 +1,6 @@
 SET @auto_commit= @@global.autocommit;
 SET @@global.autocommit=0;
-SET @tx_isolation= @@global.tx_isolation;
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 SET @lock_wait=@@global.lock_wait_timeout;
 SET @@global.lock_wait_timeout=1;
@@ -104,7 +104,7 @@ disconnect mysqltest1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
 DROP USER mysqltest1@localhost;
-SET @@global.tx_isolation= @tx_isolation;
+SET @@global.transaction_isolation= @transaction_isolation;
 SET  @@global.autocommit=@auto_commit;
 SET @@global.lock_wait_timeout=@lock_wait;
 SET @@global.innodb_lock_wait_timeout=@innodb_lock_wait;

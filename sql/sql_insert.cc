@@ -22,72 +22,74 @@
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
+#include <atomic>
 #include <map>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"              // check_grant_all_columns
 #include "binary_log_types.h"
-#include "binlog.h"
-#include "dd_sql_view.h"              // update_referencing_views_metadata
-#include "debug_sync.h"               // DEBUG_SYNC
-#include "derror.h"                   // ER_THD
-#include "discrete_interval.h"
-#include "field.h"
-#include "item.h"
-#include "key.h"
 #include "lex_string.h"
-#include "lock.h"                     // mysql_unlock_tables
 #include "m_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                   // stage_update
 #include "mysqld_error.h"
-#include "opt_explain.h"              // Modification_plan
-#include "opt_explain_format.h"
-#include "partition_info.h"           // partition_info
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "query_options.h"
-#include "rpl_rli.h"                  // Relay_log_info
-#include "rpl_slave.h"                // rpl_master_has_bug
-#include "session_tracker.h"
-#include "sql_alter.h"
-#include "sql_array.h"
-#include "sql_base.h"                 // setup_fields
-#include "sql_cache.h"                // query_cache
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_optimizer.h"            // Prepare_error_tracker
-#include "sql_plugin_ref.h"
-#include "sql_resolver.h"             // validate_gc_assignment
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "sql_show.h"                 // store_create_info
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"     // check_grant_all_columns
+#include "sql/binlog.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd_schema.h"         // dd::Schema_MDL_locker
+#include "sql/dd/dd.h"                // dd::get_dictionary
+#include "sql/dd/dictionary.h"        // dd::Dictionary
+#include "sql/dd_sql_view.h"          // update_referencing_views_metadata
+#include "sql/debug_sync.h"           // DEBUG_SYNC
+#include "sql/derror.h"               // ER_THD
+#include "sql/discrete_interval.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/lock.h"                 // mysql_unlock_tables
+#include "sql/mysqld.h"               // stage_update
+#include "sql/opt_explain.h"          // Modification_plan
+#include "sql/opt_explain_format.h"
+#include "sql/partition_info.h"       // partition_info
+#include "sql/protocol.h"
+#include "sql/query_options.h"
+#include "sql/rpl_rli.h"              // Relay_log_info
+#include "sql/rpl_slave.h"            // rpl_master_has_bug
+#include "sql/sql_alter.h"
+#include "sql/sql_array.h"
+#include "sql/sql_base.h"             // setup_fields
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_optimizer.h"        // Prepare_error_tracker
+#include "sql/sql_resolver.h"         // validate_gc_assignment
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"             // store_create_info
+#include "sql/sql_table.h"            // quick_rm_table
+#include "sql/sql_tmp_table.h"        // create_tmp_field
+#include "sql/sql_update.h"           // records_are_comparable
+#include "sql/sql_view.h"             // check_key_in_view
+#include "sql/system_variables.h"
+#include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"          // trans_commit_stmt
+#include "sql/transaction_info.h"
+#include "sql/trigger_def.h"
 #include "sql_string.h"
-#include "sql_table.h"                // quick_rm_table
-#include "sql_tmp_table.h"            // create_tmp_field
-#include "sql_update.h"               // records_are_comparable
-#include "sql_view.h"                 // check_key_in_view
-#include "system_variables.h"
-#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "transaction.h"              // trans_commit_stmt
-#include "transaction_info.h"
-#include "trigger_def.h"
 
 
 static bool check_view_insertability(THD *thd, TABLE_LIST *view,
@@ -700,18 +702,8 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
 
     const bool transactional_table= insert_table->file->has_transactions();
 
-    const bool changed= info.stats.copied || info.stats.deleted ||
-                        info.stats.updated;
-    if (changed)
-    {
-      /*
-        Invalidate the table in the query cache if something changed.
-        For the transactional algorithm to work the invalidation must be
-        before binlog writing and ha_autocommit_or_rollback
-      */
-      query_cache.invalidate_single(thd, lex->insert_table_leaf, true);
-      DEBUG_SYNC(thd, "wait_after_query_cache_invalidate");
-    }
+    const bool changed MY_ATTRIBUTE((unused))=
+      info.stats.copied || info.stats.deleted || info.stats.updated;
 
     if (!has_error || thd->get_transaction()->cannot_safely_rollback(
         Transaction_ctx::STMT))
@@ -1045,26 +1037,6 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
   // This flag is used only for INSERT, make sure it is clear
   lex->in_update_value_clause= false;
 
-  /*
-    For subqueries in VALUES() we should not see the table in which we are
-    inserting (for INSERT ... SELECT this is done by changing table_list,
-    because INSERT ... SELECT share SELECT_LEX it with SELECT.
-  */
-  if (!select_insert)
-  {
-    for (SELECT_LEX_UNIT *un= select->first_inner_unit();
-         un;
-         un= un->next_unit())
-    {
-      for (SELECT_LEX *sl= un->first_select();
-           sl;
-           sl= sl->next_select())
-      {
-        sl->context.outer_context= NULL;
-      }
-    }
-  }
-
   // first_select_table is the first table after the table inserted into
   TABLE_LIST *const first_select_table= table_list->next_local;
 
@@ -1226,7 +1198,6 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
 
   if (duplicates == DUP_UPDATE)
   {
-    table_list->set_want_privilege(UPDATE_ACL);
     // Setup the columns to be updated
     if (setup_fields(thd, Ref_item_array(), update_field_list, UPDATE_ACL,
                      NULL, false, true))
@@ -1234,8 +1205,6 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
 
     if (check_valid_table_refs(table_list, update_field_list, map))
       DBUG_RETURN(true);
-
-    table_list->set_want_privilege(SELECT_ACL);
   }
 
   if (table_list->is_merged())
@@ -1250,18 +1219,58 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
       DBUG_RETURN(true);         /* purecov: inspected */
   }
 
+  /*
+    In ON DUPLICATE KEY clause, it is possible to refer to fields from
+    the selected tables also, if the query expression is not a VALUES clause,
+    not a UNION and the query block is not explicitly grouped.
+
+    This has implications if ON DUPLICATE KEY values contain subqueries,
+    due to the way SELECT_LEX::apply_local_transforms() is called: it is
+    usually triggered only on the outer-most query block. Such subqueries
+    are attached to the last query block of the INSERT statement (relevant if
+    this is an INSERT statement with a query expression containing UNION).
+
+    If the query is INSERT VALUES, processing is quite simple:
+    - resolve VALUES expressions (above)
+    - resolve ON DUPLICATE KEY values with same name resolution context.
+    - call apply_local_transforms() on outer query block.
+
+    If the query is INSERT SELECT and the query expression contains UNION,
+    processing is performed as follows:
+    - resolve ON DUPLICATE KEY expressions with same name resolution context.
+      In this case, it is OK to resolve any subqueries before the outer
+      query block, because references from the expressions into the
+      tables of the query expression are not allowed.
+    - resolve the query expression with insert table excluded from name
+      resolution context. This will implicitly call apply_local_transforms()
+      on the outer query blocks and all subqueries in ON DUPLICATE KEY
+      expressions, which are attached to the last query block of the UNION.
+
+    If the query is INSERT SELECT and the query expression does not have
+    a UNION, processing is performed as follows:
+    - set skip_local_transforms for the outer query block to prevent
+      apply_local_transforms() from being called.
+    - resolve the query expression with insert table excluded from name
+      resolution context.
+    - if query block is not grouped, combine the name resolution context
+      for the insert table and the query expression, so that ON DUPLICATE KEY
+      expressions may refer to all those tables (otherwise restore
+      name resolution context as insert table only).
+    - resolve ON DUPLICATE KEY expressions.
+    - call apply_local_transforms() on outer query block, which also
+      contains references to any subqueries from ON DUPLICATE KEY expressions.
+  */
+
   if (!select_insert)
   {
+    // Duplicate tables in subqueries in VALUES clause are not allowed.
     TABLE_LIST *const duplicate=
       unique_table(lex->insert_table_leaf, table_list->next_global, true);
-    if (duplicate)
+    if (duplicate != NULL)
     {
       update_non_unique_table_error(table_list, "INSERT", duplicate);
       DBUG_RETURN(true);
     }
-
-    if (select->apply_local_transforms(thd, false))
-      DBUG_RETURN(true);         /* purecov: inspected */
   }
   else
   {
@@ -1301,6 +1310,24 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
     if (result == NULL)
       DBUG_RETURN(true);         /* purecov: inspected */
 
+    if (unit->is_union())
+    {
+      /*
+        Update values may not have references to SELECT tables, so it is
+        safe to resolve them before the query expression.
+      */
+      if (duplicates == DUP_UPDATE && resolve_update_expressions(thd))
+        DBUG_RETURN(true);
+    }
+    else
+    {
+      /*
+        Delay apply_local_transforms() call until query block and any
+        attached subqueries have been resolved.
+      */
+      select->skip_local_transforms= true;
+    }
+
     // Remove the insert table from the first query block
     select->table_list.first=
       context->table_list=
@@ -1312,7 +1339,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
     if (unit->prepare(thd, result, added_options, 0))
       DBUG_RETURN(true);
 
-    // Restore the insert table, but not the name resolution context
+    // Restore the insert table but not the name resolution context
     select->table_list.first=
       context->table_list= table_list;
     table_list->next_local= first_select_table;
@@ -1336,12 +1363,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
   {
     if (select_insert)
     {
-      /*
-        In ON DUPLICATE KEY clause, it is possible to refer to fields from
-        the selected table also, if the query expression is not a UNION and
-        the query block is not explicitly grouped.
-      */
-      if (!select->is_grouped() && !unit->is_union())
+      if (!unit->is_union() && !select->is_grouped())
       {
         /*
           Make one context out of the two separate name resolution contexts:
@@ -1358,39 +1380,21 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
         ctx_state.restore_state(context, table_list);
       }
     }
-    lex->in_update_value_clause= true;
 
-    if (setup_fields(thd, Ref_item_array(),
-                     update_value_list, SELECT_ACL, NULL, false, false))
+    if (!unit->is_union() && resolve_update_expressions(thd))
       DBUG_RETURN(true);
+  }
 
-    if (check_valid_table_refs(table_list, update_value_list, map))
-      DBUG_RETURN(true);
+  if (!unit->is_union() && select->apply_local_transforms(thd, false))
+    DBUG_RETURN(true);         /* purecov: inspected */
 
-    if (insert_table->has_gcol() &&
-        validate_gc_assignment(&update_field_list, &update_value_list,
-                               insert_table))
-      DBUG_RETURN(true);
-
-    lex->in_update_value_clause= false;
-
-    if (select_insert)
-    {
-      /*
-        Traverse the update values list and substitute fields from the
-        select for references (Item_ref objects) to them. This is done in
-        order to get correct values from those fields when the select
-        employs a temporary table.
-      */
-      List_iterator<Item> li(update_value_list);
-      Item *item;
-
-      while ((item= li++))
-      {
-        item->transform(&Item::update_value_transformer,
-                        pointer_cast<uchar *>(select));
-      }
-    }
+  if (select_insert)
+  {
+    // Restore the insert table and the name resolution context
+    select->table_list.first=
+      context->table_list= table_list;
+    table_list->next_local= first_select_table;
+    ctx_state.restore_state(context, table_list);
   }
 
   if (!select_insert && insert_table->part_info)
@@ -1517,15 +1521,69 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
   }
   }
 
-  if (select_insert)
-  {
-    // Restore the current name resolution context and local table chain
-    ctx_state.restore_state(context, table_list);
-    table_list->next_local= first_select_table;
-  }
   DBUG_RETURN(false);
 }
 
+
+/**
+  Resolve ON DUPLICATE KEY UPDATE expressions.
+
+  Caller is responsible for setting up the columns to be updated before
+  calling this function.
+
+  @param thd     Thread handler
+
+  @returns false if success, true if error
+*/
+
+bool Sql_cmd_insert_base::resolve_update_expressions(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_insert_base::resolve_update_expressions");
+
+  TABLE_LIST *const insert_table_ref= lex->query_tables;
+  TABLE_LIST *const insert_table_leaf= lex->insert_table_leaf;
+
+  const bool select_insert= insert_many_values.elements == 0;
+
+  table_map map= lex->insert_table_leaf->map();
+
+  lex->in_update_value_clause= true;
+
+  if (setup_fields(thd, Ref_item_array(),
+                   update_value_list, SELECT_ACL, NULL, false, false))
+    DBUG_RETURN(true);
+
+  if (check_valid_table_refs(insert_table_ref, update_value_list, map))
+    DBUG_RETURN(true);
+
+  if (insert_table_leaf->table->has_gcol() &&
+      validate_gc_assignment(&update_field_list, &update_value_list,
+                             insert_table_leaf->table))
+    DBUG_RETURN(true);
+
+  lex->in_update_value_clause= false;
+
+  if (select_insert)
+  {
+    /*
+      Traverse the update values list and substitute fields from the
+      select for references (Item_ref objects) to them. This is done in
+      order to get correct values from those fields when the select
+      employs a temporary table.
+    */
+    SELECT_LEX *const select= lex->select_lex;
+    List_iterator<Item> li(update_value_list);
+    Item *item;
+
+    while ((item= li++))
+    {
+      item->transform(&Item::update_value_transformer,
+                      pointer_cast<uchar *>(select));
+    }
+  }
+
+  DBUG_RETURN(false);
+}
 
 /**
   Check if there are more unique keys after the current one
@@ -2237,7 +2295,7 @@ bool Query_result_insert::send_eof()
   int error;
   bool const trans_table= table->file->has_transactions();
   ulonglong id, row_count;
-  bool changed;
+  bool changed MY_ATTRIBUTE((unused));
   THD::killed_state killed_status= thd->killed;
   DBUG_ENTER("Query_result_insert::send_eof");
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
@@ -2249,15 +2307,6 @@ bool Query_result_insert::send_eof()
     error= thd->get_stmt_da()->mysql_errno();
 
   changed= (info.stats.copied || info.stats.deleted || info.stats.updated);
-  if (changed)
-  {
-    /*
-      We must invalidate the table in the query cache before binlog writing
-      and ha_autocommit_or_rollback.
-    */
-    query_cache.invalidate(thd, table, TRUE);
-  }
-
   DBUG_ASSERT(trans_table || !changed || 
               thd->get_transaction()->cannot_safely_rollback(
                 Transaction_ctx::STMT));
@@ -2354,7 +2403,8 @@ void Query_result_insert::abort_result_set()
    */
   if (table)
   {
-    bool changed, transactional_table;
+    bool changed MY_ATTRIBUTE((unused));
+    bool transactional_table;
     /*
       Try to end the bulk insert which might have been started before.
       We don't need to do this if we are in prelocked mode (since we
@@ -2391,8 +2441,6 @@ void Query_result_insert::abort_result_set()
                                    thd->query().length,
                                    transactional_table, FALSE, FALSE, errcode);
         }
-	if (changed)
-	  query_cache.invalidate(thd, table, TRUE);
     }
     DBUG_ASSERT(transactional_table || !changed ||
 		thd->get_transaction()->cannot_safely_rollback(
@@ -2534,6 +2582,40 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     alter_info->create_list.push_back(cr_field);
   }
 
+  /*
+    Acquire SU meta data locks for the tables referenced
+    in the FK constraints.
+  */
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      (create_info->db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS))
+  {
+    /*
+      CREATE TABLE SELECT fails under LOCK TABLES at open_tables() time
+      if target table doesn't exist already. So we don't need to handle
+      LOCK TABLES case here by checking that parent tables for new FKs
+      are properly locked and there are no orphan child tables for which
+      table being created will become parent.
+    */
+    DBUG_ASSERT(thd->locked_tables_mode != LTM_LOCK_TABLES &&
+                thd->locked_tables_mode != LTM_PRELOCKED_UNDER_LOCK_TABLES);
+
+    MDL_request_list mdl_requests;
+
+    if (collect_fk_parents_for_new_fks(thd, create_table->db,
+                                       create_table->table_name,
+                                       alter_info,
+                                       MDL_SHARED_UPGRADABLE,
+                                       nullptr,
+                                       &mdl_requests,
+                                       nullptr))
+      DBUG_RETURN(NULL);
+
+    if (!mdl_requests.is_empty() &&
+        thd->mdl_context.acquire_locks(&mdl_requests,
+                                       thd->variables.lock_wait_timeout))
+      DBUG_RETURN(NULL);
+  }
+
   DEBUG_SYNC(thd,"create_table_select_before_create");
 
   /*
@@ -2556,29 +2638,14 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     if (!mysql_create_table_no_lock(thd, create_table->db,
                                     create_table->table_name,
                                     create_info, alter_info,
-                                    select_field_count, NULL,
-                                    post_ddl_ht))
+                                    select_field_count,
+                                    true,
+                                    NULL, post_ddl_ht))
     {
       DEBUG_SYNC(thd,"create_table_select_before_open");
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
-#ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
-        /*
-          InnoDB might add tablespace objects to the DD during table creation.
-          If these changes are not committed here it will have problems dropping
-          table on error.
-
-          The problem will be solved once InnoDB implements support for atomic
-          DDL and statement rollback will remove the table automatically.
-        */
-        {
-          Disable_gtid_state_update_guard disabler(thd);
-          trans_commit_stmt(thd);
-          trans_commit_implicit(thd);
-        }
-#endif
-
         Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
         /*
           Here we open the destination table, on which we already have
@@ -2593,15 +2660,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
           if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
             quick_rm_table(thd, create_info->db_type, create_table->db,
                            create_table->table_name, 0);
-#ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
-          else
-          {
-            /*
-              In practice this never ever happens. So it is not worth
-              to write workaround code.
-            */
-          }
-#endif
         }
         else
           table= create_table->table;
@@ -2935,20 +2993,79 @@ bool Query_result_create::send_eof()
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
 
-  bool tmp;
+  bool error= false;
+
+  /*
+    For non-temporary tables, we update the unique_constraint_name for
+    the FKs of referencing tables, after acquiring exclusive metadata locks.
+    We also need to upgrade the SU locks on referenced tables to be exclusive
+    before invalidating the referenced tables.
+  */
+  Foreign_key_parents_invalidator fk_invalidator;
+
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      (create_info->db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS))
+  {
+    MDL_request_list mdl_requests;
+
+    if ((!dd::get_dictionary()->is_dd_table_name(create_table->db,
+                                                 create_table->table_name) &&
+         collect_fk_children(thd, create_table->db, create_table->table_name,
+                             create_info->db_type, &mdl_requests)) ||
+         collect_fk_parents_for_new_fks(thd, create_table->db,
+                                       create_table->table_name,
+                                       alter_info,
+                                       MDL_EXCLUSIVE,
+                                       create_info->db_type,
+                                       &mdl_requests,
+                                       &fk_invalidator) ||
+        (!mdl_requests.is_empty() &&
+         thd->mdl_context.acquire_locks(&mdl_requests,
+                                        thd->variables.lock_wait_timeout)))
+      error= true;
+    else
+    {
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      const dd::Table *new_table= nullptr;
+      if (thd->dd_client()->acquire(create_table->db,
+                                    create_table->table_name,
+                                    &new_table))
+        error= true;
+      else
+      {
+        DBUG_ASSERT(new_table != nullptr);
+        /*
+          If we are to support FKs for storage engines which don't support
+          atomic DDL we need to decide what to do for such SEs in case of
+          failure to update children definitions and adjust code accordingly.
+        */
+        DBUG_ASSERT(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
+
+        if (adjust_fk_children_after_parent_def_change(thd,
+                                                       create_table->db,
+                                                       create_table->table_name,
+                                                       create_info->db_type,
+                                                       new_table) ||
+            adjust_fk_parents(thd, create_table->db, create_table->table_name,
+                              true, nullptr))
+          error= true;
+      }
+    }
+  }
 
   {
     Uncommitted_tables_guard uncommitted_tables(thd);
 
-    tmp= update_referencing_views_metadata(thd, create_table,
-                                           !(table->s->db_type()->flags &
-                                             HTON_SUPPORTS_ATOMIC_DDL),
-                                           &uncommitted_tables);
+    if (!error)
+      error= update_referencing_views_metadata(thd, create_table,
+                                               !(table->s->db_type()->flags &
+                                                 HTON_SUPPORTS_ATOMIC_DDL),
+                                               &uncommitted_tables);
   }
 
-  if (!tmp)
-    tmp= Query_result_insert::send_eof();
-  if (tmp)
+  if (!error)
+    error= Query_result_insert::send_eof();
+  if (error)
     abort_result_set();
   else
   {
@@ -2991,8 +3108,10 @@ bool Query_result_create::send_eof()
 
     if (m_post_ddl_ht)
       m_post_ddl_ht->post_ddl(thd);
+
+    fk_invalidator.invalidate(thd);
   }
-  return tmp;
+  return error;
 }
 
 
@@ -3047,22 +3166,6 @@ void Query_result_create::drop_open_table()
       quick_rm_table(thd, table_type, create_table->db,
                      create_table->table_name, 0);
     }
-#ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
-    else
-    {
-      trans_rollback_stmt(thd);
-      /*
-        Rollback transaction both to clear THD::transaction_rollback_request
-        (if it is set) and to synchronize DD state for view metadata in cache
-        and on disk (as statement rollback doesn't clear DD cache of modified
-        uncommitted objects).
-      */
-      trans_rollback_implicit(thd);
-
-      quick_rm_table(thd, table_type, create_table->db,
-                     create_table->table_name, 0);
-    }
-#endif
   }
   DBUG_VOID_RETURN;
 }

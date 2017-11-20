@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,40 +13,45 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/table_impl.h"
+#include "sql/dd/impl/types/table_impl.h"
 
 #include <string.h>
 #include <sstream>
+#include <string>
 
-#include "current_thd.h"                             // current_thd
-#include "dd/impl/object_key.h"                      // Needed for destructor
-#include "dd/impl/properties_impl.h"                 // Properties_impl
-#include "dd/impl/raw/raw_record.h"                  // Raw_record
-#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
-#include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
-#include "dd/impl/tables/indexes.h"                  // Indexes
-#include "dd/impl/tables/table_partitions.h"         // Table_partitions
-#include "dd/impl/tables/tables.h"                   // Tables
-#include "dd/impl/tables/triggers.h"                 // Triggers
-#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
-#include "dd/impl/types/foreign_key_impl.h"          // Foreign_key_impl
-#include "dd/impl/types/index_impl.h"                // Index_impl
-#include "dd/impl/types/partition_impl.h"            // Partition_impl
-#include "dd/impl/types/trigger_impl.h"              // Trigger_impl
-#include "dd/properties.h"
-#include "dd/string_type.h"                          // dd::String_type
-#include "dd/types/column.h"                         // Column
-#include "dd/types/foreign_key.h"
-#include "dd/types/index.h"
-#include "dd/types/partition.h"
-#include "dd/types/weak_object.h"
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+
 #include "m_string.h"
 #include "my_dbug.h"
-#include "mysqld_error.h"                            // ER_*
 #include "my_sys.h"
-#include "rapidjson/document.h"
-#include "rapidjson/prettywriter.h"
-#include "sql_class.h"
+#include "mysqld_error.h"                            // ER_*
+#include "sql/current_thd.h"                         // current_thd
+#include "sql/dd/impl/properties_impl.h"             // Properties_impl
+#include "sql/dd/impl/raw/raw_record.h"              // Raw_record
+#include "sql/dd/impl/raw/raw_record_set.h"          // Raw_record_set
+#include  "sql/dd/impl/raw/raw_table.h"              // Raw_table
+#include "sql/dd/impl/sdi_impl.h"                    // sdi read/write functions
+#include "sql/dd/impl/tables/foreign_keys.h"         // Foreign_keys
+#include "sql/dd/impl/tables/indexes.h"              // Indexes
+#include "sql/dd/impl/tables/schemata.h"             // Schemata
+#include "sql/dd/impl/tables/table_partitions.h"     // Table_partitions
+#include "sql/dd/impl/tables/tables.h"               // Tables
+#include "sql/dd/impl/tables/triggers.h"             // Triggers
+#include "sql/dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
+#include "sql/dd/impl/types/foreign_key_impl.h"      // Foreign_key_impl
+#include "sql/dd/impl/types/index_impl.h"            // Index_impl
+#include "sql/dd/impl/types/partition_impl.h"        // Partition_impl
+#include "sql/dd/impl/types/trigger_impl.h"          // Trigger_impl
+#include "sql/dd/properties.h"
+#include "sql/dd/string_type.h"                      // dd::String_type
+#include "sql/dd/types/column.h"                     // Column
+#include "sql/dd/types/foreign_key.h"
+#include "sql/dd/types/index.h"
+#include "sql/dd/types/partition.h"
+#include "sql/dd/types/weak_object.h"
+#include "sql/sql_class.h"
 
 using dd::tables::Foreign_keys;
 using dd::tables::Indexes;
@@ -91,7 +96,9 @@ Table_impl::Table_impl()
 }
 
 Table_impl::~Table_impl()
-{ }
+{
+  delete_container_pointers(m_foreign_key_parents);
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -142,6 +149,143 @@ bool Table_impl::validate() const
 
 ///////////////////////////////////////////////////////////////////////////
 
+bool Table_impl::load_foreign_key_parents(Open_dictionary_tables_ctx *otx)
+{
+  /*
+    Read information about FKs where this table is the parent.
+    The relevant tables are already opened.
+  */
+
+  // 1. Read the parent's schema name based on schema_id.
+  Raw_table *schema_table= otx->get_table<dd::Schema>();
+  DBUG_ASSERT(schema_table);
+  Primary_id_key schema_pk(schema_id());
+
+  std::unique_ptr<Raw_record_set> schema_rs;
+  if (schema_table->open_record_set(&schema_pk, schema_rs))
+    return true;
+
+  Raw_record *schema_rec= schema_rs->current_record();
+  DBUG_ASSERT(schema_rec);
+  if (schema_rec == nullptr)
+    return true;
+
+  // 2. Build a key for searching the FK table.
+  const int index_no= 3; // Key on tables::Foreign_keys.
+  Table_reference_range_key parent_ref_key(index_no,
+      tables::Foreign_keys::FIELD_REFERENCED_CATALOG,
+      String_type(Dictionary_impl::default_catalog_name()),
+      tables::Foreign_keys::FIELD_REFERENCED_SCHEMA,
+      schema_rec->read_str(tables::Schemata::FIELD_NAME),
+      tables::Foreign_keys::FIELD_REFERENCED_TABLE,
+      name());
+
+  // 3. Get the FK record set where this table is parent.
+  Raw_table *foreign_key_table= otx->get_table<dd::Foreign_key>();
+  DBUG_ASSERT(foreign_key_table);
+
+  std::unique_ptr<Raw_record_set> child_fk_rs;
+  if (foreign_key_table->open_record_set(&parent_ref_key, child_fk_rs))
+    return true;
+
+  Raw_record *child_fk_rec= child_fk_rs->current_record();
+  while (child_fk_rec)
+  {
+    // 4.1 Get the child table record based on the child table id.
+    Primary_id_key child_pk(child_fk_rec->read_int(
+      tables::Foreign_keys::FIELD_TABLE_ID));
+    Raw_table *tables_table= otx->get_table<dd::Table>();
+    DBUG_ASSERT(tables_table);
+
+    std::unique_ptr<Raw_record_set> child_table_rs;
+    if (tables_table->open_record_set(&child_pk, child_table_rs))
+      return true;
+
+    Raw_record *child_table= child_table_rs->current_record();
+    DBUG_ASSERT(child_table);
+    if (child_table == nullptr)
+      return true;
+
+    /*
+       4.2 Filter out child tables belonging to different SEs.
+           This is not supported at the moment and we don't want
+           such FKs to show up as Foreign_key_parent objects.
+    */
+    if (my_strcasecmp(system_charset_info,
+          child_table->read_str(tables::Tables::FIELD_ENGINE).c_str(),
+          m_engine.c_str()) != 0)
+    {
+      if (child_fk_rs->next(child_fk_rec))
+        return true;
+      continue;
+    }
+
+    // 5. Get the child schema record based on schema id from the table record.
+    schema_pk.update(child_table->read_int(tables::Tables::FIELD_SCHEMA_ID));
+    schema_rs.reset(nullptr); // Must end index read to allow new index read.
+    if (schema_table->open_record_set(&schema_pk, schema_rs))
+      return true;
+
+    schema_rec= schema_rs->current_record();
+    DBUG_ASSERT(schema_rec);
+    if (schema_rec == nullptr)
+      return true;
+
+    // 6. Collect the relevant information.
+    Foreign_key_parent *fk_parent= add_foreign_key_parent();
+    fk_parent->set_child_schema_name(
+      schema_rec->read_str(tables::Schemata::FIELD_NAME));
+    fk_parent->set_child_table_name(
+      child_table->read_str(tables::Tables::FIELD_NAME));
+    fk_parent->set_fk_name(child_fk_rec->read_str(
+      tables::Foreign_keys::FIELD_NAME));
+
+    Foreign_key::enum_rule update_rule= static_cast<Foreign_key::enum_rule>
+      (child_fk_rec->read_int(tables::Foreign_keys::FIELD_UPDATE_RULE));
+
+    fk_parent->set_update_rule(update_rule);
+
+    Foreign_key::enum_rule delete_rule= static_cast<Foreign_key::enum_rule>
+      (child_fk_rec->read_int(tables::Foreign_keys::FIELD_DELETE_RULE));
+
+    fk_parent->set_delete_rule(delete_rule);
+
+    // 7. Get next child record.
+    if (child_fk_rs->next(child_fk_rec))
+      return true;
+  }
+
+  return false;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+bool Table_impl::reload_foreign_key_parents(THD *thd)
+{
+ /*
+    Use READ UNCOMMITTED isolation, so this method works correctly when
+    called from the middle of atomic DDL statements.
+  */
+  dd::Transaction_ro trx(thd, ISO_READ_UNCOMMITTED);
+
+  // Register and open tables.
+  trx.otx.register_tables<dd::Table>();
+  if (trx.otx.open_tables())
+  {
+    DBUG_ASSERT(thd->is_system_thread() ||
+                thd->killed ||
+                thd->is_error());
+    return true;
+  }
+
+  // Delete and reload the foreign key parents.
+  delete_container_pointers(m_foreign_key_parents);
+
+  return load_foreign_key_parents(&trx.otx);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
 {
   // NOTE: the order of restoring collections is important because:
@@ -152,8 +296,8 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
   //   - Partitions should be loaded at the end, as it refers to
   //     indexes.
 
-  bool ret=
-    Abstract_table_impl::restore_children(otx)
+  return
+    (Abstract_table_impl::restore_children(otx)
     ||
     m_indexes.restore_items(
       this,
@@ -172,7 +316,8 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
       this,
       otx,
       otx->get_table<Partition>(),
-      Table_partitions::create_key_by_table_id(this->id()),
+      Table_partitions::create_key_by_parent_partition_id(
+                          this->id(), dd::INVALID_OBJECT_ID),
       // Sort partitions first on level and then on number.
       Partition_order_comparator())
     ||
@@ -181,12 +326,9 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
       otx,
       otx->get_table<Trigger>(),
       Triggers::create_key_by_table_id(this->id()),
-      Trigger_order_comparator());
-
-  if (!ret)
-    fix_partitions();
-
-  return ret;
+      Trigger_order_comparator())
+    ||
+    load_foreign_key_parents(otx));
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -342,8 +484,14 @@ bool Table_impl::restore_attributes(const Raw_record &r)
 
   m_engine= r.read_str(Tables::FIELD_ENGINE);
 
-  m_partition_expression= r.read_str(Tables::FIELD_PARTITION_EXPRESSION, "");
-  m_subpartition_expression= r.read_str(Tables::FIELD_SUBPARTITION_EXPRESSION, "");
+  m_partition_expression=
+    r.read_str(Tables::FIELD_PARTITION_EXPRESSION, "");
+  m_partition_expression_utf8=
+    r.read_str(Tables::FIELD_PARTITION_EXPRESSION_UTF8, "");
+  m_subpartition_expression=
+    r.read_str(Tables::FIELD_SUBPARTITION_EXPRESSION, "");
+  m_subpartition_expression_utf8=
+    r.read_str(Tables::FIELD_SUBPARTITION_EXPRESSION_UTF8, "");
 
   return false;
 }
@@ -390,6 +538,9 @@ bool Table_impl::store_attributes(Raw_record *r)
     r->store(Tables::FIELD_PARTITION_EXPRESSION,
              m_partition_expression,
              m_partition_expression.empty()) ||
+    r->store(Tables::FIELD_PARTITION_EXPRESSION_UTF8,
+             m_partition_expression_utf8,
+             m_partition_expression_utf8.empty()) ||
     r->store(Tables::FIELD_DEFAULT_PARTITIONING,
              m_default_partitioning,
              m_default_partitioning == DP_NONE) ||
@@ -399,6 +550,9 @@ bool Table_impl::store_attributes(Raw_record *r)
     r->store(Tables::FIELD_SUBPARTITION_EXPRESSION,
              m_subpartition_expression,
              m_subpartition_expression.empty()) ||
+    r->store(Tables::FIELD_SUBPARTITION_EXPRESSION_UTF8,
+             m_subpartition_expression_utf8,
+             m_subpartition_expression_utf8.empty()) ||
     r->store(Tables::FIELD_DEFAULT_SUBPARTITIONING,
              m_default_subpartitioning,
              m_default_subpartitioning == DP_NONE);
@@ -418,10 +572,18 @@ Table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write_enum(w, m_row_format, STRING_WITH_LEN("row_format"));
   write_enum(w, m_partition_type, STRING_WITH_LEN("partition_type"));
   write(w, m_partition_expression, STRING_WITH_LEN("partition_expression"));
-  write_enum(w, m_default_partitioning, STRING_WITH_LEN("default_partitioning"));
-  write_enum(w, m_subpartition_type, STRING_WITH_LEN("subpartition_type"));
-  write(w, m_subpartition_expression, STRING_WITH_LEN("subpartition_expression"));
-  write_enum(w, m_default_subpartitioning, STRING_WITH_LEN("default_subpartitioning"));
+  write(w, m_partition_expression_utf8,
+        STRING_WITH_LEN("partition_expression_utf8"));
+  write_enum(w, m_default_partitioning,
+             STRING_WITH_LEN("default_partitioning"));
+  write_enum(w, m_subpartition_type,
+             STRING_WITH_LEN("subpartition_type"));
+  write(w, m_subpartition_expression,
+        STRING_WITH_LEN("subpartition_expression"));
+  write(w, m_subpartition_expression_utf8,
+        STRING_WITH_LEN("subpartition_expression_utf8"));
+  write_enum(w, m_default_subpartitioning,
+             STRING_WITH_LEN("default_subpartitioning"));
   serialize_each(wctx, w, m_indexes, STRING_WITH_LEN("indexes"));
   serialize_each(wctx, w, m_foreign_keys, STRING_WITH_LEN("foreign_keys"));
   serialize_each(wctx, w, m_partitions, STRING_WITH_LEN("partitions"));
@@ -444,9 +606,11 @@ Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
   read_enum(&m_row_format, val, "row_format");
   read_enum(&m_partition_type, val, "partition_type");
   read(&m_partition_expression, val, "partition_expression");
+  read(&m_partition_expression_utf8, val, "partition_expression_utf8");
   read_enum(&m_default_partitioning, val, "default_partitioning");
   read_enum(&m_subpartition_type, val, "subpartition_type");
   read(&m_subpartition_expression, val, "subpartition_expression");
+  read(&m_subpartition_expression_utf8, val, "subpartition_expression_utf8");
   read_enum(&m_default_subpartitioning, val, "default_subpartitioning");
 
   // Note! Deserialization of ordinal position cross-referenced
@@ -467,7 +631,6 @@ Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
                    val, "foreign_keys");
   deserialize_each(rctx, [this] () { return add_partition(); }, val,
                    "partitions");
-  fix_partitions();
   read(&m_collation_id, val, "collation_id");
   return deserialize_tablespace_ref(rctx, &m_tablespace_id, val, "tablespace_id");
 }
@@ -493,9 +656,11 @@ void Table_impl::debug_print(String_type &outb) const
     << "m_partition_type " << m_partition_type << "; "
     << "m_default_partitioning " << m_default_partitioning << "; "
     << "m_partition_expression " << m_partition_expression << "; "
+    << "m_partition_expression_utf8 " << m_partition_expression_utf8 << "; "
     << "m_subpartition_type " << m_subpartition_type << "; "
     << "m_default_subpartitioning " << m_default_subpartitioning << "; "
     << "m_subpartition_expression " << m_subpartition_expression << "; "
+    << "m_subpartition_expression_utf8 " << m_subpartition_expression_utf8 << "; "
     << "m_partitions: " << m_partitions.size() << " [ ";
 
   {
@@ -591,6 +756,17 @@ Foreign_key *Table_impl::add_foreign_key()
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Foreign key parent collection.
+///////////////////////////////////////////////////////////////////////////
+
+Foreign_key_parent *Table_impl::add_foreign_key_parent()
+{
+  Foreign_key_parent *fk_parent= new (std::nothrow) Foreign_key_parent();
+  m_foreign_key_parents.push_back(fk_parent);
+  return fk_parent;
+}
+
+///////////////////////////////////////////////////////////////////////////
 // Partition collection.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -598,6 +774,7 @@ Partition *Table_impl::add_partition()
 {
   Partition_impl *i= new (std::nothrow) Partition_impl(this);
   m_partitions.push_back(i);
+
   return i;
 }
 
@@ -835,34 +1012,6 @@ Partition *Table_impl::get_partition(const String_type &name)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Table_impl::fix_partitions()
-{
-  size_t part_num= 0;
-  size_t subpart_num= 0;
-  size_t subpart_processed= 0;
-
-  Partition_collection::iterator part_it= m_partitions.begin();
-  for (Partition *part : m_partitions)
-  {
-    if (part->level() == 0)
-      ++part_num;
-    else
-    {
-      if (!subpart_num)
-      {
-        // First subpartition.
-        subpart_num= (m_partitions.size() - part_num) / part_num;
-      }
-      part->set_parent(*part_it);
-      ++subpart_processed;
-      if (subpart_processed % subpart_num == 0)
-        ++part_it;
-    }
-  }
-}
-
-///////////////////////////////////////////////////////////////////////////
-
 bool Table::update_aux_key(aux_key_type *key,
                            const String_type &engine,
                            Object_id se_private_id)
@@ -881,6 +1030,7 @@ void Table_type::register_tables(Open_dictionary_tables_ctx *otx) const
 {
   otx->add_table<Tables>();
 
+  otx->register_tables<Schema>();
   otx->register_tables<Column>();
   otx->register_tables<Index>();
   otx->register_tables<Foreign_key>();
@@ -900,9 +1050,11 @@ Table_impl::Table_impl(const Table_impl &src)
     m_row_format(src.m_row_format),
     m_partition_type(src.m_partition_type),
     m_partition_expression(src.m_partition_expression),
+    m_partition_expression_utf8(src.m_partition_expression_utf8),
     m_default_partitioning(src.m_default_partitioning),
     m_subpartition_type(src.m_subpartition_type),
     m_subpartition_expression(src.m_subpartition_expression),
+    m_subpartition_expression_utf8(src.m_subpartition_expression_utf8),
     m_default_subpartitioning(src.m_default_subpartitioning),
     m_indexes(),
     m_foreign_keys(),
@@ -912,6 +1064,9 @@ Table_impl::Table_impl(const Table_impl &src)
 {
   m_indexes.deep_copy(src.m_indexes, this);
   m_foreign_keys.deep_copy(src.m_foreign_keys, this);
+  for (auto fk_parent : src.m_foreign_key_parents)
+    m_foreign_key_parents.push_back(
+            new (std::nothrow) Foreign_key_parent(*fk_parent));
   m_partitions.deep_copy(src.m_partitions, this);
   m_triggers.deep_copy(src.m_triggers, this);
 }

@@ -15,29 +15,34 @@
 
 #include "sql/rpl_info_table_access.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "current_thd.h"
-#include "field.h"
-#include "handler.h"
-#include "key.h"
+#include "binlog_event.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/thread_type.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "rpl_info_values.h" // Rpl_info_values
-#include "rpl_rli.h"
-#include "sql_base.h"       // MYSQL_OPEN_IGNORE_FLUSH
-#include "sql_bitmap.h"
-#include "sql_class.h"      // THD
-#include "sql_const.h"
-#include "sql_lex.h"
-#include "sql_parse.h"      // mysql_reset_thd_for_next_command
+#include "sql/current_thd.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/log_event.h"
+#include "sql/rpl_info_values.h" // Rpl_info_values
+#include "sql/rpl_rli.h"
+#include "sql/sql_base.h"   // MYSQL_OPEN_IGNORE_FLUSH
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"  // mysql_reset_thd_for_next_command
+#include "sql/table.h"      // TABLE
 #include "sql_string.h"
-#include "table.h"          // TABLE
 
 
 void Rpl_info_table_access::before_open(THD *thd)

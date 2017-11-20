@@ -40,9 +40,10 @@ SELECT myfunc_int(23);
 connect c1,localhost,test,,;
 SELECT myfunc_int(23);
 connection default;
-SELECT * FROM performance_schema.user_defined_functions
+SELECT udf_name,udf_return_type,udf_type,udf_library,udf_usage_count>0
+FROM performance_schema.user_defined_functions
 ORDER BY udf_name;
-UDF_NAME	UDF_RETURN_TYPE	UDF_TYPE	UDF_LIBRARY	UDF_USAGE_COUNT
+udf_name	udf_return_type	udf_type	udf_library	udf_usage_count>0
 myfunc_int	integer	function		1
 connection c1;
 myfunc_int(23)

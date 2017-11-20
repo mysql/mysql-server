@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifndef DD_TABLES__CATALOGS_INCLUDED
 #define DD_TABLES__CATALOGS_INCLUDED
 
-#include "dd/impl/types/object_table_impl.h"
+#include "sql/dd/impl/types/object_table_impl.h"
 
 namespace dd {
 

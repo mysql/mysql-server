@@ -6,7 +6,12 @@
 --echo ## 3. Import log file into a table
 --echo ## 4. Verify the contents of the table
 
+--source include/have_debug.inc
+
 --disable_ps_protocol
+
+--echo ## Disable resource groups for this test.
+SET DEBUG='+d, disable_rg_pfs_notifications';
 
 --echo
 --echo ## Install test component
@@ -283,4 +288,5 @@ DROP USER PFS_USER3;
 DROP TABLE test.callback_events;
 
 remove_file $MYSQLD_DATADIR/test_pfs_notification.log;
+SET DEBUG='-d,disable_rg_pfs_notifications';
 --enable_ps_protocol

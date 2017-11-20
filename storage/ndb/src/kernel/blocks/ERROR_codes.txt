@@ -18,10 +18,10 @@ Next NDBCNTR 1007
 Next NDBFS 2002
 Next DBACC 3006
 Next DBTUP 4039
-Next DBLQH 5091
+Next DBLQH 5092
 Next DBDICT 6223
 Next DBDIH 7249
-Next DBTC 8115
+Next DBTC 8117
 Next CMVMI 9000
 Next BACKUP 10042
 Next PGMAN 11010
@@ -703,8 +703,6 @@ System Restart:
 7070: Set TimeBetweenLcp to min value
 7071: Set TimeBetweenLcp to max value
 7072: Split START_FRAGREQ into several log nodes
-7073: Don't include own node in START_FRAGREQ
-7074: 7072 + 7073
 
 Scan:
 ------

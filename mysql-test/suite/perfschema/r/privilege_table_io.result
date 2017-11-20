@@ -69,6 +69,9 @@ wait/io/table/sql/handler	handler.cc:	TABLE	mysql	global_grants	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	global_grants	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	global_grants	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	global_grants	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	global_grants	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	global_grants	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	global_grants	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables_priv	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables_priv	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables_priv	fetch	1

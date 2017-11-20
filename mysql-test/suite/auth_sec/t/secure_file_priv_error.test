@@ -25,11 +25,11 @@ EOF
 
 --echo # Search for : Failed to access directory for --secure-file-priv.
 let SEARCH_PATTERN= Failed to access directory for --secure-file-priv;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # Search for : No such file or directory
 let SEARCH_PATTERN= No such file or directory;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 perl;
 my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/my_restart.err";

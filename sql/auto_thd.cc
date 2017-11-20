@@ -13,11 +13,13 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "auto_thd.h"
+#include "sql/auto_thd.h"
 
-#include "log.h"
-#include "sql_class.h"                // THD
-#include "sql_thd_internal_api.h"     // create_thd / destroy_thd
+#include "my_loglevel.h"
+#include "mysql/components/services/log_shared.h"
+#include "sql/log.h"
+#include "sql/sql_class.h"            // THD
+#include "sql/sql_thd_internal_api.h" // create_thd / destroy_thd
 
 /**
   Create THD object and initialize internal variables.

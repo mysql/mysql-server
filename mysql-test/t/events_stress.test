@@ -64,6 +64,8 @@ SET GLOBAL event_scheduler=on;
 DROP DATABASE events_conn1_test2;
 
 SET GLOBAL event_scheduler=off;
+--source include/no_running_event_scheduler.inc
+
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test2';
 CREATE DATABASE events_conn1_test3;
 USE events_conn1_test3;
@@ -76,6 +78,8 @@ while ($1)
 }
 --enable_query_log
 SET GLOBAL event_scheduler=on;
+--source include/running_event_scheduler.inc
+
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test3';
 CREATE DATABASE events_conn1_test4;
 USE events_conn1_test4;
@@ -111,8 +115,10 @@ connection default;
 DROP DATABASE events_conn1_test2;
 DROP DATABASE events_conn1_test3;
 SET GLOBAL event_scheduler=off;
+--source include/no_running_event_scheduler.inc
 DROP DATABASE events_conn1_test4;
 SET GLOBAL event_scheduler=on;
+--source include/running_event_scheduler.inc
 connection conn2;
 reap;
 disconnect conn2;
@@ -133,7 +139,3 @@ DROP USER event_user3@localhost;
 #
 
 DROP DATABASE events_test;
-
-# Cleanup
-SET GLOBAL event_scheduler=off;
---source include/check_events_off.inc

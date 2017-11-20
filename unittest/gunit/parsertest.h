@@ -1,6 +1,6 @@
 #ifndef PARSERTEST_INCLUDED
 #define PARSERTEST_INCLUDED
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 
 #include "test_utils.h"
 
-#include "sql_class.h"
-#include "sql_parse.h"
+#include "sql/sql_class.h"
+#include "sql/sql_parse.h"
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,13 +15,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #ifndef DYNAMIC_PRIVILEGE_TABLE_H
 #define DYNAMIC_PRIVILEGE_TABLE_H
 
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <auth/auth_common.h>
 #include <m_string.h>
 #include <algorithm>
 #include <functional>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+
+#include "sql/auth/auth_common.h"
+#include "sql/key.h"
+
+class THD;
+struct TABLE;
+struct TABLE_LIST;
 
 typedef std::unordered_set<std::string >
   Dynamic_privilege_register;

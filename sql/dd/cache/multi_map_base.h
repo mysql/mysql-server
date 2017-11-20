@@ -18,16 +18,17 @@
 
 #include <stdio.h>
 
-#include "dd/types/abstract_table.h"
-#include "dd/types/charset.h"
-#include "dd/types/collation.h"
-#include "dd/types/event.h"
-#include "dd/types/routine.h"
-#include "dd/types/schema.h"
-#include "dd/types/spatial_reference_system.h"
-#include "dd/types/tablespace.h"
 #include "element_map.h"                      // Element_map
-#include "my_dbug.h"
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/charset.h"
+#include "sql/dd/types/collation.h"
+#include "sql/dd/types/column_statistics.h"
+#include "sql/dd/types/event.h"
+#include "sql/dd/types/resource_group.h"
+#include "sql/dd/types/routine.h"
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/spatial_reference_system.h"
+#include "sql/dd/types/tablespace.h"
 
 namespace dd {
 namespace cache {

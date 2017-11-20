@@ -13,20 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#include "gcs_base_test.h"
 
 #include "mysql/gcs/gcs_message.h"
-#include "mysql/gcs/gcs_log_system.h"
-
 #include "gcs_xcom_statistics_interface.h"
 #include "gcs_xcom_communication_interface.h"
-
-using ::testing::Return;
-using ::testing::ReturnArg;
-using ::testing::Invoke;
-using ::testing::WithArg;
-using ::testing::_;
 
 namespace gcs_xcom_communication_unittest {
 
@@ -138,7 +129,7 @@ public:
 };
 
 
-class XComCommunicationTest : public ::testing::Test
+class XComCommunicationTest : public GcsBaseTest
 {
 protected:
 
@@ -150,8 +141,6 @@ protected:
     xcom_comm_if=    new Gcs_xcom_communication(mock_stats,
                                                 mock_proxy,
                                                 mock_vce);
-    logger= new Gcs_simple_ext_logger_impl();
-    Gcs_logger::initialize(logger);
   }
 
 
@@ -161,8 +150,6 @@ protected:
     delete mock_vce;
     delete mock_proxy;
     delete xcom_comm_if;
-    Gcs_logger::finalize();
-    delete logger;
   }
 
 
@@ -170,7 +157,6 @@ protected:
   mock_gcs_xcom_statistics_updater             *mock_stats;
   mock_gcs_xcom_proxy                          *mock_proxy;
   mock_gcs_xcom_view_change_control_interface  *mock_vce;
-  Ext_logger_interface                         *logger;
 };
 
 

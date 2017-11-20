@@ -20,11 +20,11 @@
 
 #include "table_session_connect.h"
 
-#include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "pfs_buffer_container.h"
+#include "sql/field.h"
 
 bool
 PFS_index_session_connect::match(PFS_thread *pfs)
@@ -388,7 +388,7 @@ table_session_connect::read_row_values(TABLE *table,
       case FO_PROCESS_ID:
         if (m_row.m_process_id != 0)
         {
-          set_field_ulong(f, m_row.m_process_id);
+          set_field_ulonglong(f, m_row.m_process_id);
         }
         else
         {

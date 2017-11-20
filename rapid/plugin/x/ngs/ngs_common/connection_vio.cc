@@ -89,7 +89,7 @@ ssize_t Connection_vio::write(const char *buffer, const std::size_t buffer_size)
   {
     ssize_t result = 0;
     {
-      Mutex_lock lock(m_shutdown_mutex);
+      MUTEX_LOCK(lock, m_shutdown_mutex);
       result = vio_write(m_vio, (const uchar*)buffer, bytes_to_send);
     }
 
@@ -155,7 +155,7 @@ ssize_t Connection_vio::read(char *buffer, const std::size_t buffer_size)
 
 int Connection_vio::shutdown(Shutdown_type)
 {
-  Mutex_lock lock(m_shutdown_mutex);
+  MUTEX_LOCK(lock, m_shutdown_mutex);
   return vio_shutdown(m_vio);
 }
 

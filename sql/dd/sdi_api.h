@@ -19,15 +19,15 @@
 
 #include <memory>
 
-#include "dd/string_type.h"
 #include "mem_root_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/table.h"
 
-class THD;
 class MDL_request;
+class THD;
 struct TABLE_LIST;
 
 namespace dd {
-class Table;
 namespace sdi {
 
 /**

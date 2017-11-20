@@ -19,6 +19,7 @@
 
 #include "xpl_server.h"
 
+#include "ngs_common/config.h"
 #include "auth_mysql41.h"
 #include "auth_plain.h"
 #include "io/xpl_listener_factory.h"
@@ -200,8 +201,8 @@ ngs::shared_ptr<ngs::Client_interface> xpl::Server::create_client(ngs::Connectio
 
 
 ngs::shared_ptr<ngs::Session_interface> xpl::Server::create_session(ngs::Client_interface &client,
-                                                            ngs::Protocol_encoder &proto,
-                                                            Session::Session_id session_id)
+                                                                    ngs::Protocol_encoder_interface &proto,
+                                                                    const Session::Session_id session_id)
 {
   return ngs::shared_ptr<ngs::Session>(
            ngs::allocate_shared<xpl::Session>(ngs::ref(client), &proto, session_id));
@@ -219,7 +220,7 @@ void xpl::Server::on_client_closed(const ngs::Client_interface&)
 
 bool xpl::Server::will_accept_client(const ngs::Client_interface&)
 {
-  Mutex_lock lock(m_accepting_mutex);
+  MUTEX_LOCK(lock, m_accepting_mutex);
 
   ++m_num_of_connections;
 
@@ -350,7 +351,9 @@ int xpl::Server::exit(MYSQL_PLUGIN)
 {
   // this flag will trigger the on_verify_server_state() timer to trigger an acceptor thread exit
   exiting = true;
-  my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "Exiting");
+
+  if (nullptr != xpl::plugin_handle)
+    my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "Exiting");
 
   if (instance)
   {
@@ -377,7 +380,11 @@ int xpl::Server::exit(MYSQL_PLUGIN)
     instance = NULL;
   }
 
-  my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "Exit done");
+  if (nullptr != xpl::plugin_handle)
+    my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "Exit done");
+
+  xpl::plugin_handle = nullptr;
+
   return 0;
 }
 
@@ -526,7 +533,7 @@ bool xpl::Server::on_net_startup()
       sql_context.switch_to_local_user(MYSQL_SESSION_USER);
       sql_result.query("SELECT @@skip_networking, @@skip_name_resolve, @@have_ssl='YES', @@ssl_key, "
                        "@@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_crl, @@ssl_crlpath, @@tls_version;");
-    } catch (const ngs::Error_code &error) {
+    } catch (const ngs::Error_code &) {
       log_error("Unable to use user mysql.session account when connecting"
                 "the server for internal plugin requests.");
       log_info("For more information, please see the X Plugin User Account"
@@ -607,7 +614,8 @@ bool xpl::Server::on_net_startup()
 
 ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
 {
-  ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock(server().get_client_exit_mutex()));
+  ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock(server().get_client_exit_mutex(),
+                                                  __FILE__, __LINE__));
   ngs::Client_ptr found_client = server().get_client_list().find(client_id);
 
   // Locking exit mutex of ensures that the client wont exit Client::run until
@@ -631,7 +639,7 @@ ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
     uint64_t mysql_session_id = 0;
 
     {
-      Mutex_lock lock_session_exit(xpl_client->get_session_exit_mutex());
+      MUTEX_LOCK(lock_session_exit, xpl_client->get_session_exit_mutex());
       ngs::shared_ptr<xpl::Session> session = xpl_client->get_session();
 
       is_session = NULL != session.get();
@@ -648,7 +656,7 @@ ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
 
       bool is_killed = false;
       {
-        Mutex_lock lock_session_exit(xpl_client->get_session_exit_mutex());
+        MUTEX_LOCK(lock_session_exit, xpl_client->get_session_exit_mutex());
         ngs::shared_ptr<xpl::Session> session = xpl_client->get_session();
 
         if (session)
@@ -740,7 +748,7 @@ struct Client_check_handler_thd
 };
 
 
-xpl::Client_ptr xpl::Server::get_client_by_thd(Server_ref &server, THD *thd)
+xpl::Client_ptr xpl::Server::get_client_by_thd(Server_ptr &server, THD *thd)
 {
   std::vector<ngs::Client_ptr> clients;
   Client_check_handler_thd     client_check_thd(thd);

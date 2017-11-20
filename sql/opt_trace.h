@@ -26,7 +26,8 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"     // enum_sql_command
-#include "opt_trace_context.h" // Opt_trace_context
+#include "mysql/udf_registration_types.h"
+#include "sql/opt_trace_context.h" // Opt_trace_context
 
 class Cost_estimate;
 class Item;

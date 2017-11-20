@@ -913,9 +913,12 @@ x509* PemToDer(FILE* file, CertType type, EncryptedInfo* info)
     if (type == Cert) {
         strncpy(header, "-----BEGIN CERTIFICATE-----", sizeof(header));
         strncpy(footer, "-----END CERTIFICATE-----", sizeof(footer));
-    } else {
+    } else if (type == PrivateKey) {
         strncpy(header, "-----BEGIN RSA PRIVATE KEY-----", sizeof(header));
         strncpy(footer, "-----END RSA PRIVATE KEY-----", sizeof(header));
+    } else {
+        strncpy(header, "-----BEGIN PUBLIC KEY-----", sizeof(header));
+        strncpy(footer, "-----END PUBLIC KEY-----", sizeof(header));
     }
 
     long begin = -1;
@@ -959,7 +962,6 @@ x509* PemToDer(FILE* file, CertType type, EncryptedInfo* info)
             if (fgets(line,sizeof(line), file)) // get blank line
               begin = ftell(file);
         }
-          
     }
 
     while(fgets(line, sizeof(line), file))
@@ -989,6 +991,19 @@ x509* PemToDer(FILE* file, CertType type, EncryptedInfo* info)
     return x.release();
 }
 
+x509* PemToDer(const void * buffer, CertType type, long buffer_size)
+{
+    FILE *tmp_file = tmpfile();
+    if (!tmp_file)
+        return 0;
+    fwrite(buffer, sizeof(char), buffer_size, tmp_file);
+    rewind(tmp_file);
+    x509 * x = PemToDer(tmp_file, type, 0);
+    rewind(tmp_file);
+    fwrite("0", sizeof(char), buffer_size, tmp_file);
+    fclose(tmp_file);
+    return x;
+}
 
 } // namespace
 

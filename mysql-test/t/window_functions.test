@@ -1633,6 +1633,18 @@ SELECT * FROM t HAVING 1 = rank() OVER (ORDER BY a);
 --error ER_WINDOW_INVALID_WINDOW_FUNC_USE
 SELECT 1 FROM t HAVING 1=(SELECT 1 FROM (SELECT 1) foo) AND COUNT(a) OVER ();
 
+--echo #
+--echo # Bug#26502118: WINDOW FUNCTIONS: CRASH AND LARGE MEMORY ALLOCATION,
+--echo #               FIRST_VALUE, BLOBS
+--echo #
+--echo # This was really missing error detection
+--echo #
+CREATE TABLE tb(a LONGBLOB NOT NULL);
+INSERT INTO tb VALUES ('1'), ('2'), ('3'), ('4'), ('5');
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT (SELECT 1 FROM tb WHERE (SELECT 1 FROM tb WHERE FIRST_VALUE(a) OVER()));
+DROP TABLE tb;
+
 --echo Windows should only be allowed in order by of a simple table query
 --error ER_AGGREGATE_ORDER_FOR_UNION
 (select a from t) union (select a from t) order by (row_number() over ());
@@ -3344,7 +3356,6 @@ CREATE TABLE `A` (
   KEY `col_int_key` (`col_int_key`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
 
-
 INSERT INTO `A` VALUES ('nznrrizpfk','znrrizpfkx',66,'2006-07-12','2004-06-08','nrrizpfkxceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhh',1,'TWLFR',NULL,'CROGF','the','back','0000-00-00 00:00:00','LHIBY',217),('c','GQPFO',28,NULL,'0000-00-00','well',2,'or',NULL,'rrizpfkxce','rizpfkxceksatef','izpfkxceks','0000-00-00 00:00:00','zpfkxceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsx',179),('but','XXDMG',44,'2002-09-18',NULL,'some',3,'come','2004-10-05 00:00:00','pfkxceksat','it','p','2001-02-20 00:00:00','YOTTT',238),('fkxceksate','WVXCD',168,'2009-12-23','2005-04-16','kxceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwuj',4,'SJYOI',NULL,'y','xceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwuju','have','0000-00-00 00:00:00','ceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujul',99),('just','i',0,'2003-11-07','0000-00-00','come',5,'can\'t','2006-03-17 18:41:01','not','eksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulp','ksatefqsdk','2000-11-05 22:46:38','k',75);
 
 CREATE TABLE `AA` (
@@ -3402,7 +3413,6 @@ CREATE TABLE `B` (
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
 
 INSERT INTO `B` VALUES (1,229,'a','2003-05-12 00:00:00','x','2002-07-16 00:00:00','p','satefqsdks','can\'t','0000-00-00','atefqsdksj','tefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvt','my',92,NULL),(2,159,'efqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnoz','0000-00-00 00:00:00','fqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxnd','2007-04-08 09:43:38','her','qsdksjijcs','sdksjijcsz','2006-03-26','VXECY','why','JNAFV',70,'0000-00-00'),(3,42,'dksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaij','2009-02-12 04:14:15','back','2000-07-26 07:47:30','r','go','ksjijcszxw','0000-00-00','s','o','sjijcszxwb',200,'0000-00-00'),(4,146,'jijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaijurs','0000-00-00 00:00:00','EXVCL','0000-00-00 00:00:00','DFVNQ','ijcszxwbjj','NMTOX','2004-12-17','p','jcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaijurspr','i',104,'2002-03-06'),(5,235,'i','0000-00-00 00:00:00','he\'s','2000-01-06 20:32:48','cszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyci','YGVHA','EFEOY','2000-01-18','szxwbjjvvk','oh','not',239,'2001-07-22');
-
 
 ALTER TABLE A ADD COLUMN col_varchar_10_latin1_gckey VARCHAR(20) GENERATED ALWAYS AS (CONCAT(col_varchar_10_latin1_key,'x')) VIRTUAL;
 ALTER TABLE B ADD COLUMN col_int_gckey INT GENERATED ALWAYS AS (col_int_key + col_int_key) VIRTUAL;
@@ -3513,7 +3523,7 @@ FROM t  GROUP BY a);
 DROP TABLE twf,t;
 
 --echo #
---echo # That that user hasn't changed default internal temporary table storage
+--echo # Check that user hasn't changed default internal temporary table storage
 --echo # engine
 --echo #
 SET @savmode=@@GLOBAL.INTERNAL_TMP_MEM_STORAGE_ENGINE;
@@ -3522,6 +3532,97 @@ SET INTERNAL_TMP_MEM_STORAGE_ENGINE='MEMORY';
 SELECT ROW_NUMBER() OVER () FROM DUAL;
 SET INTERNAL_TMP_MEM_STORAGE_ENGINE=@savmode;
 
+--echo #
+--echo # Bug#26500442: WINDOW FUNCTIONS: CRASH IN WINDOW::HAS_WINDOWING_STEPS
+--echo #
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1), (2), (3), (4);
+SELECT ISNULL(COS(RANK() OVER())) FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #26496733: WINDOW FUNCTIONS: ASSERT FALSE WITH JSON COLUMN
+--echo #
+
+SET @savmode=@@SESSION.SQL_MODE;
+SET SQL_MODE='';
+CREATE TABLE t(a JSON NOT NULL);
+INSERT INTO t VALUES();
+SELECT PERCENT_RANK() OVER (ORDER BY a RANGE CURRENT ROW) FROM t;
+SET SESSION SQL_MODE=@savmode;
+DROP TABLE t;
+
+--echo # End of test for Bug#26496733
+
+--echo #
+--echo # Bug#26497353: ASSERTION FAILED: M_OPENED_TABLE != NULLPTR
+--echo #
+
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES (1), (2), (3);
+
+SELECT DENSE_RANK() OVER w2 FROM t GROUP BY 'a' WITH ROLLUP
+  WINDOW w2 AS (ROWS UNBOUNDED PRECEDING);
+
+DROP TABLE t;
+
+--echo # End of test for Bug#26497353
+
+--echo #
+--echo # Bug #26496645: WINDOW FUNCTIONS: CRASH IN
+--echo #                WINDOW::RESTORE_SPECIAL_RECORD
+--echo #
+
+CREATE TABLE t (
+  b VARCHAR(20) DEFAULT NULL,
+  d INT DEFAULT NULL);
+INSERT INTO t VALUES(1,-1);
+INSERT INTO t VALUES(1,-1);
+SELECT b,d,LAST_VALUE(b) OVER(ORDER BY d RANGE BETWEEN 1 FOLLOWING AND
+                              UNBOUNDED FOLLOWING) FROM t;
+DROP TABLE t;
+
+--echo # End of test for Bug#26496645
+
+--echo #
+--echo # Bug#26411055: WINDOW FRAME ACCEPTS NON-INTEGER ARG FOR ROWS
+--echo #
+
+CREATE TABLE t(w INT);
+
+INSERT INTO t VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+--error ER_WINDOW_FRAME_ILLEGAL
+SELECT w, SUM(w) OVER (ROWS 3.14 PRECEDING) FROM t;
+--error ER_WINDOW_FRAME_ILLEGAL
+SELECT w, SUM(w) OVER (ROWS BETWEEN 3 PRECEDING AND 3.4 FOLLOWING) FROM t;
+--error ER_WINDOW_FRAME_ILLEGAL
+SELECT w, SUM(w) OVER (ROWS BETWEEN CURRENT ROW AND 3.4 FOLLOWING) FROM t;
+
+--error ER_WINDOW_FRAME_ILLEGAL
+PREPARE stmt FROM "SELECT w, SUM(w) OVER (ROWS 3.14 PRECEDING) FROM t";
+PREPARE stmt FROM "SELECT w, SUM(w) OVER (ROWS ? PRECEDING) FROM t";
+SET @p1= 2;
+EXECUTE stmt USING @p1;
+SET @p1= 2.3;
+--error ER_WINDOW_FRAME_ILLEGAL
+EXECUTE stmt USING @p1;
+DROP PREPARE stmt;
+
+DROP TABLE t;
+
+--echo # End of test for Bug#26411055
+
+--echo #
+--echo # Bug#26497247:WINDOW FUNCTIONS: CRASH IN DO_COPY_MAYBE_NULL
+--echo #
+
+CREATE TABLE t(a INTEGER NOT NULL);
+INSERT INTO t VALUES ('1'), ('2'), ('3');
+SELECT LEAD(a,1) OVER() FROM t GROUP BY a WITH ROLLUP;
+DROP TABLE t;
+
+--echo #End of test for Bug#26497247
 
 # Local Variables:
 # mode: sql

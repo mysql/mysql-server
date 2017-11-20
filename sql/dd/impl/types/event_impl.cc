@@ -13,22 +13,21 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/event_impl.h"
+#include "sql/dd/impl/types/event_impl.h"
 
 #include <sstream>
+#include <string>
 
-#include "dd/impl/raw/object_keys.h"             // Primary_id_key
-#include "dd/impl/raw/raw_record.h"              // Raw_record
-#include "dd/impl/tables/events.h"               // Events
-#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
-#include "dd/string_type.h"                      // dd::String_type
-#include "dd/types/weak_object.h"
 #include "lex_string.h"
 #include "my_sys.h"
 #include "my_user.h"                             // parse_user
 #include "mysql_com.h"
-#include "mysqld.h"
 #include "mysqld_error.h"                        // ER_*
+#include "sql/dd/impl/raw/raw_record.h"          // Raw_record
+#include "sql/dd/impl/tables/events.h"           // Events
+#include "sql/dd/impl/transaction_impl.h"        // Open_dictionary_tables_ctx
+#include "sql/dd/string_type.h"                  // dd::String_type
+#include "sql/dd/types/weak_object.h"
 
 using dd::tables::Events;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,27 +13,33 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "auth_acls.h"
-#include "derror.h"
-#include "handler.h"
-#include "item_create.h"
+#include "sql/parse_tree_helpers.h"
+
 #include "m_string.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysqld_error.h"
-#include "parse_tree_helpers.h"
-#include "sp_head.h"
-#include "sp_instr.h"
-#include "sp_pcontext.h"
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
-#include "system_variables.h"
-#include "trigger_def.h"
-#include "parse_tree_nodes.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"
+#include "sql/parse_tree_nodes.h"
+#include "sql/resourcegroups/resource_group_mgr.h" // Resource_group_mgr
+#include "sql/sp_head.h"
+#include "sql/sp_instr.h"
+#include "sql/sp_pcontext.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/system_variables.h"
+#include "sql/trigger_def.h"
+#include "sql_string.h"
 
 
 /**
@@ -513,5 +519,78 @@ bool apply_privileges(THD *thd,
       }
     }
   } // end for
+  return false;
+}
+
+
+bool validate_vcpu_range(const resourcegroups::Range &range)
+{
+  auto vcpus= resourcegroups::Resource_group_mgr::instance()->num_vcpus();
+  for (resourcegroups::platform::cpu_id_t cpu : { range.m_start, range.m_end })
+  {
+    if (cpu >= vcpus)
+    {
+      my_error(ER_INVALID_VCPU_ID, MYF(0), cpu);
+      return true;
+    }
+  }
+  return false;
+}
+
+
+bool validate_resource_group_priority(THD *thd, int *priority,
+                                      const LEX_CSTRING &name,
+                                      const resourcegroups::Type &type)
+{
+  auto mgr_ptr= resourcegroups::Resource_group_mgr::instance();
+  if (mgr_ptr->thread_priority_available())
+  {
+    int min= resourcegroups::platform::min_thread_priority_value();
+    int max= resourcegroups::platform::max_thread_priority_value();
+
+    if (type == resourcegroups::Type::USER_RESOURCE_GROUP)
+      min= 0;
+    else
+      max= 0;
+
+    if ( *priority < min || *priority > max)
+    {
+      my_error(ER_INVALID_THREAD_PRIORITY, MYF(0), *priority,
+               mgr_ptr->resource_group_type_str(type), name.str, min, max);
+      return true;
+    }
+  }
+  else if (*priority != 0)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_ATTRIBUTE_IGNORED,
+                        ER_THD(thd, ER_ATTRIBUTE_IGNORED),
+                        "thread_priority", "using default value");
+    *priority= 0;
+  }
+  return false;
+}
+
+
+bool check_resource_group_support()
+{
+  auto res_grp_mgr= resourcegroups::Resource_group_mgr::instance();
+  if (!res_grp_mgr->resource_group_support())
+  {
+    my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "Resource Groups",
+             res_grp_mgr->unsupport_reason());
+    return true;
+  }
+  return false;
+}
+
+
+bool check_resource_group_name_len(const LEX_CSTRING& name)
+{
+  if (name.length > NAME_CHAR_LEN)
+  {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);
+    return true;
+  }
   return false;
 }

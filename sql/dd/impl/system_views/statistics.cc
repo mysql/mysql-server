@@ -13,7 +13,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/system_views/statistics.h"
+#include "sql/dd/impl/system_views/statistics.h"
+
+#include <string>
+
+#include "sql/stateless_allocator.h"
 
 namespace dd {
 namespace system_views {
@@ -24,11 +28,6 @@ const Statistics_base &Statistics::instance()
   return *s_instance;
 }
 
-const Statistics_base &Statistics_dynamic::instance()
-{
-  static Statistics_base *s_instance= new Statistics_dynamic();
-  return *s_instance;
-}
 
 const Statistics_base &Show_statistics::instance()
 {
@@ -36,11 +35,6 @@ const Statistics_base &Show_statistics::instance()
   return *s_instance;
 }
 
-const Statistics_base &Show_statistics_dynamic::instance()
-{
-  static Statistics_base *s_instance= new Show_statistics_dynamic();
-  return *s_instance;
-}
 
 Statistics_base::Statistics_base()
 {
@@ -100,7 +94,16 @@ Statistics::Statistics()
 {
   m_target_def.set_view_name(view_name());
 
-  m_target_def.add_field(FIELD_CARDINALITY, "CARDINALITY", "stat.cardinality");
+  m_target_def.add_field(FIELD_CARDINALITY,  "CARDINALITY",
+    "INTERNAL_INDEX_COLUMN_CARDINALITY(sch.name, tbl.name, idx.name,"
+      "col.name, idx.ordinal_position,"
+      "icu.ordinal_position,"
+      "tbl.engine,"
+      "tbl.se_private_id,"
+      "tbl.hidden != 'Visible' OR idx.hidden OR icu.hidden,"
+      "IF(ISNULL(stat.cardinality), CAST(-1 AS UNSIGNED), stat.cardinality),"
+      "IF(ISNULL(stat.cached_time), 0, stat.cached_time))");
+
   m_target_def.add_from("LEFT JOIN mysql.index_stats stat"
                                   "  ON tbl.name=stat.table_name"
                                   " AND sch.name=stat.schema_name"
@@ -108,19 +111,6 @@ Statistics::Statistics()
                                   " AND col.name=stat.column_name");
 }
 
-Statistics_dynamic::Statistics_dynamic()
-{
-  m_target_def.set_view_name(view_name());
-
-  m_target_def.add_field(FIELD_CARDINALITY,  "CARDINALITY",
-    "INTERNAL_INDEX_COLUMN_CARDINALITY(sch.name, tbl.name, idx.name,"
-                                       "idx.ordinal_position,"
-                                       "icu.ordinal_position,"
-                                       "tbl.engine,"
-                                       "tbl.se_private_id,"
-                                       "idx.hidden OR icu.hidden)");
-
-}
 
 Show_statistics::Show_statistics()
 {
@@ -132,16 +122,5 @@ Show_statistics::Show_statistics()
                          "COLUMN_ORDINAL_POSITION", "icu.ordinal_position");
 }
 
-
-Show_statistics_dynamic::Show_statistics_dynamic()
-{
-  m_target_def.set_view_name(view_name());
-
-  m_target_def.add_field(FIELD_INDEX_ORDINAL_POSITION,
-                         "INDEX_ORDINAL_POSITION", "idx.ordinal_position");
-  m_target_def.add_field(FIELD_COLUMN_ORDINAL_POSITION,
-                         "COLUMN_ORDINAL_POSITION", "icu.ordinal_position");
-}
-
-}
-}
+} // system_views
+} // dd

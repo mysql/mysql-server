@@ -121,9 +121,7 @@ fts_config_get_value(
 
 	error = fts_eval_sql(trx, graph);
 
-	mutex_enter(&dict_sys->mutex);
 	que_graph_free(graph);
-	mutex_exit(&dict_sys->mutex);
 
 	return(error);
 }
@@ -149,9 +147,7 @@ fts_config_create_index_param_name(
 	::strcpy(name, param);
 	name[len] = '_';
 
-	fts_write_object_id(index->id, name + len + 1,
-			    DICT_TF2_FLAG_IS_SET(index->table,
-						 DICT_TF2_FTS_AUX_HEX_NAME));
+	fts_write_object_id(index->id, name + len + 1);
 
 	return(name);
 }
@@ -231,7 +227,7 @@ fts_config_set_value(
 
 	error = fts_eval_sql(trx, graph);
 
-	fts_que_graph_free_check_lock(fts_table, NULL, graph);
+	que_graph_free(graph);
 
 	n_rows_updated = trx->undo_no - undo_no;
 
@@ -257,7 +253,7 @@ fts_config_set_value(
 
 		error = fts_eval_sql(trx, graph);
 
-		fts_que_graph_free_check_lock(fts_table, NULL, graph);
+		que_graph_free(graph);
 	}
 
 	return(error);

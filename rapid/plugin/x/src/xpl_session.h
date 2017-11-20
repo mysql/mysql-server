@@ -25,7 +25,7 @@
 #include "ngs/client_session.h"
 
 #include "sql_data_context.h"
-#include "expect.h"
+#include "expect/expect_stack.h"
 #include "crud_cmd_handler.h"
 #include "xpl_session_status_variables.h"
 #include "xpl_global_status_variables.h"
@@ -60,7 +60,7 @@ private:
 class Session : public ngs::Session
 {
 public:
-  Session(ngs::Client_interface &client, ngs::Protocol_encoder *proto, const Session_id session_id);
+  Session(ngs::Client_interface &client, ngs::Protocol_encoder_interface *proto, const Session_id session_id);
   virtual ~Session();
 
 public: // impl ngs::Session_interface

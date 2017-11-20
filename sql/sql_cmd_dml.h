@@ -17,7 +17,7 @@
 #define SQL_CMD_DML_INCLUDED
 
 #include "my_dbug.h"
-#include "sql_cmd.h"
+#include "sql/sql_cmd.h"
 
 struct LEX;
 class Query_result;

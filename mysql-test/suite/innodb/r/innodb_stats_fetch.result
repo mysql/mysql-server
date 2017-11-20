@@ -120,7 +120,7 @@ table_name = 'test_ps_fetch' AND
 index_name = 'idx' AND
 stat_name = 'n_diff_pfx02';
 FLUSH TABLE test_ps_fetch;
-set information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 SELECT seq_in_index, column_name, cardinality
 FROM information_schema.statistics WHERE table_name = 'test_ps_fetch'
 ORDER BY index_name, seq_in_index;
@@ -144,3 +144,4 @@ AVG_ROW_LENGTH	81
 MAX_DATA_LENGTH	0
 INDEX_LENGTH	16384
 DROP TABLE test_ps_fetch;
+SET SESSION information_schema_stats_expiry=default;

@@ -39,16 +39,16 @@ SET @@session.sql_big_selects = "T";
 ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'T'
 SET @@session.sql_big_selects = "Y";
 ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'Y'
-SET @@session.sql_big_selects = TRÜE;
-ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'TRÜE'
-SET @@session.sql_big_selects = ÕN;
-ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'ÕN'
+SET @@session.sql_big_selects = TRÃœE;
+ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'TRÃœE'
+SET @@session.sql_big_selects = Ã•N;
+ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'Ã•N'
 SET @@session.sql_big_selects = OF;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
-SET @@session.sql_big_selects = ÓFF;
-ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'ÓFF'
-SET @@session.sql_big_selects = '¹';
-ERROR 42000: Variable 'sql_big_selects' can't be set to the value of '¹'
+SET @@session.sql_big_selects = Ã“FF;
+ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'Ã“FF'
+SET @@session.sql_big_selects = 'Â¹';
+ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'Â¹'
 SET @@session.sql_big_selects = NO;
 ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'NO'
 '#-------------------FN_DYNVARS_153_05----------------------------#'

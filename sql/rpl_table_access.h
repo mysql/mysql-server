@@ -21,7 +21,6 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "mysql/mysql_lex_string.h"
 #include "thr_lock.h"                // thr_lock_type
 
 class Open_tables_backup;
@@ -86,6 +85,9 @@ public:
     @param[in] need_commit Need to commit current transaction
                            if it is true.
 
+    @return
+      @retval  true   failed
+      @retval  false  success
     If there is an error, rolls back the current statement. Otherwise,
     commits it. However, if a new thread was created and there is an
     error, the transaction must be rolled back. Otherwise, it must be
@@ -93,7 +95,7 @@ public:
     any user transaction and if not finished, there would be pending
     changes.
   */
-  void close_table(THD *thd, TABLE* table, Open_tables_backup *backup,
+  bool close_table(THD *thd, TABLE* table, Open_tables_backup *backup,
                    bool error, bool need_commit);
   /**
     Creates a new thread in the bootstrap process or in the mysqld startup,

@@ -1,0 +1,41 @@
+# Test for registration of status variables by 3 components.
+# Vars are named with "<component name>.<var name>".
+# One var is without <component name>: Working.
+
+--source ../include/have_component_test_status_var_service.inc
+
+INSTALL COMPONENT "file://component_test_status_var_service_int";
+SHOW STATUS WHERE VARIABLE_NAME LIKE 'int_var%';
+SHOW STATUS WHERE VARIABLE_NAME LIKE 'test_int_component.int_variable';
+SHOW STATUS WHERE VARIABLE_NAME LIKE 'test_int_component.int_variable_value';
+
+INSTALL COMPONENT "file://component_test_status_var_service_str";
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE 'test_component.int_variable_value';
+SHOW STATUS WHERE VARIABLE_NAME LIKE 'test_str_component.str_variable';
+
+INSTALL COMPONENT "file://component_test_status_var_service";
+SHOW STATUS WHERE VARIABLE_NAME LIKE 'test_component.int_variable';
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%component%';
+
+UNINSTALL COMPONENT "file://component_test_status_var_service";
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%component%';
+UNINSTALL COMPONENT "file://component_test_status_var_service_int";
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%component%';
+UNINSTALL COMPONENT "file://component_test_status_var_service_str";
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%component%';
+
+# Write the test results in "test_component_status_var_service.log" into the
+# result file of this test
+--echo ########## test_component_status_var_service.log:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_component_status_var_service.log;
+remove_file $MYSQLD_DATADIR/test_component_status_var_service.log;
+--echo ########## test_component_status_var_service_int.log:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_component_status_var_service_int.log;
+remove_file $MYSQLD_DATADIR/test_component_status_var_service_int.log;
+--echo ########## test_component_status_var_service_str.log:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_component_status_var_service_str.log;
+remove_file $MYSQLD_DATADIR/test_component_status_var_service_str.log;

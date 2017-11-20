@@ -31,7 +31,7 @@ static PSI_memory_key key_memory_rewrite_example;
 
 static PSI_memory_info all_rewrite_memory[]=
 {
-  { &key_memory_rewrite_example, "rewrite_example", 0 }
+  { &key_memory_rewrite_example, "rewrite_example", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static int plugin_init(MYSQL_PLUGIN)

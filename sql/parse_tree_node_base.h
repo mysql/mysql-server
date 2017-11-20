@@ -20,15 +20,16 @@
 #include <cstdlib>
 #include <new>
 
-#include "check_stack.h"
-#include "mem_root_array.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "parse_location.h"
-#include "sql_const.h"
-#include "thr_malloc.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/check_stack.h"
+#include "sql/mem_root_array.h"
+#include "sql/parse_location.h"
+#include "sql/sql_const.h"
+#include "sql/thr_malloc.h"
 
 class SELECT_LEX;
 class Sql_alloc;
@@ -61,7 +62,9 @@ enum enum_parsing_context
   CTX_MESSAGE, ///< "No tables used" messages etc.
   CTX_TABLE, ///< for single-table UPDATE/DELETE/INSERT/REPLACE
   CTX_SELECT_LIST, ///< SELECT (subquery), (subquery)...
-  CTX_UPDATE_VALUE_LIST, ///< UPDATE ... SET field=(subquery)...
+  CTX_UPDATE_VALUE, ///< UPDATE ... SET field=(subquery)...
+  CTX_INSERT_VALUES, ///< INSERT ... VALUES
+  CTX_INSERT_UPDATE, ///< INSERT ... ON DUPLICATE KEY UPDATE ...
   CTX_JOIN,
   CTX_QEP_TAB,
   CTX_MATERIALIZATION,

@@ -25,6 +25,7 @@ syntax = "proto2";
 package Mysqlx;
 option java_package = "com.mysql.cj.mysqlx.protobuf";
 
+import "google/protobuf/descriptor.proto"; // comment_out_if PROTOBUF_LITE
 
 // style-guide:
 //
@@ -103,11 +104,18 @@ message ServerMessages {
     RESULTSET_FETCH_DONE_MORE_OUT_PARAMS = 18;
   };
 }
-
+// ifndef PROTOBUF_LITE
+extend google.protobuf.MessageOptions {
+  optional ClientMessages.Type client_message_id = 100001;
+  optional ServerMessages.Type server_message_id = 100002;
+}
+// endif
 
 // generic Ok message
 message Ok {
   optional string msg = 1;
+
+  option (server_message_id) = OK; // comment_out_if PROTOBUF_LITE
 }
 
 
@@ -134,4 +142,6 @@ message Error {
     ERROR = 0;
     FATAL = 1;
   };
+
+  option (server_message_id) = ERROR; // comment_out_if PROTOBUF_LITE
 }

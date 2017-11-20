@@ -13,52 +13,86 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/upgrade/table.h"
+#include "sql/dd/upgrade/table.h"
 
-#include "dd/upgrade/global.h"
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd.h"                            // dd::get_dictionary
-#include "dd/dd_schema.h"                     // Schema_MDL_locker
-#include "dd/dd_table.h"                      // create_dd_user_table
-#include "dd/dd_trigger.h"                    // dd::create_trigger
-#include "dd/dd_view.h"                       // create_view
-#include "dd/impl/bootstrapper.h"             // execute_query
-#include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
-#include "dd/types/object_type.h"             // dd::Object_type
-#include "dd/types/table.h"                   // dd::Table
-#include "dd/types/tablespace.h"              // dd::Tablespace
-#include "derror.h"                           // ER_DEFAULT
-#include "handler.h"                          // legacy_db_type
+#include <assert.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/stat.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <algorithm>
+#include <string>
+
 #include "lex_string.h"
-#include "lock.h"                             // Tablespace_hash_set
-#include "log.h"
+#include "m_string.h"
+#include "my_alloc.h"
+#include "my_base.h"
 #include "my_dbug.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
 #include "my_user.h"                          // parse_user
-#include "mysql/psi/mysql_file.h"             // mysql_file_open
-#include "mysqld.h"                           // mysql_real_data_home
+#include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
 #include "mysqld_error.h"                     // ER_*
-#include "parse_file.h"                       // File_option
-#include "partition_info.h"                   // partition_info
-#include "psi_memory_key.h"                   // key_memory_TABLE
-#include "sp.h"                               // db_load_routine
-#include "sp_head.h"                          // sp_head
-#include "sql_base.h"                         // open_tables
-#include "sql_lex.h"                          // new_empty_query_block
-#include "sql_parse.h"                        // check_string_char_length
-#include "sql_partition.h"                    // mysql_unpack_partition
-#include "sql_plugin.h"                       // plugin_unlock
-#include "sql_prepare.h"                      // Ed_connection
-#include "sql_show.h"                         // view_store_options
-#include "mysqld.h"                           // key_file_sdi
-#include "sql_class.h"                        // THD
-#include "sql_table.h"                        // build_tablename
-#include "sql_view.h"                         // mysql_create_view
-#include "table.h"                            // Table_check_intact
-#include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
-#include "transaction.h"                      // trans_commit
-#include "trigger.h"                          // Trigger
+#include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "sql/dd/dd_schema.h"                 // Schema_MDL_locker
+#include "sql/dd/dd_table.h"                  // create_dd_user_table
+#include "sql/dd/dd_trigger.h"                // dd::create_trigger
+#include "sql/dd/dd_view.h"                   // create_view
+#include "sql/dd/dictionary.h"
+#include "sql/dd/impl/bootstrapper.h"         // execute_query
+#include "sql/dd/properties.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/foreign_key.h"         // dd::Foreign_key
+#include "sql/dd/types/table.h"               // dd::Table
+#include "sql/dd/upgrade/global.h"
+#include "sql/field.h"
+#include "sql/handler.h"                      // legacy_db_type
+#include "sql/key.h"
+#include "sql/lock.h"                         // Tablespace_hash_set
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                       // mysql_real_data_home
+#include "sql/parse_file.h"                   // File_option
+#include "sql/partition_element.h"
+#include "sql/partition_info.h"               // partition_info
+#include "sql/psi_memory_key.h"               // key_memory_TABLE
+#include "sql/sp_head.h"                      // sp_head
+#include "sql/sql_alter.h"
+#include "sql/sql_base.h"                     // open_tables
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"                      // new_empty_query_block
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"                    // check_string_char_length
+#include "sql/sql_show.h"                     // view_store_options
+#include "sql/sql_table.h"                    // build_tablename
+#include "sql/sql_view.h"                     // mysql_create_view
+#include "sql/system_variables.h"
+#include "sql/table.h"                        // Table_check_intact
+#include "sql/table_trigger_dispatcher.h"     // Table_trigger_dispatcher
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"                  // trans_commit
+#include "sql/trigger.h"                      // Trigger
+#include "sql/trigger_def.h"
+#include "sql_string.h"
+#include "thr_lock.h"
+
+class Sroutine_hash_entry;
+namespace dd {
+class Schema;
+class Table;
+}  // namespace dd
 
 namespace dd {
 namespace upgrade {
@@ -1387,6 +1421,126 @@ set_se_data_for_user_tables(THD *thd,
 
 
 /**
+  Set names of parent keys (unique constraint names matching FK
+  in parent tables) for the FKs in which table participates.
+
+  @param  thd         Thread context.
+  @param  schema_name Name of schema.
+  @param  table_name  Name of table.
+  @param  hton        Table's handlerton.
+
+  @retval false - Success.
+  @retval true  - Failure.
+*/
+
+static bool fix_fk_parent_key_names(THD *thd,
+                                    const String_type &schema_name,
+                                    const String_type &table_name,
+                                    handlerton *hton)
+{
+  if (!(hton->flags & HTON_SUPPORTS_FOREIGN_KEYS))
+  {
+    // Shortcut. No need to process FKs for engines which don't support them.
+    return false;
+  }
+
+  Disable_autocommit_guard autocommit_guard(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Table *table_def= nullptr;
+
+  if (thd->dd_client()->acquire_for_modification(schema_name.c_str(),
+                                                 table_name.c_str(),
+                                                 &table_def))
+  {
+    // Error is reported by the dictionary subsystem.
+    return true;
+  }
+
+  if (!table_def)
+  {
+    /*
+      Should never hit this case as the caller of this function stores
+      the information in dictionary.
+    */
+    LogErr(ERROR_LEVEL, ER_DD_CANT_FETCH_TABLE_DATA,
+           table_name.c_str(), schema_name.c_str());
+    return true;
+  }
+
+  for (dd::Foreign_key *fk : *(table_def->foreign_keys()))
+  {
+    const dd::Table *parent_table_def= nullptr;
+
+    if (my_strcasecmp(table_alias_charset,
+                      fk->referenced_table_schema_name().c_str(),
+                      schema_name.c_str()) == 0 &&
+        my_strcasecmp(table_alias_charset,
+                      fk->referenced_table_name().c_str(),
+                      table_name.c_str()) == 0)
+    {
+      // This FK references the same table as on which it is defined.
+      parent_table_def= table_def;
+    }
+    else
+    {
+      if (thd->dd_client()->acquire(fk->referenced_table_schema_name().c_str(),
+                                    fk->referenced_table_name().c_str(),
+                                    &parent_table_def))
+        return true;
+    }
+
+    if (parent_table_def == nullptr)
+    {
+      /*
+        This is legal situaton. Parent table was not upgraded yet or
+        simply doesn't exist. In the former case our FKs will be
+        updated with the correct parent key names once parent table
+        is upgraded.
+      */
+    }
+    else
+    {
+      const char *parent_key_name= find_fk_parent_key(parent_table_def, fk);
+      // Note: If the key returned above is "", this is interpreted as NULL
+      // when storing the value to the DD tables.
+      fk->set_unique_constraint_name(parent_key_name);
+    }
+  }
+
+  /*
+    Adjust parent key names for FKs belonging to already upgraded tables,
+    which reference the table being upgraded here. Also adjust the
+    foreign key parent collection, both for this table and for other
+    tables being referenced by this one.
+  */
+  if (adjust_fk_children_after_parent_def_change(thd,
+                                                 schema_name.c_str(),
+                                                 table_name.c_str(),
+                                                 hton,
+                                                 table_def,
+                                                 false) || // Don't invalidate
+                                                           // TDC we don't have
+                                                           // proper MDL.
+      adjust_fk_parents(thd, schema_name.c_str(), table_name.c_str(),
+                        true, nullptr))
+  {
+    trans_rollback_stmt(thd);
+    trans_rollback(thd);
+    return true;
+  }
+
+  if (thd->dd_client()->update(table_def))
+  {
+    trans_rollback_stmt(thd);
+    trans_rollback(thd);
+    return true;
+  }
+
+  return trans_commit_stmt(thd) || trans_commit(thd);
+}
+
+
+/**
   Read .frm files and enter metadata for tables/views.
 */
 
@@ -1585,6 +1739,8 @@ static bool migrate_table_to_dd(THD *thd,
   // Fix keys and indexes.
   KEY *key_info_buffer;
   uint key_count;
+
+  // Foreign keys are handled at later stage by retrieving info from SE.
   FOREIGN_KEY *dummy_fk_key_info= NULL;
   uint fk_key_count= 0;
 
@@ -1593,7 +1749,7 @@ static bool migrate_table_to_dd(THD *thd,
                                  file, &key_info_buffer, &key_count,
                                  &dummy_fk_key_info, &fk_key_count,
                                  alter_ctx.fk_info, alter_ctx.fk_count,
-                                 0))
+                                 0, false /* No FKs here. */))
   {
     thd->mem_root= mem_root_backup;
     return true;
@@ -1638,8 +1794,7 @@ static bool migrate_table_to_dd(THD *thd,
       if (partition_elem->tablespace_name != nullptr)
       {
         // Add name of all partitions to take MDL
-        tablespace_name_set.insert(
-          const_cast<char*>(partition_elem->tablespace_name));
+        tablespace_name_set.insert(partition_elem->tablespace_name);
       }
       if (thd->work_part_info->is_sub_partitioned())
       {
@@ -1650,8 +1805,7 @@ static bool migrate_table_to_dd(THD *thd,
         {
           if(sub_elem->tablespace_name != nullptr)
           {
-            tablespace_name_set.insert(
-              const_cast<char*>(sub_elem->tablespace_name));
+            tablespace_name_set.insert(sub_elem->tablespace_name);
           }
         }
       }
@@ -1660,8 +1814,7 @@ static bool migrate_table_to_dd(THD *thd,
 
   // Add name of the tablespace used by table to the hash set.
   if (share.tablespace != nullptr)
-    tablespace_name_set.insert(
-          const_cast<char*>(share.tablespace));
+    tablespace_name_set.insert(share.tablespace);
 
   /*
     Acquire lock on tablespace names
@@ -1761,6 +1914,12 @@ static bool migrate_table_to_dd(THD *thd,
   {
     LogErr(ERROR_LEVEL, ER_DD_CANT_FIX_SE_DATA,
            schema_name.c_str(), table_name.c_str());
+    return true;
+  }
+
+  if (fix_fk_parent_key_names(thd, schema_name, to_table_name,
+                              share.db_type()))
+  {
     return true;
   }
 

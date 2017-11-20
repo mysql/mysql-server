@@ -31,7 +31,7 @@
 #include <vector>
 
 #include "geometries.h"
-#include "malloc_allocator.h"
+#include "sql/malloc_allocator.h"
 
 namespace gis {
 

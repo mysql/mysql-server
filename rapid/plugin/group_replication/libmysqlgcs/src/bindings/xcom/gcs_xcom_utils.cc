@@ -29,7 +29,7 @@
 #include <sstream>
 
 #include "mysql/gcs/gcs_group_identifier.h"
-#include "mysql/gcs/gcs_logging.h"
+#include "mysql/gcs/gcs_logging_system.h"
 
 #include "gcs_message_stage_lz4.h"
 #include "gcs_xcom_networking.h"
@@ -908,8 +908,9 @@ int Gcs_xcom_proxy_base::xcom_remove_nodes(Gcs_xcom_nodes &nodes,
 
   if (serialize_nodes_information(nodes, nl))
   {
-    MYSQL_GCS_LOG_DEBUG("Removing " << nl.node_list_len << " nodes at "
-                        << nl.node_list_val);
+    MYSQL_GCS_LOG_DEBUG(
+      "Removing %u nodes at %p", nl.node_list_len, nl.node_list_val
+    );
     ret= xcom_client_remove_node(&nl, group_id_hash);
   }
   free_nodes_information(nl);
@@ -936,8 +937,9 @@ int Gcs_xcom_proxy_base::xcom_force_nodes(Gcs_xcom_nodes &nodes,
 
   if (serialize_nodes_information(nodes, nl))
   {
-    MYSQL_GCS_LOG_DEBUG("Forcing " << nl.node_list_len << " nodes at "
-                        << nl.node_list_val);
+    MYSQL_GCS_LOG_DEBUG(
+      "Forcing %u nodes at %p", nl.node_list_len, nl.node_list_val
+    );
     ret= xcom_client_force_config(&nl, group_id_hash);
   }
   free_nodes_information(nl);
@@ -962,23 +964,28 @@ bool Gcs_xcom_proxy_base::serialize_nodes_information(Gcs_xcom_nodes &nodes,
 
   if (!nodes.encode(&len, &addrs, &uuids))
   {
-    MYSQL_GCS_LOG_DEBUG("Could not encode " << nodes.get_size() << " nodes.");
+    MYSQL_GCS_LOG_DEBUG(
+     "Could not encode %llu nodes.",
+     static_cast<long long unsigned>(nodes.get_size())
+    );
     return false;
   }
 
   nl.node_list_len= len;
   nl.node_list_val= new_node_address_uuid(len, addrs, uuids);
 
-  MYSQL_GCS_LOG_DEBUG("Prepared " << nl.node_list_len << " nodes at "
-                      << nl.node_list_val);
+  MYSQL_GCS_LOG_DEBUG(
+    "Prepared %u nodes at %p", nl.node_list_len, nl.node_list_val
+  );
   return true;
 }
 
 
 void Gcs_xcom_proxy_base::free_nodes_information(node_list& nl)
 {
-  MYSQL_GCS_LOG_DEBUG("Unprepared " << nl.node_list_len << " nodes at "
-                      << nl.node_list_val);
+  MYSQL_GCS_LOG_DEBUG(
+    "Unprepared %u nodes at %p", nl.node_list_len,  nl.node_list_val
+  );
   delete_node_address(nl.node_list_len, nl.node_list_val);
 }
 
@@ -993,8 +1000,9 @@ int Gcs_xcom_proxy_base::xcom_boot_node(Gcs_xcom_node_information &node,
 
   if (serialize_nodes_information(nodes_to_boot, nl))
   {
-    MYSQL_GCS_LOG_DEBUG("Booting up " << nl.node_list_len << " nodes at "
-                        << nl.node_list_val);
+    MYSQL_GCS_LOG_DEBUG(
+      "Booting up %u nodes at %p", nl.node_list_len, nl.node_list_val
+    );
     ret= xcom_client_boot(&nl, group_id_hash);
   }
   free_nodes_information(nl);
@@ -1012,8 +1020,9 @@ int Gcs_xcom_proxy_base::xcom_add_nodes(connection_descriptor& con,
 
   if (serialize_nodes_information(nodes, nl))
   {
-    MYSQL_GCS_LOG_DEBUG("Adding " << nl.node_list_len << " nodes at "
-                        << nl.node_list_val);
+    MYSQL_GCS_LOG_DEBUG(
+      "Adding up %u nodes at %p", nl.node_list_len, nl.node_list_val
+    );
     ret= xcom_client_add_node(&con, &nl, group_id_hash);
   }
   free_nodes_information(nl);

@@ -93,6 +93,10 @@ show create table t2;
 --enable_warnings
 insert into t1 values (1,10), (2,20), (3,30), (4,40);
 insert into t2 values (1,10,100), (2,20,200);
+# Mask the column names and fk names, as the following query violates
+# multiple FK constraints and the fk getting printed in the error might
+# vary based on which FK trigger gets executed first.
+--replace_regex /fk1/fk_name/ /fk2/fk_name/ /`a`/`col_name`/ /`b`/`col_name`/
 --error ER_NO_REFERENCED_ROW_2
 insert into t2 values (5,50,500);
 
@@ -112,6 +116,10 @@ show create table t2;
 
 --echo #verify that the fks are intact in t2 and t3
 insert into t2 values (3,30,300), (4,40,400);
+# Mask the column names and fk names, as the following query violates
+# multiple FK constraints and the fk getting printed in the error might
+# vary based on which FK trigger gets executed first.
+--replace_regex /fk1/fk_name/ /fk2/fk_name/ /`a`/`col_name`/ /`b`/`col_name`/
 --error ER_NO_REFERENCED_ROW_2
 insert into t2 values (5,50,500);
 insert into t3 values (100), (200);

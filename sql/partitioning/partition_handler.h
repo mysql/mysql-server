@@ -21,26 +21,36 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <memory>
 #include <new>
+#include <string>
 #include <vector>
 
-#include "handler.h"              // Handler_share
-#include "key.h"                  // key_rec_cmp
+#include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_base.h"              // ha_rows.
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"         // ER_ILLEGAL_HA
 #include "priority_queue.h"
-#include "sql_alloc.h"
-#include "sql_partition.h"        // part_id_range
+#include "sql/handler.h"          // Handler_share
+#include "sql/key.h"              // key_rec_cmp
+#include "sql/sql_alloc.h"
+#include "sql/sql_partition.h"    // part_id_range
 
 class Field;
 class THD;
 class partition_element;
 class partition_info;
+
+namespace dd {
+class Table;
+}  // namespace dd
 struct TABLE;
 struct TABLE_SHARE;
 
@@ -112,9 +122,9 @@ public:
     table_share calling populate_partition_name_hash().
     After that it is read-only, i.e. no locking required for reading.
   */
-  HASH partition_name_hash;
-  /** flag that the name hash is initialized, so it only will do it once. */
-  bool partition_name_hash_initialized;
+  std::unique_ptr
+    <collation_unordered_map<std::string, unique_ptr_my_free<PART_NAME_DEF>>>
+      partition_name_hash;
 
   /**
     Initializes and sets auto_inc_mutex.
@@ -531,7 +541,6 @@ public:
   int ph_rnd_end();
   int ph_rnd_next(uchar *buf);
   void ph_position(const uchar *record);
-  int ph_rnd_pos_by_record(uchar *record);
 
   /** @} */
 
@@ -773,11 +782,8 @@ private:
     PARTITION_NO_INDEX_SCAN
   };
 
-  /** handler to use (ha_partition, ha_innopart etc.) */
+  /** handler to use (ha_innopart etc.) */
   handler *m_handler;
-  /** Convenience pointer to table from m_handler (i.e. m_handler->table). */
-  TABLE *m_table;
-
   /*
     Access methods to protected areas in handler to avoid adding
     friend class Partition_helper in class handler.
@@ -857,13 +863,6 @@ private:
   virtual int rnd_next_in_part(uint part_id, uchar *buf) = 0;
   virtual int rnd_end_in_part(uint part_id, bool scan) = 0;
   virtual void position_in_last_part(uchar *ref, const uchar *row) = 0;
-  virtual int rnd_pos_by_record_in_last_part(uchar *row)
-  {
-    /*
-      Not much overhead to use default function. This avoids out-of-sync code.
-    */
-    return m_handler->rnd_pos_by_record(row);
-  }
   virtual int index_first_in_part(uint part, uchar *buf) = 0;
   virtual int index_last_in_part(uint part, uchar *buf) = 0;
   virtual int index_prev_in_part(uint part, uchar *buf) = 0;
@@ -1108,6 +1107,10 @@ private:
     but easier to expose them to derived classes to use.
   */
 protected:
+
+  /** Convenience pointer to table from m_handler (i.e. m_handler->table). */
+  TABLE *m_table;
+
   /** All internal partitioning data! @{ */
   /** Tables partitioning info (same as table->part_info) */
   partition_info *m_part_info;

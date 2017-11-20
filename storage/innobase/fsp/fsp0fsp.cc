@@ -263,8 +263,8 @@ bool
 fsp_is_undo_tablespace(space_id_t space_id)
 {
 	/* Starting with v8, undo space_ids have a unique range. */
-	if (space_id >= dict_sys_t::min_undo_space_id
-	    && space_id <= dict_sys_t::max_undo_space_id) {
+	if (space_id >= dict_sys_t::s_min_undo_space_id
+	    && space_id <= dict_sys_t::s_max_undo_space_id) {
 		return(true);
 	}
 
@@ -748,12 +748,18 @@ fsp_init_file_page_low(
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
 			block->page.id.space());
 
+	/* Reset FRAME LSN, which otherwise points to the LSN of the last
+	page that used this buffer block. This is needed by CLONE for
+	tracking dirty pages. */
+	memset(page + FIL_PAGE_LSN, 0, 8);
+
 	if (page_zip) {
 		memset(page_zip->data, 0, page_zip_get_size(page_zip));
 		memcpy(page_zip->data + FIL_PAGE_OFFSET,
 		       page + FIL_PAGE_OFFSET, 4);
 		memcpy(page_zip->data + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
 		       page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 4);
+		memcpy(page_zip->data + FIL_PAGE_LSN, page + FIL_PAGE_LSN, 8);
 	}
 }
 
@@ -977,6 +983,9 @@ fsp_header_rotate_encryption(
 {
 	ut_ad(mtr);
 	ut_ad(space->encryption_type != Encryption::NONE);
+
+	DBUG_EXECUTE_IF("fsp_header_rotate_encryption_failure",
+			return(false););
 
 	/* Fill encryption info. */
 	if (!Encryption::fill_encryption_info(space->encryption_key,
@@ -4153,85 +4162,67 @@ fseg_print(
 #endif /* UNIV_BTR_PRINT */
 
 /** Retrieve tablespace dictionary index root page number stored in the
-page 1
+page 0
 @param[in]	space		tablespace id
-@param[in]	copy_num	sdi index copy number
 @param[in]	page_size	page size
 @param[in,out]	mtr		mini-transaction
 @return root page num of the tablspace dictionary index copy */
 page_no_t
 fsp_sdi_get_root_page_num(
 	space_id_t		space,
-	uint32_t		copy_num,
 	const page_size_t&	page_size,
 	mtr_t*			mtr)
 {
 	ut_ad(mtr != NULL);
-	ut_ad(copy_num < MAX_SDI_COPIES);
 
-	buf_block_t*	block2 = buf_page_get(
-		page_id_t(space, 2), page_size, RW_S_LATCH, mtr);
-	buf_block_dbg_add_level(block2, SYNC_FSP_PAGE);
-
-	page_t*	page2 = buf_block_get_frame(block2);
-
-	page_no_t	root_from_page2 = mach_read_from_4(
-		page2 + FIL_SDI_ROOT_PAGE_NUM + 4 * copy_num);
-
-	buf_block_t*	block1 = buf_page_get(
-		page_id_t(space, 1), page_size, RW_S_LATCH, mtr);
-	buf_block_dbg_add_level(block1, SYNC_IBUF_BITMAP);
-
-	page_t*	page1 = buf_block_get_frame(block1);
-
-	page_no_t	root_from_page1 = mach_read_from_4(
-		page1 + FIL_SDI_ROOT_PAGE_NUM + 4 * copy_num);
-
-	if (root_from_page1 != root_from_page2) {
-		ib::error() << "SDI Root page number for copy number "
-			<< copy_num << " mismatches. From page 1: "
-			<< root_from_page1 << " From page 2: "
-			<< root_from_page2;
-		ut_ad(0);
-	}
-
-	return(root_from_page1);
-}
-
-/** Write SDI Index root page num to page 1 or 2 of tablespace.
-@param[in]	space		tablespace id
-@param[in]	page_num	page number in tablespace
-@param[in]	page_size	size of page
-@param[in]	root_page_num_0	root page number of SDI copy 0
-@param[in]	root_page_num_1	root page number of SDI copy 1
-@param[in,out]	mtr		mini-transaction */
-void
-fsp_sdi_write_root_to_page(
-	space_id_t		space,
-	page_no_t		page_num,
-	const page_size_t&	page_size,
-	page_no_t		root_page_num_0,
-	page_no_t		root_page_num_1,
-	mtr_t*			mtr)
-{
-	/* We store SDI Index root page numbers only in page 1 & 2 of a
-	tablespace */
-	ut_ad(page_num == FSP_IBUF_BITMAP_OFFSET
-	      || page_num == FSP_FIRST_INODE_PAGE_NO);
-
-	buf_block_t*	block = buf_page_get(page_id_t(space, page_num),
-					     page_size, RW_SX_LATCH, mtr);
-
-	buf_block_dbg_add_level(block, page_num == FSP_IBUF_BITMAP_OFFSET
-		? SYNC_IBUF_BITMAP : SYNC_FSP_PAGE);
+	buf_block_t*	block = buf_page_get(
+		page_id_t(space, 0), page_size, RW_S_LATCH, mtr);
+	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
 	page_t*	page = buf_block_get_frame(block);
 
-	mlog_write_ulint(FIL_SDI_ROOT_PAGE_NUM + page,
-			 root_page_num_0, MLOG_4BYTES, mtr);
+	ulint sdi_offset = fsp_header_get_sdi_offset(page_size);
 
-	mlog_write_ulint(FIL_SDI_ROOT_PAGE_NUM + page + 4,
-			 root_page_num_1, MLOG_4BYTES, mtr);
+	uint32_t	sdi_ver = mach_read_from_4(
+		page + sdi_offset);
+
+	if (sdi_ver != SDI_VERSION) {
+		ib::warn() << "SDI version mismatch. Expected: " << SDI_VERSION
+			<< " Current version: " << sdi_ver;
+	}
+	ut_ad(sdi_ver == SDI_VERSION);
+
+	page_no_t	root = mach_read_from_4(
+		page + sdi_offset + 4);
+
+	ut_ad(root > 2);
+
+	return(root);
+}
+
+/** Write SDI Index root page num to page 0 of tablespace.
+@param[in,out]	page		page 0 frame
+@param[in]	page_size	size of page
+@param[in]	root_page_num	root page number of SDI
+@param[in,out]	mtr		mini-transaction */
+void
+fsp_sdi_write_root_to_page(
+	page_t*			page,
+	const page_size_t&	page_size,
+	page_no_t		root_page_num,
+	mtr_t*			mtr)
+{
+	ut_ad(page_get_page_no(page) == 0);
+
+	ulint	sdi_offset = fsp_header_get_sdi_offset(page_size);
+
+	/* Write SDI version here. */
+	mlog_write_ulint(page + sdi_offset,
+			 SDI_VERSION, MLOG_4BYTES, mtr);
+
+	/* Write SDI root page number */
+	mlog_write_ulint(page + sdi_offset + 4,
+			 root_page_num, MLOG_4BYTES, mtr);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -4397,3 +4388,39 @@ fsp_check_tablespace_size(space_id_t space_id)
 	return(true);
 }
 #endif /* UNIV_DEBUG */
+
+/** Determine if the tablespace contians an SDI.
+@param[in]	space_id	Tablespace id
+@retval		false		if there is no SDI
+@retval		true		if SDI is present */
+bool
+fsp_has_sdi(space_id_t space_id)
+{
+	fil_space_t*	space = fil_space_acquire_silent(space_id);
+	if (space == NULL) {
+		DBUG_EXECUTE_IF("ib_sdi",
+			ib::warn() << "Tablespace doesn't exist for space_id: "
+				<< space_id;
+			ib::warn() << "Is the tablespace dropped or discarded";
+		);
+		return(false);
+	}
+
+#ifdef UNIV_DEBUG
+	mtr_t	mtr;
+	mtr.start();
+	ut_ad(fsp_sdi_get_root_page_num(
+		space_id, page_size_t(space->flags),
+		&mtr) != 0);
+	mtr.commit();
+#endif /* UNIV_DEBUG */
+
+	fil_space_release(space);
+	DBUG_EXECUTE_IF("ib_sdi",
+		if (!FSP_FLAGS_HAS_SDI(space->flags)) {
+			ib::warn() << "SDI doesn't exist in tablespace: "
+				<< space->name;
+		}
+	);
+	return(FSP_FLAGS_HAS_SDI(space->flags));
+}

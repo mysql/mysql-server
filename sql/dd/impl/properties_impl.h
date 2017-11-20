@@ -21,13 +21,13 @@
 #include <string>
 #include <utility>
 
-#include "dd/properties.h"         // dd::Properties
-#include "dd/string_type.h"        // dd::String_type
 #include "lex_string.h"
-#include "m_string.h"
+#include "mem_root_fwd.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"                // strmake_root
+#include "sql/dd/properties.h"     // dd::Properties
+#include "sql/dd/string_type.h"    // dd::String_type
 
 namespace dd {
 

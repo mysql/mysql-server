@@ -20,7 +20,6 @@
 
 #include "storage/perfschema/table_threads.h"
 
-#include "field.h"
 #include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -28,7 +27,8 @@
 #include "pfs_buffer_container.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
-#include "sql_parse.h"
+#include "sql/field.h"
+#include "sql/sql_parse.h"
 
 THR_LOCK table_threads::m_table_lock;
 
@@ -78,7 +78,10 @@ PFS_engine_table_share table_threads::m_share = {
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 PFS_engine_table *

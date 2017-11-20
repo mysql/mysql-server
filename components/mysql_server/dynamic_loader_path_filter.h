@@ -17,9 +17,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #define MYSQL_SERVER_DYNAMIC_LOADER_PATH_FILTER_H
 
 #include <mysql/components/service_implementation.h>
-#include "../../../sql/sql_plugin.h" // opt_plugin_dir
-#include "server_component.h"
 #include <string>
+
+#include "server_component.h"
+#include "sql/sql_plugin.h" // opt_plugin_dir
 
 /**
   Checks if path specified to load is contained in plug-in directory and

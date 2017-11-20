@@ -18,8 +18,9 @@
 
 #include <string>
 
-#include "dd/impl/types/entity_object_table_impl.h"
-#include "dd/types/tablespace.h"
+#include "sql/dd/impl/types/entity_object_table_impl.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/tablespace.h"
 
 namespace dd {
 class Global_name_key;

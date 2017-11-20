@@ -13,76 +13,78 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/cache/dictionary_client.h"
+#include "sql/dd/cache/dictionary_client.h"
 
 #include <stdio.h>
 #include <memory>
 
-#include "dd/cache/multi_map_base.h"
-#include "dd/dd_schema.h"                    // dd::Schema_MDL_locker
-#include "dd/impl/bootstrapper.h"            // bootstrap_stage
-#include "dd/impl/dictionary_impl.h"
-#include "dd/impl/object_key.h"
-#include "dd/impl/raw/object_keys.h"         // Primary_id_key, ...
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/raw/raw_record_set.h"      // Raw_record_set
-#include "dd/impl/raw/raw_table.h"           // Raw_table
-#include "dd/impl/sdi.h"                     // dd::sdi::drop_after_update
-#include "dd/impl/tables/character_sets.h"   // create_name_key()
-#include "dd/impl/tables/collations.h"       // create_name_key()
-#include "dd/impl/tables/column_statistics.h"// create_name_key()
-#include "dd/impl/tables/events.h"           // create_name_key()
-#include "dd/impl/tables/foreign_keys.h"
-#include "dd/impl/tables/index_stats.h"      // dd::Index_stats
-#include "dd/impl/tables/routines.h"         // create_name_key()
-#include "dd/impl/tables/schemata.h"         // create_name_key()
-#include "dd/impl/tables/spatial_reference_systems.h" // create_name_key()
-#include "dd/impl/tables/table_partitions.h" // get_partition_table_id()
-#include "dd/impl/tables/table_stats.h"      // dd::Table_stats
-#include "dd/impl/tables/tables.h"           // create_name_key()
-#include "dd/impl/tables/tablespaces.h"      // create_name_key()
-#include "dd/impl/tables/triggers.h"         // dd::tables::Triggers
-#include "dd/impl/tables/view_routine_usage.h" // create_name_key
-#include "dd/impl/tables/view_table_usage.h" // create_name_key
-#include "dd/impl/transaction_impl.h"        // Transaction_ro
-#include "dd/impl/types/entity_object_impl.h"// Entity_object_impl
-#include "dd/impl/types/object_table_definition_impl.h" // fs_name_case()
-#include "dd/properties.h"                   // Properties
-#include "dd/types/abstract_table.h"         // Abstract_table
-#include "dd/types/charset.h"                // Charset
-#include "dd/types/collation.h"              // Collation
-#include "dd/types/column_statistics.h"      // Column_statistics
-#include "dd/types/event.h"                  // Event
-#include "dd/types/function.h"               // Function
-#include "dd/types/index_stat.h"             // Index_stat
-#include "dd/types/procedure.h"              // Procedure
-#include "dd/types/routine.h"
-#include "dd/types/schema.h"                 // Schema
-#include "dd/types/spatial_reference_system.h" // Spatial_reference_system
-#include "dd/types/table.h"                  // Table
-#include "dd/types/table_stat.h"             // Table_stat
-#include "dd/types/tablespace.h"             // Tablespace
-#include "dd/types/view.h"                   // View
-#include "dd/types/view_routine.h"           // View_routine
-#include "dd/types/view_table.h"             // View_table
-#include "debug_sync.h"                      // DEBUG_SYNC()
-#include "handler.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"
-#include "mysqld.h"
 #include "mysqld_error.h"
 #include "shared_dictionary_cache.h"         // get(), release(), ...
-#include "sql_class.h"                       // THD
-#include "sql_plugin_ref.h"
+#include "sql/dd/cache/multi_map_base.h"
+#include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
+#include "sql/dd/impl/bootstrapper.h"        // bootstrap_stage
+#include "sql/dd/impl/dictionary_impl.h"
+#include "sql/dd/impl/object_key.h"
+#include "sql/dd/impl/raw/object_keys.h"     // Primary_id_key, ...
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/raw/raw_record_set.h"  // Raw_record_set
+#include "sql/dd/impl/raw/raw_table.h"       // Raw_table
+#include "sql/dd/impl/sdi.h"                 // dd::sdi::drop_after_update
+#include "sql/dd/impl/tables/character_sets.h" // create_name_key()
+#include "sql/dd/impl/tables/collations.h"   // create_name_key()
+#include "sql/dd/impl/tables/column_statistics.h"// create_name_key()
+#include "sql/dd/impl/tables/events.h"       // create_name_key()
+#include "sql/dd/impl/tables/foreign_keys.h"
+#include "sql/dd/impl/tables/index_stats.h"  // dd::Index_stats
+#include "sql/dd/impl/tables/routines.h"     // create_name_key()
+#include "sql/dd/impl/tables/schemata.h"     // create_name_key()
+#include "sql/dd/impl/tables/spatial_reference_systems.h" // create_name_key()
+#include "sql/dd/impl/tables/table_partitions.h" // get_partition_table_id()
+#include "sql/dd/impl/tables/table_stats.h"  // dd::Table_stats
+#include "sql/dd/impl/tables/tables.h"       // create_name_key()
+#include "sql/dd/impl/tables/tablespaces.h"  // create_name_key()
+#include "sql/dd/impl/tables/triggers.h"     // dd::tables::Triggers
+#include "sql/dd/impl/tables/view_routine_usage.h" // create_name_key
+#include "sql/dd/impl/tables/view_table_usage.h" // create_name_key
+#include "sql/dd/impl/transaction_impl.h"    // Transaction_ro
+#include "sql/dd/impl/types/entity_object_impl.h"// Entity_object_impl
+#include "sql/dd/impl/types/object_table_definition_impl.h" // fs_name_case()
+#include "sql/dd/properties.h"               // Properties
+#include "sql/dd/types/abstract_table.h"     // Abstract_table
+#include "sql/dd/types/charset.h"            // Charset
+#include "sql/dd/types/collation.h"          // Collation
+#include "sql/dd/types/column_statistics.h"  // Column_statistics
+#include "sql/dd/types/event.h"              // Event
+#include "sql/dd/types/function.h"           // Function
+#include "sql/dd/types/index_stat.h"         // Index_stat
+#include "sql/dd/types/procedure.h"          // Procedure
+#include "sql/dd/types/resource_group.h"     // Resource_group
+#include "sql/dd/types/routine.h"
+#include "sql/dd/types/schema.h"             // Schema
+#include "sql/dd/types/spatial_reference_system.h" // Spatial_reference_system
+#include "sql/dd/types/table.h"              // Table
+#include "sql/dd/types/table_stat.h"         // Table_stat
+#include "sql/dd/types/tablespace.h"         // Tablespace
+#include "sql/dd/types/view.h"               // View
+#include "sql/dd/types/view_routine.h"       // View_routine
+#include "sql/dd/types/view_table.h"         // View_table
+#include "sql/debug_sync.h"                  // DEBUG_SYNC()
+#include "sql/handler.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"                   // THD
+#include "sql/sql_plugin_ref.h"
+#include "sql/table.h"
+#include "sql/tztime.h"                      // Time_zone, my_tz_OFFSET0
 #include "storage_adapter.h"                 // store(), drop(), ...
-#include "table.h"
 
 namespace {
 
@@ -595,6 +597,68 @@ public:
     return is_read_locked(thd, routine);
   }
 #endif // EXTRA_DD_DEBUG
+
+
+  /**
+    Private helper function for asserting MDL for resource groups.
+
+    @param   thd              THD context.
+    @param   resource_group   DD Resource group object.
+    @param   lock_type        Weakest lock type accepted.
+
+    @return  true             if we have the required lock, otherwise false.
+  */
+
+  static bool is_locked(THD *thd, const dd::Resource_group *resource_group,
+                        enum_mdl_type lock_type)
+  {
+    if (resource_group == nullptr)
+      return true;
+
+    char lc_name[NAME_CHAR_LEN + 1];
+    my_stpcpy(lc_name, resource_group->name().c_str());
+    lc_name[NAME_CHAR_LEN]= '\0';
+    my_casedn_str(system_charset_info, lc_name);
+
+    return thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::RESOURCE_GROUPS, "", lc_name, lock_type);
+  }
+
+
+  /**
+    Check whether a resource group object holds at least MDL_INTENTION_EXCLUSIVE.
+    IX is acquired when a resource group is being accessed when creating/altering
+    a resource group.
+
+    @param   thd                   THD context.
+    @param   resource_group        Pointer to DD resource group object.
+
+    @return  true if required lock is held else false
+  */
+
+  static bool is_read_locked(THD *thd, const dd::Resource_group *resource_group)
+  {
+    return thd->is_dd_system_thread() ||
+      is_locked(thd, resource_group, MDL_INTENTION_EXCLUSIVE);
+  }
+
+
+  /**
+    Check if MDL_EXCLUSIVE lock is held by DD Resource group object.
+    Writing a resource group object should be governed by MDL_EXCLUSIVE.
+
+    @param    thd                 THD context
+    @param    resource_group      Pointer to DD resource group object.
+
+    @return   true if required lock is held else false.
+  */
+
+  static bool is_write_locked(THD *thd, const dd::Resource_group *resource_group)
+  {
+    return thd->is_dd_system_thread() ||
+      is_locked(thd, resource_group, MDL_EXCLUSIVE);
+  }
+
 };
 
 // Check if the component is hidden.
@@ -677,6 +741,7 @@ Dictionary_client::Auto_releaser::~Auto_releaser()
   m_client->release<Event>(&m_release_registry);
   m_client->release<Routine>(&m_release_registry);
   m_client->release<Spatial_reference_system>(&m_release_registry);
+  m_client->release<Resource_group>(&m_release_registry);
 
   // Restore the client's previous releaser.
   m_client->m_current_releaser= m_prev;
@@ -717,6 +782,39 @@ void Dictionary_client::Auto_releaser::dump() const
 }
 
 
+/**
+  Class to fetch dd::Objects with GMT time.
+
+  When dictionary object is fetched to create  dd::Objects, the timestamp
+  data should be according to GMT and independent of time_zone. Time_zone
+  data should be added to time column before using the data.
+
+  Any timestamp column in dictionary should implement the data retrieval
+  function to return GMT data to dictionary framework but consider time_zone
+  when returning data to server.
+*/
+
+
+class Timestamp_timezone_guard
+{
+public:
+  Timestamp_timezone_guard(THD *thd) : m_thd(thd)
+  {
+    m_tz= m_thd->variables.time_zone;
+    m_thd->variables.time_zone= my_tz_OFFSET0;
+  }
+
+  ~Timestamp_timezone_guard()
+  {
+    m_thd->variables.time_zone= m_tz;
+  }
+
+private:
+  ::Time_zone *m_tz;
+  THD *m_thd;
+};
+
+
 // Get a dictionary object.
 template <typename K, typename T>
 bool Dictionary_client::acquire(const K &key, const T **object,
@@ -727,6 +825,8 @@ bool Dictionary_client::acquire(const K &key, const T **object,
   DBUG_ASSERT(local_uncommitted);
   *object= NULL;
 
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
   DBUG_EXECUTE_IF("fail_while_acquiring_dd_object",
   {
     my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
@@ -924,6 +1024,7 @@ size_t Dictionary_client::release(Object_registry *registry)
           release<Charset>(registry) +
           release<Collation>(registry) +
           release<Event>(registry) +
+          release<Resource_group>(registry) +
           release<Routine>(registry) +
           release<Spatial_reference_system>(registry) +
           release<Column_statistics>(registry);
@@ -984,6 +1085,8 @@ bool Dictionary_client::acquire(Object_id id, const T** object)
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1016,6 +1119,8 @@ bool Dictionary_client::acquire_for_modification(Object_id id, T** object)
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1151,6 +1256,8 @@ bool Dictionary_client::acquire(const String_type &object_name,
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
   const typename T::cache_partition_type *cached_object= NULL;
 
   bool local_committed= false;
@@ -1191,6 +1298,8 @@ bool Dictionary_client::acquire_for_modification(const String_type &object_name,
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
   const typename T::cache_partition_type *cached_object= NULL;
 
   bool local_committed= false;
@@ -1257,6 +1366,8 @@ bool Dictionary_client::acquire(const String_type &schema_name,
 
   // Acquire the dictionary object.
   const typename T::cache_partition_type *cached_object= NULL;
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1315,6 +1426,8 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
 
   // Acquire the dictionary object.
   const typename T::cache_partition_type *cached_object= NULL;
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1378,6 +1491,8 @@ bool Dictionary_client::acquire(const String_type &schema_name,
   // Create the name key for the object.
   typename T::name_key_type key;
   T::update_name_key(&key, schema->id(), object_name);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   // Acquire the dictionary object.
   bool local_committed= false;
@@ -1430,6 +1545,8 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
   // Create the name key for the object.
   typename T::name_key_type key;
   T::update_name_key(&key, schema->id(), object_name);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   // Acquire the dictionary object.
   const typename T::cache_partition_type *cached_object= NULL;
@@ -2093,10 +2210,13 @@ bool Dictionary_client::fetch_referencing_views_object_id(
 bool Dictionary_client::fetch_fk_children_uncached(
     const String_type &parent_schema,
     const String_type &parent_name,
+    const String_type &parent_engine,
+    bool uncommitted,
     std::vector<String_type> *children_schemas,
     std::vector<String_type> *children_names)
 {
-  dd::Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
+  dd::Transaction_ro trx(m_thd, uncommitted ? ISO_READ_UNCOMMITTED :
+                                              ISO_READ_COMMITTED);
 
   trx.otx.register_tables<Foreign_key>();
   Raw_table *foreign_keys_table= trx.otx.get_table<Foreign_key>();
@@ -2134,27 +2254,60 @@ bool Dictionary_client::fetch_fk_children_uncached(
     dd::Table *table= nullptr;
     dd::Schema *schema= nullptr;
     dd::cache::Dictionary_client::Auto_releaser releaser(this);
-    if (acquire_uncached(id, &table))
+    if (uncommitted)
     {
-      DBUG_ASSERT(m_thd->is_system_thread() ||
-                  m_thd->killed ||
-                  m_thd->is_error());
-      return true;
-    }
-
-    if (table)
-    {
-      if (acquire_uncached(table->schema_id(), &schema))
+      if (acquire_uncached_uncommitted(id, &table))
       {
         DBUG_ASSERT(m_thd->is_system_thread() ||
                     m_thd->killed ||
                     m_thd->is_error());
         return true;
       }
-      if (schema)
+    }
+    else
+    {
+      if (acquire_uncached(id, &table))
       {
-        children_schemas->push_back(schema->name());
-        children_names->push_back(table->name());
+        DBUG_ASSERT(m_thd->is_system_thread() ||
+                    m_thd->killed ||
+                    m_thd->is_error());
+        return true;
+      }
+    }
+
+    if (table)
+    {
+      // Filter out children in different SEs. This is not supported.
+      if (my_strcasecmp(system_charset_info,
+                        table->engine().c_str(),
+                        parent_engine.c_str()) == 0)
+      {
+        if (uncommitted)
+        {
+          if (acquire_uncached_uncommitted(table->schema_id(), &schema))
+          {
+            DBUG_ASSERT(m_thd->is_system_thread() ||
+                        m_thd->killed ||
+                        m_thd->is_error());
+            return true;
+          }
+        }
+        else
+        {
+          if (acquire_uncached(table->schema_id(), &schema))
+          {
+            DBUG_ASSERT(m_thd->is_system_thread() ||
+                        m_thd->killed ||
+                        m_thd->is_error());
+            return true;
+          }
+        }
+
+        if (schema)
+        {
+          children_schemas->push_back(schema->name());
+          children_names->push_back(table->name());
+        }
       }
     }
     // If table/schema is not found, it was deleted since we retrieved the ID.
@@ -2173,29 +2326,54 @@ bool Dictionary_client::fetch_fk_children_uncached(
 }
 
 
-// Remove and delete an object from the cache and the dd tables.
+// Invalidate a table entry in the shared cache based on schema qualified name.
+bool Dictionary_client::invalidate(const String_type &schema_name,
+                                   const String_type &table_name)
+{
+  // Verify metadata lock (should hold even for non-existing tables).
+  DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
+          MDL_key::TABLE, schema_name.c_str(), table_name.c_str(),
+          MDL_EXCLUSIVE));
+
+  // There should also be an IX lock on the schema name at this point.
+  DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
+          MDL_key::SCHEMA, schema_name.c_str(), "",
+          MDL_INTENTION_EXCLUSIVE));
+
+  Auto_releaser releaser(this);
+  const Table *table;
+  if (acquire(schema_name, table_name, &table))
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() ||
+                m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  if (table != nullptr)
+  {
+    invalidate(table);
+  }
+
+  // Invalidation of a non-existing object is not treated as an error.
+  return false;
+}
+
+
+// Invalidate an entry in the shared cache.
 template <typename T>
-bool Dictionary_client::drop(const T *object)
+void Dictionary_client::invalidate(const T *object)
 {
   // Check proper MDL lock.
   DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
 
-  if (Storage_adapter::drop(m_thd, object))
-  {
-    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
-    return true;
-  }
-
-  // Prepare an instance to be added to the dropped registry. This must be done
-  // prior to cleaning up the committed registry since the instance we drop might
-  // be present there (since we are allowed to drop const object coming from
-  // acquire()).
-  T *dropped_object= object->clone();
-
-  // The shared cache is updated right away. This is safe since we have
-  // MDL on the name. Further acquisition from this thread will see
-  // that the object is dropped (by inspecting the dropped registry),
-  // so the shared cache will not be "polluted" by this thread either.
+  // Invalidate the shared cache. This is safe since we have an
+  // exclusive meta data lock on the name.
+  // NOTE: When invalidating directly from the server code, further
+  // acquisition from this thread will pollute the shared cache.
+  // However, when invalidation is done in the context of drop()
+  // (see below), the object will be added to the registry of dropped
+  // objects, preventing subsequent acquisition even from this thread.
 
   // Uncommitted object which was acquired for modification might have
   // corrupted name.... So lookup by id. (see mysql_rename_table()
@@ -2217,6 +2395,30 @@ bool Dictionary_client::drop(const T *object)
     Shared_dictionary_cache::instance()->
       drop_if_present<typename T::id_key_type,
                       typename T::cache_partition_type>(id_key);
+}
+
+
+// Remove and delete an object from the shared cache and the dd tables.
+template <typename T>
+bool Dictionary_client::drop(const T *object)
+{
+  // Check proper MDL lock.
+  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
+
+  if (Storage_adapter::drop(m_thd, object))
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    return true;
+  }
+
+  // Prepare an instance to be added to the dropped registry. This must be done
+  // prior to cleaning up the committed registry since the instance we drop might
+  // be present there (since we are allowed to drop const object coming from
+  // acquire()).
+  T *dropped_object= object->clone();
+
+  // Invalidate the entry in the shared cache (if present).
+  invalidate(object);
 
   // Finally, add a clone to the dropped registry. Note that we are allowed to
   // drop a const object, e.g. coming from acquire(). This means that the
@@ -2227,7 +2429,6 @@ bool Dictionary_client::drop(const T *object)
 
   return false;
 }
-
 
 // Store a new dictionary object.
 template <typename T>
@@ -2241,6 +2442,9 @@ bool Dictionary_client::store(T* object)
     &element);
   DBUG_ASSERT(!element);
 #endif
+
+  // Store dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   // Make sure the object has an invalid object id.
   DBUG_ASSERT(object->id() == INVALID_OBJECT_ID);
@@ -2258,12 +2462,19 @@ bool Dictionary_client::store(T* object)
 // Store a new dictionary object.
 template <>
 bool Dictionary_client::store(Table_stat* object)
-{ return Storage_adapter::store<Table_stat>(m_thd, object); }
+{
+  // Store dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
+  return Storage_adapter::store<Table_stat>(m_thd, object);
+}
 
 template <>
 bool Dictionary_client::store(Index_stat* object)
-{ return Storage_adapter::store<Index_stat>(m_thd, object); }
-
+{
+  // Store dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
+  return Storage_adapter::store<Index_stat>(m_thd, object);
+}
 
 // Update a persisted dictionary object, but keep the shared cache unchanged.
 template <typename T>
@@ -2283,6 +2494,9 @@ bool Dictionary_client::update(T* new_object)
     &element);
   DBUG_ASSERT(!element);
 #endif
+
+  // Store dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   // new_object->id() may or may not be reflected in the uncommitted registry.
   const typename T::id_key_type id_key(new_object->id());
@@ -2524,60 +2738,49 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
         const_cast<typename T::cache_partition_type*>(it->second->object());
       DBUG_ASSERT(uncommitted_object != nullptr);
 
-      // Check proper MDL lock.
-      DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, uncommitted_object));
+      // Invalidate the entry in the shared cache (if present).
+      invalidate(uncommitted_object);
 
-      // Get a committed version of the object and invalidate it.
-      // Note that we have to access m_registry_committed directly
-      // instead of using acquire() to avoid finding the uncommitted object.
-      const typename T::id_key_type key(uncommitted_object->id());
-      Cache_element<typename T::cache_partition_type> *element= NULL;
-      m_registry_committed.get(key, &element);
-
-      if (element)
-      {
-        DBUG_ASSERT(element->object() != nullptr);
-
-        // Remove the element from the chain of auto releasers.
-        (void) m_current_releaser->remove(element);
-        m_registry_committed.remove(element);
-
-        // Remove the element from the cache, delete the wrapper and the object.
-        Shared_dictionary_cache::instance()->drop(element);
-      }
-      else
-      {
-        Shared_dictionary_cache::instance()->
-          drop_if_present<typename T::id_key_type,
-                          typename T::cache_partition_type>(uncommitted_object->id());
-      }
 #ifndef DBUG_OFF
       // Make sure the uncommitted id is not present in the dropped registry.
+      const typename T::id_key_type key(uncommitted_object->id());
+      Cache_element<typename T::cache_partition_type> *element= NULL;
       m_registry_committed.get(key, &element);
       DBUG_ASSERT(element == nullptr);
 #endif
     }
 
-    // We must do this in two iterations to handle situations where two uncommitted
-    // objects swap names.
-    for (it= m_registry_uncommitted.begin<typename T::cache_partition_type>();
-         it != m_registry_uncommitted.end<typename T::cache_partition_type>();
-         it++)
+    // The modified objects are evicted from the cache above. On the next
+    // acquisition, this will lead to a cache miss, which will make sure
+    // that e.g. the de-normalized FK parent information is corrected.
+
+    // However, if this is a DD system thread, and we are initializing the
+    // DD, the changes must be made visible in the shared cache. Otherwise,
+    // adding the cyclic FKs for the character sets table will fail.
+    if (m_thd->is_dd_system_thread() &&
+        bootstrap::stage() < bootstrap::BOOTSTRAP_FINISHED)
     {
-      typename T::cache_partition_type* uncommitted_object=
-        const_cast<typename T::cache_partition_type*>(it->second->object());
-      DBUG_ASSERT(uncommitted_object != nullptr);
+      // We must do this in two iterations to handle situations where two uncommitted
+      // objects swap names.
+      for (it= m_registry_uncommitted.begin<typename T::cache_partition_type>();
+           it != m_registry_uncommitted.end<typename T::cache_partition_type>();
+           it++)
+      {
+        typename T::cache_partition_type* uncommitted_object=
+          const_cast<typename T::cache_partition_type*>(it->second->object());
+        DBUG_ASSERT(uncommitted_object != nullptr);
 
-      Cache_element<typename T::cache_partition_type> *element= NULL;
+        Cache_element<typename T::cache_partition_type> *element= NULL;
 
-      // In put, the reference counter is stepped up, so this is safe.
-      Shared_dictionary_cache::instance()->put(
-          static_cast<const typename T::cache_partition_type*>(
-            uncommitted_object->clone()), &element);
+        // In put, the reference counter is stepped up, so this is safe.
+        Shared_dictionary_cache::instance()->put(
+            static_cast<const typename T::cache_partition_type*>(
+              uncommitted_object->clone()), &element);
 
-      m_registry_committed.put(element);
-      // Sign up for auto release.
-      m_current_releaser->auto_release(element);
+        m_registry_committed.put(element);
+        // Sign up for auto release.
+        m_current_releaser->auto_release(element);
+      }
     }
   } // commit_to_shared_cache
   m_registry_uncommitted.erase<typename T::cache_partition_type>();
@@ -2596,6 +2799,7 @@ void Dictionary_client::rollback_modified_objects()
   remove_uncommitted_objects<Event>(false);
   remove_uncommitted_objects<Routine>(false);
   remove_uncommitted_objects<Spatial_reference_system>(false);
+  remove_uncommitted_objects<Resource_group>(false);
 }
 
 
@@ -2610,6 +2814,7 @@ void Dictionary_client::commit_modified_objects()
   remove_uncommitted_objects<Event>(true);
   remove_uncommitted_objects<Routine>(true);
   remove_uncommitted_objects<Spatial_reference_system>(true);
+  remove_uncommitted_objects<Resource_group>(true);
 }
 
 
@@ -2687,6 +2892,9 @@ template bool Dictionary_client::fetch_global_components(
 
 template bool Dictionary_client::fetch_global_components(
     std::vector<const Table*>*) const;
+
+template bool Dictionary_client::fetch_global_components(
+    std::vector<const Resource_group*>*) const;
 
 template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
     const Schema*,
@@ -2917,6 +3125,14 @@ template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Routine**);
 template bool Dictionary_client::acquire_for_modification(Object_id,
                                                           Routine**);
+template bool Dictionary_client::acquire(const String_type&,
+                                         const Resource_group**);
+template bool Dictionary_client::acquire_for_modification(const String_type&,
+                                                          Resource_group**);
+template bool Dictionary_client::drop(const Resource_group*);
+template bool Dictionary_client::store(Resource_group*);
+template void Dictionary_client::remove_uncommitted_objects<Resource_group>(bool);
+template bool Dictionary_client::update(Resource_group*);
 /**
  @endcond
 */

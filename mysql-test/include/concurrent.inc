@@ -27,13 +27,13 @@ connection default;
 #
 # Show prerequisites for this test.
 #
-SELECT @@global.tx_isolation;
+SELECT @@global.transaction_isolation;
 #
 # Semi-consistent read is done only for isolation levels READ
 # COMMITTED and READ UNCOMMITTED.  The variable $keep_locks is
 # false if semi-consistent read is done.
 #
-let $keep_locks= `SELECT @@global.tx_isolation = 'REPEATABLE-READ'`;
+let $keep_locks= `SELECT @@global.transaction_isolation = 'REPEATABLE-READ'`;
 
 --echo # keep_locks == $keep_locks
 

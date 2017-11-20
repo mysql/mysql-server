@@ -362,18 +362,6 @@ public:
 
 	virtual bool get_foreign_dup_key(char*, uint, char*, uint);
 
-	uint8 table_cache_type();
-
-	/**
-	Ask handler about permission to cache table during query registration
-	*/
-	bool register_query_cache_table(
-		THD*			thd,
-		char*			table_key,
-		size_t			key_length,
-		qc_engine_callback*	call_back,
-		ulonglong*		engine_data);
-
 	bool primary_key_is_clustered() const;
 
 	int cmp_ref(const uchar* ref1, const uchar* ref2) const;
@@ -597,56 +585,14 @@ protected:
 	doesn't give any clue that it is called at the end of a statement. */
 	int end_stmt();
 
-	/** Create an InnoDB table.
-	@param[in]	name		table name in filename-safe encoding
-	@param[in]	form		table structure
-	@param[in]	create_info	more information
-	@param[in,out]	dd_tab		data dictionary cache object
-	@param[in]	file_per_table	whether to create a tablespace too
-	@return	error number
-	@retval	0 on success */
-	template<typename Table>
-	int create_table_impl(
-		const char*		name,
-		TABLE*			form,
-		HA_CREATE_INFO*		create_info,
-		Table*			dd_tab,
-		bool			file_per_table);
-
-	/** Implementation of dropping a table.
-	@param[in]	name		table name
-	@param[in,out]	dd_tab		data dictionary table
-	@param[in]	sqlcom		type of operation that the DROP
-					is part of
-	@return	error number
-	@retval	0 on success */
-	template<typename Table>
-	int delete_table_impl(
-		const char*		name,
-		const Table*		dd_tab,
-		enum enum_sql_command	sqlcom);
-
-	/** Renames an InnoDB table.
-	@param[in,out]	thd		THD object
-	@param[in,out]	trx		transaction
-	@param[in]	from		old name of the table
-	@param[in]	to		new name of the table
-	@param[in]	from_table	dd::Table or dd::Partition of the table
-	with old name
-	@param[in,out]	to_table	dd::Table or dd::Partition of the table
-	with new name
-	@return DB_SUCCESS or error code */
-	template<typename Table>
-	dberr_t
-	rename_table_impl(
-		THD*			thd,
-		trx_t*			trx,
-		const char*		from,
-		const char*		to,
-		const Table*		from_table,
-		Table*			to_table);
+	/** Rename tablespace file name for truncate
+	@param[in]	name	table name
+	@return 0 on success, error code on failure */
+	int truncate_rename_tablespace(
+		const char*	name);
 
 	/** Implementation of prepare_inplace_alter_table()
+	@tparam		Table		dd::Table or dd::Partition
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 					by ALTER TABLE and holding data used
@@ -666,6 +612,7 @@ protected:
 		Table*			new_dd_tab);
 
 	/** Implementation of inplace_alter_table()
+	@tparam		Table		dd::Table or dd::Partition
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 					by ALTER TABLE and holding data used
@@ -685,6 +632,7 @@ protected:
 		Table*			new_dd_tab);
 
 	/** Implementation of commit_inplace_alter_table()
+	@tparam		Table		dd::Table or dd::Partition
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 					by ALTER TABLE and holding data used
@@ -822,7 +770,7 @@ tablespace_is_file_per_table(
 {
 	return(create_info->tablespace != NULL
 	       && (0 == strcmp(create_info->tablespace,
-			       dict_sys_t::file_per_table_name)));
+			       dict_sys_t::s_file_per_table_name)));
 }
 
 /** Check if table will be explicitly put in an existing shared general
@@ -837,7 +785,7 @@ const HA_CREATE_INFO*	create_info)
 	return(create_info->tablespace != NULL
 		&& create_info->tablespace[0] != '\0'
 		&& (0 != strcmp(create_info->tablespace,
-		dict_sys_t::file_per_table_name)));
+		dict_sys_t::s_file_per_table_name)));
 }
 
 /** Check if table will be explicitly put in a general tablespace.
@@ -851,11 +799,11 @@ const HA_CREATE_INFO*	create_info)
 	return(create_info->tablespace != NULL
 		&& create_info->tablespace[0] != '\0'
 		&& (0 != strcmp(create_info->tablespace,
-				dict_sys_t::file_per_table_name))
+				dict_sys_t::s_file_per_table_name))
 		&& (0 != strcmp(create_info->tablespace,
-				dict_sys_t::temp_space_name))
+				dict_sys_t::s_temp_space_name))
 		&& (0 != strcmp(create_info->tablespace,
-				dict_sys_t::sys_space_name)));
+				dict_sys_t::s_sys_space_name)));
 }
 
 /** Parse hint for table and its indexes, and update the information
@@ -868,6 +816,11 @@ innobase_parse_hint_from_comment(
 	THD*			thd,
 	dict_table_t*		table,
 	const TABLE_SHARE*	table_share);
+
+/** Obtain the InnoDB transaction of a MySQL thread.
+@param[in,out]	thd	MySQL thread handler.
+@return	reference to transaction pointer */
+trx_t*& thd_to_trx(THD* thd);
 
 /** Class for handling create table information. */
 class create_table_info_t
@@ -884,14 +837,17 @@ public:
 		char*		table_name,
 		char*		remote_path,
 		char*		tablespace,
-		bool		file_per_table)
+		bool		file_per_table,
+		bool		skip_strict)
 	:m_thd(thd),
+	m_trx(thd_to_trx(thd)),
 	m_form(form),
 	m_create_info(create_info),
 	m_table_name(table_name),
 	m_remote_path(remote_path),
 	m_tablespace(tablespace),
-	m_innodb_file_per_table(file_per_table)
+	m_innodb_file_per_table(file_per_table),
+	m_skip_strict(skip_strict)
 	{}
 
 	/** Initialize the object. */
@@ -936,8 +892,6 @@ public:
 	/** Prepare to create a table. */
 	int prepare_create_table(const char* name);
 
-	void allocate_trx();
-
 	/** Determines InnoDB table flags.
 	If strict_mode=OFF, this will adjust the flags to what should be assumed.
 	@retval true if successful, false if error */
@@ -954,9 +908,9 @@ public:
 	ulint flags2() const
 	{ return(m_flags2); }
 
-	/** Get trx. */
-	trx_t* trx() const
-	{ return(m_trx); }
+	/** whether to skip strict check. */
+	bool skip_strict() const
+	{ return(m_skip_strict); }
 
 	/** Return table name. */
 	const char* table_name() const
@@ -983,10 +937,12 @@ public:
 	bool prevent_eviction();
 
 	/** Detach the just created table and its auxiliary tables.
+	@param[in]	force		True if caller wants this table to be
+					not evictable and ignore 'prevented'
 	@param[in]	prevented	True if the base table was prevented
 					to be evicted by prevent_eviction()
 	@param[in]	dict_locked	True if dict_sys mutex is held */
-	void detach(bool prevented, bool dict_locked);
+	void detach(bool force, bool prevented, bool dict_locked);
 
 	/** Normalizes a table name string.
 	A normalized name consists of the database name catenated to '/' and
@@ -1061,6 +1017,76 @@ private:
 
 	/** Table flags2 */
 	ulint		m_flags2;
+
+	/** Skip strict check */
+	bool		m_skip_strict;
+};
+
+/** Class of basic DDL implementation, for CREATE/DROP/RENAME TABLE */
+class innobase_basic_ddl
+{
+public:
+	/** Create an InnoDB table.
+	@tparam		Table		dd::Table or dd::Partition
+	@param[in,out]	thd		THD object
+	@param[in]	name		Table name, format: "db/table_name"
+	@param[in]	form		Table format; columns and index
+					information
+	@param[in]	create_info	Create info(including create statement
+					string)
+	@param[in,out]	dd_tab		dd::Table describing table to be created
+	@param[in]	file_per_table	whether to create a tablespace too
+	@param[in]	evictable	whether the caller wants the
+					dict_table_t to be kept in memory
+	@param[in]	skip_strict	whether to skip strict check for create
+					option
+	@return	error number
+	@retval	0 on success */
+	template<typename Table>
+	static int create_impl(
+		THD*		thd,
+		const char*	name,
+		TABLE*		form,
+		HA_CREATE_INFO*	create_info,
+		Table*		dd_tab,
+		bool		file_per_table,
+		bool		evictable,
+		bool		skip_strict);
+
+	/** Drop an InnoDB table.
+	@tparam		Table		dd::Table or dd::Partition
+	@param[in,out]	thd		THD object
+	@param[in]	name		table name
+	@param[in]	dd_tab		dd::Table describing table to be dropped
+	@param[in]	sqlcom		type of operation that the DROP
+					is part of
+	@return	error number
+	@retval	0 on success */
+	template<typename Table>
+	static int delete_impl(
+		THD*			thd,
+		const char*		name,
+		const Table*		dd_tab,
+		enum enum_sql_command	sqlcom);
+
+	/** Renames an InnoDB table.
+	@tparam		Table		dd::Table or dd::Partition
+	@param[in,out]	thd		THD object
+	@param[in]	from		old name of the table
+	@param[in]	to		new name of the table
+	@param[in]	from_table	dd::Table or dd::Partition of the table
+					with old name
+	@param[in]	to_table	dd::Table or dd::Partition of the table
+					with new name
+	@return	error number
+	@retval	0 on success */
+	template<typename Table>
+	static int rename_impl(
+		THD*			thd,
+		const char*		from,
+		const char*		to,
+		const Table*		from_table,
+		const Table*		to_table);
 };
 
 /**
@@ -1149,11 +1175,6 @@ innodb_base_col_setup_for_stored(
 #define normalize_table_name(norm_name, name)           \
 	create_table_info_t::normalize_table_name_low(norm_name, name, FALSE)
 #endif /* _WIN32 */
-
-/** Obtain the InnoDB transaction of a MySQL thread.
-@param[in,out]	thd	MySQL thread handler.
-@return reference to transaction pointer */
-trx_t*& thd_to_trx(THD*	thd);
 
 /** Note that a transaction has been registered with MySQL.
 @param[in]	trx	Transaction.

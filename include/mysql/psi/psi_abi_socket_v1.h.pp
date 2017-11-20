@@ -29,27 +29,13 @@ typedef int my_socket;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "psi_base.h"
-#include "my_psi_config.h"
-typedef unsigned int PSI_mutex_key;
-typedef unsigned int PSI_rwlock_key;
-typedef unsigned int PSI_cond_key;
-typedef unsigned int PSI_thread_key;
-typedef unsigned int PSI_file_key;
-typedef unsigned int PSI_stage_key;
-typedef unsigned int PSI_statement_key;
+#include "mysql/components/services/psi_socket_bits.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 typedef unsigned int PSI_socket_key;
-struct PSI_placeholder
-{
-  int m_placeholder;
-};
 struct PSI_socket;
 typedef struct PSI_socket PSI_socket;
-struct PSI_socket_bootstrap
-{
-  void *(*get_interface)(int version);
-};
-typedef struct PSI_socket_bootstrap PSI_socket_bootstrap;
 struct PSI_socket_locker;
 typedef struct PSI_socket_locker PSI_socket_locker;
 enum PSI_socket_state
@@ -81,7 +67,9 @@ struct PSI_socket_info_v1
 {
   PSI_socket_key *m_key;
   const char *m_name;
-  int m_flags;
+  uint m_flags;
+  int m_volatility;
+  const char *m_documentation;
 };
 typedef struct PSI_socket_info_v1 PSI_socket_info_v1;
 struct PSI_socket_locker_state_v1
@@ -122,6 +110,13 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
                                      const struct sockaddr *addr,
                                      socklen_t addr_len);
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
+typedef struct PSI_socket_info_v1 PSI_socket_info;
+typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
+struct PSI_socket_bootstrap
+{
+  void *(*get_interface)(int version);
+};
+typedef struct PSI_socket_bootstrap PSI_socket_bootstrap;
 struct PSI_socket_service_v1
 {
   register_socket_v1_t register_socket;
@@ -134,6 +129,4 @@ struct PSI_socket_service_v1
   set_socket_thread_owner_v1_t set_socket_thread_owner;
 };
 typedef struct PSI_socket_service_v1 PSI_socket_service_t;
-typedef struct PSI_socket_info_v1 PSI_socket_info;
-typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
 extern PSI_socket_service_t *psi_socket_service;

@@ -16,16 +16,16 @@
 #ifndef DD__ROUTINE_INCLUDED
 #define DD__ROUTINE_INCLUDED
 
-#include "dd/types/entity_object.h"       // dd::Entity_object
-#include "dd/types/view.h"                // dd::Column::enum_security_type
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
+#include "sql/dd/types/entity_object.h"   // dd::Entity_object
+#include "sql/dd/types/view.h"            // dd::Column::enum_security_type
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Object_type;
-class Primary_id_key;
 class Void_key;
 class Parameter;
 class Properties;
@@ -181,14 +181,14 @@ public:
   // created.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created() const = 0;
+  virtual ulonglong created(bool convert_time) const = 0;
   virtual void set_created(ulonglong created) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // last altered.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered() const = 0;
+  virtual ulonglong last_altered(bool convert_time) const = 0;
   virtual void set_last_altered(ulonglong last_altered) = 0;
 
   /////////////////////////////////////////////////////////////////////////

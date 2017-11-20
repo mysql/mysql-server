@@ -20,7 +20,7 @@
 
 #include "mysql/gcs/xplatform/my_xp_util.h"
 #include "mysql/gcs/xplatform/byteorder.h"
-#include "mysql/gcs/gcs_logging.h"
+#include "mysql/gcs/gcs_logging_system.h"
 #include "gcs_xcom_group_member_information.h"
 #include "gcs_xcom_utils.h"
 
@@ -425,9 +425,8 @@ bool Gcs_xcom_nodes::encode(unsigned int *ptr_size, char ***ptr_addrs, blob **pt
     assert(m_uuids[i].data.data_len == uuid_size);
 
     MYSQL_GCS_LOG_TRACE(
-      "Node[" << i << "]=(address="
-      << m_addrs[i] << ", uuid=" << (*nodes_it).get_member_uuid().actual_value.c_str()
-      << ")"
+      "Node[%d]=(address=%s), (uuid=%s)", i, m_addrs[i],
+      (*nodes_it).get_member_uuid().actual_value.c_str()
     );
   }
 

@@ -14,11 +14,12 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "handler.h"
+#include "sql/opt_costmodel.h"
+
 #include "my_dbug.h"
-#include "opt_costconstantcache.h"              // Cost_constant_cache
-#include "opt_costmodel.h"
-#include "table.h"                              // TABLE
+#include "sql/handler.h"
+#include "sql/opt_costconstantcache.h"          // Cost_constant_cache
+#include "sql/table.h"                          // TABLE
 
 extern Cost_constant_cache *cost_constant_cache;// defined in
                                                 // opt_costconstantcache.cc

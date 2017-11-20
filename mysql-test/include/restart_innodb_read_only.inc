@@ -5,6 +5,7 @@ SET GLOBAL innodb_fast_shutdown = 0;
 --disable_query_log
 CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
 CALL mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+CALL mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
 --enable_query_log
 
 let $restart_parameters = restart: --innodb-read-only;

@@ -29,7 +29,8 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_BINARY_DIR}/rapid/plugin/group_replication/libmysqlgcs/include
   ${CMAKE_BINARY_DIR}/rapid/plugin/group_replication/libmysqlgcs/xdr_gen
   ${CMAKE_SOURCE_DIR}/rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom
-  ${CMAKE_SOURCE_DIR}/rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom)
+  ${CMAKE_SOURCE_DIR}/rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom
+  ${CMAKE_SOURCE_DIR}/rapid/unittest/gunit/libmysqlgcs/include)
 
 IF (WIN32)
   SET (XCOM_BASEDIR
@@ -48,6 +49,7 @@ SET(GCS_INTERFACE_TESTS
 
 SET(GCS_XCOM_TESTS
     xcom/gcs_logging
+    xcom/gcs_logging_system
     xcom/gcs_parameters
     xcom/gcs_xcom_notification
     xcom/gcs_xcom_utils
@@ -68,9 +70,8 @@ SET(GCS_XCOM_TESTS
 
 FOREACH(tpath ${GCS_INTERFACE_TESTS} ${GCS_XCOM_TESTS})
   GET_FILENAME_COMPONENT(test ${tpath} NAME)
-  ADD_EXECUTABLE(${test}-t ${tpath}-t.cc)
+  MYSQL_ADD_EXECUTABLE(${test}-t ${tpath}-t.cc ADD_TEST ${test})
   TARGET_LINK_LIBRARIES(${test}-t gunit_small ${GCS_LIBRARY} ${LZ4_LIBRARY})
-  ADD_TEST(${test} ${test}-t)
   SET(GCS_UNIT_TESTS "${GCS_UNIT_TESTS}" "${test}-t")
 ENDFOREACH()
 

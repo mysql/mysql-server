@@ -46,6 +46,7 @@
 
 #ifdef __cplusplus
 
+#include <memory>
 #include <new>
 
 extern "C" {
@@ -194,6 +195,11 @@ class Destroy_only
 public:
   void operator() (T *ptr) const { destroy(ptr); }
 };
+
+/** std::unique_ptr, but only destroying. */
+template<class T>
+using unique_ptr_destroy_only = std::unique_ptr<T, Destroy_only<T>>;
+
 #endif  // __cplusplus
 
 #endif

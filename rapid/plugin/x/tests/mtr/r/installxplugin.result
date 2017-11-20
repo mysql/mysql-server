@@ -62,7 +62,8 @@ Mysqlx.Ok {
 }
 ok
 uninstall plugin mysqlx;
-ERROR: Connection refused connecting to HOST:PORT
+in main, line 0:ERROR: Connection refused connecting to HOST:PORT (code 2002)
+not ok
 install plugin mysqlx soname "mysqlx.so";
 show variables like 'mysqlx_idle_worker_thread_timeout%';
 Variable_name	Value
@@ -101,7 +102,7 @@ session@localhost	session@localhost	*
 RUN show grants
 Grants for session@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `session`@`localhost`
-GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `session`@`localhost`
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `session`@`localhost`
 0 rows affected
 RUN install plugin mysqlx soname '$MYSQLXPLUGIN'
 While executing install plugin mysqlx soname '$MYSQLXPLUGIN':
@@ -130,7 +131,8 @@ call mtr.add_suppression("Plugin mysqlx reported: 'Error executing CREATE USER I
 call mtr.add_suppression("Plugin mysqlx reported: 'Authentication account could not be created, mysqlx plugin will be inaccessible.'");
 uninstall plugin mysqlx;
 # restart: --loose-mysqlx_idle_worker_thread_timeout=70 --loose-mysqlx_max_allowed_packet=4048576 --loose-mysqlx_max_connections=500 --loose-mysqlx_min_worker_threads=50
-ERROR: Connection refused connecting to HOST:PORT
+in main, line 0:ERROR: Connection refused connecting to HOST:PORT (code 2002)
+not ok
 show variables like 'mysqlx_idle_worker_thread_timeout%';
 Variable_name	Value
 show variables like 'mysqlx_max_allowed_packet%';

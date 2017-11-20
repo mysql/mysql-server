@@ -16,24 +16,42 @@
 #                                                                             #
 ###############################################################################
 
+# We need to reboot in order to get rid of extra undo tablespaces.
+--source include/not_valgrind.inc
 
-SELECT @@GLOBAL.innodb_undo_tablespaces >= 0;
+let MYSQLD_DATADIR = `select @@datadir`;
+
+SELECT @@GLOBAL.innodb_undo_tablespaces >= 2;
 let $undo_tablespaces=`SELECT @@GLOBAL.innodb_undo_tablespaces`;
 
 
 ####################################################################
 # Make sure the value can be set at runtime                        #
+# Test for invalid range and expect a warning
 ####################################################################
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] InnoDB: Expected to open 127 undo tablespaces but found 0. Will create the rest");
 --enable_query_log
 
-SET @@GLOBAL.innodb_undo_tablespaces=128;
---echo # Expected warning 'Truncated incorrect innodb_undo_tablespaces value'
+SET GLOBAL innodb_undo_tablespaces=2;
+SELECT @@innodb_undo_tablespaces;
+--echo # 2 Expected
 
-SELECT @@GLOBAL.innodb_undo_tablespaces;
---echo # 127 Expected
+SET GLOBAL innodb_undo_tablespaces=1;
+--echo # Expected warning 'Truncated incorrect innodb_undo_tablespaces value'
+SELECT @@innodb_undo_tablespaces;
+--echo # 2 Expected
+
+SET GLOBAL innodb_undo_tablespaces=0;
+--echo # Expected warning 'Truncated incorrect innodb_undo_tablespaces value'
+SELECT @@innodb_undo_tablespaces;
+--echo # 2 Expected
+
+SET GLOBAL innodb_undo_tablespaces=-1;
+--echo # Expected warning 'Truncated incorrect innodb_undo_tablespaces value'
+SELECT @@innodb_undo_tablespaces;
+--echo # 2 Expected
 
 --replace_result $undo_tablespaces ORIGINAL_VALUE
 --eval SET @@GLOBAL.innodb_undo_tablespaces=$undo_tablespaces;

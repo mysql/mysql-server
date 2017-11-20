@@ -12,7 +12,7 @@ RUN create table bla (data json)
 1 rows affected
 RUN select * from bla
 data
-%JSONDATA%
+%JSONDATA_UNESCAPED%
 0 rows affected
 RUN drop table bla
 

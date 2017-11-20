@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,26 +31,6 @@
   of my_thread / safemutex / etc APIs,
   including mysql/psi/mysql_thread.h assumes that
   the dependency on my_thread and safemutex already exists.
-*/
-/*
-  Note: there are several orthogonal dimensions here.
-
-  Dimension 1: Instrumentation
-  HAVE_PSI_INTERFACE is defined when the instrumentation is compiled in.
-  This may happen both in debug or production builds.
-
-  Dimension 2: Debug
-  SAFE_MUTEX is defined when debug is compiled in.
-  This may happen both with and without instrumentation.
-
-  Dimension 3: Platform
-  Mutexes are implemented with one of:
-  - the pthread library
-  - fast mutexes
-  - window apis
-  This is implemented by various macro definitions in my_thread.h
-
-  This causes complexity with '#ifdef'-ery that can't be avoided.
 */
 
 #include "my_psi_config.h"  // IWYU pragma: keep

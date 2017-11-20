@@ -13,16 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "table_cache.h"
+#include "sql/table_cache.h"
 
 #include <stdio.h>
 #include <string.h>
 
-#include "m_ctype.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
-#include "sql_test.h" // lock_descriptions[]
-#include "template_utils.h"
+#include "my_macros.h"
+#include "sql/sql_test.h" // lock_descriptions[]
 #include "thr_lock.h"
 #include "thr_mutex.h"
 
@@ -36,7 +35,7 @@ Table_cache_manager table_cache_manager;
 #ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key Table_cache::m_lock_key;
 PSI_mutex_info Table_cache::m_mutex_keys[]= {
-  { &m_lock_key, "LOCK_table_cache", 0, 0}
+  { &m_lock_key, "LOCK_table_cache", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif
 

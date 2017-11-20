@@ -9,8 +9,6 @@
 --write_file $MYSQL_TMP_DIR/performance_schema_memory.tmp
 -->quiet
 
-update performance_schema.setup_instruments set ENABLED='YES'
-
 -->echo See for existence of required events in the tables
 
 -->macro Read_status_values %TABLE% %EVENT% %VAR_SET_NO%

@@ -16,19 +16,24 @@
 #ifndef RPL_FILTER_H
 #define RPL_FILTER_H
 
+#include "my_config.h"
+
 #include <stddef.h>
 #include <sys/types.h>
 #include <atomic>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "map_helpers.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "options_mysqld.h"                     // options_mysqld
 #include "prealloced_array.h"                   // Prealloced_arrray
-#include "sql_cmd.h"                            // Sql_cmd
-#include "sql_list.h"                           // I_List
+#include "sql/options_mysqld.h"                 // options_mysqld
+#include "sql/rpl_gtid.h"
+#include "sql/sql_cmd.h"                        // Sql_cmd
+#include "sql/sql_list.h"                       // I_List
 #include "sql_string.h"
-#include "rpl_gtid.h"
 
 class Item;
 class String;

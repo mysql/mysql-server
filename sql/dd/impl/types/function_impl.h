@@ -19,19 +19,19 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <new>
-#include <string>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/entity_object_impl.h"
-#include "dd/impl/types/routine_impl.h"        // dd::Routine_impl
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/types/column.h"
-#include "dd/types/function.h"                 // dd::Function
-#include "dd/types/object_type.h"              // dd::Object_type
-#include "dd/types/routine.h"
-#include "dd/types/view.h"
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/entity_object_impl.h"
+#include "sql/dd/impl/types/routine_impl.h"    // dd::Routine_impl
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/column.h"
+#include "sql/dd/types/function.h"             // dd::Function
+#include "sql/dd/types/object_type.h"          // dd::Object_type
+#include "sql/dd/types/routine.h"
+#include "sql/dd/types/view.h"
 
 namespace dd {
 
@@ -40,6 +40,7 @@ namespace dd {
 class Open_dictionary_tables_ctx;
 class Parameter;
 class Weak_object;
+class Object_table;
 
 class Function_impl : public Routine_impl,
                       public Function
@@ -256,12 +257,12 @@ public:
   { return Routine_impl::schema_collation_id(); }
   virtual void set_schema_collation_id(Object_id schema_collation_id)
   { Routine_impl::set_schema_collation_id(schema_collation_id); }
-  virtual ulonglong created() const
-  { return Routine_impl::created(); }
+  virtual ulonglong created(bool convert_time) const
+  { return Routine_impl::created(convert_time); }
   virtual void set_created(ulonglong created)
   { Routine_impl::set_created(created); }
-  virtual ulonglong last_altered() const
-  { return Routine_impl::last_altered(); }
+  virtual ulonglong last_altered(bool convert_time) const
+  { return Routine_impl::last_altered(convert_time); }
   virtual void set_last_altered(ulonglong last_altered)
   { Routine_impl::set_last_altered(last_altered); }
   virtual const String_type &comment() const

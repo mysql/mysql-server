@@ -524,7 +524,7 @@ private:
   /* Status flags ----------------------------------*/
 
   Uint32 c_restartPartialTimeout;
-  Uint32 c_restartPartionedTimeout;
+  Uint32 c_restartPartitionedTimeout;
   Uint32 c_restartFailureTimeout;
   Uint32 c_restartNoNodegroupTimeout;
   NDB_TICKS c_start_election_time;
@@ -599,6 +599,9 @@ private:
   }
 
   void execISOLATE_ORD(Signal* signal);
+
+  void sendReadLocalSysfile(Signal*);
+  void execREAD_LOCAL_SYSFILE_CONF(Signal*);
 };
 
 

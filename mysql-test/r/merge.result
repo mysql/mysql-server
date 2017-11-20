@@ -695,7 +695,7 @@ AND file_code = '0000000115' LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	const	PRIMARY,files	PRIMARY	131	const,const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `fileset_id`,'0000000115' AS `file_code`,'1' AS `fileset_root_id` from `test`.`t2` where (('0000000115' = '0000000115')) limit 1
+Note	1003	/* select#1 */ select '2' AS `fileset_id`,'0000000115' AS `file_code`,'1' AS `fileset_root_id` from `test`.`t2` where 1 limit 1
 DROP TABLE t2, t1;
 create table t1 (x int, y int, index xy(x, y));
 create table t2 (x int, y int, index xy(x, y));
@@ -2070,7 +2070,7 @@ test.t1	optimize	status	OK
 FLUSH TABLES m1, t1;
 UNLOCK TABLES;
 DROP TABLE t1, m1;
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=FIRST;
 SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE
 TABLE_SCHEMA = 'test' and TABLE_NAME='tm1';
@@ -2079,7 +2079,7 @@ def	test	tm1	BASE TABLE	MRG_MYISAM	10	Fixed	#	#	#	#	#	#	#	#	#	#	utf8mb4_0900_ai_
 Warnings:
 Warning	1168	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 DROP TABLE tm1;
-SET SESSION information_schema_stats=cached;
+SET SESSION information_schema_stats_expiry=default;
 CREATE TABLE t1(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2)) ENGINE=MYISAM;
 CREATE TABLE t2(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2)) ENGINE=MYISAM;
 CREATE TABLE t3(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2)) ENGINE=MYISAM;

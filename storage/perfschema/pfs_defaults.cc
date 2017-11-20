@@ -28,21 +28,22 @@
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 
-static PSI_thread_key thread_key;
-static PSI_thread_info thread_info = {&thread_key, "setup", PSI_FLAG_GLOBAL};
-
-const char *pfs_category = "performance_schema";
-
 void
 install_default_setup(PSI_thread_bootstrap *thread_boot)
 {
-  PSI_thread_service_t *psi =
-    (PSI_thread_service_t *)thread_boot->get_interface(
-      PSI_CURRENT_THREAD_VERSION);
-  if (psi == NULL)
+  void *service = thread_boot->get_interface(PSI_CURRENT_THREAD_VERSION);
+  if (service == NULL)
   {
     return;
   }
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  static PSI_thread_key thread_key;
+  static PSI_thread_info thread_info = {&thread_key, "setup", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME};
+
+  const char *pfs_category = "performance_schema";
+
+  PSI_thread_service_t *psi = (PSI_thread_service_t *)service;
 
   psi->register_thread(pfs_category, &thread_info, 1);
   PSI_thread *psi_thread = psi->new_thread(thread_key, NULL, 0);
@@ -104,4 +105,5 @@ install_default_setup(PSI_thread_bootstrap *thread_boot)
   }
 
   psi->delete_current_thread();
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 }

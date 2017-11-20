@@ -863,7 +863,6 @@ DROP TABLE not_encrypted1;
 DROP TABLE encrypted2;
 DROP TABLE not_encrypted2;
 
-
 --echo #
 --echo # Bug#26114424 WL8943:SIG11 IN DROP_HISTOGRAMS AT SQL/SQL_TABLE.CC
 --echo #
@@ -872,4 +871,1032 @@ DROP TABLE not_encrypted2;
 CREATE TABLE t1 (i INT, at INT, k INT) ENGINE=MyISAM;
 CREATE TRIGGER ai AFTER INSERT ON t1 FOR EACH ROW SET @a:= NEW.at;
 ALTER TABLE t1 ADD PRIMARY KEY (i);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26303972 HISTOGRAM.CC:1169: BOOL HISTOGRAMS::DROP_ALL_HISTOGRAMS
+--echo #
+CREATE TABLE ftidx_encrypted (a VARCHAR(255), FULLTEXT ftidx(a))
+             ENGINE=InnoDB ENCRYPTION='N';
+ALTER TABLE ftidx_encrypted RENAME TO ftidx_encrypted_renamed, KEY_BLOCK_SIZE=0;
+DROP TABLE ftidx_encrypted_renamed;
+
+
+--echo #
+--echo # Bug#26388098 WL9223: ASSERTION `DISTANCE >= 0.0' FAILED.
+--echo #
+CREATE TABLE t1 (
+  ten int(11) DEFAULT NULL,
+  twenty int(11) DEFAULT NULL,
+  forty int(11) DEFAULT NULL,
+  eighty int(11) DEFAULT NULL,
+  KEY idx3 (twenty,ten),
+  KEY idx (ten)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO t1 VALUES
+(6,16,36,76), (5,15,35,35), (9,19,39,79), (1,1,1,41), (7,17,17,17),
+(3,13,33,73), (7,17,37,37), (1,1,1,1), (9,9,9,9), (0,0,20,60), (5,15,35,75),
+(0,10,10,10), (3,3,3,3), (8,8,8,48), (8,18,38,38), (8,8,28,28), (3,13,33,33),
+(7,7,7,7), (2,2,22,62), (0,0,0,40), (0,0,0,0), (2,12,12,52), (6,6,6,6),
+(9,19,19,19), (5,15,15,15), (5,5,5,5), (5,5,25,65), (4,14,14,14), (3,3,23,23),
+(4,4,4,44), (4,14,34,74), (6,6,26,26), (7,17,17,57), (7,17,17,17), (8,18,18,18),
+(1,11,11,11), (4,4,4,4), (4,4,24,24), (8,18,18,18), (1,11,11,51), (7,7,27,27),
+(8,8,8,8), (9,9,29,29), (7,7,7,47), (1,1,1,1), (5,5,25,25), (4,4,24,64),
+(9,9,29,69), (0,10,10,10), (9,9,9,49);
+
+ANALYZE TABLE t1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON eighty WITH 40 BUCKETS;
+EXPLAIN SELECT a.forty, b.twenty FROM t1 AS a, t1 AS b
+        WHERE a.twenty = b.ten AND b.eighty >= (3 + 20);
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#26389682 WL9223: ASSERTION `VALUE_CONVERTED <= UPPER_CONVERTED'
+--echo #              FAILED.
+--echo #
+CREATE TABLE `t1` (
+  `two` blob,
+  `ten` blob,
+  `sixty` text,
+  `eighty` blob,
+  `tenPercent` text
+) DEFAULT CHARSET=utf8mb4;
+INSERT INTO `t1` VALUES
+('0','6','16','76','6'), ('1','5','35','35','5'), ('1','9','19','79','9'),
+('1','1','41','41','1'), ('1','7','37','17','7'), ('1','3','13','73','3'),
+('1','7','37','37','7'), ('1','1','1','1','1'), ('1','9','29','9','9'),
+('0','0','0','60','0'), ('1','5','15','75','5'), ('0','0','10','10','0'),
+('1','3','3','3','3'), ('0','8','48','48','8'), ('0','8','38','38','8'),
+('0','8','28','28','8'), ('1','3','33','33','3'), ('1','7','7','7','7'),
+('0','2','2','62','2'), ('0','0','40','40','0'), ('0','0','20','0','0'),
+('0','2','52','52','2'), ('0','6','26','6','6'), ('1','9','19','19','9'),
+('1','5','15','15','5'), ('1','5','25','5','5'), ('1','5','5','65','5'),
+('0','4','14','14','4'), ('1','3','23','23','3'), ('0','4','44','44','4'),
+('0','4','14','74','4'), ('0','6','26','26','6'), ('1','7','57','57','7'),
+('1','7','17','17','7'), ('0','8','18','18','8'), ('1','1','11','11','1'),
+('0','4','24','4','4'), ('0','4','24','24','4'), ('0','8','38','18','8'),
+('1','1','51','51','1'), ('1','7','27','27','7'), ('0','8','8','8','8'),
+('1','9','29','29','9'), ('1','7','47','47','7'), ('1','1','21','1','1'),
+('1','5','25','25','5'), ('0','4','4','64','4'), ('1','9','9','69','9'),
+('0','0','30','10','0'), ('1','9','49','49','9'), ('0','6','36','36','6'),
+('0','0','20','20','0'), ('0','2','2','2','2'), ('1','1','1','61','1'),
+('0','8','28','8','8'), ('0','2','42','42','2'), ('0','2','12','72','2'),
+('0','6','6','66','6'), ('1','7','7','67','7'), ('0','8','8','68','8'),
+('0','4','34','14','4'), ('0','4','4','4','4'), ('0','6','6','6','6'),
+('0','6','16','16','6'), ('1','7','17','77','7'), ('0','8','18','78','8'),
+('0','2','22','22','2'), ('0','0','0','0','0'), ('1','9','9','9','9'),
+('1','9','39','39','9'), ('1','7','27','7','7'), ('0','2','32','32','2'),
+('1','1','31','11','1'), ('0','2','12','12','2'), ('0','4','54','54','4'),
+('0','4','34','34','4'), ('1','1','21','21','1'), ('1','3','33','13','3'),
+('0','6','56','56','6'), ('1','1','11','71','1'), ('1','3','53','53','3'),
+('0','0','10','70','0'), ('0','6','36','16','6'), ('1','5','55','55','5'),
+('0','2','22','2','2'), ('1','5','45','45','5'), ('1','3','43','43','3'),
+('0','2','32','12','2'), ('1','1','31','31','1'), ('0','0','50','50','0'),
+('1','3','13','13','3'), ('1','5','35','15','5'), ('1','9','59','59','9'),
+('1','5','5','5','5'), ('0','6','46','46','6'), ('0','0','30','30','0'),
+('0','8','58','58','8'), ('1','3','23','3','3'), ('1','3','3','63','3'),
+('1','9','39','19','9'), ('1','3','44',NULL,'5'), ('1','7','38',NULL,'6'),
+('1','1','52','64','6'), ('1','6','39',NULL,'0'), ('1','7','44','48','6'),
+('0','8','42',NULL,'6'), ('0','0','7',NULL,'9'), ('1','0','45',NULL,'1'),
+('1','5','40','32','0'), ('0','3','52',NULL,'3'), ('1','1','8','48','2'),
+('0','3','20','16','2'), ('0','2','15',NULL,'6'), ('1','6','48','48','8'),
+('0','5','31',NULL,'7'), ('0','6','20','0','4'), ('0','2','12','16','6'),
+('0','4','20','64','4'), ('0','6','56','48','8'), ('0','2','40','16','4'),
+('0','2','52','48','6'), ('1','9','25',NULL,'0'), ('0','0','12',NULL,'1'),
+('0','1','0','64','8'), ('1','4','48','32','6'), ('1','2','0','0','4'),
+('0','5','52','64','8'), ('0','8','44','48','2'), ('0','8','40','0','2'),
+('0','6','8',NULL,'6'), ('1','1','24','16','6'), ('0','6','44','0','4'),
+('1','1','36','0','2'), ('1','0','39',NULL,'7'), ('0','0','8','32','8'),
+('0','2','16','32','0'), ('0','5','8','64','4'), ('0','9','38',NULL,'9'),
+('1','7','32','48','4'), ('0','3','8','48','4'), ('1','8','32',NULL,'5'),
+('1','3','12','32','0'), ('0','3','24','16','6'), ('0','3','53',NULL,'3'),
+('1','6','44','32','8'), ('1','0','4','32','2'), ('1','4','4','48','8'),
+('1','8','8',NULL,'5'), ('1','6','16',NULL,'2'), ('0','7','20','64','8'),
+('0','2','55',NULL,'6'), ('0','8','5',NULL,'1'), ('1','9','36','48','8'),
+('1','3','20','32','2'), ('0','0','56','0','6'), ('1','4','25',NULL,'2'),
+('0','3','0',NULL,'9'), ('1','1','32',NULL,'5'), ('0','4','32',NULL,'0'),
+('0','9','4','0','2'), ('1','9','36','64','8'), ('0','3','48','16','4'),
+('0','9','12','0','0'), ('1','4','39',NULL,'6'), ('0','5','16','16','6'),
+('0','2','17',NULL,'3'), ('1','9','52','0','8'), ('1','2','28',NULL,'3'),
+('1','5','28','32','8'), ('1','4','0','48','8'), ('1','4','39',NULL,'7'),
+('1','3','16',NULL,'6'), ('0','3','17',NULL,'4'), ('1','2','18',NULL,'9'),
+('0','6','52','16','2'), ('1','1','15',NULL,'7'), ('0','5','4','64','6'),
+('0','6','48','64','8'), ('0','7','56',NULL,'0'), ('1','0','28',NULL,'9'),
+('0','4','40','32','8'), ('1','9','52','0','6'), ('1','4','30',NULL,'3'),
+('0','8','8',NULL,'0'), ('0','6','0','64','8'), ('0','6','38',NULL,'9'),
+('0','0','52','64','0'), ('0','5','39',NULL,'3'), ('0','0','52','16','0'),
+('0','5','8','64','0'), ('1','1','44','16','0'), ('0','4','52',NULL,'2'),
+('0','9','0',NULL,'3'), ('0','3','36','64','2'), ('0','3','52','16','8'),
+('1','5','4','16','2'), ('0','9','58',NULL,'9');
+
+UPDATE mysql.innodb_table_stats SET n_rows = 197
+WHERE database_name = "test" AND table_name = "t1";
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON tenPercent WITH 4 BUCKETS;
+EXPLAIN SELECT a.two, b.eighty FROM t1 AS a,t1 AS b
+        WHERE a.ten = b.sixty AND b.tenPercent < (9 + (5*10));
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#26388066 WL9223:ASSERTION `FILTER >= 0.0F && FILTER <= 1.0F' FAILED
+--echo #
+CREATE TABLE t1 (
+  tenPercent int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO t1 VALUES (6),(5),(9),(1),(7);
+
+UPDATE mysql.innodb_table_stats SET n_rows = 5
+WHERE database_name = "test" AND table_name = "t1";
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON tenPercent WITH 2 BUCKETS;
+EXPLAIN SELECT b.tenPercent FROM t1 AS b WHERE  b.tenPercent NOT BETWEEN 3 AND 0;
+EXPLAIN SELECT b.tenPercent FROM t1 AS b WHERE  b.tenPercent BETWEEN 3 AND 0;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#26388217 WL9223: SIG 11 IN STRING::NUMCHARS |
+--echo #              /SQL-COMMON/SQL_STRING.CC:680
+--echo #
+CREATE TABLE k (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_255_utf8 varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_10_latin1 varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_255_latin1 varchar(255) CHARACTER SET latin1 DEFAULT NULL,
+  col_datetime_key datetime DEFAULT NULL,
+  col_date_key date DEFAULT NULL,
+  col_varchar_255_latin1_key varchar(255) CHARACTER SET latin1 DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+  col_date date DEFAULT NULL,
+  col_int int(11) DEFAULT NULL,
+  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  col_datetime datetime DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
+  KEY col_varchar_255_utf8_key (col_varchar_255_utf8_key),
+  KEY col_int_key (col_int_key),
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_date_key (col_date_key),
+  KEY col_varchar_255_latin1_key (col_varchar_255_latin1_key),
+  KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key)
+) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4;
+INSERT INTO k VALUES (1,
+                      'wrhhsy',
+                      'rhgpwcrafs',
+                      'hgpwcrafsb',
+                      'i',
+                      NULL,
+                      'gpwcrafsbt',
+                      '1000-01-01 00:00:00',
+                      '1000-01-01',
+                      'n',
+                      'LUWOS',
+                      '1000-01-01',
+                      NULL,
+                      'pwcrafsbtn',
+                      '2002-08-22 03:35:28');
+
+CREATE TABLE a (
+  col_datetime_key datetime DEFAULT NULL,
+  col_datetime datetime DEFAULT NULL,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_255_latin1 varchar(255) CHARACTER SET latin1 DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+  col_varchar_10_latin1 varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  col_date date DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_date_key date DEFAULT NULL,
+  col_int int(11) DEFAULT NULL,
+  col_varchar_255_utf8 varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_255_latin1_key varchar(255) CHARACTER SET latin1 DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
+  KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
+  KEY col_varchar_255_utf8_key (col_varchar_255_utf8_key),
+  KEY col_int_key (col_int_key),
+  KEY col_date_key (col_date_key),
+  KEY col_varchar_255_latin1_key (col_varchar_255_latin1_key)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4;
+INSERT INTO a VALUES (NULL,
+                      '2008-10-25 07:07:49',
+                      'BXLIC',
+                      'GSDDY',
+                      'w',
+                      'crbhsozfbh',
+                      's',
+                      1,
+                      'the',
+                      '2005-04-01',
+                      104529920,
+                      '1000-01-01',
+                      NULL,
+                      'like',
+                      'CGLFP');
+
+CREATE TABLE g (
+  col_varchar_10_latin1 varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+  col_datetime datetime DEFAULT NULL,
+  col_varchar_255_latin1_key varchar(255) CHARACTER SET latin1 DEFAULT NULL,
+  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_255_latin1 varchar(255) CHARACTER SET latin1 DEFAULT NULL,
+  col_varchar_255_utf8 varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  col_date_key date DEFAULT NULL,
+  col_date date DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_int int(11) DEFAULT NULL,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  col_datetime_key datetime DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_255_latin1_key (col_varchar_255_latin1_key),
+  KEY col_date_key (col_date_key),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
+  KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
+  KEY col_varchar_255_utf8_key (col_varchar_255_utf8_key),
+  KEY col_datetime_key (col_datetime_key)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4;
+INSERT INTO g VALUES ('o',
+                      '2009-05-15 00:00:00',
+                      'PFJGE',
+                      'ASUNU',
+                      'yj',
+                      'if',
+                      '1000-01-01',
+                      '2001-04-06',
+                      4,
+                      -1442512896,
+                      'm',
+                      'his',
+                      1,
+                      'I',
+                      '2007-05-11 00:00:00');
+
+ANALYZE TABLE g UPDATE HISTOGRAM ON col_varchar_10_utf8 WITH 250 BUCKETS;
+EXPLAIN SELECT alias1 . col_date_key AS field1  FROM   k AS alias1
+        LEFT OUTER JOIN  a AS alias2
+        RIGHT OUTER JOIN g AS alias3  ON  alias2 . col_varchar_255_utf8_key =  alias3 . col_varchar_10_utf8
+                                      ON  alias1 . col_varchar_10_latin1 =  alias3 . col_varchar_255_latin1
+        LEFT OUTER JOIN g AS alias4  ON  alias1 . col_varchar_255_utf8_key =  alias4 . col_varchar_255_utf8_key
+        WHERE  alias2 . pk = 3   ORDER BY field1;
+
+DROP TABLE a, k, g;
+
+--echo #
+--echo # Bug#26495045 WL9223:ASSERTION `FILTER >= 0.0F && FILTER <= 1.0F' FAILED.
+--echo #
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 1 BUCKETS;
+UPDATE mysql.innodb_table_stats SET n_rows = 3
+WHERE database_name = "test" AND table_name = "t1";
+EXPLAIN SELECT * FROM t1 WHERE col1 <= 3;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26542689 WL9223: VIRTUAL LONGLONG
+--echo #              ITEM_TIME_WITH_REF::VAL_DATE_TEMPORAL(): ASSERTION `0'
+--echo #
+CREATE TABLE table1 (
+  col_datetime_key datetime DEFAULT NULL,
+  col_datetime datetime DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_date date DEFAULT NULL,
+  col_time time DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_blob_key blob,
+  col_time_key time DEFAULT NULL,
+  col_int int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_date_key date DEFAULT NULL,
+  col_blob blob,
+  PRIMARY KEY (pk),
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_int_key (col_int_key),
+  KEY col_blob_key (col_blob_key(255)),
+  KEY col_time_key (col_time_key),
+  KEY col_varchar_key (col_varchar_key),
+  KEY col_date_key (col_date_key),
+  KEY test_idx (col_int_key,col_int)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4;
+INSERT INTO table1 VALUES ('2000-09-05 00:00:00',
+                      '2003-11-25 11:17:04',
+                      1,
+                      '2006-02-27',
+                      '00:20:06',
+                      'l',
+                      1,
+                      'uajnlnsnzyo',
+                      '23:18:41',
+                      7,
+                      'a',
+                      '2001-02-18',
+                      'jn');
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_varchar WITH 1 BUCKETS;
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_datetime WITH 20 BUCKETS;
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_time WITH 2 BUCKETS;
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_datetime_key WITH 20 BUCKETS;
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_date_key WITH 60 BUCKETS;
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_blob WITH 1023 BUCKETS;
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_int_key WITH 1023 BUCKETS;
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_date WITH 2 BUCKETS;
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_int WITH 1000 BUCKETS;
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_blob_key WITH 60 BUCKETS;
+
+CREATE TABLE table2 (
+  col_time_key time DEFAULT NULL,
+  col_blob_key blob,
+  col_int int(11) DEFAULT NULL,
+  col_datetime_key datetime DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_date date DEFAULT NULL,
+  col_time time DEFAULT NULL,
+  col_blob blob,
+  col_date_key date DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_datetime datetime DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_time_key (col_time_key),
+  KEY col_blob_key (col_blob_key(255)),
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_date_key (col_date_key),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key),
+  KEY test_idx (col_int_key,pk)
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4;
+INSERT INTO table2 VALUES ('10:39:59',
+                       'tymjpskqjjap',
+                       9,
+                       '2006-07-17 08:29:28',
+                       'y',
+                       '2002-10-02',
+                       '00:20:00',
+                       'mjpskqjjapldefot',
+                       '2008-11-12',
+                       3,
+                       1,
+                       NULL,
+                       '2009-03-19 00:00:00');
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_blob_key WITH 4 BUCKETS;
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_date WITH 40 BUCKETS;
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_blob WITH 20 BUCKETS;
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_int WITH 1 BUCKETS;
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_datetime_key WITH 20 BUCKETS;
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_int_key WITH 2 BUCKETS;
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_time WITH 60 BUCKETS;
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_varchar WITH 60 BUCKETS;
+
+CREATE TABLE table3 (
+  col_int_key int(11) DEFAULT NULL,
+  col_datetime datetime DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_datetime_key datetime DEFAULT NULL,
+  col_blob blob,
+  col_blob_key blob,
+  col_int int(11) DEFAULT NULL,
+  col_time time DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_time_key time DEFAULT NULL,
+  col_date_key date DEFAULT NULL,
+  col_date date DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_blob_key (col_blob_key(255)),
+  KEY col_varchar_key (col_varchar_key),
+  KEY col_time_key (col_time_key),
+  KEY col_date_key (col_date_key)
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4;
+INSERT INTO table3 VALUES (6,
+                      '2003-08-27 00:00:00',
+                      1,
+                      '2002-07-10 12:41:35',
+                      NULL,
+                      'xgtmzjkhjqplanraxafy',
+                      5,
+                      '05:20:53',
+                      'q',
+                      'g',
+                      '00:30:27',
+                      '2008-11-18',
+                      '2008-05-26');
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_date_key WITH 2 BUCKETS;
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_time_key WITH 1024 BUCKETS;
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_date WITH 10 BUCKETS;
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_datetime_key WITH 1024 BUCKETS;
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_blob_key WITH 20 BUCKETS;
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_blob WITH 10 BUCKETS;
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_time WITH 10 BUCKETS;
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_int WITH 1000 BUCKETS;
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_varchar WITH 2 BUCKETS;
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_varchar_key WITH 4 BUCKETS;
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_datetime WITH 2 BUCKETS;
+
+CREATE TABLE table4 (
+  col_datetime datetime DEFAULT NULL,
+  col_time time DEFAULT NULL,
+  col_time_key time DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_date date DEFAULT NULL,
+  col_int int(11) DEFAULT NULL,
+  col_blob blob,
+  col_blob_key blob,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_date_key date DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_datetime_key datetime DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_time_key (col_time_key),
+  KEY col_int_key (col_int_key),
+  KEY col_blob_key (col_blob_key(255)),
+  KEY col_varchar_key (col_varchar_key),
+  KEY col_date_key (col_date_key),
+  KEY col_datetime_key (col_datetime_key),
+  KEY test_idx (pk,col_int_key)
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4;
+INSERT INTO table4 VALUES ('2009-05-17 00:00:00',
+                      '00:20:03',
+                      '00:20:04',
+                      'u',
+                      6,
+                      '2008-02-12',
+                      0,
+                      'orecqsomotqciisj',
+                      'recqsomotqciisjzx',
+                      'e',
+                      '2005-03-21',
+                      1,
+                      '2009-11-16 02:30:22');
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_time_key WITH 100 BUCKETS;
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_date WITH 4 BUCKETS;
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_datetime_key WITH 4 BUCKETS;
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_int_key WITH 1024 BUCKETS;
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_blob WITH 60 BUCKETS;
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_time WITH 100 BUCKETS;
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_varchar_key WITH 1024 BUCKETS;
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_int WITH 4 BUCKETS;
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_blob_key WITH 80 BUCKETS;
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_varchar WITH 1024 BUCKETS;
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_date_key WITH 4 BUCKETS;
+
+CREATE VIEW view_BB AS SELECT * FROM table2;
+CREATE VIEW view_A AS SELECT * FROM table1;
+WITH cte AS (
+SELECT alias2 . col_time AS field1
+FROM  view_BB AS alias1  LEFT  JOIN view_A AS alias2
+ON  alias1 . col_varchar =  alias2 . col_varchar_key
+WHERE  alias2 . col_int_key > 2 AND alias2 . col_int_key < ( 5 + 1 )
+ORDER BY field1
+LIMIT 1000 OFFSET 35)
+UPDATE table3 AS OUTR1, table4 AS OUTR2, cte AS OUTRcte, cte AS OUTRcte1
+SET OUTR1.col_varchar_key = 'hey'
+WHERE OUTRcte . field1 <> 3;
+
+DROP VIEW view_BB, view_A;
+DROP TABLE table1, table2, table3, table4;
+
+--echo # Inverted BETWEEN predicate (lower bound is higher/greater than the
+--echo # upper bound)
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE t1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 64 BUCKETS;
+
+EXPLAIN SELECT * FROM t1 WHERE col1 BETWEEN 4 AND 2;
+EXPLAIN SELECT * FROM t1 WHERE col1 NOT BETWEEN 4 AND 2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26555815  WL9223: ASSERTION `DISTANCE >= 0.0' FAILED.
+--echo #
+CREATE TABLE t1 (col1 BIGINT);
+INSERT INTO t1 VALUES (-8454100925504552960), (-3300857051885862912), (0), (0),
+(0), (0), (0), (2), (2), (2), (6), (16), (56), (86), (142), (191), (7294),
+(16729), (22243), (23035), (23731), (23807), (39158), (51338),
+(762515711909167104), (1976517286462226432), (5793317970658721792),
+(6453095316068499456), (7648519542158655488), (8601593813300936704);
+ANALYZE TABLE t1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 1 BUCKETS;
+EXPLAIN SELECT * FROM t1 WHERE col1 <= 0;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#26570230 WL9223: ASSERTION `FILTER >= 0.0F && FILTER <= 1.0F'
+--echo #              FAILED.
+--echo #
+CREATE TABLE t1 (col1 VARCHAR(255));
+INSERT INTO t1 VALUES ("c"), ("f"), ("get"), ("going"), ("look"), ("MOZVN"),
+("n"), ("NJAOC"), ("o"), ("on"), ("qnqzklkafp"), ("say"), ("sckaeiqnqz"),
+("the"), ("there"), ("VXPRU"), ("w"), ("WBQDQ"), ("your"), ("ZHZXW");
+ANALYZE TABLE t1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
+EXPLAIN SELECT * FROM t1 WHERE col1 BETWEEN 'b' AND 'z';
+
+DROP TABLE t1;
+
+--echo # Test that histogram data is updated in a multi-connection setup
+
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+ANALYZE TABLE t1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 128 BUCKETS;
+
+--connect (con1, localhost, root,,)
+--connection con1
+--echo # This should give a very low estimate, since no rows matches this
+--echo # condition
+EXPLAIN SELECT * FROM t1 WHERE col1 > 3;
+
+--connection default
+DELETE FROM t1;
+INSERT INTO t1 VALUES (4), (5), (6);
+
+--connection con1
+--echo # This should give the same estimate as earlier, since we haven't updated
+--echo # the histogram statistics.
+EXPLAIN SELECT * FROM t1 WHERE col1 > 3;
+
+--connection default
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 128 BUCKETS;
+
+--connection con1
+--echo # Now we should see a very high estimate, since all rows matches this
+--echo # condition.
+EXPLAIN SELECT * FROM t1 WHERE col1 > 3;
+
+--connection default
+DROP TABLE t1;
+--disconnect con1
+
+
+--echo #
+--echo # Bug#26621664 WL9223:ASSERTION `DISTANCE <= 1.0' FAILED.
+--echo #
+SET @@SESSION.sql_mode='';
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) NOT NULL,
+  col_int_key int(11) GENERATED ALWAYS AS ((col_int + col_int)) VIRTUAL,
+  col_date date NOT NULL,
+  col_date_key date GENERATED ALWAYS AS ((col_date + interval 30 day))
+VIRTUAL,
+  col_datetime datetime NOT NULL,
+  col_time time NOT NULL,
+  col_datetime_key datetime GENERATED ALWAYS AS
+(addtime(col_datetime,col_time)) VIRTUAL,
+  col_time_key time GENERATED ALWAYS AS (addtime(col_datetime,col_time))
+VIRTUAL,
+  col_varchar varchar(1) NOT NULL,
+  col_varchar_key varchar(2) GENERATED ALWAYS AS
+(concat(col_varchar,col_varchar)) VIRTUAL,
+  PRIMARY KEY (pk),
+  KEY col_date_key (col_date_key)
+) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4;
+INSERT INTO t1 (pk, col_int, col_date, col_datetime, col_time, col_varchar)
+VALUES (10,8,'2006-08-19','2001-07-04
+14:30:59','23:33:39','v'),(11,8,'2006-08-13','2006-12-15
+06:22:01','11:50:10','j'),(12,9,'2008-05-12','2002-06-19
+14:43:00','07:14:03','h'),(13,0,'2003-07-05','2005-08-19
+04:46:53','18:13:22','q'),(14,1,'2003-10-21','2007-05-14
+06:19:04','00:00:00','g'),(29,1,'2008-12-24','2004-04-02
+07:16:01','16:30:10','e');
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_time WITH 4 BUCKETS;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_time_key WITH 1024 BUCKETS;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_varchar_key WITH 1023 BUCKETS;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_datetime_key WITH 2 BUCKETS;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_int WITH 40 BUCKETS;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_date_key WITH 80 BUCKETS;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_datetime WITH 40 BUCKETS;
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) NOT NULL,
+  col_int_key int(11) GENERATED ALWAYS AS ((col_int + col_int)) VIRTUAL,
+  col_date date NOT NULL,
+  col_date_key date GENERATED ALWAYS AS ((col_date + interval 30 day))
+VIRTUAL,
+  col_datetime datetime NOT NULL,
+  col_time time NOT NULL,
+  col_datetime_key datetime GENERATED ALWAYS AS
+(addtime(col_datetime,col_time)) VIRTUAL,
+  col_time_key time GENERATED ALWAYS AS (addtime(col_datetime,col_time))
+VIRTUAL,
+  col_varchar varchar(1) NOT NULL,
+  col_varchar_key varchar(2) GENERATED ALWAYS AS
+(concat(col_varchar,col_varchar)) VIRTUAL,
+  PRIMARY KEY (pk),
+  KEY col_date_key (col_date_key)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4;
+INSERT INTO t2 (pk, col_int, col_date, col_datetime, col_time, col_varchar)
+VALUES (1,2,'2002-10-13','1900-01-01
+00:00:00','00:00:00','s'),(2,4,'1900-01-01','2005-08-15
+00:00:00','15:57:25','r'),(3,8,'0000-00-00','1900-01-01
+00:00:00','07:05:51','m'),(4,4,'2006-03-09','2008-05-16
+08:09:06','19:22:21','b'),(5,4,'2001-06-05','2001-01-20
+12:47:23','03:53:16','x'),(6,7,'2006-05-28','2008-07-02
+00:00:00','09:16:38','g'),(7,4,'2001-04-19','1900-01-01
+00:00:00','15:37:26','p'),(8,1,'1900-01-01','2002-12-08
+11:34:58','00:00:00','q'),(9,9,'2004-08-20','1900-01-01
+00:00:00','05:03:03','w'),(10,4,'2004-10-10','1900-01-01
+00:00:00','02:59:24','d'),(11,8,'2000-04-02','2002-08-25
+20:35:06','00:01:58','e'),(12,4,'2006-11-02','2001-10-22
+11:13:24','00:00:00','b'),(13,8,'2009-01-28','2003-03-12
+02:00:34','02:20:16','y'),(14,0,'2005-04-19','2007-04-10
+12:16:04','04:59:50','p'),(15,0,'2006-08-12','2009-11-07
+00:00:00','21:14:04','f'),(16,0,'2005-03-12','2003-12-04
+11:14:26','00:00:00','p'),(17,7,'1900-01-01','2006-09-11
+18:25:21','12:59:27','d'),(18,7,'1900-01-01','1900-01-01
+00:00:00','16:39:36','f'),(19,5,'0000-00-00','2001-07-25
+08:40:24','00:00:00','j'),(20,3,'2007-09-09','2009-06-07
+13:48:58','00:00:00','e');
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_int WITH 4 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_time_key WITH 1 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_datetime_key WITH 10 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_datetime WITH 100 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_date_key WITH 2 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_varchar WITH 1023 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_int_key WITH 4 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_time WITH 4 BUCKETS;
+
+SELECT  STD( OUTR . pk ) AS x
+FROM t2 AS OUTR2 LEFT JOIN t2 AS OUTR
+ON ( OUTR2 . col_datetime_key >= OUTR . col_datetime_key )
+WHERE OUTR . col_int IN (
+SELECT DISTINCT INNR . col_int_key AS y
+FROM t1 AS INNR2 LEFT JOIN t1 AS INNR
+ON ( INNR2 . col_varchar_key > INNR . col_varchar_key )
+WHERE INNR . col_varchar_key IS NOT NULL
+AND NOT OUTR . pk <> 7  )
+AND OUTR . col_varchar_key IS NULL
+HAVING x <= 3
+ORDER BY OUTR . pk , OUTR . pk;
+
+DROP TABLE t1, t2;
+SET @@SESSION.sql_mode=DEFAULT;
+
+--echo #
+--echo # Bug#26634098  WL9223:ASSERTION `(*REF)->IS_TEMPORAL()' FAILED.
+--echo #
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) DEFAULT NULL,
+  col_int_key int(11) GENERATED ALWAYS AS ((col_int + col_int)) VIRTUAL,
+  col_date date DEFAULT NULL,
+  col_date_key date GENERATED ALWAYS AS ((col_date + interval 30 day)) VIRTUAL,
+  col_datetime datetime DEFAULT NULL,
+  col_time time DEFAULT NULL,
+  col_datetime_key datetime GENERATED ALWAYS AS (addtime(col_datetime,col_time)) VIRTUAL,
+  col_time_key time GENERATED ALWAYS AS (addtime(col_datetime,col_time)) VIRTUAL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_varchar_key varchar(2) GENERATED ALWAYS AS (concat(col_varchar,col_varchar)) VIRTUAL,
+  PRIMARY KEY (pk),
+  KEY col_date_key (col_date_key) /*!80000 INVISIBLE */
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4;
+INSERT INTO t1 (pk, col_int, col_date, col_datetime, col_time, col_varchar) VALUES
+(10,3,'2007-02-04','2006-02-10 18:41:38',NULL,'t'),
+(11,48,'1900-01-01','2009-02-16 14:58:58',NULL,'d'),
+(12,8,'2001-03-14','2007-08-14 00:00:00','23:28:51','h'),
+(13,9,NULL,'1900-01-01 00:00:00',NULL,NULL),
+(14,2,'2008-10-05',NULL,'20:31:20','f'),
+(15,0,'2001-11-25','2008-12-03 06:59:23','21:39:14','l'),
+(16,205,'2003-01-27','2008-10-04 00:00:00','02:10:00','g'),
+(17,NULL,'2008-08-08','2009-07-07 07:00:21','02:03:54','v'),
+(18,3,'2006-07-03','2001-04-15 00:00:00','22:37:33',NULL),
+(19,3,'2002-11-21','2007-07-08 04:01:58','12:17:48','m');
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_datetime_key WITH 1023 BUCKETS;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_int WITH 1000 BUCKETS;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_time_key WITH 2 BUCKETS;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_datetime WITH 1023 BUCKETS;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_time WITH 80 BUCKETS;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_int_key WITH 80 BUCKETS;
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) DEFAULT NULL,
+  col_int_key int(11) GENERATED ALWAYS AS ((col_int + col_int)) VIRTUAL,
+  col_date date DEFAULT NULL,
+  col_date_key date GENERATED ALWAYS AS ((col_date + interval 30 day)) VIRTUAL,
+  col_datetime datetime DEFAULT NULL,
+  col_time time DEFAULT NULL,
+  col_datetime_key datetime GENERATED ALWAYS AS (addtime(col_datetime,col_time)) VIRTUAL,
+  col_time_key time GENERATED ALWAYS AS (addtime(col_datetime,col_time)) VIRTUAL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_varchar_key varchar(2) GENERATED ALWAYS AS (concat(col_varchar,col_varchar)) VIRTUAL,
+  PRIMARY KEY (pk),
+  KEY col_date_key (col_date_key)
+) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4;
+INSERT INTO t2 (pk, col_int, col_date, col_datetime, col_time, col_varchar) VALUES
+(10,7,'2006-03-07','2008-03-04 06:14:13','13:08:22','b'),
+(11,8,'2001-10-15','2001-03-17 00:00:00','12:54:48','m'),
+(12,NULL,'1900-01-01','2009-02-21 11:35:50','00:00:00','i'),
+(13,0,NULL,'1900-01-01 00:00:00','20:56:23','w'),
+(14,1,'2009-04-05','1900-01-01 00:00:00','04:25:03','m'),
+(15,NULL,'2001-03-19','2001-04-12 00:00:00','00:00:00','q'),
+(16,9,'2009-12-08','2001-12-04 20:21:01','00:00:00','k'),
+(17,9,'2005-02-09','2001-05-27 08:41:01','00:58:58','l'),
+(18,1,'2004-05-25','2004-09-18 00:00:00','18:39:28','c'),
+(19,1,'2005-01-17','2002-09-12 11:18:48','19:47:45','d'),
+(20,3,'2003-08-28','1900-01-01 00:00:00','05:20:00','k'),
+(21,7,'2006-10-11','2003-10-28 03:31:02','11:43:03','a'),
+(22,4,'1900-01-01','2001-08-22 10:20:09','02:38:39','p'),
+(23,NULL,'1900-01-01','2008-04-24 00:00:00','05:34:27','o'),
+(24,4,'2005-08-18','2006-11-10 10:08:49','11:13:16','e'),
+(25,1,'2007-03-12','2007-10-16 00:00:00','00:00:00','n'),
+(26,6,'2000-11-18','2009-05-27 12:25:07','08:56:42','t'),
+(27,5,'2001-03-03',NULL,'03:20:29','u'),
+(28,4,'2003-09-11','2001-09-10 18:10:10',NULL,'f'),
+(29,1,'2007-06-17','1900-01-01 00:00:00',NULL,'t'),
+(30,5,'2008-09-11','2004-06-07 23:17:09','10:39:48','k'),
+(31,NULL,'2008-05-03','2007-06-09 02:05:46','00:00:00','m'),
+(32,4,'2009-09-07','2000-07-03 00:00:00','10:52:33','y'),
+(33,4,'2005-12-15','2001-04-15 14:12:38','21:41:45','m'),
+(34,203,'2005-05-10','2007-04-12 13:29:59',NULL,'x'),
+(35,9,'2008-01-22','2002-03-24 01:35:46','08:33:38',NULL),
+(36,7,'2005-10-23','2001-12-27 07:56:29','19:27:01','q'),
+(37,NULL,'2005-11-01','2002-06-08 09:04:13','09:31:22','f'),
+(38,NULL,NULL,'2002-02-05 12:54:23','17:16:58','t'),
+(39,0,'2005-06-25','2009-09-19 00:00:00','16:44:24','x'),
+(40,1,'2005-12-09','2006-12-18 02:43:37','05:22:56','s'),
+(41,5,'2006-06-28','2002-10-18 00:00:00','13:32:21','i'),
+(42,NULL,'2002-03-16','2004-08-03 22:46:02','15:59:32','l'),
+(43,6,'2006-07-20','1900-01-01 00:00:00','07:19:58','t'),
+(44,7,'1900-01-01','2006-11-15 05:00:37','12:50:41','b'),
+(45,NULL,'2002-09-13','2005-01-21 07:18:44','04:38:11','h'),
+(46,6,'2002-08-17','1900-01-01 00:00:00','20:25:46',NULL),
+(47,9,NULL,'2002-09-22 01:36:27','00:00:00',NULL),
+(48,5,'2007-12-08','2003-04-22 16:42:22','10:53:24',NULL),
+(49,1,'2008-07-05','2000-10-18 08:28:55','06:16:28','x');
+
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_datetime_key WITH 100 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_varchar WITH 60 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_date_key WITH 2 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_datetime WITH 4 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_varchar_key WITH 2 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_int_key WITH 4 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_time WITH 10 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_date WITH 2 BUCKETS;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_time_key WITH 10 BUCKETS;
+CREATE OR REPLACE VIEW view_AA AS SELECT * FROM t1;
+CREATE OR REPLACE VIEW view_CC AS SELECT * FROM t2;
+
+SELECT LEFT(col_varchar_key, 1) AS field1 FROM view_AA WHERE ( pk, NULL ) IN
+(  SELECT col_int AS subfield11, pk AS subfield12 FROM view_CC WHERE ( col_datetime, col_date_key, col_varchar_key ) IN
+ (  SELECT col_time_key AS subfield21, pk AS subfield22, col_time_key AS subfield23 FROM t1 WHERE col_varchar != col_varchar_key    )
+ ORDER BY subfield12   ) OR col_int IS NOT NULL  ORDER BY field1 LIMIT 10 OFFSET 25;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#26641404 WL9223:ASSERTION `DELSUM+(INT) Y/4-TEMP >= 0' FAILED.
+--echo #
+CREATE TABLE t1 (col1 TIME, col2 DATE);
+INSERT INTO t1 VALUES ("00:00:00", "2017-01-01");
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 8 BUCKETS;
+ANALYZE TABLE t1;
+EXPLAIN SELECT * FROM t1 WHERE col1 < "";
+EXPLAIN SELECT * FROM t1 WHERE col2 < "";
+DROP TABLE t1;
+
+CREATE TABLE tbl_int (col1 INT);
+INSERT INTO tbl_int VALUES (1), (2), (2), (2), (3), (6), (8), (8), (NULL), (NULL);
+ANALYZE TABLE tbl_int;
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 0;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 1;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 2;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 3;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 4;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 5;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 6;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 7;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 8;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 0;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 1;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 2;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 3;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 4;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 5;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 6;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 7;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 8;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 0;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 1;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 2;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 3;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 4;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 5;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 6;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 7;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 8;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 0;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 1;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 2;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 3;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 4;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 5;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 6;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 7;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 8;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 0;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 1;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 2;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 3;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 4;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 5;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 6;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 7;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 8;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 0;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 1;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 2;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 3;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 4;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 5;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 6;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 7;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 8;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 0;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 1;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 2;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 3;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 4;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 5;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 6;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 7;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 8;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 1 AND 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 2 AND 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 3 AND 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 4 AND 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 5 AND 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 6 AND 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 7 AND 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 8 AND 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 9 AND 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (0,1,2,3,4,5,6,7,8,9);
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (2,3,4,5,6,7,8,9);
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (3,4,5,6,7,8,9);
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (4,5,6,7,8,9);
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (5,6,7,8,9);
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (6,7,8,9);
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (7,8,9);
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (8,9);
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (9);
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (1,3,5,7);
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (2,4,6,8);
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (2,5,6);
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (9,10,11,12,13);
+
+DROP TABLE tbl_int;
+
+CREATE TABLE tbl_float (col double);
+INSERT INTO tbl_float VALUES (0.1), (0.2), (0.3), (0.3), (0.4), (0.5), (0.5),
+                             (0.8), (NULL), (NULL);
+ANALYZE TABLE tbl_float;
+ANALYZE TABLE tbl_float UPDATE HISTOGRAM ON col WITH 4 BUCKETS;
+
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.0;
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.1;
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.2;
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.3;
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.4;
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.5;
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.6;
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.7;
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.8;
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.0;
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.1;
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.2;
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.3;
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.4;
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.5;
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.6;
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.7;
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.8;
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.0;
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.1;
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.2;
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.3;
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.4;
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.5;
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.6;
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.7;
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.8;
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.0;
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.1;
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.2;
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.3;
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.4;
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.5;
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.6;
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.7;
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.8;
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.0;
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.1;
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.2;
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.3;
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.4;
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.5;
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.6;
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.7;
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.8;
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.0;
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.1;
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.2;
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.3;
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.4;
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.5;
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.6;
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.7;
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.8;
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.0;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.1;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.2;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.3;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.4;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.5;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.6;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.7;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.8;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.1 AND 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.2 AND 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.3 AND 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.4 AND 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.5 AND 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.6 AND 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.7 AND 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.8 AND 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.9 AND 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9);
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9);
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.3,0.4,0.5,0.6,0.7,0.8,0.9);
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.4,0.5,0.6,0.7,0.8,0.9);
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.5,0.6,0.7,0.8,0.9);
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.6,0.7,0.8,0.9);
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.7,0.8,0.9);
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.8,0.9);
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.9);
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.1,0.3,0.5,0.7);
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.2,0.4,0.6,0.8);
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.2,0.5,0.6);
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.9,1.0,1.1,1.2,1.3);
+
+DROP TABLE tbl_float;
+
+CREATE TABLE t1 (col1 BIGINT, col2 BIGINT UNSIGNED, col3 DOUBLE);
+INSERT INTO t1 VALUES
+  (-9223372036854775808, 0, -1.7976931348623157E+308),
+  (9223372036854775806, 18446744073709551614, 1.7976931348623155e+308),
+  (9223372036854775807, 18446744073709551615, 1.7976931348623157e+308);
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col3 WITH 2 BUCKETS;
+ANALYZE TABLE t1;
+EXPLAIN SELECT * FROM t1 WHERE col1 < 100;
+EXPLAIN SELECT * FROM t1 WHERE col2 < 100;
+EXPLAIN SELECT * FROM t1 WHERE col3 < 100;
 DROP TABLE t1;

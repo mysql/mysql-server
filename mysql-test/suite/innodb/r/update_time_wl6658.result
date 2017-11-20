@@ -51,7 +51,7 @@ c1	c2
 SELECT * FROM tab5;
 c1	c2
 check the update_time After Commit, whether it is not NULL
-SET information_schema_stats=latest;
+SET information_schema_stats_expiry=0;
 SELECT table_name,COUNT(update_time)
 FROM information_schema.tables
 WHERE table_name IN ('tab1','tab3','tab4','tab5')
@@ -63,7 +63,7 @@ tab4	1
 tab5	1
 #restart the server
 # restart
-SET information_schema_stats=latest;
+SET information_schema_stats_expiry=0;
 Testcase with UPDATE stmt and transaction
 #check the record is existing
 SELECT * FROM tab1;
@@ -95,7 +95,7 @@ TABLE_NAME	COUNT(update_time)
 tab1	1
 #restart the server
 # restart
-SET information_schema_stats=latest;
+SET information_schema_stats_expiry=0;
 #check the record is existing
 SELECT * FROM tab1;
 c1	c2	c3
@@ -125,7 +125,7 @@ TABLE_NAME	COUNT(update_time)
 tab1	1
 #restart the server
 # restart
-SET information_schema_stats=latest;
+SET information_schema_stats_expiry=0;
 #check no records are existing
 SELECT * FROM tab1;
 c1	c2	c3
@@ -192,7 +192,7 @@ tab2	1
 TRUNCATE TABLE tab2;
 #restart the server
 # restart
-SET information_schema_stats=latest;
+SET information_schema_stats_expiry=0;
 #case6:
 SET AUTOCOMMIT=off;
 BEGIN WORK;
@@ -259,7 +259,7 @@ TABLE_NAME	COUNT(update_time)
 tab8	1
 #restart the server
 # restart
-SET information_schema_stats=latest;
+SET information_schema_stats_expiry=0;
 SET AUTOCOMMIT=off;
 START TRANSACTION;
 DELETE FROM tab7;

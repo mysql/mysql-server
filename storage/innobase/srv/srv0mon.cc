@@ -1311,11 +1311,6 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_MODULE,
 	 MONITOR_DEFAULT_START, MONITOR_MODULE_DDL_STATS},
 
-	{"ddl_background_drop_indexes", "ddl",
-	 "Number of indexes waiting to be dropped after failed index creation",
-	 MONITOR_NONE,
-	 MONITOR_DEFAULT_START, MONITOR_BACKGROUND_DROP_INDEX},
-
 	{"ddl_background_drop_tables", "ddl",
 	 "Number of tables in background drop table list",
 	 MONITOR_NONE,
@@ -1533,9 +1528,6 @@ srv_mon_set_module_control(
 }
 
 /** Get transaction system's rollback segment size in pages.
-If srv_undo_tablespaces == 0, then all rollback segments will come out of
-the system tablespace. If srv_undo_tablespaces > 0, then all rollback
-segments come out of the undo tablespaces.
 @return size in pages */
 static
 ulint
@@ -1553,19 +1545,6 @@ srv_mon_get_rseg_size(void)
 	}
 	trx_sys->tmp_rsegs.s_unlock();
 
-	if (cur_spaces == 0) {
-		/* Rollback segments used in the system tablespace */
-		trx_sys->rsegs.s_lock();
-		for (const auto rseg : trx_sys->rsegs) {
-
-			value += rseg->curr_size;
-		}
-		trx_sys->rsegs.s_unlock();
-
-		return(value);
-	}
-
-	/* Rollback segments used in undo tablespaces */
 	undo::spaces->s_lock();
 	for (auto undo_space : undo::spaces->m_spaces) {
 

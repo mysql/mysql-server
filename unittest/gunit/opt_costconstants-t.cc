@@ -22,9 +22,9 @@
 #include <sys/types.h>
 
 #include "fake_table.h"
-#include "item.h"
 #include "lex_string.h"
-#include "opt_costmodel.h"
+#include "sql/item.h"
+#include "sql/opt_costmodel.h"
 #include "test_utils.h"
 
 namespace costconstants_unittest {

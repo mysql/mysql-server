@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,9 @@
 #ifndef I_OPTION_CHANGED_LISTENER_INCLUDED
 #define I_OPTION_CHANGED_LISTENER_INCLUDED
 
-#include "i_option.h"
 #include <string>
+
+#include "client/base/i_option.h"
 
 namespace Mysql{
 namespace Tools{

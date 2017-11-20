@@ -18,7 +18,6 @@
 #include <NDBT_ReturnCodes.h>
 #include "consumer_restore.hpp"
 #include <kernel/ndb_limits.h>
-#include <my_sys.h>
 #include <NdbSleep.h>
 #include <NdbTick.h>
 #include <Properties.hpp>
@@ -2843,52 +2842,7 @@ BackupRestore::table(const TableS & table){
         << " error : " << dict->getNdbError().code << endl;
     return false;
   }
-  if(m_restore_meta)
-  {
-    if (tab->getFrmData())
-    {
-      // a MySQL Server table is restored, thus an event should be created
-      BaseString event_name("REPL$");
-      event_name.append(db_name.c_str());
-      event_name.append("/");
-      event_name.append(table_name.c_str());
 
-      NdbDictionary::Event my_event(event_name.c_str());
-      my_event.setTable(*tab);
-      my_event.addTableEvent(NdbDictionary::Event::TE_ALL);
-      my_event.setReport(NdbDictionary::Event::ER_DDL);
-
-      // add all columns to the event
-      bool has_blobs = false;
-      for(int a= 0; a < tab->getNoOfColumns(); a++)
-      {
-	my_event.addEventColumn(a);
-        NdbDictionary::Column::Type t = tab->getColumn(a)->getType();
-        if (t == NdbDictionary::Column::Blob ||
-            t == NdbDictionary::Column::Text)
-          has_blobs = true;
-      }
-      if (has_blobs)
-        my_event.mergeEvents(true);
-
-      while ( dict->createEvent(my_event) ) // Add event to database
-      {
-	if (dict->getNdbError().classification == NdbError::SchemaObjectExists)
-	{
-	  info << "Event for table " << table.getTableName()
-	       << " already exists, removing.\n";
-	  if (!dict->dropEvent(my_event.getName(), 1))
-	    continue;
-	}
-	err << "Create table event for " << table.getTableName() << " failed: "
-	    << dict->getNdbError() << endl;
-	dict->dropTable(table_name.c_str());
-	return false;
-      }
-      info.setLevel(254);
-      info << "Successfully restored table event " << event_name << endl ;
-    }
-  }
   const NdbDictionary::Table* null = 0;
   m_new_tables.fill(table.m_dictTable->getTableId(), null);
   m_new_tables[table.m_dictTable->getTableId()] = tab;

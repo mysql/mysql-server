@@ -23,7 +23,6 @@
 
 #include "my_config.h"
 
-#include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
@@ -41,6 +40,7 @@
 #include "pfs_setup_object.h"
 #include "pfs_user.h"
 #include "pfs_variable.h"
+#include "sql/field.h"
 
 /* TINYINT TYPE */
 void
@@ -298,14 +298,24 @@ set_field_varchar_utf8mb4(Field *f, const char *str, uint len)
   f2->store(str, len, &my_charset_utf8mb4_bin);
 }
 
-/* TEXT/BLOB TYPE */
+/* BLOB TYPE */
 void
-set_field_blob(Field *f, const char *val, uint len)
+set_field_blob(Field *f, const char *val, size_t len)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
   Field_blob *f2 = (Field_blob *)f;
   f2->store(val, len, &my_charset_utf8_bin);
 }
+
+/* TEXT TYPE */
+void
+set_field_text(Field *f, const char *val, size_t len, const CHARSET_INFO *cs)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
+  Field_blob *f2 = (Field_blob *)f;
+  f2->store(val, len, cs);
+}
+
 char *
 get_field_blob(Field *f, char *val, uint *len)
 {
@@ -331,6 +341,22 @@ get_field_enum(Field *f)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
   Field_enum *f2 = (Field_enum *)f;
+  return f2->val_int();
+}
+
+/* SET TYPE */
+void
+set_field_set(Field *f, ulonglong value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SET);
+  Field_set *f2 = (Field_set *)f;
+  f2->store_type(value);
+}
+ulonglong
+get_field_set(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SET);
+  Field_set *f2 = (Field_set *)f;
   return f2->val_int();
 }
 
@@ -439,6 +465,50 @@ get_field_year(Field *f)
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_YEAR);
   Field_year *f2 = (Field_year *)f;
   return f2->val_int();
+}
+
+void
+format_sqltext(const char *source_sqltext,
+               size_t source_length,
+               const CHARSET_INFO *source_cs,
+               bool truncated,
+               String &sqltext)
+{
+  DBUG_ASSERT(source_cs != NULL);
+
+  sqltext.set_charset(source_cs);
+  sqltext.length(0);
+
+  if (source_length == 0)
+    return;
+
+  /* Adjust sqltext length to a valid number of bytes. */
+  int cs_error = 0;
+  size_t sqltext_length =
+    source_cs->cset->well_formed_len(source_cs,
+                                     source_sqltext,
+                                     source_sqltext + source_length,
+                                     source_length,
+                                     &cs_error);
+  if (sqltext_length > 0)
+  {
+    /* Copy the source text into the target, convert charset if necessary. */
+    sqltext.append(source_sqltext, sqltext_length, source_cs);
+
+    /* Append "..." if the string is truncated or not well-formed. */
+    if (truncated)
+    {
+      size_t chars = sqltext.numchars();
+      if (chars > 3)
+      {
+        chars -= 3;
+        size_t bytes_offset = sqltext.charpos(chars, 0);
+        sqltext.length(bytes_offset);
+        sqltext.append("...", 3);
+      }
+    }
+  }
+  return;
 }
 
 int
@@ -766,6 +836,16 @@ PFS_object_row::make_row(const MDL_key *mdl)
     m_object_type = OBJECT_TYPE_ACL_CACHE;
     m_schema_name_length = mdl->db_name_length();
     m_object_name_length = mdl->name_length();
+    break;
+  case MDL_key::BACKUP_LOCK:
+    m_object_type = OBJECT_TYPE_BACKUP_LOCK;
+    m_schema_name_length = 0;
+    m_object_name_length = 0;
+    break;
+  case MDL_key::RESOURCE_GROUPS:
+    m_object_type= OBJECT_TYPE_RESOURCE_GROUPS;
+    m_schema_name_length= mdl->db_name_length();
+    m_object_name_length= mdl->name_length();
     break;
   case MDL_key::NAMESPACE_END:
   default:
@@ -1809,13 +1889,6 @@ PFS_key_processlist_id::match(const PFS_thread *pfs)
 }
 
 bool
-PFS_key_processlist_id_int::match(const PFS_thread *pfs)
-{
-  bool record_null = (pfs->m_processlist_id == 0);
-  return do_match(record_null, pfs->m_processlist_id);
-}
-
-bool
 PFS_key_engine_transaction_id::match(ulonglong engine_transaction_id)
 {
   return do_match(false, engine_transaction_id);
@@ -1992,10 +2065,6 @@ PFS_key_event_name::match_view(uint view)
   case PFS_instrument_view_constants::VIEW_METADATA:
     return do_match_prefix(
       false, metadata_lock_class_name.str, metadata_lock_class_name.length);
-
-  case PFS_instrument_view_constants::VIEW_THREAD:
-    return do_match_prefix(
-      false, thread_instrument_prefix.str, thread_instrument_prefix.length);
 
   case PFS_instrument_view_constants::VIEW_STAGE:
     return do_match_prefix(

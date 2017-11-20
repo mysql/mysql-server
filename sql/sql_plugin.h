@@ -18,21 +18,24 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <string>
 #include <vector>
 
 #include "lex_string.h"
+#include "map_helpers.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"          // enum_sql_command
-#include "mysql/mysql_lex_string.h" // LEX_CSTRING
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "sql_cmd.h"                // Sql_cmd
-#include "sql_plugin_ref.h"         // plugin_ref
-#include "thr_malloc.h"
+#include "sql/sql_cmd.h"            // Sql_cmd
+#include "sql/sql_plugin_ref.h"     // plugin_ref
+#include "sql/thr_malloc.h"
 
 class THD;
 class i_string;
 struct my_option;
+struct st_bookmark;
 struct st_mysql_sys_var;
 template <class T> class I_List;
 
@@ -191,6 +194,7 @@ extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
                                      int type, uint state_mask, void *arg);
 int lock_plugin_data();
 int unlock_plugin_data();
+malloc_unordered_map<std::string, st_bookmark *>* get_bookmark_hash();
 
 bool end_transaction(THD *thd, bool error);
 

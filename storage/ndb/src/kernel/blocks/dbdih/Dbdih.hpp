@@ -1053,6 +1053,7 @@ private:
   void execCOPY_TABCONF(Signal *);
   void execTCGETOPSIZECONF(Signal *);
   void execTC_CLOPSIZECONF(Signal *);
+  void execCHECK_LCP_IDLE_ORD(Signal *);
 
   void execDIH_GET_TABINFO_REQ(Signal*);
 
@@ -1278,6 +1279,7 @@ private:
   void execDICTSTARTCONF(Signal *);
   void execNDB_STARTREQ(Signal *);
   void execGETGCIREQ(Signal *);
+  void execGET_LATEST_GCI_REQ(Signal*);
   void execDIH_RESTARTREQ(Signal *);
   void execSTART_RECCONF(Signal *);
   void execSTART_FRAGREF(Signal *);
@@ -1323,6 +1325,11 @@ private:
 
   void execCREATE_NODEGROUP_IMPL_REQ(Signal*);
   void execDROP_NODEGROUP_IMPL_REQ(Signal*);
+
+  void execSTART_NODE_LCP_CONF(Signal *signal);
+  void handleStartLcpReq(Signal*, StartLcpReq*);
+  StartLcpReq c_save_startLcpReq;
+  bool c_start_node_lcp_req_outstanding;
 
   // Statement blocks
 //------------------------------------
@@ -1606,12 +1613,13 @@ private:
   
   void packFragIntoPagesLab(Signal *, RWFragment* wf);
   void startNextChkpt(Signal *);
-  void failedNodeLcpHandling(Signal*, NodeRecordPtr failedNodePtr);
+  void failedNodeLcpHandling(Signal*, NodeRecordPtr failedNodePtr, bool &);
   void failedNodeSynchHandling(Signal *, NodeRecordPtr failedNodePtr);
   void checkCopyTab(Signal*, NodeRecordPtr failedNodePtr);
 
   Uint32 compute_max_failure_time();
-  void setGCPStopTimeouts();
+  void setGCPStopTimeouts(Signal*);
+  void sendINFO_GCP_STOP_TIMER(Signal*);
   void initCommonData();
   void initialiseRecordsLab(Signal *, Uint32 stepNo, Uint32, Uint32);
 
@@ -1637,7 +1645,7 @@ private:
   void findMinGci(ReplicaRecordPtr fmgReplicaPtr,
                   Uint32& keeGci,
                   Uint32& oldestRestorableGci);
-  bool findStartGci(ConstPtr<ReplicaRecord> fstReplicaPtr,
+  bool findStartGci(Ptr<ReplicaRecord> fstReplicaPtr,
                     Uint32 tfstStopGci,
                     Uint32& tfstStartGci,
                     Uint32& tfstLcp);
@@ -1704,7 +1712,7 @@ private:
                            ReplicaRecordPtr replicaPtr);
   void searchStoredReplicas(FragmentstorePtr regFragptr);
   bool setup_create_replica(FragmentstorePtr, CreateReplicaRecord*,
-			    ConstPtr<ReplicaRecord>);
+			    Ptr<ReplicaRecord>);
   void updateNodeInfo(FragmentstorePtr regFragptr);
 
 //------------------------------------
@@ -2075,7 +2083,9 @@ private:
                               Uint32 storedType,
                               TakeOverRecordPtr takeOverPtr);
 
-  void releaseTakeOver(TakeOverRecordPtr takeOverPtr, bool from_master);
+  void releaseTakeOver(TakeOverRecordPtr takeOverPtr,
+                       bool from_master,
+                       bool skip_check = false);
 
 //-------------------------------------------------
 // Methods for take over functionality, master part

@@ -10,18 +10,18 @@ use test;
 create table bla (data json);
 -->endsql
 
--->varfile %JSONDATA% %PATH_TO_256kb_JSON_FILE%
+-->varfile %JSONDATA_UNESCAPED% %PATH_TO_256kb_JSON_FILE%
 
 # prevent flood from big json data
 -->quiet
+-->varlet %JSONDATA% %JSONDATA_UNESCAPED%
+-->varescape %JSONDATA%
 -->varsub %JSONDATA%
-Mysqlx.Sql.StmtExecute {
-    stmt : "insert into bla values ('%JSONDATA%');"
-}
+-->stmtsql insert into bla values ('%JSONDATA%');
 -->recvresult
 -->noquiet
 
--->varsub %JSONDATA%
+-->varsub %JSONDATA_UNESCAPED%
 -->sql
 select * from bla;
 -->endsql

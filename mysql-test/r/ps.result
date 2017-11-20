@@ -714,21 +714,21 @@ set @@time_zone:='Japan';
 execute stmt;
 @@time_zone
 Japan
-prepare stmt from "select @@tx_isolation";
+prepare stmt from "select @@transaction_isolation";
 execute stmt;
-@@tx_isolation
+@@transaction_isolation
 REPEATABLE-READ
 set transaction isolation level read committed;
 execute stmt;
-@@tx_isolation
+@@transaction_isolation
 REPEATABLE-READ
 set transaction isolation level serializable;
 execute stmt;
-@@tx_isolation
+@@transaction_isolation
 REPEATABLE-READ
-set @@tx_isolation=default;
+set @@transaction_isolation=default;
 execute stmt;
-@@tx_isolation
+@@transaction_isolation
 REPEATABLE-READ
 deallocate prepare stmt;
 prepare stmt from "create temporary table t1 (letter enum('','a','b','c')
@@ -1224,13 +1224,13 @@ SET @aux= "SELECT COUNT(*)
 prepare my_stmt from @aux;
 execute my_stmt;
 COUNT(*)
-47
+49
 execute my_stmt;
 COUNT(*)
-47
+49
 execute my_stmt;
 COUNT(*)
-47
+49
 deallocate prepare my_stmt;
 drop procedure if exists p1|
 drop table if exists t1|
@@ -1971,22 +1971,6 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.0 tests.
-create procedure proc_1() reset query cache;
-call proc_1();
-call proc_1();
-call proc_1();
-create function func_1() returns int deterministic begin reset query cache; return 1; end|
-ERROR 0A000: RESET is not allowed in stored function or trigger
-create function func_1() returns int deterministic begin call proc_1(); return 1; end|
-select func_1(), func_1(), func_1() from dual;
-ERROR 0A000: RESET is not allowed in stored function or trigger
-drop function func_1;
-drop procedure proc_1;
-prepare abc from "reset query cache";
-execute abc;
-execute abc;
-execute abc;
-deallocate prepare abc;
 create procedure proc_1() reset master;
 create function func_1() returns int begin reset master; return 1; end|
 ERROR 0A000: RESET is not allowed in stored function or trigger
@@ -2247,22 +2231,6 @@ ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop function func_1;
 drop procedure proc_1;
 prepare abc from "flush status";
-execute abc;
-execute abc;
-execute abc;
-deallocate prepare abc;
-create procedure proc_1() flush des_key_file;
-call proc_1();
-call proc_1();
-call proc_1();
-create function func_1() returns int begin flush des_key_file; return 1; end|
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create function func_1() returns int begin call proc_1(); return 1; end|
-select func_1(), func_1(), func_1() from dual;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-drop function func_1;
-drop procedure proc_1;
-prepare abc from "flush des_key_file";
 execute abc;
 execute abc;
 execute abc;
@@ -2700,6 +2668,8 @@ drop table if exists t1;
 create table t1 (a int, b char(5)) engine=myisam;
 insert into t1 values (1, "one"), (2, "two"), (3, "three");
 SET GLOBAL new_cache.key_buffer_size=128*1024;
+Warnings:
+Warning	1287	new_cache.key_buffer_size syntax is deprecated and will be removed in a future release
 create procedure proc_1() cache index t1 in new_cache;
 call proc_1();
 Table	Op	Msg_type	Msg_text
@@ -2712,6 +2682,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
 drop procedure proc_1;
 SET GLOBAL second_cache.key_buffer_size=128*1024;
+Warnings:
+Warning	1287	second_cache.key_buffer_size syntax is deprecated and will be removed in a future release
 prepare abc from "cache index t1 in second_cache";
 execute abc;
 Table	Op	Msg_type	Msg_text
@@ -2791,30 +2763,6 @@ create function func_1() returns int begin show warnings; return 1; end|
 ERROR 0A000: Not allowed to return a result set from a function
 prepare abc from "show warnings";
 ERROR HY000: This command is not supported in the prepared statement protocol yet
-set @my_password="password";
-set @my_data="clear text to encode";
-prepare stmt1 from 'select decode(encode(?, ?), ?)';
-execute stmt1 using @my_data, @my_password, @my_password;
-decode(encode(?, ?), ?)
-clear text to encode
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-set @my_data="more text to encode";
-execute stmt1 using @my_data, @my_password, @my_password;
-decode(encode(?, ?), ?)
-more text to encode
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-set @my_password="new password";
-execute stmt1 using @my_data, @my_password, @my_password;
-decode(encode(?, ?), ?)
-more text to encode
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-deallocate prepare stmt1;
 set @to_format="123456789.123456789";
 set @dec=0;
 prepare stmt2 from 'select format(?, ?)';
@@ -2921,33 +2869,6 @@ ERROR 21000: Subquery returns more than 1 row
 deallocate prepare stmt;
 drop table t1, t2;
 #
-# Bug#49141: Encode function is significantly slower in 5.1 compared to 5.0
-#
-prepare encode from "select encode(?, ?) into @ciphertext";
-prepare decode from "select decode(?, ?) into @plaintext";
-set @str="abc", @key="cba";
-execute encode using @str, @key;
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-execute decode using @ciphertext, @key;
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select @plaintext;
-@plaintext
-abc
-set @str="bcd", @key="dcb";
-execute encode using @str, @key;
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-execute decode using @ciphertext, @key;
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select @plaintext;
-@plaintext
-bcd
-deallocate prepare encode;
-deallocate prepare decode;
-#
 # Bug#52124 memory leaks like a sieve in datetime, timestamp, time, date fields + warnings
 #
 CREATE TABLE t1 (a DATETIME NOT NULL, b TINYINT);
@@ -2964,13 +2885,11 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 #
-# Bug#54494 crash with explain extended and prepared statements
+# Bug#54494 crash with explain and prepared statements
 #
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1),(2);
-PREPARE stmt FROM 'EXPLAIN EXTENDED SELECT 1 FROM t1 RIGHT JOIN t1 t2 ON 1';
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
+PREPARE stmt FROM 'EXPLAIN SELECT 1 FROM t1 RIGHT JOIN t1 t2 ON 1';
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL

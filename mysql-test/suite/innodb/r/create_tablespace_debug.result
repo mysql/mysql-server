@@ -6,7 +6,7 @@ SET SESSION DEBUG='+d,innodb_fail_to_update_tablespace_dict';
 CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd' ENGINE=InnoDB;
 ERROR HY000: Failed to create TABLESPACE s_def
 SET SESSION DEBUG='-d,innodb_fail_to_update_tablespace_dict';
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -25,12 +25,12 @@ CREATE TABLE t3 (a int) ENGINE=myisam TABLESPACE=s1;
 INSERT INTO t1 VALUES ( 11);
 INSERT INTO t2 VALUES ( 21);
 INSERT INTO t3 VALUES ( 31);
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s1	161	4	Dynamic	0	General
 ALTER TABLE t2 TABLESPACE=s1;
 ALTER TABLE t3 TABLESPACE=s1;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s1	161	4	Dynamic	0	General
 # MYSQLD_DATADIR/
@@ -72,14 +72,14 @@ INSERT INTO t1 VALUES (12);
 INSERT INTO t2 VALUES (22);
 INSERT INTO t3 VALUES (32);
 INSERT INTO t4 VALUES (42);
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s1	161	4	Dynamic	0	General
 test/t2	s1	161	4	Dynamic	0	General
 test/t3	innodb_system	161	4	Dynamic	0	System
 test/t4	test/t4	33	4	Dynamic	0	Single
 # Kill and restart
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s1	161	4	Dynamic	0	General
 test/t2	s1	161	4	Dynamic	0	General
@@ -126,14 +126,14 @@ RENAME TABLE t1 TO tr1;
 RENAME TABLE t2 TO tr2;
 RENAME TABLE t3 TO tr3;
 RENAME TABLE t4 TO tr4;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/tr1	s1	161	4	Dynamic	0	General
 test/tr2	s1	161	4	Dynamic	0	General
 test/tr3	innodb_system	161	4	Dynamic	0	System
 test/tr4	test/tr4	33	4	Dynamic	0	Single
 # Kill and restart
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/tr1	s1	161	4	Dynamic	0	General
 test/tr2	s1	161	4	Dynamic	0	General

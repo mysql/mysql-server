@@ -7,20 +7,18 @@ length(@test_compress_string)
 select uncompress(compress(@test_compress_string));
 uncompress(compress(@test_compress_string))
 string for test compress function aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 
-explain extended select uncompress(compress(@test_compress_string));
+explain select uncompress(compress(@test_compress_string));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select uncompress(compress((@`test_compress_string`))) AS `uncompress(compress(@test_compress_string))`
 select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
 uncompressed_length(compress(@test_compress_string))=length(@test_compress_string)
 1
-explain extended select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
+explain select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (uncompressed_length(compress((@`test_compress_string`))) = length((@`test_compress_string`))) AS `uncompressed_length(compress(@test_compress_string))=length(@test_compress_string)`
 select uncompressed_length(compress(@test_compress_string));
 uncompressed_length(compress(@test_compress_string))
@@ -68,7 +66,7 @@ NULL
 NULL
 Warnings:
 Warning	1259	ZLIB: Input data corrupted
-Warning	1256	Uncompressed data size too large; the maximum size is 4194304 (probably, length of uncompressed data was corrupted)
+Warning	1256	Uncompressed data size too large; the maximum size is 67108864 (probably, length of uncompressed data was corrupted)
 drop table t1;
 set @@global.max_allowed_packet=1048576*100;
 select compress(repeat('aaaaaaaaaa', IF(XXX, 10, 10000000))) is null;
@@ -131,7 +129,7 @@ UNCOMPRESS(c1)	UNCOMPRESSED_LENGTH(c1)
 NULL	0
 NULL	0
 NULL	825307441
-EXPLAIN EXTENDED SELECT * FROM (SELECT UNCOMPRESSED_LENGTH(c1) FROM t1) AS s;
+EXPLAIN SELECT * FROM (SELECT UNCOMPRESSED_LENGTH(c1) FROM t1) AS s;
 DROP TABLE t1;
 End of 5.0 tests
 #

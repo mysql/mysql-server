@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -33,7 +33,7 @@ message Scalar {
   };
 
   // an opaque octet sequence, with an optional content_type
-  // See ``Mysqlx.Resultset.ColumnMetadata`` for list of known values.
+  // See ``Mysqlx.Resultset.ContentType_BYTES`` for list of known values.
   message Octets {
     required bytes value = 1;
     optional uint32 content_type = 2;

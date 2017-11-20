@@ -15,12 +15,12 @@
 
 #include "shared_dictionary_cache.h"
 
-#include <stddef.h>
+#include <atomic>
 
-#include "dd/impl/cache/shared_multi_map.h"
 #include "my_dbug.h"
-#include "mysqld.h"
-#include "sql_class.h"                      // THD::is_error()
+#include "sql/dd/impl/cache/shared_multi_map.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"                  // THD::is_error()
 #include "storage_adapter.h"                // Storage_adapter
 
 namespace dd {
@@ -52,6 +52,7 @@ void Shared_dictionary_cache::init()
   instance()->m_map<Spatial_reference_system>()->
     set_capacity(spatial_reference_system_capacity);
   instance()->m_map<Tablespace>()->set_capacity(tablespace_def_size);
+  instance()->m_map<Resource_group>()->set_capacity(resource_group_capacity);
 }
 
 
@@ -66,6 +67,7 @@ void Shared_dictionary_cache::shutdown()
   instance()->m_map<Schema>()->shutdown();
   instance()->m_map<Spatial_reference_system>()->shutdown();
   instance()->m_map<Tablespace>()->shutdown();
+  instance()->m_map<Resource_group>()->shutdown();
 }
 
 
@@ -76,6 +78,14 @@ void Shared_dictionary_cache::reset(bool keep_dd_entities)
   if (!keep_dd_entities)
     Storage_adapter::instance()->erase_all();
   init();
+}
+
+
+// Workaround to be used during recovery at server restart.
+bool Shared_dictionary_cache::reset_tables_and_tablespaces(THD *thd)
+{
+  return (instance()->m_map<Abstract_table>()->reset(thd) ||
+          instance()->m_map<Tablespace>()->reset(thd));
 }
 
 
@@ -381,5 +391,34 @@ template bool Shared_dictionary_cache::
 template void Shared_dictionary_cache::put<Tablespace>(
     const Tablespace*,
     Cache_element<Tablespace>**);
+
+
+template bool Shared_dictionary_cache::
+  get<Resource_group::id_key_type, Resource_group>(
+    THD *thd, const Resource_group::id_key_type&,
+    Cache_element<Resource_group>**);
+template bool Shared_dictionary_cache::
+  get<Resource_group::name_key_type, Resource_group>(
+    THD *thd, const Resource_group::name_key_type&,
+    Cache_element<Resource_group>**);
+template bool Shared_dictionary_cache::
+  get<Resource_group::aux_key_type, Resource_group>(
+    THD *thd, const Resource_group::aux_key_type&,
+    Cache_element<Resource_group>**);
+template bool Shared_dictionary_cache::
+  get_uncached<Resource_group::id_key_type, Resource_group>(
+    THD *thd, const Resource_group::id_key_type&,
+    enum_tx_isolation, const Resource_group**) const;
+template bool Shared_dictionary_cache::
+  get_uncached<Resource_group::name_key_type, Resource_group>(
+    THD *thd, const Resource_group::name_key_type&,
+    enum_tx_isolation, const Resource_group**) const;
+template bool Shared_dictionary_cache::
+  get_uncached<Resource_group::aux_key_type, Resource_group>(
+    THD *thd, const Resource_group::aux_key_type&,
+    enum_tx_isolation, const Resource_group**) const;
+template void Shared_dictionary_cache::put<Resource_group>(
+  const Resource_group*,
+  Cache_element<Resource_group>**);
 }
 } // namespace dd

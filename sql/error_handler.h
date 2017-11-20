@@ -20,7 +20,7 @@
 #include <sys/types.h>
 
 #include "mysqld_error.h"  // ER_*
-#include "sql_error.h"     // Sql_condition
+#include "sql/sql_error.h" // Sql_condition
 
 class THD;
 struct TABLE_LIST;
@@ -96,6 +96,48 @@ public:
     /* Ignore error */
     return true;
   }
+};
+
+
+/**
+  Implements the error handler for SET_VAR hint.
+  For Sys_var_hint::update_vars handler accepts first warning or error.
+  Subsequent error are ignored to avoid message duplication.
+  For Sys_var_hint::restore_vars all warnings and errors are ignored
+  since valid value is restored.
+*/
+
+class Set_var_error_handler : public Internal_error_handler
+{
+public:
+  Set_var_error_handler(bool ignore_warn_arg)
+    : Internal_error_handler(), ignore_warn(ignore_warn_arg),
+      ignore_subsequent_messages(false)
+  {}
+
+  virtual bool handle_condition(THD*,
+                                uint,
+                                const char*,
+                                Sql_condition::enum_severity_level* level,
+                                const char*)
+  {
+    if (*level == Sql_condition::SL_ERROR)
+      (*level)= Sql_condition::SL_WARNING;
+
+    if (ignore_subsequent_messages)
+      return true;
+    ignore_subsequent_messages= true;
+
+    return ignore_warn;
+  }
+
+  void reset_state()
+  {
+    ignore_subsequent_messages= false;
+  }
+private:
+  bool ignore_warn;
+  bool ignore_subsequent_messages;
 };
 
 
@@ -321,6 +363,49 @@ public:
   {
     return (sql_errno == ER_TOO_LONG_KEY);
   }
+};
+
+
+/**
+  Error handler class to convert ER_LOCK_DEADLOCK error to
+  ER_WARN_I_S_SKIPPED_TABLE/TABLESPACE error.
+
+  Handler is pushed for opening a table or acquiring a MDL lock on
+  tables for INFORMATION_SCHEMA views (system views) operations.
+*/
+class Info_schema_error_handler : public Internal_error_handler
+{
+public:
+  Info_schema_error_handler(THD *thd, const String *schema_name,
+                             const String *table_name);
+
+  Info_schema_error_handler(THD *thd, const String *tablespace_name);
+
+  virtual bool handle_condition(THD*,
+                                uint sql_errno,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*);
+
+  bool is_error_handled() const { return m_error_handled; }
+
+private:
+  bool m_can_deadlock;
+
+  // Schema name
+  const String *m_schema_name;
+
+  // Table name
+  const String *m_table_name;
+
+  // Tablespace name
+  const String *m_tablespace_name;
+
+  enum class Mdl_object_type { TABLE, TABLESPACE };
+  Mdl_object_type m_object_type;
+
+  // Flag to indicate whether deadlock error is handled by the handler or not.
+  bool m_error_handled= false;
 };
 
 

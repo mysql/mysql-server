@@ -19,6 +19,8 @@
 #include "my_config.h"
 
 #include <stddef.h>
+
+#include "mysql/udf_registration_types.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -30,11 +32,12 @@
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_time.h"                         /* timestamp_type */
-#include "sql_error.h"                          /* Sql_condition */
+#include "sql/sql_error.h"                      /* Sql_condition */
 #include "sql_string.h"
 
 class THD;
 class my_decimal;
+class Time_zone;
 
 struct Date_time_format
 {
@@ -160,9 +163,6 @@ bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime,
 bool parse_date_time_format(timestamp_type format_type,
                             Date_time_format *date_time_format);
 
-extern Date_time_format global_date_format;
-extern Date_time_format global_datetime_format;
-extern Date_time_format global_time_format;
 extern Known_date_time_format known_date_time_formats[];
 extern LEX_STRING interval_type_to_name[];
 
@@ -285,4 +285,13 @@ timestamp_type field_type_to_timestamp_type(enum enum_field_types type)
   default: return MYSQL_TIMESTAMP_NONE;
   }
 }
+
+/**
+  This function gets GMT time and adds value of time_zone to get
+  the local time. This function is used when server wants a timestamp
+  value from dictionary system.
+*/
+
+ulonglong gmt_time_to_local_time(ulonglong time);
+
 #endif /* SQL_TIME_INCLUDED */

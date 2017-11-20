@@ -1,0 +1,47 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+==== Initialize ====
+CREATE TABLE t (a INT);
+INSERT INTO t VALUES (1);
+SET @@SESSION.BINLOG_ROW_IMAGE = 'MINIMAL';
+include/sync_slave_sql_with_master.inc
+SET @binlog_row_value_options_save= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
+SET @binlog_row_image_save= @@GLOBAL.BINLOG_ROW_IMAGE;
+SET @@GLOBAL.BINLOG_ROW_IMAGE= 'MINIMAL';
+[connection master]
+==== Generate binary logs on master and slave ====
+* initially, master and slave use full format
+1. master full, slave full
+UPDATE t SET a= 2;
+2. master partial, slave full
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
+UPDATE t SET a= 3;
+* switch slave to partial format
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
+include/start_slave.inc
+[connection master]
+3. master full, slave partial
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= '';
+UPDATE t SET a= 2;
+4. master partial, slave partial
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
+UPDATE t SET a= 3;
+==== Verify requirements ===
+# Assert that master's binlog is written according to master's option
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # !Commit # !Gtid_or_anon # !Begin # Table_map # Update_rows_partial # !Commit # !Gtid_or_anon # !Begin # Table_map # Update_rows # !Commit # !Gtid_or_anon # !Begin # Table_map # Update_rows_partial # !Commit]
+include/sync_slave_sql_with_master.inc
+# Assert that slave's binlog is written according to slave's option
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # !Commit # !Gtid_or_anon # !Begin # Table_map # Update_rows # !Commit # !Gtid_or_anon # !Begin # Table_map # Update_rows_partial # !Commit # !Gtid_or_anon # !Begin # Table_map # Update_rows_partial # !Commit]
+include/diff_tables.inc [master:test.t, slave:test.t]
+==== Clean up ====
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @binlog_row_value_options_save;
+SET @@GLOBAL.BINLOG_ROW_IMAGE= @binlog_row_image_save;
+include/rpl_end.inc

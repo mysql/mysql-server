@@ -1,24 +1,6 @@
 --echo # This test scripts covers upgrade of tables, views, tablespaces,
 --echo # events, stored routines and triggers from 5.7 to 8.0.
 
---source include/have_undo_tablespaces.inc
-
---disable_query_log
-call mtr.add_suppression("Plugin * after shutdown");
-call mtr.add_suppression(".* Native table .* has the wrong structure");
-call mtr.add_suppression("Resizing redo log from");
-call mtr.add_suppression("Starting to delete and rewrite log files");
-call mtr.add_suppression("New log files created");
-call mtr.add_suppression("Info table is not ready to be used.");
-call mtr.add_suppression("must use supported storage engine");
-call mtr.add_suppression("after shutdown");
-call mtr.add_suppression("will be forced to shutdown");
-call mtr.add_suppression("Table 'mysql.component' doesn't exist");
-call mtr.add_suppression("table is missing or has an incorrect definition");
-call mtr.add_suppression("is expected to be transactional");
-call mtr.add_suppression("Upgrading redo log");
---enable_query_log
-
 --echo # Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 
@@ -50,41 +32,41 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 --echo # tables with non native partitioning.
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 --error 1
---exec $MYSQLD $extra_args  --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
+--exec $MYSQLD $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
 
 let SEARCH_FILE= $MYSQLD_LOG;
 --let SEARCH_PATTERN= Error in creating TABLE_SHARE from p4_hash.frm file.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t1_col_name
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t2_col_type
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t3_col_num
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t4_index_name
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t5_index_cols
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t6_indexes_num
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t7_indexes_unique
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t8_col_type_nulls
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t9_index_prefix_len
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= Table mismatch_frms/t1_col_name is not found in InnoDB dictionary
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # Remove copied files
 --remove_file $MYSQLD_LOG
@@ -117,13 +99,13 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_enum;
 --echo # a table and a stored program with a too long enum literals.
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 --error 1
---exec $MYSQLD $extra_args  --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
+--exec $MYSQLD $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
 
 --let SEARCH_PATTERN= Error in Creating DD entry for test.t_long_enum
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= Error in creating stored program 'test.p_long_enum'
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # Remove copied files
 --remove_file $MYSQLD_LOG

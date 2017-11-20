@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,14 +17,9 @@
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/include 
-  ${CMAKE_SOURCE_DIR}/sql/conn_handler
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${CMAKE_SOURCE_DIR}/sql 
-  ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/extra/regex
-  ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
-  ${CMAKE_BINARY_DIR}/sql
   ${LZ4_INCLUDE_DIR}
 )
 
@@ -49,7 +44,7 @@ SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
 
 # Gen_lex_token
 # Make sure sql_yacc.h is generated before compiling gen_lex_token
-ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc)
+MYSQL_ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc SKIP_INSTALL)
 ADD_DEPENDENCIES(gen_lex_token GenServerSource)
 
 ADD_CUSTOM_COMMAND(
@@ -66,6 +61,7 @@ ENDIF()
 SET(DD_SOURCES
   dd/collection.cc
   dd/dd_event.cc
+  dd/dd_resource_group.cc
   dd/dd_routine.cc
   dd/dd_schema.cc
   dd/dd_table.cc
@@ -104,8 +100,17 @@ SET(DD_SOURCES
   dd/impl/system_views/columns.cc
   dd/impl/system_views/column_statistics.cc
   dd/impl/system_views/events.cc
+  dd/impl/system_views/files.cc
+  dd/impl/system_views/innodb_datafiles.cc
+  dd/impl/system_views/innodb_foreign.cc
+  dd/impl/system_views/innodb_foreign_cols.cc
+  dd/impl/system_views/innodb_fields.cc
+  dd/impl/system_views/innodb_tablespaces_brief.cc
   dd/impl/system_views/key_column_usage.cc
   dd/impl/system_views/parameters.cc
+  dd/impl/system_views/partitions.cc
+  dd/impl/system_views/referential_constraints.cc
+  dd/impl/system_views/resource_groups.cc
   dd/impl/system_views/routines.cc
   dd/impl/system_views/schemata.cc
   dd/impl/system_views/statistics.cc
@@ -116,8 +121,6 @@ SET(DD_SOURCES
   dd/impl/system_views/triggers.cc
   dd/impl/system_views/views.cc
 
-  dd/impl/tables/table_stats.cc
-  dd/impl/tables/index_stats.cc
   dd/impl/tables/character_sets.cc
   dd/impl/tables/collations.cc
   dd/impl/tables/columns.cc
@@ -130,12 +133,15 @@ SET(DD_SOURCES
   dd/impl/tables/index_column_usage.cc
   dd/impl/tables/indexes.cc
   dd/impl/tables/index_partitions.cc
+  dd/impl/tables/index_stats.cc
   dd/impl/tables/parameters.cc
   dd/impl/tables/parameter_type_elements.cc
+  dd/impl/tables/resource_groups.cc
   dd/impl/tables/routines.cc
   dd/impl/tables/schemata.cc
   dd/impl/tables/spatial_reference_systems.cc
   dd/impl/tables/table_partitions.cc
+  dd/impl/tables/table_stats.cc
   dd/impl/tables/table_partition_values.cc
   dd/impl/tables/tables.cc
   dd/impl/tables/tablespace_files.cc
@@ -166,6 +172,7 @@ SET(DD_SOURCES
   dd/impl/types/partition_index_impl.cc
   dd/impl/types/partition_value_impl.cc
   dd/impl/types/procedure_impl.cc
+  dd/impl/types/resource_group_impl.cc
   dd/impl/types/routine_impl.cc
   dd/impl/types/schema_impl.cc
   dd/impl/types/spatial_reference_system_impl.cc
@@ -181,7 +188,8 @@ SET(DD_SOURCES
   dd/info_schema/metadata.cc
   dd/info_schema/show.cc
   dd/info_schema/show_query_builder.cc
-  dd/info_schema/stats.cc
+  dd/info_schema/table_stats.cc
+  dd/info_schema/tablespace_stats.cc
 
   dd/performance_schema/init.cc
 
@@ -223,8 +231,12 @@ SET(SQL_GIS_SOURCES
 )
 
 SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
+  server_component/backup_lock_service.cc
   server_component/mysql_string_service.cc
   server_component/persistent_dynamic_loader.cc
+  server_component/component_sys_var_service.cc
+  server_component/component_status_var_service.cc
+  server_component/system_variable_source_imp.cc
   )
 
 SET(SQL_SHARED_SOURCES
@@ -237,17 +249,20 @@ SET(SQL_SHARED_SOURCES
   auth/sql_authorization.cc
   auth/sql_user_table.cc
   auth/sql_user.cc
-  auth/password.c
+  auth/password.cc
   auth/password_policy_service.cc
   auth/sql_security_ctx.cc
   auth/service_security_context.cc
   auto_thd.cc
   keyring_service.cc
   auth/role_tables.cc
+  auth/sha2_password_common.cc
+  auth/sha2_password.cc
   ssl_wrapper_service.cc
   bootstrap.cc
   check_stack.cc
   conn_handler/connection_handler_manager.cc 
+  clone_handler.cc
   current_thd.cc
   dd_sql_view.cc
   dd_sp.cc
@@ -329,6 +344,10 @@ SET(SQL_SHARED_SOURCES
   psi_memory_key.cc
   query_result.cc
   records.cc
+  resourcegroups/thread_resource_control.cc
+  resourcegroups/platform/thread_attrs_api_common.cc
+  resourcegroups/resource_group_mgr.cc
+  resourcegroups/resource_group_sql_cmd.cc
   rpl_group_replication.cc
   rpl_handler.cc
   rpl_transaction_ctx.cc
@@ -352,16 +371,15 @@ SET(SQL_SHARED_SOURCES
   sql_alloc_error_handler.cc
   sql_alter.cc
   sql_alter_instance.cc
+  sql_backup_lock.cc
   sql_base.cc 
   sql_bootstrap.cc
   sql_initialize.cc
-  sql_cache.cc
   sql_call.cc
   sql_class.cc
   sql_component.cc
   sql_cmd_ddl_table.cc
   sql_connect.cc
-  sql_crypt.cc
   sql_cursor.cc
   sql_data_change.cc
   sql_db.cc
@@ -391,6 +409,7 @@ SET(SQL_SHARED_SOURCES
   sql_partition_admin.cc
   sql_planner.cc
   sql_plugin.cc
+  sql_plugin_var.cc
   sql_prepare.cc
   sql_profile.cc
   sql_query_rewrite.cc
@@ -454,6 +473,28 @@ FILE(GLOB_RECURSE SQL_HEADERS
   "${CMAKE_SOURCE_DIR}/storage/*.h"
 ) 
 
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_linux.cc)
+ENDIF()
+
+IF(APPLE)
+  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_apple.cc)
+ENDIF()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_freebsd.cc)
+ENDIF()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_solaris.cc)
+ENDIF()
+
+IF(WIN32)
+  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_win.cc)
+ENDIF()
+
+SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} ${SQL_GIS_SOURCES} PARENT_SCOPE)
+
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
@@ -473,7 +514,6 @@ SET(SQL_SOURCE
   conn_handler/connection_handler_one_thread.cc
   conn_handler/socket_connection.cc
   conn_handler/init_net_server_extension.cc
-  des_key_file.cc
   event_data_objects.cc
   event_db_repository.cc 
   event_parse_data.cc
@@ -514,6 +554,7 @@ SET(SQL_BOOST_SOURCES
   auth/role_tables.cc
   auth/dynamic_privilege_table.cc
   auth/dynamic_privileges_impl.cc
+  auth/sha2_password.cc
   handler.cc
   ${SQL_GIS_SOURCES}
   spatial.cc
@@ -654,13 +695,13 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
 ENDIF()
 
 IF (WIN32 AND OPENSSL_APPLINK_C)
-  ADD_COMPILE_FLAGS(
-    ../sql-common/client_authentication.cc
-    COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
-  )
+  LIST(APPEND SQL_SOURCE "${OPENSSL_APPLINK_C}")
 ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(sql_rtree gis/rtree_support.cc)
+ADD_DEPENDENCIES(sql_rtree GenError)
+ADD_DEPENDENCIES(sql_rtree GenServerSource)
+ADD_DEPENDENCIES(sql_rtree sql_gis)
 ADD_CONVENIENCE_LIBRARY(sql_main ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
@@ -737,6 +778,9 @@ IF(APPLE)
   IF(CORESERVICES) 
     TARGET_LINK_LIBRARIES(mysqld ${CORESERVICES}) 
   ENDIF() 
+  IF(NOT BUILD_IS_SINGLE_CONFIG)
+    ADD_COMPILE_FLAGS(mysqld.cc COMPILE_FLAGS -DAPPLE_XCODE)
+  ENDIF()
 ENDIF() 
 
 IF(NOT DISABLE_SHARED)
@@ -840,7 +884,7 @@ SET_SOURCE_FILES_PROPERTIES(
 )
 
 # Gen_lex_hash
-ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
+MYSQL_ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc SKIP_INSTALL)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h

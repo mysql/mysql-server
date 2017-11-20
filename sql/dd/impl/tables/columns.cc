@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,12 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/columns.h"
+#include "sql/dd/impl/tables/columns.h"
 
 #include <new>
 
-#include "dd/impl/raw/object_keys.h"   // Parent_id_range_key
-#include "dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/impl/raw/object_keys.h" // Parent_id_range_key
+#include "sql/dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
 namespace tables {
@@ -138,7 +138,9 @@ Columns::Columns()
   m_target_def.add_field(FIELD_COLUMN_TYPE_UTF8,
                          "FIELD_COLUMN_TYPE_UTF8",
                          "column_type_utf8 MEDIUMTEXT NOT NULL");
-
+  m_target_def.add_field(FIELD_SRS_ID,
+                         "FIELD_SRS_ID",
+                         "srs_id INT UNSIGNED DEFAULT NULL");
 
   m_target_def.add_index("PRIMARY KEY(id)");
   m_target_def.add_index("UNIQUE KEY(table_id, name)");
@@ -147,6 +149,8 @@ Columns::Columns()
   m_target_def.add_foreign_key("FOREIGN KEY (table_id) REFERENCES tables(id)");
   m_target_def.add_foreign_key("FOREIGN KEY (collation_id) "
                                "REFERENCES collations(id)");
+  m_target_def.add_foreign_key("FOREIGN KEY (srs_id) "
+                               "REFERENCES st_spatial_reference_systems(id)");
 }
 
 ///////////////////////////////////////////////////////////////////////////

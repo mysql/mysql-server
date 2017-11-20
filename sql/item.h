@@ -25,36 +25,38 @@
 #include <new>
 
 #include "binary_log_types.h"
-#include "enum_query_type.h"
-#include "field.h"       // Derivation
-#include "handler.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"  // my_decimal
 #include "my_double2ulonglong.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_time.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "parse_tree_node_base.h" // Parse_tree_node
-#include "sql_alloc.h"
-#include "sql_array.h"   // Bounds_checked_array
-#include "sql_const.h"
-#include "sql_plugin_ref.h"
+#include "sql/dd/properties.h"
+#include "sql/enum_query_type.h"
+#include "sql/field.h"   // Derivation
+#include "sql/handler.h"
+#include "sql/mem_root_array.h"
+#include "sql/my_decimal.h" // my_decimal
+#include "sql/parse_tree_node_base.h" // Parse_tree_node
+#include "sql/sql_alloc.h"
+#include "sql/sql_array.h" // Bounds_checked_array
+#include "sql/sql_const.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/table_trigger_field_support.h" // Table_trigger_field_support
+#include "sql/thr_malloc.h"
+#include "sql/trigger_def.h" // enum_trigger_variable_type
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
-#include "table_trigger_field_support.h" // Table_trigger_field_support
 #include "template_utils.h"
-#include "thr_malloc.h"
-#include "trigger_def.h" // enum_trigger_variable_type
 #include "typelib.h"
 
 class Item;
@@ -1185,7 +1187,7 @@ public:
     set_data_type(MYSQL_TYPE_TIMESTAMP);
     collation.set_numeric();
     decimals= fsp;
-    max_length= MAX_DATE_WIDTH + fsp + (fsp > 0 ? 1 : 0);
+    max_length= MAX_DATETIME_WIDTH + fsp + (fsp > 0 ? 1 : 0);
   }
 
   /**
@@ -1556,6 +1558,7 @@ public:
     Calculate the filter contribution that is relevant for table
     'filter_for_table' for this item.
 
+    @param thd               Thread handler
     @param filter_for_table  The table we are calculating filter effect for
     @param read_tables       Tables earlier in the join sequence.
                              Predicates for table 'filter_for_table' that
@@ -1573,7 +1576,8 @@ public:
                              Item contributes with.
   */
   virtual float
-  get_filtering_effect(table_map filter_for_table MY_ATTRIBUTE((unused)),
+  get_filtering_effect(THD *thd MY_ATTRIBUTE((unused)),
+                       table_map filter_for_table MY_ATTRIBUTE((unused)),
                        table_map read_tables MY_ATTRIBUTE((unused)),
                        const MY_BITMAP
                        *fields_to_ignore MY_ATTRIBUTE((unused)),
@@ -1598,7 +1602,15 @@ public:
     return true;
   }
 
+  /**
+    Convert a non-temporal type to date
+  */
+  bool get_date_from_non_temporal(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
 
+  /**
+    Convert a non-temporal type to time
+  */
+  bool get_time_from_non_temporal(MYSQL_TIME *ltime);
 protected:
   /* Helper functions, see item_sum.cc */
   String *val_string_from_real(String *str);
@@ -1709,10 +1721,7 @@ protected:
   */
   bool get_date_from_numeric(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
 
-  /**
-    Convert a non-temporal type to date
-  */
-  bool get_date_from_non_temporal(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
+
 
   /**
     Convert val_str() to time in MYSQL_TIME
@@ -1743,11 +1752,6 @@ protected:
     Convert a numeric type to time
   */
   bool get_time_from_numeric(MYSQL_TIME *ltime);
-
-  /**
-    Convert a non-temporal type to time
-  */
-  bool get_time_from_non_temporal(MYSQL_TIME *ltime);
 
 public:
 
@@ -1791,6 +1795,7 @@ public:
 
   /* bit map of tables used by item */
   virtual table_map used_tables() const { return (table_map) 0L; }
+
   /*
     Return table map of tables that can't be NULL tables (tables that are
     used in a context where if they would contain a NULL row generated
@@ -1807,7 +1812,7 @@ public:
     Returns true if this is a simple constant item like an integer, not
     a constant expression. Used in the optimizer to propagate basic constants.
   */
-  virtual bool basic_const_item() const { return 0; }
+  virtual bool basic_const_item() const { return false; }
   /**
     @return cloned item if it is constant
       @retval nullptr  if this is not const
@@ -1827,25 +1832,51 @@ public:
     DATETIME precision of the item: 0..6
   */
   virtual uint datetime_precision();
-  /* 
-    Returns true if this is constant (during query execution, i.e. its value
-    will not change until next fix_fields) and its value is known.
-    When the default implementation of used_tables() is effective, this
-    function will always return true (because used_tables() is empty).
+  /**
+    Returns true if item is constant, regardless of query evaluation state.
+    An expression is constant if it:
+    - refers no tables.
+    - refers no subqueries that refers any tables.
+    - refers no non-deterministic functions.
+    - refers no statement parameters.
   */
-  virtual bool const_item() const
+  bool const_item() const
   {
-    if (used_tables() == 0)
-      return can_be_evaluated_now();
-    return false;
+    return used_tables() == 0;
+  }
+  /**
+    Returns true if item is constant during one query execution.
+    If const_for_execution() is true but const_item() is false, value is
+    not available before tables have been locked and parameters have been
+    assigned values. This applies to
+    - statement parameters
+    - non-dependent subqueries
+    - deterministic stored functions that contain SQL code.
+    For items where the default implementation of used_tables() and
+    const_item() are effective, const_item() will always return true.
+  */
+  bool const_for_execution() const
+  {
+    return !(used_tables() & ~INNER_TABLE_BIT);
   }
 
-  /* 
-    Returns true if this is constant but its value may be not known yet.
-    (Can be used for parameters of prep. stmts or of stored procedures.)
+  /**
+    Return true if this is a const item that may be evaluated in
+    the current phase of statement processing.
+    - No evaluation is performed when analyzing a view, otherwise:
+    - Items that have the const_item() property can always be evaluated.
+    - Items that have the const_for_execution() property can be evaluated when
+      tables are locked (ie during optimization or execution).
+
+    This function should be used in the following circumstances:
+    - during preparation to check whether an item can be permanently transformed
+    - to check that an item is constant in functions that may be used in both
+      the preparation and optimization phases.
+
+    This function should not be used by code that is called during optimization
+    and/or execution only. Use const_for_execution() in this case.
   */
-  virtual bool const_during_execution() const 
-  { return (used_tables() & ~PARAM_TABLE_BIT) == 0; }
+  bool may_evaluate_const(THD *thd) const;
 
   /**
     This method is used for to:
@@ -1899,7 +1930,7 @@ public:
     and Item_sum_count/Item_sum_count_distinct.
     Any new item which can be NULL must implement this method.
   */
-  virtual bool is_null() { return 0; }
+  virtual bool is_null() { return false; }
 
   /// Make sure the null_value member has a correct value.
   bool update_null_value();
@@ -2210,6 +2241,17 @@ public:
   virtual Bool3 local_column(const SELECT_LEX*) const
   { return Bool3::false3(); }
 
+  /**
+    Check if an aggregate is referenced from within the GROUP BY
+    clause of the query block in which it is aggregated. Such
+    references will be rejected.
+    @see Item_ref::fix_fields()
+    @retval true   if this is an aggregate which is referenced from
+                   the GROUP BY clause of the aggregating query block
+    @retval false  otherwise
+  */
+  virtual bool has_aggregate_ref_in_group_by(uchar *) { return false; }
+
   virtual bool cache_const_expr_analyzer(uchar **cache_item);
   Item *cache_const_expr_transformer(uchar *item);
 
@@ -2331,7 +2373,7 @@ public:
 
   virtual Item *neg_transformer(THD*) { return NULL; }
   virtual Item *update_value_transformer(uchar*) { return this; }
-  virtual Item *safe_charset_converter(const CHARSET_INFO *tocs);
+  virtual Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs);
   void delete_self()
   {
     cleanup();
@@ -2412,7 +2454,6 @@ public:
                                NULL);
     return is_expensive_cache;
   }
-  virtual bool can_be_evaluated_now() const;
 
   /**
     @return maximum number of characters that this Item can store
@@ -2519,6 +2560,16 @@ public:
     const Type t= type();
     return t == FUNC_ITEM || t == COND_ITEM;
   }
+
+  void aggregate_decimal_properties(Item **item, uint nitems);
+  void aggregate_float_properties(Item **item, uint nitems);
+  void aggregate_char_length(Item **args, uint nitems);
+  void aggregate_temporal_properties(Item **item, uint nitems);
+  bool aggregate_string_properties(enum_field_types field_type,
+                                   const char *name, Item **item,
+                                   uint nitems);
+  void aggregate_num_type(Item_result result_type, Item **item,
+                          uint nitems);
 
   /**
     This function applies only to Item_field objects referred to by an Item_ref
@@ -2640,16 +2691,6 @@ protected:
 
   uint8 m_accum_properties;
 
-  /**
-    This variable is a cache of 'Needed tables are locked'. True if either
-    'No tables locks is needed' or 'Needed tables are locked'.
-    If tables are used, then it will be set to
-    current_thd->lex->is_query_tables_locked().
-
-    It is used when checking const_item()/can_be_evaluated_now().
-  */
-  bool tables_locked_cache;
-
 public:
   /**
     Check if this expression can be used for partial update of a given
@@ -2677,6 +2718,9 @@ class Item_basic_constant :public Item
 public:
   Item_basic_constant(): Item(), used_table_map(0) {};
   explicit Item_basic_constant(const POS &pos): Item(pos), used_table_map(0) {};
+
+  /// @todo add implementation of basic_const_item
+  ///       and remove from subclasses as appropriate.
 
   void set_used_tables(table_map map) { used_table_map= map; }
   table_map used_tables() const override { return used_table_map; }
@@ -2979,7 +3023,7 @@ public:
   { collation.set_numeric(); }
 
   virtual Item_num *neg()= 0;
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
 };
 
@@ -3317,7 +3361,7 @@ public:
   Item *replace_equal_field(uchar *) override;
   inline uint32 max_disp_length() { return field->max_display_length(); }
   Item_field *field_for_view_update() override { return this; }
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   Item *update_value_transformer(uchar *select_arg) override;
   void print(String *str, enum_query_type query_type) override;
@@ -3359,7 +3403,7 @@ public:
   }
 #endif
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -3418,7 +3462,7 @@ class Item_null : public Item_basic_constant
     null_value= TRUE;
     set_data_type(MYSQL_TYPE_NULL);
     max_length= 0;
-    fixed= 1;
+    fixed= true;
     collation.set(&my_charset_bin, DERIVATION_IGNORABLE);
   }
 protected:
@@ -3470,7 +3514,7 @@ public:
     str->append(query_type == QT_NORMALIZED_FORMAT ? "?" : "NULL");
   }
 
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
 };
 
@@ -3614,16 +3658,21 @@ public:
   bool convert_str_value(THD *thd);
 
   /*
-    If value for parameter was not set we treat it as non-const
-    so noone will use parameters value in fix_fields still
-    parameter is constant during execution.
+    Parameter is treated as constant during execution, thus it will not be
+    evaluated during preparation.
   */
   table_map used_tables() const override
-  { return state != NO_VALUE ? (table_map)0 : PARAM_TABLE_BIT; }
+  { return state != NO_VALUE ? 0 : INNER_TABLE_BIT; }
   void print(String *str, enum_query_type query_type) override;
   bool is_null() override
   { DBUG_ASSERT(state != NO_VALUE); return state == NULL_VALUE; }
-  bool basic_const_item() const override;
+  bool basic_const_item() const override
+  {
+    if (state == NO_VALUE || state == TIME_VALUE)
+      return false;
+    return true;
+  }
+
   /*
     This method is used to make a copy of a basic constant item when
     propagating constants in the optimizer. The reason to create a new
@@ -3634,7 +3683,7 @@ public:
     constant, assert otherwise. This method is called only if
     basic_const_item returned TRUE.
   */
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   Item *clone_item() const override;
   /*
     Implement by-value equality evaluation if parameter value
@@ -3678,7 +3727,6 @@ private:
     - from the point of view of logging: it is not in the original query so it
     should not be substituted in the query written to logs (in insert_params()
     if with_log is true).
-    - from the POV of query cache matching (same).
     - from the POV of the user:
         * user provides one single value for I, not one for I and one for J.
         * user expects mysql_stmt_param_count() to return 1, not 2 (count is
@@ -4032,7 +4080,7 @@ public:
     str->append(func_name);
   }
 
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
 };
 
 
@@ -4189,7 +4237,7 @@ public:
     return new Item_string(static_cast<Name_string>(item_name), str_value.ptr(),
     			   str_value.length(), collation.collation);
   }
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   Item *charset_converter(const CHARSET_INFO *tocs, bool lossless);
   inline void append(char *str, size_t length)
   {
@@ -4267,7 +4315,7 @@ public:
      func_name(name_par)
   {}
 
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
 
   inline void print(String *str, enum_query_type) override
   {
@@ -4380,7 +4428,7 @@ public:
   Item_result cast_to_int_type() const override { return INT_RESULT; }
   void print(String *str, enum_query_type query_type) override;
   bool eq(const Item *item, bool binary_cmp) const override;
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   static LEX_STRING make_hex_str(const char *str, size_t str_length);
 private:
@@ -4468,10 +4516,6 @@ public:
   */
   virtual const char *func_name() const= 0;
   bool check_gcol_func_processor(uchar *) override { return false; }
-  void count_only_length(Item **item, uint nitems);
-  void count_datetime_length(Item **item, uint nitems);
-  bool count_string_result_length(enum_field_types field_type,
-                                  Item **item, uint nitems);
   bool mark_field_in_map(uchar *arg) override
   {
     bool rc= Item::mark_field_in_map(arg);
@@ -4571,10 +4615,6 @@ public:
   Field *get_tmp_table_field() override
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
   Item *get_tmp_table_item(THD *thd) override;
-  bool const_item() const override
-  {
-    return (*ref)->const_item() && (used_tables() == 0);
-  }
   table_map used_tables() const override
   {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
@@ -4665,6 +4705,12 @@ public:
     DBUG_ASSERT(fixed);
     return (*ref)->get_time(ltime);
   }
+
+  /**
+    @todo Consider re-implementing this for Item_direct_view_ref, as it
+          may return NULL even if it wraps a constant value, if one the
+          inner side of an outer join.
+  */
   bool basic_const_item() const override
   { return ref && (*ref)->basic_const_item(); }
   bool is_outer_field() const override
@@ -4711,7 +4757,7 @@ public:
   bool is_null() override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   Ref_Type ref_type() const override { return DIRECT_REF; }
-  type_conversion_status save_in_field_inner(Field *to, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *to, bool no_conversions) override;
 };
 
 /**
@@ -4755,6 +4801,38 @@ public:
   }
 
   bool fix_fields(THD *, Item **) override;
+
+  /**
+    Takes into account whether an Item in a derived table / view is part of an
+    inner table of an outer join.
+
+    1) If the field is an outer reference, return OUTER_TABLE_REF_BIT.
+    2) Else
+       2a) If the field is const_for_execution and the field is used in the
+           inner part of an outer join, return the inner tables of the outer
+           join. (A 'const' field that depends on the inner table of an outer
+           join shouldn't be interpreted as const.)
+       2b) Else return the used_tables info of the underlying field.
+
+    @note The call to const_for_execution has been replaced by
+          "!(inner_map & ~INNER_TABLE_BIT)" to avoid multiple and recursive
+          calls to used_tables. This can create a problem when Views are
+          created using other views
+ */
+  table_map used_tables() const override
+  {
+    if (depended_from != NULL)
+      return OUTER_REF_TABLE_BIT;
+
+    table_map inner_map= (*ref)->used_tables();
+    return
+      !(inner_map & ~INNER_TABLE_BIT) && first_inner_table != NULL ?
+        (*ref)->real_item()->type() == FIELD_ITEM ?
+          down_cast<Item_field *>((*ref)->real_item())->table_ref->map() :
+          first_inner_table->map() :
+        inner_map;
+  }
+
   bool eq(const Item *item, bool) const override;
   Item *get_tmp_table_item(THD *thd) override
   {
@@ -4859,7 +4937,7 @@ public:
                          SELECT_LEX *removed_select) override;
   table_map used_tables() const override
   {
-    return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
+    return (*ref)->used_tables() == 0 ? 0 : OUTER_REF_TABLE_BIT;
   }
   table_map not_null_tables() const override { return 0; }
 
@@ -5109,8 +5187,14 @@ public:
   enum Item_result result_type() const override { return cached_result_type; }
 
   void make_field(Send_field *field) override { item->make_field(field); }
+
+  /*
+    The likely reason for used_tables() to return 1 is that Item_copy
+    represents a field in a temporary table used for group expressions,
+    and such tables are represented with table map = 1.
+  */
   table_map used_tables() const override { return 1; }
-  bool const_item() const override { return false; }
+
   bool is_null() override { return null_value; }
 
   void no_rows_in_result() override
@@ -5290,6 +5374,7 @@ public:
 
 
 class Item_cache;
+
 /**
   This is used for segregating rows in groups (e.g. GROUP BY, windows), to
   detect boundaries of groups.
@@ -5337,6 +5422,7 @@ public:
   explicit Cached_item_json(Item *item);
   ~Cached_item_json();
   bool cmp() override;
+  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 
@@ -5952,6 +6038,7 @@ public:
   Item_cache_json();
   ~Item_cache_json();
   bool cache_value() override;
+  void store_value(Item *expr, Json_wrapper *wr);
   bool val_json(Json_wrapper *wr) override;
   longlong val_int() override;
   String *val_str(String *str) override;

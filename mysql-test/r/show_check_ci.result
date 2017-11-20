@@ -75,7 +75,7 @@ def			SHOW_STATISTICS	Key_name	Key_name	253	256	7	Y	0	0	255
 def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	256	1	Y	0	0	255
 def			SHOW_STATISTICS	Collation	Collation	253	4	1	Y	0	0	255
-def	mysql	index_stats	SHOW_STATISTICS	Cardinality	Cardinality	8	20	1	Y	32800	0	63
+def			SHOW_STATISTICS	Cardinality	Cardinality	8	21	1	Y	32768	0	63
 def			SHOW_STATISTICS	Sub_part	Sub_part	8	21	0	Y	32768	0	63
 def					Packed	6	0	0	Y	32896	0	63
 def			SHOW_STATISTICS	Null	Null	253	12	0	N	1	0	255
@@ -132,18 +132,18 @@ def			TABLES	Name	Name	253	256	0	Y	0	0	255
 def			TABLES	Engine	Engine	253	256	0	Y	0	0	255
 def			TABLES	Version	Version	3	2	0	Y	32768	0	63
 def	mysql	tables	TABLES	Row_format	Row_format	254	40	0	Y	384	0	255
-def	mysql	table_stats	TABLES	Rows	Rows	8	20	0	Y	32800	0	63
-def	mysql	table_stats	TABLES	Avg_row_length	Avg_row_length	8	20	0	Y	32800	0	63
-def	mysql	table_stats	TABLES	Data_length	Data_length	8	20	0	Y	32800	0	63
-def	mysql	table_stats	TABLES	Max_data_length	Max_data_length	8	20	0	Y	32800	0	63
-def	mysql	table_stats	TABLES	Index_length	Index_length	8	20	0	Y	32800	0	63
-def	mysql	table_stats	TABLES	Data_free	Data_free	8	20	0	Y	32800	0	63
-def	mysql	table_stats	TABLES	Auto_increment	Auto_increment	8	20	0	Y	32800	0	63
+def			TABLES	Rows	Rows	8	21	0	Y	32800	0	63
+def			TABLES	Avg_row_length	Avg_row_length	8	21	0	Y	32800	0	63
+def			TABLES	Data_length	Data_length	8	21	0	Y	32800	0	63
+def			TABLES	Max_data_length	Max_data_length	8	21	0	Y	32800	0	63
+def			TABLES	Index_length	Index_length	8	21	0	Y	32800	0	63
+def			TABLES	Data_free	Data_free	8	21	0	Y	32800	0	63
+def			TABLES	Auto_increment	Auto_increment	8	21	0	Y	32800	0	63
 def	mysql	tables	TABLES	Create_time	Create_time	7	19	0	N	129	0	63
-def	mysql	table_stats	TABLES	Update_time	Update_time	7	19	0	Y	128	0	63
-def	mysql	table_stats	TABLES	Check_time	Check_time	7	19	0	Y	128	0	63
+def			TABLES	Update_time	Update_time	12	19	0	Y	128	0	63
+def			TABLES	Check_time	Check_time	12	19	0	Y	128	0	63
 def	mysql	collations	TABLES	Collation	Collation	253	256	0	Y	4096	0	255
-def	mysql	table_stats	TABLES	Checksum	Checksum	8	20	0	Y	32800	0	63
+def			TABLES	Checksum	Checksum	8	21	0	Y	32768	0	63
 def			TABLES	Create_options	Create_options	253	1024	0	Y	0	0	255
 def			TABLES	Comment	Comment	253	1024	0	Y	0	0	255
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -271,6 +271,7 @@ create table t1(n int);
 insert into t1 values (1);
 show open tables;
 Database	Table	In_use	Name_locked
+mysql	column_statistics	0	0
 mysql	column_type_elements	0	0
 mysql	columns	0	0
 mysql	foreign_key_column_usage	0	0
@@ -279,6 +280,7 @@ mysql	general_log	0	0
 mysql	index_column_usage	0	0
 mysql	index_partitions	0	0
 mysql	indexes	0	0
+mysql	schemata	0	0
 mysql	table_partition_values	0	0
 mysql	table_partitions	0	0
 mysql	tables	0	0
@@ -717,7 +719,7 @@ def			SHOW_STATISTICS	Key_name	Key_name	253	64	7	Y	0	0	63
 def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	64	6	Y	0	0	63
 def			SHOW_STATISTICS	Collation	Collation	253	1	1	Y	0	0	63
-def	mysql	index_stats	SHOW_STATISTICS	Cardinality	Cardinality	8	20	0	Y	32800	0	63
+def			SHOW_STATISTICS	Cardinality	Cardinality	8	21	1	Y	32768	0	63
 def			SHOW_STATISTICS	Sub_part	Sub_part	8	21	3	Y	32768	0	63
 def					Packed	6	0	0	Y	32896	0	63
 def			SHOW_STATISTICS	Null	Null	253	3	0	N	1	0	63
@@ -726,7 +728,7 @@ def			SHOW_STATISTICS	Comment	Comment	253	8	0	N	1	0	63
 def	mysql	indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	2048	0	N	#	0	63
 def			SHOW_STATISTICS	Visible	Visible	253	3	3	N	1	0	63
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	field1	A	NULL	750	NULL		BTREE			YES
+t1	0	PRIMARY	1	field1	A	0	750	NULL		BTREE			YES
 drop table t1;
 create table t1 (
 c1 int NOT NULL,
@@ -786,61 +788,11 @@ use test;
 SHOW TABLES FROM non_existing_database;
 ERROR 42000: Unknown database 'non_existing_database'
 End of 4.1 tests
-DROP VIEW IF EXISTS v1;
-DROP PROCEDURE IF EXISTS p1;
-CREATE VIEW v1 AS SELECT 1;
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_CACHE 1;
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache 1 AS `1`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE 1;
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache 1 AS `1`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT NOW();
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select now() AS `NOW()`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_CACHE NOW();
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache now() AS `NOW()`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE NOW();
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache now() AS `NOW()`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE NOW();
-ERROR HY000: Incorrect usage of SQL_CACHE and SQL_NO_CACHE
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE SQL_CACHE NOW();
-ERROR HY000: Incorrect usage of SQL_NO_CACHE and SQL_CACHE
-CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE SQL_CACHE NOW();
-ERROR HY000: Incorrect usage of SQL_CACHE and SQL_NO_CACHE
-CREATE PROCEDURE p1()
-BEGIN
-SET @s= 'CREATE VIEW v1 AS SELECT SQL_CACHE 1';
-PREPARE stmt FROM @s;
-EXECUTE stmt;
-DROP PREPARE stmt;
-END |
-CALL p1();
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache 1 AS `1`	binary	binary
-DROP PROCEDURE p1;
-DROP VIEW v1;
 SHOW TABLES FROM no_such_database;
 ERROR 42000: Unknown database 'no_such_database'
 SHOW COLUMNS FROM no_such_table;
 ERROR 42S02: Table 'test.no_such_table' doesn't exist
+SET GLOBAL EVENT_SCHEDULER = OFF;
 CREATE TABLE t1 (f1 INT, f2 INT);
 INSERT INTO t1 VALUES(10, 20);
 flush status;
@@ -914,6 +866,7 @@ drop table t1;
 drop procedure p1;
 drop function f1;
 drop event e1;
+SET GLOBAL EVENT_SCHEDULER = ON;
 DROP DATABASE IF EXISTS mysqltest1;
 DROP TABLE IF EXISTS t1;
 DROP VIEW IF EXISTS v1;
@@ -982,7 +935,7 @@ def			SHOW_STATISTICS	Key_name	Key_name	253	192	7	Y	0	0	33
 def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	192	1	Y	0	0	33
 def			SHOW_STATISTICS	Collation	Collation	253	3	1	Y	0	0	33
-def	mysql	index_stats	SHOW_STATISTICS	Cardinality	Cardinality	8	20	0	Y	32800	0	63
+def			SHOW_STATISTICS	Cardinality	Cardinality	8	21	1	Y	32768	0	63
 def			SHOW_STATISTICS	Sub_part	Sub_part	8	21	0	Y	32768	0	63
 def					Packed	6	0	0	Y	32896	0	63
 def			SHOW_STATISTICS	Null	Null	253	9	0	N	1	0	33
@@ -991,7 +944,7 @@ def			SHOW_STATISTICS	Comment	Comment	253	24	0	N	1	0	33
 def	mysql	indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	6144	0	N	#	0	33
 def			SHOW_STATISTICS	Visible	Visible	253	9	3	N	1	0	33
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	c	A	NULL	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	1	c	A	0	NULL	NULL		BTREE			YES
 ----------------------------------------------------------------
 SELECT
 TABLE_CATALOG,
@@ -1306,6 +1259,8 @@ c1	c2	c3
 1	hello	world
 2	hello2	world2
 3	hello3	world3
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 show status like 'slow_queries';
 Variable_name	Value
 Slow_queries	1
@@ -1318,6 +1273,8 @@ c1	c2	c3
 1	hello	world
 2	hello2	world2
 3	hello3	world3
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 show status like 'slow_queries';
 Variable_name	Value
 Slow_queries	1
@@ -1330,6 +1287,8 @@ c1	c2	c3
 1	hello	world
 2	hello2	world2
 3	hello3	world3
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 show status like 'slow_queries';
 Variable_name	Value
 Slow_queries	2
@@ -1645,11 +1604,13 @@ SET NAMES latin1;
 SELECT GET_LOCK('t',1000) AS 'óóóó';;
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+###	event_scheduler	###	NULL	Daemon	###	###	NULL
 ###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST
 SET NAMES utf8;
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+###	event_scheduler	###	NULL	Daemon	###	###	NULL
 ###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST
 SELECT RELEASE_LOCK('t');
@@ -1774,8 +1735,8 @@ DB_ROLL_PTR		#	#	#	#	#	#	#
 # index columns.
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	c1	A	NULL	NULL	NULL		BTREE			YES
-t1	1	c2d	1	c2	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	0	PRIMARY	1	c1	A	0	NULL	NULL		BTREE			YES
+t1	1	c2d	1	c2	A	0	NULL	NULL	YES	BTREE			YES
 SELECT table_schema, table_name, index_name, column_name FROM
 INFORMATION_SCHEMA.STATISTICS WHERE table_name='t1';
 TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	COLUMN_NAME
@@ -1792,11 +1753,11 @@ test	PRIMARY	t1	c1
 # columns.
 SHOW EXTENDED INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	c1	A	NULL	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	1	c1	A	0	NULL	NULL		BTREE			YES
 t1	0	PRIMARY	2	DB_TRX_ID	A	NULL	NULL	NULL		BTREE			YES
 t1	0	PRIMARY	3	DB_ROLL_PTR	A	NULL	NULL	NULL		BTREE			YES
 t1	0	PRIMARY	4	c2	A	NULL	NULL	NULL	YES	BTREE			YES
 t1	0	PRIMARY	5	c3	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	1	c2d	1	c2	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	1	c2d	1	c2	A	0	NULL	NULL	YES	BTREE			YES
 t1	1	c2d	2	c1	A	NULL	NULL	NULL		BTREE			YES
 DROP TABLE t1;

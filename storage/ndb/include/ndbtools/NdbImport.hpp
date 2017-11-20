@@ -52,6 +52,7 @@ public:
     const char* m_database;
     const char* m_state_dir;
     bool m_keep_state;
+    bool m_stats;
     const char* m_table;
     const char* m_input_type;
     const char* m_input_file;
@@ -85,28 +86,30 @@ public:
     uint m_idlesleep;
     uint m_idlespin;
     uint m_rejects;
+    // character set of input file (currently fixed as binary)
+    const char* m_charset_name;
+    const struct charset_info_st* m_charset;
     // csv options
     OptCsv m_optcsv;
+    const char* m_csvopt;
     // debug options
     uint m_verbose;
     bool m_abort_on_error;
     const char* m_errins_type;
     uint m_errins_delay;
   };
-
-  int set_opt(const Opt& opt);
+  // set options for next job
+  int set_opt(Opt& opt);
 
   // connect
 
-  // pre-created connections (not used by ndb_import)
-  int set_connections(int cnt, Ndb_cluster_connection** connections);
   int do_connect();
   void do_disconnect();
 
   // table
 
+  // tables are shared and can also be added outside job context
   int add_table(const char* database, const char* table, uint& tabid);
-  int set_tabid(uint tabid);
 
   // job
 
@@ -146,6 +149,8 @@ public:
     int do_stop();      // ask to stop before ready
     int do_wait();
     void do_destroy();
+    int add_table(const char* database, const char* table, uint& tabid);
+    void set_table(uint tabid);
     bool has_error() const;
     const Error& get_error() const;
     NdbImport& m_imp;

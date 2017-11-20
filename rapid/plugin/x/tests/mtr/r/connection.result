@@ -15,6 +15,9 @@ call mtr.add_suppression("Plugin mysqlx reported: 'Could not open internal MySQL
 call mtr.add_suppression("Plugin mysqlx reported: '.*: Error initializing session for connection: Could not open session'");
 call mtr.add_suppression("Plugin 'mysqlx' has ref_count=5 after shutdown");
 call mtr.add_suppression("Plugin 'mysqlx' will be forced to shutdown");
+#
+# Login with valid account
+#
 RUN SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE from information_schema.plugins where PLUGIN_NAME LIKE '%mysqlx%'
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE
 mysqlx	1.0	ACTIVE	DAEMON
@@ -70,6 +73,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_connections_closed' == 1 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	1
@@ -79,33 +83,24 @@ Mysqlx_connections_accepted	1
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	1
 Mysqlx_sessions_closed	1
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	0
+#
+# Try to login with bogus accounts that could match a valid account by collation
+#
 Application terminated with expected error: Invalid user or password (code 1045)
 not ok
-show status like 'Mysqlx_connections_closed';
-Variable_name	Value
-Mysqlx_connections_closed	2
-show status like 'Mysqlx_connections_accepted';
-Variable_name	Value
-Mysqlx_connections_accepted	2
-show status like 'Mysqlx_connection_accept_errors';
-Variable_name	Value
-Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
-Variable_name	Value
-Mysqlx_sessions	0
-Mysqlx_sessions_accepted	1
-Mysqlx_sessions_closed	1
-Mysqlx_sessions_killed	0
-Mysqlx_sessions_rejected	1
 Application terminated with expected error: Invalid user or password (code 1045)
 not ok
+# Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 3 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	3
@@ -115,13 +110,18 @@ Mysqlx_connections_accepted	3
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	1
 Mysqlx_sessions_closed	1
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	2
+#
+# Try login with user having special characters in password when mysqlxplugin installed
+#
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
 special@localhost	special@localhost	*
@@ -155,6 +155,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 4 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	4
@@ -164,14 +166,22 @@ Mysqlx_connections_accepted	4
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	2
 Mysqlx_sessions_closed	2
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	2
-ERROR: Host not found
+#
+# try login with invalid host when mysqx plugin is installed
+#
+in main, line 0:ERROR: Host not foundnot ok
+
+# Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 4 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	4
@@ -181,23 +191,34 @@ Mysqlx_connections_accepted	4
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	2
 Mysqlx_sessions_closed	2
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	2
+#
+# Trying with valid user when mysqlx is not installed
+#
 uninstall plugin mysqlx;
-ERROR: Connection refused connecting to HOST:PORT
+in main, line 0:ERROR: Connection refused connecting to HOST:PORT (code 2002)
+not ok
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 show status like 'Mysqlx_connections_accepted';
 Variable_name	Value
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
+#
+# Try login using mysqlx protocol when server and mysqlx loaded with super user
+#
 # restart: --plugin-load=mysqlx.so
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
@@ -232,6 +253,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_connections_closed' == 1 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	1
@@ -241,15 +263,22 @@ Mysqlx_connections_accepted	1
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	1
 Mysqlx_sessions_closed	1
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	0
+#
+# Try login with valid user but incorrect password
+#
 Application terminated with expected error: Invalid user or password (code 1045)
 not ok
+# Syncing with status [ 'Mysqlx_sessions_rejected' == 1 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 2 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	2
@@ -259,15 +288,22 @@ Mysqlx_connections_accepted	2
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	1
 Mysqlx_sessions_closed	1
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	1
+#
+# Try login with user doesn't exists when mysqlx installed
+#
 Application terminated with expected error: Invalid user or password (code 1045)
 not ok
+# Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 3 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	3
@@ -277,15 +313,22 @@ Mysqlx_connections_accepted	3
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	1
 Mysqlx_sessions_closed	1
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	2
+#
+# Try login with user whose password expired when mysqlx installed
+#
 Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
 not ok
+# Syncing with status [ 'Mysqlx_sessions_rejected' == 3 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 4 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	4
@@ -295,15 +338,22 @@ Mysqlx_connections_accepted	4
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	1
 Mysqlx_sessions_closed	1
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	3
+#
+# Try login with user whose account is locked when mysqlx installed
+#
 Application terminated with expected error: Account is locked. (code 1045)
 not ok
+# Syncing with status [ 'Mysqlx_sessions_rejected' == 4 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 5 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	5
@@ -313,13 +363,20 @@ Mysqlx_connections_accepted	5
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	1
 Mysqlx_sessions_closed	1
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	4
+#
+# Try login with internal user account and expect account is locked error
+#
+# Syncing with status [ 'Mysqlx_sessions_rejected' == 5 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 6 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	6
@@ -329,13 +386,18 @@ Mysqlx_connections_accepted	6
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	1
 Mysqlx_sessions_closed	1
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	5
+#
+# Login with valid user and valid password when mysqlx installed
+#
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
 nonblank@localhost	nonblank@localhost	*
@@ -369,6 +431,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_sessions_closed' == 2 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 7 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	7
@@ -378,13 +442,18 @@ Mysqlx_connections_accepted	7
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	2
 Mysqlx_sessions_closed	2
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	5
+#
+# Login with valid user and blank password when mysqlx installed
+#
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
 blank@localhost	blank@localhost	*
@@ -418,6 +487,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_sessions_closed' == 3 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 8 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	8
@@ -427,13 +498,18 @@ Mysqlx_connections_accepted	8
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	3
 Mysqlx_sessions_closed	3
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	5
+#
+# Try login with valid user when server started with localhost as bind-address and mysqlx loaded
+#
 # restart: --bind-address=localhost --plugin-load=mysqlx.so
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
@@ -501,6 +577,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_sessions_closed' == 2 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 2 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	2
@@ -510,13 +588,18 @@ Mysqlx_connections_accepted	2
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	2
 Mysqlx_sessions_closed	2
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	0
+#
+# Try login with valid user when server started with 127.0.0.1 as bind-address and mysqlx loaded
+#
 # restart: --bind-address=127.0.0.1 --plugin-load=mysqlx.so
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
@@ -551,6 +634,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_sessions_closed' == 1 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 1 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	1
@@ -560,7 +645,9 @@ Mysqlx_connections_accepted	1
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	1
@@ -600,6 +687,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_sessions_closed' == 2 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 2 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	2
@@ -609,16 +698,23 @@ Mysqlx_connections_accepted	2
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	2
 Mysqlx_sessions_closed	2
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	0
+#
+# Try login with valid non-super and super user when server is in offline mode and mysqlx loaded
+#
 # restart: --offline_mode=ON --plugin-load=mysqlx.so
 Application terminated with expected error: Server works in offline mode. (code 1045)
 not ok
+# Syncing with status [ 'Mysqlx_sessions_rejected' == 1 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 1 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	1
@@ -628,7 +724,9 @@ Mysqlx_connections_accepted	1
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	0
@@ -668,6 +766,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_sessions_closed' == 1 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 2 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	2
@@ -677,13 +777,18 @@ Mysqlx_connections_accepted	2
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	1
 Mysqlx_sessions_closed	1
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	1
+#
+# Start server with session tracking variables and monitor them using xprotocol
+#
 # restart: --plugin-load=mysqlx.so
 RUN SET @@session.session_track_system_variables='mysqlx_port,mysqlx_idle_worker_thread_timeout,mysqlx_max_allowed_packet,mysqlx_max_connections,mysqlx_min_worker_threads'
 
@@ -737,6 +842,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_sessions_closed' == 1 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 1 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	1
@@ -746,13 +853,18 @@ Mysqlx_connections_accepted	1
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	1
 Mysqlx_sessions_closed	1
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	0
+#
+# Try login with user whose password expired when mysqlx installed and when server started with skip-disconnect-on-expired-password option
+#
 # restart:  --skip-disconnect-on-expired-password --plugin-load=mysqlx.so
 NOTICE: Account password expired
 RUN select user(),current_user(),@@bind_address
@@ -769,6 +881,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_sessions_closed' == 1 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 1 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	1
@@ -778,13 +892,19 @@ Mysqlx_connections_accepted	1
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+show status where
+`Variable_name`like  'Mysqlx_sessions%' and
+not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 Variable_name	Value
 Mysqlx_sessions	0
 Mysqlx_sessions_accepted	1
 Mysqlx_sessions_closed	1
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	0
+#
+# Try to open xprotocol sessions more than mysqlx_max_connections,
+# expect error for last connection
+#
 # restart: --plugin-load=mysqlx.so --mysqlx_max_connections=2
 RUN create user con1@localhost identified by 'con1'
 
@@ -849,6 +969,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_connections_closed' == 2 ]
+# Syncing with status [ 'Mysqlx_connections_accepted' == 2 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	2
@@ -858,6 +980,9 @@ Mysqlx_connections_accepted	2
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
+#
+# Try to open xprotocol sessions as that of mysqlx_max_connections set
+#
 drop user con1@localhost;
 drop user con2@localhost;
 # restart: --plugin-load=mysqlx.so --mysqlx_max_connections=3
@@ -925,6 +1050,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_connections_closed' == 3 ]
+# Syncing with status [ 'Mysqlx_connections_accepted' == 3 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	3
@@ -934,6 +1061,9 @@ Mysqlx_connections_accepted	3
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
+#
+# Open max allowed connections and expect error for new connections and changes value and connect again,expect success
+#
 RUN create user xcon1@localhost identified by 'xcon1'
 
 0 rows affected
@@ -1064,6 +1194,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_connections_closed' == 6 ]
+# Syncing with status [ 'Mysqlx_connections_accepted' == 6 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	6
@@ -1241,6 +1373,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_connections_closed' == 10 ]
+# Syncing with status [ 'Mysqlx_connections_accepted' == 10 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	10

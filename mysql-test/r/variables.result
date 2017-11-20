@@ -29,9 +29,6 @@ set @my_myisam_max_sort_file_size =@@global.myisam_max_sort_file_size;
 set @my_net_buffer_length         =@@global.net_buffer_length;
 set @my_net_write_timeout         =@@global.net_write_timeout;
 set @my_net_read_timeout          =@@global.net_read_timeout;
-set @my_query_cache_limit         =@@global.query_cache_limit;
-set @my_query_cache_type          =@@global.query_cache_type;
-set @my_query_cache_size          =@@global.query_cache_size;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
@@ -82,11 +79,10 @@ NULL	NULL	NULL	NULL
 select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 @t1:=(@t2:=1)+@t3:=4	@t1	@t2	@t3
 5	5	1	4
-explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
+explain select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@`t1`) AS `@t1`,(@`t2`) AS `@t2`,(@`t3`) AS `@t3`
 select @t5;
 @t5
@@ -161,20 +157,18 @@ select @@VERSION=version();
 select last_insert_id(345);
 last_insert_id(345)
 345
-explain extended select last_insert_id(345);
+explain select last_insert_id(345);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select last_insert_id(345) AS `last_insert_id(345)`
 select @@IDENTITY,last_insert_id(), @@identity;
 @@IDENTITY	last_insert_id()	@@identity
 345	345	345
-explain extended select @@IDENTITY,last_insert_id(), @@identity;
+explain select @@IDENTITY,last_insert_id(), @@identity;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select @@IDENTITY AS `@@IDENTITY`,last_insert_id() AS `last_insert_id()`,@@identity AS `@@identity`
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
 set global concurrent_insert=2;
@@ -215,7 +209,6 @@ default_storage_engine	MRG_MYISAM
 select * from performance_schema.global_variables where variable_name like 'default_storage_engine';
 VARIABLE_NAME	VARIABLE_VALUE
 default_storage_engine	MRG_MYISAM
-set GLOBAL query_cache_size=102400;
 set GLOBAL myisam_max_sort_file_size=2000000;
 Warnings:
 Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '2000000'
@@ -434,8 +427,6 @@ ERROR 42000: Variable 'big_tables' can't be set to the value of '2'
 show local variables like 'default_storage_engine';
 Variable_name	Value
 default_storage_engine	MEMORY
-set SESSION query_cache_size=10000;
-ERROR HY000: Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
 set character_set_client=UNKNOWN_CHARACTER_SET;
 ERROR 42000: Unknown character set: 'UNKNOWN_CHARACTER_SET'
 set collation_connection=UNKNOWN_COLLATION;
@@ -529,9 +520,6 @@ Warnings:
 Warning	1292	Truncated incorrect max_heap_table_size value: '100'
 set max_join_size=100;
 set max_sort_length=100;
-set max_tmp_tables=100;
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
 set global max_user_connections=100;
 select @@max_user_connections;
 @@max_user_connections
@@ -545,11 +533,6 @@ Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '100'
 set net_read_timeout=100;
 set net_write_timeout=100;
-set global query_cache_limit=100;
-set global query_cache_size=100;
-Warnings:
-Warning	1292	Truncated incorrect query_cache_size value: '100'
-set global query_cache_type=demand;
 set read_buffer_size=100;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '100'
@@ -590,11 +573,9 @@ set timestamp=1, timestamp=default;
 set tmp_table_size=100;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '100'
-set tx_isolation="READ-COMMITTED";
+set transaction_isolation="READ-COMMITTED";
 set wait_timeout=100;
-set global log_warnings=1;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+set global log_error_verbosity=2;
 set sort_buffer_size=default;
 set global max_allowed_packet        =@my_max_allowed_packet;
 select @@session.insert_id;
@@ -701,44 +682,6 @@ SELECT @@global.session.key_buffer_size;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'session.key_buffer_size' at line 1
 SELECT @@global.local.key_buffer_size;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.key_buffer_size' at line 1
-set @tstlw = @@log_warnings;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
-SET SQL_BIG_SELECTS=1;
-show global variables like 'log_warnings';
-Variable_name	Value
-log_warnings	1
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
-VARIABLE_NAME	VARIABLE_VALUE
-log_warnings	1
-set global log_warnings = 0;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
-show global variables like 'log_warnings';
-Variable_name	Value
-log_warnings	0
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
-VARIABLE_NAME	VARIABLE_VALUE
-log_warnings	0
-set global log_warnings = 42;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
-Warning	1292	Truncated incorrect log_warnings value: '42'
-show global variables like 'log_warnings';
-Variable_name	Value
-log_warnings	2
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
-VARIABLE_NAME	VARIABLE_VALUE
-log_warnings	2
-set global log_warnings = @tstlw;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
-show global variables like 'log_warnings';
-Variable_name	Value
-log_warnings	1
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
-VARIABLE_NAME	VARIABLE_VALUE
-log_warnings	1
 create table t1 (
 c1 tinyint,
 c2 smallint,
@@ -975,6 +918,7 @@ select @@version, @@version_comment, @@version_compile_machine,
 @@version_compile_os;
 @@version	@@version_comment	@@version_compile_machine	@@version_compile_os
 #	#	#	#
+SET SQL_BIG_SELECTS=1;
 select @@basedir, @@datadir, @@tmpdir;
 @@basedir	@@datadir	@@tmpdir
 #	#	#
@@ -1017,6 +961,7 @@ ssl_cipher	#
 ssl_crl	#
 ssl_crlpath	#
 ssl_key	#
+SET SQL_BIG_SELECTS=0;
 select @@log_queries_not_using_indexes;
 @@log_queries_not_using_indexes
 0
@@ -1089,9 +1034,6 @@ set global myisam_max_sort_file_size =@my_myisam_max_sort_file_size;
 set global net_buffer_length         =@my_net_buffer_length;
 set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
-set global query_cache_limit         =@my_query_cache_limit;
-set global query_cache_type          =@my_query_cache_type;
-set global query_cache_size          =@my_query_cache_size;
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;
@@ -1167,12 +1109,12 @@ ERROR HY000: Variable 'ft_stopword_file' is a read only variable
 #
 SHOW VARIABLES like 'back_log';
 Variable_name	Value
-back_log	80
+back_log	151
 SELECT @@session.back_log;
 ERROR HY000: Variable 'back_log' is a GLOBAL variable
 SELECT @@global.back_log;
 @@global.back_log
-80
+151
 SET @@session.back_log= 7;
 ERROR HY000: Variable 'back_log' is a read only variable
 SET @@global.back_log= 7;
@@ -1438,14 +1380,21 @@ ERROR HY000: Variable 'thread_stack' is a read only variable
 SET @@global.thread_stack= 7;
 ERROR HY000: Variable 'thread_stack' is a read only variable
 SELECT @@global.expire_logs_days INTO @old_eld;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = -1;
 Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 Warning	1292	Truncated incorrect expire_logs_days value: '-1'
 needs to've been adjusted (0)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 0
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = 11;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET @old_mode=@@sql_mode;
 SET SESSION sql_mode = 'TRADITIONAL';
 SET GLOBAL expire_logs_days = 100;
@@ -1454,21 +1403,34 @@ needs to be unchanged (11)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 11
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET SESSION sql_mode = @old_mode;
 SET GLOBAL expire_logs_days = 100;
 Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 Warning	1292	Truncated incorrect expire_logs_days value: '100'
 needs to've been adjusted (99)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = 11;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = 99;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 needs to pass with no warnings (99)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = @old_eld;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL auto_increment_offset=-1;
 Warnings:
 Warning	1292	Truncated incorrect auto_increment_offset value: '-1'
@@ -1858,12 +1820,12 @@ set @@global.slave_net_timeout= @my_slave_net_timeout;
 #
 SHOW VARIABLES like 'log_slave_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_slave_updates	ON
 SELECT @@session.log_slave_updates;
 ERROR HY000: Variable 'log_slave_updates' is a GLOBAL variable
 SELECT @@global.log_slave_updates;
 @@global.log_slave_updates
-0
+1
 SET @@session.log_slave_updates= true;
 ERROR HY000: Variable 'log_slave_updates' is a read only variable
 SET @@global.log_slave_updates= true;

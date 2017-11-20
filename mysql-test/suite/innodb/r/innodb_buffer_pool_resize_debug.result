@@ -37,7 +37,6 @@ analyze table t2;
 alter table t3 algorithm=inplace, add index idx (c1);
 alter table t4 rename to t0;
 drop table t5;
-alter table t6 discard tablespace;
 drop database test2;
 select count(*) > 0 from information_schema.innodb_buffer_page;
 set global DEBUG="-d,ib_buf_pool_resize_wait_before_resize";

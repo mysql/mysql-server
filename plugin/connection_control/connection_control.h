@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 #ifndef CONNECTION_CONTROL_H
 #define CONNECTION_CONTROL_H
 
+#include <mysql/psi/mysql_rwlock.h>
 #include <mysql/psi/mysql_thread.h>     /* mysql_rwlock_t */
 
 #include "connection_control_data.h"

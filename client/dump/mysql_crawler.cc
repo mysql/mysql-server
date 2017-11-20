@@ -15,23 +15,24 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "client/dump/mysql_crawler.h"
+
 #include <stdlib.h>
 #include <functional>
 #include <string>
 #include <vector>
 
-#include "base/mysql_query_runner.h"
-#include "column_statistic.h"
-#include "event_scheduler_event.h"
-#include "mysql_crawler.h"
-#include "mysql_function.h"
-#include "privilege.h"
-#include "stored_procedure.h"
-#include "table_deferred_indexes_dump_task.h"
-#include "table_definition_dump_task.h"
-#include "table_rows_dump_task.h"
-#include "trigger.h"
-#include "view.h"
+#include "client/base/mysql_query_runner.h"
+#include "client/dump/column_statistic.h"
+#include "client/dump/event_scheduler_event.h"
+#include "client/dump/mysql_function.h"
+#include "client/dump/privilege.h"
+#include "client/dump/stored_procedure.h"
+#include "client/dump/table_deferred_indexes_dump_task.h"
+#include "client/dump/table_definition_dump_task.h"
+#include "client/dump/table_rows_dump_task.h"
+#include "client/dump/trigger.h"
+#include "client/dump/view.h"
 
 using std::string;
 using std::vector;
@@ -156,12 +157,12 @@ void Mysql_crawler::enumerate_tables(const Database& db)
   Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
 
   /*
-    Get statistics from SE by setting information_schema_stats=LATEST
-    for this session. This makes the queries IS queries retrieve latest
+    Get statistics from SE by setting information_schema_stats_expiry=0.
+    This makes the queries IS queries retrieve latest
     statistics and avoids getting outdated statistics.
   */
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> t;
-  runner->run_query_store("SET SESSION information_schema_stats=latest", &t);
+  runner->run_query_store("SET SESSION information_schema_stats_expiry=0", &t);
 
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> tables;
 
@@ -253,6 +254,7 @@ void Mysql_crawler::enumerate_tables(const Database& db)
     this->process_dump_task(indexes_task);
   }
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&tables);
+  runner->run_query_store("SET SESSION information_schema_stats_expiry=default", &t);
   delete runner;
 }
 

@@ -20,7 +20,6 @@
 
 #include "storage/perfschema/table_events_waits.h"
 
-#include "field.h"
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
@@ -32,6 +31,7 @@
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
+#include "sql/field.h"
 
 bool
 PFS_index_events_waits::match(PFS_thread *pfs)
@@ -103,7 +103,10 @@ PFS_engine_table_share table_events_waits_current::m_share = {
   sizeof(pos_events_waits_current), /* ref length */
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 THR_LOCK table_events_waits_history::m_table_lock;
@@ -148,7 +151,10 @@ PFS_engine_table_share table_events_waits_history::m_share = {
   sizeof(pos_events_waits_history), /* ref length */
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 THR_LOCK table_events_waits_history_long::m_table_lock;
@@ -192,7 +198,10 @@ PFS_engine_table_share table_events_waits_history_long::m_share = {
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 table_events_waits_common::table_events_waits_common(
@@ -487,6 +496,18 @@ table_events_waits_common::make_metadata_lock_object_columns(
       m_row.m_object_type_length = 9;
       m_row.m_object_schema_length = mdl->db_name_length();
       m_row.m_object_name_length = mdl->name_length();
+      break;
+    case MDL_key::BACKUP_LOCK:
+      m_row.m_object_type = "BACKUP_LOCK";
+      m_row.m_object_type_length = sizeof("BACKUP_LOCK") - 1;
+      m_row.m_object_schema_length = 0;
+      m_row.m_object_name_length = 0;
+      break;
+    case MDL_key::RESOURCE_GROUPS:
+      m_row.m_object_type= "RESOURCE_GROUPS";
+      m_row.m_object_type_length= 15;
+      m_row.m_object_schema_length= mdl->db_name_length();
+      m_row.m_object_name_length= mdl->name_length();
       break;
     case MDL_key::NAMESPACE_END:
     default:

@@ -13,14 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "opt_explain_format.h"
+#include "sql/opt_explain_format.h"
 
-#include <stddef.h>
-
-#include "current_thd.h"
 #include "my_dbug.h"
-#include "sql_class.h"
-#include "table.h"
+#include "sql/current_thd.h"
+#include "sql/sql_class.h"
+#include "sql/table.h"
 
 bool qep_row::mem_root_str::is_empty()
 {

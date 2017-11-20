@@ -17,6 +17,7 @@
 
 #include "plugin_log.h"
 #include "plugin_psi.h"
+#include "plugin_constants.h"
 #include <mysql/group_replication_priv.h>
 
 using std::string;
@@ -43,6 +44,7 @@ Sql_service_command_interface::~Sql_service_command_interface()
 
 int Sql_service_command_interface::
 establish_session_connection(enum_plugin_con_isolation isolation_param,
+                             const char *user,
                              void *plugin_pointer)
 {
   DBUG_ASSERT(m_server_interface == NULL);
@@ -54,15 +56,20 @@ establish_session_connection(enum_plugin_con_isolation isolation_param,
     case PSESSION_USE_THREAD:
       m_server_interface = new Sql_service_interface();
       error = m_server_interface->open_session();
+      if (!error)
+        error= m_server_interface->set_session_user(user);
       break;
     case PSESSION_INIT_THREAD:
       m_server_interface = new Sql_service_interface();
       error = m_server_interface->open_thread_session(plugin_pointer);
+      if (!error)
+        error= m_server_interface->set_session_user(user);
       break;
     case PSESSION_DEDICATED_THREAD:
       m_plugin_session_thread = new Session_plugin_thread(&sql_service_commands);
-      error = m_plugin_session_thread->launch_session_thread(plugin_pointer);
-      m_server_interface = m_plugin_session_thread->get_service_interface();
+      error = m_plugin_session_thread->launch_session_thread(plugin_pointer, user);
+      if (!error)
+        m_server_interface = m_plugin_session_thread->get_service_interface();
       break;
   }
 
@@ -78,6 +85,7 @@ establish_session_connection(enum_plugin_con_isolation isolation_param,
       m_plugin_session_thread->terminate_session_thread();
       delete m_plugin_session_thread;
       m_plugin_session_thread = NULL;
+      m_server_interface= NULL;
     } else
     {
       delete m_server_interface;
@@ -122,9 +130,14 @@ long Sql_service_command_interface::set_super_read_only()
 }
 
 long Sql_service_commands::
-internal_set_super_read_only(Sql_service_interface *sql_interface)
+internal_set_super_read_only(Sql_service_interface *sql_interface, void*)
 {
   DBUG_ENTER("Sql_service_commands::internal_set_super_read_only");
+
+  //These debug branches are repeated here due to THD support variations on invocation
+  DBUG_EXECUTE_IF("group_replication_read_mode_error", { DBUG_RETURN(1); });
+  DBUG_EXECUTE_IF("group_replication_skip_read_mode", { DBUG_RETURN(0); });
+
 
   DBUG_ASSERT(sql_interface != NULL);
 
@@ -169,7 +182,7 @@ long Sql_service_command_interface::reset_super_read_only()
 }
 
 long Sql_service_commands::
-internal_reset_super_read_only(Sql_service_interface *sql_interface)
+internal_reset_super_read_only(Sql_service_interface *sql_interface, void*)
 {
   DBUG_ENTER("Sql_service_commands::internal_reset_super_read_only");
 
@@ -218,7 +231,7 @@ long Sql_service_command_interface::reset_read_only()
 }
 
 long Sql_service_commands::
-internal_reset_read_only(Sql_service_interface *sql_interface)
+internal_reset_read_only(Sql_service_interface *sql_interface, void*)
 {
   DBUG_ENTER("Sql_service_commands::internal_reset_read_only");
 
@@ -296,7 +309,7 @@ long Sql_service_command_interface::get_server_super_read_only()
 }
 
 long Sql_service_commands::
-internal_get_server_super_read_only(Sql_service_interface *sql_interface)
+internal_get_server_super_read_only(Sql_service_interface *sql_interface, void*)
 {
   DBUG_ENTER("Sql_service_commands::internal_get_server_super_read_only");
 
@@ -340,7 +353,7 @@ long Sql_service_command_interface::get_server_read_only()
 }
 
 long Sql_service_commands::
-internal_get_server_read_only(Sql_service_interface *sql_interface)
+internal_get_server_read_only(Sql_service_interface *sql_interface, void*)
 {
   DBUG_ENTER("Sql_service_commands::internal_get_server_read_only");
 
@@ -367,14 +380,18 @@ int Sql_service_command_interface::get_server_gtid_executed(string& gtid_execute
   DBUG_ENTER("Sql_service_command_interface::get_server_gtid_executed");
   long error=0;
 
-  /* No support for this method on thread isolation mode */
-  DBUG_ASSERT(connection_thread_isolation != PSESSION_DEDICATED_THREAD);
-
   if (connection_thread_isolation != PSESSION_DEDICATED_THREAD)
   {
     error= sql_service_commands.
                internal_get_server_gtid_executed(m_server_interface,
                                                  gtid_executed);
+  }
+  else
+  {
+    m_plugin_session_thread->set_return_pointer((void*)&gtid_executed);
+    m_plugin_session_thread->
+      queue_new_method_for_application(&Sql_service_commands::internal_get_server_gtid_executed_generic);
+    error= m_plugin_session_thread->wait_for_method_execution();
   }
 
   DBUG_RETURN(error);
@@ -402,6 +419,16 @@ internal_get_server_gtid_executed(Sql_service_interface *sql_interface,
       " resulted in failure. errno: %d", srv_err); /* purecov: inspected */
   }
   DBUG_RETURN(1);
+}
+
+long Sql_service_commands::
+internal_get_server_gtid_executed_generic(Sql_service_interface *sql_interface,
+                                          void* gtid_executed_arg)
+{
+  DBUG_ENTER("Sql_service_commands::internal_get_server_gtid_executed_generic");
+
+  std::string* gtid_executed= (std::string*) gtid_executed_arg;
+  DBUG_RETURN(internal_get_server_gtid_executed(sql_interface, *gtid_executed));
 }
 
 long Sql_service_command_interface::
@@ -501,7 +528,7 @@ Session_plugin_thread::~Session_plugin_thread()
 }
 
 void Session_plugin_thread::
-queue_new_method_for_application(long (Sql_service_commands::*method)(Sql_service_interface*),
+queue_new_method_for_application(long (Sql_service_commands::*method)(Sql_service_interface*, void*),
                                  bool terminate)
 {
   st_session_method* method_to_execute;
@@ -535,9 +562,9 @@ static void *launch_handler_thread(void* arg)
 }
 
 int
-Session_plugin_thread::launch_session_thread(void* plugin_pointer_var)
+Session_plugin_thread::launch_session_thread(void* plugin_pointer_var, const char *user)
 {
-  DBUG_ENTER("Session_plugin_thread::launch_session_thread(plugin_pointer)");
+  DBUG_ENTER("Session_plugin_thread::launch_session_thread(plugin_pointer, user)");
 
   //avoid concurrency calls against stop invocations
   mysql_mutex_lock(&m_run_lock);
@@ -545,6 +572,7 @@ Session_plugin_thread::launch_session_thread(void* plugin_pointer_var)
   m_session_thread_error= 0;
   m_session_thread_terminate= false;
   m_plugin_pointer= plugin_pointer_var;
+  session_user= user;
 
   if ((mysql_thread_create(key_GR_THD_plugin_session,
                            &m_plugin_session_pthd,
@@ -625,6 +653,8 @@ Session_plugin_thread::session_thread_handler()
   m_server_interface= new Sql_service_interface();
   m_session_thread_error=
     m_server_interface->open_thread_session(m_plugin_pointer);
+  if (!m_session_thread_error)
+    m_session_thread_error= m_server_interface->set_session_user(session_user);
 
   mysql_mutex_lock(&m_run_lock);
   m_session_thread_running= true;
@@ -644,8 +674,8 @@ Session_plugin_thread::session_thread_handler()
       break;
     }
 
-    long (Sql_service_commands::*method_to_execute)(Sql_service_interface*)= method->method;
-    m_method_execution_return_value= (command_interface->*method_to_execute)(m_server_interface);
+    long (Sql_service_commands::*method_to_execute)(Sql_service_interface*, void*)= method->method;
+    m_method_execution_return_value= (command_interface->*method_to_execute)(m_server_interface, return_object);
 
     my_free(method);
     mysql_mutex_lock(&m_method_lock);
@@ -665,6 +695,7 @@ Session_plugin_thread::session_thread_handler()
 
   end:
   delete m_server_interface;
+  m_server_interface = NULL;
 
   mysql_mutex_lock(&m_run_lock);
   m_session_thread_running= false;

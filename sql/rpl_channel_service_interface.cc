@@ -16,36 +16,42 @@
 #include "sql/rpl_channel_service_interface.h"
 
 #include <string.h>
-#include <sys/types.h>
+#include <atomic>
+#include <map>
+#include <utility>
 
-#include "binlog_event.h"
-#include "current_thd.h"
-#include "log.h"
-#include "log_event.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_stage.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql_com.h"
-#include "mysqld.h"          // opt_mts_slave_parallel_workers
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h" // Global_THD_manager
-#include "rpl_gtid.h"
-#include "rpl_info_factory.h"
-#include "rpl_info_handler.h"
-#include "rpl_msr.h"         /* Multisource replication */
-#include "rpl_mts_submode.h"
-#include "rpl_rli.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_slave.h"
-#include "sql_class.h"
-#include "sql_lex.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"
+#include "sql/current_thd.h"
+#include "sql/log.h"
+#include "sql/log_event.h"
+#include "sql/mysqld.h"      // opt_mts_slave_parallel_workers
+#include "sql/mysqld_thd_manager.h" // Global_THD_manager
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_info_factory.h"
+#include "sql/rpl_info_handler.h"
+#include "sql/rpl_mi.h"
+#include "sql/rpl_msr.h"     /* Multisource replication */
+#include "sql/rpl_mts_submode.h"
+#include "sql/rpl_rli.h"
+#include "sql/rpl_rli_pdb.h"
+#include "sql/rpl_slave.h"
+#include "sql/rpl_trx_boundary_parser.h"
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 
 int initialize_channel_service_interface()
 {
@@ -184,10 +190,9 @@ initialize_channel_connection_info(Channel_connection_info* channel_info)
 static void set_mi_ssl_options(LEX_MASTER_INFO* lex_mi, Channel_ssl_info* channel_ssl_info)
 {
 
-  if (channel_ssl_info->use_ssl)
-  {
-    lex_mi->ssl= LEX_MASTER_INFO::LEX_MI_ENABLE;
-  }
+  lex_mi->ssl= (channel_ssl_info->use_ssl) ?
+    LEX_MASTER_INFO::LEX_MI_ENABLE :
+    LEX_MASTER_INFO::LEX_MI_DISABLE;
 
   if (channel_ssl_info->ssl_ca_file_name != NULL)
   {
@@ -229,10 +234,9 @@ static void set_mi_ssl_options(LEX_MASTER_INFO* lex_mi, Channel_ssl_info* channe
     lex_mi->ssl_cipher= channel_ssl_info->ssl_cipher;
   }
 
-  if (channel_ssl_info->ssl_verify_server_cert)
-  {
-    lex_mi->ssl_verify_server_cert= LEX_MASTER_INFO::LEX_MI_ENABLE;
-  }
+  lex_mi->ssl_verify_server_cert= (channel_ssl_info->ssl_verify_server_cert) ?
+    LEX_MASTER_INFO::LEX_MI_ENABLE :
+    LEX_MASTER_INFO::LEX_MI_DISABLE;
 }
 
 int channel_create(const char* channel,

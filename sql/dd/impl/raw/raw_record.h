@@ -17,17 +17,17 @@
 #define DD__RAW_RECORD_INCLUDED
 
 #include "my_config.h"
+
 #include "my_inttypes.h"
-#include "my_io.h"  // Win32 needs winsock.h for timeval, so IWYU pragma: keep
+#include "my_io.h"  // IWYU pragma: keep
 
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/types.h>
-#include <string>
 
-#include "dd/object_id.h"      // dd::Object_id
-#include "dd/string_type.h"    // dd::String_type
+#include "sql/dd/object_id.h"  // dd::Object_id
+#include "sql/dd/string_type.h" // dd::String_type
 
 class Json_wrapper;
 class Field;
@@ -40,7 +40,6 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Properties;
-class Transaction;
 
 ///////////////////////////////////////////////////////////////////////////
 

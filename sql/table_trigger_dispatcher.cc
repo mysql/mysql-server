@@ -14,38 +14,48 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "table_trigger_dispatcher.h"
+#include "sql/table_trigger_dispatcher.h"
 
 #include <sys/types.h>
+#include <string>
+#include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"            // check_global_access
-#include "dd/cache/dictionary_client.h"
-#include "dd/dd_schema.h"
-#include "dd/dd_trigger.h"          // dd::create_trigger
-#include "derror.h"                 // ER_THD
-#include "field.h"
-#include "handler.h"
-#include "key.h"
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
-#include "mysqld.h"                 // table_alias_charset
-#include "psi_memory_key.h"
-#include "sp_head.h"                // sp_head
-#include "sql_admin.h"
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"              // create_default_definer
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"   // check_global_access
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd_trigger.h"      // dd::create_trigger
+#include "sql/dd/string_type.h"
+#include "sql/derror.h"             // ER_THD
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"             // table_alias_charset
+#include "sql/psi_memory_key.h"
+#include "sql/sp_head.h"            // sp_head
+#include "sql/sql_class.h"
+#include "sql/sql_connect.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"          // create_default_definer
+#include "sql/sql_servers.h"
+#include "sql/stateless_allocator.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
+#include "sql/trigger.h"
+#include "sql/trigger_chain.h"
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "trigger.h"
-#include "trigger_chain.h"
+
+namespace dd {
+class Schema;
+class Table;
+}  // namespace dd
 
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////

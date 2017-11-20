@@ -57,4 +57,18 @@ bool ndb_dd_rename_table(class THD* thd,
                          const char* old_table_name,
                          const char* new_schema_name,
                          const char* new_table_name);
+
+bool ndb_dd_table_get_engine(THD *thd,
+                             const char *schema_name,
+                             const char *table_name,
+                             dd::String_type* engine);
+
+
+/* Functions operating on dd::Table*, prefixed with ndb_dd_table_ */
+
+/*
+   Set the se_private_id property in table definition
+*/
+void ndb_dd_table_set_se_private_id(dd::Table* table_def, int private_id);
+
 #endif

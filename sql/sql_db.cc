@@ -22,6 +22,9 @@
 #include "my_config.h"
 
 #include <errno.h>
+
+#include "my_loglevel.h"
+#include "mysql/udf_registration_types.h"
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -30,64 +33,66 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#include <atomic>
+#include <set>
 #include <vector>
 
-#include "auth_acls.h"
-#include "auth_common.h"     // SELECT_ACL
-#include "binlog.h"          // mysql_bin_log
-#include "dd/cache/dictionary_client.h" // Dictionary_client
-#include "dd/dd.h"                      // dd::get_dictionary()
-#include "dd/dd_schema.h"               // dd::create_schema
-#include "dd/dictionary.h"              // dd::Dictionary
-#include "dd/string_type.h"
-#include "dd/types/abstract_table.h"
-#include "dd/types/schema.h"
-#include "dd/upgrade/upgrade.h"         // dd::upgrade::in_progress
-#include "debug_sync.h"      // DEBUG_SYNC
-#include "derror.h"          // ER_THD
-#include "error_handler.h"   // Drop_table_error_handler
-#include "events.h"          // Events
-#include "handler.h"
 #include "lex_string.h"
-#include "lock.h"            // lock_schema_name
-#include "log.h"             // log_*()
-#include "log_event.h"       // Query_log_event
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"          // key_file_misc
 #include "mysqld_error.h"
 #include "mysys_err.h"       // EE_*
-#include "psi_memory_key.h"  // key_memory_THD_db
-#include "rpl_gtid.h"
-#include "session_tracker.h"
-#include "sp.h"              // lock_db_routines
-#include "sql_base.h"        // lock_table_names
-#include "sql_cache.h"       // query_cache
-#include "sql_class.h"       // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_handler.h"     // mysql_ha_rm_tables
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
+#include "prealloced_array.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // SELECT_ACL
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"      // mysql_bin_log
+#include "sql/dd/cache/dictionary_client.h" // Dictionary_client
+#include "sql/dd/dd.h"                  // dd::get_dictionary()
+#include "sql/dd/dd_schema.h"           // dd::create_schema
+#include "sql/dd/dictionary.h"          // dd::Dictionary
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/schema.h"
+#include "sql/dd/upgrade/upgrade.h"     // dd::upgrade::in_progress
+#include "sql/debug_sync.h"  // DEBUG_SYNC
+#include "sql/derror.h"      // ER_THD
+#include "sql/error_handler.h" // Drop_table_error_handler
+#include "sql/events.h"      // Events
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/lock.h"        // lock_schema_name
+#include "sql/log.h"         // log_*()
+#include "sql/log_event.h"   // Query_log_event
+#include "sql/mdl.h"
+#include "sql/mysqld.h"      // key_file_misc
+#include "sql/psi_memory_key.h" // key_memory_THD_db
+#include "sql/rpl_gtid.h"
+#include "sql/session_tracker.h"
+#include "sql/sp.h"          // lock_db_routines
+#include "sql/sql_base.h"    // lock_table_names
+#include "sql/sql_class.h"   // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_handler.h" // mysql_ha_rm_tables
+#include "sql/sql_table.h"   // build_table_filename
+#include "sql/system_variables.h"
+#include "sql/table.h"       // TABLE_LIST
+#include "sql/transaction.h" // trans_rollback_stmt
 #include "sql_string.h"
-#include "sql_table.h"       // build_table_filename
-#include "system_variables.h"
-#include "table.h"           // TABLE_LIST
-#include "template_utils.h"
-#include "transaction.h"     // trans_rollback_stmt
 #include "typelib.h"
 
 static const size_t MAX_DROP_TABLE_Q_LEN= 1024;
@@ -540,11 +545,9 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   TABLE_LIST *tables= NULL;
   TABLE_LIST *table;
   Drop_table_error_handler err_handler;
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-  Prealloced_array<TABLE_LIST*, 1> dropped_atomic(PSI_INSTRUMENT_ME);
-#endif
   bool dropped_non_atomic= false;
   std::set<handlerton*> post_ddl_htons;
+  Foreign_key_parents_invalidator fk_invalidator;
 
   DBUG_ENTER("mysql_rm_db");
 
@@ -620,6 +623,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 
     /* Lock all tables and stored routines about to be dropped. */
     if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0)
+        || rm_table_do_discovery_and_lock_fk_tables(thd, tables)
         || Events::lock_schema_events(thd, *schema)
         || lock_db_routines(thd, *schema)
         || lock_trigger_names(thd, tables))
@@ -641,7 +645,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     if (tables)
       error= mysql_rm_table_no_locks(thd, tables, true, false, true,
                                      &dropped_non_atomic, &post_ddl_htons,
-                                     &dropped_atomic);
+                                     &fk_invalidator, nullptr);
 
     DBUG_EXECUTE_IF("rm_db_fail_after_dropping_tables",
                     {
@@ -673,7 +677,6 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
       ha_drop_database(path);
       thd->clear_error(); /* @todo Do not ignore errors */
       Disable_binlog_guard binlog_guard(thd);
-      query_cache.invalidate(thd, db.str);
       error= Events::drop_schema_events(thd, *schema);
       error= (error || (sp_drop_db_routines(thd, *schema) != SP_OK));
     }
@@ -699,9 +702,6 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     */
     if (error)
     {
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-      thd->skip_gtid_rollback= true;
-#endif
       trans_rollback_stmt(thd);
       /*
         Play safe to be sure that THD::transaction_rollback_request is
@@ -710,9 +710,6 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
         clear cache of uncommitted objects).
       */
       trans_rollback_implicit(thd);
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-      thd->skip_gtid_rollback= false;
-#endif
     }
 
     /*
@@ -721,6 +718,8 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     */
     for (handlerton *hton: post_ddl_htons)
       hton->post_ddl(thd);
+
+    fk_invalidator.invalidate(thd);
 
     /*
       Now we can try removing database directory.
@@ -747,20 +746,14 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     {
       if (mysql_bin_log.is_open())
       {
-        char *query, *query_pos, *query_end, *query_data_start;
-        char temp_identifier[ 2 * FN_REFLEN + 2];
-
         /*
           If GTID_NEXT=='UUID:NUMBER', we must not log an incomplete
           statement.  However, the incomplete DROP has already 'committed'
           (some tables were removed).  So we generate an error and let
           user fix the situation.
         */
-        if (thd->variables.gtid_next.type == GTID_GROUP
-#ifdef NEEDS_WL7016_TO_BE_READY
-            && dropped_non_atomic
-#endif
-            )
+        if (thd->variables.gtid_next.type == GTID_GROUP &&
+            dropped_non_atomic)
         {
           char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];
           thd->variables.gtid_next.gtid.to_string(global_sid_map, gtid_buf,
@@ -769,60 +762,6 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
                    path, gtid_buf, db.str);
           DBUG_RETURN(true);
         }
-
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-        DBUG_PRINT("info", ("DROP DATABASE failed; generating DROP TABLE statement(s) in the binlog"));
-
-        if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
-        {
-          // @todo: abort on out of memory instead
-          /* not much else we can do */
-          DBUG_RETURN(true); /* purecov: inspected */
-        }
-        query_pos= query_data_start= my_stpcpy(query,"DROP TABLE IF EXISTS ");
-        query_end= query + MAX_DROP_TABLE_Q_LEN;
-
-        for (const TABLE_LIST *tbl : dropped_atomic)
-        {
-          /* 3 for the quotes and the comma*/
-          size_t tbl_name_len= strlen(tbl->table_name) + 3;
-          if (query_pos + tbl_name_len + 1 >= query_end)
-          {
-            DBUG_PRINT("info", ("Need multiple DROP TABLE statements in the binlog"));
-            thd->variables.gtid_next.dbug_print("gtid_next", true);
-            /*
-              These DDL methods and logging are protected with the exclusive
-              metadata lock on the schema.
-            */
-
-            thd->is_commit_in_middle_of_statement= true;
-            int ret= write_to_binlog(thd, query, query_pos -1 - query, db.str,
-                                     db.length);
-            thd->is_commit_in_middle_of_statement= false;
-            if (ret)
-              DBUG_RETURN(true);
-
-            query_pos= query_data_start;
-          }
-          size_t id_length= my_strmov_quoted_identifier(thd, temp_identifier,
-                                                        tbl->table_name, 0);
-          temp_identifier[id_length]= '\0';
-          query_pos= my_stpcpy(query_pos, (char*)&temp_identifier);
-          *query_pos++ = ',';
-        }
-
-        if (query_pos != query_data_start)
-        {
-          thd->add_to_binlog_accessed_dbs(db.str);
-          /*
-            These DDL methods and logging are protected with the exclusive
-            metadata lock on the schema.
-          */
-          if (write_to_binlog(thd, query, query_pos -1 - query, db.str,
-                              db.length))
-            DBUG_RETURN(true);
-        }
-#endif
       }
       DBUG_RETURN(true);
     }

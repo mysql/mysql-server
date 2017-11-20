@@ -16,17 +16,16 @@
 #ifndef SQL_TABLE_MAINTENANCE_H
 #define SQL_TABLE_MAINTENANCE_H
 
-#include <set>
 #include <stddef.h>
+#include <set>
 
 #include "lex_string.h"
-#include "memroot_allocator.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
-#include "mysql/mysql_lex_string.h"
-#include "sql_cmd.h"       // Sql_cmd
 #include "sql/histograms/histogram.h"
-#include "sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
+#include "sql/memroot_allocator.h"
+#include "sql/sql_cmd.h"   // Sql_cmd
+#include "sql/sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
 
 class String;
 class THD;
@@ -77,7 +76,7 @@ public:
   ~Sql_cmd_analyze_table()
   {}
 
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
   enum_sql_command sql_command_code() const override
   {
@@ -430,6 +429,44 @@ public:
   virtual enum_sql_command sql_command_code() const { return SQLCOM_ALTER_INSTANCE; }
 };
 
+
+/**
+  Sql_cmd_clone_local implements the CLONE LOCAL ... statement.
+*/
+
+class Sql_cmd_clone_local : public Sql_cmd
+{
+  const char* clone_dir;
+
+public:
+  explicit Sql_cmd_clone_local(const char *clone_dir) : clone_dir(clone_dir) {}
+
+  virtual enum_sql_command sql_command_code() const { return SQLCOM_CLONE; }
+
+  virtual bool execute(THD *thd);
+};
+
+
+/**
+  Sql_cmd_clone_remote implements the CLONE REMOTE ... statement.
+*/
+
+class Sql_cmd_clone_remote : public Sql_cmd
+{
+  const bool is_for_replication;
+  const char* clone_dir;
+
+public:
+  explicit Sql_cmd_clone_remote(const bool is_for_replication,
+                                const char *clone_dir)
+  : is_for_replication(is_for_replication),
+    clone_dir(clone_dir)
+  {}
+
+  virtual enum_sql_command sql_command_code() const { return SQLCOM_CLONE; }
+
+  virtual bool execute(THD *thd);
+};
 
 /**
   Sql_cmd_show represents the SHOW COLUMNS/SHOW INDEX statements.

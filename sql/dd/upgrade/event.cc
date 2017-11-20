@@ -14,20 +14,53 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql/dd/upgrade/event.h"
-#include "sql/dd/upgrade/global.h"
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd_event.h"                      // create_event
-#include "event_db_repository.h"              // Events
-#include "event_parse_data.h"                 // Event_parse_data
-#include "log.h"                              // LogErr()
-#include "mysqld.h"                           // default_tz_name
+
+#include <string.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
+#include "my_time.h"
 #include "my_user.h"                          // parse_user
-#include "sp.h"                               // load_charset
-#include "sql_base.h"                         // open_tables
-#include "sql_time.h"                         // interval_type_to_name
-#include "table.h"                            // Table_check_intact
-#include "transaction.h"                      // trans_commit
-#include "tztime.h"                           // my_tz_find
+#include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "sql/dd/dd_event.h"                  // create_event
+#include "sql/dd/types/event.h"
+#include "sql/dd/upgrade/global.h"
+#include "sql/event_db_repository.h"          // Events
+#include "sql/event_parse_data.h"             // Event_parse_data
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/histograms/value_map.h"
+#include "sql/key.h"
+#include "sql/log.h"                          // LogErr()
+#include "sql/mysqld.h"                       // default_tz_name
+#include "sql/sp.h"                           // load_charset
+#include "sql/sql_base.h"                     // open_tables
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_time.h"                     // interval_type_to_name
+#include "sql/system_variables.h"
+#include "sql/table.h"                        // Table_check_intact
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"                  // trans_commit
+#include "sql/tztime.h"                       // my_tz_find
+#include "sql_string.h"
+#include "thr_lock.h"
+
+namespace dd {
+class Schema;
+}  // namespace dd
 
 namespace dd {
 namespace upgrade {

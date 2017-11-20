@@ -36,19 +36,19 @@ wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending
 name
 wait/synch/rwlock/mysqlx/client_list_clients
 0 rows affected
-NAME	ENABLED	TIMED
-wait/synch/mutex/mysqlx/lock_list_access	NO	NO
-wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending	NO	NO
-wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit	YES	NO
-wait/synch/rwlock/mysqlx/client_list_clients	YES	NO
-wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending	NO	NO
-wait/synch/cond/mysqlx/scheduler_dynamic_thread_exit	YES	NO
-wait/io/socket/mysqlx/tcpip_socket	YES	NO
-wait/io/socket/mysqlx/unix_socket	YES	NO
-wait/io/socket/mysqlx/client_connection	YES	NO
-memory/mysqlx/objects	YES	NO
-memory/mysqlx/recv_buffer	YES	NO
-memory/mysqlx/send_buffer	YES	NO
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/mysqlx/lock_list_access	NO	NO		0	null
+wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending	NO	NO		0	null
+wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit	YES	NO		0	null
+wait/synch/rwlock/mysqlx/client_list_clients	YES	NO		0	null
+wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending	NO	NO		0	null
+wait/synch/cond/mysqlx/scheduler_dynamic_thread_exit	YES	NO		0	null
+wait/io/socket/mysqlx/tcpip_socket	YES	NO		0	null
+wait/io/socket/mysqlx/unix_socket	YES	NO		0	null
+wait/io/socket/mysqlx/client_connection	YES	NO		0	null
+memory/mysqlx/objects	YES	null	global_statistics	0	null
+memory/mysqlx/recv_buffer	YES	null	global_statistics	0	null
+memory/mysqlx/send_buffer	YES	null	global_statistics	0	null
 0 rows affected
 
 1 rows affected
@@ -85,21 +85,21 @@ Got expected error: Access denied for user 'root'@'localhost' to database 'perfo
 While executing alter table performance_schema.socket_summary_by_instance add column foo integer:
 Got expected error: Access denied for user 'root'@'localhost' to database 'performance_schema' (code 1044)
 While executing truncate table performance_schema.mutex_instances:
-Got expected error: Invalid performance_schema usage. (code 1683)
+Got expected error: DROP command denied to user 'root'@'localhost' for table 'mutex_instances' (code 1142)
 While executing truncate table performance_schema.cond_instances:
-Got expected error: Invalid performance_schema usage. (code 1683)
+Got expected error: DROP command denied to user 'root'@'localhost' for table 'cond_instances' (code 1142)
 While executing truncate table performance_schema.threads:
-Got expected error: Invalid performance_schema usage. (code 1683)
+Got expected error: DROP command denied to user 'root'@'localhost' for table 'threads' (code 1142)
 While executing truncate table performance_schema.rwlock_instances:
-Got expected error: Invalid performance_schema usage. (code 1683)
+Got expected error: DROP command denied to user 'root'@'localhost' for table 'rwlock_instances' (code 1142)
 While executing truncate table performance_schema.socket_instances:
-Got expected error: Invalid performance_schema usage. (code 1683)
+Got expected error: DROP command denied to user 'root'@'localhost' for table 'socket_instances' (code 1142)
 
 0 rows affected
 
 0 rows affected
 While executing ALTER TABLE performance_schema.mutex_instances ADD INDEX test_index(NAME):
-Got expected error (one of: 1044 1683 )
+Got expected error: Access denied for user 'root'@'localhost' to database 'performance_schema' (code 1044)
 While executing ALTER TABLE performance_schema.cond_instances ADD INDEX test_index(NAME):
 Got expected error: Access denied for user 'root'@'localhost' to database 'performance_schema' (code 1044)
 While executing ALTER TABLE performance_schema.threads ADD INDEX test_index(PROCESSLIST_ID):

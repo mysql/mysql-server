@@ -68,6 +68,48 @@ static inline auto find_or_nullptr(const Container &container, const Key &key)
 }
 
 /**
+  For unordered_multimap<Key, Value>, erase the first specific element that
+  matches _both_ the given key and value.
+*/
+template<class Container>
+typename Container::iterator
+erase_specific_element(Container *container,
+                       const typename Container::key_type &key,
+                       const typename Container::value_type::second_type &value)
+{
+  auto it_range= container->equal_range(key);
+  for (auto it= it_range.first; it != it_range.second; ++it)
+  {
+    if (it->second == value)
+      return container->erase(it);
+  }
+  return container->end();
+}
+
+/**
+  Same as regular erase_specific_element(), but for the case where the
+  container holds unique_ptr elements.
+*/
+template<class Container>
+static inline auto
+erase_specific_element(Container *container,
+                       const typename Container::key_type &key,
+                       typename Container::value_type::second_type::pointer value)
+  -> typename std::enable_if<
+       std::is_pointer<typename Container::value_type::second_type::pointer>::value,
+       typename Container::iterator>::type
+{
+  auto it_range= container->equal_range(key);
+  for (auto it= it_range.first; it != it_range.second; ++it)
+  {
+    if (it->second.get() == value)
+      return container->erase(it);
+  }
+  return container->end();
+}
+
+
+/**
   std::unique_ptr, but with a custom delete function.
   Normally, it is more efficient to have a deleter class instead,
   but this allows you to have a unique_ptr to a forward-declared class,
@@ -156,6 +198,51 @@ public:
 };
 
 /**
+  std::unordered_set, but with my_malloc, so that you can track the memory
+  used using PSI memory keys.
+*/
+template<class Key,
+         class Hash = std::hash<Key>,
+         class KeyEqual = std::equal_to<Key>>
+class malloc_unordered_set
+  : public std::unordered_set<Key, Hash, KeyEqual, Malloc_allocator<Key>>
+{
+public:
+  /*
+    In theory, we should be allowed to send in the allocator only, but GCC 4.8
+    is missing several unordered_set constructors, so let's give in everything.
+  */
+  malloc_unordered_set(PSI_memory_key psi_key)
+    : std::unordered_set<Key, Hash, KeyEqual, Malloc_allocator<Key>>
+        (/*bucket_count=*/ 10, Hash(), KeyEqual(),
+         Malloc_allocator<>(psi_key)) {}
+};
+
+/**
+  std::unordered_multimap, but with my_malloc, so that you can track the memory
+  used using PSI memory keys.
+*/
+template<class Key, class Value,
+         class Hash = std::hash<Key>,
+         class KeyEqual = std::equal_to<Key>>
+class malloc_unordered_multimap
+  : public std::unordered_multimap<Key, Value, Hash, KeyEqual,
+                                   Malloc_allocator<std::pair<const Key,
+                                                              Value>>>
+{
+public:
+  /*
+    In theory, we should be allowed to send in the allocator only, but GCC 4.8
+    is missing several unordered_multimap constructors, so let's give in everything.
+  */
+  malloc_unordered_multimap(PSI_memory_key psi_key)
+    : std::unordered_multimap<Key, Value, Hash, KeyEqual,
+                              Malloc_allocator<std::pair<const Key, Value>>>
+        (/*bucket_count=*/ 10, Hash(), KeyEqual(),
+         Malloc_allocator<>(psi_key)) {}
+};
+
+/**
   std::unordered_map, but with my_malloc and collation-aware comparison.
 */
 template<class Key, class Value>
@@ -166,6 +253,23 @@ class collation_unordered_map
 public:
   collation_unordered_map(const CHARSET_INFO *cs, PSI_memory_key psi_key)
     : std::unordered_map<Key, Value, Collation_hasher, Collation_key_equal,
+                         Malloc_allocator<std::pair<const Key, Value>>>
+        (/*bucket_count=*/ 10, Collation_hasher(cs), Collation_key_equal(cs),
+         Malloc_allocator<>(psi_key)) {}
+};
+
+/**
+  std::unordered_multimap, but with my_malloc and collation-aware comparison.
+*/
+template<class Key, class Value>
+class collation_unordered_multimap
+  : public std::unordered_multimap<Key, Value, Collation_hasher,
+                                   Collation_key_equal,
+                                   Malloc_allocator<std::pair<const Key, Value>>>
+{
+public:
+  collation_unordered_multimap(CHARSET_INFO *cs, PSI_memory_key psi_key)
+    : std::unordered_multimap<Key, Value, Collation_hasher, Collation_key_equal,
                          Malloc_allocator<std::pair<const Key, Value>>>
         (/*bucket_count=*/ 10, Collation_hasher(cs), Collation_key_equal(cs),
          Malloc_allocator<>(psi_key)) {}

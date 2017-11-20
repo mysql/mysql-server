@@ -29,7 +29,7 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 --echo # This test makes sense only in REPEATABLE-READ mode as
 --echo # in SERIALIZABLE mode all statements that read data take
 --echo # shared lock on them to enforce its semantics.
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 
 --echo # Prepare playground by creating tables, views,
 --echo # routines and triggers used in tests.

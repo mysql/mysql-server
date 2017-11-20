@@ -18,7 +18,7 @@
 #ifndef DATABASE_INCLUDED
 #define DATABASE_INCLUDED
 
-#include "abstract_plain_sql_object.h"
+#include "client/dump/abstract_plain_sql_object.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

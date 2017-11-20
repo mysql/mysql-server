@@ -1,0 +1,126 @@
+################################################################################
+# BUG#26666609 SLAVE HANGS - WAITING FOR TABLE METADATA LOCK
+#
+# REPAIR/OPTIMIZE/ANALYZE TABLE and
+# ALTER TABLE ... REPAIR/OPTIMIZE/ANALYZE PARTITION
+# Above statements maintain the tables one bye one and the metadata lock
+# of the table is released immediately after it is maintained. That is
+# earlier than the statement is binlogged and committed. That means
+# the following statements which updates the same table may go to the same
+# binlog flush queue with the preceding admin statement together. Normally,
+# the transactions in same flush queue can be applied parallel on slave.
+# But for this case, they should not be applied parallel on slave.
+#
+# For example:
+# REPAIR TABLE t1;
+# INSERT INTO TABLE t1 VALUES(1);
+#
+# They could go into the same flush queue. But there is a mechanism to set
+# INSERT's last_committed as REPAIR's sequence_number. That guarantees INSERT
+# cannot be applied parallel with REPAIR on slave.
+#
+# This test verify INSERT's last_committed is always equal to the sequence_number
+# of above admin statements, but not smaller than it in all possible situations.
+################################################################################
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_statement.inc
+
+--connect(insert_conn, localhost, root)
+--connect(admin_conn, localhost, root)
+
+RESET MASTER;
+
+CREATE TABLE t1(c1 INT AUTO_INCREMENT PRIMARY KEY, c2 VARCHAR(200))
+  PARTITION BY HASH (c1) PARTITIONS 4;
+
+INSERT INTO t1 VALUES(1, ""), (2, ""), (3, ""),(4, "");
+
+--echo #
+--echo # Verify INSERT after ANALYZE TABLE logs correct last_committed
+--echo #
+--let $admin_statement= ANALYZE TABLE t1;
+--source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--let $binlog_file= binlog.000001
+--let $logical_timestamps= 3 4
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # Verify INSERT after OPTIMIZE TABLE logs correct last_committed
+--echo #
+--let $admin_statement= OPTIMIZE TABLE t1;
+--source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--let $logical_timestamps= 5 6
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # Verify INSERT after REPAIR TABLE logs correct last_committed
+--echo #
+--let $admin_statement= REPAIR TABLE t1;
+--source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--let $logical_timestamps= 7 8
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # Verify INSERT after ALTER TABLE ... REPAIR TABLE logs correct
+--echo # last_committed
+--echo #
+--let $admin_statement= ALTER TABLE t1 REPAIR PARTITION p0;
+--source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--let $logical_timestamps= 9 10
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # Verify INSERT after ALTER TABLE ... OPTIMIZE TABLE logs correct
+--echo # last_committed
+--echo #
+--let $admin_statement= ALTER TABLE t1 OPTIMIZE PARTITION p1;
+--source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--let $logical_timestamps= 11 12
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # Verify INSERT after ALTER TABLE ... ANALYZE TABLE logs correct
+--echo # last_committed
+--echo #
+--let $admin_statement= ALTER TABLE t1 ANALYZE PARTITION p2;
+--source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--let $logical_timestamps= 13 14
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # Verify the statements the following statement in different commit
+--echo # window logs correct last_committed
+--echo #
+INSERT INTO t1(c2) VALUES("use max_comitted as last_committed");
+--let $logical_timestamps= 2 3
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # Verify binlog rotation doesn't effect the correctness of last_committed
+--echo #
+FLUSH BINARY LOGS;
+--let $admin_statement= REPAIR TABLE t1;
+--source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--let $binlog_file= binlog.000002
+--let $logical_timestamps= 0 2
+--source include/assert_logical_timestamps.inc
+
+REPAIR TABLE t1;
+FLUSH BINARY LOGS;
+INSERT INTO t1(c2) VALUES("use 0 as last_committed");
+--let $binlog_file= binlog.000003
+--let $logical_timestamps= 0 1
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # Verify ALTER TABLE without [OPTIMIZE|REPAIR|ANALYZE] PARTITION and
+--echo # INSERT on different table should be logged in same commit window
+--echo #
+CREATE TABLE t2(c1 INT);
+
+--let $admin_statement= ALTER TABLE t2 ADD COLUMN c2 INT;
+--source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--let $logical_timestamps= 2 4
+--source include/assert_logical_timestamps.inc
+
+DROP TABLE t1, t2;

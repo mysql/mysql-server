@@ -29,6 +29,7 @@ namespace ngs {
 class Client_interface;
 class Server;
 class Session_interface;
+class Protocol_encoder_interface;
 class Scheduler_dynamic;
 class Protocol_encoder;
 class Protocol_config;
@@ -49,8 +50,8 @@ public:
 
   virtual ngs::shared_ptr<Session_interface> create_session(
       Client_interface &client,
-      Protocol_encoder &proto,
-      int session_id) = 0;
+      Protocol_encoder_interface &proto,
+      const int session_id) = 0;
 
   virtual bool is_running() = 0;
 

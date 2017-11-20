@@ -137,17 +137,15 @@ SELECT myfunc_int(a AS attr_name) FROM t1;
 myfunc_int(a AS attr_name)
 1
 2
-EXPLAIN EXTENDED SELECT myfunc_int(a AS attr_name) FROM t1;
+EXPLAIN SELECT myfunc_int(a AS attr_name) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select myfunc_int(`test`.`t1`.`a` AS `attr_name`) AS `myfunc_int(a AS attr_name)` from `test`.`t1`
-EXPLAIN EXTENDED SELECT myfunc_int(a) FROM t1;
+EXPLAIN SELECT myfunc_int(a) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select myfunc_int(`test`.`t1`.`a` AS `a`) AS `myfunc_int(a)` from `test`.`t1`
 SELECT a,c FROM v1;
 a	c
@@ -167,29 +165,25 @@ SELECT myfunc_int(test.fn(MIN(b)) xx) as c FROM t1 GROUP BY a;
 c
 1
 2
-EXPLAIN EXTENDED SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
+EXPLAIN SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select myfunc_int(min(`test`.`t1`.`b`) AS `xx`) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
-EXPLAIN EXTENDED SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
+EXPLAIN SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`fn`(min(`test`.`t1`.`b`)) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
-EXPLAIN EXTENDED SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
+EXPLAIN SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select myfunc_int(`fn`(min(`test`.`t1`.`b`)) AS `fn(MIN(b))`) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
-EXPLAIN EXTENDED SELECT myfunc_int(test.fn(MIN(b))) as c FROM t1 GROUP BY a;
+EXPLAIN SELECT myfunc_int(test.fn(MIN(b))) as c FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select myfunc_int(`test`.`fn`(min(`test`.`t1`.`b`)) AS `test.fn(MIN(b))`) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
 c
@@ -342,30 +336,6 @@ drop function f3;
 drop function metaphon;
 drop function myfunc_double;
 drop function myfunc_int;
-CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
-create table t1 (a char);
-SET @save_query_cache_size = @@query_cache_size;
-set GLOBAL query_cache_size=1355776;
-reset query cache;
-select metaphon('MySQL') from t1;
-metaphon('MySQL')
-show status like "Qcache_hits";
-Variable_name	Value
-Qcache_hits	0
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	0
-select metaphon('MySQL') from t1;
-metaphon('MySQL')
-show status like "Qcache_hits";
-Variable_name	Value
-Qcache_hits	0
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	0
-drop table t1;
-drop function metaphon;
-set GLOBAL query_cache_size=@save_query_cache_size;
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest;
 USE mysqltest;
@@ -493,11 +463,10 @@ End of 5.0 tests.
 CREATE TABLE t1 (f1 INT);
 INSERT INTO t1 VALUES(1),(50);
 CREATE FUNCTION myfunc_double RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE f1=1 + myfunc_double(1);
+EXPLAIN SELECT 1 FROM t1 WHERE f1=1 + myfunc_double(1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`f1` = <cache>((1 + myfunc_double(1 AS `1`))))
 DROP FUNCTION myfunc_double;
 DROP TABLE t1;

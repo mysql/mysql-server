@@ -223,7 +223,7 @@ mysql_rwlock_t
 static PSI_rwlock_info all_dynamic_loader_scheme_file_rwlocks[]=
 {
   { &key_rwlock_LOCK_dynamic_loader_scheme_file,
-    "LOCK_dynamic_loader_scheme_file", PSI_FLAG_GLOBAL }
+    "LOCK_dynamic_loader_scheme_file", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 

@@ -29,13 +29,13 @@
 #include "my_dbug.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
-#include "rpl_info.h"
-#include "rpl_mi.h"
-#include "rpl_msr.h" /*Multi source replication */
-#include "rpl_rli.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_slave.h"
-#include "sql_parse.h"
+#include "sql/rpl_info.h"
+#include "sql/rpl_mi.h"
+#include "sql/rpl_msr.h" /*Multi source replication */
+#include "sql/rpl_rli.h"
+#include "sql/rpl_rli_pdb.h"
+#include "sql/rpl_slave.h"
+#include "sql/sql_parse.h"
 
 THR_LOCK table_replication_applier_status_by_worker::m_table_lock;
 
@@ -84,7 +84,10 @@ PFS_engine_table_share table_replication_applier_status_by_worker::m_share = {
   sizeof(PFS_simple_index),                                  /* ref length */
   &m_table_lock,
   &m_table_def,
-  true /* perpetual */
+  true, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool

@@ -20,7 +20,7 @@
 
 #include <sys/types.h>
 
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // IWYU pragma: keep
 
 class Gtid_set;
 class Sid_map;

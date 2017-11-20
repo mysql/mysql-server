@@ -17,9 +17,10 @@
 #define DD__FOREIGN_KEY_INCLUDED
 
 
-#include "dd/collection.h"             // dd::Collection
-#include "dd/sdi_fwd.h"                // dd::Sdi_wcontext
-#include "dd/types/entity_object.h"    // dd::Entity_object
+#include "sql/dd/collection.h"         // dd::Collection
+#include "sql/dd/sdi_fwd.h"            // dd::Sdi_wcontext
+#include "sql/dd/types/entity_object.h" // dd::Entity_object
+#include "sql/dd/types/object_table.h"
 
 namespace dd {
 
@@ -74,9 +75,13 @@ public:
   // unique_constraint
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Index &unique_constraint() const = 0;
+  // Note that setting "" as unique constraint name is interpreted as NULL
+  // when storing this to the DD tables. And correspondingly, if NULL is
+  // stored, and the dd::Foreign_key is fetched from the tables, then
+  // unique_constraint_name() will return "".
 
-  virtual void set_unique_constraint(const Index *unique_constraint) = 0;
+  virtual const String_type &unique_constraint_name() const = 0;
+  virtual void set_unique_constraint_name(const String_type &name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // match_option.
@@ -104,21 +109,21 @@ public:
   /////////////////////////////////////////////////////////////////////////
 
   virtual const String_type &referenced_table_catalog_name() const = 0;
-  virtual void referenced_table_catalog_name(const String_type &name) = 0;
+  virtual void set_referenced_table_catalog_name(const String_type &name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // the schema name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
   virtual const String_type &referenced_table_schema_name() const = 0;
-  virtual void referenced_table_schema_name(const String_type &name) = 0;
+  virtual void set_referenced_table_schema_name(const String_type &name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // the name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
   virtual const String_type &referenced_table_name() const = 0;
-  virtual void referenced_table_name(const String_type &name) = 0;
+  virtual void set_referenced_table_name(const String_type &name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Foreign key element collection.
@@ -162,6 +167,60 @@ public:
   */
 
   virtual bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) = 0;
+};
+
+///////////////////////////////////////////////////////////////////////////
+
+// Class to hold de-normalized information about FKs to be added
+// to dd::Table objects representing FK parents.
+
+class Foreign_key_parent
+{
+public:
+  Foreign_key_parent():
+    m_child_schema_name(),
+    m_child_table_name(),
+    m_fk_name(),
+    m_update_rule(Foreign_key::enum_rule::RULE_NO_ACTION),
+    m_delete_rule(Foreign_key::enum_rule::RULE_NO_ACTION)
+  { };
+
+  const String_type &child_schema_name() const
+  { return m_child_schema_name; }
+
+  void set_child_schema_name(const String_type &child_schema_name)
+  { m_child_schema_name= child_schema_name; }
+
+  const String_type &child_table_name() const
+  { return m_child_table_name; }
+
+  void set_child_table_name(const String_type &child_table_name)
+  { m_child_table_name= child_table_name; }
+
+  const String_type &fk_name() const
+  { return m_fk_name; }
+
+  void set_fk_name(const String_type &fk_name)
+  { m_fk_name= fk_name; }
+
+  Foreign_key::enum_rule update_rule() const
+  { return m_update_rule; }
+
+  void set_update_rule(Foreign_key::enum_rule update_rule)
+  { m_update_rule= update_rule; }
+
+  Foreign_key::enum_rule delete_rule() const
+  { return m_delete_rule; }
+
+  void set_delete_rule(Foreign_key::enum_rule delete_rule)
+  { m_delete_rule= delete_rule; }
+
+private:
+  String_type m_child_schema_name;
+  String_type m_child_table_name;
+  String_type m_fk_name;
+  Foreign_key::enum_rule m_update_rule;
+  Foreign_key::enum_rule m_delete_rule;
 };
 
 ///////////////////////////////////////////////////////////////////////////

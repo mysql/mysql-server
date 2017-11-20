@@ -23,9 +23,9 @@
 #include "my_inttypes.h"
 #include "my_io.h"            // mysql_com.h needs my_socket
 #include "mysql_com.h"        // Item_result
-#include "sql_alloc.h"        // sql_alloc
-#include "sql_array.h"        // Bounds_checked_array
-#include "sql_sort.h"         // Filesort_info
+#include "sql/sql_alloc.h"    // sql_alloc
+#include "sql/sql_array.h"    // Bounds_checked_array
+#include "sql/sql_sort.h"     // Filesort_info
 
 class Field;
 class Filesort;
@@ -332,6 +332,12 @@ public:
     return m_num_varlen_keys > 0;
   }
 
+  /// Are we using any JSON key fields?
+  bool using_json_keys() const
+  {
+    return m_num_json_keys > 0;
+  }
+
   /// Are we using "addon fields"?
   bool using_addon_fields() const
   {
@@ -417,12 +423,15 @@ public:
   static const uint size_of_varlength_field= 4;
 
 private:
-  /// Counts number of JSON keys
+  /// Counts number of varlen keys
   int count_varlen_keys() const;
+  /// Counts number of JSON keys
+  int count_json_keys() const;
 
   uint m_packable_length; ///< total length of fields which have a packable type
   bool m_using_packed_addons; ///< caches the value of using_packed_addons()
   int  m_num_varlen_keys;     ///< number of varlen keys
+  int  m_num_json_keys;       ///< number of JSON keys
 
 public:
   // Not copyable.

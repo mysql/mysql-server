@@ -29,7 +29,10 @@
 */
 
 #include "my_base.h"      // ha_rows
-#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_time.h"
+#include "sql/my_decimal.h"
 #include "sql_string.h"
 
 class Json_array;
@@ -120,6 +123,35 @@ public:
     @return     true on error, false otherwise
   */
   bool bucket_to_json(Json_array *json_array) const;
+
+  /**
+    Returns the "distance" between lower inclusive value and the argument
+    "value".
+
+    The return value is a number between 0.0 and 1.0. A value of 0.0 indicates
+    that "value" is equal to or less than the lower inclusive value. A value of
+    1.0 indicates that "value" is equal or greater to the upper inclusive value.
+
+    @param value The value to caluclate the distance for
+
+    @return The distance between "value" and lower inclusive value.
+  */
+  double get_distance_from_lower(const T &value) const;
+
+  /**
+    Calculate how high the probability is for a single value existing in the
+    bucket.
+
+    This is basically equal to the number of distinct values in the bucket
+    divided by the number of possible values in the bucket range. For strings,
+    double, decimals and such, the probability will be very low since the number
+    of possible values is VERY big. For integer values, the probability may
+    be rather high if the difference between the lower and upper value is low.
+
+    @return Probability of a value existing in the bucket, between 0.0 and 1.0
+            inclusive.
+  */
+  double value_probability() const;
 };
 
 } // namespace equi_height

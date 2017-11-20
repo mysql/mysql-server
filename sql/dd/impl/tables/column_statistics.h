@@ -16,9 +16,10 @@
 #ifndef DD_TABLES__COLUMN_STATISTICS_INCLUDED
 #define DD_TABLES__COLUMN_STATISTICS_INCLUDED
 
-#include "dd/impl/types/entity_object_table_impl.h"
-#include "dd/object_id.h"                               // Object_id
-#include "dd/types/column_statistics.h"
+#include "sql/dd/impl/types/entity_object_table_impl.h"
+#include "sql/dd/object_id.h"                           // Object_id
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/column_statistics.h"
 
 namespace dd {
 

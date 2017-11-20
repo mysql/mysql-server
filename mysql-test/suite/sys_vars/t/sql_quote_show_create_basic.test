@@ -94,15 +94,15 @@ SET @@session.sql_quote_show_create = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_quote_show_create = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_quote_show_create = TRÜE;
+SET @@session.sql_quote_show_create = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_quote_show_create = ÕN;
+SET @@session.sql_quote_show_create = Ã•N;
 --error ER_PARSE_ERROR
 SET @@session.sql_quote_show_create = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_quote_show_create = ÓFF;
+SET @@session.sql_quote_show_create = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_quote_show_create = '¹';
+SET @@session.sql_quote_show_create = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_quote_show_create = NO;
 

@@ -27,7 +27,8 @@ unsigned int country_rows_in_table = 0;
 unsigned int country_next_available_index = 0;
 
 Country_record country_records_array[COUNTRY_MAX_ROWS] = {
-  "", 0, "", 0, {0, true}, {0, true}, {0, true}, false};
+  {"", 0, "", 0, {0, true}, {0, true}, {0, true}, false}
+};
 
 /**
   Check for duplicate value of Primary/Unique Key column(s).

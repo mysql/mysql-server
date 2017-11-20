@@ -53,22 +53,22 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # Should report 7 root processes
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-7
+8
 SET GLOBAL offline_mode=ON;
 # Should report 7 root processes
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-7
+8
 SET @slave_saved_tmp = @@global.offline_mode;
 # Should report 6 root processes
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-6
+7
 SET GLOBAL offline_mode=ON;
 # Should report 6 root processes
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-6
+7
 SET GLOBAL offline_mode = @slave_saved_tmp;
 include/rpl_end.inc
 # Restoring the original values.

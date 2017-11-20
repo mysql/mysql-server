@@ -15,10 +15,10 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "client/dump/abstract_connection_provider.h"
+
 #include <stddef.h>
 #include <functional>
-
-#include "abstract_connection_provider.h"
 
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;

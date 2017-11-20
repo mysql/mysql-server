@@ -96,15 +96,15 @@ SET @@session.sql_buffer_result = "TRU";
 SET @@session.sql_buffer_result = 0.4;
 
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_buffer_result = TRÜE;
+SET @@session.sql_buffer_result = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_buffer_result = ÕN;
+SET @@session.sql_buffer_result = Ã•N;
 --error ER_PARSE_ERROR
 SET @@session.sql_buffer_result = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_buffer_result = ÓFF;
+SET @@session.sql_buffer_result = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_buffer_result = '¹';
+SET @@session.sql_buffer_result = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_buffer_result = NO;
 

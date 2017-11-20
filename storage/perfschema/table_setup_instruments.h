@@ -126,7 +126,7 @@ public:
   }
 
 private:
-  int make_row(PFS_instr_class *klass, bool update_enabled, bool update_timed);
+  int make_row(PFS_instr_class *klass, bool update_enabled);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

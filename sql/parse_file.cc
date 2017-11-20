@@ -14,24 +14,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "parse_file.h"
+#include "sql/parse_file.h"
 
 #include <fcntl.h>
 #include <limits.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <time.h>
 
-#include "m_ctype.h"
 #include "m_string.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"
+#include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysqld.h"        // key_file_fileparser
 #include "mysqld_error.h"  // ER_*
-#include "sql_list.h"      // List_iterator_fast
+#include "sql/mysqld.h"    // key_file_fileparser
+#include "sql/sql_list.h"  // List_iterator_fast
 
 // Dummy unknown key hook.
 File_parser_dummy_hook file_parser_dummy_hook;

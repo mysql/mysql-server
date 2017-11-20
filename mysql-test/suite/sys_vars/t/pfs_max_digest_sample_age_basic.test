@@ -1,0 +1,105 @@
+#
+# performance_schema_max_digest_sample_age
+#
+
+
+SET @global_start_value = @@global.performance_schema_max_digest_sample_age;
+SELECT @global_start_value;
+
+--echo #
+--echo # Default value
+--echo #
+
+SET @@global.performance_schema_max_digest_sample_age = 1;
+SET @@global.performance_schema_max_digest_sample_age = DEFAULT;
+SELECT @@global.performance_schema_max_digest_sample_age;
+
+--echo
+--echo # Check if performance_schema_max_digest_sample_age can be accessed with and without @@
+--echo
+--Error ER_GLOBAL_VARIABLE
+SET performance_schema_max_digest_sample_age = 1;
+SELECT @@performance_schema_max_digest_sample_age;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.performance_schema_max_digest_sample_age;
+
+SET global performance_schema_max_digest_sample_age = 1;
+SELECT @@global.performance_schema_max_digest_sample_age;
+
+--echo
+--echo # Change the value of performance_schema_max_digest_sample_age to a valid value
+--echo
+SET @@global.performance_schema_max_digest_sample_age = 1;
+SELECT @@global.performance_schema_max_digest_sample_age;
+SET @@global.performance_schema_max_digest_sample_age = 5000;
+SELECT @@global.performance_schema_max_digest_sample_age;
+SET @@global.performance_schema_max_digest_sample_age = 1048576;
+SELECT @@global.performance_schema_max_digest_sample_age;
+
+--echo
+--echo # Change the value of performance_schema_max_digest_sample_age to invalid value
+--echo
+SET @@global.performance_schema_max_digest_sample_age = 0;
+SELECT @@global.performance_schema_max_digest_sample_age;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.performance_schema_max_digest_sample_age = "T";
+SELECT @@global.performance_schema_max_digest_sample_age;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.performance_schema_max_digest_sample_age = 'Y';
+SELECT @@global.performance_schema_max_digest_sample_age;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.performance_schema_max_digest_sample_age = ' ';
+SELECT @@global.performance_schema_max_digest_sample_age;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.performance_schema_max_digest_sample_age = " ";
+SELECT @@global.performance_schema_max_digest_sample_age;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.performance_schema_max_digest_sample_age = 1.1;
+SELECT @@global.performance_schema_max_digest_sample_age;
+
+SET @@global.performance_schema_max_digest_sample_age = 1048577;
+SELECT @@global.performance_schema_max_digest_sample_age;
+
+--echo
+--echo # Check if the value in GLOBAL Table matches value in variable
+--echo
+
+--disable_warnings
+SELECT @@global.performance_schema_max_digest_sample_age =
+  VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='performance_schema_max_digest_sample_age';
+--enable_warnings
+SELECT @@global.performance_schema_max_digest_sample_age;
+--disable_warnings
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='performance_schema_max_digest_sample_age';
+--enable_warnings
+
+--echo
+--echo # Check if ON and OFF values can be used on variable
+--echo
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.performance_schema_max_digest_sample_age = OFF;
+SELECT @@global.performance_schema_max_digest_sample_age;
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.performance_schema_max_digest_sample_age = ON;
+SELECT @@global.performance_schema_max_digest_sample_age;
+
+--echo
+--echo # Check if TRUE and FALSE values can be used on variable
+--echo
+SET @@global.performance_schema_max_digest_sample_age = TRUE;
+SELECT @@global.performance_schema_max_digest_sample_age;
+SET @@global.performance_schema_max_digest_sample_age = FALSE;
+SELECT @@global.performance_schema_max_digest_sample_age;
+
+--echo
+--echo # Restore initial value
+--echo
+SET @@global.performance_schema_max_digest_sample_age = @global_start_value;
+SELECT @@global.performance_schema_max_digest_sample_age;
+

@@ -32,7 +32,6 @@ relay-log=                  slave-relay-bin
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
 
-log-slave-updates
 master-retry-count=         10
 
 # Values reported by slave when it connect to master

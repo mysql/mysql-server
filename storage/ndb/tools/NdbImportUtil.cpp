@@ -16,7 +16,14 @@
 */
 
 #include <my_sys.h>
+#include <NdbDictionaryImpl.hpp>
 #include "NdbImportUtil.hpp"
+// legacy
+#include <BaseString.hpp>
+#include <Vector.hpp>
+
+#define snprintf BaseString::snprintf
+#define vsnprintf BaseString::vsnprintf
 
 NdbImportUtil::NdbImportUtil() :
   m_util(*this),
@@ -615,8 +622,6 @@ NdbImportUtil::Table::Table()
   m_rec = 0;
   m_keyrec = 0;
   m_rowsize = 0;
-  m_cs = get_charset_by_name("latin1_bin", MYF(0));
-  require(m_cs != 0);
   m_has_hidden_pk = false;
 }
 
@@ -708,10 +713,19 @@ NdbImportUtil::Table::get_attr(const char* attrname) const
   return m_attrs[i];
 }
 
+uint
+NdbImportUtil::Table::get_nodeid(uint fragid) const
+{
+  require(fragid < m_fragments.size());
+  uint nodeid = m_fragments[fragid];
+  return nodeid;
+}
+
 int
 NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
                          const NdbDictionary::Table* tab,
-                         uint& tabid)
+                         uint& tabid,
+                         Error& error)
 {
   require(tab != 0);
   require(tab->getObjectStatus() == NdbDictionary::Object::Retrieved);
@@ -861,7 +875,7 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
             table.m_has_hidden_pk = true;
           else
           {
-            set_error_usage(c_error, __LINE__,
+            set_error_usage(error, __LINE__,
                             "column %u: "
                             "invalid use of reserved column name $PK", i);
             ok = false;
@@ -880,10 +894,19 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
                         sizeof(NdbDictionary::RecordSpecification));
     if (keyrec == 0)
     {
-      m_util.set_error_ndb(c_error, __LINE__, dic->getNdbError());
+      m_util.set_error_ndb(error, __LINE__, dic->getNdbError());
       break;
     }
     table.m_keyrec = keyrec;
+    {
+      NdbTableImpl& tabImpl = NdbTableImpl::getImpl(*tab);
+      const Vector<Uint16>& fragments = tabImpl.m_fragments;
+      for (uint i = 0; i < fragments.size(); i++)
+      {
+        uint16 nodeid = fragments[i];
+        table.m_fragments.push_back(nodeid);
+      }
+    }
     c_tables.m_tables.insert(std::pair<uint, Table>(tabid, table));
     return 0;
   } while (0);
@@ -1953,7 +1976,11 @@ NdbImportUtil::File::do_open(int flags)
 {
   const char* path = get_path();
   require(m_fd == -1);
+#ifndef _WIN32
   int fd = ::open(path, flags, Creat_mode);
+#else
+  int fd = ::_open(path, flags, Creat_mode);
+#endif
   if (fd == -1)
   {
     const char* type = "unknown";
@@ -1981,7 +2008,11 @@ NdbImportUtil::File::do_read(uchar* dst, uint size, uint& len)
   while (len < size)
   {
     // short read is possible on pipe
+#ifndef _WIN32
     int ret = ::read(m_fd, dst + len, size - len);
+#else
+    int ret = ::_read(m_fd, dst + len, size - len);
+#endif
     if (ret == -1)
     {
       m_util.set_error_os(m_error, __LINE__,
@@ -2022,7 +2053,11 @@ NdbImportUtil::File::do_write(const uchar* src, uint size)
 {
   const char* path = get_path();
   require(m_fd != -1);
+#ifndef _WIN32
   int ret = ::write(m_fd, src, size);
+#else
+  int ret = ::_write(m_fd, src, size);
+#endif
   if (ret == -1)
   {
     m_util.set_error_os(m_error, __LINE__,
@@ -2055,7 +2090,11 @@ NdbImportUtil::File::do_close()
   const char* path = get_path();
   if (m_fd == -1)
     return 0;
+#ifndef _WIN32
   if (::close(m_fd) == -1)
+#else
+  if (::_close(m_fd) == -1)
+#endif
   {
     m_util.set_error_os(m_error, __LINE__,
                         "%s: close failed", path);
@@ -2070,8 +2109,13 @@ NdbImportUtil::File::do_seek(uint64 offset)
 {
   const char* path = get_path();
   require(m_fd != -1);
+#ifndef _WIN32
   off_t off = (off_t)offset;
-  if (lseek(m_fd, off, SEEK_SET) == -1)
+  if (::lseek(m_fd, off, SEEK_SET) == -1)
+#else
+  __int64 off = (__int64)offset;
+  if (::_lseeki64(m_fd, off, SEEK_SET) == -1)
+#endif
   {
     m_util.set_error_os(m_error, __LINE__,
                         "%s: lseek %llu failed", path, offset);
@@ -3029,7 +3073,7 @@ testmain()
   signal(SIGABRT, SIG_DFL);
   signal(SIGSEGV, SIG_DFL);
 #endif
-  uint seed = (uint)getpid();
+  uint seed = (uint)NdbHost_GetProcessId();
   ndbout << "seed=" << seed << endl;
   ndb_srand(seed);
   if (testlist() != 0)

@@ -1,5 +1,6 @@
 # Tests for WL#8131
 call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression("ACL table mysql.global_grants missing. Some operations may fail.");
 
 --echo #
 --echo # Bug25303916 WL8131:FLUSH DOES NOT UPDATE THE GRANT STATUS IN
@@ -412,6 +413,8 @@ INSERT INTO mysql.global_grants VALUES('u1', '%',
 SHOW PRIVILEGES;
 TRUNCATE TABLE mysql.global_grants;
 FLUSH PRIVILEGES;
+--echo # restore root privileges
+GRANT ALL ON *.* to root@localhost WITH GRANT OPTION;
 
 --echo # REPLICATION_SLAVE_ADMIN test
 DROP USER u1@localhost;
@@ -472,10 +475,11 @@ CREATE TABLE IF NOT EXISTS mysql.global_grants
  PRIV CHAR(32) COLLATE UTF8_GENERAL_CI DEFAULT '' NOT NULL, 
  WITH_GRANT_OPTION ENUM('N','Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
 PRIMARY KEY (USER,HOST,PRIV)
-) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin;
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin TABLESPACE=mysql;
 --source include/restart_mysqld.inc
 DROP USER u1@localhost;
-
+--echo # restore root privileges
+GRANT ALL ON *.* TO root@localhost WITH GRANT OPTION;
 --echo #
 --echo # Test for WL#7194
 --echo # This test checks that a user who granted XA_RECOVER_ADMIN with

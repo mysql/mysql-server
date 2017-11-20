@@ -12,15 +12,21 @@ insert into t1 values(3,"compressed table");
 # Shutdown the Server
 # Server Default checksum = innodb
 [1a]: check the innochecksum when file doesn't exists
+Pattern "Error: MYSQLD_DATADIR/test/aa.ibd cannot be found" found
 [1b]: check the innochecksum without --strict-check
 [2]: check the innochecksum with full form --strict-check=crc32
 [3]: check the innochecksum with short form -C crc32
 [4]: check the innochecksum with --no-check ignores algorithm check, warning is expected
+Pattern "Error: --no-check must be associated with --write option." found
 [5]: check the innochecksum with short form --no-check ignores algorithm check, warning is expected
+Pattern "Error: --no-check must be associated with --write option." found
 [6]: check the innochecksum with full form strict-check & no-check , an error is expected
+Pattern "Error: --strict-check option cannot be used together with --no-check option." found
 [7]: check the innochecksum with short form strict-check & no-check , an error is expected
+Pattern "Error: --strict-check option cannot be used together with --no-check option." found
 [8]: check the innochecksum with short & full form combination
 # strict-check & no-check, an error is expected
+Pattern "Error: --strict-check option cannot be used together with --no-check option." found
 [9]: check the innochecksum with full form --strict-check=innodb
 [10]: check the innochecksum with full form --strict-check=none
 # when server Default checksum=crc32
@@ -29,6 +35,16 @@ insert into t1 values(3,"compressed table");
 [12]: check the innochecksum with short form -C none
 # when server Default checksum=crc32
 [13]: check strict-check with invalid values
+Pattern "Error while setting value \'strict_innodb\' to \'strict-check\'" found
+Pattern "Error while setting value \'strict_innodb\' to \'strict-check\'" found
+Pattern "Error while setting value \'strict_crc32\' to \'strict-check\'" found
+Pattern "Error while setting value \'strict_crc32\' to \'strict-check\'" found
+Pattern "Error while setting value \'strict_none\' to \'strict-check\'" found
+Pattern "Error while setting value \'strict_none\' to \'strict-check\'" found
+Pattern "Error while setting value \'InnoBD\' to \'strict-check\'" found
+Pattern "Error while setting value \'InnoBD\' to \'strict-check\'" found
+Pattern "Error while setting value \'crc\' to \'strict-check\'" found
+Pattern "Error while setting value \'no\' to \'strict-check\'" found
 [14a]: when server default checksum=crc32 rewrite new checksum=crc32 with innochecksum
 # Also check the long form of write option.
 [14b]: when server default checksum=crc32 rewrite new checksum=innodb with innochecksum
@@ -76,6 +92,9 @@ c1	c2
 1	Innochecksum InnoDB1
 # Stop server
 [18]:check Innochecksum with invalid write options
+Pattern "Error while setting value \'strict_crc32\' to \'write\'" found
+Pattern "Error while setting value \'strict_innodb\' to \'write\'" found
+Pattern "Error while setting value \'crc23\' to \'write\'" found
 # Restart the server
 # restart: --innodb_checksum_algorithm=innodb --innodb_file_per_table=on
 DROP TABLE tab1;

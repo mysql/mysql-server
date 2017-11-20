@@ -9,6 +9,7 @@
 call mtr.add_suppression("Flagged corruption of.* in table .* in CHECK TABLE");
 call mtr.add_suppression("Skip re-populating collations and*");
 call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
 --enable_query_log
 
 set names utf8;

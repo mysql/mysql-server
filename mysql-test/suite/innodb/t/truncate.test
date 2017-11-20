@@ -25,8 +25,8 @@ ALTER TABLE t1p TRUNCATE PARTITION P2;
 
 --replace_result #P #p
 SELECT t.NAME, ts.NAME
-FROM information_schema.innodb_sys_tables t
-LEFT JOIN information_schema.innodb_sys_tablespaces ts
+FROM information_schema.innodb_tables t
+LEFT JOIN information_schema.innodb_tablespaces ts
 ON t.SPACE = ts.SPACE
 WHERE t.NAME LIKE '%t1%' ORDER BY t.NAME;
 

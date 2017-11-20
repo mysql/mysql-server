@@ -107,7 +107,7 @@ create table t1 (i tinyint unsigned not null auto_increment primary key);
 insert into t1 set i = 254;
 insert into t1 set i = null;
 select last_insert_id();
-explain extended select last_insert_id();
+explain select last_insert_id();
 --error ER_DUP_ENTRY
 insert into t1 set i = 254;
 select last_insert_id();

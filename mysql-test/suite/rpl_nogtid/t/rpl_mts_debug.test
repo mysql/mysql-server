@@ -99,8 +99,17 @@ set @@global.slave_checkpoint_group= @save.slave_checkpoint_group;
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 set @@global.debug= @save.debug;
 
-source include/start_slave.inc;
+# Bug#24679056:MULTI-THREADED SLAVE LEAKS WORKER THREADS IN CASE
+#              OF THREAD CREATE FAILURE
+#
+# The current test verifies that there is no orphaned SQL worker thread
+# by setting the assert_count= 0, when we check the output of
+# SELECT *FROM PROCESSLIST table, this is same as SHOW PROCESSLIST.
 
+--let $assert_text= Verified that their is no orphaned SQL worker thread
+--let $assert_cond= `SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='Waiting for an event from Coordinator'`
+--source include/assert.inc
+--source include/start_slave.inc
 #
 # BUG#13681205 : REPLICATION FAILS DURING SLAVE WORKERS INITIALIZATION, 
 #                CRASHES SLAVE 
@@ -213,5 +222,4 @@ set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 
 --source include/start_slave.inc
 --source include/rpl_reset.inc
-
 --source include/rpl_end.inc

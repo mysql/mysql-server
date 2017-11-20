@@ -61,6 +61,7 @@ set optimizer_switch=default;
 # Test overflow from MEMORY engine to INNODB:
 set big_tables=1;
 # Set baseline, disk-based results:
+set cte_max_recursion_depth=5000;
 flush status;
 with recursive q (b) as
 (select 1 union all select 1+b from q where b<2000)
@@ -134,6 +135,7 @@ set big_tables=0;
 # we have overflow at record #122, #1481, #937 depending on
 # limits and queries.
 set @@tmp_table_size=1024,@@max_heap_table_size=16384;
+set cte_max_recursion_depth=5000;
 flush status;
 with recursive q (b) as
 (select 1 union all select 1+b from q where b<2000)
@@ -205,6 +207,7 @@ Created_tmp_disk_tables	1
 set @@tmp_table_size=30000,@@max_heap_table_size=30000;
 Warnings:
 Warning	1292	Truncated incorrect max_heap_table_size value: '30000'
+set cte_max_recursion_depth=5000;
 flush status;
 with recursive q (b) as
 (select 1 union all select 1+b from q where b<2000)
@@ -276,6 +279,7 @@ Created_tmp_disk_tables	1
 set @@tmp_table_size=60000,@@max_heap_table_size=60000;
 Warnings:
 Warning	1292	Truncated incorrect max_heap_table_size value: '60000'
+set cte_max_recursion_depth=5000;
 flush status;
 with recursive q (b) as
 (select 1 union all select 1+b from q where b<2000)

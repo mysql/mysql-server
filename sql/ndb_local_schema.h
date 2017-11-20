@@ -55,17 +55,7 @@ public:
 
   class Table : protected Base
   {
-    bool m_frm_file_exist;
-    bool m_ndb_file_exist;
     bool m_has_triggers;
-
-    bool file_exists(const char* ext) const;
-    bool remove_file(const char* ext) const;
-    bool rename_file(const char* new_db, const char* new_name,
-                     const char* ext) const;
-
-    // Read the engine type from .frm and return true if it says NDB
-    bool frm_engine_is_ndb(void) const;
 
     bool mdl_try_lock_for_rename(const char* new_db,
                                  const char* new_name) const;

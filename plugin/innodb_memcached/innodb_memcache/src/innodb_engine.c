@@ -311,7 +311,7 @@ create_instance(
 	innodb_eng->info.info.features[0].feature = ENGINE_FEATURE_CAS;
 	innodb_eng->info.info.features[1].feature =
 		ENGINE_FEATURE_PERSISTENT_STORAGE;
-	innodb_eng->info.info.features[0].feature = ENGINE_FEATURE_LRU;
+	innodb_eng->info.info.features[2].feature = ENGINE_FEATURE_LRU;
 
 	/* Now call create_instace() for the default engine */
 	err_ret = create_my_default_instance(interface, get_server_api,
@@ -830,7 +830,7 @@ innodb_conn_clean(
 				UT_LIST_REMOVE(conn_list, engine->conn_data,
 					       conn_data);
 
-				if (thd) {
+				if (thd && conn_data->thd ) {
 					handler_thd_attach(conn_data->thd,
 							   NULL);
 				}
@@ -2338,7 +2338,8 @@ search_done:
 			conn_data->mul_col_buf_len = int_len;
 		}
 
-		memcpy(conn_data->mul_col_buf, int_buf, int_len);
+		if (int_len > 0)
+			memcpy(conn_data->mul_col_buf, int_buf, int_len);
 		result->col_value[MCI_COL_VALUE].value_str =
 			 conn_data->mul_col_buf;
 
@@ -2913,7 +2914,7 @@ innodb_sdi_get(
 	uint64_t	ret_len;
 	if (check_key_name_for_sdi(key, nkey, SDI_CREATE_PREFIX)) {
 		/* Create SDI Index in the tablespace */
-		err = ib_cb_sdi_create_copies(crsr);
+		err = ib_cb_sdi_create(crsr);
 		ib_cb_cursor_close(crsr);
 		*err_ret = ENGINE_KEY_ENOENT;
 		return(true);
@@ -2921,7 +2922,7 @@ innodb_sdi_get(
 
 	if (check_key_name_for_sdi(key, nkey, SDI_DROP_PREFIX)) {
 		/* Create SDI Index in the tablespace */
-		err = ib_cb_sdi_drop_copies(crsr);
+		err = ib_cb_sdi_drop(crsr);
 		ib_cb_cursor_close(crsr);
 		*err_ret = ENGINE_KEY_ENOENT;
 		return(true);
@@ -2954,6 +2955,7 @@ innodb_sdi_get(
 		}
 
 		conn_data->sdi_buf = new_mem;
+		ret_len = mem_size;
 		err = ib_cb_sdi_get(
 			crsr, key, conn_data->sdi_buf, &ret_len, trx);
 

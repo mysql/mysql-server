@@ -25,12 +25,13 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/mysql_lex_string.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
-#include "sql_alloc.h"
-#include "sql_list.h"
-#include "sql_plist.h" /* I_P_List */
+#include "sql/sql_alloc.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plist.h" /* I_P_List */
+#include "sql/thr_malloc.h"
 #include "sql_string.h"                        /* String */
 
 class THD;
@@ -358,8 +359,7 @@ public:
     Mark the Diagnostics Area as 'DISABLED'.
 
     This is used in rare cases when the COM_ command at hand sends a response
-    in a custom format. One example is the query cache, another is
-    COM_STMT_PREPARE.
+    in a custom format. One example is COM_STMT_PREPARE.
   */
   void disable_status()
   {

@@ -456,12 +456,12 @@ checking warnings with procedure execution
 
 0 rows affected
 @start_global_value
-64
+1024
 0 rows affected
 
 0 rows affected
 @start_session_value
-64
+1024
 0 rows affected
 
 0 rows affected
@@ -511,12 +511,12 @@ Got expected error: Oops in proc_1 (code 1644)
 
 0 rows affected
 @@global.max_error_count
-64
+1024
 0 rows affected
 
 0 rows affected
 @@session.max_error_count
-64
+1024
 0 rows affected
 checking warnings while creating index with more than row size
 

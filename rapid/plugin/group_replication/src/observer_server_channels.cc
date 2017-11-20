@@ -242,6 +242,35 @@ int group_replication_after_reset_slave(Binlog_relay_IO_param *param)
 }
 
 
+int group_replication_applier_log_event(Binlog_relay_IO_param *param,
+                                        Trans_param *trans_param,
+                                        int& out)
+{
+  int error= 0;
+  if (channel_observation_manager == NULL)
+  {
+    return error; /* purecov: inspected */
+  }
+
+  channel_observation_manager->read_lock_channel_list();
+
+  std::list<Channel_state_observer*>* channel_observers=
+      channel_observation_manager->get_channel_state_observers();
+
+  std::list<Channel_state_observer*>::const_iterator obs_iterator;
+  for (obs_iterator = channel_observers->begin();
+       obs_iterator != channel_observers->end();
+       ++obs_iterator)
+  {
+    error+= (*obs_iterator)->applier_log_event(param, trans_param, out);
+  }
+
+  channel_observation_manager->unlock_channel_list();
+
+  return error;
+}
+
+
 Binlog_relay_IO_observer binlog_IO_observer= {
     sizeof(Binlog_relay_IO_observer),
 
@@ -252,5 +281,6 @@ Binlog_relay_IO_observer binlog_IO_observer= {
     group_replication_before_request_transmit,
     group_replication_after_read_event,
     group_replication_after_queue_event,
-    group_replication_after_reset_slave
+    group_replication_after_reset_slave,
+    group_replication_applier_log_event
   };

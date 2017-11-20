@@ -17,10 +17,11 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "locking_service.h"
-#include "mdl.h"
 #include "my_inttypes.h"
 #include "mysqld_error.h"
+#include "sql/locking_service.h"
+#include "sql/mdl.h"
+#include "sql/sql_base.h"
 #include "test_utils.h"
 #include "thread_utils.h"
 
@@ -53,11 +54,13 @@ protected:
     // Make sure my_error() ends up calling my_message_sql so that
     // Mock_error_handler is actually triggered.
     error_handler_hook= my_message_sql;
+    table_def_init();
   }
 
   static void TearDownTestCase()
   {
     error_handler_hook= m_old_error_handler_hook;
+    table_def_free();
   }
 
   virtual void SetUp()

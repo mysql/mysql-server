@@ -350,32 +350,39 @@
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/concept/usage.hpp>
 #include <boost/iterator/iterator_facade.hpp>
+#include <boost/type_index/type_index_facade.hpp>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <algorithm>
+#include <atomic>
 #include <vector>
 
+#include "boost/algorithm/string/detail/classification.hpp"
 #include "m_ctype.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_cond.h"
-#include "mysql/psi/psi_memory.h"
-#include "mysql/psi/psi_mutex.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
-#include "sql_error.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_error.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "table.h"
-#include "thr_malloc.h"
 #include "thr_mutex.h"
 
 #if defined(ENABLED_DEBUG_SYNC)
@@ -383,11 +390,11 @@
 #include <set>
 #include <string>
 
-#include "current_thd.h"
-#include "derror.h"
-#include "log.h"
 #include "mysql/psi/mysql_memory.h"
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"
+#include "sql/log.h"
+#include "sql/sql_class.h"
 
 using std::max;
 using std::min;
@@ -511,20 +518,20 @@ static PSI_mutex_key key_debug_sync_globals_ds_mutex;
 
 static PSI_mutex_info all_debug_sync_mutexes[]=
 {
-  { &key_debug_sync_globals_ds_mutex, "DEBUG_SYNC::mutex", PSI_FLAG_GLOBAL, 0}
+  { &key_debug_sync_globals_ds_mutex, "DEBUG_SYNC::mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_cond_key key_debug_sync_globals_ds_cond;
 
 static PSI_cond_info all_debug_sync_conds[]=
 {
-  { &key_debug_sync_globals_ds_cond, "DEBUG_SYNC::cond", PSI_FLAG_GLOBAL}
+  { &key_debug_sync_globals_ds_cond, "DEBUG_SYNC::cond", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_debug_sync_memory[]=
 {
-  { &key_debug_THD_debug_sync_control, "THD::debug_sync_control", 0},
-  { &key_debug_sync_action, "debug_sync_control::debug_sync_action", 0}
+  { &key_debug_THD_debug_sync_control, "THD::debug_sync_control", 0, 0, PSI_DOCUMENT_ME},
+  { &key_debug_sync_action, "debug_sync_control::debug_sync_action", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_debug_sync_psi_keys(void)
@@ -2022,7 +2029,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
                    if (thd->killed)
                      DBUG_PRINT("debug_sync_exec",
                                 ("killed %d from '%s'  at: '%s'",
-                                 thd->killed, sig_wait, dsp_name));
+                                 thd->killed.load(), sig_wait, dsp_name));
                    else
                      DBUG_PRINT("debug_sync_exec",
                                 ("%s from '%s'  at: '%s'",

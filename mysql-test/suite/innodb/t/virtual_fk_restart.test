@@ -1,8 +1,4 @@
 
---disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
---enable_query_log
-
 --echo #
 --echo # Bug#22469130: FOREIGN KEY ON DELETE CASCADE NOT ALLOWED
 --echo #		WHEN A VIRTUAL INDEX EXISTS.

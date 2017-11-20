@@ -26,14 +26,14 @@ open(FILE, "+<", $file) || die "Unable to open $file";
 #And offset to the next record is present 2 bytes prior to
 #infimum record
 
-seek(FILE, 5*$page_size+101-2, 0) || die "Unable to seek $file";
+seek(FILE, 4*$page_size+101-2, 0) || die "Unable to seek $file";
 die unless read(FILE, $_, 2) == 2;
 my $record_offset  =  unpack("n*", $_);
 
 #In this case the first record should be at offset 135
 die unless $record_offset == 135;
 
-my $trx_id_of_rec = 5*$page_size + $record_offset + 6;
+my $trx_id_of_rec = 4*$page_size + $record_offset + 6;
 
 # Modify DB_TRX_ID of the record to a value which is greater than
 # max_trx_id
@@ -44,10 +44,10 @@ syswrite(FILE, $corrupted_trx_id) || die "Unable to write";
 
 #Modify the checksums of the page
 
-seek(FILE, 5*$page_size, 0) || die "Unable to seek $file";
+seek(FILE, 4*$page_size, 0) || die "Unable to seek $file";
 syswrite(FILE, pack("H*","deadbeef",4)) || die "Unable to write";
 
-seek(FILE, 6*$page_size-8, 0) || die "Unable to seek $file";
+seek(FILE, 5*$page_size-8, 0) || die "Unable to seek $file";
 syswrite(FILE, pack("H*","deadbeef",4)) || die "Unable to write";
 
 close(FILE)

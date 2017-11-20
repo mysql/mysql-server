@@ -13,13 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/view_routine_usage.h"
+#include "sql/dd/impl/tables/view_routine_usage.h"
 
 #include <new>
+#include <string>
 
-#include "dd/impl/raw/object_keys.h"      // dd::Parent_id_range_key
-#include "dd/impl/types/object_table_definition_impl.h"
-#include "system_variables.h"
+#include "sql/dd/impl/raw/object_keys.h"  // dd::Parent_id_range_key
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/mysqld.h"
+#include "sql/stateless_allocator.h"
 
 namespace dd {
 namespace tables {

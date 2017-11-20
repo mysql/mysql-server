@@ -20,9 +20,10 @@
 --echo PREAMBLE
 --echo ================================================================================
 
+--source include/xplugin_preamble.inc
+
 create user updateitemmerge@localhost identified by 'updateitemmerge';
 grant all on *.* to updateitemmerge@localhost;
---source include/xplugin_preamble.inc
 ## TEST STARTS HERE
 --echo ================================================================================
 --echo TEST START

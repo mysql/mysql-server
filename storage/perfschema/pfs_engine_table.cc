@@ -20,14 +20,9 @@
 
 #include "storage/perfschema/pfs_engine_table.h"
 
-#include "current_thd.h"
-#include "derror.h"
-#include "lock.h"  // MYSQL_LOCK_IGNORE_TIMEOUT
-#include "log.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_thread.h"
-#include "mysqld.h" /* lower_case_table_names */
 #include "pfs_buffer_container.h"
 /* For show status */
 #include "pfs_column_values.h"
@@ -37,8 +32,14 @@
 #include "pfs_instr_class.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
-#include "sql_base.h"  // close_thread_tables
-#include "sql_class.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"
+#include "sql/lock.h" // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "sql/log.h"
+#include "sql/mysqld.h" /* lower_case_table_names */
+#include "sql/sql_base.h" // close_thread_tables
+#include "sql/sql_class.h"
 #include "table_accounts.h"
 #include "table_data_lock_waits.h"
 #include "table_data_locks.h"
@@ -52,12 +53,12 @@
 #include "table_esgs_by_thread_by_event_name.h"
 #include "table_esgs_by_user_by_event_name.h"
 #include "table_esgs_global_by_event_name.h"
+#include "table_esmh_by_digest.h"
+#include "table_esmh_global.h"
 #include "table_esms_by_account_by_event_name.h"
 #include "table_esms_by_digest.h"
 #include "table_esms_by_host_by_event_name.h"
 #include "table_esms_by_program.h"
-#include "table_esmh_global.h"
-#include "table_esmh_by_digest.h"
 #include "table_esms_by_thread_by_event_name.h"
 #include "table_esms_by_user_by_event_name.h"
 #include "table_esms_global_by_event_name.h"
@@ -91,9 +92,12 @@
 #include "table_mems_global_by_event_name.h"
 #include "table_os_global_by_type.h"
 #include "table_performance_timers.h"
+#include "table_persisted_variables.h"
 #include "table_plugin_table.h"
 #include "table_prepared_stmt_instances.h"
 #include "table_replication_applier_configuration.h"
+#include "table_replication_applier_filters.h"
+#include "table_replication_applier_global_filters.h"
 #include "table_replication_applier_status.h"
 #include "table_replication_applier_status_by_coordinator.h"
 #include "table_replication_applier_status_by_worker.h"
@@ -102,8 +106,6 @@
 #include "table_replication_connection_status.h"
 #include "table_replication_group_member_stats.h"
 #include "table_replication_group_members.h"
-#include "table_replication_applier_filters.h"
-#include "table_replication_applier_global_filters.h"
 #include "table_session_account_connect_attrs.h"
 #include "table_session_connect_attrs.h"
 #include "table_session_status.h"
@@ -112,6 +114,7 @@
 #include "table_setup_consumers.h"
 #include "table_setup_instruments.h"
 #include "table_setup_objects.h"
+#include "table_setup_threads.h"
 #include "table_setup_timers.h"
 #include "table_socket_instances.h"
 #include "table_socket_summary_by_event_name.h"
@@ -126,13 +129,13 @@
 #include "table_tiws_by_index_usage.h"
 #include "table_tiws_by_table.h"
 #include "table_tlws_by_table.h"
+#include "table_user_defined_functions.h"
 #include "table_users.h"
 #include "table_uvar_by_thread.h"
 #include "table_variables_by_thread.h"
 #include "table_variables_info.h"
-#include "table_persisted_variables.h"
-#include "table_user_defined_functions.h"
 
+/* clang-format off */
 /**
   @page PAGE_PFS_NEW_TABLE Implementing a new performance_schema table
 
@@ -446,6 +449,7 @@
 
   An example of table using this pattern is @c table_host_cache.
 */
+/* clang-format on */
 
 /**
   @addtogroup performance_schema_engine
@@ -575,6 +579,7 @@ static PFS_engine_table_share *all_shares[] = {
   &table_setup_consumers::m_share,
   &table_setup_instruments::m_share,
   &table_setup_objects::m_share,
+  &table_setup_threads::m_share,
   &table_setup_timers::m_share,
   &table_tiws_by_index_usage::m_share,
   &table_tiws_by_table::m_share,
@@ -668,6 +673,32 @@ static PFS_engine_table_share *all_shares[] = {
   &table_user_defined_functions::m_share,
 
   NULL};
+
+static PSI_mutex_key key_LOCK_pfs_share_list;
+static PSI_mutex_info info_LOCK_pfs_share_list = {
+  &key_LOCK_pfs_share_list,
+  "LOCK_pfs_share_list",
+  PSI_VOLATILITY_PERMANENT,
+  PSI_FLAG_SINGLETON,
+  /* Doc */
+  "Components can provide their own performance_schema tables. "
+     "This lock protects the list of such tables definitions."
+};
+
+void
+PFS_dynamic_table_shares::init_mutex()
+{
+  /* This is called once at startup, ok to register here. */
+  /* FIXME: Category "performance_schema" leads to a name too long. */
+  mysql_mutex_register("pfs", &info_LOCK_pfs_share_list, 1);
+  mysql_mutex_init(key_LOCK_pfs_share_list, &LOCK_pfs_share_list, MY_MUTEX_INIT_FAST);
+}
+
+void
+PFS_dynamic_table_shares::destroy_mutex()
+{
+  mysql_mutex_destroy(&LOCK_pfs_share_list);
+}
 
 PFS_dynamic_table_shares pfs_external_table_shares;
 
@@ -1023,7 +1054,7 @@ ACL_internal_access_result
 PFS_internal_schema_access::check(ulong want_access, ulong *) const
 {
   const ulong always_forbidden =
-    /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL |
+    CREATE_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL |
     EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | CREATE_PROC_ACL |
     ALTER_PROC_ACL | EVENT_ACL | TRIGGER_ACL;
 
@@ -1048,7 +1079,7 @@ PFS_internal_schema_access::lookup(const char *name) const
   share = PFS_engine_table::find_engine_table_share(name);
   if (share)
   {
-    const ACL_internal_table_access* acl= share->m_acl;
+    const ACL_internal_table_access *acl = share->m_acl;
     pfs_external_table_shares.unlock_share_list();
     return acl;
   }
@@ -1058,7 +1089,7 @@ PFS_internal_schema_access::lookup(const char *name) const
     Do not return NULL, it would mean we are not interested
     in privilege checks for unknown tables.
     Instead, return an object that denies every actions,
-    to prevent users for creating their own tables in the
+    to prevent users from creating their own tables in the
     performance_schema database schema.
   */
   return &pfs_unknown_acl;
@@ -1080,15 +1111,43 @@ initialize_performance_schema_acl(bool bootstrap)
   }
 }
 
+static bool
+allow_drop_privilege()
+{
+  /*
+    The same DROP_ACL privilege is used for different statements,
+    in particular:
+    - TRUNCATE TABLE
+    - DROP TABLE
+    - ALTER TABLE
+    Here, we want to prevent DROP / ALTER  while allowing TRUNCATE.
+    Note that we must also allow GRANT to transfer the truncate privilege.
+  */
+  THD *thd = current_thd;
+  if (thd == NULL)
+  {
+    return false;
+  }
+
+  DBUG_ASSERT(thd->lex != NULL);
+  if ((thd->lex->sql_command != SQLCOM_TRUNCATE) &&
+      (thd->lex->sql_command != SQLCOM_GRANT))
+  {
+    return false;
+  }
+
+  return true;
+}
+
 PFS_readonly_acl pfs_readonly_acl;
 
 ACL_internal_access_result
 PFS_readonly_acl::check(ulong want_access, ulong *) const
 {
   const ulong always_forbidden = INSERT_ACL | UPDATE_ACL | DELETE_ACL |
-                                 /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL |
-                                 ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |
-                                 TRIGGER_ACL | LOCK_TABLES_ACL;
+                                 CREATE_ACL | DROP_ACL | REFERENCES_ACL |
+                                 INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL |
+                                 SHOW_VIEW_ACL | TRIGGER_ACL | LOCK_TABLES_ACL;
 
   if (unlikely(want_access & always_forbidden))
   {
@@ -1118,13 +1177,21 @@ ACL_internal_access_result
 PFS_truncatable_acl::check(ulong want_access, ulong *) const
 {
   const ulong always_forbidden = INSERT_ACL | UPDATE_ACL | DELETE_ACL |
-                                 /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL |
+                                 CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
                                  ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |
                                  TRIGGER_ACL | LOCK_TABLES_ACL;
 
   if (unlikely(want_access & always_forbidden))
   {
     return ACL_INTERNAL_ACCESS_DENIED;
+  }
+
+  if (want_access & DROP_ACL)
+  {
+    if (!allow_drop_privilege())
+    {
+      return ACL_INTERNAL_ACCESS_DENIED;
+    }
   }
 
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
@@ -1150,8 +1217,8 @@ ACL_internal_access_result
 PFS_updatable_acl::check(ulong want_access, ulong *) const
 {
   const ulong always_forbidden =
-    INSERT_ACL | DELETE_ACL | /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL |
-    ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | TRIGGER_ACL;
+    INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | REFERENCES_ACL |
+    INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | TRIGGER_ACL;
 
   if (unlikely(want_access & always_forbidden))
   {
@@ -1166,13 +1233,21 @@ PFS_editable_acl pfs_editable_acl;
 ACL_internal_access_result
 PFS_editable_acl::check(ulong want_access, ulong *) const
 {
-  const ulong always_forbidden = /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL |
+  const ulong always_forbidden = CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
                                  ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |
                                  TRIGGER_ACL;
 
   if (unlikely(want_access & always_forbidden))
   {
     return ACL_INTERNAL_ACCESS_DENIED;
+  }
+
+  if (want_access & DROP_ACL)
+  {
+    if (!allow_drop_privilege())
+    {
+      return ACL_INTERNAL_ACCESS_DENIED;
+    }
   }
 
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
@@ -1192,6 +1267,7 @@ PFS_unknown_acl::check(ulong want_access, ulong *) const
   }
 
   /*
+    About SELECT_ACL:
     There is no point in hiding (by enforcing ACCESS_DENIED for SELECT_ACL
     on performance_schema.*) tables that do not exist anyway.
     When SELECT_ACL is granted on performance_schema.* or *.*,
@@ -1200,6 +1276,10 @@ PFS_unknown_acl::check(ulong want_access, ulong *) const
     instead of ER_TABLEACCESS_DENIED_ERROR.
     The same goes for other DML (INSERT_ACL | UPDATE_ACL | DELETE_ACL),
     for ease of use: error messages will be less surprising.
+
+    About DROP_ACL:
+    "Unknown" tables are not supposed to be here,
+    so allowing DROP_ACL to make cleanup possible.
   */
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }

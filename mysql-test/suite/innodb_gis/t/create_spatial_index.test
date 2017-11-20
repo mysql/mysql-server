@@ -17,8 +17,8 @@
 # **********************************************************
 
 # Check spatial index functionality on compress table with Primary key
-CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL,
-c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL) 
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0) 
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 
 # Check spatial index functionality with Create Index clause options
@@ -406,8 +406,8 @@ DROP PROCEDURE proc_wl6968;
 # End of Testcase compress table with Primary key
 
 # Check spatial index functionality on compress table No Primary key
-CREATE TABLE tab(c1 int ,c2 POINT NOT NULL,
-c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL) 
+CREATE TABLE tab(c1 int ,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0) 
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 
 # Check spatial index functionality with Create Index clause options
@@ -779,8 +779,8 @@ DROP PROCEDURE proc_wl6968;
 # End of Testcase compress table No Primary key
 
 # Check spatial index functionality on compress table with auto_increment
-CREATE TABLE tab(c1 int AUTO_INCREMENT PRIMARY KEY,c2 POINT NOT NULL,
-c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL) 
+CREATE TABLE tab(c1 int AUTO_INCREMENT PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0) 
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 
 # Check spatial index functionality with Create Index clause options
@@ -1125,7 +1125,7 @@ DROP TABLE tab;
 # End of Testcase compress table with Auto_increment 
 
 # Test check constraint on spatial column
-CREATE TABLE tab(c1 POINT NOT NULL,CONSTRAINT tab_const check(c1 > 0) ) ENGINE=InnoDB;
+CREATE TABLE tab(c1 POINT NOT NULL SRID 0,CONSTRAINT tab_const check(c1 > 0) ) ENGINE=InnoDB;
 
 CREATE SPATIAL INDEX idx1 ON tab(c1) ;
 
@@ -1142,7 +1142,7 @@ DROP table tab;
 
 # repro case for bug#20451454 - FAILING ASSERTION: LOW_MATCH
 # < DTUPLE_GET_N_FIELDS_CMP(TUPLE)
-create table `t1`(`a` geometry not null,`b` linestring not null,
+create table `t1`(`a` geometry not null SRID 0,`b` linestring not null SRID 0,
 primary key (`b`(192),`a`(141)),spatial key (`b`)) engine=innodb;
 insert into `t1` values(
  point(1,1),

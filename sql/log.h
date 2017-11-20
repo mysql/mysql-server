@@ -30,14 +30,13 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include <derror.h>                      // get_server_errmsgs
+#include <mysql/components/services/log_shared.h>
+#include <mysql/service_my_snprintf.h>   // my_vsnprintf
 #include <stdarg.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include <mysql/components/services/log_shared.h>
-#include <mysql/service_my_snprintf.h>   // my_vsnprintf
 
-#include "auth/sql_security_ctx.h"  // Security_context
+#include "lex_string.h"
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -47,12 +46,18 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/mysql_rwlock_bits.h"
+#include "mysql/components/services/psi_file_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "sql/auth/sql_security_ctx.h" // Security_context
+#include "sql/derror.h"                  // get_server_errmsgs
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "thr_malloc.h"
 
 class THD;
 struct TABLE_LIST;
@@ -109,8 +114,8 @@ struct TABLE_LIST;
     Number of queries not using indexes logged to the slow query log per min.
 */
 
-class Query_logger;
 class Log_to_file_event_handler;
+class Query_logger;
 
 
 

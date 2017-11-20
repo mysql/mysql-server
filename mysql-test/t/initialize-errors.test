@@ -1,11 +1,10 @@
 --source include/big_test.inc
---source include/have_no_undo_tablespaces.inc
 
 
 let BASEDIR= `select @@basedir`;
 let DDIR=$MYSQL_TMP_DIR/installdb_test;
 let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
-let extra_args=--no-defaults --console --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 let PASSWD_FILE=$MYSQL_TMP_DIR/password_file.txt;
 
 --echo # We don't care about innodb warnings at this point
@@ -82,33 +81,6 @@ remove_file $PASSWD_FILE;
 --echo # delete mysqld log
 remove_file $MYSQLD_LOG;
 
---echo # delete datadir
---force-rmdir $DDIR
-
-
---echo #
---echo # Bug#14609893 MYSQLD CRASH OBSERVED WITH "QUERY_CACHE13END_OF_RESULT"
---echo #
-
---write_file $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql
-CREATE SCHEMA test;
-USE test;
-SET GLOBAL query_cache_type = 1, query_cache_size = 1024*1024;
-
-CREATE TABLE test.t1 (x INT);
-CREATE PROCEDURE test.p1() SELECT * FROM test.t1;
-
-CALL test.p1();
-
-DROP PROCEDURE test.p1;
-DROP TABLE test.t1;
-
-SET GLOBAL query_cache_type= DEFAULT, query_cache_size= DEFAULT;
-EOF
-
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --log-error-verbosity=1 --query_cache_type=1 --init-file=$MYSQLTEST_VARDIR/tmp/bootstrap_test.sql > $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
-
---remove_file $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql
 --echo # delete datadir
 --force-rmdir $DDIR
 

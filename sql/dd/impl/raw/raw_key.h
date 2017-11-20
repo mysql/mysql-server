@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define DD__RAW_KEY_INCLUDED
 
 #include "my_base.h"    // key_part_map
-#include "sql_const.h"  // MAX_KEY_LENGTH
+#include "sql/sql_const.h" // MAX_KEY_LENGTH
 
 namespace dd {
 

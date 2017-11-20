@@ -16,8 +16,8 @@
 #ifndef DD__OBJECT_TABLE_INCLUDED
 #define DD__OBJECT_TABLE_INCLUDED
 
-#include "dd/string_type.h"                    // dd::String_type
 #include "my_inttypes.h"
+#include "sql/dd/string_type.h"                // dd::String_type
 
 class THD;
 

@@ -181,14 +181,14 @@ ulint
 ut_2_log(
 /*=====*/
 	ulint	n);	/*!< in: number */
-/*************************************************************//**
-Calculates 2 to power n.
+
+/** Calculates 2 to power n.
+@param[in]	n	power of 2
 @return 2 to power n */
 UNIV_INLINE
-ulint
-ut_2_exp(
-/*=====*/
-	ulint	n);	/*!< in: number */
+uint32_t
+ut_2_exp(uint32_t n);
+
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
 @return first power of 2 which is >= n */
@@ -528,7 +528,7 @@ by crashing it.  Use this class when MySQL server needs to be stopped
 immediately.  Refer to the documentation of class info for usage details. */
 class fatal : public logger {
 public:
-	~fatal();
+	~fatal() MY_ATTRIBUTE((noreturn));
 };
 
 /** Emit an error message if the given predicate is true, otherwise emit a

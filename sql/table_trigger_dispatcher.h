@@ -25,21 +25,27 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/mysql_lex_string.h"       // LEX_STRING
 #include "mysql_com.h"                    // MYSQL_ERRMSG_SIZE
 #include "mysqld_error.h"                 // ER_PARSE_ERROR
-#include "sql_alloc.h"                    // Sql_alloc
-#include "table.h"                        // TABLE
-#include "table_trigger_field_support.h"  // Table_trigger_field_support
-#include "trigger_def.h"                  // enum_trigger_action_time_type
-#include "typelib.h"
+#include "sql/dd/properties.h"
+#include "sql/sql_alloc.h"                // Sql_alloc
+#include "sql/table.h"                    // TABLE
+#include "sql/table_trigger_field_support.h" // Table_trigger_field_support
+#include "sql/thr_malloc.h"
+#include "sql/trigger_def.h"              // enum_trigger_action_time_type
 
 class Field;
-class THD;
 class Query_tables_list;
 class String;
+class THD;
 class Trigger;
 class Trigger_chain;
+
+namespace dd {
+class Table;
+}  // namespace dd
+struct TABLE;
+struct TABLE_LIST;
 template <class T> class List;
 
 ///////////////////////////////////////////////////////////////////////////

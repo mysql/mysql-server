@@ -202,7 +202,11 @@ SELECT COUNT(*) FROM t1;
 # WL#5568: Check disk space usage.
 ########################################
 
-SELECT table_name, 
+# Turn off caching for information_schema, otherwise values
+# will be cached and only updated after ANALYZE TABLE
+SET SESSION information_schema_stats_expiry=0;
+
+SELECT table_name,
        SUM(table_rows),
        SUM(data_length),
        MAX(max_data_length),
@@ -251,7 +255,7 @@ ENGINE = NDB;
 DROP TABLE t1;
 
 #Verify that it isn't possible to create no logging table with disk fields
---error ER_GET_ERRMSG
+--error ER_UNSUPPORTED_EXTENSION
 CREATE TABLE t1 (a bigint primary key, b bigint storage disk)
 ENGINE ndb
 COMMENT="NDB_TABLE=NOLOGGING=1"
@@ -295,7 +299,7 @@ insert
 into City (Name,CountryCode,District,Population)
 values ('BeiJing','CN','Beijing',2000);
 
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 drop tablespace ts2
 engine ndb;
 
@@ -448,7 +452,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (
   a int NOT NULL,
-  b varchar(4000),  -- must use 2 pages undo
+  b varchar(4000) charset latin1,  -- must use 2 pages undo
   PRIMARY KEY using hash (a)
 )
 TABLESPACE ts1 STORAGE DISK ENGINE=NDBCLUSTER;
@@ -648,7 +652,7 @@ where file_type = 'UNDO LOG' and file_name is null;
 # check undofiles
 select distinct file_name, initial_size
 from information_schema.files
-where file_type = 'UNDO LOG' and file_name is not null
+where file_type = 'UNDO LOG' and file_name like '%dat'
 order by file_name;
 
 # check tablespace
@@ -701,3 +705,4 @@ INITIAL_SIZE 16M
 UNDO_BUFFER_SIZE = 128M
 ENGINE=NDB;
 SHOW WARNINGS;
+SET SESSION information_schema_stats_expiry=default;

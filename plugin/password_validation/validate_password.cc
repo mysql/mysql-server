@@ -59,7 +59,7 @@ PSI_rwlock_key key_validate_password_LOCK_dict_file;
 
 static PSI_rwlock_info all_validate_password_rwlocks[]=
 {
-  { &key_validate_password_LOCK_dict_file, "LOCK_dict_file", 0}
+  { &key_validate_password_LOCK_dict_file, "LOCK_dict_file", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_validate_password_psi_keys()

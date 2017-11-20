@@ -2039,6 +2039,12 @@ struct buf_pool_t{
 					we flush a batch from the
 					buffer pool. Accessed protected by
 					memory barriers. */
+
+	lsn_t		track_page_lsn;	/* Pagge Tracking start LSN. */
+
+	lsn_t		max_lsn_io;	/* Maximum LSN for which write io
+					has already started. */
+
 	/* @} */
 
 	/** @name LRU replacement algorithm fields */

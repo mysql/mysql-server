@@ -242,7 +242,7 @@ select SET_TIME INTO @init_time
 --echo Sleep 1 second
 sleep 1;
 --echo # since SET statement fails there should be no change in timestamp
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_LOCAL_VARIABLE
 SET @@persist.sql_log_bin=0;
 select SET_TIME INTO @set_time
   from performance_schema.variables_info

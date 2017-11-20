@@ -1217,6 +1217,39 @@ dict_table_allow_eviction(
 	}
 }
 
+/** Move this table to non-LRU list for DDL operations if it's
+currently not there. This also prevents later opening table via DD objects,
+when the table name in InnoDB doesn't match with DD object.
+@param[in,out]	table	Table to put in non-LRU list */
+UNIV_INLINE
+void
+dict_table_ddl_acquire(
+	dict_table_t*	table)
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+	if (table->can_be_evicted) {
+		ut_ad(!table->ddl_not_evictable);
+		dict_table_prevent_eviction(table);
+		table->ddl_not_evictable = true;
+	}
+}
+
+/** Move this table to LRU list after DDL operations if it was moved
+to non-LRU list
+@param[in,out]	table	Table to put in LRU list */
+UNIV_INLINE
+void
+dict_table_ddl_release(
+	dict_table_t*	table)
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+	if (table->ddl_not_evictable) {
+		ut_ad(!table->can_be_evicted);
+		dict_table_allow_eviction(table);
+		table->ddl_not_evictable = false;
+	}
+}
+
 /********************************************************************//**
 Check if the tablespace for the table has been discarded.
 @return true if the tablespace has been discarded. */
@@ -1320,11 +1353,13 @@ dict_table_is_file_per_table(
 
 	/* If the table is file-per-table and it is not redundant, then
 	it should have the flags2 bit for DICT_TF2_USE_FILE_PER_TABLE. */
+	/* flags2 is also not set for tables before 5.5 */
 	ut_ad(!is_file_per_table
 	      || !DICT_TF_GET_COMPACT(table->flags)
-	      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE));
+	      || (table->flags2 == 0
+		  || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE)));
 
-	return(is_file_per_table );
+	return(is_file_per_table);
 }
 
 /**********************************************************************//**
@@ -1569,16 +1604,13 @@ dict_allocate_mem_intrinsic_cache(
 
 /** Generate a table_id from space id for SDI Index.
 @param[in]	space_id	InnoDB tablespace id
-@param[in]	copy_num	SDI table copy number
 @return table_id */
 UNIV_INLINE
 uint64_t
 dict_sdi_get_table_id(
-	space_id_t	space_id,
-	uint64_t	copy_num)
+	space_id_t	space_id)
 {
-	ut_ad(copy_num < MAX_SDI_COPIES);
-	return((~copy_num << 32) | space_id);
+	return((~0ULL << 32) | space_id);
 }
 
 /** Extract space_id from table_id for SDI Index.
@@ -1614,7 +1646,7 @@ dict_table_is_sdi(
 	/* The lowest possible SDI table_id is for space 0.
 	So any table id greater than system tablespace
 	table id is SDI table id. */
-	return(table_id >= dict_sdi_get_table_id(SYSTEM_TABLE_SPACE, 1));
+	return(table_id >= dict_sdi_get_table_id(SYSTEM_TABLE_SPACE));
 }
 
 /** Return a SDI Index id for given SDI copy
@@ -1622,23 +1654,17 @@ dict_table_is_sdi(
 @return index_id for SDI copy */
 UNIV_INLINE
 space_index_t
-dict_sdi_get_index_id(
-	uint32_t	copy_num)
+dict_sdi_get_index_id()
 {
-	ut_ad(copy_num < MAX_SDI_COPIES);
-	return(IB_UINT64_MAX - copy_num);
+	return(IB_UINT64_MAX);
 }
 
-/** Extract SDI copy number from table id
-@param[in]	table_id	InnoDB table id
-@return SDI copy number */
-UNIV_INLINE
-uint32_t
-dict_sdi_get_copy_num(
-	table_id_t	table_id)
-{
-	ut_ad(dict_table_is_sdi(table_id));
-	return(~static_cast<uint32_t>(table_id >> 32));
+/* GAP locks are skipped for DD tables and SDI tables
+@return true if table is DD table or SDI table, else false */
+inline
+bool
+dict_table_t::skip_gap_locks() const{
+	return(is_dd_table || dict_table_is_sdi(id));
 }
 
 /** Check whether the dict_table_t is a partition.

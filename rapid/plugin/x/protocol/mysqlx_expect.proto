@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,6 +17,8 @@
  * 02110-1301  USA
  */
 syntax = "proto2";
+
+import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
 
 // ifdef PROTOBUF_LITE: option optimize_for = LITE_RUNTIME;
 
@@ -75,6 +77,12 @@ option java_package = "com.mysql.cj.mysqlx.protobuf";
 //
 message Open {
   message Condition {
+    enum Key {
+      // Change error propagation behaviour
+      EXPECT_NO_ERROR = 1;
+      // Check if X Protocol field exists
+      EXPECT_FIELD_EXIST = 2;
+    };
     enum ConditionOperation {
       // set the condition
       //
@@ -96,6 +104,8 @@ message Open {
   };
   optional CtxOperation op = 1 [ default = EXPECT_CTX_COPY_PREV ];
   repeated Condition cond = 2;
+
+  option (client_message_id) = EXPECT_OPEN; // comment_out_if PROTOBUF_LITE
 }
 
 // close a Expect block
@@ -105,5 +115,6 @@ message Open {
 //
 // :returns: :protobuf:msg:`Mysqlx::Ok` on success, :protobuf:msg:`Mysqlx::Error` on error
 message Close {
+  option (client_message_id) = EXPECT_CLOSE; // comment_out_if PROTOBUF_LITE
 }
 

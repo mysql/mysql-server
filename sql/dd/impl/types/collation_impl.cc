@@ -13,15 +13,14 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/collation_impl.h"
+#include "sql/dd/impl/types/collation_impl.h"
 
-#include "dd/impl/raw/object_keys.h"     // Primary_id_key
-#include "dd/impl/raw/raw_record.h"      // Raw_record
-#include "dd/impl/tables/collations.h"   // Collations
-#include "dd/impl/transaction_impl.h"    // Open_dictionary_tables_ctx
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                // ER_*
+#include "sql/dd/impl/raw/raw_record.h"  // Raw_record
+#include "sql/dd/impl/tables/collations.h" // Collations
+#include "sql/dd/impl/transaction_impl.h" // Open_dictionary_tables_ctx
 
 using dd::tables::Collations;
 

@@ -17,22 +17,20 @@
 ///
 /// This file implements the touches functor and function.
 
-#include "relops.h"
-#include "touches_functor.h"
-
+#include <boost/geometry.hpp>
 #include <cstddef>  // std::size_t
 #include <memory>   // std::unique_ptr
 
-#include <boost/geometry.hpp>
-
 #include "box.h"
 #include "box_traits.h"
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "gc_utils.h"
 #include "geometries.h"
 #include "geometries_traits.h"
 #include "mbr_utils.h"
-#include "sql_exception_handler.h"  // handle_gis_exception
+#include "relops.h"
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/sql_exception_handler.h" // handle_gis_exception
+#include "touches_functor.h"
 #include "within_functor.h"
 
 namespace bg = boost::geometry;

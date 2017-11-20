@@ -13,15 +13,17 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <ostream>
+#include "sql/dd/impl/types/index_stat_impl.h"
 
-#include "dd/impl/raw/object_keys.h"       // Composite_4char_key
-#include "dd/impl/raw/raw_record.h"        // raw_record
-#include "dd/impl/tables/index_stats.h"    // Index_stats::
-#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
-#include "dd/impl/types/index_stat_impl.h"
+#include <ostream>
+#include <string>
+
 #include "my_sys.h"
 #include "mysqld_error.h"
+#include "sql/dd/impl/raw/object_keys.h"   // Composite_4char_key
+#include "sql/dd/impl/raw/raw_record.h"    // raw_record
+#include "sql/dd/impl/tables/index_stats.h" // Index_stats::
+#include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
 
 namespace dd {
 class Object_key;
@@ -100,6 +102,7 @@ bool Index_stat_impl::restore_attributes(const Raw_record &r)
   m_index_name= r.read_str(Index_stats::FIELD_INDEX_NAME);
   m_column_name= r.read_str(Index_stats::FIELD_COLUMN_NAME);
   m_cardinality= r.read_int(Index_stats::FIELD_CARDINALITY);
+  m_cached_time= r.read_int(Index_stats::FIELD_CACHED_TIME);
 
   return false;
 }
@@ -113,7 +116,9 @@ bool Index_stat_impl::store_attributes(Raw_record *r)
            r->store(Index_stats::FIELD_INDEX_NAME, m_index_name) ||
            r->store(Index_stats::FIELD_COLUMN_NAME, m_column_name) ||
            r->store(Index_stats::FIELD_CARDINALITY, m_cardinality,
-                    m_cardinality == (ulonglong) -1);
+                    m_cardinality == (ulonglong) -1) ||
+           r->store(Index_stats::FIELD_CACHED_TIME,
+                    m_cached_time);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -127,7 +132,8 @@ void Index_stat_impl::debug_print(String_type &outb) const
     << "m_table_name: " << m_table_name << "; "
     << "m_index_name: " << m_index_name << "; "
     << "m_column_name: " << m_column_name << "; "
-    << "m_cardinality: " << m_cardinality << "; ";
+    << "m_cardinality: " << m_cardinality << "; "
+    << "m_cached_time: " << m_cached_time;
 
   ss << " }";
   outb= ss.str();

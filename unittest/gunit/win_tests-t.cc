@@ -18,9 +18,9 @@
 #include <gtest/gtest.h>
 
 #include "my_io.h"
-#include "named_pipe.h"
-#include "log.h"
 #include "my_thread.h"
+#include "sql/log.h"
+#include "sql/named_pipe.h"
 
 
 // Mock logger function to avoid breaking the link

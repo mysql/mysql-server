@@ -18,16 +18,17 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "current_thd.h"   // current_thd
-#include "error_handler.h" // Internal_error_handler
-#include "mdl.h"           // MDL_request_list
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/service_thd_wait.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "sql_class.h"     // THD
-#include "sql_error.h"
+#include "sql/current_thd.h" // current_thd
+#include "sql/error_handler.h" // Internal_error_handler
+#include "sql/mdl.h"       // MDL_request_list
+#include "sql/sql_class.h" // THD
+#include "sql/sql_error.h"
 
 /**
   We want to convert ER_LOCK_DEADLOCK error to ER_LOCK_SERVICE_DEADLOCK error.

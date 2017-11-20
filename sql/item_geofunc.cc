@@ -20,14 +20,14 @@
   @brief
   This file defines all spatial functions
 */
-#include "item_geofunc.h"
+#include "sql/item_geofunc.h"
 
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/area.hpp>
 #include <boost/geometry/algorithms/centroid.hpp>
 #include <boost/geometry/algorithms/convex_hull.hpp>
-#include <boost/geometry/algorithms/is_simple.hpp>
-#include <boost/geometry/algorithms/is_valid.hpp>
+#include <boost/geometry/algorithms/is_simple.hpp>  // IWYU pragma: keep
+#include <boost/geometry/algorithms/is_valid.hpp>  // IWYU pragma: keep
 #include <boost/geometry/algorithms/simplify.hpp>
 #include <boost/geometry/core/cs.hpp>
 #include <boost/geometry/strategies/spherical/distance_haversine.hpp>
@@ -38,36 +38,39 @@
 #include <algorithm>
 #include <cmath>          // std::isfinite, std::isnan
 #include <map>
+#include <memory>
 #include <new>
 #include <stack>
 #include <string>
 #include <utility>
 
 #include "binlog_config.h"
-#include "current_thd.h"
-#include "dd/cache/dictionary_client.h"
-#include "dd/types/spatial_reference_system.h"
-#include "derror.h"       // ER_THD
-#include "gis_bg_traits.h"
-#include "gis/distance.h"
-#include "gis/geometries.h"
-#include "gis/srid.h"
-#include "gis/wkb_parser.h"
-#include "gstream.h"      // Gis_read_stream
-#include "item_geofunc_internal.h"
-#include "json_dom.h"     // Json_wrapper
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "options_parser.h"
-#include "psi_memory_key.h"
-#include "sql_class.h"    // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_udf.h"
-#include "system_variables.h"
+#include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/spatial_reference_system.h"
+#include "sql/derror.h"   // ER_THD
+#include "sql/gis/distance.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/srid.h"
+#include "sql/gis/wkb_parser.h"
+#include "sql/gis_bg_traits.h"
+#include "sql/gstream.h"  // Gis_read_stream
+#include "sql/item_geofunc_internal.h"
+#include "sql/json_dom.h" // Json_wrapper
+#include "sql/options_parser.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_class.h" // THD
+#include "sql/sql_error.h"
+#include "sql/sql_exception_handler.h"
+#include "sql/sql_lex.h"
+#include "sql/srs_fetcher.h"
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 #include "template_utils.h"
 
 class PT_item_list;
@@ -221,7 +224,7 @@ Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
   Field *result;
   if ((result= new (*THR_MALLOC) Field_geom(max_length, maybe_null,
                                             item_name.ptr(),
-                                            get_geometry_type())))
+                                            get_geometry_type(), {})))
     result->init(t_arg);
   return result;
 }
@@ -997,19 +1000,18 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
   @param object The object to look for the member in.
   @param member_name Name of the member to look after
 
-  @return The member if one was found, NULL otherwise.
+  @return The member if one was found, nullptr otherwise.
 */
 const Json_dom *Item_func_geomfromgeojson::
 my_find_member_ncase(const Json_object *object, const char *member_name)
 {
-  Json_object::const_iterator itr;
-  for (itr= object->begin(); itr != object->end(); ++itr)
+  for (const auto &member : *object)
   {
-    if (native_strcasecmp(member_name, itr->first.c_str()) == 0)
-      return itr->second;
+    if (native_strcasecmp(member_name, member.first.c_str()) == 0)
+      return member.second.get();
   }
 
-  return NULL;
+  return nullptr;
 }
 
 
@@ -2326,7 +2328,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
         }
         else
         {
-          bool result;
+          bool result= false;
           Json_array *points= new (std::nothrow) Json_array();
           if (points == NULL || collection->append_alias(points))
             return true;

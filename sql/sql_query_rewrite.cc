@@ -24,15 +24,12 @@
 #include "mysql/service_rules_table.h"
 #include "mysql/service_ssl_wrapper.h"
 #include "mysqld_error.h"
-#include "session_tracker.h"
-#include "sql_audit.h"
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_parse.h"
-
-class Parser_state;
-class THD;
+#include "sql/key.h"
+#include "sql/sql_audit.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"
 
 static void raise_query_rewritten_note(THD *thd,
                                        const char *original_query,

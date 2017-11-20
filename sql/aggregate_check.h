@@ -449,14 +449,16 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "item.h"
-#include "item_cmpfunc.h"        // Item_func_any_value
-#include "item_sum.h"            // Item_sum
-#include "mem_root_array.h"      // Mem_root_array
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "sql_alloc.h"           // Sql_alloc
+#include "mysql/udf_registration_types.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"    // Item_func_any_value
+#include "sql/item_sum.h"        // Item_sum
+#include "sql/mem_root_array.h"  // Mem_root_array
+#include "sql/sql_alloc.h"       // Sql_alloc
+#include "sql/sql_lex.h"
 
 class Opt_trace_context;
 class Opt_trace_object;

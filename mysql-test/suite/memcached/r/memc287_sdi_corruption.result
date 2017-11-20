@@ -13,7 +13,7 @@ ENGINE = INNODB;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 # 1. Corrupt SDI Leaf Page
 SET GLOBAL innodb_limit_optimistic_insert_debug = 2;
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` varchar(30) DEFAULT NULL,
   `c3` float DEFAULT NULL,
@@ -23,7 +23,7 @@ Get rec(id:type) is t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SET GLOBAL innodb_buf_flush_list_now = 1;
 # restart: --innodb_buffer_pool_load_at_startup=OFF
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` varchar(30) DEFAULT NULL,
   `c3` float DEFAULT NULL,
@@ -40,7 +40,7 @@ KEY idx2(c2(20)))
 ENGINE = INNODB;
 # 2. Corrupt SDI Non-Leaf Page
 SET GLOBAL innodb_limit_optimistic_insert_debug = 2;
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` varchar(30) DEFAULT NULL,
   `c3` float DEFAULT NULL,
@@ -50,7 +50,7 @@ Get rec(id:type) is t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SET GLOBAL innodb_buf_flush_list_now = 1;
 # restart: --innodb_buffer_pool_load_at_startup=OFF
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` varchar(30) DEFAULT NULL,
   `c3` float DEFAULT NULL,
@@ -68,7 +68,7 @@ ENGINE = INNODB;
 # 3. Corrupt SDI Root Page. We cannot drop and create SDI Indexes
 # We expect crash when dropping SDI indexes.
 SET GLOBAL innodb_limit_optimistic_insert_debug = 2;
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` varchar(30) DEFAULT NULL,
   `c3` float DEFAULT NULL,
@@ -78,6 +78,7 @@ Get rec(id:type) is t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # restart: --log-error=MYSQLTEST_VARDIR/tmp/crash.log --innodb_buffer_pool_load_at_startup=OFF
 # restart: --innodb_buffer_pool_load_at_startup=OFF
+Pattern "InnoDB: Unable to read page \[page id: space=\d+, page number=\d+\] into the buffer pool after \d+ attempts" found
 DROP TABLE t1;
 DROP DATABASE innodb_memcache;
 UNINSTALL PLUGIN daemon_memcached;

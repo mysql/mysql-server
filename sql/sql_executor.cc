@@ -24,31 +24,27 @@
   @{
 */
 
-#include "sql_executor.h"
+#include "sql/sql_executor.h"
+
+#include "my_config.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstring>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
 
 #include "binary_log_types.h"
-#include "debug_sync.h"       // DEBUG_SYNC
-#include "enum_query_type.h"
-#include "field.h"
-#include "filesort.h"         // Filesort
-#include "handler.h"
-#include "hash.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_sum.h"         // Item_sum
-#include "json_dom.h"         // Json_wrapper
-#include "key.h"              // key_cmp
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
+#include "map_helpers.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
-#include "my_config.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sqlcommand.h"
@@ -56,32 +52,49 @@
 #include "my_table_map.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"           // stage_executing
-#include "opt_explain_format.h"
-#include "opt_range.h"        // QUICK_SELECT_I
-#include "opt_trace.h"        // Opt_trace_object
-#include "opt_trace_context.h"
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "query_result.h"     // Query_result
-#include "record_buffer.h"    // Record_buffer
-#include "sql_base.h"         // fill_record
-#include "sql_bitmap.h"
-#include "sql_error.h"
-#include "sql_join_buffer.h"  // st_cache_field
-#include "sql_list.h"
-#include "sql_optimizer.h"    // JOIN
-#include "sql_plugin_ref.h"
-#include "sql_show.h"         // get_schema_tables_result
-#include "sql_sort.h"
+#include "mysqld_error.h"
+#include "sql/debug_sync.h"   // DEBUG_SYNC
+#include "sql/derror.h"
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/filesort.h"     // Filesort
+#include "sql/handler.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_sum.h"     // Item_sum
+#include "sql/json_dom.h"     // Json_wrapper
+#include "sql/key.h"          // key_cmp
+#include "sql/key_spec.h"
+#include "sql/log.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"       // stage_executing
+#include "sql/opt_explain_format.h"
+#include "sql/opt_range.h"    // QUICK_SELECT_I
+#include "sql/opt_trace.h"    // Opt_trace_object
+#include "sql/opt_trace_context.h"
+#include "sql/parse_tree_nodes.h" // PT_frame
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/query_result.h" // Query_result
+#include "sql/record_buffer.h" // Record_buffer
+#include "sql/sql_base.h"     // fill_record
+#include "sql/sql_bitmap.h"
+#include "sql/sql_error.h"
+#include "sql/sql_join_buffer.h" // st_cache_field
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h" // JOIN
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"     // get_schema_tables_result
+#include "sql/sql_sort.h"
+#include "sql/sql_tmp_table.h" // create_tmp_table
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
+#include "sql/window.h"
+#include "sql/window_lex.h"
 #include "sql_string.h"
-#include "sql_tmp_table.h"    // create_tmp_table
-#include "parse_tree_nodes.h" // PT_frame
-#include "system_variables.h"
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "thr_malloc.h"
 
 using std::max;
 using std::min;
@@ -969,6 +982,7 @@ void setup_tmptable_write_func(QEP_TAB *tab, uint phase,
       Note for MyISAM tmp tables: if uniques is true keys won't be
       created.
     */
+    DBUG_ASSERT(phase < REF_SLICE_WIN_1);
     if (table->s->keys)
     {
       description= "continuously_update_group_row";
@@ -977,6 +991,7 @@ void setup_tmptable_write_func(QEP_TAB *tab, uint phase,
   }
   else if (join->sort_and_group && !tmp_tbl->precomputed_group_by)
   {
+    DBUG_ASSERT(phase < REF_SLICE_WIN_1);
     description= "write_group_row_when_complete";
     DBUG_PRINT("info",("Using end_write_group"));
     op->set_write_func(end_write_group);
@@ -1600,31 +1615,45 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
   join->thd->get_stmt_da()->reset_current_row_for_condition();
 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
-  const bool pfs_batch_update= qep_tab->pfs_batch_update(join);
-  if (pfs_batch_update)
-    table->file->start_psi_batch_mode();
 
   bool in_first_read= true;
   const bool is_recursive_ref= qep_tab->table_ref->is_recursive_reference();
+  // Init these 3 variables even if used only if is_recursive_ref is true.
   const ha_rows *recursive_row_count= nullptr;
+  ha_rows recursive_row_count_start= 0;
+  bool count_iterations= false;
 
   if (is_recursive_ref)
   {
-    // The with-recursive algorithm requires a table scan.
+    // See also Recursive_executor's documentation
+    if (join->unit->got_all_recursive_rows)
+      DBUG_RETURN(rc);
+    // The recursive CTE algorithm requires a table scan.
     DBUG_ASSERT(qep_tab->type() == JT_ALL);
     in_first_read= !table->file->inited;
-    // Tmp table which we're reading is bound to this result
+    /*
+      Tmp table which we're reading is bound to this result, and we'll be
+      checking its row count frequently:
+    */
     recursive_row_count=
-      join->select_lex->master_unit()->recursive_result(join->select_lex)->row_count();
+      join->unit->recursive_result(join->select_lex)->row_count();
+    // How many rows we have already read; defines start of iteration.
+    recursive_row_count_start= qep_tab->m_fetched_rows;
+    // Execution of fake_select_lex doesn't count for the user:
+    count_iterations= join->select_lex != join->unit->fake_select_lex;
   }
+
+  const bool pfs_batch_update= qep_tab->pfs_batch_update(join);
+  if (pfs_batch_update)
+    table->file->start_psi_batch_mode();
 
   while (rc == NESTED_LOOP_OK && join->return_tab >= qep_tab_idx)
   {
     int error;
 
-    if (is_recursive_ref && // see Recursive_executor's documentation
+    if (is_recursive_ref &&
         qep_tab->m_fetched_rows >= *recursive_row_count)
-    {
+    { // We have read all that's in the tmp table: signal EOF.
       error= -1;
       break;
     }
@@ -1651,6 +1680,25 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
     else
     {
       qep_tab->m_fetched_rows++;
+      if (is_recursive_ref &&
+          qep_tab->m_fetched_rows == recursive_row_count_start + 1)
+      {
+        /*
+          We have just read one row further than the set of rows of the
+          iteration, so we have actually just entered a new iteration.
+        */
+        if (count_iterations &&
+            ++join->recursive_iteration_count >
+            join->thd->variables.cte_max_recursion_depth)
+        {
+          my_error(ER_CTE_MAX_RECURSION_DEPTH, MYF(0),
+                   join->recursive_iteration_count);
+          rc= NESTED_LOOP_ERROR;
+          break;
+        }
+        // This new iteration sees the rows made by the previous one:
+        recursive_row_count_start= *recursive_row_count;
+      }
       if (qep_tab->keep_current_rowid)
         table->file->position(table->record[0]);
       rc= evaluate_join_record(join, qep_tab);
@@ -4747,7 +4795,7 @@ process_buffered_windowing_record(THD *thd,
     /*
       We have already saved the computed results for previous current row's
       range framing aggregates. Prime the out-record with its values, since
-      since there may be no new rows to aggregate for this current row, e.g. if
+      there may be no new rows to aggregate for this current row, e.g. if
       it has the same value in the order by expression so that the row is in
       the same peer set.  Fields and other window functions need to be
       moved/computed as always.
@@ -4975,13 +5023,23 @@ process_buffered_windowing_record(THD *thd,
     if ((range_frame || w.has_dynamic_frame_upper_bound()) &&
         rowno > upper) // no more rows in partition
     {
-      if (range_frame && !first_row_in_range_frame_seen)
+      if (range_frame)
       {
         /*
-          Empty frame: optimize starting point for next row: monotonic increase
-          in frame bounds
+          For a range frame, if we did not aggregate above, save the
+          record from table->record[0] for restoration later.
         */
-        w.set_first_rowno_in_range_frame(rowno);
+        if (optimizable && !range_did_aggregate)
+          w.save_special_record(Window::FBC_LAST_RESULT_OPTIMIZED_RANGE,
+                                out_table);
+        if (!first_row_in_range_frame_seen)
+        {
+          /*
+            Empty frame: optimize starting point for next row: monotonic
+            increase in frame bounds
+          */
+          w.set_first_rowno_in_range_frame(rowno);
+        }
       }
       w.set_last_rowno_in_range_frame(rowno - 1);
     } // else: we already set it before breaking out of loop
@@ -6208,6 +6266,7 @@ QEP_TAB::remove_duplicates()
 
   free_io_cache(tbl);				// Safety
   tbl->file->info(HA_STATUS_VARIABLE);
+  constexpr int HASH_OVERHEAD = 16;  // Very approximate.
   if (tbl->s->db_type() == temptable_hton ||
       tbl->s->db_type() == heap_hton ||
       (!tbl->s->blob_fields &&

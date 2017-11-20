@@ -17,37 +17,44 @@
 #include "sql/session_tracker.h"
 
 #include <string.h>
+#include <algorithm>
+#include <memory>
 #include <new>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include "current_thd.h"
-#include "handler.h"
-#include "hash.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "rpl_context.h"
-#include "rpl_gtid.h"
-#include "set_var.h"
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_plugin.h"
-#include "sql_show.h"
+#include "sql/current_thd.h"
+#include "sql/key.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/rpl_context.h"
+#include "sql/rpl_gtid.h"
+#include "sql/set_var.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_show.h"
+#include "sql/system_variables.h"
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "transaction_info.h"
-#include "xa.h"
+#include "template_utils.h"
 
 static void store_lenenc_string(String &to, const char *from,
                                 size_t length);
@@ -78,34 +85,34 @@ private:
       A hash to store the name of all the system variables specified by the
       user.
     */
-    HASH m_registered_sysvars;
+    using sysvar_map =
+      collation_unordered_map<std::string, unique_ptr_my_free<sysvar_node_st>>;
+    std::unique_ptr<sysvar_map> m_registered_sysvars;
     char *variables_list;
     /**
       The boolean which when set to true, signifies that every variable
       is to be tracked.
     */
     bool track_all;
+    const CHARSET_INFO *m_char_set;
+
     void init(const CHARSET_INFO *char_set)
     {
       variables_list= NULL;
-      my_hash_init(&m_registered_sysvars,
-		   char_set,
-		   4, 0, sysvars_get_key,
-		   my_free, HASH_UNIQUE,
-                   key_memory_THD_Session_tracker);
-    }
-    void free_hash()
-    {
-      if (my_hash_inited(&m_registered_sysvars))
-      {
-	my_hash_free(&m_registered_sysvars);
-      }
+      m_char_set= char_set;
+      m_registered_sysvars.reset
+        (new sysvar_map(char_set, key_memory_THD_Session_tracker));
     }
 
-    uchar* search(const uchar* token, size_t length)
+    void free_hash()
     {
-      return (my_hash_search(&m_registered_sysvars, token,
-			     length));
+      m_registered_sysvars.reset();
+    }
+
+    sysvar_node_st* search(const uchar* token, size_t length)
+    {
+      return find_or_nullptr(*m_registered_sysvars,
+                             std::string(pointer_cast<const char *>(token), length));
     }
 
   public:
@@ -117,24 +124,18 @@ private:
     void claim_memory_ownership()
     {
       my_claim(variables_list);
-      my_hash_claim(&m_registered_sysvars);
     }
 
     ~vars_list()
     {
-      /* free the allocated hash. */
-      if (my_hash_inited(&m_registered_sysvars))
-      {
-	my_hash_free(&m_registered_sysvars);
-      }
       if (variables_list)
 	my_free(variables_list);
       variables_list= NULL;
     }
 
-    uchar* search(sysvar_node_st *node, LEX_STRING tmp)
+    sysvar_node_st* search(sysvar_node_st *node, LEX_STRING tmp)
     {
-      uchar *res;
+      sysvar_node_st *res;
       res= search((const uchar *)tmp.str, tmp.length);
       if (!res)
       {
@@ -147,10 +148,11 @@ private:
       return res;
     }
 
-    uchar* operator[](ulong idx)
-    {
-      return my_hash_element(&m_registered_sysvars, idx);
-    }
+    sysvar_map::iterator begin() const { return m_registered_sysvars->begin(); }
+    sysvar_map::iterator end() const { return m_registered_sysvars->end(); }
+
+    const CHARSET_INFO *char_set() const { return m_char_set; }
+
     bool insert(sysvar_node_st *node, LEX_STRING var);
     void reset();
     bool update(vars_list* from, THD *thd);
@@ -402,8 +404,8 @@ public:
 
 void Session_sysvars_tracker::vars_list::reset()
 {
-  if (m_registered_sysvars.records)
-    my_hash_reset(&m_registered_sysvars);
+  if (m_registered_sysvars != nullptr)
+    m_registered_sysvars->clear();
   if (variables_list)
   {
     my_free(variables_list);
@@ -428,9 +430,9 @@ bool Session_sysvars_tracker::vars_list::update(vars_list* from, THD *thd)
   variables_list= from->variables_list;
   track_all= from->track_all;
   free_hash();
-  m_registered_sysvars= from->m_registered_sysvars;
+  m_registered_sysvars= std::move(from->m_registered_sysvars);
   from->init(thd->charset());
-  return (m_registered_sysvars.records)? true : track_all;
+  return m_registered_sysvars->empty() ? track_all : true;
 }
 
 /**
@@ -458,12 +460,13 @@ bool Session_sysvars_tracker::vars_list::insert(sysvar_node_st *node,
   node->m_sysvar_name.str= var.str;
   node->m_sysvar_name.length= var.length;
   node->m_changed= false;
-  if (my_hash_insert(&m_registered_sysvars, (uchar *) node))
+  unique_ptr_my_free<sysvar_node_st> node_ptr(node);
+  if (!m_registered_sysvars->emplace(to_string(var),
+                                     std::move(node_ptr)).second)
   {
     /* Duplicate entry. */
     my_error(ER_DUP_LIST_ENTRY, MYF(0), var.str);
     reset();
-    my_free(node);
     return true;
   }                          /* Error */
   return false;
@@ -691,13 +694,11 @@ bool Session_sysvars_tracker::store(THD *thd, String &buf)
 {
   char val_buf[1024];
   const char *value;
-  sysvar_node_st *node;
   SHOW_VAR *show;
   sys_var *var;
   const CHARSET_INFO *charset;
   size_t val_length, length;
   uchar *to;
-  int idx= 0;
 
   if (!(show= (SHOW_VAR *) thd->alloc(sizeof(SHOW_VAR))))
     return true;
@@ -705,7 +706,23 @@ bool Session_sysvars_tracker::store(THD *thd, String &buf)
   /* As its always system variable. */
   show->type= SHOW_SYS;
 
-  while ((node= (sysvar_node_st *) (*orig_list)[idx]))
+  /*
+    Return the variables in sorted order. This isn't a protocol requirement
+    (and thus, we don't need to care about collations), but it makes for easier
+    testing when things are deterministic and not in hash order.
+  */
+  std::vector<sysvar_node_st *> vars;
+  for (const auto &key_and_value : *orig_list)
+  {
+    vars.push_back(key_and_value.second.get());
+  }
+  std::sort(vars.begin(), vars.end(),
+            [](const sysvar_node_st *a, const sysvar_node_st *b)
+            {
+              return to_string(a->m_sysvar_name) < to_string(b->m_sysvar_name);
+            });
+
+  for (sysvar_node_st *node : vars)
   {
     if (node->m_changed &&
         (var= find_sys_var_ex(thd, node->m_sysvar_name.str,
@@ -737,7 +754,6 @@ bool Session_sysvars_tracker::store(THD *thd, String &buf)
       /* System variable's value (length-encoded string). */
       store_lenenc_string(buf, value, val_length);
     }
-    ++ idx;
   }
 
   reset();
@@ -800,13 +816,10 @@ const uchar *Session_sysvars_tracker::sysvars_get_key(const uchar *entry,
 
 void Session_sysvars_tracker::reset()
 {
-  sysvar_node_st *node;
-  int idx= 0;
-
-  while ((node= (sysvar_node_st *) (*orig_list)[idx]))
+  for (const auto &key_and_value : *orig_list)
   {
+    sysvar_node_st *node= key_and_value.second.get();
     node->m_changed= false;
-    ++ idx;
   }
   m_changed= false;
 }

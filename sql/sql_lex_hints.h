@@ -24,23 +24,25 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "lex_symbol.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/psi/mysql_statement.h"
-#include "sql_alloc.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/item_create.h"
+#include "sql/key.h"
+#include "sql/lex_symbol.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_class.h"
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_hints.yy.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_lex_hash.h"
+#include "sql/table.h"
 #include "sql_chars.h"
-#include "sql_class.h"
-#include "sql_hints.yy.h"
-#include "sql_lex.h"
-#include "sql_lex_hash.h"
-#include "sql_plugin.h"
-#include "sql_udf.h"
-#include "table.h"
 
 class PT_hint_list;
-struct sql_digest_state;
 
 void hint_lex_init_maps(charset_info_st *cs, hint_lex_char_classes *hint_map);
 
@@ -54,7 +56,8 @@ class Hint_scanner : public Sql_alloc
 {
   THD *thd;
   const CHARSET_INFO *cs;
-  bool is_ansi_quotes;
+  const bool is_ansi_quotes;
+  const bool backslash_escapes;
   size_t lineno;
   const hint_lex_char_classes *char_classes;
 
@@ -125,10 +128,12 @@ protected:
         return scan_ident_or_keyword();
       case HINT_CHR_MB:
         return scan_ident();
+      case HINT_CHR_QUOTE:
+        return scan_quoted<HINT_CHR_QUOTE>();
       case HINT_CHR_BACKQUOTE:
-        return scan_quoted_ident<HINT_CHR_BACKQUOTE>();
+        return scan_quoted<HINT_CHR_BACKQUOTE>();
       case HINT_CHR_DOUBLEQUOTE:
-        return scan_quoted_ident<HINT_CHR_DOUBLEQUOTE>();
+        return scan_quoted<HINT_CHR_DOUBLEQUOTE>();
       case HINT_CHR_ASTERISK:
         if (peek_class2() == HINT_CHR_SLASH)
         {
@@ -153,16 +158,18 @@ protected:
   }
 
   template <hint_lex_char_classes Quote>
-  int scan_quoted_ident()
+  int scan_quoted()
   {
-    DBUG_ASSERT(Quote == HINT_CHR_BACKQUOTE || Quote == HINT_CHR_DOUBLEQUOTE);
-    DBUG_ASSERT(*ptr == '`' || *ptr == '"');
+    DBUG_ASSERT(Quote == HINT_CHR_BACKQUOTE || Quote == HINT_CHR_DOUBLEQUOTE ||
+                Quote == HINT_CHR_QUOTE);
+    DBUG_ASSERT(*ptr == '`' || *ptr == '"' || *ptr == '\'');
 
-    if (Quote == HINT_CHR_DOUBLEQUOTE && !is_ansi_quotes)
-      return get_byte();
+    const bool is_ident= (Quote == HINT_CHR_BACKQUOTE) ||
+                         (is_ansi_quotes && Quote == HINT_CHR_DOUBLEQUOTE);
+    const int ret= is_ident ? HINT_ARG_IDENT : HINT_ARG_TEXT;
 
     skip_byte(); // skip opening quote sign
-    start_token(); // reset yytext & yyleng
+    adjust_token(); // reset yytext & yyleng
 
     size_t double_separators= 0;
 
@@ -200,7 +207,7 @@ protected:
           ptr++; // skip closing quote
 
           if (thd->charset_is_system_charset && double_separators == 0)
-            return HINT_ARG_IDENT;
+            return ret;
 
           LEX_STRING s;
           if (!thd->charset_is_system_charset)
@@ -220,10 +227,9 @@ protected:
           if (double_separators > 0)
             compact<Quote>(&s, yytext, yyleng, double_separators);
 
-          raw_yytext= yytext;
           yytext= s.str;
           yyleng= s.length;
-          return HINT_ARG_IDENT;
+          return ret;
         }
       default:
         skip_byte();
@@ -252,6 +258,26 @@ protected:
     }
   }
 
+  int scan_scale_or_ident()
+  {
+    DBUG_ASSERT(peek_class() == HINT_CHR_IDENT);
+    switch (peek_byte()) {
+    case 'K': case 'M': case 'G':
+      break;
+    default:
+      return scan_ident();
+    }
+    skip_byte();
+
+    switch (peek_class()) {
+    case HINT_CHR_IDENT:
+    case HINT_CHR_DIGIT:
+      return scan_ident();
+    default:
+      return HINT_IDENT_OR_NUMBER_WITH_SCALE;
+    }
+  }
+
 
   int scan_query_block_name()
   {
@@ -266,10 +292,10 @@ protected:
     case HINT_CHR_MB:
       return scan_ident() == HINT_ARG_IDENT ? HINT_ARG_QB_NAME : HINT_ERROR;
     case HINT_CHR_BACKQUOTE:
-      return scan_quoted_ident<HINT_CHR_BACKQUOTE>() == HINT_ARG_IDENT ?
+      return scan_quoted<HINT_CHR_BACKQUOTE>() == HINT_ARG_IDENT ?
           HINT_ARG_QB_NAME : HINT_ERROR;
     case HINT_CHR_DOUBLEQUOTE:
-      return scan_quoted_ident<HINT_CHR_DOUBLEQUOTE>() == HINT_ARG_IDENT ?
+      return scan_quoted<HINT_CHR_DOUBLEQUOTE>() == HINT_ARG_IDENT ?
           HINT_ARG_QB_NAME : HINT_ERROR;
     default:
       return HINT_ERROR;
@@ -320,6 +346,7 @@ protected:
         skip_byte();
         continue;
       case HINT_CHR_IDENT:
+        return scan_scale_or_ident();
       case HINT_CHR_MB:
         return scan_ident();
       case HINT_CHR_EOF:
@@ -390,10 +417,16 @@ protected:
     return false;
   }
 
+  void adjust_token()
+  {
+    yytext= ptr;
+    yyleng= 0;
+  }
+
   void start_token()
   {
-    yytext= raw_yytext= ptr;
-    yyleng= 0;
+    adjust_token();
+    raw_yytext= ptr;
   }
 
 

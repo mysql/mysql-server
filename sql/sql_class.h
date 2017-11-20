@@ -27,8 +27,25 @@
 #include "my_config.h"
 
 #include <limits.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "m_ctype.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_idle_bits.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/psi_thread_bits.h"
+#include "mysql/components/services/psi_transaction_bits.h"
+#include "mysql/udf_registration_types.h"
+#include "pfs_thread_provider.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/item_create.h"
+#include "sql/key.h"
+#include "sql/psi_memory_key.h"
+#include "sql/xa.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -37,17 +54,11 @@
 #include <atomic>
 #include <memory>
 #include <new>
+#include <string>
 
-#include "auth/sql_security_ctx.h"        // Security_context
-#include "discrete_interval.h"            // Discrete_interval
 #include "dur_prop.h"                     // durability_properties
-#include "enum_query_type.h"
-#include "field.h"
-#include "handler.h"
-#include "item.h"
 #include "lex_string.h"
 #include "map_helpers.h"
-#include "mdl.h"
 #include "my_base.h"
 #include "my_command.h"
 #include "my_dbug.h"
@@ -74,35 +85,42 @@
 #include "mysql_com.h"
 #include "mysql_com_server.h"             // NET_SERVER
 #include "mysqld_error.h"
-#include "opt_costmodel.h"
-#include "opt_trace_context.h"            // Opt_trace_context
-#include "parse_location.h"
 #include "prealloced_array.h"
-#include "protocol.h"                     // Protocol
-#include "protocol_classic.h"             // Protocol_text
-#include "query_options.h"
-#include "rpl_context.h"                  // Rpl_thd_context
-#include "rpl_gtid.h"
-#include "session_tracker.h"              // Session_tracker
-#include "set_var.h"
-#include "sql_admin.h"
-#include "sql_cmd.h"
-#include "sql_connect.h"
-#include "sql_const.h"
-#include "sql_digest_stream.h"            // sql_digest_state
-#include "sql_error.h"
-#include "sql_lex.h"                      // LEX
-#include "sql_list.h"
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
-#include "sql_profile.h"                  // PROFILING
-#include "sql_servers.h"
+#include "sql/auth/sql_security_ctx.h"    // Security_context
+#include "sql/discrete_interval.h"        // Discrete_interval
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/mdl.h"
+#include "sql/opt_costmodel.h"
+#include "sql/opt_trace_context.h"        // Opt_trace_context
+#include "sql/parse_location.h"
+#include "sql/protocol.h"                 // Protocol
+#include "sql/protocol_classic.h"         // Protocol_text
+#include "sql/query_options.h"
+#include "sql/rpl_context.h"              // Rpl_thd_context
+#include "sql/rpl_gtid.h"
+#include "sql/session_tracker.h"          // Session_tracker
+#include "sql/set_var.h"
+#include "sql/sql_admin.h"
+#include "sql/sql_cmd.h"
+#include "sql/sql_connect.h"
+#include "sql/sql_const.h"
+#include "sql/sql_digest_stream.h"        // sql_digest_state
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"                  // LEX
+#include "sql/sql_list.h"
+#include "sql/sql_plugin.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_profile.h"              // PROFILING
+#include "sql/sql_servers.h"
+#include "sql/sys_vars_resource_mgr.h"    // Session_sysvar_resource_manager
+#include "sql/system_variables.h"         // system_variables
+#include "sql/table.h"
+#include "sql/transaction_info.h"         // Ha_trx_info
 #include "sql_string.h"
-#include "sys_vars_resource_mgr.h"        // Session_sysvar_resource_manager
-#include "system_variables.h"             // system_variables
-#include "table.h"
 #include "thr_lock.h"
-#include "transaction_info.h"             // Ha_trx_info
 #include "violite.h"
 
 class Query_arena;
@@ -110,6 +128,7 @@ class Relay_log_info;
 class THD;
 class partition_info;
 class sp_rcontext;
+class user_var_entry;
 struct PSI_idle_locker;
 struct PSI_statement_locker;
 struct PSI_transaction_locker;
@@ -131,7 +150,6 @@ class Rows_log_event;
 class Time_zone;
 class sp_cache;
 struct Binlog_user_var_event;
-struct Query_cache_block;
 
 typedef struct st_log_info LOG_INFO;
 typedef struct user_conn USER_CONN;
@@ -358,8 +376,8 @@ public:
 
   ~Prepared_statement_map();
 private:
-  HASH st_hash;
-  HASH names_hash;
+  malloc_unordered_map<ulong, std::unique_ptr<Prepared_statement>> st_hash;
+  collation_unordered_map<std::string, Prepared_statement *> names_hash;
   Prepared_statement *m_last_found_statement;
 };
 
@@ -901,6 +919,12 @@ private:
   */
   LEX_CSTRING m_db;
 
+  /**
+    Resource group context indicating the current resource group
+    and the name of the resource group to switch to during execution
+    of a query.
+  */
+  resourcegroups::Resource_group_ctx m_resource_group_ctx;
 public:
 
   /**
@@ -957,11 +981,6 @@ public:
   */
   static const char * const DEFAULT_WHERE;
 
-  /*
-    'first_query_cache_block' should be accessed only via query cache
-    functions and methods to maintain proper locking.
-  */
-  Query_cache_block *first_query_cache_block;
   /** Aditional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
   /**
@@ -1262,7 +1281,7 @@ public:
     The mutex used with current_cond.
     @see current_cond
   */
-  mysql_mutex_t * volatile current_mutex;
+  std::atomic<mysql_mutex_t *> current_mutex;
   /**
     Pointer to the condition variable the thread owning this THD
     is currently waiting for. If the thread is not waiting, the
@@ -1272,7 +1291,7 @@ public:
     thread will broadcast on this condition variable so that the
     thread can be unstuck.
   */
-  mysql_cond_t * volatile current_cond;
+  std::atomic<mysql_cond_t *> current_cond;
   /**
     Condition variable used for waiting by the THR_LOCK.c subsystem.
   */
@@ -1672,13 +1691,47 @@ private:
     Attachable_trx &operator =(const Attachable_trx &);
   };
 
-  /*
-    Forward declaration of a read-write attachable transaction class.
-    Its exact definition is located in the gtid module that proves its
-    safe usage. Any potential customer to the class must beware of a danger
-    of screwing the global transaction state through ha_commit_{stmt,trans}.
+  /**
+    A derived from THD::Attachable_trx class allows updates in
+    the attachable transaction. Callers of the class methods must
+    make sure the attachable_rw won't cause deadlock with the main transaction.
+    The destructor does not invoke ha_commit_{stmt,trans} nor ha_rollback_trans
+    on purpose.
+    Burden to terminate the read-write instance also lies on the caller!
+    In order to use this interface it *MUST* prove that no side effect to
+    the global transaction state can be inflicted by a chosen method.
+
+    This class is being used only by class Gtid_table_access_context by
+    replication and by dd::info_schema::Table_statistics.
   */
-  class Attachable_trx_rw;
+
+  class Attachable_trx_rw : public Attachable_trx
+  {
+  public:
+    bool is_read_only() const { return false; }
+    Attachable_trx_rw(THD *thd, Attachable_trx *prev_trx= NULL)
+      : Attachable_trx(thd, prev_trx)
+    {
+      m_thd->tx_read_only= false;
+      m_thd->lex->sql_command= SQLCOM_END;
+      m_xa_state_saved= m_thd->get_transaction()->xid_state()->get_state();
+      thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
+    }
+    ~Attachable_trx_rw()
+    {
+      /* The attachable transaction has been already committed */
+      DBUG_ASSERT(!m_thd->get_transaction()->is_active(Transaction_ctx::STMT)
+                  && !m_thd->get_transaction()->is_active(Transaction_ctx::SESSION));
+
+      m_thd->get_transaction()->xid_state()->set_state(m_xa_state_saved);
+      m_thd->tx_read_only= true;
+    }
+
+  private:
+    XID_STATE::xa_states m_xa_state_saved;
+    Attachable_trx_rw(const Attachable_trx_rw &);
+    Attachable_trx_rw &operator =(const Attachable_trx_rw &);
+  };
 
   Attachable_trx *m_attachable_trx;
 
@@ -2292,7 +2345,7 @@ public:
     KILL_TIMEOUT=ER_QUERY_TIMEOUT,
     KILLED_NO_VALUE      /* means neither of the states */
   };
-  killed_state volatile killed;
+  std::atomic<killed_state> killed;
 
   /**
     When operation on DD tables is in progress then THD is set to kill immune
@@ -2552,7 +2605,7 @@ public:
       locked (if that would not be the case, you'll get a deadlock if someone
       does a THD::awake() on you).
     */
-    mysql_mutex_assert_not_owner(current_mutex);
+    mysql_mutex_assert_not_owner(current_mutex.load());
     mysql_mutex_lock(&LOCK_current_cond);
     current_mutex= NULL;
     current_cond= NULL;
@@ -3024,6 +3077,15 @@ public:
   void begin_attachable_rw_transaction();
 
   /**
+    Start a read-write attachable transaction to write
+    to  mysql.table_stats and mysql.index_stats. All the
+    requirements and restrictions to Attachable_trx apply.
+    Additional requirements are documented along the class
+    declaration.
+  */
+  void begin_attachable_rw_i_s_transaction();
+
+  /**
     End an active attachable transaction. Applies to both the read-only
     and the read-write versions.
     Note, that the read-write attachable transaction won't be terminated
@@ -3042,6 +3104,11 @@ public:
     @return true if there is an active rw attachable transaction.
   */
   bool is_attachable_rw_transaction_active() const;
+
+  /**
+    @return true if there is an active rw attachable transaction.
+  */
+  bool is_attachable_rw_i_s_transaction_active() const;
 
 public:
   /*
@@ -3524,6 +3591,16 @@ public:
 
 
   thd_scheduler scheduler;
+
+
+  /**
+    Get resource group context.
+
+    @returns pointer to resource group context.
+  */
+
+  resourcegroups::Resource_group_ctx *resource_group_ctx()
+  {  return &m_resource_group_ctx; }
 
 public:
   /**

@@ -22427,7 +22427,8 @@ my_hash_sort_gb18030(const CHARSET_INFO *cs, const uchar *s, size_t slen,
 
 static MY_COLLATION_HANDLER my_collation_ci_handler=
 {
-  NULL,
+  nullptr,
+  nullptr,
   my_strnncoll_gb18030,
   my_strnncollsp_gb18030,
   my_strnxfrm_gb18030,

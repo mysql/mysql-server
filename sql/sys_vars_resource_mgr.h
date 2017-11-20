@@ -52,49 +52,33 @@
 
 */
 
-#include <string.h>
+#include <stddef.h>
+#include <memory>
 
-#include "hash.h"
+#include "map_helpers.h"
 #include "my_inttypes.h"
+#include "sql/psi_memory_key.h"
 
 class Session_sysvar_resource_manager {
 
 private:
-  struct sys_var_ptr
-  {
-    void *data;
-  };
-  /**
-    It maintains a member per Sys_var_charptr session variable to hold the
-    address of non-freed memory, alloced to store the session variable's value.
-  */
-  HASH m_sysvar_string_alloc_hash;
-
-  /**
-    Returns the member that contains the given key (address).
-  */
-  uchar *find(void *key, size_t length);
+  // The value always contains the string that the key points to.
+  malloc_unordered_map<char **, unique_ptr_my_free<char>>
+    m_sysvar_string_alloc_hash{key_memory_THD_Session_sysvar_resource_manager};
 
 public:
-
-  Session_sysvar_resource_manager()
-  {
-    (void) memset(&m_sysvar_string_alloc_hash, 0, sizeof(m_sysvar_string_alloc_hash));
-  }
 
   /**
     Allocates memory for Sys_var_charptr session variable during session
     initialization.
   */
-  bool init(char **var, const CHARSET_INFO *charset);
+  bool init(char **var);
 
   /**
     Frees the old alloced memory, memdup()'s the given val to a new memory
     address & updated the session variable pointer.
   */
   bool update(char **var, char *val, size_t val_len);
-
-  static const uchar *sysvars_mgr_get_key(const uchar *entry, size_t *length);
 
   void claim_memory_ownership();
 

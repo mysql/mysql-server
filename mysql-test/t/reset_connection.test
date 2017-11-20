@@ -53,19 +53,19 @@ SELECT @a;
 # set variables to default
 --reset_connection
 SHOW SESSION VARIABLES like 'autocommit';
-SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'transaction_isolation';
 SHOW SESSION VARIABLES like 'character_set_client';
 SHOW SESSION VARIABLES like 'character_set_connection';
 SHOW SESSION VARIABLES like 'max_join_size';
 set autocommit=0;
-set tx_isolation='SERIALIZABLE';
+set transaction_isolation='SERIALIZABLE';
 set names 'big5';
 set max_join_size=100;
 # Setting max_join_size value to 1000 to fetch the below session variables as the 
 # rows returned are > 100
 set max_join_size=1000;
 SHOW SESSION VARIABLES like 'autocommit';
-SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'transaction_isolation';
 SHOW SESSION VARIABLES like 'character_set_client';
 SHOW SESSION VARIABLES like 'character_set_connection';
 SHOW SESSION VARIABLES like 'max_join_size';
@@ -74,7 +74,7 @@ set max_join_size=100;
 --reset_connection
 --echo resetconnection;
 SHOW SESSION VARIABLES like 'autocommit';
-SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'transaction_isolation';
 SHOW SESSION VARIABLES like 'character_set_client';
 SHOW SESSION VARIABLES like 'character_set_connection';
 SHOW SESSION VARIABLES like 'max_join_size';
@@ -99,7 +99,7 @@ DELETE FROM newt;
 DROP TABLE newt;
 --replace_regex /[1-9][0-9]*/>0/
 SHOW STATUS like 'Table_open_cache_hits';
---replace_regex /0/=0/ /[1-9][0-9]*/>0/
+--replace_regex /[1-9][0-9]*/>0/
 SHOW STATUS like 'Opened_tables';
 --reset_connection
 --echo resetconnection;

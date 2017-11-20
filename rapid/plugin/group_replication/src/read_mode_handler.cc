@@ -74,8 +74,8 @@ int enable_server_read_mode(enum_plugin_con_isolation session_isolation)
       new Sql_service_command_interface();
   int error=
     sql_command_interface->
-      establish_session_connection(session_isolation, get_plugin_pointer()) ||
-    sql_command_interface->set_interface_user(GROUPREPL_USER) ||
+      establish_session_connection(session_isolation, GROUPREPL_USER,
+                                   get_plugin_pointer()) ||
     enable_super_read_only_mode(sql_command_interface);
   delete sql_command_interface;
   return error;
@@ -87,8 +87,8 @@ int disable_server_read_mode(enum_plugin_con_isolation session_isolation)
       new Sql_service_command_interface();
   int error=
     sql_command_interface->
-      establish_session_connection(session_isolation, get_plugin_pointer()) ||
-    sql_command_interface->set_interface_user(GROUPREPL_USER) ||
+      establish_session_connection(session_isolation, GROUPREPL_USER,
+                                   get_plugin_pointer()) ||
     disable_super_read_only_mode(sql_command_interface);
   delete sql_command_interface;
   return error;

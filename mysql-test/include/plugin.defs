@@ -55,6 +55,7 @@ rewrite_example    			plugin_output_directory REWRITE_EXAMPLE
 rewriter           			plugin_output_directory REWRITER
 mysql_no_login     			plugin_output_directory MYSQL_NO_LOGIN    mysql_no_login
 test_udf_services  			plugin_output_directory TESTUDFSERVICES
+test_udf_services  			plugin_output_directory TESTUDFREGISTRATION test_udf_registration
 group_replication  			plugin_output_directory GROUP_REPLICATION
 locking_service    			plugin_output_directory LOCKING_SERVICE
 version_token      			plugin_output_directory VERSION_TOKEN
@@ -92,6 +93,8 @@ component_example_component3    component_output_directory  EXAMPLE_COMPONENT_3
 component_test_string_service   component_output_directory  TEST_STRING_SERVICE
 component_test_string_service_long   component_output_directory  TEST_STRING_SERVICE_LONG
 component_test_string_service_charset   component_output_directory  TEST_STRING_SERVICE_CHARSET
+
+component_test_backup_lock_service   component_output_directory  TEST_BACKUP_LOCK_SERVICE
 # Test Performance Schema services
 component_test_pfs_notification         component_output_directory  TEST_PFS_NOTIFICATION_SERVICE
 component_test_pfs_resource_group       component_output_directory  TEST_PFS_RESOURCE_GROUP_SERVICE
@@ -106,3 +109,13 @@ component_test_udf_registration    component_output_directory  TEST_UDF_REGISTRA
 component_udf_reg_3_func   component_output_directory  UDF_REG_3_FUNC       component_udf_reg_3_func
 component_udf_reg_only_3_func component_output_directory UDF_REG_ONLY_3_FUNC component_udf_reg_only_3_func
 component_udf_unreg_3_func   component_output_directory  UDF_UNREG_3_FUNC component_udf_unreg_3_func
+component_test_component_sys_var_service   component_output_directory  TEST_COM_SYS_VAR_SERVICES_OPT
+component_test_sys_var_service component_output_directory SYS_VAR_SERVICE component_test_sys_var_service
+component_test_sys_var_service_same component_output_directory SYS_VAR_SERVICE_SAME component_test_sys_var_service_same
+component_test_status_var_service component_output_directory STATUS_VAR_SERVICE component_test_status_var_service
+
+# pfs_example
+component_pfs_example    component_output_directory  PFS_EXAMPLE
+
+# Test system_variable_source service
+component_test_system_variable_source component_output_directory TEST_SYSTEM_VARIABLE_SOURCE

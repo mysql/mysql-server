@@ -56,17 +56,15 @@ t1	CREATE TABLE `t1` (
   `2001-01-01 10:10:10` varchar(19) CHARACTER SET latin1 NOT NULL DEFAULT ''
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
-EXPLAIN EXTENDED SELECT {d'2010-01-01'};
+EXPLAIN SELECT {d'2010-01-01'};
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select DATE'2010-01-01' AS `{d'2010-01-01'}`
-EXPLAIN EXTENDED SELECT DATE'2010-01-01';
+EXPLAIN SELECT DATE'2010-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select DATE'2010-01-01' AS `DATE'2010-01-01'`
 #
 # Testing DATE literals in non-default sql_mode
@@ -177,17 +175,15 @@ t1	CREATE TABLE `t1` (
   `2001-01-01` varchar(10) CHARACTER SET latin1 NOT NULL DEFAULT ''
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
-EXPLAIN EXTENDED SELECT {t'10:01:01'};
+EXPLAIN SELECT {t'10:01:01'};
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select TIME'10:01:01' AS `{t'10:01:01'}`
-EXPLAIN EXTENDED SELECT TIME'10:01:01';
+EXPLAIN SELECT TIME'10:01:01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select TIME'10:01:01' AS `TIME'10:01:01'`
 #
 # Testing TIMESTAMP literals
@@ -269,17 +265,15 @@ t1	CREATE TABLE `t1` (
   `2001-01-01` varchar(10) CHARACTER SET latin1 NOT NULL DEFAULT ''
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
-EXPLAIN EXTENDED SELECT {ts'2010-01-01 10:10:10'};
+EXPLAIN SELECT {ts'2010-01-01 10:10:10'};
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select TIMESTAMP'2010-01-01 10:10:10' AS `{ts'2010-01-01 10:10:10'}`
-EXPLAIN EXTENDED SELECT TIMESTAMP'2010-01-01 10:10:10';
+EXPLAIN SELECT TIMESTAMP'2010-01-01 10:10:10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select TIMESTAMP'2010-01-01 10:10:10' AS `TIMESTAMP'2010-01-01 10:10:10'`
 #
 # Testing nanosecond rounding for TIMESTAMP literals with bad dates

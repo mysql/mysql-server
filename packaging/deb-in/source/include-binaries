@@ -30,6 +30,8 @@ debian/extra/component_log_sink_json-plugin
 debian/extra/component_test_string_service_charset-plugin
 debian/extra/component_test_string_service_long-plugin
 debian/extra/component_test_string_service-plugin
+debian/extra/component_test_backup_lock_service-plugin
+debian/extra/component_pfs_example-plugin
 debian/extra/component_pfs_example_component_population-plugin
 debian/extra/pfs_example_plugin_employee-plugin
 debian/extra/component_test_pfs_notification-plugin
@@ -44,6 +46,16 @@ debian/extra/component_udf_reg_real_func-plugin
 debian/extra/component_udf_unreg_3_func-plugin
 debian/extra/component_udf_unreg_int_func-plugin
 debian/extra/component_udf_unreg_real_func-plugin
+debian/extra/component_test_sys_var_service_int-plugin
+debian/extra/component_test_sys_var_service-plugin
+debian/extra/component_test_sys_var_service_same-plugin
+debian/extra/component_test_sys_var_service_str-plugin
+debian/extra/component_test_status_var_service-plugin
+debian/extra/component_test_status_var_service_int-plugin
+debian/extra/component_test_status_var_service_reg_only-plugin
+debian/extra/component_test_status_var_service_str-plugin
+debian/extra/component_test_status_var_service_unreg_only-plugin
+debian/extra/component_test_system_variable_source-plugin
 debian/extra/group_replication-plugin
 debian/extra/ha_example-plugin
 debian/extra/innodb_engine-plugin

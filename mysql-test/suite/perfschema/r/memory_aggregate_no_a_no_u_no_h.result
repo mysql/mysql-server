@@ -27,17 +27,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	0
-COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	0
-SUM_NUMBER_OF_BYTES_FREE	0
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	0
-HIGH_COUNT_USED	0
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	0
-HIGH_NUMBER_OF_BYTES_USED	0
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	1
 COUNT_FREE	0
@@ -80,17 +69,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	0
-COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	0
-SUM_NUMBER_OF_BYTES_FREE	0
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	0
-HIGH_COUNT_USED	0
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	0
-HIGH_NUMBER_OF_BYTES_USED	0
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	1
 COUNT_FREE	0
@@ -108,7 +86,6 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-set GLOBAL query_cache_size=1000*1024;
 select get_lock("marker_1", 10);
 get_lock("marker_1", 10)
 1
@@ -143,17 +120,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	3
-COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	1040384
-SUM_NUMBER_OF_BYTES_FREE	0
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	1040384
-HIGH_NUMBER_OF_BYTES_USED	1040384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	4
 COUNT_FREE	0
@@ -206,17 +172,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	3
-COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	1040384
-SUM_NUMBER_OF_BYTES_FREE	0
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	1040384
-HIGH_NUMBER_OF_BYTES_USED	1040384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	4
 COUNT_FREE	0
@@ -234,7 +189,6 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-set GLOBAL query_cache_size=2000*1024;
 select get_lock("marker_2", 10);
 get_lock("marker_2", 10)
 1
@@ -279,17 +233,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	6
-COUNT_FREE	3
-SUM_NUMBER_OF_BYTES_ALLOC	3104768
-SUM_NUMBER_OF_BYTES_FREE	1040384
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	2064384
-HIGH_NUMBER_OF_BYTES_USED	2064384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	7
 COUNT_FREE	0
@@ -343,17 +286,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	6
-COUNT_FREE	3
-SUM_NUMBER_OF_BYTES_ALLOC	3104768
-SUM_NUMBER_OF_BYTES_FREE	1040384
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	2064384
-HIGH_NUMBER_OF_BYTES_USED	2064384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	7
 COUNT_FREE	0
@@ -416,17 +348,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	6
-COUNT_FREE	3
-SUM_NUMBER_OF_BYTES_ALLOC	3104768
-SUM_NUMBER_OF_BYTES_FREE	1040384
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	2064384
-HIGH_NUMBER_OF_BYTES_USED	2064384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	7
 COUNT_FREE	0
@@ -444,7 +365,6 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-set GLOBAL query_cache_size=500*1024;
 select get_lock("marker_3", 10);
 get_lock("marker_3", 10)
 1
@@ -499,17 +419,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	9
-COUNT_FREE	6
-SUM_NUMBER_OF_BYTES_ALLOC	3633152
-SUM_NUMBER_OF_BYTES_FREE	3104768
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	528384
-HIGH_NUMBER_OF_BYTES_USED	2064384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	10
 COUNT_FREE	0
@@ -582,17 +491,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	9
-COUNT_FREE	6
-SUM_NUMBER_OF_BYTES_ALLOC	3633152
-SUM_NUMBER_OF_BYTES_FREE	3104768
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	528384
-HIGH_NUMBER_OF_BYTES_USED	2064384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	10
 COUNT_FREE	0
@@ -610,7 +508,6 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-set GLOBAL query_cache_size=4000*1024;
 select get_lock("marker_4", 10);
 get_lock("marker_4", 10)
 1
@@ -684,17 +581,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	12
-COUNT_FREE	9
-SUM_NUMBER_OF_BYTES_ALLOC	7745536
-SUM_NUMBER_OF_BYTES_FREE	3633152
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	4112384
-HIGH_NUMBER_OF_BYTES_USED	4112384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	16
 COUNT_FREE	0
@@ -757,17 +643,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	12
-COUNT_FREE	9
-SUM_NUMBER_OF_BYTES_ALLOC	7745536
-SUM_NUMBER_OF_BYTES_FREE	3633152
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	4112384
-HIGH_NUMBER_OF_BYTES_USED	4112384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	16
 COUNT_FREE	6
@@ -820,17 +695,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	12
-COUNT_FREE	9
-SUM_NUMBER_OF_BYTES_ALLOC	7745536
-SUM_NUMBER_OF_BYTES_FREE	3633152
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	4112384
-HIGH_NUMBER_OF_BYTES_USED	4112384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	16
 COUNT_FREE	9
@@ -873,17 +737,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	12
-COUNT_FREE	9
-SUM_NUMBER_OF_BYTES_ALLOC	7745536
-SUM_NUMBER_OF_BYTES_FREE	3633152
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	4112384
-HIGH_NUMBER_OF_BYTES_USED	4112384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	16
 COUNT_FREE	12
@@ -916,17 +769,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	12
-COUNT_FREE	9
-SUM_NUMBER_OF_BYTES_ALLOC	7745536
-SUM_NUMBER_OF_BYTES_FREE	3633152
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	4112384
-HIGH_NUMBER_OF_BYTES_USED	4112384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	16
 COUNT_FREE	15
@@ -960,17 +802,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	12
-COUNT_FREE	9
-SUM_NUMBER_OF_BYTES_ALLOC	7745536
-SUM_NUMBER_OF_BYTES_FREE	3633152
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	4112384
-HIGH_NUMBER_OF_BYTES_USED	4112384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	16
 COUNT_FREE	15
@@ -1004,17 +835,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	12
-COUNT_FREE	9
-SUM_NUMBER_OF_BYTES_ALLOC	7745536
-SUM_NUMBER_OF_BYTES_FREE	3633152
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	4112384
-HIGH_NUMBER_OF_BYTES_USED	4112384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	16
 COUNT_FREE	15
@@ -1048,17 +868,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	12
-COUNT_FREE	9
-SUM_NUMBER_OF_BYTES_ALLOC	7745536
-SUM_NUMBER_OF_BYTES_FREE	3633152
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	4112384
-HIGH_NUMBER_OF_BYTES_USED	4112384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	16
 COUNT_FREE	15
@@ -1092,17 +901,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	12
-COUNT_FREE	9
-SUM_NUMBER_OF_BYTES_ALLOC	7745536
-SUM_NUMBER_OF_BYTES_FREE	3633152
-LOW_COUNT_USED	0
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	0
-CURRENT_NUMBER_OF_BYTES_USED	4112384
-HIGH_NUMBER_OF_BYTES_USED	4112384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	16
 COUNT_FREE	15
@@ -1136,17 +934,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	3
-COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	4112384
-SUM_NUMBER_OF_BYTES_FREE	0
-LOW_COUNT_USED	3
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	4112384
-CURRENT_NUMBER_OF_BYTES_USED	4112384
-HIGH_NUMBER_OF_BYTES_USED	4112384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	1
 COUNT_FREE	0
@@ -1180,17 +967,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	3
-COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	4112384
-SUM_NUMBER_OF_BYTES_FREE	0
-LOW_COUNT_USED	3
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	4112384
-CURRENT_NUMBER_OF_BYTES_USED	4112384
-HIGH_NUMBER_OF_BYTES_USED	4112384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	1
 COUNT_FREE	0
@@ -1224,17 +1000,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	3
-COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	4112384
-SUM_NUMBER_OF_BYTES_FREE	0
-LOW_COUNT_USED	3
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	4112384
-CURRENT_NUMBER_OF_BYTES_USED	4112384
-HIGH_NUMBER_OF_BYTES_USED	4112384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	1
 COUNT_FREE	0
@@ -1268,17 +1033,6 @@ execute dump_memory_account;
 execute dump_memory_user;
 execute dump_memory_host;
 execute dump_memory_global;
-EVENT_NAME	memory/sql/Query_cache
-COUNT_ALLOC	3
-COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	4112384
-SUM_NUMBER_OF_BYTES_FREE	0
-LOW_COUNT_USED	3
-CURRENT_COUNT_USED	3
-HIGH_COUNT_USED	3
-LOW_NUMBER_OF_BYTES_USED	4112384
-CURRENT_NUMBER_OF_BYTES_USED	4112384
-HIGH_NUMBER_OF_BYTES_USED	4112384
 EVENT_NAME	memory/sql/user_var_entry::value
 COUNT_ALLOC	1
 COUNT_FREE	0

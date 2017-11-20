@@ -13,21 +13,21 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_reporting.h"
+#include "sql/rpl_reporting.h"
 
-#include <stddef.h>
-
-#include "current_thd.h"
-#include "log.h"
 #include "m_string.h"
 #include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/service_my_snprintf.h"
-#include "mysqld.h"            // slave_trans_retries
 #include "mysqld_error.h"
-#include "sql_class.h"         // THD
-#include "sql_error.h"         // Diagnostics_area
+#include "sql/current_thd.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"        // slave_trans_retries
+#include "sql/sql_class.h"     // THD
+#include "sql/sql_error.h"     // Diagnostics_area
+#include "sql/transaction_info.h"
 #include "thr_mutex.h"
-#include "transaction_info.h"
 
 Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
   : m_thread_name(thread_name)

@@ -1,5 +1,9 @@
 # In-memory tmp tables
 set big_tables=0;
+set cte_max_recursion_depth=50000;
+select @@cte_max_recursion_depth;
+@@cte_max_recursion_depth
+50000
 flush status;
 # Mutual recursion unsupported; cycles must have one node only
 with recursive qn as (select * from qn2),
@@ -72,6 +76,20 @@ with recursive qn as
 select max(a) from qn)
 select * from qn;
 ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
+# No GROUP BY
+with recursive qn as
+(select 1 as a from dual group by a union all
+select a+1 from qn where a<3)
+select * from qn;
+a
+1
+2
+3
+with recursive qn as
+(select 1 as a from dual union all
+select a from qn group by a)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
 # No subquery referencing a QN
 with recursive qn as (
 select 1 from dual union all
@@ -103,6 +121,15 @@ select 1 as a from dual union all
 (select 1 from qn order by a))
 select * from qn;
 ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT / SELECT DISTINCT in recursive query block of Common Table Expression'
+# Allowed on non-recursive query block (though pointless)
+with recursive qn as (
+(select 1 as a from dual order by a) union all
+select a+1 from qn where a<3)
+select * from qn;
+a
+1
+2
+3
 # no LIMIT as it's not pushed down to UNION members
 with recursive qn as (
 select 1 as a from dual union all
@@ -949,7 +976,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
@@ -958,7 +985,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
 5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select sql_no_cache `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
+Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
 with recursive tree_of_a as
 (
 select *, cast(id as char(200)) as path from t2 where name="A"
@@ -969,7 +996,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	name	leftpar	rightpar	path
 1	A	2	3	1
 2	LA	4	5	1,2
@@ -996,7 +1023,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
@@ -1005,7 +1032,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
 5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 Warnings:
-Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select sql_no_cache `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
+Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
 with recursive tree_of_a as
 (
 select *, cast(id as char(200)) as path from t2 where name="A"
@@ -1016,7 +1043,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	name	leftpar	rightpar	path
 1	A	2	3	1
 2	LA	4	5	1,2
@@ -1044,7 +1071,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a;
+select * from tree_of_a;
 id	name	leftpar	rightpar	path
 1	A	2	3	1
 2	LA	4	5	1,2
@@ -1282,6 +1309,10 @@ Variable_name	Value
 Created_tmp_disk_tables	0
 # On-disk tmp tables
 set big_tables=1;
+set cte_max_recursion_depth=50000;
+select @@cte_max_recursion_depth;
+@@cte_max_recursion_depth
+50000
 flush status;
 # Mutual recursion unsupported; cycles must have one node only
 with recursive qn as (select * from qn2),
@@ -1354,6 +1385,20 @@ with recursive qn as
 select max(a) from qn)
 select * from qn;
 ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
+# No GROUP BY
+with recursive qn as
+(select 1 as a from dual group by a union all
+select a+1 from qn where a<3)
+select * from qn;
+a
+1
+2
+3
+with recursive qn as
+(select 1 as a from dual union all
+select a from qn group by a)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
 # No subquery referencing a QN
 with recursive qn as (
 select 1 from dual union all
@@ -1385,6 +1430,15 @@ select 1 as a from dual union all
 (select 1 from qn order by a))
 select * from qn;
 ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT / SELECT DISTINCT in recursive query block of Common Table Expression'
+# Allowed on non-recursive query block (though pointless)
+with recursive qn as (
+(select 1 as a from dual order by a) union all
+select a+1 from qn where a<3)
+select * from qn;
+a
+1
+2
+3
 # no LIMIT as it's not pushed down to UNION members
 with recursive qn as (
 select 1 as a from dual union all
@@ -2231,7 +2285,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
@@ -2240,7 +2294,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
 5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select sql_no_cache `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
+Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
 with recursive tree_of_a as
 (
 select *, cast(id as char(200)) as path from t2 where name="A"
@@ -2251,7 +2305,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	name	leftpar	rightpar	path
 1	A	2	3	1
 2	LA	4	5	1,2
@@ -2278,7 +2332,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
@@ -2287,7 +2341,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
 5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 Warnings:
-Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select sql_no_cache `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
+Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
 with recursive tree_of_a as
 (
 select *, cast(id as char(200)) as path from t2 where name="A"
@@ -2298,7 +2352,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	name	leftpar	rightpar	path
 1	A	2	3	1
 2	LA	4	5	1,2
@@ -2326,7 +2380,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a;
+select * from tree_of_a;
 id	name	leftpar	rightpar	path
 1	A	2	3	1
 2	LA	4	5	1,2

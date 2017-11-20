@@ -16,29 +16,16 @@
 #ifndef DD_SYSTEM_VIEWS__STATISTICS_INCLUDED
 #define DD_SYSTEM_VIEWS__STATISTICS_INCLUDED
 
-#include "dd/impl/system_views/system_view_definition_impl.h"
-#include "dd/impl/system_views/system_view_impl.h"
+#include "sql/dd/impl/system_views/system_view_definition_impl.h"
+#include "sql/dd/impl/system_views/system_view_impl.h"
+#include "sql/dd/string_type.h"
 
 namespace dd {
 namespace system_views {
 
 /*
   The class representing INFORMATION_SCHEMA.STATISTICS system view
-  definition common to both modes of setting
-  'information_schema_stats=latest|cached'. This class is also
-  used by SHOW STATISTICS command.
-
-  There are two definitions of information_schema.statistics.
-  1. INFORMATION_SCHEMA.STATISTICS view which picks dynamic column
-     statistics from mysql.index_stats which gets populated when
-     we execute 'anaylze table' command.
-
-  2. INFORMATION_SCHEMA.STATISTICS_DYNAMIC view which retrieves dynamic
-     column statistics using a internal UDF which opens the user
-     table and reads dynamic table statistics.
-
-  MySQL server uses definition 1) by default. The session variable
-  information_schema_stats=latest would enable use of definition 2).
+  definition.
 */
 class Statistics_base :
         public System_view_impl<System_view_select_definition_impl>
@@ -75,7 +62,6 @@ public:
 
 /*
  The class representing INFORMATION_SCHEMA.STATISTICS system view definition
- used when setting is 'information_schema_stats=cached'.
 */
 class Statistics: public Statistics_base
 {
@@ -96,34 +82,7 @@ public:
 
 
 /*
- The class representing INFORMATION_SCHEMA.STATISTICS system view definition
- used when setting is 'information_schema_stats=latest'.
-*/
-class Statistics_dynamic: public Statistics_base
-{
-public:
-  Statistics_dynamic();
-
-  static const Statistics_base &instance();
-
-  static const String_type &view_name()
-  {
-    static String_type s_view_name("STATISTICS_DYNAMIC");
-    return s_view_name;
-  }
-
-  virtual const String_type &name() const
-  { return Statistics_dynamic::view_name(); }
-
-  // This view definition is hidden from user.
-  virtual bool hidden() const
-  { return true; }
-};
-
-
-/*
  The class represents system view definition used by SHOW STATISTICS when
- setting is 'information_schema_stats=cached'.
 */
 class Show_statistics: public Statistics
 {
@@ -140,32 +99,6 @@ public:
 
   virtual const String_type &name() const
   { return Show_statistics::view_name(); }
-
-  // This view definition is hidden from user.
-  virtual bool hidden() const
-  { return true; }
-};
-
-
-/*
- The class represents system view definition used by SHOW STATISTICS when
- setting is 'information_schema_stats=latest'.
-*/
-class Show_statistics_dynamic: public Statistics_dynamic
-{
-public:
-  Show_statistics_dynamic();
-
-  static const Statistics_base &instance();
-
-  static const String_type &view_name()
-  {
-    static String_type s_view_name("SHOW_STATISTICS_DYNAMIC");
-    return s_view_name;
-  }
-
-  virtual const String_type &name() const
-  { return Show_statistics_dynamic::view_name(); }
 
   // This view definition is hidden from user.
   virtual bool hidden() const

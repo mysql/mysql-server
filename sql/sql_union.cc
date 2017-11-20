@@ -27,41 +27,47 @@
   UNION's  were introduced by Monty and Sinisa <sinisa@mysql.com>
 */
 
-#include "sql_union.h"
+#include "sql/sql_union.h"
 
 #include "my_config.h"
 
 #include <string.h>
 #include <sys/types.h>
 
-#include "auth_acls.h"
-#include "current_thd.h"
-#include "debug_sync.h"                         // DEBUG_SYNC
-#include "error_handler.h"                      // Strict_error_handler
-#include "field.h"
-#include "filesort.h"                           // filesort_free_buffers
-#include "handler.h"
-#include "item.h"
-#include "item_subselect.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_macros.h"
 #include "my_sys.h"
-#include "mysql_com.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "opt_explain.h"                        // explain_no_table
-#include "opt_explain_format.h"
-#include "parse_tree_node_base.h"
-#include "query_options.h"
-#include "sql_base.h"                           // fill_record
-#include "sql_class.h"
-#include "sql_executor.h"
-#include "sql_lex.h"
-#include "window.h"                             // Window
-#include "sql_list.h"
-#include "sql_optimizer.h"                      // JOIN
-#include "sql_select.h"
-#include "sql_tmp_table.h"                      // tmp tables
+#include "sql/auth/auth_acls.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"                     // DEBUG_SYNC
+#include "sql/error_handler.h"                  // Strict_error_handler
+#include "sql/field.h"
+#include "sql/filesort.h"                       // filesort_free_buffers
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_subselect.h"
+#include "sql/mem_root_array.h"
+#include "sql/opt_explain.h"                    // explain_no_table
+#include "sql/opt_explain_format.h"
+#include "sql/opt_trace_context.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/query_options.h"
+#include "sql/set_var.h"
+#include "sql/sql_base.h"                       // fill_record
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"                  // JOIN
+#include "sql/sql_parse.h"
+#include "sql/sql_select.h"
+#include "sql/sql_tmp_table.h"                  // tmp tables
+#include "sql/thr_malloc.h"
+#include "sql/window.h"                         // Window
+#include "template_utils.h"
 
 bool Query_result_union::prepare(List<Item>&, SELECT_LEX_UNIT *u)
 {
@@ -1022,15 +1028,14 @@ class Recursive_executor
 private:
   SELECT_LEX_UNIT *const unit;
   THD *const thd;
-  /// Count of executions of recursive members.
-  uint iteration_counter;
   Strict_error_handler strict_handler;
   enum_check_fields save_check_for_truncated_fields;
   sql_mode_t save_sql_mode;
-  bool disabled_trace, pop_handler;
+  enum {DISABLED_TRACE= 1, POP_HANDLER= 2, EXEC_RECURSIVE= 4};
+  uint8 flags; ///< bitmap made of the above enum bits
   /**
-    If recursive, count of rows in the temporary table when the current
-    iteration started.
+    If recursive: count of rows in the temporary table when we started the
+    current iteration of the for-loop which executes query blocks.
   */
   ha_rows row_count;
   TABLE *table;                                 ///< Table for result of union
@@ -1041,10 +1046,9 @@ private:
 public:
 
   Recursive_executor(SELECT_LEX_UNIT *unit_arg, THD *thd_arg) :
-    unit(unit_arg), thd(thd_arg), iteration_counter(0),
+    unit(unit_arg), thd(thd_arg),
     strict_handler(Strict_error_handler::ENABLE_SET_SELECT_STRICT_ERROR_HANDLER),
-    disabled_trace(false), pop_handler(false),
-    row_count(0), table(nullptr), cached_file(nullptr)
+    flags(0), row_count(0), table(nullptr), cached_file(nullptr)
   {
     TRASH(row_ref, sizeof(row_ref));
   }
@@ -1089,7 +1093,7 @@ public:
     */
     if (thd->is_strict_mode())
     {
-      pop_handler= true;
+      flags|= POP_HANDLER;
       save_check_for_truncated_fields= thd->check_for_truncated_fields;
       thd->check_for_truncated_fields= CHECK_FIELD_WARN;
       thd->push_internal_handler(&strict_handler);
@@ -1112,14 +1116,14 @@ public:
   /// @returns Query block to execute first, in current phase
   SELECT_LEX *first_select() const
   {
-    return (iteration_counter == 0) ?
-      unit->first_select() : unit->first_recursive;
+    return (flags & EXEC_RECURSIVE) ?
+      unit->first_recursive : unit->first_select();
   }
 
   /// @returns Query block to execute last, in current phase
   SELECT_LEX *last_select() const
   {
-    return (iteration_counter == 0) ? unit->first_recursive : nullptr;
+    return (flags & EXEC_RECURSIVE) ? nullptr : unit->first_recursive;
   }
 
   /// @returns true if more iterations are needed
@@ -1128,13 +1132,6 @@ public:
     if (!unit->is_recursive())
       return false;
 
-    iteration_counter++;
-
-    if (iteration_counter == 3)
-    {
-      DEBUG_SYNC(thd, "in_WITH_RECURSIVE");
-    }
-
     ha_rows new_row_count= *unit->query_result()->row_count();
     if (row_count == new_row_count)
     {
@@ -1142,19 +1139,40 @@ public:
       if (unit->got_all_recursive_rows)
         return false; // The final iteration is done.
       unit->got_all_recursive_rows= true;
-      // Do a final iteration, just to get table free-ing/unlocking:
+      /*
+        Do a final iteration, just to get table free-ing/unlocking. But skip
+        non-recursive query blocks as they have already done that.
+      */
+      flags|= EXEC_RECURSIVE;
       return true;
     }
+
+#ifdef ENABLED_DEBUG_SYNC
+    if (unit->first_select()->next_select()->join->recursive_iteration_count
+        == 4)
+    {
+      DEBUG_SYNC(thd, "in_WITH_RECURSIVE");
+    }
+#endif
+
     row_count= new_row_count;
 #ifdef OPTIMIZER_TRACE
     Opt_trace_context &trace= thd->opt_trace;
-    if (iteration_counter == 2 &&
+    /*
+      If recursive query blocks have been executed at least once, and repeated
+      executions should not be traced, disable tracing, unless it already is
+      disabled.
+    */
+    if ((flags & (EXEC_RECURSIVE | DISABLED_TRACE)) == EXEC_RECURSIVE &&
         !trace.feature_enabled(Opt_trace_context::REPEATED_SUBSELECT))
     {
-      disabled_trace= true;
+      flags|= DISABLED_TRACE;
       trace.disable_I_S_for_this_and_children();
     }
 #endif
+
+    flags|= EXEC_RECURSIVE;
+
     return true;
   }
 
@@ -1166,7 +1184,6 @@ public:
   {
     if (cached_file == nullptr)
       return false;
-    DBUG_ASSERT(iteration_counter > 0);
     int error;
     if (cached_file == table->file)
     {
@@ -1219,10 +1236,10 @@ public:
     if (unit->is_recursive())
     {
 #ifdef OPTIMIZER_TRACE
-      if (disabled_trace)
+      if (flags & DISABLED_TRACE)
         thd->opt_trace.restore_I_S();
 #endif
-      if (pop_handler)
+      if (flags & POP_HANDLER)
       {
         thd->pop_internal_handler();
         thd->check_for_truncated_fields= save_check_for_truncated_fields;
@@ -1353,7 +1370,6 @@ bool SELECT_LEX_UNIT::execute(THD *thd)
     }
 
   } while (recursive_executor.more_iterations());
-
 
   if (fake_select_lex)
   {

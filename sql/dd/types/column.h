@@ -16,10 +16,14 @@
 #ifndef DD__COLUMN_INCLUDED
 #define DD__COLUMN_INCLUDED
 
-#include "dd/collection.h"           // dd::Collection
-#include "dd/sdi_fwd.h"              // RJ_Document
-#include "dd/types/entity_object.h"  // dd::Entity_object
 #include "my_inttypes.h"
+#include "nullable.h"
+#include "sql/dd/collection.h"       // dd::Collection
+#include "sql/dd/sdi_fwd.h"          // RJ_Document
+#include "sql/dd/types/entity_object.h" // dd::Entity_object
+#include "sql/gis/srid.h"
+
+using Mysql::Nullable;
 
 namespace dd {
 
@@ -159,6 +163,13 @@ public:
 
   virtual uint numeric_precision() const = 0;
   virtual void set_numeric_precision(uint numeric_precision) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // srid
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual void set_srs_id(Nullable<gis::srid_t> srs_id) = 0;
+  virtual Nullable<gis::srid_t> srs_id() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // numeric_scale.

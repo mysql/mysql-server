@@ -25,7 +25,7 @@
     Move month and days to language files
 */
 
-#include "item_timefunc.h"
+#include "sql/item_timefunc.h"
 
 #include "my_config.h"
 
@@ -33,32 +33,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "mysql_com.h"
+#include "sql/histograms/value_map.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#include <time.h>
-
-#include "current_thd.h"
-#include "dd/info_schema/stats.h"
-#include "dd/object_id.h"    // dd::Object_id
 #include "decimal.h"
-#include "derror.h"          // ER_THD
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sql_class.h"       // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_locale.h"      // my_locale_en_US
-#include "sql_security_ctx.h"
-#include "sql_time.h"        // make_truncated_value_warning
-#include "strfunc.h"         // check_word
-#include "table.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/dd/info_schema/table_stats.h"
+#include "sql/dd/object_id.h" // dd::Object_id
+#include "sql/derror.h"      // ER_THD
+#include "sql/sql_class.h"   // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_locale.h"  // my_locale_en_US
+#include "sql/sql_time.h"    // make_truncated_value_warning
+#include "sql/strfunc.h"     // check_word
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/tztime.h"      // Time_zone
 #include "template_utils.h"
-#include "tztime.h"          // Time_zone
 
 using std::min;
 using std::max;
@@ -3369,7 +3371,7 @@ bool Item_func_str_to_date::resolve_type(THD *thd)
   sql_mode= thd->variables.sql_mode & (MODE_NO_ZERO_DATE |
                                        MODE_NO_ZERO_IN_DATE |
                                        MODE_INVALID_DATES);
-  if ((const_item= args[1]->const_item()))
+  if (args[1]->const_item())
   {
     char format_buff[64];
     String format_str(format_buff, sizeof(format_buff), &my_charset_bin);
@@ -3485,32 +3487,48 @@ bool Item_func_internal_update_time::get_date(MYSQL_TIME *ltime,
   String *table_name_ptr= nullptr;
   String engine_name;
   String *engine_name_ptr= nullptr;
+  bool skip_hidden_table= args[4]->val_int();
   String ts_se_private_data;
-  String *ts_se_private_data_ptr= args[4]->val_str(&ts_se_private_data);
+  String *ts_se_private_data_ptr= args[5]->val_str(&ts_se_private_data);
+  ulonglong stat_data= args[6]->val_uint();
+  ulonglong cached_timestamp= args[7]->val_uint();
   ulonglong unixtime= 0;
 
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
       (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
       (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
-      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
+      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()) &&
+      ! skip_hidden_table)
   {
     dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
     THD *thd= current_thd;
+
+    MYSQL_TIME time;
+    bool not_used;
+    // Convert longlong time to MYSQL_TIME format
+    my_longlong_to_datetime_with_warn(stat_data, &time, MYF(0));
+
+    // Convert MYSQL_TIME to epoc second according to local time_zone as
+    // cached_timestamp value is with local time_zone
+    my_time_t timestamp;
+    timestamp= thd->variables.time_zone->TIME_to_gmt_sec(&time, &not_used);
 
     // Make sure we have safe string to access.
     schema_name_ptr->c_ptr_safe();
     table_name_ptr->c_ptr_safe();
     engine_name_ptr->c_ptr_safe();
 
-    unixtime= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+    unixtime= thd->lex->m_IS_table_stats.read_stat(thd,
                 *schema_name_ptr,
                 *table_name_ptr,
                 *engine_name_ptr,
+                nullptr,
                 se_private_id,
                 (ts_se_private_data_ptr ?
                  ts_se_private_data_ptr->c_ptr_safe() : nullptr),
                 nullptr,
-                dd::info_schema::enum_statistics_type::TABLE_UPDATE_TIME);
+                static_cast<ulonglong>(timestamp), cached_timestamp,
+                dd::info_schema::enum_table_stats_type::TABLE_UPDATE_TIME);
     if (unixtime)
     {
       null_value= 0;
@@ -3544,14 +3562,18 @@ bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
   String *table_name_ptr= nullptr;
   String engine_name;
   String *engine_name_ptr= nullptr;
+  bool skip_hidden_table= args[4]->val_int();
   String ts_se_private_data;
-  String *ts_se_private_data_ptr= args[4]->val_str(&ts_se_private_data);
+  String *ts_se_private_data_ptr= args[5]->val_str(&ts_se_private_data);
+  ulonglong stat_data= args[6]->val_uint();
+  ulonglong cached_timestamp= args[7]->val_uint();
   ulonglong unixtime= 0;
 
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
       (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
       (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
-      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
+      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()) &&
+      ! skip_hidden_table)
   {
     dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
     THD *thd= current_thd;
@@ -3561,15 +3583,18 @@ bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
     table_name_ptr->c_ptr_safe();
     engine_name_ptr->c_ptr_safe();
 
-    unixtime= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+    unixtime= thd->lex->m_IS_table_stats.read_stat(thd,
                 *schema_name_ptr,
                 *table_name_ptr,
                 *engine_name_ptr,
+                nullptr,
                 se_private_id,
                 (ts_se_private_data_ptr ?
                  ts_se_private_data_ptr->c_ptr_safe() : nullptr),
                 nullptr,
-                dd::info_schema::enum_statistics_type::CHECK_TIME);
+                stat_data, cached_timestamp,
+                dd::info_schema::enum_table_stats_type::CHECK_TIME);
+
     if (unixtime)
     {
       null_value= 0;

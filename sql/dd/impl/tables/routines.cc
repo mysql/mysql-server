@@ -13,16 +13,16 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/routines.h"
+#include "sql/dd/impl/tables/routines.h"
 
 #include <new>
 
-#include "dd/dd.h"                       // dd::create_object
-#include "dd/impl/raw/object_keys.h"     // dd::Routine_name_key
-#include "dd/impl/raw/raw_record.h"      // dd::Raw_record
-#include "dd/impl/types/object_table_definition_impl.h"
-#include "dd/types/function.h"           // dd::Function
-#include "dd/types/procedure.h"          // dd::Procedure
+#include "sql/dd/dd.h"                   // dd::create_object
+#include "sql/dd/impl/raw/object_keys.h" // dd::Routine_name_key
+#include "sql/dd/impl/raw/raw_record.h"  // dd::Raw_record
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/types/function.h"       // dd::Function
+#include "sql/dd/types/procedure.h"      // dd::Procedure
 
 namespace dd {
 namespace tables {

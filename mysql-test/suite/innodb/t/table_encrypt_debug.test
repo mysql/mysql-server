@@ -26,7 +26,6 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table `tde_db`.`t
 call mtr.add_suppression("\\[Warning\\] InnoDB: Database page corruption or a failed file read of page");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
 --enable_query_log
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;

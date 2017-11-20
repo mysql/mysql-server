@@ -19,21 +19,21 @@
 
 #include <stddef.h>
 
-#include "lex_string.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
+#include "my_psi_config.h"
+#include "mysql/components/services/psi_socket_bits.h"
+#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_idle.h"       // MYSQL_SOCKET_SET_STATE,
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/psi_socket.h"
-#include "mysql/psi/psi_statement.h"
 #include "mysql_com.h"
 #include "mysql_com_server.h"
+#include "sql/key.h"
                                         // MYSQL_START_IDLE_WAIT
-#include "mysqld.h"                     // stage_starting
-#include "protocol_classic.h"
-#include "sql_class.h"                  // THD
-#include "sql_plugin.h"
+#include "sql/mysqld.h"                 // stage_starting
+#include "sql/protocol_classic.h"
+#include "sql/sql_class.h"              // THD
 #include "violite.h"
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE     // TODO: << nonconformance with HAVE_PSI_INTERFACE

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,6 +86,12 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_FSREMOVEREF, &Backup::execFSREMOVEREF, true);
   addRecSignal(GSN_FSREMOVECONF, &Backup::execFSREMOVECONF);
 
+  addRecSignal(GSN_FSREADREF, &Backup::execFSREADREF, true);
+  addRecSignal(GSN_FSREADCONF, &Backup::execFSREADCONF);
+
+  addRecSignal(GSN_FSWRITEREF, &Backup::execFSWRITEREF, true);
+  addRecSignal(GSN_FSWRITECONF, &Backup::execFSWRITECONF);
+
   /*****/
   addRecSignal(GSN_BACKUP_REQ, &Backup::execBACKUP_REQ);
   addRecSignal(GSN_ABORT_BACKUP_ORD, &Backup::execABORT_BACKUP_ORD);
@@ -120,6 +126,10 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_BACKUP_LOCK_TAB_CONF, &Backup::execBACKUP_LOCK_TAB_CONF);
   addRecSignal(GSN_BACKUP_LOCK_TAB_REF, &Backup::execBACKUP_LOCK_TAB_REF);
 
+  addRecSignal(GSN_RESTORABLE_GCI_REP, &Backup::execRESTORABLE_GCI_REP);
+  addRecSignal(GSN_INFORM_BACKUP_DROP_TAB_REQ,
+               &Backup::execINFORM_BACKUP_DROP_TAB_REQ);
+
   addRecSignal(GSN_LCP_STATUS_REQ, &Backup::execLCP_STATUS_REQ);
 
   /**
@@ -133,10 +143,30 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_LCP_PREPARE_REQ, &Backup::execLCP_PREPARE_REQ);
   addRecSignal(GSN_END_LCPREQ, &Backup::execEND_LCPREQ);
 
+  addRecSignal(GSN_SYNC_PAGE_CACHE_CONF, &Backup::execSYNC_PAGE_CACHE_CONF);
+  addRecSignal(GSN_SYNC_EXTENT_PAGES_CONF,
+               &Backup::execSYNC_EXTENT_PAGES_CONF);
+
   addRecSignal(GSN_DBINFO_SCANREQ, &Backup::execDBINFO_SCANREQ);
 
   addRecSignal(GSN_CHECK_NODE_RESTARTCONF,
                &Backup::execCHECK_NODE_RESTARTCONF);
+  {
+    CallbackEntry& ce = m_callbackEntry[THE_NULL_CALLBACK];
+    ce.m_function = TheNULLCallback.m_callbackFunction;
+    ce.m_flags = 0;
+  }
+  { // 1
+    CallbackEntry& ce = m_callbackEntry[SYNC_LOG_LCP_LSN];
+    ce.m_function = safe_cast(&Backup::sync_log_lcp_lsn_callback);
+    ce.m_flags = 0;
+  }
+  {
+    CallbackTable& ct = m_callbackTable;
+    ct.m_count = COUNT_CALLBACKS;
+    ct.m_entry = m_callbackEntry;
+    m_callbackTableAddr = &ct;
+  }
 }
   
 Backup::~Backup()
@@ -167,6 +197,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_defaults.m_backup_disk_write_pct = 50;
 
   Uint32 noBackups = 0, noTables = 0, noFrags = 0;
+  Uint32 noDeleteLcpFile = 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, 
 					&c_defaults.m_diskless));
   ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT,
@@ -192,6 +223,10 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_COMPRESSED_LCP,
 			    &c_defaults.m_compressed_lcp);
 
+  m_enable_partial_lcp = 0; /* Default to disabled */
+  ndb_mgm_get_int_parameter(p, CFG_DB_ENABLE_PARTIAL_LCP,
+                            &m_enable_partial_lcp);
+
   calculate_real_disk_write_speed_parameters();
 
   jam();
@@ -203,19 +238,35 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   //  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &noTables));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, &noFrags));
+  ndbrequire(!ndb_mgm_get_int_parameter(p,
+                                        CFG_LQH_FRAG,
+                                        &noDeleteLcpFile));
 
+  ndbrequire(noBackups == 1); /* To make sure we fix things if we allow other values */
+
+  /**
+   * On top of Backup records we need for LCP:
+   * 1 Backup record
+   * 5 files
+   *  2 CTL files for prepare and execute
+   *  2 Data files for prepare and execute
+   *  1 Data file for delete file process
+   * 2 tables
+   * 2 fragments
+   */
   c_nodePool.setSize(MAX_NDB_NODES);
   c_backupPool.setSize(noBackups + 1);
-  c_backupFilePool.setSize(3 * noBackups + 1);
-  c_tablePool.setSize(noBackups * noTables + 1);
+  c_backupFilePool.setSize(3 * noBackups + 6);
+  c_tablePool.setSize(noBackups * noTables + 2);
   c_triggerPool.setSize(noBackups * 3 * noTables);
-  c_fragmentPool.setSize(noBackups * noFrags + 1);
+  c_fragmentPool.setSize(noBackups * noFrags + 2);
+  c_deleteLcpFilePool.setSize(noDeleteLcpFile);
 
   c_tableMap = (Uint32*)allocRecord("c_tableMap",
                                     sizeof(Uint32),
-                                    noBackups * noTables + 1);
+                                    noBackups * noTables);
 
-  for (Uint32 i = 0; i < (noBackups * noTables + 1); i++)
+  for (Uint32 i = 0; i < (noBackups * noTables); i++)
   {
     c_tableMap[i] = RNIL;
   }
@@ -224,7 +275,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 
   const Uint32 DEFAULT_WRITE_SIZE = (256 * 1024);
   const Uint32 DEFAULT_MAX_WRITE_SIZE = (1024 * 1024);
-  const Uint32 DEFAULT_BUFFER_SIZE = (16 * 1024 * 1024);
+  const Uint32 DEFAULT_BUFFER_SIZE = (2 * 1024 * 1024);
 
   Uint32 szDataBuf = DEFAULT_BUFFER_SIZE;
   Uint32 szLogBuf = DEFAULT_BUFFER_SIZE;
@@ -285,19 +336,24 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
     g_eventLogger->info("BackupMemory parameter setting ignored,"
                         " BackupMemory deprecated");
   }
-  szMem = szDataBuf + szLogBuf;
 
   /**
    * We allocate szDataBuf + szLogBuf pages for Backups and
-   * szDataBuf pages for LCPs.
+   * szDataBuf * 2 pages for LCPs.
+   * We also need pages for 3 CTL files for LCP and one file for
+   * delete LCP process (2 per file),
+   * for backups the meta data file uses NO_OF_PAGES_META_FILE.
+   * We need to allocate an additional of 1 page because of a bug
+   * in ArrayPool.
    */
   Uint32 noPages =
-    (szMem + sizeof(Page32) - 1) / sizeof(Page32) +
-    (c_defaults.m_lcp_buffer_size + sizeof(Page32) - 1) / sizeof(Page32);
+    (szDataBuf + sizeof(Page32) - 1) / sizeof(Page32) +
+    (szLogBuf + sizeof(Page32) - 1) / sizeof(Page32) +
+    (2 * ((c_defaults.m_lcp_buffer_size + sizeof(Page32) - 1) /
+           sizeof(Page32)));
 
-  // We need to allocate an additional of 2 pages. 1 page because of a bug in
-  // ArrayPool and another one for DICTTABINFO.
-  c_pagePool.setSize(noPages + NO_OF_PAGES_META_FILE + 2, true); 
+  Uint32 seizeNumPages = noPages + (1*NO_OF_PAGES_META_FILE)+ 9;
+  c_pagePool.setSize(seizeNumPages, true);
 
   jam();
 

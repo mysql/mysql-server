@@ -118,7 +118,7 @@ hash_create(
 	/* The default type of hash_table is HASH_TABLE_SYNC_NONE i.e.:
 	the caller is responsible for access control to the table. */
 	table->type = HASH_TABLE_SYNC_NONE;
-	table->array = array;
+	table->cells = array;
 	table->n_cells = prime;
 #ifndef UNIV_HOTBACKUP
 # if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -146,7 +146,7 @@ hash_table_free(
 {
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 
-	ut_free(table->array);
+	ut_free(table->cells);
 	ut_free(table);
 }
 

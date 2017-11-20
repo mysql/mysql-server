@@ -15,7 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "thread_specific_connection_provider.h"
+#include "client/dump/thread_specific_connection_provider.h"
 
 #include <stddef.h>
 #include <functional>

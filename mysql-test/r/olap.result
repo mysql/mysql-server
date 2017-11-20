@@ -97,12 +97,11 @@ NULL	NULL	NULL	7785
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN EXTENDED SELECT product, country_id , year, SUM(profit)
+EXPLAIN SELECT product, country_id , year, SUM(profit)
 FROM t1 GROUP BY product, country_id, year WITH ROLLUP;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`product` AS `product`,`test`.`t1`.`country_id` AS `country_id`,`test`.`t1`.`year` AS `year`,sum(`test`.`t1`.`profit`) AS `SUM(profit)` from `test`.`t1` group by `test`.`t1`.`product`,`test`.`t1`.`country_id`,`test`.`t1`.`year` with rollup
 SELECT product, country_id , SUM(profit) FROM t1
 GROUP BY product desc, country_id WITH ROLLUP;
@@ -1216,3 +1215,39 @@ NULL	NULL	NULL	0	1
 1111	NULL	112	0	1
 NULL	NULL	622	1	1
 DROP TABLE t0,t1;
+#
+# Bug#25174118 ROLLUP NULL'S GET REPLACED WITH LAST ROW'S VALUE FOR PREPARED STMTS ON A VIEW
+#
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES(1),(2),(3);
+CREATE VIEW v AS SELECT * FROM t;
+SELECT COALESCE(a,'rollup_null') FROM v GROUP BY a WITH ROLLUP;
+COALESCE(a,'rollup_null')
+1
+2
+3
+rollup_null
+PREPARE ps FROM
+"SELECT COALESCE(a,'rollup_null') FROM v GROUP BY a WITH ROLLUP";
+EXECUTE ps;
+COALESCE(a,'rollup_null')
+1
+2
+3
+rollup_null
+DROP TABLE t;
+DROP PREPARE ps;
+DROP VIEW v;
+# Bug#25727892: Refactor Item::const_item() as a non-virtual function
+Extended coverage for ROLLUP and const expressions
+CREATE TABLE t1 (a INTEGER) ENGINE=InnoDB;
+CREATE TABLE t2 (c INTEGER) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (7),(8);
+INSERT INTO t2 VALUES (-3);
+SELECT c, a, SUM(c) OVER () FROM t1,t2 GROUP BY c,a WITH ROLLUP;
+c	a	SUM(c) OVER ()
+-3	7	-12
+-3	8	-12
+-3	NULL	-12
+NULL	NULL	-12
+DROP TABLE t1, t2;

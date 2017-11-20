@@ -12,9 +12,11 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_ddl_log                               OK
 mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
@@ -39,11 +41,13 @@ sys.sys_config                                     OK
 # Bug#24447771 ACL_INIT() RETURNS TRUE ON 5.7 DATA DIRECTORY
 #
 CALL mtr.add_suppression("Could not load mysql.role_edges and mysql.default_roles tables. ACL DDLs will not work unless mysql_upgrade is executed.");
+CALL mtr.add_suppression("ACL table mysql.role_edges missing. Some operations may fail.");
+CALL mtr.add_suppression("ACL table mysql.default_roles missing. Some operations may fail.");
 DROP TABLE mysql.role_edges;
 DROP TABLE mysql.default_roles;
-#Restart the server
-# restart
+# restart:--log-error=MYSQLTEST_VARDIR/log/roles-upgrade.err
 # let's check for the presense of the warning
+Pattern "Could not load mysql.role_edges and mysql.default_roles tables. ACL DDLs will not work unless mysql_upgrade is executed." found
 # ACL DDLs should not work
 CREATE USER u1;
 ERROR 42S02: Table 'mysql.role_edges' doesn't exist
@@ -65,9 +69,11 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_ddl_log                               OK
 mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK

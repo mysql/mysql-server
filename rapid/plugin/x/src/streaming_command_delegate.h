@@ -22,14 +22,14 @@
 
 #include <sys/types.h>
 
+#include "ngs/protocol/message.h"
 #include "my_inttypes.h"
 #include "ngs/command_delegate.h"
-
 
 namespace ngs
 {
 
-  class Protocol_encoder;
+  class Protocol_encoder_interface;
 
 }  // namespace ngs
 
@@ -39,7 +39,7 @@ namespace xpl
   class Streaming_command_delegate : public ngs::Command_delegate
   {
   public:
-    Streaming_command_delegate(ngs::Protocol_encoder *proto);
+    Streaming_command_delegate(ngs::Protocol_encoder_interface *proto);
     virtual ~Streaming_command_delegate();
 
     void set_compact_metadata(bool flag) { m_compact_metadata = flag; }
@@ -78,7 +78,7 @@ namespace xpl
     bool send_column_metadata(uint64_t xcollation, const Mysqlx::Resultset::ColumnMetaData::FieldType &xtype,
                               uint32_t xflags, uint32_t ctype, const st_send_field *field);
 
-    ngs::Protocol_encoder *m_proto;
+    ngs::Protocol_encoder_interface *m_proto;
     const CHARSET_INFO *m_resultcs;
     bool m_sent_result;
     bool m_compact_metadata;

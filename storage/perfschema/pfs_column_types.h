@@ -215,12 +215,14 @@ enum enum_object_type
   OBJECT_TYPE_USER_LEVEL_LOCK = 10,
   OBJECT_TYPE_TABLESPACE = 11,
   OBJECT_TYPE_LOCKING_SERVICE = 12,
-  OBJECT_TYPE_ACL_CACHE = 13
+  OBJECT_TYPE_ACL_CACHE = 13,
+  OBJECT_TYPE_BACKUP_LOCK = 14,
+  OBJECT_TYPE_RESOURCE_GROUPS = 15
 };
 /** Integer, first value of @sa enum_object_type. */
 #define FIRST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_EVENT))
 /** Integer, last value of @sa enum_object_type. */
-#define LAST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_ACL_CACHE))
+#define LAST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_RESOURCE_GROUPS))
 /** Integer, number of values of @sa enum_object_type. */
 #define COUNT_OBJECT_TYPE (LAST_OBJECT_TYPE - FIRST_OBJECT_TYPE + 1)
 
@@ -326,5 +328,16 @@ enum enum_transaction_mode
 #define LAST_TRANS_MODE (static_cast<int>(TRANS_MODE_READ_ONLY))
 /** Integer, number of values of @sa enum_transaction_mode. */
 #define COUNT_TRANS_MODE (LAST_TRANS_MODE - FIRST_TRANS_MODE + 1)
+
+/* Flags exposed in setup_instruments.properties */
+#define INSTR_PROPERTIES_SET_SINGLETON (1 << 0)
+#define INSTR_PROPERTIES_SET_PROGRESS (1 << 1)
+#define INSTR_PROPERTIES_SET_USER (1 << 2)
+#define INSTR_PROPERTIES_SET_GLOBAL_STAT (1 << 3)
+#define INSTR_PROPERTIES_SET_MUTABLE (1 << 4)
+
+/* Flags exposed in setup_threads.properties */
+#define THREAD_PROPERTIES_SET_SINGLETON (1 << 0)
+#define THREAD_PROPERTIES_SET_USER (1 << 1)
 
 #endif

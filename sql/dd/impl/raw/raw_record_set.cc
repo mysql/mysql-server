@@ -13,17 +13,18 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/raw/raw_record_set.h"
+#include "sql/dd/impl/raw/raw_record_set.h"
 
 #include <sys/types.h>
 
-#include "dd/impl/raw/raw_key.h"            // dd::Raw_key
-#include "handler.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "table.h"                          // TABLE
+#include "mysql/udf_registration_types.h"
+#include "sql/dd/impl/raw/raw_key.h"        // dd::Raw_key
+#include "sql/handler.h"
+#include "sql/table.h"                      // TABLE
 
 namespace dd {
 

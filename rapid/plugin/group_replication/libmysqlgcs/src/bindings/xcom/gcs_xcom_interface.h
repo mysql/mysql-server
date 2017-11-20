@@ -29,8 +29,9 @@
 #include "mysql/gcs/xplatform/my_xp_thread.h"
 #include "mysql/gcs/xplatform/my_xp_mutex.h"
 #include "mysql/gcs/xplatform/my_xp_cond.h"
-#include "mysql/gcs/gcs_logging.h"
+#include "mysql/gcs/gcs_logging_system.h"
 #include "mysql/gcs/gcs_interface.h"
+#include "mysql/gcs/gcs_psi.h"
 
 #include "gcs_xcom_communication_interface.h"
 #include "gcs_xcom_control_interface.h"
@@ -129,7 +130,7 @@ public:
   enum_gcs_error configure_suspicions_mgr(Gcs_interface_parameters &p,
                                           Gcs_suspicions_manager *mgr);
 
-  enum_gcs_error set_logger(Ext_logger_interface *logger);
+  enum_gcs_error set_logger(Logger_interface *logger);
 
   void set_xcom_group_information(const std::string &group_id);
 
@@ -181,6 +182,29 @@ public:
 
 
 private:
+  /**
+    Method to initialize the logging and debugging systems. If something
+    bad happens, an error is returned.
+
+
+    @param[in] debug_file File where the debug information on GCS will
+                          be stored to
+    @param[in] debug_path Default path where the debug information on GCS
+                          will be stored to
+  */
+
+  enum_gcs_error initialize_logging(const std::string *debug_file,
+                                    const std::string *debug_path);
+
+
+  /**
+    Method to finalize the logging and debugging systems. If something
+    bad happens, an error is returned.
+  */
+
+  enum_gcs_error finalize_logging();
+
+
   /**
     Internal helper method that retrieves all group interfaces for a certain
     group.
@@ -280,8 +304,14 @@ private:
    */
   Gcs_interface_parameters m_initialization_parameters;
 
+  // Store pointer to default sink
+  Gcs_async_buffer *m_default_sink;
+
   // Store pointer to default logger
-  Ext_logger_interface *m_default_logger;
+  Logger_interface *m_default_logger;
+
+  // Store pointer to default debugger
+  Gcs_default_debugger *m_default_debugger;
 
   /**
    The IP whitelist.

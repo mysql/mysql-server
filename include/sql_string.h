@@ -25,6 +25,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <new>
+#include <string>
 
 #include "lex_string.h"
 #include "m_ctype.h"                         // my_convert
@@ -688,6 +689,11 @@ public:
 static inline void swap(String &a, String &b) noexcept
 {
   a.swap(b);
+}
+
+static inline std::string to_string(const String &str)
+{
+  return std::string(str.ptr(), str.length());
 }
 
 

@@ -2,6 +2,11 @@
 -- source include/no_valgrind_without_big.inc
 -- source include/mysql_upgrade_preparation.inc
 
+--let $test_error_log= $MYSQL_TMP_DIR/mysql_upgrade_grant.err
+--let $restart_parameters=restart:--log-error=$test_error_log
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+
 #
 # Bug #25452 mysql_upgrade access denied.
 #
@@ -67,26 +72,25 @@ call mtr.add_suppression("User entry .B19011337");
 FLUSH PRIVILEGES;
 
 --echo # let's check for the presense of the warning
-let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-# $server_log has to be processed by include/search_pattern_in_file.inc which
+# $test_error_log has to be processed by include/search_pattern.inc which
 # contains Perl code requiring that the environment variable SEARCH_FILE points
 # to this file.
-let SEARCH_FILE= $server_log;
+let SEARCH_FILE= $test_error_log;
 
 --let SEARCH_PATTERN= User entry 'B19011337_ohash'@'localhost' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= 1. Stop
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= 2. Run
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= 3. Restart
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= For complete instructions on how to upgrade MySQL
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # end of check for the presense of the warning
 
 --echo # repair the user's plugin
@@ -154,13 +158,13 @@ INSERT INTO mysql.user VALUES
 FLUSH PRIVILEGES;
 
 --echo # check the presents of the warnings in the log file
-let SEARCH_FILE= $server_log;
+let SEARCH_FILE= $test_error_log;
 
 --let SEARCH_PATTERN= User entry 'user_old_pass_pn'@'%' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= User entry 'su_old_pass_pn'@'%' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # end of check for the presense of the warning
 
@@ -256,13 +260,13 @@ call mtr.add_suppression("User entry 'user_old_pass_pn'@'%' has an empty plugin 
 call mtr.add_suppression("User entry 'su_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 
 --echo # check the presents of the warnings in the log file
-let SEARCH_FILE= $server_log;
+let SEARCH_FILE= $test_error_log;
 
 --let SEARCH_PATTERN= User entry 'user_old_pass_pn'@'%' has an empty plugin value.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_PATTERN= User entry 'su_old_pass_pn'@'%' has an empty plugin value.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # end of check for the presense of the warning
 
@@ -271,6 +275,7 @@ disconnect con3;
 disconnect con4;
 
 --echo #Restart the server
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/restart_mysqld.inc
 
 --echo #After the update all acl commands should be working fine. Trying out
@@ -334,10 +339,10 @@ INSERT INTO mysql.user VALUES
 FLUSH PRIVILEGES;
 
 --echo # check the presents of the warnings in the log file
-let SEARCH_FILE= $server_log;
+let SEARCH_FILE= $test_error_log;
 
 --let SEARCH_PATTERN= User entry 'B20614545'@'localhost' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # end of check for the presense of the warning
 # Filter out ndb_binlog_index to mask differences due to running with or
@@ -348,15 +353,18 @@ let SEARCH_FILE= $server_log;
 call mtr.add_suppression("User entry 'B20614545'@'localhost' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 
 --echo # check the presents of the warnings in the log file
-let SEARCH_FILE= $server_log;
+let SEARCH_FILE= $test_error_log;
 
 --let SEARCH_PATTERN= User entry 'B20614545'@'localhost' has an empty plugin value.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # end of check for the presense of the warning
 
 --echo #Restart the server
+--let $restart_parameters=
 --source include/restart_mysqld.inc
+
+--remove_file $test_error_log
 
 --echo # expect empty plugin
 SELECT plugin FROM mysql.user WHERE user='B20614545';
@@ -436,5 +444,47 @@ DROP USER u1;
 
 --source include/mysql_upgrade_cleanup.inc
 
+
+--echo #
+--echo # Bug#26667007 - MYSQL UPGRADE TO 8.0.3 USER WITH RELOAD GRANTED BACKUP_ADMIN WITH GRANT OPTION
+--echo #
+
+--echo # Revoke privileges BACKUP_ADMIN and XA_RECOVER_ADMIN in order to simulate
+--echo # the case when upgrade is run against a database that was created by
+--echo # mysql server without support for BACKUP_ADMIN/XA_RECOVER_ADMIN.
+REVOKE BACKUP_ADMIN ON *.* FROM root@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM root@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
+CREATE USER u1;
+CREATE USER u2;
+
+GRANT RELOAD ON *.* TO u1;
+GRANT RELOAD ON *.* TO u2 WITH GRANT OPTION;
+
+GRANT SUPER ON *.* TO u1;
+GRANT SUPER ON *.* TO u2 WITH GRANT OPTION;
+
+SHOW GRANTS FOR u1;
+SHOW GRANTS FOR u2;
+
+--echo # Start upgrade
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo # Check that the user u1 has privileges BACKUP_ADMIN and XA_RECOVER_ADMIN granted
+SHOW GRANTS FOR u1;
+--echo # Check that the user u2 has privileges BACKUP_ADMIN and XA_RECOVER_ADMIN granted with grant option
+--echo # since originally RELOAD privilege and SUPER privilege were granted to user u2 with grant option
+SHOW GRANTS FOR u2;
+DROP USER u1;
+DROP USER u2;
+
+# Revoke privilege XA_RECOVER_ADMIN from the user mysql.session@localhost in order to
+# match contol checksum for mysql.global_grants
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
+
+--source include/mysql_upgrade_cleanup.inc
 --echo
 --echo End of tests

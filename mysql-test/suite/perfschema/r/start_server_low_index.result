@@ -89,6 +89,7 @@ select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
+select * from performance_schema.setup_threads;
 select * from performance_schema.setup_timers;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
@@ -222,6 +223,8 @@ from performance_schema.table_io_waits_summary_by_table
 where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME
+0	TABLE	db1	t1
+0	TABLE	db1	t2
 select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
 from performance_schema.table_io_waits_summary_by_index_usage
 where OBJECT_SCHEMA='db1'
@@ -233,6 +236,8 @@ from performance_schema.table_io_waits_summary_by_table
 where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME
+0	TABLE	db1	t1
+0	TABLE	db1	t2
 select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
 from performance_schema.table_io_waits_summary_by_index_usage
 where OBJECT_SCHEMA='db1'

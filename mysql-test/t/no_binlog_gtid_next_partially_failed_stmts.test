@@ -240,38 +240,9 @@ SELECT user FROM mysql.user where user='u1';
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 7]" = 0
 --source include/assert.inc
 
+# Check-7: RENAME TABLE
 --replace_result $master_uuid MASTER_UUID
 --eval SET SESSION GTID_NEXT='$master_uuid:7'
-CREATE VIEW v1 as SELECT 1;
-
-# Check-7: DROP VIEW
---replace_result $master_uuid MASTER_UUID
---eval SET SESSION GTID_NEXT='$master_uuid:8'
---error ER_BAD_TABLE_ERROR
-DROP VIEW v1, v2;
---echo #
---echo # The view v1 was dropped, which means DROP VIEW can be failed
---echo # partially when dropping multiple views.
---echo #
---error ER_NO_SUCH_TABLE
-SHOW CREATE VIEW v1;
---echo #
---echo # Verify that the partially failed DROP VIEW statement can consume
---echo # its gtid and save the gtid into @@GLOBAL.GTID_EXECUTED and
---echo # mysql.gtid_executed table when binlog is disabled as it did when
---echo # binlog is enabled.
---echo #
---replace_result $master_uuid MASTER_UUID
---let $assert_text= Committed gtid MASTER_UUID:8 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-8"
---source include/assert.inc
---let $assert_text= Saved gtid MASTER_UUID:8 into mysql.gtid_executed table
---let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 8]" = 1
---source include/assert.inc
-
-# Check-8: RENAME TABLE
---replace_result $master_uuid MASTER_UUID
---eval SET SESSION GTID_NEXT='$master_uuid:9'
 --error ER_NO_SUCH_TABLE
 RENAME TABLE t1 TO t2, t3 TO t4;
 --echo #
@@ -286,23 +257,67 @@ SHOW CREATE TABLE t1;
 --echo # when binlog is enabled.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Did not commit gtid MASTER_UUID:9 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-8"
+--let $assert_text= Did not commit gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-6"
 --source include/assert.inc
---let $assert_text= Did not save gtid MASTER_UUID:9 into mysql.gtid_executed table
---let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 9]" = 0
+--let $assert_text= Did not save gtid MASTER_UUID:7 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 7]" = 0
 --source include/assert.inc
 
-# Check-9: OPTIMIZE TABLE
+# Check-8: OPTIMIZE TABLE
 --echo #
 --echo # The OPTIMIZE TABLE statement can be failed partially when optimizing
 --echo # multiple tables, which contain a non-existent table.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---eval SET SESSION GTID_NEXT='$master_uuid:9'
+--eval SET SESSION GTID_NEXT='$master_uuid:7'
 OPTIMIZE TABLE t1, t_non_existent;
 --echo #
 --echo # When optimizing a non-existent table, verify that the OPTIMIZE TABLE
+--echo # statement saves its specified gtid into @@GLOBAL.GTID_EXECUTED and
+--echo # mysql.gtid_executed table when binlog is disabled as it did
+--echo # when binlog is enabled.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Committed gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-7"
+--source include/assert.inc
+--let $assert_text= Saved gtid MASTER_UUID:7 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 7]" = 1
+--source include/assert.inc
+
+# Check-9: ANALYZE TABLE
+--echo #
+--echo # The ANALYZE TABLE statement can be failed partially when analyzingu
+--echo # multiple tables, which contain a non-existent table.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:8'
+ANALYZE TABLE t1, t_non_existent;
+--echo #
+--echo # When analyzing a non-existent table, verify that the ANALYZE TABLE
+--echo # statement saves its specified gtid into @@GLOBAL.GTID_EXECUTED and
+--echo # mysql.gtid_executed table when binlog is disabled as it did
+--echo # when binlog is enabled.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Committed gtid MASTER_UUID:8 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-8"
+--source include/assert.inc
+--let $assert_text= Saved gtid MASTER_UUID:8 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 8]" = 1
+--source include/assert.inc
+
+# Check-10: REPAIR TABLE
+--echo #
+--echo # The REPAIR TABLE statement can be failed partially when repairing
+--echo # multiple tables, which contain a non-existent table.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:9'
+REPAIR TABLE t1, t_non_existent;
+--echo #
+--echo # When repairing a non-existent table, verify that the REPAIR TABLE
 --echo # statement saves its specified gtid into @@GLOBAL.GTID_EXECUTED and
 --echo # mysql.gtid_executed table when binlog is disabled as it did
 --echo # when binlog is enabled.
@@ -315,57 +330,13 @@ OPTIMIZE TABLE t1, t_non_existent;
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 9]" = 1
 --source include/assert.inc
 
-# Check-10: ANALYZE TABLE
---echo #
---echo # The ANALYZE TABLE statement can be failed partially when analyzingu
---echo # multiple tables, which contain a non-existent table.
---echo #
---replace_result $master_uuid MASTER_UUID
---eval SET SESSION GTID_NEXT='$master_uuid:10'
-ANALYZE TABLE t1, t_non_existent;
---echo #
---echo # When analyzing a non-existent table, verify that the ANALYZE TABLE
---echo # statement saves its specified gtid into @@GLOBAL.GTID_EXECUTED and
---echo # mysql.gtid_executed table when binlog is disabled as it did
---echo # when binlog is enabled.
---echo #
---replace_result $master_uuid MASTER_UUID
---let $assert_text= Committed gtid MASTER_UUID:10 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-10"
---source include/assert.inc
---let $assert_text= Saved gtid MASTER_UUID:10 into mysql.gtid_executed table
---let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 10]" = 1
---source include/assert.inc
-
-# Check-11: REPAIR TABLE
---echo #
---echo # The REPAIR TABLE statement can be failed partially when repairing
---echo # multiple tables, which contain a non-existent table.
---echo #
---replace_result $master_uuid MASTER_UUID
---eval SET SESSION GTID_NEXT='$master_uuid:11'
-REPAIR TABLE t1, t_non_existent;
---echo #
---echo # When repairing a non-existent table, verify that the REPAIR TABLE
---echo # statement saves its specified gtid into @@GLOBAL.GTID_EXECUTED and
---echo # mysql.gtid_executed table when binlog is disabled as it did
---echo # when binlog is enabled.
---echo #
---replace_result $master_uuid MASTER_UUID
---let $assert_text= Committed gtid MASTER_UUID:11 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-11"
---source include/assert.inc
---let $assert_text= Saved gtid MASTER_UUID:11 into mysql.gtid_executed table
---let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 11]" = 1
---source include/assert.inc
-
-# Check-12: CHECKSUM TABLE
+# Check-11: CHECKSUM TABLE
 --echo #
 --echo # The CHECKSUM TABLE statement can be failed partially when checksuming
 --echo # multiple tables, which contain a non-existent table.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---eval SET SESSION GTID_NEXT='$master_uuid:12'
+--eval SET SESSION GTID_NEXT='$master_uuid:10'
 CHECKSUM TABLE t1, t_non_existent;
 --echo #
 --echo # When checksuming a non-existent table, verify that the CHECKSUM TABLE
@@ -374,16 +345,16 @@ CHECKSUM TABLE t1, t_non_existent;
 --echo # when binlog is enabled.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Did not commit gtid MASTER_UUID:12 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-11"
+--let $assert_text= Did not commit gtid MASTER_UUID:10 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-9"
 --source include/assert.inc
---let $assert_text= Did not save gtid MASTER_UUID:12 into mysql.gtid_executed table
---let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 12]" = 0
+--let $assert_text= Did not save gtid MASTER_UUID:10 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 10]" = 0
 --source include/assert.inc
 
-# Check-13: RENAME USER
+# Check-12: RENAME USER
 --replace_result $master_uuid MASTER_UUID
---eval SET SESSION GTID_NEXT='$master_uuid:13'
+--eval SET SESSION GTID_NEXT='$master_uuid:11'
 --error ER_CANNOT_USER
 RENAME USER u1@h TO u11@h, u3@h TO u33@h;
 --echo #
@@ -397,17 +368,17 @@ SELECT user FROM mysql.user where user='u1';
 --echo # mysql.gtid_executed table.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Did not commit gtid MASTER_UUID:13 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-11"
+--let $assert_text= Did not commit gtid MASTER_UUID:11 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-9"
 --source include/assert.inc
---let $assert_text= Did not save gtid MASTER_UUID:13 and :14 into mysql.gtid_executed table
---let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 13]" = 0
+--let $assert_text= Did not save gtid MASTER_UUID:11 and :12 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 11]" = 0
 --source include/assert.inc
 
 # Check-14: ALTER USER
 SELECT password_expired FROM mysql.user where user='u1';
 --replace_result $master_uuid MASTER_UUID
---eval SET SESSION GTID_NEXT='$master_uuid:15'
+--eval SET SESSION GTID_NEXT='$master_uuid:13'
 --error ER_CANNOT_USER
 ALTER USER u1@h, u3@h PASSWORD EXPIRE;
 --echo #
@@ -421,21 +392,21 @@ SELECT password_expired FROM mysql.user where user='u1';
 --echo # mysql.gtid_executed table.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Did not commit gtid MASTER_UUID:15 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-11"
+--let $assert_text= Did not commit gtid MASTER_UUID:13 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-9"
 --source include/assert.inc
---let $assert_text= Did not save gtid MASTER_UUID:15 into mysql.gtid_executed table
---let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 15]" = 0
+--let $assert_text= Did not save gtid MASTER_UUID:13 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 13]" = 0
 --source include/assert.inc
 
 # Clean up
 --replace_result $master_uuid MASTER_UUID
---eval SET SESSION GTID_NEXT='$master_uuid:16'
+--eval SET SESSION GTID_NEXT='$master_uuid:14'
 DROP TABLE t1;
 --replace_result $master_uuid MASTER_UUID
---eval SET SESSION GTID_NEXT='$master_uuid:17'
+--eval SET SESSION GTID_NEXT='$master_uuid:15'
 DROP TABLE t5;
 
 --replace_result $master_uuid MASTER_UUID
---eval SET SESSION GTID_NEXT='$master_uuid:18'
+--eval SET SESSION GTID_NEXT='$master_uuid:16'
 DROP USER u1@h;

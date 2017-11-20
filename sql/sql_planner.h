@@ -210,6 +210,13 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *cost_arg,
   @param is_join_buffering  Whether or not condition filtering is about
                       to be calculated for an access method using join
                       buffering.
+  @param write_to_trace Wheter we should print the filtering effect calculated
+                      by histogram statistics and the final aggregated filtering
+                      effect to optimizer trace.
+  @param parent_trace The parent trace object where the final aggregated
+                      filtering effect will be printed if "write_to_trace" is
+                      set to true.
+
   @return  the 'post read filtering' effect (between 0 and 1) of 
            JOIN::conds
 */
@@ -217,5 +224,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
                                  const Key_use *const keyuse,
                                  table_map used_tables,
                                  double fanout,
-                                 bool is_join_buffering);
+                                 bool is_join_buffering,
+                                 bool write_to_trace,
+                                 Opt_trace_object &parent_trace);
 #endif /* SQL_PLANNER_INCLUDED */

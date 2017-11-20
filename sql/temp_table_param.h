@@ -16,10 +16,10 @@
 #ifndef TEMP_TABLE_PARAM_INCLUDED
 #define TEMP_TABLE_PARAM_INCLUDED
 
-#include "mem_root_array.h"
 #include "my_base.h"
-#include "sql_alloc.h"
-#include "sql_list.h"
+#include "sql/mem_root_array.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_list.h"
 
 
 struct st_columndef;

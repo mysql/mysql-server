@@ -15,7 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "sql_formatter_options.h"
+#include "client/dump/sql_formatter_options.h"
 
 using namespace Mysql::Tools::Dump;
 
@@ -70,7 +70,8 @@ void Sql_formatter_options::create_options()
     ->set_value(enum_gtid_purged_mode::GTID_PURGED_AUTO);
   this->create_new_option(&m_column_statistics,
     "column-statistics",
-    "Add a ANALYZE TABLE-statement for any existing column statistics.")
+    "Add an ANALYZE TABLE statement to regenerate any existing column "
+    "statistics.")
     ->set_value(false);
 }
 

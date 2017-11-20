@@ -226,7 +226,7 @@ SET PERSIST concurrent_insert=AUTO;
 { "mysql_server": {"concurrent_insert": "AUTO" , "long_query_time": "2.999999" } }
 # negative tests persist session only variables
 SET @@persist.sql_log_bin=0;
-ERROR 42000: Variable 'sql_log_bin' can't be set to the value of '0'
+ERROR HY000: Variable 'sql_log_bin' is a SESSION variable and can't be used with SET GLOBAL
 # Test persisted-globals-load
 SELECT @@global.persisted_globals_load;
 @@global.persisted_globals_load

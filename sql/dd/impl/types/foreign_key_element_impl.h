@@ -19,24 +19,24 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <new>
-#include <string>
 
-#include "dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
-#include "dd/sdi_fwd.h"
-#include "dd/types/foreign_key_element.h"    // dd::Foreign_key_element
-#include "dd/types/object_type.h"            // dd::Object_id
+#include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/foreign_key_element.h" // dd::Foreign_key_element
+#include "sql/dd/types/object_type.h"        // dd::Object_id
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Foreign_key_impl;
-class Open_dictionary_tables_ctx;
-class Raw_record;
 class Column;
 class Foreign_key;
+class Foreign_key_impl;
 class Object_key;
 class Object_table;
+class Open_dictionary_tables_ctx;
+class Raw_record;
 class Sdi_rcontext;
 class Sdi_wcontext;
 class Weak_object;

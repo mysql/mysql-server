@@ -40,6 +40,34 @@ static bool g_use_old_format = false;
 #define UNCOMMITTED_MASK ((1 << 2) | (1 << 3))
 #define UNCOMMITTED_SHIFT 2
 
+//#define DEBUG_TSMAN 1
+#ifdef DEBUG_TSMAN
+#define DEB_TSMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_TSMAN(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_TSMAN_NUM_EXTENTS 1
+#ifdef DEBUG_TSMAN_NUM_EXTENTS
+#define DEB_TSMAN_NUM_EXTENTS(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_TSMAN_NUM_EXTENTS(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_TSMAN_RESTART 1
+#ifdef DEBUG_TSMAN_RESTART
+#define DEB_TSMAN_RESTART(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_TSMAN_RESTART(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_TSMAN_IO 1
+#ifdef DEBUG_TSMAN_IO
+#define DEB_TSMAN_IO(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_TSMAN_IO(arglist) do { } while (0)
+#endif
+
 #define DBG_UNDO 0
 
 Tsman::Tsman(Block_context& ctx) :
@@ -729,6 +757,8 @@ Tsman::release_extent_pages(Signal* signal, Ptr<Datafile> ptr)
     Page_cache_client::Request preq;
     preq.m_page.m_file_no = ptr.p->m_file_no;
     preq.m_page.m_page_no = page;
+    preq.m_table_id = RNIL;
+    preq.m_fragment_id = 0;
     
     preq.m_callback.m_callbackData = ptr.i;
     preq.m_callback.m_callbackFunction = 
@@ -924,14 +954,17 @@ Tsman::open_file(Signal* signal,
   req->fileFlags |= FsOpenReq::OM_THREAD_POOL;
   switch(requestInfo){
   case CreateFileImplReq::Create:
+    DEB_TSMAN_RESTART(("File::Create"));
     req->fileFlags |= FsOpenReq::OM_CREATE_IF_NONE;
     req->fileFlags |= FsOpenReq::OM_INIT;
     break;
   case CreateFileImplReq::CreateForce:
+    DEB_TSMAN_RESTART(("File::CreateForce"));
     req->fileFlags |= FsOpenReq::OM_CREATE;
     req->fileFlags |= FsOpenReq::OM_INIT;
     break;
   case CreateFileImplReq::Open:
+    DEB_TSMAN_RESTART(("File::Open"));
     req->fileFlags |= FsOpenReq::OM_READ_SIZE;
     break;
   default:
@@ -1179,6 +1212,9 @@ Tsman::execFSOPENCONF(Signal* signal)
   case CreateFileImplReq::CreateForce:
   {
     jam();
+    const Uint32 extents = ptr.p->m_create.m_data_pages/ts_ptr.p->m_extent_size;
+    ts_ptr.p->m_total_extents += Uint64(extents); // At initial start
+    DEB_TSMAN_NUM_EXTENTS(("Total num_extents: %llu", ts_ptr.p->m_total_extents));
     
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = ptr.p->m_create.m_senderData;
@@ -1230,6 +1266,16 @@ Tsman::execFSOPENCONF(Signal* signal)
       else if (file_size > calc_file_size_v1)
       {
         jam();
+        g_eventLogger->info("file_size = %llu, calc_file_size: %llu, calc_file_size_v1: %llu"
+                            "num data_pages: %llu, num extent_pages: %llu"
+                            "extent_size: %llu, num_extents: %llu",
+                            file_size,
+                            calc_file_size,
+                            calc_file_size_v1,
+                            data_pages,
+                            extent_pages,
+                            extent_size,
+                            num_extents);
         ptr.p->m_create.m_error_code = CreateFileImplRef::FileSizeTooLarge;
       }
       else
@@ -1399,6 +1445,9 @@ Tsman::execFSREADCONF(Signal* signal){
      */
     m_global_page_pool.release(page_ptr);
 
+    ts_ptr.p->m_total_extents += Uint64(extents); // At node restart
+    DEB_TSMAN_NUM_EXTENTS(("Total num_extents: %llu", ts_ptr.p->m_total_extents));
+
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = ptr.p->m_create.m_senderData;
     conf->senderRef = reference();
@@ -1436,6 +1485,8 @@ Tsman::load_extent_pages(Signal* signal, Ptr<Datafile> ptr)
   Page_cache_client::Request preq;
   preq.m_page.m_file_no = ptr.p->m_file_no;
   preq.m_page.m_page_no = ptr.p->m_create.m_loading_extent_page;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
 
   preq.m_callback.m_callbackData = ptr.i;
   preq.m_callback.m_callbackFunction = 
@@ -1503,7 +1554,8 @@ Tsman::load_extent_page_callback(Signal* signal,
   ptr.p->m_online.m_offset_data_pages = 1 + extent_pages;
   ptr.p->m_online.m_first_free_extent = per_page;
   ptr.p->m_online.m_lcp_free_extent_head = RNIL;  
-  ptr.p->m_online.m_lcp_free_extent_tail = RNIL;  
+  ptr.p->m_online.m_lcp_free_extent_tail = RNIL;
+  ptr.p->m_online.m_lcp_free_extent_count = 0;
   ptr.p->m_online.m_data_pages = data_pages;
   ptr.p->m_online.m_used_extent_cnt = 0;
   ptr.p->m_online.m_extent_headers_per_extent_page = per_page;
@@ -1588,6 +1640,10 @@ Tsman::scan_datafile(Signal* signal, Uint32 ptrI, Uint32 filePtrI)
   }
 }
 
+/**
+ * This function is used during restarts to ensure that DBTUP and TSMAN
+ * gets its in-memory representations of free pages in extents up to date.
+ */
 void
 Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
 {
@@ -1606,6 +1662,8 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
     Page_cache_client::Request preq;
     preq.m_page.m_page_no = page_no;
     preq.m_page.m_file_no = ptr.p->m_file_no;
+    preq.m_table_id = RNIL;
+    preq.m_fragment_id = 0;
     
     int flags = Page_cache_client::DIRTY_REQ;
     Page_cache_client pgman(this, m_pgman);
@@ -1623,8 +1681,8 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
       jam();
       /**
        * Last extent header page...
-       *   set correct no of extent headers
-       *   not all extent entries on this page is used.
+       * This extent page might not be used fully, so
+       * set correct no of extent headers on this page.
        */
       Uint32 total_extents = datapages / size;
       extents= total_extents - (pages - 1)*per_page;
@@ -1649,6 +1707,8 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
         jam();
         /* This extent was free still, so no need to do anything. */
         D("extent free" << V(j));
+        DEB_TSMAN_RESTART(("extent(%u,%u) free", ptr.p->m_file_no,
+                            ((page_no * per_page) + extent_no)));
         (*ext_table_id) = RNIL;
         (*ext_next_free_extent) = firstFree;
         firstFree = page_no * per_page + extent_no;
@@ -1683,23 +1743,37 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
         key.m_page_no = 
           pages + 1 + size * (page_no * per_page + extent_no - per_page);
         key.m_page_idx = page_no * per_page + extent_no;
-        if (!tup.disk_restart_alloc_extent((*ext_table_id),
-                                           (*ext_fragment_id),
-                                           v2 ?
-                                             (*ext_create_table_version) :
-                                             0,
-                                           &key,
-                                           size))
+        int res = tup.disk_restart_alloc_extent((*ext_table_id),
+                                                (*ext_fragment_id),
+                                                v2 ?
+                                                  (*ext_create_table_version) :
+                                                  0,
+                                                &key,
+                                                size);
+        if (res == 0)
         {
           jamEntry();
           ptr.p->m_online.m_used_extent_cnt++;
+          ts_ptr.p->m_total_used_extents++;
+          DEB_TSMAN_NUM_EXTENTS(("Allocated extent during restart"
+                             " tab(%u,%u), num_extents: %llu",
+                             (*ext_table_id),
+                             (*ext_fragment_id),
+                             ts_ptr.p->m_total_used_extents));
           for(Uint32 i = 0; i<size; i++, key.m_page_no++)
           {
             jam();
             Uint32 bits= ext_data->get_free_bits(i) & COMMITTED_MASK;
+            /**
+             * No need to make page dirty since only UNCOMMITTED bits
+             * are changed
+             */
             ext_data->update_free_bits(i, bits | (bits << UNCOMMITTED_SHIFT));
             tup.disk_restart_page_bits((*ext_table_id),
                                        (*ext_fragment_id),
+                                       v2 ?
+                                         (*ext_create_table_version) :
+                                         0,
                                        &key, 
                                        bits);
           }
@@ -1715,6 +1789,10 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
            * be correct and we can use the extent for this fragment.
            */
           jam();
+          DEB_TSMAN_RESTART(("tab(%u,%u):%u not used, deleted",
+                             (*ext_table_id),
+                             (*ext_fragment_id),
+                             (*ext_create_table_version)));
           (*ext_table_id) = RNIL;
           (*ext_next_free_extent) = firstFree;
           firstFree = page_no * per_page + extent_no;
@@ -1843,7 +1921,7 @@ Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
       {
         jam();
 	Local_datafile_list free_list(m_file_pool, fg_ptr.p->m_free_files);
-        free_list.addFirst(file_ptr);
+        free_list.addLast(file_ptr);
       }
       else
       {
@@ -1885,10 +1963,14 @@ Tsman::Tablespace::Tablespace(Tsman* ts, const CreateFilegroupImplReq* req)
   m_tablespace_id = req->filegroup_id;
   m_version = req->filegroup_version;
   m_ref_count = 0;
+  m_total_extents = Uint64(0);
+  m_total_used_extents = Uint64(0);
   
   m_extent_size = (Uint32)DIV(req->tablespace.extent_size, File_formats::NDB_PAGE_SIZE);
 #if defined VM_TRACE || defined ERROR_INSERT
-  ndbout << "DD tsman: ts id:" << m_tablespace_id << " extent pages/bytes:" << m_extent_size << "/" << m_extent_size*File_formats::NDB_PAGE_SIZE  << endl;
+  ndbout << "DD tsman: ts id:" << m_tablespace_id << " extent pages/bytes:"
+         << m_extent_size << "/" << m_extent_size*File_formats::NDB_PAGE_SIZE
+         << endl;
 #endif
 }
 
@@ -1922,7 +2004,29 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
   ndbrequire(m_tablespace_hash.find(ts_ptr, req.request.tablespace_id));
   Local_datafile_list tmp(m_file_pool, ts_ptr.p->m_free_files);
   
+  const bool starting =
+    (getNodeState().startLevel <= NodeState::SL_STARTING);
+
+  // Reserve 4% of total data extents of a tablespace from normal usage.
+  // This will be used during node starts.
+  bool extent_available = false;
+
   if (tmp.first(file_ptr))
+  {
+    if (unlikely(starting))
+    {
+      thrjam(jamBuf);
+      extent_available = true;
+    }
+    else
+    {
+      thrjam(jamBuf);
+      extent_available =
+        (Uint64(100) * (ts_ptr.p->m_total_used_extents + 1) <
+         Uint64(96) * ts_ptr.p->m_total_extents);
+    }
+  }
+  if (extent_available)
   {
     thrjam(jamBuf);
     Uint32 size = file_ptr.p->m_extent_size;
@@ -1938,6 +2042,8 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
     Page_cache_client::Request preq;
     preq.m_page.m_page_no = page_no;
     preq.m_page.m_file_no = file_ptr.p->m_file_no;
+    preq.m_table_id = RNIL;
+    preq.m_fragment_id = 0;
 
     /**
      * Handling of unmapped extent header pages is not implemented
@@ -1989,6 +2095,12 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
        * Check if file is full
        */
       file_ptr.p->m_online.m_used_extent_cnt++;
+      ts_ptr.p->m_total_used_extents++;
+      DEB_TSMAN_NUM_EXTENTS(("ALLOC_EXTENT_REQ: tab(%u,%u)"
+                             " num_extents: %llu",
+                             (*ext_table_id),
+                             (*ext_fragment_id),
+                             ts_ptr.p->m_total_used_extents));
       file_ptr.p->m_online.m_first_free_extent = next_free;
       if (next_free == RNIL)
       {
@@ -2059,6 +2171,8 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
   Page_cache_client::Request preq;
   preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = req.request.key.m_file_no;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
 
   ndbout << "Free extent: " << req.request.key << endl;
   
@@ -2079,6 +2193,11 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
     Uint32 *ext_table_id = page->get_table_id(val.m_extent_no,
                                               val.m_extent_size,
                                               v2);
+#ifdef DEBUG_TSMAN_NUM_EXTENTS
+    Uint32 *ext_fragment_id = page->get_fragment_id(val.m_extent_no,
+                                                    val.m_extent_size,
+                                                    v2);
+#endif
     Uint32 *ext_next_free_extent = page->get_next_free_extent(
                                               val.m_extent_no,
                                               val.m_extent_size,
@@ -2095,6 +2214,10 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
       if(file_ptr.p->m_online.m_lcp_free_extent_head == RNIL)
 	file_ptr.p->m_online.m_lcp_free_extent_tail= extent;
       file_ptr.p->m_online.m_lcp_free_extent_head= extent;
+      file_ptr.p->m_online.m_lcp_free_extent_count++;
+      DEB_TSMAN_NUM_EXTENTS(("FREE_EXTENT_REQ(waitLCP): tab(%u,%u)",
+                             req.request.table_id,
+                             (*ext_fragment_id)));
     }
     else
     {
@@ -2111,9 +2234,18 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
 	Local_datafile_list free_list(m_file_pool, ptr.p->m_free_files);
 	Local_datafile_list full(m_file_pool, ptr.p->m_full_files);
 	full.remove(file_ptr);
-        free_list.addFirst(file_ptr);
+        free_list.addLast(file_ptr);
       }
       file_ptr.p->m_online.m_first_free_extent = extent;
+
+      Ptr<Tablespace> ts_ptr;
+      m_tablespace_pool.getPtr(ts_ptr, file_ptr.p->m_tablespace_ptr_i);
+      ts_ptr.p->m_total_used_extents--;
+      DEB_TSMAN_NUM_EXTENTS(("FREE_EXTENT_REQ: tab(%u,%u)"
+                             " num_extents: %llu",
+                             req.request.table_id,
+                             (*ext_fragment_id),
+                             ts_ptr.p->m_total_used_extents));
     }
   }
   else
@@ -2133,7 +2265,7 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
 int
 Tsman::update_page_free_bits(Signal* signal, 
 			     Local_key *key, 
-			     unsigned committed_bits)
+			     unsigned new_committed_bits)
 {
   EmulatedJamBuffer* const jamBuf = getThrJamBuf();
   
@@ -2155,11 +2287,13 @@ Tsman::update_page_free_bits(Signal* signal,
   Page_cache_client::Request preq;
   preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = key->m_file_no;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
   
   /**
    * Handling of unmapped extent header pages is not implemented
    */
-  int flags = Page_cache_client::COMMIT_REQ;
+  int flags = 0;
   int real_page_id;
   Page_cache_client pgman(this, m_pgman);
   if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
@@ -2194,10 +2328,68 @@ Tsman::update_page_free_bits(Signal* signal,
     /**
      * Toggle word
      */
-    ndbassert((committed_bits & ~(COMMITTED_MASK)) == 0);
-    Uint32 src = ext_data->get_free_bits(page_no_in_extent) & UNCOMMITTED_MASK;
-    ext_data->update_free_bits(page_no_in_extent, src | committed_bits);
-    pgman.update_lsn(preq.m_page, 0);
+    ndbassert((new_committed_bits & ~(COMMITTED_MASK)) == 0);
+    Uint32 old_free_bits = ext_data->get_free_bits(page_no_in_extent);
+    Uint32 old_uncommitted_bits = old_free_bits & UNCOMMITTED_MASK;
+    Uint32 new_free_bits = old_uncommitted_bits | new_committed_bits;
+    DEB_TSMAN(("(%u), page:(%u,%u), extent_page: %u, page_no_in_extent: %u,"
+               " old_free_bits: %u, old_uncommitted_bits: %u,"
+               " new_free_bits: %u",
+               instance(),
+               key->m_file_no,
+               key->m_page_no,
+               preq.m_page.m_page_no,
+               page_no_in_extent,
+               old_free_bits,
+               old_uncommitted_bits,
+               new_free_bits));
+
+    /**
+     * We have now read the free bits in the page. If these are the same as we
+     * are going to set then there is no reason to update the page on disk.
+     * If they are different we will update the disk page as well.
+     * We do this by calling get_page with COMMIT_REQ set followed by calling
+     * update_lsn. This will ensure that the page is dirty and will be written
+     * in the next fragment LCP.
+     *
+     * There are calls to update_free_bits where we update the free bits but
+     * we don't checkpoint those changes to disk. The reason is that we only
+     * care about changes to the COMMITTED state bits. The uncommitted state
+     * bits are only valid as long as the node is up. During recovery we will
+     * simply copy the COMMITTED bits to the UNCOMMITTED bits. Thus we need
+     * only mark a page as dirty after updating its COMMITTED bits and only
+     * if we actually change those. new_free_bits and old_free_bits will only
+     * differ if we change the COMMITTED bits here.
+     */
+    if (new_free_bits != old_free_bits)
+    {
+      Uint32 old_committed_bits = old_free_bits & COMMITTED_MASK;
+      if (old_committed_bits == new_committed_bits)
+      {
+        thrjam(jamBuf);
+        ext_data->update_free_bits(page_no_in_extent, new_free_bits);
+      }
+      else
+      {
+        DEB_TSMAN_IO(("(%u), page:(%u,%u), extent_page: (%u,%u) "
+                      "page_no_in_extent: %u,"
+                      " old_committed_bits: %u,"
+                      " new_committed_bits: %u",
+                      instance(),
+                      key->m_file_no,
+                      key->m_page_no,
+                      key->m_file_no,
+                      preq.m_page.m_page_no,
+                      page_no_in_extent,
+                      old_committed_bits,
+                      new_committed_bits));
+        thrjam(jamBuf);
+        flags = Page_cache_client::COMMIT_REQ;
+        ndbrequire((real_page_id = pgman.get_page(signal, preq, flags)) > 0);
+        ext_data->update_free_bits(page_no_in_extent, new_free_bits);
+        pgman.update_lsn(signal, preq.m_page, 0);
+      }
+    }
     return 0;
   }
   
@@ -2223,6 +2415,8 @@ Tsman::get_page_free_bits(Signal* signal, Local_key *key,
   Page_cache_client::Request preq;
   preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = key->m_file_no;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
   
   /**
    * Handling of unmapped extent header pages is not implemented
@@ -2281,6 +2475,8 @@ Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
   Page_cache_client::Request preq;
   preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = key->m_file_no;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
   
   /**
    * Handling of unmapped extent header pages is not implemented
@@ -2316,11 +2512,12 @@ Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
              << " fragment: " << *ext_fragment_id << " "
              << "trying to unmap page: " << *key 
              << " " << *ext_data << endl;
+      ndbrequire(false);
     }
-    ndbrequire((*ext_table_id) != RNIL);
     Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
     /**
      * Toggle word
+     * No need to make page dirty since only UNCOMMITTED bits are changed.
      */
     Uint32 src =
       ext_data->get_free_bits(page_no_in_extent) & COMMITTED_MASK;
@@ -2360,6 +2557,8 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
   Page_cache_client::Request preq;
   preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = key->m_file_no;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
   
   /**
    * Handling of unmapped extent header pages is not implemented
@@ -2391,33 +2590,86 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
                                      val.m_extent_size,
                                      v2);
 
-    if ((*ext_table_id) == RNIL)
-    {
-      thrjam(jamBuf);
-      if (DBG_UNDO)
-        ndbout_c("tsman: apply undo - skip table == RNIL");
-      return 0;
-    }
-
-    Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
-    Uint32 src = ext_data->get_free_bits(page_no_in_extent);
-
     if ((*ext_table_id) != tableId ||
         (*ext_fragment_id) != fragId ||
         (ext_create_table_version != NULL &&
         (*ext_create_table_version) != create_table_version))
     {
       thrjam(jamBuf);
-      return 0;
+      /**
+       * This is a special situation. We want to UNDO log a page that
+       * belongs to an extent that hasn't yet been written to disk.
+       * This is a possible situation. The following must have happened.
+       * 1) A new extent was allocated to the table
+       * 2) A page was allocated to the extent and a record written to it
+       * 3) The page was flushed to disk.
+       * 4) The extent page was obviously written as part of this, but it
+       *    the node was stopped before the extent page was flushed to disk.
+       *
+       * Extent pages are flushed to disk at start of an LCP to ensure that
+       * we start the LCP with all extents written to disk. Next we ensure
+       * that the extent pages are written as part of the last fragment LCP
+       * in the LCP. This means that we could have written pages during LCP
+       * that never got its extent page flushed to disk. The WAL principle
+       * does however guarantee that we for each such write there is also a
+       * corresponding UNDO log written before the write. So we can trust
+       * that UNDO log execution will pass all those pages that are missing
+       * their extent definition on disk. This is the place in the code
+       * where we discover such a missing extent definition. We will create
+       * the extent here and now. Later in the restart process TUP will
+       * build the memory structures for this and all the other extents
+       * based on this information written here after completing the
+       * UNDO log execution.
+       *
+       * Also no need to update free lists of extent in TSMAN since these
+       * lists are also built while scanning extent headers.
+       */
+      Uint32 size = val.m_extent_size;
+      File_formats::Datafile::Extent_header *header =
+        page->get_header(val.m_extent_no, size, v2);
+      Uint32 eh_words = File_formats::Datafile::extent_header_words(size, v2);
+      memset(header, 0, 4*eh_words);
+      *ext_table_id = tableId;
+      *ext_fragment_id = fragId;
+      if (v2)
+      {
+        thrjam(jamBuf);
+        *ext_create_table_version = create_table_version;
+      }
+      g_eventLogger->info("Wrote extent that wasn't written before node stop"
+                          " for tab(%u,%u):%u, extent: %u",
+                          tableId,
+                          fragId,
+                          create_table_version,
+                          val.m_extent_no);
     }
 
-    /* Toggle word */
+    Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
+    Uint32 src = ext_data->get_free_bits(page_no_in_extent);
+
     if (DBG_UNDO)
     {
       ndbout << "tsman: apply " 
              << *key << " " << (src & COMMITTED_MASK) 
              << " -> " << bits << endl;
     }
+#ifdef DEBUG_TSMAN_RESTART
+    Uint32 per_page = file_ptr.p->m_online.m_extent_headers_per_extent_page;
+    Uint32 extent_page_no = val.m_extent_page_no;
+    Uint32 extent_no = (per_page * extent_page_no) + val.m_extent_no;
+    DEB_TSMAN_RESTART(("page(%u,%u) in tab(%u,%u):%u, bits = %u, extent: %u"
+                       ", src: %u, page_no_in_extent: %u",
+                       key->m_file_no,
+                       key->m_page_no,
+                       tableId,
+                       fragId,
+                       create_table_version,
+                       bits,
+                       extent_no,
+                       src,
+                       page_no_in_extent));
+#endif
+    /* Toggle word */
     ext_data->update_free_bits(page_no_in_extent, 
 			       bits | (bits << UNCOMMITTED_SHIFT));
     return 0;
@@ -2438,14 +2690,18 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
     err= AllocPageReq::UnmappedExtentPageIsNotImplemented;
   
   /**
-   * 1) Compute which extent_no key belongs to
-   * 2) Find out which page extent_no belongs to
-   * 3) Undo log m_page_bitmask
-   * 4) Update m_page_bitmask
+   * 1) Get file the extent belongs to
+   * 2) Compute which extent_no key belongs to
+   *    key.m_page_no is the page number of a page in the extent
+   * 3) Find out which page extent_no belongs to
+   * 4) Undo log m_page_bitmask
+   * 5) Update m_page_bitmask
    */   
   Ptr<Datafile> file_ptr;
   Datafile file_key;
   file_key.m_file_no = req.key.m_file_no;
+  thrjamLine(jamBuf, Uint16(req.key.m_file_no));
+  thrjamLine(jamBuf, Uint16(req.key.m_page_no));
   ndbrequire(m_file_hash.find(file_ptr, file_key));
 
   struct req val = lookup_extent(req.key.m_page_no, file_ptr.p);
@@ -2454,13 +2710,20 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
   Page_cache_client::Request preq;
   preq.m_page.m_page_no = val.m_extent_page_no;
   preq.m_page.m_file_no = req.key.m_file_no;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
   
   Uint32 SZ= File_formats::Datafile::EXTENT_HEADER_BITMASK_BITS_PER_PAGE;
 
   /**
    * Handling of unmapped extent header pages is not implemented
+   *
+   * There is no need to make the extent page dirty here. The reason is that
+   * it will only update the uncommitted bits and those don't matter at
+   * restarts and thus it doesn't really matter for recovery that we make the
+   * page the dirty here.
    */
-  int flags = Page_cache_client::DIRTY_REQ;
+  int flags = 0;
   int real_page_id;
   Uint32 page_no;
   Uint32 src_bits;
@@ -2483,9 +2746,9 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
 
     /**
      * 0 = 00 - free - 100% free
-     * 1 = 01 - atleast 70% free, 70= pct_free + 2 * (100 - pct_free) / 3
-     * 2 = 10 - atleast 40% free, 40= pct_free + (100 - pct_free) / 3
-     * 3 = 11 - full - less than pct_free% free, pct_free=10%
+     * 1 = 01 - atleast some row free
+     * 2 = 10 - full
+     * 3 = 11 - full, special state set when in uncommitted state
      */
 
     Uint32 reqbits = req.bits << UNCOMMITTED_SHIFT;
@@ -2501,7 +2764,7 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
       if((src_bits & UNCOMMITTED_MASK) <= reqbits)
       {
         thrjam(jamBuf);
-	goto found;
+        goto found;
       }
       shift += SZ;
       src = src + (shift >> 5);
@@ -2517,7 +2780,7 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
       if((src_bits & UNCOMMITTED_MASK) <= reqbits)
       {
         thrjam(jamBuf);
-	goto found;
+        goto found;
       }
       shift += SZ;
       src = src + (shift >> 5);
@@ -2534,6 +2797,7 @@ found:
 
   rep->bits= (src_bits & UNCOMMITTED_MASK) >> UNCOMMITTED_SHIFT;
   rep->key.m_page_no = req.key.m_page_no + page_no - page_no_in_extent;
+  thrjamLine(jamBuf, Uint16(rep->key.m_page_no));
   rep->reply.errorCode= 0;
   return;
 }
@@ -2549,9 +2813,11 @@ Tsman::execLCP_FRAG_ORD(Signal* signal)
 void
 Tsman::execEND_LCPREQ(Signal* signal)
 {
+  EndLcpReq *req = (EndLcpReq*)signal->getDataPtr();
   jamEntry();
   ndbrequire(m_lcp_ongoing);
   m_lcp_ongoing = false;
+  m_end_lcp_ref = req->senderRef;
 
   /**
    * Move extents from "lcp" free list to real free list
@@ -2566,16 +2832,18 @@ Tsman::execEND_LCPREQ(Signal* signal)
     signal->theData[2] = 0;    // free
     signal->theData[3] = RNIL; // first
     sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+    return;
   }
+  sendEND_LCPCONF(signal);
 }
 
 void
 Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
 {
-  Ptr<Tablespace> ptr;
-  m_tablespace_list.getPtr(ptr, ptrI);
-  ndbrequire(ptr.p->m_ref_count);
-  ptr.p->m_ref_count--;
+  Ptr<Tablespace> ts_ptr;
+  m_tablespace_list.getPtr(ts_ptr, ptrI);
+  ndbrequire(ts_ptr.p->m_ref_count);
+  ts_ptr.p->m_ref_count--;
   
   Ptr<Datafile> file;
   file.i = filePtrI;
@@ -2585,7 +2853,7 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
   case 0:
   {
     jam();
-    Local_datafile_list tmp(m_file_pool, ptr.p->m_free_files);
+    Local_datafile_list tmp(m_file_pool, ts_ptr.p->m_free_files);
     if(file.i == RNIL)
     {
       jam();
@@ -2608,7 +2876,7 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
   case 1:
   {
     jam();
-    Local_datafile_list tmp(m_file_pool, ptr.p->m_full_files);
+    Local_datafile_list tmp(m_file_pool, ts_ptr.p->m_full_files);
     if(file.i == RNIL)
     {
       jam();
@@ -2616,12 +2884,11 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       {
         jam();
 	list= 0;
-	if(m_tablespace_list.next(ptr))
+	if(m_tablespace_list.next(ts_ptr))
         {
           jam();
-	  goto next;
         }
-	return;
+	goto next;
       }
     }
     else
@@ -2649,6 +2916,14 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
 	     file.p->m_online.m_lcp_free_extent_head,
 	     file.p->m_online.m_lcp_free_extent_tail,
 	     file.p->m_online.m_first_free_extent);
+
+    // Update the used extents of the tablespace
+    ts_ptr.p->m_total_used_extents -=
+      file.p->m_online.m_lcp_free_extent_count;
+    DEB_TSMAN_NUM_EXTENTS(("FREE_EXTENT_REQ(LCP):"
+                           " num_extents: %llu",
+                           ts_ptr.p->m_total_used_extents));
+    file.p->m_online.m_lcp_free_extent_count = 0;
     
     if(file.p->m_online.m_first_free_extent == RNIL)
     {
@@ -2659,17 +2934,17 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       file.p->m_online.m_lcp_free_extent_head = RNIL;
       file.p->m_online.m_lcp_free_extent_tail = RNIL;
 
-      Local_datafile_list free_list(m_file_pool, ptr.p->m_free_files);
-      Local_datafile_list full(m_file_pool, ptr.p->m_full_files);
+      Local_datafile_list free_list(m_file_pool, ts_ptr.p->m_free_files);
+      Local_datafile_list full(m_file_pool, ts_ptr.p->m_full_files);
       full.remove(file);
-      free_list.addFirst(file);
+      free_list.addLast(file);
     }
     else
     {
       jam();
       bool v2 = (file.p->m_ndb_version >= NDB_DISK_V2);
       Uint32 extent = file.p->m_online.m_lcp_free_extent_tail;
-      Uint32 size = ptr.p->m_extent_size;
+      Uint32 size = ts_ptr.p->m_extent_size;
       Uint32 eh_words = File_formats::Datafile::extent_header_words(size, v2);
       Uint32 per_page = File_formats::Datafile::extent_page_words(v2) / eh_words;
       
@@ -2679,6 +2954,8 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       Page_cache_client::Request preq;
       preq.m_page.m_page_no = page_no;
       preq.m_page.m_file_no = file.p->m_file_no;
+      preq.m_table_id = RNIL;
+      preq.m_fragment_id = 0;
       
       int flags = Page_cache_client::DIRTY_REQ;
       int real_page_id;
@@ -2716,29 +2993,42 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
     {
       jam();
       list = 0;
-      m_tablespace_list.next(ptr);
+      m_tablespace_list.next(ts_ptr);
     }
   }
   else
   {
     jam();
-    ndbrequire(ptr.i != RNIL);
+    ndbrequire(ts_ptr.i != RNIL);
     m_file_pool.getPtr(file);
     file.p->m_ref_count++;
   }
   
 next:
-  if(ptr.i != RNIL)
+  if(ts_ptr.i != RNIL)
   {
     jam();
-    ptr.p->m_ref_count++;
+    ts_ptr.p->m_ref_count++;
     
     signal->theData[0] = TsmanContinueB::END_LCP;
-    signal->theData[1] = ptr.i;
+    signal->theData[1] = ts_ptr.i;
     signal->theData[2] = list;    
     signal->theData[3] = file.i;  
     sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+    return;
   }
+  sendEND_LCPCONF(signal);
+}
+
+void
+Tsman::sendEND_LCPCONF(Signal *signal)
+{
+  BlockReference ref = m_end_lcp_ref;
+  EndLcpConf *conf = (EndLcpConf*)signal->getDataPtr();
+  conf->senderData = 0; /* Ignored */
+  conf->senderRef = reference();
+  sendSignal(ref, GSN_END_LCPCONF, signal,
+             EndLcpConf::SignalLength, JBB);
 }
 
 int

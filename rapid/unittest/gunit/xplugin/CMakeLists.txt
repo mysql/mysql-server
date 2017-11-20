@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-IF(NOT GMOCK_FOUND OR DISABLE_SHARED OR NOT PROTOBUF_FOUND)
+IF(WITHOUT_MYSQLX OR NOT GMOCK_FOUND OR DISABLE_SHARED OR NOT PROTOBUF_FOUND)
   RETURN()
 ENDIF()
 
@@ -23,15 +23,41 @@ ENDIF()
 
 INCLUDE(CTest)
 
-INCLUDE(${PROJECT_SOURCE_DIR}/rapid/plugin/x/mysqlx_protobuf.cmake)
+SET(MYSQLX_PROJECT_DIR "${PROJECT_SOURCE_DIR}/rapid/plugin/x")
 
-INCLUDE(${PROJECT_SOURCE_DIR}/rapid/plugin/x/source_files.cmake)
+GET_DIRECTORY_PROPERTY(MYSQLX_PROTOCOL_INCLUDE_DIR
+  DIRECTORY ${MYSQLX_PROJECT_DIR}
+  DEFINITION MYSQLX_PROTOCOL_INCLUDE_DIR
+)
 
-MYSQLX_PROTOBUF_GENERATE_CPP_NAMES(protobuf_SRC ${PROTOBUF_MYSQLX_FILES})
+GET_DIRECTORY_PROPERTY(MYSQLX_PROTOCOL_LIB
+  DIRECTORY ${MYSQLX_PROJECT_DIR}
+  DEFINITION MYSQLX_PROTOCOL_FULL_LIB
+)
 
-IF(MSVC)
-  ADD_COMPILE_FLAGS(${protobuf_SRC} COMPILE_FLAGS "/wd4018")
-ENDIF(MSVC)
+GET_DIRECTORY_PROPERTY(MYSQLX_PROTOCOL_FLAGS
+  DIRECTORY ${MYSQLX_PROJECT_DIR}
+  DEFINITION MYSQLX_PROTOCOL_FLAGS
+)
+
+GET_DIRECTORY_PROPERTY(MYSQLX_CLIENT_INCLUDE_DIR
+  DIRECTORY ${MYSQLX_PROJECT_DIR}
+  DEFINITION MYSQLX_CLIENT_INCLUDE_DIR
+)
+
+GET_DIRECTORY_PROPERTY(MYSQLX_CLIENT_LIB
+  DIRECTORY ${MYSQLX_PROJECT_DIR}
+  DEFINITION MYSQLX_CLIENT_FULL_LIB
+)
+
+GET_DIRECTORY_PROPERTY(MYSQLX_PLUGIN_SRC
+  DIRECTORY ${MYSQLX_PROJECT_DIR}
+  DEFINITION xplugin_SRC
+)
+
+GET_DIRECTORY_PROPERTY(MYSQLX_PLUGIN_INCLUDE_DIRS
+  DIRECTORY ${MYSQLX_PROJECT_DIR} INCLUDE_DIRECTORIES
+)
 
 # Turn off some warning flags when compiling GUnit and proto files.
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -42,51 +68,50 @@ ENDIF()
 ADD_DEFINITIONS(${GMOCK_CFLAGS} -DUSE_MYSQLX_FULL_PROTO -DXPLUGIN_UNIT_TESTS)
 
 INCLUDE_DIRECTORIES(SYSTEM
-    ${PROTOBUF_INCLUDE_DIRS}
-    ${SSL_INCLUDE_DIRS}
-    ${LIBEVENT_INCLUDE_DIR}
-    ${GMOCK_INCLUDE_DIRS}
-    ${GTEST_INCLUDE_DIR}
-    ${CMAKE_BINARY_DIR}/rapid/plugin/x/generated/protobuf
+  ${PROTOBUF_INCLUDE_DIRS}
+  ${SSL_INCLUDE_DIRS}
+  ${LIBEVENT_INCLUDE_DIR}
+  ${GMOCK_INCLUDE_DIRS}
+  ${GTEST_INCLUDE_DIR}
 )
 
 INCLUDE_DIRECTORIES(
-  ${PROJECT_SOURCE_DIR}/rapid/plugin/x/ngs/include
-  ${PROJECT_SOURCE_DIR}/rapid/plugin/x/ngs/include/ngs
-  ${PROJECT_SOURCE_DIR}/rapid/plugin/x/mysqlxtest_src
-  ${PROJECT_SOURCE_DIR}/rapid/plugin/x/src
-  ${PROJECT_SOURCE_DIR}/rapid/plugin/x
-  ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/extra/regex
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
+  ${MYSQLX_PLUGIN_INCLUDE_DIRS}
+  ${MYSQLX_PROTOCOL_INCLUDE_DIR}
+  ${MYSQLX_CLIENT_INCLUDE_DIR}
+  ${PROJECT_SOURCE_DIR}/extra/regex
+  ${PROJECT_SOURCE_DIR}/libbinlogevents/include
   ${PROJECT_SOURCE_DIR}/sql
   ${PROJECT_SOURCE_DIR}/include/mysql
-  ${ZLIB_INCLUDE_DIR}
-  ${CMAKE_BINARY_DIR}/rapid/plugin/x/generated/
 )
 
-FILE(
-  GLOB unit_tests_SRC
-  "${CMAKE_CURRENT_SOURCE_DIR}/*_t.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/stubs/log_subsystem.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/stubs/command_service.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/stubs/security_context_service.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/stubs/sql_session_service.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/stubs/misc.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/stubs/plugin.cc"
+FILE(GLOB unit_tests_SRC
+  "${CMAKE_CURRENT_SOURCE_DIR}/xpl/*_t.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/xpl/mysqlx_pb_wrapper.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/xcl/*_t.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/xpl/stubs/*.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/test_main.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/mysqlx_pb_wrapper.cc"
-  "${PROJECT_SOURCE_DIR}/rapid/plugin/x/src/mysql_function_names.cc"
-  "${PROJECT_SOURCE_DIR}/rapid/plugin/x/mysqlxtest_src/mysqlx_row.cc"
+  "${MYSQLX_PROJECT_DIR}/src/mysql_function_names.cc"
+  "${MYSQLX_PROJECT_DIR}/mysqlxtest_src/mysqlx_row.cc"
 )
 
 SET(unit_tests_EXE xplugin_unit_tests)
 
-ADD_EXECUTABLE(${unit_tests_EXE}
-  ${unit_tests_SRC} ${xplugin_SRC} ${protobuf_SRC}
+MYSQL_ADD_EXECUTABLE(${unit_tests_EXE}
+  ${unit_tests_SRC}
+  ${MYSQLX_PLUGIN_SRC}
+  ADD_TEST xplugin
 )
 
-ADD_DEPENDENCIES(${unit_tests_EXE} mysqlxtest)
+ADD_COMPILE_FLAGS(${unit_tests_SRC} ${MYSQLX_PLUGIN_SRC}
+  COMPILE_FLAGS "${MYSQLX_PROTOCOL_FLAGS}"
+)
+
+ADD_DEPENDENCIES(${unit_tests_EXE}
+  ${MYSQLX_CLIENT_LIB}
+  ${MYSQLX_PROTOCOL_LIB}
+  xprotocol_tags
+)
 
 # New warning in Visual Studio 2008
 # '%$S': virtual function overrides '%$pS', previous versions of the compiler
@@ -99,23 +124,23 @@ ENDIF(WIN32)
 # Segfault in the unit test, so lower optimization level there as well
 IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
   ADD_COMPILE_FLAGS(
-    ${CMAKE_CURRENT_SOURCE_DIR}/callback_command_delegate_t.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/xpl/callback_command_delegate_t.cc
     ${MYSQLX_PROJECT_DIR}/ngs/src/client.cc
     COMPILE_FLAGS "-xO2")
 ENDIF()
 
-TARGET_LINK_LIBRARIES(
-  ${unit_tests_EXE}
+TARGET_LINK_LIBRARIES(${unit_tests_EXE}
   gtest
   regex
   gmock
   mysqlservices
   mysqlclient
-  ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
+  ${MYSQLX_CLIENT_LIB}
+  ${MYSQLX_PROTOCOL_LIB}
+  ${LIBEVENT_LIBRARY}
+  ${LIBEVENT_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARY}
   ${GCOV_LDFLAGS}
 )
-
-ADD_TEST(xplugin ${unit_tests_EXE})
 

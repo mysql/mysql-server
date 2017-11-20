@@ -20,22 +20,26 @@
 #include <new>
 #include <string>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-#include "dd/types/object_type.h"             // dd::Object_type
-#include "dd/types/table_stat.h"              // dd::Table_stat
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/object_id.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/entity_object_table.h"
+#include "sql/dd/types/object_type.h"         // dd::Object_type
+#include "sql/dd/types/table_stat.h"          // dd::Table_stat
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Charset;
-class Raw_table;
-class Transaction;
 class Object_key;
 class Open_dictionary_tables_ctx;
+class Raw_table;
+class Transaction;
 class Weak_object;
+class Object_table;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -53,7 +57,8 @@ public:
     m_auto_increment(0),
     m_checksum(0),
     m_update_time(0),
-    m_check_time(0)
+    m_check_time(0),
+    m_cached_time(0)
   { }
 
 public:
@@ -189,6 +194,16 @@ public:
   virtual void set_check_time(ulonglong check_time)
   { m_check_time= check_time; }
 
+  /////////////////////////////////////////////////////////////////////////
+  // cached_time.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual ulonglong cached_time() const
+  { return m_cached_time; }
+
+  virtual void set_cached_time(ulonglong cached_time)
+  { m_cached_time= cached_time; }
+
 
 public:
   virtual Object_key *create_primary_key() const;
@@ -223,6 +238,7 @@ private:
   ulonglong m_checksum;
   ulonglong m_update_time;
   ulonglong m_check_time;
+  ulonglong m_cached_time;
 
 };
 

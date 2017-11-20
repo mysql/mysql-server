@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ enum options_mysqld
   OPT_BINLOG_FORMAT,
   OPT_BINLOG_IGNORE_DB,
   OPT_BINLOG_MAX_FLUSH_QUEUE_TIME,
+  OPT_EXPIRE_LOGS_DAYS,
   OPT_BIN_LOG,
   OPT_BOOTSTRAP,
   OPT_CONSOLE,
@@ -76,7 +77,6 @@ enum options_mysqld
   OPT_SSL_CRLPATH,
   OPT_PFS_INSTRUMENT,
   OPT_DEFAULT_AUTH,
-  OPT_SECURE_AUTH,
   OPT_THREAD_CACHE_SIZE,
   OPT_HOST_CACHE_SIZE,
   OPT_TABLE_DEFINITION_CACHE,

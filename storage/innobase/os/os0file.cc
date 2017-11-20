@@ -61,6 +61,10 @@ Created 10/21/1995 Heikki Tuuri
 # endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef __linux__
+#include <sys/sendfile.h>
+#endif /* __linux__ */
+
 #include <functional>
 #include <new>
 #include <vector>
@@ -101,7 +105,7 @@ struct Block {
 
 	byte*		m_ptr;
 
-	byte		pad[CACHE_LINE_SIZE - sizeof(ulint)];
+	byte		pad[INNOBASE_CACHE_LINE_SIZE - sizeof(ulint)];
 	lock_word_t	m_in_use;
 };
 
@@ -119,6 +123,74 @@ static const size_t	MAX_BLOCKS = 128;
 
 /** Disk sector size of aligning write buffer for DIRECT_IO */
 static ulint	os_io_ptr_align = UNIV_SECTOR_SIZE;
+
+/** Determine if O_DIRECT is supported
+@retval	true	if O_DIRECT is supported.
+@retval	false	if O_DIRECT is not supported. */
+bool
+os_is_o_direct_supported()
+{
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+	char*		path = srv_data_home;
+	char*		file_name;
+	os_file_t	file_handle;
+	ulint		dir_len;
+	ulint		path_len;
+	bool		add_os_path_separator = false;
+
+	/* If the srv_data_home is empty, set the path to current dir. */
+	char		current_dir[3];
+	if (*path == 0) {
+		current_dir[0] = FN_CURLIB;
+		current_dir[1] = FN_LIBCHAR;
+		current_dir[2] = 0;
+		path = current_dir;
+	}
+
+	/* Get the path length. */
+	if (path[strlen(path) - 1] == OS_PATH_SEPARATOR) {
+		/* path is ended with OS_PATH_SEPARATOR */
+		dir_len = strlen(path);
+	} else {
+		/* path is not ended with OS_PATH_SEPARATOR */
+		dir_len = strlen(path) + 1;
+		add_os_path_separator = true;
+	}
+
+	/* Allocate a new path and move the directory path to it. */
+	path_len = dir_len + sizeof "o_direct_test";
+	file_name = static_cast<char*>(
+		ut_zalloc_nokey(path_len));
+	if (add_os_path_separator == true) {
+		memcpy(file_name, path, dir_len - 1);
+		file_name[dir_len - 1] = OS_PATH_SEPARATOR;
+	} else {
+		memcpy(file_name, path, dir_len);
+	}
+
+	/* Construct a temp file name. */
+	strcat(file_name + dir_len, "o_direct_test");
+
+	/* Try to create a temp file with O_DIRECT flag. */
+	file_handle = ::open(file_name,
+			     O_CREAT|O_TRUNC|O_WRONLY|O_DIRECT,
+			     S_IRWXU);
+
+	/* If Failed */
+	if (file_handle == -1) {
+		ut_free(file_name);
+		return(false);
+	}
+
+	::close(file_handle);
+	unlink(file_name);
+	ut_free(file_name);
+
+	return(true);
+#else
+	return(false);
+#endif /* !NO_FALLOCATE && UNIV_LINUX */
+}
 
 /* This specifies the file permissions InnoDB uses when it creates files in
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
@@ -206,6 +278,8 @@ the completed IO request and calls completion routine on it.
 mysql_pfs_key_t  innodb_log_file_key;
 mysql_pfs_key_t  innodb_data_file_key;
 mysql_pfs_key_t  innodb_temp_file_key;
+mysql_pfs_key_t  innodb_arch_file_key;
+mysql_pfs_key_t  innodb_clone_file_key;
 #endif /* UNIV_PFS_IO */
 
 /** The asynchronous I/O context */
@@ -3318,11 +3392,13 @@ os_file_create_simple_func(
 	} else if (create_mode == OS_FILE_CREATE_PATH) {
 
 		/* Create subdirs along the path if needed. */
+		dberr_t	err;
 
-		*success = os_file_create_subdirs_if_needed(name);
+		err = os_file_create_subdirs_if_needed(name);
 
-		if (!*success) {
+		if (err != DB_SUCCESS) {
 
+			*success = false;
 			ib::error()
 				<< "Unable to create subdirectories '"
 				<< name << "'";
@@ -3403,6 +3479,54 @@ os_file_create_directory(
 	return(true);
 }
 
+/** This function scans the contents of a directory and invokes the callback
+for each entry.
+@param[in]	path		directory name as null-terminated string
+@param[in]	scan_cbk	use callback to be called for each entry
+@param[in]	is_drop		attempt to drop the directory after scan
+@return true if call succeeds, false on error */
+bool
+os_file_scan_directory(
+	const char*	path,
+	os_dir_cbk_t	scan_cbk,
+	bool		is_drop)
+{
+	DIR*	directory;
+	dirent*	entry;
+
+	directory = opendir(path);
+
+	if (directory == nullptr) {
+
+		os_file_handle_error_no_exit(path, "opendir", false);
+		return(false);
+	}
+
+	entry = readdir(directory);
+
+	while (entry != nullptr) {
+
+		scan_cbk(path, entry->d_name);
+		entry = readdir(directory);
+	}
+
+	closedir(directory);
+
+	if (is_drop) {
+
+		int	err;
+		err = rmdir(path);
+
+		if (err != 0) {
+
+			os_file_handle_error_no_exit(path, "rmdir", false);
+			return(false);
+		}
+	}
+
+	return(true);
+}
+
 /** NOTE! Use the corresponding macro os_file_create(), not directly
 this function!
 Opens an existing file or creates a new.
@@ -3473,6 +3597,27 @@ os_file_create_func(
 		mode_str = "CREATE";
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
 
+	} else if (create_mode == OS_FILE_CREATE_PATH) {
+
+		/* Create subdirs along the path if needed. */
+		dberr_t	err;
+
+		err = os_file_create_subdirs_if_needed(name);
+
+		if (err != DB_SUCCESS) {
+
+			*success = false;
+			ib::error()
+				<< "Unable to create subdirectories '"
+				<< name << "'";
+
+			file.m_file = OS_FILE_CLOSED;
+			return(file);
+		}
+
+		create_flag = O_RDWR | O_CREAT | O_EXCL;
+		create_mode = OS_FILE_CREATE;
+
 	} else {
 		ib::error()
 			<< "Unknown file create mode (" << create_mode << ")"
@@ -3484,6 +3629,8 @@ os_file_create_func(
 
 	ut_a(type == OS_LOG_FILE
 	     || type == OS_DATA_FILE
+	     || type == OS_CLONE_DATA_FILE
+	     || type == OS_CLONE_LOG_FILE
 	     || type == OS_BUFFERED_FILE);
 
 	ut_a(purpose == OS_FILE_AIO || purpose == OS_FILE_NORMAL);
@@ -3527,11 +3674,12 @@ os_file_create_func(
 
 	} while (retry);
 
-	/* We disable OS caching (O_DIRECT) only on data files */
+	/* We disable OS caching (O_DIRECT) only on data files. For clone we
+	need to set O_DIRECT even for read_only mode. */
 
-	if (!read_only
+	if ((!read_only || type == OS_CLONE_DATA_FILE)
 	    && *success
-	    && (type != OS_LOG_FILE && type != OS_BUFFERED_FILE)
+	    && (type == OS_DATA_FILE || type == OS_CLONE_DATA_FILE)
 	    && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
 		|| srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
 
@@ -4329,6 +4477,7 @@ os_file_create_simple_func(
 	DWORD		access;
 	DWORD		create_flag;
 	DWORD		attributes = 0;
+	DWORD		share_mode = FILE_SHARE_READ;
 
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
@@ -4348,10 +4497,13 @@ os_file_create_simple_func(
 	} else if (create_mode == OS_FILE_CREATE_PATH) {
 
 		/* Create subdirs along the path if needed. */
-		*success = os_file_create_subdirs_if_needed(name);
+		dberr_t	err;
 
-		if (!*success) {
+		err = os_file_create_subdirs_if_needed(name);
 
+		if (err != DB_SUCCESS) {
+
+			*success = false;
 			ib::error()
 				<< "Unable to create subdirectories '"
 				<< name << "'";
@@ -4375,6 +4527,13 @@ os_file_create_simple_func(
 	if (access_type == OS_FILE_READ_ONLY) {
 
 		access = GENERIC_READ;
+
+	} else if (access_type == OS_FILE_READ_ALLOW_DELETE) {
+
+		ut_ad(read_only);
+
+		access = GENERIC_READ;
+		share_mode |= FILE_SHARE_DELETE | FILE_SHARE_WRITE;
 
 	} else if (read_only) {
 
@@ -4404,7 +4563,7 @@ os_file_create_simple_func(
 		/* Use default security attributes and no template file. */
 
 		file = CreateFile(
-			(LPCTSTR) name, access, FILE_SHARE_READ, NULL,
+			(LPCTSTR) name, access, share_mode, NULL,
 			create_flag, attributes, NULL);
 
 		if (file == INVALID_HANDLE_VALUE) {
@@ -4462,6 +4621,58 @@ os_file_create_directory(
 			pathname, "CreateDirectory", false);
 
 		return(false);
+	}
+
+	return(true);
+}
+
+/** This function scans the contents of a directory and invokes the callback
+for each entry.
+@param[in]	path		directory name as null-terminated string
+@param[in]	scan_cbk	use callback to be called for each entry
+@param[in]	is_drop		attempt to drop the directory after scan
+@return true if call succeeds, false on error */
+bool
+os_file_scan_directory(
+	const char*	path,
+	os_dir_cbk_t	scan_cbk,
+	bool		is_drop)
+{
+	bool		file_found;
+	HANDLE		find_hdl;
+	WIN32_FIND_DATA	find_data;
+	char		wild_card_path[MAX_PATH];
+
+	snprintf(wild_card_path, MAX_PATH, "%s\\*", path);
+
+	find_hdl = FindFirstFile((LPCTSTR)wild_card_path, &find_data);
+
+	if (find_hdl == INVALID_HANDLE_VALUE) {
+
+		os_file_handle_error_no_exit(
+			path, "FindFirstFile", false);
+		return(false);
+	}
+
+	do {
+		scan_cbk(path, find_data.cFileName);
+		file_found = FindNextFile(find_hdl, &find_data);
+
+	} while (file_found);
+
+	FindClose(find_hdl);
+
+	if (is_drop) {
+		bool	ret;
+
+		ret = RemoveDirectory((LPCSTR)path);
+
+		if (!ret) {
+
+			os_file_handle_error_no_exit(
+				path, "RemoveDirectory", false);
+			return(false);
+		}
 	}
 
 	return(true);
@@ -4544,6 +4755,27 @@ os_file_create_func(
 
 		create_flag = CREATE_NEW;
 
+	} else if (create_mode == OS_FILE_CREATE_PATH) {
+
+		/* Create subdirs along the path if needed. */
+		dberr_t	err;
+
+		err = os_file_create_subdirs_if_needed(name);
+
+		if (err != DB_SUCCESS) {
+
+			*success = false;
+			ib::error()
+				<< "Unable to create subdirectories '"
+				<< name << "'";
+
+			file.m_file = OS_FILE_CLOSED;
+			return(file);
+		}
+
+		create_flag = CREATE_NEW;
+		create_mode = OS_FILE_CREATE;
+
 	} else {
 		ib::error()
 			<< "Unknown file create mode (" << create_mode << ") "
@@ -4587,6 +4819,7 @@ os_file_create_func(
 	// TODO: Create a bug, this looks wrong. The flush log
 	// parameter is dynamic.
 	if ((type == OS_BUFFERED_FILE)
+	     || (type == OS_CLONE_LOG_FILE)
 	     || (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2)) {
 
 		/* Do not use unbuffered i/o for the log files because
@@ -4604,6 +4837,12 @@ os_file_create_func(
 
 	if (!read_only) {
 		access |= GENERIC_WRITE;
+
+	} else if (type == OS_CLONE_LOG_FILE
+		   || type ==  OS_CLONE_DATA_FILE) {
+
+		/* Clone must allow concurrent write to file. */
+		share_mode |= FILE_SHARE_WRITE;
 	}
 
 	do {
@@ -5862,13 +6101,15 @@ short_warning:
 @param[in]	file		handle to a file
 @param[in]	size		file size
 @param[in]	read_only	Enable read-only checks if true
+@param[in]	flush		Flush file content to disk
 @return true if success */
 bool
 os_file_set_size(
 	const char*	name,
 	pfs_os_file_t	file,
 	os_offset_t	size,
-	bool		read_only)
+	bool		read_only,
+	bool		flush)
 {
 	/* Write up to 1 megabyte at a time. */
 	ulint	buf_size = ut_min(
@@ -5947,7 +6188,12 @@ os_file_set_size(
 
 	ut_free(buf2);
 
-	return(os_file_flush(file));
+	if (flush) {
+
+		return(os_file_flush(file));
+	}
+
+	return(true);
 }
 
 /** Truncates a file to a specified size in bytes.
@@ -5978,6 +6224,46 @@ os_file_truncate(
 #endif /* _WIN32 */
 }
 
+/** Set read/write position of a file handle to specific offset.
+@param[in]	pathname	file path
+@param[in]	file		file handle
+@param[in]	offset		read/write offset
+@return true if success */
+bool
+os_file_seek(
+	const char*	pathname,
+	os_file_t	file,
+	os_offset_t	offset)
+{
+	bool	success = true;
+
+#ifdef _WIN32
+	LARGE_INTEGER	length;
+
+	length.QuadPart = offset;
+
+	success = SetFilePointerEx(file, length, NULL, FILE_BEGIN);
+
+#else /* _WIN32 */
+	off_t	ret;
+
+	ret = lseek(file, offset, SEEK_SET);
+
+	if (ret == -1) {
+
+		success = false;
+	}
+#endif /* _WIN32 */
+
+	if (!success) {
+
+		os_file_handle_error_no_exit(
+			pathname, "os_file_set", false);
+	}
+
+	return(success);
+}
+
 /** NOTE! Use the corresponding macro os_file_read(), not directly this
 function!
 Requests a synchronous positioned read operation.
@@ -6000,6 +6286,158 @@ os_file_read_func(
 
 	return(os_file_read_page(type, file, buf, offset, n, NULL, true));
 }
+
+/** copy data from one file to another file using read, write.
+@param[in]	src_file	file handle to copy from
+@param[in]	src_offset	offset to copy from
+@param[in]	dest_file	file handle to copy to
+@param[in]	dest_offset	offset to copy to
+@param[in]	size		number of bytes to copy
+@return DB_SUCCESS if successful */
+static
+dberr_t
+os_file_copy_read_write(
+	os_file_t	src_file,
+	os_offset_t	src_offset,
+	os_file_t	dest_file,
+	os_offset_t	dest_offset,
+	uint		size)
+{
+	dberr_t		err;
+	uint		request_size;
+	const uint	BUF_SIZE = 4 * UNIV_SECTOR_SIZE;
+
+	char	buf[BUF_SIZE + UNIV_SECTOR_SIZE];
+	char*	buf_ptr;
+
+	buf_ptr = static_cast<char*>(ut_align(buf, UNIV_SECTOR_SIZE));
+
+	IORequest       read_request(IORequest::READ);
+	read_request.disable_compression();
+	read_request.clear_encrypted();
+
+	IORequest       write_request(IORequest::WRITE);
+	write_request.disable_compression();
+	write_request.clear_encrypted();
+
+	while (size > 0) {
+
+		if (size > BUF_SIZE) {
+
+			request_size = BUF_SIZE;
+		} else {
+
+			request_size = size;
+		}
+
+		err = os_file_read_func(read_request, src_file, buf_ptr,
+					src_offset, request_size);
+
+		if (err != DB_SUCCESS) {
+
+			return(err);
+		}
+		src_offset += request_size;
+
+		err = os_file_write_func(write_request, "file copy", dest_file,
+					 buf_ptr, dest_offset, request_size);
+
+		if (err != DB_SUCCESS) {
+
+			return(err);
+		}
+		dest_offset += request_size;
+		size -= request_size;
+	}
+
+	return(DB_SUCCESS);
+}
+
+/** copy data from one file to another file.
+@param[in]	src_file	file handle to copy from
+@param[in]	src_offset	offset to copy from
+@param[in]	dest_file	file handle to copy to
+@param[in]	dest_offset	offset to copy to
+@param[in]	size		number of bytes to copy
+@return DB_SUCCESS if successful */
+#ifdef __linux__
+dberr_t
+os_file_copy_func(
+	os_file_t	src_file,
+	os_offset_t	src_offset,
+	os_file_t	dest_file,
+	os_offset_t	dest_offset,
+	uint		size)
+{
+	dberr_t		err;
+	static bool	use_sendfile = true;
+
+	uint		actual_size;
+	int		ret_size;
+
+	int		src_fd;
+	int		dest_fd;
+
+	if (!os_file_seek(nullptr, src_file, src_offset)) {
+
+		return(DB_IO_ERROR);
+	}
+
+	if (!os_file_seek(nullptr, dest_file, dest_offset)) {
+
+		return(DB_IO_ERROR);
+	}
+
+	src_fd = OS_FD_FROM_FILE(src_file);
+	dest_fd = OS_FD_FROM_FILE(dest_file);
+
+	while (use_sendfile && size > 0) {
+
+		ret_size = sendfile(dest_fd, src_fd, nullptr, size);
+
+		if (ret_size == -1) {
+
+			/* Fall through read/write path. */
+			ib::info()
+				<< "sendfile failed to copy data"
+				" : trying read/write ";
+
+			use_sendfile = false;
+			break;
+		}
+
+		actual_size = static_cast<uint>(ret_size);
+
+		ut_ad(size >= actual_size);
+		size -= actual_size;
+	}
+
+	if (size == 0) {
+
+		return(DB_SUCCESS);
+	}
+
+	err = os_file_copy_read_write(src_file, src_offset,
+				      dest_file, dest_offset, size);
+
+	return(err);
+}
+#else
+dberr_t
+os_file_copy_func(
+	os_file_t	src_file,
+	os_offset_t	src_offset,
+	os_file_t	dest_file,
+	os_offset_t	dest_offset,
+	uint		size)
+{
+	dberr_t	err;
+
+	err = os_file_copy_read_write(src_file, src_offset,
+				      dest_file, dest_offset, size);
+	return(err);
+}
+#endif
 
 /** NOTE! Use the corresponding macro os_file_read_no_error_handling(),
 not directly this function!
@@ -6633,7 +7071,7 @@ os_fusionio_get_sector_size()
 
 		/* Try to write the file with different sector size
 		alignment. */
-		ptr = static_cast<byte*>(ut_malloc_nokey(2 * MAX_SECTOR_SIZE));
+		ptr = static_cast<byte*>(ut_zalloc_nokey(2 * MAX_SECTOR_SIZE));
 
 		while (sector_size <= MAX_SECTOR_SIZE) {
 			block_ptr = static_cast<byte*>(

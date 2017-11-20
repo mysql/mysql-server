@@ -55,6 +55,18 @@ class Sql_data_result {
     return *this;
   }
 
+  template <typename T>
+  T get() {
+    T value;
+    get_next_field(value);
+    return value;
+  }
+
+  Sql_data_result &skip() {
+    ++m_field_index;
+    return *this;
+  }
+
  private:
   typedef Collect_resultset::Field Field_value;
 

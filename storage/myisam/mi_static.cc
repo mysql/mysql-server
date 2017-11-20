@@ -106,9 +106,9 @@ PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
 
 static PSI_mutex_info all_myisam_mutexes[]=
 {
-  { &mi_key_mutex_MI_SORT_INFO_mutex, "MI_SORT_INFO::mutex", 0, 0},
-  { &mi_key_mutex_MYISAM_SHARE_intern_lock, "MYISAM_SHARE::intern_lock", 0, 0},
-  { &mi_key_mutex_MI_CHECK_print_msg, "MI_CHECK::print_msg", 0, 0}
+  { &mi_key_mutex_MI_SORT_INFO_mutex, "MI_SORT_INFO::mutex", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_mutex_MYISAM_SHARE_intern_lock, "MYISAM_SHARE::intern_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_mutex_MI_CHECK_print_msg, "MI_CHECK::print_msg", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
@@ -118,8 +118,8 @@ PSI_rwlock_key mi_key_rwlock_MYISAM_SHARE_key_root_lock,
 
 static PSI_rwlock_info all_myisam_rwlocks[]=
 {
-  { &mi_key_rwlock_MYISAM_SHARE_key_root_lock, "MYISAM_SHARE::key_root_lock", 0},
-  { &mi_key_rwlock_MYISAM_SHARE_mmap_lock, "MYISAM_SHARE::mmap_lock", 0}
+  { &mi_key_rwlock_MYISAM_SHARE_key_root_lock, "MYISAM_SHARE::key_root_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_rwlock_MYISAM_SHARE_mmap_lock, "MYISAM_SHARE::mmap_lock", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
@@ -129,8 +129,8 @@ PSI_cond_key mi_keycache_thread_var_suspend;
 
 static PSI_cond_info all_myisam_conds[]=
 {
-  { &mi_key_cond_MI_SORT_INFO_cond, "MI_SORT_INFO::cond", 0},
-  { &mi_keycache_thread_var_suspend, "keycache_thread_var::suspend", 0}
+  { &mi_key_cond_MI_SORT_INFO_cond, "MI_SORT_INFO::cond", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_keycache_thread_var_suspend, "keycache_thread_var::suspend", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_COND_INTERFACE */
 
@@ -140,10 +140,10 @@ PSI_file_key mi_key_file_datatmp, mi_key_file_dfile, mi_key_file_kfile,
 
 static PSI_file_info all_myisam_files[]=
 {
-  { & mi_key_file_datatmp, "data_tmp", 0},
-  { & mi_key_file_dfile, "dfile", 0},
-  { & mi_key_file_kfile, "kfile", 0},
-  { & mi_key_file_log, "log", 0}
+  { & mi_key_file_datatmp, "data_tmp", 0, 0, PSI_DOCUMENT_ME},
+  { & mi_key_file_dfile, "dfile", 0, 0, PSI_DOCUMENT_ME},
+  { & mi_key_file_kfile, "kfile", 0, 0, PSI_DOCUMENT_ME},
+  { & mi_key_file_log, "log", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
@@ -152,35 +152,35 @@ PSI_thread_key mi_key_thread_find_all_keys;
 
 static PSI_thread_info all_myisam_threads[]=
 {
-  { &mi_key_thread_find_all_keys, "find_all_keys", 0}
+  { &mi_key_thread_find_all_keys, "find_all_keys", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 static PSI_memory_info all_myisam_memory[]=
 {
-  { &mi_key_memory_MYISAM_SHARE, "MYISAM_SHARE", 0},
-  { &mi_key_memory_MI_INFO, "MI_INFO", 0},
-  { &mi_key_memory_MI_INFO_ft1_to_ft2, "MI_INFO::ft1_to_ft2", 0},
-  { &mi_key_memory_MI_INFO_bulk_insert, "MI_INFO::bulk_insert", 0},
-  { &mi_key_memory_record_buffer, "record_buffer", 0},
-  { &mi_key_memory_FTB, "FTB", 0},
-  { &mi_key_memory_FT_INFO, "FT_INFO", 0},
-  { &mi_key_memory_FTPARSER_PARAM, "FTPARSER_PARAM", 0},
-  { &mi_key_memory_ft_memroot, "ft_memroot", 0},
-  { &mi_key_memory_ft_stopwords, "ft_stopwords", 0},
-  { &mi_key_memory_MI_SORT_PARAM, "MI_SORT_PARAM", 0},
-  { &mi_key_memory_MI_SORT_PARAM_wordroot, "MI_SORT_PARAM::wordroot", 0},
-  { &mi_key_memory_SORT_FT_BUF, "SORT_FT_BUF", 0},
-  { &mi_key_memory_SORT_KEY_BLOCKS, "SORT_KEY_BLOCKS", 0},
-  { &mi_key_memory_filecopy, "filecopy", 0},
-  { &mi_key_memory_SORT_INFO_buffer, "SORT_INFO::buffer", 0},
-  { &mi_key_memory_MI_DECODE_TREE, "MI_DECODE_TREE", 0},
-  { &mi_key_memory_MYISAM_SHARE_decode_tables, "MYISAM_SHARE::decode_tables", 0},
-  { &mi_key_memory_preload_buffer, "preload_buffer", 0},
-  { &mi_key_memory_stPageList_pages, "stPageList::pages", 0},
-  { &mi_key_memory_keycache_thread_var, "keycache_thread_var", 0},
-  { &key_memory_QUEUE, "QUEUE", 0},
+  { &mi_key_memory_MYISAM_SHARE, "MYISAM_SHARE", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_MI_INFO, "MI_INFO", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_MI_INFO_ft1_to_ft2, "MI_INFO::ft1_to_ft2", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_MI_INFO_bulk_insert, "MI_INFO::bulk_insert", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_record_buffer, "record_buffer", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_FTB, "FTB", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_FT_INFO, "FT_INFO", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_FTPARSER_PARAM, "FTPARSER_PARAM", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_ft_memroot, "ft_memroot", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_ft_stopwords, "ft_stopwords", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_MI_SORT_PARAM, "MI_SORT_PARAM", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_MI_SORT_PARAM_wordroot, "MI_SORT_PARAM::wordroot", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_SORT_FT_BUF, "SORT_FT_BUF", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_SORT_KEY_BLOCKS, "SORT_KEY_BLOCKS", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_filecopy, "filecopy", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_SORT_INFO_buffer, "SORT_INFO::buffer", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_MI_DECODE_TREE, "MI_DECODE_TREE", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_MYISAM_SHARE_decode_tables, "MYISAM_SHARE::decode_tables", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_preload_buffer, "preload_buffer", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_stPageList_pages, "stPageList::pages", 0, 0, PSI_DOCUMENT_ME},
+  { &mi_key_memory_keycache_thread_var, "keycache_thread_var", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_QUEUE, "QUEUE", 0, 0, PSI_DOCUMENT_ME},
 };
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 

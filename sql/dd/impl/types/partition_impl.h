@@ -19,33 +19,33 @@
 #include <sys/types.h>
 #include <memory>
 #include <new>
-#include <string>
 
-#include "dd/collection.h"
-#include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/sdi_fwd.h"
-#include "dd/types/object_type.h"              // dd::Object_type
-#include "dd/types/partition.h"                // dd::Partition
-#include "dd/types/partition_index.h"          // dd::Partition_index
-#include "dd/types/partition_value.h"          // dd::Partition_value
+#include "sql/dd/collection.h"
+#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/object_type.h"          // dd::Object_type
+#include "sql/dd/types/partition.h"            // dd::Partition
+#include "sql/dd/types/partition_index.h"      // IWYU pragma: keep
+#include "sql/dd/types/partition_value.h"      // IWYU pragma: keep
+#include "sql/dd/types/table.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Open_dictionary_tables_ctx;
-class Raw_record;
-class Table_impl;
 class Index;
 class Object_table;
-class Partition_index;
-class Partition_value;
+class Open_dictionary_tables_ctx;
 class Properties;
+class Raw_record;
 class Sdi_rcontext;
 class Sdi_wcontext;
 class Table;
+class Table_impl;
 class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -58,7 +58,11 @@ public:
 
   Partition_impl(Table_impl *table);
 
+  Partition_impl(Table_impl *parent, Partition_impl *partition);
+
   Partition_impl(const Partition_impl &src, Table_impl *parent);
+
+  Partition_impl(const Partition_impl &src, Partition_impl *partition);
 
   virtual ~Partition_impl();
 
@@ -106,14 +110,24 @@ public:
   { return *m_table; }
 
   /////////////////////////////////////////////////////////////////////////
-  // level
+  // Parent partition.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint level() const
-  { return m_level; }
+  virtual const Partition *parent_partition() const
+  { return m_parent; }
 
-  virtual void set_level(uint level)
-  { m_level= level; }
+  virtual Partition *parent_partition()
+  { return const_cast<dd::Partition*>(m_parent); }
+
+  /////////////////////////////////////////////////////////////////////////
+  // parent_partition_id
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual Object_id parent_partition_id() const
+  { return m_parent_partition_id; }
+
+  virtual void set_parent_partition_id(Object_id parent_partition_id)
+  { m_parent_partition_id= parent_partition_id; }
 
   /////////////////////////////////////////////////////////////////////////
   // number.
@@ -124,6 +138,16 @@ public:
 
   virtual void set_number(uint number)
   { m_number= number; }
+
+  /////////////////////////////////////////////////////////////////////////
+  // description_utf8.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &description_utf8() const
+  { return m_description_utf8; }
+
+  virtual void set_description_utf8(const String_type &description_utf8)
+  { m_description_utf8= description_utf8; }
 
   /////////////////////////////////////////////////////////////////////////
   // engine.
@@ -214,6 +238,18 @@ public:
   { return &m_indexes; }
   /* purecov: end */
 
+  /////////////////////////////////////////////////////////////////////////
+  // Sub Partition collection.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual Partition *add_sub_partition();
+
+  virtual const Table::Partition_collection &sub_partitions() const
+  { return m_sub_partitions; }
+
+  virtual Table::Partition_collection *sub_partitions()
+  { return &m_sub_partitions; }
+
   virtual const Partition *parent() const
   { return m_parent; }
   virtual void set_parent(const Partition *parent)
@@ -239,19 +275,35 @@ public:
     return new (std::nothrow) Partition_impl(table);
   }
 
+  static Partition_impl *restore_item(Partition_impl *part)
+  {
+    Partition_impl *p= new (std::nothrow) Partition_impl(&part->table_impl(),
+                                                         part);
+    p->set_parent(part);
+
+    return p;
+  }
+
   static Partition_impl *clone(const Partition_impl &other,
                                Table_impl *table)
   {
     return new (std::nothrow) Partition_impl(other, table);
   }
 
+  static Partition_impl *clone(const Partition_impl &other,
+                               Partition_impl *part)
+  {
+    return new (std::nothrow) Partition_impl(other, part);
+  }
+
 private:
   // Fields.
 
-  uint m_level;
+  Object_id m_parent_partition_id;
   uint m_number;
   Object_id m_se_private_id;
 
+  String_type m_description_utf8;
   String_type m_engine;
   String_type m_comment;
   std::unique_ptr<Properties> m_options;
@@ -265,6 +317,7 @@ private:
 
   Partition_values m_values;
   Partition_indexes m_indexes;
+  Table::Partition_collection m_sub_partitions;
 
   // References to loosely-coupled objects.
 
@@ -288,11 +341,12 @@ public:
 /** Used to compare two partition elements. */
 struct Partition_order_comparator
 {
+  // TODO : do we really need this ordering now ?
   bool operator() (const dd::Partition* p1, const dd::Partition* p2) const
   {
-    if (p1->level() == p2->level())
+    if (p1->parent_partition_id() == p2->parent_partition_id())
       return p1->number() < p2->number();
-    return p1->level() < p2->level();
+    return p1->parent_partition_id() < p2->parent_partition_id();
   }
 };
 

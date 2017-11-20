@@ -20,39 +20,60 @@
 
 #include "sql/histograms/histogram.h"   // Histogram, Histogram_comparator
 
+#include <sys/types.h>
+#include <algorithm>
 #include <map>
 #include <memory>        // std::unique_ptr
 #include <new>
-#include <set>
+#include <random>
 #include <string>
 #include <vector>
 
 #include "binary_log_types.h"
-#include "dd/dd.h"
-#include "dd/types/column.h"
-#include "dd/types/table.h"             // dd::Table
-#include "field.h"                      // Field
-#include "json_dom.h"                   // Json_*
-#include "mdl.h"                        // MDL_request
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_bitmap.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_sys.h"                     // my_micro_time, get_charset
-#include "psi_memory_key.h"             // key_memory_histograms
+#include "my_time.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_time.h"
+#include "mysqld_error.h"
 #include "scope_guard.h"                // create_scope_guard
-#include "sql_base.h"                   // open_and_lock_tables,
-                                        // close_thread_tables
-#include "sql_class.h"                  // make_lex_string_root
-#include "sql_string.h"                 // String
-#include "sql_time.h"                   // my_time_compare
+#include "sql/auth/auth_common.h"
+#include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/column.h"
 #include "sql/dd/types/column_statistics.h"
+#include "sql/dd/types/table.h"         // dd::Table
+#include "sql/field.h"                  // Field
+#include "sql/handler.h"
 #include "sql/histograms/equi_height.h" // Equi_height<T>
 #include "sql/histograms/singleton.h"   // Singleton<T>
 #include "sql/histograms/value_map.h"   // Value_map
-#include "thr_malloc.h"                 // MEM_ROOT
-#include "transaction.h"                // trans_commit_stmt, trans_rollback_stmt
-#include "tztime.h"                     // my_tz_UTC
+#include "sql/json_dom.h"               // Json_*
+#include "sql/mdl.h"                    // MDL_request
+#include "sql/my_decimal.h"
+#include "sql/psi_memory_key.h"         // key_memory_histograms
+#include "sql/sql_base.h"               // open_and_lock_tables,
+#include "sql/sql_bitmap.h"
+                                        // close_thread_tables
+#include "sql/sql_class.h"              // make_lex_string_root
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_servers.h"
+#include "sql/strfunc.h"                    // find_type2, find_set
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"                 // MEM_ROOT
+#include "sql/transaction.h"            // trans_commit_stmt, trans_rollback_stmt
+#include "sql/tztime.h"                 // my_tz_UTC
+#include "sql_string.h"                 // String
+#include "template_utils.h"
 
 namespace histograms {
 
@@ -67,19 +88,6 @@ using value_map_collection=
           Histogram_key_allocator<
             std::pair<const uint16,
                       std::unique_ptr<histograms::Value_map_base>>>>;
-
-/// Datatypes that a Value_map can hold (including the invalid type).
-enum class Value_map_type
-{
-  INVALID,
-  STRING,
-  INT,
-  UINT,
-  DOUBLE,
-  DECIMAL,
-  DATETIME
-};
-
 
 void *Histogram_psi_key_alloc::operator()(size_t s) const
 {
@@ -111,22 +119,26 @@ field_type_to_value_map_type(const enum_field_types field_type,
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_BIT:
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
       return Value_map_type::INT;
+    case MYSQL_TYPE_ENUM:
+      return Value_map_type::ENUM;
+    case MYSQL_TYPE_SET:
+      return Value_map_type::SET;
     case MYSQL_TYPE_LONGLONG:
       return is_unsigned ? Value_map_type::UINT : Value_map_type::INT;
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
       return Value_map_type::DOUBLE;
-    case MYSQL_TYPE_TIMESTAMP:
-    case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_TIME:
-    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIME2:
+      return Value_map_type::TIME;
+    case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_NEWDATE:
+      return Value_map_type::DATE;
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_DATETIME2:
-    case MYSQL_TYPE_TIME2:
       return Value_map_type::DATETIME;
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
@@ -204,9 +216,10 @@ static bool lock_for_write(THD *thd, const dd::String_type &mdl_key)
 
 Histogram::Histogram(MEM_ROOT *mem_root, const std::string &db_name,
                      const std::string &tbl_name, const std::string &col_name,
-                     enum_histogram_type type)
+                     enum_histogram_type type, Value_map_type data_type)
   :m_null_values_fraction(INVALID_NULL_VALUES_FRACTION), m_charset(nullptr),
-  m_num_buckets_specified(0), m_mem_root(mem_root), m_hist_type(type)
+  m_num_buckets_specified(0), m_mem_root(mem_root), m_hist_type(type),
+  m_data_type(data_type)
 {
   make_lex_string_root(m_mem_root, &m_database_name, db_name.c_str(),
                        db_name.length(), false);
@@ -224,7 +237,7 @@ Histogram::Histogram(MEM_ROOT *mem_root, const Histogram &other)
   m_null_values_fraction(other.m_null_values_fraction),
   m_charset(other.m_charset),
   m_num_buckets_specified(other.m_num_buckets_specified), m_mem_root(mem_root),
-  m_hist_type(other.m_hist_type)
+  m_hist_type(other.m_hist_type), m_data_type(other.m_data_type)
 {
   make_lex_string_root(m_mem_root, &m_database_name, other.m_database_name.str,
                        other.m_database_name.length, false);
@@ -311,7 +324,8 @@ Histogram *build_histogram(MEM_ROOT *mem_root, const Value_map<T> &value_map,
   if (num_buckets >= value_map.size())
   {
     Singleton<T> *singleton=
-      new(mem_root) Singleton<T>(mem_root, db_name, tbl_name, col_name);
+      new(mem_root) Singleton<T>(mem_root, db_name, tbl_name, col_name,
+                                 value_map.get_data_type());
 
     if (singleton == nullptr)
       return nullptr;
@@ -324,7 +338,8 @@ Histogram *build_histogram(MEM_ROOT *mem_root, const Value_map<T> &value_map,
   else
   {
     Equi_height<T> *equi_height=
-      new(mem_root) Equi_height<T>(mem_root, db_name, tbl_name, col_name);
+      new(mem_root) Equi_height<T>(mem_root, db_name, tbl_name, col_name,
+                                   value_map.get_data_type());
 
     if (equi_height == nullptr)
       return nullptr;
@@ -391,34 +406,64 @@ Histogram::json_to_histogram(MEM_ROOT *mem_root, const std::string &schema_name,
     if (data_type->value() == "double")
     {
       histogram= new (mem_root) Equi_height<double>(mem_root, schema_name,
-                                                    table_name, column_name);
+                                                    table_name, column_name,
+                                                    Value_map_type::DOUBLE);
     }
     else if (data_type->value() == "int")
     {
       histogram= new (mem_root) Equi_height<longlong>(mem_root, schema_name,
-                                                      table_name, column_name);
+                                                      table_name, column_name,
+                                                      Value_map_type::INT);
+    }
+    else if (data_type->value() == "enum")
+    {
+      histogram= new (mem_root) Equi_height<longlong>(mem_root, schema_name,
+                                                      table_name, column_name,
+                                                      Value_map_type::ENUM);
+    }
+    else if (data_type->value() == "set")
+    {
+      histogram= new (mem_root) Equi_height<longlong>(mem_root, schema_name,
+                                                      table_name, column_name,
+                                                      Value_map_type::SET);
     }
     else if (data_type->value() == "uint")
     {
       histogram= new (mem_root) Equi_height<ulonglong>(mem_root, schema_name,
-                                                       table_name, column_name);
+                                                       table_name, column_name,
+                                                       Value_map_type::UINT);
     }
     else if (data_type->value() == "string")
     {
       histogram= new (mem_root) Equi_height<String>(mem_root, schema_name,
-                                                    table_name, column_name);
+                                                    table_name, column_name,
+                                                    Value_map_type::STRING);
+    }
+    else if (data_type->value() == "date")
+    {
+      histogram= new (mem_root) Equi_height<MYSQL_TIME>(mem_root, schema_name,
+                                                        table_name, column_name,
+                                                        Value_map_type::DATE);
+    }
+    else if (data_type->value() == "time")
+    {
+      histogram= new (mem_root) Equi_height<MYSQL_TIME>(mem_root, schema_name,
+                                                        table_name, column_name,
+                                                        Value_map_type::TIME);
     }
     else if (data_type->value() == "datetime")
     {
-      histogram= new (mem_root) Equi_height<MYSQL_TIME>(mem_root, schema_name,
-                                                        table_name,
-                                                        column_name);
+      histogram=
+        new (mem_root) Equi_height<MYSQL_TIME>(mem_root, schema_name,
+                                               table_name, column_name,
+                                               Value_map_type::DATETIME);
     }
     else if (data_type->value() == "decimal")
     {
-      histogram= new (mem_root) Equi_height<my_decimal>(mem_root, schema_name,
-                                                        table_name,
-                                                        column_name);
+      histogram=
+        new (mem_root) Equi_height<my_decimal>(mem_root, schema_name,
+                                               table_name, column_name,
+                                               Value_map_type::DECIMAL);
     }
     else
     {
@@ -431,32 +476,62 @@ Histogram::json_to_histogram(MEM_ROOT *mem_root, const std::string &schema_name,
     if (data_type->value() == "double")
     {
       histogram= new (mem_root) Singleton<double>(mem_root, schema_name,
-                                                  table_name, column_name);
+                                                  table_name, column_name,
+                                                  Value_map_type::DOUBLE);
     }
     else if (data_type->value() == "int")
     {
       histogram= new (mem_root) Singleton<longlong>(mem_root, schema_name,
-                                                    table_name, column_name);
+                                                    table_name, column_name,
+                                                    Value_map_type::INT);
+    }
+    else if (data_type->value() == "enum")
+    {
+      histogram= new (mem_root) Singleton<longlong>(mem_root, schema_name,
+                                                    table_name, column_name,
+                                                    Value_map_type::ENUM);
+    }
+    else if (data_type->value() == "set")
+    {
+      histogram= new (mem_root) Singleton<longlong>(mem_root, schema_name,
+                                                    table_name, column_name,
+                                                    Value_map_type::SET);
     }
     else if (data_type->value() == "uint")
     {
       histogram= new (mem_root) Singleton<ulonglong>(mem_root, schema_name,
-                                                     table_name, column_name);
+                                                     table_name, column_name,
+                                                     Value_map_type::UINT);
     }
     else if (data_type->value() == "string")
     {
       histogram= new (mem_root) Singleton<String>(mem_root, schema_name,
-                                                  table_name, column_name);
+                                                  table_name, column_name,
+                                                  Value_map_type::STRING);
     }
     else if (data_type->value() == "datetime")
     {
       histogram= new (mem_root) Singleton<MYSQL_TIME>(mem_root, schema_name,
-                                                      table_name, column_name);
+                                                      table_name, column_name,
+                                                      Value_map_type::DATETIME);
+    }
+    else if (data_type->value() == "date")
+    {
+      histogram= new (mem_root) Singleton<MYSQL_TIME>(mem_root, schema_name,
+                                                      table_name, column_name,
+                                                      Value_map_type::DATE);
+    }
+    else if (data_type->value() == "time")
+    {
+      histogram= new (mem_root) Singleton<MYSQL_TIME>(mem_root, schema_name,
+                                                      table_name, column_name,
+                                                      Value_map_type::TIME);
     }
     else if (data_type->value() == "decimal")
     {
       histogram= new (mem_root) Singleton<my_decimal>(mem_root, schema_name,
-                                                      table_name, column_name);
+                                                      table_name, column_name,
+                                                      Value_map_type::DECIMAL);
     }
     else
     {
@@ -531,50 +606,22 @@ bool Histogram::json_to_histogram(const Json_object &json_object)
 }
 
 
-template <> bool
-Histogram::histogram_data_type_to_json<double>(Json_object *json_object) const
+static std::map<const Value_map_type, const std::string> value_map_type_to_str=
+  {{Value_map_type::DATETIME, "datetime"},
+   {Value_map_type::DATE, "date"},
+   {Value_map_type::TIME, "time"},
+   {Value_map_type::INT, "int"},
+   {Value_map_type::UINT, "uint"},
+   {Value_map_type::DOUBLE, "double"},
+   {Value_map_type::DECIMAL, "decimal"},
+   {Value_map_type::STRING, "string"},
+   {Value_map_type::ENUM, "enum"},
+   {Value_map_type::SET, "set"}};
+
+bool Histogram::histogram_data_type_to_json(Json_object *json_object) const
 {
-  const Json_string json_value("double");
-  return json_object->add_clone(data_type_str(), &json_value);
-}
-
-
-template <> bool
-Histogram::histogram_data_type_to_json<String>(Json_object *json_object) const
-{
-  const Json_string json_value("string");
-  return json_object->add_clone(data_type_str(), &json_value);
-}
-
-
-template <> bool Histogram::
-histogram_data_type_to_json<ulonglong>(Json_object *json_object) const
-{
-  const Json_string json_value("uint");
-  return json_object->add_clone(data_type_str(), &json_value);
-}
-
-
-template <> bool Histogram::
-histogram_data_type_to_json<longlong>(Json_object *json_object) const
-{
-  const Json_string json_value("int");
-  return json_object->add_clone(data_type_str(), &json_value);
-}
-
-
-template <> bool Histogram::
-histogram_data_type_to_json<MYSQL_TIME>(Json_object *json_object) const
-{
-  const Json_string json_value("datetime");
-  return json_object->add_clone(data_type_str(), &json_value);
-}
-
-
-template <> bool Histogram::
-histogram_data_type_to_json<my_decimal>(Json_object *json_object) const
-{
-  const Json_string json_value("decimal");
+  std::string foo= value_map_type_to_str[get_data_type()];
+  const Json_string json_value(foo);
   return json_object->add_clone(data_type_str(), &json_value);
 }
 
@@ -664,15 +711,16 @@ bool Histogram::extract_json_dom_value(const Json_dom *json_dom,
   Check if a field is covered by a single-part unique index (primary key or
   unique index). Indexes that are marked as invisible are ignored.
 
+  @param thd The current session.
   @param field The field to check.
 
   @return true if the field is covered by a single-part unique index. False
           otherwise.
 */
-static bool covered_by_single_part_index(const Field *field)
+static bool covered_by_single_part_index(const THD *thd, const Field *field)
 {
   Key_map possible_keys;
-  possible_keys.merge(field->table->s->usable_indexes());
+  possible_keys.merge(field->table->s->usable_indexes(thd));
   possible_keys.intersect(field->key_start);
   DBUG_ASSERT(field->table->s->keys <= possible_keys.length());
   for (uint i= 0; i < field->table->s->keys; ++i)
@@ -714,8 +762,10 @@ static bool prepare_value_maps(
 
     // Row count variable
     *row_size_bytes+= sizeof(ha_rows);
+    const Value_map_type value_map_type=
+      histograms::field_type_to_value_map_type(field);
 
-    switch (histograms::field_type_to_value_map_type(field))
+    switch (value_map_type)
     {
       case histograms::Value_map_type::STRING:
         {
@@ -724,37 +774,47 @@ static bool prepare_value_maps(
                      histograms::HISTOGRAM_MAX_COMPARE_LENGTH);
           *row_size_bytes+= max_field_length * field->charset()->mbmaxlen;
           *row_size_bytes+= sizeof(String);
-          value_map= new histograms::Value_map<String>(field->charset());
+          value_map= new histograms::Value_map<String>(field->charset(),
+                                                       value_map_type);
           break;
         }
       case histograms::Value_map_type::DOUBLE:
         {
           *row_size_bytes+= sizeof(double);
-          value_map= new histograms::Value_map<double>(field->charset());
+          value_map= new histograms::Value_map<double>(field->charset(),
+                                                       value_map_type);
           break;
         }
       case histograms::Value_map_type::INT:
+      case histograms::Value_map_type::ENUM:
+      case histograms::Value_map_type::SET:
         {
           *row_size_bytes+= sizeof(longlong);
-          value_map= new histograms::Value_map<longlong>(field->charset());
+          value_map= new histograms::Value_map<longlong>(field->charset(),
+                                                         value_map_type);
           break;
         }
       case histograms::Value_map_type::UINT:
         {
           *row_size_bytes+= sizeof(ulonglong);
-          value_map= new histograms::Value_map<ulonglong>(field->charset());
+          value_map= new histograms::Value_map<ulonglong>(field->charset(),
+                                                          value_map_type);
           break;
         }
       case histograms::Value_map_type::DATETIME:
+      case histograms::Value_map_type::DATE:
+      case histograms::Value_map_type::TIME:
         {
           *row_size_bytes+= sizeof(MYSQL_TIME);
-          value_map= new histograms::Value_map<MYSQL_TIME>(field->charset());
+          value_map= new histograms::Value_map<MYSQL_TIME>(field->charset(),
+                                                           value_map_type);
           break;
         }
       case histograms::Value_map_type::DECIMAL:
         {
           *row_size_bytes+= sizeof(my_decimal);
-          value_map= new histograms::Value_map<my_decimal>(field->charset());
+          value_map= new histograms::Value_map<my_decimal>(field->charset(),
+                                                           value_map_type);
           break;
         }
       case histograms::Value_map_type::INVALID:
@@ -849,6 +909,8 @@ static bool fill_value_maps(
             break;
           }
         case histograms::Value_map_type::INT:
+        case histograms::Value_map_type::ENUM:
+        case histograms::Value_map_type::SET:
           {
             longlong value= field->val_int();
             if (field->is_null())
@@ -866,31 +928,33 @@ static bool fill_value_maps(
               return true; /* purecov: deadcode */
             break;
           }
+        case histograms::Value_map_type::DATE:
+          {
+            MYSQL_TIME time_value;
+            TIME_from_longlong_date_packed(&time_value,
+                                           field->val_date_temporal());
+            if (field->is_null())
+              value_map->add_null_values(1);
+            else if (value_map->add_values(time_value, 1))
+              return true; /* purecov: deadcode */
+            break;
+          }
+        case histograms::Value_map_type::TIME:
+          {
+            MYSQL_TIME time_value;
+            TIME_from_longlong_time_packed(&time_value,
+                                           field->val_time_temporal());
+            if (field->is_null())
+              value_map->add_null_values(1);
+            else if (value_map->add_values(time_value, 1))
+              return true; /* purecov: deadcode */
+            break;
+          }
         case histograms::Value_map_type::DATETIME:
           {
-            longlong value= field->val_temporal_by_field_type();
             MYSQL_TIME time_value;
-
-            switch (field->type())
-            {
-              case MYSQL_TYPE_TIMESTAMP:
-              case MYSQL_TYPE_TIMESTAMP2:
-              case MYSQL_TYPE_DATETIME:
-              case MYSQL_TYPE_DATETIME2:
-                TIME_from_longlong_datetime_packed(&time_value, value);
-                break;
-              case MYSQL_TYPE_DATE:
-              case MYSQL_TYPE_NEWDATE:
-                TIME_from_longlong_date_packed(&time_value, value);
-                break;
-              case MYSQL_TYPE_TIME:
-              case MYSQL_TYPE_TIME2:
-                TIME_from_longlong_time_packed(&time_value, value);
-                break;
-              default:
-                DBUG_ASSERT(false); /* purecov: deadcode */
-                break;
-            }
+            TIME_from_longlong_datetime_packed(&time_value,
+                                               field->val_date_temporal());
             if (field->is_null())
               value_map->add_null_values(1);
             else if (value_map->add_values(time_value, 1))
@@ -1033,7 +1097,7 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
       Check if this field is covered by a single-part unique index. If it is, we
       don't want to create histogram statistics for it.
     */
-    if (covered_by_single_part_index(field))
+    if (covered_by_single_part_index(thd, field))
     {
       results.emplace(column_name,
                       Message::COVERED_BY_SINGLE_PART_UNIQUE_INDEX);
@@ -1141,37 +1205,11 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
 
 
 bool drop_all_histograms(THD *thd, const TABLE_LIST &table,
+                         const dd::Table &table_definition,
                          results_map &results)
 {
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  MDL_request mdl_request;
-  MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, table.db, table.table_name,
-                   MDL_SHARED_READ_ONLY, MDL_TRANSACTION);
-
-  if (thd->mdl_context.acquire_lock(&mdl_request,
-                                    thd->variables.lock_wait_timeout))
-  {
-    // error has already been reported
-    return true; /* purecov: deadcode */
-  }
-
-  dd::Table *table_def= nullptr;
-  if (thd->dd_client()->acquire_for_modification(table.db, table.table_name,
-                                                 &table_def))
-  {
-    // error has already been reported
-    return false; /* purecov: deadcode */
-  }
-
-  if (table_def == nullptr)
-  {
-    DBUG_ASSERT(false); /* purecov: deadcode */
-    return false;
-  }
-
   columns_set columns;
-  for (const auto &col : *table_def->columns())
+  for (const auto &col : table_definition.columns())
     columns.emplace(col->name().c_str());
 
   return drop_histograms(thd, table, columns, results);
@@ -1237,8 +1275,8 @@ bool Histogram::store_histogram(THD *thd) const
 
   dd::String_type mdl_key=
     dd::Column_statistics::create_mdl_key(get_database_name().str,
-                                         get_table_name().str,
-                                         get_column_name().str);
+                                          get_table_name().str,
+                                          get_column_name().str);
 
   if (lock_for_write(thd, mdl_key))
   {
@@ -1248,8 +1286,8 @@ bool Histogram::store_histogram(THD *thd) const
 
   dd::String_type dd_name=
     dd::Column_statistics::create_name(get_database_name().str,
-                                      get_table_name().str,
-                                      get_column_name().str);
+                                       get_table_name().str,
+                                       get_column_name().str);
 
   // Do we have an existing histogram for this column?
   dd::Column_statistics *column_statistics= nullptr;
@@ -1425,6 +1463,556 @@ rename_histograms(THD *thd, const char *old_schema_name,
   return false;
 }
 
+
+bool find_histogram(THD *thd, const std::string &schema_name,
+                    const std::string &table_name,
+                    const std::string &column_name, const Histogram **histogram)
+{
+  DBUG_ASSERT(*histogram == nullptr);
+
+  if (schema_name == "mysql" || table_name == "column_statistics")
+    return false;
+
+  dd::String_type dd_name=
+    dd::Column_statistics::create_name(schema_name.c_str(), table_name.c_str(),
+                                       column_name.c_str());
+
+  const dd::Column_statistics *column_statistics= nullptr;
+  dd::cache::Dictionary_client *client= thd->dd_client();
+  if (client->acquire<dd::Column_statistics>(dd_name, &column_statistics))
+    return true; /* purecov: deadcode */
+
+  if (column_statistics == nullptr)
+    return false;
+
+  *histogram= column_statistics->histogram();
+  return false;
+}
+
+
+template <class T>
+double Histogram::get_less_than_selectivity_dispatcher(const T& value) const
+{
+  switch (get_histogram_type())
+  {
+    case enum_histogram_type::SINGLETON:
+    {
+      const Singleton<T> *singleton= down_cast<const Singleton<T>*>(this);
+      return singleton->get_less_than_selectivity(value);
+    }
+    case enum_histogram_type::EQUI_HEIGHT:
+    {
+      const Equi_height<T> *equi_height= down_cast<const Equi_height<T>*>(this);
+      return equi_height->get_less_than_selectivity(value);
+    }
+  }
+  /* purecov: begin deadcode */
+  DBUG_ASSERT(false);
+  return 0.0;
+  /* purecov: end deadcode */
+}
+
+
+template <class T>
+double Histogram::get_greater_than_selectivity_dispatcher(const T& value) const
+{
+  switch (get_histogram_type())
+  {
+    case enum_histogram_type::SINGLETON:
+    {
+      const Singleton<T> *singleton= down_cast<const Singleton<T>*>(this);
+      return singleton->get_greater_than_selectivity(value);
+    }
+    case enum_histogram_type::EQUI_HEIGHT:
+    {
+      const Equi_height<T> *equi_height= down_cast<const Equi_height<T>*>(this);
+      return equi_height->get_greater_than_selectivity(value);
+    }
+  }
+  /* purecov: begin deadcode */
+  DBUG_ASSERT(false);
+  return 0.0;
+  /* purecov: end deadcode */
+}
+
+
+template <class T>
+double Histogram::get_equal_to_selectivity_dispatcher(const T& value) const
+{
+  switch (get_histogram_type())
+  {
+    case enum_histogram_type::SINGLETON:
+    {
+      const Singleton<T> *singleton= down_cast<const Singleton<T>*>(this);
+      return singleton->get_equal_to_selectivity(value);
+    }
+    case enum_histogram_type::EQUI_HEIGHT:
+    {
+      const Equi_height<T> *equi_height= down_cast<const Equi_height<T>*>(this);
+      return equi_height->get_equal_to_selectivity(value);
+    }
+  }
+  /* purecov: begin deadcode */
+  DBUG_ASSERT(false);
+  return 0.0;
+  /* purecov: end deadcode */
+}
+
+
+static bool get_temporal(Item *item, Value_map_type preferred_type,
+                         MYSQL_TIME *time_value)
+{
+  if (item->is_temporal_with_date_and_time())
+  {
+    TIME_from_longlong_datetime_packed(time_value,
+                                       item->val_date_temporal());
+  }
+  else if (item->is_temporal_with_date())
+  {
+    TIME_from_longlong_date_packed(time_value, item->val_date_temporal());
+  }
+  else if (item->is_temporal_with_time())
+  {
+    TIME_from_longlong_time_packed(time_value, item->val_time_temporal());
+  }
+  else
+  {
+    switch (preferred_type)
+    {
+      case Value_map_type::DATE:
+      case Value_map_type::DATETIME:
+        if (item->get_date_from_non_temporal(time_value, 0))
+          return true;
+        break;
+      case Value_map_type::TIME:
+        if (item->get_time_from_non_temporal(time_value))
+          return true;
+        break;
+      default:
+        /* purecov: begin deadcode */
+        DBUG_ASSERT(0);
+        break;
+        /* purecov: end deadcode */
+    }
+  }
+
+  return false;
+}
+
+template <class T>
+double Histogram::apply_operator(const enum_operator op, const T& value) const
+{
+  switch (op)
+  {
+    case enum_operator::LESS_THAN:
+      return get_less_than_selectivity_dispatcher(value);
+    case enum_operator::GREATER_THAN:
+      return get_greater_than_selectivity_dispatcher(value);
+    case enum_operator::EQUALS_TO:
+      return get_equal_to_selectivity_dispatcher(value);
+    default:
+      /* purecov: begin deadcode */
+      DBUG_ASSERT(false);
+      return 1.0;
+      /* purecov: end deadcode */
+  }
+}
+
+
+bool Histogram::get_selectivity_dispatcher(Item *item, const enum_operator op,
+                                           const TYPELIB *typelib,
+                                           double *selectivity) const
+{
+  switch (this->get_data_type())
+  {
+    case Value_map_type::INVALID:
+    {
+      /* purecov: begin deadcode */
+      DBUG_ASSERT(false);
+      return true;
+      /* purecov: end deadcode */
+    }
+    case Value_map_type::STRING:
+    {
+      // Is the character set the same? If not, we cannot use the histogram
+      if (item->collation.collation->number != get_character_set()->number)
+        return true;
+
+      StringBuffer<MAX_FIELD_WIDTH> str_buf(item->collation.collation);
+      const String *str= item->val_str(&str_buf);
+      if (item->is_null()) return true;
+
+      *selectivity= apply_operator(op, str->substr(0, HISTOGRAM_MAX_COMPARE_LENGTH));
+      return false;
+    }
+    case Value_map_type::INT:
+    {
+      const longlong value= item->val_int();
+      if (item->is_null()) return true;
+
+      *selectivity= apply_operator(op, value);
+      return false;
+    }
+    case Value_map_type::ENUM:
+    {
+      DBUG_ASSERT(typelib != nullptr);
+
+      longlong value;
+      if (item->data_type() == MYSQL_TYPE_VARCHAR)
+      {
+        StringBuffer<MAX_FIELD_WIDTH> str_buf(item->collation.collation);
+        const String *str= item->val_str(&str_buf);
+        if (item->is_null()) return true;
+
+        // Remove any trailing whitespace
+        size_t length= str->charset()->cset->lengthsp(str->charset(),
+                                                      str->ptr(),
+                                                      str->length());
+        value= find_type2(typelib, str->ptr(), length, str->charset());
+      }
+      else
+      {
+        value= item->val_int();
+        if (item->is_null()) return true;
+      }
+
+      if (op == enum_operator::EQUALS_TO)
+      {
+        *selectivity= get_equal_to_selectivity_dispatcher(value);
+        return false;
+      }
+
+      return true; /* purecov: deadcode */
+    }
+    case Value_map_type::SET:
+    {
+      DBUG_ASSERT(typelib != nullptr);
+
+      longlong value;
+      if (item->data_type() == MYSQL_TYPE_VARCHAR)
+      {
+        StringBuffer<MAX_FIELD_WIDTH> str_buf(item->collation.collation);
+        const String *str= item->val_str(&str_buf);
+        if (item->is_null()) return true;
+
+        bool got_warning;
+        char *not_used;
+        uint not_used2;
+        ulonglong tmp_value= find_set(typelib, str->ptr(), str->length(),
+                                      str->charset(), &not_used, &not_used2,
+                                      &got_warning);
+
+        value= static_cast<ulonglong>(tmp_value);
+      }
+      else
+      {
+        value= item->val_int();
+        if (item->is_null()) return true;
+      }
+
+      if (op == enum_operator::EQUALS_TO)
+      {
+        *selectivity= get_equal_to_selectivity_dispatcher(value);
+        return false;
+      }
+
+      return true; /* purecov: deadcode */
+    }
+    case Value_map_type::UINT:
+    {
+      const ulonglong value= static_cast<ulonglong>(item->val_int());
+      if (item->is_null()) return true;
+
+      *selectivity= apply_operator(op, value);
+      return false;
+    }
+    case Value_map_type::DOUBLE:
+    {
+      const double value= item->val_real();
+      if (item->is_null()) return true;
+
+      *selectivity= apply_operator(op, value);
+      return false;
+    }
+    case Value_map_type::DECIMAL:
+    {
+      my_decimal buffer;
+      const my_decimal *value= item->val_decimal(&buffer);
+      if (item->is_null()) return true;
+
+      *selectivity= apply_operator(op, *value);
+      return false;
+    }
+    case Value_map_type::DATE:
+    case Value_map_type::TIME:
+    case Value_map_type::DATETIME:
+    {
+      MYSQL_TIME temporal_value;
+      if (get_temporal(item, get_data_type(), &temporal_value) ||
+          item->is_null())
+        return true;
+
+      *selectivity= apply_operator(op, temporal_value);
+      return false;
+    }
+  }
+
+  /* purecov: begin deadcode */
+  DBUG_ASSERT(false);
+  return true;
+  /* purecov: end deadcode */
+}
+
+
+bool Histogram::get_selectivity(Item **items, size_t item_count,
+                                enum_operator op, double *selectivity) const
+{
+  // Do some sanity checking first
+  switch (op)
+  {
+    case enum_operator::EQUALS_TO:
+    case enum_operator::GREATER_THAN:
+    case enum_operator::LESS_THAN:
+    case enum_operator::LESS_THAN_OR_EQUAL:
+    case enum_operator::GREATER_THAN_OR_EQUAL:
+    case enum_operator::NOT_EQUALS_TO:
+      DBUG_ASSERT(item_count == 2);
+      /*
+        Verify that one side of the predicate is a column/field, and that the
+        other side is a constant value.
+
+        Make sure that we have the constant item as the right side argument of
+        the predicate internally.
+      */
+      if (items[0]->const_item() && items[1]->type() == Item::FIELD_ITEM)
+      {
+        // Flip the operators as well as the operator itself.
+        switch (op)
+        {
+        case enum_operator::GREATER_THAN:
+          op= enum_operator::LESS_THAN;
+          break;
+        case enum_operator::LESS_THAN:
+          op= enum_operator::GREATER_THAN;
+          break;
+        case enum_operator::LESS_THAN_OR_EQUAL:
+          op= enum_operator::GREATER_THAN_OR_EQUAL;
+          break;
+        case enum_operator::GREATER_THAN_OR_EQUAL:
+          op= enum_operator::LESS_THAN_OR_EQUAL;
+          break;
+        default:
+          break;
+        }
+        Item *items_flipped[2];
+        items_flipped[0]= items[1];
+        items_flipped[1]= items[0];
+        return get_selectivity(items_flipped, item_count, op, selectivity);
+      }
+      else if (items[0]->type() != Item::FIELD_ITEM || !items[1]->const_item())
+      {
+        return true;
+      }
+      break;
+    case enum_operator::BETWEEN:
+    case enum_operator::NOT_BETWEEN:
+      DBUG_ASSERT(item_count == 3);
+
+      if (items[0]->type() != Item::FIELD_ITEM || !items[1]->const_item() ||
+          !items[2]->const_item())
+      {
+        return true;
+      }
+      break;
+    case enum_operator::IN_LIST:
+    case enum_operator::NOT_IN_LIST:
+      DBUG_ASSERT(item_count >= 2);
+
+      if (items[0]->type() != Item::FIELD_ITEM)
+        return true; /* purecov: deadcode */
+
+      // This will only work if all items are const_items
+      for (size_t i= 1; i < item_count; ++i)
+      {
+        if (!items[i]->const_item())
+          return true;
+      }
+      break;
+    case enum_operator::IS_NULL:
+    case enum_operator::IS_NOT_NULL:
+      DBUG_ASSERT(item_count == 1);
+      if (items[0]->type() != Item::FIELD_ITEM)
+        return true;
+  }
+
+  DBUG_ASSERT(items[0]->type() == Item::FIELD_ITEM);
+
+  const TYPELIB* typelib= nullptr;
+  const Item_field *item_field= down_cast<const Item_field*>(items[0]);
+  if (item_field->field->real_type() == MYSQL_TYPE_ENUM ||
+      item_field->field->real_type() == MYSQL_TYPE_SET)
+  {
+    const Field_enum *field_enum=
+      down_cast<const Field_enum*>(item_field->field);
+    typelib= field_enum->typelib;
+  }
+
+  switch (op)
+  {
+    case enum_operator::LESS_THAN:
+    case enum_operator::EQUALS_TO:
+    case enum_operator::GREATER_THAN:
+    {
+      return get_selectivity_dispatcher(items[1], op, typelib, selectivity);
+    }
+    case enum_operator::LESS_THAN_OR_EQUAL:
+    {
+      double less_than_selectivity;
+      double equals_to_selectivity;
+      if (get_selectivity_dispatcher(items[1], enum_operator::LESS_THAN,
+                                     typelib, &less_than_selectivity) ||
+          get_selectivity_dispatcher(items[1], enum_operator::EQUALS_TO,
+                                     typelib, &equals_to_selectivity))
+        return true;
+
+      *selectivity= std::min(less_than_selectivity + equals_to_selectivity,
+                             get_non_null_values_frequency());
+      return false;
+    }
+    case enum_operator::GREATER_THAN_OR_EQUAL:
+    {
+      double greater_than_selectivity;
+      double equals_to_selectivity;
+      if (get_selectivity_dispatcher(items[1], enum_operator::GREATER_THAN,
+                                     typelib, &greater_than_selectivity) ||
+          get_selectivity_dispatcher(items[1], enum_operator::EQUALS_TO,
+                                     typelib, &equals_to_selectivity))
+        return true;
+
+      *selectivity= std::min(greater_than_selectivity + equals_to_selectivity,
+                             get_non_null_values_frequency());
+      return false;
+    }
+    case enum_operator::NOT_EQUALS_TO:
+    {
+      double equals_to_selectivity;
+      if (get_selectivity_dispatcher(items[1], enum_operator::EQUALS_TO,
+                                     typelib, &equals_to_selectivity))
+        return true;
+
+      *selectivity=
+        std::max(get_non_null_values_frequency() - equals_to_selectivity,
+                 0.0);
+      return false;
+    }
+    case enum_operator::BETWEEN:
+    {
+      double less_than_selectivity;
+      double greater_than_selectivity;
+      if (get_selectivity_dispatcher(items[1], enum_operator::LESS_THAN,
+                                     typelib, &less_than_selectivity) ||
+          get_selectivity_dispatcher(items[2], enum_operator::GREATER_THAN,
+                                     typelib, &greater_than_selectivity))
+        return true;
+
+
+      *selectivity= this->get_non_null_values_frequency() -
+        (less_than_selectivity + greater_than_selectivity);
+
+      /*
+        Make sure that we don't return a value less than 0.0. This might happen
+        with a query like:
+          EXPLAIN SELECT a FROM t1 WHERE t1.a BETWEEN 3 AND 0;
+      */
+      *selectivity= std::max(0.0, *selectivity);
+      return false;
+    }
+    case enum_operator::NOT_BETWEEN:
+    {
+      double less_than_selectivity;
+      double greater_than_selectivity;
+      if (get_selectivity_dispatcher(items[1], enum_operator::LESS_THAN,
+                                     typelib, &less_than_selectivity) ||
+          get_selectivity_dispatcher(items[2], enum_operator::GREATER_THAN,
+                                     typelib, &greater_than_selectivity))
+        return true;
+
+      /*
+        Make sure that we don't return a value greater than 1.0. This might
+        happen with a query like:
+          EXPLAIN SELECT a FROM t1 WHERE t1.a NOT BETWEEN 3 AND 0;
+      */
+      *selectivity= std::min(less_than_selectivity + greater_than_selectivity,
+                             get_non_null_values_frequency());
+      return false;
+    }
+    case enum_operator::IN_LIST:
+    {
+      *selectivity= 0.0;
+      for (size_t i= 1; i < item_count; ++i)
+      {
+        double equals_to_selectivity;
+        if (get_selectivity_dispatcher(items[i], enum_operator::EQUALS_TO,
+                                       typelib, &equals_to_selectivity))
+          return true;
+
+        *selectivity+= equals_to_selectivity;
+
+        if (*selectivity >= get_non_null_values_frequency())
+          break;
+      }
+
+      /*
+        Long in-lists may easily exceed a selectivity of
+        get_non_null_values_frequency() in certain cases.
+      */
+      *selectivity= std::min(*selectivity, get_non_null_values_frequency());
+      return false;
+    }
+    case enum_operator::NOT_IN_LIST:
+    {
+      *selectivity= this->get_non_null_values_frequency();
+      for (size_t i= 1; i < item_count; ++i)
+      {
+        double equals_to_selectivity;
+        if (get_selectivity_dispatcher(items[i], enum_operator::EQUALS_TO,
+                                       typelib, &equals_to_selectivity))
+        {
+          if (items[i]->null_value)
+          {
+            // WHERE col1 NOT IN (..., NULL, ...) will return zero rows.
+            *selectivity= 0.0;
+            return false;
+          }
+
+          return true; /* purecov: deadcode */
+        }
+
+        *selectivity-= equals_to_selectivity;
+        if (*selectivity <= 0.0)
+          break;
+      }
+
+      /*
+        Long in-lists may easily estimate a selectivity less than 0.0 in certain
+        cases.
+      */
+      *selectivity= std::max(*selectivity, 0.0);
+      return false;
+    }
+    case enum_operator::IS_NULL:
+      *selectivity= this->get_null_values_fraction();
+      return false;
+    case enum_operator::IS_NOT_NULL:
+      *selectivity= 1.0 - this->get_null_values_fraction();
+      return false;
+  }
+
+  /* purecov: begin deadcode */
+  DBUG_ASSERT(false);
+  return true;
+  /* purecov: end deadcode */
+}
 
 // Explicit template instantiations.
 template Histogram *

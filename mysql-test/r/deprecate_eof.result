@@ -3,7 +3,6 @@
 # This WL can be tested by checking if session state which is sent
 # as part of OK packet is displayed as part of SELECT sql statement.
 #
-SET @save_query_cache_size=@@query_cache_size;
 CREATE DATABASE wl7766;
 USE wl7766;
 CREATE TABLE t1 (a int);
@@ -170,9 +169,9 @@ SELECT f1();
 f1()
 6
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- character_set_connection
--- utf8mb4
 -- character_set_client
+-- utf8mb4
+-- character_set_connection
 -- utf8mb4
 -- character_set_results
 -- big5
@@ -185,9 +184,9 @@ SELECT * FROM v1;
 f1()
 6
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- character_set_connection
--- utf8mb4
 -- character_set_client
+-- utf8mb4
+-- character_set_connection
 -- utf8mb4
 -- character_set_results
 -- big5
@@ -243,9 +242,9 @@ SELECT f4();
 f4()
 1
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- character_set_connection
--- utf8mb4
 -- character_set_client
+-- utf8mb4
+-- character_set_connection
 -- utf8mb4
 -- character_set_results
 -- utf8
@@ -262,7 +261,7 @@ DECLARE v1 int;
 DECLARE done INT DEFAULT FALSE;
 DECLARE cur1 CURSOR FOR SELECT * FROM t1;
 DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-SET @@session.tx_isolation='READ-COMMITTED';
+SET @@session.transaction_isolation='READ-COMMITTED';
 OPEN cur1;
 read_loop: LOOP
 FETCH cur1 INTO v1;
@@ -277,7 +276,7 @@ CALL cursor1();
 v1
 6
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- tx_isolation
+-- transaction_isolation
 -- READ-COMMITTED
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
@@ -289,7 +288,7 @@ DECLARE x int;
 DECLARE y int;
 DECLARE c1 CURSOR FOR SELECT * FROM t1 limit 1;
 DECLARE c2 CURSOR FOR SELECT * FROM t2 limit 1;
-SET @@session.tx_isolation='READ-COMMITTED';
+SET @@session.transaction_isolation='READ-COMMITTED';
 OPEN c1;
 OPEN c2;
 FETCH c1 INTO x;
@@ -303,7 +302,7 @@ CALL cursor2();
 (x+y)
 2
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- tx_isolation
+-- transaction_isolation
 -- READ-COMMITTED
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
@@ -371,65 +370,6 @@ CREATE PROCEDURE sel_with_no_session()
 BEGIN
 SELECT * FROM t1 ORDER BY 1;
 END |
-SET GLOBAL query_cache_size=1048576;
-RESET QUERY CACHE;
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	0
-CALL sel_with_session();
-a
-1
-2
--- Tracker : SESSION_TRACK_STATE_CHANGE
--- 1
-
-#expect 0 since query is not cached
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	0
-CALL sel_with_no_session();
-a
-1
-2
-#expect 1 query is cached
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	1
-CALL sel_with_no_session();
-a
-1
-2
-RESET QUERY CACHE;
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	0
-CALL sel_with_no_session();
-a
-1
-2
-#expect 1 query is cached
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	1
-CALL sel_with_no_session();
-a
-1
-2
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	1
-CALL sel_with_session();
-a
-1
-2
--- Tracker : SESSION_TRACK_STATE_CHANGE
--- 1
-
-#expect 1 as query is not cached
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	1
-SET GLOBAL query_cache_size= @save_query_cache_size;
 #cleanup
 DROP DATABASE bug19550875;
 -- Tracker : SESSION_TRACK_SCHEMA

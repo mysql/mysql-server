@@ -158,7 +158,7 @@ ulonglong my_timer_cycles(void)
   return (my_timer_cycles_il_i386());
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__x86_64) && defined(_LP64)
   return (my_timer_cycles_il_x86_64());
-#elif defined(__GNUC__) && defined(__sparcv9) && defined(_LP64)
+#elif defined(__GNUC__) && (defined(__sparcv9) || defined(__sparc_v9__)) && defined(_LP64)
   {
     ulonglong result;
     __asm __volatile__ ("rd %%tick,%0" : "=r" (result));
@@ -480,7 +480,7 @@ extern "C" void my_timer_init(MY_TIMER_INFO *mti)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_SUNPRO_I386;
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__x86_64) && defined(_LP64)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_SUNPRO_X86_64;
-#elif defined(__GNUC__) && defined(__sparcv9) && defined(_LP64)
+#elif defined(__GNUC__) && (defined(__sparcv9) || defined(__sparc_v9__)) && defined(_LP64)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_GCC_SPARC64;
 #elif defined(__GNUC__) && defined(__sparc__) && !defined(_LP64)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_GCC_SPARC32;

@@ -20,21 +20,22 @@
 #include <functional>
 
 #include "my_dbug.h"
-#include "sort_param.h"
-#include "sql_array.h"
+#include "sql/sort_param.h"
+#include "sql/sql_array.h"
 
 /**
   A compare function for variable-length keys used by filesort().
   For record format documentation, @see Sort_param.
 
   @param  sort_field_array array of field descriptors for sorting
+  @param  use_hash compare hash values (for grouping of JSON data)
   @param  s1 pointer to record 1
   @param  s2 pointer to record 2
   @return true/false according to sorting order
  */
 inline
 bool cmp_varlen_keys(Bounds_checked_array<st_sort_field> sort_field_array,
-                     const uchar *s1, const uchar *s2)
+                     bool use_hash, const uchar *s1, const uchar *s2)
 {
   const uchar *kp1= s1 + Sort_param::size_of_varlength_field;
   const uchar *kp2= s2 + Sort_param::size_of_varlength_field;
@@ -91,8 +92,16 @@ bool cmp_varlen_keys(Bounds_checked_array<st_sort_field> sort_field_array,
     kp1+= kp1_len;
     kp2+= kp2_len;
   }
-  // Compare hashes at the end of sort keys
-  return memcmp(kp1, kp2, 8) < 0;
+
+  if (use_hash)
+  {
+    // Compare hashes at the end of sort keys
+    return memcmp(kp1, kp2, 8) < 0;
+  }
+  else
+  {
+    return false;
+  }
 }
 
 #endif  // CMP_VARLEN_KEYS_INCLUDED

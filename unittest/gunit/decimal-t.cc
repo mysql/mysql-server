@@ -23,10 +23,12 @@
 #include <gtest/gtest.h>
 #include <math.h>
 
+#include "benchmark.h"
 #include "decimal.h"
 #include "m_string.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
+#include "sql/my_decimal.h"
 
 
 namespace decimal_unittest {
@@ -900,5 +902,102 @@ TEST_F(DecimalTest, DecimalActualFraction)
   test_fr("10000000000000000000.0", "10000000000000000000");
 }
 
+// Some test data from DBT-3.
+static const char *decimal_testdata[] = {
+  "45983.16", "0.09", "983", "0.09", "36.00", "45983.16", "0.09", "0.1", "8.00",
+  "13309.60", "0.10", "28955.64", "0", "28.00", "28955.64", "0.09", "0", "24.00",
+  "22824.48", "0.10", "49620.16", "0.07", "32.00", "49620.16", "0.07", "0.0",
+  "38.00", "44694.46", "0.00", "45.00", "4058", "54058.05", "0.06", "058",
+  "0.06", "45.00", "4058", "0.0", "49.00", "796", "46796.47", "73426.50", "0.08",
+  "0", "37.00", "61998.31", "0.08", "13608.60", "0.07", "12.00", "13608.60",
+  "0.07", "0.0", "9.00", "11594.16", "0.08", "81639.88", "0", "46.00",
+  "81639.88", "0.10", "0", "28.00", "31809.96", "0.03", "73943.82", "0.08",
+  "38.00", "73943.82", "0.08", "0.0", "35.00", "43058.75", "0.06", "6476.15",
+  "0", "5.00", "6476.15", "0.04", "0", "28.00", "47227.60", "0.05", "64605.44",
+  "0.02", "32.00", "64605.44", "0.02", "0.0", "2.00", "2210.32", "0.09",
+  "6582.96", "0", "4.00", "6582.96", "0.09", "0", "44.00", "79059.64", "0.05",
+  "9159.66", "0.04", "6.00", "9159.66", "0.04", "0.0", "31.00", "40217.23",
+  "0.09", "47344.32", "0", "32.00", "47344.32", "0.02", "0", "5.00", "7532.30",
+  "0.05", "41.00", "28", "75928.31", "0.09", "41.00", "75928.31", "0.09", "0.0",
+  "24.00", "32410.80", "32410.80", "0.02", "68065.96", "0", "34.00", "68065.96",
+  "0.06", "0", "7.00", "13418.23", "0.06", "29004.25", "0.06", "25.00",
+  "29004.25", "0.06", "0.0", "34.00", "65854.94", "0.08", "47397.28", "0",
+  "28.00", "47397.28", "0.03", "0", "42.00", "75043.92", "0.09", "62105.20",
+  "0.09", "40.00", "62105.20", "0.09", "0.0", "39.00", "70542.42", "0.05",
+  "78083.70", "0", "43.00", "78083.70", "0.05", "0", "44.00", "84252.52", "0.04",
+  "53782.08", "0.09", "44.00", "53782.08", "0.09", "0.0", "26.00", "43383.08",
+  "0.08", "82746.18", "0", "46.00", "82746.18", "0.06", "0", "32.00", "48338.88",
+  "0.07", "63360.93", "0.01", "43.00", "63360.93", "0.01", "0.0", "40.00",
+  "54494.40", "0.06", "21.00", "75", "40675.95", "0", "21.00", "40675.95",
+  "0.05", "0", "26.00", "42995.94", "0.03", "39353.82", "0.00", "22.00",
+  "39353.82", "0.00", "0.0", "21.00", "27076.98", "0.09", "31.00"
+};
+
+static void BM_Decimal2Bin_10_2(size_t iters)
+{
+  StopBenchmarkTiming();
+  constexpr size_t num_elements= array_elements(decimal_testdata);
+  decimal_t decimals[num_elements];
+  decimal_digit_t decimal_buf[num_elements][9];
+
+  for (size_t i= 0; i < num_elements; ++i)
+  {
+    char *end= strend(decimal_testdata[i]);
+    decimals[i].buf= decimal_buf[i];
+    decimals[i].len= array_elements(decimal_buf[i]);
+    int res= string2decimal(decimal_testdata[i], &decimals[i], &end);
+    ASSERT_EQ(E_DEC_OK, res)
+       << decimal_testdata[i] << " wasn't converted";
+  }
+  StartBenchmarkTiming();
+
+  int dummy= 0;
+  for (size_t i= 0; i < iters; ++i)
+  {
+    uchar buf[100];
+    decimal2bin(&decimals[i % num_elements], buf, 10, 2);
+    dummy+= buf[0];
+  }
+
+  ASSERT_NE(0, dummy);  // To keep the optimizer from removing the loop.
+}
+BENCHMARK(BM_Decimal2Bin_10_2);
+
+static void BM_Bin2Decimal_10_2(size_t iters)
+{
+  StopBenchmarkTiming();
+  constexpr size_t num_elements= array_elements(decimal_testdata);
+  constexpr int bin_size= 5;
+  ASSERT_EQ(bin_size, decimal_bin_size(10, 2))
+    << "Need to adjust bin_size";
+  uchar packed_buf[num_elements][bin_size];
+
+  decimal_t decimal;
+  decimal_digit_t decimal_buf[9];
+  decimal.buf= decimal_buf;
+  decimal.len= array_elements(decimal_buf);
+
+  for (size_t i= 0; i < num_elements; ++i)
+  {
+    char *end= strend(decimal_testdata[i]);
+    int res= string2decimal(decimal_testdata[i], &decimal, &end);
+    ASSERT_EQ(E_DEC_OK, res)
+       << decimal_testdata[i] << " wasn't converted";
+    res= decimal2bin(&decimal, packed_buf[i], 10, 2);
+    ASSERT_EQ(E_DEC_OK, res)
+       << decimal_testdata[i] << " wasn't converted in stage 2";
+  }
+  StartBenchmarkTiming();
+
+  size_t dummy= 0;
+  for (size_t i= 0; i < iters; ++i)
+  {
+    bin2decimal(packed_buf[i % num_elements], &decimal, 10, 2);
+    dummy+= decimal_buf[0];
+  }
+
+  ASSERT_NE(static_cast<size_t>(-1), dummy);  // To keep the optimizer from removing the loop.
+}
+BENCHMARK(BM_Bin2Decimal_10_2);
 
 }

@@ -85,16 +85,16 @@ public:
   std::string get_tcp_port();
 
   typedef ngs::Locked_container<Server, ngs::RWLock_readlock, ngs::RWLock> Server_with_lock;
-  typedef ngs::Memory_instrumented<Server_with_lock>::Unique_ptr Server_ref;
+  typedef ngs::Memory_instrumented<Server_with_lock>::Unique_ptr Server_ptr;
 
-  static Server_ref get_instance()
+  static Server_ptr get_instance()
   {
     //TODO: ngs::Locked_container add container that supports shared_ptrs
-    return instance ? Server_ref(ngs::allocate_object<Server_with_lock>(ngs::ref(*instance), ngs::ref(instance_rwl))) : Server_ref();
+    return instance ? Server_ptr(ngs::allocate_object<Server_with_lock>(ngs::ref(*instance), ngs::ref(instance_rwl))) : Server_ptr();
   }
 
 private:
-  static Client_ptr      get_client_by_thd(Server_ref &server, THD *thd);
+  static Client_ptr      get_client_by_thd(Server_ptr &server, THD *thd);
   static void            verify_mysqlx_user_grants(Sql_data_context &context);
 
   bool on_net_startup();
@@ -108,8 +108,8 @@ private:
 
   virtual ngs::shared_ptr<ngs::Client_interface>  create_client(ngs::Connection_ptr connection);
   virtual ngs::shared_ptr<ngs::Session_interface> create_session(ngs::Client_interface &client,
-                                                                   ngs::Protocol_encoder &proto,
-                                                                   ngs::Session_interface::Session_id session_id);
+                                                                 ngs::Protocol_encoder_interface &proto,
+                                                                 const ngs::Session_interface::Session_id session_id);
 
   virtual bool will_accept_client(const ngs::Client_interface &client);
   virtual void did_accept_client(const ngs::Client_interface &client);
@@ -142,10 +142,10 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
   var->type= SHOW_UNDEF;
   var->value= buff;
 
-  Server_ref server(get_instance());
+  Server_ptr server(get_instance());
   if (server)
   {
-    ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
+    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
     Client_ptr client = get_client_by_thd(server, thd);
 
     if (client)
@@ -160,10 +160,10 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
   var->type= SHOW_UNDEF;
   var->value= buff;
 
-  Server_ref server(get_instance());
+  Server_ptr server(get_instance());
   if (server)
   {
-    ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
+    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
     Client_ptr client = get_client_by_thd(server, thd);
 
     if (client)
@@ -181,7 +181,7 @@ void Server::global_status_variable(THD*, st_mysql_show_var *var, char *buff)
   var->type= SHOW_UNDEF;
   var->value= buff;
 
-  Server_ref server = get_instance();
+  Server_ptr server = get_instance();
   if (server)
   {
     Server* server_ptr = server->container();
@@ -195,7 +195,7 @@ void Server::global_status_variable_server_with_return(THD*, st_mysql_show_var *
   var->type= SHOW_UNDEF;
   var->value= buff;
 
-  Server_ref server = get_instance();
+  Server_ptr server = get_instance();
   if (server)
   {
     Server* server_ptr = server->container();
@@ -223,10 +223,10 @@ void Server::common_status_variable(THD *thd, st_mysql_show_var *var, char *buff
   var->type = SHOW_UNDEF;
   var->value = buff;
 
-  Server_ref server(get_instance());
+  Server_ptr server(get_instance());
   if (server)
   {
-    ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
+    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
     Client_ptr client = get_client_by_thd(server, thd);
 
     if (client)
@@ -254,7 +254,7 @@ void Server::global_status_variable(THD*, st_mysql_show_var *var, char *buff)
   var->type= SHOW_UNDEF;
   var->value= buff;
 
-  Server_ref server = get_instance();
+  Server_ptr server = get_instance();
   if (!server || !(*server)->server().ssl_context())
      return;
   ngs::IOptions_context_ptr context = (*server)->server().ssl_context()->options();
@@ -267,11 +267,5 @@ void Server::global_status_variable(THD*, st_mysql_show_var *var, char *buff)
 }
 
 } // namespace xpl
-
-#ifdef HAVE_YASSL
-#define IS_YASSL_OR_OPENSSL(Y, O) Y
-#else // HAVE_YASSL
-#define IS_YASSL_OR_OPENSSL(Y, O) O
-#endif // HAVE_YASSL
 
 #endif  // _XPL_SERVER_H_

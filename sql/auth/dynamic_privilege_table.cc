@@ -12,16 +12,42 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
-#include "sql_base.h"
-#include "records.h"
-#include "auth_internal.h"
-#include "auth_common.h"
-#include "sql_auth_cache.h"
-#include "mysqld_error.h"
-#include "current_thd.h"
-#include "sql_class.h"
-#include "dynamic_privilege_table.h"
+#include "sql/auth/dynamic_privilege_table.h"
+
+#include <string.h>
 #include <string>
+#include <unordered_map>
+
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/components/my_service.h"
+#include "mysql/components/service.h"
+#include "mysql/components/services/dynamic_privilege.h"
+#include "mysql/components/services/registry.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_plugin_registry.h"
+#include "mysql/udf_registration_types.h"
+#include "mysqld_error.h"
+#include "records.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/auth_internal.h"
+#include "sql/auth/sql_auth_cache.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/auth/sql_user_table.h"
+#include "sql/current_thd.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/records.h"
+#include "sql/sql_const.h"
+#include "sql/sql_servers.h"
+#include "sql/table.h"
+
+class THD;
 
 #define MYSQL_DYNAMIC_PRIV_FIELD_USER  0
 #define MYSQL_DYNAMIC_PRIV_FIELD_HOST  1
@@ -77,8 +103,11 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst)
   bool error= false;
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));
   READ_RECORD read_record_info;
+  Acl_table_intact table_intact(thd);
 
-  if (!tablelst[0].table->key_info)
+  if (!tablelst[0].table->key_info ||
+      table_intact.check(tablelst[0].table,
+                         ACL_TABLES::TABLE_DYNAMIC_PRIV))
   {
     TABLE *table= tablelst[0].table;
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
@@ -124,7 +153,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst)
                             table->field[MYSQL_DYNAMIC_PRIV_FIELD_PRIV]);
       char *with_grant_option=
                   get_field(&tmp_mem,
-                            table->field[MYSQL_DYNAMIC_PRIV_FIELD_GRANT]);
+                            table->field[MYSQL_DYNAMIC_PRIV_FIELD_WITH_GRANT_OPTION]);
 
       my_caseup_str(system_charset_info, priv);
       LEX_CSTRING str_priv= { priv, strlen(priv) };
@@ -197,8 +226,11 @@ bool modify_dynamic_privileges_in_table(THD *thd, TABLE *table,
   DBUG_ENTER("modify_dynamic_privileges_in_table");
   int ret= 0;
   uchar user_key[MAX_KEY_LENGTH];
+  Acl_table_intact table_intact(thd);
 
-  if (!table->key_info)
+
+  if (!table->key_info ||
+      table_intact.check(table, ACL_TABLES::TABLE_DYNAMIC_PRIV))
   {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);
@@ -217,7 +249,7 @@ bool modify_dynamic_privileges_in_table(THD *thd, TABLE *table,
                system_charset_info);
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
-  table->field[MYSQL_DYNAMIC_PRIV_FIELD_GRANT]
+  table->field[MYSQL_DYNAMIC_PRIV_FIELD_WITH_GRANT_OPTION]
        ->store((with_grant_option == true ? "Y" : "N"), 1, system_charset_info);
   ret= table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
                                           HA_WHOLE_KEY,

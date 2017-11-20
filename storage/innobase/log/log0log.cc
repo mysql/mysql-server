@@ -50,16 +50,13 @@ Created 12/9/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "mem0mem.h"
 #include "srv0mon.h"
-#include "srv0mon.h"
-#include "srv0srv.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0sync.h"
-#include "sync0sync.h"
-#include "trx0roll.h"
 #include "trx0roll.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
+#include "arch0arch.h"
 
 /*
 General philosophy of InnoDB redo-logs:
@@ -944,11 +941,32 @@ log_io_complete(log_group_t* group)
 			logs and cannot end up here! */
 }
 
+/** Fill redo log header
+@param[out]	buf		filled buffer
+@param[in]	start_lsn	log start LSN
+@param[in]	creator		creator of the header */
+void
+log_header_fill(
+	byte*		buf,
+	lsn_t		start_lsn,
+	const char*	creator)
+{
+	memset(buf, 0, OS_FILE_LOG_BLOCK_SIZE);
+
+	mach_write_to_4(buf + LOG_HEADER_FORMAT, LOG_HEADER_FORMAT_CURRENT);
+	mach_write_to_8(buf + LOG_HEADER_START_LSN, start_lsn);
+
+	strcpy(reinterpret_cast<char*>(buf) + LOG_HEADER_CREATOR, creator);
+
+	ut_ad(LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR >= sizeof creator);
+
+	log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
+}
+
 /** Writes a log file header to a log file space.
 @param[in]	group		log group
 @param[in]	nth_file	header to the nth file in the log file space
 @param[in]	start_lsn	log file data starts at this lsn */
-static
 void
 log_group_file_header_flush(
 	log_group_t*	group,
@@ -964,15 +982,7 @@ log_group_file_header_flush(
 
 	buf = *(group->file_header_bufs + nth_file);
 
-	memset(buf, 0, OS_FILE_LOG_BLOCK_SIZE);
-	mach_write_to_4(buf + LOG_HEADER_FORMAT, LOG_HEADER_FORMAT_CURRENT);
-	mach_write_to_8(buf + LOG_HEADER_START_LSN, start_lsn);
-	strcpy(reinterpret_cast<char*>(buf) + LOG_HEADER_CREATOR,
-	       LOG_HEADER_CREATOR_CURRENT);
-	ut_ad(LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR
-	      >= sizeof LOG_HEADER_CREATOR_CURRENT);
-
-	log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
+	log_header_fill(buf, start_lsn, LOG_HEADER_CREATOR_CURRENT);
 
 	dest_offset = nth_file * group->file_size;
 
@@ -1008,7 +1018,7 @@ log_group_file_header_flush(
 bool
 log_read_encryption()
 {
-	space_id_t	log_space_id = dict_sys_t::log_space_first_id;
+	space_id_t	log_space_id = dict_sys_t::s_log_space_first_id;
 	const page_id_t	page_id(log_space_id, 0);
 	byte*		log_block_buf_ptr;
 	byte*		log_block_buf;
@@ -1121,7 +1131,7 @@ log_write_encryption(
 	byte*	iv,
 	bool	is_boot)
 {
-	const page_id_t	page_id(dict_sys_t::log_space_first_id, 0);
+	const page_id_t	page_id(dict_sys_t::s_log_space_first_id, 0);
 	byte*		log_block_buf_ptr;
 	byte*		log_block_buf;
 
@@ -1133,7 +1143,7 @@ log_write_encryption(
 
 	if (key == NULL && iv == NULL) {
 		fil_space_t*	space = fil_space_get(
-			dict_sys_t::log_space_first_id);
+			dict_sys_t::s_log_space_first_id);
 
 		key = space->encryption_key;
 		iv = space->encryption_iv;
@@ -1174,7 +1184,7 @@ redo log file header.
 @return true if success. */
 bool
 log_rotate_encryption() {
-	fil_space_t* space = fil_space_get(dict_sys_t::log_space_first_id);
+	fil_space_t* space = fil_space_get(dict_sys_t::s_log_space_first_id);
 
 	if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
 		return(true);
@@ -1190,7 +1200,7 @@ redo log file header. */
 void
 log_enable_encryption_if_set()
 {
-	fil_space_t* space = fil_space_get(dict_sys_t::log_space_first_id);
+	fil_space_t* space = fil_space_get(dict_sys_t::s_log_space_first_id);
 
 	if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 		return;
@@ -1542,6 +1552,48 @@ loop:
 	}
 
 	log_group_t*	group;
+	group = UT_LIST_GET_FIRST(log_sys->log_groups);
+
+	/* Wait for archiver to catch up before overwriting redo log. */
+	if (arch_log_sys && arch_log_sys->is_active()) {
+
+		lsn_t	lsn_diff;
+		uint	count = 0;
+
+		lsn_diff = log_sys->lsn - arch_log_sys->get_archived_lsn();
+
+		while (lsn_diff > log_group_get_capacity(group)) {
+
+			os_event_set(archiver_thread_event);
+			log_mutex_exit_all();
+
+			count++;
+			os_thread_sleep(10000);
+
+			log_mutex_enter_all();
+			lsn_diff = log_sys->lsn
+				- arch_log_sys->get_archived_lsn();
+
+			ib::info() << "Flush Waiting for archiver to"
+				" to catch up lag LSN: " << lsn_diff;
+
+			if (count >= 100) {
+
+				ib::warn() << "Flush overwriting data to"
+				" archive - wait too long (1 minute)"
+				" lag LSN: " << lsn_diff;
+
+				break;
+			}
+		}
+
+		if (count > 0 && count < 100) {
+
+			log_mutex_exit_all();
+			goto loop;
+		}
+	}
+
 	ulint		start_offset;
 	ulint		end_offset;
 	ulint		area_start;
@@ -1584,8 +1636,6 @@ loop:
 	write_buf = log_sys->buf;
 
 	log_buffer_switch();
-
-	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
 	log_group_set_fields(group, log_sys->write_lsn);
 
@@ -1640,6 +1690,10 @@ loop:
 		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
 	}
 #endif /* !_WIN32 */
+	if (arch_log_sys && arch_log_sys->is_active()) {
+
+		os_event_set(archiver_thread_event);
+	}
 
 	log_write_mutex_exit();
 
@@ -2393,6 +2447,21 @@ loop:
 
 		fil_close_all_files();
 
+		/* Stop Archiver background thread. */
+		count = 0;
+		while (archiver_is_active) {
+
+			++count;
+			os_event_set(archiver_thread_event);
+
+			os_thread_sleep(100000);
+			if (srv_print_verbose_log && count > 600) {
+				ib::info() << "Waiting for archiver to"
+					" finish archiving page and log";
+				count = 0;
+			}
+		}
+
 		thread_name = srv_any_background_threads_are_active();
 
 		ut_a(!thread_name);
@@ -2486,6 +2555,21 @@ loop:
 
 	/* Safe to truncate the tablespace.open.* files now. */
 	fil_tablespace_open_clear();
+
+	/* Stop Archiver background thread. */
+	count = 0;
+	while (archiver_is_active) {
+
+		++count;
+		os_event_set(archiver_thread_event);
+
+		os_thread_sleep(100000);
+		if (srv_print_verbose_log && count > 600) {
+			ib::info() << "Waiting for archiver to"
+				" finish archiving page and log";
+			count = 0;
+		}
+	}
 
 	/* Make some checks that the server really is quiet */
 	ut_a(!srv_master_thread_active());
@@ -2640,6 +2724,38 @@ log_shutdown()
 	ut_free(log_sys);
 
 	log_sys = NULL;
+}
+
+/** Get last redo block from redo buffer and end LSN
+@param[out]	last_lsn	end lsn of last mtr
+@param[out]	last_block	last redo block */
+void
+log_get_last_block(
+	lsn_t&		last_lsn,
+	byte*		last_block)
+{
+	byte*		src_block;
+
+	log_mutex_enter();
+	last_lsn = log_sys->lsn;
+
+	if (last_block == nullptr) {
+
+		log_mutex_exit();
+		return;
+	}
+
+	/* Copy last block from current buffer. */
+	src_block = log_sys->buf + ut_calc_align_down(log_sys->buf_free,
+		OS_FILE_LOG_BLOCK_SIZE);
+
+	ut_ad(src_block != nullptr);
+
+	ut_memcpy(last_block, src_block, OS_FILE_LOG_BLOCK_SIZE);
+
+	log_mutex_exit();
+
+	log_block_store_checksum(last_block);
 }
 
 #endif /* !UNIV_HOTBACKUP */

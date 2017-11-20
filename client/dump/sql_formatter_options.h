@@ -20,8 +20,8 @@
 
 #include <stddef.h>
 
-#include "base/abstract_options_provider.h"
-#include "mysql_chain_element_options.h"
+#include "client/base/abstract_options_provider.h"
+#include "client/dump/mysql_chain_element_options.h"
 #include "typelib.h"
 
 namespace Mysql{

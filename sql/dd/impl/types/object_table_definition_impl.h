@@ -19,14 +19,14 @@
 #include <map>
 #include <vector>
 
-#include "dd/impl/system_registry.h"          // System_tablespaces
-#include "dd/string_type.h"                   // dd::String_type
-#include "dd/types/object_table_definition.h" // dd::Object_table_definition
-#include "dd/types/table.h"                   // dd::Table
 #include "m_string.h"                         // my_stpcpy
 #include "my_dbug.h"
-#include "mysqld.h"                           // lower_case_table_names
-#include "table.h"                            // MYSQL_TABLESPACE_NAME
+#include "sql/dd/impl/system_registry.h"      // System_tablespaces
+#include "sql/dd/string_type.h"               // dd::String_type
+#include "sql/dd/types/object_table_definition.h" // dd::Object_table_definition
+#include "sql/dd/types/table.h"               // dd::Table
+#include "sql/mysqld.h"                       // lower_case_table_names
+#include "sql/table.h"                        // MYSQL_TABLESPACE_NAME
 
 namespace dd {
 

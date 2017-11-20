@@ -21,10 +21,10 @@ TempTable Cell declaration. */
 #include <algorithm> /* std::min */
 #include <cstdint>   /* uint32_t */
 
-#include "field.h"                 /* Field */
-#include "temptable/indexed_column.h" /* temptable::Indexed_column */
 #include "m_ctype.h"               /* CHARSET_INFO, my_charpos() */
 #include "my_murmur3.h"            /* murmur3_32() */
+#include "sql/field.h"             /* Field */
+#include "temptable/indexed_column.h" /* temptable::Indexed_column */
 
 namespace temptable {
 

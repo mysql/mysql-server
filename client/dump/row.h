@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 #ifndef ROW_INCLUDED
 #define ROW_INCLUDED
 
-#include "base/mysql_query_runner.h"
-#include "i_data_object.h"
+#include "client/base/mysql_query_runner.h"
+#include "client/dump/i_data_object.h"
 
 namespace Mysql{
 namespace Tools{

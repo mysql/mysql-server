@@ -27,6 +27,8 @@
   @tparam Geom_types Geometry types definitions.
 */
 
+#include <string.h>  // Boost expects ::memset to be already present.
+#include <string>  // Boost expects std::string to be already present.
 #include <boost/geometry/algorithms/crosses.hpp>
 #include <boost/geometry/algorithms/intersects.hpp>
 #include <boost/geometry/algorithms/touches.hpp>
@@ -35,10 +37,10 @@
 #include <set>
 #include <vector>
 
-#include "item_geofunc.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
+#include "sql/item_geofunc.h"
 
 class Geometry;
 struct bgpt_lt;

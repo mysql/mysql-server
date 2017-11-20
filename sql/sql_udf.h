@@ -19,16 +19,16 @@
 
 /* This file defines structures needed by udf functions */
 
+#include <mysql/components/services/udf_registration.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "mysql/mysql_lex_string.h"  // LEX_STRING
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"               // Item_result
-#include "sql_alloc.h"               // Sql_alloc
-#include <mysql/components/services/udf_registration.h>
+#include "sql/sql_alloc.h"           // Sql_alloc
 
 class Item;
 class Item_result_field;
@@ -66,7 +66,6 @@ class udf_handler :public Sql_alloc
 
  public:
   table_map used_tables_cache;
-  bool const_item_cache;
   bool not_original;
   udf_handler(udf_func *udf_arg) :u_d(udf_arg), buffers(0), error(0),
     is_null(0), initialized(0), not_original(0)
@@ -137,7 +136,10 @@ class udf_handler :public Sql_alloc
 };
 
 
-void udf_init(void),udf_deinit(void);
+void udf_init_globals();
+void udf_read_functions_table();
+void udf_unload_udfs();
+void udf_deinit_globals();
 udf_func *find_udf(const char *name, size_t len=0,bool mark_used=0);
 void free_udf(udf_func *udf);
 bool mysql_create_function(THD *thd, udf_func *udf);

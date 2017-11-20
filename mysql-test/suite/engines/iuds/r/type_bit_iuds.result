@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
+SET @@session.max_error_count = 64;
 SELECT 0 + b'0';
 0 + b'0'
 0
@@ -84319,3 +84320,4 @@ DELETE t5,t6 FROM t5,t6 WHERE  t5.c1=t6.c1 AND t5.c2=t6.c2;
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
 Warnings:
 Note	1051	Unknown table 'test.t3'
+SET @@session.max_error_count = default;

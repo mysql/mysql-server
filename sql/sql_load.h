@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifndef SQL_LOAD_INCLUDED
 #define SQL_LOAD_INCLUDED
 
-#include "sql_data_change.h"                    /* enum_duplicates */
+#include "sql/sql_data_change.h"                /* enum_duplicates */
 
 class Item;
 class THD;

@@ -22,20 +22,20 @@ disconnect con1;
 # For a server without mdl locking for a trigger name
 # the statement SHOW BINLOG EVENTS would returned
 # output that look likes the following:
-# master-bin.000001    567    Query    1    755    use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
-# master-bin.000001    820    Query    1    1008    use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t2 FOR EACH ROW BEGIN END
-# master-bin.000001    1008    Anonymous_Gtid    1    1073    SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
-# master-bin.000001    1073    Query    1    1169    use `test`; DROP TRIGGER trigger_1
+# binlog.000001    567    Query    1    755    use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
+# binlog.000001    820    Query    1    1008    use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t2 FOR EACH ROW BEGIN END
+# binlog.000001    1008    Anonymous_Gtid    1    1073    SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+# binlog.000001    1073    Query    1    1169    use `test`; DROP TRIGGER trigger_1
 # That is, two statements CREATE TRIGGER trigger_t1 follows one
 # after another then DROP TRIGGER.
 include/show_binlog_events.inc
 connection default;
 connection default;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY)
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a INT PRIMARY KEY)
-master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
-master-bin.000001	#	Query	#	#	use `test`; DROP TRIGGER trigger_1
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY)
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a INT PRIMARY KEY)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
+binlog.000001	#	Query	#	#	use `test`; DROP TRIGGER trigger_1
 connection default;
 connection default;
 DROP TABLE t1,t2;

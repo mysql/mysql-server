@@ -100,10 +100,10 @@ let $restart_parameters = restart: --innodb_buffer_pool_load_at_startup=OFF;
 --source include/start_mysqld.inc
 
 let SEARCH_PATTERN = InnoDB: Unable to read page \\[page id: space=\d+, page number=\d+\\] into the buffer pool after \d+ attempts;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # Do not use memcached commands (below) on table t1 because we corrupted root
-# page of SDI Index copy 0. Re-create the table before using memcached SDI
+# page of SDI Index. Re-create the table before using memcached SDI
 # commands on table t1.
 
 DROP TABLE t1;

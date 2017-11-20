@@ -56,10 +56,10 @@ EOF
 
 --echo # Search for : CA certificate *ca.pem is self signed.
 let SEARCH_PATTERN= CA certificate .*ca.pem is self signed.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search for : CA certificate *ca2.pem is self signed.
 let SEARCH_PATTERN= CA certificate .*ca2.pem is self signed.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 #------------------------------------------------------------------------------
 

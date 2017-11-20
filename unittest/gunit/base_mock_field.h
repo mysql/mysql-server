@@ -21,8 +21,8 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include "field.h"
-#include "json_dom.h"
+#include "sql/json_dom.h"
+#include "sql/field.h"
 
 /**
   Base mocks for Field_*. Create subclasses mocking additional virtual

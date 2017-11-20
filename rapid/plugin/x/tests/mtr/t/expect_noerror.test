@@ -356,7 +356,7 @@ Mysqlx.Expect.Open {
 
 Mysqlx.Expect.Open {
     cond {
-        condition_key: 2
+        condition_key: 1200
     }
 }
 -->recv

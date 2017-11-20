@@ -4,9 +4,10 @@
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
-#With QC enabled additional code paths are activated which will change
-#performance schema output.
---source include/have_query_cache_disabled.inc
+# Increase the size of performance_schema_events_waits_history_long_size so
+# that the table doesn't get truncated when running full.
+let $restart_parameters=restart: --performance_schema_events_waits_history_long_size=20000;
+--source include/restart_mysqld.inc
 
 create user user1@localhost;
 create user user2@localhost;

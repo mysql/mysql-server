@@ -40,12 +40,12 @@ std::unique_ptr<char[]> keyring_file_data(nullptr);
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_info all_keyring_rwlocks[]=
 {
-  {&keyring::key_LOCK_keyring, "LOCK_keyring", 0}
+  {&keyring::key_LOCK_keyring, "LOCK_keyring", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_keyring_memory[]=
 {
-  {&keyring::key_memory_KEYRING, "KEYRING", 0}
+  {&keyring::key_memory_KEYRING, "KEYRING", 0, 0, PSI_DOCUMENT_ME}
 };
 
 void keyring_init_psi_keys(void)

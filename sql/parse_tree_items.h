@@ -20,16 +20,9 @@
 #include <sys/types.h>
 
 #include "binary_log_types.h"
-#include "field.h"
-#include "item.h"
-#include "item_create.h"        // Create_func
-#include "item_func.h"
-#include "item_strfunc.h"
-#include "item_subselect.h"
-#include "item_sum.h"           // Item_sum_count
-#include "item_timefunc.h"      // Item_func_now_local
 #include "lex_string.h"
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -37,23 +30,33 @@
 #include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "parse_location.h"
-#include "parse_tree_helpers.h" // Parse_tree_item
-#include "parse_tree_node_base.h"
-#include "protocol.h"
-#include "set_var.h"
-#include "sp_head.h"            // sp_head
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"          // negate_expression
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_create.h"    // Create_func
+#include "sql/item_func.h"
+#include "sql/item_strfunc.h"
+#include "sql/item_subselect.h"
+#include "sql/item_sum.h"       // Item_sum_count
+#include "sql/item_timefunc.h"  // Item_func_now_local
+#include "sql/parse_location.h"
+#include "sql/parse_tree_helpers.h" // Parse_tree_item
+#include "sql/parse_tree_node_base.h"
+#include "sql/protocol.h"
+#include "sql/session_tracker.h"
+#include "sql/set_var.h"
+#include "sql/sp_head.h"        // sp_head
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"      // negate_expression
+#include "sql/sql_udf.h"
+#include "sql/system_variables.h"
 #include "sql_string.h"
-#include "sql_udf.h"
-#include "system_variables.h"
 
 class PT_subquery;
+class PT_window;
 
 class PTI_table_wild : public Parse_tree_item
 {
@@ -637,18 +640,18 @@ class PTI_variable_aux_3d : public Parse_tree_item
   typedef Parse_tree_item super;
 
   enum_var_type var_type;
-  LEX_STRING var;
-  POS var_pos;
-  LEX_STRING component;
+  LEX_STRING ident1;
+  POS ident1_pos;
+  LEX_STRING ident2;
 
 public:
   PTI_variable_aux_3d(const POS &pos, enum_var_type var_type_arg,
-                      const LEX_STRING &var_arg,
-                      const POS &var_pos_arg,
-                      const LEX_STRING &component_arg)
+                      const LEX_STRING &ident1_arg,
+                      const POS &ident1_pos_arg,
+                      const LEX_STRING &ident2_arg)
   : super(pos),
-    var_type(var_type_arg), var(var_arg), var_pos(var_pos_arg),
-    component(component_arg)
+    var_type(var_type_arg), ident1(ident1_arg), ident1_pos(ident1_pos_arg),
+    ident2(ident2_arg)
   {}
 
   virtual bool itemize(Parse_context *pc, Item **res)
@@ -664,14 +667,38 @@ public:
     }
 
     /* disallow "SELECT @@global.global.variable" */
-    if (var.str && component.str && check_reserved_words(&var))
+    if (ident1.str && ident2.str && check_reserved_words(&ident1))
     {
-      error(pc, var_pos);
+      error(pc, ident1_pos);
       return true;
     }
-    if (!(*res= get_system_var(pc, var_type, var, component)))
+
+    LEX_STRING *domain;
+    LEX_STRING *variable;
+    if (ident2.str &&
+        !is_key_cache_variable_suffix(ident2.str))
+    {
+      LEX_STRING component_var;
+      domain= &ident1;
+      variable= &ident2;
+      String tmp_name;
+      if (tmp_name.reserve(domain->length + 1 + variable->length + 1) ||
+          tmp_name.append(domain->str) ||
+          tmp_name.append(".") ||
+          tmp_name.append(variable->str))
+        return true; // OOM
+      component_var.str= tmp_name.c_ptr();
+      component_var.length= tmp_name.length();
+      variable->str= NullS;
+      variable->length= 0;
+      *res= get_system_var(pc, var_type, component_var, *variable);
+    }
+    else
+      *res= get_system_var(pc, var_type, ident1, ident2);
+    if (!(*res))
       return true;
-    if (is_identifier(var, "warning_count") || is_identifier(var, "error_count"))
+    if (is_identifier(ident1, "warning_count") ||
+        is_identifier(ident1, "error_count"))
     {
       /*
         "Diagnostics variable" used in a non-diagnostics statement.

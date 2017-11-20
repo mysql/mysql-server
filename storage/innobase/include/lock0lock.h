@@ -591,7 +591,7 @@ lock_rec_find_next_set_bit(
 /*********************************************************************//**
 Checks if a lock request lock1 has to wait for request lock2.
 @return TRUE if lock1 has to wait for lock2 to be removed */
-ibool
+bool
 lock_has_to_wait(
 /*=============*/
 	const lock_t*	lock1,	/*!< in: waiting lock */
@@ -604,16 +604,16 @@ Reports that a transaction id is insensible, i.e., in the future. */
 void
 lock_report_trx_id_insanity(
 /*========================*/
-	trx_id_t	trx_id,		/*!< in: trx id */
-	const rec_t*	rec,		/*!< in: user record */
-	dict_index_t*	index,		/*!< in: index */
-	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index) */
-	trx_id_t	max_trx_id);	/*!< in: trx_sys_get_max_trx_id() */
+	trx_id_t		trx_id,		/*!< in: trx id */
+	const rec_t*		rec,		/*!< in: user record */
+	const dict_index_t*	index,		/*!< in: index */
+	const ulint*		offsets,	/*!< in: rec_get_offsets(rec, index) */
+	trx_id_t		max_trx_id);	/*!< in: trx_sys_get_max_trx_id() */
 /*********************************************************************//**
 Prints info of locks for all transactions.
 @return FALSE if not able to obtain lock mutex and exits without
 printing info */
-ibool
+bool
 lock_print_info_summary(
 /*====================*/
 	FILE*	file,	/*!< in: file where to print */
@@ -844,21 +844,11 @@ Checks that a transaction id is sensible, i.e., not in the future.
 bool
 lock_check_trx_id_sanity(
 /*=====================*/
-	trx_id_t	trx_id,		/*!< in: trx id */
-	const rec_t*	rec,		/*!< in: user record */
-	dict_index_t*	index,		/*!< in: index */
-	const ulint*	offsets)	/*!< in: rec_get_offsets(rec, index) */
+	trx_id_t		trx_id,		/*!< in: trx id */
+	const rec_t*		rec,		/*!< in: user record */
+	const dict_index_t*	index,		/*!< in: index */
+	const ulint*		offsets)	/*!< in: rec_get_offsets(rec, index) */
 	MY_ATTRIBUTE((warn_unused_result));
-/*******************************************************************//**
-Check if the transaction holds any locks on the sys tables
-or its records.
-@return the strongest lock found on any sys table or 0 for none */
-const lock_t*
-lock_trx_has_sys_table_locks(
-/*=========================*/
-	const trx_t*	trx)	/*!< in: transaction to check */
-	MY_ATTRIBUTE((warn_unused_result));
-
 /*******************************************************************//**
 Check if the transaction holds an exclusive lock on a record.
 @return whether the locks are held */
@@ -944,8 +934,9 @@ struct lock_op_t{
 typedef ib_mutex_t LockMutex;
 
 /** The lock system struct */
-struct lock_sys_t{
-	char		pad1[CACHE_LINE_SIZE];	/*!< padding to prevent other
+struct lock_sys_t {
+	char		pad1[INNOBASE_CACHE_LINE_SIZE];
+						/*!< padding to prevent other
 						memory update hotspots from
 						residing on the same memory
 						cache line */
@@ -958,7 +949,7 @@ struct lock_sys_t{
 	hash_table_t*	prdt_page_hash;		/*!< hash table of the page
 						lock */
 
-	char		pad2[CACHE_LINE_SIZE];	/*!< Padding */
+	char		pad2[INNOBASE_CACHE_LINE_SIZE];	/*!< Padding */
 	LockMutex	wait_mutex;		/*!< Mutex protecting the
 						next two fields */
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads
@@ -969,6 +960,8 @@ struct lock_sys_t{
 						in the waiting_threads array,
 						protected by
 						lock_sys->wait_mutex */
+	int		n_waiting;		/*!< Number of slots in use.
+						Protected by lock_sys->mutex */
 	ibool		rollback_complete;
 						/*!< TRUE if rollback of all
 						recovered transactions is
@@ -984,6 +977,15 @@ struct lock_sys_t{
 
 	bool		timeout_thread_active;	/*!< True if the timeout thread
 						is running */
+
+	/** Marker value before trx_t::age. */
+	uint64_t	mark_age_updated;
+
+#ifdef UNIV_DEBUG
+	/** Lock timestamp counter */
+	uint64_t	m_seq;
+#endif /* UNIV_DEBUG */
+
 };
 
 /*************************************************************//**

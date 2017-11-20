@@ -24,7 +24,6 @@ NdbImportImpl::NdbImportImpl(NdbImport& facade) :
   m_error(m_util.c_error)
 {
   c_connectionindex = 0;
-  c_tabid = Inval_uint;
   log1("ctor");
 }
 
@@ -184,39 +183,12 @@ NdbImportImpl::Connect::Connect()
   m_connectioncnt = 0;
   m_connections = 0;
   m_mainconnection = 0;
-  m_connectionowner = true;
   m_connected = false;
   m_mainndb = 0;
 }
 
 NdbImportImpl::Connect::~Connect()
 {
-}
-
-int
-NdbImportImpl::set_connections(uint cnt,
-                               Ndb_cluster_connection** connections)
-{
-  Connect& c = c_connect;
-  if (cnt == 0 || connections == 0)
-  {
-    m_util.set_error_usage(m_error, __LINE__);
-    return -1;
-  }
-  for (uint i = 0; i < cnt; i++)
-  {
-    if (connections[i] == 0)
-    {
-      m_util.set_error_usage(m_error, __LINE__);
-      return -1;
-    }
-  }
-  delete [] c.m_connections;
-  c.m_connectioncnt = cnt;
-  c.m_connections = connections;
-  c.m_mainconnection = connections[0];
-  c.m_connectionowner = false;
-  return 0;
 }
 
 int
@@ -230,7 +202,6 @@ NdbImportImpl::do_connect()
     m_util.set_error_usage(m_error, __LINE__);
     return -1;
   }
-  if (c.m_connectionowner)
   {
     require(c.m_connections == 0 && c.m_mainconnection == 0);
     c.m_connectioncnt = opt.m_connections;
@@ -260,7 +231,7 @@ NdbImportImpl::do_connect()
   for (uint i = 0; i < c.m_connectioncnt; i++)
   {
     Ndb_cluster_connection* con = c.m_connections[i];
-    if (con->wait_until_ready(30, 0) != 0)
+    if (con->wait_until_ready(30, 0) < 0)
     {
       m_util.set_error_con(m_error, __LINE__, con);
       return -1;
@@ -292,7 +263,7 @@ NdbImportImpl::do_disconnect()
   // delete any ndb before delete connection
   delete c.m_mainndb;
   c.m_mainndb = 0;
-  if (c.m_connectionowner && c.m_connections != 0)
+  if (c.m_connections != 0)
   {
     for (uint i = 0; i < c.m_connectioncnt; i++)
     {
@@ -303,23 +274,27 @@ NdbImportImpl::do_disconnect()
   }
   delete [] c.m_connections;
   c.m_connections = 0;
+  c.m_connected = false;
   log1("do_disconnect: done");
 }
 
 // tables
 
 int
-NdbImportImpl::add_table(const char* database, const char* table, uint& tabid)
+NdbImportImpl::add_table(const char* database,
+                         const char* table,
+                         uint& tabid,
+                         Error& error)
 {
   Connect& c = c_connect;
   if (!c.m_connected)
   {
-    m_util.set_error_usage(m_error, __LINE__);
+    m_util.set_error_usage(error, __LINE__);
     return -1;
   }
   if (database == 0 || table == 0)
   {
-    m_util.set_error_usage(m_error, __LINE__);
+    m_util.set_error_usage(error, __LINE__);
     return -1;
   }
   log1("add table " << database << "." << table);
@@ -328,7 +303,7 @@ NdbImportImpl::add_table(const char* database, const char* table, uint& tabid)
   {
     if (ndb->setDatabaseName(database) != 0)
     {
-      m_util.set_error_ndb(m_error, __LINE__, ndb->getNdbError());
+      m_util.set_error_ndb(error, __LINE__, ndb->getNdbError());
       return -1;
     }
   }
@@ -336,19 +311,11 @@ NdbImportImpl::add_table(const char* database, const char* table, uint& tabid)
   const NdbDictionary::Table* tab = dic->getTable(table);
   if (tab == 0)
   {
-    m_util.set_error_ndb(m_error, __LINE__, dic->getNdbError());
+    m_util.set_error_ndb(error, __LINE__, dic->getNdbError());
     return -1;
   }
-  if (m_util.add_table(dic, tab, tabid) != 0)
+  if (m_util.add_table(dic, tab, tabid, error) != 0)
     return -1;
-  return 0;
-}
-
-int
-NdbImportImpl::set_tabid(uint tabid)
-{
-  (void)m_util.get_table(tabid);
-  c_tabid = tabid;
   return 0;
 }
 
@@ -371,6 +338,7 @@ NdbImportImpl::Job::Job(NdbImportImpl& impl, uint jobno) :
 {
   m_runno = 0;
   m_state = JobState::State_null;
+  m_tabid = Inval_uint;
   m_dostop = false;
   m_fatal = false;
   m_teamcnt = 0;
@@ -522,6 +490,21 @@ NdbImportImpl::Job::add_team(Team* team)
   m_teamcnt++;
 }
 
+int
+NdbImportImpl::Job::add_table(const char* database,
+                              const char* table,
+                              uint& tabid)
+{
+  return m_impl.add_table(database, table, tabid, m_error);
+}
+
+void
+NdbImportImpl::Job::set_table(uint tabid)
+{
+  (void)m_util.get_table(tabid);
+  m_tabid = tabid;
+}
+
 void
 NdbImportImpl::Job::do_start()
 {
@@ -595,11 +578,7 @@ NdbImportImpl::Job::start_resume()
   // copy entire old rowmap
   require(m_rowmap_out.empty());
   m_rowmap_out.add(m_rowmap_in);
-  // save and skip first range
-  require(!m_rowmap_in.empty());
-  RowMap::Ranges& ranges_in = m_rowmap_in.m_ranges;
-  m_range_in = ranges_in.front();
-  ranges_in.erase(ranges_in.begin());
+  // input worker handles seek in do_init()
   log1("range_in: " << m_range_in);
 }
 
@@ -1066,7 +1045,7 @@ NdbImportImpl::Team::stop_worker(Worker* w)
 }
 
 void
-NdbImportImpl::Team::set_tabid(uint tabid)
+NdbImportImpl::Team::set_table(uint tabid)
 {
   (void)m_util.get_table(tabid);
   m_tabid = tabid;
@@ -1088,6 +1067,7 @@ NdbImportImpl::Worker::Worker(NdbImportImpl::Team& team, uint n) :
   m_idleslice = 0;
   m_idle = false;
   m_idlerun = 0;
+  m_seed = 0;
   // stats
   Stats& stats = m_team.m_job.m_stats;
   {
@@ -1139,6 +1119,7 @@ NdbImportImpl::Worker::do_start()
   {
     m_state = WorkerState::State_stop;
   }
+  m_seed = (unsigned)(NdbHost_GetProcessId() ^ m_workerno);
   while (m_state != WorkerState::State_stopped)
   {
     log2("slice: " << m_slice);
@@ -1379,7 +1360,7 @@ void
 NdbImportImpl::RandomInputTeam::do_init()
 {
   log1("do_init");
-  set_tabid(m_impl.c_tabid);
+  set_table(m_job.m_tabid);
 }
 
 void
@@ -1407,7 +1388,6 @@ void
 NdbImportImpl::RandomInputWorker::do_init()
 {
   log1("do_init");
-  m_seed = (unsigned)(getpid() ^ m_workerno);
 }
 
 void
@@ -1422,7 +1402,7 @@ NdbImportImpl::RandomInputWorker::do_run()
   rows_out.lock();
   for (uint i = 0; i < opt.m_rowbatch; i++)
   {
-    if (rows_out.m_totcnt >= max_rows)
+    if (rows_out.totcnt() >= max_rows)
     {
       log1("stop at max rows " << max_rows);
       m_state = WorkerState::State_stop;
@@ -1434,7 +1414,7 @@ NdbImportImpl::RandomInputWorker::do_run()
       m_state = WorkerState::State_stop;
       break;
     }
-    uint64 rowid = rows_out.m_totcnt;
+    uint64 rowid = rows_out.totcnt();
     Row* row = create_row(rowid, table);
     if (row == 0)
     {
@@ -1550,7 +1530,7 @@ NdbImportImpl::CsvInputTeam::do_init()
     require(m_util.has_error());
     return;
   }
-  set_tabid(m_impl.c_tabid);
+  set_table(m_job.m_tabid);
   WorkerFile& file = m_file;
   file.set_path(opt.m_input_file);
   if (file.do_open(File::Read_flags) == -1)
@@ -1628,16 +1608,33 @@ NdbImportImpl::CsvInputWorker::do_init()
     {
       CsvInputTeam& team = static_cast<CsvInputTeam&>(m_team);
       WorkerFile& file = team.m_file;
-      RowMap::Range range_in = team.m_job.m_range_in;
-      uint64 seekpos = range_in.m_endpos;
-      if (file.do_seek(seekpos) == -1)
+      RowMap::Ranges& ranges_in = rowmap_in.m_ranges;
+      require(!ranges_in.empty());
+      RowMap::Range range_in = ranges_in.front();
+      /*
+       * First range is likely to be the big one.  If the range
+       * starts with rowid 0 seek to the end and erase it.
+       * In rare cases rowid 0 may not yet have been processed
+       * due to an early error and rejected out of order rows.
+       */
+      if (range_in.m_start == 0)
       {
-        require(has_error());
-        return;
+        uint64 seekpos = range_in.m_endpos;
+        if (file.do_seek(seekpos) == -1)
+        {
+          require(has_error());
+          return;
+        }
+        log1("file " << file.get_path() << ": "
+             "seek to pos " << seekpos << " done");
+        m_csvinput->do_resume(range_in);
+        ranges_in.erase(ranges_in.begin());
       }
-      log1("file " << file.get_path() << ": "
-           "seek to pos " << seekpos << " done");
-      m_csvinput->do_resume(range_in);
+      else
+      {
+        log1("file " << file.get_path() << ": "
+             "cannot seek first rowid=" << range_in.m_start);
+      }
     }
   }
 }
@@ -1762,7 +1759,7 @@ NdbImportImpl::CsvInputWorker::state_parse()
 {
   log2("state_parse");
   m_csvinput->do_parse();
-  log2("lines parsed:" << m_csvinput->m_line_list.m_cnt);
+  log2("lines parsed:" << m_csvinput->m_line_list.cnt());
   m_inputstate = InputState::State_movetail;
 }
 
@@ -1980,6 +1977,14 @@ NdbImportImpl::Op::Op()
   m_opsize = 0;
 }
 
+NdbImportImpl::OpList::OpList()
+{
+}
+
+NdbImportImpl::OpList::~OpList()
+{
+}
+
 // tx
 
 NdbImportImpl::Tx::Tx(DbWorker* w) :
@@ -2028,7 +2033,7 @@ NdbImportImpl::DbWorker::DbWorker(Team& team, uint n) :
 
 NdbImportImpl::DbWorker::~DbWorker()
 {
-  require(m_tx_open.m_cnt == 0);
+  require(m_tx_open.cnt() == 0);
   delete m_ndb;
 }
 
@@ -2093,7 +2098,7 @@ NdbImportImpl::DbWorker::start_trans()
   }
   require(tx != 0);
   require(tx->m_trans == 0);
-  require(tx->m_ops.m_cnt == 0);
+  require(tx->m_ops.cnt() == 0);
   tx->m_trans = trans;
   tx_open.push_back(tx);
   return tx;
@@ -2121,7 +2126,7 @@ NdbImportImpl::DbWorker::start_trans(const NdbRecord* keyrec,
   }
   require(tx != 0);
   require(tx->m_trans == 0);
-  require(tx->m_ops.m_cnt == 0);
+  require(tx->m_ops.cnt() == 0);
   tx->m_trans = trans;
   tx_open.push_back(tx);
   return tx;
@@ -2146,7 +2151,7 @@ NdbImportImpl::DbWorker::start_trans(uint nodeid, uint instanceid)
   }
   require(tx != 0);
   require(tx->m_trans == 0);
-  require(tx->m_ops.m_cnt == 0);
+  require(tx->m_ops.cnt() == 0);
   tx->m_trans = trans;
   tx_open.push_back(tx);
   return tx;
@@ -2161,7 +2166,7 @@ NdbImportImpl::DbWorker::close_trans(Tx* tx)
   require(tx->m_trans != 0);
   m_ndb->closeTransaction(tx->m_trans);
   tx->m_trans = 0;
-  while (tx->m_ops.m_cnt != 0)
+  while (tx->m_ops.cnt() != 0)
   {
     Op* op = tx->m_ops.pop_front();
     require(op != 0);
@@ -2280,65 +2285,26 @@ NdbImportImpl::RelayOpWorker::do_run()
     m_idle = true;
     return;
   }
-  const Table& table = m_util.get_table(row->m_tabid);
-  if (table.m_has_hidden_pk)
-  {
-    const Attrs& attrs = table.m_attrs;
-    const uint attrcnt = attrs.size();
-    const Attr& attr = attrs[attrcnt - 1];
-    require(attr.m_type == NdbDictionary::Column::Bigunsigned);
-    uint64 val;
-    // XXX mark row as "ai_done" to avoid re-doing
-    if (m_ndb->getAutoIncrementValue(table.m_tab, val,
-                                     opt.m_ai_prefetch_sz,
-                                     opt.m_ai_increment,
-                                     opt.m_ai_offset) == -1)
-    {
-      const NdbError& ndberror = m_ndb->getNdbError();
-      require(ndberror.code != 0);
-      if (ndberror.status == NdbError::TemporaryError)
-      {
-        log1("getAutoIncrementValue: " << ndberror);
-        rows_in.lock();
-        log1("push back to input: rowid " << row->m_rowid);
-        rows_in.push_back_force(row);
-        rows_in.unlock();
-        NdbSleep_MilliSleep(opt.m_tempdelay);
-        return;
-      }
-      m_util.set_error_ndb(m_error, __LINE__, m_ndb->getNdbError(),
-                           "table %s: get autoincrement failed",
-                           table.m_tab->getName());
-      return;
-    }
-    attr.set_value(row, &val, 8);
-  }
-  const bool no_hint = opt.m_no_hint;
-  Tx* tx = 0;
-  if (no_hint)
-    tx = start_trans();
-  else
-    tx = start_trans(table.m_keyrec, (const char*)row->m_data,
-                     m_xfrmbuf, m_xfrmbuflen);
-  if (tx == 0)
-  {
-    const NdbError& ndberror = m_ndb->getNdbError();
-    require(ndberror.code != 0);
-    if (ndberror.status == NdbError::TemporaryError)
-    {
-      log1("start trans: " << ndberror);
-      NdbSleep_MilliSleep(opt.m_tempdelay);
-      return;
-    }
-    m_util.set_error_ndb(m_error, __LINE__, ndberror);
-    return;
-  }
-  uint nodeid = tx->m_trans->getConnectedNodeId();
-  close_trans(tx);
   const Nodes& c = m_impl.c_nodes;
+  const Table& table = m_util.get_table(row->m_tabid);
+  const bool no_hint = opt.m_no_hint;
+  uint nodeid = 0;
+  if (no_hint)
+  {
+    uint i = get_rand() % c.m_nodecnt;
+    nodeid = c.m_nodes[i].m_nodeid;
+  }
+  else
+  {
+    Uint32 hash;
+    m_ndb->computeHash(&hash, table.m_keyrec, (const char*)row->m_data,
+                       m_xfrmbuf, m_xfrmbuflen);
+    uint fragid = (uint)table.m_tab->getPartitionId(hash);
+    nodeid = table.get_nodeid(fragid);
+  }
   require(nodeid < g_max_nodes);
   uint nodeindex = c.m_index[nodeid];
-  require(nodeindex < g_max_nodes);
+  require(nodeindex < c.m_nodecnt);
   RowList& rows_out = *m_team.m_job.m_rows_exec[nodeindex];
   rows_out.lock();
   if (!rows_out.push_back(row))
@@ -2360,11 +2326,11 @@ NdbImportImpl::RelayOpWorker::do_end()
   log1("do_end");
   if (!has_error())
   {
-    require(m_tx_open.m_cnt == 0);
+    require(m_tx_open.cnt() == 0);
   }
-  else if (m_tx_open.m_cnt != 0)
+  else if (m_tx_open.cnt() != 0)
   {
-    require(m_tx_open.m_cnt == 1);
+    require(m_tx_open.cnt() == 1);
     Tx* tx = m_tx_open.front();
     close_trans(tx);
   }
@@ -2493,7 +2459,7 @@ NdbImportImpl::ExecOpWorker::state_receive()
   const Opt& opt = m_util.c_opt;
   RowList& rows_in = *m_team.m_job.m_rows_exec[m_nodeindex];
   OpList& ops_in = m_ops_in;
-  if (ops_in.m_cnt == 0)
+  if (ops_in.cnt() == 0)
   {
     require(m_opcnt == 0);
     require(m_opsize == 0);
@@ -2505,10 +2471,10 @@ NdbImportImpl::ExecOpWorker::state_receive()
   {
     Row* row = rows_in.pop_front();
     m_eof = (row == 0 && rows_in.m_eof);
-    log2("eof=" << m_eof << " ops_in=" << ops_in.m_cnt);
+    log2("eof=" << m_eof << " ops_in=" << ops_in.cnt());
     if (m_eof)
     {
-      if (ops_in.m_cnt != 0)
+      if (ops_in.cnt() != 0)
         m_execstate = ExecState::State_define;
       else
         m_execstate = ExecState::State_eof;
@@ -2571,7 +2537,7 @@ NdbImportImpl::ExecOpWorker::reject_row(Row* row, const Error& error)
   m_util.set_reject_row(rejectrow, m_team.m_job.m_runno, error, reject, rejectlen);
   require(rows_reject.push_back(rejectrow));
   // error if rejects exceeded
-  if (rows_reject.m_totcnt > opt.m_rejects)
+  if (rows_reject.totcnt() > opt.m_rejects)
   {
     // set team level error
     m_util.set_error_data(m_error, __LINE__, 0,
@@ -2597,11 +2563,11 @@ NdbImportImpl::ExecOpWorkerSynch::do_end()
   log1("do_end/synch");
   if (!has_error())
   {
-    require(m_tx_open.m_cnt == 0);
+    require(m_tx_open.cnt() == 0);
   }
-  else if (m_tx_open.m_cnt != 0)
+  else if (m_tx_open.cnt() != 0)
   {
-    require(m_tx_open.m_cnt == 1);
+    require(m_tx_open.cnt() == 1);
     Tx* tx = m_tx_open.front();
     close_trans(tx);
   }
@@ -2614,7 +2580,7 @@ NdbImportImpl::ExecOpWorkerSynch::state_define()
   OpList& ops_in = m_ops_in;
   TxList& tx_open = m_tx_open;
   // single trans
-  require(tx_open.m_cnt == 0);
+  require(tx_open.cnt() == 0);
   Tx* tx = start_trans();
   if (tx == 0)
   {
@@ -2626,7 +2592,7 @@ NdbImportImpl::ExecOpWorkerSynch::state_define()
   }
   NdbTransaction* trans = tx->m_trans;
   require(trans != 0);
-  while (ops_in.m_cnt != 0)
+  while (ops_in.cnt() != 0)
   {
     Op* op = ops_in.pop_front();
     Row* row = op->m_row;
@@ -2688,7 +2654,7 @@ NdbImportImpl::ExecOpWorkerSynch::state_send()
 {
   log2("state_send/synch");
   TxList& tx_open = m_tx_open;
-  require(tx_open.m_cnt == 1);
+  require(tx_open.cnt() == 1);
   Tx* tx = tx_open.front();
   require(tx != 0);
   NdbTransaction* trans = tx->m_trans;
@@ -2731,12 +2697,12 @@ NdbImportImpl::ExecOpWorkerAsynch::do_end()
   if (!has_error())
   {
     require(m_execstate == ExecState::State_eof);
-    require(m_tx_open.m_cnt == 0);
+    require(m_tx_open.cnt() == 0);
   }
   else if (m_execstate == ExecState::State_prepare)
   {
     // error in State_define, simply close the txs
-    while (m_tx_open.m_cnt != 0)
+    while (m_tx_open.cnt() != 0)
     {
       Tx* tx = m_tx_open.front();
       close_trans(tx);
@@ -2792,7 +2758,7 @@ NdbImportImpl::ExecOpWorkerAsynch::asynch_callback(Tx* tx)
      */
     RowList& rows_in = *m_team.m_job.m_rows_exec[m_nodeindex];
     rows_in.lock();
-    while (tx->m_ops.m_cnt != 0)
+    while (tx->m_ops.cnt() != 0)
     {
       Op* op = tx->m_ops.pop_front();
       Row* row = op->m_row;
@@ -2808,7 +2774,7 @@ NdbImportImpl::ExecOpWorkerAsynch::asynch_callback(Tx* tx)
     Error error;        // local error
     m_util.set_error_ndb(error, __LINE__, ndberror,
                          "permanent error");
-    while (tx->m_ops.m_cnt != 0)
+    while (tx->m_ops.cnt() != 0)
     {
       Op* op = tx->m_ops.pop_front();
       require(op != 0);
@@ -2831,14 +2797,60 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
   OpList& ops_in = m_ops_in;
   TxList& tx_open = m_tx_open;
   // no transes yet
-  require(tx_open.m_cnt == 0);
+  require(tx_open.cnt() == 0);
   m_errormap.clear();
-  while (ops_in.m_cnt != 0)
+  /*
+   * Temporary errors can occur at auto-incr and start trans.  We
+   * don't want to get stuck here on "permanent" temporary errors.
+   * So we limit them by opt.m_tmperrors (counted per op).
+   */
+  while (ops_in.cnt() != 0)
   {
     Op* op = ops_in.pop_front();
     Row* row = op->m_row;
     require(row != 0);
     const Table& table = m_util.get_table(row->m_tabid);
+    if (table.m_has_hidden_pk)
+    {
+      const Attrs& attrs = table.m_attrs;
+      const uint attrcnt = attrs.size();
+      const Attr& attr = attrs[attrcnt - 1];
+      require(attr.m_type == NdbDictionary::Column::Bigunsigned);
+      uint64 val;
+      if (m_ndb->getAutoIncrementValue(table.m_tab, val,
+                                       opt.m_ai_prefetch_sz,
+                                       opt.m_ai_increment,
+                                       opt.m_ai_offset) == -1)
+      {
+        const NdbError& ndberror = m_ndb->getNdbError();
+        require(ndberror.code != 0);
+        if (ndberror.status == NdbError::TemporaryError)
+        {
+          m_errormap.add_one(ndberror.code);
+          uint temperrors = m_errormap.get_sum();
+          if (temperrors <= opt.m_temperrors)
+          {
+            log1("get autoincr try " << temperrors << ": " << ndberror);
+            ops_in.push_front(op);
+            NdbSleep_MilliSleep(opt.m_tempdelay);
+            continue;
+          }
+          m_util.set_error_gen(m_error, __LINE__,
+                               "number of transaction tries with"
+                               " temporary errors is %u (limit %u)",
+                               temperrors, opt.m_temperrors);
+          break;
+        }
+        else
+        {
+          m_util.set_error_ndb(m_error, __LINE__, ndberror,
+                               "table %s: get autoincrement failed",
+                               table.m_tab->getName());
+          break;
+        }
+      }
+      attr.set_value(row, &val, 8);
+    }
     const bool no_hint = opt.m_no_hint;
     Tx* tx = 0;
     if (no_hint)
@@ -2851,13 +2863,28 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
       require(ndberror.code != 0);
       if (ndberror.status == NdbError::TemporaryError)
       {
-        log1("start trans: " << ndberror);
-        ops_in.push_front(op);
-        NdbSleep_MilliSleep(opt.m_tempdelay);
-        continue;
+        m_errormap.add_one(ndberror.code);
+        uint temperrors = m_errormap.get_sum();
+        if (temperrors <= opt.m_temperrors)
+        {
+          log1("start trans try " << temperrors << ": " << ndberror);
+          ops_in.push_front(op);
+          NdbSleep_MilliSleep(opt.m_tempdelay);
+          continue;
+        }
+        m_util.set_error_gen(m_error, __LINE__,
+                             "number of transaction tries with"
+                             " temporary errors is %u (limit %u)",
+                             temperrors, opt.m_temperrors);
+        break;
       }
-      m_util.set_error_ndb(m_error, __LINE__, ndberror);
-      break;
+      else
+      {
+        m_util.set_error_ndb(m_error, __LINE__, ndberror,
+                             "table %s: start transaction failed",
+                             table.m_tab->getName());
+        break;
+      }
     }
     NdbTransaction* trans = tx->m_trans;
     require(trans != 0);
@@ -2929,7 +2956,7 @@ void
 NdbImportImpl::ExecOpWorkerAsynch::state_send()
 {
   log2("state_send/asynch");
-  require(m_tx_open.m_cnt != 0);
+  require(m_tx_open.cnt() != 0);
   int forceSend = 0;
   m_ndb->sendPreparedTransactions(forceSend);
   m_execstate = ExecState::State_poll;
@@ -2941,9 +2968,9 @@ NdbImportImpl::ExecOpWorkerAsynch::state_poll()
   log2("state_poll/asynch");
   const Opt& opt = m_util.c_opt;
   int timeout = opt.m_polltimeout;
-  require(m_tx_open.m_cnt != 0);
-  m_ndb->pollNdb(timeout, m_tx_open.m_cnt);
-  if (m_tx_open.m_cnt != 0)
+  require(m_tx_open.cnt() != 0);
+  m_ndb->pollNdb(timeout, m_tx_open.cnt());
+  if (m_tx_open.cnt() != 0)
   {
     log2("poll not ready");
     return;
@@ -3013,7 +3040,7 @@ NdbImportImpl::ExecOpWorker::str_state(char* str) const
 {
   sprintf(str, "%s/%s tx:free=%u,open=%u",
                g_str_state(m_state), g_str_state(m_execstate),
-               m_tx_free.m_cnt, m_tx_open.m_cnt);
+               m_tx_free.cnt(), m_tx_open.cnt());
 }
 
 // diag team
@@ -3146,10 +3173,10 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
       i = j;
       n++;
     }
-    log1("read_old_diags: " << name << " count=" << rows_out.m_cnt);
+    log1("read_old_diags: " << name << " count=" << rows_out.cnt());
   }
   // XXX diag errors not yet handled
-  require(rows_reject.m_cnt == 0);
+  require(rows_reject.cnt() == 0);
 }
 
 void
@@ -3299,20 +3326,24 @@ NdbImportImpl::DiagTeam::open_new_diags()
   }
   log1("file: opened: " << m_rowmap_file.get_path());
   // stats
-  m_stats_file.set_path(opt.m_stats_file);
-  if (m_stats_file.do_open(openflags) == -1)
+  if (opt.m_stats)
   {
-    require(has_error());
-    m_job.m_fatal = true;
-    return;
+    m_stats_file.set_path(opt.m_stats_file);
+    if (m_stats_file.do_open(openflags) == -1)
+    {
+      require(has_error());
+      m_job.m_fatal = true;
+      return;
+    }
+    log1("file: opened: " << m_stats_file.get_path());
   }
-  log1("file: opened: " << m_stats_file.get_path());
 }
 
 void
 NdbImportImpl::DiagTeam::do_end()
 {
   log1("do_end");
+  const Opt& opt = m_util.c_opt;
   if (m_result_file.do_close() == -1)
   {
     require(has_error());
@@ -3328,10 +3359,13 @@ NdbImportImpl::DiagTeam::do_end()
     require(has_error());
     // continue
   }
-  if (m_stats_file.do_close() == -1)
+  if (opt.m_stats)
   {
-    require(has_error());
-    // continue
+    if (m_stats_file.do_close() == -1)
+    {
+      require(has_error());
+      // continue
+    }
   }
 }
 
@@ -3425,6 +3459,7 @@ NdbImportImpl::DiagWorker::do_init()
     }
   }
   // stats
+  if (opt.m_stats)
   {
     File& file = static_cast<DiagTeam&>(m_team).m_stats_file;
     Buf& buf = m_stats_buf;
@@ -3467,13 +3502,17 @@ NdbImportImpl::DiagWorker::do_run()
 void
 NdbImportImpl::DiagWorker::do_end()
 {
+  const Opt& opt = m_util.c_opt;
   log1("do_end");
   // result
   write_result();
   // rowmap
   write_rowmap();
   // stats
-  write_stats();
+  if (opt.m_stats)
+  {
+    write_stats();
+  }
 }
 
 void

@@ -45,6 +45,7 @@
 #include <string>
 
 #define XCOM_COMM_STATUS_UNDEFINED -1
+#define XCOM_PREFIX "[XCOM] "
 
 /**
   @class gcs_xcom_utils

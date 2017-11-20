@@ -42,16 +42,16 @@ SET @@session.sql_warnings = "T";
 ERROR 42000: Variable 'sql_warnings' can't be set to the value of 'T'
 SET @@session.sql_warnings = "Y";
 ERROR 42000: Variable 'sql_warnings' can't be set to the value of 'Y'
-SET @@session.sql_warnings = TRÜE;
-ERROR 42000: Variable 'sql_warnings' can't be set to the value of 'TRÜE'
-SET @@session.sql_warnings = ÕN;
-ERROR 42000: Variable 'sql_warnings' can't be set to the value of 'ÕN'
+SET @@session.sql_warnings = TRÃœE;
+ERROR 42000: Variable 'sql_warnings' can't be set to the value of 'TRÃœE'
+SET @@session.sql_warnings = Ã•N;
+ERROR 42000: Variable 'sql_warnings' can't be set to the value of 'Ã•N'
 SET @@session.sql_warnings = OF;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
-SET @@session.sql_warnings = ÓFF;
-ERROR 42000: Variable 'sql_warnings' can't be set to the value of 'ÓFF'
-SET @@session.sql_warnings = '¹';
-ERROR 42000: Variable 'sql_warnings' can't be set to the value of '¹'
+SET @@session.sql_warnings = Ã“FF;
+ERROR 42000: Variable 'sql_warnings' can't be set to the value of 'Ã“FF'
+SET @@session.sql_warnings = 'Â¹';
+ERROR 42000: Variable 'sql_warnings' can't be set to the value of 'Â¹'
 SET @@session.sql_warnings = NO;
 ERROR 42000: Variable 'sql_warnings' can't be set to the value of 'NO'
 '#-------------------FN_DYNVARS_166_05----------------------------#'

@@ -28,7 +28,7 @@ set global innodb_limit_optimistic_insert_debug = 2;
 select count(*) from t1;
 
 let SEARCH_PATTERN=\\[Warning\\] InnoDB: innodb_checksum_algorithm is set to "strict_innodb" but the page \\[page id: space=\d+, page number=\d+\\] contains a valid checksum .*. Accepting the page as valid. Change innodb_checksum_algorithm to .* to silently accept such pages or rewrite all pages so that they contain .* checksum.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # Write the records in new pages with innodb checksum format.
 insert into t1 values(4),(5),(6);
@@ -49,7 +49,7 @@ insert into t1 values(7),(8),(9);
 
 let SEARCH_PATTERN=\\[Warning\\] InnoDB: innodb_checksum_algorithm is set to "strict_none" but the page \\[page id: space=\d+, page number=\d+\\] contains a valid checksum .*. Accepting the page as valid. Change innodb_checksum_algorithm to .* to silently accept such pages or rewrite all pages so that they contain .* checksum.;
 
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 SET GLOBAL innodb_buffer_pool_dump_at_shutdown=OFF;
 # Restart the server to load the table t1 again.
@@ -64,7 +64,7 @@ select count(*) from t1;
 
 let SEARCH_PATTERN=\\[Warning\\] InnoDB: innodb_checksum_algorithm is set to "strict_crc32" but the page \\[page id: space=\d+, page number=\d+\\] contains a valid checksum .*. Accepting the page as valid. Change innodb_checksum_algorithm to .* to silently accept such pages or rewrite all pages so that they contain .* checksum.;
 
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 drop table t1;
 --remove_file $SEARCH_FILE

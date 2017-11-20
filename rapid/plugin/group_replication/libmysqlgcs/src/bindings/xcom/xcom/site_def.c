@@ -357,7 +357,7 @@ uint32_t get_group_id(site_def const *site) {
   if (site) {
     uint32_t group_id = site->start.group_id;
     assert(site->global_node_set.node_set_len == _get_maxnodes(site));
-    MAY_DBG(FN; NDBG(group_id, u););
+    MAY_DBG(FN; NDBG((unsigned long) group_id, lu); );
     return group_id;
   } else {
     return null_id;

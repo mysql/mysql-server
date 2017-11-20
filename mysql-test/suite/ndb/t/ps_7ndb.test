@@ -6,10 +6,6 @@
 
 -- source include/have_ndb.inc
 
-# Query cache could affect the result column names of
-# prepared statements. Hence, skipping this test.
---source include/have_query_cache_disabled.inc
-
 # Turn off ndb_join_pushdown
 --disable_query_log
 set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;

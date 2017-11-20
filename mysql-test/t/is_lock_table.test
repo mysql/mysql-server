@@ -121,7 +121,7 @@ UNLOCK TABLES;
 --echo   DROP TABLE should success. If I_S query doesn't do non-locking read,
 --echo   then the DROP TABLE would block, waiting for innodb lock to be release
 --echo   until transaction is committed.
-SET TX_ISOLATION='SERIALIZABLE';
+SET TRANSACTION_ISOLATION='SERIALIZABLE';
 SET AUTOCOMMIT=0;
 LOCK TABLES t1 READ;
 SELECT COUNT(*) > 0 FROM information_schema.tables;
@@ -130,7 +130,7 @@ DROP TABLE t2;
 connection default;
 UNLOCK TABLES;
 disconnect con1;
-SET TX_ISOLATION=default;
+SET TRANSACTION_ISOLATION=default;
 SET AUTOCOMMIT=default;
 
 # Cleanup

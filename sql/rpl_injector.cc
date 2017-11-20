@@ -13,17 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "rpl_injector.h"
+#include "sql/rpl_injector.h"
 
-#include "binlog.h"                             // mysql_bin_log
-#include "log_event.h"                          // Incident_log_event
-#include "mdl.h"
 #include "my_compiler.h"
 #include "mysql/service_mysql_alloc.h"
-#include "psi_memory_key.h"
-#include "sql_base.h"                           // close_thread_tables
-#include "sql_class.h"                          // THD
-#include "transaction.h"                        // trans_begin
+#include "sql/binlog.h"                         // mysql_bin_log
+#include "sql/log_event.h"                      // Incident_log_event
+#include "sql/mdl.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_base.h"                       // close_thread_tables
+#include "sql/sql_class.h"                      // THD
+#include "sql/transaction.h"                    // trans_begin
 
 
 /*

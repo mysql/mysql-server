@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -230,7 +230,7 @@ namespace ngs
 
     bool is(const Variable_type value_to_check)
     {
-      Mutex_lock lock(m_mutex);
+      MUTEX_LOCK(lock, m_mutex);
 
       return value_to_check == m_value;
     }
@@ -238,7 +238,7 @@ namespace ngs
     template<std::size_t NUM_OF_ELEMENTS>
     bool is(const Variable_type (&expected_value)[NUM_OF_ELEMENTS])
     {
-      Mutex_lock lock(m_mutex);
+      MUTEX_LOCK(lock, m_mutex);
 
       const Variable_type *begin_element = expected_value;
       const Variable_type *end_element = expected_value + NUM_OF_ELEMENTS;
@@ -248,7 +248,7 @@ namespace ngs
 
     bool exchange(const Variable_type expected_value, const Variable_type new_value)
     {
-      Mutex_lock lock(m_mutex);
+      MUTEX_LOCK(lock, m_mutex);
 
       bool result = false;
 
@@ -265,7 +265,7 @@ namespace ngs
 
     void set(const Variable_type new_value)
     {
-      Mutex_lock lock(m_mutex);
+      MUTEX_LOCK(lock, m_mutex);
 
       m_value = new_value;
 
@@ -274,7 +274,7 @@ namespace ngs
 
     Variable_type set_and_return_old(const Variable_type new_value)
     {
-      Mutex_lock lock(m_mutex);
+      MUTEX_LOCK(lock, m_mutex);
 
       Variable_type old_value = m_value;
       m_value = new_value;
@@ -286,7 +286,7 @@ namespace ngs
 
     void wait_for(const Variable_type expected_value)
     {
-      Mutex_lock lock(m_mutex);
+      MUTEX_LOCK(lock, m_mutex);
 
       while (m_value != expected_value)
       {
@@ -297,7 +297,7 @@ namespace ngs
     template<std::size_t NUM_OF_ELEMENTS>
     void wait_for(const Variable_type (&expected_value)[NUM_OF_ELEMENTS])
     {
-      Mutex_lock lock(m_mutex);
+      MUTEX_LOCK(lock, m_mutex);
 
       const Variable_type *begin_element = expected_value;
       const Variable_type *end_element = expected_value + NUM_OF_ELEMENTS;
@@ -310,7 +310,7 @@ namespace ngs
     template<std::size_t NUM_OF_ELEMENTS>
     void wait_for_and_set(const Variable_type (&expected_value)[NUM_OF_ELEMENTS], const Variable_type change_to)
     {
-      Mutex_lock lock(m_mutex);
+      MUTEX_LOCK(lock, m_mutex);
 
       const Variable_type *begin_element = expected_value;
       const Variable_type *end_element = expected_value + NUM_OF_ELEMENTS;

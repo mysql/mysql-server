@@ -18,46 +18,55 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <atomic>
 #include <list>
 #include <map>
 #include <new>
 #include <utility>
 
-#include "conn_handler/connection_handler_manager.h"
-#include "current_thd.h"
 #include "decimal.h"
-#include "derror.h"             // ER_DEFAULT
 #include "lex_string.h"
-#include "log.h"                 // Query log
 #include "m_ctype.h"
+#include "m_string.h"
 #include "mutex_lock.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_thread.h"
 #include "my_thread_local.h"     // my_get_thread_local & my_set_thread_local
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/mysql_rwlock_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_mutex.h"
-#include "mysql/psi/psi_rwlock.h"
 #include "mysql/service_my_snprintf.h"
-#include "mysqld.h"              // current_thd
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "pfs_thread_provider.h"
 #include "rwlock_scoped_lock.h"
-#include "sql_audit.h"           // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
-#include "sql_base.h"            // close_mysql_tables
-#include "sql_class.h"
-#include "sql_connect.h"         // thd_init_client_charset
-#include "sql_list.h"
-#include "sql_parse.h"           // dispatch_command()
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
-#include "sql_thd_internal_api.h" // thd_set_thread_stack
-#include "system_variables.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/conn_handler/connection_handler_manager.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"         // ER_DEFAULT
+#include "sql/histograms/value_map.h"
+#include "sql/log.h"             // Query log
+#include "sql/mysqld.h"          // current_thd
+#include "sql/mysqld_thd_manager.h" // Global_THD_manager
+#include "sql/sql_audit.h"       // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
+#include "sql/sql_base.h"        // close_mysql_tables
+#include "sql/sql_class.h"
+#include "sql/sql_connect.h"     // thd_init_client_charset
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"       // dispatch_command()
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_thd_internal_api.h" // thd_set_thread_stack
+#include "sql/system_variables.h"
 #include "thr_mutex.h"
 
 /**
@@ -98,7 +107,7 @@ public:
     const char* category= "session";
     PSI_mutex_info all_mutexes[]=
     {
-      { &key_LOCK_collection, "LOCK_srv_session_threads", PSI_FLAG_GLOBAL, 0}
+      { &key_LOCK_collection, "LOCK_srv_session_threads", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
     };
 
     initted= true;
@@ -137,7 +146,7 @@ public:
   */
   bool add(my_thread_t thread, const void *plugin)
   {
-    Mutex_lock lock(&LOCK_collection);
+    MUTEX_LOCK(lock, &LOCK_collection);
     try
     {
       std::map<my_thread_t, const void*>::iterator it= collection.find(thread);
@@ -162,7 +171,7 @@ public:
   */
   unsigned int remove(my_thread_t thread)
   {
-    Mutex_lock lock(&LOCK_collection);
+    MUTEX_LOCK(lock, &LOCK_collection);
     std::map<my_thread_t, const void*>::iterator it= collection.find(thread);
     if (it != collection.end())
     {
@@ -181,7 +190,7 @@ public:
   */
   bool clear()
   {
-    Mutex_lock lock(&LOCK_collection);
+    MUTEX_LOCK(lock, &LOCK_collection);
     collection.clear();
     return false;
   }
@@ -191,7 +200,7 @@ public:
   */
   unsigned int size()
   {
-    Mutex_lock lock(&LOCK_collection);
+    MUTEX_LOCK(lock, &LOCK_collection);
     return collection.size();    
   }
 
@@ -206,7 +215,7 @@ public:
       return size();
 
     unsigned int ret= 0;
-    Mutex_lock lock(&LOCK_collection);
+    MUTEX_LOCK(lock, &LOCK_collection);
     std::map<my_thread_t, const void*>::iterator it= collection.begin();
     for (; it != collection.end(); ++it)
     {
@@ -225,7 +234,7 @@ public:
   {
     std::list<my_thread_t> to_remove;
 
-    Mutex_lock lock(&LOCK_collection);
+    MUTEX_LOCK(lock, &LOCK_collection);
 
     for (std::map<my_thread_t, const void*>::iterator it= collection.begin();
          it != collection.end();
@@ -321,7 +330,7 @@ public:
     const char* category= "session";
     PSI_rwlock_info all_rwlocks[]=
     {
-      { &key_LOCK_collection, "LOCK_srv_session_collection", PSI_FLAG_GLOBAL}
+      { &key_LOCK_collection, "LOCK_srv_session_collection", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
     };
 
     initted= true;
@@ -917,13 +926,6 @@ bool Srv_session::open()
 
   DBUG_PRINT("info", ("thread_id=%d", thd.thread_id()));
 
-  /*
-    Disable QC - plugins will most probably install their own protocol
-    and it won't be compatible with the QC. In addition, Protocol_error
-    is not compatible with the QC.
-  */
-  thd.variables.query_cache_type = 0;
-
   thd.set_command(COM_SLEEP);
   thd.init_query_mem_roots();
 
@@ -1039,7 +1041,9 @@ bool Srv_session::attach()
     if (mysql_audit_notify(&thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CONNECT)))
       DBUG_RETURN(true);
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(notify_session_connect)(thd.get_psi());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
     query_logger.general_log_print(&thd, COM_CONNECT, NullS);
   }
@@ -1136,7 +1140,9 @@ bool Srv_session::close()
   query_logger.general_log_print(&thd, COM_QUIT, NullS);
   mysql_audit_notify(&thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT), 0);
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(notify_session_disconnect)(thd.get_psi());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   thd.security_context()->logout();
   thd.m_view_ctx_list.empty();
@@ -1307,7 +1313,7 @@ public:
   {
     if (thd->thread_id() == thread_id)
     {
-      Mutex_lock lock(&thd->LOCK_thd_data);
+      MUTEX_LOCK(lock, &thd->LOCK_thd_data);
       callback(thd, &input);
       return true;
     }

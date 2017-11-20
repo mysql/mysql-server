@@ -28,8 +28,8 @@
 #include "mysql_com.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "rpl_info.h"
-#include "sql_const.h"  // UUID_LENGTH
+#include "sql/rpl_info.h"
+#include "sql/sql_const.h" // UUID_LENGTH
 
 /**
   @addtogroup performance_schema_tables

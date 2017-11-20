@@ -20,16 +20,16 @@
 */
 
 #include "my_thread.h"
-#include "pfs_instr_class.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
-#include "table_esmh_by_digest.h"
+#include "pfs_digest.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "pfs_timer.h"
 #include "pfs_visitor.h"
-#include "pfs_digest.h"
-#include "field.h"
+#include "sql/field.h"
+#include "table_esmh_by_digest.h"
 
 THR_LOCK table_esmh_by_digest::m_table_lock;
 
@@ -62,7 +62,11 @@ PFS_engine_table_share table_esmh_by_digest::m_share = {
   sizeof(pos_t),
   &m_table_lock,
   &m_table_def,
-  false};
+  false,
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
+};
 
 bool
 PFS_index_esmh_by_digest::match_digest(PFS_statements_digest_stat *pfs)

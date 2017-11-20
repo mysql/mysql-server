@@ -17,8 +17,8 @@
 #define SQL_PARTITION_ADMIN_H
 
 #include "my_sqlcommand.h"
-#include "sql_admin.h"                 // Sql_cmd_analyze_table
-#include "sql_alter.h"                 // Sql_cmd_common_alter_table
+#include "sql/sql_admin.h"             // Sql_cmd_analyze_table
+#include "sql/sql_alter.h"             // Sql_cmd_common_alter_table
 
 class THD;
 struct TABLE_LIST;

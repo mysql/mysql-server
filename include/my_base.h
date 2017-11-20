@@ -1091,11 +1091,13 @@ enum key_range_flags {
   GEOM_FLAG=         1 << 7,
   /* Deprecated, currently used only by NDB at row retrieval */
   SKIP_RANGE=        1 << 8,
-  /* 
-    Used together with EQ_RANGE to indicate that index statistics
-    should be used instead of sampling the index.
+  /*
+    Used to indicate that index dives can be skipped. This can happen when:
+    a) Query satisfies JOIN_TAB::check_skip_records_in_range_qualification. OR
+    b) Used together with EQ_RANGE to indicate that index statistics should be
+       used instead of sampling the index.
   */
-  USE_INDEX_STATISTICS= 1 << 9,
+  SKIP_RECORDS_IN_RANGE= 1 << 9,
   /*
     Keypart is reverse-ordered (DESC) and ranges needs to be scanned
     backward. @see quick_range_seq_init, get_quick_keys.
@@ -1135,10 +1137,5 @@ typedef my_off_t	ha_rows;
 #endif
 
 #define HA_VARCHAR_PACKLENGTH(field_length) ((field_length) < 256 ? 1 :2)
-
-/* invalidator function reference for Query Cache */
-C_MODE_START
-typedef void (* invalidator_by_filename)(const char * filename);
-C_MODE_END
 
 #endif /* _my_base_h */

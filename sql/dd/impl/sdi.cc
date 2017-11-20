@@ -13,54 +13,49 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/sdi.h"
+#include "sql/dd/impl/sdi.h"
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
-
 #include <rapidjson/document.h>     // rapidjson::GenericValue
 #include <rapidjson/error/en.h>     // rapidjson::GetParseError_En
-#include <rapidjson/error/error.h>  // rapidjson::ParseErrorCode
 #include <rapidjson/prettywriter.h> // rapidjson::PrettyWrite
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <algorithm>
+#include <string>
 #include <vector>
 
-#include "dd/cache/dictionary_client.h" // dd::Dictionary_client
-#include "dd/dd.h"                      // dd::create_object
-#include "dd/impl/dictionary_impl.h"    // dd::Dictionary_impl::get_target_dd_version
-#include "dd/impl/sdi_impl.h"           // sdi read/write functions
-#include "dd/impl/sdi_utils.h"          // dd::checked_return
-#include "dd/object_id.h"
-#include "dd/sdi_file.h"                // dd::sdi_file::store
-#include "dd/sdi_fwd.h"
-#include "dd/sdi_tablespace.h"          // dd::sdi_tablespace::store
-#include "dd/types/abstract_table.h"
-#include "dd/types/column.h"            // dd::Column
-#include "dd/types/index.h"             // dd::Index
-#include "dd/types/schema.h"            // dd::Schema
-#include "dd/types/table.h"             // dd::Table
-#include "dd/types/tablespace.h"        // dd::Tablespace
-#include "dd_sql_view.h"                // update_referencing_views_metadata()
-#include "handler.h"              // ha_resolve_by_name_raw
+#include "m_ctype.h"
 #include "m_string.h"             // STRING_WITH_LEN
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_version.h"        // MYSQL_VERSION_ID
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "rapidjson/stringbuffer.h"
-#include "sql_class.h"            // THD
-#include "sql_plugin_ref.h"
-#include "strfunc.h"              // lex_cstring_handle
-#include "table.h"                // TABLE_LIST
-#include "template_utils.h"
-
-namespace dd {
-class Weak_object;
-}  // namespace dd
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/cache/dictionary_client.h" // dd::Dictionary_client
+#include "sql/dd/impl/dictionary_impl.h" // dd::Dictionary_impl::get_target_dd_version
+#include "sql/dd/impl/sdi_impl.h"       // sdi read/write functions
+#include "sql/dd/impl/sdi_tablespace.h" // dd::sdi_tablespace::store
+#include "sql/dd/impl/sdi_utils.h"      // dd::checked_return
+#include "sql/dd/object_id.h"           // dd::Object_id
+#include "sql/dd/sdi_file.h"            // dd::sdi_file::store
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/column.h"        // dd::Column
+#include "sql/dd/types/index.h"         // dd::Index
+#include "sql/dd/types/schema.h"        // dd::Schema
+#include "sql/dd/types/table.h"         // dd::Table
+#include "sql/dd/types/tablespace.h"    // dd::Tablespace
+#include "sql/handler.h"          // ha_resolve_by_name_raw
+#include "sql/mdl.h"
+#include "sql/sql_class.h"        // THD
+#include "sql/sql_plugin_ref.h"
+#include "sql/strfunc.h"          // lex_cstring_handle
 
 /**
   @defgroup sdi Serialized Dictionary Information
@@ -105,7 +100,6 @@ char *generic_buf_handle(Byte_buffer *buf, size_t sz)
   }
   return &(*(buf->begin()));
 }
-
 }
 
 /** @} */ // sdi_cc_internal
@@ -140,9 +134,6 @@ class Sdi_wcontext
 
   friend const String_type &lookup_schema_name(Sdi_wcontext *wctx);
 
-  friend const String_type &lookup_tablespace_name(Sdi_wcontext *wctx,
-                                                   dd::Object_id id);
-
 public:
   Sdi_wcontext(THD *thd, const String_type *schema_name) :
     m_thd(thd), m_schema_name(schema_name), m_error(false) {}
@@ -150,6 +141,14 @@ public:
   bool error() const
   {
     return m_error;
+  }
+  void set_error()
+  {
+    m_error= true;
+  }
+  THD *thd() const
+  {
+    return m_thd;
   }
 };
 
@@ -189,9 +188,7 @@ String_type generic_serialize(THD *thd, const char *dd_object_type,
   w.String(dd_object_type, dd_object_type_size);
 
   w.String(STRING_WITH_LEN("dd_object"));
-
   dd_obj.serialize(&wctx, &w);
-
   w.EndObject();
 
   return (wctx.error() ? empty_ : String_type(buf.GetString(), buf.GetSize()));
@@ -202,32 +199,44 @@ const String_type&
 lookup_tablespace_name(Sdi_wcontext *wctx MY_ATTRIBUTE((unused)),
                        dd::Object_id id MY_ATTRIBUTE((unused)))
 {
-  // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
-  return empty_;
-
-#if 0 // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
-  if (wctx->m_thd == nullptr || id == INVALID_OBJECT_ID)
+  if (wctx->thd() == nullptr || id == INVALID_OBJECT_ID)
   {
     return empty_;
   }
 
-  // FIXME: Need to
-  // - Check if id already in wctx cache
-  // - if not; acquire_uncached, store the (id, name) pair in wctx,
-  // - return reference to name corresponding to id in wctx
+  dd::cache::Dictionary_client &dc= *wctx->thd()->dd_client();
 
-  dd::cache::Dictionary_client *dc= wctx->m_thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(dc);
-  const Tablespace *tsp= nullptr;
-  if (dc->acquire(id, &tsp))
+  // The tablespace object may not have MDL (ALTER)
+  // Need to use acquire_uncached_uncommitted to get name for MDL
+  dd::Tablespace *tblspc_= nullptr;
+  if (dc.acquire_uncached_uncommitted(id, &tblspc_))
   {
-    wctx->m_error= true;
+    wctx->set_error();
+    return empty_;
+  }
+  if (tblspc_ == nullptr)
+  {
+    // Tablespace has been dropped by txn?
+    wctx->set_error();
+    return empty_;
+  }
+
+  if (mdl_lock(wctx->thd(), MDL_key::TABLESPACE, "", tblspc_->name(),
+               MDL_INTENTION_EXCLUSIVE))
+  {
+    wctx->set_error();
+    return empty_;
+  }
+
+  const Tablespace *tsp= nullptr;
+  if (dc.acquire(id, &tsp))
+  {
+    wctx->set_error();
     return empty_;
   }
   DBUG_ASSERT(tsp != nullptr);
 
   return tsp->name();
-#endif
 }
 
 /**
@@ -388,19 +397,22 @@ bool lookup_tablespace_ref(Sdi_rcontext *sdictx, const String_type &name,
   @{
 */
 
-sdi_t serialize(const Schema &schema)
+Sdi_type serialize(const Schema &schema)
 {
-  return generic_serialize(nullptr, STRING_WITH_LEN("Schema"), schema, nullptr);
+  return generic_serialize(nullptr, STRING_WITH_LEN("Schema"), schema,
+                           nullptr);
 }
 
 
-sdi_t serialize(THD *thd, const Table &table, const String_type &schema_name)
+Sdi_type serialize(THD *thd, const Table &table,
+                   const String_type &schema_name)
 {
-  return generic_serialize(thd, STRING_WITH_LEN("Table"), table, &schema_name);
+  return generic_serialize(thd, STRING_WITH_LEN("Table"), table,
+                           &schema_name);
 }
 
 
-sdi_t serialize(const Tablespace &tablespace)
+Sdi_type serialize(const Tablespace &tablespace)
 {
   return generic_serialize(nullptr, STRING_WITH_LEN("Tablespace"), tablespace,
                            nullptr);
@@ -408,7 +420,7 @@ sdi_t serialize(const Tablespace &tablespace)
 
 
 template <class Dd_type> bool
-generic_deserialize(THD *thd, const sdi_t &sdi,
+generic_deserialize(THD *thd, const Sdi_type &sdi,
                     const String_type &object_type_name MY_ATTRIBUTE((unused)),
                     Dd_type *dst,
                     String_type *schema_name_from_sdi= nullptr)
@@ -486,18 +498,18 @@ generic_deserialize(THD *thd, const sdi_t &sdi,
   return false;
 }
 
-bool deserialize(THD *thd, const sdi_t &sdi, Schema *dst_schema)
+bool deserialize(THD *thd, const Sdi_type &sdi, Schema *dst_schema)
 {
   return generic_deserialize(thd, sdi, "Schema", dst_schema);
 }
 
-bool deserialize(THD *thd, const sdi_t &sdi, Table *dst_table,
+bool deserialize(THD *thd, const Sdi_type &sdi, Table *dst_table,
                  String_type *deser_schema_name)
 {
   return generic_deserialize(thd, sdi, "Table", dst_table, deser_schema_name);
 }
 
-bool deserialize(THD *thd, const sdi_t &sdi, Tablespace *dst_tablespace)
+bool deserialize(THD *thd, const Sdi_type &sdi, Tablespace *dst_tablespace)
 {
   return generic_deserialize(thd, sdi, "Tablespace", dst_tablespace);
 }
@@ -547,11 +559,12 @@ bool with_schema(THD *thd, const AKT &key, CLOS &&clos)
   cache::Dictionary_client::Auto_releaser releaser(dc);
 
   const Schema *s= nullptr;
-  if (dc->acquire(key, &s))
+  if (dc->acquire(key, &s) || s == nullptr)
   {
     return true;
   }
-  return clos(s);
+
+  return clos(*s);
 }
 
 
@@ -611,75 +624,87 @@ bool equal_prefix_chars_name(const DDT &a, const DDT &b, size_t prefix_chars)
   return equal_prefix_chars(a.name().begin(), a.name().end(),
                             b.name().begin(), b.name().end(), prefix_chars);
 }
-}
+
+using DC= dd::cache::Dictionary_client;
+using AR= dd::cache::Dictionary_client::Auto_releaser;
+
+} // namespace
 
 
 namespace sdi {
 
-bool store(THD *thd, const Schema *s)
+bool store(THD *thd, const Schema *sp)
 {
-  sdi_t sdi= serialize(*s);
+  const Schema &s= ptr_as_cref(sp);
+  Sdi_type sdi= serialize(s);
   if (sdi.empty())
   {
     return checked_return(true);
   }
 
-  cache::Dictionary_client *dc= thd->dd_client();
-  cache::Dictionary_client::Auto_releaser releaser(dc);
+  DC &dc= *thd->dd_client();
+  AR ar(&dc);
 
   // This may actually be an update, so the schema need not be empty
   typedef std::vector<const Abstract_table*> sc_type;
   sc_type tables;
-  if (dc->fetch_schema_components(s, &tables))
+  if (dc.fetch_schema_components(&s, &tables))
   {
     return checked_return(true);
   }
 
-  for (const Abstract_table *at : tables)
+  for (const dd::Abstract_table *at : tables)
   {
     const Table *tbl= dynamic_cast<const Table*>(at);
     if (!tbl)
     {
       continue;
     }
+    const handlerton &hton= ptr_as_cref(resolve_hton(thd, *tbl));
 
-    // TODO: This will be sub-optimal as we may end up storing
+
+    // TODO DT: This will be sub-optimal as we may end up storing
     // the updated SDI multiple times in the same tablespace if
     // multiple tables in this schema are stored in the same tablespace.
     // Maybe we need to track which tablespace ids we have stored the
     // modified schema SDI for?
-    handlerton *hton= resolve_hton(thd, *tbl);
-    if (hton->store_schema_sdi &&
-        hton->store_schema_sdi(thd, hton, lex_cstring_handle(sdi), s, tbl))
+    if (hton.sdi_set)
     {
-      return checked_return(true);
+      if (sdi_tablespace::store_sch_sdi(thd, hton, sdi, s, *tbl))
+      {
+        return checked_return(true);
+      }
     }
   }
 
   // Finally, update SDI file
-  return checked_return(sdi_file::store(thd, lex_cstring_handle(sdi), s));
+  return checked_return(sdi_file::store_sch_sdi(sdi, s));
 }
 
 
-bool store(THD *thd, const Table *t)
+bool store(THD *thd, const Table *tp)
 {
+  const Table &t= ptr_as_cref(tp);
+  const handlerton &hton= ptr_as_cref(resolve_hton(thd, t));
+
   return with_schema
-    (thd, t->schema_id(),
-     [&](const Schema *s) {
-      DBUG_ASSERT(s != nullptr);
-      sdi_t sdi= serialize(thd, *t, s->name());
+    (thd, t.schema_id(),
+     [&](const Schema &s) {
+      dd::Sdi_type sdi= serialize(thd, t, s.name());
       if (sdi.empty())
       {
         return checked_return(true);
       }
       DBUG_EXECUTE_IF("abort_rename_after_update",
-      { my_error(ER_ERROR_ON_WRITE, MYF(0), "error inject", 42,
+      {
+        my_error(ER_ERROR_ON_WRITE, MYF(0), "error inject", 42,
                  "simulated write error");
-        return true;});
-      handlerton *hton= resolve_hton(thd, *t);
+        return true;
+      });
       return checked_return
-        (hton->store_table_sdi(thd, hton,
-                               lex_cstring_handle(sdi), t, s));
+        (hton.sdi_set ?
+         sdi_tablespace::store_tbl_sdi(thd, hton, sdi, t, s) :
+         sdi_file::store_tbl_sdi(sdi, t, s));
     });
 }
 
@@ -691,74 +716,75 @@ bool store(THD *thd, const Tablespace *ts)
   {
     return false; // SDI api not supported
   }
-  sdi_t sdi= serialize(*ts);
+  Sdi_type sdi= serialize(*ts);
   if (sdi.empty())
   {
     return checked_return(true);
   }
-  return checked_return(sdi_tablespace::store(hton, lex_cstring_handle(sdi),
-                                              ts));
+  return checked_return(sdi_tablespace::store_tsp_sdi(thd, *hton, sdi, *ts));
 }
 
-bool drop(THD *thd, const Schema *s)
+bool drop(THD *, const Schema *sp)
 {
-  return checked_return(sdi_file::remove(thd, s));
+  return checked_return(sdi_file::drop_sch_sdi(ptr_as_cref(sp)));
 }
 
-bool drop(THD *thd, const Table *t)
+bool drop(THD *thd, const Table *tp)
 {
-  return with_schema(thd, t->schema_id(),
-                     [&](const Schema *s) {
-                       DBUG_ASSERT(s != nullptr);
-                       handlerton *hton= resolve_hton(thd, *t);
-                       return checked_return(hton->remove_table_sdi(thd, hton, t, s));
-                     });
+  const Table &t= ptr_as_cref(tp);
+  const handlerton &hton= ptr_as_cref(resolve_hton(thd, t));
+
+  return with_schema
+    (thd, t.schema_id(),
+     [&](const Schema &s)
+     {
+       return checked_return
+         (hton.sdi_delete ?
+          sdi_tablespace::drop_tbl_sdi(thd, hton, t, s):
+          sdi_file::drop_tbl_sdi(t, s));
+     });
 }
 
-bool drop(THD *thd, const Tablespace *ts)
-{
-  handlerton *hton= resolve_hton(thd, *ts);
-  if (!hton->sdi_delete)
-  {
-    return false;
-  }
-  return checked_return(sdi_tablespace::remove(hton, ts));
-}
 
-bool drop_after_update(THD *thd, const Schema *old_s,
-                       const Schema *new_s)
+bool drop_after_update(THD *, const Schema *old_sp,
+                       const Schema *new_sp)
 {
+  const Schema &old_s= ptr_as_cref(old_sp);
+  const Schema &new_s= ptr_as_cref(new_sp);
+
   // Currently this test is not really necessary since the schema sdi
   // file name cannot change.
-  return equal_prefix_chars_name(*old_s, *new_s,
+  return equal_prefix_chars_name(old_s, new_s,
                                  sdi_file::FILENAME_PREFIX_CHARS) ?
-    false : checked_return(sdi_file::remove(thd, old_s));
+    false : checked_return(sdi_file::drop_sch_sdi(old_s));
 }
 
-bool drop_after_update(THD *thd, const Table *old_t, const Table *new_t)
+bool drop_after_update(THD *thd, const Table *old_tp, const Table *new_tp)
 {
-  if ((old_t->schema_id() == new_t->schema_id() &&
-       equal_prefix_chars_name(*old_t, *new_t, sdi_file::FILENAME_PREFIX_CHARS))
+  const Table &old_t= ptr_as_cref(old_tp);
+  const Table &new_t= ptr_as_cref(new_tp);
+
+  if ((old_t.schema_id() == new_t.schema_id() &&
+       equal_prefix_chars_name(old_t, new_t, sdi_file::FILENAME_PREFIX_CHARS))
       // Hack to avoid calling resolve_hton() during unit tests
       // reslove_hton() will crash in unit tests because the
       // plugin_LOCK mutex has not been initialized.
       // Reviewers: Please feel free to suggest alternative solutions.
-       || old_t->engine() == "innodb")
+       || old_t.engine() == "innodb")
   {
     return false;
   }
 
-  handlerton *old_hton= resolve_hton(thd, *old_t);
-  if (old_hton->sdi_set)
+  const handlerton &old_hton= ptr_as_cref(resolve_hton(thd, old_t));
+  if (old_hton.sdi_set)
   {
     return false;
   }
 
-  return with_schema(thd, old_t->schema_id(),
-                     [&](const Schema *s) {
-                       DBUG_ASSERT(s != nullptr);
-                       return checked_return(sdi_file::remove(thd, nullptr,
-                                                              old_t, s));
+  return with_schema(thd, old_t.schema_id(),
+                     [&](const Schema &s) {
+                       return checked_return
+                         (sdi_file::drop_tbl_sdi(old_t, s));
                      });
 }
 

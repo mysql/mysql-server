@@ -1,1 +1,2 @@
---skip-log-bin --relay_log_info_repository=TABLE
+$UDF_EXAMPLE_LIB_OPT
+--skip-log-bin --relay_log_info_repository=TABLE --sync-master-info=1 --skip-log-slave-updates

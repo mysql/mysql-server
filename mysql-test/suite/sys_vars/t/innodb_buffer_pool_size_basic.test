@@ -4,7 +4,7 @@
 #                                                                             #
 # Variable Name: innodb_buffer_pool_size                                      #
 # Scope: Global                                                               #
-# Access Type: Static                                                         #
+# Access Type: Dynamic                                                         #
 # Data Type: numeric                                                          #
 #                                                                             #
 #                                                                             #

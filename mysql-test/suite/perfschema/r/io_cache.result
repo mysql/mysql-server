@@ -10,8 +10,8 @@ SELECT @@global.binlog_stmt_cache_size;
 @@global.binlog_stmt_cache_size
 4096
 SELECT * FROM performance_schema.setup_instruments WHERE name LIKE "%file/sql/io_cache%";
-NAME	ENABLED	TIMED
-wait/io/file/sql/io_cache	YES	YES
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/io/file/sql/io_cache	YES	YES		0	NULL
 
 ## Connection con1
 

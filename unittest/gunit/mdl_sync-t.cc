@@ -19,12 +19,14 @@
 */
 
 #include "my_config.h"
+
 #include <gtest/gtest.h>
 
-#include "mdl.h"
+#include "sql/debug_sync.h"
+#include "sql/mdl.h"
+#include "sql/sql_base.h"
 #include "test_utils.h"
 #include "thread_utils.h"
-#include "debug_sync.h"
 
 #if defined(ENABLED_DEBUG_SYNC)
 namespace mdl_sync_unittest {
@@ -52,6 +54,7 @@ protected:
 
     m_initializer.SetUp();
     m_thd= m_initializer.thd();
+    table_def_init();
   }
 
   void TearDown()
@@ -62,6 +65,7 @@ protected:
     debug_sync_end();
     opt_debug_sync_timeout= 0;
     mdl_locks_unused_locks_low_water= MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT;
+    table_def_free();
   }
 
   Server_initializer m_initializer;

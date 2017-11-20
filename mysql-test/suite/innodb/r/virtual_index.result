@@ -278,3 +278,16 @@ col7
 32
 80
 DROP TABLE t1;
+#
+# Bug 25899959 - SERVER CRASH WHILE TRYING TO ADD A VIRTUAL COLUMN AND ADD INDEX ON IT
+#
+CREATE TABLE t1 (doc json DEFAULT NULL);
+ALTER TABLE t1 ADD Name char(52) AS (doc->>"$.Name"), ADD INDEX n (Name);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `doc` json DEFAULT NULL,
+  `Name` char(52) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.Name'))) VIRTUAL,
+  KEY `n` (`Name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE t1;

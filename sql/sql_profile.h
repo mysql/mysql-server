@@ -24,9 +24,11 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/psi_memory_key.h"
+#include "sql/table.h"
 
 class Item;
-struct TABLE_LIST;
 class THD;
 
 typedef struct st_field_info ST_FIELD_INFO;
@@ -51,13 +53,11 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 
 #if defined(ENABLED_PROFILING)
-#include "mysql/mysql_lex_string.h"         // LEX_STRING
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
 
-#include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
 
 extern "C" {

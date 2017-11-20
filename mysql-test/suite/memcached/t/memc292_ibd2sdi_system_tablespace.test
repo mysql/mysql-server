@@ -18,6 +18,10 @@ let $MYSQLD_BASEDIR= `select @@basedir`;
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
 CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+# We wiped out entire SDI created by Server. This is to avoid server
+# SDI interference with memcached inserted SDI. So server complains
+# on missing SDI
+CALL mtr.add_suppression("\\[Warning\\] sdi_delete*");
 --enable_query_log
 
 # Create custom datadir path
@@ -30,7 +34,7 @@ write_file $BOOTSTRAP_SQL;
 CREATE DATABASE test;
 EOF
 
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR  --innodb_data_file_path="ibdata1:16M;ibdata2:20M:autoextend" --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb_undo_tablespaces=0 --innodb-page-size=$start_page_size </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR  --innodb_data_file_path="ibdata1:16M;ibdata2:20M:autoextend" --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb-page-size=$start_page_size </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 # Run the bootstrap command
 --exec $NEW_CMD
@@ -39,7 +43,7 @@ let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --lc_messages_dir=$MYS
 
 # Start the DB server
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
---let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb_data_file_path='ibdata1:16M;ibdata2:20M:autoextend' --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0"
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb_data_file_path='ibdata1:16M;ibdata2:20M:autoextend' --innodb_log_file_size=5M --innodb_log_files_in_group=2"
 --source include/restart_mysqld.inc
 
 --disable_query_log
@@ -83,6 +87,11 @@ INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 
 # Insert into SDI tables via memcached
 let MEMCACHED_TABLE_MAPPING = desc_t1;
+
+# Clear the current SDI in table
+--source ../include/sdi_drop_index.inc
+--source ../include/sdi_create_index.inc
+
 --source ../include/create_ibd2sdi_data.inc
 
 # Shutdown server
@@ -116,6 +125,10 @@ SET GLOBAL innodb_limit_optimistic_insert_debug = default;
 # Create table not required because SDI is common for all tables
 # in a tablespace
 
+# Clear the current SDI in table
+--source ../include/sdi_drop_index.inc
+--source ../include/sdi_create_index.inc
+
 # Insert into SDI tables via memcached
 --source ../include/create_ibd2sdi_data_large.inc
 
@@ -137,7 +150,7 @@ write_file $BOOTSTRAP_SQL;
 CREATE DATABASE test;
 EOF
 
-let $BOOTSTRAP_CMD = $MYSQLD --no-defaults --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR  --innodb_data_file_path="ibdata1:16M;ibdata2:2M:autoextend" --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb_undo_tablespaces=0 --innodb-page-size=$start_page_size </dev/null>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let $BOOTSTRAP_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR  --innodb_data_file_path="ibdata1:16M;ibdata2:2M:autoextend" --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb-page-size=$start_page_size </dev/null>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 # Run the bootstrap command
 --exec $BOOTSTRAP_CMD
@@ -146,7 +159,7 @@ let $BOOTSTRAP_CMD = $MYSQLD --no-defaults --initialize-insecure --lc_messages_d
 
 # Start the DB server
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
---let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb_data_file_path='ibdata1:16M;ibdata2:2M:autoextend' --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0"
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb_data_file_path='ibdata1:16M;ibdata2:2M:autoextend' --innodb_log_file_size=5M --innodb_log_files_in_group=2"
 --source include/start_mysqld.inc
 
 --disable_query_log
@@ -171,6 +184,10 @@ ENGINE = INNODB;
 
 # Tables must exist before plugin can be started!
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# Clear the current SDI in table
+--source ../include/sdi_drop_index.inc
+--source ../include/sdi_create_index.inc
 
 --source ../include/create_ibd2sdi_data_large.inc
 

@@ -147,6 +147,14 @@ The following options may be given as the first argument:
  format. FULL causes all metadata to be logged; MINIMAL
  means that only metadata actually required by slave is
  logged. Default: MINIMAL.
+ --binlog-row-value-options=name 
+ When set to PARTIAL_JSON, this option enables a
+ space-efficient row-based binary log format for UPDATE
+ statements that modify a JSON value using only the
+ functions JSON_SET, JSON_REPLACE, and JSON_REMOVE. For
+ such updates, only the modified parts of the JSON
+ document are included in the binary log, so small changes
+ of big documents may need significantly less space.
  --binlog-rows-query-log-events 
  Allow writing of Rows_query_log events into binary log.
  --binlog-stmt-cache-size=# 
@@ -166,6 +174,12 @@ The following options may be given as the first argument:
  --bulk-insert-buffer-size=# 
  Size of tree cache used in bulk insert optimisation. Note
  that this is a limit per thread!
+ --caching-sha2-password-private-key-path=name 
+ A fully qualified path to the private RSA key used for
+ authentication.
+ --caching-sha2-password-public-key-path=name 
+ A fully qualified path to the public RSA key used for
+ authentication.
  --character-set-client-handshake 
  Don't ignore client side character set value sent during
  handshake.
@@ -196,11 +210,11 @@ The following options may be given as the first argument:
  --console           Write error output on screen; don't remove the console
  window on windows.
  --core-file         Write core on errors.
+ --cte-max-recursion-depth=# 
+ Abort a recursive common table expression if it does more
+ than this number of iterations.
  -D, --daemonize     Run mysqld as sysv daemon
  -h, --datadir=name  Path to the database root directory
- --date-format=name  The DATE format (ignored)
- --datetime-format=name 
- The DATETIME format (ignored)
  --default-authentication-plugin=name 
  The default authentication plugin used by the server to
  hash the password.
@@ -341,14 +355,10 @@ The following options may be given as the first argument:
  Maximum amount of memory available for generating
  histograms
  --host-cache-size=# How many host names should be cached to avoid resolving.
- --ignore-builtin-innodb 
- IGNORED. This option will be removed in future releases.
- Disable initialization of builtin InnoDB plugin
- --information-schema-stats=name 
- If this flag is set to CACHED, INFORMATON_SCHEMA
- retrieves dynamic column statistics stored in dedicated
- tables. If set to LATEST, the dynamic statistics will be
- read directly from the storage engine.
+ --information-schema-stats-expiry=# 
+ The number of seconds after which mysqld server will
+ fetch data from storage engine and replace the data in
+ cache.
  --init-connect=name Command(s) that are executed for each new connection
  --init-file=name    Read SQL commands from this file at startup
  --init-slave=name   Command(s) that are executed by a slave server each time
@@ -446,8 +456,8 @@ The following options may be given as the first argument:
  --log-short-format  Don't log extra information to update and slow-query
  logs.
  --log-slave-updates Tells the slave to log the updates from the slave thread
- to the binary log. You will need to turn it on if you
- plan to daisy-chain the slaves
+ to the binary log.
+ (Defaults to on; use --skip-log-slave-updates to disable.)
  --log-slow-admin-statements 
  Log slow OPTIMIZE, ANALYZE, ALTER and other
  administrative statements to the slow log if it is open.
@@ -495,8 +505,6 @@ The following options may be given as the first argument:
  local time. This affects only log files, not log tables,
  as the timestamp columns of the latter can be converted
  at will.
- -W, --log-warnings[=#] 
- Log some not critical warnings to the log file
  --long-query-time=# Log all queries that have taken more than long_query_time
  seconds to execute to file. The argument will be treated
  as a decimal value with microsecond precision
@@ -577,8 +585,6 @@ The following options may be given as the first argument:
  value are used; the rest are ignored)
  --max-sp-recursion-depth[=#] 
  Maximum stored procedure recursion depth
- --max-tmp-tables=#  Maximum number of temporary tables a client can keep open
- at a time
  --max-user-connections=# 
  The maximum number of active connections for a single
  user (0 = no limit)
@@ -593,10 +599,6 @@ The following options may be given as the first argument:
  --min-examined-row-limit=# 
  Don't write queries to slow log that examine fewer rows
  than that
- --multi-range-count=# 
- Number of key ranges to request at once. This variable
- has no effect, and is deprecated. It will be removed in a
- future release.
  --myisam-block-size=# 
  Block size to be used for MyISAM index pages
  --myisam-data-pointer-size=# 
@@ -702,6 +704,13 @@ The following options may be given as the first argument:
  Offset of first optimizer trace to show; see manual
  --parser-max-mem-size=# 
  Maximum amount of memory available to the parser
+ --password-history=# 
+ The number of old passwords to check in the history. Set
+ to 0 (the default) to turn the checks off
+ --password-reuse-interval=# 
+ The minimum number of days that need to pass before a
+ password can be reused. Set to 0 (the default) to turn
+ the checks off
  --performance-schema 
  Enable the performance schema.
  (Defaults to on; use --skip-performance-schema to disable.)
@@ -802,6 +811,12 @@ The following options may be given as the first argument:
  --performance-schema-max-digest-length=# 
  Maximum length considered for digest text, when stored in
  performance_schema tables.
+ --performance-schema-max-digest-sample-age=# 
+ The time in seconds after which a previous query sample
+ is considered old. When the value is 0, queries are
+ sampled once. When the value is greater than zero,
+ queries are re sampled if the last sample is more than
+ performance_schema_max_digest_sample_age seconds old.
  --performance-schema-max-file-classes=# 
  Maximum number of file instruments.
  --performance-schema-max-file-handles=# 
@@ -903,18 +918,6 @@ The following options may be given as the first argument:
  Limit of query profiling memory
  --query-alloc-block-size=# 
  Allocation block size for query parsing and execution
- --query-cache-limit=# 
- Don't cache results that are bigger than this
- --query-cache-min-res-unit=# 
- The minimum size for blocks allocated by the query cache
- --query-cache-size=# 
- The memory allocated to store results from old queries
- --query-cache-type=name 
- OFF = Don't cache or retrieve results. ON = Cache all
- results except SELECT SQL_NO_CACHE ... queries. DEMAND =
- Cache only SELECT SQL_CACHE ... queries
- --query-cache-wlock-invalidate 
- Invalidate queries in query cache on LOCK for write
  --query-prealloc-size=# 
  Persistent buffer for query parsing and execution
  --range-alloc-block-size=# 
@@ -1045,9 +1048,6 @@ The following options may be given as the first argument:
  write privileges to the mysql.user table.
  --schema-definition-cache=# 
  The number of cached schema definitions
- --secure-auth       Disallow authentication for accounts that have old
- (pre-4.1) passwords. Deprecated. Always TRUE.
- (Defaults to on; use --skip-secure-auth to disable.)
  --secure-file-priv=name 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
  files within specified directory
@@ -1244,7 +1244,6 @@ The following options may be given as the first argument:
  Define threads usage for handling queries, one of
  one-thread-per-connection, no-threads, loaded-dynamically
  --thread-stack=#    The stack size for each thread
- --time-format=name  The TIME format (ignored)
  --tls-version=name  TLS version, permitted values are TLSv1, TLSv1.1,
  TLSv1.2(Only for openssl)
  --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY
@@ -1299,7 +1298,7 @@ auto-increment-offset 1
 autocommit TRUE
 automatic-sp-privileges TRUE
 avoid-temporal-upgrade FALSE
-back-log 80
+back-log 151
 big-tables FALSE
 bind-address *
 binlog-cache-size 32768
@@ -1316,12 +1315,15 @@ binlog-order-commits TRUE
 binlog-row-event-max-size 8192
 binlog-row-image FULL
 binlog-row-metadata MINIMAL
+binlog-row-value-options 
 binlog-rows-query-log-events FALSE
 binlog-stmt-cache-size 32768
 binlog-transaction-dependency-history-size 25000
 binlog-transaction-dependency-tracking COMMIT_ORDER
 block-encryption-mode aes-128-ecb
 bulk-insert-buffer-size 8388608
+caching-sha2-password-private-key-path private_key.pem
+caching-sha2-password-public-key-path public_key.pem
 character-set-client-handshake TRUE
 character-set-filesystem binary
 character-set-server utf8mb4
@@ -1333,9 +1335,8 @@ completion-type NO_CHAIN
 concurrent-insert AUTO
 connect-timeout 10
 console FALSE
+cte-max-recursion-depth 1000
 daemonize FALSE
-date-format %Y-%m-%d
-datetime-format %Y-%m-%d %H:%i:%s
 default-authentication-plugin mysql_native_password
 default-password-lifetime 0
 default-storage-engine InnoDB
@@ -1353,7 +1354,7 @@ div-precision-increment 4
 end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
-event-scheduler OFF
+event-scheduler ON
 expire-logs-days 30
 explicit-defaults-for-timestamp TRUE
 external-locking FALSE
@@ -1372,8 +1373,7 @@ gtid-mode OFF
 help TRUE
 histogram-generation-max-mem-size 20000000
 host-cache-size 279
-ignore-builtin-innodb FALSE
-information-schema-stats CACHED
+information-schema-stats-expiry 86400
 init-connect 
 init-file (No default value)
 init-slave 
@@ -1388,10 +1388,8 @@ key-buffer-size 8388608
 key-cache-age-threshold 300
 key-cache-block-size 1024
 key-cache-division-limit 100
-language MYSQL_SHAREDIR/
 large-pages FALSE
 lc-messages en_US
-lc-messages-dir MYSQL_SHAREDIR/
 lc-time-names en_US
 local-infile FALSE
 lock-wait-timeout 31536000
@@ -1409,7 +1407,7 @@ log-output FILE
 log-queries-not-using-indexes FALSE
 log-raw FALSE
 log-short-format FALSE
-log-slave-updates FALSE
+log-slave-updates TRUE
 log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
 log-statements-unsafe-for-binlog TRUE
@@ -1421,7 +1419,6 @@ log-tc tc.log
 log-tc-size #####
 log-throttle-queries-not-using-indexes 0
 log-timestamps UTC
-log-warnings 1
 long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1
@@ -1430,7 +1427,7 @@ master-info-file master.info
 master-info-repository TABLE
 master-retry-count 86400
 master-verify-checksum FALSE
-max-allowed-packet 4194304
+max-allowed-packet 67108864
 max-binlog-cache-size 18446744073709547520
 max-binlog-dump-events 0
 max-binlog-size 1073741824
@@ -1439,7 +1436,7 @@ max-connect-errors 100
 max-connections 151
 max-delayed-threads 20
 max-digest-length 1024
-max-error-count 64
+max-error-count 1024
 max-execution-time 0
 max-heap-table-size 16777216
 max-join-size 18446744073709551615
@@ -1450,14 +1447,12 @@ max-relay-log-size 0
 max-seeks-for-key 18446744073709551615
 max-sort-length 1024
 max-sp-recursion-depth 0
-max-tmp-tables 32
 max-user-connections 0
 max-write-lock-count 18446744073709551615
 memlock FALSE
 metadata-locks-cache-size 1024
 metadata-locks-hash-instances 8
 min-examined-row-limit 0
-multi-range-count 256
 myisam-block-size 1024
 myisam-data-pointer-size 6
 myisam-max-sort-file-size 9223372036853727232
@@ -1487,6 +1482,8 @@ optimizer-trace-limit 1
 optimizer-trace-max-mem-size 16384
 optimizer-trace-offset -1
 parser-max-mem-size 18446744073709551615
+password-history 0
+password-reuse-interval 0
 performance-schema TRUE
 performance-schema-accounts-size -1
 performance-schema-consumer-events-stages-current FALSE
@@ -1519,28 +1516,29 @@ performance-schema-instrument
 performance-schema-max-cond-classes 80
 performance-schema-max-cond-instances -1
 performance-schema-max-digest-length 1024
+performance-schema-max-digest-sample-age 60
 performance-schema-max-file-classes 80
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
 performance-schema-max-index-stat -1
 performance-schema-max-memory-classes 450
 performance-schema-max-metadata-locks -1
-performance-schema-max-mutex-classes 220
+performance-schema-max-mutex-classes 250
 performance-schema-max-mutex-instances -1
 performance-schema-max-prepared-statements-instances -1
 performance-schema-max-program-instances -1
-performance-schema-max-rwlock-classes 50
+performance-schema-max-rwlock-classes 60
 performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 202
+performance-schema-max-statement-classes 209
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
 performance-schema-max-table-lock-stat -1
-performance-schema-max-thread-classes 50
+performance-schema-max-thread-classes 100
 performance-schema-max-thread-instances -1
 performance-schema-session-connect-attrs-size -1
 performance-schema-setup-actors-size -1
@@ -1552,11 +1550,6 @@ port-open-timeout 0
 preload-buffer-size 32768
 profiling-history-size 15
 query-alloc-block-size 8192
-query-cache-limit 1048576
-query-cache-min-res-unit 4096
-query-cache-size 0
-query-cache-type OFF
-query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
 range-alloc-block-size 4096
 range-optimizer-max-mem-size 8388608
@@ -1579,8 +1572,7 @@ require-secure-transport FALSE
 rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 schema-definition-cache 256
-secure-auth TRUE
-server-id 0
+server-id 1
 server-id-bits 32
 session-track-gtids OFF
 session-track-schema TRUE
@@ -1632,7 +1624,6 @@ temptable-max-ram 1073741824
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144
-time-format %H:%i:%s
 tmp-table-size 16777216
 transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,9 +15,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "table.h"
-#include "pattern_matcher.h"
+#include "client/dump/table.h"
+
 #include <boost/algorithm/string.hpp>
+#include <sstream>
+
+#include "client/dump/pattern_matcher.h"
 
 using namespace Mysql::Tools::Dump;
 
@@ -33,40 +36,39 @@ Table::Table(uint64 id, const std::string& name, const std::string& schema,
 {
   using Detail::Pattern_matcher;
   bool engine_line_read= false;
-  std::vector<std::string> definition_lines;
-  boost::split(definition_lines, sql_formatted_definition,
-    boost::is_any_of("\n"), boost::token_compress_on);
-  for (std::vector<std::string>::iterator it= definition_lines.begin();
-    it != definition_lines.end(); ++it)
+  bool first_line= true;
+  std::stringstream definition_stream(sql_formatted_definition);
+  for (std::string line; std::getline(definition_stream, line); )
   {
-    boost::trim_left(*it);
+    boost::trim_left(line);
     if (!engine_line_read)
-      boost::trim_if(*it, boost::is_any_of(","));
+      boost::trim_if(line, boost::is_any_of(","));
     // TODO: Look up INFORMATION_SCHEMA and get the table details.
-    if (boost::starts_with(*it, "KEY ")
-      || boost::starts_with(*it, "INDEX ")
-      || boost::starts_with(*it, "UNIQUE KEY ")
-      || boost::starts_with(*it, "UNIQUE INDEX ")
-      || boost::starts_with(*it, "FULLTEXT KEY ")
-      || boost::starts_with(*it, "FULLTEXT INDEX ")
-      || boost::starts_with(*it, "SPATIAL KEY ")
-      || boost::starts_with(*it, "SPATIAL INDEX ")
-      || boost::starts_with(*it, "CONSTRAINT "))
+    if (boost::starts_with(line, "KEY ")
+      || boost::starts_with(line, "INDEX ")
+      || boost::starts_with(line, "UNIQUE KEY ")
+      || boost::starts_with(line, "UNIQUE INDEX ")
+      || boost::starts_with(line, "FULLTEXT KEY ")
+      || boost::starts_with(line, "FULLTEXT INDEX ")
+      || boost::starts_with(line, "SPATIAL KEY ")
+      || boost::starts_with(line, "SPATIAL INDEX ")
+      || boost::starts_with(line, "CONSTRAINT "))
     {
-      m_indexes_sql_definition.push_back(*it);
+      m_indexes_sql_definition.push_back(line);
     }
     else
     {
-      if (boost::starts_with(*it, ") ENGINE="))
+      if (boost::starts_with(line, ") ENGINE="))
       {
         engine_line_read= true;
         std::string &sql_def = m_sql_definition_without_indexes;
         sql_def = boost::algorithm::replace_last_copy(sql_def, ",", "");
       }
-      else if (it != definition_lines.begin() && !engine_line_read)
-        *it+= ",";
-      m_sql_definition_without_indexes+= *it + '\n';
+      else if (!first_line && !engine_line_read)
+        line+= ",";
+      m_sql_definition_without_indexes+= line + '\n';
     }
+    first_line= false;
   }
 }
 

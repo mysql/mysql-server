@@ -5,6 +5,9 @@ INSERT INTO t VALUES (1,1);
 INSERT INTO t VALUES (1,4);
 INSERT INTO t VALUES (1,2);
 INSERT INTO t VALUES (1,4);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 Single partition, no sorting
 SELECT i, j, STD(i) OVER (ROWS UNBOUNDED PRECEDING) std,
 VARIANCE(j) OVER (ROWS UNBOUNDED PRECEDING) variance FROM t;

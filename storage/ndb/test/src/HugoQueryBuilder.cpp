@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ HugoQueryBuilder::fixOptions()
 }
 
 void
-HugoQueryBuilder::addTable(Ndb* ndb, const NdbDictionary::Table* tab)
+HugoQueryBuilder::addTable(const NdbDictionary::Table* tab)
 {
   for (unsigned i = 0; i<m_tables.size(); i++)
   {
@@ -86,7 +86,7 @@ HugoQueryBuilder::addTable(Ndb* ndb, const NdbDictionary::Table* tab)
   TableDef def;
   def.m_table = tab;
 
-  NdbDictionary::Dictionary* pDict = ndb->getDictionary();
+  NdbDictionary::Dictionary* pDict = m_ndb->getDictionary();
   NdbDictionary::Dictionary::List l;
   int res = pDict->listIndexes(l, tab->getName());
   if (res == 0)
@@ -611,7 +611,7 @@ HugoQueryBuilder::createQuery(bool takeOwnership)
 
   m_options = save;
 
-  const NdbQueryDef * def = builder->prepare();
+  const NdbQueryDef * def = builder->prepare(m_ndb);
   builder->destroy();
   if (def != 0 && !takeOwnership)
   {

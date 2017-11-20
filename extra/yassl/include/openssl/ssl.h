@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@
 #include "rsa.h"
 
 
-#define YASSL_VERSION "2.4.2"
+#define YASSL_VERSION "2.4.4"
 
 
 #if defined(__cplusplus)
@@ -98,10 +98,23 @@ typedef struct DH {
 DH*  DH_new(void);
 void DH_free(DH*);
 
+typedef int (*pem_password_cb)(char*, int, int, void*);
 /* RSA stuff */
 
-void RSA_free(RSA*);
+enum /* Padding types */
+{
+  RSA_PKCS1_PADDING=1
+};
+
 RSA* RSA_generate_key(int, unsigned long, void(*)(int, int, void*), void*);
+RSA *PEM_read_RSAPrivateKey(FILE *fp, RSA **x, pem_password_cb *cb, void *u);
+RSA *PEM_read_RSA_PUBKEY(FILE *fp, RSA **x, pem_password_cb *cb, void *u);
+RSA *PEM_read_mem_RSA_PUBKEY(void *buffer, long buffer_size);
+void RSA_free(RSA *rsa);
+int RSA_public_encrypt(int flen, unsigned char *from, unsigned char *to, RSA *rsa, int padding);
+int RSA_private_decrypt(int flen, unsigned char *from, unsigned char *to, RSA *rsa, int padding);
+int RSA_size(RSA *rsa);
+
 
 
 /* X509 stuff, different file? */
@@ -235,7 +248,6 @@ long         SSL_get_verify_result(SSL*);
 
 
 typedef int (*VerifyCallback)(int, X509_STORE_CTX*);
-typedef int (*pem_password_cb)(char*, int, int, void*);
 int default_password_callback(char * buffer, int size_arg, int rwflag,
                               void * u);
 
@@ -559,8 +571,8 @@ void yaSSL_transport_set_recv_function(SSL *, yaSSL_recv_func_t);
 void yaSSL_transport_set_send_function(SSL *, yaSSL_send_func_t);
 
 #if defined(__cplusplus) && !defined(YASSL_MYSQL_COMPATIBLE)
-}      /* namespace  */
 }      /* extern "C" */
+}      /* namespace  */
 #endif
 
 

@@ -20,6 +20,7 @@
 #include "streaming_command_delegate.h"
 
 #include <stddef.h>
+#include "ngs/interface/protocol_encoder_interface.h"
 #include <iostream>
 #include <string>
 
@@ -32,7 +33,7 @@
 
 using namespace xpl;
 
-Streaming_command_delegate::Streaming_command_delegate(ngs::Protocol_encoder *proto)
+Streaming_command_delegate::Streaming_command_delegate(ngs::Protocol_encoder_interface *proto)
 : m_proto(proto),
   m_sent_result(false),
   m_compact_metadata(false)
@@ -158,13 +159,13 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
 
     case MYSQL_TYPE_JSON:
       xtype = Mysqlx::Resultset::ColumnMetaData::BYTES;
-      ctype = MYSQLX_COLUMN_BYTES_CONTENT_TYPE_JSON;
+      ctype = Mysqlx::Resultset::JSON;
       xcollation = charset ? charset->number : (m_resultcs ? m_resultcs->number : 0);
       break;
 
     case MYSQL_TYPE_GEOMETRY:
       xtype = Mysqlx::Resultset::ColumnMetaData::BYTES;
-      ctype = MYSQLX_COLUMN_BYTES_CONTENT_TYPE_GEOMETRY;
+      ctype = Mysqlx::Resultset::GEOMETRY;
       break;
 
     case MYSQL_TYPE_TIME:

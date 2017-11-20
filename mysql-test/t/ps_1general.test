@@ -501,7 +501,6 @@ execute stmt5;
 SET sql_mode="";
 
 prepare stmt1 from ' flush local privileges ' ;
-prepare stmt1 from ' reset query cache ' ;
 prepare stmt1 from ' KILL 0 ';
 
 ## simple explain

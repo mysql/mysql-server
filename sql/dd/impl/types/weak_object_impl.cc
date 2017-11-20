@@ -13,23 +13,23 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/weak_object_impl.h"
+#include "sql/dd/impl/types/weak_object_impl.h"
 
 #include <memory>
-#include <string>
 
-#include "dd/impl/object_key.h"           // Needed for destructor
-#include "dd/impl/raw/raw_record.h"       // Raw_record
-#include "dd/impl/raw/raw_table.h"        // Raw_table
-#include "dd/impl/transaction_impl.h"     // Open_dictionary_tables_ctx
-#include "dd/impl/types/entity_object_impl.h"
-#include "dd/types/entity_object.h"       // Entity_object
-#include "dd/types/object_table.h"        // Object_table
-#include "log.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                 // ER_*
+#include "sql/dd/impl/object_key.h"       // Needed for destructor
+#include "sql/dd/impl/raw/raw_record.h"   // Raw_record
+#include "sql/dd/impl/raw/raw_table.h"    // Raw_table
+#include "sql/dd/impl/transaction_impl.h" // Open_dictionary_tables_ctx
+#include "sql/dd/impl/types/entity_object_impl.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/object_table.h"    // Object_table
+#include "sql/log.h"
 
 namespace dd {
 
@@ -138,6 +138,20 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx)
                   });
 
   this->set_primary_key_value(*r);
+
+  /*
+    It is necessary to destroy the Raw_new_record() object after
+    inserting the parent DD object and before creating children
+    DD object. The reason is that, the parent DD object may
+    insert a row in the same DD table (E.g., when storing parent
+    partition metadata in mysql.partitions), in which even the
+    child DD table would end-up inserting a row. (e.g., where
+    storing sub partition metadata in mysql.partitions)
+    Destroying Raw_new_record() enable accurate computation of
+    the auto increment values, for the child partition entry
+    being stored.
+  */
+  r.reset();
 
   if (store_children(otx))
     DBUG_RETURN(true);

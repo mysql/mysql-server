@@ -1,1 +1,0 @@
-rpl_gtid.rpl_simulate_create_chunk_failure : Bug#23622964 - Valgrind failure. Test to be skipped until bug is fixed.

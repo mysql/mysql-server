@@ -48,7 +48,6 @@ app_data_ptr new_exit();
 app_data_ptr new_nodes(u_int n, node_address *names, cargo_type cargo);
 app_data_ptr new_reset(cargo_type type);
 
-d_xdr_funcs(app_data_ptr) unsigned long msg_count(app_data_ptr a);
 void _replace_app_data_list(app_data_list target, app_data_ptr source);
 char *dbg_app_data(app_data_ptr a);
 void follow(app_data_list l, app_data_ptr p);

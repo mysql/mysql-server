@@ -193,6 +193,7 @@ def	mysql	PRIMARY	def	mysql	help_relation	help_keyword_id
 def	mysql	PRIMARY	def	mysql	help_relation	help_topic_id
 def	mysql	PRIMARY	def	mysql	help_topic	help_topic_id
 def	performance_schema	PRIMARY	def	performance_schema	host_cache	IP
+def	mysql	PRIMARY	def	mysql	innodb_ddl_log	id
 def	mysql	PRIMARY	def	mysql	innodb_dynamic_metadata	table_id
 def	mysql	PRIMARY	def	mysql	innodb_index_stats	database_name
 def	mysql	PRIMARY	def	mysql	innodb_index_stats	index_name
@@ -205,6 +206,9 @@ def	performance_schema	PRIMARY	def	performance_schema	memory_summary_by_thread_b
 def	performance_schema	PRIMARY	def	performance_schema	memory_summary_global_by_event_name	EVENT_NAME
 def	performance_schema	PRIMARY	def	performance_schema	metadata_locks	OBJECT_INSTANCE_BEGIN
 def	performance_schema	PRIMARY	def	performance_schema	mutex_instances	OBJECT_INSTANCE_BEGIN
+def	mysql	PRIMARY	def	mysql	password_history	Host
+def	mysql	PRIMARY	def	mysql	password_history	Password_timestamp
+def	mysql	PRIMARY	def	mysql	password_history	User
 def	performance_schema	PRIMARY	def	performance_schema	persisted_variables	VARIABLE_NAME
 def	mysql	PRIMARY	def	mysql	plugin	name
 def	performance_schema	PRIMARY	def	performance_schema	prepared_statements_instances	OBJECT_INSTANCE_BEGIN
@@ -242,6 +246,7 @@ def	performance_schema	PRIMARY	def	performance_schema	setup_actors	ROLE
 def	performance_schema	PRIMARY	def	performance_schema	setup_actors	USER
 def	performance_schema	PRIMARY	def	performance_schema	setup_consumers	NAME
 def	performance_schema	PRIMARY	def	performance_schema	setup_instruments	NAME
+def	performance_schema	PRIMARY	def	performance_schema	setup_threads	NAME
 def	performance_schema	PRIMARY	def	performance_schema	setup_timers	NAME
 def	mysql	PRIMARY	def	mysql	slave_master_info	Channel_name
 def	mysql	PRIMARY	def	mysql	slave_relay_log_info	Channel_name

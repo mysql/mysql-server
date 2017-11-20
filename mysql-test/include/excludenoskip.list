@@ -17,7 +17,6 @@ have_64bit.inc
 have_little_endian.inc
 have_case_insensitive_file_system.inc
 have_case_sensitive_file_system.inc
-have_crypt.inc
 have_lowercase0.inc
 have_lowercase1.inc
 have_lowercase2.inc
@@ -74,13 +73,6 @@ run_ndbapitest_result.inc
 # to run again when --log-bin option will be used to run the suites. This
 # will cause duplicate test runs leading to increased test execution time.
 not_log_bin.inc
-
-# 4.2 Reason for inclusion: Tests should run only with supported tablespace
-# value and skip on others. However, this can be handled using a custom
-# bootstrap file, and below files can be removed from the excluded list once
-# the same is implemented.
-have_undo_tablespaces.inc
-have_no_undo_tablespaces.inc
 
 # 4.3 Tests are run only on Dev builds compiled with -DWITH_DEBUG=1 option
 # Additional references for more details:
@@ -190,14 +182,25 @@ have_slave_repository_type_table.inc
 not_relay_log_info_file.inc
 not_master_info_file.inc
 
-# 15.0 With QC enabled additional code paths are activated which will change
-# performance schema output.
-have_QC_Disabled.inc
-have_query_cache_disabled.inc
-
 # 16.0 Thread stack overrun on debug/sparc when built with Developer Studio
 not_sparc_debug.inc
 # This also fails with non-debug
 statement_digest_long_query.test
 # few test cannot run on Solaris discover
 not_discover.inc
+
+# 17.0 Reason for inclusion: the extra JSON cause on ndb builds is hard to
+# separate. see innodb.sdi test
+have_no_ndb.inc
+
+# 18.0 Test to be run on local machine
+# This file is used by test scenarios that depend on time and it isn't possible
+# to test it in other way. Time based tests are unstable on PB2.
+# Waiting for some kind of in test time simulation functionality.
+is_local_machine.inc
+
+# 19.0 Resource group test exclusion.
+have_thread_prio.inc
+have_not_thread_prio.inc
+resource_group_init.inc
+have_mac_os.inc

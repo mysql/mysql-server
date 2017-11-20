@@ -16,14 +16,14 @@
 #ifndef DD_EVENT_INCLUDED
 #define DD_EVENT_INCLUDED
 
-#include "dd/string_type.h"      // dd::String_type
-#include "dd/types/event.h"      // dd::Event::enum_event_status
 #include "my_inttypes.h"
 #include "my_time.h"             // interval_type
+#include "sql/dd/string_type.h"  // dd::String_type
+#include "sql/dd/types/event.h"  // dd::Event::enum_event_status
 
 class Event_parse_data;
-class sp_head;
 class THD;
+
 typedef struct st_lex_user LEX_USER;
 
 using sql_mode_t= ulonglong;
@@ -31,10 +31,6 @@ using sql_mode_t= ulonglong;
 namespace dd
 {
   class Schema;
-namespace cache
-{
-  class Dictionary_client;
-}
 
 /**
    Convert new DD Event::enum_event_status to status type used in

@@ -21,16 +21,20 @@
 
 #include "binary_log_types.h"
 #include "my_command.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "protocol.h"            // Protocol
+#include "mysql_time.h"
+#include "sql/my_decimal.h"
+#include "sql/protocol.h"        // Protocol
 #include "sql_string.h"
 #include "violite.h"
 
 class Proto_field;
 class Send_field;
+class my_decimal;
+template <class T> class List;
 union COM_DATA;
 
 typedef struct st_mysql_field MYSQL_FIELD;
@@ -85,7 +89,9 @@ protected:
                                uint param_count, ulong cond_count);
 public:
   bool bad_packet;
-  Protocol_classic(): send_metadata(false), bad_packet(true) {}
+  Protocol_classic():
+    send_metadata(false), input_packet_length(0), bad_packet(true)
+  {}
   Protocol_classic(THD *thd):
         send_metadata(false),
         input_packet_length(0),

@@ -258,6 +258,7 @@ public:
   int delete_table(const char *name, const dd::Table *table_def);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info,
              dd::Table* table_def);
+  int truncate(dd::Table* table_def);
   virtual bool is_ignorable_error(int error)
   {
     if (handler::is_ignorable_error(error) ||
@@ -353,17 +354,10 @@ static void set_tabname(const char *pathname, char *tabname);
 
   int index_next_pushed(uchar * buf);
 
-  uint8 table_cache_type();
-
   /*
    * Internal to ha_ndbcluster, used by C functions
    */
   int ndb_err(NdbTransaction*);
-
-  bool register_query_cache_table(THD *thd, char *table_key,
-                                  size_t key_length,
-                                  qc_engine_callback *engine_callback,
-                                  ulonglong *engine_data);
 
   enum_alter_inplace_result
   check_if_supported_inplace_alter(TABLE *altered_table,
@@ -421,7 +415,6 @@ private:
                                     const uchar **key_row,
                                     const uchar *record,
                                     bool use_active_index);
-  friend int ndbcluster_drop_database_impl(THD *thd, const char *path);
 
   void check_read_before_write_removal();
 
@@ -456,7 +449,6 @@ private:
                                       Ndb_fk_list&);
   static int recreate_fk_for_truncate(THD*, Ndb*, const char*,
                                       Ndb_fk_list&);
-  void append_dependents_to_changed_tables(List<NDB_SHARE>&, MEM_ROOT*);
   int check_default_values(const NdbDictionary::Table* ndbtab);
   int get_metadata(THD *thd, const char* tablespace_name,
                    const dd::Table* table_def);
@@ -495,7 +487,7 @@ private:
   int end_bulk_delete();
   int ndb_delete_row(const uchar *record, bool primary_key_update);
 
-  int ndb_optimize_table(THD* thd, uint delay);
+  int ndb_optimize_table(THD* thd, uint delay) const;
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,
@@ -706,7 +698,6 @@ private:
   ha_rows m_rows_deleted;
   ha_rows m_rows_to_insert; // TODO: merge it with handler::estimation_rows_to_insert?
   ha_rows m_rows_inserted;
-  ha_rows m_rows_changed;
   bool m_delete_cannot_batch;
   bool m_update_cannot_batch;
   uint m_bytes_per_write;

@@ -33,6 +33,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
 '---check if updating collation_server effects new table/column---'
 SET @@session.collation_server = latin1_swedish_ci;
+set names latin1;
 CREATE TABLE t2(a CHAR(10));
 SHOW CREATE TABLE t2;
 Table	Create Table

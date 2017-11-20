@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -118,15 +118,15 @@ function saveClusterDefinition() {
 
             // The password is not stored in cluster store, only as a variable
             ssh_pwd = dijit.byId("sd_pwd").getValue();
-
-            // Try to reconnect all hosts to get resource information
-            mcc.util.dbg("Re-fetch resource information");
+            
+            // Try to reconnect all hosts to get resource information.
+            mcc.util.dbg("Re-fetch host(s) resource information.");
             hostStorage.forItems({}, function (host) {
                 if (!host.getValue("anyHost")) {
                     mcc.util.dbg("Re-fetch resource information for host " + 
                             host.getValue("name"));
                     mcc.storage.getHostResourceInfo(host.getValue("name"), 
-                            host.getId(), false);
+                            host.getId(), false, false);
                 }
             });
         }
@@ -157,6 +157,12 @@ function saveClusterDefinition() {
 
     // Make array of host list
     var newHosts = dijit.byId("cd_hosts").getValue().split(",");
+    mcc.util.dbg("Newhost is " + newHosts);
+    // Exclude localhost AND 127.0.0.1
+    if (dijit.byId("cd_hosts").getValue().indexOf("localhost") >= 0 && dijit.byId("cd_hosts").getValue().indexOf("127.0.0.1") >= 0) {
+        alert("localhost is already in the list!");
+        return;
+    }
 
     // Strip leading/trailing spaces
     for (var i in newHosts) {
@@ -265,7 +271,7 @@ function clusterDefinitionSetup() {
         baseClass: "content-grid-header",
         autoHeight: true,
         structure: [{
-            name: 'SSH property',
+            name: 'SSH property (Cluster-wide)',
             width: '30%'
         },
         {

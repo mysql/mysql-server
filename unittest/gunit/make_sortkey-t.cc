@@ -16,11 +16,11 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "filesort.h"
 #include "my_inttypes.h"
-#include "sort_param.h"
-#include "sql_sort.h"
-#include "sys_vars.h"
+#include "sql/filesort.h"
+#include "sql/sort_param.h"
+#include "sql/sql_sort.h"
+#include "sql/sys_vars.h"
 #include "test_utils.h"
 
 namespace make_sortkey_unittest {

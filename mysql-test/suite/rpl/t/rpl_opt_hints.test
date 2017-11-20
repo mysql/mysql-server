@@ -1,0 +1,28 @@
+source include/master-slave.inc;
+source include/have_binlog_format_statement.inc;
+
+# Suppress "unsafe" warnings.
+#
+--disable_query_log
+CALL mtr.add_suppression(
+     CONCAT('Unsafe statement written to the binary log using ',
+            'statement format since BINLOG_FORMAT = STATEMENT'));
+--enable_query_log
+
+CREATE TABLE t1 (f1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f2 INT);
+INSERT /*+ SET_VAR(auto_increment_increment=10)  SET_VAR(tmp_table_size=1024)*/ 
+INTO t1 VALUES (NULL, @@tmp_table_size), (NULL, @@tmp_table_size);
+
+--source include/sync_slave_sql_with_master.inc
+# f1 column has inceremented values with step 10 since auto_increment_increment=10 is written to binlog.
+# f2 column should contain default tmp_table_size value. It means that hint is not executed on the slave.
+SELECT * FROM t1;
+connection master;
+DROP TABLE t1;
+--source include/rpl_sync.inc
+--source include/rpl_end.inc
+
+
+
+
+

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,7 +98,8 @@ struct NodeStatePOD
     ST_SYSTEM_RESTART = 1,
     ST_NODE_RESTART = 2,
     ST_INITIAL_NODE_RESTART = 3,
-    ST_ILLEGAL_TYPE = 4
+    ST_SYSTEM_RESTART_NOT_RESTORABLE = 4,
+    ST_ILLEGAL_TYPE = 5
   };
   
   /**

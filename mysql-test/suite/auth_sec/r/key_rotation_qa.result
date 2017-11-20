@@ -16,7 +16,6 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Can't read encryption key from f
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Table .* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .* for how to resolve the issue");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
 call mtr.add_suppression("Could not flush keys to keyring's backup");
 ALTER INSTANCE ROTATE MYISAM MASTER KEY;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MYISAM MASTER KEY' at line 1

@@ -28,14 +28,17 @@
 #include "pfs_thread_provider.h"
 #include "pfs_server.h"
 
+extern "C" int pfs_get_thread_system_attrs_by_id_v1(
+  PSI_thread *thread, ulonglong thread_id, PSI_thread_attrs *thread_attrs);
+
 /**
   Bitmap identifiers for PSI_notification callbacks.
   @sa PSI_notification
 */
-#define EVENT_THREAD_CREATE       0x0001
-#define EVENT_THREAD_DESTROY      0x0002
-#define EVENT_SESSION_CONNECT     0x0004
-#define EVENT_SESSION_DISCONNECT  0x0008
+#define EVENT_THREAD_CREATE 0x0001
+#define EVENT_THREAD_DESTROY 0x0002
+#define EVENT_SESSION_CONNECT 0x0004
+#define EVENT_SESSION_DISCONNECT 0x0008
 #define EVENT_SESSION_CHANGE_USER 0x0010
 
 /**
@@ -45,20 +48,27 @@
 struct PFS_notification_node
 {
   PFS_notification_node()
-    : m_handle(0), m_use_ref_count(false), m_refs(0),
-      m_next(nullptr), m_cb_map(0)
+    : m_handle(0),
+      m_use_ref_count(false),
+      m_refs(0),
+      m_next(nullptr),
+      m_cb_map(0)
   {
   }
 
   PFS_notification_node(const PSI_notification &cb)
-    : m_handle(0), m_use_ref_count(false), m_refs(0),
-      m_next(nullptr), m_cb_map(0), m_cb(cb)
+    : m_handle(0),
+      m_use_ref_count(false),
+      m_refs(0),
+      m_next(nullptr),
+      m_cb_map(0),
+      m_cb(cb)
   {
     m_cb_map = set_callback_map();
   }
 
   std::uint32_t set_callback_map();
-  
+
   /** Registration handle. */
   int m_handle;
   /** True if can be unregistered. */
@@ -73,11 +83,11 @@ struct PFS_notification_node
   PSI_notification m_cb;
 };
 
-
 /**
   Build a map of the registered callbacks.
 */
-std::uint32_t PFS_notification_node::set_callback_map()
+std::uint32_t
+PFS_notification_node::set_callback_map()
 {
   std::uint32_t map = 0;
 
@@ -307,7 +317,7 @@ static PFS_notification_registry pfs_notification_registry;
 */
 int
 pfs_register_notification(const PSI_notification *callbacks,
-                             bool with_ref_count)
+                          bool with_ref_count)
 {
   if (unlikely(callbacks == nullptr))
     return 0;
@@ -343,7 +353,7 @@ pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused)))
 
   PSI_thread_attrs thread_attrs;
 
-  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(thread, 0, &thread_attrs) != 0)
+  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
     return;
 
   while (node != nullptr)
@@ -370,9 +380,9 @@ pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused)))
 
   PSI_thread_attrs thread_attrs;
 
-  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(thread, 0, &thread_attrs) != 0)
+  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
     return;
-    
+
   while (node != nullptr)
   {
     auto callback = *node->m_cb.thread_destroy;
@@ -396,7 +406,7 @@ pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused)))
 
   PSI_thread_attrs thread_attrs;
 
-  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(thread, 0, &thread_attrs) != 0)
+  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
     return;
 
   while (node != nullptr)
@@ -422,7 +432,7 @@ pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused)))
 
   PSI_thread_attrs thread_attrs;
 
-  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(thread, 0, &thread_attrs) != 0)
+  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
     return;
 
   while (node != nullptr)
@@ -448,7 +458,7 @@ pfs_notify_session_change_user(PSI_thread *thread MY_ATTRIBUTE((unused)))
 
   PSI_thread_attrs thread_attrs;
 
-  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(thread, 0, &thread_attrs) != 0)
+  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
     return;
 
   while (node != nullptr)
@@ -477,11 +487,8 @@ impl_unregister_notification(int handle)
 }
 
 SERVICE_TYPE(pfs_notification)
-SERVICE_IMPLEMENTATION(mysql_server, pfs_notification) =
-{
-  impl_register_notification,
-  impl_unregister_notification
-};
+SERVICE_IMPLEMENTATION(mysql_server, pfs_notification) = {
+  impl_register_notification, impl_unregister_notification};
 
 /**
   Register the Notification service with the MySQL server registry.

@@ -140,5 +140,12 @@ CREATE TABLE test.t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
 ALTER TABLE test.t1 DISCARD TABLESPACE;
 ALTER TABLE test.t1 IMPORT TABLESPACE;
 ERROR HY000: Schema mismatch (Encryption attribute is no matched)
+# Import got expected error.
+DROP TABLE t1;
+CREATE TABLE test.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+ALTER TABLE test.t1 DISCARD TABLESPACE;
+SET SESSION DEBUG="+d, fsp_header_rotate_encryption_failure";
+ALTER TABLE test.t1 IMPORT TABLESPACE;
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 Warnings:
 Note	1051	Unknown table 'test.t1'

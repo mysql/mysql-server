@@ -242,7 +242,7 @@ grant select on *.* to 'mysqltest_2';
 grant insert on test.* to 'mysqltest_2';
 grant update on test.t1 to 'mysqltest_2';
 grant update (c2) on test.t2 to 'mysqltest_2';
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest_%' order by host,db,user,table_name;
 select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
@@ -251,7 +251,7 @@ show grants for 'mysqltest_2';
 #
 # Drop
 drop user 'mysqltest_1';
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest_%' order by host,db,user,table_name;
 select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
@@ -260,7 +260,7 @@ show grants for 'mysqltest_1';
 #
 # Rename
 rename user 'mysqltest_2' to 'mysqltest_1';
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest_%' order by host,db,user,table_name;
 select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
@@ -301,7 +301,7 @@ select host,db,user,table_name,column_name from mysql.columns_priv where user = 
 # Handle multi user lists
 create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
-create user 'mysqltest_1', 'mysqltest_2' identified by 'Mysqltest-2', 'mysqltest_3' identified by password '*ffffffffffffffffffffffffffffffffffffffff';
+create user 'mysqltest_1', 'mysqltest_2' identified by 'Mysqltest-2', 'mysqltest_3' identified by 'haha';
 rename user 'mysqltest_1' to 'mysqltest_1a', 'mysqltest_2' TO 'mysqltest_2a', 'mysqltest_3' TO 'mysqltest_3a';
 --error ER_CANNOT_USER
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
@@ -343,7 +343,7 @@ grant create user on *.* to mysqltest_2@localhost;
 connect (user3,localhost,mysqltest_2,,);
 connection user3;
 --error ER_TABLEACCESS_DENIED_ERROR
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 create user mysqltest_A@'%';
 rename user mysqltest_A@'%' to mysqltest_B@'%';
 drop user mysqltest_B@'%';
@@ -358,7 +358,7 @@ connect (user4,localhost,mysqltest_3,,);
 connection user4;
 show grants;
 --error ER_TABLEACCESS_DENIED_ERROR
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 insert ignore into mysql.user set host='%', user='mysqltest_B';
 create user mysqltest_A@'%';
 rename user mysqltest_B@'%' to mysqltest_C@'%';
@@ -658,23 +658,23 @@ SELECT MID(CURRENT_USER(),INSTR(CURRENT_USER(),'@')+1)  INTO @h;
 SELECT authentication_string FROM user WHERE user=@u AND host=@h INTO @pwd;
 
 # show current privs.
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
+SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
 
 # toggle INSERT
 UPDATE user SET insert_priv='N' WHERE user=@u AND host=@h;
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
+SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
 
 # show that GRANT ... TO CURRENT_USER() no longer crashes
 GRANT INSERT ON *.* TO CURRENT_USER();
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
+SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
 UPDATE user SET insert_priv='N' WHERE user=@u AND host=@h;
 
 # show that GRANT ... TO CURRENT_USER() IDENTIFIED BY ... works now
 GRANT INSERT ON *.* TO CURRENT_USER() IDENTIFIED BY 'keksdose';
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
+SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
 
 UPDATE user SET authentication_string=@pwd WHERE user=@u AND host=@h;
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
+SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
 
 FLUSH PRIVILEGES;
 

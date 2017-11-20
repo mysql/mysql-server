@@ -17,21 +17,18 @@
 
 /* A lexical scanner for optimizer hints pseudo-commentary syntax */
 
-#include "sql_lex_hints.h"
+#include "sql/sql_lex_hints.h"
 
 #include <limits.h>
 
-#include "derror.h"
-#include "lex_token.h"
 #include "my_dbug.h"
 #include "mysqld_error.h"
-#include "sql_class.h"
-#include "sql_error.h"
-/*
-  Generated sources:
-*/
-#include "sql_yacc.h"
-#include "system_variables.h"
+#include "sql/derror.h"
+#include "sql/lex_token.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_yacc.h"
+#include "sql/system_variables.h"
 
 class PT_hint_list;
 
@@ -53,6 +50,7 @@ Hint_scanner::Hint_scanner(THD *thd_arg,
   : thd(thd_arg),
     cs(thd->charset()),
     is_ansi_quotes(thd->variables.sql_mode & MODE_ANSI_QUOTES),
+    backslash_escapes(!(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)),
     lineno(lineno_arg),
     char_classes(cs->state_maps->hint_map),
     input_buf(buf),
@@ -136,6 +134,12 @@ void Hint_scanner::add_hint_token_digest()
     add_digest('@');
     add_digest(IDENT);
     break;
+  case HINT_ARG_TEXT:
+    add_digest(TEXT_STRING);
+    break;
+  case HINT_IDENT_OR_NUMBER_WITH_SCALE:
+    add_digest(NUM);
+    break;
   default:
     if (prev_token <= UCHAR_MAX) // Single-char token.
       add_digest(prev_token);
@@ -160,6 +164,7 @@ void Hint_scanner::add_hint_token_digest()
       case NO_SEMIJOIN_HINT:
       case QB_NAME_HINT:
       case SEMIJOIN_HINT:
+      case SET_VAR_HINT:
       case SUBQUERY_HINT:
       case DERIVED_MERGE_HINT:
       case NO_DERIVED_MERGE_HINT:
@@ -169,6 +174,7 @@ void Hint_scanner::add_hint_token_digest()
       case JOIN_FIXED_ORDER_HINT:
       case INDEX_MERGE_HINT:
       case NO_INDEX_MERGE_HINT:
+      case RESOURCE_GROUP_HINT:
         break;
       default:
         DBUG_ASSERT(false);

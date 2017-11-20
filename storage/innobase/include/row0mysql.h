@@ -348,18 +348,16 @@ row_mysql_unfreeze_data_dictionary(
 /*********************************************************************//**
 Creates a table for MySQL. On failure the transaction will be rolled back
 and the 'table' object will be freed.
+@param[in]	table		table definition(will be freed, or on
+				DB_SUCCESS added to the data dictionary cache)
+@param[in]	compression	compression algorithm to use, can be nullptr
+@param[in,out]	trx		transasction
 @return error code or DB_SUCCESS */
 dberr_t
 row_create_table_for_mysql(
-/*=======================*/
-	dict_table_t*	table,	/*!< in, own: table definition
-				(will be freed, or on DB_SUCCESS
-				added to the data dictionary cache) */
+	dict_table_t*	table,
         const char*     compression,
-                                /*!< in: compression algorithm to use,
-                                can be NULL */
-	trx_t*		trx,	/*!< in/out: transaction */
-	bool		commit)	/*!< in: if true, commit the transaction */
+	trx_t*		trx)
 	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Does an index creation operation for MySQL. TODO: currently failure
@@ -440,6 +438,18 @@ row_mysql_lock_table(
 	const char*	op_info)	/*!< in: string for trx->op_info */
 	MY_ATTRIBUTE((warn_unused_result));
 
+/** Drop a single-table tablespace as part of dropping or renaming a table.
+This deletes the fil_space_t if found and the file on disk.
+@param[in]	space_id	Tablespace ID
+@param[in]	tablename	Table name, same as the tablespace name
+@param[in]	filepath	File path of tablespace to delete
+@return error code or DB_SUCCESS */
+dberr_t
+row_drop_single_table_tablespace(
+	space_id_t	space_id,
+	const char*	tablename,
+	const char*	filepath);
+
 /** Drop a table for MySQL. If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
@@ -517,15 +527,15 @@ row_drop_database_for_mysql(
 @param[in]	new_name	new table name
 @param[in]	dd_table	dd::Table for new table
 @param[in,out]	trx		transaction
-@param[in]	commit		whether to commit trx
+@param[in]	log		whether to write rename table log
 @return error code or DB_SUCCESS */
 dberr_t
 row_rename_table_for_mysql(
-	const char*	old_name,
-	const char*	new_name,
-	dd::Table*	dd_table,
-	trx_t*		trx,
-	bool		commit)
+	const char*		old_name,
+	const char*		new_name,
+	const dd::Table*	dd_table,
+	trx_t*			trx,
+	bool			log)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**

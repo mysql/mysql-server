@@ -33,6 +33,7 @@
 #include "ngs/interface/authentication_interface.h"
 #include "ngs/interface/server_delegate.h"
 #include "ngs/interface/server_interface.h"
+#include "ngs/interface/protocol_encoder_interface.h"
 #include "ngs/protocol_encoder.h"
 #include "ngs/protocol/protocol_config.h"
 #include "ngs/thread.h"
@@ -81,8 +82,8 @@ public:
   Mutex &get_client_exit_mutex() { return m_client_exit_mutex; }
 
   virtual ngs::shared_ptr<Session_interface> create_session(Client_interface &client,
-                                                              Protocol_encoder &proto,
-                                                              int session_id);
+                                                            Protocol_encoder_interface &proto,
+                                                            const int session_id);
 
   void on_client_closed(const Client_interface &client);
 
@@ -117,7 +118,7 @@ private:
   {
   public:
     Authentication_key(const std::string &key_name, const bool key_should_be_tls_active)
-    : name(key_name), should_be_tls_active(key_should_be_tls_active)
+    : name(key_name), must_be_secure_connection(key_should_be_tls_active)
     {
     }
 
@@ -130,11 +131,11 @@ private:
         return result < 0;
       }
 
-      return should_be_tls_active < key.should_be_tls_active;
+      return must_be_secure_connection < key.must_be_secure_connection;
     }
 
     const std::string name;
-    const bool should_be_tls_active;
+    const bool must_be_secure_connection;
   };
 
   typedef std::map<Authentication_key, Authentication_interface::Create> Auth_handler_map;

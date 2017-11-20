@@ -521,11 +521,11 @@ INSERT INTO t2 VALUES(1,1),(3,3),(2,2),(4,4),(8,8),(6,6);
 EXPLAIN SELECT * FROM (SELECT * FROM t1) tt;
 SELECT * FROM (SELECT * FROM t1) tt;
 --echo  explain for multitable derived
-EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
+EXPLAIN SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
 SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
 --echo  explain for derived with where
 FLUSH STATUS;
-EXPLAIN EXTENDED 
+EXPLAIN 
   SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt WHERE f11=2;
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
@@ -533,7 +533,7 @@ SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt WHERE f11=2;
 SHOW STATUS LIKE 'Handler_read%';
 
 --echo join of derived
-EXPLAIN EXTENDED 
+EXPLAIN 
   SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt JOIN
   (SELECT * FROM t1 WHERE f1 IN (1,2)) aa ON tt.f1=aa.f1;
 SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt JOIN
@@ -545,21 +545,21 @@ CREATE VIEW v2 AS SELECT * FROM t1 JOIN t2 ON f1=f2;
 CREATE VIEW v3 AS SELECT * FROM t1 WHERE f1 IN (2,3);
 CREATE VIEW v4 AS SELECT * FROM t2 WHERE f2 IN (2,3);
 --echo  explain for simple views
-EXPLAIN EXTENDED SELECT * FROM v1;
+EXPLAIN SELECT * FROM v1;
 SELECT * FROM v1;
 --echo  explain for multitable views
-EXPLAIN EXTENDED SELECT * FROM v2;
+EXPLAIN SELECT * FROM v2;
 SELECT * FROM v2;
 --echo  explain for views with where
-EXPLAIN EXTENDED SELECT * FROM v3 WHERE f11 IN (1,3);
+EXPLAIN SELECT * FROM v3 WHERE f11 IN (1,3);
 SELECT * FROM v3 WHERE f11 IN (1,3);
 --echo explain for joined views
-EXPLAIN EXTENDED
+EXPLAIN
   SELECT * FROM v3 JOIN v4 ON f1=f2;
 SELECT * FROM v3 JOIN v4 ON f1=f2;
 
 FLUSH STATUS;
-EXPLAIN EXTENDED SELECT * FROM v4 WHERE f2 IN (1,3);
+EXPLAIN SELECT * FROM v4 WHERE f2 IN (1,3);
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
 SELECT * FROM v4 WHERE f2 IN (1,3);
@@ -570,11 +570,11 @@ SHOW STATUS LIKE 'Handler_read%';
 
 --echo for materialized derived tables
 --echo  explain for simple derived
-EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM t1 GROUP BY f1) tt;
+EXPLAIN SELECT * FROM (SELECT * FROM t1 GROUP BY f1) tt;
 SELECT * FROM (SELECT * FROM t1 HAVING f1=f1) tt;
 --echo  explain showing created indexes and late materialization
 FLUSH STATUS;
-EXPLAIN EXTENDED
+EXPLAIN
   SELECT * FROM t1 JOIN (SELECT * FROM t2 GROUP BY f2) tt ON f1=f2;
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
@@ -586,52 +586,60 @@ DROP VIEW v1,v2,v3;
 CREATE VIEW v1 AS SELECT * FROM t1 GROUP BY f1;
 CREATE VIEW v2 AS SELECT * FROM t2 GROUP BY f2;
 CREATE VIEW v3 AS SELECT t1.f1,t1.f11 FROM t1 JOIN t1 AS t11 HAVING t1.f1<100;
+--echo ensure that view definitions are cached in the data-dictionary cache.
+--disable_result_log
+--disable_query_log
+SHOW CREATE VIEW v1;
+SHOW CREATE VIEW v2;
+SHOW CREATE VIEW v3;
+--enable_query_log
+--enable_result_log
 --echo  explain for simple derived
-EXPLAIN EXTENDED SELECT * FROM v1;
+EXPLAIN SELECT * FROM v1;
 SELECT * FROM v1;
 --echo  explain showing created indexes and late materialization for views
 FLUSH STATUS;
-EXPLAIN EXTENDED SELECT * FROM t1 JOIN v2 ON f1=f2;
+EXPLAIN SELECT * FROM t1 JOIN v2 ON f1=f2;
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
 SELECT * FROM t1 JOIN v2 ON f1=f2;
 SHOW STATUS LIKE 'Handler_read%';
 
-EXPLAIN EXTENDED
+EXPLAIN
   SELECT * FROM t1,v3 AS v31,v3 WHERE t1.f1=v31.f1 and t1.f1=v3.f1;
 FLUSH STATUS;
 SELECT * FROM t1,v3 AS v31,v3 WHERE t1.f1=v31.f1 and t1.f1=v3.f1;
 SHOW STATUS LIKE 'Handler_read%';
 --echo  explain showing late materialization for views
-EXPLAIN EXTENDED SELECT * FROM v1 JOIN v4 ON f1=f2;
+EXPLAIN SELECT * FROM v1 JOIN v4 ON f1=f2;
 SELECT * FROM v1 JOIN v4 ON f1=f2;
 
 --echo merged derived in merged derived
-EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM 
+EXPLAIN SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2) zz;
 SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2) zz;
 
 --echo materialized derived in merged derived
-EXPLAIN EXTENDED  SELECT * FROM (SELECT * FROM 
+EXPLAIN  SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) zz;
 SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) zz;
 
 --echo merged derived in materialized derived
-EXPLAIN  extended SELECT * FROM (SELECT * FROM 
+EXPLAIN SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2 GROUP BY f1) zz;
 SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2 GROUP BY f1) zz;
 
 --echo materialized derived in materialized derived
-EXPLAIN EXTENDED  SELECT * FROM (SELECT * FROM 
+EXPLAIN  SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) zz;
 SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) zz;
 
 --echo mat in merged derived join mat in merged derived
-EXPLAIN EXTENDED  SELECT * FROM 
+EXPLAIN  SELECT * FROM 
  (SELECT * FROM (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) x
 JOIN 
  (SELECT * FROM (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) z
@@ -647,7 +655,7 @@ SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
 
 --echo merged in merged derived join merged in merged derived
-EXPLAIN EXTENDED  SELECT * FROM 
+EXPLAIN  SELECT * FROM 
  (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 ) tt WHERE f1 > 2 ) x
 JOIN 
@@ -665,7 +673,7 @@ JOIN
 
 --echo materialized in materialized derived join 
 --echo   materialized in materialized derived
-EXPLAIN EXTENDED  SELECT * FROM 
+EXPLAIN  SELECT * FROM 
  (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) x
 JOIN 
@@ -682,27 +690,27 @@ JOIN
  ON x.f1 = z.f1;
 
 --echo merged view in materialized derived
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
 SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
 
 --echo materialized view in merged derived
-EXPLAIN EXTENDED 
+EXPLAIN 
 SELECT * FROM ( SELECT * FROM v1 WHERE f1 < 7) tt;
 SELECT * FROM ( SELECT * FROM v1 WHERE f1 < 7) tt;
 
 --echo merged view in a merged view in a merged derived
 CREATE VIEW v6 AS SELECT * FROM v4 WHERE f2 < 7;
-EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM v6) tt;
+EXPLAIN SELECT * FROM (SELECT * FROM v6) tt;
 SELECT * FROM (SELECT * FROM v6) tt;
 
 --echo materialized view in a merged view in a materialized derived
 CREATE VIEW v7 AS SELECT * FROM v1;
-EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
+EXPLAIN SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
 SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
 
 --echo JOIN of above two
-EXPLAIN EXTENDED SELECT * FROM v6 JOIN v7 ON f2=f1;
+EXPLAIN SELECT * FROM v6 JOIN v7 ON f2=f1;
 SELECT * FROM v6 JOIN v7 ON f2=f1;
 
 --echo test two keys
@@ -711,7 +719,7 @@ INSERT INTO t1 VALUES(6,6),(8,8);
 INSERT INTO t3 VALUES(1,1),(2,2),(3,3),(5,5);
 let $query= SELECT * FROM t1 JOIN (SELECT * FROM t2) tt ON t1.f1=tt.f2
   JOIN t3 ON tt.f22=t3.f3;
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
 eval $query;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -2831,3 +2839,133 @@ select 1 from t natural right outer join
  (select a,@q from s limit 2) w where b;
 drop table t,s;
 set global internal_tmp_disk_storage_engine=default;
+
+--echo #
+--echo # Bug#26596977: ASSERT `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))'
+--echo #               FAILED IN ITEM_FUNC
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key varchar(1) ,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+  col_int int(11) ,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar varchar(1) ,
+  col_varchar_key varchar(1) ,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4,1,'s','r'), (9,19,'p','a');
+
+CREATE TABLE t3 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) ,
+  col_varchar_key varchar(1) ,
+  col_varchar varchar(1) ,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (100,2,'g',NULL);
+
+let query1=
+SELECT table1.col_int
+FROM t3 AS table1
+  LEFT JOIN (
+      SELECT SUBQUERY1_t1.*
+      FROM t1 AS SUBQUERY1_t1
+        RIGHT JOIN t2 AS SUBQUERY1_t2
+        ON (SUBQUERY1_t2.col_varchar_key = SUBQUERY1_t1.col_varchar_key)
+    ) AS table3
+    ON (table3.col_varchar_key = table1.col_varchar_key)
+WHERE table3.col_varchar_key  IN (
+  SELECT SUBQUERY2_t3.col_varchar
+  FROM t3 AS SUBQUERY2_t3
+  WHERE SUBQUERY2_t3.pk  < table3.pk
+);
+
+eval EXPLAIN $query1;
+eval $query1;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #26618455: ASSERT 'KEYPARTS > 0' IN CALC_LENGTH_AND_KEYPARTS()
+--echo #                WITHOUT FIRSTMATCH
+--echo #
+
+
+CREATE TABLE t1 (
+  col_int int(11) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (0,1,'i','n',125);
+INSERT INTO t1 VALUES (3,20,'b','o',0);
+
+CREATE TABLE t2 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_int int(11) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (3,'y','p',4,1);
+
+CREATE TABLE t3 (
+  col_int int(11) DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+CREATE TABLE t4 (  col_int int(11) DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM
+;
+INSERT INTO t4 VALUES (7,'k',9,'z',20);
+
+let query1=
+SELECT
+  table2.col_int_key AS field3
+FROM
+  (
+    SELECT SUBQUERY2_t2.*
+    FROM t1 AS SUBQUERY2_t1
+      INNER JOIN t2 AS SUBQUERY2_t2
+      ON (SUBQUERY2_t2.pk = SUBQUERY2_t1.col_int)
+  ) AS table1
+    RIGHT OUTER JOIN (
+      SELECT SUBQUERY3_t1.*
+      FROM t2 AS SUBQUERY3_t1
+    ) AS table2
+    ON (table1.col_varchar_key = table2.col_varchar_key)
+WHERE table1.col_varchar_key IN (
+  SELECT SUBQUERY4_t1.col_varchar AS SUBQUERY4_field1
+  FROM t3 AS SUBQUERY4_t1);
+
+SET optimizer_switch = 'firstmatch=off';
+eval EXPLAIN $query1;
+eval $query1;
+SET optimizer_switch = default;
+
+DROP TABLE t1, t2, t3, t4;

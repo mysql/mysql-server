@@ -17,7 +17,6 @@
 
 #include "ndb_schema_object.h"
 #include "ha_ndbcluster.h"
-#include "hash.h"
 #include "mysql/service_mysql_alloc.h"
 #include "template_utils.h"
 
@@ -25,32 +24,14 @@
 extern mysql_mutex_t ndbcluster_mutex;
 
 
-static const uchar *
-ndb_schema_objects_get_key(const uchar *arg,
-                           size_t *length)
-{
-  const NDB_SCHEMA_OBJECT *schema_object=
-    pointer_cast<const NDB_SCHEMA_OBJECT*>(arg);
-  *length= schema_object->key_length;
-  return (uchar*) schema_object->key;
-}
-
 class Ndb_schema_objects
 {
 public:
-  HASH m_hash;
+  malloc_unordered_map<std::string, NDB_SCHEMA_OBJECT *> m_hash;
   Ndb_schema_objects()
+    : m_hash(PSI_INSTRUMENT_ME)
   {
-    (void)my_hash_init(&m_hash, &my_charset_bin, 1, 0,
-                       ndb_schema_objects_get_key, nullptr, 0,
-                       PSI_INSTRUMENT_ME);
   }
-
-  ~Ndb_schema_objects()
-  {
-    my_hash_free(&m_hash);
-  }
-
 } ndb_schema_objects;
 
 
@@ -63,10 +44,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
   DBUG_PRINT("enter", ("key: '%s'", key));
 
   mysql_mutex_lock(&ndbcluster_mutex);
-  while (!(ndb_schema_object=
-           (NDB_SCHEMA_OBJECT*) my_hash_search(&ndb_schema_objects.m_hash,
-                                               (const uchar*) key,
-                                               length)))
+  while (!(ndb_schema_object= find_or_nullptr(ndb_schema_objects.m_hash, key)))
   {
     if (!create_if_not_exists)
     {
@@ -84,12 +62,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
     ndb_schema_object->key= (char *)(ndb_schema_object+1);
     memcpy(ndb_schema_object->key, key, length + 1);
     ndb_schema_object->key_length= length;
-    if (my_hash_insert(&ndb_schema_objects.m_hash, (uchar*) ndb_schema_object))
-    {
-      my_free(ndb_schema_object);
-      ndb_schema_object= NULL;
-      break;
-    }
+    ndb_schema_objects.m_hash.emplace(key, ndb_schema_object);
     mysql_mutex_init(PSI_INSTRUMENT_ME, &ndb_schema_object->mutex,
                      MY_MUTEX_INIT_FAST);
     mysql_cond_init(PSI_INSTRUMENT_ME, &ndb_schema_object->cond);
@@ -118,7 +91,7 @@ ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
   if (!--(*ndb_schema_object)->use_count)
   {
     DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
-    my_hash_delete(&ndb_schema_objects.m_hash, (uchar*) *ndb_schema_object);
+    ndb_schema_objects.m_hash.erase((*ndb_schema_object)->key);
     mysql_cond_destroy(&(*ndb_schema_object)->cond);
     mysql_mutex_destroy(&(*ndb_schema_object)->mutex);
     my_free(*ndb_schema_object);
@@ -136,10 +109,9 @@ ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
 void NDB_SCHEMA_OBJECT::check_waiters(const MY_BITMAP &new_participants)
 {
   mysql_mutex_lock(&ndbcluster_mutex);
-  for (ulong i = 0; i < ndb_schema_objects.m_hash.records; i++)
+  for (const auto &key_and_value : ndb_schema_objects.m_hash)
   {
-    NDB_SCHEMA_OBJECT *schema_object =
-        (NDB_SCHEMA_OBJECT*)my_hash_element(&ndb_schema_objects.m_hash, i);
+    NDB_SCHEMA_OBJECT *schema_object = key_and_value.second;
     schema_object->check_waiter(new_participants);
   }
   mysql_mutex_unlock(&ndbcluster_mutex);

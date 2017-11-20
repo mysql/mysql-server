@@ -18,8 +18,9 @@
 
 #include <string>
 
-#include "dd/impl/types/entity_object_table_impl.h"
-#include "dd/types/charset.h"
+#include "sql/dd/impl/types/entity_object_table_impl.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/charset.h"
 
 class THD;
 

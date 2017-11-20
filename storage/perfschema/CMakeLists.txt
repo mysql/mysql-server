@@ -16,8 +16,6 @@
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/include
-                    ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_BINARY_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/extra/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include
                     ${SSL_INCLUDE_DIRS})
@@ -129,6 +127,7 @@ table_setup_actors.h
 table_setup_consumers.h
 table_setup_instruments.h
 table_setup_objects.h
+table_setup_threads.h
 table_setup_timers.h
 table_sync_instances.h
 table_status_by_account.h
@@ -266,6 +265,7 @@ table_setup_actors.cc
 table_setup_consumers.cc
 table_setup_instruments.cc
 table_setup_objects.cc
+table_setup_threads.cc
 table_setup_timers.cc
 table_sync_instances.cc
 table_status_by_account.cc

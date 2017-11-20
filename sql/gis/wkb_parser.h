@@ -75,14 +75,12 @@ std::unique_ptr<Geometry> parse_wkb(const dd::Spatial_reference_system *srs,
 /// @param[in] str The geometry string.
 /// @param[out] srs The spatial reference system of the geometry.
 /// @param[out] geometry The geometry.
-/// @param[in] force_cartesian Whether to always parse geometries as SRID 0,
 ///
 /// @retval false Success.
 /// @retval true Error. my_error() has been called.
 bool parse_geometry(THD *thd, const char *func_name, const String *str,
                     const dd::Spatial_reference_system **srs,
-                    std::unique_ptr<Geometry> *geometry,
-                    bool force_cartesian = false);
+                    std::unique_ptr<Geometry> *geometry);
 
 }  // namespace gis
 

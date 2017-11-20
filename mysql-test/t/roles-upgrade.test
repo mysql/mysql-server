@@ -20,22 +20,25 @@ file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 --echo #
 
 CALL mtr.add_suppression("Could not load mysql.role_edges and mysql.default_roles tables. ACL DDLs will not work unless mysql_upgrade is executed.");
+CALL mtr.add_suppression("ACL table mysql.role_edges missing. Some operations may fail.");
+CALL mtr.add_suppression("ACL table mysql.default_roles missing. Some operations may fail.");
 
 DROP TABLE mysql.role_edges;
 DROP TABLE mysql.default_roles;
 
---echo #Restart the server
+let server_log= $MYSQLTEST_VARDIR/log/roles-upgrade.err;
+let restart_parameters=restart:--log-error=$server_log;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --source include/restart_mysqld.inc
 
 --echo # let's check for the presense of the warning
-let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-# $server_log has to be processed by include/search_pattern_in_file.inc which
+# $server_log has to be processed by include/search_pattern.inc which
 # contains Perl code requiring that the environment variable SEARCH_FILE points
 # to this file.
 let SEARCH_FILE= $server_log;
 
 --let SEARCH_PATTERN= Could not load mysql.role_edges and mysql.default_roles tables. ACL DDLs will not work unless mysql_upgrade is executed.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # ACL DDLs should not work
 --error ER_NO_SUCH_TABLE
@@ -74,6 +77,10 @@ DROP ROLE r1;
 DROP USER u1;
 
 --source include/mysql_upgrade_cleanup.inc
+
+# No restart needed since MTR will in any case restart the server when
+# there is a restart in the test with additional mysqld options.
+--remove_file $server_log
 
 --echo
 --echo End of tests

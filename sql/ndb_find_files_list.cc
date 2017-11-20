@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,9 @@
 
 #include "ndb_find_files_list.h"
 
-#include "sql_show.h"       // find_files()
+#include "auth_acls.h"
 #include "sql_class.h"      // THD::col_access
+#include "sql_show.h"       // find_files()
 
 
 // Hides the usage of MEM_ROOT and List<> from the interface

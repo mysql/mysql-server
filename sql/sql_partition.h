@@ -19,15 +19,15 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "handler.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_inttypes.h"
-#include "mysql/mysql_lex_string.h"
-#include "partition_element.h"       // partition_state
-#include "typelib.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/handler.h"
+#include "sql/partition_element.h"   // partition_state
+#include "sql/thr_malloc.h"
 
 class Alter_info;
 class Alter_table_ctx;

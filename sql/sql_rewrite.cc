@@ -41,11 +41,6 @@
   changed at a later date.  (There is an ASSERT() in place that will
   hopefully catch unintentional changes.)
 
-  We also do not intersect with query cache at this time, as QC only
-  caches SELECTs (which we don't rewrite). If and when QC becomes more
-  general, it should probably cache the rewritten query along with the
-  user-submitted one (see sql_parse.cc).
-
   Finally, sp_* have code to print a stored program for use by
   SHOW PROCEDURE CODE / SHOW FUNCTION CODE.
 
@@ -71,33 +66,35 @@
 #include <sys/types.h>
 #include <set>
 
-#include "auth_acls.h"
-#include "auth_common.h"    // GRANT_ACL
-#include "handler.h"
-#include "key.h"
 #include "lex_string.h"
-#include "log_event.h"      // append_query_string
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "mysql/service_my_snprintf.h"
-#include "mysqld.h"         // opt_log_builtin_as_identified_by_password
+#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"
-#include "rpl_slave.h"      // SLAVE_SQL, SLAVE_IO
-#include "set_var.h"
-#include "sql_class.h"      // THD
-#include "sql_connect.h"
-#include "sql_lex.h"        // LEX
-#include "sql_list.h"
-#include "sql_parse.h"      // get_current_user
-#include "sql_plugin.h"
-#include "sql_servers.h"
-#include "sql_show.h"       // append_identifier
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // GRANT_ACL
+#include "sql/auth/auth_internal.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/log_event.h"  // append_query_string
+#include "sql/mysqld.h"     // opt_log_builtin_as_identified_by_password
+#include "sql/rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
+#include "sql/set_var.h"
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_connect.h"
+#include "sql/sql_lex.h"    // LEX
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"  // get_current_user
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"   // append_identifier
+#include "sql/table.h"
 #include "sql_string.h"     // String
-#include "table.h"
 #include "violite.h"
+#include "auth_internal.h"
 
 #ifndef DBUG_OFF
 #define HASH_STRING_WITH_QUOTE \
@@ -176,6 +173,56 @@ static bool append_str(String *str, bool comma, const char *key,
     return true;
   }
   return comma;
+}
+
+/**
+  Used with List<>::sort for alphabetic sorting of LEX_USER records
+  using user,host as keys.
+
+  @param n1 A LEX_USER element
+  @param n2 A LEX_USER element
+  @param arg Not used
+
+  @return
+    @retval 1 if n1 &gt; n2
+    @retval 0 if n1 &lt;= n2
+*/
+static int lex_user_comp(void *n1, void *n2, void *arg MY_ATTRIBUTE((unused)))
+{
+  LEX_USER *l1= (LEX_USER *)n1;
+  LEX_USER *l2= (LEX_USER *)n2;
+  size_t length= std::min(l1->user.length,l2->user.length);
+  int key= memcmp(l1->user.str, l2->user.str, length);
+  if (key == 0 && l1->user.length == l2->user.length)
+  {
+    length= std::min(l1->host.length,l2->host.length);
+    key= memcmp(l1->host.str, l2->host.str, length);
+    if (key == 0 && l1->host.length == l2->host.length)
+      return 0;
+  }
+  if (key == 0)
+    return (l1->user.length > l2->user.length ? 1 : 0);
+  else
+    return (key > 0 ? 1 : 0);
+}
+
+static void rewrite_default_roles(LEX *lex, String *rlb)
+{
+  bool comma= false;
+  if (lex->default_roles && lex->default_roles->elements > 0)
+  {
+    rlb->append(" DEFAULT ROLE ");
+    lex->default_roles->sort(&lex_user_comp, 0);
+    List_iterator<LEX_USER> role_it(*(lex->default_roles));
+    LEX_USER *role;
+    while ((role= role_it++))
+    {
+      if (comma)
+        rlb->append(',');
+      rlb->append(create_authid_str_from(role).c_str());
+      comma= true;
+    }
+  }
 }
 
 static void rewrite_ssl_properties(LEX *lex, String *rlb)
@@ -550,6 +597,8 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
     }
   }
 
+  if (thd->lex->sql_command == SQLCOM_SHOW_CREATE_USER)
+    rewrite_default_roles(lex, rlb);
   rewrite_ssl_properties(lex, rlb);
   rewrite_user_resources(lex, rlb);
 
@@ -579,6 +628,33 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
   if (lex->alter_password.update_account_locked_column)
   {
     rewrite_account_lock(lex, rlb);
+  }
+
+  if (!for_binlog || lex->alter_password.update_password_history)
+  {
+    if (lex->alter_password.use_default_password_history)
+    {
+      rlb->append(STRING_WITH_LEN(" PASSWORD HISTORY DEFAULT"));
+    }
+    else
+    {
+      append_int(rlb, false, STRING_WITH_LEN(" PASSWORD HISTORY"),
+                 lex->alter_password.password_history_length, TRUE);
+    }
+  }
+
+  if (!for_binlog || lex->alter_password.update_password_reuse_interval)
+  {
+    if (lex->alter_password.use_default_password_reuse_interval)
+    {
+      rlb->append(STRING_WITH_LEN(" PASSWORD REUSE INTERVAL DEFAULT"));
+    }
+    else
+    {
+      append_int(rlb, false, STRING_WITH_LEN(" PASSWORD REUSE INTERVAL"),
+                 lex->alter_password.password_reuse_interval, TRUE);
+      rlb->append(STRING_WITH_LEN(" DAY"));
+    }
   }
 }
 

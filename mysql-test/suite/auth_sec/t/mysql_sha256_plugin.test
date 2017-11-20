@@ -35,12 +35,6 @@ call mtr.add_suppression(".*Password salt for user.*");
 --echo ===========================================================================================================================================
 --echo 
 
-select @@Global.old_passwords;
---echo 0 Expected
-
-select @@session.old_passwords;
---echo 0 Expected
-
 # Checking the password authentication with sha256_password plugin
 # Creating 2 users and encrypting the server side password with the sha256_password plugin
 
@@ -351,12 +345,6 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 -- source include/wait_until_connected_again.inc
 
 
-
-select @@Global.old_passwords;
---echo 2 Expected
-
-select @@session.old_passwords;
---echo 0 Expected
 
 # Checking the password authentication with sha256_password plugin
 # Creating 2 users and encrypting the server side password with the sha256_password plugin

@@ -16,8 +16,8 @@
 #ifndef DD__PLUGIN_TABLE_IMPL_INCLUDED
 #define DD__PLUGIN_TABLE_IMPL_INCLUDED
 
-#include "dd/types/object_table.h"
-#include "dd/impl/types/plugin_table_definition_impl.h"
+#include "sql/dd/impl/types/plugin_table_definition_impl.h"
+#include "sql/dd/types/object_table.h"
 
 namespace dd {
 

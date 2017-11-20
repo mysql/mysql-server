@@ -32,6 +32,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0sys.h"
 #include "page0types.h"
 #include "trx0xa.h"
+#include "sql/xa.h"
 
 #ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
@@ -430,8 +431,6 @@ struct trx_undo_t {
 	XID		xid;		/*!< X/Open XA transaction
 					identification */
 	ibool		dict_operation;	/*!< TRUE if a dict operation trx */
-	table_id_t	table_id;	/*!< if a dict operation, then the table
-					id */
 	trx_rseg_t*	rseg;		/*!< rseg where the undo log belongs */
 	/*-----------------------------*/
 	space_id_t	space;		/*!< space id where the undo log
@@ -558,7 +557,7 @@ page of an update undo log segment. */
 					means dropping the created or dropped
 					table, if it still exists */
 #define TRX_UNDO_TABLE_ID	22	/*!< Id of the table if the preceding
-					field is TRUE */
+					field is TRUE. Note: deprecated */
 #define	TRX_UNDO_NEXT_LOG	30	/*!< Offset of the next undo log header
 					on this page, 0 if none */
 #define	TRX_UNDO_PREV_LOG	32	/*!< Offset of the previous undo log

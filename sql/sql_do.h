@@ -19,8 +19,8 @@
 #include <sys/types.h>
 
 #include "my_sqlcommand.h"
-#include "query_result.h"
-#include "sql_select.h"
+#include "sql/query_result.h"
+#include "sql/sql_select.h"
 
 class Item;
 class THD;

@@ -3,12 +3,6 @@
 #
 do lcase(ltrim(from_unixtime(0,' %T ')));
 do _cp852 "" <= lcase(trim(leading 1 from 12222)) not between '1' and '2';
-do decode(substring(sha1('1'),'11'),25);
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-do encode(mid(sysdate(),"5",1),'11');
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 do upper(substring(1.111111111111111111 from '2n'));
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '2n'

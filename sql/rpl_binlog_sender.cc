@@ -18,36 +18,42 @@
 #include <assert.h>
 #include <stdio.h>
 #include <algorithm>
+#include <atomic>
+#include <memory>
+#include <unordered_map>
+#include <utility>
 
-#include "debug_sync.h"              // debug_sync_set_action
-#include "derror.h"                  // ER_THD
-#include "hash.h"
-#include "item_func.h"               // user_var_entry
 #include "lex_string.h"
-#include "log.h"
-#include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
 #include "m_string.h"
-#include "mdl.h"
+#include "map_helpers.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_stage.h"
 #include "mysql/service_my_snprintf.h"
-#include "mysqld.h"                  // global_system_variables ...
-#include "protocol_classic.h"
-#include "rpl_constants.h"           // BINLOG_DUMP_NON_BLOCK
-#include "rpl_gtid.h"
-#include "rpl_handler.h"             // RUN_HOOK
-#include "rpl_master.h"              // opt_sporadic_binlog_dump_fail
-#include "rpl_reporting.h"           // MAX_SLAVE_ERRMSG
-#include "sql_class.h"               // THD
-#include "system_variables.h"
+#include "sql/debug_sync.h"          // debug_sync_set_action
+#include "sql/derror.h"              // ER_THD
+#include "sql/item_func.h"           // user_var_entry
+#include "sql/log.h"
+#include "sql/log_event.h"           // MAX_MAX_ALLOWED_PACKET
+#include "sql/mdl.h"
+#include "sql/mysqld.h"              // global_system_variables ...
+#include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/rpl_constants.h"       // BINLOG_DUMP_NON_BLOCK
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_handler.h"         // RUN_HOOK
+#include "sql/rpl_master.h"          // opt_sporadic_binlog_dump_fail
+#include "sql/rpl_reporting.h"       // MAX_SLAVE_ERRMSG
+#include "sql/sql_class.h"           // THD
+#include "sql/system_variables.h"
 #include "typelib.h"
 
 #ifndef DBUG_OFF
@@ -370,8 +376,9 @@ my_off_t Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
     if (send_events(log_cache, end_pos))
       return 1;
 
-    m_thd->killed= DBUG_EVALUATE_IF("simulate_kill_dump", THD::KILL_CONNECTION,
-                                    m_thd->killed);
+    m_thd->killed.store(DBUG_EVALUATE_IF("simulate_kill_dump",
+                                         THD::KILL_CONNECTION,
+                                         m_thd->killed.load()));
 
     DBUG_EXECUTE_IF("wait_after_binlog_EOF",
                     {

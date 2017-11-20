@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -478,10 +478,11 @@ function receiveStatusReply(reply) {
     if (reply && reply.body && reply.body.reply_properties) {
       _statii = reply.body.reply_properties;
       for (var i in reply.body.reply_properties) {
-	var curr = reply.body.reply_properties[i];
-	mcc.storage.processStorage().getItems({NodeId: i}).then(function (processes) {
+        var curr = reply.body.reply_properties[i];
+        mcc.storage.processStorage().getItems({NodeId: i}).then(function (processes) {
                 if (processes && processes[0]) {
-                    mcc.storage.processTreeStorage().getItem(processes[0].getId()).then(function (proc) {
+                    mcc.storage.processTreeStorage().getItem(processes[0].getId()).then(
+                    function (proc) {
                         proc.setValue("status", curr.status);
                     });
                 }
@@ -510,7 +511,8 @@ function receiveStatusError(errMsg, reply) {
     _statii = {};
     mcc.storage.processStorage().getItems().then(function (processes) {
         for (var p in processes) {
-            mcc.storage.processTreeStorage().getItem(processes[p].getId()).then(function (proc) {
+            mcc.storage.processTreeStorage().getItem(processes[p].getId()).then(
+            function (proc) {
                 proc.deleteAttribute("status");
             });
         }
@@ -531,8 +533,20 @@ function doPoll() {
     // Get the appropriate hostname and port number
     var host = mgmd.getValue("HostName");
     var port = mgmd.getValue("Portnumber");
-            
-    // If not overridden, get predefined host
+
+    // api.hostHasCreds localhost check breaks with old code.
+    if (!host) {
+        mcc.storage.hostStorage().getItems({id: mgmd.getValue("host")}).then(
+            function (hosts) {
+                if (hosts[0]) {
+                    host = hosts[0].getValue("name");
+                }
+            }
+        );
+    };
+    
+    // If not overridden, get predefined host. Note, old code which returns FQDN/internalIP now,
+    // left here in case both above methods fail.
     if (!host) {
         host = mcc.configuration.getPara("management", 
                                          mgmd.getId(), "HostName", "defaultValueInstance");

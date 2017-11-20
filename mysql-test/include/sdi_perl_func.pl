@@ -15,27 +15,24 @@ my $memd = new Cache::Memcached {
 };
 
 # /** Retrieve SDI stored in a tablespace for single copy.
-# @param[in]	id_full		SDI id in format "sdi_<number>"
-# @param[in]	type		SDI type
-# @param[in] 	copy_num 	SDI copy number in a tablespace (0 or 1)
-# @param[in] 	expected_data 	expected string to compare with SDI retrieved
+# @param[in]	type_full	SDI type in format "sdi_<number>"
+# @param[in]	id		SDI id
+# @param[in]	expected_data	expected string to compare with SDI retrieved
 #				from tablespace. */
 sub sdi_get_from_copy {
-	if (scalar(@_) ne 4) {
+	if (scalar(@_) ne 3) {
 		die "Wrong number of arguments passed."
-		. " Expected args: (id_full, type, copy_num, expected_data)\n";
+		. " Expected args: (id_full, type, expected_data)\n";
 	}
-	my $id_full = $_[0];
-	my $type = $_[1];
-	my $copy_num = $_[2];
-	my $expected_data = $_[3];
+	my $type_full = $_[0];
+	my $id = $_[1];
+	my $expected_data = $_[2];
 
-	my $val = $memd->get("$id_full:$type:$copy_num");
+	my $val = $memd->get("$type_full:$id");
 	my $cmp_result = $expected_data eq $val;
 
 	if (!$cmp_result) {
-		print "input and output mismatch for rec($id_full:$type)"
-		. " from copy $copy_num\n";
+		print "input and output mismatch for rec($type_full:$id)";
 		print "input is $expected_data\n";
 		print "output is $val\n";
 	}
@@ -43,34 +40,32 @@ sub sdi_get_from_copy {
 
 # /** Inserts SDI into both copies and retrieve SDI stored to compare with the
 # given data.
-# @param[in]	id		SDI id (just the number)
-# @param[in]	type		SDI type
-# @param[in] 	data 		data to be inserted */
+# @param[in]	type		SDI type (just the number)
+# @param[in]	id		SDI id
+# @param[in]	data		data to be inserted */
 sub sdi_set_get {
 	if (scalar(@_) ne 3) {
 		die "Wrong number of arguments passed."
-		. " Expected args: (id, type, data)\n";
+		. " Expected args: (type, id, data)\n";
 	}
 
-	my $id = $_[0];
-	my $id_full= "sdi_" . $id;
-	my $type = $_[1];
+	my $type = $_[0];
+	my $type_full= "sdi_" . $type;
+	my $id = $_[1];
 	my $data = $_[2];
 
-	if (!$memd->set("$id_full:$type", $data)) {
-		print "Error: $id:$type|$data cannot be inserted.\n";
+	if (!$memd->set("$type_full:$id", $data)) {
+		print "Error: $type:$id|$data cannot be inserted.\n";
 	}
 
-	# Retrieve from Copy 0
-	sdi_get_from_copy($id_full, $type, 0, $data);
-	# Retrieve from Copy 1
-	sdi_get_from_copy($id_full, $type, 1, $data);
+	# Retrieve back and verify
+	sdi_get_from_copy($type_full, $id, $data);
 }
 
 # /** Removes SDI from both copies and verifies the operation by expecting empty
 # output on get.
-# @param[in]	id	SDI id
-# @param[in]	type	SDi type */
+# @param[in]	type	SDI type
+# @param[in]	id	SDi id */
 sub sdi_remove_get {
 
 	if (scalar(@_) ne 2) {
@@ -78,46 +73,40 @@ sub sdi_remove_get {
 		. " Expected args: (id, type)\n";
 	}
 
-	my $id = $_[0];
-	my $id_full= "sdi_" . $id;
-	my $type = $_[1];
+	my $type = $_[0];
+	my $type_full= "sdi_" . $type;
+	my $id = $_[1];
 
-	my $ret = $memd->delete("$id_full:$type");
+	my $ret = $memd->delete("$type_full:$id");
 	if (!$ret) {
 		print "Error: rec($id:$type) cannot be deleted\n";
 	}
 
-	# Retrieve from copy 0
-	my $val = $memd->get("$id_full:$type:0");
+	# Retrieve from copy
+	my $val = $memd->get("$type_full:$id");
 	if ($val) {
-		print "Deleted but rec($id:$type:0) still exists with value:$val\n";
-	}
-
-	# Retrieve from copy 1
-	$val = $memd->get("$id_full:$type:1");
-	if ($val) {
-		print "Deleted but rec($id:$type:1) still exists with value:$val\n";
+		print "Deleted but rec($type:$id) still exists with value:$val\n";
 	}
 }
 
 # /** Retrieve SDI from copy.
-# @param[in]	id 	SDI id
-# @param[in]	type	SDI type */
+# @param[in]	type	SDI type
+# @param[in]	id 	SDI id */
 sub sdi_get {
 
 	if (scalar(@_) ne 2) {
 		die "Wrong number of arguments passed."
-	        . " Expected args: (id, type)\n";
+	        . " Expected args: (type, id)\n";
 	}
 
-	my $id = $_[0];
-	my $id_full= "sdi_" . $id;
-	my $type = $_[1];
+	my $type = $_[0];
+	my $type_full= "sdi_" . $type;
+	my $id = $_[1];
 
-	my $val = $memd->get("$id_full:$type");
-	# We don't print id & type because we use TABLE_ID as SDI KEY &
-	# type. 
-	print "Get rec(id:type) is $val\n";
+	my $val = $memd->get("$type_full:$id");
+	# We don't print type & id because we use TABLE_ID as SDI KEY &
+	# type.
+	print "Get rec(type:id) is $val\n";
 }
 
 # /** Create SDI index in a tablespace. */

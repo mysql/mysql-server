@@ -568,7 +568,7 @@ int main(int argc, char** argv)
 			      65535, 
 			      threadName,
                               NDB_THREAD_PRIO_LOW);
-    if(pThread != 0 && pThread != NULL){
+    if(pThread){
       (&data[i*parallellism])->pThread = pThread;
     } else {      
       perror("Failed to create thread");

@@ -67,10 +67,6 @@ NULL	NULL
 {"id": 2, "name": "Omar Argentina"}	Omar Argentina
 {"id": 1, "name": "Omar Bras"}	Omar Bras
 include/diff_tables.inc [master:gtable, slave:gtable]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 DROP TABLE gtable;
 include/sync_slave_sql_with_master.inc
 DROP VIEW  IF EXISTS v1,v2;

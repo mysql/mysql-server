@@ -17,19 +17,18 @@
 ///
 /// This file implements the intersects functor and function.
 
-#include "intersects_functor.h"
-#include "relops.h"
-
 #include <boost/geometry.hpp>
 
 #include "box.h"
 #include "box_traits.h"
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "disjoint_functor.h"
 #include "geometries.h"
 #include "geometries_traits.h"
+#include "intersects_functor.h"
 #include "mbr_utils.h"
-#include "sql_exception_handler.h"  // handle_gis_exception
+#include "relops.h"
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/sql_exception_handler.h" // handle_gis_exception
 
 namespace bg = boost::geometry;
 

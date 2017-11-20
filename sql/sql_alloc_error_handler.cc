@@ -13,13 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "current_thd.h"
-#include "derror.h"
-#include "log.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "mysqld_error.h"
-#include "sql_class.h"
-#include "sql_error.h"
+#include "sql/current_thd.h"
+#include "sql/log.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
 
 extern "C" void sql_alloc_error_handler(void)
 {

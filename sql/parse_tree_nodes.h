@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,44 +19,62 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "auth_common.h"
-#include "handler.h"
-#include "item.h"
-#include "item_create.h"
-#include "item_func.h"
-#include "key.h"
-#include "key_spec.h"
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "mem_root_array.h"
 #include "my_base.h"
 #include "my_bit.h"                  // is_single_bit
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "mysqld.h"                  // table_alias_charset
+#include "my_time.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "parse_location.h"
-#include "parse_tree_helpers.h"      // PT_item_list
-#include "parse_tree_node_base.h"
-#include "parse_tree_partitions.h"
-#include "query_result.h"            // Query_result
-#include "set_var.h"
-#include "sp_head.h"                 // sp_head
-#include "sql_admin.h"               // Sql_cmd_shutdown etc.
-#include "sql_alter.h"
-#include "sql_class.h"               // THD
-#include "sql_cmd_ddl_table.h"       // Sql_cmd_create_table
-#include "sql_lex.h"                 // LEX
-#include "sql_list.h"
-#include "sql_parse.h"               // add_join_natural
-#include "sql_partition_admin.h"
-#include "sql_security_ctx.h"
-#include "sql_truncate.h"            // Sql_cmd_truncate_table
-#include "table.h"                   // Common_table_expr
+#include "sql/auth/auth_common.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/enum_query_type.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_create.h"
+#include "sql/item_func.h"
+#include "sql/key.h"
+#include "sql/key_spec.h"
+#include "sql/mdl.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"              // table_alias_charset
+#include "sql/parse_location.h"
+#include "sql/parse_tree_helpers.h"  // PT_item_list
+#include "sql/parse_tree_node_base.h"
+#include "sql/parse_tree_partitions.h"
+#include "sql/partition_info.h"
+#include "sql/query_result.h"        // Query_result
+#include "sql/resourcegroups/resource_group_sql_cmd.h"
+#include "sql/resourcegroups/resource_group_sql_cmd.h" // Type, Range
+#include "sql/session_tracker.h"
+#include "sql/set_var.h"
+#include "sql/sp_head.h"             // sp_head
+#include "sql/sql_admin.h"           // Sql_cmd_shutdown etc.
+#include "sql/sql_alloc.h"
+#include "sql/sql_alter.h"
+#include "sql/sql_class.h"           // THD
+#include "sql/sql_cmd_ddl_table.h"   // Sql_cmd_create_table
+#include "sql/sql_lex.h"             // LEX
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"           // add_join_natural
+#include "sql/sql_partition_admin.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"
+#include "sql/sql_truncate.h"        // Sql_cmd_truncate_table
+#include "sql/table.h"               // Common_table_expr
+#include "sql/window.h"              // Window
+#include "sql/window_lex.h"
+#include "sql_string.h"
+#include "sql/sql_tablespace.h"          // Tablespace_options
+#include "sql/sql_truncate.h"            // Sql_cmd_truncate_table
+#include "sql/table.h"                   // Common_table_expr
+
 #include "thr_lock.h"
-#include "window.h"                  // Window
 
 class PT_field_def_base;
 class PT_hint_list;
@@ -138,6 +156,7 @@ class Parse_tree_root : public Sql_alloc
   void operator=(const Parse_tree_root &)= delete;
 
 protected:
+  virtual ~Parse_tree_root() {};
   Parse_tree_root() {}
 
 public:
@@ -1520,7 +1539,7 @@ class PT_transaction_access_mode : public PT_transaction_characteristic
 
 public:
   explicit PT_transaction_access_mode(bool is_read_only)
-  : super("tx_read_only", (int32) is_read_only)
+  : super("transaction_read_only", (int32) is_read_only)
   {}
 };
 
@@ -1531,7 +1550,7 @@ class PT_isolation_level : public PT_transaction_characteristic
 
 public:
   explicit PT_isolation_level(enum_tx_isolation level)
-  : super("tx_isolation", (int32) level)
+  : super("transaction_isolation", (int32) level)
   {}
 };
 
@@ -2916,6 +2935,8 @@ class PT_ddl_table_option : public Table_ddl_node
 {
 public:
   virtual ~PT_ddl_table_option()= 0; // Force abstract class declaration
+
+  virtual bool is_rename_table() const { return false; }
 };
 
 inline PT_ddl_table_option::~PT_ddl_table_option() {}
@@ -4158,6 +4179,8 @@ public:
 
   bool contextualize(Table_ddl_parse_context *pc) override;
 
+  bool is_rename_table() const override { return true; }
+
 private:
   const Table_ident * const m_ident;
 };
@@ -4182,6 +4205,25 @@ private:
   Alter_rename_key m_rename_key;
 };
 
+
+class PT_alter_table_rename_column final : public PT_alter_table_action
+{
+  typedef PT_alter_table_action super;
+
+public:
+  PT_alter_table_rename_column(const char *from, const char *to)
+    : super(Alter_info::ALTER_CHANGE_COLUMN), m_rename_column(from, to)
+  {}
+
+  bool contextualize(Table_ddl_parse_context *pc) override
+  {
+    return super::contextualize(pc) ||
+            pc->alter_info->alter_list.push_back(&m_rename_column);
+  }
+
+private:
+  Alter_column m_rename_column;
+};
 
 class PT_alter_table_convert_to_charset final : public PT_alter_table_action
 {
@@ -5093,7 +5135,7 @@ public:
       m_key_cache_name(key_cache_name)
   {}
 
-  Sql_cmd *make_cmd(THD *thd) override;;
+  Sql_cmd *make_cmd(THD *thd) override;
 
 private:
   Table_ident *m_table;
@@ -5215,6 +5257,341 @@ private:
   Item *m_where_condition;
 
   Show_cmd_type m_show_cmd_type;
+};
+
+
+struct Alter_tablespace_parse_context : public Tablespace_options
+{
+  THD * const thd;
+  MEM_ROOT * const mem_root;
+
+  Alter_tablespace_parse_context(THD *thd)
+    : thd(thd), mem_root(thd->mem_root)
+  {}
+};
+
+
+typedef Parse_tree_node_tmpl<Alter_tablespace_parse_context>
+    PT_alter_tablespace_option_base;
+
+
+template<typename Option_type, Option_type Tablespace_options::*Option>
+class PT_alter_tablespace_option final : public PT_alter_tablespace_option_base /* purecov: inspected */
+{
+  typedef PT_alter_tablespace_option_base super;
+
+public:
+  explicit PT_alter_tablespace_option(Option_type value) : m_value(value) {}
+
+  bool contextualize(Alter_tablespace_parse_context *pc) override
+  {
+    pc->*Option= m_value;
+    return super::contextualize(pc);
+  }
+
+private:
+  const Option_type m_value;
+};
+
+
+typedef PT_alter_tablespace_option<decltype(Tablespace_options::autoextend_size),
+                                           &Tablespace_options::autoextend_size>
+    PT_alter_tablespace_option_autoextend_size;
+
+typedef PT_alter_tablespace_option<decltype(Tablespace_options::extent_size),
+                                           &Tablespace_options::extent_size>
+    PT_alter_tablespace_option_extent_size;
+
+typedef PT_alter_tablespace_option<decltype(Tablespace_options::initial_size),
+                                           &Tablespace_options::initial_size>
+    PT_alter_tablespace_option_initial_size;
+
+typedef PT_alter_tablespace_option<decltype(Tablespace_options::max_size),
+                                           &Tablespace_options::max_size>
+    PT_alter_tablespace_option_max_size;
+
+typedef PT_alter_tablespace_option<decltype(Tablespace_options::redo_buffer_size),
+                                           &Tablespace_options::redo_buffer_size>
+    PT_alter_tablespace_option_redo_buffer_size;
+
+typedef PT_alter_tablespace_option<decltype(Tablespace_options::undo_buffer_size),
+                                           &Tablespace_options::undo_buffer_size>
+    PT_alter_tablespace_option_undo_buffer_size;
+
+typedef PT_alter_tablespace_option<decltype(Tablespace_options::wait_until_completed),
+                                           &Tablespace_options::wait_until_completed>
+    PT_alter_tablespace_option_wait_until_completed;
+
+
+class PT_alter_tablespace_option_nodegroup final : public PT_alter_tablespace_option_base /* purecov: inspected */
+{
+  typedef PT_alter_tablespace_option_base super;
+  typedef decltype(Tablespace_options::nodegroup_id) option_type;
+
+public:
+  explicit PT_alter_tablespace_option_nodegroup(option_type nodegroup_id)
+    : m_nodegroup_id(nodegroup_id)
+  {}
+
+  bool contextualize(Alter_tablespace_parse_context *pc) override
+  {
+    if (super::contextualize(pc))
+      return true; /* purecov: inspected */ // OOM
+
+    if (pc->nodegroup_id != UNDEF_NODEGROUP)
+    {
+      my_error(ER_FILEGROUP_OPTION_ONLY_ONCE, MYF(0), "NODEGROUP");
+      return true;
+    }
+    pc->nodegroup_id= m_nodegroup_id;
+    return false;
+  }
+
+private:
+  const option_type m_nodegroup_id;
+};
+
+
+class PT_alter_tablespace_option_comment final : public PT_alter_tablespace_option_base /* purecov: inspected */
+{
+  typedef PT_alter_tablespace_option_base super;
+  typedef decltype(Tablespace_options::ts_comment) option_type;
+
+public:
+  explicit PT_alter_tablespace_option_comment(option_type comment)
+    : m_comment(comment)
+  {}
+
+  bool contextualize(Alter_tablespace_parse_context *pc) override
+  {
+    if (super::contextualize(pc))
+      return true; /* purecov: inspected */ // OOM
+
+    if (pc->ts_comment.str)
+    {
+      my_error(ER_FILEGROUP_OPTION_ONLY_ONCE, MYF(0), "COMMENT");
+      return true;
+    }
+    pc->ts_comment= m_comment;
+    return false;
+  }
+
+private:
+  const option_type m_comment;
+};
+
+
+class PT_alter_tablespace_option_engine final : public PT_alter_tablespace_option_base /* purecov: inspected */
+{
+  typedef PT_alter_tablespace_option_base super;
+  typedef decltype(Tablespace_options::engine_name) option_type;
+
+public:
+  explicit PT_alter_tablespace_option_engine(option_type engine_name)
+    : m_engine_name(engine_name)
+  {}
+
+  bool contextualize(Alter_tablespace_parse_context *pc) override
+  {
+    if (super::contextualize(pc))
+      return true; /* purecov: inspected */ // OOM
+
+    if (pc->engine_name.str)
+    {
+      my_error(ER_FILEGROUP_OPTION_ONLY_ONCE, MYF(0), "STORAGE ENGINE");
+      return true;
+    }
+    pc->engine_name= m_engine_name;
+    return false;
+  }
+
+private:
+  const option_type m_engine_name;
+};
+
+
+class PT_alter_tablespace_option_file_block_size final : public PT_alter_tablespace_option_base /* purecov: inspected */
+{
+  typedef PT_alter_tablespace_option_base super;
+  typedef decltype(Tablespace_options::file_block_size) option_type;
+
+public:
+  explicit PT_alter_tablespace_option_file_block_size(option_type file_block_size)
+    : m_file_block_size(file_block_size)
+  {}
+
+  bool contextualize(Alter_tablespace_parse_context *pc) override
+  {
+    if (super::contextualize(pc))
+      return true; /* purecov: inspected */ // OOM
+
+    if (pc->file_block_size != 0)
+    {
+      my_error(ER_FILEGROUP_OPTION_ONLY_ONCE, MYF(0), "FILE_BLOCK_SIZE");
+      return true;
+    }
+    pc->file_block_size= m_file_block_size;
+    return false;
+  }
+
+private:
+  const option_type m_file_block_size;
+};
+
+
+/**
+  Parse tree node for CREATE RESOURCE GROUP statement.
+*/
+
+class PT_create_resource_group final : public Parse_tree_root
+{
+  resourcegroups::Sql_cmd_create_resource_group sql_cmd;
+  const bool has_priority;
+
+public:
+  PT_create_resource_group(const LEX_CSTRING &name,
+                           const resourcegroups::Type type,
+                           const Trivial_array<resourcegroups::Range> *cpu_list,
+                           const Value_or_default<int> &opt_priority,
+                           bool enabled)
+    : sql_cmd(name, type, cpu_list,
+              opt_priority.is_default ? 0 : opt_priority.value, enabled),
+      has_priority(!opt_priority.is_default)
+  {}
+
+
+  Sql_cmd *make_cmd(THD *thd) override
+  {
+    if (check_resource_group_support())
+      return nullptr;
+
+    if (check_resource_group_name_len(sql_cmd.m_name))
+      return nullptr;
+
+    if (has_priority &&
+        validate_resource_group_priority(thd, &sql_cmd.m_priority,
+                                         sql_cmd.m_name, sql_cmd.m_type))
+      return nullptr;
+
+    for (auto &range : *sql_cmd.m_cpu_list)
+    {
+      if (validate_vcpu_range(range))
+        return nullptr;
+    }
+
+    thd->lex->sql_command= SQLCOM_CREATE_RESOURCE_GROUP;
+    return &sql_cmd;
+  }
+
+
+  virtual ~PT_create_resource_group() {}
+};
+
+
+/**
+  Parse tree node for ALTER RESOURCE GROUP statement.
+*/
+
+class PT_alter_resource_group final : public Parse_tree_root
+{
+  resourcegroups::Sql_cmd_alter_resource_group sql_cmd;
+
+public:
+  PT_alter_resource_group(const LEX_CSTRING &name,
+                          const Trivial_array<resourcegroups::Range> *cpu_list,
+                          const Value_or_default<int> &opt_priority,
+                          const Value_or_default<bool> &enable,
+                          bool force)
+    : sql_cmd(name, cpu_list, opt_priority.is_default ? 0 : opt_priority.value,
+              enable.is_default ? false : enable.value,
+              force, !enable.is_default)
+  {}
+
+
+  Sql_cmd *make_cmd(THD *thd) override
+  {
+    if (check_resource_group_support())
+      return nullptr;
+
+    if (check_resource_group_name_len(sql_cmd.m_name))
+      return nullptr;
+
+    for (auto &range : *sql_cmd.m_cpu_list)
+    {
+      if (validate_vcpu_range(range))
+        return nullptr;
+    }
+
+    thd->lex->sql_command= SQLCOM_ALTER_RESOURCE_GROUP;
+    return &sql_cmd;
+  }
+
+
+  virtual ~PT_alter_resource_group() {}
+};
+
+
+/**
+  Parse tree node for DROP RESOURCE GROUP statement.
+*/
+
+class PT_drop_resource_group final : public Parse_tree_root
+{
+  resourcegroups::Sql_cmd_drop_resource_group sql_cmd;
+
+public:
+  PT_drop_resource_group(const LEX_CSTRING &resource_group_name,
+                         bool force)
+    : sql_cmd(resource_group_name, force)
+  {}
+
+
+  Sql_cmd *make_cmd(THD *thd) override
+  {
+    if (check_resource_group_support())
+      return nullptr;
+
+    if (check_resource_group_name_len(sql_cmd.m_name))
+      return nullptr;
+
+    thd->lex->sql_command= SQLCOM_DROP_RESOURCE_GROUP;
+    return &sql_cmd;
+  }
+
+
+  virtual ~PT_drop_resource_group() {}
+};
+
+
+/**
+  Parse tree node for SET RESOURCE GROUP statement.
+*/
+
+class PT_set_resource_group final : public Parse_tree_root
+{
+  resourcegroups::Sql_cmd_set_resource_group sql_cmd;
+
+public:
+  PT_set_resource_group(const LEX_CSTRING &name,
+                        Trivial_array<ulonglong> *thread_id_list)
+    : sql_cmd(name, thread_id_list)
+  { }
+
+
+  Sql_cmd *make_cmd(THD *thd) override
+  {
+    if (check_resource_group_support())
+      return nullptr;
+
+    if (check_resource_group_name_len(sql_cmd.m_name))
+      return nullptr;
+
+    thd->lex->sql_command= SQLCOM_SET_RESOURCE_GROUP;
+    return &sql_cmd;
+  }
+
+
+  virtual ~PT_set_resource_group() {}
 };
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

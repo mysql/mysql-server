@@ -16,10 +16,9 @@
 #ifndef DD_TABLES__COLUMNS_INCLUDED
 #define DD_TABLES__COLUMNS_INCLUDED
 
-#include <string>
-
-#include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
-#include "dd/object_id.h"                    // dd::Object_id
+#include "sql/dd/impl/types/object_table_impl.h" // dd::Object_table_impl
+#include "sql/dd/object_id.h"                // dd::Object_id
+#include "sql/dd/string_type.h"
 
 namespace dd {
   class Object_key;
@@ -69,7 +68,8 @@ public:
     FIELD_OPTIONS,
     FIELD_SE_PRIVATE_DATA,
     FIELD_COLUMN_KEY,
-    FIELD_COLUMN_TYPE_UTF8
+    FIELD_COLUMN_TYPE_UTF8,
+    FIELD_SRS_ID
   };
 
 public:

@@ -1,9 +1,10 @@
 # Tests for PERFORMANCE_SCHEMA
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-
 show grants;
+
+create user 'pfs_user_1'@localhost;
+create user 'pfs_user_2'@localhost;
+create user 'pfs_user_3'@localhost;
 
 grant ALL on *.* to 'pfs_user_1'@localhost with GRANT OPTION;
 
@@ -13,11 +14,8 @@ grant ALL on *.* to 'pfs_user_1'@localhost with GRANT OPTION;
 grant ALL on performance_schema.* to 'pfs_user_2'@localhost
   with GRANT OPTION;
 
-# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+--error ER_DBACCESS_DENIED_ERROR
 grant CREATE on performance_schema.* to 'pfs_user_2'@localhost;
-
-# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
-grant DROP on performance_schema.* to 'pfs_user_2'@localhost;
 
 --error ER_DBACCESS_DENIED_ERROR
 grant REFERENCES on performance_schema.* to 'pfs_user_2'@localhost;
@@ -58,6 +56,9 @@ grant SELECT on performance_schema.* to 'pfs_user_2'@localhost;
 grant INSERT on performance_schema.* to 'pfs_user_2'@localhost;
 grant UPDATE on performance_schema.* to 'pfs_user_2'@localhost;
 grant DELETE on performance_schema.* to 'pfs_user_2'@localhost;
+# DROP_ACL allowed for TRUNCATE TABLE
+grant DROP on performance_schema.* to 'pfs_user_2'@localhost;
+
 grant LOCK TABLES on performance_schema.* to 'pfs_user_2'@localhost;
 
 # Test denied privileges on specific performance_schema tables.
@@ -69,10 +70,10 @@ grant LOCK TABLES on performance_schema.* to 'pfs_user_2'@localhost;
 grant ALL on performance_schema.setup_instruments to 'pfs_user_3'@localhost
   with GRANT OPTION;
 
-# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+--error ER_DBACCESS_DENIED_ERROR
 grant CREATE on performance_schema.setup_instruments to 'pfs_user_3'@localhost;
 
-# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+--error ER_TABLEACCESS_DENIED_ERROR
 grant DROP on performance_schema.setup_instruments to 'pfs_user_3'@localhost;
 
 --error ER_DBACCESS_DENIED_ERROR
@@ -109,10 +110,10 @@ grant UPDATE on performance_schema.setup_instruments to 'pfs_user_3'@localhost
 grant ALL on performance_schema.events_waits_current to 'pfs_user_3'@localhost
   with GRANT OPTION;
 
-# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+--error ER_DBACCESS_DENIED_ERROR
 grant CREATE on performance_schema.events_waits_current to 'pfs_user_3'@localhost;
 
-# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+# Succeed, for TRUNCATE TABLE
 grant DROP on performance_schema.events_waits_current to 'pfs_user_3'@localhost;
 
 --error ER_DBACCESS_DENIED_ERROR
@@ -149,10 +150,10 @@ grant SELECT on performance_schema.events_waits_current to 'pfs_user_3'@localhos
 grant ALL on performance_schema.file_instances to 'pfs_user_3'@localhost
   with GRANT OPTION;
 
-# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+--error ER_DBACCESS_DENIED_ERROR
 grant CREATE on performance_schema.file_instances to 'pfs_user_3'@localhost;
 
-# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+--error ER_TABLEACCESS_DENIED_ERROR
 grant DROP on performance_schema.file_instances to 'pfs_user_3'@localhost;
 
 --error ER_DBACCESS_DENIED_ERROR
@@ -328,8 +329,6 @@ UPDATE performance_schema.setup_timers SET timer_name = 'MICROSECOND' where name
 UPDATE performance_schema.setup_timers SET timer_name = 'CYCLE'       where name="wait";
 UPDATE performance_schema.setup_timers SET timer_name = 'NANOSECOND'  where name="stage";
 UPDATE performance_schema.setup_timers SET timer_name = 'NANOSECOND'  where name="statement";
-
-set sql_mode= @orig_sql_mode;
 
 --echo #
 --echo # WL#2284: Increase the length of a user name

@@ -24,23 +24,15 @@
 #include <string.h>
 #include <sys/types.h>
 #include <map>
+#include <memory>
 #include <new>
+#include <string>
 #include <utility>
 
 #include "binary_log_types.h"
-#include "dd/info_schema/stats.h"     // dd::info_schema::Statistics_cache
-#include "enum_query_type.h"
-#include "field.h"
-#include "handler.h"
-#include "hash.h"
-#include "item.h"                     // Name_resolution_context
-#include "item_subselect.h"           // chooser_compare_func_creator
-#include "key_spec.h"                 // KEY_CREATE_INFO
 #include "lex_string.h"
-#include "lex_symbol.h"               // LEX_SYMBOL
 #include "m_string.h"
-#include "mdl.h"
-#include "mem_root_array.h"           // Mem_root_array
+#include "map_helpers.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -51,39 +43,59 @@
 #include "my_table_map.h"
 #include "my_thread_local.h"
 #include "my_time.h"
+#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "opt_hints.h"
-#include "parse_tree_hints.h"
-#include "parse_tree_node_base.h"     // enum_parsing_context
 #include "prealloced_array.h"         // Prealloced_array
-#include "query_options.h"            // OPTION_NO_CONST_TABLES
-#include "set_var.h"
-#include "sql_admin.h"
-#include "sql_alloc.h"                // Sql_alloc
-#include "sql_alter.h"                // Alter_info
-#include "sql_array.h"
+#include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::Table_stati...
+#include "sql/dd/info_schema/tablespace_stats.h" // dd::info_schema::Tablesp...
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"                 // Name_resolution_context
+#include "sql/item_create.h"          // Cast_target
+#include "sql/item_subselect.h"       // chooser_compare_func_creator
+#include "sql/key.h"
+#include "sql/key_spec.h"             // KEY_CREATE_INFO
+#include "sql/lex_symbol.h"           // LEX_SYMBOL
+#include "sql/mdl.h"
+#include "sql/mem_root_array.h"       // Mem_root_array
+#include "sql/opt_hints.h"
+#include "sql/parse_tree_hints.h"
+#include "sql/parse_tree_node_base.h" // enum_parsing_context
+#include "sql/query_options.h"        // OPTION_NO_CONST_TABLES
+#include "sql/resourcegroups/platform/thread_attrs_api.h" // cpu_id_t
+#include "sql/resourcegroups/resource_group_basic_types.h" // Type, Range
+#include "sql/set_var.h"
+#include "sql/sql_admin.h"
+#include "sql/sql_alloc.h"            // Sql_alloc
+#include "sql/sql_alter.h"            // Alter_info
+#include "sql/sql_array.h"
+#include "sql/sql_connect.h"          // USER_RESOURCES
+#include "sql/sql_const.h"
+#include "sql/sql_data_change.h"      // enum_duplicates
+#include "sql/sql_get_diagnostics.h"  // Diagnostics_information
+#include "sql/sql_list.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_servers.h"          // Server_options
+#include "sql/sql_signal.h"           // enum_condition_item_name
+#include "sql/sql_udf.h"              // Item_udftype
+#include "sql/table.h"                // TABLE_LIST
+#include "sql/thr_malloc.h"
+#include "sql/trigger_def.h"          // enum_trigger_action_time_type
+#include "sql/window_lex.h"
+#include "sql/xa.h"                   // xa_option_words
 #include "sql_chars.h"
-#include "sql_connect.h"              // USER_RESOURCES
-#include "sql_const.h"
-#include "sql_data_change.h"          // enum_duplicates
-#include "sql_get_diagnostics.h"      // Diagnostics_information
-#include "sql_list.h"
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
-#include "sql_servers.h"              // Server_options
-#include "sql_signal.h"               // enum_condition_item_name
 #include "sql_string.h"
-#include "table.h"                    // TABLE_LIST
 #include "thr_lock.h"                 // thr_lock_type
-#include "thr_malloc.h"
-#include "trigger_def.h"              // enum_trigger_action_time_type
 #include "violite.h"                  // SSL_type
-#include "xa.h"                       // xa_option_words
-#include "window_lex.h"
 
 class Item_func_set_user_var;
 class Item_sum;
+class PT_alter_table_standalone_action;
+class PT_assign_to_keycache;
 class PT_base_index_option;
 class PT_column_attr_base;
 class PT_create_table_option;
@@ -94,8 +106,11 @@ class PT_part_value_item_list_paren;
 class PT_part_values;
 class PT_partition;
 class PT_partition_option;
+class PT_preload_keys;
 class PT_query_expression;
+class PT_role_or_privilege;
 class PT_subpartition;
+class PT_subquery;
 class PT_table_element;
 class PT_table_reference;
 class Protocol;
@@ -104,8 +119,8 @@ class Select_lex_visitor;
 class THD;
 class Window;
 
-#include "item_create.h"              // Cast_target
-#include "sql_udf.h"                  // Item_udftype
+typedef Parse_tree_node_tmpl<struct Alter_tablespace_parse_context>
+    PT_alter_tablespace_option_base;
 
 /* YACC and LEX Definitions */
 
@@ -120,8 +135,10 @@ class sp_head;
 class sp_name;
 class sp_pcontext;
 class sql_exchange;
-struct PSI_digest_locker;
 struct sql_digest_state;
+class Sql_cmd_tablespace;
+class Sql_cmd_logfile_group;
+struct Tablespace_options;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 
@@ -181,7 +198,6 @@ enum enum_yes_no_unknown
 enum class enum_ha_read_modes;
 
 enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
-
 
 /**
   used by the parser to store internal variable name
@@ -597,10 +613,9 @@ public:
 
 
 class JOIN;
+class PT_with_clause;
 class Query_result;
 class Query_result_union;
-class PT_with_clause;
-class THD;
 struct LEX;
 
 /**
@@ -947,6 +962,10 @@ public:
       tr->set_readonly();
   }
 
+  /// @returns a map of all tables references in the query block
+  table_map all_tables_map() const
+  { return (1ULL << leaf_table_count) - 1; }
+
 private:
   /**
     Intrusive double-linked list of all query blocks within the same
@@ -981,19 +1000,15 @@ private:
 
 public:
   /**
-    In sql_cache we store SQL_CACHE flag as specified by user to be
-    able to restore SELECT statement from internal structures.
-  */
-  enum e_sql_cache { SQL_CACHE_UNSPECIFIED, SQL_NO_CACHE, SQL_CACHE };
-  /// Query cache hint (should rather belong in LEX object?)
-  e_sql_cache sql_cache;
-  /**
     result of this query can't be cached, bit field, can be :
       UNCACHEABLE_DEPENDENT
       UNCACHEABLE_RAND
       UNCACHEABLE_SIDEEFFECT
   */
   uint8 uncacheable;
+
+  /// True: skip local transformations during prepare() call (used by INSERT)
+  bool skip_local_transforms;
 
   /// Describes context of this query block (e.g if it is a derived table).
   enum sub_select_type linkage;
@@ -1267,6 +1282,19 @@ public:
   SELECT_LEX *outer_select() const { return master->outer_select(); }
   SELECT_LEX *next_select() const { return next; }
 
+  /**
+    @return true  If STRAIGHT_JOIN applies to all tables.
+    @return false Else.
+  */
+  bool is_straight_join()
+  {
+    bool straight_join= true;
+    /// false for exmaple in t1 STRAIGHT_JOIN t2 JOIN t3.
+    for (TABLE_LIST *tbl= leaf_tables->next_leaf; tbl ; tbl=tbl->next_leaf)
+      straight_join&= tbl->straight;
+    return straight_join || (active_options() & SELECT_STRAIGHT_JOIN);
+  }
+
   SELECT_LEX* last_select()
   {
     SELECT_LEX* mylast= this;
@@ -1277,7 +1305,7 @@ public:
 
   SELECT_LEX *next_select_in_list() const { return link_next; }
 
-  void mark_as_dependent(SELECT_LEX *last);
+  void mark_as_dependent(SELECT_LEX *last, bool aggregate);
 
   /// @return true if query block is explicitly grouped (non-empty GROUP BY)
   bool is_explicitly_grouped() const { return group_list.elements > 0; }
@@ -1691,7 +1719,6 @@ struct Limit_options
 
 struct Query_options {
   ulonglong query_spec_options;
-  enum SELECT_LEX::e_sql_cache sql_cache;
 
   bool merge(const Query_options &a, const Query_options &b);
   bool save_to(Parse_context *);
@@ -1889,6 +1916,14 @@ public:
 private:
   bool m_is_set; ///< True if m_enum is assigned with some value
   Enum m_enum;   ///< The wrapped Enum value.
+};
+
+
+template<typename T>
+struct Value_or_default
+{
+  bool is_default;
+  T value; ///< undefined if is_default is true
 };
 
 
@@ -2198,6 +2233,18 @@ union YYSTYPE {
   class PT_adm_partition *adm_partition;
   class PT_preload_keys *preload_keys;
   Trivial_array<PT_preload_keys *> *preload_list;
+  PT_alter_tablespace_option_base *ts_option;
+  Trivial_array<PT_alter_tablespace_option_base *> *ts_options;
+  struct {
+    resourcegroups::platform::cpu_id_t start;
+    resourcegroups::platform::cpu_id_t end;
+  } vcpu_range_type;
+  Trivial_array<resourcegroups::Range> *resource_group_vcpu_list_type;
+  Value_or_default<int> resource_group_priority_type;
+  Value_or_default<bool> resource_group_state_type;
+  bool resource_group_flag_type;
+  resourcegroups::Type resource_group_type;
+  Trivial_array<ulonglong> *thread_id_list_type;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");
@@ -2290,6 +2337,8 @@ class Sroutine_hash_entry;
 class Query_tables_list
 {
 public:
+  Query_tables_list& operator=(Query_tables_list &&) = default;
+
   /**
     SQL command for this statement. Part of this class since the
     process of opening and locking tables for the statement needs
@@ -2311,9 +2360,13 @@ public:
   /*
     Set of stored routines called by statement.
     (Note that we use lazy-initialization for this hash).
+
+    See Sroutine_hash_entry for explanation why this hash uses binary
+    key comparison.
   */
   enum { START_SROUTINES_HASH_SIZE= 16 };
-  HASH sroutines;
+  std::unique_ptr<malloc_unordered_map<std::string, Sroutine_hash_entry *>>
+    sroutines;
   /*
     List linking elements of 'sroutines' set. Allows you to add new elements
     to this set as you iterate through the list of existing elements.
@@ -2370,7 +2423,7 @@ public:
   void destroy_query_tables_list();
   void set_query_tables_list(Query_tables_list *state)
   {
-    *this= *state;
+    *this= std::move(*state);
   }
 
   /*
@@ -3514,6 +3567,7 @@ public:
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
   List<LEX_CSTRING>   dynamic_privileges;
+  List<LEX_USER>      *default_roles;
 
   ulonglong           bulk_insert_row_cnt;
 
@@ -3542,7 +3596,18 @@ public:
   // other stuff:
   List<set_var_base>  var_list;
   List<Item_func_set_user_var> set_var_list; // in-query assignment list
+  /**
+    List of placeholders ('?') for parameters of a prepared statement. Because
+    we append to this list during parsing, it is naturally sorted by
+    position of the '?' in the query string. The code which fills placeholders
+    with user-supplied values, and the code which writes a query for
+    statement-based logging, rely on this order.
+    This list contains only real placeholders, not the clones which originate
+    in a re-parsed CTE definition.
+  */
   List<Item_param>    param_list;
+
+  bool locate_var_assignment(const Name_string &name);
 
   void insert_values_map(Field *f1, Field *f2)
   {
@@ -3658,6 +3723,10 @@ public:
   uint8 describe;
   uint8 create_view_algorithm;
   uint8 create_view_check;
+  /**
+    @todo ensure that correct CONTEXT_ANALYSIS_ONLY is set for all preparation
+          code, so we can fully rely on this field.
+  */
   uint8 context_analysis_only;
   bool drop_if_exists, drop_temporary, local_file;
   bool autocommit;
@@ -3666,6 +3735,12 @@ public:
   bool m_extended_show;
 
   enum enum_yes_no_unknown tx_chain, tx_release;
+
+  /**
+    Whether this query will return the same answer every time, given unchanged data.
+    Used to be for the query cache, but is now used to find out if an expression
+    is usable for partitioning.
+  */
   bool safe_to_cache_query;
   bool subqueries;
 private:
@@ -3738,7 +3813,10 @@ public:
   /// Check if the current statement uses meta-data (uses a table or a stored
   /// routine).
   bool is_metadata_used() const
-  { return query_tables != NULL || sroutines.records > 0; }
+  {
+    return query_tables != NULL ||
+      (sroutines != nullptr && !sroutines->empty());
+  }
 
 public:
   st_sp_chistics sp_chistics;
@@ -3774,12 +3852,6 @@ public:
   */
   bool use_only_table_context;
 
-  /*
-    Reference to a struct that contains information in various commands
-    to add/create/drop/change table spaces.
-  */
-  st_alter_tablespace *alter_tablespace_info;
-  
   bool is_lex_started; /* If lex_start() did run. For debugging. */
   /// Set to true while resolving values in ON DUPLICATE KEY UPDATE clause
   bool in_update_value_clause;
@@ -3790,7 +3862,7 @@ public:
     TODO: possibly this it is incorrect to have used tables in LEX because
     with subquery, it is not clear what does the field mean. To fix this
     we should aggregate used tables information for selected expressions
-    into the select_lex.
+    into the select_lex. This map should contain "real" tables only.
   */
   table_map  used_tables;
 
@@ -3943,7 +4015,8 @@ public:
       on its top. So select_lex (as the first added) will be at the tail 
       of the list.
     */ 
-    if (select_lex == all_selects_list && !sroutines.records)
+    if (select_lex == all_selects_list &&
+        (sroutines == nullptr || sroutines->empty()))
     {
       DBUG_ASSERT(!all_selects_list->next_select_in_list());
       return TRUE;
@@ -3956,7 +4029,8 @@ public:
     These statistics are cached, to avoid opening of table more
     than once while preparing a single output record buffer.
   */
-  dd::info_schema::Statistics_cache m_IS_dyn_stat_cache;
+  dd::info_schema::Table_statistics m_IS_table_stats;
+  dd::info_schema::Tablespace_statistics m_IS_tablespace_stats;
 
   bool accept(Select_lex_visitor *visitor);
 
@@ -4225,5 +4299,36 @@ void print_derived_column_names(THD *thd, String *str,
 /**
   @} (End of group GROUP_PARSER)
 */
+
+
+/**
+   Check if the given string is invalid using the system charset.
+
+   @param string_val       Reference to the string.
+   @param charset_info     Pointer to charset info.
+
+   @return true if the string has an invalid encoding using
+                the system charset else false.
+*/
+
+inline bool is_invalid_string(const LEX_CSTRING &string_val,
+                              const CHARSET_INFO *charset_info)
+{
+  size_t valid_len;
+  bool len_error;
+
+  if (validate_string(charset_info, string_val.str, string_val.length,
+                      &valid_len, &len_error))
+  {
+    char hexbuf[7];
+    octet2hex(hexbuf, string_val.str + valid_len,
+              std::min<size_t>(string_val.length - valid_len, 3));
+    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), charset_info->csname,
+             hexbuf);
+    return true;
+  }
+  return false;
+}
+
 
 #endif /* SQL_LEX_INCLUDED */

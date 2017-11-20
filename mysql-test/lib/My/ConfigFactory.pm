@@ -36,7 +36,7 @@ my @pre_rules=
 );
 
 
-my @share_locations= ("share/mysql", "sql/share", "share");
+my @share_locations= ("share/mysql", "share");
 
 
 sub get_basedir {
@@ -236,6 +236,15 @@ sub fix_ssl_server_key {
   return "$std_data/server-key.pem"
 }
 
+sub fix_rsa_private_key {
+  my $std_data= fix_std_data(@_);
+  return "$std_data/rsa_private_key.pem"
+}
+
+sub fix_rsa_public_key {
+  my $std_data= fix_std_data(@_);
+  return "$std_data/rsa_public_key.pem"
+}
 
 #
 # Rules to run for each mysqld in the config
@@ -243,10 +252,9 @@ sub fix_ssl_server_key {
 #
 my @mysqld_rules=
   (
- { 'basedir' => sub { return shift->{ARGS}->{basedir}; } },
+ { '#mtr_basedir' => sub { return shift->{ARGS}->{basedir}; } },
  { 'tmpdir' => \&fix_tmpdir },
  { 'character-sets-dir' => \&fix_charset_dir },
- { 'lc-messages-dir' => \&fix_language },
  { 'datadir' => \&fix_datadir },
  { 'pid-file' => \&fix_pidfile },
  { '#host' => \&fix_host },
@@ -268,6 +276,8 @@ my @mysqld_rules=
  { 'ssl-cert' => \&fix_ssl_server_cert },
  { 'ssl-key' => \&fix_ssl_server_key },
  { 'loose-sha256_password_auto_generate_rsa_keys' => "0"},
+ { 'caching_sha2_password_private_key_path' => \&fix_rsa_private_key },
+ { 'caching_sha2_password_public_key_path' => \&fix_rsa_public_key },
   );
 
 
@@ -363,6 +373,7 @@ my @client_rules=
 my @mysqltest_rules=
 (
  { 'ssl-mode' => \&fix_ssl_disabled },
+ { 'server-public-key-path' => \&fix_rsa_public_key },
 );
 
 

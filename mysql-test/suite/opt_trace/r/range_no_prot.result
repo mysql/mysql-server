@@ -210,6 +210,9 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 47,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "i2"
@@ -368,6 +371,9 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 47,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "i2"
@@ -641,6 +647,9 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 45,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "sort_union(i1,i2)"
@@ -1400,6 +1409,9 @@ GROUP BY key2	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 47,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "i2_1"
@@ -1980,6 +1992,9 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "union(i2,i3)"
@@ -2152,6 +2167,9 @@ EXPLAIN SELECT * FROM t2 WHERE key2_1 < 79 OR key2 = 2	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1024,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.3398,
                       "access_type": "scan",
                       "resulting_rows": 347.97,
                       "cost": 104.46,
@@ -2380,6 +2398,9 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
                     },
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "PRIMARY"
@@ -2606,6 +2627,9 @@ EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "PRIMARY"
@@ -2828,6 +2852,9 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.19,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "i1b"
@@ -3075,6 +3102,9 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1024,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.5555,
                       "access_type": "scan",
                       "resulting_rows": 568.84,
                       "cost": 104.96,
@@ -3328,6 +3358,9 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                     },
                     {
                       "rows_to_scan": 42,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "i2"
@@ -3358,6 +3391,9 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                     },
                     {
                       "rows_to_scan": 1024,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "using_join_cache": true,
                       "buffers_needed": 1,
@@ -3429,7 +3465,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	29	100.00	Using intersect(cola,colb); Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`cola` = 'foo') and (`test`.`t1`.`colb` = 'bar'))
+Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -3456,15 +3492,15 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))"
+                  "resulting_condition": "(multiple equal('foo', `t1`.`cola`) and multiple equal('bar', `t1`.`colb`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))"
+                  "resulting_condition": "(multiple equal('foo', `t1`.`cola`) and multiple equal('bar', `t1`.`colb`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))"
+                  "resulting_condition": "(multiple equal('foo', `t1`.`cola`) and multiple equal('bar', `t1`.`colb`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -3654,6 +3690,9 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                     },
                     {
                       "rows_to_scan": 29,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "intersect(cola,colb)"
@@ -3673,13 +3712,13 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))",
+              "original_condition": "((`t1`.`colb` = 'bar') and (`t1`.`cola` = 'foo'))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))"
+                  "attached": "((`t1`.`colb` = 'bar') and (`t1`.`cola` = 'foo'))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -3735,15 +3774,15 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`t1`.`cola` = 'f\\no')"
+                  "resulting_condition": "multiple equal('f\\no', `t1`.`cola`)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`t1`.`cola` = 'f\\no')"
+                  "resulting_condition": "multiple equal('f\\no', `t1`.`cola`)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`t1`.`cola` = 'f\\no')"
+                  "resulting_condition": "multiple equal('f\\no', `t1`.`cola`)"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -4721,6 +4760,9 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "k1"
@@ -5064,6 +5106,9 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.7016,
@@ -5197,7 +5242,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	PRIMARY,i1_idx,v_idx	i1_idx	5	const	1	20.00	Using index condition; Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`i1` = 1) and (`test`.`t1`.`v` = 'a') and (`test`.`t1`.`pk` < 3))
+Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -5224,15 +5269,15 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal('a', `t1`.`v`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal('a', `t1`.`v`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal('a', `t1`.`v`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -5425,6 +5470,9 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                     },
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "v_idx"
@@ -5444,7 +5492,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`i1` = 1) and (`t1`.`v` = 'a') and (`t1`.`pk` < 3))",
+              "original_condition": "((`t1`.`v` = 'a') and (`t1`.`i1` = 1) and (`t1`.`pk` < 3))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
@@ -5487,7 +5535,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	PRIMARY,v_idx,i1_i2_idx	v_idx	12	const,const	1	20.00	Using index condition; Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`i2` = 1) and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`v` = 'a') and (`test`.`t1`.`pk` < 3))
+Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i2` = 1) and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -5514,15 +5562,15 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`) and multiple equal('a', `t1`.`v`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`) and multiple equal('a', `t1`.`v`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`) and multiple equal('a', `t1`.`v`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -5744,6 +5792,9 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                     },
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.2,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "intersect(v_idx,PRIMARY)"
@@ -5763,7 +5814,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`i2` = 1) and (`t1`.`i1` = 1) and (`t1`.`v` = 'a') and (`t1`.`pk` < 3))",
+              "original_condition": "((`t1`.`v` = 'a') and (`t1`.`i2` = 1) and (`t1`.`i1` = 1) and (`t1`.`pk` < 3))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
@@ -6010,6 +6061,9 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                     },
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.25,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "b"
@@ -6122,15 +6176,15 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`t1`.`c1` = '1')"
+                  "resulting_condition": "multiple equal('1', `t1`.`c1`)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`t1`.`c1` = '1')"
+                  "resulting_condition": "multiple equal('1', `t1`.`c1`)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`t1`.`c1` = '1')"
+                  "resulting_condition": "multiple equal('1', `t1`.`c1`)"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -6773,7 +6827,7 @@ drop table t;
 #
 CREATE TABLE t1(
 pk INT AUTO_INCREMENT PRIMARY KEY,
-col_geom GEOMETRY NOT NULL
+col_geom GEOMETRY NOT NULL SRID 0
 ) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1, ST_GeomFromText('POINT(10 10)'));
 INSERT INTO t1 VALUES (2, ST_GeomFromText('POINT(11 11)'));

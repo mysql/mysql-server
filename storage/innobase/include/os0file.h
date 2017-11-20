@@ -83,6 +83,16 @@ the OS actually supports it: Win 95 does not, NT does. */
 @return native file handle */
 # define OS_FILE_FROM_FD(fd) (HANDLE) _get_osfhandle(fd)
 
+/** Associates a C file descriptor with an existing native file handle
+@param[in]	file	native file handle
+@return C file descriptor */
+# define OS_FD_FROM_FILE(file) _open_osfhandle((intptr_t)file, _O_RDONLY)
+
+/** Closes the file associated with C file descriptor fd
+@param[in]	fd	C file descriptor
+@return 0 if success */
+# define OS_FILE_CLOSE_FD(fd) _close(fd)
+
 #else /* _WIN32 */
 
 /** File handle */
@@ -92,6 +102,16 @@ typedef int	os_file_t;
 @param fd file descriptor
 @return native file handle */
 # define OS_FILE_FROM_FD(fd) fd
+
+/** C file descriptor from an existing native file handle
+@param[in]	file	native file handle
+@return C file descriptor */
+# define OS_FD_FROM_FILE(file) file
+
+/** Closes the file associated with C file descriptor fd
+@param[in]	fd	C file descriptor
+@return 0 if success */
+# define OS_FILE_CLOSE_FD(fd) (os_file_close(fd) ? 0 : -1)
 
 #endif /* _WIN32 */
 
@@ -155,6 +175,9 @@ or if number of bytes to write are not multiple of sector size.
 With this flag, writes to file will be always buffered and ignores the value
 of innodb_flush_method. */
 static const ulint OS_BUFFERED_FILE = 102;
+
+static const ulint OS_CLONE_DATA_FILE = 103;
+static const ulint OS_CLONE_LOG_FILE = 104;
 /* @} */
 
 /** Error codes from os_file_get_last_error @{ */
@@ -908,6 +931,24 @@ os_file_create_directory(
 	const char*	pathname,
 	bool		fail_if_exists);
 
+/** Callback function type to be implemented by caller. It is called for each
+entry in directory.
+@param[in]	path	path to the file
+@param[in]	name	name of the file */
+typedef void (*os_dir_cbk_t)(const char* path, const char* name);
+
+/** This function scans the contents of a directory and invokes the callback
+for each entry.
+@param[in]	path		directory name as null-terminated string
+@param[in]	scan_cbk	use callback to be called for each entry
+@param[in]	is_drop		attempt to drop the directory after scan
+@return true if call succeeds, false on error */
+bool
+os_file_scan_directory(
+	const char*	path,
+	os_dir_cbk_t	scan_cbk,
+	bool		is_delete);
+
 /** NOTE! Use the corresponding macro os_file_create_simple(), not directly
 this function!
 A simple function to open or create a file.
@@ -1023,6 +1064,8 @@ os_file_close_func(os_file_t file);
 /* Keys to register InnoDB I/O with performance schema */
 extern mysql_pfs_key_t	innodb_log_file_key;
 extern mysql_pfs_key_t	innodb_temp_file_key;
+extern mysql_pfs_key_t	innodb_arch_file_key;
+extern mysql_pfs_key_t	innodb_clone_file_key;
 extern mysql_pfs_key_t	innodb_data_file_key;
 extern mysql_pfs_key_t	innodb_tablespace_open_file_key;
 
@@ -1153,6 +1196,10 @@ The wrapper functions have the prefix of "innodb_". */
 
 # define os_file_read_pfs(type, file, buf, offset, n)			\
 	pfs_os_file_read_func(type, file, buf, offset, n, __FILE__, __LINE__)
+
+# define os_file_copy_pfs(src, src_offset, dest, dest_offset, size)	\
+	pfs_os_file_copy_func(src, src_offset, dest, dest_offset,	\
+	size, __FILE__, __LINE__)
 
 # define os_file_read_no_error_handling_pfs(type, file, buf, offset, n, o)	\
 	pfs_os_file_read_no_error_handling_func(			\
@@ -1313,6 +1360,27 @@ pfs_os_file_read_func(
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
+	const char*	src_file,
+	uint		src_line);
+
+/** copy data from one file to another file. Data is read/written
+at current file offset.
+@param[in]	src		file handle to copy from
+@param[in]	src_offset	offset to copy from
+@param[in]	dest		file handle to copy to
+@param[in]	dest_offset	offset to copy to
+@param[in]	size		number of bytes to copy
+@param[in]	src_file	file name where func invoked
+@param[in]	src_line	line where the func invoked
+@return DB_SUCCESS if successful */
+UNIV_INLINE
+dberr_t
+pfs_os_file_copy_func(
+	pfs_os_file_t	src,
+	os_offset_t	src_offset,
+	pfs_os_file_t	dest,
+	os_offset_t	dest_offset,
+	uint		size,
 	const char*	src_file,
 	uint		src_line);
 
@@ -1562,6 +1630,9 @@ to original un-instrumented file I/O APIs */
 # define os_file_read_pfs(type, file, buf, offset, n)			\
 	os_file_read_func(type, file, buf, offset, n)
 
+# define os_file_copy_pfs(src, src_offset, dest, dest_offset, size)	\
+	os_file_copy_func(src, src_offset, dest, dest_offset, size)
+
 # define os_file_read_no_error_handling_pfs(type, file, buf, offset, n, o)	\
 	os_file_read_no_error_handling_func(type, file, buf, offset, n, o)
 
@@ -1615,6 +1686,15 @@ to original un-instrumented file I/O APIs */
 #endif
 
 #ifdef UNIV_PFS_IO
+	#define os_file_copy(src, src_offset, dest, dest_offset, size)	\
+		os_file_copy_pfs(src, src_offset, dest, dest_offset, size)
+#else
+	#define os_file_copy(src, src_offset, dest, dest_offset, size)	\
+		os_file_copy_pfs(src.m_file, src_offset, dest.m_file,	\
+		dest_offset, size)
+#endif
+
+#ifdef UNIV_PFS_IO
 	#define os_file_read_no_error_handling(type, file, buf, offset, n, o)  \
 		 os_file_read_no_error_handling_pfs(type, file, buf, offset, n, o)
 #else
@@ -1654,13 +1734,15 @@ os_file_get_size(
 @param[in]	file		handle to a file
 @param[in]	size		file size
 @param[in]	read_only	Enable read-only checks if true
+@param[in]	flush		Flush file content to disk
 @return true if success */
 bool
 os_file_set_size(
 	const char*	name,
 	pfs_os_file_t	file,
 	os_offset_t	size,
-	bool		read_only)
+	bool		read_only,
+	bool		flush)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Truncates a file at its current position.
@@ -1681,6 +1763,17 @@ os_file_truncate(
 	const char*	pathname,
 	pfs_os_file_t	file,
 	os_offset_t	size);
+
+/** Set read/write position of a file handle to specific offset.
+@param[in]	pathname	file path
+@param[in]	file		file handle
+@param[in]	offset		read/write offset
+@return true if success */
+bool
+os_file_seek(
+	const char*	pathname,
+	os_file_t	file,
+	os_offset_t	offset);
 
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
 function!
@@ -1718,6 +1811,23 @@ os_file_read_func(
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n)
+	MY_ATTRIBUTE((warn_unused_result));
+
+/** copy data from one file to another file. Data is read/written
+at current file offset.
+@param[in]	src_file	file handle to copy from
+@param[in]	src_offset	offset to copy from
+@param[in]	dest_file	file handle to copy to
+@param[in]	dest_offset	offset to copy to
+@param[in]	size		number of bytes to copy
+@return DB_SUCCESS if successful */
+dberr_t
+os_file_copy_func(
+	os_file_t	src_file,
+	os_offset_t	src_offset,
+	os_file_t	dest_file,
+	os_offset_t	dest_offset,
+	uint		size)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Rewind file to its start, read at most size - 1 bytes from it to str, and
@@ -2050,6 +2160,12 @@ os_file_decompress_page(
 On Windows, we convert '/' to '\', else we convert '\' to '/'.
 @param[in,out] str A null-terminated directory and file path */
 void os_normalize_path(char*	str);
+
+/** Determine if O_DIRECT is supported.
+@retval	true	if O_DIRECT is supported.
+@retval	false	if O_DIRECT is not supported. */
+bool
+os_is_o_direct_supported();
 
 /* Determine if a path is an absolute path or not.
 @param[in]	OS directory or file path to evaluate

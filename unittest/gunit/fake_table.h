@@ -23,26 +23,26 @@
 #include <string>
 #include <vector>
 
-#include "current_thd.h"
-#include "field.h"
 #include "gmock/gmock-generated-nice-strict.h"
 #include "gtest/gtest.h"
 #include "handler-t.h"
-#include "handler.h"
-#include "item.h"
-#include "key.h"
 #include "lex_string.h"
 #include "mock_field_long.h" // todo: put this #include first
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_list.h"
-#include "sql_plugin_ref.h"
-#include "table.h"
+#include "sql/current_thd.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/table.h"
 
 using ::testing::NiceMock;
 using std::vector;
@@ -285,6 +285,7 @@ private:
   {
     field[pos]= new_field;
     new_field->table= this;
+    new_field->orig_table= this;
     static const char *table_name= "Fake";
     new_field->table_name= &table_name;
     new_field->field_index= pos;

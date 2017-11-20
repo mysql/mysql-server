@@ -31,7 +31,7 @@
 #include "xpl_server.h"
 
 
-xpl::Session::Session(ngs::Client_interface &client, ngs::Protocol_encoder *proto, const Session_id session_id)
+xpl::Session::Session(ngs::Client_interface &client, ngs::Protocol_encoder_interface *proto, const Session_id session_id)
 : ngs::Session(client, proto, session_id),
   m_sql(proto),
   m_was_authenticated(false)

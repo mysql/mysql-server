@@ -52,7 +52,7 @@ SELECT object_schema, object_name FROM performance_schema.objects_summary_global
 WHERE object_schema='test';
 object_schema	object_name
 create table performance_schema.t1(a int);
-ERROR 42000: CREATE command denied to user 'root'@'localhost' for table 't1'
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
 WHERE object_schema='test';
 object_schema	object_name
@@ -125,6 +125,7 @@ mysql_errno	returned_sqlstate	message_text	errors	warnings
 1146	42S02	Table 'test.t1' doesn't exist	1	0
 use performance_schema;
 truncate performance_schema.events_statements_history;
+set names latin1;
 select 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' AS A;
 A
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -134,3 +135,74 @@ B
 select count(*) from events_statements_history where sql_text like "%...";
 count(*)
 2
+drop table if exists test.t1;
+insert into performance_schema.setup_objects
+values ('TABLE', 'test', 't1', 'YES', 'YES');
+create table test.t1 (a int, b int, primary key (a), key my_index(b));
+insert into test.t1 values (1, 2), (3, 4), (5, 6);
+flush table test.t1;
+select * from test.t1 where a = 3;
+a	b
+3	4
+select * from test.t1 where b = 4;
+a	b
+3	4
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
+from performance_schema.table_lock_waits_summary_by_table
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR
+TABLE	test	t1	3
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	COUNT_STAR
+TABLE	test	t1	PRIMARY	1
+TABLE	test	t1	my_index	1
+TABLE	test	t1	NULL	3
+update performance_schema.setup_objects
+set timed = 'NO' where OBJECT_NAME = 't1';
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
+from performance_schema.table_lock_waits_summary_by_table
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR
+TABLE	test	t1	3
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	COUNT_STAR
+TABLE	test	t1	PRIMARY	1
+TABLE	test	t1	my_index	1
+TABLE	test	t1	NULL	3
+update performance_schema.setup_objects
+set enabled = 'NO' where OBJECT_NAME = 't1';
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
+from performance_schema.table_lock_waits_summary_by_table
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR
+TABLE	test	t1	3
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	COUNT_STAR
+TABLE	test	t1	PRIMARY	1
+TABLE	test	t1	my_index	1
+TABLE	test	t1	NULL	3
+update performance_schema.setup_objects
+set enabled = 'YES' where OBJECT_NAME = 't1';
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
+from performance_schema.table_lock_waits_summary_by_table
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR
+TABLE	test	t1	3
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	COUNT_STAR
+TABLE	test	t1	PRIMARY	1
+TABLE	test	t1	my_index	1
+TABLE	test	t1	NULL	3
+drop table test.t1;
+delete from performance_schema.setup_objects
+where (OBJECT_TYPE = 'TABLE')
+and (OBJECT_SCHEMA = 'test')
+and (OBJECT_NAME = 't1');

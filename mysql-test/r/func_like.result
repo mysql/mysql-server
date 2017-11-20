@@ -4,17 +4,15 @@ insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-explain extended select * from t1 where a like 'abc%';
+explain select * from t1 where a like 'abc%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a	a	43	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like 'abc%')
-explain extended select * from t1 where a like concat('abc','%');
+explain select * from t1 where a like concat('abc','%');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a	a	43	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like <cache>(concat('abc','%')))
 select * from t1 where a like "abc%";
 a
@@ -191,7 +189,8 @@ DROP TABLE t1, t2;
 # Bug#59149 valgrind warnings with "like .. escape .." function
 #
 SELECT '' LIKE '1' ESCAPE COUNT(1);
-ERROR HY000: Incorrect arguments to ESCAPE
+'' LIKE '1' ESCAPE COUNT(1)
+0
 End of 5.1 tests
 #
 # Bug #18114294	 CRASH IN ITEM_FUNC_LIKE::BM_MATCHES

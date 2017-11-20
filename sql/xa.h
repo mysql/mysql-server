@@ -21,13 +21,13 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "sql_cmd.h"          // Sql_cmd
-#include "sql_plugin_ref.h"   // plugin_ref
-#include "xa_aux.h"           // serialize_xid
+#include "mysql/udf_registration_types.h"
+#include "sql/sql_cmd.h"      // Sql_cmd
+#include "sql/sql_plugin_ref.h" // plugin_ref
+#include "sql/xa_aux.h"       // serialize_xid
 
 class Protocol;
 class THD;

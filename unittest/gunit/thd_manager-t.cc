@@ -24,9 +24,9 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
-#include "mysqld.h"
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "sql_class.h"
+#include "sql/mysqld.h"
+#include "sql/mysqld_thd_manager.h" // Global_THD_manager
+#include "sql/sql_class.h"
 #include "thread_utils.h"
 
 using thread::Thread;

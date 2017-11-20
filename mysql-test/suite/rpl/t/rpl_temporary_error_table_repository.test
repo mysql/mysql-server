@@ -79,10 +79,12 @@ ROLLBACK;
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
+--disable_warnings
 SET @@GLOBAL.slave_transaction_retries = @saved_slave_transaction_retries;
 SET @@GLOBAL.master_info_repository = @saved_master_info_repository;
 SET @@GLOBAL.relay_log_info_repository = @saved_relay_log_info_repository;
 SET @@GLOBAL.innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout ;
+--enable_warnings
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

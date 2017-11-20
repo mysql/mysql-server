@@ -1,16 +1,14 @@
 ## Test cases for authorization against an unsupported plugin
 
---let plugins= MYSQLXPLUGIN,PLUGIN_AUTH
---source include/check_plugin_dir.inc
+--source include/xplugin_preamble.inc
 --source include/have_ssl.inc
 --source include/have_mysql_no_login_plugin.inc
---source include/xplugin_preamble.inc
 
 call mtr.add_suppression("Plugin mysqlx reported: '.*: Unsuccessful login attempt: Invalid user or password'");
 
 ## Test starts here
 
---let $xtest_file= $MYSQL_TMP_DIR/connection_auth_plugin.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/connection_auth_plugin_unsupported.tmp
 --write_file $xtest_file
 -->quiet
 -->sql

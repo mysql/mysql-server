@@ -89,7 +89,7 @@ char *my_tmpdir(MY_TMPDIR *tmpdir)
   if (0 == tmpdir->max)
     return tmpdir->list[0];
 
-  Mutex_lock(&tmpdir->mutex);
+  MUTEX_LOCK(lock, &tmpdir->mutex);
   char *dir= tmpdir->list[tmpdir->cur];
   tmpdir->cur= (tmpdir->cur == tmpdir->max) ? 0 : tmpdir->cur + 1;
 

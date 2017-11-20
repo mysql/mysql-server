@@ -26,7 +26,7 @@ DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5;
 DROP VIEW IF EXISTS v1;
 --enable_warnings
 
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 
 --echo #
 --echo # Bug#11763174 INFORMATION_SCHEMA.PARAMETERS.NUMERIC_PRECISION SHOULD BE BIGINT 
@@ -853,7 +853,7 @@ DROP FUNCTION func2;
 #
 # Bug#15307 GROUP_CONCAT() with ORDER BY returns empty set on information_schema
 #
-SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name), COUNT(*) AS num
+SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name ORDER BY table_name), COUNT(*) AS num
 FROM information_schema.columns WHERE
 table_schema='information_schema' AND
 (column_type = 'varchar(7)' OR column_type = 'varchar(20)'
@@ -1169,7 +1169,9 @@ DROP TABLE IF EXISTS server_status;
 DROP EVENT IF EXISTS event_status;
 --enable_warnings
 
-SET GLOBAL event_scheduler=1;
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
 
 DELIMITER $$;
 
@@ -1194,7 +1196,6 @@ let $wait_condition=select count(*) = 0 from information_schema.events where eve
 SELECT variable_name FROM server_status;
 
 DROP TABLE server_status;
-SET GLOBAL event_scheduler=0;
 
 #
 # Bug#30310 wrong result on SELECT * FROM INFORMATION_SCHEMA.SCHEMATA WHERE ..
@@ -1262,10 +1263,10 @@ select * from `information_schema`.`VIEWS` where `TABLE_SCHEMA` = NULL;
 select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
 
 #
-# Bug#31630 debug assert with explain extended select ... from i_s
+# Bug#31630 debug assert with explain select ... from i_s
 #
 --disable_result_log
-explain extended select 1 from information_schema.tables;
+explain select 1 from information_schema.tables;
 --enable_result_log
 
 #
@@ -1514,15 +1515,6 @@ disconnect con3726_2;
 drop tables t1, t3;
 
 #
-# Bug#39270 I_S optimization algorithm does not work properly in some cases
-#
---replace_result partitions PARTITIONS
-EXPLAIN SELECT * FROM information_schema.PARTITIONS WHERE TABLE_NAME='t1';
---replace_result referential_constraints REFERENTIAL_CONSTRAINTS
-EXPLAIN SELECT * FROM information_schema.REFERENTIAL_CONSTRAINTS
-  WHERE CONSTRAINT_SCHEMA='test';
-
-#
 # Bug#24062 Incorrect error msg after execute DROP TABLE IF EXISTS on information_schema
 #
 --error ER_DBACCESS_DENIED_ERROR
@@ -1688,7 +1680,7 @@ let $wait_condition=
         info = "rename table t1 to t3, t2 to t1, t3 to t2";
 --source include/wait_condition.inc
 
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 --echo # Without WL9494, issuing a query to I_S will open 't0' and get
 --echo # blocked on 't1' because of RENAME. With WL9494, I_S query is just
 --echo # a scan over dictionary tables and do not really open the table,
@@ -1899,7 +1891,7 @@ DROP USER user_name_len_22_01234@localhost;
 DROP USER очень_очень_очень_длинный_юзер__@localhost;
 set names default;
 
-SET SESSION information_schema_stats=cached;
+SET SESSION information_schema_stats_expiry=default;
 set sql_mode= @orig_sql_mode;
 
 --echo #
@@ -2196,8 +2188,9 @@ DROP TABLE t1;
 --echo # InnoDB SE even for hidden index.
 --echo #
 
-set information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry= 0;
 SELECT INDEX_NAME FROM INFORMATION_SCHEMA.`STATISTICS` WHERE `TABLE_NAME` = 'innodb_table_stats' AND Cardinality ;
+SET SESSION information_schema_stats_expiry= default;
 
 --echo #
 --echo # Bug#25188540 FIELD_TINY::VAL_INT(): ASSERTION `!TABLE || (!TABLE->READ_SET |......)' FAILED
@@ -2223,17 +2216,10 @@ SELECT * FROM INFORMATION_SCHEMA.CHARACTER_SETS WHERE DESCRIPTION LIKE '%japanes
 --echo #
 --echo # Make sure user does not access following
 --echo # INFORMATION_SCHEMA tables:
---echo #   TABLES_DYNAMIC, STATISTICS_DYNAMIC
---echo #   SHOW_STATISTICS, SHOW_STATISTICS_DYNAMIC,
+--echo #   SHOW_STATISTICS,
 --echo #
 --error ER_NO_SYSTEM_VIEW_ACCESS
-SELECT * FROM INFORMATION_SCHEMA.TABLES_DYNAMIC;
---error ER_NO_SYSTEM_VIEW_ACCESS
-SELECT * FROM INFORMATION_SCHEMA.STATISTICS_DYNAMIC;
---error ER_NO_SYSTEM_VIEW_ACCESS
 SELECT * FROM INFORMATION_SCHEMA.SHOW_STATISTICS;
---error ER_NO_SYSTEM_VIEW_ACCESS
-SELECT * FROM INFORMATION_SCHEMA.SHOW_STATISTICS_DYNAMIC;
 
 --echo #
 --echo # Bug#25793429 CAN'T RETURN
@@ -2248,4 +2234,69 @@ SELECT create_options, UPPER(create_options),
   FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 SELECT privileges, UPPER(privileges)
   FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 't1';
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#18925: subqueries with MIN/MAX functions on INFORMARTION_SCHEMA 
+--echo #
+
+SELECT t.table_name, c1.column_name
+  FROM information_schema.tables t
+       INNER JOIN
+       information_schema.columns c1
+       ON t.table_schema = c1.table_schema AND
+          t.table_name = c1.table_name
+  WHERE t.table_schema = 'information_schema' AND
+        c1.ordinal_position =
+        ( SELECT COALESCE(MIN(c2.ordinal_position),1)
+            FROM information_schema.columns c2
+            WHERE c2.table_schema = t.table_schema AND
+                  c2.table_name = t.table_name AND
+                  c2.column_name LIKE '%SCHEMA%'
+        )
+  AND t.table_name NOT LIKE 'ndb%'
+  AND t.table_name NOT LIKE 'INNODB%'
+  ORDER BY t.table_name COLLATE utf8_general_ci,
+           c1.column_name COLLATE utf8_general_ci;
+SELECT t.table_name, c1.column_name
+  FROM information_schema.tables t
+       INNER JOIN
+       information_schema.columns c1
+       ON t.table_schema = c1.table_schema AND
+          t.table_name = c1.table_name
+  WHERE t.table_schema = 'information_schema' AND
+        c1.ordinal_position =
+        ( SELECT COALESCE(MIN(c2.ordinal_position),1)
+            FROM information_schema.columns c2
+            WHERE c2.table_schema = 'information_schema' AND
+                  c2.table_name = t.table_name AND
+                  c2.column_name LIKE '%SCHEMA%'
+        )
+  AND t.table_name NOT LIKE 'ndb%'
+  AND t.table_name NOT LIKE 'INNODB%'
+  ORDER BY t.table_name COLLATE utf8_general_ci,
+           c1.column_name COLLATE utf8_general_ci;
+
+
+--echo #
+--echo # BUG#24679166: TABLE CREATION WITH BINARY TYPE COLUMN IS RESULTING IN
+--echo #               ASSERT CONDITION FAILURE.
+
+--echo # Without patch, the server exits in debug build and
+--echo # an error is reported in release build.
+CREATE TABLE t1(fld1 BINARY(10) NOT NULL DEFAULT 'a',
+                fld2 BINARY(10) NOT NULL DEFAULT 0xAA,
+                fld3 BINARY(10) NOT NULL DEFAULT 0xA,
+                fld4 BINARY(10) NOT NULL DEFAULT b'1001',
+                fld5 VARBINARY(5) NOT NULL DEFAULT 'a',
+                fld6 VARBINARY(5) NOT NULL DEFAULT 0xAA,
+                fld7 VARBINARY(5) NOT NULL DEFAULT 0xA,
+                fld8 VARBINARY(5) NOT NULL DEFAULT b'1001');
+
+--echo # With the patch, default value is displayed in the hex format.
+SHOW COLUMNS from t1;
+SELECT COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME= 't1';
+
+--echo # Cleanup.
 DROP TABLE t1;

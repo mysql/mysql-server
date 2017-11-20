@@ -17,7 +17,7 @@
 #define SQL_CMD_CREATE_TABLE_INCLUDED
 
 #include "my_sqlcommand.h"
-#include "sql_cmd_ddl.h"
+#include "sql/sql_cmd_ddl.h"
 
 class Alter_info;
 class THD;

@@ -3,6 +3,8 @@
 ####    no purge should happen
 SET GLOBAL binlog_expire_logs_seconds= 0;
 SET GLOBAL expire_logs_days= 0;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 CREATE TABLE t1(s LONGBLOB );
 Case:0
 FLUSH LOGS;
@@ -35,6 +37,8 @@ RESET MASTER;
 ####
 SET GLOBAL binlog_expire_logs_seconds= 3600;
 SET GLOBAL expire_logs_days= 1;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 CREATE TABLE t1(s LONGBLOB );
 Case:0
 FLUSH LOGS;
@@ -68,6 +72,8 @@ RESET MASTER;
 Testing with smaller values of binlog_expire_logs_seconds
 SET GLOBAL binlog_expire_logs_seconds= 30;
 SET GLOBAL expire_logs_days= 0;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 FLUSH LOGS;
 FLUSH LOGS;
 FLUSH LOGS;
@@ -75,6 +81,8 @@ RESET MASTER;
 Testing with greater values of binlog_expire_logs_seconds
 SET GLOBAL binlog_expire_logs_seconds= 3600;
 SET GLOBAL expire_logs_days= 0;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 CREATE TABLE t1(s LONGBLOB );
 Case:0
 FLUSH LOGS;
@@ -107,6 +115,8 @@ RESET MASTER;
 ####
 SET GLOBAL binlog_expire_logs_seconds= 0;
 SET GLOBAL expire_logs_days= 1;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 CREATE TABLE t1(s LONGBLOB );
 Case:0
 FLUSH LOGS;
@@ -136,3 +146,5 @@ DROP TABLE t1;
 RESET MASTER;
 SET GLOBAL binlog_expire_logs_seconds= 0;
 SET GLOBAL expire_logs_days= 0;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead

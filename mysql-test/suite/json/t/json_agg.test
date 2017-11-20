@@ -55,17 +55,17 @@ EXECUTE p4;
 deallocate prepare p4;
 
 
-SELECT JSON_MERGE(JSON_ARRAYAGG(b), '[true, false]') FROM t1;
+SELECT JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]') FROM t1;
 
 PREPARE p1 FROM
-"SELECT a, JSON_MERGE(JSON_ARRAYAGG(b), '[true, false]') FROM t1 GROUP BY a";
+"SELECT a, JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]') FROM t1 GROUP BY a";
 EXECUTE p1;
 EXECUTE p1;
 deallocate prepare p1;
 
 
 PREPARE p4 FROM
-"SELECT JSON_MERGE(JSON_ARRAYAGG(b), '[true, false]') FROM t1";
+"SELECT JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]') FROM t1";
 EXECUTE p4;
 EXECUTE p4;
 deallocate prepare p4;
@@ -118,11 +118,11 @@ EXECUTE p4;
 EXECUTE p4;
 deallocate prepare p4;
 
-SELECT a, JSON_MERGE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1 GROUP BY a;
-SELECT JSON_MERGE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1;
+SELECT a, JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1 GROUP BY a;
+SELECT JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1;
 
 PREPARE p1 FROM
-"SELECT a, JSON_MERGE(JSON_OBJECTAGG(k, b), '[true, false]')
+"SELECT a, JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
 FROM t1
 GROUP BY a";
 EXECUTE p1;
@@ -131,7 +131,7 @@ deallocate prepare p1;
 
 
 PREPARE p4 FROM
-"SELECT JSON_MERGE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1";
+"SELECT JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1";
 EXECUTE p4;
 EXECUTE p4;
 deallocate prepare p4;

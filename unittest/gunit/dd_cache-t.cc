@@ -23,27 +23,28 @@
 #include <vector>
 
 #include "dd.h"
-#include "dd/cache/dictionary_client.h"
-#include "dd/cache/element_map.h"
-#include "dd/dd.h"
-#include "dd/impl/cache/cache_element.h"
-#include "dd/impl/cache/free_list.h"
-#include "dd/impl/cache/shared_dictionary_cache.h"
-#include "dd/impl/cache/storage_adapter.h"
-#include "dd/impl/types/charset_impl.h"
-#include "dd/impl/types/collation_impl.h"
-#include "dd/impl/types/column_statistics_impl.h"
-#include "dd/impl/types/event_impl.h"
-#include "dd/impl/types/procedure_impl.h"
-#include "dd/impl/types/schema_impl.h"
-#include "dd/impl/types/table_impl.h"
-#include "dd/impl/types/tablespace_impl.h"
-#include "dd/impl/types/view_impl.h"
-// Avoid warning about deleting ptr to incomplete type on Win
-#include "dd/properties.h"
 #include "lex_string.h"
-#include "mdl.h"
 #include "my_compiler.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/cache/element_map.h"
+#include "sql/dd/dd.h"
+#include "sql/dd/impl/cache/cache_element.h"
+#include "sql/dd/impl/cache/free_list.h"
+#include "sql/dd/impl/cache/shared_dictionary_cache.h"
+#include "sql/dd/impl/cache/storage_adapter.h"
+#include "sql/dd/impl/types/charset_impl.h"
+#include "sql/dd/impl/types/collation_impl.h"
+#include "sql/dd/impl/types/column_statistics_impl.h"
+#include "sql/dd/impl/types/event_impl.h"
+#include "sql/dd/impl/types/procedure_impl.h"
+#include "sql/dd/impl/types/schema_impl.h"
+#include "sql/dd/impl/types/table_impl.h"
+#include "sql/dd/impl/types/tablespace_impl.h"
+#include "sql/dd/impl/types/view_impl.h"
+// Avoid warning about deleting ptr to incomplete type on Win
+#include "sql/dd/properties.h"
+#include "sql/mdl.h"
+#include "sql/sql_base.h"
 #include "test_mdl_context_owner.h"
 #include "test_utils.h"
 
@@ -122,11 +123,13 @@ protected:
   static void SetUpTestCase()
   {
     mdl_init();
+    table_def_init();
   }
 
   static void TearDownTestCase()
   {
     dd::cache::Shared_dictionary_cache::shutdown();
+    table_def_free();
     mdl_destroy();
   }
 
@@ -1078,7 +1081,6 @@ TEST_F(CacheStorageTest, GetTableBySePrivateId)
 
   dd::Partition *part_obj= obj->add_partition();
   part_obj->set_name("table_part2");
-  part_obj->set_level(1);
   part_obj->set_se_private_id(0xAFFF);
   part_obj->set_engine("innodb");
   part_obj->set_number(3);
@@ -1569,5 +1571,117 @@ TEST_F(CacheStorageTest, TestTriggers)
   dc.commit_modified_objects();
 
 }
+
+
+TEST_F(CacheStorageTest, PartitionTest)
+{
+  dd::cache::Dictionary_client *dc= thd()->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+
+  std::unique_ptr<dd::Table> obj(dd::create_object<dd::Table>());
+//  dd_unittest::set_attributes(obj.get(), "part_table1", *mysql);
+  dd::String_type table_name="part_table1";
+  obj->set_name(table_name);
+
+  obj->set_schema_id(mysql->id());
+  obj->set_collation_id(1);
+  obj->set_tablespace_id(1);
+  obj->set_engine("innodb");
+
+  //
+  // Create a new column
+  //
+  dd::Column *col_obj1= obj->add_column();
+  col_obj1->set_name(table_name + "col2");
+  col_obj1->set_default_value_null(true);
+  col_obj1->set_collation_id(1);
+
+  dd::Partition *part_obj1= obj->add_partition();
+  part_obj1->set_name("p1");
+  part_obj1->set_se_private_id(0xAFFF);
+  part_obj1->set_engine("innodb");
+  part_obj1->set_number(0);
+  part_obj1->set_comment("Partition comment");
+  part_obj1->set_tablespace_id(1);
+
+  dd::Partition *sub_part_obj1= part_obj1->add_sub_partition();
+  sub_part_obj1->set_name("p1s1");
+  sub_part_obj1->set_se_private_id(0xAFFF);
+  sub_part_obj1->set_engine("innodb");
+  sub_part_obj1->set_number(0);
+  sub_part_obj1->set_comment("Partition comment");
+  sub_part_obj1->set_tablespace_id(1);
+
+  dd::Partition *sub_part_obj2= part_obj1->add_sub_partition();
+  sub_part_obj2->set_name("p1s2");
+  sub_part_obj2->set_se_private_id(0xAFFF);
+  sub_part_obj2->set_engine("innodb");
+  sub_part_obj2->set_number(1);
+  sub_part_obj2->set_comment("Partition comment");
+  sub_part_obj2->set_tablespace_id(1);
+
+  dd::Partition *part_obj2= obj->add_partition();
+  part_obj2->set_name("p2");
+  part_obj2->set_se_private_id(0xAFFF);
+  part_obj2->set_engine("innodb");
+  part_obj2->set_number(1);
+  part_obj2->set_comment("Partition comment");
+  part_obj2->set_tablespace_id(1);
+
+  sub_part_obj1= part_obj2->add_sub_partition();
+  sub_part_obj1->set_name("p2s1");
+  sub_part_obj1->set_se_private_id(0xAFFF);
+  sub_part_obj1->set_engine("innodb");
+  sub_part_obj1->set_number(0);
+  sub_part_obj1->set_comment("Partition comment");
+  sub_part_obj1->set_tablespace_id(1);
+
+  sub_part_obj2= part_obj2->add_sub_partition();
+  sub_part_obj2->set_name("p2s2");
+  sub_part_obj2->set_se_private_id(0xAFFF);
+  sub_part_obj2->set_engine("innodb");
+  sub_part_obj2->set_number(1);
+  sub_part_obj2->set_comment("Partition comment");
+  sub_part_obj2->set_tablespace_id(1);
+
+  lock_object(obj->name());
+  EXPECT_FALSE(dc->store(obj.get()));
+
+  // Get table object.
+  const dd::Table *tab= NULL;
+
+  EXPECT_FALSE(dc->acquire<dd::Table>("mysql", table_name, &tab));
+  EXPECT_NE(nullp<const dd::Table>(), tab);
+  if (tab)
+  {
+    EXPECT_EQ(tab->name(), table_name);
+    EXPECT_EQ(*obj, *tab);
+
+    int i=1;
+    // Verify the partition info
+    for (const dd::Partition *p : tab->partitions())
+    {
+      dd::Stringstream_type part_name;
+      part_name << "p" << i++;
+      EXPECT_EQ(p->name(), part_name.str());
+      int j=1;
+      for (const dd::Partition *s : p->sub_partitions())
+      {
+        dd::Stringstream_type sub_part_name;
+        sub_part_name << part_name.str() << "s" << j++;
+        EXPECT_EQ(s->name(), sub_part_name.str());
+      }
+    }
+
+    const dd::Table *obj2= NULL;
+    EXPECT_FALSE(dc->acquire<dd::Table>("mysql", table_name, &obj2));
+    EXPECT_NE(nullp<const dd::Table>(), tab);
+    EXPECT_EQ(*obj, *obj2);
+
+    EXPECT_FALSE(dc->drop(obj2));
+    dc->commit_modified_objects();
+  }
+}
+
 #endif /* !DBUG_OFF */
 }

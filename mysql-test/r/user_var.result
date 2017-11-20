@@ -263,7 +263,7 @@ create table t1 select @first_var;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `@first_var` longtext CHARACTER SET latin1
+  `@first_var` longtext
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 set @a=18446744071710965857;
@@ -659,4 +659,37 @@ col
 1
 SET @c =(SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 GROUP BY 1 LIKE (SELECT 1 FROM t1 as t2)) AS col);
 SET @d =(SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 ORDER BY 1 LIKE (SELECT 1 FROM t1 as t2)) AS col);
+DROP TABLE t1;
+Bug#25727892: Refactor Item::const_item() as a non-virtual function
+Coverage for cached and non-cached user variables
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES (1,1), (1,2), (2,1);
+explain SELECT a FROM t1 WHERE a = @x;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = <cache>((@`x`)))
+explain SELECT a FROM t1 WHERE a = @x AND (@x:= @x);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = (@`x`)) and (@x:=(@`x`)))
+explain SELECT a FROM t1 WHERE a = @x INTO @x;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = <cache>((@`x`)))
+SET @x= 1;
+SELECT a FROM t1 WHERE a = @x;
+a
+1
+1
+SELECT a FROM t1 WHERE a = @x AND (@x:= @x);
+a
+1
+1
+SELECT a FROM t1 WHERE a = @x INTO @x;
+ERROR 42000: Result consisted of more than one row
+SET @x= 2;
+SELECT a FROM t1 WHERE a = @x INTO @x;
 DROP TABLE t1;

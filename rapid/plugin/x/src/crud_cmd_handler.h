@@ -61,7 +61,7 @@ private:
  ngs::Error_code execute(Session &session, const B &builder, const M &msg,
                          ngs::Resultset_interface &resultset,
                          Status_variable variable,
-                         bool (ngs::Protocol_encoder::*send_ok)());
+                         bool (ngs::Protocol_encoder_interface::*send_ok)());
 
   template <typename M>
   ngs::Error_code error_handling(const ngs::Error_code &error,

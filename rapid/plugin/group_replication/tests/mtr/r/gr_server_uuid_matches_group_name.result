@@ -1,0 +1,52 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+set session sql_log_bin=0;
+call mtr.add_suppression("Member server_uuid is incompatible with the group.*");
+set session sql_log_bin=1;
+[connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("Member server_uuid is incompatible with the group.*");
+set session sql_log_bin=1;
+
+#######################
+##  BOOTSTRAP CASES  ##
+#######################
+
+[connection server1]
+SET @debug_group_replication_start_on_boot= @@GLOBAL.group_replication_start_on_boot;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+include/assert_grep.inc [Found the expected error about server_uuid incompatible with the group_name]
+
+###########################
+##  NON-BOOTSTRAP CASES  ##
+###########################
+
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc ['Assert server1 is ONLINE']
+[connection server2]
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+include/assert_grep.inc [Found the expected error about server_uuid incompatible with the group_name]
+
+########################
+##  SUCCESSFUL CASES  ##
+########################
+
+[connection server1]
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_start_on_boot= @debug_group_replication_start_on_boot;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+include/assert.inc ['Assert server 1 and server 2 are ONLINE']
+
+###############
+##  Cleanup  ##
+###############
+
+include/group_replication_end.inc

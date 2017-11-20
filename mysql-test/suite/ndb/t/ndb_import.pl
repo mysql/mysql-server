@@ -114,6 +114,7 @@ my %typeinfo = (
 
 # CSV control strings
 # note --exec uses sh so these are passed in single quotes
+# note using --csvopt now to avoid quoting (windows)
 
 sub get_csvfmt1 {
   my $csvfmt = {
@@ -121,6 +122,7 @@ sub get_csvfmt1 {
     fields_enclosed_by => undef,
     fields_escaped_by => '\\',
     lines_terminated_by => '\n',
+    csvopt => 'd',      # must match above
   };
   return $csvfmt;
 }
@@ -131,6 +133,7 @@ sub get_csvfmt2 {
     fields_enclosed_by => '"',
     fields_escaped_by => '\\',
     lines_terminated_by => '\n',
+    csvopt => 'cq',     # must match above
   };
   return $csvfmt;
 }
@@ -168,14 +171,19 @@ sub init_test {
     }
   }
   # defaults
+  $test->{name} = "test->$test->{tag}";
   $test->{statedir} = "$vardir/tmp";
   $test->{csvdir} = "$vardir/tmp";
   $test->{database} = "test";
+  if (defined($test->{verify})) {
+      $test->{verify} =~ /^(all|pk)$/
+        or die "$test->{name}: bad verify option '$test->{verify}'";
+  }
   # does load data for verification need own csv file
   $test->{csvver} = $test->{verify} && $test->{rejectsgen};
   # resume requires bad rows
   $test->{resumeopt} && !$test->{rejectsgen}
-    and die "resume test requires rejected rows";
+    and die "$test->{name}: resume requires rejected rows";
 }
 
 sub get_tablename {
@@ -237,15 +245,16 @@ sub create_table {
   push(@txt, "create table $tname (");
   my $attrs = $table->{attrs};
   push(@txt, create_attrs($attrs));
-  my @pklist = ();
+  my @pkattrs = ();
   for my $attr (@$attrs) {
-    push(@pklist, $attr->{name})
+    push(@pkattrs, $attr)
       if $attr->{pk};
   }
-  if (@pklist) {
-    my $pklist = join(", ", @pklist);
+  if (@pkattrs) {
+    my $pklist = join(", ", map($_->{name}, @pkattrs));
     push(@txt, ",\nprimary key ($pklist)");
   }
+  $table->{pkattrs} = [ @pkattrs ];
   push(@txt, "\n) engine $opts->{engine};\n");
   return "@txt";
 }
@@ -289,7 +298,7 @@ sub run_import {
   my $fenc = $test->{csvfmt}{fields_enclosed_by};
   my @cmd = ();
   push(@cmd, "\$NDB_IMPORT");
-  push(@cmd, "--state-dir='$test->{statedir}'");
+  push(@cmd, "--state-dir=$test->{statedir}");
   push(@cmd, "--keep-state");
   push(@cmd, "--input-type=csv");
   push(@cmd, "--input-workers=2");
@@ -297,14 +306,18 @@ sub run_import {
   push(@cmd, "--output-workers=2");
   push(@cmd, "--db-workers=2");
   push(@cmd, "--temperrors=100");
-  push(@cmd, "--fields-terminated-by='$fter'");
-  if (defined($fenc)) {
-    push(@cmd, "--fields-optionally-enclosed-by='$fenc'");
+  if (defined($test->{csvfmt}{csvopt})) {
+    push(@cmd, "--csvopt=$test->{csvfmt}{csvopt}");
+  } else {
+    push(@cmd, "--fields-terminated-by='$fter'");
+    if (defined($fenc)) {
+      push(@cmd, "--fields-optionally-enclosed-by='$fenc'");
+    }
   }
   if ($test->{rejectsopt}) {
     push(@cmd, "--rejects=$test->{rejectsopt}");
   }
-  # $opts tells is this is a resume
+  # $opts tells if this is a resume
   if ($opts->{resumeopt}) {
     push(@cmd, "--resume");
   }
@@ -330,6 +343,12 @@ sub select_count {
   my $tname = get_tablename($test, $table, $opts);
   my @txt = ();
   push(@txt, "select count(*) from $tname;\n");
+  if ($test->{dumpdata}) {
+    my $file = "$vardir/tmp/$tname.dump";
+    push @txt, "--disable_query_log\n";
+    push(@txt, "select * from $tname order by 1\ninto outfile '$file';\n");
+    push @txt, "--enable_query_log\n";
+  }
   return "@txt";
 }
 
@@ -352,6 +371,8 @@ sub load_table {
   my @txt = ();
   push(@txt, "load data infile '$csvfile'\n");
   push(@txt, "into table $tname\n");
+  # we generate 8-bit ascii so use some charset accepting it
+  push(@txt, "character set latin1\n");
   push(@txt, "fields");
   push(@txt, "terminated by '$fter'");
   if (defined($fenc)) {
@@ -383,6 +404,9 @@ sub verify_table {
   my @cls = ();
   my $attrs = $table->{attrs};
   for my $attr (@$attrs) {
+    if ($test->{verify} eq 'pk' && !$attr->{pk}) {
+      next;
+    }
     my $a1 = "x." . $attr->{name};
     my $a2 = "y." . $attr->{name};
     my $c;
@@ -441,7 +465,7 @@ sub write_tests {
   my $tag = $tests->{tag};
   my $file = "$vardir/tmp/ndb_import$tag.inc";
   my $fh = gensym();
-  open($fh, ">$file")
+  open($fh, ">:raw", $file)
     or die "$file: open for write failed: $!";
   my $testlist = $tests->{testlist};
   for my $test (@$testlist) {
@@ -550,7 +574,7 @@ sub make_byte {
     my $x;
     # non-binary used only to make readable files, no charsets yet
     if (!$binary) {
-      $x = 32 + myrand(127 - 32);
+      $x = 0x61 + myrand(26);
     } else {
       $x = myrand(256);
     }
@@ -559,6 +583,10 @@ sub make_byte {
     }
     if ($x == 0) {
       $val = $fesc.'0';
+      last;
+    }
+    if (0 && $x == 032) {       # now using _O_BINARY on windows
+      $val = $fesc.'Z';
       last;
     }
     if ($x == ord($fter)) {
@@ -611,6 +639,9 @@ sub make_string {
   my ($test, $opts) = @_;
   my $hilen = $opts->{hilen};
   my $len = myrand(10) != 0 ? myrand2($hilen, $par_randbias) : $hilen;
+  if ($len == 0 && $opts->{minlen}) {
+    $len = $opts->{minlen};
+  }
   my $val = "";
   for (my $i = 0; $i < $len; $i++) {
     $val .= make_byte($test, $opts);
@@ -627,6 +658,7 @@ sub gen_char {
   } else {
     $opts->{binary} = $typeinfo->{binary};
     $opts->{hilen} = $attr->{len};
+    $opts->{minlen} = $attr->{minlen};
     $val = make_string($test, $opts);
   }
   return $val;
@@ -822,7 +854,7 @@ sub gen_csvfield {
     if ($opts->{rejectsflag} &&
         myrand(100) < $par_nullpct) {
       $val = $fesc.'N';
-      $opts->{rejectserrs}++;
+      $opts->{rejectserrs} .= ":null";
     }
   }
   if ($opts->{quote}) {
@@ -831,30 +863,82 @@ sub gen_csvfield {
   return $val;
 }
 
+sub get_pkvals {
+  my ($table, $line) = @_;
+  my $pkattrs = $table->{pkattrs};
+  my @pkvals = ();
+  for my $attr (@$pkattrs) {
+    my $n = $attr->{attrno};
+    push(@pkvals, $line->[$n]);
+  }
+  return [ @pkvals ];
+}
+
+sub set_pkvals {
+  my ($table, $line, $pkvals) = @_;
+  my $pkattrs = $table->{pkattrs};
+  my $k = 0;
+  for my $attr (@$pkattrs) {
+    my $n = $attr->{attrno};
+    $line->[$n] = $pkvals->[$k];
+    $k++;
+  }
+}
+
 sub gen_csvline {
   my ($test, $table, $opts) = @_;
+  my $tname = get_tablename($test, $table, { ver => 0 });
   my $attrs = $table->{attrs};
+  my $rowid = $opts->{rowid};
   my $fter = $test->{csvesc}{fields_terminated_by};
   my $fesc = $test->{csvesc}{fields_escaped_by};
   my $lter = $test->{csvesc}{lines_terminated_by};
   my @line = ();
-  if ($opts->{rejectsflag}) {
-    $opts->{rejectserrs} = 0;
-  }
+  # per line
+  $opts->{rejectserrs} = "";
   for my $attr (@$attrs) {
     my $val = gen_csvfield($test, $table, $attr, $opts);
     push(@line, $val);
   }
+  # if no errors from fields, create error on the row
   if ($opts->{rejectsflag}) {
-    if ($opts->{rejectserrs} == 0) {
+    while ($opts->{rejectserrs} eq "") {
+      if (myrand(2) == 0 && $rowid > 0) {
+        # duplicate pk (one will be accepted, could be this one)
+        my $oldrowid = myrand($rowid);
+        my $oldpkvals = $opts->{pkvals}{$oldrowid};
+        if (defined($oldpkvals)) {
+          set_pkvals($table, \@line, $oldpkvals);
+          $opts->{rejectserrs} .= ":dubpk-$oldrowid";
+          last;
+        }
+      }
       if (myrand(2) == 0) {
+        # too many fields
         my $val = $fesc.'N';
         push(@line, $val);
-      } else {
-        pop(@line);
+        $opts->{rejectserrs} .= ":fields+1";
+        last;
       }
-      $opts->{rejectserrs}++;
+      if (myrand(2) == 0) {
+        # too few fields
+        pop(@line);
+        $opts->{rejectserrs} .= ":fields-1";
+        last;
+      }
     }
+  }
+  # save generated rejects
+  ($opts->{rejectsflag} == ($opts->{rejectserrs} ne ""))
+    or die "rejects flag=$opts->{rejectsflag} errs=$opts->{rejectserrs}";
+  if ($opts->{rejectsflag}) {
+    $opts->{rejectslines}{$rowid} = [ @line, $opts->{rejectserrs} ];
+  }
+  # save pk values if line not rejected
+  if (!$opts->{rejectsflag})
+  {
+    my $pkvals = get_pkvals($table, \@line);
+    $opts->{pkvals}{$rowid} = $pkvals;
   }
   my $line = join($fter, @line).$lter;
   return $line;
@@ -868,21 +952,24 @@ sub write_csvfile {
   my $filever = get_csvfile($test, $table, { ver => 1 });
   my $fh = gensym();
   my $fhver = gensym();
-  open($fh, ">$file")
+  open($fh, ">:raw", $file)
     or die "$file: open for write failed: $!";
   if ($test->{csvver}) {
-    open($fhver, ">$filever")
+    open($fhver, ">:raw", $filever)
       or die "$filever: open for write failed: $!";
   }
-  my $tablename = get_tablename($test, $table, { ver => 0 });
+  my $tname = get_tablename($test, $table, { ver => 0 });
   my $rows = $table->{rows};
-  $table->{rejectsgen} = 0;
+  # per file
+  $opts->{pkvals} = {};
+  $opts->{rejectscnt} = 0;
+  $opts->{rejectslines} = {};
   for (my $n = 0; $n < $rows; $n++) {
     $opts->{rowid} = $n;
     $opts->{rejectsflag} = 0;
     if ($test->{rejectsgen}) {
       my $rowsleft = $rows - $n;
-      my $rejectsleft = $test->{rejectsgen} - $table->{rejectsgen};
+      my $rejectsleft = $test->{rejectsgen} - $opts->{rejectscnt};
       if ($rejectsleft != 0) {
         if ($rejectsleft == $rowsleft ||
             myrand(1 + $rowsleft/$rejectsleft) == 0) {
@@ -894,7 +981,7 @@ sub write_csvfile {
     my $line = gen_csvline($test, $table, $opts);
     if ($opts->{rejectsflag}) {
       $opts->{rejectserrs} or die "no rejectserrs";
-      $table->{rejectsgen}++;
+      $opts->{rejectscnt}++;
     }
     print $fh "$line"
       or die "$file: rowid $n: write failed: $!";
@@ -905,14 +992,36 @@ sub write_csvfile {
       }
     }
   }
-  $test->{rejectsgen} == $table->{rejectsgen}
-    or die "$tablename: $test->{rejectsgen} != $table->{rejectsgen}";
+  if ($test->{rejectsgen}) {
+    write_rejects($test, $table, $opts);
+  }
+  $test->{rejectsgen} == $opts->{rejectscnt}
+    or die "$tname: $test->{rejectsgen} != $opts->{rejectscnt}";
   close($fh)
     or die "$file: close after write failed: $!";
   if ($test->{csvver}) {
     close($fhver)
       or die "$filever: close after write failed: $!";
   }
+}
+
+# debug
+sub write_rejects {
+  my ($test, $table, $opts) = @_;
+  my $tname = get_tablename($test, $table, { ver => 0 });
+  my $file = "$vardir/tmp/$tname.genrej";
+  my $fh = gensym();
+  open($fh, ">:raw", $file)
+    or die "$file: open for write failed: $!";
+  my $lines = $opts->{rejectslines};
+  my @rowid = sort { $a <=> $b } keys %$lines;
+  for my $rowid (@rowid) {
+    my $line = $lines->{$rowid};
+    my @out = join("\t", $rowid, @$line);
+    print $fh @out, "\n";
+  }
+  close($fh)
+    or die "$file: close after write failed: $!";
 }
 
 sub write_csvfiles {

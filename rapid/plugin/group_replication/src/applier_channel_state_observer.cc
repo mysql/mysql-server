@@ -73,3 +73,11 @@ after_reset_slave(Binlog_relay_IO_param*)
 {
   return 0;
 }
+
+int Applier_channel_state_observer::
+applier_log_event(Binlog_relay_IO_param*,
+                  Trans_param*,
+                  int&)
+{
+  return 0;
+}

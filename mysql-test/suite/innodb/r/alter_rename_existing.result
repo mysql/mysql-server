@@ -48,7 +48,7 @@ t1	CREATE TABLE `t1` (
   `b` char(20) DEFAULT NULL,
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
-SELECT name, space_type FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
 name	space_type
 test/t1	System
 #
@@ -98,7 +98,7 @@ t1	CREATE TABLE `t1` (
   `e` int(11) DEFAULT NULL,
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
-SELECT name, space_type FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
 name	space_type
 test/t1	General
 SET GLOBAL innodb_file_per_table=OFF;
@@ -106,42 +106,42 @@ SET GLOBAL innodb_file_per_table=OFF;
 # Move t1 back to the system tablespace using ALGORITHM=INPLACE.
 #
 ALTER TABLE t1 TABLESPACE=innodb_system, ALGORITHM=INPLACE;
-SELECT name, space_type FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
 name	space_type
 test/t1	System
 #
 # Move t1 to a general tablespace using ALGORITHM=INPLACE.
 #
 ALTER TABLE t1 TABLESPACE=s1, ALGORITHM=INPLACE;
-SELECT name, space_type FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
 name	space_type
 test/t1	General
 #
 # Move t1 to a file-per-table tablespace using ALGORITHM=INPLACE.
 #
 ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
-SELECT name, space_type FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
 name	space_type
 test/t1	Single
 #
 # Move t1 to a general tablespace using ALGORITHM=COPY.
 #
 ALTER TABLE t1 TABLESPACE=s1, ALGORITHM=COPY;
-SELECT name, space_type FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
 name	space_type
 test/t1	General
 #
 # Move t1 back to the system tablespace using ALGORITHM=COPY.
 #
 ALTER TABLE t1 TABLESPACE=innodb_system, ALGORITHM=COPY;
-SELECT name, space_type FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
 name	space_type
 test/t1	System
 #
 # Move t1 to a file-per-table tablespace using ALGORITHM=COPY.
 #
 ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=COPY;
-SELECT name, space_type FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
 name	space_type
 test/t1	Single
 DROP TABLE t1;
@@ -149,7 +149,7 @@ DROP TABLE t1;
 # Rename t2.ibd to t1.ibd.
 #
 ALTER TABLE t2 RENAME TO t1;
-SELECT name, space_type FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
 name	space_type
 test/t1	Single
 SELECT * from t1;

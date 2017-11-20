@@ -237,9 +237,9 @@ ngs::Error_code Sql_data_context::authenticate(
     std::string host_or_ip = get_host_or_ip();
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread_account)(user_name.c_str(), user_name.length(),
-                                        host_or_ip.c_str(),
-                                        host_or_ip.length());
+    PSI_THREAD_CALL(set_thread_account)(
+        user_name.c_str(), static_cast<int>(user_name.length()),
+        host_or_ip.c_str(), static_cast<int>(host_or_ip.length()));
 #endif  // HAVE_PSI_THREAD_INTERFACE
 
     return ngs::Error_code();

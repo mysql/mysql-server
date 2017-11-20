@@ -161,12 +161,6 @@ int mi_write(MI_INFO *info, uchar *record)
   info->lastpos=filepos;
   myisam_log_record(MI_LOG_WRITE,info,record,filepos,0);
   (void) _mi_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
-  if (info->invalidator != 0)
-  {
-    DBUG_PRINT("info", ("invalidator... '%s' (update)", info->filename));
-    (*info->invalidator)(info->filename);
-    info->invalidator=0;
-  }
 
   /*
     Update status of the table. We need to do so after each row write

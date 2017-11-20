@@ -1,16 +1,16 @@
-select reserved, used from ndbinfo.resources
+select reserved, (used>reserved) from ndbinfo.resources
 where resource_name = 'TRANSACTION_MEMORY'
     order by node_id;
-reserved	used
-640	692
-640	692
+reserved	(used>reserved)
+640	1
+640	1
 select logfile_group_name, extra from information_schema.files
 where file_type = 'UNDO LOG' and file_name is null;
 logfile_group_name	extra
 initial_lg1	UNDO_BUFFER_SIZE=20971520
 select distinct file_name, initial_size from information_schema.files
-where file_type = 'UNDO LOG' and file_name is not null
-order by file_name;
+where file_type = 'UNDO LOG' and file_name like '%log'
+    order by file_name;
 file_name	initial_size
 undofile1.log	33554432
 undofile2.log	56623104

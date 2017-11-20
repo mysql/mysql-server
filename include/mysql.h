@@ -166,7 +166,7 @@ enum mysql_option
   MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_OPT_READ_TIMEOUT,
   MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT,
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
-  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
+  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
   MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
   MYSQL_OPT_BIND,
@@ -181,7 +181,9 @@ enum mysql_option
   MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH,
   MYSQL_OPT_TLS_VERSION,
   MYSQL_OPT_SSL_MODE,
-  MYSQL_OPT_RETRY_COUNT
+  MYSQL_OPT_RETRY_COUNT,
+  MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
+  MYSQL_OPT_OPTIONAL_RESULTSET_METADATA
 };
 
 /**
@@ -294,6 +296,7 @@ typedef struct st_mysql
   unsigned int	warning_count;
   struct st_mysql_options options;
   enum mysql_status status;
+  enum enum_resultset_metadata resultset_metadata;
   bool	free_me;		/* If free in mysql_close */
   bool	reconnect;		/* set to 1 if automatic reconnect */
 
@@ -331,6 +334,7 @@ typedef struct st_mysql_res {
   bool	eof;			        /* Used by mysql_fetch_row */
   /* mysql_stmt_close() had to cancel this result */
   bool          unbuffered_fetch_cancelled;  
+  enum enum_resultset_metadata metadata;
   void *extension;
 } MYSQL_RES;
 
@@ -418,6 +422,7 @@ MYSQL_FIELD *STDCALL mysql_fetch_field_direct(MYSQL_RES *res,
 MYSQL_FIELD * STDCALL mysql_fetch_fields(MYSQL_RES *res);
 MYSQL_ROW_OFFSET STDCALL mysql_row_tell(MYSQL_RES *res);
 MYSQL_FIELD_OFFSET STDCALL mysql_field_tell(MYSQL_RES *res);
+enum enum_resultset_metadata STDCALL mysql_result_metadata(MYSQL_RES *result);
 
 unsigned int STDCALL mysql_field_count(MYSQL *mysql);
 my_ulonglong STDCALL mysql_affected_rows(MYSQL *mysql);

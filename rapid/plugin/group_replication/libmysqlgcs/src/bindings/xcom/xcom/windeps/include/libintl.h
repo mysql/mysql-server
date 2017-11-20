@@ -33,7 +33,7 @@
 /* Need interantionallizaton */
 #include "win_i18n.h"
 
-#define __fxprintf(p, f, s) printf(p, f, s)
+#define __fxprintf(n, p, f, s) printf(p, f, s)
 
 #endif /* _LIBINTL_H */
 

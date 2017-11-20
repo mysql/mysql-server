@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,7 +68,6 @@ protected:
   void execFSREADREF(Signal*);
   void execFSREADCONF(Signal*);
 
-  void execEND_LCPREQ(Signal*);
   void execSUB_GCP_COMPLETE_REP(Signal*);
   
   void execSTART_RECREQ(Signal*);
@@ -81,7 +80,7 @@ protected:
 			  GetTabInfoReq * req,
 			  GetTabInfoRef::ErrorCode errorCode);
 
-  void exec_lcp_frag_ord(Signal*, SimulatedBlock* client_block);
+  Uint64 exec_lcp_frag_ord(Signal*, Uint32, SimulatedBlock* client_block);
 
 public:
   struct Log_waiter
@@ -200,15 +199,21 @@ public:
       ,LG_FLUSH_THREAD        = 0x200
       ,LG_DROPPING            = 0x400
       ,LG_STARTING            = 0x800
+      ,LG_LEVEL_REPORT_THREAD = 0x1000 // Level reporting to LQH thread active
     };
 
     static const Uint32 LG_THREAD_MASK = Logfile_group::LG_FORCE_SYNC_THREAD |
                                   Logfile_group::LG_SYNC_WAITERS_THREAD |
                                   Logfile_group::LG_CUT_LOG_THREAD |
                                   Logfile_group::LG_WAITERS_THREAD |
-                                  Logfile_group::LG_FLUSH_THREAD;
+                                  Logfile_group::LG_FLUSH_THREAD |
+                                  Logfile_group::LG_LEVEL_REPORT_THREAD;
    
     Uint32 m_applied;
+    Uint32 m_count_since_last_report;
+
+    Uint64 m_space_limit;
+    Uint64 m_total_log_space;
 
     Uint64 m_next_lsn;
     Uint64 m_last_sync_req_lsn; // Outstanding
@@ -220,10 +225,11 @@ public:
     };
     Log_waiter_list::Head m_log_sync_waiters;
     
-    Buffer_idx m_tail_pos[3]; // 0 is cut, 1 is saved, 2 is current
+    Buffer_idx m_tail_pos[2]; // 0 is cut point, 1 is current LCP cut point
     Buffer_idx m_file_pos[2]; // 0 tail, 1 head = { file_ptr_i, page_no }
     Buffer_idx m_consumer_file_pos;
-    Uint64 m_free_file_words; // Free words in logfile group 
+    Uint64 m_free_log_words;  // Free log words in logfile group 
+    Uint32 m_last_log_level_reported;
     
     Undofile_list::Head m_files;     // Files in log
     Undofile_list::Head m_meta_files;// Files being created or dropped
@@ -261,8 +267,7 @@ public:
   typedef KeyTable<Logfile_group_pool, Logfile_group>::Iterator Logfile_group_hash_iterator;
   enum CallbackIndex {
     // lgman
-    ENDLCP_CALLBACK = 1,
-    COUNT_CALLBACKS = 2
+    COUNT_CALLBACKS = 1
   };
   CallbackEntry m_callbackEntry[COUNT_CALLBACKS];
   CallbackTable m_callbackTable;
@@ -278,7 +283,9 @@ private:
    *   2) free_log_space
    */
   int alloc_log_space(Uint32 logfile_ref,
-                      Uint32 words,
+                      Uint32 & words,
+                      bool add_extra_words,
+                      bool abortable,
                       EmulatedJamBuffer *jamBuf);
   int free_log_space(Uint32 logfile_ref,
                       Uint32 words,
@@ -290,15 +297,17 @@ private:
 
   Page_map::DataBufferPool m_data_buffer_pool;
 
-  Uint64 m_next_lsn;
   Uint32 m_latest_lcp;
+  Uint32 m_latest_local_lcp;
   Logfile_group_list m_logfile_group_list;
   Logfile_group_hash m_logfile_group_hash;
   Uint32 m_end_lcp_senderdata;
+  bool m_node_restart_ongoing;
+  bool m_dropped_undo_log;
 
   Uint64 m_records_applied; // Track number of records applied
   Uint64 m_pages_applied; // Track number of pages applied
-  SafeMutex m_client_mutex;
+  NdbMutex *m_client_mutex;
   void client_lock(BlockNumber block, int line, SimulatedBlock*);
   void client_unlock(BlockNumber block, int line, SimulatedBlock*);
 
@@ -307,6 +316,8 @@ private:
   void free_logbuffer_memory(Ptr<Logfile_group>);
   Uint32 compute_free_file_pages(Ptr<Logfile_group>,
                                  EmulatedJamBuffer *jamBuf);
+  void calculate_space_limit(Ptr<Logfile_group> lg_ptr);
+  Uint32 get_remaining_page_space(Uint32);
   Uint32* get_log_buffer(Ptr<Logfile_group>,
                          Uint32 sz,
                          EmulatedJamBuffer *jamBuf);
@@ -315,9 +326,12 @@ private:
 
   void force_log_sync(Signal*, Ptr<Logfile_group>, Uint32 lsnhi, Uint32 lnslo);
   void process_log_sync_waiters(Signal* signal, Ptr<Logfile_group>);
-  
+
+  void level_report_thread(Signal*, Ptr<Logfile_group> ptr);
+  void send_level_report_thread(Signal*, Ptr<Logfile_group> ptr);
+  Uint64 calc_total_log_space(Ptr<Logfile_group> ptr);
+
   void cut_log_tail(Signal*, Ptr<Logfile_group> ptr);
-  void endlcp_callback(Signal*, Uint32, Uint32);
   void open_file(Signal*, Ptr<Undofile>, Uint32, SectionHandle*);
 
   void flush_log(Signal*, Ptr<Logfile_group>, Uint32 force);
@@ -395,6 +409,8 @@ private:
   void completed_zero_page_read(Signal *signal, Ptr<Undofile> lg_ptr);
   void sendCREATE_FILE_IMPL_CONF(Signal *signal,
                                  Ptr<Undofile> file_ptr);
+  void sendCUT_UNDO_LOG_TAIL_CONF(Signal*);
+  void execCUT_UNDO_LOG_TAIL_REQ(Signal*);
 };
 
 class Logfile_client {
@@ -434,6 +450,12 @@ public:
                Uint32 flags);
 
   /**
+   * Get the last lsn stored, also ensure that this lsn is
+   * stored next time we call sync_lsn from LCP code.
+   */
+  Uint64 pre_sync_lsn(Uint64 lsn);
+
+  /**
    * Undolog entries
    */
   struct Change
@@ -442,8 +464,11 @@ public:
     Uint32 len;
   };
 
-  Uint64 add_entry(const Change*,
-                   Uint32 cnt);
+  Uint64 add_entry_simple(const Change*,
+                          Uint32 cnt,
+                          Uint32 alloc_size,
+                          bool update_callback_buffer_words = true);
+  Uint64 add_entry_complex(const Change*, Uint32 cnt, bool, Uint32 alloc_size);
 
   /**
    * Check for space in log buffer
@@ -454,11 +479,15 @@ public:
    */
   int get_log_buffer(Signal*, Uint32 sz, SimulatedBlock::CallbackPtr*);
 
-  int alloc_log_space(Uint32 words,
+  int alloc_log_space(Uint32 & words,
+                      bool add_extra_words,
+                      bool abortable,
                       EmulatedJamBuffer *jamBuf)
   {
     return m_lgman->alloc_log_space(m_logfile_group_id,
                                     words,
+                                    add_extra_words,
+                                    abortable,
                                     jamBuf);
   }
 
@@ -468,10 +497,11 @@ public:
     return m_lgman->free_log_space(m_logfile_group_id, words, jamBuf);
   }
 
-  void exec_lcp_frag_ord(Signal* signal)
+  Uint64 exec_lcp_frag_ord(Signal* signal, Uint32 local_lcp_id)
   {
-    m_lgman->exec_lcp_frag_ord(signal,
-                               m_client_block);
+    return m_lgman->exec_lcp_frag_ord(signal,
+                                      local_lcp_id,
+                                      m_client_block);
   }
   
 private:

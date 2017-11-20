@@ -123,11 +123,11 @@ Also called "key", "field", "subkey", "key part", "key segment" elsewhere.
 #include <thread> /* std::thread* */
 #endif
 
-#include "handler.h"        /* handler */
+#include "sql/handler.h"    /* handler */
+#include "sql/table.h"      /* TABLE, TABLE_SHARE */
 #include "temptable/storage.h" /* temptable::Storage::Iterator */
 #include "temptable/table.h"   /* temptable::Table */
 #include "temptable/test.h"    /* TEMPTABLE_CPP_HOOKED_TESTS */
-#include "table.h"          /* TABLE, TABLE_SHARE */
 
 namespace temptable {
 
@@ -504,10 +504,6 @@ class Handler : public ::handler {
   /** Not implemented.
   @return false */
   bool get_error_message(int, String*) override;
-
-  /** Not implemented.
-  @return 0 */
-  uint8 table_cache_type() override;
 
   /** Not implemented.
   @return false */

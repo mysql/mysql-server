@@ -1,3 +1,6 @@
+# Remove this work around after Bug#26629790
+--source include/restart_mysqld.inc
+
 --echo # Scenario:1
 --echo #  T1= ({W(B)}, HIGH_PRIORITY)
 --echo #  T2= ( Try to take table level lock )

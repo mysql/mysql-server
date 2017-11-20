@@ -53,7 +53,7 @@ t1	CREATE TABLE `t1` (
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(t))
+/*!50100 PARTITION BY RANGE (year(`t`))
 (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster,
  PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster,
  PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster,
@@ -75,7 +75,7 @@ t1	CREATE TABLE `t1` (
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(t))
+/*!50100 PARTITION BY RANGE (year(`t`))
 (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster,
  PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster,
  PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster,
@@ -139,7 +139,7 @@ t1	CREATE TABLE `t1` (
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(t))
+/*!50100 PARTITION BY RANGE (year(`t`))
 (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster,
  PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster,
  PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster,
@@ -162,7 +162,7 @@ t1	CREATE TABLE `t1` (
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(t))
+/*!50100 PARTITION BY RANGE (year(`t`))
 (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster,
  PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster,
  PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster,
@@ -240,7 +240,7 @@ t1	CREATE TABLE `t1` (
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY LIST (id)
+/*!50100 PARTITION BY LIST (`id`)
 (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster,
  PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster,
  PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
@@ -259,7 +259,7 @@ t1	CREATE TABLE `t1` (
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY LIST (id)
+/*!50100 PARTITION BY LIST (`id`)
 (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster,
  PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster,
  PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
@@ -320,7 +320,7 @@ t1	CREATE TABLE `t1` (
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY LIST (id)
+/*!50100 PARTITION BY LIST (`id`)
 (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster,
  PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster,
  PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
@@ -340,7 +340,7 @@ t1	CREATE TABLE `t1` (
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY LIST (id)
+/*!50100 PARTITION BY LIST (`id`)
 (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster,
  PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster,
  PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
@@ -412,7 +412,7 @@ t1	CREATE TABLE `t1` (
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(t))
+/*!50100 PARTITION BY HASH (year(`t`))
 PARTITIONS 4 */
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -428,7 +428,7 @@ t1	CREATE TABLE `t1` (
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(t))
+/*!50100 PARTITION BY HASH (year(`t`))
 PARTITIONS 4 */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
@@ -487,7 +487,7 @@ t1	CREATE TABLE `t1` (
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(t))
+/*!50100 PARTITION BY HASH (year(`t`))
 PARTITIONS 4 */
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
@@ -505,7 +505,7 @@ t1	CREATE TABLE `t1` (
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(t))
+/*!50100 PARTITION BY HASH (year(`t`))
 PARTITIONS 4 */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---

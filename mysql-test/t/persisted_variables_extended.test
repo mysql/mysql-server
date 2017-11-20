@@ -83,7 +83,7 @@ let $MYSQL_SERVER_ID= `SELECT @@server_id`;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---exec echo "restart:--no-defaults" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv="" --server-id=$MYSQL_SERVER_ID > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--no-defaults" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv="" --server-id=$MYSQL_SERVER_ID --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -116,7 +116,7 @@ EOF
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --log-bin" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --server-id=$MYSQL_SERVER_ID --sort_buffer_size=462144 --secure-file-priv="" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --log-bin" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --server-id=$MYSQL_SERVER_ID --sort_buffer_size=462144 --secure-file-priv="" --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 
 # Creating sperate extra mysql configuration file.
@@ -389,6 +389,7 @@ variable_name='autocommit';
 --echo # Cleanup
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 --remove_file $MYSQLTEST_VARDIR/tmp/my.cnf
+drop USER 'user1'@'localhost';
 drop USER 'internal_proxied'@'%';
 drop USER 'external_u1'@'%';
 drop USER 'external_u2'@'%';
@@ -397,3 +398,59 @@ SET GLOBAL autocommit = @saved_autocommit;
 --disconnect con1
 --disconnect con2
 --disconnect con3
+
+--echo #
+--echo # Bug#25563891: OPTION SET BY !INCLUDE OR !INCLUDEDIR SHOWED AS 'COMPILED'
+--echo #               IN P_S.VARIABLES_INFO
+--echo #
+
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+  FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+  ('sort_buffer_size', 'max_connections', 'max_digest_length',
+   'innodb_fast_shutdown', 'innodb_default_row_format', 'innodb_flush_log_at_trx_commit');
+
+SELECT @@sort_buffer_size, @@max_connections, @@max_digest_length;
+SELECT @@innodb_fast_shutdown, @@innodb_default_row_format, @@innodb_flush_log_at_trx_commit;
+
+--exec echo "[mysqld]" > $MYSQLTEST_VARDIR/tmp/my_tmp.cnf
+--exec echo "!include $MYSQLTEST_VARDIR/tmp/sort_buff.cnf" >> $MYSQLTEST_VARDIR/tmp/my_tmp.cnf
+--exec echo "!includedir $MYSQLD_DATADIR" >> $MYSQLTEST_VARDIR/tmp/my_tmp.cnf
+--exec echo "max_connections=51" >> $MYSQLTEST_VARDIR/tmp/my_tmp.cnf
+--exec echo "max_digest_length=2024" >> $MYSQLTEST_VARDIR/tmp/my_tmp.cnf
+
+--write_file $MYSQLTEST_VARDIR/tmp/sort_buff.cnf
+[mysqld]
+sort_buffer_size=314156
+EOF
+
+--write_file $MYSQLD_DATADIR/innodb.cnf
+[mysqld]
+innodb_fast_shutdown=1
+innodb_default_row_format=REDUNDANT
+innodb_flush_log_at_trx_commit=2
+EOF
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/my_tmp.cnf" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv="" --server-id=$MYSQL_SERVER_ID --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+  FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+  ('sort_buffer_size', 'max_connections', 'max_digest_length',
+   'innodb_fast_shutdown', 'innodb_default_row_format', 'innodb_flush_log_at_trx_commit');
+
+SELECT @@sort_buffer_size, @@max_connections, @@max_digest_length;
+SELECT @@innodb_fast_shutdown, @@innodb_default_row_format, @@innodb_flush_log_at_trx_commit;
+
+--echo # Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/my_tmp.cnf
+--remove_file $MYSQLTEST_VARDIR/tmp/sort_buff.cnf
+--remove_file $MYSQLD_DATADIR/innodb.cnf
+
+--echo # Restart server with all defaults
+--source include/restart_mysqld.inc
+
+SELECT 'END OF TEST';

@@ -18,25 +18,33 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <string>
 
 #include "binary_log_types.h"
-#include "hash.h"
-#include "item.h"            // Item::Type
 #include "lex_string.h"
-#include "mdl.h"             // MDL_request
+#include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sp_head.h"         // Stored_program_creation_ctx
-#include "sql_admin.h"
-#include "sql_alloc.h"
-#include "sql_class.h"
-#include "sql_lex.h"
-#include "sql_plugin.h"
-#include "sql_servers.h"
+#include "sql/handler.h"
+#include "sql/item.h"        // Item::Type
+#include "sql/item_create.h"
+#include "sql/key.h"
+#include "sql/mdl.h"         // MDL_request
+#include "sql/session_tracker.h"
+#include "sql/sp_head.h"     // Stored_program_creation_ctx
+#include "sql/sql_admin.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_connect.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_servers.h"
+#include "sql/thr_malloc.h"
 
 class Object_creation_ctx;
+class Query_arena;
+class THD;
 
 namespace dd {
   class Routine;
@@ -86,9 +94,6 @@ enum enum_sp_return_code
 
   // Drop routine failed
   SP_DROP_FAILED,
-
-  // Alter routine failed
-  SP_ALTER_FAILED,
 
   // Routine load failed
   SP_LOAD_FAILED,
@@ -221,8 +226,8 @@ db_load_routine(THD *thd, enum_sp_type type, const char *sp_db,
 
 bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer);
 
-enum_sp_return_code sp_update_routine(THD *thd, enum_sp_type type,
-                                      sp_name *name, st_sp_chistics *chistics);
+bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
+                       st_sp_chistics *chistics);
 
 enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name);
 
@@ -255,11 +260,49 @@ public:
           with keys used by MDL. So one can easily construct MDL_key from
           this key.
   */
-  uchar *m_key;
+  char *m_key;
   uint16 m_key_length;
   uint16 m_db_length;
 
-  enum entry_type { FUNCTION, PROCEDURE, TRIGGER };
+  enum entry_type
+  {
+    FUNCTION,
+    PROCEDURE,
+    TRIGGER,
+    /**
+      Parent table in a foreign key on which child table there was insert
+      or update. We will lookup new values in parent, so need to acquire
+      SR lock on it.
+    */
+    FK_TABLE_ROLE_PARENT_CHECK,
+    /**
+      Child table in a foreign key with RESTRICT/NO ACTION as corresponding
+      rule and on which parent table there was delete or update.
+      We will check if old parent key is referenced by child table,
+      so need to acquire SR lock on it.
+    */
+    FK_TABLE_ROLE_CHILD_CHECK,
+    /**
+      Child table in a foreign key with CASCADE/SET NULL/SET DEFAULT as
+      'on update' rule, on which parent there was update, or with SET NULL/
+      SET DEFAULT as 'on delete' rule, on which parent there was delete.
+      We might need to update rows in child table, so we need to acquire
+      SW lock on it. We also need to take into account that child table
+      might be parent for some other FKs, so such update needs
+      to be handled recursively.
+    */
+    FK_TABLE_ROLE_CHILD_UPDATE,
+    /**
+      Child table in a foreign key with CASCADE as 'on delete' rule for
+      which there was delete from the parent table.
+      We might need to delete rows from the child table, so we need to
+      acquire SW lock on it.
+      We also need to take into account that child table might be parent
+      for some other FKs, so such delete needs to be handled recursively
+      (and even might result in updates).
+    */
+    FK_TABLE_ROLE_CHILD_DELETE
+  };
 
   entry_type type() const { return (entry_type)m_key[0]; }
   const char *db() const { return (char*)m_key + 1; }
@@ -286,12 +329,13 @@ public:
     This is for prepared statement validation purposes.
     A statement looks up and pre-loads all its stored functions
     at prepare. Later on, if a function is gone from the cache,
-    execute may fail.
-    Remember the version of sp_head at prepare to be able to
+    execute may fail. Similarly, tables involved in referential
+    constraints are also prelocked.
+    Remember the version of the cached item at prepare to be able to
     invalidate the prepared statement at execute if it
     changes.
   */
-  int64 m_sp_cache_version;
+  int64 m_cache_version;
 };
 
 
@@ -302,8 +346,8 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          Sroutine_hash_entry::entry_type type,
                          const char *db, size_t db_length,
                          const char *name, size_t name_length,
-                         bool lowercase_name, bool own_routine,
-                         TABLE_LIST *belong_to_view);
+                         bool lowercase_db, bool lowercase_name,
+                         bool own_routine, TABLE_LIST *belong_to_view);
 
 /**
   Convenience wrapper around sp_add_used_routine() for most common case -
@@ -320,12 +364,14 @@ sp_add_own_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
   return sp_add_used_routine(prelocking_ctx, arena, type,
                              sp_name->m_db.str, sp_name->m_db.length,
                              sp_name->m_name.str, sp_name->m_name.length,
-                             true, true, nullptr);
+                             false, true, true, nullptr);
 }
 
 void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx);
-void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
-                                  HASH *src, TABLE_LIST *belong_to_view);
+void sp_update_stmt_used_routines
+  (THD *thd, Query_tables_list *prelocking_ctx,
+   malloc_unordered_map<std::string, Sroutine_hash_entry*> *src,
+   TABLE_LIST *belong_to_view);
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
                                   SQL_I_List<Sroutine_hash_entry> *src,
                                   TABLE_LIST *belong_to_view);

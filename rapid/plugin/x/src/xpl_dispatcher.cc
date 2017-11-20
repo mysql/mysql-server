@@ -20,8 +20,9 @@
 #include "xpl_dispatcher.h"
 
 #include "admin_cmd_handler.h"
+#include "admin_cmd_arguments.h"
 #include "crud_cmd_handler.h"
-#include "expect.h"
+#include "expect/expect_stack.h"
 #include "expr_generator.h"
 #include "ngs_common/protocol_protobuf.h"
 #include "ngs/mysqlx/getter_any.h"
@@ -38,7 +39,7 @@ namespace {
 class Stmt {
  public:
   ngs::Error_code execute(ngs::Sql_session_interface &da,
-                          ngs::Protocol_encoder &proto,
+                          ngs::Protocol_encoder_interface &proto,
                           const bool show_warnings, const bool compact_metadata,
                           const std::string &query,
                           const ::google::protobuf::RepeatedPtrField<
@@ -66,7 +67,7 @@ class Stmt {
   }
 
   ngs::Error_code execute(ngs::Sql_session_interface &da,
-                          ngs::Protocol_encoder &proto,
+                          ngs::Protocol_encoder_interface &proto,
                           const bool show_warnings, const bool compact_metadata,
                           const char *query, std::size_t query_len) {
     xpl::Streaming_resultset resultset(&proto, compact_metadata);
@@ -124,16 +125,16 @@ ngs::Error_code on_stmt_execute(xpl::Session &session,
       session.options().set_send_xplugin_deprecation(false);
     }
     xpl::Admin_command_arguments_list args(msg.args());
-    return xpl::Admin_command_handler(session)
-        .execute(msg.namespace_(), msg.stmt(), args);
+    return xpl::Admin_command_handler(&session)
+        .execute(msg.namespace_(), msg.stmt(), &args);
   }
 
-  if (msg.namespace_() == "mysqlx") {
+  if (msg.namespace_() == xpl::Admin_command_handler::MYSQLX_NAMESPACE) {
     session
         .update_status<&xpl::Common_status_variables::m_stmt_execute_mysqlx>();
     xpl::Admin_command_arguments_object args(msg.args());
-    return xpl::Admin_command_handler(session)
-        .execute(msg.namespace_(), msg.stmt(), args);
+    return xpl::Admin_command_handler(&session)
+        .execute(msg.namespace_(), msg.stmt(), &args);
   }
 
   return ngs::Error(ER_X_INVALID_NAMESPACE, "Unknown namespace %s",

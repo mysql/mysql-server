@@ -26,6 +26,8 @@ import os.path
 import tempfile
 import contextlib
 import posixpath
+import cStringIO
+import base64
 
 import clusterhost
 from clusterhost import ABClusterHost
@@ -53,15 +55,41 @@ class RemoteClusterHost(ABClusterHost):
     """Implements the ABClusterHost interface for remote hosts. Wraps a paramiko.SSHClient and uses
     this to perform tasks on the remote host."""
 
-    def __init__(self, host, username=None, password=None):
+    def __init__(self, host, key_based=None, username=None, password=None, key_file=None):
         super(type(self), self).__init__()
         self.host = host
+
+        if username is not None:
+            _logger.warning('--> ' + "username="+username)
+        if password is not None:
+            if password.startswith('**'):
+                password=None
+            else:
+                _logger.warning('--> ' + "pwd=**")
+        if key_based is not None:
+            _logger.warning('--> ' + "keybased="+str(key_based))
+        if key_file is not None:
+            _logger.warning('--> ' + "keyfile="+key_file)
+        _logger.warning('--> ' + "Host="+host)
         self.user = username
         self.pwd = password
         c = paramiko.SSHClient()
         c.load_system_host_keys()
         c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        c.connect(hostname=self.host, username=self.user, password=self.pwd)
+        if key_based is False:
+            _logger.warning('--> ' + "Enter 1")
+            c.connect(hostname=self.host, username=self.user, password=self.pwd)
+        else:
+            if (key_file is None):
+                _logger.warning('--> ' + "Enter 2")
+                c.connect(hostname=self.host, username=self.user, password=self.pwd)
+            else:
+                #We have key file pointed out for us.
+                _logger.warning('--> ' + "Enter 4")
+                #privatekeyfile = os.path.expanduser('~/.ssh/id_rsa')
+                mykey = paramiko.RSAKey.from_private_key_file(key_file)
+                c.connect(hostname=self.host, username=self.user, password=self.pwd, pkey=mykey)
+            
         self.__client = c
         self.__sftp = c.open_sftp()
 

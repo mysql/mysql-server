@@ -24,6 +24,7 @@ Created Aug 11, 2011 Vasil Dimov
 *******************************************************/
 
 #include <sys/types.h>
+#include <zlib.h>
 
 #include "buf0buf.h"
 #include "buf0types.h"
@@ -35,7 +36,6 @@ Created Aug 11, 2011 Vasil Dimov
 #include "univ.i"
 #include "ut0crc32.h"
 #include "ut0rnd.h"
-#include "zlib.h"
 
 /** the macro MYSQL_SYSVAR_ENUM() requires "long unsigned int" and if we
 use srv_checksum_algorithm_t here then we get a compiler error:

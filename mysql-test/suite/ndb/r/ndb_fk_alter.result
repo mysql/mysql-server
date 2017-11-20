@@ -70,7 +70,7 @@ CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES bug46599a (b)) ENGINE=Ndb;
 INSERT INTO bug46599a VALUES ('b');
 INSERT INTO bug46599b VALUES ('b'), (NULL);
 INSERT INTO bug46599b VALUES ('');
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`bug46599b`, CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `bug46599a` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 SELECT * FROM bug46599a;
 b
 b

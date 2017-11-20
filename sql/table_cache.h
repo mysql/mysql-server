@@ -18,26 +18,31 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-
 #include <map>
+#include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
-#include "handler.h"
-#include "hash.h"
 #include "lex_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_mutex.h"
-#include "sql_base.h"
-#include "sql_class.h"
-#include "sql_plist.h"
-#include "sql_plugin_ref.h"
-#include "system_variables.h"
-#include "table.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/handler.h"
+#include "sql/sql_base.h"
+#include "sql/sql_class.h"
+#include "sql/sql_plist.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+
+class Table_cache_element;
 
 extern ulong table_cache_size_per_instance, table_cache_instances;
 

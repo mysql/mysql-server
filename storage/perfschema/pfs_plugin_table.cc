@@ -19,15 +19,17 @@
 */
 
 #include <mysql/components/services/pfs_plugin_table_service.h>
-
-#include "pfs_column_values.h"
-#include "pfs_plugin_table.h"
-#include "table_plugin_table.h"
-#include "table_helper.h"
-#include "pfs_priv_util.h"
 #include <list>
 #include <string>
 
+#include "pfs_column_values.h"
+#include "pfs_plugin_table.h"
+#include "sql/handler.h"
+#include "sql/pfs_priv_util.h"
+#include "table_helper.h"
+#include "table_plugin_table.h"
+
+/* clang-format off */
 /**
   @page PAGE_PFS_TABLE_PLUGIN_SERVICE Plugin table service
   Performance Schema plugin table service is a mechanism which provides
@@ -127,7 +129,8 @@
       An instance of this structure is to keep the required information which
       would be used to register a table in performance_schema. Table share, for
       the table added by plugin/component, in performance schema would be
-      initialized using this instance and it would be provided by plugin/component
+      initialized using this instance
+      and it would be provided by plugin/component
       while registering table.
 
   Plugin/component is responsible to maintain buffers which would be used to
@@ -214,6 +217,7 @@
 
   @enduml
 */
+/* clang-format on */
 
 struct PSI_POS;
 struct PSI_RECORD;
@@ -244,7 +248,7 @@ write_row(PFS_engine_table *pfs_table,
     if (bitmap_is_set(table->write_set, f->field_index))
     {
       result = temp->m_st_table->write_column_value(
-                 temp->plugin_table_handle, (PSI_field *)f, f->field_index);
+        temp->plugin_table_handle, (PSI_field *)f, f->field_index);
       if (result)
         return result;
     }
@@ -501,7 +505,8 @@ pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
    */
   for (auto share : share_list)
   {
-    if (drop_native_table_for_pfs(PERFORMANCE_SCHEMA_str.str, share->m_table_def->get_name()))
+    if (drop_native_table_for_pfs(PERFORMANCE_SCHEMA_str.str,
+                                  share->m_table_def->get_name()))
     {
       return 1;
     }
@@ -1132,11 +1137,12 @@ init_pfs_plugin_table()
      accordance with ERRORS defined in my_base.h
   */
   static_assert((PFS_HA_ERR_WRONG_COMMAND == HA_ERR_WRONG_COMMAND) &&
-                (PFS_HA_ERR_RECORD_DELETED == HA_ERR_RECORD_DELETED) &&
-                (PFS_HA_ERR_END_OF_FILE == HA_ERR_END_OF_FILE) &&
-                (PFS_HA_ERR_NO_REFERENCED_ROW == HA_ERR_NO_REFERENCED_ROW) &&
-                (PFS_HA_ERR_FOUND_DUPP_KEY == HA_ERR_FOUND_DUPP_KEY) &&
-                (PFS_HA_ERR_RECORD_FILE_FULL == HA_ERR_RECORD_FILE_FULL), "");
+                  (PFS_HA_ERR_RECORD_DELETED == HA_ERR_RECORD_DELETED) &&
+                  (PFS_HA_ERR_END_OF_FILE == HA_ERR_END_OF_FILE) &&
+                  (PFS_HA_ERR_NO_REFERENCED_ROW == HA_ERR_NO_REFERENCED_ROW) &&
+                  (PFS_HA_ERR_FOUND_DUPP_KEY == HA_ERR_FOUND_DUPP_KEY) &&
+                  (PFS_HA_ERR_RECORD_FILE_FULL == HA_ERR_RECORD_FILE_FULL),
+                "");
 
   pfs_external_table_shares.init_mutex();
   plugin_table_service_initialized = true;

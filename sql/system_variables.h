@@ -24,8 +24,9 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"  // my_thread_id
-#include "rpl_gtid.h"         // Gitd_specification
-#include "sql_plugin_ref.h"   // plugin_ref
+#include "mysql/udf_registration_types.h"
+#include "sql/rpl_gtid.h"     // Gitd_specification
+#include "sql/sql_plugin_ref.h" // plugin_ref
 
 class MY_LOCALE;
 class Time_zone;
@@ -55,6 +56,13 @@ enum enum_binlog_row_image {
   BINLOG_ROW_IMAGE_NOBLOB= 1,
   /** All columns in both before and after image. */
   BINLOG_ROW_IMAGE_FULL= 2
+};
+
+// Bits for binlog_row_value_options sysvar
+enum enum_binlog_row_value_options
+{
+  /// Store JSON updates in partial form
+  PARTIAL_JSON_UPDATES= 1
 };
 
 // Values for binlog_row_metadata sysvar
@@ -169,6 +177,7 @@ struct System_variables
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
   uint  eq_range_index_dive_limit;
+  uint  cte_max_recursion_depth;
   ulonglong histogram_generation_max_mem_size;
   ulong join_buff_size;
   ulong lock_wait_timeout;
@@ -177,10 +186,8 @@ struct System_variables
   ulong max_length_for_sort_data;
   ulong max_points_in_geometry;
   ulong max_sort_length;
-  ulong max_tmp_tables;
   ulong max_insert_delayed_threads;
   ulong min_examined_row_limit;
-  ulong multi_range_count;
   ulong net_buffer_length;
   ulong net_interactive_timeout;
   ulong net_read_timeout;
@@ -211,15 +218,20 @@ struct System_variables
   ulong rbr_exec_mode_options; // see enum_rbr_exec_mode
   bool binlog_direct_non_trans_update;
   ulong binlog_row_image; // see enum_binlog_row_image
+  ulonglong binlog_row_value_options;
   bool sql_log_bin;
   // see enum_transaction_write_set_hashing_algorithm
   ulong transaction_write_set_extraction;
   ulong completion_type;
-  ulong query_cache_type;
-  ulong tx_isolation;
+  ulong transaction_isolation;
   ulong updatable_views_with_limit;
   uint max_user_connections;
   ulong my_aes_mode;
+  /**
+    Controls what resultset metadata will be sent to the client.
+    @sa enum_resultset_metadata
+  */
+  ulong resultset_metadata;
 
   /**
     In slave thread we need to know in behalf of which
@@ -229,10 +241,9 @@ struct System_variables
   /**
     Default transaction access mode. READ ONLY (true) or READ WRITE (false).
   */
-  bool tx_read_only;
+  bool transaction_read_only;
   bool low_priority_updates;
   bool new_mode;
-  bool query_cache_wlock_invalidate;
   bool keep_files_on_create;
 
   bool old_alter_table;
@@ -285,7 +296,11 @@ struct System_variables
   bool session_track_state_change;
   ulong   session_track_transaction_info;
 
-  ulong information_schema_stats; // see dd::info_schema::enum_information_...
+  /*
+    Time in seconds, after which the statistics in mysql.table/index_stats
+    get invalid
+  */
+  ulong information_schema_stats_expiry;
 
   /**
     Compatibility option to mark the pre MySQL-5.6.4 temporals columns using

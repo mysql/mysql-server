@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
-#include "trigger_def.h"  // enum_trigger_variable_type
+#include "sql/trigger_def.h" // enum_trigger_variable_type
 
 ///////////////////////////////////////////////////////////////////////////
 

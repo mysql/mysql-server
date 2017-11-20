@@ -21,18 +21,25 @@
 #include <new>
 
 #include "m_string.h"
-#include "my_alloc.h"
+#include "mem_root_fwd.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/mysql_rwlock_bits.h"
+#include "mysql/components/services/psi_mdl_bits.h"
+#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_mdl.h"
 #include "mysql/psi/psi_stage.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql_plist.h"
+#include "sql/sql_plist.h"
 
 class MDL_context;
 class MDL_lock;
@@ -41,7 +48,6 @@ class THD;
 struct MDL_key;
 
 typedef struct st_lf_pins LF_PINS;
-struct PSI_metadata_lock;
 
 /**
   @def ENTER_COND(C, M, S, O)
@@ -357,7 +363,11 @@ public:
      - LOCKING_SERVICE is for the name plugin RW-lock service
      - SRID is for spatial reference systems
      - ACL_CACHE is for ACL caches
-     - COLUMN_STATISTICS is for column statistics, such as histograms.
+     - COLUMN_STATISTICS is for column statistics, such as histograms
+     - BACKUP_LOCK is to block any operations that could cause
+       inconsistent backup. Such operations are most DDL statements,
+       and some administrative statements.
+     - RESOURCE_GROUPS is for resource groups.
     Note that requests waiting for user-level locks get special
     treatment - waiting is aborted if connection to client is lost.
   */
@@ -375,6 +385,8 @@ public:
                             SRID,
                             ACL_CACHE,
                             COLUMN_STATISTICS,
+                            BACKUP_LOCK,
+                            RESOURCE_GROUPS,
                             /* This should be the last ! */
                             NAMESPACE_END };
 
@@ -408,8 +420,23 @@ public:
       It is responsibility of caller to ensure that db and object names
       are not longer than NAME_LEN. Still we play safe and try to avoid
       buffer overruns.
+
+      Implicit tablespace names in InnoDB may be longer than NAME_LEN.
+      We will lock based on the first NAME_LEN characters.
+
+      TODO: The patch acquires metadata locks on the NAME_LEN
+	    first bytest of the tablespace names. For long names,
+	    the consequence of locking on this prefix is
+	    that locking a single implicit tablespace might end up
+	    effectively lock all implicit tablespaces in the same
+	    schema. A possible fix is to lock on a prefix of length
+	    NAME_LEN * 2, since this is the real buffer size of
+	    the metadata lock key. Dependecies from the PFS
+	    implementation, possibly relying on the key format,
+	    must be investigated first, though.
     */
-    DBUG_ASSERT(strlen(db) <= NAME_LEN && strlen(name) <= NAME_LEN);
+    DBUG_ASSERT(strlen(db) <= NAME_LEN && (mdl_namespace == TABLESPACE ||
+					   strlen(name) <= NAME_LEN));
     m_db_name_length= static_cast<uint16>(strmake(m_ptr + 1, db, NAME_LEN) -
                                           m_ptr - 1);
     m_length= static_cast<uint16>(strmake(m_ptr + m_db_name_length + 2, name,

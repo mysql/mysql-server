@@ -18,12 +18,14 @@
 
 #include <vector>
 
-#include "dd/collection.h"                // dd::Collection
-#include "dd/sdi_fwd.h"                   // RJ_Document
-#include "dd/types/entity_object.h"       // dd::Entity_object
 #include "my_inttypes.h"
+#include "sql/dd/collection.h"            // dd::Collection
+#include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
+#include "sql/dd/sdi_fwd.h"               // RJ_Document
+#include "sql/dd/types/entity_object.h"   // dd::Entity_object
 
 class THD;
+class MDL_request;
 
 namespace dd {
 
@@ -32,7 +34,6 @@ namespace dd {
 class Entity_object_table;
 class Global_name_key;
 class Object_type;
-class Primary_id_key;
 class Properties;
 class Tablespace_impl;
 class Tablespace_file;
@@ -178,11 +179,13 @@ const uint32 SDI_TYPE_LEN = 4;
 
 /** Key to identify a dictionary object */
 struct sdi_key {
-  /** Object id which should be unique in tablespsace */
-  uint64 id;
   /** Type of Object, For ex: column, index, etc */
   uint32 type;
+
+  /** Object id which should be unique in tablespsace */
+  uint64 id;
 };
+bool operator==(const sdi_key &a, const sdi_key &b);
 
 typedef std::vector<sdi_key> sdi_container;
 
@@ -190,7 +193,50 @@ struct sdi_vector {
   sdi_container m_vec;
 };
 
+/**
+  Represents tables with their id, name, schema id and schema name.
+  Needed to keep track of information when querying the dd to find
+  tables in a tablespace.
+ */
+struct Tablespace_table_ref
+{
+  Object_id m_id;
+  String_type m_name;
+  Object_id m_schema_id;
+  String_type m_schema_name;
+  Tablespace_table_ref() = default; /* purecov: inspected */
+  Tablespace_table_ref(Object_id id, const String_type &&name,
+                       Object_id schema_id)
+    : m_id{id}, m_name{std::move(name)}, m_schema_id{schema_id} {}
+};
 
-}
+bool operator==(const Tablespace_table_ref &a, const Tablespace_table_ref &b);
+
+bool operator<(const Tablespace_table_ref &a, const Tablespace_table_ref &b);
+
+typedef std::vector<Tablespace_table_ref> Tablespace_table_ref_vec;
+
+/**
+  Fetch (by inserting into tblref vector) Tablespace_table_ref objects
+  which describe tables in a given tablespace.
+
+  @param thd
+  @param tso dd object
+  @param tblrefs [OUT] Tablespace_table_ref objects for tables in tablespace
+  @retval true if error occured
+  @retval false otherwise
+ */
+bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
+                                 Tablespace_table_ref_vec *tblrefs);
+
+/**
+  Create am MDL_request for a the table identified by a Tablespace_table_ref.
+  @param thd
+  @param tref table to create request for
+  @retval MDL_request (allocated on thd->memroot)
+ */
+MDL_request *mdl_req(THD *thd, const Tablespace_table_ref &tref);
+
+} // namespace dd
 
 #endif // DD__TABLESPACE_INCLUDED

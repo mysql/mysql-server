@@ -13,40 +13,45 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_handler.h"
+#include "sql/rpl_handler.h"
 
 #include <string.h>
+#include <memory>
 #include <new>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
-#include "current_thd.h"
-#include "debug_sync.h"        // DEBUG_SYNC
-#include "handler.h"
-#include "hash.h"
-#include "item_func.h"         // user_var_entry
-#include "key.h"
 #include "lex_string.h"
-#include "log.h"
+#include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
+#include "my_loglevel.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld.h"            // server_uuid
+#include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "psi_memory_key.h"
-#include "replication.h"       // Trans_param
-#include "rpl_gtid.h"
-#include "rpl_mi.h"            // Master_info
-#include "sql_class.h"         // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_plugin.h"        // plugin_int_to_ref
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"    // DEBUG_SYNC
+#include "sql/handler.h"
+#include "sql/item_func.h"     // user_var_entry
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"        // server_uuid
+#include "sql/psi_memory_key.h"
+#include "sql/replication.h"   // Trans_param
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_mi.h"        // Master_info
+#include "sql/sql_class.h"     // THD
+#include "sql/sql_const.h"
+#include "sql/sql_plugin.h"    // plugin_int_to_ref
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction_info.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
-#include "transaction_info.h"
-#include "rpl_write_set_handler.h"
 
 Trans_delegate *transaction_delegate;
 Binlog_storage_delegate *binlog_storage_delegate;
@@ -395,11 +400,11 @@ bool has_cascade_foreign_key(TABLE *table, THD *thd)
  Helper method to create table information for the hook call
  */
 void
-Trans_delegate::prepare_table_info(THD* thd,
-                                   Trans_table_info*& table_info_list,
-                                   uint& number_of_tables)
+prepare_table_info(THD* thd,
+                   Trans_table_info*& table_info_list,
+                   uint& number_of_tables)
 {
-  DBUG_ENTER("Trans_delegate::prepare_table_info");
+  DBUG_ENTER("prepare_table_info");
 
   TABLE* open_tables= thd->open_tables;
 
@@ -975,6 +980,27 @@ int Binlog_relay_IO_delegate::after_reset_slave(THD *thd, Master_info *mi)
   int ret= 0;
   FOREACH_OBSERVER(ret, after_reset_slave, (&param));
   return ret;
+}
+
+int
+Binlog_relay_IO_delegate::applier_log_event(THD *thd, int& out)
+{
+  DBUG_ENTER("Binlog_relay_IO_delegate::applier_skip_event");
+  Trans_param trans_param;
+  TRANS_PARAM_ZERO(trans_param);
+  Binlog_relay_IO_param param;
+
+  param.server_id= thd->server_id;
+  param.thread_id= thd->thread_id();
+
+  prepare_table_info(thd, trans_param.tables_info, trans_param.number_of_tables);
+
+  int ret= 0;
+  FOREACH_OBSERVER(ret, applier_log_event, (&param, &trans_param, out));
+
+  my_free(trans_param.tables_info);
+
+  DBUG_RETURN(ret);
 }
 
 int register_trans_observer(Trans_observer *observer, void *p)

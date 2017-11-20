@@ -80,6 +80,7 @@ INSERT INTO t_spec VALUES ( b'111', 'v1', 'v1');
 INSTALL PLUGIN test_sql_errors SONAME 'TEST_SQL_ERRORS';
 /*first*/SELECT * FROM information_schema.processlist ORDER BY id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<ID>	event_scheduler	<HOST_NAME>	NULL	Daemon	<TIME>	Waiting on empty queue	NULL
 <ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*first*/SELECT * FROM information_schema.processlist ORDER BY id
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
@@ -92,6 +93,7 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 UNINSTALL PLUGIN test_sql_errors;
 /*first*/SELECT * FROM information_schema.processlist ORDER BY id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<ID>	event_scheduler	<HOST_NAME>	NULL	Daemon	<TIME>	Waiting on empty queue	NULL
 <ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*first*/SELECT * FROM information_schema.processlist ORDER BY id
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN

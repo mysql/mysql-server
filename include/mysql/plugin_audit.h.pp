@@ -1,12 +1,5 @@
 #include "plugin.h"
-typedef void * MYSQL_PLUGIN;
-struct st_mysql_xid {
-  long formatID;
-  long gtrid_length;
-  long bqual_length;
-  char data[128];
-};
-typedef struct st_mysql_xid MYSQL_XID;
+#include "status_var.h"
 enum enum_mysql_show_type
 {
   SHOW_UNDEF, SHOW_BOOL,
@@ -14,12 +7,26 @@ enum enum_mysql_show_type
   SHOW_LONG,
   SHOW_LONGLONG,
   SHOW_CHAR, SHOW_CHAR_PTR,
-  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
+  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
+  SHOW_KEY_CACHE_LONG,
+  SHOW_KEY_CACHE_LONGLONG,
+  SHOW_LONG_STATUS,
+  SHOW_DOUBLE_STATUS,
+  SHOW_HAVE,
+  SHOW_MY_BOOL,
+  SHOW_HA_ROWS,
+  SHOW_SYS,
+  SHOW_LONG_NOFLUSH,
+  SHOW_LONGLONG_STATUS,
+  SHOW_LEX_STRING,
+  SHOW_SIGNED_LONG
 };
 enum enum_mysql_show_scope
 {
   SHOW_SCOPE_UNDEF,
-  SHOW_SCOPE_GLOBAL
+  SHOW_SCOPE_GLOBAL,
+  SHOW_SCOPE_SESSION,
+  SHOW_SCOPE_ALL
 };
 struct st_mysql_show_var
 {
@@ -29,6 +36,14 @@ struct st_mysql_show_var
   enum enum_mysql_show_scope scope;
 };
 typedef int (*mysql_show_var_func)(void*, struct st_mysql_show_var*, char *);
+typedef void * MYSQL_PLUGIN;
+struct st_mysql_xid {
+  long formatID;
+  long gtrid_length;
+  long bqual_length;
+  char data[128];
+};
+typedef struct st_mysql_xid MYSQL_XID;
 struct st_mysql_sys_var;
 struct st_mysql_value;
 typedef int (*mysql_var_check_func)(void* thd,
@@ -106,9 +121,6 @@ void thd_binlog_pos(const void* thd,
                     unsigned long long *pos_var);
 unsigned long thd_get_thread_id(const void* thd);
 void thd_get_xid(const void* thd, MYSQL_XID *xid);
-void mysql_query_cache_invalidate4(void* thd,
-                                   const char *key, unsigned int key_length,
-                                   int using_trx);
 void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
 void thd_set_ha_data(void* thd, const struct handlerton *hton,
                      const void *ha_data);
@@ -313,6 +325,13 @@ enum enum_sql_command {
   SQLCOM_REVOKE_ROLE,
   SQLCOM_ALTER_USER_DEFAULT_ROLE,
   SQLCOM_IMPORT,
+  SQLCOM_CREATE_RESOURCE_GROUP,
+  SQLCOM_ALTER_RESOURCE_GROUP,
+  SQLCOM_DROP_RESOURCE_GROUP,
+  SQLCOM_SET_RESOURCE_GROUP,
+  SQLCOM_CLONE,
+  SQLCOM_LOCK_INSTANCE,
+  SQLCOM_UNLOCK_INSTANCE,
   SQLCOM_END
 };
 typedef enum
@@ -328,6 +347,7 @@ typedef enum
   MYSQL_AUDIT_COMMAND_CLASS = 8,
   MYSQL_AUDIT_QUERY_CLASS = 9,
   MYSQL_AUDIT_STORED_PROGRAM_CLASS = 10,
+  MYSQL_AUDIT_AUTHENTICATION_CLASS = 11,
   MYSQL_AUDIT_CLASS_MASK_SIZE
 } mysql_event_class_t;
 struct st_mysql_audit
@@ -522,4 +542,27 @@ struct mysql_event_stored_program
   MYSQL_LEX_CSTRING database;
   MYSQL_LEX_CSTRING name;
   void *parameters;
+};
+typedef enum
+{
+  MYSQL_AUDIT_AUTHENTICATION_FLUSH = 1 << 0,
+  MYSQL_AUDIT_AUTHENTICATION_AUTHID_CREATE = 1 << 1,
+  MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE = 1 << 2,
+  MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME = 1 << 3,
+  MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP = 1 << 4
+} mysql_event_authentication_subclass_t;
+struct mysql_event_authentication
+{
+  mysql_event_authentication_subclass_t event_subclass;
+  int status;
+  unsigned int connection_id;
+  enum_sql_command_t sql_command_id;
+  MYSQL_LEX_CSTRING query;
+  const struct charset_info_st *query_charset;
+  MYSQL_LEX_CSTRING user;
+  MYSQL_LEX_CSTRING host;
+  MYSQL_LEX_CSTRING authentication_plugin;
+  MYSQL_LEX_CSTRING new_user;
+  MYSQL_LEX_CSTRING new_host;
+  bool is_role;
 };

@@ -17,29 +17,30 @@
 #include "sql/sql_binlog.h"
 
 #include <stddef.h>
-#include <stdint.h>
 #include <sys/types.h>
+#include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"                        // check_global_access
 #include "base64.h"                             // base64_needed_decoded_length
 #include "binlog_event.h"
 #include "lex_string.h"
-#include "log_event.h"                          // Format_description_log_event
+#include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "rpl_info_factory.h"                   // Rpl_info_factory
-#include "rpl_info_handler.h"
-#include "rpl_rli.h"                            // Relay_log_info
-#include "sql_class.h"
-#include "sql_lex.h"
-#include "sql_udf.h"
-#include "system_variables.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/log_event.h"                      // Format_description_log_event
+#include "sql/psi_memory_key.h"
+#include "sql/rpl_info_factory.h"               // Rpl_info_factory
+#include "sql/rpl_info_handler.h"
+#include "sql/rpl_rli.h"                        // Relay_log_info
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"
+#include "sql/system_variables.h"
 
 
 /**
@@ -73,6 +74,7 @@ static int check_event_type(int type, Relay_log_info *rli)
   case binary_log::WRITE_ROWS_EVENT_V1:
   case binary_log::UPDATE_ROWS_EVENT_V1:
   case binary_log::DELETE_ROWS_EVENT_V1:
+  case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
     /*
       Row events are only allowed if a Format_description_event has
       already been seen.

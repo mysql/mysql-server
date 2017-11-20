@@ -10,7 +10,7 @@
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot find a free slot for an undo log. Do you have too many active transactions");
 
 set @old_innodb_trx_rseg_n_slots_debug = @@innodb_trx_rseg_n_slots_debug;
-set global innodb_trx_rseg_n_slots_debug = 32;
+set global innodb_trx_rseg_n_slots_debug = 5;
 --enable_query_log
 
 set @old_innodb_rollback_segments = @@innodb_rollback_segments;
@@ -34,14 +34,14 @@ CREATE TABLE mysqltest.transtable (id int unsigned NOT NULL PRIMARY KEY, val int
 #
 # Add some rows so UPDATE below has something to work on.
 #
-let $c = 16;
+let $c = 5;
 while ($c)
 {
   eval INSERT INTO mysqltest.transtable (id) VALUES ($c);
   dec $c;
 }
 
-let $c = 32;
+let $c = 10;
 while ($c)
 {
   # if failed at here, it might be shortage of file descriptors limit.
@@ -61,8 +61,8 @@ select count(*) from information_schema.processlist;
 # types to to fill all undo slots.
 #
 --disable_query_log
-let $c = 32;
-while ($c > 16)
+let $c = 10;
+while ($c > 5)
 {
   connection con$c;
   START TRANSACTION;
@@ -74,7 +74,7 @@ while ($c)
 {
   connection con$c;
   START TRANSACTION;
-  eval UPDATE mysqltest.transtable SET val = 1 WHERE id = 17 - $c;
+  eval UPDATE mysqltest.transtable SET val = 1 WHERE id = 6 - $c;
   dec $c;
 }
 --enable_query_log
@@ -87,7 +87,7 @@ CREATE TABLE mysqltest.testtable (id int unsigned not null primary key) ENGINE=I
 select count(*) from information_schema.processlist;
 
 --disable_query_log
-let $c = 32;
+let $c = 10;
 while ($c)
 {
   connection con$c;
@@ -100,7 +100,7 @@ connection default;
 select count(*) from information_schema.processlist;
 
 --disable_query_log
-let $c = 32;
+let $c = 10;
 while ($c)
 {
   disconnect con$c;

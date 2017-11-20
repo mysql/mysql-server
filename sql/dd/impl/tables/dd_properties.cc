@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,19 +13,30 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/dd_properties.h"
+#include "sql/dd/impl/tables/dd_properties.h"
 
-#include <ostream>
+#include <string>
 
-#include "dd/impl/raw/raw_table.h"
-#include "dd/impl/transaction_impl.h"
-#include "dd/impl/types/object_table_definition_impl.h"
-#include "dd/string_type.h"           // dd::String_type, dd::Stringstream_type
-#include "field.h"
-#include "handler.h"
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "table.h"
+#include "my_sys.h"
+#include "mysql/udf_registration_types.h"
+#include "mysqld_error.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/impl/raw/raw_table.h"
+#include "sql/dd/impl/transaction_impl.h"
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/string_type.h"       // dd::String_type, dd::Stringstream_type
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/sql_const.h"
+#include "sql/stateless_allocator.h"
+#include "sql/table.h"
+#include "sql_string.h"
 
 namespace dd {
 namespace tables {

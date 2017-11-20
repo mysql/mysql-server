@@ -18,27 +18,30 @@
 
 #include <sys/types.h>
 #include <time.h>
+#include <atomic>
 
+#include "binlog_event.h"            // enum_binlog_checksum_alg
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql_const.h"
+#include "sql/binlog.h"
+#include "sql/log_event.h"           // Format_description_log_event
+#include "sql/rpl_gtid.h"            // Gtid
+#include "sql/rpl_info.h"            // Rpl_info
+#include "sql/rpl_rli.h"             // rli->get_log_lock()
+#include "sql/rpl_trx_boundary_parser.h" // Transaction_boundary_parser
+#include "sql/sql_const.h"
 
 class Relay_log_info;
 class Rpl_info_handler;
 class Server_ids;
 class THD;
-
-#include "binlog_event.h"            // enum_binlog_checksum_alg
-#include "log_event.h"               // Format_description_log_event
-#include "rpl_gtid.h"                // Gtid
-#include "rpl_info.h"                // Rpl_info
-#include "rpl_trx_boundary_parser.h" // Transaction_boundary_parser
-#include "rpl_rli.h"                 // rli->get_log_lock()
 
 typedef struct st_mysql MYSQL;
 
@@ -447,6 +450,15 @@ public:
   {
     auto_position= auto_position_param;
   }
+
+  /**
+    This member function shall return true if there are server
+    ids configured to be ignored.
+
+    @return true if there are server ids to be ignored,
+            false otherwise.
+  */
+  bool is_ignore_server_ids_configured();
 
 private:
   /**

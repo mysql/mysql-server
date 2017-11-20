@@ -68,7 +68,7 @@ START GROUP_REPLICATION;
 --echo #
 
 --disable_query_log
---eval INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',"$date_to_restore",NULL,'Y', 'N', 'N');
+--eval INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',"$date_to_restore",NULL,'Y', 'N', 'N', NULL, NULL);
 
 --eval INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql', 'mysql.session', 'user', 'root\@localhost', "$date_to_restore_priv", 'Select', '');
 
@@ -83,6 +83,7 @@ FLUSH PRIVILEGES;
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when trying to access the server with user: mysql.session.*");
+call mtr.add_suppression("Can't establish a internal server connection to execute plugin operations");
 call mtr.add_suppression("It was not possible to establish a connection to server SQL service");
 call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
 call mtr.add_suppression("On plugin shutdown it was not possible to reset the server read mode settings.");

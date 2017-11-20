@@ -1,0 +1,38 @@
+#############################################################
+# This test will verify that a warning is issued when       #
+# expire_logs_days is used.                                 #
+# WL#10924: Deprecate expire_logs_days                      #
+#############################################################
+
+
+# no need to run multiple times
+--source include/have_binlog_format_row.inc
+
+--let $ofile= $MYSQLTEST_VARDIR/tmp/binlog_deprecations-output.err
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+
+# Bug#26483363: WARNING ABOUT EXPIRE-LOGS-DAYS
+# assert no deprecation warning when server bootstraps and expire_logs_days is not set
+--let $restart_parameters=restart: --log-error=$ofile
+--source include/restart_mysqld.inc
+
+--let $assert_text= Assert that there is no  warning at bootstrap if expire_logs_days is not explicitly set
+--let $assert_file= $ofile
+--let $assert_select= The syntax 'expire-logs-days' is deprecated and will be removed in a future release.
+--let $assert_count= 0
+--source include/assert_grep.inc
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+# assert deprecation warning when server bootstraps and expire_logs_days is set
+--let $restart_parameters=restart:--expire_logs_days=99 --log-error=$ofile
+--source include/restart_mysqld.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap for expire_logs_days
+--let $assert_file= $ofile
+--let $assert_select= The syntax 'expire-logs-days' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+# cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_deprecations-output.err
+--let $ofile=

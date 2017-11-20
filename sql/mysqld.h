@@ -39,6 +39,17 @@
 #include "my_sys.h"                        // MY_TMPDIR
 #include "my_thread.h"                     // my_thread_attr_t
 #include "my_thread_local.h"               // my_get_thread_local
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/mysql_rwlock_bits.h"
+#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/psi_file_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/psi_rwlock_bits.h"
+#include "mysql/components/services/psi_socket_bits.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
@@ -47,12 +58,15 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_statement.h"       /* PSI_statement_info */
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"                     // SERVER_VERSION_LENGTH
-#include "sql_bitmap.h"
-#include "sql_const.h"                     // UUID_LENGTH
-#include "system_variables.h"
-#include "rpl_filter.h"                    // Rpl_filter
+#include "sql/rpl_filter.h"                // Rpl_filter
+#include "sql/sql_bitmap.h"
+#include "sql/sql_const.h"                 // UUID_LENGTH
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 
+class Rpl_filter;
 class THD;
 class Time_zone;
 struct handlerton;
@@ -137,7 +151,6 @@ extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_skip_name_resolve;
 extern bool opt_help;
 extern bool opt_verbose;
-extern bool opt_ignore_builtin_innodb;
 extern bool opt_character_set_client_handshake;
 extern MYSQL_PLUGIN_IMPORT std::atomic<int32> connection_events_loop_aborted_flag;
 extern bool opt_initialize;
@@ -174,7 +187,6 @@ extern bool opt_enable_named_pipe;
 extern bool opt_enable_shared_memory;
 #endif
 extern bool opt_allow_suspicious_udfs;
-extern bool opt_secure_auth;
 extern char* opt_secure_file_priv;
 extern bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
 extern bool sp_automatic_privileges, opt_noacl;
@@ -229,7 +241,6 @@ extern ulong aborted_threads;
 extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
 extern std::atomic<int32> atomic_slave_open_temp_tables;
-extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong slow_launch_time;
 extern ulong table_cache_size;
 extern ulong schema_def_size;
@@ -312,7 +323,6 @@ extern bool avoid_temporal_upgrade;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
-extern ulong log_warnings;
 extern char *opt_log_error_filter_rules;
 extern char *opt_log_error_services;
 extern bool  opt_log_syslog_enable;
@@ -375,18 +385,17 @@ extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_mts_temp_table_LOCK;
 extern PSI_mutex_key key_mts_gaq_LOCK;
 extern PSI_mutex_key key_thd_timer_mutex;
-extern PSI_mutex_key key_LOCK_group_replication_handler;
 
 extern PSI_mutex_key key_commit_order_manager_mutex;
 extern PSI_mutex_key key_mutex_slave_worker_hash;
 
 extern PSI_rwlock_key key_rwlock_LOCK_logger;
-extern PSI_rwlock_key key_rwlock_query_cache_query_lock;
 extern PSI_rwlock_key key_rwlock_channel_map_lock;
 extern PSI_rwlock_key key_rwlock_channel_lock;
 extern PSI_rwlock_key key_rwlock_receiver_sid_lock;
 extern PSI_rwlock_key key_rwlock_rpl_filter_lock;
 extern PSI_rwlock_key key_rwlock_channel_to_filter_lock;
+extern PSI_rwlock_key key_rwlock_resource_group_mgr_map_lock;
 
 extern PSI_cond_key key_PAGE_cond;
 extern PSI_cond_key key_COND_active;
@@ -421,7 +430,6 @@ extern PSI_thread_key key_thread_parser_service;
 extern PSI_file_key key_file_binlog;
 extern PSI_file_key key_file_binlog_index;
 extern PSI_file_key key_file_dbopt;
-extern PSI_file_key key_file_des_key_file;
 extern PSI_file_key key_file_ERRMSG;
 extern PSI_file_key key_select_to_file;
 extern PSI_file_key key_file_fileparser;
@@ -463,7 +471,6 @@ extern PSI_stage_info stage_changing_master;
 extern PSI_stage_info stage_checking_master_version;
 extern PSI_stage_info stage_checking_permissions;
 extern PSI_stage_info stage_checking_privileges_on_cached_query;
-extern PSI_stage_info stage_checking_query_cache_for_query;
 extern PSI_stage_info stage_cleaning_up;
 extern PSI_stage_info stage_closing_tables;
 extern PSI_stage_info stage_compressing_gtid_table;
@@ -491,8 +498,6 @@ extern PSI_stage_info stage_got_handler_lock;
 extern PSI_stage_info stage_got_old_table;
 extern PSI_stage_info stage_init;
 extern PSI_stage_info stage_insert;
-extern PSI_stage_info stage_invalidating_query_cache_entries_table;
-extern PSI_stage_info stage_invalidating_query_cache_entries_table_list;
 extern PSI_stage_info stage_killing_slave;
 extern PSI_stage_info stage_logging_slow_query;
 extern PSI_stage_info stage_making_temp_file_append_before_load_data;
@@ -533,7 +538,6 @@ extern PSI_stage_info stage_sorting_for_order;
 extern PSI_stage_info stage_sorting_result;
 extern PSI_stage_info stage_sql_thd_waiting_until_delay;
 extern PSI_stage_info stage_statistics;
-extern PSI_stage_info stage_storing_result_in_query_cache;
 extern PSI_stage_info stage_storing_row_into_queue;
 extern PSI_stage_info stage_system_lock;
 extern PSI_stage_info stage_update;
@@ -553,7 +557,6 @@ extern PSI_stage_info stage_waiting_for_master_update;
 extern PSI_stage_info stage_waiting_for_relay_log_space;
 extern PSI_stage_info stage_waiting_for_slave_mutex_on_exit;
 extern PSI_stage_info stage_waiting_for_slave_thread_to_start;
-extern PSI_stage_info stage_waiting_for_query_cache_lock;
 extern PSI_stage_info stage_waiting_for_table_flush;
 extern PSI_stage_info stage_waiting_for_the_next_event_in_relay_log;
 extern PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position;
@@ -625,11 +628,9 @@ extern mysql_mutex_t LOCK_sql_slave_skip_counter;
 extern mysql_mutex_t LOCK_slave_net_timeout;
 extern mysql_mutex_t LOCK_offline_mode;
 extern mysql_mutex_t LOCK_mandatory_roles;
+extern mysql_mutex_t LOCK_password_history;
+extern mysql_mutex_t LOCK_password_reuse_interval;
 extern mysql_mutex_t LOCK_default_password_lifetime;
-#ifdef HAVE_OPENSSL
-extern char* des_key_file;
-extern mysql_mutex_t LOCK_des_key_file;
-#endif
 extern mysql_mutex_t LOCK_server_started;
 extern mysql_mutex_t LOCK_reset_gtid_table;
 extern mysql_mutex_t LOCK_compress_gtid_table;
@@ -641,7 +642,6 @@ extern mysql_cond_t COND_manager;
 extern mysql_rwlock_t LOCK_sys_init_connect;
 extern mysql_rwlock_t LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
-extern mysql_mutex_t LOCK_group_replication_handler;
 
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath, *opt_tls_version;
@@ -652,6 +652,9 @@ extern sigset_t mysqld_signal_mask;
 /* query_id */
 typedef int64 query_id_t;
 extern std::atomic<query_id_t> atomic_global_query_id;
+
+int *get_remaining_argc();
+char ***get_remaining_argv();
 
 /* increment query_id and return it.  */
 inline MY_ATTRIBUTE((warn_unused_result)) query_id_t next_query_id()

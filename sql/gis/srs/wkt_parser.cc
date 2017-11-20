@@ -36,11 +36,11 @@
 #include <boost/spirit/include/qi.hpp>
 #include <cctype>
 
-#include "gis/srs/srs.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                  // ER_*
+#include "sql/gis/srs/srs.h"
 
 BOOST_FUSION_ADAPT_STRUCT(
   gis::srs::wkt_parser::Authority,

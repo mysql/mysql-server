@@ -25,17 +25,18 @@
 #include <algorithm>
 
 #include "binary_log_types.h"
-#include "current_thd.h"        // current_thd
-#include "field.h"
-#include "item.h"               // Cached_item, ...
-#include "json_dom.h"           // Json_wrapper
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
-#include "mysql_com.h"
-#include "sql_class.h"          // THD
+#include "mysql/udf_registration_types.h"
+#include "sql/current_thd.h"    // current_thd
+#include "sql/item.h"           // Cached_item, ...
+#include "sql/json_dom.h"       // Json_wrapper
+#include "sql/my_decimal.h"
+#include "sql/sql_class.h"      // THD
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "system_variables.h"
+#include "template_utils.h"
 
 using std::min;
 using std::max;
@@ -170,6 +171,10 @@ bool Cached_item_json::cmp()
   return true;
 }
 
+void Cached_item_json::copy_to_Item_cache(Item_cache *i_c)
+{
+  down_cast<Item_cache_json*>(i_c)->store_value(item, m_value);
+}
 
 bool Cached_item_real::cmp(void)
 {
@@ -267,11 +272,8 @@ bool Cached_item_decimal::cmp()
     null_value= item->null_value;
     /* Save only not null values */
     if (!null_value)
-    {
       my_decimal2decimal(ptmp, &value);
-      DBUG_RETURN(TRUE);
-    }
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }

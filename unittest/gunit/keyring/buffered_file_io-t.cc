@@ -16,13 +16,13 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <mysql/plugin_keyring.h>
-#include <sql_plugin_ref.h>
 
 #include "buffered_file_io.h"
 #include "keyring_key.h"
 #include "lex_string.h"
 #include "mock_logger.h"
 #include "my_inttypes.h"
+#include "sql/sql_plugin_ref.h"
 
 #if defined(HAVE_PSI_INTERFACE)
 namespace keyring

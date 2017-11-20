@@ -46,16 +46,16 @@
 #define PFS_AUTOSIZE_VALUE (-1)
 
 #ifndef PFS_MAX_MUTEX_CLASS
-#define PFS_MAX_MUTEX_CLASS 220
+#define PFS_MAX_MUTEX_CLASS 250
 #endif
 #ifndef PFS_MAX_RWLOCK_CLASS
-#define PFS_MAX_RWLOCK_CLASS 50
+#define PFS_MAX_RWLOCK_CLASS 60
 #endif
 #ifndef PFS_MAX_COND_CLASS
 #define PFS_MAX_COND_CLASS 80
 #endif
 #ifndef PFS_MAX_THREAD_CLASS
-#define PFS_MAX_THREAD_CLASS 50
+#define PFS_MAX_THREAD_CLASS 100
 #endif
 #ifndef PFS_MAX_FILE_CLASS
 #define PFS_MAX_FILE_CLASS 80
@@ -263,6 +263,9 @@ struct PFS_global_param
 
   long m_max_digest_length;
   ulong m_max_sql_text_length;
+
+  /** Maximum age in seconds for a query sample. */
+  ulong m_max_digest_sample_age;
 
   /** Maximum number of error instrumented */
   ulong m_error_sizing;

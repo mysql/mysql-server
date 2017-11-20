@@ -18,24 +18,24 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-
 #include <memory>
 #include <string>
 #include <unordered_map>
 
-#include "hash.h"                   // my_hash_value_type
 #include "lex_string.h"
 #include "m_string.h"
-#include "malloc_allocator.h"
 #include "map_helpers.h"
-#include "mdl.h"                    // MDL_savepoint
 #include "my_base.h"                // ha_extra_function
 #include "my_inttypes.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "sql_array.h"              // Bounds_checked_array
+#include "mysql/udf_registration_types.h"
+#include "sql/malloc_allocator.h"
+#include "sql/mdl.h"                // MDL_savepoint
+#include "sql/sql_array.h"          // Bounds_checked_array
+#include "sql/sql_const.h"          // enum_resolution_type
+#include "sql/trigger_def.h"        // enum_trigger_event_type
 #include "thr_lock.h"               // thr_lock_type
-#include "trigger_def.h"            // enum_trigger_event_type
-#include "sql_const.h"              // enum_resolution_type
 
 class COPY_INFO;
 class Field;
@@ -264,7 +264,7 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
-int setup_ftfuncs(SELECT_LEX* select);
+int setup_ftfuncs(const THD *thd, SELECT_LEX* select);
 bool init_ftfuncs(THD *thd, SELECT_LEX* select);
 int run_before_dml_hook(THD *thd);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,
@@ -306,9 +306,50 @@ void close_log_table(THD *thd, Open_tables_backup *backup);
 
 bool close_cached_tables(THD *thd, TABLE_LIST *tables,
                          bool wait_for_refresh, ulong timeout);
+
+
+/**
+  Close all open instances of the table but keep the MDL lock.
+
+  Works both under LOCK TABLES and in the normal mode.
+  Removes all closed instances of the table from the table cache.
+
+  @param  thd         Thread context.
+  @param  share       Table share, but is just a handy way to
+                      access the table cache key.
+  @param  remove_from_locked_tables
+                      True if the table is being dropped or renamed.
+                      In that case the documented behaviour is to
+                      implicitly remove the table from LOCK TABLES list.
+  @param  skip_table  TABLE instance that should be kept open.
+
+  @pre Must be called with an X MDL lock on the table.
+*/
 void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
                                bool remove_from_locked_tables,
                                TABLE *skip_table);
+
+
+/**
+  Close all open instances of the table but keep the MDL lock.
+
+  Works both under LOCK TABLES and in the normal mode.
+  Removes all closed instances of the table from the table cache.
+
+  @param  thd         Thread context.
+  @param  db          Database name.
+  @param  table_name  Table name.
+  @param  remove_from_locked_tables
+                      True if the table is being dropped or renamed.
+                      In that case the documented behaviour is to
+                      implicitly remove the table from LOCK TABLES list.
+
+  @pre Must be called with an X MDL lock on the table.
+*/
+void
+close_all_tables_for_name(THD *thd, const char *db, const char *table_name,
+                          bool remove_from_locked_tables);
+
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       const char *db, const char *table_name,

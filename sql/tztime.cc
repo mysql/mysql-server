@@ -31,58 +31,66 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
 
-#include "field.h"
-#include "handler.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"          // strmake
+#include "map_helpers.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_time.h"           // MY_TIME_T_MIN
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_memory.h"
-#include "mysql/psi/psi_mutex.h"
 #include "mysql/service_my_snprintf.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_plugin.h"
-#include "sql_servers.h"
-#include "system_variables.h"
+#include "mysql/udf_registration_types.h"
+#include "mysqld_error.h"
+#include "sql/dd/types/event.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/histograms/value_map.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_servers.h"
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
+#include "sql/tzfile.h"        // TZ_MAX_REV_RANGES
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "thr_malloc.h"
 #include "thr_mutex.h"
-#include "tzfile.h"            // TZ_MAX_REV_RANGES
 
 #if !defined(TZINFO2SQL)
-#include "debug_sync.h"        // DEBUG_SYNC
-#include "hash.h"              // HASH
-#include "log.h"
-#include "mysqld.h"            // global_system_variables
-#include "sql_base.h"          // close_trans_system_tables
-#include "sql_class.h"         // THD
+#include "sql/debug_sync.h"    // DEBUG_SYNC
+#include "sql/log.h"
+#include "sql/mysqld.h"        // global_system_variables
+#include "sql/sql_base.h"      // close_trans_system_tables
+#include "sql/sql_class.h"     // THD
+#include "sql/sql_time.h"      // localtime_to_TIME
+#include "sql/table.h"         // TABLE_LIST
 #include "sql_string.h"        // String
-#include "sql_time.h"          // localtime_to_TIME
-#include "table.h"             // TABLE_LIST
 #endif
 
 #include <algorithm>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "print_version.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
@@ -1365,15 +1373,11 @@ public:
                                     bool *in_dst_time_gap) const;
   virtual void   gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
   virtual const String * get_name() const;
-  /*
-    This have to be public because we want to be able to access it from
-    my_offset_tzs_get_key() function
-  */
-  long offset;
 private:
   /* Extra reserve because of snprintf */
   char name_buff[7+16];
   String name;
+  long offset;
 };
 
 
@@ -1495,8 +1499,6 @@ Time_zone *my_tz_OFFSET0= &tz_OFFSET0;
 Time_zone *my_tz_UTC= &tz_UTC;
 Time_zone *my_tz_SYSTEM= &tz_SYSTEM;
 
-static HASH tz_names;
-static HASH offset_tzs;
 static MEM_ROOT tz_storage;
 
 /*
@@ -1541,32 +1543,12 @@ static const LEX_STRING tz_tables_names[MY_TZ_TABLES_COUNT]=
 
 static const LEX_STRING tz_tables_db_name= { C_STRING_WITH_LEN("mysql")};
 
-
 class Tz_names_entry: public Sql_alloc
 {
 public:
   String name;
   Time_zone *tz;
 };
-
-
-static const uchar *
-my_tz_names_get_key(const uchar *arg, size_t *length)
-{
-  const Tz_names_entry *entry= pointer_cast<const Tz_names_entry*>(arg);
-  *length= entry->name.length();
-  return (uchar*) entry->name.ptr();
-}
-
-static const uchar *
-my_offset_tzs_get_key(const uchar *arg,
-                      size_t *length)
-{
-  const Time_zone_offset *entry= pointer_cast<const Time_zone_offset*>(arg);
-  *length= sizeof(long);
-  return (uchar*) &entry->offset;
-}
-
 
 /*
   Prepare table list with time zone related tables from preallocated array.
@@ -1608,14 +1590,20 @@ static PSI_mutex_key key_tz_LOCK;
 
 static PSI_mutex_info all_tz_mutexes[]=
 {
-  { & key_tz_LOCK, "tz_LOCK", PSI_FLAG_GLOBAL, 0}
+  { & key_tz_LOCK, "tz_LOCK", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_tz_memory[]=
 {
-  { &key_memory_tz_storage, "tz_storage", PSI_FLAG_GLOBAL}
+  { &key_memory_tz_storage, "tz_storage", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}
 };
 
+class Tz_names_entry;
+
+static collation_unordered_map<std::string, Tz_names_entry*> tz_names
+  {&my_charset_latin1, key_memory_tz_storage};
+static malloc_unordered_map<long, Time_zone_offset *> offset_tzs
+  {key_memory_tz_storage};
 
 static void init_tz_psi_keys(void)
 {
@@ -1681,21 +1669,6 @@ my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap)
   thd->store_globals();
 
   /* Init all memory structures that require explicit destruction */
-  if (my_hash_init(&tz_names, &my_charset_latin1, 20,
-                   0, my_tz_names_get_key, nullptr, 0,
-                   key_memory_tz_storage))
-  {
-    LogErr(ERROR_LEVEL, ER_TZ_OOM_INITIALIZING_TIME_ZONES);
-    goto end;
-  }
-  if (my_hash_init(&offset_tzs, &my_charset_latin1, 26, 0,
-                   my_offset_tzs_get_key, nullptr, 0,
-                   key_memory_tz_storage))
-  {
-    LogErr(ERROR_LEVEL, ER_TZ_OOM_INITIALIZING_TIME_ZONES);
-    my_hash_free(&tz_names);
-    goto end;
-  }
   init_sql_alloc(key_memory_tz_storage, &tz_storage, 32 * 1024, 0);
   mysql_mutex_init(key_tz_LOCK, &tz_LOCK, MY_MUTEX_INIT_FAST);
   tz_inited= 1;
@@ -1708,11 +1681,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap)
   }
   tmp_tzname->name.set(STRING_WITH_LEN("SYSTEM"), &my_charset_latin1);
   tmp_tzname->tz= my_tz_SYSTEM;
-  if (my_hash_insert(&tz_names, (const uchar *)tmp_tzname))
-  {
-    LogErr(ERROR_LEVEL, ER_TZ_OOM_INITIALIZING_TIME_ZONES);
-    goto end_with_cleanup;
-  }
+  tz_names.emplace("SYSTEM", tmp_tzname);
 
   if (bootstrap)
   {
@@ -1845,7 +1814,6 @@ end_with_cleanup:
   if (return_val)
     my_tz_free();
 
-end:
   delete thd;
   if (org_thd)
     org_thd->store_globals();			/* purecov: inspected */
@@ -1870,8 +1838,8 @@ void my_tz_free()
   {
     tz_inited= 0;
     mysql_mutex_destroy(&tz_LOCK);
-    my_hash_free(&offset_tzs);
-    my_hash_free(&tz_names);
+    offset_tzs.clear();
+    tz_names.clear();
     free_root(&tz_storage, MYF(0));
   }
 }
@@ -2200,7 +2168,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
                                             &(tmp_tzname->name))) ||
       (tmp_tzname->name.set(tz_name_buff, tz_name->length(),
                             &my_charset_latin1),
-       my_hash_insert(&tz_names, (const uchar *)tmp_tzname)))
+       !tz_names.emplace(to_string(tmp_tzname->name), tmp_tzname).second))
   {
     LogErr(ERROR_LEVEL, ER_TZ_OOM_WHILE_LOADING_TIME_ZONE);
     goto end;
@@ -2341,7 +2309,6 @@ str_to_offset(const char *str, size_t length, long *offset)
 Time_zone *
 my_tz_find(THD *thd, const String *name)
 {
-  Tz_names_entry *tmp_tzname;
   Time_zone *result_tz= 0;
   long offset;
   DBUG_ENTER("my_tz_find");
@@ -2355,17 +2322,21 @@ my_tz_find(THD *thd, const String *name)
 
   if (!str_to_offset(name->ptr(), name->length(), &offset))
   {
-
-    if (!(result_tz= (Time_zone_offset *)my_hash_search(&offset_tzs,
-                                                        (const uchar *)&offset,
-                                                        sizeof(long))))
+    const auto it= offset_tzs.find(offset);
+    if (it != offset_tzs.end())
+    {
+      result_tz= it->second;
+    }
+    else
     {
       DBUG_PRINT("info", ("Creating new Time_zone_offset object"));
 
-      if (!(result_tz= new (&tz_storage) Time_zone_offset(offset)) ||
-          my_hash_insert(&offset_tzs, (const uchar *) result_tz))
+      if ((result_tz= new (&tz_storage) Time_zone_offset(offset)))
       {
-        result_tz= 0;
+        offset_tzs.emplace(offset, down_cast<Time_zone_offset *>(result_tz));
+      }
+      else
+      {
         LogErr(ERROR_LEVEL, ER_TZ_OOM_WHILE_SETTING_TIME_ZONE);
       }
     }
@@ -2373,11 +2344,9 @@ my_tz_find(THD *thd, const String *name)
   else
   {
     result_tz= 0;
-    if ((tmp_tzname= (Tz_names_entry *)my_hash_search(&tz_names,
-                                                      (const uchar *)
-                                                      name->ptr(),
-                                                      name->length())))
-      result_tz= tmp_tzname->tz;
+    const auto it= tz_names.find(to_string(*name));
+    if (it != tz_names.end())
+      result_tz= it->second->tz;
     else if (time_zone_tables_exist)
     {
       TABLE_LIST tz_tables[MY_TZ_TABLES_COUNT];

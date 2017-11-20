@@ -19,15 +19,15 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "handler.h"                 // enum_schema_tables
-#include "key.h"
 #include "lex_string.h"
-#include "m_string.h"
 #include "my_command.h"
 #include "my_sqlcommand.h"
+#include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql_com.h"               // enum_server_command
-#include "system_variables.h"
+#include "sql/handler.h"             // enum_schema_tables
+#include "sql/key.h"
+#include "sql/system_variables.h"
 
 template <typename T> class SQL_I_List;
 
@@ -295,6 +295,14 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
   sent by the user (ie: stored procedure).
 */
 #define CF_SKIP_QUESTIONS       (1U << 1)
+
+/**
+  Identifies statement that must acquire Backup Lock before
+  start its execution. It allows all kind of DML on InnoDB tables,
+  and blocks all operations, that could cause an inconsistent
+  backup, if done during a backup operation.
+*/
+#define CF_ACQUIRE_BACKUP_LOCK  (1U << 20)
 
 /**
   1U << 16 is reserved for Protocol Plugin statements and commands

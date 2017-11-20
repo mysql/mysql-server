@@ -45,11 +45,11 @@
  * This is a casual hack to do static memory allocation
  * (needed by NDB)
  */
-#include "../../../../extra/zlib/zutil.h"
-#include "../../../../extra/zlib/zconf.h"
-#include "../../../../extra/zlib/inftrees.h"
-#include "../../../../extra/zlib/inflate.h"
-#include "../../../../extra/zlib/deflate.h"
+#include <zutil.h>
+#include <zlib.h>
+#include <inftrees.h>
+#include <inflate.h>
+#include <deflate.h>
 
 #include <util/ndbzio.h>
 

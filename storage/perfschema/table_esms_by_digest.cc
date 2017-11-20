@@ -23,7 +23,6 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "pfs_column_types.h"
@@ -34,6 +33,7 @@
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
 #include "pfs_visitor.h"
+#include "sql/field.h"
 
 THR_LOCK table_esms_by_digest::m_table_lock;
 
@@ -70,11 +70,14 @@ Plugin_table table_esms_by_digest::m_table_def(
   "  SUM_SORT_SCAN BIGINT unsigned not null,\n"
   "  SUM_NO_INDEX_USED BIGINT unsigned not null,\n"
   "  SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
-  "  FIRST_SEEN TIMESTAMP(0) NOT NULL default 0,\n"
-  "  LAST_SEEN TIMESTAMP(0) NOT NULL default 0,\n"
+  "  FIRST_SEEN TIMESTAMP(6) NOT NULL default 0,\n"
+  "  LAST_SEEN TIMESTAMP(6) NOT NULL default 0,\n"
   "  QUANTILE_95 BIGINT unsigned not null,\n"
   "  QUANTILE_99 BIGINT unsigned not null,\n"
   "  QUANTILE_999 BIGINT unsigned not null,\n"
+  "  QUERY_SAMPLE_TEXT LONGTEXT,\n"
+  "  QUERY_SAMPLE_SEEN TIMESTAMP(6) NOT NULL default 0,\n"
+  "  QUERY_SAMPLE_TIMER_WAIT BIGINT unsigned NOT NULL,\n"
   "  UNIQUE KEY (SCHEMA_NAME, DIGEST) USING HASH\n",
   /* Options */
   " ENGINE=PERFORMANCE_SCHEMA",
@@ -90,7 +93,10 @@ PFS_engine_table_share table_esms_by_digest::m_share = {
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool
@@ -310,6 +316,16 @@ table_esms_by_digest::make_row(PFS_statements_digest_stat *digest_stat)
     m_row.m_p999 = g_histogram_pico_timers.m_bucket_timer[index_999 + 1];
   }
 
+  /* Format the query sample sqltext string for output. */
+  format_sqltext(digest_stat->m_query_sample,
+                 digest_stat->m_query_sample_length,
+                 get_charset(digest_stat->m_query_sample_cs_number, MYF(0)),
+                 digest_stat->m_query_sample_truncated,
+                 m_row.m_query_sample);
+
+  m_row.m_query_sample_seen = digest_stat->m_query_sample_seen;
+  m_row.m_query_sample_timer_wait =
+               normalizer->wait_to_pico(digest_stat->m_query_sample_timer_wait);
   return 0;
 }
 
@@ -353,6 +369,23 @@ table_esms_by_digest::read_row_values(TABLE *table,
         break;
       case 31: /* QUANTILE_999 */
         set_field_ulonglong(f, m_row.m_p999);
+        break;
+      case 32: /* QUERY_SAMPLE_TEXT */
+        if (m_row.m_query_sample.length())
+          set_field_text(f,
+                         m_row.m_query_sample.ptr(),
+                         m_row.m_query_sample.length(),
+                         m_row.m_query_sample.charset());
+        else
+        {
+          f->set_null();
+        }
+        break;
+      case 33: /* QUERY_SAMPLE_SEEN */
+        set_field_timestamp(f, m_row.m_query_sample_seen);
+        break;
+      case 34: /* QUERY_SAMPLE_TIMER_WAIT */
+        set_field_ulonglong(f, m_row.m_query_sample_timer_wait);
         break;
       default: /* 3, ... COUNT/SUM/MIN/AVG/MAX */
         m_row.m_stat.set_field(f->field_index - 3, f);

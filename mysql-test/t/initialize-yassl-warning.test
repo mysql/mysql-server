@@ -3,7 +3,6 @@
 #
 
 --source include/big_test.inc
---source include/have_no_undo_tablespaces.inc
 --source include/have_ssl.inc
 --source include/have_yassl.inc
 
@@ -11,7 +10,7 @@
 let BASEDIR= `select @@basedir`;
 let DDIR=$MYSQL_TMP_DIR/installdb_test;
 let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
-let extra_args=--no-defaults --console --log-syslog=0 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --log-syslog=0 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 
 --echo # We don't care about innodb warnings at this point
 CALL mtr.add_suppression("InnoDB:");

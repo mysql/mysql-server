@@ -49,7 +49,7 @@ allocation in temptable. Probably this implementation should replace my_chsize
 implementation.
 
 @param[in] fd File descriptor
-@param[in] new_length New file size
+@param[in] newlength New file size
 @param[in] filler Fill up all bytes after new_length with this character
 @param[in] MyFlags Flags
 @return 0 if OK, 1 otherwise

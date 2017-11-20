@@ -13,19 +13,20 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/transaction_impl.h"
+#include "sql/dd/impl/transaction_impl.h"
 
 #include <stddef.h>
 #include <new>
 #include <utility>
 
-#include "dd/impl/raw/raw_table.h"           // dd::Raw_table
+#include "my_base.h"
 #include "my_dbug.h"
-#include "query_options.h"
-#include "sql_base.h"                        // MYSQL_LOCK_IGNORE_TIMEOUT
-#include "sql_lex.h"
-#include "system_variables.h"
-#include "table.h"
+#include "sql/dd/impl/raw/raw_table.h"       // dd::Raw_table
+#include "sql/query_options.h"
+#include "sql/sql_base.h"                    // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "sql/sql_lex.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
 namespace dd {
 
@@ -167,8 +168,11 @@ Update_dictionary_tables_ctx::Update_dictionary_tables_ctx(THD *thd)
     m_thd->clear_current_stmt_binlog_format_row();
 
   // Disable bin logging
-  m_saved_binlog_options= m_thd->variables.option_bits;
+  m_saved_options= m_thd->variables.option_bits;
   m_thd->variables.option_bits&= ~OPTION_BIN_LOG;
+
+  // Set bit to indicate that the thread is updating the data dictionary tables.
+  m_thd->variables.option_bits|= OPTION_DD_UPDATE_CONTEXT;
 
   /*
     In @@autocommit=1 mode InnoDB automatically commits its transaction when
@@ -208,7 +212,7 @@ Update_dictionary_tables_ctx::~Update_dictionary_tables_ctx()
   m_thd->check_for_truncated_fields= m_saved_check_for_truncated_fields;
   m_thd->variables.sql_mode= m_saved_mode;
 
-  m_thd->variables.option_bits= m_saved_binlog_options;
+  m_thd->variables.option_bits= m_saved_options;
 
   if (m_saved_binlog_row_based)
     m_thd->set_current_stmt_binlog_format_row();

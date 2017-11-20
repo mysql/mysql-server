@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -186,7 +186,8 @@ VoidFs::execFSREADREQ(Signal* signal)
   releaseSections(handle);
 
   signal->theData[0] = userPointer;
-  sendSignal(userRef, GSN_FSREADCONF, signal, 1, JBB);
+  signal->theData[1] = 0; /* Bytes read 0 */
+  sendSignal(userRef, GSN_FSREADCONF, signal, 2, JBB);
 #if 0
   FsRef * const fsRef = (FsRef *)&signal->theData[0];
   fsRef->userPointer = userPointer;

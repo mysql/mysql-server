@@ -23,22 +23,24 @@
 #include "sql/sql_manager.h"
 
 #include <errno.h>
-#include <sys/types.h>
 #include <time.h>
 
-#include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_systime.h"
 #include "my_thread.h"         // my_thread_t
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql_com.h"
-#include "mysqld.h"            // flush_time
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "sql_base.h"          // tdc_flush_unused_tables
+#include "sql/log.h"
+#include "sql/mysqld.h"        // flush_time
+#include "sql/sql_base.h"      // tdc_flush_unused_tables
 
 static bool volatile manager_thread_in_use;
 static bool abort_manager;

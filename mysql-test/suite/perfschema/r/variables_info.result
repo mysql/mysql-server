@@ -206,7 +206,7 @@ where VARIABLE_NAME = 'sql_log_bin';
 Sleep 1 second
 # since SET statement fails there should be no change in timestamp
 SET @@persist.sql_log_bin=0;
-ERROR 42000: Variable 'sql_log_bin' can't be set to the value of '0'
+ERROR HY000: Variable 'sql_log_bin' is a SESSION variable and can't be used with SET GLOBAL
 select SET_TIME INTO @set_time
 from performance_schema.variables_info
 where VARIABLE_NAME = 'sql_log_bin';

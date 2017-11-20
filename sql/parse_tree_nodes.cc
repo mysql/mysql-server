@@ -13,40 +13,42 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "parse_tree_nodes.h"
+#include "sql/parse_tree_nodes.h"
 
 #include <string.h>
+#include <algorithm>
 
-#include "dd/info_schema/show.h"             // build_show_...
-#include "dd/types/abstract_table.h" // dd::enum_table_type::BASE_TABLE
-#include "derror.h"         // ER_THD
-#include "key_spec.h"
+#include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_dbug.h"
-#include "my_macros.h"
-#include "mysqld.h"         // global_system_variables
-#include "parse_tree_column_attrs.h" // PT_field_def_base
-#include "parse_tree_hints.h"
-#include "parse_tree_partitions.h" // PT_partition
-#include "prealloced_array.h"
-#include "query_options.h"
-#include "session_tracker.h"
-#include "sp.h"             // sp_add_used_routine
-#include "sp_instr.h"       // sp_instr_set
-#include "sp_pcontext.h"
-#include "sql_base.h"                        // find_temporary_table
-#include "sql_call.h"       // Sql_cmd_call...
-#include "sql_data_change.h"
-#include "sql_delete.h"     // Sql_cmd_delete...
-#include "sql_do.h"         // Sql_cmd_do...
-#include "sql_error.h"
-#include "sql_insert.h"     // Sql_cmd_insert...
-#include "sql_select.h"     // Sql_cmd_select...
+#include "sql/dd/info_schema/show.h"         // build_show_...
+#include "sql/dd/types/abstract_table.h" // dd::enum_table_type::BASE_TABLE
+#include "sql/derror.h"     // ER_THD
+#include "sql/item_timefunc.h"
+#include "sql/key_spec.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"     // global_system_variables
+#include "sql/parse_tree_column_attrs.h" // PT_field_def_base
+#include "sql/parse_tree_hints.h"
+#include "sql/parse_tree_partitions.h" // PT_partition
+#include "sql/query_options.h"
+#include "sql/sp.h"         // sp_add_used_routine
+#include "sql/sp_instr.h"   // sp_instr_set
+#include "sql/sp_pcontext.h"
+#include "sql/sql_array.h"
+#include "sql/sql_base.h"                    // find_temporary_table
+#include "sql/sql_call.h"   // Sql_cmd_call...
+#include "sql/sql_cmd_ddl_table.h"
+#include "sql/sql_data_change.h"
+#include "sql/sql_delete.h" // Sql_cmd_delete...
+#include "sql/sql_do.h"     // Sql_cmd_do...
+#include "sql/sql_error.h"
+#include "sql/sql_insert.h" // Sql_cmd_insert...
+#include "sql/sql_select.h" // Sql_cmd_select...
+#include "sql/sql_update.h" // Sql_cmd_update...
+#include "sql/system_variables.h"
+#include "sql/trigger_def.h"
 #include "sql_string.h"
-#include "sql_update.h"     // Sql_cmd_update...
-#include "system_variables.h"
-#include "trigger_def.h"
 
 class Sql_cmd;
 
@@ -321,13 +323,47 @@ bool PT_internal_variable_name_2d::contextualize(Parse_context *pc)
   }
   else
   {
-    sys_var *tmp=find_sys_var(thd, ident2.str, ident2.length);
+    const LEX_STRING *domain;
+    const LEX_STRING *variable;
+    bool is_key_cache_variable= false;
+    sys_var *tmp;
+    if (ident2.str && is_key_cache_variable_suffix(ident2.str))
+    {
+      is_key_cache_variable= true;
+      domain= &ident2;
+      variable= &ident1;
+      tmp= find_sys_var(thd, domain->str, domain->length);
+    }
+    else
+    {
+      domain= &ident1;
+      variable= &ident2;
+      /*
+        We are getting the component name as domain->str and variable name
+        as variable->str, and we are adding the "." as a separator to find
+        the variable from systam_variable_hash.
+        We are doing this, because we use the structured variable syntax for
+        component variables.
+      */
+      String tmp_name;
+      if (tmp_name.reserve(domain->length + 1 + variable->length + 1) ||
+          tmp_name.append(domain->str) ||
+          tmp_name.append(".") ||
+          tmp_name.append(variable->str))
+        return true; // OOM
+      tmp= find_sys_var(thd, tmp_name.c_ptr(), tmp_name.length());
+    }
     if (!tmp)
       return true;
-    if (!tmp->is_struct())
-      my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), ident2.str);
+
+    if (is_key_cache_variable && !tmp->is_struct())
+      my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), domain->str);
+
     value.var= tmp;
-    value.base_name= ident1;
+    if (is_key_cache_variable)
+      value.base_name= *variable;
+    else
+      value.base_name= null_lex_str;
   }
   return false;
 }
@@ -728,7 +764,7 @@ Sql_cmd *PT_update::make_cmd(THD *thd)
 
   if (contextualize_array(&pc, &join_table_list))
     return NULL;
-  select->parsing_place= CTX_UPDATE_VALUE_LIST;
+  select->parsing_place= CTX_UPDATE_VALUE;
 
   if (column_list->contextualize(&pc) ||
       value_list->contextualize(&pc))
@@ -738,7 +774,7 @@ Sql_cmd *PT_update::make_cmd(THD *thd)
   select->item_list= column_list->value;
 
   // Ensure we're resetting parsing context of the right select
-  DBUG_ASSERT(select->parsing_place == CTX_UPDATE_VALUE_LIST);
+  DBUG_ASSERT(select->parsing_place == CTX_UPDATE_VALUE);
   select->parsing_place= CTX_NONE;
   const bool is_multitable= select->table_list.elements > 1;
   lex->sql_command= is_multitable ? SQLCOM_UPDATE_MULTI : SQLCOM_UPDATE;
@@ -866,8 +902,13 @@ Sql_cmd *PT_insert::make_cmd(THD *thd)
   }
   else
   {
+    pc.select->parsing_place= CTX_INSERT_VALUES;
     if (row_value_list->contextualize(&pc))
       return NULL;
+    // Ensure we're resetting parsing context of the right select
+    DBUG_ASSERT(pc.select->parsing_place == CTX_INSERT_VALUES);
+    pc.select->parsing_place= CTX_NONE;
+
     lex->bulk_insert_row_cnt= row_value_list->get_many_values().elements;
   }
 
@@ -884,14 +925,14 @@ Sql_cmd *PT_insert::make_cmd(THD *thd)
     if (first_table->lock_descriptor().type == TL_WRITE_CONCURRENT_DEFAULT)
       first_table->set_lock({TL_WRITE_DEFAULT, THR_DEFAULT});
 
-    pc.select->parsing_place= CTX_UPDATE_VALUE_LIST;
+    pc.select->parsing_place= CTX_INSERT_UPDATE;
 
     if (opt_on_duplicate_column_list->contextualize(&pc) ||
         opt_on_duplicate_value_list->contextualize(&pc))
       return NULL;
 
     // Ensure we're resetting parsing context of the right select
-    DBUG_ASSERT(pc.select->parsing_place == CTX_UPDATE_VALUE_LIST);
+    DBUG_ASSERT(pc.select->parsing_place == CTX_INSERT_UPDATE);
     pc.select->parsing_place= CTX_NONE;
   }
 
@@ -1212,8 +1253,76 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc)
   if (super::contextualize(pc))
     return true;
 
-  THD *thd= pc->thd;
-  LEX *lex= thd->lex;
+  THD *const thd= pc->thd;
+  LEX *const lex= thd->lex;
+
+  LEX_CSTRING db;
+  LEX_CSTRING orig_db;
+
+  if (m_referenced_table->db.str)
+  {
+    orig_db= m_referenced_table->db;
+
+    if (check_db_name(orig_db.str, orig_db.length) != Ident_name_check::OK)
+      return true;
+
+    if (lower_case_table_names)
+    {
+      char *db_str= thd->strmake(orig_db.str, orig_db.length);
+      if (db_str == nullptr)
+        return true; // OOM
+      db.length= my_casedn_str(files_charset_info, db_str);
+      db.str= db_str;
+    }
+    else
+      db= orig_db;
+  }
+  else
+  {
+    /*
+      Before 8.0 foreign key metadata was handled by SEs and they
+      assumed that parent table belongs to the same database as
+      child table unless FQTN was used (and connection's current
+      database was ignored). We keep behavior compatible even
+      though this is inconsistent with interpretation of non-FQTN
+      table names in other contexts.
+
+      If this is ALTER TABLE with RENAME TO <db_name.table_name>
+      clause we need to use name of the target database.
+    */
+    if (pc->alter_info->new_db_name.str)
+    {
+      db= orig_db= pc->alter_info->new_db_name;
+    }
+    else
+    {
+      TABLE_LIST *child_table= lex->select_lex->get_table_list();
+      db= orig_db= LEX_CSTRING{child_table->db, child_table->db_length};
+    }
+  }
+
+  Ident_name_check ident_check_status=
+    check_table_name(m_referenced_table->table.str,
+                     m_referenced_table->table.length);
+  if (ident_check_status != Ident_name_check::OK)
+  {
+    my_error(ER_WRONG_TABLE_NAME, MYF(0), m_referenced_table->table.str);
+    return true;
+  }
+
+  LEX_CSTRING table_name;
+
+  if (lower_case_table_names)
+  {
+    char *table_name_str= thd->strmake(m_referenced_table->table.str,
+                                       m_referenced_table->table.length);
+    if (table_name_str == nullptr)
+      return true; // OOM
+    table_name.length= my_casedn_str(files_charset_info, table_name_str);
+    table_name.str= table_name_str;
+  }
+  else
+    table_name= m_referenced_table->table;
 
   lex->key_create_info= default_key_create_info;
 
@@ -1229,7 +1338,9 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc)
     new (*THR_MALLOC) Foreign_key_spec(thd->mem_root,
                                        used_name,
                                        *m_columns,
-                                       m_referenced_table->db,
+                                       db,
+                                       orig_db,
+                                       table_name,
                                        m_referenced_table->table,
                                        m_ref_list,
                                        m_fk_delete_opt,
@@ -1540,7 +1651,8 @@ bool PT_column_def::contextualize(Table_ddl_parse_context *pc)
                                    field_def->charset,
                                    field_def->uint_geom_type,
                                    field_def->gcol_info,
-                                   opt_place);
+                                   opt_place,
+                                   field_def->m_srid);
 }
 
 
@@ -1840,7 +1952,8 @@ bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc)
                                    m_field_def->charset,
                                    m_field_def->uint_geom_type,
                                    m_field_def->gcol_info,
-                                            m_opt_place);
+                                   m_opt_place,
+                                   m_field_def->m_srid);
 }
 
 
@@ -2032,9 +2145,27 @@ Sql_cmd *PT_alter_table_stmt::make_cmd(THD *thd)
     return NULL;
 
   if (m_opt_actions)
+  {
+    /*
+      Move RENAME TO <table_name> clauses to the head of array, so they are
+      processed before ADD FOREIGN KEY clauses. The latter need to know target
+      database name for proper contextualization.
+
+      Use stable sort to preserve order of other clauses which might be
+      sensitive to it.
+    */
+    std::stable_sort(m_opt_actions->begin(), m_opt_actions->end(),
+                     [] (const PT_ddl_table_option *lhs,
+                         const PT_ddl_table_option * rhs)
+                     {
+                       return lhs->is_rename_table() &&
+                              !rhs->is_rename_table();
+                     });
+
     for (auto *action : *m_opt_actions)
       if (action->contextualize(&pc))
         return NULL;
+  }
 
   if ((pc.create_info->used_fields & HA_CREATE_USED_ENGINE) &&
       !pc.create_info->db_type)

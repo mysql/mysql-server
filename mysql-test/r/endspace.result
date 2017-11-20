@@ -1,25 +1,27 @@
 drop table if exists t1;
+set names default collate utf8mb4_unicode_ci;
 select 'a' = 'a', 'a' = 'a ', 'a ' = 'a';
 'a' = 'a'	'a' = 'a '	'a ' = 'a'
 1	1	1
 select 'a\0' = 'a', 'a\0' < 'a', 'a\0' > 'a';
 'a\0' = 'a'	'a\0' < 'a'	'a\0' > 'a'
-0	1	0
+1	0	0
 select 'a' = 'a\0', 'a' < 'a\0', 'a' > 'a\0';
 'a' = 'a\0'	'a' < 'a\0'	'a' > 'a\0'
-0	0	1
+1	0	0
 select 'a\0' = 'a ', 'a\0' < 'a ', 'a\0' > 'a ';
 'a\0' = 'a '	'a\0' < 'a '	'a\0' > 'a '
-0	1	0
+1	0	0
 select 'a ' = 'a\0', 'a ' < 'a\0', 'a ' > 'a\0';
 'a ' = 'a\0'	'a ' < 'a\0'	'a ' > 'a\0'
-0	0	1
+1	0	0
 select 'a  a' > 'a', 'a  \0' < 'a';
 'a  a' > 'a'	'a  \0' < 'a'
-1	1
+1	0
 select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
 binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
 1	1	1
+set names default collate default;
 create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) charset latin1;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 analyze table t1;

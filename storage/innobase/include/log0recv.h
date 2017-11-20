@@ -377,18 +377,31 @@ public:
 	/** Parse a dynamic metadata redo log of a table and store
 	the metadata locally
 	@param[in]	id		table id
+	@param[in]	version		table dynamic metadata version
 	@param[in]	ptr		redo log start
 	@param[in]	end		end of redo log
 	@retval ptr to next redo log record, NULL if this log record
 	was truncated */
 	byte* parseMetadataLog(
 		table_id_t	id,
+		uint64_t	version,
 		byte*		ptr,
 		byte*		end);
 
 	/** Apply the collected persistent dynamic metadata to in-memory
 	table objects */
 	void apply();
+
+	/** Store the collected persistent dynamic metadata to
+	mysql.innodb_dynamic_metadata */
+	void store();
+
+	/** If there is any metadata to be applied
+	@return	true if any metadata to be applied, otherwise false */
+	bool empty() const
+	{
+		return(m_tables.empty());
+	}
 
 private:
 
@@ -522,6 +535,9 @@ struct recv_sys_t {
 	/** Set when an inconsistency with the file system contents
 	is detected during log scan or apply */
 	bool			found_corrupt_fs;
+
+	/** If the recovery is from a cloned database. */
+	bool			is_cloned_db;
 
 	/** Hash table of pages, indexed by SpaceID. */
 	Spaces*			spaces;

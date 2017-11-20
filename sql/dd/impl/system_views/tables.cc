@@ -13,7 +13,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/system_views/tables.h"
+#include "sql/dd/impl/system_views/tables.h"
+
+#include <string>
+
+#include "sql/stateless_allocator.h"
 
 namespace dd {
 namespace system_views {
@@ -24,11 +28,6 @@ const Tables_base &Tables::instance()
   return *s_instance;
 }
 
-const Tables_base &Tables_dynamic::instance()
-{
-  static Tables_base *s_instance= new Tables_dynamic();
-  return *s_instance;
-}
 
 Tables_base::Tables_base()
 {
@@ -74,78 +73,82 @@ Tables::Tables()
 {
   m_target_def.set_view_name(view_name());
 
-  m_target_def.add_field(FIELD_TABLE_ROWS, "TABLE_ROWS", "stat.table_rows");
-  m_target_def.add_field(FIELD_AVG_ROW_LENGTH, "AVG_ROW_LENGTH",
-                         "stat.avg_row_length");
-  m_target_def.add_field(FIELD_DATA_LENGTH, "DATA_LENGTH",
-                         "stat.data_length");
-  m_target_def.add_field(FIELD_MAX_DATA_LENGTH, "MAX_DATA_LENGTH",
-                         "stat.max_data_length");
-  m_target_def.add_field(FIELD_INDEX_LENGTH, "INDEX_LENGTH",
-                         "stat.index_length");
-  m_target_def.add_field(FIELD_DATA_FREE, "DATA_FREE", "stat.data_free");
-  m_target_def.add_field(FIELD_AUTO_INCREMENT, "AUTO_INCREMENT",
-                         "stat.auto_increment");
-  m_target_def.add_field(FIELD_UPDATE_TIME, "UPDATE_TIME",
-                         "stat.update_time");
-  m_target_def.add_field(FIELD_CHECK_TIME, "CHECK_TIME", "stat.check_time");
-  m_target_def.add_field(FIELD_CHECKSUM, "CHECKSUM", "stat.checksum");
-
-  m_target_def.add_from("LEFT JOIN mysql.table_stats stat ON "
-                        "tbl.name=stat.table_name "
-                        "AND sch.name=stat.schema_name");
-}
-
-/*
-  Adding column definition so as to pick latest table statistics from
-  storage engine.
-*/
-Tables_dynamic::Tables_dynamic()
-{
-  m_target_def.set_view_name(view_name());
-
+  /*
+    stat.<value> and stat.cached_time should be passed directly to UDFs
+    and UDF implementation should handle NULL value. Using IFNULL() as a
+    workaround until Bug#26389402 is fixed.
+  */
   m_target_def.add_field(FIELD_TABLE_ROWS, "TABLE_ROWS",
                          "INTERNAL_TABLE_ROWS(sch.name, tbl.name,"
-                         "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id, ts.se_private_data)");
+                         "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
+                         "     tbl.se_private_id, tbl.hidden != 'Visible', "
+                         "     ts.se_private_data,"
+                         "   IF(ISNULL(stat.table_rows), 0, stat.table_rows),"
+                         "   IF(ISNULL(stat.cached_time), 0, stat.cached_time))");
   m_target_def.add_field(FIELD_AVG_ROW_LENGTH, "AVG_ROW_LENGTH",
                          "INTERNAL_AVG_ROW_LENGTH(sch.name, tbl.name,"
-                         "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id, ts.se_private_data)");
+                         "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
+                         "     tbl.se_private_id, tbl.hidden != 'Visible', "
+                         "     ts.se_private_data,"
+                         "   IF(ISNULL(stat.avg_row_length),0, stat.avg_row_length),"
+                         "   IF(ISNULL(stat.cached_time), 0, stat.cached_time))");
   m_target_def.add_field(FIELD_DATA_LENGTH, "DATA_LENGTH",
                          "INTERNAL_DATA_LENGTH(sch.name, tbl.name,"
-                         "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id, ts.se_private_data)");
+                         "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
+                         "     tbl.se_private_id, tbl.hidden != 'Visible', "
+                         "     ts.se_private_data,"
+                         "   IF(ISNULL(stat.data_length), 0, stat.data_length),"
+                         "   IF(ISNULL(stat.cached_time), 0, stat.cached_time))");
   m_target_def.add_field(FIELD_MAX_DATA_LENGTH, "MAX_DATA_LENGTH",
                          "INTERNAL_MAX_DATA_LENGTH(sch.name, tbl.name,"
-                         "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id, ts.se_private_data)");
+                         "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
+                         "     tbl.se_private_id, tbl.hidden != 'Visible', "
+                         "     ts.se_private_data,"
+                         "   IF(ISNULL(stat.max_data_length), 0, stat.max_data_length),"
+                         "   IF(ISNULL(stat.cached_time), 0, stat.cached_time))");
   m_target_def.add_field(FIELD_INDEX_LENGTH, "INDEX_LENGTH",
                          "INTERNAL_INDEX_LENGTH(sch.name, tbl.name,"
-                         "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id, ts.se_private_data)");
+                         "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
+                         "     tbl.se_private_id, tbl.hidden != 'Visible', "
+                         "     ts.se_private_data,"
+                         "   IF(ISNULL(stat.index_length), 0, stat.index_length),"
+                         "   IF(ISNULL(stat.cached_time), 0, stat.cached_time))");
   m_target_def.add_field(FIELD_DATA_FREE, "DATA_FREE",
                          "INTERNAL_DATA_FREE(sch.name, tbl.name,"
-                         "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id, ts.se_private_data)");
+                         "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
+                         "     tbl.se_private_id, tbl.hidden != 'Visible', "
+                         "     ts.se_private_data,"
+                         "   IF(ISNULL(stat.data_free), 0, stat.data_free),"
+                         "   IF(ISNULL(stat.cached_time), 0, stat.cached_time))");
   m_target_def.add_field(FIELD_AUTO_INCREMENT, "AUTO_INCREMENT",
                          "INTERNAL_AUTO_INCREMENT(sch.name, tbl.name,"
-                         "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id, "
-                         "ts.se_private_data, tbl.se_private_data)");
+                         "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
+                         "     tbl.se_private_id, tbl.hidden != 'Visible', "
+                         "     ts.se_private_data,"
+                         "   IF(ISNULL(stat.auto_increment), 0, stat.auto_increment),"
+                         "   IF(ISNULL(stat.cached_time), 0, stat.cached_time),"
+                         "     tbl.se_private_data)");
   m_target_def.add_field(FIELD_UPDATE_TIME, "UPDATE_TIME",
                          "INTERNAL_UPDATE_TIME(sch.name, tbl.name,"
-                         "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id, ts.se_private_data)");
+                         "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
+                         "     tbl.se_private_id, tbl.hidden != 'Visible', "
+                         "     ts.se_private_data,"
+                         "   IF(ISNULL(stat.update_time), 0, stat.update_time),"
+                         "   IF(ISNULL(stat.cached_time), 0, stat.cached_time))");
   m_target_def.add_field(FIELD_CHECK_TIME, "CHECK_TIME",
                          "INTERNAL_CHECK_TIME(sch.name, tbl.name,"
-                         "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id, ts.se_private_data)");
+                         "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
+                         "     tbl.se_private_id, tbl.hidden != 'Visible', "
+                         "     ts.se_private_data,"
+                         "   IF(ISNULL(stat.check_time), 0, stat.check_time),"
+                         "   IF(ISNULL(stat.cached_time), 0, stat.cached_time))");
   m_target_def.add_field(FIELD_CHECKSUM, "CHECKSUM",
                          "INTERNAL_CHECKSUM(sch.name, tbl.name,"
-                         "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id, ts.se_private_data)");
-
+                         "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
+                         "     tbl.se_private_id, tbl.hidden != 'Visible', "
+                         "     ts.se_private_data,"
+                         "   IF(ISNULL(stat.checksum), 0, stat.checksum),"
+                         "   IF(ISNULL(stat.cached_time), 0, stat.cached_time))");
   /*
     Supply mysql.tablespaces.se_private_data to internal functions
     INTERNAL_*(), which is used by SE to read the SE specific tablespace
@@ -154,7 +157,11 @@ Tables_dynamic::Tables_dynamic()
   */
   m_target_def.add_from("LEFT JOIN mysql.tablespaces ts ON "
                         "tbl.tablespace_id=ts.id");
+
+  m_target_def.add_from("LEFT JOIN mysql.table_stats stat ON "
+                        "tbl.name=stat.table_name "
+                        "AND sch.name=stat.schema_name");
 }
 
-}
-}
+} // system_views
+} // dd

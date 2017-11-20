@@ -18,37 +18,39 @@
 #include <memory>
 #include <string>
 
-#include "dd/cache/dictionary_client.h"       // Dictionary_client
-#include "dd/impl/bootstrapper.h"             // bootstrap::stage
-#include "dd/impl/raw/object_keys.h"          // Primary_id_key
-#include "dd/impl/raw/raw_record.h"           // Raw_record
-#include "dd/impl/raw/raw_table.h"            // Raw_table
-#include "dd/impl/sdi.h"                      // sdi::store() sdi::drop()
-#include "dd/impl/transaction_impl.h"         // Transaction_ro
-#include "dd/types/abstract_table.h"          // Abstract_table
-#include "dd/types/charset.h"                 // Charset
-#include "dd/types/collation.h"               // Collation
-#include "dd/types/column_statistics.h"       // Column_statistics
-#include "dd/types/entity_object_table.h"     // Entity_object_table
-#include "dd/types/event.h"                   // Event
-#include "dd/types/function.h"                // Routine, Function
-#include "dd/types/index_stat.h"              // Index_stat
-#include "dd/types/procedure.h"               // Procedure
-#include "dd/types/schema.h"                  // Schema
-#include "dd/types/spatial_reference_system.h"// Spatial_reference_system
-#include "dd/types/table.h"                   // Table
-#include "dd/types/table_stat.h"              // Table_stat
-#include "dd/types/tablespace.h"              // Tablespace
-#include "dd/types/view.h"                    // View
-#include "dd/upgrade/upgrade.h"               // allow_sdi_creation
-#include "debug_sync.h"                       // DEBUG_SYNC
-#include "log.h"
 #include "mutex_lock.h"                       // Mutex_lock
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "sql_class.h"                        // THD
+#include "sql/dd/cache/dictionary_client.h"   // Dictionary_client
+#include "sql/dd/impl/bootstrapper.h"         // bootstrap::stage
+#include "sql/dd/impl/cache/cache_element.h"
+#include "sql/dd/impl/raw/object_keys.h"      // Primary_id_key
+#include "sql/dd/impl/raw/raw_record.h"       // Raw_record
+#include "sql/dd/impl/raw/raw_table.h"        // Raw_table
+#include "sql/dd/impl/sdi.h"                  // sdi::store() sdi::drop()
+#include "sql/dd/impl/transaction_impl.h"     // Transaction_ro
+#include "sql/dd/impl/types/entity_object_impl.h"
+#include "sql/dd/types/abstract_table.h"      // Abstract_table
+#include "sql/dd/types/charset.h"             // Charset
+#include "sql/dd/types/collation.h"           // Collation
+#include "sql/dd/types/column_statistics.h"   // Column_statistics
+#include "sql/dd/types/entity_object_table.h" // Entity_object_table
+#include "sql/dd/types/event.h"               // Event
+#include "sql/dd/types/function.h"            // Routine, Function
+#include "sql/dd/types/index_stat.h"          // Index_stat
+#include "sql/dd/types/procedure.h"           // Procedure
+#include "sql/dd/types/schema.h"              // Schema
+#include "sql/dd/types/spatial_reference_system.h"// Spatial_reference_system
+#include "sql/dd/types/table.h"               // Table
+#include "sql/dd/types/table_stat.h"          // Table_stat
+#include "sql/dd/types/tablespace.h"          // Tablespace
+#include "sql/dd/types/view.h"                // View
+#include "sql/dd/upgrade/upgrade.h"           // allow_sdi_creation
+#include "sql/debug_sync.h"                   // DEBUG_SYNC
+#include "sql/log.h"
+#include "sql/sql_class.h"                    // THD
 
 namespace dd {
 namespace cache {
@@ -76,7 +78,7 @@ Object_id Storage_adapter::next_oid()
 template <typename T>
 size_t Storage_adapter::core_size()
 {
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
   return m_core_registry.size<typename T::cache_partition_type>();
 }
 
@@ -86,7 +88,7 @@ template <typename T>
 Object_id Storage_adapter::core_get_id(const typename T::name_key_type &key)
 {
   Cache_element<typename T::cache_partition_type> *element= nullptr;
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
   m_core_registry.get(key, &element);
   if (element)
   {
@@ -104,7 +106,7 @@ void Storage_adapter::core_get(const K &key, const T **object)
   DBUG_ASSERT(object);
   *object= nullptr;
   Cache_element<typename T::cache_partition_type> *element= nullptr;
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
   m_core_registry.get(key, &element);
   if (element)
   {
@@ -193,7 +195,7 @@ void Storage_adapter::core_drop(THD *thd MY_ATTRIBUTE((unused)),
   DBUG_ASSERT(s_use_fake_storage || thd->is_dd_system_thread());
   DBUG_ASSERT(bootstrap::stage() <= bootstrap::BOOTSTRAP_CREATED);
   Cache_element<typename T::cache_partition_type> *element= nullptr;
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
 
   // For unit tests, drop based on id to simulate behavior of persistent tables.
   // For storing core objects during bootstrap, drop based on names since id may
@@ -277,7 +279,7 @@ void Storage_adapter::core_store(THD *thd, T *object)
   // Need to clone since core registry takes ownership
   element->set_object(object->clone());
   element->recreate_keys();
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
   m_core_registry.put(element);
 }
 
@@ -380,7 +382,7 @@ bool Storage_adapter::core_sync(THD *thd,
     new Cache_element<typename T::cache_partition_type>();
   element->set_object(new_obj);
   element->recreate_keys();
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
   m_core_registry.put(element);
   return false;
 }
@@ -389,7 +391,7 @@ bool Storage_adapter::core_sync(THD *thd,
 // Remove and delete all elements and objects from core storage.
 void Storage_adapter::erase_all()
 {
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
   instance()->m_core_registry.erase_all();
 }
 
@@ -398,7 +400,7 @@ void Storage_adapter::erase_all()
 void Storage_adapter::dump()
 {
 #ifndef DBUG_OFF
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
   fprintf(stderr, "================================\n");
   fprintf(stderr, "Storage adapter\n");
   m_core_registry.dump<dd::Tablespace>();
@@ -522,6 +524,18 @@ template bool Storage_adapter::get<Event::aux_key_type, Event>
 (THD *, const Event::aux_key_type &, enum_tx_isolation, const Event **);
 template bool Storage_adapter::drop(THD *, const Event*);
 template bool Storage_adapter::store(THD *, Event*);
+
+template bool Storage_adapter::get<Resource_group::id_key_type, Resource_group>
+  (THD *, const Tablespace::id_key_type &,
+   enum_tx_isolation, const Resource_group **);
+template bool Storage_adapter::get<Resource_group::name_key_type, Resource_group>
+  (THD *, const Tablespace::name_key_type &,
+   enum_tx_isolation, const Resource_group **);
+template bool Storage_adapter::get<Resource_group::aux_key_type, Resource_group>
+  (THD *, const Tablespace::aux_key_type &,
+   enum_tx_isolation, const Resource_group **);
+template bool Storage_adapter::drop(THD *, const Resource_group *);
+template bool Storage_adapter::store(THD *, Resource_group *);
 
 template bool Storage_adapter::get<Routine::id_key_type, Routine>
        (THD *, const Routine::id_key_type &, enum_tx_isolation,

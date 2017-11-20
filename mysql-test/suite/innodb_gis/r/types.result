@@ -71,8 +71,8 @@ GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(2 2,3 3))
 POINT(10 10)
 POINT(11 11)
 SELECT sc.name, sc.pos, sc.mtype
-FROM information_schema.innodb_sys_columns sc
-INNER JOIN information_schema.innodb_sys_tables st
+FROM information_schema.innodb_columns sc
+INNER JOIN information_schema.innodb_tables st
 ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/t_wl6455' AND sc.NAME='g';
 name	pos	mtype

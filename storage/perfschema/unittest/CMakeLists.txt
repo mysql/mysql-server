@@ -16,7 +16,6 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/include/mysql
                     ${CMAKE_SOURCE_DIR}/extra/regex
-                    ${CMAKE_SOURCE_DIR}/sql
                     ${SSL_INCLUDE_DIRS}
                     ${CMAKE_SOURCE_DIR}/unittest/mytap
                     ${CMAKE_SOURCE_DIR}/storage/perfschema)
@@ -28,9 +27,8 @@ ADD_CONVENIENCE_LIBRARY(pfs_server_stubs pfs_server_stubs.cc)
 ADD_DEPENDENCIES(pfs_server_stubs GenError)
 
 MACRO (PFS_ADD_TEST name)
-  ADD_EXECUTABLE(${name}-t ${name}-t.cc)
-  TARGET_LINK_LIBRARIES(${name}-t mytap perfschema mysys pfs_server_stubs)
-  ADD_TEST(${name} ${name}-t)
+  MYSQL_ADD_EXECUTABLE(${name}-t ${name}-t.cc ADD_TEST ${name})
+  TARGET_LINK_LIBRARIES(${name}-t mytap perfschema mysys pfs_server_stubs strings)
 ENDMACRO()
 
 SET(tests
@@ -56,11 +54,12 @@ ENDIF()
 # We need the server libs to test the blob parser.
 # Add sql_builtin.cc here, to force linkage of plugins below.
 # Also add mysys/my_string.cc (see Bug#45488)
-ADD_EXECUTABLE(pfs_connect_attr-t
+MYSQL_ADD_EXECUTABLE(pfs_connect_attr-t
   pfs_connect_attr-t.cc
   ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
   ${CMAKE_SOURCE_DIR}/mysys/my_string.cc
   ${MYSQLD_EXTRA_SOURCES}
+  ADD_TEST pfs_connect_attr
 )
 ADD_DEPENDENCIES(pfs_connect_attr-t GenServerSource)
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t mytap perfschema)
@@ -71,11 +70,7 @@ TARGET_LINK_LIBRARIES(pfs_connect_attr-t sql_main sql_gis sql_main)
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t mysys mysys_ssl)
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t vio ${SSL_LIBRARIES})
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t strings dbug regex mysys ${ZLIB_LIBRARY})
-ADD_TEST(pfs_connect_attr pfs_connect_attr-t)
 
 # ADD_EXECUTABLE(pfs_benchmark-t pfs_benchmark-t.cc pfs_benchmark_helper.cc)
 # TARGET_LINK_LIBRARIES(pfs_benchmark-t mytap perfschema mysys pfs_server_stubs)
 # ADD_TEST(pfs_benchmark pfs_benchmark-t)
-
-# On windows, pfs_connect_attr-t may depend on openssl dlls.
-COPY_OPENSSL_DLLS(copy_openssl_pfs_unittest)

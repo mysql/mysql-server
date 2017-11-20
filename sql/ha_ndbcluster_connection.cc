@@ -19,22 +19,23 @@
 
 #include <mysql/psi/mysql_thread.h>
 
-#include "sql_class.h"
+#include "auth_acls.h"
 #include "kernel/ndb_limits.h"
 #include "my_dbug.h"
+#include "mysqld.h"         // server_id, connection_events_loop_aborted
+#include "mysqld_error.h"
 #include "ndbapi/NdbApi.hpp"
 #include "portlib/NdbTick.h"
 #include "rpl_slave.h"      // report_port
+#include "sql_class.h"
 #include "util/BaseString.hpp"
 #include "util/Vector.hpp"
-#include "mysqld.h"         // server_id, connection_events_loop_aborted
-#include "mysqld_error.h"
 #ifndef _WIN32
 #include <netdb.h>          // getservbyname
 #endif
 
-#include "ndb_sleep.h"
 #include "ndb_log.h"
+#include "ndb_sleep.h"
 
 extern char *my_bind_addr_str;
 
@@ -295,13 +296,13 @@ ndbcluster_connect(int (*connect_callback)(void),
 
   global_flag_skip_waiting_for_clean_cache= 1;
 
-  g_ndb_cluster_connection=
-    new Ndb_cluster_connection(connect_string, force_nodeid);
-  if (!g_ndb_cluster_connection)
+  g_ndb_cluster_connection =
+      new (std::nothrow) Ndb_cluster_connection(connect_string,
+                                                force_nodeid);
+  if (g_ndb_cluster_connection == nullptr)
   {
     ndb_log_error("failed to allocate global ndb cluster connection");
     DBUG_PRINT("error", ("Ndb_cluster_connection(%s)", connect_string));
-    set_my_errno(HA_ERR_OUT_OF_MEM);
     DBUG_RETURN(-1);
   }
   {
@@ -319,11 +320,13 @@ ndbcluster_connect(int (*connect_callback)(void),
   g_ndb_cluster_connection->set_data_node_neighbour(data_node_neighbour);
 
   // Create a Ndb object to open the connection  to NDB
-  if ( (g_ndb= new Ndb(g_ndb_cluster_connection, "sys")) == 0 )
+  g_ndb =
+      new (std::nothrow) Ndb(g_ndb_cluster_connection,
+                             "sys");
+  if (g_ndb == nullptr)
   {
     ndb_log_error("failed to allocate global ndb object");
     DBUG_PRINT("error", ("failed to create global ndb object"));
-    set_my_errno(HA_ERR_OUT_OF_MEM);
     DBUG_RETURN(-1);
   }
   if (g_ndb->init() != 0)
@@ -368,10 +371,11 @@ ndbcluster_connect(int (*connect_callback)(void),
         ndb_log_info("connection[%u], using nodeid %u", i, nodeid);
       }
 
-      if ((g_pool[i]=
-           new Ndb_cluster_connection(connect_string,
-                                      g_ndb_cluster_connection,
-                                      nodeid)) == 0)
+      g_pool[i] =
+          new (std::nothrow) Ndb_cluster_connection(connect_string,
+                                                    g_ndb_cluster_connection,
+                                                    nodeid);
+      if (g_pool[i] == nullptr)
       {
         ndb_log_error("connection[%u], failed to allocate connect object", i);
         DBUG_PRINT("error",("Ndb_cluster_connection[%u](%s)",

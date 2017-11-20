@@ -16,13 +16,13 @@
 #ifndef MYSQL_KEYRING_H
 #define MYSQL_KEYRING_H
 
+#include <my_rnd.h>
 #include <memory>
 
-#include "mysql/plugin.h"
-#include <my_rnd.h>
-#include <mysqld.h>
-#include "keys_container.h"
 #include "keyring_memory.h"
+#include "keys_container.h"
+#include "mysql/plugin.h"
+#include "sql/mysqld.h"
 
 using keyring::IKeys_container;
 using keyring::IKeyring_io;

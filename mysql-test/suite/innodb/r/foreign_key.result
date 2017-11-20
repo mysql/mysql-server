@@ -121,19 +121,19 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 SELECT unique_constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2';
-unique_constraint_name
+UNIQUE_CONSTRAINT_NAME
 PRIMARY
 # restart
 SELECT unique_constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2';
-unique_constraint_name
+UNIQUE_CONSTRAINT_NAME
 PRIMARY
 SELECT * FROM t1;
 c1
 1
 SELECT unique_constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2';
-unique_constraint_name
+UNIQUE_CONSTRAINT_NAME
 PRIMARY
 DROP TABLE t2;
 DROP TABLE t1;
@@ -146,14 +146,14 @@ CREATE TABLE child_table (c1 INT PRIMARY KEY,
 FOREIGN KEY (c1) REFERENCES parent_table(c1));
 CREATE TABLE parent_table (c1 INT PRIMARY KEY);
 SET foreign_key_checks=1;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN WHERE
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN WHERE
 ID='test/child_table_ibfk_1';
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/child_table_ibfk_1	test/child_table	test/parent_table	1	0
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS WHERE
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS WHERE
 ID='test/child_table_ibfk_1';
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/child_table_ibfk_1	c1	c1	0
+test/child_table_ibfk_1	c1	c1	1
 DROP TABLE parent_table;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 DROP TABLE child_table;

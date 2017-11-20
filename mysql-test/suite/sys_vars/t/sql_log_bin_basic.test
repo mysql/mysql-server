@@ -94,15 +94,15 @@ SET @@session.sql_log_bin = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_bin = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_log_bin = TRÜE;
+SET @@session.sql_log_bin = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_log_bin = ÕN;
+SET @@session.sql_log_bin = Ã•N;
 --error ER_PARSE_ERROR
 SET @@session.sql_log_bin = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_log_bin = ÓFF;
+SET @@session.sql_log_bin = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_log_bin = '¹';
+SET @@session.sql_log_bin = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_bin = NO;
 
@@ -113,11 +113,13 @@ SET @@session.sql_log_bin = NO;
 #       and there is a deprecation warning on reading it.                 #
 ########################################################################### 
 
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@global.sql_log_bin;
---Error ER_WRONG_VALUE_FOR_VAR
+--Error ER_LOCAL_VARIABLE
 SET @@global.sql_log_bin = 0;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@global.sql_log_bin;
---Error ER_WRONG_VALUE_FOR_VAR
+--Error ER_LOCAL_VARIABLE
 SET @@global.sql_log_bin = 1;
 
 --echo '#----------------------FN_DYNVARS_156_06------------------------#'

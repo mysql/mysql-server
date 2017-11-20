@@ -18,22 +18,16 @@
 #ifndef NDB_THD_NDB_H
 #define NDB_THD_NDB_H
 
-#include "hash.h"             // HASH
 #include "kernel/ndb_limits.h" // MAX_NDB_NODES
+#include "map_helpers.h"
 #include "my_base.h"          // ha_rows
 #include "ndb_share.h"
-#include "sql_list.h"         // List<>
 
 /*
   Place holder for ha_ndbcluster thread specific data
 */
 
-enum THD_NDB_TRANS_OPTIONS
-{
-  TNTO_INJECTED_APPLY_STATUS= 1 << 0
-  ,TNTO_NO_LOGGING=           1 << 1
-  ,TNTO_TRANSACTIONS_OFF=     1 << 2
-};
+struct THD_NDB_SHARE;
 
 class Thd_ndb 
 {
@@ -44,6 +38,7 @@ class Thd_ndb
   const bool m_slave_thread; // cached value of thd->slave_thread
 
   uint32 options;
+  uint32 trans_options;
 public:
   static Thd_ndb* seize(THD*);
   static void release(Thd_ndb* thd_ndb);
@@ -110,10 +105,39 @@ public:
     }
   };
 
-  uint32 trans_options;
+  enum Trans_options
+  {
+    /*
+       Remember that statement has written to ndb_apply_status and subsequent
+       writes need to do updates
+    */
+    TRANS_INJECTED_APPLY_STATUS = 1 << 0,
+
+    /*
+       Indicator that no looging is performd by this MySQL Server ans thus
+       the anyvalue should have the nologging bit turned on
+    */
+    TRANS_NO_LOGGING =            1 << 1,
+
+    /*
+       Turn off transactional behaviour for the duration
+       of this transaction/statement
+    */
+    TRANS_TRANSACTIONS_OFF =      1 << 2
+  };
+
+  // Check if given trans option is set
+  bool check_trans_option(Trans_options trans_option) const;
+  // Set given trans option
+  void set_trans_option(Trans_options trans_option);
+  // Reset all trans_options
+  void reset_trans_options(void);
+
+  // Start of transaction check, to automatically detect which
+  // trans options shoudl be enabled
   void transaction_checks(void);
-  List<NDB_SHARE> changed_tables;
-  HASH open_tables;
+  malloc_unordered_map<const void *, THD_NDB_SHARE *>
+    open_tables{PSI_INSTRUMENT_ME};
   /*
     This is a memroot used to buffer rows for batched execution.
     It is reset after every execute().

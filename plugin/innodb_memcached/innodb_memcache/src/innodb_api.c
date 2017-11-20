@@ -93,8 +93,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_sdi_get,
 	(ib_cb_t*) &ib_cb_sdi_delete,
 	(ib_cb_t*) &ib_cb_sdi_set,
-	(ib_cb_t*) &ib_cb_sdi_create_copies,
-	(ib_cb_t*) &ib_cb_sdi_drop_copies,
+	(ib_cb_t*) &ib_cb_sdi_create,
+	(ib_cb_t*) &ib_cb_sdi_drop,
 	(ib_cb_t*) &ib_cb_sdi_get_keys,
 #endif /* UNIV_MEMCACHED_SDI */
 	(ib_cb_t*) &ib_cb_trx_read_only,

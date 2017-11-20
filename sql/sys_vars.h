@@ -30,42 +30,43 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "debug_sync.h"           // debug_sync_update
-#include "handler.h"
-#include "item.h"                 // Item
 #include "keycache.h"             // dflt_key_cache
-#include "keycaches.h"            // default_key_cache_base
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_bit.h"               // my_count_bits
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"               // max_system_variables
 #include "mysqld_error.h"
-#include "rpl_gtid.h"
-#include "session_tracker.h"
-#include "set_var.h"              // sys_var_chain
-#include "sql_admin.h"
-#include "sql_class.h"            // THD
-#include "sql_connect.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_plugin.h"           // my_plugin_lock_by_name
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/debug_sync.h"       // debug_sync_update
+#include "sql/handler.h"
+#include "sql/item.h"             // Item
+#include "sql/key.h"
+#include "sql/keycaches.h"        // default_key_cache_base
+#include "sql/mysqld.h"           // max_system_variables
+#include "sql/rpl_gtid.h"
+#include "sql/set_var.h"          // sys_var_chain
+#include "sql/sql_admin.h"
+#include "sql/sql_class.h"        // THD
+#include "sql/sql_connect.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_plugin.h"       // my_plugin_lock_by_name
+#include "sql/sql_plugin_ref.h"
+#include "sql/strfunc.h"          // find_type
+#include "sql/sys_vars_resource_mgr.h"
+#include "sql/sys_vars_shared.h"  // throw_bounds_warning
+#include "sql/tztime.h"           // Time_zone
 #include "sql_string.h"
-#include "strfunc.h"              // find_type
-#include "sys_vars_resource_mgr.h"
-#include "sys_vars_shared.h"      // throw_bounds_warning
-#include "system_variables.h"
 #include "typelib.h"
-#include "tztime.h"               // Time_zone
 
 class Sys_var_bit;
 class Sys_var_bool;
@@ -82,6 +83,7 @@ class Sys_var_plugin;
 class Sys_var_set;
 class Sys_var_tz;
 struct CMD_LINE;
+struct System_variables;
 template <typename Struct_type, typename Name_getter> class Sys_var_struct;
 template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT, bool SIGNED> class Sys_var_integer;
 
@@ -110,6 +112,7 @@ template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT, bool SIGNED> 
 #define READ_ONLY sys_var::READONLY+
 #define NOT_VISIBLE sys_var::INVISIBLE+
 #define UNTRACKED_DEFAULT sys_var::TRI_LEVEL+
+#define HINT_UPDATEABLE sys_var::HINT_UPDATEABLE+
 // this means that Sys_var_charptr initial value was malloc()ed
 #define PREALLOCATED sys_var::ALLOCATED+
 #define NON_PERSIST sys_var::NOTPERSIST+
@@ -1126,6 +1129,14 @@ public:
     LEX_STRING *base_name= &var->base;
     KEY_CACHE *key_cache;
 
+    if (base_name != NULL && base_name->str)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SYNTAX,
+                          "%s.%s syntax "
+                          "is deprecated and will be removed in a "
+                          "future release",
+                          base_name->str, name.str);
+
     /* If no basename, assume it's for the key cache named 'default' */
     if (!base_name->length)
       base_name= &default_key_cache_base;
@@ -1150,8 +1161,16 @@ public:
 
     return keycache_update(thd, key_cache, offset, new_value);
   }
-  uchar *global_value_ptr(THD*, LEX_STRING *base)
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
+    if (base != NULL && base->str)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SYNTAX,
+                          "@@global.%s.%s syntax "
+                          "is deprecated and will be removed in a "
+                          "future release",
+                          base->str, name.str);
+
     KEY_CACHE *key_cache= get_key_cache(base);
     if (!key_cache)
       key_cache= &zero_key_cache;
@@ -2144,10 +2163,16 @@ public:
 };
 
 
-class Sys_var_tx_isolation: public Sys_var_enum
+/**
+  Class representing the 'transaction_isolation' system variable. This
+  variable can also be indirectly set using 'SET TRANSACTION ISOLATION
+  LEVEL'.
+*/
+
+class Sys_var_transaction_isolation: public Sys_var_enum
 {
 public:
-  Sys_var_tx_isolation(const char *name_arg,
+  Sys_var_transaction_isolation(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           const char *values[], uint def_val, PolyLock *lock,
@@ -2169,41 +2194,18 @@ public:
   only.
 */
 
-class Sys_var_tx_read_only: public Sys_var_bool
+class Sys_var_transaction_read_only: public Sys_var_bool
 {
 public:
-  Sys_var_tx_read_only(const char *name_arg, const char *comment, int flag_args,
-                       ptrdiff_t off, size_t size, CMD_LINE getopt,
-                       bool def_val, PolyLock *lock,
+  Sys_var_transaction_read_only(const char *name_arg, const char *comment,
+                       int flag_args, ptrdiff_t off, size_t size,
+                       CMD_LINE getopt, bool def_val, PolyLock *lock,
                        enum binlog_status_enum binlog_status_arg,
                        on_check_function on_check_func)
     :Sys_var_bool(name_arg, comment, flag_args, off, size, getopt,
                     def_val, lock, binlog_status_arg, on_check_func)
   {}
   virtual bool session_update(THD *thd, set_var *var);
-};
-
-
-/**
-  Class representing the sql_log_bin system variable for controlling
-  whether logging to the binary log is done.
-*/
-
-class Sys_var_sql_log_bin: public Sys_var_bool
-{
-public:
-  Sys_var_sql_log_bin(const char *name_arg, const char *comment, int flag_args,
-                      ptrdiff_t off, size_t size, CMD_LINE getopt,
-                      bool def_val, PolyLock *lock,
-                      enum binlog_status_enum binlog_status_arg,
-                      on_check_function on_check_func,
-                      on_update_function on_update_func)
-    :Sys_var_bool(name_arg, comment, flag_args, off, size, getopt,
-                    def_val, lock, binlog_status_arg, on_check_func,
-                    on_update_func)
-  {}
-
-  uchar *global_value_ptr(THD *thd, LEX_STRING *base);
 };
 
 /**
@@ -2217,9 +2219,11 @@ public:
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           const char *values[], uint def_val, PolyLock *lock,
-          enum binlog_status_enum binlog_status_arg)
+          enum binlog_status_enum binlog_status_arg,
+          on_check_function on_check_func=0
+          )
     :Sys_var_enum(name_arg, comment, flag_args, off, size, getopt,
-                  values, def_val, lock, binlog_status_arg, NULL)
+                  values, def_val, lock, binlog_status_arg, on_check_func, NULL)
   {}
   virtual bool global_update(THD *thd, set_var *var);
 };

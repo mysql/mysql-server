@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "table.h"
+#include "sql/table.h"
 
 #include "my_config.h"
 
@@ -24,75 +24,83 @@
 #include <algorithm>
 #include <string>
 
-#include "auth_acls.h"
-#include "auth_common.h"                 // acl_getroot
-#include "binlog.h"                      // mysql_bin_log
-#include "binlog_event.h"
-#include "dd/cache/dictionary_client.h"  // dd::cache_Dictionary_client
-#include "dd/dd.h"                       // dd::get_dictionary
-#include "dd/dictionary.h"               // dd::Dictionary
-#include "dd/types/abstract_table.h"
-#include "dd/types/table.h"              // dd::Table
-#include "dd/types/view.h"               // dd::View
-#include "debug_sync.h"                  // DEBUG_SYNC
-#include "derror.h"                      // ER_THD
-#include "error_handler.h"               // Strict_error_handler
-#include "field.h"
 #include "ft_global.h"
-#include "hash.h"
-#include "item.h"
-#include "item_cmpfunc.h"                // and_conds
-#include "json_diff.h"                   // Json_diff_vector
-#include "json_dom.h"                    // Json_wrapper
-#include "key.h"                         // find_ref_key
-#include "log.h"
 #include "m_string.h"
+#include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_io.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"
 #include "myisam.h"                      // MI_MAX_KEY_LENGTH
+#include "mysql/components/services/log_shared.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_table.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysql_version.h"               // MYSQL_VERSION_ID
-#include "mysqld.h"                      // reg_ext key_file_frm ...
 #include "mysqld_error.h"
-#include "opt_trace.h"                   // opt_trace_disable_if_no_security_...
-#include "parse_file.h"                  // sql_parse_prepare
-#include "partition_info.h"              // partition_info
-#include "psi_memory_key.h"
-#include "query_result.h"                // Query_result
-#include "session_tracker.h"
-#include "set_var.h"
-#include "sql_class.h"                   // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_parse.h"                   // check_stack_overrun
-#include "sql_partition.h"               // mysql_unpack_partition
-#include "sql_plugin.h"                  // plugin_unlock
-#include "sql_security_ctx.h"
-#include "sql_select.h"                  // actual_key_parts
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"        // acl_getroot
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"                  // mysql_bin_log
+#include "sql/dd/cache/dictionary_client.h" // dd::cache_Dictionary_client
+#include "sql/dd/dd.h"                   // dd::get_dictionary
+#include "sql/dd/dictionary.h"           // dd::Dictionary
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/table.h"          // dd::Table
+#include "sql/dd/types/view.h"           // dd::View
+#include "sql/debug_sync.h"              // DEBUG_SYNC
+#include "sql/derror.h"                  // ER_THD
+#include "sql/error_handler.h"           // Strict_error_handler
+#include "sql/field.h"
+#include "sql/histograms/histogram.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"            // and_conds
+#include "sql/item_create.h"
+#include "sql/json_diff.h"               // Json_diff_vector
+#include "sql/json_dom.h"                // Json_wrapper
+#include "sql/key.h"                     // find_ref_key
+#include "sql/log.h"
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"                  // reg_ext key_file_frm ...
+#include "sql/opt_trace.h"               // opt_trace_disable_if_no_security_...
+#include "sql/opt_trace_context.h"
+#include "sql/parse_file.h"              // sql_parse_prepare
+#include "sql/partition_info.h"          // partition_info
+#include "sql/psi_memory_key.h"
+#include "sql/query_result.h"            // Query_result
+#include "sql/rpl_record.h"              // PARTIAL_JSON_UPDATES
+#include "sql/sql_base.h"
+#include "sql/sql_class.h"               // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"               // check_stack_overrun
+#include "sql/sql_partition.h"           // mysql_unpack_partition
+#include "sql/sql_plugin.h"              // plugin_unlock
+#include "sql/sql_select.h"              // actual_key_parts
+#include "sql/sql_table.h"               // build_table_filename
+#include "sql/sql_tablespace.h"          // validate_tablespace_name())
+#include "sql/strfunc.h"                 // find_type
+#include "sql/system_variables.h"
+#include "sql/table_cache.h"             // table_cache_manager
+#include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/thr_malloc.h"
+#include "sql/trigger_def.h"
 #include "sql_string.h"
-#include "sql_table.h"                   // build_table_filename
-#include "sql_tablespace.h"              // validate_tablespace_name())
-#include "sql_udf.h"
-#include "strfunc.h"                     // find_type
-#include "table_cache.h"                 // table_cache_manager
-#include "table_trigger_dispatcher.h"    // Table_trigger_dispatcher
 #include "template_utils.h"              // down_cast
-#include "thr_malloc.h"
 #include "thr_mutex.h"
-#include "trigger_def.h"
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -265,9 +273,6 @@ GRANT_INFO::GRANT_INFO()
   grant_table= 0;
   version= 0;
   privilege= NO_ACCESS;
-#ifndef DBUG_OFF
-  want_privilege= 0;
-#endif
 }
 
 
@@ -520,6 +525,15 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
 }
 
 
+Key_map TABLE_SHARE::usable_indexes(const THD *thd) const
+{
+  Key_map usable_indexes(keys_in_use);
+  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INVISIBLE_INDEXES))
+    usable_indexes.intersect(visible_indexes);
+  return usable_indexes;
+}
+
+
 /**
   Release resources (plugins) used by the share and free its memory.
   TABLE_SHARE is self-contained -- it's stored in its own MEM_ROOT.
@@ -548,6 +562,9 @@ void TABLE_SHARE::destroy()
     mysql_mutex_destroy(&LOCK_ha_data);
   delete name_hash;
   name_hash= nullptr;
+
+  delete m_histograms;
+  m_histograms= nullptr;
 
   plugin_unlock(NULL, db_plugin);
   db_plugin= NULL;
@@ -1452,7 +1469,7 @@ static int make_field_from_frm(THD *thd,
              f_is_dec(pack_flag) == 0,
              f_decimals(pack_flag),
              f_bit_as_char(pack_flag),
-             0);
+             0, {});
   if (!reg_field)
   {
     // Not supported field type
@@ -2545,7 +2562,7 @@ static bool validate_generated_expr(Field *field)
    */
   if (expr->has_stored_program() ||             // 1)
       (expr->used_tables() &
-       (RAND_TABLE_BIT | PARAM_TABLE_BIT)) ||   // 2)
+       (RAND_TABLE_BIT | INNER_TABLE_BIT)) ||   // 2)
       (expr->cols() != 1))                      // 3)
   {
     my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
@@ -3654,6 +3671,8 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->comment= share->comment;
   create_info->storage_media= share->default_storage_media;
   create_info->tablespace= share->tablespace;
+  create_info->compress= share->compress;
+  create_info->encrypt_type= share->encrypt_type;
 
   DBUG_VOID_RETURN;
 }
@@ -3726,6 +3745,42 @@ char *get_field(MEM_ROOT *mem, Field *field)
 
 /**
   Check if database name is valid
+
+  @param name             Name of database
+  @param length           Length of name
+
+  @retval  Ident_name_check::OK        Identifier name is Ok (Success)
+  @retval  Ident_name_check::WRONG     Identifier name is Wrong
+                                       (ER_WRONG_TABLE_NAME)
+  @retval  Ident_name_check::TOO_LONG  Identifier name is too long if it is
+                                       greater than 64 characters
+                                       (ER_TOO_LONG_IDENT)
+
+  @note In case of Ident_name_check::WRONG and Ident_name_check::TOO_LONG, this
+        function reports an error (my_error)
+*/
+
+Ident_name_check check_db_name(const char *name, size_t length)
+{
+  Ident_name_check ident_check_status;
+
+  if (!length || length > NAME_LEN)
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), name);
+    return Ident_name_check::WRONG;
+  }
+
+  ident_check_status= check_table_name(name, length);
+  if (ident_check_status == Ident_name_check::WRONG)
+    my_error(ER_WRONG_DB_NAME, MYF(0), name);
+  else if (ident_check_status == Ident_name_check::TOO_LONG)
+    my_error(ER_TOO_LONG_IDENT, MYF(0), name);
+  return ident_check_status;
+}
+
+
+/**
+  Check if database name is valid, and convert to lower case if necessary
 
   @param org_name             Name of database and length
   @param preserve_lettercase  Preserve lettercase if true
@@ -4097,6 +4152,18 @@ end:
   }
 
   return result;
+}
+
+const histograms::Histogram* TABLE_SHARE::find_histogram(uint field_index)
+{
+  if (m_histograms == nullptr)
+    return nullptr;
+
+  const auto found= m_histograms->find(field_index);
+  if (found == m_histograms->end())
+    return nullptr;
+
+  return found->second;
 }
 
 
@@ -5019,25 +5086,6 @@ TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution()
       break;
   }
   return cur_table_ref;
-}
-
-
-/**
-  Set privileges needed for columns of underlying tables
-
-  @param want_privilege  Required privileges
-*/
-
-void TABLE_LIST::set_want_privilege(ulong want_privilege MY_ATTRIBUTE((unused)))
-{
-#ifndef DBUG_OFF
-  // Remove SHOW_VIEW_ACL, because it will be checked during making view
-  want_privilege&= ~SHOW_VIEW_ACL;
-
-  grant.want_privilege= want_privilege & ~grant.privilege;
-  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
-    tbl->set_want_privilege(want_privilege);
-#endif
 }
 
 
@@ -6670,6 +6718,7 @@ uint TABLE_LIST::query_block_id_for_explain() const
 /**
   Compiles the tagged hints list and fills up the bitmasks.
 
+  @param thd The current session.
   @param tbl the TABLE to operate on.
 
     The parser collects the index hints for each table in a "tagged list" 
@@ -6708,14 +6757,14 @@ uint TABLE_LIST::query_block_id_for_explain() const
     e.g. "USE INDEX i1, IGNORE INDEX i1, USE INDEX i1" will not use i1 at all
     as if we had "USE INDEX i1, USE INDEX i1, IGNORE INDEX i1".
 
-  @retval FALSE no errors found
-  @retval TRUE found and reported an error.
+  @retval false No errors found.
+  @retval true Found and reported an error.
 */
-bool TABLE_LIST::process_index_hints(TABLE *tbl)
+bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl)
 {
   /* initialize the result variables */
   tbl->keys_in_use_for_query= tbl->keys_in_use_for_group_by= 
-    tbl->keys_in_use_for_order_by= tbl->s->usable_indexes();
+    tbl->keys_in_use_for_order_by= tbl->s->usable_indexes(thd);
 
   /* index hint list processing */
   if (index_hints)
@@ -6836,22 +6885,6 @@ bool TABLE_LIST::process_index_hints(TABLE *tbl)
   return 0;
 }
 
-
-size_t max_row_length(TABLE *table, const uchar *data)
-{
-  TABLE_SHARE *table_s= table->s;
-  size_t length= table_s->reclength + 2 * table_s->fields;
-  uint *const beg= table_s->blob_field;
-  uint *const end= beg + table_s->blob_fields;
-
-  for (uint *ptr= beg ; ptr != end ; ++ptr)
-  {
-    Field_blob* const blob= (Field_blob*) table->field[*ptr];
-    length+= blob->get_length((data + blob->offset(table->record[0]))) +
-      HA_KEY_BLOB_LENGTH;
-  }
-  return length;
-}
 
 /**
    Helper function which allows to allocate metadata lock request
@@ -7709,7 +7742,10 @@ st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
   ret->alter_status.update_account_locked_column= false;
   ret->alter_status.update_password_expired_column= false;
   ret->alter_status.update_password_expired_fields= false;
-  ret->alter_status.use_default_password_lifetime= false;
+  ret->alter_status.use_default_password_lifetime= true;
+  ret->alter_status.use_default_password_history= true;
+  ret->alter_status.password_history_length= 0;
+  ret->alter_status.password_reuse_interval= 0;
   if (check_string_char_length(ret->user, ER_THD(thd, ER_USERNAME),
                                USERNAME_CHAR_LENGTH,
                                system_charset_info, 0) ||
@@ -7855,7 +7891,8 @@ bool TABLE::mark_column_for_partial_update(const Field *field)
 
 void TABLE::disable_binary_diffs_for_current_row(const Field *field)
 {
-  DBUG_ASSERT(field->table == this && is_binary_diff_enabled(field));
+  DBUG_ASSERT(field->table == this);
+  DBUG_ASSERT(is_binary_diff_enabled(field));
 
   // Remove the diffs collected for the column.
   m_partial_update_info->m_binary_diff_vectors[field->field_index]->clear();
@@ -7885,10 +7922,11 @@ bool TABLE::has_binary_diff_columns() const
 
 bool TABLE::setup_partial_update(bool logical_diffs)
 {
+  DBUG_ENTER("TABLE::setup_partial_update(bool)");
   DBUG_ASSERT(m_partial_update_info == nullptr);
 
   if (!has_columns_marked_for_partial_update())
-    return false;
+    DBUG_RETURN(false);
 
   Opt_trace_context *trace= &in_use->opt_trace;
   if (trace->is_started())
@@ -7908,7 +7946,29 @@ bool TABLE::setup_partial_update(bool logical_diffs)
   m_partial_update_info=
     new (in_use->mem_root) Partial_update_info(this, m_partial_update_columns,
                                                logical_diffs);
-  return in_use->is_error();
+  DBUG_RETURN(in_use->is_error());
+}
+
+
+bool TABLE::setup_partial_update()
+{
+  bool logical_diffs=
+    (in_use->variables.binlog_row_value_options & PARTIAL_JSON_UPDATES) != 0 &&
+    mysql_bin_log.is_open() &&
+    (in_use->variables.option_bits & OPTION_BIN_LOG) != 0 &&
+    log_bin_use_v1_row_events == 0 &&
+    in_use->is_current_stmt_binlog_format_row();
+  DBUG_PRINT("info", ("TABLE::setup_partial_update(): logical_diffs=%d "
+                      "because binlog_row_value_options=%d binlog.is_open=%d "
+                      "sql_log_bin=%d use_v1_row_events=%d rbr=%d",
+                      logical_diffs,
+                      (in_use->variables.binlog_row_value_options &
+                       PARTIAL_JSON_UPDATES) != 0,
+                      mysql_bin_log.is_open(),
+                      (in_use->variables.option_bits & OPTION_BIN_LOG) != 0,
+                      log_bin_use_v1_row_events,
+                      in_use->is_current_stmt_binlog_format_row()));
+  return setup_partial_update(logical_diffs);
 }
 
 
@@ -7926,8 +7986,10 @@ bool TABLE::has_columns_marked_for_partial_update() const
 
 void TABLE::cleanup_partial_update()
 {
+  DBUG_ENTER("TABLE::cleanup_partial_update");
   destroy(m_partial_update_info);
   m_partial_update_info= nullptr;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -7940,6 +8002,7 @@ String *TABLE::get_partial_update_buffer()
 
 void TABLE::clear_partial_update_diffs()
 {
+  DBUG_ENTER("TABLE::clear_partial_update_diffs");
   if (m_partial_update_info != nullptr)
   {
     for (auto v : m_partial_update_info->m_binary_diff_vectors)
@@ -7959,6 +8022,7 @@ void TABLE::clear_partial_update_diffs()
                   m_partial_update_columns);
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -8052,9 +8116,30 @@ void TABLE::add_logical_diff(const Field_json *field,
   DBUG_ASSERT(is_logical_diff_enabled(field));
   Json_diff_vector *diffs=
     m_partial_update_info->m_logical_diff_vectors[field->field_index];
-  diffs->emplace_back(path, operation,
-                      new_value == nullptr ? nullptr :
-                      new_value->clone_dom(field->table->in_use));
+  if (new_value == nullptr)
+    diffs->add_diff(path, operation);
+  else
+  {
+    Json_dom_ptr dom= new_value->clone_dom(field->table->in_use);
+    diffs->add_diff(path, operation, dom);
+  }
+#ifndef DBUG_OFF
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> path_str;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> value_str;
+  if (diffs->at(diffs->size() - 1).path().to_string(&path_str))
+    path_str.length(0); /* purecov: inspected */
+  if (new_value == nullptr || new_value->type() == enum_json_type::J_ERROR)
+    value_str.set_ascii("<none>", 6);
+  else
+  {
+    if (new_value->to_string(&value_str, false, "add_logical_diff"))
+      value_str.length(0); /* purecov: inspected */
+  }
+  DBUG_PRINT("info", ("add_logical_diff(operation=%d, path=%.*s, value=%.*s)",
+                      (int)operation,
+                      (int)path_str.length(), path_str.ptr(),
+                      (int)value_str.length(), value_str.ptr()));
+#endif
 }
 
 
@@ -8076,15 +8161,30 @@ bool TABLE::is_binary_diff_enabled(const Field *field) const
 
 bool TABLE::is_logical_diff_enabled(const Field *field) const
 {
-  return m_partial_update_info != nullptr &&
-         bitmap_is_set(&m_partial_update_info->m_enabled_logical_diff_columns,
-                       field->field_index);
+  DBUG_ENTER("TABLE::is_logical_diff_enabled");
+  bool ret=
+    m_partial_update_info != nullptr &&
+    bitmap_is_set(&m_partial_update_info->m_enabled_logical_diff_columns,
+                  field->field_index);
+  DBUG_PRINT("info", (
+    "field=%s "
+    "is_logical_diff_enabled returns=%d "
+    "(m_partial_update_info!=NULL)=%d "
+    "m_enabled_logical_diff_columns[column]=%s",
+    field->field_name,
+    ret,
+    m_partial_update_info != nullptr,
+    m_partial_update_info != nullptr ?
+    (bitmap_is_set(&m_partial_update_info->m_enabled_logical_diff_columns,
+                   field->field_index) ? "1" : "0") : "unknown"));
+  DBUG_RETURN(ret);
 }
 
 
 void TABLE::disable_logical_diffs_for_current_row(const Field *field) const
 {
-  DBUG_ASSERT(field->table == this && is_logical_diff_enabled(field));
+  DBUG_ASSERT(field->table == this);
+  DBUG_ASSERT(is_logical_diff_enabled(field));
 
   // Remove the diffs collected for the column.
   m_partial_update_info->m_logical_diff_vectors[field->field_index]->clear();

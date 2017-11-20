@@ -534,9 +534,7 @@ select count(*) from t8cver;
 count(*)
 900
 select count(*) from t8c x, t8cver y
-where x.a = y.a and
-x.b = y.b and
-x.c = y.c ;
+where x.a = y.a ;
 count(*)
 900
 drop table t8cver;
@@ -561,9 +559,7 @@ select count(*) from t8dver;
 count(*)
 990
 select count(*) from t8d x, t8dver y
-where x.a = y.a and
-x.b = y.b and
-x.c = y.c ;
+where x.a = y.a ;
 count(*)
 990
 drop table t8dver;

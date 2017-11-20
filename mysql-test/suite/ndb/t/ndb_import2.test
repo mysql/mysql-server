@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source include/not_windows.inc
 --source suite/ndb/include/ndb_find_import_tool.inc
 --source have_ndb_error_insert.inc
 
@@ -14,7 +13,7 @@ my $vardir = $ENV{MYSQLTEST_VARDIR}
   or die "need MYSQLTEST_VARDIR";
 my $file = "$vardir/tmp/t1.csv";
 my $fh = gensym();
-open($fh, ">$file")
+open($fh, ">:raw", $file)
   or die "$file: open for write failed: $!";
 for (my $i = 0; $i < 400000; $i++) {
   print $fh $i, "\t", int(rand(1000)), "\n";
@@ -31,7 +30,7 @@ my $vardir = $ENV{MYSQLTEST_VARDIR}
   or die "need MYSQLTEST_VARDIR";
 my $file = "$vardir/tmp/t2.csv";
 my $fh = gensym();
-open($fh, ">$file")
+open($fh, ">:raw", $file)
   or die "$file: open for write failed: $!";
 for (my $i = 0; $i < 400000; $i++) {
   print $fh 10*$i, "\n";

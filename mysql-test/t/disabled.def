@@ -19,8 +19,7 @@ index_merge_delete        :Bug#21373532 2016-07-29 Anitha Test fails very freque
 audit_plugin_2           : Bug#24970428 2016-10-28 Marc TEST AUDIT_PLUGIN_2 USES DEPRECATED FEATURE SHOW_COMPATIBILITY_56
 
 # Disabled list(Due to InnoDB issues)
-partition_exchange               : WL#9559 disables it, waiting for WL#9536 to roll back properly for ALTER PARTITION
 main.internal_tmp_disk_storage_engine : 2017-04-13 Allen Disabled it since it's failing on pb2.
 main.innodb_mysql_sync           : Bug#25887335 2017-04-13 Allen Disabled it since it's failing on pb2.
+
 # log_components_syslog    : WL#9343 2017-02-07 Tatiana provided for review/QA; should not be run routinely to prevent spamming the test host's log. may be removed later.
-service_udf_registration.udf_old : 2017-05-23 Horst Bug #26115002 UDF_EXAMPLE BINARY NOT PACKAGED.

@@ -43,7 +43,7 @@ INSERT INTO test.t1 VALUES (1);
 # server3: create table t2 and add data
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
-CREATE TABLE test.t2 (c1 INT NOT NULL) ENGINE=InnoDB;
+CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO test.t2 VALUES (1);
 
 
@@ -72,8 +72,10 @@ INSERT INTO test.t2 VALUES (1);
 --echo # 5. Verify data is replicated to server1 & 2
 
 # Sync slave(server1) with master(server3)
---let $rpl_channel_name= ch3_1
---let $sync_slave_connection=server_1
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $rpl_channel_name='ch3_1'
+--let $sync_slave_connection=server1
 --source include/sync_slave_sql_with_master.inc
 --let $rpl_channel_name=
 

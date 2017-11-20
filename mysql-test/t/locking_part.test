@@ -108,7 +108,7 @@ SELECT d,a,b,c FROM t1 partition (p1,p9,p11,p17) ORDER BY d
    FOR SHARE SKIP LOCKED;
 SELECT d,a,b,c FROM t1 ORDER BY d FOR SHARE SKIP LOCKED;
 SELECT d,a,b,c FROM t3 ORDER BY d FOR SHARE SKIP LOCKED;
-explain extended SELECT d,a,b,c FROM t3 ORDER BY d 
+explain SELECT d,a,b,c FROM t3 ORDER BY d 
    FOR SHARE SKIP LOCKED;
 
 --echo #
@@ -159,7 +159,7 @@ SELECT d,a,b,c FROM t1 partition (p1,p9,p11,p17) ORDER BY d
    FOR SHARE SKIP LOCKED;
 SELECT d,a,b,c FROM t1 ORDER BY d FOR SHARE SKIP LOCKED;
 SELECT d,a,b,c FROM t3 ORDER BY d FOR SHARE SKIP LOCKED;
-explain extended SELECT d,a,b,c FROM t3 ORDER BY d 
+explain SELECT d,a,b,c FROM t3 ORDER BY d 
    FOR SHARE SKIP LOCKED;
 
 --echo #

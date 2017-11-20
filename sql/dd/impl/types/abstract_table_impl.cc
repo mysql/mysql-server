@@ -13,33 +13,35 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/abstract_table_impl.h"
+#include "sql/dd/impl/types/abstract_table_impl.h"
 
 #include <new>
 #include <sstream>
+#include <string>
 
-#include "dd/string_type.h"                 // dd::String_type
-#include "dd/impl/properties_impl.h"        // Properties_impl
-#include "dd/impl/raw/object_keys.h"        // Primary_id_key
-#include "dd/impl/raw/raw_record.h"         // Raw_record
-#include "dd/impl/sdi_impl.h"               // sdi read/write functions
-#include "dd/impl/tables/columns.h"         // Columns
-#include "dd/impl/tables/tables.h"          // Tables
-#include "dd/impl/transaction_impl.h"       // Open_dictionary_tables_ctx
-#include "dd/impl/types/column_impl.h"      // Column_impl
-#include "dd/types/column.h"
-#include "dd/types/entity_object_table.h"
-#include "dd/types/table.h"
-#include "dd/types/view.h"                  // View
-#include "dd/types/weak_object.h"
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_sys.h"
 #include "mysql_version.h"                  // MYSQL_VERSION_ID
-#include "mysqld.h"
 #include "mysqld_error.h"                   // ER_*
-#include "rapidjson/document.h"
-#include "rapidjson/prettywriter.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/impl/properties_impl.h"    // Properties_impl
+#include "sql/dd/impl/raw/raw_record.h"     // Raw_record
+#include "sql/dd/impl/sdi_impl.h"           // sdi read/write functions
+#include "sql/dd/impl/tables/columns.h"     // Columns
+#include "sql/dd/impl/tables/tables.h"      // Tables
+#include "sql/dd/impl/transaction_impl.h"   // Open_dictionary_tables_ctx
+#include "sql/dd/impl/types/column_impl.h"  // Column_impl
+#include "sql/dd/string_type.h"             // dd::String_type
+#include "sql/dd/types/column.h"
+#include "sql/dd/types/entity_object_table.h"
+#include "sql/dd/types/table.h"
+#include "sql/dd/types/view.h"              // View
+#include "sql/dd/types/weak_object.h"
 
 using dd::tables::Columns;
 using dd::tables::Tables;
@@ -201,7 +203,7 @@ bool Abstract_table::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-static_assert(Tables::FIELD_VIEW_DEFINITION == 22,
+static_assert(Tables::FIELD_VIEW_DEFINITION == 24,
               "Tables definition has changed, review (de)ser member function"
               "s (also in derived classes");
 

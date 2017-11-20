@@ -47,6 +47,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rseg.h"
 #include "ut0mem.h"
 
+namespace dd {
+class Spatial_reference_system;
+}
+
 /*=========== UNDO LOG RECORD CREATION AND DECODING ====================*/
 
 /**********************************************************************//**
@@ -860,6 +864,7 @@ trx_undo_page_report_modify_ext_func(
 @param[in]	page_size	table pagesize
 @param[in]	field		field contain the geometry data
 @param[in,out]	len		length of field, in bytes
+@param[in]	srs		Spatial reference system of R-tree.
 */
 static
 void
@@ -868,7 +873,8 @@ trx_undo_get_mbr_from_ext(
 	double*			mbr,
 	const page_size_t&      page_size,
 	const byte*             field,
-	ulint*			len)
+	ulint*			len,
+	const dd::Spatial_reference_system *srs)
 {
 	uchar*		dptr = NULL;
 	ulint		dlen;
@@ -883,7 +889,9 @@ trx_undo_get_mbr_from_ext(
 			mbr[i * 2 + 1] = -DBL_MAX;
 		}
 	} else {
-		get_mbr_from_store(dptr, static_cast<uint>(dlen), SPDIMS, mbr);
+		get_mbr_from_store(
+			srs, dptr, static_cast<uint>(dlen), SPDIMS, mbr,
+			nullptr);
 	}
 
 	mem_heap_free(heap);
@@ -1293,7 +1301,8 @@ trx_undo_page_report_modify(
 							mbr,
 							dict_table_page_size(
 								table),
-							field, &flen);
+							field, &flen,
+							index->rtr_srs.get());
 					}
 
 					ptr = trx_undo_page_report_modify_ext(

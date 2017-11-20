@@ -24,6 +24,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "test_utils.h"
+#include "temptable/allocator.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -37,7 +38,7 @@ int Fake_TABLE::highest_table_id= 5;
 
 namespace {
 
-bool opt_use_tap= true;
+bool opt_use_tap= false;
 bool opt_unit_help= false;
 
 struct my_option unittest_options[] =
@@ -72,6 +73,13 @@ int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
 
+#if defined(HAVE_WINNUMA)
+  SYSTEM_INFO systemInfo;
+  GetSystemInfo(&systemInfo);
+
+  temptable::win_page_size = systemInfo.dwPageSize;
+#endif /* HAVE_WINNUMA */
+
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   pre_initialize_performance_schema();
 #endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
@@ -84,7 +92,8 @@ int main(int argc, char **argv)
   if (opt_use_tap)
     install_tap_listener();
   if (opt_unit_help)
-    printf("\n\nTest options: [--[disable-]tap-output]\n");
+    printf("\n\nTest options: [--[enable-]tap-output] output TAP "
+           "rather than googletest format\n");
 
   my_testing::setup_server_for_unit_tests();
   int ret= RUN_ALL_TESTS();

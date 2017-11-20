@@ -20,16 +20,23 @@
   @file sql/histograms/value_map.h
 */
 
+#include <stddef.h>
 #include <functional>           // std::less
+#include <string>
 #include <utility>              // std::pair
 #include <vector>               // std::vector
 
-#include "memroot_allocator.h"  // Memroot_allocator
 #include "my_base.h"            // ha_rows
+#include "sql/histograms/equi_height_bucket.h"
+#include "sql/histograms/value_map_type.h"
+#include "sql/memroot_allocator.h" // Memroot_allocator
+#include "sql/thr_malloc.h"
 
 class String;
-class my_decimal;
 class THD;
+class my_decimal;
+template <class T> class Memroot_allocator;
+
 typedef struct st_mysql_time MYSQL_TIME;
 
 namespace histograms {
@@ -78,6 +85,32 @@ public:
   {
     return Histogram_comparator()(a.first, b);
   }
+
+  template <class T>
+  bool operator()(const std::pair<const T, double> &a, const T &b) const
+  {
+    return Histogram_comparator()(a.first, b);
+  }
+
+  template <class T>
+  bool operator()(const T &a, const std::pair<const T, double> &b) const
+  {
+    return Histogram_comparator()(a, b.first);
+  }
+
+  template <class T>
+  bool operator()(const equi_height::Bucket<T> &a, const T &b) const
+  {
+    return Histogram_comparator()(a.get_upper_inclusive(), b);
+  }
+
+  template <class T>
+  bool operator()(const equi_height::Bucket<T> &a,
+                  const equi_height::Bucket<T> &b) const
+  {
+    return Histogram_comparator()(a.get_upper_inclusive(),
+                                  b.get_lower_inclusive());
+  }
 };
 
 
@@ -110,12 +143,13 @@ private:
   double m_sampling_rate;
   const CHARSET_INFO *m_charset;
   ha_rows m_num_null_values;
-
+  const Value_map_type m_data_type;
 protected:
   MEM_ROOT m_mem_root;
 
 public:
-  Value_map_base(const CHARSET_INFO *charset, double sampling_rate);
+  Value_map_base(const CHARSET_INFO *charset, double sampling_rate,
+                 Value_map_type data_type);
 
   virtual ~Value_map_base()
   {}
@@ -181,6 +215,9 @@ public:
 
   /// @return the character set for the data this Value_map contains
   const CHARSET_INFO *get_character_set() const { return m_charset; }
+
+  /// @return the data type that this Value_map contains
+  Value_map_type get_data_type() const { return m_data_type; }
 };
 
 
@@ -200,8 +237,9 @@ private:
 
   value_map_type m_value_map;
 public:
-  Value_map(const CHARSET_INFO *charset, double sampling_rate= 0.0)
-  :Value_map_base(charset, sampling_rate),
+  Value_map(const CHARSET_INFO *charset, Value_map_type data_type,
+            double sampling_rate= 0.0)
+  :Value_map_base(charset, sampling_rate, data_type),
   m_value_map(typename value_map_type::allocator_type(&m_mem_root))
   {}
 
@@ -240,7 +278,6 @@ public:
                                    const std::string &tbl_name,
                                    const std::string &col_name) const override;
 };
-
 
 // Explicit template instantiations.
 template <>

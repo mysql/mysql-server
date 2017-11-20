@@ -44,6 +44,9 @@ static xcom_data_receiver xcom_receive_data;
 static xcom_local_view_receiver xcom_receive_local_view;
 static xcom_global_view_receiver xcom_receive_global_view;
 xcom_logger xcom_log = NULL;
+xcom_debugger xcom_debug = NULL;
+xcom_debugger_check xcom_debug_check = NULL;
+int64_t xcom_debug_options = GCS_DEBUG_NONE;
 
 void set_xcom_data_receiver(xcom_data_receiver x) { xcom_receive_data = x; }
 
@@ -55,7 +58,17 @@ void set_xcom_global_view_receiver(xcom_global_view_receiver x) {
   xcom_receive_global_view = x;
 }
 
-void set_xcom_logger(xcom_logger x) { xcom_log = x; }
+void set_xcom_logger(xcom_logger x) {
+  xcom_log = x;
+}
+
+void set_xcom_debugger(xcom_debugger x) {
+  xcom_debug= x;
+}
+
+void set_xcom_debugger_check(xcom_debugger_check x) {
+  xcom_debug_check= x;
+}
 
 /* {{{ Deliver message to application */
 

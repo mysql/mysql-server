@@ -23,27 +23,29 @@
 #include "sql/records.h"
 
 #include <string.h>
+#include <atomic>
 
-#include "field.h"
-#include "filesort.h"            // filesort_free_buffers
-#include "handler.h"
-#include "item.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
-#include "opt_range.h"           // QUICK_SELECT_I
-#include "psi_memory_key.h"
-#include "sort_param.h"
-#include "sql_class.h"           // THD
-#include "sql_const.h"
-#include "sql_executor.h"        // QEP_TAB
-#include "sql_sort.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/field.h"
+#include "sql/filesort.h"        // filesort_free_buffers
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/opt_range.h"       // QUICK_SELECT_I
+#include "sql/psi_memory_key.h"
+#include "sql/sort_param.h"
+#include "sql/sql_class.h"       // THD
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h"    // QEP_TAB
+#include "sql/sql_sort.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
 #include "thr_lock.h"
 #include "varlen_sort.h"
 

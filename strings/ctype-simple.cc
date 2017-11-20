@@ -1837,6 +1837,7 @@ MY_CHARSET_HANDLER my_charset_ascii_handler=
 MY_COLLATION_HANDLER my_collation_8bit_simple_ci_handler =
 {
     my_coll_init_simple,	/* init */
+    nullptr,
     my_strnncoll_simple,
     my_strnncollsp_simple,
     my_strnxfrm_simple,

@@ -22,7 +22,6 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
@@ -32,6 +31,7 @@
 #include "pfs_instr_class.h"
 #include "pfs_memory.h"
 #include "pfs_visitor.h"
+#include "sql/field.h"
 
 THR_LOCK table_mems_by_user_by_event_name::m_table_lock;
 
@@ -60,7 +60,7 @@ Plugin_table table_mems_by_user_by_event_name::m_table_def(
   nullptr);
 
 PFS_engine_table_share table_mems_by_user_by_event_name::m_share = {
-  &pfs_readonly_acl,
+  &pfs_truncatable_acl,
   table_mems_by_user_by_event_name::create,
   NULL, /* write_row */
   table_mems_by_user_by_event_name::delete_all_rows,
@@ -68,7 +68,10 @@ PFS_engine_table_share table_mems_by_user_by_event_name::m_share = {
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool

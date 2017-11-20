@@ -20,7 +20,6 @@
 
 #include <ndb_types.h>
 #include "../diskpage.hpp"
-
 #define JAM_FILE_ID 419
 
 
@@ -123,7 +122,14 @@ struct Tup_fixsize_page
   Uint32 m_schema_version;
   Uint32 unused_ph[4];
 
-  STATIC_CONST( FREE_RECORD = ~(Uint32)0 );
+  /**
+   * Don't set/reset LCP_SKIP/LCP_DELETE flags
+   * The LCP_SKIP and LCP_DELETE flags are alive also after the record has
+   * been deleted. This is to track rows that have been scanned, LCP scans
+   * also scans deleted rows to ensure that any deleted rows since last LCP
+   * are tracked.
+   */
+  STATIC_CONST( FREE_RECORD = 0xeeffffff );
   STATIC_CONST( HEADER_WORDS = 32 );
   STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
                              HEADER_WORDS );
@@ -131,7 +137,7 @@ struct Tup_fixsize_page
   Uint32 m_data[DATA_WORDS];
   
   Uint32* get_ptr(Uint32 page_idx, Uint32 rec_size){
-    assert(page_idx + rec_size <= DATA_WORDS);
+    require(page_idx + rec_size <= DATA_WORDS);
     return m_data + page_idx;
   }
   

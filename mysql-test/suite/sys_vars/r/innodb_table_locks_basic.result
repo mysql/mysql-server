@@ -61,17 +61,17 @@ SET @@session.innodb_table_locks = "T";
 ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'T'
 SET @@session.innodb_table_locks = "Y";
 ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'Y'
-SET @@session.innodb_table_locks = TRÜE;
-ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'TRÜE'
-SET @@session.innodb_table_locks = ÕN;
-ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'ÕN'
+SET @@session.innodb_table_locks = TRÃœE;
+ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'TRÃœE'
+SET @@session.innodb_table_locks = Ã•N;
+ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'Ã•N'
 SET @@session.innodb_table_locks = OF;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@session.innodb_table_locks;
 @@session.innodb_table_locks
 1
-SET @@session.innodb_table_locks = ÓFF;
-ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'ÓFF'
+SET @@session.innodb_table_locks = Ã“FF;
+ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'Ã“FF'
 SET @@global.innodb_table_locks = -1;
 SET @@global.innodb_table_locks = 2;
 ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of '2'
@@ -79,8 +79,8 @@ SET @@global.innodb_table_locks = "T";
 ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'T'
 SET @@global.innodb_table_locks = "Y";
 ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'Y'
-SET @@global.innodb_table_locks = TRÜE;
-ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'TRÜE'
+SET @@global.innodb_table_locks = TRÃœE;
+ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'TRÃœE'
 SET @@global.innodb_table_locks = QN;
 ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'QN'
 SET @@global.innodb_table_locks = OF;

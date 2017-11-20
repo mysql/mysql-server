@@ -21,15 +21,18 @@
 #include <string>
 #include <vector>
 
-#include "dd/object_id.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "object_registry.h"                  // Object_registry
+#include "sql/dd/object_id.h"
+#include "sql/dd/string_type.h"
 
 class THD;
+
 namespace dd {
 class Schema;
 class Table;
+class Entity_object;
 }  // namespace dd
 
 namespace dd {
@@ -879,6 +882,8 @@ public:
 
     @param        parent_schema    Schema name of parent table.
     @param        parent_name      Table name of parent table.
+    @param        parent_engine    Storage engine of parent table.
+    @param        uncommitted      Use READ_UNCOMMITTED isolation.
     @param[out]   children_schemas Schema names of child tables.
     @param[out]   children_names   Table names of child tables.
 
@@ -892,11 +897,53 @@ public:
           names could become invalid at any time - e.g. due to DROP DATABASE,
           DROP TABLE or DROP FOREIGN KEY.
   */
+
   bool fetch_fk_children_uncached(
     const String_type &parent_schema,
     const String_type &parent_name,
+    const String_type &parent_engine,
+    bool uncommitted,
     std::vector<String_type> *children_schemas,
-    std::vector<String_type> *children_names);
+    std::vector<String_type> *children_names)
+    MY_ATTRIBUTE((warn_unused_result));
+
+ /**
+    Invalidate a cache entry.
+
+    This function will acquire a table object based on the schema qualified
+    table name, and call 'invalidate(table_object)'.
+
+    @note This function only applies to tables yet.
+
+    @param        schema_name   Name of the schema containing the table.
+    @param        table_name    Name of the table.
+
+    @retval       false   No error.
+    @retval       true    Error (from handling a cache miss, or from
+                                 failing to get an MDL lock).
+  */
+
+  bool invalidate(const String_type &schema_name,
+                  const String_type &table_name)
+    MY_ATTRIBUTE((warn_unused_result));
+
+  /**
+    Invalidate a cache entry.
+
+    This function will remove and delete an object from the shared cache,
+    based on the id of the object. If the object id is present in the local
+    object registry and the auto releaser, it will be removed from there as
+    well.
+
+    @note There is no particular consideration of already dropped or modified
+          objects in this method.
+
+    @tparam T       Dictionary object type.
+    @param  object  Object to be invalidated.
+  */
+
+  template <typename T>
+  void invalidate(const T *object);
 
 
   /**
@@ -908,6 +955,8 @@ public:
     Afterwards, the object pointed to will also be deleted, and finally, the
     corresponding entry in the appropriate dd table is deleted. The object may
     not be accessed after calling this function.
+
+    @sa invalidate()
 
     @note The object parameter is const since the contents of the object
           is not really changed, the object is just deleted. The method

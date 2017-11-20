@@ -18,12 +18,12 @@
 #include <memory>
 #include <string>
 
-#include "error_handler.h"
-#include "json_binary.h"
-#include "json_dom.h"
-#include "sql_string.h"
 #include "my_inttypes.h"
-#include "sql_time.h"
+#include "sql/error_handler.h"
+#include "sql/json_binary.h"
+#include "sql/json_dom.h"
+#include "sql/sql_time.h"
+#include "sql_string.h"
 #include "test_utils.h"
 
 namespace json_binary_unittest {
@@ -57,55 +57,52 @@ static my_decimal create_decimal(double d)
 }
 
 
+static Json_dom_ptr parse_json(const char *json_text)
+{
+  auto dom= Json_dom::parse(json_text, strlen(json_text), nullptr, nullptr);
+  EXPECT_NE(nullptr, dom);
+  return dom;
+}
+
+
 TEST_F(JsonBinaryTest, BasicTest)
 {
-  const char *doc= "false";
-
-  const char *msg;
-  size_t msg_offset;
-
-  std::unique_ptr<Json_dom> dom(Json_dom::parse(doc, strlen(doc),
-                                                &msg, &msg_offset));
+  Json_dom_ptr dom= parse_json("false");
   String buf;
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val1= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val1.is_valid());
   EXPECT_EQ(Value::LITERAL_FALSE, val1.type());
 
-  doc= "-123";
-  dom.reset(Json_dom::parse(doc, strlen(doc), &msg, &msg_offset));
+  dom= parse_json("-123");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val2= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val2.is_valid());
   EXPECT_EQ(Value::INT, val2.type());
   EXPECT_EQ(-123LL, val2.get_int64());
 
-  doc= "3.14";
-  dom.reset(Json_dom::parse(doc, strlen(doc), &msg, &msg_offset));
+  dom= parse_json("3.14");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val3= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val3.is_valid());
   EXPECT_EQ(Value::DOUBLE, val3.type());
   EXPECT_EQ(3.14, val3.get_double());
 
-  doc= "18446744073709551615";
-  dom.reset(Json_dom::parse(doc, strlen(doc), &msg, &msg_offset));
+  dom= parse_json("18446744073709551615");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val4= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val4.is_valid());
   EXPECT_EQ(Value::UINT, val4.type());
   EXPECT_EQ(18446744073709551615ULL, val4.get_uint64());
 
-  doc= "\"abc\"";
-  dom.reset(Json_dom::parse(doc, strlen(doc), &msg, &msg_offset));
+  dom= parse_json("\"abc\"");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val5= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val5.is_valid());
   EXPECT_EQ(Value::STRING, val5.type());
   EXPECT_EQ("abc", get_string(val5));
 
-  doc= "[ 1, 2, 3 ]";
-  dom.reset(Json_dom::parse(doc, strlen(doc), &msg, &msg_offset));
+  dom= parse_json("[ 1, 2, 3 ]");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val6= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val6.is_valid());
@@ -120,8 +117,7 @@ TEST_F(JsonBinaryTest, BasicTest)
   }
   EXPECT_EQ(Value::ERROR, val6.element(3).type());
 
-  doc= "[ 1, [ \"a\", [ 3.14 ] ] ]";
-  dom.reset(Json_dom::parse(doc, strlen(doc), &msg, &msg_offset));
+  dom= parse_json("[ 1, [ \"a\", [ 3.14 ] ] ]");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   // Top-level doc is an array of size 2.
   Value val7= parse_binary(buf.ptr(), buf.length());
@@ -154,8 +150,7 @@ TEST_F(JsonBinaryTest, BasicTest)
   EXPECT_EQ(Value::DOUBLE, v7_5.type());
   EXPECT_EQ(3.14, v7_5.get_double());
 
-  doc= "{\"key\" : \"val\"}";
-  dom.reset(Json_dom::parse(doc, strlen(doc), &msg, &msg_offset));
+  dom= parse_json("{\"key\" : \"val\"}");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val8= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val8.is_valid());
@@ -178,8 +173,7 @@ TEST_F(JsonBinaryTest, BasicTest)
   EXPECT_TRUE(v8_v1.is_valid());
   EXPECT_EQ("val", get_string(v8_v1));
 
-  doc= "{ \"a\" : \"b\", \"c\" : [ \"d\" ] }";
-  dom.reset(Json_dom::parse(doc, strlen(doc), &msg, &msg_offset));
+  dom= parse_json("{ \"a\" : \"b\", \"c\" : [ \"d\" ] }");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val9= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val9.is_valid());
@@ -220,8 +214,7 @@ TEST_F(JsonBinaryTest, BasicTest)
   EXPECT_EQ(4U, val10.get_data_length());
   EXPECT_EQ(0xCAFEBABEU, uint4korr(val10.get_data()));
 
-  doc= "[true,false,null,0,\"0\",\"\",{},[]]";
-  dom.reset(Json_dom::parse(doc, strlen(doc), &msg, &msg_offset));
+  dom= parse_json("[true,false,null,0,\"0\",\"\",{},[]]");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val11= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val11.is_valid());
@@ -241,8 +234,7 @@ TEST_F(JsonBinaryTest, BasicTest)
   EXPECT_EQ(0U, val11.element(6).element_count());
   EXPECT_EQ(0U, val11.element(7).element_count());
 
-  doc= "{}";
-  dom.reset(Json_dom::parse(doc, strlen(doc), &msg, &msg_offset));
+  dom= parse_json("{}");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val12= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val12.is_valid());
@@ -252,23 +244,22 @@ TEST_F(JsonBinaryTest, BasicTest)
   EXPECT_EQ(Value::ERROR, val12.lookup("key").type());
   EXPECT_FALSE(val12.lookup("no such key").is_valid());
 
-  doc= "[]";
-  dom.reset(Json_dom::parse(doc, strlen(doc), &msg, &msg_offset));
+  dom= parse_json("[]");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val13= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val13.is_valid());
   EXPECT_EQ(Value::ARRAY, val13.type());
   EXPECT_EQ(0U, val13.element_count());
 
-  doc= "{\"key1\":1, \"key2\":2, \"key1\":3, \"key1\\u0000x\":4, "
-    "\"key1\\u0000y\":5, \"a\":6, \"ab\":7, \"b\":8, \"\":9, \"\":10}";
+  dom= parse_json("{\"key1\":1, \"key2\":2, \"key1\":3, \"key1\\u0000x\":4, "
+                  "\"key1\\u0000y\":5, \"a\":6, \"ab\":7, \"b\":8, \"\":9, "
+                  "\"\":10}");
   const std::string expected_keys[]=
   {
     "", "a", "b", "ab", "key1", "key2",
     std::string("key1\0x", 6), std::string("key1\0y", 6)
   };
-  const int64 expected_values[]= { 9, 6, 8, 7, 1, 2, 4, 5 };
-  dom.reset(Json_dom::parse(doc, strlen(doc), &msg, &msg_offset));
+  const int64 expected_values[]= { 10, 6, 8, 7, 3, 2, 4, 5 };
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val14= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val14.is_valid());
@@ -1120,16 +1111,11 @@ static const SpaceNeededTuple space_needed_tuples[]=
 
   // Arrays.
   {new (std::nothrow) Json_array, false, 4},
-  {new (std::nothrow) Json_array(new (std::nothrow) Json_double(1.5)),
-   false, 15},
+  {parse_json("[1.5]").release(), false, 15},
 
   // Objects
   {new (std::nothrow) Json_object, false, 4},
-  {[](){
-      auto obj= new (std::nothrow) Json_object;
-      obj->add_alias("a", new (std::nothrow) Json_double(1.5));
-      return obj;
-    }(), false, 20},
+  {parse_json("{\"a\":1.5}").release(), false, 20},
 
   // Handle type == ERROR.
   {nullptr, true, 0},
@@ -1200,7 +1186,7 @@ static void test_has_space(THD *thd, const Json_dom *dom,
     expected_offset+= 3;
     {
       SCOPED_TRACE("second element");
-      a.insert_alias(0, new (std::nothrow) Json_null);
+      a.insert_alias(0, create_dom_ptr<Json_null>());
       test_has_space(thd, &a, type, size, 1, expected_offset);
     }
 
@@ -1212,7 +1198,7 @@ static void test_has_space(THD *thd, const Json_dom *dom,
     expected_offset+= 3 + 8;
     {
       SCOPED_TRACE("third element");
-      a.insert_alias(0, new (std::nothrow) Json_double(123.0));
+      a.insert_alias(0, create_dom_ptr<Json_double>(123.0));
       test_has_space(thd, &a, type, size, 2, expected_offset);
     }
 
@@ -1394,9 +1380,9 @@ TEST_F(JsonBinaryTest, HasSpace)
   }
   {
     SCOPED_TRACE("non-empty array");
-    Json_array a(new (std::nothrow) Json_null);
+    auto a= parse_json("[null]");
     // Here we have an additional 3 bytes for the value entry.
-    test_has_space(thd(), &a, Value::ARRAY, 4 + 3);
+    test_has_space(thd(), a.get(), Value::ARRAY, 4 + 3);
   }
   {
     SCOPED_TRACE("empty object");

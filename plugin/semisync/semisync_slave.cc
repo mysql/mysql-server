@@ -19,10 +19,10 @@
 #include <assert.h>
 #include <sys/types.h>
 
-#include "current_thd.h"
-#include "debug_sync.h"
 #include "my_dbug.h"
 #include "mysql.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
 
 bool rpl_semi_sync_slave_enabled;
 char rpl_semi_sync_slave_status= 0;

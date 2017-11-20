@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,79 +83,82 @@ When one supplies long data for a placeholder:
     at statement execute.
 */
 
-#include "sql_prepare.h"
+#include "sql/sql_prepare.h"
+
+#include "my_config.h"
 
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include <algorithm>
+#include <atomic>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"        // check_table_access
 #include "binary_log_types.h"
-#include "binlog.h"
 #include "decimal.h"
-#include "derror.h"             // ER_THD
-#include "field.h"
-#include "handler.h"
-#include "hash.h"
-#include "item.h"
-#include "item_func.h"          // user_var_entry
-#include "log.h"                // query_logger
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
+#include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_command.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
-#include "mysql_time.h"
-#include "mysqld.h"             // opt_general_log
-#include "mysqld_error.h"
-#include "opt_trace.h"          // Opt_trace_array
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "set_var.h"            // set_var_base
-#include "sp.h"                 // Sroutine_hash_entry
-#include "sp_cache.h"           // sp_cache_enforce_limit
-#include "sql_audit.h"          // mysql_global_audit_mask
-#include "sql_base.h"           // open_tables_for_query, open_temporary_table
-#include "sql_cache.h"          // query_cache
-#include "sql_cmd_ddl_table.h"
-#include "sql_const.h"
-#include "sql_cursor.h"         // Server_side_cursor
-#include "sql_db.h"             // mysql_change_db
-#include "sql_digest_stream.h"
-#include "sql_handler.h"        // mysql_ha_rm_tables
-#include "sql_lex.h"
-#include "sql_parse.h"          // sql_command_flags
-#include "sql_profile.h"
-#include "sql_rewrite.h"        // mysql_rewrite_query
-#include "sql_security_ctx.h"
-#include "sql_string.h"
-#include "sql_udf.h"
-#include "sql_view.h"           // create_view_precheck
-#include "system_variables.h"
-#include "table.h"
-#include "thr_malloc.h"
-#include "transaction.h"        // trans_rollback_implicit
-#include "violite.h"
-#include "window.h"
-
 #include "mysql_com.h"
-#include <algorithm>
-
-#include "sql_query_rewrite.h"
-
-struct PSI_statement_locker;
-union COM_DATA;
+#include "mysql_time.h"
+#include "mysqld_error.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // check_table_access
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"
+#include "sql/derror.h"         // ER_THD
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item.h"
+#include "sql/item_func.h"      // user_var_entry
+#include "sql/log.h"            // query_logger
+#include "sql/mdl.h"
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"         // opt_general_log
+#include "sql/opt_trace.h"      // Opt_trace_array
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/resourcegroups/resource_group_mgr.h"
+#include "sql/session_tracker.h"
+#include "sql/set_var.h"        // set_var_base
+#include "sql/sp_cache.h"       // sp_cache_enforce_limit
+#include "sql/sql_audit.h"      // mysql_global_audit_mask
+#include "sql/sql_base.h"       // open_tables_for_query, open_temporary_table
+#include "sql/sql_cmd.h"
+#include "sql/sql_cmd_ddl_table.h"
+#include "sql/sql_const.h"
+#include "sql/sql_cursor.h"     // Server_side_cursor
+#include "sql/sql_db.h"         // mysql_change_db
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_handler.h"    // mysql_ha_rm_tables
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"      // sql_command_flags
+#include "sql/sql_profile.h"
+#include "sql/sql_query_rewrite.h"
+#include "sql/sql_rewrite.h"    // mysql_rewrite_query
+#include "sql/sql_view.h"       // create_view_precheck
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"    // trans_rollback_implicit
+#include "sql/window.h"
+#include "sql_string.h"
+#include "violite.h"
 
 using std::max;
 using std::min;
@@ -1399,13 +1402,6 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 }
 
 
-static int Item_param_comp(Item_param *e1, Item_param *e2, void*)
-{
-  return ((e1->pos_in_query < e2->pos_in_query) ? -1 :
-          ((e1->pos_in_query > e2->pos_in_query) ? 1 : 0));
-}
-
-
 /**
   Initialize array of parameters in statement from LEX.
   (We need to have quick access to items by number in mysql_stmt_get_longdata).
@@ -1423,16 +1419,6 @@ static bool init_param_array(Prepared_statement *stmt)
       my_error(ER_PS_MANY_PARAM, MYF(0));
       return TRUE;
     }
-    /*
-      Sort parameters by order of char position in the query, to correspond
-      with the order in which the user supplies values.
-      Parameters may have been added to param_list (by itemize()) in a
-      different order, for example a CTE is itemized when a reference
-      to it ('FROM ref') is found, and references can be in any order in the
-      FROM clause.
-    */
-    lex->param_list.sort(reinterpret_cast<Node_cmp_func>(Item_param_comp),
-                         NULL);
 
     Item_param **to;
     List_iterator<Item_param> param_iterator(lex->param_list);
@@ -2454,16 +2440,8 @@ void Prepared_statement::close_cursor()
 void Prepared_statement::setup_set_params()
 {
   /*
-    Note: BUG#25843 applies here too (query cache lookup uses thd->db, not
-    db from "prepare" time).
-  */
-  if (thd->variables.query_cache_type == 0 ||
-      query_cache.query_cache_size == 0) // we won't expand the query
-    lex->safe_to_cache_query= FALSE;   // so don't cache it at Execution
-
-  /*
-    Decide if we have to expand the query (because we must write it to logs or
-    because we want to look it up in the query cache) or not.
+    Decide if we have to expand the query (because we must write it to logs)
+    or not.
     We don't have to substitute the params when bin-logging DML in RBL.
   */
   if ((mysql_bin_log.is_open() && is_update_query(lex->sql_command) &&
@@ -3316,36 +3294,47 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     else
     {
       /*
-        Try to find it in the query cache, if not, execute it.
-        Note that multi-statements cannot exist here (they are not supported in
-        prepared statements).
+        Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
+        prepared statements this causes two records to be output:
+
+        Query       EXECUTE <statement name>
+        Execute     <statement SQL text>
+
+        This is considered user-friendly, since in the
+        second log entry we output values of parameter markers.
+
+        Rewriting/password obfuscation:
+
+        - Any passwords in the "Execute" line should be substituted with
+        their hashes, or a notice.
+
+        Rewrite first (if needed); execution might replace passwords
+        with hashes in situ without flagging it, and then we'd make
+        a hash of that hash.
       */
-      if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
-      {
-        /*
-          Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
-          prepared statements this causes two records to be output:
+      rewrite_query_if_needed(thd);
+      log_execute_line(thd);
+      thd->binlog_need_explicit_defaults_ts= lex->binlog_need_explicit_defaults_ts;
+      resourcegroups::Resource_group *src_res_grp= nullptr;
+      resourcegroups::Resource_group *dest_res_grp= nullptr;
+      MDL_ticket *ticket= nullptr;
+      MDL_ticket *cur_ticket= nullptr;
+      auto mgr_ptr= resourcegroups::Resource_group_mgr::instance();
+      bool switched= mgr_ptr->switch_resource_group_if_needed(thd, &src_res_grp,
+                                                              &dest_res_grp,
+                                                              &ticket,
+                                                              &cur_ticket);
 
-          Query       EXECUTE <statement name>
-          Execute     <statement SQL text>
+      error= mysql_execute_command(thd, true);
 
-          This is considered user-friendly, since in the
-          second log entry we output values of parameter markers.
-
-          Rewriting/password obfuscation:
-
-          - Any passwords in the "Execute" line should be substituted with
-          their hashes, or a notice.
-
-          Rewrite first (if needed); execution might replace passwords
-          with hashes in situ without flagging it, and then we'd make
-          a hash of that hash.
-        */
-        rewrite_query_if_needed(thd);
-        log_execute_line(thd);
-        thd->binlog_need_explicit_defaults_ts= lex->binlog_need_explicit_defaults_ts;
-        error= mysql_execute_command(thd, true);
-      }
+      if (switched)
+        mgr_ptr->restore_original_resource_group(thd, src_res_grp,
+                                                 dest_res_grp);
+      thd->resource_group_ctx()->m_switch_resource_group_str[0]= '\0';
+      if (ticket != nullptr)
+        mgr_ptr->release_shared_mdl_for_resource_group(thd, ticket);
+      if (cur_ticket != nullptr)
+        mgr_ptr->release_shared_mdl_for_resource_group(thd, cur_ticket);
     }
   }
 

@@ -39,9 +39,9 @@
 #include <md5_hash.hpp>
 
 #ifdef VM_TRACE
-#define DEBUG(x) ndbout << "DBACC: "<< x << endl;
+#define ACC_DEBUG(x) ndbout << "DBACC: "<< x << endl;
 #else
-#define DEBUG(x)
+#define ACC_DEBUG(x)
 #endif
 
 #ifdef ACC_SAFE_QUEUE
@@ -639,6 +639,27 @@ void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
   regFragPtr.i = fragIndex;
   ptrCheckGuard(regFragPtr, cfragmentsize, fragmentrec);
   verifyFragCorrect(regFragPtr);
+
+  if (regFragPtr.p->expandOrShrinkQueued)
+  {
+    regFragPtr.p->level.clear();
+
+    // slack > 0 ensures EXPANDCHECK2 will do nothing.
+    regFragPtr.p->slack = 1;
+
+    // slack <= slackCheck ensures SHRINKCHECK2 will do nothing.
+    regFragPtr.p->slackCheck = regFragPtr.p->slack;
+
+    /**
+     * Wait out pending expand or shrink.
+     * They need a valid Fragmentrec.
+     */
+    signal->theData[0] = ZREL_FRAG;
+    signal->theData[1] = regFragPtr.i;
+    sendSignal(cownBlockref, GSN_CONTINUEB, signal, 2, JBB);
+    return;
+  }
+
   if (!regFragPtr.p->directory.isEmpty()) {
     jam();
     DynArr256::ReleaseIterator iter;
@@ -715,7 +736,7 @@ void Dbacc::releaseDirResources(Signal* signal)
       releasePage(rpPageptr);
     }
   }
-  while (ret==0 && count>0 && !cfreepages.isEmpty())
+  while (ret == 0 && count > 0 && !cfreepages.isEmpty())
   {
     jam();
     Page8Ptr page;
@@ -726,12 +747,15 @@ void Dbacc::releaseDirResources(Signal* signal)
     pages.dropFirstPage32(c_page_pool, page32ptr, 5);
     if (page32ptr.i != RNIL)
     {
+      jam();
       g_acc_pages_used[instance()]--;
+      ndbassert(cpageCount >= 4);
+      cpageCount -= 4; // 8KiB pages per 32KiB page
       m_ctx.m_mm.release_page(RT_DBACC_PAGE, page32ptr.i);
     }
     count--;
   }
-  if (ret != 0)
+  if (ret != 0 || !cfreepages.isEmpty())
   {
     jam();
     memcpy(&signal->theData[2], &iter, sizeof(iter));
@@ -5508,6 +5532,15 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     }
     return;
   }//if
+  if (fragrecptr.p->level.isFull())
+  {
+    jam();
+    /*
+     * The level structure does not allow more buckets.
+     * Do not expand.
+     */
+    return;
+  }
   if (fragrecptr.p->sparsepages.isEmpty())
   {
     jam();
@@ -5521,15 +5554,6 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
       return;
     }//if
   }//if
-  if (fragrecptr.p->level.isFull())
-  {
-    jam();
-    /*
-     * The level structure does not allow more buckets.
-     * Do not expand.
-     */
-    return;
-  }
 
   Uint32 splitBucket;
   Uint32 receiveBucket;
@@ -6250,6 +6274,12 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     /*--------------------------------------------------------------*/
     return;
   }//if
+  if (fragrecptr.p->level.isEmpty())
+  {
+    jam();
+    /* no need to shrink empty hash table */
+    return;
+  }
   if (fragrecptr.p->sparsepages.isEmpty())
   {
     jam();
@@ -6262,12 +6292,6 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   if (!pages.haveFreePage8(Page32Lists::ANY_SUB_PAGE))
   {
     jam();
-    return;
-  }
-  if (fragrecptr.p->level.isEmpty())
-  {
-    jam();
-    /* no need to shrink empty hash table */
     return;
   }
 
@@ -8441,6 +8465,8 @@ void Dbacc::releasePage(Page8Ptr rpPageptr)
   if (page32ptr.i != RNIL)
   {
     g_acc_pages_used[instance()]--;
+    ndbassert(cpageCount >= 4);
+    cpageCount -= 4; // 8KiB pages per 32KiB page
     m_ctx.m_mm.release_page(RT_DBACC_PAGE, page32ptr.i);
   }
 
@@ -8512,7 +8538,7 @@ void Dbacc::seizeOpRec()
  * Print some debug info if debug compiled
  */
 void Dbacc::zpagesize_error(const char* where){
-  DEBUG(where << endl
+  ACC_DEBUG(where << endl
 	<< "  ZPAGESIZE_ERROR" << endl
         << "  cfreepages.getCount()=" << cfreepages.getCount() << endl
 	<< "  cnoOfAllocatedPages="<<cnoOfAllocatedPages);

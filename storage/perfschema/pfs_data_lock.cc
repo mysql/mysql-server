@@ -24,6 +24,7 @@
 
 #include "my_dbug.h"
 
+/* clang-format off */
 /**
   @page PAGE_PFS_DATA_LOCKS Performance schema data locks
 
@@ -171,6 +172,7 @@
   storage engine (say, return all the locks for one transaction per call),
   which simplifies a lot the storage engine implementation.
 */
+/* clang-format on */
 
 PFS_data_cache::PFS_data_cache()
 {

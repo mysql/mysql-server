@@ -22,7 +22,6 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -32,6 +31,7 @@
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
+#include "sql/field.h"
 
 THR_LOCK table_socket_summary_by_instance::m_table_lock;
 
@@ -73,7 +73,7 @@ Plugin_table table_socket_summary_by_instance::m_table_def(
   nullptr);
 
 PFS_engine_table_share table_socket_summary_by_instance::m_share = {
-  &pfs_readonly_acl,
+  &pfs_truncatable_acl,
   table_socket_summary_by_instance::create,
   NULL, /* write_row */
   table_socket_summary_by_instance::delete_all_rows,
@@ -81,7 +81,10 @@ PFS_engine_table_share table_socket_summary_by_instance::m_share = {
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool

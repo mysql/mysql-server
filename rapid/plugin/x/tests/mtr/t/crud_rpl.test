@@ -18,20 +18,21 @@
 --connection master
 
 --source include/xplugin_preamble.inc
+--source ../include/have_performance_schema_events_waits_history.inc
 call mtr.add_suppression("Error parsing message of type 12: args");
 call mtr.add_suppression("Error handling message: args");
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 -->sql
--- "Creating database for testcase"
+#-- "Creating database for testcase"
 DROP DATABASE IF EXISTS xplugintest;
 CREATE DATABASE xplugintest;
 USE xplugintest;
 CREATE TABLE table1 ( _id INT PRIMARY KEY, doc JSON ) ;
 -->endsql
 
--- "Create table table2 in xplugintest "
+#-- "Create table table2 in xplugintest "
 
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"
@@ -93,7 +94,7 @@ SELECT * FROM xplugintest.table2;
 -->endsql
 
 
--- "Index with  unique(true), index column NOT NULL (true)"
+#-- "Index with  unique(true), index column NOT NULL (true)"
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
   args {
@@ -314,7 +315,7 @@ EOF
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
 --source include/sync_slave_sql_with_master.inc
--- connection slave
+#-- connection slave
 --echo # Connection:slave - Row with value 2 is expected on slave.
 USE xplugintest;
 SHOW CREATE TABLE xplugintest.table2;

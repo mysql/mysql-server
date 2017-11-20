@@ -49,6 +49,7 @@ SELECT password FROM performance_schema.replication_connection_configuration;
 SET sql_log_bin=0;
 call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
 call mtr.add_suppression("There was an error when connecting to the donor server");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 SET sql_log_bin=1;
 
 --disable_query_log

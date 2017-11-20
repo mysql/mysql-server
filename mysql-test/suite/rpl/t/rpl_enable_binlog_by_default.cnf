@@ -1,0 +1,19 @@
+[mysqld.1]
+# Configure nothing on master.
+
+[mysqld.2]
+# Run the slave.sh script before starting this process
+#!run-slave-sh
+# --log-bin and --relay-log options are not configured on slave.
+
+master-retry-count=         10
+
+
+[ENV]
+MASTER_MYPORT=              @mysqld.1.port
+MASTER_MYSOCK=              @mysqld.1.socket
+MASTER_X_MYSOCK=            @mysqld.1.loose-mysqlx-socket
+
+SLAVE_MYPORT=               @mysqld.2.port
+SLAVE_MYSOCK=               @mysqld.2.socket
+SLAVE_X_MYSOCK=             @mysqld.2.loose-mysqlx-socket

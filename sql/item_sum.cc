@@ -21,48 +21,55 @@
   Sum functions (COUNT, MIN...)
 */
 
-#include "item_sum.h"
+#include "sql/item_sum.h"
 
 #include <algorithm>
 #include <cstring>
 #include <functional>
 #include <string>
 
-#include "aggregate_check.h"               // Distinct_check
-#include "current_thd.h"                   // current_thd
 #include "decimal.h"
-#include "derror.h"                        // ER_THD
-#include "field.h"
-#include "handler.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_json_func.h"
-#include "item_subselect.h"
-#include "json_dom.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_sys.h"
-#include "mysql/psi/mysql_statement.h"
-#include "mysqld.h"
+#include "mysql_com.h"
 #include "mysqld_error.h"
-#include "parse_tree_helpers.h"            // PT_item_list
-#include "parse_tree_nodes.h"              // PT_order_list
-#include "sql_array.h"
-#include "sql_class.h"                     // THD
-#include "sql_error.h"
-#include "sql_exception_handler.h"         // handle_std_exception
-#include "sql_executor.h"                  // copy_fields
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_resolver.h"                  // setup_order
-#include "sql_security_ctx.h"
-#include "sql_tmp_table.h"                 // create_tmp_table
-#include "temp_table_param.h"              // Temp_table_param
-#include "thr_malloc.h"
-#include "uniques.h"                       // Unique
-#include "window.h"
+#include "sql/aggregate_check.h"           // Distinct_check
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"               // current_thd
+#include "sql/derror.h"                    // ER_THD
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_json_func.h"
+#include "sql/item_subselect.h"
+#include "sql/json_dom.h"
+#include "sql/key_spec.h"
+#include "sql/mysqld.h"
+#include "sql/opt_trace.h"
+#include "sql/parse_tree_helpers.h"        // PT_item_list
+#include "sql/parse_tree_nodes.h"          // PT_order_list
+#include "sql/sql_array.h"
+#include "sql/sql_class.h"                 // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_exception_handler.h"     // handle_std_exception
+#include "sql/sql_executor.h"              // copy_fields
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_resolver.h"              // setup_order
+#include "sql/sql_select.h"
+#include "sql/sql_tmp_table.h"             // create_tmp_table
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/temp_table_param.h"          // Temp_table_param
+#include "sql/thr_malloc.h"
+#include "sql/uniques.h"                   // Unique
+#include "sql/window.h"
 
 using std::min;
 using std::max;
@@ -144,9 +151,13 @@ bool Item_sum::init_sum_func_check(THD *thd)
 {
   if (m_is_window_function)
   {
-    if (!thd->lex->allow_sum_func ||
-        ((thd->lex->m_deny_window_func >>
-          thd->lex->current_select()->nest_level) & 0x1))
+    /*
+      Are either no aggregates of any kind allowed at this level, or
+      specifically not window functions?
+    */
+    LEX * const lex= thd->lex;
+    if (((~lex->allow_sum_func |
+	  lex->m_deny_window_func) >> lex->current_select()->nest_level) & 0x1)
     {
       my_error(ER_WINDOW_INVALID_WINDOW_FUNC_USE, MYF(0),
                func_name());
@@ -350,7 +361,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
          sl= sl->outer_select())
       sl->master_unit()->item->set_aggregation();
 
-    base_select->mark_as_dependent(aggr_select);
+    base_select->mark_as_dependent(aggr_select, true);
   }
 
   if (in_sum_func)
@@ -412,7 +423,7 @@ Item_sum::Item_sum(const POS &pos, PT_item_list *opt_list, PT_window *w)
 : super(pos), m_window(w), m_window_resolved(false), next(NULL),
   arg_count(opt_list == NULL ? 0 : opt_list->elements()),
   args(nullptr),
-  forced_const(FALSE)
+  used_tables_cache(0), forced_const(false)
 {
   if (arg_count > 0)
   {
@@ -675,6 +686,16 @@ bool Item_sum::aggregate_check_group(uchar *arg)
 }
 
 
+bool Item_sum::has_aggregate_ref_in_group_by(uchar *)
+{
+  /*
+    We reject references to aggregates in the GROUP BY clause of the
+    query block where the aggregation happens.
+  */
+  return aggr_select != nullptr && aggr_select->group_fix_field;
+}
+
+
 Field *Item_sum::create_tmp_field(bool, TABLE *table)
 {
   DBUG_ENTER("Item_sum::create_tmp_field");
@@ -703,7 +724,7 @@ Field *Item_sum::create_tmp_field(bool, TABLE *table)
 }
 
 
-void Item_sum::update_used_tables ()
+void Item_sum::update_used_tables()
 {
   if (!forced_const)
   {
@@ -718,19 +739,27 @@ void Item_sum::update_used_tables ()
       add_accum_properties(args[i]);
     }
 
-    used_tables_cache&= PSEUDO_TABLE_BITS;
-
     /*
-     if the function is aggregated into its local context, it can
-     be calculated only after evaluating the full join, thus it
-     depends on all tables of this join. Otherwise, it depends on
-     outer tables, even if its arguments args[] do not explicitly
-     reference an outer table, like COUNT (*) or COUNT(123).
+      If the function is aggregated into its local context, it can
+      be calculated only after evaluating the full join, thus it
+      depends on all tables of this join. Otherwise, it depends on
+      outer tables, even if its arguments args[] do not explicitly
+      reference an outer table, like COUNT (*) or COUNT(123).
+
+      Window functions are always evaluated in the local scope
+      and depend on all tables involved in the join since they cannot
+      be evaluated until after the join is completed.
     */
-    if (!m_is_window_function)
-      used_tables_cache|= aggr_select == base_select ?
-      ((table_map)1 << aggr_select->leaf_table_count) - 1 :
-      OUTER_REF_TABLE_BIT;
+    used_tables_cache|=
+      aggr_select == base_select || m_is_window_function ?
+        base_select->all_tables_map() :
+        OUTER_REF_TABLE_BIT;
+    /*
+      Aggregate functions are not allowed to be const, but they may
+      be const-for-execution.
+    */
+    if (used_tables_cache == 0)
+      used_tables_cache= INNER_TABLE_BIT;
   }
 }
 
@@ -6126,67 +6155,23 @@ bool Item_lead_lag::resolve_type(THD *thd)
 
   aggregate_type(make_array(args, arg_count));
   m_hybrid_type= Field::result_merge_type(data_type());
-  uint32 char_length;
+
   if (arg_count == 2)
-  {
     maybe_null=args[1]->maybe_null || args[0]->maybe_null;
+  else
+    maybe_null=true; // No default value provided, so we get NULLs
 
-    if (m_hybrid_type == DECIMAL_RESULT || m_hybrid_type == INT_RESULT)
-    {
-      /*
-        FIXME: Maybe we can reuse
-        fix_num_type_shared_for_case(this, m_hybrid_type, args, arg_count);
-        instead of the below by lifting its logic up from Item_func to
-        Item_result_field ?
-      */
-      int len0= (args[0]->max_char_length() - args[0]->decimals
-                 - (args[0]->unsigned_flag ? 0 : 1));
-
-      int len1= (args[1]->max_char_length() - args[1]->decimals
-                 - (args[1]->unsigned_flag ? 0 : 1));
-
-      char_length= max(len0, len1) + decimals + (unsigned_flag ? 0 : 1);
-      collation.set_numeric();
-    }
-    else
-    {
-      char_length= max(args[0]->max_char_length(), args[1]->max_char_length());
-    }
+  if (m_hybrid_type == STRING_RESULT)
+  {
+    if (aggregate_string_properties(data_type(), func_name(), args, arg_count))
+      return true;
   }
   else
   {
-    maybe_null=true; // No default value provided, so we get NULLs
-    decimals= args[0]->decimals;
-
-    if (m_hybrid_type == DECIMAL_RESULT || m_hybrid_type == INT_RESULT)
-    {
-      int len0= (args[0]->max_char_length() - args[0]->decimals
-                 - (args[0]->unsigned_flag ? 0 : 1));
-      char_length= len0 + decimals + (unsigned_flag ? 0 : 1);
-    }
-    else
-    {
-      char_length= args[0]->max_char_length();
-    }
+    collation.set_numeric(); // Number
+    aggregate_num_type(m_hybrid_type, args, arg_count);
   }
 
-  switch (m_hybrid_type) {
-    case STRING_RESULT:
-      if (count_string_result_length(data_type(), args, arg_count))
-        return true;
-      break;
-    case DECIMAL_RESULT:
-    case REAL_RESULT:
-      break;
-    case INT_RESULT:
-      decimals= 0;
-      break;
-    case ROW_RESULT:
-    default:
-      DBUG_ASSERT(0);
-  }
-
-  fix_char_length(char_length);
   if (orig_arg_count == 3) // restore args array
   {
     // agg_item_charsets can have changed args[1]:
@@ -6653,16 +6638,18 @@ bool Item_sum_json_array::add()
                               &value_wrapper))
       return error_json();
 
+    Json_dom_ptr value_dom(value_wrapper.to_dom(thd));
+    value_wrapper.set_alias(); // release the DOM
+
     /*
       The m_wrapper always points to m_json_array or the result of
       deserializing the result_field in reset/update_field.
     */
     const auto arr= down_cast<Json_array *>(m_wrapper.to_dom(thd));
-    if (arr->append_alias(value_wrapper.to_dom(thd)))
+    if (arr->append_alias(std::move(value_dom)))
       return error_json();              /* purecov: inspected */
 
     null_value= false;
-    value_wrapper.set_alias(); // release the DOM
   }
   catch (...)
   {
@@ -6787,6 +6774,9 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref)
 
   if (Item_func::fix_fields(thd, ref))
     return true;
+
+  // Make GROUPING function dependent upon all tables (prevents const-ness)
+  used_tables_cache|= thd->lex->current_select()->all_tables_map();
 
   /*
     More than 64 args cannot be supported as the bitmask which is

@@ -40,6 +40,7 @@
 #include "../pgman.hpp"
 #include "../tsman.hpp"
 #include <EventLogger.hpp>
+#include "../backup/BackupFormat.hpp"
 
 #define JAM_FILE_ID 414
 
@@ -271,14 +272,11 @@ public:
 
   enum CallbackIndex {
     // lgman
-    UNDO_CREATETABLE_LOGSYNC_CALLBACK = 1,
-    DROP_TABLE_LOGSYNC_CALLBACK = 2,
-    UNDO_CREATETABLE_CALLBACK = 3,
-    DROP_TABLE_LOG_BUFFER_CALLBACK = 4,
-    DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK = 5,
-    NR_DELETE_LOG_BUFFER_CALLBACK = 6,
-    DISK_PAGE_LOG_BUFFER_CALLBACK = 7,
-    COUNT_CALLBACKS = 8
+    DROP_TABLE_LOG_BUFFER_CALLBACK = 1,
+    DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK = 2,
+    NR_DELETE_LOG_BUFFER_CALLBACK = 3,
+    DISK_PAGE_LOG_BUFFER_CALLBACK = 4,
+    COUNT_CALLBACKS = 5
   };
   CallbackEntry m_callbackEntry[COUNT_CALLBACKS];
   CallbackTable m_callbackTable;
@@ -330,6 +328,9 @@ struct Fragoperrec {
     Uint32 m_senderRef;
   };
   Uint32 m_senderData;
+  Uint32 m_restoredLcpId;
+  Uint32 m_restoredLocalLcpId;
+  Uint32 m_maxGciCompleted;
   bool inUse;
   bool definingFragment;
 };
@@ -380,6 +381,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     Local_key m_key_mm;         // MM local key returned
     Uint32 m_realpid_mm;        // MM real page id
     Uint32 m_extent_info_ptr_i;
+    bool m_lcp_scan_changed_rows_page;
+    bool m_is_last_lcp_state_D;
     ScanPos() {
       /*
        * Position is Null until scanFirst().  In particular in LCP scan
@@ -412,6 +415,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     ScanOp() :
       m_state(Undef),
       m_bits(0),
+      m_last_seen(0),
       m_userPtr(RNIL),
       m_userRef(RNIL),
       m_tableId(RNIL),
@@ -448,6 +452,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
       SCAN_NR        = 0x80        // Node recovery scan
     };
     Uint16 m_bits;
+    Uint16 m_last_seen;
     
     Uint32 m_userPtr;           // scanptr.i in LQH
     Uint32 m_userRef;
@@ -570,7 +575,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
      *
      * 1) Allocate space on pages that already are dirty
      *    (4 free lists for different requests)
-     * 2) Allocate space on pages waiting to maped that will be dirty
+     * 2) Allocate space on pages waiting to be mapped that will be dirty
      *    (4 free lists for different requests)
      * 3) Check if "current" extent can accommodate request
      *    If so, allocate page from there
@@ -632,8 +637,12 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   
   void dump_disk_alloc(Disk_alloc_info&);
 
-  STATIC_CONST( FREE_PAGE_BIT = 0x80000000 );
-  STATIC_CONST( FREE_PAGE_RNIL = RNIL + 1 );
+  STATIC_CONST( FREE_PAGE_BIT =   0x80000000 );
+  STATIC_CONST( LCP_SCANNED_BIT = 0x40000000 );
+  STATIC_CONST( LAST_LCP_FREE_BIT = 0x40000000 );
+  STATIC_CONST( FREE_PAGE_RNIL =  0x3fffffff );
+  STATIC_CONST( PAGE_BIT_MASK =   0x3fffffff );
+  STATIC_CONST( MAX_PAGES_IN_DYN_ARRAY = (RNIL & PAGE_BIT_MASK));
 
 struct Fragrecord {
   // Number of allocated pages for fixed-sized data.
@@ -685,10 +694,15 @@ struct Fragrecord {
     UC_DROP = 4
   };
   Uint32 m_restore_lcp_id;
+  Uint32 m_restore_local_lcp_id;
   Uint32 m_undo_complete;
   Uint32 m_tablespace_id;
   Uint32 m_logfile_group_id;
   Disk_alloc_info m_disk_alloc_info;
+  // GCI at time of start LCP (used to deduce if one should count row changes)
+  Uint32 m_lcp_start_gci;
+  // Number of changed rows since last LCP (approximative)
+  Uint64 m_lcp_changed_rows;
   // Number of fixed-seize tuple parts (which equals the tuple count).
   Uint64 m_fixedElemCount;
   /**
@@ -1125,8 +1139,14 @@ TupTriggerData_pool c_triggerPool;
       struct {
         Uint32 tabUserPtr;
         Uint32 tabUserRef;
-        Uint32 m_lcpno;
+        Uint32 m_outstanding_ops;
         Uint32 m_fragPtrI;
+        Uint32 m_filePointer;
+        Uint16 m_firstFileId;
+        Uint16 m_lastFileId;
+        Uint16 m_numDataFiles;
+        Uint8 m_file_type;
+        Uint8 m_lcpno;
       } m_dropTable;
       struct {
         Uint32 m_fragOpPtrI;
@@ -1141,7 +1161,7 @@ TupTriggerData_pool c_triggerPool;
     State tableStatus;
     Local_key m_default_value_location;
   };  
-
+  Uint32 m_read_ctl_file_data[BackupFormat::NDB_LCP_CTL_FILE_SIZE / 4];
   /*
     It is more space efficient to store dynamic fixed-size attributes
     of more than about 16 words as variable-sized internally.
@@ -1155,10 +1175,11 @@ TupTriggerData_pool c_triggerPool;
       UNDO_ALLOC = File_formats::Undofile::UNDO_TUP_ALLOC
       ,UNDO_UPDATE = File_formats::Undofile::UNDO_TUP_UPDATE
       ,UNDO_FREE = File_formats::Undofile::UNDO_TUP_FREE
-      ,UNDO_CREATE = File_formats::Undofile::UNDO_TUP_CREATE
       ,UNDO_DROP = File_formats::Undofile::UNDO_TUP_DROP
-      ,UNDO_ALLOC_EXTENT = File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT
-      ,UNDO_FREE_EXTENT = File_formats::Undofile::UNDO_TUP_FREE_EXTENT
+      ,UNDO_UPDATE_PART = File_formats::Undofile::UNDO_TUP_UPDATE_PART
+      ,UNDO_FIRST_UPDATE_PART =
+        File_formats::Undofile::UNDO_TUP_FIRST_UPDATE_PART
+      ,UNDO_FREE_PART = File_formats::Undofile::UNDO_TUP_FREE_PART
     };
     
     struct Alloc 
@@ -1177,6 +1198,16 @@ TupTriggerData_pool c_triggerPool;
       Uint32 m_type_length; // 16 bit type, 16 bit length
     };
     
+    struct UpdatePart
+    {
+      Uint32 m_file_no_page_idx; // 16 bit file_no, 16 bit page_idx
+      Uint32 m_page_no;
+      Uint32 m_gci;
+      Uint32 m_offset;
+      Uint32 m_data[1];
+      Uint32 m_type_length; // 16 bit type, 16 bit length
+    };
+
     struct Free
     {
       Uint32 m_file_no_page_idx; // 16 bit file_no, 16 bit page_idx
@@ -1185,7 +1216,7 @@ TupTriggerData_pool c_triggerPool;
       Uint32 m_data[1];
       Uint32 m_type_length; // 16 bit type, 16 bit length
     };
-    
+
     struct Create
     {
       Uint32 m_table;
@@ -1196,24 +1227,6 @@ TupTriggerData_pool c_triggerPool;
     {
       Uint32 m_table;
       Uint32 m_type_length; // 16 bit type, 16 bit length
-    };
-
-    struct AllocExtent
-    {
-      Uint32 m_table;
-      Uint32 m_fragment;
-      Uint32 m_page_no;
-      Uint32 m_file_no;
-      Uint32 m_type_length;
-    };
-
-    struct FreeExtent
-    {
-      Uint32 m_table;
-      Uint32 m_fragment;
-      Uint32 m_page_no;
-      Uint32 m_file_no;
-      Uint32 m_type_length;
     };
   };
   
@@ -1448,7 +1461,8 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( FREE        = 0x00800000 ); // alias
     STATIC_CONST( LCP_SKIP    = 0x01000000 ); // Should not be returned in LCP
     STATIC_CONST( VAR_PART    = 0x04000000 ); // Is there a varpart
-    STATIC_CONST( REORG_MOVE  = 0x08000000 );
+    STATIC_CONST( REORG_MOVE  = 0x08000000 ); // Tuple will be moved in reorg
+    STATIC_CONST( LCP_DELETE  = 0x10000000 ); // Tuple deleted at LCP start
 
     Tuple_header() {}
     Uint32 get_tuple_version() const { 
@@ -1505,7 +1519,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     }
 
     Uint32 *get_mm_gci(const Tablerec* tabPtrP){
-      assert(tabPtrP->m_bits & Tablerec::TR_RowGCI);
+      /* Mandatory position even if TR_RowGCI isn't set (happens in restore */
       return m_data + (tabPtrP->m_bits & Tablerec::TR_Checksum);
     }
 
@@ -1616,6 +1630,7 @@ struct KeyReqStruct {
   bool            interpreted_exec;
   bool            last_row;
   bool            m_use_rowid;
+  bool            m_nr_copy_or_redo;
   Uint8           m_reorg;
   Uint8           m_prio_a_flag;
   bool            m_deferred_constraints;
@@ -1780,8 +1795,15 @@ public:
 			 Uint32 lkey1, Uint32 lkey2, Uint32 flags);
 
   void start_restore_lcp(Uint32 tableId, Uint32 fragmentId);
-  void complete_restore_lcp(Signal*, Uint32 ref, Uint32 data,
-                            Uint32 tableId, Uint32 fragmentId);
+  void complete_restore_lcp(Signal*,
+                            Uint32 ref,
+                            Uint32 data,
+                            Uint32 restoredLcpId,
+                            Uint32 restoredLocalLcpId,
+                            Uint32 maxGciCompleted,
+                            Uint32 maxGciWritten,
+                            Uint32 tableId,
+                            Uint32 fragmentId);
   Uint32 get_max_lcp_record_size(Uint32 tableId);
   
   int nr_read_pk(Uint32 fragPtr, const Local_key*, Uint32* dataOut, bool&copy);
@@ -1795,6 +1817,20 @@ public:
 
   void execSTORED_PROCREQ(Signal* signal);
 
+  void start_lcp_scan(Uint32 tableId,
+                      Uint32 fragmentId,
+                      Uint32 & max_page_cnt);
+  void stop_lcp_scan(Uint32 tableId, Uint32 fragmentId);
+  void lcp_frag_watchdog_print(Uint32 tableId, Uint32 fragmentId);
+
+  void set_lcp_start_gci(Uint32 fragPtrI, Uint32 startGci);
+  void get_lcp_frag_stats(Uint32 fragPtrI,
+                          Uint32 startGci,
+                          Uint32 & maxPageCount,
+                          Uint64 & row_count,
+                          Uint64 & row_change_count,
+                          Uint64 & memory_used_in_bytes,
+                          bool reset_flag);
 
   // Statistics about fragment memory usage.
   struct FragStats
@@ -1835,7 +1871,6 @@ private:
   void execCONTINUEB(Signal* signal);
 
   // Received signals
-  void execLCP_FRAG_ORD(Signal*signal);
   void execDUMP_STATE_ORD(Signal* signal);
   void execSEND_PACKED(Signal* signal);
   void execSTTOR(Signal* signal);
@@ -1883,6 +1918,12 @@ private:
   // Drop table
   void execFSREMOVEREF(Signal*);
   void execFSREMOVECONF(Signal*);
+  void execFSOPENREF(Signal*);
+  void execFSOPENCONF(Signal*);
+  void execFSREADREF(Signal*);
+  void execFSREADCONF(Signal*);
+  void execFSCLOSEREF(Signal*);
+  void execFSCLOSECONF(Signal*);
 
   void execDBINFO_SCANREQ(Signal*);
   void execSUB_GCP_COMPLETE_REP(Signal*);
@@ -2982,6 +3023,8 @@ private:
                                     Uint32 ind=0);
   void setUpKeyArray(Tablerec* regTabPtr);
   bool addfragtotab(Tablerec* regTabPtr, Uint32 fragId, Uint32 fragIndex);
+  Uint32 get_frag_from_tab(TablerecPtr tabPtr, Uint32 fragId);
+  void remove_frag_from_tab(TablerecPtr tabPtr, Uint32 fragId);
   void deleteFragTab(Tablerec* regTabPtr, Uint32 fragId);
   void abortAddFragOp(Signal* signal);
   void releaseTabDescr(Tablerec* regTabPtr);
@@ -3031,6 +3074,12 @@ private:
   void drop_fragment_free_extent_log_buffer_callback(Signal*, Uint32, Uint32);
   void drop_fragment_unmap_pages(Signal*, TablerecPtr, FragrecordPtr, Uint32);
   void drop_fragment_unmap_page_callback(Signal* signal, Uint32, Uint32);
+  void drop_fragment_fsremove_init(Signal*, TablerecPtr, FragrecordPtr);
+  void lcp_open_ctl_file(Signal*, Uint32, Uint32, Uint32, Uint32);
+  void lcp_read_ctl_file(Signal*, Uint32, Uint32, Uint32, Uint32, Uint32);
+  void lcp_close_ctl_file(Signal*, Uint32, Uint32);
+  bool handle_ctl_info(TablerecPtr, FragrecordPtr, Uint32);
+  void lcp_read_completed(Signal*, TablerecPtr, FragrecordPtr);
   void drop_fragment_fsremove(Signal*, TablerecPtr, FragrecordPtr);
   void drop_fragment_fsremove_done(Signal*, TablerecPtr, FragrecordPtr);
 
@@ -3098,7 +3147,7 @@ private:
                       Uint32 noOfPagesToAllocate,
                       Uint32& noOfPagesAllocated,
                       Uint32& allocPageRef);
-  void returnCommonArea(Uint32 retPageRef, Uint32 retNo);
+  void returnCommonArea(Uint32 retPageRef, Uint32 retNo, bool locked = false);
   void initializePage();
 
   Uint32 nextHigherTwoLog(Uint32 input);
@@ -3114,18 +3163,65 @@ private:
 // Public methods
   Uint32 getRealpid(Fragrecord* regFragPtr, Uint32 logicalPageId);
   Uint32 getRealpidCheck(Fragrecord* regFragPtr, Uint32 logicalPageId);
+  Uint32 getRealpidScan(Fragrecord* regFragPtr,
+                        Uint32 logicalPageId,
+                        Uint32 **next_ptr,
+                        Uint32 **prev_ptr);
+  void set_last_lcp_state(Fragrecord*, Uint32, bool);
+  void set_last_lcp_state(Uint32*, bool);
+  bool get_lcp_scanned_bit(Uint32 *next_ptr);
+  void reset_lcp_scanned_bit(Uint32 *next_ptr);
+  void reset_lcp_scanned_bit(Fragrecord*, Uint32);
+  bool get_last_lcp_state(Uint32 *prev_ptr);
+
   Uint32 getNoOfPages(Fragrecord* regFragPtr);
   Uint32 getEmptyPage(Fragrecord* regFragPtr);
-  Uint32 allocFragPage(EmulatedJamBuffer* jamBuf, Uint32 * err, 
-                       Fragrecord* regFragPtr);
+  Uint32 allocFragPage(EmulatedJamBuffer* jamBuf,
+                       Uint32 * err, 
+                       Fragrecord* regFragPtr,
+                       Tablerec *regTabPtr);
   Uint32 allocFragPage(Uint32 * err, Tablerec*, Fragrecord*, Uint32 page_no);
-  void releaseFragPage(Fragrecord* regFragPtr, Uint32 logicalPageId, PagePtr);
+  void releaseFragPage(Fragrecord* regFragPtr,
+                       Uint32 logicalPageId,
+                       PagePtr);
   void rebuild_page_free_list(Signal*);
   Uint32 get_empty_var_page(Fragrecord* frag_ptr);
   void init_page(Fragrecord*, PagePtr, Uint32 page_no);
   
 // Private methods
   void errorHandler(Uint32 errorCode);
+  Uint32 insert_new_page_into_page_map(EmulatedJamBuffer *jamBuf,
+                                       Fragrecord *fragPtrP,
+                                       PagePtr pagePtr,
+                                       Uint32 noOfPagesAllocated);
+  Uint32 remove_first_free_from_page_map(EmulatedJamBuffer *jamBuf,
+                                         Fragrecord *fragPtrP,
+                                         PagePtr pagePtr);
+  void remove_page_id_from_dll(Fragrecord *fragPtrP,
+                               Uint32 page_no,
+                               Uint32 pagePtrI,
+                               Uint32 *ptr);
+  void handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
+                           Fragrecord *fragPtrP,
+                           PagePtr pagePtr,
+                           Uint32 page_no);
+  void handle_new_page(EmulatedJamBuffer *jamBuf,
+                       Fragrecord *fragPtrP,
+                       Tablerec *tabPtrP,
+                       PagePtr pagePtr,
+                       Uint32 page_no);
+
+  void record_delete_by_pageid(Signal *signal,
+                               Uint32 fragmentId,
+                               ScanOp &scan,
+                               Local_key &key,
+                               Uint32 record_size);
+
+  void record_delete_by_rowid(Signal *signal,
+                              Uint32 fragmentId,
+                              ScanOp &scan,
+                              Local_key &key,
+                              Uint32 foundGCI);
 
 //---------------------------------------------------------------
 // Variable Allocator
@@ -3204,6 +3300,7 @@ private:
 //------------------------------------------------------------------------------------------------------
 // Common stored variables. Variables that have a valid value always.
 //------------------------------------------------------------------------------------------------------
+  bool m_immediate_flag; // Temporary variable
   Fragoperrec *fragoperrec;
   Uint32 cfirstfreeFragopr;
   Uint32 cnoOfFragoprec;
@@ -3309,9 +3406,15 @@ private:
   friend class NdbOut& operator<<(NdbOut&, const Th&);
 #endif
 
-  void expand_tuple(KeyReqStruct*, Uint32 sizes[4], Tuple_header*org, 
-		    const Tablerec*, bool disk, bool from_lcp_keep = false);
-  void shrink_tuple(KeyReqStruct*, Uint32 sizes[2], const Tablerec*,
+  void expand_tuple(KeyReqStruct*,
+                    Uint32 sizes[4],
+                    Tuple_header *org, 
+		    const Tablerec*,
+                    bool disk,
+                    bool from_lcp_keep = false);
+  void shrink_tuple(KeyReqStruct*,
+                    Uint32 sizes[2],
+                    const Tablerec*,
 		    bool disk);
   
   Uint32* get_ptr(Var_part_ref);
@@ -3371,7 +3474,10 @@ private:
    */
   int disk_page_prealloc(Signal*, Ptr<Fragrecord>, Local_key*, Uint32);
   void disk_page_prealloc_dirty_page(Disk_alloc_info&, 
-				     Ptr<Page>, Uint32, Uint32);
+				     Ptr<Page>,
+                                     Uint32,
+                                     Uint32,
+                                     Fragrecord*);
   void disk_page_prealloc_transit_page(Disk_alloc_info&,
 				       Ptr<Page_request>, Uint32, Uint32);
   
@@ -3387,10 +3493,22 @@ private:
 					  Ptr<Fragrecord>,
 					  Ptr<Page>);
   
-  void disk_page_alloc(Signal*, 
-		       Tablerec*, Fragrecord*, Local_key*, PagePtr, Uint32);
-  void disk_page_free(Signal*, 
-		      Tablerec*, Fragrecord*, Local_key*, PagePtr, Uint32);
+  void disk_page_alloc(Signal*,
+		       Tablerec*,
+                       Fragrecord*,
+                       Local_key*,
+                       PagePtr,
+                       Uint32,
+                       const Local_key*,
+                       Uint32 alloc_size);
+  void disk_page_free(Signal*,
+		      Tablerec*,
+                      Fragrecord*,
+                      Local_key*,
+                      PagePtr,
+                      Uint32,
+                      const Local_key*,
+                      Uint32 alloc_size);
   
   void disk_page_commit_callback(Signal*, Uint32 opPtrI, Uint32 page_id);  
   
@@ -3399,22 +3517,36 @@ private:
   void disk_page_alloc_extent_log_buffer_callback(Signal*, Uint32, Uint32);
   void disk_page_free_extent_log_buffer_callback(Signal*, Uint32, Uint32);
   
-  Uint64 disk_page_undo_alloc(Page*, const Local_key*,
-			      Uint32 sz, Uint32 gci, Uint32 logfile_group_id);
+  Uint64 disk_page_undo_alloc(Signal *signal,
+                              Page*,
+                              const Local_key*,
+			      Uint32 sz,
+                              Uint32 gci,
+                              Uint32 logfile_group_id,
+                              Uint32 alloc_size);
 
-  Uint64 disk_page_undo_update(Page*, const Local_key*,
-			       const Uint32*, Uint32,
-			       Uint32 gci, Uint32 logfile_group_id);
+  Uint64 disk_page_undo_update(Signal *signal,
+                               Page*,
+                               const Local_key*,
+			       const Uint32*,
+                               Uint32 sz,
+			       Uint32 gci,
+                               Uint32 logfile_group_id,
+                               Uint32 alloc_size);
   
-  Uint64 disk_page_undo_free(Page*, const Local_key*,
-			     const Uint32*, Uint32 sz,
-			     Uint32 gci, Uint32 logfile_group_id);
+  Uint64 disk_page_undo_free(Signal *signal,
+                             Page*,
+                             const Local_key*,
+			     const Uint32*,
+                             Uint32 sz,
+			     Uint32 gci,
+                             Uint32 logfile_group_id,
+                             Uint32 alloc_size);
 
-  void undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused);
   void undo_createtable_logsync_callback(Signal* signal, Uint32, Uint32);
 
-  void drop_table_log_buffer_callback(Signal*, Uint32, Uint32);
   void drop_table_logsync_callback(Signal*, Uint32, Uint32);
+  void drop_table_log_buffer_callback(Signal*, Uint32, Uint32);
 
   void disk_page_set_dirty(Ptr<Page>);
   void restart_setup_page(Ptr<Fragrecord> fragPtr,
@@ -3432,7 +3564,9 @@ private:
   void disk_page_move_dirty_page(Disk_alloc_info& alloc,
                                  Ptr<Extent_info> extentPtr,
                                  Ptr<Page> pagePtr,
-                                 Uint32 old_idx, Uint32 new_idx);
+                                 Uint32 old_idx,
+                                 Uint32 new_idx,
+                                 Fragrecord*);
 
   void disk_page_get_allocated(const Tablerec*, const Fragrecord*,
                                Uint64 res[2]);
@@ -3451,14 +3585,24 @@ public:
 				const Local_key* key,
                                 Uint32 pages);
   void disk_restart_page_bits(EmulatedJamBuffer* jamBuf,
-                              Uint32 tableId, Uint32 fragId,
-			      const Local_key*, Uint32 bits);
-  void disk_restart_undo(Signal* signal, Uint64 lsn,
-			 Uint32 type, const Uint32 * ptr, Uint32 len);
+                              Uint32 tableId,
+                              Uint32 fragId,
+                              Uint32 create_table_version,
+			      const Local_key*,
+                              Uint32 bits);
+  void disk_restart_undo(Signal* signal,
+                         Uint64 lsn,
+			 Uint32 type,
+                         const Uint32 * ptr,
+                         Uint32 len);
 
+  void verify_undo_log_execution();
   struct Apply_undo 
   {
-    Uint32 m_type, m_len;
+    bool m_in_intermediate_log_record;
+    Uint32 m_type;
+    Uint32 m_len;
+    Uint32 m_offset;
     const Uint32* m_ptr;
     Uint64 m_lsn;
     Ptr<Tablerec> m_table_ptr;
@@ -3469,8 +3613,13 @@ public:
     Apply_undo();
   };
 
-  void disk_restart_lcp_id(Uint32 table, Uint32 frag, Uint32 lcpId);
+  void disk_restart_lcp_id(Uint32 table,
+                           Uint32 frag,
+                           Uint32 lcpId,
+                           Uint32 localLcpId);
   
+  bool is_disk_columns_in_table(Uint32 tableId);
+
 private:
   // these 2 were file-static before mt-lqh
   bool f_undo_done;
@@ -3478,11 +3627,17 @@ private:
   Uint32 c_proxy_undo_data[20 + MAX_TUPLE_SIZE_IN_WORDS];
 
   void disk_restart_undo_next(Signal*, Uint32 applied = 0);
-  void disk_restart_undo_lcp(Uint32, Uint32, Uint32 flag, Uint32 lcpId);
+  void disk_restart_undo_lcp(Uint32,
+                             Uint32,
+                             Uint32 flag,
+                             Uint32 lcpId,
+                             Uint32 localLcpId);
   void disk_restart_undo_callback(Signal* signal, Uint32, Uint32);
   void disk_restart_undo_alloc(Apply_undo*);
   void disk_restart_undo_update(Apply_undo*);
-  void disk_restart_undo_free(Apply_undo*);
+  void disk_restart_undo_update_first_part(Apply_undo*);
+  void disk_restart_undo_update_part(Apply_undo*);
+  void disk_restart_undo_free(Apply_undo*, bool);
   void disk_restart_undo_page_bits(Signal*, Apply_undo*);
 
 #ifdef VM_TRACE
@@ -3494,7 +3649,9 @@ private:
   void findFirstOp(OperationrecPtr&);
   bool is_rowid_in_remaining_lcp_set(const Page* page,
                                      const Local_key& key1,
-                                     const Dbtup::ScanOp& op) const;
+                                     const Dbtup::ScanOp& op,
+                                     Uint32 debug_val) const;
+  void update_gci(Fragrecord*, Tablerec*, Tuple_header*, Uint32);
   void commit_operation(Signal*,
                         Uint32,
                         Uint32,
@@ -3519,7 +3676,8 @@ private:
   int retrieve_data_page(Signal*,
                          Page_cache_client::Request,
                          OperationrecPtr,
-                         Ptr<GlobalPage> &diskPagePtr);
+                         Ptr<GlobalPage> &diskPagePtr,
+                         Fragrecord *fragPtrP);
   int retrieve_log_page(Signal*, FragrecordPtr, OperationrecPtr);
 
   void dealloc_tuple(Signal* signal,
@@ -3563,6 +3721,16 @@ private:
   void check_page_map(Fragrecord*);
   bool find_page_id_in_list(Fragrecord*, Uint32 pid);
 #endif
+  Uint32* init_page_map_entry(Fragrecord*, Uint32);
+  const char* insert_free_page_id_list(Fragrecord* fragPtrP,
+                                       Uint32 logicalPageId,
+                                       Uint32 *next,
+                                       Uint32 *prev,
+                                       Uint32 lcp_scanned_bit,
+                                       Uint32 last_lcp_state);
+  void remove_top_from_lcp_keep_list(Fragrecord*, Uint32*, Local_key);
+  void insert_lcp_keep_list(Fragrecord*, Local_key, Uint32*, const Local_key*);
+  void handle_lcp_drop_change_page(Fragrecord*, Uint32, PagePtr, bool);
   void handle_lcp_keep(Signal*, FragrecordPtr, ScanOp*);
   void handle_lcp_keep_commit(const Local_key*,
                               KeyReqStruct *,
@@ -3844,8 +4012,11 @@ public:
 				const Local_key* key,
                                 Uint32 pages);
 
-  void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
-			      const Local_key* key, Uint32 bits);
+  void disk_restart_page_bits(Uint32 tableId,
+                              Uint32 fragId,
+                              Uint32 create_table_version,
+			      const Local_key* key,
+                              Uint32 bits);
 };
 
 

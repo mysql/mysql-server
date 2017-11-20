@@ -13,27 +13,37 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/sdi_api.h"
+#include "sql/dd/sdi_api.h"
 
 #include <sys/types.h>
+#include <algorithm>
+#include <type_traits>
 
-#include "auth/auth_common.h"      // CREATE_ACL
-#include "dd/cache/dictionary_client.h" // dd::Dictionary_client
-#include "dd/dd.h"
-#include "dd/impl/sdi.h"           // dd::deserialize
-#include "dd/impl/sdi_utils.h"     // dd::sdi_utils::handle_errors
-#include "dd/impl/types/object_table_definition_impl.h" // Object_table_definition::fs_collation()
-#include "dd/sdi_file.h"           // dd::sdi_file::load
-#include "dd/types/schema.h"       // dd::Schema
-#include "dd/types/table.h"        // dd::Table
-#include "dd_sql_view.h"           // update_referencing_views_metadata()
-#include "mdl.h"                   // MDL_request
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "mysql/psi/mysql_file.h"  // mysql_file_x
-#include "mysqld.h"                // lower_case_table_names
-#include "sql_base.h"              // open_tables()
-#include "sql_class.h"             // THD
-#include "strfunc.h"               // casedn
-#include "table.h"                 // TABLE_LIST
+#include "mysqld_error.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"  // CREATE_ACL
+#include "sql/dd/cache/dictionary_client.h" // dd::Dictionary_client
+#include "sql/dd/dd.h"
+#include "sql/dd/impl/sdi.h"       // dd::deserialize
+#include "sql/dd/impl/sdi_utils.h" // dd::sdi_utils::handle_errors
+#include "sql/dd/impl/types/object_table_definition_impl.h" // Object_table_definition::fs_collation()
+#include "sql/dd/sdi_file.h"       // dd::sdi_file::load
+#include "sql/dd/types/schema.h"   // dd::Schema
+#include "sql/dd/types/table.h"    // dd::Table
+#include "sql/dd_sql_view.h"       // update_referencing_views_metadata()
+#include "sql/mdl.h"               // MDL_request
+#include "sql/mysqld.h"            // lower_case_table_names
+#include "sql/sql_base.h"          // open_tables()
+#include "sql/sql_class.h"         // THD
+#include "sql/sql_error.h"
+#include "sql/sql_servers.h"
+#include "sql/strfunc.h"           // casedn
+#include "sql/table.h"             // TABLE_LIST
+#include "thr_lock.h"
 
 
 namespace dd {

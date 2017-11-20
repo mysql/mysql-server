@@ -1,4 +1,4 @@
--- Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights
+-- Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights
 -- reserved.
 --
 -- This program is free software; you can redistribute it and/or
@@ -938,7 +938,7 @@ create table `hope` (
   str_col2 varchar(3000),
   str_col3 varchar(3000),
   PRIMARY KEY (partition_id, id)
-  ) ENGINE=ndbcluster partition by key (partition_id);
+  ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 partition by key (partition_id);
 
 create database if not exists test2;
 use test2;

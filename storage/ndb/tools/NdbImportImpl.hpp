@@ -19,6 +19,7 @@
 #define NDB_IMPORT_IMPL_HPP
 
 #include <ndb_global.h>
+#include <stdint.h>
 #include <ndb_opts.h>
 #include <ndb_limits.h>
 #include <mgmapi.h>
@@ -113,7 +114,6 @@ public:
     uint m_connectioncnt;
     Ndb_cluster_connection** m_connections;
     Ndb_cluster_connection* m_mainconnection;
-    bool m_connectionowner;
     bool m_connected;
     Ndb* m_mainndb;
   };
@@ -121,16 +121,15 @@ public:
   Connect c_connect;
   uint c_connectionindex;
 
-  int set_connections(uint cnt, Ndb_cluster_connection** connections);
   int do_connect();
   void do_disconnect();
 
   // tables
 
-  uint c_tabid;
-
-  int add_table(const char* database, const char* table, uint& tabid);
-  int set_tabid(uint tabid);
+  int add_table(const char* database,
+                const char* table,
+                uint& tabid,
+                Error& error);
 
   // files
 
@@ -259,6 +258,9 @@ public:
     // define teams and row queues
     void do_create();
     void add_team(Team* team);
+    // add and set table
+    int add_table(const char* database, const char* table, uint& tabid);
+    void set_table(uint tabid);
     // start teams and run the job until done
     void do_start();
     void start_diag_team();
@@ -280,6 +282,7 @@ public:
     // per-job stats
     Stats m_stats;
     JobState::State m_state;
+    uint m_tabid;
     bool m_dostop;      // request graceful stop
     bool m_fatal;       // error is unlikely to be resumable
     ErrorMap m_errormap;// temporary errors from exec-op
@@ -327,7 +330,7 @@ public:
     void do_stop();
     void stop_worker(Worker* w);
     virtual void do_end() = 0;
-    void set_tabid(uint tabid);
+    void set_table(uint tabid);
     virtual void str_state(char* str) const;
     Job& m_job;
     NdbImportImpl& m_impl;
@@ -387,6 +390,11 @@ public:
     bool has_error() const {
       return m_team.has_error();
     }
+    // random for tests
+    uint get_rand() {
+      return (uint)ndb_rand_r(&m_seed);
+    }
+    unsigned m_seed;
     // stats
     Stat* m_stat_slice;         // slices
     Stat* m_stat_idleslice;     // slices which did no work
@@ -412,10 +420,6 @@ public:
     virtual void do_run();
     virtual void do_end();
     Row* create_row(uint64 rowid, const Table& t);
-    uint get_rand() {
-      return (uint)ndb_rand_r(&m_seed);
-    }
-    unsigned m_seed;
   };
 
   // csv input team
@@ -507,12 +511,26 @@ public:
     uint m_opsize;
   };
 
-  struct OpList : List {
+  struct OpList : private List {
+    OpList();
+    ~OpList();
+    void set_stats(Stats& stats, const char* name) {
+      List::set_stats(stats, name);
+    }
     Op* front() {
       return static_cast<Op*>(m_front);
     }
     Op* pop_front() {
       return static_cast<Op*>(List::pop_front());
+    }
+    void push_back(Op* op) {
+      List::push_back(op);
+    }
+    void push_front(Op* op) {
+      List::push_front(op);
+    }
+    uint cnt() const {
+      return m_cnt;
     }
   };
 
@@ -531,14 +549,26 @@ public:
     }
   };
 
-  struct TxList : List {
+  struct TxList : private List {
     TxList();
     ~TxList();
+    void set_stats(Stats& stats, const char* name) {
+      List::set_stats(stats, name);
+    }
     Tx* front() {
       return static_cast<Tx*>(m_front);
     }
+    void push_back(Tx* tx) {
+      List::push_back(tx);
+    }
     Tx* pop_front() {
       return static_cast<Tx*>(List::pop_front());
+    }
+    void remove(Tx* tx) {
+      List::remove(tx);
+    }
+    uint cnt() const {
+      return m_cnt;
     }
   };
 

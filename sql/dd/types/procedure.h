@@ -17,7 +17,7 @@
 #define DD__PROCEDURE_INCLUDED
 
 
-#include "dd/types/routine.h"    // Routine
+#include "sql/dd/types/routine.h" // Routine
 
 namespace dd {
 

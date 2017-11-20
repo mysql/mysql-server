@@ -134,6 +134,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -181,6 +183,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -228,6 +232,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 #
 # Add GRANT OPTION db_datadict.* to testuser1;
 GRANT UPDATE ON db_datadict.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
@@ -299,6 +305,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -346,6 +354,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -393,6 +403,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
@@ -450,6 +462,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -497,6 +511,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -544,6 +560,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO `testuser1`@`localhost`
@@ -623,6 +641,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -670,6 +690,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -717,6 +739,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 GRANT SELECT ON *.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
 #
 # Here <SELECT YES> is shown correctly for testuser1;
@@ -788,6 +812,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -835,6 +861,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -882,6 +910,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
@@ -939,6 +969,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -986,6 +1018,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -1033,6 +1067,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT SELECT ON *.* TO `testuser1`@`localhost` WITH GRANT OPTION
@@ -1142,6 +1178,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -1189,6 +1227,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -1236,6 +1276,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
@@ -1340,6 +1382,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -1387,6 +1431,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -1434,6 +1480,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
@@ -1491,6 +1539,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -1538,6 +1588,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -1585,6 +1637,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO `testuser1`@`localhost`
@@ -1649,6 +1703,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -1696,6 +1752,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -1743,6 +1801,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO `testuser1`@`localhost`
@@ -1822,6 +1882,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -1869,6 +1931,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -1916,6 +1980,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''

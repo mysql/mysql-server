@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -84,12 +84,6 @@ static const ulint FIL_PAGE_COMPRESS_SIZE_V1 = FIL_PAGE_ORIGINAL_SIZE_V1 + 2;
 
 /** This overloads FIL_PAGE_FILE_FLUSH_LSN for RTREE Split Sequence Number */
 #define FIL_RTREE_SPLIT_SEQ_NUM		FIL_PAGE_FILE_FLUSH_LSN
-
-/** This overloads FIL_PAGE_FILE_FLUSH_LSN for storing SDI Index Root page
-numbers only in Page numbers 1 & 2. This doesn't conflict with
-FIL_RTREE_SPLIT_SEQ_NUM because it is used only in R-tree pages which can
-start only from page number 4 */
-#define FIL_SDI_ROOT_PAGE_NUM		FIL_PAGE_FILE_FLUSH_LSN
 
 /** starting from 4.1.x this contains the space id of the page */
 #define FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID	34

@@ -17,7 +17,8 @@
 #define DD_UPGRADE__SCHEMA_H_INCLUDED
 
 #include <vector>
-#include "dd/string_type.h"                    // dd::String_type
+
+#include "sql/dd/string_type.h"                // dd::String_type
 
 class THD;
 

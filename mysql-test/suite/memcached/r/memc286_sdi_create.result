@@ -54,7 +54,7 @@ c4 GEOMETRY NOT NULL,
 SPATIAL INDEX(c4))
 ENGINE = INNODB;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
   `c3` tinyblob,
@@ -69,7 +69,7 @@ Get rec(id:type) is t1	CREATE TABLE `t1` (
   UNIQUE KEY `idx2` (`c6`(50)),
   KEY `idx1` (`c4`(20))
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
-Get rec(id:type) is t2	CREATE TABLE `t2` (
+Get rec(type:id) is t2	CREATE TABLE `t2` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   `c3` int(11) DEFAULT NULL,
@@ -1071,24 +1071,24 @@ Get rec(id:type) is t2	CREATE TABLE `t2` (
   `c999` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-Get rec(id:type) is t3	CREATE TABLE `t3` (
+Get rec(type:id) is t3	CREATE TABLE `t3` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-Get rec(id:type) is t4	CREATE TABLE `t4` (
+Get rec(type:id) is t4	CREATE TABLE `t4` (
   `c1` int(11) NOT NULL,
   `c2` blob,
   PRIMARY KEY (`c1`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-Get rec(id:type) is t5	CREATE TABLE `t5` (
+Get rec(type:id) is t5	CREATE TABLE `t5` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
   CONSTRAINT `t5_ibfk_1` FOREIGN KEY (`c2`) REFERENCES `t4` (`c1`) ON UPDATE CASCADE
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-Get rec(id:type) is t7	CREATE TABLE `t7` (
+Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   `c3` char(255) DEFAULT NULL,
@@ -1098,7 +1098,7 @@ Get rec(id:type) is t7	CREATE TABLE `t7` (
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # 2. Test with alter table
 ALTER TABLE t1 ADD COLUMN c11 INT;
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
   `c3` tinyblob,
@@ -1120,7 +1120,7 @@ ALTER TABLE t2 DROP COLUMN c101;
 ALTER TABLE t2 DROP COLUMN c102;
 ALTER TABLE t2 DROP COLUMN c103;
 ALTER TABLE t2 DROP COLUMN c104;
-Get rec(id:type) is t2	CREATE TABLE `t2` (
+Get rec(type:id) is t2	CREATE TABLE `t2` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   `c3` int(11) DEFAULT NULL,
@@ -2118,7 +2118,7 @@ Get rec(id:type) is t2	CREATE TABLE `t2` (
   PRIMARY KEY (`c1`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t7 MODIFY c2 BIGINT NOT NULL;
-Get rec(id:type) is t7	CREATE TABLE `t7` (
+Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` bigint(20) NOT NULL,
   `c3` char(255) DEFAULT NULL,
@@ -2137,7 +2137,7 @@ t3	CREATE TABLE `t3` (
   KEY `c3` (`c3`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c3`) REFERENCES `t2` (`c1`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-Get rec(id:type) is t3	CREATE TABLE `t3` (
+Get rec(type:id) is t3	CREATE TABLE `t3` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
   `c3` int(11) DEFAULT NULL,
@@ -2146,14 +2146,14 @@ Get rec(id:type) is t3	CREATE TABLE `t3` (
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c3`) REFERENCES `t2` (`c1`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t5 DROP FOREIGN KEY t5_ibfk_1;
-Get rec(id:type) is t5	CREATE TABLE `t5` (
+Get rec(type:id) is t5	CREATE TABLE `t5` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t7 ADD INDEX idx3(c2,c3(50));
-Get rec(id:type) is t7	CREATE TABLE `t7` (
+Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` bigint(20) NOT NULL,
   `c3` char(255) DEFAULT NULL,
@@ -2164,7 +2164,7 @@ Get rec(id:type) is t7	CREATE TABLE `t7` (
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN c1, ADD c1 BIGINT PRIMARY
 KEY;
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c2` varchar(1024) DEFAULT NULL,
   `c3` tinyblob,
   `c4` blob,
@@ -2183,7 +2183,7 @@ Get rec(id:type) is t1	CREATE TABLE `t1` (
 ALTER TABLE t1 ADD FULLTEXT INDEX(c2), ALGORITHM=INPLACE;
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c2` varchar(1024) DEFAULT NULL,
   `c3` tinyblob,
   `c4` blob,
@@ -2201,7 +2201,7 @@ Get rec(id:type) is t1	CREATE TABLE `t1` (
   FULLTEXT KEY `c2` (`c2`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 ALTER TABLE t1 DROP INDEX c2;
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c2` varchar(1024) DEFAULT NULL,
   `c3` tinyblob,
   `c4` blob,
@@ -2218,7 +2218,7 @@ Get rec(id:type) is t1	CREATE TABLE `t1` (
   KEY `idx1` (`c4`(20))
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 TRUNCATE TABLE t7;
-Get rec(id:type) is t7	CREATE TABLE `t7` (
+Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` bigint(20) NOT NULL,
   `c3` char(255) DEFAULT NULL,
@@ -2267,7 +2267,7 @@ c4 GEOMETRY NOT NULL,
 SPATIAL INDEX(c4))
 ENGINE = INNODB;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
   `c3` tinyblob,
@@ -2282,7 +2282,7 @@ Get rec(id:type) is t1	CREATE TABLE `t1` (
   UNIQUE KEY `idx2` (`c6`(50)),
   KEY `idx1` (`c4`(20))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-Get rec(id:type) is t2	CREATE TABLE `t2` (
+Get rec(type:id) is t2	CREATE TABLE `t2` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   `c3` int(11) DEFAULT NULL,
@@ -3284,24 +3284,24 @@ Get rec(id:type) is t2	CREATE TABLE `t2` (
   `c999` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-Get rec(id:type) is t3	CREATE TABLE `t3` (
+Get rec(type:id) is t3	CREATE TABLE `t3` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-Get rec(id:type) is t4	CREATE TABLE `t4` (
+Get rec(type:id) is t4	CREATE TABLE `t4` (
   `c1` int(11) NOT NULL,
   `c2` blob,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-Get rec(id:type) is t5	CREATE TABLE `t5` (
+Get rec(type:id) is t5	CREATE TABLE `t5` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
   CONSTRAINT `t5_ibfk_1` FOREIGN KEY (`c2`) REFERENCES `t4` (`c1`) ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-Get rec(id:type) is t7	CREATE TABLE `t7` (
+Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   `c3` char(255) DEFAULT NULL,
@@ -3311,7 +3311,7 @@ Get rec(id:type) is t7	CREATE TABLE `t7` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # 2. Test with alter table
 ALTER TABLE t1 ADD COLUMN c11 INT;
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
   `c3` tinyblob,
@@ -3333,7 +3333,7 @@ ALTER TABLE t2 DROP COLUMN c101;
 ALTER TABLE t2 DROP COLUMN c102;
 ALTER TABLE t2 DROP COLUMN c103;
 ALTER TABLE t2 DROP COLUMN c104;
-Get rec(id:type) is t2	CREATE TABLE `t2` (
+Get rec(type:id) is t2	CREATE TABLE `t2` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   `c3` int(11) DEFAULT NULL,
@@ -4331,7 +4331,7 @@ Get rec(id:type) is t2	CREATE TABLE `t2` (
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t7 MODIFY c2 BIGINT NOT NULL;
-Get rec(id:type) is t7	CREATE TABLE `t7` (
+Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` bigint(20) NOT NULL,
   `c3` char(255) DEFAULT NULL,
@@ -4350,7 +4350,7 @@ t3	CREATE TABLE `t3` (
   KEY `c3` (`c3`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c3`) REFERENCES `t2` (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-Get rec(id:type) is t3	CREATE TABLE `t3` (
+Get rec(type:id) is t3	CREATE TABLE `t3` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
   `c3` int(11) DEFAULT NULL,
@@ -4359,14 +4359,14 @@ Get rec(id:type) is t3	CREATE TABLE `t3` (
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c3`) REFERENCES `t2` (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t5 DROP FOREIGN KEY t5_ibfk_1;
-Get rec(id:type) is t5	CREATE TABLE `t5` (
+Get rec(type:id) is t5	CREATE TABLE `t5` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t7 ADD INDEX idx3(c2,c3(50));
-Get rec(id:type) is t7	CREATE TABLE `t7` (
+Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` bigint(20) NOT NULL,
   `c3` char(255) DEFAULT NULL,
@@ -4377,7 +4377,7 @@ Get rec(id:type) is t7	CREATE TABLE `t7` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN c1, ADD c1 BIGINT PRIMARY
 KEY;
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c2` varchar(1024) DEFAULT NULL,
   `c3` tinyblob,
   `c4` blob,
@@ -4396,7 +4396,7 @@ Get rec(id:type) is t1	CREATE TABLE `t1` (
 ALTER TABLE t1 ADD FULLTEXT INDEX(c2), ALGORITHM=INPLACE;
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c2` varchar(1024) DEFAULT NULL,
   `c3` tinyblob,
   `c4` blob,
@@ -4414,7 +4414,7 @@ Get rec(id:type) is t1	CREATE TABLE `t1` (
   FULLTEXT KEY `c2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 ALTER TABLE t1 DROP INDEX c2;
-Get rec(id:type) is t1	CREATE TABLE `t1` (
+Get rec(type:id) is t1	CREATE TABLE `t1` (
   `c2` varchar(1024) DEFAULT NULL,
   `c3` tinyblob,
   `c4` blob,
@@ -4431,7 +4431,7 @@ Get rec(id:type) is t1	CREATE TABLE `t1` (
   KEY `idx1` (`c4`(20))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 TRUNCATE TABLE t7;
-Get rec(id:type) is t7	CREATE TABLE `t7` (
+Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` bigint(20) NOT NULL,
   `c3` char(255) DEFAULT NULL,
@@ -4450,7 +4450,7 @@ KEY idx1(c3),
 KEY idx2(c2(20)))
 ENGINE = INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-Get rec(id:type) is t6	CREATE TABLE `t6` (
+Get rec(type:id) is t6	CREATE TABLE `t6` (
   `c1` int(11) NOT NULL,
   `c2` varchar(30) DEFAULT NULL,
   `c3` float DEFAULT NULL,
@@ -4467,7 +4467,7 @@ c3 FLOAT,
 KEY idx1(c3),
 KEY idx2(c2(20)))
 ENGINE = INNODB TABLESPACE=ts1;
-Get rec(id:type) is t6	CREATE TABLE `t6` (
+Get rec(type:id) is t6	CREATE TABLE `t6` (
   `c1` int(11) NOT NULL,
   `c2` varchar(30) DEFAULT NULL,
   `c3` float DEFAULT NULL,

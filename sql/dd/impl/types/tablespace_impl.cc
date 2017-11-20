@@ -13,36 +13,63 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/tablespace_impl.h"
+#include "sql/dd/impl/types/tablespace_impl.h"
 
+#include <algorithm>
+#include <atomic>
+#include <functional>
 #include <memory>
-#include <string.h>
 #include <sstream>
+#include <string>
+#include <vector>
 
-#include "dd/impl/properties_impl.h"             // Properties_impl
-#include "dd/impl/raw/object_keys.h"             // Primary_id_key
-#include "dd/impl/raw/raw_record.h"              // Raw_record
-#include "dd/impl/raw/raw_record_set.h"          // Raw_record_set
-#include "dd/impl/raw/raw_table.h"               // Raw_table
-#include "dd/impl/sdi_impl.h"                    // sdi read/write functions
-#include "dd/impl/tables/tables.h"               // create_key_by_tablespace_id
-#include "dd/impl/tables/tablespace_files.h"     // Tablespace_files
-#include "dd/impl/tables/tablespaces.h"          // Tablespaces
-#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
-#include "dd/impl/types/tablespace_file_impl.h"  // Tablespace_file_impl
-#include "dd/properties.h"
-#include "dd/string_type.h"                      // dd::String_type
-#include "dd/types/tablespace_file.h"
-#include "dd/types/weak_object.h"
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+
+#include "sql/dd/impl/object_key.h"
+#include "sql/dd/impl/properties_impl.h"             // Properties_impl
+#include "sql/dd/impl/raw/raw_record.h"              // Raw_record
+#include "sql/dd/impl/raw/raw_record_set.h"          // Raw_record_set
+#include "sql/dd/impl/raw/raw_table.h"               // Raw_table
+#include "sql/dd/impl/sdi_impl.h"                    // sdi read/write functions
+#include "sql/dd/impl/sdi_utils.h"                   // sdi_utils::checked_return
+#include "sql/dd/impl/tables/indexes.h"              // dd::tables::Indexes::FIELD_TABLESPACE_ID
+#include "sql/dd/impl/tables/index_partitions.h"     // dd::tables::Index_partitions::FIELD_TABLESPACE_ID
+#include "sql/dd/impl/tables/schemata.h"             // dd::tables::schemata::FIELD_SCHEMA_NAME
+#include "sql/dd/impl/tables/table_partitions.h"     // dd::tables::Table_partitions::FIELD_TABLESPACE_ID
+#include "sql/dd/impl/tables/tables.h"               // create_key_by_tablespace_id
+#include "sql/dd/impl/tables/tablespace_files.h"     // Tablespace_files
+#include "sql/dd/impl/tables/tablespaces.h"          // Tablespaces
+#include "sql/dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
+#include "sql/dd/types/partition.h"                  // Partition
+#include "sql/dd/types/partition_index.h"            // Partition_index
+#include "sql/dd/impl/types/tablespace_file_impl.h"  // Tablespace_file_impl
+#include "sql/dd/properties.h"
+#include "sql/dd/string_type.h"                      // dd::String_type
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/tablespace_file.h"
+#include "sql/dd/types/weak_object.h"
+
+#include "sql/handler.h"                             // handlerton
+#include "sql/sql_class.h"                           // THD
+#include "sql/strfunc.h"                             // casedn
+
 #include "m_string.h"
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                        // ER_*
-#include "rapidjson/document.h"
-#include "rapidjson/prettywriter.h"
 
+using dd::tables::Indexes;
+using dd::tables::Index_partitions;
+using dd::tables::Schemata;
+using dd::tables::Table_partitions;
+using dd::tables::Tables;
 using dd::tables::Tablespaces;
 using dd::tables::Tablespace_files;
+
+using dd::sdi_utils::checked_return;
 
 namespace dd {
 
@@ -362,4 +389,217 @@ Tablespace_impl::Tablespace_impl(const Tablespace_impl &src)
 
 ///////////////////////////////////////////////////////////////////////////
 
+bool operator==(const dd::sdi_key &a, const dd::sdi_key &b)
+{
+  return a.id == b.id && a.type == b.type;
+}
+
+
+namespace {
+/* purecov: begin inspected */
+template <typename PT>
+PT& ref(PT *tp)
+{
+  DBUG_ASSERT(tp != nullptr);
+  return *tp;
+}
+/* purecov: end */
+
+template <typename SC, typename KT>
+bool select_clos_where_key_matches(SC &&s, Raw_table *rtp, KT &&k)
+{
+  Raw_table &rtbl= ref(rtp);
+
+  std::unique_ptr<Raw_record_set> rs;
+  if (rtbl.open_record_set(&k, rs))
+  {
+    return dd::sdi_utils::checked_return(true);
+  }
+
+  Raw_record *r= rs->current_record();
+
+  while (r)
+  {
+    if (s(r))
+    {
+      return checked_return(true);
+    }
+
+    // Note r is passed by non-const ref here, and is advanced
+    // to the next record, or set to nullptr
+    if (rs->next(r))
+    {
+      return checked_return(true);
+    }
+  }
+  return false;
+}
+
+template <typename R, typename LESSF = std::less<typename R::value_type>,
+          typename EQUALF =  std::equal_to<typename R::value_type>>
+typename R::iterator remove_duplicates(R *rp, LESSF && lessf= LESSF(),
+                       EQUALF &&equalf= EQUALF())
+{
+  auto &r= ref(rp);
+  std::sort(std::begin(r), std::end(r), lessf);
+  return std::unique(std::begin(r), std::end(r), equalf);
+}
+} // namespace
+
+
+bool operator==(const Tablespace_table_ref &a, const Tablespace_table_ref &b)
+{
+  return a.m_id == b.m_id;
+}
+
+bool operator<(const Tablespace_table_ref &a, const Tablespace_table_ref &b)
+{
+  return a.m_id < b.m_id;
+}
+
+
+bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
+                                 Tablespace_table_ref_vec *tblrefsp)
+{
+  auto &tblrefs= ref(tblrefsp);
+
+  // Start a read only transaction, read the set of tables.
+  Transaction_ro trx(thd, ISO_READ_COMMITTED);
+  trx.otx.register_tables<Partition_index>();
+  trx.otx.register_tables<Partition>();
+  trx.otx.register_tables<Index>();
+  trx.otx.register_tables<Abstract_table>();
+  trx.otx.register_tables<Schema>();
+
+  if (trx.otx.open_tables())
+  {
+    return checked_return(true);
+  }
+
+  std::vector<Object_id> partids;
+  if (select_clos_where_key_matches
+      ([&partids] (Raw_record *r)
+       {
+         partids.push_back(r->read_ref_id(Index_partitions::FIELD_PARTITION_ID));
+         return false;
+       },
+       trx.otx.get_table<Partition_index>(),
+       Parent_id_range_key{2, Index_partitions::FIELD_TABLESPACE_ID, tso.id()}))
+  {
+    return checked_return(true);
+  }
+
+  partids.resize(std::distance(partids.begin(), remove_duplicates(&partids)));
+  std::vector<Object_id> tblids;
+  for (auto &partid : partids)
+  {
+    if (select_clos_where_key_matches
+        ([&tblids] (Raw_record *r)
+         {
+          tblids.push_back(r->read_ref_id(Table_partitions::FIELD_TABLE_ID));
+          return false;
+         },
+         trx.otx.get_table<Partition>(),
+         Parent_id_range_key{0, Table_partitions::FIELD_ID, partid}))
+    {
+      return checked_return(true);
+    }
+  }
+
+  if (select_clos_where_key_matches
+      ([&tblids] (Raw_record *r)
+       {
+         tblids.push_back(r->read_ref_id(Table_partitions::FIELD_TABLE_ID));
+         return false;
+       },
+       trx.otx.get_table<Partition>(),
+       Parent_id_range_key{5, Table_partitions::FIELD_TABLESPACE_ID, tso.id()}))
+  {
+    return checked_return(true);
+  }
+
+  if (select_clos_where_key_matches
+      ([&tblids] (Raw_record *r)
+       {
+         tblids.push_back(r->read_ref_id(Indexes::FIELD_TABLE_ID));
+         return false;
+       },
+       trx.otx.get_table<Index>(),
+       Parent_id_range_key{2, Indexes::FIELD_TABLESPACE_ID, tso.id()}))
+  {
+    return checked_return(true);
+  }
+
+  tblids.resize(std::distance(tblids.begin(), remove_duplicates(&tblids)));
+  for (auto &tid : tblids)
+  {
+    if (select_clos_where_key_matches
+        ([&tblrefs,&tid] (Raw_record *r)
+         {
+           tblrefs.push_back({tid,
+                 r->read_str(Tables::FIELD_NAME),
+                 r->read_ref_id(Tables::FIELD_SCHEMA_ID)});
+           return false;
+         },
+         trx.otx.get_table<Abstract_table>(),
+         Parent_id_range_key{0, Tables::FIELD_ID, tid}))
+    {
+      return checked_return(true);
+    }
+  }
+
+  // Select tables with tableid == tso.id()
+  if (select_clos_where_key_matches
+      ([&tblrefs] (Raw_record *r)
+       {
+         tblrefs.push_back({r->read_ref_id(Tables::FIELD_ID),
+               r->read_str(Tables::FIELD_NAME),
+               r->read_ref_id(Tables::FIELD_SCHEMA_ID)});
+         return false;
+       },
+       trx.otx.get_table<Abstract_table>(),
+       Parent_id_range_key{5, Tables::FIELD_TABLESPACE_ID, tso.id()}))
+  {
+    return checked_return(true);
+  }
+
+  tblrefs.resize(std::distance(tblrefs.begin(), remove_duplicates(tblrefsp)));
+  for (auto &tref : tblrefs)
+  {
+    if (select_clos_where_key_matches
+        ([&tref] (Raw_record *r)
+         {
+           tref.m_schema_name= r->read_str(Schemata::FIELD_NAME);
+           return false;
+         },
+         trx.otx.get_table<Schema>(),
+         Parent_id_range_key{0, Schemata::FIELD_ID, tref.m_schema_id}))
+    {
+      return checked_return(true);
+    }
+  }
+
+  return false;
+}
+
+MDL_request *mdl_req(THD *thd, const Tablespace_table_ref &tref)
+{
+  MDL_request *r= new (thd->mem_root) MDL_request;
+
+  if (lower_case_table_names == 2)
+  {
+    dd::String_type lc_schema_name= casedn(Object_table_definition_impl::fs_name_collation(),
+                                           tref.m_schema_name);
+    dd::String_type lc_name= casedn(Object_table_definition_impl::fs_name_collation(),
+                                    tref.m_name);
+    MDL_REQUEST_INIT(r, MDL_key::TABLE, lc_schema_name.c_str(),
+                     lc_name.c_str(), MDL_EXCLUSIVE, MDL_TRANSACTION);
+  }
+  else
+  {
+    MDL_REQUEST_INIT(r, MDL_key::TABLE, tref.m_schema_name.c_str(),
+                     tref.m_name.c_str(), MDL_EXCLUSIVE, MDL_TRANSACTION);
+  }
+  return r;
+}
 }

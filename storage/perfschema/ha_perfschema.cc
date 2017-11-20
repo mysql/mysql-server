@@ -13,19 +13,18 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "storage/perfschema/ha_perfschema.h"
+
 /**
   @file storage/perfschema/ha_perfschema.cc
   Performance schema storage engine (implementation).
 */
 #include <atomic>
-#include "storage/perfschema/ha_perfschema.h"
 
-#include "hostname.h"
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "mysql/plugin.h"
-#include "mysqld.h"
 #include "pfs_account.h"
 #include "pfs_buffer_container.h"
 #include "pfs_column_values.h"
@@ -33,12 +32,14 @@
 #include "pfs_host.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
-#include "pfs_prepared_stmt.h"
 #include "pfs_plugin_table.h"
+#include "pfs_prepared_stmt.h"
 #include "pfs_program.h"
 #include "pfs_user.h"
-#include "sql_class.h"
-#include "sql_plugin.h"
+#include "sql/hostname.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"
+#include "sql/sql_plugin.h"
 
 handlerton *pfs_hton = NULL;
 
@@ -47,13 +48,15 @@ handlerton *pfs_hton = NULL;
 
 #define IS_NATIVE_TABLE(X) ((X)->m_st_table.open_table == NULL) ? true : false
 
-static void lock_pfs_external_table_shares()
+static void
+lock_pfs_external_table_shares()
 {
   if (!opt_initialize)
     pfs_external_table_shares.lock_share_list();
 }
 
-static void unlock_pfs_external_table_shares()
+static void
+unlock_pfs_external_table_shares()
 {
   if (!opt_initialize)
     pfs_external_table_shares.unlock_share_list();

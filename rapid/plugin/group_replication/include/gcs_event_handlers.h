@@ -34,9 +34,9 @@
 #include "services/notification/notification.h"
 
 /*
- The major server version in which member weight was introduced.
+ The server version in which member weight was introduced.
  */
-#define PRIMARY_ELECTION_MEMBER_WEIGHT_VERSION 8
+#define PRIMARY_ELECTION_MEMBER_WEIGHT_VERSION 0x050720
 
 /**
   Group_member_info_pointer_comparator to guarantee uniqueness

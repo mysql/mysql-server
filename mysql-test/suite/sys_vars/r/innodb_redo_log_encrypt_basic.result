@@ -23,9 +23,6 @@ select * from performance_schema.session_variables where variable_name='innodb_r
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_redo_log_encrypt	OFF
 set global innodb_redo_log_encrypt=1;
-select @@global.innodb_redo_log_encrypt;
-@@global.innodb_redo_log_encrypt
-0
 select * from performance_schema.global_variables where variable_name='innodb_redo_log_encrypt';
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_redo_log_encrypt	OFF

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,10 +21,12 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "connection_handler.h"      // Connection_handler
 #include "my_dbug.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"    // mysql_cond_t
 #include "mysql/psi/mysql_mutex.h"
+#include "sql/conn_handler/connection_handler.h" // Connection_handler
 
 class Channel_info;
 class THD;

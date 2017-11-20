@@ -300,19 +300,18 @@ DbUtil::createDb(BaseString& m_db)
 {
   BaseString stm;
   setDbName(m_db.c_str());
-  
+
+  if (selectDb())
   {
-    if(selectDb())
+    stm.assfmt("DROP DATABASE %s", m_db.c_str());
+    if (!doQuery(stm))
     {
-      stm.assfmt("DROP DATABASE %s", m_db.c_str());
-      if(!doQuery(m_db.c_str()))
-        return false;
-    }
-    stm.assfmt("CREATE DATABASE %s", m_db.c_str());
-    if(!doQuery(m_db.c_str()))
       return false;
-    return true;
+    }
   }
+
+  stm.assfmt("CREATE DATABASE %s", m_db.c_str());
+  return doQuery(stm);
 }
 
 

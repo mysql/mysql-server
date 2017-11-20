@@ -85,11 +85,16 @@ static const uchar *CZ_SORT_TABLE[] = {
 	'ch', 'Ch' and 'CH'.
 */
 
+namespace {
+
 struct wordvalue
 	{
 	  const char * word;
 	  uchar *outvalue;
 	};
+
+}  // namespace
+
 static struct wordvalue doubles[] = {
 	{ "ch", (uchar*) "\014\031\057\057" },
 	{ "Ch", (uchar*) "\014\031\060\060" },
@@ -588,7 +593,8 @@ static MY_UNI_IDX idx_uni_8859_2[]={
 
 static MY_COLLATION_HANDLER my_collation_latin2_czech_ci_handler =
 {
-  NULL,			/* init */
+  nullptr,			/* init */
+  nullptr,
   my_strnncoll_czech,
   my_strnncollsp_czech,
   my_strnxfrm_czech,

@@ -18,23 +18,26 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <time.h>
+#include <atomic>
+
+#include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
-#include "connection_handler_manager.h"  // Connection_handler_manager
-#include "current_thd.h"                 // my_thread_get_THR_THD
 #include "keycache.h"
-#include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_stacktrace.h"
 #include "my_sys.h"
-#include "mysqld.h"
-#include "mysqld_thd_manager.h"          // Global_THD_manager
-#include "session_tracker.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "system_variables.h"
+#include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
+#include "sql/current_thd.h"             // my_thread_get_THR_THD
+#include "sql/key.h"
+#include "sql/mysqld.h"
+#include "sql/mysqld_thd_manager.h"      // Global_THD_manager
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/system_variables.h"
 
 #ifdef _WIN32
 #include <crtdbg.h>
@@ -164,7 +167,7 @@ extern "C" void handle_fatal_signal(int sig)
   if (thd)
   {
     const char *kreason= "UNKNOWN";
-    switch (thd->killed) {
+    switch (thd->killed.load()) {
     case THD::NOT_KILLED:
       kreason= "NOT_KILLED";
       break;

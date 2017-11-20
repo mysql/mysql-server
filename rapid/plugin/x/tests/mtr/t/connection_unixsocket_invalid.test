@@ -34,7 +34,6 @@ let $restart_parameters = restart: --loose-mysqlx-socket=;
 --let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
---replace_regex /ERROR: No such file or directory, while connecting to .+\.sock/ERROR: No such file or directory connecting to SOCKET/
 --error 1
 --exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
@@ -44,11 +43,9 @@ let $restart_parameters = restart: --loose-mysqlx-socket="/dev/null/mysqlx.sock"
 --let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
---replace_regex /ERROR: No such file or directory, while connecting to .+\.sock/ERROR: No such file or directory connecting to SOCKET/
 --error 1
 --exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
---replace_regex /ERROR: Not a directory, while connecting to .+\.sock/ERROR: Not a directory, while connecting to SOCKET/
 --error 1
 --exec $MYSQLXTEST --socket="/dev/null/mysqlx.sock" -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
@@ -92,7 +89,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/director
 --let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
---replace_regex /ERROR: (Connection refused, while connecting to|Socket operation on non-socket, while connecting to) .+directory/ERROR: Connection refused, while connecting to SOCKET/
+--replace_regex /ERROR: (Connection refused|Socket operation on non-socket)/ERROR: Connection refused/
 --error 1
 --exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/directory -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
@@ -105,7 +102,6 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/director
 --let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
---replace_regex /ERROR: Permission denied, while connecting to .+\.socket/ERROR: Permission denied, while connecting to SOCKET/
 --error 1
 --exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/directory/mysqlx.socket -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 --chmod 0777 $MYSQL_TMP_DIR/directory/
@@ -117,7 +113,6 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/director
 --let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
---replace_regex /ERROR: No such file or directory, while connecting to .+\.socket/ERROR: No such file or directory connecting to SOCKET/
 --error 1
 --exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/directory/no_existing/mysqlx.socket -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 

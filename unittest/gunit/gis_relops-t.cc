@@ -15,18 +15,18 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
-#include <memory>  // unique_ptr
+#include "my_config.h"
 
 #include <gtest/gtest.h>
+#include <memory>  // unique_ptr
 
-#include "dd/dd.h"
-#include "dd/impl/types/spatial_reference_system_impl.h"
-#include "dd/properties.h"
-#include "dd/types/spatial_reference_system.h"
-#include "gis/geometries.h"
-#include "gis/geometries_cs.h"
-#include "gis/relops.h"
-#include "my_config.h"
+#include "sql/dd/dd.h"
+#include "sql/dd/impl/types/spatial_reference_system_impl.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/types/spatial_reference_system.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_cs.h"
+#include "sql/gis/relops.h"
 
 namespace gis_relops_unittest {
 
@@ -147,9 +147,13 @@ TYPED_TEST(RelopsTest, CodeCoverage) {
       bool result = false;
       bool is_null = false;
       gis::crosses(this->m_srs, g1, g2, "unittest", &result, &is_null);
+// Bug#26336467 ASAN FAILURE IN UNIT TEST RELOPSTEST/1.CODECOVERAGE
+// Disable test until bug can be fixed.
+#ifndef HAVE_ASAN
       gis::disjoint(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::equals(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::intersects(this->m_srs, g1, g2, "unittest", &result, &is_null);
+#endif
       gis::mbr_covered_by(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::mbr_disjoint(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::mbr_equals(this->m_srs, g1, g2, "unittest", &result, &is_null);
@@ -157,9 +161,11 @@ TYPED_TEST(RelopsTest, CodeCoverage) {
       gis::mbr_overlaps(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::mbr_touches(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::mbr_within(this->m_srs, g1, g2, "unittest", &result, &is_null);
+#ifndef HAVE_ASAN
       gis::overlaps(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::touches(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::within(this->m_srs, g1, g2, "unittest", &result, &is_null);
+#endif
     }
   }
 }

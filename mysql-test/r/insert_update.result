@@ -741,3 +741,68 @@ k
 DELETE FROM t0;
 INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
 DROP TABLE t0, t1, t2;
+# Bug#25526439: Assertion failed: is_fixed_or_outer_ref(this)
+CREATE TABLE t1 (
+a INTEGER NOT NULL
+);
+INSERT INTO t1 VALUES(0);
+CREATE TABLE t2 (
+d INTEGER
+);
+# Query from bug report
+INSERT INTO t1(a) VALUES (1)
+ON DUPLICATE KEY UPDATE a= (SELECT d FROM t2 GROUP BY 1);
+SELECT * FROM t1;
+a
+0
+1
+# Similar query with a simple query block
+INSERT INTO t1(a) SELECT 1
+ON DUPLICATE KEY UPDATE a= (SELECT d FROM t2 GROUP BY 1);
+SELECT * FROM t1;
+a
+0
+1
+1
+# Similar query with a UNION
+INSERT INTO t1(a) SELECT 1 UNION SELECT 2
+ON DUPLICATE KEY UPDATE a= (SELECT d FROM t2 GROUP BY 1);
+SELECT * FROM t1;
+a
+0
+1
+1
+1
+2
+DROP TABLE t1, t2;
+# Bug#25071305: Assertion failed: first_execution ||
+#               !tl->is_view_or_derived() || tl->is_merged()
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(b INTEGER);
+INSERT INTO t2 VALUES (1),(1);
+INSERT INTO t1(a) VALUES (1)
+ON DUPLICATE KEY UPDATE a= (SELECT b FROM (SELECT b FROM t2) AS w);
+DROP TABLE t1, t2;
+# Bug#24716127: Incorrect behavior by insert statement with
+#               "on duplicate key update"
+CREATE TABLE t1(a INTEGER, b INTEGER, PRIMARY KEY(a,b));
+CREATE TABLE t2(c2 INTEGER NOT NULL PRIMARY KEY);
+CREATE TABLE t3(c3 INTEGER NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (1), (2);
+INSERT INTO t3 VALUES (1), (2);
+INSERT INTO t1 VALUES (1,1)
+ON DUPLICATE KEY UPDATE a= (SELECT c2
+FROM t2 JOIN t3 ON c3 = c2
+WHERE c2 = 1);
+SELECT * FROM t1;
+a	b
+1	1
+INSERT INTO t1
+SELECT 1, 1 FROM t2
+ON DUPLICATE KEY UPDATE a= t2.c2 + 100, b= t2.c2 + 100;
+SELECT * FROM t1;
+a	b
+1	1
+101	101
+DROP TABLE t1, t2, t3;

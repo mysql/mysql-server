@@ -25,11 +25,7 @@
 #include <memory>
 #include <vector>
 
-#include "field.h"            // Field
-#include "handler.h"
-#include "key.h"
 #include "m_string.h"
-#include "malloc_allocator.h"  // IWYU pragma: keep
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -37,16 +33,23 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_table_map.h"
+#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h" // Prealloced_array
 #include "priority_queue.h"   // Priority_queue
-#include "records.h"          // READ_RECORD
-#include "sql_alloc.h"
-#include "sql_bitmap.h"
-#include "sql_const.h"
-#include "sql_list.h"
+#include "sql/dd/properties.h"
+#include "sql/field.h"        // Field
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/key_spec.h"
+#include "sql/malloc_allocator.h" // IWYU pragma: keep
+#include "sql/records.h"      // READ_RECORD
+#include "sql/sql_alloc.h"
+#include "sql/sql_bitmap.h"
+#include "sql/sql_const.h"
+#include "sql/sql_list.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "table.h"
-#include "typelib.h"
 
 class Item;
 class Item_sum;

@@ -22,11 +22,14 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"                        // free_root
+#include "mysql/components/services/mysql_rwlock_bits.h"
+#include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
-#include "sql_list.h"                      // List
-#include "sql_plugin_ref.h"                // plugin_ref
-#include "thr_malloc.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/sql_list.h"                  // List
+#include "sql/sql_plugin_ref.h"            // plugin_ref
+#include "sql/thr_malloc.h"
 
 class Master_info;
 class String;
@@ -180,10 +183,6 @@ public:
   int before_rollback(THD *thd, bool all);
   int after_commit(THD *thd, bool all);
   int after_rollback(THD *thd, bool all);
-private:
-  void prepare_table_info(THD* thd,
-                          Trans_table_info*& table_info_list,
-                          uint& number_of_tables);
 };
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
@@ -294,6 +293,7 @@ public:
                         const char *event_buf, ulong event_len,
                         bool synced);
   int after_reset_slave(THD *thd, Master_info *mi);
+  int applier_log_event(THD *thd, int& out);
 private:
   void init_param(Binlog_relay_IO_param *param, Master_info *mi);
 };

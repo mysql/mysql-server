@@ -20,21 +20,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
       someone's going out of their way to break to API)". :)
 */
 
-#include "current_thd.h"      // current_thd
-#include "log.h"              // make_iso8601_timestamp, log_write_errstream,
+#include <mysql/components/services/log_service.h>
+#include <mysql/components/services/log_shared.h>   // data types
+
+#include "log_builtins_filter_imp.h"
+#include "log_builtins_imp.h" // internal structs
+                              // connection_events_loop_aborted()
+#include "registry.h"         // mysql_registry_imp
+#include "server_component.h"
+#include "sql/current_thd.h"  // current_thd
+#include "sql/log.h"          // make_iso8601_timestamp, log_write_errstream,
                               // log_get_thread_id, mysql_errno_to_symbol,
                               // mysql_symbol_to_errno, log_vmessage,
                               // get_server_errmsgs, LogVar
-#include <mysql/components/services/log_shared.h>   // data types
-#include <mysql/components/services/log_service.h>
-#include "server_component.h"
-#include "log_builtins_filter_imp.h"
-#include "log_builtins_imp.h" // internal structs
-#include "mysqld.h"           // opt_log_(timestamps|error_services),
-                              // connection_events_loop_aborted()
-#include "registry.h"         // mysql_registry_imp
-#include "server_component.h" // imp_mysql_server_registry
-#include "sql_class.h"        // THD
+#include "sql/mysqld.h"       // opt_log_(timestamps|error_services),
+#include "sql/sql_class.h"    // THD
 
 #ifndef _WIN32
 #include <syslog.h>
@@ -54,12 +54,29 @@ PSI_memory_key key_memory_log_error_loaded_services;
 PSI_memory_key key_memory_log_error_stack;
 }
 
+using std::string;
+using std::unique_ptr;
+
+struct log_service_cache_entry;
+
+struct log_service_cache_entry_free
+{
+  /**
+    Release an entry in the hash of log services.
+
+    @param       sce     the entry to free
+  */
+  void operator() (log_service_cache_entry *sce) const;
+};
 
 /**
   We're caching handles to the services used in error logging
   as looking them up is costly.
 */
-static HASH                        log_service_cache;
+using cache_entry_with_deleter=
+  unique_ptr<log_service_cache_entry, log_service_cache_entry_free>;
+static collation_unordered_map<string, cache_entry_with_deleter>
+  *log_service_cache;
 
 /**
   Lock for the log "stack" (i.e. the list of active log-services).
@@ -123,7 +140,7 @@ typedef enum enum_log_service_builtin_type
   events are logged per second), so we cache the relevant data.
   This struct describes a given service.
 */
-typedef struct _log_service_cache_entry
+struct log_service_cache_entry
 {
   char                            *name;       ///< name of this service
   size_t                           name_len;   ///< service-name's length
@@ -132,7 +149,7 @@ typedef struct _log_service_cache_entry
   int                              requested;  ///< requested instances
   bool                             multi_open; ///< multi-open supported?
   log_service_builtin_type         type;       ///< regular, builtin filter/sink
-} log_service_cache_entry;
+};
 
 
 /**
@@ -1648,49 +1665,21 @@ static my_h_service log_service_get_by_name(const char *name, size_t len,
   return service;
 }
 
-
-/**
-  Callback for the log-services hash.
-  This extracts a key from the struct.
-
-  @param       arg     a pointer to a log_service_cache_entry
-  @param[out]  length  the length of the key in bytes
-
-  @retval              a pointer to the key
-*/
-static const uchar *log_service_cache_get_key(const uchar *arg,
-                                              size_t *length)
+void log_service_cache_entry_free::operator()
+  (log_service_cache_entry *sce) const
 {
-  const log_service_cache_entry *srv=
-    pointer_cast<const log_service_cache_entry *>(arg);
+  if (sce == nullptr) return;
 
-  *length= (uint) srv->name_len;
-  return (uchar *) srv->name;
-}
+  if (sce->name != nullptr)
+    my_free(sce->name);
 
+  assert(sce->opened == 0);
+  if (sce->service != nullptr)
+    imp_mysql_server_registry.release(sce->service);
 
-/**
-  Release an entry in the hash of log services.
+  memset(sce, 0, sizeof(log_service_cache_entry));
 
-  @param       arg     a pointer to a log_service_cache_entry
-*/
-static void log_service_cache_entry_free(void *arg)
-{
-  if (arg != nullptr)
-  {
-    log_service_cache_entry *sce= (log_service_cache_entry *) arg;
-
-    if (sce->name != nullptr)
-      my_free(sce->name);
-
-    assert(sce->opened == 0);
-    if (sce->service != nullptr)
-      imp_mysql_server_registry.release(sce->service);
-
-    memset(sce, 0, sizeof(log_service_cache_entry));
-
-    my_free(sce);
-  }
+  my_free(sce);
 }
 
 
@@ -1896,7 +1885,6 @@ int log_builtins_error_stack(const char *conf, bool check_only)
   size_t                   len;
   my_h_service             service;
   int                      rr= 0;
-  ulong                    idx;
   log_service_cache_entry *sce;
   log_service_instance    *lsi;
 
@@ -1907,10 +1895,9 @@ int log_builtins_error_stack(const char *conf, bool check_only)
     log_service_instance_release_all();
 
   // clear keep flag on all service cache entries
-  for (idx= 0; idx < log_service_cache.records; idx++)
+  for (auto &key_and_value : *log_service_cache)
   {
-    sce= (log_service_cache_entry *)
-           my_hash_element(&log_service_cache, idx);
+    sce= key_and_value.second.get();
     sce->requested= 0;
 
     assert(check_only || (sce->opened == 0));
@@ -1921,12 +1908,10 @@ int log_builtins_error_stack(const char *conf, bool check_only)
   {
     log_service_builtin_type srvtype= LOG_SERVICE_BUILTIN_TYPE_NONE;
 
-    sce= (log_service_cache_entry *) my_hash_search(&log_service_cache,
-                                                    (const uchar *) start,
-                                                    len);
+    auto it= log_service_cache->find(string(start, len));
 
     // not found in cache; ask component framework
-    if (sce == nullptr)
+    if (it == log_service_cache->end())
     {
       service= log_service_get_by_name(start, len, buf, sizeof(buf));
 
@@ -1969,8 +1954,11 @@ int log_builtins_error_stack(const char *conf, bool check_only)
         DBUG_ASSERT(false);
       }
 
-      my_hash_insert(&log_service_cache, (const uchar *) sce);
+      log_service_cache->emplace(string(sce->name, sce->name_len),
+                                 cache_entry_with_deleter(sce));
     }
+    else
+      sce= it->second.get();
 
     // at this point, it's in cache, one way or another
     sce->requested++;
@@ -2012,15 +2000,14 @@ int log_builtins_error_stack(const char *conf, bool check_only)
 
 done:
   // remove stale entries from cache
-  for (idx= 0; idx < log_service_cache.records;)
+  for (auto it= log_service_cache->begin(); it != log_service_cache->end(); )
   {
-    sce= (log_service_cache_entry *)
-           my_hash_element(&log_service_cache, idx);
+    sce= it->second.get();
 
     if (sce->opened <= 0)
-      my_hash_delete(&log_service_cache, (uchar *) sce);
+      it= log_service_cache->erase(it);
     else
-      idx++;
+      ++it;
   }
 
   mysql_rwlock_unlock(&THR_LOCK_log_stack);
@@ -2043,7 +2030,7 @@ int log_builtins_exit()
 
   log_builtins_filter_exit();
   log_service_instance_release_all();
-  my_hash_free(&log_service_cache);
+  delete log_service_cache;
 
   log_builtins_inited= 0;
 
@@ -2085,13 +2072,11 @@ int log_builtins_init()
 
   if (log_builtins_filter_init())
     rr= -2;
-  else if (my_hash_init(&log_service_cache, system_charset_info, 32, 0,
-                        log_service_cache_get_key,
-                        log_service_cache_entry_free,
-                        0, 0))
+  else
   {
-    log_builtins_filter_exit();
-    rr= -3;
+    log_service_cache=
+      new collation_unordered_map<string, cache_entry_with_deleter>
+        (system_charset_info, 0);
   }
 
   log_service_instances= nullptr;

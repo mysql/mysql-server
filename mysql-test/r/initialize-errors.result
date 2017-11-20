@@ -21,10 +21,6 @@ CREATE DATABASE test;
 # delete mysqld log
 # delete datadir
 #
-# Bug#14609893 MYSQLD CRASH OBSERVED WITH "QUERY_CACHE13END_OF_RESULT"
-#
-# delete datadir
-#
 # Cleanup
 #
 # Restarting the server

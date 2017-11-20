@@ -47,9 +47,9 @@ NULL
 SHOW SESSION VARIABLES like 'autocommit';
 Variable_name	Value
 autocommit	ON
-SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'transaction_isolation';
 Variable_name	Value
-tx_isolation	REPEATABLE-READ
+transaction_isolation	REPEATABLE-READ
 SHOW SESSION VARIABLES like 'character_set_client';
 Variable_name	Value
 character_set_client	utf8mb4
@@ -60,16 +60,16 @@ SHOW SESSION VARIABLES like 'max_join_size';
 Variable_name	Value
 max_join_size	18446744073709551615
 set autocommit=0;
-set tx_isolation='SERIALIZABLE';
+set transaction_isolation='SERIALIZABLE';
 set names 'big5';
 set max_join_size=100;
 set max_join_size=1000;
 SHOW SESSION VARIABLES like 'autocommit';
 Variable_name	Value
 autocommit	OFF
-SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'transaction_isolation';
 Variable_name	Value
-tx_isolation	SERIALIZABLE
+transaction_isolation	SERIALIZABLE
 SHOW SESSION VARIABLES like 'character_set_client';
 Variable_name	Value
 character_set_client	big5
@@ -84,9 +84,9 @@ resetconnection;
 SHOW SESSION VARIABLES like 'autocommit';
 Variable_name	Value
 autocommit	ON
-SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'transaction_isolation';
 Variable_name	Value
-tx_isolation	REPEATABLE-READ
+transaction_isolation	REPEATABLE-READ
 SHOW SESSION VARIABLES like 'character_set_client';
 Variable_name	Value
 character_set_client	utf8mb4

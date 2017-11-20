@@ -34,7 +34,7 @@ Warning	1287	Using GRANT for creating new user is deprecated and will be removed
 set sql_mode= @orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-create user 'quota'@'santa.claus.ipv4.example.com';
+create user 'quota'@'santa.claus.ipv4.example.com' identified with 'mysql_native_password';
 grant select on test.* to 'quota'@'santa.claus.ipv4.example.com';
 select "Con1 is alive";
 Con1 is alive

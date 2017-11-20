@@ -26,8 +26,6 @@
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_file.h"
 
-#ifdef HAVE_PSI_INTERFACE
-
 C_MODE_START
 
 extern PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
@@ -44,25 +42,16 @@ extern PSI_cond_key key_IO_CACHE_SHARE_cond,
   key_IO_CACHE_SHARE_cond_writer,
   key_THR_COND_threads;
 
-C_MODE_END
-
-#endif /* HAVE_PSI_INTERFACE */
-
-C_MODE_START
-
 extern PSI_stage_info stage_waiting_for_table_level_lock;
 
 extern mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open, THR_LOCK_keycache;
 extern mysql_mutex_t THR_LOCK_net;
 extern mysql_mutex_t THR_LOCK_charset;
 
-#ifdef HAVE_PSI_INTERFACE
 #ifdef HAVE_LINUX_LARGE_PAGES
 extern PSI_file_key key_file_proc_meminfo;
 #endif /* HAVE_LINUX_LARGE_PAGES */
 extern PSI_file_key key_file_charset;
-
-#endif /* HAVE_PSI_INTERFACE */
 
 /* These keys are always defined. */
 

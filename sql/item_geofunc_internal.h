@@ -26,22 +26,26 @@
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/core/cs.hpp>
 #include <boost/geometry/core/tags.hpp>
+#include <boost/geometry/geometries/box.hpp>
+#include <boost/geometry/geometries/point.hpp>
+#include <boost/geometry/geometries/segment.hpp>
 #include <boost/geometry/index/rtree.hpp>
 #include <stddef.h>
 #include <cmath>
 #include <utility>
 #include <vector>
 
-#include "gis/srid.h"
-#include "gis_bg_traits.h"
-#include "item_geofunc.h"
 #include "my_inttypes.h"
-#include "spatial.h"
-#include "sql_exception_handler.h" // handle_gis_exception
-#include "srs_fetcher.h"
+#include "sql/gis/srid.h"
+#include "sql/gis_bg_traits.h"
+#include "sql/item_geofunc.h"
+#include "sql/spatial.h"
+#include "sql/sql_exception_handler.h" // handle_gis_exception
+#include "sql/srs_fetcher.h"
 
 class String;
 class THD;
+
 namespace dd {
 class Spatial_reference_system;
 }  // namespace dd

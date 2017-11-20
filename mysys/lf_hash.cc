@@ -28,7 +28,6 @@
 
 #include <atomic>
 
-#include "hash.h"
 #include "lf.h"
 #include "m_ctype.h"
 #include "my_atomic.h"

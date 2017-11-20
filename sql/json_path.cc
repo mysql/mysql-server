@@ -28,14 +28,15 @@
 #include <memory>                               // unique_ptr
 #include <string>
 
-#include "json_dom.h"
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "psi_memory_key.h"           // key_memory_JSON
 #include "rapidjson/encodings.h"
 #include "rapidjson/memorystream.h"   // rapidjson::MemoryStream
-#include "sql_const.h"                // STRING_BUFFER_USUAL_SIZE
+#include "sql/json_dom.h"
+#include "sql/psi_memory_key.h"       // key_memory_JSON
+#include "sql/sql_const.h"            // STRING_BUFFER_USUAL_SIZE
 #include "sql_string.h"               // String
 #include "template_utils.h"           // down_cast
 
@@ -155,75 +156,23 @@ Json_path_leg::Array_range Json_path_leg::get_array_range(size_t array_length)
 }
 
 
-// Json_path_clone
-
-Json_path_clone::Json_path_clone()
+Json_seekable_path::Json_seekable_path()
   : m_path_legs(key_memory_JSON)
 {}
-
-
-const Json_path_leg *Json_path_clone::get_leg_at(size_t index) const
-{
-  if (index >= m_path_legs.size())
-  {
-    return NULL;
-  }
-
-  return m_path_legs.at(index);
-}
-
-
-bool Json_path_clone::set(Json_seekable_path *source)
-{
-  clear();
-
-  size_t legcount= source->leg_count();
-  for (size_t idx= 0; idx < legcount; idx++)
-  {
-    const Json_path_leg *path_leg= source->get_leg_at(idx);
-    if (append(path_leg))
-    {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
-const Json_path_leg *Json_path_clone::pop()
-{
-  DBUG_ASSERT(m_path_legs.size() > 0);
-  const Json_path_leg *p= m_path_legs.back();
-  m_path_legs.pop_back();
-  return p;
-}
 
 
 // Json_path
 
 Json_path::Json_path()
-  : m_path_legs(key_memory_JSON)
+  : m_mem_root(key_memory_JSON, 256, 0)
 {}
 
 
-const Json_path_leg *Json_path::get_leg_at(size_t index) const
-{
-  if (index >= m_path_legs.size())
-  {
-    return NULL;
-  }
-
-  return &m_path_legs.at(index);
-}
-
-
-Json_path_leg Json_path::pop()
+void Json_path::pop()
 {
   DBUG_ASSERT(m_path_legs.size() > 0);
-  Json_path_leg p= m_path_legs.back();
+  m_path_legs.back()->~Json_path_leg();
   m_path_legs.pop_back();
-  return p;
 }
 
 bool Json_path::to_string(String *buf) const
@@ -242,10 +191,9 @@ bool Json_path::to_string(String *buf) const
   if (buf->append(SCOPE))
     return true;
 
-  for (Path_leg_vector::const_iterator iter= m_path_legs.begin();
-       iter != m_path_legs.end(); ++iter)
+  for (const Json_path_leg *leg : *this)
   {
-    if (iter->to_string(buf))
+    if (leg->to_string(buf))
       return true;
   }
 
@@ -253,25 +201,20 @@ bool Json_path::to_string(String *buf) const
 }
 
 
-static inline bool is_wildcard_or_ellipsis_or_range(const Json_path_leg &leg)
-{
-  switch (leg.get_type())
-  {
-  case jpl_member_wildcard:
-  case jpl_array_cell_wildcard:
-  case jpl_ellipsis:
-  case jpl_array_range:
-    return true;
-  default:
-    return false;
-  }
-}
-
-
 bool Json_path::can_match_many() const
 {
-  return std::any_of(m_path_legs.begin(), m_path_legs.end(),
-                     is_wildcard_or_ellipsis_or_range);
+  return std::any_of(begin(), end(), [](const Json_path_leg *leg) -> bool {
+      switch (leg->get_type())
+      {
+      case jpl_member_wildcard:
+      case jpl_array_cell_wildcard:
+      case jpl_ellipsis:
+      case jpl_array_range:
+        return true;
+      default:
+        return false;
+      }
+    });
 }
 
 
@@ -313,7 +256,7 @@ static inline bool is_whitespace(char ch)
 */
 static inline const char *purge_whitespace(const char *str, const char *end)
 {
-  return std::find_if_not(str, end, is_whitespace);
+  return std::find_if_not(str, end, [](char c) { return is_whitespace(c); });
 }
 
 
@@ -363,7 +306,7 @@ const char *Json_path::parse_path(const bool begins_with_column_id,
   }
 
   // a path may not end with an ellipsis
-  if (m_path_legs.size() > 0 && m_path_legs.back().get_type() == jpl_ellipsis)
+  if (m_path_legs.size() > 0 && m_path_legs.back()->get_type() == jpl_ellipsis)
   {
     *status= false;
   }
@@ -655,15 +598,15 @@ static const char *find_end_of_member_name(const char *start, const char *end)
   @return a Json_string that represents the member name, or NULL if
   the input string is not a valid name
 */
-static const Json_string *parse_name_with_rapidjson(const char *str, size_t len)
+static std::unique_ptr<Json_string>
+parse_name_with_rapidjson(const char *str, size_t len)
 {
-  const Json_dom *dom= Json_dom::parse(str, len, NULL, NULL);
+  Json_dom_ptr dom= Json_dom::parse(str, len, nullptr, nullptr);
 
-  if (dom != NULL && dom->json_type() == enum_json_type::J_STRING)
-    return down_cast<const Json_string *>(dom);
+  if (dom == nullptr || dom->json_type() != enum_json_type::J_STRING)
+    return nullptr;
 
-  delete dom;
-  return NULL;
+  return std::unique_ptr<Json_string>(down_cast<Json_string *>(dom.release()));
 }
 
 
@@ -693,7 +636,7 @@ const char *Json_path::parse_member_leg(const char *charptr,
 
     charptr= key_end;
 
-    std::unique_ptr<const Json_string> jstr;
+    std::unique_ptr<Json_string> jstr;
 
     if (was_quoted)
     {
@@ -701,7 +644,7 @@ const char *Json_path::parse_member_leg(const char *charptr,
         Send the quoted name through the parser to unquote and
         unescape it.
       */
-      jstr.reset(parse_name_with_rapidjson(key_start, key_end - key_start));
+      jstr= parse_name_with_rapidjson(key_start, key_end - key_start);
     }
     else
     {
@@ -717,10 +660,10 @@ const char *Json_path::parse_member_leg(const char *charptr,
           strbuff.append(key_start, key_end - key_start) ||
           strbuff.append(DOUBLE_QUOTE))
         PARSER_RETURN(false);                 /* purecov: inspected */
-      jstr.reset(parse_name_with_rapidjson(strbuff.ptr(), strbuff.length()));
+      jstr= parse_name_with_rapidjson(strbuff.ptr(), strbuff.length());
     }
 
-    if (jstr.get() == NULL)
+    if (jstr == nullptr)
       PARSER_RETURN(false);
 
     // unquoted names must be valid ECMAScript identifiers

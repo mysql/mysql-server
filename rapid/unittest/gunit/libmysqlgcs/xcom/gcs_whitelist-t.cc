@@ -13,42 +13,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gtest/gtest.h>
-
-#include "gcs_xcom_interface.h"
-#include "mysql/gcs/gcs_log_system.h"
-
 #include <vector>
 #include <string>
+
+#include "gcs_base_test.h"
 
 using std::vector;
 
 namespace gcs_whitelist_unittest
 {
 
-class GcsWhitelist : public ::testing::Test
+class GcsWhitelist : public GcsBaseTest
 {
-private:
-  Ext_logger_interface *m_logger;
 protected:
-  GcsWhitelist() : m_logger(NULL) {}
-
-  virtual void SetUp()
-  {
-    if(Gcs_logger::get_logger() == NULL)
-    {
-      m_logger= new Gcs_simple_ext_logger_impl();
-      Gcs_logger::initialize(m_logger);
-      MYSQL_GCS_LOG_INFO(
-        "No logging system was previously set. Using default logging system.");
-    }
-  }
-
-  virtual void TearDown()
-  {
-    Gcs_logger::finalize();
-    delete m_logger;
-  }
+  GcsWhitelist() {}
 };
 
 TEST_F(GcsWhitelist, ValidIPs)

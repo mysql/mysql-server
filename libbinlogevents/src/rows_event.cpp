@@ -502,8 +502,9 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
   ptr_after_width+= (m_width + 7) / 8;
 
   columns_after_image= columns_before_image;
-  if ((event_type == UPDATE_ROWS_EVENT) ||
-      (event_type == UPDATE_ROWS_EVENT_V1))
+  if (event_type == UPDATE_ROWS_EVENT ||
+      event_type == UPDATE_ROWS_EVENT_V1 ||
+      event_type == PARTIAL_UPDATE_ROWS_EVENT)
   {
     columns_after_image.reserve((m_width + 7) / 8);
     columns_after_image.clear();
@@ -619,7 +620,8 @@ void Rows_event::print_long_info(std::ostream& info)
     info << "\nType: Delete" ;
 
   if (this->get_event_type() == UPDATE_ROWS_EVENT_V1 ||
-      this->get_event_type() == UPDATE_ROWS_EVENT)
+      this->get_event_type() == UPDATE_ROWS_EVENT ||
+      this->get_event_type() == PARTIAL_UPDATE_ROWS_EVENT)
     info << "\nType: Update" ;
 }
 #endif

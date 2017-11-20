@@ -18,7 +18,7 @@
 #include <assert.h>
 
 #include "mysql/gcs/gcs_message.h"
-#include "mysql/gcs/gcs_logging.h"
+#include "mysql/gcs/gcs_logging_system.h"
 #include "mysql/gcs/xplatform/byteorder.h"
 #include "mysql/gcs/xplatform/my_xp_util.h"
 
@@ -240,8 +240,9 @@ bool Gcs_message_data::encode(uchar *buffer, uint64_t *buffer_len)
   MYSQL_GCS_DEBUG_EXECUTE(
     uint64_t MY_ATTRIBUTE((unused)) encoded_header_size= get_encode_header_size();
     MYSQL_GCS_LOG_TRACE(
-      "Encoded message: (header)=" << encoded_header_size <<
-      " (payload)=" << header_len + payload_len
+      "Encoded message: (header)= %llu (payload)= %llu",
+      static_cast<unsigned long long>(encoded_header_size),
+      static_cast<unsigned long long>(header_len + payload_len)
     );
   );
 
@@ -300,9 +301,9 @@ bool Gcs_message_data::decode(const uchar *data, uint64_t data_len)
   slider+= m_payload_len;
 
   MYSQL_GCS_LOG_TRACE(
-    "Decoded message: (header)=" <<
-    static_cast<uint64_t>(m_header - m_buffer) <<
-    " and (payload)=" << (m_header_len + m_payload_len)
+    "Decoded message: (header)= %llu and (payload)= %llu",
+    static_cast<unsigned long long>(m_header - m_buffer),
+    static_cast<unsigned long long>(m_header_len + m_payload_len)
   );
 
   return false;

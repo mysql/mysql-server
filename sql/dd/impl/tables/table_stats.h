@@ -20,11 +20,12 @@
 #include <new>
 #include <string>
 
-#include "dd/impl/raw/object_keys.h"          // Composite_char_key
-#include "dd/impl/types/entity_object_table_impl.h"
+#include "sql/dd/impl/raw/object_keys.h"      // Composite_char_key
+#include "sql/dd/impl/types/entity_object_table_impl.h"
                                               // Entity_object_table_impl
-#include "dd/impl/types/table_stat_impl.h"    // Table_stat
-#include "dd/types/table_stat.h"
+#include "sql/dd/impl/types/table_stat_impl.h" // Table_stat
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/table_stat.h"
 
 namespace dd {
 
@@ -60,7 +61,8 @@ public:
     FIELD_AUTO_INCREMENT,
     FIELD_CHECKSUM,
     FIELD_UPDATE_TIME,
-    FIELD_CHECK_TIME
+    FIELD_CHECK_TIME,
+    FIELD_CACHED_TIME
   };
 
 public:

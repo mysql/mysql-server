@@ -21,40 +21,45 @@
 #include "sql/sql_rename.h"
 
 #include <string.h>
+#include <set>
 
-#include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
-#include "dd/dd_table.h"      // dd::table_storage_engine
-#include "dd/types/abstract_table.h" // dd::Abstract_table
-#include "dd/types/table.h"   // dd::Table
-#include "dd_sql_view.h"      // View_metadata_updater
-#include "lex_string.h"
-#include "log.h"              // query_logger
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysqld.h"           // lower_case_table_names
+#include "mysql/components/services/log_shared.h"
 #include "mysqld_error.h"
-#include "sp_cache.h"         // sp_cache_invalidate
-#include "sql_base.h"         // tdc_remove_table,
+#include "sql/dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
+#include "sql/dd/dd_table.h"  // dd::table_storage_engine
+#include "sql/dd/types/abstract_table.h" // dd::Abstract_table
+#include "sql/dd/types/foreign_key.h" // dd::Foreign_key
+#include "sql/dd/types/table.h" // dd::Table
+#include "sql/dd_sql_view.h"  // View_metadata_updater
+#include "sql/handler.h"
+#include "sql/log.h"          // query_logger
+#include "sql/mysqld.h"       // lower_case_table_names
+#include "sql/sp_cache.h"     // sp_cache_invalidate
+#include "sql/sql_base.h"     // tdc_remove_table,
                               // lock_table_names,
-#include "sql_cache.h"        // query_cache
-#include "sql_class.h"        // THD
-#include "sql_handler.h"      // mysql_ha_rm_tables
-#include "sql_plugin.h"
-#include "sql_table.h"        // write_bin_log,
+#include "sql/sql_class.h"    // THD
+#include "sql/sql_handler.h"  // mysql_ha_rm_tables
+#include "sql/sql_table.h"    // write_bin_log,
                               // build_table_filename
-#include "sql_trigger.h"      // change_trigger_table_name
-#include "sql_view.h"         // mysql_rename_view
-#include "system_variables.h"
-#include "table.h"
-#include "transaction.h"      // trans_commit_stmt
+#include "sql/sql_trigger.h"  // change_trigger_table_name
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction.h"  // trans_commit_stmt
+
+namespace dd {
+class Schema;
+}  // namespace dd
 
 
 typedef std::set<handlerton*> post_ddl_htons_t;
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
-                                 bool skip_error, bool *int_commit_done,
-                                 post_ddl_htons_t *post_ddl_htons);
+                      bool skip_error, bool *int_commit_done,
+                      post_ddl_htons_t *post_ddl_htons,
+                      Foreign_key_parents_invalidator *fk_invalidator);
 
 static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 
@@ -180,27 +185,19 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   bool error= false;
   bool int_commit_done= false;
   std::set<handlerton*> post_ddl_htons;
+  Foreign_key_parents_invalidator fk_invalidator;
   /*
     An exclusive lock on table names is satisfactory to ensure
     no other thread accesses this table.
   */
   if ((ren_table= rename_tables(thd, table_list, 0, &int_commit_done,
-                                &post_ddl_htons)))
+                                &post_ddl_htons, &fk_invalidator)))
   {
     /* Rename didn't succeed;  rename back the tables in reverse order */
     TABLE_LIST *table;
 
-#ifdef WORKAROUND_TO_BE_REMOVED_BY_WL7016_AND_WL7896
     if (int_commit_done)
     {
-#else
-    if (!thd->transaction_rollback_request)
-    {
-      Disable_gtid_state_update_guard disabler(thd);
-      trans_commit_stmt(thd);
-      trans_commit(thd);
-      int_commit_done= true;
-#endif
       /* Reverse the table list */
       table_list= reverse_table_list(table_list);
 
@@ -210,7 +207,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 	   table= table->next_local->next_local) ;
       table= table->next_local->next_local;		// Skip error table
       /* Revert to old names */
-      rename_tables(thd, table, 1, &int_commit_done, &post_ddl_htons);
+      rename_tables(thd, table, 1, &int_commit_done,
+                    &post_ddl_htons, &fk_invalidator);
 
       /* Revert the table list (for prepared statements) */
       table_list= reverse_table_list(table_list);
@@ -220,20 +218,13 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   }
 
   if (!error)
-    query_cache.invalidate(thd, table_list, FALSE);
-
-  if (!error)
   {
     error= write_bin_log(thd, true,
                          thd->query().str, thd->query().length,
                          !int_commit_done);
   }
 
-  if (!error
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-      && int_commit_done
-#endif
-      )
+  if (!error)
   {
     Uncommitted_tables_guard uncommitted_tables(thd);
 
@@ -256,26 +247,18 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   }
 
   if (!error && !int_commit_done)
+  {
     error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
 
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-  if (!error && !int_commit_done)
-  {
-    for (ren_table= table_list; ren_table;
-         ren_table= ren_table->next_local->next_local)
+    if (!error)
     {
-      TABLE_LIST *new_table= ren_table->next_local;
-      DBUG_ASSERT(new_table);
-
-      if ((error= update_referencing_views_metadata(thd, ren_table,
-                                                    new_table->db,
-                                                    new_table->table_name,
-                                                    true,
-                                                    nullptr)))
-        break;
+      /*
+        Don't try to invalidate foreign key parents on error,
+        as we might miss necessary locks on them.
+      */
+      fk_invalidator.invalidate(thd);
     }
   }
-#endif
 
   if (error)
   {
@@ -338,6 +321,8 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
   @param[in,out]  post_ddl_htons    Set of SEs supporting atomic DDL
                                     for which post-DDL hooks needs
                                     to be called.
+  @param[in,out]  fk_invalidator    Object keeping track of which
+                                    dd::Table objects to invalidate.
 
   @note Unless int_commit_done is true failure of this call requires
         rollback of transaction before doing anything else.
@@ -349,7 +334,8 @@ static bool
 do_rename(THD *thd, TABLE_LIST *ren_table,
           const char *new_db, const char *new_table_name,
           const char *new_table_alias, bool skip_error,
-          bool *int_commit_done, std::set<handlerton*> *post_ddl_htons)
+          bool *int_commit_done, std::set<handlerton*> *post_ddl_htons,
+          Foreign_key_parents_invalidator *fk_invalidator)
 {
   const char *new_alias= new_table_name;
   const char *old_alias= ren_table->table_name;
@@ -413,15 +399,6 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
       if (dd::table_storage_engine(thd, from_table, &hton))
         DBUG_RETURN(!skip_error);
 
-      /*
-        Commit changes to data-dictionary immediately after renaming
-        table in storage negine if SE doesn't support atomic DDL or
-        there were intermediate commits already. In the latter case
-        the whole statement is not crash-safe anyway and clean-up is
-        simpler this way.
-      */
-      *int_commit_done |= !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL);
-
       if ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
           (hton->post_ddl))
         post_ddl_htons->insert(hton);
@@ -431,11 +408,155 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
                                                           new_db))
         DBUG_RETURN(!skip_error);
 
-      // If renaming fails, my_error() has already been called
+      // The below code assumes that only SE capable of atomic DDL support FK.
+      DBUG_ASSERT(!(hton->flags & HTON_SUPPORTS_FOREIGN_KEYS) ||
+                  (hton->flags & HTON_SUPPORTS_ATOMIC_DDL));
+
+      /*
+        If we are performing rename with intermediate commits then
+        invalidation of foreign key parents should have happened
+        already, right after commit. Code below dealing with failure to
+        acquire locks on parent and child tables relies on this
+        invariant.
+      */
+      DBUG_ASSERT(!(*int_commit_done) || fk_invalidator->is_empty());
+
+      /*
+        Obtain exclusive metadata lock on all tables being referenced by the
+        old table, since these tables must be invalidated to force a cache miss
+        on next acquisition, in order to refresh their FK information.
+
+        Also lock all tables referencing the old table. The FK information in
+        these tables must be updated to refer to the new table name.
+
+        And also lock all tables referencing the new table. The FK information
+        in these tables must be updated to refer to the (possibly) new
+        unique index name.
+
+        TODO: Long-term we should consider acquiring these locks in
+              mysql_rename_tables() together with locks on other tables.
+              This should decrease probability of deadlock and improve
+              crash-safety for RENAME TABLES which mix InnoDB and non-InnoDB
+              tables (as all waiting will happen before any changes to SEs).
+      */
+      if (hton->flags & HTON_SUPPORTS_FOREIGN_KEYS)
+      {
+        /*
+          RENAME TABLES is prohibited under LOCK TABLES. So we don't need to
+          handle LOCK TABLES case here by disallowing situations in which
+          table being renamed will become parent for some orphan child tables.
+        */
+        DBUG_ASSERT(thd->locked_tables_mode != LTM_LOCK_TABLES);
+
+        if (collect_and_lock_fk_tables_for_rename_table(thd,
+                                                        ren_table->db,
+                                                        old_alias,
+                                                        from_table,
+                                                        new_db,
+                                                        new_alias,
+                                                        hton,
+                                                        fk_invalidator))
+        {
+          /*
+            If we are performing RENAME TABLES with intermediate commits
+            FK invalidator was empty before the above call. So at this
+            point it only contains entries on which we might miss locks.
+            We need to clear invalidator before starting process of
+            reverse renames.
+            If we are performing RENAME TABLES without intermediate commits
+            the whole statement will be rolled back and invalidation won't
+            happen. So it is safe to clear invalidator.
+          */
+          fk_invalidator->clear();
+          DBUG_RETURN(!skip_error);
+        }
+      }
+
+      /*
+        We commit changes to data-dictionary immediately after renaming
+        table in storage engine if SE doesn't support atomic DDL or
+        there were intermediate commits already. In the latter case
+        the whole statement is not crash-safe anyway and clean-up is
+        simpler this way.
+
+        The FKs of the renamed table must be changed to reflect the new table.
+        The tables referencing the old and new table names must have their FK
+        information updated to reflec the correct table- and unique index name.
+        The parents of the old FKs must be invalidated to make sure they
+        update the cached FK parent information upon next acquisition.
+
+        If renaming fails, my_error() has already been called
+
+        QQ: Think about (!skip_error)
+      */
       if (mysql_rename_table(thd, hton, ren_table->db, old_alias, *to_schema,
                              new_db, new_alias,
-                             (*int_commit_done ? 0 : NO_DD_COMMIT)))
+                             ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) ?
+                              NO_DD_COMMIT : 0)) ||
+          ((hton->flags & HTON_SUPPORTS_FOREIGN_KEYS) &&
+           adjust_fks_for_rename_table(thd, ren_table->db, old_alias,
+                                       new_db, new_alias, hton)))
+      {
+        /*
+          If RENAME TABLE is non-atomic as whole but we didn't try to commit
+          the above changes we need to clean-up them before returning.
+        */
+        if (*int_commit_done &&
+            (hton->flags & HTON_SUPPORTS_ATOMIC_DDL))
+        {
+          Disable_gtid_state_update_guard disabler(thd);
+          trans_rollback_stmt(thd);
+          // Full rollback in case we have THD::transaction_rollback_request.
+          trans_rollback(thd);
+          /*
+            Preserve the invariant that FK invalidator is empty after each
+            step of non-atomic RENAME TABLE.
+          */
+          fk_invalidator->clear();
+        }
         DBUG_RETURN(!skip_error);
+      }
+
+      /*
+        If RENAME TABLE is non-atomic but we have not committed the above
+        rename and changes to FK we need to do it now.
+      */
+      if (*int_commit_done && (hton->flags & HTON_SUPPORTS_ATOMIC_DDL))
+      {
+        Disable_gtid_state_update_guard disabler(thd);
+
+        if (trans_commit_stmt(thd) || trans_commit(thd))
+        {
+          /*
+            Preserve the invariant that FK invalidator is empty after each
+            step of non-atomic RENAME TABLE.
+          */
+          fk_invalidator->clear();
+          DBUG_RETURN(!skip_error);
+        }
+      }
+
+      *int_commit_done |= !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL);
+
+      if (*int_commit_done)
+      {
+        /*
+          For non-atomic RENAME TABLE we try to invalidate FK parents right
+          after transaction commit. This enforces invariant that invalidator
+          is empty after each step of such RENAME TABLE.
+
+          We perform invalidation if there was commit above to handle two
+          cases:
+          - We committed rename of table in SE supporting atomic DDL (and so
+            possibly supporting FKs) since this RENAME TABLE already started
+            doing intermediate commits.
+          - We committed rename of table in SE not supporting atomic DDL.
+            Invalidation still necessary as this might be first non-atomic
+            rename which follows chain of atomic renames which might have
+            added pending invalidation requests to invalidator.
+        */
+        fk_invalidator->invalidate(thd);
+      }
 
       break;
     }
@@ -463,8 +584,8 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
           trans_rollback_stmt(thd);
           // Full rollback in case we have THD::transaction_rollback_request.
           trans_rollback(thd);
-          DBUG_RETURN(!skip_error);
         }
+        DBUG_RETURN(!skip_error);
       }
 
       if (*int_commit_done)
@@ -503,6 +624,8 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   @param[in,out]  post_ddl_htons    Set of SEs supporting atomic DDL
                                     for which post-DDL hooks needs
                                     to be called.
+  @param[in,out]  fk_invalidator    Object keeping track of which
+                                    dd::Table objects to invalidate.
 
   @note
     Take a table/view name from and odd list element and rename it to a
@@ -518,7 +641,9 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 
 static TABLE_LIST *
 rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error,
-              bool *int_commit_done, post_ddl_htons_t *post_ddl_htons)
+              bool *int_commit_done, post_ddl_htons_t *post_ddl_htons,
+              Foreign_key_parents_invalidator *fk_invalidator)
+
 {
   TABLE_LIST *ren_table, *new_table;
 
@@ -529,7 +654,7 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error,
     new_table= ren_table->next_local;
     if (do_rename(thd, ren_table, new_table->db, new_table->table_name,
                   new_table->alias, skip_error, int_commit_done,
-                  post_ddl_htons))
+                  post_ddl_htons, fk_invalidator))
       DBUG_RETURN(ren_table);
   }
   DBUG_RETURN(0);

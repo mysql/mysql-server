@@ -31,9 +31,11 @@ select sum(char_length(c)) from t;
 insert into t values (X'10');                   # needs \u escape
 select sum(char_length(c)) from t;
 
-select group_concat(c order by c) from t;
+--echo # '\b' and X'10' order equal in the default collation, so order on
+--echo # hex(c) as a tie-breaker to get stable results.
+select group_concat(c order by c, hex(c)) from t;
 select char_length(group_concat(c)) from t;
-select json_quote(group_concat(c order by c)) from t;
+select json_quote(group_concat(c order by c, hex(c))) from t;
 select char_length(json_quote(group_concat(c))) from t;
 
 select convert(group_concat(c) using utf8mb4) =

@@ -25,6 +25,7 @@
 // STL
 #include <string>
 
+typedef NdbImport::OptCsv OptCsv;
 typedef NdbImport::JobStatus JobStatus;
 typedef NdbImport::JobStats JobStats;
 
@@ -40,13 +41,6 @@ static NdbOut g_err(g_err_out);
 #define CHK2(b, e) \
   if (!(b)) { \
     g_err << my_progname << ": " << e << endl; \
-    ret = -1; \
-    break; \
-  }
-
-#define CHK3(b, m, e) \
-  if (!(b)) { \
-    g_err << my_progname << ": " << m << ": " << e << endl; \
     ret = -1; \
     break; \
   }
@@ -76,9 +70,13 @@ my_long_options[] =
   { "keep-state", NDB_OPT_NOSHORT,
     "By default state files are removed when the job completes"
     " successfully, except if there were any rejects (within allowed limit)"
-    " then *.rej is kept. This option keeps all state files"
-    " e.g. for study of stats *.stt",
+    " then *.rej is kept. This option keeps all state files",
     &g_opt.m_keep_state, &g_opt.m_keep_state, 0,
+    GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0 },
+  { "stats", NDB_OPT_NOSHORT,
+    "Collect internal statistics and write them into an additional"
+    " state file *.stt. The file is kept also on successful completion",
+    &g_opt.m_stats, &g_opt.m_stats, 0,
     GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0 },
   { "input-type", NDB_OPT_NOSHORT,
     "Input type: csv,random"
@@ -118,9 +116,9 @@ my_long_options[] =
     &g_opt.m_continue, &g_opt.m_continue, 0,
     GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0 },
   { "resume", NDB_OPT_NOSHORT,
-    "If the job(s) are aborted due to e.g. temporary db error"
-    " or by user interrupt, add this option to try to resume"
-    " with rows not yet processed",
+    "If the job(s) are aborted due to e.g. too many rejects or"
+     " too many temporary NDB errors or user interrupt,"
+    " add this option to try to resume with rows not yet processed",
     &g_opt.m_resume, &g_opt.m_resume, 0,
     GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0 },
   { "monitor", NDB_OPT_NOSHORT,
@@ -192,11 +190,10 @@ my_long_options[] =
     &g_opt.m_polltimeout, &g_opt.m_polltimeout, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_polltimeout, 0, 0, 0, 0, 0 },
   { "temperrors", NDB_OPT_NOSHORT,
-    "Temporary error count is incremented by 1 each time a db execution"
-    " batch has any temporary errors."
-    " This option limits temporary error count."
-    " Default is 0 which means that any temporary error is fatal."
-    " These errors do not cause rows to be added to *.rej",
+    "Limit temporary NDB errors. Default is 0 which means that any"
+    " temporary error is fatal."
+    " The errors are counted per db execution batch, not per individual"
+    " operations, and do not cause rows to be rejected",
     &g_opt.m_temperrors, &g_opt.m_temperrors, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_temperrors, 0, 0, 0, 0, 0 },
   { "tempdelay", NDB_OPT_NOSHORT,
@@ -245,6 +242,16 @@ my_long_options[] =
     &g_opt.m_optcsv.m_lines_terminated_by,
     &g_opt.m_optcsv.m_lines_terminated_by, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "csvopt", NDB_OPT_NOSHORT,
+    "Set some typical CSV options."
+    " Useful for environments where command line quoting and escaping is hard."
+    " Argument is a string of letters:"
+    " d-LOAD DATA defaults"
+    " c-fields terminated by real comma (,)"
+    " q-fields optionally enclosed by double quotes (\")"
+    " r-lines terminated by \\r\\n",
+    &g_opt.m_csvopt, &g_opt.m_csvopt, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "verbose", 'v',
     "Verbosity level for debug messages (0-2 or 0-4 in debug)",
     &g_opt.m_verbose, &g_opt.m_verbose, 0,
@@ -282,10 +289,13 @@ short_usage_sub(void)
     "test.t1 test.t2.\n"
     "\n"
     "For each job (load of one table), results, rejected rows,\n"
-    "processed row ranges, and stats are written to state files\n"
-    "with suffixes .res, .rej, .map, and .stt.  By default these\n"
-    "are removed when the job completes successfully with no rejects.\n"
+    "and processed row ranges are written to \"state files\" with\n"
+    "suffixes .res, .rej, and .map.  By default these are removed\n"
+    "when the job completes successfully with no rejects.\n"
     "See options --state-dir and --keep-state.\n"
+    "\n"
+    "Windows notes: File paths are shown with forward slash (/).\n"
+    "To load windows format files currently requires --csvopt=r.\n"
     "\n",
     my_progname);
 }
@@ -299,6 +309,10 @@ usage()
 
 // check opts and args
 
+// opts
+static std::string g_state_dir;
+
+// args
 struct TableArg {
   std::string m_table;
   std::string m_input_file;
@@ -319,6 +333,26 @@ const char* g_reserved_extension[] = {
   0
 };
 
+/*
+ * File I/O functions in the Windows API convert "/" to "\" (says
+ * MicroSoft).  MTR uses "/" and converts it to "\" when needed.
+ * It does not recognize paths in ndb_import options and arguments.
+ * We solve the mess by converting all "\" to "/".  Messages will
+ * show the converted paths, fix later if it matters.
+ */
+static void
+convertpath(std::string& str)
+{
+#ifdef _WIN32
+  // std::replace() exists but following is more clear
+  for (uint i = 0; i < (uint)str.size(); i++)
+  {
+    if (str[i] == '\\')
+      str[i] = '/';
+  }
+#endif
+}
+
 static int
 checkarg(TableArg& arg, const char* str)
 {
@@ -326,6 +360,7 @@ checkarg(TableArg& arg, const char* str)
   do
   {
     std::string full = str;     // foo/t1.bar.csv
+    convertpath(full);
     std::string base = full;    // t1.bar.csv
     std::size_t slash = full.rfind("/");
     if (slash != std::string::npos)
@@ -373,12 +408,49 @@ checkarg(TableArg& arg, const char* str)
 static int checkerrins();
 
 static int
+checkcsvopt()
+{
+  int ret = 0;
+  for (const char* p = g_opt.m_csvopt; *p != 0; p++)
+  {
+    switch (*p) {
+    case 'd':
+      new (&g_opt.m_optcsv) OptCsv;
+      break;
+    case 'c':
+      g_opt.m_optcsv.m_fields_terminated_by = ",";
+      break;
+    case 'q':
+      g_opt.m_optcsv.m_fields_optionally_enclosed_by = "\"";
+      break;
+    case 'r':
+      g_opt.m_optcsv.m_lines_terminated_by = "\\r\\n";
+      break;
+    default:
+      {
+        char tmp[2];
+        sprintf(tmp, "%c", *p);
+        CHK2(false, "m_csvopt: undefined option: " << tmp);
+      }
+      break;
+    }
+    CHK1(ret == 0);
+  }
+  return ret;
+}
+
+static int
 checkopts(int argc, char** argv)
 {
   int ret = 0;
   do
   {
     CHK1(checkerrins() == 0);
+    if (g_opt.m_csvopt != 0)
+      CHK1(checkcsvopt() == 0);
+    g_state_dir = g_opt.m_state_dir;
+    convertpath(g_state_dir);
+    g_opt.m_state_dir = g_state_dir.c_str();
     CHK2(argc >= 1, "database argument is required, use --help for help");
     g_opt.m_database = argv[0];
     argc--;
@@ -394,6 +466,8 @@ checkopts(int argc, char** argv)
 }
 
 // signal handlers
+
+#ifndef _WIN32
 
 static void
 sighandler(int sig)
@@ -412,7 +486,7 @@ sighandler(int sig)
   NdbImport::set_stop_all();
 }
 
-void
+static void
 setsighandler(bool on)
 {
   struct sigaction sa;
@@ -426,6 +500,17 @@ setsighandler(bool on)
   sigaction(SIGHUP, &sa, NULL);
   sigaction(SIGINT, &sa, NULL);
 }
+
+#else
+
+// TODO
+
+static void
+setsighandler(bool on)
+{
+}
+
+#endif
 
 // error insert
 
@@ -512,7 +597,8 @@ doerrins_c(void* data)
     NdbImport::set_stop_all();
     return 0;
   }
-  int pid = getpid();
+#ifndef _WIN32
+  int pid = NdbHost_GetProcessId();
   int sig = 0;
   if (strcmp(type, "sighup") == 0)
     sig = SIGHUP;
@@ -520,6 +606,9 @@ doerrins_c(void* data)
     sig = SIGINT;
   require(sig != 0);
   ::kill(pid, sig);
+#else
+  // TODO
+#endif
   return 0;
 }
 
@@ -705,8 +794,8 @@ doimp()
   }
   do
   {
-    CHK3(imp.set_opt(g_opt) == 0, "invalid options", imp.get_error());
-    CHK3(imp.do_connect() == 0, "connect to NDB failed", imp.get_error());
+    CHK2(imp.set_opt(g_opt) == 0, "invalid options: " << imp.get_error());
+    CHK2(imp.do_connect() == 0, "connect to NDB failed: " << imp.get_error());
     for (uint i = 0; i < g_tablecnt; i++)
     {
       const TableArg& arg = g_tablearg[i];
@@ -717,25 +806,23 @@ doimp()
       g_opt.m_reject_file = arg.m_reject_file.c_str();
       g_opt.m_rowmap_file = arg.m_rowmap_file.c_str();
       g_opt.m_stats_file = arg.m_stats_file.c_str();
-      CHK3(imp.set_opt(g_opt) == 0, "invalid options", imp.get_error());
-      {
-        uint tabid;
-        CHK3(imp.add_table(g_opt.m_database, g_opt.m_table, tabid) == 0,
-                           "table "<< g_opt.m_table <<
-                           " not found", imp.get_error());
-        CHK3(imp.set_tabid(tabid) == 0,
-                           "table "<< g_opt.m_table << " tabid=" << tabid <<
-                           " unexpected error", imp.get_error());
-      }
+      CHK2(imp.set_opt(g_opt) == 0, "invalid options: "<< imp.get_error());
       NdbImport::Job job(imp);
-      job.do_create();
-      job.get_status();
-      doreport(job, 0);
-      job.do_start();
-      doerrinsstop(job);
-      if (g_opt.m_monitor != 0)
-        domonitor(job);
-      job.do_wait();
+      do
+      {
+        job.do_create();
+        job.get_status();
+        doreport(job, 0);
+        uint tabid;
+        if (job.add_table(g_opt.m_database, g_opt.m_table, tabid) == -1)
+          break;
+        job.set_table(tabid);
+        job.do_start();
+        doerrinsstop(job);
+        if (g_opt.m_monitor != 0)
+          domonitor(job);
+        job.do_wait();
+      } while (0);
       bool imp_error = imp.has_error();
       bool job_error = job.has_error();
       job.get_status();
@@ -756,7 +843,6 @@ doimp()
         if (job.m_stats.m_reject == 0)
           removefile(g_opt.m_reject_file);
         removefile(g_opt.m_rowmap_file);
-        removefile(g_opt.m_stats_file);
       }
       job.do_destroy();
       jobs_run++;

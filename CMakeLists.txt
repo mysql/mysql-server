@@ -150,17 +150,17 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         IF (MY_GCC_COMPILER)
           MESSAGE(STATUS "gcc is ${MY_GCC_COMPILER}")
           MESSAGE(STATUS
-            "We probably need /opt/rh/devtoolset-3/root/usr/bin/gcc")
+            "We probably need /opt/rh/devtoolset-6/root/usr/bin/gcc")
           EXECUTE_PROCESS(COMMAND ${MY_GCC_COMPILER} -dumpversion
             OUTPUT_VARIABLE MY_GCC_VERSION)
-          IF(MY_GCC_VERSION VERSION_LESS 4.8)
+          IF(MY_GCC_VERSION VERSION_LESS 5.0)
             MESSAGE(STATUS "${MY_GCC_COMPILER} is version ${MY_GCC_VERSION}")
             FIND_PROGRAM(ALTERNATIVE_GCC gcc
               NO_DEFAULT_PATH
-              PATHS "/opt/rh/devtoolset-3/root/usr/bin")
+              PATHS "/opt/rh/devtoolset-6/root/usr/bin")
             FIND_PROGRAM(ALTERNATIVE_GPP g++
               NO_DEFAULT_PATH
-              PATHS "/opt/rh/devtoolset-3/root/usr/bin")
+              PATHS "/opt/rh/devtoolset-6/root/usr/bin")
             IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
               SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
               SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
@@ -567,12 +567,10 @@ IF(NOT CMAKE_BUILD_TYPE
 ENDIF()
 
 # Add safemutex for debug configurations
-IF(NOT WITH_INNODB_MEMCACHED)
-  FOREACH(LANG C CXX)
-      SET(CMAKE_${LANG}_FLAGS_DEBUG
-          "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
-  ENDFOREACH()
-ENDIF()
+FOREACH(LANG C CXX)
+  SET(CMAKE_${LANG}_FLAGS_DEBUG
+    "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
+ENDFOREACH()
 
 
 # Set commonly used variables
@@ -642,17 +640,22 @@ ADD_DEFINITIONS(-D__STDC_FORMAT_MACROS)    # Enable C99 printf format macros
 ADD_DEFINITIONS(-D_USE_MATH_DEFINES)       # Get access to M_PI, M_E, etc. in math.h
 
 INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
-  ${CMAKE_SOURCE_DIR}/sql/histograms
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
-# Add bundled yassl/taocrypt or system openssl.
+IF(BUILD_BUNDLED_ZLIB)
+  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/extra/zlib ${CMAKE_CURRENT_BINARY_DIR}/extra/zlib)
+ENDIF()
+# Add bundled yassl/taocrypt or system openssl or custom openssl
 MYSQL_CHECK_SSL()
+MYSQL_CHECK_SSL_DLLS()
+
 # Add system/bundled editline.
 MYSQL_CHECK_EDITLINE()
 # Add libevent
@@ -742,7 +745,7 @@ ENDIF()
 
 ADD_SUBDIRECTORY(client)
 ADD_SUBDIRECTORY(utilities)
-ADD_SUBDIRECTORY(sql/share)
+ADD_SUBDIRECTORY(share)
 ADD_SUBDIRECTORY(libservices)
 
 IF(UNIX)
@@ -839,6 +842,16 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
     PATTERN "myisam.txt" EXCLUDE
     PATTERN "mysql.info" EXCLUDE
     PATTERN "sp-imp-spec.txt" EXCLUDE
+  )
+ENDIF()
+
+IF(UNIX)
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+     ./runtime_output_directory bin
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+     ./library_output_directory lib
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   )
 ENDIF()
 

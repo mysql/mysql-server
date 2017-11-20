@@ -12,6 +12,8 @@
 # make sure we start with a clean slate. log_tables.test says this is OK.
 TRUNCATE TABLE mysql.slow_log;
 
+SET @old_master_info_repository = @@GLOBAL.master_info_repository;
+SET @old_relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
 SET @old_log_output=          @@global.log_output;
 SET @old_slow_query_log=      @@global.slow_query_log;
 SET @old_slow_query_log_file= @@global.slow_query_log_file;
@@ -87,13 +89,13 @@ SELECT sql_text FROM test_log WHERE sql_text LIKE CONCAT('%azun','dris%');
 SELECT sql_text FROM mysql.slow_log WHERE sql_text LIKE CONCAT('%azun','dris%');
 
 --echo ------ from file ------
-SELECT sql_text FROM test_log WHERE sql_text like '%AS %' AND sql_text NOT LIKE '%<secret>%';
+SELECT count(*) FROM test_log WHERE sql_text like '%AS %' AND sql_text NOT LIKE '%<secret>%';
 SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_BIND %';
-SELECT sql_text FROM test_log WHERE sql_text like '%SET PASSWORD %'; 
+SELECT count(*) FROM test_log WHERE sql_text like '%SET PASSWORD %'; 
 --echo ------ from table ------
-SELECT sql_text FROM mysql.slow_log WHERE sql_text like '%AS %' AND sql_text NOT LIKE '%<secret>%';
+SELECT count(*) FROM mysql.slow_log WHERE sql_text like '%AS %' AND sql_text NOT LIKE '%<secret>%';
 SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_BIND %';
-SELECT sql_text FROM test_log WHERE sql_text like '%SET PASSWORD %';
+SELECT count(*) FROM test_log WHERE sql_text like '%SET PASSWORD %';
 --echo ------ done ------
 
 DROP TABLE test_log;
@@ -129,3 +131,7 @@ SET SESSION long_query_time=    @old_long_query_time;
 SET GLOBAL  slow_query_log_file=@old_slow_query_log_file;
 SET GLOBAL  slow_query_log=     @old_slow_query_log;
 SET GLOBAL  log_output=         @old_log_output;
+--disable_warnings
+SET GLOBAL  master_info_repository= @old_master_info_repository;
+SET GLOBAL  relay_log_info_repository= @old_relay_log_info_repository;
+--enable_warnings

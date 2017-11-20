@@ -15,14 +15,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "client/base/help_options.h"
+
 #include <stdlib.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <functional>
 #include <sstream>
 
-#include "abstract_program.h"
-#include "client_priv.h"
-#include "help_options.h"
+#include "client/base/abstract_program.h"
+#include "client/client_priv.h"
 #include "my_default.h"
 #include "print_version.h"
 
@@ -97,20 +98,6 @@ void Mysql::Tools::Base::Options::Help_options::print_usage()
   printf("%s\n%s\n",
          copyright.c_str(),
          this->m_program->get_description().c_str());
-  /*
-    Turn default for zombies off so that the help on how to 
-    turn them off text won't show up.
-    This is safe to do since it's followed by a call to exit().
-   */
-  for (struct my_option *optp= this->m_program->get_options_array();
-       optp->name; optp++)
-  {
-    if (!strcmp(optp->name, "secure-auth"))
-    {
-      optp->def_value= 0;
-      break;
-    }
-  }
   this->m_program->short_usage();
   print_defaults("my", load_default_groups);
   my_print_help(this->m_program->get_options_array());

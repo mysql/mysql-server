@@ -160,8 +160,8 @@ DELIMITER ;||
 CREATE VIEW v1 AS SELECT a, fn(MIN(b)) as c FROM t1 GROUP BY a;
 
 SELECT myfunc_int(a AS attr_name) FROM t1;
-EXPLAIN EXTENDED SELECT myfunc_int(a AS attr_name) FROM t1;
-EXPLAIN EXTENDED SELECT myfunc_int(a) FROM t1;
+EXPLAIN SELECT myfunc_int(a AS attr_name) FROM t1;
+EXPLAIN SELECT myfunc_int(a) FROM t1;
 SELECT a,c FROM v1;
 
 --error ER_WRONG_PARAMETERS_TO_STORED_FCT
@@ -174,10 +174,10 @@ SELECT myfunc_int(test.fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
 SELECT myfunc_int(fn(MIN(b)) xx) as c FROM t1 GROUP BY a;
 SELECT myfunc_int(test.fn(MIN(b)) xx) as c FROM t1 GROUP BY a;
 
-EXPLAIN EXTENDED SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
-EXPLAIN EXTENDED SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
-EXPLAIN EXTENDED SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
-EXPLAIN EXTENDED SELECT myfunc_int(test.fn(MIN(b))) as c FROM t1 GROUP BY a;
+EXPLAIN SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
+EXPLAIN SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
+EXPLAIN SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
+EXPLAIN SELECT myfunc_int(test.fn(MIN(b))) as c FROM t1 GROUP BY a;
 SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
 SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
 SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
@@ -363,30 +363,6 @@ drop function myfunc_double;
 drop function myfunc_int;
 
 #
-# Bug #28921: Queries containing UDF functions are cached
-#
-
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
-create table t1 (a char);
-
-SET @save_query_cache_size = @@query_cache_size;
-set GLOBAL query_cache_size=1355776;
-reset query cache;
-
-select metaphon('MySQL') from t1;
-show status like "Qcache_hits";
-show status like "Qcache_queries_in_cache";
-
-select metaphon('MySQL') from t1;
-show status like "Qcache_hits";
-show status like "Qcache_queries_in_cache";
-
-drop table t1;
-drop function metaphon;
-set GLOBAL query_cache_size=@save_query_cache_size;
-
-#
 # Bug#28318  CREATE FUNCTION (UDF) requires a schema
 #
 
@@ -548,7 +524,7 @@ CREATE TABLE t1 (f1 INT);
 INSERT INTO t1 VALUES(1),(50);
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 eval CREATE FUNCTION myfunc_double RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE f1=1 + myfunc_double(1);
+EXPLAIN SELECT 1 FROM t1 WHERE f1=1 + myfunc_double(1);
 DROP FUNCTION myfunc_double;
 DROP TABLE t1;
 --echo #

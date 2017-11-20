@@ -19,20 +19,20 @@
 
 #include <stddef.h>
 
-#include "current_thd.h" // my_thread_set_THR_THD
-#include "handler.h"     // ha_rollback_trans
 #include "lex_string.h"
-#include "log.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sql_base.h"    // close_thread_tables
-#include "sql_class.h"   // THD
-#include "sql_error.h"
-#include "sql_lex.h"     // Query_tables_list
-#include "sql_security_ctx.h"
-#include "table.h"       // TABLE_LIST
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h" // my_thread_set_THR_THD
+#include "sql/handler.h" // ha_rollback_trans
+#include "sql/log.h"
+#include "sql/sql_base.h" // close_thread_tables
+#include "sql/sql_class.h" // THD
+#include "sql/sql_lex.h" // Query_tables_list
+#include "sql/table.h"   // TABLE_LIST
 
 
 bool System_table_access::open_table(THD* thd, const LEX_STRING dbstr,
@@ -102,37 +102,38 @@ bool System_table_access::open_table(THD* thd, const LEX_STRING dbstr,
 }
 
 
-void System_table_access::close_table(THD *thd, TABLE* table,
+bool System_table_access::close_table(THD *thd, TABLE* table,
                                       Open_tables_backup *backup,
                                       bool error, bool need_commit)
 {
   Query_tables_list query_tables_list_backup;
+  bool res= false;
 
   DBUG_ENTER("System_table_access::close_table");
 
   if (table)
   {
     if (error)
-      ha_rollback_trans(thd, false);
+      res= ha_rollback_trans(thd, false);
     else
     {
       /*
         To make the commit not to block with global read lock set
         "ignore_global_read_lock" flag to true.
        */
-      ha_commit_trans(thd, false, true);
+      res= ha_commit_trans(thd, false, true);
     }
     if (need_commit)
     {
       if (error)
-        ha_rollback_trans(thd, true);
+        res= ha_rollback_trans(thd, true);
       else
       {
         /*
           To make the commit not to block with global read lock set
           "ignore_global_read_lock" flag to true.
          */
-        ha_commit_trans(thd, true, true);
+        res= ha_commit_trans(thd, true, true);
       }
     }
     /*
@@ -146,7 +147,8 @@ void System_table_access::close_table(THD *thd, TABLE* table,
     thd->restore_backup_open_tables_state(backup);
   }
 
-  DBUG_VOID_RETURN;
+  DBUG_EXECUTE_IF("simulate_flush_commit_error", {res= true;});
+  DBUG_RETURN(res);
 }
 
 

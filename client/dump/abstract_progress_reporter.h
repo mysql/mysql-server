@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,9 +18,10 @@
 #ifndef ABSTRACT_PROGRESS_REPORTER_INCLUDED
 #define ABSTRACT_PROGRESS_REPORTER_INCLUDED
 
-#include "i_crawler.h"
-#include "i_progress_reporter.h"
 #include <vector>
+
+#include "client/dump/i_crawler.h"
+#include "client/dump/i_progress_reporter.h"
 
 namespace Mysql{
 namespace Tools{

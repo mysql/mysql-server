@@ -17,12 +17,14 @@
 #define RPL_TRX_TRACKING_INCLUDED
 
 #include <my_inttypes.h>
-
 #include <atomic>
 #include <map>
 
 #include "my_dbug.h"
-#include "sql_class.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/sql_class.h"
+
+class THD;
 
 
 /**
@@ -100,6 +102,14 @@ private:
 
   /* "Prepared" transactions timestamp */
   Logical_clock m_transaction_counter;
+
+  /*
+    Stores the last sequence_number of the transaction which breaks the rule of
+    lock based logical clock. commit_parent of the following transactions
+    will be set to m_last_blocking_transaction if their last_committed is
+    smaller than m_last_blocking_transaction.
+  */
+  int64 m_last_blocking_transaction= SEQ_UNINIT;
 };
 
 /**

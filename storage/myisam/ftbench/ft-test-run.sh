@@ -1,7 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2003, 2005, 2006 MySQL AB
-# Use is subject to license terms
+# Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -32,7 +31,7 @@ MYSQLADMIN=$ROOT/client/mysqladmin
 SOCK=$DATA/mysql.sock
 PID=$DATA/mysql.pid
 H=../ftdefs.h
-OPTS="--no-defaults --socket=$SOCK --character-sets-dir=$ROOT/sql/share/charsets"
+OPTS="--no-defaults --socket=$SOCK --character-sets-dir=$ROOT/share/charsets"
 DELAY=10
 
 stop_myslqd()
@@ -68,7 +67,7 @@ for batch in t/* ; do
   else
     bk get -q $H
   fi
-  OPTS="--defaults-file=$BASE/$batch/my.cnf --socket=$SOCK --character-sets-dir=$ROOT/sql/share/charsets"
+  OPTS="--defaults-file=$BASE/$batch/my.cnf --socket=$SOCK --character-sets-dir=$ROOT/share/charsets"
   stop_myslqd
   rm -f $MYSQLD
   echo "building $batch"
@@ -84,7 +83,7 @@ for batch in t/* ; do
 
   echo "=====================================" >> var/ft_test.log
   $MYSQLD $OPTS --basedir=$BASE --pid-file=$PID \
-                --language=$ROOT/sql/share/english \
+                --language=$ROOT/share/english \
                 --skip-grant-tables --skip-innodb \
                 --skip-networking --tmpdir=$DATA >> var/ft_test.log 2>&1 &
 

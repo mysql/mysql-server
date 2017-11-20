@@ -17,28 +17,25 @@
 #include "sql/dd/dd_trigger.h"
 
 #include <string.h>
-#include <memory>
-#include <string>                        // std::string
 
-#include "dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
-#include "dd/dd.h"                       // dd::get_dictionary
-#include "dd/dictionary.h"               // dd::Dictionary
-#include "dd/types/schema.h"
-#include "dd/types/table.h"              // dd::Table
-#include "dd/types/trigger.h"            // dd::Trigger
-#include "dd_table_share.h"              // dd_get_mysql_charset
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_psi_config.h"
 #include "my_sys.h"                      // my_error, resolve_collation
 #include "mysqld_error.h"                // ER_UNKNOWN_COLLATION
-#include "sql_class.h"                   // THD
-#include "sql_lex.h"
-#include "sql_list.h"                    // List
-#include "sql_servers.h"
-#include "system_variables.h"
-#include "table.h"
-#include "trigger.h"                     // Trigger
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/table.h"          // dd::Table
+#include "sql/dd/types/trigger.h"        // dd::Trigger
+#include "sql/dd_table_share.h"          // dd_get_mysql_charset
+#include "sql/item_create.h"
+#include "sql/key.h"
+#include "sql/sql_class.h"               // THD
+#include "sql/sql_list.h"                // List
+#include "sql/sql_servers.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/trigger.h"                 // Trigger
 
 namespace dd
 {

@@ -16,8 +16,9 @@
 #ifndef DD__EVENT_INCLUDED
 #define DD__EVENT_INCLUDED
 
-#include "dd/types/entity_object.h"   // dd::Entity_object
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
+#include "sql/dd/types/entity_object.h" // dd::Entity_object
 
 typedef long my_time_t;
 
@@ -27,7 +28,6 @@ namespace dd {
 
 class Entity_object_table;
 class Object_type;
-class Primary_id_key;
 class Void_key;
 class Item_name_key;
 
@@ -218,14 +218,14 @@ public:
   // created.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created() const = 0;
+  virtual ulonglong created(bool convert_time) const = 0;
   virtual void set_created(ulonglong created) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // last altered.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered() const = 0;
+  virtual ulonglong last_altered(bool convert_time) const = 0;
   virtual void set_last_altered(ulonglong last_altered) = 0;
 
   /////////////////////////////////////////////////////////////////////////

@@ -13,15 +13,33 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/upgrade/schema.h"
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd_schema.h"                     // Schema_MDL_locker
-#include "log.h"                              // LogErr()
-#include "mysqld.h"                           // key_file_dbopt
+#include "sql/dd/upgrade/schema.h"
+
+#include <fcntl.h>
+#include <string.h>
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_dir.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
 #include "mysql/psi/mysql_file.h"             // mysql_file_open
-#include "sql_class.h"                        // THD
-#include "sql_table.h"                        // build_tablename
-#include "transaction.h"                      // trans_commit
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "sql/dd/dd_schema.h"                 // Schema_MDL_locker
+#include "sql/log.h"                          // LogErr()
+#include "sql/mysqld.h"                       // key_file_dbopt
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_table.h"                    // build_tablename
+#include "sql/system_variables.h"
+#include "sql/transaction.h"                  // trans_commit
+#include "sql_string.h"
 
 namespace dd {
 namespace upgrade {

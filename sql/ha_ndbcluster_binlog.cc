@@ -765,7 +765,7 @@ ndbcluster_binlog_index_purge_file(THD *passed_thd, const char *file)
   const bool ignore_no_such_table = true;
 
   // Set needed isolation level to be independent from server settings
-  my_thd->variables.tx_isolation= ISO_REPEATABLE_READ;
+  my_thd->variables.transaction_isolation= ISO_REPEATABLE_READ;
   // Turn autocommit on
   // This is needed to ensure calls to mysqld.delete_rows commits.
   my_thd->variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
@@ -6419,12 +6419,12 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
   if (ndb_log_get_verbose_level() > 15)
   {
     mysql_mutex_lock(&ndbcluster_mutex);
-    if (ndbcluster_open_tables.records)
+    if (!ndbcluster_open_tables->empty())
     {
       ndb_log_info("remove_all_event_operations: Remaining open tables: ");
-      for (uint i= 0; i < ndbcluster_open_tables.records; i++)
+      for (const auto &key_and_value : *ndbcluster_open_tables)
       {
-        NDB_SHARE* share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,i);
+        NDB_SHARE* share = key_and_value.second;
         ndb_log_info("  %s.%s, use_count: %u",
                               share->db,
                               share->table_name,
@@ -6743,7 +6743,8 @@ restart_cluster_failure:
   }
   thd_ndb->set_option(Thd_ndb::NO_LOG_SCHEMA_OP); 
 
-  if (!(s_ndb= new Ndb(g_ndb_cluster_connection, NDB_REP_DB)) ||
+  if (!(s_ndb= new (std::nothrow) Ndb(g_ndb_cluster_connection,
+                                      NDB_REP_DB)) ||
       s_ndb->setNdbObjectName("Ndb Binlog schema change monitoring") ||
       s_ndb->init())
   {
@@ -6754,7 +6755,7 @@ restart_cluster_failure:
            s_ndb->getReference(), s_ndb->getNdbObjectName());
 
   // empty database
-  if (!(i_ndb= new Ndb(g_ndb_cluster_connection, "")) ||
+  if (!(i_ndb= new (std::nothrow) Ndb(g_ndb_cluster_connection, "")) ||
       i_ndb->setNdbObjectName("Ndb Binlog data change monitoring") ||
       i_ndb->init())
   {
@@ -7605,9 +7606,9 @@ restart_cluster_failure:
     log_verbose(9, "Release extra share references");
 
     mysql_mutex_lock(&ndbcluster_mutex);
-    while (ndbcluster_open_tables.records)
+    while (!ndbcluster_open_tables->empty())
     {
-      NDB_SHARE * share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,0);
+      NDB_SHARE * share = ndbcluster_open_tables->begin()->second;
       /*
         The share kept by the server has not been freed, free it
         Will also take it out of _open_tables list
@@ -7625,9 +7626,9 @@ restart_cluster_failure:
   {
     log_info("remaining open tables: ");
     mysql_mutex_lock(&ndbcluster_mutex);
-    for (uint i= 0; i < ndbcluster_open_tables.records; i++)
+    for (const auto &key_and_value : *ndbcluster_open_tables)
     {
-      NDB_SHARE* share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,i);
+      NDB_SHARE* share = key_and_value.second;
       log_info("  %s.%s state: %u use_count: %u",
                share->db, share->table_name,
                (uint)share->state, share->use_count);

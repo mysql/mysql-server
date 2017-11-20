@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016  Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017  Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,10 +13,10 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/table_stats.h"
+#include "sql/dd/impl/tables/table_stats.h"
 
-#include "dd/impl/raw/object_keys.h"   // Composite_char_key
-#include "dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/impl/raw/object_keys.h" // Composite_char_key
+#include "sql/dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
 namespace tables {
@@ -52,6 +52,8 @@ Table_stats::Table_stats()
           "update_time TIMESTAMP NULL");
   m_target_def.add_field(FIELD_CHECK_TIME, "FIELD_CHECK_TIME",
           "check_time TIMESTAMP NULL");
+  m_target_def.add_field(FIELD_CACHED_TIME, "FIELD_CACHED_TIME",
+          "cached_time TIMESTAMP NOT NULL");
 
   m_target_def.add_index("PRIMARY KEY (schema_name, table_name)");
 }

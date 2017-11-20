@@ -24,18 +24,25 @@
 #include "my_pointer_arithmetic.h"
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
 #include "mysqld_error.h"                       // ER_*
-#include "sql_bitmap.h"
-#include "sql_error.h"                          // Sql_condition
+#include "nullable.h"
+#include "sql/gis/srid.h"
+#include "sql/sql_bitmap.h"
+#include "sql/sql_error.h"                      // Sql_condition
+#include "sql/table.h"                          // TABLE
+#include "sql/thr_malloc.h"
 #include "sql_string.h"                         // String
-#include "table.h"                              // TABLE
-#include "thr_malloc.h"
 
 class Create_field;
+class Field;
+class Item;
 class Json_dom;
 class Json_wrapper;
 class Protocol;
 class Relay_log_info;
 class Send_field;
+struct TABLE;
+
+using Mysql::Nullable;
 
 /*
 
@@ -705,7 +712,6 @@ private:
     m_is_tmp_null attribute.
   */
   enum_check_fields m_check_for_truncated_fields_saved;
-
 protected:
 
   const uchar *get_null_ptr() const
@@ -1475,6 +1481,32 @@ public:
     const uchar *result= unpack(to, from, 0U, table->s->db_low_byte_first);
     DBUG_RETURN(result);
   }
+
+  /**
+    Write the field for the binary log in diff format.
+
+    This should only write the field if the diff format is smaller
+    than the full format.  Otherwise it should leave the buffer
+    untouched.
+
+    @param[in,out] to Pointer to buffer where the field will be
+    written.  This will be changed to point to the next byte after the
+    last byte that was written.
+
+    @param value_options bitmap that indicates if full or partial
+    JSON format is to be used.
+
+    @retval true The field was not written, either because the data
+    type does not support it, or because it was disabled according to
+    value_options, or because there was no diff information available
+    from the optimizer, or because the the diff format was bigger than
+    the full format.  The 'to' parameter is unchanged in this case.
+
+    @retval false The field was written.
+  */
+  virtual bool pack_diff(uchar **to MY_ATTRIBUTE((unused)),
+                         ulonglong value_options MY_ATTRIBUTE((unused))) const
+  { return true; }
 
   /**
     This is a wrapper around pack_length() used by filesort() to determine
@@ -4054,6 +4086,9 @@ private:
 
 
 class Field_geom :public Field_blob {
+private:
+  const Nullable<gis::srid_t> m_srid;
+
   virtual type_conversion_status store_internal(const char *from, size_t length,
                                                 const CHARSET_INFO *cs);
 public:
@@ -4062,14 +4097,17 @@ public:
   Field_geom(uchar *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
 	     uchar auto_flags_arg, const char *field_name_arg,
 	     TABLE_SHARE *share, uint blob_pack_length,
-	     enum geometry_type geom_type_arg)
+	     enum geometry_type geom_type_arg, Nullable<gis::srid_t> srid)
      :Field_blob(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
-                 field_name_arg, share, blob_pack_length, &my_charset_bin)
-  { geom_type= geom_type_arg; }
+                 field_name_arg, share, blob_pack_length, &my_charset_bin),
+      m_srid(srid), geom_type(geom_type_arg)
+  {}
   Field_geom(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-             enum geometry_type geom_type_arg)
-    :Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin, false)
-  { geom_type= geom_type_arg; }
+             enum geometry_type geom_type_arg, Nullable<gis::srid_t> srid)
+    :Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin,
+                false),
+     m_srid(srid), geom_type(geom_type_arg)
+  {}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY2; }
   enum_field_types type() const { return MYSQL_TYPE_GEOMETRY; }
   bool match_collation_to_optimize_range() const { return false; }
@@ -4103,6 +4141,8 @@ public:
     return new (*THR_MALLOC) Field_geom(*this);
   }
   uint is_equal(const Create_field *new_field);
+
+  Nullable<gis::srid_t> get_srid() const { return m_srid; }
 };
 
 
@@ -4165,6 +4205,45 @@ public:
   type_conversion_status store_json(const Json_wrapper *json);
   type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec_arg) override;
   type_conversion_status store(Field_json *field);
+
+  bool pack_diff(uchar **to, ulonglong value_options) const override;
+  /**
+    Return the length of this field, taking into consideration that it may be in partial format.
+
+    This is the format used when writing the binary log in row format
+    and using a partial format according to
+    @@session.binlog_row_value_options.
+
+    @param[in] value_options The value of binlog_row_value options.
+
+    @param[out] diff_vector_p If this is not NULL, the pointer it
+    points to will be set to NULL if the field is to be stored in full
+    format, or to the Json_diff_vector if the field is to be stored in
+    partial format.
+
+    @return The number of bytes needed when writing to the binlog: the
+    size of the full format if stored in full format and the size of
+    the diffs if stored in partial format.
+  */
+  longlong get_diff_vector_and_length(ulonglong value_options,
+                                      const Json_diff_vector **diff_vector_p=
+                                      nullptr) const;
+  /**
+    Return true if the before-image and after-image for this field are
+    equal.
+  */
+  bool is_before_image_equal_to_after_image() const;
+  /**
+    Read the binary diff from the given buffer, and apply it to this field.
+
+    @param[in,out] from Pointer to buffer where the binary diff is stored.
+    This will be changed to point to the next byte after the field.
+
+    @retval false Success
+    @retval true Error (e.g. failed to apply the diff).  The error has
+    been reported through my_error.
+  */
+  bool unpack_diff(const uchar **from);
 
   /**
     Retrieve the field's value as a JSON wrapper. It
@@ -4578,6 +4657,8 @@ public:
   */
   bool stored_in_db;
 
+  Nullable<gis::srid_t> m_srid;
+
   Create_field()
    :after(NULL),
     geom_type(Field::GEOM_GEOMETRY),
@@ -4612,7 +4693,7 @@ public:
             Item *default_value, Item *on_update_value, LEX_STRING *comment,
             const char *change, List<String> *interval_list,
             const CHARSET_INFO *cs, uint uint_geom_type,
-            Generated_column *gcol_info= NULL);
+            Generated_column *gcol_info, Nullable<gis::srid_t> srid);
 
   ha_storage_media field_storage_type() const
   {
@@ -4746,7 +4827,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
                   bool is_unsigned,
                   uint decimals,
                   bool treat_bit_as_char,
-                  uint pack_length_override);
+                  uint pack_length_override, Nullable<gis::srid_t> srid);
 enum_field_types get_blob_type_from_length(ulong length);
 size_t calc_pack_length(enum_field_types type, size_t length);
 uint32 calc_key_length(enum_field_types sql_type, uint32 length,

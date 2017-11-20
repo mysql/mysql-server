@@ -16,66 +16,70 @@
 */
 
 
-#include "sql_class.h"
+#include "sql/sql_class.h"
 
 #include <assert.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <algorithm>
+#include <utility>
 
 #include "binary_log_types.h"
-#include "binlog.h"
-#include "connection_handler_manager.h"      // Connection_handler_manager
-#include "current_thd.h"
-#include "debug_sync.h"                      // DEBUG_SYNC
-#include "derror.h"                          // ER_THD
-#include "error_handler.h"                   // Internal_error_handler
-#include "hash.h"
-#include "item_func.h"                       // user_var_entry
-#include "key.h"
-#include "lock.h"                            // mysql_lock_abort_for_thread
-#include "locking_service.h"                 // release_all_locking_service_locks
-#include "log_event.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
-#include "mysql/psi/mysql_stage.h"
-#include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/psi_error.h"
-#include "mysql/service_my_snprintf.h"
-#include "mysql/service_mysql_alloc.h"
-#include "mysqld.h"                          // global_system_variables ...
-#include "mysqld_thd_manager.h"              // Global_THD_manager
-#include "mysys_err.h"                       // EE_OUTOFMEMORY
-#include "psi_memory_key.h"
-#include "query_result.h"
-#include "rpl_rli.h"                         // Relay_log_info
-#include "sp_cache.h"                        // sp_cache_clear
-#include "sql_audit.h"                       // mysql_audit_free_thd
-#include "sql_base.h"                        // close_temporary_tables
-#include "sql_cache.h"                       // query_cache
-#include "sql_callback.h"                    // MYSQL_CALLBACK
-#include "sql_handler.h"                     // mysql_ha_cleanup
-#include "sql_parse.h"                       // is_update_query
-#include "sql_plugin.h"                      // plugin_thdvar_init
-#include "sql_prepare.h"                     // Prepared_statement
-#include "sql_security_ctx.h"
-#include "sql_time.h"                        // my_timeval_trunc
-#include "sql_timer.h"                       // thd_timer_destroy
-#include "tc_log.h"
-#include "template_utils.h"
-#include "thr_malloc.h"
-#include "thr_mutex.h"
-#include "transaction.h"                     // trans_rollback
-#include "xa.h"
-#include "rpl_slave.h"                       // rpl_master_erroneous_autoinc
-#include "dd/cache/dictionary_client.h"      // Dictionary_client
-#include "dd/dd_kill_immunizer.h"            // dd:DD_kill_immunizer
+#include "mysql/components/services/psi_error_bits.h"
+#include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_error.h"
 #include "mysql/psi/mysql_ps.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysys_err.h"                       // EE_OUTOFMEMORY
+#include "pfs_statement_provider.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"
+#include "sql/check_stack.h"
+#include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
+#include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"  // Dictionary_client
+#include "sql/dd/dd_kill_immunizer.h"        // dd:DD_kill_immunizer
+#include "sql/debug_sync.h"                  // DEBUG_SYNC
+#include "sql/derror.h"                      // ER_THD
+#include "sql/error_handler.h"               // Internal_error_handler
+#include "sql/item_func.h"                   // user_var_entry
+#include "sql/key.h"
+#include "sql/lock.h"                        // mysql_lock_abort_for_thread
+#include "sql/locking_service.h"             // release_all_locking_service_locks
+#include "sql/mysqld.h"                      // global_system_variables ...
+#include "sql/mysqld_thd_manager.h"          // Global_THD_manager
+#include "sql/psi_memory_key.h"
+#include "sql/query_result.h"
+#include "sql/rpl_rli.h"                     // Relay_log_info
+#include "sql/rpl_slave.h"                   // rpl_master_erroneous_autoinc
+#include "sql/rpl_transaction_write_set_ctx.h"
+#include "sql/sp_cache.h"                    // sp_cache_clear
+#include "sql/sql_audit.h"                   // mysql_audit_free_thd
+#include "sql/sql_backup_lock.h"             // release_backup_lock
+#include "sql/sql_base.h"                    // close_temporary_tables
+#include "sql/sql_callback.h"                // MYSQL_CALLBACK
+#include "sql/sql_handler.h"                 // mysql_ha_cleanup
+#include "sql/sql_parse.h"                   // is_update_query
+#include "sql/sql_plugin.h"                  // plugin_thdvar_init
+#include "sql/sql_prepare.h"                 // Prepared_statement
+#include "sql/sql_time.h"                    // my_timeval_trunc
+#include "sql/sql_timer.h"                   // thd_timer_destroy
+#include "sql/tc_log.h"
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"                 // trans_rollback
+#include "sql/xa.h"
+#include "thr_mutex.h"
 
 using std::min;
 using std::max;
+using std::unique_ptr;
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -347,7 +351,6 @@ THD::THD(bool enable_plugins)
    m_query_string(NULL_CSTR),
    m_db(NULL_CSTR),
    rli_fake(0), rli_slave(NULL),
-   first_query_cache_block(NULL),
    initial_status_var(NULL),
    status_var_aggregated(false),
    m_current_query_cost(0),
@@ -470,6 +473,9 @@ THD::THD(bool enable_plugins)
   m_release_resources_done= false;
   peer_port= 0;					// For SHOW PROCESSLIST
   get_transaction()->m_flags.enabled= true;
+  m_resource_group_ctx.m_cur_resource_group= nullptr;
+  m_resource_group_ctx.m_switch_resource_group_str[0]= '\0';
+  m_resource_group_ctx.m_warn= 0;
 
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
@@ -753,8 +759,6 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (level == Sql_condition::SL_NOTE || level == Sql_condition::SL_WARNING)
     got_warning= true;
 
-  query_cache.abort(this);
-
   Diagnostics_area *da= get_stmt_da();
   if (level == Sql_condition::SL_ERROR)
   {
@@ -826,8 +830,8 @@ void THD::init(void)
   insert_lock_default= (variables.low_priority_updates ?
                         TL_WRITE_LOW_PRIORITY :
                         TL_WRITE_CONCURRENT_INSERT);
-  tx_isolation= (enum_tx_isolation) variables.tx_isolation;
-  tx_read_only= variables.tx_read_only;
+  tx_isolation= (enum_tx_isolation) variables.transaction_isolation;
+  tx_read_only= variables.transaction_read_only;
   tx_priority= 0;
   thd_tx_priority= 0;
   update_charset();
@@ -918,7 +922,7 @@ void THD::cleanup_connection(void)
     if(check_cleanup)
     {
       /* isolation level should be default */
-      DBUG_ASSERT(variables.tx_isolation == ISO_REPEATABLE_READ);
+      DBUG_ASSERT(variables.transaction_isolation == ISO_REPEATABLE_READ);
       /* check autocommit is ON by default */
       DBUG_ASSERT(server_status == SERVER_STATUS_AUTOCOMMIT);
       /* check prepared stmts are cleaned up */
@@ -982,6 +986,11 @@ void THD::cleanup(void)
     All locking service locks must be released on disconnect.
   */
   release_all_locking_service_locks(this);
+
+  /*
+    If Backup Lock was acquired it must be released on disconnect.
+  */
+  release_backup_lock(this);
 
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
@@ -1278,7 +1287,7 @@ void THD::awake(THD::killed_state state_to_set)
       However, there is still a small chance of failure on platforms with
       instruction or memory write reordering.
     */
-    if (current_cond && current_mutex)
+    if (current_cond.load() && current_mutex.load())
     {
       DBUG_EXECUTE_IF("before_dump_thread_acquires_current_mutex",
                       {
@@ -1887,62 +1896,20 @@ void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
 }
 
 
-static const uchar *
-get_statement_id_as_hash_key(const uchar *record, size_t *key_length)
-{
-  const Prepared_statement *statement= (const Prepared_statement *) record;
-  *key_length= sizeof(statement->id);
-  return (uchar *) &(statement)->id;
-}
-
-static void delete_statement_as_hash_key(void *key)
-{
-  delete (Prepared_statement *) key;
-}
-
-static const uchar *get_stmt_name_hash_key(const uchar *arg, size_t *length)
-{
-  Prepared_statement *entry= (Prepared_statement*) arg;
-  *length= entry->name().length;
-  return reinterpret_cast<uchar *>(const_cast<char *>(entry->name().str));
-}
-
-
 Prepared_statement_map::Prepared_statement_map()
- :m_last_found_statement(NULL)
+ :st_hash(key_memory_prepared_statement_map),
+  names_hash(system_charset_info, key_memory_prepared_statement_map),
+  m_last_found_statement(NULL)
 {
-  enum
-  {
-    START_STMT_HASH_SIZE = 16,
-    START_NAME_HASH_SIZE = 16
-  };
-  my_hash_init(&st_hash, &my_charset_bin, START_STMT_HASH_SIZE, 0,
-               get_statement_id_as_hash_key,
-               delete_statement_as_hash_key, 0,
-               key_memory_prepared_statement_map);
-  my_hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0,
-               get_stmt_name_hash_key,
-               nullptr, 0,
-               key_memory_prepared_statement_map);
 }
 
 
 int Prepared_statement_map::insert(Prepared_statement *statement)
 {
-  if (my_hash_insert(&st_hash, (uchar*) statement))
+  st_hash.emplace(statement->id, unique_ptr<Prepared_statement>(statement));
+  if (statement->name().str)
   {
-    /*
-      Delete is needed only in case of an insert failure. In all other
-      cases hash_delete will also delete the statement.
-    */
-    delete statement;
-    my_error(ER_OUT_OF_RESOURCES, MYF(0));
-    goto err_st_hash;
-  }
-  if (statement->name().str && my_hash_insert(&names_hash, (uchar*) statement))
-  {
-    my_error(ER_OUT_OF_RESOURCES, MYF(0));
-    goto err_names_hash;
+    names_hash.emplace(to_string(statement->name()), statement);
   }
   mysql_mutex_lock(&LOCK_prepared_stmt_count);
   /*
@@ -1967,10 +1934,8 @@ int Prepared_statement_map::insert(Prepared_statement *statement)
 
 err_max:
   if (statement->name().str)
-    my_hash_delete(&names_hash, (uchar*) statement);
-err_names_hash:
-  my_hash_delete(&st_hash, (uchar*) statement);
-err_st_hash:
+    names_hash.erase(to_string(statement->name()));
+  st_hash.erase(statement->id);
   return 1;
 }
 
@@ -1978,8 +1943,7 @@ err_st_hash:
 Prepared_statement
 *Prepared_statement_map::find_by_name(const LEX_CSTRING &name)
 {
-  return reinterpret_cast<Prepared_statement*>
-    (my_hash_search(&names_hash, (uchar*)name.str, name.length));
+  return find_or_nullptr(names_hash, to_string(name));
 }
 
 
@@ -1987,9 +1951,7 @@ Prepared_statement *Prepared_statement_map::find(ulong id)
 {
   if (m_last_found_statement == NULL || id != m_last_found_statement->id)
   {
-    Prepared_statement *stmt=
-      reinterpret_cast<Prepared_statement*>
-      (my_hash_search(&st_hash, (uchar *) &id, sizeof(id)));
+    Prepared_statement *stmt= find_or_nullptr(st_hash, id);
     if (stmt && stmt->name().str)
       return NULL;
     m_last_found_statement= stmt;
@@ -2003,9 +1965,9 @@ void Prepared_statement_map::erase(Prepared_statement *statement)
   if (statement == m_last_found_statement)
     m_last_found_statement= NULL;
   if (statement->name().str)
-    my_hash_delete(&names_hash, (uchar *) statement);
+    names_hash.erase(to_string(statement->name()));
 
-  my_hash_delete(&st_hash, (uchar *) statement);
+  st_hash.erase(statement->id);
   mysql_mutex_lock(&LOCK_prepared_stmt_count);
   DBUG_ASSERT(prepared_stmt_count > 0);
   prepared_stmt_count--;
@@ -2014,30 +1976,30 @@ void Prepared_statement_map::erase(Prepared_statement *statement)
 
 void Prepared_statement_map::claim_memory_ownership()
 {
-  my_hash_claim(&names_hash);
-  my_hash_claim(&st_hash);
+  for (const auto &key_and_value : st_hash)
+  {
+    my_claim(key_and_value.second.get());
+  }
 }
 
 void Prepared_statement_map::reset()
 {
-  /* Must be first, hash_free will reset st_hash.records */
-  if (st_hash.records > 0)
+  if (!st_hash.empty())
   {
 #ifdef HAVE_PSI_PS_INTERFACE
-    for (uint i=0 ; i < st_hash.records ; i++)
+    for (auto &key_and_value : st_hash)
     {
-      Prepared_statement *stmt=
-        reinterpret_cast<Prepared_statement *>(my_hash_element(&st_hash, i));
+      Prepared_statement *stmt= key_and_value.second.get();
       MYSQL_DESTROY_PS(stmt->get_PS_prepared_stmt());
     }
 #endif
     mysql_mutex_lock(&LOCK_prepared_stmt_count);
-    DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
-    prepared_stmt_count-= st_hash.records;
+    DBUG_ASSERT(prepared_stmt_count >= st_hash.size());
+    prepared_stmt_count-= st_hash.size();
     mysql_mutex_unlock(&LOCK_prepared_stmt_count);
   }
-  my_hash_reset(&names_hash);
-  my_hash_reset(&st_hash);
+  names_hash.clear();
+  st_hash.clear();
   m_last_found_statement= NULL;
 }
 
@@ -2048,10 +2010,7 @@ Prepared_statement_map::~Prepared_statement_map()
     We do not want to grab the global LOCK_prepared_stmt_count mutex here.
     reset() should already have been called to maintain prepared_stmt_count.
    */
-  DBUG_ASSERT(st_hash.records == 0);
-
-  my_hash_free(&names_hash);
-  my_hash_free(&st_hash);
+  DBUG_ASSERT(st_hash.empty());
 }
 
 
@@ -2131,6 +2090,20 @@ void THD::end_attachable_transaction()
   // Restore attachable transaction which was active before we started
   // the one which just has ended. NULL in most cases.
   m_attachable_trx= prev_trx;
+}
+
+
+bool THD::is_attachable_rw_transaction_active() const
+{
+  return m_attachable_trx != NULL && !m_attachable_trx->is_read_only();
+}
+
+
+void THD::begin_attachable_rw_transaction()
+{
+  DBUG_ASSERT(!m_attachable_trx);
+
+  m_attachable_trx= new Attachable_trx_rw(this);
 }
 
 
@@ -2280,6 +2253,15 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   if ((variables.option_bits & OPTION_BIN_LOG) && is_update_query(lex->sql_command) &&
        !is_current_stmt_binlog_format_row())
     mysql_bin_log.stop_union_events(this);
+
+  /*
+    The below assert mostly serves as reminder that optimization in
+    DML_prelocking_strategy::handle_table() relies on the fact
+    that stored function/trigger can't change FOREIGN_KEY_CHECKS
+    value for the top-level statement which invokes them.
+  */
+  DBUG_ASSERT((variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS) ==
+              (backup->option_bits & OPTION_NO_FOREIGN_KEY_CHECKS));
 
   /*
     The following is added to the old values as we are interested in the
@@ -2842,19 +2824,31 @@ bool THD::send_result_metadata(List<Item> *list, uint flags)
   if (m_protocol->start_result_metadata(list->elements, flags,
           variables.character_set_results))
     goto err;
-
-  while ((item= it++))
+  switch (variables.resultset_metadata)
   {
-    Send_field field;
-    item->make_field(&field);
-    m_protocol->start_row();
-    if (m_protocol->send_field_metadata(&field,
-            item->charset_for_protocol()))
-      goto err;
-    if (flags & Protocol::SEND_DEFAULTS)
-      item->send(m_protocol, &tmp);
-    if (m_protocol->end_row())
-      DBUG_RETURN(true);
+    case RESULTSET_METADATA_FULL:
+      /* Sent metadata. */
+      while ((item= it++))
+      {
+        Send_field field;
+        item->make_field(&field);
+        m_protocol->start_row();
+        if (m_protocol->send_field_metadata(&field, item->charset_for_protocol()))
+          goto err;
+        if (flags & Protocol::SEND_DEFAULTS)
+          item->send(m_protocol, &tmp);
+        if (m_protocol->end_row())
+          DBUG_RETURN(true);
+      }
+      break;
+
+    case RESULTSET_METADATA_NONE:
+      /* Skip metadata. */
+      break;
+
+    default:
+      /* Unknown @@resultset_metadata value. */
+      DBUG_RETURN(1);
   }
 
   DBUG_RETURN(m_protocol->end_result_metadata());

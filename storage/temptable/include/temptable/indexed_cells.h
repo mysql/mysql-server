@@ -22,12 +22,12 @@ TempTable Indexed Cells declaration. */
 #include <cstddef> /* size_t */
 #include <limits>  /* std::numeric_limits */
 
+#include "sql/key.h"        /* KEY */
+#include "sql/sql_const.h"  /* MAX_REF_PARTS */
 #include "temptable/cell.h"    /* temptable::Cell */
 #include "temptable/column.h"  /* temptable::Columns */
 #include "temptable/row.h"     /* temptable::Row */
 #include "temptable/storage.h" /* temptable::Storage::Element */
-#include "key.h"            /* KEY */
-#include "sql_const.h"      /* MAX_REF_PARTS */
 
 namespace temptable {
 

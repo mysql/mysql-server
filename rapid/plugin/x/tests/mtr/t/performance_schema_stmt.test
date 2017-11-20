@@ -191,6 +191,32 @@ Mysqlx.Crud.Find {
 -->callmacro Show_sql_history
 
 -->callmacro Clear_sql_history
+-->echo ######### Crud.Find with shared lock #########
+Mysqlx.Crud.Find {
+  collection {
+    name: "test"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  locking: SHARED_LOCK
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### Crud.Find with exclusive lock #########
+Mysqlx.Crud.Find {
+  collection {
+    name: "test"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  locking: EXCLUSIVE_LOCK
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
 -->echo ######### Crud.Delete #########
 Mysqlx.Crud.Delete {
   collection { name: "test" schema: "xtest"}
@@ -234,6 +260,34 @@ Mysqlx.Crud.Delete {
 -->callmacro Clear_sql_history
 -->echo ######### drop_collection_index #########
 -->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"test2", "name": "foo"}
+-->recvresult
+-->callmacro Show_sql_history
+
+# silent call for establishing static variables
+-->stmtadmin list_objects	{"schema":"xtest"}
+-->recvresult be-quiet
+
+-->callmacro Clear_sql_history
+-->echo ######### create_collection_index (spatial) #########
+-->stmtadmin create_collection_index	{"schema": "xtest", "collection":"test2", "name":"bar", "type":"spatial", "unique":false, "constraint":{"member":"$.foo", "type":"GEOJSON", "required":true}}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### drop_collection_index (spatial) #########
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"test2", "name": "bar"}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### create_collection_index (fulltext) #########
+-->stmtadmin create_collection_index	{"schema": "xtest", "collection":"test2", "name":"foobar", "type":"fulltext", "unique":false, "with_parser":"ngram", "constraint":{"member":"$.foo", "type":"FULLTEXT", "required":true}}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### drop_collection_index (fulltext) #########
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"test2", "name": "foobar"}
 -->recvresult
 -->callmacro Show_sql_history
 
@@ -305,7 +359,7 @@ Mysqlx.Sql.StmtExecute {
 EOF
 
 --let $MACROS= --import=$MYSQLXTEST_MACRO_DIR
---replace_regex /BINARY// /KILL [0-9]+/KILL/ /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/
+--replace_regex /BINARY // /KILL [0-9]+/KILL/ /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/
 --exec $MYSQLXTEST -uroot --password='' $MACROS --file=$MYSQL_TMP_DIR/performance_schema_stmt.tmp 2>&1
 
 ## Cleanup

@@ -69,7 +69,7 @@ void Scheduler_dynamic::launch()
 
 void Scheduler_dynamic::create_min_num_workers()
 {
-  Mutex_lock lock(m_worker_pending_mutex);
+  MUTEX_LOCK(lock, m_worker_pending_mutex);
 
   while (is_running() &&
          m_workers_count.load() < m_min_workers_count.load())
@@ -87,9 +87,14 @@ unsigned int Scheduler_dynamic::set_num_workers(unsigned int n)
   {
     create_min_num_workers();
   }
-  catch (std::exception &e)
+  catch (const std::exception &e)
   {
+    /* 'log_debug' isn't defined while building release executable.
+     'e' object is used only by log_debug. Below line disables
+     warnings about unused variables.*/
+    (void)e;
     log_debug("Exception in set minimal number of workers \"%s\"", e.what());
+
     const int32 m = m_workers_count.load();
     log_warning("Unable to set minimal number of workers to %u; actual value is %i", n, m);
     m_min_workers_count.store(m);
@@ -122,7 +127,7 @@ void Scheduler_dynamic::stop()
     m_worker_pending_cond.broadcast(m_worker_pending_mutex);
 
     {
-      Mutex_lock lock(m_thread_exit_mutex);
+      MUTEX_LOCK(lock, m_thread_exit_mutex);
       while (m_workers_count.load())
         m_thread_exit_cond.wait(m_thread_exit_mutex);
     }
@@ -146,7 +151,7 @@ bool Scheduler_dynamic::post(Task* task)
     return false;
 
   {
-    Mutex_lock lock(m_worker_pending_mutex);
+    MUTEX_LOCK(lock, m_worker_pending_mutex);
 
     log_debug("Scheduler '%s', post task", m_name.c_str());
 
@@ -224,7 +229,7 @@ void Scheduler_dynamic::thread_end()
 
 bool Scheduler_dynamic::wait_if_idle_then_delete_worker(ulonglong &thread_waiting_started)
 {
-  Mutex_lock lock(m_worker_pending_mutex);
+  MUTEX_LOCK(lock, m_worker_pending_mutex);
 
   if (TIME_VALUE_NOT_VALID == thread_waiting_started)
   {
@@ -320,8 +325,8 @@ void *Scheduler_dynamic::worker()
   }
 
   {
-    Mutex_lock lock_exit(m_thread_exit_mutex);
-    Mutex_lock lock_workers(m_worker_pending_mutex);
+    MUTEX_LOCK(lock_exit, m_thread_exit_mutex);
+    MUTEX_LOCK(lock_workers, m_worker_pending_mutex);
     if (worker_active)
       decrease_workers_count();
     m_thread_exit_cond.signal();

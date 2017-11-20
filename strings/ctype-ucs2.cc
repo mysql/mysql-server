@@ -1621,7 +1621,8 @@ my_hash_sort_utf16_bin(const CHARSET_INFO *cs,
 
 static MY_COLLATION_HANDLER my_collation_utf16_general_ci_handler =
 {
-  NULL,                /* init */
+  nullptr,                /* init */
+  nullptr,
   my_strnncoll_utf16,
   my_strnncollsp_utf16,
   my_strnxfrm_unicode,
@@ -1637,7 +1638,8 @@ static MY_COLLATION_HANDLER my_collation_utf16_general_ci_handler =
 
 static MY_COLLATION_HANDLER my_collation_utf16_bin_handler =
 {
-  NULL,                /* init */
+  nullptr,                /* init */
+  nullptr,
   my_strnncoll_utf16_bin,
   my_strnncollsp_utf16_bin,
   my_strnxfrm_unicode_full_bin,
@@ -2740,7 +2742,8 @@ my_scan_utf32(const CHARSET_INFO *cs,
 
 static MY_COLLATION_HANDLER my_collation_utf32_general_ci_handler =
 {
-  NULL, /* init */
+  nullptr, /* init */
+  nullptr,
   my_strnncoll_utf32,
   my_strnncollsp_utf32,
   my_strnxfrm_unicode,
@@ -2756,7 +2759,8 @@ static MY_COLLATION_HANDLER my_collation_utf32_general_ci_handler =
 
 static MY_COLLATION_HANDLER my_collation_utf32_bin_handler =
 {
-  NULL, /* init */
+  nullptr, /* init */
+  nullptr,
   my_strnncoll_utf32_bin,
   my_strnncollsp_utf32_bin,
   my_strnxfrm_unicode_full_bin,
@@ -3366,7 +3370,8 @@ void my_hash_sort_ucs2_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
 {
-    NULL,		/* init */
+    nullptr,		/* init */
+    nullptr,
     my_strnncoll_ucs2,
     my_strnncollsp_ucs2,
     my_strnxfrm_unicode,
@@ -3382,7 +3387,8 @@ static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
 
 static MY_COLLATION_HANDLER my_collation_ucs2_bin_handler =
 {
-    NULL,		/* init */
+    nullptr,		/* init */
+    nullptr,
     my_strnncoll_ucs2_bin,
     my_strnncollsp_ucs2_bin,
     my_strnxfrm_unicode,

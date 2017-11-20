@@ -18,9 +18,9 @@
 #ifndef COLUMN_STATISTIC_INCLUDED
 #define COLUMN_STATISTIC_INCLUDED
 
-#include "abstract_plain_sql_object_dump_task.h"
+#include "client/dump/abstract_plain_sql_object_dump_task.h"
+#include "client/dump/table.h"
 #include "my_inttypes.h"
-#include "table.h"
 
 namespace Mysql{
 namespace Tools{

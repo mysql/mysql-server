@@ -64,11 +64,6 @@ public:
 
   bool get_error_message(int error, String *buf);
 
-  uint8 table_cache_type() {
-    // Don't put ndbinfo results in query cache
-    return HA_CACHE_TBL_NOCACHE;
-  }
-
   virtual ha_rows estimate_rows_upper_bound() {
     // Estimate "many" rows to be returned so that filesort
     // allocates buffers properly.

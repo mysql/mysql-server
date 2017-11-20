@@ -16,9 +16,9 @@
 #ifndef DD__PARAMETER_INCLUDED
 #define DD__PARAMETER_INCLUDED
 
-#include "dd/types/column.h"         // dd::Column::enum_column_types
-#include "dd/types/entity_object.h"  // dd::Entity_object
 #include "my_inttypes.h"
+#include "sql/dd/types/column.h"     // dd::Column::enum_column_types
+#include "sql/dd/types/entity_object.h" // dd::Entity_object
 
 namespace dd {
 

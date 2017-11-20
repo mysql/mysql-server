@@ -13,14 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/rpl_msr.h"
+
 #include <string.h>
 
-#include "current_thd.h"
 #include "my_dbug.h"
-#include "rpl_mi.h"
-#include "rpl_msr.h"
-#include "rpl_rli.h"     // Relay_log_info
-#include "log.h"         // sql_print_error
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "sql/current_thd.h"
+#include "sql/log.h"     // sql_print_error
+#include "sql/rpl_mi.h"
+#include "sql/rpl_rli.h" // Relay_log_info
 
 const char* Multisource_info::default_channel= "";
 const char* Multisource_info::group_replication_channel_names[] = {

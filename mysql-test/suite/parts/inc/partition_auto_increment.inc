@@ -8,7 +8,7 @@
 DROP TABLE IF EXISTS t1;
 -- enable_warnings
 
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 
 -- echo # test without partitioning for reference
 eval CREATE TABLE t1 (
@@ -1211,4 +1211,4 @@ SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
 
-SET SESSION information_schema_stats=default;
+SET SESSION information_schema_stats_expiry=default;

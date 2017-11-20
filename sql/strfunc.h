@@ -22,7 +22,6 @@
 
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "m_string.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"             // MYSQL_LEX_CSTRING
 
@@ -30,7 +29,7 @@ typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_typelib TYPELIB;
 class THD;
 
-ulonglong find_set(TYPELIB *lib, const char *x, size_t length,
+ulonglong find_set(const TYPELIB *lib, const char *x, size_t length,
                    const CHARSET_INFO *cs,
 		   char **err_pos, uint *err_len, bool *set_warning);
 uint find_type(const TYPELIB *lib, const char *find, size_t length,

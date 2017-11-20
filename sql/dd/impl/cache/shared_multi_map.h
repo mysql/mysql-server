@@ -20,24 +20,29 @@
 #include <vector>                            // std::vector
 
 #include "cache_element.h"                   // Cache_element
-#include "dd/cache/multi_map_base.h"         // Multi_map_base
-#include "dd/types/abstract_table.h"
-#include "dd/types/charset.h"
-#include "dd/types/collation.h"
-#include "dd/types/entity_object_table.h"
-#include "dd/types/event.h"
-#include "dd/types/routine.h"
-#include "dd/types/schema.h"
-#include "dd/types/spatial_reference_system.h"
-#include "dd/types/tablespace.h"
 #include "free_list.h"                       // Free_list
-#include "malloc_allocator.h"                // Malloc_allocator.
 #include "my_psi_config.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
 #include "mysql/psi/psi_base.h"
-#include "mysqld.h"                          // max_connections
+#include "sql/dd/cache/multi_map_base.h"     // Multi_map_base
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/charset.h"
+#include "sql/dd/types/collation.h"
+#include "sql/dd/types/column_statistics.h"
+#include "sql/dd/types/entity_object_table.h"
+#include "sql/dd/types/event.h"
+#include "sql/dd/types/routine.h"
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/spatial_reference_system.h"
+#include "sql/dd/types/tablespace.h"
+#include "sql/malloc_allocator.h"            // Malloc_allocator.
+#include "sql/mysqld.h"                      // max_connections
 #include "thr_mutex.h"
 
 namespace dd {
@@ -311,6 +316,19 @@ public:
   */
 
   void shutdown();
+
+
+  /**
+    Reset the shared map. Locks and deletes all objects present,
+    but keeps the element pool and the capacity setting.
+
+    @param       thd      Thread context.
+
+    @retval      true     Failure, e.g. timeout from metadata lock acquisition.
+    @retval      false    Otherwise.
+  */
+
+  bool reset(THD *thd);
 
 
   /**

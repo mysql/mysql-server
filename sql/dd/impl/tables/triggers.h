@@ -18,13 +18,15 @@
 
 #include <string>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/object_table_definition_impl.h"
-#include "dd/impl/types/object_table_impl.h"            // dd::Object_table_i...
-#include "dd/impl/types/trigger_impl.h"                 // dd::Trigger_impl
-#include "dd/object_id.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/impl/types/object_table_impl.h"        // dd::Object_table_i...
+#include "sql/dd/impl/types/trigger_impl.h"             // dd::Trigger_impl
+#include "sql/dd/object_id.h"
+#include "sql/dd/string_type.h"
 
 class THD;
+
 namespace dd {
 class Object_key;
 }  // namespace dd

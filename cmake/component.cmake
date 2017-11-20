@@ -107,7 +107,7 @@ MACRO(MYSQL_ADD_COMPONENT)
         )
       IF(NOT ARG_NO_INSTALL)
         # Install dynamic library.
-        IF(NOT ARG_TEST_ONLY)
+        IF(NOT ARG_TEST)
           SET(INSTALL_COMPONENT Server)
         ELSE()
           SET(INSTALL_COMPONENT Test)

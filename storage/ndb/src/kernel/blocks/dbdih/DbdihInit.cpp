@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ void Dbdih::initData()
     }
     while (c_masterActiveTakeOverList.first(ptr))
     {
-      releaseTakeOver(ptr, true);
+      releaseTakeOver(ptr, true, true);
     }
   }
   
@@ -78,7 +78,8 @@ void Dbdih::initData()
   c_sr_wait_to = false;
   c_2pass_inr = false;
   c_handled_master_take_over_copy_gci = 0;
-  
+  c_start_node_lcp_req_outstanding = false;
+
   c_lcpTabDefWritesControl.init(MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES);
 }//Dbdih::initData()
 
@@ -234,6 +235,7 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_COPY_GCICONF, &Dbdih::execCOPY_GCICONF);
   addRecSignal(GSN_COPY_TABREQ, &Dbdih::execCOPY_TABREQ);
   addRecSignal(GSN_COPY_TABCONF, &Dbdih::execCOPY_TABCONF);
+  addRecSignal(GSN_CHECK_LCP_IDLE_ORD, &Dbdih::execCHECK_LCP_IDLE_ORD);
   addRecSignal(GSN_TCGETOPSIZECONF, &Dbdih::execTCGETOPSIZECONF);
   addRecSignal(GSN_TC_CLOPSIZECONF, &Dbdih::execTC_CLOPSIZECONF);
 
@@ -241,6 +243,7 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_LCP_FRAG_REP, &Dbdih::execLCP_FRAG_REP);
   addRecSignal(GSN_START_LCP_REQ, &Dbdih::execSTART_LCP_REQ);
   addRecSignal(GSN_START_LCP_CONF, &Dbdih::execSTART_LCP_CONF);
+  addRecSignal(GSN_START_NODE_LCP_CONF, &Dbdih::execSTART_NODE_LCP_CONF);
   
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbdih::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_UNBLO_DICTCONF, &Dbdih::execUNBLO_DICTCONF);
@@ -261,6 +264,7 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_DICTSTARTCONF, &Dbdih::execDICTSTARTCONF);
   addRecSignal(GSN_NDB_STARTREQ, &Dbdih::execNDB_STARTREQ);
   addRecSignal(GSN_GETGCIREQ, &Dbdih::execGETGCIREQ);
+  addRecSignal(GSN_GET_LATEST_GCI_REQ, &Dbdih::execGET_LATEST_GCI_REQ);
   addRecSignal(GSN_DIH_RESTARTREQ, &Dbdih::execDIH_RESTARTREQ);
   addRecSignal(GSN_START_RECCONF, &Dbdih::execSTART_RECCONF);
   addRecSignal(GSN_START_FRAGCONF, &Dbdih::execSTART_FRAGCONF);

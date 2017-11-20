@@ -1335,7 +1335,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(5) DEFAULT NULL,
-  `b` varchar(10) GENERATED ALWAYS AS (concat(`a`,convert(space(5) using latin1))) VIRTUAL
+  `b` varchar(10) GENERATED ALWAYS AS (concat(`a`,space(5))) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 insert into t1 values ('Hello', default);
 select * from t1;
@@ -2541,7 +2541,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` timestamp GENERATED ALWAYS AS (cast(`a` as datetime)) VIRTUAL NOT NULL
+  `b` timestamp GENERATED ALWAYS AS (cast(`a` as datetime)) VIRTUAL NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 insert into t1 values ('2008-12-31',default);
 select * from t1;
@@ -2556,7 +2556,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` timestamp GENERATED ALWAYS AS ((`a` + interval 1 minute)) VIRTUAL NOT NULL
+  `b` timestamp GENERATED ALWAYS AS ((`a` + interval 1 minute)) VIRTUAL NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 insert into t1 values ('2003-01-02',default);
 select * from t1;
@@ -2570,7 +2570,7 @@ create table t1 (a timestamp, c bigint generated always as (timestampdiff(MONTH,
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `a` timestamp NULL DEFAULT NULL,
   `c` bigint(20) GENERATED ALWAYS AS (timestampdiff(MONTH,`a`,`a`)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 insert into t1 values ('2003-02-01',default);
@@ -2870,27 +2870,6 @@ a	b
 MySQL	MySQL
 drop table t1;
 set sql_warnings = 0;
-# ENCODE(), DECODE()
-set sql_warnings = 1;
-create table t1 (a varchar(1024), b varchar(1024) generated always as (decode(encode(a,'abc'),'abc')) virtual) charset latin1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` varchar(1024) DEFAULT NULL,
-  `b` varchar(1024) GENERATED ALWAYS AS (decode(encode(`a`,_utf8mb4'abc'),_utf8mb4'abc')) VIRTUAL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-insert into t1 values ('MySQL',default);
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select * from t1;
-a	b
-MySQL	MySQL
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warnings:
-drop table t1;
-set sql_warnings = 0;
 # DEFAULT()
 set sql_warnings = 1;
 create table t1 (a varchar(1024) default 'aaa', b varchar(1024) generated always as (ifnull(a,default(a))) virtual) charset latin1;
@@ -2906,20 +2885,6 @@ a	b
 any value	any value
 drop table t1;
 set sql_warnings = 0;
-# DES_ENCRYPT(), DES_DECRYPT()
-create table t1 (a varchar(1024), b varchar(1024) generated always as (des_encrypt(des_decrypt(a,'adf'),'adf')) virtual) charset latin1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` varchar(1024) DEFAULT NULL,
-  `b` varchar(1024) GENERATED ALWAYS AS (des_encrypt(des_decrypt(`a`,_utf8mb4'adf'),_utf8mb4'adf')) VIRTUAL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-insert into t1 values ('MySQL',default);
-select * from t1;
-a	b
-MySQL	ÿw2¥ð
-èõÁ
-drop table t1;
 # INET_ATON(), INET_NTOA()
 set sql_warnings = 1;
 create table t1 (a varchar(1024), b varchar(1024) generated always as (inet_ntoa(inet_aton(a))) virtual) charset latin1;

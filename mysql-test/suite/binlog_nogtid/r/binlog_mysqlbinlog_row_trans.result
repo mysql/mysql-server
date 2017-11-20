@@ -566,7 +566,7 @@ SET TIMESTAMP=#/*!*/;
 TRUNCATE TABLE t2
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
+# # server id #  end_log_pos # CRC32 # 	Rotate to binlog.000002  pos: 4
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
@@ -576,3 +576,17 @@ DELIMITER ;
 # Cleanup.
 #
 DROP TABLE t1, t2;
+#
+# Bug#22350047: IF CLIENT KILLED AFTER ROLLBACK TO SAVEPOINT PREVIOUS
+#               STMTS COMMITTED
+#
+CREATE TABLE t1(a INT) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+SAVEPOINT tx_0;
+ROLLBACK TO SAVEPOINT tx_0;
+KILL CONNECTION CONN_ID;
+# Without the patch, field 'a' contained the value 1
+SELECT * FROM t1;
+a
+DROP TABLE t1;

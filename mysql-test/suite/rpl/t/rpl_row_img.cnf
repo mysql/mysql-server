@@ -6,17 +6,14 @@
 # instances when MTR runs rpl tests with parallel 4 or more.
 
 [mysqld.1]
-log-slave-updates
 new=1
 innodb_flush_log_at_trx_commit= 0
 
 [mysqld.2]
-log-slave-updates
 new=1
 innodb_flush_log_at_trx_commit= 0
 
 [mysqld.3]
-log-slave-updates
 new=1
 innodb_flush_log_at_trx_commit= 0
 loose-innodb_write_io_threads=    2

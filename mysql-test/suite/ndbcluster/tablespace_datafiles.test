@@ -30,10 +30,43 @@ ALTER TABLESPACE ts1
   DROP DATAFILE 'ts1_datafile2.dat'
   ENGINE=NDB;
 
+# Bug#26133507: ATTEMPT TO DROP NONEXISTING DATAFILE FROM TABLESPACE GIVES
+# 'INCORRECT FILE NAME'
+# Drop second datafile from NDB again
+--error ER_MISSING_TABLESPACE_FILE
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile2.dat'
+  ENGINE=NDB;
+
 # Drop tablespace
 DROP TABLESPACE ts1
   ENGINE=NDB;
 
-DROP LOGFILE GROUP lg1
+# Create empty datafile
+--write_file $MYSQLTEST_VARDIR/tmp/t1.dat
+EOF
+
+# Try to create tablespace with the same datafile
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CREATE_FILEGROUP_FAILED
+--eval CREATE TABLESPACE ts1 ADD DATAFILE '$MYSQLTEST_VARDIR/tmp/t1.dat' USE LOGFILE GROUP lg1 INITIAL_SIZE 1M ENGINE NDB
+
+# Create tablespace again this time with valid datafile
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 1M
+  ENGINE NDB;
+
+# Drop datafile from tablespace
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat'
   ENGINE=NDB;
 
+# Drop tablespace
+DROP TABLESPACE ts1
+  ENGINE=NDB;
+
+# Drop logfile group
+DROP LOGFILE GROUP lg1
+  ENGINE=NDB;

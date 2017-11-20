@@ -1,5 +1,3 @@
-# Need log_bin off initially to check the default value.
---source include/not_log_bin.inc
 #
 # only global
 #

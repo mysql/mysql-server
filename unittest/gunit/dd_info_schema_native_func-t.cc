@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,13 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
-#include "test_utils.h"
 
-#include "item_func.h"
-#include "item_timefunc.h"
-#include "parse_tree_helpers.h"
+#include <gtest/gtest.h>
+
+#include "sql/item_func.h"
+#include "sql/item_timefunc.h"
+#include "sql/parse_tree_helpers.h"
+#include "test_utils.h"
 
 namespace dd_info_schema_native_func {
 using my_testing::Server_initializer;
@@ -65,64 +66,64 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
 #define FIVE_NULL_ARGS  FOUR_NULL_ARGS, NULL_ARG
 #define CREATE_ITEM(X, ARGS) item= new (thd()->mem_root)X(POS(), ARGS)
 
-  // INTERNAL_TABLE_ROWS(NULL, NULL, NULL, NULL, NULL);
+  // INTERNAL_TABLE_ROWS(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
   CREATE_ITEM(Item_func_internal_table_rows,
-              prepare_null_list(null_list, null, 5));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_AVG_ROW_LENGTH(NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_AVG_ROW_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_avg_row_length,
-              prepare_null_list(null_list, null, 5));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_DATA_LENGTH(NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_DATA_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_data_length,
-              prepare_null_list(null_list, null, 5));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_MAX_DATA_LENGTH(NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_MAX_DATA_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_max_data_length,
-              prepare_null_list(null_list, null, 5));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_INDEX_LENGTH(NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_INDEX_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_index_length,
-              prepare_null_list(null_list, null, 5));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_DATA_FREE(NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_DATA_FREE(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_data_free,
-              prepare_null_list(null_list, null, 5));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_AUTO_INCREMENT(NULL, NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_AUTO_INCREMENT(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_auto_increment,
-              prepare_null_list(null_list, null, 6));
+              prepare_null_list(null_list, null, 9));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_UPDATE_TIME(NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_UPDATE_TIME(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_update_time,
-              prepare_null_list(null_list, null, 5));
+              prepare_null_list(null_list, null, 8));
   MYSQL_TIME ldate;
   item->get_date(&ldate, 0);
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_CHECK_TIME(NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_CHECK_TIME(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_check_time,
-              prepare_null_list(null_list, null, 5));
+              prepare_null_list(null_list, null, 8));
   item->get_date(&ldate, 0);
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_CHECKSUM(NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_CHECKSUM(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_checksum,
-              prepare_null_list(null_list, null, 5));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
@@ -145,9 +146,10 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
   item->val_str(&str);
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_INDEX_COLUMN_CARDINALITY(NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_INDEX_COLUMN_CARDINALITY(NULL, NULL, NULL, NULL, NULL,
+  //                                   NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_index_column_cardinality,
-              prepare_null_list(null_list, null, 8));
+              prepare_null_list(null_list, null, 11));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
@@ -206,5 +208,57 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
   CREATE_ITEM(Item_func_get_dd_create_options, TWO_NULL_ARGS);
   // Empty string value is returned in this case.
   EXPECT_EQ(static_cast<size_t>(0), (item->val_str(&str))->length());
+
+  // INTERNAL_GET_PARTITION_NODEGROUP()
+  CREATE_ITEM(Item_func_get_partition_nodegroup, NULL_ARG);
+  EXPECT_EQ(0, strcmp((item->val_str(&str))->ptr(), "default"));
+
+  // INTERNAL_TABLESPACE_ID()
+  CREATE_ITEM(Item_func_internal_tablespace_id, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_TYPE()
+  CREATE_ITEM(Item_func_internal_tablespace_type, FOUR_NULL_ARGS);
+  EXPECT_EQ(nullptr, item->val_str(&str));
+
+  // INTERNAL_TABLESPACE_FREE_EXTENTS()
+  CREATE_ITEM(Item_func_internal_tablespace_free_extents, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_TOTAL_EXTENTS()
+  CREATE_ITEM(Item_func_internal_tablespace_total_extents, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_EXTENT_SIZE()
+  CREATE_ITEM(Item_func_internal_tablespace_extent_size, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_INITIAL_SIZE()
+  CREATE_ITEM(Item_func_internal_tablespace_initial_size, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_MAXIMUM_SIZE()
+  CREATE_ITEM(Item_func_internal_tablespace_maximum_size, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_AUTOEXTEND_SIZE()
+  CREATE_ITEM(Item_func_internal_tablespace_autoextend_size, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_DATA_FREE()
+  CREATE_ITEM(Item_func_internal_tablespace_data_free, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_STATUS()
+  CREATE_ITEM(Item_func_internal_tablespace_status, FOUR_NULL_ARGS);
+  EXPECT_EQ(nullptr, item->val_str(&str));
 }
 } //namespace

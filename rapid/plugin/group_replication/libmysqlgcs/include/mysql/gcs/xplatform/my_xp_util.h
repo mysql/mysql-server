@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #include <unistd.h>
 #endif
 
-#if defined(WIN32) || defined(WIN64)
+#if defined(_WIN32)
 #include <Winsock2.h>
 #include <ws2tcpip.h>
 #ifndef INET_ADDRSTRLEN

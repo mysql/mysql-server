@@ -17,10 +17,10 @@
 #include <zlib.h>
 
 #include "azlib.h"
-#include "handler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "sql/handler.h"
 #include "sql_string.h"
 
 /**

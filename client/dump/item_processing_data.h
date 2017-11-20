@@ -21,9 +21,9 @@
 #include <atomic>
 #include <functional>
 
-#include "chain_data.h"
-#include "i_dump_task.h"
-#include "i_chain_element.h"
+#include "client/dump/chain_data.h"
+#include "client/dump/i_chain_element.h"
+#include "client/dump/i_dump_task.h"
 
 namespace Mysql{
 namespace Tools{

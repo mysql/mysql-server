@@ -25,9 +25,16 @@
  */
 
 #include <stddef.h>
+#include <algorithm>
+#include <new>
 #include <string>
+#include <utility>                              // std::move
 
+#include "mem_root_fwd.h"
+#include "my_alloc.h"                           // MEM_ROOT
 #include "my_dbug.h"                            // DBUG_ASSERT
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "prealloced_array.h"                   // Prealloced_array
 
 class String;
@@ -285,6 +292,8 @@ public:
   Array_range get_array_range(size_t array_length) const;
 };
 
+using Json_path_leg_pointers= Prealloced_array<const Json_path_leg *, 8>;
+using Json_path_iterator= Json_path_leg_pointers::const_iterator;
 
 /**
   A path expression which can be used to seek to
@@ -292,22 +301,24 @@ public:
 */
 class Json_seekable_path
 {
+protected:
+  /** An array of pointers to the legs of the JSON path. */
+  Json_path_leg_pointers m_path_legs;
+
+  Json_seekable_path();
+
 public:
-  virtual ~Json_seekable_path() {}
-
   /** Return the number of legs in this searchable path */
-  virtual size_t leg_count() const =0;
+  size_t leg_count() const { return m_path_legs.size(); }
 
-  /**
-     Get the ith (numbered from 0) leg
+  /** Get an iterator pointing to the first path leg. */
+  Json_path_iterator begin() const { return m_path_legs.begin(); }
 
-     @param[in] index 0-based index into the searchable path
+  /** Get an iterator pointing just past the last path leg. */
+  Json_path_iterator end() const { return m_path_legs.end(); }
 
-     @return NULL if the index is out of range. Otherwise, a pointer to the
-     corresponding Json_path_leg.
-  */
-  virtual const Json_path_leg *get_leg_at(size_t index) const =0;
-
+  /** Get a pointer to the last path leg. The path must not be empty. */
+  const Json_path_leg *last_leg() const { return *(m_path_legs.end() - 1); }
 };
 
 /**
@@ -358,8 +369,11 @@ public:
 class Json_path final : public Json_seekable_path
 {
 private:
-  typedef Prealloced_array<Json_path_leg, 8> Path_leg_vector;
-  Path_leg_vector m_path_legs;
+  /**
+    A MEM_ROOT in which the Json_path_leg objects pointed to by
+    #Json_seekable_path::m_path_legs are allocated.
+  */
+  MEM_ROOT m_mem_root;
 
   /**
      Fills in this Json_path from a path expression.
@@ -444,40 +458,78 @@ private:
 public:
   Json_path();
 
-  /** Return the number of legs in this path */
-  size_t leg_count() const override { return m_path_legs.size(); }
+  ~Json_path()
+  {
+    for (const auto ptr : m_path_legs)
+      ptr->~Json_path_leg();
+  }
 
-  /**
-     Get the ith (numbered from 0) leg
+  /** Move constructor. */
+  Json_path(Json_path &&other)
+    : m_mem_root(std::move(other.m_mem_root))
+  {
+    // Move the contents of m_path_legs from other into this.
+    m_path_legs= std::move(other.m_path_legs);
 
-     @param[in] index 0-based index into the path
+    /*
+      Must also make sure that other.m_path_legs is empty, so that we
+      don't end up destroying the same objects twice; once from this's
+      destructor and once from other's destructor.
 
-     @return NULL if the index is out of range. Otherwise, a pointer to the
-     corresponding Json_path.
-  */
-  const Json_path_leg *get_leg_at(size_t index) const override;
+      Move-constructing a vector would usually leave "other" empty,
+      but it is not guaranteed. Furthermore, m_path_legs is a
+      Prealloced_array, not a std::vector, so often moving will mean
+      copying from one prealloced area to another instead of simply
+      swapping pointers to the backing array. (And at the time of
+      writing Prealloced_array doesn't even have a move-assignment
+      operator, so the above assignment will always copy and leave
+      "other" unchanged.)
+    */
+    other.m_path_legs.clear();
+  }
+
+  /** Move assignment. */
+  Json_path &operator=(Json_path &&other)
+  {
+    if (&other != this)
+    {
+      this->~Json_path();
+      new (this) Json_path(std::move(other));
+    }
+    return *this;
+  }
 
   /**
     Add a path leg to the end of this path.
     @param[in] leg the leg to add
     @return false on success, true on error
   */
-  bool append(const Json_path_leg &leg) { return m_path_legs.push_back(leg); }
+  bool append(const Json_path_leg &leg)
+  {
+    auto ptr= new (&m_mem_root) Json_path_leg(leg);
+    return ptr == nullptr || m_path_legs.push_back(ptr);
+  }
 
   /**
     Pop the last leg element.
 
     This effectively lets the path point at the container of the original,
     i.e. an array or an object.
-
-    @result the last leg popped off
   */
-  Json_path_leg pop();
+  void pop();
 
   /**
     Resets this to an empty path with no legs.
   */
-  void clear() { m_path_legs.clear(); }
+  void clear()
+  {
+    // Destruct all the Json_path_leg objects, and clear the pointers to them.
+    for (const auto ptr : m_path_legs)
+      ptr->~Json_path_leg();
+    m_path_legs.clear();
+    // Mark the memory as ready for reuse.
+    free_root(&m_mem_root, MYF(MY_MARK_BLOCKS_FREE));
+  }
 
   /**
     Return true if the path can match more than one value in a JSON document.
@@ -502,52 +554,19 @@ public:
 /**
   A lightweight path expression. This exists so that paths can be cloned
   from the path legs of other paths without allocating heap memory
-  to copy those legs into.
+  to copy those legs into. This class does not own the memory of the
+  Json_path_leg objects pointed to by #Json_seekable_path::m_path_legs, it
+  just points to Json_path_leg objects that belong to a Json_path instance.
 */
 class Json_path_clone final : public Json_seekable_path
 {
-private:
-  using Path_leg_pointers= Prealloced_array<const Json_path_leg *, 8>;
-  Path_leg_pointers m_path_legs;
-
 public:
-  Json_path_clone();
-
-  /** Return the number of legs in this cloned path */
-  size_t leg_count() const override { return m_path_legs.size(); }
-
-  /**
-     Get the ith (numbered from 0) leg
-
-     @param[in] index 0-based index into the cloned path
-
-     @return NULL if the index is out of range. Otherwise, a pointer to the
-     corresponding Json_path_leg.
-  */
-  const Json_path_leg *get_leg_at(size_t index) const override;
-
   /**
     Add a path leg to the end of this cloned path.
     @param[in] leg the leg to add
     @return false on success, true on error
   */
   bool append(const Json_path_leg *leg) { return m_path_legs.push_back(leg); }
-
-  /**
-    Clear this clone and then add all of the
-    legs from another path.
-
-    @param[in,out] source The source path
-    @return false on success, true on error
-  */
-  bool set(Json_seekable_path *source);
-
-  /**
-    Pop the last leg element.
-
-    @result the last leg popped off
-  */
-  const Json_path_leg * pop();
 
   /**
     Resets this to an empty path with no legs.

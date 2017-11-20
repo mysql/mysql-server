@@ -26,8 +26,8 @@
 #include "mock_field_long.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "opt_range.cc"
-#include "parse_tree_helpers.h"
+#include "sql/opt_range.cc"
+#include "sql/parse_tree_helpers.h"
 #include "test_utils.h"
 
 namespace opt_range_unittest {

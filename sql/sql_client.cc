@@ -22,8 +22,8 @@
 #include <algorithm>
 
 #include "mysql_com.h"
-#include "mysqld.h"                             // global_system_variables
-#include "system_variables.h"
+#include "sql/mysqld.h"                         // global_system_variables
+#include "sql/system_variables.h"
 
 using std::min;
 using std::max;

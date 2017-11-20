@@ -16,6 +16,5 @@ UNINSTALL PLUGIN group_replication;
 STOP GROUP_REPLICATION;
 [connection server1]
 SET @@GLOBAL.read_only= 0;
-UNINSTALL PLUGIN group_replication;
 INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
 include/group_replication_end.inc

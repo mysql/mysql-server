@@ -5,6 +5,8 @@
 ## 2. Launch multiple sessions to trigger callback events, log the events to file
 ## 3. Import log file into a table
 ## 4. Verify the contents of the table
+## Disable resource groups for this test.
+SET DEBUG='+d, disable_rg_pfs_notifications';
 
 ## Install test component
 INSTALL COMPONENT "file://component_test_pfs_notification";
@@ -150,3 +152,4 @@ DROP USER PFS_USER1;
 DROP USER PFS_USER2;
 DROP USER PFS_USER3;
 DROP TABLE test.callback_events;
+SET DEBUG='-d,disable_rg_pfs_notifications';

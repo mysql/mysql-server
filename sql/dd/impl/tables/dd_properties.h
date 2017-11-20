@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,8 +19,9 @@
 #include <sys/types.h>
 #include <string>
 
-#include "dd/impl/types/object_table_impl.h"
-#include "dd/impl/properties_impl.h"                // dd::Properties_impl
+#include "sql/dd/impl/properties_impl.h"            // dd::Properties_impl
+#include "sql/dd/impl/types/object_table_impl.h"
+#include "sql/dd/string_type.h"
 
 class THD;
 

@@ -19,10 +19,12 @@
 #define NDB_IMPORT_UTIL_HPP
 
 #include <ndb_global.h>
+#include <stdint.h>
 #include <ndb_limits.h>
 #include <mgmapi.h>
 #include <NdbMutex.h>
 #include <NdbCondition.h>
+#include <NdbHost.h>
 #include <NdbThread.h>
 #include <NdbSleep.h>
 #include <NdbGetRUsage.h>
@@ -30,6 +32,9 @@
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>
 #include <NdbImport.hpp>
+#ifdef _WIN32
+#include <io.h>
+#endif
 // STL
 #include <string>
 #include <vector>
@@ -152,6 +157,10 @@ public:
    * For example List/ListEnt are subclassed as RowList/Row where
    * RowList stores only Row entries.
    *
+   * For type-safety, subclasses of List use private inheritance and
+   * define explicitly the methods needed.  This prevents putting an
+   * entry on a wrong type of list.
+   *
    * A list has optional associated stats under a given name.  These
    * can be extended by subclasses.
    */
@@ -243,19 +252,21 @@ public:
 
   struct Table {
     Table();
-    const Attr& get_attr(const char* attrname) const;
     void add_pseudo_attr(const char* name,
                          NdbDictionary::Column::Type type,
                          uint length = 1);
+    const Attr& get_attr(const char* attrname) const;
+    uint get_nodeid(uint fragid) const;
     uint m_tabid;
     const NdbDictionary::Table* m_tab;
     const NdbRecord* m_rec;
     const NdbRecord* m_keyrec;
     uint m_rowsize;
-    const CHARSET_INFO* m_cs;
     bool m_has_hidden_pk;
     Attrs m_attrs;
     std::vector<uint> m_blobids;
+    // map fragid to nodeid
+    std::vector<uint16> m_fragments;
   };
 
   // tables mapped by table id
@@ -267,7 +278,8 @@ public:
 
   int add_table(NdbDictionary::Dictionary* dic,
                 const NdbDictionary::Table* tab,
-                uint& tabid);
+                uint& tabid,
+                Error& error);
   const Table& get_table(uint tabid);
 
   // rows
@@ -289,7 +301,7 @@ public:
     std::vector<Blob*> m_blobs;
   };
 
-  struct RowList : List, Lockable {
+  struct RowList : private List, Lockable {
     RowList();
     virtual ~RowList();
     void set_stats(Stats& stats, const char* name);
@@ -298,6 +310,12 @@ public:
     bool push_front(Row* row);
     Row* pop_front();
     void remove(Row* row);
+    uint cnt() const {
+      return m_cnt;
+    }
+    uint64 totcnt() const {
+      return m_totcnt;
+    }
     uint m_rowsize;     // sum from row entries
     uint m_rowbatch;    // limit m_cnt
     uint m_rowbytes;    // limit m_rowsize
@@ -325,9 +343,15 @@ public:
     uchar* m_data;
   };
 
-  struct BlobList : List, Lockable {
+  struct BlobList : private List, Lockable {
     BlobList();
     virtual ~BlobList();
+    void push_back(Blob* blob) {
+      List::push_back(blob);
+    }
+    Blob* pop_front() {
+      return static_cast<Blob*>(List::pop_front());
+    }
   };
 
   Blob* alloc_blob();
@@ -529,10 +553,17 @@ public:
   // files
 
   struct File {
+#ifndef _WIN32
     const static int Read_flags = O_RDONLY;
     const static int Write_flags = O_WRONLY | O_CREAT | O_TRUNC;
     const static int Append_flags = O_WRONLY | O_APPEND;
     const static int Creat_mode = 0644;
+#else
+    const static int Read_flags = _O_RDONLY | _O_BINARY;
+    const static int Write_flags = _O_WRONLY | _O_CREAT | _O_TRUNC | _O_BINARY;
+    const static int Append_flags = _O_WRONLY | _O_APPEND | _O_BINARY;
+    const static int Creat_mode = _S_IREAD | _S_IWRITE;
+#endif
     File(NdbImportUtil& util, Error& error);
     ~File();
     void set_path(const char* path) {

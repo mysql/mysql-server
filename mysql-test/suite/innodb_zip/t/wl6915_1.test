@@ -1,5 +1,4 @@
 --source include/have_innodb_max_16k.inc
---source include/have_no_undo_tablespaces.inc
 --source include/big_test.inc
 
 # Avoid CrashReporter popup on Mac
@@ -26,7 +25,7 @@
 # - Check constraints like duplicate key,default value             #
 # - Alter ADD COLUMN , ADD PRIMARY KEY                             #
 # - Flush Tables, logs command                                     #
-# - Vary innodb_undo_tablespaces=0,innodb_rollback_segments        #
+# - Vary innodb_undo_tablespaces,innodb_rollback_segments &        #
 #    innodb_log_files_in_group                                     #
 # - Verify rseg message from server log                            #
 ####################################################################
@@ -456,7 +455,7 @@ connection default;
 #
 ## trying with VALUES innodb_undo_tablespaces, innodb_rollback_segments ,innodb_log_files_in_group
 ##
-let $restart_parameters = restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=20 --innodb_log_files_in_group=4;
+let $restart_parameters = restart: --innodb_undo_tablespaces=5 --innodb_rollback_segments=20 --innodb_log_files_in_group=4;
 --source include/restart_mysqld.inc
 
 # Create two client for concurrent execution
@@ -509,7 +508,7 @@ disconnect con2;
 
 connection default;
 # innodb_rollback_segments > non redo rsegment
-let $restart_parameters = restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=30 --innodb_log_files_in_group=4;
+let $restart_parameters = restart: --innodb_undo_tablespaces=3 --innodb_rollback_segments=30 --innodb_log_files_in_group=4;
 --source include/restart_mysqld.inc
 
 connect (con1,localhost,root,,);
@@ -562,16 +561,6 @@ disconnect con2;
 
 connection default;
 DROP PROCEDURE populate_tables;
-
-# check message in log
-let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
-let SEARCH_FILE= $error_log;
-# We get depending on the platform either "./ibdata1" or ".\ibdata1".
-let SEARCH_PATTERN=redo rollback segment.*found.*redo rollback segment.*active
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN=non-redo rollback.*active
---source include/search_pattern_in_file.inc
-
 
 SHOW TABLES;
 

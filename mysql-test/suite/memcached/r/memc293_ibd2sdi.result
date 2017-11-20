@@ -9,306 +9,388 @@ INSERT INTO containers VALUES ('desc_t1', 'test', 't1',
 'c1', 'c2',  '0', '0', '0', 'PRIMARY');
 USE test;
 # Case 1. Test with small SDI data
+SET DEBUG = '+d, skip_sdi';
 CREATE TABLE t1(c1 VARCHAR(32),
 c2 TEXT,
 primary key(c1))
 ENGINE = INNODB;
+SET DEBUG = '-d, skip_sdi';
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 SET GLOBAL innodb_buf_flush_list_now = ON;
-[INFO] ibd2sdi: SDI from both copies is empty.
 [INFO] ibd2sdi: SDI is empty.
-# 1. Read from copy 0 with long option
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-# 2. Read from copy 1 with short option
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-# 3. Read from copy 0 with specific id & type (long option)
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-# 4. Read from copy 1 with specific id & type (short option)
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-# 5. Read from copy 0 & skip data
-[
- ["ibd2sdi", {"id":0, "type":0}],
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
-],
-[
- ["ibd2sdi", {"id":0, "type":0}],
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
-],
-# 6. Read from copy 0 and dump into FILE
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-# 7. Read from copy 0 and dump into FILE using short option
-[
- ["ibd2sdi", {"id":0, "type":0}],
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
-],
+# 1. Read SDI with long option
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
+,
+{
+	"type": 3,
+	"id": 2,
+	"object":
+		Test32
+}
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+,
+{
+	"type": 3,
+	"id": 4,
+	"object":
+		Test34
+}
+,
+{
+	"type": 3,
+	"id": 5,
+	"object":
+		Test35
+}
+,
+{
+	"type": 4,
+	"id": 4,
+	"object":
+		Test44
+}
+,
+{
+	"type": 5,
+	"id": 0,
+	"object":
+		Test50
+}
+]
+# 3. Read with specific id & type (long option)
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+]
+# 4. Read with specific id & type (short option)
+["ibd2sdi"
+,
+{
+	"type": 4,
+	"id": 4,
+	"object":
+		Test44
+}
+]
+# 5. Read with skip data
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0
+}
+,
+{
+	"type": 1,
+	"id": 0
+}
+,
+{
+	"type": 2,
+	"id": 0
+}
+,
+{
+	"type": 3,
+	"id": 0
+}
+,
+{
+	"type": 3,
+	"id": 1
+}
+,
+{
+	"type": 3,
+	"id": 2
+}
+,
+{
+	"type": 3,
+	"id": 3
+}
+,
+{
+	"type": 3,
+	"id": 4
+}
+,
+{
+	"type": 3,
+	"id": 5
+}
+,
+{
+	"type": 4,
+	"id": 4
+}
+,
+{
+	"type": 5,
+	"id": 0
+}
+]
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0
+}
+,
+{
+	"type": 1,
+	"id": 0
+}
+,
+{
+	"type": 2,
+	"id": 0
+}
+,
+{
+	"type": 3,
+	"id": 0
+}
+,
+{
+	"type": 3,
+	"id": 1
+}
+,
+{
+	"type": 3,
+	"id": 2
+}
+,
+{
+	"type": 3,
+	"id": 3
+}
+,
+{
+	"type": 3,
+	"id": 4
+}
+,
+{
+	"type": 3,
+	"id": 5
+}
+,
+{
+	"type": 4,
+	"id": 4
+}
+,
+{
+	"type": 5,
+	"id": 0
+}
+]
+# 6. Read SDI and dump into FILE
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
+,
+{
+	"type": 3,
+	"id": 2,
+	"object":
+		Test32
+}
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+,
+{
+	"type": 3,
+	"id": 4,
+	"object":
+		Test34
+}
+,
+{
+	"type": 3,
+	"id": 5,
+	"object":
+		Test35
+}
+,
+{
+	"type": 4,
+	"id": 4,
+	"object":
+		Test44
+}
+,
+{
+	"type": 5,
+	"id": 0,
+	"object":
+		Test50
+}
+]
+# 7. Read SDI and dump into FILE using short option
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0
+}
+,
+{
+	"type": 1,
+	"id": 0
+}
+,
+{
+	"type": 2,
+	"id": 0
+}
+,
+{
+	"type": 3,
+	"id": 0
+}
+,
+{
+	"type": 3,
+	"id": 1
+}
+,
+{
+	"type": 3,
+	"id": 2
+}
+,
+{
+	"type": 3,
+	"id": 3
+}
+,
+{
+	"type": 3,
+	"id": 4
+}
+,
+{
+	"type": 3,
+	"id": 5
+}
+,
+{
+	"type": 4,
+	"id": 4
+}
+,
+{
+	"type": 5,
+	"id": 0
+}
+]
 # 8. Print all records matching type (short option)
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+]
 # 9. Print all records matching id (long option)
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+]
 # 10. Print version
 IBD2SDI Ver #.#.#
 # 11. Print help
@@ -326,7 +408,6 @@ See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
   -d, --dump-file=name 
                       Dump the tablespace SDI into the file passed by user.
                       Without the filename, it will default to stdout
-  -r, --read=#        Read from this Copy of SDI in tablespace.
   -s, --skip-data     Skip retrieving data from SDI records. Retrieve only id
                       and type.
   -i, --id=#          Retrieve the SDI record matching the id passed by user.
@@ -341,572 +422,265 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 dump-file                         (No default value)
-read                              0
 skip-data                         FALSE
 id                                0
 type                              0
 strict-check                      crc32
 no-check                          FALSE
 # 12. Print all records
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
+,
+{
+	"type": 3,
+	"id": 2,
+	"object":
+		Test32
+}
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+,
+{
+	"type": 3,
+	"id": 4,
+	"object":
+		Test34
+}
+,
+{
+	"type": 3,
+	"id": 5,
+	"object":
+		Test35
+}
+,
+{
+	"type": 4,
+	"id": 4,
+	"object":
+		Test44
+}
+,
+{
+	"type": 5,
+	"id": 0,
+	"object":
+		Test50
+}
+]
 # 13. Retrieve explicit id & type
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+]
 # 14. Skip data and retrieve
-[
- ["ibd2sdi", {"id":0, "type":0}],
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0
+}
+,
+{
+	"type": 1,
+	"id": 0
+}
+,
+{
+	"type": 2,
+	"id": 0
+}
+,
+{
+	"type": 3,
+	"id": 0
+}
+,
+{
+	"type": 3,
+	"id": 1
+}
+,
+{
+	"type": 3,
+	"id": 2
+}
+,
+{
+	"type": 3,
+	"id": 3
+}
+,
+{
+	"type": 3,
+	"id": 4
+}
+,
+{
+	"type": 3,
+	"id": 5
+}
+,
+{
+	"type": 4,
+	"id": 4
+}
+,
+{
+	"type": 5,
+	"id": 0
+}
+]
 # 15. Dump all records into outfile
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
+,
+{
+	"type": 3,
+	"id": 2,
+	"object":
+		Test32
+}
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+,
+{
+	"type": 3,
+	"id": 4,
+	"object":
+		Test34
+}
+,
+{
+	"type": 3,
+	"id": 5,
+	"object":
+		Test35
+}
+,
+{
+	"type": 4,
+	"id": 4,
+	"object":
+		Test44
+}
+,
+{
+	"type": 5,
+	"id": 0,
+	"object":
+		Test50
+}
+]
 # 16. Print all records matching type (short option)
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+]
 # 17. Print all records matching id (long option)
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+]
 # 18. Pass --no-check & --strict-check together
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
-# 19. Test for reading form more than one copy example (invalid): -r 0,1
-ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'read' (value '0,1')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '0,1' to 'read'
-# 20. Test for Test for invalid values for -r or --read like
-# 20.1 non numeric/Alphanumeric
-ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'read' (value 'a')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'a' to 'read'
-# 20.2 numbers with +/-
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-ibd2sdi: [Warning] option 'read': value -0 adjusted to 0
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-ibd2sdi: [Warning] option 'read': value -1 adjusted to 0
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-ibd2sdi: [Warning] option 'read': value -15 adjusted to 0
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-ibd2sdi: [Warning] option 'read': unsigned value 16 adjusted to 1
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-# 20.3 with special characters
-ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'read' (value '@')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'read'
 ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@')
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'
 ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=')
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'
-# 20.4 with no permitted values
-ibd2sdi: [Warning] option 'read': unsigned value 14 adjusted to 1
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-ibd2sdi: [Warning] option 'read': value -14 adjusted to 0
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-# 20.5 with very long value
-ibd2sdi: [ERROR] Incorrect unsigned integer value: '14324932470234893204293032'
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '14324932470234893204293032' to 'read'
-# 20.6 with blank value
-ibd2sdi: [ERROR] IBD2SDI: Empty value for 'read' specified
-# 20.7 value with spaces
-ibd2sdi: [ERROR] IBD2SDI: Empty value for 'read' specified
-# 21. With misspelled --read
-ibd2sdi: [ERROR] unknown variable 'red=0'
 # 22. Test --type option with
 # 22.1 non numeric/Alphanumeric
 ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'type' (value 'a')
@@ -914,115 +688,69 @@ ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'a' to 'type'
 ibd2sdi: [ERROR] Unknown suffix 'b' used for variable 'type' (value 'b')
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'b' to 'type'
 # 22.2 numbers with +/-
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+]
 ibd2sdi: [Warning] option 'type': value -0 adjusted to 0
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+]
+["ibd2sdi"
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+]
 ibd2sdi: [Warning] option 'type': value -1 adjusted to 0
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+]
 ibd2sdi: [Warning] option 'type': value -15 adjusted to 0
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+]
+["ibd2sdi"
+]
 # 22.4 with no permitted values
+["ibd2sdi"
+]
 ibd2sdi: [Warning] option 'type': value -14 adjusted to 0
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+]
 # 22.5 with very long value
 ibd2sdi: [ERROR] Incorrect unsigned integer value: '14324932470234893204293032'
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '14324932470234893204293032' to 'type'
@@ -1051,106 +779,182 @@ ibd2sdi: [ERROR] unknown variable 'tpe=0'
 INSERT INTO innodb_memcache.containers VALUES ('desc_t2', 'test', 't2',
 'c1', 'c2',  '0', '0', '0', 'PRIMARY');
 # test with innodb checksum
+SET DEBUG = '+d, skip_sdi';
 CREATE TABLE t2(c1 VARCHAR(32),
 c2 TEXT,
 primary key(c1)) ENGINE=INNODB;
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+SET DEBUG = '-d, skip_sdi';
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
+,
+{
+	"type": 3,
+	"id": 2,
+	"object":
+		Test32
+}
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+,
+{
+	"type": 3,
+	"id": 4,
+	"object":
+		Test34
+}
+,
+{
+	"type": 3,
+	"id": 5,
+	"object":
+		Test35
+}
+,
+{
+	"type": 4,
+	"id": 4,
+	"object":
+		Test44
+}
+,
+{
+	"type": 5,
+	"id": 0,
+	"object":
+		Test50
+}
+]
 # restart: --innodb_checksum_algorithm=none
+SET DEBUG = '+d, skip_sdi';
 DROP TABLE t2;
+SET DEBUG = '-d, skip_sdi';
 INSERT INTO innodb_memcache.containers VALUES ('desc_t3', 'test', 't3',
 'c1', 'c2',  '0', '0', '0', 'PRIMARY');
 # test with none checksum
+SET DEBUG = '+d, skip_sdi';
 CREATE TABLE t3(c1 VARCHAR(32),
 c2 TEXT,
 primary key(c1)) ENGINE=INNODB;
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-[ERROR] ibd2sdi: Unable to create temporary file; errno: 0.
+SET DEBUG = '-d, skip_sdi';
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
+,
+{
+	"type": 3,
+	"id": 2,
+	"object":
+		Test32
+}
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+,
+{
+	"type": 3,
+	"id": 4,
+	"object":
+		Test34
+}
+,
+{
+	"type": 3,
+	"id": 5,
+	"object":
+		Test35
+}
+,
+{
+	"type": 4,
+	"id": 4,
+	"object":
+		Test44
+}
+,
+{
+	"type": 5,
+	"id": 0,
+	"object":
+		Test50
+}
+]
+[ERROR] ibd2sdi: Unable to create temporary file. err: Success.
 [ERROR] ibd2sdi: Invalid Dumpfile passed.
 IBD2SDI Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
 
@@ -1167,7 +971,6 @@ See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
   -d, --dump-file=name 
                       Dump the tablespace SDI into the file passed by user.
                       Without the filename, it will default to stdout
-  -r, --read=#        Read from this Copy of SDI in tablespace.
   -s, --skip-data     Skip retrieving data from SDI records. Retrieve only id
                       and type.
   -i, --id=#          Retrieve the SDI record matching the id passed by user.
@@ -1183,7 +986,6 @@ and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 debug                             (No default value)
 dump-file                         (No default value)
-read                              0
 skip-data                         FALSE
 id                                0
 type                              0
@@ -1191,578 +993,755 @@ strict-check                      crc32
 no-check                          FALSE
 [ERROR] ibd2sdi: Error: Unable to seek to necessary offset for file with descriptor X and error msg is: Invalid argument.
 [ERROR] ibd2sdi: SDI doesn't exist for this tablespace or the SDI root page numbers couldn't be determined.
-[ERROR] ibd2sdi: Read requested on invalid page number 36. The maximum valid page number in the tablespace is 35.
+[ERROR] ibd2sdi: Read requested on invalid page number 20. The maximum valid page number in the tablespace is 19.
 [ERROR] ibd2sdi: SDI doesn't exist for this tablespace or the SDI root page numbers couldn't be determined.
 [ERROR] ibd2sdi: Unable to open file junk_file.
 [WARNING] ibd2sdi: There is a partial page at the end, of size 1. This partial page is ignored.
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-[ERROR] ibd2sdi: Root page numbers and page types are equal but they are of type: 0 expected page type is 17853.
-[ERROR] ibd2sdi: Couldn't determine the best root page numbers.
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
+,
+{
+	"type": 3,
+	"id": 2,
+	"object":
+		Test32
+}
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+,
+{
+	"type": 3,
+	"id": 4,
+	"object":
+		Test34
+}
+,
+{
+	"type": 3,
+	"id": 5,
+	"object":
+		Test35
+}
+,
+{
+	"type": 4,
+	"id": 4,
+	"object":
+		Test44
+}
+,
+{
+	"type": 5,
+	"id": 0,
+	"object":
+		Test50
+}
+]
+[ERROR] ibd2sdi: Couldn't find valid root page number.
 [ERROR] ibd2sdi: SDI doesn't exist for this tablespace or the SDI root page numbers couldn't be determined.
+["ibd2sdi"
+]
 # 18. Corrupt Root page numbers in Page 1
 # We should still see data because of the good
 # page numbers in Page 2
-[ERROR] ibd2sdi: From Page 1: root page number: 0. From Page 2: root page number: 3 are mismatching.
-[ERROR] ibd2sdi: Verifying page types to select the better root page number.
-[INFO] ibd2sdi: Selected page no: 3.
-[ERROR] ibd2sdi: From Page 1: root page number: 0. From Page 2: root page number: 4 are mismatching.
-[ERROR] ibd2sdi: Verifying page types to select the better root page number.
-[INFO] ibd2sdi: Selected page no: 4.
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
+,
+{
+	"type": 3,
+	"id": 2,
+	"object":
+		Test32
+}
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+,
+{
+	"type": 3,
+	"id": 4,
+	"object":
+		Test34
+}
+,
+{
+	"type": 3,
+	"id": 5,
+	"object":
+		Test35
+}
+,
+{
+	"type": 4,
+	"id": 4,
+	"object":
+		Test44
+}
+,
+{
+	"type": 5,
+	"id": 0,
+	"object":
+		Test50
+}
+]
 # 19. Test with broken node-page link. The child page_no
 # will be zero. Use --no-checksum as the page is corrupted.
 [ERROR] ibd2sdi: Invalid child page number: 0 found.
-[ERROR] ibd2sdi: Error while reaching to leaf level of copy 0 but there are records from copy 1.
-[ERROR] ibd2sdi: Dumping SDI Copy: 1 into file: FILENAME
-# Child page link broken only in copy0, Copy1 is fine
-# Read data from copy1
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
 # 20. Test with broken leaf-page link. The child page_no
 # will be zero. Use --no-checksum as the page is corrupted
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
+,
+{
+	"type": 3,
+	"id": 2,
+	"object":
+		Test32
+}
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
 [ERROR] ibd2sdi: Unexpected page type: 8. Expected page type: 17853.
-[ERROR] ibd2sdi: Corruption detected when comparing records.
-[ERROR] ibd2sdi: Dumping SDI Copy: 0 into file: FILENAME
-[ERROR] ibd2sdi: Unexpected page type: 8. Expected page type: 17853.
-[ERROR] ibd2sdi: Dumping SDI Copy: 1 into file: FILENAME
-[ERROR] ibd2sdi: Please compare the above files to find the difference between two SDI copies.
-# Retrieve only from corrupted copy 0
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
+]
+# Retrieve from .ibd file
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
 [ERROR] ibd2sdi: Page [page id: space=X, page number=10] is corrupted. Checksum verification failed.
 [ERROR] ibd2sdi: Couldn't read next page 10.
-# Retrieve only from good copy 1
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+]
 # 21. Test with Leaf Page full of Zeros
 # Checksum will be valid. Skip checksum is not necessary
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
 [ERROR] ibd2sdi: Unexpected page type: 0. Expected page type: 17853.
-[ERROR] ibd2sdi: Corruption detected when comparing records.
-[ERROR] ibd2sdi: Dumping SDI Copy: 0 into file: FILENAME
-[ERROR] ibd2sdi: Unexpected page type: 0. Expected page type: 17853.
-[ERROR] ibd2sdi: Dumping SDI Copy: 1 into file: FILENAME
-[ERROR] ibd2sdi: Please compare the above files to find the difference between two SDI copies.
-# Retrieve only from good copy 1
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+]
 # 22. Test with Record corruption. User record pointing to
 # INFIMUM Causing INFINITE loops.
-[ERROR] ibd2sdi: Corruption detected when comparing records.
-[ERROR] ibd2sdi: Dumping SDI Copy: 0 into file: FILENAME
 [ERROR] ibd2sdi: Record Corruption detected. Too many records or infinite loop detected. Aborting.
 [ERROR] ibd2sdi: The current iteration num is 529. Maximum number of records expected on the page 10 is 528.
-[ERROR] ibd2sdi: Dumping SDI Copy: 1 into file: FILENAME
-[ERROR] ibd2sdi: Please compare the above files to find the difference between two SDI copies.
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
+,
+{
+	"type": 3,
+	"id": 2,
+	"object":
+		Test32
+}
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+,
+{
+	"type": 3,
+	"id": 4,
+	"object":
+		Test34
+}
+,
+{
+	"type": 3,
+	"id": 5,
+	"object":
+		Test35
+}
+,
+{
+	"type": 4,
+	"id": 4,
+	"object":
+		Test44
+}
+,
+{
+	"type": 5,
+	"id": 0,
+	"object":
+		Test50
+}
+]
 # 23. Test with INFIMUM payload corruption. We should just
 # see a msg in error log but data retrieval should be OK
-[WARNING] ibd2sdi: Infimum payload on page 9 is corrupted.
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+[WARNING] ibd2sdi: Infimum payload on page 10 is corrupted.
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
+,
+{
+	"type": 3,
+	"id": 2,
+	"object":
+		Test32
+}
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+,
+{
+	"type": 3,
+	"id": 4,
+	"object":
+		Test34
+}
+,
+{
+	"type": 3,
+	"id": 5,
+	"object":
+		Test35
+}
+,
+{
+	"type": 4,
+	"id": 4,
+	"object":
+		Test44
+}
+,
+{
+	"type": 5,
+	"id": 0,
+	"object":
+		Test50
+}
+]
 # 24. Test with SUPREMUM payload corruption. We should just
 # see a msg in error log but data retrieval should be OK
-[WARNING] ibd2sdi: supremum record payload on page 6 is corrupted.
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+[WARNING] ibd2sdi: supremum record payload on page 7 is corrupted.
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
+,
+{
+	"type": 3,
+	"id": 2,
+	"object":
+		Test32
+}
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+,
+{
+	"type": 3,
+	"id": 4,
+	"object":
+		Test34
+}
+,
+{
+	"type": 3,
+	"id": 5,
+	"object":
+		Test35
+}
+,
+{
+	"type": 4,
+	"id": 4,
+	"object":
+		Test44
+}
+,
+{
+	"type": 5,
+	"id": 0,
+	"object":
+		Test50
+}
+]
 # 25. Test with SUPREMUM next-rec offset corruption. We should just
 # see a msg in error log but data retrieval should be OK
 [WARNING] ibd2sdi: Unexpected next-rec offset 20 of supremum record on page 6.
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
+,
+{
+	"type": 3,
+	"id": 2,
+	"object":
+		Test32
+}
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+,
+{
+	"type": 3,
+	"id": 4,
+	"object":
+		Test34
+}
+,
+{
+	"type": 3,
+	"id": 5,
+	"object":
+		Test35
+}
+,
+{
+	"type": 4,
+	"id": 4,
+	"object":
+		Test44
+}
+,
+{
+	"type": 5,
+	"id": 0,
+	"object":
+		Test50
+}
+]
 # 26. Test with SPACE FLAGS Corruption
 [ERROR] ibd2sdi: Page 0 corruption detected. Page size is either zero or out of bound.
 [ERROR] ibd2sdi: Minimum valid page size is [page size: physical=1024, logical=4096, compressed=1].
 [ERROR] ibd2sdi: Maximum valid page size is [page size: physical=65536, logical=65536, compressed=0].
 [ERROR] ibd2sdi: Reading multiple pages to determine the page_size.
 [INFO] ibd2sdi: Page size determined is : [page size: physical=16384, logical=16384, compressed=0].
-[WARNING] ibd2sdi: Tablespace flags suggest SDI INDEX didn't exist but found SDI root page numbers in page 1 & page 2.
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [Test00]
-],
-[
- ["ibd2sdi", {"id":1, "type":0}],
- [Test10]
-],
-[
- ["ibd2sdi", {"id":2, "type":0}],
- [Test20]
-],
-[
- ["ibd2sdi", {"id":3, "type":0}],
- [Test30]
-],
-[
- ["ibd2sdi", {"id":3, "type":1}],
- [Test31]
-],
-[
- ["ibd2sdi", {"id":3, "type":2}],
- [Test32]
-],
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [Test33]
-],
-[
- ["ibd2sdi", {"id":3, "type":4}],
- [Test34]
-],
-[
- ["ibd2sdi", {"id":3, "type":5}],
- [Test35]
-],
-[
- ["ibd2sdi", {"id":4, "type":4}],
- [Test44]
-],
-[
- ["ibd2sdi", {"id":5, "type":0}],
- [Test50]
-],
-# restart: --innodb_checksum_algorithm=none
+[WARNING] ibd2sdi: Tablespace flags suggest SDI INDEX didn't exist but found valid SDI root page numbers at SDI offsets in Page 0.
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		Test00
+}
+,
+{
+	"type": 1,
+	"id": 0,
+	"object":
+		Test10
+}
+,
+{
+	"type": 2,
+	"id": 0,
+	"object":
+		Test20
+}
+,
+{
+	"type": 3,
+	"id": 0,
+	"object":
+		Test30
+}
+,
+{
+	"type": 3,
+	"id": 1,
+	"object":
+		Test31
+}
+,
+{
+	"type": 3,
+	"id": 2,
+	"object":
+		Test32
+}
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		Test33
+}
+,
+{
+	"type": 3,
+	"id": 4,
+	"object":
+		Test34
+}
+,
+{
+	"type": 3,
+	"id": 5,
+	"object":
+		Test35
+}
+,
+{
+	"type": 4,
+	"id": 4,
+	"object":
+		Test44
+}
+,
+{
+	"type": 5,
+	"id": 0,
+	"object":
+		Test50
+}
+]
+# restart
+SET DEBUG = '+d, skip_sdi';
 DROP TABLE t1;
+SET DEBUG = '-d, skip_sdi';
 SET GLOBAL innodb_limit_optimistic_insert_debug = default;
 # Case 2: Insert large SDI in uncompressed table
+SET DEBUG = '+d, skip_sdi';
 CREATE TABLE t1(c1 VARCHAR(32),
 c2 TEXT,
 primary key(c1))
 ENGINE = INNODB;
+SET DEBUG = '-d, skip_sdi';
 # Section I: Test options
-# 1. Read from copy 0 with long option
-# 2. Read from copy 1 with short option
-# 3. Read from copy 0 with specific id & type (long option)
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz]
-],
-# 4. Read from copy 1 with specific id & type (short option)
-# 5. Read from copy 0 & skip data
-# 6. Read from copy 0 and dump into FILE
-# 7. Read from copy 0 and dump into FILE using short option
+# 1. Read SDI with long option
+# 3. Read with specific id & type (long option)
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+}
+]
+# 4. Read with specific id & type (short option)
+# 5. Read with skip data
+# 6. Read SDI and dump into FILE
+# 7. Read SDI and dump into FILE using short option
 # 8. Print all records matching type (short option)
 # 9. Print all records matching id (long option)
 # 10. Print version
@@ -1782,7 +1761,6 @@ See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
   -d, --dump-file=name 
                       Dump the tablespace SDI into the file passed by user.
                       Without the filename, it will default to stdout
-  -r, --read=#        Read from this Copy of SDI in tablespace.
   -s, --skip-data     Skip retrieving data from SDI records. Retrieve only id
                       and type.
   -i, --id=#          Retrieve the SDI record matching the id passed by user.
@@ -1797,7 +1775,6 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 dump-file                         (No default value)
-read                              0
 skip-data                         FALSE
 id                                0
 type                              0
@@ -1805,49 +1782,43 @@ strict-check                      crc32
 no-check                          FALSE
 # 12. Print all records
 # 13. Retrieve explicit id & type
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz]
-],
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+}
+]
 # 14. Skip data and retrieve
 # 15. Dump all records into outfile
 # 16. Print all records matching type (short option)
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [abcdefghijklmnopqrstuvwxyz]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		abcdefghijklmnopqrstuvwxyz
+}
+]
 # 17. Print all records matching id (long option)
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz]
-],
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+}
+]
 # 18. Pass --no-check & --strict-check together
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
-# 19. Test for reading form more than one copy example (invalid): -r 0,1
-ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'read' (value '0,1')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '0,1' to 'read'
-# 20. Test for Test for invalid values for -r or --read like
-# 20.1 non numeric/Alphanumeric
-ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'read' (value 'a')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'a' to 'read'
-# 20.2 numbers with +/-
-# 20.3 with special characters
-ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'read' (value '@')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'read'
 ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@')
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'
 ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=')
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'
-# 20.4 with no permitted values
-# 20.5 with very long value
-ibd2sdi: [ERROR] Incorrect unsigned integer value: '14324932470234893204293032'
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '14324932470234893204293032' to 'read'
-# 20.6 with blank value
-ibd2sdi: [ERROR] IBD2SDI: Empty value for 'read' specified
-# 20.7 value with spaces
-ibd2sdi: [ERROR] IBD2SDI: Empty value for 'read' specified
-# 21. With misspelled --read
-ibd2sdi: [ERROR] unknown variable 'red=0'
 # 22. Test --type option with
 # 22.1 non numeric/Alphanumeric
 ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'type' (value 'a')
@@ -1880,25 +1851,33 @@ ibd2sdi: [ERROR] unknown variable 'tpe=0'
 # 25.3 with empty file
 [ERROR] ibd2sdi:  Unable to read the page header of 1024 bytes.
 [ERROR] ibd2sdi:  Bytes read was 0.
-# restart: --innodb_checksum_algorithm=none
+# restart
+SET DEBUG = '+d, skip_sdi';
 DROP TABLE t1;
+SET DEBUG = '-d, skip_sdi';
 # Case 3: Insert large SDI in compressed table
+SET DEBUG = '+d, skip_sdi';
 CREATE TABLE t1(c1 VARCHAR(32),
 c2 TEXT,
 primary key(c1))
 ENGINE = INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+SET DEBUG = '-d, skip_sdi';
 # Section I: Test options
-# 1. Read from copy 0 with long option
-# 2. Read from copy 1 with short option
-# 3. Read from copy 0 with specific id & type (long option)
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz]
-],
-# 4. Read from copy 1 with specific id & type (short option)
-# 5. Read from copy 0 & skip data
-# 6. Read from copy 0 and dump into FILE
-# 7. Read from copy 0 and dump into FILE using short option
+# 1. Read SDI with long option
+# 3. Read with specific id & type (long option)
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+}
+]
+# 4. Read with specific id & type (short option)
+# 5. Read with skip data
+# 6. Read SDI and dump into FILE
+# 7. Read SDI and dump into FILE using short option
 # 8. Print all records matching type (short option)
 # 9. Print all records matching id (long option)
 # 10. Print version
@@ -1918,7 +1897,6 @@ See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
   -d, --dump-file=name 
                       Dump the tablespace SDI into the file passed by user.
                       Without the filename, it will default to stdout
-  -r, --read=#        Read from this Copy of SDI in tablespace.
   -s, --skip-data     Skip retrieving data from SDI records. Retrieve only id
                       and type.
   -i, --id=#          Retrieve the SDI record matching the id passed by user.
@@ -1933,7 +1911,6 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 dump-file                         (No default value)
-read                              0
 skip-data                         FALSE
 id                                0
 type                              0
@@ -1941,49 +1918,179 @@ strict-check                      crc32
 no-check                          FALSE
 # 12. Print all records
 # 13. Retrieve explicit id & type
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz]
-],
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+}
+]
 # 14. Skip data and retrieve
 # 15. Dump all records into outfile
 # 16. Print all records matching type (short option)
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [abcdefghijklmnopqrstuvwxyz]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		abcdefghijklmnopqrstuvwxyz
+}
+]
 # 17. Print all records matching id (long option)
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz]
-],
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+}
+]
 # 18. Pass --no-check & --strict-check together
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
-# 19. Test for reading form more than one copy example (invalid): -r 0,1
-ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'read' (value '0,1')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '0,1' to 'read'
-# 20. Test for Test for invalid values for -r or --read like
-# 20.1 non numeric/Alphanumeric
-ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'read' (value 'a')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'a' to 'read'
-# 20.2 numbers with +/-
-# 20.3 with special characters
-ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'read' (value '@')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'read'
 ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@')
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'
 ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=')
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'
-# 20.4 with no permitted values
-# 20.5 with very long value
+# 22. Test --type option with
+# 22.1 non numeric/Alphanumeric
+ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'type' (value 'a')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'a' to 'type'
+ibd2sdi: [ERROR] Unknown suffix 'b' used for variable 'type' (value 'b')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'b' to 'type'
+# 22.2 numbers with +/-
+# 22.4 with no permitted values
+# 22.5 with very long value
 ibd2sdi: [ERROR] Incorrect unsigned integer value: '14324932470234893204293032'
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '14324932470234893204293032' to 'read'
-# 20.6 with blank value
-ibd2sdi: [ERROR] IBD2SDI: Empty value for 'read' specified
-# 20.7 value with spaces
-ibd2sdi: [ERROR] IBD2SDI: Empty value for 'read' specified
-# 21. With misspelled --read
-ibd2sdi: [ERROR] unknown variable 'red=0'
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '14324932470234893204293032' to 'type'
+# 22.6 with blank value
+ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified
+# 22.7 value with spaces
+ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified
+# 23. Test for reading form more than type example (invalid): -t 0,1
+ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '0,1')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '0,1' to 'type'
+ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '2,3')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '2,3' to 'type'
+# 24. With misspelled --type
+ibd2sdi: [ERROR] unknown variable 'tpe=0'
+# 25. With Invalid file types
+# 25.1 With non IBD file
+[ERROR] ibd2sdi:  Unable to read the page header of 1024 bytes.
+[ERROR] ibd2sdi:  Bytes read was 5.
+# 25.2 with non existant file
+[ERROR] ibd2sdi: Unable to get file stats non_existant_file.txt.
+[ERROR] ibd2sdi: File doesn't exist.
+# 25.3 with empty file
+[ERROR] ibd2sdi:  Unable to read the page header of 1024 bytes.
+[ERROR] ibd2sdi:  Bytes read was 0.
+# restart
+SET DEBUG = '+d, skip_sdi';
+DROP TABLE t1;
+SET DEBUG = '-d, skip_sdi';
+# Case 3: Insert large SDI in compressed table
+SET DEBUG = '+d, skip_sdi';
+CREATE TABLE t1(c1 VARCHAR(32),
+c2 TEXT,
+primary key(c1))
+ENGINE = INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+SET DEBUG = '-d, skip_sdi';
+# Section I: Test options
+# 1. Read SDI with long option
+# 3. Read with specific id & type (long option)
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+}
+]
+# 4. Read with specific id & type (short option)
+# 5. Read with skip data
+# 6. Read SDI and dump into FILE
+# 7. Read SDI and dump into FILE using short option
+# 8. Print all records matching type (short option)
+# 9. Print all records matching id (long option)
+# 10. Print version
+IBD2SDI Ver #.#.#
+# 11. Print help
+IBD2SDI Ver #.#.#
+Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
+See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
+  -h, --help          Display this help and exit.
+  -v, --version       Display version information and exit.
+  -d, --dump-file=name 
+                      Dump the tablespace SDI into the file passed by user.
+                      Without the filename, it will default to stdout
+  -s, --skip-data     Skip retrieving data from SDI records. Retrieve only id
+                      and type.
+  -i, --id=#          Retrieve the SDI record matching the id passed by user.
+  -t, --type=#        Retrieve the SDI records matching the type passed by
+                      user.
+  -c, --strict-check=name 
+                      Specify the strict checksum algorithm by the user.
+                      Allowed values are innodb, crc32, none.
+  -n, --no-check      Ignore the checksum verification.
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+dump-file                         (No default value)
+skip-data                         FALSE
+id                                0
+type                              0
+strict-check                      crc32
+no-check                          FALSE
+# 12. Print all records
+# 13. Retrieve explicit id & type
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+}
+]
+# 14. Skip data and retrieve
+# 15. Dump all records into outfile
+# 16. Print all records matching type (short option)
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		abcdefghijklmnopqrstuvwxyz
+}
+]
+# 17. Print all records matching id (long option)
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+}
+]
+# 18. Pass --no-check & --strict-check together
+[ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
+ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'
+ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'
 # 22. Test --type option with
 # 22.1 non numeric/Alphanumeric
 ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'type' (value 'a')
@@ -2018,29 +2125,36 @@ ibd2sdi: [ERROR] unknown variable 'tpe=0'
 [ERROR] ibd2sdi:  Bytes read was 0.
 page_zip_decompress 1: 9998 1024
 [ERROR] ibd2sdi: Decompression failed for compressed page [page id: space=X, page number=3].
-[ERROR] ibd2sdi: Unable to read page 3.
-[ERROR] ibd2sdi: Couldn't determine the best root page numbers.
-[ERROR] ibd2sdi: SDI doesn't exist for this tablespace or the SDI root page numbers couldn't be determined.
-# restart: --innodb_checksum_algorithm=none
+[ERROR] ibd2sdi: Couldn't read page 3.
+[ERROR] ibd2sdi: Couldn't reach upto level zero.
+# restart
+SET DEBUG = '+d, skip_sdi';
 DROP TABLE t1;
+SET DEBUG = '-d, skip_sdi';
 # Case 4: Insert large SDI in General Tablespace
+SET DEBUG = '+d, skip_sdi';
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 CREATE TABLE t1(c1 VARCHAR(32),
 c2 TEXT,
 primary key(c1))
 ENGINE = INNODB TABLESPACE=ts1;
+SET DEBUG = '-d, skip_sdi';
 # Section I: Test options
-# 1. Read from copy 0 with long option
-# 2. Read from copy 1 with short option
-# 3. Read from copy 0 with specific id & type (long option)
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz]
-],
-# 4. Read from copy 1 with specific id & type (short option)
-# 5. Read from copy 0 & skip data
-# 6. Read from copy 0 and dump into FILE
-# 7. Read from copy 0 and dump into FILE using short option
+# 1. Read SDI with long option
+# 3. Read with specific id & type (long option)
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+}
+]
+# 4. Read with specific id & type (short option)
+# 5. Read with skip data
+# 6. Read SDI and dump into FILE
+# 7. Read SDI and dump into FILE using short option
 # 8. Print all records matching type (short option)
 # 9. Print all records matching id (long option)
 # 10. Print version
@@ -2060,7 +2174,6 @@ See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
   -d, --dump-file=name 
                       Dump the tablespace SDI into the file passed by user.
                       Without the filename, it will default to stdout
-  -r, --read=#        Read from this Copy of SDI in tablespace.
   -s, --skip-data     Skip retrieving data from SDI records. Retrieve only id
                       and type.
   -i, --id=#          Retrieve the SDI record matching the id passed by user.
@@ -2075,7 +2188,6 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 dump-file                         (No default value)
-read                              0
 skip-data                         FALSE
 id                                0
 type                              0
@@ -2083,49 +2195,43 @@ strict-check                      crc32
 no-check                          FALSE
 # 12. Print all records
 # 13. Retrieve explicit id & type
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz]
-],
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+}
+]
 # 14. Skip data and retrieve
 # 15. Dump all records into outfile
 # 16. Print all records matching type (short option)
-[
- ["ibd2sdi", {"id":0, "type":0}],
- [abcdefghijklmnopqrstuvwxyz]
-],
+["ibd2sdi"
+,
+{
+	"type": 0,
+	"id": 0,
+	"object":
+		abcdefghijklmnopqrstuvwxyz
+}
+]
 # 17. Print all records matching id (long option)
-[
- ["ibd2sdi", {"id":3, "type":3}],
- [abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz]
-],
+["ibd2sdi"
+,
+{
+	"type": 3,
+	"id": 3,
+	"object":
+		abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+}
+]
 # 18. Pass --no-check & --strict-check together
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
-# 19. Test for reading form more than one copy example (invalid): -r 0,1
-ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'read' (value '0,1')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '0,1' to 'read'
-# 20. Test for Test for invalid values for -r or --read like
-# 20.1 non numeric/Alphanumeric
-ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'read' (value 'a')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'a' to 'read'
-# 20.2 numbers with +/-
-# 20.3 with special characters
-ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'read' (value '@')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'read'
 ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@')
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'
 ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=')
 ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'
-# 20.4 with no permitted values
-# 20.5 with very long value
-ibd2sdi: [ERROR] Incorrect unsigned integer value: '14324932470234893204293032'
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '14324932470234893204293032' to 'read'
-# 20.6 with blank value
-ibd2sdi: [ERROR] IBD2SDI: Empty value for 'read' specified
-# 20.7 value with spaces
-ibd2sdi: [ERROR] IBD2SDI: Empty value for 'read' specified
-# 21. With misspelled --read
-ibd2sdi: [ERROR] unknown variable 'red=0'
 # 22. Test --type option with
 # 22.1 non numeric/Alphanumeric
 ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'type' (value 'a')
@@ -2158,10 +2264,14 @@ ibd2sdi: [ERROR] unknown variable 'tpe=0'
 # 25.3 with empty file
 [ERROR] ibd2sdi:  Unable to read the page header of 1024 bytes.
 [ERROR] ibd2sdi:  Bytes read was 0.
-# restart: --innodb_checksum_algorithm=none
+# restart
+SET DEBUG = '+d, skip_sdi';
 DROP TABLE t1;
 DROP TABLESPACE ts1;
+SET DEBUG = '-d, skip_sdi';
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
-SET GLOBAL tx_isolation = default;
+SET GLOBAL transaction_isolation = default;
+SET DEBUG = '+d, skip_sdi';
 DROP TABLE t3;
+SET DEBUG = '-d, skip_sdi';

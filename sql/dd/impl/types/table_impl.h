@@ -21,21 +21,23 @@
 #include <new>
 #include <string>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/abstract_table_impl.h" // dd::Abstract_table_impl
-#include "dd/impl/types/entity_object_impl.h"
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/sdi_fwd.h"
-#include "dd/types/abstract_table.h"
-#include "dd/types/entity_object_table.h"      // dd::Entity_object_table
-#include "dd/types/foreign_key.h"              // dd::Foreign_key
-#include "dd/types/index.h"                    // dd::Index
-#include "dd/types/object_type.h"
-#include "dd/types/partition.h"                // dd::Partition
-#include "dd/types/table.h"                    // dd:Table
-#include "dd/types/trigger.h"                  // dd::Trigger
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/abstract_table_impl.h" // dd::Abstract_table_impl
+#include "sql/dd/impl/types/entity_object_impl.h"
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/entity_object_table.h"  // dd::Entity_object_table
+#include "sql/dd/types/foreign_key.h"          // dd::Foreign_key
+#include "sql/dd/types/index.h"                // dd::Index
+#include "sql/dd/types/object_type.h"
+#include "sql/dd/types/partition.h"            // dd::Partition
+#include "sql/dd/types/table.h"                // dd:Table
+#include "sql/dd/types/trigger.h"              // dd::Trigger
 
 namespace dd {
 
@@ -51,6 +53,7 @@ class Sdi_rcontext;
 class Sdi_wcontext;
 class Trigger_impl;
 class Weak_object;
+class Object_table;
 
 class Table_impl : public Abstract_table_impl,
                    virtual public Table
@@ -210,6 +213,17 @@ public:
   { m_partition_expression= partition_expression; }
 
   /////////////////////////////////////////////////////////////////////////
+  // partition_expression_utf8
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &partition_expression_utf8() const
+  { return m_partition_expression_utf8; }
+
+  virtual void set_partition_expression_utf8(
+    const String_type &partition_expression_utf8)
+  { m_partition_expression_utf8= partition_expression_utf8; }
+
+  /////////////////////////////////////////////////////////////////////////
   // subpartition_type
   /////////////////////////////////////////////////////////////////////////
 
@@ -243,6 +257,17 @@ public:
   { m_subpartition_expression= subpartition_expression; }
 
   /////////////////////////////////////////////////////////////////////////
+  // subpartition_expression_utf8
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &subpartition_expression_utf8() const
+  { return m_subpartition_expression_utf8; }
+
+  virtual void set_subpartition_expression_utf8(
+    const String_type &subpartition_expression_utf8)
+  { m_subpartition_expression_utf8= subpartition_expression_utf8; }
+
+  /////////////////////////////////////////////////////////////////////////
   // Index collection.
   /////////////////////////////////////////////////////////////////////////
 
@@ -274,6 +299,22 @@ public:
   { return &m_foreign_keys; }
 
   /////////////////////////////////////////////////////////////////////////
+  // Foreign key parent collection.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual Foreign_key_parent *add_foreign_key_parent();
+
+private:
+  bool load_foreign_key_parents(Open_dictionary_tables_ctx *otx);
+
+public:
+  virtual bool reload_foreign_key_parents(THD *thd);
+
+  virtual const Foreign_key_parent_collection &foreign_key_parents() const
+  { return m_foreign_key_parents; }
+
+
+  /////////////////////////////////////////////////////////////////////////
   // Partition collection.
   /////////////////////////////////////////////////////////////////////////
 
@@ -285,15 +326,22 @@ public:
   virtual Partition_collection *partitions()
   { return &m_partitions; }
 
+  virtual const Partition_leaf_vector &leaf_partitions() const
+  { return m_leaf_partitions; }
+
+  virtual Partition_leaf_vector *leaf_partitions()
+  { return &m_leaf_partitions; }
+
+  // non-virtual
+  void add_leaf_partition(Partition *p)
+  { m_leaf_partitions.push_back(p); }
+
   const Partition *get_partition(Object_id partition_id) const
   { return const_cast<Table_impl *> (this)->get_partition(partition_id); }
 
   Partition *get_partition(Object_id partition_id);
 
   Partition *get_partition(const String_type &name);
-
-  /** Find and set parent partitions for subpartitions. */
-  virtual void fix_partitions();
 
 
   // Fix "inherits ... via dominance" warnings
@@ -321,12 +369,12 @@ public:
   { return Abstract_table_impl::options(); }
   virtual bool set_options_raw(const String_type &options_raw)
   { return Abstract_table_impl::set_options_raw(options_raw); }
-  virtual ulonglong created() const
-  { return Abstract_table_impl::created(); }
+  virtual ulonglong created(bool convert_time) const
+  { return Abstract_table_impl::created(convert_time); }
   virtual void set_created(ulonglong created)
   { Abstract_table_impl::set_created(created); }
-  virtual ulonglong last_altered() const
-  { return Abstract_table_impl::last_altered(); }
+  virtual ulonglong last_altered(bool convert_time) const
+  { return Abstract_table_impl::last_altered(convert_time); }
   virtual void set_last_altered(ulonglong last_altered)
   { Abstract_table_impl::set_last_altered(last_altered); }
   virtual Column *add_column()
@@ -408,17 +456,21 @@ private:
 
   enum_partition_type           m_partition_type;
   String_type                   m_partition_expression;
+  String_type                   m_partition_expression_utf8;
   enum_default_partitioning     m_default_partitioning;
 
   enum_subpartition_type        m_subpartition_type;
   String_type                   m_subpartition_expression;
+  String_type                   m_subpartition_expression_utf8;
   enum_default_partitioning     m_default_subpartitioning;
 
   // References to tightly-coupled objects.
 
   Index_collection m_indexes;
   Foreign_key_collection m_foreign_keys;
+  Foreign_key_parent_collection m_foreign_key_parents;
   Partition_collection m_partitions;
+  Partition_leaf_vector m_leaf_partitions;
   Trigger_collection m_triggers;
 
   // References to other objects.

@@ -19,19 +19,19 @@
 
 #include <stddef.h>
 
-#include "handler.h"
-#include "item.h"
-#include "key.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "opt_range.h"        // QUICK_SELECT_I
-#include "sql_const.h"
-#include "sql_executor.h"     // QEP_TAB
-#include "sql_opt_exec_shared.h"
-#include "sql_optimizer.h"    // JOIN
-#include "table.h"
-#include "temp_table_param.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/opt_range.h"    // QUICK_SELECT_I
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h" // QEP_TAB
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h" // JOIN
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
 
 namespace AQP
 {
@@ -255,19 +255,6 @@ namespace AQP
     DBUG_ENTER("Table_access::compute_type_and_index");
     const QEP_TAB* const qep_tab= get_qep_tab();
     JOIN* const join= qep_tab->join();
-
-    /**
-     * OLEJA: I think this restriction can be removed
-     * now as WL5558 and other changes has cleaned up the 
-     * ORDER/GROUP BY optimize + execute path.
-     */
-    if (join->group_list && !join->tmp_table_param.quick_group)
-    {
-      m_access_type= AT_OTHER;
-      m_other_access_reason = 
-        "GROUP BY cannot be done using index on grouped columns.";
-      DBUG_VOID_RETURN;
-    }
 
     /* Tables below 'const_tables' has been const'ified, or entirely
      * optimized away due to 'impossible WHERE/ON'

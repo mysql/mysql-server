@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +14,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ctime>
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+
+#include "gcs_base_test.h"
+
 #include "gcs_internal_message.h"
 #include "gcs_message_stages.h"
 #include "gcs_xcom_statistics_interface.h"
@@ -25,7 +26,7 @@
 namespace gcs_xcom_stages_unittest
 {
 
-class XcomStagesTest : public ::testing::Test
+class XcomStagesTest : public GcsBaseTestNoLogging
 {
 protected:
 

@@ -13,30 +13,33 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/partition_value_impl.h"
+#include "sql/dd/impl/types/partition_value_impl.h"
 
 #include <ostream>
+#include <string>
 
-#include "dd/impl/raw/raw_record.h"                // Raw_record
-#include "dd/impl/sdi_impl.h"                      // sdi read/write functions
-#include "dd/impl/tables/table_partition_values.h" // Table_partition_values
-#include "dd/impl/transaction_impl.h"              // Open_dictionary_tables_ctx
-#include "dd/impl/types/entity_object_impl.h"
-#include "dd/impl/types/partition_impl.h"          // Partition_impl
-#include "dd/types/object_table.h"
-#include "dd/types/weak_object.h"
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                          // ER_*
-#include "rapidjson/document.h"
-#include "rapidjson/prettywriter.h"
+#include "sql/dd/impl/raw/raw_record.h"            // Raw_record
+#include "sql/dd/impl/sdi_impl.h"                  // sdi read/write functions
+#include "sql/dd/impl/tables/table_partition_values.h" // Table_partition_values
+#include "sql/dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
+#include "sql/dd/impl/types/partition_impl.h"      // Partition_impl
+#include "sql/dd/types/object_table.h"
+#include "sql/dd/types/weak_object.h"
 
 namespace dd {
 class Object_key;
 class Partition;
 class Sdi_rcontext;
 class Sdi_wcontext;
+class Entity_object_impl;
 }  // namespace dd
 
 using dd::tables::Table_partition_values;

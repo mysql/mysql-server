@@ -15,77 +15,84 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "sp.h"
+#include "sql/sp.h"
 
 #include <string.h>
 #include <algorithm>
+#include <atomic>
+#include <memory>
 #include <new>
+#include <utility>
 #include <vector>
 
-#include "auth_acls.h"
-#include "auth_common.h"    // check_some_routine_access
-#include "binlog.h"         // mysql_bin_log
-#include "dd/cache/dictionary_client.h"        // dd::cache::Dictionary_client
-#include "dd/dd_routine.h"                     // dd routine methods.
-#include "dd/string_type.h"
-#include "dd/types/function.h"
-#include "dd/types/procedure.h"
-#include "dd/types/routine.h"
-#include "dd_sp.h"          // prepare_sp_chistics_from_dd_routine
-#include "dd_sql_view.h"    // update_referencing_views_metadata
-#include "dd_table_share.h" // dd_get_mysql_charset
-#include "debug_sync.h"     // DEBUG_SYNC
-#include "error_handler.h"  // Internal_error_handler
-#include "field.h"
-#include "handler.h"
-#include "key.h"            // key_copy
-#include "lock.h"           // lock_object_name
-#include "log.h"
-#include "log_event.h"      // append_query_string
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/psi_base.h"
-#include "mysqld.h"         // trust_function_creators
+#include "mysql_com.h"
 #include "mysqld_error.h"
-#include "protocol.h"
-#include "psi_memory_key.h" // key_memory_sp_head_main_root
-#include "set_var.h"
-#include "sp_cache.h"       // sp_cache_invalidate
-#include "sp_head.h"        // Stored_program_creation_ctx
-#include "sp_pcontext.h"    // sp_pcontext
-#include "sql_const.h"
-#include "sql_db.h"         // get_default_db_collation
-#include "sql_error.h"
-#include "sql_list.h"
-#include "sql_parse.h"      // parse_sql
-#include "sql_security_ctx.h"
-#include "sql_show.h"       // append_identifier
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // check_some_routine_access
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"     // mysql_bin_log
+#include "sql/dd/cache/dictionary_client.h"    // dd::cache::Dictionary_client
+#include "sql/dd/dd_routine.h"                 // dd routine methods.
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/function.h"
+#include "sql/dd/types/procedure.h"
+#include "sql/dd/types/routine.h"
+#include "sql/dd/types/schema.h"
+#include "sql/dd_sp.h"      // prepare_sp_chistics_from_dd_routine
+#include "sql/dd_sql_view.h" // update_referencing_views_metadata
+#include "sql/dd_table_share.h" // dd_get_mysql_charset
+#include "sql/debug_sync.h" // DEBUG_SYNC
+#include "sql/error_handler.h" // Internal_error_handler
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/key.h"        // key_copy
+#include "sql/lock.h"       // lock_object_name
+#include "sql/log.h"
+#include "sql/log_event.h"  // append_query_string
+#include "sql/mdl.h"
+#include "sql/mysqld.h"     // trust_function_creators
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h" // key_memory_sp_head_main_root
+#include "sql/set_var.h"
+#include "sql/sp_cache.h"   // sp_cache_invalidate
+#include "sql/sp_head.h"    // Stored_program_creation_ctx
+#include "sql/sp_pcontext.h" // sp_pcontext
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_db.h"     // get_default_db_collation
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_error.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"  // parse_sql
+#include "sql/sql_show.h"   // append_identifier
+#include "sql/sql_table.h"  // write_bin_log
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"
+#include "sql/transaction_info.h"
 #include "sql_string.h"
-#include "sql_table.h"      // write_bin_log
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "transaction.h"
-#include "transaction_info.h"
 
 class sp_rcontext;
-namespace dd {
-class Schema;
-}  // namespace dd
-struct PSI_statement_locker;
-struct sql_digest_state;
 
 /* Used in error handling only */
-#define SP_TYPE_STRING(LP) \
-  ((LP)->m_type == enum_sp_type::FUNCTION ? "FUNCTION" : "PROCEDURE")
+#define SP_TYPE_STRING(type) \
+  (type == enum_sp_type::FUNCTION ? "FUNCTION" : "PROCEDURE")
 static bool
 create_string(THD *thd, String *buf,
               enum_sp_type sp_type,
@@ -407,7 +414,7 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
                        return_type_str.c_str(), routine->definition().c_str(),
                        &sp_chistics, routine->definer_user().c_str(),
                        routine->definer_host().c_str(),
-                       routine->created(), routine->last_altered(),
+                       routine->created(true), routine->last_altered(true),
                        creation_ctx);
   DBUG_RETURN(ret);
 }
@@ -667,7 +674,128 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
 
 
 /**
+  Precheck for create routine statement.
+
+  @param  thd      Thread context.
+  @param  sp       Stored routine object to store.
+
+  @retval  false   Success.
+  @retval  true    Error.
+*/
+
+static bool create_routine_precheck(THD *thd, sp_head *sp)
+{
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  // Check if routine with same name exists.
+  bool error;
+  const dd::Routine *sr;
+  if (sp->m_type == enum_sp_type::FUNCTION)
+    error= thd->dd_client()->acquire<dd::Function>(sp->m_db.str,
+                                                   sp->m_name.str,
+                                                   &sr);
+  else
+    error= thd->dd_client()->acquire<dd::Procedure>(sp->m_db.str,
+                                                    sp->m_name.str,
+                                                    &sr);
+  if (error)
+  {
+    // Error is reported by DD API framework.
+    return true;
+  }
+  if (sr != nullptr)
+  {
+    my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(sp->m_type),
+             sp->m_name.str);
+    return true;
+  }
+
+  /*
+    Check if stored function creation is allowed only to the users having SUPER
+    privileges.
+  */
+  if (mysql_bin_log.is_open() &&
+      (sp->m_type == enum_sp_type::FUNCTION) && !trust_function_creators)
+  {
+    if (!sp->m_chistics->detistic)
+    {
+      /*
+        Note that this test is not perfect; one could use
+        a non-deterministic read-only function in an update statement.
+      */
+      enum enum_sp_data_access access=
+        (sp->m_chistics->daccess == SP_DEFAULT_ACCESS) ?
+        static_cast<enum_sp_data_access>(SP_DEFAULT_ACCESS_MAPPING) :
+        sp->m_chistics->daccess;
+      if (access == SP_CONTAINS_SQL ||
+          access == SP_MODIFIES_SQL_DATA)
+      {
+        my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
+        return true;
+      }
+    }
+    if (!(thd->security_context()->check_access(SUPER_ACL)))
+    {
+      my_error(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER,MYF(0));
+      return true;
+    }
+  }
+
+  /*
+    Check routine body length.
+    Note: Length of routine name and parameters name is already verified in
+    parsing phase.
+  */
+  if (sp->m_body.length > MYSQL_STORED_ROUTINE_BODY_LENGTH ||
+      DBUG_EVALUATE_IF("simulate_routine_length_error", 1, 0))
+  {
+    my_error(ER_TOO_LONG_BODY, MYF(0), sp->m_name.str);
+    return true;
+  }
+
+  // Validate body definition to avoid invalid UTF8 characters.
+  if (is_invalid_string(to_lex_cstring(sp->m_body_utf8),
+                        system_charset_info))
+    return true;
+
+  // Validate routine comment.
+  if (sp->m_chistics->comment.length)
+  {
+    // validate comment string to avoid invalid utf8 characters.
+    if (is_invalid_string(LEX_CSTRING{sp->m_chistics->comment.str,
+                                      sp->m_chistics->comment.length},
+                          system_charset_info))
+      return true;
+
+    // Check comment string length.
+    if (check_string_char_length({ sp->m_chistics->comment.str,
+                                   sp->m_chistics->comment.length},
+                                 "", MYSQL_STORED_ROUTINE_COMMENT_LENGTH,
+                                 system_charset_info, true))
+    {
+      my_error(ER_TOO_LONG_ROUTINE_COMMENT, MYF(0), sp->m_chistics->comment.str,
+               MYSQL_STORED_ROUTINE_COMMENT_LENGTH);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+/**
   Creates a stored routine.
+
+  Atomicity:
+    The operation to create a stored routine is atomic/crash-safe.
+    Changes to the Data-dictionary and writing event to binlog are
+    part of the same transaction. All the changes are done as part
+    of the same transaction or do not have any side effects on the
+    operation failure. Data-dictionary, stored routines and table
+    definition caches are in sync with operation state. Cache do
+    not contain any stale/incorrect data in case of failure.
+    In case of crash, there won't be any discrepancy between
+    the data-dictionary table and the binary log.
 
   @param thd     Thread context.
   @param sp      Stored routine object to store.
@@ -694,157 +822,51 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer)
                                              MDL_key::PROCEDURE;
   if (lock_object_name(thd, mdl_type, sp->m_db.str, sp->m_name.str))
   {
-    my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(sp),sp->m_name.str);
+    my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(sp->m_type),
+             sp->m_name.str);
     DBUG_RETURN(true);
   }
   DEBUG_SYNC(thd, "after_acquiring_mdl_lock_on_routine");
 
-  // Check that a database with this name exists.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *schema= NULL;
-  if (thd->dd_client()->acquire(sp->m_db.str, &schema))
+  if (create_routine_precheck(thd, sp))
   {
-    // Error is reported by DD API framework.
+    /* If this happens, an error should have been reported. */
     DBUG_RETURN(true);
   }
 
-  if (schema == NULL)
+  DBUG_EXECUTE_IF("fail_while_acquiring_routine_schema_obj",
+                  DBUG_SET("+d,fail_while_acquiring_dd_object"););
+
+  // Check that a database with this name exists.
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *schema= nullptr;
+  if (thd->dd_client()->acquire(sp->m_db.str, &schema))
+  {
+    DBUG_EXECUTE_IF("fail_while_acquiring_routine_schema_obj",
+                    DBUG_SET("-d,fail_while_acquiring_dd_object"););
+    // Error is reported by DD API framework.
+    DBUG_RETURN(true);
+  }
+  if (schema == nullptr)
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), sp->m_db.str);
     DBUG_RETURN(true);
   }
 
-  // Check if routine with same name exists.
-  sp_name spname({sp->m_db.str, sp->m_db.length}, sp->m_name, false);
-  const dd::Routine *sr;
-
-  bool error;
-  if (sp->m_type == enum_sp_type::FUNCTION)
-    error= thd->dd_client()->acquire<dd::Function>(sp->m_db.str,
-                                                   sp->m_name.str,
-                                                   &sr);
-  else
-    error= thd->dd_client()->acquire<dd::Procedure>(sp->m_db.str,
-                                                    sp->m_name.str,
-                                                    &sr);
-
-  if (error)
-    DBUG_RETURN(true);
-
-  if (sr != NULL)
-  {
-    my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(sp), sp->m_name.str);
-    DBUG_RETURN(true);
-  }
-
-  /*
-    Check if stored function creation is allowed only to the users having SUPER
-    privileges.
-  */
-  if (mysql_bin_log.is_open() &&
-      (sp->m_type == enum_sp_type::FUNCTION) && !trust_function_creators)
-  {
-    if (!sp->m_chistics->detistic)
-    {
-      /*
-        Note that this test is not perfect; one could use
-        a non-deterministic read-only function in an update statement.
-      */
-      enum enum_sp_data_access access=
-        (sp->m_chistics->daccess == SP_DEFAULT_ACCESS) ?
-        static_cast<enum_sp_data_access>(SP_DEFAULT_ACCESS_MAPPING) :
-        sp->m_chistics->daccess;
-      if (access == SP_CONTAINS_SQL ||
-          access == SP_MODIFIES_SQL_DATA)
-      {
-        my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
-        DBUG_RETURN(true);
-      }
-    }
-    if (!(thd->security_context()->check_access(SUPER_ACL)))
-    {
-      my_error(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER,MYF(0));
-      DBUG_RETURN(true);
-    }
-  }
-
-  /*
-    Check routine body length.
-    Note: Length of routine name and parameters name is already verified in
-    parsing phase.
-  */
-  if (sp->m_body.length > MYSQL_STORED_ROUTINE_BODY_LENGTH ||
-      DBUG_EVALUATE_IF("simulate_routine_length_error", 1, 0))
-  {
-    my_error(ER_TOO_LONG_BODY, MYF(0), sp->m_name.str);
-    DBUG_RETURN(true);
-  }
-
-  // Validate body definition to avoid invalid UTF8 characters.
-  size_t valid_length;
-  bool not_used;
-  if (validate_string(system_charset_info, sp->m_body_utf8.str,
-                      sp->m_body_utf8.length, &valid_length, &not_used))
-  {
-    char hexbuf[7];
-    octet2hex(hexbuf, sp->m_body_utf8.str + valid_length,
-              std::min<size_t>(sp->m_body_utf8.length - valid_length, 3));
-    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), system_charset_info->csname,
-             hexbuf);
-    DBUG_RETURN(true);
-  }
-
-  // Validate routine comment.
-  if (sp->m_chistics->comment.length)
-  {
-    // validate comment string to avoid invalid utf8 characters.
-    if (validate_string(system_charset_info, sp->m_chistics->comment.str,
-                        sp->m_chistics->comment.length, &valid_length,
-                        &not_used))
-    {
-      char hexbuf[7];
-      octet2hex(hexbuf, sp->m_chistics->comment.str + valid_length,
-                std::min<size_t>(sp->m_chistics->comment.length - valid_length,
-                                 3));
-      my_error(ER_INVALID_CHARACTER_STRING, MYF(0), system_charset_info->csname,
-               hexbuf);
-      DBUG_RETURN(true);
-    }
-
-    // Check comment string length.
-    if (check_string_char_length({ sp->m_chistics->comment.str,
-                                   sp->m_chistics->comment.length},
-                                 "", MYSQL_STORED_ROUTINE_COMMENT_LENGTH,
-                                 system_charset_info, true))
-    {
-      my_error(ER_TOO_LONG_ROUTINE_COMMENT, MYF(0), sp->m_chistics->comment.str,
-               MYSQL_STORED_ROUTINE_COMMENT_LENGTH);
-      DBUG_RETURN(true);
-    }
-  }
-
   // Create a stored routine.
-  error= dd::create_routine(thd, *schema, sp, definer);
-  if (error)
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-  }
-  else
-    error= trans_commit_stmt(thd) || trans_commit(thd);
-  if (error)
-  {
-    my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(sp), sp->m_name.str);
-    DBUG_RETURN(true);
-  }
+  if (dd::create_routine(thd, *schema, sp, definer))
+    goto err_report_with_rollback;
 
-  if (sp->m_type == enum_sp_type::FUNCTION &&
-      update_referencing_views_metadata(thd, &spname))
-    DBUG_RETURN(true);
-
-  // Invalidate stored routine cache.
-  sp_cache_invalidate();
+  // Update referencing views metadata.
+  {
+    sp_name spname({sp->m_db.str, sp->m_db.length}, sp->m_name, false);
+    if (sp->m_type == enum_sp_type::FUNCTION &&
+        update_referencing_views_metadata(thd, &spname))
+    {
+      /* If this happens, an error should have been reported. */
+      goto err_with_rollback;
+    }
+  }
 
   // Log stored routine create event.
   if (mysql_bin_log.is_open())
@@ -857,8 +879,7 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer)
     if (sp->m_type == enum_sp_type::FUNCTION)
       sp_returns_type(thd, retstr, sp);
 
-    if (!create_string(thd, &log_query,
-                       sp->m_type,
+    if (!create_string(thd, &log_query, sp->m_type,
                        (sp->m_explicit_name ? sp->m_db.str : NULL),
                        (sp->m_explicit_name ? sp->m_db.length : 0),
                        sp->m_name.str, sp->m_name.length,
@@ -867,11 +888,7 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer)
                        sp->m_body.str, sp->m_body.length,
                        sp->m_chistics, definer->user,
                        definer->host, thd->variables.sql_mode))
-    {
-      my_error(ER_SP_STORE_FAILED, MYF(0),
-               SP_TYPE_STRING(sp), sp->m_name.str);
-      DBUG_RETURN(true);
-    }
+      goto err_report_with_rollback;
 
     thd->add_to_binlog_accessed_dbs(sp->m_db.str);
 
@@ -881,25 +898,50 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer)
     */
     Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
-    /* Such a statement can always go directly to binlog, no trans cache */
-    bool error= thd->binlog_query(THD::STMT_QUERY_TYPE,
-                                  log_query.c_ptr(), log_query.length(),
-                                  FALSE, FALSE, FALSE, 0);
-
-    if (error)
-    {
-      my_error(ER_SP_STORE_FAILED, MYF(0),
-               SP_TYPE_STRING(sp), sp->m_name.str);
-      DBUG_RETURN(true);
-    }
+    if (write_bin_log(thd, true, log_query.c_ptr(), log_query.length(), true))
+      goto err_report_with_rollback;
   }
 
+  // Commit changes to the data-dictionary and binary log.
+  if (DBUG_EVALUATE_IF("simulate_create_routine_failure", true, false) ||
+      trans_commit_stmt(thd) || trans_commit(thd))
+    goto err_report_with_rollback;
+
+  // Invalidate stored routine cache.
+  sp_cache_invalidate();
+
   DBUG_RETURN(false);
+
+err_report_with_rollback:
+  my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(sp->m_type),
+           sp->m_name.str);
+
+err_with_rollback:
+  trans_rollback_stmt(thd);
+  /*
+    Full rollback in case we have THD::transaction_rollback_request
+    and to synchronize DD state in cache and on disk (as statement
+    rollback doesn't clear DD cache of modified uncommitted objects).
+  */
+  trans_rollback(thd);
+
+  DBUG_RETURN(true);
 }
 
 
 /**
   Drops a stored routine.
+
+  Atomicity:
+    The operation to drop a stored routine is atomic/crash-safe.
+    Changes to the Data-dictionary and writing event to binlog are
+    part of the same transaction. All the changes are done as part
+    of the same transaction or do not have any side effects on the
+    operation failure. Data-dictionary, stored routines and table
+    definition caches are in sync with operation state. Cache do
+    not contain any stale/incorrect data in case of failure.
+    In case of crash, there won't be any discrepancy between
+    the data-dictionary table and the binary log.
 
   @param thd  Thread context.
   @param type Stored routine type
@@ -940,7 +982,6 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
     error= thd->dd_client()->acquire<dd::Procedure>(name->m_db.str,
                                                     name->m_name.str,
                                                     &routine);
-
   if (error)
     DBUG_RETURN(SP_INTERNAL_ERROR);
 
@@ -949,19 +990,41 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
 
   // Drop routine.
   if (thd->dd_client()->drop(routine))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    DBUG_RETURN(SP_DROP_FAILED);
-  }
+    goto err_with_rollback;
 
-  if (trans_commit_stmt(thd) || trans_commit(thd))
-    DBUG_RETURN(SP_INTERNAL_ERROR);
-
+  // Update referencing views metadata.
   if (mdl_type == MDL_key::FUNCTION &&
       update_referencing_views_metadata(thd, name))
-    DBUG_RETURN(SP_INTERNAL_ERROR);
+  {
+    /* If this happens, an error should have been reported. */
+    goto err_with_rollback;
+  }
+
+  // Log drop routine event.
+  if (mysql_bin_log.is_open())
+  {
+    thd->add_to_binlog_accessed_dbs(name->m_db.str);
+    /*
+      This statement will be replicated as a statement, even when using
+      row-based replication.
+    */
+    Save_and_Restore_binlog_format_state binlog_format_state(thd);
+
+    if (write_bin_log(thd, TRUE, thd->query().str, thd->query().length, true))
+      goto err_with_rollback;
+  }
+
+  // Commit changes to the data-dictionary and binary log.
+  if (DBUG_EVALUATE_IF("simulate_drop_routine_failure", true, false) ||
+      trans_commit_stmt(thd) || trans_commit(thd))
+    goto err_with_rollback;
+
+#ifdef HAVE_PSI_SP_INTERFACE
+  /* Drop statistics for this stored program from performance schema. */
+  MYSQL_DROP_SP(static_cast<uint>(type),
+                name->m_db.str, name->m_db.length,
+                name->m_name.str, name->m_name.length);
+#endif
 
   // Invalidate routine cache.
   {
@@ -982,33 +1045,34 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
     }
   }
 
-  // Log drop routine event.
-  if (mysql_bin_log.is_open())
-  {
-    thd->add_to_binlog_accessed_dbs(name->m_db.str);
-    /*
-      This statement will be replicated as a statement, even when using
-      row-based replication.
-    */
-    Save_and_Restore_binlog_format_state binlog_format_state(thd);
-
-    if (write_bin_log(thd, TRUE, thd->query().str, thd->query().length))
-      DBUG_RETURN(SP_INTERNAL_ERROR);
-  }
-
-#ifdef HAVE_PSI_SP_INTERFACE
-  /* Drop statistics for this stored program from performance schema. */
-  MYSQL_DROP_SP(static_cast<uint>(type),
-                name->m_db.str, name->m_db.length,
-                name->m_name.str, name->m_name.length);
-#endif
-
   DBUG_RETURN(SP_OK);
+
+err_with_rollback:
+  trans_rollback_stmt(thd);
+  /*
+    Full rollback in case we have THD::transaction_rollback_request
+    and to synchronize DD state in cache and on disk (as statement
+    rollback doesn't clear DD cache of modified uncommitted objects).
+  */
+  trans_rollback(thd);
+
+  DBUG_RETURN(SP_DROP_FAILED);
 }
 
 
 /**
   Updates(Alter) a stored routine.
+
+  Atomicity:
+    The operation to Update(Alter) a stored routine is atomic/crash-safe.
+    Changes to the Data-dictionary and writing event to binlog are
+    part of the same transaction. All the changes are done as part
+    of the same transaction or do not have any side effects on the
+    operation failure. Data-dictionary and stored routines caches
+    caches are in sync with operation state. Cache do not contain any
+    stale/incorrect data in case of failure.
+    In case of crash, there won't be any discrepancy between
+    the data-dictionary table and the binary log.
 
   @param thd      Thread context.
   @param type     Stored routine type
@@ -1016,14 +1080,12 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
   @param name     Stored routine name.
   @param chistics New values of stored routine attributes to write.
 
-  @retval
-    SP_OK       Success
-  @retval
-    non-SP_OK   Error (Other constants are used to indicate errors)
+  @retval    false    Success.
+  @retval    true     Error.
 */
 
-enum_sp_return_code sp_update_routine(THD *thd, enum_sp_type type,
-                                      sp_name *name, st_sp_chistics *chistics)
+bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
+                       st_sp_chistics *chistics)
 {
   DBUG_ENTER("sp_update_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
@@ -1038,7 +1100,11 @@ enum_sp_return_code sp_update_routine(THD *thd, enum_sp_type type,
   MDL_key::enum_mdl_namespace mdl_type= (type == enum_sp_type::FUNCTION) ?
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
   if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str))
-    DBUG_RETURN(SP_ALTER_FAILED);
+  {
+    my_error(ER_SP_CANT_ALTER, MYF(0), SP_TYPE_STRING(type),
+             name->m_name.str);
+    DBUG_RETURN(true);
+  }
 
   // Check if routine exists.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -1052,12 +1118,18 @@ enum_sp_return_code sp_update_routine(THD *thd, enum_sp_type type,
     error= thd->dd_client()->acquire_for_modification<dd::Procedure>(name->m_db.str,
                                                                      name->m_name.str,
                                                                      &routine);
-
   if (error)
-    DBUG_RETURN(SP_INTERNAL_ERROR);
+  {
+    // Error is reported by DD API framework.
+    DBUG_RETURN(true);
+  }
 
   if (routine == nullptr)
-    DBUG_RETURN(SP_DOES_NOT_EXISTS);
+  {
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), SP_TYPE_STRING(type),
+             thd->lex->spname->m_qname.str);
+    DBUG_RETURN(true);
+  }
 
   if (mysql_bin_log.is_open() &&
       type == enum_sp_type::FUNCTION && ! trust_function_creators &&
@@ -1067,29 +1139,17 @@ enum_sp_return_code sp_update_routine(THD *thd, enum_sp_type type,
     if (!routine->is_deterministic())
     {
       my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
-      DBUG_RETURN(SP_INTERNAL_ERROR);
+      DBUG_RETURN(true);
     }
   }
 
   // Validate routine comment.
   if (chistics->comment.str)
   {
-    size_t valid_length;
-    bool not_used;
-
     // validate comment string to invalid utf8 characters.
-    if (validate_string(system_charset_info, chistics->comment.str,
-                        chistics->comment.length, &valid_length,
-                        &not_used))
-    {
-      char hexbuf[7];
-      octet2hex(hexbuf, chistics->comment.str + valid_length,
-                std::min<size_t>(chistics->comment.length - valid_length,
-                                 3));
-      my_error(ER_INVALID_CHARACTER_STRING, MYF(0), system_charset_info->csname,
-               hexbuf);
+    if (is_invalid_string(chistics->comment,
+                          system_charset_info))
       DBUG_RETURN(SP_INTERNAL_ERROR);
-    }
 
     // Check comment string length.
     if (check_string_char_length({ chistics->comment.str,
@@ -1099,20 +1159,14 @@ enum_sp_return_code sp_update_routine(THD *thd, enum_sp_type type,
     {
       my_error(ER_TOO_LONG_ROUTINE_COMMENT, MYF(0), chistics->comment.str,
                MYSQL_STORED_ROUTINE_COMMENT_LENGTH);
-      DBUG_RETURN(SP_INTERNAL_ERROR);
+      DBUG_RETURN(true);
     }
   }
 
   // Alter stored routine.
-  if (dd::alter_routine(thd, routine, chistics))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    DBUG_RETURN(SP_ALTER_FAILED);
-  }
-  if (trans_commit_stmt(thd) || trans_commit(thd))
-    DBUG_RETURN(SP_INTERNAL_ERROR);
+  if (DBUG_EVALUATE_IF("simulate_alter_routine_failure", true, false) ||
+      dd::alter_routine(thd, routine, chistics))
+    goto err_report_with_rollback;
 
   // Log update statement.
   if (mysql_bin_log.is_open())
@@ -1123,16 +1177,32 @@ enum_sp_return_code sp_update_routine(THD *thd, enum_sp_type type,
     */
     Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
-    bool error= write_bin_log(thd, TRUE, thd->query().str,
-                              thd->query().length);
-
-    if (error)
-      DBUG_RETURN(SP_INTERNAL_ERROR);
+    if (write_bin_log(thd, true, thd->query().str, thd->query().length, true))
+      goto err_report_with_rollback;
   }
+
+  // Commit changes to the data-dictionary and binary log.
+  if (DBUG_EVALUATE_IF("simulate_alter_routine_xcommit_failure", true, false) ||
+      trans_commit_stmt(thd) || trans_commit(thd))
+    goto err_report_with_rollback;
 
   sp_cache_invalidate();
 
-  DBUG_RETURN(SP_OK);
+  DBUG_RETURN(false);
+
+err_report_with_rollback:
+  my_error(ER_SP_CANT_ALTER, MYF(0), SP_TYPE_STRING(type),
+           thd->lex->spname->m_qname.str);
+
+  trans_rollback_stmt(thd);
+  /*
+    Full rollback in case we have THD::transaction_rollback_request
+    and to synchronize DD state in cache and on disk (as statement
+    rollback doesn't clear DD cache of modified uncommitted objects).
+  */
+  trans_rollback(thd);
+
+  DBUG_RETURN(true);
 }
 
 
@@ -1657,14 +1727,6 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
 }
 
 
-const uchar* sp_sroutine_key(const uchar *ptr, size_t *plen)
-{
-  const Sroutine_hash_entry *rn= pointer_cast<const Sroutine_hash_entry*>(ptr);
-  *plen= rn->m_key_length;
-  return rn->m_key;
-}
-
-
 /**
   Auxilary function that adds new element to the set of stored routines
   used by statement.
@@ -1703,35 +1765,30 @@ sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                     const uchar *key, size_t key_length,
                     size_t db_length, TABLE_LIST *belong_to_view)
 {
-  if (!my_hash_inited(&prelocking_ctx->sroutines))
+  if (prelocking_ctx->sroutines == nullptr)
   {
-    /*
-      See Sroutine_hash_entry for explanation why this hash uses binary
-      key comparison.
-    */
-    my_hash_init(&prelocking_ctx->sroutines, &my_charset_bin,
-                 Query_tables_list::START_SROUTINES_HASH_SIZE, 0,
-                 sp_sroutine_key, nullptr, 0,
-                 PSI_INSTRUMENT_ME);
+    prelocking_ctx->sroutines.reset
+      (new malloc_unordered_map<std::string, Sroutine_hash_entry *>
+        (PSI_INSTRUMENT_ME));
   }
 
-  if (!my_hash_search(&prelocking_ctx->sroutines, key, key_length))
+  std::string key_str(pointer_cast<const char *>(key), key_length);
+  if (prelocking_ctx->sroutines->count(key_str) == 0)
   {
     Sroutine_hash_entry *rn=
       (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry));
     if (!rn)              // OOM. Error will be reported using fatal_error().
       return FALSE;
-    rn->m_key= (uchar*)arena->alloc(key_length);
+    rn->m_key= (char *)arena->alloc(key_length);
     if (!rn->m_key)       // Ditto.
       return FALSE;
     rn->m_key_length= key_length;
     rn->m_db_length= db_length;
     memcpy(rn->m_key, key, key_length);
-    if (my_hash_insert(&prelocking_ctx->sroutines, (uchar *)rn))
-      return FALSE;
+    prelocking_ctx->sroutines->emplace(key_str, rn);
     prelocking_ctx->sroutines_list.link_in_list(rn, &rn->next);
     rn->belong_to_view= belong_to_view;
-    rn->m_sp_cache_version= 0;
+    rn->m_cache_version= 0;
     return TRUE;
   }
   return FALSE;
@@ -1753,6 +1810,8 @@ sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
   @param db_length       Database name length
   @param name            Routine name
   @param name_length     Routine name length
+  @param lowercase_db    Indicates whether db needs to be lowercased when
+                         constructing key.
   @param lowercase_name  Indicates whether name needs to be lowercased when
                          constructing key.
   @param own_routine     Indicates whether routine is explicitly or implicitly
@@ -1773,7 +1832,8 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          Sroutine_hash_entry::entry_type type,
                          const char *db, size_t db_length,
                          const char *name, size_t name_length,
-                         bool lowercase_name, bool own_routine,
+                         bool lowercase_db, bool lowercase_name,
+                         bool own_routine,
                          TABLE_LIST *belong_to_view)
 {
   // Length of routine name components needs to be checked earlier.
@@ -1784,9 +1844,22 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 
   key[key_length++]= static_cast<uchar>(type);
   memcpy(key + key_length, db, db_length + 1);
-  key_length+= db_length + 1;
-  memcpy(key + key_length, name, name_length + 1);
+  if (lowercase_db)
+  {
+    /*
+      In lower-case-table-names > 0 modes db name will be already in
+      lower case here in most cases. However db names associated with
+      FKs come here in original form in lower-case-table-names == 2
+      mode. So for the proper hash key comparison db name needs to be
+      converted to lower case while preparing the key.
+    */
+    key_length+= my_casedn_str(system_charset_info,
+                               (char*)(key) + key_length) + 1;
+  }
+  else
+    key_length+= db_length + 1;
 
+  memcpy(key + key_length, name, name_length + 1);
   if (lowercase_name)
   {
     /*
@@ -1839,7 +1912,8 @@ void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx)
       but we want to be more future-proof.
     */
     next_rt= not_own_rt->next;
-    my_hash_delete(&prelocking_ctx->sroutines, (uchar *)not_own_rt);
+    prelocking_ctx->sroutines->erase
+      (std::string(not_own_rt->m_key, not_own_rt->m_key_length));
   }
 
   *prelocking_ctx->sroutines_list_own_last= NULL;
@@ -1864,14 +1938,17 @@ void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx)
 */
 
 void
-sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
-                             HASH *src, TABLE_LIST *belong_to_view)
+sp_update_stmt_used_routines
+  (THD *thd, Query_tables_list *prelocking_ctx,
+   malloc_unordered_map<std::string, Sroutine_hash_entry*> *src,
+   TABLE_LIST *belong_to_view)
 {
-  for (uint i=0 ; i < src->records ; i++)
+  for (const auto &key_and_value : *src)
   {
-    Sroutine_hash_entry *rt= (Sroutine_hash_entry *)my_hash_element(src, i);
+    Sroutine_hash_entry *rt= key_and_value.second;
     (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
-                              rt->m_key, rt->m_key_length,
+                              pointer_cast<const uchar *>(rt->m_key),
+                              rt->m_key_length,
                               rt->m_db_length, belong_to_view);
   }
 }
@@ -1897,7 +1974,8 @@ void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
 {
   for (Sroutine_hash_entry *rt= src->first; rt; rt= rt->next)
     (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
-                              rt->m_key, rt->m_key_length,
+                              pointer_cast<const uchar *>(rt->m_key),
+                              rt->m_key_length,
                               rt->m_db_length, belong_to_view);
 }
 

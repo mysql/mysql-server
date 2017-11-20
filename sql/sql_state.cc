@@ -15,14 +15,14 @@
 
 /* Functions to map mysqld errno to sql_state */
 
-#include <mysqld_error.h>
 #include <m_string.h> // ### MEOW
+#include <mysqld_error.h>
 #include <sys/types.h>
 
-#include "derror.h" // ### MEOW
+#include "../storage/perfschema/pfs_error.h" // ### MEOW
 #include "my_inttypes.h"  // IWYU pragma: keep
 #include "mysql_com.h"  // IWYU pragma: keep
-#include "../storage/perfschema/pfs_error.h" // ### MEOW
+#include "sql/derror.h" // ### MEOW
 
 extern server_error  error_names_array[];
 static server_error *sqlstate_map= &error_names_array[1];

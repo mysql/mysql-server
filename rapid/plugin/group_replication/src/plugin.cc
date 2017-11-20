@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <assert.h>
+#include <cassert>
 #include <sstream>
 
 #include "my_dbug.h"
@@ -220,6 +220,9 @@ bool allow_local_lower_version_join_var= 0;
 /* Allow errand transactions */
 bool allow_local_disjoint_gtids_join_var= 0;
 
+/* Define what debug options will be activated */
+char * communication_debug_options_var= NULL;
+
 /* Certification latch */
 Wait_ticket<my_thread_id> *certification_latch;
 
@@ -241,6 +244,15 @@ static void initialize_ssl_option_map();
 static bool initialize_registry_module();
 
 static bool finalize_registry_module();
+
+static int check_flow_control_min_quota_long(longlong value,
+                                   bool is_var_update= false);
+
+static int check_flow_control_min_recovery_quota_long(longlong value,
+                                   bool is_var_update= false);
+
+static int check_flow_control_max_quota_long(longlong value,
+                                   bool is_var_update= false);
 
 /*
   Auxiliary public functions.
@@ -349,6 +361,12 @@ int plugin_group_replication_start()
 
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
+  DBUG_EXECUTE_IF("group_replication_wait_on_start",
+                 {
+                   const char act[]= "now signal signal.start_waiting wait_for signal.start_continue";
+                   DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                 });
+
   int error= 0;
   bool enabled_super_read_only= false;
   bool read_only_mode= false, super_read_only_mode=false;
@@ -390,6 +408,13 @@ int plugin_group_replication_start()
                 force_members_var);
     DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
   }
+  if (check_flow_control_min_quota_long(flow_control_min_quota_var))
+    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+  if (check_flow_control_min_recovery_quota_long(flow_control_min_recovery_quota_var))
+    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+  if (check_flow_control_max_quota_long(flow_control_max_quota_var))
+    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+
   if (init_group_sidno())
     DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR); /* purecov: inspected */
 
@@ -397,6 +422,18 @@ int plugin_group_replication_start()
   {
     register_listener_service_gr_example();
   });
+
+  /*
+    The debug options is also set/verified here because if it was set during
+    the server start, it was not set/verified due to the plugin life-cycle.
+    For that reason, we have to call set_debug_options here as well to set/
+    validate the information in the communication_debug_options_var. Note,
+    however, that the option variable is not automatically set to a valid
+    value if the validation fails.
+  */
+  std::string debug_options(communication_debug_options_var);
+  if (gcs_module->set_debug_options(debug_options))
+    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR); /* purecov: inspected */
 
   /*
     Instantiate certification latch.
@@ -425,13 +462,8 @@ int plugin_group_replication_start()
 
   // Setup SQL service interface.
   if (sql_command_interface->
-          establish_session_connection(PSESSION_DEDICATED_THREAD,plugin_info_ptr))
-  {
-    error =1; /* purecov: inspected */
-    goto err; /* purecov: inspected */
-  }
-
-  if (sql_command_interface->set_interface_user(GROUPREPL_USER))
+          establish_session_connection(PSESSION_DEDICATED_THREAD,
+                                       GROUPREPL_USER, plugin_info_ptr))
   {
     error =1; /* purecov: inspected */
     goto err; /* purecov: inspected */
@@ -457,24 +489,14 @@ int plugin_group_replication_start()
                                              server_version)))
     goto err; /* purecov: inspected */
 
-  /* To stop group replication to start on secondary member with single primary-
-     mode, when any async channels are running, we verify whether member is not
-     bootstrapping. As only when the member is bootstrapping, it can be the
-     primary leader on a single primary member context.
-
-   */
-  if (single_primary_mode_var && !bootstrap_group_var)
+  if (check_async_channel_running_on_secondary())
   {
-    if (is_any_slave_channel_running(
-        CHANNEL_RECEIVER_THREAD | CHANNEL_APPLIER_THREAD))
-    {
-      error= 1;
-      log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
-                                  " member with single primary-mode while"
-                                  " asynchronous replication channels are"
-                                  " running.");
-      goto err; /* purecov: inspected */
-    }
+    error= 1;
+    log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
+                                " member with single primary-mode while"
+                                " asynchronous replication channels are"
+                                " running.");
+    goto err; /* purecov: inspected */
   }
 
   configure_compatibility_manager();
@@ -541,6 +563,7 @@ int plugin_group_replication_start()
 
   initialize_asynchronous_channels_observer();
   initialize_group_partition_handler();
+  set_auto_increment_handler();
 
   if ((error= start_group_communication()))
   {
@@ -607,6 +630,13 @@ int configure_group_member_manager(char *hostname, char *uuid,
     /* purecov: end */
   }
 
+  if (!strcmp(uuid, group_name_var))
+  {
+    log_message(MY_ERROR_LEVEL,
+                "Member server_uuid is incompatible with the group. "
+                "Server_uuid %s matches group_name %s.", uuid, group_name_var);
+    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+  }
   //Configure Group Member Manager
   plugin_version= server_version;
 
@@ -745,10 +775,7 @@ bypass_message:
   // Finalize GCS.
   gcs_module->finalize();
 
-  if (auto_increment_handler != NULL)
-  {
-    auto_increment_handler->reset_auto_increment_variables();
-  }
+  auto_increment_handler->reset_auto_increment_variables();
 
   // Destroy handlers and notifiers
   delete events_handler;
@@ -914,7 +941,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
 
   plugin_info_ptr= plugin_info;
 
-  if (group_replication_init(group_replication_plugin_name))
+  if (group_replication_init())
   {
     /* purecov: begin inspected */
     log_message(MY_ERROR_LEVEL,
@@ -981,7 +1008,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
   }
 
   plugin_is_auto_starting= start_group_replication_at_boot_var;
-  if (start_group_replication_at_boot_var && group_replication_start())
+  if (start_group_replication_at_boot_var && plugin_group_replication_start())
   {
     log_message(MY_ERROR_LEVEL,
                 "Unable to start Group Replication on boot");
@@ -999,10 +1026,9 @@ int plugin_group_replication_deinit(void *p)
   plugin_is_being_uninstalled= true;
   int observer_unregister_error= 0;
 
-  //plugin_group_replication_stop will be called from this method stack
-  if (group_replication_cleanup())
+  if (plugin_group_replication_stop())
     log_message(MY_ERROR_LEVEL,
-                "Failure when cleaning Group Replication server state");
+                "Failure when stopping Group Replication on plugin uninstall");
 
   if (group_member_mgr != NULL)
   {
@@ -1086,6 +1112,25 @@ int plugin_group_replication_deinit(void *p)
   plugin_info_ptr= NULL;
 
   return observer_unregister_error;
+}
+
+static int plugin_group_replication_check_uninstall(void *)
+{
+  DBUG_ENTER("plugin_group_replication_check_uninstall");
+
+  int result= 0;
+
+  if (plugin_is_group_replication_running() &&
+      group_member_mgr->is_majority_unreachable())
+  {
+    result= 1;
+    my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0),
+                "group_replication", "Plugin is busy, it cannot be uninstalled. To"
+                " force a stop run STOP GROUP_REPLICATION and then UNINSTALL"
+                " PLUGIN group_replication.");
+  }
+
+  DBUG_RETURN(result);
 }
 
 static bool init_group_sidno()
@@ -1190,6 +1235,13 @@ void initialize_group_partition_handler()
   group_partition_handler=
       new Group_partition_handling(shared_plugin_stop_lock,
                                    timeout_on_unreachable_var);
+}
+
+void set_auto_increment_handler()
+{
+  auto_increment_handler->
+      set_auto_increment_variables(auto_increment_increment_var,
+                                   get_server_id());
 }
 
 int terminate_applier_module()
@@ -1336,6 +1388,19 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
     }
   }
 
+  /*
+    Define the file where GCS debug messages will be sent to.
+  */
+  gcs_module_parameters.add_parameter("communication_debug_file",
+                                      GCS_DEBUG_TRACE_FILE);
+
+  /*
+    By default debug files will be created in a path relative to
+    the data directory.
+  */
+  gcs_module_parameters.add_parameter("communication_debug_path",
+                                      mysql_real_data_home);
+
   // Configure GCS.
   if (gcs_module->configure(gcs_module_parameters))
   {
@@ -1351,11 +1416,14 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
               "group_replication_bootstrap_group: %s; "
               "group_replication_poll_spin_loops: %lu; "
               "group_replication_compression_threshold: %lu; "
-              "group_replication_ip_whitelist: \"%s\"",
+              "group_replication_ip_whitelist: \"%s\" "
+              "group_replication_communication_debug_file: \"%s\" "
+              "group_replication_communication_debug_path: \"%s\"",
               group_name_var, local_address_var, group_seeds_var,
               bootstrap_group_var ? "true" : "false",
               poll_spin_loops_var, compression_threshold_var,
-              ip_whitelist_var);
+              ip_whitelist_var, GCS_DEBUG_TRACE_FILE,
+              mysql_real_data_home);
 
   DBUG_RETURN(0);
 }
@@ -1363,13 +1431,6 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
 int start_group_communication()
 {
   DBUG_ENTER("start_group_communication");
-
-  if (auto_increment_handler != NULL)
-  {
-    auto_increment_handler->
-      set_auto_increment_variables(auto_increment_increment_var,
-                                   get_server_id());
-  }
 
   view_change_notifier= new Plugin_gcs_view_modification_notifier();
   events_handler= new Plugin_gcs_events_handler(applier_module,
@@ -1385,14 +1446,30 @@ int start_group_communication()
   DBUG_RETURN(0);
 }
 
+bool check_async_channel_running_on_secondary()
+{
+  /* To stop group replication to start on secondary member with single primary-
+     mode, when any async channels are running, we verify whether member is not
+    bootstrapping. As only when the member is bootstrapping, it can be the
+    primary leader on a single primary member context.
+  */
+  if (single_primary_mode_var && !bootstrap_group_var)
+  {
+    if (is_any_slave_channel_running(
+        CHANNEL_RECEIVER_THREAD | CHANNEL_APPLIER_THREAD))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void initialize_asynchronous_channels_observer()
 {
-  if (single_primary_mode_var)
-  {
-    asynchronous_channels_state_observer= new Asynchronous_channels_state_observer();
-    channel_observation_manager
-        ->register_channel_observer(asynchronous_channels_state_observer);
-  }
+  asynchronous_channels_state_observer= new Asynchronous_channels_state_observer();
+  channel_observation_manager
+      ->register_channel_observer(asynchronous_channels_state_observer);
 }
 
 void terminate_asynchronous_channels_observer()
@@ -1499,7 +1576,7 @@ static int check_if_server_properly_configured()
   //Struct that holds startup and runtime requirements
   Trans_context_info startup_pre_reqs;
 
-  get_server_startup_prerequirements(startup_pre_reqs, true);
+  get_server_startup_prerequirements(startup_pre_reqs, !plugin_is_auto_starting);
 
   if(!startup_pre_reqs.binlog_enabled)
   {
@@ -1662,6 +1739,80 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR*, void* save,
   DBUG_RETURN(0);
 }
 
+/*
+ Flow control variable update/validate methods
+*/
+
+static int check_flow_control_min_quota_long(longlong value, bool is_var_update)
+{
+  DBUG_ENTER("check_flow_control_min_quota_long");
+
+  if (value > flow_control_max_quota_var && flow_control_max_quota_var > 0)
+  {
+    if (!is_var_update)
+      log_message(MY_ERROR_LEVEL,
+                  "group_replication_flow_control_min_quota cannot be larger than "
+                  "group_replication_flow_control_max_quota");
+    else
+      my_message(ER_WRONG_VALUE_FOR_VAR,
+                 "group_replication_flow_control_min_quota cannot be larger than "
+                 "group_replication_flow_control_max_quota",
+                 MYF(0));
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
+}
+
+static int check_flow_control_min_recovery_quota_long(longlong value, bool is_var_update)
+{
+  DBUG_ENTER("check_flow_control_min_recovery_quota_long");
+
+  if (value > flow_control_max_quota_var && flow_control_max_quota_var > 0)
+  {
+    if (!is_var_update)
+      log_message(MY_ERROR_LEVEL,
+                  "group_replication_flow_control_min_recovery_quota cannot be "
+                  "larger than group_replication_flow_control_max_quota");
+    else
+      my_message(ER_WRONG_VALUE_FOR_VAR,
+                 "group_replication_flow_control_min_recovery_quota cannot be "
+                 "larger than group_replication_flow_control_max_quota",
+                 MYF(0));
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
+}
+
+static int check_flow_control_max_quota_long(longlong value, bool is_var_update)
+{
+  DBUG_ENTER("check_flow_control_max_quota_long");
+
+  if (value > 0
+      && ((value < flow_control_min_quota_var
+           && flow_control_min_quota_var != 0)
+         || (value < flow_control_min_recovery_quota_var
+           && flow_control_min_recovery_quota_var != 0)))
+  {
+    if (!is_var_update)
+      log_message(MY_ERROR_LEVEL,
+                  "group_replication_flow_control_max_quota cannot be smaller "
+                  "than group_replication_flow_control_min_quota or "
+                  "group_replication_flow_control_min_recovery_quota");
+    else
+      my_message(ER_WRONG_VALUE_FOR_VAR,
+                 "group_replication_flow_control_max_quota cannot be smaller "
+                 "than group_replication_flow_control_min_quota or "
+                 "group_replication_flow_control_min_recovery_quota",
+                 MYF(0));
+
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
+}
+
 static int check_flow_control_min_quota(MYSQL_THD, SYS_VAR*, void* save,
                                         struct st_mysql_value *value)
 {
@@ -1670,13 +1821,8 @@ static int check_flow_control_min_quota(MYSQL_THD, SYS_VAR*, void* save,
   longlong in_val;
   value->val_int(value, &in_val);
 
-  if (in_val > flow_control_max_quota_var && flow_control_max_quota_var > 0)
-  {
-    log_message(MY_ERROR_LEVEL,
-                "group_replication_flow_control_min_quota cannot be larger than "
-                "group_replication_flow_control_max_quota");
+  if (check_flow_control_min_quota_long(in_val, true))
     DBUG_RETURN(1);
-  }
 
   *(longlong*)save= (in_val < 0) ? 0 :
                     (in_val < MAX_FLOW_CONTROL_THRESHOLD) ? in_val :
@@ -1693,18 +1839,12 @@ static int check_flow_control_min_recovery_quota(MYSQL_THD, SYS_VAR*, void* save
   longlong in_val;
   value->val_int(value, &in_val);
 
-  if (in_val > flow_control_max_quota_var && flow_control_max_quota_var > 0)
-  {
-    log_message(MY_ERROR_LEVEL,
-                "group_replication_flow_control_min_recovery_quota cannot be "
-                "larger than group_replication_flow_control_max_quota");
+  if (check_flow_control_min_recovery_quota_long(in_val, true))
     DBUG_RETURN(1);
-  }
 
   *(longlong*)save= (in_val < 0) ? 0 :
                     (in_val < MAX_FLOW_CONTROL_THRESHOLD) ? in_val :
                     MAX_FLOW_CONTROL_THRESHOLD;
-
   DBUG_RETURN(0);
 }
 
@@ -1716,18 +1856,8 @@ static int check_flow_control_max_quota(MYSQL_THD, SYS_VAR*, void* save,
   longlong in_val;
   value->val_int(value, &in_val);
 
-  if (in_val > 0
-      && ((in_val < flow_control_min_quota_var
-           && flow_control_min_quota_var != 0)
-         || (in_val < flow_control_min_recovery_quota_var
-           && flow_control_min_recovery_quota_var != 0)))
-  {
-    log_message(MY_ERROR_LEVEL,
-                "group_replication_flow_control_max_quota cannot be smaller "
-                "than group_replication_flow_control_min_quota or "
-                "group_replication_flow_control_min_recovery_quota");
+  if (check_flow_control_max_quota_long(in_val, true))
     DBUG_RETURN(1);
-  }
 
   *(longlong*)save= (in_val < 0) ? 0 :
                     (in_val < MAX_FLOW_CONTROL_THRESHOLD) ? in_val :
@@ -2105,6 +2235,19 @@ static int check_force_members(MYSQL_THD thd, SYS_VAR*,
   if (length == 0)
     goto update_value;
 
+  // if group replication isn't running and majority is reachable you can't
+  // update force_members
+  if (!plugin_is_group_replication_running() ||
+      !group_member_mgr->is_majority_unreachable())
+  {
+    log_message(MY_ERROR_LEVEL,
+                "group_replication_force_members can only be updated"
+                " when Group Replication is running and a majority of the"
+                " members are unreachable");
+    error= 1;
+    goto end;
+  }
+
   if ((error= gcs_module->force_members(str)))
     goto end;
 
@@ -2256,6 +2399,28 @@ check_enforce_update_everywhere_checks(MYSQL_THD, SYS_VAR*,
   }
 
   *(bool *)save = enforce_update_everywhere_checks_val;
+
+  DBUG_RETURN(0);
+}
+
+static int check_communication_debug_options(
+  MYSQL_THD thd, SYS_VAR*, void* save, struct st_mysql_value *value)
+{
+  DBUG_ENTER("check_communication_debug_options");
+
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  const char *str= NULL;
+  int length= sizeof(buff);
+
+  (*(const char **) save)= NULL;
+  if ((str= value->val_str(value, buff, &length)) == NULL)
+    DBUG_RETURN(1); /* purecov: inspected */
+
+  std::string debug_options(str);
+  if (gcs_module->set_debug_options(debug_options))
+    DBUG_RETURN(1);
+  (*(const char**) save)=
+    thd->strmake(debug_options.c_str(), debug_options.length());
 
   DBUG_RETURN(0);
 }
@@ -2731,6 +2896,16 @@ static MYSQL_SYSVAR_ULONG(
   0                                    /* block */
 );
 
+static MYSQL_SYSVAR_STR(
+  communication_debug_options,                /* name */
+  communication_debug_options_var,            /* var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,  /* optional var | malloc string */
+  "The set of debug options, comma separated. E.g., DEBUG_BASIC, DEBUG_ALL.",
+  check_communication_debug_options,          /* check func */
+  NULL,                                       /* update func */
+  "GCS_DEBUG_NONE"                            /* default */
+);
+
 static MYSQL_SYSVAR_ULONG(
   unreachable_majority_timeout,                    /* name */
   timeout_on_unreachable_var,                      /* var */
@@ -2891,6 +3066,7 @@ static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(flow_control_certifier_threshold),
   MYSQL_SYSVAR(flow_control_applier_threshold),
   MYSQL_SYSVAR(transaction_size_limit),
+  MYSQL_SYSVAR(communication_debug_options),
   MYSQL_SYSVAR(unreachable_majority_timeout),
   MYSQL_SYSVAR(member_weight),
   MYSQL_SYSVAR(flow_control_min_quota),
@@ -2939,15 +3115,15 @@ mysql_declare_plugin(group_replication_plugin)
   &group_replication_descriptor,
   group_replication_plugin_name,
   "ORACLE",
-  "Group Replication (1.0.0)",      /* Plugin name with full version*/
+  "Group Replication (1.1.0)",               /* Plugin name with full version*/
   PLUGIN_LICENSE_GPL,
-  plugin_group_replication_init,    /* Plugin Init */
-  NULL,                             /* Plugin Check uninstall */
-  plugin_group_replication_deinit,  /* Plugin Deinit */
-  0x0100,                           /* Plugin Version: major.minor */
-  group_replication_status_vars,    /* status variables */
-  group_replication_system_vars,    /* system variables */
-  NULL,                             /* config options */
-  0,                                /* flags */
+  plugin_group_replication_init,             /* Plugin Init */
+  plugin_group_replication_check_uninstall,  /* Plugin Check uninstall */
+  plugin_group_replication_deinit,           /* Plugin Deinit */
+  0x0101,                                    /* Plugin Version: major.minor */
+  group_replication_status_vars,             /* status variables */
+  group_replication_system_vars,             /* system variables */
+  NULL,                                      /* config options */
+  0,                                         /* flags */
 }
 mysql_declare_plugin_end;

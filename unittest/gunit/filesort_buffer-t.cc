@@ -18,10 +18,10 @@
 #include <sys/types.h>
 #include <utility>
 
-#include "filesort_utils.h"
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
-#include "table.h"
+#include "sql/filesort_utils.h"
+#include "sql/table.h"
 
 
 namespace filesort_buffer_unittest {

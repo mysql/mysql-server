@@ -18,14 +18,14 @@
 
 #include <sys/types.h>
 
-#include "enum_query_type.h"    // enum_query_type
-#include "mem_root_array.h"     // Mem_root_array
-#include "sql_select.h"
+#include "sql/enum_query_type.h" // enum_query_type
+#include "sql/mem_root_array.h" // Mem_root_array
+#include "sql/sql_lex.h"
+#include "sql/sql_select.h"
 #include "thr_lock.h"           // TL_WRITE_ONLY
 
 class Item;
 class JOIN;
-class SELECT_LEX;
 struct TABLE_LIST;
 
 typedef Mem_root_array<Key_use> Key_use_array;

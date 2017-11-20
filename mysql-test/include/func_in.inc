@@ -73,7 +73,7 @@ set names latin1;
 select * from t1 where 'a' collate latin1_general_ci in (a,b,c);
 select * from t1 where 'a' collate latin1_bin in (a,b,c);
 select * from t1 where 'a' in (a,b,c collate latin1_bin);
-explain extended select * from t1 where 'a' in (a,b,c collate latin1_bin);
+explain select * from t1 where 'a' in (a,b,c collate latin1_bin);
 drop table t1;
 set names utf8mb4;
 
@@ -625,7 +625,7 @@ DROP TABLE t1;
 --echo # Bug #11764651-57510: IN(string,real,string) causes invalid read in sort function
 --echo #
 
-SELECT LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.query_cache_type,1,"");
+SELECT LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.max_allowed_packet,1,"");
 
 --echo # End of test BUG#11764651-57510
 

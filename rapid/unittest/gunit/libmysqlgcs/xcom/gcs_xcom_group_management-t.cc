@@ -13,21 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#include "gcs_base_test.h"
 
-#include "mysql/gcs/gcs_log_system.h"
 #include "gcs_xcom_utils.h"
 #include "gcs_xcom_group_management.h"
 #include "gcs_xcom_communication_interface.h"
-
-using ::testing::Return;
-using ::testing::DoAll;
-using ::testing::WithArgs;
-using ::testing::SaveArgPointee;
-using ::testing::Invoke;
-using ::testing::_;
-using ::testing::Eq;
 
 namespace gcs_xcom_groupmanagement_unittest
 {
@@ -103,7 +93,7 @@ public:
                                              uint32_t group_id));
 };
 
-class XcomGroupManagementTest : public ::testing::Test
+class XcomGroupManagementTest : public GcsBaseTest
 {
 protected:
 
@@ -114,18 +104,12 @@ protected:
     group_id= new Gcs_group_identifier("only_group");
     xcom_group_mgmt_if=
       new Gcs_xcom_group_management(&proxy, *group_id);
-
-    logger= new Gcs_simple_ext_logger_impl();
-    Gcs_logger::initialize(logger);
   }
 
   virtual void TearDown()
   {
     delete xcom_group_mgmt_if;
     delete group_id;
-
-    Gcs_logger::finalize();
-    delete logger;
   }
 
   Gcs_group_identifier *group_id;
@@ -133,7 +117,6 @@ protected:
 
   mock_gcs_xcom_proxy proxy;
   Gcs_xcom_group_management *xcom_group_mgmt_if;
-  Ext_logger_interface *logger;
 };
 
 TEST_F(XcomGroupManagementTest, EmptyPeerNodes)

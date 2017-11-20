@@ -14,9 +14,9 @@ references counties(county) on delete set default on update restrict
 insert into towns values ('Maidenhead','Berkshire'),('Reading','Berkshire'),
 ('Shrewsbury','Shropshire'),('Oxford','Oxfordshire');
 delete from counties where county='Shropshire';
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`towns`, CONSTRAINT `county_town` FOREIGN KEY (`county`) REFERENCES `counties` (`county`) ON DELETE SET DEFAULT ON UPDATE RESTRICT)
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 256 'Foreign key constraint violated: Referenced row exists' from NDB
-Error	1451	Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+Error	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`towns`, CONSTRAINT `county_town` FOREIGN KEY (`county`) REFERENCES `counties` (`county`) ON DELETE SET DEFAULT ON UPDATE RESTRICT)
 drop table towns, counties;

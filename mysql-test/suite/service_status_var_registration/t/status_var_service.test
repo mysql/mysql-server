@@ -1,0 +1,32 @@
+# Base test for registration of system variables by components.
+
+--source ../include/have_component_test_status_var_service.inc
+
+call mtr.add_suppression("duplicate variable name");
+call mtr.add_suppression("variable name 'test_component.int_var' not found");
+--echo # Simple load test
+INSTALL COMPONENT "file://component_test_status_var_service";
+
+--echo # Testing integer and bool type variable
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE 'test_component.int_var';
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE 'test_component.bool_var';
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE 'test_component.long_var';
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE 'test_component.longlong_var';
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE 'test_component.func_var';
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE 'test_component.array';
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE 'test_component.char_var';
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE 'test_component.char_ptr_var';
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE 'test_component.double';
+
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'test_component%';
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'test_component%';
+
+UNINSTALL COMPONENT "file://component_test_status_var_service";
+
+# Write the test results in "test_component_status_var_service.log" into the
+# result file of this test
+--echo ########## test_component_sys_var_service.log:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_component_status_var_service.log;
+remove_file $MYSQLD_DATADIR/test_component_status_var_service.log;

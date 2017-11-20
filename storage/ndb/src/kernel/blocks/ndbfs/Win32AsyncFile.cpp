@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,14 +63,25 @@ void Win32AsyncFile::openReq(Request* request)
   DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
   Uint32 flags = request->par.open.flags;
 
-    // Convert file open flags from Solaris to Windows
-  if ((flags & FsOpenReq::OM_CREATE) && (flags & FsOpenReq::OM_TRUNCATE)){
+  // Convert file open flags from Solaris to Windows
+  if ((flags & FsOpenReq::OM_CREATE) && (flags & FsOpenReq::OM_TRUNCATE))
+  {
     dwCreationDisposition = CREATE_ALWAYS;
-  } else if (flags & FsOpenReq::OM_TRUNCATE){
+  }
+  else if (flags & FsOpenReq::OM_TRUNCATE)
+  {
     dwCreationDisposition = TRUNCATE_EXISTING;
-  } else if (flags & (FsOpenReq::OM_CREATE|FsOpenReq::OM_CREATE_IF_NONE)){
+  }
+  else if (flags & (FsOpenReq::OM_CREATE_IF_NONE))
+  {
     dwCreationDisposition = CREATE_NEW;
-  } else {
+  }
+  else if (flags & FsOpenReq::OM_CREATE)
+  {
+    dwCreationDisposition = OPEN_ALWAYS;
+  }
+  else
+  {
     dwCreationDisposition = OPEN_EXISTING;
   }
 
@@ -99,17 +110,23 @@ void Win32AsyncFile::openReq(Request* request)
   hFile = CreateFile(theFileName.c_str(), dwDesiredAccess, dwShareMode,
                      0, dwCreationDisposition, dwFlagsAndAttributes, 0);
 
-  if(INVALID_HANDLE_VALUE == hFile) {
+  if(INVALID_HANDLE_VALUE == hFile)
+  {
     request->error = GetLastError();
-  
-    if((ERROR_FILE_EXISTS == request->error) && (flags & (FsOpenReq::OM_CREATE|FsOpenReq::OM_CREATE_IF_NONE))) {
+
+    if (ERROR_FILE_EXISTS == request->error)
+    {
+      if (!(flags & FsOpenReq::OM_CREATE_IF_NONE))
+        abort();
       request->error = FsRef::fsErrFileExists;
       (void)CloseHandle(hFile);
       return;
     }
 
-    if(((ERROR_PATH_NOT_FOUND == request->error) || (ERROR_INVALID_NAME == request->error))
-		&& (flags & (FsOpenReq::OM_CREATE|FsOpenReq::OM_CREATE_IF_NONE))) {
+    if (((ERROR_PATH_NOT_FOUND == request->error) ||
+        (ERROR_INVALID_NAME == request->error)) &&
+        (flags & (FsOpenReq::OM_CREATE | FsOpenReq::OM_CREATE_IF_NONE)))
+    {
       createDirectories();
       hFile = CreateFile(theFileName.c_str(), dwDesiredAccess, dwShareMode,
                          0, dwCreationDisposition, dwFlagsAndAttributes, 0);
@@ -120,7 +137,8 @@ void Win32AsyncFile::openReq(Request* request)
         request->error = 0;
     }
   }
-  else {
+  else
+  {
     request->error = 0;
   }
 

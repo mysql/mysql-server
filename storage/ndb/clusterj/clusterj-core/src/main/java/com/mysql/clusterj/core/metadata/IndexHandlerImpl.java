@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,18 +38,11 @@ import java.util.Arrays;
  * <p>
  * The simple case is one index => one field => one column. 
  * <p>
- * For ClusterJ and JPA, indexes can also support multiple columns, with each column 
+ * For ClusterJ, indexes can also support multiple columns, with each column 
  * mapped to one field. This pattern is used for compound primary keys. In this case,
  * there is one instance of IndexHandlerImpl for each index, and the columnNames
  * and fields have the same cardinality.
  * This is one index => multiple (one field => one column)
- * <p>
- * For JPA, indexes can also support one field mapped to multiple columns, which is
- * the pattern used for compound foreign keys to represent relationships.
- * In this case, there is a single instance of IndexHandlerImpl for each index. The 
- * columnNames lists the columns covered by the index, and there is one field. The
- * field manages an instance of the object id class for the relationship.
- * This is one index => one field => multiple columns.
  * <p>
  *
  */

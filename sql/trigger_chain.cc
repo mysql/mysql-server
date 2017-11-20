@@ -17,16 +17,17 @@
 
 #include "sql/trigger_chain.h"
 
-#include "handler.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysqld.h"                   // table_alias_charset
 #include "mysqld_error.h"             // ER_*
-#include "sp_head.h"                  // sp_head
-#include "sql_servers.h"
-#include "trigger.h"                  // Trigger
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"               // table_alias_charset
+#include "sql/sp_head.h"              // sp_head
+#include "sql/sql_servers.h"
+#include "sql/trigger.h"              // Trigger
 
 
 Trigger_chain::~Trigger_chain()

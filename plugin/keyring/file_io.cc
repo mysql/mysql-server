@@ -22,12 +22,12 @@
 #include <sstream>
 #include <utility>
 
-#include "current_thd.h"
 #include "file_io.h"
 #include "my_dbug.h"
-#include "mysqld.h"
 #include "mysys_err.h"
-#include "sql_error.h"
+#include "sql/current_thd.h"
+#include "sql/mysqld.h"
+#include "sql/sql_error.h"
 
 namespace keyring
 {

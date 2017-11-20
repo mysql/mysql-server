@@ -91,14 +91,14 @@ let $MYSQLTEST_CONNID_1=`select connection_id()`;
 --connect(con1,localhost,root,,)
 let $MYSQLTEST_CONNID_2=`select connection_id()`;
 ###try killing both mysqlx and mysql session ids using mysqlx protocol (expect error from getting killed)
---let $expected_error_line= 13
+--let $expected_error_line= 12
 --let $expected_error_msg= MySQL server has gone away \(code 2006\)
 --let $expected_error_extra= /localhost:[0-9]*/localhost/ /kill [0-9]+/kill CONNECTION_ID/ /Execute/Query/
 --source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection.processlist.tmp -v%MYSQLTEST_CONNECTION_ID%=$MYSQLTEST_CONNID_2 2>&1
 
 ###kill mysqlx protocol session using mysqlx protocol when mysqlxplugin installed (expect error again)
---let $expected_error_line= 10
+--let $expected_error_line= 9
 --let $expected_error_msg= MySQL server has gone away \(code 2006\)
 --let $expected_error_extra= /localhost:[0-9]*/localhost/ /Execute/Query/
 --source ../include/mysqlxtest_expected_error.inc

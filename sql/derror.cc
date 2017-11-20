@@ -19,23 +19,28 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "current_thd.h"
-#include "log.h"
+#include "../storage/perfschema/pfs_error.h"
+#include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/mysql_statement.h"
-#include "mysqld.h"                             // lc_messages_dir
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "sql_class.h"                          // THD
-#include "sql_locale.h"
-#include "system_variables.h"
-#include "../storage/perfschema/pfs_error.h"
+#include "sql/current_thd.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"                         // lc_messages_dir
+#include "sql/psi_memory_key.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h"                      // THD
+#include "sql/sql_locale.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
 CHARSET_INFO *error_message_charset_info;
 

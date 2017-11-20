@@ -18,34 +18,41 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <string>
 
-#include "field.h"
-#include "handler.h"
 #include "lex_string.h"
-#include "mem_root_array.h"    // Mem_root_array
+#include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "set_var.h"
-#include "sql_alloc.h"
-#include "sql_class.h"         // Query_arena
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_plugin.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "system_variables.h"
-#include "table.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item_create.h"
+#include "sql/key.h"
+#include "sql/mem_root_array.h" // Mem_root_array
+#include "sql/session_tracker.h"
+#include "sql/set_var.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_class.h"     // Query_arena
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plugin.h"
+#include "sql/sql_servers.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
 class Item;
 class Item_trigger_field;
-class Table_trigger_field_support;
 class Sroutine_hash_entry;
+class Table_trigger_field_support;
 class sp_head;
 struct PSI_sp_share;
 
@@ -414,6 +421,8 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
+struct SP_TABLE;
+
 /**
   sp_head represents one instance of a stored program. It might be of any type
   (stored procedure, function, trigger, event).
@@ -538,8 +547,11 @@ public:
     set are not linked in one list. Because of this we are able save memory
     by using for this set same objects that are used in 'sroutines' sets
     for statements of which this stored routine consists.
+
+    See Sroutine_hash_entry for explanation why this hash uses binary
+    key comparison.
   */
-  HASH m_sroutines;
+  malloc_unordered_map<std::string, Sroutine_hash_entry*> m_sroutines;
 
   /*
     Security context for stored routine which should be run under
@@ -947,7 +959,7 @@ private:
     We do so because the same instance of sp_head may be called both
     in prelocked mode and in non-prelocked mode.
   */
-  HASH m_sptabs;
+  collation_unordered_map<std::string, SP_TABLE *> m_sptabs;
 
   /**
     Version of the stored routine cache at the moment when the

@@ -15,16 +15,16 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "abstract_progress_watcher.h"
+#include "client/dump/abstract_progress_watcher.h"
 
 #include <stddef.h>
 #include <algorithm>
 #include <chrono>
 #include <functional>
 
-#include "row_group_dump_task.h"
-#include "table_definition_dump_task.h"
-#include "table_rows_dump_task.h"
+#include "client/dump/row_group_dump_task.h"
+#include "client/dump/table_definition_dump_task.h"
+#include "client/dump/table_rows_dump_task.h"
 
 using namespace Mysql::Tools::Dump;
 
@@ -87,7 +87,7 @@ void Abstract_progress_watcher::object_processing_ended(
   Table_rows_dump_task* processed_table_task=
     dynamic_cast<Table_rows_dump_task*>(
     finished_process_data->get_process_task_object());
-  if (processed_table_task != NULL && processed_table_task->is_completed()
+  if (processed_table_task != NULL
     && finished_process_data->had_chain_created())
   {
     m_progress.m_table_count++;

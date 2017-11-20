@@ -21,15 +21,15 @@
 #include <errno.h>
 #include <limits.h>
 
-#include "current_thd.h"
 #include "heapdef.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
-#include "sql_base.h"                    // enum_tdc_remove_table_type
-#include "sql_class.h"
-#include "sql_plugin.h"
+#include "sql/current_thd.h"
+#include "sql/sql_base.h"                // enum_tdc_remove_table_type
+#include "sql/sql_class.h"
+#include "sql/sql_plugin.h"
 
 static handler *heap_create_handler(handlerton *hton,
                                     TABLE_SHARE *table,

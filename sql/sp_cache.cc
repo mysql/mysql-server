@@ -18,15 +18,16 @@
 
 #include <stddef.h>
 #include <atomic>
+#include <memory>
+#include <string>
 
-#include "handler.h"
 #include "lex_string.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
-#include "psi_memory_key.h"
-#include "sp_head.h"
-#include "sql_class.h"
-#include "table.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sp_head.h"
 
 
 /*

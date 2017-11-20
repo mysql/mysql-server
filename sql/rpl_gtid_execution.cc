@@ -17,25 +17,25 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <atomic>
 
-#include "lex_string.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "my_thread_local.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/thread_type.h"
-#include "mysqld.h"                           // connection_events_loop_aborted
 #include "mysqld_error.h"
-#include "rpl_gtid.h"
-#include "rpl_rli.h"                          // Relay_log_info
-#include "sql_class.h"                        // THD
-#include "sql_lex.h"
-#include "sql_parse.h"                        // stmt_causes_implicit_commit
-#include "sql_plugin.h"
-#include "system_variables.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"                       // connection_events_loop_aborted
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_rli.h"                      // Relay_log_info
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"                    // stmt_causes_implicit_commit
+#include "sql/system_variables.h"
 
 
 

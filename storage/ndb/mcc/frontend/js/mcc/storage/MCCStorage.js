@@ -360,12 +360,14 @@ function setDefaultHostDirsUnlessOverridden(hostId, platform, fetchStatus) {
 }
 
 // Get host resource information
-function getHostResourceInfo(hostName, hostId, showAlert) {
+function getHostResourceInfo(hostName, hostId, showAlert, override) {
     // First, get the host item and see if there are undefined values
     hostStorage.getItem(hostId).then(function (host) {
+        var nm = host.getValue("name");
+        mcc.util.dbg("Running getHostResourceInfo for host " + nm);
         if (!host.getValue("uname") || !host.getValue("ram") || 
                 !host.getValue("cores") || !host.getValue("installdir") ||
-                !host.getValue("datadir")) {
+                !host.getValue("datadir") || override) {
             // There are undefined values, try a new fetch if requests allowed
             if (mcc.util.getCookie("getHostInfo") == "on") {
                 // Set fetch status and clear previous values
@@ -377,15 +379,16 @@ function getHostResourceInfo(hostName, hostId, showAlert) {
                     host.deleteAttribute("datadir");
                 }
                 hostStorage.save();
-
-                mcc.server.hostInfoReq(hostName, function (reply) {
-                        mcc.util.dbg("Hardware resources for " + hostName + ": " 
+                mcc.util.dbg("Sending hostInfoReq for host " + nm);
+                mcc.server.hostInfoReq(nm, function (reply) {
+                        mcc.util.dbg("Hardware resources for " + nm + ": " 
                                 + "ram = " + reply.body.hostRes.ram + 
                                 ", cores = " + reply.body.hostRes.cores +
                                 ", uname = " + reply.body.hostRes.uname +
                                 ", installdir = " + reply.body.hostRes.installdir +
                                 ", datadir = " + reply.body.hostRes.datadir +
-                                ", diskfree = " + reply.body.hostRes.diskfree);
+                                ", diskfree = " + reply.body.hostRes.diskfree +
+                                ", fqdn = " + reply.body.hostRes.fqdn);
 
                         // Bail out if new request sent
                         if (reply.head.rSeq != host.getValue("hwResFetchSeq")) {
@@ -397,13 +400,13 @@ function getHostResourceInfo(hostName, hostId, showAlert) {
                         host.deleteAttribute("errMsg");
 
                         // Set resource info
-                        if (!host.getValue("ram")) {
+                        if (!host.getValue("ram") || override) {
                             host.setValue("ram", reply.body.hostRes.ram);
                         }
-                        if (!host.getValue("cores")) {
+                        if (!host.getValue("cores") || override) {
                             host.setValue("cores", reply.body.hostRes.cores);
                         }
-                        if (!host.getValue("uname")) {
+                        if (!host.getValue("uname") || override) {
                             host.setValue("uname", reply.body.hostRes.uname);
                         }
                         if (!host.getValue("installdir") && 
@@ -420,8 +423,8 @@ function getHostResourceInfo(hostName, hostId, showAlert) {
                         }
                         if (!host.getValue("datadir") &&
                                 reply.body.hostRes.datadir) {
-                            var path = mcc.util.terminatePath(
-                                    reply.body.hostRes.datadir);
+                            var path = reply.body.hostRes.datadir.replace(/(\r\n|\n|\r)/gm,"");
+                            path = mcc.util.terminatePath(path);
                             if (mcc.util.isWin(host.getValue("uname"))) {
                                 path = mcc.util.winPath(path);
                             } else {
@@ -430,8 +433,15 @@ function getHostResourceInfo(hostName, hostId, showAlert) {
                             host.setValue("datadir", path);
                             host.setValue("datadir_predef", true);
                         }
-                        if (!host.getValue("diskfree")) {
+                        if (!host.getValue("diskfree") || override) {
                             host.setValue("diskfree", reply.body.hostRes.diskfree);
+                        }
+                        if (!host.getValue("fqdn") || override) {
+                            host.setValue("fqdn", reply.body.hostRes.fqdn);
+                        }
+                        if (!host.getValue("internalIP")) {
+                            // Use FQDN as default value for internal IP.
+                            host.setValue("internalIP", host.getValue("fqdn"));
                         }
                         hostStorage.save();
 
@@ -474,14 +484,17 @@ function getHostResourceInfo(hostName, hostId, showAlert) {
 // Special handling for new hosts: Get hw details and add to host tree storage
 function newHostItem(item, showAlert) {
     this.inherited(arguments);
-    if (!item.anyHost) {
+    mcc.util.dbg("New host name is " + item.name);
+    if (!item.anyHost && item.name != '') {
         hostTreeStorage.newItem({id: item.id, type: "host", name: item.name});
+        hostTreeStorage.save();
     } else {
         hostTreeStorage.newItem({id: item.id, type: "anyHost", name: item.name});
     }
     // Get hardware resources unless this is a wildcard host
-    if (!item.anyHost) {
-        getHostResourceInfo(item.name, item.id, showAlert);
+    if (!item.anyHost && item.name != '') {
+        mcc.util.dbg("getHostResourceInfo for " + item.name);
+        getHostResourceInfo(item.name, item.id, showAlert, true);
     } else {
         mcc.util.dbg("Skip obtaining hwresource information for wildcard host");
     }

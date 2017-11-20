@@ -20,14 +20,14 @@
 
 #include <functional>
 
-#include "abstract_data_formatter_wrapper.h"
-#include "abstract_mysql_chain_element_extension.h"
-#include "i_object_reader.h"
+#include "client/dump/abstract_data_formatter_wrapper.h"
+#include "client/dump/abstract_mysql_chain_element_extension.h"
+#include "client/dump/i_object_reader.h"
+#include "client/dump/mysql_field.h"
+#include "client/dump/mysql_object_reader_options.h"
+#include "client/dump/row_group_dump_task.h"
+#include "client/dump/table_rows_dump_task.h"
 #include "my_inttypes.h"
-#include "mysql_field.h"
-#include "mysql_object_reader_options.h"
-#include "row_group_dump_task.h"
-#include "table_rows_dump_task.h"
 
 namespace Mysql{
 namespace Tools{

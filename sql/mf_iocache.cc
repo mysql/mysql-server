@@ -33,15 +33,15 @@
 */
 
 #include <stddef.h>
-#include <sys/types.h>
 
-#include "current_thd.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "protocol_classic.h"
-#include "sql_class.h"                          // THD
+#include "sql/current_thd.h"
+#include "sql/protocol_classic.h"
+#include "sql/sql_class.h"                      // THD
 #include "sql_string.h"
 
 extern "C" {

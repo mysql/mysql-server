@@ -3,6 +3,8 @@ include/gr_configuration.inc
 SET @saved_rli_rep= @@GLOBAL.relay_log_info_repository;
 SET @saved_mi_rep= @@GLOBAL.master_info_repository;
 SET @@GLOBAL.relay_log_info_repository='FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 SET @@GLOBAL.master_info_repository='TABLE';
 include/assert.inc [Relay log repository info storage is set to file]
 include/assert.inc [Master info repository info storage is set to file]
@@ -10,12 +12,18 @@ START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 SET @@GLOBAL.relay_log_info_repository='TABLE';
 SET @@GLOBAL.master_info_repository='FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 include/assert.inc [Relay log repository info storage is set to file]
 include/assert.inc [Master info repository info storage is set to file]
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 SET @@GLOBAL.relay_log_info_repository='FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 SET @@GLOBAL.master_info_repository='FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 include/assert.inc [Relay log repository info storage is set to file]
 include/assert.inc [Master info repository info storage is set to file]
 START GROUP_REPLICATION;

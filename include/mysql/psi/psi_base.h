@@ -38,77 +38,17 @@ extern "C" {
     @{
 */
 
-/**
-  Instrumented mutex key.
-  To instrument a mutex, a mutex key must be obtained using @c register_mutex.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_mutex_key;
-
-/**
-  Instrumented rwlock key.
-  To instrument a rwlock, a rwlock key must be obtained
-  using @c register_rwlock.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_rwlock_key;
-
-/**
-  Instrumented cond key.
-  To instrument a condition, a condition key must be obtained
-  using @c register_cond.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_cond_key;
-
-/**
-  Instrumented thread key.
-  To instrument a thread, a thread key must be obtained
-  using @c register_thread.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_thread_key;
-
-/**
-  Instrumented file key.
-  To instrument a file, a file key must be obtained using @c register_file.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_file_key;
-
-/**
-  Instrumented stage key.
-  To instrument a stage, a stage key must be obtained using @c register_stage.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_stage_key;
-
-/**
-  Instrumented statement key.
-  To instrument a statement, a statement key must be obtained using @c
-  register_statement.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_statement_key;
-
-/**
-  Instrumented socket key.
-  To instrument a socket, a socket key must be obtained using @c
-  register_socket.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_socket_key;
-
 #define PSI_INSTRUMENT_ME 0
+
+#define PSI_DOCUMENT_ME ""
 
 #define PSI_NOT_INSTRUMENTED 0
 
 /**
-  Global flag.
-  This flag indicate that an instrumentation point is a global variable,
-  or a singleton.
+  Singleton flag.
+  This flag indicate that an instrumentation point is a singleton.
 */
-#define PSI_FLAG_GLOBAL (1 << 0)
+#define PSI_FLAG_SINGLETON (1 << 0)
 
 /**
   Mutable flag.
@@ -117,6 +57,11 @@ typedef unsigned int PSI_socket_key;
 */
 #define PSI_FLAG_MUTABLE (1 << 1)
 
+/**
+  Per Thread flag.
+  This flag indicates the instrumented object is per thread.
+  Reserved for future use.
+*/
 #define PSI_FLAG_THREAD (1 << 2)
 
 /**
@@ -130,7 +75,7 @@ typedef unsigned int PSI_socket_key;
   Shared Exclusive flag.
   Indicates that rwlock support the shared exclusive state.
 */
-#define PSI_RWLOCK_FLAG_SX (1 << 4)
+#define PSI_FLAG_RWLOCK_SX (1 << 4)
 
 /**
   Transferable flag.
@@ -147,12 +92,20 @@ typedef unsigned int PSI_socket_key;
 */
 #define PSI_FLAG_USER (1 << 6)
 
+/**
+  Global stat only flag.
+  This flag indicates statistics for the instrument
+  are aggregated globally only.
+  No per thread / account / user / host aggregations
+  are available.
+*/
+#define PSI_FLAG_ONLY_GLOBAL_STAT (1 << 7)
 
 #define PSI_VOLATILITY_UNKNOWN 0
 #define PSI_VOLATILITY_PERMANENT 1
 #define PSI_VOLATILITY_PROVISIONING 2
 #define PSI_VOLATILITY_DDL 3
-#define PSI_VOLATILITY_ACCOUNT 4
+#define PSI_VOLATILITY_CACHE 4
 #define PSI_VOLATILITY_SESSION 5
 #define PSI_VOLATILITY_TRANSACTION 6
 #define PSI_VOLATILITY_QUERY 7

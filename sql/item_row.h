@@ -18,15 +18,16 @@
 
 #include <sys/types.h>
 
-#include "enum_query_type.h"
-#include "item.h"  // Item
 #include "my_compiler.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "my_time.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "parse_tree_node_base.h"
+#include "sql/enum_query_type.h"
+#include "sql/item.h" // Item
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"
 
 class SELECT_LEX;
 class Send_field;
@@ -45,7 +46,6 @@ class Item_row: public Item
   Item **items;
   table_map used_tables_cache, not_null_tables_cache;
   uint arg_count;
-  bool const_item_cache;
   /**
      If elements are made only of constants, of which one or more are
      NULL. For example, this item is (1,2,NULL), or ( (1,NULL), (2,3) ).
@@ -77,7 +77,6 @@ public:
     used_tables_cache(item->used_tables_cache),
     not_null_tables_cache(0),
     arg_count(item->arg_count),
-    const_item_cache(item->const_item_cache),
     with_null(0)
   {}
 
@@ -128,7 +127,6 @@ public:
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields) override;
   table_map used_tables() const override { return used_tables_cache; };
-  bool const_item() const override { return const_item_cache; };
   enum Item_result result_type() const override { return ROW_RESULT; }
   void update_used_tables() override;
   table_map not_null_tables() const override { return not_null_tables_cache; }

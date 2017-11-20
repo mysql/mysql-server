@@ -838,8 +838,6 @@ Parses the row reference and other info in a modify undo log record.
 @param[out]	updated_extern		whether an externally stored field was updated
 @param[in,out]	thd			current thread
 @param[in,out]	thr			execution thread
-@param[in,out]	dict_op_lock_acquired	true if dict_operation_lock_acquired (only for
-					SDI tables)
 @return true if purge operation required */
 static
 bool
@@ -848,8 +846,7 @@ row_purge_parse_undo_rec(
 	trx_undo_rec_t*		undo_rec,
 	bool*			updated_extern,
 	THD*			thd,
-	que_thr_t*		thr,
-	bool*			dict_op_lock_acquired)
+	que_thr_t*		thr)
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
@@ -863,8 +860,6 @@ row_purge_parse_undo_rec(
 
 	ut_ad(node != NULL);
 	ut_ad(thr != NULL);
-
-	*dict_op_lock_acquired = false;
 
 	ptr = trx_undo_rec_get_pars(
 		undo_rec, &type, &node->cmpl_info,
@@ -900,25 +895,52 @@ try_again:
 	}
 
 	/* SDI tables are hidden tables and are not registered with global
-	dictionary. Open the table internally. Also acquire dict_operation
-	lock for SDI table to prevent concurrent DROP TABLE and purge */
-	if (dict_table_is_system(table_id)
-	    || dict_table_is_sdi(table_id)
+	dictionary. Open the table internally. Also acquire shared MDL
+	of SDI tables. Concurrent DROP TABLE/TABLESPACE would acquire
+	exclusive MDL on SDI tables */
+	ut_ad(!dict_table_is_system(table_id));
+
+	if (dict_table_is_sdi(table_id)
 	    || srv_upgrade_old_undo_found) {
 		if (dict_table_is_sdi(table_id)) {
-			rw_lock_s_lock_inline(
-				dict_operation_lock, 0, __FILE__, __LINE__);
-			*dict_op_lock_acquired = true;
+
+			space_id_t	space_id = dict_sdi_get_space_id(table_id);
+
+			dberr_t	err = dd_sdi_acquire_shared_mdl(thd, space_id, &node->mdl);
+			if (err != DB_SUCCESS) {
+				node->table = nullptr;
+				return(false);
+			}
+
+			node->table = dd_table_open_on_id(
+				table_id, thd, &node->mdl, false, true);
+
+			if (node->table == nullptr) {
+				/* Tablespace containing SDI table
+				is already dropped */
+				dd::release_mdl(thd, node->mdl);
+				node->mdl = nullptr;
+			}
+
 		}
-		node->table = dict_table_open_on_id(
-			table_id, FALSE, DICT_TABLE_OP_NORMAL);
 	} else {
 		for (;;) {
 			const auto no_mdl = nullptr;
 			node->mdl = no_mdl;
 
+			mutex_enter(&dict_sys->mutex);
 			node->table = dd_table_open_on_id(
-				table_id, thd, &node->mdl, false);
+				table_id, thd, &node->mdl, true, true);
+
+			if (node->table && node->table->is_temporary()) {
+				/* Temp table does not do purge */
+				ut_ad(node->mdl == nullptr);
+				dd_table_close(node->table, nullptr, nullptr , true);
+				mutex_exit(&dict_sys->mutex);
+				goto err_exit;
+			}
+
+			mutex_exit(&dict_sys->mutex);
 
 			if (node->table != nullptr) {
 				if (node->table->is_fts_aux()) {
@@ -931,7 +953,8 @@ try_again:
 					node->parent_mdl = nullptr;
 					node->parent = dd_table_open_on_id(
 						parent_id, thd,
-						&node->parent_mdl, false);
+						&node->parent_mdl,
+						false, true);
 
 					if (node->parent == nullptr) {
 						goto err_exit;
@@ -941,7 +964,7 @@ try_again:
 					node->mdl = nullptr;
 					node->table = dd_table_open_on_id(
 						table_id, thd,
-						&node->mdl, false);
+						&node->mdl, false, true);
 
 				}
 				break;
@@ -967,10 +990,11 @@ try_again:
 		/* Need server fully up for virtual column computation */
 		if (!mysqld_server_started) {
 
-			if (dict_table_is_system(node->table->id)
-			    || dict_table_is_sdi(node->table->id)) {
-				dict_table_close(node->table, FALSE, FALSE);
+			if (dict_table_is_sdi(node->table->id)) {
+
+				dd_table_close(node->table, thd, &node->mdl, false);
 				node->table = nullptr;
+
 			} else  {
 				bool	is_aux = node->table->is_fts_aux();
 
@@ -1002,9 +1026,8 @@ try_again:
 	if (node->table->ibd_file_missing) {
 		/* We skip purge of missing .ibd files */
 
-		if (dict_table_is_system(node->table->id)
-		    || dict_table_is_sdi(node->table->id)) {
-			dict_table_close(node->table, FALSE, FALSE);
+		if (dict_table_is_sdi(node->table->id)) {
+			dd_table_close(node->table, thd, &node->mdl, false);
 			node->table = NULL;
 		} else  {
 			bool	is_aux = node->table->is_fts_aux();
@@ -1029,10 +1052,14 @@ try_again:
 		we do not have an index to call it with. */
 close_exit:
 		/* Purge requires no changes to indexes: we may return */
-		if (dict_table_is_system(node->table->id)
-		    || dict_table_is_sdi(node->table->id)
+		if (dict_table_is_sdi(node->table->id)
 		    || srv_upgrade_old_undo_found) {
-			dict_table_close(node->table, FALSE, FALSE);
+
+			if (dict_table_is_sdi(node->table->id)) {
+				dd_table_close(node->table, thd, &node->mdl, false);
+			} else {
+				dict_table_close(node->table, FALSE, FALSE);
+			}
 			node->table = NULL;
 		} else  {
 			bool	is_aux = node->table->is_fts_aux();
@@ -1043,10 +1070,6 @@ close_exit:
 			}
 		}
 err_exit:
-		if (*dict_op_lock_acquired) {
-			rw_lock_s_unlock(dict_operation_lock);
-			*dict_op_lock_acquired = false;
-		}
 		return(false);
 	}
 
@@ -1133,21 +1156,14 @@ row_purge_record_func(
 		node->found_clust = FALSE;
 	}
 
-	/* If table is SDI table, we will try to flush as early
-	as possible. */
-	if (dict_table_is_sdi(node->table->id)) {
-		buf_flush_sync_all_buf_pools();
-	}
-
 	if (node->table != NULL) {
 		if (node->mysql_table != nullptr) {
                         close_thread_tables(thd);
                         node->mysql_table = nullptr;
                 }
 
-		if (dict_table_is_system(node->table->id)
-		    || dict_table_is_sdi(node->table->id)) {
-			dict_table_close(node->table, FALSE, FALSE);
+		if (dict_table_is_sdi(node->table->id)) {
+			dd_table_close(node->table, thd, &node->mdl, false);
 			node->table = NULL;
 		} else  {
 			bool	is_aux = node->table->is_fts_aux();
@@ -1184,7 +1200,6 @@ row_purge(
 {
 	bool	updated_extern;
 	THD*	thd = current_thd;
-	bool	dict_op_lock_acquired = false;
 
 	DBUG_EXECUTE_IF("do_not_meta_lock_in_background",
 			while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
@@ -1194,17 +1209,12 @@ row_purge(
 
 	while (row_purge_parse_undo_rec(
 			node, undo_rec, &updated_extern,
-			thd, thr, &dict_op_lock_acquired)) {
+			thd, thr)) {
 
 		bool purged;
 
 		purged = row_purge_record(
 			node, undo_rec, thr, updated_extern, thd);
-
-		if (dict_op_lock_acquired) {
-			rw_lock_s_unlock(dict_operation_lock);
-			dict_op_lock_acquired = false;
-		}
 
 		if (purged || srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 			return;

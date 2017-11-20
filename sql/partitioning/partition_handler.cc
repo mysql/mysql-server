@@ -19,56 +19,57 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <utility>
 
-#include "auth_common.h"
 #include "binary_log_types.h"
-#include "binlog_event.h"
-#include "derror.h"
-#include "discrete_interval.h"
-#include "field.h"
-#include "hash.h"
-#include "key.h"                             // key_rec_cmp
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_io.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "myisam.h"                          // MI_MAX_MSG_BUF
+#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
-#include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_memory.h"
-#include "mysql/psi/psi_mutex.h"
-#include "mysql/service_locking.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "partition_element.h"
+#include "mysqld_error.h"
 #include "partition_handler.h"
-#include "partition_info.h"                  // NOT_A_PARTITION_ID
-#include "protocol.h"
-#include "set_var.h"
-#include "sql_alter.h"
-#include "sql_class.h"                       // THD
-#include "sql_const.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_partition.h"          // LIST_PART_ENTRY, part_id_range
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"
+#include "sql/discrete_interval.h"
+#include "sql/field.h"
+#include "sql/key.h"                         // key_rec_cmp
+#include "sql/log.h"
+#include "sql/partition_element.h"
+#include "sql/partition_info.h"              // NOT_A_PARTITION_ID
+#include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/set_var.h"
+#include "sql/sql_alter.h"
+#include "sql/sql_class.h"                   // THD
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_partition.h"      // LIST_PART_ENTRY, part_id_range
+#include "sql/system_variables.h"
+#include "sql/table.h"                       // TABLE_SHARE
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"                           // TABLE_SHARE
 #include "template_utils.h"
-#include "thr_malloc.h"
 #include "thr_mutex.h"
+
+namespace dd {
+class Table;
+}  // namespace dd
 
 // In sql_class.cc:
 int thd_binlog_format(const MYSQL_THD thd);
@@ -84,13 +85,13 @@ static PSI_memory_key key_memory_Partition_admin;
 PSI_mutex_key key_partition_auto_inc_mutex;
 static PSI_memory_info all_partitioning_memory[]=
 {
-  { &key_memory_Partition_share, "Partition_share", 0},
-  { &key_memory_partition_sort_buffer, "partition_sort_buffer", 0},
-  { &key_memory_Partition_admin, "Partition_admin", 0}
+  { &key_memory_Partition_share, "Partition_share", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_partition_sort_buffer, "partition_sort_buffer", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_Partition_admin, "Partition_admin", 0, 0, PSI_DOCUMENT_ME}
 };
 static PSI_mutex_info all_partitioning_mutex[]=
 {
-  { &key_partition_auto_inc_mutex, "Partiton_share::auto_inc_mutex", 0, 0}
+  { &key_partition_auto_inc_mutex, "Partition_share::auto_inc_mutex", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif
 
@@ -113,7 +114,6 @@ void partitioning_init()
 Partition_share::Partition_share()
   : auto_inc_initialized(false),
   auto_inc_mutex(NULL), next_auto_inc_val(0),
-  partition_name_hash_initialized(false),
   partition_names(NULL)
 {}
 
@@ -127,10 +127,6 @@ Partition_share::~Partition_share()
   if (partition_names)
   {
     my_free(partition_names);
-  }
-  if (partition_name_hash_initialized)
-  {
-    my_hash_free(&partition_name_hash);
   }
 }
 
@@ -207,23 +203,6 @@ release_auto_inc_if_possible(THD *thd,
 
 
 /**
-  Get the partition name.
-
-  @param       arg    Struct containing name and length
-  @param[out]  length Length of the name
-
-  @return Partition name
-*/
-
-static const uchar *get_part_name_from_def(const uchar *arg, size_t *length)
-{
-  const PART_NAME_DEF *part= pointer_cast<const PART_NAME_DEF*>(arg);
-  *length= part->length;
-  return part->partition_name;
-}
-
-
-/**
   Populate the partition_name_hash in part_share.
 */
 
@@ -250,7 +229,7 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info)
     mysql_mutex_assert_owner(&part_info->table->s->LOCK_ha_data);
   }
 #endif
-  if (partition_name_hash_initialized)
+  if (partition_name_hash != nullptr)
   {
     DBUG_RETURN(false);
   }
@@ -268,16 +247,9 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info)
   {
     DBUG_RETURN(true);
   }
-  if (my_hash_init(&partition_name_hash,
-                   system_charset_info, tot_names, 0,
-                   get_part_name_from_def,
-                   my_free, HASH_UNIQUE,
-                   key_memory_Partition_share))
-  {
-    my_free(partition_names);
-    partition_names= NULL;
-    DBUG_RETURN(true);
-  }
+  partition_name_hash.reset
+    (new collation_unordered_map<std::string, unique_ptr_my_free<PART_NAME_DEF>>
+       (system_charset_info, key_memory_Partition_share));
 
   List_iterator<partition_element> part_it(part_info->partitions);
   uint i= 0;
@@ -309,21 +281,18 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info)
     }
   } while (++i < part_info->num_parts);
 
-  for (i= 0; i < tot_names; i++)
+  for (const auto &key_and_value : *partition_name_hash)
   {
-    PART_NAME_DEF *part_def;
-    part_def= reinterpret_cast<PART_NAME_DEF*>(
-                              my_hash_element(&partition_name_hash, i));
+    PART_NAME_DEF *part_def= key_and_value.second.get();
     if (part_def->is_subpart == part_info->is_sub_partitioned())
     {
       partition_names[part_def->part_id]= part_def->partition_name;
     }
   }
-  partition_name_hash_initialized= true;
 
   DBUG_RETURN(false);
 err:
-  my_hash_free(&partition_name_hash);
+  partition_name_hash.reset();
   my_free(partition_names);
   partition_names= NULL;
 
@@ -348,7 +317,7 @@ bool Partition_share::insert_partition_name_in_hash(const char *name,
                                                     bool is_subpart)
 {
   PART_NAME_DEF *part_def;
-  uchar *part_name;
+  char *part_name;
   uint part_name_length;
   DBUG_ENTER("Partition_share::insert_partition_name_in_hash");
   /*
@@ -371,16 +340,12 @@ bool Partition_share::insert_partition_name_in_hash(const char *name,
     DBUG_RETURN(true);
   }
   memcpy(part_name, name, part_name_length + 1);
-  part_def->partition_name= part_name;
+  part_def->partition_name= pointer_cast<uchar *>(part_name);
   part_def->length= part_name_length;
   part_def->part_id= part_id;
   part_def->is_subpart= is_subpart;
-  if (my_hash_insert(&partition_name_hash, (uchar *) part_def))
-  {
-    my_free(part_def);
-    DBUG_RETURN(true);
-  }
-  DBUG_RETURN(false);
+  DBUG_RETURN(!partition_name_hash->emplace
+               (part_name, unique_ptr_my_free<PART_NAME_DEF>(part_def)).second);
 }
 
 
@@ -1949,40 +1914,6 @@ void Partition_helper::ph_position(const uchar *record)
 }
 
 
-/**
-  Read row using position using given record to find.
-
-  This works as position()+rnd_pos() functions, but does some extra work,
-  calculating m_last_part - the partition to where the 'record' should go.
-
-  Only useful when position is based on primary key
-  (HA_PRIMARY_KEY_REQUIRED_FOR_POSITION).
-
-  @param record  Current record in MySQL Row Format.
-
-  @return Operation status.
-    @retval    0  Success
-    @retval != 0  Error code
-*/
-
-int Partition_helper::ph_rnd_pos_by_record(uchar *record)
-{
-  DBUG_ENTER("Partition_helper::ph_rnd_pos_by_record");
-
-  DBUG_ASSERT(m_handler->ha_table_flags() &
-              HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
-  /* TODO: Support HA_READ_BEFORE_WRITE_REMOVAL */
-  /* Set m_last_part correctly. */
-  if (unlikely(get_part_for_delete(record,
-                                   m_table->record[0],
-                                   m_part_info,
-                                   &m_last_part)))
-    DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
-
-  DBUG_RETURN(rnd_pos_by_record_in_last_part(record));
-}
-
-
 /****************************************************************************
                 MODULE index scan
 ****************************************************************************/
@@ -2358,6 +2289,13 @@ int Partition_helper::ph_index_last(uchar *buf)
 {
   DBUG_ENTER("Partition_helper::ph_index_last");
 
+  int error = HA_ERR_END_OF_FILE;
+  uint part_id = m_part_info->get_first_used_partition();
+  if (part_id == MY_BIT_NONE)
+  {
+     /* No partition to scan. */
+      DBUG_RETURN(error);
+  }
   m_index_scan_type= PARTITION_INDEX_LAST;
   m_reverse_order= true;
   DBUG_RETURN(common_first_last(buf));

@@ -1610,6 +1610,342 @@ Mysqlx.Notice.Frame {
 }
 
 Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa5\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa6\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa7\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa8\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa9\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa10\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa11\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa12\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa13\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa14\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa15\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa16\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa17\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa18\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa19\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa20\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa21\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa22\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa23\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa24\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa25\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa26\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa27\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa28\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa29\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aa30\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa1\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa2\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa3\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa4\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa5\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa6\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa7\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa8\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa9\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa10\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa11\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa12\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa13\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa14\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa15\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa16\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa17\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa18\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa19\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa20\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa21\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa22\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa23\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa24\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa25\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa26\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa27\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa28\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa29\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: LOCAL
+  payload: "Mysqlx.Notice.Warning { level: NOTE\ncode: 1051\nmsg: \"Unknown table \\\'test.aaaa30\\\'\"\n }"
+}
+
+Mysqlx.Notice.Frame {
   type: 3
   scope: LOCAL
   payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
@@ -7366,7 +7702,7 @@ Try to enable fixed notice, should be ok
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 169]
-Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 807]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 863]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
@@ -7378,12 +7714,12 @@ checking warnings with procedure execution
 
 0 rows affected
 @start_global_value
-64
+1024
 0 rows affected
 
 0 rows affected
 @start_session_value
-64
+1024
 0 rows affected
 
 0 rows affected
@@ -7643,12 +7979,12 @@ Mysqlx.Error {
 
 0 rows affected
 @@global.max_error_count
-64
+1024
 0 rows affected
 
 0 rows affected
 @@session.max_error_count
-64
+1024
 0 rows affected
 checking warnings while creating index with more than row size
 

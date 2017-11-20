@@ -23,7 +23,7 @@
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
-#include "psi_memory_key.h"
+#include "sql/psi_memory_key.h"
 
 
 /**

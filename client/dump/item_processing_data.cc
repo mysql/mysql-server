@@ -15,7 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "item_processing_data.h"
+#include "client/dump/item_processing_data.h"
 
 #include <stddef.h>
 #include <functional>

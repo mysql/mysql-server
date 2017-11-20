@@ -399,12 +399,12 @@ ib_err_t
 
 typedef
 ib_err_t
-(*cb_sdi_create_copies)(
+(*cb_sdi_create)(
 	ib_crsr_t	ib_crsr);
 
 typedef
 ib_err_t
-(*cb_sdi_drop_copies)(
+(*cb_sdi_drop)(
 	ib_crsr_t	ib_crsr);
 
 typedef
@@ -472,8 +472,8 @@ cb_cursor_stmt_begin		ib_cb_cursor_stmt_begin;
 cb_sdi_get			ib_cb_sdi_get;
 cb_sdi_delete			ib_cb_sdi_delete;
 cb_sdi_set			ib_cb_sdi_set;
-cb_sdi_create_copies		ib_cb_sdi_create_copies;
-cb_sdi_drop_copies		ib_cb_sdi_drop_copies;
+cb_sdi_create			ib_cb_sdi_create;
+cb_sdi_drop			ib_cb_sdi_drop;
 cb_sdi_get_keys			ib_cb_sdi_get_keys;
 #endif /* UNIV_MEMCACHED_SDI */
 cb_trx_read_only_t		ib_cb_trx_read_only;

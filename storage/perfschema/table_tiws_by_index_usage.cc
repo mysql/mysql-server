@@ -24,7 +24,6 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
@@ -33,6 +32,7 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_visitor.h"
+#include "sql/field.h"
 
 THR_LOCK table_tiws_by_index_usage::m_table_lock;
 
@@ -97,7 +97,10 @@ PFS_engine_table_share table_tiws_by_index_usage::m_share = {
   sizeof(pos_tiws_by_index_usage),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool
@@ -211,21 +214,18 @@ table_tiws_by_index_usage::rnd_next(void)
       global_table_share_container.get(m_pos.m_index_1, &has_more_table);
     if (table_share != NULL)
     {
-      if (table_share->m_enabled)
+      uint safe_key_count = sanitize_index_count(table_share->m_key_count);
+      if (m_pos.m_index_2 < safe_key_count)
       {
-        uint safe_key_count = sanitize_index_count(table_share->m_key_count);
-        if (m_pos.m_index_2 < safe_key_count)
-        {
-          m_next_pos.set_after(&m_pos);
-          return make_row(table_share, m_pos.m_index_2);
-        }
+        m_next_pos.set_after(&m_pos);
+        return make_row(table_share, m_pos.m_index_2);
+      }
 
-        if (m_pos.m_index_2 <= MAX_INDEXES)
-        {
-          m_pos.m_index_2 = MAX_INDEXES;
-          m_next_pos.set_after(&m_pos);
-          return make_row(table_share, m_pos.m_index_2);
-        }
+      if (m_pos.m_index_2 <= MAX_INDEXES)
+      {
+        m_pos.m_index_2 = MAX_INDEXES;
+        m_next_pos.set_after(&m_pos);
+        return make_row(table_share, m_pos.m_index_2);
       }
     }
   }
@@ -243,17 +243,14 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
   table_share = global_table_share_container.get(m_pos.m_index_1);
   if (table_share != NULL)
   {
-    if (table_share->m_enabled)
+    uint safe_key_count = sanitize_index_count(table_share->m_key_count);
+    if (m_pos.m_index_2 < safe_key_count)
     {
-      uint safe_key_count = sanitize_index_count(table_share->m_key_count);
-      if (m_pos.m_index_2 < safe_key_count)
-      {
-        return make_row(table_share, m_pos.m_index_2);
-      }
-      if (m_pos.m_index_2 == MAX_INDEXES)
-      {
-        return make_row(table_share, m_pos.m_index_2);
-      }
+      return make_row(table_share, m_pos.m_index_2);
+    }
+    if (m_pos.m_index_2 == MAX_INDEXES)
+    {
+      return make_row(table_share, m_pos.m_index_2);
     }
   }
 
@@ -285,38 +282,35 @@ table_tiws_by_index_usage::index_next(void)
       global_table_share_container.get(m_pos.m_index_1, &has_more_table);
     if (table_share != NULL)
     {
-      if (table_share->m_enabled)
+      if (m_opened_index->match(table_share))
       {
-        if (m_opened_index->match(table_share))
+        uint safe_key_count = sanitize_index_count(table_share->m_key_count);
+        for (; m_pos.m_index_2 <= MAX_INDEXES; m_pos.m_index_2++)
         {
-          uint safe_key_count = sanitize_index_count(table_share->m_key_count);
-          for (; m_pos.m_index_2 <= MAX_INDEXES; m_pos.m_index_2++)
+          if (m_opened_index->match(table_share, m_pos.m_index_2))
           {
-            if (m_opened_index->match(table_share, m_pos.m_index_2))
+            if (m_pos.m_index_2 < safe_key_count)
             {
-              if (m_pos.m_index_2 < safe_key_count)
+              if (!make_row(table_share, m_pos.m_index_2))
               {
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
+            }
+            else
+            {
+              if (m_pos.m_index_2 <= MAX_INDEXES)
+              {
+                m_pos.m_index_2 = MAX_INDEXES;
                 if (!make_row(table_share, m_pos.m_index_2))
                 {
                   m_next_pos.set_after(&m_pos);
                   return 0;
                 }
               }
-              else
-              {
-                if (m_pos.m_index_2 <= MAX_INDEXES)
-                {
-                  m_pos.m_index_2 = MAX_INDEXES;
-                  if (!make_row(table_share, m_pos.m_index_2))
-                  {
-                    m_next_pos.set_after(&m_pos);
-                    return 0;
-                  }
-                }
-              }
             }
-          } /* next index */
-        }
+          }
+        } /* next index */
       }
     }
   }

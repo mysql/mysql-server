@@ -19,12 +19,13 @@
 
 #include <stddef.h>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
-#include "rpl_gtid.h"         // Gtid_set
-#include "sql_class.h"        // THD
-#include "sql_lex.h"
-#include "system_variables.h"
+#include "sql/rpl_gtid.h"     // Gtid_set
+#include "sql/sql_class.h"    // THD
+#include "sql/sql_lex.h"
+#include "sql/system_variables.h"
 
 
 Session_consistency_gtids_ctx::Session_consistency_gtids_ctx() :

@@ -100,13 +100,13 @@ Notification::~Notification()
 
 bool Notification::has_been_notified()
 {
-  Mutex_lock lock(&m_mutex);
+  MUTEX_LOCK(lock, &m_mutex);
   return m_notified;
 }
 
 void Notification::wait_for_notification()
 {
-  Mutex_lock lock(&m_mutex);
+  MUTEX_LOCK(lock, &m_mutex);
   while (!m_notified)
   {
     const int failed= mysql_cond_wait(&m_cond, &m_mutex);
@@ -116,7 +116,7 @@ void Notification::wait_for_notification()
 
 void Notification::notify()
 {
-  Mutex_lock lock(&m_mutex);
+  MUTEX_LOCK(lock, &m_mutex);
   m_notified= TRUE;
   const int failed= mysql_cond_broadcast(&m_cond);
   ASSERT_FALSE(failed);

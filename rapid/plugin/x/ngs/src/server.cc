@@ -22,11 +22,12 @@
 #include <time.h>
 
 #include "mysqlx_version.h"
+#include "ngs/interface/protocol_monitor_interface.h"
 #include "ngs/interface/client_interface.h"
 #include "ngs/interface/connection_acceptor_interface.h"
 #include "ngs/interface/server_task_interface.h"
+#include "ngs/interface/protocol_monitor_interface.h"
 #include "ngs/protocol/protocol_config.h"
-#include "ngs/protocol_monitor.h"
 #include "ngs/scheduler.h"
 #include "ngs/server_acceptors.h"
 #include "ngs/server_client_timeout.h"
@@ -165,7 +166,7 @@ struct Copy_client_not_closed
 
 void Server::go_through_all_clients(ngs::function<void (Client_ptr)> callback)
 {
-  Mutex_lock lock_client_exit(m_client_exit_mutex);
+  MUTEX_LOCK(lock_client_exit, m_client_exit_mutex);
   std::vector<ngs::Client_ptr> client_list;
   Copy_client_not_closed matcher(client_list);
 
@@ -311,8 +312,8 @@ bool Server::on_check_terminated_workers()
 }
 
 ngs::shared_ptr<Session_interface> Server::create_session(Client_interface &client,
-                                                  Protocol_encoder &proto,
-                                                  int session_id)
+                                                          Protocol_encoder_interface &proto,
+                                                          const int session_id)
 {
   if (is_terminating())
     return ngs::shared_ptr<Session_interface>();
@@ -355,7 +356,8 @@ Authentication_interface_ptr Server::get_auth_handler(const std::string &name, S
 
 void Server::get_authentication_mechanisms(std::vector<std::string> &auth_mech, Client_interface &client)
 {
-  bool tls_active = client.connection().options()->active_tls();
+  const Connection_type type      = client.connection().connection_type();
+  const bool            is_secure = Connection_type_helper::is_secure_type(type);
 
   auth_mech.clear();
 
@@ -365,7 +367,7 @@ void Server::get_authentication_mechanisms(std::vector<std::string> &auth_mech, 
 
   while (m_auth_handlers.end() != i)
   {
-    if (i->first.should_be_tls_active == tls_active)
+    if (i->first.must_be_secure_connection == is_secure)
       auth_mech.push_back(i->first.name);
     ++i;
   }

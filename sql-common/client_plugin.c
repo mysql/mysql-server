@@ -33,7 +33,6 @@
 #include <my_sys.h>
 #include <my_thread.h>
 #include <mysql/client_plugin.h>
-#include <sql_common.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -60,18 +59,18 @@
 PSI_memory_key key_memory_root;
 PSI_memory_key key_memory_load_env_plugins;
 
-#ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key key_mutex_LOCK_load_client_plugin;
 
+#ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_info all_client_plugin_mutexes[]=
 {
-  {&key_mutex_LOCK_load_client_plugin, "LOCK_load_client_plugin", PSI_FLAG_GLOBAL, 0}
+  {&key_mutex_LOCK_load_client_plugin, "LOCK_load_client_plugin", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_client_plugin_memory[]=
 {
-  {&key_memory_root, "root", PSI_FLAG_GLOBAL},
-  {&key_memory_load_env_plugins, "load_env_plugins", PSI_FLAG_GLOBAL}
+  {&key_memory_root, "root", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
+  {&key_memory_load_env_plugins, "load_env_plugins", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_client_plugin_psi_keys()

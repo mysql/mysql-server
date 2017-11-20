@@ -15,45 +15,57 @@
 #ifndef SQL_USER_CACHE_INCLUDED
 #define SQL_USER_CACHE_INCLUDED
 
-#include <string.h>
-#include <sys/types.h>
-
-#include <atomic>
-#include <string>
-#include <unordered_map>
-
-#include "auth_common.h"
-#include "auth_internal.h"       // List_of_authid, Authid
-#include "handler.h"
-#include "hash.h"                       // HASH
-#include "key.h"
-#include "lex_string.h"
-#include "lf.h"
-#include "mf_wcomp.h"                   // wild_many, wild_one, wild_prefix
-#include "my_inttypes.h"
-#include "mysql/mysql_lex_string.h"
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql_com.h"                  // SCRAMBLE_LENGTH
-#include "mysql_time.h"                 // MYSQL_TIME
-#include "prealloced_array.h"           // Prealloced_array
-#include "sql_alloc.h"                  // Sql_alloc
-#include "sql_connect.h"                // USER_RESOURCES
-#include "sql_plugin_ref.h"
-#include "typelib.h"
-#include "violite.h"                    // SSL_type
-
-class Security_context;
-class THD;
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/graph_selectors.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
 #include <boost/pending/property.hpp>
+#include <string.h>
+#include <sys/types.h>
+#include <atomic>
+#include <memory>
+#include <string>
+#include <unordered_map>
 
+#include "lex_string.h"
+#include "lf.h"
+#include "m_ctype.h"
+#include "map_helpers.h"
+#include "mem_root_fwd.h"
+#include "mf_wcomp.h"                   // wild_many, wild_one, wild_prefix
+#include "my_alloc.h"
+#include "my_inttypes.h"
+#include "my_sharedlib.h"
+#include "my_sys.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"                  // SCRAMBLE_LENGTH
+#include "mysql_time.h"                 // MYSQL_TIME
+#include "prealloced_array.h"           // Prealloced_array
+#include "sql/auth/auth_common.h"
+#include "sql/auth/auth_internal.h" // List_of_authid, Authid
+#include "sql/dd/properties.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/my_decimal.h"
+#include "sql/sql_alloc.h"              // Sql_alloc
+#include "sql/sql_connect.h"            // USER_RESOURCES
+#include "sql/sql_plugin_ref.h"
+#include "sql/table.h"
+#include "sql_string.h"
+#include "typelib.h"
+#include "violite.h"                    // SSL_type
+
+class Security_context;
 /* Forward Declarations */
 class String;
+class THD;
 struct TABLE;
+template <typename Element_type, size_t Prealloc> class Prealloced_array;
 
 /* Classes */
 
@@ -136,6 +148,28 @@ public:
    to rename the user or not.
   */
   bool is_role;
+
+  /**
+    The number of old passwords to check when setting a new password
+  */
+  uint32 password_history_length;
+
+  /**
+    Ignore @ref password_history_length,
+    use the global default @ref global_password_history
+  */
+  bool use_default_password_history;
+
+  /**
+    The number of days that would have to pass before a password can be reused.
+  */
+  uint32 password_reuse_interval;
+  /**
+    Ignore @ref password_reuse_interval,
+    use the global default @ref global_password_reuse_interval
+  */
+  bool use_default_password_reuse_interval;
+
   ACL_USER *copy(MEM_ROOT *root);
 };
 
@@ -241,9 +275,8 @@ public:
 class GRANT_COLUMN :public Sql_alloc
 {
 public:
-  char *column;
   ulong rights;
-  size_t key_length;
+  std::string column;
   GRANT_COLUMN(String &c,  ulong y);
 };
 
@@ -252,10 +285,10 @@ class GRANT_NAME :public Sql_alloc
 {
 public:
   ACL_HOST_AND_IP host;
-  char *db, *user, *tname, *hash_key;
+  char *db, *user, *tname;
   ulong privs;
   ulong sort;
-  size_t key_length;
+  std::string hash_key;
   GRANT_NAME(const char *h, const char *d,const char *u,
              const char *t, ulong p, bool is_routine);
   GRANT_NAME (TABLE *form, bool is_routine);
@@ -271,7 +304,8 @@ class GRANT_TABLE :public GRANT_NAME
 {
 public:
   ulong cols;
-  HASH hash_columns;
+  collation_unordered_multimap
+    <std::string, unique_ptr_destroy_only<GRANT_COLUMN>> hash_columns;
 
   GRANT_TABLE(const char *h, const char *d,const char *u,
               const char *t, ulong p, ulong c);
@@ -291,40 +325,82 @@ extern Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users;
 extern Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users;
 extern Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs;
 extern Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts;
-extern HASH column_priv_hash, proc_priv_hash, func_priv_hash;
-extern HASH db_cache;
-extern HASH acl_check_hosts;
+extern std::unique_ptr<
+  malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_TABLE>>>
+    column_priv_hash;
+extern std::unique_ptr<
+  malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>>
+    proc_priv_hash, func_priv_hash;
+extern collation_unordered_map<std::string, ACL_USER *> *acl_check_hosts;
 extern bool allow_all_hosts;
 extern uint grant_version; /* Version of priv tables */
 
-GRANT_NAME *name_hash_search(HASH *name_hash,
-                             const char *host,const char* ip,
-                             const char *db,
-                             const char *user, const char *tname,
-                             bool exact, bool name_tolower);
+// Search for a matching grant. Prefer exact grants before non-exact ones.
+
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info;
+
+template<class T>
+T *name_hash_search
+  (const malloc_unordered_multimap<std::string, unique_ptr_destroy_only<T>>
+     &name_hash,
+   const char *host,const char* ip, const char *db,
+   const char *user, const char *tname, bool exact, bool name_tolower)
+{
+  T *found= nullptr;
+
+  std::string name= tname;
+  if (name_tolower)
+    my_casedn_str(files_charset_info, &name[0]);
+  std::string key= user;
+  key.push_back('\0');
+  key.append(db);
+  key.push_back('\0');
+  key.append(name);
+  key.push_back('\0');
+
+  auto it_range= name_hash.equal_range(key);
+  for (auto it= it_range.first; it != it_range.second; ++it)
+  {
+    T *grant_name= it->second.get();
+    if (exact)
+    {
+      if (!grant_name->host.get_host() ||
+          (host && !my_strcasecmp(system_charset_info, host,
+                                  grant_name->host.get_host())) ||
+          (ip && !strcmp(ip, grant_name->host.get_host())))
+        return grant_name;
+    }
+    else
+    {
+      if (grant_name->host.compare_hostname(host, ip) &&
+          (!found || found->sort < grant_name->sort))
+        found=grant_name;                                       // Host ok
+    }
+  }
+  return found;
+}
 
 inline GRANT_NAME * routine_hash_search(const char *host, const char *ip,
                                         const char *db, const char *user,
                                         const char *tname, bool proc,
                                         bool exact)
 {
-  return name_hash_search(proc ? &proc_priv_hash : &func_priv_hash,
-                          host, ip, db, user, tname, exact, TRUE);
+  return name_hash_search(proc ? *proc_priv_hash : *func_priv_hash,
+                          host, ip, db, user, tname, exact, true);
 }
 
 inline GRANT_TABLE * table_hash_search(const char *host, const char *ip,
                                        const char *db, const char *user,
                                        const char *tname, bool exact)
 {
-  return (GRANT_TABLE*) name_hash_search(&column_priv_hash, host, ip, db,
-                                         user, tname, exact, FALSE);
+  return name_hash_search(*column_priv_hash, host, ip, db,
+                          user, tname, exact, false);
 }
 
 inline GRANT_COLUMN * column_hash_search(GRANT_TABLE *t, const char *cname,
                                          size_t length)
 {
-  return (GRANT_COLUMN*) my_hash_search(&t->hash_columns,
-                                        (uchar*) cname, length);
+  return find_or_nullptr(t->hash_columns, std::string(cname, length));
 }
 
 /* Role management */

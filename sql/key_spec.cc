@@ -13,23 +13,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "key_spec.h"
+#include "sql/key_spec.h"
 
 #include <stddef.h>
 #include <algorithm>
 
-#include "dd/dd.h"         // dd::get_dictionary
-#include "dd/dictionary.h" // dd::Dictionary::check_dd...
-#include "derror.h"      // ER_THD
-#include "field.h"       // Create_field
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sql_class.h"   // THD
-#include "sql_plugin.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/dd.h"     // dd::get_dictionary
+#include "sql/dd/dictionary.h" // dd::Dictionary::check_dd...
+#include "sql/derror.h"  // ER_THD
+#include "sql/field.h"   // Create_field
+#include "sql/sql_class.h" // THD
+#include "sql/sql_parse.h" // check_string_char_length
 
 KEY_CREATE_INFO default_key_create_info;
 
@@ -89,32 +89,23 @@ bool foreign_key_prefix(const Key_spec *a, const Key_spec *b)
 }
 
 
-bool Foreign_key_spec::validate(THD *thd,
-                                const char *db, const char *table_name,
+bool Foreign_key_spec::validate(THD *thd, const char *table_name,
                                 List<Create_field> &table_fields) const
 {
   DBUG_ENTER("Foreign_key_spec::validate");
 
-  // Reject FKs to inaccessible DD tables. Use current schema unless
-  // defined explicitly.
-  const char *db_str= ref_db.str;
-  size_t db_length= ref_db.length;
-  if (db_str == nullptr)
-  {
-    db_str= db;
-    db_length= strlen(db);
-  }
-
+  // Reject FKs to inaccessible DD tables.
   const dd::Dictionary *dictionary= dd::get_dictionary();
   if (dictionary && !dictionary->is_dd_table_access_allowed(
                                thd->is_dd_system_thread(),
-                               true, db_str, db_length, ref_table.str))
+                               true, ref_db.str, ref_db.length,
+                               ref_table.str))
   {
     my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
              ER_THD(thd,
-                    dictionary->table_type_error_code(db_str,
+                    dictionary->table_type_error_code(ref_db.str,
                                                       ref_table.str)),
-             db_str, ref_table.str);
+             ref_db.str, ref_table.str);
     DBUG_RETURN(true);
   }
 
@@ -168,6 +159,23 @@ bool Foreign_key_spec::validate(THD *thd,
       }
     }
   }
+
+  if (name.str &&
+      check_string_char_length(name, "", NAME_CHAR_LEN, system_charset_info, 1))
+  {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);
+    DBUG_RETURN(true);
+  }
+
+  for (const Key_part_spec *fk_col : ref_columns)
+  {
+    if (check_column_name(fk_col->field_name.str))
+    {
+      my_error(ER_WRONG_COLUMN_NAME, MYF(0), fk_col->field_name.str);
+      DBUG_RETURN(true);
+    }
+  }
+
   DBUG_RETURN(false);
 }
 

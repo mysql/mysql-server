@@ -18,20 +18,18 @@
 
 #include <sys/types.h>
 #include <map>
-#include <string>
 
-#include "dd/dd_kill_immunizer.h"     // dd::DD_kill_immunizer
-#include "dd/string_type.h"           // dd::String_type
-#include "dd/types/object_type.h"     // dd::Object_type
-#include "discrete_interval.h"
-#include "field.h"
-#include "handler.h"
 #include "my_inttypes.h"
-#include "set_var.h"
-#include "sql_class.h"                // THD::killed_state
+#include "mysql/udf_registration_types.h"
+#include "sql/dd/dd_kill_immunizer.h" // dd::DD_kill_immunizer
+#include "sql/dd/string_type.h"       // dd::String_type
+#include "sql/discrete_interval.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/set_var.h"
+#include "sql/sql_class.h"            // THD::killed_state
 #include "thr_lock.h"
 
-class THD;
 struct LEX;
 
 namespace dd {
@@ -154,7 +152,7 @@ private:
   // Stores state before DD operations
   Open_tables_backup m_open_tables_state_backup;
   bool m_saved_binlog_row_based;
-  ulonglong m_saved_binlog_options;
+  ulonglong m_saved_options;
   sql_mode_t m_saved_mode;
   long long m_latest_auto_incr_id;
   enum_check_fields m_saved_check_for_truncated_fields;

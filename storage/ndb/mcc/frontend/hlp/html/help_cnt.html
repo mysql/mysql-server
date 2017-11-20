@@ -181,6 +181,8 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
 <li>Generic Linux</li>
 <li>Linux OL6</li>
 <li>SUSE Linux 11</li>
+<li>Windows 2016</li>
+<li>Windows 10</li>
 <li>Windows 7</li>
 <li>Windows 2008</li>
 <li>Windows XP</li>
@@ -233,6 +235,7 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
 <li><b>Pycrypto: </b> Cryptography module required by Paramiko. Version 2.6 or 
     higher is required, and can be downloaded from 
     <a href="https://www.dlitz.net/software/pycrypto/">https://www.dlitz.net/software/pycrypto/</a></li>
+<li>For development, we use Python 2.7.13, Paramiko 2.1.2 and $ pip install cryptography.</li>
 </ul>
 
 <p>If you install the Windows version of the configuration tool, the above 
@@ -354,7 +357,7 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     at the first page. </li>
 <li><i>Automatically save configuration as cookies: </i>This will save your 
     configuration information (host names, processes, parameter values etc.) as 
-    a cookie in the browser you are using. All information <b>except the SSH password</b> 
+    a cookie in the browser you are using. All information <b>but password/passphrase</b> 
     will be saved. Hence, you can quit and restart you browser, and continue 
     working on the same configuration. </li>
 <li><i>Show advanced configuration options: </i>This setting means that advanced 
@@ -424,14 +427,18 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     where you left the last time. </li>
 </ul>
 
+<p style="text-align: center">
+    <img src="../img/welcome.png" width="800" alt="Welcome page">
+</p>
+
 <p>It is worth noticing that in the latter case, you must use the same web 
     browser as you did the last time you were using the wizard. Additionally, 
     the <tt>ndb_setup</tt> tool must run at the same host as it did the last 
     time. The reason for this is that the configuration details are stored in 
-    the web browser as cookies. </p>
+    the web browser as cookies named after the host running MCC. </p>
 
 <p style="text-align: center">
-    <img src="../img/welcome.png" width="800" alt="Welcome page">
+    <img src="../img/cookies.png" width="600" alt="Welcome page">
 </p>
 
 <!-- ======================== Define cluster =============================== -->
@@ -454,7 +461,10 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     The default is to list only <i>127.0.0.1</i>, which means the host where 
     the <tt>ndb_setup</tt> command was issued. Host names can be added to or 
     deleted from this list. If a host name is deleted, the processes configured 
-    to run on that host will also be deleted. </li>
+    to run on that host will also be deleted. This is convenient way to add host(s)
+    especially if they all use same basic credentials (unencrypted PK or user 
+    /password combination). If you want more control over your hosts definition, 
+    you can leave just 127.0.0.1 or even leave this box completely empty.</li>
 <li><b>Application area: </b>This describes the overall way the cluster will be 
     used. You can choose between the following three alternatives: 
     <ul>
@@ -480,17 +490,22 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
         per second for the entire cluster. </li>
     </ul>
     </li>
-<li><b>SSH Property: </b>Here you can specify the SSH credentials needed to 
+<li><b>SSH Property: </b>Here you can specify the use of SSH credentials to 
     access a remote host. If your host list (see above) only contains <i>127.0.0.1</i>, 
     no SSH credentials are required. The credentials that can be specified are: 
     <ul>
     <li><b>Key based SSH: </b>Check this box if you have enabled key based login 
-        on the remote host. This will disable the two fields below. </li>
+        on the remote host. This will disable the two fields below. The private
+        key must reside in ~/.ssh and must not be encrypted. </li>
     <li><b>User name: </b>Submit your remote SSH user name here. </li>
     <li><b>Password: </b>Submit your remote SSH password here. The password will 
         not be stored by the configurator except in main memory, so if the 
         configuration tool is restarted, continuing with the same configuration, 
         the password must be re-entered. </li>
+    <li><b>The credentials entered here are the same for every host, unless overridden 
+        with Edit Host, meaning they are kept on Cluster level 
+        (host.mcc_clusterStore cookie). If you have per host credentials or specific 
+        requirements on your PK(s), please use Add Host on next page.</b></li>
     </ul>
     </li>
 </ul>
@@ -506,13 +521,21 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
 </p>
 
 <p>Here, hosts can be added by pressing the <i>Add hosts</i> button and entering 
-    a list of comma separated host names or ip addresses. This works in the same 
-    way as the host list on the <i>define cluster</i> page. The hosts currently 
-    entered are displayed in the grid with various pieces of information. A host, 
-    or a selection of several hosts, can be removed from the configuration by 
-    pressing the <i>Remove selected host(s)</i> button. If processes have been 
-    configured to run on these hosts, the processes will be removed from the 
-    configuration too. </p>
+    host name or external ip address as well as credentials which are saved on
+    Host level (host.mcc_hostStore cookie), passwords/passphrases excluded. Field 
+    <i>Key_file<i> should point to private key file to be used with selected host
+    (i.e. C:\Users\user\.ssh\key_file_name).
+    Please bear in mind that, since passwords are not persisted over sessions,
+    if you enter any passwords/passphrases here you will have to <b>edit that host
+    and reenter them</b> when continuing previous configuration. The hosts currently
+    entered are displayed in the grid with various pieces of information. A host,
+    or a selection of hosts, can be removed from the configuration by pressing 
+    <i>Remove selected host(s)</i> button. If processes have been configured to 
+    run on these hosts, the processes will be removed from the configuration too: </p>
+
+<p style="text-align: center">
+    <img src="../img/add_host.png" width="800" alt="Define hosts">
+</p>
 
 <p>If the setting <i>Automatically get resource information for new hosts</i> is 
     checked in the settings menu (see previous section), the platform name, RAM 
@@ -529,16 +552,58 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     various fields will be updated. If a field has been edited by the user, the 
     information will <i>not</i> be overwritten by the re-fetched value.</p>
 
-<p>The hardware resource information, platform name, install directory and data 
-    directory  can be edited by the user by clicking the appropriate cell in the 
-    grid. It is also possible to select a set of hosts and press the button 
-    <i>Edit selected host(s)</i>. Then, a dialog will appear where the various 
-    fields can be edited. The edited values will be applied to all hosts that 
-    were selected: </p>
+<p>The hardware resource information, platform name, install directory, data 
+    directory and free disk space can be edited by the user by clicking the 
+    appropriate cell in the grid. It is also possible to select a host and press 
+    the button <i>Edit selected host(s)</i>. Please bear in mind that, since 
+    passwords are not persisted over sessions, if you have any host-specific
+    passwords/passphrases you will have to edit that host and reenter them when  
+    continuing previous configuration. Then, a dialog will appear where various 
+    fields can be edited. The edited values will be applied to selected host: </p>
 
 <p style="text-align: center">
     <img src="../img/edit_selected_hosts.png" width="800" alt="Edit selected hosts">
 </p>
+
+<h4>Details on hosts naming</h4>
+<p>One should always keep in mind the goal, i.e. deployment of the Cluster over  
+    any number of hosts. The nodes are governed by config.ini file, distributed 
+    to each one, containing hosts designation on process basis as well as  
+    connection strings. It might look like this:<br/>
+    <code>[NDB_MGMD]
+    <br/>NodeId=49
+    <br/>HostName=10.172.165.190
+    <br/>DataDir=C:/Users/user/MySQL_Cluster/49/
+    <br/>Portnumber=1186
+    <br/>[NDBD]
+    <br/>NodeId=2
+    <br/>HostName=10.172.162.24
+    <br/>DataDir=C:/Users/user/MySQL_Cluster/2/</code><br/>
+    In this particular case, HostName=10.172.162.24 is actually localhost defined as
+    Name=127.0.0.1 but when config.ini is distributed to second host, 127.0.0.1 will
+    point to that host (10.172.165.190) and the Cluster will not start. This is why 
+    following mechanism is implemented:<br/>
+    When you enter Host=..., back-end Python web server fetches fully qualified domain
+    name (FQDN) based on your input and stores it in Host cookie store. It also copies
+    FQDN to InternalIP member if that one is empty. We encourage you to also enter 
+    Internal IP when adding/editing hosts if Cluster is running inside VPN (say Cloud
+    deployment).<br/>
+    Let's recapitulate various scenarios:
+    <ul>
+    <li><b>Small localhost deployment: </b> 
+        Just leave default 127.0.0.1 in HostList on 1st page. </li>
+    <li><b>Small deployment, home or office network: </b>
+        Leave default 127.0.0.1 in HostList on 1st page, add other hosts using 
+        "Add Host" button on next page. You can safely ignore InternalIP member. </li>
+    <li><b>Deployment to Cloud/other VPN environment: </b>
+        If you are using localhost too, edit that host on 2nd page and add Internal IP 
+        information. When adding hosts on 2nd page, fill in Internal IP member. </li>
+    </ul>
+    MCC will always use FQDN member to connect, distribute configuration and start processes
+    while configuration files and Cluster processes will always use Internal IP member.
+    This way there can be no confusion as to what "localhost" means and the communication
+    between nodes will be as fast as possible bypassing possible errors on DNS level.
+    </p>
 
 <!-- ======================= Define processes ============================== -->
 

@@ -14,13 +14,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <string.h>
-#include <sys/types.h>
 
-#include "locking_service.h"       // acquire_locking_service_locks
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql/service_locking.h"
-#include "mysql_com.h"             // UDF_INIT
+#include "mysql/udf_registration_types.h"
+#include "sql/locking_service.h"   // acquire_locking_service_locks
 
 /*
   These functions are provided as UDFs rather than built-in SQL functions

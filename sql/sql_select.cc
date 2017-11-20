@@ -23,59 +23,60 @@
   @{
 */
 
-#include "sql_select.h"
+#include "sql/sql_select.h"
 
 #include <string.h>
 #include <algorithm>
+#include <atomic>
 
-#include "auth_acls.h"
-#include "auth_common.h"         // *_ACL
-#include "current_thd.h"
-#include "debug_sync.h"          // DEBUG_SYNC
-#include "enum_query_type.h"
-#include "error_handler.h"       // Ignore_error_handler
-#include "filesort.h"            // filesort_free_buffers
-#include "handler.h"
-#include "item_func.h"
-#include "item_subselect.h"
-#include "item_sum.h"            // Item_sum
-#include "key.h"                 // key_copy, key_cmp, key_cmp_if_same
-#include "lock.h"                // mysql_unlock_some_tables,
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
-#include "mysqld.h"              // stage_init
 #include "mysqld_error.h"
-#include "opt_explain.h"
-#include "opt_explain_format.h"
-#include "opt_hints.h"           // hint_key_state()
-#include "opt_range.h"           // QUICK_SELECT_I
-#include "opt_trace.h"
-#include "query_options.h"
-#include "query_result.h"
-#include "records.h"             // init_read_record, end_read_record
-#include "sql_base.h"
-#include "sql_cache.h"           // query_cache
-#include "sql_do.h"
-#include "sql_executor.h"
-#include "sql_join_buffer.h"     // JOIN_CACHE
-#include "sql_list.h"
-#include "sql_optimizer.h"       // JOIN
-#include "sql_planner.h"         // calculate_condition_filter
-#include "sql_show.h"            // append_identifier
-#include "sql_sort.h"
-#include "sql_test.h"            // misc. debug printing utilities
-#include "sql_timer.h"           // thd_timer_set
-#include "sql_tmp_table.h"       // tmp tables
-#include "temp_table_param.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // *_ACL
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"      // DEBUG_SYNC
+#include "sql/enum_query_type.h"
+#include "sql/error_handler.h"   // Ignore_error_handler
+#include "sql/filesort.h"        // filesort_free_buffers
+#include "sql/handler.h"
+#include "sql/item_func.h"
+#include "sql/item_subselect.h"
+#include "sql/item_sum.h"        // Item_sum
+#include "sql/key.h"             // key_copy, key_cmp, key_cmp_if_same
+#include "sql/lock.h"            // mysql_unlock_some_tables,
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"          // stage_init
+#include "sql/opt_explain.h"
+#include "sql/opt_explain_format.h"
+#include "sql/opt_hints.h"       // hint_key_state()
+#include "sql/opt_range.h"       // QUICK_SELECT_I
+#include "sql/opt_trace.h"
+#include "sql/query_options.h"
+#include "sql/query_result.h"
+#include "sql/records.h"         // init_read_record, end_read_record
+#include "sql/sql_base.h"
+#include "sql/sql_do.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_join_buffer.h" // JOIN_CACHE
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"   // JOIN
+#include "sql/sql_planner.h"     // calculate_condition_filter
+#include "sql/sql_show.h"        // append_identifier
+#include "sql/sql_sort.h"
+#include "sql/sql_test.h"        // misc. debug printing utilities
+#include "sql/sql_timer.h"       // thd_timer_set
+#include "sql/sql_tmp_table.h"   // tmp tables
+#include "sql/temp_table_param.h"
+#include "sql/window.h"          // ignore_gaf_const_opt
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "window.h"              // ignore_gaf_const_opt
 
 class Opt_trace_context;
 
@@ -174,14 +175,6 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   */
   if (lock_tables(thd, lex->query_tables, lex->table_count, 0))
     goto err;
-
-  /*
-    Register query result in cache.
-    Tables must be locked before storing the query in the query cache.
-    Transactional engines must be signalled that the statement has started,
-    by calling external_lock().
-  */
-  query_cache.store_query(thd, lex->query_tables);
 
   if (single_query)
   {
@@ -606,14 +599,6 @@ bool Sql_cmd_dml::execute(THD *thd)
   {
     if (lock_tables(thd, lex->query_tables, lex->table_count, 0))
       goto err;
-
-    /*
-      Register query result in cache.
-      Tables must be locked before storing the query in the query cache.
-      Transactional engines must be signalled that the statement has started,
-      by calling external_lock().
-    */
-    query_cache.store_query(thd, lex->query_tables);
   }
 
   // Perform statement-specific execution
@@ -1446,7 +1431,8 @@ void JOIN::reset()
 
   first_record= false;
   group_sent= false;
-  reset_executed();
+  recursive_iteration_count= 0;
+  executed= false;
 
   List_iterator<Window> li(select_lex->m_windows);
   Window *w;
@@ -2948,7 +2934,8 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
                                    (tab->ref().key != -1) ? tab->position()->key : NULL,
                                    tab->prefix_tables() & ~tab->table_ref->map(),
                                    tab->position()->rows_fetched,
-                                   false) : COND_FILTER_ALLPASS;
+                                   false, false,
+                                   trace_refine_table) : COND_FILTER_ALLPASS;
     }
 
     DBUG_ASSERT(!qep_tab->table_ref->is_recursive_reference() ||
@@ -5094,7 +5081,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
                         table->file->primary_key_is_clustered());
       // Don't allow backward scans on indexes with mixed ASC/DESC key parts
       if (skip_quick)
-        tab->table()->quick_keys.clear_bit(nr);
+        table->quick_keys.clear_bit(nr);
 
       /* 
         Don't use an index scan with ORDER BY without limit.

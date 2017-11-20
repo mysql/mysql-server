@@ -8,6 +8,7 @@ ibtmp1
 # files in MYSQL_DATA_DIR
 --innodb-force-recovery-crash=100
 "Next stmt will crash server"
+Pattern "InnoDB: Creating shared tablespace for temporary tables" found
 # restart
 # files in MYSQL_DATA_DIR
 ibtmp1

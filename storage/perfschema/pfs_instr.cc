@@ -21,14 +21,12 @@
 #include "storage/perfschema/pfs_instr.h"
 
 #include <string.h>
-
 #include <atomic>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "mysqld.h"  // get_thd_status_var
 #include "pfs.h"
 #include "pfs_account.h"
 #include "pfs_buffer_container.h"
@@ -38,6 +36,7 @@
 #include "pfs_instr_class.h"
 #include "pfs_stat.h"
 #include "pfs_user.h"
+#include "sql/mysqld.h" // get_thd_status_var
 
 ulong nested_statement_lost = 0;
 
@@ -88,7 +87,7 @@ PFS_file **file_handle_array = NULL;
 PFS_stage_stat *global_instr_class_stages_array = NULL;
 PFS_statement_stat *global_instr_class_statements_array = NULL;
 PFS_histogram global_statements_histogram;
-std::atomic<PFS_memory_stat*> global_instr_class_memory_array{nullptr};
+std::atomic<PFS_memory_stat *> global_instr_class_memory_array{nullptr};
 
 static PFS_ALIGNED PFS_cacheline_atomic_uint64 thread_internal_id_counter;
 
@@ -348,8 +347,23 @@ create_mutex(PFS_mutex_class *klass, const void *identity)
 {
   PFS_mutex *pfs;
   pfs_dirty_state dirty_state;
+  unsigned int partition;
 
-  pfs = global_mutex_container.allocate(&dirty_state, klass->m_volatility);
+  /*
+    There are 9 volatility defined in psi.h,
+    but since most are still unused,
+    mapping this to only 2 PFS_MUTEX_PARTITIONS.
+  */
+  if (klass->m_volatility >= PSI_VOLATILITY_SESSION)
+  {
+    partition = 1;
+  }
+  else
+  {
+    partition = 0;
+  }
+
+  pfs = global_mutex_container.allocate(&dirty_state, partition);
   if (pfs != NULL)
   {
     pfs->m_identity = identity;
@@ -603,8 +617,8 @@ create_thread(PFS_thread_class *klass,
     pfs->m_event_id = 1;
     pfs->m_stmt_lock.set_allocated();
     pfs->m_session_lock.set_allocated();
-    pfs->set_enabled(true);
-    pfs->set_history(true);
+    pfs->set_enabled(klass->m_enabled);
+    pfs->set_history(klass->m_history);
     pfs->m_class = klass;
     pfs->m_events_waits_current = &pfs->m_events_waits_stack[WAIT_STACK_BOTTOM];
     pfs->m_waits_history_full = false;

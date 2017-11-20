@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015  Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,8 @@
 #define ABSTRACT_INTEGER_NUMBER_OPTION_INCLUDED
 
 #include <string>
-#include "abstract_number_option.h"
+
+#include "client/base/abstract_number_option.h"
 
 namespace Mysql{
 namespace Tools{

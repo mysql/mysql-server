@@ -45,3 +45,7 @@ MYSQL_ADD_COMPONENT(test_string_service_long
 MYSQL_ADD_COMPONENT(test_string_service_charset
   test_string_service_charset.cc
   TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_backup_lock_service
+  test_backup_lock_service.cc
+  TEST MODULE)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -213,8 +213,13 @@ public:
     TuxSetLogFlags = 12002,
     TuxMetaDataJunk = 12009,
     
-    DumpTsman = 9800, 
+    DumpTsman = 9800,
+ 
     DumpLgman = 10000,
+    LgmanDumpUndoStateClusterLog = 10001,
+    LgmanDumpUndoStateLocalLog = 10002,
+    LgmanCheckCallbacksClear = 10003,
+    
     DumpPgman = 11000,
     DumpBackup = 13000,
     DumpBackupSetCompressed = 13001,

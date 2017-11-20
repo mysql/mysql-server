@@ -22,36 +22,29 @@
   This file defines functions to convert exceptions to MySQL error messages.
 */
 
-#include "sql_exception_handler.h"
+#include "sql/sql_exception_handler.h"
+
+// boost::geometry::centroid_exception
+#include <boost/geometry/algorithms/centroid.hpp>
+// boost::geometry::overlay_invalid_input_exception
+#include <boost/geometry/algorithms/detail/has_self_intersections.hpp>
+// boost::geometry::turn_info_exception
+#include <boost/geometry/algorithms/detail/overlay/get_turn_info.hpp>
+// boost::geometry::inconsistent_turns_exception
+#include <boost/geometry/algorithms/detail/overlay/inconsistent_turns_exception.hpp>
+// boost::geometry::detail::self_get_turn_points::self_ip_exception
+#include <boost/geometry/algorithms/detail/overlay/self_turn_points.hpp>
+// boost::geometry::empty_input_exception
+// boost::geometry::exception
+#include <boost/geometry/core/exception.hpp>
+#include <new> // std::bad_alloc
+#include <stdexcept> // Other std exceptions
 
 #include "my_inttypes.h"  // MYF
 #include "my_sys.h"       // my_error
 #include "mysqld_error.h" // Error codes
-
-#include "gis/functor.h"  // gis::not_implemented_exception
-#include "gis/gc_utils.h" // gis::invalid_geometry_exception
-
-#include <new> // std::bad_alloc
-#include <stdexcept> // Other std exceptions
-
-// boost::geometry::centroid_exception
-#include <boost/geometry/algorithms/centroid.hpp>
-
-// boost::geometry::overlay_invalid_input_exception
-#include <boost/geometry/algorithms/detail/has_self_intersections.hpp>
-
-// boost::geometry::turn_info_exception
-#include <boost/geometry/algorithms/detail/overlay/get_turn_info.hpp>
-
-// boost::geometry::detail::self_get_turn_points::self_ip_exception
-#include <boost/geometry/algorithms/detail/overlay/self_turn_points.hpp>
-
-// boost::geometry::empty_input_exception
-// boost::geometry::exception
-#include <boost/geometry/core/exception.hpp>
-
-// boost::geometry::inconsistent_turns_exception
-#include <boost/geometry/algorithms/detail/overlay/inconsistent_turns_exception.hpp>
+#include "sql/gis/functor.h" // gis::not_implemented_exception
+#include "sql/gis/gc_utils.h" // gis::invalid_geometry_exception
 
 void handle_std_exception(const char *funcname)
 {

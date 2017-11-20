@@ -720,7 +720,8 @@ static void my_hash_sort_latin1_de(const CHARSET_INFO *cs MY_ATTRIBUTE((unused))
 
 static MY_COLLATION_HANDLER my_collation_german2_ci_handler=
 {
-  NULL,			/* init */
+  nullptr,			/* init */
+  nullptr,
   my_strnncoll_latin1_de,
   my_strnncollsp_latin1_de,
   my_strnxfrm_latin1_de,

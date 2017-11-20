@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,19 +13,20 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/triggers.h"
+#include "sql/dd/impl/tables/triggers.h"
 
 #include <memory>
 #include <new>
 
-#include "dd/impl/object_key.h"
-#include "dd/impl/raw/object_keys.h"   // dd::Global_name_key
-#include "dd/impl/raw/raw_record.h"    // dd::Raw_record
-#include "dd/impl/raw/raw_table.h"     // dd::Raw_table
-#include "dd/impl/transaction_impl.h"  // Transaction_ro
-#include "dd/types/table.h"
-#include "handler.h"
 #include "my_dbug.h"
+#include "sql/dd/impl/object_key.h"
+#include "sql/dd/impl/raw/object_keys.h" // dd::Global_name_key
+#include "sql/dd/impl/raw/raw_record.h" // dd::Raw_record
+#include "sql/dd/impl/raw/raw_table.h" // dd::Raw_table
+#include "sql/dd/impl/transaction_impl.h" // Transaction_ro
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/types/table.h"
+#include "sql/handler.h"
 
 namespace dd {
 namespace tables {

@@ -21,12 +21,13 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "auth_common.h"
 #include "mysql_time.h"                 /* MYSQL_TIME */
-#include "partitioned_rwlock.h"
-#include "table.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/dynamic_privilege_table.h"
+#include "sql/auth/partitioned_rwlock.h"
+#include "sql/sql_audit.h"
+#include "sql/table.h"
 #include "violite.h"                    /* SSL_type */
-#include "dynamic_privilege_table.h"
 
 
 
@@ -82,10 +83,15 @@ Auth_id_ref create_authid_from(const LEX_USER *user);
 Auth_id_ref create_authid_from(const ACL_USER *user);
 
 /* sql_authentication */
+class Rsa_authentication_keys;
+extern Rsa_authentication_keys * g_sha256_rsa_keys;
+extern Rsa_authentication_keys * g_caching_sha2_rsa_keys;
+extern char * caching_sha2_rsa_private_key_path;
+extern char * caching_sha2_rsa_public_key_path;
+
 void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name);
 bool auth_plugin_is_built_in(const char *plugin_name);
 bool auth_plugin_supports_expiration(const char *plugin_name);
-
 
 const ACL_internal_table_access *
 get_cached_table_access(GRANT_INTERNAL_INFO *grant_internal_info,
@@ -97,7 +103,8 @@ bool assert_acl_cache_read_lock(THD *thd);
 bool assert_acl_cache_write_lock(THD *thd);
 
 /*sql_authentication */
-bool rsa_auth_status();
+bool sha256_rsa_auth_status();
+bool caching_sha2_rsa_auth_status();
 
 /* sql_auth_cache */
 void rebuild_check_host(void);
@@ -161,16 +168,23 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t,
                          List <LEX_COLUMN> &columns,
                          const char *db, const char *table_name,
                          ulong rights, bool revoke_grant);
-int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
-                        TABLE *table, const LEX_USER &combo,
-                        const char *db, const char *table_name,
-                        ulong rights, ulong col_rights,
-                        bool revoke_grant);
+int replace_table_table(
+  THD *thd, GRANT_TABLE *grant_table,
+  std::unique_ptr<GRANT_TABLE, Destroy_only<GRANT_TABLE>>
+    *deleted_grant_table,
+  TABLE *table, const LEX_USER &combo,
+  const char *db, const char *table_name,
+  ulong rights, ulong col_rights,
+  bool revoke_grant);
 int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
                           TABLE *table, const LEX_USER &combo,
                           const char *db, const char *routine_name,
                           bool is_proc, ulong rights, bool revoke_grant);
 int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables);
+void grant_tables_setup_for_open(TABLE_LIST *tables,
+                                 thr_lock_type lock_type= TL_WRITE,
+                                 enum_mdl_type mdl_type= MDL_SHARED_NO_READ_WRITE);
+
 int replace_roles_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
                              const LEX_USER *role,
                              bool with_grant_arg,
@@ -329,7 +343,9 @@ bool set_and_validate_user_attributes(THD *thd,
                                       LEX_USER *Str,
                                       ulong &what_to_set,
                                       bool is_privileged_user,
-                                      bool is_role);
+                                      bool is_role,
+                                      TABLE_LIST *history_table,
+                                      bool *history_check_done);
 typedef std::pair<std::string, bool> Grant_privilege;
 typedef std::unordered_multimap<const Role_id, Grant_privilege,
                                 role_id_hash >
@@ -345,4 +361,7 @@ extern std::vector<Role_id > *g_mandatory_roles;
 void create_role_vertex(ACL_USER *role_acl_user);
 void activate_all_granted_and_mandatory_roles(const ACL_USER *acl_user,
                                               Security_context *sctx);
+extern std::vector<std::string> builtin_auth_plugins; 
+bool alter_user_set_default_roles(THD *thd, TABLE *table, LEX_USER *user,
+                                  const List_of_auth_id_refs &new_auth_ids);
 #endif /* AUTH_INTERNAL_INCLUDED */

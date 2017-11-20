@@ -24,8 +24,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "abstract_connection_provider.h"
-#include "base/mutex.h"
+#include "client/base/mutex.h"
+#include "client/dump/abstract_connection_provider.h"
 
 namespace Mysql{
 namespace Tools{

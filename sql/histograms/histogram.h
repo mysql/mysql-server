@@ -34,24 +34,39 @@
 */
 
 #include <cstddef>                     // size_t
+#include <functional>
 #include <map>                         // std::map
 #include <set>                         // std::set
 #include <string>                      // std::string
 #include <utility>                     // std::pair
 
 #include "lex_string.h"                // LEX_CSTRING
-#include "memroot_allocator.h"         // Memroot_allocator
 #include "my_base.h"                   // ha_rows
-#include "sql_alloc.h"                 // Sql_alloc
 #include "sql/histograms/value_map.h"  // Histogram_comparator
-#include "stateless_allocator.h"       // Stateless_allocator
-#include "table.h"                     // TABLE_LIST
+#include "sql/histograms/value_map_type.h"
+#include "sql/key.h"
+#include "sql/memroot_allocator.h"     // Memroot_allocator
+#include "sql/sql_alloc.h"             // Sql_alloc
+#include "sql/stateless_allocator.h"   // Stateless_allocator
+#include "sql/table.h"                 // TABLE_LIST
+#include "sql_string.h"
 
+
+class Item;
 class Json_dom;
 class Json_object;
 class THD;
 
+namespace dd {
+class Table;
+}  // namespace dd
+namespace histograms {
+struct Histogram_comparator;
+template <class T> class Value_map;
+}  // namespace histograms
+struct TABLE_LIST;
 struct st_mem_root;
+
 typedef struct st_mem_root MEM_ROOT;
 
 namespace histograms {
@@ -76,7 +91,6 @@ enum class Message
   READ_ONLY
 };
 
-
 struct Histogram_psi_key_alloc
 {
   void* operator()(size_t s) const;
@@ -100,6 +114,26 @@ using results_map=
            Histogram_key_allocator<std::pair<const std::string, Message>>>;
 
 /**
+  The different operators we can ask histogram statistics for selectivity
+  estimations.
+*/
+enum class enum_operator
+{
+  EQUALS_TO,
+  GREATER_THAN,
+  LESS_THAN,
+  IS_NULL,
+  IS_NOT_NULL,
+  LESS_THAN_OR_EQUAL,
+  GREATER_THAN_OR_EQUAL,
+  NOT_EQUALS_TO,
+  BETWEEN,
+  NOT_BETWEEN,
+  IN_LIST,
+  NOT_IN_LIST
+};
+
+/**
   Histogram base class.
 */
 class Histogram : public Sql_alloc
@@ -110,15 +144,6 @@ public:
   {
     EQUI_HEIGHT,
     SINGLETON
-  };
-
-  /// The different fields in mysql.column_stats.
-  enum enum_fields
-  {
-    FIELD_DATABASE_NAME = 0,
-    FIELD_TABLE_NAME = 1,
-    FIELD_COLUMN_NAME = 2,
-    FIELD_HISTOGRAM = 3
   };
 
   /// String representation of the JSON field "histogram-type".
@@ -170,7 +195,6 @@ protected:
 
     @return true on error, false otherwise
   */
-  template <class T>
   bool histogram_data_type_to_json(Json_object *json_object) const;
 
   /**
@@ -207,6 +231,9 @@ private:
   /// The type of this histogram.
   const enum_histogram_type m_hist_type;
 
+  /// The type of the data this histogram contains.
+  const Value_map_type m_data_type;
+
   /// Name of the database this histogram represents.
   LEX_CSTRING m_database_name;
 
@@ -215,19 +242,79 @@ private:
 
   /// Name of the column this histogram represents.
   LEX_CSTRING m_column_name;
+
+  /**
+    An internal function for getting the selecitvity estimation.
+
+    This function will read/evaluate the value from the given Item, and pass
+    this value on to the correct selectivity estimation function based on the
+    data type of the histogram. For instance, if the data type of the histogram
+    is INT, we will call "val_int" on the Item to evaulate the value as an
+    integer and pass this value on to the next function.
+
+    @param item The Item to read/evaluate the value from.
+    @param op The operator we are estimating the selectivity for.
+    @param typelib In the case of ENUM or SET data type, this parameter holds
+                   the type information. This is needed in order to map a
+                   string representation of an ENUM/SET value into its correct
+                   integer representation (ENUM/SET values are stored as
+                   integer values in the histogram).
+    @param[out] selectivity The estimated selectivity, between 0.0 and 1.0
+                inclusive.
+
+    @return true on error (i.e the provided item was NULL), false on success.
+  */
+  bool get_selectivity_dispatcher(Item *item, const enum_operator op,
+                                  const TYPELIB *typelib,
+                                  double *selectivity) const;
+
+  /**
+    An internal function for getting the selecitvity estimation.
+
+    This function will cast the histogram to the correct class (using down_cast)
+    and pass the given value on to the correct selectivity estimation function
+    for that class.
+
+    @param value The value to estimate the selectivity for.
+
+    @return The estimated selectivity, between 0.0 and 1.0 inclusive.
+  */
+  template <class T> double
+  get_less_than_selectivity_dispatcher(const T& value) const;
+
+  /// @see get_less_than_selectivity_dispatcher
+  template <class T> double
+  get_greater_than_selectivity_dispatcher(const T& value) const;
+
+  /// @see get_less_than_selectivity_dispatcher
+  template <class T> double
+  get_equal_to_selectivity_dispatcher(const T& value) const;
+
+  /**
+    An internal function for applying the correct function for the given
+    operator.
+
+    @param op    The operator to apply
+    @param value The value to find the selectivity for.
+
+    @return The estimated selectivity, between 0.0 and 1.0 inclusive.
+  */
+  template <class T>
+  double apply_operator(const enum_operator op, const T& value) const;
 public:
   /**
     Constructor.
 
-    @param mem_root the mem_root where the histogram contents will be allocated
-    @param db_name  name of the database this histogram represents
-    @param tbl_name name of the table this histogram represents
-    @param col_name name of the column this histogram represents
-    @param type     the histogram type
+    @param mem_root  the mem_root where the histogram contents will be allocated
+    @param db_name   name of the database this histogram represents
+    @param tbl_name  name of the table this histogram represents
+    @param col_name  name of the column this histogram represents
+    @param type      the histogram type (equi-height, singleton)
+    @param data_type the type of data that this histogram contains
   */
   Histogram(MEM_ROOT *mem_root, const std::string &db_name,
             const std::string &tbl_name, const std::string &col_name,
-            enum_histogram_type type);
+            enum_histogram_type type, Value_map_type data_type);
 
   /**
     Copy constructor
@@ -288,6 +375,11 @@ public:
   virtual size_t get_num_buckets() const = 0;
 
   /**
+    @return the data type that this histogram contains
+  */
+  Value_map_type get_data_type() const { return m_data_type; }
+
+  /**
     @return number of buckets originally specified by the user. This may be
             higher than the actual number of buckets in the histogram.
   */
@@ -340,6 +432,42 @@ public:
     @return false on success, true on error.
   */
   bool store_histogram(THD *thd) const;
+
+  /**
+    Get selectivity estimation.
+
+    This function will try and get the selectivity estimation for a predicate
+    on the form "COLUMN OPERATOR CONSTANT", for instance "SELECT * FROM t1
+    WHERE col1 > 23;".
+
+    This function will take care of several of things, for instance checking
+    that the value we are estimating the selectivity for is a constant value.
+
+    The order of the Items provided does not matter. For instance, of the
+    operator argument given is "EQUALS_TO", it does not matter if the constant
+    value is provided as the first or the second argument; this function will
+    take care of this.
+
+    @param items            an array of items that contains both the field we
+                            are estimating the selectivity for, as well as the
+                            user-provided constant values.
+    @param item_count       the number of Items in the Item array.
+    @param op               the predicate operator
+    @param[out] selectivity the calculated selectivity if a usable histogram was
+                            found
+
+    @retval true if an error occured (the Item provided was not a constant value
+            or similar).
+    @return false if success
+  */
+  bool get_selectivity(Item **items, size_t item_count,
+                       enum_operator op, double *selectivity) const;
+
+  /**
+    @return the fraction of non-null values in the histogram.
+  */
+  double get_non_null_values_frequency() const
+  { return 1.0 - get_null_values_fraction(); }
 };
 
 /**
@@ -398,11 +526,13 @@ bool update_histogram(THD *thd, TABLE_LIST *table,
 
   @param thd Thread handler.
   @param table The table where we should look for the columns.
+  @param original_table_def Original table definition.
   @param results A map where the result of each operation is stored.
 
   @return false on success, true on error.
 */
 bool drop_all_histograms(THD *thd, const TABLE_LIST &table,
+                         const dd::Table &original_table_def,
                          results_map &results);
 
 /**
@@ -437,6 +567,12 @@ bool drop_histograms(THD *thd, const TABLE_LIST &table,
 bool rename_histograms(THD *thd, const char *old_schema_name,
                        const char *old_table_name, const char *new_schema_name,
                        const char *new_table_name, results_map &results);
+
+
+bool find_histogram(THD *thd, const std::string &schema_name,
+                    const std::string &table_name,
+                    const std::string &column_name,
+                    const Histogram **histogram);
 } // namespace histograms
 
 

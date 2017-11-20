@@ -406,8 +406,6 @@ que_graph_free_recursive(
 	sel_node_t*	sel;
 	ins_node_t*	ins;
 	upd_node_t*	upd;
-	tab_node_t*	cre_tab;
-	ind_node_t*	cre_ind;
 	purge_node_t*	purge;
 
 	DBUG_ENTER("que_graph_free_recursive");
@@ -507,25 +505,6 @@ que_graph_free_recursive(
 		}
 
 		break;
-	case QUE_NODE_CREATE_TABLE:
-		cre_tab = static_cast<tab_node_t*>(node);
-
-		que_graph_free_recursive(cre_tab->tab_def);
-		que_graph_free_recursive(cre_tab->col_def);
-		que_graph_free_recursive(cre_tab->v_col_def);
-
-		mem_heap_free(cre_tab->heap);
-
-		break;
-	case QUE_NODE_CREATE_INDEX:
-		cre_ind = static_cast<ind_node_t*>(node);
-
-		que_graph_free_recursive(cre_ind->ind_def);
-		que_graph_free_recursive(cre_ind->field_def);
-
-		mem_heap_free(cre_ind->heap);
-
-		break;
 	case QUE_NODE_PROC:
 		que_graph_free_stat_list(((proc_node_t*) node)->stat_list);
 
@@ -581,6 +560,7 @@ que_graph_free(
 			afterwards! */
 {
 	ut_ad(graph);
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	if (graph->sym_tab) {
 		/* The following call frees dynamic memory allocated
@@ -945,10 +925,6 @@ que_node_type_string(
 		return("PURGE ROW");
 	case QUE_NODE_ROLLBACK:
 		return("ROLLBACK");
-	case QUE_NODE_CREATE_TABLE:
-		return("CREATE TABLE");
-	case QUE_NODE_CREATE_INDEX:
-		return("CREATE INDEX");
 	case QUE_NODE_FOR:
 		return("FOR LOOP");
 	case QUE_NODE_RETURN:
@@ -1056,10 +1032,6 @@ que_thr_step(
 		thr = exit_step(thr);
 	} else if (type == QUE_NODE_ROLLBACK) {
 		thr = trx_rollback_step(thr);
-	} else if (type == QUE_NODE_CREATE_TABLE) {
-		thr = dict_create_table_step(thr);
-	} else if (type == QUE_NODE_CREATE_INDEX) {
-		thr = dict_create_index_step(thr);
 	} else {
 		ut_error;
 	}
@@ -1209,15 +1181,11 @@ que_eval_sql(
 
 	ut_a(trx->error_state == DB_SUCCESS);
 
-	if (reserve_dict_mutex) {
-		mutex_enter(&dict_sys->mutex);
-	}
+	mutex_enter(&pars_mutex);
 
 	graph = pars_sql(info, sql);
 
-	if (reserve_dict_mutex) {
-		mutex_exit(&dict_sys->mutex);
-	}
+	mutex_exit(&pars_mutex);
 
 	graph->trx = trx;
 	trx->graph = NULL;
@@ -1228,15 +1196,7 @@ que_eval_sql(
 
 	que_run_threads(thr);
 
-	if (reserve_dict_mutex) {
-		mutex_enter(&dict_sys->mutex);
-	}
-
 	que_graph_free(graph);
-
-	if (reserve_dict_mutex) {
-		mutex_exit(&dict_sys->mutex);
-	}
 
 	ut_a(trx->error_state != 0);
 

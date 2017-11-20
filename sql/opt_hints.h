@@ -24,24 +24,27 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "enum_query_type.h"
-#include "item_subselect.h" // Item_exists_subselect
 #include "m_string.h"
-#include "mem_root_array.h" // Mem_root_array
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql_alloc.h"      // Sql_alloc
-#include "sql_bitmap.h"     // Bitmap
-#include "sql_plugin.h"
-#include "sql_show.h"       // append_identifier
+#include "sql/dd/properties.h"
+#include "sql/enum_query_type.h"
+#include "sql/item_subselect.h" // Item_exists_subselect
+#include "sql/key.h"
+#include "sql/mem_root_array.h" // Mem_root_array
+#include "sql/sql_alloc.h"  // Sql_alloc
+#include "sql/sql_bitmap.h" // Bitmap
+#include "sql/sql_show.h"   // append_identifier
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"     // String
-#include "system_variables.h"
-#include "typelib.h"
 
 class JOIN;
 class Opt_hints_table;
 class THD;
+class Sys_var_hint;
+struct TABLE;
 struct TABLE_LIST;
 
 
@@ -67,6 +70,7 @@ enum opt_hints_enum
   JOIN_ORDER_HINT_ENUM,
   JOIN_FIXED_ORDER_HINT_ENUM,
   INDEX_MERGE_HINT_ENUM,
+  RESOURCE_GROUP_HINT_ENUM,
   MAX_HINT_ENUM
 };
 
@@ -353,15 +357,18 @@ class Opt_hints_global : public Opt_hints
 
 public:
   PT_hint_max_execution_time *max_exec_time;
+  Sys_var_hint *sys_var_hint;
 
   Opt_hints_global(MEM_ROOT *mem_root_arg)
     : Opt_hints(NULL, NULL, mem_root_arg)
   {
     max_exec_time= NULL;
+    sys_var_hint= NULL;
   }
 
   virtual void append_name(THD*, String*) {}
   virtual PT_hint *get_complex_hints(opt_hints_enum type);
+  virtual void print_irregular_hints(THD *thd, String *str);
 };
 
 
@@ -629,6 +636,67 @@ public:
   {
     return (type_arg == INDEX_MERGE_HINT_ENUM);
   }
+};
+
+
+/**
+  Container for set_var object and original variable value.
+*/
+
+class Hint_set_var : public Sql_alloc
+{
+public:
+  Hint_set_var(set_var *var_arg) : var(var_arg), save_value(NULL)
+  { }
+  set_var *var;      // Pointer to set_var object
+  Item *save_value;  // Original variable value
+};
+
+
+/**
+  SET_VAR hints.
+*/
+
+class Sys_var_hint : public Sql_alloc
+{
+  // List of str_var variables which need to be updated.
+  Mem_root_array<Hint_set_var*> var_list;
+
+public:
+  Sys_var_hint(MEM_ROOT *mem_root_arg) : var_list(mem_root_arg)
+  {}
+  /**
+    Add variable to hint list.
+
+    @param thd            pointer to THD object
+    @param sys_var        pointer to sys_var object
+    @param sys_var_value  variable value
+
+    @return true if variable is added,
+            false otherwise
+  */
+  bool add_var(THD *thd, sys_var *sys_var, Item *sys_var_value);
+  /**
+    Find variable in hint list.
+
+    @param thd   Pointer to thread object
+
+    @return true if variable is found,
+            false otherwise
+  */
+  void update_vars(THD *thd);
+  /**
+    Restore system variables with original values.
+
+    @param thd   Pointer to thread object
+  */
+  void restore_vars(THD *thd);
+  /**
+    Print applicable hints.
+
+    @param str   Pointer to string object
+  */
+  void print(String *str);
 };
 
 

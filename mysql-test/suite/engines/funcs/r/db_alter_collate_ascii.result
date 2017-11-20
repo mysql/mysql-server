@@ -221,6 +221,8 @@ utf8mb4_romanian_ci	utf8mb4	227		#	#	PAD SPACE
 utf8mb4_roman_ci	utf8mb4	239		#	#	PAD SPACE
 utf8mb4_ro_0900_ai_ci	utf8mb4	259		#	#	NO PAD
 utf8mb4_ro_0900_as_cs	utf8mb4	282		#	#	NO PAD
+utf8mb4_ru_0900_ai_ci	utf8mb4	306		#	#	NO PAD
+utf8mb4_ru_0900_as_cs	utf8mb4	307		#	#	NO PAD
 utf8mb4_sinhala_ci	utf8mb4	243		#	#	PAD SPACE
 utf8mb4_sk_0900_ai_ci	utf8mb4	269		#	#	NO PAD
 utf8mb4_sk_0900_as_cs	utf8mb4	292		#	#	NO PAD

@@ -67,16 +67,19 @@ mysqltest: Could not open connection 'default': 2026 SSL connection error: Unabl
 WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 mysqltest: [ERROR] SSL error: Unable to get certificate from ''
 mysqltest: Could not open connection 'default': 2026 SSL connection error: Unable to get certificate
-WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
 End of 5.0 tests
 DROP TABLE IF EXISTS thread_status;
 DROP EVENT IF EXISTS event_status;
-SET GLOBAL event_scheduler=1;
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
 CREATE EVENT event_status
 ON SCHEDULE AT NOW()
 ON COMPLETION NOT PRESERVE
@@ -93,8 +96,6 @@ variable_name	variable_value
 Ssl_accepts	#
 Ssl_callback_cache_hits	#
 DROP TABLE thread_status;
-SET GLOBAL event_scheduler=0;
-WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	AES128-SHA
@@ -102,8 +103,8 @@ WARNING: no verification of server certificate will be done. Use --ssl-mode=VERI
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	AES128-SHA
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 mysqltest: Could not open connection 'default': 2026 SSL connection error: Failed to set ciphers to use
-WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 CREATE TABLE t1(a int);
 INSERT INTO t1 VALUES (1), (2);
 

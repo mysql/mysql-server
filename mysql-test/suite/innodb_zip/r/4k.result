@@ -14,8 +14,8 @@ variable_value
 SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 i.name index_name, i.page_no root_page, i.type,
 i.n_fields, i.merge_threshold
-FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
-INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+FROM	INFORMATION_SCHEMA.INNODB_TABLES  t,
+INFORMATION_SCHEMA.INNODB_INDEXES i
 WHERE	t.table_id = i.table_id
 AND	t.name LIKE 'mysql%'
         AND     t.name NOT LIKE 'mysql/ndb_binlog_index'
@@ -28,17 +28,17 @@ CREATE TABLE t4 (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
 SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 i.name index_name, i.page_no root_page, i.type,
 i.n_fields, i.merge_threshold
-FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
-INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+FROM	INFORMATION_SCHEMA.INNODB_TABLES  t,
+INFORMATION_SCHEMA.INNODB_INDEXES i
 WHERE	t.table_id = i.table_id
 AND	t.name LIKE 'test%'
 	ORDER BY t.name, i.name;
 table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
-test/t1	5	0	PRIMARY	5	3	1	50
-test/t2	5	1	PRIMARY	5	3	1	50
-test/t3	5	37	PRIMARY	6	3	1	50
-test/t4	5	33	PRIMARY	5	3	1	50
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+test/t1	5	0	PRIMARY	4	3	4	50
+test/t2	5	1	PRIMARY	4	3	4	50
+test/t3	5	37	PRIMARY	4	3	4	50
+test/t4	5	33	PRIMARY	4	3	4	50
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t1	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1.ibd
 test/t2	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t2.ibd
@@ -46,10 +46,10 @@ test/t3	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/test/t3.ibd
 test/t4	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1.ibd
-test/t2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2.ibd
-test/t3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3.ibd
-test/t4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t4.ibd
+test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQLD_DATADIR/test/t1.ibd
+test/t2	TABLESPACE	InnoDB	NORMAL	test/t2	MYSQLD_DATADIR/test/t2.ibd
+test/t3	TABLESPACE	InnoDB	NORMAL	test/t3	MYSQLD_DATADIR/test/t3.ibd
+test/t4	TABLESPACE	InnoDB	NORMAL	test/t4	MYSQLD_DATADIR/test/t4.ibd
 DROP TABLE t1, t2, t3, t4;
 # Test 4) The maximum row size is dependent upon the page size.
 #         Redundant: 1979, Compact: 1982.

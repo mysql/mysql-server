@@ -88,6 +88,14 @@ LEX_CSTRING event_names[][6] = {
     /** MYSQL_AUDIT_STORED_PROGRAM_CLASS */
     {
       { C_STRING_WITH_LEN("MYSQL_AUDIT_STORED_PROGRAM_EXECUTE") },
+    },
+    /** MYSQL_AUDIT_AUTHENTICATION_CLASS */
+    {
+      { C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_FLUSH") },
+      { C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_AUTHID_CREATE") },
+      { C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE") },
+      { C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME") },
+      { C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP") },
     }
 };
 
@@ -763,7 +771,8 @@ static struct st_mysql_audit audit_null_descriptor=
     (unsigned long) MYSQL_AUDIT_SERVER_SHUTDOWN_ALL,
     (unsigned long) MYSQL_AUDIT_COMMAND_ALL,
     (unsigned long) MYSQL_AUDIT_QUERY_ALL,
-    (unsigned long) MYSQL_AUDIT_STORED_PROGRAM_ALL }
+    (unsigned long) MYSQL_AUDIT_STORED_PROGRAM_ALL,
+    (unsigned long) MYSQL_AUDIT_AUTHENTICATION_ALL }
 };
 
 static struct st_mysql_sys_var* system_variables[] = {

@@ -98,7 +98,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.65"
+      "query_cost": "4.65"
     },
     "ordering_operation": {
       "using_filesort": true,
@@ -112,6 +112,9 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "query_cost": "4.00"
+        },
         "table": {
           "table_name": "t",
           "access_type": "ALL",
@@ -141,7 +144,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.65"
+      "query_cost": "4.65"
     },
     "ordering_operation": {
       "using_filesort": true,
@@ -155,6 +158,9 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "query_cost": "4.00"
+        },
         "table": {
           "table_name": "t",
           "access_type": "ALL",
@@ -272,7 +278,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.65"
+      "query_cost": "4.65"
     },
     "ordering_operation": {
       "using_filesort": true,
@@ -290,6 +296,9 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "query_cost": "4.00"
+        },
         "table": {
           "table_name": "t",
           "access_type": "ALL",
@@ -319,7 +328,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.65"
+      "query_cost": "4.65"
     },
     "ordering_operation": {
       "using_filesort": true,
@@ -337,6 +346,9 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "query_cost": "4.00"
+        },
         "table": {
           "table_name": "t",
           "access_type": "ALL",
@@ -494,7 +506,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.65"
+      "query_cost": "4.65"
     },
     "ordering_operation": {
       "using_filesort": true,
@@ -512,6 +524,9 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "query_cost": "4.00"
+        },
         "table": {
           "table_name": "t",
           "access_type": "ALL",
@@ -541,7 +556,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.65"
+      "query_cost": "4.65"
     },
     "ordering_operation": {
       "using_filesort": true,
@@ -559,6 +574,9 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "query_cost": "4.00"
+        },
         "table": {
           "table_name": "t",
           "access_type": "ALL",
@@ -2156,7 +2174,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "ordering_operation": {
       "using_filesort": true,
@@ -2176,6 +2194,9 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "query_cost": "7.00"
+        },
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
@@ -10808,7 +10829,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.05"
+      "query_cost": "9.05"
     },
     "ordering_operation": {
       "using_filesort": true,
@@ -10870,6 +10891,9 @@ EXPLAIN
               ]
             }
           ],
+          "cost_info": {
+            "query_cost": "8.00"
+          },
           "table": {
             "table_name": "tj",
             "access_type": "ALL",
@@ -13067,7 +13091,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.05"
+      "query_cost": "20.05"
     },
     "ordering_operation": {
       "using_filesort": true,
@@ -13087,6 +13111,9 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "query_cost": "18.00"
+        },
         "table": {
           "table_name": "t",
           "access_type": "ALL",
@@ -13117,7 +13144,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.05"
+      "query_cost": "20.05"
     },
     "ordering_operation": {
       "using_filesort": true,
@@ -13137,6 +13164,9 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "query_cost": "18.00"
+        },
         "table": {
           "table_name": "t",
           "access_type": "ALL",
@@ -14435,7 +14465,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.75"
+      "query_cost": "5.75"
     },
     "ordering_operation": {
       "using_filesort": true,
@@ -14506,6 +14536,9 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "query_cost": "5.00"
+        },
         "table": {
           "table_name": "t",
           "access_type": "ALL",

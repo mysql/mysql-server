@@ -119,7 +119,7 @@ ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (SUBPARTITION p90k_1 TABLESPACE = `innodb_file_per_table`,
 SUBPARTITION p90k_2 TABLESPACE = `innodb_system`));
 FLUSH TABLES;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1#p#eightythousands#sp#p80k_1	test/t1#p#eightythousands#sp#p80k_1	97	5	Dynamic	0	Single
 test/t1#p#eightythousands#sp#p80k_2	test/t1#p#eightythousands#sp#p80k_2	97	5	Dynamic	0	Single
@@ -154,10 +154,10 @@ test/t2#p#tens#sp#subpart12	s1	161	5	Dynamic	0	General
 test/t2#p#thousands#sp#subpart31	test/t2#p#thousands#sp#subpart31	97	5	Dynamic	0	Single
 test/t2#p#thousands#sp#subpart32	test/t2#p#thousands#sp#subpart32	97	5	Dynamic	0	Single
 test/t3	test/t3	97	4	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
-s`1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s-1.ibd
+s1	General	DEFAULT	0	Any	s1.ibd
+s`1	General	DEFAULT	0	Any	s-1.ibd
 test/t2#p#hundreds#sp#subpart21	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd
 test/t2#p#thousands#sp#subpart31	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart31.ibd
 test/t2#p#thousands#sp#subpart32	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart32.ibd
@@ -179,23 +179,23 @@ test/t1#p#ninetythousands#sp#p90k_1	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
 s`1	TABLESPACE	InnoDB	NORMAL	s`1	MYSQLD_DATADIR/s-1.ibd
-test/t2#p#hundreds#sp#subpart21	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd
-test/t2#p#thousands#sp#subpart31	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart31.ibd
-test/t2#p#thousands#sp#subpart32	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart32.ibd
-test/t1#p#tens#sp#subpart11	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#tens#sp#subpart11.ibd
-test/t1#p#tens#sp#subpart12	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#tens#sp#subpart12.ibd
-test/t1#p#hundreds#sp#subpart22	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#hundreds#sp#subpart22.ibd
-test/t1#p#onethousands#sp#subpart24	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#onethousands#sp#subpart24.ibd
-test/t1#p#thirtythousands#sp#thirtythousandssp0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#thirtythousands#sp#thirtythousandssp0.ibd
-test/t1#p#thirtythousands#sp#thirtythousandssp1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#thirtythousands#sp#thirtythousandssp1.ibd
-test/t1#p#fortythousands#sp#p40k_1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_1.ibd
-test/t1#p#fortythousands#sp#p40k_2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd
-test/t1#p#seventythousands#sp#seventythousandssp0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#seventythousands#sp#seventythousandssp0.ibd
-test/t1#p#seventythousands#sp#seventythousandssp1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#seventythousands#sp#seventythousandssp1.ibd
-test/t1#p#eightythousands#sp#p80k_1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t1#p#eightythousands#sp#p80k_1.ibd
-test/t1#p#eightythousands#sp#p80k_2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t1#p#eightythousands#sp#p80k_2.ibd
-test/t3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t3.ibd
-test/t1#p#ninetythousands#sp#p90k_1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#ninetythousands#sp#p90k_1.ibd
+test/t2#p#hundreds#sp#subpart21	TABLESPACE	InnoDB	NORMAL	test/t2#p#hundreds#sp#subpart21	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd
+test/t2#p#thousands#sp#subpart31	TABLESPACE	InnoDB	NORMAL	test/t2#p#thousands#sp#subpart31	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart31.ibd
+test/t2#p#thousands#sp#subpart32	TABLESPACE	InnoDB	NORMAL	test/t2#p#thousands#sp#subpart32	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart32.ibd
+test/t1#p#tens#sp#subpart11	TABLESPACE	InnoDB	NORMAL	test/t1#p#tens#sp#subpart11	MYSQLD_DATADIR/test/t1#p#tens#sp#subpart11.ibd
+test/t1#p#tens#sp#subpart12	TABLESPACE	InnoDB	NORMAL	test/t1#p#tens#sp#subpart12	MYSQLD_DATADIR/test/t1#p#tens#sp#subpart12.ibd
+test/t1#p#hundreds#sp#subpart22	TABLESPACE	InnoDB	NORMAL	test/t1#p#hundreds#sp#subpart22	MYSQLD_DATADIR/test/t1#p#hundreds#sp#subpart22.ibd
+test/t1#p#onethousands#sp#subpart24	TABLESPACE	InnoDB	NORMAL	test/t1#p#onethousands#sp#subpart24	MYSQLD_DATADIR/test/t1#p#onethousands#sp#subpart24.ibd
+test/t1#p#thirtythousands#sp#thirtythousandssp0	TABLESPACE	InnoDB	NORMAL	test/t1#p#thirtythousands#sp#thirtythousandssp0	MYSQLD_DATADIR/test/t1#p#thirtythousands#sp#thirtythousandssp0.ibd
+test/t1#p#thirtythousands#sp#thirtythousandssp1	TABLESPACE	InnoDB	NORMAL	test/t1#p#thirtythousands#sp#thirtythousandssp1	MYSQLD_DATADIR/test/t1#p#thirtythousands#sp#thirtythousandssp1.ibd
+test/t1#p#fortythousands#sp#p40k_1	TABLESPACE	InnoDB	NORMAL	test/t1#p#fortythousands#sp#p40k_1	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_1.ibd
+test/t1#p#fortythousands#sp#p40k_2	TABLESPACE	InnoDB	NORMAL	test/t1#p#fortythousands#sp#p40k_2	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd
+test/t1#p#seventythousands#sp#seventythousandssp0	TABLESPACE	InnoDB	NORMAL	test/t1#p#seventythousands#sp#seventythousandssp0	MYSQLD_DATADIR/test/t1#p#seventythousands#sp#seventythousandssp0.ibd
+test/t1#p#seventythousands#sp#seventythousandssp1	TABLESPACE	InnoDB	NORMAL	test/t1#p#seventythousands#sp#seventythousandssp1	MYSQLD_DATADIR/test/t1#p#seventythousands#sp#seventythousandssp1.ibd
+test/t1#p#eightythousands#sp#p80k_1	TABLESPACE	InnoDB	NORMAL	test/t1#p#eightythousands#sp#p80k_1	MYSQL_TMP_DIR/test/t1#p#eightythousands#sp#p80k_1.ibd
+test/t1#p#eightythousands#sp#p80k_2	TABLESPACE	InnoDB	NORMAL	test/t1#p#eightythousands#sp#p80k_2	MYSQL_TMP_DIR/test/t1#p#eightythousands#sp#p80k_2.ibd
+test/t3	TABLESPACE	InnoDB	NORMAL	test/t3	MYSQL_TMP_DIR/test/t3.ibd
+test/t1#p#ninetythousands#sp#p90k_1	TABLESPACE	InnoDB	NORMAL	test/t1#p#ninetythousands#sp#p90k_1	MYSQLD_DATADIR/test/t1#p#ninetythousands#sp#p90k_1.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -401,7 +401,7 @@ SUBPARTITION subpart22 TABLESPACE = `s``1` ENGINE = InnoDB),
 PARTITION thousands VALUES LESS THAN (10000)
 (SUBPARTITION subpart31 ENGINE = InnoDB,
 SUBPARTITION subpart32 ENGINE = InnoDB)) */;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1#p#fiftythousands#sp#fiftythousandssp0	s1	161	5	Dynamic	0	General
 test/t1#p#fiftythousands#sp#fiftythousandssp1	s1	161	5	Dynamic	0	General
@@ -434,10 +434,10 @@ test/t2#p#tens#sp#subpart12	s1	161	5	Dynamic	0	General
 test/t2#p#thousands#sp#subpart31	test/t2#p#thousands#sp#subpart31	33	5	Dynamic	0	Single
 test/t2#p#thousands#sp#subpart32	test/t2#p#thousands#sp#subpart32	33	5	Dynamic	0	Single
 test/t3	test/t3	97	4	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
-s`1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s-1.ibd
+s1	General	DEFAULT	0	Any	s1.ibd
+s`1	General	DEFAULT	0	Any	s-1.ibd
 test/t3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/test/t3.ibd
 test/t1#p#fortythousands#sp#p40k_2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd
 test/t2#p#hundreds#sp#subpart21	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd
@@ -447,11 +447,11 @@ test/t2#p#thousands#sp#subpart32	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
 s`1	TABLESPACE	InnoDB	NORMAL	s`1	MYSQLD_DATADIR/s-1.ibd
-test/t3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t3.ibd
-test/t1#p#fortythousands#sp#p40k_2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd
-test/t2#p#hundreds#sp#subpart21	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd
-test/t2#p#thousands#sp#subpart31	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#thousands#sp#subpart31.ibd
-test/t2#p#thousands#sp#subpart32	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#thousands#sp#subpart32.ibd
+test/t3	TABLESPACE	InnoDB	NORMAL	test/t3	MYSQL_TMP_DIR/test/t3.ibd
+test/t1#p#fortythousands#sp#p40k_2	TABLESPACE	InnoDB	NORMAL	test/t1#p#fortythousands#sp#p40k_2	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd
+test/t2#p#hundreds#sp#subpart21	TABLESPACE	InnoDB	NORMAL	test/t2#p#hundreds#sp#subpart21	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd
+test/t2#p#thousands#sp#subpart31	TABLESPACE	InnoDB	NORMAL	test/t2#p#thousands#sp#subpart31	MYSQLD_DATADIR/test/t2#p#thousands#sp#subpart31.ibd
+test/t2#p#thousands#sp#subpart32	TABLESPACE	InnoDB	NORMAL	test/t2#p#thousands#sp#subpart32	MYSQLD_DATADIR/test/t2#p#thousands#sp#subpart32.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

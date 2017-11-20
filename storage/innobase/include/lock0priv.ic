@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -73,7 +73,7 @@ lock_rec_get_n_bits(
 /*================*/
 	const lock_t*	lock)	/*!< in: record lock */
 {
-	return(lock->un_member.rec_lock.n_bits);
+	return(lock->rec_lock.n_bits);
 }
 
 /**********************************************************************//**
@@ -90,7 +90,7 @@ lock_rec_set_nth_bit(
 
 	ut_ad(lock);
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
-	ut_ad(i < lock->un_member.rec_lock.n_bits);
+	ut_ad(i < lock->rec_lock.n_bits);
 
 	byte_index = i / 8;
 	bit_index = i % 8;
@@ -120,7 +120,7 @@ UNIV_INLINE
 lock_t*
 lock_rec_get_first_on_page_addr(
 /*============================*/
-	hash_table_t*	lock_hash,	/* Lock hash table */
+	hash_table_t*	lock_hash,	/*!< in: Lock hash table */
 	space_id_t	space,		/*!< in: space */
 	page_no_t	page_no)	/*!< in: page number */
 {
@@ -132,8 +132,7 @@ lock_rec_get_first_on_page_addr(
 	     lock != NULL;
 	     lock = static_cast<lock_t*>(HASH_GET_NEXT(hash, lock))) {
 
-		if (lock->un_member.rec_lock.space == space
-		    && lock->un_member.rec_lock.page_no == page_no) {
+		if (lock->space_id() == space && lock->page_no() == page_no) {
 
 			return(lock);
 		}
@@ -164,8 +163,7 @@ lock_rec_get_first_on_page(
 	     lock != NULL;
 	     lock = static_cast<lock_t*>(HASH_GET_NEXT(hash, lock))) {
 
-		if (lock->un_member.rec_lock.space == space
-		    && lock->un_member.rec_lock.page_no == page_no) {
+		if (lock->space_id() == space && lock->page_no() == page_no) {
 
 			return(lock);
 		}
@@ -189,7 +187,7 @@ lock_rec_get_next(
 	do {
 		ut_ad(lock_get_type_low(lock) == LOCK_REC);
 		lock = lock_rec_get_next_on_page(lock);
-	} while (lock && !lock_rec_get_nth_bit(lock, heap_no));
+	} while (lock != nullptr && !lock_rec_get_nth_bit(lock, heap_no));
 
 	return(lock);
 }
@@ -205,6 +203,28 @@ lock_rec_get_next_const(
 	const lock_t*	lock)	/*!< in: lock */
 {
 	return(lock_rec_get_next(heap_no, (lock_t*) lock));
+}
+
+/** Gets the first explicit lock request on a record.
+@param[in]	hash		Record hash
+@param[in]	rec_id		Record ID
+@return	first lock, nullptr if none exists */
+UNIV_INLINE
+lock_t*
+lock_rec_get_first(
+	hash_table_t*	hash,
+	const RecID&	rec_id)
+{
+	ut_ad(lock_mutex_own());
+
+	auto lock = lock_rec_get_first_on_page_addr(
+		hash, rec_id.m_space_id, rec_id.m_page_no);
+
+	if (lock != nullptr && !lock_rec_get_nth_bit(lock, rec_id.m_heap_no)) {
+		lock = lock_rec_get_next(rec_id.m_heap_no, lock);
+	}
+
+	return(lock);
 }
 
 /*********************************************************************//**
@@ -230,29 +250,29 @@ lock_rec_get_first(
 	return(NULL);
 }
 
-/*********************************************************************//**
-Gets the nth bit of a record lock.
-@return TRUE if bit set also if i == ULINT_UNDEFINED return FALSE*/
+/** Gets the nth bit of a record lock.
+@param[in]	lock		Record lock
+@param[in]	i		Index of the bit to check
+@return true if bit set also if i == ULINT_UNDEFINED return false */
 UNIV_INLINE
-ibool
+bool
 lock_rec_get_nth_bit(
-/*=================*/
-	const lock_t*	lock,	/*!< in: record lock */
-	ulint		i)	/*!< in: index of the bit */
+	const lock_t*	lock,
+	ulint		i)
 {
 	const byte*     b;
 
 	ut_ad(lock);
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	if (i >= lock->un_member.rec_lock.n_bits) {
+	if (i >= lock->rec_lock.n_bits) {
 
-		return(FALSE);
+		return(false);
 	}
 
 	b = ((const byte*) &lock[1]) + (i / 8);
 
-	return(1 & *b >> (i % 8));
+	return(true & *b >> (i % 8));
 }
 
 /*********************************************************************//**
@@ -267,14 +287,13 @@ lock_rec_get_next_on_page_const(
 	ut_ad(lock_mutex_own());
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	space_id_t	space = lock->un_member.rec_lock.space;
-	page_no_t	page_no = lock->un_member.rec_lock.page_no;
+	space_id_t	space = lock->space_id();
+	page_no_t	page_no = lock->page_no();
 
 	while ((lock = static_cast<const lock_t*>(HASH_GET_NEXT(hash, lock)))
 	       != NULL) {
 
-		if (lock->un_member.rec_lock.space == space
-		    && lock->un_member.rec_lock.page_no == page_no) {
+		if (lock->space_id() == space && lock->page_no() == page_no) {
 
 			return(lock);
 		}
@@ -408,9 +427,9 @@ lock_table_has(
 
 		ut_ad(trx == lock->trx);
 		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
-		ut_ad(lock->un_member.tab_lock.table != NULL);
+		ut_ad(lock->tab_lock.table != NULL);
 
-		if (table == lock->un_member.tab_lock.table
+		if (table == lock->tab_lock.table
 		    && lock_mode_stronger_or_eq(mode, in_mode)) {
 
 			ut_ad(!lock_get_wait(lock));
@@ -420,6 +439,17 @@ lock_table_has(
 	}
 
 	return(NULL);
+}
+
+/* Check if the rec id matches the lock instance.
+@param[i]	lock		Lock to compare with
+@return true if <space, page_no, heap_no> matches the lock. */
+bool
+RecID::matches(const lock_t* lock) const
+{
+	return(lock->rec_lock.space == m_space_id
+	       && lock->rec_lock.page_no == m_page_no
+	       && lock_rec_get_nth_bit(lock, m_heap_no));
 }
 
 /* vim: set filetype=c: */

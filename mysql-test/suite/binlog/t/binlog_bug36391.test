@@ -23,15 +23,15 @@ let $binlog= query_get_value(SHOW MASTER STATUS, File, 1);
 let $binlog_path= `SELECT CONCAT(@@DATADIR, '$binlog')`;
 SHOW TABLES;
 FLUSH LOGS;
-copy_file $binlog_path $datadir/master-bin.saved;
+copy_file $binlog_path $datadir/binlog.saved;
 DROP TABLE t1;
 
 # Reset GTIDs
 RESET MASTER;
 # Replay binlog
---exec $MYSQL_BINLOG $datadir/master-bin.saved | $MYSQL test
+--exec $MYSQL_BINLOG $datadir/binlog.saved | $MYSQL test
 SHOW TABLES;
 
 # Clean up
 DROP TABLE t1;
---remove_file $datadir/master-bin.saved
+--remove_file $datadir/binlog.saved

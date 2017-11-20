@@ -15,63 +15,94 @@
 
 /* variable declarations are in sys_vars.cc now !!! */
 
-#include "set_var.h"
+#include "sql/set_var.h"
 
 #include <string.h>
+#include <sys/types.h>
 #include <cstdlib>
+#include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"         // SUPER_ACL
-#include "derror.h"              // ER_THD
-#include "enum_query_type.h"
-#include "handler.h"
-#include "hash.h"                // HASH
-#include "item.h"
-#include "item_func.h"
-#include "key.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_dbug.h"
+#include "my_io.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysqld.h"              // system_charset_info
 #include "mysqld_error.h"
-#include "persisted_variable.h"
-#include "protocol_classic.h"
-#include "session_tracker.h"
-#include "sql_audit.h"           // mysql_audit
-#include "sql_base.h"            // lock_tables
-#include "sql_class.h"           // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"           // is_supported_parser_charset
-#include "sql_select.h"          // free_underlaid_joins
-#include "sql_show.h"            // append_identifier
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // SUPER_ACL
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"          // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/item.h"
+#include "sql/item_func.h"
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"          // system_charset_info
+#include "sql/persisted_variable.h"
+#include "sql/protocol_classic.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_audit.h"       // mysql_audit
+#include "sql/sql_base.h"        // lock_tables
+#include "sql/sql_class.h"       // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"       // is_supported_parser_charset
+#include "sql/sql_select.h"      // free_underlaid_joins
+#include "sql/sql_show.h"        // append_identifier
+#include "sql/sql_table.h"
+#include "sql/sys_vars_shared.h" // PolyLock_mutex
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "strfunc.h"
-#include "sys_vars_shared.h"     // PolyLock_mutex
-#include "system_variables.h"
-#include "table.h"
-#include "template_utils.h"
 
-static HASH system_variable_hash;
+using std::string;
+
+static collation_unordered_map<string, sys_var *> *system_variable_hash;
 static PolyLock_mutex PLock_global_system_variables(&LOCK_global_system_variables);
 ulonglong system_variable_hash_version= 0;
 
-/**
-  Return variable name and length for hashing of variables.
-*/
-
-static const uchar *get_sys_var_length(const uchar *arg, size_t *length)
+collation_unordered_map<string, sys_var *> *get_system_variable_hash(void)
 {
-  const sys_var *var= pointer_cast<const sys_var*>(arg);
-  *length= var->name.length;
-  return (uchar*) var->name.str;
+  return system_variable_hash;
+}
+
+/**
+  Get source of a given system variable given its name and name length.
+*/
+bool
+get_sysvar_source(const char *name, uint length,
+                  enum enum_variable_source* source)
+{
+  DBUG_ENTER("get_sysvar_source");
+
+  bool ret = false;
+  sys_var *sysvar= nullptr;
+
+  mysql_rwlock_wrlock(&LOCK_system_variables_hash);
+
+  /* system_variable_hash should have been initialized. */
+  DBUG_ASSERT(get_system_variable_hash() != nullptr);
+  std::string str(name, length);
+  sysvar= find_or_nullptr(*get_system_variable_hash(), str);
+
+  if(sysvar == nullptr)
+  {
+    ret = true;
+  }
+  else
+  {
+    *source = sysvar->get_source();
+  }
+
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
+  DBUG_RETURN(ret);
 }
 
 sys_var_chain all_sys_vars = { NULL, NULL };
@@ -83,10 +114,8 @@ int sys_var_init()
   /* Must be already initialized. */
   DBUG_ASSERT(system_charset_info != NULL);
 
-  if (my_hash_init(&system_variable_hash, system_charset_info, 100,
-                   0, get_sys_var_length, nullptr, HASH_UNIQUE,
-                   PSI_INSTRUMENT_ME))
-    goto error;
+  system_variable_hash= new collation_unordered_map<string, sys_var *>
+    (system_charset_info, PSI_INSTRUMENT_ME);
 
   if (mysql_add_sys_var_chain(all_sys_vars.first))
     goto error;
@@ -119,7 +148,8 @@ void sys_var_end()
 {
   DBUG_ENTER("sys_var_end");
 
-  my_hash_free(&system_variable_hash);
+  delete system_variable_hash;
+  system_variable_hash= nullptr;
 
   for (sys_var *var=all_sys_vars.first; var; var= var->next)
     var->cleanup();
@@ -333,8 +363,7 @@ bool sys_var::is_default(THD*, set_var *var)
   DBUG_ENTER("sys_var::is_default");
   bool ret= false;
   longlong def= option.def_value;
-  ulong var_type= (option.var_type & GET_TYPE_MASK);
-  switch(var_type)
+  switch(get_var_type())
   {
     case GET_INT:
     case GET_UINT:
@@ -409,6 +438,48 @@ void sys_var::do_deprecated_warning(THD *thd)
       LogErr(WARNING_LEVEL, errmsg, buf1, deprecation_substitute);
   }
 }
+
+
+Item *sys_var::copy_value(THD *thd)
+{
+  LEX_STRING str;
+  uchar* val_ptr= session_value_ptr(thd, thd, &str);
+  switch(get_var_type())
+  {
+    case GET_INT:
+      return new Item_int(*(int*) val_ptr);
+    case GET_UINT:
+      return new Item_int((ulonglong)*(uint*) val_ptr);
+    case GET_LONG:
+      return new Item_int((longlong)*(long*) val_ptr);
+    case GET_ULONG:
+      return new Item_int((ulonglong)*(ulong*) val_ptr);
+    case GET_LL:
+      return new Item_int(*(longlong*) val_ptr);
+    case GET_ULL:
+      return new Item_int(*(ulonglong*) val_ptr);
+    case GET_BOOL:
+      return new Item_int(*(bool*) val_ptr);
+    case GET_ENUM:
+    case GET_SET:
+    case GET_FLAGSET:
+    case GET_STR_ALLOC:
+    case GET_STR:
+    case GET_NO_ARG:
+    case GET_PASSWORD:
+    {
+      const char *tmp_str_val= (const char*) val_ptr;
+      return new Item_string(tmp_str_val, strlen(tmp_str_val),
+                             system_charset_info);
+    }
+    case GET_DOUBLE:
+      return new Item_float(*(double*) val_ptr, NOT_FIXED_DEC);
+    default:
+      DBUG_ASSERT(0);
+  }
+  return NULL;
+}
+
 
 /**
   Throw warning (error in STRICT mode) if value for variable needed bounding.
@@ -532,8 +603,8 @@ int mysql_add_sys_var_chain(sys_var *first)
 
   for (var= first; var; var= var->next)
   {
-    /* this fails if there is a conflicting variable name. see HASH_UNIQUE */
-    if (my_hash_insert(&system_variable_hash, (uchar*) var))
+    /* this fails if there is a conflicting variable name. */
+    if (!system_variable_hash->emplace(to_string(var->name), var).second)
     {
       my_message_local(ERROR_LEVEL, "duplicate variable name '%s'!?",
                        var->name.str);
@@ -547,7 +618,7 @@ int mysql_add_sys_var_chain(sys_var *first)
 
 error:
   for (; first != var; first= first->next)
-    my_hash_delete(&system_variable_hash, (uchar*) first);
+    system_variable_hash->erase(to_string(var->name));
   return 1;
 }
 
@@ -571,7 +642,7 @@ int mysql_del_sys_var_chain(sys_var *first)
   /* A write lock should be held on LOCK_system_variables_hash */
 
   for (sys_var *var= first; var; var= var->next)
-    result|= my_hash_delete(&system_variable_hash, (uchar*) var);
+    result|= !system_variable_hash->erase(to_string(var->name));
 
   /* Update system_variable_hash version. */
   system_variable_hash_version++;
@@ -600,7 +671,7 @@ static int show_cmp(const void *a, const void *b)
 */
 ulong get_system_variable_hash_records(void)
 {
-  return (system_variable_hash.records);
+  return (system_variable_hash->size());
 }
 
 /*
@@ -628,7 +699,7 @@ bool enumerate_sys_vars(Show_var_array *show_var_array,
 {
   DBUG_ASSERT(show_var_array != NULL);
   DBUG_ASSERT(query_scope == OPT_SESSION || query_scope == OPT_GLOBAL);
-  int count= system_variable_hash.records;
+  int count= system_variable_hash->size();
   
   /* Resize array if necessary. */
   if (show_var_array->reserve(count+1))
@@ -636,9 +707,9 @@ bool enumerate_sys_vars(Show_var_array *show_var_array,
 
   if (show_var_array)
   {
-    for (int i= 0; i < count; i++)
+    for (const auto &key_and_value : *system_variable_hash)
     {
-      sys_var *sysvar= (sys_var*) my_hash_element(&system_variable_hash, i);
+      sys_var *sysvar= key_and_value.second;
 
       if (strict)
       {
@@ -705,8 +776,8 @@ sys_var *intern_find_sys_var(const char *str, size_t length)
     This function is only called from the sql_plugin.cc.
     A lock on LOCK_system_variable_hash should be held
   */
-  var= (sys_var*) my_hash_search(&system_variable_hash,
-                              (uchar*) str, length ? length : strlen(str));
+  var= find_or_nullptr(*system_variable_hash,
+                       string(str, length ? length : strlen(str)));
 
   /* Don't show non-visible variables. */
   if (var && var->not_visible())
@@ -870,7 +941,7 @@ int set_var::resolve(THD *thd)
     my_error(err, MYF(0), var->name.str);
     DBUG_RETURN(-1);
   }
-  if (is_global_persist())
+  if (type == OPT_GLOBAL || type == OPT_PERSIST)
   {
     /* Either the user has SUPER_ACL or she has SYSTEM_VARIABLES_ADMIN */
     Security_context *sctx= thd->security_context();
@@ -881,16 +952,22 @@ int set_var::resolve(THD *thd)
                "SUPER or SYSTEM_VARIABLES_ADMIN");
       DBUG_RETURN(1);
     }
-    if (type == OPT_PERSIST_ONLY)
+  }
+  if (type == OPT_PERSIST_ONLY)
+  {
+    Security_context *sctx= thd->security_context();
+    /*
+     user should have both SYSTEM_VARIABLES_ADMIN and "PERSIST_RO_VARIABLES_ADMIN"
+     privilege to persist read only variables
+    */
+    if (!(sctx->has_global_grant(
+          STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN")).first &&
+          sctx->has_global_grant(
+          STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN")).first))
     {
-      if (!sctx->check_access(SUPER_ACL) &&
-          !sctx->has_global_grant(
-            STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN")).first)
-      {
-        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-                 "SUPER or PERSIST_RO_VARIABLES_ADMIN");
-        DBUG_RETURN(1);
-      }
+      my_error(ER_PERSIST_ONLY_ACCESS_DENIED_ERROR, MYF(0),
+               "SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN");
+      DBUG_RETURN(1);
     }
   }
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
@@ -970,8 +1047,10 @@ int set_var::light_check(THD *thd)
     return 1;
 
   if ((type == OPT_PERSIST_ONLY) &&
-      !(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN")).first))
+      !(sctx->has_global_grant(
+        STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN")).first &&
+        sctx->has_global_grant(
+        STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN")).first))
     return 1;
 
   if (value && ((!value->fixed && value->fix_fields(thd, &value)) ||
@@ -1030,6 +1109,18 @@ int set_var::update(THD *thd)
   return ret;
 }
 
+
+void set_var::print_short(String *str)
+{
+  str->append(var->name.str,var->name.length);
+  str->append(STRING_WITH_LEN("="));
+  if (value)
+    value->print(str, QT_ORDINARY);
+  else
+    str->append(STRING_WITH_LEN("DEFAULT"));
+}
+
+
 /**
   Self-print assignment
 
@@ -1056,12 +1147,7 @@ void set_var::print(THD*, String *str)
     str->append(base.str, base.length);
     str->append(STRING_WITH_LEN("."));
   }
-  str->append(var->name.str,var->name.length);
-  str->append(STRING_WITH_LEN("="));
-  if (value)
-    value->print(str, QT_ORDINARY);
-  else
-    str->append(STRING_WITH_LEN("DEFAULT"));
+  print_short(str);
 }
 
 

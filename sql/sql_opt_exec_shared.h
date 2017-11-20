@@ -23,7 +23,7 @@
 
 #include "my_base.h"
 #include "my_dbug.h"
-#include "sql_alloc.h"          // Sql_alloc
+#include "sql/sql_alloc.h"      // Sql_alloc
 
 class JOIN;
 class Item_func_match;
@@ -244,7 +244,8 @@ public:
     m_quick(NULL),
     prefix_tables_map(0),
     added_tables_map(0),
-    m_ft_func(NULL)
+    m_ft_func(NULL),
+    m_skip_records_in_range(false)
     {}
 
   /*
@@ -338,6 +339,14 @@ public:
   {
     return m_first_inner == m_idx && m_last_inner == m_idx;
   }
+
+  void set_skip_records_in_range(bool skip_records_in_range)
+  {
+    m_skip_records_in_range= skip_records_in_range;
+  }
+
+
+  bool skip_records_in_range() const { return m_skip_records_in_range; }
 
 private:
 
@@ -440,6 +449,12 @@ private:
 
   /** FT function */
   Item_func_match *m_ft_func;
+
+  /**
+    Set if index dive can be skipped for this query.
+    See comments for check_skip_records_in_range_qualification.
+  */
+  bool m_skip_records_in_range;
 };
 
 
@@ -504,6 +519,13 @@ public:
   bool has_guarded_conds() const
   { return ref().has_guarded_conds(); }
   bool and_with_condition(Item *tmp_cond);
+
+  void set_skip_records_in_range(bool skip_records_in_range)
+  {
+    m_qs->set_skip_records_in_range(skip_records_in_range);
+  }
+
+  bool skip_records_in_range() const { return m_qs->skip_records_in_range(); }
 
   void qs_cleanup();
 

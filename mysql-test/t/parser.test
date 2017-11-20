@@ -503,16 +503,6 @@ select concat_ws();
 select concat_ws("foo");
 
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select encrypt();
--- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select encrypt(1, 2, 3);
-
--- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select des_encrypt("p1", "p2", "not expected");
--- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select des_decrypt("p1", "p2", "not expected");
-
--- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select elt();
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select elt(1);
@@ -576,7 +566,7 @@ select master_pos_wait(1);
 
 --disable_result_log
 --error 0,ER_WRONG_ARGUMENTS
-select master_pos_wait('master-bin.999999', 4, -1);
+select master_pos_wait('binlog.999999', 4, -1);
 --enable_result_log
 
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
@@ -784,11 +774,11 @@ alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
 -- error ER_ILLEGAL_HA_CREATE_OPTION
 alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
 
--- error ER_ILLEGAL_HA_CREATE_OPTION
+-- error ER_TABLESPACE_MISSING_WITH_NAME
 alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' initial_size=32M engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
+-- error ER_TABLESPACE_MISSING_WITH_NAME
 alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
+-- error ER_TABLESPACE_MISSING_WITH_NAME
 alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
 
 -- error ER_ILLEGAL_HA_CREATE_OPTION
@@ -796,9 +786,9 @@ drop logfile group ndb_lg1 engine=myisam;
 -- error ER_ILLEGAL_HA_CREATE_OPTION
 drop logfile group ndb_lg1 engine=myisam;
 
--- error ER_ILLEGAL_HA_CREATE_OPTION
+-- error ER_TABLESPACE_MISSING_WITH_NAME
 drop tablespace ndb_ts1 engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
+-- error ER_TABLESPACE_MISSING_WITH_NAME
 drop tablespace ndb_ts1 engine=myisam;
 
 #

@@ -696,4 +696,5 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot delete tablespace .+ in D
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set as discarded");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Trying to access missing tablespace .*");
 -- enable_query_log

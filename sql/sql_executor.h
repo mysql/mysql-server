@@ -25,24 +25,28 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "item.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "records.h"               // READ_RECORD
-#include "sql_alloc.h"
-#include "sql_class.h"             // THD
-#include "sql_lex.h"
-#include "sql_opt_exec_shared.h"   // QEP_shared_owner
-#include "sql_select.h"
-#include "table.h"
-#include "temp_table_param.h"      // Temp_table_param
+#include "mysql/udf_registration_types.h"
+#include "sql/item.h"
+#include "sql/opt_trace.h"
+#include "sql/records.h"           // READ_RECORD
+#include "sql/sql_alloc.h"
+#include "sql/sql_class.h"         // THD
+#include "sql/sql_lex.h"
+#include "sql/sql_opt_exec_shared.h" // QEP_shared_owner
+#include "sql/sql_select.h"
+#include "sql/table.h"
+#include "sql/temp_table_param.h"  // Temp_table_param
 
 class Field;
 class Field_longlong;
 class Filesort;
 class Item_sum;
 class JOIN;
+class Opt_trace_context;
+class Opt_trace_object;
 class QEP_TAB;
 class QUICK_SELECT_I;
 struct st_cache_field;

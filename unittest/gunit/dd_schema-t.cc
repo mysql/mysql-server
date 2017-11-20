@@ -17,14 +17,14 @@
 #include <stddef.h>
 
 #include "dd.h"
-#include "dd/impl/dictionary_impl.h"
-#include "dd/impl/raw/object_keys.h"
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/raw/raw_table.h"
-#include "dd/impl/transaction_impl.h"
-#include "dd/impl/types/schema_impl.h"
-#include "dd/types/object_type.h"
 #include "my_inttypes.h"
+#include "sql/dd/impl/dictionary_impl.h"
+#include "sql/dd/impl/raw/object_keys.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/raw/raw_table.h"
+#include "sql/dd/impl/transaction_impl.h"
+#include "sql/dd/impl/types/schema_impl.h"
+#include "sql/dd/types/object_type.h"
 #include "test_utils.h"
 
 
@@ -107,6 +107,7 @@ protected:
   {
     Update_dictionary_tables_ctx *ctx=
       new (std::nothrow) Update_dictionary_tables_ctx(thd());
+    EXPECT_TRUE(thd()->variables.option_bits & OPTION_DD_UPDATE_CONTEXT);
 
     // Add schema table to transaction context.
     ctx->otx.register_tables<Schema>();
@@ -488,8 +489,8 @@ TEST_F(SchemaTest, GetSchema)
   // Catalog id not exposed in dd api yet
   EXPECT_TRUE(schema->name() == real_name);
   EXPECT_TRUE(schema->default_collation_id() == real_collation_id);
-  EXPECT_TRUE(schema->created() == real_created);
-  EXPECT_TRUE(schema->last_altered() == real_last_altered);
+  EXPECT_TRUE(schema->created(false) == real_created);
+  EXPECT_TRUE(schema->last_altered(false) == real_last_altered);
 
   // Commit transaction and cleanup.
   commit_transaction(ctx, schemata_table);

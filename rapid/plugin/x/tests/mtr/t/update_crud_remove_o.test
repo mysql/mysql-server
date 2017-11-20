@@ -81,7 +81,7 @@ Mysqlx.Crud.Update {
     operation: ITEM_REMOVE
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -127,7 +127,7 @@ Mysqlx.Crud.Update {
     operation: ITEM_REMOVE
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -173,7 +173,7 @@ Mysqlx.Crud.Update {
     operation: ITEM_REMOVE
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -219,7 +219,7 @@ Mysqlx.Crud.Update {
     operation: ITEM_REMOVE
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -265,7 +265,7 @@ Mysqlx.Crud.Update {
     operation: ITEM_REMOVE
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -323,7 +323,7 @@ Mysqlx.Crud.Update {
     operation: ITEM_REMOVE
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -381,7 +381,7 @@ Mysqlx.Crud.Update {
     operation: ITEM_REMOVE
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -427,7 +427,7 @@ Mysqlx.Crud.Update {
     operation: ITEM_REMOVE
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -474,7 +474,7 @@ Mysqlx.Crud.Update {
     operation: ITEM_REMOVE
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -526,7 +526,7 @@ Mysqlx.Crud.Update {
     operation: ITEM_REMOVE
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -573,7 +573,7 @@ Mysqlx.Crud.Update {
     operation: ITEM_REMOVE
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -673,7 +673,7 @@ Mysqlx.Crud.Update {
 -->expecterror 5150
 -->recvresult
 
---echo Remove already removed item
+-->echo # Remove already removed item
 -->sql
 select * from mysqlxcoll.maincoll;
 -->endsql
@@ -717,7 +717,7 @@ Mysqlx.Crud.Update {
 -->sql
 select * from mysqlxcoll.maincoll;
 -->endsql
---echo can not remove immutable document member _id 
+-->echo # Can not remove immutable document member _id 
 Mysqlx.Crud.Update {
   collection {
     name: "maincoll"

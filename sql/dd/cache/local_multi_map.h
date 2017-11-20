@@ -18,9 +18,9 @@
 
 #include <stdio.h>
 
-#include "dd/types/entity_object_table.h"     // dd::Entity_object_table
 #include "multi_map_base.h"                   // Multi_map_base
 #include "my_dbug.h"
+#include "sql/dd/types/entity_object_table.h" // dd::Entity_object_table
 
 namespace dd {
 namespace cache {

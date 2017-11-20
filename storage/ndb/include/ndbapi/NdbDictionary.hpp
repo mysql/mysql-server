@@ -2419,6 +2419,7 @@ public:
     int listIndexes(List & list, const char * tableName);
 #endif
     int listIndexes(List & list, const char * tableName) const;
+    int listIndexes(List & list, const char * tableName, bool fullyQualified) const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**

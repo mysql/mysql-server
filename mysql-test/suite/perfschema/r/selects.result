@@ -80,7 +80,7 @@ FROM performance_schema.events_waits_current);
 END;
 |
 INSERT INTO t1 (id) VALUES (11), (12), (13);
-SELECT id, c FROM t1 WHERE id > 10 ORDER BY c;
+SELECT id, c FROM t1 WHERE id > 10 ORDER BY id, c;
 id	c
 11	[EVENT_ID]
 12	[EVENT_ID]

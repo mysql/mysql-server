@@ -30,22 +30,8 @@
 #include <sys/types.h>
 #include <algorithm>
 
-#include "aggregate_check.h"     // Group_check
-#include "auth_acls.h"
-#include "auth_common.h"         // check_single_table_access
 #include "binary_log_types.h"
-#include "derror.h"              // ER_THD
-#include "enum_query_type.h"
-#include "error_handler.h"       // View_error_handler
-#include "field.h"
-#include "item.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_row.h"
-#include "item_subselect.h"
-#include "item_sum.h"            // Item_sum
 #include "lex_string.h"
-#include "mem_root_array.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -54,29 +40,45 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "opt_hints.h"
-#include "opt_range.h"           // prune_partitions
-#include "opt_trace.h"           // Opt_trace_object
-#include "opt_trace_context.h"
-#include "parse_tree_node_base.h"
-#include "query_options.h"
-#include "query_result.h"        // Query_result
-#include "sql_base.h"            // setup_fields
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_optimizer.h"       // Prepare_error_tracker
-#include "sql_plugin_ref.h"
-#include "sql_select.h"
-#include "sql_servers.h"
-#include "sql_test.h"            // print_where
-#include "system_variables.h"
-#include "table.h"
+#include "sql/aggregate_check.h" // Group_check
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // check_single_table_access
+#include "sql/derror.h"          // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/error_handler.h"   // View_error_handler
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_row.h"
+#include "sql/item_subselect.h"
+#include "sql/item_sum.h"        // Item_sum
+#include "sql/mem_root_array.h"
+#include "sql/opt_hints.h"
+#include "sql/opt_range.h"       // prune_partitions
+#include "sql/opt_trace.h"       // Opt_trace_object
+#include "sql/opt_trace_context.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/query_options.h"
+#include "sql/query_result.h"    // Query_result
+#include "sql/sql_base.h"        // setup_fields
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"   // Prepare_error_tracker
+#include "sql/sql_select.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_test.h"        // print_where
+#include "sql/sql_tmp_table.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
+#include "sql/window.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 static const Item::enum_walk walk_subquery=
   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
@@ -411,7 +413,7 @@ bool SELECT_LEX::prepare(THD *thd)
   }
 
   // Setup full-text functions after resolving HAVING
-  if (has_ft_funcs() && setup_ftfuncs(this))
+  if (has_ft_funcs() && setup_ftfuncs(thd, this))
     DBUG_RETURN(true);
 
   if (query_result() && query_result()->prepare(fields_list, unit))
@@ -425,9 +427,10 @@ bool SELECT_LEX::prepare(THD *thd)
 
   set_sj_candidates(NULL);
 
-  if (outer_select() == NULL ||
-      (parent_lex->sql_command == SQLCOM_SET_OPTION &&
-       outer_select()->outer_select() == NULL))
+  if ((outer_select() == NULL ||
+       (parent_lex->sql_command == SQLCOM_SET_OPTION &&
+        outer_select()->outer_select() == NULL)) &&
+      !skip_local_transforms)
   {
     /*
       This code is invoked in the following cases:
@@ -439,6 +442,8 @@ bool SELECT_LEX::prepare(THD *thd)
           UPDATE t1 SET col1=(subq-1), col2=(subq-2);
       - If this is a subquery in a SET command
         @todo: Refactor SET so that this is not needed.
+      - INSERT may in some cases alter the sequence of preparation calls, by
+        setting the skip_local_transforms flag before calling prepare().
 
       Local transforms are applied after query block merging.
       This means that we avoid unnecessary invocations, as local transforms
@@ -861,7 +866,7 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
       continue;
     table->pos_in_table_list= tr;
     tr->reset();
-    if (tr->process_index_hints(table))
+    if (tr->process_index_hints(thd, table))
       DBUG_RETURN(true);
     if (table->part_info)     // Count number of partitioned tables
       partitioned_table_count++;
@@ -2170,15 +2175,16 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
       @todo: Add analysis step that assigns only the set of non-trivially
       correlated tables to sj_corr_tables.
     */
-    nested_join->sj_corr_tables= subq_pred->used_tables();
+    nested_join->sj_corr_tables= subq_pred->used_tables() & ~INNER_TABLE_BIT;
 
     /*
       sj_depends_on contains the set of outer tables referred in the
       subquery's WHERE clause as well as tables referred in the IN predicate's
       left-hand side.
     */
-    nested_join->sj_depends_on=  subq_pred->used_tables() |
-                                 in_subq_pred->left_expr->used_tables();
+    nested_join->sj_depends_on= (subq_pred->used_tables() |
+                                 in_subq_pred->left_expr->used_tables()) &
+                                 ~INNER_TABLE_BIT;
 
     // Put the subquery's WHERE into semi-join's condition.
     Item *sj_cond= subq_select->where_cond();
@@ -3049,7 +3055,7 @@ bool SELECT_LEX::fix_inner_refs(THD *thd)
 
     if (!ref->fixed && ref->fix_fields(thd, 0))
       return true;         /* purecov: inspected */
-    thd->lex->used_tables|= item->used_tables();
+    thd->lex->used_tables|= item->used_tables() & ~PSEUDO_TABLE_BITS;
     select_list_tables|= item->used_tables();
   }
   return false;
@@ -3758,7 +3764,12 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
 
     for (ORDER *group= group_list.first; group; group= group->next)
     {
-      if (*group->item == item)
+      /*
+        If this item is present in GROUP BY clause, set maybe_null
+        to true as ROLLUP will generate NULL's for this column.
+      */
+      if (*group->item == item ||
+          item->eq(*group->item, false))
       {
         item->maybe_null= true;
         found_in_group= true;

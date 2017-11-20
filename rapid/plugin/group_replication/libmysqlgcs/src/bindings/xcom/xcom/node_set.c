@@ -47,6 +47,8 @@ node_set bit_set_to_node_set(bit_set *set, u_int n) {
 void dump_node_set(node_set set) {
   u_int i;
   GET_GOUT;
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
+    return;
   NDBG(set.node_set_len, u);
   PTREXP(set.node_set_val);
   for (i = 0; i < set.node_set_len; i++) {

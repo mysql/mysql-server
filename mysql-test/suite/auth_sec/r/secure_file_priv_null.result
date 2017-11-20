@@ -4,6 +4,7 @@
 # Search for : --secure-file-priv is set to NULL. Operations
 #              related to importing and exporting data are
 #              disabled
+Pattern "--secure-file-priv is set to NULL. Operations related to importing and exporting data are disabled" found
 show variables like 'secure_file_priv';
 Variable_name	Value
 secure_file_priv	null

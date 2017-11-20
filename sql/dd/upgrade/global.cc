@@ -14,8 +14,18 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql/dd/upgrade/global.h"
+
+#include <stdarg.h>
+
+#include "my_loglevel.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "sql/handler.h"
+#include "sql/log.h"                          // sql_print_error
 #include "sql/sql_base.h"
-#include "log.h"                              // sql_print_error
+#include "sql/sql_class.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
 namespace dd {
 namespace upgrade {

@@ -16,37 +16,39 @@
 
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/equals.hpp>
-#include <boost/geometry/algorithms/overlaps.hpp>
 #include <boost/geometry/geometries/box.hpp>
 #include <boost/geometry/index/rtree.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <stddef.h>
+#include <memory>
 #include <set>
 #include <utility>
 #include <vector>
 
-#include "current_thd.h"
-#include "dd/cache/dictionary_client.h"
-#include "dd/types/spatial_reference_system.h"
-#include "derror.h"                            // ER_THD
-#include "gis/geometries.h"
-#include "gis/relops.h"
-#include "gis/srid.h"
-#include "gis/wkb_parser.h"
-#include "item.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_geofunc.h"
-#include "item_geofunc_internal.h"
-#include "item_geofunc_relchecks_bgwrap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "parse_tree_node_base.h"
-#include "spatial.h"
-#include "sql_class.h"  // THD
-#include "sql_error.h"
+#include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/spatial_reference_system.h"
+#include "sql/derror.h"                        // ER_THD
+#include "sql/gis/geometries.h"
+#include "sql/gis/relops.h"
+#include "sql/gis/srid.h"
+#include "sql/gis/wkb_parser.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_geofunc.h"
+#include "sql/item_geofunc_internal.h"
+#include "sql/item_geofunc_relchecks_bgwrap.h"
+#include "sql/spatial.h"
+#include "sql/sql_class.h" // THD
+#include "sql/sql_error.h"
+#include "sql/sql_exception_handler.h"
+#include "sql/srs_fetcher.h"
 #include "sql_string.h"
 
 namespace boost {
@@ -56,9 +58,6 @@ struct cartesian;
 }  // namespace cs
 }  // namespace geometry
 }  // namespace boost
-namespace dd {
-class Spatial_reference_system;
-}  // namespace dd
 
 /*
   Functions for spatial relations
@@ -1392,10 +1391,8 @@ longlong Item_func_spatial_relation::val_int()
   std::unique_ptr<gis::Geometry> g2;
   dd::cache::Dictionary_client::Auto_releaser
     m_releaser(current_thd->dd_client());
-  // Set force_cartesian to false in call to gis::parse_geometry to enable
-  // geography.
-  if (gis::parse_geometry(current_thd, func_name(), res1, &srs1, &g1, true) ||
-      gis::parse_geometry(current_thd, func_name(), res2, &srs2, &g2, true))
+  if (gis::parse_geometry(current_thd, func_name(), res1, &srs1, &g1) ||
+      gis::parse_geometry(current_thd, func_name(), res2, &srs2, &g2))
   {
     DBUG_RETURN(error_int());
   }
@@ -1409,8 +1406,7 @@ longlong Item_func_spatial_relation::val_int()
   }
 
   bool result;
-  // Replace nullptr with srs1 to enable geography.
-  bool error= eval(nullptr, g1.get(), g2.get(), &result, &null_value);
+  bool error= eval(srs1, g1.get(), g2.get(), &result, &null_value);
 
   if (error)
     DBUG_RETURN(error_int());

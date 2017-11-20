@@ -16,9 +16,9 @@
 #ifndef DD_CACHE__CACHE_ELEMENT_INCLUDED
 #define DD_CACHE__CACHE_ELEMENT_INCLUDED
 
-#include "dd/impl/raw/object_keys.h"      // Primary_id_key
-#include "dd/string_type.h"               // dd::String_type
 #include "my_dbug.h"
+#include "sql/dd/impl/raw/object_keys.h"  // Primary_id_key
+#include "sql/dd/string_type.h"           // dd::String_type
 
 namespace dd_cache_unittest {
   class CacheTestHelper;

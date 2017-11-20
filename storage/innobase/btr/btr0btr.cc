@@ -324,6 +324,10 @@ btr_root_adjust_on_import(
 			flags will not have SDI flag */
 			fsp_flags &= ~FSP_FLAGS_MASK_SDI;
 
+			if (dict_table_is_sdi(index->table->id)) {
+				fsp_flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
+			}
+
 			err = fsp_flags_are_equal(flags, fsp_flags)
 				? DB_SUCCESS : DB_CORRUPTION;
 		}
@@ -4329,7 +4333,7 @@ btr_check_node_ptr(
 	if (dict_index_is_spatial(index)) {
 		ut_a(!cmp_dtuple_rec_with_gis(
 			tuple, btr_cur_get_rec(&cursor),
-			offsets, PAGE_CUR_WITHIN));
+			offsets, PAGE_CUR_WITHIN, index->rtr_srs.get()));
 	} else {
 		ut_a(!cmp_dtuple_rec(
 			     tuple, btr_cur_get_rec(&cursor), index, offsets));
@@ -5300,12 +5304,12 @@ btr_sdi_create(
 	return(index->page);
 }
 
-/** Creates SDI indexes and stores the root page numbers in page 1 & 2
+/** Creates SDI index and stores the root page number in page 1 & 2
 @param[in]	space_id	tablespace id
 @param[in]	dict_locked	true if dict_sys mutex is acquired
 @return DB_SUCCESS on success, else DB_ERROR on failure */
 dberr_t
-btr_sdi_create_indexes(
+btr_sdi_create_index(
 	space_id_t	space_id,
 	bool		dict_locked)
 {
@@ -5315,14 +5319,11 @@ btr_sdi_create_indexes(
 		return(DB_ERROR);
 	}
 
-	dict_table_t*	sdi_tables[MAX_SDI_COPIES];
-	page_no_t	sdi_root_page_num[MAX_SDI_COPIES];
+	dict_table_t*	sdi_table;
+	page_no_t	sdi_root_page_num;
 
-	for (uint32_t	copy_num = 0; copy_num < MAX_SDI_COPIES; ++copy_num) {
-		sdi_tables[copy_num] =  dict_sdi_get_table(
-			space_id, copy_num, dict_locked);
-	        ut_ad(sdi_tables[copy_num] != NULL);
-	}
+	sdi_table = dict_sdi_get_table(space_id, dict_locked, true);
+	ut_ad(sdi_table != NULL);
 
 	mtr_t	mtr;
 	mtr.start();
@@ -5331,30 +5332,21 @@ btr_sdi_create_indexes(
 
 	/* Create B-Tree root page for SDI Indexes */
 
-	for (uint32_t	copy_num = 0; copy_num < MAX_SDI_COPIES; ++copy_num) {
-		sdi_root_page_num[copy_num] = btr_sdi_create(
-			space_id, page_size, &mtr, sdi_tables[copy_num]);
+	sdi_root_page_num = btr_sdi_create(space_id, page_size, &mtr, sdi_table);
 
-		if (sdi_root_page_num[copy_num] == FIL_NULL) {
-			ib::error() <<  "Unable to create root index page"
-				" for SDI table Copy " << copy_num
-				<< " in tablespace " << space_id;
-			mtr.commit();
-			dict_sdi_remove_from_cache(
-				space_id, sdi_tables, dict_locked);
-			fil_space_release(space);
-			return(DB_ERROR);
-		} else {
-			dict_index_t*	index = sdi_tables[copy_num]->first_index();
-			index->page = sdi_root_page_num[copy_num];
-		}
+	if (sdi_root_page_num == FIL_NULL) {
+		ib::error() <<  "Unable to create root index page"
+			" for SDI table "
+			<< " in tablespace " << space_id;
+		mtr.commit();
+		dict_sdi_remove_from_cache(
+			space_id, sdi_table, dict_locked);
+		fil_space_release(space);
+		return(DB_ERROR);
+	} else {
+		dict_index_t*	index = sdi_table->first_index();
+		index->page = sdi_root_page_num;
 	}
-
-	/* Write SDI Index root page numbers to Page 1 & 2 */
-	fsp_sdi_write_root_to_page(space_id, 1, page_size, sdi_root_page_num[0],
-				   sdi_root_page_num[1], &mtr);
-	fsp_sdi_write_root_to_page(space_id, 2, page_size, sdi_root_page_num[0],
-				   sdi_root_page_num[1], &mtr);
 
 	buf_block_t*	block = buf_page_get(page_id_t(space_id, 0), page_size,
 					     RW_SX_LATCH, &mtr);
@@ -5362,6 +5354,9 @@ btr_sdi_create_indexes(
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
 	page_t*	page = buf_block_get_frame(block);
+
+	/* Write SDI Index root page numbers to Page 0 */
+	fsp_sdi_write_root_to_page(page, page_size, sdi_root_page_num, &mtr);
 
 	/* Space flags from memory */
 	ulint	fsp_flags = space->flags;
@@ -5377,9 +5372,7 @@ btr_sdi_create_indexes(
 
 	fil_space_set_flags(space, fsp_flags);
 
-	for (uint32_t	copy_num = 0; copy_num < MAX_SDI_COPIES; ++copy_num) {
-		dict_table_close(sdi_tables[copy_num], dict_locked, false);
-	}
+	dict_table_close(sdi_table, dict_locked, false);
 
 	fil_space_release(space);
 	return(DB_SUCCESS);

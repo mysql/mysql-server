@@ -27,6 +27,7 @@
 
 
 #include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
+#include "sql/sql_table.h"
 
 class THD;
 class sys_var;

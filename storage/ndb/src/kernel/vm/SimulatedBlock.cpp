@@ -4317,6 +4317,7 @@ SimulatedBlock::execLOCAL_ROUTE_ORD(Signal* signal)
 bool
 SimulatedBlock::debugOutOn()
 {
+  return true;
   SignalLoggerManager::LogMode mask = SignalLoggerManager::LogInOut;
   return
     globalData.testOn &&

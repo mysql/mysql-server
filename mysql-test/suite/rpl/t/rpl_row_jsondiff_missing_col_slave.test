@@ -1,0 +1,43 @@
+# ==== Requirements ====
+#
+# R1. When a JSON column is missing on slave, and has partial JSON,
+#     it should be correctly replicated to slave.
+#
+# ==== Implementation ====
+#
+# Create a table with a JSON column, drop the JSON column on the slave,
+# replicate partial JSON, and check that it is correct.
+#
+# ==== References ====
+#
+# Test added in WL#2955: RBR replication of partial JSON updates
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo ######## Configure ########
+
+--source include/rpl_connection_master.inc
+SET SESSION binlog_row_image= MINIMAL;
+SET SESSION binlog_row_value_options= PARTIAL_JSON;
+
+--echo ######## Initialize ########
+
+CREATE TABLE t1 (i INT PRIMARY KEY, j JSON);
+--source include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 DROP COLUMN j;
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (1, '{"a":"b"}');
+
+--echo ######## Test ########
+
+UPDATE t1 SET j=JSON_SET(j, '$.c', "d"), i=2;
+--source include/sync_slave_sql_with_master.inc
+
+--echo ######## Clean up ########
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

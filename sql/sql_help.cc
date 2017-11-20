@@ -17,36 +17,39 @@
 
 #include <string.h>
 #include <sys/types.h>
-
 #include <algorithm>
+#include <atomic>
 
-#include "debug_sync.h"
-#include "field.h"
-#include "handler.h"
-#include "item.h"
-#include "item_cmpfunc.h"           // Item_func_like
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "opt_range.h"              // SQL_SELECT
-#include "opt_trace.h"              // Opt_trace_object
-#include "protocol.h"
-#include "records.h"          // init_read_record, end_read_record
-#include "sql_base.h"               // REPORT_ALL_ERRORS
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_executor.h"                       // QEP_TAB
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_servers.h"
+#include "sql/debug_sync.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"       // Item_func_like
+#include "sql/key_spec.h"
+#include "sql/opt_range.h"          // SQL_SELECT
+#include "sql/opt_trace.h"          // Opt_trace_object
+#include "sql/protocol.h"
+#include "sql/records.h"      // init_read_record, end_read_record
+#include "sql/sql_base.h"           // REPORT_ALL_ERRORS
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_executor.h"                   // QEP_TAB
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_table.h"                      // primary_key_name
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_table.h"                          // primary_key_name
-#include "table.h"
 #include "thr_lock.h"
 #include "typelib.h"
 

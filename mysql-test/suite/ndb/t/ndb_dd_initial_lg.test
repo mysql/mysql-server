@@ -5,7 +5,7 @@
 # BUG#11762867
 # - show that system started with InitialLogFileGroup automatically allocated
 #   extra reserved memory for use by the undo buffer
-select reserved, used from ndbinfo.resources
+select reserved, (used>reserved) from ndbinfo.resources
   where resource_name = 'TRANSACTION_MEMORY'
     order by node_id;
 
@@ -16,7 +16,7 @@ select logfile_group_name, extra from information_schema.files
 
 # - show that the two undofiles was created
 select distinct file_name, initial_size from information_schema.files
-  where file_type = 'UNDO LOG' and file_name is not null
+  where file_type = 'UNDO LOG' and file_name like '%log'
     order by file_name;
 
 

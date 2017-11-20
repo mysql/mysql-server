@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,59 +23,50 @@
 #include <utility>
 #include <vector>
 
-#include "binary_log_types.h"
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd.h"                            // dd::create_object
-#include "dd/dd_table.h"                      // dd::get_sql_type_by_field_info
-#include "dd/impl/cache/shared_dictionary_cache.h"// Shared_dictionary_cache
-#include "dd/impl/cache/storage_adapter.h"    // Storage_adapter
-#include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
-#include "dd/impl/system_registry.h"          // dd::System_tables
-#include "dd/impl/tables/character_sets.h"    // dd::tables::Character_sets
-#include "dd/impl/tables/collations.h"        // dd::tables::Collations
-#include "dd/impl/tables/dd_properties.h"     // dd::tables::DD_properties
-#include "dd/impl/types/plugin_table_impl.h"  // dd::Plugin_table_impl
-#include "dd/impl/types/schema_impl.h"        // dd::Schema_impl
-#include "dd/impl/types/table_impl.h"         // dd::Table_impl
-#include "dd/impl/types/tablespace_impl.h"    // dd::Table_impl
-#include "dd/info_schema/metadata.h"          // dd::info_schema::install_IS...
-#include "dd/object_id.h"
-#include "dd/properties.h"                    // dd::Properties
-#include "dd/types/column.h"                  // dd::Column
-#include "dd/types/object_table.h"            // dd::Object_table
-#include "dd/types/object_table_definition.h" // dd::Object_table_definition
-#include "dd/types/schema.h"
-#include "dd/types/table.h"
-#include "dd/types/tablespace.h"
-#include "dd/types/tablespace_file.h"         // dd::Tablespace_file
-#include "dd/types/view.h"                    // dd::View
-#include "dd/upgrade/upgrade.h"               // dd::migrate_event_to_dd
-#include "error_handler.h"                    // No_such_table_error_handler
-#include "handler.h"                          // dict_init_mode_t
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
-#include "m_string.h"                         // STRING_WITH_LEN
-#include "mdl.h"
 #include "my_dbug.h"
-#include "mysql/plugin.h"
-#include "mysql/psi/mysql_file.h"             // mysql_file_rename
-#include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
-#include "mysql/plugin.h"
-#include "mysqld.h"
 #include "mysqld_error.h"
-#include "sql_base.h"                         // close_thread_tables
-#include "sql_class.h"                        // THD
-#include "sql_error.h"
-#include "sql_list.h"
-#include "sql_prepare.h"                      // Ed_connection
-#include "sql_profile.h"
-#include "sql_show.h"                         // get_schema_table()
-#include "sql_table.h"                        // build_tablename
-#include "system_variables.h"
-#include "table.h"
-#include "transaction.h"                      // trans_rollback
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                        // dd::create_object
+#include "sql/dd/impl/cache/shared_dictionary_cache.h"// Shared_dictionary_cache
+#include "sql/dd/impl/cache/storage_adapter.h" // Storage_adapter
+#include "sql/dd/impl/dictionary_impl.h"      // dd::Dictionary_impl
+#include "sql/dd/impl/raw/object_keys.h"
+#include "sql/dd/impl/sdi.h"                  // dd::sdi::store
+#include "sql/dd/impl/system_registry.h"      // dd::System_tables
+#include "sql/dd/impl/tables/character_sets.h" // dd::tables::Character_sets
+#include "sql/dd/impl/tables/collations.h"    // dd::tables::Collations
+#include "sql/dd/impl/tables/dd_properties.h" // dd::tables::DD_properties
+#include "sql/dd/impl/types/plugin_table_impl.h" // dd::Plugin_table_impl
+#include "sql/dd/impl/types/schema_impl.h"    // dd::Schema_impl
+#include "sql/dd/impl/types/table_impl.h"     // dd::Table_impl
+#include "sql/dd/impl/types/tablespace_impl.h" // dd::Table_impl
+#include "sql/dd/object_id.h"
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/object_table.h"        // dd::Object_table
+#include "sql/dd/types/object_table_definition.h" // dd::Object_table_definition
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/table.h"
+#include "sql/dd/types/tablespace.h"
+#include "sql/dd/types/tablespace_file.h"     // dd::Tablespace_file
+#include "sql/dd/upgrade/upgrade.h"           // dd::migrate_event_to_dd
+#include "sql/error_handler.h"                // No_such_table_error_handler
+#include "sql/handler.h"                      // dict_init_mode_t
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"
+#include "sql/sql_base.h"                     // close_thread_tables
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_list.h"
+#include "sql/sql_prepare.h"                  // Ed_connection
+#include "sql/stateless_allocator.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction.h"                  // trans_rollback
 
 // Execute a single SQL query.
 bool execute_query(THD *thd, const dd::String_type &q_buf)
@@ -459,6 +450,63 @@ bool flush_meta_data(THD *thd)
   // Now, the auto releaser has released the objects, and we can go ahead and
   // reset the shared cache.
   dd::cache::Shared_dictionary_cache::instance()->reset(true);
+
+  if (dd::end_transaction(thd, false))
+  {
+    return true;
+  }
+
+  /*
+    Use a scoped auto releaser to make sure the objects cached for SDI
+    writing and FK parent information reload are released.
+  */
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  // Acquire the DD tablespace and write SDI
+  const Tablespace *dd_tspace= nullptr;
+  if (thd->dd_client()->acquire(dd::String_type(MYSQL_TABLESPACE_NAME.str),
+                                &dd_tspace) ||
+      dd::sdi::store(thd, dd_tspace))
+  {
+    return dd::end_transaction(thd, true);
+  }
+
+  // Acquire the DD schema and write SDI
+  const Schema *dd_schema= nullptr;
+  if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
+                                &dd_schema) ||
+      dd::sdi::store(thd, dd_schema))
+  {
+    return dd::end_transaction(thd, true);
+  }
+
+  // Acquire the DD table objects and write SDI for them. Also sync from
+  // the DD tables in order to get the FK parent informnation reloaded.
+  for (System_tables::Const_iterator it= System_tables::instance()->begin();
+       it != System_tables::instance()->end(); ++it)
+  {
+    const dd::Table *dd_table= nullptr;
+    if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
+                                  (*it)->entity()->name(), &dd_table))
+    {
+      return dd::end_transaction(thd, true);
+    }
+
+    // Make sure the registry of the core DD objects is updated with an
+    // object read from the DD tables, with updated FK parent information.
+    // Store the object to make sure SDI is written.
+    Abstract_table::name_key_type table_key;
+    Abstract_table::update_name_key(&table_key, dd_schema->id(),
+                                    dd_table->name());
+    if (((*it)->property() == System_tables::Types::CORE &&
+         dd::cache::Storage_adapter::instance()->core_sync(thd, table_key,
+                                                           dd_table)) ||
+        dd::sdi::store(thd, dd_table))
+    {
+      return dd::end_transaction(thd, true);
+    }
+  }
+
   bootstrap_stage= bootstrap::BOOTSTRAP_SYNCED;
 
   return dd::end_transaction(thd, false);
@@ -923,8 +971,11 @@ bool initialize(THD *thd)
     Set tx_read_only to false to allow installing DD tables even
     if the server is started with --transaction-read-only=true.
   */
-  thd->variables.tx_read_only= false;
+  thd->variables.transaction_read_only= false;
   thd->tx_read_only= false;
+
+  // Set explicit_defaults_for_timestamp variable for dictionary creation
+  thd->variables.explicit_defaults_for_timestamp= true;
 
   Disable_autocommit_guard autocommit_guard(thd);
 
@@ -959,8 +1010,11 @@ bool restart(THD *thd)
     Set tx_read_only to false to allow installing DD tables even
     if the server is started with --transaction-read-only=true.
   */
-  thd->variables.tx_read_only= false;
+  thd->variables.transaction_read_only= false;
   thd->tx_read_only= false;
+
+  // Set explicit_defaults_for_timestamp variable for dictionary creation
+  thd->variables.explicit_defaults_for_timestamp= true;
 
   Disable_autocommit_guard autocommit_guard(thd);
 
@@ -1021,7 +1075,7 @@ bool setup_dd_objects_and_collations(THD *thd)
     Set tx_read_only to false to allow installing DD tables even
     if the server is started with --transaction-read-only=true.
   */
-  thd->variables.tx_read_only= false;
+  thd->variables.transaction_read_only= false;
   thd->tx_read_only= false;
 
   Disable_autocommit_guard autocommit_guard(thd);

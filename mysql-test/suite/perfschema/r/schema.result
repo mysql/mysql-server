@@ -90,6 +90,7 @@ setup_actors
 setup_consumers
 setup_instruments
 setup_objects
+setup_threads
 setup_timers
 socket_instances
 socket_summary_by_event_name
@@ -402,11 +403,14 @@ events_statements_summary_by_digest	CREATE TABLE `events_statements_summary_by_d
   `SUM_SORT_SCAN` bigint(20) unsigned NOT NULL,
   `SUM_NO_INDEX_USED` bigint(20) unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
-  `FIRST_SEEN` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `LAST_SEEN` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `FIRST_SEEN` timestamp(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
+  `LAST_SEEN` timestamp(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
   `QUANTILE_95` bigint(20) unsigned NOT NULL,
   `QUANTILE_99` bigint(20) unsigned NOT NULL,
   `QUANTILE_999` bigint(20) unsigned NOT NULL,
+  `QUERY_SAMPLE_TEXT` longtext,
+  `QUERY_SAMPLE_SEEN` timestamp(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
+  `QUERY_SAMPLE_TIMER_WAIT` bigint(20) unsigned NOT NULL,
   UNIQUE KEY `SCHEMA_NAME` (`SCHEMA_NAME`,`DIGEST`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_statements_summary_by_host_by_event_name;
@@ -1226,7 +1230,10 @@ Table	Create Table
 setup_instruments	CREATE TABLE `setup_instruments` (
   `NAME` varchar(128) NOT NULL,
   `ENABLED` enum('YES','NO') NOT NULL,
-  `TIMED` enum('YES','NO') NOT NULL,
+  `TIMED` enum('YES','NO') DEFAULT NULL,
+  `PROPERTIES` set('singleton','progress','user','global_statistics','mutable') NOT NULL,
+  `VOLATILITY` int(11) NOT NULL,
+  `DOCUMENTATION` longtext,
   PRIMARY KEY (`NAME`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table setup_objects;

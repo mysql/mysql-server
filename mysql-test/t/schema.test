@@ -310,7 +310,6 @@ CALL mtr.add_suppression("InnoDB: Cannot open datafile");
 CALL mtr.add_suppression("InnoDB: The error means the system cannot find");
 CALL mtr.add_suppression("InnoDB: File ./s/t_innodb.ibd");
 CALL mtr.add_suppression("InnoDB: Operating system error number");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=./s/t_innodb.ibd");
 --enable_query_log
 
 # 1. Create schema, remove directory, then try schema statements.
@@ -572,7 +571,7 @@ connection default;
 --echo # ... and error log too. Let's check that.
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 --let SEARCH_PATTERN= Problem while dropping database. Can't remove database directory .* Please remove it manually.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # Clean-up.
 --remove_file $MYSQLD_DATADIR/db1

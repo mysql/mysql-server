@@ -263,8 +263,11 @@ NdbRestarter::getRandomNodeOtherNodeGroup(int nodeId, int rand){
     return -1;
   
   int node_group = -1;
-  for(unsigned i = 0; i < ndbNodes.size(); i++){
-    if(ndbNodes[i].node_id == nodeId){
+  for (unsigned i = 0; i < ndbNodes.size(); i++)
+  {
+    if (ndbNodes[i].node_id == nodeId &&
+        ndbNodes[i].node_group <= MAX_NDB_NODE_GROUPS)
+    {
       node_group = ndbNodes[i].node_group;
       break;
     }

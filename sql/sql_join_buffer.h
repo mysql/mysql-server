@@ -18,14 +18,14 @@
 
 #include <string.h>
 #include <sys/types.h>
-#include <algorithm>
 
-#include "handler.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h"
-#include "sql_executor.h"  // QEP_operation
+#include "mysql/udf_registration_types.h"
+#include "sql/handler.h"
+#include "sql/sql_executor.h" // QEP_operation
 
 class Field;
 class Item;

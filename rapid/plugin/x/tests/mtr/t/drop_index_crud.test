@@ -128,7 +128,7 @@ Mysqlx.Sql.StmtExecute {
 -->endmacro
 
 -->sql
--- "Creating database for testcase"
+#-- "Creating database for testcase"
 CREATE DATABASE xplugintest;
 USE xplugintest;
 -->endsql
@@ -766,7 +766,7 @@ ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 -->endsql
 
--- Drop two-fields index
+#-- Drop two-fields index
 
 Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -1057,7 +1057,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->echo Error scenarios when dropping the index
 
--- drop index for non-existing schema
+#-- drop index for non-existing schema
 Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
   args {
@@ -1090,7 +1090,7 @@ Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 -->recv
--- drop index for non-existing collection
+#-- drop index for non-existing collection
 Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
   args {
@@ -1123,7 +1123,7 @@ Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 -->recv
--- drop index for non-existing index
+#-- drop index for non-existing index
 Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
   args {
@@ -1157,7 +1157,7 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recv
 
--- ERROR scenario: create index of not supported type:
+#-- ERROR scenario: create index of not supported type:
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
   args {
@@ -1279,7 +1279,7 @@ SHOW CREATE TABLE xplugintest.table1;
 -->endsql
 
 
---echo drop fulltext index
+#-- Drop fulltext index
 Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
   args {
@@ -1382,7 +1382,7 @@ Mysqlx.Sql.StmtExecute {
 
 
 -->sql
--- drop column drop index as well
+#-- drop column drop index as well
 SHOW CREATE TABLE xplugintest.table1;
 ALTER TABLE xplugintest.table1 DROP COLUMN subject;
 ANALYZE TABLE xplugintest.table1;

@@ -19,9 +19,16 @@
   Functions to authenticate and handle requests for a connection
 */
 
-#include "sql_connect.h"
+#include "sql/sql_connect.h"
 
 #include "my_config.h"
+
+#include "my_loglevel.h"
+#include "my_psi_config.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/udf_registration_types.h"
+#include "pfs_thread_provider.h"
+#include "sql/session_tracker.h"
 
 #ifndef _WIN32
 #include <netdb.h>
@@ -34,21 +41,14 @@
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 #include <algorithm>
+#include <atomic>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"                // SUPER_ACL
-#include "derror.h"                     // ER_THD
-#include "handler.h"
-#include "hash.h"                       // HASH
-#include "hostname.h"                   // Host_errors
-#include "item_func.h"                  // mqh_used
-#include "key.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"                   // my_stpcpy
 #include "map_helpers.h"
@@ -58,25 +58,29 @@
 #include "my_sys.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/mysql_statement.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"                     // LOCK_user_conn
 #include "mysqld_error.h"
-#include "protocol.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"
-#include "session_tracker.h"
-#include "sql_audit.h"                  // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
-#include "sql_class.h"                  // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_parse.h"                  // sql_command_flags
-#include "sql_plugin.h"                 // plugin_thdvar_cleanup
-#include "sql_security_ctx.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"       // SUPER_ACL
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"                 // ER_THD
+#include "sql/hostname.h"               // Host_errors
+#include "sql/item_func.h"              // mqh_used
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"                 // LOCK_user_conn
+#include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_audit.h"              // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
+#include "sql/sql_class.h"              // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"              // sql_command_flags
+#include "sql/sql_plugin.h"             // plugin_thdvar_cleanup
+#include "sql/system_variables.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "template_utils.h"
 #include "violite.h"
 
 #ifdef HAVE_ARPA_INET_H
@@ -677,7 +681,9 @@ static int check_connection(THD *thd)
     return 1;
   }
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(notify_session_connect)(thd->get_psi());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   if (auth_rc == 0 && connect_errors != 0)
   {
@@ -754,7 +760,9 @@ void end_connection(THD *thd)
 
   mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT), 0);
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(notify_session_disconnect)(thd->get_psi());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   plugin_thdvar_cleanup(thd, thd->m_enable_plugins);
 
@@ -910,7 +918,9 @@ void close_connection(THD *thd, uint sql_errno,
     mysql_audit_notify(thd,
                        AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT),
                        sql_errno);
+#ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(notify_session_disconnect)(thd->get_psi());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
   }
 
   thd->security_context()->logout();

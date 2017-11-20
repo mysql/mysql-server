@@ -191,14 +191,14 @@ DROP DATABASE db1;
 --echo # However with WL#6599, we do not open the under lying table for every
 --echo # row fetch for INFORMATION_SCHEMA.TABLES by default. This
 --echo # demands following two things,
---echo # 1. Use of configuration variable 
---echo #    'information_schema_stats' to be set to 'latest',
+--echo # 1. Use of configuration variable
+--echo #    'information_schema_stats_expiry' to be set to '0',
 --echo #    which would make INFORMATION_SCHEMA implementation to access
---echo #    storage engine to open the table and fetch dynamic statistics. 
+--echo #    storage engine to open the table and fetch dynamic statistics.
 --echo # 2. Use a column of INFORMATION_SCHEMA.TABLES which would fetch
 --echo #    dynamic table statistics, which would trigger 1.
 --echo #
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 
 CREATE TABLE t1(a CHAR(4)) ENGINE=MYISAM;
 SELECT table_rows, row_format, table_comment FROM information_schema.tables
@@ -227,4 +227,4 @@ SELECT table_rows, row_format, table_comment FROM information_schema.tables
   WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
 DROP TABLE t1;
 
-SET SESSION information_schema_stats=cached;
+SET SESSION information_schema_stats_expiry=default;

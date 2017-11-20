@@ -42,7 +42,7 @@ class NdbReceiver
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
   friend class NdbTransaction;
-  friend class NdbRootFragment;
+  friend class NdbWorker;
   friend int compare_ndbrecord(const NdbReceiver *r1,
                       const NdbReceiver *r2,
                       const NdbRecord *key_record,

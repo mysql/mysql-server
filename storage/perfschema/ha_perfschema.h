@@ -18,8 +18,8 @@
 
 #include <sys/types.h>
 
-#include "handler.h" /* class handler */
 #include "my_inttypes.h"
+#include "sql/handler.h" /* class handler */
 
 /**
   @file storage/perfschema/ha_perfschema.h
@@ -241,20 +241,6 @@ public:
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
-
-  virtual uint8
-  table_cache_type(void)
-  {
-    return HA_CACHE_TBL_NOCACHE;
-  }
-
-  virtual bool
-  register_query_cache_table(
-    THD *, char *, size_t, qc_engine_callback *engine_callback, ulonglong *)
-  {
-    *engine_callback = 0;
-    return FALSE;
-  }
 
   virtual void print_error(int error, myf errflags);
 

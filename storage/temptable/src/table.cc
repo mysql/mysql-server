@@ -23,7 +23,11 @@ TempTable Table implementation. */
 #include <utility>       /* std::pair */
 #include <vector>        /* std::vector */
 
-#include "field.h"                /* Field */
+#include "my_base.h"              /* HA_KEY_ALG_* */
+#include "my_dbug.h"              /* DBUG_ASSERT(), DBUG_ABORT() */
+#include "sql/field.h"            /* Field */
+#include "sql/key.h"              /* KEY */
+#include "sql/table.h"            /* TABLE, TABLE_SHARE */
 #include "temptable/allocator.h"     /* temptable::Allocator */
 #include "temptable/cursor.h"        /* temptable::Cursor */
 #include "temptable/index.h"         /* temptable::Index */
@@ -31,10 +35,6 @@ TempTable Table implementation. */
 #include "temptable/result.h"        /* temptable::Result */
 #include "temptable/row.h"           /* temptable::Row */
 #include "temptable/table.h"         /* temptable::Table */
-#include "key.h"                  /* KEY */
-#include "my_base.h"              /* HA_KEY_ALG_* */
-#include "my_dbug.h"              /* DBUG_ASSERT(), DBUG_ABORT() */
-#include "table.h"                /* TABLE, TABLE_SHARE */
 
 namespace temptable {
 
@@ -162,14 +162,6 @@ Result Table::update(const unsigned char* mysql_row_old,
 #ifndef DBUG_OFF
   if (m_all_columns_are_fixed_size) {
     DBUG_ASSERT(m_rows.element_size() == m_mysql_row_length);
-#ifndef HAVE_VALGRIND
-    /* We don't bother to explicitly memset() all the bits in the
-     * memory we ship to MySQL for performance reasons. This is ok,
-     * because the unset bits are not read, except in the memcmp()
-     * below which is a naive and fast way to compare the two rows. */
-//  Disable the assert, we want to run valgrind/asan/ubsan without HAVE_VALGRIND
-//  DBUG_ASSERT(memcmp(mysql_row_old, target_row, m_mysql_row_length) == 0);
-#endif /* HAVE_VALGRIND */
   } else {
     DBUG_ASSERT(m_rows.element_size() == sizeof(Row));
     Row* row_in_m_rows = reinterpret_cast<Row*>(target_row);
@@ -308,18 +300,6 @@ Result Table::remove(const unsigned char* mysql_row_must_be,
   /* Check that `mysql_row_must_be` equals the row pointed to by
    * `victim_position`. */
   if (m_all_columns_are_fixed_size) {
-#ifndef HAVE_VALGRIND
-    /* We don't bother to explicitly memset() all the bits in the
-     * memory we ship to MySQL for performance reasons. This is ok,
-     * because the unset bits are not read, except in the memcmp()
-     * below which is a naive and fast way to compare the two rows. */
-
-    /* *victim_position is a pointer to a buffer in the MySQL write_row()
-     * format, same as `mysql_row_must_be`. */
-//  Disable the assert, we want to run valgrind/asan/ubsan without HAVE_VALGRIND
-//  DBUG_ASSERT(
-//      memcmp(mysql_row_must_be, *victim_position, m_mysql_row_length) == 0);
-#endif /* HAVE_VALGRIND */
   } else {
     /* *victim_position is a pointer to an `temptable::Row` object. */
     Row* row_our = reinterpret_cast<Row*>(*victim_position);

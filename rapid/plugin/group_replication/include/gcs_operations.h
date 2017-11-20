@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -95,6 +95,17 @@ public:
   enum enum_gcs_error configure(const Gcs_interface_parameters& parameters);
 
   /**
+    Configure the debug options that shall be used by GCS.
+
+    @param debug_options Set of debug options separated by comma
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  enum enum_gcs_error set_debug_options(std::string &debug_options) const;
+
+  /**
     Request server to join the group.
 
     @param[in] communication_event_listener The communication event listener
@@ -177,6 +188,12 @@ public:
   static const std::string& get_gcs_engine();
 
 private:
+  /**
+    Internal function that configures the debug options that shall be used by
+    GCS.
+  */
+  enum enum_gcs_error do_set_debug_options(std::string &debug_options) const;
+
   static const std::string gcs_engine;
   Gcs_gr_logger_impl gcs_logger;
   Gcs_interface *gcs_interface;

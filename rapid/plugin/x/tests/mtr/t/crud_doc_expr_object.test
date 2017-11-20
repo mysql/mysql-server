@@ -1,4 +1,4 @@
-## Using Mysqlx::Expr::OBJECT in collection 
+## Using Mysqlx::Expr::OBJECT in collection
 
 ## Preamble
 --source include/xplugin_preamble.inc
@@ -9,8 +9,11 @@
 -->sql
 DROP SCHEMA IF EXISTS xtest;
 CREATE SCHEMA xtest;
-CREATE TABLE xtest.xcoll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY);
 -->endsql
+
+-->stmtadmin create_collection	{"schema":"xtest", "name":"xcoll"}
+-->recvresult
+
 
 -->echo Inserting object into collection
 Mysqlx.Crud.Insert {
@@ -45,7 +48,7 @@ Mysqlx.Crud.Insert {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -109,7 +112,7 @@ Mysqlx.Crud.Find {
   }
 }
   
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 
@@ -158,7 +161,7 @@ Mysqlx.Crud.Find {
   }
 }
   
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 
@@ -229,7 +232,7 @@ Mysqlx.Crud.Find {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 
@@ -264,7 +267,7 @@ Mysqlx.Crud.Update {
   }
 }
   
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql

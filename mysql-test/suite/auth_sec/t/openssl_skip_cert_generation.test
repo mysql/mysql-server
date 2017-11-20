@@ -10,7 +10,7 @@ call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
 
 # We let our server restart attempts write to the file $server_log.
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-# $server_log has to be processed by include/search_pattern_in_file.inc which
+# $server_log has to be processed by include/search_pattern.inc which
 # contains Perl code requiring that the environment variable SEARCH_FILE points
 # to this file.
 let SEARCH_FILE= $server_log;
@@ -38,7 +38,7 @@ EOF
 
 --echo # Search for : Messages related to skipped generation of SSL certificates and RSA key pair files.
 let SEARCH_PATTERN= Skipping generation of SSL certificates as certificate files are present in data directory;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # Remove auto generated files and restart
 --exec echo "wait" > $restart_file

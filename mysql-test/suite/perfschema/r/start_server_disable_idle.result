@@ -89,6 +89,7 @@ select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
+select * from performance_schema.setup_threads;
 select * from performance_schema.setup_timers;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
@@ -118,7 +119,7 @@ show engine PERFORMANCE_SCHEMA status;
 show global status like "performance_schema%";
 select * from performance_schema.setup_instruments
 where name like "idle" and enabled='YES';
-NAME	ENABLED	TIMED
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 select * from performance_schema.events_waits_summary_global_by_event_name
 where event_name like "idle" and count_star > 0;
 EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT

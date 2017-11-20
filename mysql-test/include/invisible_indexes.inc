@@ -2,7 +2,7 @@
 --echo # WL#8697: Invisible Indexes
 --echo #
 
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 
 --echo # Test of ALTER INDEX syntax.
 
@@ -268,7 +268,7 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t1 (
   fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  g GEOMETRY NOT NULL,
+  g GEOMETRY NOT NULL SRID 0,
   SPATIAL KEY(g)
 );
 

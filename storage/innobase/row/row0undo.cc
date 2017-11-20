@@ -265,7 +265,6 @@ row_undo(
 	dberr_t		err;
 	trx_t*		trx;
 	roll_ptr_t	roll_ptr;
-	ibool		locked_data_dict;
 
 	ut_ad(node != NULL);
 	ut_ad(thr != NULL);
@@ -305,18 +304,10 @@ row_undo(
 		}
 	}
 
-	/* Prevent DROP TABLE etc. while we are rolling back this row.
-	If we are doing a TABLE CREATE or some other dictionary operation,
-	then we already have dict_operation_lock locked in x-mode. Do not
-	try to lock again, because that would cause a hang. */
-
-	locked_data_dict = (trx->dict_operation_lock_mode == 0);
-
-	if (locked_data_dict) {
-
-		row_mysql_freeze_data_dictionary(trx);
-	}
-
+	/* During rollback, trx is holding at least LOCK_IX on each
+	modified table. It may also hold MDL. A concurrent DROP TABLE
+	or ALTER TABLE should be impossible, because it should be
+	holding both LOCK_X and MDL_EXCLUSIVE on the table. */
 	if (node->state == UNDO_NODE_INSERT) {
 
 		err = row_undo_ins(node, thr);
@@ -325,11 +316,6 @@ row_undo(
 	} else {
 		ut_ad(node->state == UNDO_NODE_MODIFY);
 		err = row_undo_mod(node, thr);
-	}
-
-	if (locked_data_dict) {
-
-		row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	/* Do some cleanup */

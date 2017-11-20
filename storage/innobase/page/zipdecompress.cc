@@ -30,6 +30,7 @@ external tools. */
 
 #include <stdarg.h>
 #include <sys/types.h>
+#include <zlib.h>
 
 #include "btr0btr.h"
 #include "mem0mem.h"
@@ -38,7 +39,6 @@ external tools. */
 #include "page/zipdecompress.h"
 #include "page0page.h"
 #include "rem0rec.h"
-#include "zlib.h"
 
 /* Enable some extra debugging output.  This code can be enabled
 independently of any UNIV_ debugging conditions. */

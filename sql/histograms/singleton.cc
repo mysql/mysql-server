@@ -18,28 +18,27 @@
   Singleton histogram (implementation).
 */
 
-#include "singleton.h"
+#include "sql/histograms/singleton.h"
 
 #include <new>
 #include <utility>          // std::make_pair
 
 #include "binary_log_types.h"
-#include "float_compare.h"
-#include "json_dom.h"       // Json_*
 #include "my_base.h"        // ha_rows
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql_time.h"
 #include "sql/histograms/value_map.h"      // Value_map
+#include "sql/json_dom.h"   // Json_*
 
 namespace histograms {
 
 template <class T>
 Singleton<T>::Singleton(MEM_ROOT *mem_root, const std::string &db_name,
                         const std::string &tbl_name,
-                        const std::string &col_name)
+                        const std::string &col_name, Value_map_type data_type)
   :Histogram(mem_root, db_name, tbl_name, col_name,
-             enum_histogram_type::SINGLETON),
+             enum_histogram_type::SINGLETON, data_type),
    m_buckets(Histogram_comparator(), singleton_buckets_allocator(mem_root))
 {}
 
@@ -48,14 +47,14 @@ template <class T>
 Singleton<T>::Singleton(MEM_ROOT *mem_root, const Singleton<T> &other)
   :Histogram(mem_root, other),
   m_buckets(other.m_buckets.begin(), other.m_buckets.end(),
-            Histogram_comparator(), value_map_allocator<T>(mem_root))
+            Histogram_comparator(), singleton_buckets_allocator(mem_root))
 {}
 
 
 template <>
 Singleton<String>::Singleton(MEM_ROOT *mem_root, const Singleton<String> &other)
   :Histogram(mem_root, other),
-  m_buckets(Histogram_comparator(), value_map_allocator<String>(mem_root))
+  m_buckets(Histogram_comparator(), singleton_buckets_allocator(mem_root))
 {
   /*
     Copy bucket contents. We need to make duplicates of String data, since they
@@ -168,7 +167,7 @@ bool Singleton<T>::histogram_to_json(Json_object *json_object) const
   if (json_object->add_clone(buckets_str(), &json_buckets))
     return true;                              /* purecov: inspected */
 
-  if (Histogram::histogram_data_type_to_json<T>(json_object))
+  if (histogram_data_type_to_json(json_object))
     return true;                              /* purecov: inspected */
   return false;
 }
@@ -337,6 +336,70 @@ Histogram *Singleton<T>::clone(MEM_ROOT *mem_root) const
   catch (const std::bad_alloc&)
   {
     return nullptr; /* purecov: deadcode */
+  }
+}
+
+
+template <class T>
+double Singleton<T>::get_equal_to_selectivity(const T& value) const
+{
+  /*
+    Find the first histogram bucket where the value is not less than the
+    user-provided value.
+  */
+  const auto found= m_buckets.lower_bound(value);
+
+  if (found == m_buckets.end())
+    return 0.0;
+
+  if (Histogram_comparator()(value, found->first) == 0)
+  {
+    if (found == m_buckets.begin())
+      return found->second;
+    else
+    {
+      const auto previous= std::prev(found, 1);
+      return found->second - previous->second;
+    }
+  }
+
+  return 0.0;
+}
+
+
+template <class T>
+double Singleton<T>::get_less_than_selectivity(const T& value) const
+{
+  /*
+    Find the first histogram bucket where the value is not less than the
+    user-provided value.
+  */
+  const auto found= m_buckets.lower_bound(value);
+  if (found == m_buckets.begin())
+    return 0.0;
+  else
+  {
+    const auto previous= std::prev(found, 1);
+    return previous->second;
+  }
+}
+
+
+template <class T>
+double Singleton<T>::get_greater_than_selectivity(const T& value) const
+{
+  /*
+    Find the first histogram bucket where the value is greater than the
+    user-provided value.
+  */
+  const auto found= m_buckets.upper_bound(value);
+
+  if (found == m_buckets.begin())
+    return get_non_null_values_frequency();
+  else
+  {
+    const auto previous= std::prev(found, 1);
+    return get_non_null_values_frequency() - previous->second;
   }
 }
 

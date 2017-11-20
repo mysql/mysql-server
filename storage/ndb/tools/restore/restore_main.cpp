@@ -120,6 +120,9 @@ enum ndb_restore_options {
   OPT_INCLUDE_DATABASES,
   OPT_EXCLUDE_DATABASES,
   OPT_REWRITE_DATABASE
+#ifdef ERROR_INSERT
+  ,OPT_ERROR_INSERT
+#endif
 };
 static const char *opt_fields_enclosed_by= NULL;
 static const char *opt_fields_terminated_by= NULL;
@@ -316,7 +319,7 @@ static struct my_option my_long_options[] =
     (uchar**) &ga_skip_broken_objects, (uchar**) &ga_skip_broken_objects, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
 #ifdef ERROR_INSERT
-  { "error-insert", NDB_OPT_NOSHORT,
+  { "error-insert", OPT_ERROR_INSERT,
     "Insert errors (testing option)",
     (uchar **)&_error_insert, (uchar **)&_error_insert, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -1311,7 +1314,7 @@ main(int argc, char** argv)
   debug << "Start restoring meta data" << endl;
 
   RestoreMetaData metaData(ga_backupPath, ga_nodeId, ga_backupId);
-#ifdef ERROR_INSERTED 
+#ifdef ERROR_INSERT
   if(_error_insert > 0)
   {
     metaData.error_insert(_error_insert);

@@ -376,6 +376,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.35,
@@ -398,6 +401,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 1,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -423,6 +429,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 1,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -449,6 +458,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                               "considered_access_paths": [
                                 {
                                   "rows_to_scan": 1,
+                                  "filtering_effect": [
+                                  ] /* filtering_effect */,
+                                  "final_filtering_effect": 1,
                                   "access_type": "scan",
                                   "using_join_cache": true,
                                   "buffers_needed": 1,
@@ -472,6 +484,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                                         "considered_access_paths": [
                                           {
                                             "rows_to_scan": 1,
+                                            "filtering_effect": [
+                                            ] /* filtering_effect */,
+                                            "final_filtering_effect": 1,
                                             "access_type": "scan",
                                             "using_join_cache": true,
                                             "buffers_needed": 1,
@@ -510,6 +525,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 1,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -533,6 +551,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                                     "considered_access_paths": [
                                       {
                                         "rows_to_scan": 1,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "using_join_cache": true,
                                         "buffers_needed": 1,
@@ -569,6 +590,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                               "considered_access_paths": [
                                 {
                                   "rows_to_scan": 1,
+                                  "filtering_effect": [
+                                  ] /* filtering_effect */,
+                                  "final_filtering_effect": 1,
                                   "access_type": "scan",
                                   "using_join_cache": true,
                                   "buffers_needed": 1,
@@ -605,6 +629,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 1,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -630,6 +657,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 1,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -656,6 +686,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.35,
@@ -678,6 +711,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.35,
@@ -700,6 +736,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.35,
@@ -724,6 +763,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 1,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "using_join_cache": true,
                             "buffers_needed": 1,
@@ -872,6 +914,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.35,
@@ -892,6 +937,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 1,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -916,6 +964,9 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.35,
@@ -1519,6 +1570,9 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "considered_access_paths": [
                                           {
                                             "rows_to_scan": 4,
+                                            "filtering_effect": [
+                                            ] /* filtering_effect */,
+                                            "final_filtering_effect": 1,
                                             "access_type": "scan",
                                             "resulting_rows": 4,
                                             "cost": 0.9017,
@@ -1780,6 +1834,9 @@ ON table2 .col_int_key = table1 .col_int_key
                           },
                           {
                             "rows_to_scan": 4,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 4,
                             "cost": 0.9017,
@@ -1807,6 +1864,9 @@ ON table2 .col_int_key = table1 .col_int_key
                               },
                               {
                                 "rows_to_scan": 4,
+                                "filtering_effect": [
+                                ] /* filtering_effect */,
+                                "final_filtering_effect": 1,
                                 "access_type": "scan",
                                 "using_join_cache": true,
                                 "buffers_needed": 1,
@@ -1837,6 +1897,9 @@ ON table2 .col_int_key = table1 .col_int_key
                           },
                           {
                             "rows_to_scan": 4,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 4,
                             "cost": 0.9017,
@@ -1864,6 +1927,9 @@ ON table2 .col_int_key = table1 .col_int_key
                               },
                               {
                                 "rows_to_scan": 4,
+                                "filtering_effect": [
+                                ] /* filtering_effect */,
+                                "final_filtering_effect": 1,
                                 "access_type": "scan",
                                 "using_join_cache": true,
                                 "buffers_needed": 1,
@@ -1895,6 +1961,9 @@ ON table2 .col_int_key = table1 .col_int_key
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 6,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 6,
                       "cost": 1.1048,
@@ -1924,6 +1993,9 @@ ON table2 .col_int_key = table1 .col_int_key
                         },
                         {
                           "rows_to_scan": 4,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -1956,6 +2028,9 @@ ON table2 .col_int_key = table1 .col_int_key
                             },
                             {
                               "rows_to_scan": 4,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -1986,6 +2061,9 @@ ON table2 .col_int_key = table1 .col_int_key
                                       },
                                       {
                                         "rows_to_scan": 4,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 4,
                                         "cost": 10.821,
@@ -2035,6 +2113,9 @@ ON table2 .col_int_key = table1 .col_int_key
                         },
                         {
                           "rows_to_scan": 4,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -2067,6 +2148,9 @@ ON table2 .col_int_key = table1 .col_int_key
                             },
                             {
                               "rows_to_scan": 4,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -2097,6 +2181,9 @@ ON table2 .col_int_key = table1 .col_int_key
                                       },
                                       {
                                         "rows_to_scan": 4,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 4,
                                         "cost": 10.821,
@@ -2146,6 +2233,9 @@ ON table2 .col_int_key = table1 .col_int_key
                     },
                     {
                       "rows_to_scan": 4,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 4,
                       "cost": 0.9017,
@@ -2168,6 +2258,9 @@ ON table2 .col_int_key = table1 .col_int_key
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 6,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -2200,6 +2293,9 @@ ON table2 .col_int_key = table1 .col_int_key
                             },
                             {
                               "rows_to_scan": 4,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -2241,6 +2337,9 @@ ON table2 .col_int_key = table1 .col_int_key
                         },
                         {
                           "rows_to_scan": 4,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -2270,6 +2369,9 @@ ON table2 .col_int_key = table1 .col_int_key
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 6,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -2299,6 +2401,9 @@ ON table2 .col_int_key = table1 .col_int_key
                                       },
                                       {
                                         "rows_to_scan": 4,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 4,
                                         "cost": 0.9017,
@@ -2331,6 +2436,9 @@ ON table2 .col_int_key = table1 .col_int_key
                                     "considered_access_paths": [
                                       {
                                         "rows_to_scan": 6,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "using_join_cache": true,
                                         "buffers_needed": 1,
@@ -2376,6 +2484,9 @@ ON table2 .col_int_key = table1 .col_int_key
                     },
                     {
                       "rows_to_scan": 4,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 4,
                       "cost": 0.9017,
@@ -2398,6 +2509,9 @@ ON table2 .col_int_key = table1 .col_int_key
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 6,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -2430,6 +2544,9 @@ ON table2 .col_int_key = table1 .col_int_key
                             },
                             {
                               "rows_to_scan": 4,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -2471,6 +2588,9 @@ ON table2 .col_int_key = table1 .col_int_key
                         },
                         {
                           "rows_to_scan": 4,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -2500,6 +2620,9 @@ ON table2 .col_int_key = table1 .col_int_key
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 6,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -2529,6 +2652,9 @@ ON table2 .col_int_key = table1 .col_int_key
                                       },
                                       {
                                         "rows_to_scan": 4,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 4,
                                         "cost": 0.9017,
@@ -2556,6 +2682,9 @@ ON table2 .col_int_key = table1 .col_int_key
                                     "considered_access_paths": [
                                       {
                                         "rows_to_scan": 6,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "using_join_cache": true,
                                         "buffers_needed": 1,
@@ -2582,6 +2711,9 @@ ON table2 .col_int_key = table1 .col_int_key
                                     "considered_access_paths": [
                                       {
                                         "rows_to_scan": 6,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "using_join_cache": true,
                                         "buffers_needed": 1,
@@ -2630,13 +2762,6 @@ ON table2 .col_int_key = table1 .col_int_key
                 "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
-          },
-          {
-            "subselect_execution": {
-              "select#": 2,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
           },
           {
             "attaching_conditions_to_tables": {
@@ -2820,6 +2945,13 @@ ON table2 .col_int_key = table1 .col_int_key
           {
             "subselect_execution": {
               "select#": 4,
+              "steps": [
+              ] /* steps */
+            } /* subselect_execution */
+          },
+          {
+            "subselect_execution": {
+              "select#": 2,
               "steps": [
               ] /* steps */
             } /* subselect_execution */

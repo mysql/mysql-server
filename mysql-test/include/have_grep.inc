@@ -12,6 +12,7 @@ if ($status)
 {
   --skip Test requires gnu grep
 }
+--let $GREP= grep
 --enable_query_log
 --enable_result_log
 

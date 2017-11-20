@@ -29,7 +29,7 @@ select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 g
 --error 1250
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by t1.b;
 --replace_column 10 # 11 #
-explain extended (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
+explain (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
 select count(*) from (
 (select                      a,b from t1 limit 2)  union all (select a,b from t2 order by a)) q;
 (select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
@@ -39,7 +39,7 @@ select                      a,b from t1  union all select a,b from t2) q;
 select sql_calc_found_rows  a,b from t1  union all select a,b from t2 limit 2;
 select found_rows();
 --replace_column 10 # 11 #
-explain extended 
+explain 
   select * from t1 where a in
     (select a from t1 union select a from t1 order by (select a))
   union select * from t1 order by (select a);
@@ -355,7 +355,7 @@ insert into t1 (b) values (1),(2),(2),(3);
 insert into t2 (b) values (10),(11),(12),(13);
 analyze table t1;
 
-explain extended (select * from t1 where a=1) union (select * from t2 where a=1);
+explain (select * from t1 where a=1) union (select * from t2 where a=1);
 (select * from t1 where a=5) union (select * from t2 where a=1);
 (select * from t1 where a=5 and a=6) union (select * from t2 where a=1);
 (select t1.a,t1.b from t1,t2 where t1.a=5) union (select * from t2 where a=1);
@@ -1085,10 +1085,10 @@ SHOW FIELDS FROM t2;
 DROP TABLE t1, t2;
 
 #
-# Bug#43612 crash with explain extended, union, order by
+# Bug#43612 crash with explain, union, order by
 #
 CREATE TABLE t1(a INT);
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT a FROM t1
 UNION
 SELECT a FROM t1
@@ -1142,7 +1142,7 @@ DROP TABLE t1;
 remove_files_wildcard $MYSQLTEST_VARDIR/mysqld.1/data/test union.out.fil*;
 
 --echo # 
---echo # Bug #49734: Crash on EXPLAIN EXTENDED UNION ... ORDER BY 
+--echo # Bug #49734: Crash on EXPLAIN UNION ... ORDER BY 
 --echo #   <any non-const-function>
 --echo # 
 
@@ -1152,14 +1152,14 @@ CREATE TABLE t2 (b INT);
 INSERT INTO t2 VALUES (1),(2);
 
 --echo # Should not crash
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
 
 --echo # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
 
 --echo # Should not crash
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM t1 UNION SELECT * FROM t1
   ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
 
@@ -1179,7 +1179,7 @@ SELECT * FROM t1 UNION SELECT * FROM t1
 
 
 --echo # Should not crash
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM t1 UNION SELECT * FROM t1
   ORDER BY (SELECT a FROM t2 WHERE b = 12);
 

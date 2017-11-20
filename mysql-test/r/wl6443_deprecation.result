@@ -3,44 +3,6 @@ CALL mtr.add_suppression("Dictionary file not specified");
 # Tests for deprecation warnings introduced by wl#6443
 #
 # System variables
-select @@global.max_tmp_tables;
-@@global.max_tmp_tables
-32
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
-select @@local.max_tmp_tables;
-@@local.max_tmp_tables
-32
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
-set @default_max_tmp_tables= @@global.max_tmp_tables;
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
-select @@global.date_format;
-@@global.date_format
-%Y-%m-%d
-Warnings:
-Warning	1287	'@@date_format' is deprecated and will be removed in a future release.
-select @@global.time_format;
-@@global.time_format
-%H:%i:%s
-Warnings:
-Warning	1287	'@@time_format' is deprecated and will be removed in a future release.
-select @@global.datetime_format;
-@@global.datetime_format
-%Y-%m-%d %H:%i:%s
-Warnings:
-Warning	1287	'@@datetime_format' is deprecated and will be removed in a future release.
-set @@global.max_tmp_tables= 64;
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
-set @@global.max_tmp_tables= @@global.max_tmp_tables;
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
-set @@global.max_tmp_tables= @default_max_tmp_tables;
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
 select @@global.profiling;
 @@global.profiling
 0
@@ -123,9 +85,11 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.innodb_ddl_log                               OK
 mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
@@ -165,9 +129,11 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_ddl_log                               OK
 mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
@@ -203,9 +169,11 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_ddl_log                               OK
 mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK

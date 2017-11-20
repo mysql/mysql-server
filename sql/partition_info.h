@@ -19,15 +19,16 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "handler.h"
-#include "lock.h"                             // Tablespace_hash_set
 #include "my_bitmap.h"
 #include "my_inttypes.h"
-#include "partition_element.h"
-#include "sql_alloc.h"
-#include "sql_bitmap.h"                       // Bitmap
-#include "sql_data_change.h"                  // enum_duplicates
-#include "sql_list.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/handler.h"
+#include "sql/lock.h"                         // Tablespace_hash_set
+#include "sql/partition_element.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_bitmap.h"                   // Bitmap
+#include "sql/sql_data_change.h"              // enum_duplicates
+#include "sql/sql_list.h"
 
 class Field;
 class Item;
@@ -462,7 +463,7 @@ public:
                                         HA_CREATE_INFO *info,
                                         uint start_no);
   char *find_duplicate_field();
-  char *find_duplicate_name();
+  const char *find_duplicate_name();
   bool check_engine_mix(handlerton *engine_type, bool default_engine);
   bool check_range_constants(THD *thd);
   bool check_list_constants(THD *thd);

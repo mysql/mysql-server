@@ -20,10 +20,10 @@
 #include <sys/types.h>
 #include <string>
 
-#include "dd/impl/object_key.h"  // dd::Object_key
-#include "dd/object_id.h"        // dd::Object_id
-#include "m_ctype.h"
 #include "my_inttypes.h"
+#include "sql/dd/impl/object_key.h" // dd::Object_key
+#include "sql/dd/object_id.h"    // dd::Object_id
+#include "sql/dd/string_type.h"
 
 namespace dd {
 
@@ -554,6 +554,41 @@ private:
   int m_table_name_column_no;
   String_type m_table_name;
 };
+
+///////////////////////////////////////////////////////////////////////////
+
+// Range key to find sub partition entries by table id and parent partition
+// id in mysql.partitions.
+class Sub_partition_range_key : public Object_key
+{
+public:
+  Sub_partition_range_key(int index_no,
+                       int table_id_column_no,
+                       const Object_id table_id,
+                       int parent_partition_id_column_no,
+                       const Object_id parent_partition_id)
+   :m_index_no(index_no),
+    m_table_id_column_no(table_id_column_no),
+    m_table_id(table_id),
+    m_parent_partition_id_column_no(parent_partition_id_column_no),
+    m_parent_partition_id(parent_partition_id)
+  { }
+
+public:
+  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+
+  virtual String_type str() const;
+
+private:
+  int m_index_no;
+
+  int m_table_id_column_no;
+  Object_id m_table_id;
+
+  int m_parent_partition_id_column_no;
+  Object_id m_parent_partition_id;
+};
+
 
 ///////////////////////////////////////////////////////////////////////////
 }

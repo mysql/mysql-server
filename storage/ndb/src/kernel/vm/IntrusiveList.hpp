@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,6 +75,8 @@
  * have the same or more features as list head have
  *   template<class OtherHead>  void prependList(OtherHead& other);
  *   template<class OtherHead>  void appendList(OtherHead& other);
+ * When swapping list contents, list must have same head type.
+ *   void swapList(Head& src);
  *
  * These methods needs both prev link in node and last link in head
  *   bool removeLast(Ptr<T>& p);
@@ -127,8 +129,8 @@ public:
   ListHead() { POD::init(); }
   ~ListHead() { }
 private:
-  ListHead(const ListHead&); // deleted
-  ListHead& operator = (const ListHead&); // deleted
+//  ListHead(const ListHead&); // deleted
+//  ListHead& operator = (const ListHead&); // deleted
 };
 
 class FirstLink
@@ -244,6 +246,7 @@ public:
   bool next(Ptr<T>& p) const;
   bool hasPrev(Ptr<T> p) const;
   bool prev(Ptr<T>& p) const;
+  void swapList(Head& src);
   template<class OtherList>  void prependList(OtherList& other);
   template<class OtherList>  void appendList(OtherList& other);
   bool isEmpty() const;
@@ -486,6 +489,14 @@ inline bool IntrusiveList<T, Pool, THead, LM>::prev(Ptr<T>& p) const
     return false;
   getPtr(p);
   return true;
+}
+
+template<typename T, class Pool, typename THead, class LM>
+inline void IntrusiveList<T, Pool, THead, LM>::swapList(Head& src)
+{
+  Head tmp = m_head;
+  m_head = src;
+  src = tmp;
 }
 
 template<typename T, class Pool, typename THead, class LM>

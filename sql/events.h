@@ -32,19 +32,23 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_time.h"                            /* interval_type */
-#include "mysql/mysql_lex_string.h"             // LEX_STRING
+#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_memory.h"               // PSI_memory_key
+#include "mysql/psi/psi_mutex.h"
 #include "mysql/psi/psi_stage.h"                // PSI_stage_info
+#include "mysql/psi/psi_thread.h"
 
 class Event_db_repository;
 class Event_parse_data;
 class Event_queue;
 class Event_scheduler;
-class Item;
 class String;
 class THD;
-struct TABLE_LIST;
 
 namespace dd {
   class Schema;

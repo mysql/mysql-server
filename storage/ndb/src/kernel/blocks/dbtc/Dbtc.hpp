@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <ndb_limits.h>
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
+#include <RWPool.hpp>
 #include <DLHashTable.hpp>
 #include <IntrusiveList.hpp>
 #include <DataBuffer.hpp>
@@ -1222,6 +1223,34 @@ public:
   typedef Ptr<TableRecord> TableRecordPtr;
 
   /**
+   * Specify the location of a fragment. The 'blockRef' is either
+   * the specific LQH where the fragId resides, or the SPJ block
+   * responsible for scaning this fragment, if 'viaSPJ'.
+   */
+  struct ScanFragLocationRec
+  {
+    Uint32 blockRef;
+    Uint32 fragId;
+
+    /**
+     * Next ptr (used in pool/list)
+     */
+    union {
+      Uint32 nextPool;
+      Uint32 nextList;
+    };
+
+    Uint32 m_magic;    //Needed by RWPool
+  };
+
+  typedef Ptr<ScanFragLocationRec> ScanFragLocationPtr;
+  typedef RecordPool<ScanFragLocationRec, RWPool<ScanFragLocationRec> > ScanFragLocation_pool;
+  typedef SLFifoList<ScanFragLocationRec, ScanFragLocation_pool> ScanFragLocation_list;
+  typedef LocalSLFifoList<ScanFragLocationRec, ScanFragLocation_pool> Local_ScanFragLocation_list;
+
+  ScanFragLocation_pool m_fragLocationPool;
+
+  /**
    * There is max 16 ScanFragRec's for 
    * each scan started in TC. Each ScanFragRec is used by
    * a scan fragment "process" that scans one fragment at a time. 
@@ -1238,15 +1267,15 @@ public:
     /**
      * ScanFragState      
      *  WAIT_GET_PRIMCONF : Waiting for DIGETPRIMCONF when starting a new 
-     *   fragment scan
+     *   fragment scan (Obsolete; Checked for, but never set)
      *  LQH_ACTIVE : The scan process has sent a command to LQH and is
      *   waiting for the response
      *  LQH_ACTIVE_CLOSE : The scan process has sent close to LQH and is
-     *   waiting for the response
+     *   waiting for the response (Unused)
      *  DELIVERED : The result have been delivered, this scan frag process 
      *   are waiting for a SCAN_NEXTREQ to tell us to continue scanning
      *  RETURNING_FROM_DELIVERY : SCAN_NEXTREQ received and continuing scan
-     *   soon 
+     *   soon (Unused)
      *  QUEUED_FOR_DELIVERY : Result queued in TC and waiting for delivery
      *   to API
      *  COMPLETED : The fragment scan processes has completed and finally
@@ -1263,14 +1292,7 @@ public:
     // Timer for checking timeout of this fragment scan
     Uint32  scanFragTimer;
 
-    /**
-     * Id of the current scanned fragment
-     * scanFragId can differ from lqhScanFragId for fully replicated
-     * tables where the full fragments are copies and DIGETNODESREQ
-     * might change the lqhScanFragId to differ from scanFragId to
-     * read a local fragment replica.
-     */
-    Uint32 scanFragId;
+    // Fragment id as reported back by DIGETNODESREQ
     Uint32 lqhScanFragId;
 
     // Blockreference of LQH 
@@ -1390,6 +1412,9 @@ public:
     ScanState scanState;
     Uint32 scanKeyInfoPtr;
     Uint32 scanAttrInfoPtr;
+
+    // List of fragment locations as reported by DIH
+    ScanFragLocation_list::Head m_fragLocations;
 
     ScanFragRec_dllist::Head m_running_scan_frags;  // Currently in LQH
     union { Uint32 m_queued_count; Uint32 scanReceivedOperations; };
@@ -1704,15 +1729,15 @@ private:
   void initScanTcrec(Signal* signal);
   Uint32 initScanrec(ScanRecordPtr,  const class ScanTabReq*,
                      const UintR scanParallel,
-                     const UintR noOprecPerFrag,
                      const Uint32 apiPtr[]);
   void initScanfragrec(Signal* signal);
   void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
-  bool startFragScanLab(Signal*, ScanFragRecPtr, ScanRecordPtr, bool &local);
 
-  void sendDihGetNodesReq(Signal*, ScanRecordPtr);
-  void sendScanFragReq(Signal*, ScanRecord*, ScanFragRecPtr, bool);
+  void sendDihGetNodesLab(Signal*, ScanRecordPtr);
+  bool sendDihGetNodeReq(Signal*, ScanRecordPtr, Uint32 scanFragId);
+  void sendFragScansLab(Signal*, ScanRecordPtr);
+  bool sendScanFragReq(Signal*, ScanRecordPtr, ScanFragRecPtr);
   void sendScanTabConf(Signal* signal, ScanRecordPtr);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req);
   void close_scan_req_send_conf(Signal*, ScanRecordPtr);
@@ -2046,8 +2071,8 @@ protected:
   virtual bool getParam(const char* name, Uint32* count);
   
 private:
-   Uint32 c_time_track_histogram_boundary[TIME_TRACK_HISTOGRAM_RANGES];
-   bool c_time_track_activated;
+  Uint32 c_time_track_histogram_boundary[TIME_TRACK_HISTOGRAM_RANGES];
+  bool c_time_track_activated;
   // Transit signals
 
 
@@ -2214,10 +2239,8 @@ private:
 
   UintR cscanFragrecFileSize;
 
-  BlockReference cdictblockref;
-  BlockReference cerrorBlockref;
-  BlockReference clqhblockref;
   BlockReference cndbcntrblockref;
+  BlockInstance cspjInstanceRR;    // SPJ instance round-robin counter
 
   Uint16 csignalKey;
   Uint16 csystemnodes;
@@ -2255,21 +2278,12 @@ private:
   BlockReference tblockref;
 
   Uint8 tcurrentReplicaNo;
-  Uint8 tpad1;
-
-  UintR tapplOprec;
 
   UintR tindex;
   UintR tmaxData;
-  UintR tmp;
 
-  UintR tnodes;
   BlockReference tusersblkref;
   UintR tuserpointer;
-  UintR tloadCode;
-
-  UintR tconfig1;
-  UintR tconfig2;
 
   UintR ctransidFailHash[TRANSID_FAIL_HASH_SIZE];
   UintR ctcConnectFailHash[TC_FAIL_HASH_SIZE];

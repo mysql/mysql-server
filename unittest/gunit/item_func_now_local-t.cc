@@ -19,15 +19,15 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "item.h"
-#include "item_timefunc.h"
 #include "mock_field_datetime.h"
 #include "mock_field_timestamp.h"
 #include "mock_field_timestampf.h"
-#include "rpl_handler.h"                        // delegates_init()
-#include "sql_class.h"
+#include "sql/item.h"
+#include "sql/item_timefunc.h"
+#include "sql/rpl_handler.h"                    // delegates_init()
+#include "sql/sql_class.h"
+#include "sql/tztime.h"
 #include "test_utils.h"
-#include "tztime.h"
 
 namespace item_func_now_local_unittest {
 

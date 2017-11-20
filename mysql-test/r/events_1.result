@@ -14,14 +14,16 @@ CREATE EVENT e_x2 ON SCHEDULE EVERY 1 SECOND DO DROP TABLE x_table;
 SHOW DATABASES LIKE 'db_x';
 Database (db_x)
 db_x
-SET GLOBAL event_scheduler=1;
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
 SHOW DATABASES LIKE 'db_x';
 Database (db_x)
 db_x
 SHOW TABLES FROM db_x;
 Tables_in_db_x
 x_table
-SET GLOBAL event_scheduler=off;
 DROP EVENT e_x1;
 DROP EVENT e_x2;
 DROP DATABASE db_x;
@@ -102,7 +104,6 @@ drop event non_qualif_ev;
 drop table non_qualif;
 alter event non_existant rename to non_existant_too;
 ERROR HY000: Unknown event 'non_existant'
-set global event_scheduler = off;
 create event existant on schedule at now() + interval 1 year do select 12;
 alter event non_existant rename to existant;
 ERROR HY000: Event 'existant' already exists

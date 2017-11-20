@@ -45,7 +45,7 @@ use warnings;
 my $file = $ENV{IBD_FILE};
 my $size = $ENV{IBD_PAGE_SIZE};
 open(FILE, "<$file") || die "Unable to open $file: $!";
-die "Unable to read $file: $!" unless read(FILE, $_, $size*7) == $size*7;
+die "Unable to read $file: $!" unless read(FILE, $_, $size*6) == $size*6;
 my $payload = $size-26;
 s/.{24}(..).{$payload}/$1/ges;
 print "# Page types: ", unpack("H*", $_), "\n";

@@ -73,6 +73,7 @@ SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1;
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Error 'Table 'lost_test_table'*");
 call mtr.add_suppression("Slave: Table 'lost_test_table' already exists Error_code:*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Worker .* failed executing transaction .*; Error 'Table 'lost_test_table' already exists' on query.");

@@ -6,7 +6,7 @@
 drop table if exists t1;
 --enable_warnings
 
-CREATE TABLE t1 (id CHAR(12) not null, PRIMARY KEY (id)) charset latin1;
+CREATE TABLE t1 (id CHAR(12) not null, PRIMARY KEY (id));
 insert into t1 values ('000000000001'),('000000000002');
 analyze table t1;
 explain select * from t1 where id=000000000001;
@@ -21,6 +21,7 @@ drop table t1;
 # "a\0" < "a"
 # "a\0" < "a "
 
+set names latin1;
 SELECT 'a' = 'a ';
 SELECT 'a\0' < 'a';
 SELECT 'a\0' < 'a ';
@@ -31,6 +32,7 @@ CREATE TABLE t1 (a char(10) not null) charset latin1;
 INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
 SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
 DROP TABLE t1;
+set names default;
 
 # Bug #8134: Comparison against CHAR(31) at end of string
 SELECT CHAR(31) = '', '' = CHAR(31);
@@ -60,7 +62,7 @@ SELECT CONCAT(b,c), CONCAT(b,c) = '0101' FROM t1;
 
 analyze table t1;
 --replace_column 10 x
-EXPLAIN EXTENDED SELECT b,c FROM t1 WHERE b = 1 AND CONCAT(b,c) = '0101';
+EXPLAIN SELECT b,c FROM t1 WHERE b = 1 AND CONCAT(b,c) = '0101';
 SELECT b,c FROM t1 WHERE b = 1 AND CONCAT(b,c) = '0101';
 
 CREATE TABLE t2 (a int);
@@ -74,7 +76,7 @@ FROM t2 ORDER BY a;
 analyze table t1;
 analyze table t2;
 --replace_column 10 x
-EXPLAIN EXTENDED 
+EXPLAIN 
 SELECT a, 
   (SELECT COUNT(*) FROM t1 
    WHERE b = t2.a AND CONCAT(b,c) = CONCAT('0',t2.a,'01')) x 

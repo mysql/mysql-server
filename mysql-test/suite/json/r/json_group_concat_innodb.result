@@ -45,16 +45,18 @@ insert into t values (X'10');
 select sum(char_length(c)) from t;
 sum(char_length(c))
 9
-select group_concat(c order by c) from t;
-group_concat(c order by c)
-,,	,
+# '\b' and X'10' order equal in the default collation, so order on
+# hex(c) as a tie-breaker to get stable results.
+select group_concat(c order by c, hex(c)) from t;
+group_concat(c order by c, hex(c))
+,,	,
 ,,,",\,a
 select char_length(group_concat(c)) from t;
 char_length(group_concat(c))
 17
-select json_quote(group_concat(c order by c)) from t;
-json_quote(group_concat(c order by c))
-"\u0010,\b,\t,\n,\f,\r,\",\\,a"
+select json_quote(group_concat(c order by c, hex(c))) from t;
+json_quote(group_concat(c order by c, hex(c)))
+"\b,\u0010,\t,\n,\f,\r,\",\\,a"
 select char_length(json_quote(group_concat(c))) from t;
 char_length(json_quote(group_concat(c)))
 31

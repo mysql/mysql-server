@@ -21,35 +21,40 @@
   This file implements classes defined in field.h.
 */
 
-#include "field.h"
+#include "sql/field.h"
 
 #include <errno.h>
-
 #include <algorithm>
 #include <cmath>                         // isnan
 #include <memory>                        // unique_ptr
 
-#include "current_thd.h"
 #include "decimal.h"
-#include "derror.h"                      // ER_THD
-#include "filesort.h"                    // change_double_for_sort
-#include "item_json_func.h"              // ensure_utf8mb4
-#include "item_timefunc.h"               // Item_func_now_local
-#include "json_binary.h"                 // json_binary::serialize
-#include "json_dom.h"                    // Json_dom, Json_wrapper
-#include "log_event.h"                   // class Table_map_log_event
 #include "my_dbug.h"
-#include "mysqld.h"                      // log_10
-#include "rpl_rli.h"                     // Relay_log_info
-#include "rpl_slave.h"                   // rpl_master_has_bug
-#include "spatial.h"                     // Geometry
-#include "sql_base.h"                    // is_equal
-#include "sql_class.h"                   // THD
-#include "sql_join_buffer.h"             // CACHE_FIELD
-#include "sql_time.h"                    // str_to_datetime_with_warn
-#include "strfunc.h"                     // find_type2
+#include "sql/current_thd.h"
+#include "sql/derror.h"                  // ER_THD
+#include "sql/filesort.h"                // change_double_for_sort
+#include "sql/gis/rtree_support.h"       // get_mbr_from_store
+#include "sql/gis/srid.h"
+#include "sql/item_json_func.h"          // ensure_utf8mb4
+#include "sql/item_timefunc.h"           // Item_func_now_local
+#include "sql/json_binary.h"             // json_binary::serialize
+#include "sql/json_dom.h"                // Json_dom, Json_wrapper
+#include "sql/json_binary.h"                 // json_binary::serialize
+#include "sql/json_dom.h"                    // Json_dom, Json_wrapper
+#include "sql/json_diff.h"                   // Json_diff_vector
+#include "sql/log_event.h"               // class Table_map_log_event
+#include "sql/mysqld.h"                  // log_10
+#include "sql/rpl_rli.h"                 // Relay_log_info
+#include "sql/rpl_slave.h"               // rpl_master_has_bug
+#include "sql/spatial.h"                 // Geometry
+#include "sql/sql_base.h"                // is_equal
+#include "sql/sql_class.h"               // THD
+#include "sql/sql_join_buffer.h"         // CACHE_FIELD
+#include "sql/sql_time.h"                // str_to_datetime_with_warn
+#include "sql/srs_fetcher.h"
+#include "sql/strfunc.h"                 // find_type2
+#include "sql/tztime.h"                  // Time_zone
 #include "template_utils.h"              // pointer_cast
-#include "tztime.h"                      // Time_zone
 
 using std::max;
 using std::min;
@@ -8398,9 +8403,6 @@ size_t Field_blob::get_key_image(uchar *buff, size_t length, imagetype type_arg)
 
   if (type_arg == itMBR)
   {
-    MBR mbr;
-    Geometry_buffer buffer;
-    Geometry *gobj;
     const uint image_length= SIZEOF_STORED_DOUBLE*4;
 
     if (blob_length < SRID_SIZE)
@@ -8409,16 +8411,25 @@ size_t Field_blob::get_key_image(uchar *buff, size_t length, imagetype type_arg)
       return image_length;
     }
     get_ptr(&blob);
-    gobj= Geometry::construct(&buffer, (char*) blob, blob_length);
-    if (!gobj || gobj->get_mbr(&mbr))
+    gis::srid_t srid = uint4korr(blob);
+    const dd::Spatial_reference_system* srs = nullptr;
+    dd::cache::Dictionary_client::Auto_releaser m_releaser(
+      current_thd->dd_client());
+    Srs_fetcher fetcher(current_thd);
+    if (srid != 0) fetcher.acquire(srid, &srs);
+    if (get_mbr_from_store(srs, blob, blob_length, 2,
+                           pointer_cast<double *>(buff), &srid)) {
       memset(buff, 0, image_length);
-    else
-    {
-      float8store(buff,    mbr.xmin);
-      float8store(buff+8,  mbr.xmax);
-      float8store(buff+16, mbr.ymin);
-      float8store(buff+24, mbr.ymax);
     }
+    else {
+      // get_mbr_from_store returns the MBR in machine byte order, but buff
+      // should always be in little-endian order.
+      float8store(buff, *pointer_cast<double*>(buff));
+      float8store(buff+8, *(pointer_cast<double*>(buff) + 1));
+      float8store(buff+16, *(pointer_cast<double*>(buff) + 2));
+      float8store(buff+24, *(pointer_cast<double*>(buff) + 3));
+    }
+
     return image_length;
   }
 
@@ -8608,9 +8619,10 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
    blob fields.
 
    @param   from       Source of the data
-   @param   param_data @c TRUE if base types should be stored in little-
-                       endian format, @c FALSE if native format should
-                       be used.
+   @param   param_data The "metadata", as stored in the Table_map_log_event
+                       for this field. This metadata is the number of bytes
+                       used to represent the length of the blob (1, 2, 3, or
+                       4).
    @param low_byte_first If true, the length should be unpacked in
    little-endian format, otherwise in the machine's native order.
 
@@ -8746,6 +8758,22 @@ Field_geom::store_internal(const char *from, size_t length,
     memset(ptr, 0, Field_blob::pack_length());  
     my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
     return TYPE_ERR_BAD_VALUE;
+  }
+
+  /*
+    Check that the SRID of the geometry matches the expected SRID for this
+    field
+  */
+  if (get_srid().has_value())
+  {
+    gis::srid_t geometry_srid= uint4korr(from);
+    if (geometry_srid != get_srid().value())
+    {
+      memset(ptr, 0, Field_blob::pack_length());
+      my_error(ER_WRONG_SRID_FOR_COLUMN, MYF(0), field_name, geometry_srid,
+               get_srid().value());
+      return TYPE_ERR_BAD_VALUE;
+    }
   }
 
   if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
@@ -9014,6 +9042,7 @@ type_conversion_status Field_json::store(Field_json *field)
 
 bool Field_json::val_json(Json_wrapper *wr)
 {
+  DBUG_ENTER("Field_json::val_json");
   ASSERT_COLUMN_MARKED_FOR_READ;
 
   String tmp;
@@ -9035,7 +9064,7 @@ bool Field_json::val_json(Json_wrapper *wr)
   {
     using namespace json_binary;
     *wr= Json_wrapper(Value(Value::LITERAL_NULL));
-    return false;
+    DBUG_RETURN(false);
   }
 
   json_binary::Value v(json_binary::parse_binary(s->ptr(), s->length()));
@@ -9043,12 +9072,12 @@ bool Field_json::val_json(Json_wrapper *wr)
   {
     /* purecov: begin inspected */
     my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
-    return true;
+    DBUG_RETURN(true);
     /* purecov: end */
   }
 
   *wr= Json_wrapper(v);
-  return false;
+  DBUG_RETURN(false);
 }
 
 longlong Field_json::val_int()
@@ -9108,6 +9137,197 @@ my_decimal *Field_json::val_decimal(my_decimal *decimal_value)
   }
 
   return wr.coerce_decimal(decimal_value, field_name);
+}
+
+
+bool Field_json::pack_diff(uchar **to, ulonglong value_format) const
+{
+  DBUG_ENTER("Field_json::pack_diff");
+
+  const Json_diff_vector *diff_vector;
+  get_diff_vector_and_length(value_format, &diff_vector);
+  if (diff_vector == nullptr)
+    DBUG_RETURN(true);
+
+  // We know the caller has allocated enough space, but we don't
+  // know how much it is.  So just say that it is large, to
+  // suppress bounds checks.
+  String to_string((char *)*to, 0xffffFFFF, &my_charset_bin);
+  to_string.length(0);
+  if (diff_vector->write_binary(&to_string))
+    // write_binary only returns true (error) in case it failed to
+    // allocate memory. But now we know it will not try to
+    // allocate.
+    DBUG_ASSERT(0); /* purecov: inspected */
+
+  // It should not have reallocated.
+  DBUG_ASSERT(*to == (uchar *)to_string.ptr());
+
+  *to += to_string.length();
+  DBUG_RETURN(false);
+}
+
+
+bool Field_json::is_before_image_equal_to_after_image() const
+{
+  Field_json *non_const_this= const_cast<Field_json *>(this);
+  ptrdiff_t row_offset= table->record[1] - table->record[0];
+  if (non_const_this->get_length(row_offset) != non_const_this->get_length())
+    return false;
+  if (non_const_this->cmp(ptr, ptr + row_offset) != 0)
+    return false;
+  return true;
+}
+
+
+longlong Field_json::get_diff_vector_and_length(
+  ulonglong value_options,
+  const Json_diff_vector **diff_vector_p) const
+{
+  DBUG_ENTER("Field_json::get_diff_vector_and_length");
+
+  if (is_null())
+  {
+    DBUG_PRINT("info", ("Returning 0 because field is NULL"));
+    if (diff_vector_p)
+      *diff_vector_p= nullptr;
+    DBUG_RETURN(0);
+  }
+
+  longlong length_of_full_format= const_cast<Field_json *>(this)->get_length();
+  longlong length= -1;
+  const Json_diff_vector *diff_vector= nullptr;
+  // Is the partial update smaller than the full update?
+  DBUG_PRINT("info", ("length_of_full_format=%lu",
+                      (unsigned long) length_of_full_format));
+
+  // Is partial JSON updates enabled at all?
+  if ((value_options & PARTIAL_JSON_UPDATES) == 0)
+  {
+    DBUG_PRINT("info", ("Using full JSON format because "
+                        "binlog_row_value_format does not include "
+                        "PARTIAL_JSON"));
+    length= length_of_full_format;
+  }
+  else
+  {
+    // Was the optimizer able to compute a partial update?
+    diff_vector= table->get_logical_diffs(this);
+    if (diff_vector == nullptr)
+    {
+      // Are before-image and after-image equal?
+      if (is_before_image_equal_to_after_image())
+      {
+        DBUG_PRINT("info",
+                   ("Using empty Json_diff_vector because before-image "
+                    "is different from after-image."));
+        diff_vector= &Json_diff_vector::EMPTY_JSON_DIFF_VECTOR;
+        length= diff_vector->binary_length();
+      }
+      else
+      {
+        DBUG_PRINT("info",
+                   ("Using full JSON format because there is no diff vector "
+                    "and before-image is different from after-image."));
+        length= length_of_full_format;
+      }
+    }
+    else
+    {
+      longlong length_of_diff_vector= diff_vector->binary_length();
+      longlong length_of_empty_diff_vector=
+        Json_diff_vector::EMPTY_JSON_DIFF_VECTOR.binary_length();
+      DBUG_PRINT("info", ("length_of_diff_vector=%lu diff_vector->size()=%u",
+                          (unsigned long) length_of_diff_vector,
+                          (uint)diff_vector->size()));
+
+      // If the vector is empty, no need to do the expensive comparison
+      // between before-image and after-image.
+      if (length_of_diff_vector == length_of_empty_diff_vector)
+      {
+        DBUG_PRINT("info",
+                   ("Using empty Json_diff_vector provided by optimizer."));
+        length= length_of_diff_vector;
+      }
+      // Are the before-image and the after-image equal? (This can
+      // happen despite having a nonempty diff vector, in case
+      // optimizer does not detect the equality)
+      else if (is_before_image_equal_to_after_image())
+      {
+        DBUG_PRINT("info", ("Using Json_diff_vector::EMPTY_JSON_DIFF_VECTOR "
+                            "because the before-image equals the after-image "
+                            "but the diff vector provided by the optimizer "
+                            "is non-empty."));
+        diff_vector= &Json_diff_vector::EMPTY_JSON_DIFF_VECTOR;
+        length= length_of_diff_vector;
+      }
+      // Is the diff vector better than the full format?
+      else if (length_of_diff_vector < length_of_full_format)
+      {
+        DBUG_PRINT("info", ("Using non-empty Json_diff_vector provided by "
+                            "optimizer because it is smaller than "
+                            "full format."));
+        length= length_of_diff_vector;
+      }
+      else
+      {
+        DBUG_PRINT("info",
+                   ("Using full JSON format because diff vector was not "
+                    "smaller."));
+        diff_vector= nullptr;
+        length= length_of_full_format;
+      }
+    }
+  }
+
+  /*
+    Can be equal to zero in the corner case where user inserted NULL
+    value in a JSON NOT NULL column in non-strict mode.  The server
+    will store this as a zero-length non-NULL object, and interpret it
+    as a JSON 'null' literal.
+  */
+  DBUG_ASSERT(length >= 0);
+
+  if (diff_vector_p != nullptr)
+    *diff_vector_p= diff_vector;
+  DBUG_RETURN(length);
+}
+
+
+bool Field_json::unpack_diff(const uchar **from)
+{
+  DBUG_ENTER("Field_json::unpack_diff");
+
+  // Use a temporary mem_root so that the thread does not hold the
+  // memory for the Json_diff_vector until the end of the statement.
+  int memory_page_size= my_getpagesize();
+  MEM_ROOT mem_root(key_memory_Slave_applier_json_diff_vector,
+                    memory_page_size, memory_page_size);
+
+  Json_diff_vector diff_vector{
+    Json_diff_vector::allocator_type(&mem_root)};
+
+  // The caller should have verified that the buffer at 'from' is
+  // sufficiently big to hold the whole diff_vector.
+  if (diff_vector.read_binary(pointer_cast<const char **>(from),
+                              table, field_name))
+    DBUG_RETURN(true);
+
+  // Apply
+  switch (apply_json_diffs(this, &diff_vector))
+  {
+  case enum_json_diff_status::REJECTED:
+    my_error(ER_COULD_NOT_APPLY_JSON_DIFF, MYF(0),
+             (int)table->s->table_name.length,
+             table->s->table_name.str,
+             field_name);
+    DBUG_RETURN(true);
+  case enum_json_diff_status::ERROR:
+    DBUG_RETURN(true); /* purecov: inspected */
+  case enum_json_diff_status::SUCCESS:
+    break;
+  }
+  DBUG_RETURN(false);
 }
 
 
@@ -9183,37 +9403,52 @@ enum ha_base_keytype Field_enum::key_type() const
 void Field_enum::store_type(ulonglong value)
 {
   switch (packlength) {
-  case 1: ptr[0]= (uchar) value;  break;
+  case 1: ptr[0]= (uchar) value;
+    break;
   case 2:
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
-  {
-    int2store(ptr,(unsigned short) value);
-  }
-  else
-#endif
+    if (table->s->db_low_byte_first)
+    {
+      int2store(ptr,(unsigned short) value);
+    }
+    else
+    {
+      shortstore(ptr,(unsigned short) value);
+    }
+#else
     shortstore(ptr,(unsigned short) value);
-  break;
-  case 3: int3store(ptr,(long) value); break;
+#endif
+    break;
+  case 3: int3store(ptr,(long) value);
+    break;
   case 4:
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
-  {
-    int4store(ptr,value);
-  }
-  else
-#endif
+    if (table->s->db_low_byte_first)
+    {
+      int4store(ptr,value);
+    }
+    else
+    {
+      longstore(ptr,(long) value);
+    }
+#else
     longstore(ptr,(long) value);
-  break;
+#endif
+    break;
   case 8:
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
-  {
-    int8store(ptr,value);
-  }
-  else
+    if (table->s->db_low_byte_first)
+    {
+      int8store(ptr,value);
+    }
+    else
+    {
+      longlongstore(ptr,value);
+    }
+#else
+    longlongstore(ptr,value);
 #endif
-    longlongstore(ptr,value); break;
+    break;
   }
 }
 
@@ -10540,7 +10775,8 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   @param fld_charset           Column charset.
   @param fld_geom_type         Column geometry type (if any.)
   @param fld_gcol_info         Generated column data
-
+  @param srid                  The SRID specification. This might be null
+                               (has_value() may return false).
   @retval
     FALSE on success.
   @retval
@@ -10554,7 +10790,8 @@ bool Create_field::init(THD *thd, const char *fld_name,
                         LEX_STRING *fld_comment, const char *fld_change,
                         List<String> *fld_interval_list,
                         const CHARSET_INFO *fld_charset, uint fld_geom_type,
-                        Generated_column *fld_gcol_info)
+                        Generated_column *fld_gcol_info,
+                        Nullable<gis::srid_t> srid)
 {
   uint sign_len, allowed_type_modifier= 0;
   ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
@@ -10618,6 +10855,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
   comment= *fld_comment;
   gcol_info= fld_gcol_info;
   stored_in_db= TRUE;
+  m_srid= srid;
 
   /* Initialize data for a virtual field */
   if (gcol_info)
@@ -11067,7 +11305,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
                   bool is_unsigned,
                   uint decimals,
                   bool treat_bit_as_char,
-                  uint pack_length_override)
+                  uint pack_length_override, Nullable<gis::srid_t> srid)
 {
   uchar *bit_ptr= NULL;
   uchar bit_offset= 0;
@@ -11144,7 +11382,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
 
       return new (*THR_MALLOC) Field_geom(ptr, null_pos, null_bit, auto_flags,
                                           field_name, share, pack_length,
-                                          geom_type);
+                                          geom_type, srid);
     }
   case MYSQL_TYPE_JSON:
     {
@@ -11341,8 +11579,12 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
     length= (length+charset->mbmaxlen-1) / charset->mbmaxlen;
     break;
   case MYSQL_TYPE_GEOMETRY:
-    geom_type= ((Field_geom*)old_field)->geom_type;
+  {
+    const Field_geom *field_geom= down_cast<const Field_geom*>(old_field);
+    geom_type= field_geom->geom_type;
+    m_srid= field_geom->get_srid();
     break;
+  }
   case MYSQL_TYPE_YEAR:
     if (length != 4)
       length= 4; //set default value

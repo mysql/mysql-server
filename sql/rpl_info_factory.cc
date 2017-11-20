@@ -13,41 +13,44 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_info_factory.h"
+#include "sql/rpl_info_factory.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
-#include <functional>
 
-#include "current_thd.h"
-#include "field.h"
-#include "handler.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_string.h"
 #include "my_base.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "mysqld.h"                 // key_master_info_run_lock
-#include "rpl_info.h"
-#include "rpl_info_dummy.h"         // Rpl_info_dummy
-#include "rpl_info_file.h"          // Rpl_info_file
-#include "rpl_info_table.h"         // Rpl_info_table
-#include "rpl_info_table_access.h"  // Rpl_info_table_access
-#include "rpl_mi.h"                 // Master_info
-#include "rpl_msr.h"                // channel_map
-#include "rpl_rli.h"                // Relay_log_info
-#include "rpl_rli_pdb.h"            // Slave_worker
-#include "rpl_slave.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_plugin_ref.h"
+#include "mysql/udf_registration_types.h"
+#include "mysqld_error.h"
+#include "sql/current_thd.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"             // key_master_info_run_lock
+#include "sql/rpl_filter.h"
+#include "sql/rpl_info.h"
+#include "sql/rpl_info_dummy.h"     // Rpl_info_dummy
+#include "sql/rpl_info_file.h"      // Rpl_info_file
+#include "sql/rpl_info_table.h"     // Rpl_info_table
+#include "sql/rpl_info_table_access.h" // Rpl_info_table_access
+#include "sql/rpl_mi.h"             // Master_info
+#include "sql/rpl_msr.h"            // channel_map
+#include "sql/rpl_rli.h"            // Relay_log_info
+#include "sql/rpl_rli_pdb.h"        // Slave_worker
+#include "sql/rpl_slave.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
 #include "thr_lock.h"
 
 

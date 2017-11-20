@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -86,12 +86,6 @@ struct MyApiWrapper {
         return A::deliver_ref();
     }
 
-    static A &
-    A__deliver_null_ref( )
-    {
-        return A::deliver_null_ref();
-    }
-
     static void
     A__take_ptr( A * o )
     {
@@ -108,12 +102,6 @@ struct MyApiWrapper {
     A__take_ref( A & o )
     {
         A::take_ref(o);
-    }
-
-    static void
-    A__take_null_ref( A & o )
-    {
-        A::take_null_ref(o);
     }
 
     static void

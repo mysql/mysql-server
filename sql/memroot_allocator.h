@@ -21,7 +21,7 @@
 #include <utility>                              // std::forward
 
 #include "my_dbug.h"
-#include "sql_alloc.h"
+#include "sql/sql_alloc.h"
 
 
 /**

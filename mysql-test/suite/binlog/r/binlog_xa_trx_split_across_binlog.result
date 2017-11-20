@@ -1,0 +1,42 @@
+#
+# 1) Reset the master and set max_binlog_size to a smaller value 4KB.
+#
+SET @save_max_binlog_size=@@global.max_binlog_size;
+SET GLOBAL max_binlog_size=4096;
+RESET MASTER;
+#
+# 2) Start a XA transaction which is more than max_binlog_size (4KB).
+#
+CREATE TABLE t1(i varchar(4096));
+XA START 'xa1';
+INSERT INTO t1 VALUES (REPEAT('a', 4096));
+XA END 'xa1';
+#
+# 3) Prepare the XA trx.
+#    (trx content will be written to binlog.000001 and the binlog
+#     will be rotated because of the size limit).
+XA PREPARE 'xa1';
+#
+# 4) Commit the XA trx (commit will be written to binlog.000002).
+#
+XA COMMIT 'xa1';
+#
+# 5) Save the binlog dump for the reapply purpose.
+#
+#
+# 6) Cleanup the server and make it ready to apply the binlog dump.
+#
+RENAME TABLE t1 TO t2;
+RESET MASTER;
+#
+# 7) Apply the binlog dump.
+#
+#
+# 8) Verify that the old data is restorted properly without any issues.
+#
+include/diff_tables.inc [default:t1, default:t2]
+#
+# 9) Cleanup
+#
+DROP TABLE t1,t2;
+SET GLOBAL max_binlog_size=@save_max_binlog_size;

@@ -18,10 +18,11 @@
 
 #include <string>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/entity_object_table_impl.h" // dd::Dictionary_obj...
-#include "dd/object_id.h"
-#include "dd/types/routine.h"                           // dd::Routine
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/entity_object_table_impl.h" // dd::Dictionary_obj...
+#include "sql/dd/object_id.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/routine.h"                       // dd::Routine
 
 namespace dd {
 class Object_key;

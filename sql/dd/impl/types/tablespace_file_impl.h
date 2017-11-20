@@ -19,26 +19,26 @@
 #include <sys/types.h>
 #include <memory>   // std::unique_ptr
 #include <new>
-#include <string>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
-#include "dd/properties.h"
-#include "dd/sdi_fwd.h"
-#include "dd/types/object_type.h"           // dd::Object_type
-#include "dd/types/tablespace_file.h"       // dd::Tablespace_file
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "sql/dd/properties.h"
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/object_type.h"       // dd::Object_type
+#include "sql/dd/types/tablespace_file.h"   // dd::Tablespace_file
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Tablespace;
-class Tablespace_impl;
 class Object_key;
 class Object_table;
 class Open_dictionary_tables_ctx;
 class Sdi_rcontext;
 class Sdi_wcontext;
+class Tablespace;
+class Tablespace_impl;
 class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////

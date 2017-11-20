@@ -17,30 +17,33 @@
 #define RPL_RLI_PDB_H
 
 #include <stdarg.h>
-#include <stdarg.h>
 #include <sys/types.h>
 #include <time.h>
-
+#include <atomic>
 #include <atomic>
 
 #include "binlog_event.h"
-#include "log_event.h"         // Format_description_log_event
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"  // Prealloced_array
-#include "rpl_gtid.h"
-#include "rpl_mts_submode.h"   // enum_mts_parallel_type
-#include "rpl_rli.h"           // Relay_log_info
-#include "rpl_slave.h"         // MTS_WORKER_UNDEF
-#include "sql_class.h"
-#include "system_variables.h"
+#include "sql/log_event.h"     // Format_description_log_event
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_mts_submode.h" // enum_mts_parallel_type
+#include "sql/rpl_rli.h"       // Relay_log_info
+#include "sql/rpl_slave.h"     // MTS_WORKER_UNDEF
+#include "sql/sql_class.h"
+#include "sql/system_variables.h"
 
 class Rpl_info_handler;
 class Slave_worker;
@@ -280,19 +283,24 @@ public:
   {
   }
 
-   /**
-      Content of the being dequeued item is copied to the arg-pointer
-      location.
-
-      @return the queue's array index that the de-queued item
-      located at, or
-      an error encoded in beyond the index legacy range.
-   */
-  ulong de_queue(Element_type *val);
   /**
-     Similar to de_queue but extracting happens from the tail side.
+     Content of the being dequeued item is copied to the arg-pointer
+     location.
+
+     @param [out] item A pointer to the being dequeued item.
+     @return the queue's array index that the de-queued item
+     located at, or
+     an error encoded in beyond the index legacy range.
   */
-  ulong de_tail(Element_type *val);
+  ulong de_queue(Element_type *item);
+  /**
+    Similar to de_queue but extracting happens from the tail side.
+
+    @param [out] item A pointer to the being dequeued item.
+    @return the queue's array index that the de-queued item
+           located at, or an error.
+  */
+  ulong de_tail(Element_type *item);
 
   /**
     return the index where the arg item locates
@@ -390,6 +398,18 @@ public:
     return circular_buffer_queue<Slave_job_group>::de_queue(item);
   }
 
+  /**
+    Similar to de_queue() but removing an item from the tail side.
+
+    @param [out] item A pointer to the being dequeued item.
+    @return the queue's array index that the de-queued item
+           located at, or an error.
+  */
+  ulong de_tail(Slave_job_group *item)
+  {
+    return circular_buffer_queue<Slave_job_group>::de_tail(item);
+  }
+
   ulong find_lwm(Slave_job_group**, ulong);
 };
 
@@ -436,13 +456,13 @@ ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item)
 /**
   Dequeue from head.
 
-  @param [out] val A pointer to the being dequeued item.
+  @param [out] item A pointer to the being dequeued item.
   @return the queue's array index that the de-queued item
           located at, or an error as an int outside the legacy
           [0, size) (value `size' is excluded) range.
 */
 template <typename Element_type>
-ulong circular_buffer_queue<Element_type>::de_queue(Element_type *val)
+ulong circular_buffer_queue<Element_type>::de_queue(Element_type *item)
 {
   ulong ret;
   if (entry == size)
@@ -452,7 +472,7 @@ ulong circular_buffer_queue<Element_type>::de_queue(Element_type *val)
   }
 
   ret= entry;
-  *val= m_Q[entry];
+  *item= m_Q[entry];
   len--;
 
   // pre boundary cond
@@ -470,6 +490,32 @@ ulong circular_buffer_queue<Element_type>::de_queue(Element_type *val)
   DBUG_ASSERT(avail != entry);
 
   return ret;
+}
+
+
+template <typename Element_type>
+ulong circular_buffer_queue<Element_type>::de_tail(Element_type *item)
+{
+  if (entry == size)
+  {
+    DBUG_ASSERT(len == 0);
+    return (ulong) -1;
+  }
+
+  avail= (entry + len - 1) % size;
+  *item= m_Q[avail];
+  len--;
+
+  // post boundary cond
+  if (avail == entry)
+    entry= size;
+
+  DBUG_ASSERT(entry == size ||
+              (len == (avail >= entry)? (avail - entry) :
+               (size + avail - entry)));
+  DBUG_ASSERT(avail != entry);
+
+  return avail;
 }
 
 

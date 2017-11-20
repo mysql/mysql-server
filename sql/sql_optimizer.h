@@ -33,31 +33,35 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "field.h"
-#include "item.h"
-#include "item_subselect.h"
-#include "mem_root_array.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "opt_explain_format.h"                 // Explain_sort_clause
-#include "sql_alloc.h"
-#include "sql_array.h"
-#include "sql_class.h"
-#include "sql_executor.h"                       // Next_select_func
-#include "sql_tmp_table.h"                      // enum_tmpfile_windowing_action
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_select.h"                         // Key_use
-#include "table.h"
-#include "temp_table_param.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_subselect.h"
+#include "sql/mem_root_array.h"
+#include "sql/opt_explain_format.h"             // Explain_sort_clause
+#include "sql/sql_alloc.h"
+#include "sql/sql_array.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h"                   // Next_select_func
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_select.h"                     // Key_use
+#include "sql/sql_tmp_table.h"                  // enum_tmpfile_windowing_action
+#include "sql/table.h"
+#include "sql/temp_table_param.h"
 #include "template_utils.h"
 
 class COND_EQUAL;
 class Item_sum;
+class Window;
+struct TABLE;
+struct TABLE_LIST;
 
 typedef Bounds_checked_array<Item_null_result*> Item_null_array;
 
@@ -195,8 +199,9 @@ public:
       grouped(select->is_explicitly_grouped()),
       do_send_rows(true),
       all_table_map(0),
-      const_table_map(0),
-      found_const_table_map(0),
+      // Inner tables may always be considered to be constant:
+      const_table_map(INNER_TABLE_BIT),
+      found_const_table_map(INNER_TABLE_BIT),
       send_records(0),
       found_records(0),
       examined_rows(0),
@@ -252,6 +257,7 @@ public:
       return_tab(0),
       ref_items(nullptr),
       current_ref_item_slice(REF_SLICE_SAVE),
+      recursive_iteration_count(0),
       zero_result_cause(NULL),
       child_subquery_can_materialize(false),
       allow_outer_refs(false),
@@ -585,6 +591,13 @@ public:
   uint current_ref_item_slice;
 
   /**
+    Used only if this query block is recursive. Contains count of
+    all executions of this recursive query block, since the last
+    this->reset().
+  */
+  uint recursive_iteration_count;
+
+  /**
     <> NULL if optimization has determined that execution will produce an
     empty result before aggregation, contains a textual explanation on why
     result is empty. Implicitly grouped queries may still produce an
@@ -763,7 +776,6 @@ public:
   void set_optimized() { optimized= true; }
   bool is_executed() const { return executed; }
   void set_executed() { executed= true; }
-  void reset_executed() { executed= false; }
 
   /**
     Retrieve the cost model object to be used for this join.

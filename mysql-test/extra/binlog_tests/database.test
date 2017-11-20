@@ -35,14 +35,14 @@ source include/show_binlog_events.inc;
 FLUSH STATUS;
 
 --echo 
---echo # 'DROP TABLE IF EXISTS <deleted tables>' is binlogged
---echo # when 'DROP DATABASE' fails and at least one table is deleted
---echo # from the database.
+--echo # 'DROP TABLE IF EXISTS <deleted table>' are binlogged
+--echo # for each table in SEs not supporting atomic DDL which
+--echo # were dropped by failed 'DROP DATABASE'.
 --echo #
 --echo # Unlike test for bug#11765416/58381 this test uses MyISAM
---echo # for t1. So DROP DATABASE will have side-effect even when atomic
---echo # DDL is introduced. DROP TABLE IF EXISTS should be logged
---echo # for MyISAM table in this case.
+--echo # for t1. So failed DROP DATABASE will have side-effect even
+--echo # though removal of InnoDB tables is rolled back.
+--echo # DROP TABLE IF EXISTS is logged for MyISAM table in this case.
 RESET MASTER;
 CREATE DATABASE testing_1;
 USE testing_1;
@@ -77,7 +77,7 @@ DROP TABLE IF EXISTS t3;
 --enable_warnings
 
 CREATE DATABASE db1;
-CREATE TABLE db1.t1 (a INT);
+CREATE TABLE db1.t1 (a INT) engine=innodb;
 CREATE TABLE db1.t2 (b INT, KEY(b)) engine=innodb;
 CREATE TABLE t3 (a INT, KEY (a), FOREIGN KEY(a) REFERENCES db1.t2(b))
   engine=innodb;
@@ -85,9 +85,10 @@ RESET MASTER;
 
 --error ER_ROW_IS_REFERENCED
 DROP DATABASE db1;                      # Fails because of the fk
-SHOW TABLES FROM db1;                   # t1 was dropped, t2 remains
+# Both t1 and t2 remain as the whole statement is rolled back.
+SHOW TABLES FROM db1;
 --let $mask_binlog_commit_events= 1
---source include/show_binlog_events.inc # Check that the binlog drops t1
+--source include/show_binlog_events.inc # Check that the binlog is empty.
 --let $mask_binlog_commit_events= 0
 
 # Cleanup

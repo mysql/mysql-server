@@ -25,32 +25,37 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "auth_acls.h"
-#include "handler.h"
-#include "item.h"
 #include "my_base.h"
+#include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_sqlcommand.h"
+#include "my_sys.h"
 #include "my_table_map.h"
-#include "mysqld.h"                        // internal_tmp_disk_storage_engine
-#include "opt_trace.h"                        // opt_trace_disable_etc
-#include "query_options.h"
-#include "sql_base.h"                         // EXTRA_RECORD
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_executor.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_optimizer.h"                    // JOIN
-#include "sql_tmp_table.h"                    // Tmp tables
-#include "sql_union.h"                        // Query_result_union
-#include "sql_view.h"                         // check_duplicate_names
-#include "system_variables.h"
-#include "table.h"
-#include "temp_table_param.h"
-#include "debug_sync.h"                       // DEBUG_SYNC
+#include "mysql/udf_registration_types.h"
+#include "mysqld_error.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/debug_sync.h"                   // DEBUG_SYNC
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"                    // internal_tmp_disk_storage_engine
+#include "sql/opt_trace.h"                    // opt_trace_disable_etc
+#include "sql/query_options.h"
+#include "sql/sql_base.h"                     // EXTRA_RECORD
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h"                // JOIN
+#include "sql/sql_tmp_table.h"                // Tmp tables
+#include "sql/sql_union.h"                    // Query_result_union
+#include "sql/sql_view.h"                     // check_duplicate_names
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/temp_table_param.h"
+#include "thr_lock.h"
 
 class Opt_trace_context;
 

@@ -68,13 +68,14 @@ protected:
                               bool read_all);
 
   virtual int update_row_values(TABLE* table,
-                        const unsigned char*,
-                        unsigned char*,
-                        Field** fields);
+                                const unsigned char*,
+                                unsigned char*,
+                                Field** fields);
 
-  virtual int delete_row_values(TABLE *table,
-                                const unsigned char *buf,
-                                Field **fields);
+  virtual int delete_row_values(TABLE* table,
+                                const unsigned char* buf,
+                                Field** fields);
+
 public:
   ~table_plugin_table()
   {

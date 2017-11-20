@@ -64,8 +64,8 @@ INSERT INTO t2(b) VALUES (repeat('x2 ',5));
 INSERT INTO t3(b) VALUES (repeat('x2 ',5));
 XA END 'x2';
 #
-# Change number of UNDO tablespaces from 1 to 4 while online
-# Change number of Rollback Segments from 1 to 3 while online
+# Change number of UNDO tablespaces from 3 to 4 while online
+# Change number of Rollback Segments from 1 to 4 while online
 #
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 Variable_name	Value
@@ -73,11 +73,11 @@ innodb_rollback_segments	1
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 Variable_name	Value
 innodb_undo_tablespaces	3
-SET GLOBAL innodb_rollback_segments=3;
+SET GLOBAL innodb_rollback_segments=4;
 SET GLOBAL innodb_undo_tablespaces=4;
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 Variable_name	Value
-innodb_rollback_segments	3
+innodb_rollback_segments	4
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 Variable_name	Value
 innodb_undo_tablespaces	4
@@ -99,15 +99,20 @@ XA END 'x3';
 XA PREPARE 'x3';
 XA COMMIT 'x3';
 #
-# Change number of Rollback Segments from 3 to 2 while online
+# Change number of UNDO tablespaces from 4 to 2 while online
+# Change number of Rollback Segments from 4 to 2 while online
 #
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 Variable_name	Value
 innodb_undo_tablespaces	4
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 Variable_name	Value
-innodb_rollback_segments	3
+innodb_rollback_segments	4
+SET GLOBAL innodb_undo_tablespaces=2;
 SET GLOBAL innodb_rollback_segments=2;
+SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
+Variable_name	Value
+innodb_undo_tablespaces	2
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 Variable_name	Value
 innodb_rollback_segments	2
@@ -121,122 +126,26 @@ INSERT INTO t1(b) VALUES (repeat('d',15));
 INSERT INTO t2(b) VALUES (repeat('d',15));
 INSERT INTO t3(b) VALUES (repeat('d',15));
 #
-# Change number of UNDO tablespaces from 4 to 0 while online
+# Change number of UNDO tablespaces from 2 to 5 while online
+# Change number of Rollback Segments from 2 to 5 while online
 #
+SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
+Variable_name	Value
+innodb_undo_tablespaces	2
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 Variable_name	Value
 innodb_rollback_segments	2
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
-Variable_name	Value
-innodb_undo_tablespaces	4
-SET GLOBAL innodb_undo_tablespaces=0;
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
-Variable_name	Value
-innodb_undo_tablespaces	0
-# Directory listing of UNDO tablespace files
-undo_001
-undo_002
-undo_003
-undo_004
-SELECT name, status FROM information_schema.innodb_metrics WHERE name like '%rseg%';
-name	status
-buffer_page_read_rseg_array	enabled
-buffer_page_written_rseg_array	enabled
-trx_rseg_history_len	enabled
-trx_rseg_current_size	enabled
-INSERT INTO t1(b) VALUES (repeat('e',15));
-INSERT INTO t2(b) VALUES (repeat('e',15));
-INSERT INTO t3(b) VALUES (repeat('e',15));
-#
-# Change number of Rollback Segments in the system tablespace from 2 to 6 while online
-#
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
-Variable_name	Value
-innodb_undo_tablespaces	0
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-Variable_name	Value
-innodb_rollback_segments	2
-SET GLOBAL innodb_rollback_segments=6;
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-Variable_name	Value
-innodb_rollback_segments	6
-# Directory listing of UNDO tablespace files
-undo_001
-undo_002
-undo_003
-undo_004
-INSERT INTO t1(b) VALUES (repeat('e',15));
-INSERT INTO t2(b) VALUES (repeat('e',15));
-INSERT INTO t3(b) VALUES (repeat('e',15));
-#
-# Change number of Rollback Segments in the system tablespace from 6 to 4 while online
-#
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-Variable_name	Value
-innodb_rollback_segments	6
-SET GLOBAL innodb_rollback_segments=4;
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-Variable_name	Value
-innodb_rollback_segments	4
-# Directory listing of UNDO tablespace files
-undo_001
-undo_002
-undo_003
-undo_004
-SELECT name, status FROM information_schema.innodb_metrics WHERE name like '%rseg%';
-name	status
-buffer_page_read_rseg_array	enabled
-buffer_page_written_rseg_array	enabled
-trx_rseg_history_len	enabled
-trx_rseg_current_size	enabled
-INSERT INTO t1(b) VALUES (repeat('f',15));
-INSERT INTO t2(b) VALUES (repeat('f',15));
-INSERT INTO t3(b) VALUES (repeat('f',15));
-#
-# Change number of UNDO tablespaces to from 0 to 5 while online
-#
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
-Variable_name	Value
-innodb_undo_tablespaces	0
 SET GLOBAL innodb_undo_tablespaces=5;
+SET GLOBAL innodb_rollback_segments=5;
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 Variable_name	Value
 innodb_undo_tablespaces	5
-# Directory listing of UNDO tablespace files
-undo_001
-undo_002
-undo_003
-undo_004
-undo_005
-INSERT INTO t1(b) VALUES (repeat('g',15));
-INSERT INTO t2(b) VALUES (repeat('g',15));
-INSERT INTO t3(b) VALUES (repeat('g',15));
-#
-# Change number of Rollback Segments from 4 to 2 while online
-#
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-Variable_name	Value
-innodb_rollback_segments	4
-SET GLOBAL innodb_rollback_segments=2;
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-Variable_name	Value
-innodb_rollback_segments	2
-INSERT INTO t1(b) VALUES (repeat('h',15));
-INSERT INTO t2(b) VALUES (repeat('h',15));
-INSERT INTO t3(b) VALUES (repeat('h',15));
-#
-# Change number of Rollback Segments from 2 to 5 while online
-#
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-Variable_name	Value
-innodb_rollback_segments	2
-SET GLOBAL innodb_rollback_segments=5;
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 Variable_name	Value
 innodb_rollback_segments	5
-INSERT INTO t1(b) VALUES (repeat('i',15));
-INSERT INTO t2(b) VALUES (repeat('i',15));
-INSERT INTO t3(b) VALUES (repeat('i',15));
+INSERT INTO t1(b) VALUES (repeat('e',15));
+INSERT INTO t2(b) VALUES (repeat('e',15));
+INSERT INTO t3(b) VALUES (repeat('e',15));
 #
 # Shutdown mysqld cleanly.
 # Change number of UNDO tablespaces from 5 to 6 while offline
@@ -259,76 +168,47 @@ undo_005
 undo_006
 #
 # Shutdown mysqld cleanly.
-# Change number of UNDO tablespaces from 6 to 2 while offline
-# Change number of Rollback Segments from 6 to 2 while offline
+# Change number of UNDO tablespaces from 6 to 4 while offline
+# Change number of Rollback Segments from 6 to 4 while offline
 # Restart mysqld with these smaller settings
 #
-# restart: --innodb_undo_tablespaces=2 --innodb_rollback_segments=2
+# restart: --innodb_undo_tablespaces=4 --innodb_rollback_segments=4
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	4
+SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
+Variable_name	Value
+innodb_undo_tablespaces	4
+# Directory listing of UNDO tablespace files
+undo_001
+undo_002
+undo_003
+undo_004
+undo_005
+undo_006
+#
+# Kill and and restart mysqld with less undo tablespaces=2 and less rollback segments=2
+#
+BEGIN;
+INSERT INTO t1 (b) VALUES (repeat('f',15));
+INSERT INTO t2 (b) VALUES (repeat('f',15));
+INSERT INTO t3 (b) VALUES (repeat('f',15));
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+5
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+5
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+5
+# Kill and restart: --innodb_undo_tablespaces=2 --innodb_rollback_segments=2
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 Variable_name	Value
 innodb_rollback_segments	2
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 Variable_name	Value
 innodb_undo_tablespaces	2
-# Directory listing of UNDO tablespace files
-undo_001
-undo_002
-undo_003
-undo_004
-undo_005
-undo_006
-#
-# Shutdown mysqld cleanly.
-# Change number of UNDO tablespaces from 2 to 0 while offline
-# Change number of Rollback Segments from 2 to 5 while offline
-# Restart mysqld with these settings
-#
-# restart: --innodb-undo_tablespaces=0 --innodb_rollback_segments=5
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-Variable_name	Value
-innodb_rollback_segments	5
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
-Variable_name	Value
-innodb_undo_tablespaces	0
-# Directory listing of UNDO tablespace files
-undo_001
-undo_002
-undo_003
-undo_004
-undo_005
-undo_006
-SELECT COUNT(*) FROM t1;
-COUNT(*)
-4
-SELECT COUNT(*) FROM t2;
-COUNT(*)
-4
-SELECT COUNT(*) FROM t3;
-COUNT(*)
-4
-#
-# Kill and and restart mysqld with undo tablespaces=0 and more rollback segments=6.
-#
-BEGIN;
-INSERT INTO t1 (b) VALUES (repeat('j',15));
-INSERT INTO t2 (b) VALUES (repeat('j',15));
-INSERT INTO t3 (b) VALUES (repeat('j',15));
-SELECT COUNT(*) FROM t1;
-COUNT(*)
-5
-SELECT COUNT(*) FROM t2;
-COUNT(*)
-5
-SELECT COUNT(*) FROM t3;
-COUNT(*)
-5
-# Kill and restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=6
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-Variable_name	Value
-innodb_rollback_segments	6
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
-Variable_name	Value
-innodb_undo_tablespaces	0
 # Directory listing of UNDO tablespace files
 undo_001
 undo_002
@@ -349,9 +229,9 @@ COUNT(*)
 # Kill and and restart mysqld with more undo tablespaces=7 and more rollback segments=7
 #
 BEGIN;
-INSERT INTO t1 (b) VALUES (repeat('k',15));
-INSERT INTO t2 (b) VALUES (repeat('k',15));
-INSERT INTO t3 (b) VALUES (repeat('k',15));
+INSERT INTO t1 (b) VALUES (repeat('g',15));
+INSERT INTO t2 (b) VALUES (repeat('g',15));
+INSERT INTO t3 (b) VALUES (repeat('g',15));
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 5
@@ -388,9 +268,9 @@ COUNT(*)
 #
 # Restart mysqld in read-only mode with more undo tablespaces=8 and more rollback segments=8
 #
-INSERT INTO t1 (b) VALUES (repeat('l',15));
-INSERT INTO t2 (b) VALUES (repeat('l',15));
-INSERT INTO t3 (b) VALUES (repeat('l',15));
+INSERT INTO t1 (b) VALUES (repeat('h',15));
+INSERT INTO t2 (b) VALUES (repeat('h',15));
+INSERT INTO t3 (b) VALUES (repeat('h',15));
 # restart: --innodb_read_only  --innodb_undo_tablespaces=8 --innodb_rollback_segments=8
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 Variable_name	Value
@@ -475,44 +355,15 @@ SELECT COUNT(*) FROM t3;
 COUNT(*)
 5
 #
-# Restart in normal mode with undo tablespaces=0 and more rollback segments=10
-#
-# restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=10
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-Variable_name	Value
-innodb_rollback_segments	10
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
-Variable_name	Value
-innodb_undo_tablespaces	0
-# Directory listing of UNDO tablespace files
-undo_001
-undo_002
-undo_003
-undo_004
-undo_005
-undo_006
-undo_007
-INSERT INTO t1 (b) VALUES (repeat('m',15));
-INSERT INTO t2 (b) VALUES (repeat('m',15));
-INSERT INTO t3 (b) VALUES (repeat('m',15));
-SELECT COUNT(*) FROM t1;
-COUNT(*)
-6
-SELECT COUNT(*) FROM t2;
-COUNT(*)
-6
-SELECT COUNT(*) FROM t3;
-COUNT(*)
-6
-#
 # Use SET PERSIST to change undo tablespaces=11 and rollback segments=11
 # and put some undo logs in both the system tablespace and the undo logs
 # that must be rolled back on restart.
 #
+# restart: --innodb_undo_tablespaces=8 --innodb_rollback_segments=8
 BEGIN;
-INSERT INTO t1 (b) VALUES (repeat('n',15));
-INSERT INTO t2 (b) VALUES (repeat('n',15));
-INSERT INTO t3 (b) VALUES (repeat('n',15));
+INSERT INTO t1 (b) VALUES (repeat('i',15));
+INSERT INTO t2 (b) VALUES (repeat('i',15));
+INSERT INTO t3 (b) VALUES (repeat('i',15));
 SET PERSIST innodb_undo_tablespaces=11;
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 Variable_name	Value
@@ -521,9 +372,9 @@ SET PERSIST innodb_rollback_segments=11;
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 Variable_name	Value
 innodb_rollback_segments	11
-INSERT INTO t1 (b) VALUES (repeat('o',15));
-INSERT INTO t2 (b) VALUES (repeat('o',15));
-INSERT INTO t3 (b) VALUES (repeat('o',15));
+INSERT INTO t1 (b) VALUES (repeat('j',15));
+INSERT INTO t2 (b) VALUES (repeat('j',15));
+INSERT INTO t3 (b) VALUES (repeat('j',15));
 #
 # Restart in normal mode with default undo tablespaces and rollback segments.
 # The persisted settings will be set just after startup.
@@ -549,25 +400,25 @@ undo_010
 undo_011
 SELECT COUNT(*) FROM t1;
 COUNT(*)
-6
+5
 SELECT COUNT(*) FROM t2;
 COUNT(*)
-6
+5
 SELECT COUNT(*) FROM t3;
 COUNT(*)
-6
-INSERT INTO t1 (b) VALUES (repeat('p',15));
-INSERT INTO t2 (b) VALUES (repeat('p',15));
-INSERT INTO t3 (b) VALUES (repeat('p',15));
+5
+INSERT INTO t1 (b) VALUES (repeat('k',15));
+INSERT INTO t2 (b) VALUES (repeat('k',15));
+INSERT INTO t3 (b) VALUES (repeat('k',15));
 SELECT COUNT(*) FROM t1;
 COUNT(*)
-7
+6
 SELECT COUNT(*) FROM t2;
 COUNT(*)
-7
+6
 SELECT COUNT(*) FROM t3;
 COUNT(*)
-7
+6
 #
 # Cleanup
 #

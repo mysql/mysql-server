@@ -17,8 +17,10 @@
 #define DD__BOOTSTRAPPER_INCLUDED
 
 
-#include "dd/string_type.h"                    // dd::String_type
-#include "handler.h"                           // dict_init_mode_t
+#include <sys/types.h>
+
+#include "sql/dd/string_type.h"                // dd::String_type
+#include "sql/handler.h"                       // dict_init_mode_t
 
 class THD;
 
@@ -84,6 +86,7 @@ bool execute_query(THD *thd, const dd::String_type &q_buf);
 
 namespace dd {
 class Dictionary_impl;
+
 namespace bootstrap {
 
 // Enumeration of bootstrapping stages.

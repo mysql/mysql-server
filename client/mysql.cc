@@ -45,7 +45,8 @@
 #include <time.h>
 #include <violite.h>
 
-#include "client_priv.h"
+#include "client/client_priv.h"
+#include "client/my_readline.h"
 #include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -54,7 +55,6 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
-#include "my_readline.h"
 #include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"
 #include "typelib.h"
@@ -90,9 +90,10 @@
 #endif
 
 #include <mysqld_error.h>
-#include <sql_common.h>
 #include <algorithm>
 #include <new>
+
+#include "sql_common.h"
 
 using std::min;
 using std::max;
@@ -123,7 +124,7 @@ static char *server_version= NULL;
 
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
-#include "completion_hash.h"
+#include "client/completion_hash.h"
 #include "print_version.h"
 
 #define PROMPT_CHAR '\\'
@@ -155,7 +156,6 @@ static bool ignore_errors=0,wait_flag=0,quick=0,
             vertical=0, line_numbers=1, column_names=1,opt_html=0,
             opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
             tty_password= 0, opt_nobeep=0, opt_reconnect=1,
-            opt_secure_auth= TRUE,
             default_pager_set= 0, opt_sigint_ignore= 0,
             auto_vertical_output= 0,
             show_warnings= 0, executing_query= 0, interrupted_query= 0,
@@ -191,9 +191,7 @@ static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char mysql_charsets_dir[FN_REFLEN+1];
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
-#if !defined(HAVE_YASSL)
 static char *opt_server_public_key= 0;
-#endif
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
@@ -221,6 +219,7 @@ static char *shared_memory_base_name=0;
 static uint opt_protocol=0;
 static const CHARSET_INFO *charset_info= &my_charset_latin1;
 
+#include "caching_sha2_passwordopt-vars.h"
 #include "sslopt-vars.h"
 
 const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
@@ -514,7 +513,6 @@ static COMMANDS commands[] = {
   { "DELETE", 0, 0, 0, ""},
   { "DESC", 0, 0, 0, ""},
   { "DESCRIBE", 0, 0, 0, ""},
-  { "DES_KEY_FILE", 0, 0, 0, ""},
   { "DETERMINISTIC", 0, 0, 0, ""},
   { "DIRECTORY", 0, 0, 0, ""},
   { "DISABLE", 0, 0, 0, ""},
@@ -798,7 +796,6 @@ static COMMANDS commands[] = {
   { "SQLWARNING", 0, 0, 0, ""},
   { "SQL_BIG_RESULT", 0, 0, 0, ""},
   { "SQL_BUFFER_RESULT", 0, 0, 0, ""},
-  { "SQL_CACHE", 0, 0, 0, ""},
   { "SQL_CALC_FOUND_ROWS", 0, 0, 0, ""},
   { "SQL_NO_CACHE", 0, 0, 0, ""},
   { "SQL_SMALL_RESULT", 0, 0, 0, ""},
@@ -940,15 +937,10 @@ static COMMANDS commands[] = {
   { "DAYOFMONTH", 0, 0, 0, ""},
   { "DAYOFWEEK", 0, 0, 0, ""},
   { "DAYOFYEAR", 0, 0, 0, ""},
-  { "DECODE", 0, 0, 0, ""},
   { "DEGREES", 0, 0, 0, ""},
-  { "DES_ENCRYPT", 0, 0, 0, ""},
-  { "DES_DECRYPT", 0, 0, 0, ""},
   { "DIMENSION", 0, 0, 0, ""},
   { "DISJOINT", 0, 0, 0, ""},
   { "ELT", 0, 0, 0, ""},
-  { "ENCODE", 0, 0, 0, ""},
-  { "ENCRYPT", 0, 0, 0, ""},
   { "ENDPOINT", 0, 0, 0, ""},
   { "ENVELOPE", 0, 0, 0, ""},
   { "EQUALS", 0, 0, 0, ""},
@@ -1824,6 +1816,7 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#include "caching_sha2_passwordopt-longopts.h"
 #include "sslopt-longopts.h"
 
   {"table", 't', "Output in table format.", &output_tables,
@@ -1868,9 +1861,6 @@ static struct my_option my_long_options[] =
    "Automatic limit for rows in a join when using --safe-updates.",
    &max_join_size, &max_join_size, 0, GET_ULONG, REQUIRED_ARG, 1000000L,
    1, ULONG_MAX, 0, 1, 0},
-  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
-    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
     &show_warnings, &show_warnings, 0, GET_BOOL, NO_ARG,
     0, 0, 0, 0, 0, 0},
@@ -1891,12 +1881,10 @@ static struct my_option my_long_options[] =
    "piped to mysql or loaded using the 'source' command). This is necessary "
    "when processing output from mysqlbinlog that may contain blobs.",
    &opt_binary_mode, &opt_binary_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#if !defined(HAVE_YASSL)
   {"server-public-key-path", OPT_SERVER_PUBLIC_KEY,
    "File path to the server public RSA key in PEM format.",
    &opt_server_public_key, &opt_server_public_key, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"connect-expired-password", 0,
    "Notify the server that this client is prepared to handle expired "
    "password sandbox mode.",
@@ -1922,19 +1910,6 @@ static void usage(int version)
     return;
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
-  /*
-    Turn default for zombies off so that the help on how to 
-    turn them off text won't show up.
-    This is safe to do since it's followed by a call to exit().
-  */
-  for (struct my_option *optp= my_long_options; optp->name; optp++)
-  {
-    if (optp->id == OPT_SECURE_AUTH)
-    {
-      optp->def_value= 0;
-      break;
-    }
-  }
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
@@ -2007,16 +1982,6 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
-    break;
-  case OPT_SECURE_AUTH:
-    /* --secure-auth is a zombie option. */
-    if (!opt_secure_auth)
-    {
-      fprintf(stderr, "mysql: [ERROR] --skip-secure-auth is not supported.\n");
-      exit(1);
-    }
-    else
-      CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
     break;
   case 'A':
     opt_rehash= 0;
@@ -5127,10 +5092,10 @@ init_connection_options(MYSQL *mysql)
   if (opt_default_auth && *opt_default_auth)
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
-#if !defined(HAVE_YASSL)
   if (opt_server_public_key && *opt_server_public_key)
     mysql_options(mysql, MYSQL_SERVER_PUBLIC_KEY, opt_server_public_key);
-#endif
+
+  set_get_server_public_key_option(mysql);
 
   if (using_opt_enable_cleartext_plugin)
     mysql_options(mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,

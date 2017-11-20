@@ -209,8 +209,7 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Scalar &arg)
 
     case Mysqlx::Datatypes::Scalar::V_STRING:
       if (arg.v_string().has_collation()) {
-        // TODO(owner) handle _utf8'string' type charset specification... but
-        // 1st
+        // TODO handle _utf8'string' type charset specification... but 1st
         // validate charset for alnum_
         // m_qb->put("_").put(arg.v_string().charset());
       }
@@ -380,17 +379,9 @@ inline bool is_cast_to_json(const Mysqlx::Expr::Operator &arg) {
 }
 
 inline bool is_json_function_call(const Mysqlx::Expr::FunctionCall &arg) {
-  // keep patterns in asc order
-  static const char *const whitelist[] = {
-      "JSON_APPEND",  "JSON_ARRAY",  "JSON_ARRAY_APPEND", "JSON_ARRAY_INSERT",
-      "JSON_EXTRACT", "JSON_INSERT", "JSON_KEYS",         "JSON_MERGE",
-      "JSON_OBJECT",  "JSON_QUOTE",  "JSON_REMOVE",       "JSON_REPLACE",
-      "JSON_SEARCH",  "JSON_SET"};
-  static const char *const *whitelist_end = get_array_end(whitelist);
 
   return arg.has_name() && arg.name().has_name() &&
-         std::binary_search(whitelist, whitelist_end,
-                            to_upper(arg.name().name()).c_str(), Is_less());
+         does_return_json_mysql_function(arg.name().name());
 }
 
 }  // namespace
@@ -563,9 +554,12 @@ struct Interval_unit_validator {
         "MINUTE_SECOND",    "MONTH",              "QUARTER",
         "SECOND",           "SECOND_MICROSECOND", "WEEK",
         "YEAR",             "YEAR_MONTH"};
-    static const char *const *patterns_end = get_array_end(patterns);
 
-    return std::binary_search(patterns, patterns_end, source, Is_less());
+    return std::binary_search(
+        std::begin(patterns),
+        std::end(patterns),
+        source,
+        Is_less());
   }
 
   const char *const m_error_msg;
@@ -716,12 +710,14 @@ void Expression_generator::generate(const Mysqlx::Expr::Operator &arg) const {
       {"||", ngs::bind(&Gen::binary_operator, _1, _2, " OR ")},
       {"~", ngs::bind(&Gen::unary_operator, _1, _2, "~")}};
 
-  static const Operator_bind *operators_end = get_array_end(operators);
+  const Operator_bind *op = std::lower_bound(
+      std::begin(operators),
+      std::end(operators),
+      arg.name(),
+      Is_operator_less());
 
-  const Operator_bind *op = std::lower_bound(operators, operators_end,
-                                             arg.name(), Is_operator_less());
-
-  if (op == operators_end || std::strcmp(arg.name().c_str(), op->first) != 0)
+  if (op == std::end(operators) ||
+      std::strcmp(arg.name().c_str(), op->first) != 0)
     throw Error(ER_X_EXPR_BAD_OPERATOR, "Invalid operator " + arg.name());
 
   op->second(this, arg);

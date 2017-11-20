@@ -3347,21 +3347,30 @@ NdbDictionary::Dictionary::listIndexes(List& list, const char * tableName)
 
 int
 NdbDictionary::Dictionary::listIndexes(List& list,
-				       const char * tableName) const
+                                      const char * tableName) const
+{
+  // delegate to overloaded function with FQ names param
+  return listIndexes(list, tableName, m_impl.m_ndb.usingFullyQualifiedNames());
+}
+
+int
+NdbDictionary::Dictionary::listIndexes(List& list,
+				       const char * tableName, bool fullyQualified) const
 {
   const NdbDictionary::Table* tab= getTable(tableName);
   if(tab == 0)
   {
     return -1;
   }
-  return m_impl.listIndexes(list, tab->getTableId());
+  return m_impl.listIndexes(list, tab->getTableId(), fullyQualified);
 }
 
 int
 NdbDictionary::Dictionary::listIndexes(List& list,
 				       const NdbDictionary::Table &table) const
 {
-  return m_impl.listIndexes(list, table.getTableId());
+  return m_impl.listIndexes(list, table.getTableId(),
+                            m_impl.m_ndb.usingFullyQualifiedNames());
 }
 
 int

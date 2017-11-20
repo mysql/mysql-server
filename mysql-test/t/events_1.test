@@ -25,12 +25,13 @@ CREATE EVENT e_x1 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE db_x;
 CREATE EVENT e_x2 ON SCHEDULE EVERY 1 SECOND DO DROP TABLE x_table;
 connection default;
 SHOW DATABASES LIKE 'db_x';
-SET GLOBAL event_scheduler=1;
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
 let $wait_condition= SELECT count(*)= 1 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME LIKE 'db_x';
 --source include/wait_condition.inc
 SHOW DATABASES LIKE 'db_x';
 SHOW TABLES FROM db_x;
-SET GLOBAL event_scheduler=off;
 connection priv_conn;
 DROP EVENT e_x1;
 DROP EVENT e_x2;
@@ -44,6 +45,7 @@ USE events_test;
 # END:    BUG #17289 Events: missing privilege check for drop database
 #
 SET GLOBAL event_scheduler=off;
+--source include/no_running_event_scheduler.inc
 drop event if exists event1;
 create event event1 on schedule every 15 minute starts now() ends date_add(now(), interval 5 hour) DO begin end;
 alter event event1 rename to event2 enable;
@@ -93,6 +95,8 @@ begin
 end|
 delimiter ;|
 set global event_scheduler = on;
+--source include/running_event_scheduler.inc
+
 let $wait_condition= SELECT count(*)>0 from information_schema.events where event_name='e_43' and interval_value= 5;
 --source include/wait_condition.inc
 select event_name, event_definition, status, interval_field, interval_value from information_schema.events;
@@ -111,7 +115,6 @@ drop table non_qualif;
 --error ER_EVENT_DOES_NOT_EXIST
 alter event non_existant rename to non_existant_too;
 
-set global event_scheduler = off;
 create event existant on schedule at now() + interval 1 year do select 12;
 --error ER_EVENT_ALREADY_EXISTS
 alter event non_existant rename to existant;

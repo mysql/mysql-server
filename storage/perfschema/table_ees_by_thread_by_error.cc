@@ -22,7 +22,6 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
@@ -31,6 +30,7 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_visitor.h"
+#include "sql/field.h"
 
 bool
 PFS_index_ees_by_thread_by_error::match(PFS_thread *pfs)
@@ -91,7 +91,10 @@ PFS_engine_table_share table_ees_by_thread_by_error::m_share = {
   sizeof(pos_ees_by_thread_by_error),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 PFS_engine_table *

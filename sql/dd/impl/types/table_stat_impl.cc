@@ -13,15 +13,17 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <ostream>
+#include "sql/dd/impl/types/table_stat_impl.h" // Table_stat_impl
 
-#include "dd/impl/raw/object_keys.h"
-#include "dd/impl/raw/raw_record.h"        // Raw_record
-#include "dd/impl/tables/table_stats.h"    // Table_stats
-#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
-#include "dd/impl/types/table_stat_impl.h" // Table_stat_impl
+#include <ostream>
+#include <string>
+
 #include "my_sys.h"
 #include "mysqld_error.h"
+#include "sql/dd/impl/raw/object_keys.h"
+#include "sql/dd/impl/raw/raw_record.h"    // Raw_record
+#include "sql/dd/impl/tables/table_stats.h" // Table_stats
+#include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
 
 namespace dd {
 class Object_key;
@@ -84,6 +86,7 @@ bool Table_stat_impl::restore_attributes(const Raw_record &r)
   m_checksum=       r.read_int(Table_stats::FIELD_CHECKSUM);
   m_update_time=    r.read_int(Table_stats::FIELD_UPDATE_TIME);
   m_check_time=     r.read_int(Table_stats::FIELD_CHECK_TIME);
+  m_cached_time=    r.read_int(Table_stats::FIELD_CACHED_TIME);
 
   return false;
 }
@@ -109,7 +112,9 @@ bool Table_stat_impl::store_attributes(Raw_record *r)
                     m_update_time == 0) ||
            r->store(Table_stats::FIELD_CHECK_TIME,
                     m_check_time,
-                    m_check_time == 0);
+                    m_check_time == 0) ||
+           r->store(Table_stats::FIELD_CACHED_TIME,
+                    m_cached_time);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -130,7 +135,8 @@ void Table_stat_impl::debug_print(String_type &outb) const
     << "m_auto_increment: " <<  m_auto_increment << "; "
     << "m_checksum: " <<  m_checksum << "; "
     << "m_update_time: " <<  m_update_time << "; "
-    << "m_check_time: " <<  m_check_time;
+    << "m_check_time: " <<  m_check_time << "; "
+    << "m_cached_time: " <<  m_cached_time;
 
   ss << " }";
   outb= ss.str();

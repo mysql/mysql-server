@@ -22,16 +22,16 @@
 
 #include <stddef.h>
 
-#include "current_thd.h"
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "mysqld.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/field.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"
 
 THR_LOCK table_variables_info::m_table_lock;
 
@@ -65,7 +65,10 @@ PFS_engine_table_share table_variables_info::m_share = {
   sizeof(pos_t),
   &m_table_lock,
   &m_table_def,
-  true /* perpetual */
+  true, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 PFS_engine_table *

@@ -20,6 +20,10 @@
 #include <decimal_utils.hpp>
 #include "NdbImportCsv.hpp"
 #include "NdbImportCsvGram.hpp"
+// legacy
+#include <BaseString.hpp>
+
+#define snprintf BaseString::snprintf
 
 extern int NdbImportCsv_yyparse(NdbImportCsv::Parse& csvparse);
 #ifdef VM_TRACE
@@ -332,7 +336,7 @@ NdbImportCsv::Alloc::alloc_data()
 void
 NdbImportCsv::Alloc::free_data_list(DataList& data_list)
 {
-  m_free_data_cnt += data_list.m_cnt;
+  m_free_data_cnt += data_list.cnt();
   m_data_free.push_back(data_list);
 }
 
@@ -357,7 +361,7 @@ NdbImportCsv::Alloc::free_field_list(FieldList& field_list)
     free_data_list(field->m_data_list);
     field = field->next();
   }
-  m_free_field_cnt += field_list.m_cnt;
+  m_free_field_cnt += field_list.cnt();
   m_field_free.push_back(field_list);
 }
 
@@ -382,7 +386,7 @@ NdbImportCsv::Alloc::free_line_list(LineList& line_list)
     free_field_list(line->m_field_list);
     line = line->next();
   }
-  m_free_line_cnt += line_list.m_cnt;
+  m_free_line_cnt += line_list.cnt();
   m_line_free.push_back(line_list);
 }
 
@@ -473,8 +477,8 @@ NdbImportCsv::Input::do_send(uint& curr, uint& left)
   RowList& rows_in = m_rows_in;         // local
   RowList& rows_out = m_rows_out;       // shared
   rows_out.lock();
-  curr = rows_in.m_cnt;
-  while (rows_in.m_cnt != 0)
+  curr = rows_in.cnt();
+  while (rows_in.cnt() != 0)
   {
     Row* row = rows_in.pop_front();
     require(row != 0);
@@ -484,7 +488,7 @@ NdbImportCsv::Input::do_send(uint& curr, uint& left)
       break;
     }
   }
-  left = rows_in.m_cnt;
+  left = rows_in.cnt();
   if (rows_out.m_foe)
   {
     log1("consumer has stopped");
@@ -501,7 +505,7 @@ NdbImportCsv::Input::do_movetail(Input& input2)
   require(buf1.movetail(buf2) == 0);
   buf1.m_pos = buf1.m_len;      // keep pos within new len
   input2.m_startpos = m_startpos + buf1.m_len;
-  input2.m_startlineno = m_startlineno + m_line_list.m_cnt;
+  input2.m_startlineno = m_startlineno + m_line_list.cnt();
   log1("movetail " <<
       " src: " << buf1 <<
       " dst: " << buf2 <<
@@ -532,7 +536,7 @@ NdbImportCsv::Input::reject_line(const Line* line,
   m_util.set_reject_row(rejectrow, Inval_uint32, error, reject, rejectlen);
   require(rows_reject.push_back(rejectrow));
   // error if rejects exceeded
-  if (rows_reject.m_totcnt > opt.m_rejects)
+  if (rows_reject.totcnt() > opt.m_rejects)
   {
     m_util.set_error_data(m_error, __LINE__, 0,
                           "reject limit %u exceeded", opt.m_rejects);
@@ -556,7 +560,7 @@ NdbImportCsv::Input::print(NdbOut& out)
     out << bufdatac;
   else
     out << bufdatac << "\\c" << endl;
-  out << "linecnt=" << line_list.m_cnt;
+  out << "linecnt=" << line_list.cnt();
   Line* line = line_list.front();
   while (line != 0)
   {
@@ -564,7 +568,7 @@ NdbImportCsv::Input::print(NdbOut& out)
     out << "lineno=" << line->m_lineno;
     out << " pos=" << line->m_pos;
     out << " length=" << line->m_end - line->m_pos;
-    out << " fieldcnt=" << line->m_field_list.m_cnt;
+    out << " fieldcnt=" << line->m_field_list.cnt();
     Field* field = line->m_field_list.front();
     while (field != 0)
     {
@@ -595,7 +599,7 @@ operator<<(NdbOut& out, const NdbImportCsv::Input& input)
 {
   out << input.m_name;
   out << " len=" << input.m_buf.m_len;
-  out << " linecnt=" << input.m_line_list.m_cnt;
+  out << " linecnt=" << input.m_line_list.cnt();
   return out;
 }
 
@@ -618,7 +622,15 @@ NdbImportCsv::Parse::do_init()
   log1("do_init");
   const Spec& spec = m_input.m_spec;
   for (int s = 0; s < g_statecnt; s++)
-    m_trans[s][0] = 0;  // EOF
+  {
+    /*
+     * NUL byte 0x00 can be represented as NUL, \NUL, or \0
+     * where the first two contain a literal NUL byte 0x00.
+     * The T_NUL token is used to avoid branching in the normal
+     * case where the third printable format is used.
+     */
+    m_trans[s][0] = T_NUL;
+  }
   for (uint u = 1; u < g_bytecnt; u++)
   {
     m_trans[State_plain][u] = T_DATA;
@@ -627,9 +639,11 @@ NdbImportCsv::Parse::do_init()
   }
   {
     const uchar* p = spec.m_fields_terminated_by;
-    require(p != 0 && p[0] != 0);
+    const uint len = spec.m_fields_terminated_by_len;
+    require(p != 0 && p[0] != 0 && len == strlen((const char*)p));
     uint u = p[0];
-    m_trans[State_plain][u] = T_FIELDSEP;
+    // avoid parse-time branch in the common case
+    m_trans[State_plain][u] = len == 1 ? T_FIELDSEP : T_FIELDSEP2;
     m_trans[State_quote][u] = T_DATA;
     m_trans[State_escape][u] = T_BYTE;
   }
@@ -658,9 +672,11 @@ NdbImportCsv::Parse::do_init()
   }
   {
     const uchar* p = spec.m_lines_terminated_by;
-    require(p != 0 && p[0] != 0);
+    const uint len = spec.m_lines_terminated_by_len;
+    require(p != 0 && p[0] != 0 && len == strlen((const char*)p));
     uint u = p[0];
-    m_trans[State_plain][u] = T_LINEEND;
+    // avoid parse-time branch in the common case
+    m_trans[State_plain][u] = len == 1 ? T_LINEEND : T_LINEEND2;
     m_trans[State_quote][u] = T_DATA;
     m_trans[State_escape][u] = T_BYTE;
   }
@@ -735,7 +751,7 @@ NdbImportCsv::Parse::do_parse()
     else
     {
       uint64 abspos = m_input.m_startpos;
-      uint64 abslineno = m_input.m_startlineno;
+      uint64 abslineno = 1 + m_input.m_startlineno;
       m_util.set_error_data(m_error, __LINE__, 0,
                             "parse error at line=%llu: pos=%llu:"
                             " CSV page contains no complete record"
@@ -757,7 +773,7 @@ NdbImportCsv::Parse::do_parse()
       Field* field = line->m_field_list.front();
       while (field != 0)
       {
-        if (field->m_data_list.m_cnt != 0)
+        if (field->m_data_list.cnt() != 0)
           pack_field(field);
         field = field->next();
       }
@@ -782,8 +798,21 @@ NdbImportCsv::Parse::do_lex(YYSTYPE* lvalp)
   int token = trans[u];
   switch (token) {
   case T_FIELDSEP:
-    len = spec.m_fields_terminated_by_len;
+    len = 1;
     end += len;
+    break;
+  case T_FIELDSEP2:
+    len = spec.m_fields_terminated_by_len;
+    if (len <= buf.m_len - buf.m_pos &&
+        memcmp(&bufdata[pos], spec.m_fields_terminated_by, len) == 0)
+    {
+      end += len;
+      token = T_FIELDSEP;
+      break;
+    }
+    len = 1;
+    end += len;
+    token = T_DATA;
     break;
   case T_QUOTE:
     push_state(State_quote);
@@ -812,8 +841,21 @@ NdbImportCsv::Parse::do_lex(YYSTYPE* lvalp)
     end += len;
     break;
   case T_LINEEND:
-    len = spec.m_lines_terminated_by_len;
+    len = 1;
     end += len;
+    break;
+  case T_LINEEND2:
+    len = spec.m_lines_terminated_by_len;
+    if (len <= buf.m_len - buf.m_pos &&
+        memcmp(&bufdata[pos], spec.m_lines_terminated_by, len) == 0)
+    {
+      end += len;
+      token = T_LINEEND;
+      break;
+    }
+    len = 1;
+    end += len;
+    token = T_DATA;
     break;
   case T_DATA:
     do
@@ -828,7 +870,21 @@ NdbImportCsv::Parse::do_lex(YYSTYPE* lvalp)
     end += len;
     pop_state();
     break;
-  case 0:
+  case T_NUL:
+    if (buf.m_pos == buf.m_len)
+    {
+      token = 0;
+      break;
+    }
+    if (m_state[m_stacktop] != State_escape)
+      token = T_DATA;
+    else
+    {
+      token = T_BYTE;
+      pop_state();
+    }
+    len = 1;
+    end += len;
     break;
   }
   Chunk chunk;
@@ -851,7 +907,7 @@ NdbImportCsv::Parse::do_error(const char* msg)
     const Buf& buf = m_input.m_buf;
     log2("parse error at buf:" << buf);
     uint64 abspos = m_input.m_startpos + buf.m_pos;
-    uint64 abslineno = m_input.m_startlineno + m_line_list.m_cnt;
+    uint64 abslineno = m_input.m_startlineno + m_line_list.cnt();
     m_util.set_error_data(m_error, __LINE__, 0,
                           "parse error at line=%llu: pos=%llu: %s",
                           abslineno, abspos, msg);
@@ -1159,7 +1215,7 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
   row->m_linenr = linenr;
   row->m_startpos = m_input.m_startpos + line->m_pos;
   row->m_endpos = m_input.m_startpos + line->m_end;
-  const uint fieldcnt = line->m_field_list.m_cnt;
+  const uint fieldcnt = line->m_field_list.cnt();
   const uint has_hidden_pk = (uint)table.m_has_hidden_pk;
   const uint expect_attrcnt = attrcnt - has_hidden_pk;
   Error error;  // local error
@@ -1225,8 +1281,9 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
 void
 NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
 {
+  const Opt& opt = m_util.c_opt;
+  const CHARSET_INFO* cs = opt.m_charset;
   const Table& table = m_input.m_table;
-  const CHARSET_INFO* cs = table.m_cs;
   const Attrs& attrs = table.m_attrs;
   Buf& buf = m_input.m_buf;
   uchar* bufdata = &buf.m_data[buf.m_start];
@@ -1569,7 +1626,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u; eval %s failed: bad format",
+          "line %llu field %u: eval %s failed: bad format",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1586,7 +1643,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u; eval %s failed: bad format",
+          "line %llu field %u: eval %s failed: bad format",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1599,7 +1656,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, err,
-          "line %llu field %u; eval %s failed",
+          "line %llu field %u: eval %s failed",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1616,7 +1673,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u; eval %s failed: bad format",
+          "line %llu field %u: eval %s failed: bad format",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1629,7 +1686,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, err,
-          "line %llu field %u; eval %s failed",
+          "line %llu field %u: eval %s failed",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1654,7 +1711,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u; eval %s failed: bad format",
+          "line %llu field %u: eval %s failed: bad format",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -1680,7 +1737,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u; eval %s failed: bad format",
+          "line %llu field %u: eval %s failed: bad format",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2641,7 +2698,7 @@ testinput1()
       out << util.c_error << endl;
       require(mycsv.error == 1);
     }
-    require(input.m_line_list.m_cnt == mycsv.linecnt);
+    require(input.m_line_list.cnt() == mycsv.linecnt);
     const MyRes& myres = mycsv.res;
     uint fieldcnt = 0;
     CsvLine* line = input.m_line_list.front();
@@ -2740,7 +2797,7 @@ testinput2()
     }
     input1.do_parse();
     totread++;
-    totlines += input1.m_line_list.m_cnt;
+    totlines += input1.m_line_list.cnt();
     input1.free_line_list(input1.m_line_list);
     if (b1.m_eof)
       break;

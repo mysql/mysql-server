@@ -27,15 +27,15 @@
 #include <string>
 #include <vector>
 
-#include "../client_priv.h"
 #include "../scripts/mysql_fix_privilege_tables_sql.c"
 #include "../scripts/sql_commands_sys_schema.h"
 #include "../scripts/sql_commands_system_tables_data_fix.h"
-#include "base/abstract_connection_program.h"
-#include "base/abstract_options_provider.h"
-#include "base/mysql_query_runner.h"
-#include "base/show_variable_query_extractor.h"
-#include "check/mysqlcheck.h"
+#include "client/base/abstract_connection_program.h"
+#include "client/base/abstract_options_provider.h"
+#include "client/base/mysql_query_runner.h"
+#include "client/base/show_variable_query_extractor.h"
+#include "client/check/mysqlcheck.h"
+#include "client/client_priv.h"
 #include "my_default.h"
 #include "my_inttypes.h"
 #include "my_io.h"

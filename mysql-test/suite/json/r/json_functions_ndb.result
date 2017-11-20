@@ -1209,10 +1209,10 @@ i	j
 1	1
 DROP TABLE t2;
 CREATE TABLE numbers(id INT NOT NULL AUTO_INCREMENT,
-rank INT,
+`rank` INT,
 j JSON,
 PRIMARY KEY(id));
-INSERT INTO numbers(rank, j) VALUES
+INSERT INTO numbers(`rank`, j) VALUES
 (1, '-1e100'),
 (2, '-1e65'),
 # smallest DECIMAL (negative with 65 digits)
@@ -1305,10 +1305,10 @@ id	rank	j	JSON_TYPE(j)
 41	33	1e100	DOUBLE
 SELECT a.j, b.j, a.j < b.j, a.j = b.j, a.j > b.j, a.j <=> b.j
 FROM numbers a, numbers b
-WHERE ((a.j < b.j) <> (a.rank < b.rank)) OR
-((a.j = b.j) <> (a.rank = b.rank)) OR
-((a.j > b.j) <> (a.rank > b.rank)) OR
-((a.j <=> b.j) <> (a.rank <=> b.rank));
+WHERE ((a.j < b.j) <> (a.`rank` < b.`rank`)) OR
+((a.j = b.j) <> (a.`rank` = b.`rank`)) OR
+((a.j > b.j) <> (a.`rank` > b.`rank`)) OR
+((a.j <=> b.j) <> (a.`rank` <=> b.`rank`));
 j	j	a.j < b.j	a.j = b.j	a.j > b.j	a.j <=> b.j
 DROP TABLE numbers;
 CREATE TABLE t(txt TEXT);
@@ -2907,40 +2907,40 @@ null	NULL
 -9.223372036854776e18	DOUBLE
 -9.223372036854776e18	DOUBLE
 -1001	INTEGER
--1000	INTEGER
 -1001.000	DECIMAL
--1000.000	DECIMAL
 -1001	DOUBLE
+-1000	INTEGER
+-1000.000	DECIMAL
 -1000	DOUBLE
 -999	INTEGER
 -999.000	DECIMAL
 -999	DOUBLE
 -101	INTEGER
--100	INTEGER
 -101.000	DECIMAL
--100.000	DECIMAL
 -101	DOUBLE
+-100	INTEGER
+-100.000	DECIMAL
 -100	DOUBLE
 -99	INTEGER
 -99.000	DECIMAL
 -99	DOUBLE
 -22	INTEGER
--21	INTEGER
--20	INTEGER
 -22.000	DECIMAL
--21.000	DECIMAL
--20.000	DECIMAL
 -22	DOUBLE
+-21	INTEGER
+-21.000	DECIMAL
 -21	DOUBLE
+-20	INTEGER
+-20.000	DECIMAL
 -20	DOUBLE
 -12	INTEGER
--11	INTEGER
--10	INTEGER
 -12.000	DECIMAL
--11.000	DECIMAL
--10.000	DECIMAL
 -12	DOUBLE
+-11	INTEGER
+-11.000	DECIMAL
 -11	DOUBLE
+-10	INTEGER
+-10.000	DECIMAL
 -10	DOUBLE
 -5	INTEGER
 -5.000	DECIMAL
@@ -2948,26 +2948,26 @@ null	NULL
 -4	INTEGER
 -4.000	DECIMAL
 -4	DOUBLE
--3	INTEGER
 -3.151	DECIMAL
--3.150	DECIMAL
--3.149	DECIMAL
--3.141	DECIMAL
--3.140	DECIMAL
--3.139	DECIMAL
--3.131	DECIMAL
--3.130	DECIMAL
--3.129	DECIMAL
--3.000	DECIMAL
 -3.151	DOUBLE
+-3.150	DECIMAL
 -3.15	DOUBLE
+-3.149	DECIMAL
 -3.149	DOUBLE
+-3.141	DECIMAL
 -3.141	DOUBLE
+-3.140	DECIMAL
 -3.14	DOUBLE
+-3.139	DECIMAL
 -3.139	DOUBLE
+-3.131	DECIMAL
 -3.131	DOUBLE
+-3.130	DECIMAL
 -3.13	DOUBLE
+-3.129	DECIMAL
 -3.129	DOUBLE
+-3	INTEGER
+-3.000	DECIMAL
 -3	DOUBLE
 -2	INTEGER
 -2.000	DECIMAL
@@ -3032,25 +3032,25 @@ null	NULL
 3	UNSIGNED INTEGER
 3.000	DECIMAL
 3.000	DECIMAL
+3	DOUBLE
+3	DOUBLE
 3.129	DECIMAL
-3.130	DECIMAL
-3.131	DECIMAL
-3.139	DECIMAL
-3.140	DECIMAL
-3.141	DECIMAL
-3.149	DECIMAL
-3.150	DECIMAL
-3.151	DECIMAL
-3	DOUBLE
-3	DOUBLE
 3.129	DOUBLE
+3.130	DECIMAL
 3.13	DOUBLE
+3.131	DECIMAL
 3.131	DOUBLE
+3.139	DECIMAL
 3.139	DOUBLE
+3.140	DECIMAL
 3.14	DOUBLE
+3.141	DECIMAL
 3.141	DOUBLE
+3.149	DECIMAL
 3.149	DOUBLE
+3.150	DECIMAL
 3.15	DOUBLE
+3.151	DECIMAL
 3.151	DOUBLE
 4	INTEGER
 4	UNSIGNED INTEGER
@@ -3065,39 +3065,39 @@ null	NULL
 5	DOUBLE
 5	DOUBLE
 10	INTEGER
-11	INTEGER
-12	INTEGER
 10	UNSIGNED INTEGER
+10.000	DECIMAL
+10.000	DECIMAL
+10	DOUBLE
+10	DOUBLE
+11	INTEGER
 11	UNSIGNED INTEGER
+11.000	DECIMAL
+11.000	DECIMAL
+11	DOUBLE
+11	DOUBLE
+12	INTEGER
 12	UNSIGNED INTEGER
-10.000	DECIMAL
-10.000	DECIMAL
-11.000	DECIMAL
-11.000	DECIMAL
 12.000	DECIMAL
 12.000	DECIMAL
-10	DOUBLE
-10	DOUBLE
-11	DOUBLE
-11	DOUBLE
 12	DOUBLE
 12	DOUBLE
 20	INTEGER
-21	INTEGER
-22	INTEGER
 20	UNSIGNED INTEGER
+20.000	DECIMAL
+20.000	DECIMAL
+20	DOUBLE
+20	DOUBLE
+21	INTEGER
 21	UNSIGNED INTEGER
+21.000	DECIMAL
+21.000	DECIMAL
+21	DOUBLE
+21	DOUBLE
+22	INTEGER
 22	UNSIGNED INTEGER
-20.000	DECIMAL
-20.000	DECIMAL
-21.000	DECIMAL
-21.000	DECIMAL
 22.000	DECIMAL
 22.000	DECIMAL
-20	DOUBLE
-20	DOUBLE
-21	DOUBLE
-21	DOUBLE
 22	DOUBLE
 22	DOUBLE
 99	INTEGER
@@ -3107,15 +3107,15 @@ null	NULL
 99	DOUBLE
 99	DOUBLE
 100	INTEGER
-101	INTEGER
 100	UNSIGNED INTEGER
+100.000	DECIMAL
+100.000	DECIMAL
+100	DOUBLE
+100	DOUBLE
+101	INTEGER
 101	UNSIGNED INTEGER
-100.000	DECIMAL
-100.000	DECIMAL
 101.000	DECIMAL
 101.000	DECIMAL
-100	DOUBLE
-100	DOUBLE
 101	DOUBLE
 101	DOUBLE
 999	INTEGER
@@ -3125,15 +3125,15 @@ null	NULL
 999	DOUBLE
 999	DOUBLE
 1000	INTEGER
-1001	INTEGER
 1000	UNSIGNED INTEGER
+1000.000	DECIMAL
+1000.000	DECIMAL
+1000	DOUBLE
+1000	DOUBLE
+1001	INTEGER
 1001	UNSIGNED INTEGER
-1000.000	DECIMAL
-1000.000	DECIMAL
 1001.000	DECIMAL
 1001.000	DECIMAL
-1000	DOUBLE
-1000	DOUBLE
 1001	DOUBLE
 1001	DOUBLE
 9223372036854775806	INTEGER
@@ -3162,20 +3162,20 @@ null	NULL
 18446744073709551615.000	DECIMAL
 1.8446744073709552e19	DOUBLE
 1.8446744073709552e19	DOUBLE
+9.99e80	DOUBLE
 999999999999999999999999999999999999999999999999999999999999999999999999999999997	DECIMAL
 999999999999999999999999999999999999999999999999999999999999999999999999999999998	DECIMAL
 999999999999999999999999999999999999999999999999999999999999999999999999999999999	DECIMAL
-9.99e80	DOUBLE
 1e81	DOUBLE
 1.5e200	DOUBLE
 1e306	DOUBLE
 1e307	DOUBLE
 1e308	DOUBLE
 ""	STRING
-"abcd"	STRING
-"abc\u0000\u0000"	STRING
-"abc\u0000"	STRING
 "abc"	STRING
+"abc\u0000"	STRING
+"abc\u0000\u0000"	STRING
+"abcd"	STRING
 "bc"	STRING
 {"an": "object"}	OBJECT
 {"another": "object"}	OBJECT
@@ -3222,14 +3222,14 @@ true	BOOLEAN
 "1970-01-02 00:00:01.000000"	DATETIME
 "1970-01-02 00:00:01.000001"	DATETIME
 "2000-01-01 00:00:00.000000"	TIMESTAMP
-"2000-01-01 00:00:00.001000"	TIMESTAMP
-"2000-01-01 00:00:00.002000"	TIMESTAMP
-"2000-01-01 00:00:00.010000"	TIMESTAMP
-"2000-01-01 00:00:00.020000"	TIMESTAMP
 "2000-01-01 00:00:00.000000"	DATETIME
+"2000-01-01 00:00:00.001000"	TIMESTAMP
 "2000-01-01 00:00:00.001000"	DATETIME
+"2000-01-01 00:00:00.002000"	TIMESTAMP
 "2000-01-01 00:00:00.002000"	DATETIME
+"2000-01-01 00:00:00.010000"	TIMESTAMP
 "2000-01-01 00:00:00.010000"	DATETIME
+"2000-01-01 00:00:00.020000"	TIMESTAMP
 "2000-01-01 00:00:00.020000"	DATETIME
 "2000-01-01 23:59:59.999999"	TIMESTAMP
 "2000-01-01 23:59:59.999999"	DATETIME
@@ -3238,12 +3238,12 @@ true	BOOLEAN
 "2000-02-01 00:00:00.000000"	TIMESTAMP
 "2000-02-01 00:00:00.000000"	DATETIME
 "2010-12-02 01:00:00.000000"	TIMESTAMP
-"2010-12-02 01:02:00.000000"	TIMESTAMP
-"2010-12-02 01:02:03.000000"	TIMESTAMP
-"2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 01:00:00.000000"	DATETIME
+"2010-12-02 01:02:00.000000"	TIMESTAMP
 "2010-12-02 01:02:00.000000"	DATETIME
+"2010-12-02 01:02:03.000000"	TIMESTAMP
 "2010-12-02 01:02:03.000000"	DATETIME
+"2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
 "base64:type15:MTIzNGFiY2Q="	BLOB
@@ -4744,9 +4744,11 @@ INSERT INTO json_merge_t VALUES
 (3, '[1,2]'),
 (4, '{"a":["x", "y"]}'),
 (5, '{"a":"b","c":"d"}');
-SELECT t1.j, t2.j, json_merge(t1.j, t2.j), json_merge(t2.j, t1.j)
+SELECT t1.j, t2.j,
+JSON_MERGE_PRESERVE(t1.j, t2.j) AS m1,
+JSON_MERGE_PRESERVE(t2.j, t1.j) AS m2
 FROM json_merge_t t1, json_merge_t t2 ORDER BY t1.i, t2.i;
-j	j	json_merge(t1.j, t2.j)	json_merge(t2.j, t1.j)
+j	j	m1	m2
 NULL	NULL	NULL	NULL
 NULL	true	NULL	NULL
 NULL	5	NULL	NULL
@@ -5867,7 +5869,7 @@ out out_value json
 )
 language sql deterministic contains sql
 begin
-set out_value = json_merge( in_value, inout_value );
+set out_value = json_merge_preserve(in_value, inout_value);
 set inout_value = in_value;
 end//
 create procedure merge_doc_types
@@ -6549,7 +6551,7 @@ JSON_ARRAY_APPEND(j, '$', 2),
 JSON_SET(j, '$[0]', 2),
 JSON_INSERT(j, '$[0]', 2),
 JSON_REPLACE(j, '$[0]', 2),
-JSON_MERGE(j, j),
+JSON_MERGE_PRESERVE(j, j),
 JSON_SEARCH(j, 'one', 'abc'),
 JSON_CONTAINS(j, '[1]'),
 JSON_CONTAINS_PATH(j, 'all', '$.a'),
@@ -6564,7 +6566,7 @@ JSON_STORAGE_FREE(j),
 JSON_STORAGE_SIZE(j)
 FROM T_WITH_NULLS
 ORDER BY i;
-JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)	JSON_STORAGE_FREE(j)	JSON_STORAGE_SIZE(j)
+JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE_PRESERVE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)	JSON_STORAGE_FREE(j)	JSON_STORAGE_SIZE(j)
 NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL
 1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	[[1], [1]]	{"k": [1]}	[1]	"[1]"	[
   1
@@ -6588,7 +6590,7 @@ JSON_ARRAY_APPEND(j, '$', 2),
 JSON_SET(j, '$[0]', 2),
 JSON_INSERT(j, '$[0]', 2),
 JSON_REPLACE(j, '$[0]', 2),
-JSON_MERGE(j, j),
+JSON_MERGE_PRESERVE(j, j),
 JSON_SEARCH(j, 'one', 'abc'),
 JSON_CONTAINS(j, '[1]'),
 JSON_CONTAINS_PATH(j, 'all', '$.a'),
@@ -6603,7 +6605,7 @@ JSON_STORAGE_FREE(j),
 JSON_STORAGE_SIZE(j)
 FROM T_WITH_NULLS
 ORDER BY i;
-JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)	JSON_STORAGE_FREE(j)	JSON_STORAGE_SIZE(j)
+JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE_PRESERVE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)	JSON_STORAGE_FREE(j)	JSON_STORAGE_SIZE(j)
 NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL
 1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	["[1]", "[1]"]	{"k": "[1]"}	[1]	"[1]"	[
   1
@@ -6675,8 +6677,8 @@ FROM t_latin1 ORDER BY id;
 JSON_REPLACE(json_text, json_path, json_atom_text)
 ["åøæ"]
 {"æøå": "åøæ"}
-SELECT JSON_MERGE(json_text, json_text) FROM t_latin1 ORDER BY id;
-JSON_MERGE(json_text, json_text)
+SELECT JSON_MERGE_PRESERVE(json_text, json_text) FROM t_latin1 ORDER BY id;
+JSON_MERGE_PRESERVE(json_text, json_text)
 ["æøå", "æøå"]
 {"æøå": ["æøå", "æøå"]}
 SELECT JSON_SEARCH(json_text, CONVERT('one' USING latin1), json_atom_text,
@@ -9031,8 +9033,8 @@ CREATE TABLE t (doc json);
 Warnings:
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 INSERT INTO t VALUES('{"array":[1,2,3,4]}');
-UPDATE t SET doc=JSON_MERGE(doc,doc);
-UPDATE t SET doc=JSON_MERGE(doc,doc);
+UPDATE t SET doc=JSON_MERGE_PRESERVE(doc, doc);
+UPDATE t SET doc=JSON_MERGE_PRESERVE(doc, doc);
 drop table t;
 #
 # Bug#21224267 DEEPLY NESTED JSON OBJECTS MAY CAUSE CRASH
@@ -9260,7 +9262,7 @@ ERROR 42000: Result consisted of more than one row
 set @initialized_21602361 = '$';
 select json_length('{}',@initialized_21602361)
 from t group by b into @initialized_21602361;
-ERROR 42000: Invalid JSON path expression. The error is around character position 1.
+ERROR 42000: Result consisted of more than one row
 set @error_value_21602361 = '$[';
 select json_length('{}',@error_value_21602361)
 from t group by b into @error_value_21602361;
@@ -9418,7 +9420,7 @@ NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
-[[true, {"c": 123}]]	[[true, {"c": 123}]]	1
+[[true, {"c": 456}]]	[[true, {"c": 456}]]	1
 [[true, {"c": "123"}]]	[[true, {"c": "123"}]]	1
 [[true, {"c": 123}]]	[[true, {"c": 123}]]	1
 SELECT
@@ -9458,7 +9460,7 @@ NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
-123	123	1
+456	456	1
 123	123	1
 123	123	1
 SELECT
@@ -9479,7 +9481,7 @@ NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
-123	123	1
+456	456	1
 "123"	"123"	1
 123	123	1
 SELECT
@@ -9500,7 +9502,7 @@ NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
-{"c": 123}	{"c": 123}	1
+{"c": 456}	{"c": 456}	1
 {"c": "123"}	{"c": "123"}	1
 {"c": 123}	{"c": 123}	1
 SELECT
@@ -9521,7 +9523,7 @@ cast(json_unquote(json_extract(f1,'$[0][0]')) as char)
 {"t": "b"}	{"t": "b"}	1
 {"t": "c"}	{"t": "c"}	1
 {"a": 1}	{"a": 1}	1
-{"a": "foo", "b": [true, {"c": 123}]}	{"a": "foo", "b": [true, {"c": 123}]}	1
+{"a": "foo", "b": [true, {"c": 456}]}	{"a": "foo", "b": [true, {"c": 456}]}	1
 {"a": "foo", "b": [true, {"c": "123"}]}	{"a": "foo", "b": [true, {"c": "123"}]}	1
 {"a": "foo", "b": [true, {"c": 123}]}	{"a": "foo", "b": [true, {"c": 123}]}	1
 SELECT
@@ -9542,7 +9544,7 @@ cast(json_unquote(json_extract(f1,'$**[0]')) as char)
 [{"t": "b"}, "b"]	[{"t": "b"}, "b"]	1
 [{"t": "c"}, "c"]	[{"t": "c"}, "c"]	1
 [{"a": 1}, 1, {"a": 2}, 2]	[{"a": 1}, 1, {"a": 2}, 2]	1
-[{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	[{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	1
+[{"a": "foo", "b": [true, {"c": 456}]}, "foo", true, {"c": 456}, 456]	[{"a": "foo", "b": [true, {"c": 456}]}, "foo", true, {"c": 456}, 456]	1
 [{"a": "foo", "b": [true, {"c": "123"}]}, "foo", true, {"c": "123"}, "123"]	[{"a": "foo", "b": [true, {"c": "123"}]}, "foo", true, {"c": "123"}, "123"]	1
 [{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	[{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	1
 SELECT
@@ -10966,6 +10968,52 @@ SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
 JSON_STORAGE_FREE(j) sf FROM t;
 j	jt	ss	sf
 [null]	ARRAY	8	0
+# Test update with indexes relative to the end of the array.
+UPDATE t SET j = JSON_ARRAY('a','b','c');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["a", "b", "c"]	ARRAY	20	0
+UPDATE t SET j = JSON_SET(j, '$[last]', 4);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["a", "b", 4]	ARRAY	18	0
+UPDATE t SET j = JSON_SET(j, '$[last-1]', 5);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["a", 5, 4]	ARRAY	16	0
+UPDATE t SET j = JSON_SET(j, '$[last-2]', 6);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[6, 5, 4]	ARRAY	14	0
+UPDATE t SET j = JSON_SET(j, '$[last-3]', 7);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[7, 6, 5, 4]	ARRAY	17	0
+UPDATE t SET j = JSON_ARRAY('a','b');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["a", "b"]	ARRAY	15	0
+UPDATE t SET j = JSON_REPLACE(j, '$[last]', 3);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["a", 3]	ARRAY	13	0
+UPDATE t SET j = JSON_REPLACE(j, '$[last-1]', 4);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[4, 3]	ARRAY	11	0
+UPDATE t SET j = JSON_REPLACE(j, '$[last-2]', 5);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[4, 3]	ARRAY	11	0
 DROP TABLE t;
 CREATE TABLE t1(id INT PRIMARY KEY, j JSON, x INT);
 INSERT INTO t1 VALUES (1, '{"a":"xy"}', 1), (2, '{"a":"zw"}', 2);
@@ -11310,3 +11358,213 @@ SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
 j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
 [1]	8	0
 DROP TABLE t;
+# Partial update on a DEFAULT NULL value in a NOT NULL column.
+CREATE TABLE t(j JSON NOT NULL);
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+INSERT IGNORE INTO t VALUES ();
+Warnings:
+Warning	1364	Field 'j' doesn't have a default value
+UPDATE t SET j = JSON_SET(j, '$[0]', 'abc');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+"abc"	5	0
+UPDATE IGNORE t SET j = DEFAULT;
+Warnings:
+Warning	1364	Field 'j' doesn't have a default value
+UPDATE t SET j = JSON_REMOVE(j, '$[0]');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+null	2	0
+DROP TABLE t;
+#
+# Bug#25893720: TABLE::SETUP_PARTIAL_UPDATE():
+#               ASSERTION `M_PARTIAL_UPDATE_INFO == NULLPTR' FAIL
+#
+CREATE TEMPORARY TABLE t(j JSON);
+INSERT INTO t VALUES ('["abc"]');
+UPDATE t SET j = JSON_SET(j, '$[0]', 'de');
+UPDATE t SET j = JSON_SET(j, '$[0]', 'f');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+["f"]	12	2
+DROP TABLE t;
+# Partial update in JSON_REMOVE.
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, j JSON);
+INSERT INTO t(j) VALUES
+(JSON_ARRAY('x', JSON_ARRAY(1, 2, 3, 'abc', 4, 5, 6))),
+(JSON_OBJECT('x', JSON_OBJECT('a', 'one',
+'b', 'two',
+'c', 'ABC',
+'defghijkl', 'm'),
+'y', 'z')),
+('null'),
+(NULL);
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, 3, "abc", 4, 5, 6]]	42	0
+2	{"x": {"a": "one", "b": "two", "c": "ABC", "defghijkl": "m"}, "y": "z"}	81	0
+3	null	2	0
+4	NULL	NULL	NULL
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=JSON UPDATE t SET j = JSON_REMOVE(j, '$.x.b', '$[1][2]');
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "t",
+      "partitions": [
+        "p0",
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6",
+        "p7"
+      ],
+      "access_type": "ALL",
+      "rows_examined_per_scan": 4,
+      "filtered": "100.00"
+    }
+  }
+}
+UPDATE t SET j = JSON_REMOVE(j, '$.x.b', '$[1][2]');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, "abc", 4, 5, 6]]	39	0
+2	{"x": {"a": "one", "c": "ABC", "defghijkl": "m"}, "y": "z"}	69	0
+3	null	2	0
+4	NULL	NULL	NULL
+# See that the free space can be reused by increasing
+# the size of some values.
+UPDATE t SET j = JSON_REPLACE(j, '$[1][2]', 'xyzw', '$.x.c', 'XYZW');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, "xyzw", 4, 5, 6]]	40	0
+2	{"x": {"a": "one", "c": "XYZW", "defghijkl": "m"}, "y": "z"}	70	0
+3	null	2	0
+4	NULL	NULL	NULL
+# Nested calls
+UPDATE t SET j = JSON_REMOVE(JSON_REMOVE(j, '$[1][2]'), '$.x.c');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, 4, 5, 6]]	32	0
+2	{"x": {"a": "one", "defghijkl": "m"}, "y": "z"}	57	0
+3	null	2	0
+4	NULL	NULL	NULL
+UPDATE t SET j = JSON_REMOVE(JSON_SET(j, '$.x.a', 'xyz'), '$.x.a');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, 4, 5, 6]]	32	0
+2	{"x": {"defghijkl": "m"}, "y": "z"}	45	0
+3	null	2	0
+4	NULL	NULL	NULL
+UPDATE t SET j = JSON_REMOVE(JSON_SET(j, '$.x.a', 'zyx'), '$.x.a');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, 4, 5, 6]]	32	0
+2	{"x": {"defghijkl": "m"}, "y": "z"}	45	0
+3	null	2	0
+4	NULL	NULL	NULL
+UPDATE t SET j = JSON_SET(JSON_REMOVE(j, '$.x.a'), '$.x.a', 'abcd', '$.x.b', 9);
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, 4, 5, 6]]	32	0
+2	{"x": {"a": "abcd", "b": 9, "defghijkl": "m"}, "y": "z"}	66	0
+3	null	2	0
+4	NULL	NULL	NULL
+UPDATE t SET j = JSON_SET(JSON_REMOVE(j, '$.x.b'), '$.x.a', 'efg');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, 4, 5, 6]]	32	0
+2	{"x": {"a": "efg", "defghijkl": "m"}, "y": "z"}	57	0
+3	null	2	0
+4	NULL	NULL	NULL
+UPDATE t SET j = JSON_REMOVE(JSON_REMOVE(j, '$[0]', '$[0]', '$.x'),
+'$.b', '$.y', '$.z');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	[]	5	0
+2	{}	5	0
+3	null	2	0
+4	NULL	NULL	NULL
+DROP TABLE t;
+#
+# WL#9692: Add JSON_MERGE_PATCH
+#
+CREATE TABLE merge_t(
+id INT PRIMARY KEY AUTO_INCREMENT,
+target VARCHAR(100), patch VARCHAR(100)
+);
+INSERT INTO merge_t(target, patch) VALUES
+('{"a":"b"}', '{"a":"c"}'),
+('{"a":"b"}', '{"b":"c"}'),
+('{"a":"b"}', '{"a":null}'),
+('{"a":"b", "b":"c"}', '{"a":null}'),
+('{"a":["b"]}', '{"a":"c"}'),
+('{"a":"c"}', '{"a":["b"]}'),
+('{"a": {"b":"c"}}', '{"a": {"b":"d", "c":null}}'),
+('{"a":[{"b":"c"}]}', '{"a": [1]}'),
+('["a","b"]', '["c","d"]'),
+('{"a":"b"}', '["c"]'),
+('{"a":"foo"}', 'null'),
+('{"a":"foo"}', '"bar"'),
+('{"e":null}', '{"a":1}'),
+('[1,2]', '{"a":"b", "c":null}'),
+('{}', '{"a":{"bb":{"ccc":null}}}'),
+(NULL, '{}'),
+('{}', NULL);
+SELECT id, target, patch,
+JSON_MERGE_PATCH(target, patch) AS merged,
+JSON_EXTRACT(JSON_MERGE_PATCH(target, patch), '$.a') AS a
+FROM merge_t ORDER BY id;
+id	target	patch	merged	a
+1	{"a":"b"}	{"a":"c"}	{"a": "c"}	"c"
+2	{"a":"b"}	{"b":"c"}	{"a": "b", "b": "c"}	"b"
+3	{"a":"b"}	{"a":null}	{}	NULL
+4	{"a":"b", "b":"c"}	{"a":null}	{"b": "c"}	NULL
+5	{"a":["b"]}	{"a":"c"}	{"a": "c"}	"c"
+6	{"a":"c"}	{"a":["b"]}	{"a": ["b"]}	["b"]
+7	{"a": {"b":"c"}}	{"a": {"b":"d", "c":null}}	{"a": {"b": "d"}}	{"b": "d"}
+8	{"a":[{"b":"c"}]}	{"a": [1]}	{"a": [1]}	[1]
+9	["a","b"]	["c","d"]	["c", "d"]	NULL
+10	{"a":"b"}	["c"]	["c"]	NULL
+11	{"a":"foo"}	null	null	NULL
+12	{"a":"foo"}	"bar"	"bar"	NULL
+13	{"e":null}	{"a":1}	{"a": 1, "e": null}	1
+14	[1,2]	{"a":"b", "c":null}	{"a": "b"}	"b"
+15	{}	{"a":{"bb":{"ccc":null}}}	{"a": {"bb": {}}}	{"bb": {}}
+16	NULL	{}	NULL	NULL
+17	{}	NULL	NULL	NULL
+DROP TABLE merge_t;
+SELECT JSON_MERGE_PATCH('{"a":"b"}', NULL, '{"c":"d"}');
+JSON_MERGE_PATCH('{"a":"b"}', NULL, '{"c":"d"}')
+NULL
+SELECT JSON_MERGE_PATCH(NULL, '[1,2,3]');
+JSON_MERGE_PATCH(NULL, '[1,2,3]')
+[1, 2, 3]
+SELECT JSON_MERGE_PATCH('{"a":"b"}', NULL, '[1,2,3]', '{"c":null,"d":"e"}');
+JSON_MERGE_PATCH('{"a":"b"}', NULL, '[1,2,3]', '{"c":null,"d":"e"}')
+{"d": "e"}
+SELECT JSON_MERGE_PATCH();
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_MERGE_PATCH'
+SELECT JSON_MERGE_PATCH('{}');
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_MERGE_PATCH'
+SELECT JSON_MERGE_PATCH('{', '[1,2,3]');
+ERROR 22032: Invalid JSON text in argument 1 to function json_merge_patch: "Missing a name for object member." at position 1.
+SELECT JSON_MERGE_PATCH('{"a":"b"}', '[1,');
+ERROR 22032: Invalid JSON text in argument 2 to function json_merge_patch: "Invalid value." at position 3.

@@ -17,7 +17,6 @@
 #define RPL_REPORTING_H
 
 #include <stdarg.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <time.h>
@@ -25,8 +24,9 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
-#include "mysql/psi/mysql_mutex.h"
 #include "my_systime.h"              //my_getsystime
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/psi/mysql_mutex.h"
 
 /**
    Maximum size of an error message from a slave thread.

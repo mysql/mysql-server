@@ -35,7 +35,7 @@ class Statement_builder {
       : m_builder(gen) {}
 
  protected:
-  using Collection =  ::Mysqlx::Crud::Collection;
+  using Collection = ::Mysqlx::Crud::Collection;
 
   void add_collection(const Collection &table) const;
 
@@ -61,10 +61,15 @@ class Statement_builder {
       return *this;
     }
 
-    template <typename I, typename Op>
+    template<typename L, typename Op>
+    const Generator &put_each(const L &list, Op generate) const {
+      return put_each(list.begin(), list.end(), generate);
+    }
+
+    template<typename I, typename Op>
     const Generator &put_list(I begin, I end, Op generate,
                               const std::string &separator = ",") const {
-      if (end - begin == 0) return *this;
+      if (std::distance(begin, end) == 0) return *this;
 
       generate(*begin);
       for (++begin; begin != end; ++begin) {

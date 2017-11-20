@@ -16,11 +16,10 @@
 #ifndef DD_TABLES__TABLE_PARTITIONS_INCLUDED
 #define DD_TABLES__TABLE_PARTITIONS_INCLUDED
 
-#include <string>
-
-#include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
-#include "dd/object_id.h"                    // dd::Object_id
 #include "my_inttypes.h"
+#include "sql/dd/impl/types/object_table_impl.h" // dd::Object_table_impl
+#include "sql/dd/object_id.h"                // dd::Object_id
+#include "sql/dd/string_type.h"
 
 class THD;
 
@@ -48,9 +47,10 @@ public:
   {
     FIELD_ID,
     FIELD_TABLE_ID,
-    FIELD_LEVEL,
+    FIELD_PARENT_PARTITION_ID,
     FIELD_NUMBER,
     FIELD_NAME,
+    FIELD_DESCRIPTION_UTF8,
     FIELD_ENGINE,
     FIELD_COMMENT,
     FIELD_OPTIONS,
@@ -67,6 +67,9 @@ public:
 
 public:
   static Object_key *create_key_by_table_id(Object_id table_id);
+
+  static Object_key *create_key_by_parent_partition_id(
+                       Object_id table_id, Object_id parent_partition_id);
 
   static ulonglong read_table_id(const Raw_record &r);
 

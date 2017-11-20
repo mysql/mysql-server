@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,11 +14,10 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
+#include "sql/sql_bootstrap.h"
 
-#include "sql_bootstrap.h"
+#include <ctype.h>
+#include <string.h>
 
 int read_bootstrap_query(char *query, size_t *query_length,
                          fgets_input_t input, fgets_fn_t fgets_fn, int *error)

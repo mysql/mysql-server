@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,7 +139,7 @@ static const ErrStruct errArray[] =
 
    /* ACC */
    {NDBD_EXIT_SR_OUT_OF_INDEXMEMORY, XCR,
-    "Out of index memory during system restart, please increase IndexMemory"},
+    "Out of index memory during system restart, please increase DataMemory"},
 
    /* TUP */
    {NDBD_EXIT_SR_OUT_OF_DATAMEMORY, XCR,
@@ -216,6 +216,10 @@ int NbExitStatus = sizeof(StatusExitMessageMapping)/sizeof(StatusExitMessage);
 
 static
 const
+int errArraysize = sizeof(errArray) / sizeof(ErrStruct);
+
+static
+const
 StatusExitClassification StatusExitClassificationMapping[] = {
   { XST_S, XNE, "No error"},
   { XST_U, XUE, "Unknown"},
@@ -232,6 +236,28 @@ StatusExitClassification StatusExitClassificationMapping[] = {
 
 static const int NbExitClassification =
 sizeof(StatusExitClassificationMapping)/sizeof(StatusExitClassification);
+
+int ndbd_exit_code_get_next(int index, int* exit_code,
+                            const char** status_msg,
+                            const char** class_msg,
+                            const char** error_msg)
+{
+  ndbd_exit_classification cl;
+  ndbd_exit_status st;
+
+  if (index >= errArraysize)
+  {
+    // No more ndbd exit codes
+    return -1;
+  }
+
+  *exit_code = errArray[index].faultId;
+  *error_msg = ndbd_exit_message(errArray[index].faultId, &cl);
+  *class_msg = ndbd_exit_classification_message(cl, &st);
+  *status_msg = ndbd_exit_status_message(st);
+
+  return index + 1;
+}
 
 const char *ndbd_exit_message(int faultId, ndbd_exit_classification *cl)
 {

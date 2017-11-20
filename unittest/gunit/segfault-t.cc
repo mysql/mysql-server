@@ -16,7 +16,6 @@
 #include <gtest/gtest.h>
 #include <limits.h>
 
-#include "hash_filo.h"
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "my_stacktrace.h"
@@ -186,24 +185,6 @@ TEST(PrintUtilities, Printf)
   my_safe_snprintf(buff, sizeof(buff), "hello 0x%p hello", p);
   my_snprintf(sprintfbuff, sizeof(sprintfbuff), "hello %p hello", p);
   EXPECT_STREQ(sprintfbuff, buff) << "my_safe_snprintf:" << buff;
-}
-
-
-// After the fix for Bug#14689561, this is no longer a death test.
-TEST(HashFiloTest, TestHashFiloZeroSize)
-{
-  hash_filo *t_cache;
-  t_cache= new hash_filo(PSI_NOT_INSTRUMENTED,
-                         5, 0,
-                         nullptr,
-                         nullptr,
-                         NULL);
-  t_cache->clear();
-  t_cache->resize(0);
-  hash_filo_element entry;
-  // After resize (to zero) it tries to dereference last_link which is NULL.
-  t_cache->add(&entry);
-  delete t_cache;
 }
 
 }

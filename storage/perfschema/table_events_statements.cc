@@ -31,7 +31,7 @@
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
-#include "sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
+#include "sql/sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
 #include "table_helper.h"
 
 THR_LOCK table_events_statements_current::m_table_lock;
@@ -98,7 +98,10 @@ PFS_engine_table_share table_events_statements_current::m_share = {
   sizeof(pos_events_statements_current), /* ref length */
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 THR_LOCK table_events_statements_history::m_table_lock;
@@ -165,7 +168,10 @@ PFS_engine_table_share table_events_statements_history::m_share = {
   sizeof(pos_events_statements_history), /* ref length */
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 THR_LOCK table_events_statements_history_long::m_table_lock;
@@ -231,7 +237,10 @@ PFS_engine_table_share table_events_statements_history_long::m_share = {
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool
@@ -316,44 +325,6 @@ table_events_statements_common::make_row_part_1(
   m_row.m_name = klass->m_name;
   m_row.m_name_length = klass->m_name_length;
 
-  CHARSET_INFO *cs = get_charset(statement->m_sqltext_cs_number, MYF(0));
-  size_t valid_length = statement->m_sqltext_length;
-
-  if (cs != NULL)
-  {
-    if (cs->mbmaxlen > 1)
-    {
-      int well_formed_error;
-      valid_length =
-        cs->cset->well_formed_len(cs,
-                                  statement->m_sqltext,
-                                  statement->m_sqltext + valid_length,
-                                  valid_length,
-                                  &well_formed_error);
-    }
-  }
-
-  m_row.m_sqltext.set_charset(cs);
-  m_row.m_sqltext.length(0);
-  if (valid_length > 0)
-  {
-    m_row.m_sqltext.append(statement->m_sqltext, (uint32)valid_length, cs);
-  }
-
-  /* Indicate that sqltext is truncated or not well-formed. */
-  if (statement->m_sqltext_truncated ||
-      valid_length < statement->m_sqltext_length)
-  {
-    size_t chars = m_row.m_sqltext.numchars();
-    if (chars > 3)
-    {
-      chars -= 3;
-      size_t bytes_offset = m_row.m_sqltext.charpos(chars, 0);
-      m_row.m_sqltext.length(bytes_offset);
-      m_row.m_sqltext.append("...", 3);
-    }
-  }
-
   m_row.m_current_schema_name_length = statement->m_current_schema_name_length;
   if (m_row.m_current_schema_name_length > 0)
     memcpy(m_row.m_current_schema_name,
@@ -394,12 +365,12 @@ table_events_statements_common::make_row_part_1(
   memcpy(m_row.m_message_text,
          statement->m_message_text,
          sizeof(m_row.m_message_text));
-  m_row.m_sql_errno = statement->m_sql_errno;
   memcpy(m_row.m_sqlstate, statement->m_sqlstate, SQLSTATE_LENGTH);
+
+  m_row.m_sql_errno = statement->m_sql_errno;
   m_row.m_error_count = statement->m_error_count;
   m_row.m_warning_count = statement->m_warning_count;
   m_row.m_rows_affected = statement->m_rows_affected;
-
   m_row.m_rows_sent = statement->m_rows_sent;
   m_row.m_rows_examined = statement->m_rows_examined;
   m_row.m_created_tmp_disk_tables = statement->m_created_tmp_disk_tables;
@@ -416,10 +387,15 @@ table_events_statements_common::make_row_part_1(
   m_row.m_no_index_used = statement->m_no_index_used;
   m_row.m_no_good_index_used = statement->m_no_good_index_used;
 
-  /*
-    Making a copy of digest storage.
-  */
+  /* Copy the digest storage. */
   digest->copy(&statement->m_digest_storage);
+
+  /* Format the sqltext string for output. */
+  format_sqltext(statement->m_sqltext,
+                 statement->m_sqltext_length,
+                 get_charset(statement->m_sqltext_cs_number, MYF(0)),
+                 statement->m_sqltext_truncated,
+                 m_row.m_sqltext);
 
   return 0;
 }
@@ -548,7 +524,10 @@ table_events_statements_common::read_row_values(TABLE *table,
         break;
       case 9: /* SQL_TEXT */
         if (m_row.m_sqltext.length())
-          set_field_blob(f, m_row.m_sqltext.ptr(), m_row.m_sqltext.length());
+          set_field_text(f,
+                         m_row.m_sqltext.ptr(),
+                         m_row.m_sqltext.length(),
+                         m_row.m_sqltext.charset());
         else
         {
           f->set_null();
@@ -567,7 +546,7 @@ table_events_statements_common::read_row_values(TABLE *table,
         if (m_row.m_digest.m_digest_text.length() > 0)
           set_field_blob(f,
                          m_row.m_digest.m_digest_text.ptr(),
-                         m_row.m_digest.m_digest_text.length());
+                         (uint)m_row.m_digest.m_digest_text.length());
         else
         {
           f->set_null();
@@ -627,7 +606,7 @@ table_events_statements_common::read_row_values(TABLE *table,
         }
         break;
       case 19: /* MESSAGE_TEXT */
-        len = strlen(m_row.m_message_text);
+        len = (uint)strlen(m_row.m_message_text);
         if (len)
         {
           set_field_varchar_utf8(f, m_row.m_message_text, len);
@@ -1177,7 +1156,7 @@ int
 table_events_statements_history_long::rnd_next(void)
 {
   PFS_events_statements *statement;
-  uint limit;
+  size_t limit;
 
   if (events_statements_history_long_size == 0)
   {
@@ -1211,7 +1190,7 @@ int
 table_events_statements_history_long::rnd_pos(const void *pos)
 {
   PFS_events_statements *statement;
-  uint limit;
+  size_t limit;
 
   if (events_statements_history_long_size == 0)
   {

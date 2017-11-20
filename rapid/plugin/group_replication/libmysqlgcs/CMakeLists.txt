@@ -79,6 +79,7 @@ SET(XCOM_SOURCES
 
 SET(GCS_INTERFACE_SOURCES
   src/interface/gcs_logging.cc
+  src/interface/gcs_logging_system.cc
   src/interface/xplatform/my_xp_cond.cc
   src/interface/xplatform/my_xp_thread.cc
   src/interface/xplatform/my_xp_mutex.cc
@@ -87,7 +88,8 @@ SET(GCS_INTERFACE_SOURCES
   src/interface/gcs_types.cc
   src/interface/gcs_message.cc
   src/interface/gcs_member_identifier.cc
-  src/interface/gcs_group_identifier.cc)
+  src/interface/gcs_group_identifier.cc
+  src/interface/gcs_psi.cc)
 
 
 SET(GCS_SOURCES
@@ -124,19 +126,6 @@ ENDIF()
 # add the definition to build XCom with SSL support
 ADD_DEFINITIONS(-DXCOM_HAVE_OPENSSL)
 
-### Setting some switches on for Debugging ###
-IF(WITH_GCS_LOG_TRACE)
-  ADD_COMPILE_FLAGS(${XCOM_SOURCES} COMPILE_FLAGS
-                    "-DWITH_LOG_DEBUG -DWITH_LOG_TRACE")
-  ADD_COMPILE_FLAGS(${GCS_SOURCES} COMPILE_FLAGS
-                    "-DWITH_LOG_DEBUG -DWITH_LOG_TRACE")
-ELSEIF(WITH_GCS_LOG_DEBUG)
-  ADD_COMPILE_FLAGS(${XCOM_SOURCES} COMPILE_FLAGS
-                    "-DWITH_LOG_DEBUG")
-  ADD_COMPILE_FLAGS(${GCS_SOURCES} COMPILE_FLAGS
-                    "-DWITH_LOG_DEBUG")
-ENDIF()
-
 ### Configuration ###
 
 # Used to inhibit false posives on CLang 3.8/8.0
@@ -159,6 +148,9 @@ ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR
     COMPILE_FLAGS
     "-Wno-unused-variable -Wno-unused-function -Wno-conversion -Wno-switch")
 ENDIF()
+
+ADD_COMPILE_FLAGS(${XCOM_SOURCES} COMPILE_FLAGS "-DMYSQL_DYNAMIC_PLUGIN")
+ADD_COMPILE_FLAGS(${GCS_SOURCES} COMPILE_FLAGS "-DMYSQL_DYNAMIC_PLUGIN")
 
 ADD_CONVENIENCE_LIBRARY(${GCS_LIBRARY} ${XCOM_SOURCES} ${GCS_SOURCES})
 

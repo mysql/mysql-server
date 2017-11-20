@@ -13,17 +13,17 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/events.h"
+#include "sql/dd/impl/tables/events.h"
 
 #include <new>
 
-#include "dd/impl/raw/object_keys.h"   // dd::Global_name_key
-#include "dd/impl/raw/raw_record.h"    // dd::Raw_record
-#include "dd/impl/types/event_impl.h"  // dd::Event_impl
-#include "dd/impl/types/object_table_definition_impl.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mysql_com.h"
+#include "sql/dd/impl/raw/object_keys.h" // dd::Global_name_key
+#include "sql/dd/impl/raw/raw_record.h" // dd::Raw_record
+#include "sql/dd/impl/types/event_impl.h" // dd::Event_impl
+#include "sql/dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
 namespace tables {

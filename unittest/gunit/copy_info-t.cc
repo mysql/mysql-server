@@ -20,7 +20,7 @@
 #include "fake_table.h"
 #include "mock_field_timestamp.h"
 #include "my_inttypes.h"
-#include "sql_data_change.h"
+#include "sql/sql_data_change.h"
 #include "test_utils.h"
 
 namespace copy_info_unittest {

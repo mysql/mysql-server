@@ -20,35 +20,59 @@ perl;
     my $search_file=           $ENV{'SEARCH_FILE'}           or die "SEARCH_FILE not set";
     my $search_pattern=        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
     my $search_echo=           $ENV{'SEARCH_ECHO'}     || "NONE";
-    my $ignore_pattern=        $ENV{'IGNORE_PATTERN'}  || '';
+    my $ignore_pattern=        $ENV{'IGNORE_PATTERN'}  || "";
     my $search_echo_ctx=       $ENV{'SEARCH_ECHO_CTX'} || 0;
 
     open(FILE, "< $search_file") or die("Unable to open '$search_file': $!\n");
-    my @lines= <FILE>;
+
+    # We include the current line and 'n' previous lines in its context
+    # as a FIFO queue i.e., oldest entries in the queue are removed when
+    # new lines are read from the file.
+    my @context= (undef) x ($search_echo_ctx + 1);
+
+    my $line;
     my $flag= 0;
 
-    for (my $i= 0; $i<= $#lines; $i++)
+    # Read the file line by line
+    while ($line= <FILE>)
     {
-        my $line= $lines[$i];
+        my $cur_lineno= $.;
+        my $file_pos= tell(FILE);
+
+        # Context stored as a sliding window of size 'n' lines
+        shift @context;
+        push  @context, $line;
+
 	if ($line =~ /$search_pattern/)
         {
             if (!(length $ignore_pattern) or !($line =~ /$ignore_pattern/))
             {
+                # Line matches the specified pattern
                 $flag= 1;
+
                 if ($search_echo eq 'FIRST')
                 {
-                    print_previous_n_lines($i, $search_echo_ctx);
-                    print_succeding_n_lines($i, $search_echo_ctx);
+                    print_current_and_previous_n_lines($search_echo_ctx,
+                                                       $cur_lineno);
+                    print_succeeding_n_lines($search_echo_ctx, $cur_lineno)
+                      if ($search_echo_ctx > 0);
                     last;
                 }
                 elsif ($search_echo eq 'ALL')
                 {
-                    print_previous_n_lines($i, $search_echo_ctx);
-                    print_succeding_n_lines($i, $search_echo_ctx);
+                    print_current_and_previous_n_lines($search_echo_ctx,
+                                                       $cur_lineno);
 
-                    # Separate each matching line
                     if ($search_echo_ctx > 0)
                     {
+                        print_succeeding_n_lines($search_echo_ctx, $cur_lineno);
+
+                        # Return to current file position after reading 'n'
+                        # succeeding lines
+                        seek(FILE, $file_pos, 0);
+                        $.= $cur_lineno;
+
+                        # Separate each matching line
                         print "---\n";
                     }
                 }
@@ -66,36 +90,38 @@ perl;
     }
     close(FILE);
 
-    sub print_previous_n_lines()
+    sub print_current_and_previous_n_lines()
     {
-        my ($i, $search_echo_ctx)= @_;
+        my ($search_echo_ctx, $cur_lineno)= @_;
+        my $start_lineno= $cur_lineno - $search_echo_ctx;
+        $cur_lineno= $start_lineno > 0 ? $start_lineno: 1;
 
-        for (my $j= 0; $j< $search_echo_ctx; $j++)
+        for my $ctx_line (@context)
         {
-            my $index= $i+$j-$search_echo_ctx;
-            if ($index >= 0)
-            {
-                print "@{[$i+$j-$search_echo_ctx+1]}: $lines[$index]";
-            }
+            next if not defined $ctx_line;
+            print "$cur_lineno: $ctx_line";
+            $cur_lineno++;
         }
     }
 
-    sub print_succeding_n_lines()
+    sub print_succeeding_n_lines()
     {
-        my ($i, $search_echo_ctx)= @_;
+        # Read the next 'n' lines from the file (excluding the current
+        # line) and print them
 
-        for (my $j= 0; $j<= $search_echo_ctx; $j++)
+        my ($search_echo_ctx, $cur_lineno)= @_;
+        my $end_lineno= $cur_lineno + $search_echo_ctx;
+
+        while ($line= <FILE>)
         {
-            if ($lines[$i+$j])
-            {
-                print "@{[$i+$j+1]}: $lines[$i+$j]";
-             }
+            last if ($. > $end_lineno);
+            print "$.: $line";
         }
     }
 
 EOF
 
 # Setting the env vars to default value
---let SEARCH_ECHO=     "NONE"
---let IGNORE_PATTERN=  ''
---let SEARCH_ECHO_CTX= 0
+let SEARCH_ECHO=NONE;
+let IGNORE_PATTERN=;
+let SEARCH_ECHO_CTX=0;

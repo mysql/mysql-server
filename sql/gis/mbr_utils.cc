@@ -19,17 +19,16 @@
 
 #include "mbr_utils.h"
 
+#include <boost/geometry.hpp>
 #include <cmath>  // std::isnan
 #include <exception>
 
-#include <boost/geometry.hpp>
-
 #include "box.h"
 #include "box_traits.h"
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "geometries.h"
 #include "geometries_cs.h"
 #include "geometries_traits.h"
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
 #include "template_utils.h"  // down_cast
 
 namespace bg = boost::geometry;

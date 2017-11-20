@@ -42,22 +42,21 @@
 #include <new>
 #include <utility>
 
-#include "channel_info.h"               // Channel_info
-#include "derror.h"                     // ER_DEFAULT
-#include "init_net_server_extension.h"  // init_net_server_extension
-#include "log.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_io.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysql/service_my_snprintf.h"
-#include "mysql_com.h"
-#include "mysqld.h"                     // key_socket_tcpip
 #include "mysqld_error.h"
-#include "sql_class.h"                  // THD
-#include "sql_const.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/conn_handler/channel_info.h" // Channel_info
+#include "sql/conn_handler/init_net_server_extension.h" // init_net_server_extension
+#include "sql/log.h"
+#include "sql/mysqld.h"                 // key_socket_tcpip
+#include "sql/sql_class.h"              // THD
+#include "sql/sql_const.h"
 #include "violite.h"                    // Vio
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>

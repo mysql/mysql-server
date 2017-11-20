@@ -1,3 +1,4 @@
+set cte_max_recursion_depth = 1000000;
 set @node_count=100000;
 set @edge_count=floor(@node_count*2.4);
 create table edges(s int, e int)

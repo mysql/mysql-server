@@ -13,21 +13,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysqld_daemon.h"
+#include "sql/mysqld_daemon.h"
 
 #include "my_config.h"
-#include "log.h"
 
 #include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "my_loglevel.h"
+#include "sql/log.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
-#include "sql_const.h"
+#include "sql/sql_const.h"
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif

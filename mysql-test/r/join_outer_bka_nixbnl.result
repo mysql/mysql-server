@@ -1336,7 +1336,7 @@ SELECT t1.a, COUNT( t2.b ), SUM( t2.b ), MAX( t2.b )
 FROM t1 JOIN t2 USING( a )
 GROUP BY t1.a WITH ROLLUP;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using filesort
+1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select rollup_const('1') AS `a`,count(`test`.`t2`.`b`) AS `COUNT( t2.b )`,sum(`test`.`t2`.`b`) AS `SUM( t2.b )`,max(`test`.`t2`.`b`) AS `MAX( t2.b )` from `test`.`t2` where (`test`.`t2`.`a` = '1') group by rollup_const('1') with rollup
@@ -1354,13 +1354,12 @@ CREATE TABLE t1(f1 INT, f2 INT, f3 INT);
 INSERT INTO t1 VALUES (1, NULL, 3);
 CREATE TABLE t2(f1 INT, f2 INT);
 INSERT INTO t2 VALUES (2, 1);
-EXPLAIN EXTENDED SELECT * FROM t1 LEFT JOIN t2 ON t1.f2 = t2.f2
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.f2 = t2.f2
 WHERE (COALESCE(t1.f1, t2.f1), f3) IN ((1, 3), (2, 2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '1' AS `f1`,NULL AS `f2`,'3' AS `f3`,NULL AS `f1`,NULL AS `f2` from `test`.`t2` where ((coalesce('1',NULL),'3') in ((1,3),(2,2)))
 SELECT * FROM t1 LEFT JOIN t2 ON t1.f2 = t2.f2
 WHERE (COALESCE(t1.f1, t2.f1), f3) IN ((1, 3), (2, 2));
@@ -1425,7 +1424,7 @@ DROP TABLE t1, t2;
 #
 CREATE TABLE t1(f1 INT, PRIMARY KEY (f1));
 INSERT INTO t1 VALUES (1),(2);
-EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
+EXPLAIN SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
 LEFT JOIN t1 AS jt2
 RIGHT JOIN t1 AS jt3
 JOIN t1 AS jt4 ON 1
@@ -1441,9 +1440,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	jt5	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
 1	SIMPLE	jt2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt1` left join (`test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1))) on(1) where 1
-EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
+EXPLAIN SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
 RIGHT JOIN t1 AS jt2
 RIGHT JOIN t1 AS jt3
 JOIN t1 AS jt4 ON 1
@@ -1459,7 +1457,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	jt2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
 1	SIMPLE	jt1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1)) left join `test`.`t1` `jt1` on(1) where 1
 DROP TABLE t1;
 #
@@ -2668,4 +2665,73 @@ adslot	ionumber1	ionumber2	ioattribute
 2	NULL	NULL	NULL
 3	01602	01602	BOB
 DROP TABLE t1, t2, t3;
+#
+# Bug #26432173: INCORRECT SUBQUERY OPTIMIZATION WITH
+#                LEFT JOIN(SUBQUERY) AND ORDER BY
+#
+CREATE TABLE t1 (a INT);
+INSERT t1 values (1),(2),(15),(24),(5);
+CREATE TABLE t2 (t1_a INT, b VARCHAR(10));
+EXPLAIN SELECT t1.a, subq.st_value
+FROM t1
+LEFT JOIN (SELECT t2.t1_a, 'red' AS st_value
+FROM t2) AS subq
+ON subq.t1_a = t1.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'red' AS `st_value` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`t1_a` = `test`.`t1`.`a`)) where 1
+EXPLAIN SELECT t1.a, subq.st_value
+FROM t1
+LEFT JOIN (SELECT t2.t1_a, 'red' AS st_value
+FROM t2) AS subq
+ON subq.t1_a = t1.a
+ORDER BY t1.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'red' AS `st_value` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`t1_a` = `test`.`t1`.`a`)) where 1 order by `test`.`t1`.`a`
+EXPLAIN SELECT t1.a, subq.st_value
+FROM (SELECT t2.t1_a, 'red' AS st_value
+FROM t2) AS subq
+LEFT JOIN t1
+ON subq.t1_a = t1.a
+ORDER BY t1.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'red' AS `st_value` from `test`.`t2` left join `test`.`t1` on(multiple equal(NULL, `test`.`t1`.`a`)) order by `test`.`t1`.`a`
+SELECT t1.a, subq.st_value
+FROM t1
+LEFT JOIN (SELECT t2.t1_a, 'red' AS st_value
+FROM t2) AS subq
+ON subq.t1_a = t1.a;
+a	st_value
+1	NULL
+2	NULL
+15	NULL
+24	NULL
+5	NULL
+SELECT t1.a, subq.st_value
+FROM t1
+LEFT JOIN (SELECT t2.t1_a, 'red' AS st_value
+FROM t2) AS subq
+ON subq.t1_a = t1.a
+ORDER BY t1.a;
+a	st_value
+1	NULL
+2	NULL
+5	NULL
+15	NULL
+24	NULL
+SELECT t1.a, subq.st_value
+FROM (SELECT t2.t1_a, 'red' AS st_value
+FROM t2) AS subq
+LEFT JOIN t1
+ON subq.t1_a = t1.a
+ORDER BY t1.a;
+a	st_value
+DROP TABLE t1, t2;
 set optimizer_switch=default;

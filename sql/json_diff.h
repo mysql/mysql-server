@@ -28,11 +28,13 @@
   updated.
 */
 
+#include <algorithm>
 #include <memory>                               // std::unique_ptr
 #include <vector>
 
-#include "json_path.h"
-#include "memroot_allocator.h"
+#include "sql/json_dom.h"
+#include "sql/json_path.h"
+#include "sql/memroot_allocator.h"
 
 class Field_json;
 class Json_dom;
@@ -64,6 +66,8 @@ enum class enum_json_diff_operation
   */
   REMOVE,
 };
+/// The number of elements of the enumeration above.
+static const int JSON_DIFF_OPERATION_COUNT= 3;
 
 /**
   A class that represents a logical change to a JSON document. It is used by
@@ -78,6 +82,9 @@ class Json_diff final
   enum_json_diff_operation m_operation;
   /// The new value to add to the changed path.
   std::unique_ptr<Json_dom> m_value;
+
+  /// The length of the operation when encoded in binary format.
+  static const size_t ENCODED_OPERATION_BYTES= 1;
 public:
   /**
     Construct a Json_diff object.
@@ -89,7 +96,30 @@ public:
   */
   Json_diff(const Json_seekable_path &path,
             enum_json_diff_operation operation,
-            Json_dom *value);
+            Json_dom_ptr &value)
+    : m_path(), m_operation(operation), m_value(std::move(value))
+  {
+    for (const Json_path_leg *leg : path)
+      m_path.append(*leg);
+  }
+
+  /**
+    Construct a Json_diff object.
+
+    @param path       the path that is changed
+    @param operation  the operation to perform on the path
+    @param value      the new value in the path (the Json_diff object
+                      takes over the ownership of the value)
+  */
+  Json_diff(const Json_seekable_path &path,
+            enum_json_diff_operation operation,
+            Json_dom *value)
+    : m_path(), m_operation(operation)
+  {
+    m_value.reset(value);
+    for (const Json_path_leg *leg : path)
+      m_path.append(*leg);
+  }
 
   /// Get the path that is changed by this diff.
   const Json_path &path() const { return m_path; }
@@ -104,10 +134,139 @@ public:
     @see Json_wrapper::set_alias()
   */
   Json_wrapper value() const;
+
+  size_t binary_length() const;
+  /**
+    Serialize this Json_diff object and append to the given string
+
+    @param to The String to append to
+    @retval false Success
+    @retval true Failure, meaning out of memory
+  */
+  bool write_binary(String *to) const;
 };
 
-/// Vector of logical diffs describing changes to a JSON column.
-using Json_diff_vector= std::vector<Json_diff, Memroot_allocator<Json_diff>>;
+/**
+  Vector of logical diffs describing changes to a JSON column.
+*/
+class Json_diff_vector
+{
+public:
+  /// Type of the allocator for the underlying invector.
+  typedef Memroot_allocator<Json_diff> allocator_type;
+  /// Type of the underlying vector
+  typedef std::vector<Json_diff, allocator_type> vector;
+  /// Type of iterator over the underlying vector
+  typedef vector::iterator iterator;
+  /// Type of iterator over the underlying vector
+  typedef vector::const_iterator const_iterator;
+  /**
+    Constructor
+    @param arg Memroot_allocator to use for the vector
+  */
+  Json_diff_vector(allocator_type arg);
+  /**
+    Append a new diff at the end of this vector.
+    @param path Path to update
+    @param operation Operation
+    @param dom New value to insert
+  */
+  void add_diff(const Json_seekable_path &path,
+                enum_json_diff_operation operation,
+                Json_dom_ptr &dom);
+  /**
+    Append a new diff at the end of this vector when operation == REMOVE.
+    @param path Path to update
+    @param operation Operation
+  */
+  void add_diff(const Json_seekable_path &path,
+                enum_json_diff_operation operation);
+  /// Clear the vector.
+  void clear();
+  /// Return the number of elements in the vector.
+  inline size_t size() const
+  { return m_vector.size(); }
+
+  /**
+    Return the element at the given position
+    @param pos Position
+    @return the pos'th element
+  */
+  inline Json_diff &at(size_t pos)
+  { return m_vector.at(pos); }
+
+  // Return forward iterator to the beginning
+  inline const_iterator begin() const
+  { return m_vector.begin(); }
+
+  // Return forward iterator to the end
+  const_iterator end() const
+  { return m_vector.end(); }
+
+  /**
+    Return the length of the binary representation of this
+    Json_diff_vector.
+
+    The binary format has this form:
+
+        +--------+--------+--------+     +--------+
+        | length | diff_1 | diff_2 | ... | diff_N |
+        +--------+--------+--------+     +--------+
+
+    This function returns the length of only the diffs, if
+    include_metadata==false.  It returns the length of the 'length'
+    field plus the length of the diffs, if include_metadata=true.  The
+    value of the 'length' field is exactly the return value from this
+    function when include_metadata=false.
+
+    @param include_metadata if true, include the length of the length
+    field in the computation, otherwise don't.
+
+    @return The computed length
+  */
+  size_t binary_length(bool include_metadata= true) const;
+
+  /**
+    Serialize this Json_diff_vector into the given String.
+
+    @param to String to which the vector will be appended
+
+    @retval false Success
+    @retval true Failure (out of memory)
+  */
+  bool write_binary(String *to) const;
+
+  /**
+    De-serialize Json_diff objects from the given String into this
+    Json_diff_vector.
+
+    @param[in,out] from Pointer to buffer to read from. The function
+    will move this to point to the next byte to read after those that
+    were read.
+
+    @param[in] table Table structure (used for error messages).
+
+    @param[in] field_name Field name (used for error messages).
+
+    @retval false Success
+    @retval true Failure (bad format or out of memory)
+  */
+  bool read_binary(const char **from,
+                   const struct TABLE *table, const char *field_name);
+
+  /// An empty diff vector (having no diffs).
+  static const Json_diff_vector EMPTY_JSON_DIFF_VECTOR;
+
+private:
+  // The underlying vector
+  vector m_vector;
+
+  /// Length in bytes of the binary representation, not counting the 4 bytes length
+  size_t m_binary_length;
+
+  /// The length of the field where the total length is encoded.
+  static const size_t ENCODED_LENGTH_BYTES= 4;
+};
 
 /**
   The result of applying JSON diffs on a JSON value using apply_json_diffs().

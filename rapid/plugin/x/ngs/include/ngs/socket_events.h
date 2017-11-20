@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -21,7 +21,7 @@
 #define NGS_SOCKET_EVENTS_H_
 
 #include <vector>
-#include "ngs/socket_events_interface.h"
+#include "ngs/interface/socket_events_interface.h"
 
 struct event_base;
 

@@ -29,7 +29,7 @@
 #include "my_base.h"        // ha_rows
 #include "my_bitmap.h"      // MY_BITMAP
 #include "my_dbug.h"
-#include "sql_alloc.h"      // Sql_alloc
+#include "sql/sql_alloc.h"  // Sql_alloc
 
 class Item;
 struct TABLE;

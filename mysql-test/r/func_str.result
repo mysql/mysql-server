@@ -297,18 +297,6 @@ NULL	NULL
 select least(1,2,3) | greatest(16,32,8), least(5,4)*1,greatest(-1.0,1.0)*1,least(3,2,1)*1.0,greatest(1,1.1,1.0),least("10",9),greatest("A","B","0");
 least(1,2,3) | greatest(16,32,8)	least(5,4)*1	greatest(-1.0,1.0)*1	least(3,2,1)*1.0	greatest(1,1.1,1.0)	least("10",9)	greatest("A","B","0")
 33	4	1.0	1.0	1.1	9	B
-select decode(encode(repeat("a",100000),"monty"),"monty")=repeat("a",100000);
-decode(encode(repeat("a",100000),"monty"),"monty")=repeat("a",100000)
-1
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select decode(encode("abcdef","monty"),"monty")="abcdef";
-decode(encode("abcdef","monty"),"monty")="abcdef"
-1
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 select quote('\'\"\\test');
 quote('\'\"\\test')
 '\'"\\test'
@@ -363,7 +351,7 @@ select length(repeat("a",100000000)),length(repeat("a",1000*64));
 length(repeat("a",100000000))	length(repeat("a",1000*64))
 NULL	64000
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 select position("0" in "baaa" in (1)),position("0" in "1" in (1,2,3)),position("sql" in ("mysql"));
 position("0" in "baaa" in (1))	position("0" in "1" in (1,2,3))	position("sql" in ("mysql"))
 1	0	3
@@ -688,9 +676,6 @@ latin2_general_ci	4
 select collation(replace(_latin2'abcd',_latin2'b',_latin2'B')), coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'));
 collation(replace(_latin2'abcd',_latin2'b',_latin2'B'))	coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'))
 latin2_general_ci	4
-select collation(encode('abcd','ab')), coercibility(encode('abcd','ab'));
-collation(encode('abcd','ab'))	coercibility(encode('abcd','ab'))
-binary	4
 create table t1 charset latin1
 select
 bin(130),
@@ -722,11 +707,8 @@ quote(_latin2'ab'),
 soundex(_latin2'ab'),
 substring(_latin2'ab',1),
 insert(_latin2'abcd',2,3,_latin2'ef'),
-replace(_latin2'abcd',_latin2'b',_latin2'B'),
-encode('abcd','ab')
+replace(_latin2'abcd',_latin2'b',_latin2'B')
 ;
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -759,8 +741,7 @@ t1	CREATE TABLE `t1` (
   `soundex(_latin2'ab')` varchar(4) CHARACTER SET latin2 DEFAULT NULL,
   `substring(_latin2'ab',1)` varchar(2) CHARACTER SET latin2 DEFAULT NULL,
   `insert(_latin2'abcd',2,3,_latin2'ef')` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
-  `replace(_latin2'abcd',_latin2'b',_latin2'B')` varchar(4) CHARACTER SET latin2 DEFAULT NULL,
-  `encode('abcd','ab')` varbinary(4) DEFAULT NULL
+  `replace(_latin2'abcd',_latin2'b',_latin2'B')` varchar(4) CHARACTER SET latin2 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a char character set latin2);
@@ -821,276 +802,226 @@ drop table t7;
 select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2);
 substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2)	substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2)
 1abcd;2abcd	3abcd;4abcd
-explain extended select md5('hello');
+explain select md5('hello');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select md5('hello') AS `md5('hello')`
-explain extended select sha('abc');
+explain select sha('abc');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select sha('abc') AS `sha('abc')`
-explain extended select sha1('abc');
+explain select sha1('abc');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select sha('abc') AS `sha1('abc')`
-explain extended select soundex('');
+explain select soundex('');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select soundex('') AS `soundex('')`
-explain extended select 'mood' sounds like 'mud';
+explain select 'mood' sounds like 'mud';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (soundex('mood') = soundex('mud')) AS `'mood' sounds like 'mud'`
-explain extended select aes_decrypt(aes_encrypt('abc','1'),'1');
+explain select aes_decrypt(aes_encrypt('abc','1'),'1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select aes_decrypt(aes_encrypt('abc','1'),'1') AS `aes_decrypt(aes_encrypt('abc','1'),'1')`
-explain extended select concat('*',space(5),'*');
+explain select concat('*',space(5),'*');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select concat('*',space(5),'*') AS `concat('*',space(5),'*')`
-explain extended select reverse('abc');
+explain select reverse('abc');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select reverse('abc') AS `reverse('abc')`
-explain extended select rpad('a',4,'1');
+explain select rpad('a',4,'1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select rpad('a',4,'1') AS `rpad('a',4,'1')`
-explain extended select lpad('a',4,'1');
+explain select lpad('a',4,'1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select lpad('a',4,'1') AS `lpad('a',4,'1')`
-explain extended select concat_ws(',','',NULL,'a');
+explain select concat_ws(',','',NULL,'a');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select concat_ws(',','',NULL,'a') AS `concat_ws(',','',NULL,'a')`
-explain extended select make_set(255,_latin2'a', _latin2'b', _latin2'c');
+explain select make_set(255,_latin2'a', _latin2'b', _latin2'c');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select make_set(255,_latin2'a',_latin2'b',_latin2'c') AS `make_set(255,_latin2'a', _latin2'b', _latin2'c')`
-explain extended select elt(2,1);
+explain select elt(2,1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select elt(2,1) AS `elt(2,1)`
-explain extended select locate("a","b",2);
+explain select locate("a","b",2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select locate('a','b',2) AS `locate("a","b",2)`
-explain extended select format(130,10);
+explain select format(130,10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select format(130,10) AS `format(130,10)`
-explain extended select char(0);
+explain select char(0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select char(0) AS `char(0)`
-explain extended select conv(130,16,10);
+explain select conv(130,16,10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select conv(130,16,10) AS `conv(130,16,10)`
-explain extended select hex(130);
+explain select hex(130);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select hex(130) AS `hex(130)`
-explain extended select binary 'HE';
+explain select binary 'HE';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('HE' as char charset binary) AS `binary 'HE'`
-explain extended select export_set(255,_latin2'y', _latin2'n', _latin2' ');
+explain select export_set(255,_latin2'y', _latin2'n', _latin2' ');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select export_set(255,_latin2'y',_latin2'n',_latin2' ') AS `export_set(255,_latin2'y', _latin2'n', _latin2' ')`
-explain extended select FIELD('b' COLLATE latin1_bin,'A','B');
+explain select FIELD('b' COLLATE latin1_bin,'A','B');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select field(('b' collate latin1_bin),'A','B') AS `FIELD('b' COLLATE latin1_bin,'A','B')`
-explain extended select FIND_IN_SET(_latin1'B', _latin1'a,b,c,d');
+explain select FIND_IN_SET(_latin1'B', _latin1'a,b,c,d');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select find_in_set(_latin1'B',_latin1'a,b,c,d') AS `FIND_IN_SET(_latin1'B', _latin1'a,b,c,d')`
-explain extended select collation(conv(130,16,10));
+explain select collation(conv(130,16,10));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select collation(conv(130,16,10)) AS `collation(conv(130,16,10))`
-explain extended select coercibility(conv(130,16,10));
+explain select coercibility(conv(130,16,10));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select coercibility(conv(130,16,10)) AS `coercibility(conv(130,16,10))`
-explain extended select length('\n\t\r\b\0\_\%\\');
+explain select length('\n\t\r\b\0\_\%\\');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select length('\n	\r\0\\_\\%\\') AS `length('\n\t\r\b\0\_\%\\')`
-explain extended select bit_length('\n\t\r\b\0\_\%\\');
+explain select bit_length('\n\t\r\b\0\_\%\\');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select bit_length('\n	\r\0\\_\\%\\') AS `bit_length('\n\t\r\b\0\_\%\\')`
-explain extended select bit_length('\n\t\r\b\0\_\%\\');
+explain select bit_length('\n\t\r\b\0\_\%\\');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select bit_length('\n	\r\0\\_\\%\\') AS `bit_length('\n\t\r\b\0\_\%\\')`
-explain extended select concat('monty',' was here ','again');
+explain select concat('monty',' was here ','again');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select concat('monty',' was here ','again') AS `concat('monty',' was here ','again')`
-explain extended select length('hello');
+explain select length('hello');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select length('hello') AS `length('hello')`
-explain extended select char(ascii('h'));
+explain select char(ascii('h'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select char(ascii('h')) AS `char(ascii('h'))`
-explain extended select ord('h');
+explain select ord('h');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select ord('h') AS `ord('h')`
-explain extended select quote(1/0);
+explain select quote(1/0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select quote((1 / 0)) AS `quote(1/0)`
-explain extended select crc32("123");
+explain select crc32("123");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select crc32('123') AS `crc32("123")`
-explain extended select replace('aaaa','a','b');
+explain select replace('aaaa','a','b');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select replace('aaaa','a','b') AS `replace('aaaa','a','b')`
-explain extended select insert('txs',2,1,'hi');
+explain select insert('txs',2,1,'hi');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select insert('txs',2,1,'hi') AS `insert('txs',2,1,'hi')`
-explain extended select left(_latin2'a',1);
+explain select left(_latin2'a',1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select left(_latin2'a',1) AS `left(_latin2'a',1)`
-explain extended select right(_latin2'a',1);
+explain select right(_latin2'a',1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select right(_latin2'a',1) AS `right(_latin2'a',1)`
-explain extended select lcase(_latin2'a');
+explain select lcase(_latin2'a');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select lower(_latin2'a') AS `lcase(_latin2'a')`
-explain extended select ucase(_latin2'a');
+explain select ucase(_latin2'a');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select upper(_latin2'a') AS `ucase(_latin2'a')`
-explain extended select SUBSTR('abcdefg',3,2);
+explain select SUBSTR('abcdefg',3,2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select substr('abcdefg',3,2) AS `SUBSTR('abcdefg',3,2)`
-explain extended select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2);
+explain select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select substring_index('1abcd;2abcd;3abcd;4abcd',';',2) AS `substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2)`
-explain extended select trim(_latin2' a ');
+explain select trim(_latin2' a ');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select trim(_latin2' a ') AS `trim(_latin2' a ')`
-explain extended select ltrim(_latin2' a ');
+explain select ltrim(_latin2' a ');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select ltrim(_latin2' a ') AS `ltrim(_latin2' a ')`
-explain extended select rtrim(_latin2' a ');
+explain select rtrim(_latin2' a ');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select rtrim(_latin2' a ') AS `rtrim(_latin2' a ')`
-explain extended select decode(encode(repeat("a",100000),"monty"),"monty");
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select decode(encode(repeat('a',100000),'monty'),'monty') AS `decode(encode(repeat("a",100000),"monty"),"monty")`
 SELECT lpad(12345, 5, "#");
 lpad(12345, 5, "#")
 12345
@@ -1363,51 +1294,32 @@ xyz	xyz xyz
 DROP TABLE t1;
 CREATE TABLE t1 (s varchar(10));
 INSERT INTO t1 VALUES ('yadda'), ('yaddy');
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM(s) > 'ab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(`test`.`t1`.`s`) > 'ab')
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM('y' FROM s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM('y' FROM s) > 'ab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim('y' from `test`.`t1`.`s`) > 'ab')
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(LEADING 'y' FROM s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM(LEADING 'y' FROM s) > 'ab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(leading 'y' from `test`.`t1`.`s`) > 'ab')
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(TRAILING 'y' FROM s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM(TRAILING 'y' FROM s) > 'ab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(trailing 'y' from `test`.`t1`.`s`) > 'ab')
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(BOTH 'y' FROM s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM(BOTH 'y' FROM s) > 'ab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(both 'y' from `test`.`t1`.`s`) > 'ab')
 DROP TABLE t1;
-create table t1(f1 varchar(4));
-explain extended select encode(f1,'zxcv') as 'enc' from t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select encode(NULL,'zxcv') AS `enc` from `test`.`t1`
-explain extended select decode(f1,'zxcv') as 'enc' from t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select decode(NULL,'zxcv') AS `enc` from `test`.`t1`
-drop table t1;
 create table t1 (a bigint not null)engine=myisam;
 insert into t1 set a = 1024*1024*1024*4;
 SET @orig_sql_mode = @@SQL_MODE;
@@ -1484,34 +1396,15 @@ SELECT * FROM t1 INNER JOIN t2 ON t1.code=t2.id
 WHERE t2.id='a12' AND (LENGTH(code)=5 OR code < 'a00');
 code	id
 A12	a12
-EXPLAIN EXTENDED 
+EXPLAIN 
 SELECT * FROM t1 INNER JOIN t2 ON code=id 
 WHERE id='a12' AND (LENGTH(code)=5 OR code < 'a00');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	42	const	1	100.00	Using index
 1	SIMPLE	t1	NULL	ref	code	code	43	const	3	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`code` AS `code`,'a12' AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = 'a12') and ('a12' = 'a12') and ((length(`test`.`t1`.`code`) = 5) or ('a12' < 'a00')))
+Note	1003	/* select#1 */ select `test`.`t1`.`code` AS `code`,'a12' AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = 'a12') and (length(`test`.`t1`.`code`) = 5))
 DROP TABLE t1,t2;
-select encode(NULL, NULL);
-encode(NULL, NULL)
-NULL
-select encode("data", NULL);
-encode("data", NULL)
-NULL
-select encode(NULL, "password");
-encode(NULL, "password")
-NULL
-select decode(NULL, NULL);
-decode(NULL, NULL)
-NULL
-select decode("data", NULL);
-decode("data", NULL)
-NULL
-select decode(NULL, "password");
-decode(NULL, "password")
-NULL
 select format(NULL, NULL);
 format(NULL, NULL)
 NULL
@@ -1538,89 +1431,6 @@ benchmark(-1, 1)
 NULL
 Warnings:
 Warning	1411	Incorrect count value: '-1' for function benchmark
-set @password="password";
-set @my_data="clear text to encode";
-select md5(encode(@my_data, "password"));
-md5(encode(@my_data, "password"))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-select md5(encode(@my_data, _utf8 "password"));
-md5(encode(@my_data, _utf8 "password"))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-select md5(encode(@my_data, binary "password"));
-md5(encode(@my_data, binary "password"))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-select md5(encode(@my_data, _latin1 "password"));
-md5(encode(@my_data, _latin1 "password"))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-select md5(encode(@my_data, _koi8r "password"));
-md5(encode(@my_data, _koi8r "password"))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-select md5(encode(@my_data, (select "password" from dual)));
-md5(encode(@my_data, (select "password" from dual)))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-select md5(encode(@my_data, concat("pass", "word")));
-md5(encode(@my_data, concat("pass", "word")))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-select md5(encode(@my_data, @password));
-md5(encode(@my_data, @password))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-set @my_data="binary encoded data";
-select md5(decode(@my_data, "password"));
-md5(decode(@my_data, "password"))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select md5(decode(@my_data, _utf8 "password"));
-md5(decode(@my_data, _utf8 "password"))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select md5(decode(@my_data, binary "password"));
-md5(decode(@my_data, binary "password"))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select md5(decode(@my_data, _latin1 "password"));
-md5(decode(@my_data, _latin1 "password"))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select md5(decode(@my_data, _koi8r "password"));
-md5(decode(@my_data, _koi8r "password"))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select md5(decode(@my_data, (select "password" from dual)));
-md5(decode(@my_data, (select "password" from dual)))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select md5(decode(@my_data, concat("pass", "word")));
-md5(decode(@my_data, concat("pass", "word")))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select md5(decode(@my_data, @password));
-md5(decode(@my_data, @password))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 set @dec=5;
 select format(pi(), (1+1));
 format(pi(), (1+1))
@@ -2153,7 +1963,7 @@ select repeat('hello', 4294967295);
 repeat('hello', 4294967295)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 select repeat('hello', -4294967296);
 repeat('hello', -4294967296)
 
@@ -2161,7 +1971,7 @@ select repeat('hello', 4294967296);
 repeat('hello', 4294967296)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 select repeat('hello', -4294967297);
 repeat('hello', -4294967297)
 
@@ -2169,7 +1979,7 @@ select repeat('hello', 4294967297);
 repeat('hello', 4294967297)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 select repeat('hello', -18446744073709551615);
 repeat('hello', -18446744073709551615)
 
@@ -2180,7 +1990,7 @@ select repeat('hello', 18446744073709551615);
 repeat('hello', 18446744073709551615)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 select repeat('hello', -18446744073709551616);
 repeat('hello', -18446744073709551616)
 
@@ -2193,7 +2003,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 select repeat('hello', -18446744073709551617);
 repeat('hello', -18446744073709551617)
 
@@ -2206,7 +2016,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 select space(-1);
 space(-1)
 
@@ -2217,7 +2027,7 @@ select space(4294967295);
 space(4294967295)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 select space(-4294967296);
 space(-4294967296)
 
@@ -2225,7 +2035,7 @@ select space(4294967296);
 space(4294967296)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 select space(-4294967297);
 space(-4294967297)
 
@@ -2233,7 +2043,7 @@ select space(4294967297);
 space(4294967297)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 select space(-18446744073709551615);
 space(-18446744073709551615)
 
@@ -2244,7 +2054,7 @@ select space(18446744073709551615);
 space(18446744073709551615)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 select space(-18446744073709551616);
 space(-18446744073709551616)
 
@@ -2257,7 +2067,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
-Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 select space(-18446744073709551617);
 space(-18446744073709551617)
 
@@ -2270,7 +2080,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
-Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 select rpad('hello', -1, '1');
 rpad('hello', -1, '1')
 NULL
@@ -2281,7 +2091,7 @@ select rpad('hello', 4294967295, '1');
 rpad('hello', 4294967295, '1')
 NULL
 Warnings:
-Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (67108864) - truncated
 select rpad('hello', -4294967296, '1');
 rpad('hello', -4294967296, '1')
 NULL
@@ -2289,7 +2099,7 @@ select rpad('hello', 4294967296, '1');
 rpad('hello', 4294967296, '1')
 NULL
 Warnings:
-Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (67108864) - truncated
 select rpad('hello', -4294967297, '1');
 rpad('hello', -4294967297, '1')
 NULL
@@ -2297,7 +2107,7 @@ select rpad('hello', 4294967297, '1');
 rpad('hello', 4294967297, '1')
 NULL
 Warnings:
-Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (67108864) - truncated
 select rpad('hello', -18446744073709551615, '1');
 rpad('hello', -18446744073709551615, '1')
 NULL
@@ -2308,7 +2118,7 @@ select rpad('hello', 18446744073709551615, '1');
 rpad('hello', 18446744073709551615, '1')
 NULL
 Warnings:
-Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (67108864) - truncated
 select rpad('hello', -18446744073709551616, '1');
 rpad('hello', -18446744073709551616, '1')
 NULL
@@ -2321,7 +2131,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
-Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (67108864) - truncated
 select rpad('hello', -18446744073709551617, '1');
 rpad('hello', -18446744073709551617, '1')
 NULL
@@ -2334,7 +2144,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
-Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (67108864) - truncated
 select lpad('hello', -1, '1');
 lpad('hello', -1, '1')
 NULL
@@ -2345,7 +2155,7 @@ select lpad('hello', 4294967295, '1');
 lpad('hello', 4294967295, '1')
 NULL
 Warnings:
-Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
 select lpad('hello', -4294967296, '1');
 lpad('hello', -4294967296, '1')
 NULL
@@ -2353,7 +2163,7 @@ select lpad('hello', 4294967296, '1');
 lpad('hello', 4294967296, '1')
 NULL
 Warnings:
-Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
 select lpad('hello', -4294967297, '1');
 lpad('hello', -4294967297, '1')
 NULL
@@ -2361,7 +2171,7 @@ select lpad('hello', 4294967297, '1');
 lpad('hello', 4294967297, '1')
 NULL
 Warnings:
-Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
 select lpad('hello', -18446744073709551615, '1');
 lpad('hello', -18446744073709551615, '1')
 NULL
@@ -2372,7 +2182,7 @@ select lpad('hello', 18446744073709551615, '1');
 lpad('hello', 18446744073709551615, '1')
 NULL
 Warnings:
-Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
 select lpad('hello', -18446744073709551616, '1');
 lpad('hello', -18446744073709551616, '1')
 NULL
@@ -2385,7 +2195,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
-Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
 select lpad('hello', -18446744073709551617, '1');
 lpad('hello', -18446744073709551617, '1')
 NULL
@@ -2398,7 +2208,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
-Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
 SET @orig_sql_mode = @@SQL_MODE;
 SET SQL_MODE=traditional;
 SELECT CHAR(0xff,0x8f USING utf8);
@@ -2707,65 +2517,6 @@ LOAD_MIN
 LOAD_MAX
 DROP TABLE t1, t2;
 End of 5.0 tests
-drop table if exists t1;
-create table t1(f1 tinyint default null)engine=myisam;
-insert into t1 values (-1),(null);
-explain select 1 as a from t1,(select decode(f1,f1) as b from t1) a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-Warnings:
-Note	1003	/* select#1 */ select 1 AS `a` from `test`.`t1` join `test`.`t1`
-explain select 1 as a from t1,(select encode(f1,f1) as b from t1) a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-Warnings:
-Note	1003	/* select#1 */ select 1 AS `a` from `test`.`t1` join `test`.`t1`
-drop table t1;
-#
-# Bug#49141: Encode function is significantly slower in 5.1 compared to 5.0
-#
-DROP TABLE IF EXISTS t1, t2;
-CREATE TABLE t1 (a VARCHAR(20), b INT);
-CREATE TABLE t2 (a VARCHAR(20), b INT);
-INSERT INTO t1 VALUES ('ABC', 1);
-INSERT INTO t2 VALUES ('ABC', 1);
-SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
-FROM t1,t2 WHERE t1.b = t1.b > 0 GROUP BY t2.b;
-DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
-secret
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-SELECT DECODE((SELECT ENCODE('secret', 'ABC') FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
-FROM t1,t2 WHERE t1.b = t1.b > 0 GROUP BY t2.b;
-DECODE((SELECT ENCODE('secret', 'ABC') FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
-secret
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), 'ABC')
-FROM t1,t2 WHERE t1.b = t1.b > 0 GROUP BY t2.b;
-DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), 'ABC')
-secret
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-TRUNCATE TABLE t1;
-TRUNCATE TABLE t2;
-INSERT INTO t1 VALUES ('EDF', 3), ('BCD', 2), ('ABC', 1);
-INSERT INTO t2 VALUES ('EDF', 3), ('BCD', 2), ('ABC', 1);
-SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b ASC LIMIT 1), t2.a)
-FROM t2 WHERE t2.b = 1 GROUP BY t2.b;
-DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b ASC LIMIT 1), t2.a)
-secret
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-DROP TABLE t1, t2;
 #
 # Bug#52164 Assertion failed: param.sort_length, file .\filesort.cc, line 149
 #
@@ -3058,7 +2809,7 @@ SELECT ((0xf3) * (rpad(1.0,2048,1)) << (0xcc));
 #              EXTRAORDINARY LONG TIME TO EXECUTE
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
-4194304
+67108864
 SET @@global.max_allowed_packet=1024*1024*1024;
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
@@ -4565,7 +4316,7 @@ SELECT LENGTH(TO_BASE64(REPEAT('a', @@max_allowed_packet-10)));
 LENGTH(TO_BASE64(REPEAT('a', @@max_allowed_packet-10)))
 NULL
 Warnings:
-Warning	1301	Result of to_base64() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of to_base64() was larger than max_allowed_packet (67108864) - truncated
 #
 # Testing base64 with various data types
 #
@@ -4613,7 +4364,7 @@ DROP TABLE t1;
 #
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
-4194304
+67108864
 SET @@global.max_allowed_packet=1024*1024*1024;
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
@@ -4628,7 +4379,7 @@ SELECT SPACE(@@global.max_allowed_packet*2);
 SPACE(@@global.max_allowed_packet*2)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 SET NAMES latin1;
 PREPARE stmt FROM "SELECT COLLATION(space(2))";
 EXECUTE stmt;
@@ -4762,7 +4513,7 @@ SET @@global.max_allowed_packet:= DEFAULT;
 #              EXPLOITABLE
 do rpad(_utf16"33",1073741826,_latin1"44");
 Warnings:
-Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (67108864) - truncated
 #
 # Bug#13740934 ASSERTION FAILED: ARGS[0]->FIXED ITEM_FUNC_CONV_CHARSET::ITEM_FUNC_CONV_CHARSET
 #
@@ -5187,16 +4938,16 @@ SET @orig_sql_mode = @@SQL_MODE;
 SET SQL_MODE='';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-SELECT REPEAT(0x1111, 2100000) >> 1;
-REPEAT(0x1111, 2100000) >> 1
-
+SELECT REPEAT(0x1111, 40000000) >> 1;
+REPEAT(0x1111, 40000000) >> 1
+NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
-SELECT (~(REPEAT(0xb822, 0x6fc221)));
-(~(REPEAT(0xb822, 0x6fc221)))
-
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
+SELECT (~(REPEAT(0xb822, 0x5C9C380)));
+(~(REPEAT(0xb822, 0x5C9C380)))
+NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 SET SQL_MODE=@orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

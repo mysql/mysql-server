@@ -1,3 +1,2 @@
 --default-storage-engine=MyISAM
---query_cache_type=0
---information_schema_stats=latest
+--information_schema_stats_expiry=0

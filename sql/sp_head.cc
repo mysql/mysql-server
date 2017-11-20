@@ -14,68 +14,70 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sp_head.h"
+#include "sql/sp_head.h"
 
 #include <stdio.h>
 #include <string.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+#include "my_config.h"
+
 #include <algorithm>
 #include <atomic>
+#include <memory>
+#include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"       // *_ACL
-#include "binlog.h"
-#include "check_stack.h"
-#include "dd/dd.h"             // get_dictionary
-#include "dd/dictionary.h"     // is_dd_table_access_allowed
-#include "derror.h"            // ER_THD
-#include "discrete_interval.h"
-#include "hash.h"
-#include "item.h"
-#include "log_event.h"         // append_query_string, Query_log_event
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
+#include "my_alloc.h"
 #include "my_bitmap.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_user.h"           // parse_user
+#include "mysql/components/services/psi_error_bits.h"
 #include "mysql/psi/mysql_error.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/psi_error.h"
-#include "mysql/psi/psi_statement.h"
 #include "mysql_com.h"
-#include "mysqld.h"            // atomic_global_query_id
-#include "opt_trace.h"         // opt_trace_disable_etc
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "session_tracker.h"
-#include "sp.h"
-#include "sp_instr.h"
-#include "sp_pcontext.h"
-#include "sp_rcontext.h"
-#include "sql_base.h"          // close_thread_tables
-#include "sql_const.h"
-#include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
-#include "sql_digest_stream.h"
-#include "sql_error.h"
-#include "sql_parse.h"         // cleanup_items
-#include "sql_profile.h"
-#include "sql_show.h"          // append_identifier
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // *_ACL
+#include "sql/binlog.h"
+#include "sql/check_stack.h"
+#include "sql/dd/dd.h"         // get_dictionary
+#include "sql/dd/dictionary.h" // is_dd_table_access_allowed
+#include "sql/derror.h"        // ER_THD
+#include "sql/discrete_interval.h"
+#include "sql/item.h"
+#include "sql/log_event.h"     // append_query_string, Query_log_event
+#include "sql/mdl.h"
+#include "sql/mysqld.h"        // atomic_global_query_id
+#include "sql/opt_trace.h"     // opt_trace_disable_etc
+#include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/session_tracker.h"
+#include "sql/sp.h"
+#include "sql/sp_instr.h"
+#include "sql/sp_pcontext.h"
+#include "sql/sp_rcontext.h"
+#include "sql/sql_base.h"      // close_thread_tables
+#include "sql/sql_const.h"
+#include "sql/sql_db.h"        // mysql_opt_change_db, mysql_change_db
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_error.h"
+#include "sql/sql_parse.h"     // cleanup_items
+#include "sql/sql_profile.h"
+#include "sql/sql_show.h"      // append_identifier
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"   // trans_commit_stmt
+#include "sql/trigger_def.h"
 #include "sql_string.h"
 #include "template_utils.h"    // pointer_cast
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "transaction.h"       // trans_commit_stmt
-#include "trigger_def.h"
 
 /**
   @page stored_programs Stored Programs
@@ -1568,14 +1570,6 @@ struct SP_TABLE
 ///////////////////////////////////////////////////////////////////////////
 
 
-static const uchar *sp_table_key(const uchar *ptr, size_t *plen)
-{
-  SP_TABLE *tab= (SP_TABLE *)ptr;
-  *plen= tab->qname.length;
-  return (uchar *)tab->qname.str;
-}
-
-
 /**
   Helper function which operates on a THD object to set the query start_time to
   the current time.
@@ -1615,18 +1609,12 @@ static void reset_start_time_for_sp(THD *thd)
     @return Error status.
 */
 
-static bool sp_update_sp_used_routines(HASH *dst, HASH *src)
+static void sp_update_sp_used_routines
+  (malloc_unordered_map<std::string, Sroutine_hash_entry*> *dst,
+   const malloc_unordered_map<std::string, Sroutine_hash_entry*> &src)
 {
-  for (uint i= 0 ; i < src->records ; i++)
-  {
-    Sroutine_hash_entry *rt= (Sroutine_hash_entry *)my_hash_element(src, i);
-    if (!my_hash_search(dst, rt->m_key, rt->m_key_length))
-    {
-      if (my_hash_insert(dst, (uchar *)rt))
-        return true;
-    }
-  }
-  return false;
+  for (const auto &key_and_value : src)
+    dst->insert(key_and_value);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1724,10 +1712,12 @@ sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
   m_first_instance(NULL),
   m_first_free_instance(NULL),
   m_last_cached_sp(NULL),
+  m_sroutines(key_memory_sp_head_main_root),
   m_trg_list(NULL),
   main_mem_root(std::move(mem_root)),
   m_root_parsing_ctx(NULL),
   m_instructions(&main_mem_root),
+  m_sptabs(system_charset_info, key_memory_sp_head_main_root),
   m_sp_cache_version(0),
   m_creation_ctx(NULL),
   unsafe_flags(0)
@@ -1756,15 +1746,6 @@ sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
   m_body= NULL_STR;
   m_body_utf8= NULL_STR;
 
-  my_hash_init(&m_sptabs, system_charset_info, 0, 0, sp_table_key, nullptr, 0,
-               key_memory_sp_head_main_root);
-  /*
-    See Sroutine_hash_entry for explanation why this hash uses binary
-    key comparison.
-  */
-  my_hash_init(&m_sroutines, &my_charset_bin, 0, 0, sp_sroutine_key,
-               nullptr, 0,
-               key_memory_sp_head_main_root);
 
   m_trg_chistics.ordering_clause= TRG_ORDER_NONE;
   m_trg_chistics.anchor_trigger_name= NULL_CSTR;
@@ -1970,9 +1951,6 @@ sp_head::~sp_head()
     thd->lex= lex;
   }
 
-  my_hash_free(&m_sptabs);
-  my_hash_free(&m_sroutines);
-
   sp_head::destroy(m_next_cached_sp);
 }
 
@@ -2001,7 +1979,8 @@ Field *sp_head::create_result_field(size_t field_max_length,
                  m_return_field_def.is_unsigned,
                  m_return_field_def.decimals,
                  m_return_field_def.treat_bit_as_char,
-                 m_return_field_def.pack_length_override);
+                 m_return_field_def.pack_length_override,
+                 m_return_field_def.m_srid);
 
   field->gcol_info= m_return_field_def.gcol_info;
   field->stored_in_db= m_return_field_def.stored_in_db;
@@ -2408,7 +2387,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
  done:
   DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",
-                      err_status, thd->killed, thd->is_slave_error,
+                      err_status, thd->killed.load(), thd->is_slave_error,
                       thd->is_error()));
 
   if (thd->killed)
@@ -3128,8 +3107,8 @@ bool sp_head::restore_lex(THD *thd)
     Add routines which are used by statement to respective set for
     this routine.
   */
-  if (sp_update_sp_used_routines(&m_sroutines, &sublex->sroutines))
-    return true;
+  if (sublex->sroutines != nullptr)
+    sp_update_sp_used_routines(&m_sroutines, *sublex->sroutines);
 
   /* If this substatement is a update query, then mark MODIFIES_DATA */
   if (is_update_query(sublex->sql_command))
@@ -3386,10 +3365,9 @@ bool sp_head::merge_table_list(THD *thd,
       lex_for_tmp_check->drop_temporary)
     return true;
 
-  for (uint i= 0 ; i < m_sptabs.records ; i++)
+  for (auto &key_and_value : m_sptabs)
   {
-    SP_TABLE *tab= (SP_TABLE*) my_hash_element(&m_sptabs, i);
-    tab->query_lock_count= 0;
+    key_and_value.second->query_lock_count= 0;
   }
 
   for (; table ; table= table->next_global)
@@ -3439,10 +3417,10 @@ bool sp_head::merge_table_list(THD *thd,
 
       SP_TABLE *tab;
 
-      if ((tab= (SP_TABLE*) my_hash_search(&m_sptabs, (uchar *)tname.ptr(),
-                                           tname.length())) ||
-          ((tab= (SP_TABLE*) my_hash_search(&m_sptabs, (uchar *)tname.ptr(),
-                                            temp_table_key_length)) &&
+      if ((tab= find_or_nullptr
+             (m_sptabs, std::string(tname.ptr(), tname.length()))) ||
+          ((tab= find_or_nullptr
+              (m_sptabs, std::string(tname.ptr(), temp_table_key_length))) &&
            tab->temp))
       {
         if (tab->lock_type < table->lock_descriptor().type)
@@ -3473,7 +3451,7 @@ bool sp_head::merge_table_list(THD *thd,
         tab->lock_type= table->lock_descriptor().type;
         tab->lock_count= tab->query_lock_count= 1;
         tab->trg_event_map= table->trg_event_map;
-        if (my_hash_insert(&m_sptabs, (uchar *)tab))
+        if (!m_sptabs.emplace(to_string(tab->qname), tab).second)
           return false;
       }
     }
@@ -3496,9 +3474,9 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
   */
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-  for (uint i= 0; i < m_sptabs.records; i++)
+  for (const auto &key_and_value : m_sptabs)
   {
-    SP_TABLE *stab= pointer_cast<SP_TABLE*>(my_hash_element(&m_sptabs, i));
+    SP_TABLE *stab= key_and_value.second;
     if (stab->temp || stab->lock_type == TL_IGNORE)
       continue;
 

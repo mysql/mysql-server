@@ -360,13 +360,6 @@ set @binlog_format=@@global.binlog_format;
 set sql_mode=no_engine_substitution;
 create table t1 (a int unique); 
 create table t2 (a int) engine=myisam;
---echo # Warm-up data-dictionary cache.
---disable_result_log
---disable_query_log
-show create table t1;
-show create table t2;
---enable_query_log
---enable_result_log
 set sql_mode=default;
 --echo #
 --echo # An auxiliary procedure to track Handler_prepare and Handler_commit
@@ -418,6 +411,16 @@ begin
   end if;
 end|
 delimiter ;|
+--enable_query_log
+--enable_result_log
+--echo # Warm-up data-dictionary cache.
+--disable_result_log
+--disable_query_log
+show create table t1;
+show create table t2;
+show create procedure p_verify_status_increment;
+--enable_query_log
+--enable_result_log
 --echo # Reset Handler_commit and Handler_prepare counters
 flush status;
 --echo #
@@ -614,7 +617,7 @@ begin
 end|
 delimiter ;|
 --disable_warnings
-call p_verify_status_increment(4, 0, 2, 0);
+call p_verify_status_increment(6, 4, 2, 0);
 --enable_warnings
 
 --echo # 16. A function changes non-trans-table.
@@ -625,7 +628,8 @@ call p_verify_status_increment(4, 0, 2, 0);
 --echo #
 select f1();
 --disable_warnings
-call p_verify_status_increment(1, 0, 2, 0);
+--echo # Extra commit comes from load of f1 into data-dictionary cache,
+call p_verify_status_increment(2, 0, 2, 0);
 commit;
 call p_verify_status_increment(1, 0, 2, 0);
 --enable_warnings
@@ -719,7 +723,7 @@ call p_verify_status_increment(2, 0, 1, 0);
 alter table t2 add column b int default 5;
 --echo # A commit is done internally by ALTER. 
 --disable_warnings
-call p_verify_status_increment(3, 0, 3, 0);
+call p_verify_status_increment(4, 0, 3, 0);
 commit;
 --echo # There is nothing left to commit
 call p_verify_status_increment(0, 0, 0, 0);
@@ -818,17 +822,17 @@ create table t2 (a int);
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
-  --replace_regex /(call p_verify_status_increment.*)8(.*6)/\1<commit_count>\2/
-  call p_verify_status_increment(8, 4, 6, 0);
+  --replace_regex /(call p_verify_status_increment.*)11(.*6)/\1<commit_count>\2/
+  call p_verify_status_increment(11, 4, 6, 0);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /(call p_verify_status_increment.*)9(.*6)/\1<commit_count>\2/
-  call p_verify_status_increment(9, 4, 6, 0);
+  --replace_regex /(call p_verify_status_increment.*)12(.*6)/\1<commit_count>\2/
+  call p_verify_status_increment(12, 4, 6, 0);
 }
 --echo # One extra transaction to load table 't2' into data-dictionary cache.
 do (select f1() from t1 where a=2);
-call p_verify_status_increment(2, 2, 3, 2);
+call p_verify_status_increment(4, 2, 3, 2);
 commit;
 call p_verify_status_increment(2, 2, 2, 2);
 --enable_warnings
@@ -878,69 +882,71 @@ create table t3 select a from t2;
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
- --replace_regex /10/<commit_count>/
-  call p_verify_status_increment(10, 4, 4, 4);
+ --replace_regex /12/<commit_count>/
+  call p_verify_status_increment(12, 4, 4, 4);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /11/<commit_count>/
-  call p_verify_status_increment(11, 4, 4, 4);
+  --replace_regex /13/<commit_count>/
+  call p_verify_status_increment(13, 4, 4, 4);
 }
 alter table t3 add column (b int);
 
 if (!$have_debug)
 {
-  --replace_regex /11/X/
-  call p_verify_status_increment(11, 4, 2, 0);
+  --replace_regex /17/X/
+  call p_verify_status_increment(17, 4, 2, 0);
+}
+
+if ($have_debug)
+{
+  --replace_regex /19/X/
+  call p_verify_status_increment(19, 4, 2, 0);
+}
+
+alter table t3 rename t4;
+call p_verify_status_increment(20, 4, 3, 0);
+rename table t4 to t3;
+call p_verify_status_increment(23, 4, 5, 0);
+truncate table t3;
+
+if (!$have_debug)
+{
+  --replace_regex /12/X/
+  call p_verify_status_increment(12, 4, 4, 0);
 }
 
 if ($have_debug)
 {
   --replace_regex /13/X/
-  call p_verify_status_increment(13, 4, 2, 0);
-}
-
-alter table t3 rename t4;
-call p_verify_status_increment(14, 4, 3, 0);
-rename table t4 to t3;
-call p_verify_status_increment(16, 4, 5, 0);
-truncate table t3;
-
-if (!$have_debug)
-{
-  --replace_regex /9/X/
-  call p_verify_status_increment(9, 4, 4, 0);
-}
-
-if ($have_debug)
-{
-  --replace_regex /10/X/
-  call p_verify_status_increment(10, 4, 4, 0);
+  call p_verify_status_increment(13, 4, 4, 0);
 }
 
 create view v1 as select * from t2;
-call p_verify_status_increment(5, 0, 3, 0);
+call p_verify_status_increment(7, 4, 3, 0);
 check table t1;
 call p_verify_status_increment(2, 0, 2, 0);
 --echo # Sic: after this bug is fixed, CHECK leaves no pending transaction
 commit;
 call p_verify_status_increment(0, 0, 0, 0);
 check table t1, t2, t3;
-call p_verify_status_increment(6, 0, 6, 0);
+--echo # One extra transaction to load t3 into data-dictionary cache.
+call p_verify_status_increment(9, 0, 6, 0);
 commit;
 call p_verify_status_increment(0, 0, 0, 0);
 drop view v1;
 
+--echo # One extra transaction to load v1 into data-dictionary cache.
 if (!$have_debug)
 {
-  --replace_regex /\(3/(X/
-  call p_verify_status_increment(3, 0, 3, 0);
+  --replace_regex /\(6/(X/
+  call p_verify_status_increment(6, 4, 3, 0);
 }
 
 if ($have_debug)
 {
-  --replace_regex /4/X/
-  call p_verify_status_increment(4, 0, 3, 0);
+  --replace_regex /7/X/
+  call p_verify_status_increment(7, 4, 3, 0);
 }
 
 --enable_warnings

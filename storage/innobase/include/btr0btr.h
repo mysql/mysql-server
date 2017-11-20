@@ -697,12 +697,12 @@ btr_validate_index(
 	bool		lockout)/*!< in: true if X-latch index is intended */
 	MY_ATTRIBUTE((warn_unused_result));
 
-/** Creates SDI indexes and stores the root page numbers in page 1 & 2
+/** Creates SDI index and stores the root page numbers in page 1 & 2
 @param[in]	space_id	tablespace id
 @param[in]	dict_locked	true if dict_sys mutex is acquired
 @return DB_SUCCESS on success, else DB_ERROR on failure */
 dberr_t
-btr_sdi_create_indexes(
+btr_sdi_create_index(
 	space_id_t	space_id,
 	bool		dict_locked);
 

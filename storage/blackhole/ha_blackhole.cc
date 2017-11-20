@@ -17,11 +17,15 @@
 #define MYSQL_SERVER 1
 #include "ha_blackhole.h"
 
+#include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
-#include "sql_class.h"                          // THD, SYSTEM_THREAD_SLAVE_*
+#include "sql/sql_class.h"                      // THD, SYSTEM_THREAD_SLAVE_*
 #include "template_utils.h"
+
+using std::string;
+using std::unique_ptr;
 
 static PSI_memory_key bh_key_memory_blackhole_share;
 
@@ -44,8 +48,21 @@ static handler *blackhole_create_handler(handlerton *hton,
 
 /* Static declarations for shared structures */
 
+struct blackhole_free_share
+{
+  void operator() (st_blackhole_share *share) const
+  {
+    thr_lock_delete(&share->lock);
+    my_free(share);
+  }
+};
+
+using blackhole_share_with_deleter =
+  unique_ptr<st_blackhole_share, blackhole_free_share>;
+
 static mysql_mutex_t blackhole_mutex;
-static HASH blackhole_open_tables;
+static unique_ptr<collation_unordered_map<string, blackhole_share_with_deleter>>
+    blackhole_open_tables;
 
 static st_blackhole_share *get_share(const char *table_name);
 static void free_share(st_blackhole_share *share);
@@ -281,10 +298,9 @@ static st_blackhole_share *get_share(const char *table_name)
 
   length= (uint) strlen(table_name);
   mysql_mutex_lock(&blackhole_mutex);
-    
-  if (!(share= (st_blackhole_share*)
-        my_hash_search(&blackhole_open_tables,
-                       (uchar*) table_name, length)))
+
+  auto it= blackhole_open_tables->find(table_name);
+  if (it == blackhole_open_tables->end())
   {
     if (!(share= (st_blackhole_share*) my_malloc(bh_key_memory_blackhole_share,
                                                  sizeof(st_blackhole_share) +
@@ -294,16 +310,14 @@ static st_blackhole_share *get_share(const char *table_name)
 
     share->table_name_length= length;
     my_stpcpy(share->table_name, table_name);
-    
-    if (my_hash_insert(&blackhole_open_tables, (uchar*) share))
-    {
-      my_free(share);
-      share= NULL;
-      goto error;
-    }
+   
+    blackhole_open_tables->emplace
+      (table_name, blackhole_share_with_deleter(share));
     
     thr_lock_init(&share->lock);
   }
+  else
+    share= it->second.get();
   share->use_count++;
   
 error:
@@ -315,22 +329,8 @@ static void free_share(st_blackhole_share *share)
 {
   mysql_mutex_lock(&blackhole_mutex);
   if (!--share->use_count)
-    my_hash_delete(&blackhole_open_tables, (uchar*) share);
+    blackhole_open_tables->erase(share->table_name);
   mysql_mutex_unlock(&blackhole_mutex);
-}
-
-static void blackhole_free_key(void *arg)
-{
-  st_blackhole_share *share= pointer_cast<st_blackhole_share*>(arg);
-  thr_lock_delete(&share->lock);
-  my_free(share);
-}
-
-static const uchar* blackhole_get_key(const uchar *arg, size_t *length)
-{
-  const st_blackhole_share *share= pointer_cast<const st_blackhole_share*>(arg);
-  *length= share->table_name_length;
-  return (uchar*) share->table_name;
 }
 
 #ifdef HAVE_PSI_INTERFACE
@@ -338,12 +338,12 @@ static PSI_mutex_key bh_key_mutex_blackhole;
 
 static PSI_mutex_info all_blackhole_mutexes[]=
 {
-  { &bh_key_mutex_blackhole, "blackhole", PSI_FLAG_GLOBAL, 0}
+  { &bh_key_mutex_blackhole, "blackhole", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_blackhole_memory[]=
 {
-  { &bh_key_memory_blackhole_share, "blackhole_share", 0}
+  { &bh_key_memory_blackhole_share, "blackhole_share", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_blackhole_psi_keys()
@@ -375,17 +375,15 @@ static int blackhole_init(void *p)
 
   mysql_mutex_init(bh_key_mutex_blackhole,
                    &blackhole_mutex, MY_MUTEX_INIT_FAST);
-  (void) my_hash_init(&blackhole_open_tables, system_charset_info,32,0,
-                      blackhole_get_key,
-                      blackhole_free_key, 0,
-                      bh_key_memory_blackhole_share);
-
+  blackhole_open_tables.reset
+    (new collation_unordered_map<string, blackhole_share_with_deleter>
+        (system_charset_info, bh_key_memory_blackhole_share));
   return 0;
 }
 
 static int blackhole_fini(void*)
 {
-  my_hash_free(&blackhole_open_tables);
+  blackhole_open_tables.reset();
   mysql_mutex_destroy(&blackhole_mutex);
 
   return 0;

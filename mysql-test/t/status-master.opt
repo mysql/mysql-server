@@ -1,3 +1,2 @@
 --log-output=table,file
---query_cache_type=0
 --table-open-cache-instances=1

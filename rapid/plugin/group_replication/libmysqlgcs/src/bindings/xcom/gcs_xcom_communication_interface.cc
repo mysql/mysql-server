@@ -24,7 +24,7 @@
 
 #include "gcs_xcom_communication_interface.h"
 #include "app_data.h"
-#include "mysql/gcs/gcs_logging.h"
+#include "mysql/gcs/gcs_logging_system.h"
 #include "gcs_message_stages.h"
 #include "node_list.h"
 #include "node_no.h"
@@ -70,7 +70,7 @@ Gcs_xcom_communication::get_event_listeners()
 enum_gcs_error
 Gcs_xcom_communication::send_message(const Gcs_message &message_to_send)
 {
-  MYSQL_GCS_LOG_TRACE("Sending message.")
+  MYSQL_GCS_LOG_DEBUG("Sending message.")
 
   unsigned long long message_length= 0;
   enum_gcs_error message_result= GCS_NOK;
@@ -143,8 +143,10 @@ send_binding_message(const Gcs_message &msg,
   // reload the header information into the packet
   packet.reload_header(gcs_header);
 
-  MYSQL_GCS_LOG_TRACE("Pipelining message with payload length "
-                      << packet.get_payload_length())
+  MYSQL_GCS_LOG_TRACE(
+    "Pipelining message with payload length %llu", (long long unsigned)
+   packet.get_payload_length()
+  )
 
   // apply transformations
   if (m_msg_pipeline.outgoing(packet))
@@ -158,7 +160,7 @@ send_binding_message(const Gcs_message &msg,
     free it before exiting.
   */
   msg_length= packet.get_length();
-  MYSQL_GCS_LOG_TRACE("Sending message with payload length " << msg_length)
+  MYSQL_GCS_LOG_TRACE("Sending message with payload length %llu", msg_length)
   if (m_xcom_proxy->xcom_client_send_data(msg_length, reinterpret_cast<char *>(packet.get_buffer())))
   {
     MYSQL_GCS_LOG_ERROR(
@@ -175,9 +177,8 @@ end:
     free(packet.get_buffer());
 
   MYSQL_GCS_LOG_TRACE(
-    "send_binding_message enum_gcs_error result= " <<
-    static_cast<unsigned int>(ret) <<
-    ". Bytes sent:" << msg_length
+    "send_binding_message enum_gcs_error result(%u). Bytes sent(%llu)",
+    static_cast<unsigned int>(ret), msg_length
   )
 
   return ret;
@@ -256,9 +257,8 @@ void Gcs_xcom_communication::notify_received_message(Gcs_message *message)
     callback_it->second.on_message_received(*message);
 
     MYSQL_GCS_LOG_TRACE(
-      "Delivered message to client handler= "<< (*callback_it).first
+      "Delivered message to client handler= %d", (*callback_it).first
     )
-
     ++callback_it;
   }
 
@@ -266,10 +266,10 @@ void Gcs_xcom_communication::notify_received_message(Gcs_message *message)
                                                    .get_header_length() +
                                         message->get_message_data()
                                                    .get_payload_length()));
-
-  MYSQL_GCS_LOG_TRACE("Delivered message from origin= " <<
-                      message->get_origin().get_member_id().c_str())
-
+  MYSQL_GCS_LOG_TRACE(
+    "Delivered message from origin= %s",
+     message->get_origin().get_member_id().c_str()
+  )
   delete message;
 }
 
@@ -277,7 +277,7 @@ void Gcs_xcom_communication::notify_received_message(Gcs_message *message)
 void Gcs_xcom_communication::buffer_message(Gcs_message *message)
 {
   assert(m_view_control->is_view_changing());
-  MYSQL_GCS_LOG_TRACE("Buffering message: " << message)
+  MYSQL_GCS_LOG_TRACE("Buffering message: %p", message);
   m_buffered_messages.push_back(message);
 }
 
@@ -290,7 +290,7 @@ void Gcs_xcom_communication::deliver_buffered_messages()
        buffer_msg_it != m_buffered_messages.end();
        buffer_msg_it++)
   {
-    MYSQL_GCS_LOG_TRACE("Delivering buffered message: " << *buffer_msg_it)
+    MYSQL_GCS_LOG_TRACE("Delivering buffered message: %p", *buffer_msg_it);
     notify_received_message(*buffer_msg_it);
   }
 

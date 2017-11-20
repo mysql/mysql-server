@@ -90,15 +90,15 @@ SET @@session.foreign_key_checks = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.foreign_key_checks = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.foreign_key_checks = TRÜE;
+SET @@session.foreign_key_checks = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.foreign_key_checks = ÕN;
+SET @@session.foreign_key_checks = Ã•N;
 --error ER_PARSE_ERROR
 SET @@session.foreign_key_checks = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.foreign_key_checks = ÓFF;
+SET @@session.foreign_key_checks = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.foreign_key_checks = '¹';
+SET @@session.foreign_key_checks = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.foreign_key_checks = NO;
 

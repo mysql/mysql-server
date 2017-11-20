@@ -11,14 +11,14 @@ ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIA
 connection default;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-4
+5
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	4
 SET GLOBAL offline_mode = ON;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-1
+2
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	1
@@ -27,7 +27,7 @@ connection conu1;
 connection default;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-1
+2
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	1
@@ -35,7 +35,7 @@ SET GLOBAL offline_mode = OFF;
 connect conu4,localhost,root;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-2
+3
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	2
@@ -43,7 +43,7 @@ connection default;
 SET GLOBAL offline_mode = OFF;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-2
+3
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	2
@@ -59,14 +59,14 @@ SELECT @user_count;
 1
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-5
+6
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	5
 SET GLOBAL offline_mode = ON;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-2
+3
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	2

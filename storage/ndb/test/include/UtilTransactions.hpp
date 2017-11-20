@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +24,15 @@ typedef int (ReadCallBackFn)(NDBT_ResultRow*);
 
 class UtilTransactions {
 public:
+  Uint64 m_latest_gci;
+  Uint32 get_high_latest_gci()
+  {
+    return Uint32(Uint64(m_latest_gci >> 32));
+  }
+  Uint32 get_low_latest_gci()
+  {
+    return Uint32(Uint64(m_latest_gci & 0xFFFFFFFF));
+  }
   UtilTransactions(const NdbDictionary::Table&,
 		   const NdbDictionary::Index* idx = 0);
   UtilTransactions(Ndb* ndb, 

@@ -1,0 +1,87 @@
+-- source include/have_ndb.inc
+-- source include/have_ndb_debug.inc
+
+
+--echo Check that backup contains the expected log entries
+
+use test;
+create table test.t1 (a int primary key, b int) engine=ndb;
+
+--echo Add 100 rows
+--disable_query_log
+let $rows=100;
+while ($rows)
+{
+  eval insert into test.t1 values ($rows, $rows);
+  dec $rows;
+}
+--enable_query_log
+
+--echo Start a backup with completion stalled
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+--echo Run backup
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+--echo Make a set of changes which we expect to be logged
+
+--echo 5 new rows
+insert into test.t1 values (101,101), (102,102), (103,103), (104,104), (105,105);
+
+--echo 10 rows updated
+update test.t1 set b=b+1 where a >= 50 and a < 60;
+
+--echo 5 rows deleted
+delete from test.t1 order by a limit 5;
+
+--echo 5 new rows updated
+update test.t1 set b=b*2 where a>100;
+
+--echo 5 new rows deleted
+delete from test.t1 where a > 100;
+
+
+--echo Allow backup to complete...
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+truncate test.t1;
+
+--echo Now restore it and check the log content
+--let $outfile = $MYSQLTEST_VARDIR/tmp/ndb_backup_log.txt
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --print-log $NDB_BACKUPS-$the_backup_id > $outfile 2>&1
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print-log $NDB_BACKUPS-$the_backup_id >> $outfile 2>&1
+
+drop table test.t1;
+
+create table txt (a varchar(512));
+
+--disable_query_log
+eval load data infile '$outfile' into table txt fields terminated by '\n';
+--enable_query_log
+
+--remove_file $outfile
+
+# Remove windows line feeds
+update txt set a = TRIM(TRAILING "\r" FROM a);
+
+create table logentries as 
+  select * from txt where 
+    (a like 'INSERT %') or
+    (a like 'UPDATE %') or
+    (a like 'DELETE %');
+
+--echo Count of log entries
+select count(1) from logentries;
+
+--echo Show logentries
+select * from logentries order by a;
+
+--echo Show no duplicates
+select a, count(1) from logentries group by a having (count(1) > 1);
+
+drop table logentries;
+drop table txt;
+
+
+

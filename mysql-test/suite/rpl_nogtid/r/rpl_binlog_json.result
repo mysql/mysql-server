@@ -106,7 +106,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`tab1`
 ### SET
-###   @1='\x00\x02\x00,\x00\x12\x00\x03\x00\x15\x00\x04\x00\x0c\x19\x00\x02\x1f\x00keykey2\x05value\x03\x00\x0d\x00\x05\x01\x00\x05\x02\x00\x05\x03\x00'
+###   @1='{"key": "value", "key2": [1, 2, 3]}'
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -128,9 +128,9 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE `test`.`tab1`
 ### WHERE
-###   @1='\x00\x02\x00,\x00\x12\x00\x03\x00\x15\x00\x04\x00\x0c\x19\x00\x02\x1f\x00keykey2\x05value\x03\x00\x0d\x00\x05\x01\x00\x05\x02\x00\x05\x03\x00'
+###   @1='{"key": "value", "key2": [1, 2, 3]}'
 ### SET
-###   @1='\x00\x03\x00;\x00\x19\x00\x03\x00\x1c\x00\x04\x00 \x00\x04\x00\x0c$\x00\x02*\x00\x0c7\x00keykey2key3\x05value\x03\x00\x0d\x00\x05\x01\x00\x05\x02\x00\x05\x03\x00\x03abc'
+###   @1='{"key": "value", "key2": [1, 2, 3], "key3": "abc"}'
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -152,7 +152,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE `test`.`tab1`
 ### WHERE
-###   @1='\x00\x03\x00;\x00\x19\x00\x03\x00\x1c\x00\x04\x00 \x00\x04\x00\x0c$\x00\x02*\x00\x0c7\x00keykey2key3\x05value\x03\x00\x0d\x00\x05\x01\x00\x05\x02\x00\x05\x03\x00\x03abc'
+###   @1='{"key": "value", "key2": [1, 2, 3], "key3": "abc"}'
 ### SET
 ###   @1=NULL
 # at #
@@ -178,7 +178,7 @@ BEGIN
 ### WHERE
 ###   @1=NULL
 ### SET
-###   @1='\x02\x02\x00\x18\x00\x05\x01\x00\x00\x0a\x00\x01\x00\x0e\x00\x0b\x00\x01\x00\x0c\x0c\x00k\x01v'
+###   @1='[1, {"k": "v"}]'
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -222,7 +222,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM `test`.`tab1`
 ### WHERE
-###   @1='\x02\x02\x00\x18\x00\x05\x01\x00\x00\x0a\x00\x01\x00\x0e\x00\x0b\x00\x01\x00\x0c\x0c\x00k\x01v'
+###   @1='[1, {"k": "v"}]'
 ### DELETE FROM `test`.`tab1`
 ### WHERE
 ###   @1=NULL

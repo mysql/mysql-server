@@ -32,9 +32,9 @@
 #include "pfs_builtin_memory.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
-#include "sql_get_diagnostics.h"
-#include "sql_lex.h"
-#include "sql_signal.h"
+#include "sql/sql_get_diagnostics.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_signal.h"
 #include "sql_string.h"
 #include "table_helper.h"
 
@@ -44,6 +44,7 @@ ulong digest_lost = 0;
 /** EVENTS_STATEMENTS_SUMMARY_BY_DIGEST buffer. */
 PFS_statements_digest_stat *statements_digest_stat_array = NULL;
 static unsigned char *statements_digest_token_array = NULL;
+static char *statements_digest_query_sample_text_array = NULL;
 /** Consumer flag for table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
 bool flag_statements_digest = true;
 /**
@@ -109,11 +110,31 @@ init_digest(const PFS_global_param *param)
     }
   }
 
+  if (pfs_max_sqltext > 0)
+  {
+    /* Size of each query sample text array. */
+    size_t sqltext_size = pfs_max_sqltext * sizeof(char);
+
+    statements_digest_query_sample_text_array =
+      PFS_MALLOC_ARRAY(&builtin_memory_digest_sample_sqltext,
+                       digest_max,
+                       sqltext_size,
+                       char,
+                       MYF(MY_ZEROFILL));
+
+    if (unlikely(statements_digest_query_sample_text_array == NULL))
+    {
+      cleanup_digest();
+      return 1;
+    }
+  }
+
   for (size_t index = 0; index < digest_max; index++)
   {
     statements_digest_stat_array[index].reset_data(
       statements_digest_token_array + index * pfs_max_digest_length,
-      pfs_max_digest_length);
+      pfs_max_digest_length,
+      statements_digest_query_sample_text_array + index * pfs_max_sqltext);
   }
 
   /* Set record[0] as allocated. */
@@ -136,8 +157,14 @@ cleanup_digest(void)
                  (pfs_max_digest_length * sizeof(unsigned char)),
                  statements_digest_token_array);
 
+  PFS_FREE_ARRAY(&builtin_memory_digest_sample_sqltext,
+                 digest_max,
+                 (pfs_max_sqltext * sizeof(char)),
+                 statements_digest_query_sample_text_array);
+
   statements_digest_stat_array = NULL;
   statements_digest_token_array = NULL;
+  statements_digest_query_sample_text_array = NULL;
 }
 
 static const uchar *
@@ -312,6 +339,8 @@ search:
         pfs->m_first_seen = now;
         pfs->m_last_seen = now;
 
+        pfs->m_query_sample_refs = 0;
+
         pfs->m_histogram.reset();
 
         res = lf_hash_insert(&digest_hash, pins, &pfs);
@@ -379,14 +408,21 @@ purge_digest(PFS_thread *thread, PFS_digest_key *hash_key)
 
 void
 PFS_statements_digest_stat::reset_data(unsigned char *token_array,
-                                       size_t length)
+                                       size_t token_array_length,
+                                       char *query_sample_array)
 {
   pfs_dirty_state dirty_state;
   m_lock.set_dirty(&dirty_state);
-  m_digest_storage.reset(token_array, length);
+  m_digest_storage.reset(token_array, token_array_length);
   m_stat.reset();
   m_first_seen = 0;
   m_last_seen = 0;
+  m_query_sample = query_sample_array;
+  m_query_sample_length = 0;
+  m_query_sample_truncated = false;
+  m_query_sample_seen = 0;
+  m_query_sample_timer_wait = 0;
+  m_query_sample_cs_number = system_charset_info->number;
   m_lock.dirty_to_free(&dirty_state);
 }
 
@@ -422,7 +458,8 @@ reset_esms_by_digest()
     statements_digest_stat_array[index].reset_index(thread);
     statements_digest_stat_array[index].reset_data(
       statements_digest_token_array + index * pfs_max_digest_length,
-      pfs_max_digest_length);
+      pfs_max_digest_length,
+      statements_digest_query_sample_text_array + index * pfs_max_sqltext);
   }
 
   /* Mark record[0] as allocated again. */

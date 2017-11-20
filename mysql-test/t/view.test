@@ -73,12 +73,12 @@ analyze table t1;
 
 # view with different algorithms (explain output differs)
 --replace_column 10 # 11 #
-explain extended select c from v1;
+explain select c from v1;
 create algorithm=temptable view v2 (c) as select b+1 from t1;
 show create view v2;
 select c from v2;
 --replace_column 10 # 11 #
-explain extended select c from v2;
+explain select c from v2;
 
 # try to use underlying table fields in VIEW creation process
 -- error ER_BAD_FIELD_ERROR
@@ -91,19 +91,19 @@ create view v3 (c) as select b+1 from v1;
 create view v3 (c) as select c+1 from v1;
 select c from v3;
 --replace_column 10 # 11 #
-explain extended select c from v3;
+explain select c from v3;
 create algorithm=temptable view v4 (c) as select c+1 from v2;
 select c from v4;
 --replace_column 10 # 11 #
-explain extended select c from v4;
+explain select c from v4;
 create view v5 (c) as select c+1 from v2;
 select c from v5;
 --replace_column 10 # 11 #
-explain extended select c from v5;
+explain select c from v5;
 create algorithm=temptable view v6 (c) as select c+1 from v1;
 select c from v6;
 --replace_column 10 # 11 #
-explain extended select c from v6;
+explain select c from v6;
 
 # show table/table status test
 show tables;
@@ -304,7 +304,7 @@ create view v1 (c) as select b from t1 where a<3;
 # simple select and explaint to be sure that it is MERGE
 select * from v1;
 --replace_column 10 # 11 #
-explain extended select * from v1;
+explain select * from v1;
 # update test
 update v1 set c=c+1;
 select * from t1;
@@ -1363,14 +1363,14 @@ analyze table t1,t2,t3;
 create view v3 (a,b) as select t1.a as a, t2.a as b from t1 left join t2 on (t1.a=t2.a);
 select * from t3 left join v3 on (t3.a = v3.a);
 --replace_column 10 # 11 #
-explain extended select * from t3 left join v3 on (t3.a = v3.a);
+explain select * from t3 left join v3 on (t3.a = v3.a);
 # view over views
 create view v1 (a) as select a from t1;
 create view v2 (a) as select a from t2;
 create view v4 (a,b) as select v1.a as a, v2.a as b from v1 left join v2 on (v1.a=v2.a);
 select * from t3 left join v4 on (t3.a = v4.a);
 --replace_column 10 # 11 #
-explain extended select * from t3 left join v4 on (t3.a = v4.a);
+explain select * from t3 left join v4 on (t3.a = v4.a);
 # PS with view over views
 --replace_column 10 # 11 #
 prepare stmt1 from "select * from t3 left join v4 on (t3.a = v4.a);";
@@ -1908,11 +1908,6 @@ drop table t1;
 #
 # using encrypt & substring_index in view (Bug#7024)
 #
-CREATE VIEW v1 AS SELECT ENCRYPT("dhgdhgd");
-disable_result_log;
-SELECT * FROM v1;
-enable_result_log;
-drop view v1;
 CREATE VIEW v1 AS SELECT SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1);
 SELECT * FROM v1;
 drop view v1;
@@ -2915,7 +2910,6 @@ SHOW TABLES;
 DROP VIEW v2,v1;
 SHOW TABLES;
 
-CREATE VIEW v1 AS SELECT id FROM t1;
 --error ER_WRONG_OBJECT
 DROP VIEW t1,v1;
 SHOW TABLES;
@@ -3269,10 +3263,10 @@ select * from t1;
 create view v1 as select * from t1 order by f2;
 select * from v1;
 --replace_column 10 #
-explain extended select * from v1;
+explain select * from v1;
 select * from v1 order by f1;
 --replace_column 10 #
-explain extended select * from v1 order by f1;
+explain select * from v1 order by f1;
 drop view v1;
 drop table t1;
 
@@ -4045,6 +4039,7 @@ SELECT * FROM v1 WHERE c2 = 'text2';
 --echo
 
 DROP VIEW v1;
+SET NAMES DEFAULT;
 
 --echo
 --echo # -- End of test case for Bug#32538.
@@ -6086,3 +6081,96 @@ RENAME TABLE t3 TO t1, t4 TO t2;
 
 DROP VIEW v1;
 DROP TABLE t1, t2;
+
+
+--echo #
+--echo # BUG#25634576: DATABASE NAME IN SHOW CREATE VIEW
+--echo #
+
+CREATE DATABASE db;
+CREATE TABLE db.t1(fld1 INT);
+CREATE TABLE db.t2(fld2 INT);
+CREATE TABLE t1(fld1 INT);
+CREATE TABLE t2(fld2 INT);
+
+--echo # With patch, db name is appended only to those tables
+--echo # which are not present in the current database.
+
+--echo # Test cases with reference to table within current
+--echo # db and outside current db.
+CREATE VIEW v1 AS SELECT * FROM t1 UNION SELECT * FROM t2;
+SHOW CREATE VIEW v1;
+
+CREATE VIEW v2 AS SELECT * FROM t1 UNION SELECT * FROM db.t2;
+SHOW CREATE VIEW v2;
+
+CREATE VIEW v3 AS SELECT fld1 FROM t1 UNION SELECT * FROM db.t2;
+SHOW CREATE VIEW v3;
+
+CREATE VIEW v4 AS SELECT t1.fld1 FROM t1 UNION SELECT * FROM db.t2;
+SHOW CREATE VIEW v4;
+
+CREATE VIEW v5 AS SELECT * FROM db.t1 UNION SELECT * FROM db.t2;
+SHOW CREATE VIEW v5;
+
+--echo # Test cases with subquery.
+CREATE VIEW v6 AS SELECT * FROM t2 WHERE fld2 IN (SELECT fld1 FROM t1);
+SHOW CREATE VIEW v6;
+
+CREATE VIEW v7 AS SELECT * FROM db.t2 WHERE fld2 IN (SELECT fld1 FROM t1);
+SHOW CREATE VIEW v7;
+
+CREATE VIEW v8 AS SELECT * FROM t1 where fld1 NOT IN (SELECT fld2 FROM db.t2);
+SHOW CREATE VIEW v8;
+
+CREATE VIEW v9 AS SELECT fld1 FROM t1 where fld1 NOT IN (SELECT fld2 FROM db.t2);
+SHOW CREATE VIEW v9;
+
+CREATE VIEW v10 AS SELECT t1.fld1 FROM t1 where fld1 NOT IN (SELECT fld2 FROM db.t2);
+SHOW CREATE VIEW v10;
+
+CREATE VIEW v11 AS SELECT * FROM db.t1 WHERE fld1 NOT IN
+                  (SELECT fld2 FROM db.t2);
+SHOW CREATE VIEW v11;
+
+--echo # Test cases which uses derived table in sub query.
+CREATE VIEW v12 AS SELECT * FROM (SELECT fld1 FROM t1) dummy;
+SHOW CREATE VIEW v12;
+
+CREATE VIEW v13 AS SELECT * FROM (SELECT fld1 FROM db.t1) dummy;
+SHOW CREATE VIEW v13;
+
+CREATE VIEW v14 AS SELECT * FROM db.t2, (SELECT fld1 FROM t1) dummy;
+SHOW CREATE VIEW v14;
+
+CREATE VIEW v15 AS SELECT * FROM db.t2, (SELECT fld1 FROM db.t1) dummy;
+SHOW CREATE VIEW v15;
+
+CREATE VIEW v16 AS SELECT db.t2.fld2 FROM db.t2, (SELECT t1.fld1 FROM db.t1) dummy;
+SHOW CREATE VIEW v16;
+
+--echo # Test cases using CTE.
+CREATE VIEW v17 AS WITH cte AS (SELECT * FROM t1) SELECT * FROM cte; 
+SHOW CREATE VIEW v17;
+
+CREATE VIEW v18 AS WITH cte AS (SELECT fld1 FROM t1) SELECT * FROM cte;
+SHOW CREATE VIEW v18;
+
+CREATE VIEW v19 AS WITH cte AS (SELECT db.t2.fld2 FROM db.t2) SELECT * FROM cte;
+SHOW CREATE VIEW v19;
+
+--echo # Test case added for coverage where view is created in different db.
+CREATE VIEW db.v1 AS SELECT * FROM db.t1 UNION SELECT * FROM t2;
+SHOW CREATE VIEW db.v1;
+
+CREATE VIEW db.v2 AS SELECT * FROM t1 where fld1 NOT IN (SELECT fld2 FROM db.t2);
+SHOW CREATE VIEW db.v2;
+
+CREATE VIEW db.v3 AS SELECT * FROM (SELECT fld1 FROM t1) dummy;
+SHOW CREATE VIEW db.v3;
+
+--echo # Cleanup.
+DROP VIEW v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15,
+v16, v17, v18, v19;
+DROP TABLE t1, t2;
+DROP DATABASE db;

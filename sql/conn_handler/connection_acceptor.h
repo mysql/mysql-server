@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 #ifndef CONNECTION_ACCEPTOR_INCLUDED
 #define CONNECTION_ACCEPTOR_INCLUDED
 
-#include "channel_info.h"               // Channel_info
-#include "connection_handler_manager.h" // Connection_handler_manager
+#include "sql/conn_handler/channel_info.h" // Channel_info
+#include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
 
 /**
   This class presents a generic interface to initialize and run

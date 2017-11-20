@@ -18,39 +18,40 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "auth/auth_common.h"   // create_table_precheck()
-#include "binlog.h"             // mysql_bin_log
-#include "dd/cache/dictionary_client.h"
-#include "derror.h"             // ER_THD
-#include "error_handler.h"      // Ignore_error_handler
-#include "handler.h"
-#include "item.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysqld.h"             // opt_log_slow_admin_statements
 #include "mysqld_error.h"
-#include "partition_info.h"     // check_partition_tablespace_names()
-#include "query_options.h"
-#include "query_result.h"
-#include "session_tracker.h"
-#include "sql_alter.h"
-#include "sql_base.h"           // open_tables_for_query()
-#include "sql_class.h"
-#include "sql_data_change.h"
-#include "sql_error.h"
-#include "sql_insert.h"         // Query_result_create
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"          // prepare_index_and_data_dir_path()
-#include "sql_select.h"         // handle_query()
-#include "sql_table.h"          // mysql_create_like_table()
-#include "sql_tablespace.h"     // validate_tablespace_name()
-#include "system_variables.h"
-#include "table.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // create_table_precheck()
+#include "sql/binlog.h"         // mysql_bin_log
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/derror.h"         // ER_THD
+#include "sql/error_handler.h"  // Ignore_error_handler
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/mysqld.h"         // opt_log_slow_admin_statements
+#include "sql/partition_info.h" // check_partition_tablespace_names()
+#include "sql/query_options.h"
+#include "sql/query_result.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_alter.h"
+#include "sql/sql_base.h"       // open_tables_for_query()
+#include "sql/sql_class.h"
+#include "sql/sql_data_change.h"
+#include "sql/sql_error.h"
+#include "sql/sql_insert.h"     // Query_result_create
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"      // prepare_index_and_data_dir_path()
+#include "sql/sql_select.h"     // handle_query()
+#include "sql/sql_table.h"      // mysql_create_like_table()
+#include "sql/sql_tablespace.h" // validate_tablespace_name()
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "thr_lock.h"
 
 #ifndef DBUG_OFF
-#include "current_thd.h"
+#include "sql/current_thd.h"
 #endif//DBUG_OFF
 
 
@@ -115,8 +116,11 @@ bool Sql_cmd_create_table::execute(THD *thd)
     return true;
   }
 
-  if (create_table_precheck(thd, query_expression_tables, create_table))
-    return true;
+  if (!thd->is_plugin_fake_ddl())
+  {
+    if (create_table_precheck(thd, query_expression_tables, create_table))
+      return true;
+  }
 
   /* Might have been updated in create_table_precheck */
   create_info.alias= create_table->alias;

@@ -257,8 +257,9 @@ row_build_index_entry_low(
 					}
 				} else {
 					get_mbr_from_store(
-						dptr, static_cast<uint>(dlen),
-						SPDIMS, tmp_mbr);
+						index->rtr_srs.get(), dptr,
+						static_cast<uint>(dlen), SPDIMS,
+						tmp_mbr, nullptr);
 				}
 				dfield_write_mbr(dfield, tmp_mbr);
 				if (temp_heap) {

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2017 Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -528,10 +528,6 @@ struct A {
         return *A::a;
     };
 
-    static A & deliver_null_ref() {
-        TRACE("A & A::deliver_null_ref()");
-        return *((A *)0);
-    };
 
     static void take_ptr(A * o) {
         TRACE("void A::take_ptr(A *)");
@@ -546,11 +542,6 @@ struct A {
     static void take_ref(A & o) {
         TRACE("void A::take_ref(A &)");
         if (&o != A::a) ABORT_ERROR("void A::take_ref(A &)");
-    };
-
-    static void take_null_ref(A & o) {
-        TRACE("void A::take_null_ref(A &)");
-        if (&o != NULL) ABORT_ERROR("void A::take_null_ref(A &)");
     };
 
     static void print(A * p0) {

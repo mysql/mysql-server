@@ -25,28 +25,39 @@ CREATE TABLE db4.t1 (a INT);
 CREATE TABLE db5.t1 (a INT);
 CREATE TABLE db6.t1 (a INT);
 include/rpl_sync.inc
-# db7, db8, db9: many tables with long names.
+# db7, db8, db9: one MyISAM and one InnoDB table.
 CREATE DATABASE db7;
 CREATE DATABASE db8;
 CREATE DATABASE db9;
+CREATE TABLE db7.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db8.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db9.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db7.t2 (a INT) ENGINE=MyISAM;
+CREATE TABLE db8.t2 (a INT) ENGINE=MyISAM;
+CREATE TABLE db9.t2 (a INT) ENGINE=MyISAM;
 include/rpl_sync.inc
-# db10, db11: not a database, but the directory and the entry exist.
-# db12 is not a database, but the empty directory exists on master.
+# db10, db11, db12: two MyISAM and one InnoDB table.
+CREATE DATABASE db10;
+CREATE DATABASE db11;
+CREATE DATABASE db12;
+CREATE TABLE db10.t1 (a INT) ENGINE=MyISAM;
+CREATE TABLE db11.t1 (a INT) ENGINE=MyISAM;
+CREATE TABLE db12.t1 (a INT) ENGINE=MyISAM;
+CREATE TABLE db10.t2 (a INT) ENGINE=MyISAM;
+CREATE TABLE db11.t2 (a INT) ENGINE=MyISAM;
+CREATE TABLE db12.t2 (a INT) ENGINE=MyISAM;
+CREATE TABLE db10.t3 (a INT) ENGINE=InnoDB;
+CREATE TABLE db11.t3 (a INT) ENGINE=InnoDB;
+CREATE TABLE db12.t3 (a INT) ENGINE=InnoDB;
 include/rpl_sync.inc
-# db16, db17, db18, db19, db20: one MyISAM and one InnoDB table.
-CREATE DATABASE db16;
-CREATE DATABASE db17;
-CREATE DATABASE db18;
+# db13, db14: not a database, but the directory and the entry exist.
+# db15 is not a database, but the empty directory exists on master.
+include/rpl_sync.inc
+# db19, db20: one MyISAM and one InnoDB table (successfull case).
 CREATE DATABASE db19;
 CREATE DATABASE db20;
-CREATE TABLE db16.t1 (a INT) ENGINE=InnoDB;
-CREATE TABLE db17.t1 (a INT) ENGINE=InnoDB;
-CREATE TABLE db18.t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE db19.t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE db20.t1 (a INT) ENGINE=InnoDB;
-CREATE TABLE db16.t2 (a INT) ENGINE=MyISAM;
-CREATE TABLE db17.t2 (a INT) ENGINE=MyISAM;
-CREATE TABLE db18.t2 (a INT) ENGINE=MyISAM;
 CREATE TABLE db19.t2 (a INT) ENGINE=MyISAM;
 CREATE TABLE db20.t2 (a INT) ENGINE=MyISAM;
 include/rpl_sync.inc
@@ -59,42 +70,42 @@ DROP DATABASE db1;
 ERROR HY000: Unknown error
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
 include/assert_binlog_events.inc [()]
-# db4: one table.
+# db4: one InnoDB table.
 include/save_binlog_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
 DROP DATABASE db4;
 ERROR HY000: Unknown error
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
-include/assert_binlog_events.inc [Gtid # !Q(DROP TABLE.*)]
-# db7: many tables with long names.
+include/assert_binlog_events.inc [()]
+# db7: one MyISAM and one InnoDB table.
 include/save_binlog_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
 DROP DATABASE db7;
 ERROR HY000: Unknown error
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
-include/assert_binlog_events.inc [Gtid # !Q(DROP TABLE.*) # Gtid # !Q(DROP TABLE.*)]
-# db10: not a database, but directory exists.
+include/assert_binlog_events.inc [Gtid # !Q(DROP TABLE.*)]
+# db10: two MyISAM and one InnoDB table.
 include/save_binlog_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
+SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
 DROP DATABASE db10;
-ERROR HY000: Can't drop database 'db10'; database doesn't exist
-include/assert_binlog_events.inc [()]
-# db13: not a database.
+ERROR HY000: Unknown error
+SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
+include/assert_binlog_events.inc [Gtid # !Q(DROP TABLE.*) # Gtid # !Q(DROP TABLE.*)]
+# db13: not a database, but directory exists.
 include/save_binlog_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 DROP DATABASE db13;
 ERROR HY000: Can't drop database 'db13'; database doesn't exist
 include/assert_binlog_events.inc [()]
-# db16: one MyISAM and one InnoDB table.
+# db16: not a database.
 include/save_binlog_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
-SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
 DROP DATABASE db16;
-ERROR HY000: Unknown error
-SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
-include/assert_binlog_events.inc [Gtid # !Q(DROP TABLE.*) # Gtid # !Q(DROP TABLE.*)]
+ERROR HY000: Can't drop database 'db16'; database doesn't exist
+include/assert_binlog_events.inc [()]
 # db19: Successfull DROP DATABASE for one MyISAM and one InnoDB table.
 include/save_binlog_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
@@ -110,11 +121,10 @@ ERROR HY000: Unknown error
 SHOW WARNINGS;
 Level	Code	Message
 Error	1105	Unknown error
-Error	3091	DROP DATABASE failed; some tables may have been dropped but the database directory remains. The GTID has not been added to GTID_EXECUTED and the statement was not written to the binary log. Fix this as follows: (1) remove all files from the database directory ./db2/; (2) SET GTID_NEXT='MASTER_UUID:98'; (3) DROP DATABASE `db2`.
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
 include/assert_binlog_events.inc [()]
 SET GTID_NEXT = 'AUTOMATIC';
-# db5: one table.
+# db5: one InnoDB table.
 include/save_binlog_position.inc
 SET GTID_NEXT = '#';
 SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
@@ -123,11 +133,10 @@ ERROR HY000: Unknown error
 SHOW WARNINGS;
 Level	Code	Message
 Error	1105	Unknown error
-Error	3091	DROP DATABASE failed; some tables may have been dropped but the database directory remains. The GTID has not been added to GTID_EXECUTED and the statement was not written to the binary log. Fix this as follows: (1) remove all files from the database directory ./db5/; (2) SET GTID_NEXT='MASTER_UUID:98'; (3) DROP DATABASE `db5`.
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
 include/assert_binlog_events.inc [()]
 SET GTID_NEXT = 'AUTOMATIC';
-# db8: many tables with long names.
+# db8: one MyISAM and one InnoDB table.
 include/save_binlog_position.inc
 SET GTID_NEXT = '#';
 SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
@@ -136,35 +145,33 @@ ERROR HY000: Unknown error
 SHOW WARNINGS;
 Level	Code	Message
 Error	1105	Unknown error
-Error	3091	DROP DATABASE failed; some tables may have been dropped but the database directory remains. The GTID has not been added to GTID_EXECUTED and the statement was not written to the binary log. Fix this as follows: (1) remove all files from the database directory ./db8/; (2) SET GTID_NEXT='MASTER_UUID:98'; (3) DROP DATABASE `db8`.
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
 include/assert_binlog_events.inc [()]
 SET GTID_NEXT = 'AUTOMATIC';
-# db11: not a database, but directory exists.
+# db11: two MyISAM and one InnoDB tables.
 include/save_binlog_position.inc
 SET GTID_NEXT = '#';
+SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
 DROP DATABASE db11;
-ERROR HY000: Can't drop database 'db11'; database doesn't exist
+ERROR HY000: Unknown error
+SHOW WARNINGS;
+Level	Code	Message
+Error	1105	Unknown error
+SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
 include/assert_binlog_events.inc [()]
 SET GTID_NEXT = 'AUTOMATIC';
-# db14: not a database.
+# db14: not a database, but directory exists.
 include/save_binlog_position.inc
 SET GTID_NEXT = '#';
 DROP DATABASE db14;
 ERROR HY000: Can't drop database 'db14'; database doesn't exist
 include/assert_binlog_events.inc [()]
 SET GTID_NEXT = 'AUTOMATIC';
-# db17: one MyISAM and one InnoDB table.
+# db17: not a database.
 include/save_binlog_position.inc
 SET GTID_NEXT = '#';
-SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
 DROP DATABASE db17;
-ERROR HY000: Unknown error
-SHOW WARNINGS;
-Level	Code	Message
-Error	1105	Unknown error
-Error	3091	DROP DATABASE failed; some tables may have been dropped but the database directory remains. The GTID has not been added to GTID_EXECUTED and the statement was not written to the binary log. Fix this as follows: (1) remove all files from the database directory ./db17/; (2) SET GTID_NEXT='MASTER_UUID:98'; (3) DROP DATABASE `db17`.
-SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
+ERROR HY000: Can't drop database 'db17'; database doesn't exist
 include/assert_binlog_events.inc [()]
 SET GTID_NEXT = 'AUTOMATIC';
 # db20: Successfull DROP DATABASE for one MyISAM and one InnoDB table.
@@ -185,31 +192,28 @@ include/sync_slave_io_with_master.inc
 include/wait_for_slave_sql_error.inc [errno=1105]
 include/include/rpl_skip_to_end_of_relay_log.inc
 [connection master]
-# db6: one table.
+# db6: one InnoDB table.
 DROP DATABASE db6;
 include/sync_slave_io_with_master.inc
 include/wait_for_slave_sql_error.inc [errno=1105]
 include/include/rpl_skip_to_end_of_relay_log.inc
 [connection master]
-# db9: many tables with long names.
+# db9: one MyISAM and one InnoDB table.
 DROP DATABASE db9;
 include/sync_slave_io_with_master.inc
 include/wait_for_slave_sql_error.inc [errno=1105]
 include/include/rpl_skip_to_end_of_relay_log.inc
-SET GLOBAL DEBUG= '-d, rm_db_fail_after_dropping_tables';
 [connection master]
-# db12: not a database, but an empty directory exists.
+# db12: two MyISAM and one InnoDB table.
 DROP DATABASE db12;
-ERROR HY000: Can't drop database 'db12'; database doesn't exist
-# db18: one MyISAM and one InnoDB table.
-SET GLOBAL DEBUG= '+d, rm_db_fail_after_dropping_tables';
-[connection master]
-DROP DATABASE db18;
 include/sync_slave_io_with_master.inc
 include/wait_for_slave_sql_error.inc [errno=1105]
 include/include/rpl_skip_to_end_of_relay_log.inc
 SET GLOBAL DEBUG= '-d, rm_db_fail_after_dropping_tables';
 [connection master]
+# db15: not a database, but an empty directory exists.
+DROP DATABASE db15;
+ERROR HY000: Can't drop database 'db15'; database doesn't exist
 ---- Clean up ----
 DROP DATABASE db1;
 DROP DATABASE db2;
@@ -226,19 +230,10 @@ DROP DATABASE db8;
 DROP DATABASE IF EXISTS db9;
 Warnings:
 Note	1008	Can't drop database 'db9'; database doesn't exist
-DROP DATABASE IF EXISTS db10;
-Warnings:
-Note	1008	Can't drop database 'db10'; database doesn't exist
-DROP DATABASE IF EXISTS db11;
-Warnings:
-Note	1008	Can't drop database 'db11'; database doesn't exist
+DROP DATABASE db10;
+DROP DATABASE db11;
 DROP DATABASE IF EXISTS db12;
 Warnings:
 Note	1008	Can't drop database 'db12'; database doesn't exist
-DROP DATABASE db16;
-DROP DATABASE db17;
-DROP DATABASE IF EXISTS db18;
-Warnings:
-Note	1008	Can't drop database 'db18'; database doesn't exist
 include/rpl_sync.inc
 include/rpl_end.inc

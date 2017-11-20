@@ -17,7 +17,7 @@ SET optimizer_trace="enabled=on,one_line=off";
 SET optimizer_switch='index_merge_union=off,index_merge=off';
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c' OR f4 = 'f';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	f2,f3,f4	NULL	NULL	NULL	288	32.50	Using where
+1	SIMPLE	t1	NULL	ALL	f2,f3,f4	NULL	NULL	NULL	288	53.12	Using where
 Warnings:
 Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c') or (`test`.`t1`.`f4` = 'f'))
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
@@ -45,15 +45,15 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'c') or (`t1`.`f4` = 'f'))"
+                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or multiple equal('c', `t1`.`f3`) or multiple equal('f', `t1`.`f4`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'c') or (`t1`.`f4` = 'f'))"
+                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or multiple equal('c', `t1`.`f3`) or multiple equal('f', `t1`.`f4`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'c') or (`t1`.`f4` = 'f'))"
+                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or multiple equal('c', `t1`.`f3`) or multiple equal('f', `t1`.`f4`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -206,15 +206,18 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 288,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.5312,
                       "access_type": "scan",
-                      "resulting_rows": 93.6,
+                      "resulting_rows": 153,
                       "cost": 29.05,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
-                "rows_for_plan": 93.6,
+                "rows_for_plan": 153,
                 "cost_for_plan": 29.05,
                 "chosen": true
               }
@@ -257,7 +260,7 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	f2,f3,f4	f2	5	const	128	19.75	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f3`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h') and (`test`.`t1`.`f3` = 'b'))
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f3`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b'	{
@@ -283,15 +286,15 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t1`.`f4` = 'h') and (`t1`.`f3` = 'b') and multiple equal(2, `t1`.`f2`))"
+                  "resulting_condition": "(multiple equal('h', `t1`.`f4`) and multiple equal(2, `t1`.`f2`) and multiple equal('b', `t1`.`f3`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t1`.`f4` = 'h') and (`t1`.`f3` = 'b') and multiple equal(2, `t1`.`f2`))"
+                  "resulting_condition": "(multiple equal('h', `t1`.`f4`) and multiple equal(2, `t1`.`f2`) and multiple equal('b', `t1`.`f3`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t1`.`f4` = 'h') and (`t1`.`f3` = 'b') and multiple equal(2, `t1`.`f2`))"
+                  "resulting_condition": "(multiple equal('h', `t1`.`f4`) and multiple equal(2, `t1`.`f2`) and multiple equal('b', `t1`.`f3`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -487,6 +490,9 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                     },
                     {
                       "rows_to_scan": 288,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.0878,
                       "access_type": "scan",
                       "resulting_rows": 25.284,
                       "cost": 29.05,
@@ -503,13 +509,13 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`f2` = 2) and (`t1`.`f4` = 'h') and (`t1`.`f3` = 'b'))",
+              "original_condition": "((`t1`.`f3` = 'b') and (`t1`.`f2` = 2) and (`t1`.`f4` = 'h'))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "((`t1`.`f4` = 'h') and (`t1`.`f3` = 'b'))"
+                  "attached": "((`t1`.`f3` = 'b') and (`t1`.`f4` = 'h'))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -572,15 +578,15 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 300 and 310) or (`t1`.`f4` = 'b')))"
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 300 and 310) or multiple equal('b', `t1`.`f4`)))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 300 and 310) or (`t1`.`f4` = 'b')))"
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 300 and 310) or multiple equal('b', `t1`.`f4`)))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 300 and 310) or (`t1`.`f4` = 'b')))"
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 300 and 310) or multiple equal('b', `t1`.`f4`)))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -823,6 +829,9 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "sort_union(f2,f4)"
@@ -902,15 +911,15 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 1 and 10) or (`t1`.`f4` = 'b')))"
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 1 and 10) or multiple equal('b', `t1`.`f4`)))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 1 and 10) or (`t1`.`f4` = 'b')))"
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 1 and 10) or multiple equal('b', `t1`.`f4`)))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 1 and 10) or (`t1`.`f4` = 'b')))"
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 1 and 10) or multiple equal('b', `t1`.`f4`)))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -1153,6 +1162,9 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 136,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "union(f2,f3)"

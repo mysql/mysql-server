@@ -55,6 +55,12 @@ public:
 
   /** Observer for whenever a reset slave is executed */
   int after_reset_slave(Binlog_relay_IO_param *param);
+
+  /** Observer for applier skip event */
+  int applier_log_event(Binlog_relay_IO_param *param,
+                        Trans_param *trans_param,
+                        int& out);
+
 private:
   Recovery_state_transfer *recovery_state_transfer;
 };

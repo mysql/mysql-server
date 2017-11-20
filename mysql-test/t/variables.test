@@ -1,6 +1,7 @@
 #
 # test variables
 #
+--source include/have_log_bin.inc
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
@@ -31,9 +32,6 @@ set @my_myisam_max_sort_file_size =@@global.myisam_max_sort_file_size;
 set @my_net_buffer_length         =@@global.net_buffer_length;
 set @my_net_write_timeout         =@@global.net_write_timeout;
 set @my_net_read_timeout          =@@global.net_read_timeout;
-set @my_query_cache_limit         =@@global.query_cache_limit;
-set @my_query_cache_type          =@@global.query_cache_type;
-set @my_query_cache_size          =@@global.query_cache_size;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
@@ -64,7 +62,7 @@ select @test_int,@test_double,@test_string,@test_string2;
 set @test_int=null,@test_double=null,@test_string=null,@test_string2=null;
 select @test_int,@test_double,@test_string,@test_string2;
 select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
-explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
+explain select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 select @t5;
 
 #
@@ -128,9 +126,9 @@ select @@local.max_join_size, @@global.max_join_size;
 select @@identity,  length(@@version)>0;
 select @@VERSION=version();
 select last_insert_id(345);
-explain extended select last_insert_id(345);
+explain select last_insert_id(345);
 select @@IDENTITY,last_insert_id(), @@identity;
-explain extended select @@IDENTITY,last_insert_id(), @@identity;
+explain select @@IDENTITY,last_insert_id(), @@identity;
 
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
 
@@ -161,7 +159,6 @@ show global variables like 'default_storage_engine';
 --disable_warnings
 select * from performance_schema.global_variables where variable_name like 'default_storage_engine';
 --enable_warnings
-set GLOBAL query_cache_size=102400;
 
 set GLOBAL myisam_max_sort_file_size=2000000;
 show global variables like 'myisam_max_sort_file_size';
@@ -307,8 +304,6 @@ set default_storage_engine=UNKNOWN_TABLE_TYPE;
 --error ER_WRONG_VALUE_FOR_VAR
 set default_storage_engine=MERGE, big_tables=2;
 show local variables like 'default_storage_engine';
---error ER_GLOBAL_VARIABLE
-set SESSION query_cache_size=10000;
 --error ER_UNKNOWN_CHARACTER_SET
 set character_set_client=UNKNOWN_CHARACTER_SET;
 --error ER_UNKNOWN_COLLATION
@@ -370,7 +365,6 @@ set global max_delayed_threads=100;
 set max_heap_table_size=100;
 set max_join_size=100;
 set max_sort_length=100;
-set max_tmp_tables=100;
 set global max_user_connections=100;
 select @@max_user_connections;
 set global max_write_lock_count=100;
@@ -378,9 +372,6 @@ set myisam_sort_buffer_size=100;
 set global net_buffer_length=100;
 set net_read_timeout=100;
 set net_write_timeout=100;
-set global query_cache_limit=100;
-set global query_cache_size=100;
-set global query_cache_type=demand;
 set read_buffer_size=100;
 set read_rnd_buffer_size=100;
 set global server_id=100;
@@ -408,9 +399,9 @@ set global table_open_cache=100;
 set default_storage_engine=myisam;
 set timestamp=1, timestamp=default;
 set tmp_table_size=100;
-set tx_isolation="READ-COMMITTED";
+set transaction_isolation="READ-COMMITTED";
 set wait_timeout=100;
-set global log_warnings=1;
+set global log_error_verbosity=2;
 set sort_buffer_size=default;
 
 #restore the variable, since it introduces a degree of unpredictability
@@ -513,30 +504,6 @@ SELECT @@global.session.key_buffer_size;
 --error ER_PARSE_ERROR
 SELECT @@global.local.key_buffer_size;
 
-# BUG#5135: cannot turn on log_warnings with SET in 4.1 (and 4.0)
-set @tstlw = @@log_warnings;
-# To ignore MAX_JOIN_SIZE as the no. of rows returned by SELECT in global_variables 
-# exceed the set value of max_join_size=100.
-SET SQL_BIG_SELECTS=1;
-show global variables like 'log_warnings';
---disable_warnings
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
---enable_warnings
-set global log_warnings = 0;
-show global variables like 'log_warnings';
---disable_warnings
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
---enable_warnings
-set global log_warnings = 42;
-show global variables like 'log_warnings';
---disable_warnings
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
---enable_warnings
-set global log_warnings = @tstlw;
-show global variables like 'log_warnings';
---disable_warnings
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
---enable_warnings
 
 #
 # BUG#4788 show create table provides incorrect statement
@@ -782,6 +749,7 @@ select @@version, @@version_comment, @@version_compile_machine,
 # Bug #1039: make tmpdir and datadir available as @@variables (also included
 # basedir)
 #
+SET SQL_BIG_SELECTS=1;
 # Don't actually output, since it depends on the system
 --replace_column 1 # 2 # 3 #
 select @@basedir, @@datadir, @@tmpdir;
@@ -816,6 +784,7 @@ show variables like 'ssl%';
 --replace_column 2 #
 select * from performance_schema.session_variables where variable_name like 'ssl%' order by 1;
 --enable_warnings
+SET SQL_BIG_SELECTS=0;
 
 #
 # Bug #19616: make log_queries_not_using_indexes available in SHOW VARIABLES
@@ -911,9 +880,6 @@ set global myisam_max_sort_file_size =@my_myisam_max_sort_file_size;
 set global net_buffer_length         =@my_net_buffer_length;
 set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
-set global query_cache_limit         =@my_query_cache_limit;
-set global query_cache_type          =@my_query_cache_type;
-set global query_cache_size          =@my_query_cache_size;
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;

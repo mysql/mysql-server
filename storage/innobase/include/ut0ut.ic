@@ -132,14 +132,13 @@ ut_2_log(
 	return(res + 1);
 }
 
-/*************************************************************//**
-Calculates 2 to power n.
+/** Calculates 2 to power n.
+@param[in]	n	power of 2
 @return 2 to power n */
 UNIV_INLINE
-ulint
+uint32_t
 ut_2_exp(
-/*=====*/
-	ulint	n)	/*!< in: number */
+	uint32_t	n)
 {
-	return((ulint) 1 << n);
+	return(1 << n);
 }

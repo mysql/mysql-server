@@ -14,13 +14,13 @@ use test;
 create table t1 (a int) engine=ndb;
 
 delimiter %;
-create procedure ins (rows int)
+create procedure ins (`rows` int)
 begin
   set @x = 0;
   repeat
     insert into t1 values (1);
     set @x = @x + 1;
-  until @x = rows
+  until @x = `rows`
   end repeat;
 end%
 

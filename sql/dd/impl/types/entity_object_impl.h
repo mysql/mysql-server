@@ -16,14 +16,13 @@
 #ifndef DD__ENTITY_OBJECT_IMPL_INCLUDED
 #define DD__ENTITY_OBJECT_IMPL_INCLUDED
 
-#include <string>
-
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/weak_object_impl.h" // Weak_object_impl
-#include "dd/object_id.h"
-#include "dd/sdi_fwd.h"
-#include "dd/types/entity_object.h"         // Entity_object
-#include "dd/types/weak_object.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/weak_object_impl.h" // Weak_object_impl
+#include "sql/dd/object_id.h"
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/entity_object.h"     // Entity_object
+#include "sql/dd/types/weak_object.h"
 
 namespace dd {
 

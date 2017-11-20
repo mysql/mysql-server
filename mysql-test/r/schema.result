@@ -239,4 +239,5 @@ connection default;
 Warnings:
 Warning	3607	Problem while dropping database. Can't remove database directory (Error dropping database (can't rmdir './db1', errno: ## - ...). Please remove it manually.
 # ... and error log too. Let's check that.
+Pattern "Problem while dropping database. Can't remove database directory .* Please remove it manually." found
 # Clean-up.

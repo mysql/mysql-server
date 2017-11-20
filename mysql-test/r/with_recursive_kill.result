@@ -1,4 +1,5 @@
 # Test that infinite WITH RECURSIVE can be killed
+SET @@SESSION.cte_max_recursion_depth = 1000000000;
 SET DEBUG_SYNC='in_WITH_RECURSIVE SIGNAL with_recursive_has_started';
 with recursive q (num, mark) as (
 select 1, "a"

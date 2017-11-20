@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,9 +39,7 @@ void Dbtc::initData()
   ctabrecFilesize = ZTABREC_FILESIZE;
   ctcConnectFilesize = ZTC_CONNECT_FILESIZE;
   cdihblockref = DBDIH_REF;
-  cdictblockref = DBDICT_REF;
-  clqhblockref = DBLQH_REF;
-  cerrorBlockref = NDBCNTR_REF;
+  cspjInstanceRR = 1;
 
   c_lqhkeyconf_direct_sent = 0;
  
@@ -168,6 +166,10 @@ void Dbtc::initRecords()
   gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
 				      sizeof(GcpRecord), 
 				      cgcpFilesize);
+
+  Pool_context pc;
+  pc.m_block = this;
+  m_fragLocationPool.init(RT_DBTC_FRAG_LOCATION, pc);
   
 }//Dbtc::initRecords()
 

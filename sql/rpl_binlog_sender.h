@@ -20,18 +20,19 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include "binlog_event.h"     // enum_binlog_checksum_alg, Log_event_type
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysqld_error.h"     // ER_*
+#include "sql/binlog.h"       // LOG_INFO
+#include "sql/rpl_gtid.h"
+#include "sql/sql_error.h"    // Diagnostics_area
 #include "sql_string.h"
 
 class Gtid_set;
 class THD;
-
-#include "binlog.h"           // LOG_INFO
-#include "binlog_event.h"     // enum_binlog_checksum_alg, Log_event_type
-#include "mysqld_error.h"     // ER_*
-#include "sql_error.h"        // Diagnostics_area
 
 
 /**

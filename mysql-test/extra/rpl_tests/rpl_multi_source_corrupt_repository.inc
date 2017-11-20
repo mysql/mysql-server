@@ -252,11 +252,13 @@ while ($i <= $number_of_channels)
     --source include/rpl_connection.inc
     --let $master_executed_gtid=`SELECT @@GLOBAL.gtid_executed`
     --let $position=query_get_value("SHOW MASTER STATUS", Position, 1)
+    --let $masked_position= POSITION
     --let $query_expected_result= 0
     if ($j == 2)
     {
       --let $master_executed_gtid= `SELECT concat(@@GLOBAL.gtid_executed, ':100')`
       --let $position= `SELECT $position + 1`
+      --let $masked_position= POSITION+1
       --let $query_expected_result= -1
     }
     if ($rpl_corrupt_channel_name == $channel_name)
@@ -267,14 +269,14 @@ while ($i <= $number_of_channels)
     --let $rpl_connection_name= server_$rpl_number_of_servers
     --source include/rpl_connection.inc
     --let $query_result= query_get_value("SELECT MASTER_POS_WAIT('server$i-bin.000001', $position, 1, $channel_name) AS VALUE", VALUE, 1)
-    --let $assert_text= MASTER_POS_WAIT should return $query_expected_result for channel $channel_name and position $position.
+    --let $assert_text= MASTER_POS_WAIT should return $query_expected_result for channel $channel_name and position $masked_position.
     --let $assert_cond= "$query_result" = "$query_expected_result"
     --source include/assert.inc
 
     if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
     {
       --let $query_result= query_get_value("SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$master_executed_gtid', 1, $channel_name) AS VALUE", VALUE, 1)
-      --let $assert_text= WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS should return $query_expected_result for channel $channel_name and position $position.
+      --let $assert_text= WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS should return $query_expected_result for channel $channel_name and position $masked_position.
       --let $assert_cond= "$query_result" = "$query_expected_result"
       # GTID_MODE OFF/ON, .result file should be same. Hence disabling the query
       # log for the following test.
@@ -299,7 +301,10 @@ while ($i <= $number_of_channels)
 
   --echo ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel $channel_name.
   --let $rpl_channel_name=$channel_name
-  --source include/show_relaylog_events.inc
+  # It doesn't care the result, just make sure the query can be executed successfully
+  --disable_result_log
+  eval SHOW RELAYLOG EVENTS FOR CHANNEL $channel_name;
+  --enable_result_log
 
   #############################################################################
   # Step 4.4: SHOW SLAVE STATUS FOR CHANNEL 'channel_name'

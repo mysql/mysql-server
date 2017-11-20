@@ -7,7 +7,11 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 [connection slave]
 CHANGE MASTER TO MASTER_CONNECT_RETRY = 30 ;
 include/start_slave.inc
-# Consecutive lock mode : innodb_autoinc_lock_mode = 1
+# Restart master with innodb_autoinc_lock_mode = 1
+include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=1]
+# Restart slave with innodb_autoinc_lock_mode = 1
+include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=1]
+include/start_slave.inc
 # Replicating simple inserts
 [Connection Master]
 SELECT @@global.innodb_autoinc_lock_mode;
@@ -537,8 +541,8 @@ include/sync_slave_sql_with_master.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
-# Restart slave with default lock mode :  innodb_autoinc_lock_mode = 1
-include/rpl_restart_server.inc [server_number=2]
+# Restart slave with innodb_autoinc_lock_mode = 1
+include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=1]
 include/start_slave.inc
 # Replicating simple inserts
 [Connection Master]
@@ -932,8 +936,8 @@ include/sync_slave_sql_with_master.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
-# Restart master with default lock mode : innodb_autoinc_lock_mode = 1
-include/rpl_restart_server.inc [server_number=1]
+# Restart master with innodb_autoinc_lock_mode = 1
+include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=1]
 # Replicating simple inserts
 [Connection Master]
 SELECT @@global.innodb_autoinc_lock_mode;
@@ -1195,9 +1199,9 @@ include/sync_slave_sql_with_master.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
-# Restart master with innodb_autoinc_lock_mode = 1
-include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=1]
-# Restarts slave with innodb_autoinc_lock_mode = 1
-include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=1]
+# Restart master with innodb_autoinc_lock_mode = 2
+include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=2]
+# Restart slave with innodb_autoinc_lock_mode = 2
+include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=2]
 include/start_slave.inc
 include/rpl_end.inc

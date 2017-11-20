@@ -51,31 +51,31 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "field.h"
 #include "ft_global.h"
-#include "handler.h"
-#include "item.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_sum.h"                           // Item_sum
-#include "key.h"                                // key_cmp_if_same
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_table_map.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_select.h"
-#include "table.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_sum.h"                       // Item_sum
+#include "sql/key.h"                            // key_cmp_if_same
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_select.h"
+#include "sql/table.h"
 
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
                                 Item_field *item_field, Item *cond,
@@ -496,13 +496,15 @@ int opt_sum_query(THD *thd,
                  get_index_min_value(table, &ref, item_field, range_fl,
                                      prefix_len);
 
+
           /*
-            Set table row status to "not started" since original and
-            real read_set are different, i.e. some field values
-            from original read set could be unread.
+            Set table row status to "not started" unconditionally.  This will
+            prepare the table for regular access in the join execution
+            machinery if the opt_sum_query() optimization is aborted and cannot
+            be used.  The row status does not affect column values read into
+            record[0].
           */
-          if (!bitmap_is_subset(&table->def_read_set, &table->tmp_set))
-            table->set_not_started();
+          table->set_not_started();
 
           table->read_set= &table->def_read_set;
           bitmap_clear_all(&table->tmp_set);

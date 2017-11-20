@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,24 +13,21 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/tables.h"
+#include "sql/dd/impl/tables/tables.h"
 
-#include <memory>
 #include <new>
+#include <string>
 
-#include "dd/dd.h"                         // dd::create_object
-#include "dd/impl/object_key.h"
-#include "dd/impl/raw/object_keys.h"       // dd::Item_name_key
-#include "dd/impl/raw/raw_record.h"        // dd::Raw_record
-#include "dd/impl/raw/raw_table.h"         // dd::Raw_table
-#include "dd/impl/transaction_impl.h"      // dd::Open_dictionary_tables_ctx
-#include "dd/impl/types/object_table_definition_impl.h"
-#include "dd/types/abstract_table.h"
-#include "dd/types/table.h"
-#include "dd/types/view.h"                 // dd::View
-#include "my_dbug.h"
 #include "mysql_com.h"
-#include "system_variables.h"
+#include "sql/dd/dd.h"                     // dd::create_object
+#include "sql/dd/impl/raw/object_keys.h"   // dd::Item_name_key
+#include "sql/dd/impl/raw/raw_record.h"    // dd::Raw_record
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/table.h"
+#include "sql/dd/types/view.h"             // dd::View
+#include "sql/mysqld.h"
+#include "sql/stateless_allocator.h"
 
 namespace dd {
 namespace tables {
@@ -107,6 +104,9 @@ Tables::Tables()
   m_target_def.add_field(FIELD_PARTITION_EXPRESSION,
                          "FIELD_PARTITION_EXPRESSION",
                          "partition_expression VARCHAR(2048)");
+  m_target_def.add_field(FIELD_PARTITION_EXPRESSION_UTF8,
+                         "FIELD_PARTITION_EXPRESSION_UTF8",
+                         "partition_expression_utf8 VARCHAR(2048)");
   m_target_def.add_field(FIELD_DEFAULT_PARTITIONING,
                          "FIELD_DEFAULT_PARTITIONING",
                          "default_partitioning ENUM('NO', 'YES', 'NUMBER')");
@@ -121,6 +121,9 @@ Tables::Tables()
   m_target_def.add_field(FIELD_SUBPARTITION_EXPRESSION,
                          "FIELD_SUBPARTITION_EXPRESSION",
                          "subpartition_expression VARCHAR(2048)");
+  m_target_def.add_field(FIELD_SUBPARTITION_EXPRESSION_UTF8,
+                         "FIELD_SUBPARTITION_EXPRESSION_UTF8",
+                         "subpartition_expression_utf8 VARCHAR(2048)");
   m_target_def.add_field(FIELD_DEFAULT_SUBPARTITIONING,
                          "FIELD_DEFAULT_SUBPARTITIONING",
                          "default_subpartitioning ENUM('NO', 'YES', "

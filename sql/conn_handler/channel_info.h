@@ -22,6 +22,7 @@
 
 #include "my_inttypes.h"
 #include "my_sys.h"            // my_micro_time
+#include "violite.h"
 
 class THD;
 

@@ -1,5 +1,5 @@
 #ifndef MYSQL_PLUGIN_AUTH_INCLUDED
-/* Copyright (c) 2010, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 
 #include <mysql/plugin.h>
 
-#define MYSQL_AUTHENTICATION_INTERFACE_VERSION 0x0101
+#define MYSQL_AUTHENTICATION_INTERFACE_VERSION 0x0102
 
 #include "plugin_auth_common.h"
 
@@ -159,6 +159,24 @@ typedef int (*validate_authentication_string_t)(char* const inbuf, unsigned int 
 typedef int (*set_salt_t)(const char *password, unsigned int password_len,
                           unsigned char* salt, unsigned char *salt_len);
 
+
+/**
+  Plugin API to compare a clear text password with a stored hash
+
+  @arg hash              pointer to the hashed data
+  @arg hash_length       length of the hashed data
+  @arg cleartext         pointer to the clear text password
+  @arg cleartext_length  length of the cleat text password
+  @arg[out] is_error     non-zero in case of error extracting the salt
+  @retval 0              the hash was created with that password
+  @retval non-zero       the hash was created with a different password
+*/
+typedef int
+(*compare_password_with_hash_t)(const char *hash, unsigned long hash_length,
+                                const char *cleartext,
+                                unsigned long cleartext_length,
+                                int *is_error);
+
 /**
   Server authentication plugin descriptor
 */
@@ -180,6 +198,8 @@ struct st_mysql_auth
     Authentication plugin capabilities
   */
   const unsigned long authentication_flags;
+
+  compare_password_with_hash_t compare_password_with_hash;
 };
 #endif
 

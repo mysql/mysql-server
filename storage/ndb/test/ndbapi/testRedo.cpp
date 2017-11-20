@@ -1591,7 +1591,7 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
 
     if (total != 0)
     {
-      usage = (int)(100 * used / total);
+      usage = (int)((100 * used) / total);
 
       g_info << "nodeid " << node_id << " " << nodeid
             << " logpart " << logpart << " " << logpart_with_maxusage
@@ -1600,8 +1600,9 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
       // Requested row is found
       if (node_id == nodeid && logpart == logpart_with_maxusage)
       {
-        g_info << "Row with requested nodeid " << nodeid << " and logpart " << logpart
-              << "  is found. Usage " << usage << endl;
+        g_err << "Row with requested nodeid " << nodeid << " and logpart " << logpart
+              << "  is found. Usage " << usage
+              << " used = " << used << " total = " << total << endl;
         return usage;
       }
 
@@ -1636,7 +1637,7 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
   logpart_with_maxusage = max_logpart;
   nodeid = max_node_id;
 
-  g_info << "get_redo_logpart_maxusage returns: nodeid " << nodeid
+  g_err << "get_redo_logpart_maxusage returns: nodeid " << nodeid
         << " lp " << logpart_with_maxusage
         << " usage " << max_usage << endl;
 

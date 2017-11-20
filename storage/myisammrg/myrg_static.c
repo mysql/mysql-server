@@ -40,20 +40,20 @@ PSI_mutex_key rg_key_mutex_MYRG_INFO_mutex;
 
 static PSI_mutex_info all_myisammrg_mutexes[]=
 {
-  { &rg_key_mutex_MYRG_INFO_mutex, "MYRG_INFO::mutex", 0, 0}
+  { &rg_key_mutex_MYRG_INFO_mutex, "MYRG_INFO::mutex", 0, 0, PSI_DOCUMENT_ME}
 };
 
 PSI_file_key rg_key_file_MRG;
 
 static PSI_file_info all_myisammrg_files[]=
 {
-  { &rg_key_file_MRG, "MRG", 0}
+  { &rg_key_file_MRG, "MRG", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_myisammrg_memory[]=
 {
-  { &rg_key_memory_MYRG_INFO, "MYRG_INFO", 0},
-  { &rg_key_memory_children, "children", 0}
+  { &rg_key_memory_MYRG_INFO, "MYRG_INFO", 0, 0, PSI_DOCUMENT_ME},
+  { &rg_key_memory_children, "children", 0, 0, PSI_DOCUMENT_ME}
 };
 
 void init_myisammrg_psi_keys()

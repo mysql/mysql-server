@@ -34762,7 +34762,8 @@ size_t my_well_formed_len_cp932(const CHARSET_INFO *cs
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
-  NULL,			/* init */
+  nullptr,			/* init */
+  nullptr,
   my_strnncoll_cp932,
   my_strnncollsp_cp932,
   my_strnxfrm_mb,

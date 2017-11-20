@@ -13,7 +13,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/system_views/columns.h"
+#include "sql/dd/impl/system_views/columns.h"
+
+#include <string>
+
+#include "sql/stateless_allocator.h"
 
 namespace dd {
 namespace system_views {
@@ -101,6 +105,7 @@ Columns::Columns()
                         "IFNULL(col.comment, '')");
   m_target_def.add_field(FIELD_GENERATION_EXPRESSION, "GENERATION_EXPRESSION",
                         "IFNULL(col.generation_expression_utf8, '')");
+  m_target_def.add_field(FIELD_SRS_ID, "SRS_ID", "col.srs_id");
 
   m_target_def.add_from("mysql.columns col");
   m_target_def.add_from("JOIN mysql.tables tbl ON col.table_id=tbl.id");

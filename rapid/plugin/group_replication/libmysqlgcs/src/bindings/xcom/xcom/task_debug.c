@@ -17,7 +17,11 @@
 #include <assert.h>
 #include <stdarg.h>
 
+
 /* purecov: begin deadcode */
+static int mystrcat_core_sprintf(char *dest, int size, const char *format, va_list args)
+                                 MY_ATTRIBUTE((format(printf, 3, 0)));
+
 char *mystrcat(char *dest, int *size, const char *src) {
   int current_size = *size;
   char *ret = dest;
@@ -43,46 +47,87 @@ char *mystrcat(char *dest, int *size, const char *src) {
 }
 /* purecov: end */
 
-char *mystrcat_sprintf(char *dest, int *size, const char *format, ...) {
-  va_list args;
-  va_start(args, format);
 
-  {
-    int current_size = *size;
+static int mystrcat_core_sprintf(char *dest, int size, const char *format,
+                                 va_list args)
+{
 
-    int remaining_size = STR_SIZE - current_size;
-    int ret = vsnprintf(dest, (size_t)remaining_size, format, args);
-    if (ret > remaining_size) {
-      fprintf(stderr,
-              "ERROR: mystrcat_sprintf wasn't able to add \"%s\" to "
-              "destination string! Full buffer!\n",
-              format);
-      ret = remaining_size;
-    }
-
-    va_end(args);
-
-    *size += ret;
-
-    return dest + ret;
+  int remaining_size = STR_SIZE - size;
+  int ret = vsnprintf(dest, (size_t) remaining_size, format, args);
+  if (ret > remaining_size) {
+/* purecov: begin deadcode */
+    fprintf(stderr,
+            "ERROR: mystrcat_sprintf wasn't able to add \"%s\" to "
+            "destination string! Full buffer!\n",
+            format);
+    ret = remaining_size;
+/* purecov: end */
   }
+
+  return ret;
 }
 
+
+char *mystrcat_sprintf(char *dest, int *size, const char *format, ...) {
+  va_list args;
+  int ret = 0;
+
+  va_start(args, format);
+  ret = mystrcat_core_sprintf(dest, *size, format, args);
+  va_end(args);
+
+  *size += ret;
+
+  return dest + ret;
+}
+
+
 /* purecov: begin deadcode */
-void xcom_simple_log(int l, const char *msg) {
+void xcom_default_log(const int64_t l, const char *msg)
+{
   char buffer[STR_SIZE + 1];
   char *buf = buffer;
   int buffer_size = 0;
   buffer[0] = 0;
 
-  buf = mystrcat(buf, &buffer_size, log_levels[l]);
+  buf = mystrcat(buf, &buffer_size, xcom_log_levels[l]);
   buf = mystrcat(buf, &buffer_size, msg);
   buf = mystrcat(buf, &buffer_size, NEWLINE);
 
-  if (l < LOG_INFO) {
+  if (l < XCOM_LOG_INFO) {
     fputs(buffer, stderr);
   } else {
     fputs(buffer, stdout);
   }
+}
+
+
+/**
+  Print the logging messages to the console. It is invoked when no debugger
+  callback was set by an upper layer.
+*/
+void xcom_default_debug(const char *format, ...)
+{
+  va_list args;
+  char buffer[STR_SIZE + 1];
+  int buffer_size= 0;
+  buffer[0]= 0;
+
+  va_start(args, format);
+  buffer_size= mystrcat_core_sprintf(buffer, buffer_size, format, args);
+  va_end(args);
+
+  mystrcat(buffer + buffer_size, &buffer_size, NEWLINE);
+
+  fputs(buffer, stdout);
+}
+
+
+/**
+  Check whether a debug option was enabled or not.
+*/
+int xcom_default_debug_check(const int64_t debug_options)
+{
+  return (xcom_debug_options & debug_options) != 0;
 }
 /* purecov: end */

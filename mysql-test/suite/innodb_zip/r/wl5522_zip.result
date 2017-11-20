@@ -375,7 +375,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Number of indexes don't match, table has 1 indexes but the tablespace meta-data file has 4 indexes)
+ERROR HY000: Schema mismatch (Number of indexes don't match, table has 1 indexes but the tablespace meta-data file has 3 indexes)
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;

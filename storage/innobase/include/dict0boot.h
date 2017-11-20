@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -107,14 +107,13 @@ dict_create(void)
 /*=============*/
 	MY_ATTRIBUTE((warn_unused_result));
 
-/*********************************************************************//**
-Check if a table id belongs to  system table.
+/** Check if a table id belongs to old innodb internal system table.
+@param[in]	id		table id
 @return true if the table id belongs to a system table. */
 UNIV_INLINE
 bool
-dict_is_sys_table(
-/*==============*/
-	table_id_t	id)		/*!< in: table id to check */
+dict_is_old_sys_table(
+	table_id_t	id)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /* Space id and page no where the dictionary header resides */

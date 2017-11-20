@@ -28,37 +28,36 @@
   - "profiling_history_size", integer, session + global, "Num queries stored?"
 */
 
-#include <string.h>
+#include "sql/sql_profile.h"
 
 #include "my_config.h"
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
+
+#include <string.h>
 #include <algorithm>
 
 #include "binary_log_types.h"
 #include "decimal.h"
-#include "field.h"
-#include "item.h"
+#include "m_string.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_systime.h"
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "sql_class.h"                    // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_profile.h"
-#include "sql_security_ctx.h"
-#include "sql_show.h"                     // schema_table_store_record
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/my_decimal.h"
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/sql_class.h"                // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_show.h"                 // schema_table_store_record
+#include "sql/system_variables.h"
 #include "sql_string.h"
-#include "system_variables.h"
 
 using std::min;
 using std::max;

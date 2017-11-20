@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -146,7 +146,8 @@ struct PrepareCopyFragRef
 
 struct PrepareCopyFragConf
 {
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( OldSignalLength = 7 );
+  STATIC_CONST( SignalLength = 8 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -155,8 +156,78 @@ struct PrepareCopyFragConf
   Uint32 copyNodeId;
   Uint32 startingNodeId;
   Uint32 maxPageNo;
+  Uint32 completedGci;
 };
 
+class HaltCopyFragReq
+{
+  friend class Dblqh;
+  STATIC_CONST( SignalLength = 4);
+
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragmentId;
+};
+
+class HaltCopyFragConf
+{
+  friend class Dblqh;
+  STATIC_CONST( SignalLength = 4);
+
+  enum
+  {
+    COPY_FRAG_HALTED = 0,
+    COPY_FRAG_COMPLETED = 1
+  };
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragmentId;
+  Uint32 cause;
+};
+
+class HaltCopyFragRef
+{
+  friend class Dblqh;
+  STATIC_CONST( SignalLength = 4);
+
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragmentId;
+  Uint32 errorCode;
+};
+
+class ResumeCopyFragReq
+{
+  friend class Dblqh;
+  STATIC_CONST( SignalLength = 4);
+
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragmentId;
+};
+
+class ResumeCopyFragConf
+{
+  friend class Dblqh;
+  STATIC_CONST( SignalLength = 3);
+
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragmentId;
+};
+
+class ResumeCopyFragRef
+{
+  friend class Dblqh;
+  STATIC_CONST( SignalLength = 4);
+
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragmentId;
+  Uint32 errorCode;
+};
 
 #undef JAM_FILE_ID
 

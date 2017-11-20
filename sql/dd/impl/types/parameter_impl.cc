@@ -13,26 +13,27 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/parameter_impl.h"
+#include "sql/dd/impl/types/parameter_impl.h"
 
 #include <stddef.h>
 #include <sstream>
+#include <string>
 
-#include "dd/impl/properties_impl.h"                  // Properties_impl
-#include "dd/impl/raw/raw_record.h"                   // Raw_record
-#include "dd/impl/tables/parameter_type_elements.h"   // Parameter_type_elements
-#include "dd/impl/tables/parameters.h"                // Parameters
-#include "dd/impl/transaction_impl.h"                 // Open_dictionary_tables_ctx
-#include "dd/impl/types/parameter_type_element_impl.h"// Parameter_type_element_impl
-#include "dd/impl/types/routine_impl.h"               // Routine_impl
-#include "dd/string_type.h"                           // dd::String_type
-#include "dd/types/object_table.h"
-#include "dd/types/parameter_type_element.h"
-#include "dd/types/weak_object.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
+#include "sql/dd/impl/properties_impl.h"              // Properties_impl
+#include "sql/dd/impl/raw/raw_record.h"               // Raw_record
+#include "sql/dd/impl/tables/parameter_type_elements.h" // Parameter_type_elements
+#include "sql/dd/impl/tables/parameters.h"            // Parameters
+#include "sql/dd/impl/transaction_impl.h"             // Open_dictionary_tables_ctx
+#include "sql/dd/impl/types/parameter_type_element_impl.h"// Parameter_type_element_impl
+#include "sql/dd/impl/types/routine_impl.h"           // Routine_impl
+#include "sql/dd/string_type.h"                       // dd::String_type
+#include "sql/dd/types/object_table.h"
+#include "sql/dd/types/parameter_type_element.h"
+#include "sql/dd/types/weak_object.h"
 
 using dd::tables::Parameters;
 using dd::tables::Parameter_type_elements;

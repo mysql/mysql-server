@@ -37,39 +37,47 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
+#include <atomic>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"
-#include "field.h"
-#include "handler.h"
-#include "hash.h"
-#include "log.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/mysql_rwlock_bits.h"
+#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_memory.h"
-#include "mysql/psi/psi_rwlock.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "psi_memory_key.h"                     // key_memory_servers
-#include "records.h"          // init_read_record, end_read_record
-#include "sql_base.h"                           // close_mysql_tables
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "table.h"
-#include "template_utils.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/histograms/histogram.h"
+#include "sql/log.h"
+#include "sql/psi_memory_key.h"                 // key_memory_servers
+#include "sql/records.h"      // init_read_record, end_read_record
+#include "sql/sql_base.h"                       // close_mysql_tables
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"  // trans_rollback_stmt, trans_commit_stmt
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "transaction.h"      // trans_rollback_stmt, trans_commit_stmt
-#include "typelib.h"
 
 /*
   We only use 1 mutex to guard the data structures - THR_LOCK_servers.
@@ -103,12 +111,12 @@ static PSI_rwlock_key key_rwlock_THR_LOCK_servers;
 
 static PSI_rwlock_info all_servers_cache_rwlocks[]=
 {
-  { &key_rwlock_THR_LOCK_servers, "THR_LOCK_servers", PSI_FLAG_GLOBAL}
+  { &key_rwlock_THR_LOCK_servers, "THR_LOCK_servers", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_servers_cache_memory[]=
 {
-  { &key_memory_servers, "servers_cache", PSI_FLAG_GLOBAL}
+  { &key_memory_servers, "servers_cache", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_servers_cache_psi_keys(void)

@@ -34,6 +34,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "dict0types.h"
 #include "trx0types.h"
 #include "ut0new.h"
+#include "sql/handler.h"
 
 #ifndef UNIV_HOTBACKUP
 #include "lock0types.h"
@@ -216,27 +217,6 @@ trx_start_internal_read_only_low(
 
 #define trx_start_if_not_started_xa(t, rw)			\
 	trx_start_if_not_started_xa_low((t), (rw))
-#endif /* UNIV_DEBUG */
-
-/*************************************************************//**
-Starts the transaction for a DDL operation. */
-void
-trx_start_for_ddl_low(
-/*==================*/
-	trx_t*		trx,	/*!< in/out: transaction */
-	trx_dict_op_t	op);	/*!< in: dictionary operation type */
-
-#ifdef UNIV_DEBUG
-#define trx_start_for_ddl(t, o)					\
-	do {							\
-	ut_ad((t)->start_file == 0);				\
-	(t)->start_line = __LINE__;				\
-	(t)->start_file = __FILE__;				\
-	trx_start_for_ddl_low((t), (o));			\
-	} while (0)
-#else
-#define trx_start_for_ddl(t, o)					\
-	trx_start_for_ddl_low((t), (o))
 #endif /* UNIV_DEBUG */
 
 /****************************************************************//**
@@ -777,6 +757,12 @@ struct trx_lock_t {
 					Protected by both the lock sys mutex
 					and the trx_t::mutex. */
 	ulint		n_rec_locks;	/*!< number of rec locks in this trx */
+#ifdef UNIV_DEBUG
+	/** When a transaction is forced to rollback due to a deadlock
+	check or by another high priority transaction this is true. Used
+	by debug checks in lock0lock.cc */
+	bool		in_rollback;
+#endif /* UNIV_DEBUG */
 
 	/** The transaction called ha_innobase::start_stmt() to
 	lock a table. Most likely a temporary table. */
@@ -823,18 +809,20 @@ transactions while the system is already processing new user
 transactions. The trx_sys->mutex prevents a race condition between it
 and lock_trx_release_locks() [invoked by trx_commit()].
 
-* trx_print_low() may access transactions not associated with the current
-thread. The caller must be holding trx_sys->mutex and lock_sys->mutex.
+* Print of transactions may access transactions not associated with
+the current thread. The caller must be holding trx_sys->mutex and
+lock_sys->mutex.
 
 * When a transaction handle is in the trx_sys->mysql_trx_list or
 trx_sys->trx_list, some of its fields must not be modified without
 holding trx_sys->mutex exclusively.
 
-* The locking code (in particular, lock_deadlock_recursive() and
-lock_rec_convert_impl_to_expl()) will access transactions associated
-to other connections. The locks of transactions are protected by
-lock_sys->mutex and sometimes by trx->mutex. */
+* The locking code (in particular, deadlock checking and implicit to
+explicit conversion) will access transactions associated to other
+connections. The locks of transactions are protected by lock_sys->mutex
+and sometimes by trx->mutex.
 
+* Killing of asynchronous transactions. */
 
 /** Represents an instance of rollback segment along with its state variables.*/
 struct trx_undo_ptr_t {
@@ -913,6 +901,13 @@ struct trx_t {
 					state and lock (except some fields
 					of lock, which are protected by
 					lock_sys->mutex) */
+
+	bool		owns_mutex;	/*!< Set to the transaction that owns
+					the mutex during lock acquire and/or
+					release.
+
+					This is used to avoid taking the
+					trx_t::mutex recursively. */
 
 	/* Note: in_depth was split from in_innodb for fixing a RO
 	performance issue. Acquiring the trx_t::mutex for each row
@@ -1095,6 +1090,12 @@ struct trx_t {
 					and this flag would be set to false */
 	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op_t */
 
+	bool		ddl_operation; /*!< True if this trx involves dd table
+					change */
+	bool		ddl_must_flush; /*!< True if this trx involves dd table
+					change, and must flush */
+	bool		in_truncate;	/* This trx is doing truncation */
+
 	/* Fields protected by the srv_conc_mutex. */
 	bool		declared_to_be_inside_innodb;
 					/*!< this is TRUE if we have declared
@@ -1114,9 +1115,15 @@ struct trx_t {
 
 	time_t		start_time;	/*!< time the state last time became
 					TRX_STATE_ACTIVE */
+
+	/** Weight/Age of the transaction in the record lock wait queue. */
+	int32_t		age;
+
+	/** For tracking if Weight/age has been updated. */
+	uint64_t	age_updated;
+
 	lsn_t		commit_lsn;	/*!< lsn at the time of the commit */
-	table_id_t	table_id;	/*!< Table to drop iff dict_operation
-					== TRX_DICT_OP_TABLE, or 0. */
+
 	/*------------------------------*/
 	THD*		mysql_thd;	/*!< MySQL thread handle corresponding
 					to this trx, or NULL */
@@ -1240,11 +1247,8 @@ struct trx_t {
 					count of tables being flushed. */
 
 	/*------------------------------*/
-	bool		ddl;		/*!< true if it is an internal
-					transaction for DDL */
 	bool		internal;	/*!< true if it is a system/internal
-					transaction background task. This
-					includes DDL transactions too.  Such
+					transaction background task. Such
 					transactions are always treated as
 					read-write. */
 	/*------------------------------*/

@@ -24,7 +24,7 @@ set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 grant select on test.* to 'root'@'santa.claus.ipv6.example.com';
 set sql_mode= @orig_sql_mode;
 
-create user 'quota'@'santa.claus.ipv6.example.com';
+create user 'quota'@'santa.claus.ipv6.example.com' identified with 'mysql_native_password';
 grant select on test.* to 'quota'@'santa.claus.ipv6.example.com';
 
 connect (con1,"::1",root,,test,$MASTER_MYPORT,);

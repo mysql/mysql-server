@@ -28,7 +28,8 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0mem_h
 
 #include "univ.i"
-#include "dd/object_id.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/types/column.h"
 #include "dict0types.h"
 #include "data0type.h"
 #include "mem0mem.h"
@@ -52,12 +53,13 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0new.h"
 #include "dict/mem.h"
 
-#include "sql_const.h"  /* MAX_KEY_LENGTH */
+#include "sql/sql_const.h"  /* MAX_KEY_LENGTH */
 
 #include <set>
 #include <vector>
 #include <algorithm>
 #include <iterator>
+#include <memory>  /* std::unique_ptr */
 
 /* Forward declaration. */
 struct ib_rbt_t;
@@ -233,7 +235,7 @@ ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS			10
+#define DICT_TF2_BITS			11
 #define DICT_TF2_UNUSED_BIT_MASK	(~0U << DICT_TF2_BITS)
 #define DICT_TF2_BIT_MASK		~DICT_TF2_UNUSED_BIT_MASK
 
@@ -257,11 +259,6 @@ use its own tablespace instead of the system tablespace. */
 /** Set when we discard/detach the tablespace */
 #define DICT_TF2_DISCARDED		32
 
-/** This bit is set if all aux table names (both common tables and
-index tables) of a FTS table are in HEX format.
-TODO: NewDD: WL#9535 remove this flag */
-#define DICT_TF2_FTS_AUX_HEX_NAME	64
-
 /** Intrinsic table bit
 Intrinsic table is table created internally by MySQL modules viz. Optimizer,
 FTS, etc.... Intrinsic table has all the properties of the normal table except
@@ -273,6 +270,9 @@ it is not created by user and so not visible to end-user. */
 
 /** FTS AUX hidden table bit. */
 #define DICT_TF2_AUX			512
+
+/** Table is opened by resurrected trx during crash recovery. */
+#define DICT_TF2_RESURRECT_PREPARED	1024
 /* @} */
 
 #define DICT_TF2_FLAG_SET(table, flag)		\
@@ -923,6 +923,10 @@ public:
 system clustered index when there is no primary key. */
 const char innobase_index_reserve_name[] = "GEN_CLUST_INDEX";
 
+namespace dd {
+class Spatial_reference_system;
+}
+
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_t{
@@ -991,6 +995,13 @@ struct dict_index_t{
 				/*!< a flag that is set for secondary indexes
 				that have not been committed to the
 				data dictionary yet */
+	uint32_t	srid;	/* spatial reference id */
+	bool		srid_is_valid;
+				/* says whether SRID is valid - it cane be
+				undefined */
+	std::unique_ptr<dd::Spatial_reference_system> rtr_srs;
+				/*!< Cached spatial reference system dictionary
+				entry used by R-tree indexes. */
 
 #ifdef UNIV_DEBUG
 	uint32_t	magic_n;/*!< magic number */
@@ -1069,11 +1080,6 @@ struct dict_index_t{
 				compression failures and successes */
 	rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */
-#ifdef INNODB_DD_TABLE
-	bool		skip_step;/*!< Skip certain steps in
-				dict_create_index_step(), will be removed
-				in wl#9535 */
-#endif /* INNNODB_DD_TABLE */
 	bool		fill_dd;/*!< Flag whether need to fill dd tables
 				when it's a fulltext index. */
 
@@ -1208,6 +1214,15 @@ struct dict_index_t{
 	ULINT_UNDEFINED if not contained */
 	ulint get_col_pos(
 		ulint n, bool inc_prefix=false, bool is_virtual=false) const;
+
+	/** Sets srid and srid_is_valid values
+	@param[in]	srid_value		value of SRID, may be garbage
+						if srid_is_valid_value = false
+	@param[in]	srid_is_valid_value	value of srid_is_valid */
+	void fill_srid_value(uint32_t srid_value, bool srid_is_valid_value) {
+		srid_is_valid = srid_is_valid_value;
+		srid = srid_value;
+	}
 };
 
 /** The status of online index creation */
@@ -1558,6 +1573,9 @@ struct dict_table_t {
 	/** Table name. */
 	table_name_t				name;
 
+	/** Truncate name. */
+	table_name_t				trunc_name;
+
 	/** NULL or the directory path specified by DATA DIRECTORY. */
 	char*					data_dir_path;
 
@@ -1634,9 +1652,13 @@ struct dict_table_t {
 	/** Number of virtual columns. */
 	unsigned				n_v_cols:10;
 
-	/** TRUE if it's not an InnoDB system table or a table that has no FK
-	relationships. */
+	/** TRUE if this table is expected to be kept in memory. This table
+	could be a table that has FK relationships or is undergoing DDL */
 	unsigned				can_be_evicted:1;
+
+	/** TRUE if this table is not evictable(can_be_evicted) and this is
+	because of DDL operation */
+	unsigned				ddl_not_evictable:1;
 
 	/** TRUE if some indexes should be dropped after ONLINE_INDEX_ABORTED
 	or ONLINE_INDEX_ABORTED_DROPPED. */
@@ -1687,6 +1709,9 @@ struct dict_table_t {
 	/** Node of the LRU list of tables. */
 	UT_LIST_NODE_T(dict_table_t)		table_LRU;
 
+	/** metadata version number of dd::Table::se_private_data() */
+	uint64_t				version;
+
 	/** table dirty_status, which is protected by dict_persist->mutex */
 	table_dirty_status			dirty_status;
 
@@ -1711,12 +1736,6 @@ struct dict_table_t {
 	performed on the table. We cannot drop the table while there are
 	foreign key checks running on it. */
 	ulint					n_foreign_key_checks_running;
-
-	/** Transactions whose view low limit is greater than this number are
-	not allowed to store to the MySQL query cache or retrieve from it.
-	When a trx with undo logs commits, it sets this to the value of the
-	current time. */
-	trx_id_t				query_cache_inv_id;
 
 	/** Transaction id that last touched the table definition. Either when
 	loading the definition or CREATE TABLE, or ALTER TABLE (prepare,
@@ -1980,11 +1999,6 @@ public:
 	/** refresh/reload FK info */
 	bool					refresh_fk;
 
-#ifdef INNODB_DD_TABLE
-	/** Skip certain step in dict_create_table_step()
-	Note: will be removed in wl#9535 */
-	bool					skip_step;
-#endif /* INNODB_DD_TABLE */
 	/** multiple cursors can be active on this temporary table */
 	temp_prebuilt_vec*			temp_prebuilt;
 
@@ -2138,6 +2152,10 @@ public:
 
 		return(false);
 	}
+
+	/* GAP locks are skipped for DD tables and SDI tables
+	@return true if table is DD table or SDI table, else false */
+	inline bool skip_gap_locks() const;
 };
 
 /** Persistent dynamic metadata type, there should be 1 to 1
@@ -2172,11 +2190,14 @@ corrupted_ids_t;
 class PersistentTableMetadata {
 public:
 	/** Constructor
-	@param[in]	id	table id */
-	explicit PersistentTableMetadata(
-		table_id_t	id)
+	@param[in]	id	table id
+	@param[in]	version	table dynamic metadata version */
+	PersistentTableMetadata(
+		table_id_t	id,
+		uint64		version)
 		:
 		m_id(id),
+		m_version(version),
 		m_corrupted_ids(),
 		m_autoinc(0)
 	{}
@@ -2196,11 +2217,17 @@ public:
 		m_corrupted_ids.push_back(id);
 	}
 
-	/** Reset all the metadata, after it has been written to
-	the buffer table */
-	void reset()
+	/** Set the dynamic metadata version.
+	@param[in]	version		dynamic metadata version */
+	void set_version(uint64_t version)
 	{
-		m_corrupted_ids.clear();
+		m_version = version;
+	}
+
+	/** Get the dynamic metadata version */
+	uint64_t get_version() const
+	{
+		return(m_version);
 	}
 
 	/** Get the table id of the metadata
@@ -2212,7 +2239,7 @@ public:
 	/** Set the autoinc counter of the table if it's bigger
 	@param[in]	autoinc	autoinc counter */
 	void set_autoinc_if_bigger(
-		ib_uint64_t	autoinc) {
+		uint64_t	autoinc) {
 		/* We only set the biggest autoinc counter. Callers don't
 		guarantee passing a bigger number in. */
 		if (autoinc > m_autoinc) {
@@ -2223,13 +2250,13 @@ public:
 	/** Set the autoinc counter of the table
 	@param[in]	autoinc	autoinc counter */
 	void set_autoinc(
-		ib_uint64_t	autoinc) {
+		uint64_t	autoinc) {
 		m_autoinc = autoinc;
 	}
 
 	/** Get the autoinc counter of the table
 	@return the autoinc counter */
-	ib_uint64_t get_autoinc() const {
+	uint64_t get_autoinc() const {
 		return(m_autoinc);
 	}
 
@@ -2237,11 +2264,14 @@ private:
 	/** Table ID which this metadata belongs to */
 	table_id_t		m_id;
 
+	/** Table dynamic metadata version of the change */
+	uint64_t		m_version;
+
 	/** Storing the corrupted indexes' ID if exist, or else empty */
 	corrupted_ids_t		m_corrupted_ids;
 
 	/** Autoinc counter of the table */
-	ib_uint64_t		m_autoinc;
+	uint64_t		m_autoinc;
 
 	/* TODO: We will add update_time, etc. here and APIs accordingly */
 };
@@ -2418,8 +2448,7 @@ public:
 	}
 
 	/** Write redo logs for autoinc counter that is to be inserted or to
-	update the existing one, if the counter is bigger than current one
-	or the counter is 0 as the special mark.
+	update the existing one, if the counter is bigger than current one.
 	This function should be called only once at most per mtr, and work with
 	the commit() to finish the complete logging & commit
 	@param[in]	table	table
@@ -2481,6 +2510,14 @@ public:
 	@param[in]	type	persister type */
 	void remove(
 		persistent_type_t	type);
+
+	/** Serialize the metadata to a buffer
+	@param[in]	metadata	metadata to serialize
+	@param[out]	buffer		buffer to store the serialized metadata
+	@return the length of serialized metadata */
+	size_t write(
+		PersistentTableMetadata&metadata,
+		byte*			buffer);
 
 private:
 	/** A map to store all persisters needed */

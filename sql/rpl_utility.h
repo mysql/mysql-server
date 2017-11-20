@@ -21,24 +21,26 @@
 #endif
 
 #include <sys/types.h>
+#include <unordered_map>
 
 #include "binary_log_types.h"   // enum_field_types
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/psi_memory_key.h"
 
 #ifdef MYSQL_SERVER
-#include "handler.h"
-#include "hash.h"
-#include "prealloced_array.h"   // Prealloced_array
-#include "table.h"              // TABLE_LIST
+#include <memory>
 
-class THD;
+#include "map_helpers.h"
+#include "prealloced_array.h"   // Prealloced_array
+#include "sql/handler.h"
+#include "sql/table.h"          // TABLE_LIST
+
 class Log_event;
 class Relay_log_info;
-#endif
-
-#ifdef MYSQL_SERVER
+class THD;
 
 /**
    Hash table used when applying row events on the slave and there is
@@ -57,6 +59,13 @@ typedef struct hash_row_pos_st
 
 } HASH_ROW_POS;
 
+struct HASH_ROW_ENTRY;
+
+struct hash_slave_rows_free_entry
+{
+  void operator() (HASH_ROW_ENTRY *entry) const;
+};
+
 
 /**
    Internal structure that acts as a preamble for HASH_ROW_POS
@@ -67,21 +76,21 @@ typedef struct hash_row_pos_st
  */
 typedef struct hash_row_preamble_st
 {
+  hash_row_preamble_st()= default;
   /*
     The actual key.
    */
-  my_hash_value_type hash_value;
-
-  /**  
-    Length of the key.
-   */
-  uint length;
+  uint hash_value;
 
   /**  
     The search state used to iterate over multiple entries for a
     given key.
    */
-  HASH_SEARCH_STATE search_state;
+  malloc_unordered_multimap
+    <uint,
+     std::unique_ptr<HASH_ROW_ENTRY,
+                     hash_slave_rows_free_entry>>::const_iterator
+       search_state;
 
   /**  
     Wether this search_state is usable or not.
@@ -90,11 +99,11 @@ typedef struct hash_row_preamble_st
 
 } HASH_ROW_PREAMBLE;
 
-typedef struct hash_row_entry_st
+struct HASH_ROW_ENTRY
 {
   HASH_ROW_PREAMBLE *preamble;
   HASH_ROW_POS *positions;
-} HASH_ROW_ENTRY;
+};
 
 class Hash_slave_rows 
 {
@@ -211,7 +220,10 @@ private:
   /**
      The hashtable itself.
    */
-  HASH m_hash;
+  malloc_unordered_multimap
+    <uint,
+     std::unique_ptr<HASH_ROW_ENTRY, hash_slave_rows_free_entry>> m_hash
+       {key_memory_HASH_ROW_ENTRY};
 
   /**
      Auxiliary and internal method used to create an hash key, based on
@@ -222,7 +234,7 @@ private:
 
      @returns the hash key created.
    */
-  my_hash_value_type make_hash_key(TABLE *table, MY_BITMAP* cols);
+  uint make_hash_key(TABLE *table, MY_BITMAP* cols);
 };
 
 #endif
@@ -234,8 +246,9 @@ private:
   - Extract and decode table definition data from the table map event
   - Check if table definition in table map is compatible with table
     definition on slave
- */
-
+  - expose the type information so that it can be used when encoding
+    or decoding row event data.
+*/
 class table_def
 {
 public:
@@ -270,6 +283,22 @@ public:
   {
     return static_cast<enum_field_types>(m_type[index]);
   }
+
+  /// Return the number of JSON columns in this table.
+  int json_column_count() const
+  {
+    // Cache in member field to make successive calls faster.
+    if (m_json_column_count == -1)
+    {
+      int c= 0;
+      for (uint i= 0; i < size(); i++)
+        if (type(i) == MYSQL_TYPE_JSON)
+          c++;
+      m_json_column_count= c;
+    }
+    return m_json_column_count;
+  }
+
   /*
     Return a representation of the type data for one field.
 
@@ -421,6 +450,7 @@ private:
   uchar *m_null_bits;
   uint16 m_flags;         // Table flags
   uchar *m_memory;
+  mutable int m_json_column_count;   // Number of JSON columns
 };
 
 

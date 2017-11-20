@@ -25,14 +25,14 @@
 
 #include <stddef.h>
 
-#include "field.h"
-#include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
-#include "rpl_group_replication.h"
-#include "table.h"
+#include "sql/field.h"
+#include "sql/log.h"
+#include "sql/rpl_group_replication.h"
+#include "sql/table.h"
 #include "table_helper.h"
 #include "thr_lock.h"
 
@@ -95,27 +95,27 @@ set_member_state(void* const context, const char& value, size_t length)
   memcpy(row->member_state, &value, length);
 }
 
-static void set_member_version(void* const context, const char& value,
-                               size_t length)
+static void
+set_member_version(void* const context, const char& value, size_t length)
 {
-  struct st_row_group_members* row=
-      static_cast<struct st_row_group_members*>(context);
-  const size_t max= NAME_LEN;
-  length= std::min(length, max);
+  struct st_row_group_members* row =
+    static_cast<struct st_row_group_members*>(context);
+  const size_t max = NAME_LEN;
+  length = std::min(length, max);
 
-  row->member_version_length= length;
+  row->member_version_length = length;
   memcpy(row->member_version, &value, length);
 }
 
-static void set_member_role(void* const context, const char& value,
-                            size_t length)
+static void
+set_member_role(void* const context, const char& value, size_t length)
 {
-  struct st_row_group_members* row=
-      static_cast<struct st_row_group_members*>(context);
-  const size_t max= NAME_LEN;
-  length= std::min(length, max);
+  struct st_row_group_members* row =
+    static_cast<struct st_row_group_members*>(context);
+  const size_t max = NAME_LEN;
+  length = std::min(length, max);
 
-  row->member_role_length= length;
+  row->member_role_length = length;
   memcpy(row->member_role, &value, length);
 }
 
@@ -148,7 +148,10 @@ PFS_engine_table_share table_replication_group_members::m_share = {
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_table_def,
-  true /* perpetual */
+  true, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 PFS_engine_table*
@@ -219,8 +222,8 @@ table_replication_group_members::make_row(uint index)
   m_row.member_host_length = 0;
   m_row.member_port = 0;
   m_row.member_state_length = 0;
-  m_row.member_version_length= 0;
-  m_row.member_role_length= 0;
+  m_row.member_version_length = 0;
+  m_row.member_role_length = 0;
 
   // Set callbacks on GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS.
   const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS callbacks = {
@@ -290,7 +293,8 @@ table_replication_group_members::read_row_values(
         set_field_char_utf8(f, m_row.member_role, m_row.member_role_length);
         break;
       case 6: /** member_version */
-        set_field_char_utf8(f, m_row.member_version, m_row.member_version_length);
+        set_field_char_utf8(
+          f, m_row.member_version, m_row.member_version_length);
         break;
       default:
         DBUG_ASSERT(false);

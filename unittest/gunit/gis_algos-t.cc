@@ -17,11 +17,11 @@
 #include <stddef.h>
 #include <cmath>
 
-#include "gis/srid.h"
-#include "gstream.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "spatial.h"
+#include "sql/gis/srid.h"
+#include "sql/gstream.h"
+#include "sql/spatial.h"
 
 namespace gis_algo_unittest {
 

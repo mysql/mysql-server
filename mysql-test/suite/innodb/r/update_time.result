@@ -14,7 +14,7 @@ ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
-AND update_time IS NOT NULL;
+AND update_time IS NOT NULL OR FALSE;
 COUNT(*)
 1
 # We cant deterministically check that the saved value is correct, but
@@ -22,7 +22,7 @@ COUNT(*)
 # Usually update_time and NOW() are equal below, but on heavily loaded
 # machines NOW() could be younger.
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
-AND TIMESTAMPDIFF(SECOND, update_time, NOW()) < 120;
+AND TIMESTAMPDIFF(SECOND, update_time, NOW()) < 120 OR FALSE;
 COUNT(*)
 1
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page
@@ -41,7 +41,7 @@ ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
-AND update_time IS NOT NULL;
+AND update_time IS NOT NULL OR FALSE;
 COUNT(*)
 1
 # Test the behavior after restart with a prepared XA transaction
@@ -62,7 +62,7 @@ ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
-AND update_time IS NOT NULL;
+AND update_time IS NOT NULL OR FALSE;
 COUNT(*)
 1
 DROP TABLE t;

@@ -16,6 +16,7 @@
   capability dac_override,
   capability setuid,
   capability setgid,
+  capability sys_nice,
 
 # Allow network access
   network tcp,

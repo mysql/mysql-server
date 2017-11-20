@@ -22,10 +22,10 @@
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
-#include "sql_list.h"
-#include "thr_malloc.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/sql_list.h"
+#include "sql/thr_malloc.h"
 
 
 extern "C"

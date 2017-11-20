@@ -19,16 +19,16 @@ TempTable Indexed Cells implementation. */
 #include <cstddef> /* size_t */
 #include <limits>  /* std::numeric_limits */
 
-#include "field.h"                /* Field */
+#include "my_dbug.h"        /* DBUG_ASSERT() */
+#include "my_hash_combine.h" /* my_hash_combine() */
+#include "sql/field.h"            /* Field */
+#include "sql/key.h"        /* KEY */
 #include "temptable/cell.h"          /* temptable::Cell */
 #include "temptable/index.h"         /* temptable::Index */
 #include "temptable/indexed_cells.h" /* temptable::Indexed_cells */
 #include "temptable/row.h"     /* temptable::Row, temptable::Rows, temptable::Rows_cursor */
 #include "temptable/storage.h" /* temptable::Storage::Element */
 #include "temptable/table.h"   /* temptable::Table */
-#include "key.h"            /* KEY */
-#include "my_dbug.h"        /* DBUG_ASSERT() */
-#include "my_hash_combine.h" /* my_hash_combine() */
 
 namespace temptable {
 

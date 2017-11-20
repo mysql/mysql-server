@@ -39,7 +39,7 @@ connection con1;
 
 SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 
 # Record count should be 1
 SELECT COUNT(*) FROM tab;
@@ -53,7 +53,7 @@ connection con2;
 
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 
 START TRANSACTION;
 
@@ -156,7 +156,7 @@ connection con1;
 
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 
 # Record count should be 1
 SELECT COUNT(*) FROM tab;
@@ -170,7 +170,7 @@ connection con2;
 
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 
 START TRANSACTION;
 

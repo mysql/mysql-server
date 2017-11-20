@@ -107,13 +107,15 @@ lock_prdt_set_prdt(
 @param[in]	prdt1	first predicate lock
 @param[in]	prdt2	second predicate lock
 @param[in]	op	predicate comparison operator
+@param[in]	srs      Spatial reference system of R-tree
 @return	true if consistent */
 static
 bool
 lock_prdt_consistent(
 	lock_prdt_t*	prdt1,
 	lock_prdt_t*	prdt2,
-	ulint		op)
+	ulint		op,
+	const dd::Spatial_reference_system*	srs)
 {
 	bool		ret = false;
 	rtr_mbr_t*	mbr1 = prdt_get_mbr_from_prdt(prdt1);
@@ -132,19 +134,19 @@ lock_prdt_consistent(
 
 	switch (action) {
 	case PAGE_CUR_CONTAIN:
-		ret = mbr_contain_cmp(mbr1, mbr2, 0);
+		ret = mbr_contain_cmp(srs, mbr1, mbr2);
 		break;
 	case PAGE_CUR_DISJOINT:
-		ret = mbr_disjoint_cmp(mbr1, mbr2, 0);
+		ret = mbr_disjoint_cmp(srs, mbr1, mbr2);
 		break;
 	case PAGE_CUR_MBR_EQUAL:
-		ret = mbr_equal_cmp(mbr1, mbr2, 0);
+		ret = mbr_equal_cmp(srs, mbr1, mbr2);
 		break;
 	case PAGE_CUR_INTERSECT:
-		ret = mbr_intersect_cmp(mbr1, mbr2, 0);
+		ret = mbr_intersect_cmp(srs, mbr1, mbr2);
 		break;
 	case PAGE_CUR_WITHIN:
-		ret = mbr_within_cmp(mbr1, mbr2, 0);
+		ret = mbr_within_cmp(srs, mbr1, mbr2);
 		break;
 	default:
 		ib::error() << "invalid operator " << action;
@@ -218,7 +220,8 @@ lock_prdt_has_to_wait(
 			return(FALSE);
 		}
 
-		if (!lock_prdt_consistent(cur_prdt, prdt, 0)) {
+		if (!lock_prdt_consistent(cur_prdt, prdt, 0,
+					  lock2->index->rtr_srs.get())) {
 			return(false);
 		}
 
@@ -276,7 +279,8 @@ lock_prdt_has_lock(
 			as the one to look, and prdicate test is successful,
 			then we find a lock */
 			if (cur_prdt->op == prdt->op
-			    && lock_prdt_consistent(cur_prdt, prdt, 0)) {
+			    && lock_prdt_consistent(cur_prdt, prdt, 0,
+					lock->index->rtr_srs.get())) {
 
 				return(lock);
 			}
@@ -373,12 +377,13 @@ bool
 lock_prdt_is_same(
 /*==============*/
 	lock_prdt_t*	prdt1,		/*!< in: MBR with the lock */
-	lock_prdt_t*	prdt2)		/*!< in: MBR with the lock */
+	lock_prdt_t*	prdt2,		/*!< in: MBR with the lock */
+	const dd::Spatial_reference_system*	srs) /*!< in: SRS of R-tree */
 {
 	rtr_mbr_t*	mbr1 = prdt_get_mbr_from_prdt(prdt1);
 	rtr_mbr_t*	mbr2 = prdt_get_mbr_from_prdt(prdt2);
 
-	if (prdt1->op == prdt2->op && mbr_equal_cmp(mbr1, mbr2, 0)) {
+	if (prdt1->op == prdt2->op && mbr_equal_cmp(srs, mbr1, mbr2)) {
 		return(true);
 	}
 
@@ -416,7 +421,8 @@ lock_prdt_find_on_page(
 			ut_ad(lock->type_mode & LOCK_PREDICATE);
 
 			if (lock_prdt_is_same(lock_get_prdt_from_lock(lock),
-					      prdt)) {
+					      prdt,
+					      lock->index->rtr_srs.get())) {
 				return(lock);
 			}
 		}
@@ -439,14 +445,11 @@ lock_prdt_add_to_queue(
 					the record */
 	dict_index_t*		index,	/*!< in: index of record */
 	trx_t*			trx,	/*!< in/out: transaction */
-	lock_prdt_t*		prdt,	/*!< in: Minimum Bounding Rectangle
+	lock_prdt_t*		prdt)	/*!< in: Minimum Bounding Rectangle
 					the new lock will be on */
-	bool			caller_owns_trx_mutex)
-					/*!< in: TRUE if caller owns the
-					transaction mutex */
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
+	ut_ad(trx->owns_mutex == trx_mutex_own(trx));
 	ut_ad(!index->is_clustered() && !dict_index_is_online_ddl(index));
 	ut_ad(type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
 
@@ -498,7 +501,7 @@ lock_prdt_add_to_queue(
 
 	RecLock	rec_lock(index, block, PRDT_HEAPNO, type_mode);
 
-	return(rec_lock.create(trx, caller_owns_trx_mutex, true, prdt));
+	return(rec_lock.create(trx, true, prdt));
 }
 
 /*********************************************************************//**
@@ -580,9 +583,13 @@ lock_prdt_insert_check_and_lock(
 		/* Note that we may get DB_SUCCESS also here! */
 
 		trx_mutex_enter(trx);
+		
+		trx->owns_mutex = true;
 
 		err = rec_lock.add_to_waitq(wait_for, prdt);
 
+		trx->owns_mutex = false;
+	
 		trx_mutex_exit(trx);
 
 	} else {
@@ -645,21 +652,24 @@ lock_prdt_update_parent(
 
 		/* Check each lock in parent to see if it intersects with
 		left or right child */
-		if (!lock_prdt_consistent(lock_prdt, left_prdt, op)
+		if (!lock_prdt_consistent(lock_prdt, left_prdt, op,
+					  lock->index->rtr_srs.get())
 		    && !lock_prdt_find_on_page(lock->type_mode, left_block,
 					       lock_prdt, lock->trx)) {
-			lock_prdt_add_to_queue(lock->type_mode,
-					       left_block, lock->index,
-					       lock->trx, lock_prdt,
-					       FALSE);
+
+			lock_prdt_add_to_queue(
+				lock->type_mode, left_block, lock->index,
+				lock->trx, lock_prdt);
 		}
 
-		if (!lock_prdt_consistent(lock_prdt, right_prdt, op)
+		if (!lock_prdt_consistent(lock_prdt, right_prdt, op,
+					  lock->index->rtr_srs.get())
 		    && !lock_prdt_find_on_page(lock->type_mode, right_block,
 					       lock_prdt, lock->trx)) {
-			lock_prdt_add_to_queue(lock->type_mode, right_block,
-					       lock->index, lock->trx,
-					       lock_prdt, FALSE);
+
+			lock_prdt_add_to_queue(
+				lock->type_mode, right_block,
+				lock->index, lock->trx, lock_prdt);
 		}
 	}
 
@@ -693,14 +703,20 @@ lock_prdt_update_split_low(
 
 		/* First dealing with Page Lock */
 		if (lock->type_mode & LOCK_PRDT_PAGE) {
+
 			/* Duplicate the lock to new page */
 			trx_mutex_enter(lock->trx);
-			lock_prdt_add_to_queue(lock->type_mode,
-					       new_block,
-					       lock->index,
-					       lock->trx, NULL, TRUE);
+
+			lock->trx->owns_mutex = true;
+
+			lock_prdt_add_to_queue(
+				lock->type_mode, new_block, lock->index,
+				lock->trx, NULL);
+
+			lock->trx->owns_mutex = false;
 
 			trx_mutex_exit(lock->trx);
+
 			continue;
 		}
 
@@ -717,25 +733,36 @@ lock_prdt_update_split_low(
 
 		lock_prdt = lock_get_prdt_from_lock(lock);
 
-		if (lock_prdt_consistent(lock_prdt, prdt, op)) {
+		if (lock_prdt_consistent(lock_prdt, prdt, op,
+					 lock->index->rtr_srs.get())) {
 
-			if (!lock_prdt_consistent(lock_prdt, new_prdt, op)) {
+			if (!lock_prdt_consistent(lock_prdt, new_prdt, op,
+						  lock->index->rtr_srs.get())) {
 				/* Move the lock to new page */
 				trx_mutex_enter(lock->trx);
-				lock_prdt_add_to_queue(lock->type_mode,
-						       new_block,
-						       lock->index,
-						       lock->trx, lock_prdt,
-						       TRUE);
+
+				lock->trx->owns_mutex = true;
+
+				lock_prdt_add_to_queue(
+					lock->type_mode, new_block,
+					lock->index, lock->trx, lock_prdt);
+
+				lock->trx->owns_mutex = false;
+
 				trx_mutex_exit(lock->trx);
 			}
-		} else if (!lock_prdt_consistent(lock_prdt, new_prdt, op)) {
+		} else if (!lock_prdt_consistent(lock_prdt, new_prdt, op,
+						 lock->index->rtr_srs.get())) {
 			/* Duplicate the lock to new page */
 			trx_mutex_enter(lock->trx);
-			lock_prdt_add_to_queue(lock->type_mode,
-					       new_block,
-					       lock->index,
-					       lock->trx, lock_prdt, TRUE);
+
+			lock->trx->owns_mutex = true;
+
+			lock_prdt_add_to_queue(
+				lock->type_mode, new_block, lock->index,
+				lock->trx, lock_prdt);
+
+			lock->trx->owns_mutex = false;
 
 			trx_mutex_exit(lock->trx);
 		}
@@ -835,12 +862,14 @@ lock_prdt_lock(
 
 		RecLock	rec_lock(index, block, PRDT_HEAPNO, prdt_mode);
 
-		lock = rec_lock.create(trx, false, true);
+		lock = rec_lock.create(trx, true);
 
 		status = LOCK_REC_SUCCESS_CREATED;
 
 	} else {
 		trx_mutex_enter(trx);
+
+		trx->owns_mutex = true;
 
 		if (lock_rec_get_next_on_page(lock)
 		    || lock->trx != trx
@@ -848,7 +877,8 @@ lock_prdt_lock(
 		    || lock_rec_get_n_bits(lock) == 0
 		    || ((type_mode & LOCK_PREDICATE)
 		        && (!lock_prdt_consistent(
-				lock_get_prdt_from_lock(lock), prdt, 0)))) {
+				lock_get_prdt_from_lock(lock), prdt, 0,
+				lock->index->rtr_srs.get())))) {
 
 			lock = lock_prdt_has_lock(
 				mode, type_mode, block, prdt, trx);
@@ -872,15 +902,20 @@ lock_prdt_lock(
 
 					lock_prdt_add_to_queue(
 						prdt_mode, block, index, trx,
-						prdt, true);
+						prdt);
 
 					status = LOCK_REC_SUCCESS;
 				}
 			}
 
+			trx->owns_mutex = false;
+
 			trx_mutex_exit(trx);
 
 		} else {
+
+			trx->owns_mutex = false;
+
 			trx_mutex_exit(trx);
 
 			if (!lock_rec_get_nth_bit(lock, PRDT_HEAPNO)) {
@@ -951,7 +986,7 @@ lock_place_prdt_page_lock(
 		RecID	rec_id(space, page_no, PRDT_HEAPNO);
 		RecLock	rec_lock(index, rec_id, mode);
 
-		rec_lock.create(trx, false, true);
+		rec_lock.create(trx, true);
 
 #ifdef PRDT_DIAG
 		printf("GIS_DIAGNOSTIC: page lock %d\n", (int) page_no);
@@ -1018,7 +1053,7 @@ lock_prdt_rec_move(
 
 		lock_prdt_add_to_queue(
 			type_mode, receiver, lock->index, lock->trx,
-			lock_prdt, FALSE);
+			lock_prdt);
 	}
 
 	lock_mutex_exit();

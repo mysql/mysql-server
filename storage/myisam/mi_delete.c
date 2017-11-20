@@ -112,12 +112,6 @@ int mi_delete(MI_INFO *info,const uchar *record)
   myisam_log_command(MI_LOG_DELETE,info,(uchar*) lastpos,sizeof(lastpos),0);
   (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
 
-  if (info->invalidator != 0)
-  {
-    DBUG_PRINT("info", ("invalidator... '%s' (delete)", info->filename));
-    (*info->invalidator)(info->filename);
-    info->invalidator=0;
-  }
   DBUG_RETURN(0);
 
 err:

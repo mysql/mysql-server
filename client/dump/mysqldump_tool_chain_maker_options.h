@@ -18,11 +18,11 @@
 #ifndef MYSQLDUMP_TOOL_CHAIN_MAKER_OPTIONS_INCLUDED
 #define MYSQLDUMP_TOOL_CHAIN_MAKER_OPTIONS_INCLUDED
 
-#include "abstract_data_object.h"
+#include "client/dump/abstract_data_object.h"
+#include "client/dump/mysql_object_reader_options.h"
+#include "client/dump/object_filter.h"
+#include "client/dump/sql_formatter_options.h"
 #include "my_inttypes.h"
-#include "mysql_object_reader_options.h"
-#include "object_filter.h"
-#include "sql_formatter_options.h"
 
 namespace Mysql{
 namespace Tools{

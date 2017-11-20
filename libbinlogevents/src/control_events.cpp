@@ -140,7 +140,8 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
        IGNORABLE_HEADER_LEN,
       TRANSACTION_CONTEXT_HEADER_LEN,
       VIEW_CHANGE_HEADER_LEN,
-      XA_PREPARE_HEADER_LEN
+      XA_PREPARE_HEADER_LEN,
+      ROWS_HEADER_LEN_V2,
     };
      /*
        Allows us to sanity-check that all events initialized their

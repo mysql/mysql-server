@@ -22,9 +22,6 @@
 #include <new>
 #include <utility>
 
-#include "gis/srid.h"
-#include "gis_bg_traits.h"
-#include "gstream.h"                            // Gis_read_stream
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
@@ -32,7 +29,10 @@
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "psi_memory_key.h"
+#include "sql/gis/srid.h"
+#include "sql/gis_bg_traits.h"                  // IWYU pragma: keep
+#include "sql/gstream.h"                        // Gis_read_stream
+#include "sql/psi_memory_key.h"
 #include "sql_string.h"                         // String
 
 

@@ -13,10 +13,10 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/index_stats.h"
+#include "sql/dd/impl/tables/index_stats.h"
 
-#include "dd/impl/raw/object_keys.h"
-#include "dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/impl/raw/object_keys.h"
+#include "sql/dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
 namespace tables {
@@ -38,6 +38,8 @@ Index_stats::Index_stats()
                          "column_name VARCHAR(64) NOT NULL");
   m_target_def.add_field(FIELD_CARDINALITY, "FIELD_CARDINALITY",
                          "cardinality BIGINT UNSIGNED");
+  m_target_def.add_field(FIELD_CACHED_TIME, "FIELD_CACHED_TIME",
+                         "cached_time TIMESTAMP NOT NULL");
 
   m_target_def.add_index("UNIQUE KEY (schema_name, table_name, " \
                          "index_name, column_name)");

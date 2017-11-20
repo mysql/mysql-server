@@ -18,9 +18,10 @@
 
 #include <string>
 
-#include "dd/impl/types/entity_object_table_impl.h"
-#include "dd/object_id.h"
-#include "dd/types/schema.h"
+#include "sql/dd/impl/types/entity_object_table_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/schema.h"
 
 namespace dd {
 

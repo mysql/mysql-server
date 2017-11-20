@@ -16,6 +16,10 @@
 #ifndef DD_UPGRADE__UPGRADE_H_INCLUDED
 #define DD_UPGRADE__UPGRADE_H_INCLUDED
 
+#include <stdio.h>
+
+#include "sql/dd/string_type.h"
+
 class THD;
 
 namespace dd {

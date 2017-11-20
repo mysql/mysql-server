@@ -20,9 +20,9 @@
 
 #include <list>
 
-#include "connection_handler.h"     // Connection_handler
 #include "mysql/psi/mysql_cond.h"   // mysql_cond_t
 #include "mysql/psi/mysql_mutex.h"  // mysql_mutex_t
+#include "sql/conn_handler/connection_handler.h" // Connection_handler
 
 class Channel_info;
 class THD;

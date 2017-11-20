@@ -48,7 +48,6 @@ class THD;
 #include <arpa/inet.h>
 #endif
 #include "lf.h"
-#include "mdl.h"
 #include "my_compiler.h"
 #include "pfs_column_types.h"
 #include "pfs_con_slice.h"
@@ -60,6 +59,7 @@ class THD;
 #include "pfs_lock.h"
 #include "pfs_server.h"
 #include "pfs_stat.h"
+#include "sql/mdl.h"
 #include "violite.h" /* enum_vio_type */
 
 extern PFS_single_stat *thread_instr_class_waits_array_start;
@@ -683,7 +683,7 @@ void carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
 extern PFS_stage_stat *global_instr_class_stages_array;
 extern PFS_statement_stat *global_instr_class_statements_array;
 extern PFS_histogram global_statements_histogram;
-extern std::atomic<PFS_memory_stat*> global_instr_class_memory_array;
+extern std::atomic<PFS_memory_stat *> global_instr_class_memory_array;
 
 PFS_mutex *sanitize_mutex(PFS_mutex *unsafe);
 PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe);

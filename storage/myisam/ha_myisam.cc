@@ -27,23 +27,23 @@
 #include <algorithm>
 #include <new>
 
-#include "current_thd.h"
-#include "derror.h"
-#include "key.h"                                // key_copy
 #include "lex_string.h"
-#include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_psi_config.h"
 #include "myisam.h"
 #include "myisamdef.h"
-#include "mysqld.h"
 #include "rt_index.h"
-#include "sql_class.h"                          // THD
-#include "sql_plugin.h"
-#include "sql_table.h"                          // tablename_to_filename
-#include "system_variables.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"
+#include "sql/key.h"                            // key_copy
+#include "sql/log.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"                      // THD
+#include "sql/sql_plugin.h"
+#include "sql/sql_table.h"                      // tablename_to_filename
+#include "sql/system_variables.h"
 
 using std::min;
 using std::max;
@@ -1321,7 +1321,7 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
 
   table->keys_in_use_for_query.clear_all();
 
-  if (table_list->process_index_hints(table))
+  if (table_list->process_index_hints(thd, table))
     DBUG_RETURN(HA_ADMIN_FAILED);
   map= ~(ulonglong) 0;
   if (!table->keys_in_use_for_query.is_clear_all())
@@ -1370,7 +1370,7 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT*)
 
   table->keys_in_use_for_query.clear_all();
 
-  if (table_list->process_index_hints(table))
+  if (table_list->process_index_hints(thd, table))
     DBUG_RETURN(HA_ADMIN_FAILED);
 
   map= ~(ulonglong) 0;
@@ -2432,97 +2432,3 @@ mysql_declare_plugin(myisam)
   0,
 }
 mysql_declare_plugin_end;
-
-
-/**
-  @brief Register a named table with a call back function to the query cache.
-
-  @param thd The thread handle
-  @param table_name A pointer to the table name in the table cache
-  @param table_name_len The length of the table name
-  @param[out] engine_callback The pointer to the storage engine call back
-    function, currently 0
-  @param[out] engine_data Engine data will be set to 0.
-
-  @note Despite the name of this function, it is used to check each statement
-    before it is cached and not to register a table or callback function.
-
-  @see handler::register_query_cache_table
-
-  @return The error code. The engine_data and engine_callback will be set to 0.
-    @retval TRUE Success
-    @retval FALSE An error occured
-*/
-
-bool
-ha_myisam::register_query_cache_table(THD *thd MY_ATTRIBUTE((unused)),
-                                      char *table_name MY_ATTRIBUTE((unused)),
-                                      size_t table_name_len MY_ATTRIBUTE((unused)),
-                                      qc_engine_callback *engine_callback,
-                                      ulonglong *engine_data)
-{
-  DBUG_ENTER("ha_myisam::register_query_cache_table");
-  /*
-    No call back function is needed to determine if a cached statement
-    is valid or not.
-  */
-  *engine_callback= 0;
-
-  /*
-    No engine data is needed.
-  */
-  *engine_data= 0;
-
-  if (file->s->concurrent_insert)
-  {
-    /*
-      If a concurrent INSERT has happened just before the currently
-      processed SELECT statement, the total size of the table is
-      unknown.
-
-      To determine if the table size is known, the current thread's snap
-      shot of the table size with the actual table size are compared.
-
-      If the table size is unknown the SELECT statement can't be cached.
-
-      When concurrent inserts are disabled at table open, mi_open()
-      does not assign a get_status() function. In this case the local
-      ("current") status is never updated. We would wrongly think that
-      we cannot cache the statement.
-    */
-    ulonglong actual_data_file_length;
-    ulonglong current_data_file_length;
-
-    /*
-      POSIX visibility rules specify that "2. Whatever memory values a
-      thread can see when it unlocks a mutex <...> can also be seen by any
-      thread that later locks the same mutex". In this particular case,
-      concurrent insert thread had modified the data_file_length in
-      MYISAM_SHARE before it has unlocked (or even locked)
-      structure_guard_mutex. So, here we're guaranteed to see at least that
-      value after we've locked the same mutex. We can see a later value
-      (modified by some other thread) though, but it's ok, as we only want
-      to know if the variable was changed, the actual new value doesn't matter
-    */
-    actual_data_file_length= file->s->state.state.data_file_length;
-    current_data_file_length= file->save_state.data_file_length;
-
-    if (current_data_file_length != actual_data_file_length)
-    {
-      /* Don't cache current statement. */
-      DBUG_RETURN(FALSE);
-    }
-  }
-
-  /*
-    This query execution might have started after the query cache was flushed
-    by a concurrent INSERT. In this case, don't cache this statement as the
-    data file length difference might not be visible yet if the tables haven't
-    been unlocked by the concurrent insert thread.
-  */
-  if (file->state->uncacheable)
-    DBUG_RETURN(FALSE);
-
-  /* It is ok to try to cache current statement. */
-  DBUG_RETURN(TRUE);
-}

@@ -141,6 +141,54 @@ static const dec1 frac_max[DIG_PER_DEC1-1]={
   999900000, 999990000, 999999000,
   999999900, 999999990 };
 
+static inline dec1 div_by_pow10(dec1 x, int p)
+{
+  /*
+    GCC can optimize division by a constant to a multiplication and some
+    shifts, which is faster than dividing by a variable, even taking into
+    account the extra cost of the switch. It is also (empirically on a Skylake)
+    faster than storing the magic multiplier constants in a table and doing it
+    ourselves. However, since the code is much bigger, we only use this in
+    a few select places.
+
+    Note the use of unsigned, which is faster for this specific operation.
+  */
+  DBUG_ASSERT(x >= 0);
+  switch (p) {
+    case 0: return static_cast<uint32_t>(x) / 1;
+    case 1: return static_cast<uint32_t>(x) / 10;
+    case 2: return static_cast<uint32_t>(x) / 100;
+    case 3: return static_cast<uint32_t>(x) / 1000;
+    case 4: return static_cast<uint32_t>(x) / 10000;
+    case 5: return static_cast<uint32_t>(x) / 100000;
+    case 6: return static_cast<uint32_t>(x) / 1000000;
+    case 7: return static_cast<uint32_t>(x) / 10000000;
+    case 8: return static_cast<uint32_t>(x) / 100000000;
+    default:
+      DBUG_ASSERT(FALSE);
+      return x / powers10[p];
+  }
+}
+
+static inline dec1 mod_by_pow10(dec1 x, int p)
+{
+  // See div_by_pow10 for rationale.
+  DBUG_ASSERT(x >= 0);
+  switch (p) {
+    case 1: return static_cast<uint32_t>(x) % 10;
+    case 2: return static_cast<uint32_t>(x) % 100;
+    case 3: return static_cast<uint32_t>(x) % 1000;
+    case 4: return static_cast<uint32_t>(x) % 10000;
+    case 5: return static_cast<uint32_t>(x) % 100000;
+    case 6: return static_cast<uint32_t>(x) % 1000000;
+    case 7: return static_cast<uint32_t>(x) % 10000000;
+    case 8: return static_cast<uint32_t>(x) % 100000000;
+    default:
+      DBUG_ASSERT(FALSE);
+      return x % powers10[p];
+  }
+}
+
 #define sanity(d) DBUG_ASSERT((d)->len >0)
 
 #define FIX_INTG_FRAC_ERROR(len, intg1, frac1, error)                   \
@@ -211,6 +259,7 @@ static const dec1 frac_max[DIG_PER_DEC1-1]={
           (to)=a;                                                       \
         } while(0)
 
+ALWAYS_INLINE static int decimal_bin_size_inline(int precision, int scale);
 
 /*
   This is a direct loop unrolling of code that used to look like this:
@@ -259,20 +308,23 @@ static inline int count_leading_zeroes(int i, dec1 val)
  */
 static inline int count_trailing_zeroes(int i, dec1 val)
 {
+  DBUG_ASSERT(val >= 0);
+  uint32_t uval= val;
+
   int ret= 0;
   switch(i)
   {
   /* @note Intentional fallthrough in all case labels */
-  case 0: if ((val % 1) != 0) break; ++ret;  // Fall through.
-  case 1: if ((val % 10) != 0) break; ++ret;  // Fall through.
-  case 2: if ((val % 100) != 0) break; ++ret;  // Fall through.
-  case 3: if ((val % 1000) != 0) break; ++ret;  // Fall through.
-  case 4: if ((val % 10000) != 0) break; ++ret;  // Fall through.
-  case 5: if ((val % 100000) != 0) break; ++ret;  // Fall through.
-  case 6: if ((val % 1000000) != 0) break; ++ret;  // Fall through.
-  case 7: if ((val % 10000000) != 0) break; ++ret;  // Fall through.
-  case 8: if ((val % 100000000) != 0) break; ++ret;  // Fall through.
-  case 9: if ((val % 1000000000) != 0) break; ++ret;  // Fall through.
+  case 0: if ((uval % 1) != 0) break; ++ret;  // Fall through.
+  case 1: if ((uval % 10) != 0) break; ++ret;  // Fall through.
+  case 2: if ((uval % 100) != 0) break; ++ret;  // Fall through.
+  case 3: if ((uval % 1000) != 0) break; ++ret;  // Fall through.
+  case 4: if ((uval % 10000) != 0) break; ++ret;  // Fall through.
+  case 5: if ((uval % 100000) != 0) break; ++ret;  // Fall through.
+  case 6: if ((uval % 1000000) != 0) break; ++ret;  // Fall through.
+  case 7: if ((uval % 10000000) != 0) break; ++ret;  // Fall through.
+  case 8: if ((uval % 100000000) != 0) break; ++ret;  // Fall through.
+  case 9: if ((uval % 1000000000) != 0) break; ++ret;  // Fall through.
   default: { DBUG_ASSERT(FALSE); }
   }
   return ret;
@@ -316,7 +368,7 @@ void max_decimal(int precision, int frac, decimal_t *to)
 }
 
 
-static dec1 *remove_leading_zeroes(const decimal_t *from, int *intg_result)
+static inline dec1 *remove_leading_zeroes(const decimal_t *from, int *intg_result)
 {
   int intg= from->intg, i;
   dec1 *buf0= from->buf;
@@ -1391,7 +1443,7 @@ int decimal2bin(decimal_t *from, uchar *to, int precision, int frac)
   if (intg1x)
   {
     int i=dig2bytes[intg1x];
-    dec1 x=(*buf1++ % powers10[intg1x]) ^ mask;
+    dec1 x= mod_by_pow10(*buf1++, intg1x) ^ mask;
     switch (i)
     {
       case 1: mi_int1store(to, x); break;
@@ -1419,7 +1471,7 @@ int decimal2bin(decimal_t *from, uchar *to, int precision, int frac)
         lim=(frac1 < frac0 ? DIG_PER_DEC1 : frac0x);
     while (frac1x < lim && dig2bytes[frac1x] == i)
       frac1x++;
-    x=(*buf1 / powers10[DIG_PER_DEC1 - frac1x]) ^ mask;
+    x=div_by_pow10(*buf1, DIG_PER_DEC1 - frac1x) ^ mask;
     switch (i)
     {
       case 1: mi_int1store(to, x); break;
@@ -1470,7 +1522,7 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale)
   dec1 *buf=to->buf, mask=(*from & 0x80) ? 0 : -1;
   const uchar *stop;
   uchar *d_copy;
-  int bin_size= decimal_bin_size(precision, scale);
+  int bin_size= decimal_bin_size_inline(precision, scale);
 
   sanity(to);
   d_copy= (uchar*) my_alloca(bin_size);
@@ -1590,8 +1642,7 @@ int decimal_size(int precision, int scale)
   RETURN VALUE
     size in bytes
 */
-
-int decimal_bin_size(int precision, int scale)
+ALWAYS_INLINE static int decimal_bin_size_inline(int precision, int scale)
 {
   int intg=precision-scale,
       intg0=intg/DIG_PER_DEC1, frac0=scale/DIG_PER_DEC1,
@@ -1604,6 +1655,11 @@ int decimal_bin_size(int precision, int scale)
   DBUG_ASSERT(frac0x <= DIG_PER_DEC1);
   return intg0*sizeof(dec1)+dig2bytes[intg0x]+
          frac0*sizeof(dec1)+dig2bytes[frac0x];
+}
+
+int decimal_bin_size(int precision, int scale)
+{
+  return decimal_bin_size_inline(precision, scale);
 }
 
 /*

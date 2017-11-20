@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -164,6 +164,12 @@ ndbd_exit_classification_message(ndbd_exit_classification classification,
 			        ndbd_exit_status *status);
 const char *
 ndbd_exit_status_message(ndbd_exit_status status);
+
+int ndbd_exit_code_get_next(int index,
+                            int* exit_code,
+                            const char** status_msg,
+                            const char** class_msg,
+                            const char** error_msg);
 
 #endif
 

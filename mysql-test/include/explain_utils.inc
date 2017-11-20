@@ -51,12 +51,6 @@ if ($innodb) {
 --replace_column 10 X 11 X
   }
 }
---eval EXPLAIN EXTENDED $query
-if (`SELECT ROW_COUNT() > 0`) {
---echo # Erroneous query: EXPLAIN EXTENDED $query
---die Unexpected ROW_COUNT() <> 0
-}
---echo # Status of EXPLAIN EXTENDED query
 --disable_query_log
 --disable_warnings
 SHOW STATUS WHERE (Variable_name LIKE 'Sort%' OR
@@ -89,8 +83,6 @@ if ($innodb) {
 --replace_column 10 X 11 X
   }
 }
---eval EXPLAIN EXTENDED $select
---echo # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 --disable_query_log
 --disable_warnings
 SHOW STATUS WHERE (Variable_name LIKE 'Sort%' OR

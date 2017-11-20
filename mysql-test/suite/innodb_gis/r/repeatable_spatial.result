@@ -19,8 +19,8 @@ COUNT(*)
 1
 "In connection 1"
 SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 REPEATABLE-READ
 SELECT COUNT(*) FROM tab;
 COUNT(*)
@@ -30,8 +30,8 @@ c1	ST_AsText(c2)	ST_AsText(c3)	ST_AsText(c4)	ST_AsText(c5)
 1	POINT(10 10)	LINESTRING(5 5,20 20,30 30)	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
 "In connection 2"
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-COMMITTED
 START TRANSACTION;
 INSERT INTO tab(c1,c2,c3,c4,c5) 
@@ -98,8 +98,8 @@ COUNT(*)
 1
 "In connection 1"
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 REPEATABLE-READ
 SELECT COUNT(*) FROM tab;
 COUNT(*)
@@ -109,8 +109,8 @@ c1	ST_AsText(c2)	ST_AsText(c3)	ST_AsText(c4)	ST_AsText(c5)
 1	POINT(10 10)	LINESTRING(5 5,20 20,30 30)	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
 "In connection 2"
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-COMMITTED
 START TRANSACTION;
 INSERT INTO tab(c1,c2,c3,c4,c5) 

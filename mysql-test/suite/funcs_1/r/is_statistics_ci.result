@@ -37,7 +37,7 @@ INDEX_NAME	varchar(64)	YES		NULL
 SEQ_IN_INDEX	int(10) unsigned	NO		NULL	
 COLUMN_NAME	varchar(64)	YES		NULL	
 COLLATION	varchar(1)	YES		NULL	
-CARDINALITY	bigint(20) unsigned	YES		NULL	
+CARDINALITY	bigint(21)	YES		NULL	
 SUB_PART	bigint(21)	YES		NULL	
 PACKED	binary(0)	YES		NULL	
 NULLABLE	varchar(3)	NO			
@@ -47,7 +47,7 @@ INDEX_COMMENT	varchar(2048)	NO		NULL
 IS_VISIBLE	varchar(3)	NO			
 SHOW CREATE TABLE information_schema.STATISTICS;
 View	Create View	character_set_client	collation_connection
-STATISTICS	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`STATISTICS` AS select (`cat`.`name` collate utf8_tolower_ci) AS `TABLE_CATALOG`,(`sch`.`name` collate utf8_tolower_ci) AS `TABLE_SCHEMA`,(`tbl`.`name` collate utf8_tolower_ci) AS `TABLE_NAME`,if(((`idx`.`type` = 'PRIMARY') or (`idx`.`type` = 'UNIQUE')),'0','1') AS `NON_UNIQUE`,(`sch`.`name` collate utf8_tolower_ci) AS `INDEX_SCHEMA`,(`idx`.`name` collate utf8_tolower_ci) AS `INDEX_NAME`,`icu`.`ordinal_position` AS `SEQ_IN_INDEX`,(`col`.`name` collate utf8_tolower_ci) AS `COLUMN_NAME`,(case when (`icu`.`order` = 'DESC') then 'D' when (`icu`.`order` = 'ASC') then 'A' else NULL end) AS `COLLATION`,`stat`.`cardinality` AS `CARDINALITY`,get_dd_index_sub_part_length(`icu`.`length`,`col`.`type`,`col`.`char_length`,`col`.`collation_id`,`idx`.`type`) AS `SUB_PART`,NULL AS `PACKED`,if((`col`.`is_nullable` = 1),'YES','') AS `NULLABLE`,(case when (`idx`.`type` = 'SPATIAL') then 'SPATIAL' when (`idx`.`algorithm` = 'SE_PRIVATE') then '' else `idx`.`algorithm` end) AS `INDEX_TYPE`,if(((`idx`.`type` = 'PRIMARY') or (`idx`.`type` = 'UNIQUE')),'',if(internal_keys_disabled(`tbl`.`options`),'disabled','')) AS `COMMENT`,`idx`.`comment` AS `INDEX_COMMENT`,if(`idx`.`is_visible`,'YES','NO') AS `IS_VISIBLE` from (((((((`mysql`.`index_column_usage` `icu` join `mysql`.`indexes` `idx` on((`idx`.`id` = `icu`.`index_id`))) join `mysql`.`tables` `tbl` on((`idx`.`table_id` = `tbl`.`id`))) join `mysql`.`columns` `col` on((`icu`.`column_id` = `col`.`id`))) join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `coll` on((`tbl`.`collation_id` = `coll`.`id`))) left join `mysql`.`index_stats` `stat` on(((`tbl`.`name` = `stat`.`table_name`) and (`sch`.`name` = `stat`.`schema_name`) and (`idx`.`name` = `stat`.`index_name`) and (`col`.`name` = `stat`.`column_name`)))) where (can_access_table(`sch`.`name`,`tbl`.`name`) and is_visible_dd_object(`tbl`.`hidden`,(`idx`.`hidden` or `icu`.`hidden`)))	utf8	utf8_general_ci
+STATISTICS	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`STATISTICS` AS select (`cat`.`name` collate utf8_tolower_ci) AS `TABLE_CATALOG`,(`sch`.`name` collate utf8_tolower_ci) AS `TABLE_SCHEMA`,(`tbl`.`name` collate utf8_tolower_ci) AS `TABLE_NAME`,if(((`idx`.`type` = 'PRIMARY') or (`idx`.`type` = 'UNIQUE')),'0','1') AS `NON_UNIQUE`,(`sch`.`name` collate utf8_tolower_ci) AS `INDEX_SCHEMA`,(`idx`.`name` collate utf8_tolower_ci) AS `INDEX_NAME`,`icu`.`ordinal_position` AS `SEQ_IN_INDEX`,(`col`.`name` collate utf8_tolower_ci) AS `COLUMN_NAME`,(case when (`icu`.`order` = 'DESC') then 'D' when (`icu`.`order` = 'ASC') then 'A' else NULL end) AS `COLLATION`,internal_index_column_cardinality(`sch`.`name`,`tbl`.`name`,`idx`.`name`,`col`.`name`,`idx`.`ordinal_position`,`icu`.`ordinal_position`,`tbl`.`engine`,`tbl`.`se_private_id`,((`tbl`.`hidden` <> 'Visible') or `idx`.`hidden` or `icu`.`hidden`),if(isnull(`stat`.`cardinality`),cast(-(1) as unsigned),`stat`.`cardinality`),if(isnull(`stat`.`cached_time`),0,`stat`.`cached_time`)) AS `CARDINALITY`,get_dd_index_sub_part_length(`icu`.`length`,`col`.`type`,`col`.`char_length`,`col`.`collation_id`,`idx`.`type`) AS `SUB_PART`,NULL AS `PACKED`,if((`col`.`is_nullable` = 1),'YES','') AS `NULLABLE`,(case when (`idx`.`type` = 'SPATIAL') then 'SPATIAL' when (`idx`.`algorithm` = 'SE_PRIVATE') then '' else `idx`.`algorithm` end) AS `INDEX_TYPE`,if(((`idx`.`type` = 'PRIMARY') or (`idx`.`type` = 'UNIQUE')),'',if(internal_keys_disabled(`tbl`.`options`),'disabled','')) AS `COMMENT`,`idx`.`comment` AS `INDEX_COMMENT`,if(`idx`.`is_visible`,'YES','NO') AS `IS_VISIBLE` from (((((((`mysql`.`index_column_usage` `icu` join `mysql`.`indexes` `idx` on((`idx`.`id` = `icu`.`index_id`))) join `mysql`.`tables` `tbl` on((`idx`.`table_id` = `tbl`.`id`))) join `mysql`.`columns` `col` on((`icu`.`column_id` = `col`.`id`))) join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `coll` on((`tbl`.`collation_id` = `coll`.`id`))) left join `mysql`.`index_stats` `stat` on(((`tbl`.`name` = `stat`.`table_name`) and (`sch`.`name` = `stat`.`schema_name`) and (`idx`.`name` = `stat`.`index_name`) and (`col`.`name` = `stat`.`column_name`)))) where (can_access_table(`sch`.`name`,`tbl`.`name`) and is_visible_dd_object(`tbl`.`hidden`,(`idx`.`hidden` or `icu`.`hidden`)))	utf8	utf8_general_ci
 SHOW COLUMNS FROM information_schema.STATISTICS;
 Field	Type	Null	Key	Default	Extra
 TABLE_CATALOG	varchar(64)	YES		NULL	
@@ -59,7 +59,7 @@ INDEX_NAME	varchar(64)	YES		NULL
 SEQ_IN_INDEX	int(10) unsigned	NO		NULL	
 COLUMN_NAME	varchar(64)	YES		NULL	
 COLLATION	varchar(1)	YES		NULL	
-CARDINALITY	bigint(20) unsigned	YES		NULL	
+CARDINALITY	bigint(21)	YES		NULL	
 SUB_PART	bigint(21)	YES		NULL	
 PACKED	binary(0)	YES		NULL	
 NULLABLE	varchar(3)	NO			
@@ -103,6 +103,8 @@ def	mysql	help_relation	mysql	PRIMARY
 def	mysql	help_relation	mysql	PRIMARY
 def	mysql	help_topic	mysql	PRIMARY
 def	mysql	help_topic	mysql	name
+def	mysql	innodb_ddl_log	mysql	PRIMARY
+def	mysql	innodb_ddl_log	mysql	thread_id
 def	mysql	innodb_dynamic_metadata	mysql	PRIMARY
 def	mysql	innodb_index_stats	mysql	PRIMARY
 def	mysql	innodb_index_stats	mysql	PRIMARY
@@ -110,6 +112,9 @@ def	mysql	innodb_index_stats	mysql	PRIMARY
 def	mysql	innodb_index_stats	mysql	PRIMARY
 def	mysql	innodb_table_stats	mysql	PRIMARY
 def	mysql	innodb_table_stats	mysql	PRIMARY
+def	mysql	password_history	mysql	PRIMARY
+def	mysql	password_history	mysql	PRIMARY
+def	mysql	password_history	mysql	PRIMARY
 def	mysql	plugin	mysql	PRIMARY
 def	mysql	procs_priv	mysql	Grantor
 def	mysql	procs_priv	mysql	PRIMARY
@@ -318,6 +323,7 @@ def	performance_schema	setup_instruments	performance_schema	PRIMARY
 def	performance_schema	setup_objects	performance_schema	OBJECT
 def	performance_schema	setup_objects	performance_schema	OBJECT
 def	performance_schema	setup_objects	performance_schema	OBJECT
+def	performance_schema	setup_threads	performance_schema	PRIMARY
 def	performance_schema	setup_timers	performance_schema	PRIMARY
 def	performance_schema	socket_instances	performance_schema	IP
 def	performance_schema	socket_instances	performance_schema	IP
@@ -395,16 +401,16 @@ SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
-def	db_datadict	t1	1	db_datadict	f2_ind	1	f2	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict	t1	0	db_datadict	PRIMARY	1	f1	A	NULL	NULL	NULL		BTREE			YES
-def	db_datadict	t2	1	db_datadict	f2_ind	1	f2	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict	t2	0	db_datadict	PRIMARY	1	f1	A	NULL	NULL	NULL		BTREE			YES
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	NULL	NULL	NULL		BTREE			YES
-def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	NULL	NULL	NULL		BTREE			YES
-def	db_datadict_2	t4	1	db_datadict_2	f2_ind	1	f2	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict_2	t4	0	db_datadict_2	PRIMARY	1	f1	A	NULL	NULL	NULL		BTREE			YES
+def	db_datadict	t1	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict	t1	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict	t2	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict	t2	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t4	1	db_datadict_2	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t4	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO `testuser1`@`localhost`
@@ -438,16 +444,16 @@ SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
-def	db_datadict	t1	1	db_datadict	f2_ind	1	f2	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict	t1	0	db_datadict	PRIMARY	1	f1	A	NULL	NULL	NULL		BTREE			YES
-def	db_datadict	t2	1	db_datadict	f2_ind	1	f2	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict	t2	0	db_datadict	PRIMARY	1	f1	A	NULL	NULL	NULL		BTREE			YES
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	NULL	NULL	NULL		BTREE			YES
-def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	NULL	NULL	NULL		BTREE			YES
-def	db_datadict_2	t4	1	db_datadict_2	f2_ind	1	f2	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict_2	t4	0	db_datadict_2	PRIMARY	1	f1	A	NULL	NULL	NULL		BTREE			YES
+def	db_datadict	t1	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict	t1	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict	t2	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict	t2	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t4	1	db_datadict_2	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t4	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT SELECT (`f1`, `f5`) ON `db_datadict_2`.`t3` TO `testuser1`@`localhost`
@@ -461,12 +467,12 @@ SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
-def	db_datadict	t1	1	db_datadict	f2_ind	1	f2	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict	t1	0	db_datadict	PRIMARY	1	f1	A	NULL	NULL	NULL		BTREE			YES
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	NULL	NULL	NULL		BTREE			YES
-def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	NULL	NULL	NULL		BTREE			YES
+def	db_datadict	t1	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict	t1	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT SELECT (`f1`, `f5`) ON `db_datadict_2`.`t3` TO `testuser1`@`localhost`
@@ -495,10 +501,10 @@ SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	NULL	NULL	NULL		BTREE			YES
-def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	NULL	NULL	NULL	YES	BTREE			YES
-def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	NULL	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT SELECT (`f1`, `f5`) ON `db_datadict_2`.`t3` TO `testuser1`@`localhost`
@@ -529,8 +535,8 @@ SELECT * FROM information_schema.statistics
 WHERE table_name LIKE 't1_%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
-def	test	t1_1	0	test	PRIMARY	1	f1	A	NULL	NULL	NULL		BTREE			YES
-def	test	t1_1	0	test	PRIMARY	2	f3	A	NULL	NULL	NULL		BTREE			YES
+def	test	t1_1	0	test	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	test	t1_1	0	test	PRIMARY	2	f3	A	0	NULL	NULL		BTREE			YES
 ALTER TABLE test.t1_1 DROP PRIMARY KEY;
 SELECT table_name FROM information_schema.statistics
 WHERE table_name LIKE 't1_%';
@@ -539,7 +545,7 @@ ALTER TABLE test.t1_1 ADD PRIMARY KEY (f1);
 SELECT * FROM information_schema.statistics
 WHERE table_name LIKE 't1_%';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
-def	test	t1_1	0	test	PRIMARY	1	f1	A	NULL	NULL	NULL		BTREE			YES
+def	test	t1_1	0	test	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
 ALTER TABLE test.t1_1 ADD INDEX (f4);
 CREATE        INDEX f3_f1     ON test.t1_1 (f3,f1);
 CREATE UNIQUE INDEX f4x_uni   ON test.t1_1 (f4x);
@@ -554,13 +560,13 @@ SELECT * FROM information_schema.statistics
 WHERE table_name LIKE 't1_%' AND index_name <> 'PRIMARY'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
-def	test	t1_1	1	test	f2_prefix	1	f2	A	NULL	20	NULL	YES	BTREE			YES
-def	test	t1_1	1	test	f3_f1	1	f3	A	NULL	NULL	NULL		BTREE			YES
-def	test	t1_1	1	test	f3_f1	2	f1	A	NULL	NULL	NULL		BTREE			YES
-def	test	t1_1	1	test	f4	1	f4	A	NULL	NULL	NULL	YES	BTREE			YES
-def	test	t1_1	0	test	f4x_uni	1	f4x	A	NULL	NULL	NULL	YES	BTREE			YES
-def	test	t1_1	1	test	not_null	1	f3x	A	NULL	NULL	NULL	YES	BTREE			YES
-def	test	t1_2	1	test	f2_hash	1	f2	A	NULL	NULL	NULL	YES	BTREE			YES
+def	test	t1_1	1	test	f2_prefix	1	f2	A	0	20	NULL	YES	BTREE			YES
+def	test	t1_1	1	test	f3_f1	1	f3	A	0	NULL	NULL		BTREE			YES
+def	test	t1_1	1	test	f3_f1	2	f1	A	0	NULL	NULL		BTREE			YES
+def	test	t1_1	1	test	f4	1	f4	A	0	NULL	NULL	YES	BTREE			YES
+def	test	t1_1	0	test	f4x_uni	1	f4x	A	0	NULL	NULL	YES	BTREE			YES
+def	test	t1_1	1	test	not_null	1	f3x	A	0	NULL	NULL	YES	BTREE			YES
+def	test	t1_2	1	test	f2_hash	1	f2	A	0	NULL	NULL	YES	BTREE			YES
 DROP TABLE test.t1_2;
 SELECT DISTINCT table_name FROM information_schema.statistics
 WHERE table_name = 't1_1';

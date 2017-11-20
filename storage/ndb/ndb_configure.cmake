@@ -73,6 +73,10 @@ CHECK_FUNCTION_EXISTS(setpriority HAVE_SETPRIORITY)
 CHECK_INCLUDE_FILES(sun_prefetch.h HAVE_SUN_PREFETCH_H)
 CHECK_INCLUDE_FILES(Processtopologyapi.h HAVE_PROCESSTOPOLOGYAPI_H)
 CHECK_INCLUDE_FILES(Processthreadsapi.h HAVE_PROCESSTHREADSAPI_H)
+CHECK_INCLUDE_FILES(ncursesw/curses.h HAVE_NCURSESW_CURSES_H)
+CHECK_INCLUDE_FILES(ncursesw.h HAVE_NCURSESW_H)
+CHECK_INCLUDE_FILES(ncurses.h HAVE_NCURSES_H)
+CHECK_INCLUDE_FILES(ncurses/curses.h HAVE_NCURSES_CURSES_H)
 
 CHECK_CXX_SOURCE_RUNS("
 unsigned A = 7;
@@ -203,6 +207,90 @@ int main()
 }"
 HAVE_LINUX_FUTEX)
 
+IF (NOT WIN32)
+  FIND_LIBRARY(NCURSESW_LIB
+               NAMES ncursesw)
+  IF (NOT NCURSESW_LIB)
+    FIND_LIBRARY(NCURSESW_LIB
+                 NAMES ncurses)
+  ENDIF()
+  CHECK_LIBRARY_EXISTS("${NCURSESW_LIB}"
+    stdscr "" NCURSES_HAS_STDSCR)
+  IF(NOT NCURSES_HAS_STDSCR)
+    FIND_LIBRARY(NCURSES_TINFO_LIB
+                 NAMES tinfo)
+    CHECK_LIBRARY_EXISTS("${NCURSES_TINFO_LIB}"
+      stdscr "" TINFO_HAS_STDSCR)
+    IF(TINFO_HAS_STDSCR)
+      SET(CMAKE_REQUIRED_LIBRARIES ${NCURSES_TINFO_LIB} ${NCURSESW_LIB})
+    ELSE()
+      SET(CMAKE_REQUIRED_LIBRARIES ${NCURSESW_LIB})
+    ENDIF()
+  ELSE()
+    SET(CMAKE_REQUIRED_LIBRARIES ${NCURSESW_LIB})
+  ENDIF()
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <curses.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_1 )
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <ncursesw/curses.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_2 )
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <ncurses/curses.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_3 )
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <ncurses.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_4 )
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <ncursesw.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_5 )
+ENDIF()
+
 OPTION(WITH_NDBMTD
   "Build the MySQL Cluster multithreadded data node" ON)
 
@@ -227,10 +315,9 @@ IF(NOT DEFINED WITH_ZLIB)
   # Hardcode use of the bundled zlib if not set by MySQL
   MESSAGE(STATUS "Using bundled zlib (hardcoded)")
   SET(ZLIB_LIBRARY zlib)
-  SET(ZLIB_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/zlib)
+  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_SOURCE_DIR}/extra/zlib)
 ENDIF()
 NDB_REQUIRE_VARIABLE(ZLIB_LIBRARY)
-NDB_REQUIRE_VARIABLE(ZLIB_INCLUDE_DIR)
 
 IF(WITH_CLASSPATH)
   MESSAGE(STATUS "Using supplied classpath: ${WITH_CLASSPATH}")

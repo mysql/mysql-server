@@ -1761,22 +1761,26 @@ rtr_cur_search_with_match(
 				both CONTAIN and INTERSECT for either of
 				the search mode */
 				cmp = cmp_dtuple_rec_with_gis(
-					tuple, rec, offsets, PAGE_CUR_CONTAIN);
+					tuple, rec, offsets, PAGE_CUR_CONTAIN,
+					index->rtr_srs.get());
 
 				if (cmp != 0) {
 					cmp = cmp_dtuple_rec_with_gis(
 						tuple, rec, offsets,
-						PAGE_CUR_INTERSECT);
+						PAGE_CUR_INTERSECT,
+						index->rtr_srs.get());
 				}
 				break;
 			case PAGE_CUR_DISJOINT:
 				cmp = cmp_dtuple_rec_with_gis(
-					tuple, rec, offsets, mode);
+					tuple, rec, offsets, mode,
+					index->rtr_srs.get());
 
 				if (cmp != 0) {
 					cmp = cmp_dtuple_rec_with_gis(
 						tuple, rec, offsets,
-						PAGE_CUR_INTERSECT);
+						PAGE_CUR_INTERSECT,
+						index->rtr_srs.get());
 				}
 				break;
 			case PAGE_CUR_RTREE_INSERT:
@@ -1784,11 +1788,13 @@ rtr_cur_search_with_match(
 				double	area;
 
 				cmp = cmp_dtuple_rec_with_gis(
-					tuple, rec, offsets, PAGE_CUR_WITHIN);
+					tuple, rec, offsets, PAGE_CUR_WITHIN,
+					index->rtr_srs.get());
 
 				if (cmp != 0) {
 					increase = rtr_rec_cal_increase(
-						tuple, rec, offsets, &area);
+						tuple, rec, offsets, &area,
+						index->rtr_srs.get());
 					/* Once it goes beyond DBL_MAX,
 					it would not make sense to record
 					such value, just make it
@@ -1811,19 +1817,22 @@ rtr_cur_search_with_match(
 				break;
 			case PAGE_CUR_RTREE_GET_FATHER:
 				cmp = cmp_dtuple_rec_with_gis_internal(
-					tuple, rec, offsets);
+					tuple, rec, offsets,
+					index->rtr_srs.get());
 				break;
 			default:
 				/* WITHIN etc. */
 				cmp = cmp_dtuple_rec_with_gis(
-					tuple, rec, offsets, mode);
+					tuple, rec, offsets, mode,
+					index->rtr_srs.get());
 			}
 		} else {
 			/* At leaf level, INSERT should translate to LE */
 			ut_ad(mode != PAGE_CUR_RTREE_INSERT);
 
 			cmp = cmp_dtuple_rec_with_gis(
-				tuple, rec, offsets, mode);
+				tuple, rec, offsets, mode,
+				index->rtr_srs.get());
 		}
 
 		if (cmp == 0) {

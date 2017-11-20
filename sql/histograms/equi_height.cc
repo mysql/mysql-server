@@ -20,52 +20,56 @@
 
 #include "sql/histograms/equi_height.h"
 
+#include <stdlib.h>
 #include <cmath>            // std::lround
 #include <iterator>
 #include <new>
 
-#include "equi_height_bucket.h"
-#include "float_compare.h"
-#include "json_dom.h"       // Json_*
-#include "memroot_allocator.h"
 #include "my_base.h"        // ha_rows
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
-#include "sql_string.h"
+#include "sql/histograms/equi_height_bucket.h"
 #include "sql/histograms/value_map.h"      // Value_map
+#include "sql/json_dom.h"   // Json_*
+#include "sql/memroot_allocator.h"
+#include "sql_string.h"
 
 namespace histograms {
 
 template <class T>
 Equi_height<T>::Equi_height(MEM_ROOT *mem_root, const std::string &db_name,
                             const std::string &tbl_name,
-                            const std::string &col_name)
+                            const std::string &col_name,
+                            Value_map_type data_type)
   :Histogram(mem_root, db_name, tbl_name, col_name,
-             enum_histogram_type::EQUI_HEIGHT),
-  m_buckets(Memroot_allocator<equi_height::Bucket<T> >(mem_root))
+             enum_histogram_type::EQUI_HEIGHT, data_type),
+  m_buckets(Histogram_comparator(),
+            Memroot_allocator<equi_height::Bucket<T>>(mem_root))
 {}
 
 
 template <class T>
 Equi_height<T>::Equi_height(MEM_ROOT *mem_root, const Equi_height<T> &other)
   :Histogram(mem_root, other),
-  m_buckets(other.m_buckets,
+  m_buckets(Histogram_comparator(),
             Memroot_allocator<equi_height::Bucket<T>>(mem_root))
-{}
+{
+  for (const auto &bucket : other.m_buckets)
+    m_buckets.emplace(bucket);
+}
 
 
 template <>
 Equi_height<String>::Equi_height(MEM_ROOT *mem_root,
                                  const Equi_height<String> &other)
   :Histogram(mem_root, other),
-  m_buckets(Memroot_allocator<equi_height::Bucket<String>>(mem_root))
+  m_buckets(Histogram_comparator(),
+            Memroot_allocator<equi_height::Bucket<String>>(mem_root))
 {
   /*
     Copy bucket contents. We need to make duplicates of String data, since they
     are allocated on a MEM_ROOT that most likely will be freed way too early.
   */
-  m_buckets.reserve(other.m_buckets.size());
   for (const auto &pair : other.m_buckets)
   {
     char *lower_string_data= pair.get_lower_inclusive().dup(mem_root);
@@ -82,10 +86,9 @@ Equi_height<String>::Equi_height(MEM_ROOT *mem_root,
     String upper_string_dup(upper_string_data,
                             pair.get_upper_inclusive().length(),
                             pair.get_upper_inclusive().charset());
-    equi_height::Bucket<String> bucket(lower_string_dup, upper_string_dup,
-                                       pair.get_cumulative_frequency(),
-                                       pair.get_num_distinct());
-    m_buckets.push_back(bucket);
+
+    m_buckets.emplace(lower_string_dup, upper_string_dup,
+                      pair.get_cumulative_frequency(), pair.get_num_distinct());
   }
 }
 
@@ -247,7 +250,7 @@ bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
     */
     try
     {
-      m_buckets.push_back(bucket);
+      m_buckets.emplace(bucket);
     }
     catch (const std::bad_alloc&)
     {
@@ -310,7 +313,7 @@ bool Equi_height<T>::histogram_to_json(Json_object *json_object) const
   if (json_object->add_clone(buckets_str(), &buckets))
     return true;                              /* purecov: inspected */
 
-  if (Histogram::histogram_data_type_to_json<T>(json_object))
+  if (histogram_data_type_to_json(json_object))
     return true;                              /* purecov: inspected */
   return false;
 }
@@ -376,9 +379,8 @@ bool Equi_height<T>::add_bucket_from_json(const Json_array *json_bucket)
 
   try
   {
-    m_buckets.emplace_back(lower_value, upper_value,
-                           cumulative_frequency->value(),
-                           num_distinct->value());
+    m_buckets.emplace(lower_value, upper_value, cumulative_frequency->value(),
+                      num_distinct->value());
   }
   catch (const std::bad_alloc&)
   {
@@ -402,6 +404,156 @@ Histogram *Equi_height<T>::clone(MEM_ROOT *mem_root) const
     return nullptr; /* purecov: deadcode */
   }
 }
+
+template <class T>
+double Equi_height<T>::
+get_equal_to_selectivity(const T& value) const
+{
+  /*
+    Find the first bucket where the upper inclusive value is not less than the
+    provided value.
+  */
+  const auto found= std::lower_bound(m_buckets.begin(), m_buckets.end(), value,
+                                     Histogram_comparator());
+
+  // Check if we are after the last bucket
+  if (found == m_buckets.end())
+    return 0.0;
+
+  // Check if we are before the first bucket, or between two buckets.
+  if (Histogram_comparator()(value, found->get_lower_inclusive()))
+    return 0.0;
+
+  double bucket_frequency;
+  if (found == m_buckets.begin())
+  {
+    /*
+      If the value we are looking for is in the first bucket, we will end up
+      here.
+    */
+    bucket_frequency= found->get_cumulative_frequency();
+  }
+  else
+  {
+    /*
+      If the value we are looking for is NOT in the first bucket, we will end up
+      here.
+    */
+    const auto previous= std::prev(found, 1);
+    bucket_frequency= found->get_cumulative_frequency() -
+                      previous->get_cumulative_frequency();
+
+    DBUG_ASSERT(bucket_frequency >= 0.0);
+    DBUG_ASSERT(bucket_frequency <= get_non_null_values_frequency());
+  }
+
+  /*
+    Take into account how high the probability is for a given value existing
+    in the bucket. For example, consider the following bucket:
+
+      DOUBLE VALUES
+      Lower inclusive value: 0.0
+      Upper inclusive value: 1000000.0
+      Number of distinct values: 10
+
+    Any of the values between have a very low probability since there are so
+    many possible values for this data type.
+
+    For a different example, consider this bucket:
+
+      INTEGER VALUES
+      Lower inclusive value: 1
+      Upper inclusive value: 4
+      Number of distinct values: 4
+
+    Here we can see that all values must be present, since there are only four
+    possible values between 1 and 4 (1, 2, 3 and 4), and we have 4 distinct
+    values in the bucket.
+  */
+  return (bucket_frequency / found->get_num_distinct()) *
+         found->value_probability();
+}
+
+
+template <class T>
+double Equi_height<T>::
+get_less_than_equal_selectivity(const T& value) const
+{
+  /*
+    Find the first bucket where the upper inclusive value is not less than the
+    provided value.
+  */
+  const auto found= std::lower_bound(m_buckets.begin(), m_buckets.end(), value,
+                                     Histogram_comparator());
+
+  if (found == m_buckets.end())
+    return get_non_null_values_frequency();
+
+  double previous_bucket_cumulative_frequency;
+  double found_bucket_frequency;
+  if (found == m_buckets.begin())
+  {
+    previous_bucket_cumulative_frequency= 0.0;
+    found_bucket_frequency= found->get_cumulative_frequency();
+  }
+  else
+  {
+    const auto previous= std::prev(found, 1);
+    previous_bucket_cumulative_frequency= previous->get_cumulative_frequency();
+    found_bucket_frequency= found->get_cumulative_frequency() -
+                            previous->get_cumulative_frequency();
+  }
+
+  const double distance= found->get_distance_from_lower(value);
+
+  DBUG_ASSERT(distance >= 0.0);
+  DBUG_ASSERT(distance <= 1.0);
+
+  const double selectivity= previous_bucket_cumulative_frequency +
+                            (found_bucket_frequency * distance);
+
+  /*
+    If we found the distance from lower to be zero and the value actually
+    is equal to the lower inclusive value, we must add the "equal_to"
+    selectivity in order to include the selectivity for the lower value.
+
+    Imagine these two buckets: [1   4]  [5   7]
+    Given the following predicate: foo <= 5;
+
+    We would get the second bucket from std::lower_bound. The distance function
+    will return 0.0, since 5 is actually equal to 5. But that would cause the
+    selectivity to NOT include the selectivity for the value 5 itself.
+
+    We do this adjustment only if distance == 0.0, because if we have a bucket
+    where the upper and lower value are equal, the distance function will return
+    1.0 and we already have included the selectivity for the value itself.
+  */
+  if (distance > 0.0 ||
+      Histogram_comparator()(found->get_lower_inclusive(), value))
+    return selectivity;
+
+  return selectivity + get_equal_to_selectivity(value);
+}
+
+
+template <class T>
+double Equi_height<T>::get_greater_than_selectivity(const T& value) const
+{
+  const double less_than_equal= get_less_than_equal_selectivity(value);
+
+  return get_non_null_values_frequency() -
+         std::min(less_than_equal, get_non_null_values_frequency());
+}
+
+template <class T>
+double Equi_height<T>::get_less_than_selectivity(const T& value) const
+{
+  const double less_than_equal= get_less_than_equal_selectivity(value);
+  const double equal_to= get_equal_to_selectivity(value);
+
+  return less_than_equal - equal_to;
+}
+
 
 // Explicit template instantiations.
 template class Equi_height<double>;

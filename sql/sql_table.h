@@ -16,32 +16,38 @@
 #ifndef SQL_TABLE_INCLUDED
 #define SQL_TABLE_INCLUDED
 
-#include <set>
+#include <map>
 #include <stddef.h>
 #include <sys/types.h>
+#include <set>
+#include <utility>
+#include <vector>
 
 #include "binary_log_types.h"  // enum_field_types
+#include "dd/string_type.h"
+#include "m_ctype.h"
+#include "mdl.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-#include "prealloced_array.h"
-#endif
 
 class Alter_info;
 class Alter_table_ctx;
 class Create_field;
+class FOREIGN_KEY;
+class KEY;
 class THD;
 class handler;
 struct TABLE;
-struct TABLE_SHARE;
 struct TABLE_LIST;
+struct TABLE_SHARE;
 struct handlerton;
-class KEY;
-class FOREIGN_KEY;
+
 namespace dd {
   class Schema;
   class Table;
+  class Foreign_key;
 }
 
 typedef struct st_ha_check_opt HA_CHECK_OPT;
@@ -100,35 +106,215 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info,
                                 uint select_field_count,
+                                bool find_parent_keys,
                                 bool *is_trans,
                                 handlerton **post_ddl_ht);
 bool mysql_discard_or_import_tablespace(THD *thd,
                                         TABLE_LIST *table_list);
 
+
 /**
-  Find the index which supports the given foreign key.
-
-  @param alter_info        Alter_info structure describing ALTER TABLE.
-  @param key_info_buffer   Indexes to check
-  @param key_count         Number of indexes.
-  @param fk                FK which we want to find a supporting index for.
-
-  @retval Index supporing the FK or nullptr if no such index was found.
-
-  @note This function is meant to be used both for finding the supporting
-  index in the child table and the parent index in the parent table.
-
-  @note For backward compatibility, we try to find the same index that InnoDB
-  does (@see dict_foreign_find_index). One consequence is that the index
-  might not be an unique index as this is not required by InnoDB.
-  Note that it is difficult to guarantee that we iterate through the
-  indexes in the same order as InnoDB - this means that if several indexes
-  fit, we might select a different one.
+  Helper class for keeping track for which tables we need to invalidate
+  data-dictionary cache entries and performing such invalidation.
 */
-const char* find_fk_supporting_index(Alter_info *alter_info,
-                                     const KEY *key_info_buffer,
-                                     const uint key_count,
-                                     const FOREIGN_KEY *fk);
+class Foreign_key_parents_invalidator
+{
+private:
+  typedef std::map<std::pair<dd::String_type, dd::String_type>,
+                   handlerton*> Parent_map;
+  Parent_map m_parent_map;
+
+public:
+  void add(const char *db_name, const char *table_name,
+           handlerton *hton);
+  void invalidate(THD *thd);
+  const Parent_map &parents() const { return m_parent_map; }
+  bool is_empty() const { return m_parent_map.empty(); }
+  void clear() { m_parent_map.clear(); }
+};
+
+
+/*
+  Reload the foreign key parent information of the referenced
+  tables and for the table itself.
+
+  @param thd                 Thread handle.
+  @param db                  Table schema name.
+  @param name                Table name.
+  @param reload_self         Reload FK parent info also for the
+                             table itself.
+  @param fk_invalidator      Object keeping track of which dd::Table
+                             objects to invalidate. If submitted, use this
+                             to restrict which FK parents should have their
+                             FK parent information reloaded.
+
+  @retval operation outcome, false if no error.
+*/
+bool
+adjust_fk_parents(THD *thd, const char *db, const char *name, bool reload_self,
+                  const Foreign_key_parents_invalidator *fk_invalidator);
+
+
+/**
+  Update the unique constraint name for the referencing tables.
+
+  @param thd                  Thread handle.
+  @param parent_table_db      Parent table schema name.
+  @param parent_table_name    Parent table name.
+  @param hton                 Handlerton for table's storage engine.
+  @param parent_table_def     Table object representing the referenced table.
+  @param invalidate_tdc       Indicates whether we need to invalidate TDC for
+                              referencing tables after updating their
+                              definitions.
+
+  @retval operation outcome, false if no error.
+*/
+bool
+adjust_fk_children_after_parent_def_change(THD *thd,
+                                           const char *parent_table_db,
+                                           const char *parent_table_name,
+                                           handlerton *hton,
+                                           const dd::Table *parent_table_def,
+                                           bool invalidate_tdc)
+                                           MY_ATTRIBUTE((warn_unused_result));
+
+
+/**
+  Update the unique constraint name for the referencing tables with
+  mandatory TDC invalidation.
+*/
+inline bool
+adjust_fk_children_after_parent_def_change(THD *thd,
+                                           const char *parent_table_db,
+                                           const char *parent_table_name,
+                                           handlerton *hton,
+                                           const dd::Table *parent_table_def)
+{
+  return adjust_fk_children_after_parent_def_change(thd,
+                                                    parent_table_db,
+                                                    parent_table_name,
+                                                    hton, parent_table_def,
+                                                    true);
+}
+
+
+/**
+  Add MDL requests for exclusive lock on all tables referencing the given
+  schema qualified table name to the list.
+
+  @param          thd           Thread handle.
+  @param          schema        Schema name.
+  @param          table_name    Table name.
+  @param          hton          Handlerton for table's storage engine.
+  @param[in,out]  mdl_requests  List to which MDL requests are to be added.
+
+  @retval operation outcome, false if no error.
+*/
+bool
+collect_fk_children(THD *thd,
+                    const char *schema,
+                    const char *table_name,
+                    handlerton *hton,
+                    MDL_request_list *mdl_requests)
+                    MY_ATTRIBUTE((warn_unused_result));
+
+
+/**
+  Add MDL requests for lock of specified type on tables referenced by the
+  foreign keys to be added by the CREATE TABLE or ALTER TABLE operation.
+  Also add the referenced table names to the foreign key invalidator,
+  to be used at a later stage to invalidate the dd::Table objects.
+
+  @param          thd             Thread handle.
+  @param          db_name         Table's database name.
+  @param          table_name      Table name.
+  @param          alter_info      Alter_info object with the list of FKs
+                                  to be added.
+  @param          lock_type       Type of metadata lock to be requested.
+  @param          hton            Handlerton for table's storage engine.
+  @param[in,out]  mdl_requests    List to which MDL requests are to be added.
+  @param[in,out]  fk_invalidator  Object keeping track of which dd::Table
+                                  objects to invalidate.
+
+  @retval operation outcome, false if no error.
+*/
+bool
+collect_fk_parents_for_new_fks(THD *thd,
+                               const char *db_name, const char *table_name,
+                               const Alter_info *alter_info,
+                               enum_mdl_type lock_type,
+                               handlerton *hton,
+                               MDL_request_list *mdl_requests,
+                               Foreign_key_parents_invalidator *fk_invalidator)
+                               MY_ATTRIBUTE((warn_unused_result));
+
+
+/**
+  Acquire exclusive metadata locks on tables which definitions need to
+  be updated or invalidated since they are related through foreign keys
+  to the table to be renamed,
+  Also add the referenced table names for the FKs on this table to the
+  foreign key invalidator, to be used at a later stage to invalidate the
+  dd::Table objects.
+
+  @param          thd             Thread handle.
+  @param          db              Table's old schema.
+  @param          table_name      Table's old name.
+  @param          table_def       Table definition of table being RENAMEd.
+  @param          new_db          Table's new schema.
+  @param          new_table_name  Table's new name.
+  @param          hton            Table's SE.
+  @param[in,out]  fk_invalidator  Object keeping track of which dd::Table
+                                  objects to invalidate.
+
+  @retval operation outcome, false if no error.
+*/
+bool
+collect_and_lock_fk_tables_for_rename_table(THD *thd,
+      const char *db, const char *table_name,
+      const dd::Table *table_def,
+      const char *new_db, const char *new_table_name,
+      handlerton *hton,
+      Foreign_key_parents_invalidator *fk_invalidator)
+      MY_ATTRIBUTE((warn_unused_result));
+
+
+/**
+  Update referenced table names and the unique constraint name for FKs
+  affected by RENAME TABLE operation.
+
+  @param  thd             Thread handle.
+  @param  db              Table's old schema.
+  @param  table_name      Table's old name.
+  @param  new_db          Table's new schema.
+  @param  new_table_name  Table's new name.
+  @param  hton            Table's SE.
+
+  @retval operation outcome, false if no error.
+*/
+bool
+adjust_fks_for_rename_table(THD *thd,
+                            const char *db, const char *table_name,
+                            const char *new_db, const char *new_table_name,
+                            handlerton *hton)
+                            MY_ATTRIBUTE((warn_unused_result));
+
+
+/**
+  Find name of unique constraint in parent table which is referenced by
+  foreign key.
+
+  @param parent_table_def Object describing the parent table.
+  @param fk               Object describing the foreign key.
+
+  @retval non-"" - unique constraint name if matching constraint is found.
+  @retval ""     - if no matching unique constraint is found.
+*/
+const char *
+find_fk_parent_key(const dd::Table *parent_table_def,
+                   const dd::Foreign_key *fk)
+                   MY_ATTRIBUTE((warn_unused_result));
+
 
 /**
   Prepare Create_field and Key_spec objects for ALTER and upgrade.
@@ -193,11 +379,24 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, bool if_exists,
 bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                              bool drop_temporary, bool drop_database,
                              bool *dropped_non_atomic_flag,
-                             std::set<handlerton*> *post_ddl_htons
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-                             , Prealloced_array<TABLE_LIST*, 1> *dropped_atomic
-#endif
-                             );
+                             std::set<handlerton*> *post_ddl_htons,
+                             Foreign_key_parents_invalidator *fk_invalidator,
+                             std::vector<MDL_ticket*> *safe_to_release_mdl);
+
+/**
+  Discover missing tables in SE and acquire locks on tables which participate
+  in FKs on tables to be dropped by DROP TABLES/DATABASE and which definitions
+  will have to be updated or invalidated during this operation.
+
+  @param  thd     Thread context.
+  @param  tables  Tables to be dropped by DROP TABLES/DATABASE.
+
+  @retval False - Success.
+  @retval True  - Failure.
+*/
+bool rm_table_do_discovery_and_lock_fk_tables(THD *thd, TABLE_LIST *tables)
+  MY_ATTRIBUTE((warn_unused_result));
+
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags);
 bool prepare_sp_create_field(THD *thd,
@@ -258,6 +457,9 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
                                    (in case of ALTER).
   @param[in] existing_fks_count    The number of pre-existing foreign keys.
   @param select_field_count        The number of fields coming from a select table.
+  @param find_parent_keys          Indicates whether we need to lookup name of
+                                   unique constraint in parent table for foreign
+                                   keys.
 
   @retval false   OK
   @retval true    error
@@ -274,7 +476,8 @@ bool mysql_prepare_create_table(THD *thd,
                                 uint *fk_key_count,
                                 FOREIGN_KEY *existing_fks,
                                 uint existing_fks_count,
-                                int select_field_count);
+                                int select_field_count,
+                                bool find_parent_keys);
 
 
 size_t explain_filename(THD* thd, const char *from, char *to, size_t to_length,

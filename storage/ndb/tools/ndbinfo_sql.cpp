@@ -283,6 +283,10 @@ struct view {
      "page_requests_direct_return, page_requests_wait_queue, page_requests_wait_io "
      "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>diskpagebuffer`"
   },
+  { "error_messages",
+    "SELECT error_code, error_description, error_status, error_classification "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>error_messages`"
+  },
   {
     "locks_per_fragment",
     "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, "
@@ -665,6 +669,12 @@ struct lookup {
   { "<TABLE_PREFIX>dict_obj_types",
     "type_id INT UNSIGNED, "
     "type_name VARCHAR(512)",
+  },
+  { "<TABLE_PREFIX>error_messages",
+    "error_code INT UNSIGNED, "
+    "error_description VARCHAR(512), "
+    "error_status VARCHAR(512), "
+    "error_classification VARCHAR(512)",
   }
 };
 
@@ -783,7 +793,7 @@ int main(int argc, char** argv){
       "config_params",
       "dict_obj_types",
       "ndb$dblqh_tcconnect_state",
-      "ndb$dbtc_apiconnect_state",
+      "ndb$dbtc_apiconnect_state"
     };
     printf("# Drop obsolete lookups in %s\n", opt_ndbinfo_db);
     for (size_t i = 0; i < sizeof(old_lookups)/sizeof(old_lookups[0]); i++)

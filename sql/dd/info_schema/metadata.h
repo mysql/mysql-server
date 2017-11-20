@@ -14,8 +14,12 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "dd/string_type.h"          // dd::String_type
 #include <mysql/plugin.h>            // st_plugin_int
+
+#include "sql/dd/string_type.h"      // dd::String_type
+
+class THD;
+struct st_plugin_int;
 
 namespace dd {
 namespace info_schema {

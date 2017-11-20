@@ -17,7 +17,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_sqlcommand.h"
-#include "sql_cmd.h"
+#include "sql/sql_cmd.h"
 
 class MDL_ticket;
 class THD;

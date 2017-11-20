@@ -16,9 +16,10 @@
 #ifndef DD__SCHEMA_INCLUDED
 #define DD__SCHEMA_INCLUDED
 
-#include "dd/sdi_fwd.h"                   // RJ_Document
-#include "dd/types/entity_object.h"   // dd::Entity_object
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
+#include "sql/dd/sdi_fwd.h"               // RJ_Document
+#include "sql/dd/types/entity_object.h" // dd::Entity_object
 
 class THD;
 
@@ -29,13 +30,13 @@ namespace dd {
 class Entity_object_table;
 class Item_name_key;
 class Object_type;
-class Primary_id_key;
 class Table;
 class View;
 class Event;
 class Function;
 class Procedure;
 class Void_key;
+class Time_zone;
 
 namespace tables {
   class Schemata;
@@ -85,14 +86,14 @@ public:
   // created
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created() const = 0;
+  virtual ulonglong created(bool convert_time) const = 0;
   virtual void set_created(ulonglong created) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // last_altered
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered() const = 0;
+  virtual ulonglong last_altered(bool convert_time) const = 0;
   virtual void set_last_altered(ulonglong last_altered) = 0;
 
 public:

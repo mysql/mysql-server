@@ -3340,6 +3340,7 @@ func_exit:
 	if (query->total_size > fts_result_cache_limit) {
 		return(DB_FTS_EXCEED_RESULT_CACHE_LIMIT);
 	} else {
+		query->n_docs = 0;
 		return(DB_SUCCESS);
 	}
 }
@@ -3817,6 +3818,11 @@ fts_query_free(
 
 	if (query->deleted) {
 		fts_doc_ids_free(query->deleted);
+	}
+
+	if (query->intersection) {
+		fts_query_free_doc_ids(query, query->intersection);
+		query->intersection = NULL;
 	}
 
 	if (query->doc_ids) {

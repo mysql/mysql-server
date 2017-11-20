@@ -133,7 +133,8 @@ ErrorBundle ErrorCodes[] = {
    */
   {  286, DMEC, NR, "Node failure caused abort of transaction" }, 
   {  250, DMEC, NR, "Node where lock was held crashed, restart scan transaction" },
-  {  499, DMEC, NR, "Scan take over error, restart scan transaction" },  
+  {  499, DMEC, NR, "Scan take over error, restart scan transaction" },
+  {  631, DMEC, NR, "Scan take over error, restart scan transaction" },
   { 1204, DMEC, NR, "Temporary failure, distribution changed" },
   { 4002, DMEC, NR, "Send to NDB failed" },
   { 4007, DMEC, NR, "Send to ndbd node failed" },
@@ -196,6 +197,7 @@ ErrorBundle ErrorCodes[] = {
   { 21030, DMEC, IE, "Create foreign key failed in NDB - object already exists in TC" },
   { 21031, DMEC, IE, "Create foreign key failed in NDB - no more object records in TC" },
   { 21032, DMEC, IE, "Create foreign key failed in NDB - invalid request to TC" },
+  { 21033, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Create foreign key failed in NDB - No parent row found" },
   /* DropFKRef + DropFKImplRef */
   { 21040, DMEC, AE, "Drop foreign key failed in NDB - foreign key not found" },
   { 21041, DMEC, SE, "Drop foreign key failed in NDB - invalid foreign key version" },
@@ -204,7 +206,7 @@ ErrorBundle ErrorCodes[] = {
   { 21060, DMEC, AE, "Build foreign key failed in NDB - foreign key not found" },
   { 21061, DMEC, SE, "Build foreign key failed in NDB - invalid foreign key version" },
   /* Referential integrity */
-  { 21080, HA_ERR_ROW_IS_REFERENCED, SE, "Drop table not allowed in NDB - referenced by foreign key on another table" },
+  { 21080, HA_ERR_ROW_IS_REFERENCED, AE, "Drop table not allowed in NDB - referenced by foreign key on another table" },
   /* Drop index */
   { 21081, HA_ERR_DROP_INDEX_FK, AE, "Drop index not allowed in NDB - used as parent index of a foreign key" },
   { 21082, HA_ERR_DROP_INDEX_FK, AE, "Drop index not allowed in NDB - used as child index of a foreign key" },
@@ -300,7 +302,7 @@ ErrorBundle ErrorCodes[] = {
    */
   { 623,  HA_ERR_RECORD_FILE_FULL, IS, "623" },
   { 624,  HA_ERR_RECORD_FILE_FULL, IS, "624" },
-  { 625,  HA_ERR_INDEX_FILE_FULL, IS, "Out of memory in Ndb Kernel, hash index part (increase IndexMemory)" },
+  { 625,  HA_ERR_INDEX_FILE_FULL, IS, "Out of memory in Ndb Kernel, hash index part (increase DataMemory)" },
   { 633,  HA_ERR_INDEX_FILE_FULL, IS,
     "Table fragment hash index has reached maximum possible size" },
   { 640,  DMEC, IS, "Too many hash indexes (should not happen)" },
@@ -312,10 +314,13 @@ ErrorBundle ErrorCodes[] = {
   { 903,  HA_ERR_INDEX_FILE_FULL, IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
   { 904,  HA_ERR_INDEX_FILE_FULL, IS, "Out of fragment records (increase MaxNoOfOrderedIndexes)" },
   { 905,  DMEC, IS, "Out of attribute records (increase MaxNoOfAttributes)" },
-  { 1601, HA_ERR_RECORD_FILE_FULL, IS, "Out extents, tablespace full" },
+  { 1601, HA_ERR_RECORD_FILE_FULL, IS, "Out of extents, tablespace full" },
   { 1602, DMEC, IS,"No datafile in tablespace" },
   { 1603, HA_ERR_RECORD_FILE_FULL, IS,
     "Table fragment fixed data reference has reached maximum possible value (specify MAXROWS or increase no of partitions)"},
+  { 1604, DMEC, IS, "Error -1 from get_page" },
+  { 1605, HA_ERR_RECORD_FILE_FULL, IS, "Out of page request records when allocating disk record" },
+  { 1606, HA_ERR_RECORD_FILE_FULL, IS, "Out of extent records when allocating disk record" },
 
   /**
    * TimeoutExpired 
@@ -370,7 +375,6 @@ ErrorBundle ErrorCodes[] = {
   { 290,  DMEC, IE, "Corrupt key in TC, unable to xfrm" },
   { 293,  DMEC, IE, "Inconsistent trigger state in TC block" },
   { 292,  DMEC, IE, "Inconsistent index state in TC block" },
-  { 631,  DMEC, IE, "631" },
   { 632,  DMEC, IE, "632" },
   { 706,  DMEC, IE, "Inconsistency during table creation" },
   { 781,  DMEC, IE, "Invalid schema transaction key from NDB API" },
@@ -1034,6 +1038,27 @@ ErrorStatusClassification StatusClassificationMapping[] = {
 static
 const
 int NbClassification = sizeof(StatusClassificationMapping)/sizeof(ErrorStatusClassification);
+
+int ndb_error_get_next(int index, int* err_no,
+                       const char** status_msg,
+                       const char** class_msg,
+                       const char** error_msg)
+{
+  ndberror_struct error;
+
+  if (index >= NbErrorCodes)
+    return -1; // No error message with that index
+
+  error.code = ErrorCodes[index].code;
+  ndberror_update(&error);
+
+  *err_no = ErrorCodes[index].code;
+  *error_msg = error.message;
+  *status_msg = ndberror_status_message(error.status);
+  *class_msg = ndberror_classification_message(error.classification);
+
+  return index+1;
+}
 
 
 void

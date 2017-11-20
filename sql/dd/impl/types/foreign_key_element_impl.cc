@@ -13,29 +13,33 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/foreign_key_element_impl.h"
+#include "sql/dd/impl/types/foreign_key_element_impl.h"
 
-#include <memory>
 #include <sstream>
+#include <string>
 
-#include "dd/impl/raw/raw_record.h"                  // Raw_record
-#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
-#include "dd/impl/tables/foreign_key_column_usage.h" // Foreign_key_column_usage
-#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
-#include "dd/impl/types/entity_object_impl.h"
-#include "dd/impl/types/foreign_key_impl.h"          // Foreign_key_impl
-#include "dd/impl/types/table_impl.h"                // Table_impl
-#include "dd/properties.h"                           // Needed for destructor
-#include "dd/string_type.h"                          // dd::String_type
-#include "dd/types/column.h"                         // Column
-#include "dd/types/object_table.h"
-#include "dd/types/weak_object.h"
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                            // ER_*
-#include "rapidjson/document.h"
-#include "rapidjson/prettywriter.h"
+#include "sql/dd/impl/raw/raw_record.h"              // Raw_record
+#include "sql/dd/impl/sdi_impl.h"                    // sdi read/write functions
+#include "sql/dd/impl/tables/foreign_key_column_usage.h" // Foreign_key_column_usage
+#include "sql/dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
+#include "sql/dd/impl/types/foreign_key_impl.h"      // Foreign_key_impl
+#include "sql/dd/impl/types/table_impl.h"            // Table_impl
+#include "sql/dd/string_type.h"                      // dd::String_type
+#include "sql/dd/types/column.h"                     // Column
+#include "sql/dd/types/object_table.h"
+#include "sql/dd/types/weak_object.h"
+
+namespace dd {
+class Entity_object_impl;
+}  // namespace dd
 
 using dd::tables::Foreign_key_column_usage;
 

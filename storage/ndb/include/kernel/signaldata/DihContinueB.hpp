@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ private:
     ZPACK_FRAG_INTO_PAGES   =  2,
     ZREAD_PAGES_INTO_TABLE  =  3,
     ZREAD_PAGES_INTO_FRAG   =  4,
-    //ZREAD_TAB_DESCRIPTION   =  5,
+    // 5 no longer used
     ZCOPY_TABLE             =  6,
     ZCOPY_TABLE_NODE        =  7,
     ZSTART_FRAGMENT         =  8,
@@ -49,6 +49,7 @@ private:
     ZTABLE_UPDATE           = 15,
     ZCHECK_LCP_COMPLETED    = 16,
     ZINIT_LCP               = 17,
+    // 18 no longer used
     ZADD_TABLE_MASTER_PAGES = 19,
     ZDIH_ADD_TABLE_MASTER   = 20,
     ZADD_TABLE_SLAVE_PAGES  = 21,
@@ -59,20 +60,26 @@ private:
     ZCHECK_GCP_STOP         = 26,
     ZREMOVE_NODE_FROM_TABLE      = 27,
     ZCOPY_NODE                   = 28,
+    // 29,30 no longer used
     ZTO_START_COPY_FRAG          = 31,
+    // 32 no longer used
     ZINITIALISE_RECORDS          = 33,    
     ZINVALIDATE_NODE_LCP         = 34,
     ZSTART_PERMREQ_AGAIN         = 35,
     SwitchReplica                = 36,
     ZSEND_START_TO               = 37,
     ZSEND_ADD_FRAG               = 38,
+    // 39 no longer used
     ZSEND_UPDATE_TO              = 40,
 
+    // 41 no longer used
     WAIT_DROP_TAB_WRITING_TO_FILE = 42,
-    //CHECK_WAIT_DROP_TAB_FAILED_LQH = 43,
+    // 43 no longer used
     ZTO_START_FRAGMENTS = 44
+    // 45 no longer used
     ,ZWAIT_OLD_SCAN = 46
     ,ZLCP_TRY_LOCK = 47
+    // 48 no longer used
     ,ZTO_START_LOGGING = 49
     ,ZGET_TABINFO = 50
     ,ZGET_TABINFO_SEND = 51

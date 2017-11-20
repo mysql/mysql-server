@@ -55,6 +55,7 @@ enum MY_ATTRIBUTE((__packed__)) hint_lex_char_classes
   HINT_CHR_IDENT,                       // [_$[:alpha:]]
   HINT_CHR_MB,                          // multibyte character
   HINT_CHR_NL,                          // \n
+  HINT_CHR_QUOTE,                       // [']
   HINT_CHR_SLASH,                       // [/]
   HINT_CHR_SPACE                        // [[:space:]] excluding \n
 };

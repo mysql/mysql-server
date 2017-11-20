@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifndef MOCK_FIELD_DATETIME_H
 #define MOCK_FIELD_DATETIME_H
 
-#include "field.h"
+#include "sql/field.h"
 
 class Mock_field_datetime : public Field_datetime
 {

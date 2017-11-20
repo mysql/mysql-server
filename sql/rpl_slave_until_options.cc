@@ -13,20 +13,21 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
-#include "rpl_slave_until_options.h"
+#include "sql/rpl_slave_until_options.h"
 
 #include <stdlib.h>
 #include <string.h>
 
 #include "binlog_event.h"
-#include "log.h"
-#include "log_event.h"
 #include "m_string.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
-#include "rpl_group_replication.h"
-#include "rpl_rli.h"
+#include "sql/log.h"
+#include "sql/log_event.h"
+#include "sql/rpl_group_replication.h"
+#include "sql/rpl_rli.h"
 
 int Until_position::init(const char *log_name, my_off_t log_pos)
 {

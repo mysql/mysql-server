@@ -7,7 +7,7 @@ c_datetime DATETIME, c_datetime_f DATETIME(3),
 c_timestamp TIMESTAMP, c_timestamp_f TIMESTAMP(3) DEFAULT "2017-1-1 10:10:10");
 INSERT INTO t1(c_year) VALUES(2017);
 Matching lines are:
-# Columns( YEAR,  DATE,  TIME,  TIME(3),  DATETIME,  DATETIME(3),  TIMESTAMP,  TIMESTAMP(3))
+# Columns(YEAR, DATE, TIME, TIME(3), DATETIME, DATETIME(3), TIMESTAMP, TIMESTAMP(3))
 Occurrences of '# Columns' in the input file: 1
 DROP TABLE t1;
 RESET MASTER;
@@ -17,7 +17,7 @@ RESET MASTER;
 CREATE TABLE t1 (c_json JSON, c_char CHAR(100));
 INSERT INTO t1(c_char) VALUES("abc");
 Matching lines are:
-# Columns( JSON,  CHAR(100)) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+# Columns(JSON, CHAR(100)) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
 Occurrences of '# Columns' in the input file: 1
 DROP TABLE t1;
 RESET MASTER;
@@ -30,7 +30,7 @@ c_multi_linestring MULTILINESTRING, c_multi_polygon MULTIPOLYGON,
 c_geometrycollection GEOMETRYCOLLECTION, c_char CHAR(100));
 INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
 Matching lines are:
-# Columns( GEOMETRY,  POINT,  LINESTRING,  POLYGON,  MULTIPOINT,  MULTILINESTRING,  MULTIPOLYGON,  GEOMETRYCOLLECTION,  CHAR(100)) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+# Columns(GEOMETRY, POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, MULTIPOLYGON, GEOMETRYCOLLECTION, CHAR(100)) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
 Occurrences of '# Columns' in the input file: 1
 RESET MASTER;
 SET GLOBAL binlog_row_metadata = FULL;
@@ -50,7 +50,7 @@ SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1(c_bool) VALUES(1);
 # UNSIGNED flag should be printed
 Matching lines are:
-# Columns( BIT(10),  TINYINT,  SMALLINT,  MEDIUMINT,  INT UNSIGNED,  BIGINT,  FLOAT UNSIGNED,  DOUBLE,  DECIMAL(10,2))
+# Columns(BIT(10), TINYINT, SMALLINT, MEDIUMINT, INT UNSIGNED, BIGINT, FLOAT UNSIGNED, DOUBLE, DECIMAL(10,2))
 Occurrences of '# Columns' in the input file: 1
 RESET MASTER;
 SET GLOBAL binlog_row_metadata = FULL;
@@ -69,7 +69,7 @@ c_mediumtext MEDIUMTEXT, c_longtext LONGTEXT CHARSET utf8);
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1(c_char) VALUES("1");
 Matching lines are:
-# Columns( CHAR(10),  VARCHAR(500),  TINYTEXT,  TEXT,  MEDIUMTEXT,  LONGTEXT CHARSET utf8 COLLATE utf8_general_ci) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+# Columns(CHAR(10), VARCHAR(500), TINYTEXT, TEXT, MEDIUMTEXT, LONGTEXT CHARSET utf8 COLLATE utf8_general_ci) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
 Occurrences of '# Columns' in the input file: 1
 RESET MASTER;
 SET GLOBAL binlog_row_metadata = FULL;
@@ -122,13 +122,13 @@ c_set_3 SET("set3_v1", "set3_v2", "set3_v3"));
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1 VALUES("set1_v1", "set2_v1", "set3_v1");
 Matching lines are:
-# Columns( SET,  SET,  SET)
+# Columns(SET, SET, SET)
 Occurrences of '# Columns' in the input file: 1
 RESET MASTER;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1 VALUES("set1_v1", "set2_v1", "set3_v1");
 Matching lines are:
-# Columns(`c_set_1` SET('set1_v1' ,'set1_v2' ,'set1_v3'), `c_set_2` SET('set2_v1' ,'set2_v2' ,'set2_v3'), `c_set_3` SET('set3_v1' ,'set3_v2' ,'set3_v3'))
+# Columns(`c_set_1` SET('set1_v1', 'set1_v2', 'set1_v3'), `c_set_2` SET('set2_v1', 'set2_v2', 'set2_v3'), `c_set_3` SET('set3_v1', 'set3_v2', 'set3_v3'))
 Occurrences of '# Columns' in the input file: 1
 DROP TABLE t1;
 RESET MASTER;
@@ -142,13 +142,24 @@ c_enum_3 ENUM("enum3_v1", "enum3_v2", "enum3_v3"));
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1 VALUES("enum1_v1", "enum2_v1", "enum3_v1");
 Matching lines are:
-# Columns( ENUM,  ENUM,  ENUM)
+# Columns(ENUM, ENUM, ENUM)
 Occurrences of '# Columns' in the input file: 1
 RESET MASTER;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1 VALUES("enum1_v1", "enum2_v1", "enum3_v1");
 Matching lines are:
-# Columns(`c_enum_1` ENUM('enum1_v1' ,'enum1_v2' ,'enum1_v3'), `c_enum_2` ENUM('enum2_v1' ,'enum2_v2' ,'enum2_v3'), `c_enum_3` ENUM('enum3_v1' ,'enum3_v2' ,'enum3_v3'))
+# Columns(`c_enum_1` ENUM('enum1_v1', 'enum1_v2', 'enum1_v3'), `c_enum_2` ENUM('enum2_v1', 'enum2_v2', 'enum2_v3'), `c_enum_3` ENUM('enum3_v1', 'enum3_v2', 'enum3_v3'))
+Occurrences of '# Columns' in the input file: 1
+DROP TABLE t1;
+RESET MASTER;
+#
+# Verify that explicit NOT NULL can be printed correctly
+#
+CREATE TABLE t1(c_not_null1 INT NOT NULL, c_null1 INT, c_not_null2 INT NOT NULL,
+c_null2 INT);
+INSERT INTO t1 VALUES(1, 2, 3, 4);
+Matching lines are:
+# Columns(`c_not_null1` INT NOT NULL, `c_null1` INT, `c_not_null2` INT NOT NULL, `c_null2` INT)
 Occurrences of '# Columns' in the input file: 1
 DROP TABLE t1;
 RESET MASTER;
@@ -159,7 +170,7 @@ CREATE TABLE t1(c_key1 INT, c_key3 INT, c_not_key INT, c_key2 INT,
 PRIMARY KEY(c_key1, c_key2, c_key3));
 INSERT INTO t1 VALUES(1, 2, 3, 4);
 Matching lines are:
-# Columns(`c_key1` INT, `c_key3` INT, `c_not_key` INT, `c_key2` INT)
+# Columns(`c_key1` INT NOT NULL, `c_key3` INT NOT NULL, `c_not_key` INT, `c_key2` INT NOT NULL)
 Occurrences of '# Columns' in the input file: 1
 Matching lines are:
 # Primary Key(c_key1, c_key2, c_key3)
@@ -170,7 +181,7 @@ CREATE TABLE t1(c_key1 CHAR(100), c_key3 CHAR(100), c_not_key INT, c_key2 CHAR(1
 PRIMARY KEY(c_key1(5), c_key2, c_key3(10)));
 INSERT INTO t1 VALUES("1", "2", 3, "4");
 Matching lines are:
-# Columns(`c_key1` CHAR(100), `c_key3` CHAR(100), `c_not_key` INT, `c_key2` CHAR(10)) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+# Columns(`c_key1` CHAR(100) NOT NULL, `c_key3` CHAR(100) NOT NULL, `c_not_key` INT, `c_key2` CHAR(10) NOT NULL) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
 Occurrences of '# Columns' in the input file: 1
 Matching lines are:
 # Primary Key(c_key1(5), c_key2, c_key3(10))
@@ -179,7 +190,7 @@ RESET MASTER;
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1 VALUES("2", "2", 3, "4");
 Matching lines are:
-# Columns( CHAR(100),  CHAR(100),  INT,  CHAR(10)) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+# Columns(CHAR(100) NOT NULL, CHAR(100) NOT NULL, INT, CHAR(10) NOT NULL) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
 Occurrences of '# Columns' in the input file: 1
 Matching lines are:
 None
@@ -193,7 +204,7 @@ SET GLOBAL binlog_row_metadata = FULL;
 SET SESSION debug = 'd, dont_log_column_name';
 INSERT INTO t1 VALUES("3", "2", 3, "4");
 Matching lines are:
-# Columns( CHAR(100),  CHAR(100),  INT,  CHAR(10)) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+# Columns(CHAR(100) NOT NULL, CHAR(100) NOT NULL, INT, CHAR(10) NOT NULL) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
 Occurrences of '# Columns' in the input file: 1
 Matching lines are:
 # Primary Key(0(5), 3, 1(10))
@@ -207,7 +218,7 @@ CREATE TABLE t1(c1 int, c2 BLOB);
 SET SESSION debug = 'd,inject_invalid_column_type';
 INSERT INTO t1 VALUES(1, "a");
 Matching lines are:
-# Columns(`c1` INT, `c2`INVALID_TYPE(230))
+# Columns(`c1` INT, `c2` INVALID_TYPE(230))
 Occurrences of '# Columns' in the input file: 1
 RESET MASTER;
 #
@@ -227,7 +238,7 @@ RESET MASTER;
 SET SESSION debug = 'd,inject_invalid_geometry_type';
 INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
 Matching lines are:
-# Columns(`c_geometry` INVALIDE_GEOMETRY_TYPE(100), `c_point` INVALIDE_GEOMETRY_TYPE(100), `c_multilinestring` INVALIDE_GEOMETRY_TYPE(100))
+# Columns(`c_geometry` INVALID_GEOMETRY_TYPE(100), `c_point` INVALID_GEOMETRY_TYPE(100), `c_multilinestring` INVALID_GEOMETRY_TYPE(100))
 Occurrences of '# Columns' in the input file: 1
 DROP TABLE t1;
 RESET MASTER;
@@ -240,7 +251,7 @@ c_binary BINARY(10), c_text TEXT, c_point POINT);
 SET session debug='d,simulate_no_optional_metadata';
 INSERT INTO t1(c_int) VALUES(1);
 Matching lines are:
-# Columns( INT,  TINYINT,  BINARY(10),  BLOB,  GEOMETRY)
+# Columns(INT, TINYINT, BINARY(10), BLOB, GEOMETRY)
 Occurrences of '# Columns' in the input file: 1
 DROP TABLE t1;
 RESET MASTER;
@@ -254,8 +265,8 @@ SET GLOBAL binlog_row_metadata = FULL;
 SET session debug='d,simulate_init_primary_key_field_error';
 INSERT INTO t1 VALUES("b");
 Matching lines are:
-# Columns( BINARY(40))
-# Columns( BINARY(40))
+# Columns(BINARY(40) NOT NULL)
+# Columns(BINARY(40) NOT NULL)
 Occurrences of '# Columns' in the input file: 2
 Matching lines are:
 None

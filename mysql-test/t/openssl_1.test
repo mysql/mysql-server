@@ -133,7 +133,10 @@ drop table t1;
 # - Usa a cipher that both yaSSL and OpenSSL supports
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
---exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2> $MYSQLTEST_VARDIR/tmp/bug21611_stderr
+--cat_file $MYSQLTEST_VARDIR/tmp/bug21611_stderr
+#Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/bug21611_stderr
 
 #
 # Bug#25309 SSL connections without CA certificate broken since MySQL 5.0.23
@@ -156,7 +159,9 @@ DROP TABLE IF EXISTS thread_status;
 DROP EVENT IF EXISTS event_status;
 --enable_warnings
 
-SET GLOBAL event_scheduler=1;
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
 
 DELIMITER $$;
 
@@ -182,25 +187,27 @@ let $wait_condition=select count(*) = 0 from information_schema.events where eve
 SELECT variable_name, variable_value FROM thread_status;
 
 DROP TABLE thread_status;
-SET GLOBAL event_scheduler=0;
 
 #
 # Test to connect using a list of ciphers
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
---exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=UNKNOWN-CIPHER:AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
-
+--exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=UNKNOWN-CIPHER:AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2> $MYSQLTEST_VARDIR/tmp/stderr_output
+--cat_file $MYSQLTEST_VARDIR/tmp/stderr_output
 
 # Test to connect using a specifi cipher
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
---exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql  2> $MYSQLTEST_VARDIR/tmp/stderr_output
+--cat_file $MYSQLTEST_VARDIR/tmp/stderr_output
+#Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/stderr_output
 
 # Test to connect using an unknown cipher
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit" > $MYSQLTEST_VARDIR/tmp/test.sql
 --error 1
---exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=UNKNOWN-CIPHER < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=UNKNOWN-CIPHER --ssl-mode=VERIFY_CA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 #
 # Bug#27669 mysqldump: SSL connection error when trying to connect

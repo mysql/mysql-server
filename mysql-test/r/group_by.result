@@ -315,11 +315,10 @@ select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
 spid	count(*)
 2	2
 1	1
-explain extended select sql_big_result spid,sum(userid) from t1 group by spid desc;
+explain select sql_big_result spid,sum(userid) from t1 group by spid desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	spID	NULL	NULL	NULL	8	100.00	Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`spID` AS `spid`,sum(`test`.`t1`.`userID`) AS `sum(userid)` from `test`.`t1` group by `test`.`t1`.`spID` desc
 explain select sql_big_result spid,sum(userid) from t1 group by spid desc order by null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -932,14 +931,14 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 explain 
-SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
+SELECT straight_join v1.a, v1.b, v1.real_b from t2, v1
 where t2.b=v1.a GROUP BY t2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	b	b	2	NULL	#	100.00	Using where; Using index
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.b	#	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select straight_join sql_no_cache `test`.`t1`.`a` AS `a`,concat(`test`.`t1`.`b`,'') AS `b`,`test`.`t1`.`b` AS `real_b` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`b`) group by `test`.`t2`.`b`
-SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,concat(`test`.`t1`.`b`,'') AS `b`,`test`.`t1`.`b` AS `real_b` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`b`) group by `test`.`t2`.`b`
+SELECT straight_join v1.a, v1.b, v1.real_b from t2, v1
 where t2.b=v1.a GROUP BY t2.b;
 a	b	real_b
 1	-----	-----
@@ -1946,22 +1945,20 @@ ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 # execution plan should not use temporary table:
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa+0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using filesort
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by ((/* select#2 */ select `test`.`t1`.`a`) + 0)
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using filesort
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -((/* select#2 */ select `test`.`t1`.`a`))
 # should return only one record
@@ -2600,7 +2597,7 @@ ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 # In GROUP BY, aliases are printed as aliases.
-EXPLAIN EXTENDED SELECT alias1.col_int_nokey AS field1,
+EXPLAIN SELECT alias1.col_int_nokey AS field1,
 (SELECT alias2.col_int_key
 FROM t1 AS alias2
 WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
@@ -2611,12 +2608,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 2	DEPENDENT SUBQUERY	alias2	NULL	index	NULL	col_int_key	5	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.alias1.col_varchar_key' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.alias1.col_varchar_nokey' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`alias1`.`col_int_nokey` AS `field1`,(/* select#2 */ select `test`.`alias2`.`col_int_key` from `test`.`t1` `alias2` where (`test`.`alias1`.`col_varchar_key` <= `test`.`alias1`.`col_varchar_nokey`)) AS `field2` from `test`.`t1` `alias1` group by `field1`,`field2`
 # In GROUP BY, expressions are printed as expressions.
-EXPLAIN EXTENDED SELECT alias1.col_int_nokey AS field1,
+EXPLAIN SELECT alias1.col_int_nokey AS field1,
 (SELECT alias2.col_int_key
 FROM t1 AS alias2
 WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
@@ -2632,7 +2628,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	alias2	NULL	index	NULL	col_int_key	5	NULL	2	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	alias2	NULL	index	NULL	col_int_key	5	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.alias1.col_varchar_key' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.alias1.col_varchar_nokey' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.alias1.col_varchar_key' of SELECT #3 was resolved in SELECT #1
@@ -2702,7 +2697,7 @@ ANALYZE TABLE t1,t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
-EXPLAIN EXTENDED SELECT
+EXPLAIN SELECT
 pk AS foo, col_int_key AS bar, (SELECT a FROM t2 WHERE a=t1.pk) AS baz
 FROM t1
 GROUP BY foo, col_int_key, baz ORDER BY pk, bar, (SELECT a FROM t2 WHERE a=t1.pk);
@@ -2711,11 +2706,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.pk' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.pk' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `foo`,`test`.`t1`.`col_int_key` AS `bar`,(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`pk`)) AS `baz` from `test`.`t1` group by `foo`,`test`.`t1`.`col_int_key`,`baz` order by `test`.`t1`.`pk`,`bar`,(/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`pk`))
-EXPLAIN EXTENDED SELECT
+EXPLAIN SELECT
 pk AS foo, col_int_key AS foo, (SELECT a FROM t2 WHERE a=t1.pk) AS foo
 FROM t1
 GROUP BY pk, col_int_key, (SELECT a FROM t2 WHERE a=t1.pk)
@@ -2726,7 +2720,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.pk' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.pk' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.pk' of SELECT #4 was resolved in SELECT #1
@@ -2760,7 +2753,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 test.t3	analyze	status	OK
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT
 alias1.col_datetime_key AS field1
 FROM (
@@ -2780,7 +2773,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`col_datetime_key` AS `field1` from `test`.`t1` join `test`.`t3` `alias2` where 0 group by `field1`
 DROP TABLE t1,t2,t3;
 DROP VIEW view1;
@@ -2812,12 +2804,11 @@ ANALYZE TABLE t1,t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
-EXPLAIN EXTENDED SELECT * FROM view1;
+EXPLAIN SELECT * FROM view1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
 1	SIMPLE	table2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	1	100.00	Range checked for each record (index map: 0x2)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select concat(`test`.`table1`.`col_varchar_nokey`,`test`.`table2`.`col_varchar_key`) AS `field1` from `test`.`t2` `table1` join `test`.`t1` `table2` where ((`test`.`table2`.`col_varchar_nokey` = `test`.`table1`.`col_varchar_key`) and (`test`.`table2`.`col_varchar_key` >= `test`.`table1`.`col_varchar_nokey`)) order by concat(`test`.`table1`.`col_varchar_nokey`,`test`.`table2`.`col_varchar_key`)
 DROP TABLE t1,t2;
 DROP VIEW view1;
@@ -2826,13 +2817,12 @@ INSERT INTO t1 VALUES ('v'),('c');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN EXTENDED SELECT (SELECT 150) AS field5
+EXPLAIN SELECT (SELECT 150) AS field5
 FROM (SELECT * FROM t1) AS alias1
 GROUP BY field5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1249	Select 2 was reduced during optimization
 Note	1003	/* select#1 */ select 150 AS `field5` from `test`.`t1` group by `field5`
 DROP TABLE t1;
@@ -3412,3 +3402,277 @@ FROM t1 GROUP BY col_varchar HAVING (field1 >= 'i' OR field3 <= 9);
 field1	field3
 r	83
 DROP TABLE t1;
+#
+# Bug#21974346: GROUPING ON AGGREGATED RESULTS NOT ALWAYS REJECTED
+#
+CREATE TABLE t (a INT);
+INSERT INTO t VALUES (0), (1), (1), (2);
+# These queries did not raise the expected error before the fix.
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 HAVING c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT 1 HAVING c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT SUM(a) AS s FROM t GROUP BY (SELECT 1 HAVING s);
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT SUM(a) + 1 AS s FROM t GROUP BY (SELECT 1 HAVING s);
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT (SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 HAVING c));
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT (SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 HAVING c) LIMIT 1);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT (SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT 1 HAVING c));
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c1, (SELECT 1 HAVING c1) AS c2
+FROM t GROUP BY (SELECT 1 WHERE c2);
+ERROR 42S22: Reference 'c2' not supported (reference to group function)
+SELECT COUNT(*) + 1 AS c1, (SELECT 1 HAVING c1) + 1 AS c2
+FROM t GROUP BY (SELECT 1 WHERE c2);
+ERROR 42S22: Reference 'c2' not supported (reference to group function)
+# These queries were accepted before the fix, and they still are.
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT 1 HAVING c);
+c
+4
+SELECT COUNT(*) AS c FROM t ORDER BY c;
+c
+4
+SELECT COUNT(*) AS c FROM t ORDER BY c+1;
+c
+4
+SELECT COUNT(*) AS c FROM t ORDER BY c+c;
+c
+4
+SELECT COUNT(*) AS c FROM t HAVING (SELECT 1 HAVING c);
+c
+4
+SELECT COUNT(*) AS c FROM t HAVING c;
+c
+4
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP
+HAVING (SELECT 1 HAVING c);
+a	c
+0	1
+1	2
+2	1
+NULL	4
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP HAVING c;
+a	c
+0	1
+1	2
+2	1
+NULL	4
+SELECT (SELECT COUNT(*) AS c FROM t HAVING c <> 0);
+(SELECT COUNT(*) AS c FROM t HAVING c <> 0)
+4
+SELECT (SELECT COUNT(*) FROM t HAVING COUNT(*) <> 0);
+(SELECT COUNT(*) FROM t HAVING COUNT(*) <> 0)
+4
+SELECT (SELECT COUNT(*) AS c FROM t ORDER BY c);
+(SELECT COUNT(*) AS c FROM t ORDER BY c)
+4
+SELECT (SELECT COUNT(*) FROM t ORDER BY COUNT(*));
+(SELECT COUNT(*) FROM t ORDER BY COUNT(*))
+4
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2
+GROUP BY (SELECT 1 HAVING s > 0)) > 0;
+1
+1
+SELECT (SELECT SUM(a)) FROM t;
+(SELECT SUM(a))
+4
+SELECT SUM(a) AS s, (SELECT SUM(a)) FROM t;
+s	(SELECT SUM(a))
+4	4
+SELECT a, (SELECT SUM(a)) s FROM t GROUP BY a;
+a	s
+0	0
+1	2
+2	2
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 HAVING s > 5);
+1
+SELECT (SELECT SUM(t1.a) s FROM t t2 WHERE t2.a = 0 HAVING s > 3) FROM t t1;
+(SELECT SUM(t1.a) s FROM t t2 WHERE t2.a = 0 HAVING s > 3)
+4
+SELECT 1 FROM t HAVING (SELECT SUM(a)) > 0;
+1
+1
+SELECT (SELECT SUM(a)) FROM t;
+(SELECT SUM(a))
+4
+# These queries where accepted before the fix, and they still are,
+# but their results are wrong both before and after the fix
+# because of bug#22588319.
+# Returns (4, NULL), should have returned (4, 1):
+SELECT SUM(a) s, (SELECT 1 HAVING s > 0) s2 FROM t;
+s	s2
+4	NULL
+# Should have ordered ascending on -a, but comes out in random order
+# because the ORDER BY clause always evaluates to NULL. Have to use
+# the --sorted_result directive to produce stable test results.
+SELECT a, COUNT(*) c FROM t GROUP BY a ORDER BY (SELECT -a HAVING c > 0);
+a	c
+0	1
+1	2
+2	1
+# These queries were accepted in the default sql_mode before the fix,
+# and rejected in the ANSI sql_mode. Expect no change after the fix.
+SELECT * FROM t t1 WHERE (SELECT SUM(t1.a) s FROM t t2 HAVING s = 0);
+a
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s FROM t t2 ORDER BY s);
+1
+1
+1
+1
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s FROM t t2 ORDER BY s + 1);
+1
+1
+1
+1
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s);
+1
+1
+1
+1
+SELECT 1 FROM t WHERE (SELECT SUM(a)) > 0;
+1
+1
+1
+1
+SELECT 1 FROM t GROUP BY (SELECT SUM(a));
+1
+1
+1
+1
+SET sql_mode = ANSI;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT * FROM t t1 WHERE (SELECT SUM(t1.a) s FROM t t2 HAVING s = 0);
+ERROR HY000: Invalid use of group function
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s FROM t t2 ORDER BY s);
+ERROR HY000: Invalid use of group function
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s FROM t t2 ORDER BY s + 1);
+ERROR HY000: Invalid use of group function
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s);
+ERROR HY000: Invalid use of group function
+SELECT 1 FROM t WHERE (SELECT SUM(a)) > 0;
+ERROR HY000: Invalid use of group function
+SELECT 1 FROM t GROUP BY (SELECT SUM(a));
+ERROR HY000: Invalid use of group function
+SET sql_mode = DEFAULT;
+# These queries were rejected before the fix, and they still are.
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 WHERE c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT 1 WHERE c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT c HAVING c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT c HAVING c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT c WHERE c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT c FROM (SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 ORDER BY c)) tt;
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t
+GROUP BY (SELECT COUNT(*) FROM t HAVING (SELECT c));
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t
+GROUP BY (SELECT COUNT(*) FROM t ORDER BY (SELECT c));
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT (SELECT COUNT(*) AS c FROM t GROUP BY c);
+ERROR 42000: Can't group on 'c'
+SELECT (SELECT COUNT(*) FROM t GROUP BY COUNT(*));
+ERROR 42000: Can't group on 'COUNT(*)'
+SELECT 1 FROM t t1 WHERE (SELECT SUM(t1.a) s FROM t t2 GROUP BY s);
+ERROR 42000: Can't group on 's'
+SELECT 1 FROM t t1 WHERE (SELECT SUM(t1.a) s FROM t t2 GROUP BY s+1);
+ERROR 42000: Can't group on '???'
+SELECT 1 FROM t t1 ORDER BY (SELECT SUM(t1.a) s FROM t t2 GROUP BY s) > 0;
+ERROR 42000: Can't group on 's'
+SELECT 1 FROM t t1 ORDER BY (SELECT SUM(t1.a) s FROM t t2 GROUP BY s+1) > 0;
+ERROR 42000: Can't group on '???'
+SELECT 1 FROM t t1 ORDER BY (SELECT SUM(t1.a) s FROM t t2
+GROUP BY (SELECT s)) > 0;
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT 1 FROM t t1 ORDER BY (SELECT SUM(t1.a) s FROM t t2
+GROUP BY (SELECT s+1)) > 0;
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT 1 FROM t ORDER BY (SELECT SUM(a));
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 WHERE s > 5);
+ERROR 42S22: Unknown column 's' in 'where clause'
+SELECT a, (SELECT SUM(a)) s FROM t GROUP BY a, s;
+ERROR 42000: Can't group on 's'
+SELECT EXISTS (SELECT SUM(t1.a) s FROM t t2 GROUP BY s) FROM t t1;
+ERROR 42000: Can't group on 's'
+SELECT SUM(a) s, s FROM t;
+ERROR 42S22: Unknown column 's' in 'field list'
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 GROUP BY s) > 0;
+ERROR 42000: Can't group on 's'
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 GROUP BY s+1) > 0;
+ERROR 42000: Can't group on '???'
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2
+HAVING (SELECT 1 GROUP BY s+1)) > 0;
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT 1 ORDER BY c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT c ORDER BY c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t HAVING (SELECT c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t HAVING (SELECT 1 ORDER BY c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t HAVING (SELECT c ORDER BY c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP
+HAVING (SELECT c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP
+HAVING (SELECT 1 ORDER BY c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP
+HAVING (SELECT c ORDER BY c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT COUNT(*) FROM t HAVING (SELECT c));
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT c FROM (SELECT COUNT(*) AS c FROM t ORDER BY (SELECT 1 ORDER BY c)) tt;
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t
+ORDER BY (SELECT COUNT(*) FROM t GROUP BY (SELECT c));
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t
+HAVING (SELECT COUNT(*) FROM t GROUP BY (SELECT c));
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT SUM(a) AS s, (SELECT s) FROM t;
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT EXISTS (SELECT SUM(t1.a) s FROM t t2 GROUP BY (SELECT s)) FROM t t1;
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT (SELECT SUM(t1.a) s FROM t t2 HAVING (SELECT s > 5)) FROM t t1;
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 HAVING (SELECT s) < 0);
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 GROUP BY (SELECT s));
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 HAVING (SELECT -s) > 0);
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 GROUP BY (SELECT -s));
+ERROR 42S22: Reference 's' not supported (reference to group function)
+DROP TABLE t;
+#
+# Bug#25407964 GROUP BY DESC GIVES WRONG RESULT WHEN GROUPS ON DECIMAL AND SEES A NULL
+#
+CREATE TABLE t(d DATE, i INT);
+INSERT INTO t VALUES(NULL,1),('2017-01-14',3);
+SELECT WEEK(d)/10, GROUP_CONCAT(i) FROM t GROUP BY WEEK(d)/10;
+WEEK(d)/10	GROUP_CONCAT(i)
+NULL	1
+0.2000	3
+SELECT WEEK(d)/10, GROUP_CONCAT(i) FROM t GROUP BY WEEK(d)/10 DESC;
+WEEK(d)/10	GROUP_CONCAT(i)
+0.2000	3
+NULL	1
+DROP TABLE t;

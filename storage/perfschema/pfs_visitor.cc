@@ -19,15 +19,15 @@
 
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysqld.h"
-#include "mysqld_thd_manager.h"
 #include "pfs_account.h"
 #include "pfs_buffer_container.h"
 #include "pfs_host.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_user.h"
-#include "sql_class.h"
+#include "sql/mysqld.h"
+#include "sql/mysqld_thd_manager.h"
+#include "sql/sql_class.h"
 
 /**
   @file storage/perfschema/pfs_visitor.cc
@@ -794,10 +794,7 @@ public:
   virtual void
   operator()(PFS_table_share *pfs)
   {
-    if (pfs->m_enabled)
-    {
-      m_visitor->visit_table_share(pfs);
-    }
+    m_visitor->visit_table_share(pfs);
   }
 
 private:
@@ -817,10 +814,7 @@ public:
     PFS_table_share *safe_share = sanitize_table_share(pfs->m_share);
     if (safe_share != NULL)
     {
-      if (safe_share->m_enabled)
-      {
-        m_visitor->visit_table(pfs);
-      }
+      m_visitor->visit_table(pfs);
     }
   }
 
@@ -873,11 +867,6 @@ PFS_object_iterator::visit_tables(PFS_table_share *share,
 {
   DBUG_ASSERT(visitor != NULL);
 
-  if (!share->m_enabled)
-  {
-    return;
-  }
-
   visitor->visit_table_share(share);
 
 #ifdef LATER
@@ -923,11 +912,6 @@ PFS_object_iterator::visit_table_indexes(PFS_table_share *share,
                                          PFS_object_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
-
-  if (!share->m_enabled)
-  {
-    return;
-  }
 
   visitor->visit_table_share_index(share, index);
 

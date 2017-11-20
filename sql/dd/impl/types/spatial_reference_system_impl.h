@@ -21,17 +21,20 @@
 #include <new>
 #include <string>
 
-#include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/sdi_fwd.h"
-#include "dd/types/entity_object_table.h"     // dd::Entity_object_table
-#include "dd/types/object_type.h"             // dd::Object_type
-#include "dd/types/spatial_reference_system.h"// dd:Spatial_reference_system
-#include "dd/types/weak_object.h"
-#include "gis/srid.h"
-#include "gis/srs/srs.h"                      // gis::srs::Spatial_reference_...
+#include "my_dbug.h"
 #include "my_inttypes.h"
+#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/entity_object_table.h" // dd::Entity_object_table
+#include "sql/dd/types/object_type.h"         // dd::Object_type
+#include "sql/dd/types/spatial_reference_system.h"// dd:Spatial_reference_system
+#include "sql/dd/types/weak_object.h"
+#include "sql/gis/srid.h"
+#include "sql/gis/srs/srs.h"                  // gis::srs::Spatial_reference_...
+#include "sql/sql_time.h"                     // gmt_time_to_local_time
 
 class THD;
 
@@ -39,10 +42,11 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Raw_record;
 class Open_dictionary_tables_ctx;
+class Raw_record;
 class Sdi_rcontext;
 class Sdi_wcontext;
+class Object_table;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -100,8 +104,8 @@ public:
   // created
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created() const override
-  { return m_created; }
+  virtual ulonglong created(bool convert_time) const override
+  { return convert_time ? gmt_time_to_local_time(m_created) : m_created; }
 
   virtual void set_created(ulonglong created) override
   { m_created= created; }
@@ -110,8 +114,11 @@ public:
   // last_altered
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered() const override
-  { return m_last_altered; }
+  virtual ulonglong last_altered(bool convert_time) const override
+  {
+    return convert_time ? gmt_time_to_local_time(m_last_altered) :
+                          m_last_altered;
+  }
 
   virtual void set_last_altered(ulonglong last_altered) override
   { m_last_altered= last_altered; }
@@ -224,6 +231,13 @@ public:
       return (m_parsed_definition->axis_direction(1) ==
               gis::srs::Axis_direction::NORTH);
     }
+  }
+
+  virtual double to_radians(double d) const override
+  {
+    DBUG_ASSERT(is_geographic());
+    DBUG_ASSERT(angular_unit() > 0.0);
+    return d * angular_unit();
   }
 
   virtual double from_radians(double d) const override

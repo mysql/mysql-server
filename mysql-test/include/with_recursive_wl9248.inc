@@ -1,3 +1,5 @@
+set cte_max_recursion_depth=5000;
+
 flush status;
 with recursive q (b) as
 (select 1 union all select 1+b from q where b<2000)

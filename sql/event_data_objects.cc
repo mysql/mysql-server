@@ -13,57 +13,58 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "event_data_objects.h"
+#include "sql/event_data_objects.h"
 
 #include <string.h>
 
-#include "auth_acls.h"
-                                               // struct Time_zone
-#include "auth_common.h"                       // EVENT_ACL, SUPER_ACL
-#include "dd/dd_event.h"                       // dd::get_old_interval_type
-#include "dd/dd_schema.h"                      // dd::get_schema_name
-#include "dd/string_type.h"
-#include "dd/types/event.h"
-#include "derror.h"
-#include "event_parse_data.h"
-#include "events.h"
 #include "lex_string.h"
-                                               // append_identifier
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "sp_head.h"
-#include "sql_alloc.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                         // parse_sql
-#include "sql_plugin.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "sql_show.h"                          // append_definer,
-#include "sql_string.h"
-#include "sql_time.h"                          // interval_type_to_name
-#include "system_variables.h"
-#include "table.h"
-#include "thr_malloc.h"
+#include "sql/auth/auth_acls.h"
+                                               // struct Time_zone
+#include "sql/auth/auth_common.h"              // EVENT_ACL, SUPER_ACL
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/dd_event.h"                   // dd::get_old_interval_type
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/event.h"
+#include "sql/derror.h"
+#include "sql/event_parse_data.h"
+#include "sql/events.h"
+#include "sql/histograms/value_map.h"
+#include "sql/key.h"
+                                               // append_identifier
+#include "sql/log.h"
+#include "sql/psi_memory_key.h"
+#include "sql/session_tracker.h"
+#include "sql/sp_head.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"                     // parse_sql
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"                      // append_definer,
+#include "sql/sql_time.h"                      // interval_type_to_name
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
                                                // date_add_interval,
                                                // calc_time_diff.
-#include "tztime.h"                            // my_tz_find, my_tz_OFFSET0
+#include "sql/tztime.h"                        // my_tz_find, my_tz_OFFSET0
+#include "sql_string.h"
 
 class Item;
-struct PSI_statement_locker;
-struct sql_digest_state;
 
 /**
   @addtogroup Event_Scheduler
@@ -78,7 +79,7 @@ void init_scheduler_psi_keys()
 }
 
 PSI_statement_info Event_queue_element_for_exec::psi_info=
-{ 0, "event", 0};
+{ 0, "event", 0, PSI_DOCUMENT_ME};
 #endif
 
 
@@ -488,8 +489,8 @@ Event_timed::fill_event_info(THD *thd, const dd::Event &event_obj,
   m_definer_user= make_lex_cstring(&mem_root, event_obj.definer_user());
   m_definer_host= make_lex_cstring(&mem_root, event_obj.definer_host());
 
-  m_created= event_obj.created();
-  m_modified= event_obj.last_altered();
+  m_created= event_obj.created(true);
+  m_modified= event_obj.last_altered(true);
 
   m_comment=make_lex_string(&mem_root, event_obj.comment());
   m_sql_mode= event_obj.sql_mode();
@@ -1284,6 +1285,10 @@ end:
       ulong saved_master_access;
 
       thd->set_query(sp_sql.c_ptr_safe(), sp_sql.length());
+
+      // Prevent InnoDB from automatically committing the InnoDB transaction
+      // after updating the data-dictionary table.
+      Disable_autocommit_guard autocommit_guard(thd);
 
       /*
         NOTE: even if we run in read-only mode, we should be able to lock

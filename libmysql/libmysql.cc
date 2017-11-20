@@ -70,11 +70,11 @@
 #define INADDR_NONE	-1
 #endif
 
-#include <sql_common.h>
 #include <memory>
 
 #include "client_settings.h"
 #include "mysql_trace.h"
+#include "sql_common.h"
 
 /*
   Temporary replacement for COM_SHUTDOWN. This will be removed once
@@ -680,7 +680,8 @@ mysql_query(MYSQL *mysql, const char *query)
 MYSQL_FIELD * STDCALL
 mysql_fetch_field(MYSQL_RES *result)
 {
-  if (result->current_field >= result->field_count)
+  if (result->current_field >= result->field_count ||
+      !result->fields)
     return(NULL);
   return &result->fields[result->current_field++];
 }
@@ -986,6 +987,9 @@ bool STDCALL mysql_eof(MYSQL_RES *res)
 
 MYSQL_FIELD * STDCALL mysql_fetch_field_direct(MYSQL_RES *res,uint fieldnr)
 {
+  if (fieldnr >= res->field_count ||
+      !res->fields)
+    return(NULL);
   return &(res)->fields[fieldnr];
 }
 
@@ -1002,6 +1006,11 @@ MYSQL_ROW_OFFSET STDCALL mysql_row_tell(MYSQL_RES *res)
 MYSQL_FIELD_OFFSET STDCALL mysql_field_tell(MYSQL_RES *res)
 {
   return (res)->current_field;
+}
+
+enum_resultset_metadata STDCALL mysql_result_metadata(MYSQL_RES *result)
+{
+  return result->metadata;
 }
 
 /* MYSQL */
@@ -1475,10 +1484,19 @@ bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   field_count=   uint2korr(pos);   pos+= 2;
   /* Number of placeholders in the statement */
   param_count=   uint2korr(pos);   pos+= 2;
-  if (packet_length >= 12)
-    mysql->warning_count= uint2korr(pos+1);
 
-  if (param_count != 0)
+  mysql->resultset_metadata= RESULTSET_METADATA_FULL;
+  if (packet_length >= 12)
+  {
+    mysql->warning_count= uint2korr(pos+1);
+    if (mysql->client_flag & CLIENT_OPTIONAL_RESULTSET_METADATA)
+    {
+      mysql->resultset_metadata= static_cast<enum enum_resultset_metadata>(*(pos + 3));
+    }
+  }
+
+  if (param_count != 0 &&
+      mysql->resultset_metadata == RESULTSET_METADATA_FULL)
   {
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_PARAM_DEF);
     /* skip parameters data: we don't support it yet */
@@ -1493,10 +1511,13 @@ bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
     if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
       mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
-    MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
-    if (!(stmt->fields= cli_read_metadata_ex(mysql, stmt->mem_root,
-                                             field_count, 7)))
-      DBUG_RETURN(1);
+    if (mysql->resultset_metadata == RESULTSET_METADATA_FULL)
+    {
+      MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
+      if (!(stmt->fields= cli_read_metadata_ex(mysql, stmt->mem_root,
+                                               field_count, 7)))
+        DBUG_RETURN(1);
+    }
   }
 
   MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
@@ -1725,6 +1746,14 @@ static void alloc_stmt_fields(MYSQL_STMT *stmt)
   free_root(fields_mem_root, MYF(0));
 
   /*
+    mysql->fields is NULL when the client set CLIENT_OPTIONAL_RESULTSET_METADATA flag
+    and server @@session.resultset_metadata is "NONE".
+    That means that the client received a resultset without metadata.
+  */
+  if (!mysql->fields)
+    return;
+
+  /*
     Get the field information for non-select statements
     like SHOW and DESCRIBE commands
   */
@@ -1811,6 +1840,14 @@ static void update_stmt_fields(MYSQL_STMT *stmt)
     set_stmt_error(stmt, CR_NEW_STMT_METADATA, unknown_sqlstate, NULL);
     return;
   }
+
+  /*
+    mysql->fields is NULL when the client set CLIENT_OPTIONAL_RESULTSET_METADATA flag
+    and server @@session.resultset_metadata is "NONE".
+    That means that the client received a resultset without metadata.
+  */
+  if (!field)
+    return;
 
   for (; field < field_end; ++field, ++stmt_field)
   {

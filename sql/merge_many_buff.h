@@ -20,9 +20,9 @@
 
 #include "my_dbug.h"
 #include "my_sys.h"                             // open_cached_file
-#include "mysqld.h"                             // mysql_tmpdir
-#include "sql_base.h"                           // TEMP_PREFIX
-#include "sql_sort.h"                           // Sort_buffer
+#include "sql/mysqld.h"                         // mysql_tmpdir
+#include "sql/sql_base.h"                       // TEMP_PREFIX
+#include "sql/sql_sort.h"                       // Sort_buffer
 
 class THD;
 

@@ -16,7 +16,7 @@ insert into t2 values ("Ada");
 flush logs;
 select * from t2;
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
 # With gtid-mode=on we need purge gtid_executed, if not transactions
 # replayed through mysqlbinlog will be skipped.
 reset master;

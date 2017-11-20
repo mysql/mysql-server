@@ -16,7 +16,7 @@
 #ifndef DD__WEAK_OBJECT_INCLUDED
 #define DD__WEAK_OBJECT_INCLUDED
 
-#include "dd/string_type.h"  // dd::String_type XXX: temporary, debug-only
+#include "sql/dd/string_type.h" // dd::String_type XXX: temporary, debug-only
 
 namespace dd {
 

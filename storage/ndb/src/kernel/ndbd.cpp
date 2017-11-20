@@ -246,7 +246,7 @@ compute_acc_32kpages(const ndb_mgm_configuration_iterator * p)
  * overallocated at any size as long as there is still memory
  * remaining.
  *
- * RG_TRANSACTION_MEMOR:
+ * RG_TRANSACTION_MEMORY:
  * This is a resource that is either set to zero size but can be overallocated
  * without limit. If a log file group is allocated based on the config, then
  * the size of the UNDO log buffer is used to set the size of this resource.

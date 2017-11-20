@@ -15,37 +15,26 @@
 
 #include "sql/auth/sql_authentication.h"
 
-#include "my_config.h"
-
 #include <string.h>
 #include <fstream>                     // IWYU pragma: keep
 #include <string>                       /* std::string */
 #include <utility>
 #include <vector>                       /* std::vector */
 
-#include "auth_acls.h"
-#include "auth_common.h"
-#include "auth_internal.h"              // optimize_plugin_compare_by_pointer
-#include "connection_handler_manager.h" // Connection_handler_manager
 #include "crypt_genhash_impl.h"         // generate_user_salt
-#include "current_thd.h"                // current_thd
-#include "derror.h"                     // ER_THD
-#include "hash.h"
-#include "hostname.h"                   // Host_errors, inc_host_errors
-#include "key.h"
-#include "log.h"                        // query_logger
 #include "m_string.h"
+#include "map_helpers.h"
 #include "mutex_lock.h"                 // Mutex_lock
 #include "my_byteorder.h"
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
+#include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_plugin_log.h"
@@ -54,34 +43,50 @@
 #include "mysql/service_mysql_password_policy.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "mysqld.h"                     // global_system_variables
 #include "mysqld_error.h"
 #include "password.h"                   // my_make_scrambled_password
+#include "pfs_thread_provider.h"
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"             // key_memory_MPVIO_EXT_auth_info
-#include "sql_auth_cache.h"             // acl_cache
-#include "sql_class.h"                  // THD
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/auth_internal.h"     // optimize_plugin_compare_by_pointer
+#include "sql/auth/sql_auth_cache.h"    // acl_cache
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
+#include "sql/current_thd.h"            // current_thd
+#include "sql/derror.h"                 // ER_THD
+#include "sql/histograms/value_map.h"
+#include "sql/hostname.h"               // Host_errors, inc_host_errors
+#include "sql/log.h"                    // query_logger
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"                 // global_system_variables
+#include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"         // key_memory_MPVIO_EXT_auth_info
+#include "sql/sql_class.h"              // THD
+#include "sql/sql_connect.h"            // thd_init_client_charset
+#include "sql/sql_const.h"
+#include "sql/sql_db.h"                 // mysql_change_db
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_plugin.h"             // my_plugin_lock_by_name
+#include "sql/sql_servers.h"
+#include "sql/sql_time.h"               // Interval
+#include "sql/system_variables.h"
+#include "sql/tztime.h"                 // Time_zone
 #include "sql_common.h"                 // mpvio_info
-#include "sql_connect.h"                // thd_init_client_charset
-#include "sql_const.h"
-#include "sql_db.h"                     // mysql_change_db
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_plugin.h"                 // my_plugin_lock_by_name
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
 #include "sql_string.h"
-#include "sql_time.h"                   // Interval
-#include "system_variables.h"
-#include "tztime.h"                     // Time_zone
+#include "violite.h"
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
+#ifndef HAVE_YASSL
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
-#endif /* HAVE OPENSSL && !HAVE_YASSL */
+#else
+#include <openssl/ssl.h>
+#endif /* HAVE_YASSL */
+#endif /* HAVE_OPENSSL */
 
 
 /**
@@ -111,6 +116,9 @@
   @note In case the server sent a ERR packet as first packet it will happen
   before the client and server negotiated any capabilities.
   Therefore the ERR packet will not contain the SQL-state.
+
+  See also
+  @subpage page_caching_sha2_authentication_exchanges
 */
 
 
@@ -140,10 +148,8 @@ extern bool initialized;
 
 #if defined(HAVE_OPENSSL)
 #define MAX_CIPHER_LENGTH 1024
-#if !defined(HAVE_YASSL)
-#define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
-#define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
 
+#if !defined(HAVE_YASSL)
 #define DEFAULT_SSL_CLIENT_CERT "client-cert.pem"
 #define DEFAULT_SSL_CLIENT_KEY  "client-key.pem"
 
@@ -151,13 +157,13 @@ extern bool initialized;
 
 bool opt_auto_generate_certs= TRUE;
 
-char *auth_rsa_private_key_path;
-char *auth_rsa_public_key_path;
 bool auth_rsa_auto_generate_rsa_keys= TRUE;
 
 static bool do_auto_rsa_keys_generation();
-static Rsa_authentication_keys g_rsa_keys;
 
+char *auth_rsa_private_key_path;
+char *auth_rsa_public_key_path;
+Rsa_authentication_keys * g_sha256_rsa_keys= 0;
 #endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */
 
@@ -178,13 +184,12 @@ Thd_charset_adapter::charset()
 }
 
 #if defined(HAVE_OPENSSL)
-#ifndef HAVE_YASSL
 
 /**
   @brief Set key file path
 
-  @param [in] key            Points to either auth_rsa_private_key_path or
-                             auth_rsa_public_key_path.
+  @param [in] key            Points to either m_private_key_path or
+                             m_public_key_path.
   @param [out] key_file_path Stores value of actual key file path.
 
 */
@@ -236,7 +241,7 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
   const char *key_type;
   FILE *key_file= NULL;
 
-  key= is_priv_key ? auth_rsa_private_key_path : auth_rsa_public_key_path;
+  key= is_priv_key ? *m_private_key_path : *m_public_key_path;
   key_type= is_priv_key ? "private" : "public";
   *key_ptr= NULL;
 
@@ -245,7 +250,7 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
   /*
      Check for existance of private key/public key file.
   */
-  if ((key_file= fopen(key_file_path.c_ptr(), "r")) == NULL)
+  if ((key_file= fopen(key_file_path.c_ptr(), "rb")) == NULL)
   {
     LogErr(INFORMATION_LEVEL, ER_AUTH_RSA_CANT_FIND, key_type,
            key_file_path.c_ptr());
@@ -266,7 +271,9 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
         Call ERR_clear_error() just in case there are more than 1 entry in the
         OpenSSL thread's error queue.
       */
+#ifndef HAVE_YASSL
       ERR_clear_error();
+#endif
 
       return true;
     }
@@ -294,15 +301,6 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
     return read_error;
   }
   return false;
-}
-
-
-Rsa_authentication_keys::Rsa_authentication_keys()
-{
-  m_cipher_len= 0;
-  m_private_key= 0;
-  m_public_key= 0;
-  m_pem_public_key= 0;
 }
 
 
@@ -354,8 +352,8 @@ Rsa_authentication_keys::read_rsa_keys()
   RSA *rsa_public_key_ptr= NULL;
   char *pub_key_buff= NULL;
 
-  if ((strlen(auth_rsa_private_key_path) == 0) &&
-      (strlen(auth_rsa_public_key_path) == 0))
+  if ((strlen(*m_private_key_path) == 0) &&
+      (strlen(*m_public_key_path) == 0))
   {
     LogErr(INFORMATION_LEVEL, ER_AUTH_RSA_FILES_NOT_FOUND);
     return false;
@@ -412,7 +410,6 @@ Rsa_authentication_keys::read_rsa_keys()
   return false;
 }
 
-#endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */
 
 /**
@@ -441,7 +438,8 @@ int set_default_auth_plugin(char *plugin_name, size_t plugin_name_length)
   }
   else
 #endif /* HAVE_OPENSSL */
-  if (default_auth_plugin_name.str != native_password_plugin_name.str)
+  if (default_auth_plugin_name.str != native_password_plugin_name.str &&
+      default_auth_plugin_name.str != caching_sha2_password_plugin_name.str)
     return 1;
 
   return 0;
@@ -457,6 +455,13 @@ void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name)
     plugin_name->str= sha256_password_plugin_name.str;
     plugin_name->length= sha256_password_plugin_name.length;
   }
+  else if (my_strcasecmp(system_charset_info,
+                         caching_sha2_password_plugin_name.str,
+                         plugin_name->str) == 0)
+  {
+    plugin_name->str= caching_sha2_password_plugin_name.str;
+    plugin_name->length= caching_sha2_password_plugin_name.length;
+  }
   else
 #endif
     if (my_strcasecmp(system_charset_info, native_password_plugin_name.str,
@@ -467,6 +472,8 @@ void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name)
   }
 }
 
+std::vector<std::string> builtin_auth_plugins=
+  {"mysql_native_password", "sha256_password" };
 
 bool auth_plugin_is_built_in(const char *plugin_name)
 {
@@ -474,6 +481,7 @@ bool auth_plugin_is_built_in(const char *plugin_name)
 #if defined(HAVE_OPENSSL)
          || plugin_name == sha256_password_plugin_name.str
 #endif
+         || plugin_name == caching_sha2_password_plugin_name.str
          );
 }
 
@@ -489,12 +497,15 @@ bool auth_plugin_is_built_in(const char *plugin_name)
 */
 bool auth_plugin_supports_expiration(const char *plugin_name)
 {
- return (!plugin_name || !*plugin_name ||
-         plugin_name == native_password_plugin_name.str
+  if (!plugin_name || !*plugin_name)
+    return false;
+
+  return (plugin_name == native_password_plugin_name.str
+          || plugin_name == caching_sha2_password_plugin_name.str
 #if defined(HAVE_OPENSSL)
-         || plugin_name == sha256_password_plugin_name.str
+          || plugin_name == sha256_password_plugin_name.str
 #endif
-         );
+          );
 }
 
 
@@ -519,7 +530,7 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
                                    mpvio->auth_info.user_name,
                                    mpvio->auth_info.host_or_ip);
     /*
-      Log access denied messages to the error log when log-warnings = 2
+      Log access denied messages to the error log when log_error_verbosity = 3
       so that the overhead of the general query log is not required to track
       failed connections.
     */
@@ -539,7 +550,7 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
                                    mpvio->auth_info.host_or_ip,
                                    passwd_used ? ER_DEFAULT(ER_YES) : ER_DEFAULT(ER_NO));
     /*
-      Log access denied messages to the error log when log-warnings = 2
+      Log access denied messages to the error log when log_error_verbosity = 3
       so that the overhead of the general query log is not required to track
       failed connections.
     */
@@ -746,8 +757,8 @@ bool acl_check_host(THD *thd, const char *host, const char *ip)
   if (allow_all_hosts)
     return 0;
 
-  if ((host && my_hash_search(&acl_check_hosts,(uchar*) host,strlen(host))) ||
-      (ip && my_hash_search(&acl_check_hosts,(uchar*) ip, strlen(ip))))
+  if ((host && acl_check_hosts->count(host) != 0) ||
+      (ip && acl_check_hosts->count(ip) != 0))
     return 0;                                   // Found host
 
   for (ACL_HOST_AND_IP *acl= acl_wild_hosts->begin();
@@ -775,13 +786,15 @@ bool acl_check_host(THD *thd, const char *host, const char *ip)
   authentication protocol.
 */
 
-static ACL_USER *decoy_user(const LEX_STRING &username,
-                            MEM_ROOT *mem)
+static ACL_USER * decoy_user(const LEX_STRING &username,
+                             const LEX_STRING &hostname,
+                             MEM_ROOT *mem)
 {
   ACL_USER *user= (ACL_USER *) alloc_root(mem, sizeof(ACL_USER));
   user->can_authenticate= false;
   user->user= strdup_root(mem, username.str);
   user->user[username.length]= '\0';
+  user->host.update_hostname(strdup_root(mem, hostname.str));
   user->auth_string= empty_lex_str;
   user->ssl_cipher= empty_c_string;
   user->x509_issuer= empty_c_string;
@@ -791,6 +804,10 @@ static ACL_USER *decoy_user(const LEX_STRING &username,
   user->password_lifetime= 0;
   user->use_default_password_lifetime= true;
   user->account_locked= false;
+  user->use_default_password_reuse_interval= true;
+  user->password_reuse_interval= 0;
+  user->use_default_password_history= true;
+  user->password_history_length= 0;
   /*
     For now the common default account is used. Improvements might involve
     mapping a consistent hash of a username to a range of plugins.
@@ -854,7 +871,9 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
     */
     LEX_STRING usr= { mpvio->auth_info.user_name,
                       mpvio->auth_info.user_name_length };
-    mpvio->acl_user= decoy_user(usr, mpvio->mem_root);
+    LEX_STRING hst= { mpvio->host ? mpvio->host : mpvio->ip,
+                      mpvio->host ? strlen(mpvio->host) : strlen(mpvio->ip) };
+    mpvio->acl_user= decoy_user(usr, hst, mpvio->mem_root);
     mpvio->acl_user_plugin= mpvio->acl_user->plugin;
   }
 
@@ -1042,12 +1061,13 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
     @retval false RSA support is available
     @retval true RSA support is not available
 */
-bool rsa_auth_status()
+bool sha256_rsa_auth_status()
 {
 #if !defined(HAVE_OPENSSL) || defined(HAVE_YASSL)
   return false;
 #else
-  return (!g_rsa_keys.get_private_key() || !g_rsa_keys.get_public_key());
+  return (!g_sha256_rsa_keys->get_private_key() ||
+          !g_sha256_rsa_keys->get_public_key());
 #endif /* !HAVE_OPENSSL || HAVE_YASSL */
 }
 
@@ -1837,6 +1857,10 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
   It transparently extracts the client plugin data, if embedded into
   a client authentication handshake packet, and handles plugin negotiation
   with the client, if necessary.
+
+  RETURN
+    -1          Protocol failure
+    >= 0        Success and also the packet length
 */
 static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
 {
@@ -2096,7 +2120,7 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
       interval.day= acl_user->password_lifetime;
     else
     {
-      Mutex_lock lock(&LOCK_default_password_lifetime);
+      MUTEX_LOCK(lock, &LOCK_default_password_lifetime);
       interval.day= default_password_lifetime;
     }
     if (interval.day)
@@ -2761,6 +2785,48 @@ static int set_sha256_salt(const char* password MY_ATTRIBUTE((unused)),
 
 
 /**
+  Compare a clear text password with a stored hash for
+  the native password plugin
+
+  If the password is non-empty it calculates a hash from
+  the cleartext and compares it with the supplied hash.
+
+  if the password is empty checks if the hash is empty too.
+
+  @arg hash              pointer to the hashed data
+  @arg hash_length       length of the hashed data
+  @arg cleartext         pointer to the clear text password
+  @arg cleartext_length  length of the cleat text password
+  @arg[out] is_error     non-zero in case of error extracting the salt
+  @retval 0              the hash was created with that password
+  @retval non-zero       the hash was created with a different password
+*/
+static int
+compare_native_password_with_hash(const char *hash, unsigned long hash_length,
+                                  const char *cleartext,
+                                  unsigned long cleartext_length,
+                                  int *is_error)
+{
+  DBUG_ENTER("compare_native_password_with_hash");
+
+  char buffer[SCRAMBLED_PASSWORD_CHAR_LENGTH + 1];
+
+  /** empty password results in an empty hash */
+  if (!hash_length && !cleartext_length)
+    return 0;
+
+  DBUG_ASSERT(hash_length == SCRAMBLED_PASSWORD_CHAR_LENGTH);
+
+  /* calculate the hash from the clear text */
+  my_make_scrambled_password_sha1(buffer, cleartext, cleartext_length);
+
+  *is_error= 0;
+  int result= memcmp(hash, buffer, SCRAMBLED_PASSWORD_CHAR_LENGTH);
+
+  DBUG_RETURN(result);
+}
+
+/**
   MySQL Server Password Authentication Plugin
 
   In the MySQL authentication protocol:
@@ -2868,19 +2934,32 @@ static int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
   return (mpvio->vio_is_encrypted);
 }
 
-#ifndef HAVE_YASSL
-
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff)
 {
+#ifndef HAVE_YASSL
   var->type= SHOW_CHAR;
-  var->value= const_cast<char *>(g_rsa_keys.get_public_key_as_pem());
-
+  var->value=
+    const_cast<char *>(g_sha256_rsa_keys->get_public_key_as_pem());
+#endif
   return 0;
 }
 
 void deinit_rsa_keys(void)
 {
-  g_rsa_keys.free_memory();
+#ifndef HAVE_YASSL
+  if (g_sha256_rsa_keys)
+  {
+    g_sha256_rsa_keys->free_memory();
+    delete g_sha256_rsa_keys;
+    g_sha256_rsa_keys= 0;
+  }
+#endif
+  if (g_caching_sha2_rsa_keys)
+  {
+    g_caching_sha2_rsa_keys->free_memory();
+    delete g_caching_sha2_rsa_keys;
+    g_caching_sha2_rsa_keys= 0;
+  }
 }
 
 // Wraps a FILE handle, to ensure we always close it when returning.
@@ -2908,10 +2987,32 @@ public:
 
 bool init_rsa_keys(void)
 {
-  return ((do_auto_rsa_keys_generation() == false) ||
-          g_rsa_keys.read_rsa_keys());
+#ifndef HAVE_YASSL
+  if (!do_auto_rsa_keys_generation())
+    return true;
+
+  if (!(g_sha256_rsa_keys=
+        new Rsa_authentication_keys(&auth_rsa_private_key_path,
+                                    &auth_rsa_public_key_path)))
+    return true;
+#endif
+  if (!(g_caching_sha2_rsa_keys=
+        new Rsa_authentication_keys(&caching_sha2_rsa_private_key_path,
+                                    &caching_sha2_rsa_public_key_path)))
+  {
+#ifndef HAVE_YASSL
+    delete g_sha256_rsa_keys;
+    g_sha256_rsa_keys= 0;
+#endif
+    return true;
+  }
+
+  return (
+#ifndef HAVE_YASSL
+  g_sha256_rsa_keys->read_rsa_keys() ||
+#endif
+  g_caching_sha2_rsa_keys->read_rsa_keys());
 }
-#endif /* HAVE_YASSL */
 
 static MYSQL_PLUGIN plugin_info_ptr;
 
@@ -2940,6 +3041,63 @@ void static inline auth_save_scramble(MYSQL_PLUGIN_VIO *vio, const char *scrambl
   strncpy(mpvio->scramble, scramble, SCRAMBLE_LENGTH+1);
 }
 
+/**
+  Compare a clear text password with a stored hash
+
+  Checks if a stored hash is produced using a clear text password.
+  To do that first it extracts the scramble from the hash. Then
+  calculates a new hash using the extracted scramble and the supplied
+  password. And finally compares the two scrambles.
+
+  @arg hash              pointer to the hashed data
+  @arg hash_length       length of the hashed data
+  @arg cleartext         pointer to the clear text password
+  @arg cleartext_length  length of the cleat text password
+  @arg[out] is_error     non-zero in case of error extracting the salt
+  @retval 0              the hash was created with that password
+  @retval non-zero       the hash was created with a different password
+*/
+static int
+compare_sha256_password_with_hash(const char *hash, unsigned long hash_length,
+                                             const char *cleartext,
+                                             unsigned long cleartext_length,
+                                             int *is_error)
+{
+  char stage2[CRYPT_MAX_PASSWORD_SIZE + 1];
+  char  *user_salt_begin;
+  char  *user_salt_end;
+
+  DBUG_ENTER("compare_sha256_password_with_hash");
+
+  /*
+    Fetch user authentication_string and extract the password salt
+  */
+  user_salt_begin= (char *) hash;
+  user_salt_end= (char *) (hash + hash_length);
+  if (extract_user_salt(&user_salt_begin, &user_salt_end) != CRYPT_SALT_LENGTH)
+  {
+    *is_error= 1;
+    DBUG_RETURN(-1);
+  }
+
+  *is_error= 0;
+
+  /* Create hash digest */
+  my_crypt_genhash(stage2,
+                   CRYPT_MAX_PASSWORD_SIZE,
+                   cleartext,
+                   cleartext_length,
+                   user_salt_begin,
+                   (const char **) 0);
+
+  /* Compare the newly created hash digest with the password record */
+  int result= memcmp(hash,
+                     stage2,
+                     hash_length);
+
+  DBUG_RETURN(result);
+}
+
 
 /**
 
@@ -2960,12 +3118,9 @@ void static inline auth_save_scramble(MYSQL_PLUGIN_VIO *vio, const char *scrambl
 static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
                                         MYSQL_SERVER_AUTH_INFO *info)
 {
+  char scramble[SCRAMBLE_LENGTH + 1];
   uchar *pkt;
   int pkt_len;
-  char  *user_salt_begin;
-  char  *user_salt_end;
-  char scramble[SCRAMBLE_LENGTH + 1];
-  char stage2[CRYPT_MAX_PASSWORD_SIZE + 1];
   String scramble_response_packet;
 #if !defined(HAVE_YASSL)
   int cipher_length= 0;
@@ -3004,8 +3159,12 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   /*
     If first packet is a 0 byte then the client isn't sending any password
     else the client will send a password.
+
+    The original intention was that the password is a string[NUL] but this
+    never got enforced properly so now we have to accept that an empty packet
+    is a blank password, thus the check for pkt_len == 0 has to be made too.
   */
-  if (pkt_len == 1 && *pkt == 0)
+  if ((pkt_len == 0 || pkt_len == 1) && *pkt == 0)
   {
     info->password_used= PASSWORD_USED_NO;
     /*
@@ -3035,8 +3194,8 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
       Since a password is being used it must be encrypted by RSA since no
       other encryption is being active.
     */
-    private_key= g_rsa_keys.get_private_key();
-    public_key=  g_rsa_keys.get_public_key();
+    private_key= g_sha256_rsa_keys->get_private_key();
+    public_key=  g_sha256_rsa_keys->get_public_key();
 
     /*
       Without the keys encryption isn't possible.
@@ -3049,11 +3208,11 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     }
 
 
-    if ((cipher_length= g_rsa_keys.get_cipher_length()) > MAX_CIPHER_LENGTH)
+    if ((cipher_length= g_sha256_rsa_keys->get_cipher_length()) > MAX_CIPHER_LENGTH)
     {
       my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
         "RSA key cipher length of %u is too long. Max value is %u.",
-        g_rsa_keys.get_cipher_length(), MAX_CIPHER_LENGTH);
+        g_sha256_rsa_keys->get_cipher_length(), MAX_CIPHER_LENGTH);
       DBUG_RETURN(CR_ERROR);
     }
 
@@ -3064,10 +3223,11 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     */
     if (pkt_len == 1 && *pkt == 1)
     {
-      uint pem_length= static_cast<uint>(strlen(g_rsa_keys.get_public_key_as_pem()));
+      uint pem_length=
+        static_cast<uint>(strlen(g_sha256_rsa_keys->get_public_key_as_pem()));
       if (vio->write_packet(vio,
-                            (unsigned char *)g_rsa_keys.get_public_key_as_pem(),
-                            pem_length))
+            (unsigned char *)g_sha256_rsa_keys->get_public_key_as_pem(),
+            pem_length))
         DBUG_RETURN(CR_ERROR);
       /* Get the encrypted response from the client */
       if ((pkt_len= vio->read_packet(vio, &pkt)) == -1)
@@ -3106,32 +3266,20 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   if (info->auth_string_length == 0)
     DBUG_RETURN(CR_ERROR);
 
-  /*
-    Fetch user authentication_string and extract the password salt
-  */
-  user_salt_begin= (char *) info->auth_string;
-  user_salt_end= (char *) (info->auth_string + info->auth_string_length);
-  if (extract_user_salt(&user_salt_begin, &user_salt_end) != CRYPT_SALT_LENGTH)
+  int is_error;
+  int result= compare_sha256_password_with_hash(info->auth_string,
+                                                info->auth_string_length,
+                                                (const char *) pkt, pkt_len - 1,
+                                                &is_error);
+
+  if (is_error)
   {
     /* User salt is not correct */
     my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-      "Password salt for user '%s' is corrupt.",
-      info->user_name);
+                          "Password salt for user '%s' is corrupt.",
+                          info->user_name);
     DBUG_RETURN(CR_ERROR);
   }
-
-  /* Create hash digest */
-  my_crypt_genhash(stage2,
-                     CRYPT_MAX_PASSWORD_SIZE,
-                     (char *) pkt,
-                     pkt_len-1,
-                     user_salt_begin,
-                     (const char **) 0);
-
-  /* Compare the newly created hash digest with the password record */
-  int result= memcmp(info->auth_string,
-                     stage2,
-                     info->auth_string_length);
 
   if (result == 0)
   {
@@ -3146,6 +3294,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 
   DBUG_RETURN(CR_ERROR);
 }
+
 
 #if !defined(HAVE_YASSL)
 static MYSQL_SYSVAR_STR(private_key_path, auth_rsa_private_key_path,
@@ -4120,7 +4269,8 @@ static struct st_mysql_auth native_password_handler=
   generate_native_password,
   validate_native_password_hash,
   set_native_salt,
-  AUTH_FLAG_USES_INTERNAL_STORAGE
+  AUTH_FLAG_USES_INTERNAL_STORAGE,
+  compare_native_password_with_hash
 };
 
 #if defined(HAVE_OPENSSL)
@@ -4132,7 +4282,8 @@ static struct st_mysql_auth sha256_password_handler=
   generate_sha256_password,
   validate_sha256_password_hash,
   set_sha256_salt,
-  AUTH_FLAG_USES_INTERNAL_STORAGE
+  AUTH_FLAG_USES_INTERNAL_STORAGE,
+  compare_sha256_password_with_hash
 };
 
 #endif /* HAVE_OPENSSL */

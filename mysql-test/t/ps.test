@@ -754,13 +754,13 @@ prepare stmt from "select @@time_zone";
 execute stmt;
 set @@time_zone:='Japan';
 execute stmt;
-prepare stmt from "select @@tx_isolation";
+prepare stmt from "select @@transaction_isolation";
 execute stmt;
 set transaction isolation level read committed;
 execute stmt;
 set transaction isolation level serializable;
 execute stmt;
-set @@tx_isolation=default;
+set @@transaction_isolation=default;
 execute stmt;
 deallocate prepare stmt;
 
@@ -2009,26 +2009,6 @@ DROP TABLE t1;
 # Bug #20665: All commands supported in Stored Procedures should work in
 # Prepared Statements
 #
-create procedure proc_1() reset query cache;
-call proc_1();
-call proc_1();
-call proc_1();
-delimiter |;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function func_1() returns int deterministic begin reset query cache; return 1; end|
-create function func_1() returns int deterministic begin call proc_1(); return 1; end|
-delimiter ;|
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-select func_1(), func_1(), func_1() from dual;
-drop function func_1;
-drop procedure proc_1;
-prepare abc from "reset query cache";
-execute abc;
-execute abc;
-execute abc;
-deallocate prepare abc;
-
-
 create procedure proc_1() reset master;
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
@@ -2287,26 +2267,6 @@ select func_1(), func_1(), func_1() from dual;
 drop function func_1;
 drop procedure proc_1;
 prepare abc from "flush status";
-execute abc;
-execute abc;
-execute abc;
-deallocate prepare abc;
-
-
-create procedure proc_1() flush des_key_file;
-call proc_1();
-call proc_1();
-call proc_1();
-delimiter |;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function func_1() returns int begin flush des_key_file; return 1; end|
-create function func_1() returns int begin call proc_1(); return 1; end|
-delimiter ;|
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-select func_1(), func_1(), func_1() from dual;
-drop function func_1;
-drop procedure proc_1;
-prepare abc from "flush des_key_file";
 execute abc;
 execute abc;
 execute abc;
@@ -2842,17 +2802,6 @@ prepare abc from "show warnings";
 # Bug#22684: The Functions ENCODE, DECODE and FORMAT are not real functions
 #
 
-set @my_password="password";
-set @my_data="clear text to encode";
-
-prepare stmt1 from 'select decode(encode(?, ?), ?)';
-execute stmt1 using @my_data, @my_password, @my_password;
-set @my_data="more text to encode";
-execute stmt1 using @my_data, @my_password, @my_password;
-set @my_password="new password";
-execute stmt1 using @my_data, @my_password, @my_password;
-deallocate prepare stmt1;
-
 set @to_format="123456789.123456789";
 set @dec=0;
 
@@ -2975,23 +2924,6 @@ deallocate prepare stmt;
 drop table t1, t2;
 
 --echo #
---echo # Bug#49141: Encode function is significantly slower in 5.1 compared to 5.0
---echo #
-
-prepare encode from "select encode(?, ?) into @ciphertext";
-prepare decode from "select decode(?, ?) into @plaintext";
-set @str="abc", @key="cba";
-execute encode using @str, @key;
-execute decode using @ciphertext, @key;
-select @plaintext;
-set @str="bcd", @key="dcb";
-execute encode using @str, @key;
-execute decode using @ciphertext, @key;
-select @plaintext;
-deallocate prepare encode;
-deallocate prepare decode;
-
---echo #
 --echo # Bug#52124 memory leaks like a sieve in datetime, timestamp, time, date fields + warnings
 --echo #
 CREATE TABLE t1 (a DATETIME NOT NULL, b TINYINT);
@@ -3006,11 +2938,11 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
 --echo #
---echo # Bug#54494 crash with explain extended and prepared statements
+--echo # Bug#54494 crash with explain and prepared statements
 --echo #
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1),(2);
-PREPARE stmt FROM 'EXPLAIN EXTENDED SELECT 1 FROM t1 RIGHT JOIN t1 t2 ON 1';
+PREPARE stmt FROM 'EXPLAIN SELECT 1 FROM t1 RIGHT JOIN t1 t2 ON 1';
 EXECUTE stmt;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
@@ -3517,7 +3449,7 @@ INSERT INTO bug19894382 SELECT * FROM client_test_db.bug19894382;
 
 --echo # Replay binlog events
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG --force-if-open -d client_test_db $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug19894382.binlog
+--exec $MYSQL_BINLOG --force-if-open -d client_test_db $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug19894382.binlog
 --exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug19894382.binlog"
 
 --echo # Insert tuples from the client_test_db.bug19894382 to the test.bug19894382.

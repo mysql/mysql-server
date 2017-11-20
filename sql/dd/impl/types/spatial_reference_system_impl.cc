@@ -13,20 +13,21 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/spatial_reference_system_impl.h"
+#include "sql/dd/impl/types/spatial_reference_system_impl.h"
 
 #include <stdint.h>
 
-#include "dd/impl/dictionary_impl.h"       // Dictionary_impl
-#include "dd/impl/raw/object_keys.h"       // id_key_type
-#include "dd/impl/raw/raw_record.h"        // Raw_record
-#include "dd/impl/sdi_impl.h"              // sdi read/write functions
-#include "dd/impl/tables/spatial_reference_systems.h" // Spatial_reference_sy...
-#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
-#include "gis/srs/srs.h"                   // gis::srs::parse_wkt
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+
 #include "m_string.h"
-#include "rapidjson/document.h"
-#include "rapidjson/prettywriter.h"
+#include "sql/dd/impl/dictionary_impl.h"   // Dictionary_impl
+#include "sql/dd/impl/raw/raw_record.h"    // Raw_record
+#include "sql/dd/impl/sdi_impl.h"          // sdi read/write functions
+#include "sql/dd/impl/tables/spatial_reference_systems.h" // Spatial_reference_sy...
+#include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
+#include "sql/gis/srs/srs.h"               // gis::srs::parse_wkt
 
 namespace dd {
 class Sdi_rcontext;

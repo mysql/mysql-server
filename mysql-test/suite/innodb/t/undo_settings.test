@@ -31,8 +31,6 @@ INSERT INTO t2(b) VALUES (repeat('x1 ',5));
 INSERT INTO t3(b) VALUES (repeat('x1 ',5));
 
 connection default;
-# The server should have started with default settings;
-# --innodb_undo_tablespaces=0 --innodb_rollback_segments=128;
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 --echo # Directory listing of UNDO tablespace files
@@ -67,12 +65,12 @@ XA END 'x2';
 connection default;
 
 --echo #
---echo # Change number of UNDO tablespaces from 1 to 4 while online
---echo # Change number of Rollback Segments from 1 to 3 while online
+--echo # Change number of UNDO tablespaces from 3 to 4 while online
+--echo # Change number of Rollback Segments from 1 to 4 while online
 --echo #
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
-SET GLOBAL innodb_rollback_segments=3;
+SET GLOBAL innodb_rollback_segments=4;
 SET GLOBAL innodb_undo_tablespaces=4;
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
@@ -95,11 +93,14 @@ XA COMMIT 'x3';
 connection default;
 
 --echo #
---echo # Change number of Rollback Segments from 3 to 2 while online
+--echo # Change number of UNDO tablespaces from 4 to 2 while online
+--echo # Change number of Rollback Segments from 4 to 2 while online
 --echo #
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SET GLOBAL innodb_undo_tablespaces=2;
 SET GLOBAL innodb_rollback_segments=2;
+SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 SELECT name, status FROM information_schema.innodb_metrics WHERE name like '%rseg%';
 connection con1;
@@ -109,89 +110,22 @@ INSERT INTO t3(b) VALUES (repeat('d',15));
 connection default;
 
 --echo #
---echo # Change number of UNDO tablespaces from 4 to 0 while online
---echo #
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
-SET GLOBAL innodb_undo_tablespaces=0;
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
---echo # Directory listing of UNDO tablespace files
---list_files $MYSQLD_DATADIR undo*
-SELECT name, status FROM information_schema.innodb_metrics WHERE name like '%rseg%';
-connection con1;
-INSERT INTO t1(b) VALUES (repeat('e',15));
-INSERT INTO t2(b) VALUES (repeat('e',15));
-INSERT INTO t3(b) VALUES (repeat('e',15));
-connection default;
-
---echo #
---echo # Change number of Rollback Segments in the system tablespace from 2 to 6 while online
---echo #
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-SET GLOBAL innodb_rollback_segments=6;
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
---echo # Directory listing of UNDO tablespace files
---list_files $MYSQLD_DATADIR undo*
-connection con1;
-INSERT INTO t1(b) VALUES (repeat('e',15));
-INSERT INTO t2(b) VALUES (repeat('e',15));
-INSERT INTO t3(b) VALUES (repeat('e',15));
-connection default;
-
---echo #
---echo # Change number of Rollback Segments in the system tablespace from 6 to 4 while online
---echo #
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-SET GLOBAL innodb_rollback_segments=4;
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
---echo # Directory listing of UNDO tablespace files
---list_files $MYSQLD_DATADIR undo*
-SELECT name, status FROM information_schema.innodb_metrics WHERE name like '%rseg%';
-connection con1;
-INSERT INTO t1(b) VALUES (repeat('f',15));
-INSERT INTO t2(b) VALUES (repeat('f',15));
-INSERT INTO t3(b) VALUES (repeat('f',15));
-connection default;
-
---echo #
---echo # Change number of UNDO tablespaces to from 0 to 5 while online
---echo #
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
-SET GLOBAL innodb_undo_tablespaces=5;
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
---echo # Directory listing of UNDO tablespace files
---list_files $MYSQLD_DATADIR undo*
-connection con1;
-INSERT INTO t1(b) VALUES (repeat('g',15));
-INSERT INTO t2(b) VALUES (repeat('g',15));
-INSERT INTO t3(b) VALUES (repeat('g',15));
-connection default;
-
---echo #
---echo # Change number of Rollback Segments from 4 to 2 while online
---echo #
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-SET GLOBAL innodb_rollback_segments=2;
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-connection con1;
-INSERT INTO t1(b) VALUES (repeat('h',15));
-INSERT INTO t2(b) VALUES (repeat('h',15));
-INSERT INTO t3(b) VALUES (repeat('h',15));
-connection default;
-
---echo #
+--echo # Change number of UNDO tablespaces from 2 to 5 while online
 --echo # Change number of Rollback Segments from 2 to 5 while online
 --echo #
+SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SET GLOBAL innodb_undo_tablespaces=5;
 SET GLOBAL innodb_rollback_segments=5;
+SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 connection con1;
-INSERT INTO t1(b) VALUES (repeat('i',15));
-INSERT INTO t2(b) VALUES (repeat('i',15));
-INSERT INTO t3(b) VALUES (repeat('i',15));
+INSERT INTO t1(b) VALUES (repeat('e',15));
+INSERT INTO t2(b) VALUES (repeat('e',15));
+INSERT INTO t3(b) VALUES (repeat('e',15));
 connection default;
 disconnect con1;
+disconnect con2;
 
 --echo #
 --echo # Shutdown mysqld cleanly.
@@ -209,12 +143,12 @@ SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 
 --echo #
 --echo # Shutdown mysqld cleanly.
---echo # Change number of UNDO tablespaces from 6 to 2 while offline
---echo # Change number of Rollback Segments from 6 to 2 while offline
+--echo # Change number of UNDO tablespaces from 6 to 4 while offline
+--echo # Change number of Rollback Segments from 6 to 4 while offline
 --echo # Restart mysqld with these smaller settings
 --echo #
 --source include/shutdown_mysqld.inc
-let $restart_parameters = restart: --innodb_undo_tablespaces=2 --innodb_rollback_segments=2;
+let $restart_parameters = restart: --innodb_undo_tablespaces=4 --innodb_rollback_segments=4;
 --source include/start_mysqld.inc
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
@@ -222,36 +156,18 @@ SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 --list_files $MYSQLD_DATADIR undo*
 
 --echo #
---echo # Shutdown mysqld cleanly.
---echo # Change number of UNDO tablespaces from 2 to 0 while offline
---echo # Change number of Rollback Segments from 2 to 5 while offline
---echo # Restart mysqld with these settings
---echo #
-# The existing undo tablespaces are not deleted, they just become unused.
---source include/shutdown_mysqld.inc
-let $restart_parameters = restart: --innodb-undo_tablespaces=0 --innodb_rollback_segments=5;
---source include/start_mysqld.inc
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
---echo # Directory listing of UNDO tablespace files
---list_files $MYSQLD_DATADIR undo*
-SELECT COUNT(*) FROM t1;
-SELECT COUNT(*) FROM t2;
-SELECT COUNT(*) FROM t3;
-
---echo #
---echo # Kill and and restart mysqld with undo tablespaces=0 and more rollback segments=6.
+--echo # Kill and and restart mysqld with less undo tablespaces=2 and less rollback segments=2
 --echo #
 connect (con1,localhost,root);
 BEGIN;
-INSERT INTO t1 (b) VALUES (repeat('j',15));
-INSERT INTO t2 (b) VALUES (repeat('j',15));
-INSERT INTO t3 (b) VALUES (repeat('j',15));
+INSERT INTO t1 (b) VALUES (repeat('f',15));
+INSERT INTO t2 (b) VALUES (repeat('f',15));
+INSERT INTO t3 (b) VALUES (repeat('f',15));
 SELECT COUNT(*) FROM t1;
 SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t3;
 connection default;
-let $restart_parameters = restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=6;
+let $restart_parameters = restart: --innodb_undo_tablespaces=2 --innodb_rollback_segments=2;
 --source include/kill_and_restart_mysqld.inc
 disconnect con1;
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
@@ -267,9 +183,9 @@ SELECT COUNT(*) FROM t3;
 --echo #
 connect (con1,localhost,root);
 BEGIN;
-INSERT INTO t1 (b) VALUES (repeat('k',15));
-INSERT INTO t2 (b) VALUES (repeat('k',15));
-INSERT INTO t3 (b) VALUES (repeat('k',15));
+INSERT INTO t1 (b) VALUES (repeat('g',15));
+INSERT INTO t2 (b) VALUES (repeat('g',15));
+INSERT INTO t3 (b) VALUES (repeat('g',15));
 SELECT COUNT(*) FROM t1;
 SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t3;
@@ -289,9 +205,9 @@ SELECT COUNT(*) FROM t3;
 --echo # Restart mysqld in read-only mode with more undo tablespaces=8 and more rollback segments=8
 --echo #
 connect (con1,localhost,root);
-INSERT INTO t1 (b) VALUES (repeat('l',15));
-INSERT INTO t2 (b) VALUES (repeat('l',15));
-INSERT INTO t3 (b) VALUES (repeat('l',15));
+INSERT INTO t1 (b) VALUES (repeat('h',15));
+INSERT INTO t2 (b) VALUES (repeat('h',15));
+INSERT INTO t3 (b) VALUES (repeat('h',15));
 connection default;
 let $restart_parameters = restart: --innodb_read_only  --innodb_undo_tablespaces=8 --innodb_rollback_segments=8;
 --source include/restart_mysqld.inc
@@ -334,37 +250,23 @@ SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t3;
 
 --echo #
---echo # Restart in normal mode with undo tablespaces=0 and more rollback segments=10
---echo #
-let $restart_parameters = restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=10;
---source include/restart_mysqld.inc
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
---echo # Directory listing of UNDO tablespace files
---list_files $MYSQLD_DATADIR undo*
-INSERT INTO t1 (b) VALUES (repeat('m',15));
-INSERT INTO t2 (b) VALUES (repeat('m',15));
-INSERT INTO t3 (b) VALUES (repeat('m',15));
-SELECT COUNT(*) FROM t1;
-SELECT COUNT(*) FROM t2;
-SELECT COUNT(*) FROM t3;
-
---echo #
 --echo # Use SET PERSIST to change undo tablespaces=11 and rollback segments=11
 --echo # and put some undo logs in both the system tablespace and the undo logs
 --echo # that must be rolled back on restart.
 --echo #
+let $restart_parameters = restart: --innodb_undo_tablespaces=8 --innodb_rollback_segments=8;
+--source include/restart_mysqld.inc
 BEGIN;
-INSERT INTO t1 (b) VALUES (repeat('n',15));
-INSERT INTO t2 (b) VALUES (repeat('n',15));
-INSERT INTO t3 (b) VALUES (repeat('n',15));
+INSERT INTO t1 (b) VALUES (repeat('i',15));
+INSERT INTO t2 (b) VALUES (repeat('i',15));
+INSERT INTO t3 (b) VALUES (repeat('i',15));
 SET PERSIST innodb_undo_tablespaces=11;
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 SET PERSIST innodb_rollback_segments=11;
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
-INSERT INTO t1 (b) VALUES (repeat('o',15));
-INSERT INTO t2 (b) VALUES (repeat('o',15));
-INSERT INTO t3 (b) VALUES (repeat('o',15));
+INSERT INTO t1 (b) VALUES (repeat('j',15));
+INSERT INTO t2 (b) VALUES (repeat('j',15));
+INSERT INTO t3 (b) VALUES (repeat('j',15));
 
 --echo #
 --echo # Restart in normal mode with default undo tablespaces and rollback segments.
@@ -379,9 +281,9 @@ SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 SELECT COUNT(*) FROM t1;
 SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t3;
-INSERT INTO t1 (b) VALUES (repeat('p',15));
-INSERT INTO t2 (b) VALUES (repeat('p',15));
-INSERT INTO t3 (b) VALUES (repeat('p',15));
+INSERT INTO t1 (b) VALUES (repeat('k',15));
+INSERT INTO t2 (b) VALUES (repeat('k',15));
+INSERT INTO t3 (b) VALUES (repeat('k',15));
 SELECT COUNT(*) FROM t1;
 SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t3;
@@ -411,5 +313,6 @@ call mtr.add_suppression('\\[Warning\\] InnoDB: Cannot set innodb_rollback_segme
 call mtr.add_suppression('\\[Warning\\] InnoDB: Cannot set innodb_undo_tablespaces to [8,3] when in innodb_force_recovery > 0');
 call mtr.add_suppression('\\[Warning\\] InnoDB: Cannot set innodb_rollback_segments to [8,3] when in innodb_force_recovery > 0');
 call mtr.add_suppression('\\[Warning\\] Skip updating information_schema metadata in InnoDB read-only mode');
+call mtr.add_suppression('\\[Warning\\] Skipped updating resource group metadata in InnoDB read only mode.');
 --enable_query_log
 

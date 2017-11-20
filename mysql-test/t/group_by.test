@@ -272,7 +272,7 @@ explain select spid,count(*) from t1 where spid between 1 and 2 group by spid;
 explain select spid,count(*) from t1 where spid between 1 and 2 group by spid order by null;
 select spid,count(*) from t1 where spid between 1 and 2 group by spid;
 select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
-explain extended select sql_big_result spid,sum(userid) from t1 group by spid desc;
+explain select sql_big_result spid,sum(userid) from t1 group by spid desc;
 explain select sql_big_result spid,sum(userid) from t1 group by spid desc order by null;
 select sql_big_result spid,sum(userid) from t1 group by spid desc;
 explain select sql_big_result score,count(*) from t1 group by score desc;
@@ -736,9 +736,9 @@ ANALYZE TABLE t1,t2;
 
 --replace_column 10 #
 explain 
-SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
+SELECT straight_join v1.a, v1.b, v1.real_b from t2, v1
 where t2.b=v1.a GROUP BY t2.b;
-SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
+SELECT straight_join v1.a, v1.b, v1.real_b from t2, v1
 where t2.b=v1.a GROUP BY t2.b;
 
 DROP VIEW v1;
@@ -1247,10 +1247,10 @@ SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
 
 ANALYZE TABLE t1;
 --echo # execution plan should not use temporary table:
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa+0;
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -1773,11 +1773,11 @@ GROUP BY field1,
 ANALYZE TABLE t1;
 --echo # In GROUP BY, aliases are printed as aliases.
 
-eval EXPLAIN EXTENDED $query_with_alias_in_group_by;
+eval EXPLAIN $query_with_alias_in_group_by;
 
 --echo # In GROUP BY, expressions are printed as expressions.
 
-eval EXPLAIN EXTENDED $query_with_no_alias_in_group_by;
+eval EXPLAIN $query_with_no_alias_in_group_by;
 
 --echo # Aliased expression in GROUP BY in a view.
 
@@ -1821,13 +1821,13 @@ SET @@sql_mode = @old_sql_mode;
 CREATE TABLE t2(a INT);
 INSERT INTO t2 VALUES(3),(4);
 ANALYZE TABLE t1,t2;
-EXPLAIN EXTENDED SELECT
+EXPLAIN SELECT
 pk AS foo, col_int_key AS bar, (SELECT a FROM t2 WHERE a=t1.pk) AS baz
 FROM t1
 GROUP BY foo, col_int_key, baz ORDER BY pk, bar, (SELECT a FROM t2 WHERE a=t1.pk);
 
 # Printing the alias in GROUP/ORDER BY would introduce an ambiguity.
-EXPLAIN EXTENDED SELECT
+EXPLAIN SELECT
 pk AS foo, col_int_key AS foo, (SELECT a FROM t2 WHERE a=t1.pk) AS foo
 FROM t1
 GROUP BY pk, col_int_key, (SELECT a FROM t2 WHERE a=t1.pk)
@@ -1865,7 +1865,7 @@ CREATE TABLE t3 (
 
 CREATE VIEW view1 AS SELECT * FROM t1;
 ANALYZE TABLE t1,t2,t3;
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT
     alias1.col_datetime_key AS field1
 FROM (
@@ -1914,7 +1914,7 @@ field1
 ORDER BY field1
 ;
 ANALYZE TABLE t1,t2;
-EXPLAIN EXTENDED SELECT * FROM view1;
+EXPLAIN SELECT * FROM view1;
 
 DROP TABLE t1,t2;
 DROP VIEW view1;
@@ -1924,7 +1924,7 @@ DROP VIEW view1;
 CREATE TABLE t1 (col_varchar_nokey varchar(1) DEFAULT NULL);
 INSERT INTO t1 VALUES ('v'),('c');
 ANALYZE TABLE t1;
-EXPLAIN EXTENDED SELECT (SELECT 150) AS field5
+EXPLAIN SELECT (SELECT 150) AS field5
 FROM (SELECT * FROM t1) AS alias1
 GROUP BY field5;
 
@@ -2521,3 +2521,211 @@ GROUP BY col_varchar HAVING (field1 >= 'i' OR field3 <= 9);
 SELECT CONCAT(col_varchar) as field1, MAX(col_int_key) AS field3
 FROM t1 GROUP BY col_varchar HAVING (field1 >= 'i' OR field3 <= 9);
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#21974346: GROUPING ON AGGREGATED RESULTS NOT ALWAYS REJECTED
+--echo #
+
+CREATE TABLE t (a INT);
+INSERT INTO t VALUES (0), (1), (1), (2);
+
+--echo # These queries did not raise the expected error before the fix.
+
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 HAVING c);
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT 1 HAVING c);
+--error ER_ILLEGAL_REFERENCE
+SELECT SUM(a) AS s FROM t GROUP BY (SELECT 1 HAVING s);
+--error ER_ILLEGAL_REFERENCE
+SELECT SUM(a) + 1 AS s FROM t GROUP BY (SELECT 1 HAVING s);
+--error ER_ILLEGAL_REFERENCE
+SELECT (SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 HAVING c));
+--error ER_ILLEGAL_REFERENCE
+SELECT (SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 HAVING c) LIMIT 1);
+--error ER_ILLEGAL_REFERENCE
+SELECT (SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT 1 HAVING c));
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c1, (SELECT 1 HAVING c1) AS c2
+FROM t GROUP BY (SELECT 1 WHERE c2);
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) + 1 AS c1, (SELECT 1 HAVING c1) + 1 AS c2
+FROM t GROUP BY (SELECT 1 WHERE c2);
+
+--echo # These queries were accepted before the fix, and they still are.
+
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT 1 HAVING c);
+SELECT COUNT(*) AS c FROM t ORDER BY c;
+SELECT COUNT(*) AS c FROM t ORDER BY c+1;
+SELECT COUNT(*) AS c FROM t ORDER BY c+c;
+SELECT COUNT(*) AS c FROM t HAVING (SELECT 1 HAVING c);
+SELECT COUNT(*) AS c FROM t HAVING c;
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP
+HAVING (SELECT 1 HAVING c);
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP HAVING c;
+SELECT (SELECT COUNT(*) AS c FROM t HAVING c <> 0);
+SELECT (SELECT COUNT(*) FROM t HAVING COUNT(*) <> 0);
+SELECT (SELECT COUNT(*) AS c FROM t ORDER BY c);
+SELECT (SELECT COUNT(*) FROM t ORDER BY COUNT(*));
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2
+                                  GROUP BY (SELECT 1 HAVING s > 0)) > 0;
+SELECT (SELECT SUM(a)) FROM t;
+SELECT SUM(a) AS s, (SELECT SUM(a)) FROM t;
+SELECT a, (SELECT SUM(a)) s FROM t GROUP BY a;
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 HAVING s > 5);
+SELECT (SELECT SUM(t1.a) s FROM t t2 WHERE t2.a = 0 HAVING s > 3) FROM t t1;
+SELECT 1 FROM t HAVING (SELECT SUM(a)) > 0;
+SELECT (SELECT SUM(a)) FROM t;
+
+--echo # These queries where accepted before the fix, and they still are,
+--echo # but their results are wrong both before and after the fix
+--echo # because of bug#22588319.
+
+--echo # Returns (4, NULL), should have returned (4, 1):
+SELECT SUM(a) s, (SELECT 1 HAVING s > 0) s2 FROM t;
+--echo # Should have ordered ascending on -a, but comes out in random order
+--echo # because the ORDER BY clause always evaluates to NULL. Have to use
+--echo # the --sorted_result directive to produce stable test results.
+--sorted_result
+SELECT a, COUNT(*) c FROM t GROUP BY a ORDER BY (SELECT -a HAVING c > 0);
+
+--echo # These queries were accepted in the default sql_mode before the fix,
+--echo # and rejected in the ANSI sql_mode. Expect no change after the fix.
+
+SELECT * FROM t t1 WHERE (SELECT SUM(t1.a) s FROM t t2 HAVING s = 0);
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s FROM t t2 ORDER BY s);
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s FROM t t2 ORDER BY s + 1);
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s);
+SELECT 1 FROM t WHERE (SELECT SUM(a)) > 0;
+SELECT 1 FROM t GROUP BY (SELECT SUM(a));
+SET sql_mode = ANSI;
+--error ER_INVALID_GROUP_FUNC_USE
+SELECT * FROM t t1 WHERE (SELECT SUM(t1.a) s FROM t t2 HAVING s = 0);
+--error ER_INVALID_GROUP_FUNC_USE
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s FROM t t2 ORDER BY s);
+--error ER_INVALID_GROUP_FUNC_USE
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s FROM t t2 ORDER BY s + 1);
+--error ER_INVALID_GROUP_FUNC_USE
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s);
+--error ER_INVALID_GROUP_FUNC_USE
+SELECT 1 FROM t WHERE (SELECT SUM(a)) > 0;
+--error ER_INVALID_GROUP_FUNC_USE
+SELECT 1 FROM t GROUP BY (SELECT SUM(a));
+SET sql_mode = DEFAULT;
+
+--echo # These queries were rejected before the fix, and they still are.
+
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT c);
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT c);
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 WHERE c);
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT 1 WHERE c);
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT c HAVING c);
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT c HAVING c);
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT c WHERE c);
+--error ER_ILLEGAL_REFERENCE
+SELECT c FROM (SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 ORDER BY c)) tt;
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t
+GROUP BY (SELECT COUNT(*) FROM t HAVING (SELECT c));
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t
+GROUP BY (SELECT COUNT(*) FROM t ORDER BY (SELECT c));
+--error ER_WRONG_GROUP_FIELD
+SELECT (SELECT COUNT(*) AS c FROM t GROUP BY c);
+--error ER_WRONG_GROUP_FIELD
+SELECT (SELECT COUNT(*) FROM t GROUP BY COUNT(*));
+--error ER_WRONG_GROUP_FIELD
+SELECT 1 FROM t t1 WHERE (SELECT SUM(t1.a) s FROM t t2 GROUP BY s);
+--error ER_WRONG_GROUP_FIELD
+SELECT 1 FROM t t1 WHERE (SELECT SUM(t1.a) s FROM t t2 GROUP BY s+1);
+--error ER_WRONG_GROUP_FIELD
+SELECT 1 FROM t t1 ORDER BY (SELECT SUM(t1.a) s FROM t t2 GROUP BY s) > 0;
+--error ER_WRONG_GROUP_FIELD
+SELECT 1 FROM t t1 ORDER BY (SELECT SUM(t1.a) s FROM t t2 GROUP BY s+1) > 0;
+--error ER_ILLEGAL_REFERENCE
+SELECT 1 FROM t t1 ORDER BY (SELECT SUM(t1.a) s FROM t t2
+                                    GROUP BY (SELECT s)) > 0;
+--error ER_ILLEGAL_REFERENCE
+SELECT 1 FROM t t1 ORDER BY (SELECT SUM(t1.a) s FROM t t2
+                                    GROUP BY (SELECT s+1)) > 0;
+--error ER_AGGREGATE_ORDER_NON_AGG_QUERY
+SELECT 1 FROM t ORDER BY (SELECT SUM(a));
+--error ER_BAD_FIELD_ERROR
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 WHERE s > 5);
+--error ER_WRONG_GROUP_FIELD
+SELECT a, (SELECT SUM(a)) s FROM t GROUP BY a, s;
+--error ER_WRONG_GROUP_FIELD
+SELECT EXISTS (SELECT SUM(t1.a) s FROM t t2 GROUP BY s) FROM t t1;
+--error ER_BAD_FIELD_ERROR
+SELECT SUM(a) s, s FROM t;
+--error ER_WRONG_GROUP_FIELD
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 GROUP BY s) > 0;
+--error ER_WRONG_GROUP_FIELD
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 GROUP BY s+1) > 0;
+--error ER_ILLEGAL_REFERENCE
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2
+                                  HAVING (SELECT 1 GROUP BY s+1)) > 0;
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT c);
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT 1 ORDER BY c);
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT c ORDER BY c);
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t HAVING (SELECT c);
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t HAVING (SELECT 1 ORDER BY c);
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t HAVING (SELECT c ORDER BY c);
+--error ER_ILLEGAL_REFERENCE
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP
+HAVING (SELECT c);
+--error ER_ILLEGAL_REFERENCE
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP
+HAVING (SELECT 1 ORDER BY c);
+--error ER_ILLEGAL_REFERENCE
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP
+HAVING (SELECT c ORDER BY c);
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT COUNT(*) FROM t HAVING (SELECT c));
+--error ER_ILLEGAL_REFERENCE
+SELECT c FROM (SELECT COUNT(*) AS c FROM t ORDER BY (SELECT 1 ORDER BY c)) tt;
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t
+ORDER BY (SELECT COUNT(*) FROM t GROUP BY (SELECT c));
+--error ER_ILLEGAL_REFERENCE
+SELECT COUNT(*) AS c FROM t
+HAVING (SELECT COUNT(*) FROM t GROUP BY (SELECT c));
+--error ER_ILLEGAL_REFERENCE
+SELECT SUM(a) AS s, (SELECT s) FROM t;
+--error ER_ILLEGAL_REFERENCE
+SELECT EXISTS (SELECT SUM(t1.a) s FROM t t2 GROUP BY (SELECT s)) FROM t t1;
+--error ER_ILLEGAL_REFERENCE
+SELECT (SELECT SUM(t1.a) s FROM t t2 HAVING (SELECT s > 5)) FROM t t1;
+--error ER_ILLEGAL_REFERENCE
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 HAVING (SELECT s) < 0);
+--error ER_ILLEGAL_REFERENCE
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 GROUP BY (SELECT s));
+--error ER_ILLEGAL_REFERENCE
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 HAVING (SELECT -s) > 0);
+--error ER_ILLEGAL_REFERENCE
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 GROUP BY (SELECT -s));
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#25407964 GROUP BY DESC GIVES WRONG RESULT WHEN GROUPS ON DECIMAL AND SEES A NULL
+--echo #
+
+CREATE TABLE t(d DATE, i INT);
+INSERT INTO t VALUES(NULL,1),('2017-01-14',3);
+SELECT WEEK(d)/10, GROUP_CONCAT(i) FROM t GROUP BY WEEK(d)/10;
+SELECT WEEK(d)/10, GROUP_CONCAT(i) FROM t GROUP BY WEEK(d)/10 DESC;
+DROP TABLE t;

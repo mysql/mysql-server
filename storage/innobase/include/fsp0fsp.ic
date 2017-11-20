@@ -342,11 +342,12 @@ fsp_is_inode_page(page_no_t page)
 
 	/* Number of all hard-coded DD table indexes. Please sync it with
 	innodb_dd_table array. */
-	static const uint		indexes = 86;
+	static const uint		indexes = 91;
 
 	/* Max page number for index root pages of hard-coded DD tables. */
 	static const uint		max_page_no =
 		FSP_FIRST_INODE_PAGE_NO
+		+ 1 /* SDI Index page */
 		+ (indexes / inode_per_page) * cycle
 		+ (indexes % inode_per_page)
 		+ ((indexes % inode_per_page) / ((inode_per_page + 1) / 2));
@@ -437,4 +438,27 @@ fsp_flags_is_valid(
 #endif
 
 	return(true);
+}
+
+/** Get the offset of SDI root page number in page 0.
+@param[in]	page_size	page size.
+@return	offset on success, otherwise 0. */
+inline
+ulint
+fsp_header_get_sdi_offset(
+	const page_size_t&	page_size)
+{
+	ulint	offset;
+#ifdef UNIV_DEBUG
+	ulint	left_size;
+#endif
+
+	offset = XDES_ARR_OFFSET + XDES_SIZE * xdes_arr_size(page_size) + ENCRYPTION_INFO_SIZE_V2;
+#ifdef UNIV_DEBUG
+	left_size = page_size.physical() - FSP_HEADER_OFFSET - offset
+		- FIL_PAGE_DATA_END;
+
+	ut_ad(left_size >= FSP_SDI_HEADER_LEN);
+#endif
+	return(offset);
 }

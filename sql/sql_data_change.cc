@@ -24,16 +24,17 @@
 
 #include "sql/sql_data_change.h"
 
-#include "current_thd.h"
-#include "field.h"
-#include "handler.h"
-#include "item.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "sql_class.h"  // THD
-#include "sql_list.h"
-#include "table.h"      // TABLE
+#include "mysql/udf_registration_types.h"
+#include "sql/current_thd.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/sql_class.h" // THD
+#include "sql/sql_list.h"
+#include "sql/table.h"  // TABLE
 
 /**
    Allocates and initializes a MY_BITMAP bitmap, containing one bit per column

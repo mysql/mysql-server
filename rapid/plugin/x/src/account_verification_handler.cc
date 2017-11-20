@@ -82,6 +82,8 @@ Account_verification_handler::get_account_verificator_id(
     return ngs::Account_verification_interface::Account_native;
   if (name == "sha256_password")
     return ngs::Account_verification_interface::Account_sha256;
+  if (name == "caching_sha2_password")
+    return ngs::Account_verification_interface::Account_sha2;
   return ngs::Account_verification_interface::Account_unsupported;
 }
 

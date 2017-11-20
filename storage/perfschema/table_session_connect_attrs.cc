@@ -30,7 +30,7 @@ Plugin_table table_session_connect_attrs::m_table_def(
   /* Name */
   "session_connect_attrs",
   /* Definition */
-  "  PROCESSLIST_ID INT NOT NULL,\n"
+  "  PROCESSLIST_ID BIGINT UNSIGNED NOT NULL,\n"
   "  ATTR_NAME VARCHAR(32) NOT NULL,\n"
   "  ATTR_VALUE VARCHAR(1024),\n"
   "  ORDINAL_POSITION INT,\n"
@@ -49,7 +49,10 @@ PFS_engine_table_share table_session_connect_attrs::m_share = {
   sizeof(pos_connect_attr_by_thread_by_attr), /* ref length */
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 PFS_engine_table*

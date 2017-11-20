@@ -16,9 +16,10 @@
 #ifndef DD__PARTITION_INCLUDED
 #define DD__PARTITION_INCLUDED
 
-#include "dd/sdi_fwd.h"               // dd::Sdi_wcontext
-#include "dd/types/entity_object.h"   // dd::Entity_object
 #include "my_inttypes.h"
+#include "sql/dd/sdi_fwd.h"           // dd::Sdi_wcontext
+#include "sql/dd/types/entity_object.h" // dd::Entity_object
+#include "sql/dd/types/table.h"       // Table::Partition_collection
 
 namespace dd {
 
@@ -58,11 +59,11 @@ public:
   virtual Table &table() = 0;
 
   /////////////////////////////////////////////////////////////////////////
-  // level.
+  // parent_partition_id.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint level() const = 0;
-  virtual void set_level(uint level) = 0;
+  virtual Object_id parent_partition_id() const = 0;
+  virtual void set_parent_partition_id(Object_id parent_partition_id) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // number.
@@ -70,6 +71,13 @@ public:
 
   virtual uint number() const = 0;
   virtual void set_number(uint number) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // description_utf8.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &description_utf8() const = 0;
+  virtual void set_description_utf8(const String_type &description_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // engine.
@@ -140,9 +148,21 @@ public:
   virtual Partition_indexes *indexes() = 0;
 
   /////////////////////////////////////////////////////////////////////////
-  // Parent partition for subpartitions (NULL otherwise).
+  // Sub Partition collection.
   /////////////////////////////////////////////////////////////////////////
 
+  /// Add a subpartition to a parent partition.
+  virtual Partition *add_sub_partition() = 0;
+
+  /// Return reference to const collection of sub partitions.
+  virtual const Table::Partition_collection &sub_partitions() const = 0;
+
+  /// Return non-const point to collection of sub partitions.
+  virtual Table::Partition_collection *sub_partitions() = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // Parent partition for subpartitions (NULL otherwise).
+  /////////////////////////////////////////////////////////////////////////
   virtual const Partition *parent() const = 0;
   virtual void set_parent(const Partition *parent) = 0;
 

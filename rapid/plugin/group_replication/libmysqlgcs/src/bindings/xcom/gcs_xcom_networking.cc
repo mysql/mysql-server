@@ -17,22 +17,17 @@
 #include <bitset>
 #include <set>
 
-#include "gcs_xcom_networking.h"
-
 #ifndef _WIN32
 #include <netdb.h>
 #endif
-#include <algorithm>
 
 #include "mysql/gcs/gcs_group_identifier.h"
-#include "mysql/gcs/gcs_logging.h"
+#include "mysql/gcs/gcs_logging_system.h"
 #include "gcs_xcom_utils.h"
 #include "sock_probe.h"
+#include "gcs_xcom_networking.h"
 
-#include<bitset>
-#include<set>
-
-#ifdef WIN32
+#if defined(_WIN32)
 #include "sock_probe_win32.c"
 
 /* Return the sockaddr of interface #count. */

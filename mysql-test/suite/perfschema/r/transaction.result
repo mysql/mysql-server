@@ -36,14 +36,14 @@ CALL clear_transaction_tables();
 # STEP 2 - BASIC TRANSACTION
 ========================================================================
 
-SELECT @@global.tx_isolation;
-@@global.tx_isolation
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
 REPEATABLE-READ
 SELECT @@global.autocommit;
 @@global.autocommit
 1
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 REPEATABLE-READ
 SELECT @@autocommit;
 @@autocommit
@@ -369,24 +369,25 @@ CALL clear_transaction_tables();
 ========================================================================
 
 SET SESSION AUTOCOMMIT = 0;
-SELECT * FROM performance_schema.events_transactions_current ORDER BY event_id;
-THREAD_ID	EVENT_ID	END_EVENT_ID	EVENT_NAME	STATE	TRX_ID	GTID	XID_FORMAT_ID	XID_GTRID	XID_BQUAL	XA_STATE	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	ACCESS_MODE	ISOLATION_LEVEL	AUTOCOMMIT	NUMBER_OF_SAVEPOINTS	NUMBER_OF_ROLLBACK_TO_SAVEPOINT	NUMBER_OF_RELEASE_SAVEPOINT	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	NESTING_EVENT_TYPE
+SELECT COUNT(*) FROM performance_schema.events_transactions_current ORDER BY event_id;
+COUNT(*)
+1
 
 #
 # STEP 8.1 - UPDATE NON-TRANSACTIONAL TABLE
 #
 INSERT INTO nt1 VALUES (801, 'NON-TRANSACTIONAL');
 
-## Expect 0 transactions in events_transactions_current
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
+## Expect 1 transaction in events_transactions_current
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 1);
 ACTUAL	EXPECTED
-     0	       0
+     1	       1
 COMMIT;
 
-## Expect 0 transactions in events_transactions_history
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
+## Expect 10 transactions in events_transactions_history
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 10);
 ACTUAL	EXPECTED
-     0	       0
+    10	      10
 
 #
 # STEP 8.2 - UPDATE TRANSACTIONAL AND NON-TRANSACTIONAL TABLES
@@ -396,10 +397,10 @@ ACTUAL	EXPECTED
 
 INSERT INTO nt1 VALUES (802, 'NON-TRANSACTIONAL');
 
-## Expect 0 transactions in events_transactions_current
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
+## Expect 1 transaction in events_transactions_current
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 1);
 ACTUAL	EXPECTED
-     0	       0
+     1	       1
 
 ## Now transactional. Transaction should be started.
 INSERT INTO t1 VALUES (802, 'TRANSACTIONAL');
@@ -540,7 +541,7 @@ COMMIT;
 ## Expect 1 event, 0 stats
 SELECT * FROM performance_schema.events_transactions_summary_global_by_event_name;
 EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT	COUNT_READ_WRITE	SUM_TIMER_READ_WRITE	MIN_TIMER_READ_WRITE	AVG_TIMER_READ_WRITE	MAX_TIMER_READ_WRITE	COUNT_READ_ONLY	SUM_TIMER_READ_ONLY	MIN_TIMER_READ_ONLY	AVG_TIMER_READ_ONLY	MAX_TIMER_READ_ONLY
-transaction	1	0	0	0	0	1	0	0	0	0	0	0	0	0	0
+transaction	17	0	0	0	0	1	0	0	0	0	16	0	0	0	0
 
 ## Restore setup_consumers and setup_instruments
 UPDATE performance_schema.setup_consumers SET enabled = 'YES' WHERE name = 'thread_instrumentation';

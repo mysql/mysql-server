@@ -13,33 +13,34 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "item_geofunc_internal.h"
+#include "sql/item_geofunc_internal.h"
 
-#include <string.h>
-#include <algorithm>
-#include <exception>
-#include <iterator>
-#include <memory>
-
+#include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/centroid.hpp>
 #include <boost/geometry/algorithms/is_valid.hpp>
 #include <boost/geometry/algorithms/overlaps.hpp>
 #include <boost/geometry/core/exception.hpp>
+#include <boost/geometry/geometries/box.hpp>
 #include <boost/geometry/index/predicates.hpp>
 #include <boost/iterator/iterator_facade.hpp>
+#include <string.h>
+#include <algorithm>
+#include <iterator>
+#include <memory>
 
-#include "dd/cache/dictionary_client.h"
-#include "item_func.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "my_sys.h"
-#include "mysqld_error.h"
-#include "parse_tree_node_base.h"
-#include "sql_class.h"             // THD
-#include "system_variables.h"
+#include "my_inttypes.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/item_func.h"
+#include "sql/mdl.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/sql_class.h"         // THD
+#include "sql/srs_fetcher.h"
+#include "sql/system_variables.h"
+#include "sql_string.h"
 #include "template_utils.h"
 
 namespace dd {
@@ -50,7 +51,6 @@ class Spatial_reference_system;
 bool Srs_fetcher::lock(gis::srid_t srid)
 {
   DBUG_ENTER("lock_srs");
-
   DBUG_ASSERT(srid != 0);
 
   char id_str[11]; // uint32 => max 10 digits + \0

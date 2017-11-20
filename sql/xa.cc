@@ -13,47 +13,55 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "xa.h"
+#include "sql/xa.h"
 
+#include <memory>
 #include <new>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
-#include "debug_sync.h"         // DEBUG_SYNC
-#include "derror.h"             // ER_DEFAULT
-#include "handler.h"            // handlerton
-#include "hash.h"               // HASH
-#include "item.h"
-#include "log.h"
 #include "m_ctype.h"
-#include "mdl.h"
+#include "m_string.h"
+#include "map_helpers.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"       // MYSQL_XIDDATASIZE
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"             // server_id
 #include "mysqld_error.h"
-#include "protocol.h"
-#include "psi_memory_key.h"     // key_memory_XID
-#include "query_options.h"
-#include "rpl_context.h"
-#include "rpl_gtid.h"
-#include "sql_class.h"          // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_list.h"
-#include "sql_plugin.h"         // plugin_foreach
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/debug_sync.h"     // DEBUG_SYNC
+#include "sql/handler.h"        // handlerton
+#include "sql/item.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"         // server_id
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h" // key_memory_XID
+#include "sql/query_options.h"
+#include "sql/rpl_context.h"
+#include "sql/rpl_gtid.h"
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plugin.h"     // plugin_foreach
+#include "sql/system_variables.h"
+#include "sql/tc_log.h"         // tc_log
+#include "sql/transaction.h"    // trans_begin, trans_rollback
+#include "sql/transaction_info.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "tc_log.h"             // tc_log
+#include "template_utils.h"
 #include "thr_mutex.h"
-#include "transaction.h"        // trans_begin, trans_rollback
-#include "transaction_info.h"
 
 const char *XID_STATE::xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
@@ -1180,7 +1188,7 @@ static PSI_mutex_key key_LOCK_transaction_cache;
 
 static PSI_mutex_info transaction_cache_mutexes[]=
 {
-  { &key_LOCK_transaction_cache, "LOCK_transaction_cache", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_transaction_cache, "LOCK_transaction_cache", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_transaction_cache_psi_keys(void)

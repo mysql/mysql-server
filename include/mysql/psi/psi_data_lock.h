@@ -29,7 +29,7 @@
 #include "my_sharedlib.h"
 #include "psi_base.h"
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_DATA_LOCK_INTERFACE
 
 /**
   @def PSI_DATA_LOCK_VERSION_1
@@ -458,7 +458,7 @@ typedef struct PSI_placeholder PSI_data_lock_service_t;
 
 extern MYSQL_PLUGIN_IMPORT PSI_data_lock_service_t *psi_data_lock_service;
 
-#endif /* HAVE_PSI_INTERFACE */
+#endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
 
 /** @} (end of group psi_abi_data_lock) */
 

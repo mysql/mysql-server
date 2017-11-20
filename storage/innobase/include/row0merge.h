@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -112,6 +112,9 @@ struct index_def_t {
 	st_mysql_ftparser*
 			parser;		/*!< fulltext parser plugin */
 	bool		is_ngram;	/*!< true if it's ngram parser */
+	bool		srid_is_valid;	/*!< true if we want to check SRID
+					while inserting to index */
+	uint32_t	srid;		/*!< SRID obtained from dd column */
 };
 
 /** Structure for reporting duplicate records. */
@@ -143,15 +146,6 @@ row_merge_lock_table(
 	enum lock_mode	mode)		/*!< in: LOCK_X or LOCK_S */
 	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
-Drop indexes that were created before an error occurred.
-The data dictionary must have been locked exclusively by the caller,
-because the transaction will not be committed. */
-void
-row_merge_drop_indexes_dict(
-/*========================*/
-	trx_t*		trx,	/*!< in/out: dictionary transaction */
-	table_id_t	table_id);/*!< in: table identifier */
-/*********************************************************************//**
 Drop those indexes which were created before an error occurred.
 The data dictionary must have been locked exclusively by the caller,
 because the transaction will not be committed. */
@@ -162,11 +156,6 @@ row_merge_drop_indexes(
 	dict_table_t*	table,	/*!< in/out: table containing the indexes */
 	ibool		locked);	/*!< in: TRUE=table locked,
 				FALSE=may need to do a lazy drop */
-/*********************************************************************//**
-Drop all partially created indexes during crash recovery. */
-void
-row_merge_drop_temp_indexes(void);
-/*=============================*/
 
 /**Create temporary merge files in the given paramater path, and if
 UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
@@ -211,28 +200,6 @@ row_merge_rename_tables_dict(
 	trx_t*		trx)		/*!< in/out: dictionary transaction */
 	MY_ATTRIBUTE((warn_unused_result));
 
-/*********************************************************************//**
-Rename an index in the dictionary that was created. The data
-dictionary must have been locked exclusively by the caller, because
-the transaction will not be committed.
-@return DB_SUCCESS if all OK */
-dberr_t
-row_merge_rename_index_to_add(
-/*==========================*/
-	trx_t*		trx,		/*!< in/out: transaction */
-	table_id_t	table_id,	/*!< in: table identifier */
-	space_index_t	index_id);	/*!< in: index identifier */
-/*********************************************************************//**
-Rename an index in the dictionary that is to be dropped. The data
-dictionary must have been locked exclusively by the caller, because
-the transaction will not be committed.
-@return DB_SUCCESS if all OK */
-dberr_t
-row_merge_rename_index_to_drop(
-/*===========================*/
-	trx_t*		trx,		/*!< in/out: transaction */
-	table_id_t	table_id,	/*!< in: table identifier */
-	space_index_t	index_id);	/*!< in: index identifier */
 /** Create the index and load in to the dictionary.
 @param[in,out]	trx		trx (sets error_state)
 @param[in,out]	table		the index is on this table
@@ -246,6 +213,7 @@ row_merge_create_index(
 	dict_table_t*		table,
 	const index_def_t*	index_def,
 	const dict_add_v_col_t*	add_v);
+
 /*********************************************************************//**
 Drop a table. The caller must have ensured that the background stats
 thread is not processing the table. This can be done by calling

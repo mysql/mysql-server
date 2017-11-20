@@ -13,18 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "parse_tree_items.h"
+#include "sql/parse_tree_items.h"
 
-#include "auth_acls.h"
-#include "item_cmpfunc.h"          // Item_func_eq
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
-#include "mysqld.h"                // using_udf_functions
-#include "parse_tree_nodes.h"
-#include "sp.h"
-#include "sp_pcontext.h"           // sp_pcontext
-#include "table.h"
-#include "trigger_def.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/item_cmpfunc.h"      // Item_func_eq
+#include "sql/mysqld.h"            // using_udf_functions
+#include "sql/parse_tree_nodes.h"
+#include "sql/sp.h"
+#include "sql/sp_pcontext.h"       // sp_pcontext
+#include "sql/table.h"
+#include "sql/trigger_def.h"
 
 /**
   Helper to resolve the SQL:2003 Syntax exception 1) in @<in predicate@>.

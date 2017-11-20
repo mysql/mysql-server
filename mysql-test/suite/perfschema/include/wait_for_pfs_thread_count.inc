@@ -5,7 +5,7 @@
 # Wait until there is only one session left, this one.
 
 let $wait_condition=
-  select count(*) = 1 from information_schema.processlist;
+  select count(*) = 2 from information_schema.processlist;
 --source include/wait_condition.inc
 
 # Threads are removed from information_schema.processlist
@@ -14,7 +14,7 @@ let $wait_condition=
 # Because instrumentation is optional, we use "<=" here.
 
 let $wait_condition=
-  select count(*) <= 2 from performance_schema.threads
+  select count(*) <= 3 from performance_schema.threads
   where `TYPE`='FOREGROUND';
 --source include/wait_condition.inc
 

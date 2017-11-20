@@ -3,7 +3,7 @@
 #
 # Test:
 # 0. This test requires one server.
-# 1. Basic check that there are 42 GR variables.
+# 1. Basic check that there are 43 GR variables.
 # 2. Verify that all the group replication variables are GLOBAL variables.
 # 3. Verify values of GLOBAL and SESSION variables using below commands:-
 #  - SHOW GLOBAL VARIABLES LIKE 'group_replication_..'
@@ -29,12 +29,12 @@
 --sleep 30
 
 --echo
---echo # Test#1: Basic check that there are 42 GR variables.
+--echo # Test#1: Basic check that there are 43 GR variables.
 
 # Note: If a new GR variable is added or an old GR variable is removed, then
 # update this testcase for the sanity check.
---let $assert_text= There are 42 GR variables at present.
---let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 42
+--let $assert_text= There are 43 GR variables at present.
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 43
 --source include/assert.inc
 
 # Take backup of GR variables
@@ -69,6 +69,7 @@
 --let $saved_gr_ssl_mode = `SELECT @@GLOBAL.group_replication_ssl_mode;`
 --let $saved_gr_start_on_boot = `SELECT @@GLOBAL.group_replication_start_on_boot;`
 --let $saved_gr_transaction_size_limit = `SELECT @@GLOBAL.group_replication_transaction_size_limit;`
+--let $saved_gr_communication_debug_options = `SELECT @@GLOBAL.group_replication_communication_debug_options;`
 --let $saved_gr_unreachable_majority_timeout = `SELECT @@GLOBAL.group_replication_unreachable_majority_timeout`
 --let $saved_gr_member_weight = `SELECT @@GLOBAL.group_replication_member_weight;`
 --enable_query_log
@@ -138,6 +139,8 @@ SET @@SESSION.group_replication_start_on_boot= 1;
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_transaction_size_limit= 10240;
 --error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_communication_debug_options= "";
+--error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_unreachable_majority_timeout= 10240;
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_member_weight= 80;
@@ -175,6 +178,7 @@ SET GLOBAL group_replication_recovery_use_ssl= ON;
 SET GLOBAL group_replication_ssl_mode= "REQUIRED";
 SET GLOBAL group_replication_start_on_boot= ON;
 SET GLOBAL group_replication_transaction_size_limit= 100000;
+SET GLOBAL group_replication_communication_debug_options= "GCS_DEBUG_ALL";
 SET GLOBAL group_replication_unreachable_majority_timeout= 100000;
 SET GLOBAL group_replication_member_weight= 70;
 --enable_query_log
@@ -695,6 +699,23 @@ SET GLOBAL group_replication_member_weight= 70;
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_transaction_size_limit\', VARIABLE_VALUE, 1]" = 100000
 --source include/assert.inc
 
+# group_replication_communication_debug_options
+--let $assert_text= Verify GLOBAL value of group_replication_communication_debug_options
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_communication_debug_options\', Value, 1]" = "GCS_DEBUG_ALL"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_communication_debug_options
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_communication_debug_options\', VARIABLE_VALUE, 1]" = "GCS_DEBUG_ALL"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_communication_debug_options
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_communication_debug_options\', Value, 1]" = "GCS_DEBUG_ALL"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_communication_debug_options
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_communication_debug_options\', VARIABLE_VALUE, 1]" = "GCS_DEBUG_ALL"
+--source include/assert.inc
+
 # group_replication_unreachable_majority_timeout
 --let $assert_text= Verify GLOBAL value of group_replication_unreachable_majority_timeout
 --let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_unreachable_majority_timeout\', Value, 1]" = 100000
@@ -765,6 +786,7 @@ SET GLOBAL group_replication_member_weight= 70;
 --eval SET @@GLOBAL.group_replication_ssl_mode= $saved_gr_ssl_mode
 --eval SET @@GLOBAL.group_replication_start_on_boot= $saved_gr_start_on_boot
 --eval SET @@GLOBAL.group_replication_transaction_size_limit= $saved_gr_transaction_size_limit
+--eval SET @@GLOBAL.group_replication_communication_debug_options= "$saved_gr_communication_debug_options"
 --eval SET @@GLOBAL.group_replication_unreachable_majority_timeout= $saved_gr_unreachable_majority_timeout
 --eval SET @@GLOBAL.group_replication_member_weight= $saved_gr_member_weight
 --enable_query_log

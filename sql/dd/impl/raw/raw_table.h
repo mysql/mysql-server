@@ -17,10 +17,9 @@
 #define DD__RAW_TABLE_INCLUDED
 
 #include <memory>
-#include <string>
 
-#include "dd/string_type.h"      // dd::String_type
-#include "table.h"               // TABLE_LIST
+#include "sql/dd/string_type.h"  // dd::String_type
+#include "sql/table.h"           // TABLE_LIST
 #include "thr_lock.h"
 
 namespace dd {
@@ -31,7 +30,6 @@ class Object_key;
 class Raw_new_record;
 class Raw_record;
 class Raw_record_set;
-class Transaction;
 
 ///////////////////////////////////////////////////////////////////////////
 

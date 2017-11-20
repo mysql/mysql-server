@@ -23,6 +23,7 @@ UPDATE performance_schema.setup_consumers
 UPDATE performance_schema.threads
    SET INSTRUMENTED = 'NO'
  WHERE NAME LIKE 'thread/innodb/srv\_%'
+    OR NAME LIKE 'thread/innodb/trx\_%'
     OR NAME LIKE '%con\_%'
     OR NAME LIKE '%signal_handler%'
     OR NAME LIKE '%thread_timer_notifier';

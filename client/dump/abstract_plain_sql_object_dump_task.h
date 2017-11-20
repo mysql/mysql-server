@@ -18,8 +18,8 @@
 #ifndef ABSTRACT_PLAIN_SQL_OBJECT_DUMP_TASK_INCLUDED
 #define ABSTRACT_PLAIN_SQL_OBJECT_DUMP_TASK_INCLUDED
 
-#include "abstract_dump_task.h"
-#include "abstract_plain_sql_object.h"
+#include "client/dump/abstract_dump_task.h"
+#include "client/dump/abstract_plain_sql_object.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

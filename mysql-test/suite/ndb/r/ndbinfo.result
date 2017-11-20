@@ -1223,11 +1223,11 @@ tot_key_keyinfo_bytes	3200
 tot_key_prog_bytes	0
 tot_key_inst_exec	0
 tot_key_bytes_returned	0
-tot_frag_scans	32
+tot_frag_scans	24
 tot_scan_rows_examined	0
 tot_scan_rows_returned	0
 tot_scan_bytes_returned	0
-tot_scan_prog_bytes	96
+tot_scan_prog_bytes	64
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
 conc_qd_frag_scans	0
@@ -1399,11 +1399,11 @@ tot_key_keyinfo_bytes	3760
 tot_key_prog_bytes	0
 tot_key_inst_exec	0
 tot_key_bytes_returned	4220
-tot_frag_scans	64
+tot_frag_scans	56
 tot_scan_rows_examined	306
 tot_scan_rows_returned	215
 tot_scan_bytes_returned	5564
-tot_scan_prog_bytes	320
+tot_scan_prog_bytes	288
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	305
 conc_qd_frag_scans	0
@@ -1447,11 +1447,11 @@ tot_key_keyinfo_bytes	0
 tot_key_prog_bytes	0
 tot_key_inst_exec	0
 tot_key_bytes_returned	0
-tot_frag_scans	80
+tot_frag_scans	32
 tot_scan_rows_examined	20
 tot_scan_rows_returned	20
 tot_scan_bytes_returned	588
-tot_scan_prog_bytes	768
+tot_scan_prog_bytes	576
 tot_scan_bound_bytes	9888
 tot_scan_inst_exec	58
 conc_qd_frag_scans	0
@@ -1762,3 +1762,29 @@ API	14	16 32 48 49 63 127 192 228 229 230 231 232 233 255
 MGM	1	3
 NDB	2	1 2
 
+
+#
+# Bug#26048272  IMPLEMENT NDBINFO TABLE FOR LOOKUP OF ERROR CODES AND MESSAGES
+#
+select *
+  from ndbinfo.error_messages
+  where error_code = 920;
+error_code	error_description	error_status	error_classification
+920	Row operation defined after refreshTuple()	Permanent error	Application error
+
+select *
+  from ndbinfo.error_messages
+  where error_code = 2304;
+error_code	error_description	error_status	error_classification
+2304	Array index out of range	Temporary error, restart node	Internal error, programming error or missing error message, please report a bug
+
+select *
+  from ndbinfo.error_messages
+  where error_code = 5001;
+error_code	error_description	error_status	error_classification
+5001		Usage error	
+
+select count(*) > 700
+  from ndbinfo.error_messages;
+count(*) > 700
+1

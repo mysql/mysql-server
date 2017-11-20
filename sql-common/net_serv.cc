@@ -46,7 +46,7 @@ using std::min;
 using std::max;
 
 #ifdef MYSQL_SERVER
-#include "psi_memory_key.h"
+#include "sql/psi_memory_key.h"
 #else
 #define key_memory_NET_buff 0
 #define key_memory_NET_compress_packet 0
@@ -62,7 +62,6 @@ using std::max;
 */
 
 #ifdef MYSQL_SERVER
-#include "sql_cache.h" // query_cache_insert
 
 /*
   The following variables/functions should really not be declared
@@ -100,7 +99,6 @@ bool my_net_init(NET *net, Vio* vio)
   net->compress=0; net->reading_or_writing=0;
   net->where_b = net->remain_in_buf=0;
   net->last_errno=0;
-  net->unused= 0;
 #ifdef MYSQL_SERVER
   net->extension= NULL;
 #endif
@@ -679,10 +677,6 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
 {
   bool res;
   DBUG_ENTER("net_write_packet");
-
-#if defined(MYSQL_SERVER)
-  query_cache_insert(packet, length, net->pkt_nr);
-#endif
 
   /* Socket can't be used */
   if (net->error == 2)

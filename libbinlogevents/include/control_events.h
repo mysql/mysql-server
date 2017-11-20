@@ -36,6 +36,7 @@
 #include <vector>
 
 #include "binlog_event.h"
+#include "template_utils.h"
 
 namespace binary_log
 {
@@ -868,6 +869,20 @@ struct Uuid
   static const int bytes_per_section[NUMBER_OF_SECTIONS];
   static const int hex_to_byte[256];
 };
+
+struct Hash_Uuid
+{
+  size_t operator() (const Uuid &uuid) const
+  {
+    return std::hash<std::string>()
+      (std::string(pointer_cast<const char *>(uuid.bytes), Uuid::BYTE_LENGTH));
+  }
+};
+
+inline bool operator== (const Uuid &a, const Uuid &b)
+{
+  return a.equals(b);
+}
 
 
 /**

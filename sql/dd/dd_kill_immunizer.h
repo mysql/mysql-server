@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
 #ifndef DD_KILL_IMMUNIZER_INCLUDED
 #define DD_KILL_IMMUNIZER_INCLUDED
 
-#include "mutex_lock.h"                        // Mutex_lock
-#include "sql_class.h"                         // THD
+#include "mutex_lock.h"                        // MUTEX_LOCK
+#include "sql/sql_class.h"                     // THD
 
 namespace dd {
 
@@ -42,7 +42,7 @@ public:
     : m_thd(thd),
       m_killed_state(THD::NOT_KILLED)
   {
-    Mutex_lock thd_data_lock(&thd->LOCK_thd_data);
+    MUTEX_LOCK(thd_data_lock, &thd->LOCK_thd_data);
 
     // If DD_kill_immunizer is initialized as part of nested Transaction_ro's
     // then store reference to parent kill_immunizer else NULL value is saved in
@@ -53,7 +53,7 @@ public:
     // value.
     m_saved_killed_state=
       thd->kill_immunizer ? thd->kill_immunizer->m_killed_state :
-                            thd->killed;
+      thd->killed.load();
 
     // Set current DD_kill_immunizer object to THD.
     thd->kill_immunizer= this;
@@ -64,7 +64,7 @@ public:
 
   ~DD_kill_immunizer()
   {
-    Mutex_lock thd_data_lock(&m_thd->LOCK_thd_data);
+    MUTEX_LOCK(thd_data_lock, &m_thd->LOCK_thd_data);
 
     // Reset kill_immunizer of THD.
     m_thd->kill_immunizer= m_saved_kill_immunizer;

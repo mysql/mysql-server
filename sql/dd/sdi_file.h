@@ -16,34 +16,96 @@
 #ifndef DD__SDI_FILE_INCLUDED
 #define DD__SDI_FILE_INCLUDED
 
+#include <stddef.h>
 #include <utility>
 
-#include "dd/string_type.h"     // dd::String_type
 #include "prealloced_array.h"   // Prealloced_array
+#include "sql/dd/impl/sdi.h"    // dd::Sdi_type
+#include "sql/dd/object_id.h"   // dd::Object_id
+#include "sql/dd/string_type.h" // dd::String_type
 
 class THD;
-struct st_mysql_const_lex_string;
 struct handlerton;
+struct st_mysql_const_lex_string;
 
 namespace dd {
+class Entity_object;
 class Schema;
 class Table;
 
 namespace sdi_file {
+/** Number of character (not bytes) of a tablename which will
+    contrubute to the sdi file name. The whole name is not needed as
+    the Object_id is added so that uniqueness is ensured */
 const size_t FILENAME_PREFIX_CHARS= 16;
+
+/** File name extension for sdi files. */
 const String_type EXT= ".sdi";
 
-template<typename T>
-String_type sdi_filename(const T *dd_object,
+
+/**
+  Formats an sdi filename according to the mysql conventions for an entity
+  name and schema name, where the schema may be "".
+
+  @param id object id if dd object
+  @param entity_name name (as returned by dd::Entity_object::name())
+         of dd obejct.
+  @param schema name of schema, or "" for schemaless entites (schemata).
+  @retval filename to use for sdi file
+ */
+String_type sdi_filename(Object_id id, const String_type &entity_name,
                          const String_type &schema);
-bool store(THD *thd, const st_mysql_const_lex_string &sdi,
-           const dd::Schema *schema);
-bool store(THD *thd, handlerton*, const st_mysql_const_lex_string &sdi,
-           const dd::Table *table, const dd::Schema *schema);
+
+/**
+  Stores sdi for schema in a file.
+
+  @param sdi json string to store
+  @param schema dd object from which sdi was generated
+  @retval true if an error occurs
+  @retval false otherwise
+*/
+bool store_sch_sdi(const dd::Sdi_type &sdi, const dd::Schema &schema);
+
+/**
+  Stores sdi for table in a file.
+
+  @param sdi json string to store
+  @param table dd object from which sdi was generated
+  @param schema object which table belongs to
+  @retval true if an error occurs
+  @retval false otherwise
+*/
+bool store_tbl_sdi(const Sdi_type &sdi, const dd::Table &table,
+                   const dd::Schema &schema);
+
+/**
+  Remove a file name from the file system.
+
+  @param fname file name to remove from file system.
+  @retval true if an error occurs
+  @retval false otherwise
+*/
 bool remove(const String_type &fname);
-bool remove(THD *thd, const dd::Schema *schema);
-bool remove(THD *thd, handlerton*, const dd::Table *table,
-            const dd::Schema *schema);
+
+/**
+  Removes sdi file for a schema.
+
+  @param schema dd object for which to remove sdi
+  @retval true if an error occurs
+  @retval false otherwise
+*/
+bool drop_sch_sdi(const dd::Schema &schema);
+
+/**
+  Removes sdi file for a table.
+
+  @param table dd object for which to remove sdi
+  @param schema object which table belongs to
+  @retval true if an error occurs
+  @retval false otherwise
+*/
+bool drop_tbl_sdi(const dd::Table &table, const dd::Schema &schema);
+
 
 /**
   Read an sdi file from disk and store in a buffer.

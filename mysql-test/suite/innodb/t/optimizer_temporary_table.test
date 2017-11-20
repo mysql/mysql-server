@@ -44,6 +44,7 @@ let $restart_parameters = restart: --big-tables=1;
 --disable_query_log
 CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
 CALL mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+CALL mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
 --enable_query_log
 
 # Force a change buffer merge, so that --innodb-read-only will not
@@ -104,7 +105,7 @@ SET @@session.max_heap_table_size=0;
 SET @@global.innodb_thread_concurrency=1;
 --echo # Executing I_S query which will create and do index read on
 --echo # intrinsic temporary tables
-let $DISCARD_OUTPUT=`SELECT COUNT(*) FROM information_schema.innodb_sys_tables`;
+let $DISCARD_OUTPUT=`SELECT COUNT(*) FROM information_schema.innodb_tables`;
 
 --echo # Switch to connection con1
 connect (con1, localhost, root);
@@ -128,7 +129,7 @@ SET @@session.max_heap_table_size=0;
 SET @@global.innodb_thread_concurrency=1;
 --echo # Executing I_S query which will create and do index read on
 --echo # intrinsic temporary tables
-let $DISCARD_OUTPUT=`SELECT COUNT(*) FROM information_schema.innodb_sys_tables`;
+let $DISCARD_OUTPUT=`SELECT COUNT(*) FROM information_schema.innodb_tables`;
 select convert_tz(0,'a','a');
 # Cleanup
 SET @@session.max_heap_table_size = default;

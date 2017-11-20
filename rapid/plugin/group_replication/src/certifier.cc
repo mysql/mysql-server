@@ -377,8 +377,8 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved)
   }
 
   sql_command_interface= new Sql_service_command_interface();
-  if (sql_command_interface->establish_session_connection(PSESSION_USE_THREAD) ||
-      sql_command_interface->set_interface_user(GROUPREPL_USER))
+  if (sql_command_interface->establish_session_connection(PSESSION_USE_THREAD,
+                                                          GROUPREPL_USER))
   {
     log_message(MY_ERROR_LEVEL,
                 "Error when establishing a server connection during"

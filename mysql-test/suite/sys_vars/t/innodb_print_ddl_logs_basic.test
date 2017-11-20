@@ -1,0 +1,10 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # Basic test for innodb_print_ddl_logs
+--echo #
+
+let $var_name = innodb_print_ddl_logs;
+
+--source suite/sys_vars/inc/global_boolean_var_basic.inc
+

@@ -14,7 +14,7 @@
 ALTER TABLE performance_schema.replication_applier_global_filters
   ADD COLUMN foo integer;
 
--- error ER_WRONG_PERFSCHEMA_USAGE
+-- error ER_TABLEACCESS_DENIED_ERROR
 TRUNCATE TABLE performance_schema.replication_applier_global_filters;
 
 -- error ER_DBACCESS_DENIED_ERROR

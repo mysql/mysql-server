@@ -577,9 +577,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `ts2` ENGINE = InnoDB,
  PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
@@ -601,9 +601,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `ts2` ENGINE = InnoDB,
  PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
@@ -626,9 +626,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `ts2` ENGINE = InnoDB,
  PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
@@ -652,9 +652,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
  PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB) */
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
@@ -680,9 +680,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
  PARTITION p6 VALUES LESS THAN (12) TABLESPACE = `ts1` ENGINE = InnoDB) */
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
@@ -709,9 +709,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
  PARTITION p6 VALUES LESS THAN (12) TABLESPACE = `ts1` ENGINE = InnoDB) */
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
@@ -738,9 +738,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
  PARTITION p6 VALUES LESS THAN (12) TABLESPACE = `ts1` ENGINE = InnoDB) */
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
@@ -771,9 +771,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
  PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
@@ -795,9 +795,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
  PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
@@ -820,9 +820,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
  PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
@@ -846,9 +846,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
  PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB) */
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
@@ -874,9 +874,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
  PARTITION p6 VALUES LESS THAN (12) TABLESPACE = `ts1` ENGINE = InnoDB) */
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
@@ -903,9 +903,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
  PARTITION p6 VALUES LESS THAN (12) TABLESPACE = `ts1` ENGINE = InnoDB) */
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
@@ -932,9 +932,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
  PARTITION p6 VALUES LESS THAN (12) TABLESPACE = `ts1` ENGINE = InnoDB) */
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
@@ -1535,4 +1535,41 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY KEY (b)
 PARTITIONS 1 */
+DROP TABLE t1;
+# Ignore incompatible options of a table which was created in not strict mode
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 0;
+SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
+SET SESSION innodb_strict_mode = 0;
+CREATE TABLE t1(a INT NOT NULL, d INT NOT NULL, KEY(a), KEY(d)) ENGINE = InnoDB PARTITION BY HASH(d) PARTITIONS 02;
+SET SESSION innodb_strict_mode = 0;
+ALTER TABLE t1 COMPRESSION='zlib', ALGORITHM=INPLACE;
+ALTER TABLE t1 TABLESPACE innodb_system, ALGORITHM=INPLACE, LOCK=DEFAULT;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `d` int(11) NOT NULL,
+  KEY `a` (`a`),
+  KEY `d` (`d`)
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMPRESSION='zlib'
+/*!50100 PARTITION BY HASH (`d`)
+PARTITIONS 2 */
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 VALUES(0, 1), (2, 3), (5, 6), (10, 11);
+SELECT * FROM t1 ORDER BY a;
+a	d
+0	1
+2	3
+5	6
+10	11
 DROP TABLE t1;

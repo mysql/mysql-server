@@ -95,7 +95,7 @@ lock_queue_iterator_get_prev(
 		break;
 	case LOCK_TABLE:
 		prev_lock = UT_LIST_GET_PREV(
-			un_member.tab_lock.locks, iter->current_lock);
+			tab_lock.locks, iter->current_lock);
 		break;
 	default:
 		ut_error;

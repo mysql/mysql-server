@@ -582,7 +582,9 @@ INSERT INTO json_merge_t VALUES
 (3, '[1,2]'),
 (4, '{"a":["x", "y"]}'),
 (5, '{"a":"b","c":"d"}');
-SELECT t1.j, t2.j, json_merge(t1.j, t2.j), json_merge(t2.j, t1.j)
+SELECT t1.j, t2.j,
+       JSON_MERGE_PRESERVE(t1.j, t2.j) AS m1,
+       JSON_MERGE_PRESERVE(t2.j, t1.j) AS m2
 FROM json_merge_t t1, json_merge_t t2 ORDER BY t1.i, t2.i;
 DROP TABLE json_merge_t;
 
@@ -1421,7 +1423,7 @@ create procedure merge_docs
 )
 language sql deterministic contains sql
 begin
-  set out_value = json_merge( in_value, inout_value );
+  set out_value = json_merge_preserve(in_value, inout_value);
   set inout_value = in_value;
 end//
 delimiter ;//
@@ -1976,7 +1978,7 @@ JSON_ARRAY_APPEND(j, '\$', 2),
 JSON_SET(j, '\$[0]', 2),
 JSON_INSERT(j, '\$[0]', 2),
 JSON_REPLACE(j, '\$[0]', 2),
-JSON_MERGE(j, j),
+JSON_MERGE_PRESERVE(j, j),
 JSON_SEARCH(j, 'one', 'abc'),
 JSON_CONTAINS(j, '[1]'),
 JSON_CONTAINS_PATH(j, 'all', '\$.a'),
@@ -2027,7 +2029,7 @@ SELECT JSON_INSERT(json_text, json_path, json_atom_text)
 FROM t_latin1 ORDER BY id;
 SELECT JSON_REPLACE(json_text, json_path, json_atom_text)
 FROM t_latin1 ORDER BY id;
-SELECT JSON_MERGE(json_text, json_text) FROM t_latin1 ORDER BY id;
+SELECT JSON_MERGE_PRESERVE(json_text, json_text) FROM t_latin1 ORDER BY id;
 SELECT JSON_SEARCH(json_text, CONVERT('one' USING latin1), json_atom_text,
                   CONVERT(X'F8' USING latin1), json_path)
 FROM t_latin1 ORDER BY id;
@@ -3026,8 +3028,8 @@ set names default;
 
 CREATE TABLE t (doc json);
 INSERT INTO t VALUES('{"array":[1,2,3,4]}');
-UPDATE t SET doc=JSON_MERGE(doc,doc);
-UPDATE t SET doc=JSON_MERGE(doc,doc);
+UPDATE t SET doc=JSON_MERGE_PRESERVE(doc, doc);
+UPDATE t SET doc=JSON_MERGE_PRESERVE(doc, doc);
 drop table t;
 
 --echo #
@@ -3191,9 +3193,10 @@ insert into t values(1),(2);
 select json_length('{}',@uninitialized_21602361)
 from t group by b into @uninitialized_21602361;
 
-# second time around the path is invalid
+# The user variable is assumed to be constant for SELECT ... INTO, even
+# though INTO clause refers the same variable.
 set @initialized_21602361 = '$';
---error ER_INVALID_JSON_PATH
+--error ER_TOO_MANY_ROWS
 select json_length('{}',@initialized_21602361)
 from t group by b into @initialized_21602361;
 
@@ -3986,6 +3989,51 @@ UPDATE t SET j = JSON_REMOVE(JSON_REMOVE(j, '$[0]', '$[0]', '$.x'),
                              '$.b', '$.y', '$.z');
 --eval $dump_table
 DROP TABLE t;
+
+--echo #
+--echo # WL#9692: Add JSON_MERGE_PATCH
+--echo #
+
+CREATE TABLE merge_t(
+id INT PRIMARY KEY AUTO_INCREMENT,
+target VARCHAR(100), patch VARCHAR(100)
+);
+INSERT INTO merge_t(target, patch) VALUES
+('{"a":"b"}', '{"a":"c"}'),
+('{"a":"b"}', '{"b":"c"}'),
+('{"a":"b"}', '{"a":null}'),
+('{"a":"b", "b":"c"}', '{"a":null}'),
+('{"a":["b"]}', '{"a":"c"}'),
+('{"a":"c"}', '{"a":["b"]}'),
+('{"a": {"b":"c"}}', '{"a": {"b":"d", "c":null}}'),
+('{"a":[{"b":"c"}]}', '{"a": [1]}'),
+('["a","b"]', '["c","d"]'),
+('{"a":"b"}', '["c"]'),
+('{"a":"foo"}', 'null'),
+('{"a":"foo"}', '"bar"'),
+('{"e":null}', '{"a":1}'),
+('[1,2]', '{"a":"b", "c":null}'),
+('{}', '{"a":{"bb":{"ccc":null}}}'),
+(NULL, '{}'),
+('{}', NULL);
+SELECT id, target, patch,
+       JSON_MERGE_PATCH(target, patch) AS merged,
+       JSON_EXTRACT(JSON_MERGE_PATCH(target, patch), '$.a') AS a
+FROM merge_t ORDER BY id;
+DROP TABLE merge_t;
+
+SELECT JSON_MERGE_PATCH('{"a":"b"}', NULL, '{"c":"d"}');
+SELECT JSON_MERGE_PATCH(NULL, '[1,2,3]');
+SELECT JSON_MERGE_PATCH('{"a":"b"}', NULL, '[1,2,3]', '{"c":null,"d":"e"}');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_MERGE_PATCH();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_MERGE_PATCH('{}');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_MERGE_PATCH('{', '[1,2,3]');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_MERGE_PATCH('{"a":"b"}', '[1,');
 
 # Local Variables:
 # mode: sql

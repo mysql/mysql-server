@@ -21,72 +21,75 @@
 
 */
 
-#include "item_subselect.h"
+#include "sql/item_subselect.h"
 
 #include "my_config.h"
 
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include <atomic>
 #include <utility>
 
-#include "check_stack.h"
-#include "current_thd.h"         // current_thd
-#include "debug_sync.h"          // DEBUG_SYNC
 #include "decimal.h"
-#include "derror.h"              // ER_THD
-#include "field.h"
-#include "handler.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_sum.h"            // Item_sum_max
-#include "key.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "mysqld.h"              // in_left_expr_name
+#include "mysql_com.h"
 #include "mysqld_error.h"
-#include "opt_explain_format.h"
-#include "opt_trace.h"           // OPT_TRACE_TRANSFORM
-#include "opt_trace_context.h"
-#include "parse_tree_nodes.h"    // PT_subquery
-#include "query_options.h"
-#include "query_result.h"
-#include "records.h"
-#include "sql_class.h"           // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_executor.h"
-#include "sql_join_buffer.h"     // JOIN_CACHE
-#include "sql_lex.h"             // SELECT_LEX
-#include "sql_list.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_optimizer.h"       // JOIN
-#include "sql_plugin_ref.h"
-#include "sql_select.h"
+#include "sql/check_stack.h"
+#include "sql/current_thd.h"     // current_thd
+#include "sql/debug_sync.h"      // DEBUG_SYNC
+#include "sql/derror.h"          // ER_THD
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_sum.h"        // Item_sum_max
+#include "sql/key.h"
+#include "sql/mysqld.h"          // in_left_expr_name
+#include "sql/opt_explain_format.h"
+#include "sql/opt_trace.h"       // OPT_TRACE_TRANSFORM
+#include "sql/opt_trace_context.h"
+#include "sql/parse_tree_nodes.h" // PT_subquery
+#include "sql/query_options.h"
+#include "sql/query_result.h"
+#include "sql/records.h"
+#include "sql/sql_class.h"       // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_join_buffer.h" // JOIN_CACHE
+#include "sql/sql_lex.h"         // SELECT_LEX
+#include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h"   // JOIN
+#include "sql/sql_select.h"
+#include "sql/sql_test.h"        // print_where
+#include "sql/sql_tmp_table.h"   // free_tmp_table
+#include "sql/sql_union.h"       // Query_result_union
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/temp_table_param.h"
+#include "sql/thr_malloc.h"
+#include "sql/window.h"
 #include "sql_string.h"
-#include "sql_test.h"            // print_where
-#include "sql_tmp_table.h"       // free_tmp_table
-#include "sql_union.h"           // Query_result_union
-#include "system_variables.h"
-#include "table.h"
-#include "temp_table_param.h"
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "thr_malloc.h"
 
 class Json_wrapper;
 
 Item_subselect::Item_subselect():
-  Item_result_field(), value_assigned(0), traced_before(false),
+  Item_result_field(), value_assigned(false), traced_before(false),
   substitution(NULL), in_cond_of_tab(NO_PLAN_IDX), engine(NULL), old_engine(NULL),
-  used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
-  changed(false)
+  used_tables_cache(0), have_to_be_excluded(false), changed(false)
 {
   set_subquery();
   reset();
@@ -99,10 +102,9 @@ Item_subselect::Item_subselect():
 
 
 Item_subselect::Item_subselect(const POS &pos):
-  super(pos), value_assigned(0), traced_before(false),
+  super(pos), value_assigned(false), traced_before(false),
   substitution(NULL), in_cond_of_tab(NO_PLAN_IDX), engine(NULL), old_engine(NULL),
-  used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
-  changed(false)
+  used_tables_cache(0), have_to_be_excluded(false), changed(false)
 {
   set_subquery();
   reset();
@@ -159,6 +161,159 @@ void Item_subselect::init(SELECT_LEX *select_lex,
       upper->subquery_in_having= 1;
   }
   DBUG_VOID_RETURN;
+}
+
+
+/**
+  Accumulate missing used_tables information from embedded query expression
+  into the subquery.
+  This function relies on a few other functions to accumulate information:
+    accumulate_expression(), accumulate_condition(), accumulate_join_condition()
+
+  Currently, the only property that is accumulated is INNER_TABLE_BIT.
+  Information about local tables and outer references are accumulated in
+  mark_as_dependent() (@see item.cc).
+  RAND_TABLE_BIT is currently not accumulated (but uncacheable is used instead).
+
+  @todo - maybe_null is not set properly for all types of subqueries and
+          expressions. Use this sketch as a guideline for further handling:
+
+  - When constructing an Item_subselect, maybe_null is false and null_value
+    is true. This is obviously wrong.
+
+  - When constructing an Item_in_subselect (subclass of Item_subselect),
+    maybe_null is set true and null_value is set false.
+
+  We should probably keep both maybe_null and null_value as false in
+  the constructor. Then, set maybe_null during preparation, according to
+  type of subquery:
+
+  - Scalar subquery is nullable when query block may have an empty result (not
+    DUAL or implicitly grouped).
+
+  - Scalar subquery is nullable when one of the selected expressions
+    are nullable.
+
+  - Scalar subquery is nullable when WHERE clause or HAVING clause is non-empty
+    and not always true.
+
+  - EXISTS subquery is never nullable!
+
+  - IN subquery nullability ignores subquery cardinality.
+
+  - IN subquery is nullable when one of the selected expressions are nullable.
+
+  - UNIONed query blocks may cancel out nullability.
+
+*/
+void Item_subselect::accumulate_properties()
+{
+  for (SELECT_LEX *select= unit->first_select();
+       select != NULL;
+       select= select->next_select())
+    accumulate_properties(select);
+
+  if (unit->fake_select_lex != NULL)
+  {
+    /*
+      This query block may only contain components with special table
+      dependencies in the ORDER BY clause, so inspect these expressions only.
+      (The SELECT list may contain table references that are valid only in
+       a local scope - references to the UNION temporary table - and should
+       not be propagated to the subquery level.)
+    */
+    for (ORDER *order= unit->fake_select_lex->order_list.first;
+         order != NULL;
+         order= order->next)
+      accumulate_condition(*order->item);
+  }
+}
+
+
+/**
+  Accumulate missing used_tables information for a query block.
+
+  @param select Reference to query block
+*/
+void Item_subselect::accumulate_properties(SELECT_LEX *select)
+{
+  List_iterator<Item> li(select->item_list);
+  Item *item;
+  while ((item=li++))
+    accumulate_expression(item);
+
+  if (select->where_cond())
+    accumulate_condition(select->where_cond());
+
+  if (select->join_list)
+    accumulate_join_condition(select->join_list);
+
+  for (ORDER *group= select->group_list.first; group; group= group->next)
+    accumulate_condition(*group->item);
+
+  if (select->having_cond())
+    accumulate_condition(select->having_cond());
+
+  for (ORDER *order= select->order_list.first; order; order= order->next)
+    accumulate_expression(*order->item);
+  if (select->table_list.elements)
+    used_tables_cache|= INNER_TABLE_BIT;
+
+  List_iterator<Window> wi(select->m_windows);
+  Window *w;
+  while ((w= wi++))
+  {
+    for (ORDER *wp= w->first_partition_by(); wp != NULL; wp= wp->next)
+      accumulate_expression(*wp->item);
+    for (ORDER *wo= w->first_order_by(); wo != NULL; wo= wo->next)
+      accumulate_expression(*wo->item);
+  }
+}
+
+
+/**
+  Accumulate used_tables information for an expression from a query block.
+
+  @param item  Reference to expression.
+*/
+void Item_subselect::accumulate_expression(Item *item)
+{
+  if (item->used_tables() & ~OUTER_REF_TABLE_BIT)
+    used_tables_cache|= INNER_TABLE_BIT;
+  maybe_null|= item->maybe_null;
+}
+
+
+/**
+  Accumulate used_tables information for a condition from a query block.
+
+  @param item  Reference to condition.
+*/
+void Item_subselect::accumulate_condition(Item *item)
+{
+  if (item->used_tables() & ~OUTER_REF_TABLE_BIT)
+    used_tables_cache|= INNER_TABLE_BIT;
+}
+
+
+/**
+  Accumulate used_tables information for the join conditions from a query block.
+
+  @param tables  References to joined tables.
+*/
+void Item_subselect::accumulate_join_condition(List<TABLE_LIST> *tables)
+{
+  TABLE_LIST *table_ref;
+  List_iterator<TABLE_LIST> li(*tables);
+
+  while ((table_ref= li++))
+  {
+    if (table_ref->join_cond())
+      accumulate_condition(table_ref->join_cond());
+
+    if (table_ref->nested_join != NULL)
+      accumulate_join_condition(&table_ref->nested_join->join_list);
+  }
 }
 
 
@@ -470,6 +625,9 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref)
     // all transformation is done (used by prepared statements)
     changed= 1;
 
+    // Accumulate properties referring to "inner tables"
+    accumulate_properties();
+
     /*
       Substitute the current item with an Item_in_optimizer that was
       created by Item_in_subselect::select_in_like_transformer and
@@ -501,13 +659,13 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref)
   }
   else
     goto err;
-  
+
   if ((uncacheable= engine->uncacheable()))
   {
-    const_item_cache= 0;
     if (uncacheable & UNCACHEABLE_RAND)
       used_tables_cache|= RAND_TABLE_BIT;
   }
+
   /*
     If this subquery references window functions, per the SQL standard they
     are aggregated in the subquery's query block, and never outside of it, so:
@@ -645,7 +803,8 @@ bool Item_subselect::exec()
   if (thd->is_error() || thd->killed)
     DBUG_RETURN(true);
 
-  DBUG_ASSERT(!thd->lex->context_analysis_only);
+  // No subqueries should be evaluated when analysing a view
+  DBUG_ASSERT(!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW));
   /*
     Simulate a failure in sub-query execution. Used to test e.g.
     out of memory or query being killed conditions.
@@ -733,6 +892,8 @@ void Item_subselect::fix_after_pullout(SELECT_LEX *parent_select,
          group= group->next)
       (*group->item)->fix_after_pullout(parent_select, removed_select);
   }
+  // Accumulate properties like INNER_TABLE_BIT
+  accumulate_properties();
 }
 
 bool Item_in_subselect::walk(Item_processor processor, enum_walk walk,
@@ -811,22 +972,6 @@ bool Item_subselect::resolve_type(THD *)
 }
 
 
-table_map Item_subselect::used_tables() const
-{
-  return (engine->uncacheable() ? used_tables_cache : 0ULL);
-}
-
-
-bool Item_subselect::const_item() const
-{
-  if (unit->thd->lex->context_analysis_only)
-    return false;
-  /* Not constant until tables are locked. */
-  if (!unit->thd->lex->is_query_tables_locked())
-    return false;
-  return const_item_cache;
-}
-
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
 {
   DBUG_ENTER("Item_subselect::get_tmp_table_item");
@@ -841,12 +986,9 @@ Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
 
 void Item_subselect::update_used_tables()
 {
+  // did all used tables become const?
   if (!engine->uncacheable())
-  {
-    // did all used tables become static?
-    if (!(used_tables_cache & ~engine->upper_select_const_tables()))
-      const_item_cache= 1;
-  }
+    used_tables_cache&= ~engine->upper_select_const_tables();
 }
 
 
@@ -1125,8 +1267,7 @@ Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
     Following information was collected during performing fix_fields()
     of Items belonged to subquery, which will be not repeated
   */
-  used_tables_cache= parent->get_used_tables_cache();
-  const_item_cache= parent->get_const_item_cache();
+  used_tables_cache= parent->used_tables();
 
   DBUG_VOID_RETURN;
 }
@@ -1174,7 +1315,6 @@ Item_singlerow_subselect::select_transformer(SELECT_LEX *select)
     DBUG_RETURN(RES_OK);
 
   THD * const thd= unit->thd;
-  Query_arena *arena= thd->stmt_arena;
   SELECT_LEX *outer= select->outer_select();
  
   if (!unit->is_union() &&
@@ -1187,17 +1327,19 @@ Item_singlerow_subselect::select_transformer(SELECT_LEX *select)
 	prevent it's correct resolving, but we should save name of
 	removed item => we do not make optimization if top item of
 	list is field or reference.
-	TODO: solve above problem
+	TODO: Fix this when WL#6570 is implemented.
       */
-      !(select->item_list.head()->type() == FIELD_ITEM ||
-	select->item_list.head()->type() == REF_ITEM) &&
+      (select->item_list.head()->const_item() ||
+       select->item_list.head()->type() == SUBSELECT_ITEM) &&
       !select->where_cond() && !select->having_cond() &&
       /*
-        switch off this optimization for prepare statement,
+        For prepared statement, a subquery (SELECT 1) in the GROUP BY
+        list might be transformed into a constant integer, which is
+        re-interpreted as a select expression number of later resolving.
         because we do not rollback this changes
-        TODO: make rollback for it, or special name resolving mode in 5.0.
+        TODO: Fix this when WL#6570 is implemented.
       */
-      !arena->is_stmt_prepare_or_first_sp_execute()
+      !thd->stmt_arena->is_stmt_prepare_or_first_sp_execute()
       )
   {
 
@@ -2058,6 +2200,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
   // Transformation will make the subquery a dependent one.
   if (!left_expr->const_item())
     select->uncacheable|= UNCACHEABLE_DEPENDENT;
+
   in2exists_info->added_to_where= false;
 
   if (select->having_cond() || select->with_sum_func ||

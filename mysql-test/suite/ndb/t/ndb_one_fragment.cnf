@@ -12,3 +12,4 @@ DataMemory=30M
 ## the default value is not sufficient.
 ##
 MaxNoOfLocalOperations = 40000
+ThreadConfig=ldm={count=1}

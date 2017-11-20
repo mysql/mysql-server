@@ -518,7 +518,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t3
+EXPLAIN SELECT * FROM t3
 WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
 
 connection monitor;
@@ -550,7 +550,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t3 PARTITION (p10);
+EXPLAIN SELECT * FROM t3 PARTITION (p10);
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -944,7 +944,7 @@ connection default;
 --echo #
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t1;
+EXPLAIN SELECT * FROM t1;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -960,7 +960,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a IN (13, 26, 39, 52);
+EXPLAIN SELECT * FROM t1 WHERE a IN (13, 26, 39, 52);
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -968,7 +968,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 3;
+EXPLAIN SELECT * FROM t1 WHERE a = 3;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -976,7 +976,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b LIKE 'First%' ORDER BY a;
+EXPLAIN SELECT * FROM t1 WHERE b LIKE 'First%' ORDER BY a;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -1011,7 +1011,7 @@ connection default;
 --echo # 2 read_key
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT t1.a, t1.b FROM t1 INNER JOIN t3 ON t1.a = t3.a;
+EXPLAIN SELECT t1.a, t1.b FROM t1 INNER JOIN t3 ON t1.a = t3.a;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -1019,7 +1019,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = (SELECT a FROM t3);
+EXPLAIN SELECT * FROM t1 WHERE a = (SELECT a FROM t3);
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -1058,7 +1058,7 @@ connection default;
 --echo # 2 read_first, read_key
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t4 WHERE a = (SELECT a FROM t3);
+EXPLAIN SELECT * FROM t4 WHERE a = (SELECT a FROM t3);
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -1068,11 +1068,11 @@ INSERT INTO t3 VALUES (3);
 --error ER_SUBQUERY_NO_1_ROW
 SELECT * FROM t4 WHERE a = (SELECT a FROM t3);
 --error ER_SUBQUERY_NO_1_ROW
-EXPLAIN PARTITIONS SELECT * FROM t4 WHERE a = (SELECT a FROM t3);
+EXPLAIN SELECT * FROM t4 WHERE a = (SELECT a FROM t3);
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t4 WHERE a = (SELECT a FROM t3 LIMIT 1);
+EXPLAIN SELECT * FROM t4 WHERE a = (SELECT a FROM t3 LIMIT 1);
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t4 WHERE a = (SELECT MAX(a) FROM t3);
+EXPLAIN SELECT * FROM t4 WHERE a = (SELECT MAX(a) FROM t3);
 DROP TABLE t3;
 DROP TABLE t4;
 
@@ -1110,7 +1110,7 @@ connection default;
 --echo #
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM t1 WHERE a IN (0,2,3,13,26)) t3;
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a IN (0,2,3,13,26)) t3;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -1118,7 +1118,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0,2,3,13,26)) t3) t4;
+EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0,2,3,13,26)) t3) t4;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -1186,7 +1186,7 @@ connection default;
 --echo #
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t1 UNION SELECT * FROM t2;
+EXPLAIN SELECT * FROM t1 UNION SELECT * FROM t2;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -1325,7 +1325,7 @@ SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS UPDATE t1, t2
+EXPLAIN UPDATE t1, t2
 SET t1.b = CONCAT(t1.b, ", t2.b:", t2.b),
     t2.b = CONCAT(t2.b, ", t1.b:", t1.b)
 WHERE t2.b = t1.b and t2.a = 4;
@@ -1336,7 +1336,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS UPDATE t1, t2
+EXPLAIN UPDATE t1, t2
 SET t1.b = CONCAT(t1.b, ", t2.b:", t2.b),
     t2.b = CONCAT(t2.b, ", t1.b:", t1.b)
 WHERE t2.b = t1.b and t2.a = 4;
@@ -1442,7 +1442,7 @@ connection monitor;
 connection default;
 
 
-SHOW CREATE VIEW v1_25;
+SHOW CREATE VIEW v1_25_check;
 FLUSH STATUS;
 INSERT INTO v1_25_check VALUES (31, "Insert in v1_25_check");
 
@@ -1497,9 +1497,9 @@ connection default;
 
 --echo # 0 locks, impossible where!
 --replace_column 10 #
-EXPLAIN PARTITIONS DELETE FROM v1_9_check WHERE a = 8;
+EXPLAIN DELETE FROM v1_9_check WHERE a = 8;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM v1_9_check WHERE a = 8;
+EXPLAIN SELECT * FROM v1_9_check WHERE a = 8;
 SELECT * FROM t1 WHERE a = 8;
 
 FLUSH STATUS;
@@ -1617,9 +1617,20 @@ BEGIN
 END|
 delimiter ;|
 
-
 CREATE PROCEDURE sp_select_range(x INT, y INT)
   SELECT * FROM test.t1 WHERE a between x and y;
+
+--echo # Warm-up data-dictionary cache.
+--disable_result_log
+--disable_query_log
+SHOW CREATE PROCEDURE sp_insert;
+SHOW CREATE PROCEDURE sp_insert_partition;
+SHOW CREATE PROCEDURE sp_select_all;
+SHOW CREATE PROCEDURE sp_select_exact;
+SHOW CREATE PROCEDURE sp_select_partition;
+SHOW CREATE PROCEDURE sp_select_range;
+--enable_query_log
+--enable_result_log
 
 FLUSH STATUS;
 CALL sp_insert(313,"Test313");
@@ -1713,7 +1724,7 @@ DROP PROCEDURE sp_select_exact;
 SELECT * FROM t1 ORDER BY a;
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS DELETE FROM t1 WHERE a = 105;
+EXPLAIN DELETE FROM t1 WHERE a = 105;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -1721,7 +1732,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS DELETE FROM t1 WHERE b = "No duplicate";
+EXPLAIN DELETE FROM t1 WHERE b = "No duplicate";
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -1729,7 +1740,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS DELETE FROM t1 WHERE a = 105;
+EXPLAIN DELETE FROM t1 WHERE a = 105;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -1737,7 +1748,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS DELETE FROM t1 WHERE b = "No duplicate";
+EXPLAIN DELETE FROM t1 WHERE b = "No duplicate";
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -1776,7 +1787,7 @@ connection default;
 --echo # 2 read_next (if more matches after the first match)
 --echo # 1 delete
 --replace_column 10 #
-EXPLAIN PARTITIONS DELETE FROM t1 WHERE a = (SELECT a + 90 FROM t2 WHERE a = 1);
+EXPLAIN DELETE FROM t1 WHERE a = (SELECT a + 90 FROM t2 WHERE a = 1);
 FLUSH STATUS;
 DELETE FROM t1 PARTITION (p0)
 WHERE a = (SELECT a + 2 FROM t2 WHERE a = 1);
@@ -1788,7 +1799,7 @@ connection default;
 --echo # Impossible delete, all partitions pruned away after locking!
 --echo # 1 read_key
 --replace_column 10 #
-EXPLAIN PARTITIONS DELETE FROM t1 PARTITION (p0)
+EXPLAIN DELETE FROM t1 PARTITION (p0)
 WHERE a = (SELECT a + 2 FROM t2 WHERE a = 1);
 
 --echo #
@@ -1799,7 +1810,7 @@ SELECT * FROM t2 ORDER BY a;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS DELETE t1, t2 FROM t1, t2
+EXPLAIN DELETE t1, t2 FROM t1, t2
 WHERE t1.a = t2.a AND t1.b = 'First row, p1';
 
 connection monitor;
@@ -1808,7 +1819,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS DELETE FROM t2, t1 USING t2, t1
+EXPLAIN DELETE FROM t2, t1 USING t2, t1
 WHERE t1.b = t2.b AND t2.a = 4;
 
 connection monitor;
@@ -1842,7 +1853,7 @@ SELECT * FROM t2 ORDER BY a;
 --echo # Test subquery IN expression
 --echo #
 FLUSH STATUS;
-EXPLAIN PARTITIONS SELECT count(*) FROM t1 p
+EXPLAIN SELECT count(*) FROM t1 p
 WHERE a IN (1, 2, 9);
 
 connection monitor;
@@ -1851,7 +1862,7 @@ connection default;
 
 
 FLUSH STATUS;
-EXPLAIN PARTITIONS SELECT count(*) FROM t1 p
+EXPLAIN SELECT count(*) FROM t1 p
 WHERE a IN
 (SELECT a + 1 FROM t2 WHERE a = 4);
 
@@ -1911,7 +1922,7 @@ SELECT * FROM t1 WHERE a = 0;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS UPDATE t1 SET b = CONCAT(b, ", UPDATED2") WHERE a = 3;
+EXPLAIN UPDATE t1 SET b = CONCAT(b, ", UPDATED2") WHERE a = 3;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -1980,7 +1991,7 @@ SELECT * FROM t1 WHERE a = 0;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS UPDATE t1 SET b = CONCAT(b, ", UPDATED2") WHERE a = 3;
+EXPLAIN UPDATE t1 SET b = CONCAT(b, ", UPDATED2") WHERE a = 3;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -2000,7 +2011,7 @@ connection default;
 --echo # t1, before update, after update
 SELECT * FROM t1 WHERE a = 3;
 
-EXPLAIN PARTITIONS INSERT INTO t1 VALUES (12, "First row, p12");
+EXPLAIN INSERT INTO t1 VALUES (12, "First row, p12");
 
 FLUSH STATUS;
 INSERT INTO t1 VALUES (12, "First row, p12");
@@ -2028,7 +2039,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS DELETE FROM t1 WHERE a = 98;
+EXPLAIN DELETE FROM t1 WHERE a = 98;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -2314,7 +2325,7 @@ SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN EXTENDED UPDATE t1, t2
+EXPLAIN UPDATE t1, t2
 SET t1.b = CONCAT(t1.b, ",(1) t2.b:", t2.b),
     t2.b = CONCAT(t2.b, ",(1) t1.b:", t1.b)
 WHERE t2.b = t1.b and t1.a = 1;
@@ -2326,7 +2337,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS UPDATE t1, t2
+EXPLAIN UPDATE t1, t2
 SET t1.b = CONCAT(t1.b, ",(1) t2.b:", t2.b),
     t2.b = CONCAT(t2.b, ",(1) t1.b:", t1.b)
 WHERE t2.b = t1.b and t1.a = 1;
@@ -2353,7 +2364,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN EXTENDED UPDATE t1, t2
+EXPLAIN UPDATE t1, t2
 SET t1.b = CONCAT(t1.b, ",(2) t2.b:", t2.b),
     t2.b = CONCAT(t2.b, ",(2) t1.b:", t1.b)
 WHERE t1.b = t2.b and t2.a = 2;
@@ -2366,7 +2377,7 @@ connection default;
 
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS UPDATE t1, t2
+EXPLAIN UPDATE t1, t2
 SET t1.b = CONCAT(t1.b, ",(2) t2.b:", t2.b),
     t2.b = CONCAT(t2.b, ",(2) t1.b:", t1.b)
 WHERE t1.b = t2.b and t2.a = 2;
@@ -2461,7 +2472,7 @@ connection default;
 
 --echo # But it will be scanned pruned!
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t1, t2
+EXPLAIN SELECT * FROM t1, t2
 WHERE t1.a = t2.a AND (t1.a = 1 OR t1.a = 2);
 
 --echo # Test closed range propagation
@@ -2476,7 +2487,7 @@ connection default;
 
 --echo # But it will be scanned pruned!
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t1, t2
+EXPLAIN SELECT * FROM t1, t2
 WHERE t1.a = t2.a AND t1.a >= 1 AND t1.a <=3;
 
 --echo # Test open range propagation
@@ -2490,7 +2501,7 @@ connection default;
 
 --echo # But is scanned pruned!
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t1, t2
+EXPLAIN SELECT * FROM t1, t2
 WHERE t1.a = t2.a AND t2.a >= 1;
 
 FLUSH STATUS;
@@ -2503,7 +2514,7 @@ connection default;
 
 --echo # But is scanned pruned!
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t1, t2
+EXPLAIN SELECT * FROM t1, t2
 WHERE t1.a = t2.a AND t2.a <= 1;
 
 --echo # Test IN propagation
@@ -2517,7 +2528,7 @@ connection default;
 
 --echo # But is scanned pruned!
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t1, t2
+EXPLAIN SELECT * FROM t1, t2
 WHERE t1.a = t2.a AND t1.a IN (1, 3);
 
 --echo # Same for UPDATE
@@ -2532,7 +2543,7 @@ connection default;
 
 --echo # But is scanned pruned!
 --replace_column 10 #
-EXPLAIN PARTITIONS UPDATE t1, t2
+EXPLAIN UPDATE t1, t2
 SET t1.b = CONCAT(t1.b, ", t2.b:", t2.b)
 WHERE t1.a = t2.a and t2.a IN (2, 3);
 
@@ -2572,7 +2583,7 @@ connection default;
 
 --echo # But is scanned pruned!
 --replace_column 10 #
-EXPLAIN PARTITIONS DELETE t1 FROM t1, t2
+EXPLAIN DELETE t1 FROM t1, t2
 WHERE t1.a = t2.a AND t2.a IN (1, 9);
 
 SELECT * FROM t1 ORDER BY a;
@@ -2758,7 +2769,7 @@ CREATE TABLE t1 ( a int NOT NULL) PARTITION BY HASH(a) PARTITIONS 2;
 INSERT INTO t1 VALUES (1),(2),(3);
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a=5 AND a=6;
+EXPLAIN SELECT * FROM t1 WHERE a=5 AND a=6;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -2817,7 +2828,7 @@ connection default;
 --echo # I.e. No lock pruning possible
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS INSERT INTO t2 VALUES ((SELECT max(a) FROM t1),
+EXPLAIN INSERT INTO t2 VALUES ((SELECT max(a) FROM t1),
                                           (SELECT min(a) FROM t1));
 
 connection monitor;
@@ -2836,7 +2847,7 @@ connection default;
 --echo # I.e. No lock pruning possible on insert table
 FLUSH STATUS;
 --replace_column 10 #
-EXPLAIN PARTITIONS INSERT INTO t2 VALUES ((SELECT a FROM t1 WHERE a = 1),
+EXPLAIN INSERT INTO t2 VALUES ((SELECT a FROM t1 WHERE a = 1),
                                           (SELECT b FROM t1 WHERE a = 2));
 
 connection monitor;
@@ -2976,7 +2987,7 @@ while ($query != '')
   while ($subq != '')
   {
     --replace_column 10 #
-    eval EXPLAIN PARTITIONS $query WHERE a = $subq;
+    eval EXPLAIN $query WHERE a = $subq;
     FLUSH STATUS;
     START TRANSACTION;
     eval $query WHERE a = $subq;

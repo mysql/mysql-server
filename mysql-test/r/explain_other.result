@@ -698,7 +698,7 @@ EXPLAIN
           "filtered": "33.33",
           "using_where": true,
           "cost_info": {
-            "read_cost": "1.38",
+            "read_cost": "0.25",
             "eval_cost": "0.57",
             "prefix_cost": "1.95",
             "data_read_per_join": "45"
@@ -760,7 +760,7 @@ EXPLAIN
           "filtered": "33.33",
           "using_where": true,
           "cost_info": {
-            "read_cost": "1.38",
+            "read_cost": "0.25",
             "eval_cost": "0.57",
             "prefix_cost": "1.95",
             "data_read_per_join": "45"
@@ -839,7 +839,7 @@ EXPLAIN
           "rows_produced_per_join": 5,
           "filtered": "33.33",
           "cost_info": {
-            "read_cost": "1.38",
+            "read_cost": "0.25",
             "eval_cost": "0.57",
             "prefix_cost": "1.95",
             "data_read_per_join": "45"

@@ -17,7 +17,9 @@
 
 #include <string.h>
 
+#include "my_compiler.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 
 

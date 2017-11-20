@@ -17,27 +17,20 @@
 
 #include "ndb_local_schema.h"
 
-#include <errno.h>
-
 #include "sql_class.h"
-#include "sql_table.h"
+#include "mdl.h"
+#include "dd/dd_trigger.h"  // dd::table_has_triggers
+#include "sql_trigger.h"    // drop_all_triggers
 
 #include "ndb_dd.h"
-#include "mdl.h"
-#include "table_trigger_dispatcher.h"
-#include "sql_trigger.h"
-#include "mysqld.h"                             // reg_ext
-#include "dd/dd_table.h"  // dd::table_legacy_db_type
-#include "dd/dd_trigger.h"  // dd::table_has_triggers
-#include "sql_trigger.h"  // reload_triggers_for_table
-
 #include "ndb_log.h"
-
-static const char *ndb_ext=".ndb";
 
 
 bool Ndb_local_schema::Base::mdl_try_lock(void) const
 {
+  DBUG_ENTER("mdl_try_lock");
+  DBUG_PRINT("enter", ("db: '%s, name: '%s'", m_db, m_name));
+
   MDL_request_list mdl_requests;
   MDL_request global_request;
   MDL_request schema_request;
@@ -67,10 +60,10 @@ bool Ndb_local_schema::Base::mdl_try_lock(void) const
 
     log_warning("Failed to acquire metadata lock");
 
-    return false;
+    DBUG_RETURN(false);
   }
   DBUG_PRINT("info", ("acquired metadata lock"));
-  return true;
+  DBUG_RETURN(true);
 }
 
 
@@ -129,98 +122,13 @@ Ndb_local_schema::Base::~Base()
 }
 
 
-bool
-Ndb_local_schema::Table::file_exists(const char* ext) const
-{
-  char buf[FN_REFLEN + 1];
-  build_table_filename(buf, sizeof(buf)-1,
-                       m_db, m_name, ext, 0);
-
-  if (my_access(buf, F_OK))
-  {
-    DBUG_PRINT("info", ("File '%s' does not exist", buf));
-    return false;
-  }
-
-  DBUG_PRINT("info", ("File '%s' exist", buf));
-  return true;
-}
-
-
-bool
-Ndb_local_schema::Table::remove_file(const char* ext) const
-{
-  char buf[FN_REFLEN + 1];
-  build_table_filename(buf, sizeof(buf)-1,
-                       m_db, m_name, ext, 0);
-
-  int error = my_delete(buf, 0);
-  if (!error || errno == ENOENT)
-    return true;
-
-  log_warning("Failed to remove file '%s', errno: %d", buf, errno);
-  return false;
-}
-
-
-bool
-Ndb_local_schema::Table::rename_file(const char* new_db, const char* new_name,
-                             const char* ext) const
-{
-  char from[FN_REFLEN + 1];
-  build_table_filename(from, sizeof(from)-1,
-                       m_db, m_name, ext, 0);
-
-  char to[FN_REFLEN + 1];
-  build_table_filename(to, sizeof(to) - 1, new_db, new_name, ext, 0);
-
-  int error = my_rename(from, to, 0);
-  if (!error)
-    return true;
-
-  log_warning("Failed to rename file '%s' to '%s', errno: %d",
-            from, to, errno);
-  return false;
-}
-
-
-// Read the engine type from the DD and return true if it says NDB
-// TODO: Change function name to "engine_is_ndb"
-bool
-Ndb_local_schema::Table::frm_engine_is_ndb(void) const
-{
-  legacy_db_type engine_type;
-  if (!dd::table_legacy_db_type(m_thd, m_db, m_name, &engine_type))
-  {
-    DBUG_PRINT("info", ("engine_type: %d", engine_type));
-    return (engine_type == DB_TYPE_NDBCLUSTER);
-  }
-
-  DBUG_PRINT("info", ("engine_type: Not found for table %s.%s", m_db, m_name));
-  return false;
-}
-
-
 Ndb_local_schema::Table::Table(THD* thd,
                                const char* db, const char* name) :
   Ndb_local_schema::Base(thd, db, name),
-  m_ndb_file_exist(false),
   m_has_triggers(false)
 {
   DBUG_ENTER("Ndb_local_table");
   DBUG_PRINT("enter", ("name: '%s.%s'", db, name));
-
-  // Check if .frm file exist
-  m_frm_file_exist = file_exists(reg_ext);
-  if (!m_frm_file_exist)
-  {
-    // Check for stray .ndb file
-    assert(!file_exists(ndb_ext));
-    DBUG_VOID_RETURN;
-  }
-
-  // Check if .ndb file exist
-  m_ndb_file_exist = file_exists(ndb_ext);
 
   // Check if there are trigger files
   // Ignore possible error from dd::table_has_triggers since
@@ -234,25 +142,28 @@ Ndb_local_schema::Table::Table(THD* thd,
 bool
 Ndb_local_schema::Table::is_local_table(void) const
 {
-  if (m_frm_file_exist && !m_ndb_file_exist)
+  dd::String_type engine;
+  if (ndb_dd_table_get_engine(m_thd, m_db, m_name, &engine))
   {
-    // The .frm exist but no .ndb file , this is a "local" table
-
-    // Double check that the engine type in .frm doesn't say NDB
-    assert(!frm_engine_is_ndb());
-
-    return true;
+    // Can't fetch engine for table, table does not exist
+    // and thus not local table
+    return false;
   }
-  return false;
+
+  if (engine == "ndbcluster")
+  {
+    // Table is marked as being in NDB, not a local table
+    return false;
+  }
+
+  // This is a local table
+  return true;
 }
 
 
 void
 Ndb_local_schema::Table::remove_table(void) const
 {
-  (void)remove_file(reg_ext);
-  (void)remove_file(ndb_ext);
-
   // Remove the table from DD
   if (!ndb_dd_drop_table(m_thd, m_db, m_name))
   {
@@ -262,6 +173,9 @@ Ndb_local_schema::Table::remove_table(void) const
 
   if (m_has_triggers)
   {
+    // NOTE! Should not call drop_all_triggers() here but rather
+    // implement functionality to remove the triggers from DD
+    // using DD API
     if (drop_all_triggers(m_thd, m_db, m_name))
     {
       log_warning("Failed to drop all triggers");
@@ -280,6 +194,9 @@ bool
 Ndb_local_schema::Table::mdl_try_lock_for_rename(const char* new_db,
                                                  const char* new_name) const
 {
+  DBUG_ENTER("mdl_try_lock_for_rename");
+  DBUG_PRINT("enter", ("new_db: '%s, new_name: '%s'", new_db, new_name));
+
   MDL_request_list mdl_requests;
   MDL_request schema_request;
   MDL_request mdl_request;
@@ -304,10 +221,10 @@ Ndb_local_schema::Table::mdl_try_lock_for_rename(const char* new_db,
     log_warning("Failed to acquire exclusive metadata lock for %s.%s",
                 new_db, new_name);
 
-    return false;
+    DBUG_RETURN(false);
   }
   DBUG_PRINT("info", ("acquired metadata lock"));
-  return true;
+  DBUG_RETURN(true);
 }
 
 
@@ -316,8 +233,9 @@ Ndb_local_schema::Table::rename_table(const char* new_db,
                                       const char* new_name) const
 {
   // Take write lock for the new table name
-  if (mdl_try_lock_for_rename(new_db, new_name))
+  if (!mdl_try_lock_for_rename(new_db, new_name))
   {
+    log_warning("Failed to acquire MDL lock for rename");
     return;
   }
 
@@ -327,24 +245,5 @@ Ndb_local_schema::Table::rename_table(const char* new_db,
   {
     log_warning("Failed to rename table in DD");
     return;
-  }
-
-  if (m_has_triggers)
-  {
-    if (!have_mdl_lock())
-    {
-      // change_trigger_table_name() requires an EXLUSIVE mdl lock
-      // so if the mdl lock was not aquired, skip this part
-      log_warning("Can't rename triggers, no mdl lock");
-    }
-    else
-    {
-      if (reload_triggers_for_table(m_thd,
-                                    m_db, m_name, m_name,
-                                    new_db, new_name))
-      {
-        log_warning("Failed to rename all triggers");
-      }
-    }
   }
 }

@@ -4,14 +4,14 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (
 fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
-g GEOMETRY NOT NULL,
+g GEOMETRY NOT NULL SRID 0,
 SPATIAL KEY(g)
 ) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `fid` int(11) NOT NULL AUTO_INCREMENT,
-  `g` geometry NOT NULL,
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`fid`),
   SPATIAL KEY `g` (`g`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
@@ -189,7 +189,7 @@ fid	ST_AsText(g)
 DROP TABLE t1;
 CREATE TABLE t2 (
 fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
-g GEOMETRY NOT NULL
+g GEOMETRY NOT NULL SRID 0
 ) ENGINE=MyISAM;
 INSERT INTO t2 (g) VALUES (LineString(Point(10 * 10 - 9, 10 * 10 - 9), Point(10 * 10, 10 * 10)));
 INSERT INTO t2 (g) VALUES (LineString(Point(10 * 10 - 9, 9 * 10 - 9), Point(10 * 10, 9 * 10)));
@@ -296,7 +296,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `fid` int(11) NOT NULL AUTO_INCREMENT,
-  `g` geometry NOT NULL,
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`fid`),
   SPATIAL KEY `g` (`g`)
 ) ENGINE=MyISAM AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4
@@ -720,7 +720,7 @@ DROP TABLE t2;
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 'test.t1'
-CREATE TABLE t1 (a geometry NOT NULL, SPATIAL (a));
+CREATE TABLE t1 (a geometry NOT NULL SRID 0, SPATIAL (a));
 INSERT INTO t1 VALUES (ST_GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
 INSERT INTO t1 VALUES (ST_GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
 INSERT INTO t1 VALUES (ST_GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
@@ -759,13 +759,13 @@ test.t1	analyze	status	OK
 drop table t1;
 CREATE TABLE t1 (
 fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
-g GEOMETRY NOT NULL,
+g GEOMETRY NOT NULL SRID 0,
 SPATIAL KEY(g)
 ) ENGINE=MyISAM;
 INSERT INTO t1 (g) VALUES (ST_GeomFromText('LineString(1 2, 2 3)')),(ST_GeomFromText('LineString(1 2, 2 4)'));
 drop table t1;
 CREATE TABLE t1 (
-line LINESTRING NOT NULL,
+line LINESTRING NOT NULL SRID 0,
 kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
 name VARCHAR(32),
 SPATIAL KEY (line)
@@ -807,11 +807,11 @@ INSERT INTO t1 (name, kind, line) VALUES ("austria", "pp", ST_GeomFromText('LINE
 drop table t1;
 CREATE TABLE t1 (st varchar(100));
 INSERT INTO t1 VALUES ("Fake string");
-CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom));
+CREATE TABLE t2 (geom GEOMETRY NOT NULL SRID 0, SPATIAL KEY gk(geom));
 INSERT INTO t2 SELECT ST_GeomFromText(st) FROM t1;
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 drop table t1, t2;
-CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+CREATE TABLE t1 (`geometry` geometry NOT NULL default '' SRID 0,SPATIAL KEY `gndx` (`geometry`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'geometry' can't have a default value
 INSERT INTO t1 (geometry) VALUES
@@ -827,7 +827,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
 CREATE TABLE t1 (
-c1 geometry NOT NULL default '',
+c1 geometry NOT NULL default '' SRID 0,
 SPATIAL KEY i1 (c1)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 Warnings:
@@ -843,7 +843,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
 CREATE TABLE t1 (
-c1 geometry NOT NULL default '',
+c1 geometry NOT NULL default '' SRID 0,
 SPATIAL KEY i1 (c1)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 Warnings:
@@ -870,7 +870,7 @@ CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
-CREATE TABLE t1 (foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
+CREATE TABLE t1 (foo GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(foo) );
 INSERT INTO t1 (foo) VALUES (POINT(1,1));
 INSERT INTO t1 (foo) VALUES (POINT(1,0));
 INSERT INTO t1 (foo) VALUES (POINT(0,1));
@@ -885,7 +885,7 @@ CREATE TABLE t1 (id bigint(12) unsigned NOT NULL auto_increment,
 c2 varchar(15) collate utf8_bin default NULL,
 c1 varchar(15) collate utf8_bin default NULL,
 c3 varchar(10) collate utf8_bin default NULL,
-spatial_point point NOT NULL,
+spatial_point point NOT NULL SRID 0,
 PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
 )ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
@@ -1433,7 +1433,7 @@ CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
-create table t1 (a geometry not null, spatial index(a));
+create table t1 (a geometry not null SRID 0, spatial index(a));
 insert into t1 values (POINT(1.1517219314031e+164, 131072));
 insert into t1 values (POINT(9.1248812352444e+192, 2.9740338169556e+284));
 insert into t1 values (POINT(4.7783097267365e-299, -0));
@@ -1464,7 +1464,7 @@ insert into t1 values (POINT(1.8033161362863e-130, 9.1248812352444e+192));
 insert into t1 values (POINT(4.7783097267365e-299, 2.2761049594727e-159));
 insert into t1 values (POINT(1.94906280228e+289, 1.2338789709327e-178));
 drop table t1;
-CREATE TABLE t1(foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
+CREATE TABLE t1(foo GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(foo) );
 INSERT INTO t1(foo) VALUES (NULL);
 ERROR 23000: Column 'foo' cannot be null
 INSERT INTO t1() VALUES ();
@@ -1472,7 +1472,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 INSERT INTO t1(foo) VALUES ('');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 DROP TABLE t1;
-CREATE TABLE t1 (a INT AUTO_INCREMENT, b POINT NOT NULL, KEY (a), SPATIAL KEY (b));
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b POINT NOT NULL SRID 0, KEY (a), SPATIAL KEY (b));
 INSERT INTO t1 (b) VALUES (ST_GeomFromText('POINT(1 2)'));
 INSERT INTO t1 (b) SELECT b FROM t1;
 INSERT INTO t1 (b) SELECT b FROM t1;
@@ -1483,7 +1483,7 @@ OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 DROP TABLE t1;
-CREATE TABLE t1 (a INT, b GEOMETRY NOT NULL, SPATIAL KEY b(b));
+CREATE TABLE t1 (a INT, b GEOMETRY NOT NULL SRID 0, SPATIAL KEY b(b));
 INSERT INTO t1 VALUES (1, ST_GEOMFROMTEXT('LINESTRING(1102218.456 1,2000000 2)'));
 INSERT INTO t1 VALUES (2, ST_GEOMFROMTEXT('LINESTRING(1102218.456 1,2000000 2)'));
 SELECT COUNT(*) FROM t1 WHERE
@@ -1498,7 +1498,7 @@ DROP TABLE t1;
 #
 # Bug #48258: Assertion failed when using a spatial index
 #
-CREATE TABLE t1(a LINESTRING NOT NULL, SPATIAL KEY(a));
+CREATE TABLE t1(a LINESTRING NOT NULL SRID 0, SPATIAL KEY(a));
 INSERT INTO t1 VALUES
 (ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')),
 (ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
@@ -1531,7 +1531,7 @@ DROP TABLE t1;
 #
 # Bug #51357: crash when using handler commands on spatial indexes
 #
-CREATE TABLE t1(a GEOMETRY NOT NULL,SPATIAL INDEX a(a));
+CREATE TABLE t1(a GEOMETRY NOT NULL SRID 0,SPATIAL INDEX a(a));
 HANDLER t1 OPEN;
 HANDLER t1 READ a FIRST;
 a
@@ -1555,7 +1555,7 @@ End of 5.0 tests.
 # Bug #57323/11764487: myisam corruption with insert ignore 
 # and invalid spatial data
 #
-CREATE TABLE t1(a LINESTRING NOT NULL, b GEOMETRY NOT NULL,
+CREATE TABLE t1(a LINESTRING NOT NULL SRID 0, b GEOMETRY NOT NULL SRID 0,
 SPATIAL KEY(a), SPATIAL KEY(b)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(ST_GEOMFROMTEXT("point (0 0)"), ST_GEOMFROMTEXT("point (1 1)"));
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
@@ -1566,7 +1566,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SELECT ST_ASTEXT(a), ST_ASTEXT(b) FROM t1;
 ST_ASTEXT(a)	ST_ASTEXT(b)
 DROP TABLE t1;
-CREATE TABLE t1(a INT NOT NULL, b GEOMETRY NOT NULL,
+CREATE TABLE t1(a INT NOT NULL, b GEOMETRY NOT NULL SRID 0,
 KEY(a), SPATIAL KEY(b)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(0, ST_GEOMFROMTEXT("point (1 1)"));
 INSERT IGNORE INTO t1 SET a=0, b=ST_GEOMFROMTEXT("error");
@@ -1583,6 +1583,6 @@ End of 5.1 tests
 # Bug #18412756 BOGUS ERROR FOR MYISAM SPATIAL INDEX: INCORRECT KEY FILE
 # FOR TABLE
 #
-CREATE TABLE t1 (g GEOMETRY NOT NULL, SPATIAL KEY (g)) ENGINE=MyISAM;
+CREATE TABLE t1 (g GEOMETRY NOT NULL SRID 0, SPATIAL KEY (g)) ENGINE=MyISAM;
 DELETE FROM t1 WHERE ST_DISJOINT(g, POINT(1,1));
 DROP TABLE t1;

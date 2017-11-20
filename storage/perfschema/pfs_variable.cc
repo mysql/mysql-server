@@ -16,9 +16,6 @@
 
 #include "storage/perfschema/pfs_variable.h"
 
-#include "current_thd.h"
-#include "debug_sync.h"
-#include "derror.h"
 #include "my_compiler.h"
 /**
   @file storage/perfschema/pfs_variable.cc
@@ -27,13 +24,16 @@
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sys.h"
-#include "mysqld.h"
-#include "persisted_variable.h"
 #include "pfs.h"
 #include "pfs_global.h"
 #include "pfs_visitor.h"
-#include "sql_audit.h"  // audit_global_variable_get
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
+#include "sql/derror.h"
+#include "sql/mysqld.h"
+#include "sql/persisted_variable.h"
+#include "sql/sql_audit.h" // audit_global_variable_get
+#include "sql/sql_class.h"
 
 bool
 Find_THD_variable::operator()(THD *thd)
@@ -175,28 +175,8 @@ PFS_system_variable_cache::do_materialize_global(void)
        show_var->value && (show_var != m_show_var_array.end());
        show_var++)
   {
-    const char *name = show_var->name;
     sys_var *value = (sys_var *)show_var->value;
     DBUG_ASSERT(value);
-
-    if ((m_query_scope == OPT_GLOBAL) &&
-        (!my_strcasecmp(system_charset_info, name, "sql_log_bin")))
-    {
-      /*
-        PLEASE READ:
-        http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-6.html
-
-        SQL_LOG_BIN is:
-        - declared in sys_vars.cc as both GLOBAL and SESSION in 5.7
-        - impossible to SET with SET GLOBAL (raises an error)
-        - and yet can be read with @@global.sql_log_bin
-
-        The assert below will fail once SQL_LOG_BIN really is defined
-        as SESSION_ONLY (in 8.0), so that this special case can be removed.
-      */
-      DBUG_ASSERT(value->scope() == sys_var::SESSION);
-      continue;
-    }
 
     /* Match the system variable scope to the target scope. */
     if (match_scope(value->scope()))
@@ -577,8 +557,9 @@ PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
       }
       map<string, string> *persist_ro_hash = pv->get_persist_ro_hash();
       map<string, string>::const_iterator ro_iter;
-      for(ro_iter = persist_ro_hash->begin();
-          ro_iter != persist_ro_hash->end(); ro_iter++)
+      for (ro_iter = persist_ro_hash->begin();
+           ro_iter != persist_ro_hash->end();
+           ro_iter++)
       {
         System_variable system_var;
         system_var.m_charset = system_charset_info;

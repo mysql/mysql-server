@@ -20,11 +20,12 @@ SHOW CREATE TABLE t1;
 
 --disable_query_log
 --replace_result #P# #p#
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as
 space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 --enable_query_log
@@ -38,11 +39,12 @@ SHOW CREATE TABLE t1;
 
 --disable_query_log
 --replace_result #P# #p#
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as
 space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 --enable_query_log
@@ -66,11 +68,12 @@ SHOW CREATE TABLE t2;
 
 --disable_query_log
 --replace_result #P# #p# #SP# #sp#
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as
 space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t2%' ORDER BY A.NAME;
 --enable_query_log
@@ -85,11 +88,12 @@ SHOW CREATE TABLE t2;
 
 --disable_query_log
 --replace_result #P# #p# #SP# #sp#
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as
 space_name
-FROM information_schema.innodb_sys_tables A
+FROM information_schema.innodb_tables A
 LEFT JOIN
-information_schema.innodb_sys_tablespaces B
+information_schema.innodb_tablespaces B
 ON A.SPACE = B.SPACE
 WHERE A.NAME LIKE '%t2%' ORDER BY A.NAME;
 --enable_query_log

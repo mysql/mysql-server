@@ -17,17 +17,17 @@
 
 #include <sys/types.h>
 
-#include "current_thd.h"
-#include "item.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "query_result.h"
-#include "sql_class.h"
-#include "sql_lex.h"
-#include "sql_list.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/item.h"
+#include "sql/query_result.h"
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
 #include "sql_string.h"
-#include "table.h"
 
 /**
   Heads of "extra" column parts
@@ -69,7 +69,8 @@ static const char *traditional_extra_tags[ET_total]=
   "",                                  // ET_PUSHED_JOIN
   "Ft_hints:",                         // ET_FT_HINTS
   "Backward index scan",               // ET_BACKWARD_SCAN
-  "Recursive"                          // ET_RECURSIVE
+  "Recursive",                         // ET_RECURSIVE
+  "Index dive skipped due to FORCE"    // ET_SKIP_RECORDS_IN_RANGE
 };
 
 static const char *mod_type_name[]=

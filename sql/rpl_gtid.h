@@ -22,8 +22,8 @@
 #include <atomic>
 #include <list>
 
-#include "control_events.h"     // binary_log::Uuid
-#include "hash.h"               // HASH
+#include "libbinlogevents/include/control_events.h"     // binary_log::Uuid
+#include "map_helpers.h"
 #include "my_dbug.h"
 #include "mysql/psi/mysql_rwlock.h" // mysql_rwlock_t
 #include "prealloced_array.h"   // Prealloced_array
@@ -645,11 +645,10 @@ public:
   {
     if (sid_lock != NULL)
       sid_lock->assert_some_lock();
-    Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid.bytes,
-                                       binary_log::Uuid::BYTE_LENGTH);
-    if (node == NULL)
+    const auto it= _sid_to_sidno.find(sid);
+    if (it == _sid_to_sidno.end())
       return 0;
-    return node->sidno;
+    return it->second->sidno;
   }
   /**
     Get the SID for a given SIDNO.
@@ -767,10 +766,10 @@ private:
   */
   Prealloced_array<Node*, 8>_sidno_to_sid;
   /**
-    Hash that maps SID to SIDNO.  The keys in this array are of type
-    rpl_sid.
+    Hash that maps SID to SIDNO.
   */
-  HASH _sid_to_sidno;
+  malloc_unordered_map<rpl_sid, unique_ptr_my_free<Node>, binary_log::Hash_Uuid>
+    _sid_to_sidno{key_memory_Sid_map_Node};
   /**
     Array that maps numbers in the interval [0, get_max_sidno()-1] to
     SIDNOs, in order of increasing SID.
@@ -1267,9 +1266,7 @@ public:
 class Gtid_set
 {
 public:
-#ifdef HAVE_PSI_INTERFACE
   static PSI_mutex_key key_gtid_executed_free_intervals_mutex;
-#endif
   /**
     Constructs a new, empty Gtid_set.
 
@@ -2323,11 +2320,10 @@ public:
       rpl_sidno sidno= global_sid_map->get_sorted_sidno(sid_i);
       if (sidno > max_sidno)
         continue;
-      HASH *hash= get_hash(sidno);
       bool printed_sid= false;
-      for (uint i= 0; i < hash->records; i++)
+      for (const auto &key_and_value : *get_hash(sidno))
       {
-        Node *node= (Node *)my_hash_element(hash, i);
+        Node *node= key_and_value.second.get();
         DBUG_ASSERT(node != NULL);
         if (!printed_sid)
         {
@@ -2352,11 +2348,10 @@ public:
     size_t ret= 0;
     for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
     {
-      HASH *hash= get_hash(sidno);
-      if (hash->records > 0)
+      size_t records= get_hash(sidno)->size();
+      if (records > 0)
         ret+= binary_log::Uuid::TEXT_LENGTH +
-          hash->records * (1 + MAX_GNO_TEXT_LENGTH +
-                           1 + MAX_THREAD_ID_TEXT_LENGTH);
+          records * (1 + MAX_GNO_TEXT_LENGTH + 1 + MAX_THREAD_ID_TEXT_LENGTH);
     }
     return 1 + ret;
   }
@@ -2427,16 +2422,11 @@ private:
     /// Owner of the group.
     my_thread_id owner;
   };
-  static const uchar* node_get_key(const uchar *ptr, size_t *size)
-  {
-    const Node *node= pointer_cast<const Node*>(ptr);
-    *size= sizeof(rpl_gno);
-    return pointer_cast<const uchar*>(&node->gno);
-  }
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
-  /// Returns the HASH for the given SIDNO.
-  HASH *get_hash(rpl_sidno sidno) const
+  /// Returns the hash for the given SIDNO.
+  malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>>
+    *get_hash(rpl_sidno sidno) const
   {
     DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
     sid_lock->assert_some_lock();
@@ -2446,7 +2436,9 @@ private:
   bool contains_gtid(const Gtid &gtid) const;
 
   /// Growable array of hashes.
-  Prealloced_array<HASH*, 8> sidno_to_hash;
+  Prealloced_array
+    <malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>> *, 8>
+      sidno_to_hash;
 
 public:
   /**
@@ -2457,11 +2449,14 @@ public:
   {
   public:
     Gtid_iterator(const Owned_gtids* og)
-      : owned_gtids(og), sidno(1), hash(NULL), node_index(0), node(NULL)
+      : owned_gtids(og), sidno(1), hash(NULL), node(NULL)
     {
       max_sidno= owned_gtids->get_max_sidno();
       if (sidno <= max_sidno)
+      {
         hash= owned_gtids->get_hash(sidno);
+        node_it= hash->begin();
+      }
       next();
     }
     /// Advance to next group.
@@ -2475,21 +2470,23 @@ public:
       while (sidno <= max_sidno)
       {
         DBUG_ASSERT(hash != NULL);
-        if (node_index < hash->records)
+        if (node_it != hash->end())
         {
-          node= (Node *)my_hash_element(hash, node_index);
+          node= node_it->second.get();
           DBUG_ASSERT(node != NULL);
           // Jump to next node on next iteration.
-          node_index++;
+          ++node_it;
           return;
         }
 
-        node_index= 0;
         // hash is initialized on constructor or in previous iteration
         // for current SIDNO, so we must increment for next iteration.
         sidno++;
         if (sidno <= max_sidno)
+        {
           hash= owned_gtids->get_hash(sidno);
+          node_it= hash->begin();
+        }
       }
       node= NULL;
     }
@@ -2517,9 +2514,10 @@ public:
     /// Max SIDNO of the current iterator.
     rpl_sidno max_sidno;
     /// Current SIDNO hash.
-    HASH *hash;
-    /// Current node index on current SIDNO hash.
-    uint node_index;
+    malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>> *hash;
+    /// Current node iterator on current SIDNO hash.
+    malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>>::const_iterator
+      node_it;
     /// Current node on current SIDNO hash.
     Node *node;
   };

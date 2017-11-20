@@ -159,7 +159,7 @@ drop table t1;
 
 
 --echo # 
---echo # Bug #49734: Crash on EXPLAIN EXTENDED UNION ... ORDER BY 
+--echo # Bug #49734: Crash on EXPLAIN UNION ... ORDER BY 
 --echo #   <any non-const-function>
 --echo # 
 
@@ -169,7 +169,7 @@ CREATE TABLE t2 (b INT) ENGINE = InnoDB;
 INSERT INTO t2 VALUES (1),(2);
 
 --echo # Should not crash
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
 
 --echo # Should not crash
@@ -178,7 +178,7 @@ SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
 
 --echo # Should not crash
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM t1 UNION SELECT * FROM t1
   ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
 
@@ -194,7 +194,7 @@ SELECT * FROM t1 UNION SELECT * FROM t1
 
 
 --echo # Should not crash
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM t1 UNION SELECT * FROM t1
   ORDER BY (SELECT a FROM t2 WHERE b = 12);
 

@@ -16,8 +16,9 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "mem_root_array.h"
-#include "auth_acls.h"
+#include "mysql/mysql_lex_string.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/mem_root_array.h"
 
 class Item;
 class THD;

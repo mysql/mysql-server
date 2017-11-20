@@ -15,6 +15,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "client/check/mysqlcheck.h"
+
+#include <caching_sha2_passwordopt-vars.h>
 #include <m_ctype.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
@@ -22,13 +25,12 @@
 #include <stdlib.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#include "client_priv.h"
+#include "client/client_priv.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqlcheck.h"
 #include "print_version.h"
 #include "typelib.h"
 
@@ -48,7 +50,7 @@ static bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
             opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
             tty_password= 0, opt_frm= 0, debug_info_flag= 0, debug_check_flag= 0,
             opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
-            opt_write_binlog= 1, opt_secure_auth=TRUE;
+            opt_write_binlog= 1;
 static uint verbose = 0, opt_mysql_port=0;
 static uint opt_enable_cleartext_plugin= 0;
 static bool using_opt_enable_cleartext_plugin= 0;
@@ -152,9 +154,6 @@ static struct my_option my_long_options[] =
    "when commands should not be sent to replication slaves.",
    &opt_write_binlog, &opt_write_binlog, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
-  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
-    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"optimize", 'o', "Optimize table.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"password", 'p',
@@ -197,6 +196,7 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#include <caching_sha2_passwordopt-longopts.h>
 #include <sslopt-longopts.h>
 
   {"tables", OPT_TABLES, "Overrides option --databases (-B).", 0, 0, 0,
@@ -247,19 +247,6 @@ static void usage(void)
 	 my_progname);
   printf("OR     %s [OPTIONS] --all-databases\n", my_progname);
   print_defaults("my", load_default_groups);
-  /*
-    Turn default for zombies off so that the help on how to 
-    turn them off text won't show up.
-    This is safe to do since it's followed by a call to exit().
-  */
-  for (struct my_option *optp= my_long_options; optp->name; optp++)
-  {
-    if (optp->id == OPT_SECURE_AUTH)
-    {
-      optp->def_value= 0;
-      break;
-    }
-  }
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 } /* usage */
@@ -342,16 +329,6 @@ get_one_option(int optid, const struct my_option *opt,
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
-    break;
-  case OPT_SECURE_AUTH:
-    /* --secure-auth is a zombie option. */
-    if (!opt_secure_auth)
-    {
-      fprintf(stderr, "mysql: [ERROR] --skip-secure-auth is not supported.\n");
-      exit(1);
-    }
-    else
-      CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
     break;
   }
 
@@ -474,6 +451,7 @@ static int dbConnect(char *host, char *user, char *passwd)
   mysql_options(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysqlcheck");
+  set_get_server_public_key_option(&mysql_connection);
   if (!(sock = mysql_real_connect(&mysql_connection, host, user, passwd,
          NULL, opt_mysql_port, opt_mysql_unix_port, 0)))
   {

@@ -57,7 +57,7 @@ let crash = $args --innodb-force-recovery-crash;
 --error 137,3
 --exec $MYSQLD_CMD $crash=100
 let SEARCH_PATTERN = InnoDB: Creating shared tablespace for temporary tables;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 #
 --source include/start_mysqld.inc
 --echo # files in MYSQL_DATA_DIR

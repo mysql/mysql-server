@@ -134,10 +134,10 @@
 */
 
 #include <stddef.h>
-#include <new>
 #include <string>
 
 #include "binary_log_types.h"                   // enum_field_types
+#include "my_dbug.h"                            // DBUG_ASSERT
 #include "my_inttypes.h"
 
 class Field_json;
@@ -160,7 +160,9 @@ namespace json_binary
   @retval false on success
   @retval true if an error occurred
 */
+#ifdef MYSQL_SERVER
 bool serialize(const THD *thd, const Json_dom *dom, String *dest);
+#endif
 
 /**
   Class used for reading JSON values that are stored in the binary
@@ -190,15 +192,70 @@ public:
   enum_type type() const { return m_type; }
   /// Does this value use the large storage format?
   bool large_format() const { return m_large; }
-  const char *get_data() const;
-  uint32 get_data_length() const;
-  int64 get_int64() const;
-  uint64 get_uint64() const;
-  double get_double() const;
-  uint32 element_count() const;
+
+  /**
+    Get a pointer to the beginning of the STRING or OPAQUE data
+    represented by this instance.
+  */
+  const char *get_data() const
+  {
+    DBUG_ASSERT(m_type == STRING || m_type == OPAQUE);
+    return m_data;
+  }
+
+  /**
+    Get the length in bytes of the STRING or OPAQUE value represented by
+    this instance.
+  */
+  uint32 get_data_length() const
+  {
+    DBUG_ASSERT(m_type == STRING || m_type == OPAQUE);
+    return m_length;
+  }
+
+  /** Get the value of an INT. */
+  int64 get_int64() const
+  {
+    DBUG_ASSERT(m_type == INT);
+    return m_int_value;
+  }
+
+  /** Get the value of a UINT. */
+  uint64 get_uint64() const
+  {
+    DBUG_ASSERT(m_type == UINT);
+    return static_cast<uint64>(m_int_value);
+  }
+
+  /** Get the value of a DOUBLE. */
+  double get_double() const
+  {
+    DBUG_ASSERT(m_type == DOUBLE);
+    return m_double_value;
+  }
+
+  /**
+    Get the number of elements in an array, or the number of members in
+    an object.
+  */
+  uint32 element_count() const
+  {
+    DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+    return m_element_count;
+  }
+
+  /**
+    Get the MySQL field type of an opaque value. Identifies the type of
+    the value stored in the data portion of an opaque value.
+  */
+  enum_field_types field_type() const
+  {
+    DBUG_ASSERT(m_type == OPAQUE);
+    return m_field_type;
+  }
+
   Value element(size_t pos) const;
   Value key(size_t pos) const;
-  enum_field_types field_type() const;
   Value lookup(const std::string &key) const;
   size_t lookup_index(const std::string &key) const;
   bool is_backed_by(const String *str) const;
@@ -213,41 +270,59 @@ public:
                         const char *original, char *destination) const;
 
   /** Constructor for values that represent literals or errors. */
-  explicit Value(enum_type t);
+  explicit Value(enum_type t)
+    : m_data(nullptr), m_type(t)
+  {
+    DBUG_ASSERT(t == LITERAL_NULL || t == LITERAL_TRUE || t == LITERAL_FALSE ||
+                t == ERROR);
+  }
+
   /** Constructor for values that represent ints or uints. */
-  explicit Value(enum_type t, int64 val);
+  explicit Value(enum_type t, int64 val)
+    : m_int_value(val), m_type(t)
+  {
+    DBUG_ASSERT(t == INT || t == UINT);
+  }
+
   /** Constructor for values that represent doubles. */
-  explicit Value(double val);
+  explicit Value(double val) : m_double_value(val), m_type(DOUBLE) {}
+
   /** Constructor for values that represent strings. */
-  Value(const char *data, uint32 len);
+  Value(const char *data, uint32 len)
+    : m_data(data), m_length(len), m_type(STRING)
+  {}
+
   /**
     Constructor for values that represent arrays or objects.
 
     @param t type
     @param data pointer to the start of the binary representation
-    @param element_count the number of elements or members in the value
     @param bytes the number of bytes in the binary representation of the value
+    @param element_count the number of elements or members in the value
     @param large true if the value should be stored in the large
     storage format with 4 byte offsets instead of 2 byte offsets
   */
-  Value(enum_type t, const char *data, uint32 element_count, uint32 bytes,
-        bool large);
+  Value(enum_type t, const char *data, uint32 bytes, uint32 element_count,
+        bool large)
+    : m_data(data), m_element_count(element_count), m_length(bytes),
+      m_type(t), m_large(large)
+  {
+    DBUG_ASSERT(t == ARRAY || t == OBJECT);
+  }
+
   /** Constructor for values that represent opaque data. */
-  Value(enum_field_types ft, const char *data, uint32 len);
+  Value(enum_field_types ft, const char *data, uint32 len)
+    : m_data(data), m_length(len), m_field_type(ft), m_type(OPAQUE)
+  {}
 
   /** Empty constructor. Produces a value that represents an error condition. */
   Value() : Value(ERROR) {}
 
-  /** Assignment operator. */
-  Value &operator=(const Value &from)
-  {
-    if (this != &from)
-    {
-      // Copy the entire from value into this.
-      new (this) Value(from);
-    }
-    return *this;
-  }
+  /** Is this value an array? */
+  bool is_array() const { return m_type == ARRAY; }
+
+  /** Is this value an object? */
+  bool is_object() const { return m_type == OBJECT; }
 
 private:
   /*
@@ -266,31 +341,36 @@ private:
     */
     const char *m_data;
     /** The value if the type is INT or UINT. */
-    const int64 m_int_value;
+    int64 m_int_value;
     /** The value if the type is DOUBLE. */
-    const double m_double_value;
+    double m_double_value;
   };
+
   /**
     Element count for arrays and objects. Unused for other types.
   */
-  const uint32 m_element_count;
+  uint32 m_element_count;
+
   /**
     The full length (in bytes) of the binary representation of an array or
     object, or the length of a string or opaque value. Unused for other types.
   */
-  const uint32 m_length;
+  uint32 m_length;
+
   /**
     The MySQL field type of the value, in case the type of the value is
     OPAQUE. Otherwise, it is unused.
   */
-  const enum_field_types m_field_type;
+  enum_field_types m_field_type;
+
   /** The JSON type of the value. */
-  const enum_type m_type;
+  enum_type m_type;
+
   /**
     True if an array or an object uses the large storage format with 4
     byte offsets instead of 2 byte offsets.
   */
-  const bool m_large;
+  bool m_large;
 
   size_t key_entry_offset(size_t pos) const;
   size_t value_entry_offset(size_t pos) const;
@@ -320,8 +400,39 @@ Value parse_binary(const char *data, size_t len);
   @retval false if successful
   @retval true if an error occurred while calculating the needed space
 */
+#ifdef MYSQL_SERVER
 bool space_needed(const THD *thd, const Json_wrapper *value,
                   bool large, size_t *needed);
+#endif
+
+/**
+  Apply a function to every value in a JSON document. That is, apply
+  the function to the root node of the JSON document, to all its
+  children, grandchildren and so on.
+
+  @param  value the root of the JSON document
+  @param  func  the function to apply
+  @retval true  if the processing was stopped
+  @retval false if the processing was completed
+
+  @tparam Func a functor type that takes a #json_binary::Value
+  parameter and returns a `bool` which is `true` if the processing
+  should stop or `false` if the processing should continue with the
+  next node
+*/
+template <typename Func>
+bool for_each_node(const Value &value, const Func &func)
+{
+  if (func(value))
+    return true;
+
+  if (value.is_array() || value.is_object())
+    for (size_t i= 0, size= value.element_count(); i < size; ++i)
+      if (for_each_node(value.element(i), func))
+        return true;
+
+  return false;
+}
 
 }
 

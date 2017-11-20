@@ -16,10 +16,11 @@
 #ifndef DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 #define DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 
-#include "dd/types/entity_object.h"       // dd::Entity_object
-#include "gis/srid.h"
-#include "gis/srs/srs.h"                  // srid_t
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
+#include "sql/dd/types/entity_object.h"   // dd::Entity_object
+#include "sql/gis/srid.h"
+#include "sql/gis/srs/srs.h"              // srid_t
 
 class THD;
 
@@ -30,7 +31,6 @@ namespace dd {
 class Entity_object_table;
 class Item_name_key;
 class Object_type;
-class Primary_id_key;
 class Void_key;
 
 namespace tables {
@@ -73,14 +73,14 @@ public:
   // created
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created() const = 0;
+  virtual ulonglong created(bool convert_time) const = 0;
   virtual void set_created(ulonglong created) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // last_altered
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered() const = 0;
+  virtual ulonglong last_altered(bool convert_time) const = 0;
   virtual void set_last_altered(ulonglong last_altered) = 0;
 
   /////////////////////////////////////////////////////////////////////////
@@ -122,6 +122,7 @@ public:
   virtual double prime_meridian() const = 0;
   virtual bool positive_east() const = 0;
   virtual bool positive_north() const = 0;
+  virtual double to_radians(double d) const = 0;
   virtual double from_radians(double d) const = 0;
 
   /////////////////////////////////////////////////////////////////////////

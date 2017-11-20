@@ -44,6 +44,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/IsolateOrd.hpp>
 #include <signaldata/ProcessInfoRep.hpp>
+#include <signaldata/LocalSysfile.hpp>
 #include <ndb_version.h>
 #include <OwnProcessInfo.hpp>
 #include <NodeInfo.hpp>
@@ -168,7 +169,8 @@ void Qmgr::execCONTINUEB(Signal* signal)
     }
     const NDB_TICKS now = NdbTick_getCurrentTicks();
     const Uint64 elapsed = NdbTick_Elapsed(c_start_election_time,now).milliSec();
-    if (elapsed > c_restartFailureTimeout)
+    if (c_restartFailureTimeout != Uint32(~0) &&
+        elapsed > c_restartFailureTimeout)
     {
       jam();
       BaseString tmp;
@@ -402,12 +404,55 @@ Qmgr::execDIH_RESTARTCONF(Signal*signal)
 
   const DihRestartConf * conf = CAST_CONSTPTR(DihRestartConf,
                                               signal->getDataPtr());
-
-  g_eventLogger->info("DIH reported normal start, now starting the"
-                      " Node Inclusion Protocol");
   c_start.m_latest_gci = conf->latest_gci;
   c_start.m_no_nodegroup_nodes.assign(NdbNodeBitmask::Size,
                                       conf->no_nodegroup_mask);
+  sendReadLocalSysfile(signal);
+}
+
+void
+Qmgr::sendReadLocalSysfile(Signal *signal)
+{
+  ReadLocalSysfileReq *req = (ReadLocalSysfileReq*)signal->getDataPtrSend();
+  req->userPointer = 0;
+  req->userReference = reference();
+  sendSignal(NDBCNTR_REF,
+             GSN_READ_LOCAL_SYSFILE_REQ,
+             signal,
+             ReadLocalSysfileReq::SignalLength,
+             JBB);
+}
+
+void
+Qmgr::execREAD_LOCAL_SYSFILE_CONF(Signal *signal)
+{
+  ReadLocalSysfileConf *conf = (ReadLocalSysfileConf*)signal->getDataPtr();
+  if (conf->nodeRestorableOnItsOwn ==
+      ReadLocalSysfileReq::NODE_RESTORABLE_ON_ITS_OWN)
+  {
+    g_eventLogger->info("DIH reported normal start, now starting the"
+                        " Node Inclusion Protocol");
+  }
+  else if (conf->nodeRestorableOnItsOwn ==
+           ReadLocalSysfileReq::NODE_NOT_RESTORABLE_ON_ITS_OWN)
+  {
+    /**
+     * We set gci = 1 and rely here on that gci here is simply used
+     * as a tool to decide which nodes can be started up on their
+     * own and which node to choose as master node. Only nodes
+     * where m_latest_gci is set to a real GCI can be choosen as
+     * master nodes.
+     */
+    g_eventLogger->info("Node not restorable on its own, now starting the"
+                        " Node Inclusion Protocol");
+    c_start.m_latest_gci = ZUNDEFINED_GCI_LIMIT;
+  }
+  else
+  {
+    g_eventLogger->info("Node requires initial start, now starting the"
+                        " Node Inclusion Protocol");
+    c_start.m_latest_gci = 0;
+  }
   execCM_INFOCONF(signal);
 }
 
@@ -969,13 +1014,14 @@ void Qmgr::execCM_REGREQ(Signal* signal)
       /***
        * We don't know the president. 
        * If the node to be added has lower node id 
-       * than our president cancidate. Set it as 
-       * candidate
+       * than it will be our president candidate. Set it as 
+       * candidate.
        */
       jam(); 
-      if (gci > c_start.m_president_candidate_gci || 
+      if (gci != ZUNDEFINED_GCI_LIMIT &&
+          (gci > c_start.m_president_candidate_gci || 
 	  (gci == c_start.m_president_candidate_gci && 
-	   addNodePtr.i < c_start.m_president_candidate))
+	   addNodePtr.i < c_start.m_president_candidate)))
       {
 	jam();
 	c_start.m_president_candidate = addNodePtr.i;
@@ -1458,7 +1504,7 @@ void Qmgr::execCM_REGREF(Signal* signal)
   }
   
   c_start.m_starting_nodes.set(TaddNodeno);
-  if (node_gci)
+  if (node_gci > ZUNDEFINED_GCI_LIMIT)
   {
     jam();
     c_start.m_starting_nodes_w_log.set(TaddNodeno);
@@ -1519,9 +1565,10 @@ void Qmgr::execCM_REGREF(Signal* signal)
     break;
   case CmRegRef::ZELECTION:
     jam();
-    if (candidate_gci > c_start.m_president_candidate_gci ||
-	(candidate_gci == c_start.m_president_candidate_gci &&
-	 candidate < c_start.m_president_candidate))
+    if (candidate_gci != ZUNDEFINED_GCI_LIMIT &&
+        (candidate_gci > c_start.m_president_candidate_gci ||
+	 (candidate_gci == c_start.m_president_candidate_gci &&
+	 candidate < c_start.m_president_candidate)))
     {
       jam();
       //----------------------------------------
@@ -1596,8 +1643,9 @@ Qmgr::check_startup(Signal* signal)
 {
   const NDB_TICKS now  = NdbTick_getCurrentTicks();
   const Uint64 elapsed = NdbTick_Elapsed(c_start_election_time,now).milliSec();
-  const Uint64 partitionedTimeout = c_restartPartialTimeout
-                                  + c_restartPartionedTimeout;
+  const Uint64 partitionedTimeout =
+    c_restartPartitionedTimeout == Uint32(~0) ? Uint32(~0) :
+     (c_restartPartialTimeout + c_restartPartitionedTimeout);
 
   const bool no_nodegroup_active =
     (c_restartNoNodegroupTimeout != ~Uint32(0)) &&
@@ -1670,7 +1718,8 @@ Qmgr::check_startup(Signal* signal)
     }
   }
 
-  if (elapsed >= c_restartNoNodegroupTimeout)
+  if (c_restartNoNodegroupTimeout != Uint32(~0) &&
+      elapsed >= c_restartNoNodegroupTimeout)
   {
     tmp.bitOR(c_start.m_no_nodegroup_nodes);
   }
@@ -1685,8 +1734,8 @@ Qmgr::check_startup(Signal* signal)
        */
       NdbNodeBitmask check;
       check.assign(c_definedNodes);
-      check.bitANDC(c_start.m_starting_nodes);    // Not connected nodes
-      check.bitOR(c_start.m_starting_nodes_w_log);
+      check.bitANDC(c_start.m_starting_nodes);     // Keep not connected nodes
+      check.bitOR(c_start.m_starting_nodes_w_log); //Add nodes with log
  
       sd->blockRef = reference();
       sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
@@ -1747,12 +1796,16 @@ Qmgr::check_startup(Signal* signal)
       }
     }
 
-    if (elapsed < c_restartPartialTimeout)
+    if (c_restartPartialTimeout == Uint32(~0) ||
+        elapsed < c_restartPartialTimeout)
     {
       jam();
 
       signal->theData[1] = c_restartPartialTimeout == (Uint32) ~0 ? 2 : 3;
-      signal->theData[2] = Uint32((c_restartPartialTimeout - elapsed + 500) / 1000);
+      signal->theData[2] =
+        c_restartPartialTimeout == Uint32(~0) ?
+          Uint32(~0) :
+          Uint32((c_restartPartialTimeout - elapsed + 500) / 1000);
       report_mask.assign(wait);
       retVal = 0;
 
@@ -1777,7 +1830,9 @@ Qmgr::check_startup(Signal* signal)
       jam();
       goto missing_nodegroup;
     case CheckNodeGroups::Partitioning:
-      if (elapsed < partitionedTimeout && result != CheckNodeGroups::Win)
+      if (elapsed != Uint32(~0) &&
+          elapsed < partitionedTimeout &&
+          result != CheckNodeGroups::Win)
       {
         goto missinglog;
       }
@@ -1819,7 +1874,7 @@ check_log:
       }
       else if (retVal == 2)
       {
-	if (elapsed <= partitionedTimeout)
+	if (elapsed != Uint32(~0) && elapsed <= partitionedTimeout)
 	{
 	  jam();
 	  goto missinglog;
@@ -1835,8 +1890,11 @@ check_log:
   goto start_report;
 
 missinglog:
-  signal->theData[1] = c_restartPartionedTimeout == (Uint32) ~0 ? 4 : 5;
-  signal->theData[2] = Uint32((partitionedTimeout - elapsed + 500) / 1000);
+  signal->theData[1] = c_restartPartitionedTimeout == Uint32(~0) ? 4 : 5;
+  signal->theData[2] = 
+    partitionedTimeout == Uint32(~0) ?
+      Uint32(~0) : Uint32((partitionedTimeout - elapsed + 500) / 1000);
+  infoEvent("partitionedTimeout = %llu, elapsed = %llu", partitionedTimeout, elapsed);
   report_mask.assign(c_definedNodes);
   report_mask.bitANDC(c_start.m_starting_nodes);
   retVal = 0;
@@ -1869,7 +1927,7 @@ missing_nodegroup:
     tmp.getText(mask2);
     BaseString::snprintf(buf, sizeof(buf),
 			 "Unable to start missing node group! "
-			 " starting: %s (missing fs for: %s)",
+			 " starting: %s (missing working fs for: %s)",
 			 mask1, mask2);
     CRASH_INSERTION(944);
     progError(__LINE__, NDBD_EXIT_INSUFFICENT_NODES, buf);
@@ -2630,8 +2688,8 @@ void Qmgr::initData(Signal* signal)
   Uint32 arbitMethod = ARBIT_METHOD_DEFAULT;
   Uint32 ccInterval = 0;
   c_restartPartialTimeout = 30000;
-  c_restartPartionedTimeout = 60000;
-  c_restartFailureTimeout = ~0;
+  c_restartPartitionedTimeout = Uint32(~0);
+  c_restartFailureTimeout = Uint32(~0);
   c_restartNoNodegroupTimeout = 15000;
   ndb_mgm_get_int_parameter(p, CFG_DB_HEARTBEAT_INTERVAL, &hbDBDB);
   ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_TIMEOUT, &arbitTimeout);
@@ -2639,7 +2697,7 @@ void Qmgr::initData(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_START_PARTIAL_TIMEOUT, 
 			    &c_restartPartialTimeout);
   ndb_mgm_get_int_parameter(p, CFG_DB_START_PARTITION_TIMEOUT,
-			    &c_restartPartionedTimeout);
+			    &c_restartPartitionedTimeout);
   ndb_mgm_get_int_parameter(p, CFG_DB_START_NO_NODEGROUP_TIMEOUT,
 			    &c_restartNoNodegroupTimeout);
   ndb_mgm_get_int_parameter(p, CFG_DB_START_FAILURE_TIMEOUT,
@@ -2649,22 +2707,22 @@ void Qmgr::initData(Signal* signal)
 
   if(c_restartPartialTimeout == 0)
   {
-    c_restartPartialTimeout = ~0;
+    c_restartPartialTimeout = Uint32(~0);
   }
 
-  if (c_restartPartionedTimeout ==0)
+  if (c_restartPartitionedTimeout == 0)
   {
-    c_restartPartionedTimeout = ~0;
+    c_restartPartitionedTimeout = Uint32(~0);
   }
 
   if (c_restartFailureTimeout == 0)
   {
-    c_restartFailureTimeout = ~0;
+    c_restartFailureTimeout = Uint32(~0);
   }
 
   if (c_restartNoNodegroupTimeout == 0)
   {
-    c_restartNoNodegroupTimeout = ~0;
+    c_restartNoNodegroupTimeout = Uint32(~0);
   }
 
   setHbDelay(hbDBDB);
@@ -3057,7 +3115,7 @@ void Qmgr::checkStartInterface(Signal* signal, NDB_TICKS now)
       else
       {
         jam();
-        if(((get_hb_count(nodePtr.i) + 1) % 60) == 0)
+        if(((get_hb_count(nodePtr.i) + 1) % 30) == 0)
         {
           jam();
 	  char buf[256];
@@ -3066,30 +3124,27 @@ void Qmgr::checkStartInterface(Signal* signal, NDB_TICKS now)
             jam();
             BaseString::snprintf(buf, sizeof(buf),
                                  "Failure handling of node %d has not completed"
-                                 " in %d min - state = %d",
+                                 " in %d seconds - state = %d",
                                  nodePtr.i,
-                                 (get_hb_count(nodePtr.i)+1)/60,
+                                 get_hb_count(nodePtr.i),
                                  nodePtr.p->failState);
             warningEvent("%s", buf);
-            if (((get_hb_count(nodePtr.i) + 1) % 300) == 0)
-            {
-              jam();
-              /**
-               * Also dump DIH nf-state
-               */
-              signal->theData[0] = DumpStateOrd::DihTcSumaNodeFailCompleted;
-              signal->theData[1] = nodePtr.i;
-              sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
-            }
+
+            /**
+             * Also dump DIH nf-state
+             */
+            signal->theData[0] = DumpStateOrd::DihTcSumaNodeFailCompleted;
+            signal->theData[1] = nodePtr.i;
+            sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
           }
           else
           {
             jam();
             BaseString::snprintf(buf, sizeof(buf),
                                  "Failure handling of api %u has not completed"
-                                 " in %d min - state = %d",
+                                 " in %d seconds - state = %d",
                                  nodePtr.i,
-                                 (get_hb_count(nodePtr.i)+1)/60,
+                                 get_hb_count(nodePtr.i),
                                  nodePtr.p->failState);
             warningEvent("%s", buf);
             if (nodePtr.p->failState == WAITING_FOR_API_FAILCONF)

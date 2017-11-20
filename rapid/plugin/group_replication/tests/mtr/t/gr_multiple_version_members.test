@@ -41,11 +41,11 @@
 --echo #
 
 --let $assert_text= The plugin major and minor versions are visible in the version column
---let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME= "group_replication" and PLUGIN_VERSION= "1.0" ] = 1;
+--let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME= "group_replication" and PLUGIN_VERSION= "1.1" ] = 1;
 --source include/assert.inc
 
 --let $assert_text= The plugin total version can be seen in the description column
---let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME= "group_replication" and PLUGIN_DESCRIPTION= "Group Replication (1.0.0)" ] = 1;
+--let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME= "group_replication" and PLUGIN_DESCRIPTION= "Group Replication (1.1.0)" ] = 1;
 --source include/assert.inc
 
 --echo #

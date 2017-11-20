@@ -400,7 +400,8 @@ sub collect_one_suite($)
 			      "plugin/$suite/tests",
 			      "internal/plugin/$suite/tests",
 			      "rapid/plugin/$suite/tests",
-			      "rapid/mysql-test/suite"
+			      "rapid/mysql-test/suite",
+                              "components/$suite/tests",
 			     ],
 			     [$suite, "mtr"], ($suite =~ /^i_/));
       return unless $suitedir;
@@ -447,6 +448,27 @@ sub collect_one_suite($)
   }
   my @disabled_collection= @{$opt_skip_test_list} if $opt_skip_test_list;
   unshift (@disabled_collection, "$testdir/disabled.def");
+
+  # Check for the tests to be skipped in a sanitizer which are listed
+  # in "mysql-test/collections/disabled-<sanitizer>.list" file.
+  if ($::opt_sanitize)
+  {
+    # Check for disabled-asan.list
+    if($::mysql_version_extra =~ /asan/i &&
+       !grep(/disabled-asan\.list$/, @{$opt_skip_test_list}))
+    {
+      push (@disabled_collection,
+            "collections/disabled-asan.list");
+    }
+    # Check for disabled-ubsan.list
+    elsif($::mysql_version_extra =~ /ubsan/i &&
+         !grep(/disabled-ubsan\.list$/, @{$opt_skip_test_list}))
+    {
+      push (@disabled_collection,
+            "collections/disabled-ubsan.list");
+    }
+  }
+
   for my $skip (@disabled_collection)
     {
       if ( open(DISABLED, $skip ) )
@@ -630,7 +652,7 @@ sub collect_one_suite($)
 
 	  # Skip this combination if the values it provides
 	  # already are set in master_opt or slave_opt
-	  if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) &&
+	  if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) ||
 	      My::Options::is_set($test->{slave_opt}, $comb->{comb_opt}) ){
 	    next;
 	  }
@@ -1107,12 +1129,18 @@ sub collect_one_test_case {
     return $tinfo;
   }
 
-  # Normal tests shouldn't run with only-big-test option
-  if ($::opt_only_big_test and !$tinfo->{'big_test'})
+  # Except the tests which need big-test or only-big-test option to run
+  # in valgrind environment(i.e tests having no_valgrind_without_big.inc
+  # include file), other normal/non-big tests shouldn't run with
+  # only-big-test option.
+  if ($::opt_only_big_test)
   {
-    $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Not a big test";
-    return $tinfo;
+    if (!$tinfo->{'no_valgrind_without_big'} and !$tinfo->{'big_test'})
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Not a big test";
+      return $tinfo;
+    }
   }
 
   # Check for big test
@@ -1121,6 +1149,19 @@ sub collect_one_test_case {
     $tinfo->{'skip'}= 1;
     $tinfo->{'comment'}= "Test needs 'big-test' or 'only-big-test' option";
     return $tinfo;
+  }
+
+  # Tests having no_valgrind_without_big.inc include file needs either
+  # big-test or only-big-test option to run in valgrind environment.
+  if ($tinfo->{'no_valgrind_without_big'} and $::opt_valgrind)
+  {
+    if (!$::opt_big_test and !$::opt_only_big_test)
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Need '--big-test' or '--only-big-test' when ".
+                           "running with Valgrind.";
+      return $tinfo;
+    }
   }
 
   if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
@@ -1181,8 +1222,8 @@ sub collect_one_test_case {
   {
     # Test does not need binlog, add --skip-binlog to
     # the options used when starting
-    push(@{$tinfo->{'master_opt'}}, "--loose-skip-log-bin");
-    push(@{$tinfo->{'slave_opt'}}, "--loose-skip-log-bin");
+    # push(@{$tinfo->{'master_opt'}}, "--loose-skip-log-bin");
+    # push(@{$tinfo->{'slave_opt'}}, "--loose-skip-log-bin");
   }
 
   if ( $tinfo->{'rpl_test'} or $tinfo->{'grp_rpl_test'} )
@@ -1314,20 +1355,22 @@ my @tags=
   "binlog_formats", ["row", "statement"]],
 
  ["include/have_log_bin.inc", "need_binlog", 1],
-# an empty file to use test that needs myisam engine.
+
+ # An empty file to use test that needs myisam engine.
  ["include/force_myisam_default.inc", "myisam_test", 1],
+
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],
  ["include/have_multi_ndb.inc", "ndb_test", 1],
 
-#  The tests with below four .inc files are considered to be rpl tests.
+ # The tests with below four .inc files are considered to be rpl tests.
  ["include/rpl_init.inc", "rpl_test", 1],
  ["include/rpl_ip_mix.inc", "rpl_test", 1],
  ["include/rpl_ip_mix2.inc", "rpl_test", 1],
  ["include/rpl_ipv6.inc", "rpl_test", 1],
 
-["include/ndb_master-slave.inc", "ndb_test", 1],
+ ["include/ndb_master-slave.inc", "ndb_test", 1],
  ["federated.inc", "federated_test", 1],
  ["include/have_ssl.inc", "need_ssl", 1],
  ["include/not_windows.inc", "not_windows", 1],
@@ -1338,6 +1381,10 @@ my @tags=
 
  # Tests with below .inc file are considered to be xplugin tests
  ["include/have_mysqlx_plugin.inc", "xplugin_test", 1],
+
+ # Tests with below .inc file needs either big-test or only-big-test
+ # option along with valgrind option.
+ ["include/no_valgrind_without_big.inc", "no_valgrind_without_big", 1],
 );
 
 

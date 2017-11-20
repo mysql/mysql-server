@@ -18,32 +18,34 @@
 #include <string.h>
 #include <utility>
 
-#include "auth_internal.h"
-#include "field.h"
-#include "handler.h"
-#include "key.h"
 #include "lex_string.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "records.h"
-#include "sql_auth_cache.h"
-#include "sql_base.h"
-#include "sql_const.h"
-#include "sql_plugin_ref.h"
-#include "sql_servers.h"
-#include "sql_user_table.h"
-#include "table.h"
+#include "sql/auth/auth_internal.h"
+#include "sql/auth/sql_auth_cache.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/auth/sql_user_table.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"
+#include "sql/records.h"
+#include "sql/sql_base.h"
+#include "sql/sql_const.h"
+#include "sql/sql_servers.h"
+#include "sql/table.h"
 #include "thr_lock.h"
-#include "mysqld.h"
 
 class THD;
+
 bool trans_commit_stmt(THD *thd);
 extern Granted_roles_graph *g_granted_roles;
 extern Default_roles *g_default_roles;
@@ -118,7 +120,7 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
 
-  if (table_intact.check(thd, table, &mysql_role_edges_table_def))
+  if (table_intact.check(table, ACL_TABLES::TABLE_ROLE_EDGES))
     DBUG_RETURN(true);
 
   if (!table->key_info)
@@ -190,7 +192,7 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
 
-  if (table_intact.check(thd, table, &mysql_default_roles_table_def))
+  if (table_intact.check(table, ACL_TABLES::TABLE_DEFAULT_ROLES))
     DBUG_RETURN(true);
 
   if (!table->key_info)

@@ -18,17 +18,18 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "item.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "sp_rcontext.h"              // sp_rcontext
-#include "sql_class.h"                // THD
-#include "sql_error.h"                // Diagnostics_area
-#include "sql_list.h"                 // List_iterator
+#include "sql/item.h"
+#include "sql/sp_rcontext.h"          // sp_rcontext
+#include "sql/sql_class.h"            // THD
+#include "sql/sql_error.h"            // Diagnostics_area
+#include "sql/sql_list.h"             // List_iterator
 #include "sql_string.h"
 
 

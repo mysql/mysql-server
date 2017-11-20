@@ -216,7 +216,7 @@ CREATE TABLE t1(a INT PRIMARY KEY);
 CREATE TABLE t2(a INT, b INT, FOREIGN KEY(a) REFERENCES t1(a));
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
@@ -226,7 +226,7 @@ t2_ibfk_1
 ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a);
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 t2_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
@@ -239,7 +239,7 @@ ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_1;
 ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a);
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_2
 t2_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
@@ -251,7 +251,7 @@ t2_ibfk_3
 ALTER TABLE t2 RENAME TO t3;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't3' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t3_ibfk_2
 t3_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
@@ -262,7 +262,7 @@ t3_ibfk_3
 ALTER TABLE t3 RENAME TO t4, ALGORITHM= INPLACE;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't4' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t4_ibfk_2
 t4_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
@@ -273,7 +273,7 @@ t4_ibfk_3
 ALTER TABLE t4 RENAME TO t5;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't5' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t5_ibfk_2
 t5_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
@@ -284,7 +284,7 @@ t5_ibfk_3
 RENAME TABLE t5 TO t6;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't6' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t6_ibfk_2
 t6_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
@@ -304,7 +304,7 @@ CONSTRAINT `t6_ibfk_3` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't6' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t6_ibfk_2
 t6_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
@@ -315,7 +315,7 @@ t6_ibfk_3
 RENAME TABLE t6 TO t2;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_2
 t2_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
@@ -328,7 +328,7 @@ ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_2, DROP FOREIGN KEY t2_ibfk_3;
 ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a);
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
@@ -338,7 +338,7 @@ t2_ibfk_1
 ALTER TABLE t2 ADD CONSTRAINT t3_ibfk_2 FOREIGN KEY(b) REFERENCES t1(a);
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 t3_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
@@ -350,7 +350,7 @@ t3_ibfk_2
 RENAME TABLE t2 TO t3;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't3' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t3_ibfk_1
 t3_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
@@ -362,7 +362,7 @@ t3_ibfk_2
 RENAME TABLE t3 TO t4;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't4' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t4_ibfk_1
 t4_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
@@ -377,7 +377,7 @@ ALTER TABLE t2 ADD CONSTRAINT t2_ibfk_1 FOREIGN KEY(a) REFERENCES t1(a);
 ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a);
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 t2_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
@@ -391,7 +391,7 @@ CREATE TABLE t2(a INT, b INT);
 ALTER TABLE t2 ADD CONSTRAINT FK FOREIGN KEY(a) REFERENCES t1(a);
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 FK
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
@@ -414,7 +414,7 @@ RENAME TABLE t2 TO t12345678901234567890123456789012345678901234567890123456;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't12345678901234567890123456789012345678901234567890123456'
   ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t12345678901234567890123456789012345678901234567890123456_ibfk_1
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't12345678901234567890123456789012345678901234567890123456'
@@ -518,4 +518,1473 @@ CREATE TABLE t2 (FK VARCHAR(100), FOREIGN KEY(FK) REFERENCES t1 (PK), KEY(FK));
 ALTER TABLE t2 DROP INDEX FK, ADD INDEX FK2(FK(10));
 ERROR HY000: Cannot drop index 'FK': needed in a foreign key constraint
 DROP TABLE t2, t1;
-SET @@foreign_key_checks= DEFAULT;
+# Bug#25817660: Combination of virtual index, foreign key and trigger
+#               result in assert failure
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=0;
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+UPDATE t1 SET fld1= 2;
+SELECT * FROM t1;
+fld1
+2
+SELECT * FROM t2;
+fld1	fld2
+2	2
+# The same test but with server restart before UPDATE.
+# Triggers different code path in InnoDB which was not
+# covered by original fix for the bug.
+# restart
+UPDATE t1 SET fld1= 3;
+SELECT * FROM t1;
+fld1
+3
+SELECT * FROM t2;
+fld1	fld2
+3	3
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Bug#20021917: WORK AROUND FOR CHARSET CONVERSION WITH FKS CAN
+# RESULT IN WRONG DATA
+#
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100) UNIQUE);
+CREATE TABLE t2 (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), fname VARCHAR(100), FOREIGN KEY (fname) REFERENCES t1 (name) ON UPDATE CASCADE ON DELETE CASCADE);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) DEFAULT NULL,
+  `fname` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fname` (`fname`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fname`) REFERENCES `t1` (`name`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+ALTER TABLE t2 CONVERT TO CHARACTER SET latin1;
+ERROR HY000: Cannot change column 'fname': used in a foreign key constraint 't2_ibfk_1'
+SET foreign_key_checks= OFF;
+ALTER TABLE t2 CONVERT TO CHARACTER SET latin1;
+SET foreign_key_checks= ON;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) DEFAULT NULL,
+  `fname` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fname` (`fname`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fname`) REFERENCES `t1` (`name`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t1(name) VALUES ('test1');
+INSERT INTO t2(name, fname) VALUES ('test1', 'test1');
+UPDATE t1 SET name=CONCAT('St', UNHEX('C3A5') ,'le') WHERE name = 'test1';
+# Should not get any rows here
+SELECT t1.name, t2.fname FROM t1, t2 WHERE t1.name <> t2.fname;
+name	fname
+Ståle	StÃ¥le
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# WL#6049: Meta-data locking for FOREIGN KEY tables
+#
+# Test case to check MDL on tables related by FK constraints.
+#
+CREATE TABLE grandparent (gpf1 INT PRIMARY KEY, gpf2 INT);
+INSERT INTO grandparent VALUES (1,10), (2,20);
+CREATE TABLE parent (
+pf1 INT PRIMARY KEY, pf2 INT, sleep_dummy INT,
+CONSTRAINT pc1 FOREIGN KEY (pf2) REFERENCES grandparent (gpf1)
+ON DELETE NO ACTION ON UPDATE NO ACTION);
+INSERT INTO parent VALUES (1,1,0), (2,2,0);
+CREATE TABLE child (
+cf1 INT PRIMARY KEY, cf2 INT,
+CONSTRAINT cc1 FOREIGN KEY (cf2) REFERENCES parent (pf1)
+ON DELETE NO ACTION ON UPDATE NO ACTION);
+INSERT INTO child VALUES (1,1), (2,2);
+connect  con_A,localhost,root,,test;
+SET @@session.lock_wait_timeout= 1;
+UPDATE parent SET pf2= 2, sleep_dummy= SLEEP(2);
+connection default;
+set @conA_id = <conA>;
+# Waiting for connection A to start udpate
+SET @@session.lock_wait_timeout= 1;
+# Updates not invoving the FK related column should succeed
+UPDATE grandparent SET gpf2= 4;
+UPDATE grandparent SET gpf2= 100 * gpf1;
+# DDL on child will have conflicting locks.
+ALTER TABLE child ADD COLUMN (i INT);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@session.lock_wait_timeout= DEFAULT;
+connection con_A;
+disconnect con_A;
+connection default;
+DROP TABLE child;
+DROP TABLE parent;
+DROP TABLE grandparent;
+#
+# Systemic test coverage for metadata locks related to foreign
+# keys acquired by various DDL statements.
+#
+# Also provides coverage for data-dictionary cache invalidation
+# and cases when we fail to acquire necessary locks.
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connect  con1, localhost, root,,;
+connect  con2, localhost, root,,;
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connection default;
+#
+# 1) CREATE TABLE
+#
+# 1.1) CREATE TABLE must acquire X lock on parent table
+#      (if table doesn't exist).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));;
+connection con1;
+# Wait until CREATE TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap CREATE TABLE
+# 1.2) CREATE TABLE for existing table should not acquire X lock
+#      parent table
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+CREATE TABLE IF NOT EXISTS child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+Warnings:
+Note	1050	Table 'child' already exists
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child;
+# 1.3) CREATE TABLE which acquires lock on parent table and fails
+#      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE parent;
+# 1.4) CREATE TABLE which adds parent to orphan child must acquire X
+#      on child table.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+CREATE TABLE parent (pk INT PRIMARY KEY);;
+connection con1;
+# Wait until CREATE TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap CREATE TABLE
+# 1.5) CREATE TABLE for existing table must not acquire X lock
+#      on child table
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+CREATE TABLE IF NOT EXISTS parent (pk INT PRIMARY KEY);
+Warnings:
+Note	1050	Table 'parent' already exists
+connection con1;
+COMMIT;
+connection default;
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE parent;
+SET FOREIGN_KEY_CHECKS=1;
+# 1.6) CREATE TABLE which acquires lock on child table and fails
+#      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+CREATE TABLE parent (pk INT PRIMARY KEY);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child;
+# 1.7) CREATE TABLE which adds FK should invalidate entries
+#      in TC/TDC and DD caches for the parent table.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+SELECT * FROM parent;
+pk
+connection con1;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquired SNRW lock on child table.
+SELECT * FROM child;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk
+connection default;
+DROP TABLES child, parent;
+#
+# 2) CREATE TABLE ... LIKE
+#
+# 2.1) CREATE TABLE ... LIKE doesn't copy foreign keys
+#      so it should not any locks on FK parent tables.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+connection con1;
+LOCK TABLES parent WRITE;
+connection default;
+CREATE TABLE child2 LIKE child;
+connection con1;
+UNLOCK TABLES;
+connection default;
+# 2.2) CREATE TABLE LIKE which adds parent to orphan child must
+#      acquire X on child table.
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLES child2, parent;
+SET FOREIGN_KEY_CHECKS=1;
+CREATE TABLE parent_source (pk INT PRIMARY KEY);
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+CREATE TABLE parent LIKE parent_source;;
+connection con1;
+# Wait until CREATE TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap CREATE TABLE
+# 2.3) CREATE TABLE LIKE for existing table must not acquire X lock
+#      on child table
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+CREATE TABLE IF NOT EXISTS parent LIKE parent_source;
+Warnings:
+Note	1050	Table 'parent' already exists
+connection con1;
+COMMIT;
+connection default;
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE parent;
+SET FOREIGN_KEY_CHECKS=1;
+# 2.4) CREATE TABLE LIKE which acquires lock on child table and fails
+#      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+CREATE TABLE IF NOT EXISTS parent LIKE parent_source;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child, parent_source;
+#
+# 3) CREATE TABLE ... SELECT
+#
+# 3.1) CREATE TABLE ... SELECT must start by acquiring SU lock on parent
+#      table (if table doesn't exist).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE source (fk INT);
+INSERT INTO source VALUES (NULL);
+connection con1;
+BEGIN;
+SELECT * FROM source FOR UPDATE;
+fk
+NULL
+connection default;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT fk FROM source;;
+connection con1;
+# Wait until CREATE TABLE is blocked by con1 because of row locks.
+# Demonstrate that CREATE TABLE holds SU lock on parent
+# which allows DML but not DDL.
+INSERT INTO parent VALUES (1);
+connection con2;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent ADD COLUMN a INT;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+# Resume CREATE TABLE.
+COMMIT;
+connection default;
+# Reap CREATE TABLE
+DROP TABLES child, source;
+# 3.2) CREATE TABLE ... SELECT should upgrade SU lock on parent to X
+#      before commit (i.e eventually X lock should be acquired).
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+1
+connection default;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;;
+connection con1;
+# Wait until CREATE TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap CREATE TABLE
+# 3.3) CREATE TABLE ... SELECT for existing table should not acquire
+#      any locks on parent table.
+connection con1;
+CREATE TABLE parent2 (pk INT PRIMARY KEY);
+LOCK TABLE parent2 WRITE;
+connection default;
+CREATE TABLE IF NOT EXISTS child (fk INT, FOREIGN KEY (fk) REFERENCES parent2(pk)) SELECT NULL AS fk;
+Warnings:
+Note	1050	Table 'child' already exists
+connection con1;
+UNLOCK TABLES;
+connection default;
+DROP TABLE child;
+DROP TABLE parent2;
+# 3.4) CREATE TABLE ... SELECT which tries to acquire SU lock on parent
+#      table and fails due to lock timeout.
+connection con1;
+LOCK TABLE parent WRITE;
+connection default;
+SET @@lock_wait_timeout= 1;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+UNLOCK TABLES;
+# 3.5) CREATE TABLE ... SELECT which tries to upgrade to X lock on
+#      parent table and fails due to lock timeout.
+BEGIN;
+SELECT * FROM parent;
+pk
+1
+connection default;
+SET @@lock_wait_timeout= 1;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE parent;
+# 3.6) CREATE TABLE ... SELECT which adds parent to orphan child must
+#      acquire X on child table.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+CREATE TABLE parent (pk INT PRIMARY KEY) SELECT 1 AS pk;;
+connection con1;
+# Wait until CREATE TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap CREATE TABLE
+# 3.7) CREATE TABLE ... SELECT for existing table must not
+#      acquire X lock on child table
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+CREATE TABLE IF NOT EXISTS parent (pk INT PRIMARY KEY) SELECT 1 AS pk;
+Warnings:
+Note	1050	Table 'parent' already exists
+connection con1;
+COMMIT;
+connection default;
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE parent;
+SET FOREIGN_KEY_CHECKS=1;
+# 3.8) CREATE TABLE ... SELECT which acquires lock on child table
+#      and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+CREATE TABLE parent (pk INT PRIMARY KEY) SELECT 1 AS pk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child;
+# 3.9) CREATE TABLE ... SELECT which adds FK should invalidate entries
+#      in TC/TDC and DD caches for the parent table.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+SELECT * FROM parent;
+pk
+connection con1;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE) SELECT NULL AS fk;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquired SNRW lock on child table.
+SELECT * FROM child;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk
+NULL
+connection default;
+DROP TABLES child, parent;
+#
+# 4) DROP TABLES
+#
+# 4.1) DROP TABLES must acquire X lock on parent table for FKs
+#      when child is dropped.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+DROP TABLES child;;
+connection con1;
+# Wait until DROP TABLES is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap DROP TABLES
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+# 4.2) DROP TABLES which acquires lock on parent table and fails
+#      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+DROP TABLES child;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 4.3) DROP TABLES which tries to remove parent table must acquire X
+#      lock on child table.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+DROP TABLES parent;;
+connection con1;
+# Wait until DROP TABLES is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap DROP TABLES
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+# 4.4) DROP TABLES which acquires lock on child table and fails
+#      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+DROP TABLES parent;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 4.5) DROP TABLES which deletes child should invalidate entries
+#      in TC/TDC and DD caches for the parent table.
+DROP TABLES child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+SELECT * FROM parent;
+pk
+connection con1;
+DROP TABLES child;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and avoid acquiring SNRW lock on child table.
+SELECT * FROM child;
+ERROR 42S02: Table 'test.child' doesn't exist
+connection default;
+UNLOCK TABLES;
+DROP TABLES parent;
+#
+# 5) RENAME TABLES
+#
+# 5.1) RENAME TABLES must acquire X lock on parent table for FKs
+#      when child is renamed.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+RENAME TABLES child TO child1;;
+connection con1;
+# Wait until RENAME TABLES is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap RENAME TABLES
+RENAME TABLES child1 TO child;
+# 5.2) RENAME TABLES which acquires lock on parent table and fails
+#      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+RENAME TABLES child TO child1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 5.3) RENAME TABLES which tries to rename parent table must acquire X
+#      lock on child table.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+RENAME TABLES parent TO parent1;;
+connection con1;
+# Wait until RENAME TABLES is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap RENAME TABLES
+RENAME TABLES parent1 TO parent;
+# 5.4) RENAME TABLES which acquires lock on child table and fails
+#      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+RENAME TABLES parent TO parent1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 5.5) RENAME TABLES which adds parent table for orphan child
+#      must acquire X lock on this child table.
+connection default;
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+RENAME TABLES parent TO parent1;;
+connection con1;
+# Wait until RENAME TABLES is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap RENAME TABLES
+RENAME TABLES parent1 TO parent;
+# 5.6) RENAME TABLES which acquires lock on orphan child table
+#      and fails due to timeout.
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+RENAME TABLES parent TO parent1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+# 5.7) RENAME TABLES on the child table should invalidate entries
+#      in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk
+connection con1;
+RENAME TABLES child TO child1;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquire SNRW lock on new child table name.
+SELECT * FROM child1;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk
+connection default;
+DROP TABLES child1, parent;
+#
+# 6) Simple ALTER TABLE ... RENAME
+#
+# 6.1) ALTER TABLE ... RENAME must acquire X lock on parent table
+#      for FKs when child is renamed.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+ALTER TABLE child RENAME TO child1;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES child1 TO child;
+# 6.2) ALTER TABLE ... RENAME which acquires lock on parent table and
+#      fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child RENAME TO child1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 6.3) ALTER TABLE ... RENAME which tries to rename parent table must
+#      acquire X lock on child table.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+ALTER TABLE parent RENAME TO parent1;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES parent1 TO parent;
+# 6.4) ALTER TABLE ... RENAME which acquires lock on child table and
+#      fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME TO parent1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 6.5) ALTER TABLE ... RENAME which adds parent table for orphan child
+#      must acquire X lock on this child table.
+connection default;
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+ALTER TABLE parent RENAME TO parent1;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES parent1 TO parent;
+# 6.6) ALTER TABLE ... RENAME which acquires lock on orphan child table
+#      and fails due to timeout.
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME TO parent1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+# 6.7) ALTER TABLE ... RENAME on the child table should invalidate
+#      entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk
+connection con1;
+ALTER TABLE child RENAME TO child1;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquire SNRW lock on new child table name.
+SELECT * FROM child1;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk
+connection default;
+DROP TABLES child1, parent;
+#
+# 7) ALTER TABLE ... INPLACE
+#
+# 7.1) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE must start by
+#      acquiring SU lock on parent table.
+#
+# This test uses debug_sync feature so resides in foreign_key_debug.test
+#
+# 7.2) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE should upgrade SU
+#      lock on parent to X before commit (i.e eventually X lock should
+#      be acquired).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT);
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=INPLACE;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+SET FOREIGN_KEY_CHECKS=1;
+ALTER TABLE child DROP FOREIGN KEY fk;
+# 7.3) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE which tries to
+#      acquire SU lock on parent table and fails due to lock timeout.
+connection con1;
+LOCK TABLE parent WRITE;
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=INPLACE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+UNLOCK TABLES;
+# 7.4) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE which tries to
+#      upgrade to X lock on parent table and fails due to lock timeout.
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=INPLACE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET FOREIGN_KEY_CHECKS=1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 7.5) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE should invalidate
+#      entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk
+connection con1;
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS=1;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquired SNRW lock on child table.
+SELECT * FROM child;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk
+# 7.6) ALTER TABLE ... DROP FOREIGN KEY ... INPLACE should acquire
+#      lock on parent to X before commit.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=INPLACE;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE;
+# 7.7) ALTER TABLE ... DROP FOREIGN KEY ... INPLACE which tries to
+#      upgrade to X lock on parent table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=INPLACE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 7.8) ALTER TABLE ... DROP FOREIGN KEY ... INPLACE should invalidate entries
+#      in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk
+connection con1;
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=INPLACE;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and avoid acquiring SNRW lock on child table.
+SELECT * FROM child;
+fk
+connection default;
+UNLOCK TABLES;
+# 7.9) ALTER TABLE ... INPLACE which changes parent key must acquire X
+#      lock on child table.
+DROP TABLES child, parent;
+CREATE TABLE parent (pk INT NOT NULL, UNIQUE u(pk));
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+ALTER TABLE parent RENAME KEY u TO u1, ALGORITHM=INPLACE;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+# 7.10) ALTER TABLE ... INPLACE which changes parent key, so tries to
+#       acquire X lock on child table, but fails due to timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME KEY u1 TO u, ALGORITHM=INPLACE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 7.11) ALTER TABLE ... RENAME ... INPLACE must acquire X lock on
+#       parent table for FKs when child is renamed.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+ALTER TABLE child RENAME TO child1, ADD COLUMN a INT, ALGORITHM=INPLACE;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES child1 TO child;
+# 7.12) ALTER TABLE ... RENAME ... INPLACE which acquires lock on
+#       parent table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child RENAME TO child1, ADD COLUMN b INT, ALGORITHM=INPLACE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 7.13) ALTER TABLE ... RENAME ... INPLACE which tries to rename parent
+#       table must acquire X lock on child table.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk	a
+connection default;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN a INT, ALGORITHM=INPLACE;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES parent1 TO parent;
+# 7.14) ALTER TABLE ... RENAME ... INPLACE which acquires lock on child
+#       table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk	a
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN b INT, ALGORITHM=INPLACE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 7.15) ALTER TABLE ... RENAME ... INPLACE which adds parent table for
+#       orphan child must acquire X lock on this child table.
+connection default;
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN c INT, ALGORITHM=INPLACE;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES parent1 TO parent;
+# 7.16) ALTER TABLE ... RENAME ... INPLACE which acquires lock on
+#       orphan child table and fails due to timeout.
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN d INT, ALGORITHM=INPLACE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+# 7.17) ALTER TABLE ... RENAME ... INPLACE on the child table should
+#       invalidate entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk	a	c
+connection con1;
+ALTER TABLE child RENAME TO child1, ADD COLUMN a INT, ALGORITHM=INPLACE;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquire SNRW lock on new child table name.
+SELECT * FROM child1;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk	a
+connection default;
+DROP TABLES child1, parent;
+#
+# 8) ALTER TABLE ... COPY
+#
+# 8.1) ALTER TABLE ... ADD FOREIGN KEY ... COPY must start by
+#      acquiring SU lock on parent table.
+# 8.1') ALTER TABLE ... ADD FOREIGN KEY ... COPY due to workaround
+#       must upgrade SU lock on parent table SRO lock.
+#
+# These tests use debug_sync feature so reside in foreign_key_debug.test
+#
+# 8.2) ALTER TABLE ... ADD FOREIGN KEY ... COPY should upgrade SU (SRO)
+#      lock on parent to X before commit (i.e eventually X lock should
+#      be acquired).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT);
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=COPY;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+ALTER TABLE child DROP FOREIGN KEY fk;
+# 8.3) ALTER TABLE ... ADD FOREIGN KEY ... COPY which tries to
+#      acquire SU lock on parent table and fails due to lock timeout.
+connection con1;
+LOCK TABLE parent WRITE;
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+UNLOCK TABLES;
+# 8.3') ALTER TABLE ... ADD FOREIGN KEY ... COPY which due to workaround
+#       tries to upgrade SU lock on parent table to SRO and fails due to
+#       lock timeout.
+connection con1;
+BEGIN;
+DELETE FROM parent;
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 8.4) ALTER TABLE ... ADD FOREIGN KEY ... COPY which tries to
+#      upgrade to X lock on parent table and fails due to lock timeout.
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 8.5) ALTER TABLE ... ADD FOREIGN KEY ... COPY should invalidate
+#      entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk
+connection con1;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE, ALGORITHM=COPY;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquired SNRW lock on child table.
+SELECT * FROM child;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk
+# 8.6) ALTER TABLE ... DROP FOREIGN KEY ... COPY should acquire
+#      lock on parent to X before commit.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=COPY;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE;
+# 8.7) ALTER TABLE ... DROP FOREIGN KEY ... COPY which tries to
+#      upgrade to X lock on parent table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 8.8) ALTER TABLE ... DROP FOREIGN KEY ... COPY should invalidate entries
+#      in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk
+connection con1;
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=COPY;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and avoid acquiring SNRW lock on child table.
+SELECT * FROM child;
+fk
+connection default;
+UNLOCK TABLES;
+# 8.9) ALTER TABLE ... COPY which changes parent key must acquire X
+#      lock on child table.
+DROP TABLES child, parent;
+CREATE TABLE parent (pk INT NOT NULL, UNIQUE u(pk));
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+ALTER TABLE parent RENAME KEY u TO u1, ALGORITHM=COPY;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+# 8.10) ALTER TABLE ... COPY which changes parent key, so tries to
+#       acquire X lock on child table, but fails due to timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME KEY u1 TO u, ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 8.11) ALTER TABLE ... RENAME ... COPY must acquire X lock on
+#       parent table for FKs when child is renamed.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+ALTER TABLE child RENAME TO child1, ADD COLUMN a INT, ALGORITHM=COPY;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES child1 TO child;
+# 8.12) ALTER TABLE ... RENAME ... COPY which acquires lock on
+#       parent table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child RENAME TO child1, ADD COLUMN b INT, ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 8.13) ALTER TABLE ... RENAME ... COPY which tries to rename parent
+#       table must acquire X lock on child table.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk	a
+connection default;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN a INT, ALGORITHM=COPY;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES parent1 TO parent;
+# 8.14) ALTER TABLE ... RENAME ... COPY which acquires lock on child
+#       table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk	a
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN b INT, ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 8.15) ALTER TABLE ... RENAME ... COPY which adds parent table for
+#       orphan child must acquire X lock on this child table.
+connection default;
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN c INT, ALGORITHM=COPY;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES parent1 TO parent;
+# 8.16) ALTER TABLE ... RENAME ... COPY which acquires lock on
+#       orphan child table and fails due to timeout.
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN d INT, ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+# 8.17) ALTER TABLE ... RENAME ... COPY on the child table should
+#       invalidate entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk	a	c
+connection con1;
+ALTER TABLE child RENAME TO child1, ADD COLUMN a INT, ALGORITHM=COPY;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquire SNRW lock on new child table name.
+SELECT * FROM child1;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk	a
+connection default;
+DROP TABLES child1, parent;
+connection con1;
+disconnect con1;
+connection con2;
+disconnect con2;
+connection default;
+#
+# Validation of FK and referred column names.
+#
+# Too long constraint name.
+CREATE TABLE t (pk INTEGER PRIMARY KEY, fk_i INTEGER,
+CONSTRAINT xxxxxxxxx1xxxxxxxxx2xxxxxxxxx3xxxxxxxxx4xxxxxxxxx5xxxxxxxxx6xxxxx
+FOREIGN KEY (fk_i) REFERENCES x(x));
+ERROR 42000: Identifier name 'xxxxxxxxx1xxxxxxxxx2xxxxxxxxx3xxxxxxxxx4xxxxxxxxx5xxxxxxxxx6xxxxx' is too long
+# Too long column name.
+CREATE TABLE t (pk INTEGER PRIMARY KEY, fk_i INTEGER,
+FOREIGN KEY (fk_i) REFERENCES x(xxxxxxxxx1xxxxxxxxx2xxxxxxxxx3xxxxxxxxx4xxxxxxxxx5xxxxxxxxx6xxxxx));
+ERROR 42000: Incorrect column name 'xxxxxxxxx1xxxxxxxxx2xxxxxxxxx3xxxxxxxxx4xxxxxxxxx5xxxxxxxxx6xxxxx'
+# Column name having trailing space.
+CREATE TABLE t (pk INTEGER PRIMARY KEY, fk_i INTEGER,
+FOREIGN KEY (fk_i) REFERENCES x(`x `));
+ERROR 42000: Incorrect column name 'x '
+#
+# Test DROP of table with FKs under LOCK TABLES.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, i INTEGER, fk_i INTEGER,
+UNIQUE KEY parent_i_key(i),
+FOREIGN KEY (fk_i) REFERENCES parent(i));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk_i INTEGER,
+FOREIGN KEY (fk_i) REFERENCES parent(i));
+SET @@session.foreign_key_checks= 1;
+# Drop only parent with FKC == 0.
+LOCK TABLE parent WRITE;
+DROP TABLES parent;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+UNLOCK TABLE;
+SET @@session.foreign_key_checks= 0;
+# Drop only parent.
+LOCK TABLE parent WRITE;
+DROP TABLES parent;
+UNLOCK TABLE;
+SET @@session.foreign_key_checks= 1;
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, i INTEGER,
+UNIQUE KEY parent_i_key(i));
+# Drop both child and parent.
+LOCK TABLES child WRITE, parent WRITE;
+DROP TABLES child, parent;
+UNLOCK TABLES;
+SET @@session.foreign_key_checks= DEFAULT;
+#
+# Test ALTER TABLE ... ADD FOREIGN KEY under LOCK TABLES.
+#
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT);
+LOCK TABLES child WRITE;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk);
+ERROR HY000: Table 'parent' was not locked with LOCK TABLES
+UNLOCK TABLES;
+# With parent table locked for read it should be possible to add FK.
+LOCK TABLES child WRITE, parent READ;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk);
+UNLOCK TABLES;
+#
+# Test ALTER TABLE ... RENAME with FKs under LOCK TABLES.
+#
+# ALTER TABLE ... RENAME on tables which participate or
+# will participate as result of this ALTER in FKs is
+# prohibited.
+LOCK TABLES child WRITE;
+ALTER TABLE child RENAME TO child1;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE RENAME under LOCK TABLES for tables with foreign keys'
+UNLOCK TABLES;
+LOCK TABLES parent WRITE;
+ALTER TABLE parent RENAME TO parent1;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE RENAME under LOCK TABLES for tables with foreign keys'
+UNLOCK TABLES;
+ALTER TABLE child DROP FOREIGN KEY fk;
+LOCK TABLES child WRITE, parent READ;
+ALTER TABLE child RENAME TO child1, ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk);
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE RENAME under LOCK TABLES for tables with foreign keys'
+UNLOCK TABLES;
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY(fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+LOCK TABLE parent WRITE;
+ALTER TABLE parent RENAME TO parent1;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE RENAME under LOCK TABLES for tables with foreign keys'
+UNLOCK TABLES;
+DROP TABLES child, parent;
+#
+# Temporary limitation on ALTER TABLE ... INPLACE renaming parent
+# columns participating in FK.
+#
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ALTER TABLE parent RENAME COLUMN pk TO pk2, ALGORITHM=INPLACE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE which renames columns in parent table of foreign key'
+DROP TABLES child, parent;
+# Works if FK is dropped at the same time however.
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT,
+CONSTRAINT fk FOREIGN KEY (fk) REFERENCES self(pk));
+ALTER TABLE self RENAME COLUMN fk TO b, DROP FOREIGN KEY fk, ALGORITHM=INPLACE;
+DROP TABLE self;
+#
+# WL#6049, bug#26654674 "TABLE_CACHE_MANAGER::FREE_TABLE(THD*,
+#                        ENUM_TDC_REMOVE_TABLE_TYPE, TABLE_SHARE*)".
+#
+CREATE TABLE t1 (u INT NOT NULL, UNIQUE u(u));
+# First, check that we correctly handle open HANDLERs during
+# parent invalidation.
+HANDLER t1 OPEN;
+CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (u));
+HANDLER t1 CLOSE;
+HANDLER t1 OPEN AS a;
+HANDLER t1 OPEN AS b;
+CREATE TABLE t3 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (u));
+HANDLER a CLOSE;
+HANDLER b CLOSE;
+# Then, check that we correctly handle HANDLERs on child table
+# during parent definiton change.
+HANDLER t2 OPEN;
+HANDLER t3 OPEN AS a;
+HANDLER t3 OPEN AS b;
+ALTER TABLE t1 RENAME KEY u TO u1;
+HANDLER t2 CLOSE;
+HANDLER a CLOSE;
+HANDLER b CLOSE;
+# Now, let us check what happens when parent is renamed.
+HANDLER t2 OPEN;
+HANDLER t3 OPEN AS a;
+HANDLER t3 OPEN AS b;
+ALTER TABLE t1 RENAME TO t4;
+HANDLER t2 CLOSE;
+HANDLER a CLOSE;
+HANDLER b CLOSE;
+# Finally, check what happens when parent table is deleted.
+# Do clean-up as side-effect.
+HANDLER t2 OPEN;
+HANDLER t3 OPEN AS a;
+HANDLER t3 OPEN AS b;
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE t4;
+DROP TABLES t2, t3;
+SET FOREIGN_KEY_CHECKS=1;
+#
+# Additional test coverage for foreign keys and prepared statement
+# validation.
+#
+CREATE TABLE t1 (i INT PRIMARY KEY);
+CREATE TABLE t2 (j INT, FOREIGN KEY (j) REFERENCES t1 (i) ON DELETE CASCADE);
+CREATE TABLE t3 (k INT);
+CREATE TRIGGER bi_t3 BEFORE INSERT ON t3 FOR EACH ROW
+BEGIN
+IF @a = 1234567890 THEN
+DELETE FROM t1;
+END IF;
+END|
+PREPARE stmt FROM 'INSERT INTO t3 VALUES (1)';
+EXECUTE stmt;
+DROP TABLES t2, t1;
+# Statement should succeed even though we won't be able check
+# prelocked set element for child table.
+EXECUTE stmt;
+CREATE TABLE t1 (i INT PRIMARY KEY);
+CREATE TABLE t2 (j INT, FOREIGN KEY (j) REFERENCES t1 (i) ON DELETE CASCADE);
+EXECUTE stmt;
+DROP TABLES t2, t1;
+CREATE VIEW t2 AS SELECT 1 AS j;
+# Again statement should succeed, even though we have view instead
+# of child table.
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t3;
+DROP VIEW t2;

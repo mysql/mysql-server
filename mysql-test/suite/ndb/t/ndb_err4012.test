@@ -64,7 +64,7 @@ create table t2(id int primary key, val int)engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6216" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1051
+--error ER_ENGINE_CANT_DROP_TABLE
 drop table t2;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -169,7 +169,7 @@ drop table t1;
 create table t1(id int primary key, val int) engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6217" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1051
+--error ER_ENGINE_CANT_DROP_TABLE
 drop table t1;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -227,7 +227,7 @@ create table t1(id int primary key, val int) engine=ndb;
 create table t2(id int primary key, val int) engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6218" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 4008
+--error 1296, 4008
 alter table t2 add constraint foreign key (id) references t1(id);
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -294,7 +294,7 @@ create table t1(id int primary key, val int) engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6220" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1051
+--error ER_ENGINE_CANT_DROP_TABLE
 drop table if exists t1;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT

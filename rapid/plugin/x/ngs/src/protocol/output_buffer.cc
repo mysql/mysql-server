@@ -145,7 +145,6 @@ void Output_buffer::BackUp(int count) {
   }
 }
 
-
 int64_t Output_buffer::ByteCount() const {
   size_t count = 0;
   for (Page_list::const_iterator p = m_pages.begin();

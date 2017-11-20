@@ -92,11 +92,11 @@ SELECT fid, ST_Dimension(g) FROM gis_geometry;
 SELECT fid, ST_GeometryType(g) FROM gis_geometry;
 SELECT fid, ST_IsEmpty(g) FROM gis_geometry;
 SELECT fid, ST_AsText(ST_Envelope(g)) FROM gis_geometry;
-explain extended select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
+explain select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
 
 SELECT fid, ST_X(g) FROM gis_point;
 SELECT fid, ST_Y(g) FROM gis_point;
-explain extended select ST_X(g),ST_Y(g) FROM gis_point;
+explain select ST_X(g),ST_Y(g) FROM gis_point;
 
 SELECT fid, ST_AsText(ST_StartPoint(g)) FROM gis_line;
 SELECT fid, ST_AsText(ST_EndPoint(g)) FROM gis_line;
@@ -104,14 +104,14 @@ SELECT fid, ST_Length(g) FROM gis_line;
 SELECT fid, ST_NumPoints(g) FROM gis_line;
 SELECT fid, ST_AsText(ST_PointN(g, 2)) FROM gis_line;
 SELECT fid, ST_IsClosed(g) FROM gis_line;
-explain extended select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),ST_Length(g),ST_NumPoints(g),ST_AsText(ST_PointN(g, 2)),ST_IsClosed(g) FROM gis_line;
+explain select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),ST_Length(g),ST_NumPoints(g),ST_AsText(ST_PointN(g, 2)),ST_IsClosed(g) FROM gis_line;
 
 SELECT fid, ST_AsText(ST_Centroid(g)) FROM gis_polygon;
 SELECT fid, ST_Area(g) FROM gis_polygon;
 SELECT fid, ST_AsText(ST_ExteriorRing(g)) FROM gis_polygon;
 SELECT fid, ST_NumInteriorRings(g) FROM gis_polygon;
 SELECT fid, ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
-explain extended select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),ST_NumInteriorRings(g),ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
+explain select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),ST_NumInteriorRings(g),ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
 
 SELECT fid, ST_IsClosed(g) FROM gis_multi_line;
 
@@ -122,21 +122,21 @@ SELECT fid, ST_NumGeometries(g) from gis_multi_point;
 SELECT fid, ST_NumGeometries(g) from gis_multi_line;
 SELECT fid, ST_NumGeometries(g) from gis_multi_polygon;
 SELECT fid, ST_NumGeometries(g) from gis_geometrycollection;
-explain extended SELECT fid, ST_NumGeometries(g) from gis_multi_point;
+explain SELECT fid, ST_NumGeometries(g) from gis_multi_point;
 
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_line;
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_polygon;
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_geometrycollection;
 SELECT fid, ST_AsText(ST_GeometryN(g, 1)) from gis_geometrycollection;
-explain extended SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
+explain SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
 
 SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
 MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
 MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
-explain extended SELECT g1.fid as first, g2.fid as second,
+explain SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
 MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
 MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
@@ -164,12 +164,12 @@ SHOW FIELDS FROM t1;
 DROP TABLE t1;
 
 SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
-explain extended SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
-explain extended SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_PointFromText('POINT(1 4)'))));
+explain SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
+explain SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_PointFromText('POINT(1 4)'))));
 SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101));
-explain extended SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101));
+explain SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101));
 #select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6)),ST_issimple(ST_PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),ST_issimple(ST_GeometryFromText('POINT(1 4)')), ST_issimple(ST_AsWKB(ST_GeometryFromText('POINT(1 4)')));
-explain extended select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6));
+explain select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6));
 
 create table t1 (a geometry not null);
 insert into t1 values (ST_GeomFromText('Point(1 2)'));
@@ -2187,9 +2187,9 @@ SET @poly1 = ST_GeomFromText('POLYGON((25 25, 25 35, 35 35, 35 25, 25 25))');
 
 CREATE TABLE t1 (
                    a INT NOT NULL,
-                   p POINT NOT NULL,
-                   l LINESTRING NOT NULL,
-                   g GEOMETRY NOT NULL,
+                   p POINT NOT NULL SRID 0,
+                   l LINESTRING NOT NULL SRID 0,
+                   g GEOMETRY NOT NULL SRID 0,
                    PRIMARY KEY(p),
                    SPATIAL KEY idx2 (p),
                    SPATIAL KEY idx3 (l),
@@ -2214,9 +2214,9 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (
                    a INT NOT NULL,
-                   p POINT NOT NULL,
-                   l LINESTRING NOT NULL,
-                   g GEOMETRY NOT NULL,
+                   p POINT NOT NULL SRID 0,
+                   l LINESTRING NOT NULL SRID 0,
+                   g GEOMETRY NOT NULL SRID 0,
                    PRIMARY KEY(p),
                    SPATIAL KEY idx2 (p),
                    SPATIAL KEY idx3 (l),
@@ -3859,3 +3859,124 @@ INSERT INTO t VALUES(1),(2),(3),(4);
 --error ER_SUBQUERY_NO_1_ROW
 DO (SELECT DISTINCT SQL_BIG_RESULT ST_SIMPLIFY(POINT(a,1),1) FROM t);
 DROP TABLE t;
+
+--echo #
+--echo # Bug #26615824 WL10827: SELECT QUERY WITH LIMIT 1 RETURNS ZERO
+--echo # NUMBER OF ROWS
+--echo #
+
+CREATE TABLE t1 (
+  g POLYGON SRID 4326 NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE SPATIAL INDEX g_idx ON t1(g);
+
+INSERT INTO t1 VALUES (
+  ST_GeomFromText(
+    'POLYGON((-165 -46,161 -70,-108 72,-165 -46))',
+    4326,
+    'axis-order=long-lat'
+  )
+);
+
+--echo # The two queries should return the same result.
+
+SELECT COUNT(*)
+FROM t1 IGNORE INDEX (g_idx)
+WHERE MBRContains(
+  ST_GeomFromText(
+    'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+    4326,
+    'axis-order=long-lat'
+  ),
+  g
+);
+
+SELECT COUNT(*)
+FROM t1 FORCE INDEX (g_idx)
+WHERE MBRContains(
+  ST_GeomFromText(
+    'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+    4326,
+    'axis-order=long-lat'),
+  g
+);
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+  g POLYGON SRID 4326 NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE t1 ADD SPATIAL INDEX g_idx (g);
+
+INSERT INTO t1 VALUES (
+  ST_GeomFromText(
+    'POLYGON((-165 -46,161 -70,-108 72,-165 -46))',
+    4326,
+    'axis-order=long-lat'
+  )
+);
+
+--echo # The two queries should return the same result.
+
+SELECT COUNT(*)
+FROM t1 IGNORE INDEX (g_idx)
+WHERE MBRContains(
+  ST_GeomFromText(
+    'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+    4326,
+    'axis-order=long-lat'
+  ),
+  g
+);
+
+SELECT COUNT(*)
+FROM t1 FORCE INDEX (g_idx)
+WHERE MBRContains(
+  ST_GeomFromText(
+    'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+    4326,
+    'axis-order=long-lat'),
+  g
+);
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+  g POLYGON SRID 4326 NOT NULL,
+  SPATIAL INDEX g_idx (g)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO t1 VALUES (
+  ST_GeomFromText(
+    'POLYGON((-165 -46,161 -70,-108 72,-165 -46))',
+    4326,
+    'axis-order=long-lat'
+  )
+);
+
+--echo # The two queries should return the same result.
+
+SELECT COUNT(*)
+FROM t1 IGNORE INDEX (g_idx)
+WHERE MBRContains(
+  ST_GeomFromText(
+    'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+    4326,
+    'axis-order=long-lat'
+  ),
+  g
+);
+
+SELECT COUNT(*)
+FROM t1 FORCE INDEX (g_idx)
+WHERE MBRContains(
+  ST_GeomFromText(
+    'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+    4326,
+    'axis-order=long-lat'),
+  g
+);
+
+DROP TABLE t1;

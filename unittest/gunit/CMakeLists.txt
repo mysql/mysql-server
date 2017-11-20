@@ -223,6 +223,10 @@ SET(DISABLE_PSI_OPTIONS
   "-DDISABLE_PSI_STAGE"
   )
 
+IF(SSL_DEFINES)
+  ADD_DEFINITIONS(${SSL_DEFINES})
+ENDIF()
+
 IF (WITH_SSL STREQUAL "bundled")
   ADD_SUBDIRECTORY(yassl)
 ENDIF()
@@ -230,12 +234,10 @@ ENDIF()
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${ZLIB_INCLUDE_DIR}
   ${CMAKE_SOURCE_DIR}/extra/regex
-  ${CMAKE_SOURCE_DIR}/sql
-  ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/storage/example
   ${CMAKE_SOURCE_DIR}/storage/temptable/include
+  ${SSL_INCLUDE_DIRS}
 )
 
 # main-wrapper libraries (with tap-compatible option).
@@ -285,7 +287,7 @@ ENDIF()
 
 # Add some defines.
 ADD_DEFINITIONS(-DMYSQL_SERVER -DEXTRA_CODE_FOR_UNIT_TESTING)
-ADD_DEFINITIONS(-DERRMSG_DIR="${PROJECT_BINARY_DIR}/sql/share")
+ADD_DEFINITIONS(-DERRMSG_DIR="${PROJECT_BINARY_DIR}/share")
 ADD_DEFINITIONS(-DDATA_DIR="${CMAKE_CURRENT_BINARY_DIR}")
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
@@ -317,6 +319,7 @@ SET(TESTS
   my_thread
   mysys_base64
   mysys_lf
+  mysys_my_b_vprintf
   mysys_my_loadpath
   mysys_my_malloc
   mysys_my_pwrite
@@ -422,6 +425,7 @@ SET(SERVER_TESTS
   unique
   value_map
   wild_case_compare
+  sha2_password
 )
 
 SET(ALL_LARGE_TESTS)
@@ -451,7 +455,8 @@ SET_TARGET_PROPERTIES(sqlgunitlib
 ## link time and disk space ...
 OPTION(MERGE_UNITTESTS "Merge tests into one executable" ON)
 IF (MERGE_UNITTESTS)
-  ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS})
+  MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
+    ADD_TEST merge_small_tests)
   TARGET_LINK_LIBRARIES(merge_small_tests-t
     mysys mysys_ssl regex sqlgunitlib gunit_small)
   
@@ -459,12 +464,9 @@ IF (MERGE_UNITTESTS)
     LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)
   ENDIF()
   LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
-  ADD_COMPILE_FLAGS(
-    ../../storage/example/ha_example.cc
-    COMPILE_FLAGS "-DDISABLE_DTRACE"
-  )
 
-  ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS})
+  MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
+    ADD_TEST merge_large_tests)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main binlog rpl master slave)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main sql_gis)
   TARGET_LINK_LIBRARIES(merge_large_tests-t
@@ -474,24 +476,21 @@ IF (MERGE_UNITTESTS)
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_large_tests-t perfschema)
-    TARGET_LINK_LIBRARIES(merge_small_tests-t perfschema pfs_server_stubs)
+    TARGET_LINK_LIBRARIES(merge_small_tests-t perfschema)
   ENDIF()
-
-  ADD_TEST(merge_large_tests merge_large_tests-t)
-  ADD_TEST(merge_small_tests merge_small_tests-t)
 
 ENDIF(MERGE_UNITTESTS)
 
+SET(EXCLUDE_FROM_ALL "EXCLUDE_FROM_ALL")
+IF (NOT MERGE_UNITTESTS)
+  UNSET(EXCLUDE_FROM_ALL)
+ENDIF()
+
 FOREACH(test ${TESTS})
-  ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc SKIP_INSTALL ${EXCLUDE_FROM_ALL})
   ADD_COMPILE_FLAGS(${test}-t.cc COMPILE_FLAGS ${DISABLE_PSI_OPTIONS})
   TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug regex)
-  IF(MERGE_UNITTESTS)
-    SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-    IF(WIN32)
-      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
-    ENDIF()
-  ELSE()
+  IF(NOT MERGE_UNITTESTS)
     ADD_TEST(${test} ${test}-t)
   ENDIF()
 ENDFOREACH()
@@ -529,7 +528,7 @@ FOREACH(test ${SERVER_TESTS})
   IF(test MATCHES "table_cache")
     LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
   ENDIF()
-  ADD_EXECUTABLE(${test}-t ${SRC_FILES})
+  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
   TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main)
   TARGET_LINK_LIBRARIES(${test}-t sql_main sql_gis)
   TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
@@ -540,18 +539,10 @@ FOREACH(test ${SERVER_TESTS})
     TARGET_LINK_LIBRARIES(${test}-t perfschema)
   ENDIF()
 
-  IF(MERGE_UNITTESTS)
-    SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-    IF(WIN32)
-      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
-    ENDIF()
-  ELSE()
+  IF(NOT MERGE_UNITTESTS)
     ADD_TEST(${test} ${test}-t)
   ENDIF()
 ENDFOREACH()
-
-## Most executables depend on libeay32.dll (through mysys_ssl).
-COPY_OPENSSL_DLLS(copy_openssl_gunit)
 
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)

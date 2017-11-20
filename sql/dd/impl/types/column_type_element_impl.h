@@ -18,23 +18,23 @@
 
 #include <sys/types.h>
 #include <new>
-#include <string>
 
-#include "dd/impl/types/weak_object_impl.h"   // dd::Weak_object_impl
-#include "dd/sdi_fwd.h"
-#include "dd/types/column_type_element.h"     // dd::Column_type_element
-#include "dd/types/object_type.h"             // dd::Object_type
+#include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/column_type_element.h" // dd::Column_type_element
+#include "sql/dd/types/object_type.h"         // dd::Object_type
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Column_impl;
-class Open_dictionary_tables_ctx;
-class Raw_record;
 class Column;
+class Column_impl;
 class Object_key;
 class Object_table;
+class Open_dictionary_tables_ctx;
+class Raw_record;
 class Sdi_rcontext;
 class Sdi_wcontext;
 class Weak_object;

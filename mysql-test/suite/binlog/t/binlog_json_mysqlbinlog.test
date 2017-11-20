@@ -1,0 +1,49 @@
+# ==== Requirements ====
+#
+# mysqlbinlog should decode rows containing JSON values correctly:
+# R1. Correct JSON should be written (not the raw binary format)
+# R2. JSON bigger than 65536 bytes should work
+#
+# ==== Implementation ====
+#
+# Execute an INSERT, an UPDATE, and a DELETE.
+# Ensure that at least one of them has a value greater than 65536 bytes
+# Check the output.
+#
+# Use sed to filter the huge strings from the output (not mysqltest's
+# replace, because it is very slow on long strings.)
+#
+# ==== References ====
+#
+# BUG#26018522: MYSQLBINLOG -V PRINTS JSON IN ROW EVENTS WRONG
+
+
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/have_util_sed.inc
+--source include/have_grep.inc
+
+--echo ==== Generate binlog ====
+
+RESET MASTER;
+CREATE TABLE t (i INT, j JSON);
+SET @@SESSION.BINLOG_ROW_IMAGE = MINIMAL;
+INSERT INTO t VALUES (1, '{"a" : 1}');
+--let $long_json= `SELECT CONCAT('[', REPEAT('1, ', 100000), '1]')`
+# Not mysqltest's 'replace' because it's slow on big strings
+--disable_query_log
+eval UPDATE t SET j = '$long_json' WHERE i = 1;
+--enable_query_log
+UPDATE t SET j = '1' WHERE i = 1;
+DELETE FROM t;
+DROP TABLE t;
+
+--echo ==== Check output from mysqlbinlog ====
+
+--let $datadir= `SELECT @@GLOBAL.DATADIR`
+--source include/save_binlog_position.inc
+# Not mysqltest's 'replace' because it's slow on big strings
+--let $mysqlbinlog_pipe= | $SED 's/\[1, 1, 1, 1, .*/LONG_JSON/'
+--let $mysqlbinlog_only_decoded_rows= 1
+--let $mysqlbinlog_parameters= $datadir/$binlog_file -v --force-if-open
+--source include/mysqlbinlog.inc

@@ -10,6 +10,7 @@ sleep(1)
 0
 SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up';
 user	host	db	command	state	info
+event_scheduler	localhost	NULL	Daemon	Waiting on empty queue	NULL
 root	localhost	test	Query	executing	SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up'
 RUN create procedure test.get_stuck()
 begin
@@ -2092,6 +2093,7 @@ Mysqlx_connections_closed	23
 Mysqlx_connections_rejected	0
 SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up';
 user	host	db	command	state	info
+event_scheduler	localhost	NULL	Daemon	Waiting on empty queue	NULL
 root	localhost	test	Query	executing	SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up'
 drop procedure test.get_stuck;
 uninstall plugin mysqlx;

@@ -108,15 +108,17 @@
            subject and may omit some details.
 */
 
-#include "opt_range.h"
+#include "sql/opt_range.h"
 
 #include "my_config.h"
 
 #include <fcntl.h>
 #include <float.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <algorithm>
+#include <atomic>
 #include <cmath>                 // std::log2
 #include <memory>
 #include <new>
@@ -124,27 +126,15 @@
 #include <set>
 
 #include "binary_log_types.h"
-#include "check_stack.h"
-#include "current_thd.h"
-#include "derror.h"              // ER_THD
-#include "error_handler.h"       // Internal_error_handler
-#include "filesort.h"            // filesort_free_buffers
-#include "item.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_row.h"
-#include "item_sum.h"            // Item_sum
-#include "key.h"                 // is_key_used
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
-#include "malloc_allocator.h"
-#include "mem_root_array.h"
 #include "mf_wcomp.h"            // wild_compare
 #include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
@@ -152,31 +142,45 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"           // EE_CAPACITY_EXCEEDED
-#include "opt_costmodel.h"
-#include "opt_hints.h"           // hint_key_state
-#include "opt_statistics.h"      // guess_rec_per_key
-#include "opt_trace.h"           // Opt_trace_array
-#include "opt_trace_context.h"
-#include "partition_info.h"      // partition_info
-#include "psi_memory_key.h"
-#include "set_var.h"
-#include "sql_base.h"            // free_io_cache
-#include "sql_class.h"           // THD
-#include "sql_error.h"
-#include "sql_executor.h"
-#include "sql_lex.h"
-#include "sql_opt_exec_shared.h" // QEP_shared_owner
-#include "sql_optimizer.h"       // JOIN
-#include "sql_parse.h"           // check_stack_overrun
-#include "sql_partition.h"       // HA_USE_AUTO_PARTITION
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
-#include "sql_select.h"
-#include "sql_servers.h"
-#include "system_variables.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/check_stack.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"          // ER_THD
+#include "sql/error_handler.h"   // Internal_error_handler
+#include "sql/filesort.h"        // filesort_free_buffers
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_row.h"
+#include "sql/item_sum.h"        // Item_sum
+#include "sql/key.h"             // is_key_used
+#include "sql/log.h"
+#include "sql/malloc_allocator.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"
+#include "sql/opt_costmodel.h"
+#include "sql/opt_hints.h"       // hint_key_state
+#include "sql/opt_statistics.h"  // guess_rec_per_key
+#include "sql/opt_trace.h"       // Opt_trace_array
+#include "sql/opt_trace_context.h"
+#include "sql/partition_info.h"  // partition_info
+#include "sql/psi_memory_key.h"
+#include "sql/set_var.h"
+#include "sql/sql_base.h"        // free_io_cache
+#include "sql/sql_class.h"       // THD
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_opt_exec_shared.h" // QEP_shared_owner
+#include "sql/sql_optimizer.h"   // JOIN
+#include "sql/sql_partition.h"   // HA_USE_AUTO_PARTITION
+#include "sql/sql_select.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_tmp_table.h"
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
+#include "sql/uniques.h"         // Unique
 #include "template_utils.h"
-#include "thr_malloc.h"
-#include "uniques.h"             // Unique
                                  // idx_merge_hint_state()
 
 using std::min;
@@ -1479,6 +1483,9 @@ public:
   bool index_merge_union_allowed;
   bool index_merge_sort_union_allowed;
   bool index_merge_intersect_allowed;
+
+  /// Same value as JOIN_TAB::skip_records_in_range().
+  bool skip_records_in_range;
 };
 
 class TABLE_READ_PLAN;
@@ -3361,8 +3368,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
     /* set up parameter that is passed to all functions */
     param.thd= thd;
     param.baseflag= head->file->ha_table_flags();
-    param.prev_tables=prev_tables | const_tables;
-    param.read_tables=read_tables;
+    param.prev_tables= prev_tables | const_tables | INNER_TABLE_BIT;
+    param.read_tables= read_tables | INNER_TABLE_BIT;
     param.current_table= head->pos_in_table_list->map();
     param.table=head;
     param.keys=0;
@@ -3392,6 +3399,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
     param.index_merge_intersect_allowed=
       param.index_merge_allowed &&
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT);
+
+    param.skip_records_in_range= tab->skip_records_in_range();
 
     init_sql_alloc(key_memory_test_quick_select_exec,
                    &alloc, thd->variables.range_alloc_block_size, 0);
@@ -3950,7 +3959,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   range_par->thd= thd;
   range_par->table= table;
   /* range_par->cond doesn't need initialization */
-  range_par->prev_tables= range_par->read_tables= 0;
+  range_par->prev_tables= range_par->read_tables= INNER_TABLE_BIT;
   range_par->current_table= table->pos_in_table_list->map();
 
   range_par->keys= 1; // one index
@@ -4029,14 +4038,21 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   }
   
   /*
-    If the condition can be evaluated now, we are done with pruning.
+    Decide if the current pruning attempt is the final one.
 
     During the prepare phase, before locking, subqueries and stored programs
     are not evaluated. So we need to run prune_partitions() a second time in
     the optimize phase to prune partitions for reading, when subqueries and
     stored programs may be evaluated.
+
+    The upcoming pruning attempt will be the final one when:
+    - condition is constant, or
+    - condition may vary for every row (so there is nothing to prune) or
+    - evaluation is in execution phase.
   */
-  if (pprune_cond->can_be_evaluated_now())
+  if (pprune_cond->const_item() ||
+      !pprune_cond->const_for_execution() ||
+      thd->lex->is_query_tables_locked())
     part_info->is_pruning_completed= true;
   goto end;
 
@@ -6425,12 +6441,28 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                   key, key_part, false);
         trace_range.end(); // NOTE: ends the tracing scope
 
-        trace_idx.add("index_dives_for_eq_ranges", !param->use_index_statistics).
-          add("rowid_ordered", param->is_ror_scan).
+        /// No cost calculation when index dive is skipped.
+        if (param->skip_records_in_range)
+          trace_idx.add_alnum("index_dives_for_range_access",
+                              "skipped_due_to_force_index");
+        else
+          trace_idx.add("index_dives_for_eq_ranges",
+                        !param->use_index_statistics);
+
+        trace_idx.add("rowid_ordered", param->is_ror_scan).
           add("using_mrr", !(mrr_flags & HA_MRR_USE_DEFAULT_IMPL)).
-          add("index_only", read_index_only).
-          add("rows", found_records).
-          add("cost", cost);
+          add("index_only", read_index_only);
+
+        if (param->skip_records_in_range)
+        {
+          trace_idx.add_alnum("rows", "not applicable").
+            add_alnum("cost", "not applicable");
+        }
+        else
+        {
+          trace_idx.add("rows", found_records).
+            add("cost", cost);
+        }
       }
 #endif
 
@@ -7266,13 +7298,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     dbug_print_tree("tree_returned", tree, param);
     DBUG_RETURN(tree);
   }
-  /* 
-    Here when simple cond 
-    There are limits on what kinds of const items we can evaluate.
-    At this stage a subquery in 'cond' might not be fully transformed yet
-    (example: semijoin) thus cannot be evaluated.
-  */
-  if (cond->const_item() && !cond->is_expensive() && !cond->has_subquery())
+  if (cond->const_item() && !cond->is_expensive())
   {
     /*
       During the cond->val_int() evaluation we can come across a subselect 
@@ -7698,7 +7724,9 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree,
   // A SEL_ARG should not have been created for this predicate yet.
   DBUG_ASSERT(*tree == NULL);
 
-  if (!value->can_be_evaluated_now())
+  THD *const thd= field->table->in_use;
+
+  if (!(value->const_item() || thd->lex->is_query_tables_locked()))
   {
     /*
       We cannot evaluate the value yet (i.e. required tables are not yet
@@ -7710,8 +7738,8 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree,
   }
 
   // For comparison purposes allow invalid dates like 2000-01-32
-  const sql_mode_t orig_sql_mode= field->table->in_use->variables.sql_mode;
-  field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
+  const sql_mode_t orig_sql_mode= thd->variables.sql_mode;
+  thd->variables.sql_mode|= MODE_INVALID_DATES;
 
   /*
     We want to change "field > value" to "field OP V"
@@ -7729,7 +7757,7 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree,
 
   // Note that value may be a stored function call, executed here.
   const type_conversion_status err= value->save_in_field_no_warnings(field, true);
-  field->table->in_use->variables.sql_mode= orig_sql_mode;
+  thd->variables.sql_mode= orig_sql_mode;
 
   switch (err) {
   case TYPE_OK:
@@ -10685,7 +10713,7 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
         this range if the user requested it
       */
       if (param->use_index_statistics)
-        range->range_flag|= USE_INDEX_STATISTICS;
+        range->range_flag|= SKIP_RECORDS_IN_RANGE;
 
       /* 
         An equality range is a unique range (0 or 1 rows in the range)
@@ -10723,6 +10751,9 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 
   seq->param->range_count++;
   seq->param->max_key_part=max<uint>(seq->param->max_key_part,key_tree->part);
+
+  if (seq->param->skip_records_in_range)
+    range->range_flag|= SKIP_RECORDS_IN_RANGE;
 
   return 0;
 }
@@ -15684,6 +15715,7 @@ static inline void print_tree(String *out,
       append_range_all_keyparts()
     */
     char buff1[512];
+    buff1[0]= '\0';
     String range_result(buff1, sizeof(buff1), system_charset_info);
     range_result.length(0);
 
@@ -15713,7 +15745,8 @@ static inline void print_tree(String *out,
       DBUG_PRINT("info",
                  ("sel_tree: %p, type=%d, %s->keys[%u(%u)]: %s",
                   tree->keys[i], static_cast<int>(tree->keys[i]->type),
-                  tree_name, i, real_key_nr, range_result.ptr()));
+                  tree_name, i, real_key_nr,
+                  range_result.ptr()));
   }
 }
 

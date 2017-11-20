@@ -21,7 +21,7 @@
 #include "test_utils.h"
 #include "fake_table.h"
 
-#include "field.h"
+#include "sql/field.h"
 
 namespace field_datetime_unittests {
 

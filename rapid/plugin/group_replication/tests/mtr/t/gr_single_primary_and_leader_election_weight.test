@@ -291,4 +291,24 @@ SET @@GLOBAL.group_replication_member_weight= 40.1;
 --source include/stop_group_replication.inc
 
 
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+
+
 --source ../inc/group_replication_end.inc

@@ -5,15 +5,15 @@ utf8mb4
 SET @session_start_value = @@character_set_client;
 SELECT @session_start_value;
 @session_start_value
-latin1
+utf8mb4
 SET @session_start_value = @@local.character_set_client;
 SELECT @session_start_value;
 @session_start_value
-latin1
+utf8mb4
 SET @session_start_value = @@session.character_set_client;
 SELECT @session_start_value;
 @session_start_value
-latin1
+utf8mb4
 '#--------------------FN_DYNVARS_010_01------------------#'
 SELECT character_set_client;
 ERROR 42S22: Unknown column 'character_set_client' in 'field list'
@@ -104,7 +104,7 @@ SELECT @@character_set_client;
 latin2
 SET @@character_set_client = swe7;
 SELECT @@character_set_client;
-……character_set_client
+√â√âcharacter_set_client
 swe7
 SET @@character_set_client = ascii;
 SELECT @@character_set_client;
@@ -516,4 +516,4 @@ utf8mb4
 SET @@session.character_set_client = @session_start_value;
 SELECT @@session.character_set_client;
 @@session.character_set_client
-latin1
+utf8mb4

@@ -60,12 +60,11 @@ extern "C" {
 void init_vio_psi_keys();
 #endif
 
-#ifdef __cplusplus
+#ifndef MYSQL_VIO
+struct st_vio;
 typedef struct st_vio Vio;
 #define MYSQL_VIO Vio*
-#else
-#define MYSQL_VIO void*
-#endif /* __cplusplus */
+#endif
 
 enum enum_vio_type
 {

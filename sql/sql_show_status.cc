@@ -18,16 +18,16 @@
 
 #include <stddef.h>
 
-#include "item_cmpfunc.h"              // Item_func_like
 #include "lex_string.h"
 #include "m_string.h"                  // C_STRING_WITH_LEN
-#include "mem_root_array.h"
 #include "my_sqlcommand.h"
-#include "mysqld.h"
-#include "parse_tree_items.h"          // PTI_simple_ident_ident
-#include "parse_tree_nodes.h"          // PT_select_item_list
-#include "sql_class.h"                 // THD
-#include "sql_lex.h"                   // Query_options
+#include "sql/item_cmpfunc.h"          // Item_func_like
+#include "sql/key.h"
+#include "sql/mem_root_array.h"
+#include "sql/parse_tree_items.h"      // PTI_simple_ident_ident
+#include "sql/parse_tree_nodes.h"      // PT_select_item_list
+#include "sql/sql_class.h"             // THD
+#include "sql/sql_lex.h"               // Query_options
 #include "sql_string.h"
 
 
@@ -103,8 +103,7 @@ build_query(const POS &pos,
 
   static const Query_options options=
   {
-    0, /* query_spec_options */
-    SELECT_LEX::SQL_CACHE_UNSPECIFIED /* sql_cache */
+    0 /* query_spec_options */
   };
 
   /* ... VARIABLE_NAME ... */

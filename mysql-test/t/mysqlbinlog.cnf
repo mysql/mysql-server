@@ -1,6 +1,0 @@
-##### WL#10353 Preliminary run test client in latin1
-!include include/default_my.cnf
-[mysqltest]
-default-character-set=latin1
-[mysql]
-default-character-set=latin1

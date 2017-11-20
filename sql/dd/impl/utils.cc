@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,12 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/utils.h"
+#include "sql/dd/impl/utils.h"
 
-#include "dd/properties.h"          // dd::Properties
+#include <string>
+
+#include "sql/dd/properties.h"      // dd::Properties
+#include "sql/stateless_allocator.h"
 
 namespace dd {
 

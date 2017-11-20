@@ -18,8 +18,8 @@ CREATE TEMPORARY TABLE temp1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO temp1 VALUE (1);
 
 ## 2. Change Isolation level to SERIALIZABLE.
-SET @tx_isolation_orig = @@session.tx_isolation;
-SET SESSION tx_isolation='SERIALIZABLE';
+SET @transaction_isolation_orig = @@session.transaction_isolation;
+SET SESSION transaction_isolation='SERIALIZABLE';
 
 ## 3. DDLs are allowed irrespective of transaction isolation value
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -51,13 +51,13 @@ ERROR HY000: The table does not comply with the requirements by an external plug
 SELECT dml_function();
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 START TRANSACTION;
-SET SESSION tx_isolation='REPEATABLE-READ';
+SET SESSION transaction_isolation='REPEATABLE-READ';
 INSERT INTO t1 VALUES (2);
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 COMMIT;
-include/assert.inc ['tx_isolation should be REPEATABLE-READ']
+include/assert.inc ['transaction_isolation should be REPEATABLE-READ']
 START TRANSACTION;
-SET SESSION tx_isolation='SERIALIZABLE';
+SET SESSION transaction_isolation='SERIALIZABLE';
 
 ## 5. Isolation value change is effective only from the next transaction.
 ##    So this insert should be allowed as the current transaction's
@@ -71,5 +71,5 @@ DROP TABLE t2;
 DROP TABLE temp1;
 DROP PROCEDURE dml_procedure;
 DROP FUNCTION dml_function;
-SET SESSION tx_isolation=@tx_isolation_orig;
+SET SESSION transaction_isolation=@transaction_isolation_orig;
 include/group_replication_end.inc

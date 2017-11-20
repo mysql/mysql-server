@@ -47,7 +47,7 @@ create user readuser@localhost identified by 'readuser';
 grant select on *.* to readuser@localhost;
 
 --write_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp
--- "Create relational TABLE "
+#-- "Create relational TABLE "
 -->sql
  DROP SCHEMA if EXISTS xplugintest;
  CREATE SCHEMA xplugintest DEFAULT CHARSET='utf8';
@@ -215,7 +215,7 @@ row {
     }}
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 -->sql
 SELECT * FROM categories;
@@ -347,7 +347,7 @@ SELECT * FROM categories_child;
 DROP TABLE categories_child;
 -->endsql
 
--- "Create DOCUMENT table "
+#-- "Create DOCUMENT table "
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"
   args {
@@ -610,7 +610,7 @@ SELECT * FROM maincollection;
 -->endsql
 
 
--- "Insert by acquiring lock"
+#-- "Insert by acquiring lock"
 -->sql
 LOCK TABLES maincollection READ;
 -->endsql
@@ -698,7 +698,7 @@ Mysqlx.Crud.Insert {
 }
 -->expecterror ER_TABLEACCESS_DENIED_ERROR,ER_LOCK_WAIT_TIMEOUT
 -->recvresult
--->expecterror ER_LOCK_WAIT_TIMEOUT
+-->expecterror ER_SUCCESS,ER_LOCK_WAIT_TIMEOUT
 -->sql
 SELECT * FROM xplugintest.categories;
 -->endsql

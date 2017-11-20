@@ -179,10 +179,12 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_ddl_log                               OK
 mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
@@ -340,6 +342,8 @@ user	CREATE TABLE `user` (
   `account_locked` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   `Create_role_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   `Drop_role_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Password_reuse_history` smallint(5) unsigned DEFAULT NULL,
+  `Password_reuse_time` smallint(5) unsigned DEFAULT NULL,
   PRIMARY KEY (`Host`,`User`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Users and global privileges'
 SHOW CREATE TABLE mysql.innodb_table_stats;
@@ -366,12 +370,14 @@ innodb_index_stats	CREATE TABLE `innodb_index_stats` (
   `stat_description` varchar(1024) COLLATE utf8_bin NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`,`index_name`,`stat_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SELECT NAME,LEN FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE TABLE_ID IN
-(SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE NAME LIKE '%innodb_%_stats')
-AND NAME LIKE 'table_name';
-NAME	LEN
-table_name	192
-table_name	192
+SELECT COLUMN_NAME,CHARACTER_MAXIMUM_LENGTH
+FROM INFORMATION_SCHEMA.COLUMNS col
+JOIN INFORMATION_SCHEMA.TABLES tab ON col.table_name=tab.table_name
+WHERE col.TABLE_NAME LIKE '%innodb_%_stats'
+    AND col.COLUMN_NAME LIKE 'table_name';
+COLUMN_NAME	CHARACTER_MAXIMUM_LENGTH
+table_name	199
+table_name	199
 SHOW CREATE TABLE test.t_compressed;
 Table	Create Table
 t_compressed	CREATE TABLE `t_compressed` (
@@ -526,7 +532,7 @@ Field	Type	Null	Key	Default	Extra
 cü	char(1)	YES		NULL	
 SELECT * FROM information_schema.tables WHERE table_schema = 'test' and table_type='VIEW';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
-def	test	initial_vü	VIEW	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	CREATE_TIME	NULL	NULL	NULL	NULL	NULL	VIEW
+def	test	initial_vü	VIEW	NULL	NULL	NULL	0	0	0	0	0	0	NULL	CREATE_TIME	NULL	NULL	NULL	NULL	NULL	VIEW
 SET names default;
 # Check for SP/SF
 SHOW CREATE PROCEDURE sp.simpleproc;
@@ -623,6 +629,9 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `tbsp2` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+#
+# Bug#26431355 : ALTER TABLE COMMENT FAILS WITH FAILED TO DROP TABLE SDI AFTER UPGRADE
+#
 # Check for table with blackhole engine
 SHOW CREATE TABLE test.t_blackhole;
 Table	Create Table
@@ -722,17 +731,17 @@ x	y
 3	5
 SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
 TABLE_SCHEMA='view_with_column_names';
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
-def	view_with_column_names	t1	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	view_with_column_names	t1	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	view_with_column_names	v1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	view_with_column_names	v1	b	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	view_with_column_names	v2	e	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	view_with_column_names	v2	f	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	view_with_column_names	v3	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	view_with_column_names	v3	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
+def	view_with_column_names	t1	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	t1	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	v1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	v1	b	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	v2	e	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	v2	f	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	v3	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	v3	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
 # Restart on the upgraded data dir
-# restart: --loose-skip-log-bin --datadir=MYSQLD_DATADIR1
+# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1
 # Execute FTS queries that modify FTS pages
 select count(*) from sakila.film_text;
 count(*)
@@ -749,6 +758,39 @@ optimize table sakila.film_text;
 Table	Op	Msg_type	Msg_text
 sakila.film_text	optimize	status	OK
 # Stop the server
+# Check if .ibds have SDI after upgrade
+# Check SDI from vt2.ibd
+# Check SDI from t_json.ibd
+# Check SDI from t_gen_stored.ibd
+# Check SDI from t_dynamic.ibd
+# Check SDI from t_compressed3.ibd
+# Check SDI from t_compressed2.ibd
+# Check SDI from t_compressed.ibd
+# Check SDI from t_blob_myisam.ibd
+# Check SDI from t_blob.ibd
+# Check SDI from opening_lines.ibd
+# Check SDI from jemp.ibd
+# Check SDI from geom.ibd
+# Check SDI from store.ibd
+# Check SDI from staff.ibd
+# Check SDI from rental.ibd
+# Check SDI from payment.ibd
+# Check SDI from language.ibd
+# Check SDI from inventory.ibd
+# Check SDI from film_text.ibd
+# Check SDI from film_category.ibd
+# Check SDI from film_actor.ibd
+# Check SDI from film.ibd
+# Check SDI from customer.ibd
+# Check SDI from country.ibd
+# Check SDI from city.ibd
+# Check SDI from category.ibd
+# Check SDI from address.ibd
+# Check SDI from actor.ibd
+# Check SDI from mysql.ibd
+# Check SDI from ibdata1
+# Check SDI from test_tablespace_3.ibd
+# Check SDI from test_tablespace_2.ibd
 # Remove copied files
 # Restart the server with default options.
 # restart

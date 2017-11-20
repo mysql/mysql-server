@@ -97,8 +97,10 @@ enum SERVER_STATUS_flags_enum
   SERVER_STATUS_IN_TRANS_READONLY= 8192,
   SERVER_SESSION_STATE_CHANGED= (1UL << 14)
 };
+struct st_vio;
+typedef struct st_vio Vio;
 typedef struct st_net {
-  void* vio;
+  Vio* vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;
   unsigned long remain_in_buf,length, buf_length, where_b;
@@ -110,7 +112,6 @@ typedef struct st_net {
   unsigned char reading_or_writing;
   char save_char;
   bool compress;
-  unsigned char *unused;
   unsigned int last_errno;
   unsigned char error;
   char last_error[512];
@@ -126,6 +127,10 @@ enum mysql_enum_shutdown_level {
   SHUTDOWN_WAIT_CRITICAL_BUFFERS= ((unsigned char)(1 << 3) << 1) + 1,
   KILL_QUERY= 254,
   KILL_CONNECTION= 255
+};
+enum enum_resultset_metadata {
+  RESULTSET_METADATA_NONE= 0,
+  RESULTSET_METADATA_FULL= 1
 };
 enum enum_cursor_type
 {
@@ -148,7 +153,7 @@ enum enum_session_state_type
   SESSION_TRACK_TRANSACTION_CHARACTERISTICS,
   SESSION_TRACK_TRANSACTION_STATE
 };
-bool my_net_init(NET *net, void* vio);
+bool my_net_init(NET *net, Vio* vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
 void net_clear(NET *net, bool check_buffer);
@@ -169,14 +174,10 @@ struct rand_struct {
   double max_value_dbl;
 };
 #include <mysql/udf_registration_types.h>
-typedef char my_bool;
-typedef unsigned char uchar;
-typedef long long int longlong;
-typedef unsigned long ulong;
 enum Item_result
 {
-  INVALID_RESULT=-1,
-  STRING_RESULT=0,
+  INVALID_RESULT= -1,
+  STRING_RESULT= 0,
   REAL_RESULT,
   INT_RESULT,
   ROW_RESULT,
@@ -195,11 +196,11 @@ typedef struct st_udf_args
 } UDF_ARGS;
 typedef struct st_udf_init
 {
-  my_bool maybe_null;
+  bool maybe_null;
   unsigned int decimals;
   unsigned long max_length;
   char *ptr;
-  my_bool const_item;
+  bool const_item;
   void *extension;
 } UDF_INIT;
 enum Item_udftype
@@ -207,16 +208,19 @@ enum Item_udftype
   UDFTYPE_FUNCTION=1,
   UDFTYPE_AGGREGATE
 };
-typedef void(*Udf_func_clear)(UDF_INIT *, uchar *, uchar *);
-typedef void(*Udf_func_add)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
-typedef void(*Udf_func_deinit)(UDF_INIT*);
-typedef my_bool(*Udf_func_init)(UDF_INIT *, UDF_ARGS *, char *);
+typedef void(*Udf_func_clear)(UDF_INIT *, unsigned char *, unsigned char *);
+typedef void(*Udf_func_add)(UDF_INIT *, UDF_ARGS *, unsigned char *,
+                            unsigned char *);
+typedef void(*Udf_func_deinit)(UDF_INIT *);
+typedef bool(*Udf_func_init)(UDF_INIT *, UDF_ARGS *, char *);
 typedef void(*Udf_func_any)();
-typedef double(*Udf_func_double)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
-typedef longlong(*Udf_func_longlong)(UDF_INIT *, UDF_ARGS *, uchar *,
-                                     uchar *);
+typedef double(*Udf_func_double)(UDF_INIT *, UDF_ARGS *, unsigned char *,
+                                 unsigned char *);
+typedef long long(*Udf_func_longlong)(UDF_INIT *, UDF_ARGS *, unsigned char *,
+                                      unsigned char *);
 typedef char * (*Udf_func_string)(UDF_INIT *, UDF_ARGS *, char *,
-                                  ulong *, uchar *, uchar *);
+                                  unsigned long *, unsigned char *,
+                                  unsigned char *);
 void randominit(struct rand_struct *, unsigned long seed1,
                 unsigned long seed2);
 double my_rnd(struct rand_struct *);
@@ -235,6 +239,9 @@ bool check_scramble(const unsigned char *reply, const char *message,
 void get_salt_from_password(unsigned char *res, const char *password);
 void make_password_from_salt(char *to, const unsigned char *hash_stage2);
 char *octet2hex(char *to, const char *str, unsigned int len);
+bool generate_sha256_scramble(unsigned char *dst, size_t dst_size,
+                              const char *src, size_t src_size,
+                              const char *rnd, size_t rnd_size);
 char *get_tty_password(const char *opt_message);
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 bool my_thread_init(void);
@@ -243,7 +250,7 @@ unsigned long net_field_length(unsigned char **packet);
 unsigned long long net_field_length_ll(unsigned char **packet);
 unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
 unsigned int net_length_size(unsigned long long num);
-unsigned int net_field_length_size(unsigned char *pos);
+unsigned int net_field_length_size(const unsigned char *pos);
 #include "mysql/client_plugin.h"
 struct st_mysql_client_plugin
 {
@@ -358,7 +365,7 @@ enum mysql_option
   MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_OPT_READ_TIMEOUT,
   MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT,
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
-  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
+  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
   MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
   MYSQL_OPT_BIND,
@@ -373,7 +380,9 @@ enum mysql_option
   MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH,
   MYSQL_OPT_TLS_VERSION,
   MYSQL_OPT_SSL_MODE,
-  MYSQL_OPT_RETRY_COUNT
+  MYSQL_OPT_RETRY_COUNT,
+  MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
+  MYSQL_OPT_OPTIONAL_RESULTSET_METADATA
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
@@ -461,6 +470,7 @@ typedef struct st_mysql
   unsigned int warning_count;
   struct st_mysql_options options;
   enum mysql_status status;
+  enum enum_resultset_metadata resultset_metadata;
   bool free_me;
   bool reconnect;
   char scramble[20 +1];
@@ -487,6 +497,7 @@ typedef struct st_mysql_res {
   unsigned int field_count, current_field;
   bool eof;
   bool unbuffered_fetch_cancelled;
+  enum enum_resultset_metadata metadata;
   void *extension;
 } MYSQL_RES;
 typedef struct st_mysql_rpl {
@@ -514,6 +525,7 @@ MYSQL_FIELD * mysql_fetch_field_direct(MYSQL_RES *res,
 MYSQL_FIELD * mysql_fetch_fields(MYSQL_RES *res);
 MYSQL_ROW_OFFSET mysql_row_tell(MYSQL_RES *res);
 MYSQL_FIELD_OFFSET mysql_field_tell(MYSQL_RES *res);
+enum enum_resultset_metadata mysql_result_metadata(MYSQL_RES *result);
 unsigned int mysql_field_count(MYSQL *mysql);
 my_ulonglong mysql_affected_rows(MYSQL *mysql);
 my_ulonglong mysql_insert_id(MYSQL *mysql);

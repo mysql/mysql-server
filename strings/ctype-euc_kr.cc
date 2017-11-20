@@ -9973,7 +9973,8 @@ my_well_formed_len_euckr(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
-  NULL,			/* init */
+  nullptr,              /* init */
+  nullptr,
   my_strnncoll_simple,  /* strnncoll  */
   my_strnncollsp_simple,
   my_strnxfrm_mb,	/* strnxfrm   */

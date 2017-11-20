@@ -55,7 +55,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`pk1`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 INSERT INTO t1 VALUES (0, 0, 0);
@@ -166,6 +166,7 @@ INSERT INTO t1 VALUES
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 501
+SET SESSION information_schema_stats_expiry=0;
 SELECT table_name, 
 SUM(table_rows),
 SUM(data_length),
@@ -179,7 +180,7 @@ t1	501	262144	1048576	8345820
 SELECT table_name, table_rows, data_length, max_data_length, data_free
 FROM information_schema.tables
 WHERE table_name='t1';
-table_name	table_rows	data_length	max_data_length	data_free
+TABLE_NAME	TABLE_ROWS	DATA_LENGTH	MAX_DATA_LENGTH	DATA_FREE
 t1	501	262144	8388608	8345820
 CREATE LOGFILE GROUP lg2
 ADD UNDOFILE 'x.dat'
@@ -213,7 +214,7 @@ CREATE TABLE t1 (a bigint primary key, b bigint storage disk)
 ENGINE ndb
 COMMENT="NDB_TABLE=NOLOGGING=1"
 TABLESPACE ts1 STORAGE DISK;
-ERROR HY000: Got error 798 'A disk table must not be specified as no logging' from NDBCLUSTER
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
 create tablespace ts2
 add datafile 'datafile2_1.dat'
 use logfile group lg1
@@ -246,7 +247,7 @@ values ('BeiJing','CN','Beijing',2000);
 ERROR HY000: Got error 1602 'No datafile in tablespace' from NDBCLUSTER
 drop tablespace ts2
 engine ndb;
-ERROR HY000: Failed to drop TABLESPACE
+ERROR HY000: Tablespace `ts2` is not empty.
 drop table City;
 drop tablespace ts2
 engine ndb;
@@ -498,7 +499,7 @@ COUNT(*)
 DROP TABLE t1;
 CREATE TABLE t1 (
 a int NOT NULL,
-b varchar(4000),  -- must use 2 pages undo
+b varchar(4000) charset latin1,  -- must use 2 pages undo
 PRIMARY KEY using hash (a)
 )
 TABLESPACE ts1 STORAGE DISK ENGINE=NDBCLUSTER;
@@ -674,7 +675,7 @@ logfile_group_name	extra
 lg1	UNDO_BUFFER_SIZE=327680
 select distinct file_name, initial_size
 from information_schema.files
-where file_type = 'UNDO LOG' and file_name is not null
+where file_type = 'UNDO LOG' and file_name like '%dat'
 order by file_name;
 file_name	initial_size
 undofile.dat	3276800
@@ -718,3 +719,4 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 1504 'Out of logbuffer memory(specify smaller undo_buffer_size or increase SharedGlobalMemory)' from NDB
 Error	1528	Failed to create LOGFILE GROUP
+SET SESSION information_schema_stats_expiry=default;

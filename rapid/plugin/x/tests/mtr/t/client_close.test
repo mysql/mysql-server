@@ -423,9 +423,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->newsession sess
 -->varlet %VALUE% 1234
--->varsub %VALUE%
 -->repeat 200   %VALUE%
--->varsub %VALUE%
 Mysqlx.Sql.StmtExecute {
 stmt:"SELECT %VALUE% as `Column`;"
 namespace: "sql"

@@ -35,16 +35,16 @@ REMOVE_DEFINITIONS(-DMYSQL_SERVER)
 SET(TESTS registry dynamic_loader)
 
 FOREACH(test ${TESTS})
-  ADD_EXECUTABLE(${test}-t
+  MYSQL_ADD_EXECUTABLE(${test}-t
     ${test}-t.cc
     ${CMAKE_SOURCE_DIR}/sql/rwlock_scoped_lock.cc
     ${CMAKE_SOURCE_DIR}/sql/server_component/mysql_string_service.cc
     ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
     builtins_stubs.cc
+    ADD_TEST ${test}
   )
   TARGET_LINK_LIBRARIES(${test}-t
     ${CMAKE_THREAD_LIBS_INIT} gunit_small component_mysql_server)
-  ADD_TEST(${test} ${test}-t)
 ENDFOREACH()
 
 MYSQL_ADD_COMPONENT(self_required_test_component

@@ -13,41 +13,43 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/schema_impl.h"
+#include "sql/dd/impl/types/schema_impl.h"
 
 #include <memory>
 
-#include "dd/dd.h"                         // create_object
-#include "dd/impl/dictionary_impl.h"       // Dictionary_impl
-#include "dd/impl/raw/object_keys.h"       // Primary_id_key
-#include "dd/impl/raw/raw_record.h"        // Raw_record
-#include "dd/impl/sdi_impl.h"              // sdi read/write functions
-#include "dd/impl/tables/schemata.h"       // Schemata
-#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
-#include "dd/impl/types/object_table_definition_impl.h"
-#include "dd/types/event.h"                // Event
-#include "dd/types/function.h"             // Function
-#include "dd/types/procedure.h"            // Procedure
-#include "dd/types/table.h"
-#include "dd/types/view.h"                 // View
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+
 #include "m_string.h"
-#include "mdl.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"                  // ER_*
-#include "rapidjson/document.h"
-#include "rapidjson/prettywriter.h"
-#include "sql_class.h"                     // THD
-#include "system_variables.h"
-#include "tztime.h"                        // Time_zone
+#include "sql/dd/dd.h"                     // create_object
+#include "sql/dd/impl/dictionary_impl.h"   // Dictionary_impl
+#include "sql/dd/impl/raw/raw_record.h"    // Raw_record
+#include "sql/dd/impl/sdi_impl.h"          // sdi read/write functions
+#include "sql/dd/impl/tables/schemata.h"   // Schemata
+#include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/types/event.h"            // Event
+#include "sql/dd/types/function.h"         // Function
+#include "sql/dd/types/procedure.h"        // Procedure
+#include "sql/dd/types/table.h"
+#include "sql/dd/types/view.h"             // View
+#include "sql/histograms/value_map.h"
+#include "sql/mdl.h"
+#include "sql/sql_class.h"                 // THD
+#include "sql/system_variables.h"
+#include "sql/tztime.h"                    // Time_zone
 
 namespace dd {
 class Sdi_rcontext;
 class Sdi_wcontext;
+
 namespace tables {
 class Tables;
 }  // namespace tables
@@ -179,8 +181,7 @@ Event *Schema_impl::create_event(THD *thd) const
 
   // Get statement start time.
   MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
 
   f->set_created(ull_curtime);
@@ -198,8 +199,7 @@ Function *Schema_impl::create_function(THD *thd) const
 
   // Get statement start time.
   MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
 
   f->set_created(ull_curtime);
@@ -217,8 +217,7 @@ Procedure *Schema_impl::create_procedure(THD *thd) const
 
   // Get statement start time.
   MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
 
   p->set_created(ull_curtime);
@@ -248,8 +247,7 @@ Table *Schema_impl::create_table(THD *thd) const
 
   // Get statement start time.
   MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
 
   // Set new table start time.
@@ -279,8 +277,7 @@ View *Schema_impl::create_view(THD *thd) const
 
   // Get statement start time.
   MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
 
   v->set_created(ull_curtime);
@@ -310,8 +307,7 @@ View *Schema_impl::create_system_view(THD *thd MY_ATTRIBUTE((unused))) const
 
   // Get statement start time.
   MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
 
   v->set_created(ull_curtime);

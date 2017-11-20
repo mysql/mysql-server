@@ -192,8 +192,10 @@ setup_files(atrt_config& config, int setup, int sshx)
   
   if (setup == 2 || config.m_generated)
   {
-    bool use_mysqld = false;
+    bool use_mysqld = (g_mysql_install_db_bin_path == NULL);
+    if (!use_mysqld)
     {
+      // Even if mysql_install_db exists, prefer use of mysqld if possible
       BaseString tmp;
       tmp.assfmt("%s --help --verbose", g_mysqld_bin_path);
       FILE *f = popen(tmp.c_str(), "re");
@@ -235,6 +237,7 @@ setup_files(atrt_config& config, int setup, int sshx)
           }
           else
           {
+            assert(g_mysql_install_db_bin_path != NULL);
             tmp.assfmt("%s --defaults-file=%s/my.cnf --basedir=%s "
                          "--datadir=%s > %s/mysql_install_db.log 2>&1",
                        g_mysql_install_db_bin_path,

@@ -22,6 +22,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "str_uca_type.h"
 
 
 size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str)
@@ -795,7 +796,6 @@ bool my_like_range_mb(const CHARSET_INFO *cs,
   char *min_end= min_str + res_length;
   char *max_end= max_str + res_length;
   size_t maxcharlen= res_length / cs->mbmaxlen;
-  const MY_CONTRACTIONS *contractions= my_charset_get_contractions(cs);
 
   for (; ptr != end && min_str != min_end && maxcharlen ; maxcharlen--)
   {
@@ -873,8 +873,11 @@ fill_max_and_min:
         'ab\min\min\min\min' and 'ab\max\max\max\max'.
 
       */
-      if (contractions && ptr + 1 < end &&
-          my_uca_can_be_contraction_head(contractions, (uchar) *ptr))
+      const char *contraction_flags= nullptr;
+      if (cs->uca)
+        contraction_flags= cs->uca->contraction_flags;
+      if (contraction_flags && ptr + 1 < end &&
+          my_uca_can_be_contraction_head(contraction_flags, (uchar) *ptr))
       {
         /* Ptr[0] is a contraction head. */
         
@@ -896,8 +899,10 @@ fill_max_and_min:
           is not a contraction, then we put only ptr[0],
           and continue with ptr[1] on the next loop.
         */
-        if (my_uca_can_be_contraction_tail(contractions, (uchar) ptr[1]) &&
-            my_uca_contraction2_weight(contractions, (uchar) ptr[0], ptr[1]))
+        if (my_uca_can_be_contraction_tail(contraction_flags,
+                                           (uchar) ptr[1]) &&
+            my_uca_contraction2_weight(cs->uca->contraction_nodes,
+                                       (uchar) ptr[0], ptr[1]))
         {
           /* Contraction found */
           if (maxcharlen == 1 || min_str + 1 >= min_end)
@@ -962,7 +967,6 @@ my_like_range_generic(const CHARSET_INFO *cs,
   char *max_end= max_str + res_length;
   size_t charlen= res_length / cs->mbmaxlen;
   size_t res_length_diff;
-  const MY_CONTRACTIONS *contractions= my_charset_get_contractions(cs);
 
   for ( ; charlen > 0; charlen--)
   {
@@ -1030,11 +1034,14 @@ my_like_range_generic(const CHARSET_INFO *cs,
       goto pad_min_max;
     }
 
-    if (contractions &&
-        my_uca_can_be_contraction_head(contractions, wc) &&
+    const char *contraction_flags= nullptr;
+    if (cs->uca)
+      contraction_flags= cs->uca->contraction_flags;
+    if (contraction_flags &&
+        my_uca_can_be_contraction_head(contraction_flags, wc) &&
         (res= cs->cset->mb_wc(cs, &wc2, (uchar*) ptr, (uchar*) end)) > 0)
     {
-      uint16 *weight;
+      const uint16 *weight;
       if ((wc2 == (my_wc_t) w_one || wc2 == (my_wc_t) w_many))
       {
         /* Contraction head followed by a wildcard */
@@ -1042,8 +1049,10 @@ my_like_range_generic(const CHARSET_INFO *cs,
         goto pad_min_max;
       }
 
-      if (my_uca_can_be_contraction_tail(contractions, wc2) &&
-          (weight= my_uca_contraction2_weight(contractions, wc, wc2)) && weight[0])
+      if (my_uca_can_be_contraction_tail(contraction_flags, wc2) &&
+          (weight= my_uca_contraction2_weight(cs->uca->contraction_nodes,
+                                              wc, wc2))
+          && weight[0])
       {
         /* Contraction found */
         if (charlen == 1)
@@ -1494,7 +1503,8 @@ int my_mb_ctype_mb(const CHARSET_INFO *cs, int *ctype,
 
 MY_COLLATION_HANDLER my_collation_mb_bin_handler =
 {
-    NULL,		/* init */
+    nullptr,		/* init */
+    nullptr,
     my_strnncoll_mb_bin,
     my_strnncollsp_mb_bin,
     my_strnxfrm_mb,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,13 @@
 #define JAM_FILE_ID 413
 
 extern EventLogger * g_eventLogger;
+
+//#define DEBUG_TUP_RESTART_ 1
+#ifdef DEBUG_TUP_RESTART
+#define DEB_TUP_RESTART(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_TUP_RESTART(arglist) do { } while (0)
+#endif
 
 DbtupProxy::DbtupProxy(Block_context& ctx) :
   LocalProxy(DBTUP, ctx),
@@ -95,9 +102,12 @@ DbtupProxy::execCREATE_TAB_REQ(Signal* signal)
 {
   const CreateTabReq* req = (const CreateTabReq*)signal->getDataPtr();
   const Uint32 tableId = req->tableId;
+  const Uint32 create_table_schema_version = req->tableVersion & 0xFFFFFF;
   ndbrequire(tableId < c_tableRecSize);
+  ndbrequire(create_table_schema_version != 0);
   ndbrequire(c_tableRec[tableId] == 0);
-  c_tableRec[tableId] = 1;
+  c_tableRec[tableId] = create_table_schema_version;
+  DEB_TUP_RESTART(("Create table: %u", tableId));
   D("proxy: created table" << V(tableId));
 }
 
@@ -108,6 +118,7 @@ DbtupProxy::execDROP_TAB_REQ(Signal* signal)
   const Uint32 tableId = req->tableId;
   ndbrequire(tableId < c_tableRecSize);
   c_tableRec[tableId] = 0;
+  DEB_TUP_RESTART(("Dropped table: %u", tableId));
   D("proxy: dropped table" << V(tableId));
 }
 
@@ -225,97 +236,80 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   memcpy(undo.m_data, undo.m_ptr, undo.m_len << 2);
 
   switch (undo.m_type) {
-  case File_formats::Undofile::UNDO_LCP_FIRST:
-  case File_formats::Undofile::UNDO_LCP:
-    {
-      /**
-       * This is the start of the UNDO log, this is the synchronisation
-       * point, so we will UNDO information back to here. After this
-       * we don't need any more UNDO logging, we do still however need
-       * to use the UNDO logs to synchronize the extent bits with the
-       * page information.
-       */
-      undo.m_table_id = ptr[1] >> 16;
-      undo.m_fragment_id = ptr[1] & 0xFFFF;
-      undo.m_actions |= Proxy_undo::SendToAll;
-      undo.m_actions |= Proxy_undo::SendUndoNext;
-    }
-    break;
-  case File_formats::Undofile::UNDO_TUP_ALLOC:
-    {
-      const Dbtup::Disk_undo::Alloc* rec =
-        (const Dbtup::Disk_undo::Alloc*)ptr;
-      undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
-      undo.m_key.m_page_no = rec->m_page_no;
-      undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
-      undo.m_actions |= Proxy_undo::ReadTupPage;
-      undo.m_actions |= Proxy_undo::GetInstance;
-    }
-    break;
-  case File_formats::Undofile::UNDO_TUP_UPDATE:
-    {
-      const Dbtup::Disk_undo::Update* rec =
-        (const Dbtup::Disk_undo::Update*)ptr;
-      undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
-      undo.m_key.m_page_no = rec->m_page_no;
-      undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
-      undo.m_actions |= Proxy_undo::ReadTupPage;
-      undo.m_actions |= Proxy_undo::GetInstance;
-    }
-    break;
-  case File_formats::Undofile::UNDO_TUP_FREE:
-    {
-      const Dbtup::Disk_undo::Free* rec =
-        (const Dbtup::Disk_undo::Free*)ptr;
-      undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
-      undo.m_key.m_page_no = rec->m_page_no;
-      undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
-      undo.m_actions |= Proxy_undo::ReadTupPage;
-      undo.m_actions |= Proxy_undo::GetInstance;
-    }
-    break;
-
-  case File_formats::Undofile::UNDO_TUP_CREATE:
+  case File_formats::Undofile::UNDO_LOCAL_LCP_FIRST:
+  case File_formats::Undofile::UNDO_LOCAL_LCP:
   {
-    jam();
-    Dbtup::Disk_undo::Create* rec= (Dbtup::Disk_undo::Create*)ptr;
-    Uint32 tableId = rec->m_table;
-    if (tableId < c_tableRecSize)
-    {
-      jam();
-      c_tableRec[tableId] = 0;
-    }
-    /**
-     * A table was created, if this happens before the start of the
-     * LCP, then not much should happen since the table was still
-     * existing at the time of the start of the LCP.
-     *
-     * If this happens before any LCP synch point, then this is a
-     * sort of start of an LCP. In fact the LCP in this case is
-     * an empty one, so no records should be remaining after UNDO
-     * and also no extents should be attached to the table.
-     * However this entry is per table and LCPs is per fragment,
-     * the local DBTUP instance will decide how this relates to
-     * the LCP per fragment.
-     * For sure no UNDO logs happening before this point is needed
-     * to pass by, not even to synchronize the extent bits since they
-     * should all be zero at this point in time.
-     */
-    
+    undo.m_table_id = ptr[2] >> 16;
+    undo.m_fragment_id = ptr[2] & 0xFFFF;
     undo.m_actions |= Proxy_undo::SendToAll;
     undo.m_actions |= Proxy_undo::SendUndoNext;
+    break;
+  }
+  case File_formats::Undofile::UNDO_LCP_FIRST:
+  case File_formats::Undofile::UNDO_LCP:
+  {
+    /**
+     * This is the start of the UNDO log, this is the synchronisation
+     * point, so we will UNDO information back to here. After this
+     * we don't need any more UNDO logging, we do still however need
+     * to use the UNDO logs to synchronize the extent bits with the
+     * page information.
+     */
+    undo.m_table_id = ptr[1] >> 16;
+    undo.m_fragment_id = ptr[1] & 0xFFFF;
+    undo.m_actions |= Proxy_undo::SendToAll;
+    undo.m_actions |= Proxy_undo::SendUndoNext;
+    break;
+  }
+  case File_formats::Undofile::UNDO_TUP_ALLOC:
+  {
+    const Dbtup::Disk_undo::Alloc* rec =
+      (const Dbtup::Disk_undo::Alloc*)ptr;
+    undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
+    undo.m_key.m_page_no = rec->m_page_no;
+    undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
+    undo.m_actions |= Proxy_undo::ReadTupPage;
+    undo.m_actions |= Proxy_undo::GetInstance;
+    break;
+  }
+  case File_formats::Undofile::UNDO_TUP_UPDATE:
+  case File_formats::Undofile::UNDO_TUP_FIRST_UPDATE_PART:
+  {
+    const Dbtup::Disk_undo::Update* rec =
+      (const Dbtup::Disk_undo::Update*)ptr;
+    undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
+    undo.m_key.m_page_no = rec->m_page_no;
+    undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
+    undo.m_actions |= Proxy_undo::ReadTupPage;
+    undo.m_actions |= Proxy_undo::GetInstance;
+    break;
+  }
+  case File_formats::Undofile::UNDO_TUP_UPDATE_PART:
+  {
+    const Dbtup::Disk_undo::UpdatePart* rec =
+      (const Dbtup::Disk_undo::UpdatePart*)ptr;
+    undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
+    undo.m_key.m_page_no = rec->m_page_no;
+    undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
+    undo.m_actions |= Proxy_undo::ReadTupPage;
+    undo.m_actions |= Proxy_undo::GetInstance;
+    break;
+  }
+  case File_formats::Undofile::UNDO_TUP_FREE:
+  case File_formats::Undofile::UNDO_TUP_FREE_PART:
+  {
+    const Dbtup::Disk_undo::Free* rec =
+      (const Dbtup::Disk_undo::Free*)ptr;
+    undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
+    undo.m_key.m_page_no = rec->m_page_no;
+    undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
+    undo.m_actions |= Proxy_undo::ReadTupPage;
+    undo.m_actions |= Proxy_undo::GetInstance;
     break;
   }
   case File_formats::Undofile::UNDO_TUP_DROP:
   {
     jam();
-    Dbtup::Disk_undo::Drop* rec= (Dbtup::Disk_undo::Drop*)ptr;
-    Uint32 tableId = rec->m_table;
-    if (tableId < c_tableRecSize)
-    {
-      jam();
-      c_tableRec[tableId] = 0;
-    }
     /**
      * A table was dropped during UNDO log writing. This means that the
      * table is no longer present, if no LCP record or CREATE record have
@@ -327,21 +321,11 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     undo.m_actions |= Proxy_undo::SendUndoNext;
     break;
   }
-#ifdef NOT_YET_UNDO_ALLOC_EXTENT
-  case File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT:
-    ndbrequire(false);
-    break;
-#endif
-#ifdef NOT_YET_UNDO_FREE_EXTENT
-  case File_formats::Undofile::UNDO_TUP_FREE_EXTENT:
-    ndbrequire(false);
-    break;
-#endif
   case File_formats::Undofile::UNDO_END:
-    {
-      undo.m_actions |= Proxy_undo::SendToAll;
-    }
+  {
+    undo.m_actions |= Proxy_undo::SendToAll;
     break;
+  }
   default:
     ndbrequire(false);
     break;
@@ -353,10 +337,25 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
      * Page request goes to the extra PGMAN worker (our thread).
      * TUP worker reads same page again via another PGMAN worker.
      * MT-LGMAN is planned, do not optimize (pass page) now
+     *
+     * We need to read page in order to get table id and fragment id.
+     * This is not part of the UNDO log information and this information
+     * is required such that we can map this to the correct LDM
+     * instance. We will not make page dirty, so it will be replaced
+     * as soon as we need a dirty page or we're out of pages in this
+     * PGMAN instance.
      */
     Page_cache_client pgman(this, c_pgman);
     Page_cache_client::Request req;
 
+    /**
+     * Ensure that we crash if we try to make a LCP of this page
+     * later, should never happen since we never do any LCP of
+     * pages connected to fragments in extra pgman worker.
+     * page.
+     */
+    req.m_table_id = RNIL;
+    req.m_fragment_id = 0;
     req.m_page = undo.m_key;
     req.m_callback.m_callbackData = 0;
     req.m_callback.m_callbackFunction = 
@@ -509,32 +508,55 @@ DbtupProxy::disk_restart_undo_send(Signal* signal, Uint32 i)
 // TSMAN
 
 int
-DbtupProxy::disk_restart_alloc_extent(Uint32 tableId,
+DbtupProxy::disk_restart_alloc_extent(EmulatedJamBuffer *jamBuf,
+                                      Uint32 tableId,
                                       Uint32 fragId,
                                       Uint32 create_table_version,
                                       const Local_key* key,
                                       Uint32 pages)
 {
-  if (tableId >= c_tableRecSize || c_tableRec[tableId] == 0) {
-    jam();
+  if (tableId >= c_tableRecSize || c_tableRec[tableId] == 0)
+  {
+    thrjam(jamBuf);
     D("proxy: table dropped" << V(tableId));
+    DEB_TUP_RESTART(("disk_restart_alloc_extent failed on tab(%u,%u):%u,"
+                     " tableId missing",
+                     tableId,
+                     fragId,
+                     create_table_version));
+    return -1;
+  }
+  if (c_tableRec[tableId] != create_table_version)
+  {
+    thrjam(jamBuf);
+    DEB_TUP_RESTART(("disk_restart_alloc_extent failed on tab(%u,%u):%u,"
+                     " expected create_table_version: %u",
+                     tableId,
+                     fragId,
+                     create_table_version,
+                     c_tableRec[tableId]));
     return -1;
   }
 
   // local call so mapping instance key to number is ok
+  thrjam(jamBuf);
+  thrjamLine(jamBuf, Uint16(tableId));
+  thrjamLine(jamBuf, Uint16(fragId));
   Uint32 instanceKey = getInstanceKeyCanFail(tableId, fragId);
   if (instanceKey == RNIL)
   {
-    jam();
+    thrjam(jamBuf);
+    DEB_TUP_RESTART(("disk_restart_alloc_extent failed, instanceKey = RNIL"));
     D("proxy: table either dropped, non-existent or fragment not existing"
       << V(tableId));
     return -1;
   }
+  thrjam(jamBuf);
   Uint32 instanceNo = getInstanceFromKey(instanceKey);
 
   Uint32 i = workerIndex(instanceNo);
   Dbtup* dbtup = (Dbtup*)workerBlock(i);
-  return dbtup->disk_restart_alloc_extent(jamBuffer(),
+  return dbtup->disk_restart_alloc_extent(jamBuf,
                                           tableId,
                                           fragId,
                                           create_table_version,
@@ -543,10 +565,16 @@ DbtupProxy::disk_restart_alloc_extent(Uint32 tableId,
 }
 
 void
-DbtupProxy::disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
-                                   const Local_key* key, Uint32 bits)
+DbtupProxy::disk_restart_page_bits(Uint32 tableId,
+                                   Uint32 fragId,
+                                   Uint32 create_table_version,
+                                   const Local_key* key,
+                                   Uint32 bits)
 {
-  ndbrequire(tableId < c_tableRecSize && c_tableRec[tableId] == 1);
+  ndbrequire(tableId < c_tableRecSize &&
+             c_tableRec[tableId] != 0 &&
+             (create_table_version == 0 ||
+              c_tableRec[tableId] == create_table_version));
 
   // local call so mapping instance key to number is ok
   /**
@@ -559,7 +587,11 @@ DbtupProxy::disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
 
   Uint32 i = workerIndex(instanceNo);
   Dbtup* dbtup = (Dbtup*)workerBlock(i);
-  dbtup->disk_restart_page_bits(jamBuffer(), tableId, fragId, key, bits);
+  dbtup->disk_restart_page_bits(jamBuffer(),
+                                tableId,
+                                fragId,
+                                create_table_version,
+                                key,
+                                bits);
 }
-
 BLOCK_FUNCTIONS(DbtupProxy)

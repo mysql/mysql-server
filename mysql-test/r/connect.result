@@ -14,9 +14,11 @@ help_category
 help_keyword
 help_relation
 help_topic
+innodb_ddl_log
 innodb_dynamic_metadata
 innodb_index_stats
 innodb_table_stats
+password_history
 plugin
 procs_priv
 proxies_priv
@@ -59,9 +61,11 @@ help_category
 help_keyword
 help_relation
 help_topic
+innodb_ddl_log
 innodb_dynamic_metadata
 innodb_index_stats
 innodb_table_stats
+password_history
 plugin
 procs_priv
 proxies_priv
@@ -110,9 +114,10 @@ drop table t1;
 CREATE USER mysqltest_u1@localhost;
 
 SET GLOBAL max_connections = 3;
-SET GLOBAL event_scheduler = ON;
-
-# -- Waiting for Event Scheduler to start...
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
 
 # -- Disconnecting default connection...
 
@@ -158,11 +163,6 @@ root
 # -- Resetting variables...
 SET GLOBAL max_connections = 151;
 
-# -- Stopping Event Scheduler...
-SET GLOBAL event_scheduler = OFF;
-
-# -- Waiting for Event Scheduler to stop...
-
 # -- That's it. Closing connections...
 
 # -- Restoring default connection...
@@ -180,9 +180,6 @@ FLUSH STATUS;
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	1
-
-# -- Starting Event Scheduler...
-SET GLOBAL event_scheduler = ON;
 # -- Waiting for Event Scheduler to start...
 
 # -- Opening a new connection to check max_used_connections...
@@ -191,12 +188,12 @@ SET GLOBAL event_scheduler = ON;
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	2
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
 
 # -- Closing new connection...
-
-# -- Stopping Event Scheduler...
-SET GLOBAL event_scheduler = OFF;
-# -- Waiting for Event Scheduler to stop...
 
 # -- End of Bug#35074.
 

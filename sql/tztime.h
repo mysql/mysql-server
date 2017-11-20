@@ -1,6 +1,7 @@
 #ifndef TZTIME_INCLUDED
 #define TZTIME_INCLUDED
 
+#include "my_config.h"
 /* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -16,7 +17,9 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_config.h"
+typedef long my_time_t;
+
+#if !defined(TESTTIME) && !defined(TZINFO2SQL)
 
 #include "my_inttypes.h"
 
@@ -25,14 +28,10 @@
 #endif
 
 #include "mysql_time.h"     // MYSQL_TIME
-#include "sql_alloc.h"      // Sql_alloc
+#include "sql/sql_alloc.h"  // Sql_alloc
 
 class String;
 class THD;
-
-typedef long my_time_t;
-
-#if !defined(TESTTIME) && !defined(TZINFO2SQL)
 
 /**
   This class represents abstract time zone and provides 

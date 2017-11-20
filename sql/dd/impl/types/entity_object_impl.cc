@@ -13,16 +13,18 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/entity_object_impl.h"
+#include "sql/dd/impl/types/entity_object_impl.h"
 
 #include <new>
 
-#include "dd/impl/raw/object_keys.h" // dd::Primary_id_key
-#include "dd/impl/raw/raw_record.h"  // dd::Raw_new_record
-#include "dd/impl/sdi_impl.h"        // sdi read/write functions
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+
 #include "m_string.h"
-#include "rapidjson/document.h"
-#include "rapidjson/prettywriter.h"
+#include "sql/dd/impl/raw/object_keys.h" // dd::Primary_id_key
+#include "sql/dd/impl/raw/raw_record.h" // dd::Raw_new_record
+#include "sql/dd/impl/sdi_impl.h"    // sdi read/write functions
 
 
 namespace dd {

@@ -1336,7 +1336,7 @@ row_import::match_schema(
 
 		return(DB_ERROR);
 	} else if (UT_LIST_GET_LEN(m_table->indexes)
-		   + (m_has_sdi ? MAX_SDI_COPIES : 0) != m_n_indexes) {
+		   + (m_has_sdi ? 1 : 0) != m_n_indexes) {
 
 		/* If the number of indexes don't match then it is better
 		to abort the IMPORT. It is easy for the user to create a
@@ -1362,33 +1362,29 @@ row_import::match_schema(
 	const dict_index_t* index;
 
 	if (m_has_sdi) {
-		for (uint32_t copy_num = 0; copy_num < MAX_SDI_COPIES;
-			++copy_num) {
 
-			dict_mutex_enter_for_mysql();
+		dict_mutex_enter_for_mysql();
 
-			index = dict_sdi_get_index(m_table->space, copy_num);
+		index = dict_sdi_get_index(m_table->space);
 
-			if (index == NULL) {
-				dict_sdi_create_idx_in_mem(
-					m_table->space,
-					copy_num,
-					true,
-					dict_tf_to_fsp_flags(m_flags));
+		if (index == nullptr) {
+			dict_sdi_create_idx_in_mem(
+				m_table->space,
+				true,
+				dict_tf_to_fsp_flags(m_flags),
+				false);
 
-				index = dict_sdi_get_index(
-					m_table->space, copy_num);
-			}
+			index = dict_sdi_get_index(m_table->space);
+		}
 
-			dict_mutex_exit_for_mysql();
+		dict_mutex_exit_for_mysql();
 
-			ut_ad(index != NULL);
+		ut_ad(index != nullptr);
 
-			dberr_t	index_err = match_index_columns(thd, index);
+		dberr_t	index_err = match_index_columns(thd, index);
 
-			if (index_err != DB_SUCCESS) {
-				err = index_err;
-			}
+		if (index_err != DB_SUCCESS) {
+			err = index_err;
 		}
 	}
 
@@ -1420,28 +1416,24 @@ row_import::set_root_by_name() UNIV_NOTHROW
 {
 	row_index_t*	cfg_index = m_indexes;
 	dict_index_t*	index;
-	ulint		i = 0;
 	ulint		normal_indexes_count = m_has_sdi
-		? (m_n_indexes - MAX_SDI_COPIES)
+		? (m_n_indexes - 1)
 		: m_n_indexes;
 
 	if (m_has_sdi) {
-		for (ib_uint32_t copy_num = 0;
-			copy_num < MAX_SDI_COPIES && i < m_n_indexes;
-			++copy_num, ++i, ++cfg_index) {
 
-			dict_mutex_enter_for_mysql();
-			index = dict_sdi_get_index(
-				m_table->space, copy_num);
-			dict_mutex_exit_for_mysql();
+		dict_mutex_enter_for_mysql();
+		index = dict_sdi_get_index(
+			m_table->space);
+		dict_mutex_exit_for_mysql();
 
-			ut_ad(index != 0);
-			index->space = m_table->space;
-			index->page = cfg_index->m_page_no;
-		}
+		ut_ad(index != nullptr);
+		index->space = m_table->space;
+		index->page = cfg_index->m_page_no;
+		++cfg_index;
 	}
 
-	for (i = 0; i < normal_indexes_count; ++i, ++cfg_index) {
+	for (uint32_t i = 0; i < normal_indexes_count; ++i, ++cfg_index) {
 
 		const char*	index_name;
 
@@ -1471,7 +1463,7 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 	// TODO: For now use brute force, based on ordinality
 
 	ulint	num_indexes = UT_LIST_GET_LEN(m_table->indexes)
-		+ (m_has_sdi ? MAX_SDI_COPIES : 0);
+		+ (m_has_sdi ? 1 : 0);
 	if (num_indexes != m_n_indexes) {
 		ib::warn() << "Table " << m_table->name << " should have "
 			<< num_indexes  << " indexes but"
@@ -1484,42 +1476,39 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 	dberr_t	err = DB_SUCCESS;
 
 	if (m_has_sdi) {
-		for (uint32_t copy_num = 0;
-		     copy_num < MAX_SDI_COPIES && i < m_n_indexes;
-		     ++i, ++copy_num) {
+		dict_index_t*	index = dict_sdi_get_index(
+			m_table->space);
+		if (index == nullptr) {
+			dict_sdi_create_idx_in_mem(
+				m_table->space,
+				true,
+				dict_tf_to_fsp_flags(m_flags),
+				false);
 
-			dict_index_t*	index = dict_sdi_get_index(
-				m_table->space, copy_num);
-			if (index == NULL) {
-				dict_sdi_create_idx_in_mem(
-					m_table->space,
-					copy_num,
-					true,
-					dict_tf_to_fsp_flags(m_flags));
-
-				index = dict_sdi_get_index(
-					m_table->space, copy_num);
-			}
-
-			ut_ad(index != 0);
-			UT_DELETE_ARRAY(cfg_index[i].m_name);
-
-			ulint	len = strlen(index->name) + 1;
-
-			cfg_index[i].m_name = UT_NEW_ARRAY_NOKEY(byte, len);
-
-			if (cfg_index[i].m_name == NULL) {
-				err = DB_OUT_OF_MEMORY;
-				break;
-			}
-
-			memcpy(cfg_index[i].m_name, index->name, len);
-
-			cfg_index[i].m_srv_index = index;
-
-			index->space = m_table->space;
-			index->page = cfg_index[i].m_page_no;
+			index = dict_sdi_get_index(
+				m_table->space);
 		}
+
+		ut_ad(index != nullptr);
+		UT_DELETE_ARRAY(cfg_index[i].m_name);
+
+		ulint	len = strlen(index->name) + 1;
+
+		cfg_index[i].m_name = UT_NEW_ARRAY_NOKEY(byte, len);
+
+		if (cfg_index[i].m_name == nullptr) {
+			err = DB_OUT_OF_MEMORY;
+			dict_mutex_exit_for_mysql();
+			return(err);
+		}
+
+		memcpy(cfg_index[i].m_name, index->name, len);
+
+		cfg_index[i].m_srv_index = index;
+
+		index->space = m_table->space;
+		index->page = cfg_index[i].m_page_no;
+		++i;
 	}
 
 	for (dict_index_t* index = UT_LIST_GET_FIRST(m_table->indexes);
@@ -1602,7 +1591,6 @@ void
 IndexPurge::open() UNIV_NOTHROW
 {
 	mtr_start(&m_mtr);
-
 	mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
 
 	btr_pcur_open_at_index_side(
@@ -1642,7 +1630,6 @@ IndexPurge::next() UNIV_NOTHROW
 	mtr_commit(&m_mtr);
 
 	mtr_start(&m_mtr);
-
 	mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
 
 	btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
@@ -1690,7 +1677,6 @@ IndexPurge::purge() UNIV_NOTHROW
 	purge_pessimistic_delete();
 
 	mtr_start(&m_mtr);
-
 	mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
 
 	btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
@@ -1854,6 +1840,8 @@ PageConverter::adjust_cluster_record(
 {
 	dberr_t	err;
 
+	ut_ad(index->is_clustered());
+
 	if ((err = adjust_cluster_index_blob_ref(rec, offsets)) == DB_SUCCESS) {
 
 		/* Reset DB_TRX_ID and DB_ROLL_PTR.  Normally, these fields
@@ -1861,7 +1849,7 @@ PageConverter::adjust_cluster_record(
 		record. */
 
 		row_upd_rec_sys_fields(
-			rec, m_page_zip_ptr, m_cluster_index, m_offsets,
+			rec, m_page_zip_ptr, index, m_offsets,
 			m_trx, 0);
 	}
 
@@ -1877,7 +1865,8 @@ PageConverter::update_records(
 	buf_block_t*	block) UNIV_NOTHROW
 {
 	ibool	comp = dict_table_is_comp(m_cfg->m_table);
-	bool	clust_index = m_index->m_srv_index == m_cluster_index;
+	bool	clust_index = (m_index->m_srv_index == m_cluster_index)
+			       || dict_index_is_sdi(m_index->m_srv_index);
 
 	/* This will also position the cursor on the first user record. */
 
@@ -3292,21 +3281,25 @@ row_import_read_meta_data(
 
 /**
 Read the contents of the @<tablename@>.cfg file.
+@param[in]	table		table
+@param[in]	table_def	dd table
+@param[in]	thd		session
+@param[in,out]	cfg		contents of the .cfg file
 @return DB_SUCCESS or error code. */
 static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_import_read_cfg(
-/*================*/
-	dict_table_t*	table,	/*!< in: table */
-	THD*		thd,	/*!< in: session */
-	row_import&	cfg)	/*!< out: contents of the .cfg file */
+	dict_table_t*	table,
+	dd::Table*	table_def,
+	THD*		thd,
+	row_import&	cfg)
 {
 	dberr_t		err;
 	char		name[OS_FILE_MAX_PATH];
 
 	cfg.m_table = table;
 
-	srv_get_meta_data_filename(table, name, sizeof(name));
+	dd_get_meta_data_filename(table, table_def, name, sizeof(name));
 
 	FILE*	file = fopen(name, "rb");
 
@@ -3503,239 +3496,17 @@ row_import_read_cfp(
 	return(err);
 }
 
-/*****************************************************************//**
-Update the <space, root page> of a table's indexes from the values
-in the data dictionary.
-@return DB_SUCCESS or error code */
-dberr_t
-row_import_update_index_root(
-/*=========================*/
-	trx_t*			trx,		/*!< in/out: transaction that
-						covers the update */
-	const dict_table_t*	table,		/*!< in: Table for which we want
-						to set the root page_no */
-	bool			reset,		/*!< in: if true then set to
-						FIL_NUL */
-	bool			dict_locked)	/*!< in: Set to true if the
-						caller already owns the
-						dict_sys_t:: mutex. */
-
-{
-	const dict_index_t*	index;
-	que_t*			graph = 0;
-	dberr_t			err = DB_SUCCESS;
-
-	static const char	sql[] = {
-		"PROCEDURE UPDATE_INDEX_ROOT() IS\n"
-		"BEGIN\n"
-		"UPDATE SYS_INDEXES\n"
-		"SET SPACE = :space,\n"
-		"    PAGE_NO = :page,\n"
-		"    TYPE = :type\n"
-		"WHERE TABLE_ID = :table_id AND ID = :index_id;\n"
-		"END;\n"};
-
-	if (!dict_locked) {
-		mutex_enter(&dict_sys->mutex);
-	}
-
-	for (index = table->first_index();
-	     index != 0;
-	     index = index->next()) {
-
-		pars_info_t*	info;
-		ib_uint32_t	page;
-		ib_uint32_t	space;
-		ib_uint32_t	type;
-		space_index_t	index_id;
-		table_id_t	table_id;
-
-		info = (graph != 0) ? graph->info : pars_info_create();
-
-		mach_write_to_4(
-			reinterpret_cast<byte*>(&type),
-			index->type);
-
-		mach_write_to_4(
-			reinterpret_cast<byte*>(&page),
-			reset ? FIL_NULL : index->page);
-
-		mach_write_to_4(
-			reinterpret_cast<byte*>(&space),
-			reset ? FIL_NULL : index->space);
-
-		mach_write_to_8(
-			reinterpret_cast<byte*>(&index_id),
-			index->id);
-
-		mach_write_to_8(
-			reinterpret_cast<byte*>(&table_id),
-			table->id);
-
-		/* If we set the corrupt bit during the IMPORT phase then
-		we need to update the system tables. */
-		pars_info_bind_int4_literal(info, "type", &type);
-		pars_info_bind_int4_literal(info, "space", &space);
-		pars_info_bind_int4_literal(info, "page", &page);
-		pars_info_bind_ull_literal(info, "index_id", &index_id);
-		pars_info_bind_ull_literal(info, "table_id", &table_id);
-
-		if (graph == 0) {
-			graph = pars_sql(info, sql);
-			ut_a(graph);
-			graph->trx = trx;
-		}
-
-		que_thr_t*	thr;
-
-		graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
-
-		ut_a(thr = que_fork_start_command(graph));
-
-		que_run_threads(thr);
-
-		DBUG_EXECUTE_IF("ib_import_internal_error",
-				trx->error_state = DB_ERROR;);
-
-		err = trx->error_state;
-
-		if (err != DB_SUCCESS) {
-			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-				ER_INTERNAL_ERROR,
-				"While updating the <space, root page"
-				" number> of index %s - %s",
-				index->name(), ut_strerr(err));
-
-			break;
-		}
-	}
-
-	que_graph_free(graph);
-
-	if (!dict_locked) {
-		mutex_exit(&dict_sys->mutex);
-	}
-
-	return(err);
-}
-
-/** Callback arg for row_import_set_discarded. */
-struct discard_t {
-	ib_uint32_t	flags2;			/*!< Value read from column */
-	bool		state;			/*!< New state of the flag */
-	ulint		n_recs;			/*!< Number of recs processed */
-};
-
-/******************************************************************//**
-Fetch callback that sets or unsets the DISCARDED tablespace flag in
-SYS_TABLES. The flags is stored in MIX_LEN column.
-@return FALSE if all OK */
-static
-ibool
-row_import_set_discarded(
-/*=====================*/
-	void*		row,			/*!< in: sel_node_t* */
-	void*		user_arg)		/*!< in: bool set/unset flag */
-{
-	sel_node_t*	node = static_cast<sel_node_t*>(row);
-	discard_t*	discard = static_cast<discard_t*>(user_arg);
-	dfield_t*	dfield = que_node_get_val(node->select_list);
-	dtype_t*	type = dfield_get_type(dfield);
-	ulint		len = dfield_get_len(dfield);
-
-	ut_a(dtype_get_mtype(type) == DATA_INT);
-	ut_a(len == sizeof(ib_uint32_t));
-
-	ulint	flags2 = mach_read_from_4(
-		static_cast<byte*>(dfield_get_data(dfield)));
-
-	if (discard->state) {
-		flags2 |= DICT_TF2_DISCARDED;
-	} else {
-		flags2 &= ~DICT_TF2_DISCARDED;
-	}
-
-	mach_write_to_4(reinterpret_cast<byte*>(&discard->flags2), flags2);
-
-	++discard->n_recs;
-
-	/* There should be at most one matching record. */
-	ut_a(discard->n_recs == 1);
-
-	return(FALSE);
-}
-
-/*****************************************************************//**
-Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
-@return DB_SUCCESS or error code. */
-dberr_t
-row_import_update_discarded_flag(
-/*=============================*/
-	trx_t*		trx,		/*!< in/out: transaction that
-					covers the update */
-	table_id_t	table_id,	/*!< in: Table for which we want
-					to set the root table->flags2 */
-	bool		discarded,	/*!< in: set MIX_LEN column bit
-					to discarded, if true */
-	bool		dict_locked)	/*!< in: set to true if the
-					caller already owns the
-					dict_sys_t:: mutex. */
-
-{
-	pars_info_t*		info;
-	discard_t		discard;
-
-	static const char	sql[] =
-		"PROCEDURE UPDATE_DISCARDED_FLAG() IS\n"
-		"DECLARE FUNCTION my_func;\n"
-		"DECLARE CURSOR c IS\n"
-		" SELECT MIX_LEN"
-		" FROM SYS_TABLES"
-		" WHERE ID = :table_id FOR UPDATE;"
-		"\n"
-		"BEGIN\n"
-		"OPEN c;\n"
-		"WHILE 1 = 1 LOOP\n"
-		"  FETCH c INTO my_func();\n"
-		"  IF c % NOTFOUND THEN\n"
-		"    EXIT;\n"
-		"  END IF;\n"
-		"END LOOP;\n"
-		"UPDATE SYS_TABLES"
-		" SET MIX_LEN = :flags2"
-		" WHERE ID = :table_id;\n"
-		"CLOSE c;\n"
-		"END;\n";
-
-	discard.n_recs = 0;
-	discard.state = discarded;
-	discard.flags2 = ULINT32_UNDEFINED;
-
-	info = pars_info_create();
-
-	pars_info_add_ull_literal(info, "table_id", table_id);
-	pars_info_bind_int4_literal(info, "flags2", &discard.flags2);
-
-	pars_info_bind_function(
-		info, "my_func", row_import_set_discarded, &discard);
-
-	dberr_t	err = que_eval_sql(info, sql, !dict_locked, trx);
-
-	ut_a(discard.n_recs == 1);
-	ut_a(discard.flags2 != ULINT32_UNDEFINED);
-
-	return(err);
-}
-
-/*****************************************************************//**
-Imports a tablespace. The space id in the .ibd file must match the space id
+/** Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
+@param[in]	table		table
+@param[in]	table_def	dd table
+@param[in]	prebuilt	prebuilt struct in MySQL
 @return error code or DB_SUCCESS */
 dberr_t
 row_import_for_mysql(
-/*=================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
+	dict_table_t*	table,
+	dd::Table*	table_def,
+	row_prebuilt_t*	prebuilt)
 {
 	dberr_t		err;
 	trx_t*		trx;
@@ -3764,11 +3535,6 @@ row_import_for_mysql(
 
 	/* So that we can send error messages to the user. */
 	trx->mysql_thd = prebuilt->trx->mysql_thd;
-
-	/* Ensure that the table will be dropped by trx_rollback_active()
-	in case of a crash. */
-
-	trx->table_id = table->id;
 
 	/* Assign an undo segment for the transaction, so that the
 	transaction will be recovered after a crash. */
@@ -3805,7 +3571,7 @@ row_import_for_mysql(
 
 	memset(&cfg, 0x0, sizeof(cfg));
 
-	err = row_import_read_cfg(table, trx->mysql_thd, cfg);
+	err = row_import_read_cfg(table, table_def, trx->mysql_thd, cfg);
 
 	/* Check if the table column definitions match the contents
 	of the config file. */
@@ -3960,7 +3726,7 @@ row_import_for_mysql(
 	/* If the table is stored in a remote tablespace, we need to
 	determine that filepath from the link file and system tables.
 	Find the space ID in SYS_TABLES since this is an ALTER TABLE. */
-	dict_get_and_save_data_dir_path(table, true);
+	dd_get_and_save_data_dir_path(table, table_def, true);
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);
@@ -3993,9 +3759,13 @@ row_import_for_mysql(
 		fsp_flags |= FSP_FLAGS_MASK_ENCRYPTION;
 	}
 
+	std::string	tablespace_name;
+	dd_filename_to_spacename(table->name.m_name,
+				 &tablespace_name);
+
 	err = fil_ibd_open(
 		true, FIL_TYPE_IMPORT, table->space,
-		fsp_flags, table->name.m_name, filepath);
+		fsp_flags, tablespace_name.c_str(), table->name.m_name, filepath, true);
 
 	DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",
 			err = DB_TABLESPACE_NOT_FOUND;);
@@ -4101,6 +3871,24 @@ row_import_for_mysql(
 		}
 	}
 
+	fil_space_t*	space = fil_space_acquire(table->space);
+
+	/* Update Btree segment headers for SDI Index */
+	if (FSP_FLAGS_HAS_SDI(space->flags)) {
+		dict_mutex_enter_for_mysql();
+		dict_index_t* sdi_index = dict_sdi_get_index(table->space);
+		dict_mutex_exit_for_mysql();
+
+		err = btr_root_adjust_on_import(sdi_index);
+
+		if (err != DB_SUCCESS) {
+			fil_space_release(space);
+			return(row_import_error(prebuilt, trx, err));
+		}
+	}
+	fil_space_release(space);
+
+
 	ib::info() << "Phase III - Flush changes to disk";
 
 	/* Ensure that all pages dirtied during the IMPORT make it to disk.
@@ -4118,6 +3906,33 @@ row_import_for_mysql(
 	ib::info() << "Phase IV - Flush complete";
 	fil_space_set_imported(prebuilt->table->space);
 
+	/* Check if the on-disk .ibd file doesn't have SDI index.
+	If it doesn't exist, create SDI Index page now. */
+	mtr_t	mtr;
+	mtr.start();
+	buf_block_t*	block = buf_page_get(page_id_t(table->space, 0),
+					     dict_table_page_size(table),
+					     RW_SX_LATCH, &mtr);
+
+	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
+
+	page_t*	page = buf_block_get_frame(block);
+
+
+	ulint	space_flags_from_disk = mach_read_from_4(
+		page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS);
+	mtr.commit();
+
+	if (!FSP_FLAGS_HAS_SDI(space_flags_from_disk)) {
+		/* This is IMPORT from 5.7 .ibd file or pre 8.0.1 */
+		dict_mutex_enter_for_mysql();
+		dict_sdi_remove_from_cache(table->space, NULL, true);
+		btr_sdi_create_index(table->space, true);
+		dict_mutex_exit_for_mysql();
+	} else {
+		ut_ad(space->flags == space_flags_from_disk);
+	}
+
 	if (dict_table_is_encrypted(table)) {
 		mtr_t		mtr;
 		byte		encrypt_info[ENCRYPTION_INFO_SIZE_V2];
@@ -4134,14 +3949,7 @@ row_import_for_mysql(
 						  encrypt_info,
 						  &mtr)) {
 			mtr_commit(&mtr);
-			ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-				ER_FILE_NOT_FOUND,
-				filepath, err, ut_strerr(err));
-
-			ut_free(filepath);
-			row_mysql_unlock_data_dictionary(trx);
-
-			return(row_import_cleanup(prebuilt, trx, err));
+			return(row_import_cleanup(prebuilt, trx, DB_ERROR));
 		}
 
 		mtr_commit(&mtr);
@@ -4152,12 +3960,13 @@ row_import_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	/* Update the root pages of the table's indexes. */
-	err = row_import_update_index_root(trx, table, false, true);
-
-	if (err != DB_SUCCESS) {
-		return(row_import_error(prebuilt, trx, err));
-	}
+	DBUG_EXECUTE_IF("ib_import_internal_error",
+			trx->error_state = DB_ERROR;
+			err = DB_ERROR;
+			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+				ER_INTERNAL_ERROR,
+				"While importing table %s", table->name.m_name);
+			return(row_import_error(prebuilt, trx, err)););
 
 	table->ibd_file_missing = false;
 	table->flags2 &= ~DICT_TF2_DISCARDED;
@@ -4176,6 +3985,14 @@ row_import_for_mysql(
 	table->autoinc_field_no = ULINT_UNDEFINED;
 
 	ut_a(err == DB_SUCCESS);
+
+	/* After discard, sdi_table->ibd_file_missing is set to true.
+	This is avoid to purge on SDI tables after discard.
+	At the end of successful import, set sdi_table->ibd_file_missing to
+	false, indicating that .ibd of SDI table is available */
+	dict_table_t*	sdi_table = dict_sdi_get_table(space->id, true, false);
+	sdi_table->ibd_file_missing = false;
+	dict_sdi_close_table(sdi_table);
 
 	return(row_import_cleanup(prebuilt, trx, err));
 }

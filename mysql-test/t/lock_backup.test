@@ -1,0 +1,158 @@
+--echo #
+--echo # WL#9451 -- Backup Log
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+--enable_connect_log
+
+--connect (con1, localhost, root,,)
+SET lock_wait_timeout= 1;
+SET autocommit= 0;
+
+--connection default
+LOCK INSTANCE FOR BACKUP;
+
+--connection con1
+
+let $con1_id= `SELECT CONNECTION_ID()`;
+
+--echo # Test case 1: Check that attempt to run DDL statement leads to
+--echo # emission of error ER_LOCK_WAIT_TIMEOUT since execution
+--echo # of the statement was blocked by LOCK INSTANCE issued
+--echo # from connection default.
+
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE TABLE t2 (a INT);
+
+--echo # Test case 2: Check that DML statement is executed successfully
+--echo # when LOCK INSTANCE was acquired from another connection.
+INSERT INTO t1 VALUES (100);
+COMMIT;
+SELECT * FROM t1;
+
+--echo # Test case 3: Make attempt to execute a DDL statement after LOCK INSTANCE was issued
+--echo # and check that DDL is executed successfully as soon as UNLOCK INSTANCE was issued
+SET lock_wait_timeout= 10000000;
+--send CREATE TABLE t3 (a INT)
+
+--connection default
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for backup lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+UNLOCK INSTANCE;
+
+--connection con1
+--echo # Reap result of CREATE TABLE t3
+--reap
+--echo # Check that the table t3 was created
+DESCRIBE t3;
+
+--echo # Test case 4: Check that several statements LOCK INSTANCE FOR BACKUP
+--echo # can be issued from different connections.
+
+LOCK INSTANCE FOR BACKUP;
+
+--connect (con2, localhost, root,,)
+--echo # It is expected that second execution of LOCK INSTANCE FOR BACKUP
+--echo # will be successful.
+LOCK INSTANCE FOR BACKUP;
+
+--echo # Then switch to the connection default
+--echo # and try to execute the statement CREATE TABLE t2.
+--echo # It is expected that processing of the statement will be suspended
+--echo # until connections con1 and con2 release Backup Lock.
+--connection default
+
+let $default_con_id= `SELECT CONNECTION_ID()`;
+--send CREATE TABLE t2 (a INT)
+
+--connection con1
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = 'Waiting for backup lock' AND id = $default_con_id;
+--source include/wait_condition.inc
+
+--echo # Show that default connection is waiting until Backup Lock be released
+--replace_result $default_con_id default_con_id
+--eval SELECT info, state FROM INFORMATION_SCHEMA.PROCESSLIST WHERE id = $default_con_id
+UNLOCK INSTANCE;
+
+--connection con2
+--echo # Show that default connection is still waiting until Backup Lock be released
+--echo # by connection con2
+--replace_result $default_con_id default_con_id
+--eval SELECT info, state FROM INFORMATION_SCHEMA.PROCESSLIST WHERE id = $default_con_id
+UNLOCK INSTANCE;
+
+--echo # Waiting until connection default acquire Backup Lock and resume execution
+let $wait_condition=
+  SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = 'Waiting for backup lock' AND id = $default_con_id;
+--source include/wait_condition.inc
+
+--connection default
+
+--echo # Reap CREAT TABLE t2
+--reap
+--echo # Check that the table t2 was created after Backup Lock had been released
+DESCRIBE t2;
+
+--echo # Test case 5: Check that Backup Lock independent from
+--echo # FLUSH TABLES <table list> WITH READ LOCK
+
+--echo # Case 5.1: Check that FLUSH TABLES <table list> WITH READ LOCK following with
+--echo # LOCK INSTANCE FOR BACKUP are executed successfully.
+FLUSH TABLES t1 WITH READ LOCK;
+LOCK INSTANCE FOR BACKUP;
+UNLOCK INSTANCE;
+UNLOCK TABLES;
+
+--echo # Case 5.2: Check that LOCK INSTANCE FOR BACKUP following with
+--echo # FLUSH TABLES <table list> WITH READ LOCK are executed successfully.
+LOCK INSTANCE FOR BACKUP;
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+UNLOCK INSTANCE;
+
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection con2
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection default
+
+--echo # Test case 6: check that a user without granted BACKUP_ADMIN privilege
+--echo # failed to acquire Backup Lock.
+CREATE USER u1;
+--connect (con1, localhost, u1,,)
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+LOCK INSTANCE FOR BACKUP;
+--disconnect con1
+
+--connection default
+DROP USER u1;
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug26665851 - USING FLUSH TABLES WITH READ LOCK AND LOCK INSTANCE LEADS TO A CRASH
+--echo #
+
+LOCK INSTANCE FOR BACKUP;
+
+CREATE TABLE t1 (a INT);
+
+--echo # Without the patch the following statement leads to a crash for debug build
+FLUSH TABLES WITH READ LOCK;
+
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+UNLOCK INSTANCE;

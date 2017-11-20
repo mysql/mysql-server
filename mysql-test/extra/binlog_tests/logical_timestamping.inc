@@ -4,7 +4,7 @@ RESET MASTER;
 # and itself as one.
 CREATE TABLE t1 (a int) ENGINE= innodb;
 
---let $binlog_file= master-bin.000001
+--let $binlog_file= binlog.000001
 
 --let $logical_timestamps= 0 1
 --source include/assert_logical_timestamps.inc
@@ -127,7 +127,7 @@ COMMIT;
 # Now the proof: the "rotated" transaction is logged with uninitialized last committed
 # as expected. Its timestamp pair of (0,1) must be found.
 
---let $binlog_file= master-bin.000002
+--let $binlog_file= binlog.000002
 --let $logical_timestamps= 0 1
 --source include/assert_logical_timestamps.inc
 
@@ -163,7 +163,7 @@ COMMIT;
 
 # Not "rotated" 2nd transaction is logged following the regular rule.
 # Its timestamp pair of (1,2) must be found.
---let $binlog_file= master-bin.000001
+--let $binlog_file= binlog.000001
 --let $logical_timestamps= 0 1;1 2
 --source include/assert_logical_timestamps.inc
 

@@ -141,7 +141,7 @@ Mysqlx.Crud.Delete {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -176,7 +176,7 @@ Mysqlx.Crud.Delete {
       }
    }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -211,7 +211,7 @@ Mysqlx.Crud.Delete {
       }
    }
 }
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 
 -->echo Error 1175 expected because of the safe mode = 1
@@ -266,7 +266,7 @@ Mysqlx.Crud.Delete {
     }
   }
 }
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 
 -->echo Error 1175 expected because of the safe mode = 1
@@ -296,7 +296,7 @@ Mysqlx.Crud.Delete {
       }
    }
 }
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 
 -->sql
@@ -334,7 +334,7 @@ Mysqlx.Crud.Delete {
   }
   data_model: TABLE
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -393,7 +393,7 @@ Mysqlx.Crud.Delete {
       }
    }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -453,7 +453,7 @@ Mysqlx.Crud.Delete {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -513,7 +513,7 @@ Mysqlx.Crud.Delete {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -550,7 +550,7 @@ Mysqlx.Crud.Delete {
       }
    }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -622,7 +622,7 @@ Mysqlx.Crud.Delete {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -682,7 +682,7 @@ Mysqlx.Crud.Delete {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -742,7 +742,7 @@ Mysqlx.Crud.Delete {
     }
   }
 }
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 
 -->echo Delete with wrong Table
@@ -797,7 +797,7 @@ Mysqlx.Crud.Delete {
     }
   }
 }
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 
 -->echo Delete with wrong Column
@@ -852,7 +852,7 @@ Mysqlx.Crud.Delete {
     }
   }
 }
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 
 EOF
@@ -917,7 +917,7 @@ Mysqlx.Crud.Delete {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -955,7 +955,7 @@ Mysqlx.Crud.Delete {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -993,7 +993,7 @@ Mysqlx.Crud.Delete {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -1031,7 +1031,7 @@ Mysqlx.Crud.Delete {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -1069,7 +1069,7 @@ Mysqlx.Crud.Delete {
   }
 }
 
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 
 -->echo Delete collection wrong collection
@@ -1103,7 +1103,7 @@ Mysqlx.Crud.Delete {
   }
 }
 
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 
 -->echo Delete collection wrong member
@@ -1137,7 +1137,7 @@ Mysqlx.Crud.Delete {
   }
 }
 
--- No rows affected
+#-- No rows affected
 -->recvresult
 
 ## Cleanup

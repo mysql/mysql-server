@@ -66,7 +66,7 @@ SELECT id,LEFT(bfield,20) FROM t1;
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/case1.err;
 let SEARCH_PATTERN= InnoDB: Starting crash recovery;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # Check size of ib_logfile* when innodb_log_files_in_group is set
 perl;
@@ -145,7 +145,7 @@ SELECT @@innodb_log_files_in_group;
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/case2.err;
 let SEARCH_PATTERN= InnoDB: Starting crash recovery;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 
 USE db_wl6494;
@@ -172,14 +172,14 @@ SET GLOBAL innodb_fast_shutdown=0;
 --error 1
 --exec $MYSQLD_CMD $args --innodb-log-group-home-dir=foo\;bar
 let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --echo "test misc 3"
 --error 1,42
 --exec $MYSQLD_CMD $args --innodb-read-only
 let SEARCH_PATTERN= InnoDB: Cannot resize log files in read-only mode;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --echo "test misc 4"
@@ -190,7 +190,7 @@ let SEARCH_PATTERN= InnoDB: Cannot resize log files in read-only mode;
 --error 1,42
 --exec $MYSQLD_CMD $args
 let SEARCH_PATTERN= InnoDB: Only one log file found;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 #--move_file $MYSQLD_DATADIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile101
 --move_file $MYSQLD_DATADIR/ib_logfile1_hidden $MYSQLD_DATADIR/ib_logfile1
@@ -206,7 +206,7 @@ EOF
 --error 1,42
 --exec $MYSQLD_CMD $args
 let SEARCH_PATTERN= InnoDB: .*ib_logfile0 size 7 is not a multiple of innodb_page_size;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --remove_file $MYSQLD_DATADIR/ib_logfile0
 --move_file $MYSQLD_DATADIR/ib_logfile0_hidden $MYSQLD_DATADIR/ib_logfile0
@@ -223,7 +223,7 @@ EOF
 --error 1,42
 --exec $MYSQLD_CMD $args
 let SEARCH_PATTERN= InnoDB: .*ib_logfile1 is of different size;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --remove_file $MYSQLD_DATADIR/ib_logfile1
 --move_file $MYSQLD_DATADIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile0_hidden

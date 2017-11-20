@@ -27,9 +27,9 @@
     (This shouldn't be needed)
 */
 
-/* May include caustic 3rd-party defs. Use early, so it can override nothing. */
-#include "sha2.h"
+#include "sql/item_strfunc.h"
 
+#include <zlib.h>
 #include <algorithm>
 #include <atomic>
 #include <cmath>                     // std::isfinite
@@ -37,30 +37,14 @@
 #include <ostream>
 #include <string>
 #include <utility>
-#include <vector>
 
-#include "auth_acls.h"
-#include "auth_common.h"             // check_password_policy
 #include "base64.h"                  // base64_encode_max_arg_length
 #include "binary_log_types.h"
-#include "current_thd.h"             // current_thd
-#include "dd/info_schema/stats.h"
-#include "dd/properties.h"           // dd::Properties
-#include "dd/string_type.h"
-#include "dd/types/column.h"         // dd::Column
-#include "dd_sql_view.h"             // push_view_warning_or_error
-#include "dd_table_share.h"          // dd_get_old_field_type
 #include "decimal.h"
-#include "derror.h"                  // ER_THD
-#include "des_key_file.h"            // st_des_keyblock
-#include "handler.h"
-#include "item_strfunc.h"
 #include "m_string.h"
 #include "my_aes.h"                  // MY_AES_IV_SIZE
-#include "my_base.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_dir.h"                  // For my_stat
 #include "my_io.h"
@@ -72,28 +56,38 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "myisampack.h"
-#include "mysql/mysql_lex_string.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_password_policy.h"
-#include "mysqld.h"                  // LOCK_des_key_file
 #include "mysqld_error.h"
 #include "password.h"                // my_make_scrambled_password
-#include "rpl_gtid.h"
-#include "session_tracker.h"
 #include "sha1.h"                    // SHA1_HASH_SIZE
-#include "sql_class.h"               // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_locale.h"              // my_locale_by_name
-#include "sql_security_ctx.h"
-#include "sql_show.h"  // grant_types
-#include "strfunc.h"                 // hexchar_to_int
+#include "sha2.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"    // check_password_policy
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"         // current_thd
+#include "sql/dd/info_schema/table_stats.h"
+#include "sql/dd/properties.h"       // dd::Properties
+#include "sql/dd/string_type.h"
+#include "sql/dd_sql_view.h"         // push_view_warning_or_error
+#include "sql/derror.h"              // ER_THD
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"              // binary_keyword etc
+#include "resourcegroups/resource_group_mgr.h"  // num_vcpus
+#include "sql/rpl_gtid.h"
+#include "sql/sql_class.h"           // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_locale.h"          // my_locale_by_name
+#include "sql/sql_show.h" // grant_types
+#include "sql/strfunc.h"             // hexchar_to_int
+#include "sql/system_variables.h"
+#include "sql/val_int_compare.h"     // Integer_value
 #include "template_utils.h"
 #include "typelib.h"
-#include "val_int_compare.h"         // Integer_value
-#include "zconf.h"
 
 using std::min;
 using std::max;
@@ -865,196 +859,6 @@ bool Item_func_concat::resolve_type(THD *)
   set_data_type_string(char_length);
   return false;
 }
-
-/**
-  @details
-  Function des_encrypt() by tonu@spam.ee & monty
-  Works only if compiled with OpenSSL library support.
-  @return
-    A binary string where first character is CHAR(128 | key-number).
-    If one uses a string key key_number is 127.
-    Encryption result is longer than original by formula:
-  @code new_length= org_length + (8-(org_length % 8))+1 @endcode
-*/
-
-String *Item_func_des_encrypt::val_str(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-#if defined(HAVE_OPENSSL)
-  uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
-  DES_cblock ivec;
-  struct st_des_keyblock keyblock;
-  struct st_des_keyschedule keyschedule;
-  const char *append_str="********";
-  uint key_number, tail;
-  size_t res_length;
-  String *res= args[0]->val_str(str);
-
-  if ((null_value= args[0]->null_value))
-    return 0;                                   // ENCRYPT(NULL) == NULL
-  if ((res_length=res->length()) == 0)
-    return make_empty_result();
-  if (arg_count == 1)
-  {
-    /* Protect against someone doing FLUSH DES_KEY_FILE */
-    mysql_mutex_lock(&LOCK_des_key_file);
-    keyschedule= des_keyschedule[key_number=des_default_key];
-    mysql_mutex_unlock(&LOCK_des_key_file);
-  }
-  else if (args[1]->result_type() == INT_RESULT)
-  {
-    key_number= (uint) args[1]->val_int();
-    if (key_number > 9)
-      goto error;
-    mysql_mutex_lock(&LOCK_des_key_file);
-    keyschedule= des_keyschedule[key_number];
-    mysql_mutex_unlock(&LOCK_des_key_file);
-  }
-  else
-  {
-    String *keystr=args[1]->val_str(&tmp_value);
-    if (!keystr)
-      goto error;
-    key_number=127;				// User key string
-
-    /* We make good 24-byte (168 bit) key from given plaintext key with MD5 */
-    memset(&ivec, 0, sizeof(ivec));
-    EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
-		   (uchar*) keystr->ptr(), (int) keystr->length(),
-		   1, (uchar*) &keyblock,ivec);
-    DES_set_key_unchecked(&keyblock.key1,&keyschedule.ks1);
-    DES_set_key_unchecked(&keyblock.key2,&keyschedule.ks2);
-    DES_set_key_unchecked(&keyblock.key3,&keyschedule.ks3);
-  }
-
-  /*
-     The problem: DES algorithm requires original data to be in 8-bytes
-     chunks. Missing bytes get filled with '*'s and result of encryption
-     can be up to 8 bytes longer than original string. When decrypted,
-     we do not know the size of original string :(
-     We add one byte with value 0x1..0x8 as the last byte of the padded
-     string marking change of string length.
-  */
-
-  tail= 8 - (res_length % 8);                   // 1..8 marking extra length
-  res_length+=tail;
-  tmp_arg.mem_realloc(res_length);
-  tmp_arg.length(0);
-  tmp_arg.append(res->ptr(), res->length());
-  code= ER_OUT_OF_RESOURCES;
-  if (tmp_arg.append(append_str, tail) || tmp_value.alloc(res_length+1))
-    goto error;
-  tmp_arg[res_length-1]=tail;                   // save extra length
-  tmp_value.mem_realloc(res_length+1);
-  tmp_value.length(res_length+1);
-  tmp_value.set_charset(&my_charset_bin);
-  tmp_value[0]=(char) (128 | key_number);
-  // Real encryption
-  memset(&ivec, 0, sizeof(ivec));
-  DES_ede3_cbc_encrypt((const uchar*) (tmp_arg.ptr()),
-		       (uchar*) (tmp_value.ptr()+1),
-		       res_length,
-		       &keyschedule.ks1,
-		       &keyschedule.ks2,
-		       &keyschedule.ks3,
-		       &ivec, TRUE);
-  return &tmp_value;
-
-error:
-  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                      code, ER_THD(current_thd, code),
-                      "des_encrypt");
-#else
-  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                      ER_FEATURE_DISABLED,
-                      ER_THD(current_thd, ER_FEATURE_DISABLED),
-                      "des_encrypt", "--with-ssl");
-#endif /* defined(HAVE_OPENSSL) */
-  null_value=1;
-  return 0;
-}
-
-
-String *Item_func_des_decrypt::val_str(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-#if defined(HAVE_OPENSSL)
-  uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
-  DES_cblock ivec;
-  struct st_des_keyblock keyblock;
-  struct st_des_keyschedule keyschedule;
-  String *res= args[0]->val_str(str);
-  size_t length;
-  uint tail;
-
-  if ((null_value= args[0]->null_value))
-    return 0;
-  length= res->length();
-  if (length < 9 || (length % 8) != 1 || !((*res)[0] & 128))
-    return res;				// Skip decryption if not encrypted
-
-  if (arg_count == 1)			// If automatic uncompression
-  {
-    uint key_number=(uint) (*res)[0] & 127;
-    // Check if automatic key and that we have privilege to uncompress using it
-    if (!(current_thd->security_context()->check_access(SUPER_ACL)) ||
-        key_number > 9)
-      goto error;
-
-    mysql_mutex_lock(&LOCK_des_key_file);
-    keyschedule= des_keyschedule[key_number];
-    mysql_mutex_unlock(&LOCK_des_key_file);
-  }
-  else
-  {
-    // We make good 24-byte (168 bit) key from given plaintext key with MD5
-    String *keystr=args[1]->val_str(&tmp_value);
-    if (!keystr)
-      goto error;
-
-    memset(&ivec, 0, sizeof(ivec));
-    EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
-		   (uchar*) keystr->ptr(),(int) keystr->length(),
-		   1,(uchar*) &keyblock,ivec);
-    // Here we set all 64-bit keys (56 effective) one by one
-    DES_set_key_unchecked(&keyblock.key1,&keyschedule.ks1);
-    DES_set_key_unchecked(&keyblock.key2,&keyschedule.ks2);
-    DES_set_key_unchecked(&keyblock.key3,&keyschedule.ks3);
-  }
-  code= ER_OUT_OF_RESOURCES;
-  if (tmp_value.alloc(length-1))
-    goto error;
-
-  memset(&ivec, 0, sizeof(ivec));
-  DES_ede3_cbc_encrypt((const uchar*) res->ptr()+1,
-		       (uchar*) (tmp_value.ptr()),
-		       length-1,
-		       &keyschedule.ks1,
-		       &keyschedule.ks2,
-		       &keyschedule.ks3,
-		       &ivec, FALSE);
-  /* Restore old length of key */
-  if ((tail=(uint) (uchar) tmp_value[length-2]) > 8)
-    goto wrong_key;				     // Wrong key
-  tmp_value.length(length-1-tail);
-  tmp_value.set_charset(&my_charset_bin);
-  return &tmp_value;
-
-error:
-  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                      code, ER_THD(current_thd, code),
-                      "des_decrypt");
-wrong_key:
-#else
-  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                      ER_FEATURE_DISABLED,
-                      ER_THD(current_thd, ER_FEATURE_DISABLED),
-                      "des_decrypt", "--with-ssl");
-#endif /* defined(HAVE_OPENSSL) */
-  null_value=1;
-  return 0;
-}
-
 
 /**
   concat with separator. First arg is the separator
@@ -2089,162 +1893,9 @@ String *Item_func_password::val_str_ascii(String *str)
   return str;
 }
 
-char *Item_func_password::
-  create_password_hash_buffer(THD *thd, const char *password,  size_t pass_len)
-{
-  String *password_str= new (thd->mem_root)String(password, thd->variables.
-                                                    character_set_client);
-  my_validate_password_policy(password_str->ptr(), password_str->length());
 
-  char *buff= NULL;
-  if (thd->variables.old_passwords == 0)
-  {
-    /* Allocate memory for the password scramble and one extra byte for \0 */
-    buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH + 1);
-    my_make_scrambled_password_sha1(buff, password, pass_len);
-  }
-#if defined(HAVE_OPENSSL)
-  else
-  {
-    /* Allocate memory for the password scramble and one extra byte for \0 */
-    buff= (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE + 1);
-    my_make_scrambled_password(buff, password, pass_len);
-  }
-#endif
-  return buff;
-}
-
-bool Item_func_encrypt::itemize(Parse_context *pc, Item **res)
-{
-  if (skip_itemize(res))
-    return false;
-  if (super::itemize(pc, res))
-    return true;
-  DBUG_ASSERT(arg_count == 1 || arg_count == 2);
-  if (arg_count == 1)
-    pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
-  return false;
-}
-
-
-#define bin_to_ascii(c) ((c)>=38?((c)-38+'a'):(c)>=12?((c)-12+'A'):(c)+'.')
-
-String *Item_func_encrypt::val_str(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-#ifdef HAVE_CRYPT
-  String *res = args[0]->val_str(str);
-  char salt[3],*salt_ptr;
-  if ((null_value=args[0]->null_value))
-    return 0;
-  if (res->length() == 0)
-    return make_empty_result();
-  if (arg_count == 1)
-  {					// generate random salt
-    time_t timestamp=current_thd->query_start_in_secs();
-    salt[0] = bin_to_ascii( (ulong) timestamp & 0x3f);
-    salt[1] = bin_to_ascii(( (ulong) timestamp >> 5) & 0x3f);
-    salt[2] = 0;
-    salt_ptr=salt;
-  }
-  else
-  {					// obtain salt from the first two bytes
-    String *salt_str=args[1]->val_str(&tmp_value);
-    if ((null_value= (args[1]->null_value || salt_str->length() < 2)))
-      return 0;
-    salt_ptr= salt_str->c_ptr_safe();
-  }
-  mysql_mutex_lock(&LOCK_crypt);
-  char *tmp= crypt(res->c_ptr_safe(),salt_ptr);
-  if (!tmp)
-  {
-    mysql_mutex_unlock(&LOCK_crypt);
-    null_value= 1;
-    return 0;
-  }
-  str->set(tmp, strlen(tmp), &my_charset_bin);
-  str->copy();
-  mysql_mutex_unlock(&LOCK_crypt);
-  return str;
-#else
-  null_value=1;
-  return 0;
-#endif	/* HAVE_CRYPT */
-}
-
-bool Item_func_encode::seed()
-{
-  char buf[80];
-  ulong rand_nr[2];
-  String *key, tmp(buf, sizeof(buf), system_charset_info);
-
-  if (!(key= args[1]->val_str(&tmp)))
-    return TRUE;
-
-  hash_password(rand_nr, key->ptr(), key->length());
-  sql_crypt.init(rand_nr);
-
-  return FALSE;
-}
-
-bool Item_func_encode::resolve_type(THD *)
-{
-  set_data_type_string(args[0]->max_length, &my_charset_bin);
-  maybe_null=args[0]->maybe_null || args[1]->maybe_null;
-  /* Precompute the seed state if the item is constant. */
-  seeded= args[1]->const_item() &&
-          (args[1]->result_type() == STRING_RESULT) && !seed();
-  return false;
-}
-
-String *Item_func_encode::val_str(String *str)
-{
-  String *res;
-  DBUG_ASSERT(fixed == 1);
-
-  if (!(res=args[0]->val_str(str)))
-  {
-    null_value= 1;
-    return NULL;
-  }
-
-  if (!seeded && seed())
-  {
-    null_value= 1;
-    return NULL;
-  }
-
-  null_value= 0;
-  if (res->uses_buffer_owned_by(str))
-  {
-    if (tmp_value_res.copy(*res))
-      return error_str();
-    res= &tmp_value_res;
-  }
-  else
-    res= copy_if_not_alloced(str, res, res->length());
-
-  crypto_transform(res);
-  sql_crypt.reinit();
-
-  return res;
-}
-
-void Item_func_encode::crypto_transform(String *res)
-{
-  push_deprecated_warn(current_thd, "ENCODE", "AES_ENCRYPT");
-  sql_crypt.encode((char*) res->ptr(),res->length());
-  res->set_charset(&my_charset_bin);
-}
-
-void Item_func_decode::crypto_transform(String *res)
-{
-  push_deprecated_warn(current_thd, "DECODE", "AES_DECRYPT");
-  sql_crypt.decode((char*) res->ptr(),res->length());
-}
-
-
-Item *Item_func_sysconst::safe_charset_converter(const CHARSET_INFO *tocs)
+Item *Item_func_sysconst::safe_charset_converter(THD *,
+                                                 const CHARSET_INFO *tocs)
 {
   uint conv_errors;
   String tmp, cstr, *ostr= val_str(&tmp);
@@ -2810,7 +2461,6 @@ bool Item_func_make_set::resolve_type(THD *)
   set_data_type_string(char_length);
   used_tables_cache|=	  item->used_tables();
   not_null_tables_cache&= item->not_null_tables();
-  const_item_cache&=	  item->const_item();
   add_accum_properties(item);
 
   return false;
@@ -2822,7 +2472,6 @@ void Item_func_make_set::update_used_tables()
   Item_func::update_used_tables();
   item->update_used_tables();
   used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
   add_accum_properties(item);
 }
 
@@ -4217,10 +3866,6 @@ bool Item_load_file::itemize(Parse_context *pc, Item **res)
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <time.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 
 String *Item_load_file::val_str(String *str)
 {
@@ -4598,10 +4243,6 @@ longlong Item_func_crc32::val_int()
   null_value=0;
   return (longlong) crc32(0L, (uchar*)res->ptr(), res->length());
 }
-
-#include "zlib.h"
-
-template <class T> class List;
 
 String *Item_func_compress::val_str(String *str)
 {
@@ -5260,19 +4901,234 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str)
     else
       oss << "VIEW";
   }
-  else if (!thd->lex->m_IS_dyn_stat_cache.error().empty())
+  else if (!thd->lex->m_IS_table_stats.error().empty())
   {
     /*
       There could be error generated due to INTERNAL_*() UDF calls
       in I_S query. If there was a error found, we show that as
       part of COMMENT field.
     */
-    oss << thd->lex->m_IS_dyn_stat_cache.error();
+    oss << thd->lex->m_IS_table_stats.error();
   }
   else
   {
     oss << comment_ptr->c_ptr_safe();
   }
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
+
+
+/*
+  The function return 'default' in case the dd::Properties string passed as
+  the argument 'str' does not contain 'nodegroup_id' key stored OR even
+  when the option string is empty.
+*/
+String *Item_func_get_partition_nodegroup::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_get_partition_nodegroup::val_str");
+  null_value= FALSE;
+
+  String options;
+  String *options_ptr= args[0]->val_str(&options);
+  std::ostringstream oss("");
+
+  // If we have a option string.
+  if (options_ptr != nullptr)
+  {
+    // Prepare dd::Properties
+    std::unique_ptr<dd::Properties>
+      view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+
+    // Do we have nodegroup id ?
+    if (view_options->exists("nodegroup_id"))
+    {
+      uint32 value;
+
+      // Fetch nodegroup id.
+      view_options->get_uint32("nodegroup_id", &value);
+      oss << value;
+    }
+    else
+      oss << "default";
+  }
+  else
+    oss << "default";
+
+  // Copy the value to output string.
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
+
+
+String *Item_func_internal_tablespace_type::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_internal_tablespace_type::val_str");
+  dd::String_type result;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+    thd->lex->m_IS_tablespace_stats.get_stat(
+                dd::info_schema::enum_tablespace_stats_type::TS_TYPE,
+                &result);
+    str->copy(result.c_str(), result.length(), system_charset_info);
+
+    DBUG_RETURN(str);
+  }
+
+  DBUG_RETURN(nullptr);
+}
+
+
+String *Item_func_internal_tablespace_status::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_internal_tablespace_status::val_str");
+  dd::String_type result;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+    thd->lex->m_IS_tablespace_stats.get_stat(
+                dd::info_schema::enum_tablespace_stats_type::TS_STATUS,
+                &result);
+    str->copy(result.c_str(), result.length(), system_charset_info);
+
+    DBUG_RETURN(str);
+  }
+
+  DBUG_RETURN(nullptr);
+}
+
+
+/**
+  @brief
+    This function prepares string representing se_private_data for tablespace.
+    This is required for IS implementation which uses views on DD tablespace.
+
+    Syntax:
+      string get_dd_tablespace_private_data(dd.tablespace.se_private_data)
+
+    The arguments accept values from se_private_data from 'tablespace'
+    DD table.
+
+ */
+String *Item_func_get_dd_tablespace_private_data::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_get_dd_tablespace_private_data::val_str");
+
+  // Read tablespaces.se_private_data
+  String option;
+  String *option_ptr;
+  std::ostringstream oss("");
+  if ((option_ptr = args[0]->val_str(&option)) != nullptr)
+  {
+    // Read required values from properties
+    std::unique_ptr<dd::Properties> p
+      (dd::Properties::parse_properties(option_ptr->c_ptr_safe()));
+
+    // Read used_flags
+    uint opt_value = 0;
+    char option_buff[350], *ptr;
+    ptr = option_buff;
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "id") == 0)
+    {
+      if (p->exists("id"))
+      {
+        p->get_uint32("id", &opt_value);
+        ptr = longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "flags") == 0)
+    {
+      if (p->exists("flags"))
+      {
+        p->get_uint32("flags", &opt_value);
+        ptr = longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (ptr == option_buff)
+      oss << "";
+    else
+      oss << option_buff;
+  }
+
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
+
+/**
+  @brief
+    This function prepares string representing se_private_data for index.
+    This is required for IS implementation which uses views on DD indexes.
+
+    Syntax:
+      string get_dd_index_private_data(dd.indexes.se_private_data)
+
+    The arguments accept values from se_private_data from 'indexes'
+    DD table.
+
+ */
+String *Item_func_get_dd_index_private_data::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_get_dd_index_private_data::val_str");
+
+  // Read indexes.se_private_data
+  String option;
+  String *option_ptr;
+  std::ostringstream oss("");
+  if ((option_ptr = args[0]->val_str(&option)) != nullptr)
+  {
+    // Read required values from properties
+    std::unique_ptr<dd::Properties> p
+      (dd::Properties::parse_properties(option_ptr->c_ptr_safe()));
+
+    // Read used_flags
+    uint opt_value = 0;
+    char option_buff[350], *ptr;
+    ptr = option_buff;
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "id") == 0)
+    {
+      if (p->exists("id"))
+      {
+        p->get_uint32("id", &opt_value);
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "root") == 0)
+    {
+      if (p->exists("root"))
+      {
+        p->get_uint32("root", &opt_value);
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "trx_id") == 0)
+    {
+      if (p->exists("trx_id"))
+      {
+        p->get_uint32("trx_id", &opt_value);
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (ptr == option_buff)
+      oss << "";
+    else
+      oss << option_buff;
+  }
+
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
   DBUG_RETURN(str);
@@ -5304,4 +5160,53 @@ mysqld_collation_get_by_name(const char *name, CHARSET_INFO *name_cs)
   return cs;
 }
 
+
+String *Item_func_convert_cpu_id_mask::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_convert_cpu_id_mask::val_str");
+  null_value= FALSE;
+
+  String  cpu_mask;
+  String *cpu_mask_str= args[0]->val_str(&cpu_mask);
+
+  if (cpu_mask_str == nullptr || cpu_mask_str->length() == 0)
+  {
+    null_value= TRUE;
+    DBUG_RETURN(nullptr);
+  }
+
+  std::ostringstream oss("");
+  cpu_mask_str->set_charset(&my_charset_bin);
+
+
+  int bit_start= -1, bit_end= -1;
+  int start_pos= cpu_mask_str->length() - 1;
+  bool first= true;
+  for (int i= start_pos; i >= 0; i--)
+  {
+    if (cpu_mask_str->ptr()[i] == '1')
+      bit_start == -1 ? (bit_start= bit_end= start_pos - i) : bit_end++;
+    else
+      if (bit_start != -1)
+      {
+        if (first)
+          first= false;
+        else
+          oss << ",";
+
+        if (bit_start == bit_end)
+          oss << bit_start;
+        else
+          oss << bit_start << "-" << bit_end;
+        bit_start= bit_end= -1;
+      }
+  }
+  if (oss.str().length() == 0)
+    oss << "0-"<<
+      resourcegroups::Resource_group_mgr::instance()->num_vcpus() - 1;
+
+  str->copy(oss.str().c_str(), oss.str().length(), &my_charset_bin);
+
+  DBUG_RETURN(str);
+}
 

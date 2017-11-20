@@ -23,7 +23,6 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
@@ -32,6 +31,7 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_visitor.h"
+#include "sql/field.h"
 
 THR_LOCK table_esgs_by_user_by_event_name::m_table_lock;
 
@@ -63,7 +63,10 @@ PFS_engine_table_share table_esgs_by_user_by_event_name::m_share = {
   sizeof(pos_esgs_by_user_by_event_name),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false /* perpetual */,
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool

@@ -17,23 +17,25 @@
 
 #include <sys/types.h>
 
-#include "derror.h"            // ER_THD
-#include "item.h"              // Item
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/components/services/psi_error_bits.h"
 #include "mysql/psi/mysql_error.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/psi_error.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"      // ER_*
-#include "sp_pcontext.h"       // sp_condition_value
-#include "sp_rcontext.h"       // sp_rcontext
-#include "sql_class.h"         // THD
-#include "sql_lex.h"
-#include "sql_servers.h"
+#include "sql/derror.h"        // ER_THD
+#include "sql/item.h"          // Item
+#include "sql/sp_pcontext.h"   // sp_condition_value
+#include "sql/sp_rcontext.h"   // sp_rcontext
+#include "sql/sql_class.h"     // THD
+#include "sql/sql_lex.h"
+#include "sql/sql_servers.h"
 #include "sql_string.h"
 
 

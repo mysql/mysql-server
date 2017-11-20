@@ -18,7 +18,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/storage/perfschema
   ${CMAKE_SOURCE_DIR}/sql/auth
-  ${ZLIB_INCLUDE_DIR}
 )
 
 SET(MYSQL_SERVER_COMPONENT_SOURCES
@@ -34,6 +33,9 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   plugin_registry_service.cc
   log_builtins.cc
   log_builtins_filter.cc
+  mysql_mutex_service.cc
+  mysql_rwlock_service.cc
+  mysql_cond_service.cc
 )
 
 MYSQL_ADD_COMPONENT(mysql_server

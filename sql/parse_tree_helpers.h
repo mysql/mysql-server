@@ -20,18 +20,21 @@
 #include <sys/types.h>
 #include <new>
 
-#include "item.h"
-#include "item_func.h"      // Item etc.
 #include "lex_string.h"
-#include "mem_root_array.h"
+#include "m_ctype.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
-#include "parse_tree_node_base.h"
-#include "set_var.h"        // enum_var_type
-#include "sql_list.h"
-#include "sql_udf.h"
-#include "typelib.h"
+#include "mysql/udf_registration_types.h"
+#include "sql/item.h"
+#include "sql/item_func.h"  // Item etc.
+#include "sql/mem_root_array.h"
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/resourcegroups/resource_group_basic_types.h"  // resourcegroups::Range
+#include "sql/set_var.h"    // enum_var_type
+#include "sql/sql_list.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
 
 class String;
 class THD;
@@ -125,15 +128,16 @@ public:
 /**
   Contextualize a Mem_root_array of parse tree nodes of the type PTN
 
-  @tparam PTN           Common type of parse tree nodes in the array.
+  @tparam Context       Parse context.
+  @tparam Array         Array of parse tree nodes.
 
   @param[in,out] pc     Parse context.
   @param[in,out] array  Array of nodes to contextualize.
 
   @return false on success.
 */
-template<class PTN>
-bool contextualize_array(Parse_context *pc, Mem_root_array_YY<PTN *> *array)
+template<typename Context, typename Array>
+bool contextualize_array(Context *pc, Array *array)
 {
   for (auto it : *array)
   {
@@ -252,5 +256,13 @@ inline bool is_identifier(const LEX_STRING &str, const char *ident)
 {
   return is_identifier(str.str, ident);
 }
+bool is_key_cache_variable_suffix(const char *suffix);
 
+
+bool validate_vcpu_range(const resourcegroups::Range &range);
+bool validate_resource_group_priority(THD *thd, int *priority,
+                                      const LEX_CSTRING &name,
+                                      const resourcegroups::Type &type);
+bool check_resource_group_support();
+bool check_resource_group_name_len(const LEX_CSTRING &name);
 #endif /* PARSE_TREE_HELPERS_INCLUDED */

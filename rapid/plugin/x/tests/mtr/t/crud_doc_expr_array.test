@@ -31,8 +31,10 @@
 -->sql
 DROP SCHEMA IF EXISTS xtest;
 CREATE SCHEMA xtest;
-CREATE TABLE xtest.xcoll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY);
 -->endsql
+
+-->stmtadmin create_collection	{"schema":"xtest", "name":"xcoll"}
+-->recvresult
 
 -->echo Inserting array into collection
 Mysqlx.Crud.Insert {
@@ -78,7 +80,7 @@ Mysqlx.Crud.Insert {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -131,7 +133,7 @@ Mysqlx.Crud.Insert {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -162,7 +164,7 @@ Mysqlx.Crud.Find {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->echo Selecting array from collection
@@ -187,7 +189,7 @@ Mysqlx.Crud.Find {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->echo Selecting a value not available from collection to get null values
@@ -212,7 +214,7 @@ Mysqlx.Crud.Find {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->echo Selecting array from collection with alias
@@ -233,7 +235,7 @@ Mysqlx.Crud.Find {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->echo Selecting array from collection with alias
@@ -252,7 +254,7 @@ Mysqlx.Crud.Find {
       }
    }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->echo Selecting a value not available from collection to get null values with alias
@@ -271,7 +273,7 @@ Mysqlx.Crud.Find {
       }
    }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 -->sql
 use xtest;
@@ -311,7 +313,7 @@ Mysqlx.Crud.Find {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->echo Selecting array with sub-array including null values from collection with alias
@@ -377,7 +379,7 @@ Mysqlx.Crud.Find {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->echo Updating collection by array
@@ -401,7 +403,7 @@ Mysqlx.Crud.Update {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -429,7 +431,7 @@ Mysqlx.Crud.Update {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -457,7 +459,7 @@ Mysqlx.Crud.Update {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -483,7 +485,7 @@ Mysqlx.Crud.Update {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -529,7 +531,7 @@ Mysqlx.Crud.Update {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql

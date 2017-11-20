@@ -17,7 +17,7 @@
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
-%global milestone    dmr
+%global milestone    rc
 
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
@@ -30,19 +30,19 @@
 %{!?feature_set:                 %global feature_set community}
 %{!?compilation_comment_release: %global compilation_comment_release MySQL Community Server - (GPL)}
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
-%{!?src_base:                    %global src_base mysql}
+%{!?src_base:                    %global src_base mysql%{?cluster:-cluster-gpl}}
 
 %global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
 
 %if 0%{?commercial}
-%global license_files_server  %{src_dir}/LICENSE.mysql
+%global license_files_server  %{src_dir}/LICENSE.mysql %{src_dir}/README
 %global license_type          Commercial
 %else
 %global license_files_server  %{src_dir}/COPYING %{src_dir}/README
 %global license_type          GPLv2
 %endif
 
-Name:           mysql-%{product_suffix}-minimal
+Name:           mysql%{?cluster:-cluster}-%{product_suffix}-minimal
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
@@ -88,7 +88,7 @@ The MySQL web site (http://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
 documentation and the manual for more information.
 
-%package -n     mysql-%{product_suffix}-server-minimal
+%package -n     mysql%{?cluster:-cluster}-%{product_suffix}-server-minimal
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       shadow-utils
@@ -97,7 +97,7 @@ Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-compat-server = %{version}-%{release}
 Provides:       mysql-compat-server%{?_isa} = %{version}-%{release}
 
-%description -n mysql-%{product_suffix}-server-minimal
+%description -n mysql%{?cluster:-cluster}-%{product_suffix}-server-minimal
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
@@ -183,36 +183,51 @@ rm -rf %{buildroot}%{_libdir}/mysql/libmysql*
 
 # Removing some tools
 for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack \
-         mysqlbinlog mysqlcheck mysql_client_test mysql_config_editor \
-         mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
+         my_safe_process mysqlbinlog mysqlcheck mysql_client_test \
+         mysql_config_editor mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
          mysql_secure_installation mysqlshow mysqlslap mysqltest mysqlxtest \
          perror resolveip  resolve_stack_dump lz4_decompress \
          zlib_decompress; do
     rm -f %{buildroot}%{_bindir}/$f
 done
 
+%if 0%{?cluster}
+for f in mcc_config.py ndb_blob_tool ndb_config ndb_delete_all ndb_desc ndb_drop_index \
+         ndb_drop_table ndb_error_reporter ndb_import ndb_index_stat ndb_move_data \
+         ndb_perror ndb_print_backup_file ndb_print_file ndb_print_frag_file \
+         ndb_print_schema_file ndb_print_sys_file ndb_redo_log_reader ndb_restore ndb_select_all \
+         ndb_select_count ndb_setup.py ndb_show_tables ndb_size.pl ndbinfo_select_all ndb_waiter ; do
+    rm -f %{buildroot}%{_bindir}/$f
+done
+%endif
+
 #  Remove test plugins
 for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
-	authentication_ldap_simple.so daemon_example.ini libdaemon_example.so \
-	qa_auth_client.so component_example_component1.so component_example_component2.so \
-	component_example_component3.so component_log_sink_test.so \
-	component_test_string_service_charset.so component_test_string_service_long.so \
-	component_test_string_service.so qa_auth_interface.so \
-    component_pfs_example_component_population.so pfs_example_plugin_employee.so \
-	qa_auth_server.so replication_observers_example_plugin.so ha_example.so \
-	test_udf_services.so test_security_context.so test_services_plugin_registry.so \
-	  component_test_pfs_notification.so \
-	  component_test_pfs_resource_group.so \
-    component_test_udf_registration.so \
-    component_udf_reg_3_func.so \
-    component_udf_reg_int_same_func.so \
-    component_udf_reg_avg_func.so \
-    component_udf_reg_only_3_func.so \
-    component_udf_reg_int_func.so \
-    component_udf_reg_real_func.so \
-    component_udf_unreg_3_func.so \
-    component_udf_unreg_int_func.so \
-    component_udf_unreg_real_func.so ; do
+         authentication_ldap_simple.so component_example_component1.so \
+         component_example_component2.so component_example_component3.so \
+         component_log_sink_test.so component_pfs_example.so \
+         component_pfs_example_component_population.so \
+         component_test_pfs_notification.so component_test_pfs_resource_group.so \
+         component_test_string_service_charset.so component_test_string_service.so \
+         component_test_string_service_long.so component_udf_reg_3_func.so \
+         component_udf_reg_int_same_func.so component_udf_reg_avg_func.so \
+         component_udf_reg_only_3_func.so component_udf_reg_int_func.so \
+         component_udf_reg_real_func.so component_test_udf_registration.so \
+         component_udf_unreg_3_func.so component_udf_unreg_int_func.so \
+         component_udf_unreg_real_func.so component_test_component_sys_var_service.so \
+         component_test_sys_var_service_int.so component_test_sys_var_service.so \
+         component_test_sys_var_service_same.so component_test_sys_var_service_str.so \
+         component_test_status_var_service.so\
+         component_test_status_var_service_int.so\
+         component_test_status_var_service_reg_only.so\
+         component_test_status_var_service_str.so\
+         component_test_status_var_service_unreg_only.so\
+         component_test_system_variable_source.so\
+         daemon_example.ini ha_example.so libdaemon_example.so \
+         pfs_example_plugin_employee.so qa_auth_client.so qa_auth_interface.so \
+         qa_auth_server.so replication_observers_example_plugin.so \
+         test_security_context.so test_services_plugin_registry.so \
+         test_udf_services.so component_test_backup_lock_service.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
 
@@ -221,6 +236,15 @@ rm -f %{buildroot}%{_libdir}/pkgconfig/mysqlclient.pc
 
 # No need for these scripts
 rm -f %{buildroot}%{_datadir}/mysql/{mysql.server,mysqld_multi.server,mysql-log-rotate}
+
+# Extra files/dirs removed from Cluster build
+%if 0%{?cluster}
+rm -rf %{buildroot}/usr/share/mysql/mcc
+rm -f %{buildroot}/lib/memcached_path.pl
+rm -f %{buildroot}/%{_libdir}/mysql/libndbclient*
+rm -rf %{buildroot}%{_datadir}/mysql/nodejs/
+rm -rf %{buildroot}%{_datadir}/mysql/java/
+%endif
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
@@ -244,23 +268,37 @@ pushd mysql-test
 rm -r $(readlink var) var
 %endif
 
-%pre -n mysql-%{product_suffix}-server-minimal
+%pre -n mysql%{?cluster:-cluster}-%{product_suffix}-server-minimal
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -M -N -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "MySQL Server" -u 27 mysql >/dev/null 2>&1 || :
 
-%post -n mysql-%{product_suffix}-server-minimal
+%post -n mysql%{?cluster:-cluster}-%{product_suffix}-server-minimal
 /bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 /bin/chmod 0640 /var/log/mysqld.log >/dev/null 2>&1 || :
 /bin/chown mysql:mysql /var/log/mysqld.log >/dev/null 2>&1 || :
 
-%files -n mysql-%{product_suffix}-server-minimal
+%files -n mysql%{?cluster:-cluster}-%{product_suffix}-server-minimal
 %defattr(-, root, root, -)
 %doc %{?license_files_server} %{src_dir}/Docs/ChangeLog
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
+
+%if 0%{?cluster}
+%attr(755, root, root) %{_bindir}/ndb_mgm
+%attr(755, root, root) %{_bindir}/ndb_top
+%attr(755, root, root) %{_sbindir}/ndb_mgmd
+%attr(755, root, root) %{_sbindir}/ndbd
+%attr(755, root, root) %{_sbindir}/ndbmtd
+%attr(755, root, root) %{_bindir}/memclient
+%attr(755, root, root) %{_sbindir}/memcached
+%attr(755, root, root) %{_libdir}/mysql/ndb_engine.so
+%attr(644, root, root) %{_datadir}/mysql/ndb_dist_priv.sql
+%{_datadir}/mysql/memcache-api/
+%endif
+
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysqladmin
@@ -340,6 +378,7 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql/audit_log_filter_linux_install.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_clone.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
@@ -352,8 +391,14 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Wed Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
+- Updated for 8.0.3 release
+- Add component_test_status_var_service plugin
+
 * Thu May 11 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.2-0.1
 - Add UDF components
+- Add component_test_component_sys_var_service plugin
+- Add component_test_sys_var_service plugins
 
 * Tue Sep 13 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.1-0.1
 - Add test_services_plugin_registry.so plugin

@@ -20,6 +20,10 @@
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
+
+#include "my_loglevel.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/udf_registration_types.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -27,6 +31,7 @@
 #include <list>
 
 #include "control_events.h"
+#include "m_ctype.h"
 #include "m_string.h"                  // my_strtoll
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -37,18 +42,18 @@
 #include "mysql/service_my_snprintf.h" // my_snprintf
 #include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"
-#include "rpl_gtid.h"
-#include "sql_const.h"
-#include "thr_malloc.h"
+#include "sql/rpl_gtid.h"
+#include "sql/sql_const.h"
+#include "sql/thr_malloc.h"
 
 #ifdef MYSQL_SERVER
-#include "log.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysqld_error.h"              // ER_*
+#include "sql/log.h"
 #endif
 
 #ifndef MYSQL_SERVER
-#include "mysqlbinlog.h"
+#include "client/mysqlbinlog.h"
 #endif
 
 extern "C" {
@@ -61,6 +66,8 @@ using std::max;
 using std::list;
 
 #define MAX_NEW_CHUNK_ALLOCATE_TRIES 10
+
+PSI_mutex_key Gtid_set::key_gtid_executed_free_intervals_mutex;
 
 const Gtid_set::String_format Gtid_set::default_string_format=
 {

@@ -26,6 +26,15 @@
 #include "derror.h"
 
 #define NEW_PTN new (thd->mem_root)
+
+static bool parse_int(longlong *to, const char *from, size_t from_length)
+{
+  int error;
+  char *end= const_cast<char *>(from + from_length);
+  *to= my_strtoll10(from, &end, &error);
+  return error != 0 || end != from + from_length;
+}
+
 %}
 
 %pure-parser
@@ -43,6 +52,7 @@
 /* Hint keyword tokens */
 
 %token MAX_EXECUTION_TIME_HINT
+%token RESOURCE_GROUP_HINT
 
 %token BKA_HINT
 %token BNL_HINT
@@ -69,12 +79,15 @@
 %token JOIN_FIXED_ORDER_HINT
 %token INDEX_MERGE_HINT
 %token NO_INDEX_MERGE_HINT
+%token SET_VAR_HINT
 
 /* Other tokens */
 
 %token HINT_ARG_NUMBER
 %token HINT_ARG_IDENT
 %token HINT_ARG_QB_NAME
+%token HINT_ARG_TEXT
+%token HINT_IDENT_OR_NUMBER_WITH_SCALE
 
 %token HINT_CLOSE
 %token HINT_ERROR
@@ -93,6 +106,8 @@
   table_level_hint
   qb_level_hint
   qb_name_hint
+  set_var_hint
+  resource_group_hint
 
 %type <hint_list> hint_list
 
@@ -115,11 +130,22 @@
   HINT_ARG_IDENT
   HINT_ARG_NUMBER
   HINT_ARG_QB_NAME
+  HINT_ARG_TEXT
+  HINT_IDENT_OR_NUMBER_WITH_SCALE
+  MAX_EXECUTION_TIME_HINT
   opt_qb_name
+  set_var_ident
+  set_var_text_value
+
+%type <item>
+  set_var_num_item
+  set_var_string_item
+  set_var_arg
 
 %type <ulong_num>
   semijoin_strategy semijoin_strategies
   subquery_strategy
+
 %%
 
 
@@ -152,16 +178,16 @@ hint:
         | qb_level_hint
         | qb_name_hint
         | max_execution_time_hint
+        | set_var_hint
+        | resource_group_hint
         ;
 
 
 max_execution_time_hint:
           MAX_EXECUTION_TIME_HINT '(' HINT_ARG_NUMBER ')'
           {
-            int error;
-            char *end= const_cast<char *>($3.str + $3.length);
-            longlong n= my_strtoll10($3.str, &end, &error);
-            if (error != 0 || end != $3.str + $3.length || n > UINT_MAX32)
+            longlong n;
+            if (parse_int(&n, $3.str, $3.length) || n > UINT_MAX32)
             {
               scanner->syntax_warning(ER_THD(thd,
                                              ER_WARN_BAD_MAX_EXECUTION_TIME));
@@ -483,3 +509,94 @@ qb_name_hint:
               YYABORT; // OOM
           }
         ;
+
+set_var_hint:
+          SET_VAR_HINT '(' set_var_ident '=' set_var_arg ')'
+          {
+            $$= NEW_PTN PT_hint_sys_var($3, $5);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+        ;
+
+resource_group_hint:
+         RESOURCE_GROUP_HINT '(' HINT_ARG_IDENT ')'
+         {
+           $$= NEW_PTN PT_hint_resource_group($3);
+           if ($$ == nullptr)
+              YYABORT; // OOM
+         }
+       ;
+
+set_var_ident:
+          HINT_ARG_IDENT
+        | MAX_EXECUTION_TIME_HINT
+        ;
+
+set_var_num_item:
+          HINT_ARG_NUMBER
+          {
+            longlong n;
+            if (parse_int(&n, $1.str, $1.length))
+            {
+              scanner->syntax_warning(ER_THD(thd, ER_WRONG_SIZE_NUMBER));
+              $$= NULL;
+            }
+            else
+            {
+              $$= NEW_PTN Item_int((ulonglong)n);
+              if ($$ == NULL)
+                YYABORT; // OOM
+            }
+          }
+        | HINT_IDENT_OR_NUMBER_WITH_SCALE
+          {
+            longlong n;
+            if (parse_int(&n, $1.str, $1.length - 1))
+            {
+              scanner->syntax_warning(ER_THD(thd, ER_WRONG_SIZE_NUMBER));
+              $$= NULL;
+            }
+            else
+            {
+              int multiplier;
+              switch ($1.str[$1.length - 1]) {
+              case 'K': multiplier= 1024; break;
+              case 'M': multiplier= 1024 * 1024; break;
+              case 'G': multiplier= 1024 * 1024 * 1024; break;
+              default:
+                DBUG_ASSERT(0); // should not happen
+                YYABORT;        // for sure
+              }
+              if (1.0L * n * multiplier > LLONG_MAX)
+              {
+                scanner->syntax_warning(ER_THD(thd, ER_WRONG_SIZE_NUMBER));
+                $$= NULL;
+              }
+              else
+              {
+                $$= NEW_PTN Item_int((ulonglong)n * multiplier);
+                if ($$ == NULL)
+                  YYABORT; // OOM
+              }
+            }
+          }
+        ;
+
+set_var_text_value:
+        HINT_ARG_IDENT
+        | HINT_ARG_TEXT
+        ;
+
+set_var_string_item:
+        set_var_text_value
+        {
+          $$= NEW_PTN Item_string($1.str, $1.length, thd->charset());
+          if ($$ == NULL)
+            YYABORT; // OOM
+        }
+
+set_var_arg:
+    set_var_string_item
+    | set_var_num_item
+    ;

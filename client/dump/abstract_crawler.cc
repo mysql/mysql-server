@@ -15,15 +15,15 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <stddef.h>
+#include "client/dump/abstract_crawler.h"
 
+#include <stddef.h>
 #include <atomic>
 #include <chrono>
 #include <functional>
 #include <thread>
 
-#include "abstract_crawler.h"
-#include "dump_end_dump_task.h"
+#include "client/dump/dump_end_dump_task.h"
 
 using namespace Mysql::Tools::Dump;
 

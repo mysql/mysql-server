@@ -698,17 +698,17 @@ public:
 
 
   <tr>
-    <td>var_header_len</td>
+    <td>width</td>
     <td>packed integer</td>
     <td>Represents the number of columns in the table</td>
   </tr>
 
   <tr>
-    <td>width</td>
+    <td>cols</td>
     <td>Bitfield, variable sized</td>
     <td>Indicates whether each column is used, one bit per column.
-        For this field, the amount of storage required for N columns
-        is INT((N + 7) / 8) bytes. </td>
+        For this field, the amount of storage required is
+        INT((width + 7) / 8) bytes. </td>
   </tr>
 
   <tr>
@@ -720,7 +720,8 @@ public:
   <tr>
     <td>columns_before_image</td>
     <td>vector of elements of type uint8_t</td>
-    <td>Bit-field indicating whether each column is used
+    <td>For DELETE and UPDATE only.
+        Bit-field indicating whether each column is used
         one bit per column. For this field, the amount of storage
         required for N columns is INT((N + 7) / 8) bytes.</td>
   </tr>
@@ -728,7 +729,7 @@ public:
   <tr>
     <td>columns_after_image</td>
     <td>vector of elements of type uint8_t</td>
-    <td>variable-sized (for UPDATE_ROWS_EVENT only).
+    <td>For WRITE and UPDATE only.
         Bit-field indicating whether each column is used in the
         UPDATE_ROWS_EVENT and WRITE_ROWS_EVENT after-image; one bit per column.
         For this field, the amount of storage required for N columns
@@ -806,7 +807,8 @@ public:
 
     @param type_arg          Type of ROW_EVENT. Expected types are:
                              - WRITE_ROWS_EVENT, WRITE_ROWS_EVENT_V1
-                             - UPDATE_ROWS_EVENT, UPDATE_ROWS_EVENT_V1
+                             - UPDATE_ROWS_EVENT, UPDATE_ROWS_EVENT_V1,
+                               PARTIAL_UPDATE_ROWS_EVENT
                              - DELETE_ROWS_EVENT, DELETE_ROWS_EVENT_V1
   */
   explicit Rows_event(Log_event_type type_arg)
@@ -963,8 +965,8 @@ public:
     this->header()->type_code= m_type;
   }
 
-  Update_rows_event()
-    : Rows_event(UPDATE_ROWS_EVENT)
+  Update_rows_event(Log_event_type event_type)
+    : Rows_event(event_type)
   {}
 };
 

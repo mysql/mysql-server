@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gtest/gtest.h>
-
-#include "gcs_xcom_interface.h"
-#include "synode_no.h"
-
 #include <vector>
 #include <string>
+
+#include "gcs_base_test.h"
+
+#include "synode_no.h"
+
 
 using std::vector;
 
@@ -30,19 +30,8 @@ extern void do_cb_xcom_receive_data(synode_no message_id,
 namespace gcs_interface_unittest
 {
 
-class GcsInterfaceTest : public ::testing::Test
+class GcsInterfaceTest : public GcsBaseTest
 {
-protected:
-  GcsInterfaceTest() {};
-
-
-  virtual void SetUp()
-  { }
-
-
-  virtual void TearDown()
-  { }
-
 };
 
 

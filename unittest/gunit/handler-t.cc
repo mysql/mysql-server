@@ -20,7 +20,7 @@
 
 #include "fake_table.h"
 #include "mock_field_datetime.h"
-#include "sql_executor.h"
+#include "sql/sql_executor.h"
 #include "test_utils.h"
 
 /*

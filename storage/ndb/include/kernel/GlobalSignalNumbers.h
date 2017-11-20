@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 783;
+const GlobalSignalNumber MAX_GSN = 824;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -1110,5 +1110,64 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_LOCAL_RECOVERY_COMP_REP     782
 
 #define GSN_PROCESSINFO_REP             783
+#define GSN_SYNC_PAGE_CACHE_REQ         784
+#define GSN_SYNC_PAGE_CACHE_CONF        785
 
+#define GSN_SYNC_EXTENT_PAGES_REQ       786
+#define GSN_SYNC_EXTENT_PAGES_CONF      787
+
+#define GSN_RESTORABLE_GCI_REP          788
+
+#define GSN_LCP_START_REP               789 /* No longer used */
+
+#define GSN_WAIT_ALL_COMPLETE_LCP_REQ   790
+#define GSN_WAIT_ALL_COMPLETE_LCP_CONF  791
+
+#define GSN_WAIT_COMPLETE_LCP_REQ       792
+#define GSN_WAIT_COMPLETE_LCP_CONF      793
+
+#define GSN_INFORM_BACKUP_DROP_TAB_REQ  794
+#define GSN_INFORM_BACKUP_DROP_TAB_CONF 795
+
+#define GSN_HALT_COPY_FRAG_REQ          796
+#define GSN_HALT_COPY_FRAG_CONF         797
+#define GSN_HALT_COPY_FRAG_REF          798
+
+#define GSN_RESUME_COPY_FRAG_REQ        799
+#define GSN_RESUME_COPY_FRAG_CONF       800
+#define GSN_RESUME_COPY_FRAG_REF        801
+
+#define GSN_READ_LOCAL_SYSFILE_REQ      802
+#define GSN_READ_LOCAL_SYSFILE_CONF     803
+#define GSN_WRITE_LOCAL_SYSFILE_REQ     804
+#define GSN_WRITE_LOCAL_SYSFILE_CONF    805
+
+#define GSN_CUT_UNDO_LOG_TAIL_REQ       806
+#define GSN_CUT_UNDO_LOG_TAIL_CONF      807
+
+#define GSN_CUT_REDO_LOG_TAIL_REQ       808
+#define GSN_CUT_REDO_LOG_TAIL_CONF      809
+
+#define GSN_LCP_ALL_COMPLETE_REQ        810
+#define GSN_LCP_ALL_COMPLETE_CONF       811
+
+#define GSN_START_DISTRIBUTED_LCP_ORD   812
+#define GSN_START_FULL_LOCAL_LCP_ORD    813
+#define GSN_COPY_FRAG_IN_PROGRESS_REP   814
+#define GSN_COPY_FRAG_NOT_IN_PROGRESS_REP 815
+
+#define GSN_SET_LOCAL_LCP_ID_REQ        816
+#define GSN_SET_LOCAL_LCP_ID_CONF       817
+
+#define GSN_START_NODE_LCP_REQ          818
+#define GSN_START_NODE_LCP_CONF         819
+
+#define GSN_GET_LATEST_GCI_REQ          820
+
+#define GSN_UNDO_LOG_LEVEL_REP          821
+#define GSN_START_LOCAL_LCP_ORD         822
+
+#define GSN_INFO_GCP_STOP_TIMER         823
+
+#define GSN_CHECK_LCP_IDLE_ORD          824
 #endif

@@ -424,7 +424,7 @@ page_cur_search_with_match(
 	ulint		up_matched_fields;
 	ulint		low_matched_fields;
 	ulint		cur_matched_fields;
-	int		cmp;
+	int		cmp = 0;
 #ifdef UNIV_ZIP_DEBUG
 	const page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
 #endif /* UNIV_ZIP_DEBUG */

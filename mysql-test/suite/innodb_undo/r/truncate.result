@@ -1,11 +1,11 @@
-# restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=3
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
-Variable_name	Value
-innodb_undo_tablespaces	0
 SET GLOBAL innodb_undo_tablespaces=2;
+SET GLOBAL innodb_rollback_segments=3;
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 Variable_name	Value
 innodb_undo_tablespaces	2
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	3
 create table t1
 (keyc int, c1 char(100), c2 char(100),
 primary key(keyc)) engine = innodb;

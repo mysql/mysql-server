@@ -343,7 +343,7 @@ PRIMARY KEY (pk),
 KEY int_key (int_key)
 );
 INSERT INTO t2 VALUES (1,1),(2,6),(3,0);
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT MIN(t1.pk)
 FROM t1 WHERE EXISTS (
 SELECT t2.pk
@@ -355,7 +355,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	t2	NULL	ref	int_key	int_key	5	const	1	100.00	Using index condition
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `MIN(t1.pk)` from `test`.`t1` where 0
 DROP TABLE t1, t2;
 #

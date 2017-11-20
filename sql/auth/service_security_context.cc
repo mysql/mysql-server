@@ -18,18 +18,18 @@
 
 #include <string.h>
 
-#include "auth_acls.h"
-#include "auth_common.h"
-#include "current_thd.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_locking.h"
 #include "mysql/service_security_context.h"
-#include "sql_class.h"
-#include "sql_plugin.h"
-#include "sql_security_ctx.h"
-#include "sql_thd_internal_api.h"  // create_thd
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/key.h"
+#include "sql/protocol_classic.h"
+#include "sql/sql_class.h"
+#include "sql/sql_thd_internal_api.h" // create_thd
 
 #define MY_SVC_TRUE  1
 #define MY_SVC_FALSE 0

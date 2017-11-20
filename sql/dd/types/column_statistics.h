@@ -16,8 +16,8 @@
 #ifndef DD__COLUMN_STATISTIC_INCLUDED
 #define DD__COLUMN_STATISTIC_INCLUDED
 
-#include "dd/sdi_fwd.h"                   // RJ_Document
 #include "my_alloc.h"                     // MEM_ROOT
+#include "sql/dd/sdi_fwd.h"               // RJ_Document
 
 class THD;
 

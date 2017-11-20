@@ -110,6 +110,7 @@ SET c11= 102,
 REPLACE INTO t1
 SELECT 102, REPEAT('ab', @max_allowed_packet);
 
+set names latin1;
 --error ER_WARN_ALLOWED_PACKET_OVERFLOWED
 DELETE FROM t1
 WHERE c12 <=> REPEAT('ab', @max_allowed_packet);
@@ -119,6 +120,7 @@ DELETE FROM t1, t2
 USING t1 INNER JOIN t2
 WHERE t1.c11 = t2.c21 AND
       t2.c22 <=> REPEAT('ab', @max_allowed_packet);
+set names utf8mb4;
 
 DELETE IGNORE FROM t1, t2
 USING t1 INNER JOIN t2

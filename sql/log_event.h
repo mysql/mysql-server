@@ -28,10 +28,10 @@
 #ifndef _log_event_h
 #define _log_event_h
 
-#include <errno.h>
 #include <atomic>
 #include <list>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -48,24 +48,30 @@
 #include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/psi/psi_stage.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"               // SERVER_VERSION_LENGTH
-#include "query_options.h"           // OPTION_AUTO_IS_NULL
 #include "rows_event.h"
-#include "rpl_gtid.h"                // enum_group_type
-#include "rpl_utility.h"             // Hash_slave_rows
-#include "sql_const.h"
+#include "sql/item_create.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"       // OPTION_AUTO_IS_NULL
+#include "sql/rpl_gtid.h"            // enum_group_type
+#include "sql/rpl_utility.h"         // Hash_slave_rows
+#include "sql/session_tracker.h"
+#include "sql/sql_const.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "statement_events.h"
-#include "thr_malloc.h"
 #include "typelib.h"                 // TYPELIB
 
 class THD;
 class Table_id;
+enum class enum_row_image_type;
 
 #ifdef MYSQL_SERVER
-#include "field.h"
-#include "key.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_psi_config.h"
@@ -73,18 +79,20 @@ class Table_id;
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/service_my_snprintf.h"
-#include "rpl_filter.h"              // rpl_filter
-#include "rpl_record.h"              // unpack_row
-#include "sql_class.h"               // THD
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
-#include "sql_profile.h"
-#include "table.h"
-#include "xa.h"
+#include "sql/field.h"
+#include "sql/key.h"
+#include "sql/rpl_filter.h"          // rpl_filter
+#include "sql/rpl_record.h"          // unpack_row
+#include "sql/sql_class.h"           // THD
+#include "sql/sql_plugin.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_profile.h"
+#include "sql/table.h"
+#include "sql/xa.h"
 #endif
 
 #ifndef MYSQL_SERVER
-#include "rpl_tblmap.h"              // table_mapping
+#include "sql/rpl_tblmap.h"          // table_mapping
 #endif
 
 #include <limits.h>
@@ -2818,7 +2826,8 @@ public:
   size_t print_verbose_one_row(IO_CACHE *file, table_def *td,
                                PRINT_EVENT_INFO *print_event_info,
                                MY_BITMAP *cols_bitmap,
-                               const uchar *ptr, const uchar *prefix);
+                               const uchar *ptr, const uchar *prefix,
+                               enum_row_image_type row_image_type);
 #endif
 
 #ifdef MYSQL_SERVER
@@ -2837,51 +2846,19 @@ public:
   const Table_id& get_table_id() const        { return m_table_id; }
 
 #if defined(MYSQL_SERVER)
-  /*
-    This member function compares the table's read/write_set
-    with this event's m_cols and m_cols_ai. Comparison takes
-    into account what type of rows event is this: Delete, Write or
-    Update, therefore it uses the correct m_cols[_ai] according
-    to the event type code.
+  /**
+    Compares the table's read/write_set with the columns included in
+    this event's before-image and/or after-image. Each subclass
+    (Write/Update/Delete) implements this function by comparing on the
+    image(s) pertinent to the subclass.
 
-    Note that this member function should only be called for the
-    following events:
-    - Delete_rows_log_event
-    - Write_rows_log_event
-    - Update_rows_log_event
-
-    @param[IN] table The table to compare this events bitmaps
+    @param[in] table The table to compare this events bitmaps
                      against.
 
-    @return TRUE if sets match, FALSE otherwise. (following
-                 bitmap_cmp return logic).
-
-   */
-  virtual bool read_write_bitmaps_cmp(TABLE *table)
-  {
-    bool res= FALSE;
-
-    switch (get_general_type_code())
-    {
-      case binary_log::DELETE_ROWS_EVENT:
-        res= bitmap_cmp(get_cols(), table->read_set);
-        break;
-      case binary_log::UPDATE_ROWS_EVENT:
-        res= (bitmap_cmp(get_cols(), table->read_set) &&
-              bitmap_cmp(get_cols_ai(), table->write_set));
-        break;
-      case binary_log::WRITE_ROWS_EVENT:
-        res= bitmap_cmp(get_cols(), table->write_set);
-        break;
-      default:
-        /*
-          We should just compare bitmaps for Delete, Write
-          or Update rows events.
-        */
-        DBUG_ASSERT(0);
-    }
-    return res;
-  }
+    @retval true if sets match
+    @retval false otherwise (following bitmap_cmp return logic).
+  */
+  virtual bool read_write_bitmaps_cmp(const TABLE *table) const= 0;
 #endif
 
 #ifdef MYSQL_SERVER
@@ -2909,7 +2886,7 @@ protected:
 		 const Format_description_event *description_event);
 
 #ifndef MYSQL_SERVER
-  void print_helper(FILE *, PRINT_EVENT_INFO *, char const *const name);
+  void print_helper(FILE *, PRINT_EVENT_INFO *);
 #endif
 
 #ifdef MYSQL_SERVER
@@ -2941,8 +2918,6 @@ protected:
     master.
   */
   MY_BITMAP   m_cols_ai;
-
-  ulong       m_master_reclength; /* Length of record on master side */
 
   /* Bit buffers in the same memory as the class */
   uint32    m_bitbuf[128/(sizeof(uint32)*8)];
@@ -2997,16 +2972,30 @@ private:
   */
   uchar *m_distinct_key_spare_buf;
 
-  // Unpack the current row into m_table->record[0]
-  int unpack_current_row(const Relay_log_info *const rli,
-                         MY_BITMAP const *cols)
-  {
-    DBUG_ASSERT(m_table);
+  /**
+    Unpack the current row image from the event into m_table->record[0].
 
-    ASSERT_OR_RETURN_ERROR(m_curr_row <= m_rows_end, HA_ERR_CORRUPT_EVENT);
-    return ::unpack_row(rli, m_table, m_width, m_curr_row, cols,
-                                   &m_curr_row_end, &m_master_reclength, m_rows_end);
-  }
+    @param rli The applier context.
+
+    @param cols The bitmap of columns included in the update.
+
+    @param is_after_image Should be true if this is an after-image,
+    false if it is a before-image.
+
+    @param only_seek @see unpack_row()
+
+    @retval 0 Success
+
+    @retval ER_* On error, it is guaranteed that the error has been
+    reported through my_error, and the corresponding ER_* code is
+    returned.  Currently the error codes are: EE_OUTOFMEMORY,
+    ER_SLAVE_CORRUPT_EVENT, or various JSON errors when applying JSON
+    diffs (ER_COULD_NOT_APPLY_JSON_DIFF, ER_INVALID_JSON_BINARY_DATA,
+    and maybe others).
+  */
+  int unpack_current_row(const Relay_log_info *const rli,
+                         MY_BITMAP const *cols, bool is_after_image,
+                         bool only_seek=false);
 
   /*
     This member function is called when deciding the algorithm to be used to
@@ -3158,6 +3147,28 @@ private:
   int do_table_scan_and_update(Relay_log_info const *rli);
 
   /**
+    Seek past the after-image of an update event, in case a row was processed without reading the after-image.
+
+    An update event may process a row without reading the after-image,
+    e.g. in case of ignored or idempotent errors.  To ensure that the
+    read position for the next row is correct, we need to seek past
+    the after-image.
+
+    @param rli The applier context
+
+    @param curr_bi_start The read position of the beginning of the
+    before-image. (The function compares this with m_curr_row to know
+    if the after-image has been read or not.)
+
+    @retval 0 Success
+    @retval ER_* Error code returned by unpack_current_row
+  */
+  virtual int skip_after_image_for_update_event(
+    const Relay_log_info *rli MY_ATTRIBUTE((unused)),
+    const uchar *curr_bi_start MY_ATTRIBUTE((unused)))
+  { return 0; }
+
+  /**
     Initializes scanning of rows. Opens an index and initailizes an iterator
     over a list of distinct keys (m_distinct_keys) if it is a HASH_SCAN
     over an index or the table if its a HASH_SCAN over the table.
@@ -3283,6 +3294,10 @@ public:
     return thd->binlog_write_row(table, is_transactional,
                                  after_record, NULL);
   }
+  bool read_write_bitmaps_cmp(const TABLE *table) const override
+  {
+    return bitmap_cmp(get_cols(), table->write_set);
+  }
 #endif
 
 protected:
@@ -3384,6 +3399,11 @@ public:
     return thd->binlog_update_row(table, is_transactional,
                                   before_record, after_record, NULL);
   }
+  bool read_write_bitmaps_cmp(const TABLE *table) const override
+  {
+    return (bitmap_cmp(get_cols(), table->read_set) &&
+            bitmap_cmp(get_cols_ai(), table->write_set));
+  }
 #endif
 
 protected:
@@ -3400,6 +3420,23 @@ protected:
   virtual int do_before_row_operations(const Slave_reporting_capability *const);
   virtual int do_after_row_operations(const Slave_reporting_capability *const,int);
   virtual int do_exec_row(const Relay_log_info *const);
+
+  virtual int skip_after_image_for_update_event(const Relay_log_info *rli,
+                                                const uchar *curr_bi_start)
+    override;
+
+private:
+  /**
+    Auxiliary function used in the (THD*, ...) constructor to
+    determine the type code based on configuration options.
+
+    @param thd_arg The THD object for the session.
+
+    @return One of UPDATE_ROWS_EVENT_V1, PARTIAL_UPDATE_ROWS_EVENT, or
+    UPDATE_ROWS_EVENT.
+  */
+  static binary_log::Log_event_type get_update_rows_event_type(
+    const THD *thd_arg);
 #endif /* defined(MYSQL_SERVER) */
 };
 
@@ -3475,6 +3512,10 @@ public:
   {
     return thd->binlog_delete_row(table, is_transactional,
                                   before_record, NULL);
+  }
+  bool read_write_bitmaps_cmp(const TABLE *table) const override
+  {
+    return bitmap_cmp(get_cols(), table->read_set);
   }
 #endif
 
@@ -4425,6 +4466,27 @@ size_t my_strmov_quoted_identifier(char *buffer, const char* identifier);
 size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
                                           const char* identifier,
                                           size_t length);
+
+/**
+  Read an integer in net_field_length format, guarding against read out of bounds and advancing the position.
+
+  @param[in,out] packet Pointer to buffer to read from. On successful
+  return, the buffer position will be incremented to point to the next
+  byte after what was read.
+
+  @param[in,out] max_length Pointer to the number of bytes in the
+  buffer. If the function would need to look at more than *max_length
+  bytes in order to decode the number, the function will do nothing
+  and return true.
+
+  @param[out] out Pointer where the value will be stored.
+
+  @retval false Success.
+  @retval true Failure, i.e., reached end of buffer.
+*/
+template<typename T>
+bool net_field_length_checked(const uchar **packet, size_t *max_length,
+                              T *out);
 
 /**
   @} (end of group Replication)

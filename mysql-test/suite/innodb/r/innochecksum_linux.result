@@ -26,9 +26,6 @@ page::#; log sequence number:first = #; second = #
 page::#; old style: calculated = #; recorded = #
 page::#; new style: calculated = #; crc32 = #; recorded = #
 page::#; log sequence number:first = #; second = #
-page::#; old style: calculated = #; recorded = #
-page::#; new style: calculated = #; crc32 = #; recorded = #
-page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
 page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
@@ -43,8 +40,7 @@ page::#; log sequence number:first = #; second = #
 page::#; old style: calculated = #; recorded = #
 page::#; new style: calculated = #; crc32 = #; recorded = #
 page::#; log sequence number:first = #; second = #
-page::#; old style: calculated = #; recorded = #
-page::#; new style: calculated = #; crc32 = #; recorded = #
+Page::# is empty and uncorrupted
 # Test[1] End
 # Test [2] for read from standard input for innochecksum tool with rewrite of crc32 checksum.
 # Backup the t1.ibd before any rewrite of checksum, so used for further testing.
@@ -78,11 +74,6 @@ page::#; new style: calculated = #; crc32 = #; recorded = #
 page::#; Updated checksum field# = #
 page::#; Updated checksum field# = #
 page::#; log sequence number:first = #; second = #
-page::#; old style: calculated = #; recorded = #
-page::#; new style: calculated = #; crc32 = #; recorded = #
-page::#; Updated checksum field# = #
-page::#; Updated checksum field# = #
-page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
 page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
@@ -90,8 +81,6 @@ Page::# is empty and uncorrupted
 InnoDB File Checksum Utility.
 Filename = a.ibd
 Innochecksum: checking pages in range # to #
-page::#; log sequence number:first = #; second = #
-page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# = #
 page::#; log sequence number:first = #; second = #
 page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# = #
 page::#; log sequence number:first = #; second = #
@@ -191,11 +180,6 @@ page::#; new style: calculated = #; crc32 = #; recorded = #
 page::#; Updated checksum field# = #
 page::#; Updated checksum field# = #
 page::#; log sequence number:first = #; second = #
-page::#; old style: calculated = #; recorded = #
-page::#; new style: calculated = #; crc32 = #; recorded = #
-page::#; Updated checksum field# = #
-page::#; Updated checksum field# = #
-page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
 page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
@@ -203,8 +187,6 @@ Page::# is empty and uncorrupted
 InnoDB File Checksum Utility.
 Filename = a.ibd
 Innochecksum: checking pages in range # to #
-page::#; log sequence number:first = #; second = #
-page::#; none checksum: calculated = #; recorded checksum_field# = # recorded checksum_field# = #
 page::#; log sequence number:first = #; second = #
 page::#; none checksum: calculated = #; recorded checksum_field# = # recorded checksum_field# = #
 page::#; log sequence number:first = #; second = #
@@ -259,11 +241,6 @@ page::#; new style: calculated = #; crc32 = #; recorded = #
 page::#; Updated checksum field# = #
 page::#; Updated checksum field# = #
 page::#; log sequence number:first = #; second = #
-page::#; old style: calculated = #; recorded = #
-page::#; new style: calculated = #; crc32 = #; recorded = #
-page::#; Updated checksum field# = #
-page::#; Updated checksum field# = #
-page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
 page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
@@ -271,9 +248,6 @@ Page::# is empty and uncorrupted
 InnoDB File Checksum Utility.
 Filename = a.ibd
 Innochecksum: checking pages in range # to #
-page::#; log sequence number:first = #; second = #
-page::#; old style: calculated = #; recorded checksum = #
-page::#; new style: calculated = #; recorded checksum = #
 page::#; log sequence number:first = #; second = #
 page::#; old style: calculated = #; recorded checksum = #
 page::#; new style: calculated = #; recorded checksum = #
@@ -303,5 +277,7 @@ c1	c2
 # Test[4] End
 # Test[5] for lock.
 # Test Scenario: As mysqld is running, & then start the innochecksum which must fail.
+Pattern "Error: Unable to lock file:: MYSQLD_DATADIR/test/t1.ibd" found
+Pattern "fcntl: Resource temporarily unavailable" found
 # Test[5] end
 DROP TABLE t1;

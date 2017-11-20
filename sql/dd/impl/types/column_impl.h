@@ -20,29 +20,32 @@
 #include <sys/types.h>
 #include <memory>   // std::unique_ptr
 #include <new>
-#include <string>
 
-#include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/properties.h"                    // dd::Properties
-#include "dd/sdi_fwd.h"
-#include "dd/types/column.h"                  // dd::Column
-#include "dd/types/column_type_element.h"     // dd::Column_type_element
-#include "dd/types/object_type.h"             // dd::Object_type
 #include "my_dbug.h"
+#include "nullable.h"
+#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/column.h"              // dd::Column
+#include "sql/dd/types/column_type_element.h" // IWYU pragma: keep
+#include "sql/dd/types/object_type.h"         // dd::Object_type
+#include "sql/gis/srid.h"                     // gis::srid_t
+
+using Mysql::Nullable;
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Abstract_table_impl;
-class Open_dictionary_tables_ctx;
-class Raw_record;
 class Abstract_table;
-class Column_type_element;
+class Abstract_table_impl;
 class Object_table;
+class Open_dictionary_tables_ctx;
 class Properties;
+class Raw_record;
 class Sdi_rcontext;
 class Sdi_wcontext;
 class Weak_object;
@@ -385,6 +388,15 @@ public:
   { return m_column_key; }
 
   /////////////////////////////////////////////////////////////////////////
+  // Spatial reference system ID
+  /////////////////////////////////////////////////////////////////////////
+  virtual void set_srs_id(Nullable<gis::srid_t> srs_id)
+  { m_srs_id= srs_id; }
+
+  virtual Nullable<gis::srid_t> srs_id() const
+  { return m_srs_id; }
+
+  /////////////////////////////////////////////////////////////////////////
   // Elements.
   /////////////////////////////////////////////////////////////////////////
 
@@ -494,6 +506,8 @@ private:
   // instead of utf8_general_ci.
 
   enum_column_key m_column_key;
+
+  Nullable<gis::srid_t> m_srs_id;
 };
 
 ///////////////////////////////////////////////////////////////////////////

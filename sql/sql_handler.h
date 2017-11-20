@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include "my_base.h"                   /* ha_rkey_function, ha_rows */
 #include "my_sqlcommand.h"
-#include "sql_cmd.h"                   // Sql_cmd
+#include "sql/sql_cmd.h"               // Sql_cmd
 
 class Item;
 class THD;
@@ -126,6 +126,7 @@ public:
 
 void mysql_ha_flush(THD *thd);
 void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables);
+void mysql_ha_flush_table(THD *thd, const char *db_name, const char *table_name);
 void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables);
 void mysql_ha_rm_temporary_tables(THD *thd);
 void mysql_ha_cleanup(THD *thd);

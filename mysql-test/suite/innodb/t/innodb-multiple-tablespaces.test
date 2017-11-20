@@ -30,6 +30,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot 
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table `test`\.`.*` because the \.ibd file is missing");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test/.*` because it could not be opened.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Trying to access missing tablespace .*");
 --enable_query_log
 
 --echo #
@@ -388,10 +389,10 @@ let $mysqld=$MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 --exec $mysqld
 
 let SEARCH_PATTERN= InnoDB: Could not find any file associated with the tablespace \d+;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 let SEARCH_PATTERN= InnoDB: Tablespace file '.*.tmp.*alt_dir.test.yw.ibd' ID mismatch, expected \d+ but found \d+;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # restoring yn.ibd, yw.ibd
 --copy_file $MYSQLD_DATADIR/test/yn.ibd $MYSQL_TMP_DIR/alt_dir/test/yn.ibd

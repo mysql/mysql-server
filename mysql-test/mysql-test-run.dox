@@ -1,8 +1,8 @@
-########## The MySQL Test Framework, Version 2.0 ##########
+########## The MySQL Test Framework ##########
 
 
 /**
-  @page PAGE_MYSQL_TEST_RUN The MySQL Test Framework, Version 2.0
+  @page PAGE_MYSQL_TEST_RUN The MySQL Test Framework
 
   This manual describes the MySQL test framework, consisting of the
   test driver and the test script language.
@@ -1910,16 +1910,18 @@
       test runs, using the options for each instance of
       <b>`--combination`</b> in successive runs. The following
       command passes <b>`--big-tables`</b> to <b>mysqld</b> for the
-      first test run, and <b>`--innodb`</b> and
-      <b>`--innodb-file-per-table`</b> for the second test run:
+      first test run, <b>`--innodb`</b> for the second run and
+      <b>`--innodb-file-per-table`</b> for the last run:
 
       @verbatim
   shell> ./mysql-test-run.pl
            --combination=--big-tables
-           --combination=--innodb, --innodb-file-per-table
+           --combination=--innodb
+           --combination=--innodb-file-per-table
       @endverbatim
 
-      If <b>`--combination`</b> is given only once, it has no effect.
+      If <b>`--combination`</b> is given only once, it behaves similar
+      to <b>`--mysqld`</b> option.
 
       For test runs specific to a given test suite, an alternative to
       the use of the <b>`--combination`</b> option is to create a
@@ -3596,7 +3598,7 @@
       <td>
         Path name to login file used by <b>mysql_config_editor</b>.
         If not set, the default is <b>$HOME/.mylogin.cnf</b>, or
-        <b>%APPDATA%\\MySQL\\.mylogin.cnf</b> on Windows.
+        <b>\%APPDATA%\\MySQL\\\.mylogin.cnf</b> on Windows.
       </td>
     </tr>
     <tr>
@@ -3751,10 +3753,9 @@
       <tt>`--check-testcases`</tt>
 
       Check test cases for side effects. This is done by checking the
-      system state before and after each test case; if there is any
-      difference, a warning to that effect is written, but the test
-      case is not marked as failed because of it. This check is
-      enabled by default. To disable it, use the
+      system state before and after each test case. If there is any
+      difference, the test case is marked as failed because of it.
+      This check is enabled by default. To disable it, use the
       <b>`--nocheck-testcases`</b> option.
     </li>
 
@@ -3816,7 +3817,15 @@
       @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" executes
       multiple test runs, using the options for each instance of
       <b>`--combination`</b> in successive runs. If
-      <b>`--combination`</b> is given only once, it has no effect.
+      <b>`--combination`</b> is given only once, it has no effect and
+      behaves similar to <b>`--mysqld`</b> option.
+
+      If a test being run, passes the same <b>`--mysqld`</b> option from an
+      opt file which is also passed from <b>`--combination`</b>, then that
+      <b>`--combination`</b> run is skipped because opt file always takes
+      higher precedence over command line options. The test will just run
+      once using the options provided in the opt file.
+
       For test runs specific to a given test suite, an alternative to
       the use of <b>`--combination`</b> is to create a
       <b>combinations</b> file in the suite directory. The file
@@ -4095,16 +4104,6 @@
     </li>
 
     <li>
-      <tt>`--fail-check-testcases`</tt>
-
-      Enabling this option when a test is run, causes it to fail if
-      MTR's internal check of the test case fails. If this option is
-      disabled, only a warning is generated while the test passes.
-      This option is enabled by default. For additional information,
-      see the description of the <b>`--check-testcases`</b> option.
-    </li>
-
-    <li>
       <tt>`--force`</tt>
 
       Normally, @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" exits
@@ -4246,7 +4245,7 @@
     <li>
       <tt>`--mem`</tt>
 
-      This option is not supported on Windows.
+      This option is not supported on Windows and on MacOS.
 
       Run the test suite in memory, using tmpfs or ramdisk. This can
       decrease test times significantly, in particular if you would

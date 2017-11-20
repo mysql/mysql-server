@@ -89,6 +89,7 @@ select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
+select * from performance_schema.setup_threads;
 select * from performance_schema.setup_timers;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
@@ -155,7 +156,7 @@ Performance_schema_users_lost	0
 select * from performance_schema.setup_consumers;
 NAME	ENABLED
 select * from performance_schema.setup_instruments;
-NAME	ENABLED	TIMED
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 select * from performance_schema.setup_actors;
 HOST	USER	ROLE	ENABLED	HISTORY
 select * from performance_schema.setup_objects;

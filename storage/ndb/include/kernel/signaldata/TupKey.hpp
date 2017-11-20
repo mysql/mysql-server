@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,6 +83,7 @@ private:
   static Uint32 getRowidFlag(Uint32 const& requestInfo);
   static Uint32 getReorgFlag(Uint32 const& requestInfo);
   static Uint32 getPrioAFlag(Uint32 const& requestInfo);
+  static Uint32 getNrCopyFlag(Uint32 const& requestInfo);
   static void setDirtyFlag(Uint32 & requestInfo, Uint32 value);
   static void setSimpleFlag(Uint32 & requestInfo, Uint32 value);
   static void setOperation(Uint32 & requestInfo, Uint32 value);
@@ -90,13 +91,14 @@ private:
   static void setRowidFlag(Uint32 & requestInfo, Uint32 value);
   static void setReorgFlag(Uint32 & requestInfo, Uint32 value);
   static void setPrioAFlag(Uint32 & requestInfo, Uint32 value);
+  static void setNrCopyFlag(Uint32 & requestInfo, Uint32 value);
 
   /*
     Request Info
 
               111111 1111222222222233
     0123456789012345 6789012345678901
-    ds....ooo.izrra. ................
+    ds....ooo.izrrac ................
   */
 
   enum RequestInfo {
@@ -106,7 +108,8 @@ private:
     INTERPRETED_POS = 10, INTERPRETED_MASK = 1,
     ROWID_POS       = 11, ROWID_MASK       = 1,
     REORG_POS       = 12, REORG_MASK       = 3,
-    PRIO_A_POS      = 14, PRIO_A_MASK      = 1
+    PRIO_A_POS      = 14, PRIO_A_MASK      = 1,
+    NR_COPY_POS     = 15, NR_COPY_MASK     = 1
   };
 };
 
@@ -150,6 +153,12 @@ inline Uint32
 TupKeyReq::getPrioAFlag(Uint32 const& requestInfo)
 {
   return (requestInfo >> PRIO_A_POS) & PRIO_A_MASK;
+}
+
+inline Uint32
+TupKeyReq::getNrCopyFlag(Uint32 const& requestInfo)
+{
+  return (requestInfo >> NR_COPY_POS) & NR_COPY_MASK;
 }
 
 inline void
@@ -206,6 +215,14 @@ TupKeyReq::setPrioAFlag(Uint32 & requestInfo, Uint32 value)
   assert(value <= PRIO_A_MASK);
   assert((requestInfo & (PRIO_A_MASK << PRIO_A_POS)) == 0);
   requestInfo |= value << PRIO_A_POS;
+}
+
+inline void
+TupKeyReq::setNrCopyFlag(Uint32 & requestInfo, Uint32 value)
+{
+  assert(value <= NR_COPY_MASK);
+  assert((requestInfo & (NR_COPY_MASK << NR_COPY_POS)) == 0);
+  requestInfo |= value << NR_COPY_POS;
 }
 
 class TupKeyConf {

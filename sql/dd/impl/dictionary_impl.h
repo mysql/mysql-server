@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,18 +18,16 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-#include <memory>
-#include <memory>
 #include <string>
 
-#include "dd/dictionary.h"           // dd::Dictionary
-#include "dd/object_id.h"            // dd::Object_id
-#include "dd/string_type.h"          // dd::String_type
 #include "lex_string.h"
-#include "m_string.h"
-#include "table.h"                   // MYSQL_SCHEMA_NAME
+#include "sql/dd/dictionary.h"       // dd::Dictionary
+#include "sql/dd/object_id.h"        // dd::Object_id
+#include "sql/dd/string_type.h"      // dd::String_type
+#include "sql/table.h"               // MYSQL_SCHEMA_NAME
 
 class THD;
+
 namespace dd {
 class Object_table;
 }  // namespace dd
@@ -51,9 +49,6 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 enum class enum_dd_init_type;
-namespace cache {
-  class Dictionary_client;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 

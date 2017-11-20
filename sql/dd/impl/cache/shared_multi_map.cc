@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,14 +15,17 @@
 
 #include "shared_multi_map.h"
 
-#include <stddef.h>
 #include <new>
 
-#include "dd/impl/cache/cache_element.h"
-#include "dd/types/column_statistics.h"      // Column_statistics
-#include "log.h"                             // sql_print_warning()
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "mysqld_error.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/impl/cache/cache_element.h"
+#include "sql/dd/types/resource_group.h"
+#include "sql/mdl.h"                         // MDL_request
+#include "sql/log.h"                         // sql_print_warning()
+#include "sql_class.h"                       // THD
 
 namespace dd {
 namespace cache {
@@ -156,7 +159,109 @@ void Shared_multi_map<T>::shutdown()
          m_element_pool.begin();
        it != m_element_pool.end(); ++it)
     delete(*it);
-   m_element_pool.clear();
+  m_element_pool.clear();
+}
+
+
+typedef std::map<Object_id, const String_type> schema_map_t;
+
+template <typename T>
+MDL_request *lock_request(THD*, const schema_map_t&, const T*)
+{
+  DBUG_ASSERT(false);
+  return nullptr;
+}
+
+
+template <>
+MDL_request *lock_request(THD *thd,
+                          const schema_map_t &schema_map,
+                          const Abstract_table *object)
+{
+  // Fetch the schema to get hold of the schema name.
+  const schema_map_t::const_iterator schema_name=
+                                       schema_map.find(object->schema_id());
+  if (schema_name == schema_map.end() || object == nullptr)
+    return nullptr;
+
+  MDL_request *request= new (thd->mem_root) MDL_request;
+  if (request == nullptr)
+    return nullptr;
+
+  MDL_REQUEST_INIT(request,
+                   MDL_key::TABLE,
+                   schema_name->second.c_str(),
+                   object->name().c_str(),
+                   MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  return request;
+}
+
+
+template <>
+MDL_request *lock_request(THD *thd,
+                          const schema_map_t&,
+                          const Tablespace *object)
+{
+  MDL_request *request= new (thd->mem_root) MDL_request;
+  if (request == nullptr || object == nullptr)
+    return nullptr;
+
+  MDL_REQUEST_INIT(request,
+                   MDL_key::TABLESPACE, "", object->name().c_str(),
+                   MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  return request;
+}
+
+
+/*
+  Reset the shared map. Delete all objects present after acquiring
+  metadata locks. Keep the capacity.
+*/
+template <typename T>
+bool Shared_multi_map<T>::reset(THD* thd)
+{
+  /*
+    Establish a map from schema ids to schema names. Must do this
+    before we can lock the cache partition.
+  */
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  std::vector<const Schema*> schema_vector;
+  if (thd->dd_client()->fetch_global_components(&schema_vector))
+    return true;
+
+  schema_map_t schema_map;
+  for (const Schema *schema : schema_vector)
+    schema_map.insert(typename schema_map_t::value_type(schema->id(),
+                                                        schema->name()));
+
+  // Now, we can lock the cache partition and start acquiring MDL.
+  Autolocker lock(this);
+  MDL_request_list mdl_requests;
+  typename Element_map<const T*, Cache_element<T> >::Const_iterator it=
+    m_map<const T*>()->begin();
+  for ( ; it != m_map<const T*>()->end(); it++)
+    mdl_requests.push_front(lock_request(thd, schema_map,
+                                         it->second->object()));
+
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
+    return true;
+
+  /*
+    We have now locked all objects, hence, once we evict the unused
+    object, no objects should be left.
+  */
+  evict_all_unused(&lock);
+  if (m_map<const T*>()->size() > 0)
+  {
+    dump();
+    DBUG_ASSERT(m_map<const T*>()->size() == 0);
+    return true;
+  }
+
+  return false;
 }
 
 
@@ -677,6 +782,34 @@ template void Shared_multi_map<Tablespace>::
       Cache_element<Tablespace> **);
 template void Shared_multi_map<Tablespace>::
   drop_if_present<Tablespace::id_key_type>(const Tablespace::id_key_type&);
+
+template class Shared_multi_map<Resource_group>;
+template bool Shared_multi_map<Resource_group>::
+  get<const Resource_group*>
+    (const Resource_group* const&, Cache_element<Resource_group> **);
+template bool Shared_multi_map<Resource_group>::
+  get<Resource_group::id_key_type>
+    (const Resource_group::id_key_type&, Cache_element<Resource_group> **);
+template bool Shared_multi_map<Resource_group>::
+  get<Resource_group::name_key_type>
+    (const Resource_group::name_key_type&, Cache_element<Resource_group> **);
+template bool Shared_multi_map<Resource_group>::
+  get<Resource_group::aux_key_type>
+    (const Resource_group::aux_key_type&, Cache_element<Resource_group> **);
+template void Shared_multi_map<Resource_group>::
+  put<Resource_group::id_key_type>
+    (const Resource_group::id_key_type*, const Resource_group*,
+      Cache_element<Resource_group> **);
+template void Shared_multi_map<Resource_group>::
+  put<Resource_group::name_key_type>
+    (const Resource_group::name_key_type*, const Resource_group*,
+      Cache_element<Resource_group> **);
+template void Shared_multi_map<Resource_group>::
+  put<Resource_group::aux_key_type>
+    (const Resource_group::aux_key_type*, const Resource_group*,
+      Cache_element<Resource_group> **);
+template void Shared_multi_map<Resource_group>::
+  drop_if_present<Resource_group::id_key_type>(const Resource_group::id_key_type&);
 
 } // namespace cache
 } // namespace dd

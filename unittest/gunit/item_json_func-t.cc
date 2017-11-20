@@ -18,9 +18,9 @@
 
 #include "base_mock_field.h"
 #include "fake_table.h"
-#include "item_json_func.h"
-#include "json_diff.h"
-#include "json_dom.h"
+#include "sql/item_json_func.h"
+#include "sql/json_diff.h"
+#include "sql/json_dom.h"
 #include "test_utils.h"
 
 namespace item_json_func_unittest
@@ -55,12 +55,10 @@ protected:
   @param json_text null-terminated string of JSON text
   @return a DOM representing the JSON document
 */
-static Json_dom *parse_json(const char *json_text)
+static Json_dom_ptr parse_json(const char *json_text)
 {
-  const char *msg;
-  size_t msg_offset;
   auto dom= Json_dom::parse(json_text, std::strlen(json_text),
-                            &msg, &msg_offset);
+                            nullptr, nullptr);
   EXPECT_NE(nullptr, dom);
   return dom;
 }
@@ -144,8 +142,11 @@ static void do_partial_update(Item_json_func *func,
   const auto thd= table->in_use;
   Json_diff_vector diffs(Json_diff_vector::allocator_type(thd->mem_root));
   for (const auto &diff : *table->get_logical_diffs(field))
-    diffs.emplace_back(diff.path(), diff.operation(),
-                       diff.value().clone_dom(thd));
+  {
+    Json_dom_ptr dom_ptr= diff.value().clone_dom(thd);
+    diffs.add_diff(diff.path(), diff.operation(),
+                   dom_ptr);
+  }
 
   /*
     apply_json_diffs() will try to collect binary diffs for the
@@ -171,8 +172,11 @@ static void do_partial_update(Item_json_func *func,
   // ... and applying those new diffs should produce the same result again ...
   diffs.clear();
   for (const auto &diff : *new_diffs)
-    diffs.emplace_back(diff.path(), diff.operation(),
-                       diff.value().clone_dom(thd));
+  {
+    Json_dom_ptr dom_ptr= diff.value().clone_dom(thd);
+    diffs.add_diff(diff.path(), diff.operation(),
+                   dom_ptr);
+  }
   table->clear_partial_update_diffs();
   store_json(field, orig_json);
   EXPECT_EQ(enum_json_diff_status::SUCCESS, apply_json_diffs(field, &diffs));

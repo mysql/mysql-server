@@ -28,8 +28,7 @@ DROP DATABASE test1;
 --let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=3
 --source include/assert.inc
 
-# Now adjusted test case which mimics situation before WL#7743.
-# First, remove the "extra" file created above
+# Case when we fail while dropping table and there are InnoDB tables only.
 let $MYSQLD_DATADIR= `select @@datadir`;
 remove_file $MYSQLD_DATADIR/test1/f1.txt;
 
@@ -42,32 +41,24 @@ CREATE TABLE test2.t2 (fk INT, FOREIGN KEY (fk) REFERENCES test1.t4(pk));
 
 --error ER_ROW_IS_REFERENCED
 DROP DATABASE test1;
-# Some tables can be dropped.
 USE test1;
---let assert_text= Table t4 is not dropped
---let assert_cond="[SHOW TABLES LIKE "t4"]"="t4"
+# No tables should be dropped after WL#9536.
+--let assert_text= Tables in test1 database are not dropped
+--let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=4
 --source include/assert.inc
 
-# Test the branch of the code that deals with the query buffer overflow
---disable_query_log
-let $1=50;
-while ($1)
-{
-  eval CREATE TABLE test1.db_test1_long_table_name$1 (n INT);
-  dec $1;
-}
---enable_query_log
+# Finally, case when we fail while dropping table and there are both InnoDB and MyISAM tables.
+CREATE TABLE test1.t5(n INT) ENGINE=MyISAM;
 
 --error ER_ROW_IS_REFERENCED
 DROP DATABASE test1;
 
-SHOW TABLES;
---let assert_text= db_test1_long_table_name$i tables are dropped
---let assert_cond="[SHOW TABLES LIKE "db_test1_long_table_name%"]"=""
+--let assert_text= MyISAM table t5 is dropped
+--let assert_cond="[SHOW TABLES LIKE "t5"]"=""
 --source include/assert.inc
 
---let assert_text= Table t4 is not dropped
---let assert_cond="[SHOW TABLES LIKE "t4"]"="t4"
+--let assert_text= InnoDB tables in test1 database are not dropped
+--let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=4
 --source include/assert.inc
 
 # Ensuring that replication is successful

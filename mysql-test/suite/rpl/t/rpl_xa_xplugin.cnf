@@ -1,0 +1,12 @@
+!include ../my.cnf
+
+[mysqld.1]
+
+[mysqld.2]
+
+[ENV]
+
+MASTER_X_MYPORT=         @mysqld.1.loose-mysqlx-port
+MASTER_X_MYSOCK=         @mysqld.1.loose-mysqlx-socket
+SLAVE_X_MYPORT=          @mysqld.2.loose-mysqlx-port
+SLAVE_X_MYSOCK=          @mysqld.2.loose-mysqlx-socket

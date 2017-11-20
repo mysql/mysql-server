@@ -12,7 +12,7 @@
 
 #include "main.ih"  // Must come after all other includes.
 
-char *progname;
+const char *progname;
 int debug = 0;
 int line = 0;
 int status = 0;
@@ -60,7 +60,7 @@ int getopt(int argc, char *argv[], const char *optstring)
 /*
  - main - do the simple case, hand off to regress() for regression
  */
-int main(argc, argv)
+int old_main(argc, argv)
 int argc;
 char *argv[];
 {
@@ -77,6 +77,7 @@ char *argv[];
         char *input_file_name= NULL;
 
 	progname = argv[0];
+        optind= 1;
 
 	while ((c = getopt(argc, argv, "c:e:i:S:E:xI")) != EOF)
 		switch (c) {
@@ -115,7 +116,7 @@ char *argv[];
 
         if (opt_inline) {
           regress(NULL);
-          exit(status);
+          return (status);
         }
 
 	if (optind >= argc && !input_file_name) {
@@ -176,7 +177,27 @@ char *argv[];
 					(int)(subs[i].rm_eo - subs[i].rm_so),
 					argv[optind] + subs[i].rm_so);
 	}
-	exit(status);
+	return(status);
+}
+
+
+int main(int argc, char *argv[])
+{
+  if (argc > 1)
+    return old_main(argc, argv);
+
+  {
+    char *my_progname= argv[0];
+    const char *argv1[]= {my_progname, "-I", NULL};
+    const char *argv2[]= {my_progname, "-el", "-I", NULL};
+    const char *argv3[]= {my_progname, "-er", "-I", NULL};
+
+    int ret1= old_main(2, (char**)(argv1));
+    int ret2= old_main(3, (char**)(argv2));
+    int ret3= old_main(3, (char**)(argv3));
+
+    return ret1 + ret2 + ret3;
+  }
 }
 
 char*

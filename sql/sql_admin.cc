@@ -16,27 +16,13 @@
 #include "sql/sql_admin.h"
 
 #include <limits.h>
-#include <string>
 #include <string.h>
 #include <sys/types.h>
+#include <string>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"                     // *_ACL
-#include "dd/dd_table.h"                     // dd::recreate_table
-#include "dd/info_schema/stats.h"            // dd::info_schema::update_*
-#include "dd/types/abstract_table.h"         // dd::enum_table_type
-#include "debug_sync.h"                      // DEBUG_SYNC
-#include "derror.h"                          // ER_THD
-#include "handler.h"
-#include "hash.h"
-#include "item.h"
-#include "key.h"
 #include "keycache.h"
-#include "keycaches.h"                       // get_key_cache
-#include "log.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_dir.h"
@@ -49,35 +35,46 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
-#include "mysqld.h"                          // key_file_misc
 #include "mysqld_error.h"
-#include "partition_element.h"               // PART_ADMIN
-#include "protocol.h"
-#include "rpl_gtid.h"
-#include "sp.h"                              // Sroutine_hash_entry
-#include "sp_rcontext.h"                     // sp_rcontext
-#include "sql_alter.h"
-#include "sql_alter_instance.h"              // Alter_instance
-#include "sql_base.h"                        // Open_table_context
-#include "sql_cache.h"                       // query_cache
-#include "sql_class.h"                       // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                       // check_table_access
-#include "sql_partition.h"                   // set_part_state
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
-#include "sql_prepare.h"                     // mysql_test_show
-#include "sql_security_ctx.h"
-#include "sql_string.h"
-#include "sql_table.h"                       // mysql_recreate_table
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"            // *_ACL
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/clone_handler.h"
+#include "sql/dd/dd_table.h"                 // dd::recreate_table
+#include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::update_*
+#include "sql/dd/types/abstract_table.h"     // dd::enum_table_type
+#include "sql/debug_sync.h"                  // DEBUG_SYNC
+#include "sql/derror.h"                      // ER_THD
+#include "sql/handler.h"
 #include "sql/histograms/histogram.h"
-#include "system_variables.h"
-#include "table.h"
-#include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/keycaches.h"                   // get_key_cache
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                      // key_file_misc
+#include "sql/partition_element.h"           // PART_ADMIN
+#include "sql/protocol.h"
+#include "sql/rpl_gtid.h"
+#include "sql/sp.h"                          // Sroutine_hash_entry
+#include "sql/sp_rcontext.h"                 // sp_rcontext
+#include "sql/sql_alter.h"
+#include "sql/sql_alter_instance.h"          // Alter_instance
+#include "sql/sql_base.h"                    // Open_table_context
+#include "sql/sql_class.h"                   // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"                   // check_table_access
+#include "sql/sql_partition.h"               // set_part_state
+#include "sql/sql_prepare.h"                 // mysql_test_show
+#include "sql/sql_table.h"                   // mysql_recreate_table
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/table_trigger_dispatcher.h"    // Table_trigger_dispatcher
+#include "sql/transaction.h"                 // trans_rollback_stmt
+#include "sql_string.h"
 #include "thr_lock.h"
-#include "transaction.h"                     // trans_rollback_stmt
 #include "violite.h"
 
 bool Column_name_comparator::operator()(const String *lhs, const String *rhs) const
@@ -237,12 +234,6 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 			     "Failed generating table from .frm file");
     goto end;
   }
-  /*
-    'FALSE' for 'using_transactions' means don't postpone
-    invalidation till the end of a transaction, but do it
-    immediately.
-  */
-  query_cache.invalidate(thd, table_list, FALSE);
   if (mysql_file_rename(key_file_misc, tmp, from, MYF(MY_WME)))
   {
     error= send_check_errmsg(thd, table_list, "repair",
@@ -778,7 +769,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         safe for re-execution.
       */
       lex->sql_command= save_sql_command;
-      table->table=0;				// For query cache
       if (protocol->end_row())
 	goto err;
       thd->get_stmt_da()->reset_diagnostics_area();
@@ -805,8 +795,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                                    HA_EXTRA_PREPARE_FOR_RENAME))
         goto err;
       DEBUG_SYNC(thd, "after_admin_flush");
-      /* Flush entries in the query cache involving this table. */
-      query_cache.invalidate(thd, table->table, FALSE);
       /*
         XXX: hack: switch off open_for_modify to skip the
         flush that is made later in the execution flow.
@@ -1205,12 +1193,6 @@ send_result_message:
       {
         tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
                          table->db, table->table_name, FALSE);
-        /*
-          May be something modified. Consequently, we have to
-          invalidate the query cache.
-        */
-        table->table= 0;                        // For query cache
-        query_cache.invalidate(thd, table, FALSE);
       }
       else
       {
@@ -1421,6 +1403,19 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
           DBUG_ASSERT(false); /* purecov: deadcode */
           break;
       }
+
+      if (!res)
+      {
+        /*
+          If a histogram was added, updated or removed, we will request the old
+          TABLE_SHARE to go away from the table definition cache. This is
+          beacuse histogram data is cached in the TABLE_SHARE, so we want new
+          transactions to fetch the updated data into the TABLE_SHARE before
+          using it again.
+        */
+        tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
+                         table->table_name, false);
+      }
     }
   }
 
@@ -1608,6 +1603,75 @@ bool Sql_cmd_alter_instance::execute(THD *thd)
   }
 
   DBUG_RETURN(res);
+}
+
+
+bool Sql_cmd_clone_local::execute(THD *thd)
+{
+  plugin_ref plugin;
+
+  DBUG_ENTER("Sql_cmd_clone_local::execute");
+  DBUG_PRINT("admin", ("CLONE type = local, DIR = %s", clone_dir));
+
+  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  {
+    my_error(ER_CMD_NEED_SUPER, MYF(0), "CLONE LOCAL");
+    DBUG_RETURN(true);
+  }
+
+  Clone_handler* clone = clone_plugin_lock(thd, &plugin);
+
+  if (clone == nullptr)
+  {
+    my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "clone");
+    DBUG_RETURN(true);
+  }
+
+  if (clone->clone_local(thd, clone_dir) != 0)
+  {
+    clone_plugin_unlock(thd, plugin);
+    DBUG_RETURN(true);
+  }
+
+  clone_plugin_unlock(thd, plugin);
+
+  my_ok(thd);
+  DBUG_RETURN(false);
+}
+
+
+bool Sql_cmd_clone_remote::execute(THD *thd)
+{
+  plugin_ref plugin;
+
+  DBUG_ENTER("Sql_cmd_clone_remote::execute");
+  DBUG_PRINT("admin", ("CLONE type = remote, DIR = %s, FOR REPLICATION = %d",
+                       clone_dir, is_for_replication));
+
+  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  {
+    my_error(ER_CMD_NEED_SUPER, MYF(0), "CLONE REMOTE");
+    DBUG_RETURN(true);
+  }
+
+  Clone_handler* clone = clone_plugin_lock(thd, &plugin);
+
+  if (clone == nullptr)
+  {
+    my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "clone");
+    DBUG_RETURN(true);
+  }
+
+  if (clone->clone_remote_client(thd, clone_dir))
+  {
+    clone_plugin_unlock(thd, plugin);
+    DBUG_RETURN(true);
+  }
+
+  clone_plugin_unlock(thd, plugin);
+
+  my_ok(thd);
+  DBUG_RETURN(false);
 }
 
 

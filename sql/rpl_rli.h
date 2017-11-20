@@ -16,16 +16,26 @@
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
 
+#if defined(__SUNPRO_CC)
+/*
+  Solaris Studio 12.5 has a bug where, if you use dynamic_cast
+  and then later #include this file (which Boost does), you will
+  get a compile error. Work around it by just including it right now.
+*/
+#include <cxxabi.h>
+#endif
+
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "binlog.h"            // MYSQL_BIN_LOG
-#include "handler.h"
+#include "binlog_event.h"
 #include "lex_string.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -33,35 +43,40 @@
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/thread_type.h"
+#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"  // Prealloced_array
-#include "query_options.h"
-#include "rpl_gtid.h"          // Gtid_set
-#include "rpl_info.h"          // Rpl_info
-#include "rpl_mts_submode.h"   // enum_mts_parallel_type
-#include "rpl_record.h"
-#include "rpl_slave_until_options.h"
-#include "rpl_tblmap.h"        // table_mapping
-#include "rpl_utility.h"       // Deferred_log_events
-#include "sql_class.h"         // THD
-#include "sql_lex.h"
-#include "sql_plugin_ref.h"
+#include "sql/binlog.h"        // MYSQL_BIN_LOG
+#include "sql/handler.h"
+#include "sql/log_event.h"    //Gtid_log_event
+#include "sql/mysqld.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/rpl_filter.h"
+#include "sql/rpl_gtid.h"      // Gtid_set
+#include "sql/rpl_info.h"      // Rpl_info
+#include "sql/rpl_mts_submode.h" // enum_mts_parallel_type
+#include "sql/rpl_slave_until_options.h"
+#include "sql/rpl_tblmap.h"    // table_mapping
+#include "sql/rpl_utility.h"   // Deferred_log_events
+#include "sql/sql_class.h"     // THD
+#include "sql/sql_lex.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
-#include "log_event.h"        //Gtid_log_event
-#include "rpl_filter.h"
 
-struct RPL_TABLE_LIST;
 class Commit_order_manager;
 class Format_description_log_event;
 class Log_event;
 class Master_info;
-class Master_info;
 class Rows_query_log_event;
+class Rpl_filter;
 class Rpl_info_handler;
 class Slave_committed_queue;
 class Slave_worker;
@@ -691,7 +706,10 @@ public:
   // number's is determined by global slave_parallel_workers
   Slave_worker_array workers;
 
-  HASH mapping_db_to_worker; // To map a database to a worker
+  // To map a database to a worker
+  malloc_unordered_map<std::string,
+                       unique_ptr_with_deleter<db_worker_hash_entry>>
+    mapping_db_to_worker{key_memory_db_worker_hash_entry};
   bool inited_hash_workers; //  flag to check if mapping_db_to_worker is inited
 
   mysql_mutex_t slave_worker_hash_lock; // for mapping_db_to_worker
@@ -1422,9 +1440,19 @@ private:
 
 
  /**
-   sets the suffix required for relay log names
-   in multisource replication.
-   The extension is "-relay-bin-<channel_name>"
+   sets the suffix required for relay log names in multisource
+   replication. When --relay-log option is not provided, the
+   names of the relay log files are relaylog.0000x or
+   relaylog-CHANNEL.00000x in the case of MSR. However, if
+   that option is provided, then the names of the relay log
+   files are <relay-log-option>.0000x or
+   <relay-log-option>-CHANNEL.00000x in the case of MSR.
+
+   The function adds a channel suffix (according to the channel to
+   file name conventions and conversions) to the relay log file.
+
+   @todo: truncate the log file if length exceeds.
+
    @param[in, out]  buff       buffer to store the complete relay log file name
    @param[in]       buff_size  size of buffer buff
    @param[in]       base_name  the base name of the relay log file

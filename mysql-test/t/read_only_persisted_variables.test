@@ -147,13 +147,13 @@ SET PERSIST_ONLY table_open_cache_instances= 8;
 
 --echo # try persist_only for dynamic variables
 SELECT @@global.max_connections, @@global.session_track_system_variables;
-SELECT @@global.tx_isolation;
+SELECT @@global.transaction_isolation;
 SET @@persist_only.max_connections=99;
 SET PERSIST_ONLY session_track_system_variables= 'max_connections';
-SET @@persist_only.tx_isolation= 'READ-COMMITTED';
+SET @@persist_only.transaction_isolation= 'READ-COMMITTED';
 --echo # should not change the values.
 SELECT @@global.max_connections, @@global.session_track_system_variables;
-SELECT @@global.tx_isolation;
+SELECT @@global.transaction_isolation;
 
 --echo # Restart server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -165,7 +165,7 @@ SELECT @@global.tx_isolation;
 
 --echo # after restart
 SELECT @@global.max_connections, @@global.session_track_system_variables;
-SELECT @@global.tx_isolation;
+SELECT @@global.transaction_isolation;
 
 SELECT VARIABLE_NAME FROM performance_schema.variables_info
   WHERE VARIABLE_SOURCE = 'PERSISTED';
@@ -184,7 +184,7 @@ SELECT VARIABLE_NAME FROM performance_schema.variables_info
 
 --echo # should have values different from persistent config file
 SELECT @@global.max_connections, @@global.session_track_system_variables;
-SELECT @@global.tx_isolation;
+SELECT @@global.transaction_isolation;
 
 --echo # check when persisted_globals_load is disabled.
 --echo # should return 0 rows.
@@ -228,7 +228,7 @@ CREATE USER wl9787;
 SET GLOBAL sort_buffer_size=256000;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET PERSIST max_heap_table_size=999424;
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
 SET PERSIST_ONLY ft_query_expansion_limit=80;
 
 --connection default
@@ -237,7 +237,7 @@ GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO wl9787;
 --connection con1
 SET GLOBAL sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424;
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
 SET PERSIST_ONLY ft_query_expansion_limit=80;
 
 --connection default
@@ -253,15 +253,16 @@ REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM wl9787;
 --connection con1
 --echo # persisting static variables needs both SYSTEM_VARIABLES_ADMIN
        # and PERSIST_RO_VARIABLES_ADMIN
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
 SET PERSIST_ONLY ft_query_expansion_limit=80;
 
 --connection default
 REVOKE PERSIST_RO_VARIABLES_ADMIN  ON *.* FROM wl9787;
-GRANT ALL ON *.* TO wl9787;
+GRANT SUPER ON *.* TO wl9787;
 
 --connection con1
---echo # persisting static variables needs SUPER access
+--echo # persisting static variables does not need SUPER access
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
 SET PERSIST_ONLY ft_query_expansion_limit=80;
 
 --connection default
@@ -376,8 +377,6 @@ SET @@persist_only.version_compile_machine= "";
 SET @@persist_only.version_compile_os= "";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.have_compress= "";
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@persist_only.have_crypt= "";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.have_dynamic_loading= "";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR

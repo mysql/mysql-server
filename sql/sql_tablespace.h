@@ -16,10 +16,31 @@
 #ifndef SQL_TABLESPACE_INCLUDED
 #define SQL_TABLESPACE_INCLUDED
 
-enum class Ident_name_check;
 class THD;
-class st_alter_tablespace;
 struct handlerton;
+
+#include "sql_cmd.h"       // Sql_cmd
+#include "handler.h"       // ts_command_type
+
+
+/**
+  Structure used by parser to store options for tablespace statements
+  and pass them on to Excution classes.
+ */
+struct Tablespace_options : public Sql_alloc
+{
+  ulonglong extent_size= 1024*1024;        // Default 1 MByte
+  ulonglong undo_buffer_size= 8*1024*1024; // Default 8 MByte
+  ulonglong redo_buffer_size= 8*1024*1024; // Default 8 MByte
+  ulonglong initial_size= 128*1024*1024;   // Default 128 MByte
+  ulonglong autoextend_size= 0;            // No autoextension as default
+  ulonglong max_size=0;                    // Max size == initial size => no extension
+  ulonglong file_block_size= 0;            // 0=default or must be a valid Page Size
+  uint nodegroup_id= UNDEF_NODEGROUP;
+  bool wait_until_completed= true;
+  LEX_STRING ts_comment= {nullptr, 0}; // FIXME: Rename to comment?
+  LEX_STRING engine_name= {nullptr, 0};
+};
 
 
 /**
@@ -59,6 +80,169 @@ bool validate_tablespace_name(bool tablespace_ddl,
                               const handlerton *engine);
 
 
-bool mysql_alter_tablespace(THD* thd, st_alter_tablespace *ts_info);
+
+/**
+  Base class for tablespace execution classes including LOGFILE GROUP
+  commands.
+ */
+class Sql_cmd_tablespace : public Sql_cmd /* purecov: inspected */
+{
+protected:
+  const LEX_STRING m_tablespace_name;
+  const Tablespace_options  *m_options;
+
+  /**
+    Creates shared base object.
+
+    @param name
+    @param options
+   */
+  Sql_cmd_tablespace(const LEX_STRING &name,
+                     const Tablespace_options *options);
+
+public:
+  /**
+    Provide access to the command code enum value.
+    @return command code enum value
+   */
+  enum_sql_command sql_command_code() const override final;
+};
+
+
+/**
+  Execution class for CREATE TABLESPACE ... ADD DATAFILE ...
+ */
+class Sql_cmd_create_tablespace final : public Sql_cmd_tablespace /* purecov: inspected */
+{
+  const LEX_STRING m_datafile_name;
+  const LEX_STRING m_logfile_group_name;
+
+public:
+  /**
+    Creates execution class instance for create tablespace statement.
+
+    @param tsname name of tablespace
+    @param dfname name of data file
+    @param lfgname name of logfile group (may be {nullptr, 0})
+    @param options additional options to statement
+  */
+  Sql_cmd_create_tablespace(const LEX_STRING &tsname, const LEX_STRING &dfname,
+                            const LEX_STRING &lfgname,
+                            const Tablespace_options *options);
+
+  bool execute(THD*) override;
+};
+
+
+/**
+  Execution class for DROP TABLESPACE ...
+ */
+class Sql_cmd_drop_tablespace final : public Sql_cmd_tablespace /* purecov: inspected */
+{
+
+public:
+  /**
+    Creates execution class instance for drop tablespace statement.
+
+    @param tsname name of tablespace
+    @param options additional options to statement
+  */
+  Sql_cmd_drop_tablespace(const LEX_STRING &tsname,
+                          const Tablespace_options *options);
+  bool execute(THD*) override;
+};
+
+
+/**
+  Execution class for ALTER TABLESPACE ... ADD DATAFILE ...
+ */
+class Sql_cmd_alter_tablespace_add_datafile final : public Sql_cmd_tablespace /* purecov: inspected */
+{
+  const LEX_STRING m_datafile_name;
+
+public:
+  /**
+    Creates execution class instance for add datafile statement.
+
+    @param tsname name of tablespace
+    @param dfname name of data file to add
+    @param options additional options to statement
+  */
+  Sql_cmd_alter_tablespace_add_datafile(const LEX_STRING &tsname,
+                                        const LEX_STRING &dfname,
+                                        const Tablespace_options *options);
+  bool execute(THD*) override;
+};
+
+
+/**
+  Execution class for ALTER TABLESPACE ... DROP DATAFILE ...
+ */
+class Sql_cmd_alter_tablespace_drop_datafile final : public Sql_cmd_tablespace /* purecov: inspected */
+{
+  const LEX_STRING m_datafile_name;
+
+public:
+  /**
+    Creates execution class instance for drop datafile statement.
+
+    @param tsname name of tablespace
+    @param dfname name of data file to drop
+    @param options additional options to statement
+  */
+  Sql_cmd_alter_tablespace_drop_datafile(const LEX_STRING &tsname,
+                                         const LEX_STRING &dfname,
+                                         const Tablespace_options *options);
+    bool execute(THD*) override;
+};
+
+/**
+  Execution class for ALTER TABLESPACE ... RENAME TO ...
+ */
+class Sql_cmd_alter_tablespace_rename final : public Sql_cmd_tablespace /* purecov: inspected */
+{
+  const LEX_STRING m_new_name;
+
+public:
+  /**
+    Creates execution class instance for rename statement.
+
+    @param old_name existing tablespace
+    @param new_name desired tablespace name
+   */
+  Sql_cmd_alter_tablespace_rename(const LEX_STRING &old_name,
+                                  const LEX_STRING &new_name);
+  bool execute(THD*) override;
+};
+
+
+/**
+  Execution class for CREATE/DROP/ALTER LOGFILE GROUP ...
+ */
+class Sql_cmd_logfile_group final : public Sql_cmd /* purecov: inspected */
+{
+  ts_command_type m_cmd;
+  const LEX_STRING m_logfile_group_name;
+  const LEX_STRING m_undofile_name;
+  const Tablespace_options *m_options;
+
+public:
+  /**
+    Creates execution class instance for logfile group statements.
+
+    @param cmd_type subcommand passed to se
+    @param logfile_group_name name of logfile group
+    @param options additional options to statement
+    @param undofile_name name of undo file
+   */
+  Sql_cmd_logfile_group(ts_command_type cmd_type,
+                        const LEX_STRING &logfile_group_name,
+                        const Tablespace_options *options,
+                        const LEX_STRING &undofile_name= {nullptr, 0});
+
+  bool execute(THD *thd) override;
+
+  enum_sql_command sql_command_code() const override;
+};
 
 #endif /* SQL_TABLESPACE_INCLUDED */

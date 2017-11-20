@@ -21,7 +21,7 @@
 RESET MASTER;
 
 --let $MYSQLD_DATADIR= `select @@datadir`
---let $binlog_file= $MYSQLD_DATADIR/master-bin.000001
+--let $binlog_file= $MYSQLD_DATADIR/binlog.000001
 
 --echo #
 --echo # Temporal types can be printed correctly
@@ -189,6 +189,18 @@ INSERT INTO t1 VALUES("enum1_v1", "enum2_v1", "enum3_v1");
 RESET MASTER;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1 VALUES("enum1_v1", "enum2_v1", "enum3_v1");
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+
+--echo #
+--echo # Verify that explicit NOT NULL can be printed correctly
+--echo #
+CREATE TABLE t1(c_not_null1 INT NOT NULL, c_null1 INT, c_not_null2 INT NOT NULL,
+                c_null2 INT);
+
+INSERT INTO t1 VALUES(1, 2, 3, 4);
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;

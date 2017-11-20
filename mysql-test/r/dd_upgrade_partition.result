@@ -19,6 +19,10 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN ('ц├ц┤') ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
 # Stop the server
+# Check if .ibds have SDI after upgrade
+# Check SDI from sys_config.ibd
+# Check SDI from t1#P#p1.ibd
+# Check SDI from t1#P#p0.ibd
 # Remove copied files
 # Restart the server with default options.
 # restart

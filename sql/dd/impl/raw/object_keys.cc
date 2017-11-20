@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,20 +13,21 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/raw/object_keys.h"
+#include "sql/dd/impl/raw/object_keys.h"
 
 #include <new>
 #include <sstream>
 
-#include "dd/impl/raw/raw_key.h"       // dd::Raw_key
-#include "dd/impl/raw/raw_table.h"     // dd::Raw_table
-#include "dd/string_type.h"            // dd::String_type
-#include "field.h"                     // Field
-#include "key.h"                       // KEY
 #include "m_ctype.h"
 #include "my_base.h"                   // HA_WHOLE_KEY
 #include "my_dbug.h"
-#include "table.h"                     // TABLE
+#include "mysql/udf_registration_types.h"
+#include "sql/dd/impl/raw/raw_key.h"   // dd::Raw_key
+#include "sql/dd/impl/raw/raw_table.h" // dd::Raw_table
+#include "sql/dd/string_type.h"        // dd::String_type
+#include "sql/field.h"                 // Field
+#include "sql/key.h"                   // KEY
+#include "sql/table.h"                 // TABLE
 
 namespace dd {
 
@@ -510,6 +511,48 @@ String_type Table_reference_range_key::str() const
   ss << m_catalog_name_column_no << ":" << m_catalog_name
      << m_schema_name_column_no << ":" << m_schema_name << ":"
      << m_table_name_column_no << ":" << m_table_name;
+  return ss.str();
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Sub_partition_range_key
+///////////////////////////////////////////////////////////////////////////
+
+Raw_key *Sub_partition_range_key::create_access_key(Raw_table *db_table) const
+{
+  TABLE *t= db_table->get_table();
+
+  t->use_all_columns();
+
+  t->field[m_table_id_column_no]->store(m_table_id, true);
+  t->field[m_table_id_column_no]->set_notnull();
+
+  if (m_parent_partition_id == dd::INVALID_OBJECT_ID)
+    t->field[m_parent_partition_id_column_no]->set_null();
+  else
+  {
+    t->field[m_parent_partition_id_column_no]->store(m_parent_partition_id, true);
+    t->field[m_parent_partition_id_column_no]->set_notnull();
+  }
+
+  KEY *key_info= t->key_info + m_index_no;
+
+  Raw_key *k= new (std::nothrow) Raw_key(m_index_no,
+                                         key_info->key_length,
+                                         3 /* Use first two column */);
+
+  key_copy(k->key, t->record[0], key_info, k->key_len);
+
+  return k;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+String_type Sub_partition_range_key::str() const
+{
+  dd::Stringstream_type ss;
+  ss << m_parent_partition_id_column_no << ":" << m_parent_partition_id << ":"
+     << m_table_id_column_no << ":" << m_table_id;
   return ss.str();
 }
 

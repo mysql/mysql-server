@@ -19,25 +19,27 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <memory>   // std::unique_ptr
-#include <string>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/column_impl.h"        // dd::Column_impl
-#include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/properties.h"
-#include "dd/sdi_fwd.h"
-#include "dd/types/abstract_table.h"          // dd::Abstract_table
-#include "dd/types/object_type.h"             // dd::Object_type
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/abstract_table.h"      // dd::Abstract_table
+#include "sql/dd/types/column.h"              // IWYU pragma: keep
+#include "sql/dd/types/object_type.h"         // dd::Object_type
+#include "sql/sql_time.h"                     // gmt_time_to_local_time
+
+class Time_zone;
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Column;
 class Open_dictionary_tables_ctx;
 class Sdi_rcontext;
 class Sdi_wcontext;
@@ -110,8 +112,8 @@ public:
   // created.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created() const
-  { return m_created; }
+  virtual ulonglong created(bool convert_time) const
+  { return convert_time ? gmt_time_to_local_time(m_created) : m_created; }
 
   virtual void set_created(ulonglong created)
   { m_created= created; }
@@ -120,8 +122,11 @@ public:
   // last altered.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered() const
-  { return m_last_altered; }
+  virtual ulonglong last_altered(bool convert_time) const
+  {
+    return convert_time ? gmt_time_to_local_time(m_last_altered) :
+                          m_last_altered;
+  }
 
   virtual void set_last_altered(ulonglong last_altered)
   { m_last_altered= last_altered; }

@@ -31,6 +31,7 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/log_shared.h>
 
 BEGIN_SERVICE_DEFINITION(log_service)
   /**
