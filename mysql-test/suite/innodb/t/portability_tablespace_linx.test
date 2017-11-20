@@ -21,7 +21,7 @@ CREATE TABLE tab(c1 int);
 
 INSERT INTO tab VALUES(10);
 
---echo # copy the win datadir zip into destination location 
+--echo # copy the win datadir zip into destination location
 --copy_file $MYSQL_TEST_DIR/suite/innodb/t/tablespace_portable_win.zip $MYSQL_TMP_DIR/tablespace_portable_win.zip
 
 --echo # Unzip the zip file.
@@ -58,6 +58,7 @@ SHOW CREATE TABLE purchase;
 --disable_warnings
 
 # server was crashing here with ha_innodb.cc != nullptr
+--replace_column 1 #
 SELECT TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
 
 --echo ## Stop DB server
