@@ -32,7 +32,7 @@ INSERT INTO tab VALUES(10);
 
 --echo ## Start winDB with --innodb-directories
 let $innodb_dirs='$MYSQL_TMP_DIR/datadir1;$MYSQL_TMP_DIR/undo_files;$MYSQL_TMP_DIR/part0;$MYSQL_TMP_DIR/part1;$MYSQL_TMP_DIR/part2;$MYSQL_TMP_DIR/part3';
---let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/win-DB --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_undo_tablespaces=5 --innodb_log_files_in_group=4 --innodb_data_file_path=data01:20M;data02:20M:autoextend --lower_case_table_names=1 --log_error_verbosity=3 --innodb-directories=$innodb_dirs
+--let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/win-DB --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_undo_tablespaces=5 --innodb_log_files_in_group=4 --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --lower_case_table_names=1 --log_error_verbosity=3 --innodb-directories=$innodb_dirs
 --source include/start_mysqld_no_echo.inc
 
 --echo ## Check new datadir
@@ -44,6 +44,9 @@ SELECT @@innodb_undo_directory;
 
 --replace_result $MYSQL_TMP_DIR DATA_HOME
 SELECT @@innodb_data_home_dir;
+
+--replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
+SELECT @@innodb_log_group_home_dir;
 
 SELECT @@innodb_data_file_path;
 
@@ -65,7 +68,7 @@ SELECT TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES
 --source include/shutdown_mysqld.inc
 
 --echo ## restart the server with --datadir and without scan DIR option
---let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/win-DB --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_undo_tablespaces=5 --innodb_log_files_in_group=4 --innodb_data_file_path=data01:20M;data02:20M:autoextend --log_error_verbosity=3 --lower_case_table_names=1
+--let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/win-DB --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_undo_tablespaces=5 --innodb_log_files_in_group=4 --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --log_error_verbosity=3 --lower_case_table_names=1
 --source include/start_mysqld_no_echo.inc
 
 --echo ## Check new datadir
@@ -77,6 +80,9 @@ SELECT @@innodb_undo_directory;
 
 --replace_result $MYSQL_TMP_DIR DATA_HOME
 SELECT @@innodb_data_home_dir;
+
+--replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
+SELECT @@innodb_log_group_home_dir;
 
 SELECT @@innodb_data_file_path;
 
@@ -106,7 +112,7 @@ DELETE FROM tab3;
 DELETE FROM tab4;
 
 # Server throws error Got error 44 - 'InnoDB error' to be fixed
-# ALTER TABLE tab3 ADD COLUMN c3 VARCHAR(15);
+#ALTER TABLE tab3 ADD COLUMN c3 VARCHAR(15);
 
 ALTER TABLE tab4 ADD COLUMN c3 VARCHAR(15);
 

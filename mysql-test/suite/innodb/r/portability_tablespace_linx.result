@@ -15,6 +15,9 @@ UNDO_FILES/undo_files
 SELECT @@innodb_data_home_dir;
 @@innodb_data_home_dir
 DATA_HOME/data_home
+SELECT @@innodb_log_group_home_dir;
+@@innodb_log_group_home_dir
+DATA_HOME_DIR/data_home
 SELECT @@innodb_data_file_path;
 @@innodb_data_file_path
 data01:20M;data02:20M:autoextend
@@ -79,6 +82,9 @@ UNDO_FILES/undo_files
 SELECT @@innodb_data_home_dir;
 @@innodb_data_home_dir
 DATA_HOME/data_home
+SELECT @@innodb_log_group_home_dir;
+@@innodb_log_group_home_dir
+DATA_HOME_DIR/data_home
 SELECT @@innodb_data_file_path;
 @@innodb_data_file_path
 data01:20M;data02:20M:autoextend

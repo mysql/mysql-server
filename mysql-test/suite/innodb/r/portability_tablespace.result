@@ -58,6 +58,9 @@ UNDO_DIRECTORY/undo_directory
 SELECT @@innodb_data_home_dir;
 @@innodb_data_home_dir
 DATA_HOME_DIR/data_home_dir
+SELECT @@innodb_log_group_home_dir;
+@@innodb_log_group_home_dir
+DATA_HOME_DIR/data_home_dir
 SHOW CREATE TABLE tab3;
 Table	Create Table
 tab3	CREATE TABLE `tab3` (
@@ -71,7 +74,7 @@ tab3	CREATE TABLE `tab3` (
  PARTITION P1 DATA DIRECTORY = 'db_directory2/undo_directory' ENGINE = InnoDB) */
 ## Stop DB server
 ## Start with new --datadir only
-# restart: --datadir=NEW_DATADIR --innodb_undo_directory=MYSQL_TMP_DIR/undo_directory --innodb_data_home_dir=MYSQL_TMP_DIR/data_home_dir
+# restart: --datadir=NEW_DATADIR --innodb_undo_directory=MYSQL_TMP_DIR/undo_directory --innodb_data_home_dir=MYSQL_TMP_DIR/data_home_dir --innodb_log_group_home_dir=MYSQL_TMP_DIR/data_home_dir
 ## Check with new --datadir
 SELECT @@datadir;
 @@datadir
@@ -81,6 +84,9 @@ SELECT @@innodb_undo_directory;
 UNDO_DIRECTORY/undo_directory
 SELECT @@innodb_data_home_dir;
 @@innodb_data_home_dir
+DATA_HOME_DIR/data_home_dir
+SELECT @@innodb_log_group_home_dir;
+@@innodb_log_group_home_dir
 DATA_HOME_DIR/data_home_dir
 ## Check the tables with SHOW
 SHOW CREATE TABLE tab1;
