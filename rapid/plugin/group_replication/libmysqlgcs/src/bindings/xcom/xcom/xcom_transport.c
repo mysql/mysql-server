@@ -903,10 +903,10 @@ int tcp_server(task_arg arg) {
   ep->refused = 0;
   unblock_fd(ep->fd);
   DBGOUT(FN; NDBG(ep->fd, d););
+  G_MESSAGE("XCom protocol version: %d", my_xcom_version);
   G_MESSAGE(
-      "Ready to accept incoming connections on %s:%d "
-      "(socket=%d)!",
-      "0.0.0.0", xcom_listen_port, ep->fd);
+      "XCom initialized and ready to accept incoming connections on port %d",
+      xcom_listen_port);
   do {
     TASK_CALL(accept_tcp(ep->fd, &ep->cfd));
     /* Callback to check that the file descriptor is accepted. */
@@ -915,7 +915,7 @@ int tcp_server(task_arg arg) {
       ep->cfd = -1;
     }
     if(ep->cfd == -1){
-      G_MESSAGE("accept failed");
+      G_DEBUG("accept failed");
       ep->refused = 1;
       TASK_DELAY(0.1);
     } else {

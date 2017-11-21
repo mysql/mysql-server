@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -223,7 +223,7 @@ int init_net()
 		g_critical("Could not find a usable version of Winsock.dll");
 		return 1;
 	} else {
-		G_MESSAGE("The Winsock 2.2 dll was found okay");
+		G_DEBUG("The Winsock 2.2 dll was found okay");
 		return 0;
 	}
 }

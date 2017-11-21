@@ -314,15 +314,43 @@ sock_descriptor_to_sockaddr(int fd, struct sockaddr_storage *sa)
   {
     if (sa->ss_family != AF_INET && sa->ss_family != AF_INET6)
     {
-      MYSQL_GCS_LOG_WARN("Connection is not from an IPv4 nor IPv6 address. "
+      MYSQL_GCS_LOG_DEBUG("Connection is not from an IPv4 nor IPv6 address. "
                          "This is not supported. Refusing the connection!");
       res= 1;
     }
   }
   else
   {
-    MYSQL_GCS_LOG_WARN("Unable to handle socket descriptor, therefore "
-                       "refusing connection.");
+    int err = errno;
+    switch (err) {
+    case EBADF:
+      MYSQL_GCS_LOG_DEBUG("The file descriptor fd=" << fd << " is not valid");
+      break;
+    case EFAULT:
+      MYSQL_GCS_LOG_DEBUG("The sockaddr_storage pointer sa="
+                          << sa << " points to memory not in a valid part of "
+                                   "the process address space");
+      break;
+    case EINVAL:
+      MYSQL_GCS_LOG_DEBUG("The value of addr_size=" << addr_size
+                                                    << " is invalid");
+      break;
+    case ENOBUFS:
+      MYSQL_GCS_LOG_DEBUG("Insufficient resources were available in the "
+                          "system to perform the getpeername operation");
+      break;
+    case ENOTCONN:
+      MYSQL_GCS_LOG_DEBUG("The socket fd=" << fd << " is not connected");
+      break;
+    case ENOTSOCK:
+      MYSQL_GCS_LOG_DEBUG(
+          "The file descriptor fd=" << fd << " does not refer to a socket");
+      break;
+    default:
+      MYSQL_GCS_LOG_DEBUG(
+          "Unable to perform getpeername, therefore refusing connection.");
+      break;
+    }
   }
   return res ? true: false;
 }
