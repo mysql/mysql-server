@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -151,6 +151,7 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
   m_connect_count++;
   resetCounters();
 
+  get_callback_obj()->enable_send_buffer(remoteNodeId);
   m_connected  = true;
 
   DBUG_RETURN(true);
@@ -293,6 +294,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   m_connect_count++;
   resetCounters();
 
+  get_callback_obj()->enable_send_buffer(remoteNodeId);
   m_connected = true;
 
   DBUG_RETURN(true);
@@ -307,6 +309,7 @@ Transporter::doDisconnect() {
   m_connected = false;
 
   disconnectImpl();
+  get_callback_obj()->disable_send_buffer(remoteNodeId);
 }
 
 void

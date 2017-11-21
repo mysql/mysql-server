@@ -51,6 +51,11 @@ public:
   void complete_poll();
   void wakeup();
 
+  // Called under m_mutex protection
+  void set_enabled_send(const NodeBitmask &nodes);
+  void enable_send(NodeId node);
+  void disable_send(NodeId node);
+  
   void flush_send_buffers();
   int do_forceSend(int val = 1);
 
@@ -103,6 +108,7 @@ private:
   /**
    * TransporterSendBufferHandle interface
    */
+  virtual bool isSendEnabled(NodeId node) const;
   virtual Uint32 *getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
                               Uint32 max_use);
   virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
@@ -160,6 +166,8 @@ private:
     trp_client *m_next;
     NdbCondition * m_condition;
   } m_poll;
+
+  NodeBitmask m_enabled_nodes_mask;
 
   /**
    * This is used for sending

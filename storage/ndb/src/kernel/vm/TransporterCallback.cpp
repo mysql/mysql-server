@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,13 +97,13 @@ class TransporterCallbackKernelNonMT :
   {
     return globalTransporterRegistry.bytes_sent(node, bytes);
   }
-  bool has_data_to_send(NodeId node)
+  void enable_send_buffer(NodeId node)
   {
-    return globalTransporterRegistry.has_data_to_send(node);
+    globalTransporterRegistry.enable_send_buffer(node);
   }
-  void reset_send_buffer(NodeId node)
+  void disable_send_buffer(NodeId node)
   {
-    globalTransporterRegistry.reset_send_buffer(node);
+    globalTransporterRegistry.disable_send_buffer(node);
   }
 };
 static TransporterCallbackKernelNonMT myTransporterCallback;
@@ -445,7 +445,7 @@ TransporterReceiveHandleKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
 {
   DBUG_ENTER("reportDisconnect");
 
-  SignalT<sizeof(DisconnectRep)/4> signal;
+  SignalT<DisconnectRep::SignalLength> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
 #ifndef NDBD_MULTITHREADED
