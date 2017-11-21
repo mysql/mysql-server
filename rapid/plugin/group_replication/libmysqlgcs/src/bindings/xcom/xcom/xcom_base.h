@@ -233,7 +233,11 @@ void set_xcom_comms_cb(xcom_state_change_cb x);
 
 synode_no get_delivered_msg();
 
-#define XCOM_FSM(action, arg) do {const char *s = xcom_state_name[xcom_fsm(action,arg)]; G_TRACE("%f %s:%d", seconds(), __FILE__, __LINE__); G_MESSAGE("new state %s",s);} while(0)
+#ifdef WITH_LOG_DEBUG
+#define XCOM_FSM(action, arg) do {const char *s = xcom_state_name[xcom_fsm(action,arg)]; G_TRACE("%f %s:%d", seconds(), __FILE__, __LINE__); G_DEBUG("new state %s",s);} while(0)
+#else
+#define XCOM_FSM(action, arg) do {xcom_fsm(action,arg);} while(0)
+#endif
 
 #ifdef __cplusplus
 }

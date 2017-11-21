@@ -465,8 +465,10 @@ size_t add_cache_size(size_t x)
 {
        cache_size += x;
        if (DBG_CACHE_SIZE && x)
-               G_MESSAGE("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
-                         (long unsigned int)cache_size, (long unsigned int)x);
+       {
+         G_DEBUG("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
+                 (long unsigned int)cache_size, (long unsigned int)x);
+       }
        return cache_size;
 }
 
@@ -475,8 +477,10 @@ size_t sub_cache_size(size_t x)
 {
        cache_size -= x;
        if (DBG_CACHE_SIZE && x)
-               G_MESSAGE("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
-                         (long unsigned int)cache_size, (long unsigned int)x);
+       {
+         G_DEBUG("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
+                 (long unsigned int)cache_size, (long unsigned int)x);
+       }
        return cache_size;
 }
 

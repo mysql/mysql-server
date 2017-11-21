@@ -1427,7 +1427,7 @@ uint32_t new_id()
 static synode_no getstart(app_data_ptr a)
 {
 	synode_no retval = null_synode;
-	G_MESSAGE("getstart group_id %x", a->group_id);
+	G_DEBUG("getstart group_id %x", a->group_id);
 	if (!a || a->group_id == null_id) {
 		retval.group_id = new_id();
 	} else {
@@ -4281,7 +4281,7 @@ const char *xcom_actions_name[] = {
 xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs)
 {
 	static int	state = 0;
-	G_MESSAGE("state %d action %s", state, xcom_actions_name[action]);
+	G_DEBUG("state %d action %s", state, xcom_actions_name[action]);
 	switch (state) {
 	default:
 		assert(state == 0);
@@ -4333,7 +4333,7 @@ start:
 				xcom_shutdown = 1;
 				if(xcom_exit_cb)
 					xcom_exit_cb(get_int_arg(fsmargs));
-				G_MESSAGE("Exiting xcom thread");
+				G_DEBUG("Exiting xcom thread");
 			}
 			CO_RETURN(x_start);
 		}
@@ -4629,7 +4629,9 @@ static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size)
   struct timeval timeout;
   fd_set rfds, wfds, efds;
   int res;
+#ifdef WITH_LOG_DEBUG
   char buf[SYS_STRERROR_SIZE];
+#endif
 
   timeout.tv_sec=  10;
   timeout.tv_usec= 0;
@@ -4667,24 +4669,23 @@ static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size)
       MAY_DBG(FN; STRLIT("select - Finished. "); NEXP(res, d));
       if (res == 0)
       {
-        G_MESSAGE("Timed out while waiting for connection to be established! "
-                  "Cancelling connection attempt. (socket= %d, error=%d)",
-                  fd, res);
-        G_WARNING("select - Timeout! Cancelling connection...");
+        G_DEBUG("Timed out while waiting for connection to be established! "
+                "Cancelling connection attempt. (socket= %d, error=%d)",
+                fd, res);
+        G_DEBUG("select - Timeout! Cancelling connection...");
         return -1;
       }
 #if defined (WIN32) || defined (WIN64)
       else if (res == SOCKET_ERROR)
       {
-        G_WARNING("select - Error while connecting! "
-                  "(socket= %d, error=%d)",
-                  fd, WSAGetLastError());
+        G_DEBUG("select - Error while connecting! (socket= %d, error=%d)", fd,
+                WSAGetLastError());
 #else
       else if (res < 0)
       {
-        G_WARNING("select - Error while connecting! "
-                  "(socket= %d, error=%d, error msg='%s')",
-                  fd, errno, strerror(errno));
+        G_DEBUG("select - Error while connecting! (socket= %d, error=%d, error "
+                "msg='%s')",
+                fd, errno, strerror(errno));
 #endif
         return -1;
       }
@@ -4706,13 +4707,14 @@ static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size)
           if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_errno,
                          &socket_errno_len))
           {
-            G_WARNING("Connection to socket %d failed. Unable to sort out the "
-                      "connection error!", fd);
+            G_DEBUG("Connection to socket %d failed. Unable to sort out the "
+                    "connection error!",
+                    fd);
           }
           else
           {
-            G_WARNING("Connection to socket %d failed with error %d - %s.",
-                      fd, socket_errno, strerr_msg(buf, sizeof(buf), socket_errno));
+            G_DEBUG("Connection to socket %d failed with error %d - %s.", fd,
+                    socket_errno, strerr_msg(buf, sizeof(buf), socket_errno));
           }
           return -1;
         }
@@ -4721,13 +4723,12 @@ static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size)
     else
     {
 #if defined (WIN32) || defined (WIN64)
-      G_WARNING("connect - Error connecting "
-                "(socket=%d, error=%d).",
-                fd, WSAGetLastError());
+      G_DEBUG("connect - Error connecting (socket=%d, error=%d).", fd,
+              WSAGetLastError());
 #else
-      G_WARNING("connect - Error connecting "
-                "(socket=%d, error=%d, error message='%s').",
-                fd, errno, strerror(errno));
+      G_DEBUG("connect - Error connecting (socket=%d, error=%d, error "
+              "message='%s').",
+              fd, errno, strerror(errno));
 #endif
       return -1;
     }
@@ -4741,13 +4742,13 @@ static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size)
   if(block_fd(fd) < 0)
   {
 #if defined (WIN32) || defined (WIN64)
-    G_WARNING("Unable to set socket back to blocking state. "
-              "(socket=%d, error=%d).",
-              fd, WSAGetLastError());
+    G_DEBUG(
+        "Unable to set socket back to blocking state. (socket=%d, error=%d).",
+        fd, WSAGetLastError());
 #else
-    G_WARNING("Unable to set socket back to blocking state. "
-              "(socket=%d, error=%d, error message='%s').",
-              fd, errno, strerror(errno));
+    G_DEBUG("Unable to set socket back to blocking state. (socket=%d, "
+            "error=%d, error message='%s').",
+            fd, errno, strerror(errno));
 #endif
     return -1;
   }
@@ -4763,20 +4764,22 @@ static connection_descriptor*	connect_xcom(char *server, xcom_port port)
 	result ret = {0,0};
 	struct sockaddr_in sock_addr;
 	socklen_t sock_size;
+#ifdef WITH_LOG_DEBUG
         char buf[SYS_STRERROR_SIZE];
+#endif
 
 	DBGOUT(FN; STREXP(server); NEXP(port, d));
-	G_MESSAGE("connecting to %s %d", server, port);
+	G_DEBUG("connecting to %s %d", server, port);
 	/* Create socket */
 	if ((fd = checked_create_socket(AF_INET, SOCK_STREAM, 0)).val < 0) {
-		G_MESSAGE("Error creating sockets.");
+		G_DEBUG("Error creating sockets.");
 		return NULL;
 	}
 
 	/* Get address of server */
 	if (!init_sockaddr(server, &sock_addr, &sock_size, port)) {
 		xcom_close_socket(&fd.val);
-		G_MESSAGE("Error initializing socket addresses.");
+		G_DEBUG("Error initializing socket addresses.");
 		return NULL;
 	}
 
@@ -4785,7 +4788,7 @@ static connection_descriptor*	connect_xcom(char *server, xcom_port port)
 	SET_OS_ERR(0);
 	if (timed_connect(fd.val, (struct sockaddr *)&sock_addr, sock_size) == -1) {
 		fd.funerr = to_errno(GET_OS_ERR);
-		G_MESSAGE("Connecting socket to address %s in port %d failed with error %d - %s.",
+		G_DEBUG("Connecting socket to address %s in port %d failed with error %d - %s.",
 				server, port, fd.funerr, strerr_msg(buf, sizeof(buf), fd.funerr));
 		xcom_close_socket(&fd.val);
 		return NULL;
@@ -4804,15 +4807,15 @@ static connection_descriptor*	connect_xcom(char *server, xcom_port port)
 				task_dump_err(ret.funerr);
 				xcom_shut_close_socket(&fd.val);
 #if defined (WIN32) || defined (WIN64)
-				G_MESSAGE("Setting node delay failed  while connecting to %s with error %d.",
+				G_DEBUG("Setting node delay failed while connecting to %s with error %d.",
 						server, ret.funerr);
 #else
-				G_MESSAGE("Setting node delay failed  while connecting to %s with error %d - %s.",
+				G_DEBUG("Setting node delay failed while connecting to %s with error %d - %s.",
 						server, ret.funerr, strerror(ret.funerr));
 #endif
 				return NULL;
 			}
-			G_MESSAGE("client connected to %s %d fd %d", server, port, fd.val);
+			G_DEBUG("client connected to %s %d fd %d", server, port, fd.val);
 		} else {
 			/* Something is wrong */
 			socklen_t errlen = sizeof(ret.funerr);
@@ -4827,10 +4830,10 @@ static connection_descriptor*	connect_xcom(char *server, xcom_port port)
 			}
 			xcom_shut_close_socket(&fd.val);
 #if defined (WIN32) || defined (WIN64)
-			G_MESSAGE("Getting the peer name failed while connecting to server %s with error %d.",
+			G_DEBUG("Getting the peer name failed while connecting to server %s with error %d.",
 					server, ret.funerr);
 #else
-			G_MESSAGE("Getting the peer name failed while connecting to server %s with error %d -%s.",
+			G_DEBUG("Getting the peer name failed while connecting to server %s with error %d -%s.",
 					server, ret.funerr, strerror(ret.funerr));
 #endif
 			return NULL;
@@ -4840,7 +4843,7 @@ static connection_descriptor*	connect_xcom(char *server, xcom_port port)
 		if (xcom_use_ssl()) {
 			connection_descriptor *cd = 0;
 			SSL * ssl = SSL_new(client_ctx);
-			G_MESSAGE("Trying to connect using SSL.")
+			G_DEBUG("Trying to connect using SSL.")
 			SSL_set_fd(ssl, fd.val);
 
 			ERR_clear_error();
@@ -4870,7 +4873,7 @@ static connection_descriptor*	connect_xcom(char *server, xcom_port port)
 
 			cd = new_connection(fd.val, ssl);
 			set_connected(cd, CON_FD);
-			G_MESSAGE("Success connecting using SSL.")
+			G_DEBUG("Success connecting using SSL.")
 			return cd;
 		} else {
 			connection_descriptor *cd = new_connection(fd.val, 0);
@@ -5109,10 +5112,10 @@ int xcom_send_app_wait(connection_descriptor *fd, app_data *a, int force)
 				case REQUEST_OK:
 					return 1;
 				case REQUEST_FAIL:
-                                        G_MESSAGE("cli_err %d",cli_err);
+                                        G_DEBUG("cli_err %d",cli_err);
 					return 0;
 				case REQUEST_RETRY:
-			                G_MESSAGE("cli_err %d",cli_err);
+			                G_DEBUG("cli_err %d",cli_err);
 					xcom_sleep(1);
 					break;
 				default:

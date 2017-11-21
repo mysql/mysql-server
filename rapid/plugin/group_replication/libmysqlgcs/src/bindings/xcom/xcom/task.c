@@ -1490,7 +1490,7 @@ result	announce_tcp(xcom_port port)
                     "0.0.0.0", port, fd.val, err);
 		goto err;
 	}
-        G_MESSAGE("Successfully bound to %s:%d (socket=%d).",
+        G_DEBUG("Successfully bound to %s:%d (socket=%d).",
                   "0.0.0.0", port, fd.val);
 	if (listen(fd.val, 32) < 0) {
           int err = to_errno(GET_OS_ERR);
@@ -1498,7 +1498,7 @@ result	announce_tcp(xcom_port port)
                     "(socket=%d, errno=%d)!", fd.val, err);
 		goto err;
 	}
-        G_MESSAGE("Successfully set listen backlog to 32 "
+        G_DEBUG("Successfully set listen backlog to 32 "
                   "(socket=%d)!", fd.val);
 	/* Make socket non-blocking */
 	unblock_fd(fd.val);
@@ -1509,8 +1509,9 @@ result	announce_tcp(xcom_port port)
                     fd.val, err);
         }
         else
-          G_MESSAGE("Successfully unblocked socket (socket=%d)!",
-                    fd.val);
+        {
+          G_DEBUG("Successfully unblocked socket (socket=%d)!", fd.val);
+        }
 	return fd;
 
  err:
