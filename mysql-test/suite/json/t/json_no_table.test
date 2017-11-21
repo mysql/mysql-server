@@ -2565,3 +2565,21 @@ SELECT JSON_INSERT('{"a":1}', '$[1]', 2) AS c1,
        JSON_INSERT('{"a":1}', '$[0][1]', 2) AS c2,
        JSON_INSERT('{"a":1}', '$[0][0][1]', 2) AS c3,
        JSON_INSERT('{"a":1}', '$[last][1]', 2) AS c4;
+
+
+--echo #
+--echo # Bug#27028889: MYSQL NORMALIZES DECIMAL NUMBERS WITH
+--echo #               ZERO FRACTIONAL PART TO INTEGERS
+--echo #
+
+SET @floating_points = '[0.0, -0.0, 1.0, -1.0, 3.14,
+                         999999999999999.0, -999999999999999.0,
+                         1000000000000000.0, -1000000000000000.0,
+                         1e200, -1e200]';
+
+SELECT CAST(CAST(@floating_points AS JSON) AS CHAR) AS x;
+SELECT JSON_PRETTY(@floating_points);
+SELECT j, JSON_TYPE(j) FROM
+JSON_TABLE(CAST(CAST(CAST(@floating_points AS JSON) AS CHAR) AS JSON),
+           '$[*]' COLUMNS (o FOR ORDINALITY, j JSON PATH '$')) AS jt
+ORDER BY o;

@@ -267,15 +267,11 @@ public:
     @param[out] errmsg any syntax error message (will be ignored if it is NULL)
     @param[out] offset the position in the parsed string a syntax error was
                        found (will be ignored if it is NULL)
-    @param[in]  handle_numbers_as_double whether numbers should be handled as
-                                         double. If set to true, all numbers are
-                                         parsed as DOUBLE
 
     @result the built DOM if JSON text was parseable, else NULL
   */
   static Json_dom_ptr parse(const char *text, size_t length,
-                            const char **errmsg, size_t *offset,
-                            bool handle_numbers_as_double= false);
+                            const char **errmsg, size_t *offset);
 
   /**
     Construct a DOM object based on a binary JSON value. The ownership

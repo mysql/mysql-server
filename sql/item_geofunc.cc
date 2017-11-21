@@ -1020,7 +1020,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
   }
 
   Json_wrapper wr;
-  if (get_json_wrapper(args, 0, buf, func_name(), &wr, true))
+  if (get_json_wrapper(args, 0, buf, func_name(), &wr))
     return error_str();
 
   /*

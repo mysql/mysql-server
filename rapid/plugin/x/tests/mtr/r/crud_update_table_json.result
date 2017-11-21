@@ -18,7 +18,7 @@ RUN INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": "two"}')
 1 rows affected
 RUN SELECT * FROM xtest.xtable
 xfield
-{"first": 1, "second": "two"}
+{"first": 1.0, "second": "two"}
 0 rows affected
 send Mysqlx.Crud.Update {
   collection {
@@ -58,7 +58,7 @@ RUN INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": "two"}')
 1 rows affected
 RUN SELECT * FROM xtest.xtable
 xfield
-{"first": 1, "second": "two"}
+{"first": 1.0, "second": "two"}
 0 rows affected
 send Mysqlx.Crud.Update {
   collection {
@@ -136,7 +136,7 @@ RUN INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": "two"}')
 1 rows affected
 RUN SELECT * FROM xtest.xtable
 xfield
-{"first": 1, "second": "two"}
+{"first": 1.0, "second": "two"}
 0 rows affected
 send Mysqlx.Crud.Update {
   collection {
@@ -171,7 +171,7 @@ RUN INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": "two"}')
 1 rows affected
 RUN SELECT * FROM xtest.xtable
 xfield
-{"first": 1, "second": "two"}
+{"first": 1.0, "second": "two"}
 0 rows affected
 send Mysqlx.Crud.Update {
   collection {
@@ -232,7 +232,7 @@ RUN INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": "two"}')
 1 rows affected
 RUN SELECT * FROM xtest.xtable
 xfield
-{"first": 1, "second": "two"}
+{"first": 1.0, "second": "two"}
 0 rows affected
 send Mysqlx.Crud.Update {
   collection {
@@ -262,7 +262,7 @@ send Mysqlx.Crud.Update {
 Rows matched: 1  Changed: 1  Warnings: 0
 RUN SELECT * FROM xtest.xtable
 xfield
-{"first": 1, "third": 3, "fourth": "four", "second": "two"}
+{"first": 1.0, "third": 3.0, "fourth": "four", "second": "two"}
 0 rows affected
 RUN TRUNCATE TABLE xtest.xtable
 
@@ -272,7 +272,7 @@ RUN INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": ["two"]}')
 1 rows affected
 RUN SELECT * FROM xtest.xtable
 xfield
-{"first": 1, "second": ["two"]}
+{"first": 1.0, "second": ["two"]}
 0 rows affected
 send Mysqlx.Crud.Update {
   collection {
@@ -310,7 +310,7 @@ send Mysqlx.Crud.Update {
 Rows matched: 1  Changed: 1  Warnings: 0
 RUN SELECT * FROM xtest.xtable
 xfield
-{"first": 1, "second": ["two.1", "two"]}
+{"first": 1.0, "second": ["two.1", "two"]}
 0 rows affected
 RUN TRUNCATE TABLE xtest.xtable
 
@@ -320,7 +320,7 @@ RUN INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": "two"}')
 1 rows affected
 RUN SELECT * FROM xtest.xtable
 xfield
-{"first": 1, "second": "two"}
+{"first": 1.0, "second": "two"}
 0 rows affected
 send Mysqlx.Crud.Update {
   collection {
@@ -354,7 +354,7 @@ send Mysqlx.Crud.Update {
 Rows matched: 1  Changed: 1  Warnings: 0
 RUN SELECT * FROM xtest.xtable
 xfield
-{"first": 1, "second": ["two", "two.1"]}
+{"first": 1.0, "second": ["two", "two.1"]}
 0 rows affected
 RUN TRUNCATE TABLE xtest.xtable
 
@@ -364,7 +364,7 @@ RUN INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": "two"}')
 1 rows affected
 RUN SELECT * FROM xtest.xtable
 xfield
-{"first": 1, "second": "two"}
+{"first": 1.0, "second": "two"}
 0 rows affected
 send Mysqlx.Crud.Update {
   collection {
