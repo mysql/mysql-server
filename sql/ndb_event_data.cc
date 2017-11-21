@@ -18,6 +18,7 @@
 #include "sql/ndb_event_data.h"
 
 #include "sql/dd_table_share.h"
+#include "sql/field.h"
 #include "sql/ndb_dd_table.h"
 #include "sql/ndb_table_map.h"
 #include "sql/sql_base.h"

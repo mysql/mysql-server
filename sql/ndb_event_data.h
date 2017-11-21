@@ -20,6 +20,7 @@
 
 #include "my_alloc.h" // MEM_ROOT
 #include "sql/ndb_bitmap.h"
+#include "sql/table.h" // struct TABLE
 
 namespace dd {
   class Table;

@@ -27,6 +27,7 @@
 #include <SysLogHandler.hpp>
 
 #include <NdbSleep.h>
+#include "my_alloc.h" // MEM_ROOT
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 
