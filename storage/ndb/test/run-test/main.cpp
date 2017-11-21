@@ -555,7 +555,7 @@ bool parse_args(int argc, char **argv) {
   g_logger.info("Bootstrapping using %s", mycnf.c_str());
 
   const char *groups[] = {"atrt", 0};
-  MEM_ROOT *alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512, 0};  // LEAK
+  MEM_ROOT *alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512};  // LEAK
   int ret = load_defaults(mycnf.c_str(), groups, &argc, &argv, alloc);
 
   if (ret) {
