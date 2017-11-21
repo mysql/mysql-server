@@ -39,6 +39,7 @@
 #include "sql/ndb_local_connection.h"
 #include "sql/ndb_log.h"
 #include "sql/ndb_name_util.h"
+#include "sql/ndb_ndbapi_util.h"
 #include "sql/ndb_sleep.h"
 #include "sql/ndb_table_guard.h"
 #include "sql/ndb_tdc.h"
@@ -1722,25 +1723,21 @@ ndb_binlog_setup(THD *thd)
 
 
 /*
-  Defines and struct for schema table.
-  Should reflect table definition above.
+  Defines for the expected order of columns in ndb_schema table, should
+  match the accepted table definition.
 */
-#define SCHEMA_DB_I 0u
-#define SCHEMA_NAME_I 1u
-#define SCHEMA_SLOCK_I 2u
-#define SCHEMA_QUERY_I 3u
-#define SCHEMA_NODE_ID_I 4u
-#define SCHEMA_EPOCH_I 5u
-#define SCHEMA_ID_I 6u
-#define SCHEMA_VERSION_I 7u
-#define SCHEMA_TYPE_I 8u
-#define SCHEMA_SIZE 9u
-#define SCHEMA_SLOCK_SIZE 32u
+constexpr uint SCHEMA_DB_I = 0;
+constexpr uint SCHEMA_NAME_I = 1;
+constexpr uint SCHEMA_SLOCK_I = 2;
+constexpr uint SCHEMA_QUERY_I = 3;
+constexpr uint SCHEMA_NODE_ID_I = 4;
+constexpr uint SCHEMA_EPOCH_I = 5;
+constexpr uint SCHEMA_ID_I = 6;
+constexpr uint SCHEMA_VERSION_I = 7;
+constexpr uint SCHEMA_TYPE_I = 8;
+constexpr uint SCHEMA_SLOCK_SIZE = 32;
 
 
-/*
-  log query in schema table
-*/
 static void ndb_report_waiting(const char *key,
                                int the_time,
                                const char *op,
@@ -1788,6 +1785,9 @@ static void ndb_report_waiting(const char *key,
 
 extern void update_slave_api_stats(Ndb*);
 
+/*
+  log query in ndb_schema table
+*/
 int ndbcluster_log_schema_op(THD *thd,
                              const char *query, int query_length,
                              const char *db, const char *table_name,
@@ -2024,8 +2024,6 @@ int ndbcluster_log_schema_op(THD *thd,
   NdbTransaction *trans= 0;
   int retries= 100;
   int retry_sleep= 30; /* 30 milliseconds, transaction */
-  const NDBCOL *col[SCHEMA_SIZE];
-  unsigned sz[SCHEMA_SIZE];
 
   if (ndbtab == 0)
   {
@@ -2035,19 +2033,6 @@ int ndbcluster_log_schema_op(THD *thd,
       ndb_error= &dict->getNdbError();
     }
     goto end;
-  }
-
-  {
-    uint i;
-    for (i= 0; i < SCHEMA_SIZE; i++)
-    {
-      col[i]= ndbtab->getColumn(i);
-      if (i != SCHEMA_QUERY_I)
-      {
-        sz[i]= col[i]->getLength();
-        DBUG_ASSERT(sz[i] <= sizeof(tmp_buf));
-      }
-    }
   }
 
   while (1)
@@ -2067,17 +2052,18 @@ int ndbcluster_log_schema_op(THD *thd,
       DBUG_ASSERT(r == 0);
       
       /* db */
-      ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, log_db, (int)strlen(log_db));
+      ndb_pack_varchar(ndbtab, SCHEMA_DB_I, tmp_buf, log_db,
+                       strlen(log_db));
       r|= op->equal(SCHEMA_DB_I, tmp_buf);
       DBUG_ASSERT(r == 0);
       /* name */
-      ndb_pack_varchar(col[SCHEMA_NAME_I], tmp_buf, log_tab,
-                       (int)strlen(log_tab));
+      ndb_pack_varchar(ndbtab, SCHEMA_NAME_I, tmp_buf, log_tab,
+                       strlen(log_tab));
       r|= op->equal(SCHEMA_NAME_I, tmp_buf);
       DBUG_ASSERT(r == 0);
       /* slock */
-      DBUG_ASSERT(sz[SCHEMA_SLOCK_I] ==
-                  no_bytes_in_map(&ndb_schema_object->slock_bitmap));
+      DBUG_ASSERT(ndbtab->getColumn(SCHEMA_SLOCK_I)->getLength() ==
+                  (int)no_bytes_in_map(&ndb_schema_object->slock_bitmap));
       r|= op->setValue(SCHEMA_SLOCK_I, log_subscribers);
       DBUG_ASSERT(r == 0);
       /* query */
@@ -2837,7 +2823,6 @@ class Ndb_schema_event_handler {
     NdbTransaction *trans= 0;
     int retries= 100;
     int retry_sleep= 30; /* 30 milliseconds, transaction */
-    const NDBCOL *col[SCHEMA_SIZE];
 
     MY_BITMAP slock;
     uint32 bitbuf[SCHEMA_SLOCK_SIZE/4];
@@ -2848,18 +2833,6 @@ class Ndb_schema_event_handler {
       if (dict->getNdbError().code != 4009)
         abort();
       DBUG_RETURN(0);
-    }
-
-    {
-      uint i;
-      for (i= 0; i < SCHEMA_SIZE; i++)
-      {
-        col[i]= ndbtab->getColumn(i);
-        if (i != SCHEMA_QUERY_I)
-        {
-          DBUG_ASSERT(col[i]->getLength() <= (int)sizeof(tmp_buf));
-        }
-      }
     }
 
     while (1)
@@ -2877,12 +2850,13 @@ class Ndb_schema_event_handler {
         DBUG_ASSERT(r == 0);
 
         /* db */
-        ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, db, (int)strlen(db));
+        ndb_pack_varchar(ndbtab, SCHEMA_DB_I, tmp_buf, db,
+                         strlen(db));
         r|= op->equal(SCHEMA_DB_I, tmp_buf);
         DBUG_ASSERT(r == 0);
         /* name */
-        ndb_pack_varchar(col[SCHEMA_NAME_I], tmp_buf, table_name,
-                         (int)strlen(table_name));
+        ndb_pack_varchar(ndbtab, SCHEMA_NAME_I, tmp_buf,
+                         table_name, strlen(table_name));
         r|= op->equal(SCHEMA_NAME_I, tmp_buf);
         DBUG_ASSERT(r == 0);
         /* slock */
@@ -2936,12 +2910,13 @@ class Ndb_schema_event_handler {
         DBUG_ASSERT(r == 0);
 
         /* db */
-        ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, db, (int)strlen(db));
+        ndb_pack_varchar(ndbtab, SCHEMA_DB_I, tmp_buf, db,
+                         strlen(db));
         r|= op->equal(SCHEMA_DB_I, tmp_buf);
         DBUG_ASSERT(r == 0);
         /* name */
-        ndb_pack_varchar(col[SCHEMA_NAME_I], tmp_buf, table_name,
-                         (int)strlen(table_name));
+        ndb_pack_varchar(ndbtab, SCHEMA_NAME_I, tmp_buf,
+                         table_name, strlen(table_name));
         r|= op->equal(SCHEMA_NAME_I, tmp_buf);
         DBUG_ASSERT(r == 0);
         /* slock */

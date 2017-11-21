@@ -23,12 +23,16 @@
 #include "my_byteorder.h"
 
 
-/*
-  helper function to pack a ndb varchar
-*/
-char *ndb_pack_varchar(const NdbDictionary::Column *col, char *buf,
-                       const char *str, int sz)
+void ndb_pack_varchar(const NdbDictionary::Table *ndbtab, unsigned column_index,
+                      char (&buf)[512], const char *str, size_t sz)
 {
+  // Get the column, cast to int to help compiler choose
+  // the "const int" overload rather than "const char*"
+  const NdbDictionary::Column* col =
+      ndbtab->getColumn(static_cast<int>(column_index));
+
+  assert(col->getLength() <= (int)sizeof(buf));
+
   switch (col->getArrayType())
   {
     case NdbDictionary::Column::ArrayTypeFixed:
@@ -39,11 +43,10 @@ char *ndb_pack_varchar(const NdbDictionary::Column *col, char *buf,
       memcpy(buf + 1, str, sz);
       break;
     case NdbDictionary::Column::ArrayTypeMediumVar:
-      int2store(buf, sz);
+      int2store(buf, (uint16)sz);
       memcpy(buf + 2, str, sz);
       break;
   }
-  return buf;
 }
 
 
@@ -110,3 +113,4 @@ ndb_table_has_hidden_pk(const NdbDictionary::Table *ndbtab)
   }
   return false;
 }
+

@@ -8280,8 +8280,8 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
 
   // log_name
   char tmp_buf[FN_REFLEN];
-  ndb_pack_varchar(ndbtab->getColumn(2u), tmp_buf,
-                   group_master_log_name, (int)strlen(group_master_log_name));
+  ndb_pack_varchar(ndbtab, 2u, tmp_buf,
+                   group_master_log_name, strlen(group_master_log_name));
   r|= op->setValue(2u, tmp_buf);
   DBUG_ASSERT(r == 0);
   // start_pos
