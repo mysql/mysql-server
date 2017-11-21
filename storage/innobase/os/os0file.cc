@@ -337,7 +337,7 @@ struct Slot {
 
 #ifdef WIN_ASYNC_IO
 	/** handle object we need in the OVERLAPPED struct */
-	HANDLE			handle{INVALID_HANDLE};
+	HANDLE			handle{INVALID_HANDLE_VALUE};
 
 	/** Windows control block for the aio request */
 	OVERLAPPED		control{0, 0};
