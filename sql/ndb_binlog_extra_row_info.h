@@ -55,22 +55,16 @@ public:
 
   int loadFromBuffer(const uchar* extra_row_info_ptr);
 
-  Uint16 getFlags() const
-  {
-    return flags;
-  }
+  Uint16 getFlags() const { return flags; }
   void setFlags(Uint16 _flags);
-  
-  Uint64 getTransactionId() const
-  { return transactionId; };
+
+  Uint64 getTransactionId() const { return transactionId; }
   void setTransactionId(Uint64 _transactionId);
-  
-  Uint16 getConflictFlags() const
-  { return conflictFlags; };
+
+  Uint16 getConflictFlags() const { return conflictFlags; }
   void setConflictFlags(Uint16 _conflictFlags);
 
-  uchar* getBuffPtr()
-  { return buff; };
+  uchar* getBuffPtr() { return buff; }
   uchar* generateBuffer();
 private:
   uchar buff[MaxLen];

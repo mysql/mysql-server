@@ -23,13 +23,14 @@
 
 #include "sql/ha_ndbcluster.h"
 
-#include <mysql/psi/mysql_thread.h>
 #include <memory>
 #include <string>
+
 
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "mysql/plugin.h"
+#include "mysql/psi/mysql_thread.h"
 #include "sql/abstract_query_plan.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"     // ER_THD
@@ -4853,10 +4854,10 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
      table's data will also be reverted.
   */
   Uint64 transaction_id = Ndb_binlog_extra_row_info::InvalidTransactionId;
-  Uint16 conflict_flags = Ndb_binlog_extra_row_info::UnsetConflictFlags;
   bool op_is_marked_as_read= false;
   bool op_is_marked_as_reflected= false;
-  bool op_is_marked_as_refresh= false;
+  // Only used for sanity check and debug printout
+  bool op_is_marked_as_refresh MY_ATTRIBUTE((unused))= false;
 
   if (thd->binlog_row_event_extra_data)
   {
@@ -4871,15 +4872,15 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
 
     if (extra_row_info.getFlags() &
         Ndb_binlog_extra_row_info::NDB_ERIF_TRANSID)
+    {
       transaction_id = extra_row_info.getTransactionId();
+    }
 
     if (extra_row_info.getFlags() &
         Ndb_binlog_extra_row_info::NDB_ERIF_CFT_FLAGS)
     {
-      DBUG_PRINT("info", 
-                 ("Slave : have conflict flags : %x\n",
-                  extra_row_info.getConflictFlags()));
-      conflict_flags = extra_row_info.getConflictFlags();
+      const Uint16 conflict_flags = extra_row_info.getConflictFlags();
+      DBUG_PRINT("info", ("conflict flags : %x\n", conflict_flags));
 
       if (conflict_flags & NDB_ERIF_CFT_REFLECT_OP)
       {
@@ -4894,7 +4895,9 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
       }
 
       if (conflict_flags & NDB_ERIF_CFT_READ_OP)
+      {
         op_is_marked_as_read= true;
+      }
 
       /* Sanity - 1 flag at a time at most */
       assert(! (op_is_marked_as_reflected &&
