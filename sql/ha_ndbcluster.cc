@@ -2893,14 +2893,12 @@ void ha_ndbcluster::inplace__renumber_indexes(uint dropped_index_num)
 */
 int ha_ndbcluster::inplace__drop_indexes(Ndb *ndb, TABLE *tab)
 {
-  uint i;
   int error= 0;
-  const char *index_name;
   KEY* key_info= tab->key_info;
   NDBDICT *dict= ndb->getDictionary();
   DBUG_ENTER("ha_ndbcluster::inplace__drop_indexes");
   
-  for (i= 0; i < tab->s->keys; i++, key_info++)
+  for (uint i= 0; i < tab->s->keys; i++, key_info++)
   {
     NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
     m_index[i].type= idx_type;
@@ -2911,8 +2909,8 @@ int ha_ndbcluster::inplace__drop_indexes(Ndb *ndb, TABLE *tab)
 
       if (unique_index)
       {
-        index_name= unique_index->getName();
-        DBUG_PRINT("info", ("Dropping unique index %u: %s", i, index_name));
+        DBUG_PRINT("info", ("Dropping unique index %u: %s", i,
+                            unique_index->getName()));
         // Drop unique index from ndb
         if (dict->dropIndexGlobal(*unique_index) == 0)
         {
@@ -2927,8 +2925,7 @@ int ha_ndbcluster::inplace__drop_indexes(Ndb *ndb, TABLE *tab)
       }
       if (!error && index)
       {
-        index_name= index->getName();
-        DBUG_PRINT("info", ("Dropping index %u: %s", i, index_name));
+        DBUG_PRINT("info", ("Dropping index %u: %s", i, index->getName()));
         // Drop ordered index from ndb
         if (dict->dropIndexGlobal(*index) == 0)
         {
@@ -3181,11 +3178,12 @@ int ha_ndbcluster::pk_read(const uchar *key, uchar *buf, uint32 *part_id)
   {
     // Is parent of pushed join
     DBUG_ASSERT(lm == NdbOperation::LM_CommittedRead);
-    const int error= pk_unique_index_read_key_pushed(table->s->primary_key, key,
-                                                     (m_user_defined_partitioning ?
-                                                     part_id : NULL));
+    const int error =
+        pk_unique_index_read_key_pushed(table->s->primary_key, key);
     if (unlikely(error))
+    {
       DBUG_RETURN(error);
+    }
 
     DBUG_ASSERT(m_active_query!=NULL);
     if (execute_no_commit_ie(m_thd_ndb, trans) != 0 ||
@@ -3418,7 +3416,7 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
   NdbOperation::OperationOptions *poptions=NULL;
   options.optionsPresent = 0;
   uint i;
-  int res, error;
+  int error;
   DBUG_ENTER("peek_indexed_rows");
   if (unlikely(!(trans= get_transaction(error))))
   {
@@ -3500,17 +3498,26 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
   }
   last= trans->getLastDefinedOperation();
   if (first)
-    res= execute_no_commit_ie(m_thd_ndb, trans);
-  else                            // Table has no keys
+  {
+    (void)execute_no_commit_ie(m_thd_ndb, trans);
+  }
+  else
+  {
+    // Table has no keys
     DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
+  }
   const NdbError ndberr= trans->getNdbError();
   error= ndberr.mysql_code;
   if ((error != 0 && error != HA_ERR_KEY_NOT_FOUND) ||
       check_all_operations_for_error(trans, first, last, 
                                      HA_ERR_KEY_NOT_FOUND))
+  {
     DBUG_RETURN(ndb_err(trans));
+  }
   else
+  {
     DBUG_PRINT("info", ("m_dupkey %d", m_dupkey));
+  }
   DBUG_RETURN(0);
 }
 
@@ -3532,9 +3539,11 @@ int ha_ndbcluster::unique_index_read(const uchar *key, uchar *buf)
                         active_index))
   {
     DBUG_ASSERT(lm == NdbOperation::LM_CommittedRead);
-    const int error= pk_unique_index_read_key_pushed(active_index, key, NULL);
+    const int error= pk_unique_index_read_key_pushed(active_index, key);
     if (unlikely(error))
+    {
       DBUG_RETURN(error);
+    }
 
     DBUG_ASSERT(m_active_query!=NULL);
     if (execute_no_commit_ie(m_thd_ndb, trans) != 0 ||
@@ -4059,16 +4068,9 @@ is_shrinked_varchar(const Field *field)
 }
 
 int
-ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx, 
-                                               const uchar *key, 
-                                               Uint32 *ppartition_id)
+ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx, const uchar *key)
 {
   DBUG_ENTER("pk_unique_index_read_key_pushed");
-  NdbOperation::OperationOptions options;
-  NdbOperation::OperationOptions *poptions = NULL;
-  options.optionsPresent= 0;
-  NdbOperation::GetValueSpec gets[2];
-
   DBUG_ASSERT(m_thd_ndb->trans);
   DBUG_ASSERT(idx < MAX_KEY);
 
@@ -4078,20 +4080,7 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     m_active_query= NULL;
   }
 
-  if (table_share->primary_key == MAX_KEY)
-  {
-    get_hidden_fields_keyop(&options, gets);
-    poptions= &options;
-  }
   get_read_set(false, idx);
-
-  if (ppartition_id != NULL)
-  {
-    assert(m_user_defined_partitioning);
-    options.optionsPresent|= NdbOperation::OperationOptions::OO_PARTITION_ID;
-    options.partitionId= *ppartition_id;
-    poptions= &options;
-  }
 
   KEY *key_def= &table->key_info[idx];
   KEY_PART_INFO *key_part;
@@ -15165,11 +15154,13 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
           op= NULL;            // Avoid compiler warning
           DBUG_ASSERT(false);  // FIXME: Incomplete code, should not be executed
           DBUG_ASSERT(lm == NdbOperation::LM_CommittedRead);
-          const int error= pk_unique_index_read_key_pushed(active_index,
-                                                           mrr_cur_range.start_key.key,
-                                                           ppartitionId);
+          const int error =
+              pk_unique_index_read_key_pushed(active_index,
+                                              mrr_cur_range.start_key.key);
           if (unlikely(error))
+          {
             DBUG_RETURN(error);
+          }
         }
         else
         {
@@ -17093,14 +17084,10 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
                       altered_table->s->table_name.str,
                       alter_flags));
 
-  bool auto_increment_value_changed= false;
   bool max_rows_changed= false;
   bool comment_changed = false;
   if (alter_flags & Alter_inplace_info::CHANGE_CREATE_OPTION)
   {
-    if (create_info->auto_increment_value !=
-      table->file->stats.auto_increment_value)
-      auto_increment_value_changed= true;
     if (create_info->used_fields & HA_CREATE_USED_MAX_ROWS)
       max_rows_changed= true;
     if (create_info->used_fields & HA_CREATE_USED_COMMENT)

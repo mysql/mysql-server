@@ -547,9 +547,7 @@ private:
                                                const uchar *key, uchar *buf,
                                                NdbOperation::LockMode lm,
                                                Uint32 *ppartition_id);
-  int pk_unique_index_read_key_pushed(uint idx, 
-                                      const uchar *key,
-                                      Uint32 *ppartition_id);
+  int pk_unique_index_read_key_pushed(uint idx, const uchar *key);
 
   int read_multi_range_fetch_next();
   

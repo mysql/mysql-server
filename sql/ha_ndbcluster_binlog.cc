@@ -6918,7 +6918,7 @@ restart_cluster_failure:
     log_verbose(1, "Wait for first event");
     // wait for the first event
     thd->proc_info= "Waiting for first event from ndbcluster";
-    int schema_res, res;
+    int schema_res;
     Uint64 schema_gci;
     do
     {
@@ -6943,7 +6943,7 @@ restart_cluster_failure:
 
         my_thread_yield();
         mysql_mutex_lock(&injector_event_mutex);
-        res= i_ndb->pollEvents(10, &gci);
+        (void)i_ndb->pollEvents(10, &gci);
         mysql_mutex_unlock(&injector_event_mutex);
       }
       if (gci > schema_gci)
