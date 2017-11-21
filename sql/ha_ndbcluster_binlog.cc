@@ -1601,12 +1601,12 @@ public:
   setup(void)
   {
     /* Test binlog_setup on this mysqld being slower (than other mysqld) */
-    DBUG_EXECUTE_IF("ndb_binlog_setup_slow",
+    if (DBUG_EVALUATE_IF("ndb_binlog_setup_slow", true, false))
     {
       ndb_log_info("'ndb_binlog_setup_slow' -> sleep");
       ndb_milli_sleep(10*1000); // seconds * 1000
       ndb_log_info(" <- sleep");
-    });
+    }
 
     while (true) //To allow 'break' out to error handling
     {
@@ -1661,6 +1661,8 @@ public:
          // Test handling of binlog_setup failing to complete *after*
          // created 'ndb_schema'
          ndb_log_info("'ndb_binlog_setup_incomplete' -> return");
+         // NOTE! This break has no effect as it only breaks the while
+         // in the DBUG_EXECUTE_IF macro
          break;
        });
 
@@ -1986,7 +1988,7 @@ int ndbcluster_log_schema_op(THD *thd,
     ndb_schema_object->table_id= ndb_table_id;
     ndb_schema_object->table_version= ndb_table_version;
 
-    DBUG_EXECUTE_IF("ndb_binlog_random_tableid",
+    if (DBUG_EVALUATE_IF("ndb_binlog_random_tableid", true, false))
     {
       /**
        * Try to trigger a race between late incomming slock ack for
@@ -1997,7 +1999,7 @@ int ndbcluster_log_schema_op(THD *thd,
        * and the schema distribution getting totally out of synch.
        */
       ndb_milli_sleep(50);
-    });
+    }
   }
 
   const NdbError *ndb_error= 0;
@@ -3071,7 +3073,7 @@ class Ndb_schema_event_handler {
 
     // Try to create a race between SLOCK acks handled after another
     // schema operation could have been started.
-    DBUG_EXECUTE_IF("ndb_binlog_random_tableid",
+    if (DBUG_EVALUATE_IF("ndb_binlog_random_tableid", true, false))
     {
       NDB_SCHEMA_OBJECT *p= ndb_get_schema_object(key, false);
       if (p == NULL)
@@ -3082,7 +3084,7 @@ class Ndb_schema_event_handler {
       {
         ndb_free_schema_object(&p);
       }
-    });
+    }
 
     /* Ack to any SQL thread waiting for schema op to complete */
     NDB_SCHEMA_OBJECT *ndb_schema_object= ndb_get_schema_object(key, false);
@@ -3159,10 +3161,10 @@ class Ndb_schema_event_handler {
      * thread still referrs. Thus, it will get this schema_object,
      * instead of creating a new one as normally expected.
      */
-    DBUG_EXECUTE_IF("ndb_binlog_schema_object_race",
+    if (DBUG_EVALUATE_IF("ndb_binlog_schema_object_race", true, false))
     {
       ndb_milli_sleep(10);
-    });
+    }
     ndb_free_schema_object(&ndb_schema_object);
     DBUG_VOID_RETURN;
   }
@@ -4539,14 +4541,15 @@ class Ndb_binlog_index_table_util
       error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
 
       /* Fault injection to test logging */
-      DBUG_EXECUTE_IF("ndb_injector_binlog_index_write_fail_random",
-                      {
-                        if ((((uint32) rand()) % 10) == 9)
-                        {
-                          ndb_log_error("NDB Binlog: Injecting random write failure");
-                          error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
-                        }
-                      });
+      if (DBUG_EVALUATE_IF("ndb_injector_binlog_index_write_fail_random", true,
+                           false))
+      {
+        if ((((uint32)rand()) % 10) == 9)
+        {
+          ndb_log_error("NDB Binlog: Injecting random write failure");
+          error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
+        }
+      }
 
       if (error)
       {
@@ -6529,27 +6532,27 @@ injectApplyStatusWriteRow(injector::transaction& trans,
   longlong gci_to_store = (longlong) gci;
 
 #ifndef DBUG_OFF
-  DBUG_EXECUTE_IF("ndb_binlog_injector_cycle_gcis",
-                  {
-                    ulonglong gciHi = ((gci_to_store >> 32) 
-                                       & 0xffffffff);
-                    ulonglong gciLo = (gci_to_store & 0xffffffff);
-                    gciHi = (gciHi % 3);
-                    ndb_log_warning("Binlog injector cycling gcis (%llu -> %llu)",
-                                    gci_to_store, (gciHi << 32) + gciLo);
-                    gci_to_store = (gciHi << 32) + gciLo;
-                  });
-  DBUG_EXECUTE_IF("ndb_binlog_injector_repeat_gcis",
-                  {
-                    ulonglong gciHi = ((gci_to_store >> 32) 
-                                       & 0xffffffff);
-                    ulonglong gciLo = (gci_to_store & 0xffffffff);
-                    gciHi=0xffffff00;
-                    gciLo=0;
-                    ndb_log_warning("Binlog injector repeating gcis (%llu -> %llu)",
-                                    gci_to_store, (gciHi << 32) + gciLo);
-                    gci_to_store = (gciHi << 32) + gciLo;
-                  });
+  if (DBUG_EVALUATE_IF("ndb_binlog_injector_cycle_gcis", true, false))
+  {
+    ulonglong gciHi = ((gci_to_store >> 32)
+                       & 0xffffffff);
+    ulonglong gciLo = (gci_to_store & 0xffffffff);
+    gciHi = (gciHi % 3);
+    ndb_log_warning("Binlog injector cycling gcis (%llu -> %llu)",
+                    gci_to_store, (gciHi << 32) + gciLo);
+    gci_to_store = (gciHi << 32) + gciLo;
+  }
+  if (DBUG_EVALUATE_IF("ndb_binlog_injector_repeat_gcis", true, false))
+  {
+    ulonglong gciHi = ((gci_to_store >> 32)
+                       & 0xffffffff);
+    ulonglong gciLo = (gci_to_store & 0xffffffff);
+    gciHi=0xffffff00;
+    gciLo=0;
+    ndb_log_warning("Binlog injector repeating gcis (%llu -> %llu)",
+                    gci_to_store, (gciHi << 32) + gciLo);
+    gci_to_store = (gciHi << 32) + gciLo;
+  }
 #endif
 
   /* Build row buffer for generated ndb_apply_status
@@ -7088,8 +7091,9 @@ restart_cluster_failure:
     // If there are remaining unhandled schema eventOp we continue
     // handling of these, else poll for more.
     if (s_pOp == NULL)
-    { 
-      DBUG_EXECUTE_IF("ndb_binlog_injector_yield_before_schema_pollEvent",
+    {
+      if (DBUG_EVALUATE_IF("ndb_binlog_injector_yield_before_schema_pollEvent",
+                           true, false))
       {
         /**
          * Simulate that the binlog thread yields the CPU inbetween 
@@ -7097,7 +7101,7 @@ restart_cluster_failure:
          * 'schema_gci > gci'. (Likely due to mutex locking)
          */
         ndb_milli_sleep(50);
-      });
+      }
   
       Uint64 schema_epoch= 0;
       mysql_mutex_lock(&injector_event_mutex);
@@ -7196,7 +7200,7 @@ restart_cluster_failure:
         {
           schema_event_handler.handle_event(s_ndb, s_pOp);
 
-          DBUG_EXECUTE_IF("ndb_binlog_slow_failure_handling",
+          if (DBUG_EVALUATE_IF("ndb_binlog_slow_failure_handling", true, false))
           {
             if (!ndb_binlog_is_ready)
             {
@@ -7209,7 +7213,7 @@ restart_cluster_failure:
                */
 	      log_info("...and on our way");
             }
-          });
+          }
 
           DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
                               s_ndb->getEventOperation()->getEvent()->getTable()->getName() :

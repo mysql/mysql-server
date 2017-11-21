@@ -2295,11 +2295,11 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
     DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
   }
 
-  DBUG_EXECUTE_IF("ndb_get_metadata_fail",
-                  {
-                    fprintf(stderr, "ndb_get_metadata_fail\n");
-                    DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
-                  });
+  if (DBUG_EVALUATE_IF("ndb_get_metadata_fail", true, false))
+  {
+    fprintf(stderr, "ndb_get_metadata_fail\n");
+    DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
+  }
 
   // Create field to column map when table is opened
   m_table_map = new Ndb_table_map(table, tab);
@@ -4780,18 +4780,18 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
     }
   }
 #ifndef DBUG_OFF
-  DBUG_EXECUTE_IF("ndb_set_reflect_anyvalue",
-                  {
-                    fprintf(stderr, "Ndb forcing reflect AnyValue\n");
-                    options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
-                    ndbcluster_anyvalue_set_reflect_op(options->anyValue);
-                  });
-  DBUG_EXECUTE_IF("ndb_set_refresh_anyvalue",
-                  {
-                    fprintf(stderr, "Ndb forcing refresh AnyValue\n");
-                    options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
-                    ndbcluster_anyvalue_set_refresh_op(options->anyValue);
-                  });
+  if (DBUG_EVALUATE_IF("ndb_set_reflect_anyvalue", true, false))
+  {
+      fprintf(stderr, "Ndb forcing reflect AnyValue\n");
+      options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
+      ndbcluster_anyvalue_set_reflect_op(options->anyValue);
+  }
+  if (DBUG_EVALUATE_IF("ndb_set_refresh_anyvalue", true, false))
+  {
+    fprintf(stderr, "Ndb forcing refresh AnyValue\n");
+    options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
+    ndbcluster_anyvalue_set_refresh_op(options->anyValue);
+  }
   
   /*
     MySQLD will set the user-portion of AnyValue (if any) to all 1s

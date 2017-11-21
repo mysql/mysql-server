@@ -1073,16 +1073,16 @@ st_ndb_slave_state::atTransactionCommit(Uint64 epoch)
 
   current_master_server_epoch_committed = true;
 
-  DBUG_EXECUTE_IF("ndb_slave_fail_marking_epoch_committed",
-                  {
-                    fprintf(stderr, 
-                            "Slave clearing epoch committed flag "
-                            "for epoch %llu/%llu (%llu)\n",
-                            current_master_server_epoch >> 32,
-                            current_master_server_epoch & 0xffffffff,
-                            current_master_server_epoch);
-                    current_master_server_epoch_committed = false;
-                  });
+  if (DBUG_EVALUATE_IF("ndb_slave_fail_marking_epoch_committed", true, false))
+  {
+    fprintf(stderr,
+            "Slave clearing epoch committed flag "
+            "for epoch %llu/%llu (%llu)\n",
+            current_master_server_epoch >> 32,
+            current_master_server_epoch & 0xffffffff,
+            current_master_server_epoch);
+    current_master_server_epoch_committed = false;
+  }
 }
 
 /**

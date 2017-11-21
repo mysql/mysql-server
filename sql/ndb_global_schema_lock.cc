@@ -263,7 +263,10 @@ ndbcluster_global_schema_lock(THD *thd,
   proc_info.set("Waiting for ndbcluster global schema lock");
   thd_ndb->global_schema_lock_trans= gsl_lock_ext(thd, ndb, ndb_error);
 
-  DBUG_EXECUTE_IF("sleep_after_global_schema_lock", ndb_milli_sleep(6000););
+  if (DBUG_EVALUATE_IF("sleep_after_global_schema_lock", true, false))
+  {
+    ndb_milli_sleep(6000);
+  }
 
   if (thd_ndb->global_schema_lock_trans)
   {
@@ -276,7 +279,7 @@ ndbcluster_global_schema_lock(THD *thd,
 
     DBUG_RETURN(0);
   }
-  // Else, didn't get GSL: Deadlock or failure from ndbcluster:
+  // Else, didn't get GSL: Deadlock or failure from NDB
 
   /**
    * If GSL request failed due to no cluster connection (4009),
