@@ -84,8 +84,8 @@ call mtr.add_suppression("Slave: Could not apply JSON diff");
 call mtr.add_suppression("Slave: Corrupted JSON diff");
 call mtr.add_suppression("Slave: Corrupted replication event was detected");
 call mtr.add_suppression("Slave: Got error 1610 - ");
+call mtr.add_suppression("Slave: Got error 4549 - ");
 call mtr.add_suppression("Slave: Got error 4550 - ");
-call mtr.add_suppression("Slave: Got error 4551 - ");
 call mtr.add_suppression("Slave: Got error 5 - ");
 
 --echo ######## Test ########
