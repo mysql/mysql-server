@@ -567,7 +567,7 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const
   if ((func_type= functype()) != item_func->functype() ||
       arg_count != item_func->arg_count ||
       (func_type != Item_func::FUNC_SP &&
-       func_name() != item_func->func_name()) ||
+       strcmp(func_name(), item_func->func_name()) != 0) ||
       (func_type == Item_func::FUNC_SP &&
        my_strcasecmp(system_charset_info, func_name(), item_func->func_name())))
     return 0;

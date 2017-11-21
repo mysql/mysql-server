@@ -23,6 +23,7 @@
 
 #include "sql/item_sum.h"
 
+#include <string.h>
 #include <algorithm>
 #include <cstring>
 #include <functional>
@@ -621,7 +622,7 @@ bool Item_sum::eq(const Item *item, bool binary_cmp) const
     return false;
   if (arg_count != item_sum->arg_count ||
       (my_sum_func != Item_sum::UDF_SUM_FUNC &&
-       func_name() != item_sum->func_name()) ||
+       strcmp(func_name(), item_sum->func_name()) != 0) ||
       (my_sum_func == Item_sum::UDF_SUM_FUNC &&
        my_strcasecmp(system_charset_info, func_name(), item_sum->func_name())))
     return false;

@@ -25,6 +25,7 @@
 
 #include <limits.h>
 #include <math.h>
+#include <string.h>
 #include <algorithm>
 #include <array>
 #include <functional>
@@ -5842,7 +5843,7 @@ bool Item_cond::eq(const Item *item, bool binary_cmp) const
   const Item_cond *item_cond= down_cast<const Item_cond *>(item);
   if (functype() != item_cond->functype() ||
       list.elements != item_cond->list.elements ||
-      func_name() != item_cond->func_name())
+      strcmp(func_name(), item_cond->func_name()) != 0)
     return false;
   // Item_cond never uses "args". Inspect "list" instead.
   DBUG_ASSERT(arg_count == 0 && item_cond->arg_count == 0);
