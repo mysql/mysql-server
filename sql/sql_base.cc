@@ -5481,31 +5481,57 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
         DBUG_ASSERT(thd->locked_tables_mode == LTM_LOCK_TABLES);
 
         /*
-          If we are only building prelocking list under LOCK TABLES then table
-          which caused addition of this FK element to prelocked set must exist
-          and properly locked. So the table which corresponds to FK element
-          must have been locked at LOCK TABLES time in appropriate mode as well
-          (though it might be missing, e.g. if it is parent table which was
-          dropped using FOREIGN_KEY_CHECKS=0).
+          Even though LOCK TABLES tries to automatically lock parent and child
+          tables which might be necessary for foreign key checks/actions, there
+          are some cases when we might miss them. So it is better to check that
+          we have appropriate metadata lock explicitly and error out if not.
 
-          If prelocking list has been already built then situation is different.
-          Both child and parent definitions might have changed since then so at
-          LOCK TABLES time FK which corresponds to this element of prelocked set
-          might be no longer around. In theory, we might be processing statement
-          which is not marked as requiring prelocked set invalidation (and thus
-          ignoring table version mismatches) or tables might be missing and this
-          error can be suppressed. In such case we might not have appropriate
-          metadata lock on our child table. However, this should be safe as FK
-          should not be used in this case.
+          Some examples of problematic cases are:
+
+          *) We are executing DELETE FROM t1 under LOCK TABLES t1 READ
+             and table t1 is a parent in a foreign key.
+             In this case error about inappropriate lock on t1 will be
+             reported at later stage than prelocking set is built.
+             So we can't assume/assert that we have proper lock on the
+             corresponding child table here.
+
+         *)  Table t1 has a trigger, which contains DELETE FROM t2 and
+             t2 is participating in FK as parent. In such situation
+             LOCK TABLE t1 WRITE will lock t2 for write implicitly
+             so both updates and delete on t2 will be allowed. However,
+             t3 will be locked only in a way as if only deletes from
+             t2 were allowed.
+
+          *) Prelocking list has been built earlier. Both child and parent
+             definitions might have changed since this time so at LOCK TABLES
+             time FK which corresponds to this element of prelocked set
+             might be no longer around. In theory, we might be processing statement
+             which is not marked as requiring prelocked set invalidation (and thus
+             ignoring table version mismatches) or tables might be missing and this
+             error can be suppressed. In such case we might not have appropriate
+             metadata lock on our child/parent table.
         */
-        DBUG_ASSERT(has_prelocking_list ||
-                    thd->mdl_context.owns_equal_or_stronger_lock(
-                      MDL_key::TABLE, rt->db(), rt->name(),
-                      ((rt->type() ==
-                        Sroutine_hash_entry::FK_TABLE_ROLE_PARENT_CHECK ||
-                        rt->type() ==
-                        Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_CHECK) ?
-                       MDL_SHARED_READ_ONLY : MDL_SHARED_NO_READ_WRITE)));
+        if (rt->type() == Sroutine_hash_entry::FK_TABLE_ROLE_PARENT_CHECK ||
+            rt->type() == Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_CHECK)
+        {
+          if (!thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                      rt->db(), rt->name(),
+                                                      MDL_SHARED_READ_ONLY))
+          {
+            my_error(ER_TABLE_NOT_LOCKED, MYF(0), rt->name());
+            DBUG_RETURN(true);
+          }
+        }
+        else
+        {
+          if (!thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                      rt->db(), rt->name(),
+                                                      MDL_SHARED_NO_READ_WRITE))
+          {
+            my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), rt->name());
+            DBUG_RETURN(true);
+          }
+        }
       }
 
 
@@ -5516,25 +5542,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
           In order to continue building prelocked set or validating
           prelocked set which already has been built we need to get
           access to table's TABLE_SHARE.
-        */
 
-        if (thd->locked_tables_mode == LTM_LOCK_TABLES &&
-            has_prelocking_list &&
-            ! thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                      rt->db(), rt->name(), MDL_SHARED_NO_READ_WRITE))
-        {
-          /*
-            We are under LOCK TABLES, are validating existing prelocked set
-            and don't have appropriate metadata lock on child table.
-            This means that parent table was not locked, has changed its
-            definition or didn't even exist at the LOCK TABLES time.
-            We can assume that child table won't be accessed due to this
-            foreign key and can ignore this element.
-          */
-          break; // Jump out of switch without error.
-        }
-
-        /*
           Getting unused TABLE object is more scalable that going
           directly for the TABLE_SHARE. If there are no unused TABLE
           object we might get at least pointer to the TABLE_SHARE
