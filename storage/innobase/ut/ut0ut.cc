@@ -27,6 +27,7 @@ Created 5/11/1994 Heikki Tuuri
 
 #include <errno.h>
 #include <time.h>
+#include <string>
 
 #include "ha_prototypes.h"
 
@@ -672,12 +673,13 @@ ut_basename_noext(
                                              ^-- beg, len=9
 	*/
 
-	const char*	beg = strrchr(file, OS_PATH_SEPARATOR);
+	std::string::size_type pos = std::string(file).find_last_of("/\\");
+	const char*	beg;
 
-	if (beg == NULL) {
+	if (pos == std::string::npos) {
 		beg = file;
 	} else {
-		beg++;
+		beg = file + pos + 1;
 	}
 
 	size_t		len = strlen(beg);
