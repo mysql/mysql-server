@@ -15,6 +15,7 @@
 
 #include <gtest/gtest.h>
 
+#include "m_ctype.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "unittest/gunit/benchmark.h"

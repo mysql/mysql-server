@@ -28,7 +28,6 @@
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"
-#include "sql/sql_alloc.h"            // Sql_alloc
 #include "sql/table.h"                // GRANT_INFO
 #include "sql/trigger_def.h"          // enum_trigger_event_type
 
@@ -65,7 +64,7 @@ typedef ulonglong sql_mode_t;
 
       @see Trigger::create_from_parser().
 */
-class Trigger : public Sql_alloc
+class Trigger
 {
 public:
   static Trigger *create_from_parser(THD *thd,

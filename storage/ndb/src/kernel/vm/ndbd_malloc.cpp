@@ -26,6 +26,8 @@
 #include <stdio.h>
 #endif
 
+#include "memory_debugging.h"
+
 #define JAM_FILE_ID 287
 
 

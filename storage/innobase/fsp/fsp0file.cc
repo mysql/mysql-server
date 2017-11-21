@@ -35,6 +35,10 @@ Created 2013-7-26 by Kevin Lewis
 #include "srv0start.h"
 #include "ut0new.h"
 
+#ifdef UNIV_HOTBACKUP
+# include "my_sys.h"
+#endif /* UNIV_HOTBACKUP */
+
 /** Initialize the name and flags of this datafile.
 @param[in]	name	tablespace name, will be copied
 @param[in]	flags	tablespace flags */
@@ -74,6 +78,12 @@ Datafile::shutdown()
 		ut_free(m_encryption_iv);
 		m_encryption_iv = NULL;
 	}
+#ifdef UNIV_HOTBACKUP
+	if (m_dirpath != NULL) {
+		ut_free(m_dirpath);
+		m_dirpath = NULL;
+	}
+#endif /* UNIV_HOTBACKUP */
 }
 
 /** Create/open a data file.
@@ -296,12 +306,24 @@ Datafile::set_name(const char*	name)
 		undo::Tablespace	undo_space(m_space_id);
 		m_name = mem_strdup(undo_space.space_name());
 	} else {
+#ifndef UNIV_HOTBACKUP
 		/* Give this general tablespace a temporary name. */
 		m_name = static_cast<char*>(
 			ut_malloc_nokey(strlen(general_space_name) + 20));
 
 		sprintf(m_name, "%s_" SPACE_ID_PF, general_space_name,
 			m_space_id);
+#else /* !UNIV_HOTBACKUP */
+		/* Use the absolute path of general tablespaces. Absolute path
+		will help MEB to ignore the dirty records from the redo logs
+		pertaining to the same tablespace but with older space_ids.
+		It will also not cause name clashes with remote tablespaces or
+		tables in schema directory. */
+		size_t len = strlen(m_filepath);
+		m_name = static_cast<char*>(ut_malloc_nokey(len + 1));
+		memcpy(m_name, m_filepath, len);
+		m_name[len] = '\0';
+#endif /* !UNIV_HOTBACKUP */
 	}
 }
 
@@ -607,10 +629,17 @@ Datafile::validate_first_page(
 		/* Tablespace ID mismatch. The file could be in use
 		by another tablespace. */
 
+#ifndef UNIV_HOTBACKUP
 		ut_d(ib::info()
 		     << "Tablespace file '" << filepath() << "' ID mismatch"
 		     << ", expected " << space_id << " but found "
 		     << m_space_id);
+#else /* !UNIV_HOTBACKUP */
+		ib::trace_2()
+		     << "Tablespace file '" << filepath() << "' ID mismatch"
+		     << ", expected " << space_id << " but found "
+		     << m_space_id;
+#endif /* !UNIV_HOTBACKUP */
 
 		return(DB_TABLESPACE_NOT_FOUND);
 
@@ -661,6 +690,17 @@ Datafile::validate_first_page(
 #ifdef	UNIV_ENCRYPT_DEBUG
                 fprintf(stderr, "Got from file %lu:", m_space_id);
 #endif
+
+#ifdef UNIV_HOTBACKUP
+		if (!meb_get_encryption_key(m_space_id,
+					    m_encryption_key,
+					    m_encryption_iv)) {
+			ib::fatal()
+				<< "Encryption information in"
+				<< " datafile: " << m_filepath
+				<< " cannot be decrypted.\n"
+				<< "MEB cannot proceed with the operation.";
+#else /* UNIV_HOTBACKUP */
 		if (!fsp_header_get_encryption_key(m_flags,
 						   m_encryption_key,
 						   m_encryption_iv,
@@ -672,6 +712,7 @@ Datafile::validate_first_page(
 				<< " , please confirm the keyfile"
 				<< " is match and keyring plugin"
 				<< " is loaded.";
+#endif /* UNIV_HOTBACKUP */
 
 			m_is_valid = false;
 			free_first_page();

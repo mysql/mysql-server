@@ -30,6 +30,7 @@
 #include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
 #include "sql/dd/dd.h"                        // dd::create_object
 #include "sql/dd/dictionary.h"                // dd::Dictionary::is_dd_table...
+#include "sql/dd/impl/dictionary_impl.h"      // dd::dd_tablespace_id()
 #include "sql/dd/impl/system_registry.h"      // dd::System_tablespaces
 #include "sql/dd/object_id.h"
 #include "sql/dd/properties.h"                // dd::Properties
@@ -40,7 +41,6 @@
 #include "sql/dd/types/table.h"               // dd::Table
 #include "sql/dd/types/tablespace.h"          // dd::Tablespace
 #include "sql/dd/types/tablespace_file.h"     // dd::Tablespace_file
-#include "sql/handler.h"
 #include "sql/key.h"
 #include "sql/sql_class.h"                    // THD
 #include "sql/sql_servers.h"
@@ -157,18 +157,16 @@ bool get_tablespace_name(THD *thd, const T *obj,
   //
   String_type name;
 
-  if (System_tablespaces::instance()->find(MYSQL_TABLESPACE_NAME.str) &&
-      dd::get_dictionary()->is_dd_table_name(MYSQL_SCHEMA_NAME.str,
-                                             obj->name()))
+  if (obj->tablespace_id() == Dictionary_impl::dd_tablespace_id())
   {
-    // If this is a DD table, and we have a DD tablespace, then we use its name.
+    // If this is the DD tablespace id, then we use its name.
     name= MYSQL_TABLESPACE_NAME.str;
   }
   else if (obj->tablespace_id() != dd::INVALID_OBJECT_ID)
   {
     /*
-      We get here, when we have InnoDB or NDB table in a tablespace
-      which is not one of special 'innodb_%' tablespaces.
+      We get here, when we have a table in a tablespace
+      which is 'innodb_system' or a user defined tablespace.
 
       We cannot take MDL lock as we don't know the tablespace name.
       Without a MDL lock we cannot acquire a object placing it in DD
@@ -199,8 +197,8 @@ bool get_tablespace_name(THD *thd, const T *obj,
   else
   {
     /*
-      If user has specified special tablespace name like 'innodb_%'
-      then we read it from tablespace options.
+      If user has specified special tablespace name like
+      'innodb_file_per_table' then we read it from tablespace options.
     */
     const dd::Properties *table_options= &obj->options();
     table_options->get("tablespace", name);

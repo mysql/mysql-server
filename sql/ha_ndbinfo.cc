@@ -23,10 +23,12 @@
 #include "my_dbug.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"     // ER_THD
+#include "sql/field.h"
 #include "sql/ndb_log.h"
 #include "sql/ndb_tdc.h"
 #include "sql/sql_class.h"
 #include "sql/sql_table.h"  // build_table_filename
+#include "sql/table.h"
 #include "storage/ndb/src/ndbapi/NdbInfo.hpp"
 #include "sql/ndb_dummy_ts.h"
 

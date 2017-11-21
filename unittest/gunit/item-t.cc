@@ -23,12 +23,14 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_table_map.h"
+#include "mysys_err.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_create.h"
 #include "sql/item_strfunc.h"
 #include "sql/item_timefunc.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/tztime.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/mock_field_timestamp.h"
@@ -569,22 +571,21 @@ TEST_F(ItemTest, ItemFuncSetUserVar)
 // Test of Item::operator new() when we simulate out-of-memory.
 TEST_F(ItemTest, OutOfMemory)
 {
-  Item_int *null_item= NULL;
   Item_int *item= new Item_int(42);
-  EXPECT_NE(null_item, item);
-  delete null_item;
+  EXPECT_NE(nullptr, item);
 
 #if !defined(DBUG_OFF)
   // Setting debug flags triggers enter/exit trace, so redirect to /dev/null.
   DBUG_SET("o," IF_WIN("NUL", "/dev/null"));
 
   DBUG_SET("+d,simulate_out_of_memory");
+  initializer.set_expected_error(EE_OUTOFMEMORY);
   item= new Item_int(42);
-  EXPECT_EQ(null_item, item);
+  EXPECT_EQ(nullptr, item);
 
   DBUG_SET("+d,simulate_out_of_memory");
   item= new (thd()->mem_root) Item_int(42);
-  EXPECT_EQ(null_item, item);
+  EXPECT_EQ(nullptr, item);
 #endif
 }
 

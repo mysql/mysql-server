@@ -27,7 +27,9 @@ Created 9/17/2000 Heikki Tuuri
 #ifndef row0mysql_h
 #define row0mysql_h
 
+#ifndef UNIV_HOTBACKUP
 #include "ha_prototypes.h"
+#endif  /* !UNIV_HOTBACKUP */
 
 #include "data0data.h"
 #include "que0types.h"
@@ -40,6 +42,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "sess0sess.h"
 #include "sql_cmd.h"
 
+#ifndef UNIV_HOTBACKUP
 extern ibool row_rollback_on_timeout;
 
 struct row_prebuilt_t;
@@ -251,7 +254,7 @@ row_get_prebuilt_update_vector(
 /*********************************************************************//**
 Checks if a table is such that we automatically created a clustered
 index on it (on row id).
-@return TRUE if the clustered index was generated automatically */
+@return true if the clustered index was generated automatically */
 ibool
 row_table_got_default_clust_index(
 /*==============================*/
@@ -290,6 +293,7 @@ void
 row_unlock_for_mysql(
 	row_prebuilt_t*	prebuilt,
 	ibool		has_latches_on_recs);
+#endif  /* !UNIV_HOTBACKUP */
 
 /*********************************************************************//**
 Checks if a table name contains the string "/#sql" which denotes temporary
@@ -302,6 +306,7 @@ row_is_mysql_tmp_table_name(
 				/*!< in: table name in the form
 				'database/tablename' */
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Creates an query graph node of 'update' type to be used in the MySQL
 interface.
@@ -311,6 +316,17 @@ row_create_update_node_for_mysql(
 /*=============================*/
 	dict_table_t*	table,	/*!< in: table to update */
 	mem_heap_t*	heap);	/*!< in: mem heap from which allocated */
+/**********************************************************************//**
+Does a cascaded delete or set null in a foreign key operation.
+@return error code or DB_SUCCESS */
+dberr_t
+row_update_cascade_for_mysql(
+/*=========================*/
+        que_thr_t*      thr,    /*!< in: query thread */
+        upd_node_t*     node,   /*!< in: update node used in the cascade
+                                or set null operation */
+        dict_table_t*   table)  /*!< in: table where we do the operation */
+        MY_ATTRIBUTE((nonnull, warn_unused_result));
 /*********************************************************************//**
 Locks the data dictionary exclusively for performing a table create or other
 data dictionary modification operation. */
@@ -982,5 +998,6 @@ innobase_rename_vc_templ(
 void
 row_wait_for_background_drop_list_empty();
 #endif /* UNIV_DEBUG */
+#endif  /* !UNIV_HOTBACKUP */
 
 #endif /* row0mysql.h */

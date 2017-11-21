@@ -372,10 +372,9 @@ static bool geometry_collection_apply_touches(const Touches &f,
                  i < down_cast<const Geographic_multipoint *>(g1)->size();
                  i++) {
               auto &pt = (*down_cast<const Geographic_multipoint *>(g1))[i];
-              if (bg::relate(
-                      pt,
-                      *down_cast<Geographic_multilinestring *>(g2_mls.get()),
-                      mask, geographic_pl_pa_strategy) ||
+              if (bg::relate(pt, *down_cast<Geographic_multilinestring *>(
+                                     g2_mls.get()),
+                             mask, geographic_pl_pa_strategy) ||
                   bg::relate(
                       pt, *down_cast<Geographic_multipolygon *>(g2_mpy.get()),
                       mask, geographic_pl_pa_strategy))
@@ -476,7 +475,7 @@ bool Touches::eval(const Geometry *g1, const Geometry *g2) const {
 
 // touches(Cartesian_point, *)
 
-bool Touches::eval(const Cartesian_point *g1, const Cartesian_point *g2) const {
+bool Touches::eval(const Cartesian_point *, const Cartesian_point *) const {
   // If dim(g1) == 0 and dim(g2) == 0, return NULL (SQL/MM 2015 Part 3,
   // Sect. 5.1.50).
   throw null_value_exception();
@@ -498,8 +497,8 @@ bool Touches::eval(const Cartesian_point *g1,
       *this, g1, g2);
 }
 
-bool Touches::eval(const Cartesian_point *g1,
-                   const Cartesian_multipoint *g2) const {
+bool Touches::eval(const Cartesian_point *,
+                   const Cartesian_multipoint *) const {
   // If dim(g1) == 0 and dim(g2) == 0, return NULL (SQL/MM 2015 Part 3,
   // Sect. 5.1.50).
   throw null_value_exception();
@@ -609,8 +608,8 @@ bool Touches::eval(const Cartesian_geometrycollection *g1,
 
 // touches(Cartesian_multipoint, *)
 
-bool Touches::eval(const Cartesian_multipoint *g1,
-                   const Cartesian_point *g2) const {
+bool Touches::eval(const Cartesian_multipoint *,
+                   const Cartesian_point *) const {
   // If dim(g1) == 0 and dim(g2) == 0, return NULL (SQL/MM 2015 Part 3,
   // Sect. 5.1.50).
   throw null_value_exception();
@@ -664,8 +663,8 @@ bool Touches::eval(const Cartesian_multipoint *g1,
       *this, g1, g2);
 }
 
-bool Touches::eval(const Cartesian_multipoint *g1,
-                   const Cartesian_multipoint *g2) const {
+bool Touches::eval(const Cartesian_multipoint *,
+                   const Cartesian_multipoint *) const {
   // If dim(g1) == 0 and dim(g2) == 0, return NULL (SQL/MM 2015 Part 3,
   // Sect. 5.1.50).
   throw null_value_exception();
@@ -797,8 +796,7 @@ bool Touches::eval(const Cartesian_multipolygon *g1,
 
 // touches(Geographic_point, *)
 
-bool Touches::eval(const Geographic_point *g1,
-                   const Geographic_point *g2) const {
+bool Touches::eval(const Geographic_point *, const Geographic_point *) const {
   // If dim(g1) == 0 and dim(g2) == 0, return NULL (SQL/MM 2015 Part 3,
   // Sect. 5.1.50).
   throw null_value_exception();
@@ -820,8 +818,8 @@ bool Touches::eval(const Geographic_point *g1,
       *this, g1, g2);
 }
 
-bool Touches::eval(const Geographic_point *g1,
-                   const Geographic_multipoint *g2) const {
+bool Touches::eval(const Geographic_point *,
+                   const Geographic_multipoint *) const {
   // If dim(g1) == 0 and dim(g2) == 0, return NULL (SQL/MM 2015 Part 3,
   // Sect. 5.1.50).
   throw null_value_exception();
@@ -931,8 +929,8 @@ bool Touches::eval(const Geographic_geometrycollection *g1,
 
 // touches(Geographic_multipoint, *)
 
-bool Touches::eval(const Geographic_multipoint *g1,
-                   const Geographic_point *g2) const {
+bool Touches::eval(const Geographic_multipoint *,
+                   const Geographic_point *) const {
   // If dim(g1) == 0 and dim(g2) == 0, return NULL (SQL/MM 2015 Part 3,
   // Sect. 5.1.50).
   throw null_value_exception();
@@ -986,8 +984,8 @@ bool Touches::eval(const Geographic_multipoint *g1,
       *this, g1, g2);
 }
 
-bool Touches::eval(const Geographic_multipoint *g1,
-                   const Geographic_multipoint *g2) const {
+bool Touches::eval(const Geographic_multipoint *,
+                   const Geographic_multipoint *) const {
   // If dim(g1) == 0 and dim(g2) == 0, return NULL (SQL/MM 2015 Part 3,
   // Sect. 5.1.50).
   throw null_value_exception();

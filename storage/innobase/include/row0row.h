@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -290,7 +290,7 @@ row_build_row_ref_fast(
 /***************************************************************//**
 Searches the clustered index record for a row, if we have the row
 reference.
-@return TRUE if found */
+@return true if found */
 ibool
 row_search_on_row_ref(
 /*==================*/

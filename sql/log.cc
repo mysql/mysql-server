@@ -71,6 +71,8 @@
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
 #include "sql/derror.h"     // ER_DEFAULT
 #include "sql/discrete_interval.h"
 #include "sql/error_handler.h" // Internal_error_handler
@@ -291,11 +293,128 @@ static void ull2timeval(ulonglong utime, struct timeval *tv)
 }
 
 
+class File_query_log
+{
+  File_query_log(enum_log_table_type log_type);
+
+  ~File_query_log()
+  {
+    DBUG_ASSERT(!is_open());
+    if (name != nullptr)
+    {
+      my_free(name);
+      name= nullptr;
+    }
+    mysql_mutex_destroy(&LOCK_log);
+  }
+
+  /** @return true if the file log is open, false otherwise. */
+  bool is_open() const { return log_open; }
+
+  /**
+     Open a (new) log file.
+
+     Open the logfile, init IO_CACHE and write startup messages.
+
+     @return true if error, false otherwise.
+  */
+  bool open();
+
+  /**
+     Close the log file
+
+     @note One can do an open on the object at once after doing a close.
+     The internal structures are not freed until the destructor is called.
+  */
+  void close();
+
+  /**
+     Change what file we log to
+  */
+  bool set_file(const char *new_name);
+
+  /**
+     Check if we have already printed ER_ERROR_ON_WRITE and if not,
+     do so.
+  */
+  void check_and_print_write_error();
+
+  /**
+     Write a command to traditional general log file.
+     Log given command to normal (not rotatable) log file.
+
+     @param event_utime       Command start timestamp in micro seconds
+     @param thread_id         Id of the thread that issued the query
+     @param command_type      The type of the command being logged
+     @param command_type_len  The length of the string above
+     @param sql_text          The very text of the query being executed
+     @param sql_text_len      The length of sql_text string
+
+     @return true if error, false otherwise.
+  */
+  bool write_general(ulonglong event_utime, my_thread_id thread_id,
+                     const char *command_type, size_t command_type_len,
+                     const char *sql_text, size_t sql_text_len);
+
+  /**
+     Log a query to the traditional slow log file.
+
+     @param thd               THD of the query
+     @param current_utime     Current timestamp in micro seconds
+     @param user_host         The pointer to the string with user\@host info
+     @param user_host_len     Length of the user_host string. this is computed once
+                              and passed to all general log event handlers
+     @param query_utime       Amount of time the query took to execute (in microseconds)
+     @param lock_utime        Amount of time the query was locked (in microseconds)
+     @param is_command        The flag which determines whether the sql_text is a
+                              query or an administrator command.
+     @param sql_text          The very text of the query or administrator command
+                              processed
+     @param sql_text_len      The length of sql_text string
+
+     @return true if error, false otherwise.
+*/
+  bool write_slow(THD *thd, ulonglong current_utime,
+                  const char *user_host, size_t user_host_len,
+                  ulonglong query_utime, ulonglong lock_utime, bool is_command,
+                  const char *sql_text, size_t sql_text_len);
+
+private:
+  /** Type of log file. */
+  const enum_log_table_type m_log_type;
+
+  /** Makes sure we only have one write at a time. */
+  mysql_mutex_t LOCK_log;
+
+  /** Log filename. */
+  char *name;
+
+  /** Path to log file. */
+  char log_file_name[FN_REFLEN];
+
+  /** Last seen current database. */
+  char db[NAME_LEN + 1];
+
+  /** Have we already printed ER_ERROR_ON_WRITE? */
+  bool write_error;
+
+  IO_CACHE log_file;
+
+  /** True if the file log is open, false otherwise. */
+  volatile bool log_open;
+
+#ifdef HAVE_PSI_INTERFACE
+  /** Instrumentation key to use for file io in @c log_file */
+  PSI_file_key m_log_file_key;
+#endif
+
+  friend class Log_to_file_event_handler;
+  friend class Query_logger;
+};
 
 File_query_log::File_query_log(enum_log_table_type log_type)
   : m_log_type(log_type), name(NULL), write_error(false), log_open(false)
 {
-  memset(&log_file, 0, sizeof(log_file));
   mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
 #ifdef HAVE_PSI_INTERFACE
   if (log_type == QUERY_LOG_GENERAL)
@@ -304,7 +423,6 @@ File_query_log::File_query_log(enum_log_table_type log_type)
     m_log_file_key= key_file_slow_log;
 #endif
 }
-
 
 bool is_valid_log_name(const char *name, size_t len)
 {
@@ -400,32 +518,42 @@ static File mysql_file_real_name_reopen(File file,
 }
 
 
+bool File_query_log::set_file(const char *new_name)
+{
+  char *nn;
+
+  DBUG_ASSERT(new_name && new_name[0]);
+
+  if (!(nn= my_strdup(key_memory_File_query_log_name,
+                      new_name, MYF(MY_WME))))
+    return true;
+
+  if (name != nullptr)
+    my_free(name);
+
+  name= nn;
+
+  // We can do this here since we're not actually resolving symlinks etc.
+  fn_format(log_file_name, name, mysql_data_home, "", MY_UNPACK_FILENAME);
+
+  return false;
+}
+
+
 bool File_query_log::open()
 {
   File file= -1;
   my_off_t pos= 0;
-  const char *log_name= NULL;
   char buff[FN_REFLEN];
   MY_STAT f_stat;
   DBUG_ENTER("File_query_log::open");
 
-  if (m_log_type == QUERY_LOG_SLOW)
-    log_name= opt_slow_logname;
-  else if (m_log_type == QUERY_LOG_GENERAL)
-    log_name= opt_general_logname;
-  else
-    DBUG_ASSERT(false);
-  DBUG_ASSERT(log_name && log_name[0]);
+  DBUG_ASSERT(name != nullptr);
+
+  if (is_open())
+    DBUG_RETURN(false);
 
   write_error= false;
-
-  if (!(name= my_strdup(key_memory_File_query_log_name, log_name, MYF(MY_WME))))
-  {
-    name= const_cast<char *>(log_name); // for the error message
-    goto err;
-  }
-
-  fn_format(log_file_name, name, mysql_data_home, "", 4);
 
   /* File is regular writable file */
   if (my_stat(log_file_name, &f_stat, MYF(0)) && !MY_S_ISREG(f_stat.st_mode))
@@ -522,8 +650,7 @@ err:
   if (file >= 0)
     mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
-  my_free(name);
-  name= NULL;
+
   log_open= false;
   DBUG_RETURN(true);
 }
@@ -544,8 +671,7 @@ void File_query_log::close()
     check_and_print_write_error();
 
   log_open= false;
-  my_free(name);
-  name= NULL;
+
   DBUG_VOID_RETURN;
 }
 
@@ -1083,6 +1209,62 @@ bool Log_to_csv_event_handler::activate_log(THD *thd,
   DBUG_RETURN(true);
 }
 
+/**
+   Class responsible for file based logging.
+   Basically a wrapper around File_query_log.
+*/
+class Log_to_file_event_handler: public Log_event_handler
+{
+  File_query_log mysql_general_log;
+  File_query_log mysql_slow_log;
+
+public:
+  /**
+     Wrapper around File_query_log::write_slow() for slow log.
+     @see Log_event_handler::log_slow().
+  */
+  virtual bool log_slow(THD *thd, ulonglong current_utime,
+                        ulonglong query_start_arg, const char *user_host,
+                        size_t user_host_len, ulonglong query_utime,
+                        ulonglong lock_utime, bool is_command,
+                        const char *sql_text, size_t sql_text_len);
+
+  /**
+     Wrapper around File_query_log::write_general() for general log.
+     @see Log_event_handler::log_general().
+  */
+  virtual bool log_general(THD *thd, ulonglong event_utime, const char *user_host,
+                           size_t user_host_len, my_thread_id thread_id,
+                           const char *command_type, size_t command_type_len,
+                           const char *sql_text, size_t sql_text_len,
+                           const CHARSET_INFO *client_cs);
+
+private:
+  Log_to_file_event_handler()
+    : mysql_general_log(QUERY_LOG_GENERAL),
+    mysql_slow_log(QUERY_LOG_SLOW)
+  { }
+
+  /** Close slow and general log files. */
+  void cleanup()
+  {
+    mysql_general_log.close();
+    mysql_slow_log.close();
+  }
+
+  /** @return File_query_log instance responsible for writing to slow/general log.*/
+  File_query_log *get_query_log(enum_log_table_type log_type)
+  {
+    if (log_type == QUERY_LOG_SLOW)
+      return &mysql_slow_log;
+    DBUG_ASSERT(log_type == QUERY_LOG_GENERAL);
+    return &mysql_general_log;
+  }
+
+  friend class Query_logger;
+};
+
+
 
 bool Log_to_file_event_handler::log_slow(THD *thd, ulonglong current_utime,
                                          ulonglong,
@@ -1420,6 +1602,29 @@ void Query_logger::deactivate_log_handler(enum_log_table_type log_type)
 }
 
 
+bool Query_logger::set_log_file(enum_log_table_type log_type)
+{
+  const char *log_name= nullptr;
+
+  mysql_rwlock_wrlock(&LOCK_logger);
+
+  DEBUG_SYNC(current_thd, "log_set_file_holds_lock");
+
+  if (log_type == QUERY_LOG_SLOW)
+    log_name= opt_slow_logname;
+  else if (log_type == QUERY_LOG_GENERAL)
+    log_name= opt_general_logname;
+  else
+    DBUG_ASSERT(false);
+
+  bool res= file_log_handler->get_query_log(log_type)->set_file(log_name);
+
+  mysql_rwlock_unlock(&LOCK_logger);
+
+  return res;
+}
+
+
 bool Query_logger::reopen_log_file(enum_log_table_type log_type)
 {
   mysql_rwlock_wrlock(&LOCK_logger);
@@ -1458,6 +1663,12 @@ Query_logger::check_if_log_table(TABLE_LIST *table_list,
   }
   return QUERY_LOG_NONE;
 }
+
+bool Query_logger::is_log_file_enabled(enum_log_table_type log_type) const
+{
+  return file_log_handler->get_query_log(log_type)->is_open();
+}
+
 
 
 Query_logger query_logger;
@@ -2298,7 +2509,6 @@ int log_message(int log_type, ...)
   New plugins should use the service structure.
 */
 
-extern "C"
 int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
                           const char *format, ...)
 {

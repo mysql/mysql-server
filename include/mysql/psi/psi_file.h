@@ -30,8 +30,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_file_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_FILE_VERSION_1
   Performance Schema File Interface number for version 1.
@@ -59,7 +57,6 @@ struct PSI_file_bootstrap
   */
   void *(*get_interface)(int version);
 };
-typedef struct PSI_file_bootstrap PSI_file_bootstrap;
 
 #ifdef HAVE_PSI_FILE_INTERFACE
 
@@ -97,6 +94,8 @@ struct PSI_file_service_v1
   start_file_close_wait_v1_t start_file_close_wait;
   /** @sa end_file_close_wait_v1_t. */
   end_file_close_wait_v1_t end_file_close_wait;
+  /** @sa rename_file_close_wait_v1_t. */
+  end_file_rename_wait_v1_t end_file_rename_wait;
 };
 
 typedef struct PSI_file_service_v1 PSI_file_service_t;
@@ -106,7 +105,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_file_service_t *psi_file_service;
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
 /** @} (end of group psi_abi_file) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_FILE_H */

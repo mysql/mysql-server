@@ -48,7 +48,6 @@
 #include "sql/dd/string_type.h"
 #include "sql/discrete_interval.h" // Discrete_interval
 #include "sql/key.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_const.h"     // SHOW_COMP_OPTION
 #include "sql/sql_list.h"      // SQL_I_List
 #include "sql/sql_plugin_ref.h" // plugin_ref
@@ -60,6 +59,8 @@ class Create_field;
 class Field;
 class Item;
 class Partition_handler;
+class Plugin_table;
+class Plugin_tablespace;
 class Record_buffer;
 class SE_cost_constants;     // see opt_costconstants.h
 class String;
@@ -111,14 +112,6 @@ namespace AQP {
 
 extern ulong savepoint_alloc_size;
 
-/*
-  We preallocate data for several storage engine plugins.
-  so: innodb + bdb + ndb + binlog + myisam + myisammrg + archive +
-      example + csv + heap + blackhole + federated + 0
-  (yes, the sum is deliberately inaccurate)
-*/
-#define PREALLOC_NUM_HA 15
-
 /// Maps from slot to plugin. May return NULL if plugin has been unloaded.
 st_plugin_int *hton2plugin(uint slot);
 /// Returns the size of the array holding pointers to plugins.
@@ -156,6 +149,8 @@ extern ulong total_ha_2pc;
 #define HA_ADMIN_NEEDS_ALTER    -11
 #define HA_ADMIN_NEEDS_CHECK    -12
 #define HA_ADMIN_STATS_UPD_ERR  -13
+/** User needs to dump and re-create table to fix pre 5.0 decimal types */
+#define HA_ADMIN_NEEDS_DUMP_UPGRADE -14
 
 /**
    Return values for check_if_supported_inplace_alter().
@@ -614,7 +609,7 @@ enum legacy_db_type
   DB_TYPE_DEFAULT=127 // Must be last
 };
 
-enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
+enum row_type : int { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
 		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT,
                 /** Unused. Reserved for future versions. */
@@ -829,7 +824,7 @@ enum enum_schema_tables
 };
 
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
-enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
+enum ha_notification_type : int { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 
 /** Clone operation types. */
 enum Ha_clone_type
@@ -1061,124 +1056,6 @@ private:
   const int HA_CLONE_FILE_CACHE = 0x02;
 };
 
-/**
-  Class to hold information regarding a table to be created on
-  behalf of a plugin. The class stores the name, definition, options
-  and optional tablespace of the table. The definition should not contain the
-  'CREATE TABLE name' prefix.
-
-  @note The data members are not owned by the class, and will not
-        be deleted when this instance is deleted.
-*/
-class Plugin_table
-{
-private:
-  const char *m_schema_name;
-  const char *m_table_name;
-  const char *m_table_definition;
-  const char *m_table_options;
-  const char *m_tablespace_name;
-
-public:
-  Plugin_table(const char *schema_name,
-               const char *table_name,
-               const char *definition,
-               const char *options,
-               const char *tablespace_name)
-  : m_schema_name(schema_name),
-    m_table_name(table_name),
-    m_table_definition(definition),
-    m_table_options(options),
-    m_tablespace_name(tablespace_name)
-  { }
-
-  const char *get_schema_name() const
-  { return m_schema_name; }
-
-  const char *get_name() const
-  { return m_table_name; }
-
-  const char *get_table_definition() const
-  { return m_table_definition; }
-
-  const char *get_table_options() const
-  { return m_table_options; }
-
-  const char *get_tablespace_name() const
-  { return m_tablespace_name; }
-};
-
-/**
-  Class to hold information regarding a predefined tablespace
-  created by a storage engine. The class stores the name, options,
-  se_private_data, comment and engine of the tablespace. A list of
-  of the tablespace files is also stored.
-
-  @note The data members are not owned by the class, and will not
-        be deleted when this instance is deleted.
-*/
-class Plugin_tablespace
-{
-public:
-  class Plugin_tablespace_file
-  {
-  private:
-    const char *m_name;
-    const char *m_se_private_data;
-  public:
-    Plugin_tablespace_file(const char *name, const char *se_private_data):
-      m_name(name),
-      m_se_private_data(se_private_data)
-    { }
-
-    const char *get_name() const
-    { return m_name; }
-
-    const char *get_se_private_data() const
-    { return m_se_private_data; }
-  };
-
-private:
-  const char *m_name;
-  const char *m_options;
-  const char *m_se_private_data;
-  const char *m_comment;
-  const char *m_engine;
-  List<const Plugin_tablespace_file> m_files;
-
-public:
-  Plugin_tablespace(const char *name, const char *options,
-                    const char *se_private_data, const char *comment,
-                    const char *engine):
-    m_name(name),
-    m_options(options),
-    m_se_private_data(se_private_data),
-    m_comment(comment),
-    m_engine(engine)
-  { }
-
-  void add_file(const Plugin_tablespace_file *file)
-  { m_files.push_back(file); }
-
-  const char *get_name() const
-  { return m_name; }
-
-  const char *get_options() const
-  { return m_options; }
-
-  const char *get_se_private_data() const
-  { return m_se_private_data; }
-
-  const char *get_comment() const
-  { return m_comment; }
-
-  const char *get_engine() const
-  { return m_engine; }
-
-  const List<const Plugin_tablespace_file> &get_files() const
-  { return m_files; }
-};
-
 /* handlerton methods */
 
 /**
@@ -1396,6 +1273,17 @@ typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd,
 */
 typedef int (*upgrade_tablespace_t)(THD *thd);
 
+
+/**
+  Get the tablespace data from SE and insert it into Data dictionary
+
+  @param[in]  tablespace     tablespace object
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (handler error code returned)
+*/
+typedef bool (*upgrade_space_version_t)(dd::Tablespace *tablespace);
 
 /**
   Finish upgrade process inside storage engines.
@@ -1969,6 +1857,7 @@ struct handlerton
   get_tablespace_t get_tablespace;
   alter_tablespace_t alter_tablespace;
   upgrade_tablespace_t upgrade_tablespace;
+  upgrade_space_version_t upgrade_space_version;
   upgrade_logs_t upgrade_logs;
   finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;
@@ -2107,10 +1996,10 @@ inline bool ddl_is_atomic(const handlerton *hton)
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
 }
 
-enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
-			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
+enum enum_tx_isolation : int { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
+			       ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
-enum enum_stats_auto_recalc { HA_STATS_AUTO_RECALC_DEFAULT= 0,
+enum enum_stats_auto_recalc : int { HA_STATS_AUTO_RECALC_DEFAULT= 0,
                               HA_STATS_AUTO_RECALC_ON,
                               HA_STATS_AUTO_RECALC_OFF };
 
@@ -2225,12 +2114,11 @@ struct KEY_PAIR
   as early as during check_if_supported_inplace_alter().
 
   The SQL layer is responsible for destroying the object.
-  The class extends Sql_alloc so the memory will be mem root allocated.
 
   @see Alter_inplace_info
 */
 
-class inplace_alter_handler_ctx : public Sql_alloc
+class inplace_alter_handler_ctx
 {
 public:
   inplace_alter_handler_ctx() {}
@@ -3006,7 +2894,7 @@ public:
   Wrapper for struct ft_hints.
 */
 
-class Ft_hints: public Sql_alloc
+class Ft_hints
 {
 private:
   struct ft_hints hints;
@@ -3497,7 +3385,7 @@ public:
     get_partition_handler()
 */
 
-class handler :public Sql_alloc
+class handler
 {
   friend class Partition_handler;
 public:
@@ -3522,10 +3410,10 @@ public:
   RANGE_SEQ_IF mrr_funcs;  /* Range sequence traversal functions */
   HANDLER_BUFFER *multi_range_buffer; /* MRR buffer info */
   uint ranges_in_seq; /* Total number of ranges in the traversed sequence */
-  /* TRUE <=> source MRR ranges and the output are ordered */
+  /* true <=> source MRR ranges and the output are ordered */
   bool mrr_is_output_sorted;
   
-  /* TRUE <=> we're currently traversing a range in mrr_cur_range. */
+  /* true <=> we're currently traversing a range in mrr_cur_range. */
   bool mrr_have_range;
   /* Current range (the one we're now returning rows from) */
   KEY_MULTI_RANGE mrr_cur_range;
@@ -3553,7 +3441,7 @@ protected:
   KEY_PART_INFO *range_key_part;
   bool eq_range;
   /* 
-    TRUE <=> the engine guarantees that returned records are within the range
+    true <=> the engine guarantees that returned records are within the range
     being scanned.
   */
   bool in_range_check_pushed_down;
@@ -4251,7 +4139,7 @@ public:
   */
   virtual int exec_bulk_update(uint *dup_key_found MY_ATTRIBUTE((unused)))
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return HA_ERR_WRONG_COMMAND;
   }
   /**
@@ -4267,7 +4155,7 @@ public:
   */
   virtual int end_bulk_delete()
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return HA_ERR_WRONG_COMMAND;
   }
 protected:
@@ -4378,7 +4266,7 @@ public:
     int error;
     DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
 
-    error = ha_rnd_init(FALSE);
+    error = ha_rnd_init(false);
     if (error != 0)
             return error;
 
@@ -4577,11 +4465,11 @@ public:
 
     @param  index            Index to check if foreign key uses it
 
-    @retval   TRUE            Foreign key defined on table or index
-    @retval   FALSE           No foreign key defined
+    @retval   true            Foreign key defined on table or index
+    @retval   false           No foreign key defined
   */
   virtual bool is_fk_defined_on_table_or_index(uint index MY_ATTRIBUTE((unused)))
-  { return FALSE; }
+  { return false; }
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
   /**
@@ -4687,8 +4575,8 @@ public:
   /**
     Check if the table is crashed.
 
-    @retval TRUE  Crashed
-    @retval FALSE Not crashed
+    @retval true  Crashed
+    @retval false Not crashed
   */
 
   virtual bool is_crashed() const  { return 0; }
@@ -4697,8 +4585,8 @@ public:
   /**
     Check if the table can be automatically repaired.
 
-    @retval TRUE  Can be auto repaired
-    @retval FALSE Cannot be auto repaired
+    @retval true  Can be auto repaired
+    @retval false Cannot be auto repaired
   */
 
   virtual bool auto_repair() const { return 0; }
@@ -5514,7 +5402,7 @@ public:
                               uchar *new_data MY_ATTRIBUTE((unused)),
                               uint *dup_key_found MY_ATTRIBUTE((unused)))
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return HA_ERR_WRONG_COMMAND;
   }
   /**
@@ -5551,7 +5439,9 @@ public:
 
     @remark Engine is responsible for resetting the auto-increment counter.
 
-    @remark The table is locked in exclusive mode.
+    @remark The table is locked in exclusive mode. All open TABLE/handler
+            instances except the one which is used for truncate() call
+            are closed.
 
     @note   It is assumed that transactional storage engines implementing
             this method can revert its effects if transaction is rolled
@@ -5575,14 +5465,14 @@ public:
 
     @param thd    Thread object
 
-    @retval TRUE  Error/Not supported
-    @retval FALSE Success
+    @retval true  Error/Not supported
+    @retval false Success
 
     @note Called if open_table_from_share fails and is_crashed().
   */
 
   virtual bool check_and_repair(THD *thd MY_ATTRIBUTE((unused)))
-  { return TRUE; }
+  { return true; }
 
 
   /**
@@ -5829,12 +5719,12 @@ private:
   uchar *rowids_buf_last;  /* When reading: end of used buffer space */
   uchar *rowids_buf_end;   /* End of the buffer */
 
-  bool dsmrr_eof; /* TRUE <=> We have reached EOF when reading index tuples */
+  bool dsmrr_eof; /* true <=> We have reached EOF when reading index tuples */
 
-  /* TRUE <=> need range association, buffer holds {rowid, range_id} pairs */
+  /* true <=> need range association, buffer holds {rowid, range_id} pairs */
   bool is_mrr_assoc;
 
-  bool use_default_impl; /* TRUE <=> shortcut all calls to default MRR impl */
+  bool use_default_impl; /* true <=> shortcut all calls to default MRR impl */
 public:
   /**
     Initialize the DsMrr_impl object.
@@ -5922,7 +5812,7 @@ static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint3
 static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
 {
   return (db_type && db_type->create) ?
-         (db_type->state == SHOW_OPTION_YES) : FALSE;
+         (db_type->state == SHOW_OPTION_YES) : false;
 }
 
 /* basic stuff */

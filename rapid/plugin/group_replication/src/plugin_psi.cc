@@ -18,6 +18,9 @@
 
 #include <stddef.h>
 
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/mysql_rwlock.h"
+
 PSI_mutex_key  key_GR_LOCK_applier_module_run,
                key_GR_LOCK_applier_module_suspend,
                key_GR_LOCK_cert_broadcast_run,
@@ -65,7 +68,8 @@ PSI_cond_key   key_GR_COND_applier_module_run,
                key_GR_COND_recovery,
                key_GR_COND_session_thread_method_exec,
                key_GR_COND_session_thread_run,
-               key_GR_COND_pipeline_stats_flow_control;
+               key_GR_COND_pipeline_stats_flow_control,
+               key_GR_COND_write_lock_protection;
 
 PSI_thread_key key_GR_THD_applier_module_receiver,
                key_GR_THD_cert_broadcast,
@@ -134,6 +138,7 @@ static PSI_cond_info all_group_replication_psi_condition_keys[]=
   {&key_GR_COND_session_thread_method_exec, "COND_session_thread_method_exec", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   {&key_GR_COND_session_thread_run, "COND_session_thread_run", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   {&key_GR_COND_pipeline_stats_flow_control, "COND_pipeline_stats_flow_control", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  {&key_GR_COND_write_lock_protection, "COND_write_lock_protection", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 };
 
 static PSI_thread_info all_group_replication_psi_thread_keys[]=

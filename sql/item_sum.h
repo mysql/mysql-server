@@ -48,7 +48,6 @@
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/parse_tree_nodes.h" // PT_window
-#include "sql/sql_alloc.h"  // Sql_alloc
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
@@ -79,7 +78,7 @@ struct TABLE;
   fields (quick_group is false);
 */
 
-class Aggregator : public Sql_alloc
+class Aggregator
 {
   friend class Item_sum;
   friend class Item_sum_sum;
@@ -443,11 +442,13 @@ public:
   */
 
   /**
-    Non-null for a group aggregate which is aggregated into an outer query
-    block and is the argument of a function; it is then a pointer to that
-    function's args[i] pointer.
+    For a group aggregate which is aggregated into an outer query
+    block; none, or just the first or both cells may be non-zero. They are
+    filled with references to the group aggregate (for example if it is the
+    argument of a function; it is then a pointer to that function's args[i]
+    pointer). "ref_by" stands for "referenced by".
   */
-  Item **ref_by;
+  Item **ref_by[2];
   Item_sum *next; ///< next in the circular chain of registered objects
   Item_sum *in_sum_func;   ///< the containing set function if any
   SELECT_LEX *base_select; ///< query block where function is placed
@@ -694,11 +695,14 @@ public:
   virtual bool framing() const { return true; }
 
   /**
-    Return true if we need to know the cardinality of the partition, i.e.
-    we need two passes over the rows in the partition to be able to evaluate
-    the window function.
+    Return true if we need to make two passes over the rows in the partition -
+    either because we need the cardinality of it (and we need to read all
+    rows to detect the next partition), or we need to have all partition rows
+    available to evaluate the window function for some other reason, e.g.
+    we may need the last row in the partition in the frame buffer to be able
+    to evaluate LEAD.
   */
-  virtual bool two_pass() const { return false; }
+  virtual bool needs_card() const { return false; }
 
   /**
     Common initial actions for window functions. For non-buffered processing
@@ -745,7 +749,7 @@ class Aggregator_distinct : public Aggregator
     expensive calculations (like walking the distinct tree for example) 
     which we must do only once if there are no data changes.
     We can re-use the data for the second and subsequent val_xxx() calls.
-    endup_done set to TRUE also means that the calculated values for
+    endup_done set to true also means that the calculated values for
     the aggregate functions are correct and don't need recalculation.
   */
   bool endup_done;
@@ -929,7 +933,7 @@ public:
     {
        maybe_null|= args[i]->maybe_null;
     }
-    null_value= FALSE;
+    null_value= false;
     return false;
   }
   double val_real() override
@@ -974,7 +978,6 @@ public:
     :Item_sum_num(pos, item_par, window), hybrid_type(INVALID_RESULT), m_count(0),
      m_frame_null_count(0)
   {
-    clear();
     set_distinct(distinct);
   }
 
@@ -1043,7 +1046,7 @@ class Item_sum_count :public Item_sum_int
   bool resolve_type(THD*) override
   {
     maybe_null= false;
-    null_value= FALSE;
+    null_value= false;
     return false;
   }
   void no_rows_in_result() override { count= 0; }
@@ -1515,6 +1518,17 @@ protected:
   bool wf_semantics(THD *thd, SELECT_LEX *select,
                     Window::Evaluation_requirements *r,
                     bool min);
+  /**
+    This function implements the optimized version of retrieving min/max
+    value. When we have "ordered ASC" results in a window, min will always
+    be the first value in the result set (neglecting the NULL's) and max
+    will always be the last value (or the other way around, if ordered DESC).
+    It is based on the implementation of FIRST_VALUE/LAST_VALUE, except for
+    the NULL handling.
+
+    @return true if computation yielded a NULL or error
+  */
+  bool compute();
 
 public:
   Item_sum_hybrid(Item *item_par,int sign)
@@ -1545,7 +1559,6 @@ public:
   void clear() override;
   void split_sum_func(THD* thd, Ref_item_array ref_item_array,
                       List<Item>& fields) override;
-  void compute();
   double val_real() override;
   longlong val_int() override;
   longlong val_time_temporal() override;
@@ -1909,7 +1922,6 @@ public:
 };
 
 
-C_MODE_START
 int group_concat_key_cmp_with_distinct(const void* arg, const void* key1,
                                        const void* key2);
 int group_concat_key_cmp_with_order(const void* arg, const void* key1,
@@ -1917,7 +1929,6 @@ int group_concat_key_cmp_with_order(const void* arg, const void* key1,
 int dump_leaf_key(void* key_arg,
                   element_count count MY_ATTRIBUTE((unused)),
                   void* item_arg);
-C_MODE_END
 
 class Item_func_group_concat final : public Item_sum
 {
@@ -2047,7 +2058,7 @@ public:
   The subclasses can be divided in two disjoint sub-categories:
      - one-pass
      - two-pass (requires partition cardinality to be evaluated)
-  cf. method two_pass.
+  cf. method needs_card.
 */
 class Item_non_framing_wf : public Item_sum
 {
@@ -2196,7 +2207,7 @@ public:
   bool check_wf_semantics(THD *thd, SELECT_LEX *select,
                           Window::Evaluation_requirements *reqs) override;
 
-  bool two_pass() const override { return true; }
+  bool needs_card() const override { return true; }
   void clear() override {};
   longlong val_int() override;
   double val_real() override;
@@ -2215,15 +2226,18 @@ class Item_percent_rank : public Item_non_framing_wf
   typedef Item_non_framing_wf super;
   // Execution state variables
   ulonglong m_rank_ctr;    ///< Increment when window order columns change
-  ulonglong m_duplicates;  ///< Needed to make PERCENT_RANK same for peers
-  List<Cached_item> m_previous; ///< Values of previous row's ORDER BY items
+  ulonglong m_peers;       ///< Needed to make PERCENT_RANK same for peers
+  /**
+    Set when the last peer has been visited. Needed to increment m_rank_ctr.
+  */
+  bool m_last_peer_visited;
 
 public:
   Item_percent_rank(const POS &pos, PT_window *w) :
     Item_non_framing_wf(pos, w),
     m_rank_ctr(0),
-    m_duplicates(0),
-    m_previous()
+    m_peers(0),
+    m_last_peer_visited(false)
   {}
 
   const char *func_name() const override { return "percent_rank"; }
@@ -2237,7 +2251,7 @@ public:
 
   bool check_wf_semantics(THD *thd, SELECT_LEX *select,
                           Window::Evaluation_requirements *reqs) override;
-  bool two_pass() const override { return true; }
+  bool needs_card() const override { return true; }
 
   void clear() override;
   void cleanup() override;
@@ -2282,15 +2296,12 @@ public:
                           Window::Evaluation_requirements *reqs) override;
   Item_result result_type() const override { return INT_RESULT; }
   void clear() override {}
-  bool two_pass() const override { return true; }
+  bool needs_card() const override { return true; }
 };
 
 
 /**
   LEAD/LAG window functions, cf. SQL 2011 Section 6.10 \<window function\>
-
-  The result type of this function is the same as the argument, so we
-  inherit only Item_func.
 */
 class Item_lead_lag : public Item_non_framing_wf
 {
@@ -2349,10 +2360,19 @@ public:
 
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
+  bool val_json(Json_wrapper *wr) override;
 
-  bool two_pass() const override
+  bool needs_card() const override
   {
-    return true; /* FIXME poss. optimization: m_is_lead; */
+    /*
+      A possible optimization here: if LAG, we are only interested in rows we
+      have already seen, so we might compute the result without reading the
+      entire partition as soon as we have the current row.  Similarly, a small
+      LEAD value might avoid reading the entire partition also, giving shorter
+      time to first result. For now, we read the entirely partition for these
+      window functions - for simplicity.
+    */
+    return true;
   }
 
   void split_sum_func(THD* thd, Ref_item_array ref_item_array,
@@ -2419,6 +2439,7 @@ public:
 
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
+  bool val_json(Json_wrapper *wr) override;
 
   void reset_field() override { DBUG_ASSERT(false); }
   void update_field() override { DBUG_ASSERT(false); }
@@ -2489,6 +2510,7 @@ public:
 
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
+  bool val_json(Json_wrapper *wr) override;
 
   void reset_field() override { DBUG_ASSERT(false); }
   void update_field() override { DBUG_ASSERT(false); }

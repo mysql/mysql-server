@@ -203,7 +203,7 @@ public:
   /// Current m_rowid, used for ORDINALITY columns
   uint m_rowid;
   /**
-    TRUE <=> NESTED PATH associated with this element is producing records.
+    true <=> NESTED PATH associated with this element is producing records.
     Used to turn off (set to null) sibling NESTED PATHs, when one of them is
     used to fill result table.
   */

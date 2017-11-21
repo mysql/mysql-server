@@ -69,6 +69,7 @@ struct btr_latch_leaves_t {
 #include "ha0ha.h"
 #include "que0types.h"
 #include "row0types.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #define BTR_CUR_ADAPT
 #define BTR_CUR_HASH_ADAPT
@@ -531,7 +532,7 @@ that mtr holds an x-latch on the tree and on the cursor page. To avoid
 deadlocks, mtr must also own x-latches to brothers of page, if those
 brothers exist. NOTE: it is assumed that the caller has reserved enough
 free extents so that the compression will always succeed if done!
-@return TRUE if compression occurred */
+@return true if compression occurred */
 ibool
 btr_cur_compress_if_useful(
 /*=======================*/
@@ -545,7 +546,7 @@ btr_cur_compress_if_useful(
 Removes the record on which the tree cursor is positioned. It is assumed
 that the mtr has an x-latch on the page where the cursor is positioned,
 but no latch on the whole tree.
-@return TRUE if success, i.e., the page did not become too empty */
+@return true if success, i.e., the page did not become too empty */
 ibool
 btr_cur_optimistic_delete_func(
 /*===========================*/
@@ -575,7 +576,7 @@ or if it is the only page on the level. It is assumed that mtr holds
 an x-latch on the tree and on the cursor page. To avoid deadlocks,
 mtr must also own x-latches to brothers of page, if those brothers
 exist.
-@return TRUE if compression occurred */
+@return true if compression occurred */
 ibool
 btr_cur_pessimistic_delete(
 /*=======================*/
@@ -595,7 +596,6 @@ btr_cur_pessimistic_delete(
 	ulint		flags,	/*!< in: BTR_CREATE_FLAG or 0 */
 	bool		rollback,/*!< in: performing rollback? */
 	mtr_t*		mtr);	/*!< in: mtr */
-#endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses a redo log record of updating a record in-place.
 @return end of log record or NULL */
@@ -724,6 +724,7 @@ btr_cur_latch_leaves(
 	ulint			latch_mode,
 	btr_cur_t*		cursor,
 	mtr_t*			mtr);
+#endif /* !UNIV_HOTBACKUP */
 
 /*######################################################################*/
 
@@ -886,7 +887,6 @@ extern ulint	btr_cur_n_non_sea_old;
 srv_refresh_innodb_monitor_stats().  Referenced by
 srv_printf_innodb_monitor(). */
 extern ulint	btr_cur_n_sea_old;
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /* Flag to limit optimistic insert records */

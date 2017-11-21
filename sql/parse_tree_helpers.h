@@ -140,7 +140,7 @@ bool contextualize_array(Context *pc, Array *array)
 {
   for (auto it : *array)
   {
-    if (it->contextualize(pc))
+    if (pc->thd->lex->will_contextualize && it->contextualize(pc))
       return true;
   }
   return false;
@@ -242,7 +242,7 @@ bool resolve_engine(THD *thd,
                     bool strict,
                     handlerton **ret);
 bool apply_privileges(THD *thd,
-                      const Trivial_array<class PT_role_or_privilege *> &privs);
+                      const Mem_root_array<class PT_role_or_privilege *> &privs);
 
 
 inline bool is_identifier(const char *str, const char *ident)

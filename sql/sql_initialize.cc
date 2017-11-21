@@ -28,6 +28,7 @@
 #include "my_loglevel.h"
 #include "my_rnd.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "scripts/sql_commands_help_data.h"
@@ -53,7 +54,7 @@ static const char *initialization_cmds[] =
 
 char insert_user_buffer[sizeof(INSERT_USER_CMD) + GENERATED_PASSWORD_LENGTH * 2];
 
-bool opt_initialize_insecure= FALSE;
+bool opt_initialize_insecure= false;
 
 static const char *initialization_data[] =
 {
@@ -76,6 +77,16 @@ static const char *session_service_initialization_data[] =
   NULL
 };
 
+static const char *information_schema_owner_initialization_data[] =
+{
+  "CREATE USER 'mysql.infoschema'@localhost IDENTIFIED "
+    "WITH mysql_native_password AS '*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE' "
+    "ACCOUNT LOCK;\n",
+  "REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.infoschema'@localhost;\n",
+  "GRANT SELECT ON *.* TO 'mysql.infoschema'@localhost;\n",
+  nullptr
+};
+
 static const char** cmds[]=
 {
   initialization_cmds,
@@ -84,6 +95,7 @@ static const char** cmds[]=
   mysql_system_data,
   fill_help_tables,
   session_service_initialization_data,
+  information_schema_owner_initialization_data,
   mysql_sys_schema,
   NULL
 };
@@ -97,6 +109,7 @@ static const char *cmd_descs[]=
   "Filling in the system tables, part 2",
   "Filling in the mysql.help table",
   "Creating user for internal session service",
+  "Creating user to be owner of views in information_schema",
   "Creating the sys schema",
   NULL
 };

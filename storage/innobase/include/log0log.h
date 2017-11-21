@@ -278,18 +278,6 @@ void
 log_write_checkpoint_info(
 	bool	sync);
 
-#else /* !UNIV_HOTBACKUP */
-/******************************************************//**
-Writes info to a buffer of a log group when log files are created in
-backup restoration. */
-void
-log_reset_first_header_and_checkpoint(
-/*==================================*/
-	byte*		hdr_buf,/*!< in: buffer which will be written to the
-				start of the first log file */
-	ib_uint64_t	start);	/*!< in: lsn of the start of the first log file;
-				we pretend that there is a checkpoint at
-				start + LOG_BLOCK_HDR_SIZE */
 #endif /* !UNIV_HOTBACKUP */
 /**
 Checks that there is enough free space in the log to start a new query step.
@@ -312,7 +300,7 @@ log_group_set_fields(
 #endif /* !UNIV_HOTBACKUP */
 /************************************************************//**
 Gets a log block flush bit.
-@return TRUE if this block was the first to be written in a log flush */
+@return true if this block was the first to be written in a log flush */
 UNIV_INLINE
 ibool
 log_block_get_flush_bit(
@@ -321,7 +309,7 @@ log_block_get_flush_bit(
 
 /** Gets a log block encrypt bit.
 @param[in]	log_block	log block
-@return TRUE if this block was encrypted */
+@return true if this block was encrypted */
 UNIV_INLINE
 bool
 log_block_get_encrypt_bit(
@@ -441,17 +429,6 @@ log_block_init(
 	byte*	log_block,
 	lsn_t	lsn);
 
-#ifdef UNIV_HOTBACKUP
-/************************************************************//**
-Initializes a log block in the log buffer in the old, < 3.23.52 format, where
-there was no checksum yet. */
-UNIV_INLINE
-void
-log_block_init_in_old_format(
-/*=========================*/
-	byte*	log_block,	/*!< in: pointer to the log buffer */
-	lsn_t	lsn);		/*!< in: lsn within the log block */
-#endif /* UNIV_HOTBACKUP */
 /************************************************************//**
 Converts a lsn to a log block number.
 @return log block number, it is > 0 and <= 1G */
@@ -468,7 +445,7 @@ log_print(
 	FILE*	file);	/*!< in: file where to print */
 /******************************************************//**
 Peeks the current lsn.
-@return TRUE if success, FALSE if could not get the log system mutex */
+@return true if success, false if could not get the log system mutex */
 ibool
 log_peek_lsn(
 /*=========*/
@@ -578,9 +555,9 @@ because InnoDB never supported more than one copy of the redo log. */
 /** LSN of the start of data in this log file
 (with format version 1 and 2). */
 #define LOG_HEADER_START_LSN	8
-/** A null-terminated string which will contain either the string 'ibbackup'
-and the creation time if the log file was created by mysqlbackup --restore,
-or the MySQL version that created the redo log file. */
+/** A null-terminated string which will contain either the string 'MEB'
+and the MySQL version if the log file was created by mysqlbackup,
+or 'MySQL' and the MySQL version that created the redo log file. */
 #define LOG_HEADER_CREATOR	16
 /** End of the log file creator field. */
 #define LOG_HEADER_CREATOR_END	(LOG_HEADER_CREATOR + 32)
@@ -625,8 +602,10 @@ enum log_group_state_t {
 	LOG_GROUP_CORRUPTED
 };
 
+#ifndef UNIV_HOTBACKUP
 typedef ib_mutex_t	LogSysMutex;
 typedef ib_mutex_t	FlushOrderMutex;
+#endif /* !UNIV_HOTBACKUP */
 
 /** Log group consists of a number of log files, each of the same size; a log
 group is implemented as a space in the sense of the module fil0fil.

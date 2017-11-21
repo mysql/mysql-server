@@ -29,8 +29,6 @@
 #define MAX_CIPHER_STORE_LEN 4U
 #define LOGIN_KEY_LEN 20U
 
-C_MODE_START
-
 /**
   Place the login file name in the specified buffer.
 
@@ -41,7 +39,5 @@ C_MODE_START
           0 - Failure
 */
 int my_default_get_login_file(char *file_name, size_t file_name_size);
-
-C_MODE_END
 
 #endif /* MY_DEFAULT_PRIV_INCLUDED */

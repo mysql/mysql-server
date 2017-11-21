@@ -70,6 +70,7 @@
 #include "sql/strfunc.h"                    // find_type2, find_set
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"            // trans_commit_stmt, trans_rollback_stmt
 #include "sql/tztime.h"                 // my_tz_UTC
 #include "sql_string.h"                 // String
@@ -254,11 +255,12 @@ Histogram::Histogram(MEM_ROOT *mem_root, const Histogram &other)
 
 bool Histogram::histogram_to_json(Json_object *json_object) const
 {
-  // Get the current time in GMT timezone.
+  // Get the current time in GMT timezone with microsecond accuray.
+  timeval time_value;
+  my_micro_time_to_timeval(my_micro_time(), &time_value);
+
   MYSQL_TIME current_time;
-  const ulonglong micro_time= my_micro_time();
-  my_tz_UTC->gmt_sec_to_TIME(&current_time,
-                             static_cast<my_time_t>(micro_time / 1000000));
+  my_tz_UTC->gmt_sec_to_TIME(&current_time, time_value);
 
   // last-updated
   const Json_datetime last_updated(current_time, MYSQL_TYPE_DATETIME);

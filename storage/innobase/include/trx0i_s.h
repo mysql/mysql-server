@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,6 +31,8 @@ Created July 17, 2007 Vasil Dimov
 #include "univ.i"
 #include "trx0types.h"
 #include "dict0types.h"
+
+class PSI_server_data_lock_container;
 
 /** The maximum amount of memory that can be consumed by innodb_trx,
 innodb_locks and innodb_lock_waits information schema tables. */
@@ -234,7 +236,7 @@ trx_i_s_possibly_fetch_data_into_cache(
 /*******************************************************************//**
 Returns TRUE if the data in the cache is truncated due to the memory
 limit posed by TRX_I_S_MEM_LIMIT.
-@return TRUE if truncated */
+@return true if truncated */
 ibool
 trx_i_s_cache_is_truncated(
 /*=======================*/

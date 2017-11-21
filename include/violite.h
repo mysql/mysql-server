@@ -24,18 +24,17 @@
 
 #include "my_config.h"
 
-#include <mysql/psi/mysql_socket.h>
 #include <stddef.h>
-
-#include "my_thread.h" /* my_thread_handle */
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 #include <sys/types.h>
 
 #include "my_inttypes.h"
-#include "my_io.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
+#include "mysql/components/services/my_io_bits.h"
+#include "mysql/components/services/my_thread_bits.h"
+#include "mysql/components/services/mysql_socket_bits.h"
 
 struct Vio;
 
@@ -53,16 +52,13 @@ struct Vio;
 #include <atomic>
 #endif
 
-#ifdef	__cplusplus
-extern "C" {
-#endif /* __cplusplus */
-
 #ifdef HAVE_PSI_INTERFACE
 void init_vio_psi_keys();
 #endif
 
 #ifndef MYSQL_VIO
 struct Vio;
+
 typedef Vio Vio;
 #define MYSQL_VIO Vio*
 #endif
@@ -197,7 +193,9 @@ int vio_getnameinfo(const struct sockaddr *sa,
                     int flags);
 
 #ifdef HAVE_OPENSSL
+extern "C" {
 #include <openssl/opensslv.h>
+}
 #if OPENSSL_VERSION_NUMBER < 0x0090700f
 #define DES_cblock des_cblock
 #define DES_key_schedule des_key_schedule
@@ -217,8 +215,10 @@ int vio_getnameinfo(const struct sockaddr *sa,
 /* Set yaSSL to use same type as MySQL do for socket handles */
 typedef my_socket YASSL_SOCKET_T;
 #define YASSL_SOCKET_T_DEFINED
+extern "C" {
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+}
 
 enum enum_ssl_init_error
 {
@@ -284,8 +284,11 @@ enum SSL_type
   SSL_TYPE_SPECIFIED
 };
 
-#ifdef __cplusplus
-/* This structure is for every connection on both sides */
+/*
+ This structure is for every connection on both sides.
+ Note that it has a non-default move assignment operator, so if adding more
+ members, you'll need to update operator=.
+*/
 struct Vio
 {
   MYSQL_SOCKET  mysql_socket;           /* Instrumented socket */
@@ -394,9 +397,7 @@ private:
 public:
   Vio(const Vio&) = delete;
   Vio &operator=(const Vio&) = delete;
+  Vio &operator=(Vio&& vio);
 };
-
-}
-#endif /* __cpluscplus */
 
 #endif /* vio_violite_h_ */

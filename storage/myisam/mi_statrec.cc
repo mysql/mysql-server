@@ -278,7 +278,7 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
   }
 
   /*
-    Read record with caching. If my_b_read() returns TRUE, less than the
+    Read record with caching. If my_b_read() returns true, less than the
     requested bytes have been read. In this case rec_cache.error is
     either -1 for a read error, or contains the number of bytes copied
     into the buffer.
@@ -303,7 +303,7 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
     info->update|= HA_STATE_AKTIV | HA_STATE_KEY_CHANGED;
     DBUG_RETURN(0);
   }
-  /* error is TRUE. my_errno should be set if rec_cache.error == -1 */
+  /* error is true. my_errno should be set if rec_cache.error == -1 */
   if (info->rec_cache.error != -1 || my_errno() == 0)
   {
     /*

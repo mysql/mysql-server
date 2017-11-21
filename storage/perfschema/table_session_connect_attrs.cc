@@ -22,6 +22,8 @@
 
 #include <stddef.h>
 
+#include "sql/plugin_table.h"
+
 THR_LOCK table_session_connect_attrs::m_table_lock;
 
 Plugin_table table_session_connect_attrs::m_table_def(

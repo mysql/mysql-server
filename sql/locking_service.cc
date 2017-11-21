@@ -198,7 +198,6 @@ void release_all_locking_service_locks(THD *thd)
   in service_locking.h as UDFs are built with MYSQL_DYNAMIC_PLUGIN
   yet are not able to call service API functions.
 */
-C_MODE_START
 int mysql_acquire_locking_service_locks(MYSQL_THD opaque_thd,
                                         const char *lock_namespace,
                                         const char **lock_names,
@@ -216,5 +215,4 @@ int mysql_release_locking_service_locks(MYSQL_THD opaque_thd,
 {
   return release_locking_service_locks(opaque_thd, lock_namespace);
 }
-C_MODE_END
 

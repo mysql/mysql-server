@@ -27,10 +27,6 @@
 /* PSI_memory_key */
 #include "mysql/components/services/psi_memory_bits.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* myf */
 typedef int myf_t;
 
@@ -95,7 +91,7 @@ struct mysql_malloc_service_st
   my_strndup_t my_strndup;
 };
 
-extern struct mysql_malloc_service_st *mysql_malloc_service;
+extern "C" struct mysql_malloc_service_st *mysql_malloc_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
@@ -117,10 +113,6 @@ extern void * my_memdup(PSI_memory_key key, const void *from, size_t length, myf
 extern char * my_strdup(PSI_memory_key key, const char *from, myf_t flags);
 extern char * my_strndup(PSI_memory_key key, const char *from, size_t length, myf_t flags);
 
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif

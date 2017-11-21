@@ -171,7 +171,7 @@ explain SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)'));
 #select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6)),ST_issimple(ST_PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),ST_issimple(ST_GeometryFromText('POINT(1 4)')), ST_issimple(ST_AsWKB(ST_GeometryFromText('POINT(1 4)')));
 explain select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6));
 
-create table t1 (a geometry not null);
+create table t1 (a geometry not null SRID 0);
 insert into t1 values (ST_GeomFromText('Point(1 2)'));
 -- error 1416
 insert into t1 values ('Garbage');
@@ -185,7 +185,7 @@ drop table t1;
 # Bug #5219: problem with range optimizer
 #
 
-create table t1(a geometry not null, spatial index(a));
+create table t1(a geometry not null SRID 0, spatial index(a));
 insert into t1 values
 (ST_GeomFromText('POINT(1 1)')), (ST_GeomFromText('POINT(3 3)')), 
 (ST_GeomFromText('POINT(4 4)')), (ST_GeomFromText('POINT(6 6)'));
@@ -199,7 +199,7 @@ select ST_AsText(a) from t1 where
   MBRContains(ST_GeomFromText('Polygon((0 0, 0 7, 7 7, 7 0, 0 0))'), a);
 drop table t1;
 
-CREATE TABLE t1 (Coordinates POINT NOT NULL, SPATIAL INDEX(Coordinates)); 
+CREATE TABLE t1 (Coordinates POINT NOT NULL SRID 0, SPATIAL INDEX(Coordinates)); 
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(383293632 1754448)')); 
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(564952612 157516260)')); 
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(903994614 180726515)')); 
@@ -294,7 +294,7 @@ show create table t1;
 drop table t1;
 
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
-geometry NOT NULL default '') ENGINE=MyISAM ;
+geometry NOT NULL) ENGINE=MyISAM ;
 
 insert into t1 values ('85984',ST_GeomFromText('MULTIPOLYGON(((-115.006363
 36.305435,-114.992394 36.305202,-114.991219 36.305975,-114.991163
@@ -391,7 +391,7 @@ select ST_asbinary(g) from t1;
 --disable_metadata
 drop table t1;
 
-create table t1 (a TEXT, b GEOMETRY NOT NULL, SPATIAL KEY(b));
+create table t1 (a TEXT, b GEOMETRY NOT NULL SRID 0, SPATIAL KEY(b));
 alter table t1 disable keys;
 --error 1263
 load data infile '../../std_data/bad_gis_data.dat' into table t1;
@@ -457,12 +457,12 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (
-  geomdata polygon NOT NULL,
+  geomdata polygon NOT NULL SRID 0,
   SPATIAL KEY index_geom (geomdata)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
 
 CREATE TABLE t2 (
-  geomdata polygon NOT NULL,
+  geomdata polygon NOT NULL SRID 0,
   SPATIAL KEY index_geom (geomdata)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
 
@@ -488,7 +488,7 @@ drop table t3;
 #
 
 create table t1(col1 geometry default null,col15 geometrycollection not
-null,spatial index(col15),index(col1(15)))engine=myisam;
+null SRID 0,spatial index(col15),index(col1(15)))engine=myisam;
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
 insert into t1 set col15 = ST_GeomFromText('POINT(6 5)');
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
@@ -1456,7 +1456,7 @@ SELECT ST_Union('', ''), md5(1);
 --echo #
 
 USE test;
-CREATE TABLE t1(a POINT NOT NULL, SPATIAL KEY(a)) engine=myisam;
+CREATE TABLE t1(a POINT NOT NULL SRID 0, SPATIAL KEY(a)) engine=myisam;
 
 --echo # Check that normal INSERT gives error
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
@@ -2300,7 +2300,7 @@ SELECT ST_AsText(ST_Buffer(g, 2)), ST_AsText(ST_Buffer(g, 2)) FROM t1;
 SELECT ST_AsText(ST_Buffer(g, 2)), ST_AsText(ST_Difference(g, g)) FROM t1;
 DROP TABLE t1;
 
-CREATE TABLE t1(id INT PRIMARY KEY AUTO_INCREMENT, g GEOMETRY NOT NULL,
+CREATE TABLE t1(id INT PRIMARY KEY AUTO_INCREMENT, g GEOMETRY NOT NULL SRID 0,
                 SPATIAL INDEX(g));
 
 INSERT INTO t1(g) VALUES
@@ -3743,7 +3743,7 @@ DO ST_EXTERIORRING(x'00000000010700000001000000010600000001000000');
 --echo #
 
 CREATE TABLE t1(g GEOMETRY NOT NULL) ENGINE=ARCHIVE;
---error ER_BAD_NULL_ERROR
+--error ER_BAD_NULL_ERROR_NOT_IGNORED
 INSERT INTO t1 VALUES (NULL), (NULL);
 ALTER TABLE t1 FORCE;
 DROP TABLE t1;
@@ -3752,7 +3752,7 @@ SET @save_sql_mode=@@sql_mode;
 SET sql_mode='';
 
 CREATE TABLE t1(g GEOMETRY NOT NULL) ENGINE=ARCHIVE;
---error ER_BAD_NULL_ERROR
+--error ER_BAD_NULL_ERROR_NOT_IGNORED
 INSERT INTO t1 VALUES (NULL), (NULL);
 ALTER TABLE t1 FORCE;
 DROP TABLE t1;
@@ -3888,4 +3888,47 @@ WHERE MBRContains(
   g
 );
 
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #26412713 ASSERTION `THD->IS_ERROR()' FAILED IN SQL/SQL_INSERT.CC
+--echo #
+
+--echo # Inserting a NULL value in a GEOMETRY NOT NULL column should raise an
+--echo # error, even if using INSERT IGNORE.
+CREATE TABLE t1(g GEOMETRY NOT NULL);
+--error ER_BAD_NULL_ERROR_NOT_IGNORED
+INSERT IGNORE INTO t1 VALUES (NULL);
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES (NULL);
+--error ER_BAD_NULL_ERROR_NOT_IGNORED
+INSERT INTO t1 VALUES (NULL), (NULL);
+# No error since there are no rows to modify.
+UPDATE t1 SET g=NULL;
+# No error since there are no rows to modify.
+UPDATE IGNORE t1 SET g=NULL;
+INSERT INTO t1 VALUES (POINT(0, 0));
+--error ER_BAD_NULL_ERROR_NOT_IGNORED
+UPDATE t1 SET g=NULL;
+--error ER_BAD_NULL_ERROR_NOT_IGNORED
+UPDATE IGNORE t1 SET g=NULL;
+DROP TABLE t1;
+CREATE TABLE t1(g GEOMETRY NOT NULL);
+--error ER_NO_DEFAULT_FOR_FIELD
+INSERT IGNORE INTO t1 VALUES ();
+DROP TABLE t1;
+CREATE TABLE t1(x VARCHAR(10), g GEOMETRY NOT NULL);
+--error ER_NO_DEFAULT_FOR_FIELD
+LOAD DATA INFILE 'bug26412713.csv' INTO TABLE t1 (x);
+DROP TABLE t1;
+SET @save_sql_mode=@@sql_mode;
+SET sql_mode='';
+--error ER_BLOB_CANT_HAVE_DEFAULT
+CREATE TABLE t1(g GEOMETRY NOT NULL DEFAULT '');
+SET sql_mode=@save_sql_mode;
+CREATE TABLE t1 (id INT, g GEOMETRY NOT NULL);
+CREATE VIEW v1 AS SELECT * FROM t1;
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
+INSERT IGNORE INTO v1(id) VALUES(0);
+DROP VIEW v1;
 DROP TABLE t1;

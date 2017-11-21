@@ -54,6 +54,7 @@
 #include <util/ndbzio.h>
 
 #include "my_sys.h"
+#include "my_thread_local.h"
 
 #ifdef HAVE_VALGRIND
 #include <valgrind/memcheck.h>

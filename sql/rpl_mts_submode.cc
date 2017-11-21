@@ -29,6 +29,7 @@
 #include "my_loglevel.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -116,7 +117,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
 {
   uint ret= 0;
   THD *thd= rli->info_thd;
-  bool cant_sync= FALSE;
+  bool cant_sync= false;
   char llbuf[22];
 
   DBUG_ENTER("Mts_submode_database::wait_for_workers_to_finish");
@@ -170,7 +171,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
     mts_move_temp_tables_to_thd(thd, entry->temporary_tables);
     entry->temporary_tables= NULL;
     if (entry->worker->running_status != Slave_worker::RUNNING)
-      cant_sync= TRUE;
+      cant_sync= true;
     mysql_mutex_lock(&rli->slave_worker_hash_lock);
   }
 
@@ -669,6 +670,14 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
       */
       if (wait_for_last_committed_trx(rli, last_committed))
       {
+        /*
+          MTS was waiting for a dependent transaction to finish but either it
+          has failed or the applier was requested to stop. In any case, this
+          transaction wasn't started yet and should not warn about the
+          coordinator stopping in a middle of a transaction to avoid polluting
+          the server error log.
+        */
+        rli->reported_unsafe_warning= true;
         DBUG_RETURN(-1);
       }
       /*

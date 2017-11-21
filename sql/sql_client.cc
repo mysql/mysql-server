@@ -32,7 +32,6 @@ using std::max;
   Function called by my_net_init() to set some check variables
 */
 
-extern "C" {
 void my_net_local_init(NET *net)
 {
   net->max_packet=   (uint) global_system_variables.net_buffer_length;
@@ -44,5 +43,4 @@ void my_net_local_init(NET *net)
   net->retry_count=  (uint) global_system_variables.net_retry_count;
   net->max_packet_size= max<size_t>(global_system_variables.net_buffer_length,
                                     global_system_variables.max_allowed_packet);
-}
 }

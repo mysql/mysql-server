@@ -42,7 +42,6 @@
 #include "mysql_time.h"                 // MYSQL_TIME
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_internal.h" // List_of_authid, Authid
-#include "sql/sql_alloc.h"              // Sql_alloc
 #include "sql/sql_connect.h"            // USER_RESOURCES
 #include "violite.h"                    // SSL_type
 
@@ -257,7 +256,7 @@ public:
 };
 
 
-class GRANT_COLUMN :public Sql_alloc
+class GRANT_COLUMN
 {
 public:
   ulong rights;
@@ -266,7 +265,7 @@ public:
 };
 
 
-class GRANT_NAME :public Sql_alloc
+class GRANT_NAME
 {
 public:
   ACL_HOST_AND_IP host;
@@ -432,7 +431,7 @@ typedef std::unordered_map<std::string, Role_vertex_descriptor >
   Role_index_map;
 
 /** Container for global, schema, table/view and routine ACL maps */
-class Acl_map : public Sql_alloc
+class Acl_map
 {
 public:
   Acl_map(Security_context *sctx, uint64 ver);

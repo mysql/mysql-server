@@ -18,7 +18,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 DROP TABLE t1;
-# restart: --log-error=LOG_FILE8 --lc-messages-dir=MSG_DIR
+# restart: --log-error=LOG_FILE8 --lc-messages-dir=MSG_DIR --log-error-verbosity=3
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 # restart: --log-error=LOG_FILE9 --log-error-services=abcd 
@@ -28,7 +28,7 @@ log_filter_internal; log_sink_internal
 SET GLOBAL LOG_ERROR_SERVICES=@@GLOBAL.LOG_ERROR_SERVICES;
 # restart: --log-error=LOG_FILE10 --log-error-services=log_sink_json 
 INSTALL COMPONENT "file://component_log_sink_json";
-# restart: --no-console --log-error=LOG_FILE11 --log-error-services=log_filter_internal;log_sink_internal;log_sink_json 
+# restart: --no-console --log-error=LOG_FILE11 --log-error-services=log_filter_internal;log_sink_internal;log_sink_json --log-error-verbosity=3
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 SET GLOBAL log_error_services= default;

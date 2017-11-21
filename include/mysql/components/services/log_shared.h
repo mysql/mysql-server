@@ -156,8 +156,7 @@ typedef enum enum_log_item_type
   LOG_ITEM_GEN_FLOAT        = 8388608,  /**< float not otherwise specified */
   LOG_ITEM_GEN_INTEGER      = 16777216, /**< integer not otherwise specified */
   LOG_ITEM_GEN_LEX_STRING   = 33554432, /**< lex string not otherwise specified */
-  LOG_ITEM_GEN_CSTRING      = 67108864, /**< C-string not otherwise specified */
-  LOG_ITEM_LOG_EPRIO        = 134217728 /**< effective prio / "force print" */
+  LOG_ITEM_GEN_CSTRING      = 67108864  /**< C-string not otherwise specified */
 } log_item_type;
 
 /* some suggested keys for generic items */

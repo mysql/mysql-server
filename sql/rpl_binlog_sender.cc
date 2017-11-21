@@ -33,6 +33,7 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -269,7 +270,7 @@ void Binlog_sender::run()
     if (!mysql_bin_log.is_open())
     {
       if (mysql_bin_log.open_index_file(mysql_bin_log.get_index_fname(),
-					log_file, FALSE))
+					log_file, false))
       {
         set_fatal_error("Binary log is not open and failed to open index file "
                         "to retrieve next file.");

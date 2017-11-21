@@ -35,8 +35,6 @@
 
 #define PSI_TABLE_CALL(M) pfs_ ## M ## _v1
 
-C_MODE_START
-
 PSI_table_share*
 pfs_get_table_share_v1(bool temporary, struct TABLE_SHARE *share);
 
@@ -76,8 +74,6 @@ void pfs_end_table_io_wait_v1(PSI_table_locker* locker, ulonglong numrows);
 void pfs_end_table_lock_wait_v1(PSI_table_locker* locker);
 
 void pfs_unlock_table_v1(PSI_table *table);
-
-C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */

@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 ***********************************************************************/
 
 /**************************************************//**
-@file innodb_api.c
+@file
 InnoDB APIs to support memcached commands
 
 Created 04/12/2011 Jimmy Yang

@@ -36,7 +36,7 @@ int myrg_lock_database(MYRG_INFO *info, int lock_type)
       in memory. This should be refactored into a more generic
       approach (observer pattern)
      */
-    (file->table)->owned_by_merge = TRUE;
+    (file->table)->owned_by_merge = true;
 #endif
     if ((new_error=mi_lock_database(file->table,lock_type)))
     {

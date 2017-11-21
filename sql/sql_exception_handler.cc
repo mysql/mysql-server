@@ -39,6 +39,7 @@
 #include <boost/geometry/core/exception.hpp>
 #include <new> // std::bad_alloc
 #include <stdexcept> // Other std exceptions
+#include <string>
 
 #include "my_inttypes.h"  // MYF
 #include "my_sys.h"       // my_error
@@ -111,8 +112,10 @@ void handle_gis_exception(const char *funcname)
   }
   catch (const gis::not_implemented_exception &e)
   {
+    std::string parameters(e.type_name(1));
+    parameters.append(", ").append(e.type_name(2));
     my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), funcname,
-             e.type_name(1), e.type_name(2));
+             parameters.c_str());
   }
   catch (const gis::invalid_geometry_exception &e)
   {

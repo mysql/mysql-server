@@ -269,7 +269,7 @@ and insert into FTS auxiliary table and its cache.
 @param[in]	ftt		FTS transaction table
 @param[in]	doc_id		doc id
 @param[in]	fts_indexes	affected FTS indexes
-@return TRUE if successful */
+@return true if successful */
 static
 ulint
 fts_add_doc_by_id(
@@ -429,7 +429,7 @@ fts_load_default_stopword(
 
 /****************************************************************//**
 Callback function to read a single stopword value.
-@return Always return TRUE */
+@return Always return true */
 static
 ibool
 fts_read_stopword(
@@ -489,7 +489,7 @@ fts_read_stopword(
 
 /******************************************************************//**
 Load user defined stopword from designated user table
-@return TRUE if load operation is successful */
+@return true if load operation is successful */
 static
 ibool
 fts_load_user_stopword(
@@ -763,7 +763,7 @@ fts_reset_get_doc(
 
 /*******************************************************************//**
 Check an index is in the table->indexes list
-@return TRUE if it exists */
+@return true if it exists */
 static
 ibool
 fts_in_dict_index(
@@ -787,7 +787,7 @@ fts_in_dict_index(
 
 /*******************************************************************//**
 Check an index is in the fts->cache->indexes list
-@return TRUE if it exists */
+@return true if it exists */
 static
 ibool
 fts_in_index_cache(
@@ -814,7 +814,7 @@ fts_in_index_cache(
 /*******************************************************************//**
 Check indexes in the fts->indexes is also present in index cache and
 table->indexes list
-@return TRUE if all indexes match */
+@return true if all indexes match */
 ibool
 fts_check_cached_index(
 /*===================*/
@@ -2345,7 +2345,7 @@ fts_create_one_index_table(
 	dict_mem_table_add_col(new_table, heap, "word",
 			       charset == &my_charset_latin1
 			       ? DATA_VARCHAR : DATA_VARMYSQL,
-			       field->col->prtype | DATA_NOT_NULL,
+			       field->col->prtype,
 			       FTS_INDEX_WORD_LEN);
 
 	dict_mem_table_add_col(new_table, heap, "first_doc_id", DATA_INT,
@@ -3784,7 +3784,7 @@ fts_doc_free(
 /*********************************************************************//**
 Callback function for fetch that stores the text of an FTS document,
 converting each column to UTF-16.
-@return always FALSE */
+@return always false */
 ibool
 fts_query_expansion_fetch_doc(
 /*==========================*/
@@ -4097,7 +4097,7 @@ and insert into FTS auxiliary table and its cache.
 @param[in]	ftt		FTS transaction table
 @param[in]	doc_id		doc id
 @param[in]	fts_indexes	affected FTS indexes
-@return TRUE if successful */
+@return true if successful */
 static
 ulint
 fts_add_doc_by_id(
@@ -5640,7 +5640,7 @@ fts_init_doc_id(
 #ifdef FTS_MULT_INDEX
 /*********************************************************************//**
 Check if the index is in the affected set.
-@return TRUE if index is updated */
+@return true if index is updated */
 static
 ibool
 fts_is_index_updated(
@@ -6040,7 +6040,7 @@ fts_cache_append_deleted_doc_ids(
 Wait for the background thread to start. We poll to detect change
 of state, which is acceptable, since the wait should happen only
 once during startup.
-@return true if the thread started else FALSE (i.e timed out) */
+@return true if the thread started else false (i.e timed out) */
 ibool
 fts_wait_for_background_thread_to_start(
 /*====================================*/
@@ -6774,7 +6774,7 @@ This function loads the stopword into the FTS cache. It also
 records/fetches stopword configuration to/from FTS configure
 table, depending on whether we are creating or reloading the
 FTS.
-@return TRUE if load operation is successful */
+@return true if load operation is successful */
 ibool
 fts_load_stopword(
 /*==============*/
@@ -6900,7 +6900,7 @@ cleanup:
 /**********************************************************************//**
 Callback function when we initialize the FTS at the start up
 time. It recovers the maximum Doc IDs presented in the current table.
-@return: always returns TRUE */
+@return: always returns true */
 static
 ibool
 fts_init_get_doc_id(
@@ -6938,7 +6938,7 @@ fts_init_get_doc_id(
 Callback function when we initialize the FTS at the start up
 time. It recovers Doc IDs that have not sync-ed to the auxiliary
 table, and require to bring them back into FTS index.
-@return: always returns TRUE */
+@return: always returns true */
 static
 ibool
 fts_init_recover_doc(
@@ -7042,7 +7042,7 @@ This function brings FTS index in sync when FTS index is first
 used. There are documents that have not yet sync-ed to auxiliary
 tables from last server abnormally shutdown, we will need to bring
 such document into FTS cache before any further operations
-@return TRUE if all OK */
+@return true if all OK */
 ibool
 fts_init_index(
 /*===========*/
@@ -7131,57 +7131,75 @@ func_exit:
 }
 
 /** Rename old FTS common and aux tables with the new table_id
-@param[in]	fts_table	fts table object
-@param[in]	new_suffix	suffix name in 8.0 format
+@param[in]	old_name	old name of FTS AUX table
+@param[in]	new_name	new name of FTS AUX table
 @return new fts table if success, else nullptr on failure */
 static
 dict_table_t*
-fts_upgrade_rename_table(fts_table_t fts_table, const char* new_suffix)
+fts_upgrade_rename_aux_table_low(const char* old_name, const char* new_name)
 {
-	char	old_table_name[MAX_FULL_NAME_LEN];
-
-	/* We are creating upgraded table with DICT_MAX_DD_TABLES
-	offset, remove this offset to get original fts aux table names. */
-	table_id_t	original_table_id = fts_table.table_id;
-
-	fts_table.table_id = fts_table.table_id - DICT_MAX_DD_TABLES;
-
-	fts_get_table_name_5_7(&fts_table, old_table_name);
-
-	DBUG_EXECUTE_IF("dd_upgrade",
-		ib::info() << "Old fts table name is "
-			<< old_table_name;
-	);
-
-	char	new_table_name[MAX_FULL_NAME_LEN];
-	fts_table.table_id = original_table_id;
-	fts_table.suffix = new_suffix;
-	fts_get_table_name(&fts_table, new_table_name);
-
-	DBUG_EXECUTE_IF("dd_upgrade",
-		ib::info() << "New fts table name is "
-			<< new_table_name;
-	);
-
 	mutex_enter(&dict_sys->mutex);
 
-	dict_table_t*	old_aux_table = dict_table_open_on_name(old_table_name,
+	dict_table_t*	old_aux_table = dict_table_open_on_name(old_name,
 		true, false, DICT_ERR_IGNORE_NONE);
 
 	ut_ad(old_aux_table != NULL);
 	dict_table_close(old_aux_table, true, false);
-	dberr_t	err = dict_table_rename_in_cache(old_aux_table, new_table_name, false);
+	dberr_t	err = dict_table_rename_in_cache(old_aux_table, new_name, false);
 	if (err != DB_SUCCESS) {
 		mutex_exit(&dict_sys->mutex);
 		return(nullptr);
 	}
 
-	dict_table_t*	new_aux_table = dict_table_open_on_name(new_table_name,
+	dict_table_t*	new_aux_table = dict_table_open_on_name(new_name,
 		true, false, DICT_ERR_IGNORE_NONE);
 	ut_ad(new_aux_table != NULL);
 	mutex_exit(&dict_sys->mutex);
 
 	return(new_aux_table);
+}
+
+/** Rename old FTS common and aux tables with the new table_id
+@param[in]	old_name	old name of FTS AUX table
+@param[in]	new_name	new name of FTS AUX table
+@param[in]	rollback	if true, do the rename back
+				else mark original AUX tables
+				evictable */
+static
+void
+fts_upgrade_rename_aux_table(
+	const char*	old_name,
+	const char*	new_name,
+	bool		rollback)
+{
+	dict_table_t*	new_table = nullptr;
+
+	if (rollback) {
+		new_table = fts_upgrade_rename_aux_table_low(
+			old_name, new_name);
+
+	} else {
+		new_table = dict_table_open_on_name(
+			old_name, false, false, DICT_ERR_IGNORE_NONE);
+	}
+
+	if (new_table == nullptr) {
+		return;
+	}
+
+	mutex_enter(&dict_sys->mutex);
+	dict_table_allow_eviction(new_table);
+	dict_table_close(new_table, true, false);
+	mutex_exit(&dict_sys->mutex);
+}
+
+/** During upgrade, tables are moved by DICT_MAX_DD_TABLES
+offset, remove this offset to get 5.7 fts aux table names
+@param[in]	table_id	8.0 table id */
+inline
+table_id_t
+fts_upgrade_get_5_7_table_id(table_id_t table_id) {
+	return(table_id - DICT_MAX_DD_TABLES);
 }
 
 /** Upgrade FTS AUX Tables. The FTS common and aux tables are
@@ -7194,24 +7212,52 @@ dberr_t
 fts_upgrade_aux_tables(
 	dict_table_t*	table)
 {
-	fts_table_t	fts_table;
+	fts_table_t	fts_old_table;
 
 	ut_ad(srv_is_upgrade_mode);
 
-	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
+	FTS_INIT_FTS_TABLE(&fts_old_table, NULL, FTS_COMMON_TABLE, table);
+	fts_table_t fts_new_table = fts_old_table;
+
+	fts_old_table.table_id = fts_upgrade_get_5_7_table_id(
+		fts_old_table.table_id);
 
 	/* Rename common auxiliary tables */
 	for (ulint i = 0; fts_common_tables_5_7[i] != NULL; ++i) {
 
-		fts_table.suffix = fts_common_tables_5_7[i];
+		fts_old_table.suffix = fts_common_tables_5_7[i];
 
-		bool	is_config = fts_table.suffix == FTS_SUFFIX_CONFIG_5_7;
+		bool	is_config =
+			fts_old_table.suffix == FTS_SUFFIX_CONFIG_5_7;
+		char	old_name[MAX_FULL_NAME_LEN];
+		char	new_name[MAX_FULL_NAME_LEN];
 
-		dict_table_t*	new_table = fts_upgrade_rename_table(fts_table, fts_common_tables[i]);
+
+		fts_get_table_name_5_7(&fts_old_table, old_name);
+
+		DBUG_EXECUTE_IF("dd_upgrade",
+			ib::info() << "Old fts table name is "
+				<< old_name;
+		);
+
+		fts_new_table.suffix = fts_common_tables[i];
+		fts_get_table_name(&fts_new_table, new_name);
+
+		DBUG_EXECUTE_IF("dd_upgrade",
+			ib::info() << "New fts table name is "
+				<< new_name;
+		);
+
+		dict_table_t*	new_table = fts_upgrade_rename_aux_table_low(
+			old_name, new_name);
 
 		if (new_table == nullptr) {
 			return(DB_ERROR);
 		}
+
+		mutex_enter(&dict_sys->mutex);
+		dict_table_prevent_eviction(new_table);
+		mutex_exit(&dict_sys->mutex);
 
 		if (!dd_create_fts_common_table(table, new_table, is_config)) {
 			dict_table_close(new_table, false, false);
@@ -7230,20 +7276,42 @@ fts_upgrade_aux_tables(
 		index = static_cast<dict_index_t*>(
 			ib_vector_getp(fts->indexes, i));
 
-		FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
+		FTS_INIT_INDEX_TABLE(&fts_old_table, NULL, FTS_INDEX_TABLE,
+				     index);
+		fts_new_table = fts_old_table;
+
+		fts_old_table.table_id = fts_upgrade_get_5_7_table_id(
+			fts_old_table.table_id);
 
 		for (ulint j = 0; j < FTS_NUM_AUX_INDEX; ++j) {
 
-			fts_table.suffix = fts_get_suffix_5_7(j);
-			dict_table_t*	new_table = fts_upgrade_rename_table(fts_table, fts_get_suffix(j));
+			fts_old_table.suffix = fts_get_suffix_5_7(j);
+
+			char	old_name[MAX_FULL_NAME_LEN];
+			char	new_name[MAX_FULL_NAME_LEN];
+
+			fts_get_table_name_5_7(&fts_old_table, old_name);
+
+			fts_new_table.suffix = fts_get_suffix(j);
+			fts_get_table_name(&fts_new_table, new_name);
+
+			dict_table_t*	new_table =
+				fts_upgrade_rename_aux_table_low(
+					old_name, new_name);
 
 			if (new_table == nullptr) {
 				return(DB_ERROR);
 			}
 
-			CHARSET_INFO*	charset = fts_get_charset(index->get_field(0)->col->prtype);
+			mutex_enter(&dict_sys->mutex);
+			dict_table_prevent_eviction(new_table);
+			mutex_exit(&dict_sys->mutex);
 
-			if(!dd_create_fts_index_table(table, new_table, charset)) {
+			CHARSET_INFO*	charset = fts_get_charset(
+				index->get_field(0)->col->prtype);
+
+			if(!dd_create_fts_index_table(
+					table, new_table, charset)) {
 				dict_table_close(new_table, false, false);
 				return(DB_FAIL);
 			}
@@ -7251,5 +7319,79 @@ fts_upgrade_aux_tables(
 		}
 	}
 
+	return(DB_SUCCESS);
+}
+
+/** Rename FTS AUX tablespace name from 8.0 format to 5.7 format.
+This will be done on upgrade failure
+@param[in]	table		parent table
+@param[in]	rollback	rollback the rename from 8.0 to 5.7
+				if true, rename to 5.7 format
+				if false, mark the table as evictable
+@return DB_SUCCESS on success, DB_ERROR on error */
+dberr_t
+fts_upgrade_rename(
+	const dict_table_t*	table,
+	bool			rollback)
+{
+	fts_table_t	fts_old_table;
+
+	ut_ad(srv_is_upgrade_mode);
+
+	FTS_INIT_FTS_TABLE(&fts_old_table, NULL, FTS_COMMON_TABLE, table);
+
+	fts_table_t fts_new_table = fts_old_table;
+
+	fts_new_table.table_id = fts_upgrade_get_5_7_table_id(
+		fts_new_table.table_id);
+
+	/* Rename common auxiliary tables */
+	for (ulint i = 0; fts_common_tables[i] != NULL; ++i) {
+
+		fts_old_table.suffix = fts_common_tables[i];
+
+		char	old_name[MAX_FULL_NAME_LEN];
+		char	new_name[MAX_FULL_NAME_LEN];
+
+		fts_get_table_name(&fts_old_table, old_name);
+
+		fts_new_table.suffix = fts_common_tables_5_7[i];
+		fts_get_table_name_5_7(&fts_new_table, new_name);
+
+		fts_upgrade_rename_aux_table(old_name, new_name, rollback);
+	}
+
+	fts_t*	fts = table->fts;
+
+	/* Rename index specific auxiliary tables */
+	for (ulint i = 0; fts->indexes != 0 && i < ib_vector_size(fts->indexes);
+	     ++i) {
+		dict_index_t*	index;
+
+		index = static_cast<dict_index_t*>(
+			ib_vector_getp(fts->indexes, i));
+
+		FTS_INIT_INDEX_TABLE(&fts_old_table, NULL, FTS_INDEX_TABLE,
+				     index);
+		fts_new_table = fts_old_table;
+
+		fts_new_table.table_id = fts_upgrade_get_5_7_table_id(
+			fts_new_table.table_id);
+
+		for (ulint j = 0; j < FTS_NUM_AUX_INDEX; ++j) {
+
+			fts_old_table.suffix = fts_get_suffix(j);
+
+			char	old_name[MAX_FULL_NAME_LEN];
+			char	new_name[MAX_FULL_NAME_LEN];
+
+			fts_get_table_name(&fts_old_table, old_name);
+
+			fts_new_table.suffix = fts_get_suffix_5_7(j);
+			fts_get_table_name_5_7(&fts_new_table, new_name);
+
+			fts_upgrade_rename_aux_table(old_name, new_name, rollback);
+		}
+	}
 	return(DB_SUCCESS);
 }

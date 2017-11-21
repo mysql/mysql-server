@@ -22,19 +22,10 @@
 #include <stdlib.h>
 #endif
 
-#ifdef __cplusplus
 class THD;
 class Item;
 #define MYSQL_THD THD*
 typedef Item* MYSQL_ITEM;
-#else
-#define MYSQL_THD void*
-typedef void* MYSQL_ITEM;
-#endif /* __cplusplus */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
   @file include/mysql/service_parser.h
@@ -196,7 +187,7 @@ typedef MYSQL_LEX_STRING (*mysql_get_query_t)(MYSQL_THD thd);
 typedef MYSQL_LEX_STRING (*mysql_get_normalized_query_t)(MYSQL_THD thd);
 
 
-extern struct mysql_parser_service_st {
+extern "C" struct mysql_parser_service_st {
   mysql_current_session_t mysql_current_session;
   mysql_open_session_t mysql_open_session;
   mysql_start_thread_t mysql_start_thread;
@@ -289,9 +280,5 @@ MYSQL_LEX_STRING mysql_parser_get_query(MYSQL_THD thd);
 MYSQL_LEX_STRING mysql_parser_get_normalized_query(MYSQL_THD thd);
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* MYSQL_SERVICE_PARSER_INCLUDED */

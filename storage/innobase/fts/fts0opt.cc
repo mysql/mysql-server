@@ -678,7 +678,7 @@ fts_zip_read_word(
 /**********************************************************************//**
 Callback function to fetch and compress the word in an FTS
 INDEX record.
-@return FALSE on EOF */
+@return false on EOF */
 static
 ibool
 fts_fetch_index_words(
@@ -932,7 +932,7 @@ fts_index_fetch_words(
 
 /**********************************************************************//**
 Callback function to fetch the doc id from the record.
-@return always returns TRUE */
+@return always returns true */
 static
 ibool
 fts_fetch_doc_ids(

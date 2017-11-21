@@ -35,6 +35,7 @@ UPDATE t1 SET f = CONCAT('up_',CONNECTION_ID()) WHERE i = 4;
 UPDATE t1 SET f = CONCAT('up_',CONNECTION_ID()) WHERE i = 3;
 UPDATE t1 SET f = CONCAT('up_',CONNECTION_ID()) WHERE i = 2;
 UPDATE t1 SET f = CONCAT('up_',CONNECTION_ID()) WHERE i = 1;
+SET @old_event_scheduler= @@global.event_scheduler;
 SET GLOBAL event_scheduler = OFF;
 include/stop_slave.inc
 UNINSTALL PLUGIN rpl_semi_sync_slave;
@@ -43,5 +44,6 @@ include/start_slave.inc
 DROP EVENT ev1;
 DROP EVENT ev2;
 DROP TABLE t1;
+SET @@global.event_scheduler= @old_event_scheduler;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

@@ -28,6 +28,7 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "memory_debugging.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -45,7 +46,6 @@
 #include "sql/mem_root_array.h"
 #include "sql/my_decimal.h" // my_decimal
 #include "sql/parse_tree_node_base.h" // Parse_tree_node
-#include "sql/sql_alloc.h"
 #include "sql/sql_array.h" // Bounds_checked_array
 #include "sql/sql_const.h"
 #include "sql/table.h"
@@ -414,7 +414,7 @@ public:
   structure before and after INSERT/CREATE and its SELECT to make correct
   field name resolution.
 */
-struct Name_resolution_context: Sql_alloc
+struct Name_resolution_context
 {
   /*
     The name resolution context to search in when an Item cannot be
@@ -463,9 +463,9 @@ struct Name_resolution_context: Sql_alloc
   TABLE_LIST *view_error_handler_arg;
 
   /**
-    When TRUE, items are resolved in this context against
+    When true, items are resolved in this context against
     SELECT_LEX::item_list, SELECT_lex::group_list and
-    this->table_list. If FALSE, items are resolved only against
+    this->table_list. If false, items are resolved only against
     this->table_list.
 
     @see SELECT_LEX::item_list, SELECT_LEX::group_list
@@ -486,7 +486,7 @@ struct Name_resolution_context: Sql_alloc
 
   void init()
   {
-    resolve_in_select_list= FALSE;
+    resolve_in_select_list= false;
     view_error_handler= false;
     first_name_resolution_table= NULL;
     last_name_resolution_table= NULL;
@@ -495,7 +495,7 @@ struct Name_resolution_context: Sql_alloc
   void resolve_in_table_list_only(TABLE_LIST *tables)
   {
     table_list= first_name_resolution_table= tables;
-    resolve_in_select_list= FALSE;
+    resolve_in_select_list= false;
   }
 };
 
@@ -644,8 +644,8 @@ public:
         it        item which represents new value
 
     RETURN
-      FALSE if parameter value has been set,
-      TRUE if error has occured.
+      false if parameter value has been set,
+      true if error has occured.
   */
   virtual bool set_value(THD *thd, sp_rcontext *ctx, Item **it)= 0;
 
@@ -664,8 +664,8 @@ typedef bool (Item::*Item_processor) (uchar *arg);
                     OUT: Parameter to be passed to the transformer
 
     RETURN 
-      TRUE   Invoke the transformer
-      FALSE  Don't do it
+      true   Invoke the transformer
+      false  Don't do it
 
 */
 typedef bool (Item::*Item_analyzer) (uchar **argp);
@@ -736,11 +736,12 @@ public:
     Provide data type for a user or system variable, based on the type of
     the item that is assigned to the variable.
 
+    @note MYSQL_TYPE_VARCHAR is returned for all string types, but must be
+          further adjusted based on maximum string length by the caller.
+
     @param src_type  Source type that variable's type is derived from
-    @param max_bytes Maximum string size in bytes, used for string types
   */
-  static enum_field_types type_for_variable(enum_field_types src_type,
-                                            uint32 max_bytes)
+  static enum_field_types type_for_variable(enum_field_types src_type)
   {
     switch (src_type)
     {
@@ -776,12 +777,11 @@ public:
       case MYSQL_TYPE_SET:
       case MYSQL_TYPE_GEOMETRY:
       case MYSQL_TYPE_NULL:
-        return MYSQL_TYPE_VARCHAR;
       case MYSQL_TYPE_TINY_BLOB:
       case MYSQL_TYPE_BLOB:
       case MYSQL_TYPE_MEDIUM_BLOB:
       case MYSQL_TYPE_LONG_BLOB:
-        return string_field_type(max_bytes);
+        return MYSQL_TYPE_VARCHAR;
       default:
         DBUG_ASSERT(false);
         return MYSQL_TYPE_NULL;
@@ -1279,11 +1279,11 @@ public:
 
     SYNOPSIS
       val_int_endpoint()
-        left_endp  FALSE  <=> The interval is "x < const" or "x <= const"
-                   TRUE   <=> The interval is "x > const" or "x >= const"
+        left_endp  false  <=> The interval is "x < const" or "x <= const"
+                   true   <=> The interval is "x > const" or "x >= const"
 
-        incl_endp  IN   FALSE <=> the comparison is '<' or '>'
-                        TRUE  <=> the comparison is '<=' or '>='
+        incl_endp  IN   false <=> the comparison is '<' or '>'
+                        true  <=> the comparison is '<=' or '>='
                    OUT  The same but for the "F(x) $CMP$ F(const)" comparison
 
     DESCRIPTION
@@ -1320,8 +1320,8 @@ public:
       val_real()
 
     RETURN
-      In case of NULL value return 0.0 and set null_value flag to TRUE.
-      If value is not null null_value flag will be reset to FALSE.
+      In case of NULL value return 0.0 and set null_value flag to true.
+      If value is not null null_value flag will be reset to false.
   */
   virtual double val_real()=0;
   /*
@@ -1331,8 +1331,8 @@ public:
       val_int()
 
     RETURN
-      In case of NULL value return 0 and set null_value flag to TRUE.
-      If value is not null null_value flag will be reset to FALSE.
+      In case of NULL value return 0 and set null_value flag to true.
+      If value is not null null_value flag will be reset to false.
   */
   virtual longlong val_int()=0;
   /**
@@ -1487,17 +1487,17 @@ public:
 
     RETURN
       Return pointer on my_decimal (it can be other then passed via argument)
-        if value is not NULL (null_value flag will be reset to FALSE).
+        if value is not NULL (null_value flag will be reset to false).
       In case of NULL value it return 0 pointer and set null_value flag
-        to TRUE.
+        to true.
   */
   virtual my_decimal *val_decimal(my_decimal *decimal_buffer)= 0;
   /*
     Return boolean value of item.
 
     RETURN
-      FALSE value is false or NULL
-      TRUE value is true (not equal to 0)
+      false value is false or NULL
+      true value is true (not equal to 0)
   */
   virtual bool val_bool();
   /**
@@ -1694,6 +1694,17 @@ protected:
 
 
   /**
+    Gets the value to return from val_str() when returning a NULL value.
+    @return The value val_str() should return.
+  */
+  String *null_return_str()
+  {
+    DBUG_ASSERT(maybe_null);
+    null_value= true;
+    return nullptr;
+  }
+
+  /**
     Convert val_str() to date in MYSQL_TIME
   */
   bool get_date_from_string(MYSQL_TIME *ltime, my_time_flags_t flags);
@@ -1768,28 +1779,6 @@ public:
   {
     return item_name.is_set() ? item_name.ptr() : "???";
   }
-
-  /*
-    *result* family of methods is analog of *val* family (see above) but
-    return value of result_field of item if it is present. If Item have not
-    result field, it return val(). This methods set null_value flag in same
-    way as *val* methods do it.
-  */
-  virtual double  val_real_result() { return val_real(); }
-  virtual longlong val_int_result() { return val_int(); }
-  /**
-    Get time value in packed longlong format. NULL is converted to 0.
-  */
-  virtual longlong val_time_temporal_result() { return val_time_temporal(); }
-  /**
-    Get date value in packed longlong format. NULL is converted to 0.
-  */
-  virtual longlong val_date_temporal_result() { return val_date_temporal(); }
-  virtual String *str_result(String* tmp) { return val_str(tmp); }
-  virtual my_decimal *val_decimal_result(my_decimal *val)
-  { return val_decimal(val); }
-  virtual bool val_bool_result() { return val_bool(); }
-  virtual bool is_null_result() { return is_null(); }
 
   /* bit map of tables used by item */
   virtual table_map used_tables() const { return (table_map) 0L; }
@@ -1919,11 +1908,9 @@ public:
     @retval  true  on error
   */
   virtual bool get_timeval(struct timeval *tm, int *warnings);
-  virtual bool get_date_result(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
-  { return get_date(ltime,fuzzydate); }
   /*
     The method allows to determine nullness of a complex expression 
-    without fully evaluating it, instead of calling val/result*() then 
+    without fully evaluating it, instead of calling val*() then
     checking null_value. Used in Item_func_isnull/Item_func_isnotnull
     and Item_sum_count/Item_sum_count_distinct.
     Any new item which can be NULL must implement this method.
@@ -1935,7 +1922,7 @@ public:
 
   /*
     Inform the item that there will be no distinction between its result
-    being FALSE or NULL.
+    being false or NULL.
 
     NOTE
       This function will be called for eg. Items that are top-level AND-parts
@@ -1946,9 +1933,8 @@ public:
   virtual void top_level_item() {}
   /*
     set field of temporary table for Item which can be switched on temporary
-    table during query processing (grouping and so on)
-    @todo we need a clear comment about what result_field is, and cross-ref it
-    with Item_result_field, val*result...
+    table during query processing (grouping and so on). @see
+    Item_result_field.
   */
   virtual void set_result_field(Field*) {}
   virtual bool is_result_field() const { return false; }
@@ -2141,6 +2127,8 @@ public:
   virtual bool find_item_in_field_list_processor(uchar *) { return false; }
   virtual bool change_context_processor(uchar *) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
+  /// Is this an Item_field which references the given Field argument?
+  virtual bool find_field_processor(uchar *) { return false; }
   /**
     Mark underlying field in read or write map of a table.
 
@@ -2148,6 +2136,14 @@ public:
   */
   virtual bool mark_field_in_map(uchar *arg MY_ATTRIBUTE((unused)))
   { return false; }
+  /**
+    @returns true if the expression contains a reference, through an alias, to
+    an expression of the SELECT list of the given query block.
+    @param arg   query block to search in.
+  */
+  virtual bool contains_alias_of_expr(uchar *arg MY_ATTRIBUTE((unused)))
+  { return false; }
+
 protected:
   /**
     Helper function for mark_field_in_map(uchar *arg).
@@ -2410,22 +2406,22 @@ public:
     Used by the equality propagation. See Item_field::equal_fields_propagator.
 
     @return
-      TRUE  if the context is the same or if fields could be
+      true  if the context is the same or if fields could be
             compared as DATETIME values by the Arg_comparator.
-      FALSE otherwise.
+      false otherwise.
   */
   inline bool has_compatible_context(Item *item) const
   {
     /* Same context. */
     if (cmp_context == INVALID_RESULT || item->cmp_context == cmp_context)
-      return TRUE;
+      return true;
     /* DATETIME comparison context. */
     if (is_temporal_with_date())
       return item->is_temporal_with_date() ||
              item->cmp_context == STRING_RESULT;
     if (item->is_temporal_with_date())
       return is_temporal_with_date() || cmp_context == STRING_RESULT;
-    return FALSE;
+    return false;
   }
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
@@ -2461,10 +2457,17 @@ public:
   */
   uint32 max_char_length() const
   {
+    /*
+      Length of e.g. 5.5e5 in an expression such as GREATEST(5.5e5, '5') is 5
+      (length of that string) although length of the actual value is 6.
+      Return MAX_DOUBLE_STR_LENGTH to prevent truncation of data without having
+      to evaluate the value of the item.
+    */
+    uint32 max_len= data_type() == MYSQL_TYPE_DOUBLE ?
+                    MAX_DOUBLE_STR_LENGTH : max_length;
     if (result_type() == STRING_RESULT)
-      return max_length / collation.collation->mbmaxlen;
-    else
-      return max_length;
+      return max_len / collation.collation->mbmaxlen;
+    return max_len;
   }
 
   inline void fix_char_length(uint32 max_char_length_arg)
@@ -2474,16 +2477,16 @@ public:
   }
 
   /*
-    Return TRUE if the item points to a column of an outer-joined table.
+    Return true if the item points to a column of an outer-joined table.
   */
-  virtual bool is_outer_field() const { DBUG_ASSERT(fixed); return FALSE; }
+  virtual bool is_outer_field() const { DBUG_ASSERT(fixed); return false; }
 
   /**
      Check if an item either is a blob field, or will be represented as a BLOB
      field if a field is created based on this item.
 
-     @retval TRUE  If a field based on this item will be a BLOB field,
-     @retval FALSE Otherwise.
+     @retval true  If a field based on this item will be a BLOB field,
+     @retval false Otherwise.
   */
   bool is_blob_field() const;
 
@@ -2563,11 +2566,8 @@ public:
   void aggregate_float_properties(Item **item, uint nitems);
   void aggregate_char_length(Item **args, uint nitems);
   void aggregate_temporal_properties(Item **item, uint nitems);
-  bool aggregate_string_properties(enum_field_types field_type,
-                                   const char *name, Item **item,
-                                   uint nitems);
-  void aggregate_num_type(Item_result result_type, Item **item,
-                          uint nitems);
+  bool aggregate_string_properties(const char *name, Item **item, uint nitems);
+  void aggregate_num_type(Item_result result_type, Item **item, uint nitems);
 
   /**
     This function applies only to Item_field objects referred to by an Item_ref
@@ -3255,7 +3255,7 @@ public:
   Item_equal *item_equal;
   bool no_const_subst;
   /*
-    if any_privileges set to TRUE then here real effective privileges will
+    if any_privileges set to true then here real effective privileges will
     be stored
   */
   uint have_privileges;
@@ -3296,14 +3296,6 @@ public:
   my_decimal *val_decimal(my_decimal *) override;
   String *val_str(String *) override;
   bool val_json(Json_wrapper *result) override;
-  double val_real_result() override;
-  longlong val_int_result() override;
-  longlong val_time_temporal_result() override;
-  longlong val_date_temporal_result() override;
-  String *str_result(String *tmp) override;
-  my_decimal *val_decimal_result(my_decimal *) override;
-  bool val_bool_result() override;
-  bool is_null_result() override;
   bool send(Protocol *protocol, String *str_arg) override;
   void reset_field(Field *f);
   bool fix_fields(THD *, Item **) override;
@@ -3330,7 +3322,6 @@ public:
   Field *get_tmp_table_field() override { return result_field; }
   Field *tmp_table_field(TABLE *) override { return result_field; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
-  bool get_date_result(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
   bool get_timeval(struct timeval *tm, int *warnings) override;
   bool is_null() override { return field->is_null(); }
@@ -3340,6 +3331,8 @@ public:
   bool add_field_to_cond_set_processor(uchar *) override;
   bool remove_column_from_bitmap(uchar *arg) override;
   bool find_item_in_field_list_processor(uchar *arg) override;
+  bool find_field_processor(uchar *arg) override
+  { return pointer_cast<Field *>(arg) == field; }
   bool check_gcol_func_processor(uchar *int_arg) override;
   bool mark_field_in_map(uchar *arg) override
   {
@@ -3458,7 +3451,7 @@ class Item_null : public Item_basic_constant
   void init()
   {
     maybe_null= true;
-    null_value= TRUE;
+    null_value= true;
     set_data_type(MYSQL_TYPE_NULL);
     max_length= 0;
     fixed= true;
@@ -3679,14 +3672,14 @@ public:
     words, avoid pointing at one item from two different nodes of the tree.
     Return a new basic constant item if parameter value is a basic
     constant, assert otherwise. This method is called only if
-    basic_const_item returned TRUE.
+    basic_const_item returned true.
   */
   Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   Item *clone_item() const override;
   /*
     Implement by-value equality evaluation if parameter value
     is set and is a basic constant (integer, real or string).
-    Otherwise return FALSE.
+    Otherwise return false.
   */
   bool eq(const Item *item, bool binary_cmp) const override;
   /** Item is a argument to a limit clause. */
@@ -4084,7 +4077,7 @@ class Item_string :public Item_basic_constant
   typedef Item_basic_constant super;
 
 protected:
-  explicit Item_string(const POS &pos) : super(pos), m_cs_specified(FALSE)
+  explicit Item_string(const POS &pos) : super(pos), m_cs_specified(false)
   {
     set_data_type(MYSQL_TYPE_VARCHAR);
   }
@@ -4120,21 +4113,21 @@ public:
   Item_string(const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
-    : m_cs_specified(FALSE)
+    : m_cs_specified(false)
   {
     init(str, length, cs, dv, repertoire);
   }
   Item_string(const POS &pos, const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
-    : super(pos), m_cs_specified(FALSE)
+    : super(pos), m_cs_specified(false)
   {
     init(str, length, cs, dv, repertoire);
   }
 
   /* Just create an item and do not fill string representation */
   Item_string(const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
-    : m_cs_specified(FALSE)
+    : m_cs_specified(false)
   {
     collation.set(cs, dv);
     set_data_type(MYSQL_TYPE_VARCHAR);
@@ -4147,7 +4140,7 @@ public:
   Item_string(const Name_string name_par, const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
-    : m_cs_specified(FALSE)
+    : m_cs_specified(false)
   {
     str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
@@ -4161,7 +4154,7 @@ public:
   Item_string(const POS &pos, const Name_string name_par, const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
-    : super(pos), m_cs_specified(FALSE)
+    : super(pos), m_cs_specified(false)
   {
     str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
@@ -4178,7 +4171,7 @@ public:
               const Name_string name_par, const LEX_STRING &literal,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
-    : super(pos), m_cs_specified(FALSE)
+    : super(pos), m_cs_specified(false)
   {
     str_value.set_or_copy_aligned(literal.str ? literal.str : "",
                                   literal.str ? literal.length : 0, cs);
@@ -4243,7 +4236,7 @@ public:
   bool check_partition_func_processor(uchar *) override { return false; }
 
   /**
-    Return TRUE if character-set-introducer was explicitly specified in the
+    Return true if character-set-introducer was explicitly specified in the
     original query for this item (text literal).
 
     This operation is to be called from Item_string::print(). The idea is
@@ -4257,9 +4250,9 @@ public:
     one day when we start using original query as a view definition.
 
     @return This operation returns the value of m_cs_specified attribute.
-      @retval TRUE if character set introducer was explicitly specified in
+      @retval true if character set introducer was explicitly specified in
       the original query.
-      @retval FALSE otherwise.
+      @retval false otherwise.
   */
   inline bool is_cs_specified() const
   {
@@ -4445,7 +4438,25 @@ private:
   void bin_string_init(const char *str, size_t str_length);
 };
 
-class Item_result_field :public Item	/* Item with result field */
+
+/**
+  Item with result field.
+
+  It adds to an Item a "result_field" Field member. This is for an item which
+  may have a result (e.g. Item_func), and may store this result into a field;
+  usually this field is a column of an internal temporary table. So the
+  function may be evaluated by save_in_field(), storing result into
+  result_field in tmp table. Then this result can be copied from tmp table to
+  a following tmp table (e.g. GROUP BY table then ORDER BY table), or to a row
+  buffer and back, as we want to avoid multiple evaluations of the Item, first
+  because of performance, second because that evaluation may have side
+  effects, e.g. SLEEP, GET_LOCK, RAND, window functions doing
+  accumulations...
+  Item_field and Item_ref also have a "result_field" for a similar goal.
+  Literals don't need such "result_field" as their value is readily
+  available.
+*/
+class Item_result_field :public Item
 {
 public:
   Field *result_field;				/* Save result here */
@@ -4480,20 +4491,6 @@ public:
     save_in_field(result_field, no_conversions);
     DBUG_VOID_RETURN;
   }
-  virtual double  val_real_result() override;
-  virtual longlong val_int_result() override;
-  /**
-    Get time value in packed longlong format. NULL is converted to 0.
-  */
-  virtual longlong val_time_temporal_result() override;
-  /**
-    Get date value in packed longlong format. NULL is converted to 0.
-  */
-  virtual longlong val_date_temporal_result() override;
-  virtual String *str_result(String* tmp) override;
-  virtual my_decimal *val_decimal_result(my_decimal *val) override;
-  virtual bool val_bool_result() override;
-  virtual bool is_null_result() override;
 
   void cleanup() override;
   /*
@@ -4512,7 +4509,7 @@ public:
   bool mark_field_in_map(uchar *arg) override
   {
     bool rc= Item::mark_field_in_map(arg);
-    if (result_field)
+    if (result_field) // most likely result_field will be read too
       rc|= Item::mark_field_in_map(pointer_cast<Mark_field *>(arg),
                                    result_field);
     return rc;
@@ -4527,7 +4524,7 @@ protected:
   type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
     override;
 public:
-  enum Ref_Type { REF, DIRECT_REF, VIEW_REF, OUTER_REF, AGGREGATE_REF };
+  enum Ref_Type { REF, VIEW_REF, OUTER_REF, AGGREGATE_REF };
   Field *result_field;			 /* Save result here */
   Item **ref;
 private:
@@ -4592,12 +4589,6 @@ public:
   bool val_json(Json_wrapper *result) override;
   bool is_null() override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
-  double val_real_result() override;
-  longlong val_int_result() override;
-  String *str_result(String *tmp) override;
-  my_decimal *val_decimal_result(my_decimal *) override;
-  bool val_bool_result() override;
-  bool is_null_result() override;
   bool send(Protocol *prot, String *tmp) override;
   void make_field(Send_field *field) override;
   bool fix_fields(THD *, Item **) override;
@@ -4700,7 +4691,7 @@ public:
   }
 
   /**
-    @todo Consider re-implementing this for Item_direct_view_ref, as it
+    @todo Consider re-implementing this for Item_view_ref, as it
           may return NULL even if it wraps a constant value, if one the
           inner side of an outer join.
   */
@@ -4720,56 +4711,27 @@ public:
   }
 
   bool repoint_const_outer_ref(uchar *arg) override;
+  bool contains_alias_of_expr(uchar *arg) override;
 };
 
-
-/**
-  The same as Item_ref, but get value from val_* family of method to get
-  value of item on which it referred instead of result* family.
-*/
-class Item_direct_ref : public Item_ref
-{
-public:
-  Item_direct_ref(Name_resolution_context *context_arg, Item **item,
-                  const char *table_name_arg,
-                  const char *field_name_arg,
-                  bool alias_of_expr_arg= false)
-    :Item_ref(context_arg, item, table_name_arg,
-              field_name_arg, alias_of_expr_arg)
-  {}
-  /* Constructor need to process subselect with temporary tables (see Item) */
-  Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
-
-  double val_real() override;
-  longlong val_int() override;
-  longlong val_time_temporal() override;
-  longlong val_date_temporal() override;
-  String *val_str(String *tmp) override;
-  my_decimal *val_decimal(my_decimal *) override;
-  bool val_bool() override;
-  bool is_null() override;
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
-  Ref_Type ref_type() const override { return DIRECT_REF; }
-  type_conversion_status save_in_field_inner(Field *to, bool no_conversions) override;
-};
 
 /**
   Class for fields from derived tables and views.
-  The same as Item_direct_ref, but call fix_fields() of reference if
+  The same as Item_ref, but call fix_fields() of reference if
   not called yet.
 */
-class Item_direct_view_ref final : public Item_direct_ref
+class Item_view_ref final : public Item_ref
 {
-  typedef Item_direct_ref super;
+  typedef Item_ref super;
 
 public:
-  Item_direct_view_ref(Name_resolution_context *context_arg,
-                       Item **item,
-                       const char *alias_name_arg,
-                       const char *table_name_arg,
-                       const char *field_name_arg,
-                       TABLE_LIST *tl)
-    : Item_direct_ref(context_arg, item, alias_name_arg, field_name_arg),
+  Item_view_ref(Name_resolution_context *context_arg,
+                Item **item,
+                const char *alias_name_arg,
+                const char *table_name_arg,
+                const char *field_name_arg,
+                TABLE_LIST *tl)
+    : Item_ref(context_arg, item, alias_name_arg, field_name_arg),
       first_inner_table(NULL)
   {
     orig_table_name= table_name_arg;
@@ -4829,7 +4791,7 @@ public:
   bool eq(const Item *item, bool) const override;
   Item *get_tmp_table_item(THD *thd) override
   {
-    DBUG_ENTER("Item_direct_view_ref::get_tmp_table_item");
+    DBUG_ENTER("Item_view_ref::get_tmp_table_item");
     Item *item= Item_ref::get_tmp_table_item(thd);
     item->item_name= item_name;
     DBUG_RETURN(item);
@@ -4883,8 +4845,7 @@ private:
   Class for outer fields.
   An object of this class is created when the select where the outer field was
   resolved is a grouping one. After it has been fixed the ref field will point
-  to either an Item_ref or an Item_direct_ref object which will be used to
-  access the field.
+  to an Item_ref object which will be used to access the field.
   The ref field may also point to an Item_field instance.
   See also comments for the fix_inner_refs() and the
   Item_field::fix_outer_field() functions.
@@ -4892,21 +4853,22 @@ private:
 
 class Item_sum;
 
-class Item_outer_ref final : public Item_direct_ref
+class Item_outer_ref final : public Item_ref
 {
+  typedef Item_ref super;
 public:
   Item *outer_ref;
   /* The aggregate function under which this outer ref is used, if any. */
   Item_sum *in_sum_func;
   /*
-    TRUE <=> that the outer_ref is already present in the select list
+    true <=> that the outer_ref is already present in the select list
     of the outer select.
   */
   bool found_in_select_list;
   Item_outer_ref(Name_resolution_context *context_arg,
                  Item_ident *ident_arg)
-    :Item_direct_ref(context_arg, 0, ident_arg->table_name,
-                     ident_arg->field_name),
+    :Item_ref(context_arg, 0, ident_arg->table_name,
+                     ident_arg->field_name, false),
     outer_ref(ident_arg), in_sum_func(0),
     found_in_select_list(0)
   {
@@ -4917,7 +4879,7 @@ public:
   Item_outer_ref(Name_resolution_context *context_arg, Item **item,
                  const char *table_name_arg, const char *field_name_arg,
                  bool alias_of_expr_arg)
-    :Item_direct_ref(context_arg, item, table_name_arg, field_name_arg,
+    :Item_ref(context_arg, item, table_name_arg, field_name_arg,
                      alias_of_expr_arg),
     outer_ref(0), in_sum_func(0), found_in_select_list(1)
   {}
@@ -4942,23 +4904,23 @@ class Item_in_subselect;
 
 
 /*
-  An object of this class:
-   - Converts val_XXX() calls to ref->val_XXX_result() calls, like Item_ref.
-   - Sets owner->was_null=TRUE if it has returned a NULL value from any
-     val_XXX() function. This allows to inject an Item_ref_null_helper
-     object into subquery and then check if the subquery has produced a row
-     with NULL value.
+  An object of this class is like Item_ref, and
+  sets owner->was_null=true if it has returned a NULL value from any
+  val_XXX() function. This allows to inject an Item_ref_null_helper
+  object into subquery and then check if the subquery has produced a row
+  with NULL value.
 */
 
 class Item_ref_null_helper final : public Item_ref
 {
+  typedef Item_ref super;
 protected:
   Item_in_subselect* owner;
 public:
   Item_ref_null_helper(Name_resolution_context *context_arg,
                        Item_in_subselect* master, Item **item,
 		       const char *table_name_arg, const char *field_name_arg)
-    :Item_ref(context_arg, item, table_name_arg, field_name_arg),
+    :super(context_arg, item, table_name_arg, field_name_arg),
      owner(master) {}
   double val_real() override;
   longlong val_int() override;
@@ -5374,7 +5336,7 @@ class Item_cache;
   It caches a value, which is representative of the group, and can compare it
   to another row, and update its value when entering a new group.
 */
-class Cached_item :public Sql_alloc
+class Cached_item
 {
 protected:
   Item *item;              ///< The item whose value to cache.
@@ -5658,11 +5620,11 @@ protected:
   */  
   Field *cached_field;
   /*
-    TRUE <=> cache holds value of the last stored item (i.e actual value).
-    store() stores item to be cached and sets this flag to FALSE.
-    On the first call of val_xxx function if this flag is set to FALSE the 
+    true <=> cache holds value of the last stored item (i.e actual value).
+    store() stores item to be cached and sets this flag to false.
+    On the first call of val_xxx function if this flag is set to false the 
     cache_value() will be called to actually cache value of saved item.
-    cache_value() will set this flag to TRUE.
+    cache_value() will set this flag to true.
   */
   bool value_cached;
 public:
@@ -5672,7 +5634,7 @@ public:
   {
     fixed= true;
     maybe_null= true;
-    null_value= TRUE;
+    null_value= true;
   }
   Item_cache(enum_field_types field_type_arg):
     example(NULL), used_table_map(0), cached_field(NULL),
@@ -5681,7 +5643,7 @@ public:
     set_data_type(field_type_arg);
     fixed= true;
     maybe_null= true;
-    null_value= TRUE;
+    null_value= true;
   }
 
   void set_used_tables(table_map map) { used_table_map= map; }
@@ -5736,7 +5698,7 @@ public:
   /**
      Check if saved item has a non-NULL value.
      Will cache value of saved item if not already done. 
-     @return TRUE if cached value is non-NULL.
+     @return true if cached value is non-NULL.
    */
   bool has_value();
 
@@ -5770,7 +5732,7 @@ public:
   bool basic_const_item() const override
   { return (example != nullptr && example->basic_const_item());}
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
-  virtual void clear() { null_value= TRUE; value_cached= FALSE; }
+  virtual void clear() { null_value= true; value_cached= false; }
   bool is_null() override
   { return value_cached ? null_value : example->is_null(); }
   bool check_gcol_func_processor(uchar *) override { return true; }
@@ -6058,9 +6020,6 @@ protected:
   Field::geometry_type geometry_type;
 
   void get_full_info(Item *item);
-
-  /* It is used to count decimal precision in join_types */
-  int prev_decimal_int_part;
 public:
   Item_type_holder(THD*, Item*);
 

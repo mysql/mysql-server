@@ -33,7 +33,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "hash0hash.h"
 #include "ut0byte.h"
 #include "page0types.h"
-#ifndef UNIV_HOTBACKUP
 #include "ut0rbt.h"
 #include "os0proc.h"
 #include "log0log.h"
@@ -97,10 +96,10 @@ extern	volatile bool	buf_pool_withdrawing; /*!< true when withdrawing buffer
 extern	volatile ulint	buf_withdraw_clock; /*!< the clock is incremented
 					every time a pointer to a page may
 					become obsolete */
-#else /* !UNIV_HOTBACKUP */
+#ifdef UNIV_HOTBACKUP
 extern buf_block_t*	back_block1;	/*!< first block, for --apply-log */
 extern buf_block_t*	back_block2;	/*!< second block, for page reorganize */
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_HOTBACKUP */
 
 /** @brief States of a control block
 @see buf_page_t
@@ -269,12 +268,14 @@ UNIV_INLINE
 ulint
 buf_pool_get_n_pages(void);
 /*=======================*/
+#endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Gets the smallest oldest_modification lsn for any page in the pool. Returns
 zero if all modified pages have been flushed to disk.
 @return oldest modification in pool, zero if none */
 lsn_t
 buf_pool_get_oldest_modification(void);
+#ifndef UNIV_HOTBACKUP
 /*==================================*/
 
 /********************************************************************//**
@@ -340,7 +341,7 @@ with care. */
 /********************************************************************//**
 This is the general function used to get optimistic access to a database
 page.
-@return TRUE if success */
+@return true if success */
 ibool
 buf_page_optimistic_get(
 /*====================*/
@@ -353,7 +354,7 @@ buf_page_optimistic_get(
 /********************************************************************//**
 This is used to get access to a known database page, when no waiting can be
 done.
-@return TRUE if success */
+@return true if success */
 ibool
 buf_page_get_known_nowait(
 /*======================*/
@@ -450,11 +451,10 @@ buf_page_create(
 @param[in]	page_size	page size
 @param[in,out]	block		block to init */
 void
-buf_page_init_for_backup_restore(
+meb_page_init(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	buf_block_t*		block);
-
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
@@ -487,7 +487,7 @@ buf_page_make_young(
 NOTE that it is possible that the page is not yet read from disk,
 though.
 @param[in]	page_id	page id
-@return TRUE if found in the page hash table */
+@return true if found in the page hash table */
 UNIV_INLINE
 ibool
 buf_page_peek(
@@ -540,7 +540,7 @@ the LRU list meaning that it is not in danger of getting evicted and also
 implying that it has been accessed recently.
 The page must be either buffer-fixed, either its page hash must be locked.
 @param[in]	bpage	block
-@return TRUE if block is close to MRU end of LRU */
+@return true if block is close to MRU end of LRU */
 UNIV_INLINE
 ibool
 buf_page_peek_if_young(
@@ -550,7 +550,7 @@ buf_page_peek_if_young(
 danger of dropping from the buffer pool.
 NOTE: does not reserve the LRU list mutex.
 @param[in]	bpage	block to make younger
-@return TRUE if should be made younger */
+@return true if should be made younger */
 UNIV_INLINE
 ibool
 buf_page_peek_if_too_old(
@@ -620,6 +620,7 @@ UNIV_INLINE
 ulint
 buf_block_unfix(
 	buf_page_t*	bpage);
+#endif /* !UNIV_HOTBACKUP */
 /** Decrements the bufferfix count.
 @param[in,out]	block	block to bufferunfix
 @return	the remaining buffer-fix count */
@@ -628,6 +629,7 @@ ulint
 buf_block_unfix(
 	buf_block_t*	block);
 
+#ifndef UNIV_HOTBACKUP
 /** Unfixes the page, unlatches the page,
 removes it from page_hash and removes it from LRU.
 @param[in,out]	bpage	pointer to the block */
@@ -702,7 +704,7 @@ buf_frame_align(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /*********************************************************************//**
 Validates the buffer pool data structure.
-@return TRUE */
+@return true */
 ibool
 buf_validate(void);
 /*==============*/
@@ -735,7 +737,7 @@ buf_page_print(
 
 /********************************************************************//**
 Decompress a block.
-@return TRUE if successful */
+@return true if successful */
 ibool
 buf_zip_decompress(
 /*===============*/
@@ -783,7 +785,7 @@ buf_get_modified_ratio_pct(void);
 void
 buf_refresh_io_stats_all();
 /** Assert that all file pages in the buffer are in a replaceable state.
-@return TRUE */
+@return true */
 ibool
 buf_all_freed(void);
 
@@ -859,7 +861,7 @@ buf_block_set_state(
 
 /*********************************************************************//**
 Determines if a block is mapped to a tablespace.
-@return TRUE if mapped */
+@return true if mapped */
 UNIV_INLINE
 ibool
 buf_page_in_file(
@@ -869,7 +871,7 @@ buf_page_in_file(
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Determines if a block should be on unzip_LRU list.
-@return TRUE if block belongs to unzip_LRU */
+@return true if block belongs to unzip_LRU */
 UNIV_INLINE
 ibool
 buf_page_belongs_to_unzip_LRU(
@@ -985,7 +987,7 @@ buf_page_can_relocate(
 
 /** Determine if a block has been flagged old.
 @param[in]	bpage	control block
-@return TRUE if old */
+@return true if old */
 UNIV_INLINE
 ibool
 buf_page_is_old(
@@ -1030,8 +1032,7 @@ buf_block_t*
 buf_page_get_block(
 	buf_page_t*	bpage)
 	MY_ATTRIBUTE((warn_unused_result));
-#endif /* !UNIV_HOTBACKUP */
-#ifdef UNIV_DEBUG
+# ifdef UNIV_DEBUG
 /*********************************************************************//**
 Gets a pointer to the memory frame of a block.
 @return pointer to the frame */
@@ -1041,15 +1042,17 @@ buf_block_get_frame(
 /*================*/
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 	MY_ATTRIBUTE((warn_unused_result));
-#else /* UNIV_DEBUG */
+# else /* UNIV_DEBUG */
+#  define buf_block_get_frame(block) (block)->frame
+# endif /* UNIV_DEBUG */
+#else /* !UNIV_HOTBACKUP */
 # define buf_block_get_frame(block) (block)->frame
-#endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
 #define buf_block_get_page_zip(block) \
 	((block)->page.zip.data ? &(block)->page.zip : NULL)
-#ifndef UNIV_HOTBACKUP
 
 /** Get a buffer block from an adaptive hash index pointer.
 This function does not return if the block is not identified.
@@ -1058,10 +1061,11 @@ This function does not return if the block is not identified.
 buf_block_t*
 buf_block_from_ahi(const byte* ptr);
 
+#ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Find out if a pointer belongs to a buf_block_t. It can be a pointer to
 the buf_block_t itself or a member of it
-@return TRUE if ptr belongs to a buf_block_t struct */
+@return true if ptr belongs to a buf_block_t struct */
 ibool
 buf_pointer_is_block_field(
 /*=======================*/
@@ -1069,12 +1073,12 @@ buf_pointer_is_block_field(
 					dereferenced */
 /** Find out if a pointer corresponds to a buf_block_t::mutex.
 @param m in: mutex candidate
-@return TRUE if m is a buf_block_t::mutex */
+@return true if m is a buf_block_t::mutex */
 #define buf_pool_is_block_mutex(m)			\
 	buf_pointer_is_block_field((const void*)(m))
 /** Find out if a pointer corresponds to a buf_block_t::lock.
 @param l in: rw-lock candidate
-@return TRUE if l is a buf_block_t::lock */
+@return true if l is a buf_block_t::lock */
 #define buf_pool_is_block_lock(l)			\
 	buf_pointer_is_block_field((const void*)(l))
 
@@ -1243,7 +1247,7 @@ buf_get_free_list_len(void);
 
 /********************************************************************//**
 Determine if a block is a sentinel for a buffer pool watch.
-@return TRUE if a sentinel for a buffer pool watch, FALSE if not */
+@return true if a sentinel for a buffer pool watch, false if not */
 ibool
 buf_pool_watch_is_sentinel(
 /*=======================*/
@@ -1262,7 +1266,7 @@ buf_pool_watch_unset(
 This may only be called after buf_pool_watch_set(space,offset)
 has returned NULL and before invoking buf_pool_watch_unset(space,offset).
 @param[in]	page_id	page id
-@return FALSE if the given page was not read in, TRUE if it was */
+@return false if the given page was not read in, true if it was */
 ibool
 buf_pool_watch_occurred(
 	const page_id_t&	page_id)
@@ -1394,7 +1398,6 @@ public:
 	/** Block state. @see buf_page_in_file */
 	buf_page_state	state;
 
-#ifndef UNIV_HOTBACKUP
 	unsigned	flush_type:2;	/*!< if this block is currently being
 					flushed to disk, this tells the
 					flush_type.
@@ -1405,7 +1408,6 @@ public:
 #  error "MAX_BUFFER_POOLS > 64; redefine buf_pool_index:6"
 # endif
 	/* @} */
-#endif /* !UNIV_HOTBACKUP */
 	page_zip_des_t	zip;		/*!< compressed page; zip.data
 					(but not the data it points to) is
 					protected by buf_pool->zip_mutex;
@@ -1416,6 +1418,7 @@ public:
 	buf_page_t*	hash;		/*!< node used in chaining to
 					buf_pool->page_hash or
 					buf_pool->zip_hash */
+#endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
 	ibool		in_page_hash;	/*!< TRUE if in buf_pool->page_hash */
 	ibool		in_zip_hash;	/*!< TRUE if in buf_pool->zip_hash */
@@ -1499,6 +1502,7 @@ public:
 					the LRU list; used in
 					debugging */
 #endif /* UNIV_DEBUG */
+#ifndef UNIV_HOTBACKUP
 	unsigned	old:1;		/*!< TRUE if the block is in the old
 					blocks in buf_pool->LRU_old */
 	unsigned	freed_page_clock:31;/*!< the value of
@@ -1542,6 +1546,7 @@ struct buf_block_t{
 #ifndef UNIV_HOTBACKUP
 	BPageLock	lock;		/*!< read-write lock of the buffer
 					frame */
+#endif /* UNIV_HOTBACKUP */
 	UT_LIST_NODE_T(buf_block_t) unzip_LRU;
 					/*!< node of the decompressed LRU list;
 					a block is in the unzip_LRU list
@@ -1671,6 +1676,7 @@ struct buf_block_t{
 					block belongs to temporary tablespace
 					and block is always accessed by a
 					single thread. */
+#ifndef UNIV_HOTBACKUP
 	bool		skip_flush_check;
 					/*!< Skip check in buf_dblwr_check_block
 					during bulk load, protected by lock.*/
@@ -1683,23 +1689,22 @@ struct buf_block_t{
 					debug utilities in sync0rw */
 	/* @} */
 # endif
+#endif /* !UNIV_HOTBACKUP */
 	BPageMutex	mutex;		/*!< mutex protecting this block:
 					state (also protected by the buffer
 					pool mutex), io_fix, buf_fix_count,
 					and accessed; we introduce this new
 					mutex in InnoDB-5.1 to relieve
 					contention on the buffer pool mutex */
-#endif /* !UNIV_HOTBACKUP */
 };
 
 /** Check if a buf_block_t object is in a valid state
 @param block buffer block
-@return TRUE if valid */
+@return true if valid */
 #define buf_block_state_valid(block)				\
 (buf_block_get_state(block) >= BUF_BLOCK_NOT_USED		\
  && (buf_block_get_state(block) <= BUF_BLOCK_REMOVE_HASH))
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Compute the hash fold value for blocks in buf_pool->zip_hash. */
 /* @{ */
@@ -2140,6 +2145,7 @@ operator<<(
 Use these instead of accessing buffer pool mutexes directly. */
 /* @{ */
 
+#ifndef UNIV_HOTBACKUP
 /** Test if flush list mutex is owned. */
 #define buf_flush_list_mutex_own(b) mutex_own(&(b)->flush_list_mutex)
 
@@ -2177,8 +2183,9 @@ Use these instead of accessing buffer pool mutexes directly. */
 
 # define buf_page_hash_lock_x_confirm(hash_lock, buf_pool, page_id)\
 	hash_lock_x_confirm(hash_lock, (buf_pool)->page_hash, (page_id).fold())
+#endif /* !UNIV_HOTBACKUP */
 
-#ifdef UNIV_DEBUG
+#if defined(UNIV_DEBUG) && !defined(UNIV_HOTBACKUP)
 /** Test if page_hash lock is held in s-mode. */
 # define buf_page_hash_lock_held_s(buf_pool, bpage)	\
 	rw_lock_own(buf_page_hash_lock_get((buf_pool), (bpage)->id), RW_LOCK_S)
@@ -2200,16 +2207,15 @@ Use these instead of accessing buffer pool mutexes directly. */
 
 # define buf_block_hash_lock_held_s_or_x(buf_pool, block)	\
 	buf_page_hash_lock_held_s_or_x((buf_pool), &(block)->page)
-#else /* UNIV_DEBUG */
+#else /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 # define buf_page_hash_lock_held_s(b, p)	(TRUE)
 # define buf_page_hash_lock_held_x(b, p)	(TRUE)
 # define buf_page_hash_lock_held_s_or_x(b, p)	(TRUE)
 # define buf_block_hash_lock_held_s(b, p)	(TRUE)
 # define buf_block_hash_lock_held_x(b, p)	(TRUE)
 # define buf_block_hash_lock_held_s_or_x(b, p)	(TRUE)
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
-#endif /* !UNIV_HOTBACKUP */
 /* @} */
 
 /**********************************************************************
@@ -2257,6 +2263,7 @@ FILE_PAGE => NOT_USED	NOTE: This transition is allowed if and only if
 */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+#ifndef UNIV_HOTBACKUP
 /** Functor to validate the LRU list. */
 struct	CheckInLRUList {
 	void	operator()(const buf_page_t* elem) const
@@ -2298,6 +2305,7 @@ struct	CheckUnzipLRUAndLRUList {
 		ut_list_validate(buf_pool->unzip_LRU, check);
 	}
 };
+#endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_DEBUG || defined UNIV_BUF_DEBUG */
 
 #include "buf0buf.ic"

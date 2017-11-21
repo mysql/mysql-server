@@ -876,13 +876,6 @@ public:
       nomem= 1;
     }
 
-    Flags_t &operator=(const Flags_t &rhs)
-    {
-      memcpy(this, &rhs, sizeof(rhs));
-      return *this;
-    }
-
-
     uint64 bo:1;
     uint64 dim:2;
     uint64 nomem:1;

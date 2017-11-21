@@ -30,7 +30,6 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/components/services/psi_statement_bits.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_class.h" // Query_arena
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
@@ -99,7 +98,6 @@ public:
   base implementation.
 */
 class sp_instr : public Query_arena,
-                 public Sql_alloc,
                  public sp_printable
 {
 public:
@@ -237,7 +235,6 @@ public:
     m_lex_query_tables_own_last(NULL)
   {
     set_lex(lex, is_lex_owner);
-    memset(&m_lex_mem_root, 0, sizeof (MEM_ROOT));
   }
 
   virtual ~sp_lex_instr()
@@ -250,7 +247,6 @@ public:
     */
     if (alloc_root_inited(&m_lex_mem_root))
       free_items();
-    free_root(&m_lex_mem_root, MYF(0));
   }
 
   /**
@@ -285,7 +281,7 @@ private:
 
     @param thd           thread context
     @param [out] nextp   next instruction pointer
-    @param open_tables   if TRUE then check read access to tables in LEX's table
+    @param open_tables   if true then check read access to tables in LEX's table
                          list and open and lock them (used in instructions which
                          need to calculate some expression and don't execute
                          complete statement).

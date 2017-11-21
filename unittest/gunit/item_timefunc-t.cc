@@ -28,6 +28,8 @@
 #include "sql/item.h"
 #include "sql/item_timefunc.h"
 #include "sql/my_decimal.h"
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_time.h"
 #include "unittest/gunit/test_utils.h"
 

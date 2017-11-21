@@ -184,7 +184,7 @@ my_crypt(char *to, const uchar *s1, const uchar *s2, uint len)
 }
 
 #if defined(HAVE_OPENSSL)
-C_MODE_START
+extern "C"
 void my_make_scrambled_password(char *to, const char *password,
                                 size_t pass_len)
 {
@@ -200,7 +200,6 @@ void my_make_scrambled_password(char *to, const char *password,
                      0);
 
 }
-C_MODE_END
 #endif
 /**
   Compute two stage SHA1 hash of the password :
@@ -224,8 +223,6 @@ void compute_two_stage_sha1_hash(const char *password, size_t pass_len,
   /* Stage 2 : hash first stage's output. */
   compute_sha1_hash(hash_stage2, (const char *) hash_stage1, SHA1_HASH_SIZE);
 }
-
-C_MODE_START
 
 /*
     MySQL 4.1.1 password hashing: SHA conversion (see RFC 2289, 3174) twice
@@ -252,8 +249,6 @@ void my_make_scrambled_password_sha1(char *to, const char *password,
   *to++= PVERSION41_CHAR;
   octet2hex(to, (const char*) hash_stage2, SHA1_HASH_SIZE);
 }
-
-C_MODE_END
 
 /*
   Wrapper around my_make_scrambled_password() to maintain client lib ABI

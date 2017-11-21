@@ -265,7 +265,7 @@ INSERT INTO gis_geometrycollection VALUES
 ############################################################################################
 
 --echo # Creating a table with spatial index column
-CREATE TABLE geom_index (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY NOT NULL, SPATIAL INDEX(g));
+CREATE TABLE geom_index (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(g));
 
 --echo # Inserting geometry values
 INSERT INTO geom_index SELECT * FROM gis_point;

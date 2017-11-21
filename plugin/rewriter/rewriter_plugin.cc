@@ -30,6 +30,7 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/psi/mysql_rwlock.h"
 #include "mysqld_error.h"
 #include "plugin/rewriter/rewriter.h"
 #include "plugin/rewriter/rule.h" // Rewrite_result

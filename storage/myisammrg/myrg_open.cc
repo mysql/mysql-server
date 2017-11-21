@@ -50,7 +50,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   MI_INFO *isam=0;
   uint found_merge_insert_method= 0;
   size_t name_buff_length;
-  bool bad_children= FALSE;
+  bool bad_children= false;
   DBUG_ENTER("myrg_open");
 
   memset(&file, 0, sizeof(file));
@@ -103,7 +103,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
       if (handle_locking & HA_OPEN_FOR_REPAIR)
       {
         myrg_print_wrong_table(buff);
-        bad_children= TRUE;
+        bad_children= true;
         continue;
       }
       goto bad_children;
@@ -135,7 +135,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
       if (handle_locking & HA_OPEN_FOR_REPAIR)
       {
         myrg_print_wrong_table(buff);
-        bad_children= TRUE;
+        bad_children= true;
         continue;
       }
       goto bad_children;
@@ -172,7 +172,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   /* this works ok if the table list is empty */
   m_info->end_table=m_info->open_tables+files;
   m_info->last_used_table=m_info->open_tables;
-  m_info->children_attached= TRUE;
+  m_info->children_attached= true;
 
   (void) mysql_file_close(fd, MYF(0));
   end_io_cache(&file);
@@ -304,7 +304,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   if (!child_count)
   {
     /* Do not attach/detach an empty child list. */
-    m_info->children_attached= TRUE;
+    m_info->children_attached= true;
   }
 
   /* Call callback for each child. */
@@ -394,8 +394,8 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   uint       child_nr;
   uint       key_parts= 0;
   uint       min_keys;
-  bool       bad_children= FALSE;
-  bool       first_child= TRUE;
+  bool       bad_children= false;
+  bool       first_child= true;
   DBUG_ENTER("myrg_attach_children");
   DBUG_PRINT("myrg", ("handle_locking: %d", handle_locking));
 
@@ -417,7 +417,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
       if (handle_locking & HA_OPEN_FOR_REPAIR)
       {
         /* An appropriate error should've been already pushed by callback. */
-        bad_children= TRUE;
+        bad_children= true;
         continue;
       }
       goto bad_children;
@@ -429,7 +429,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
     /* Special handling when the first child is attached. */
     if (first_child)
     {
-      first_child= FALSE;
+      first_child= false;
       m_info->reclength= myisam->s->base.reclength;
       min_keys=  myisam->s->base.keys;
       key_parts= myisam->s->base.key_parts;
@@ -463,7 +463,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
       if (handle_locking & HA_OPEN_FOR_REPAIR)
       {
         myrg_print_wrong_table(myisam->filename);
-        bad_children= TRUE;
+        bad_children= true;
         continue;
       }
       goto bad_children;
@@ -492,7 +492,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   m_info->options&= ~(HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA);
   m_info->keys= min_keys;
   m_info->last_used_table= m_info->open_tables;
-  m_info->children_attached= TRUE;
+  m_info->children_attached= true;
   mysql_mutex_unlock(&m_info->mutex);
   DBUG_RETURN(0);
 
@@ -532,7 +532,7 @@ int myrg_detach_children(MYRG_INFO *m_info)
   if (m_info->tables)
   {
     /* Do not attach/detach an empty child list. */
-    m_info->children_attached= FALSE;
+    m_info->children_attached= false;
     memset(m_info->open_tables, 0, m_info->tables * sizeof(MYRG_TABLE));
   }
   m_info->records= 0;

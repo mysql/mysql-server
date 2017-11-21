@@ -1065,12 +1065,15 @@ longlong Item_func_period_add::val_int()
   ulong period=(ulong) args[0]->val_int();
   int months=(int) args[1]->val_int();
 
-  if ((null_value=args[0]->null_value || args[1]->null_value) ||
-      period == 0L)
+  if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0; /* purecov: inspected */
+  if (!valid_period(period))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_int();
+  }
   return (longlong)
-    convert_month_to_period((uint) ((int) convert_period_to_month(period)+
-				    months));
+    convert_month_to_period(convert_period_to_month(period) + months);
 }
 
 
@@ -1082,6 +1085,11 @@ longlong Item_func_period_diff::val_int()
 
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0; /* purecov: inspected */
+  if (!valid_period(period1) || !valid_period(period2))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_int();
+  }
   return (longlong) ((long) convert_period_to_month(period1)-
 		     (long) convert_period_to_month(period2));
 }
@@ -1198,7 +1206,7 @@ longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
       Even if the evaluation return NULL, the calc_daynr is useful for pruning
     */
     if (args[0]->data_type() != MYSQL_TYPE_DATE)
-      *incl_endp= TRUE;
+      *incl_endp= true;
     return res;
   }
   
@@ -1227,7 +1235,7 @@ longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
     /* do nothing */
     ;
   else
-    *incl_endp= TRUE;
+    *incl_endp= true;
   return res;
 }
 
@@ -1506,7 +1514,7 @@ longlong Item_func_year::val_int_endpoint(bool left_endp, bool *incl_endp)
       !(ltime.hour || ltime.minute || ltime.second || ltime.second_part))
     ; /* do nothing */
   else
-    *incl_endp= TRUE;
+    *incl_endp= true;
   return ltime.year;
 }
 
@@ -1796,7 +1804,7 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime,
 
   if ((null_value= (fuzzy_date & TIME_NO_ZERO_DATE) &&
        (ltime->year == 0 || ltime->month == 0 || ltime->day == 0)))
-    return TRUE;
+    return true;
 
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return 0;
@@ -2750,7 +2758,7 @@ bool Item_func_makedate::get_date(MYSQL_TIME *ltime, my_time_flags_t)
   long days;
 
   if (args[0]->null_value || args[1]->null_value ||
-      year < 0 || year > 9999 || daynr <= 0)
+      year < 0 || year > 9999 || daynr <= 0 || daynr > MAX_DAY_NUMBER)
     goto err;
 
   if (year < 100)
@@ -2828,7 +2836,7 @@ bool Item_func_add_time::val_datetime(MYSQL_TIME *time,
   longlong seconds;
   int l_sign= sign;
 
-  null_value= FALSE;
+  null_value= false;
   if (data_type() == MYSQL_TYPE_DATETIME)  // TIMESTAMP function
   {
     if (get_arg0_date(&l_time1, fuzzy_date) || 

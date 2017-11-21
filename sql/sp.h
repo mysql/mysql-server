@@ -30,7 +30,6 @@
 #include "mysql/udf_registration_types.h"
 #include "sql/item.h"        // Item::Type
 #include "sql/sp_head.h"     // Stored_program_creation_ctx
-#include "sql/sql_alloc.h"
 #include "sql/sql_lex.h"
 #include "sql/thr_malloc.h"
 
@@ -138,8 +137,7 @@ enum
   (stored procedures and functions).
 */
 
-class Stored_routine_creation_ctx : public Stored_program_creation_ctx,
-                                    public Sql_alloc
+class Stored_routine_creation_ctx : public Stored_program_creation_ctx
 {
 public:
   static Stored_routine_creation_ctx *

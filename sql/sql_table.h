@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#ifndef UNIV_HOTBACKUP
 #include "dd/string_type.h"
 #include "m_ctype.h"
 #include "mdl.h"
@@ -55,6 +56,9 @@ typedef mysql_mutex_t mysql_mutex_t;
 template<typename T> class List;
 
 
+#else /* !UNIV_HOTBACKUP */
+class THD {};
+#endif /* !UNIV_HOTBACKUP */
 enum enum_explain_filename_mode
 {
   EXPLAIN_ALL_VERBOSE= 0,
@@ -62,6 +66,7 @@ enum enum_explain_filename_mode
   EXPLAIN_PARTITIONS_AS_COMMENT
 };
 
+#ifndef UNIV_HOTBACKUP
 /* Maximum length of GEOM_POINT Field */
 #define MAX_LEN_GEOM_POINT_FIELD   25
 
@@ -76,10 +81,12 @@ static const uint NO_FK_CHECKS=    1 << 2;
   the table.
 */
 static const uint NO_DD_COMMIT=    1 << 3;
+#endif /* !UNIV_HOTBACKUP */
 
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length,
                              bool stay_quiet = false);
+#ifndef UNIV_HOTBACKUP
 size_t tablename_to_filename(const char *from, char *to, size_t to_length);
 size_t build_table_filename(char *buff, size_t bufflen, const char *db,
                             const char *table, const char *ext,
@@ -339,9 +346,9 @@ find_fk_parent_key(const dd::Table *parent_table_def,
   @param[in,out]  alter_ctx    Runtime context for ALTER TABLE.
   @param[in]      used_fields  used_fields from HA_CREATE_INFO.
 
-  @retval TRUE   error, out of memory or a semantical error in ALTER
+  @retval true   error, out of memory or a semantical error in ALTER
                  TABLE instructions
-  @retval FALSE  success
+  @retval false  success
 
 */
 bool prepare_fields_and_keys(THD *thd,
@@ -413,7 +420,7 @@ bool validate_comment_length(THD *thd, const char *comment_str,
                              uint err_code, const char *comment_name);
 int write_bin_log(THD *thd, bool clear_error,
                   const char *query, size_t query_length,
-                  bool is_trans= FALSE);
+                  bool is_trans= false);
 void promote_first_timestamp_column(List<Create_field> *column_definitions);
 
 
@@ -480,11 +487,13 @@ bool mysql_prepare_create_table(THD *thd,
                                 uint existing_fks_count,
                                 int select_field_count,
                                 bool find_parent_keys);
+#endif /* !UNIV_HOTBACKUP */
 
 
 size_t explain_filename(THD* thd, const char *from, char *to, size_t to_length,
                         enum_explain_filename_mode explain_mode);
 
+#ifndef UNIV_HOTBACKUP
 void parse_filename(const char *filename, size_t filename_length,
                     const char ** schema_name, size_t *schema_name_length,
                     const char ** table_name, size_t *table_name_length,
@@ -507,4 +516,5 @@ extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
 
 bool lock_trigger_names(THD *thd, TABLE_LIST *tables);
 
+#endif /* !UNIV_HOTBACKUP */
 #endif /* SQL_TABLE_INCLUDED */

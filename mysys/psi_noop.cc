@@ -69,8 +69,6 @@
 class THD;
 struct MDL_key;
 
-C_MODE_START
-
 // ===========================================================================
 
 static void register_thread_noop(const char *,
@@ -569,6 +567,14 @@ static void end_file_close_wait_noop(PSI_file_locker *,
   return;
 }
 
+static void end_file_rename_wait_noop(PSI_file_locker *,
+                                      const char *,
+                                      const char *,
+                                      int )
+{
+  return;
+}
+
 static PSI_file_service_t psi_file_noop=
 {
   register_file_noop,
@@ -583,7 +589,8 @@ static PSI_file_service_t psi_file_noop=
   start_file_wait_noop,
   end_file_wait_noop,
   start_file_close_wait_noop,
-  end_file_close_wait_noop
+  end_file_close_wait_noop,
+  end_file_rename_wait_noop
 };
 
 struct PSI_file_bootstrap *psi_file_hook= NULL;
@@ -1329,8 +1336,6 @@ void set_psi_memory_service(void *psi)
 {
   psi_memory_service= (PSI_memory_service_t *) psi;
 }
-
-C_MODE_END
 
 // ===========================================================================
 

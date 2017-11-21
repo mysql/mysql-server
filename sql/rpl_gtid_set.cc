@@ -23,6 +23,7 @@
 #include <sys/types.h>
 
 #include "my_loglevel.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -54,10 +55,8 @@
 #include "client/mysqlbinlog.h"
 #endif
 
-extern "C" {
 PSI_memory_key key_memory_Gtid_set_to_string;
 PSI_memory_key key_memory_Gtid_set_Interval_chunk;
-}
 
 using std::min;
 using std::max;

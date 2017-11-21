@@ -1030,7 +1030,30 @@ lock_rec_has_expl(
 	return(NULL);
 }
 
+/* Check if the given transaction is being rolled back or committed and hence
+can be ignored.
+@param[in]	trx	transaction which needs to be checked.
+@retval true if the transaction can be ignored. */
+bool
+can_trx_be_ignored(
+	const trx_t*	trx)
+{
+	if (trx->error_state == DB_DEADLOCK
+	    || trx->lock.was_chosen_as_deadlock_victim
 #ifdef UNIV_DEBUG
+	    || trx->lock.in_rollback
+	    || !(trx->in_rw_trx_list)
+#endif /* UNIV_DEBUG */
+	    || trx->lock.que_state == TRX_QUE_ROLLING_BACK) {
+
+		return(true);
+	}
+
+	return(false);
+}
+
+#ifdef UNIV_DEBUG
+
 /*********************************************************************//**
 Checks if some other transaction has a lock request in the queue.
 @return lock or NULL */
@@ -1063,12 +1086,10 @@ lock_rec_other_has_expl_req(
 
 	auto lock = Lock_iter::for_each(rec_id, [=](const lock_t* lock)
 	{
+
 		/* Ignore transactions that are being rolled back. */
 		if (lock->trx != trx
-		    && !lock->trx->lock.in_rollback
-		    && lock->trx->error_state != DB_DEADLOCK
-		    && !lock->trx->lock.was_chosen_as_deadlock_victim
-		    && lock->trx_que_state() != TRX_QUE_ROLLING_BACK
+		    && !can_trx_be_ignored(lock->trx)
 		    && !lock->is_gap()
 		    && (wait || !lock->is_waiting())
 		    && lock_mode_stronger_or_eq(lock->mode(), mode)) {
@@ -1204,7 +1225,8 @@ lock_rec_other_trx_holds_expl(
 			const lock_t* expl_lock = lock_rec_has_expl(
 				precise_mode, block, heap_no, t);
 
-			if (expl_lock && expl_lock->trx != impl_trx) {
+			if (expl_lock && expl_lock->trx != impl_trx
+			    && !can_trx_be_ignored(expl_lock->trx)) {
 				/* An explicit lock is held by trx other than
 				the trx holding the implicit lock. */
 				holds = expl_lock->trx;
@@ -1881,7 +1903,7 @@ lock_rec_add_to_queue(
 	}
 
 	if (!(type_mode & (LOCK_WAIT | LOCK_GAP))
-	    && trx->in_rw_trx_list) {
+	    && !can_trx_be_ignored(trx)) {
 		lock_mode	mode =
 			(type_mode & LOCK_MODE_MASK) == LOCK_S
 			? LOCK_X
@@ -5889,7 +5911,7 @@ lock_rec_queue_validate(
 		auto	lock = Lock_iter::for_each(rec_id, [=](lock_t* lock)
 		{
 			if (lock->trx == impl_trx
-			    && !lock->trx->lock.in_rollback) {
+			    && !can_trx_be_ignored(impl_trx)) {
 
 				return(false);
 			}
@@ -5902,8 +5924,7 @@ lock_rec_queue_validate(
 
 		if (impl_trx != nullptr
 		    && lock == nullptr
-		    && !impl_trx->lock.in_rollback
-		    && impl_trx->lock.que_state != TRX_QUE_ROLLING_BACK) {
+		    && !can_trx_be_ignored(impl_trx)) {
 
 			const lock_t*	other_lock
 				= lock_rec_other_has_expl_req(
@@ -5933,12 +5954,7 @@ lock_rec_queue_validate(
 			ut_a(lock->index == index);
 		}
 
-		if (lock->trx->in_rollback
-		    || lock->trx->lock.in_rollback
-		    || lock->trx->lock.was_chosen_as_deadlock_victim
-		    || lock->trx->error_state == DB_DEADLOCK
-		    || !(lock->trx->in_rw_trx_list)) {
-
+		if (can_trx_be_ignored(lock->trx)) {
 			return(true);
 		}
 
@@ -5957,9 +5973,7 @@ lock_rec_queue_validate(
 					mode, block, false, heap_no,
 					lock->trx);
 
-			ut_a(!other_lock
-			     || other_lock->trx->lock.in_rollback
-			     || !(other_lock->trx->in_rw_trx_list));
+			ut_a(!other_lock);
 
 		} else if (lock->is_waiting() && !lock->is_gap()) {
 
@@ -6463,9 +6477,10 @@ lock_rec_convert_impl_to_expl(
 
 		trx = lock_sec_rec_some_has_impl(rec, index, offsets);
 
-		ut_ad(!trx
-		      || !lock_rec_other_trx_holds_expl(
-			      LOCK_S | LOCK_REC_NOT_GAP, trx, rec, block));
+		if (trx && !can_trx_be_ignored(trx)) {
+			ut_ad(!lock_rec_other_trx_holds_expl(
+				LOCK_S | LOCK_REC_NOT_GAP, trx, rec, block));
+		}
 	}
 
 	if (trx != 0) {

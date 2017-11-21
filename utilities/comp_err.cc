@@ -440,7 +440,7 @@ static int create_sys_files(struct languages *lang_head,
     for (tmp_error= error_head; tmp_error; tmp_error= tmp_error->next_error)
     {
       /* dealing with messages */
-      tmp= find_message(tmp_error, tmp_lang->lang_short_name, FALSE);
+      tmp= find_message(tmp_error, tmp_lang->lang_short_name, false);
 
       if (!tmp)
       {
@@ -588,7 +588,7 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
 		current_error->er_name);
 	DBUG_RETURN(0);
       }
-      if (find_message(current_error, current_message.lang_short_name, TRUE))
+      if (find_message(current_error, current_message.lang_short_name, true))
       {
 	fprintf(stderr, "Duplicate message string for error '%s'"
                         " in language '%s'\n",

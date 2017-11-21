@@ -29,6 +29,7 @@
 #include "my_io.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/psi_memory.h"  // IWYU pragma: keep
 #include "mysql/service_mysql_alloc.h"
 #include "vio/vio_priv.h"
@@ -91,7 +92,7 @@ static int no_io_wait(Vio *vio MY_ATTRIBUTE((unused)),
 extern "C" {
 static bool has_no_data(Vio *vio MY_ATTRIBUTE((unused)))
 {
-  return FALSE;
+  return false;
 }
 } // extern "C"
 
@@ -119,6 +120,88 @@ Vio::~Vio()
   if (kq_fd != -1)
     close(kq_fd);
 #endif
+}
+
+Vio &Vio::operator=(Vio&& vio)
+{
+  this->~Vio();
+
+  mysql_socket= vio.mysql_socket;
+  localhost= vio.localhost;
+  type= vio.type;
+  read_timeout= vio.read_timeout;
+  write_timeout= vio.write_timeout;
+  retry_count= vio.retry_count;
+  inactive= vio.inactive;
+
+  local= vio.local;
+  remote= vio.remote;
+  addrLen= vio.addrLen;
+  read_buffer= vio.read_buffer;
+  read_pos= vio.read_pos;
+  read_end= vio.read_end;
+
+#ifdef USE_PPOLL_IN_VIO
+  thread_id= vio.thread_id;
+  signal_mask= signal_mask;
+  if (vio.poll_shutdown_flag.test_and_set())
+    poll_shutdown_flag.test_and_set();
+  else
+    poll_shutdown_flag.clear();
+#elif defined(HAVE_KQUEUE)
+  kq_fd= vio.kq_fd;
+  if (vio.kevent_wakeup_flag.test_and_set())
+    kevent_wakeup_flag.test_and_set();
+  else
+    kevent_wakeup_flag.clear();
+#endif
+
+  viodelete= vio.viodelete;
+  vioerrno= vio.vioerrno;
+  read= vio.read;
+  write= vio.write;
+  timeout= vio.timeout;
+  viokeepalive= vio.viokeepalive;
+  fastsend= vio.fastsend;
+  peer_addr= vio.peer_addr;
+  in_addr= vio.in_addr;
+  should_retry= vio.should_retry;
+  was_timeout= vio.was_timeout;
+
+  vioshutdown= vio.vioshutdown;
+  is_connected= vio.is_connected;
+  has_data= vio.has_data;
+  io_wait= vio.io_wait;
+  connect= vio.connect;
+
+#ifdef _WIN32
+  overlapped= vio.overlapped;
+  hPipe= vio.hPipe;
+#endif
+
+#ifdef HAVE_OPENSSL
+  ssl_arg= vio.ssl_arg;
+#endif
+
+#ifdef _WIN32
+  handle_file_map= vio.handle_file_map;
+  handle_map= vio.handle_map;
+  event_server_wrote= vio.event_client_wrote;
+  event_server_read= vio.event_server_read;
+  event_client_wrote= vio.event_client_wrote;
+  event_client_read= vio.event_client_read;
+  event_conn_closed= vio.event_conn_closed;
+  shared_memory_remain= vio.shared_memory_remain;
+  shared_memory_pos= vio.shared_memory_pos;
+#endif
+
+  // These are the only elements touched by the destructor.
+  vio.read_buffer= nullptr;
+#ifdef HAVE_KQUEUE
+  vio.kq_fd = -1;
+#endif
+
+  return *this;
 }
 
 /*
@@ -250,7 +333,7 @@ static bool vio_init(Vio *vio, enum enum_vio_type type,
 bool vio_reset(Vio* vio, enum enum_vio_type type,
                my_socket sd, void *ssl MY_ATTRIBUTE((unused)), uint flags)
 {
-  int ret= FALSE;
+  int ret= false;
   Vio new_vio(flags);
   DBUG_ENTER("vio_reset");
 
@@ -258,7 +341,7 @@ bool vio_reset(Vio* vio, enum enum_vio_type type,
   DBUG_ASSERT(vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET);
 
   if (vio_init(&new_vio, type, sd, flags))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /* Preserve perfschema info for this connection */
   new_vio.mysql_socket.m_psi= vio->mysql_socket.m_psi;
@@ -299,17 +382,8 @@ bool vio_reset(Vio* vio, enum enum_vio_type type,
 #endif
     /*
       Overwrite existing Vio structure
-      Note that the assignment operator is disabled: *vio= new_vio; 
-      TODO: consider having a separate function for this,
-            and consider memberwise assignment rather than memcpy!
     */
-    vio->~Vio();
-    memcpy(vio, &new_vio, sizeof(*vio));
-    // Disable DTOR actions.
-    new_vio.read_buffer= nullptr;
-#ifdef HAVE_KQUEUE
-    new_vio.kq_fd= -1;
-#endif
+    *vio= std::move(new_vio);
   }
 
   DBUG_RETURN(ret);
@@ -377,7 +451,7 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
     }
 
     /* Create an object for event notification. */
-    vio->overlapped.hEvent= CreateEvent(NULL, FALSE, FALSE, NULL);
+    vio->overlapped.hEvent= CreateEvent(NULL, false, false, NULL);
     if (vio->overlapped.hEvent == NULL)
     {
       internal_vio_delete(vio);
@@ -430,7 +504,7 @@ Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
   @param which    Whether timeout is for send (1) or receive (0).
   @param timeout_sec  Timeout interval in seconds.
 
-  @return FALSE on success, TRUE otherwise.
+  @return false on success, true otherwise.
 */
 
 int vio_timeout(Vio *vio, uint which, int timeout_sec)

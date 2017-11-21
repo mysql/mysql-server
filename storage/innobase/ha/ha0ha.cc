@@ -29,7 +29,6 @@ Created 8/22/1994 Heikki Tuuri
 
 #include "my_inttypes.h"
 
-#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 # include "buf0buf.h"
 #endif /* UNIV_DEBUG */
@@ -202,7 +201,7 @@ Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted. If btr_search_enabled is set to FALSE, we will only allow
 updating existing nodes, but no new node is allowed to be added.
-@return TRUE if succeed, FALSE if no more memory could be allocated */
+@return true if succeed, false if no more memory could be allocated */
 ibool
 ha_insert_for_fold_func(
 /*====================*/
@@ -352,7 +351,7 @@ ha_delete_hash_node(
 /*********************************************************//**
 Looks for an element when we know the pointer to the data, and updates
 the pointer to data, if found.
-@return TRUE if found */
+@return true if found */
 ibool
 ha_search_and_update_if_found_func(
 /*===============================*/
@@ -451,7 +450,7 @@ ha_remove_all_nodes_to_page(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /*************************************************************//**
 Validates a given range of the cells in hash table.
-@return TRUE if ok */
+@return true if ok */
 ibool
 ha_validate(
 /*========*/
@@ -549,4 +548,3 @@ builds, see http://bugs.mysql.com/36941 */
 			(ulong) n_bufs);
 	}
 }
-#endif /* !UNIV_HOTBACKUP */

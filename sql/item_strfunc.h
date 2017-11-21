@@ -40,6 +40,7 @@
 #include "sql/item_func.h"            // Item_func
 #include "sql/parse_tree_node_base.h"
 #include "sql/sql_const.h"
+#include "sql/sql_digest.h"  // DIGEST_HASH_TO_STRING[_LENGTH]
 #include "sql_string.h"
 
 class MY_LOCALE;
@@ -225,6 +226,51 @@ public:
   const char *func_name() const override { return "to_base64"; }
 };
 
+
+class Item_func_statement_digest final : public Item_str_ascii_func
+{
+public:
+  Item_func_statement_digest(const POS &pos, Item *query_string)
+    : Item_str_ascii_func(pos, query_string)
+  {}
+
+  const char *func_name() const override { return "statement_digest"; }
+  bool check_gcol_func_processor(uchar *) override { return true; }
+
+  bool resolve_type(THD *) override
+  {
+    set_data_type_string(DIGEST_HASH_TO_STRING_LENGTH, default_charset());
+    return false;
+  }
+
+  String *val_str_ascii(String *) override;
+};
+
+
+class Item_func_statement_digest_text final : public Item_str_func
+{
+public:
+  Item_func_statement_digest_text(const POS &pos, Item *query_string)
+    : Item_str_func(pos, query_string)
+  {}
+
+  const char *func_name() const override { return "statement_digest_text"; }
+
+  /**
+    The type is always LONGTEXT, just like the digest_text columns in
+    Performance Schema
+  */
+  bool resolve_type(THD *) override
+  {
+    set_data_type_string(MAX_BLOB_WIDTH, args[0]->collation);
+    return false;
+  }
+
+  bool check_gcol_func_processor(uchar *) override { return true; }
+  String *val_str(String *) override;
+};
+
+
 class Item_func_from_base64 final :public Item_str_func
 {
   String tmp_value;
@@ -314,15 +360,17 @@ class Item_func_concat_ws :public Item_str_func
 public:
   Item_func_concat_ws(List<Item> &list)
     : Item_str_func(list)
-  {}
+  {
+    null_on_null= false;
+  }
   Item_func_concat_ws(const POS &pos, PT_item_list *opt_list)
     : Item_str_func(pos, opt_list)
-  {}
-
+  {
+    null_on_null= false;
+  }
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "concat_ws"; }
-  table_map not_null_tables() const override { return 0; }
 };
 
 class Item_func_reverse :public Item_str_func
@@ -1178,7 +1226,10 @@ public:
 class Item_func_charset final : public Item_str_func
 {
 public:
-  Item_func_charset(const POS &pos, Item *a) :Item_str_func(pos, a) {}
+  Item_func_charset(const POS &pos, Item *a) :Item_str_func(pos, a)
+  {
+    null_on_null= false;
+  }
   String *val_str(String *) override;
   const char *func_name() const override { return "charset"; }
   bool resolve_type(THD *) override
@@ -1187,13 +1238,15 @@ public:
      maybe_null= false;
      return false;
   };
-  table_map not_null_tables() const override { return 0; }
 };
 
 class Item_func_collation :public Item_str_func
 {
 public:
-  Item_func_collation(const POS &pos, Item *a) :Item_str_func(pos, a) {}
+  Item_func_collation(const POS &pos, Item *a) :Item_str_func(pos, a)
+  {
+    null_on_null= false;
+  }
   String *val_str(String *) override;
   const char *func_name() const override { return "collation"; }
   bool resolve_type(THD *) override
@@ -1202,7 +1255,6 @@ public:
      maybe_null= false;
      return false;
   };
-  table_map not_null_tables() const override { return 0; }
 };
 
 class Item_func_weight_string final : public Item_str_func

@@ -1115,8 +1115,8 @@ SELECT ST_Crosses(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
 
 CREATE TABLE t1 (
   id INT,
-  c GEOMETRY NOT NULL,
-  g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL,
+  c GEOMETRY NOT NULL SRID 0,
+  g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL SRID 4326,
   SPATIAL INDEX c_idx (c),
   SPATIAL INDEX g_idx (g)
 );
@@ -1241,3 +1241,14 @@ SELECT ST_Crosses(
   ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 2 2), '
                   'LINESTRING(1 1, 2 2))', 4326)
 ) AS res;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_CROSSES(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);

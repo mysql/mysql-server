@@ -53,9 +53,9 @@
 #include "sql/set_var.h"
 #include "sql/sp_head.h"             // sp_head
 #include "sql/sql_admin.h"           // Sql_cmd_shutdown etc.
-#include "sql/sql_alloc.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_class.h"           // THD
+#include "sql/sql_exchange.h"
 #include "sql/sql_lex.h"             // LEX
 #include "sql/sql_list.h"
 #include "sql/sql_load.h"            // Sql_cmd_load_table
@@ -144,7 +144,7 @@ bool contextualize_nodes(Mem_root_array_YY<Node_type *> nodes,
 
   @ingroup ptn_stmt
 */
-class Parse_tree_root : public Sql_alloc
+class Parse_tree_root
 {
   Parse_tree_root(const Parse_tree_root &)= delete;
   void operator=(const Parse_tree_root &)= delete;
@@ -587,7 +587,7 @@ class PT_table_factor_function : public PT_table_reference
 public:
   PT_table_factor_function(Item *expr,
                            const LEX_STRING &path,
-                           Trivial_array<PT_json_table_column *> *nested_cols,
+                           Mem_root_array<PT_json_table_column *> *nested_cols,
                            const LEX_STRING &table_alias)
     : m_expr(expr),
       m_path(path),
@@ -600,7 +600,7 @@ public:
 private:
   Item *m_expr;
   const LEX_STRING m_path;
-  Trivial_array<PT_json_table_column *> *m_nested_columns;
+  Mem_root_array<PT_json_table_column *> *m_nested_columns;
   const LEX_STRING m_table_alias;
 };
 
@@ -3340,10 +3340,10 @@ class PT_create_union_option : public PT_create_table_option
 {
   typedef PT_create_table_option super;
 
-  const Trivial_array<Table_ident *> *tables;
+  const Mem_root_array<Table_ident *> *tables;
 
 public:
-  explicit PT_create_union_option(const Trivial_array<Table_ident *> *tables)
+  explicit PT_create_union_option(const Mem_root_array<Table_ident *> *tables)
   : tables(tables)
   {}
 
@@ -3453,8 +3453,8 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base
   bool is_temporary;
   bool only_if_not_exists;
   Table_ident *table_name;
-  const Trivial_array<PT_table_element *> *opt_table_element_list;
-  const Trivial_array<PT_create_table_option *> *opt_create_table_options;
+  const Mem_root_array<PT_table_element *> *opt_table_element_list;
+  const Mem_root_array<PT_create_table_option *> *opt_create_table_options;
   PT_partition *opt_partitioning;
   On_duplicate on_duplicate;
   PT_query_expression *opt_query_expression;
@@ -3485,8 +3485,8 @@ public:
     bool is_temporary,
     bool only_if_not_exists,
     Table_ident *table_name,
-    const Trivial_array<PT_table_element *> *opt_table_element_list,
-    const Trivial_array<PT_create_table_option *> *opt_create_table_options,
+    const Mem_root_array<PT_table_element *> *opt_table_element_list,
+    const Mem_root_array<PT_create_table_option *> *opt_create_table_options,
     PT_partition *opt_partitioning,
     On_duplicate on_duplicate,
     PT_query_expression *opt_query_expression)
@@ -3587,15 +3587,15 @@ public:
   This class is used for representing both static and dynamic privileges on
   global as well as table and column level.
 */
-struct Privilege : public Sql_alloc
+struct Privilege
 {
   enum privilege_type { STATIC, DYNAMIC };
 
   privilege_type type;
-  const Trivial_array<LEX_CSTRING> *columns;
+  const Mem_root_array<LEX_CSTRING> *columns;
 
   explicit Privilege(privilege_type type,
-                     const Trivial_array<LEX_CSTRING> *columns)
+                     const Mem_root_array<LEX_CSTRING> *columns)
   : type(type), columns(columns)
   {}
 };
@@ -3605,7 +3605,7 @@ struct Static_privilege : public Privilege
 {
   const uint grant;
 
-  Static_privilege(uint grant, const Trivial_array<LEX_CSTRING> *columns)
+  Static_privilege(uint grant, const Mem_root_array<LEX_CSTRING> *columns)
   : Privilege(STATIC, columns), grant(grant)
   {}
 };
@@ -3616,7 +3616,7 @@ struct Dynamic_privilege : public Privilege
   const LEX_STRING ident;
 
   Dynamic_privilege(const LEX_STRING &ident,
-                    const Trivial_array<LEX_CSTRING> *columns)
+                    const Mem_root_array<LEX_CSTRING> *columns)
   : Privilege(DYNAMIC, columns), ident(ident)
   {}
 };
@@ -3679,12 +3679,12 @@ public:
 class PT_static_privilege final : public PT_role_or_privilege
 {
   const uint grant;
-  const Trivial_array<LEX_CSTRING> *columns;
+  const Mem_root_array<LEX_CSTRING> *columns;
 
 public:
   PT_static_privilege(const POS &pos,
                       uint grant,
-                      const Trivial_array<LEX_CSTRING> *columns= NULL)
+                      const Mem_root_array<LEX_CSTRING> *columns= NULL)
   : PT_role_or_privilege(pos), grant(grant), columns(columns)
   {}
 
@@ -3710,12 +3710,12 @@ public:
 
 class PT_grant_roles final : public Parse_tree_root
 {
-  const Trivial_array<PT_role_or_privilege *> *roles;
+  const Mem_root_array<PT_role_or_privilege *> *roles;
   const List<LEX_USER> *users;
   const bool with_admin_option;
 
 public:
-  PT_grant_roles(const Trivial_array<PT_role_or_privilege *> *roles,
+  PT_grant_roles(const Mem_root_array<PT_role_or_privilege *> *roles,
                  const List<LEX_USER> *users,
                  bool with_admin_option)
   : roles(roles), users(users), with_admin_option(with_admin_option)
@@ -3743,11 +3743,11 @@ public:
 
 class PT_revoke_roles final : public Parse_tree_root
 {
-  const Trivial_array<PT_role_or_privilege *> *roles;
+  const Mem_root_array<PT_role_or_privilege *> *roles;
   const List<LEX_USER> *users;
 
 public:
-  PT_revoke_roles(Trivial_array<PT_role_or_privilege *> *roles,
+  PT_revoke_roles(Mem_root_array<PT_role_or_privilege *> *roles,
                   const List<LEX_USER> *users)
   : roles(roles), users(users)
   {}
@@ -3980,7 +3980,7 @@ class PT_alter_table_add_columns  final : public PT_alter_table_action
 
 public:
   explicit
-  PT_alter_table_add_columns(const Trivial_array<PT_table_element *> *columns)
+  PT_alter_table_add_columns(const Mem_root_array<PT_table_element *> *columns)
     : super(Alter_info::ALTER_ADD_COLUMN), m_columns(columns)
   {}
 
@@ -3997,7 +3997,7 @@ public:
   }
 
 private:
-  const Trivial_array<PT_table_element *> *m_columns;
+  const Mem_root_array<PT_table_element *> *m_columns;
 };
 
 
@@ -4385,14 +4385,14 @@ class PT_alter_table_add_partition_def_list final :
 public:
   PT_alter_table_add_partition_def_list(
       bool no_write_to_binlog,
-      const Trivial_array<PT_part_definition *> *def_list)
+      const Mem_root_array<PT_part_definition *> *def_list)
   : super(no_write_to_binlog), m_def_list(def_list)
   {}
 
   bool contextualize(Table_ddl_parse_context *pc) override;
 
 private:
-  const Trivial_array<PT_part_definition *> *m_def_list;
+  const Mem_root_array<PT_part_definition *> *m_def_list;
 };
 
 
@@ -4754,7 +4754,7 @@ public:
   PT_alter_table_reorganize_partition_into(
       bool no_write_to_binlog,
       const List<String> &partition_names,
-      const Trivial_array<PT_part_definition*> *into)
+      const Mem_root_array<PT_part_definition*> *into)
     : super(Alter_info::ALTER_REORGANIZE_PARTITION),
       m_no_write_to_binlog(no_write_to_binlog),
       m_partition_names(partition_names),
@@ -4771,7 +4771,7 @@ public:
 private:
   const bool m_no_write_to_binlog;
   const List<String> m_partition_names;
-  const Trivial_array<PT_part_definition*> *m_into;
+  const Mem_root_array<PT_part_definition*> *m_into;
   partition_info m_partition_info;
 };
 
@@ -4884,7 +4884,7 @@ public:
   explicit
   PT_alter_table_stmt(MEM_ROOT *mem_root,
                       Table_ident *table_name,
-                      Trivial_array<PT_ddl_table_option *> *opt_actions,
+                      Mem_root_array<PT_ddl_table_option *> *opt_actions,
                       Alter_info::enum_alter_table_algorithm algo,
                       Alter_info::enum_alter_table_lock lock,
                       Alter_info::enum_with_validation validation)
@@ -4900,7 +4900,7 @@ public:
 
 private:
   Table_ident * const m_table_name;
-  Trivial_array<PT_ddl_table_option *> * const m_opt_actions;
+  Mem_root_array<PT_ddl_table_option *> * const m_opt_actions;
   const Alter_info::enum_alter_table_algorithm m_algo;
   const Alter_info::enum_alter_table_lock m_lock;
   const Alter_info::enum_with_validation m_validation;
@@ -4945,7 +4945,7 @@ class PT_repair_table_stmt final : public PT_table_ddl_stmt_base
 public:
   PT_repair_table_stmt(MEM_ROOT *mem_root,
                        bool no_write_to_binlog,
-                       Trivial_array<Table_ident *> *table_list,
+                       Mem_root_array<Table_ident *> *table_list,
                        decltype(HA_CHECK_OPT::flags) flags,
                        decltype(HA_CHECK_OPT::sql_flags) sql_flags)
     : PT_table_ddl_stmt_base(mem_root),
@@ -4959,7 +4959,7 @@ public:
 
 private:
   bool m_no_write_to_binlog;
-  Trivial_array<Table_ident *> *m_table_list;
+  Mem_root_array<Table_ident *> *m_table_list;
   decltype(HA_CHECK_OPT::flags) m_flags;
   decltype(HA_CHECK_OPT::sql_flags) m_sql_flags;
 };
@@ -4970,7 +4970,7 @@ class PT_analyze_table_stmt final : public PT_table_ddl_stmt_base
 public:
   PT_analyze_table_stmt(MEM_ROOT *mem_root,
                         bool no_write_to_binlog,
-                        Trivial_array<Table_ident *> *table_list,
+                        Mem_root_array<Table_ident *> *table_list,
                         Sql_cmd_analyze_table::Histogram_command command,
                         int num_buckets,
                         List<String> *columns)
@@ -4986,7 +4986,7 @@ public:
 
 private:
   const bool m_no_write_to_binlog;
-  const Trivial_array<Table_ident *> *m_table_list;
+  const Mem_root_array<Table_ident *> *m_table_list;
   const Sql_cmd_analyze_table::Histogram_command m_command;
   const int m_num_buckets;
   List<String> *m_columns;
@@ -4997,7 +4997,7 @@ class PT_check_table_stmt final : public PT_table_ddl_stmt_base
 {
 public:
   PT_check_table_stmt(MEM_ROOT *mem_root,
-                      Trivial_array<Table_ident *> *table_list,
+                      Mem_root_array<Table_ident *> *table_list,
                       decltype(HA_CHECK_OPT::flags) flags,
                       decltype(HA_CHECK_OPT::sql_flags) sql_flags)
     : PT_table_ddl_stmt_base(mem_root),
@@ -5009,7 +5009,7 @@ public:
   Sql_cmd *make_cmd(THD *thd) override;
 
 private:
-  Trivial_array<Table_ident *> *m_table_list;
+  Mem_root_array<Table_ident *> *m_table_list;
   decltype(HA_CHECK_OPT::flags) m_flags;
   decltype(HA_CHECK_OPT::sql_flags) m_sql_flags;
 };
@@ -5020,7 +5020,7 @@ class PT_optimize_table_stmt final : public PT_table_ddl_stmt_base
 public:
   PT_optimize_table_stmt(MEM_ROOT *mem_root,
                          bool no_write_to_binlog,
-                         Trivial_array<Table_ident *> *table_list)
+                         Mem_root_array<Table_ident *> *table_list)
     : PT_table_ddl_stmt_base(mem_root),
       m_no_write_to_binlog(no_write_to_binlog),
       m_table_list(table_list)
@@ -5029,7 +5029,7 @@ public:
   Sql_cmd *make_cmd(THD *thd) override;
 
   bool m_no_write_to_binlog;
-  Trivial_array<Table_ident *> *m_table_list;
+  Mem_root_array<Table_ident *> *m_table_list;
 };
 
 
@@ -5112,7 +5112,7 @@ class PT_cache_index_stmt final : public PT_table_ddl_stmt_base
 {
 public:
   PT_cache_index_stmt(MEM_ROOT *mem_root,
-                      Trivial_array<PT_assign_to_keycache *> *tbl_index_lists,
+                      Mem_root_array<PT_assign_to_keycache *> *tbl_index_lists,
                       const LEX_STRING &key_cache_name)
     : PT_table_ddl_stmt_base(mem_root),
       m_tbl_index_lists(tbl_index_lists),
@@ -5122,7 +5122,7 @@ public:
   Sql_cmd *make_cmd(THD *thd) override;
 
 private:
-  Trivial_array<PT_assign_to_keycache *> *m_tbl_index_lists;
+  Mem_root_array<PT_assign_to_keycache *> *m_tbl_index_lists;
   const LEX_STRING &m_key_cache_name;
 };
 
@@ -5214,7 +5214,7 @@ class PT_load_index_stmt final : public PT_table_ddl_stmt_base
 {
 public:
   PT_load_index_stmt(MEM_ROOT *mem_root,
-                     Trivial_array<PT_preload_keys *> *preload_list)
+                     Mem_root_array<PT_preload_keys *> *preload_list)
     : PT_table_ddl_stmt_base(mem_root),
       m_preload_list(preload_list)
   {}
@@ -5222,7 +5222,7 @@ public:
   Sql_cmd *make_cmd(THD *thd) override;
 
 private:
-  Trivial_array<PT_preload_keys *> *m_preload_list;
+  Mem_root_array<PT_preload_keys *> *m_preload_list;
 };
 
 /**
@@ -5328,7 +5328,7 @@ class PT_json_table_column_with_nested_path final : public PT_json_table_column
 public:
   PT_json_table_column_with_nested_path(
       const LEX_STRING &path,
-      Trivial_array<PT_json_table_column *> *nested_cols)
+      Mem_root_array<PT_json_table_column *> *nested_cols)
     : m_path(path),
       m_nested_columns(nested_cols),
       m_column(nullptr)
@@ -5340,7 +5340,7 @@ public:
 
 private:
   const LEX_STRING m_path;
-  const Trivial_array<PT_json_table_column *> *m_nested_columns;
+  const Mem_root_array<PT_json_table_column *> *m_nested_columns;
   Json_table_column *m_column;
 };
 
@@ -5536,7 +5536,7 @@ class PT_create_resource_group final : public Parse_tree_root
 public:
   PT_create_resource_group(const LEX_CSTRING &name,
                            const resourcegroups::Type type,
-                           const Trivial_array<resourcegroups::Range> *cpu_list,
+                           const Mem_root_array<resourcegroups::Range> *cpu_list,
                            const Value_or_default<int> &opt_priority,
                            bool enabled)
     : sql_cmd(name, type, cpu_list,
@@ -5583,7 +5583,7 @@ class PT_alter_resource_group final : public Parse_tree_root
 
 public:
   PT_alter_resource_group(const LEX_CSTRING &name,
-                          const Trivial_array<resourcegroups::Range> *cpu_list,
+                          const Mem_root_array<resourcegroups::Range> *cpu_list,
                           const Value_or_default<int> &opt_priority,
                           const Value_or_default<bool> &enable,
                           bool force)
@@ -5658,7 +5658,7 @@ class PT_set_resource_group final : public Parse_tree_root
 
 public:
   PT_set_resource_group(const LEX_CSTRING &name,
-                        Trivial_array<ulonglong> *thread_id_list)
+                        Mem_root_array<ulonglong> *thread_id_list)
     : sql_cmd(name, thread_id_list)
   { }
 

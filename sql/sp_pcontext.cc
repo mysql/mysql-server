@@ -130,8 +130,7 @@ void sp_pcontext::init(uint var_offset,
 
 
 sp_pcontext::sp_pcontext(THD *thd)
-  : Sql_alloc(),
-    m_level(0),
+  : m_level(0),
     m_max_var_index(0), m_max_cursor_index(0),
     m_parent(NULL), m_pboundary(0),
     m_vars(thd->mem_root),
@@ -148,8 +147,7 @@ sp_pcontext::sp_pcontext(THD *thd)
 
 sp_pcontext::sp_pcontext(THD *thd, sp_pcontext *prev,
                          sp_pcontext::enum_scope scope)
-  : Sql_alloc(),
-    m_level(prev->m_level + 1),
+  : m_level(prev->m_level + 1),
     m_max_var_index(0), m_max_cursor_index(0),
     m_parent(prev), m_pboundary(0),
     m_vars(thd->mem_root),

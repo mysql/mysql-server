@@ -37,7 +37,7 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
 Returns TRUE if the roll pointer is of the insert type.
-@return TRUE if insert undo log */
+@return true if insert undo log */
 UNIV_INLINE
 ibool
 trx_undo_roll_ptr_is_insert(
@@ -406,7 +406,7 @@ trx_undo_mem_free(
 #define	TRX_UNDO_PREPARED	5	/* contains an undo log of an
 					prepared transaction */
 
-#if !defined UNIV_HOTBACKUP
+#ifndef UNIV_HOTBACKUP
 /** Transaction undo log memory object; this is protected by the undo_mutex
 in the corresponding transaction object */
 

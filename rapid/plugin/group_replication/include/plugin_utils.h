@@ -484,6 +484,7 @@ public:
     DBUG_ASSERT(arg != NULL);
 
     mysql_mutex_init(key_GR_LOCK_write_lock_protection, &write_lock, MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_GR_COND_write_lock_protection, &write_lock_protection);
 
     DBUG_VOID_RETURN;
   }
@@ -491,6 +492,7 @@ public:
   virtual ~Shared_writelock()
   {
     mysql_mutex_destroy(&write_lock);
+    mysql_cond_destroy(&write_lock_protection);
   }
 
   int try_grab_write_lock()
@@ -513,6 +515,15 @@ public:
   void grab_write_lock()
   {
     mysql_mutex_lock(&write_lock);
+    DBUG_EXECUTE_IF("group_replication_continue_kill_pending_transaction",
+                    {
+                      const char act[]= "now SIGNAL signal.gr_applier_early_failure";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+    while (write_lock_in_use == true)
+      mysql_cond_wait(&write_lock_protection, &write_lock);
+
     shared_write_lock->wrlock();
     write_lock_in_use= true;
     mysql_mutex_unlock(&write_lock);
@@ -523,6 +534,7 @@ public:
     mysql_mutex_lock(&write_lock);
     shared_write_lock->unlock();
     write_lock_in_use= false;
+    mysql_cond_broadcast(&write_lock_protection);
     mysql_mutex_unlock(&write_lock);
   }
 
@@ -560,6 +572,7 @@ public:
 private:
   Checkable_rwlock *shared_write_lock;
   mysql_mutex_t write_lock;
+  mysql_cond_t  write_lock_protection;
   bool write_lock_in_use;
 };
 

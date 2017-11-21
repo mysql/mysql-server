@@ -1,0 +1,80 @@
+# Bug#26542829: Assertion !(check_datetime_range(ltime)) failed
+When bug#26808862 is fixed, move contents to derived.test
+CREATE TABLE t1 (
+c1 varchar(10) DEFAULT NULL,
+c2 datetime DEFAULT NULL,
+c3 varchar(255) DEFAULT NULL,
+c4 varchar(255) DEFAULT NULL,
+pk int NOT NULL,
+c5 varchar(255) DEFAULT NULL,
+c6 date DEFAULT NULL,
+c7 int DEFAULT NULL,
+c8 date DEFAULT NULL,
+c9 varchar(255) DEFAULT NULL,
+c10 int DEFAULT NULL,
+c11 varchar(10) DEFAULT NULL,
+c12 varchar(10) DEFAULT NULL,
+c13 datetime DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY k5 (c5)
+) engine=innodb;
+INSERT INTO t1 VALUES
+('gjnhugwevl','1000-01-01 00:00:00','m','UJVFB',2,'j','1000-01-01',208797696,'1000-01-01','LRNWI',NULL,'look','ISVAL','2001-03-02 00:00:00'),
+('nhugwevltb','1000-01-01 00:00:00','m','h',3,'can\'t','2004-06-07',2052784128,'2000-12-19','r',NULL,'ugwevltbgy','something','1000-01-01 00:00:00');
+CREATE TABLE t2 (
+c1 varchar(255) DEFAULT NULL,
+c2 varchar(10) DEFAULT NULL,
+c3 int DEFAULT NULL,
+c4 datetime DEFAULT NULL,
+c5 varchar(10) DEFAULT NULL,
+c6 varchar(255) DEFAULT NULL,
+c7 varchar(255) DEFAULT NULL,
+c8 varchar(255) DEFAULT NULL,
+c9 varchar(10) DEFAULT NULL,
+c10 datetime DEFAULT NULL,
+pk int NOT NULL,
+c11 date DEFAULT NULL,
+c12 int DEFAULT NULL,
+PRIMARY KEY (pk)
+) engine=innodb;
+INSERT INTO t2 VALUES
+('be','njhqcbglns',NULL,'2002-07-20 19:40:02','YHBGN','go','NSPET','j','MKFNT','2007-08-25 14:41:26',1,'2002-04-21',6),
+('b','glnspcqnog',2,'1000-01-01 00:00:00','YEJTV','on','z','PPPCH','YRXFT','1000-01-01 00:00:00',4,'2003-07-25',0),
+('c','qnogpabsxs',6,'1000-01-01 00:00:00','nogpabsxsr','b','we','og','e','2000-11-01 15:48:07',7,'1000-01-01',3),
+('OFZJT','was',6,'2007-01-14 21:01:33','as','was','r','a','but','2009-01-20 17:58:56',9,'2005-02-14',7),
+('d','bsxsrumtna',9,'1000-01-01 00:00:00','would','he','o','VESLR','sxsrumtnab','2007-09-25 12:13:37',10,'2005-02-11',772472832);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT field1
+FROM (SELECT alias1.c5 AS field1,
+alias1.c13 AS field2,
+alias1.c1 AS field4
+FROM t1 AS alias1 RIGHT JOIN t2 AS alias2
+ON alias1.pk = alias2.c12
+ORDER BY field2
+) as dt;
+field1
+NULL
+NULL
+NULL
+NULL
+can't
+SELECT field1
+FROM (SELECT *
+FROM (SELECT alias1.c5 AS field1,
+alias1.c13 AS field2,
+alias1.c1 AS field4
+FROM t1 AS alias1 RIGHT JOIN t2 AS alias2
+ON alias1.pk = alias2.c12
+ORDER BY field2
+) AS dt_inner
+) AS dt_outer;
+field1
+NULL
+NULL
+NULL
+NULL
+can't
+DROP TABLE t1, t2;

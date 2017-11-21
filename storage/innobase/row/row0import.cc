@@ -49,6 +49,7 @@ Created 2012-02-08 by Sunny Bains.
 #include "dict0crea.h"
 #include "lob0lob.h"
 #include "dict0dd.h"
+#include "dict0upgrade.h"
 
 #include <vector>
 
@@ -1740,8 +1741,11 @@ PageConverter::adjust_cluster_index_blob_column(
 	if (is_compressed_table()) {
 		mach_write_to_4(field, get_space_id());
 
+		ut_ad(m_index->m_srv_index != nullptr);
+		ut_ad(m_index->m_srv_index->is_clustered());
+
 		page_zip_write_blob_ptr(
-			m_page_zip_ptr, rec, m_cluster_index, offsets, i, 0);
+			m_page_zip_ptr, rec, m_index->m_srv_index, offsets, i, 0);
 	} else {
 		mlog_write_ulint(field, get_space_id(), MLOG_4BYTES, 0);
 	}
@@ -3930,6 +3934,10 @@ row_import_for_mysql(
 		dict_sdi_remove_from_cache(table->space, NULL, true);
 		btr_sdi_create_index(table->space, true);
 		dict_mutex_exit_for_mysql();
+		/* Update server version number in the page 0 of tablespace */
+		if (upgrade_space_version(table->space)) {
+			return(row_import_error(prebuilt, trx, DB_TABLESPACE_NOT_FOUND));
+		}
 	} else {
 		ut_ad(space->flags == space_flags_from_disk);
 	}

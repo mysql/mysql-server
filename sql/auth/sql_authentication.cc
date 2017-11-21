@@ -18,6 +18,8 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <fstream>                     // IWYU pragma: keep
 #include <string>                       /* std::string */
 #include <utility>
@@ -31,12 +33,14 @@
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -198,7 +202,7 @@ LEX_CSTRING default_auth_plugin_name;
 
 plugin_ref native_password_plugin;
 
-bool disconnect_on_expired_password= TRUE;
+bool disconnect_on_expired_password= true;
 
 extern bool initialized;
 
@@ -215,9 +219,9 @@ extern bool initialized;
 
 #define MAX_CN_NAME_LENGTH 64
 
-bool opt_auto_generate_certs= TRUE;
+bool opt_auto_generate_certs= true;
 
-bool auth_rsa_auto_generate_rsa_keys= TRUE;
+bool auth_rsa_auto_generate_rsa_keys= true;
 
 static bool do_auto_rsa_keys_generation();
 
@@ -1020,7 +1024,7 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
 
 static bool
 read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
-                          MPVIO_EXT *mpvio)
+                          MPVIO_EXT *mpvio MY_ATTRIBUTE((unused)))
 {
   size_t length, length_length;
   char *ptr_save;
@@ -2243,7 +2247,7 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
                                                &cur_time) >=0 ? false: true;
       else
       {
-        DBUG_ASSERT(FALSE);
+        DBUG_ASSERT(false);
         /* Make the compiler happy. */
       }
     }
@@ -2498,7 +2502,7 @@ acl_authenticate(THD *thd, enum_server_command command)
 
   if (initialized) // if not --skip-grant-tables
   {
-    bool is_proxy_user= FALSE;
+    bool is_proxy_user= false;
     bool password_time_expired= false;
     const char *auth_user = acl_user->user ? acl_user->user : "";
     ACL_PROXY_USER *proxy_user;
@@ -2547,7 +2551,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       acl_proxy_user= find_acl_user(proxy_user->get_proxied_host() ?
                                     proxy_user->get_proxied_host() : "",
                                     mpvio.auth_info.authenticated_as,
-                                    TRUE);
+                                    true);
       if (!acl_proxy_user)
       {
         Host_errors errors;
@@ -2779,9 +2783,9 @@ bool is_secure_transport(int vio_type)
     case VIO_TYPE_SSL:
     case VIO_TYPE_SHARED_MEMORY:
     case VIO_TYPE_SOCKET:
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 static int generate_native_password(char *outbuf, unsigned int *buflen,
@@ -3047,7 +3051,11 @@ static int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
   return (mpvio->vio_is_encrypted);
 }
 
-int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff)
+/*
+  The unused parameters must be here due to function pointer casting
+  in sql_show.cc.
+*/
+int show_rsa_public_key(THD *, SHOW_VAR *var MY_ATTRIBUTE((unused)), char *)
 {
 #ifndef HAVE_YASSL
   var->type= SHOW_CHAR;
@@ -3423,7 +3431,7 @@ static MYSQL_SYSVAR_BOOL(auto_generate_rsa_keys, auth_rsa_auto_generate_rsa_keys
         "Auto generate RSA keys at server startup if correpsonding "
         "system variables are not specified and key files are not present "
         "at the default location.",
-        NULL, NULL, TRUE);
+        NULL, NULL, true);
 
 static SYS_VAR* sha256_password_sysvars[]= {
   MYSQL_SYSVAR(private_key_path),

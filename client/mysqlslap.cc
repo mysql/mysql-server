@@ -101,6 +101,7 @@ TODO:
 #include <time.h>
 
 #include "client/client_priv.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
@@ -148,14 +149,14 @@ const char *delimiter= "\n";
 
 const char *create_schema_string= "mysqlslap";
 
-static bool opt_preserve= TRUE, opt_no_drop= FALSE;
+static bool opt_preserve= true, opt_no_drop= false;
 static bool debug_info_flag= 0, debug_check_flag= 0;
-static bool opt_only_print= FALSE;
-static bool opt_compress= FALSE, tty_password= FALSE,
-               opt_silent= FALSE,
-               auto_generate_sql_autoincrement= FALSE,
-               auto_generate_sql_guid_primary= FALSE,
-               auto_generate_sql= FALSE;
+static bool opt_only_print= false;
+static bool opt_compress= false, tty_password= false,
+               opt_silent= false,
+               auto_generate_sql_autoincrement= false,
+               auto_generate_sql_guid_primary= false,
+               auto_generate_sql= false;
 const char *auto_generate_sql_type= "mixed";
 
 static unsigned long connect_flags= CLIENT_MULTI_RESULTS |
@@ -320,14 +321,14 @@ int main(int argc, char **argv)
 
   MY_INIT(argv[0]);
 
-  my_getopt_use_args_separator= TRUE;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  my_getopt_use_args_separator= true;
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   if (load_defaults("my",load_default_groups,&argc,&argv,&alloc))
   {
     my_end(0);
     return EXIT_FAILURE;
   }
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= false;
   if (get_options(&argc,&argv))
   {
     my_end(0);
@@ -790,7 +791,7 @@ get_one_option(int optid, const struct my_option *opt,
     usage();
     exit(0);
   case OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
+    using_opt_enable_cleartext_plugin= true;
     break;
   }
   DBUG_RETURN(0);
@@ -1199,7 +1200,7 @@ get_options(int *argc,char ***argv)
     schema.
   */
   if (!opt_no_drop && (create_string || auto_generate_sql))
-    opt_preserve= FALSE;
+    opt_preserve= false;
 
   if (auto_generate_sql && (create_string || user_supplied_query))
   {
@@ -1223,8 +1224,8 @@ get_options(int *argc,char ***argv)
     that we actually added a key!
   */
   if (auto_generate_sql && auto_generate_sql_type[0] == 'k')
-    if ( auto_generate_sql_autoincrement == FALSE &&
-         auto_generate_sql_guid_primary == FALSE)
+    if ( auto_generate_sql_autoincrement == false &&
+         auto_generate_sql_guid_primary == false)
     {
       fprintf(stderr,
               "%s: Can't perform key test without a primary key!\n",
@@ -1246,7 +1247,7 @@ get_options(int *argc,char ***argv)
 
   if (opt_csv_str)
   {
-    opt_silent= TRUE;
+    opt_silent= true;
     
     if (opt_csv_str[0] == '-')
     {
@@ -1265,7 +1266,7 @@ get_options(int *argc,char ***argv)
   }
 
   if (opt_only_print)
-    opt_silent= TRUE;
+    opt_silent= true;
 
   if (num_int_cols_opt)
   {
@@ -1329,12 +1330,12 @@ get_options(int *argc,char ***argv)
       if (verbose >= 2)
         printf("Generating SELECT Statements for Auto\n");
 
-      query_statements= build_select_string(FALSE);
+      query_statements= build_select_string(false);
       for (ptr_statement= query_statements, x= 0; 
            x < auto_generate_sql_unique_query_number; 
            x++, ptr_statement= ptr_statement->next)
       {
-        ptr_statement->next= build_select_string(FALSE);
+        ptr_statement->next= build_select_string(false);
       }
     }
     else if (auto_generate_sql_type[0] == 'k')
@@ -1342,12 +1343,12 @@ get_options(int *argc,char ***argv)
       if (verbose >= 2)
         printf("Generating SELECT for keys Statements for Auto\n");
 
-      query_statements= build_select_string(TRUE);
+      query_statements= build_select_string(true);
       for (ptr_statement= query_statements, x= 0; 
            x < auto_generate_sql_unique_query_number; 
            x++, ptr_statement= ptr_statement->next)
       {
-        ptr_statement->next= build_select_string(TRUE);
+        ptr_statement->next= build_select_string(true);
       }
     }
     else if (auto_generate_sql_type[0] == 'w')
@@ -1397,7 +1398,7 @@ get_options(int *argc,char ***argv)
         }
         else
         {
-          ptr_statement->next= build_select_string(TRUE);
+          ptr_statement->next= build_select_string(true);
           coin= 1;
         }
       }

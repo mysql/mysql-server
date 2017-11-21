@@ -20,26 +20,31 @@
 
 #include "storage/perfschema/pfs_engine_table.h"
 
+#include <string.h>
+#include <algorithm>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_bitmap.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_macros.h"
-#include "my_thread.h"
+#include "my_sqlcommand.h"
+#include "myisampack.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/psi/psi_base.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/current_thd.h"
-#include "sql/derror.h"
-#include "sql/lock.h"  // MYSQL_LOCK_IGNORE_TIMEOUT
-#include "sql/log.h"
+#include "sql/field.h"
+#include "sql/handler.h"
 #include "sql/mysqld.h"    /* lower_case_table_names */
-#include "sql/sql_base.h"  // close_thread_tables
+#include "sql/plugin_table.h"
 #include "sql/sql_class.h"
-#include "storage/perfschema/pfs_buffer_container.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/table.h"
 /* For show status */
 #include "storage/perfschema/pfs_column_values.h"
-#include "storage/perfschema/pfs_digest.h"
-#include "storage/perfschema/pfs_global.h"
-#include "storage/perfschema/pfs_instr.h"
-#include "storage/perfschema/pfs_instr_class.h"
-#include "storage/perfschema/pfs_setup_actor.h"
-#include "storage/perfschema/pfs_setup_object.h"
 #include "storage/perfschema/table_accounts.h"
 #include "storage/perfschema/table_data_lock_waits.h"
 #include "storage/perfschema/table_data_locks.h"
@@ -93,7 +98,6 @@
 #include "storage/perfschema/table_os_global_by_type.h"
 #include "storage/perfschema/table_performance_timers.h"
 #include "storage/perfschema/table_persisted_variables.h"
-#include "storage/perfschema/table_plugin_table.h"
 #include "storage/perfschema/table_prepared_stmt_instances.h"
 #include "storage/perfschema/table_replication_applier_configuration.h"
 #include "storage/perfschema/table_replication_applier_filters.h"
@@ -133,6 +137,8 @@
 #include "storage/perfschema/table_uvar_by_thread.h"
 #include "storage/perfschema/table_variables_by_thread.h"
 #include "storage/perfschema/table_variables_info.h"
+#include "thr_lock.h"
+#include "thr_mutex.h"
 
 /* clang-format off */
 /**

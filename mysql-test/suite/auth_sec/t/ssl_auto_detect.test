@@ -24,13 +24,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 25
 
 --echo # Copy SSL certificates before restarting.
 --echo # They should be picked up automatically by server.
@@ -38,7 +32,7 @@ EOF
 --copy_file std_data/server-cert.pem $DATADIR_LOCATION/server-cert.pem
 --copy_file std_data/server-key.pem $DATADIR_LOCATION/server-key.pem
 
---exec echo "restart" > $restart_file
+--exec echo "restart: --log-error-verbosity=3" > $restart_file
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -82,13 +76,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 25
 
 --echo # Remove one of the certificates/keys.
 --remove_file $DATADIR_LOCATION/server-key.pem
@@ -125,7 +113,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 
 --copy_file std_data/server-key.pem $DATADIR_LOCATION/server-key.pem
 
---exec echo "restart: --ssl-cipher=DHE-RSA-AES256-SHA" > $restart_file
+--exec echo "restart: --ssl-cipher=DHE-RSA-AES256-SHA --log-error-verbosity=3 --console" > $restart_file
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect

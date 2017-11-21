@@ -365,7 +365,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     if (mysqld_server_started)
     {
       Persisted_variables_cache *pv= Persisted_variables_cache::get_instance();
-      if (pv && pv->set_persist_options(TRUE))
+      if (pv && pv->set_persist_options(true))
       {
         sql_print_error("Setting persistent options for component variable"
                         " '%s' failed.", com_sys_var_name);

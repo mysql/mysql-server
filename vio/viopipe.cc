@@ -29,7 +29,7 @@ static size_t wait_overlapped_result(Vio *vio, int timeout)
   if (wait_status == WAIT_OBJECT_0)
   {
     /* If retrieval fails, a error code will have been set. */
-    if (GetOverlappedResult(vio->hPipe, &vio->overlapped, &transferred, FALSE))
+    if (GetOverlappedResult(vio->hPipe, &vio->overlapped, &transferred, false))
       ret= transferred;
   }
   else
@@ -93,7 +93,7 @@ size_t vio_write_pipe(Vio *vio, const uchar *buf, size_t count)
 bool vio_is_connected_pipe(Vio *vio)
 {
   if (PeekNamedPipe(vio->hPipe, NULL, 0, NULL, NULL, NULL))
-    return TRUE;
+    return true;
   else
     return (GetLastError() != ERROR_BROKEN_PIPE);
 }

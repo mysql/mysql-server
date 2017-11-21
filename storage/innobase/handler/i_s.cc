@@ -970,7 +970,7 @@ i_s_cmp_fill_low(
 		table->field[5]->store(zip_stat->decompressed_usec / 1000000, true);
 
 		if (reset) {
-			memset(zip_stat, 0, sizeof *zip_stat);
+			new (zip_stat) page_zip_stat_t();
 		}
 
 		if (schema_table_store_record(thd, table)) {

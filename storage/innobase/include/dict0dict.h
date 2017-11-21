@@ -46,8 +46,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0rnd.h"
 #include "dict/dict.h"
 #include <deque>
-
-#ifndef UNIV_HOTBACKUP
 # include "sync0rw.h"
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
@@ -68,6 +66,7 @@ dict_get_db_name_len(
 	const char*	name)	/*!< in: table name in the form
 				dbname '/' tablename */
 	MY_ATTRIBUTE((warn_unused_result));
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Open a table from its database and table name, this is currently used by
 foreign constraint parser to get the referenced table.
@@ -99,6 +98,7 @@ dict_table_get_highest_foreign_id(
 /*==============================*/
 	dict_table_t*	table);		/*!< in: table in the dictionary
 					memory cache */
+#endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Return the end of table name where we have removed dbname and '/'.
 @return table name */
@@ -154,6 +154,7 @@ dict_persist_init(void);
 void
 dict_persist_close(void);
 
+#ifndef UNIV_HOTBACKUP
 /** Write back the dirty persistent dynamic metadata of the table
 to DDTableBuffer.
 @param[in,out]	table	table object */
@@ -196,6 +197,7 @@ dict_max_v_field_len_store_undo(
 	dict_table_t*		table,
 	ulint			col_no);
 
+#endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Gets the column number.
 @return col->ind, table column position (starting from 0) */
@@ -215,6 +217,7 @@ dict_col_get_clust_pos(
 	const dict_index_t*	clust_index)	/*!< in: clustered index */
 	MY_ATTRIBUTE((warn_unused_result));
 
+#ifndef UNIV_HOTBACKUP
 /** Gets the column position in the given index.
 @param[in]	col	table column
 @param[in]	index	index to be searched for column
@@ -229,7 +232,7 @@ dict_col_get_index_pos(
 /****************************************************************//**
 If the given column name is reserved for InnoDB system columns, return
 TRUE.
-@return TRUE if name is reserved */
+@return true if name is reserved */
 ibool
 dict_col_name_is_reserved(
 /*======================*/
@@ -354,7 +357,7 @@ dict_table_remove_from_cache_debug(
 
 /**********************************************************************//**
 Renames a table object.
-@return TRUE if success */
+@return true if success */
 dberr_t
 dict_table_rename_in_cache(
 /*=======================*/
@@ -413,7 +416,7 @@ dict_foreign_add_to_cache(
 	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Checks if a table is referenced by foreign keys.
-@return TRUE if table is referenced by a foreign key */
+@return true if table is referenced by a foreign key */
 ibool
 dict_table_is_referenced_by_foreign_key(
 /*====================================*/
@@ -476,6 +479,7 @@ dict_foreign_parse_drop_constraints(
 	const char***	constraints_to_drop)	/*!< out: id's of the
 						constraints to drop */
 	MY_ATTRIBUTE((warn_unused_result));
+#endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**
 Returns a table object and increments its open handle count.
 NOTE! This is a high-level function to be used mainly from outside the
@@ -594,7 +598,6 @@ dict_foreign_qualify_index(
 					the columns must be declared
 					NOT NULL */
 	MY_ATTRIBUTE((warn_unused_result));
-#endif /* !UNIV_HOTBACKUP */
 
 /* Skip corrupted index */
 #define dict_table_skip_corrupt_index(index)			\
@@ -766,7 +769,7 @@ dict_table_get_sys_col_no(
 	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Check whether the table uses the compact page format.
-@return TRUE if table uses the compact page format */
+@return true if table uses the compact page format */
 UNIV_INLINE
 ibool
 dict_table_is_comp(
@@ -783,6 +786,7 @@ dict_table_has_atomic_blobs(
 	const dict_table_t*	table)
 	MY_ATTRIBUTE((warn_unused_result));
 
+#ifndef UNIV_HOTBACKUP
 /** Set the various values in a dict_table_t::flags pointer.
 @param[in,out]	flags		Pointer to a 4 byte Table Flags
 @param[in]	format		File Format
@@ -840,6 +844,7 @@ const page_size_t
 dict_tf_get_page_size(
 	ulint	flags)
 MY_ATTRIBUTE((const));
+#endif /* !UNIV_HOTBACKUP */
 
 /** Determine the extent size (in pages) for the given table
 @param[in]	table	the table whose extent size is being
@@ -875,10 +880,11 @@ void
 dict_table_x_unlock_indexes(
 /*========================*/
 	dict_table_t*	table);	/*!< in: table */
+#endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Checks if a column is in the ordering columns of the clustered index of a
 table. Column prefixes are treated like whole columns.
-@return TRUE if the column, or its prefix, is in the clustered key */
+@return true if the column, or its prefix, is in the clustered key */
 ibool
 dict_table_col_in_clustered_key(
 /*============================*/
@@ -887,7 +893,7 @@ dict_table_col_in_clustered_key(
 	MY_ATTRIBUTE((warn_unused_result));
 /*******************************************************************//**
 Check if the table has an FTS index.
-@return TRUE if table has an FTS index */
+@return true if table has an FTS index */
 UNIV_INLINE
 ibool
 dict_table_has_fts_index(
@@ -912,6 +918,7 @@ dict_table_copy_types(
 /*==================*/
 	dtuple_t*		tuple,	/*!< in/out: data tuple */
 	const dict_table_t*	table);	/*!< in: table */
+#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Wait until all the background threads of the given table have exited, i.e.,
 bg_threads == 0. Note: bg_threads_mutex must be reserved when
@@ -1052,7 +1059,7 @@ dict_index_get_n_ordering_defined_by_user(
 	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Returns TRUE if the index contains a column or a prefix of that column.
-@return TRUE if contains the column or its prefix */
+@return true if contains the column or its prefix */
 ibool
 dict_index_contains_col_or_prefix(
 /*==============================*/
@@ -1095,7 +1102,6 @@ dict_table_mysql_pos_to_innodb(
 	const dict_table_t*	table,
 	ulint			n);
 
-#ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Copies types of fields contained in index to tuple. */
 void
@@ -1109,7 +1115,7 @@ dict_index_copy_types(
 /**********************************************************************//**
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
 no comparison can occur with the page number field in a node pointer.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dict_index_check_search_tuple(
 /*==========================*/
@@ -1284,6 +1290,7 @@ void
 dict_mutex_exit_for_mysql(void);
 /*===========================*/
 
+#ifndef UNIV_HOTBACKUP
 /** Create a dict_table_t's stats latch or delay for lazy creation.
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
@@ -1321,7 +1328,7 @@ dict_table_stats_unlock(
 
 /********************************************************************//**
 Checks if the database name in two table names is the same.
-@return TRUE if same db name */
+@return true if same db name */
 ibool
 dict_tables_have_same_db(
 /*=====================*/
@@ -1435,14 +1442,17 @@ and unique key errors */
 extern FILE*		dict_foreign_err_file;
 extern ib_mutex_t	dict_foreign_err_mutex; /* mutex protecting the
 						foreign key error messages */
+#endif /* !UNIV_HOTBACKUP */
 
 /** the dictionary system */
 extern dict_sys_t*	dict_sys;
+#ifndef UNIV_HOTBACKUP
 /** the data dictionary rw-latch protecting dict_sys */
 extern rw_lock_t*	dict_operation_lock;
 
 /** Forward declaration */
 class DDTableBuffer;
+#endif /* !UNIV_HOTBACKUP */
 struct dict_persist_t;
 
 /** the dictionary persisting structure */
@@ -1450,6 +1460,7 @@ extern dict_persist_t*	dict_persist;
 
 /* Dictionary system struct */
 struct dict_sys_t{
+#ifndef UNIV_HOTBACKUP
 	DictSysMutex	mutex;		/*!< mutex protecting the data
 					dictionary; protects also the
 					disk-based dictionary system tables;
@@ -1457,6 +1468,7 @@ struct dict_sys_t{
 					and DROP TABLE, as well as reading
 					the dictionary data for a table from
 					system tables */
+#endif /* !UNIV_HOTBACKUP */
 	row_id_t	row_id;		/*!< the next row id to assign;
 					NOTE that at a checkpoint this
 					must be written to the dict system
@@ -1634,14 +1646,16 @@ struct dict_persist_t {
 	It's protected by the mutex */
 	std::atomic<uint32_t>	num_dirty_tables;
 
+#ifndef UNIV_HOTBACKUP
 	/** DDTableBuffer table for persistent dynamic metadata */
 	DDTableBuffer*	table_buffer;
+#endif /* !UNIV_HOTBACKUP */
 
 	/** Collection of instances to persist dynamic metadata */
 	Persisters*	persisters;
 };
-#endif /* !UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
 /** dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
 extern dict_index_t*	dict_ind_redundant;
 
@@ -1817,6 +1831,7 @@ dirty_dict_tables list if necessary.
 void
 dict_table_mark_dirty(
 	dict_table_t*	table);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Flags an index corrupted in the data dictionary cache only. This
 is used to mark a corrupted index when index's own dictionary
@@ -1832,6 +1847,7 @@ dict_set_corrupted(
 	dict_index_t*	index)
 	UNIV_COLD;
 
+#ifndef UNIV_HOTBACKUP
 /** Check if there is any latest persistent dynamic metadata recorded
 in DDTableBuffer table of the specific table. If so, read the metadata and
 update the table object accordingly
@@ -1846,6 +1862,7 @@ write dirty persistent data of table to DD TABLE BUFFER table accordingly
 possibly be done */
 bool
 dict_persist_to_dd_table_buffer(void);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Apply the persistent dynamic metadata read from redo logs or
 DDTableBuffer to corresponding table during recovery.
@@ -1865,6 +1882,7 @@ mysql.innodb_dynamic_metadata
 uint64_t
 dict_persist_log_margin();
 
+#ifndef UNIV_HOTBACKUP
 /** Sets merge_threshold in the SYS_INDEXES
 @param[in,out]	index		index
 @param[in]	merge_threshold	value to set */
@@ -1983,7 +2001,6 @@ trx_id_t
 dict_table_get_curr_table_sess_trx_id(
 	const dict_table_t*	table);
 
-#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 This function should be called whenever a page is successfully
 compressed. Updates the compression padding information. */
@@ -2033,6 +2050,7 @@ dict_index_t*
 dict_table_get_index_on_first_col(
 	dict_table_t*		table,
 	ulint			col_index);
+#endif /* !UNIV_HOTBACKUP */
 
 /** encode number of columns and number of virtual columns in one
 4 bytes value. We could do this because the number of columns in
@@ -2233,7 +2251,6 @@ an earlier upgrade. This will update the table_id by adding DICT_MAX_DD_TABLES *
 void
 dict_table_change_id_sys_tables();
 
-#endif /* !UNIV_HOTBACKUP */
 
 #include "dict0dict.ic"
 

@@ -76,6 +76,7 @@ Routine_event_context_guard::~Routine_event_context_guard()
   m_thd->variables.time_zone= m_saved_time_zone;
 }
 
-
+bool Bootstrap_error_handler::m_log_error= true;
+bool Bootstrap_error_handler::abort_on_error= false;
 } // namespace upgrade
 } // namespace dd

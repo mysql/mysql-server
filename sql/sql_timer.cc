@@ -53,9 +53,7 @@ struct THD_timer_info
   bool destroy;
 };
 
-C_MODE_START
 static void timer_callback(my_timer_t *);
-C_MODE_END
 
 /**
   Allocate and initialize a thread timer object.

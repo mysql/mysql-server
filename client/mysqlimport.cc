@@ -26,6 +26,7 @@
 #include <time.h>
 
 #include "client/client_priv.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
@@ -262,7 +263,7 @@ get_one_option(int optid, const struct my_option *opt,
     break;
 #endif
   case OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
+    using_opt_enable_cleartext_plugin= true;
     break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
@@ -634,11 +635,11 @@ int main(int argc, char **argv)
   int error=0;
   MY_INIT(argv[0]);
 
-  my_getopt_use_args_separator= TRUE;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  my_getopt_use_args_separator= true;
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   if (load_defaults("my",load_default_groups,&argc,&argv,&alloc))
     return 1;
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= false;
 
   if (get_options(&argc, &argv))
   {

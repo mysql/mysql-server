@@ -26,8 +26,6 @@ Code used for calculating and manipulating table statistics.
 Created Jan 06, 2010 Vasil Dimov
 *******************************************************/
 
-#ifndef UNIV_HOTBACKUP
-
 #include <mysql_com.h>
 #include <algorithm>
 #include <map>
@@ -4015,5 +4013,3 @@ test_dict_stats_all()
 
 #endif /* UNIV_ENABLE_UNIT_TEST_DICT_STATS */
 /* @} */
-
-#endif /* UNIV_HOTBACKUP */

@@ -33,6 +33,7 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/psi_base.h"
@@ -50,6 +51,7 @@
 #include "sql/dd/types/column.h"              // dd::enum_column_types
 #include "sql/dd/types/column_type_element.h" // dd::Column_type_element
 #include "sql/dd/types/foreign_key.h"
+#include "sql/dd/types/foreign_key_element.h" // dd::Foreign_key_element
 #include "sql/dd/types/index.h"               // dd::Index
 #include "sql/dd/types/index_element.h"       // dd::Index_element
 #include "sql/dd/types/partition.h"           // dd::Partition
@@ -76,6 +78,7 @@
 #include "sql/strfunc.h"                      // lex_cstring_handle
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "typelib.h"
 
 namespace histograms {
@@ -575,7 +578,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_d
     // OOM error message already reported
     return true; /* purecov: inspected */
   }
-  bitmap_init(&share->all_set, bitmaps, share->fields, FALSE);
+  bitmap_init(&share->all_set, bitmaps, share->fields, false);
   bitmap_set_all(&share->all_set);
 
   return false;
@@ -2072,7 +2075,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   case dd::Table::PT_AUTO:
     part_info->key_algorithm= enum_key_algorithm::KEY_ALGORITHM_55;
     part_info->part_type= partition_type::HASH;
-    part_info->list_of_part_fields= TRUE;
+    part_info->list_of_part_fields= true;
     part_info->is_auto_partitioned= true;
     share->auto_partitioned= true;
     break;
@@ -2329,6 +2332,37 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
                                 fk->referenced_table_name().length(),
                                 false))
         return true;
+      if (!make_lex_string_root(&share->mem_root,
+                                &share->foreign_key[i].unique_constraint_name,
+                                fk->unique_constraint_name().c_str(),
+                                fk->unique_constraint_name().length(),
+                                false))
+        return true;
+
+      share->foreign_key[i].update_rule= fk->update_rule();
+      share->foreign_key[i].delete_rule= fk->delete_rule();
+
+      share->foreign_key[i].columns= fk->elements().size();
+      if (!(share->foreign_key[i].column_name= (LEX_CSTRING*)
+                       alloc_root(&share->mem_root,
+                                  share->foreign_key[i].columns *
+                                  sizeof(LEX_CSTRING))))
+        return true;
+
+      uint j= 0;
+
+      for (const dd::Foreign_key_element *fk_el : fk->elements())
+      {
+        if (!make_lex_string_root(&share->mem_root,
+                                  &share->foreign_key[i].column_name[j],
+                                  fk_el->column().name().c_str(),
+                                  fk_el->column().name().length(),
+                                  false))
+          return true;
+
+        ++j;
+      }
+
       ++i;
     }
   }

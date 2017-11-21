@@ -44,6 +44,3 @@ EXPORTS
   my_median_add
   my_median_clear
   my_median
-  my_cpp11_re_match_init
-  my_cpp11_re_match_deinit
-  my_cpp11_re_match

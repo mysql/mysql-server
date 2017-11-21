@@ -172,7 +172,11 @@ void Expression_generator::generate(const Mysqlx::Expr::FunctionCall &arg)
     const {
   generate(arg.name(), true);
   m_qb->put("(");
-  generate_for_each(arg.param(), &Expression_generator::generate_unquote_param);
+  if (is_native_mysql_json_function(arg.name().name()))
+    generate_for_each(arg.param(), &Expression_generator::generate);
+  else
+    generate_for_each(arg.param(),
+                      &Expression_generator::generate_unquote_param);
   m_qb->put(")");
 }
 
@@ -209,7 +213,7 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Scalar &arg)
 
     case Mysqlx::Datatypes::Scalar::V_STRING:
       if (arg.v_string().has_collation()) {
-        // TODO handle _utf8'string' type charset specification... but 1st
+        // TODO(bob) handle _utf8'string' type charset specification... but 1st
         // validate charset for alnum_
         // m_qb->put("_").put(arg.v_string().charset());
       }
@@ -303,7 +307,7 @@ void Expression_generator::generate_for_each(
     const typename ::google::protobuf::RepeatedPtrField<T>::size_type offset)
     const {
   if (list.size() == 0) return;
-  typedef typename ::google::protobuf::RepeatedPtrField<T>::const_iterator It;
+  using It = typename ::google::protobuf::RepeatedPtrField<T>::const_iterator;
   It end = list.end() - 1;
   for (It i = list.begin() + offset; i != end; ++i) {
     (this->*generate_fun)(*i);
@@ -379,7 +383,6 @@ inline bool is_cast_to_json(const Mysqlx::Expr::Operator &arg) {
 }
 
 inline bool is_json_function_call(const Mysqlx::Expr::FunctionCall &arg) {
-
   return arg.has_name() && arg.name().has_name() &&
          does_return_json_mysql_function(arg.name().name());
 }
@@ -645,10 +648,9 @@ void Expression_generator::binary_expression(const Mysqlx::Expr::Operator &arg,
 }
 
 namespace {
-typedef ngs::function<void(const Expression_generator *,
-                           const Mysqlx::Expr::Operator &)> Operator_ptr;
-
-typedef std::pair<const char *const, Operator_ptr> Operator_bind;
+using Operator_ptr = ngs::function<
+    void(const Expression_generator *, const Mysqlx::Expr::Operator &)>;
+using Operator_bind = std::pair<const char *const, Operator_ptr>;
 
 struct Is_operator_less {
   bool operator()(const Operator_bind &pattern,

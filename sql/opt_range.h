@@ -40,7 +40,6 @@
 #include "sql/key_spec.h"
 #include "sql/malloc_allocator.h" // IWYU pragma: keep
 #include "sql/records.h"      // READ_RECORD
-#include "sql/sql_alloc.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
@@ -71,7 +70,8 @@ struct KEY_PART
 };
 
 
-class QUICK_RANGE :public Sql_alloc {
+class QUICK_RANGE
+{
 public:
   uchar *min_key,*max_key;
   uint16 min_length,max_length;
@@ -217,7 +217,7 @@ public:
     delete quick;
   
   NOTE 
-    quick select doesn't use Sql_alloc/MEM_ROOT allocation because "range
+    quick select doesn't use MEM_ROOT allocation because "range
     checked for each record" functionality may create/destroy
     O(#records_in_some_table) quick selects during query execution.
     See Bug#18684036 ELIMINATE LAST FEW HEAP USAGE FROM THE

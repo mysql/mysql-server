@@ -283,7 +283,7 @@ struct fts_word_freq_t {
 
 /********************************************************************
 Callback function to fetch the rows in an FTS INDEX record.
-@return always TRUE */
+@return always true */
 static
 ibool
 fts_query_index_fetch_nodes(
@@ -324,7 +324,7 @@ fts_ast_visit_sub_exp(
 #if 0
 /*****************************************************************//***
 Find a doc_id in a word's ilist.
-@return TRUE if found. */
+@return true if found. */
 static
 ibool
 fts_query_find_doc_id(
@@ -354,7 +354,7 @@ This function finds documents that contain all words in a
 phrase or proximity search. And if proximity search, verify
 the words are close enough to each other, as in specified distance.
 This function is called for phrase and proximity search.
-@return TRUE if documents are found, FALSE if otherwise */
+@return true if documents are found, false if otherwise */
 static
 ibool
 fts_phrase_or_proximity_search(
@@ -1599,7 +1599,7 @@ fts_query_skip_word(
 
 /*****************************************************************//**
 Check whether the remaining terms in the phrase match the text.
-@return TRUE if matched else FALSE */
+@return true if matched else false */
 static
 ibool
 fts_query_match_phrase_terms(
@@ -1817,7 +1817,7 @@ fts_query_match_phrase_add_word_for_parser(
 
 /*****************************************************************//**
 Check whether the terms in the phrase match the text.
-@return TRUE if matched else FALSE */
+@return true if matched else false */
 static
 ibool
 fts_query_match_phrase_terms_by_parser(
@@ -1855,7 +1855,7 @@ fts_query_match_phrase_terms_by_parser(
 @param[in]	cur_len		length of text
 @param[in]	prev_len	total length for searched doc fields
 @param[in]	heap		heap
-@return TRUE if matched else FALSE */
+@return true if matched else false */
 static
 ibool
 fts_query_match_phrase(
@@ -3144,7 +3144,7 @@ fts_ast_visit_sub_exp(
 #if 0
 /*****************************************************************//***
 Check if the doc id exists in the ilist.
-@return TRUE if doc id found */
+@return true if doc id found */
 static
 ulint
 fts_query_find_doc_id(
@@ -3462,7 +3462,7 @@ fts_query_read_node(
 
 /*****************************************************************//**
 Callback function to fetch the rows in an FTS INDEX record.
-@return always returns TRUE */
+@return always returns true */
 static
 ibool
 fts_query_index_fetch_nodes(
@@ -4397,7 +4397,7 @@ This function finds documents that contain all words in a
 phrase or proximity search. And if proximity search, verify
 the words are close enough to each other, as in specified distance.
 This function is called for phrase and proximity search.
-@return TRUE if documents are found, FALSE if otherwise */
+@return true if documents are found, false if otherwise */
 static
 ibool
 fts_phrase_or_proximity_search(

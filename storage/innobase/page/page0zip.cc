@@ -55,12 +55,14 @@ const byte field_ref_zero[FIELD_REF_SIZE] = {
 # include "lock0lock.h"
 # include "srv0mon.h"
 # include "srv0srv.h"
-# include "ut0crc32.h"
-#else /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
+#include "ut0crc32.h"
+#ifdef UNIV_HOTBACKUP
 # include "buf0checksum.h"
 
 # define lock_move_reorganize_page(block, temp_block)	((void) 0)
 # define buf_LRU_stat_inc_unzip()			((void) 0)
+# define MONITOR_INC(x)					((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
 #include <algorithm>
@@ -95,7 +97,6 @@ Compare at most sizeof(field_ref_zero) bytes.
 #define ASSERT_ZERO_BLOB(b) \
 	ut_ad(!memcmp(b, field_ref_zero, sizeof field_ref_zero))
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Determine the guaranteed free space on an empty page.
 @return minimum payload size on the page */
@@ -167,7 +168,6 @@ page_zip_is_too_big(
 
 	return(false);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************//**
 Gets a pointer to the compressed page trailer (the dense page directory),
@@ -1028,7 +1028,7 @@ func_exit:
 
 /**********************************************************************//**
 Compress a page.
-@return TRUE on success, FALSE on failure; page_zip will be left
+@return true on success, false on failure; page_zip will be left
 intact on failure. */
 ibool
 page_zip_compress(
@@ -1066,11 +1066,13 @@ page_zip_compress(
 #ifdef PAGE_ZIP_COMPRESS_DBG
 	FILE*			logfile = NULL;
 #endif
+#ifndef UNIV_HOTBACKUP
 	/* A local copy of srv_cmp_per_index_enabled to avoid reading that
 	variable multiple times in this function since it can be changed at
 	anytime. */
 	bool			cmp_per_index_enabled;
 	cmp_per_index_enabled	= srv_cmp_per_index_enabled;
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_a(page_is_comp(page));
 	ut_a(fil_page_index_page_check(page));
@@ -1390,7 +1392,7 @@ err_exit:
 Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
 inconsistency is detected.
-@return TRUE on success, FALSE on failure */
+@return true on success, false on failure */
 ibool
 page_zip_decompress(
 /*================*/
@@ -1474,9 +1476,12 @@ page_zip_hexdump_func(
 /** Flag: make page_zip_validate() compare page headers only */
 ibool	page_zip_validate_header_only = FALSE;
 
+#define page_zip_fail(fmt_args) page_zip_fail_func fmt_args
+int page_zip_fail_func(const char* fmt, ...);
+
 /**********************************************************************//**
 Check that the compressed and decompressed pages match.
-@return TRUE if valid, FALSE if not */
+@return true if valid, false if not */
 ibool
 page_zip_validate_low(
 /*==================*/
@@ -1673,7 +1678,7 @@ func_exit:
 
 /**********************************************************************//**
 Check that the compressed and decompressed pages match.
-@return TRUE if valid, FALSE if not */
+@return true if valid, false if not */
 ibool
 page_zip_validate(
 /*==============*/
@@ -1689,7 +1694,7 @@ page_zip_validate(
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Assert that the compressed and decompressed page headers match.
-@return TRUE */
+@return true */
 static
 ibool
 page_zip_header_cmp(
@@ -2079,13 +2084,13 @@ The information must already have been updated on the uncompressed page. */
 void
 page_zip_write_blob_ptr(
 /*====================*/
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
-	const byte*	rec,	/*!< in/out: record whose data is being
-				written */
-	dict_index_t*	index,	/*!< in: index of the page */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	ulint		n,	/*!< in: column index */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle,
+	page_zip_des_t*		page_zip,/*!< in/out: compressed page */
+	const byte*		rec,	/*!< in/out: record whose data is being
+					written */
+	const dict_index_t*	index,	/*!< in: index of the page */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	ulint			n,	/*!< in: column index */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle,
 				or NULL if no logging is needed */
 {
 	const byte*	field;
@@ -2824,7 +2829,7 @@ IMPORTANT: if page_zip_reorganize() is invoked on a leaf page of a
 non-clustered index, the caller must update the insert buffer free
 bits in the same mini-transaction in such a way that the modification
 will be redo-logged.
-@return TRUE on success, FALSE on failure; page_zip will be left
+@return true on success, false on failure; page_zip will be left
 intact on failure, but page will be overwritten. */
 ibool
 page_zip_reorganize(
@@ -2844,7 +2849,9 @@ page_zip_reorganize(
 	buf_block_t*	temp_block;
 	page_t*		temp_page;
 
+#ifndef UNIV_HOTBACKUP
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+#endif /* !UNIV_HOTBACKUP */
 	ut_ad(page_is_comp(page));
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(!index->table->is_temporary());
@@ -2859,7 +2866,6 @@ page_zip_reorganize(
 	temp_block = buf_block_alloc(buf_pool);
 	btr_search_drop_page_hash_index(block);
 #else /* !UNIV_HOTBACKUP */
-	ut_ad(block == back_block1);
 	temp_block = back_block2;
 #endif /* !UNIV_HOTBACKUP */
 	temp_page = temp_block->frame;

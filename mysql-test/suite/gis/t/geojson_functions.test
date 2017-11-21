@@ -873,15 +873,18 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "    ]                                                  "
 "  }"));
 
---echo # Checking that E notation is supported
+--echo # Checking that E notation is supported.
+# Force SRID 0 to avoid coordinate range check.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
-  "{ \"type\": \"Point\", \"coordinates\": [1.23e3, 2.2e-1]}"));
+  "{ \"type\": \"Point\", \"coordinates\": [1.23e3, 2.2e-1]}", 1, 0));
 
+# Force SRID 0 to avoid coordinate range check.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
-  "{ \"type\": \"Point\", \"coordinates\": [1e-300, 1e300]}"));
+  "{ \"type\": \"Point\", \"coordinates\": [1e-300, 1e300]}", 1, 0));
 
+# Force SRID 0 to avoid coordinate range check.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
-  "{ \"type\": \"Point\", \"coordinates\": [1.7976931348623157E+308, -1.7976931348623157E+308]}"));
+  "{ \"type\": \"Point\", \"coordinates\": [1.7976931348623157E+308, -1.7976931348623157E+308]}", 1, 0));
 
 --echo # Checking for NULL arguments and GeoJSON null objects
 SELECT ST_GEOMFROMGEOJSON(NULL);
@@ -1904,7 +1907,7 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "        }                                                      "
 "  }", 1));
 
---error ER_INVALID_GEOJSON_UNSPECIFIED
+--error ER_INVALID_GEOJSON_CRS_NOT_TOP_LEVEL
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"GeometryCollection\", \"geometries\":    "
 "    [                                                    "
@@ -1917,7 +1920,7 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "        ],                                               "
 "        \"crs\":                                         "
 "          { \"type\": \"name\", \"properties\":          "
-"            { \"name\": \"urn:ogc:def:crs:EPSG::1\" }    "
+"            { \"name\": \"urn:ogc:def:crs:EPSG::2000\" } "
 "          }                                              "
 "      },                                                 "
 "      { \"type\": \"LineString\", \"coordinates\":       "
@@ -1929,7 +1932,7 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "        ],                                               "
 "        \"crs\":                                         "
 "          { \"type\": \"name\", \"properties\":          "
-"            { \"name\": \"urn:ogc:def:crs:EPSG::10\" }   "
+"            { \"name\": \"urn:ogc:def:crs:EPSG::4326\" } "
 "          }                                              "
 "      }                                                  "
 "    ]                                                    "
@@ -2431,9 +2434,11 @@ SELECT ST_GEOMFROMGEOJSON("{ \"\\u06FF\" }");
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT ST_GEOMFROMGEOJSON("{ \"\\uFFFF\" }");
 
-SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [4294967295, 9223372036854775807] }"));
+# Force SRID 0 to avoid coordinate range check.
+SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [4294967295, 9223372036854775807] }", 1, 0));
 
-SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }"));
+# Force SRID 0 to avoid coordinate range check.
+SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }", 1, 0));
 
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT ST_AsGeoJSON(ST_GeomFromGeoJSON('{"type":"Point","coordinates":[2e308,-0]}'));
@@ -3039,9 +3044,11 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)")
 
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(-10 -11)"), 5, 1)));
 
-SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E+308)"), 100, 2)));
+# Force SRID 0 to avoid coordinate range check.
+SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E+308)"), 100, 2), 1, 0));
 
-SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E-308 1.7976931348623157E-308)"), 100, 3)));
+# Force SRID 0 to avoid coordinate range check.
+SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E-308 1.7976931348623157E-308)"), 100, 3), 1, 0));
 
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("LINESTRING(30 10, 10 30, 40 40)"), 10, 4)));
 
@@ -3059,9 +3066,10 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOINT(0 0
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRING((10 10, 20 20, 10 40),"
                                     "(40 40, 30 30, 40 20, 30 10))"))));
 
+# Force SRID 0 to avoid coordinate range check.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRING((10 10, 20 20, 10 40),"
                                     "(40 40, 30 30, 40 20, 30 10),"
-                                    "(10 10, 20 20, 50 50, 100 100))"))));
+                                    "(10 10, 20 20, 50 50, 100 100))")), 1, 0));
 
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
                                     "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35)))"))));
@@ -3076,12 +3084,13 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLEC
 
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))"))));
 
+# Force SRID 0 to avoid coordinate range check.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION( "
                                     "GEOMETRYCOLLECTION(POINT(10 20)),"
                                     "GEOMETRYCOLLECTION(LINESTRING(0 0, 100 100)),"
                                     "GEOMETRYCOLLECTION(POLYGON((0 0, 0 10, 10 10, 0 0)))"
                                     ")"
-                                  ))));
+                                  )), 1, 0));
 
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION( "
                                     "POINT(4 6),"
@@ -3508,14 +3517,17 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "    ]                                                  "
 "  }"));
 
+# Force SRID 0 to avoid coordinate range check.
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-  "{ \"type\": \"Point\", \"coordinates\": [1.23e3, 2.2e-1]}"));
+  "{ \"type\": \"Point\", \"coordinates\": [1.23e3, 2.2e-1]}", 1, 0));
 
+# Force SRID 0 to avoid coordinate range check.
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-  "{ \"type\": \"Point\", \"coordinates\": [1e-300, 1e300]}"));
+  "{ \"type\": \"Point\", \"coordinates\": [1e-300, 1e300]}", 1, 0));
 
+# Force SRID 0 to avoid coordinate range check.
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-  "{ \"type\": \"Point\", \"coordinates\": [1.7976931348623157E+308, -1.7976931348623157E+308]}"));
+  "{ \"type\": \"Point\", \"coordinates\": [1.7976931348623157E+308, -1.7976931348623157E+308]}", 1, 0));
 
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
   "{ \"type\": \"Point\", \"coordinates\": [10, 20] }"));
@@ -3810,7 +3822,7 @@ CREATE TABLE geojson(
 INSERT INTO geojson (geojson_value) VALUES
 (ST_AsGeoJSON(ST_GeomFromText('POINT(10 11)', 4326), 100, 2)),
 (ST_AsGeoJSON(ST_GeomFromText('POINT(-1.324 66.231)', 0), 100, 2)),
-(ST_AsGeoJSON(ST_GeomFromText('POINT(98.344 -123.001)', 0), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(98.344 -23.001)', 0), 100, 2)),
 (ST_AsGeoJSON(ST_GeomFromText('POINT(0.0 0.0)', 0), 100, 2));
 
 SELECT ST_AsText(ST_GeomFromGeoJSON(geojson_value)) FROM geojson;
@@ -3937,3 +3949,142 @@ VALUES (22222222, 1, 'TEST22222222', 'Foo', 22222222, 'FOOBAR', '');
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 22222222));
 
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 22222222;
+
+--echo #
+--echo # Bug #26941370 ST_GEOMFROMGEOJSON ALLOWS OUT-OF-RANGE COORDINATES
+--echo #
+
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_AsText(
+  ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[-180.0, 0.0]}')
+);
+
+SELECT ST_AsText(
+  ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[-179.99999999999, 0.0]}')
+);
+
+SELECT ST_AsText(
+  ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[180.0, 0.0]}')
+);
+
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_AsText(
+  ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[180.000000000001, 0.0]}')
+);
+
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_AsText(
+  ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[0.0, -90.000000000001]}')
+);
+
+SELECT ST_AsText(
+  ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[0.0, -90.0]}')
+);
+
+SELECT ST_AsText(
+  ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[0.0, 90.0]}')
+);
+
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_AsText(
+  ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[0.0, 90.0000000000001]}')
+);
+
+SELECT ST_SRID(ST_GEOMFROMGEOJSON(
+"  {   \"type\": \"FeatureCollection\",                 "
+"      \"features\":                                    "
+"    [                                                  "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        { \"type\": \"Point\", \"coordinates\":        "
+"          [-80.83775386582222, 35.24980190252168]      "
+"        },                                             "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"name\": \"DOUBLE OAKS CENTER\",            "
+"          \"address\": \"1326 WOODWARD AV\"            "
+"        }                                              "
+"      },                                               "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        { \"type\": \"Point\", \"coordinates\":        "
+"          [-80.83827000459532, 35.25674709224663]      "
+"        },                                             "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"name\": \"DOUBLE OAKS NEIGHBORHOOD PARK\", "
+"          \"address\": \"2605  DOUBLE OAKS RD\"        "
+"        }                                              "
+"      },                                               "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        null,                                          "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"descr\": \"A NULL/EMPTY POINT\"            "
+"        }                                              "
+"      },                                               "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        { \"type\": \"Point\",                         "
+"          \"crs\":                                     "
+"            { \"type\": \"name\", \"properties\":      "
+"              { \"name\": \"EPSG:4326\" }              "
+"            },                                         "
+"          \"coordinates\":                             "
+"          [-87.83827000459532, 42.0]                   "
+"        },                                             "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"name\": \"DOUBLE OAKS NEIGHBORHOOD PARK\", "
+"          \"address\": \"2605  DOUBLE OAKS RD\"        "
+"        }                                              "
+"      }                                                "
+"    ]                                                  "
+"  }")) AS srid;
+
+--error ER_INVALID_GEOJSON_CRS_NOT_TOP_LEVEL
+SELECT ST_SRID(ST_GEOMFROMGEOJSON(
+"  {   \"type\": \"FeatureCollection\",                 "
+"      \"features\":                                    "
+"    [                                                  "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        { \"type\": \"Point\", \"coordinates\":        "
+"          [-80.83775386582222, 35.24980190252168]      "
+"        },                                             "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"name\": \"DOUBLE OAKS CENTER\",            "
+"          \"address\": \"1326 WOODWARD AV\"            "
+"        }                                              "
+"      },                                               "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        { \"type\": \"Point\", \"coordinates\":        "
+"          [-80.83827000459532, 35.25674709224663]      "
+"        },                                             "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"name\": \"DOUBLE OAKS NEIGHBORHOOD PARK\", "
+"          \"address\": \"2605  DOUBLE OAKS RD\"        "
+"        }                                              "
+"      },                                               "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        null,                                          "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"descr\": \"A NULL/EMPTY POINT\"            "
+"        }                                              "
+"      },                                               "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        { \"type\": \"Point\",                         "
+"          \"crs\":                                     "
+"            { \"type\": \"name\", \"properties\":      "
+"              { \"name\": \"EPSG:2000\" }              "
+"            },                                         "
+"          \"coordinates\":                             "
+"          [-87.83827000459532, 42.0]                   "
+"        },                                             "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"name\": \"DOUBLE OAKS NEIGHBORHOOD PARK\", "
+"          \"address\": \"2605  DOUBLE OAKS RD\"        "
+"        }                                              "
+"      }                                                "
+"    ]                                                  "
+"  }")) AS srid;

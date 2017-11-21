@@ -30,7 +30,6 @@
 #include "my_inttypes.h"
 #include "sql/item.h"
 #include "sql/records.h"           // READ_RECORD
-#include "sql/sql_alloc.h"
 #include "sql/sql_class.h"         // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h" // QEP_shared_owner
@@ -102,7 +101,7 @@ typedef enum_nested_loop_state
   the tuple.
 */
 
-class SJ_TMP_TABLE : public Sql_alloc
+class SJ_TMP_TABLE
 {
 public:
   SJ_TMP_TABLE():hash_field(NULL)
@@ -123,7 +122,7 @@ public:
   TAB *tabs_end;
   
   /* 
-    is_confluent==TRUE means this is a special case where the temptable record
+    is_confluent==true means this is a special case where the temptable record
     has zero length (and presence of a unique key means that the temptable can
     have either 0 or 1 records). 
     In this case we don't create the physical temptable but instead record
@@ -132,7 +131,7 @@ public:
   bool is_confluent;
 
   /* 
-    When is_confluent==TRUE: the contents of the table (whether it has the
+    When is_confluent==true: the contents of the table (whether it has the
     record or not).
   */
   bool have_confluent_row;
@@ -164,7 +163,7 @@ public:
    - Description of expressions selected from subquery
    - The sj-materialization temporary table
 */
-class Semijoin_mat_exec : public Sql_alloc
+class Semijoin_mat_exec
 {
 public:
   Semijoin_mat_exec(TABLE_LIST *sj_nest, bool is_scan, uint table_count,
@@ -176,7 +175,7 @@ public:
   ~Semijoin_mat_exec()
   {}
   TABLE_LIST *const sj_nest;    ///< Semi-join nest for this materialization
-  const bool is_scan;           ///< TRUE if executing a scan, FALSE if lookup
+  const bool is_scan;           ///< true if executing a scan, false if lookup
   const uint table_count;       ///< Number of tables in the sj-nest
   const uint mat_table_index;   ///< Index in join_tab for materialized table
   const uint inner_table_index; ///< Index in join_tab for first inner table
@@ -203,7 +202,7 @@ public:
   being cached, QEP_tmp_buffer is attached to a tmp table.
 */
 
-class QEP_operation :public Sql_alloc
+class QEP_operation
 {
 public:
   // Type of the operation
@@ -328,9 +327,11 @@ enum Copy_func_type
    */
   CFT_WF_NON_FRAMING,
   /**
-    In windowing step, copies two-pass window functions.
+    In windowing step, copies window functions that need frame cardinality,
+    that is we need to read all rows of a partition before we can compute the
+    wf's value for the the first row in the partition.
   */
-  CFT_WF_TWO_PASS,
+  CFT_WF_NEEDS_CARD,
   /**
     In final windowing step, copies all non-wf functions. Must be called after
     all wfs have been evaluated. gbtodo, Really? so it's forbidden to use
@@ -399,7 +400,7 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
 bool check_unique_constraint(TABLE *table);
 ulonglong unique_hash(Field *field, ulonglong *hash);
 
-class QEP_TAB : public Sql_alloc, public QEP_shared_owner
+class QEP_TAB : public QEP_shared_owner
 {
 public:
   QEP_TAB() :
@@ -433,8 +434,6 @@ public:
     op(NULL),
     tmp_table_param(NULL),
     filesort(NULL),
-    fields(NULL),
-    all_fields(NULL),
     ref_item_slice(REF_SLICE_SAVE),
     send_records(0),
     quick_traced_before(false),
@@ -444,12 +443,6 @@ public:
     m_reversed_access(false),
     m_fetched_rows(0)
   {
-    /**
-       @todo Add constructor to READ_RECORD.
-       All users do init_read_record(), which does memset(),
-       rather than invoking a constructor.
-    */
-    memset(&read_record, 0, sizeof(read_record));
   }
 
   /// Initializes the object from a JOIN_TAB
@@ -524,7 +517,7 @@ public:
 
   inline bool skip_record(THD *thd, bool *skip_record_arg)
   {
-    *skip_record_arg= condition() ? condition()->val_int() == FALSE : FALSE;
+    *skip_record_arg= condition() ? condition()->val_int() == false : false;
     return thd->is_error();
   }
 
@@ -586,7 +579,7 @@ public:
   plan_idx match_tab;
 
   /*
-    Used by FirstMatch and LooseScan. TRUE <=> there is a matching
+    Used by FirstMatch and LooseScan. true <=> there is a matching
     record combination
   */
   bool found_match;
@@ -643,7 +636,7 @@ public:
   bool keep_current_rowid;
   CACHE_FIELD *copy_current_rowid;
 
-  /** TRUE <=> remove duplicates on this table. */
+  /** true <=> remove duplicates on this table. */
   bool distinct;
 
   bool not_used_in_distinct;
@@ -663,20 +656,8 @@ public:
   Filesort *filesort;
 
   /**
-    List of topmost expressions in the select list. The *next* JOIN TAB
-    in the plan should use it to obtain correct values. Same applicable to
-    all_fields. These lists are needed because after tmp tables functions
-    will be turned to fields. These variables are pointing to
-    tmp_fields_list[123]. Valid only for tmp tables and the last non-tmp
-    table in the query plan.
-    @see JOIN::make_tmp_tables_info()
-  */
-  List<Item> *fields;
-  /** List of all expressions in the select list */
-  List<Item> *all_fields;
-  /**
-    Slice number of the ref items array to switch to before sending rows.
-    Valid only for tmp tables.
+    Slice number of the ref items array to switch to before reading rows from
+    this table.
   */
   uint ref_item_slice;
 
@@ -747,7 +728,7 @@ public:
 /**
    Use this class when you need a QEP_TAB not connected to any JOIN_TAB.
 */
-class QEP_TAB_standalone : public Sql_alloc
+class QEP_TAB_standalone
 {
 public:
   QEP_TAB_standalone() { m_qt.set_qs(&m_qs); }

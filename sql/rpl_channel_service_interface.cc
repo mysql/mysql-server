@@ -28,6 +28,7 @@
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -349,6 +350,14 @@ int channel_create(const char* channel,
   }
 
   set_mi_settings(mi, channel_info);
+
+  if (channel_map.is_group_replication_channel_name(mi->get_channel()))
+  {
+    thd->variables.max_allowed_packet= slave_max_allowed_packet;
+    thd->get_protocol_classic()->set_max_packet_size(
+        slave_max_allowed_packet + MAX_LOG_EVENT_HEADER);
+  }
+
 
 err:
   channel_map.unlock();

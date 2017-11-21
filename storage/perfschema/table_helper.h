@@ -28,6 +28,7 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "storage/perfschema/digest.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_digest.h"
 #include "storage/perfschema/pfs_engine_table.h"
@@ -36,52 +37,6 @@
 #include "storage/perfschema/pfs_setup_actor.h"
 #include "storage/perfschema/pfs_stat.h"
 #include "storage/perfschema/pfs_timer.h"
-
-/*
-  Write SHA-256 hash value in a string to be used
-  as DIGEST for the statement.
-*/
-#define DIGEST_HASH_TO_STRING(_hash, _str)    \
-  sprintf(_str,                               \
-          "%02x%02x%02x%02x%02x%02x%02x%02x"  \
-          "%02x%02x%02x%02x%02x%02x%02x%02x"  \
-          "%02x%02x%02x%02x%02x%02x%02x%02x"  \
-          "%02x%02x%02x%02x%02x%02x%02x%02x", \
-          _hash[0],                           \
-          _hash[1],                           \
-          _hash[2],                           \
-          _hash[3],                           \
-          _hash[4],                           \
-          _hash[5],                           \
-          _hash[6],                           \
-          _hash[7],                           \
-          _hash[8],                           \
-          _hash[9],                           \
-          _hash[10],                          \
-          _hash[11],                          \
-          _hash[12],                          \
-          _hash[13],                          \
-          _hash[14],                          \
-          _hash[15],                          \
-          _hash[16],                          \
-          _hash[17],                          \
-          _hash[18],                          \
-          _hash[19],                          \
-          _hash[20],                          \
-          _hash[21],                          \
-          _hash[22],                          \
-          _hash[23],                          \
-          _hash[24],                          \
-          _hash[25],                          \
-          _hash[26],                          \
-          _hash[27],                          \
-          _hash[28],                          \
-          _hash[29],                          \
-          _hash[30],                          \
-          _hash[31])
-
-/* SHA-256 = 32 bytes of binary = 64 printable characters */
-#define DIGEST_HASH_TO_STRING_LENGTH 64
 
 struct PFS_host;
 struct PFS_user;
@@ -1597,7 +1552,7 @@ public:
   bool match(const PFS_host *pfs);
   bool match(const PFS_account *pfs);
   bool match(const PFS_setup_actor *pfs);
-  bool match(const char *host, uint host_length);
+  bool match(const char *host, size_t host_length);
 };
 
 class PFS_key_role : public PFS_key_string<ROLENAME_LENGTH>
@@ -1669,7 +1624,7 @@ public:
   }
 
   bool match(const LEX_STRING *name);
-  bool match(const char *name, uint name_length);
+  bool match(const char *name, size_t name_length);
 };
 
 class PFS_key_group_name : public PFS_key_string<NAME_CHAR_LEN>
@@ -1684,7 +1639,7 @@ public:
   }
 
   bool match(const LEX_STRING *name);
-  bool match(const char *name, uint name_length);
+  bool match(const char *name, size_t name_length);
   bool match(PFS_thread *pfs);
 };
 
@@ -1748,7 +1703,7 @@ public:
   }
 
   bool match(const PFS_socket *pfs);
-  bool match(const char *ip, uint ip_length);
+  bool match(const char *ip, size_t ip_length);
 };
 
 class PFS_key_statement_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH>
@@ -1796,7 +1751,7 @@ public:
   bool match(const PFS_prepared_stmt *pfs);
   bool match(const PFS_object_row *pfs);
   bool match(const PFS_setup_object *pfs);
-  bool match(const char *schema_name, uint schema_name_length);
+  bool match(const char *schema_name, size_t schema_name_length);
 };
 
 class PFS_key_object_name : public PFS_key_string<NAME_CHAR_LEN>
@@ -1816,7 +1771,7 @@ public:
   bool match(const PFS_object_row *pfs);
   bool match(const PFS_index_row *pfs);
   bool match(const PFS_setup_object *pfs);
-  bool match(const char *schema_name, uint schema_name_length);
+  bool match(const char *schema_name, size_t schema_name_length);
 };
 
 class PFS_key_object_type : public PFS_engine_key

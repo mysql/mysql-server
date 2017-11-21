@@ -270,7 +270,7 @@ namespace connection_control
           default:
           {
             error= true;
-            DBUG_ASSERT(FALSE);
+            DBUG_ASSERT(false);
             break;
           }
         }

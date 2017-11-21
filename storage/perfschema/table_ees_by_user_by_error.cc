@@ -25,11 +25,14 @@
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
+#include "sql/plugin_table.h"
+#include "sql/table.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_column_values.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_user.h"
 #include "storage/perfschema/pfs_visitor.h"
 
 THR_LOCK table_ees_by_user_by_error::m_table_lock;

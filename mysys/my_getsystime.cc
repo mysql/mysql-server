@@ -76,7 +76,7 @@ bool win_init_get_system_time_as_file_time()
   @retval current high-resolution time.
 */
 
-extern "C" ulonglong my_getsystime()
+ulonglong my_getsystime()
 {
 #ifdef HAVE_CLOCK_GETTIME
   struct timespec tp;

@@ -461,7 +461,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	/* select#1 */ select st_issimple(multipoint(point(3,6),point(4,10))) AS `ST_issimple(MultiPoint(Point(3, 6), Point(4, 10)))`,st_issimple(point(3,6)) AS `ST_issimple(Point(3, 6))`
-create table t1 (a geometry not null);
+create table t1 (a geometry not null SRID 0);
 insert into t1 values (ST_GeomFromText('Point(1 2)'));
 insert into t1 values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
@@ -469,7 +469,7 @@ insert IGNORE into t1 values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 alter table t1 add spatial index(a);
 drop table t1;
-create table t1(a geometry not null, spatial index(a));
+create table t1(a geometry not null SRID 0, spatial index(a));
 insert into t1 values
 (ST_GeomFromText('POINT(1 1)')), (ST_GeomFromText('POINT(3 3)')), 
 (ST_GeomFromText('POINT(4 4)')), (ST_GeomFromText('POINT(6 6)'));
@@ -488,7 +488,7 @@ MBRContains(ST_GeomFromText('Polygon((0 0, 0 7, 7 7, 7 0, 0 0))'), a);
 ST_AsText(a)
 POINT(1 1)
 drop table t1;
-CREATE TABLE t1 (Coordinates POINT NOT NULL, SPATIAL INDEX(Coordinates));
+CREATE TABLE t1 (Coordinates POINT NOT NULL SRID 0, SPATIAL INDEX(Coordinates));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(383293632 1754448)'));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(564952612 157516260)'));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(903994614 180726515)'));
@@ -585,9 +585,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table t1;
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
-geometry NOT NULL default '') ENGINE=MyISAM ;
-Warnings:
-Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'geo' can't have a default value
+geometry NOT NULL) ENGINE=MyISAM ;
 insert into t1 values ('85984',ST_GeomFromText('MULTIPOLYGON(((-115.006363
 36.305435,-114.992394 36.305202,-114.991219 36.305975,-114.991163
 36.306845,-114.989432 36.309452,-114.978275 36.312642,-114.977363
@@ -686,7 +684,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					ST_asbinary(g)	252	4294967295	0	Y	128	31	63
 ST_asbinary(g)
 drop table t1;
-create table t1 (a TEXT, b GEOMETRY NOT NULL, SPATIAL KEY(b));
+create table t1 (a TEXT, b GEOMETRY NOT NULL SRID 0, SPATIAL KEY(b));
 alter table t1 disable keys;
 load data infile '../../std_data/bad_gis_data.dat' into table t1;
 ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'b' at row 1
@@ -736,11 +734,11 @@ select ST_geomfromtext(col9,col89) as a from t1;
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 DROP TABLE t1;
 CREATE TABLE t1 (
-geomdata polygon NOT NULL,
+geomdata polygon NOT NULL SRID 0,
 SPATIAL KEY index_geom (geomdata)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
 CREATE TABLE t2 (
-geomdata polygon NOT NULL,
+geomdata polygon NOT NULL SRID 0,
 SPATIAL KEY index_geom (geomdata)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
 CREATE TABLE t3
@@ -760,7 +758,7 @@ drop table t1;
 drop table t2;
 drop table t3;
 create table t1(col1 geometry default null,col15 geometrycollection not
-null,spatial index(col15),index(col1(15)))engine=myisam;
+null SRID 0,spatial index(col15),index(col1(15)))engine=myisam;
 insert into t1 set col15 = ST_GeomFromText('POINT(6 5)');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 set col15 = ST_GeomFromText('POINT(6 5)');
@@ -1521,7 +1519,7 @@ ERROR 22023: Invalid GIS data provided to function st_union.
 #               BUT IT SHOULDN'T BE.
 #
 USE test;
-CREATE TABLE t1(a POINT NOT NULL, SPATIAL KEY(a)) engine=myisam;
+CREATE TABLE t1(a POINT NOT NULL SRID 0, SPATIAL KEY(a)) engine=myisam;
 # Check that normal INSERT gives error
 INSERT INTO t1 VALUES ("");
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
@@ -2274,7 +2272,7 @@ SELECT ST_AsText(ST_Buffer(g, 2)), ST_AsText(ST_Difference(g, g)) FROM t1;
 ST_AsText(ST_Buffer(g, 2))	ST_AsText(ST_Difference(g, g))
 POLYGON((1.7889 7.8944,1.5815 8.2242,1.3142 8.5076,0.9971 8.7337,0.6421 8.8941,0.2627 8.9827,-0.1266 8.996,-0.5111 8.9336,-0.8762 8.7978,-1.2081 8.5939,-1.4942 8.3295,-1.7235 8.0146,-1.8875 7.6613,-1.9799 7.2828,-4.9799 -13.7172,-4.9971 -14.1077,-4.938 -14.4941,-4.8049 -14.8616,-4.6028 -15.1963,-4.3395 -15.4852,-4.025 -15.7174,-3.6714 -15.884,-3.2921 -15.9786,-2.9016 -15.9976,-2.5149 -15.9403,9.4851 -12.9403,9.8227 -12.823,10.134 -12.6474,10.4091 -12.4193,10.6393 -12.1458,10.817 -11.8357,10.9368 -11.499,10.9946 -11.1463,10.9888 -10.7889,10.9195 -10.4383,10.7889 -10.1056,1.7889 7.8944))	GEOMETRYCOLLECTION EMPTY
 DROP TABLE t1;
-CREATE TABLE t1(id INT PRIMARY KEY AUTO_INCREMENT, g GEOMETRY NOT NULL,
+CREATE TABLE t1(id INT PRIMARY KEY AUTO_INCREMENT, g GEOMETRY NOT NULL SRID 0,
 SPATIAL INDEX(g));
 INSERT INTO t1(g) VALUES
 (ST_GEOMFROMTEXT('MULTIPOLYGON(((0 7,-3 -14,9 -11,0 7)))'));
@@ -3977,4 +3975,47 @@ g
 );
 COUNT(*)
 1
+DROP TABLE t1;
+#
+# Bug #26412713 ASSERTION `THD->IS_ERROR()' FAILED IN SQL/SQL_INSERT.CC
+#
+# Inserting a NULL value in a GEOMETRY NOT NULL column should raise an
+# error, even if using INSERT IGNORE.
+CREATE TABLE t1(g GEOMETRY NOT NULL);
+INSERT IGNORE INTO t1 VALUES (NULL);
+ERROR 23000: Column 'g' cannot be null
+INSERT INTO t1 VALUES (NULL);
+ERROR 23000: Column 'g' cannot be null
+INSERT INTO t1 VALUES (NULL), (NULL);
+ERROR 23000: Column 'g' cannot be null
+UPDATE t1 SET g=NULL;
+UPDATE IGNORE t1 SET g=NULL;
+INSERT INTO t1 VALUES (POINT(0, 0));
+UPDATE t1 SET g=NULL;
+ERROR 23000: Column 'g' cannot be null
+UPDATE IGNORE t1 SET g=NULL;
+ERROR 23000: Column 'g' cannot be null
+DROP TABLE t1;
+CREATE TABLE t1(g GEOMETRY NOT NULL);
+INSERT IGNORE INTO t1 VALUES ();
+ERROR HY000: Field 'g' doesn't have a default value
+DROP TABLE t1;
+CREATE TABLE t1(x VARCHAR(10), g GEOMETRY NOT NULL);
+LOAD DATA INFILE 'bug26412713.csv' INTO TABLE t1 (x);
+ERROR HY000: Field 'g' doesn't have a default value
+DROP TABLE t1;
+SET @save_sql_mode=@@sql_mode;
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t1(g GEOMETRY NOT NULL DEFAULT '');
+ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'g' can't have a default value
+SET sql_mode=@save_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t1 (id INT, g GEOMETRY NOT NULL);
+CREATE VIEW v1 AS SELECT * FROM t1;
+INSERT IGNORE INTO v1(id) VALUES(0);
+ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
+DROP VIEW v1;
 DROP TABLE t1;

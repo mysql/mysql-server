@@ -255,7 +255,7 @@ void _downheap(QUEUE *queue, uint idx)
 {
   uchar *element;
   uint elements,half_queue,offset_to_key, next_index;
-  bool first= TRUE;
+  bool first= true;
   uint start_idx= idx;
 
   offset_to_key=queue->offset_to_key;
@@ -281,7 +281,7 @@ void _downheap(QUEUE *queue, uint idx)
     }
     queue->root[idx]=queue->root[next_index];
     idx=next_index;
-    first= FALSE;
+    first= false;
   }
 
   next_index= idx >> 1;

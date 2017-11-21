@@ -31,8 +31,8 @@ Created 11/5/1995 Heikki Tuuri
 #define buf0lru_h
 
 #include "univ.i"
-#ifndef UNIV_HOTBACKUP
 #include "buf0types.h"
+#ifndef UNIV_HOTBACKUP
 #include "ut0byte.h"
 
 // Forward declaration
@@ -42,7 +42,7 @@ struct trx_t;
 Returns TRUE if less than 25 % of the buffer pool is available. This can be
 used in heuristics to prevent huge transactions eating up the whole buffer
 pool for their locks.
-@return TRUE if less than 25 % of buffer pool left */
+@return true if less than 25 % of buffer pool left */
 ibool
 buf_LRU_buf_pool_running_out(void);
 /*==============================*/
@@ -53,6 +53,7 @@ These are low-level functions
 
 /** Minimum LRU list length for which the LRU_old pointer is defined */
 #define BUF_LRU_OLD_MIN_LEN	512	/* 8 megabytes of 16k pages */
+#endif /* !UNIV_HOTBACKUP */
 
 /******************************************************************//**
 Flushes all dirty pages or removes all pages belonging
@@ -67,6 +68,7 @@ buf_LRU_flush_or_remove_pages(
 	const trx_t*	trx);		/*!< to check if the operation must
 					be interrupted */
 
+#ifndef UNIV_HOTBACKUP
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Insert a compressed block into buf_pool->zip_clean in the LRU order.
 @param[in]	bpage	pointer to the block in question */
@@ -143,7 +145,7 @@ buf_LRU_get_free_block(
 /** Determines if the unzip_LRU list should be used for evicting a victim
 instead of the general LRU list.
 @param[in,out]	buf_pool	buffer pool instance
-@return TRUE if should use unzip_LRU */
+@return true if should use unzip_LRU */
 ibool
 buf_LRU_evict_from_unzip_LRU(
 	buf_pool_t*	buf_pool);
@@ -227,7 +229,7 @@ buf_LRU_adjust_hp(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************//**
 Validates the LRU list.
-@return TRUE */
+@return true */
 ibool
 buf_LRU_validate(void);
 /*==================*/

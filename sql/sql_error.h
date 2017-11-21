@@ -28,7 +28,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
-#include "sql/sql_alloc.h"
 #include "sql/sql_list.h"
 #include "sql/sql_plist.h" /* I_P_List */
 #include "sql_string.h"                        /* String */
@@ -44,7 +43,7 @@ struct MYSQL_TIME;
   A SQL condition can be a completion condition (note, warning),
   or an exception condition (error, not found).
 */
-class Sql_condition : public Sql_alloc
+class Sql_condition
 {
 public:
   /**

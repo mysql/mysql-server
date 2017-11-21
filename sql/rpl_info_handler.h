@@ -53,8 +53,8 @@ public:
     depend on other components (e.g. mutexes) should be placed in the
     object's constructor though.
 
-    @retval FALSE success,
-    @retval TRUE  otherwise error.
+    @retval false success,
+    @retval true  otherwise error.
   */
   int init_info()
   {
@@ -85,12 +85,12 @@ public:
     parameter @c force, which is by default @c false, to @c true.
 
     So if the number of events is below a threshold, the parameter
-    @c force is FALSE and we are using a file system as a storage
+    @c force is false and we are using a file system as a storage
     system, it may happen that the changes will only end up in the
     operating system's cache and a crash may lead to inconsistencies.
 
-    @retval FALSE No error
-    @retval TRUE  Failure
+    @retval false No error
+    @retval true  Failure
   */
   int flush_info(const bool force)
   {
@@ -102,8 +102,8 @@ public:
     The decision to remove the repository is delegated to the
     developer.
 
-    @retval FALSE No error
-    @retval TRUE  Failure
+    @retval false No error
+    @retval true  Failure
   */
   int remove_info()
   {
@@ -114,8 +114,8 @@ public:
     Deletes any information in the repository. In contrast to the
     @c remove_info() method, the repository is not removed.
 
-    @retval FALSE No error
-    @retval TRUE  Failure
+    @retval false No error
+    @retval true  Failure
   */
   int clean_info()
   {
@@ -125,8 +125,8 @@ public:
   /**
     Closes access to the repository.
 
-    @retval FALSE No error
-    @retval TRUE  Failure
+    @retval false No error
+    @retval true  Failure
   */
   void end_info()
   {
@@ -137,8 +137,8 @@ public:
     Enables the storage system to receive reads, i.e.
     getters.
  
-    @retval FALSE No error
-    @retval TRUE  Failure
+    @retval false No error
+    @retval true  Failure
   */
   int prepare_info_for_read()
   {
@@ -149,8 +149,8 @@ public:
     Enables the storage system to receive writes, i.e.
     setters.
  
-    @retval FALSE No error
-    @retval TRUE  Failure
+    @retval false No error
+    @retval true  Failure
   */
   int prepare_info_for_write()
   {
@@ -179,14 +179,14 @@ public:
 
     @param[in] value Value to be set.
 
-    @retval FALSE No error
-    @retval TRUE Failure
+    @retval false No error
+    @retval true Failure
   */
   template <class TypeHandler>
   bool set_info(TypeHandler const value)
   {
     if (cursor >= ninfo || prv_error)
-      return TRUE;
+      return true;
 
     if (!(prv_error= do_set_info(cursor, value)))
       cursor++;
@@ -198,7 +198,7 @@ public:
   bool set_info(TypeHandler const value, const size_t size)
   {
     if (cursor >= ninfo || prv_error)
-      return TRUE;
+      return true;
 
     if (!(prv_error= do_set_info(cursor, value, size)))
       cursor++;
@@ -214,15 +214,15 @@ public:
     @param[in]   value       fieled[pk_cursor] would be set
                              this value.
 
-    @retval      FALSE       ok
-    @retval      TRUE       error.
+    @retval      false       ok
+    @retval      true       error.
   */
 
   template <class TypeHandler>
   bool set_info(int pk_cursor, TypeHandler const value)
   {
     if (pk_cursor >= ninfo)
-      return TRUE;
+      return true;
 
     return (do_set_info(pk_cursor, value));
   }
@@ -237,15 +237,15 @@ public:
     @param[in] default_value Returns a default value
                              if the field is empty.
 
-    @retval FALSE No error
-    @retval TRUE Failure
+    @retval false No error
+    @retval true Failure
   */
   template <class TypeHandlerPointer, class TypeHandler>
   bool get_info(TypeHandlerPointer value,
                 TypeHandler const default_value)
   {
     if (cursor >= ninfo || prv_error)
-      return TRUE;
+      return true;
 
     if (!(prv_error= do_get_info(cursor, value, default_value)))
       cursor++;
@@ -265,15 +265,15 @@ public:
     @param[in] default_value Returns a default value
                              if the field is empty.
 
-    @retval FALSE No error
-    @retval TRUE Failure
+    @retval false No error
+    @retval true Failure
   */
   template <class TypeHandler>
   bool get_info(TypeHandler value, const size_t size,
                 TypeHandler const default_value)
   {
     if (cursor >= ninfo || prv_error)
-      return TRUE;
+      return true;
 
     if (!(prv_error= do_get_info(cursor, value, size, default_value)))
       cursor++;
@@ -291,14 +291,14 @@ public:
     @param[in] default_value Returns a default value
                              if the field is empty.
 
-    @retval FALSE No error
-    @retval TRUE Failure
+    @retval false No error
+    @retval true Failure
   */
   bool get_info(Server_ids *value,
                 const Server_ids *default_value)
   {
     if (cursor >= ninfo || prv_error)
-      return TRUE;
+      return true;
 
     if (!(prv_error= do_get_info(cursor, value, default_value)))
       cursor++;
@@ -339,8 +339,8 @@ public:
     of a failure. If this is possible, the repository is classified as
     transactional.
 
-    @retval TRUE If transactional.
-    @retval FALSE Otherwise.
+    @retval true If transactional.
+    @retval false Otherwise.
   */
   bool is_transactional() { return do_is_transactional(); }
 
@@ -354,8 +354,8 @@ public:
     this member function, i.e. update_is__transactional(), must be called
     when slave is starting.
 
-    @retval FALSE No error
-    @retval TRUE Failure
+    @retval false No error
+    @retval true Failure
   */
   bool update_is_transactional() { return do_update_is_transactional(); }
 

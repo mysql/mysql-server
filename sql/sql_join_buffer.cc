@@ -543,7 +543,7 @@ static void filter_gcol_for_dynamic_range_scan(QEP_TAB *const tab)
       my_bitmap_map bitbuf[(bitmap_buffer_size(MAX_FIELDS) /
                             sizeof(my_bitmap_map)) + 1];
       MY_BITMAP range_read_set;
-      bitmap_init(&range_read_set, bitbuf, table->s->fields, FALSE);
+      bitmap_init(&range_read_set, bitbuf, table->s->fields, false);
 
       // Make a bitmap of which fields this covering index can read
       table->mark_columns_used_by_index_no_reset(key, &range_read_set,
@@ -694,7 +694,7 @@ int JOIN_CACHE_BNL::init()
 
   create_flag_fields();
   
-  create_remaining_fields(TRUE);
+  create_remaining_fields(true);
 
   restore_virtual_gcol_base_cols();
 
@@ -864,7 +864,7 @@ int JOIN_CACHE_BKA::init()
                 of 'pack_length_with_blob_ptrs'.
 	    */
             copy->referenced_field_no= ++cache->referenced_fields;
-            cache->with_length= TRUE;
+            cache->with_length= true;
 	    cache->pack_length+= cache->get_size_of_fld_offset();
             cache->pack_length_with_blob_ptrs+= cache->get_size_of_fld_offset();
           }        
@@ -887,7 +887,7 @@ int JOIN_CACHE_BKA::init()
 
   use_emb_key= check_emb_key_usage();
 
-  create_remaining_fields(FALSE);
+  create_remaining_fields(false);
   restore_virtual_gcol_base_cols();
   bitmap_clear_all(&qep_tab->table()->tmp_set);
 
@@ -915,7 +915,7 @@ int JOIN_CACHE_BKA::init()
     Sometimes when the access key is multi-component the function has to re-order
     the fields written into the join buffer to make keys embedded. If key 
     values for the key access are detected as embedded then 'use_emb_key'
-    is set to TRUE.
+    is set to true.
 
   EXAMPLE
     Let table t2 has an index defined on the columns a,b . Let's assume also
@@ -932,8 +932,8 @@ int JOIN_CACHE_BKA::init()
     class of keys which we identify as embedded.
 
   RETURN
-    TRUE  - key values will be considered as embedded,
-    FALSE - otherwise.
+    true  - key values will be considered as embedded,
+    false - otherwise.
 */
 
 bool JOIN_CACHE_BKA::check_emb_key_usage()
@@ -955,13 +955,13 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
     Expand it to the case when ref->key_parts=1 and local_key_arg_fields=0.
   */  
   if (external_key_arg_fields != 0)
-    return FALSE;
+    return false;
   /* 
     If the number of the local key arguments is not equal to the number
     of key parts the key value cannot be read directly from the join buffer.   
   */
   if (local_key_arg_fields != ref->key_parts)
-    return FALSE;
+    return false;
 
   /* 
     A key is not considered embedded if one of the following is true:
@@ -976,20 +976,20 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
   {
     item= ref->items[i]->real_item();
     if (item->type() != Item::FIELD_ITEM)
-      return FALSE;
+      return false;
     key_part= keyinfo->key_part+i;
     if (key_part->key_part_flag & HA_PART_KEY_SEG)
-      return FALSE;
+      return false;
     if (!key_part->field->eq_def(((Item_field *) item)->field))
-      return FALSE;
+      return false;
     if (((Item_field *) item)->field->table->s->db_low_byte_first !=
         table->s->db_low_byte_first)
     {
-      return FALSE;
+      return false;
     }
     if (key_part->field->maybe_null())
     {
-      return FALSE;
+      return false;
       /*
         If this is changed so that embedded keys may contain nullable
         components, get_next_key() and put_record() will have to test
@@ -1007,14 +1007,14 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
       is not considered as embedded.
     */
     if (copy->type != 0)
-      return FALSE;
+      return false;
     /* 
       If some of the key arguments are bit fields whose bits are partially
       stored with null bits the key is not considered as embedded.
     */
     if (copy->field->type() == MYSQL_TYPE_BIT &&
 	 ((Field_bit*) (copy->field))->bit_len)
-      return FALSE;
+      return false;
     len+= copy->length;
   }
 
@@ -1046,7 +1046,7 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
     }
   }
 
-  return TRUE;
+  return true;
 }
 
 
@@ -1241,7 +1241,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
 
   /*
     Check whether we won't be able to add any new record into the cache after
-    this one because the cache will be full. Set last_record to TRUE if it's so.
+    this one because the cache will be full. Set last_record to true if it's so.
     The assume that the cache will be full after the record has been written
     into it if either the remaining space of the cache is not big enough for the 
     record's blob values or if there is a chance that not all non-blob fields
@@ -1392,7 +1392,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
 /**
   @brief Reset the join buffer for reading/writing: default implementation
 
-  @param for_writing  if it's TRUE the function reset the buffer for writing
+  @param for_writing  if it's true the function reset the buffer for writing
 
   @details
     This default implementation of the virtual function reset_cache() resets 
@@ -1439,9 +1439,9 @@ void JOIN_CACHE::reset_cache(bool for_writing)
     will return exactly the pointer to this matched record.
 
   RETURN
-    TRUE    if it has been decided that it should be the last record
+    true    if it has been decided that it should be the last record
             in the join buffer,
-    FALSE   otherwise
+    false   otherwise
 */
 
 bool JOIN_CACHE::put_record_in_cache()
@@ -1708,17 +1708,17 @@ uint JOIN_CACHE::read_record_field(CACHE_FIELD *copy, bool blob_in_rec_buff)
   DESCRIPTION
     The function checks whether copy points to a data field descriptor
     for this cache object. If it does not then the function returns
-    FALSE. Otherwise the function reads the field of the record in
+    false. Otherwise the function reads the field of the record in
     the join buffer pointed by 'rec_ptr' into the corresponding record
-    buffer and returns TRUE.
+    buffer and returns true.
     If the value of *len is 0 then the function sets it to the total
     length of the record fields including possible trailing offset
     values. Otherwise *len is supposed to provide this value that
     has been obtained earlier.  
 
   RETURN
-    TRUE   'copy' points to a data descriptor of this join cache
-    FALSE  otherwise
+    true   'copy' points to a data descriptor of this join cache
+    false  otherwise
 */
 
 bool JOIN_CACHE::read_referenced_field(CACHE_FIELD *copy,
@@ -1728,7 +1728,7 @@ bool JOIN_CACHE::read_referenced_field(CACHE_FIELD *copy,
   uchar *ptr;
   uint offset;
   if (copy < field_descr || copy >= field_descr+fields)
-    return FALSE;
+    return false;
   if (!*len)
   {
     /* Get the total length of the record fields */ 
@@ -1742,9 +1742,9 @@ bool JOIN_CACHE::read_referenced_field(CACHE_FIELD *copy,
   offset= get_fld_offset(ptr+ *len - 
                          size_of_fld_ofs*
                          (referenced_fields+1-copy->referenced_field_no));  
-  bool is_null= FALSE;
+  bool is_null= false;
   if (offset == 0 && flag_fields)
-    is_null= TRUE;
+    is_null= true;
   if (is_null)
     copy->field->set_null();
   else
@@ -1755,7 +1755,7 @@ bool JOIN_CACHE::read_referenced_field(CACHE_FIELD *copy,
     read_record_field(copy, blob_data_is_in_rec_buff(rec_ptr));
     pos= save_pos;
   }
-  return TRUE;
+  return true;
 }
    
 
@@ -1772,8 +1772,8 @@ bool JOIN_CACHE::read_referenced_field(CACHE_FIELD *copy,
     right after the record.
 
   RETURN
-    TRUE  - the match flag is on and the record has been skipped
-    FALSE - the match flag is off 
+    true  - the match flag is on and the record has been skipped
+    false - the match flag is off 
 */
 
 bool JOIN_CACHE::skip_record_if_match()
@@ -1786,9 +1786,9 @@ bool JOIN_CACHE::skip_record_if_match()
   if (*(pos+offset) != 0)
   {
     pos+= size_of_rec_len + get_rec_length(pos);
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }      
 
 
@@ -1884,6 +1884,13 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
   const bool outer_join_first_inner= qep_tab->is_first_inner_for_outer_join();
   if (outer_join_first_inner && qep_tab->first_unmatched == NO_PLAN_IDX)
     qep_tab->not_null_compl= true;
+
+  /*
+    We're going to read records of previous tables from our buffer, and also
+    records of our table; none of these can be a group-by/window tmp table, so
+    we should still be on the join's first slice.
+  */
+  DBUG_ASSERT(qep_tab->join()->get_ref_item_slice() == REF_SLICE_SAVE);
 
   if (qep_tab->first_unmatched == NO_PLAN_IDX)
   {
@@ -2071,7 +2078,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
       join->examined_rows++;
       if (const_cond)
       {
-        const bool consider_record= const_cond->val_int() != FALSE;
+        const bool consider_record= const_cond->val_int() != false;
         if (join->thd->is_error())              // error in condition evaluation
           return NESTED_LOOP_ERROR;
         if (!consider_record)
@@ -2139,8 +2146,8 @@ bool JOIN_CACHE::calc_check_only_first_match(const QEP_TAB *t) const
     is placed in the first byte occupied by the record fields. 
 
   RETURN
-    TRUE   the match flag is set by this call for the first time
-    FALSE  the match flag has been set before this call
+    true   the match flag is set by this call for the first time
+    false  the match flag has been set before this call
 */ 
 
 bool JOIN_CACHE::set_match_flag_if_none(QEP_TAB *first_inner,
@@ -2153,11 +2160,11 @@ bool JOIN_CACHE::set_match_flag_if_none(QEP_TAB *first_inner,
       are not accumulated in a join buffer.
     */
     if (first_inner->found)
-      return FALSE;
+      return false;
     else
     {
       first_inner->found= true;
-      return TRUE;
+      return true;
     }
   }
   JOIN_CACHE *cache= this;
@@ -2171,9 +2178,9 @@ bool JOIN_CACHE::set_match_flag_if_none(QEP_TAB *first_inner,
   {
     rec_ptr[0]= 1;
     first_inner->found= true;
-    return TRUE;  
+    return true;  
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -2207,9 +2214,6 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
     if (!qep_tab->check_weed_out_table ||
         !(res= do_sj_dups_weedout(join->thd, qep_tab->check_weed_out_table)))
     {
-      // Set proper slice before going to the next qep_tab
-      Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
-
       set_curr_rec_link(rec_ptr);
       rc= (qep_tab->next_select)(join, qep_tab + 1, 0);
       if (rc != NESTED_LOOP_OK)
@@ -2250,8 +2254,8 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
     for the record when join_tab is the last inner table of an outer join.
       
   RETURN
-    TRUE   there is a match
-    FALSE  there is no match
+    true   there is a match
+    false  there is no match
 */ 
 
 bool JOIN_CACHE::check_match(uchar *rec_ptr)
@@ -2259,13 +2263,13 @@ bool JOIN_CACHE::check_match(uchar *rec_ptr)
   bool skip_record;
   /* Check whether pushdown conditions are satisfied */
   if (qep_tab->skip_record(join->thd, &skip_record) || skip_record)
-    return FALSE;
+    return false;
 
   if (! ((qep_tab->first_inner() != NO_PLAN_IDX &&
           QEP_AT(qep_tab, first_inner()).last_inner() == qep_tab->idx()) ||
          (qep_tab->last_sj_inner() == qep_tab->idx() &&
           qep_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH)) )
-    return TRUE; // not the last inner table
+    return true; // not the last inner table
 
   /* 
      This is the last inner table of an outer join,
@@ -2284,7 +2288,7 @@ bool JOIN_CACHE::check_match(uchar *rec_ptr)
     set_match_flag_if_none(first_inner, rec_ptr);
     if (calc_check_only_first_match(first_inner) &&
         qep_tab->first_inner() == NO_PLAN_IDX)
-      return TRUE;
+      return true;
     /* 
       This is the first match for the outer table row.
       The function set_match_flag_if_none has turned the flag
@@ -2298,7 +2302,7 @@ bool JOIN_CACHE::check_match(uchar *rec_ptr)
     for (QEP_TAB *tab= first_inner; tab <= qep_tab; tab++)
     {
       if (tab->skip_record(join->thd, &skip_record) || skip_record)
-        return FALSE;
+        return false;
     }
     f_i= first_inner->first_upper();
     if (f_i == NO_PLAN_IDX)
@@ -2308,7 +2312,7 @@ bool JOIN_CACHE::check_match(uchar *rec_ptr)
       break;
   }
 
-  return TRUE;
+  return true;
 } 
 
 
@@ -2470,7 +2474,7 @@ uint bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
   DESCRIPTION
     The function interprets seq as a pointer to a JOIN_CACHE_BKA object.
     The function interprets seq as a pointer to the JOIN_CACHE_BKA_UNIQUE
-    object. The function returns TRUE if the record with this range_info
+    object. The function returns true if the record with this range_info
     is to be filtered out from the stream of records returned by
     ha_multi_range_read_next().
 
@@ -2545,7 +2549,7 @@ bool bka_range_seq_skip_record(range_seq_t rseq, char *range_info, uchar*)
 enum_nested_loop_state JOIN_CACHE_BKA::
 join_matching_records(bool skip_last MY_ATTRIBUTE((unused)))
 {
-  /* The value of skip_last must be always FALSE when this function is called */
+  /* The value of skip_last must be always false when this function is called */
   DBUG_ASSERT(!skip_last);
 
   /* Return at once if there are no records in the join buffer */
@@ -2948,9 +2952,9 @@ void JOIN_CACHE_BKA_UNIQUE::reset_cache(bool for_writing)
     the record from the partial join.
     
   RETURN
-    TRUE    if it has been decided that it should be the last record
+    true    if it has been decided that it should be the last record
             in the join buffer,
-    FALSE   otherwise
+    false   otherwise
 */
 
 bool
@@ -3053,8 +3057,8 @@ JOIN_CACHE_BKA_UNIQUE::put_record_in_cache()
     used to connect the records with the same key into a chain. 
 
   RETURN
-    TRUE  - there are no more records to read from the join buffer
-    FALSE - otherwise
+    true  - there are no more records to read from the join buffer
+    false - otherwise
 */
 
 bool JOIN_CACHE_BKA_UNIQUE::get_record()
@@ -3076,8 +3080,8 @@ bool JOIN_CACHE_BKA_UNIQUE::get_record()
     the link element used to connect the records with the same key into a chain. 
 
   RETURN
-    TRUE  - the match flag is on and the record has been skipped
-    FALSE - the match flag is off 
+    true  - the match flag is on and the record has been skipped
+    false - the match flag is off 
 */
 
 bool JOIN_CACHE_BKA_UNIQUE::skip_record_if_match()
@@ -3087,9 +3091,9 @@ bool JOIN_CACHE_BKA_UNIQUE::skip_record_if_match()
   if (!this->JOIN_CACHE::skip_record_if_match())
   {
     pos= save_pos;
-    return FALSE;
+    return false;
   }
-  return TRUE;
+  return true;
 }
 
 
@@ -3116,7 +3120,7 @@ bool JOIN_CACHE_BKA_UNIQUE::skip_record_if_match()
 bool JOIN_CACHE_BKA_UNIQUE::key_search(uchar *key, uint key_len,
                                        uchar **key_ref_ptr) 
 {
-  bool is_found= FALSE;
+  bool is_found= false;
   uint idx= get_hash_idx(key, key_length);
   uchar *ref_ptr= hash_table+size_of_key_ofs*idx;
   while (!is_null_key_ref(ref_ptr))
@@ -3128,7 +3132,7 @@ bool JOIN_CACHE_BKA_UNIQUE::key_search(uchar *key, uint key_len,
 
     if (memcmp(next_key, key, key_len) == 0)
     {
-      is_found= TRUE;
+      is_found= true;
       break;
     }
   }
@@ -3274,7 +3278,7 @@ uint bka_unique_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 
   DESCRIPTION
     The function interprets seq as a pointer to the JOIN_CACHE_BKA_UNIQUE
-    object. The function returns TRUE if the record with this range_info
+    object. The function returns true if the record with this range_info
     is to be filtered out from the stream of records returned by
     ha_multi_range_read_next(). 
 
@@ -3351,9 +3355,9 @@ bool JOIN_CACHE_BKA_UNIQUE::skip_index_tuple(range_seq_t rseq, char *range_info)
     uchar *rec_ptr= next_rec_ref_ptr + cache->rec_fields_offset;
     cache->get_record_by_pos(rec_ptr);
     if (qep_tab->cache_idx_cond->val_int())
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(false);
   } while(next_rec_ref_ptr != last_rec_ref_ptr);
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -3419,7 +3423,7 @@ bool bka_unique_skip_index_tuple(range_seq_t rseq, char *range_info)
 enum_nested_loop_state JOIN_CACHE_BKA_UNIQUE::
 join_matching_records(bool skip_last MY_ATTRIBUTE((unused)))
 {
-  /* The value of skip_last must be always FALSE when this function is called */
+  /* The value of skip_last must be always false when this function is called */
   DBUG_ASSERT(!skip_last);
 
   /* Return at once if there are no records in the join buffer */
@@ -3579,7 +3583,7 @@ bool JOIN_CACHE_BKA_UNIQUE::check_match(uchar *rec_ptr)
   /* recheck pushed down index condition */
   if (qep_tab->cache_idx_cond != NULL &&
       !qep_tab->cache_idx_cond->val_int())
-      return FALSE;
+      return false;
   /* continue with generic tests */
   return JOIN_CACHE_BKA::check_match(rec_ptr);
 }

@@ -85,6 +85,7 @@
 #include <boost/geometry/strategies/geographic/disjoint_segment_box.hpp>
 #include <boost/geometry/strategies/geographic/distance.hpp>
 #include <boost/geometry/strategies/geographic/distance_andoyer.hpp>
+#include <boost/geometry/strategies/geographic/distance_cross_track.hpp>
 #include <boost/geometry/strategies/geographic/distance_thomas.hpp>
 #include <boost/geometry/strategies/geographic/distance_vincenty.hpp>
 #include <boost/geometry/strategies/geographic/envelope_segment.hpp>

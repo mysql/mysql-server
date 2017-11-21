@@ -151,7 +151,7 @@ page_dir_find_owner_slot(
 
 /**************************************************************//**
 Used to check the consistency of a directory slot.
-@return TRUE if succeed */
+@return true if succeed */
 static
 ibool
 page_dir_slot_check(
@@ -1233,6 +1233,7 @@ page_delete_rec_list_start(
 		return;
 	}
 
+#ifndef UNIV_HOTBACKUP
 	mlog_id_t	type;
 
 	if (page_rec_is_comp(rec)) {
@@ -1242,6 +1243,7 @@ page_delete_rec_list_start(
 	}
 
 	page_delete_rec_list_write_log(rec, index, type, mtr);
+#endif /* !UNIV_HOTBACKUP */
 
 	page_cur_set_before_first(block, &cur1);
 	page_cur_move_to_next(&cur1);
@@ -1275,7 +1277,7 @@ if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return TRUE on success; FALSE on compression failure (new_block will
+@return true on success; false on compression failure (new_block will
 be decompressed) */
 ibool
 page_move_rec_list_end(
@@ -1337,7 +1339,7 @@ if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return TRUE on success; FALSE on compression failure */
+@return true on success; false on compression failure */
 ibool
 page_move_rec_list_start(
 /*=====================*/
@@ -1872,7 +1874,7 @@ page_print(
 The following is used to validate a record on a page. This function
 differs from rec_validate as it can also check the n_owned field and
 the heap_no field.
-@return TRUE if ok */
+@return true if ok */
 ibool
 page_rec_validate(
 /*==============*/
@@ -1952,7 +1954,7 @@ page_check_dir(
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
-@return TRUE if ok */
+@return true if ok */
 ibool
 page_simple_validate_old(
 /*=====================*/
@@ -2142,7 +2144,7 @@ func_exit:
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
-@return TRUE if ok */
+@return true if ok */
 ibool
 page_simple_validate_new(
 /*=====================*/
@@ -2332,7 +2334,7 @@ func_exit:
 
 /***************************************************************//**
 This function checks the consistency of an index page.
-@return TRUE if ok */
+@return true if ok */
 ibool
 page_validate(
 /*==========*/
@@ -2382,6 +2384,7 @@ page_validate(
 	same temp-table in parallel.
 	max_trx_id is ignored for temp tables because it not required
 	for MVCC. */
+#ifndef UNIV_HOTBACKUP
 	if (dict_index_is_sec_or_ibuf(index)
 	    && !index->table->is_temporary()
 	    && page_is_leaf(page)
@@ -2398,6 +2401,7 @@ page_validate(
 			goto func_exit2;
 		}
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	heap = mem_heap_create(UNIV_PAGE_SIZE + 200);
 
@@ -2491,6 +2495,8 @@ page_validate(
 				goto func_exit;
 			}
 		}
+#else /* !UNIV_HOTBACKUP */
+		UT_NOT_USED(old_rec);
 #endif /* !UNIV_HOTBACKUP */
 
 		if (page_rec_is_user_rec(rec)) {
@@ -2701,7 +2707,6 @@ page_find_rec_with_heap_no(
 		}
 	}
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************//**
 Removes the record from a leaf page. This function does not log
@@ -2757,6 +2762,7 @@ page_delete_rec(
 
 	return(no_compress_needed);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Get the last non-delete-marked record on a page.
 @param[in]	page	index tree leaf page

@@ -1173,37 +1173,3 @@ long long my_median(UDF_INIT* initid, UDF_ARGS*,
   std::nth_element(data->vec.begin(), data->vec.begin() + ix, data->vec.end());
   return data->vec[ix];
 }
-
-extern "C" {
-
-bool     my_cpp11_re_match_init  (UDF_INIT *initid, UDF_ARGS *args, char *message);
-void     my_cpp11_re_match_deinit(UDF_INIT* initid);
-
-long long my_cpp11_re_match      (UDF_INIT* initid, UDF_ARGS* args,
-                                  char* is_null, char *error);
-
-}
-
-
-bool my_cpp11_re_match_init (UDF_INIT *initid, UDF_ARGS *args, char*)
-{
-  initid->maybe_null= true;
-
-  args->arg_type[0]= STRING_RESULT;
-  args->arg_type[1]= STRING_RESULT;
-
-  return false;
-}
-
-void my_cpp11_re_match_deinit(UDF_INIT*)
-{
-}
-
-long long my_cpp11_re_match(UDF_INIT*, UDF_ARGS* args, char*, char*)
-{
-  char **av= args->args;
-  const unsigned long *lv= args->lengths;
-  std::string pat(av[0], lv[0]), val(av[1], lv[1]);
-  std::regex grepper(pat, std::regex_constants::egrep);
-  return std::regex_match(val, grepper);
-}

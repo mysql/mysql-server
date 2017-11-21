@@ -248,9 +248,9 @@ Master_info*  Multisource_info::get_mi_at_pos(uint pos)
 }
 
 
-Rpl_filter* Multisource_filter_info::create_filter(const char* channel_name)
+Rpl_filter* Rpl_channel_filters::create_filter(const char* channel_name)
 {
-  DBUG_ENTER("Multisource_filter_info::create_filter");
+  DBUG_ENTER("Rpl_channel_filters::create_filter");
 
   Rpl_filter *rpl_filter;
   filter_map::iterator it;
@@ -263,6 +263,9 @@ Rpl_filter* Multisource_filter_info::create_filter(const char* channel_name)
   DBUG_ASSERT(it == channel_to_filter.end());
   ret= channel_to_filter.insert(
          std::pair<std::string, Rpl_filter*>(channel_name, rpl_filter));
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  reset_pfs_view();
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
   m_channel_to_filter_lock->unlock();
 
   if (DBUG_EVALUATE_IF("simulate_out_of_memory_on_create_filter", 1, 0) ||
@@ -278,9 +281,9 @@ Rpl_filter* Multisource_filter_info::create_filter(const char* channel_name)
 }
 
 
-void Multisource_filter_info::delete_filter(Rpl_filter* rpl_filter)
+void Rpl_channel_filters::delete_filter(Rpl_filter* rpl_filter)
 {
-  DBUG_ENTER("Multisource_filter_info::delete_filter");
+  DBUG_ENTER("Rpl_channel_filters::delete_filter");
 
   /* Traverse the filter map. */
   m_channel_to_filter_lock->wrlock();
@@ -292,6 +295,9 @@ void Multisource_filter_info::delete_filter(Rpl_filter* rpl_filter)
       /* Find the replication filter and delete it. */
       delete it->second;
       channel_to_filter.erase(it);
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+      reset_pfs_view();
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
       m_channel_to_filter_lock->unlock();
       DBUG_VOID_RETURN;
     }
@@ -301,7 +307,7 @@ void Multisource_filter_info::delete_filter(Rpl_filter* rpl_filter)
   DBUG_VOID_RETURN;
 }
 
-void Multisource_filter_info::discard_group_replication_filters()
+void Rpl_channel_filters::discard_group_replication_filters()
 {
   /* Traverse the filter map. */
   m_channel_to_filter_lock->wrlock();
@@ -325,9 +331,9 @@ void Multisource_filter_info::discard_group_replication_filters()
   m_channel_to_filter_lock->unlock();
 }
 
-void Multisource_filter_info::discard_all_unattached_filters()
+void Rpl_channel_filters::discard_all_unattached_filters()
 {
-  DBUG_ENTER("Multisource_filter_info::delete_all_unattached_filters");
+  DBUG_ENTER("Rpl_channel_filters::delete_all_unattached_filters");
 
   /* Traverse the filter map. */
   m_channel_to_filter_lock->wrlock();
@@ -354,15 +360,19 @@ void Multisource_filter_info::discard_all_unattached_filters()
                       it->first.c_str());
     it= channel_to_filter.erase(it);
   }
+  /* Reset the P_S view at the end of server startup */
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  reset_pfs_view();
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
   m_channel_to_filter_lock->unlock();
 
   DBUG_VOID_RETURN;
 }
 
 
-Rpl_filter* Multisource_filter_info::get_channel_filter(const char* channel_name)
+Rpl_filter* Rpl_channel_filters::get_channel_filter(const char* channel_name)
 {
-  DBUG_ENTER("Multisource_filter_info::get_channel_filter");
+  DBUG_ENTER("Rpl_channel_filters::get_channel_filter");
   filter_map::iterator it;
   Rpl_filter *rpl_filter= NULL;
 
@@ -388,13 +398,12 @@ Rpl_filter* Multisource_filter_info::get_channel_filter(const char* channel_name
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
-void Multisource_filter_info::reset_pfs_view()
+void Rpl_channel_filters::reset_pfs_view()
 {
-  DBUG_ENTER("Multisource_filter_info::reset_pfs_view");
-  m_channel_to_filter_lock->assert_some_lock();
+  DBUG_ENTER("Rpl_channel_filters::reset_pfs_view");
+  m_channel_to_filter_lock->assert_some_wrlock();
 
-  if (!rpl_pfs_filter_vec.empty())
-    cleanup_rpl_pfs_filter_vec();
+  rpl_pfs_filter_vec.clear();
 
   // Traverse the filter map.
   for (filter_map::iterator it= channel_to_filter.begin();
@@ -409,27 +418,24 @@ void Multisource_filter_info::reset_pfs_view()
   DBUG_VOID_RETURN;
 }
 
-Rpl_pfs_filter* Multisource_filter_info::get_filter_at_pos(uint pos)
+
+Rpl_pfs_filter* Rpl_channel_filters::get_filter_at_pos(uint pos)
 {
-  DBUG_ENTER("Multisource_filter_info::get_filter_at_pos");
-  m_channel_to_filter_lock->assert_some_lock();
+  DBUG_ENTER("Rpl_channel_filters::get_filter_at_pos");
+  m_channel_to_filter_lock->assert_some_rdlock();
   Rpl_pfs_filter* res= NULL;
 
-  reset_pfs_view();
-
   if (pos < rpl_pfs_filter_vec.size())
-    res= rpl_pfs_filter_vec[pos];
+    res= &rpl_pfs_filter_vec[pos];
 
   DBUG_RETURN(res);
 }
 
 
-uint Multisource_filter_info::get_filter_count()
+uint Rpl_channel_filters::get_filter_count()
 {
-  DBUG_ENTER("Multisource_filter_info::get_filter_count");
-  m_channel_to_filter_lock->assert_some_lock();
-
-  reset_pfs_view();
+  DBUG_ENTER("Rpl_channel_filters::get_filter_count");
+  m_channel_to_filter_lock->assert_some_rdlock();
 
   DBUG_RETURN(rpl_pfs_filter_vec.size());
 }
@@ -438,9 +444,9 @@ uint Multisource_filter_info::get_filter_count()
 #endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 
-bool Multisource_filter_info::build_do_and_ignore_table_hashes()
+bool Rpl_channel_filters::build_do_and_ignore_table_hashes()
 {
-  DBUG_ENTER("Multisource_filter_info::build_do_and_ignore_table_hashes()");
+  DBUG_ENTER("Rpl_channel_filters::build_do_and_ignore_table_hashes()");
 
   /* Traverse the filter map. */
   m_channel_to_filter_lock->rdlock();
@@ -466,5 +472,5 @@ bool Multisource_filter_info::build_do_and_ignore_table_hashes()
 
 /* There is only one channel_map for the whole server */
 Multisource_info channel_map;
-/* There is only one rpl_filter_map for the whole server */
-Multisource_filter_info rpl_filter_map;
+/* There is only one rpl_channel_filters for the whole server */
+Rpl_channel_filters rpl_channel_filters;

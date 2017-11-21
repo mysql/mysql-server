@@ -30,8 +30,6 @@
 
 #include "my_macros.h"
 
-C_MODE_START
-
 /*
   Disable trace hooks if the infrastructure is not enabled
 */
@@ -161,7 +159,5 @@ void mysql_trace_start(MYSQL*);
 
 
 #endif /* !defined(CLIENT_PROTOCOL_TRACING) || defined(MYSQL_SERVER) */
-
-C_MODE_END
 
 #endif

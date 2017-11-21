@@ -19,6 +19,7 @@
 #include "sql/item_json_func.h"
 #include "sql/json_diff.h"
 #include "sql/json_dom.h"
+#include "sql/sql_class.h"
 #include "sql/sql_list.h"
 #include "unittest/gunit/base_mock_field.h"
 #include "unittest/gunit/benchmark.h"
@@ -215,6 +216,15 @@ TEST_F(ItemJsonFuncTest, PartialUpdate)
     SCOPED_TRACE("");
     do_partial_update(json_set, &m_field, "[4,\"XYZ\",5]", "[4,\"abc\",100]",
                       true, true);
+  }
+
+  // No-op update.
+  {
+    SCOPED_TRACE("");
+    do_partial_update(json_set, &m_field, "[0,\"abc\",100]", "[0,\"abc\",100]",
+                      true, true);
+    EXPECT_EQ(0U, m_table.get_binary_diffs(&m_field)->size());
+    EXPECT_EQ(0U, m_table.get_logical_diffs(&m_field)->size());
   }
 
   // The array grows, so only logical update is OK.

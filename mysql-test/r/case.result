@@ -116,7 +116,7 @@ t1	CREATE TABLE `t1` (
   `c9` decimal(2,1) DEFAULT NULL,
   `c10` double NOT NULL DEFAULT '0',
   `c11` double NOT NULL DEFAULT '0',
-  `c12` varchar(5) CHARACTER SET latin1 NOT NULL DEFAULT ''
+  `c12` varchar(22) CHARACTER SET latin1 NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 SELECT CASE 
@@ -383,3 +383,68 @@ u	CREATE TABLE `u` (
   `f` bigint(6) unsigned DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t, u;
+# Bug#26389402: Outer join optimized away with user-defined functions
+CREATE TABLE t00(a INTEGER);
+INSERT INTO t00 VALUES (1),(2);
+CREATE TABLE t01(a INTEGER);
+INSERT INTO t01 VALUES (1);
+CREATE VIEW v0 AS
+SELECT t00.a, t01.a AS b, IFNULL(t01.a, 666) AS c
+FROM t00 LEFT JOIN t01 USING(a);
+SELECT * FROM v0
+WHERE c >= 0;
+a	b	c
+1	1	1
+2	NULL	666
+CREATE FUNCTION f(a INTEGER) RETURNS INTEGER DETERMINISTIC
+RETURN IFNULL(a, 666);
+CREATE VIEW v1 AS
+SELECT t00.a, t01.a AS b, f(t01.a) AS c
+FROM t00 LEFT JOIN t01 USING(a);
+SELECT * FROM v1
+WHERE c >= 0;
+a	b	c
+1	1	1
+2	NULL	666
+CREATE VIEW v2 AS
+SELECT t00.a, t01.a AS b, f(IFNULL(t01.a, NULL)) AS c
+FROM t00 LEFT JOIN t01 USING(a);
+SELECT * FROM v2
+WHERE c >= 0;
+a	b	c
+1	1	1
+2	NULL	666
+SELECT t00.a, t01.a AS b, f(t01.a) AS c
+FROM t00 LEFT JOIN t01 USING(a)
+WHERE f(t01.a) >= 0;
+a	b	c
+1	1	1
+2	NULL	666
+DROP FUNCTION f;
+DROP VIEW v0, v1, v2;
+DROP TABLE t00, t01;
+#
+# Bug #25051195 Wrong calculation of decimals after point for IFNULL w/ GROUP BY using
+#               temporary table.
+CREATE TABLE t (i1 INT,
+d1 DOUBLE,
+e2 DECIMAL(5,2));
+INSERT INTO t VALUES ( 6,    6.0,  10.0/3),
+( null, 9.0,  10.0/3),
+( 1,    null, 10.0/3),
+( 2,    2.0,  null  );
+Warnings:
+Note	1265	Data truncated for column 'e2' at row 1
+Note	1265	Data truncated for column 'e2' at row 2
+Note	1265	Data truncated for column 'e2' at row 3
+IFNULL and IF should yield same number for decimals after point here
+SELECT IFNULL(e2,i1) nullif_c,
+IF(e2 IS NULL,i1,e2) if_c,
+SUM(d1) FROM t
+GROUP BY e2,i1 ORDER BY nullif_c, SUM(d1);
+nullif_c	if_c	SUM(d1)
+2.00	2.00	2
+3.33	3.33	NULL
+3.33	3.33	6
+3.33	3.33	9
+DROP TABLE t;

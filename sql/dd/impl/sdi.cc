@@ -397,13 +397,6 @@ bool lookup_tablespace_ref(Sdi_rcontext *sdictx, const String_type &name,
   @{
 */
 
-Sdi_type serialize(const Schema &schema)
-{
-  return generic_serialize(nullptr, STRING_WITH_LEN("Schema"), schema,
-                           nullptr);
-}
-
-
 Sdi_type serialize(THD *thd, const Table &table,
                    const String_type &schema_name)
 {
@@ -496,11 +489,6 @@ generic_deserialize(THD *thd, const Sdi_type &sdi,
   }
 
   return false;
-}
-
-bool deserialize(THD *thd, const Sdi_type &sdi, Schema *dst_schema)
-{
-  return generic_deserialize(thd, sdi, "Schema", dst_schema);
 }
 
 bool deserialize(THD *thd, const Sdi_type &sdi, Table *dst_table,
@@ -633,55 +621,6 @@ using AR= dd::cache::Dictionary_client::Auto_releaser;
 
 namespace sdi {
 
-bool store(THD *thd, const Schema *sp)
-{
-  const Schema &s= ptr_as_cref(sp);
-  Sdi_type sdi= serialize(s);
-  if (sdi.empty())
-  {
-    return checked_return(true);
-  }
-
-  DC &dc= *thd->dd_client();
-  AR ar(&dc);
-
-  // This may actually be an update, so the schema need not be empty
-  typedef std::vector<const Abstract_table*> sc_type;
-  sc_type tables;
-  if (dc.fetch_schema_components(&s, &tables))
-  {
-    return checked_return(true);
-  }
-
-  for (const dd::Abstract_table *at : tables)
-  {
-    const Table *tbl= dynamic_cast<const Table*>(at);
-    if (!tbl)
-    {
-      continue;
-    }
-    const handlerton &hton= ptr_as_cref(resolve_hton(thd, *tbl));
-
-
-    // TODO DT: This will be sub-optimal as we may end up storing
-    // the updated SDI multiple times in the same tablespace if
-    // multiple tables in this schema are stored in the same tablespace.
-    // Maybe we need to track which tablespace ids we have stored the
-    // modified schema SDI for?
-    if (hton.sdi_set)
-    {
-      if (sdi_tablespace::store_sch_sdi(thd, hton, sdi, s, *tbl))
-      {
-        return checked_return(true);
-      }
-    }
-  }
-
-  // Finally, update SDI file
-  return checked_return(sdi_file::store_sch_sdi(sdi, s));
-}
-
-
 bool store(THD *thd, const Table *tp)
 {
   const Table &t= ptr_as_cref(tp);
@@ -724,11 +663,6 @@ bool store(THD *thd, const Tablespace *ts)
   return checked_return(sdi_tablespace::store_tsp_sdi(*hton, sdi, *ts));
 }
 
-bool drop(THD *, const Schema *sp)
-{
-  return checked_return(sdi_file::drop_sch_sdi(ptr_as_cref(sp)));
-}
-
 bool drop(THD *thd, const Table *tp)
 {
   const Table &t= ptr_as_cref(tp);
@@ -745,19 +679,6 @@ bool drop(THD *thd, const Table *tp)
      });
 }
 
-
-bool drop_after_update(THD *, const Schema *old_sp,
-                       const Schema *new_sp)
-{
-  const Schema &old_s= ptr_as_cref(old_sp);
-  const Schema &new_s= ptr_as_cref(new_sp);
-
-  // Currently this test is not really necessary since the schema sdi
-  // file name cannot change.
-  return equal_prefix_chars_name(old_s, new_s,
-                                 sdi_file::FILENAME_PREFIX_CHARS) ?
-    false : checked_return(sdi_file::drop_sch_sdi(old_s));
-}
 
 bool drop_after_update(THD *thd, const Table *old_tp, const Table *new_tp)
 {

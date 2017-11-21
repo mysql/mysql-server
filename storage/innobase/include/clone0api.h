@@ -26,6 +26,7 @@ Innodb Clone Interface
 #define CLONE_API_INCLUDE
 
 #include "univ.i"
+#ifndef UNIV_HOTBACKUP
 #include "handler.h"
 
 /** Begin copy from source database
@@ -113,5 +114,10 @@ bool clone_mark_abort(bool force);
 
 /** Mark clone system as active to allow database clone. */
 void clone_mark_active();
+
+#else /* !UNIV_HOTBACKUP */
+#define clone_mark_abort(_P_)	/*clone_mark_abort()*/
+#define clone_mark_active()	/*clone_mark_active()*/
+#endif /* !UNIV_HOTBACKUP */
 
 #endif /* CLONE_API_INCLUDE */

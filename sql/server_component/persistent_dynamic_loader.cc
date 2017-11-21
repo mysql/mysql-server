@@ -57,6 +57,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "sql_string.h"
 #include "thr_lock.h"
@@ -219,7 +220,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
     });
 
     if (init_read_record(
-      &read_record_info, thd, component_table, NULL, 1, 1, FALSE))
+      &read_record_info, thd, component_table, NULL, 1, 1, false))
     {
       push_warning(thd, Sql_condition::SL_WARNING,
         ER_COMPONENT_TABLE_INCORRECT,

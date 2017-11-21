@@ -369,11 +369,13 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_cond_bits.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
@@ -467,9 +469,7 @@ extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
 /**
   Callbacks from C files.
 */
-C_MODE_START
 static void debug_sync_C_callback(const char *, size_t);
-C_MODE_END
 
 /**
   Callback for debug sync, to be used by C files. See thr_lock.c for example.
@@ -1124,7 +1124,7 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
       /* Error is reported by my_malloc(). */
       goto err; /* purecov: tested */
     }
-    action->need_sort= TRUE;
+    action->need_sort= true;
   }
   DBUG_ASSERT(action >= ds_control->ds_action);
   DBUG_ASSERT(action < ds_control->ds_action + ds_control->ds_active);
@@ -1148,8 +1148,8 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
   @param[in]    action          synchronization action
 
   @return       status
-    @retval     FALSE           ok
-    @retval     TRUE            error
+    @retval     false           ok
+    @retval     true            error
 
   @description
     This is called from the debug sync parser. It arms the action for
@@ -1178,7 +1178,7 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
 static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action)
 {
   st_debug_sync_control *ds_control= thd->debug_sync_control;
-  bool is_dsp_now= FALSE;
+  bool is_dsp_now= false;
   DBUG_ENTER("debug_sync_set_action");
   DBUG_ASSERT(thd);
   DBUG_ASSERT(action);
@@ -1209,7 +1209,7 @@ static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action)
 
     if (action->need_sort)
     {
-      action->need_sort= FALSE;
+      action->need_sort= false;
       /* Sort actions by (name_len, name). */
       std::sort(
         ds_control->ds_action, ds_control->ds_action + ds_control->ds_active,
@@ -1236,7 +1236,7 @@ static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action)
       - the statement was killed with thd->killed= THD::KILL_QUERY.
 
       If a statement reports an error, it must not call send_ok().
-      The calling functions will not call send_ok(), if we return TRUE
+      The calling functions will not call send_ok(), if we return true
       from this function.
 
       thd->killed is also set if the wait is interrupted from a
@@ -1245,10 +1245,10 @@ static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action)
       Hence, we check for the first condition above.
     */
     if (thd->is_error())
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -1449,8 +1449,8 @@ static char *debug_sync_number(ulong *number_p, char *actstrptr)
   @param[in,out]    action_str      action string to receive '\0' terminators
 
   @return           status
-    @retval         FALSE           ok
-    @retval         TRUE            error
+    @retval         false           ok
+    @retval         true            error
 
   @description
     This is called when the DEBUG_SYNC system variable is set.
@@ -1504,7 +1504,7 @@ static bool debug_sync_eval_action(THD *thd, char *action_str)
     if (!action)
     {
       /* Error message is sent. */
-      DBUG_RETURN(TRUE); /* purecov: tested */
+      DBUG_RETURN(true); /* purecov: tested */
     }
   }
 
@@ -1731,13 +1731,13 @@ static bool debug_sync_eval_action(THD *thd, char *action_str)
   }
   if (action)
     debug_sync_remove_action(thd->debug_sync_control, action);
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 
  set_action:
   DBUG_RETURN(debug_sync_set_action(thd, action));
 
  end:
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**
@@ -1747,8 +1747,8 @@ static bool debug_sync_eval_action(THD *thd, char *action_str)
   @param[in]    val_str         set variable request
 
   @return       status
-    @retval     FALSE           ok, variable is set
-    @retval     TRUE            error, variable could not be set
+    @retval     false           ok, variable is set
+    @retval     true            error, variable could not be set
 
   @note
     "Setting" of the system variable 'debug_sync' does not mean to
@@ -1771,7 +1771,7 @@ bool debug_sync_update(THD *thd, char *val_str)
   */
   DBUG_RETURN(opt_debug_sync_timeout ?
               debug_sync_eval_action(thd, val_str) :
-              FALSE);
+              false);
 }
 
 
@@ -2131,8 +2131,8 @@ void debug_sync(THD *thd, const char *sync_point_name, size_t name_len)
   @param[in]        action_str      action string
 
   @return           status
-    @retval         FALSE           ok
-    @retval         TRUE            error
+    @retval         false           ok
+    @retval         true            error
 
   @description
     The function is similar to @c debug_sync_eval_action but is

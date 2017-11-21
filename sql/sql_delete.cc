@@ -466,7 +466,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
     }
 
     if (usable_index==MAX_KEY || qep_tab.quick())
-      error= init_read_record(&info, thd, NULL, &qep_tab, 1, 1, FALSE);
+      error= init_read_record(&info, thd, NULL, &qep_tab, 1, 1, false);
     else
       error= init_read_record_idx(&info, thd, table, 1, usable_index, reverse);
 
@@ -527,7 +527,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
       DBUG_ASSERT(!thd->is_error());
       if (has_before_triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                            TRG_ACTION_BEFORE, FALSE))
+                                            TRG_ACTION_BEFORE, false))
       {
         error= 1;
         break;
@@ -557,7 +557,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
       deleted_rows++;
       if (has_after_triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                            TRG_ACTION_AFTER, FALSE))
+                                            TRG_ACTION_AFTER, false))
       {
         error= 1;
         break;
@@ -623,7 +623,7 @@ cleanup:
       */
       int log_result= thd->binlog_query(query_type,
                                         thd->query().str, thd->query().length,
-                                        transactional_table, FALSE, FALSE,
+                                        transactional_table, false, false,
                                         errcode);
 
       if (log_result)
@@ -788,7 +788,6 @@ bool Sql_cmd_delete::prepare_inner(THD *thd)
     List<Item>   fields;
     List<Item>   all_fields;
 
-    memset(&tables, 0, sizeof(tables));
     tables.table = table_list->table;
     tables.alias = table_list->alias;
 
@@ -1077,7 +1076,7 @@ bool Query_result_delete::send_data(List<Item>&)
       // Rows from this table can be deleted immediately
       if (table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                            TRG_ACTION_BEFORE, FALSE))
+                                            TRG_ACTION_BEFORE, false))
         DBUG_RETURN(true);
       table->set_deleted_row();
       if (map & non_transactional_table_map)
@@ -1090,7 +1089,7 @@ bool Query_result_delete::send_data(List<Item>&)
             Transaction_ctx::STMT);
         if (table->triggers &&
             table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                              TRG_ACTION_AFTER, FALSE))
+                                              TRG_ACTION_AFTER, false))
           DBUG_RETURN(true);
       }
       else
@@ -1182,7 +1181,7 @@ void Query_result_delete::abort_result_set()
       /* possible error of writing binary log is ignored deliberately */
       (void) thd->binlog_query(THD::ROW_QUERY_TYPE,
                                thd->query().str, thd->query().length,
-                               transactional_table_map != 0, FALSE, FALSE,
+                               transactional_table_map != 0, false, false,
                                errcode);
     }
   }
@@ -1251,7 +1250,7 @@ int Query_result_delete::do_table_deletes(TABLE *table)
   READ_RECORD info;
   ha_rows last_deleted= deleted_rows;
   DBUG_ENTER("Query_result_delete::do_table_deletes");
-  if (init_read_record(&info, thd, table, NULL, 0, 1, FALSE))
+  if (init_read_record(&info, thd, table, NULL, 0, 1, false))
     DBUG_RETURN(1);
   /*
     Ignore any rows not found in reference tables as they may already have
@@ -1263,7 +1262,7 @@ int Query_result_delete::do_table_deletes(TABLE *table)
   {
     if (table->triggers &&
         table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                          TRG_ACTION_BEFORE, FALSE))
+                                          TRG_ACTION_BEFORE, false))
     {
       local_error= 1;
       break;
@@ -1297,7 +1296,7 @@ int Query_result_delete::do_table_deletes(TABLE *table)
 
       if (table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                            TRG_ACTION_AFTER, FALSE))
+                                            TRG_ACTION_AFTER, false))
       {
         local_error= 1;
         break;
@@ -1358,7 +1357,7 @@ bool Query_result_delete::send_eof()
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query().str, thd->query().length,
-                            transactional_table_map != 0, FALSE, FALSE,
+                            transactional_table_map != 0, false, false,
                             errcode) &&
           !non_transactional_table_map)
       {
@@ -1367,7 +1366,7 @@ bool Query_result_delete::send_eof()
     }
   }
   if (local_error != 0)
-    error_handled= TRUE; // to force early leave from ::send_error()
+    error_handled= true; // to force early leave from ::send_error()
 
   if (!local_error)
   {

@@ -521,21 +521,22 @@ T get_system_variable(ngs::Sql_session_interface *da,
   }
 }
 
-#define JSON_EXTRACT_REGEX(member)                                \
-  "json_extract\\\\(`doc`,(_[[:alnum:]]+)?\\\\\\\\''\\\\$" member \
-  "\\\\\\\\''\\\\)"
+#define DOC_ID_REGEX R"(\\$\\._id)"
+
+#define JSON_EXTRACT_REGEX(member) \
+  R"(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\'')" member R"(\\\\''\\))"
+
 #define COUNT_WHEN(expresion) \
   "COUNT(CASE WHEN (" expresion ") THEN 1 ELSE NULL END)"
 
 const char *const COUNT_DOC =
     COUNT_WHEN("column_name = 'doc' AND data_type = 'json'");
 const char *const COUNT_ID = COUNT_WHEN(
-    "column_name = '_id' AND generation_expression "
-    "RLIKE '^json_unquote\\\\(" JSON_EXTRACT_REGEX("\\\\._id") "\\\\)$'");
+    R"(column_name = '_id' AND generation_expression RLIKE '^json_unquote\\()"
+    JSON_EXTRACT_REGEX(DOC_ID_REGEX) R"(\\)$')");
 const char *const COUNT_GEN = COUNT_WHEN(
-    "column_name != '_id' AND column_name != 'doc' "
-    "AND generation_expression RLIKE '" JSON_EXTRACT_REGEX(
-        "(\\\\.[[:alnum:]_]+)+") "'");
+    "column_name != '_id' AND column_name != 'doc' AND "
+    "generation_expression RLIKE '" JSON_EXTRACT_REGEX(DOC_MEMBER_REGEX) "'");
 }  // namespace
 
 /* Stmt: list_objects

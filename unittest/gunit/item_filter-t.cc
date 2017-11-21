@@ -24,6 +24,8 @@
 #include "my_table_map.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/parse_tree_helpers.h"
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/test_utils.h"
 

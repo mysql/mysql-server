@@ -455,7 +455,7 @@ public:
     init(literal.str, literal.length, cs,
          DERIVATION_COERCIBLE, MY_REPERTOIRE_UNICODE30);
     set_repertoire_from_value();
-    set_cs_specified(TRUE);
+    set_cs_specified(true);
     return false;
   }
 };
@@ -545,7 +545,7 @@ public:
       return true;
 
     set_repertoire_from_value();
-    set_cs_specified(TRUE);
+    set_cs_specified(true);
     return check_well_formed_result(&str_value, true, true) == NULL;
   }
 };
@@ -568,7 +568,7 @@ public:
     if (super::itemize(pc, res))
       return true;
 
-    set_cs_specified(TRUE);
+    set_cs_specified(true);
     return check_well_formed_result(&str_value, true, true) == NULL;
   }
 };

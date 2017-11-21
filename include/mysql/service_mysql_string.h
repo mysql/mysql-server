@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,14 +25,10 @@
 #include <stdlib.h>
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef void *mysql_string_iterator_handle;
 typedef void *mysql_string_handle;
 
-extern struct mysql_string_service_st {
+extern "C" struct mysql_string_service_st {
   int (*mysql_string_convert_to_char_ptr_type)
        (mysql_string_handle, const char *, char *, unsigned int, int *);
   mysql_string_iterator_handle (*mysql_string_get_iterator_type)
@@ -128,9 +124,6 @@ void mysql_string_free(mysql_string_handle);
 */
 void mysql_string_iterator_free(mysql_string_iterator_handle);
 
-#endif
-#ifdef __cplusplus
-}
 #endif
 
 #endif

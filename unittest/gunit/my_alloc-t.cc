@@ -18,6 +18,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysys_err.h"
@@ -156,69 +157,35 @@ TEST_F(MyAllocTest, CheckErrorReporting)
   EXPECT_EQ(1, error_handler.handle_called());
 }
 
-TEST_F(MyPreAllocTest, PreAlloc)
+TEST_F(MyAllocTest, MoveConstructorDoesNotLeak)
 {
-  // PREALLOCATE_MEMORY_CHUNKS is not defined for valgrind and ASAN
-#if !defined(HAVE_VALGRIND) && !defined(HAVE_ASAN)
-  const void *null_pointer= NULL;
-  // MEMROOT has pre-allocated 2048 bytes memory plus some overhead
-  size_t pre_allocated= m_prealloc_root.allocated_size;
-  EXPECT_LT((unsigned int)2048, pre_allocated);
+  MEM_ROOT alloc1(PSI_NOT_INSTRUMENTED, 512);
+  (void)alloc1.Alloc(10);
+  MEM_ROOT alloc2(PSI_NOT_INSTRUMENTED, 512);
+  (void)alloc2.Alloc(30);
+  alloc1= std::move(alloc2);
+}
 
-  // This will eat of pre-allocated memory, no more should be allocated
-  EXPECT_TRUE(alloc_root(&m_prealloc_root, 1000));
-  EXPECT_EQ(pre_allocated, m_prealloc_root.allocated_size);
+TEST_F(MyAllocTest, ExceptionalBlocksAreNotReusedForLargerAllocations)
+{
+  MEM_ROOT alloc(PSI_NOT_INSTRUMENTED, 512);
+  void *ptr= alloc.Alloc(600);
+  alloc.ClearForReuse();
 
-  set_memroot_max_capacity(&m_prealloc_root, 100);
-  // Sufficient memory has been pre-allocated, so first alloc below will succeed
-  EXPECT_TRUE(alloc_root(&m_prealloc_root, 1000));
-  EXPECT_EQ(null_pointer, alloc_root(&m_prealloc_root, 100));
-  EXPECT_EQ(pre_allocated, m_prealloc_root.allocated_size);
-
-  // Setting error reporting. Error is flagged but allocation succeeds
-  set_memroot_error_reporting(&m_prealloc_root, true);
+  if (alloc.allocated_size() == 0)
   {
-    Mock_global_error_handler error_handler(EE_CAPACITY_EXCEEDED);
-    EXPECT_TRUE(alloc_root(&m_prealloc_root, 1000));
-    EXPECT_EQ(1, error_handler.handle_called());
-    EXPECT_LT(pre_allocated, m_prealloc_root.allocated_size);
-    pre_allocated= m_prealloc_root.allocated_size;
+    /*
+      The MEM_ROOT was all cleared out (probably because we're running under
+      Valgrind/ASAN), so we are obviously not doing any reuse. Moreover,
+      the test below is unsafe in this case, since the system malloc() could
+      reuse the block.
+    */
+    return;
   }
-  set_memroot_error_reporting(&m_prealloc_root, false);
-  
-  //This will just mark the blocks free.
-  free_root(&m_prealloc_root, MY_MARK_BLOCKS_FREE);
-  EXPECT_EQ(pre_allocated, m_prealloc_root.allocated_size);
 
-  set_memroot_max_capacity(&m_prealloc_root, 2048);
-  reset_root_defaults(&m_prealloc_root, 1024, 0);
-  EXPECT_EQ(pre_allocated, m_prealloc_root.allocated_size);
-  reset_root_defaults(&m_prealloc_root, 1024, 1024);
-  EXPECT_LT((unsigned int)1024, m_prealloc_root.allocated_size);
-
-  reset_root_defaults(&m_prealloc_root, 512, 1024);
-  EXPECT_LT((unsigned int)1024, m_prealloc_root.allocated_size);
-  pre_allocated= m_prealloc_root.allocated_size;
-  // This allocation will use pre-alocated memory
-  EXPECT_TRUE(alloc_root(&m_prealloc_root, 1024));
-  EXPECT_EQ(pre_allocated, m_prealloc_root.allocated_size);
-  // Will allocate more memory
-  EXPECT_TRUE(alloc_root(&m_prealloc_root, 512));
-  EXPECT_LT((unsigned int)1526, m_prealloc_root.allocated_size);
-  pre_allocated= m_prealloc_root.allocated_size;
-  //  This will not succeed
-  EXPECT_EQ(null_pointer, alloc_root(&m_prealloc_root, 512));
-
-  free_root(&m_prealloc_root, MY_KEEP_PREALLOC);
-  EXPECT_LT((unsigned int)1024, m_prealloc_root.allocated_size);
-
-  // Specified pre_alloc_size is above capacity. Expect no pre-allocation
-  reset_root_defaults(&m_prealloc_root, 512, 4096);
-  EXPECT_EQ((unsigned int)0, m_prealloc_root.allocated_size);
-
-  free_root(&m_prealloc_root, 0);
-  EXPECT_EQ((unsigned int)0, m_prealloc_root.allocated_size);
-#endif
+  // The allocated block is too small to satisfy this new, larger allocation.
+  void *ptr2= alloc.Alloc(605);
+  EXPECT_NE(ptr, ptr2);
 }
 
 }

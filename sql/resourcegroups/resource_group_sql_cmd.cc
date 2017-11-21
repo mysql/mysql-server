@@ -52,6 +52,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"                    // is_invalid_string
 #include "sql/system_variables.h"
+#include "sql/thd_raii.h"
 
 namespace dd {
 class Resource_group;
@@ -106,7 +107,7 @@ static bool acquire_exclusive_mdl_for_resource_group(THD *thd,
 
 bool validate_vcpu_range_vector(
   std::vector<resourcegroups::Range> *vcpu_range_vector,
-  const Trivial_array<resourcegroups::Range> *cpu_list,
+  const Mem_root_array<resourcegroups::Range> *cpu_list,
   uint32_t num_vcpus)
 {
   DBUG_ENTER("resourcegroups::validate_vcpu_range_vector");
@@ -205,11 +206,10 @@ bool resourcegroups::Sql_cmd_create_resource_group::execute(THD *thd)
     DBUG_RETURN(true);
 
   Security_context *sctx= thd->security_context();
-  if (!(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
+  if (!sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first)
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN");
+             "RESOURCE_GROUP_ADMIN");
     DBUG_RETURN(true);
   }
 
@@ -342,11 +342,10 @@ bool resourcegroups::Sql_cmd_alter_resource_group::execute(THD *thd)
     DBUG_RETURN(true);
 
   Security_context *sctx= thd->security_context();
-  if (!(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
+  if (!sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first)
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN");
+             "RESOURCE_GROUP_ADMIN");
     DBUG_RETURN(true);
   }
 
@@ -476,11 +475,10 @@ bool resourcegroups::Sql_cmd_drop_resource_group::execute(THD *thd)
     DBUG_RETURN(true);
 
   Security_context *sctx= thd->security_context();
-  if (!(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
+  if (!sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first)
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN");
+             "RESOURCE_GROUP_ADMIN");
     DBUG_RETURN(true);
   }
 
@@ -670,12 +668,11 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd)
   DBUG_ENTER("resourcegroups::Sql_cmd_set_resource_group::execute");
 
   Security_context *sctx= thd->security_context();
-  if (!(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first ||
+  if (!(sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first ||
         sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_USER")).first))
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN OR RESOURCE_GROUP_USER");
+             "RESOURCE_GROUP_ADMIN OR RESOURCE_GROUP_USER");
     DBUG_RETURN(true);
   }
 
@@ -688,11 +685,10 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd)
     DBUG_RETURN(true);
 
   if ((resource_group->type() == Type::SYSTEM_RESOURCE_GROUP) &&
-      !(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
+      !sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first)
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN");
+             "RESOURCE_GROUP_ADMIN");
     DBUG_RETURN(true);
   }
 

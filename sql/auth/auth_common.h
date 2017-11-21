@@ -697,8 +697,7 @@ void mysql_rewrite_set_password(THD *thd, String *rlb,
 void append_user(THD *thd, String *str, LEX_USER *user,
                  bool comma, bool ident);
 void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma);
-int check_change_password(THD *thd, const char *host, const char *user,
-                          const char *password, size_t password_len);
+int check_change_password(THD *thd, const char *host, const char *user);
 bool change_password(THD *thd, const char *host, const char *user,
                      char *password);
 bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists,

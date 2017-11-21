@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 /**
  Specific type for the service status return values.
 
- 0 is FALSE, non-zero is TRUE. Corresponds to C++ bool.
+ 0 is false, non-zero is true. Corresponds to C++ bool.
 
  @sa DEFINE_BOOL_METHOD, DECLARE_BOOL_METHOD
 */

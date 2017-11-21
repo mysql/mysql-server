@@ -1,0 +1,68 @@
+#
+# ==== Purpose ====
+#
+# This test checks that  the slave generates and applies binary diffs of partial
+# json events when the binlog option binlog_row_value_options=PARTIAL_JSON on
+# the master side only.
+# It also checks that the binary diffs will only contain the relevant fields
+# when binlog_row_image is set to minimal and even whent he slave has extra
+# columns in the modified table.
+#
+# ==== References ====
+#
+# BUG#26762675 INNODB: PARTIAL UPDATE DOES NOT PERFORM ON SLAVE SIDE
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+
+--source include/master-slave.inc
+SET @@SESSION.BINLOG_ROW_IMAGE = 'MINIMAL';
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
+
+CREATE TABLE t1(i INT, j1 JSON, o INT, j2 JSON);
+
+INSERT INTO t1 VALUES(1, '["Apple", "abcdefghijklmnopqghijklmnopqr"]', 2, '["Orange", "abcdefghijklmnopqghijklmnopqr"]');
+--source include/sync_slave_sql_with_master.inc
+SET @@SESSION.BINLOG_ROW_IMAGE = 'MINIMAL';
+
+--let $debug_point= rpl_row_jsondiff_binarydiff
+--source include/add_debug_point.inc
+
+--source include/stop_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+--let $diff_tables = master:t1, slave:t1
+--source include/diff_tables.inc
+
+# execute a statement that generates a partial update log event
+UPDATE t1 SET j1 = JSON_REPLACE(j1, '$[0]', 'Mango');
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave_sql.inc
+
+# check that the slave generates and applies the corresponding binary diffs
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_jsondiff_binarydiff_created';
+
+# add an extra column to the table on the slave
+ALTER TABLE t1 ADD u JSON;
+--source include/stop_slave_sql.inc
+--source include/rpl_connection_master.inc
+
+# execute a statement that generates a partial update log event
+UPDATE t1 SET j1 = JSON_REPLACE(j1, '$[0]', 'Fish');
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave_sql.inc
+
+# check that the slave only marks one column to be added to the binary diff
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_jsondiff_binarydiff_marked_columns';
+
+#cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+--let $debug_point= rpl_row_jsondiff_binarydiff
+--source include/remove_debug_point.inc
+--source include/rpl_end.inc

@@ -99,6 +99,7 @@
 #include "sql/sql_table.h"              // build_table_filename
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
 
@@ -268,9 +269,9 @@ static bool is_name_in_list(const char *name, List<String> list_names)
   {
     String *list_name= names_it++;
     if (!(my_strcasecmp(system_charset_info, name, list_name->c_ptr())))
-      return TRUE;
+      return true;
   } while (++i < num_names);
-  return FALSE;
+  return false;
 }
 
 
@@ -286,8 +287,8 @@ static bool is_name_in_list(const char *name, List<String> list_names)
     normalized_path               Normalized path name of table and database
 
   RETURN VALUES
-    TRUE                          Error
-    FALSE                         Success
+    true                          Error
+    false                         Success
 */
 
 static bool partition_default_handling(TABLE *table, partition_info *part_info,
@@ -310,7 +311,7 @@ static bool partition_default_handling(TABLE *table, partition_info *part_info,
     {
       if (part_handler->get_num_parts(normalized_path, &part_info->num_parts))
       {
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
     }
     else if (part_info->is_sub_partitioned() &&
@@ -319,7 +320,7 @@ static bool partition_default_handling(TABLE *table, partition_info *part_info,
       uint num_parts;
       if (part_handler->get_num_parts(normalized_path, &num_parts))
       {
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
       DBUG_ASSERT(part_info->num_parts > 0);
       DBUG_ASSERT((num_parts % part_info->num_parts) == 0);
@@ -327,7 +328,7 @@ static bool partition_default_handling(TABLE *table, partition_info *part_info,
     }
   }
   part_info->set_up_defaults_for_partitioning(part_handler, NULL, 0U);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -447,8 +448,8 @@ int get_part_for_delete(const uchar *buf, const uchar *rec0,
     sub_part             Is the table subpartitioned as well
 
   RETURN VALUE
-    TRUE                 Error, some field didn't meet requirements
-    FALSE                Ok, partition field array set-up
+    true                 Error, some field didn't meet requirements
+    false                Ok, partition field array set-up
 
   DESCRIPTION
 
@@ -487,7 +488,7 @@ static bool set_up_field_array(TABLE *table,
   uint i= 0;
   uint inx;
   partition_info *part_info= table->part_info;
-  int result= FALSE;
+  int result= false;
   DBUG_ENTER("set_up_field_array");
 
   ptr= table->field;
@@ -504,7 +505,7 @@ static bool set_up_field_array(TABLE *table,
     else
       err_str= (char*)"partition function";
     my_error(ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR, MYF(0), err_str);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   if (num_fields == 0)
   {
@@ -519,7 +520,7 @@ static bool set_up_field_array(TABLE *table,
   if (unlikely(!field_array))
   {
     mem_alloc_error(size_field_array);
-    result= TRUE;
+    result= true;
   }
   ptr= table->field;
   while ((field= *(ptr++)))
@@ -554,7 +555,7 @@ static bool set_up_field_array(TABLE *table,
             */
             DBUG_ASSERT(0);
             my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
-            result= TRUE;
+            result= true;
             continue;
           }
         }
@@ -574,7 +575,7 @@ static bool set_up_field_array(TABLE *table,
         if (unlikely(field->flags & BLOB_FLAG))
         {
           my_error(ER_BLOB_FIELD_IN_PART_FUNC_ERROR, MYF(0));
-          result= TRUE;
+          result= true;
         }
       }
     }
@@ -606,8 +607,8 @@ static bool set_up_field_array(TABLE *table,
     part_info            Reference to partitioning data structure
 
   RETURN VALUE
-    TRUE                 Memory allocation of field array failed
-    FALSE                Ok
+    true                 Memory allocation of field array failed
+    false                Ok
 
   DESCRIPTION
     If there is no subpartitioning then the same array is used as for the
@@ -619,7 +620,7 @@ static bool set_up_field_array(TABLE *table,
 static bool create_full_part_field_array(THD *thd, TABLE *table,
                                          partition_info *part_info)
 {
-  bool result= FALSE;
+  bool result= false;
   Field **ptr;
   my_bitmap_map *bitmap_buf;
   DBUG_ENTER("create_full_part_field_array");
@@ -644,7 +645,7 @@ static bool create_full_part_field_array(THD *thd, TABLE *table,
     if (unlikely(!field_array))
     {
       mem_alloc_error(size_field_array);
-      result= TRUE;
+      result= true;
       goto end;
     }
     num_part_fields= 0;
@@ -669,14 +670,14 @@ static bool create_full_part_field_array(THD *thd, TABLE *table,
         thd->alloc(bitmap_buffer_size(table->s->fields))))
   {
     mem_alloc_error(bitmap_buffer_size(table->s->fields));
-    result= TRUE;
+    result= true;
     goto end;
   }
   if (bitmap_init(&part_info->full_part_field_set, bitmap_buf,
-                  table->s->fields, FALSE))
+                  table->s->fields, false))
   {
     mem_alloc_error(table->s->fields);
-    result= TRUE;
+    result= true;
     goto end;
   }
   /*
@@ -762,20 +763,20 @@ static void check_fields_in_PF(Field **ptr, bool *all_fields,
 {
   DBUG_ENTER("check_fields_in_PF");
 
-  *all_fields= TRUE;
-  *some_fields= FALSE;
+  *all_fields= true;
+  *some_fields= false;
   if ((!ptr) || !(*ptr))
   {
-    *all_fields= FALSE;
+    *all_fields= false;
     DBUG_VOID_RETURN;
   }
   do
   {
   /* Check if the field of the PF is part of the current key investigated */
     if ((*ptr)->flags & GET_FIXED_FIELDS_FLAG)
-      *some_fields= TRUE;
+      *some_fields= true;
     else
-      *all_fields= FALSE;
+      *all_fields= false;
   } while (*(++ptr));
   DBUG_VOID_RETURN;
 }
@@ -816,8 +817,8 @@ static void clear_field_flag(TABLE *table)
     sub_part             Is the table subpartitioned as well
 
   RETURN VALUE
-    TRUE                 Fields in list of fields not part of table
-    FALSE                All fields ok and array created
+    true                 Fields in list of fields not part of table
+    false                All fields ok and array created
 
   DESCRIPTION
     This routine sets-up the partition field array for KEY partitioning, it
@@ -835,12 +836,12 @@ static bool handle_list_of_fields(List_iterator<char> it,
   Field *field;
   bool result;
   char *field_name;
-  bool is_list_empty= TRUE;
+  bool is_list_empty= true;
   DBUG_ENTER("handle_list_of_fields");
 
   while ((field_name= it++))
   {
-    is_list_empty= FALSE;
+    is_list_empty= false;
     field= find_field_in_table_sef(table, field_name);
     if (likely(field != 0))
       field->flags|= GET_FIXED_FIELDS_FLAG;
@@ -848,7 +849,7 @@ static bool handle_list_of_fields(List_iterator<char> it,
     {
       my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
       clear_field_flag(table);
-      result= TRUE;
+      result= true;
       goto end;
     }
   }
@@ -878,12 +879,12 @@ static bool handle_list_of_fields(List_iterator<char> it,
           partitioning based on a hidden key. Thus we allocate no
           array for partitioning fields.
         */
-        DBUG_RETURN(FALSE);
+        DBUG_RETURN(false);
       }
       else
       {
         my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
     }
   }
@@ -936,7 +937,7 @@ static int check_signed_flag(partition_info *part_info)
   @param table    The table object
   @param lex      The LEX object, must be initialized and contain select_lex.
 
-  @returns  FALSE if success, TRUE if error
+  @returns  false if success, true if error
 
   @details
     This function is used to set up a lex object on the
@@ -970,11 +971,11 @@ init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
     return true;
 
   context->resolve_in_table_list_only(table_list);
-  lex->use_only_table_context= TRUE;
-  table->get_fields_in_item_tree= TRUE;
+  lex->use_only_table_context= true;
+  table->get_fields_in_item_tree= true;
   table_list->table= table;
   table_list->cacheable_table= false;
-  return FALSE;
+  return false;
 }
 
 /**
@@ -996,7 +997,7 @@ static void
 end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex)
 {
   LEX *lex= thd->lex;
-  table->get_fields_in_item_tree= FALSE;
+  table->get_fields_in_item_tree= false;
   lex_end(lex);
   thd->lex= old_lex;
 }
@@ -1018,9 +1019,9 @@ end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex)
                          CREATE or ALTER TABLE
 
   RETURN VALUE
-    TRUE                 An error occurred, something was wrong with the
+    true                 An error occurred, something was wrong with the
                          partition function.
-    FALSE                Ok, a partition field array was created
+    false                Ok, a partition field array was created
 
   DESCRIPTION
     This function is used to build an array of partition fields for the
@@ -1042,7 +1043,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
                           bool is_sub_part, bool is_create_table_ind)
 {
   partition_info *part_info= table->part_info;
-  bool result= TRUE;
+  bool result= true;
   int error;
   LEX *old_lex= thd->lex;
   LEX lex;
@@ -1140,9 +1141,9 @@ end:
     table                TABLE object for which partition fields are set-up
 
   RETURN VALUES
-    TRUE                 Not all fields in partitioning function was part
+    true                 Not all fields in partitioning function was part
                          of primary key
-    FALSE                Ok, all fields of partitioning function were part
+    false                Ok, all fields of partitioning function were part
                          of primary key
 
   DESCRIPTION
@@ -1156,7 +1157,7 @@ static bool check_primary_key(TABLE *table)
 {
   uint primary_key= table->s->primary_key;
   bool all_fields, some_fields;
-  bool result= FALSE;
+  bool result= false;
   DBUG_ENTER("check_primary_key");
 
   if (primary_key < MAX_KEY)
@@ -1168,7 +1169,7 @@ static bool check_primary_key(TABLE *table)
     if (unlikely(!all_fields))
     {
       my_error(ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF,MYF(0),"PRIMARY KEY");
-      result= TRUE;
+      result= true;
     }
   }
   DBUG_RETURN(result);
@@ -1183,9 +1184,9 @@ static bool check_primary_key(TABLE *table)
     table                TABLE object for which partition fields are set-up
 
   RETURN VALUES
-    TRUE                 Not all fields in partitioning function was part
+    true                 Not all fields in partitioning function was part
                          of all unique keys
-    FALSE                Ok, all fields of partitioning function were part
+    false                Ok, all fields of partitioning function were part
                          of unique keys
 
   DESCRIPTION
@@ -1198,7 +1199,7 @@ static bool check_primary_key(TABLE *table)
 static bool check_unique_keys(TABLE *table)
 {
   bool all_fields, some_fields;
-  bool result= FALSE;
+  bool result= false;
   uint keys= table->s->keys;
   uint i;
   DBUG_ENTER("check_unique_keys");
@@ -1214,7 +1215,7 @@ static bool check_unique_keys(TABLE *table)
       if (unlikely(!all_fields))
       {
         my_error(ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF,MYF(0),"UNIQUE INDEX");
-        result= TRUE;
+        result= true;
         break;
       }
     }
@@ -1288,8 +1289,8 @@ static void check_range_capable_PF(TABLE*)
     @param part_info     Reference to partitioning data structure
 
   @return Operation status
-    @retval TRUE         Memory allocation failure
-    @retval FALSE        Success
+    @retval true         Memory allocation failure
+    @retval false        Success
 
     Allocate memory for bitmaps of the partitioned table
     and initialise it.
@@ -1311,15 +1312,15 @@ static bool set_up_partition_bitmaps(partition_info *part_info)
                                          bitmap_bytes * 2)))
   {
     mem_alloc_error(bitmap_bytes * 2);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
-  bitmap_init(&part_info->read_partitions, bitmap_buf, bitmap_bits, FALSE);
+  bitmap_init(&part_info->read_partitions, bitmap_buf, bitmap_bits, false);
   /* Use the second half of the allocated buffer for lock_partitions */
   bitmap_init(&part_info->lock_partitions, bitmap_buf + (bitmap_bytes / 4),
-              bitmap_bits, FALSE);
-  part_info->bitmaps_are_initialized= TRUE;
+              bitmap_bits, false);
+  part_info->bitmaps_are_initialized= true;
   part_info->set_partition_bitmaps(NULL);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -1596,21 +1597,21 @@ static uint32 get_part_id_from_linear_hash(longlong hash_value, uint mask,
     field                         The field to check
 
   RETURN VALUES
-    FALSE                        Not in need of character set handling
-    TRUE                         In need of character set handling
+    false                        Not in need of character set handling
+    true                         In need of character set handling
 */
 
 bool field_is_partition_charset(Field *field)
 {
   if (!(field->type() == MYSQL_TYPE_STRING) &&
       !(field->type() == MYSQL_TYPE_VARCHAR))
-    return FALSE;
+    return false;
   {
     const CHARSET_INFO *cs= field->charset();
     if (!(field->type() == MYSQL_TYPE_STRING) ||
         !(cs->state & MY_CS_BINSORT))
-      return TRUE;
-    return FALSE;
+      return true;
+    return false;
   }
 }
 
@@ -1625,8 +1626,8 @@ bool field_is_partition_charset(Field *field)
     ok_with_charsets                    Will we report allowed charset
                                         fields as ok
   RETURN VALUES
-    FALSE                               Success
-    TRUE                                Error
+    false                               Success
+    true                                Error
 
   DESCRIPTION
     We will check in this routine that the fields of the partition functions
@@ -1654,11 +1655,11 @@ bool check_part_func_fields(Field **ptr, bool ok_with_charsets)
           cs->mbmaxlen > 1 ||
           cs->strxfrm_multiply > 1)
       {
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -1673,8 +1674,8 @@ bool check_part_func_fields(Field **ptr, bool ok_with_charsets)
                          CREATE or ALTER TABLE
 
   RETURN VALUE
-    TRUE                 Error
-    FALSE                Success
+    true                 Error
+    false                Success
 
   DESCRIPTION
     The name parameter contains the full table name and is used to get the
@@ -1692,7 +1693,7 @@ NOTES
 bool fix_partition_func(THD *thd, TABLE *table,
                         bool is_create_table_ind)
 {
-  bool result= TRUE;
+  bool result= true;
   partition_info *part_info= table->part_info;
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
   Partition_handler *part_handler;
@@ -1701,7 +1702,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
 
   if (part_info->fixed)
   {
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
   thd->mark_used_columns= MARK_COLUMNS_NONE;
   thd->want_privilege= 0;
@@ -1713,7 +1714,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
                                    is_create_table_ind,
                                    table->s->normalized_path.str))
     {
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
   }
   if (part_info->is_sub_partitioned())
@@ -1728,17 +1729,17 @@ bool fix_partition_func(THD *thd, TABLE *table,
     if (part_info->list_of_subpart_fields)
     {
       List_iterator<char> it(part_info->subpart_field_list);
-      if (unlikely(handle_list_of_fields(it, table, part_info, TRUE)))
+      if (unlikely(handle_list_of_fields(it, table, part_info, true)))
         goto end;
     }
     else
     {
       if (unlikely(fix_fields_part_func(thd, part_info->subpart_expr,
-                                        table, TRUE, is_create_table_ind)))
+                                        table, true, is_create_table_ind)))
         goto end;
       if (unlikely(part_info->subpart_expr->result_type() != INT_RESULT))
       {
-        part_info->report_part_expr_error(TRUE);
+        part_info->report_part_expr_error(true);
         goto end;
       }
     }
@@ -1755,21 +1756,21 @@ bool fix_partition_func(THD *thd, TABLE *table,
     if (part_info->list_of_part_fields)
     {
       List_iterator<char> it(part_info->part_field_list);
-      if (unlikely(handle_list_of_fields(it, table, part_info, FALSE)))
+      if (unlikely(handle_list_of_fields(it, table, part_info, false)))
         goto end;
     }
     else
     {
       if (unlikely(fix_fields_part_func(thd, part_info->part_expr,
-                                        table, FALSE, is_create_table_ind)))
+                                        table, false, is_create_table_ind)))
         goto end;
       if (unlikely(part_info->part_expr->result_type() != INT_RESULT))
       {
-        part_info->report_part_expr_error(FALSE);
+        part_info->report_part_expr_error(false);
         goto end;
       }
     }
-    part_info->fixed= TRUE;
+    part_info->fixed= true;
   }
   else
   {
@@ -1777,16 +1778,16 @@ bool fix_partition_func(THD *thd, TABLE *table,
     if (part_info->column_list)
     {
       List_iterator<char> it(part_info->part_field_list);
-      if (unlikely(handle_list_of_fields(it, table, part_info, FALSE)))
+      if (unlikely(handle_list_of_fields(it, table, part_info, false)))
         goto end;
     }
     else
     {
       if (unlikely(fix_fields_part_func(thd, part_info->part_expr,
-                                        table, FALSE, is_create_table_ind)))
+                                        table, false, is_create_table_ind)))
         goto end;
     }
-    part_info->fixed= TRUE;
+    part_info->fixed= true;
     if (part_info->part_type == partition_type::RANGE)
     {
       error_str= partition_keywords[PKW_RANGE].str;
@@ -1813,17 +1814,17 @@ bool fix_partition_func(THD *thd, TABLE *table,
     if (unlikely(!part_info->column_list &&
                   part_info->part_expr->result_type() != INT_RESULT))
     {
-      part_info->report_part_expr_error(FALSE);
+      part_info->report_part_expr_error(false);
       goto end;
     }
   }
   if (((part_info->part_type != partition_type::HASH ||
-        part_info->list_of_part_fields == FALSE) &&
+        part_info->list_of_part_fields == false) &&
        !part_info->column_list &&
-       check_part_func_fields(part_info->part_field_array, TRUE)) ||
-      (part_info->list_of_subpart_fields == FALSE &&
+       check_part_func_fields(part_info->part_field_array, true)) ||
+      (part_info->list_of_subpart_fields == false &&
        part_info->is_sub_partitioned() &&
-       check_part_func_fields(part_info->subpart_field_array, TRUE)))
+       check_part_func_fields(part_info->subpart_field_array, true)))
   {
     /*
       Range/List/HASH (but not KEY) and not COLUMNS or HASH subpartitioning
@@ -2239,7 +2240,7 @@ static int add_partition_options(File fptr, partition_element *p_elem)
       err+= add_keyword_path(fptr, "INDEX DIRECTORY", p_elem->index_file_name);
   }
   if (p_elem->part_comment)
-    err+= add_keyword_string(fptr, "COMMENT", TRUE, p_elem->part_comment);
+    err+= add_keyword_string(fptr, "COMMENT", true, p_elem->part_comment);
   return err + add_engine(fptr,p_elem->engine_type);
 }
 
@@ -2256,8 +2257,8 @@ static int add_partition_options(File fptr, partition_element *p_elem)
     need_cs_check         Out value: Do we need character set check
 
   RETURN VALUES
-    TRUE                  Error
-    FALSE                 Ok
+    true                  Error
+    false                 Ok
 */
 
 static int check_part_field(enum_field_types sql_type,
@@ -2269,7 +2270,7 @@ static int check_part_field(enum_field_types sql_type,
       sql_type <= MYSQL_TYPE_BLOB)
   {
     my_error(ER_BLOB_FIELD_IN_PART_FUNC_ERROR, MYF(0));
-    return TRUE;
+    return true;
   }
   switch (sql_type)
   {
@@ -2279,8 +2280,8 @@ static int check_part_field(enum_field_types sql_type,
     case MYSQL_TYPE_LONGLONG:
     case MYSQL_TYPE_INT24:
       *result_type= INT_RESULT;
-      *need_cs_check= FALSE;
-      return FALSE;
+      *need_cs_check= false;
+      return false;
     case MYSQL_TYPE_NEWDATE:
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_TIME:
@@ -2288,14 +2289,14 @@ static int check_part_field(enum_field_types sql_type,
     case MYSQL_TYPE_TIME2:
     case MYSQL_TYPE_DATETIME2:
       *result_type= STRING_RESULT;
-      *need_cs_check= TRUE;
-      return FALSE;
+      *need_cs_check= true;
+      return false;
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_VAR_STRING:
       *result_type= STRING_RESULT;
-      *need_cs_check= TRUE;
-      return FALSE;
+      *need_cs_check= true;
+      return false;
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_TIMESTAMP:
@@ -2314,7 +2315,7 @@ static int check_part_field(enum_field_types sql_type,
 error:
   my_error(ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD, MYF(0),
            field_name);
-  return TRUE;
+  return true;
 }
 
 
@@ -2361,7 +2362,7 @@ int expr_to_string(String *val_conv,
   String str(buffer, sizeof(buffer), &my_charset_bin);
   String *res;
   const CHARSET_INFO *field_cs;
-  bool need_cs_check= FALSE;
+  bool need_cs_check= false;
   Item_result result_type= STRING_RESULT;
 
   /*
@@ -2815,7 +2816,7 @@ char *generate_partition_syntax(partition_info *part_info,
 
   if (!part_info->use_default_partitions)
   {
-    bool first= TRUE;
+    bool first= true;
     err+= add_string(fptr, "\n");
     err+= add_begin_parenthesis(fptr);
     i= 0;
@@ -2831,7 +2832,7 @@ char *generate_partition_syntax(partition_info *part_info,
           err+= add_string(fptr, "\n");
           err+= add_space(fptr);
         }
-        first= FALSE;
+        first= false;
         err+= add_partition(fptr);
         err+= add_name_string(fptr, part_elem->partition_name);
         err+= add_partition_values(fptr, part_info, part_elem);
@@ -2895,8 +2896,8 @@ close_file:
     fields               Bitmap representing fields to be modified
 
   RETURN VALUES
-    TRUE                 Need special handling of UPDATE
-    FALSE                Normal UPDATE handling is ok
+    true                 Need special handling of UPDATE
+    false                Normal UPDATE handling is ok
 */
 
 bool partition_key_modified(TABLE *table, const MY_BITMAP *fields)
@@ -2906,14 +2907,14 @@ bool partition_key_modified(TABLE *table, const MY_BITMAP *fields)
   DBUG_ENTER("partition_key_modified");
 
   if (!part_info)
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   if (table->s->db_type()->partition_flags &&
       (table->s->db_type()->partition_flags() & HA_CAN_UPDATE_PARTITION_KEY))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   for (fld= part_info->full_part_field_array; *fld; fld++)
     if (bitmap_is_set(fields, (*fld)->field_index))
-      DBUG_RETURN(TRUE);
-  DBUG_RETURN(FALSE);
+      DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 
@@ -2926,8 +2927,8 @@ bool partition_key_modified(TABLE *table, const MY_BITMAP *fields)
     out:result                The value of the partition function,
                                 LLONG_MIN if any null value in function
   RETURN VALUES
-    TRUE      Error in val_int()
-    FALSE     ok
+    true      Error in val_int()
+    false     ok
 */
 
 static inline int part_val_int(Item *item_expr, longlong *result)
@@ -2936,11 +2937,11 @@ static inline int part_val_int(Item *item_expr, longlong *result)
   if (item_expr->null_value)
   {
     if (current_thd->is_error())
-      return TRUE;
+      return true;
     else
       *result= LLONG_MIN;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -2993,7 +2994,7 @@ static uint32 get_part_id_for_sub(uint32 loc_part_id, uint32 sub_part_id,
 
   RETURN VALUE
     != 0                          Error code
-    FALSE                         Success
+    false                         Success
 */
 
 static int get_part_id_hash(uint num_parts,
@@ -3010,7 +3011,7 @@ static int get_part_id_hash(uint num_parts,
   int_hash_id= *func_value % num_parts;
 
   *part_id= int_hash_id < 0 ? (uint32) -int_hash_id : (uint32) int_hash_id;
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -3045,7 +3046,7 @@ static int get_part_id_linear_hash(partition_info *part_info,
   *part_id= get_part_id_from_linear_hash(*func_value,
                                          part_info->linear_hash_mask,
                                          num_parts);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -3438,19 +3439,19 @@ static uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
   Find the sub-array part_info->list_array that corresponds to given interval.
 
   @param part_info         Partitioning info (partitioning type must be LIST)
-  @param left_endpoint     TRUE  - the interval is [a; +inf) or (a; +inf)
-                           FALSE - the interval is (-inf; a] or (-inf; a)
-  @param include_endpoint  TRUE iff the interval includes the endpoint
+  @param left_endpoint     true  - the interval is [a; +inf) or (a; +inf)
+                           false - the interval is (-inf; a] or (-inf; a)
+  @param include_endpoint  true iff the interval includes the endpoint
 
   This function finds the sub-array of part_info->list_array where values of
   list_array[idx].list_value are contained within the specifed interval.
   list_array is ordered by list_value, so
-  1. For [a; +inf) or (a; +inf)-type intervals (left_endpoint==TRUE), the
+  1. For [a; +inf) or (a; +inf)-type intervals (left_endpoint==true), the
      sought sub-array starts at some index idx and continues till array end.
      The function returns first number idx, such that
      list_array[idx].list_value is contained within the passed interval.
 
-  2. For (-inf; a] or (-inf; a)-type intervals (left_endpoint==FALSE), the
+  2. For (-inf; a] or (-inf; a)-type intervals (left_endpoint==false), the
      sought sub-array starts at array start and continues till some last
      index idx.
      The function returns first number idx, such that
@@ -3632,9 +3633,9 @@ int get_partition_id_range(partition_info *part_info,
   SYNOPSIS
     get_partition_id_range_for_endpoint()
       part_info         Partitioning info (partitioning type must be RANGE)
-      left_endpoint     TRUE  - the interval is [a; +inf) or (a; +inf)
-                        FALSE - the interval is (-inf; a] or (-inf; a).
-      include_endpoint  TRUE <=> the endpoint itself is included in the
+      left_endpoint     true  - the interval is [a; +inf) or (a; +inf)
+                        false - the interval is (-inf; a] or (-inf; a).
+      include_endpoint  true <=> the endpoint itself is included in the
                         interval
 
   DESCRIPTION
@@ -3647,13 +3648,13 @@ int get_partition_id_range(partition_info *part_info,
 
     intervals are disjoint and ordered by their right bound, so
 
-    1. For [a; +inf) or (a; +inf)-type intervals (left_endpoint==TRUE), the
+    1. For [a; +inf) or (a; +inf)-type intervals (left_endpoint==true), the
        sought sub-array starts at some index idx and continues till array end.
        The function returns first number idx, such that the interval
        represented by range_int_array[idx] has non empty intersection with
        the passed interval.
 
-    2. For (-inf; a] or (-inf; a)-type intervals (left_endpoint==FALSE), the
+    2. For (-inf; a] or (-inf; a)-type intervals (left_endpoint==false), the
        sought sub-array starts at array start and continues till some last
        index idx.
        The function returns first number idx, such that the interval
@@ -3889,7 +3890,7 @@ static int get_partition_id_key_sub(partition_info *part_info,
   *part_id= get_part_id_key(part_info->table->file,
                             part_info->subpart_field_array,
                             part_info->num_subparts, &func_value);
-  return FALSE;
+  return false;
 }
 
 
@@ -3900,7 +3901,7 @@ static int get_partition_id_linear_key_sub(partition_info *part_info,
   *part_id= get_part_id_linear_key(part_info,
                                    part_info->subpart_field_array,
                                    part_info->num_subparts, &func_value);
-  return FALSE;
+  return false;
 }
 
 
@@ -3913,14 +3914,14 @@ static int get_partition_id_linear_key_sub(partition_info *part_info,
     key_length                 Length of key
 
   RETURN VALUE
-    TRUE                       Found partition field set by key
-    FALSE                      No partition field set by key
+    true                       Found partition field set by key
+    false                      No partition field set by key
 */
 
 static bool set_PF_fields_in_key(KEY *key_info, uint key_length)
 {
   KEY_PART_INFO *key_part;
-  bool found_part_field= FALSE;
+  bool found_part_field= false;
   DBUG_ENTER("set_PF_fields_in_key");
 
   for (key_part= key_info->key_part; (int)key_length > 0; key_part++)
@@ -3941,7 +3942,7 @@ static bool set_PF_fields_in_key(KEY *key_info, uint key_length)
     key_length-= key_part->length;
     if (key_part->field->flags & FIELD_IN_PART_FUNC_FLAG)
     {
-      found_part_field= TRUE;
+      found_part_field= true;
       key_part->field->flags|= GET_FIXED_FIELDS_FLAG;
     }
   }
@@ -3958,20 +3959,20 @@ static bool set_PF_fields_in_key(KEY *key_info, uint key_length)
     ptr                     Array of fields NULL terminated (partition fields)
 
   RETURN VALUE
-    TRUE                    All fields in partition function are set
-    FALSE                   Not all fields in partition function are set
+    true                    All fields in partition function are set
+    false                   Not all fields in partition function are set
 */
 
 static bool check_part_func_bound(Field **ptr)
 {
-  bool result= TRUE;
+  bool result= true;
   DBUG_ENTER("check_part_func_bound");
 
   for (; *ptr; ptr++)
   {
     if (!((*ptr)->flags & GET_FIXED_FIELDS_FLAG))
     {
-      result= FALSE;
+      result= false;
       break;
     }
   }
@@ -3992,8 +3993,8 @@ static bool check_part_func_bound(Field **ptr)
     out:part_id   The returned partition id
 
   RETURN VALUES
-    TRUE                    All fields in partition function are set
-    FALSE                   Not all fields in partition function are set
+    true                    All fields in partition function are set
+    false                   Not all fields in partition function are set
 
   DESCRIPTION
     Use key buffer to set-up record in buf, move field pointers and
@@ -4038,8 +4039,8 @@ static int get_sub_part_id_from_key(const TABLE *table,uchar *buf,
     out:part_id   Partition to use
 
   RETURN VALUES
-    TRUE          Partition to use not found
-    FALSE         Ok, part_id indicates partition to use
+    true          Partition to use not found
+    false         Ok, part_id indicates partition to use
 
   DESCRIPTION
     Use key buffer to set-up record in buf, move field pointers and
@@ -4134,8 +4135,8 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf,
   @param part_id    Which partition to match with.
 
   @return Operation status
-    @retval TRUE                Not all rows match the given partition
-    @retval FALSE               OK
+    @retval true                Not all rows match the given partition
+    @retval false               OK
 */
 bool verify_data_with_partition(TABLE *table, TABLE *part_table,
                                 uint32 part_id)
@@ -4167,7 +4168,7 @@ bool verify_data_with_partition(TABLE *table, TABLE *part_table,
   old_rec= part_table->record[0];
   part_table->record[0]= table->record[0];
   set_field_ptr(part_info->full_part_field_array, table->record[0], old_rec);
-  if ((error= file->ha_rnd_init(TRUE)))
+  if ((error= file->ha_rnd_init(true)))
   {
     file->print_error(error, MYF(0));
     goto err;
@@ -4199,15 +4200,15 @@ bool verify_data_with_partition(TABLE *table, TABLE *part_table,
       error= 1;
       break;
     }
-  } while (TRUE);
+  } while (true);
   (void) file->ha_rnd_end();
 err:
   set_field_ptr(part_info->full_part_field_array, old_rec,
                 table->record[0]);
   part_table->record[0]= old_rec;
   if (error)
-    DBUG_RETURN(TRUE);
-  DBUG_RETURN(FALSE);
+    DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 
@@ -4297,7 +4298,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
   uint sub_part= num_parts;
   uint32 part_part= num_parts;
   KEY *key_info= NULL;
-  bool found_part_field= FALSE;
+  bool found_part_field= false;
   DBUG_ENTER("get_partition_set");
 
   part_spec->start_part= 0;
@@ -4498,8 +4499,8 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
                                    part_info, but used thd->work_part_info
 
    RETURN VALUE
-     TRUE                          Error
-     FALSE                         Sucess
+     true                          Error
+     false                         Sucess
 
    DESCRIPTION
      Read the partition syntax from the current position in the frm file.
@@ -4518,7 +4519,7 @@ bool mysql_unpack_partition(THD *thd,
                             handlerton *default_db_type,
                             bool *work_part_info_used)
 {
-  bool result= TRUE;
+  bool result= true;
   partition_info *part_info;
   const CHARSET_INFO *old_character_set_client=
     thd->variables.character_set_client;
@@ -4553,7 +4554,7 @@ bool mysql_unpack_partition(THD *thd,
     Thus we move away the current list temporarily and start a new list that
     we then save in the partition info structure.
   */
-  *work_part_info_used= FALSE;
+  *work_part_info_used= false;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
 
   thd->m_digest= NULL;
@@ -4653,7 +4654,7 @@ bool mysql_unpack_partition(THD *thd,
     part_info->subpart_func_string= subpart_func_string;
   }
 
-  result= FALSE;
+  result= false;
 end:
   end_lex_with_single_table(thd, table, old_lex);
   thd->variables.character_set_client= old_character_set_client;
@@ -4712,12 +4713,12 @@ set_engine_all_partitions(partition_info *part_info,
 
   RETURN VALUES
   Value returned in bool ret_value
-    TRUE                   Native partitioning supported by engine
-    FALSE                  Need to use partition handler
+    true                   Native partitioning supported by engine
+    false                  Need to use partition handler
 
   Return value from function
-    TRUE                   Error
-    FALSE                  Success
+    true                   Error
+    false                  Success
 */
 
 static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
@@ -4730,15 +4731,15 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
 
   if (create_info->used_fields & HA_CREATE_USED_ENGINE)
   {
-    table_engine_set= TRUE;
+    table_engine_set= true;
     engine_type= create_info->db_type;
   }
   else
   {
-    table_engine_set= FALSE;
+    table_engine_set= false;
     if (thd->lex->sql_command != SQLCOM_CREATE_TABLE)
     {
-      table_engine_set= TRUE;
+      table_engine_set= true;
     }
   }
   DBUG_PRINT("info", ("engine_type = %s, table_engine_set = %u",
@@ -4760,17 +4761,17 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
   {
     create_info->db_type= engine_type;
     DBUG_PRINT("info", ("Changed to native partitioning"));
-    *ret_val= TRUE;
+    *ret_val= true;
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 error:
   /*
     Mixed engines not yet supported but when supported it will need
     the partition handler
   */
   my_error(ER_MIX_HANDLER_ERROR, MYF(0));
-  *ret_val= FALSE;
-  DBUG_RETURN(TRUE);
+  *ret_val= false;
+  DBUG_RETURN(true);
 }
 
 
@@ -4883,7 +4884,7 @@ bool set_part_state(Alter_info *alter_info,
   @param table_create_info Table options from table.
   @param part_elem         All the info of the partition.
 
-  @retval FALSE if they are equal, otherwise TRUE.
+  @retval false if they are equal, otherwise true.
 
   @note Any differens that would cause a change in the frm file is prohibited.
   Such options as data_file_name, index_file_name, min_rows, max_rows etc. are
@@ -4936,8 +4937,8 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
                                  possible.
 
   @return Operation status
-    @retval TRUE                 Error
-    @retval FALSE                Success
+    @retval true                 Error
+    @retval false                Success
 
   @note
     This method handles all preparations for ALTER TABLE for partitioned
@@ -4963,12 +4964,12 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                             Alter_info::ALTER_REMOVE_PARTITIONING))
   {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (thd->work_part_info &&
       !(thd->work_part_info= thd->lex->part_info->get_clone(thd, true)))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /* ALTER_ADMIN_PARTITION is handled in mysql_admin_table */
   DBUG_ASSERT(!(alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION));
@@ -4984,7 +4985,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     partition_info *tab_part_info;
     partition_info *alt_part_info= thd->work_part_info;
     uint flags= 0;
-    bool is_last_partition_reorged= FALSE;
+    bool is_last_partition_reorged= false;
     part_elem_value *tab_max_elem_val= NULL;
     part_elem_value *alt_max_elem_val= NULL;
     longlong tab_max_range= 0, alt_max_range= 0;
@@ -4993,7 +4994,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     if (!table->part_info)
     {
       my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
     if (!part_handler)
     {
@@ -5065,7 +5066,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         }
 
         thd->work_part_info= tab_part_info;
-        DBUG_RETURN(FALSE);
+        DBUG_RETURN(false);
       }
       else if (new_part_no > curr_part_no)
       {
@@ -5297,7 +5298,7 @@ that are reorganised.
         uint end_part= 0, end_sec_part= 0;
         uint upper_2n= tab_part_info->linear_hash_mask + 1;
         uint lower_2n= upper_2n >> 1;
-        bool all_parts= TRUE;
+        bool all_parts= true;
         if (tab_part_info->linear_hash_ind &&
             num_new_partitions < upper_2n)
         {
@@ -5333,9 +5334,9 @@ that are reorganised.
             Finally with 9 new partitions we would also reorganise p6 if we
             used the method below but we cannot reorganise more partitions
             than what we had from the start and thus we simply set all_parts
-            to TRUE. In this case we don't get into this if-part at all.
+            to true. In this case we don't get into this if-part at all.
           */
-          all_parts= FALSE;
+          all_parts= false;
           if (num_new_partitions >= lower_2n)
           {
             /*
@@ -5409,17 +5410,17 @@ that are reorganised.
         If we specify partitions explicitly we don't use defaults anymore.
         Using ADD PARTITION also means that we don't have the default number
         of partitions anymore. We use this code also for Table reorganisations
-        and here we don't set any default flags to FALSE.
+        and here we don't set any default flags to false.
       */
       if (!(alter_info->flags & Alter_info::ALTER_TABLE_REORG))
       {
         if (!alt_part_info->use_default_partitions)
         {
           DBUG_PRINT("info", ("part_info: %p", tab_part_info));
-          tab_part_info->use_default_partitions= FALSE;
+          tab_part_info->use_default_partitions= false;
         }
-        tab_part_info->use_default_num_partitions= FALSE;
-        tab_part_info->is_auto_partitioned= FALSE;
+        tab_part_info->use_default_num_partitions= false;
+        tab_part_info->is_auto_partitioned= false;
       }
     }
     else if (alter_info->flags & Alter_info::ALTER_DROP_PARTITION)
@@ -5436,7 +5437,7 @@ that are reorganised.
       uint num_parts_found= 0;
       List_iterator<partition_element> part_it(tab_part_info->partitions);
 
-      tab_part_info->is_auto_partitioned= FALSE;
+      tab_part_info->is_auto_partitioned= false;
       if (!(tab_part_info->part_type == partition_type::RANGE ||
             tab_part_info->part_type == partition_type::LIST))
       {
@@ -5544,16 +5545,16 @@ state of p1.
       {
         uint part_count= 0, start_part= 1, start_sec_part= 1;
         uint end_part= 0, end_sec_part= 0;
-        bool all_parts= TRUE;
+        bool all_parts= true;
         if (*new_part_info &&
             tab_part_info->linear_hash_ind)
         {
           uint upper_2n= tab_part_info->linear_hash_mask + 1;
           uint lower_2n= upper_2n >> 1;
-          all_parts= FALSE;
+          all_parts= false;
           if (num_parts_coalesced >= lower_2n)
           {
-            all_parts= TRUE;
+            all_parts= true;
           }
           else if (num_parts_remain >= lower_2n)
           {
@@ -5588,8 +5589,8 @@ state of p1.
       }
       if (!(alter_info->flags & Alter_info::ALTER_TABLE_REORG))
       {
-        tab_part_info->use_default_num_partitions= FALSE;
-        tab_part_info->is_auto_partitioned= FALSE;
+        tab_part_info->use_default_num_partitions= false;
+        tab_part_info->is_auto_partitioned= false;
       }
     }
     else if (alter_info->flags & Alter_info::ALTER_REORGANIZE_PARTITION)
@@ -5609,7 +5610,7 @@ state of p1.
       uint num_parts_new= thd->work_part_info->partitions.elements;
       uint check_total_partitions;
 
-      tab_part_info->is_auto_partitioned= FALSE;
+      tab_part_info->is_auto_partitioned= false;
       if (num_parts_reorged > tab_part_info->num_parts)
       {
         my_error(ER_REORG_PARTITION_NOT_EXIST, MYF(0));
@@ -5641,7 +5642,7 @@ state of p1.
       alt_part_info->num_subparts= tab_part_info->num_subparts;
       DBUG_ASSERT(!alt_part_info->use_default_partitions);
       /* We specified partitions explicitly so don't use defaults anymore. */
-      tab_part_info->use_default_partitions= FALSE;
+      tab_part_info->use_default_partitions= false;
       if (alt_part_info->set_up_defaults_for_partitioning(part_handler,
                                                           0ULL,
                                                           0))
@@ -5686,17 +5687,17 @@ the generated partition syntax in a correct manner.
       {
         List_iterator<partition_element> tab_it(tab_part_info->partitions);
         uint part_count= 0;
-        bool found_first= FALSE;
-        bool found_last= FALSE;
+        bool found_first= false;
+        bool found_last= false;
         uint drop_count= 0;
         do
         {
           partition_element *part_elem= tab_it++;
-          is_last_partition_reorged= FALSE;
+          is_last_partition_reorged= false;
           if (is_name_in_list(part_elem->partition_name,
                               alter_info->partition_names))
           {
-            is_last_partition_reorged= TRUE;
+            is_last_partition_reorged= true;
             drop_count++;
             if (tab_part_info->column_list)
             {
@@ -5719,7 +5720,7 @@ the generated partition syntax in a correct manner.
               partition_element *alt_part_elem;
               List_iterator<partition_element>
                                  alt_it(alt_part_info->partitions);
-              found_first= TRUE;
+              found_first= true;
               do
               {
                 alt_part_elem= alt_it++;
@@ -5750,7 +5751,7 @@ the generated partition syntax in a correct manner.
           else
           {
             if (found_first)
-              found_last= TRUE;
+              found_last= true;
           }
         } while (++part_count < tab_part_info->num_parts);
         if (drop_count != num_parts_reorged)
@@ -5763,9 +5764,9 @@ the generated partition syntax in a correct manner.
     }
     else
     {
-      DBUG_ASSERT(FALSE);
+      DBUG_ASSERT(false);
     }
-    *partition_changed= TRUE;
+    *partition_changed= true;
     thd->work_part_info= tab_part_info;
     if (alter_info->flags & Alter_info::ALTER_ADD_PARTITION ||
         alter_info->flags & Alter_info::ALTER_REORGANIZE_PARTITION)
@@ -5773,11 +5774,11 @@ the generated partition syntax in a correct manner.
       if (tab_part_info->use_default_subpartitions &&
           !alt_part_info->use_default_subpartitions)
       {
-        tab_part_info->use_default_subpartitions= FALSE;
-        tab_part_info->use_default_num_subpartitions= FALSE;
+        tab_part_info->use_default_subpartitions= false;
+        tab_part_info->use_default_num_subpartitions= false;
       }
       if (tab_part_info->check_partition_info(thd, (handlerton**)NULL,
-                                              table->file, 0ULL, TRUE))
+                                              table->file, 0ULL, true))
       {
         goto err;
       }
@@ -5908,7 +5909,7 @@ the generated partition syntax in a correct manner.
         DBUG_PRINT("info", ("New engine type: %s",
                    ha_resolve_storage_engine_name(create_info->db_type)));
         thd->work_part_info= NULL;
-        *partition_changed= TRUE;
+        *partition_changed= true;
       }
       else if (!thd->work_part_info)
       {
@@ -5919,7 +5920,7 @@ the generated partition syntax in a correct manner.
           Create a copy of TABLE::part_info to be able to modify it freely.
         */
         if (!(tab_part_info= tab_part_info->get_clone(thd)))
-          DBUG_RETURN(TRUE);
+          DBUG_RETURN(true);
         thd->work_part_info= tab_part_info;
         if (create_info->used_fields & HA_CREATE_USED_ENGINE &&
             create_info->db_type != tab_part_info->default_engine_type)
@@ -5944,14 +5945,14 @@ the generated partition syntax in a correct manner.
             set_engine_all_partitions(thd->work_part_info,
                                       create_info->db_type);
           }
-          *partition_changed= TRUE;
+          *partition_changed= true;
         }
       }
     }
     if (thd->work_part_info)
     {
       partition_info *part_info= thd->work_part_info;
-      bool is_native_partitioned= FALSE;
+      bool is_native_partitioned= false;
       /*
         Need to cater for engine types that can handle partition without
         using the partition handler.
@@ -6003,10 +6004,10 @@ the generated partition syntax in a correct manner.
       }
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 err:
   *new_part_info= NULL;
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -6564,7 +6565,7 @@ static int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
                                   min_value,
                                   min_value + min_len);
     part_iter->part_nums.start= part_iter->part_nums.cur=
-      get_col_endpoint(part_info, TRUE, !(flags & NEAR_MIN),
+      get_col_endpoint(part_info, true, !(flags & NEAR_MIN),
                        nparts);
   }
   if (flags & NO_MAX_RANGE)
@@ -6584,7 +6585,7 @@ static int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
                                   store_length_array,
                                   max_value,
                                   max_value + max_len);
-    part_iter->part_nums.end= get_col_endpoint(part_info, FALSE,
+    part_iter->part_nums.end= get_col_endpoint(part_info, false,
                                                !(flags & NEAR_MAX),
                                                nparts);
   }
@@ -6598,8 +6599,8 @@ static int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
   Partitioning Interval Analysis: Initialize the iterator for "mapping" case
 
   @param part_info   Partition info
-  @param is_subpart  TRUE  - act for subpartitioning
-                     FALSE - act for partitioning
+  @param is_subpart  true  - act for subpartitioning
+                     false - act for partitioning
   @param store_length_array  Ignored.
   @param min_value   minimum field value, in opt_range key format.
   @param max_value   minimum field value, in opt_range key format.
@@ -6650,7 +6651,7 @@ get_part_iter_for_interval_via_mapping(partition_info *part_info,
   (void) store_length_array;
   (void)min_len;
   (void)max_len;
-  part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
+  part_iter->ret_null_part= part_iter->ret_null_part_orig= false;
 
   if (part_info->part_type == partition_type::RANGE)
   {
@@ -6680,7 +6681,7 @@ get_part_iter_for_interval_via_mapping(partition_info *part_info,
       */
       part_iter->part_nums.start= part_iter->part_nums.end= 0;
       part_iter->part_nums.cur= 0;
-      part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
+      part_iter->ret_null_part= part_iter->ret_null_part_orig= true;
       DBUG_RETURN(-1);
     }
   }
@@ -6700,7 +6701,7 @@ get_part_iter_for_interval_via_mapping(partition_info *part_info,
         monotonic == MONOTONIC_STRICT_INCREASING_NOT_NULL)
     {
       /* col is NOT NULL, but F(col) can return NULL, add NULL partition */
-      part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
+      part_iter->ret_null_part= part_iter->ret_null_part_orig= true;
       check_zero_dates= true;
     }
   }
@@ -6712,7 +6713,7 @@ get_part_iter_for_interval_via_mapping(partition_info *part_info,
   if (field->real_maybe_null() && part_info->has_null_value &&
       !(flags & (NO_MIN_RANGE | NEAR_MIN)) && *min_value)
   {
-    part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
+    part_iter->ret_null_part= part_iter->ret_null_part_orig= true;
     part_iter->part_nums.start= part_iter->part_nums.cur= 0;
     if (!(flags & NO_MAX_RANGE) && *max_value)
     {
@@ -6741,7 +6742,7 @@ get_part_iter_for_interval_via_mapping(partition_info *part_info,
         /* col = x and F(x) = NULL -> only search NULL partition */
         part_iter->part_nums.cur= part_iter->part_nums.start= 0;
         part_iter->part_nums.end= 0;
-        part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
+        part_iter->ret_null_part= part_iter->ret_null_part_orig= true;
         DBUG_RETURN(1);
       }
       part_iter->part_nums.cur= part_iter->part_nums.start;
@@ -6812,8 +6813,8 @@ get_part_iter_for_interval_via_mapping(partition_info *part_info,
   SYNOPSIS
     get_part_iter_for_interval_via_walking()
       part_info   Partition info
-      is_subpart  TRUE  - act for subpartitioning
-                  FALSE - act for partitioning
+      is_subpart  true  - act for subpartitioning
+                  false - act for partitioning
       min_value   minimum field value, in opt_range key format.
       max_value   minimum field value, in opt_range key format.
       flags       Some combination of NEAR_MIN, NEAR_MAX, NO_MIN_RANGE,
@@ -6861,7 +6862,7 @@ static int get_part_iter_for_interval_via_walking(partition_info *part_info,
   (void)min_len;
   (void)max_len;
 
-  part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
+  part_iter->ret_null_part= part_iter->ret_null_part_orig= false;
   if (is_subpart)
   {
     field= part_info->subpart_field_array[0];
@@ -6919,7 +6920,7 @@ static int get_part_iter_for_interval_via_walking(partition_info *part_info,
   }
 
   /* Get integers for left and right interval bound */
-  longlong a, b;
+  ulonglong a, b;
   uint len= field->pack_length_in_rec();
   store_key_image_to_rec(field, min_value, len);
   a= field->val_int();
@@ -6933,7 +6934,7 @@ static int get_part_iter_for_interval_via_walking(partition_info *part_info,
     (x,y]-type interval then the following "b +=..." code will convert it to
     an empty interval by "wrapping around" a + 4G-1 + 1 = a.
   */
-  if ((ulonglong)b - (ulonglong)a == ~0ULL)
+  if (b - a == ~0ULL)
     DBUG_RETURN(-1);
 
   if (flags & NEAR_MIN)
@@ -6992,7 +6993,7 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
   {
     if (part_iter->ret_null_part)
     {
-      part_iter->ret_null_part= FALSE;
+      part_iter->ret_null_part= false;
       return 0;                    /* NULL always in first range partition */
     }
     part_iter->part_nums.cur= part_iter->part_nums.start;
@@ -7029,7 +7030,7 @@ static uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
   {
     if (part_iter->ret_null_part)
     {
-      part_iter->ret_null_part= FALSE;
+      part_iter->ret_null_part= false;
       return part_iter->part_info->has_null_part_id;
     }
     part_iter->part_nums.cur= part_iter->part_nums.start;

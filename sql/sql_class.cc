@@ -66,6 +66,7 @@
 #include "sql/sql_base.h"                    // close_temporary_tables
 #include "sql/sql_callback.h"                // MYSQL_CALLBACK
 #include "sql/sql_handler.h"                 // mysql_ha_cleanup
+#include "sql/sql_lex.h"
 #include "sql/sql_parse.h"                   // is_update_query
 #include "sql/sql_plugin.h"                  // plugin_thdvar_init
 #include "sql/sql_prepare.h"                 // Prepared_statement
@@ -75,6 +76,7 @@
 #include "sql/tc_log.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"                 // trans_rollback
+#include "sql/transaction_info.h"
 #include "sql/xa.h"
 #include "thr_mutex.h"
 
@@ -137,13 +139,15 @@ void THD::Transaction_state::restore(THD *thd)
 
 THD::Attachable_trx::Attachable_trx(THD *thd,
                                     Attachable_trx *prev_trx)
- : m_thd(thd), m_reset_lex(RESET_LEX), m_prev_attachable_trx(prev_trx)
+ : m_thd(thd), m_reset_lex(RESET_LEX), m_prev_attachable_trx(prev_trx),
+   m_trx_state(&thd->main_mem_root)
 { init(); }
 
 THD::Attachable_trx::Attachable_trx(THD *thd,
                                     Attachable_trx *prev_trx,
                                     enum_reset_lex reset_lex)
- : m_thd(thd), m_reset_lex(reset_lex), m_prev_attachable_trx(prev_trx)
+ : m_thd(thd), m_reset_lex(reset_lex), m_prev_attachable_trx(prev_trx),
+   m_trx_state(&thd->main_mem_root)
 { init(); }
 
 void THD::Attachable_trx::init()
@@ -167,7 +171,7 @@ void THD::Attachable_trx::init()
   bool reset= (m_reset_lex == RESET_LEX ? true : false);
   if (DBUG_EVALUATE_IF("use_attachable_trx", false, reset))
   {
-    m_thd->lex->reset_n_backup_query_tables_list(&m_trx_state.m_query_tables_list);
+    m_thd->lex->reset_n_backup_query_tables_list(m_trx_state.m_query_tables_list);
     m_thd->lex->sql_command= SQLCOM_SELECT;
   }
 
@@ -272,7 +276,7 @@ THD::Attachable_trx::~Attachable_trx()
   if (DBUG_EVALUATE_IF("use_attachable_trx", false, reset))
   {
     m_thd->lex->restore_backup_query_tables_list(
-      &m_trx_state.m_query_tables_list);
+      m_trx_state.m_query_tables_list);
   }
 }
 
@@ -297,7 +301,7 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
     const char *msg= new_stage->m_name;
 
 #if defined(ENABLED_PROFILING)
-    profiling.status_change(msg, calling_func, calling_file, calling_line);
+    profiling->status_change(msg, calling_func, calling_file, calling_line);
 #endif
 
     m_current_stage_key= new_stage->m_key;
@@ -347,7 +351,8 @@ THD::THD(bool enable_plugins)
   :Query_arena(&main_mem_root, STMT_CONVENTIONAL_EXECUTION),
    mark_used_columns(MARK_COLUMNS_READ),
    want_privilege(0),
-   lex(&main_lex),
+   main_lex(new LEX),
+   lex(main_lex.get()),
    m_dd_client(new dd::cache::Dictionary_client(this)),
    m_query_string(NULL_CSTR),
    m_db(NULL_CSTR),
@@ -376,6 +381,9 @@ THD::THD(bool enable_plugins)
    m_attachable_trx(NULL),
    table_map_for_update(0),
    m_examined_row_count(0),
+#if defined(ENABLED_PROFILING)
+   profiling(new PROFILING),
+#endif
    m_stage_progress_psi(NULL),
    m_digest(NULL),
    m_statement_psi(NULL),
@@ -393,7 +401,7 @@ THD::THD(bool enable_plugins)
    time_zone_used(0),
    in_lock_tables(0),
    got_warning(false),
-   derived_tables_processing(FALSE),
+   derived_tables_processing(false),
    parsing_system_view(false),
    sp_runtime_ctx(NULL),
    m_parser_state(NULL),
@@ -420,7 +428,7 @@ THD::THD(bool enable_plugins)
    is_a_srv_session_thd(false),
    m_is_plugin_fake_ddl(false)
 {
-  main_lex.reset();
+  main_lex->reset();
   set_psi(NULL);
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root,
@@ -437,7 +445,7 @@ THD::THD(bool enable_plugins)
   check_for_truncated_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
-  is_slave_error= thread_specific_used= FALSE;
+  is_slave_error= thread_specific_used= false;
   tmp_table=0;
   num_truncated_fields= 0L;
   m_sent_row_count= 0L;
@@ -461,7 +469,7 @@ THD::THD(bool enable_plugins)
   query_name_consts= 0;
   db_charset= global_system_variables.collation_database;
   is_killable= false;
-  binlog_evt_union.do_union= FALSE;
+  binlog_evt_union.do_union= false;
   enable_slow_log= 0;
   commit_error= CE_NONE;
   durability_property= HA_REGULAR_DURABILITY;
@@ -500,7 +508,7 @@ THD::THD(bool enable_plugins)
 
   init();
 #if defined(ENABLED_PROFILING)
-  profiling.set_thd(this);
+  profiling->set_thd(this);
 #endif
   m_user_connect= NULL;
   user_vars.clear();
@@ -514,7 +522,7 @@ THD::THD(bool enable_plugins)
   protocol_binary.init(this);
   protocol_text.set_client_capabilities(0); // minimalistic client
 
-  substitute_null_with_insert_id = FALSE;
+  substitute_null_with_insert_id = false;
 
   /*
     Make sure thr_lock_info_init() is called for threads which do not get
@@ -523,7 +531,7 @@ THD::THD(bool enable_plugins)
   thr_lock_info_init(&lock_info, m_thread_id, &COND_thr_lock);
 
   m_internal_handler= NULL;
-  m_binlog_invoker= FALSE;
+  m_binlog_invoker= false;
   memset(&m_invoker_user, 0, sizeof(m_invoker_user));
   memset(&m_invoker_host, 0, sizeof(m_invoker_host));
 
@@ -917,13 +925,13 @@ void THD::cleanup_connection(void)
   get_stmt_da()->reset_condition_info(this);
   // clear profiling information
 #if defined(ENABLED_PROFILING)
-  profiling.cleanup();
+  profiling->cleanup();
 #endif
 
 #ifndef DBUG_OFF
     /* DEBUG code only (begin) */
-    bool check_cleanup= FALSE;
-    DBUG_EXECUTE_IF("debug_test_cleanup_connection", check_cleanup= TRUE;);
+    bool check_cleanup= false;
+    DBUG_EXECUTE_IF("debug_test_cleanup_connection", check_cleanup= true;);
     if(check_cleanup)
     {
       /* isolation level should be default */
@@ -1512,7 +1520,7 @@ void THD::cleanup_after_query()
     first_successful_insert_id_in_prev_stmt= 
       first_successful_insert_id_in_cur_stmt;
     first_successful_insert_id_in_cur_stmt= 0;
-    substitute_null_with_insert_id= TRUE;
+    substitute_null_with_insert_id= true;
   }
   arg_of_last_insert_id_function= 0;
   /* Hack for cleaning up view security contexts */
@@ -1528,7 +1536,7 @@ void THD::cleanup_after_query()
   where= THD::DEFAULT_WHERE;
   /* reset table map for multi-table update */
   table_map_for_update= 0;
-  m_binlog_invoker= FALSE;
+  m_binlog_invoker= false;
   /* reset replication info structure */
   if (lex)
   {
@@ -1587,7 +1595,7 @@ LEX_CSTRING *THD::make_lex_string(LEX_CSTRING *lex_str,
   @param lex_str  pointer to LEX_STRING object to be initialized
   @param str      initializer to be copied into lex_str
   @param length   length of str, in bytes
-  @param allocate_lex_string  if TRUE, allocate new LEX_STRING object,
+  @param allocate_lex_string  if true, allocate new LEX_STRING object,
                               instead of using lex_str value
   @return  NULL on failure, or pointer to the LEX_STRING object
 */
@@ -1666,7 +1674,7 @@ bool THD::convert_string(String *s, const CHARSET_INFO *from_cs,
 {
   uint dummy_errors;
   if (convert_buffer.copy(s->ptr(), s->length(), from_cs, to_cs, &dummy_errors))
-    return TRUE;
+    return true;
   /* If convert_buffer >> s copying is more efficient long term */
   if (convert_buffer.alloced_length() >= convert_buffer.length() * 2 ||
       !s->is_alloced())
@@ -1674,7 +1682,7 @@ bool THD::convert_string(String *s, const CHARSET_INFO *from_cs,
     return s->copy(convert_buffer);
   }
   s->swap(convert_buffer);
-  return FALSE;
+  return false;
 }
 
 
@@ -1842,7 +1850,7 @@ void Query_arena::free_items()
 }
 
 
-void Query_arena::set_query_arena(Query_arena *set)
+void Query_arena::set_query_arena(const Query_arena *set)
 {
   mem_root=  set->mem_root;
   free_list= set->free_list;
@@ -1877,12 +1885,12 @@ void THD::end_statement()
 void THD::set_n_backup_active_arena(Query_arena *set, Query_arena *backup)
 {
   DBUG_ENTER("THD::set_n_backup_active_arena");
-  DBUG_ASSERT(backup->is_backup_arena == FALSE);
+  DBUG_ASSERT(backup->is_backup_arena == false);
 
   backup->set_query_arena(this);
   set_query_arena(set);
 #ifndef DBUG_OFF
-  backup->is_backup_arena= TRUE;
+  backup->is_backup_arena= true;
 #endif
   DBUG_VOID_RETURN;
 }
@@ -1895,7 +1903,7 @@ void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
   set->set_query_arena(this);
   set_query_arena(backup);
 #ifndef DBUG_OFF
-  backup->is_backup_arena= FALSE;
+  backup->is_backup_arena= false;
 #endif
   DBUG_VOID_RETURN;
 }
@@ -2489,7 +2497,7 @@ void THD::get_definer(LEX_USER *definer)
 /**
   Mark transaction to rollback and mark error as fatal to a sub-statement.
 
-  @param  all   TRUE <=> rollback main transaction.
+  @param  all   true <=> rollback main transaction.
 */
 
 void THD::mark_transaction_to_rollback(bool all)
@@ -3001,4 +3009,82 @@ bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const
   return ((variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) &&
           is_current_stmt_binlog_format_row() &&
           !is_current_stmt_binlog_disabled());
+}
+
+bool THD::Query_plan::is_single_table_plan() const
+{
+  assert_plan_is_locked_if_other();
+  return lex->m_sql_cmd->is_single_table_plan();
+}
+
+THD::Attachable_trx_rw::Attachable_trx_rw(THD *thd, Attachable_trx *prev_trx)
+  : Attachable_trx(thd, prev_trx)
+{
+  m_thd->tx_read_only= false;
+  m_thd->lex->sql_command= SQLCOM_END;
+  m_xa_state_saved= m_thd->get_transaction()->xid_state()->get_state();
+  thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
+}
+
+const String THD::normalized_query()
+{
+  m_normalized_query.mem_free();
+  lex->unit->print(&m_normalized_query, QT_NORMALIZED_FORMAT);
+  return m_normalized_query;
+}
+
+bool add_item_to_list(THD *thd, Item *item)
+{
+  return thd->lex->select_lex->add_item_to_list(item);
+}
+
+void add_order_to_list(THD *thd, ORDER *order)
+{
+  thd->lex->select_lex->add_order_to_list(order);
+}
+
+THD::Transaction_state::Transaction_state(MEM_ROOT *root)
+  : m_query_tables_list(new (root) Query_tables_list),
+    m_ha_data(PSI_NOT_INSTRUMENTED, m_ha_data.initial_capacity)
+{}
+
+void THD::change_item_tree(Item **place, Item *new_value)
+{
+  /* TODO: check for OOM condition here */
+  if (!stmt_arena->is_conventional())
+  {
+    DBUG_PRINT("info",
+               ("change_item_tree place %p old_value %p new_value %p",
+                place, *place, new_value));
+    if (new_value)
+      new_value->set_runtime_created(); /* Note the change of item tree */
+    nocheck_register_item_tree_change(place, new_value);
+  }
+  *place= new_value;
+}
+
+bool THD::notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
+                                            bool *victimized)
+{
+  return ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_PRE_EVENT,
+                                 victimized);
+}
+
+void THD::notify_hton_post_release_exclusive(const MDL_key *mdl_key)
+{
+  bool unused_arg;
+  ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_POST_EVENT, &unused_arg);
+}
+
+void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton)
+{
+  if (hton->replace_native_transaction_in_thd)
+  {
+    /* restore the saved original engine transaction's link with thd */
+    void **trx_backup= &thd->get_ha_data(hton->slot)->ha_ptr_backup;
+
+    hton->
+      replace_native_transaction_in_thd(thd, *trx_backup, NULL);
+    *trx_backup= NULL;
+  }
 }

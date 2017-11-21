@@ -29,6 +29,7 @@
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/udf_registration_types.h"
@@ -66,6 +67,7 @@
 #include "sql/sql_tmp_table.h"                // create_tmp_field
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                  // trans_commit
 #include "sql/tztime.h"                       // Time_zone
 
@@ -271,7 +273,6 @@ static bool fill_dd_view_columns(THD *thd,
   TABLE table;
   TABLE_SHARE share;
   init_tmp_table_share(thd, &share, "", 0, "", "", nullptr);
-  memset(&table, 0, sizeof(table));
   table.s= &share;
   handler *file= get_new_handler(&share, false, thd->mem_root,
                                  ha_default_temp_handlerton(thd));
@@ -424,8 +425,13 @@ static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
   for (const TABLE_LIST *table= query_tables; table != nullptr;
        table= table->next_global)
   {
-    // Skip tables which are not diectly referred by the view and not
-    // a non-temporary user table.
+    /*
+      Skip tables if
+        - It is not directly referred by the view OR
+        - It is a temporary table OR
+        - It is a data-directly table OR
+        - If it is not a user or information_schema schema table.
+    */
     {
       if (table->referencing_view && table->referencing_view != view)
         continue;
@@ -435,19 +441,27 @@ static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
         continue;
       else
       {
-        LEX_STRING db_name= { const_cast<char*>(table->get_db_name()),
-                               strlen(table->get_db_name()) };
-        LEX_STRING table_name= { const_cast<char*>(table->get_table_name()),
+        LEX_STRING db_name= { const_cast<char *>(table->get_db_name()),
+                              strlen(table->get_db_name()) };
+        LEX_STRING table_name= { const_cast<char *>(table->get_table_name()),
                                  strlen(table->get_table_name()) };
 
-        if (get_table_category(db_name, table_name) != TABLE_CATEGORY_USER)
+        TABLE_CATEGORY table_category= get_table_category(db_name, table_name);
+        if (table_category != TABLE_CATEGORY_USER &&
+            table_category != TABLE_CATEGORY_INFORMATION)
           continue;
       }
     }
 
     LEX_CSTRING db_name;
     LEX_CSTRING table_name;
-    if (table->is_view())
+    if (table->schema_table_name)
+    {
+      db_name= { table->db, table->db_length };
+      table_name= { table->schema_table_name,
+                    strlen(table->schema_table_name) };
+    }
+    else if (table->is_view())
     {
       db_name= table->view_db;
       table_name= table->view_name;

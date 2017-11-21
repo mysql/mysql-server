@@ -16,8 +16,7 @@
 #
 # 2. After the first garbage collection round the
 #    transaction_committed_all_member should be empty on server2 as the garbage
-#    collection has not taken place. Here we also assert that the warning of the
-#    same member sending the message again is generated.
+#    collection has not taken place.
 #
 # 3. We then remove the flag (although the code already does that) and rerun
 #    the garbage collection. This time the transaction_committed_all_members is
@@ -30,10 +29,6 @@
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source ../inc/group_replication.inc
-
-set session sql_log_bin=0;
-call mtr.add_suppression("The member with address.*has already sent the stable set. Therefore discarding the second message.");
-set session sql_log_bin=1;
 
 --connection server1
 SET @debug_save= @@GLOBAL.DEBUG;
@@ -66,12 +61,6 @@ CREATE TABLE t1(i INT PRIMARY KEY);
 --let $assert_text= Transactions committed on all members should only contain 1 transaction
 --let $assert_cond= "$transactions_committed_all_members"= $expected_gtid
 --source include/assert.inc
-
---echo # Asserting that the warning was indeed thrown.
---let $grep_file=$MYSQLTEST_VARDIR/tmp/group_replication_certifier_same_message.err
---let $grep_pattern=Therefore discarding the second message
---let $grep_output= print_count
---source include/grep_pattern.inc
 
 INSERT INTO t1 VALUES(1);
 --echo # Checking that the garbage collection is working fine.

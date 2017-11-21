@@ -59,7 +59,7 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES *sec_attr,
                   strerror(errno));
     return INVALID_HANDLE_VALUE;
   }
-  if (!SetSecurityDescriptorDacl(sec_descr, TRUE, NULL, FALSE))
+  if (!SetSecurityDescriptorDacl(sec_descr, true, NULL, false))
   {
     log_message(LOG_TYPE_ERROR,
                 LOG_ITEM_LOG_PRIO, (longlong) ERROR_LEVEL,
@@ -70,7 +70,7 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES *sec_attr,
   }
   sec_attr->nLength= sizeof(SECURITY_ATTRIBUTES);
   sec_attr->lpSecurityDescriptor= sec_descr;
-  sec_attr->bInheritHandle= FALSE;
+  sec_attr->bInheritHandle= false;
   ret_handle= CreateNamedPipe(name_buf,
                               PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED |
                               FILE_FLAG_FIRST_PIPE_INSTANCE,

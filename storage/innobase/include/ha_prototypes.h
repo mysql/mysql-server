@@ -31,8 +31,6 @@ simple headers.
 
 #include "univ.i"
 
-#if !defined UNIV_HOTBACKUP
-
 /* Forward declarations */
 class ha_innobase;
 class THD;
@@ -513,5 +511,4 @@ buffer pool size.
 void
 innodb_set_buf_pool_size(long long buf_pool_size);
 
-#endif /* !UNIV_HOTBACKUP */
 #endif /* HA_INNODB_PROTOTYPES_H */

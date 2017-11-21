@@ -30,7 +30,7 @@ Determines if a transaction is in the given state.
 The caller must hold trx_sys->mutex, or it must be the thread
 that is serving a running transaction.
 A running RW transaction must be in trx_sys->rw_trx_list.
-@return TRUE if trx->state == state */
+@return true if trx->state == state */
 UNIV_INLINE
 bool
 trx_state_eq(

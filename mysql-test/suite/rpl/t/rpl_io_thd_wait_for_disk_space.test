@@ -148,7 +148,7 @@ INSERT INTO t1 VALUES(9);
 # Restart the slave with relay log recovery
 --source include/stop_slave_sql.inc
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay_log_recovery
+--let $rpl_server_parameters= --relay_log_recovery --log-error-verbosity=3
 --source include/rpl_restart_server.inc
 --source include/start_slave.inc
 

@@ -67,7 +67,7 @@ bool Sql_cmd_import_table::execute(THD *thd)
   // Need to keep this alive until after commit/rollback has been done
   dd::cache::Dictionary_client::Auto_releaser ar{thd->dd_client()};
 
-  if (check_access(thd, FILE_ACL, nullptr, nullptr, nullptr, FALSE, FALSE))
+  if (check_access(thd, FILE_ACL, nullptr, nullptr, nullptr, false, false))
   {
     return true;
   }

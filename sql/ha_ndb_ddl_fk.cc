@@ -26,6 +26,7 @@
 #include "sql/ndb_table_guard.h"
 #include "sql/ndb_tdc.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_table.h"
 #include "template_utils.h"
 
@@ -48,7 +49,7 @@ typedef NdbDictionary::ForeignKey NDBFK;
   Unlike indexes, no references to global dictionary are kept.
 */
 
-struct Ndb_fk_item : Sql_alloc
+struct Ndb_fk_item
 {
   FOREIGN_KEY_INFO f_key_info;
   int update_action;    // NDBFK::FkAction
@@ -57,7 +58,7 @@ struct Ndb_fk_item : Sql_alloc
   bool is_parent;
 };
 
-struct Ndb_fk_data : Sql_alloc
+struct Ndb_fk_data
 {
   List<Ndb_fk_item> list;
   uint cnt_child;

@@ -27,6 +27,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"                    // current_thd
+#include "sql/debug_sync.h"
 #include "sql/field.h"                          // Field_json
 #include "sql/json_binary.h"
 #include "sql/json_dom.h"                       // Json_dom, Json_wrapper
@@ -248,7 +249,7 @@ Json_diff_vector::Json_diff_vector(allocator_type arg)
 {}
 
 
-static MEM_ROOT empty_json_diff_vector_mem_root(PSI_NOT_INSTRUMENTED, 256, 0);
+static MEM_ROOT empty_json_diff_vector_mem_root(PSI_NOT_INSTRUMENTED, 256);
 const Json_diff_vector Json_diff_vector::EMPTY_JSON_DIFF_VECTOR{Json_diff_vector::allocator_type{&empty_json_diff_vector_mem_root}};
 
 
@@ -514,6 +515,13 @@ enum_json_diff_status apply_json_diffs(Field_json *field,
         {
           if (!replaced_path)
             DBUG_RETURN(enum_json_diff_status::REJECTED);
+          DBUG_EXECUTE_IF("rpl_row_jsondiff_binarydiff",
+                          {
+                            const char act[]= "now SIGNAL signal.rpl_row_jsondiff_binarydiff_created";
+                            DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                            DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                               STRING_WITH_LEN(act)));
+                          };);
           continue;
         }
       }

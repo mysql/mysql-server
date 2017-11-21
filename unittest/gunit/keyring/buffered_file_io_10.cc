@@ -28,7 +28,7 @@ Buffered_file_io_10::flush_to_file(PSI_file_key *file_key MY_ATTRIBUTE((unused))
                                    const Digest*)
   {
     File file;
-    bool was_error= TRUE;
+    bool was_error= true;
     file= mysql_file_open(*file_key, filename->c_str(),
                           O_TRUNC | O_WRONLY | O_CREAT, MYF(0));
     if (file >= 0 &&
@@ -40,7 +40,7 @@ Buffered_file_io_10::flush_to_file(PSI_file_key *file_key MY_ATTRIBUTE((unused))
                        Checker::eofTAG.length(), MYF(0)) == Checker::eofTAG.length() &&
       mysql_file_close(file, MYF(0)) >= 0)
     {
-      was_error= FALSE;
+      was_error= false;
     }
     buffer.free();
     return was_error;

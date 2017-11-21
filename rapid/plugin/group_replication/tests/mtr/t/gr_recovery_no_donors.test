@@ -43,6 +43,7 @@ call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replicat
 SET SESSION sql_log_bin= 1;
 
 CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
+SET @old_event_scheduler= @@global.event_scheduler;
 SET GLOBAL EVENT_SCHEDULER= ON;
 delimiter //;
 CREATE EVENT IF NOT EXISTS e1
@@ -148,11 +149,20 @@ STOP GROUP_REPLICATION;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 SET @group_replication_recovery_reconnect_interval_save= @@GLOBAL.group_replication_recovery_reconnect_interval;
-SET @group_replication_allow_local_disjoint_gtids_join_save= @@GLOBAL.group_replication_allow_local_disjoint_gtids_join;
 SET GLOBAL group_replication_recovery_reconnect_interval= 1;
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1;
+
+# Remove all M1 data and force a RESET MASTER to allow server1 to
+# join, despite intentionally has more transactions than the group.
+ALTER EVENT e1 DISABLE;
+--let $wait_condition= SELECT status="DISABLED" FROM information_schema.events WHERE event_schema='test' AND event_name="e1"
+--source include/wait_condition_or_abort.inc
+SET GLOBAL EVENT_SCHEDULER= @old_event_scheduler;
+DROP EVENT e1;
+DROP TABLE t1;
 
 STOP GROUP_REPLICATION;
+RESET MASTER;
+
 --source include/start_group_replication_command.inc
 
 # Member 1 will be on recovery, since all existent group members
@@ -168,24 +178,21 @@ STOP GROUP_REPLICATION;
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc
 SET GLOBAL group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_save;
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= @group_replication_allow_local_disjoint_gtids_join_save;
-ALTER EVENT e1 DISABLE;
---let $wait_condition= SELECT status="DISABLED" FROM information_schema.events WHERE event_schema='test' AND event_name="e1"
---source include/wait_condition_or_abort.inc
-SET GLOBAL EVENT_SCHEDULER= OFF;
-DROP EVENT e1;
-DROP TABLE t1;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc
+--disable_warnings
 DROP EVENT IF EXISTS e1;
 DROP TABLE IF EXISTS t1;
+--enable_warnings
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc
+--disable_warnings
 DROP EVENT IF EXISTS e1;
 DROP TABLE IF EXISTS t1;
+--enable_warnings
 
 --source ../inc/group_replication_end.inc

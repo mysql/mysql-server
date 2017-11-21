@@ -90,7 +90,7 @@ is alphabetically the same as the corresponding BLOB column in the clustered
 index record.
 NOTE: the comparison is NOT done as a binary comparison, but character
 fields are compared with collation!
-@return TRUE if the columns are equal */
+@return true if the columns are equal */
 static
 ibool
 row_sel_sec_rec_is_for_blob(
@@ -165,7 +165,7 @@ fields are compared with collation!
 				must be protected by a page s-latch
 @param[in]	clust_index	clustered index
 @param[in]	thr		query thread
-@return TRUE if the secondary record is equal to the corresponding
+@return true if the secondary record is equal to the corresponding
 fields in the clustered record, when compared with collation;
 FALSE if not equal or if the clustered record has been marked for deletion */
 static
@@ -823,7 +823,7 @@ row_sel_build_committed_vers_for_mysql(
 /*********************************************************************//**
 Tests the conditions which determine when the index segment we are searching
 through has been exhausted.
-@return TRUE if row passed the tests */
+@return true if row passed the tests */
 UNIV_INLINE
 ibool
 row_sel_test_end_conds(
@@ -859,7 +859,7 @@ row_sel_test_end_conds(
 
 /*********************************************************************//**
 Tests the other conditions.
-@return TRUE if row passed the tests */
+@return true if row passed the tests */
 UNIV_INLINE
 ibool
 row_sel_test_other_conds(
@@ -1389,7 +1389,7 @@ row_sel_open_pcur(
 
 /*********************************************************************//**
 Restores a stored pcur position to a table index.
-@return TRUE if the cursor should be moved to the next record after we
+@return true if the cursor should be moved to the next record after we
 return from this function (moved to the previous, in the case of a
 descending cursor) without processing again the current cursor
 record */
@@ -3191,7 +3191,7 @@ be needed in the query.
 					but the prebuilt->template is in
 					clustered index format and it
 					is used only for end range comparison
-@return TRUE on success, FALSE if not all columns could be retrieved */
+@return true on success, false if not all columns could be retrieved */
 static MY_ATTRIBUTE((warn_unused_result))
 ibool
 row_sel_store_mysql_rec(
@@ -3659,7 +3659,7 @@ err_exit:
 Restores cursor position after it has been stored. We have to take into
 account that the record cursor was positioned on may have been deleted.
 Then we may have to move the cursor one step up or down.
-@return TRUE if we may need to process the record the cursor is now
+@return true if we may need to process the record the cursor is now
 positioned on (i.e. we should not go to the next record yet) */
 static
 ibool
@@ -4203,7 +4203,7 @@ row_search_end_range_check(
 						       offsets,
 						       templ.icp_rec_field_no,
 						       &templ,
-						       false)) {
+						       ULINT_UNDEFINED)) {
 				return(false);
 			}
 		}

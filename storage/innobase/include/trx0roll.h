@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,12 +32,16 @@ Created 3/26/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "trx0sys.h"
 
+#ifdef UNIV_HOTBACKUP
+# include"que0que.h"
+#endif /* UNIV_HOTBACKUP */
+
 extern bool	trx_rollback_or_clean_is_active;
 
 /*******************************************************************//**
 Determines if this transaction is rolling back an incomplete transaction
 in crash recovery.
-@return TRUE if trx is an incomplete transaction that is being rolled
+@return true if trx is an incomplete transaction that is being rolled
 back in crash recovery */
 ibool
 trx_is_recv(

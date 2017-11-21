@@ -48,13 +48,11 @@
 #include "thr_mutex.h"
 #include "mysql/components/services/thr_rwlock_bits.h"
 
-C_MODE_START
-
 static inline int native_rw_init(native_rw_lock_t *rwp)
 {
 #ifdef _WIN32
   InitializeSRWLock(&rwp->srwlock);
-  rwp->have_exclusive_srwlock = FALSE;
+  rwp->have_exclusive_srwlock = false;
   return 0;
 #else
   /* pthread_rwlockattr_t is not used in MySQL */
@@ -97,7 +95,7 @@ static inline int native_rw_wrlock(native_rw_lock_t *rwp)
 {
 #ifdef _WIN32
   AcquireSRWLockExclusive(&rwp->srwlock);
-  rwp->have_exclusive_srwlock= TRUE;
+  rwp->have_exclusive_srwlock= true;
   return 0;
 #else
   return pthread_rwlock_wrlock(rwp);
@@ -109,7 +107,7 @@ static inline int native_rw_trywrlock(native_rw_lock_t *rwp)
 #ifdef _WIN32
   if (!TryAcquireSRWLockExclusive(&rwp->srwlock))
     return EBUSY;
-  rwp->have_exclusive_srwlock= TRUE;
+  rwp->have_exclusive_srwlock= true;
   return 0;
 #else
   return pthread_rwlock_trywrlock(rwp);
@@ -121,7 +119,7 @@ static inline int native_rw_unlock(native_rw_lock_t *rwp)
 #ifdef _WIN32
   if (rwp->have_exclusive_srwlock)
   {
-    rwp->have_exclusive_srwlock= FALSE;
+    rwp->have_exclusive_srwlock= false;
     ReleaseSRWLockExclusive(&rwp->srwlock);
   }
   else
@@ -153,7 +151,5 @@ rw_pr_lock_assert_not_write_owner(const rw_pr_lock_t *rwlock)
               !my_thread_equal(my_thread_self(), rwlock->writer_thread));
 }
 #endif
-
-C_MODE_END
 
 #endif /* THR_RWLOCK_INCLUDED */

@@ -28,7 +28,7 @@
 #include "sql/gis/box.h"
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometries_cs.h"
-#include "sql/gis/geometries_traits.h" // To get fully defined traits.
+#include "sql/gis/geometries_traits.h"  // To get fully defined traits.
 
 namespace boost {
 namespace geometry {

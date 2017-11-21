@@ -26,10 +26,6 @@
 #include "my_inttypes.h"
 #include "myisampack.h"
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 /*
   There is a hard limit for the maximum number of keys as there are only
   8 bits in the index file header for the number of keys in a table.
@@ -115,9 +111,9 @@ struct HA_KEYSEG		/* Key-portion */
 
 extern int ha_compare_text(const CHARSET_INFO *, uchar *, uint, uchar *, uint ,
 			   bool);
-extern int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
-		      uchar *b, uint key_length, uint nextflag,
-		      uint *diff_pos);
+extern "C" int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
+                          uchar *b, uint key_length, uint nextflag,
+                          uint *diff_pos);
 
 /*
   Inside an in-memory data record, memory pointers to pieces of the
@@ -125,9 +121,5 @@ extern int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
   this amount of bytes.
 */
 #define portable_sizeof_char_ptr 8
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif /* _my_compare_h */

@@ -25,8 +25,6 @@
 
 typedef uint32 my_thread_id;
 
-C_MODE_START
-
 /**
   Retrieve the MySQL thread-local storage variant of errno.
 */
@@ -59,7 +57,5 @@ my_thread_id my_thread_var_id();
 void set_my_thread_var_id(my_thread_id id);
 
 #endif
-
-C_MODE_END
 
 #endif // MY_THREAD_LOCAL_INCLUDED

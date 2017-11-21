@@ -1,7 +1,7 @@
 #ifndef MY_MURMUR3_INCLUDED
 #define MY_MURMUR3_INCLUDED
 
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,10 +25,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 
-C_MODE_START
-
 uint32 murmur3_32(const uchar * key, size_t len, uint32 seed);
-
-C_MODE_END
 
 #endif /* MY_MURMUR3_INCLUDED */

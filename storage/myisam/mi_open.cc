@@ -28,6 +28,8 @@
 
 #include "my_config.h"
 
+#include <memory>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -547,7 +549,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     else if (share->options & HA_OPTION_PACK_RECORD)
       share->data_file_type = DYNAMIC_RECORD;
     mi_setup_functions(share);
-    share->is_log_table= FALSE;
+    share->is_log_table= false;
     thr_lock_init(&share->lock);
     mysql_mutex_init(mi_key_mutex_MYISAM_SHARE_intern_lock,
                      &share->intern_lock, MY_MUTEX_INIT_FAST);
@@ -621,7 +623,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     If only mi_rkey is called earlier, rnext_same_key should be set in
     mi_rnext_same.
   */
-  info.set_rnext_same_key= FALSE;
+  info.set_rnext_same_key= false;
   info.s=share;
   info.lastpos= HA_OFFSET_ERROR;
   info.update= (short) (HA_STATE_NEXT_FOUND+HA_STATE_PREV_FOUND);
@@ -673,7 +675,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     goto err;
   memset(info.rec_buff, 0, mi_get_rec_buff_len(&info, info.rec_buff));
 
-  *m_info= std::move(info);
+  new (m_info) MI_INFO(std::move(info));
   thr_lock_data_init(&share->lock,&m_info->lock,(void*) m_info);
 
   if (!internal_table)

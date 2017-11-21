@@ -32,17 +32,19 @@ Created 10/4/1994 Heikki Tuuri
 #include "mtr0log.h"
 #include "my_inttypes.h"
 #include "page0zip.h"
-#ifndef UNIV_HOTBACKUP
 #include <algorithm>
 
-#include "gis0rtree.h"
-#include "rem0cmp.h"
+#ifndef UNIV_HOTBACKUP
+# include "gis0rtree.h"
+# include "rem0cmp.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef PAGE_CUR_ADAPT
 # ifdef UNIV_SEARCH_PERF_STAT
 static ulint	page_cur_short_succ	= 0;
 # endif /* UNIV_SEARCH_PERF_STAT */
 
+#ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 This is a linear congruential generator PRNG. Returns a pseudo random
 number between 0 and 2^64-1 inclusive. The formula and the constants
@@ -245,14 +247,14 @@ exit_func:
 	}
 	return(success);
 }
-#endif
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef PAGE_CUR_LE_OR_EXTENDS
 /****************************************************************//**
 Checks if the nth field in a record is a character type field which extends
 the nth field in tuple, i.e., the field is longer or equal in length and has
 common first characters.
-@return TRUE if rec field extends tuple field */
+@return true if rec field extends tuple field */
 static
 ibool
 page_cur_rec_field_extends(
@@ -303,6 +305,7 @@ page_cur_rec_field_extends(
 }
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
 
+#ifndef UNIV_HOTBACKUP
 /** If key is fixed length then populate offset directly from
 cached version.
 @param[in]	rec	B-Tree record for which offset needs to be
@@ -392,7 +395,10 @@ populate_offsets(
 
 	return(index->rec_cache.offsets);
 }
+#endif /* !UNIV_HOTBACKUP */
+#endif /* PAGE_CUR_ADAPT */
 
+#ifndef UNIV_HOTBACKUP
 /****************************************************************//**
 Searches the right position for a page cursor. */
 void
@@ -2539,6 +2545,10 @@ page_cur_parse_delete_rec(
 		rec_offs_init(offsets_);
 
 		page_cur_position(rec, block, &cursor);
+#ifdef UNIV_HOTBACKUP
+        ib::trace() << "page_cur_parse_delete_rec { page: " << page << ", "
+                    << "offset: " << offset << ", rec: " <<rec<<"\n";
+#endif /* UNIV_HOTBACKUP */
 		ut_ad(!buf_block_get_page_zip(block) || page_is_comp(page));
 
 		page_cur_delete_rec(&cursor, index,

@@ -13,6 +13,7 @@ let $table = performance_schema.replication_applier_status_by_worker;
 
 --source include/stop_slave.inc
 RESET SLAVE ALL;
+SET @old_slave_parallel_workers= @@global.slave_parallel_workers;
 SET GLOBAL slave_parallel_workers = 4;
 --disable_query_log
 --eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_DELAY=0 FOR CHANNEL 'channel_1';
@@ -56,7 +57,7 @@ let $col1_act = @t_id;
 # Cleanup
 source include/stop_slave.inc;
 RESET SLAVE ALL;
-SET GLOBAL slave_parallel_workers = 0;
+SET GLOBAL slave_parallel_workers= @old_slave_parallel_workers;
 --disable_warnings
 --disable_query_log
 eval change master to master_host='127.0.0.1', master_port=$MASTER_MYPORT, master_user='root';

@@ -284,6 +284,7 @@ INSERT INTO global_suppressions VALUES
  ("\\[GCS\\] Error on opening a connection to localhost:.* on local port: .*."),
  ("\\[GCS\\] Error pushing message into group communication engine."),
  ("\\[GCS\\] Message cannot be sent because the member does not belong to a group."),
+ ("\\[GCS\\] Automatically adding IPv4 localhost address to the whitelist. It is mandatory that it is added."),
  ("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*"),
  ("Skip re-populating collations and character sets tables in read-only mode"),
  ("Skip updating information_schema metadata in read-only mode"),

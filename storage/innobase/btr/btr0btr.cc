@@ -28,27 +28,28 @@ Created 6/2/1994 Heikki Tuuri
 
 #include <sys/types.h>
 
-#include "fsp0sysspace.h"
-#include "gis0rtree.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "page0page.h"
-#include "page0zip.h"
+#ifndef UNIV_HOTBACKUP
+# include "fsp0sysspace.h"
+# include "gis0rtree.h"
+# include "my_dbug.h"
+# include "my_inttypes.h"
+# include "page0page.h"
+# include "page0zip.h"
+# include "btr0cur.h"
+# include "btr0pcur.h"
+# include "btr0sea.h"
+# include "buf0stats.h"
+# include "dict0boot.h"
+# include "gis0geo.h"
+# include "ibuf0ibuf.h"
+# include "lock0lock.h"
+# include "rem0cmp.h"
+# include "srv0mon.h"
+# include "trx0trx.h"
+# include "ut0new.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
-#include "btr0cur.h"
-#include "btr0pcur.h"
-#include "btr0sea.h"
-#include "buf0stats.h"
-#include "dict0boot.h"
-#include "gis0geo.h"
-#include "ibuf0ibuf.h"
-#include "lock0lock.h"
-#include "rem0cmp.h"
-#include "srv0mon.h"
-#include "trx0trx.h"
-#include "ut0new.h"
-
 /**************************************************************//**
 Checks if the page in the cursor can be merged with given page.
 If necessary, re-organize the merge_page.
@@ -61,8 +62,7 @@ btr_can_merge_with_page(
 	page_no_t	page_no,	/*!< in: a sibling page */
 	buf_block_t**	merge_block,	/*!< out: the merge block */
 	mtr_t*		mtr);		/*!< in: mini-transaction */
-
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************//**
 Report that an index page is corrupted. */
@@ -137,7 +137,7 @@ we allocate pages for the non-leaf levels of the tree.
 #ifdef UNIV_BTR_DEBUG
 /**************************************************************//**
 Checks a file segment header within a B-tree root page.
-@return TRUE if valid */
+@return true if valid */
 static
 ibool
 btr_root_fseg_validate(
@@ -240,7 +240,7 @@ btr_height_get(
 /**************************************************************//**
 Checks a file segment header within a B-tree root page and updates
 the segment header space id.
-@return TRUE if valid */
+@return true if valid */
 static
 bool
 btr_root_fseg_adjust_on_import(
@@ -1365,7 +1365,9 @@ btr_page_reorganize_low(
 	ulint		pos;
 	bool		log_compressed;
 
+#ifndef UNIV_HOTBACKUP
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
+#endif /* !UNIV_HOTBACKUP */
 	btr_assert_not_corrupted(block, index);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
@@ -1379,12 +1381,13 @@ btr_page_reorganize_low(
 #ifndef UNIV_HOTBACKUP
 	temp_block = buf_block_alloc(buf_pool);
 #else /* !UNIV_HOTBACKUP */
-	ut_ad(block == back_block1);
 	temp_block = back_block2;
 #endif /* !UNIV_HOTBACKUP */
 	temp_page = temp_block->frame;
 
+#ifndef UNIV_HOTBACKUP
 	MONITOR_INC(MONITOR_INDEX_REORG_ATTEMPTS);
+#endif /* !UNIV_HOTBACKUP */
 
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
@@ -1570,7 +1573,6 @@ btr_page_reorganize_block(
 	return(btr_page_reorganize_low(recovery, z_level, &cur, index, mtr));
 }
 
-#ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Reorganizes an index page.
 
@@ -1592,7 +1594,6 @@ btr_page_reorganize(
 	return(btr_page_reorganize_low(false, page_zip_level,
 				       cursor, index, mtr));
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************//**
 Parses a redo log record of reorganizing a page.
@@ -1878,7 +1879,7 @@ btr_root_raise_and_insert(
 /*************************************************************//**
 Decides if the page should be split at the convergence point of inserts
 converging to the left.
-@return TRUE if split recommended */
+@return true if split recommended */
 ibool
 btr_page_get_split_rec_to_left(
 /*===========================*/
@@ -1922,7 +1923,7 @@ btr_page_get_split_rec_to_left(
 /*************************************************************//**
 Decides if the page should be split at the convergence point of inserts
 converging to the right.
-@return TRUE if split recommended */
+@return true if split recommended */
 ibool
 btr_page_get_split_rec_to_right(
 /*============================*/
@@ -2430,7 +2431,7 @@ btr_attach_half_pages(
 
 /*************************************************************//**
 Determine if a tuple is smaller than any record on the page.
-@return TRUE if smaller */
+@return true if smaller */
 static MY_ATTRIBUTE((warn_unused_result))
 bool
 btr_page_tuple_smaller(
@@ -3387,7 +3388,7 @@ level lifts the records of the page to the father page, thus reducing the
 tree height. It is assumed that mtr holds an x-latch on the tree and on the
 page. If cursor is on the leaf level, mtr must also hold x-latches to the
 brothers, if they exist.
-@return TRUE on success */
+@return true on success */
 ibool
 btr_compress(
 /*=========*/
@@ -4287,7 +4288,7 @@ btr_print_index(
 #ifdef UNIV_DEBUG
 /************************************************************//**
 Checks that the node pointer to a page is appropriate.
-@return TRUE */
+@return true */
 ibool
 btr_check_node_ptr(
 /*===============*/
@@ -4365,7 +4366,7 @@ btr_index_rec_validate_report(
 /************************************************************//**
 Checks the size and number of fields in a record based on the definition of
 the index.
-@return TRUE if ok */
+@return true if ok */
 ibool
 btr_index_rec_validate(
 /*===================*/
@@ -4507,7 +4508,7 @@ btr_index_rec_validate(
 /************************************************************//**
 Checks the size and number of fields in records based on the definition of
 the index.
-@return TRUE if ok */
+@return true if ok */
 static
 ibool
 btr_index_page_validate(
@@ -4605,7 +4606,7 @@ btr_validate_report2(
 
 /************************************************************//**
 Validates index tree level.
-@return TRUE if ok */
+@return true if ok */
 static
 bool
 btr_validate_level(

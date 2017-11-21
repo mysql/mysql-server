@@ -24,6 +24,7 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -352,7 +353,7 @@ my_ulonglong find_set_from_flags(const TYPELIB *lib, uint default_name,
         /* Using 'default' twice isn't allowed. */
         if (set_defaults)
           goto err;
-        set_defaults= TRUE;
+        set_defaults= true;
       }
       else
       {

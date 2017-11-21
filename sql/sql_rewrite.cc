@@ -316,7 +316,7 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
 {
   LEX        *lex= thd->lex;
   TABLE_LIST *first_table= lex->select_lex->table_list.first;
-  bool        comma= FALSE, comma_inner;
+  bool        comma= false, comma_inner;
   bool        proxy_grant= lex->type == TYPE_ENUM_PROXY;
   String      cols(1024);
   int         c;
@@ -336,7 +336,7 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
       if (priv == GRANT_ACL)
         continue;
 
-      comma_inner= FALSE;
+      comma_inner= false;
 
       if (lex->columns.elements)               // show columns, if any
       {
@@ -396,7 +396,7 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
 
   LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(lex->users_list);
-  comma= FALSE;
+  comma= false;
 
   if (proxy_grant)
   {
@@ -443,7 +443,7 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
         append_user(thd, rlb, user_name, comma, true);
       else
         append_user_new(thd, rlb, user_name, comma);
-      comma= TRUE;
+      comma= true;
     }
   }
   rewrite_ssl_properties(lex, rlb);
@@ -463,7 +463,7 @@ static void mysql_rewrite_set(THD *thd, String *rlb)
   LEX                              *lex= thd->lex;
   List_iterator_fast<set_var_base>  it(lex->var_list);
   set_var_base                     *var;
-  bool                              comma= FALSE;
+  bool                              comma= false;
 
   rlb->append(STRING_WITH_LEN("SET "));
 
@@ -566,7 +566,7 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
   LEX                      *lex= thd->lex;
   LEX_USER                 *user_name, *tmp_user_name;
   List_iterator <LEX_USER>  user_list(lex->users_list);
-  bool                      comma= FALSE;
+  bool                      comma= false;
 
   if (thd->lex->sql_command == SQLCOM_CREATE_USER ||
       thd->lex->sql_command == SQLCOM_SHOW_CREATE_USER)
@@ -593,7 +593,7 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
         append_user(thd, rlb, user_name, comma, true);
       else
         append_user_new(thd, rlb, user_name, comma);
-      comma= TRUE;
+      comma= true;
     }
   }
 
@@ -612,7 +612,7 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
     else if (lex->alter_password.expire_after_days)
     {
       append_int(rlb, false, STRING_WITH_LEN(" PASSWORD EXPIRE INTERVAL"),
-                 lex->alter_password.expire_after_days, TRUE);
+                 lex->alter_password.expire_after_days, true);
       rlb->append(STRING_WITH_LEN(" DAY"));
     }
     else if (lex->alter_password.use_default_password_lifetime)
@@ -639,7 +639,7 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
     else
     {
       append_int(rlb, false, STRING_WITH_LEN(" PASSWORD HISTORY"),
-                 lex->alter_password.password_history_length, TRUE);
+                 lex->alter_password.password_history_length, true);
     }
   }
 
@@ -652,7 +652,7 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
     else
     {
       append_int(rlb, false, STRING_WITH_LEN(" PASSWORD REUSE INTERVAL"),
-                 lex->alter_password.password_reuse_interval, TRUE);
+                 lex->alter_password.password_reuse_interval, true);
       rlb->append(STRING_WITH_LEN(" DAY"));
     }
   }

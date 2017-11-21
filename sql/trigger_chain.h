@@ -19,7 +19,6 @@
 #define TRIGGER_CHAIN_H_INCLUDED
 
 #include "lex_string.h"
-#include "sql/sql_alloc.h"                  // Sql_alloc
 #include "sql/sql_list.h"                   // List
 #include "sql/trigger_def.h"                // enum_trigger_order_type
 
@@ -32,7 +31,7 @@ struct TABLE;
 struct TABLE_LIST;
 
 
-class Trigger_chain : public Sql_alloc
+class Trigger_chain
 {
 public:
   Trigger_chain()

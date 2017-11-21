@@ -35,7 +35,6 @@
 #include "sql/field.h"
 #include "sql/mem_root_array.h" // Mem_root_array
 #include "sql/set_var.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_class.h"     // Query_arena
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -124,7 +123,7 @@ protected:
 
 ///////////////////////////////////////////////////////////////////////////
 
-class sp_name : public Sql_alloc
+class sp_name
 {
 public:
 

@@ -40,6 +40,7 @@
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
@@ -1197,17 +1198,17 @@ static void update_user_resource(TABLE *table, USER_RESOURCES *mqh)
 {
   if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
     table->field[MYSQL_USER_FIELD_MAX_QUESTIONS]->
-      store((longlong) mqh->questions, TRUE);
+      store((longlong) mqh->questions, true);
   if (mqh->specified_limits & USER_RESOURCES::UPDATES_PER_HOUR)
     table->field[MYSQL_USER_FIELD_MAX_UPDATES]->
-      store((longlong) mqh->updates, TRUE);
+      store((longlong) mqh->updates, true);
   if (mqh->specified_limits & USER_RESOURCES::CONNECTIONS_PER_HOUR)
     table->field[MYSQL_USER_FIELD_MAX_CONNECTIONS]->
-      store((longlong) mqh->conn_per_hour, TRUE);
+      store((longlong) mqh->conn_per_hour, true);
   if (table->s->fields >= 36 &&
       (mqh->specified_limits & USER_RESOURCES::USER_CONNECTIONS))
     table->field[MYSQL_USER_FIELD_MAX_USER_CONNECTIONS]->
-      store((longlong) mqh->user_conn, TRUE);
+      store((longlong) mqh->user_conn, true);
 }
 
 
@@ -1353,7 +1354,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
     /* Check if there is such a user in user table in memory? */
 
-    if (!find_acl_user(combo->host.str,combo->user.str, FALSE))
+    if (!find_acl_user(combo->host.str,combo->user.str, false))
     {
       my_error(ER_PASSWORD_NO_MATCH, MYF(0));
       error= -1;
@@ -1452,9 +1453,8 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     /* if we have a password supplied we update the expiration field */
     if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
     {
-      if (auth_plugin_supports_expiration(combo->plugin.str))
-        table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store("N",
-                                       1, system_charset_info);
+      table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store("N",
+                                     1, system_charset_info);
     }
     else
     {
@@ -1555,7 +1555,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       if (!combo->alter_status.use_default_password_lifetime)
       {
         table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->
-          store((longlong) combo->alter_status.expire_after_days, TRUE);
+          store((longlong) combo->alter_status.expire_after_days, true);
         table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->set_notnull();
       }
       else
@@ -1763,7 +1763,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
     DBUG_RETURN(-1);
 
   /* Check if there is such a user in user table in memory? */
-  if (!find_acl_user(combo.host.str,combo.user.str, FALSE))
+  if (!find_acl_user(combo.host.str,combo.user.str, false))
   {
     my_error(ER_PASSWORD_NO_MATCH, MYF(0));
     DBUG_RETURN(1);
@@ -1925,7 +1925,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
     DBUG_RETURN(-1);
 
   /* Check if there is such a user in user table in memory? */
-  if (!find_acl_user(user->host.str,user->user.str, FALSE))
+  if (!find_acl_user(user->host.str,user->user.str, false))
   {
     my_error(ER_PASSWORD_NO_MATCH, MYF(0));
     DBUG_RETURN(1);
@@ -2201,7 +2201,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t,
       store_record(table,record[1]);                    // copy original row
     }
 
-    table->field[6]->store((longlong) get_rights_for_column(privileges), TRUE);
+    table->field[6]->store((longlong) get_rights_for_column(privileges), true);
 
     if (old_row_exists)
     {
@@ -2314,7 +2314,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t,
 
         privileges&= ~rights;
         table->field[6]->store((longlong)
-                               get_rights_for_column(privileges), TRUE);
+                               get_rights_for_column(privileges), true);
         table->field[4]->val_str(&column_name);
         grant_column = column_hash_search(g_t,
                                           column_name.ptr(),
@@ -2428,7 +2428,7 @@ int replace_table_table
     The following should always succeed as new users are created before
     this function is called!
   */
-  if (!find_acl_user(combo.host.str,combo.user.str, FALSE))
+  if (!find_acl_user(combo.host.str,combo.user.str, false))
   {
     my_error(ER_PASSWORD_NO_MATCH, MYF(0));     /* purecov: deadcode */
     DBUG_RETURN(1);                            /* purecov: deadcode */
@@ -2497,8 +2497,8 @@ int replace_table_table
   }
 
   table->field[4]->store(grantor,strlen(grantor), system_charset_info);
-  table->field[6]->store((longlong) store_table_rights, TRUE);
-  table->field[7]->store((longlong) store_col_rights, TRUE);
+  table->field[6]->store((longlong) store_table_rights, true);
+  table->field[7]->store((longlong) store_col_rights, true);
   rights=fix_rights_for_table(store_table_rights);
   col_rights=fix_rights_for_column(store_col_rights);
 
@@ -2632,7 +2632,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   table->field[4]->store((is_proc ?
                           to_longlong(enum_sp_type::PROCEDURE) :
                           to_longlong(enum_sp_type::FUNCTION)),
-                         TRUE);
+                         true);
   store_record(table,record[1]);                        // store at pos 1
 
   error= table->file->ha_index_read_idx_map(table->record[0], 0,
@@ -2683,7 +2683,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   }
 
   table->field[5]->store(grantor, strlen(grantor), &my_charset_latin1);
-  table->field[6]->store((longlong) store_proc_rights, TRUE);
+  table->field[6]->store((longlong) store_proc_rights, true);
   rights=fix_rights_for_procedure(store_proc_rights);
 
   if (old_row_exists)

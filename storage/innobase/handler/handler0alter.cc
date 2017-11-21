@@ -362,6 +362,9 @@ my_error_innodb(
 	case DB_OUT_OF_FILE_SPACE:
 		my_error(ER_RECORD_FILE_FULL, MYF(0), table);
 		break;
+	case DB_OUT_OF_DISK_SPACE:
+		my_error(ER_DISK_FULL_NOWAIT, MYF(0), table);
+		break;
 	case DB_TEMP_FILE_WRITE_FAIL:
 		my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
 		break;
@@ -6067,7 +6070,7 @@ to rebuild the template.
 				by ALTER TABLE and holding data used
 				during in-place alter.
 @param[in]	table		table being altered
-@return TRUE if needs rebuild. */
+@return true if needs rebuild. */
 static
 bool
 alter_templ_needs_rebuild(
@@ -8569,8 +8572,8 @@ alter_part::build_partition_name(
 	ut_ad(len < FN_REFLEN);
 
 	if (temp) {
-		strcpy(name + len, "#tmp");
-		ut_ad(len + sizeof "#tmp" < FN_REFLEN);
+		strcpy(name + len, TMP_POSTFIX);
+		ut_ad(len + sizeof TMP_POSTFIX < FN_REFLEN);
 	}
 }
 
@@ -10502,7 +10505,7 @@ ha_innopart::prepare_inplace_alter_table(
 
 	/* Clean up all ins/upd nodes. */
 	clear_ins_upd_nodes();
-	/* Based on Sql_alloc class, return NULL for new on failure.
+	/*
 	This object will be freed by server, so always use 'new'
 	and there is no need to free on failure */
 	ctx_parts = new (*THR_MALLOC) ha_innopart_inplace_ctx(thd, m_tot_parts);
@@ -11161,9 +11164,9 @@ ha_innopart::exchange_partition_low(
 	char*	swap_name = strdup(swap->name.m_name);
 	char*	part_name = strdup(part->name.m_name);
 
-	/* Define the temporary table name, by appending "#tmp" */
+	/* Define the temporary table name, by appending TMP_POSTFIX */
 	char			temp_name[FN_REFLEN];
-	snprintf(temp_name, sizeof temp_name, "%s#tmp", swap_name);
+	snprintf(temp_name, sizeof temp_name, "%s%s", swap_name, TMP_POSTFIX);
 
 	int	error = 0;
 	error = innobase_basic_ddl::rename_impl<dd::Table>(

@@ -990,7 +990,8 @@ is the global server default. */
 */
 #define HA_ERR_ROW_FORMAT_CHANGED      202
 #define HA_ERR_NO_WAIT_LOCK            203  /* Don't wait for record lock */
-#define HA_ERR_LAST                    203  /* Copy of last error nr */
+#define HA_ERR_DISK_FULL_NOWAIT        204  /* No more room in disk */
+#define HA_ERR_LAST                    204  /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

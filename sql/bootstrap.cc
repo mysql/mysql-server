@@ -32,6 +32,7 @@
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_thread.h"
@@ -240,8 +241,8 @@ static bool handle_bootstrap_impl(THD *thd)
     thd->set_query_id(next_query_id());
     DBUG_PRINT("query",("%-.4096s",thd->query().str));
 #if defined(ENABLED_PROFILING)
-    thd->profiling.start_new_query();
-    thd->profiling.set_query_source(thd->query().str, thd->query().length);
+    thd->profiling->start_new_query();
+    thd->profiling->set_query_source(thd->query().str, thd->query().length);
 #endif
 
     thd->set_time();
@@ -264,7 +265,7 @@ static bool handle_bootstrap_impl(THD *thd)
     thd->send_statement_status();
 
 #if defined(ENABLED_PROFILING)
-    thd->profiling.finish_current_query();
+    thd->profiling->finish_current_query();
 #endif
 
     if (bootstrap_error)
@@ -365,6 +366,15 @@ bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
   // mysqld server command line argument.
   thd->variables.sql_mode= intern_find_sys_var("sql_mode", 0)->get_default();
 
+  /*
+    Set default value for explicit_defaults_for_timestamp variable. Bootstrap
+    thread creates dictionary tables. The creation of dictionary tables should
+    be independent of the value of explicit_defaults_for_timestamp specified by
+    the user.
+  */
+  thd->variables.explicit_defaults_for_timestamp=
+    intern_find_sys_var("explicit_defaults_for_timestamp", 0)->get_default();
+
   my_thread_attr_t thr_attr;
   my_thread_attr_init(&thr_attr);
 #ifndef _WIN32
@@ -385,6 +395,8 @@ bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
   }
   /* Wait for thread to die */
   my_thread_join(&thread_handle, NULL);
+  // Free Items that were created during this execution.
+  thd->free_items();
   delete thd;
   DBUG_RETURN(bootstrap_error);
 }

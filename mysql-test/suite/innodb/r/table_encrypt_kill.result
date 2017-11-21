@@ -13,7 +13,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON , 
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)    
 ) ENCRYPTION="Y"  ENGINE = InnoDB;
 CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -21,7 +21,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENGINE = InnoDB;
 CREATE PROCEDURE tde_db.populate_t_encrypt()
@@ -111,7 +111,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c4` json DEFAULT NULL,
   `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
   `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
-  `c7` point NOT NULL,
+  `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ENCRYPTION='Y'
@@ -138,7 +138,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 ) ENCRYPTION="Y"  ENGINE = InnoDB;
 CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -146,7 +146,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENGINE = InnoDB;
 # In connection con1 - Running insert on encrypt table
@@ -171,7 +171,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 ) ENCRYPTION="Y"  ENGINE = InnoDB;
 CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -179,7 +179,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENGINE = InnoDB;
 # In connection con1 - Running insert on encrypt table

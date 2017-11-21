@@ -45,9 +45,6 @@ dummy_function_to_ensure_we_are_linked_into_the_server() { return 1; }
 
 } // namespace ssl_wrappe_service
 
-extern "C"
-{
-
 #ifdef HAVE_YASSL
 
 static char *
@@ -334,5 +331,3 @@ void ssl_wrapper_thread_cleanup()
   ERR_remove_state(0);
 #endif // !defined(HAVE_YASSL)
 }
-
-} /* extern "C" */

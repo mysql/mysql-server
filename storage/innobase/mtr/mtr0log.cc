@@ -25,15 +25,18 @@ Created 12/7/1995 Heikki Tuuri
 
 #include "mtr0log.h"
 
-#include "buf0buf.h"
-#include "buf0dblwr.h"
-#include "dict0dict.h"
-#include "log0recv.h"
-#include "my_inttypes.h"
+#ifndef UNIV_HOTBACKUP
+# include "buf0buf.h"
+# include "buf0dblwr.h"
+# include "dict0dict.h"
+# include "log0recv.h"
+# include "my_inttypes.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "page0page.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "dict0boot.h"
+#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************//**
 Catenates n bytes to the mtr log. */
@@ -52,6 +55,7 @@ mlog_catenate_string(
 	mtr->get_log()->push(str, ib_uint32_t(len));
 }
 
+#ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Writes the initial part of a log record consisting of one-byte item
 type and four-byte space and page numbers. Also pushes info
@@ -454,7 +458,6 @@ mlog_parse_string(
 	return(ptr + len);
 }
 
-#ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Opens a buffer for mlog, writes the initial log record and,
 if needed, the field lengths of an index.
@@ -470,6 +473,7 @@ mlog_open_and_write_index(
 					(if 0, calls mlog_close() and
 					returns NULL) */
 {
+#ifndef UNIV_HOTBACKUP
 	byte*		log_ptr;
 	const byte*	log_start;
 	const byte*	log_end;
@@ -573,8 +577,10 @@ mlog_open_and_write_index(
 		log_ptr = mlog_open(mtr, size);
 	}
 	return(log_ptr);
-}
+#else /* !UNIV_HOTBACKUP */
+	return(NULL);
 #endif /* !UNIV_HOTBACKUP */
+}
 
 /********************************************************//**
 Parses a log record written by mlog_open_and_write_index.

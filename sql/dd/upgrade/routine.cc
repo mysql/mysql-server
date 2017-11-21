@@ -27,6 +27,7 @@
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_user.h"                          // parse_user
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
@@ -47,6 +48,7 @@
 #include "sql/sql_servers.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"                        // Table_check_intact
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "thr_lock.h"
@@ -339,7 +341,7 @@ static bool set_st_sp_chistics(THD *thd, TABLE *proc_table,
                  proc_table->field[MYSQL_PROC_FIELD_DETERMINISTIC])) == NULL)
     return true;
 
-  chistics->detistic= (ptr[0] == 'N' ? FALSE : TRUE);
+  chistics->detistic= (ptr[0] != 'N');
 
   // Security type
   if ((ptr=

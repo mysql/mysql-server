@@ -25,12 +25,12 @@ static NTService *pService;
 NTService::NTService()
 {
 
-    bOsNT	     = FALSE;
+    bOsNT	     = false;
     //service variables
     ServiceName      = NULL;
     hExitEvent	     = 0;
-    bPause	     = FALSE;
-    bRunning	     = FALSE;
+    bPause	     = false;
+    bRunning	     = false;
     hThreadHandle    = 0;
     fpServiceThread  = NULL;
 
@@ -69,13 +69,13 @@ NTService::~NTService()
 
 BOOL NTService::GetOS()
 {
-  bOsNT = FALSE;
+  bOsNT = false;
   memset(&osVer, 0, sizeof(OSVERSIONINFO));
   osVer.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
   if (GetVersionEx(&osVer))
   {
     if (osVer.dwPlatformId == VER_PLATFORM_WIN32_NT)
-      bOsNT = TRUE;
+      bOsNT = true;
   }
   return bOsNT;
 }
@@ -124,11 +124,11 @@ BOOL NTService::Install(int startType, LPCSTR szInternName,
 			LPCSTR szFullPath, LPCSTR szAccountName,
 			LPCSTR szPassword)
 {
-  BOOL ret_val=FALSE;
+  BOOL ret_val=false;
   SC_HANDLE newService, scm;
 
   if (!SeekStatus(szInternName,1))
-   return FALSE;
+   return false;
 
   char szFilePath[_MAX_PATH];
   GetModuleFileName(NULL, szFilePath, sizeof(szFilePath));
@@ -159,7 +159,7 @@ BOOL NTService::Install(int startType, LPCSTR szInternName,
      {
        printf("Service successfully installed.\n");
        CloseServiceHandle(newService);
-       ret_val=TRUE;				// Everything went ok
+       ret_val=true;				// Everything went ok
      }
      CloseServiceHandle(scm);
   }
@@ -180,11 +180,11 @@ BOOL NTService::Install(int startType, LPCSTR szInternName,
 
 BOOL NTService::Remove(LPCSTR szInternName)
 {
-  BOOL ret_value=FALSE;
+  BOOL ret_value=false;
   SC_HANDLE service, scm;
 
   if (!SeekStatus(szInternName,0))
-   return FALSE;
+   return false;
 
   nError=0;
 
@@ -202,7 +202,7 @@ BOOL NTService::Remove(LPCSTR szInternName)
       else
       {
         printf("Service successfully removed.\n");
-	ret_value=TRUE;				// everything went ok
+	ret_value=true;				// everything went ok
       }
       CloseServiceHandle(service);
     }
@@ -245,7 +245,7 @@ void NTService::ServiceMain(DWORD argc, LPTSTR *argv)
     goto error;
 
   // create the exit event
-  if (!(pService->hExitEvent = CreateEvent (0, TRUE, FALSE,0)))
+  if (!(pService->hExitEvent = CreateEvent (0, true, false,0)))
     goto error;
 
   if (!pService->SetStatus(SERVICE_START_PENDING,NO_ERROR, 0, 3,
@@ -299,16 +299,16 @@ BOOL NTService::StartService()
   // Start the real service's thread (application)
   if (!(hThreadHandle = (HANDLE) _beginthread((THREAD_FC)fpServiceThread,0,
 					      (void *) this)))
-    return FALSE;
-  bRunning = TRUE;
-  return TRUE;
+    return false;
+  bRunning = true;
+  return true;
 }
 /* ------------------------------------------------------------------------
 
  -------------------------------------------------------------------------- */
 void NTService::StopService()
 {
-  bRunning=FALSE;
+  bRunning=false;
 
   // Set the event for application
   if (hShutdownEvent)
@@ -322,7 +322,7 @@ void NTService::StopService()
  -------------------------------------------------------------------------- */
 void NTService::PauseService()
 {
-  bPause = TRUE;
+  bPause = true;
   SuspendThread(hThreadHandle);
 }
 /* ------------------------------------------------------------------------
@@ -330,7 +330,7 @@ void NTService::PauseService()
  -------------------------------------------------------------------------- */
 void NTService::ResumeService()
 {
-  bPause=FALSE;
+  bPause=false;
   ResumeThread(hThreadHandle);
 }
 /* ------------------------------------------------------------------------
@@ -424,7 +424,7 @@ void NTService::Exit(DWORD error)
 
 BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType)
 {
-  BOOL ret_value=FALSE;
+  BOOL ret_value=false;
   SC_HANDLE service, scm;
 
   // open a connection to the SCM
@@ -459,7 +459,7 @@ BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType)
 	CloseServiceHandle(service);
       }
       else
-	ret_value=TRUE;
+	ret_value=true;
     }
     else
     {
@@ -482,7 +482,7 @@ Failed to remove the service because the service is in stop pending state!\n\
 Wait 30 seconds and try again.\n\
 If this condition persist, reboot the machine and try again\n");
 	  else
-	    ret_value= TRUE;
+	    ret_value= true;
 	}
 	CloseServiceHandle(service);
       }
@@ -496,14 +496,14 @@ If this condition persist, reboot the machine and try again\n");
  -------------------------------------------------------------------------- */
 BOOL NTService::IsService(LPCSTR ServiceName)
 {
-  BOOL ret_value=FALSE;
+  BOOL ret_value=false;
   SC_HANDLE service, scm;
   
   if ((scm= OpenSCManager(0, 0,SC_MANAGER_ENUMERATE_SERVICE)))
   {
     if ((service = OpenService(scm,ServiceName, SERVICE_QUERY_STATUS)))
     {
-      ret_value=TRUE;
+      ret_value=true;
       CloseServiceHandle(service);
     }
     CloseServiceHandle(scm);
@@ -517,8 +517,8 @@ BOOL NTService::got_service_option(char **argv, const char *service_option)
   char *option;
   for (option= argv[1]; *option; option++)
     if (!strcmp(option, service_option))
-      return TRUE;
-  return FALSE;
+      return true;
+  return false;
 }
 /* ------------------------------------------------------------------------
  -------------------------------------------------------------------------- */
@@ -531,15 +531,15 @@ BOOL NTService::is_super_user()
   PSID psidAdministrators;
   SID_IDENTIFIER_AUTHORITY siaNtAuthority = SECURITY_NT_AUTHORITY;
   UINT x;
-  BOOL ret_value=FALSE;
+  BOOL ret_value=false;
  
-  if (!OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE,&hAccessToken ))
+  if (!OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, true,&hAccessToken ))
   {
    if (GetLastError() != ERROR_NO_TOKEN)
-     return FALSE;
+     return false;
  
    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hAccessToken))
-     return FALSE;
+     return false;
   }
  
   ret_value= GetTokenInformation(hAccessToken,TokenGroups,InfoBuffer,
@@ -548,22 +548,22 @@ BOOL NTService::is_super_user()
   CloseHandle(hAccessToken);
  
   if (!ret_value )
-    return FALSE;
+    return false;
  
   if (!AllocateAndInitializeSid(&siaNtAuthority, 2,
 				SECURITY_BUILTIN_DOMAIN_RID,
 				DOMAIN_ALIAS_RID_ADMINS,
 				0, 0, 0, 0, 0, 0,
 				&psidAdministrators))
-    return FALSE;
+    return false;
 
-  ret_value = FALSE;
+  ret_value = false;
  
   for (x=0;x<ptgGroups->GroupCount;x++)
   {
    if ( EqualSid(psidAdministrators, ptgGroups->Groups[x].Sid) )
    {
-    ret_value = TRUE;
+    ret_value = true;
     break;
    }
  

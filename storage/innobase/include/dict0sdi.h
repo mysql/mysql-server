@@ -19,6 +19,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef DICT_SDI_H
 #define DICT_SDI_H
 
+#include <zconf.h>
+#include <zlib.h>
+
 /** Compress SDI using zlib */
 class Sdi_Compressor {
 

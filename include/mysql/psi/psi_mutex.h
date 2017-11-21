@@ -31,8 +31,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 
-C_MODE_START
-
 /** Entry point for the performance schema interface. */
 struct PSI_mutex_bootstrap
 {
@@ -46,7 +44,6 @@ struct PSI_mutex_bootstrap
   */
   void *(*get_interface)(int version);
 };
-typedef struct PSI_mutex_bootstrap PSI_mutex_bootstrap;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 
@@ -77,7 +74,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_mutex_service_t *psi_mutex_service;
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
 /** @} (end of group psi_abi_mutex) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_MUTEX_H */

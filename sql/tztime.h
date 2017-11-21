@@ -26,9 +26,11 @@ typedef long my_time_t;
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
 
 #include "mysql_time.h"     // MYSQL_TIME
-#include "sql/sql_alloc.h"  // Sql_alloc
 
 class String;
 class THD;
@@ -39,7 +41,7 @@ class THD;
   Actual time zones which are specified by DB, or via offset 
   or use system functions are its descendants.
 */
-class Time_zone: public Sql_alloc 
+class Time_zone
 {
 public:
   Time_zone() {}                              /* Remove gcc warning */

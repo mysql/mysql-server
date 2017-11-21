@@ -226,7 +226,7 @@ int main(int argc, char **argv)
   mysql_cond_init(PSI_NOT_INSTRUMENTED,
                   &main_thread_keycache_var.suspend);
 
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   if (load_defaults("my",load_default_groups,&argc,&argv, &alloc))
     exit(1);
 

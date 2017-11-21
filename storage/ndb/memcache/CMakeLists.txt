@@ -273,6 +273,41 @@ ENDIF()
 
 add_library(ndb_engine MODULE src/ndb_engine.cc src/stub.cc)
 
+IF(APPLE)
+  SET_TARGET_PROPERTIES(ndb_engine PROPERTIES
+    MACOSX_RPATH ON
+  )
+ENDIF()
+
+IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+  ADD_DEPENDENCIES(ndb_engine copy_openssl_dlls)
+
+  ADD_CUSTOM_COMMAND(TARGET ndb_engine POST_BUILD
+    COMMAND install_name_tool -change
+    "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"
+    $<TARGET_LINKER_FILE:ndb_engine>
+    COMMAND install_name_tool -change
+    "${OPENSSL_VERSION}" "@loader_path/${OPENSSL_VERSION}"
+    $<TARGET_LINKER_FILE:ndb_engine>
+    )
+ENDIF()
+
+# Collect all dynamic libraries in the same directory
+SET_TARGET_PROPERTIES(ndb_engine PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+
+IF(LINUX_INSTALL_RPATH_ORIGIN)
+  SET_PROPERTY(TARGET ndb_engine PROPERTY INSTALL_RPATH "\$ORIGIN/")
+ENDIF()
+
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Turn off array-bounds warning in ndb_engine.c wich occurs
+  # when it uses the struct engine_info in the external memcached
+  # file engine.h to define its engine capabilities.
+  ADD_COMPILE_FLAGS(src/ndb_engine.cc
+                   COMPILE_FLAGS "-Wno-array-bounds")
+ENDIF()
+
 target_link_libraries(ndb_engine ndbmemcache ndbclient_static)
 
 ### If we are using the bundled memcache, it is a dependency:

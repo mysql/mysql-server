@@ -25,6 +25,7 @@
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/psi_rwlock.h"
 
 extern PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock,

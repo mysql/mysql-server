@@ -36,6 +36,7 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_file.h"
@@ -221,8 +222,8 @@ void unregister_slave(THD* thd, bool only_mine, bool need_lock_slave_list)
   @param thd Pointer to THD object for the client thread executing the
   statement.
 
-  @retval FALSE success
-  @retval TRUE failure
+  @retval false success
+  @retval true failure
 */
 bool show_slave_hosts(THD* thd)
 {
@@ -245,7 +246,7 @@ bool show_slave_hosts(THD* thd)
 
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   mysql_mutex_lock(&LOCK_slave_list);
 
@@ -270,12 +271,12 @@ bool show_slave_hosts(THD* thd)
     if (protocol->end_row())
     {
       mysql_mutex_unlock(&LOCK_slave_list);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
   }
   mysql_mutex_unlock(&LOCK_slave_list);
   my_eof(thd);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**
@@ -694,8 +695,8 @@ bool show_master_status(THD* thd)
   @param thd Pointer to THD object for the client thread executing the
   statement.
 
-  @retval FALSE success
-  @retval TRUE failure
+  @retval false success
+  @retval true failure
 */
 bool show_binlogs(THD* thd)
 {
@@ -712,7 +713,7 @@ bool show_binlogs(THD* thd)
   if (!mysql_bin_log.is_open())
   {
     my_error(ER_NO_BINARY_LOGGING, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   field_list.push_back(new Item_empty_string("Log_name", 255));
@@ -720,7 +721,7 @@ bool show_binlogs(THD* thd)
                                            MYSQL_TYPE_LONGLONG));
     if (thd->send_result_metadata(&field_list, Protocol::SEND_NUM_ROWS |
                                     Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   DEBUG_SYNC(thd, "show_binlogs_after_lock_log_before_lock_index");
@@ -770,9 +771,9 @@ bool show_binlogs(THD* thd)
     goto err;
   mysql_bin_log.unlock_index();
   my_eof(thd);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 err:
   mysql_bin_log.unlock_index();
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }

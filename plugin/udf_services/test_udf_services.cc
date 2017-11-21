@@ -92,8 +92,8 @@ mysql_declare_plugin_end;
   @param      initrd    Return value from xxxx_init
   @param      args      Array of arguments
   @param[out] message   Error message in case of error.
-  @retval     FALSE     success
-  @retval     TRUE      Failure. Error in the message argument
+  @retval     false     success
+  @retval     true      Failure. Error in the message argument
 */
 PLUGIN_EXPORT bool
 test_udf_services_udf_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),

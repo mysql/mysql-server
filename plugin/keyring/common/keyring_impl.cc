@@ -21,6 +21,7 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_socket.h"
 #include "plugin/keyring/common/keyring.h"
 
 namespace keyring
@@ -33,7 +34,7 @@ namespace keyring
 extern mysql_rwlock_t LOCK_keyring;
 
 std::unique_ptr<IKeys_container> keys(nullptr);
-volatile bool is_keys_container_initialized= FALSE;
+volatile bool is_keys_container_initialized= false;
 std::unique_ptr<ILogger> logger(nullptr);
 std::unique_ptr<char[]> keyring_file_data(nullptr);
 
@@ -68,8 +69,8 @@ bool init_keyring_locks()
 
 bool is_key_length_and_type_valid(const char *key_type, size_t key_len)
 {
-  bool is_key_len_valid= FALSE;
-  bool is_type_valid= TRUE;
+  bool is_key_len_valid= false;
+  bool is_type_valid= true;
 
   if(strcmp(key_type, "AES") == 0)
     is_key_len_valid= (key_len == 16 || key_len == 24 || key_len == 32);
@@ -79,11 +80,11 @@ bool is_key_length_and_type_valid(const char *key_type, size_t key_len)
     is_key_len_valid= (key_len == 128 || key_len == 256 || key_len == 384);
   else
   {
-    is_type_valid= FALSE;
+    is_type_valid= false;
     logger->log(MY_ERROR_LEVEL, "Invalid key type");
   }
 
-  if (is_type_valid == TRUE && is_key_len_valid == FALSE)
+  if (is_type_valid == true && is_key_len_valid == false)
     logger->log(MY_ERROR_LEVEL, "Invalid key length for given block cipher");
 
   return is_type_valid && is_key_len_valid;
@@ -103,7 +104,7 @@ void log_operation_error(const char *failed_operation, const char *plugin_name)
 bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
 {
   if (!keyring_file_path || strlen(keyring_file_path) == 0)
-    return TRUE;
+    return true;
   char keyring_dir[FN_REFLEN];
   size_t keyring_dir_length;
   dirname_part(keyring_dir, keyring_file_path, &keyring_dir_length);
@@ -125,7 +126,7 @@ bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
   */
   if (strlen(keyring_dir) != 0)
    my_mkdir(keyring_dir, flags, MYF(0));
-  return FALSE;
+  return false;
 }
 
 void log_opearation_error(const char *failed_operation, const char *plugin_name)
@@ -151,21 +152,21 @@ void update_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
   memcpy(keyring_file_data.get(), new_keys->get_keyring_storage_url().c_str(),
          new_keys->get_keyring_storage_url().length()+1);
   *reinterpret_cast<char **>(var_ptr)= keyring_file_data.get();
-  is_keys_container_initialized= TRUE;
+  is_keys_container_initialized= true;
   mysql_rwlock_unlock(&LOCK_keyring);
 }
 
 bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
                      void **key, size_t *key_len)
 {
-  if (is_keys_container_initialized == FALSE)
-    return TRUE;
+  if (is_keys_container_initialized == false)
+    return true;
 
-  if (key_to_fetch->is_key_id_valid() == FALSE)
+  if (key_to_fetch->is_key_id_valid() == false)
   {
     logger->log(MY_ERROR_LEVEL,
                 "Error while fetching key: key_id cannot be empty");
-    return TRUE;
+    return true;
   }
   mysql_rwlock_rdlock(&LOCK_keyring);
   IKey *fetched_key = keys->fetch_key(key_to_fetch.get());
@@ -181,35 +182,35 @@ bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
   }
   else
     *key = NULL;
-  return FALSE;
+  return false;
 }
 
 bool check_key_for_writing(IKey* key, std::string error_for)
 {
   std::string error_msg= "Error while ";
   error_msg+= error_for;
-  if (key->is_key_type_valid() == FALSE)
+  if (key->is_key_type_valid() == false)
   {
     error_msg+= " key: invalid key_type";
     logger->log(MY_ERROR_LEVEL, error_msg.c_str());
-    return TRUE;
+    return true;
   }
-  if (key->is_key_id_valid() == FALSE)
+  if (key->is_key_id_valid() == false)
   {
     error_msg+= " key: key_id cannot be empty";
     logger->log(MY_ERROR_LEVEL, error_msg.c_str());
-    return TRUE;
+    return true;
   }
- return FALSE;
+ return false;
 }
 
 bool mysql_key_store(std::unique_ptr<IKey> key_to_store)
 {
-  if (is_keys_container_initialized == FALSE)
-    return TRUE;
+  if (is_keys_container_initialized == false)
+    return true;
 
   if (check_key_for_writing(key_to_store.get(), "storing"))
-    return TRUE;
+    return true;
 
   if (key_to_store->get_key_data_size() > 0)
     key_to_store->xor_data();
@@ -217,24 +218,24 @@ bool mysql_key_store(std::unique_ptr<IKey> key_to_store)
   if (keys->store_key(key_to_store.get()))
   {
     mysql_rwlock_unlock(&LOCK_keyring);
-    return TRUE;
+    return true;
   }
   mysql_rwlock_unlock(&LOCK_keyring);
 
   key_to_store.release();
-  return FALSE;
+  return false;
 }
 
 bool mysql_key_remove(std::unique_ptr<IKey> key_to_remove)
 {
   bool retval= false;
-  if (is_keys_container_initialized == FALSE)
-    return TRUE;
-  if (key_to_remove->is_key_id_valid() == FALSE)
+  if (is_keys_container_initialized == false)
+    return true;
+  if (key_to_remove->is_key_id_valid() == false)
   {
     logger->log(MY_ERROR_LEVEL,
                 "Error while removing key: key_id cannot be empty");
-    return TRUE;
+    return true;
   }
   mysql_rwlock_wrlock(&LOCK_keyring);
   retval= keys->remove_key(key_to_remove.get());

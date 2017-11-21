@@ -720,6 +720,7 @@ mysqltest: At line 2: Cannot run query on connection between send and reap
 drop table t1;
 mysqltest: At line 1: Missing required argument 'filename' to command 'remove_file'
 mysqltest: At line 1: Missing required argument 'directory' to command 'remove_files_wildcard'
+mysqltest: At line 1: Missing required argument 'pattern' to command 'remove_files_wildcard'
 mysqltest: At line 1: Missing required argument 'filename' to command 'write_file'
 mysqltest: At line 1: End of file encountered before 'EOF' delimiter was found
 Content for test_file1
@@ -1275,6 +1276,7 @@ numbers.txt
 wl5766_data.txt
 words.dat
 words2.dat
+mysqltest: At line 1: Missing required argument 'pattern' to command 'copy_files_wildcard'
 #
 # Bug#24316799: --RMDIR DOES NOT DELETE DIRECTORY RECURSIVELY
 #
@@ -1559,3 +1561,48 @@ Sample test
 The test 'MYSQLTEST_VARDIR/tmp/bug25929826.test' is not supported by this installation
 Detected in file MYSQLTEST_VARDIR/tmp/bug25929826.test at line 3:
 reason: Skipping bug25929826.test
+#
+# BUG#26630826: MTR: REPLACE_RESULT IS NOT ABLE TO REPLACE LONG
+#               STRINGS IN PATH NAME
+#
+REPLACE_STRING
+mysqltest: At line 1: query 'SELECT REPLACE_STRING FROM t1' failed: 1146: Table 'test.t1' doesn't exist
+#
+# Bug#24671890: ENHANCE THE METHOD REMOVE_FILE IN MTR
+#
+# Test the retry argument for copy_file
+mysqltest: At line 1: Invalid value '5abc' for retry argument given to copy_file command.
+mysqltest: At line 1: Invalid value '-5' for retry argument given to copy_file command.
+mysqltest: At line 1: Invalid value '?' for retry argument given to copy_file command.
+mysqltest: At line 1: Invalid value 'abcd' for retry argument given to copy_file command.
+Retry value is out of range. mysqltest: At line 1: Invalid value '2147483648' for retry argument given to copy_file command.
+# Test the retry argument for copy_files_wildcard
+mysqltest: At line 1: Invalid value '1oo1' for retry argument given to copy_files_wildcard command.
+mysqltest: At line 1: Invalid value 'abcd' for retry argument given to copy_files_wildcard command.
+mysqltest: At line 1: Invalid value ':' for retry argument given to copy_files_wildcard command.
+mysqltest: At line 1: Invalid value '-12' for retry argument given to copy_files_wildcard command.
+Retry value is out of range. mysqltest: At line 1: Invalid value '2147483648000' for retry argument given to copy_files_wildcard command.
+# Test the retry argument for move_file command
+mysqltest: At line 1: Invalid value '11a' for retry argument given to move_file command.
+mysqltest: At line 1: Invalid value 'aabb' for retry argument given to move_file command.
+mysqltest: At line 1: Invalid value '-1' for retry argument given to move_file command.
+mysqltest: At line 1: Invalid value '??' for retry argument given to move_file command.
+Retry value is out of range. mysqltest: At line 1: Invalid value '21474836489' for retry argument given to move_file command.
+# Test the retry argument for file_exists command
+mysqltest: At line 1: Invalid value 'a10a' for retry argument given to file_exists command.
+mysqltest: At line 1: Invalid value 'ghghg' for retry argument given to file_exists command.
+mysqltest: At line 1: Invalid value '-5' for retry argument given to file_exists command.
+mysqltest: At line 1: Invalid value '!' for retry argument given to file_exists command.
+Retry value is out of range. mysqltest: At line 1: Invalid value '21474836487' for retry argument given to file_exists command.
+# Test the retry argument for remove_files_wildcard command
+mysqltest: At line 1: Invalid value 'blah' for retry argument given to remove_files_wildcard command.
+mysqltest: At line 1: Invalid value '-8' for retry argument given to remove_files_wildcard command.
+mysqltest: At line 1: Invalid value 'oo7' for retry argument given to remove_files_wildcard command.
+mysqltest: At line 1: Invalid value '?1' for retry argument given to remove_files_wildcard command.
+Retry value is out of range. mysqltest: At line 1: Invalid value '21474836480' for retry argument given to remove_files_wildcard command.
+# Test invalid values of retry for remove_file command
+mysqltest: At line 1: Invalid value 'xyz' for retry argument given to remove_file command.
+mysqltest: At line 1: Invalid value '-10' for retry argument given to remove_file command.
+mysqltest: At line 1: Invalid value 'll11' for retry argument given to remove_file command.
+mysqltest: At line 1: Invalid value '?1?' for retry argument given to remove_file command.
+Retry value is out of range. mysqltest: At line 1: Invalid value '2147483648' for retry argument given to remove_file command.

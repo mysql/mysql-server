@@ -175,7 +175,7 @@ dict_hdr_flush_row_id(void)
 /*****************************************************************//**
 Creates the file page for the dictionary header. This function is
 called only at the database creation.
-@return TRUE if succeed */
+@return true if succeed */
 static
 ibool
 dict_hdr_create(

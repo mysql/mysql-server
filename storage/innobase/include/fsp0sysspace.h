@@ -29,6 +29,10 @@ Created 2013-7-26 by Kevin Lewis
 #include "univ.i"
 #include "fsp0space.h"
 
+#ifdef UNIV_HOTBACKUP
+# include "srv0srv.h"
+#endif
+
 /** If the last data file is auto-extended, we add this many pages to it
 at a time. We have to make this public because it is a config variable. */
 extern ulong sys_tablespace_auto_extend_increment;

@@ -24,6 +24,7 @@
 #include "sql/dd/impl/transaction_impl.h"
 #include "sql/dd/impl/types/schema_impl.h"
 #include "sql/dd/types/object_type.h"
+#include "sql/thd_raii.h"
 #include "unittest/gunit/dd.h"
 #include "unittest/gunit/test_utils.h"
 

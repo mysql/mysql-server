@@ -719,6 +719,7 @@ public:
 		m_mtr->set_log_mode(log_mode);
 	}
 
+#ifndef UNIV_HOTBACKUP
 	/** Increment the buffer fix count of the clustered index record
 	block. */
 	void rec_block_fix()
@@ -749,6 +750,7 @@ public:
 
 		recalc();
 	}
+#endif  /* !UNIV_HOTBACKUP */
 
 	/** Restore the position of the persistent cursor. */
 	void restore_position()
@@ -1598,7 +1600,7 @@ private:
 
 /** Determine if an operation on off-page columns is an update.
 @param[in]	op	type of BLOB operation.
-@return TRUE if op != OPCODE_INSERT */
+@return true if op != OPCODE_INSERT */
 inline
 bool
 btr_lob_op_is_update(

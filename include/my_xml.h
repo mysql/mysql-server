@@ -24,11 +24,6 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
-
 #define MY_XML_OK	0
 #define MY_XML_ERROR	1
 
@@ -95,9 +90,5 @@ size_t my_xml_error_pos(MY_XML_PARSER *st);
 uint my_xml_error_lineno(MY_XML_PARSER *st);
 
 const char *my_xml_error_string(MY_XML_PARSER *st);
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif /* _my_xml_h */

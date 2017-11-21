@@ -176,24 +176,6 @@ inline bool store(THD *thd MY_ATTRIBUTE((unused)),
 
 
 /**
-  Stores the SDI for a Schema.
-
-  Serializes the schema object, and then forwards to SE through handlerton
-  api, or falls back to storing the sdi string in an .SDI file in the
-  default case.
-
-  @param thd    Thread handle.
-  @param s      Schema object.
-
-  @return error status
-    @retval false on success
-    @retval true otherwise
-*/
-
-bool store(THD *thd, const Schema *s);
-
-
-/**
   Stores the SDI for a table.
 
   Serializes the table, and then forwards to SE through handlerton
@@ -249,24 +231,6 @@ inline bool drop(THD *thd MY_ATTRIBUTE((unused)),
 
 
 /**
-  Remove SDI for a schema.
-
-  Forwards to SE through handlerton api, which will remove from
-  tablespace, or falls back to deleting the .SDI file in the default
-  case.
-
-  @param thd
-  @param s      Schema object.
-
-  @return error status
-    @retval false on success
-    @retval true otherwise
-*/
-
-bool drop(THD *thd, const Schema *s);
-
-
-/**
   Remove SDI for a table.
 
   Forwards to SE through handlerton api, which will remove from
@@ -304,27 +268,6 @@ inline bool drop_after_update(THD *thd MY_ATTRIBUTE((unused)),
 {
   return false;
 }
-
-
-/**
-  Schema cleanup hook. When Dictionary_client issues a store which is
-  performed as an update in the DD a new schema SDI file will be
-  stored. If the update modifies the name of the schema it is
-  necessary to remove the old SDI file after the new one has been
-  written successfully. If the file names are the same the file is
-  updated in place, potentially leaving it corrupted if something goes
-  wrong.
-
-  @param thd
-  @param old_s old Schema object
-  @param new_s new Schema object
-
-  @return error status
-    @retval false on success
-    @retval true otherwise
-*/
-
-bool drop_after_update(THD *thd, const Schema *old_s, const Schema *new_s);
 
 
 /**

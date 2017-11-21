@@ -358,45 +358,45 @@ typedef enum
 
 struct MI_CHECK
 {
-  ulonglong auto_increment_value;
-  ulonglong max_data_file_length;
-  ulonglong keys_in_use;
-  ulonglong max_record_length;
-  ulonglong sort_buffer_length;
-  my_off_t search_after_block;
-  my_off_t new_file_pos,key_file_blocks;
-  my_off_t keydata,totaldata,key_blocks,start_check_pos;
-  ha_rows total_records,total_deleted;
-  ha_checksum record_checksum,glob_crc;
-  ulonglong use_buffers;
-  ulong read_buffer_length, write_buffer_length, sort_key_blocks;
-  uint out_flag,warning_printed,error_printed,verbose;
-  uint opt_sort_key,total_files,max_level;
-  uint testflag, key_cache_block_size;
-  uint16 language;
-  bool using_global_keycache, opt_follow_links;
-  bool retry_repair, force_sort;
-  char temp_filename[FN_REFLEN],*isam_file_name;
-  MY_TMPDIR *tmpdir;
-  int tmpfile_createflag;
-  myf myf_rw;
+  ulonglong auto_increment_value{0};
+  ulonglong max_data_file_length{0};
+  ulonglong keys_in_use{~(ulonglong) 0};
+  ulonglong max_record_length{LLONG_MAX};
+  ulonglong sort_buffer_length{0};
+  my_off_t search_after_block{HA_OFFSET_ERROR};
+  my_off_t new_file_pos{0},key_file_blocks{0};
+  my_off_t keydata,totaldata{0},key_blocks{0},start_check_pos{0};
+  ha_rows total_records{0},total_deleted{0};
+  ha_checksum record_checksum{0},glob_crc{0};
+  ulonglong use_buffers{0};
+  ulong read_buffer_length{0}, write_buffer_length{0}, sort_key_blocks{0};
+  uint out_flag{0},warning_printed{0},error_printed{0},verbose{0};
+  uint opt_sort_key{0},total_files{0},max_level{0};
+  uint testflag{0}, key_cache_block_size{KEY_CACHE_BLOCK_SIZE};
+  uint16 language{0};
+  bool using_global_keycache{false}, opt_follow_links{true};
+  bool retry_repair{false}, force_sort{false};
+  char temp_filename[FN_REFLEN]{0},*isam_file_name{nullptr};
+  MY_TMPDIR *tmpdir{nullptr};
+  int tmpfile_createflag{0};
+  myf myf_rw{MY_NABP | MY_WME | MY_WAIT_IF_FULL};
   IO_CACHE read_cache;
   
   /* 
     The next two are used to collect statistics, see update_key_parts for
     description.
   */
-  ulonglong unique_count[MI_MAX_KEY_SEG+1];
-  ulonglong notnull_count[MI_MAX_KEY_SEG+1];
+  ulonglong unique_count[MI_MAX_KEY_SEG+1]{0};
+  ulonglong notnull_count[MI_MAX_KEY_SEG+1]{0};
   
-  ha_checksum key_crc[HA_MAX_POSSIBLE_KEY];
-  ulong rec_per_key_part[MI_MAX_KEY_SEG*HA_MAX_POSSIBLE_KEY];
-  void *thd;
-  const char *db_name, *table_name;
-  const char *op_name;
-  enum_mi_stats_method stats_method;
+  ha_checksum key_crc[HA_MAX_POSSIBLE_KEY]{0};
+  ulong rec_per_key_part[MI_MAX_KEY_SEG*HA_MAX_POSSIBLE_KEY]{0};
+  void *thd{nullptr};
+  const char *db_name{nullptr}, *table_name{nullptr};
+  const char *op_name{nullptr};
+  enum_mi_stats_method stats_method{MI_STATS_METHOD_NULLS_NOT_EQUAL};
   mysql_mutex_t print_msg_mutex;
-  bool need_print_msg_lock;
+  bool need_print_msg_lock{false};
 };
 
 struct SORT_FT_BUF
@@ -408,18 +408,18 @@ struct SORT_FT_BUF
 
 struct SORT_INFO
 {
-  my_off_t filelength,dupp,buff_length;
-  ha_rows max_records;
-  uint current_key, total_keys;
-  myf myf_rw;
-  enum data_file_type new_data_file_type;
-  MI_INFO *info;
-  MI_CHECK *param;
-  uchar *buff;
-  SORT_KEY_BLOCKS *key_block,*key_block_end;
-  SORT_FT_BUF *ft_buf;
+  my_off_t filelength{0},dupp{0},buff_length{0};
+  ha_rows max_records{0};
+  uint current_key{0}, total_keys{0};
+  myf myf_rw{0};
+  data_file_type new_data_file_type{STATIC_RECORD};
+  MI_INFO *info{nullptr};
+  MI_CHECK *param{nullptr};
+  uchar *buff{nullptr};
+  SORT_KEY_BLOCKS *key_block{nullptr},*key_block_end{nullptr};
+  SORT_FT_BUF *ft_buf{nullptr};
   /* sync things */
-  uint got_error, threads_running;
+  uint got_error{0}, threads_running{0};
   mysql_mutex_t mutex;
   mysql_cond_t  cond;
 };

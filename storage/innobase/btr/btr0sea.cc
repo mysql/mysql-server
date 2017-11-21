@@ -397,6 +397,8 @@ void
 btr_search_enable()
 {
 	os_rmb;
+	/* Don't allow enabling AHI if buffer pool resize is hapenning.
+	Ignore it sliently.  */
 	if (srv_buf_pool_old_size != srv_buf_pool_size)
 		return;
 
@@ -587,7 +589,7 @@ set_new_recomm:
 /** Update the block search info on hash successes. NOTE that info and
 block->n_hash_helps, n_fields, n_bytes, left_side are NOT protected by any
 semaphore, to save CPU time! Do not assume the fields are consistent.
-@return TRUE if building a (new) hash index on the block is recommended
+@return true if building a (new) hash index on the block is recommended
 @param[in,out]	info	search info
 @param[in,out]	block	buffer block
 @param[in]	cursor	cursor */
@@ -802,7 +804,7 @@ TRUE, then cursor->up_match and cursor->low_match both have sensible values.
 @param[in]	tuple		data tuple
 @param[in]	mode		PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G, PAGE_CUR_GE
 @param[in]	mtr		mini transaction
-@return TRUE if success */
+@return true if success */
 static
 ibool
 btr_search_check_guess(
@@ -967,7 +969,7 @@ both have sensible values.
 				latch mode the caller currently has on
 				search system: RW_S/X_LATCH or 0
 @param[in]	mtr		mini transaction
-@return TRUE if succeeded */
+@return true if succeeded */
 ibool
 btr_search_guess_on_hash(
 	dict_index_t*	index,
@@ -2153,7 +2155,7 @@ function_exit:
 
 /** Validates the search system for given hash table.
 @param[in]	hash_table_id	hash table to validate
-@return TRUE if ok */
+@return true if ok */
 static
 ibool
 btr_search_hash_table_validate(ulint hash_table_id)

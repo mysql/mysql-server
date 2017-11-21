@@ -26,13 +26,12 @@
 #include "my_io.h"
 #include "my_sys.h"
 #include "mysqld_error.h"       // ER_*
-#include "sql/sql_alloc.h"
-#include "sql/sql_lex.h"        // SELECT_LEX_UNIT
 #include "sql/sql_list.h"
 
 class Item;
 class Item_subselect;
 class PT_select_var;
+class SELECT_LEX_UNIT;
 class THD;
 
 
@@ -40,7 +39,7 @@ class THD;
   This is used to get result from a query
 */
 
-class Query_result :public Sql_alloc
+class Query_result
 {
 protected:
   THD *thd;
@@ -189,28 +188,7 @@ public:
   }
 };
 
-
-/*
-  Used to hold information about file and file structure in exchange
-  via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
-  XXX: We never call destructor for objects of this class.
-*/
-
-class sql_exchange final : public Sql_alloc
-{
-public:
-  Field_separators field;
-  Line_separators line;
-  enum enum_filetype filetype; /* load XML, Added by Arnold & Erik */
-  const char *file_name;
-  bool dumpfile;
-  ulong skip_lines;
-  const CHARSET_INFO *cs;
-  sql_exchange(const char *name, bool dumpfile_flag,
-               enum_filetype filetype_arg= FILETYPE_CSV);
-  bool escaped_given(void);
-};
-
+class sql_exchange;
 
 class Query_result_to_file : public Query_result_interceptor {
 protected:

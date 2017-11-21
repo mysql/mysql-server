@@ -34,6 +34,7 @@
 #include "sql/current_thd.h"
 #include "sql/item_func.h"
 #include "sql/mysqld.h"                // table_alias_charset
+#include "sql/nested_join.h"
 #include "sql/parse_location.h"
 #include "sql/parse_tree_nodes.h"      // PT_with_clause
 #include "sql/protocol.h"
@@ -183,8 +184,8 @@ void lex_free(void)
 void
 st_parsing_options::reset()
 {
-  allows_variable= TRUE;
-  allows_select_into= TRUE;
+  allows_variable= true;
+  allows_select_into= true;
 }
 
 /**
@@ -220,12 +221,12 @@ bool Lex_input_stream::init(THD *thd, const char* buff, size_t length)
                   DBUG_SET("-d,bug42064_simulate_oom");); 
 
   if (m_cpp_buf == NULL)
-    return TRUE;
+    return true;
 
   m_thd= thd;
   reset(buff, length);
 
-  return FALSE;
+  return false;
 }
 
 
@@ -264,7 +265,7 @@ Lex_input_stream::reset(const char *buffer, size_t length)
   m_end_of_query= buffer + length;
   m_buf= buffer;
   m_buf_length= length;
-  m_echo= TRUE;
+  m_echo= true;
   m_cpp_tok_start= NULL;
   m_cpp_tok_end= NULL;
   m_body_utf8= NULL;
@@ -272,8 +273,8 @@ Lex_input_stream::reset(const char *buffer, size_t length)
   next_state= MY_LEX_START;
   found_semicolon= NULL;
   ignore_space= m_thd->variables.sql_mode & MODE_IGNORE_SPACE;
-  stmt_prepare_mode= FALSE;
-  multi_statements= TRUE;
+  stmt_prepare_mode= false;
+  multi_statements= true;
   in_comment=NO_COMMENT;
   m_underscore_cs= NULL;
   m_cpp_ptr= m_cpp_buf;
@@ -1081,7 +1082,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
       DBUG_ASSERT(end >= str);
 
       if (!(start= static_cast<char *>(lip->m_thd->alloc((uint) (end-str)+1))))
-	return (char*) "";		// Sql_alloc has set error flag
+	return (char*) "";		// MEM_ROOT has set error flag
 
       lip->m_cpp_text_start= lip->get_cpp_tok_start() + pre_skip;
       lip->m_cpp_text_end= lip->get_cpp_ptr() - post_skip;
@@ -1319,7 +1320,7 @@ static bool consume_comment(Lex_input_stream *lip,
       if (lip->yyPeek() == '/')
       {
         lip->yySkip(); /* Eat slash */
-        return FALSE;
+        return false;
       }
     }
 
@@ -1327,7 +1328,7 @@ static bool consume_comment(Lex_input_stream *lip,
       lip->yylineno++;
   }
 
-  return TRUE;
+  return true;
 }
 
 
@@ -1938,7 +1939,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       {
         lip->in_comment= DISCARD_COMMENT;
         /* Accept '/' '*' '!', but do not keep this marker. */
-        lip->set_echo(FALSE);
+        lip->set_echo(false);
         lip->yySkip();
         lip->yySkip();
         lip->yySkip();
@@ -1968,7 +1969,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
             /* Accept 'M' 'm' 'm' 'd' 'd' */
             lip->yySkipn(5);
             /* Expand the content of the special comment as real code */
-            lip->set_echo(TRUE);
+            lip->set_echo(true);
             state=MY_LEX_START;
             break;  /* Do not treat contents as a comment.  */
           }
@@ -1991,7 +1992,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
         {
           /* Not a version comment. */
           state=MY_LEX_START;
-          lip->set_echo(TRUE);
+          lip->set_echo(true);
           break;
         }
       }
@@ -2034,7 +2035,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
         lip->set_echo(lip->in_comment == PRESERVE_COMMENT);
         lip->yySkipn(2);
         /* And start recording the tokens again */
-        lip->set_echo(TRUE);
+        lip->set_echo(true);
         
         /*
           C-style comments are replaced with a single space (as it
@@ -2071,9 +2072,9 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       if (lip->eof())
       {
         lip->yyUnget();                 // Reject the last '\0'
-        lip->set_echo(FALSE);
+        lip->set_echo(false);
         lip->yySkip();
-        lip->set_echo(TRUE);
+        lip->set_echo(true);
         /* Unbalanced comments with a missing '*' '/' are a syntax error */
         if (lip->in_comment != NO_COMMENT)
           return (ABORT_SYM);
@@ -2405,7 +2406,7 @@ bool SELECT_LEX::set_context(Name_resolution_context *outer_context)
 */
 
 bool SELECT_LEX::add_tables(THD *thd,
-                            const Trivial_array<Table_ident *> *tables,
+                            const Mem_root_array<Table_ident *> *tables,
                             ulong table_options,
                             thr_lock_type lock_type,
                             enum_mdl_type mdl_type)
@@ -2822,7 +2823,7 @@ void SELECT_LEX_UNIT::print(String *str, enum_query_type query_type)
       if (union_all)
 	str->append(STRING_WITH_LEN("all "));
       else if (union_distinct == sl)
-        union_all= TRUE;
+        union_all= true;
     }
     if (sl->braces)
       str->append('(');
@@ -3373,7 +3374,7 @@ void SELECT_LEX::print(THD *thd, String *str, enum_query_type query_type)
     append_identifier(thd, str, w->name()->item_name.ptr(),
                       strlen(w->name()->item_name.ptr()));
     str->append(" AS ");
-    w->print(thd, this, str, query_type, true);
+    w->print(thd, str, query_type, true);
   }
 
   if (order_list.elements)
@@ -3541,9 +3542,9 @@ void LEX::cleanup_lex_after_parse_error(THD *thd)
 
   SYNOPSIS
     reset_query_tables_list()
-      init  TRUE  - we should perform full initialization of object with
+      init  true  - we should perform full initialization of object with
                     allocating needed memory
-            FALSE - object is already initialized so we should only reset
+            false - object is already initialized so we should only reset
                     its state so it can be used for parsing/processing
                     of new statement
 
@@ -3590,7 +3591,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
   stmt_accessed_table_flag= 0;
   lock_tables_state= LTS_NOT_LOCKED;
   table_count= 0;
-  using_match= FALSE;
+  using_match= false;
 
   /* Check the max size of the enum to control new enum values definitions. */
   static_assert(BINLOG_STMT_UNSAFE_COUNT <= 32, "");
@@ -3636,9 +3637,10 @@ LEX::LEX()
    contains_plaintext_password(false),
    keep_diagnostics(DA_KEEP_UNSPECIFIED),
    is_lex_started(0),
-   in_update_value_clause(false)
+   in_update_value_clause(false),
+   will_contextualize(true)
 {
-  reset_query_tables_list(TRUE);
+  reset_query_tables_list(true);
 }
 
 
@@ -3648,7 +3650,7 @@ LEX::LEX()
   @details
     Only listed here commands can use merge algorithm in top level
     SELECT_LEX (for subqueries will be used merge algorithm if
-    LEX::can_not_use_merged() is not TRUE).
+    LEX::can_not_use_merged() is not true).
 
   @todo - Add SET as a command that can use merged views. Due to how
           all uses would be embedded in subqueries, this test is worthless
@@ -3696,9 +3698,9 @@ bool LEX::can_use_merged()
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_TRIGGERS:
-    return TRUE;
+    return true;
   default:
-    return FALSE;
+    return false;
   }
 }
 
@@ -3718,9 +3720,9 @@ bool LEX::can_not_use_merged()
   {
   case SQLCOM_CREATE_VIEW:
   case SQLCOM_SHOW_CREATE:
-    return TRUE;
+    return true;
   default:
-    return FALSE;
+    return false;
   }
 }
 
@@ -3733,8 +3735,8 @@ bool LEX::can_not_use_merged()
     need_correct_ident()
 
   RETURN
-    TRUE yes, we need only structure
-    FALSE no, we need data
+    true yes, we need only structure
+    false no, we need data
 */
 
 
@@ -3745,9 +3747,9 @@ bool LEX::need_correct_ident()
   case SQLCOM_SHOW_CREATE:
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_CREATE_VIEW:
-    return TRUE;
+    return true;
   default:
-    return FALSE;
+    return false;
   }
 }
 
@@ -3767,7 +3769,7 @@ bool LEX::need_correct_ident()
 
   This method is needed to support this rule.
 
-  @return TRUE in case of error (parsing should be aborted, FALSE in
+  @return true in case of error (parsing should be aborted, false in
   case of success
 */
 
@@ -3784,7 +3786,7 @@ LEX::copy_db_to(char const **p_db, size_t *p_db_length) const
     *p_db= sphead->m_db.str;
     if (p_db_length)
       *p_db_length= sphead->m_db.length;
-    return FALSE;
+    return false;
   }
   return thd->copy_db_to(p_db, p_db_length);
 }
@@ -4256,7 +4258,7 @@ void LEX::link_first_table_back(TABLE_LIST *first,
   NOTE
     This method is mostly responsible for cleaning up of selects lists and
     derived tables state. To rollback changes in Query_tables_list one has
-    to call Query_tables_list::reset_query_tables_list(FALSE).
+    to call Query_tables_list::reset_query_tables_list(false).
 */
 
 void LEX::cleanup_after_one_table_open()
@@ -4292,7 +4294,7 @@ void LEX::reset_n_backup_query_tables_list(Query_tables_list *backup)
     We have to perform full initialization here since otherwise we
     will damage backed up state.
   */
-  this->reset_query_tables_list(TRUE);
+  this->reset_query_tables_list(true);
 }
 
 
@@ -4318,8 +4320,8 @@ void LEX::restore_backup_query_tables_list(Query_tables_list *backup)
     LEX:table_or_sp_used()
 
   RETURN
-    FALSE  No routines and tables used
-    TRUE   Either or both routines and tables are used.
+    false  No routines and tables used
+    true   Either or both routines and tables are used.
 */
 
 bool LEX::table_or_sp_used()
@@ -4327,9 +4329,9 @@ bool LEX::table_or_sp_used()
   DBUG_ENTER("table_or_sp_used");
 
   if ((sroutines != nullptr && !sroutines->empty()) || query_tables)
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 

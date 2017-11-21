@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -289,7 +289,7 @@ dtype_get_at_most_n_mbchars(
 /*********************************************************************//**
 Checks if a data main type is a string type. Also a BLOB is considered a
 string type.
-@return TRUE if string type */
+@return true if string type */
 ibool
 dtype_is_string_type(
 /*=================*/
@@ -298,7 +298,7 @@ dtype_is_string_type(
 Checks if a type is a binary string type. Note that for tables created with
 < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column. For
 those DATA_BLOB columns this function currently returns FALSE.
-@return TRUE if binary string type */
+@return true if binary string type */
 ibool
 dtype_is_binary_string_type(
 /*========================*/
@@ -309,7 +309,7 @@ Checks if a type is a non-binary string type. That is, dtype_is_string_type is
 TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
 with < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column.
 For those DATA_BLOB columns this function currently returns TRUE.
-@return TRUE if non-binary string type */
+@return true if non-binary string type */
 ibool
 dtype_is_non_binary_string_type(
 /*============================*/
@@ -355,7 +355,6 @@ dtype_get_prtype(
 /*=============*/
 	const dtype_t*	type);	/*!< in: data type */
 
-#ifndef UNIV_HOTBACKUP
 /** Compute the mbminlen and mbmaxlen members of a data type structure.
 @param[in]	mtype		main type
 @param[in]	prtype		precise type (and collation)
@@ -391,13 +390,12 @@ dtype_form_prtype(
 Determines if a MySQL string type is a subset of UTF-8.  This function
 may return false negatives, in case further character-set collation
 codes are introduced in MySQL later.
-@return TRUE if a subset of UTF-8 */
+@return true if a subset of UTF-8 */
 UNIV_INLINE
 ibool
 dtype_is_utf8(
 /*==========*/
 	ulint	prtype);/*!< in: precise data type */
-#endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Gets the type length.
 @return fixed length of the type, in bytes, or 0 if variable-length */
@@ -457,7 +455,6 @@ dtype_get_fixed_size_low(
 	ulint	mbminmaxlen,
 	ulint	comp);
 
-#ifndef UNIV_HOTBACKUP
 /** Returns the minimum size of a data type.
 @param[in]	mtype		main type
 @param[in]	prtype		precise type
@@ -483,7 +480,6 @@ ulint
 dtype_get_max_size_low(
 	ulint	mtype,
 	ulint	len);
-#endif /* !UNIV_HOTBACKUP */
 
 /** Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a type.
 For fixed length types it is the fixed length of the type, otherwise 0.
@@ -551,7 +547,7 @@ dtype_sql_name(
 
 /*********************************************************************//**
 Validates a data type structure.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dtype_validate(
 /*===========*/
@@ -592,13 +588,11 @@ struct dtype_t{
 					string data (in addition to
 					the string, MySQL uses 1 or 2
 					bytes to store the string length) */
-#ifndef UNIV_HOTBACKUP
 	unsigned	mbminmaxlen:5;	/*!< minimum and maximum length of a
 					character, in bytes;
 					DATA_MBMINMAXLEN(mbminlen,mbmaxlen);
 					mbminlen=DATA_MBMINLEN(mbminmaxlen);
 					mbmaxlen=DATA_MBMINLEN(mbminmaxlen) */
-#endif /* !UNIV_HOTBACKUP */
 };
 
 #include "data0type.ic"

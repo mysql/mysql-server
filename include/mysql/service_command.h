@@ -1,6 +1,6 @@
 #ifndef MYSQL_SERVICE_COMMAND_INCLUDED
 #define MYSQL_SERVICE_COMMAND_INCLUDED
-/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -25,10 +25,6 @@
 
 #include "mysql/service_srv_session.h"
 #include "mysql/com_data.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include "mysql_time.h"
 #include "decimal.h"
@@ -378,7 +374,7 @@ enum cs_text_or_binary
   CS_BINARY_REPRESENTATION= 2, /* Let the server use native types */
 };
 
-extern struct command_service_st {
+extern "C" struct command_service_st {
   int (*run_command)(MYSQL_SESSION session,
                      enum enum_server_command command,
                      const union COM_DATA * data,
@@ -448,9 +444,5 @@ int command_service_run_command(MYSQL_SESSION session,
                                 void * service_callbacks_ctx);
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

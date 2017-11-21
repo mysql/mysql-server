@@ -33,27 +33,27 @@ AND name IN ('innodb_table_stats',
 'dd_properties'))
 ORDER BY id;
 id	name	type	engine	collation_id	comment	hidden	options	se_private_data	se_private_id	tablespace_id
-1	dd_properties	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	1	1
-3	collations	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	3	1
-4	tablespaces	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	4	1
-5	tablespace_files	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	5	1
-6	catalogs	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	6	1
-7	column_statistics	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	7	1
-8	schemata	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	8	1
-10	tables	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	10	1
-11	view_table_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	11	1
-13	columns	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	13	1
-14	indexes	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	14	1
-15	index_column_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	15	1
-16	column_type_elements	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	16	1
-17	foreign_keys	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	17	1
-18	foreign_key_column_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	18	1
-19	table_partitions	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	19	1
-20	table_partition_values	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	20	1
-21	index_partitions	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	21	1
-30	innodb_table_stats	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	30	1
-31	innodb_index_stats	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	31	1
-34	character_sets	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=255;version=2;	2	1
+1	dd_properties	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	1	1
+3	collations	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	3	1
+4	tablespaces	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	4	1
+5	tablespace_files	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	5	1
+6	catalogs	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	6	1
+7	column_statistics	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	7	1
+8	schemata	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	8	1
+10	tables	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	10	1
+11	view_table_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	11	1
+13	columns	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	13	1
+14	indexes	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	14	1
+15	index_column_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	15	1
+16	column_type_elements	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	16	1
+17	foreign_keys	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	17	1
+18	foreign_key_column_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	18	1
+19	table_partitions	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	19	1
+20	table_partition_values	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	20	1
+21	index_partitions	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	21	1
+30	innodb_table_stats	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	30	1
+31	innodb_index_stats	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	31	1
+34	character_sets	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=255;version=2;	2	1
 #
 # Subset of definitions from columns, not including
 # default_values.

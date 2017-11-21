@@ -23,14 +23,16 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "storage/perfschema/pfs.h"
-#include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_data_lock.h"
 #include "storage/perfschema/pfs_engine_table.h"
-#include "storage/perfschema/table_helper.h"
 
-struct PFS_data_lock_waits;
-class PFS_index_data_lock_waits;
+class Field;
+class PSI_engine_data_lock_wait_iterator;
+class Plugin_table;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup Performance_schema_tables

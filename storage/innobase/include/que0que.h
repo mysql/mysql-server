@@ -107,7 +107,7 @@ que_graph_free(
 Stops a query thread if graph or trx is in a state requiring it. The
 conditions are tested in the order (1) graph, (2) trx. The lock_sys_t::mutex
 has to be reserved.
-@return TRUE if stopped */
+@return true if stopped */
 ibool
 que_thr_stop(
 /*=========*/
@@ -176,7 +176,7 @@ thr_get_trx(
 /*******************************************************************//**
 Determines if this thread is rolling back an incomplete transaction
 in crash recovery.
-@return TRUE if thr is rolling back an incomplete transaction in crash
+@return true if thr is rolling back an incomplete transaction in crash
 recovery */
 UNIV_INLINE
 ibool
@@ -275,7 +275,7 @@ que_node_list_get_len(
 /**********************************************************************//**
 Checks if graph, trx, or session is in a state where the query thread should
 be stopped.
-@return TRUE if should be stopped; NOTE that if the peek is made
+@return true if should be stopped; NOTE that if the peek is made
 without reserving the trx_t::mutex, then another peek with the mutex
 reserved is necessary before deciding the actual stopping */
 UNIV_INLINE
@@ -285,7 +285,7 @@ que_thr_peek_stop(
 	que_thr_t*	thr);	/*!< in: query thread */
 /***********************************************************************//**
 Returns TRUE if the query graph is for a SELECT statement.
-@return TRUE if a select */
+@return true if a select */
 UNIV_INLINE
 ibool
 que_graph_is_select(

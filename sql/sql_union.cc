@@ -34,6 +34,7 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -177,7 +178,6 @@ bool Query_result_union::create_result_table(THD *thd_arg,
         their columns' values, not in insertion order.
       */
       tmp_table_param.can_use_pk_for_unique= false;
-      tmp_table_param.allow_scan_from_position= true;
     }
     if (unit->mixed_union_operators())
     {
@@ -785,7 +785,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
                                           create_options, "", false,
                                           instantiate_tmp_table))
       goto err;
-    memset(&result_table_list, 0, sizeof(result_table_list));
+    result_table_list= TABLE_LIST();
     result_table_list.db= (char*) "";
     result_table_list.table_name= result_table_list.alias= (char*) "union";
     result_table_list.table= table= union_result->table;

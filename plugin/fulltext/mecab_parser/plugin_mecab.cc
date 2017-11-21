@@ -81,6 +81,7 @@ int
 mecab_parser_plugin_init(void*)
 {
 	const MeCab::DictionaryInfo*	mecab_dict;
+	std::string			rcfile_arg;
 
 	/* Check mecab version. */
 	if (strcmp(MeCab::Model::version(), mecab_min_supported_version) < 0) {
@@ -98,25 +99,22 @@ mecab_parser_plugin_init(void*)
 				  mecab_max_supported_version);
 	}
 
+	/* See src/tagger.cpp for available options.
+	--rcfile=<mecabrc file>  "use FILE as resource file",
+	and we need fill "--rcfile=" first, otherwise, it'll
+	report error when calling MeCab::createModel(). */
+	rcfile_arg += "--rcfile=";
 	if (mecab_rc_file != NULL) {
-		std::string	rcfile_arg;
-
-		/* See src/tagger.cpp for available options.
-		--rcfile=<mecabrc file>  "use FILE as resource file" */
-		rcfile_arg += "--rcfile=";
 		rcfile_arg += mecab_rc_file;
-
-		/* It seems we *must* have some kind of mecabrc
-		file available before calling createModel, see
-		load_dictionary_resource() in  src/utils.cpp */
-		sql_print_information("Mecab: Trying createModel(%s)",
-				      rcfile_arg.c_str());
-
-		mecab_model = MeCab::createModel(rcfile_arg.c_str());
-	} else {
-		sql_print_information("Mecab: Trying createModel()");
-		mecab_model = MeCab::createModel("");
 	}
+
+	/* It seems we *must* have some kind of mecabrc
+	file available before calling createModel, see
+	load_dictionary_resource() in  src/utils.cpp */
+	sql_print_information("Mecab: Trying createModel(%s)",
+			      rcfile_arg.c_str());
+
+	mecab_model = MeCab::createModel(rcfile_arg.c_str());
 
 	if (mecab_model == NULL) {
 		sql_print_error("Mecab: createModel() failed: %s",

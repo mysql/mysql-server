@@ -37,6 +37,11 @@ want to create dictionary tables with fixed ids, we use
 in-memory counter for upgrade */
 uint32_t	dd_upgrade_indexes_num = 1;
 
+/** Vector of tables that have FTS indexes. Used for
+reverting from 8.0 format FTS AUX table names to
+5.7 FTS AUX table names */
+static std::vector<std::string> tables_with_fts;
+
 /** Fill foreign key information from InnoDB table to
 server table
 @param[in]	ib_table	InnoDB table object
@@ -956,6 +961,13 @@ bool dd_upgrade_table(THD* thd, const char* db_name, const char* table_name,
     if (err != DB_SUCCESS) {
       dict_table_close(ib_table, false, false);
       return (true);
+    } else {
+
+      mutex_enter(&dict_sys->mutex);
+      dict_table_prevent_eviction(ib_table);
+      mutex_exit(&dict_sys->mutex);
+
+      tables_with_fts.push_back(ib_table->name.m_name);
     }
   }
 
@@ -1159,6 +1171,63 @@ int dd_upgrade_tablespace(THD* thd) {
   DBUG_RETURN(0);
 }
 
+/** Add server version number to tablespace while upgrading.
+@param[in]      space_id              space id of tablespace
+@return false on success, true on failure. */
+bool upgrade_space_version(const uint32 space_id)
+{
+  buf_block_t*    block;
+  page_t*         page;
+  mtr_t           mtr;
+
+  fil_space_t*    space = fil_space_acquire(space_id);
+
+  if (space == nullptr) {
+    return(true);
+  }
+
+  const page_size_t       page_size(space->flags);
+
+  mtr_start(&mtr);
+
+  block = buf_page_get(page_id_t(space_id, 0),
+                             page_size,
+                             RW_SX_LATCH, &mtr);
+
+  page = buf_block_get_frame(block);
+
+
+  mlog_write_ulint(page + FIL_PAGE_SRV_VERSION,
+                   DD_SPACE_CURRENT_SRV_VERSION,
+                   MLOG_4BYTES,
+                   &mtr);
+
+  mlog_write_ulint(page + FIL_PAGE_SPACE_VERSION,
+                   DD_SPACE_CURRENT_SPACE_VERSION,
+                   MLOG_4BYTES,
+                   &mtr);
+
+  mtr_commit(&mtr);
+  fil_space_release(space);
+  return(false);
+}
+
+/** Add server version number to tablespace while upgrading.
+@param[in]      tablespace              dd::Tablespace
+@return false on success, true on failure. */
+bool upgrade_space_version(dd::Tablespace* tablespace)
+{
+  uint32  space_id;
+
+  if (tablespace->se_private_data().get_uint32("id", &space_id)) {
+    /* error, attribute not found */
+    ut_ad(0);
+    return(true);
+  }
+  return(upgrade_space_version(space_id));
+}
+
+
 /** Upgrade innodb undo logs after upgrade. Also increment the table_id
 offset by DICT_MAX_DD_TABLES. This offset increment is because the
 first 256 table_ids are reserved for dictionary.
@@ -1231,6 +1300,27 @@ void dd_upgrade_drop_sys_tables() {
   mutex_exit(&dict_sys->mutex);
 }
 
+/** Rename back the FTS AUX tablespace names from 8.0 format to 5.7
+format on upgrade failure, else mark FTS aux tables evictable
+@param[in]	failed_upgrade		true on upgrade failure, else
+                                        false */
+static void dd_upgrade_fts_rename_cleanup(bool failed_upgrade) {
+  for (std::string& name : tables_with_fts) {
+    dict_table_t* ib_table = dict_table_open_on_name(name.c_str(), FALSE, TRUE,
+                                                     DICT_ERR_IGNORE_NONE);
+    ut_ad(ib_table != nullptr);
+    if (ib_table != nullptr) {
+      fts_upgrade_rename(ib_table, failed_upgrade);
+
+      mutex_enter(&dict_sys->mutex);
+      dict_table_allow_eviction(ib_table);
+      dict_table_close(ib_table, true, false);
+      mutex_exit(&dict_sys->mutex);
+
+    }
+  }
+}
+
 /** If upgrade is successful, this API is used to flush innodb
 dirty pages to disk. In case of server crash, this function
 sets storage engine for rollback any changes.
@@ -1240,9 +1330,10 @@ sets storage engine for rollback any changes.
 int dd_upgrade_finish(THD* thd, bool failed_upgrade) {
   DBUG_ENTER("innobase_finish_se_upgrade");
 
+  dd_upgrade_fts_rename_cleanup(failed_upgrade);
+
   if (failed_upgrade) {
     srv_downgrade_logs = true;
-
   } else {
     /* Delete the old undo tablespaces and the references to them
     in the TRX_SYS page. */
@@ -1255,6 +1346,8 @@ int dd_upgrade_finish(THD* thd, bool failed_upgrade) {
     buf_flush_sync_all_buf_pools();
   }
 
+  tables_with_fts.clear();
+  tables_with_fts.shrink_to_fit();
   srv_is_upgrade_mode = false;
 
   DBUG_RETURN(0);

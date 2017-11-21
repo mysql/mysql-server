@@ -244,8 +244,8 @@ static int before_commit_tests(Trans_param *param,
   switch(test_case)
   {
   case NEGATIVE_CERTIFICATION:
-    transaction_termination_ctx.m_rollback_transaction= TRUE;
-    transaction_termination_ctx.m_generated_gtid= FALSE;
+    transaction_termination_ctx.m_rollback_transaction= true;
+    transaction_termination_ctx.m_generated_gtid= false;
     transaction_termination_ctx.m_sidno= -1;
     transaction_termination_ctx.m_gno= -1;
     break;
@@ -257,22 +257,22 @@ static int before_commit_tests(Trans_param *param,
     fake_gno= get_last_executed_gno(fake_sidno);
     fake_gno++;
 
-    transaction_termination_ctx.m_rollback_transaction= FALSE;
-    transaction_termination_ctx.m_generated_gtid= TRUE;
+    transaction_termination_ctx.m_rollback_transaction= false;
+    transaction_termination_ctx.m_generated_gtid= true;
     transaction_termination_ctx.m_sidno= fake_sidno;
     transaction_termination_ctx.m_gno= fake_gno;
     break;
 
   case POSITIVE_CERTIFICATION_WITHOUT_GTID:
-    transaction_termination_ctx.m_rollback_transaction= FALSE;
-    transaction_termination_ctx.m_generated_gtid= FALSE;
+    transaction_termination_ctx.m_rollback_transaction= false;
+    transaction_termination_ctx.m_generated_gtid= false;
     transaction_termination_ctx.m_sidno= 0;
     transaction_termination_ctx.m_gno= 0;
     break;
 
   case INVALID_CERTIFICATION_OUTCOME:
-    transaction_termination_ctx.m_rollback_transaction= TRUE;
-    transaction_termination_ctx.m_generated_gtid= TRUE;
+    transaction_termination_ctx.m_rollback_transaction= true;
+    transaction_termination_ctx.m_generated_gtid= true;
     transaction_termination_ctx.m_sidno= -1;
     transaction_termination_ctx.m_gno= -1;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,7 +47,7 @@ ha_search_and_get_data(
 /*********************************************************//**
 Looks for an element when we know the pointer to the data and updates
 the pointer to data if found.
-@return TRUE if found */
+@return true if found */
 ibool
 ha_search_and_update_if_found_func(
 /*===============================*/
@@ -120,7 +120,7 @@ ha_clear(
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted.
-@return TRUE if succeed, FALSE if no more memory could be allocated */
+@return true if succeed, false if no more memory could be allocated */
 ibool
 ha_insert_for_fold_func(
 /*====================*/
@@ -139,7 +139,7 @@ ha_insert_for_fold_func(
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted.
-@return TRUE if succeed, FALSE if no more memory could be allocated
+@return true if succeed, false if no more memory could be allocated
 @param t in: hash table
 @param f in: folded value of data
 @param b in: buffer block containing the data
@@ -153,7 +153,7 @@ is inserted.
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted.
-@return TRUE if succeed, FALSE if no more memory could be allocated
+@return true if succeed, false if no more memory could be allocated
 @param t in: hash table
 @param f in: folded value of data
 @param b ignored: buffer block containing the data
@@ -169,7 +169,7 @@ from the hash table if found.
 @param[in]	table	hash table
 @param[in]	fold	folded value of the searched data
 @param[in]	data	pointer to the data
-@return TRUE if found */
+@return true if found */
 UNIV_INLINE
 ibool
 ha_search_and_delete_if_found(
@@ -190,7 +190,7 @@ ha_remove_all_nodes_to_page(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /*************************************************************//**
 Validates a given range of the cells in hash table.
-@return TRUE if ok */
+@return true if ok */
 ibool
 ha_validate(
 /*========*/

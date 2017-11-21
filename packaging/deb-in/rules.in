@@ -97,6 +97,8 @@ override_dh_install:
 		-Xusr/share/mysql/@DEB_INSTALL_LICENSEFILE@-test \
 		-Xusr/share/mysql/README-test \
 		-Xusr/share/mysql/docs/mysql.info \
-		-Xusr/share/man/man1/mysql_client_test_embedded.1 \
+		-Xusr/share/man/man1/mysql_client_test.1 \
 		-Xusr/share/man/man1/mysqlman.1 \
-		-Xusr/share/man/man1/mysqltest_embedded.1
+		-Xusr/share/man/man1/mysql-stress-test.pl.1 \
+		-Xusr/share/man/man1/mysql-test-run.pl.1 \
+		-Xusr/share/man/man1/mysqltest.1

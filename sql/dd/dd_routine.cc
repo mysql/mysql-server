@@ -82,8 +82,6 @@ static void fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf)
   // representation of result data type.
   TABLE table;
   TABLE_SHARE share;
-  memset(&table, 0, sizeof(table));
-  memset(&share, 0, sizeof(share));
   table.s= &share;
   table.in_use= thd;
   table.s->db_low_byte_first= 1;
@@ -150,8 +148,6 @@ static void fill_parameter_info_from_field(THD *thd,
   // We prepare these once, and reuse them for all fields.
   TABLE table;
   TABLE_SHARE share;
-  memset(&table, 0, sizeof(table));
-  memset(&share, 0, sizeof(share));
   table.s= &share;
   table.in_use= thd;
   table.s->db_low_byte_first= 1;

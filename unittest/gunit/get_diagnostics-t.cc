@@ -22,6 +22,7 @@
 #include "my_inttypes.h"
 #include "sql/item.h"
 #include "sql/item_func.h"
+#include "sql/sql_class.h"
 #include "sql/sql_get_diagnostics.h"
 #include "unittest/gunit/test_utils.h"
 

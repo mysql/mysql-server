@@ -172,7 +172,7 @@ INSERT INTO t2 SELECT ST_GeomFromText(st) FROM t1;
 drop table t1, t2;
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-CREATE TABLE t1 (`geometry` geometry NOT NULL default '' SRID 0,SPATIAL KEY `gndx` (`geometry`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+CREATE TABLE t1 (`geometry` geometry NOT NULL SRID 0,SPATIAL KEY `gndx` (`geometry`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 INSERT INTO t1 (geometry) VALUES
 (ST_PolygonFromText('POLYGON((-18.6086111000 -66.9327777000, -18.6055555000
@@ -187,7 +187,7 @@ check table t1 extended;
 
 drop table t1;
 
-CREATE TABLE t1 (`geometry` geometry NOT NULL default '' SRID 0,SPATIAL KEY `gndx` (`geometry`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+CREATE TABLE t1 (`geometry` geometry NOT NULL SRID 0,SPATIAL KEY `gndx` (`geometry`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 INSERT INTO t1 (geometry) VALUES
 (ST_PolygonFromText('POLYGON((2 2, 2 8, 10 8, 10 2, 2 2))'));
@@ -232,7 +232,7 @@ DROP TABLE t1;
 # Bug#17877 - Corrupted spatial index
 #
 CREATE TABLE t1 (
-  c1 geometry NOT NULL default '' SRID 0,
+  c1 geometry NOT NULL SRID 0,
   SPATIAL KEY i1 (c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 INSERT INTO t1 (c1) VALUES (
@@ -246,7 +246,7 @@ CHECK TABLE t1 EXTENDED;
 DROP TABLE t1;
 #
 CREATE TABLE t1 (
-  c1 geometry NOT NULL default '' SRID 0,
+  c1 geometry NOT NULL SRID 0,
   SPATIAL KEY i1 (c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 INSERT INTO t1 (c1) VALUES (
@@ -886,7 +886,7 @@ CREATE TABLE t1(foo GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(foo) );
 --error 1048
 INSERT INTO t1(foo) VALUES (NULL);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
---error 1416
+--error ER_NO_DEFAULT_FOR_FIELD
 INSERT INTO t1() VALUES ();
 SET sql_mode = default;
 --error 1416
@@ -1005,7 +1005,7 @@ CREATE TABLE t1(a INT NOT NULL, b GEOMETRY NOT NULL SRID 0,
 INSERT INTO t1 VALUES(0, ST_GEOMFROMTEXT("point (1 1)"));
 --error ER_GIS_INVALID_DATA
 INSERT IGNORE INTO t1 SET a=0, b=ST_GEOMFROMTEXT("error");
---error ER_CANT_CREATE_GEOMETRY_OBJECT
+--error ER_BAD_NULL_ERROR_NOT_IGNORED
 INSERT IGNORE INTO t1 SET a=1, b=NULL;
 SELECT a, ST_ASTEXT(b) FROM t1;
 DROP TABLE t1;

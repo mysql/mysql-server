@@ -23,6 +23,8 @@
 #include <functional>
 #include <sstream>
 
+#include "m_ctype.h"
+
 using namespace Mysql::Tools::Dump;
 
 Abstract_mysql_chain_element_extension::Abstract_mysql_chain_element_extension(

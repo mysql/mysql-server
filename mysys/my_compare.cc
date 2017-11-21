@@ -123,7 +123,6 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
 
 #define FCMP(A,B) ((int) (A) - (int) (B))
 
-extern "C"
 int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
 	       uchar *b, uint key_length, uint nextflag,
 	       uint *diff_pos)

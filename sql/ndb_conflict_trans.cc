@@ -17,6 +17,7 @@
 
 #include "sql/ndb_conflict_trans.h"
 
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_sys.h"
 

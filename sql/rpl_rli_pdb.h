@@ -556,9 +556,9 @@ public:
   Prealloced_array<db_worker_hash_entry*, SLAVE_INIT_DBS_IN_GROUP>
   curr_group_exec_parts; // Current Group Executed Partitions
 
-  bool curr_group_seen_begin; // is set to TRUE with explicit B-event
+  bool curr_group_seen_begin; // is set to true with explicit B-event
 #ifndef DBUG_OFF
-  bool curr_group_seen_sequence_number; // is set to TRUE about starts_group()
+  bool curr_group_seen_sequence_number; // is set to true about starts_group()
 #endif
   ulong id;                 // numberic identifier of the Worker
 
@@ -657,7 +657,7 @@ public:
 
   int init_worker(Relay_log_info*, ulong);
   int rli_init_info(bool);
-  int flush_info(bool force= FALSE);
+  int flush_info(bool force= false);
   static size_t get_number_worker_fields();
   void slave_worker_ends_group(Log_event*, int);
   const char *get_master_log_name();

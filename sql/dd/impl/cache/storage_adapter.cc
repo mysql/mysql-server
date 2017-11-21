@@ -23,6 +23,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "sql/dd/cache/dictionary_client.h"   // Dictionary_client
 #include "sql/dd/impl/bootstrapper.h"         // bootstrap::stage
 #include "sql/dd/impl/cache/cache_element.h"

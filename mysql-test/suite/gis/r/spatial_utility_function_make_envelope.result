@@ -203,7 +203,7 @@ DO ST_MAKEENVELOPE(
 ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 );
-ERROR 22S00: Function st_makeenvelope is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 4326, which is not Cartesian.
+ERROR 22S00: st_makeenvelope(POINT, POINT) has not been implemented for geographic spatial reference systems.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
@@ -214,3 +214,12 @@ ST_GEOMFROMTEXT('POINT(0 0)', 3000001)
 );
 ERROR SR002: Can't parse the spatial reference system definition of SRID 3000001.
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 3000001;
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_MAKEENVELOPE(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.

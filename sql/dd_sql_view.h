@@ -53,6 +53,39 @@ private:
   Update metadata of views referencing the table.
 
   @param          thd                 Thread handle.
+  @param          db_name             Database name.
+  @param          table_name          Update metadata of views referencing
+                                      this table.
+  @param          commit_dd_changes   Indicates whether changes to DD need
+                                      to be committed.
+  @param[in,out]  uncommitted_tables  Helper class to store list of views
+                                      which shares need to be removed from
+                                      TDC if we fail to commit changes to
+                                      DD. Only used if commit_dd_changes
+                                      is false.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
+  @retval     false                   Success.
+  @retval     true                    Failure.
+*/
+
+bool update_referencing_views_metadata(THD *thd,
+        const char *db_name, const char *table_name,
+        bool commit_dd_changes,
+        Uncommitted_tables_guard *uncommitted_tables);
+
+
+/**
+  Update metadata of views referencing the table.
+
+  @param          thd                 Thread handle.
   @param          table               Update metadata of views referencing
                                       this table.
   @param          commit_dd_changes   Indicates whether changes to DD need

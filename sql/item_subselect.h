@@ -31,7 +31,6 @@
 #include "sql/enum_query_type.h"
 #include "sql/item.h" // Item_result_field
 #include "sql/parse_tree_node_base.h"
-#include "sql/sql_alloc.h"
 
 class Comp_creator;
 class Field;
@@ -181,7 +180,7 @@ public:
   Item *get_tmp_table_item(THD *thd) override;
   void update_used_tables() override;
   void print(String *str, enum_query_type query_type) override;
-  virtual bool have_guarded_conds() { return FALSE; }
+  virtual bool have_guarded_conds() { return false; }
   bool change_engine(subselect_engine *eng)
   {
     old_engine= engine;
@@ -449,7 +448,7 @@ private:
     This will refer to a cached value which is reevaluated once for each
     candidate row, cf. setup in #single_value_transformer.
   */
-  Item_direct_ref *m_injected_left_expr;
+  Item_ref *m_injected_left_expr;
 
   /**
     Pointer to the created Item_in_optimizer; it is stored for the same
@@ -465,7 +464,7 @@ private:
      IN->EXISTS transform. If this transform has not been done, pointer is
      NULL.
   */
-  struct In2exists_info: public Sql_alloc
+  struct In2exists_info
   {
     /**
        True: if IN->EXISTS has been done and has added a condition to the
@@ -520,9 +519,9 @@ public:
 
   Item_in_subselect()
     :Item_exists_subselect(), left_expr(NULL), left_expr_cache(NULL),
-    left_expr_cache_filled(false), need_expr_cache(TRUE),
+    left_expr_cache_filled(false), need_expr_cache(true),
     m_injected_left_expr(NULL),
-    optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
+    optimizer(NULL), was_null(false), abort_on_null(false),
     in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL)
   {}
 
@@ -598,7 +597,7 @@ public:
 };
 
 
-class subselect_engine: public Sql_alloc
+class subselect_engine
 {
 protected:
   Query_result_interceptor *result; /* results storage class */

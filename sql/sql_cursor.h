@@ -20,7 +20,6 @@
 #include <sys/types.h>
 #include <new>
 
-#include "sql/sql_alloc.h"
 #include "sql/sql_class.h"                      /* Query_arena */
 
 class JOIN;
@@ -42,7 +41,7 @@ struct MEM_ROOT;
   its base class.
 */
 
-class Server_side_cursor: protected Query_arena, public Sql_alloc
+class Server_side_cursor: protected Query_arena
 {
 protected:
   /** Row destination used for fetch */

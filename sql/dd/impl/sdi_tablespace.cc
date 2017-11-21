@@ -163,10 +163,6 @@ enum struct Sdi_type : uint32
   TABLESPACE,
 };
 
-dd::sdi_key_t get_sdi_key(const dd::Schema &schema)
-{
-  return dd::sdi_key_t {static_cast<uint32>(Sdi_type::SCHEMA), schema.id()};
-}
 
 dd::sdi_key_t get_sdi_key(const dd::Table &table)
 {
@@ -183,39 +179,13 @@ dd::sdi_key_t get_sdi_key(const dd::Tablespace &tablespace)
 
 namespace dd {
 namespace sdi_tablespace {
-bool store_sch_sdi(THD *thd, const handlerton &hton,
-                   const Sdi_type &sdi, const dd::Schema &schema,
-                   const dd::Table &table)
-{
-  const dd::sdi_key_t schema_key= get_sdi_key(schema);
-  return apply_to_tablespaces
-    (thd, table,
-     [&] (const dd::Tablespace &tblspc)
-     {
-       DBUG_PRINT("ddsdi", ("store_sch_sdi(Schema" ENTITY_FMT
-                            ", Table" ENTITY_FMT ")",
-                            ENTITY_VAL(schema), ENTITY_VAL(table)));
-
-       if (hton.sdi_set(tblspc,
-                        &table,
-                        &schema_key,
-                        sdi.c_str(), sdi.size()))
-       {
-         return checked_return(true);
-       }
-       return false;
-     });
-}
-
 bool store_tbl_sdi(THD *thd, const handlerton &hton,
                    const dd::Sdi_type &sdi, const dd::Table &table,
-                   const dd::Schema &schema)
+                   const dd::Schema &schema MY_ATTRIBUTE((unused)))
 {
   const dd::sdi_key_t key= get_sdi_key(table);
-  const dd::sdi_key_t schema_key= get_sdi_key(schema);
-  const dd::Sdi_type schema_sdi= dd::serialize(schema);
 
-  auto store_sdi_with_schema= [&] (const dd::Tablespace &tblspc) -> bool
+  auto store_sdi= [&] (const dd::Tablespace &tblspc) -> bool
   {
     DBUG_PRINT("ddsdi",("store_sdi_with_schema[](Schema" ENTITY_FMT
                         ", Table" ENTITY_FMT ")",
@@ -225,16 +195,10 @@ bool store_tbl_sdi(THD *thd, const handlerton &hton,
       return checked_return(true);
     }
 
-    if (hton.sdi_set(tblspc, &table, &schema_key, schema_sdi.c_str(),
-                     schema_sdi.size()))
-    {
-      return checked_return(true);
-    }
-
     return false;
   };
 
-  return apply_to_tablespaces(thd, table, store_sdi_with_schema);
+  return apply_to_tablespaces(thd, table, store_sdi);
 }
 
 

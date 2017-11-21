@@ -1,5 +1,6 @@
 # Run all default suites with big-test option
-perl mysql-test-run.pl --timer --big-test --debug-server --force --parallel=auto --comment=all_default_valgrind --vardir=var-all_default_valgrind --experimental=collections/default.experimental
+# Run with --non-parallel-test option so that non parallel tests are also run
+perl mysql-test-run.pl --timer --big-test --non-parallel-test --debug-server --force --parallel=auto --comment=all_default_valgrind --vardir=var-all_default_valgrind --experimental=collections/default.experimental
 
 
 # Run all non default suites with big-test
@@ -15,6 +16,3 @@ perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-
 
 # Memcached tests
 perl mysql-test-run.pl --timer --force --big-test --debug-server --comment=memcached-debug --vardir=var-debug-memcached --experimental=collections/default.experimental --parallel=auto --suite=memcached
-
-# Replication test cases using many mysqlds (rpl_many_mysqlds)
-perl mysql-test-run.pl --force --timer --big-test --debug-server --parallel=1 --experimental=collections/default.experimental --comment=rpl_many_mysqlds-debug-big --vardir=var-rpl_many_mysqlds-debug-big --suite=rpl_many_mysqlds

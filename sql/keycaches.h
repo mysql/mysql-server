@@ -27,11 +27,8 @@
 #include "sql/thr_malloc.h"
 
 
-extern "C"
-{
-  extern PSI_memory_key key_memory_NAMED_ILINK_name;
-  typedef int (*process_key_cache_t) (const char *, KEY_CACHE *);
-}
+extern PSI_memory_key key_memory_NAMED_ILINK_name;
+typedef int (*process_key_cache_t) (const char *, KEY_CACHE *);
 
 /**
   ilink (intrusive list element) with a name

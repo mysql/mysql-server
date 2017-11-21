@@ -34,37 +34,43 @@ Created 12/27/1996 Heikki Tuuri
 #include "row0upd.h"
 #include "trx0undo.h"
 #ifndef UNIV_HOTBACKUP
-#include <algorithm>
+# include <algorithm>
 
-#include "btr0btr.h"
-#include "btr0cur.h"
-#include "buf0lru.h"
-#include "current_thd.h"
-#include "dict0boot.h"
-#include "dict0crea.h"
-#include "eval0eval.h"
-#include "fts0fts.h"
-#include "fts0types.h"
-#include "lob0lob.h"
-#include "lock0lock.h"
-#include "log0log.h"
-#include "mach0data.h"
-#include "pars0sym.h"
-#include "que0que.h"
-#include "rem0cmp.h"
+# include "btr0btr.h"
+# include "btr0cur.h"
+# include "buf0lru.h"
+# include "current_thd.h"
+# include "dict0boot.h"
+# include "dict0crea.h"
+# include "eval0eval.h"
+# include "fts0fts.h"
+# include "fts0types.h"
+# include "lob0lob.h"
+# include "lock0lock.h"
+# include "log0log.h"
+# include "mach0data.h"
+# include "pars0sym.h"
+# include "que0que.h"
+# include "rem0cmp.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "row0ext.h"
 #include "row0ins.h"
 #include "row0log.h"
-#include "row0row.h"
-#include "row0sel.h"
-#include "trx0rec.h"
-#include "fts0fts.h"
-#include "fts0types.h"
+#ifndef UNIV_HOTBACKUP
+# include "row0row.h"
+# include "row0sel.h"
+# include "trx0rec.h"
+# include "fts0fts.h"
+# include "fts0types.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "lob0lob.h"
 #include <algorithm>
-#include "current_thd.h"
-#include "dict0dd.h"
+#ifndef UNIV_HOTBACKUP
+# include "current_thd.h"
+# include "dict0dd.h"
+#endif /* !UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
 /* What kind of latch and lock can we assume when the control comes to
    -------------------------------------------------------------------
 an update node?
@@ -120,7 +126,7 @@ introduced where a call to log_free_check() is bypassed. */
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
 that index does not contain column prefixes.
-@return TRUE if changes */
+@return true if changes */
 static
 ibool
 row_upd_changes_first_fields_binary(
@@ -138,7 +144,7 @@ NOTE that since we do not hold dict_operation_lock when leaving the
 function, it may be that the referencing table has been dropped when
 we leave this function: this function is only for heuristic use!
 
-@return TRUE if referenced */
+@return true if referenced */
 static
 ibool
 row_upd_index_is_referenced(
@@ -251,9 +257,17 @@ row_upd_check_references_constraints(
 			we will release dict_operation_lock temporarily!
 			But the counter on the table protects 'foreign' from
 			being dropped while the check is running. */
+                        if (foreign_table) {
+				os_atomic_increment_ulint(&foreign_table->n_foreign_key_checks_running, 1);
+			}
 
 			err = row_ins_check_foreign_constraint(
 				FALSE, foreign, table, entry, thr);
+
+			if (foreign_table) {
+				os_atomic_decrement_ulint(&foreign_table->n_foreign_key_checks_running, 1);
+			}
+
 
 			if (ref_table != NULL) {
 				dict_table_close(ref_table, FALSE, FALSE);
@@ -271,11 +285,6 @@ func_exit:
 	mem_heap_free(heap);
 
 	DEBUG_SYNC_C("foreign_constraint_check_for_update_done");
-
-	DBUG_EXECUTE_IF("row_upd_cascade_lock_wait_err",
-		err = DB_LOCK_WAIT;
-		DBUG_SET("-d,row_upd_cascade_lock_wait_err"););
-
 	DBUG_RETURN(err);
 }
 
@@ -370,7 +379,7 @@ row_upd_index_entry_sys_field(
 /***********************************************************//**
 Returns TRUE if row update changes size of some field in index or if some
 field to be updated is stored externally in rec or update.
-@return TRUE if the update changes the size of some field in index or
+@return true if the update changes the size of some field in index or
 the field is external in rec or update */
 ibool
 row_upd_changes_field_size_or_external(
@@ -1511,7 +1520,7 @@ Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
 NOTE: we compare the fields as binary strings!
-@return TRUE if update vector changes an ordering field in the index record */
+@return true if update vector changes an ordering field in the index record */
 ibool
 row_upd_changes_ord_field_binary_func(
 /*==================================*/
@@ -1760,7 +1769,7 @@ copy_dfield:
 /***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 NOTE: we compare the fields as binary strings!
-@return TRUE if update vector may change an ordering field in an index
+@return true if update vector may change an ordering field in an index
 record */
 ibool
 row_upd_changes_some_index_ord_field_binary(
@@ -1852,7 +1861,7 @@ row_upd_changes_fts_column(
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
 that index does not contain column prefixes.
-@return TRUE if changes */
+@return true if changes */
 static
 ibool
 row_upd_changes_first_fields_binary(
@@ -2006,7 +2015,6 @@ row_upd_store_v_row(
 						cascade update. And virtual
 						column can't be affected,
 						so it is Ok to set it to NULL */
-						ut_ad(!node->cascade_top);
 						dfield_set_null(dfield);
 					} else {
 						dfield_t*       vfield
@@ -3309,59 +3317,4 @@ error_handling:
 	DBUG_RETURN(thr);
 }
 
-#ifdef UNIV_DEBUG
-/** Ensure that the member cascade_upd_nodes has only one update node
-for each of the tables.  This is useful for testing purposes. */
-void upd_node_t::check_cascade_only_once()
-{
-	DBUG_ENTER("upd_node_t::check_cascade_only_once");
-
-	dbug_trace();
-
-	for (upd_cascade_t::const_iterator i = cascade_upd_nodes->begin();
-	     i != cascade_upd_nodes->end(); ++i) {
-
-		const upd_node_t*	update_node = *i;
-		std::string	table_name(update_node->table->name.m_name);
-		ulint	count = 0;
-
-		for (upd_cascade_t::const_iterator j
-			= cascade_upd_nodes->begin();
-		     j != cascade_upd_nodes->end(); ++j) {
-
-			const upd_node_t*	node = *j;
-
-			if (table_name == node->table->name.m_name) {
-				DBUG_ASSERT(count++ == 0);
-			}
-		}
-	}
-
-	DBUG_VOID_RETURN;
-}
-
-/** Print information about this object into the trace log file. */
-void upd_node_t::dbug_trace()
-{
-	DBUG_ENTER("upd_node_t::dbug_trace");
-
-	for (upd_cascade_t::const_iterator i = cascade_upd_nodes->begin();
-	     i != cascade_upd_nodes->end(); ++i) {
-
-		const upd_node_t*	update_node = *i;
-		DBUG_LOG("upd_node_t", "cascade_upd_nodes: Cascade to table: "
-			 << update_node->table->name);
-	}
-
-	for (upd_cascade_t::const_iterator j = new_upd_nodes->begin();
-	     j != new_upd_nodes->end(); ++j) {
-
-		const upd_node_t*	update_node = *j;
-		DBUG_LOG("upd_node_t", "new_upd_nodes: Cascade to table: "
-			 << update_node->table->name);
-	}
-
-	DBUG_VOID_RETURN;
-}
-#endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */

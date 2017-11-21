@@ -26,7 +26,7 @@ typedef pthread_t my_thread_t;
 typedef pthread_attr_t my_thread_attr_t;
 struct my_thread_handle
 {
-  my_thread_t thread;
+  my_thread_t thread{0};
 };
 #include <mysql/components/services/my_io_bits.h>
 typedef int File;

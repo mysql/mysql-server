@@ -1045,22 +1045,22 @@ ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "      { \"type\": \"Feature\", \"geometry\":           "
 "        { \"type\": \"Point\", \"coordinates\":    
 GEOMETRYCOLLECTION(POINT(35.24980190252168 -80.83775386582222),POINT(35.25674709224663 -80.83827000459532),POINT(42 -87.83827000459532))
-# Checking that E notation is supported
+# Checking that E notation is supported.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [1.23e3, 2.2e-1]}"));
+"{ \"type\": \"Point\", \"coordinates\": [1.23e3, 2.2e-1]}", 1, 0));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [1.23e3, 2.2e-1]}"))
-POINT(0.22 1230)
+"{ \"type\": \"Point\", \"coordinates\": [1.23e3, 2.2e-1]}", 1, 0))
+POINT(1230 0.22)
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [1e-300, 1e300]}"));
+"{ \"type\": \"Point\", \"coordinates\": [1e-300, 1e300]}", 1, 0));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [1e-300, 1e300]}"))
-POINT(1e300 1e-300)
+"{ \"type\": \"Point\", \"coordinates\": [1e-300, 1e300]}", 1, 0))
+POINT(1e-300 1e300)
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [1.7976931348623157E+308, -1.7976931348623157E+308]}"));
+"{ \"type\": \"Point\", \"coordinates\": [1.7976931348623157E+308, -1.7976931348623157E+308]}", 1, 0));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [1.7976931348623157E+308, -1.7976931348623157E+308]}"))
-POINT(-1.7976931348623157e308 1.7976931348623157e308)
+"{ \"type\": \"Point\", \"coordinates\": [1.7976931348623157E+308, -1.7976931348623157E+308]}", 1, 0))
+POINT(1.7976931348623157e308 -1.7976931348623157e308)
 # Checking for NULL arguments and GeoJSON null objects
 SELECT ST_GEOMFROMGEOJSON(NULL);
 ST_GEOMFROMGEOJSON(NULL)
@@ -2081,7 +2081,7 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "        ],                                               "
 "        \"crs\":                                         "
 "          { \"type\": \"name\", \"properties\":          "
-"            { \"name\": \"urn:ogc:def:crs:EPSG::1\" }    "
+"            { \"name\": \"urn:ogc:def:crs:EPSG::2000\" } "
 "          }                                              "
 "      },                                                 "
 "      { \"type\": \"LineString\", \"coordinates\":       "
@@ -2093,12 +2093,12 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "        ],                                               "
 "        \"crs\":                                         "
 "          { \"type\": \"name\", \"properties\":          "
-"            { \"name\": \"urn:ogc:def:crs:EPSG::10\" }   "
+"            { \"name\": \"urn:ogc:def:crs:EPSG::4326\" } "
 "          }                                              "
 "      }                                                  "
 "    ]                                                    "
 "  }"));
-ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Member 'crs' must be specified in the top level object.
 SELECT ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 20], \"crs\": { } }");
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'type'
@@ -2507,12 +2507,12 @@ SELECT ST_GEOMFROMGEOJSON("{ \"\\u06FF\" }");
 ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 11.
 SELECT ST_GEOMFROMGEOJSON("{ \"\\uFFFF\" }");
 ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 11.
-SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [4294967295, 9223372036854775807] }"));
-ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [4294967295, 9223372036854775807] }"))
-POINT(9.223372036854776e18 4294967295)
-SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }"));
-ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }"))
-POINT(9.223372036854776e18 1.8446744073709552e19)
+SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [4294967295, 9223372036854775807] }", 1, 0));
+ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [4294967295, 9223372036854775807] }", 1, 0))
+POINT(4294967295 9.223372036854776e18)
+SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }", 1, 0));
+ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }", 1, 0))
+POINT(1.8446744073709552e19 9.223372036854776e18)
 SELECT ST_AsGeoJSON(ST_GeomFromGeoJSON('{"type":"Point","coordinates":[2e308,-0]}'));
 ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Terminate parsing due to Handler error." at position 31.
 # Checking that Point with wrong coordinate array depth are invalidated.
@@ -3056,11 +3056,11 @@ POINT(11 10)
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(-10 -11)"), 5, 1)));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(-10 -11)"), 5, 1)))
 POINT(-11 -10)
-SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E+308)"), 100, 2)));
-ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E+308)"), 100, 2)))
+SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E+308)"), 100, 2), 1, 0));
+ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E+308)"), 100, 2), 1, 0))
 POINT(1.7976931348623157e308 1.7976931348623157e308)
-SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E-308 1.7976931348623157E-308)"), 100, 3)));
-ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E-308 1.7976931348623157E-308)"), 100, 3)))
+SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E-308 1.7976931348623157E-308)"), 100, 3), 1, 0));
+ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E-308 1.7976931348623157E-308)"), 100, 3), 1, 0))
 POINT(0 0)
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("LINESTRING(30 10, 10 30, 40 40)"), 10, 4)));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("LINESTRING(30 10, 10 30, 40 40)"), 10, 4)))
@@ -3089,11 +3089,11 @@ ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRING((10 1
 MULTILINESTRING((10 10,20 20,40 10),(40 40,30 30,20 40,10 30))
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRING((10 10, 20 20, 10 40),"
                                     "(40 40, 30 30, 40 20, 30 10),"
-                                    "(10 10, 20 20, 50 50, 100 100))"))));
+                                    "(10 10, 20 20, 50 50, 100 100))")), 1, 0));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRING((10 10, 20 20, 10 40),"
                                     "(40 40, 30 30, 40 20, 30 10),"
-                                    "(10 10, 20 20, 50 50, 100 100))"))))
-MULTILINESTRING((10 10,20 20,40 10),(40 40,30 30,20 40,10 30),(10 10,20 20,50 50,100 100))
+                                    "(10 10, 20 20, 50 50, 100 100))")), 1, 0))
+MULTILINESTRING((10 10,20 20,10 40),(40 40,30 30,40 20,30 10),(10 10,20 20,50 50,100 100))
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
                                     "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35)))"))));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
@@ -3120,12 +3120,12 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLEC
                                     "GEOMETRYCOLLECTION(LINESTRING(0 0, 100 100)),"
                                     "GEOMETRYCOLLECTION(POLYGON((0 0, 0 10, 10 10, 0 0)))"
                                     ")"
-                                  ))));
+                                  )), 1, 0));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION( "
                                     "GEOMETRYCOLLECTION(POINT(10 20)),"
                                     "GEOMETRYCOLLECTION(LINESTRING(0 0, 100 100)),"
                    
-GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(20 10)),GEOMETRYCOLLECTION(LINESTRING(0 0,100 100)),GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 0))))
+GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 20)),GEOMETRYCOLLECTION(LINESTRING(0 0,100 100)),GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,0 0))))
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION( "
                                     "POINT(4 6),"
                                     "LINESTRING(4 6,7 10),"
@@ -3644,19 +3644,19 @@ ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "        { \"type\": \"Point\", \"coordinates\": 
 {"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [-80.83775386582222, 35.24980190252168]}, {"type": "Point", "coordinates": [-80.83827000459532, 35.25674709224663]}, {"type": "Point", "coordinates": [-87.83827000459532, 42]}]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [1.23e3, 2.2e-1]}"));
+"{ \"type\": \"Point\", \"coordinates\": [1.23e3, 2.2e-1]}", 1, 0));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [1.23e3, 2.2e-1]}"))
+"{ \"type\": \"Point\", \"coordinates\": [1.23e3, 2.2e-1]}", 1, 0))
 {"type": "Point", "coordinates": [1230, 0.22]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [1e-300, 1e300]}"));
+"{ \"type\": \"Point\", \"coordinates\": [1e-300, 1e300]}", 1, 0));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [1e-300, 1e300]}"))
+"{ \"type\": \"Point\", \"coordinates\": [1e-300, 1e300]}", 1, 0))
 {"type": "Point", "coordinates": [1e-300, 1e300]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [1.7976931348623157E+308, -1.7976931348623157E+308]}"));
+"{ \"type\": \"Point\", \"coordinates\": [1.7976931348623157E+308, -1.7976931348623157E+308]}", 1, 0));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [1.7976931348623157E+308, -1.7976931348623157E+308]}"))
+"{ \"type\": \"Point\", \"coordinates\": [1.7976931348623157E+308, -1.7976931348623157E+308]}", 1, 0))
 {"type": "Point", "coordinates": [1.7976931348623157e308, -1.7976931348623157e308]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 20] }"));
@@ -3975,13 +3975,13 @@ PRIMARY KEY (`gid`)
 INSERT INTO geojson (geojson_value) VALUES
 (ST_AsGeoJSON(ST_GeomFromText('POINT(10 11)', 4326), 100, 2)),
 (ST_AsGeoJSON(ST_GeomFromText('POINT(-1.324 66.231)', 0), 100, 2)),
-(ST_AsGeoJSON(ST_GeomFromText('POINT(98.344 -123.001)', 0), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(98.344 -23.001)', 0), 100, 2)),
 (ST_AsGeoJSON(ST_GeomFromText('POINT(0.0 0.0)', 0), 100, 2));
 SELECT ST_AsText(ST_GeomFromGeoJSON(geojson_value)) FROM geojson;
 ST_AsText(ST_GeomFromGeoJSON(geojson_value))
 POINT(10 11)
 POINT(66.231 -1.324)
-POINT(-123.001 98.344)
+POINT(-23.001 98.344)
 POINT(0 0)
 SELECT ST_SRID(ST_GeomFromGeoJSON(geojson_value)) FROM geojson;
 ST_SRID(ST_GeomFromGeoJSON(geojson_value))
@@ -4119,3 +4119,149 @@ VALUES (22222222, 1, 'TEST22222222', 'Foo', 22222222, 'FOOBAR', '');
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 22222222));
 ERROR SR002: Can't parse the spatial reference system definition of SRID 22222222.
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 22222222;
+#
+# Bug #26941370 ST_GEOMFROMGEOJSON ALLOWS OUT-OF-RANGE COORDINATES
+#
+SELECT ST_AsText(
+ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[-180.0, 0.0]}')
+);
+ERROR 22S02: Longitude -180.000000 is out of range in function st_geomfromgeojson. It must be within (-180.000000, 180.000000].
+SELECT ST_AsText(
+ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[-179.99999999999, 0.0]}')
+);
+ST_AsText(
+ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[-179.99999999999, 0.0]}')
+)
+POINT(0 -179.99999999999)
+SELECT ST_AsText(
+ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[180.0, 0.0]}')
+);
+ST_AsText(
+ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[180.0, 0.0]}')
+)
+POINT(0 180)
+SELECT ST_AsText(
+ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[180.000000000001, 0.0]}')
+);
+ERROR 22S02: Longitude 180.000000 is out of range in function st_geomfromgeojson. It must be within (-180.000000, 180.000000].
+SELECT ST_AsText(
+ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[0.0, -90.000000000001]}')
+);
+ERROR 22S03: Latitude -90.000000 is out of range in function st_geomfromgeojson. It must be within [-90.000000, 90.000000].
+SELECT ST_AsText(
+ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[0.0, -90.0]}')
+);
+ST_AsText(
+ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[0.0, -90.0]}')
+)
+POINT(-90 0)
+SELECT ST_AsText(
+ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[0.0, 90.0]}')
+);
+ST_AsText(
+ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[0.0, 90.0]}')
+)
+POINT(90 0)
+SELECT ST_AsText(
+ST_GeomFromGeoJSON('{"type": "Point", "coordinates":[0.0, 90.0000000000001]}')
+);
+ERROR 22S03: Latitude 90.000000 is out of range in function st_geomfromgeojson. It must be within [-90.000000, 90.000000].
+SELECT ST_SRID(ST_GEOMFROMGEOJSON(
+"  {   \"type\": \"FeatureCollection\",                 "
+"      \"features\":                                    "
+"    [                                                  "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        { \"type\": \"Point\", \"coordinates\":        "
+"          [-80.83775386582222, 35.24980190252168]      "
+"        },                                             "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"name\": \"DOUBLE OAKS CENTER\",            "
+"          \"address\": \"1326 WOODWARD AV\"            "
+"        }                                              "
+"      },                                               "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        { \"type\": \"Point\", \"coordinates\":        "
+"          [-80.83827000459532, 35.25674709224663]      "
+"        },                                             "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"name\": \"DOUBLE OAKS NEIGHBORHOOD PARK\", "
+"          \"address\": \"2605  DOUBLE OAKS RD\"        "
+"        }                                              "
+"      },                                               "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        null,                                          "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"descr\": \"A NULL/EMPTY POINT\"            "
+"        }                                              "
+"      },                                               "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        { \"type\": \"Point\",                         "
+"          \"crs\":                                     "
+"            { \"type\": \"name\", \"properties\":      "
+"              { \"name\": \"EPSG:4326\" }              "
+"            },                                         "
+"          \"coordinates\":                             "
+"          [-87.83827000459532, 42.0]                   "
+"        },                                             "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"name\": \"DOUBLE OAKS NEIGHBORHOOD PARK\", "
+"          \"address\": \"2605  DOUBLE OAKS RD\"        "
+"        }                                              "
+"      }                                                "
+"    ]                                                  "
+"  }")) AS srid;
+srid
+4326
+SELECT ST_SRID(ST_GEOMFROMGEOJSON(
+"  {   \"type\": \"FeatureCollection\",                 "
+"      \"features\":                                    "
+"    [                                                  "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        { \"type\": \"Point\", \"coordinates\":        "
+"          [-80.83775386582222, 35.24980190252168]      "
+"        },                                             "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"name\": \"DOUBLE OAKS CENTER\",            "
+"          \"address\": \"1326 WOODWARD AV\"            "
+"        }                                              "
+"      },                                               "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        { \"type\": \"Point\", \"coordinates\":        "
+"          [-80.83827000459532, 35.25674709224663]      "
+"        },                                             "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"name\": \"DOUBLE OAKS NEIGHBORHOOD PARK\", "
+"          \"address\": \"2605  DOUBLE OAKS RD\"        "
+"        }                                              "
+"      },                                               "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        null,                                          "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"descr\": \"A NULL/EMPTY POINT\"            "
+"        }                                              "
+"      },                                               "
+"      { \"type\": \"Feature\", \"geometry\":           "
+"        { \"type\": \"Point\",                         "
+"          \"crs\":                                     "
+"            { \"type\": \"name\", \"properties\":      "
+"              { \"name\": \"EPSG:2000\" }              "
+"            },                                         "
+"          \"coordinates\":                             "
+"          [-87.83827000459532, 42.0]                   "
+"        },                                             "
+"      \"properties\":                                  "
+"        {                                              "
+"          \"name\": \"DOUBLE OAKS NEIGHBORHOOD PARK\", "
+"          \"address\": \"2605  DOUBLE OAKS RD\"        "
+"        }                                              "
+"      }                                                "
+"    ]                                                  "
+"  }")) AS srid;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Member 'crs' must be specified in the top level object.

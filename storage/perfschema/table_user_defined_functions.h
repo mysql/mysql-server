@@ -23,12 +23,18 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "my_inttypes.h"
-#include "storage/perfschema/pfs_column_types.h"
+#include "mysql_com.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
 
-struct st_udf_func;
+class Field;
+class Plugin_table;
+class THD;
+struct TABLE;
+struct THR_LOCK;
+struct udf_func;
 
 /**
   @addtogroup performance_schema_tables

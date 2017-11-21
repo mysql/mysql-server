@@ -68,6 +68,7 @@
 #include "sql/sql_table.h"  // write_bin_log
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "sql_string.h"
 #include "thr_lock.h"
@@ -107,7 +108,7 @@ static void make_unique_view_field_name(Item *target,
   for (attempt= 0;; attempt++)
   {
     Item *check;
-    bool ok= TRUE;
+    bool ok= true;
 
     if (attempt)
       name_len= snprintf(buff, NAME_LEN, "My_exp_%d_%s", attempt, name);
@@ -119,7 +120,7 @@ static void make_unique_view_field_name(Item *target,
       check= itc++;
       if (check != target && check->item_name.eq(buff))
       {
-        ok= FALSE;
+        ok= false;
         break;
       }
     } while (check != last_element);
@@ -204,11 +205,11 @@ bool check_duplicate_names(const Create_col_name_list *column_names,
       }
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 err:
   my_error(ER_DUP_FIELDNAME, MYF(0), item->item_name.ptr());
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -258,15 +259,15 @@ static void make_valid_column_names(LEX *lex)
     to preserve the original view instance.
 
   RETURN VALUE
-    TRUE                 can't open table
-    FALSE                success
+    true                 can't open table
+    false                success
 */
 static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view)
 {
   const char *cache_key;
   size_t cache_key_length= get_table_def_key(view, &cache_key);
   TABLE_LIST decoy;
-  memcpy (&decoy, view, sizeof (TABLE_LIST));
+  decoy= *view;
 
   mysql_mutex_lock(&LOCK_open);
 
@@ -307,7 +308,7 @@ static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view)
     lex->create_view_suid= decoy.view_suid ? 
       VIEW_SUID_DEFINER : VIEW_SUID_INVOKER;
 
-  return FALSE;
+  return false;
 }
 
 
@@ -319,8 +320,8 @@ static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view)
   @param view views to create
   @param mode VIEW_CREATE_NEW, VIEW_ALTER, VIEW_CREATE_OR_REPLACE
 
-  @retval FALSE Operation was a success.
-  @retval TRUE An error occured.
+  @retval false Operation was a success.
+  @retval true An error occured.
 */
 
 bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
@@ -354,13 +355,13 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
                       &view->grant.privilege,
                       &view->grant.m_internal,
                       0, 0) ||
-         check_grant(thd, CREATE_VIEW_ACL, view, FALSE, 1, FALSE)) ||
+         check_grant(thd, CREATE_VIEW_ACL, view, false, 1, false)) ||
         (mode != enum_view_create_mode::VIEW_CREATE_NEW &&
          (check_access(thd, DROP_ACL, view->db,
                        &view->grant.privilege,
                        &view->grant.m_internal,
                        0, 0) ||
-          check_grant(thd, DROP_ACL, view, FALSE, 1, FALSE))))
+          check_grant(thd, DROP_ACL, view, false, 1, false))))
       goto err;
   }
 
@@ -811,6 +812,90 @@ err:
 }
 
 
+/*
+  Check if view is updatable.
+
+  @param  thd       Thread Handle.
+  @param  view      View description.
+
+  @retval true      View is updatable.
+  @retval false     Otherwise.
+*/
+
+bool is_updatable_view(THD *thd, TABLE_LIST *view)
+{
+  bool updatable_view= false;
+  LEX *lex= thd->lex;
+
+  /*
+    A view can be merged if it is technically possible and if the user didn't
+    ask that we create a temporary table instead.
+  */
+  bool can_be_merged=
+    lex->unit->is_mergeable() && view->algorithm != VIEW_ALGORITHM_TEMPTABLE;
+
+  if (!dd::get_dictionary()->is_system_view_name(view->db, view->table_name) &&
+      (updatable_view= can_be_merged))
+  {
+    /// @see SELECT_LEX::merge_derived()
+    bool updatable= false;
+    bool outer_joined= false;
+    for (TABLE_LIST *tbl= lex->select_lex->table_list.first;
+         tbl;
+         tbl= tbl->next_local)
+    {
+      updatable|= !((tbl->is_view() && !tbl->updatable_view) ||
+                     tbl->schema_table);
+      outer_joined|= tbl->is_inner_table_of_outer_join();
+    }
+    updatable&= !outer_joined;
+
+    if (updatable)
+    {
+      // check that at least one column in view is updatable.
+      bool view_has_updatable_column= false;
+      List_iterator_fast<Item> it(lex->select_lex->item_list);
+      Item *item;
+      while ((item= it++))
+      {
+	Item_field *item_field= item->field_for_view_update();
+	if (item_field && !item_field->table_ref->schema_table)
+	{
+	  view_has_updatable_column= true;
+	  break;
+	}
+      }
+      updatable&= view_has_updatable_column;
+    }
+
+    if (!updatable)
+      updatable_view= false;
+  }
+
+  /*
+    Check that table of main select do not used in subqueries.
+
+    This test can catch only very simple cases of such non-updateable views,
+    all other will be detected before updating commands execution.
+    (it is more optimisation then real check)
+
+    NOTE: this skip cases of using table via VIEWs, joined VIEWs, VIEWs with
+    UNION
+  */
+  if (updatable_view &&
+      !lex->select_lex->master_unit()->is_union() &&
+      !(lex->select_lex->table_list.first)->next_local &&
+      find_table_in_global_list(lex->query_tables->next_global,
+				lex->query_tables->db,
+				lex->query_tables->table_name))
+  {
+    updatable_view= false;
+  }
+
+  return updatable_view;
+}
+
+
 /**
   Register view by writing its definition to the data-dictionary.
 
@@ -922,43 +1007,7 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
   view->view_suid= lex->create_view_suid;
   view->with_check= lex->create_view_check;
 
-  if (!dd::get_dictionary()->is_system_view_name(view->db, view->table_name) &&
-      (view->updatable_view= can_be_merged))
-  {
-    /// @see SELECT_LEX::merge_derived()
-    bool updatable= false;
-    bool outer_joined= false;
-    for (TABLE_LIST *tbl= lex->select_lex->table_list.first;
-         tbl;
-         tbl= tbl->next_local)
-    {
-      updatable|= !((tbl->is_view() && !tbl->updatable_view) ||
-                     tbl->schema_table);
-      outer_joined|= tbl->is_inner_table_of_outer_join();
-    }
-    updatable&= !outer_joined;
-
-    if (updatable)
-    {
-      // check that at least one column in view is updatable.
-      bool view_has_updatable_column= false;
-      List_iterator_fast<Item> it(lex->select_lex->item_list);
-      Item *item;
-      while ((item= it++))
-      {
-	Item_field *item_field= item->field_for_view_update();
-	if (item_field && !item_field->table_ref->schema_table)
-	{
-	  view_has_updatable_column= true;
-	  break;
-	}
-      }
-      updatable&= view_has_updatable_column;
-    }
-
-    if (!updatable)
-      view->updatable_view= 0;
-  }
+  view->updatable_view= is_updatable_view(thd, view);
 
   /* init timestamp */
   if (!view->timestamp.str)
@@ -1036,26 +1085,6 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
   {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     DBUG_RETURN(true);
-  }
-
-  /*
-    Check that table of main select do not used in subqueries.
-
-    This test can catch only very simple cases of such non-updateable views,
-    all other will be detected before updating commands execution.
-    (it is more optimisation then real check)
-
-    NOTE: this skip cases of using table via VIEWs, joined VIEWs, VIEWs with
-    UNION
-  */
-  if (view->updatable_view &&
-      !lex->select_lex->master_unit()->is_union() &&
-      !(lex->select_lex->table_list.first)->next_local &&
-      find_table_in_global_list(lex->query_tables->next_global,
-				lex->query_tables->db,
-				lex->query_tables->table_name))
-  {
-    view->updatable_view= 0;
   }
 
   if (view->with_check != VIEW_CHECK_NONE &&
@@ -1188,7 +1217,7 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share,
     view_ref->timestamp.str= view_ref->timestamp_buffer;
 
   // Prepare default values for old format
-  view_ref->view_suid= TRUE;
+  view_ref->view_suid= true;
   view_ref->definer.user.str= view_ref->definer.host.str= 0;
   view_ref->definer.user.length= view_ref->definer.host.length= 0;
 
@@ -1450,7 +1479,6 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     */
       
     TABLE_LIST view_no_suid;
-    memset(static_cast<void *>(&view_no_suid), 0, sizeof(TABLE_LIST));
     view_no_suid.db= view_ref->db;
     view_no_suid.table_name= view_ref->table_name;
 
@@ -2002,7 +2030,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
         if (k == end_of_trans)
           break;                                // Key is not possible
         if (++key_part == key_part_end)
-          DBUG_RETURN(FALSE);                   // Found usable key
+          DBUG_RETURN(false);                   // Found usable key
       }
     }
   }
@@ -2034,14 +2062,14 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
           push_warning(thd, Sql_condition::SL_NOTE,
                        ER_WARN_VIEW_WITHOUT_KEY,
                        ER_THD(thd, ER_WARN_VIEW_WITHOUT_KEY));
-          DBUG_RETURN(FALSE);
+          DBUG_RETURN(false);
         }
         /* prohibit update */
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -2054,8 +2082,8 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
     view      view for processing
 
   RETURN
-    FALSE OK
-    TRUE  error (is not sent to cliet)
+    false OK
+    true  error (is not sent to cliet)
 */
 
 bool insert_view_fields(List<Item> *list, TABLE_LIST *view)
@@ -2074,7 +2102,7 @@ bool insert_view_fields(List<Item> *list, TABLE_LIST *view)
     if (fld == NULL)
     {
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), entry->name);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
 
     list->push_back(fld);

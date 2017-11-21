@@ -93,7 +93,7 @@ public:
   /**
     Set persisted options
   */
-  bool set_persist_options(bool plugin_options= FALSE);
+  bool set_persist_options(bool plugin_options= false);
   /**
     Reset persisted options
   */
@@ -111,7 +111,7 @@ public:
     separator.
   */
   bool append_read_only_variables(int *argc, char ***argv,
-    bool plugin_options= FALSE);
+    bool plugin_options= false);
   void cleanup();
 
 private:
@@ -142,9 +142,9 @@ private:
   string m_persist_filename;
   mysql_mutex_t m_LOCK_persist_file;
   /* memory for read only persisted options */
-  MEM_ROOT ro_persisted_argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT ro_persisted_argv_alloc{PSI_NOT_INSTRUMENTED, 512};
   /* memory for read only persisted plugin options */
-  MEM_ROOT ro_persisted_plugin_argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT ro_persisted_plugin_argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 };
 
 #endif /* PERSISTED_VARIABLE_H_INCLUDED */

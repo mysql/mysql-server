@@ -496,6 +496,16 @@ private:
     defaults to -1.
   */
   longlong m_srid_found_in_document;
+  /// The minimum allowed longitude value (non-inclusive).
+  double m_min_longitude= -180.0;
+  /// The maximum allowed longitude (inclusive).
+  double m_max_longitude= 180.0;
+  /// The minimum allowed latitude value (inclusive).
+  double m_min_latitude= -90.0;
+  /// The maximum allowed latitude (inclusive).
+  double m_max_latitude= 90.0;
+  /// True if we're currently parsing the top-level object.
+  bool m_toplevel= true;
 };
 
 
@@ -667,8 +677,8 @@ private:
   const double upper_longitude;
 
   /**
-   If this is set to TRUE the algorithm will start decoding on the first bit,
-   which decodes a longitude value. If it is FALSE, it will start on the
+   If this is set to true the algorithm will start decoding on the first bit,
+   which decodes a longitude value. If it is false, it will start on the
    second bit which decodes a latitude value.
   */
   const bool start_on_even_bit;

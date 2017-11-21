@@ -23,8 +23,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 
-C_MODE_START
-
 typedef enum
 {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR}
   decimal_round_mode;
@@ -142,8 +140,6 @@ static inline int decimal_string_size(const decimal_t *dec)
 
 #define E_DEC_ERROR            31
 #define E_DEC_FATAL_ERROR      30
-
-C_MODE_END
 
 #endif // MYSQL_ABI_CHECK
 

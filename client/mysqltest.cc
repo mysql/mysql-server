@@ -137,11 +137,9 @@ extern CHARSET_INFO my_charset_utf16le_bin;
 using std::string;
 using std::unique_ptr;
 
-C_MODE_START
 static void signal_handler(int sig);
 static bool get_one_option(int optid, const struct my_option *,
                            char *argument);
-C_MODE_END
 
 enum {
   OPT_PS_PROTOCOL=OPT_MAX_CLIENT_OPTION, OPT_SP_PROTOCOL,
@@ -175,9 +173,9 @@ static bool explain_protocol= 0, explain_protocol_enabled= 0;
 static bool json_explain_protocol= 0, json_explain_protocol_enabled= 0;
 static bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static bool parsing_disabled= 0;
-static bool display_result_vertically= FALSE, display_result_lower= FALSE,
-  display_metadata= FALSE, display_result_sorted= FALSE,
-  display_session_track_info= FALSE;
+static bool display_result_vertically= false, display_result_lower= false,
+  display_metadata= false, display_result_sorted= false,
+  display_session_track_info= false;
 static bool disable_query_log= 0, disable_result_log= 0;
 static bool disable_connect_log= 1;
 static bool disable_warnings= 0;
@@ -185,11 +183,11 @@ static bool disable_info= 1;
 static bool abort_on_error= 1;
 static bool server_initialized= 0;
 static bool is_windows= 0;
-static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
 static const char *opt_server_public_key= 0;
-static bool can_handle_expired_passwords= TRUE;
+static bool can_handle_expired_passwords= true;
 #include "caching_sha2_passwordopt-vars.h"
 
 /* Info on properties that can be set with --enable_X and --disable_X */
@@ -214,7 +212,7 @@ static struct property prop_list[] = {
   { &disable_warnings, 0, 0, 1, "$ENABLED_WARNINGS" }
 };
 
-static bool once_property= FALSE;
+static bool once_property= false;
 
 enum enum_prop {
   P_ABORT= 0,
@@ -1143,7 +1141,7 @@ static void check_command_args(struct st_command *command,
       if (ptr > start)
       {
         init_dynamic_string(arg->ds, 0, ptr-start, 32);
-        do_eval(arg->ds, start, ptr, FALSE);
+        do_eval(arg->ds, start, ptr, false);
       }
       else
       {
@@ -1167,7 +1165,7 @@ static void check_command_args(struct st_command *command,
     case ARG_REST:
       start= ptr;
       init_dynamic_string(arg->ds, 0, command->query_len, 256);
-      do_eval(arg->ds, start, command->end, FALSE);
+      do_eval(arg->ds, start, command->end, false);
       command->last_argument= command->end;
       DBUG_PRINT("info", ("val: %s", arg->ds->str));
       break;
@@ -2248,7 +2246,7 @@ static void set_once_property(enum_prop prop, bool val)
   pr.old= *pr.var;
   *pr.var= val;
   var_set_int(pr.env_name, (val != pr.reverse));
-  once_property= TRUE;
+  once_property= true;
 }
 
 static void set_property(st_command *command, enum_prop prop, bool val)
@@ -2280,7 +2278,7 @@ void revert_properties()
       var_set_int(pr.env_name, (pr.old != pr.reverse));
     }
   }
-  once_property=FALSE;
+  once_property=false;
 }
 
 
@@ -2331,7 +2329,7 @@ static void var_query_set(VAR *var, const char *query, const char** query_end)
 
   /* Eval the query, thus replacing all environment variables */
   init_dynamic_string(&ds_query, 0, (end - query) + 32, 256);
-  do_eval(&ds_query, query, end, FALSE);
+  do_eval(&ds_query, query, end, false);
 
   if (mysql_real_query(mysql, ds_query.str,
                        static_cast<ulong>(ds_query.length)))
@@ -2457,7 +2455,7 @@ do_result_format_version(struct st_command *command)
   long version;
   static DYNAMIC_STRING ds_version;
   const struct command_arg result_format_args[] = {
-    {"version", ARG_STRING, TRUE, &ds_version, "Version to use"}
+    {"version", ARG_STRING, true, &ds_version, "Version to use"}
   };
 
   DBUG_ENTER("do_result_format_version");
@@ -2599,9 +2597,9 @@ static void var_set_query_get_value(struct st_command *command, VAR *var)
   static DYNAMIC_STRING ds_col;
   static DYNAMIC_STRING ds_row;
   const struct command_arg query_get_value_args[] = {
-    {"query", ARG_STRING, TRUE, &ds_query, "Query to run"},
-    {"column name", ARG_STRING, TRUE, &ds_col, "Name of column"},
-    {"row number", ARG_STRING, TRUE, &ds_row, "Number for row"}
+    {"query", ARG_STRING, true, &ds_query, "Query to run"},
+    {"column name", ARG_STRING, true, &ds_col, "Name of column"},
+    {"row number", ARG_STRING, true, &ds_row, "Number for row"}
   };
 
   DBUG_ENTER("var_set_query_get_value");
@@ -2881,7 +2879,7 @@ static void do_source(struct st_command *command)
 {
   static DYNAMIC_STRING ds_filename;
   const struct command_arg source_args[] = {
-    { "filename", ARG_STRING, TRUE, &ds_filename, "File to source" }
+    { "filename", ARG_STRING, true, &ds_filename, "File to source" }
   };
   DBUG_ENTER("do_source");
 
@@ -3038,38 +3036,36 @@ static void replace_crlf_with_lf(char *buf)
   *replace = '\x0';
 }
 #endif
-/*
-  Execute given command.
 
-  SYNOPSIS
-  do_exec()
-  query	called command
 
-  DESCRIPTION
-  exec <command>
-
-  Execute the text between exec and end of line in a subprocess.
-  The error code returned from the subprocess is checked against the
-  expected error array, previously set with the --error command.
-  It can thus be used to execute a command that shall fail.
-
-  NOTE
-  Although mysqltest is executed from cygwin shell, the command will be
-  executed in "cmd.exe". Thus commands like "rm" etc can NOT be used, use
-  mysqltest commmand(s) like "remove_file" for that
-*/
-
+/// Execute the shell command using the popen() library call. References
+/// to variables within the command are replaced with the corresponding
+/// values. Use “\\$” to specify a literal “$” character.
+///
+/// The error code returned from the subprocess is checked against the
+/// expected error array, previously set with the --error command. It can
+/// thus be used to execute a command that shall fail.
+///
+/// @code
+/// exec command [args]
+/// @endcode
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
+///
+/// @note
+/// It is recommended to use mysqltest command(s) like "remove_file"
+/// instead of executing the shell commands using 'exec' command.
 static void do_exec(struct st_command *command)
 {
   int error;
-  char buf[512];
   FILE *res_file;
   char *cmd= command->first_argument;
   DYNAMIC_STRING ds_cmd;
   DBUG_ENTER("do_exec");
   DBUG_PRINT("enter", ("cmd: '%s'", cmd));
 
-  /* Skip leading space */
+  // Skip leading space
   while (*cmd && my_isspace(charset_info, *cmd))
     cmd++;
   if (!*cmd)
@@ -3077,26 +3073,27 @@ static void do_exec(struct st_command *command)
   command->last_argument= command->end;
 
   init_dynamic_string(&ds_cmd, 0, command->query_len+256, 256);
-  /* Eval the command, thus replacing all environment variables */
+  // Eval the command, thus replacing all environment variables
   do_eval(&ds_cmd, cmd, command->end, !is_windows);
 
-  /* Check if echo should be replaced with "builtin" echo */
+  // Check if echo should be replaced with "builtin" echo
   if (builtin_echo[0] && strncmp(cmd, "echo", 4) == 0)
   {
-    /* Replace echo with our "builtin" echo */
+    // Replace echo with our "builtin" echo
     replace(&ds_cmd, "echo", 4, builtin_echo, strlen(builtin_echo));
   }
 
 #ifdef _WIN32
-  /* Replace /dev/null with NUL */
+  // Replace "/dev/null" with NUL
   while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
     ;
-  /* Replace "closed stdout" with non existing output fd */
+
+  // Replace "closed stdout" with non existing output fd
   while(replace(&ds_cmd, ">&-", 3, ">&4", 3) == 0)
     ;
 #endif
 
-  /* exec command is interpreted externally and will not take newlines */
+  // exec command is interpreted externally and will not take newlines
   while(replace(&ds_cmd, "\n", 1, " ", 1) == 0)
     ;
   
@@ -3116,8 +3113,13 @@ static void do_exec(struct st_command *command)
     die("popen(\"%s\", \"r\") failed", command->first_argument);
   }
 
-  while (fgets(buf, sizeof(buf), res_file))
+  char buf[512];
+  std::string str;
+  while (std::fgets(buf, sizeof(buf), res_file))
   {
+    if (strlen(buf) < 1)
+      continue;
+
 #ifdef WIN32
     // Replace CRLF char with LF.
     // See bug#22608247 and bug#22811243
@@ -3136,9 +3138,35 @@ static void do_exec(struct st_command *command)
     }
     else
     {
-      replace_dynstr_append(&ds_res, buf);
+      // Read the file line by line. Check if the buffer read from the
+      // file ends with EOL character.
+      if ((buf[strlen(buf)-1] != '\n' && strlen(buf) < (sizeof(buf) - 1)) ||
+          (buf[strlen(buf)-1] == '\n'))
+      {
+        // Found EOL
+        if (str.length())
+        {
+          // Temporary string exists, append the current buffer read
+          // to the temporary string.
+          str.append(buf);
+          replace_dynstr_append(&ds_res, str.c_str());
+          str.clear();
+        }
+        else
+        {
+          // Entire line is read at once
+          replace_dynstr_append(&ds_res, buf);
+        }
+      }
+      else
+      {
+        // The buffer read from the file doesn't end with EOL character,
+        // store it in a temporary string.
+        str.append(buf);
+      }
     }
   }
+
   error= pclose(res_file);
   if (error > 0)
   {
@@ -3183,7 +3211,7 @@ static void do_exec(struct st_command *command)
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
   {
-    /* Error code we wanted was != 0, i.e. not an expected success */
+    // Error code we wanted was != 0, i.e. not an expected success
     log_msg("exec of '%s failed, error: %d, errno: %d",
             ds_cmd.str, error, errno);
     dynstr_free(&ds_cmd);
@@ -3209,6 +3237,65 @@ enum enum_operator
   DO_INC
 };
 
+
+/// Uses strtol function to get the integer value from a string.
+///
+/// @param ds_retry Dynamic string which may contain an integer
+///                 or an alphanumeric string.
+///
+/// @retval Integer value corresponding to the contents of the string,
+///         if conversion is successful, or -1 if integer is out of
+///         range, or if the conversion fails.
+static int get_int_val(DYNAMIC_STRING *ds_retry)
+{
+  int retry;
+  size_t size;
+  try
+  {
+    retry= std::stoi(ds_retry->str, &size, 10);
+    if(size != ds_retry->length)
+      retry= -1;
+  }
+  catch(const std::out_of_range &)
+  {
+    fprintf(stderr, "Retry value is out of range. ");
+    retry= -1;
+  }
+  catch(const std::invalid_argument &)
+  {
+    retry= -1;
+  }
+  return retry;
+}
+
+
+/// Template function that frees memory of the dynamic string
+/// passed to the function.
+///
+/// @param val Dynamic string whose memory needs to be freed.
+template <typename T>
+static void free_dynamic_strings(T *val)
+{
+  dynstr_free(val);
+}
+
+
+/// Frees the memory of dynamic strings passed to the function.
+/// It accepts a variable number of dynamic strings, and through
+/// recursion, frees the memory. The other template function
+/// which calls dynstr_free() is called here.
+///
+/// @param first The dynamic string passed to the function which
+///              gets freed using dynstr_free().
+/// @param rest  Rest of the dynamic strings which are passed to
+///              the function, through recursion, end up being
+///              freed by dynstr_free().
+template <typename T1, typename... T2>
+static void free_dynamic_strings(T1 *first, T2 *... rest)
+{
+  free_dynamic_strings(first);
+  free_dynamic_strings(rest...);
+}
 
 /*
   Decrease or increase the value of a variable
@@ -3255,22 +3342,21 @@ static int do_modify_var(struct st_command *command,
 }
 
 
-/*
-  SYNOPSIS
-  do_remove_file
-  command	called command
 
-  DESCRIPTION
-  remove_file <file_name>
-  Remove the file <file_name>
-*/
-
+/// Removes the file passed as the argument and retries a specified
+/// number of times, if it is unsuccessful.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_remove_file(struct st_command *command)
 {
   int error;
   static DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_retry;
+
   const struct command_arg rm_args[] = {
-    { "filename", ARG_STRING, TRUE, &ds_filename, "File to delete" }
+    { "filename", ARG_STRING, true, &ds_filename, "File to delete" },
+    { "retry", ARG_STRING, false, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_remove_file");
 
@@ -3278,35 +3364,48 @@ static void do_remove_file(struct st_command *command)
                      rm_args, sizeof(rm_args)/sizeof(struct command_arg),
                      ' ');
 
+  // Check if the retry value is passed, and if it is an integer
+  int retry= 0;
+  if (ds_retry.length)
+  {
+    retry= get_int_val(&ds_retry);
+    if (retry < 0)
+    {
+      // In case of invalid retry, copy the value passed to print later
+      char buf[32];
+      strmake(buf, ds_retry.str, sizeof(buf) - 1);
+      free_dynamic_strings(&ds_filename, &ds_retry);
+      die("Invalid value '%s' for retry argument given to remove_file " \
+          "command.", buf);
+    }
+  }
+
   DBUG_PRINT("info", ("removing file: %s", ds_filename.str));
   error= my_delete(ds_filename.str, MYF(0)) != 0;
+
   /*
-    Some anti-virus programs hold access to files for a short time
-    even after the application/server quit. During testing, sleep
-    5 seconds and then retry once more to avoid spurious test failures.
-    Also on slow/loaded machines the file system may need to catch up.
+    If the remove command fails due to an environmental issue, the command can
+    be retried a specified number of times before throwing an error.
   */
-  if (error)
+  for(int i= 0; error && (i < retry); i++)
   {
-    my_sleep(5 * 1000 * 1000);
-    error= my_delete(ds_filename.str, MYF(0)) != 0;
+    sleep(1);
+    error= my_delete(ds_filename.str, MYF(0)) !=0;
   }
+
+
   handle_command_error(command, error);
-  dynstr_free(&ds_filename);
+  free_dynamic_strings(&ds_filename, &ds_retry);
   DBUG_VOID_RETURN;
 }
 
 
-/*
-  SYNOPSIS
-  do_remove_files_wildcard
-  command	called command
-
-  DESCRIPTION
-  remove_files_wildcard <directory> [<file_name_pattern>]
-  Remove the files in <directory> optionally matching <file_name_pattern>
-*/
-
+/// Removes the files in the specified directory, by matching the
+/// file name pattern. Retry of the command can happen optionally with
+/// an interval of one second between each retry if the command fails.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_remove_files_wildcard(struct st_command *command)
 {
   int error= 0;
@@ -3316,13 +3415,14 @@ static void do_remove_files_wildcard(struct st_command *command)
   char dir_separator[2];
   static DYNAMIC_STRING ds_directory;
   static DYNAMIC_STRING ds_wild;
-  static DYNAMIC_STRING ds_file_to_remove;
+  static DYNAMIC_STRING ds_retry;
   char dirname[FN_REFLEN];
   
   const struct command_arg rm_args[] = {
-    { "directory", ARG_STRING, TRUE, &ds_directory,
+    { "directory", ARG_STRING, true, &ds_directory,
       "Directory containing files to delete" },
-    { "filename", ARG_STRING, FALSE, &ds_wild, "File pattern to delete" }
+    { "pattern", ARG_STRING, true, &ds_wild, "File pattern to delete" },
+    { "retry", ARG_STRING, false, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_remove_files_wildcard");
 
@@ -3331,6 +3431,23 @@ static void do_remove_files_wildcard(struct st_command *command)
                      ' ');
   fn_format(dirname, ds_directory.str, "", "", MY_UNPACK_FILENAME);
 
+  // Check if the retry value is passed, and if it is an interger
+  int retry= 0;
+  if (ds_retry.length)
+  {
+    retry= get_int_val(&ds_retry);
+    if (retry < 0)
+    {
+      // In case of invalid retry, copy the value passed to print later
+      char buf[32];
+      strmake(buf, ds_retry.str, sizeof(buf) - 1);
+      free_dynamic_strings(&ds_directory, &ds_wild, &ds_retry);
+      die("Invalid value '%s' for retry argument given to " \
+          "remove_files_wildcard command.", buf);
+    }
+  }
+
+  static DYNAMIC_STRING ds_file_to_remove;
   DBUG_PRINT("info", ("listing directory: %s", dirname));
   /* Note that my_dir sorts the list if not given any flags */
   if (!(dir_info= my_dir(dirname, MYF(MY_DONT_SORT | MY_WANT_STAT))))
@@ -3355,8 +3472,7 @@ static void do_remove_files_wildcard(struct st_command *command)
     /* MY_S_ISREG does not work here on Windows, just skip directories */
     if (MY_S_ISDIR(file->mystat->st_mode))
       continue;
-    if (ds_wild.length &&
-        wild_compare_full(file->name, ds_wild.str, false, 0, '?', '*'))
+    if (wild_compare_full(file->name, ds_wild.str, false, 0, '?', '*'))
       continue;
     /* Not required as the var ds_file_to_remove.length already has the
        length in canonnicalized form */
@@ -3365,6 +3481,16 @@ static void do_remove_files_wildcard(struct st_command *command)
     dynstr_append(&ds_file_to_remove, file->name);
     DBUG_PRINT("info", ("removing file: %s", ds_file_to_remove.str));
     error= my_delete(ds_file_to_remove.str, MYF(0)) != 0;
+
+    /*
+      If the remove command fails due to an environmental issue, the command
+      can be retried a specified number of times before throwing an error.
+    */
+    for(int j= 0; error && (j < retry); j++)
+    {
+      sleep(1);
+      error= my_delete(ds_file_to_remove.str, MYF(0)) !=0;
+    }
     if (error)
       break;
   }
@@ -3372,33 +3498,28 @@ static void do_remove_files_wildcard(struct st_command *command)
 
 end:
   handle_command_error(command, error);
-  dynstr_free(&ds_directory);
-  dynstr_free(&ds_wild);
-  dynstr_free(&ds_file_to_remove);
+  free_dynamic_strings(&ds_directory, &ds_wild, &ds_file_to_remove, &ds_retry);
   DBUG_VOID_RETURN;
 }
 
 
-/*
-  SYNOPSIS
-  do_copy_file
-  command	command handle
-
-  DESCRIPTION
-  copy_file <from_file> <to_file>
-  Copy <from_file> to <to_file>
-
-  NOTE! Will fail if <to_file> exists
-*/
-
+/// Copy the source file to destination file. Copy will fail if the
+/// destination file exists. Retry of the command can happen optionally with
+/// an interval of one second between each retry if the command fails.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_copy_file(struct st_command *command)
 {
   int error;
   static DYNAMIC_STRING ds_from_file;
   static DYNAMIC_STRING ds_to_file;
+  static DYNAMIC_STRING ds_retry;
+
   const struct command_arg copy_file_args[] = {
-    { "from_file", ARG_STRING, TRUE, &ds_from_file, "Filename to copy from" },
-    { "to_file", ARG_STRING, TRUE, &ds_to_file, "Filename to copy to" }
+    { "from_file", ARG_STRING, true, &ds_from_file, "Filename to copy from" },
+    { "to_file", ARG_STRING, true, &ds_to_file, "Filename to copy to" },
+    { "retry", ARG_STRING, false, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_copy_file");
 
@@ -3407,25 +3528,41 @@ static void do_copy_file(struct st_command *command)
                      sizeof(copy_file_args)/sizeof(struct command_arg),
                      ' ');
 
+  // Check if the retry value is passed, and if it is an interger
+  int retry= 0;
+  if (ds_retry.length)
+  {
+    retry= get_int_val(&ds_retry);
+    if (retry < 0)
+    {
+      // In case of invalid retry, copy the value passed to print later
+      char buf[32];
+      strmake(buf, ds_retry.str, sizeof(buf) - 1);
+      free_dynamic_strings(&ds_from_file, &ds_to_file, &ds_retry);
+      die("Invalid value '%s' for retry argument given to copy_file " \
+          "command.", buf);
+    }
+  }
+
   DBUG_PRINT("info", ("Copy %s to %s", ds_from_file.str, ds_to_file.str));
   /* MY_HOLD_ORIGINAL_MODES prevents attempts to chown the file */
   error= (my_copy(ds_from_file.str, ds_to_file.str,
                   MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
+
   /*
-    Some anti-virus programs hold access to files for a short time
-    even after the application/server quit. During testing, sleep
-    5 seconds and then retry once more to avoid spurious test failures.
-    Also on slow/loaded machines the file system may need to catch up.
+    If the copy command fails due to an environmental issue, the command can
+    be retried a specified number of times before throwing an error.
   */
-  if (error)
+  for(int i= 0; error && (i < retry); i++)
   {
-    my_sleep(5 * 1000 * 1000);
-    error= (my_copy(ds_from_file.str, ds_to_file.str,
-                    MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
+    sleep(1);
+    error=
+      (my_copy(ds_from_file.str, ds_to_file.str,
+               MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
   }
+
   handle_command_error(command, error);
-  dynstr_free(&ds_from_file);
-  dynstr_free(&ds_to_file);
+  free_dynamic_strings(&ds_from_file, &ds_to_file, &ds_retry);
   DBUG_VOID_RETURN;
 }
 
@@ -3588,9 +3725,9 @@ static void do_force_cpdir(struct st_command * command)
   static DYNAMIC_STRING ds_destination;
 
   const struct command_arg copy_file_args[] = {
-    { "from_directory", ARG_STRING, TRUE, &ds_source,
+    { "from_directory", ARG_STRING, true, &ds_source,
       "Directory to copy from" },
-    { "to_directory", ARG_STRING, TRUE, &ds_destination,
+    { "to_directory", ARG_STRING, true, &ds_destination,
       "Directory to copy to" }
   };
 
@@ -3626,34 +3763,31 @@ static void do_force_cpdir(struct st_command * command)
 }
 
 
-/*
-  SYNOPSIS
-  do_copy_files_wildcard
-  command       command handle
-
-  DESCRIPTION
-  copy_file <from_directory> <to_directory> [<file_name_pattern>]
-  Copy files <from_directory> to <to_directory> optionally
-  matching <file_name_pattern>
-
-  NOTE! Will fail if no files match the <file_name_pattern>
-        Will fail if <from_directory> is empty and/or there are no
-        files in it.
-        Will fail if <from_directory> or <to_directory> or both do not exist.
-*/
-
+/// Copy files from source directory to destination directory, by matching
+/// a specified file name pattern.
+///
+/// Copy will fail if no files match the pattern. It will fail if source
+/// directory is empty and/or there are no files in it. Copy will also
+/// fail if source directory or destination directory or both do not
+/// exist. Retry of the command can happen optionally with an interval of
+/// one second between each retry if the command fails.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_copy_files_wildcard(struct st_command * command)
 {
   static DYNAMIC_STRING ds_source;
   static DYNAMIC_STRING ds_destination;
   static DYNAMIC_STRING ds_wild;
+  static DYNAMIC_STRING ds_retry;
 
   const struct command_arg copy_file_args[] = {
-    { "from_directory", ARG_STRING, TRUE, &ds_source,
+    { "from_directory", ARG_STRING, true, &ds_source,
       "Directory to copy from" },
-    { "to_directory", ARG_STRING, TRUE, &ds_destination,
+    { "to_directory", ARG_STRING, true, &ds_destination,
       "Directory to copy to" },
-    { "filename", ARG_STRING, FALSE, &ds_wild, "File name pattern"}
+    { "pattern", ARG_STRING, true, &ds_wild, "File name pattern"},
+    { "retry", ARG_STRING, false, &ds_retry, "Number of retries"}
   };
   DBUG_ENTER("do_copy_files_wildcard");
 
@@ -3668,6 +3802,24 @@ static void do_copy_files_wildcard(struct st_command * command)
   DBUG_PRINT("info", ("listing directory: %s", ds_source.str));
 
   int error= 0;
+
+  // Check if the retry value is passed, and if it is an integer
+  int retry= 0;
+  if (ds_retry.length)
+  {
+    retry= get_int_val(&ds_retry);
+    if (retry < 0)
+    {
+      // In case of invalid retry, copy the value passed to print later
+      char buf[32];
+      strmake(buf, ds_retry.str, sizeof(buf) - 1);
+      free_dynamic_strings(&ds_source, &ds_destination, &ds_wild, &ds_retry);
+      die("Invalid value '%s' for retry argument given to " \
+          "copy_files_wildcard command.", buf);
+    }
+  }
+
+
   /* Note that my_dir sorts the list if not given any flags */
   MY_DIR *dir_info= my_dir(ds_source.str, MYF(MY_DONT_SORT | MY_WANT_STAT));
 
@@ -3715,8 +3867,7 @@ static void do_copy_files_wildcard(struct st_command * command)
       continue;
 
     /* Copy only those files which the pattern matches */
-    if (ds_wild.length &&
-        wild_compare_full(file->name, ds_wild.str, false, 0, '?', '*'))
+    if (wild_compare_full(file->name, ds_wild.str, false, 0, '?', '*'))
       continue;
 
     match_count++;
@@ -3728,6 +3879,18 @@ static void do_copy_files_wildcard(struct st_command * command)
     /* MY_HOLD_ORIGINAL_MODES prevents attempts to chown the file */
     error= (my_copy(ds_source.str, ds_destination.str,
                     MYF(MY_HOLD_ORIGINAL_MODES)) != 0);
+
+    /*
+      If the copy command fails due to an environmental issue, the command can
+      be retried a specified number of times before throwing an error.
+    */
+    for(int j= 0; error && (j < retry); j++)
+    {
+      sleep(1);
+      error=
+        (my_copy(ds_source.str, ds_destination.str,
+                 MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
+    }
 
     if (error)
       goto end;
@@ -3743,10 +3906,7 @@ static void do_copy_files_wildcard(struct st_command * command)
 end:
   my_dirend(dir_info);
   handle_command_error(command, error);
-  dynstr_free(&ds_source);
-  dynstr_free(&ds_destination);
-  dynstr_free(&ds_wild);
-
+  free_dynamic_strings(&ds_source, &ds_destination, &ds_wild, &ds_retry);
   DBUG_VOID_RETURN;
 }
 
@@ -3768,35 +3928,13 @@ static int move_file_by_copy_delete(const char *from, const char *to)
   int error_copy,error_delete;
   error_copy= (my_copy(from,to,
                   MYF(MY_HOLD_ORIGINAL_MODES)) != 0);
-  /*
-    Some anti-virus programs hold access to files for a short time
-    even after the application/server quit. During testing, sleep
-    5 seconds and then retry once more to avoid spurious test failures.
-    Also on slow/loaded machines the file system may need to catch up.
-  */
-  if (error_copy)
-  {
-    my_sleep(5 * 1000 * 1000);
-    error_copy= (my_copy(from,to,
-                  MYF(MY_HOLD_ORIGINAL_MODES)) != 0);
-  }
   if (error_copy)
   {
     return error_copy;
   }
 
   error_delete= my_delete(from, MYF(0)) != 0;
-  /*
-    Some anti-virus programs hold access to files for a short time
-    even after the application/server quit. During testing, sleep
-    5 seconds and then retry once more to avoid spurious test failures.
-    Also on slow/loaded machines the file system may need to catch up.
-  */
-  if (error_delete)
-  {
-    my_sleep(5 * 1000 * 1000);
-    error_delete= my_delete(from, MYF(0)) != 0;
-  }
+
   /*
     If deleting the source file fails, rollback by deleting the
     redundant copy at the destinatiion.
@@ -3808,24 +3946,23 @@ static int move_file_by_copy_delete(const char *from, const char *to)
   return error_delete;
 }
 
-/*
-  SYNOPSIS
-  do_move_file
-  command	command handle
-
-  DESCRIPTION
-  move_file <from_file> <to_file>
-  Move <from_file> to <to_file>
-*/
-
+/// Moves a file to destination file. Retry of the command can happen
+/// optionally with an interval of one second between each retry if
+/// the command fails.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_move_file(struct st_command *command)
 {
   int error;
   static DYNAMIC_STRING ds_from_file;
   static DYNAMIC_STRING ds_to_file;
+  static DYNAMIC_STRING ds_retry;
+
   const struct command_arg move_file_args[] = {
-    { "from_file", ARG_STRING, TRUE, &ds_from_file, "Filename to move from" },
-    { "to_file", ARG_STRING, TRUE, &ds_to_file, "Filename to move to" }
+    { "from_file", ARG_STRING, true, &ds_from_file, "Filename to move from" },
+    { "to_file", ARG_STRING, true, &ds_to_file, "Filename to move to" },
+    { "retry", ARG_STRING, false, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_move_file");
 
@@ -3834,9 +3971,26 @@ static void do_move_file(struct st_command *command)
                      sizeof(move_file_args)/sizeof(struct command_arg),
                      ' ');
 
+  // Check if the retry value is passed, and if it is an interger
+  int retry= 0;
+  if (ds_retry.length)
+  {
+    retry= get_int_val(&ds_retry);
+    if (retry < 0)
+    {
+      // In case of invalid retry, copy the value passed to print later
+      char buf[32];
+      strmake(buf, ds_retry.str, sizeof(buf) - 1);
+      free_dynamic_strings(&ds_from_file, &ds_to_file, &ds_retry);
+      die("Invalid value '%s' for retry argument given to move_file " \
+          "command.", buf);
+    }
+  }
+
   DBUG_PRINT("info", ("Move %s to %s", ds_from_file.str, ds_to_file.str));
   error= (my_rename(ds_from_file.str, ds_to_file.str,
                     MYF(0)) != 0);
+
   /*
     Use my_copy() followed by my_delete() for moving a file instead of
     my_rename() when my_errno is EXDEV. This is because my_rename() fails
@@ -3847,25 +4001,22 @@ static void do_move_file(struct st_command *command)
   {
     error= move_file_by_copy_delete(ds_from_file.str, ds_to_file.str);
   }
-  else if (error)
+
+ /*
+   If the command fails due to an environmental issue, the command can be
+   retried a specified number of times before throwing an error.
+ */
+  for(int i= 0; error && (i < retry); i++)
   {
-    /*
-      Some anti-virus programs hold access to files for a short time
-      even after the application/server quit. During testing, sleep
-      5 seconds and then retry once more to avoid spurious test failures.
-      Also on slow/loaded machines the file system may need to catch up.
-    */
-    my_sleep(5 * 1000 * 1000);
-    error= (my_rename(ds_from_file.str, ds_to_file.str,
-                      MYF(0)) != 0);
+    sleep(1);
+    error= (my_rename(ds_from_file.str, ds_to_file.str, MYF(0)) != 0);
+
     if (error && (my_errno() == EXDEV))
-    {
       error= move_file_by_copy_delete(ds_from_file.str, ds_to_file.str);
-    }
   }
+
   handle_command_error(command, error);
-  dynstr_free(&ds_from_file);
-  dynstr_free(&ds_to_file);
+  free_dynamic_strings(&ds_from_file, &ds_to_file, &ds_retry);
   DBUG_VOID_RETURN;
 }
 
@@ -3888,8 +4039,8 @@ static void do_chmod_file(struct st_command *command)
   static DYNAMIC_STRING ds_mode;
   static DYNAMIC_STRING ds_file;
   const struct command_arg chmod_file_args[] = {
-    { "mode", ARG_STRING, TRUE, &ds_mode, "Mode of file(octal) ex. 0660"}, 
-    { "filename", ARG_STRING, TRUE, &ds_file, "Filename of file to modify" }
+    { "mode", ARG_STRING, true, &ds_mode, "Mode of file(octal) ex. 0660"}, 
+    { "filename", ARG_STRING, true, &ds_file, "Filename of file to modify" }
   };
   DBUG_ENTER("do_chmod_file");
 
@@ -3914,22 +4065,21 @@ static void do_chmod_file(struct st_command *command)
 }
 
 
-/*
-  SYNOPSIS
-  do_file_exists
-  command	called command
-
-  DESCRIPTION
-  fiile_exist <file_name>
-  Check if file <file_name> exists
-*/
-
+/// Check if specified file exists. Retry of the command can happen
+/// optionally with an interval of one second between each retry if
+/// the command fails.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_file_exist(struct st_command *command)
 {
   int error;
   static DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_retry;
+
   const struct command_arg file_exist_args[] = {
-    { "filename", ARG_STRING, TRUE, &ds_filename, "File to check if it exist" }
+    { "filename", ARG_STRING, true, &ds_filename, "File to check if it exist" },
+    { "retry", ARG_STRING, false, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_file_exist");
 
@@ -3938,10 +4088,37 @@ static void do_file_exist(struct st_command *command)
                      sizeof(file_exist_args)/sizeof(struct command_arg),
                      ' ');
 
+  // Check if the retry value is passed, and if it is an interger
+  int retry= 0;
+  if (ds_retry.length)
+  {
+    retry= get_int_val(&ds_retry);
+    if (retry < 0)
+    {
+      // In case of invalid retry, copy the value passed to print later
+      char buf[32];
+      strmake(buf, ds_retry.str, sizeof(buf) - 1);
+      free_dynamic_strings(&ds_filename, &ds_retry);
+      die("Invalid value '%s' for retry argument given to file_exists " \
+          "command.", buf);
+    }
+  }
+
   DBUG_PRINT("info", ("Checking for existence of file: %s", ds_filename.str));
   error= (access(ds_filename.str, F_OK) != 0);
+
+  /*
+    If the file_exists command fails due to an environmental issue, the command
+    can be retried a specified number of times before throwing an error.
+  */
+  for(int i= 0; error && (i < retry); i++)
+  {
+    sleep(1);
+    error= (access(ds_filename.str, F_OK) != 0);
+  }
+
   handle_command_error(command, error);
-  dynstr_free(&ds_filename);
+  free_dynamic_strings(&ds_filename, &ds_retry);
   DBUG_VOID_RETURN;
 }
 
@@ -3961,7 +4138,7 @@ static void do_mkdir(struct st_command *command)
   int error;
   static DYNAMIC_STRING ds_dirname;
   const struct command_arg mkdir_args[] = {
-    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to create"}
+    {"dirname", ARG_STRING, true, &ds_dirname, "Directory to create"}
   };
   DBUG_ENTER("do_mkdir");
 
@@ -4053,7 +4230,7 @@ static void do_rmdir(struct st_command *command, bool force)
   int error;
   static DYNAMIC_STRING ds_dirname;
   const struct command_arg rmdir_args[] = {
-    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to remove"}
+    {"dirname", ARG_STRING, true, &ds_dirname, "Directory to remove"}
   };
   DBUG_ENTER("do_rmdir");
 
@@ -4133,8 +4310,8 @@ static void do_list_files(struct st_command *command)
   static DYNAMIC_STRING ds_dirname;
   static DYNAMIC_STRING ds_wild;
   const struct command_arg list_files_args[] = {
-    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to list"},
-    {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
+    {"dirname", ARG_STRING, true, &ds_dirname, "Directory to list"},
+    {"file", ARG_STRING, false, &ds_wild, "Filename (incl. wildcard)"}
   };
   DBUG_ENTER("do_list_files");
   command->used_replace= 1;
@@ -4174,9 +4351,9 @@ static void do_list_files_write_file_command(struct st_command *command,
   static DYNAMIC_STRING ds_dirname;
   static DYNAMIC_STRING ds_wild;
   const struct command_arg list_files_args[] = {
-    {"filename", ARG_STRING, TRUE, &ds_filename, "Filename for write"},
-    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to list"},
-    {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
+    {"filename", ARG_STRING, true, &ds_filename, "Filename for write"},
+    {"dirname", ARG_STRING, true, &ds_dirname, "Directory to list"},
+    {"file", ARG_STRING, false, &ds_wild, "Filename (incl. wildcard)"}
   };
   DBUG_ENTER("do_list_files_write_file");
   command->used_replace= 1;
@@ -4276,8 +4453,8 @@ static void do_write_file_command(struct st_command *command, bool append)
   static DYNAMIC_STRING ds_filename;
   static DYNAMIC_STRING ds_delimiter;
   const struct command_arg write_file_args[] = {
-    { "filename", ARG_STRING, TRUE, &ds_filename, "File to write to" },
-    { "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until" }
+    { "filename", ARG_STRING, true, &ds_filename, "File to write to" },
+    { "delimiter", ARG_STRING, false, &ds_delimiter, "Delimiter to read until" }
   };
   DBUG_ENTER("do_write_file");
 
@@ -4346,7 +4523,7 @@ static void do_write_file_command(struct st_command *command, bool append)
 
 static void do_write_file(struct st_command *command)
 {
-  do_write_file_command(command, FALSE);
+  do_write_file_command(command, false);
 }
 
 
@@ -4377,7 +4554,7 @@ static void do_write_file(struct st_command *command)
 
 static void do_append_file(struct st_command *command)
 {
-  do_write_file_command(command, TRUE);
+  do_write_file_command(command, true);
 }
 
 
@@ -4398,7 +4575,7 @@ static void do_cat_file(struct st_command *command)
   int error;
   static DYNAMIC_STRING ds_filename;
   const struct command_arg cat_file_args[] = {
-    { "filename", ARG_STRING, TRUE, &ds_filename, "File to read from" }
+    { "filename", ARG_STRING, true, &ds_filename, "File to read from" }
   };
   DBUG_ENTER("do_cat_file");
 
@@ -4435,8 +4612,8 @@ static void do_diff_files(struct st_command *command)
   static DYNAMIC_STRING ds_filename;
   static DYNAMIC_STRING ds_filename2;
   const struct command_arg diff_file_args[] = {
-    { "file1", ARG_STRING, TRUE, &ds_filename, "First file to diff" },
-    { "file2", ARG_STRING, TRUE, &ds_filename2, "Second file to diff" }
+    { "file1", ARG_STRING, true, &ds_filename, "First file to diff" },
+    { "file2", ARG_STRING, true, &ds_filename2, "Second file to diff" }
   };
   DBUG_ENTER("do_diff_files");
 
@@ -4546,9 +4723,9 @@ static void do_change_user(struct st_command *command)
   MYSQL *mysql = &cur_con->mysql;
   static DYNAMIC_STRING ds_user, ds_passwd, ds_db;
   const struct command_arg change_user_args[] = {
-    { "user", ARG_STRING, FALSE, &ds_user, "User to connect as" },
-    { "password", ARG_STRING, FALSE, &ds_passwd, "Password used when connecting" },
-    { "database", ARG_STRING, FALSE, &ds_db, "Database to select after connect" },
+    { "user", ARG_STRING, false, &ds_user, "User to connect as" },
+    { "password", ARG_STRING, false, &ds_passwd, "Password used when connecting" },
+    { "database", ARG_STRING, false, &ds_db, "Database to select after connect" },
   };
 
   DBUG_ENTER("do_change_user");
@@ -4623,7 +4800,7 @@ static void do_perl(struct st_command *command)
   static DYNAMIC_STRING ds_script;
   static DYNAMIC_STRING ds_delimiter;
   const struct command_arg perl_args[] = {
-    { "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until" }
+    { "delimiter", ARG_STRING, false, &ds_delimiter, "Delimiter to read until" }
   };
   DBUG_ENTER("do_perl");
 
@@ -4736,7 +4913,7 @@ static int do_echo(struct st_command *command)
   DBUG_ENTER("do_echo");
 
   init_dynamic_string(&ds_echo, "", command->query_len, 256);
-  do_eval(&ds_echo, command->first_argument, command->end, FALSE);
+  do_eval(&ds_echo, command->first_argument, command->end, false);
   dynstr_append_mem(&ds_res, ds_echo.str, ds_echo.length);
   dynstr_append_mem(&ds_res, "\n", 1);
   dynstr_free(&ds_echo);
@@ -5337,7 +5514,7 @@ static void do_let(struct st_command *command)
   while (*p && my_isspace(charset_info,*p))
     p++;
 
-  do_eval(&let_rhs_expr, p, command->end, FALSE);
+  do_eval(&let_rhs_expr, p, command->end, false);
 
   command->last_argument= command->end;
   /* Assign var_val to var_name */
@@ -5379,7 +5556,7 @@ static int do_sleep(struct st_command *command, bool real_sleep)
   char *p;
   static DYNAMIC_STRING ds_sleep;
   const struct command_arg sleep_args[] = {
-    { "sleep_delay", ARG_STRING, TRUE, &ds_sleep, "Number of seconds to sleep." }
+    { "sleep_delay", ARG_STRING, true, &ds_sleep, "Number of seconds to sleep." }
   };
   check_command_args(command, command->first_argument, sleep_args,
                      sizeof(sleep_args)/sizeof(struct command_arg),
@@ -5478,7 +5655,7 @@ static bool is_process_active(int pid)
 #ifdef _WIN32
   DWORD exit_code;
   HANDLE proc;
-  proc= OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
+  proc= OpenProcess(PROCESS_QUERY_INFORMATION, false, pid);
   if (proc == NULL)
     return false;  /* Process could not be found. */
 
@@ -5507,7 +5684,7 @@ static bool kill_process(int pid)
   bool killed= true;
 #ifdef _WIN32
   HANDLE proc;
-  proc= OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+  proc= OpenProcess(PROCESS_TERMINATE, false, pid);
   if (proc == NULL)
     return true;  /* Process could not be found. */
 
@@ -5532,7 +5709,7 @@ static void abort_process(int pid, const char *path MY_ATTRIBUTE((unused)))
 {
 #ifdef _WIN32
   HANDLE proc;
-  proc= OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+  proc= OpenProcess(PROCESS_ALL_ACCESS, false, pid);
   verbose_msg("Aborting pid %d (handle: %p)\n", pid, proc);
   if (proc != NULL)
   {
@@ -5612,7 +5789,7 @@ static void do_shutdown_server(struct st_command *command)
   MYSQL* mysql = &cur_con->mysql;
   static DYNAMIC_STRING ds_timeout;
   const struct command_arg shutdown_args[] = {
-    {"timeout", ARG_STRING, FALSE, &ds_timeout, "Timeout before killing server"}
+    {"timeout", ARG_STRING, false, &ds_timeout, "Timeout before killing server"}
   };
   DBUG_ENTER("do_shutdown_server");
 
@@ -6034,7 +6211,7 @@ static void select_connection(struct st_command *command)
   DBUG_ENTER("select_connection");
   static DYNAMIC_STRING ds_connection;
   const struct command_arg connection_args[] = {
-    { "connection_name", ARG_STRING, TRUE, &ds_connection, "Name of the connection that we switch to." }
+    { "connection_name", ARG_STRING, true, &ds_connection, "Name of the connection that we switch to." }
   };
   check_command_args(command, command->first_argument, connection_args,
                      sizeof(connection_args)/sizeof(struct command_arg),
@@ -6054,7 +6231,7 @@ static void do_close_connection(struct st_command *command)
   struct st_connection *con;
   static DYNAMIC_STRING ds_connection;
   const struct command_arg close_connection_args[] = {
-    { "connection_name", ARG_STRING, TRUE, &ds_connection,
+    { "connection_name", ARG_STRING, true, &ds_connection,
       "Name of the connection to close." }
   };
   check_command_args(command, command->first_argument,
@@ -6086,7 +6263,7 @@ static void do_close_connection(struct st_command *command)
   if (con->util_mysql)
     mysql_close(con->util_mysql);
   con->util_mysql= 0;
-  con->pending= FALSE;
+  con->pending= false;
   
   my_free(con->name);
 
@@ -6366,15 +6543,15 @@ static void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_default_auth;
   static DYNAMIC_STRING ds_shm;
   const struct command_arg connect_args[] = {
-    { "connection name", ARG_STRING, TRUE, &ds_connection_name, "Name of the connection" },
-    { "host", ARG_STRING, TRUE, &ds_host, "Host to connect to" },
-    { "user", ARG_STRING, FALSE, &ds_user, "User to connect as" },
-    { "passsword", ARG_STRING, FALSE, &ds_password, "Password used when connecting" },
-    { "database", ARG_STRING, FALSE, &ds_database, "Database to select after connect" },
-    { "port", ARG_STRING, FALSE, &ds_port, "Port to connect to" },
-    { "socket", ARG_STRING, FALSE, &ds_sock, "Socket to connect with" },
-    { "options", ARG_STRING, FALSE, &ds_options, "Options to use while connecting" },
-    { "default_auth", ARG_STRING, FALSE, &ds_default_auth, "Default authentication to use" }
+    { "connection name", ARG_STRING, true, &ds_connection_name, "Name of the connection" },
+    { "host", ARG_STRING, true, &ds_host, "Host to connect to" },
+    { "user", ARG_STRING, false, &ds_user, "User to connect as" },
+    { "passsword", ARG_STRING, false, &ds_password, "Password used when connecting" },
+    { "database", ARG_STRING, false, &ds_database, "Database to select after connect" },
+    { "port", ARG_STRING, false, &ds_port, "Port to connect to" },
+    { "socket", ARG_STRING, false, &ds_sock, "Socket to connect with" },
+    { "options", ARG_STRING, false, &ds_options, "Options to use while connecting" },
+    { "default_auth", ARG_STRING, false, &ds_default_auth, "Default authentication to use" }
   };
 
   DBUG_ENTER("do_connect");
@@ -6501,7 +6678,7 @@ static void do_connect(struct st_command *command)
   }
 #else
   /* keep the compiler happy about con_ssl */
-  con_ssl = con_ssl ? TRUE : FALSE;
+  con_ssl = con_ssl ? true : false;
 #endif
   SSL_SET_OPTIONS(&con_slot->mysql);
 #if defined(HAVE_OPENSSL)
@@ -6713,7 +6890,7 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
   const char *expr_start, *expr_end;
   VAR v;
   const char *cmd_name= (cmd == cmd_while ? "while" : "if");
-  bool not_expr= FALSE;
+  bool not_expr= false;
   DBUG_ENTER("do_block");
   DBUG_PRINT("enter", ("%s", cmd_name));
 
@@ -6730,7 +6907,7 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
     /* Inner block should be ignored too */
     cur_block++;
     cur_block->cmd= cmd;
-    cur_block->ok= FALSE;
+    cur_block->ok= false;
     cur_block->delim[0]= '\0';
     DBUG_VOID_RETURN;
   }
@@ -6746,7 +6923,7 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
   /* Check for !<expr> */
   if (*expr_start == '!')
   {
-    not_expr= TRUE;
+    not_expr= true;
     expr_start++; /* Step past the '!', then any whitespace */
     while (*expr_start && my_isspace(charset_info, *expr_start))
       expr_start++;
@@ -6851,7 +7028,7 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
       die("Impossible operator, this cannot happen");
     }
 
-    v.is_int= TRUE;
+    v.is_int= true;
     var_free()(&v2);
   } else
   {
@@ -6868,14 +7045,14 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
   {
     cur_block->ok= (v.int_val != 0);
   } else
-  /* Any non-empty string which does not begin with 0 is also TRUE */
+  /* Any non-empty string which does not begin with 0 is also true */
   {
     p= v.str_val;
     /* First skip any leading white space or unary -+ */
     while (*p && ((my_isspace(charset_info, *p) || *p == '-' || *p == '+')))
       p++;
 
-    cur_block->ok= (*p && *p != '0') ? TRUE : FALSE;
+    cur_block->ok= (*p && *p != '0') ? true : false;
   }
   
   if (not_expr)
@@ -6998,7 +7175,7 @@ static int read_line(char *buf, int size)
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
   int query_comment= 0, query_comment_start= 0, query_comment_end= 0;
-  bool have_slash= FALSE;
+  bool have_slash= false;
   
   enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
         R_COMMENT, R_LINE_START} state= R_LINE_START;
@@ -7874,7 +8051,7 @@ void str_to_file2(const char *fname, char *str, size_t size, bool append)
 
 void str_to_file(const char *fname, char *str, size_t size)
 {
-  str_to_file2(fname, str, size, FALSE);
+  str_to_file2(fname, str, size, false);
 }
 
 
@@ -8390,7 +8567,7 @@ static void run_query_normal(struct st_connection *cn, struct st_command *comman
   }
   if (!(flags & QUERY_REAP_FLAG))
   {
-    cn->pending= TRUE;
+    cn->pending= true;
     DBUG_VOID_RETURN;
   }
   
@@ -8403,7 +8580,7 @@ static void run_query_normal(struct st_connection *cn, struct st_command *comman
     if ((counter==0) && mysql_read_query_result(&cn->mysql))
     {
       /* we've failed to collect the result set */
-      cn->pending= TRUE;
+      cn->pending= true;
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
 		   mysql_sqlstate(mysql), ds);
       goto end;
@@ -8483,7 +8660,7 @@ static void run_query_normal(struct st_connection *cn, struct st_command *comman
 
 end:
 
-  cn->pending= FALSE;
+  cn->pending= false;
   /*
     We save the return code (mysql_errno(mysql)) from the last call sent
     to the server into the mysqltest builtin variable $mysql_errno. This
@@ -8981,7 +9158,7 @@ static void run_query(struct st_connection *cn, struct st_command *command, int 
   if (command->type == Q_EVAL || command->type == Q_SEND_EVAL)
   {
     init_dynamic_string(&eval_query, "", command->query_len+256, 1024);
-    do_eval(&eval_query, command->query, command->end, FALSE);
+    do_eval(&eval_query, command->query, command->end, false);
     query = eval_query.str;
     query_len = eval_query.length;
   }
@@ -9188,8 +9365,8 @@ static void display_opt_trace(struct st_connection *cn,
 
     /* Sorted trace is not readable at all, don't bother to lower case */
     /* No need to keep old values, will be reset anyway */
-    display_result_sorted= FALSE;
-    display_result_lower= FALSE;
+    display_result_sorted= false;
+    display_result_lower= false;
     run_query(cn, command, flags);
 
     dynstr_free(&query_str);
@@ -9637,7 +9814,7 @@ int main(int argc, char **argv)
   block_stack_end=
     block_stack + (sizeof(block_stack)/sizeof(struct st_block)) - 1;
   cur_block= block_stack;
-  cur_block->ok= TRUE; /* Outer block should always be executed */
+  cur_block->ok= true; /* Outer block should always be executed */
   cur_block->cmd= cmd_none;
 
   q_lines= new Q_lines(PSI_NOT_INSTRUMENTED);
@@ -9957,10 +10134,10 @@ int main(int argc, char **argv)
       case Q_FORCE_CPDIR: do_force_cpdir(command); break;
       case Q_LIST_FILES: do_list_files(command); break;
       case Q_LIST_FILES_WRITE_FILE:
-        do_list_files_write_file_command(command, FALSE);
+        do_list_files_write_file_command(command, false);
         break;
       case Q_LIST_FILES_APPEND_FILE:
-        do_list_files_write_file_command(command, TRUE);
+        do_list_files_write_file_command(command, true);
         break;
       case Q_FILE_EXIST: do_file_exist(command); break;
       case Q_WRITE_FILE: do_write_file(command); break;
@@ -9980,24 +10157,24 @@ int main(int argc, char **argv)
         do_delimiter(command);
 	break;
       case Q_DISPLAY_VERTICAL_RESULTS:
-        display_result_vertically= TRUE;
+        display_result_vertically= true;
         break;
       case Q_DISPLAY_HORIZONTAL_RESULTS:
-	display_result_vertically= FALSE;
+	display_result_vertically= false;
         break;
       case Q_SORTED_RESULT:
         /*
           Turn on sorting of result set, will be reset after next
           command
         */
-	display_result_sorted= TRUE;
+	display_result_sorted= true;
         break;
       case Q_LOWERCASE:
         /*
           Turn on lowercasing of result, will be reset after next
           command
         */
-        display_result_lower= TRUE;
+        display_result_lower= true;
         break;
       case Q_LET: do_let(command); break;
       case Q_EXPR:
@@ -10221,7 +10398,7 @@ int main(int argc, char **argv)
           init_dynamic_string(&ds_skip_msg, 0, command->query_len, 256);
 
           // Evaluate the skip message
-          do_eval(&ds_skip_msg, command->first_argument, command->end, FALSE);
+          do_eval(&ds_skip_msg, command->first_argument, command->end, false);
 
           char skip_msg[FN_REFLEN];
           strmake(skip_msg, ds_skip_msg.str, FN_REFLEN - 1);
@@ -10256,7 +10433,7 @@ int main(int argc, char **argv)
         {
           static DYNAMIC_STRING ds_to_file;
           const struct command_arg output_file_args[] = 
-            {{ "to_file", ARG_STRING, TRUE, &ds_to_file, "Output filename" }};
+            {{ "to_file", ARG_STRING, true, &ds_to_file, "Output filename" }};
           check_command_args(command, command->first_argument,
                              output_file_args, 1, ' ');
           strmake(output_file, ds_to_file.str, FN_REFLEN);
@@ -10304,8 +10481,8 @@ int main(int argc, char **argv)
       free_all_replace();
 
       /* Also reset "sorted_result" and "lowercase"*/
-      display_result_sorted= FALSE;
-      display_result_lower= FALSE;
+      display_result_sorted= false;
+      display_result_lower= false;
     }
     last_command_executed= command_executed;
 
@@ -10336,7 +10513,7 @@ int main(int argc, char **argv)
   if (parsing_disabled)
     die("Test ended with parsing disabled");
 
-  bool empty_result= FALSE;
+  bool empty_result= false;
   
   /*
     The whole test has been executed _sucessfully_.
@@ -10376,7 +10553,7 @@ int main(int argc, char **argv)
     }
     else 
     {
-      empty_result= TRUE;  /* Meaning empty was expected */
+      empty_result= true;  /* Meaning empty was expected */
     }
   }
 
@@ -10514,7 +10691,7 @@ void do_get_replace_numeric_round(struct st_command *command)
 {
   DYNAMIC_STRING ds_round;
   const struct command_arg numeric_arg =
-    { "precision", ARG_STRING, TRUE, &ds_round,
+    { "precision", ARG_STRING, true, &ds_round,
       "Number of decimal precision"};
   DBUG_ENTER("get_replace_numeric_round");
 
@@ -10652,9 +10829,9 @@ void replace_numeric_round_append(int round, DYNAMIC_STRING* result,
 struct POINTER_ARRAY
 {		/* when using array-strings */
   TYPELIB typelib;				/* Pointer to strings */
-  uchar	*str;					/* Strings is here */
-  uint8 *flag;					/* Flag about each var. */
-  uint	array_allocs,max_count,length,max_length;
+  uchar	*str{nullptr};					/* Strings is here */
+  uint8 *flag{nullptr};					/* Flag about each var. */
+  uint	array_allocs{0},max_count{0},length{0},max_length{0};
 };
 
 REPLACE *init_replace(char * *from, char * *to, uint count,
@@ -10681,8 +10858,6 @@ void do_get_replace(struct st_command *command)
 
   free_replace();
 
-  memset(&to_array, 0, sizeof(to_array));
-  memset(&from_array, 0, sizeof(from_array));
   if (!*from)
     die("Missing argument in %s", command->query);
   start= buff= (char*)my_malloc(PSI_NOT_INSTRUMENTED,

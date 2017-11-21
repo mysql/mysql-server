@@ -1,4 +1,0 @@
-How to run.
-===========
-
-./mysql-test-run.pl --suite=rpl_many_mysqlds --parallel=1

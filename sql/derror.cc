@@ -28,6 +28,7 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
@@ -105,7 +106,6 @@ const char* ER_THD(const THD *thd, int mysql_errno)
 }
 
 
-C_MODE_START
 const char *get_server_errmsgs(int mysql_errno)
 {
   if (current_thd)
@@ -125,7 +125,6 @@ const char *get_server_errmsgs(int mysql_errno)
 
   return nullptr;
 }
-C_MODE_END
 
 
 bool init_errmessage()
@@ -319,4 +318,5 @@ open_err:
 void MY_LOCALE_ERRMSGS::destroy()
 {
   my_free(errmsgs);
+  errmsgs= nullptr;
 }

@@ -38,6 +38,7 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_file_bits.h"
 #include "mysql/components/services/psi_memory_bits.h"
@@ -142,7 +143,7 @@ int Persisted_variables_cache::init(int *argc, char ***argv)
 #endif
 
   int temp_argc= *argc;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   char *ptr, **res, *datadir= NULL;
   char dir[FN_REFLEN]= { 0 };
   const char *dirs= NULL;
@@ -165,9 +166,9 @@ int Persisted_variables_cache::init(int *argc, char ***argv)
   res= (char **) (ptr);
   memcpy((uchar *) res, (char *) (*argv), (*argc) * sizeof(char *));
 
-  my_getopt_skip_unknown= TRUE;
+  my_getopt_skip_unknown= true;
   if (my_handle_options(&temp_argc, &res, persist_options,
-                        NULL, NULL, TRUE))
+                        NULL, NULL, true))
   {
     free_root(&alloc, MYF(0));
     return 1;
@@ -329,8 +330,8 @@ const char* Persisted_variables_cache::get_variable_name(sys_var *system_var)
   stream to persisted config file
 
   @return Error state
-    @retval TRUE An error occurred
-    @retval FALSE Success
+    @retval true An error occurred
+    @retval false Success
 */
 bool Persisted_variables_cache::flush_to_file()
 {
@@ -430,8 +431,8 @@ bool Persisted_variables_cache::flush_to_file()
 
   @param [in] flag    File open mode
   @return Error state
-    @retval TRUE An error occurred
-    @retval FALSE Success
+    @retval true An error occurred
+    @retval false Success
 */
 bool Persisted_variables_cache::open_persist_file(int flag)
 {
@@ -454,8 +455,8 @@ void Persisted_variables_cache::close_persist_file()
   load_persist_file() read persisted config file
 
   @return Error state
-    @retval TRUE An error occurred
-    @retval FALSE Success
+    @retval true An error occurred
+    @retval false Success
 */
 bool Persisted_variables_cache::load_persist_file()
 {
@@ -471,12 +472,12 @@ bool Persisted_variables_cache::load_persist_file()
   persisted_globals_load is set to false
 
    @param [in] plugin_options      Flag which tells what options are being set.
-                                   If set to FALSE non plugin variables are set
+                                   If set to false non plugin variables are set
                                    else plugin variables are set
 
   @return Error state
-    @retval TRUE An error occurred
-    @retval FALSE Success
+    @retval true An error occurred
+    @retval false Success
 */
 bool Persisted_variables_cache::set_persist_options(bool plugin_options)
 {
@@ -712,6 +713,17 @@ int Persisted_variables_cache::read_persist_file()
         while (!ro_iter.empty())
         {
           const std::string key= ro_iter.elt().first;
+          if (ro_iter.elt().second.is_dom())
+          {
+            Json_dom *key_value_type= reinterpret_cast<Json_string* >
+              (ro_iter.elt().second.to_dom(NULL));
+            if (key_value_type &&
+              key_value_type->json_type() != enum_json_type::J_STRING)
+            {
+              LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
+              return 1;
+            }
+          }
           const std::string key_value= ro_iter.elt().second.get_data();
           m_persist_ro_variables[key]= key_value;
           ro_iter.next();
@@ -720,6 +732,18 @@ int Persisted_variables_cache::read_persist_file()
     }
     else
     {
+      if (iter.elt().second.is_dom())
+      {
+        /* ensure that key value is string type */
+        Json_dom *key_value_type= reinterpret_cast<Json_string* >
+          (iter.elt().second.to_dom(NULL));
+        if (key_value_type &&
+          key_value_type->json_type() != enum_json_type::J_STRING)
+        {
+          LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
+          return 1;
+        }
+      }
       const std::string key_value= iter.elt().second.get_data();
       st_persist_var persist_var(key, key_value);
       m_persist_variables.push_back(persist_var);
@@ -740,7 +764,7 @@ int Persisted_variables_cache::read_persist_file()
   @param [in] argc                      Pointer to argc of original program
   @param [in] argv                      Pointer to argv of original program
   @param [in] plugin_options            This flag tells wether options are handled
-                                        during plugin install. If set to TRUE
+                                        during plugin install. If set to true
                                         options are handled as part of install
                                         plugin.
 
@@ -825,7 +849,7 @@ err:
   @param [in] thd                     Pointer to connection handle.
   @param [in] name                    Name of variable to remove, if NULL all
                                       variables are removed from config file.
-  @param [in] if_exists               Bool value when set to TRUE reports
+  @param [in] if_exists               Bool value when set to true reports
                                       warning else error if variable is not
                                       present in the config file.
 

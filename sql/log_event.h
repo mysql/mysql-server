@@ -62,6 +62,7 @@
 #include "sql_string.h"
 #include "statement_events.h"
 #include "typelib.h"                 // TYPELIB
+#include "uuid.h"
 
 class String;
 class THD;
@@ -114,10 +115,8 @@ typedef bool (*read_log_event_filter_function)(char** buf,
                                                const Format_description_log_event*);
 #endif
 
-extern "C" {
 extern PSI_memory_key key_memory_Incident_log_event_message;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
-}
 extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;
 
 /* Forward declarations */
@@ -1001,9 +1000,9 @@ public:
   /**
      Is called from get_mts_execution_mode() to
 
-     @return TRUE  if the event needs applying with synchronization
+     @return true  if the event needs applying with synchronization
                    agaist Workers, otherwise
-             FALSE
+             false
 
      @note There are incompatile combinations such as referred further events
            are wrapped with BEGIN/COMMIT. Such cases should be identified
@@ -1174,7 +1173,7 @@ public:
 
 
   /**
-     @return TRUE  if events carries partitioning data (database names).
+     @return true  if events carries partitioning data (database names).
   */
   bool contains_partition_info(bool);
 
@@ -1186,9 +1185,9 @@ public:
   virtual uint8 mts_number_dbs() { return 1; }
 
   /**
-    @return TRUE  if the terminal event of a group is marked to
-                  execute in isolation from other Workers,
-            FASE  otherwise
+    @return true   if the terminal event of a group is marked to
+                   execute in isolation from other Workers,
+            false  otherwise
   */
   bool is_mts_group_isolated() { return common_header->flags &
                                         LOG_EVENT_MTS_ISOLATE_F; }
@@ -1199,14 +1198,14 @@ public:
 
      Public access is required by implementation of recovery + skip.
 
-     @return TRUE  if the event starts a group (transaction)
-             FASE  otherwise
+     @return true  if the event starts a group (transaction)
+             false otherwise
   */
 #endif
   virtual bool starts_group() const { return false; }
   /**
-     @return TRUE  if the event ends a group (transaction)
-             FASE  otherwise
+     @return true  if the event ends a group (transaction)
+             false otherwise
   */
   virtual bool ends_group() const { return false; }
 #ifdef MYSQL_SERVER
@@ -1438,7 +1437,7 @@ public:
 
   Query_log_event(THD* thd_arg, const char* query_arg, size_t query_length,
                   bool using_trans, bool immediate, bool suppress_use,
-                  int error, bool ignore_command= FALSE);
+                  int error, bool ignore_command= false);
   const char* get_db() override { return db; }
 
   /**
@@ -1506,7 +1505,7 @@ public:
   }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file) override;
-  virtual bool write_post_header_for_derived(IO_CACHE*) { return FALSE; }
+  virtual bool write_post_header_for_derived(IO_CACHE*) { return false; }
 #endif
 
   /*
@@ -3795,7 +3794,7 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
   return         
     my_b_copy_to_file(cache, file) ||
     (flush_stream ? (fflush(file) || ferror(file)) : 0) ||
-    reinit_io_cache(cache, WRITE_CACHE, 0, FALSE, TRUE);
+    reinit_io_cache(cache, WRITE_CACHE, 0, false, true);
 }
 
 #ifdef MYSQL_SERVER
@@ -4316,7 +4315,7 @@ public:
   /**
    Return true if transaction has GTID_NEXT specified, false otherwise.
    */
-  bool is_gtid_specified() { return gtid_specified == TRUE; };
+  bool is_gtid_specified() { return gtid_specified == true; };
 };
 
 /**

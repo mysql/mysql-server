@@ -21,6 +21,8 @@
 #ifndef NGS_SOCKET_INTERFACE_H_
 #define NGS_SOCKET_INTERFACE_H_
 
+#include "mysql/components/services/psi_socket_bits.h"
+#include "mysql/psi/mysql_socket.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "violite.h"
 

@@ -64,9 +64,6 @@ struct is_fraction_lesser
     {
         typedef strategy::side::detail::multiplicable_integral<T> mul_t;
 
-        // T const l = n0 * d1;
-        // T const r = n1 * d0;
-
         mul_t const ll = mul_t(n0) * mul_t(d1);
         mul_t const rr = mul_t(n1) * mul_t(d0);
 

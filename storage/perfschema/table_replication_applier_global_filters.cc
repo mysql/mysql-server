@@ -25,14 +25,17 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "sql/plugin_table.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multisource replication */
 #include "sql/rpl_rli.h"
 #include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
+#include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/table_helper.h"
 
 THR_LOCK table_replication_applier_global_filters::m_table_lock;
 
@@ -97,9 +100,9 @@ table_replication_applier_global_filters::reset_position(void)
 ha_rows
 table_replication_applier_global_filters::get_row_count()
 {
-  global_rpl_filter->rdlock();
-  uint count = global_rpl_filter->get_filter_count();
-  global_rpl_filter->unlock();
+  rpl_global_filter.rdlock();
+  uint count = rpl_global_filter.get_filter_count();
+  rpl_global_filter.unlock();
 
   return count;
 }
@@ -110,11 +113,11 @@ table_replication_applier_global_filters::rnd_next(void)
   int res = HA_ERR_END_OF_FILE;
   Rpl_pfs_filter *rpl_pfs_filter = NULL;
 
-  global_rpl_filter->wrlock();
+  rpl_global_filter.rdlock();
   for (m_pos.set_at(&m_next_pos); res != 0; m_pos.next())
   {
     /* Get ith rpl_pfs_filter from global replication filters. */
-    rpl_pfs_filter = global_rpl_filter->get_global_filter_at_pos(m_pos.m_index);
+    rpl_pfs_filter = rpl_global_filter.get_filter_at_pos(m_pos.m_index);
 
     if (rpl_pfs_filter == NULL)
     {
@@ -127,7 +130,7 @@ table_replication_applier_global_filters::rnd_next(void)
       res = 0;
     }
   }
-  global_rpl_filter->unlock();
+  rpl_global_filter.unlock();
 
   return res;
 }
@@ -139,16 +142,16 @@ table_replication_applier_global_filters::rnd_pos(const void *pos)
   Rpl_pfs_filter *rpl_pfs_filter = NULL;
   set_position(pos);
 
-  global_rpl_filter->wrlock();
+  rpl_global_filter.rdlock();
   /* Get ith rpl_pfs_filter from global replication filters. */
   rpl_pfs_filter =
-    global_rpl_filter->get_global_filter_at_pos(m_pos.m_index - 1);
+    rpl_global_filter.get_filter_at_pos(m_pos.m_index - 1);
   if (rpl_pfs_filter)
   {
     make_row(rpl_pfs_filter);
     res = 0;
   }
-  global_rpl_filter->unlock();
+  rpl_global_filter.unlock();
 
   return res;
 }
@@ -168,10 +171,10 @@ table_replication_applier_global_filters::make_row(
     m_row.filter_rule.copy(rpl_pfs_filter->get_filter_rule());
 
   m_row.configured_by =
-    rpl_pfs_filter->m_rpl_filter_statistics.get_configured_by();
+    rpl_pfs_filter->get_rpl_filter_statistics()->get_configured_by();
 
   m_row.active_since =
-    rpl_pfs_filter->m_rpl_filter_statistics.get_active_since();
+    rpl_pfs_filter->get_rpl_filter_statistics()->get_active_since();
 
   m_row_exists = true;
 }

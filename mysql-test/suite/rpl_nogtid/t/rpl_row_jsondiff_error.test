@@ -69,6 +69,8 @@
 
 --echo # Configure partial JSON on master
 --source include/rpl_connection_master.inc
+SET @old_binlog_row_image= @@SESSION.BINLOG_ROW_IMAGE;
+SET @old_binlog_row_value_options= @@SESSION.BINLOG_ROW_VALUE_OPTIONS;
 SET @@SESSION.BINLOG_ROW_IMAGE = 'MINIMAL';
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 
@@ -256,5 +258,13 @@ while ($mode < 3)
 
   --inc $mode
 }
+
+--source include/rpl_connection_master.inc
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
+SET @@SESSION.BINLOG_ROW_IMAGE= @old_binlog_row_image;
+--source include/end_replace_combination.inc
+
+--source include/rpl_connection_slave.inc
+--source include/end_replace_combination.inc
 
 --source include/rpl_end.inc

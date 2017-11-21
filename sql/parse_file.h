@@ -21,7 +21,6 @@
 
 #include "lex_string.h"
 #include "my_inttypes.h"
-#include "sql/sql_alloc.h"              // Sql_alloc
 
 struct MEM_ROOT;
 
@@ -86,7 +85,7 @@ class File_parser;
 File_parser *sql_parse_prepare(const LEX_STRING *file_name,
 			       MEM_ROOT *mem_root, bool bad_format_errors);
 
-class File_parser: public Sql_alloc
+class File_parser
 {
   const char *start, *end;
   LEX_STRING file_type;

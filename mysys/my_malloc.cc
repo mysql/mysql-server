@@ -22,6 +22,7 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "memory_debugging.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -41,7 +42,7 @@ struct PSI_thread;
 
 static void *my_raw_malloc(size_t size, myf my_flags);
 static void my_raw_free(void *ptr);
-extern "C" void my_free(void *ptr);
+extern void my_free(void *ptr);
 
 #ifdef USE_MALLOC_WRAPPER
 struct my_memory_header
@@ -61,7 +62,7 @@ typedef struct my_memory_header my_memory_header;
 #define HEADER_TO_USER(P) \
   ( ((char*) P) + HEADER_SIZE )
 
-extern "C" void * my_malloc(PSI_memory_key key, size_t size, myf flags)
+void * my_malloc(PSI_memory_key key, size_t size, myf flags)
 {
   my_memory_header *mh;
   size_t raw_size;
@@ -83,8 +84,7 @@ extern "C" void * my_malloc(PSI_memory_key key, size_t size, myf flags)
   return NULL;
 }
 
-extern "C" void *
-my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags)
+void * my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags)
 {
   my_memory_header *old_mh;
   size_t old_size;
@@ -123,7 +123,7 @@ my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags)
   return NULL;
 }
 
-extern "C" void my_claim(const void *ptr)
+void my_claim(const void *ptr)
 {
   my_memory_header *mh;
 
@@ -135,7 +135,7 @@ extern "C" void my_claim(const void *ptr)
   mh->m_key= PSI_MEMORY_CALL(memory_claim)(mh->m_key, mh->m_size, & mh->m_owner);
 }
 
-extern "C" void my_free(void *ptr)
+void my_free(void *ptr)
 {
   my_memory_header *mh;
 
@@ -153,26 +153,24 @@ extern "C" void my_free(void *ptr)
 
 #else
 
-extern "C" void *my_malloc(PSI_memory_key key MY_ATTRIBUTE((unused)),
-                           size_t size, myf my_flags)
+void *my_malloc(PSI_memory_key key MY_ATTRIBUTE((unused)), size_t size, myf my_flags)
 {
   return my_raw_malloc(size, my_flags);
 }
 
 static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags);
 
-extern "C" void *my_realloc(PSI_memory_key key MY_ATTRIBUTE((unused)),
-                            void *ptr, size_t size, myf flags)
+void *my_realloc(PSI_memory_key key MY_ATTRIBUTE((unused)), void *ptr, size_t size, myf flags)
 {
   return my_raw_realloc(ptr, size, flags);
 }
 
-extern "C" void my_claim(const void *ptr MY_ATTRIBUTE((unused)))
+void my_claim(const void *ptr MY_ATTRIBUTE((unused)))
 {
   /* Empty */
 }
 
-extern "C" void my_free(void *ptr)
+void my_free(void *ptr)
 {
   my_raw_free(ptr);
 }
@@ -311,8 +309,7 @@ static void my_raw_free(void *ptr)
 }
 
 
-extern "C" void *my_memdup(PSI_memory_key key, const void *from,
-                           size_t length, myf my_flags)
+void *my_memdup(PSI_memory_key key, const void *from, size_t length, myf my_flags)
 {
   void *ptr;
   if ((ptr= my_malloc(key, length, my_flags)) != 0)
@@ -321,7 +318,7 @@ extern "C" void *my_memdup(PSI_memory_key key, const void *from,
 }
 
 
-extern "C" char *my_strdup(PSI_memory_key key, const char *from, myf my_flags)
+char *my_strdup(PSI_memory_key key, const char *from, myf my_flags)
 {
   char *ptr;
   size_t length= strlen(from)+1;
@@ -331,8 +328,7 @@ extern "C" char *my_strdup(PSI_memory_key key, const char *from, myf my_flags)
 }
 
 
-extern "C" char *my_strndup(PSI_memory_key key, const char *from,
-                            size_t length, myf my_flags)
+char *my_strndup(PSI_memory_key key, const char *from, size_t length, myf my_flags)
 {
   char *ptr;
   if ((ptr= (char*) my_malloc(key, length+1, my_flags)))

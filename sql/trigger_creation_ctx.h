@@ -23,7 +23,6 @@
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "sql/sp_head.h" // Stored_program_creation_ctx
-#include "sql/sql_alloc.h"
 #include "sql/thr_malloc.h"
 
 class Object_creation_ctx;
@@ -33,8 +32,7 @@ class THD;
   Trigger_creation_ctx -- creation context of triggers.
 */
 
-class Trigger_creation_ctx : public Stored_program_creation_ctx,
-                             public Sql_alloc
+class Trigger_creation_ctx : public Stored_program_creation_ctx
 {
 public:
   static Trigger_creation_ctx *create(THD *thd,

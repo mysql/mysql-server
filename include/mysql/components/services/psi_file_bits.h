@@ -302,6 +302,17 @@ typedef void (*start_file_close_wait_v1_t)(struct PSI_file_locker *locker,
 typedef void (*end_file_close_wait_v1_t)(struct PSI_file_locker *locker,
                                          int rc);
 
+ /**
+  Rename a file instrumentation close operation.
+  @param locker the file locker.
+  @param old_name name of the file to be renamed.
+  @param new_name name of the file after rename.
+  @param rc the rename operation return code (0 for success).
+*/
+typedef void (*end_file_rename_wait_v1_t)(struct PSI_file_locker *locker,
+                                          const char *old_name,
+                                          const char *new_name, int rc);
+
 typedef struct PSI_file_info_v1 PSI_file_info;
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 

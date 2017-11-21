@@ -144,8 +144,9 @@ MYSQL_ADD_EXECUTABLE(ndb_config
 TARGET_LINK_LIBRARIES(ndb_config ndbclient_static)
 
 # Build ndbinfo_sql and run it to create ndbinfo.sql
-ADD_EXECUTABLE(ndbinfo_sql
+MYSQL_ADD_EXECUTABLE(ndbinfo_sql
   ndbinfo_sql.cpp
+  SKIP_INSTALL
 )
 TARGET_LINK_LIBRARIES(ndbinfo_sql ndbclient_static)
 

@@ -87,8 +87,8 @@ int my_syslog(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
               enum loglevel level,
               const char *msg)
 {
-  int _level;
 #ifdef _WIN32
+  int _level= EVENTLOG_INFORMATION_TYPE;
   wchar_t buff[MAX_SYSLOG_MESSAGE_SIZE];
   wchar_t *u16buf= NULL;
   size_t nchars;
@@ -96,8 +96,21 @@ int my_syslog(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
   DBUG_ENTER("my_syslog");
 
-  _level= (level == INFORMATION_LEVEL) ? EVENTLOG_INFORMATION_TYPE :
-    (level == WARNING_LEVEL) ? EVENTLOG_WARNING_TYPE : EVENTLOG_ERROR_TYPE;
+  switch (level)
+  {
+  case INFORMATION_LEVEL:
+  case SYSTEM_LEVEL:
+    _level= EVENTLOG_INFORMATION_TYPE;
+    break;
+  case WARNING_LEVEL:
+    _level= EVENTLOG_WARNING_TYPE;
+    break;
+  case ERROR_LEVEL:
+    _level= EVENTLOG_ERROR_TYPE;
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
 
   if (hEventLog)
   {
@@ -123,10 +136,25 @@ err:
   DBUG_RETURN(-1);
 
 #else
+  int _level= LOG_INFO;
+
   DBUG_ENTER("my_syslog");
 
-  _level= (level == INFORMATION_LEVEL) ? LOG_INFO :
-    (level == WARNING_LEVEL) ? LOG_WARNING : LOG_ERR;
+  switch (level)
+  {
+  case INFORMATION_LEVEL:
+  case SYSTEM_LEVEL:
+    _level= LOG_INFO;
+    break;
+  case WARNING_LEVEL:
+    _level= LOG_WARNING;
+    break;
+  case ERROR_LEVEL:
+    _level= LOG_ERR;
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
 
   syslog(_level, "%s", msg);
   DBUG_RETURN(0);

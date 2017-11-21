@@ -83,14 +83,13 @@ page_zip_set_size(
 	page_zip_des_t*	page_zip,
 	ulint		size);
 
-#ifndef UNIV_HOTBACKUP
 /** Determine if a record is so big that it needs to be stored externally.
 @param[in]	rec_size	length of the record in bytes
 @param[in]	comp		nonzero=compact format
 @param[in]	n_fields	number of fields in the record; ignored if
 tablespace is not compressed
 @param[in]	page_size	page size
-@return FALSE if the entire record can be stored locally on the page */
+@return false if the entire record can be stored locally on the page */
 UNIV_INLINE
 ibool
 page_zip_rec_needs_ext(
@@ -110,6 +109,7 @@ page_zip_empty_size(
 	ulint	zip_size)	/*!< in: compressed page size in bytes */
 	MY_ATTRIBUTE((const));
 
+#ifndef UNIV_HOTBACKUP
 /** Check whether a tuple is too big for compressed table
 @param[in]	index	dict index object
 @param[in]	entry	entry for the index
@@ -139,7 +139,7 @@ page_zip_set_alloc(
 
 /**********************************************************************//**
 Compress a page.
-@return TRUE on success, FALSE on failure; page_zip will be left
+@return true on success, false on failure; page_zip will be left
 intact on failure. */
 ibool
 page_zip_compress(
@@ -173,7 +173,7 @@ page_zip_fields_encode(
 Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
 inconsistency is detected.
-@return TRUE on success, FALSE on failure */
+@return true on success, false on failure */
 ibool
 page_zip_decompress(
 /*================*/
@@ -188,7 +188,7 @@ page_zip_decompress(
 #ifdef UNIV_ZIP_DEBUG
 /**********************************************************************//**
 Check that the compressed and decompressed pages match.
-@return TRUE if valid, FALSE if not */
+@return true if valid, false if not */
 ibool
 page_zip_validate_low(
 /*==================*/
@@ -221,7 +221,7 @@ page_zip_max_ins_size(
 
 /**********************************************************************//**
 Determine if enough space is available in the modification log.
-@return TRUE if page_zip_write_rec() will succeed */
+@return true if page_zip_write_rec() will succeed */
 UNIV_INLINE
 ibool
 page_zip_available(
@@ -276,13 +276,13 @@ The information must already have been updated on the uncompressed page. */
 void
 page_zip_write_blob_ptr(
 /*====================*/
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
-	const byte*	rec,	/*!< in/out: record whose data is being
-				written */
-	dict_index_t*	index,	/*!< in: index of the page */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	ulint		n,	/*!< in: column index */
-	mtr_t*		mtr);	/*!< in: mini-transaction handle,
+	page_zip_des_t*		page_zip,/*!< in/out: compressed page */
+	const byte*		rec,	/*!< in/out: record whose data is being
+					written */
+	const dict_index_t*	index,	/*!< in: index of the page */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	ulint			n,	/*!< in: column index */
+	mtr_t*			mtr);	/*!< in: mini-transaction handle,
 				or NULL if no logging is needed */
 
 /***********************************************************//**
@@ -410,7 +410,7 @@ IMPORTANT: if page_zip_reorganize() is invoked on a leaf page of a
 non-clustered index, the caller must update the insert buffer free
 bits in the same mini-transaction in such a way that the modification
 will be redo-logged.
-@return TRUE on success, FALSE on failure; page_zip will be left
+@return true on success, false on failure; page_zip will be left
 intact on failure, but page will be overwritten. */
 ibool
 page_zip_reorganize(
@@ -421,7 +421,6 @@ page_zip_reorganize(
 				m_start, m_end, m_nonempty */
 	dict_index_t*	index,	/*!< in: index of the B-tree node */
 	mtr_t*		mtr);	/*!< in: mini-transaction */
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Copy the records of a page byte for byte.  Do not copy the page header
 or trailer, except those B-tree header fields that are directly
@@ -438,6 +437,7 @@ page_zip_copy_recs(
 	const page_t*		src,		/*!< in: page */
 	dict_index_t*		index,		/*!< in: index of the B-tree */
 	mtr_t*			mtr);		/*!< in: mini-transaction */
+#ifndef UNIV_HOTBACKUP
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
@@ -481,6 +481,7 @@ page_zip_parse_compress_no_data(
 	page_zip_des_t*	page_zip,
 	dict_index_t*	index);
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Reset the counters used for filling
 INFORMATION_SCHEMA.innodb_cmp_per_index. */
@@ -493,6 +494,7 @@ page_zip_reset_stat_per_index();
 # undef UNIV_INLINE
 # define UNIV_INLINE	UNIV_INLINE_ORIGINAL
 #endif
+#endif /* !UNIV_HOTBACKUP */
 
 # include "page0zip.ic"
 

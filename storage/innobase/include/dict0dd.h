@@ -26,29 +26,32 @@ Data dictionary interface */
 #include "dict0dict.h"
 #include "dict0types.h"
 #include "dict0mem.h"
-#include <dd/properties.h>
-#include "sess0sess.h"
+#ifndef UNIV_HOTBACKUP
+# include <dd/properties.h>
+# include "sess0sess.h"
 
-#include "dd/dd.h"
-#include "dd/dictionary.h"
-#include "dd/cache/dictionary_client.h"
-#include "dd/properties.h"
-#include "dd/dd_table.h"
-#include "dd/dd_schema.h"
-#include "dd/types/table.h"
-#include "dd/types/index.h"
-#include "dd/types/column.h"
-#include "dd/types/index_element.h"
-#include "dd/types/partition.h"
-#include "dd/types/partition_index.h"
-#include "dd/types/object_type.h"
-#include "dd/types/tablespace.h"
-#include "dd/types/tablespace_file.h"
-#include "dd_table_share.h"
-#include "dd/types/foreign_key.h"
-#include "dd/types/foreign_key_element.h"
+# include "dd/dd.h"
+# include "dd/dictionary.h"
+# include "dd/cache/dictionary_client.h"
+# include "dd/properties.h"
+# include "dd/dd_table.h"
+# include "dd/dd_schema.h"
+# include "dd/types/table.h"
+# include "dd/types/index.h"
+# include "dd/types/column.h"
+# include "dd/types/index_element.h"
+# include "dd/types/partition.h"
+# include "dd/types/partition_index.h"
+# include "dd/types/object_type.h"
+# include "dd/types/tablespace.h"
+# include "dd/types/tablespace_file.h"
+# include "dd_table_share.h"
+# include "dd/types/foreign_key.h"
+# include "dd/types/foreign_key_element.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "mysql_version.h"
 
+#ifndef UNIV_HOTBACKUP
 class THD;
 class MDL_ticket;
 
@@ -56,11 +59,20 @@ class MDL_ticket;
 static constexpr char handler_name[] = "InnoDB";
 
 static const char innobase_hton_name[]= "InnoDB";
+#endif /* !UNIV_HOTBACKUP */
 
+/** Postfix for a table name which is being altered. Since during
+ALTER TABLE ... PARTITION, new partitions have to be created before
+dropping existing partitions, so a postfix is appended to the name
+to prevent name conflicts. This is also used for EXCHANGE PARTITION */
+static constexpr char TMP_POSTFIX[] = "#tmp";
+
+/** Max space name length */
 #define	MAX_SPACE_NAME_LEN	((4 * NAME_LEN) + strlen(part_sep)	\
-				 + strlen(sub_sep) + strlen("#tmp"))
+				 + strlen(sub_sep) + strlen(TMP_POSTFIX))
 
-/* Maximum hardcoded data dictionary tables. */
+#ifndef UNIV_HOTBACKUP
+/** Maximum hardcoded data dictionary tables. */
 #define DICT_MAX_DD_TABLES	1024
 
 /** InnoDB private keys for dd::Table */
@@ -76,6 +88,7 @@ enum dd_table_keys {
 	/** Sentinel */
 	DD_TABLE__LAST
 };
+#endif /* !UNIV_HOTBACKUP */
 
 /** Server version that the tablespace created */
 const uint32  DD_SPACE_CURRENT_SRV_VERSION = MYSQL_VERSION_ID;
@@ -83,6 +96,7 @@ const uint32  DD_SPACE_CURRENT_SRV_VERSION = MYSQL_VERSION_ID;
 /** The tablespace version that the tablespace created */
 const uint32  DD_SPACE_CURRENT_SPACE_VERSION = 1;
 
+#ifndef UNIV_HOTBACKUP
 /** InnoDB private keys for dd::Partition */
 enum dd_partition_keys {
 	/** Row format for this partition */
@@ -715,6 +729,7 @@ dd_table_open_on_dd_obj(
 	const char*			tbl_name,
 	dict_table_t*&			table,
 	THD*				thd);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Open a persistent InnoDB table based on table id.
 @param[in]	table_id		table identifier
@@ -744,6 +759,7 @@ dd_table_close(
 	MDL_ticket**	mdl,
 	bool		dict_locked);
 
+#ifndef UNIV_HOTBACKUP
 /** Set the discard flag for a dd table.
 @param[in,out]	thd	current thread
 @param[in]	table	InnoDB table
@@ -830,6 +846,7 @@ dd_rename_tablespace(
 	dd::Object_id	dd_space_id,
 	const char*	new_space_name,
 	const char*	new_path);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Parse the tablespace name from filename charset to table name charset
 @param[in]      space_name      tablespace name
@@ -840,6 +857,7 @@ dd_filename_to_spacename(
 	const char*		space_name,
 	std::string*		tablespace_name);
 
+#ifndef UNIV_HOTBACKUP
 /* Create metadata for specified tablespace, acquiring exlcusive MDL first
 @param[in,out]	dd_client	data dictionary client
 @param[in,out]	thd		THD
@@ -902,15 +920,17 @@ MY_ATTRIBUTE((warn_unused_result))
 innodb_session_t*&
 thd_to_innodb_session(
 	THD*	thd);
+#endif /* !UNIV_HOTBACKUP */
 
-/** Parse a table file name into table name and database name
+/** Parse a table file name into table name and database name.
+Note the table name may have trailing TMP_POSTFIX for temporary table name.
 @param[in]	tbl_name	table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
 @param[in,out]	dd_tbl_name	table name buffer to be filled
 @param[in,out]	dd_part_name	partition name to be filled if not nullptr
 @param[in,out]	dd_sub_name	sub-partition name to be filled it not nullptr
-@param[in,out]	is_temp_part	true if it is a temporary partition name which
-				ends with "#tmp".
+@param[in,out]	is_temp		true if it is a temporary table name which
+				ends with TMP_POSTFIX.
 @return	true if table name is parsed properly, false if the table name
 is invalid */
 UNIV_INLINE
@@ -921,8 +941,9 @@ dd_parse_tbl_name(
 	char*		dd_tbl_name,
 	char*		dd_part_name,
 	char*		dd_sub_name,
-	bool*		is_temp_part);
+	bool*		is_temp);
 
+#ifndef UNIV_HOTBACKUP
 /** Look up a column in a table using the system_charset_info collation.
 @param[in]	dd_table	data dictionary table
 @param[in]	name		column name
@@ -1096,6 +1117,17 @@ dd_tablespace_set_discard(
 bool
 dd_tablespace_get_discard(
 	const dd::Tablespace*	dd_space);
+#endif /* !UNIV_HOTBACKUP */
+
+/** Update all InnoDB tablespace cache objects. This step is done post
+dictionary trx rollback, binlog recovery and DDL_LOG apply. So DD is consistent.
+Update the cached tablespace objects, if they differ from dictionary
+@param[in,out]	thd	thread handle
+@retval	true	on error
+@retval	false	on success */
+MY_ATTRIBUTE((warn_unused_result))
+bool
+dd_tablespace_update_cache(THD* thd);
 
 #include "dict0dd.ic"
 #endif

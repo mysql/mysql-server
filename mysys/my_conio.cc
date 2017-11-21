@@ -17,10 +17,11 @@
   @file mysys/my_conio.cc
 */
 
+#ifdef _WIN32
+
+#include "m_ctype.h"
 #include "my_dbug.h"
 #include "mysys_priv.h"
-
-#ifdef _WIN32
 
 extern CHARSET_INFO my_charset_utf16le_bin;
 

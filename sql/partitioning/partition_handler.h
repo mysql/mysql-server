@@ -35,7 +35,6 @@
 #include "priority_queue.h"
 #include "sql/handler.h"          // Handler_share
 #include "sql/key.h"              // key_rec_cmp
-#include "sql/sql_alloc.h"
 #include "sql/sql_partition.h"    // part_id_range
 
 class Field;
@@ -190,7 +189,7 @@ private:
 
   Returned from handler::get_partition_handler().
 */
-class Partition_handler :public Sql_alloc
+class Partition_handler
 {
 public:
   Partition_handler() {}
@@ -394,7 +393,7 @@ struct Key_rec_less
   - *_in_part() functions for row operations.
   - write_row_in_new_part() for handling 'fast' alter partition.
 */
-class Partition_helper : public Sql_alloc
+class Partition_helper
 {
   typedef Priority_queue<uchar *, std::vector<uchar*>, Key_rec_less> Prio_queue;
 public:
@@ -960,7 +959,7 @@ private:
     Find out which partitions we'll need to read when scanning the specified
     range.
 
-    If we need to scan only one partition, set m_ordered_scan_ongoing=FALSE
+    If we need to scan only one partition, set m_ordered_scan_ongoing=false
     as we will not need to do merge ordering.
 
     @param buf            Buffer to later return record in (this function
@@ -1062,10 +1061,10 @@ private:
     Common routine for a number of index_read variants.
 
     @param[out] buf             Buffer where the record should be returned.
-    @param[in]  have_start_key  TRUE <=> the left endpoint is available, i.e.
+    @param[in]  have_start_key  true <=> the left endpoint is available, i.e.
                                 we're in index_read call or in read_range_first
                                 call and the range has left endpoint.
-                                FALSE <=> there is no left endpoint (we're in
+                                false <=> there is no left endpoint (we're in
                                 read_range_first() call and the range has no
                                 left endpoint).
 

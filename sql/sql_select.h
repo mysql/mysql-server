@@ -39,7 +39,6 @@
 #include "sql/item_cmpfunc.h"         // Item_cond_and
 #include "sql/opt_costmodel.h"
 #include "sql/set_var.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"            // THD
 #include "sql/sql_cmd_dml.h"          // Sql_cmd_dml
@@ -57,6 +56,8 @@ class QEP_TAB;
 class Query_result;
 class Temp_table_param;
 template <class T> class List;
+
+typedef ulonglong nested_join_map;
 
 class Sql_cmd_select : public Sql_cmd_dml
 {
@@ -224,8 +225,8 @@ public:
             an Item_func_trig_cond. This means the equality (and validity of
             this Key_use element) can be turned on and off. The on/off state
             is indicted by the pointed value:
-              *cond_guard == TRUE @<=@> equality condition is on
-              *cond_guard == FALSE @<=@> equality condition is off
+              *cond_guard == true @<=@> equality condition is on
+              *cond_guard == false @<=@> equality condition is off
 
     NULL  - Otherwise (the source equality can't be turned off)
 
@@ -331,7 +332,7 @@ enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
   This class has to stay a POD, because it is memcpy'd in many places.
 */
 
-struct POSITION : public Sql_alloc
+struct POSITION
 {
   /**
     The number of rows that will be fetched by the chosen access
@@ -579,7 +580,7 @@ struct POSITION : public Sql_alloc
   - a join between the result of the set of previous plan nodes and
     this plan node.
 */
-class JOIN_TAB : public Sql_alloc, public QEP_shared_owner
+class JOIN_TAB : public QEP_shared_owner
 {
 public:
   JOIN_TAB();
@@ -723,7 +724,7 @@ public:
   /** Flags from SE's MRR implementation, to be used by JOIN_CACHE */
   uint join_cache_flags;
 
-  /** TRUE <=> AM will scan backward */
+  /** true <=> AM will scan backward */
   bool reversed_access;
 
   /** Clean up associated table after query execution, including resources */
@@ -910,10 +911,10 @@ extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b);
 
 /** class to copying an field/item to a key struct */
 
-class store_key :public Sql_alloc
+class store_key
 {
 public:
-  bool null_key; /* TRUE <=> the value of the key has a null part */
+  bool null_key; /* true <=> the value of the key has a null part */
   enum store_key_result { STORE_KEY_OK, STORE_KEY_FATAL, STORE_KEY_CONV };
   store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null, uint length)
     :null_key(0), null_ptr(null), err(0)

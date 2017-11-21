@@ -27,6 +27,7 @@
 #ifndef ROWS_EVENT_INCLUDED
 #define	ROWS_EVENT_INCLUDED
 
+#include "byteorder.h"
 #include "control_events.h"
 #include "table_id.h"
 #include <vector>

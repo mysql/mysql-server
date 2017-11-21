@@ -209,6 +209,7 @@ pfs_os_file_close_func(
 	return(result);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** NOTE! Please use the corresponding macro os_aio(), not directly this
 function!
 Performance schema wrapper function of os_aio() which requests
@@ -230,7 +231,7 @@ an asynchronous i/o operation.
 				if mode is OS_AIO_SYNC
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
-@return DB_SUCCESS if request was queued successfully, FALSE if fail */
+@return DB_SUCCESS if request was queued successfully, false if fail */
 UNIV_INLINE
 dberr_t
 pfs_os_aio_func(
@@ -265,6 +266,7 @@ pfs_os_aio_func(
 
 	return(result);
 }
+#endif /* UNIV_HOTBACKUP */
 
 /** NOTE! Please use the corresponding macro os_file_read(), not directly
 this function!
@@ -533,7 +535,7 @@ Flushes the write buffers of a given file to the disk.
 @param[in]	file		Open file handle
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
-@return TRUE if success */
+@return true if success */
 UNIV_INLINE
 bool
 pfs_os_file_flush_func(
@@ -583,7 +585,7 @@ pfs_os_file_rename_func(
 
 	bool	result = os_file_rename_func(oldpath, newpath);
 
-	register_pfs_file_rename_end(locker, 0);
+	register_pfs_file_rename_end(locker, oldpath, newpath, !result);
 
 	return(result);
 }

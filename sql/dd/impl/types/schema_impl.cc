@@ -129,32 +129,6 @@ bool Schema_impl::store_attributes(Raw_record *r)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(Schemata::FIELD_LAST_ALTERED==5,
-              "Schemata definition has changed. Review (de)ser memfuns!");
-void
-Schema_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
-{
-  w->StartObject();
-  Entity_object_impl::serialize(wctx, w);
-  write(w, m_default_collation_id, STRING_WITH_LEN("default_collation_id"));
-  write(w, m_created, STRING_WITH_LEN("created"));
-  write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
-  w->EndObject();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-bool
-Schema_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
-{
-  Entity_object_impl::deserialize(rctx, val);
-  read(&m_default_collation_id, val, "default_collation_id");
-  read(&m_created, val, "created");
-  read(&m_last_altered, val, "last_altered");
-  return false;
-}
-
-///////////////////////////////////////////////////////////////////////////
 
 bool Schema::update_id_key(id_key_type *key, Object_id id)
 {

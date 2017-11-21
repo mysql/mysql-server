@@ -38,40 +38,50 @@ The database server main program
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
 
-#include <mysqld.h>
-#include <sys/types.h>
-#include <time.h>
+#ifndef UNIV_HOTBACKUP
+# include <mysqld.h>
+# include <sys/types.h>
+# include <time.h>
 
-#include "btr0sea.h"
-#include "buf0flu.h"
-#include "buf0lru.h"
-#include "dict0boot.h"
-#include "dict0load.h"
-#include "dict0stats_bg.h"
-#include "fsp0sysspace.h"
-#include "ha_prototypes.h"
+# include "btr0sea.h"
+# include "buf0flu.h"
+# include "buf0lru.h"
+# include "dict0boot.h"
+# include "dict0load.h"
+# include "dict0stats_bg.h"
+# include "fsp0sysspace.h"
+# include "ha_prototypes.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "ibuf0ibuf.h"
-#include "lock0lock.h"
-#include "log0recv.h"
-#include "mem0mem.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "my_psi_config.h"
-#include "os0proc.h"
-#include "os0thread-create.h"
-#include "pars0pars.h"
-#include "que0que.h"
-#include "row0mysql.h"
-#include "sql_thd_internal_api.h"
-#include "srv0mon.h"
+#ifndef UNIV_HOTBACKUP
+# include "lock0lock.h"
+# include "log0recv.h"
+# include "mem0mem.h"
+# include "my_dbug.h"
+# include "my_inttypes.h"
+# include "my_psi_config.h"
+# include "os0proc.h"
+# include "os0thread-create.h"
+# include "pars0pars.h"
+# include "que0que.h"
+# include "row0mysql.h"
+# include "sql_thd_internal_api.h"
+# include "srv0mon.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0sync.h"
-#include "trx0i_s.h"
-#include "trx0purge.h"
-#include "usr0sess.h"
-#include "ut0crc32.h"
+#ifndef UNIV_HOTBACKUP
+# include "trx0i_s.h"
+# include "trx0purge.h"
+# include "usr0sess.h"
+# include "ut0crc32.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "ut0mem.h"
+
+#ifdef UNIV_HOTBACKUP
+# include "page0size.h"
+#endif /* UNIV_HOTBACKUP */
 
 #ifdef INNODB_DD_TABLE
 /* true when upgrading. */
@@ -111,6 +121,7 @@ char*	srv_undo_dir = NULL;
 /** The number of tablespaces to use for rollback segments. */
 ulong	srv_undo_tablespaces = FSP_MIN_UNDO_TABLESPACES;
 
+#ifndef UNIV_HOTBACKUP
 /* The number of rollback segments per tablespace */
 ulong	srv_rollback_segments = TRX_SYS_N_RSEGS;
 
@@ -125,6 +136,7 @@ const char* deprecated_undo_logs =
 
 /** Rate at which UNDO records should be purged. */
 ulong	srv_purge_rseg_truncate_frequency = 128;
+#endif /* !UNIV_HOTBACKUP */
 
 /** Enable or Disable Truncate of UNDO tablespace.
 Note: If enabled then UNDO tablespace will be selected for truncate.
@@ -178,8 +190,10 @@ ulong	srv_debug_compress;
 bool	innodb_calling_exit;
 /** Used by SET GLOBAL innodb_master_thread_disabled_debug = X. */
 bool	srv_master_thread_disabled_debug;
+#ifndef UNIV_HOTBACKUP
 /** Event used to inform that master thread is disabled. */
 static os_event_t	srv_master_thread_disabled_event;
+#endif /* !UNIV_HOTBACKUP */
 /** Debug variable to find if any background threads are adding
 to purge during slow shutdown. */
 extern bool		trx_commit_disallowed;
@@ -319,7 +333,9 @@ NULL value when collecting statistics. By default, it is set to
 SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */
 ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
 
+#ifndef UNIV_HOTBACKUP
 srv_stats_t	srv_stats;
+#endif /* !UNIV_HOTBACKUP */
 
 /* structure to pass status variables to MySQL */
 export_var_t export_vars;
@@ -388,10 +404,12 @@ ulong	srv_n_spin_wait_rounds	= 30;
 ulong	srv_spin_wait_delay	= 6;
 ibool	srv_priority_boost	= TRUE;
 
+#ifndef UNIV_HOTBACKUP
 static ulint		srv_n_rows_inserted_old		= 0;
 static ulint		srv_n_rows_updated_old		= 0;
 static ulint		srv_n_rows_deleted_old		= 0;
 static ulint		srv_n_rows_read_old		= 0;
+#endif /* !UNIV_HOTBACKUP */
 
 ulint	srv_truncated_status_writes	= 0;
 
@@ -407,7 +425,9 @@ i/o handler thread */
 const char* srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
 const char* srv_io_thread_function[SRV_MAX_N_IO_THREADS];
 
+#ifndef UNIV_HOTBACKUP
 static time_t	srv_last_monitor_time;
+#endif /* !UNIV_HOTBACKUP */
 
 static ib_mutex_t	srv_innodb_monitor_mutex;
 
@@ -432,6 +452,7 @@ ib_mutex_t	srv_misc_tmpfile_mutex;
 /** Temporary file for miscellanous diagnostic output */
 FILE*	srv_misc_tmpfile;
 
+#ifndef UNIV_HOTBACKUP
 static ulint		srv_main_thread_process_no	= 0;
 static os_thread_id_t	srv_main_thread_id		= 0;
 
@@ -451,6 +472,7 @@ time when the last flush of log file has happened. The master
 thread ensures that we flush the log files at least once per
 second. */
 static time_t	srv_last_log_flush_time;
+#endif /* !UNIV_HOTBACKUP */
 
 /* Interval in seconds at which various tasks are performed by the
 master thread when server is active. In order to balance the workload,
@@ -477,6 +499,7 @@ current_time % 5 != 0. */
 	mutex_exit(&srv_sys->mutex);			\
 } while (0)
 
+#ifndef UNIV_HOTBACKUP
 /*
 	IMPLEMENTATION OF THE SERVER MAIN PROGRAM
 	=========================================
@@ -673,6 +696,7 @@ srv_print_master_thread_info(
 		"srv_master_thread log flush and writes: " ULINTPF "\n",
 		srv_log_writes_and_flush);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************//**
 Sets the info describing an i/o thread current state. */
@@ -699,10 +723,11 @@ srv_reset_io_thread_op_info()
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Validates the type of a thread table slot.
-@return TRUE if ok */
+@return true if ok */
 static
 ibool
 srv_thread_type_validate(
@@ -1135,7 +1160,7 @@ srv_refresh_innodb_monitor_stats(void)
 
 /******************************************************************//**
 Outputs to a file the output of the InnoDB Monitor.
-@return FALSE if not all information printed
+@return false if not all information printed
 due to failure to obtain necessary mutex */
 ibool
 srv_printf_innodb_monitor(
@@ -1857,7 +1882,7 @@ srv_get_activity_count(void)
 
 /*******************************************************************//**
 Check if there has been any activity.
-@return FALSE if no change in activity counter. */
+@return false if no change in activity counter. */
 ibool
 srv_check_activity(
 /*===============*/
@@ -2177,7 +2202,7 @@ depend on srv_fast_shutdown:
 1 => normal shutdown => clear drop table queue and make checkpoint
 0 => slow shutdown => in addition to above do complete purge and ibuf
 merge
-@return TRUE if some work was done. FALSE otherwise */
+@return true if some work was done. false otherwise */
 static
 ibool
 srv_master_do_shutdown_tasks(
@@ -3037,4 +3062,5 @@ srv_purge_threads_active()
 
 	return(false);
 }
+#endif /* !UNIV_HOTBACKUP */
 

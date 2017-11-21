@@ -48,7 +48,7 @@ struct mysql_mutex_t
     Note that this hook is not conditionally defined,
     for binary compatibility of the @c mysql_mutex_t interface.
   */
-  struct PSI_mutex *m_psi;
+  struct PSI_mutex *m_psi{nullptr};
 };
 
 /** @} (end of group psi_api_mutex) */

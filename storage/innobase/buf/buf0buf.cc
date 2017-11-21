@@ -53,7 +53,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "sync0rw.h"
 #include "trx0purge.h"
 #include "trx0undo.h"
-#endif /* !UNIV_HOTBACKUP */
 
 #include <errno.h>
 #include <stdarg.h>
@@ -74,6 +73,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "sync0sync.h"
 #include "ut0new.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef HAVE_LIBNUMA
 #include <numa.h>
@@ -2503,8 +2503,23 @@ buf_pool_clear_hash_index(void)
 					continue;
 				}
 
-				ut_ad(buf_block_get_state(block)
-				      == BUF_BLOCK_FILE_PAGE);
+				switch(buf_block_get_state(block)) {
+				case BUF_BLOCK_FILE_PAGE:
+					break;
+				case BUF_BLOCK_REMOVE_HASH:
+					/* It is possible that a parallel thread
+					might have set this state. It means AHI
+					for this block is being removed. After
+					this function, AHI entries would anyway
+					be removed. So its Ok to reset block
+					index/pointers here otherwise it would
+					be pointing to removed AHI entries. */
+					break;
+				default:
+					/* No other state should have AHI */
+					ut_ad(block->index == nullptr);
+					ut_ad(block->n_pointers == 0);
+				}
 
 # if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 				block->n_pointers = 0;
@@ -2683,7 +2698,7 @@ LRUItr::start()
 /** Determine if a block is a sentinel for a buffer pool watch.
 @param[in]	buf_pool	buffer pool instance
 @param[in]	bpage		block
-@return TRUE if a sentinel for a buffer pool watch, FALSE if not */
+@return true if a sentinel for a buffer pool watch, false if not */
 ibool
 buf_pool_watch_is_sentinel(
 	const buf_pool_t*	buf_pool,
@@ -2885,7 +2900,7 @@ buf_pool_watch_unset(
 This may only be called after buf_pool_watch_set(same_page_id)
 has returned NULL and before invoking buf_pool_watch_unset(same_page_id).
 @param[in]	page_id	page id
-@return FALSE if the given page was not read in, TRUE if it was */
+@return false if the given page was not read in, true if it was */
 ibool
 buf_pool_watch_occurred(
 	const page_id_t&	page_id)
@@ -3208,7 +3223,7 @@ buf_block_init_low(
 
 /********************************************************************//**
 Decompress a block.
-@return TRUE if successful */
+@return true if successful */
 ibool
 buf_zip_decompress(
 /*===============*/
@@ -3326,7 +3341,7 @@ buf_block_from_ahi(const byte* ptr)
 Find out if a pointer belongs to a buf_block_t. It can be a pointer to
 the buf_block_t itself or a member of it. This functions checks one of
 the buffer pool instances.
-@return TRUE if ptr belongs to a buf_block_t struct */
+@return true if ptr belongs to a buf_block_t struct */
 static
 ibool
 buf_pointer_is_block_field_instance(
@@ -3355,7 +3370,7 @@ buf_pointer_is_block_field_instance(
 
 /********************************************************************//**
 Find out if a buffer block was created by buf_chunk_init().
-@return TRUE if "block" has been added to buf_pool->free by buf_chunk_init() */
+@return true if "block" has been added to buf_pool->free by buf_chunk_init() */
 static
 ibool
 buf_block_is_uncompressed(
@@ -4050,7 +4065,7 @@ got_block:
 /********************************************************************//**
 This is the general function used to get optimistic access to a database
 page.
-@return TRUE if success */
+@return true if success */
 ibool
 buf_page_optimistic_get(
 /*====================*/
@@ -4170,7 +4185,7 @@ buf_page_optimistic_get(
 This is used to get access to a known database page, when no waiting can be
 done. For example, if a search in an adaptive hash index leads us to this
 frame.
-@return TRUE if success */
+@return true if success */
 ibool
 buf_page_get_known_nowait(
 /*======================*/
@@ -5304,7 +5319,7 @@ corrupt:
 
 /** Asserts that all file pages in the buffer are in a replaceable state.
 @param[in]	buf_pool	buffer pool instance
-@return TRUE */
+@return true */
 static
 ibool
 buf_all_freed_instance(
@@ -5420,7 +5435,7 @@ buf_pool_invalidate(void)
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Validates data in one buffer pool instance
 @param[in]	buf_pool	buffer pool instance
-@return TRUE */
+@return true */
 static
 ibool
 buf_pool_validate_instance(
@@ -5640,7 +5655,7 @@ buf_pool_validate_instance(
 
 /*********************************************************************//**
 Validates the buffer buf_pool data structure.
-@return TRUE */
+@return true */
 ibool
 buf_validate(void)
 /*==============*/
@@ -6278,7 +6293,7 @@ buf_refresh_io_stats_all(void)
 
 /**********************************************************************//**
 Check if all pages in all buffer pools are in a replacable state.
-@return FALSE if not */
+@return false if not */
 ibool
 buf_all_freed(void)
 /*===============*/
@@ -6352,13 +6367,13 @@ buf_get_free_list_len(void)
 @param[in]	page_size	page size
 @param[in,out]	block		block to init */
 void
-buf_page_init_for_backup_restore(
+meb_page_init(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	buf_block_t*		block)
 {
 	block->page.state = BUF_BLOCK_FILE_PAGE;
-	block->page.id = page_id;
+	block->page.id.copy_from(page_id);
 	block->page.size.copy_from(page_size);
 
 	page_zip_des_init(&block->page.zip);
@@ -6371,6 +6386,12 @@ buf_page_init_for_backup_restore(
 	} else {
 		page_zip_set_size(&block->page.zip, 0);
 	}
+
+	ib::trace()
+		<< "meb_page_init: block  Space: "
+		<< block->page.id.space() << " , zip_size: "
+		<< block->page.size.physical() << " unzip_size: "
+		<< block->page.size.logical() << " }\n";
 }
 
 #endif /* !UNIV_HOTBACKUP */
@@ -6384,6 +6405,7 @@ operator<<(
 	std::ostream&		out,
 	const buf_pool_t&	buf_pool)
 {
+#ifndef UNIV_HOTBACKUP
 	/* These locking requirements might be relaxed if desired */
 	ut_ad(mutex_own(&buf_pool.LRU_list_mutex));
 	ut_ad(mutex_own(&buf_pool.free_list_mutex));
@@ -6406,5 +6428,6 @@ operator<<(
 		<< ", pages read=" << buf_pool.stat.n_pages_read
 		<< ", created=" << buf_pool.stat.n_pages_created
 		<< ", written=" << buf_pool.stat.n_pages_written << "]";
+#endif /* !UNIV_HOTBACKUP */
 	return(out);
 }

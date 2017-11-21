@@ -1104,7 +1104,7 @@ public:
 
   int rli_init_info();
   void end_info();
-  int flush_info(bool force= FALSE);
+  int flush_info(bool force= false);
   int flush_current_log();
   void set_master_info(Master_info *info);
 
@@ -1221,7 +1221,7 @@ public:
   bool reported_unsafe_warning;
 
   /*
-    'sql_thread_kill_accepted is set to TRUE when killed status is recognized.
+    'sql_thread_kill_accepted is set to true when killed status is recognized.
   */
   bool sql_thread_kill_accepted;
 
@@ -1604,7 +1604,7 @@ bool mysql_show_relaylog_events(THD* thd);
 
 /**
    @param  thd a reference to THD
-   @return TRUE if thd belongs to a Worker thread and FALSE otherwise.
+   @return true if thd belongs to a Worker thread and false otherwise.
 */
 inline bool is_mts_worker(const THD *thd)
 {

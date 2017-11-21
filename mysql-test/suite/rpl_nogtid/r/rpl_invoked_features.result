@@ -102,10 +102,11 @@ INSERT INTO t11 VALUES (102,102,'');
 INSERT INTO t11 VALUES(7,7,f2(7));
 INSERT INTO t11 VALUES (103,103,'');
 
+SET @old_event_scheduler= @@global.event_scheduler;
 SET GLOBAL EVENT_SCHEDULER = on;
 ALTER EVENT e1 ENABLE;
 ALTER EVENT e11 ENABLE;
-SET GLOBAL EVENT_SCHEDULER = off;
+SET @@global.event_scheduler= @old_event_scheduler;
 
 SHOW TABLES LIKE 't%';
 Tables_in_test (t%)

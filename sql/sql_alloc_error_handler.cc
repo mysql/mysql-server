@@ -15,6 +15,7 @@
 
 #include "my_dbug.h"
 #include "my_loglevel.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
 #include "sql/log.h"

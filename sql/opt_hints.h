@@ -33,7 +33,6 @@
 #include "sql/enum_query_type.h"
 #include "sql/item_subselect.h" // Item_exists_subselect
 #include "sql/mem_root_array.h" // Mem_root_array
-#include "sql/sql_alloc.h"  // Sql_alloc
 #include "sql/sql_bitmap.h" // Bitmap
 #include "sql/sql_show.h"   // append_identifier
 #include "sql_string.h"     // String
@@ -94,7 +93,7 @@ struct st_opt_hint_info
   about hint state(specified or not, hint value).
 */
 
-class Opt_hints_map : public Sql_alloc
+class Opt_hints_map
 {
   Bitmap<64> hints;           // hint state
   Bitmap<64> hints_specified; // true if hint is specified
@@ -158,7 +157,7 @@ class PT_hint_max_execution_time;
   Hint information(specified, on|off state) is stored in hints_map object.
 */
 
-class Opt_hints : public Sql_alloc
+class Opt_hints
 {
   /*
     Name of object referred by the hint.
@@ -645,7 +644,7 @@ public:
   Container for set_var object and original variable value.
 */
 
-class Hint_set_var : public Sql_alloc
+class Hint_set_var
 {
 public:
   Hint_set_var(set_var *var_arg) : var(var_arg), save_value(NULL)
@@ -659,7 +658,7 @@ public:
   SET_VAR hints.
 */
 
-class Sys_var_hint : public Sql_alloc
+class Sys_var_hint
 {
   // List of str_var variables which need to be updated.
   Mem_root_array<Hint_set_var*> var_list;

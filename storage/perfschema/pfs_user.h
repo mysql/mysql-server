@@ -27,6 +27,7 @@
 
 #include "lf.h"
 #include "my_inttypes.h"
+#include "mysql_com.h"
 #include "storage/perfschema/pfs_con_slice.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_lock.h"

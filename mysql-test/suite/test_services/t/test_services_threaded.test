@@ -3,6 +3,9 @@
 call mtr.add_suppression("This is a warning from test plugin");
 call mtr.add_suppression("This is an error from test plugin");
 
+SET @orig_log_error_verbosity= @@global.log_error_verbosity;
+SET @@global.log_error_verbosity= 3;
+
 --echo ------ Run plugin ------------------------------------------------
 --replace_result $TESTSERVICESTHREADED TESTSERVICESTHREADED
 eval INSTALL PLUGIN test_services_threaded SONAME '$TESTSERVICESTHREADED';
@@ -19,6 +22,9 @@ source include/wait_condition.inc;
 
 --echo ------ Stop plugin -----------------------------------------------
 UNINSTALL PLUGIN test_services_threaded;
+
+# Restore log_error_verbosity
+SET @@global.log_error_verbosity= @orig_log_error_verbosity;
 
 --disable_warnings
 

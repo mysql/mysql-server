@@ -152,6 +152,32 @@ void Mysql_crawler::enumerate_database_objects(const Database& db)
   this->enumerate_event_scheduler_events(db);
 }
 
+static std::vector<std::string> ignored_tables =
+{
+  /*
+    @TODO: MYSQL_DUMP contains more exceptions,
+    investigate which one needs to be ported to MYSQL_PUMP.
+  */
+  {"mysql.innodb_ddl_log"},
+  {"mysql.innodb_dynamic_metadata"},
+  {"mysql.gtid_executed"}
+};
+
+static bool is_ignored_table(const std::string& qualified_name)
+{
+  for (std::vector<std::string>::iterator it= ignored_tables.begin();
+       it != ignored_tables.end();
+       ++it)
+  {
+    if (*it == qualified_name)
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void Mysql_crawler::enumerate_tables(const Database& db)
 {
   Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
@@ -175,6 +201,13 @@ void Mysql_crawler::enumerate_tables(const Database& db)
     const Mysql::Tools::Base::Mysql_query_runner::Row& table_data= **it;
 
     std::string table_name= table_data[0]; // "Name"
+
+    std::string qualified_name = db.get_name() + "." + table_name;
+    if (is_ignored_table(qualified_name))
+    {
+      continue;
+    }
+
     std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> fields_data;
     runner->run_query_store("SHOW COLUMNS IN " + this->quote_name(table_name)
       + " FROM " + this->quote_name(db.get_name()), &fields_data);

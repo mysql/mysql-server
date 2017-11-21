@@ -26,14 +26,15 @@
   in client code, so it has been kept out.
 */
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 typedef struct LIST
 {
+#if defined(__cplusplus) && __cplusplus >= 201103L
+  struct LIST *prev{nullptr},*next{nullptr};
+  void *data{nullptr};
+#else
   struct LIST *prev,*next;
   void *data;
+#endif
 } LIST;
 
 typedef int (*list_walk_action)(void *,void *);
@@ -50,7 +51,4 @@ extern int list_walk(LIST *,list_walk_action action,unsigned char * argument);
 #define list_push(a,b) (a)=list_cons((b),(a))
 #define list_pop(A) {LIST *old=(A); (A)=list_delete(old,old); my_free(old); }
 
-#ifdef	__cplusplus
-}
-#endif
 #endif

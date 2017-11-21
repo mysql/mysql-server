@@ -22,11 +22,7 @@ enum plugin_log_level
   MY_INFORMATION_LEVEL
 };
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-int my_plugin_log_message(void *, enum plugin_log_level, const char *, ...)
+int my_plugin_log_message(void **, enum plugin_log_level, const char *, ...)
 {
   return 0;
 }
@@ -34,12 +30,8 @@ int my_plugin_log_message(void *, enum plugin_log_level, const char *, ...)
 struct my_plugin_log_service
 {
   /** write a message to the log */
-  int (*my_plugin_log_message)(void *, enum plugin_log_level, const char *, ...);
+  int (*my_plugin_log_message)(void **, enum plugin_log_level, const char *, ...);
 };
 
 struct my_plugin_log_service log_service = {my_plugin_log_message};
 struct my_plugin_log_service *my_plugin_log_service = &log_service;
-
-#ifdef __cplusplus
-}
-#endif

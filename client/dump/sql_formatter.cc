@@ -31,6 +31,7 @@
 #include "client/dump/privilege.h"
 #include "client/dump/stored_procedure.h"
 #include "client/dump/view.h"
+#include "m_ctype.h"
 
 using namespace Mysql::Tools::Dump;
 
@@ -341,11 +342,18 @@ void Sql_formatter::format_dump_start(
     if (m_options->m_gtid_purged == enum_gtid_purged_mode::GTID_PURGED_ON ||
         m_options->m_gtid_purged == enum_gtid_purged_mode::GTID_PURGED_AUTO)
     {
-      if (!m_mysqldump_tool_options->m_dump_all_databases)
+      if (!m_mysqldump_tool_options->m_dump_all_databases &&
+          m_options->m_gtid_purged == enum_gtid_purged_mode::GTID_PURGED_AUTO)
       {
         m_options->m_mysql_chain_element_options->get_program()->error(
           Mysql::Tools::Base::Message_data(1,
-          "A partial dump from a server that has GTIDs is not allowed.\n",
+          "A partial dump from a server that is using GTID-based replication "
+          "requires the --set-gtid-purged=[ON|OFF] option to be specified. Use ON "
+          "if the intention is to deploy a new replication slave using only some "
+          "of the data from the dumped server. Use OFF if the intention is to "
+          "repair a table by copying it within a topology, and use OFF if the "
+          "intention is to copy a table between replication topologies that are "
+          "disjoint and will remain so.\n",
           Mysql::Tools::Base::Message_type_error));
         return;
       }
@@ -433,7 +441,7 @@ void Sql_formatter::format_sql_objects_definer(
       {
         object_sql.replace(definer_pos, (object_pos-definer_pos), "");
         new_sql_stmt+= object_sql + "\n";
-        is_replaced= TRUE;
+        is_replaced= true;
       }
       else
         new_sql_stmt+= object_sql + "\n";
@@ -449,7 +457,7 @@ void Sql_formatter::format_sql_objects_definer(
    @param [in] table        Table name
 
   @return
-    @retval TRUE if it is innodb stats table else FALSE
+    @retval true if it is innodb stats table else false
 */
 bool Sql_formatter::innodb_stats_tables(std::string db,
                                         std::string table)

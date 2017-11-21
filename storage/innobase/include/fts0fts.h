@@ -1029,7 +1029,7 @@ fts_valid_stopword_table(
 						name */
 /****************************************************************//**
 This function loads specified stopword into FTS cache
-@return TRUE if success */
+@return true if success */
 ibool
 fts_load_stopword(
 /*==============*/
@@ -1060,7 +1060,7 @@ This function brings FTS index in sync when FTS index is first
 used. There are documents that have not yet sync-ed to auxiliary
 tables from last server abnormally shutdown, we will need to bring
 such document into FTS cache before any further operations
-@return TRUE if all OK */
+@return true if all OK */
 ibool
 fts_init_index(
 /*===========*/
@@ -1101,7 +1101,7 @@ fts_rename_aux_tables(
 /*******************************************************************//**
 Check indexes in the fts->indexes is also present in index cache and
 table->indexes list
-@return TRUE if all indexes match */
+@return true if all indexes match */
 ibool
 fts_check_cached_index(
 /*===================*/
@@ -1199,5 +1199,17 @@ afer rename.
 dberr_t
 fts_upgrade_aux_tables(
 	dict_table_t*	table);
+
+/** Rename FTS AUX tablespace name from 8.0 format to 5.7 format.
+This will be done on upgrade failure
+@param[in]	table		parent table
+@param[in]	rollback	rollback the rename from 8.0 to 5.7
+				if true, rename to 5.7 format
+				if false, mark the table as evictable
+@return DB_SUCCESS on success, DB_ERROR on error */
+dberr_t
+fts_upgrade_rename(
+	const dict_table_t*	table,
+	bool			rollback);
 
 #endif /*!< fts0fts.h */

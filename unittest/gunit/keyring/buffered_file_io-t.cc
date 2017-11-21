@@ -107,10 +107,10 @@ namespace keyring_buffered_file_io_unittest
     EXPECT_EQ(buffered_io_2->get_serialized_object(&serialized_keys), 0);
     ASSERT_TRUE(serialized_keys != NULL);
 
-    EXPECT_EQ(serialized_keys->has_next_key(), TRUE);
-    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key), FALSE);
-    EXPECT_EQ(serialized_keys->has_next_key(), FALSE);
-    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key2), TRUE);
+    EXPECT_EQ(serialized_keys->has_next_key(), true);
+    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key), false);
+    EXPECT_EQ(serialized_keys->has_next_key(), false);
+    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key2), true);
     ASSERT_TRUE(retrieved_key2 == NULL);
 
     EXPECT_STREQ("Robert_add_keyRoberts_add_key_type",
@@ -169,14 +169,14 @@ namespace keyring_buffered_file_io_unittest
     EXPECT_EQ(buffered_io_2->get_serialized_object(&serialized_keys), 0);
     ASSERT_TRUE(serialized_keys != NULL);
 
-    EXPECT_EQ(serialized_keys->has_next_key(), TRUE);
-    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key1), FALSE);
+    EXPECT_EQ(serialized_keys->has_next_key(), true);
+    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key1), false);
     ASSERT_TRUE(retrieved_key1 != NULL);
-    EXPECT_EQ(serialized_keys->has_next_key(), TRUE);
-    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key2), FALSE);
+    EXPECT_EQ(serialized_keys->has_next_key(), true);
+    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key2), false);
     ASSERT_TRUE(retrieved_key2 != NULL);
-    EXPECT_EQ(serialized_keys->has_next_key(), FALSE);
-    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key3), TRUE);
+    EXPECT_EQ(serialized_keys->has_next_key(), false);
+    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key3), true);
     ASSERT_TRUE(retrieved_key3 == NULL);
 
     EXPECT_STREQ("Robert_add_key1Roberts_add_key1_type",

@@ -32,6 +32,7 @@
 #include <stdio.h>
 #endif
 
+// Needs to be extern "C" for the time being, since extra/regex/ uses it.
 #ifdef  __cplusplus
 extern "C" {
 #endif
@@ -167,7 +168,7 @@ extern void _db_flush_gcov_();
 
 #endif
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

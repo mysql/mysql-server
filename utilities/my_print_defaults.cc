@@ -28,6 +28,7 @@
 #include <sys/types.h>
 
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -179,7 +180,7 @@ int main(int argc, char **argv)
 
   org_argv= argv;
   args_used= get_defaults_options(argc, argv, &defaults, &extra_defaults,
-                                  &group_suffix, &login_path, FALSE);
+                                  &group_suffix, &login_path, false);
 
   /* Copy defaults-xxx arguments & program name */
   count=args_used+1;
@@ -196,7 +197,7 @@ int main(int argc, char **argv)
     exit(1);
   memcpy((char*) load_default_groups, (char*) argv, (argc + 1) * sizeof(*argv));
 
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   if ((error= load_defaults(config_file, (const char **) load_default_groups,
 			   &count, &arguments, &alloc)))
   {

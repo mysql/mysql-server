@@ -9,6 +9,7 @@ call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Error number .* means 
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot create file .*");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: File .* 'create' returned OS error .*");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: File .* 'delete' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: File .* 'stat' returned OS error .*");
 #
 # MySQL limits each database and tablename identifier to 64 characters
 # of up to 3 bytes per character, corresponding to 192 bytes.

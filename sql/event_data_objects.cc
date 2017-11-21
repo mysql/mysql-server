@@ -23,7 +23,9 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysqld.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
@@ -44,7 +46,6 @@
 #include "sql/log.h"
 #include "sql/psi_memory_key.h"
 #include "sql/sp_head.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_digest_stream.h"
@@ -56,6 +57,8 @@
 #include "sql/sql_time.h"                      // interval_type_to_name
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
+#include "sql/transaction.h"
 #include "sql/thr_malloc.h"
                                                // date_add_interval,
                                                // calc_time_diff.
@@ -117,8 +120,7 @@ static inline LEX_CSTRING make_lex_cstring(MEM_ROOT *mem_root,
   Event_creation_ctx -- creation context of events.
 */
 
-class Event_creation_ctx :public Stored_program_creation_ctx,
-                          public Sql_alloc
+class Event_creation_ctx :public Stored_program_creation_ctx
 {
 public:
   static bool create_event_creation_ctx(const dd::Event &event_obj,
@@ -1288,6 +1290,11 @@ end:
       ulong saved_master_access;
 
       thd->set_query(sp_sql.c_ptr_safe(), sp_sql.length());
+      /*
+        Drop should be executed as a separate transaction.
+        Commit any open transaction before executing the drop event.
+      */
+      ret= trans_commit_stmt(thd) || trans_commit(thd);
 
       // Prevent InnoDB from automatically committing the InnoDB transaction
       // after updating the data-dictionary table.
@@ -1356,6 +1363,8 @@ bool construct_drop_event_sql(THD *thd, String *sp_sql,
   append_identifier(thd, sp_sql, event_name.str,
                     event_name.length);
 
+  // Set query id for DROP EVENT constructed by the Event Scheduler..
+  thd->set_query_id(next_query_id());
   DBUG_RETURN(ret);
 }
 

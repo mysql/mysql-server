@@ -81,7 +81,6 @@ struct PSI_cond_bootstrap
 {
   void *(*get_interface)(int version);
 };
-typedef struct PSI_cond_bootstrap PSI_cond_bootstrap;
 struct PSI_cond_service_v1
 {
   register_cond_v1_t register_cond;

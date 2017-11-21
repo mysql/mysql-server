@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection slave]
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB= ((db1, db2));
 include/start_slave.inc
-SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME = '' AND FILTER_NAME = 'REPLICATE_REWRITE_DB';
 CHANNEL_NAME	
 FILTER_NAME	REPLICATE_REWRITE_DB
 FILTER_RULE	(db1,db2)
@@ -41,7 +41,7 @@ DROP DATABASE db2;
 #
 # Verify that the REPLICATE_REWRITE_DB filter is hit 8 times on slave.
 #
-SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME = '' AND FILTER_NAME = 'REPLICATE_REWRITE_DB';
 CHANNEL_NAME	
 FILTER_NAME	REPLICATE_REWRITE_DB
 FILTER_RULE	(db1,db2)

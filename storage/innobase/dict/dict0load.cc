@@ -140,7 +140,7 @@ bool     srv_load_corrupted = FALSE;
 #ifdef UNIV_DEBUG
 /****************************************************************//**
 Compare the name of an index column.
-@return TRUE if the i'th column of index is 'name'. */
+@return true if the i'th column of index is 'name'. */
 static
 ibool
 name_of_col_is(

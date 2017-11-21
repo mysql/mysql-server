@@ -1,4 +1,4 @@
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 insert into t1 values(1, Point(1,1));
 insert into t1 values(2, Point(2,2));
 insert into t1 values(3, Point(3,3));
@@ -66,7 +66,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
-  `c2` geometry NOT NULL,
+  `c2` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');

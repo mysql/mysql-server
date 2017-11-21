@@ -31,6 +31,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <memory>
+
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
@@ -41,6 +43,7 @@
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/components/services/psi_transaction_bits.h"
+#include "mysql/psi/mysql_thread.h"
 #include "pfs_thread_provider.h"
 #include "sql/psi_memory_key.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"
@@ -51,7 +54,6 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
-#include <memory>
 #include <new>
 #include <string>
 
@@ -67,9 +69,7 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_table_map.h"
-#include "my_thread.h"
 #include "my_thread_local.h"
-#include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
@@ -80,10 +80,6 @@
 #include "prealloced_array.h"
 #include "sql/auth/sql_security_ctx.h"    // Security_context
 #include "sql/discrete_interval.h"        // Discrete_interval
-#include "sql/enum_query_type.h"
-#include "sql/field.h"
-#include "sql/handler.h"
-#include "sql/item.h"
 #include "sql/mdl.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_trace_context.h"        // Opt_trace_context
@@ -94,16 +90,12 @@
 #include "sql/rpl_context.h"              // Rpl_thd_context
 #include "sql/rpl_gtid.h"
 #include "sql/session_tracker.h"          // Session_tracker
-#include "sql/set_var.h"
-#include "sql/sql_cmd.h"
 #include "sql/sql_connect.h"
 #include "sql/sql_const.h"
 #include "sql/sql_digest_stream.h"        // sql_digest_state
 #include "sql/sql_error.h"
-#include "sql/sql_lex.h"                  // LEX
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
-#include "sql/sql_profile.h"              // PROFILING
 #include "sql/sys_vars_resource_mgr.h"    // Session_sysvar_resource_manager
 #include "sql/system_variables.h"         // system_variables
 #include "sql/transaction_info.h"         // Ha_trx_info
@@ -111,12 +103,20 @@
 #include "thr_lock.h"
 #include "violite.h"
 
-class Query_arena;
+enum enum_check_fields : int;
+enum enum_tx_isolation : int;
+enum ha_notification_type : int;
+class Field;
+class Item;
+class Parser_state;
+class PROFILING;
+class Query_tables_list;
 class Relay_log_info;
 class THD;
 class partition_info;
 class sp_rcontext;
 class user_var_entry;
+struct LEX;
 struct LEX_USER;
 struct ORDER;
 struct TABLE;
@@ -143,9 +143,6 @@ struct LOG_INFO;
 
 typedef struct user_conn USER_CONN;
 struct MYSQL_LOCK;
-
-#define thd_proc_info(thd, msg) \
-  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
 
 extern "C"
 void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
@@ -174,6 +171,14 @@ extern LEX_STRING EMPTY_STR;
 extern LEX_STRING NULL_STR;
 extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;
+
+/*
+  We preallocate data for several storage engine plugins.
+  so: innodb + bdb + ndb + binlog + myisam + myisammrg + archive +
+      example + csv + heap + blackhole + federated + 0
+  (yes, the sum is deliberately inaccurate)
+*/
+constexpr size_t PREALLOC_NUM_HA = 15;
 
 /**
   To be used for pool-of-threads (implemented differently on various OSs)
@@ -218,7 +223,7 @@ typedef struct rpl_event_coordinates
 
 /* The following macro is to make init of Query_arena simpler */
 #ifndef DBUG_OFF
-#define INIT_ARENA_DBUG_INFO is_backup_arena= 0; is_reprepared= FALSE;
+#define INIT_ARENA_DBUG_INFO is_backup_arena= 0; is_reprepared= false;
 #else
 #define INIT_ARENA_DBUG_INFO
 #endif
@@ -307,7 +312,12 @@ public:
   inline void *memdup(const void *str, size_t size)
   { return memdup_root(mem_root,str,size); }
 
-  void set_query_arena(Query_arena *set);
+  /**
+    Copies memory-managing members from `set`. No references are kept to it.
+
+    @param set A Query_arena from which members are copied.
+  */
+  void set_query_arena(const Query_arena *set);
 
   void free_items();
   /* Close the active state associated with execution of this statement */
@@ -792,9 +802,9 @@ public:
     if (m_state)
     {
       my_error(ER_CANT_UPDATE_WITH_READLOCK, MYF(0));
-      return TRUE;
+      return true;
     }
-    return FALSE;
+    return false;
   }
   bool make_global_read_lock_block_commit(THD *thd);
   bool is_acquired() const { return m_state != GRL_NONE; }
@@ -883,6 +893,16 @@ public:
   */
   ulong want_privilege;
 
+private:
+  /**
+    The lex to hold the parsed tree of conventional (non-prepared) queries.
+    Whereas for prepared and stored procedure statements we use an own lex
+    instance for each new query, for conventional statements we reuse
+    the same lex. (@see mysql_parse for details).
+  */
+  std::unique_ptr<LEX> main_lex;
+
+public:
   LEX *lex;                                     // parse tree descriptor
   dd::cache::Dictionary_client *dd_client() const // Get the dictionary client.
   { return m_dd_client.get(); }
@@ -1220,11 +1240,7 @@ public:
       assert_plan_is_locked_if_other();
       return is_ps;
     }
-    bool is_single_table_plan() const
-    {
-      assert_plan_is_locked_if_other();
-      return lex->m_sql_cmd->is_single_table_plan();
-    }
+    bool is_single_table_plan() const;
     void set_modification_plan(Modification_plan *plan_arg);
 
   } query_plan;
@@ -1427,8 +1443,8 @@ public:
   Rows_log_event* binlog_get_pending_rows_event(bool is_transactional) const;
   inline int binlog_flush_pending_rows_event(bool stmt_end)
   {
-    return (binlog_flush_pending_rows_event(stmt_end, FALSE) || 
-            binlog_flush_pending_rows_event(stmt_end, TRUE));
+    return (binlog_flush_pending_rows_event(stmt_end, false) || 
+            binlog_flush_pending_rows_event(stmt_end, true));
   }
   int binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional);
 
@@ -1609,16 +1625,14 @@ private:
   /** An utility struct for @c Attachable_trx */
   struct Transaction_state
   {
-    Transaction_state()
-      : m_ha_data(PSI_NOT_INSTRUMENTED, m_ha_data.initial_capacity)
-    {}
+    Transaction_state(MEM_ROOT *root);
     void backup(THD *thd);
     void restore(THD *thd);
 
     /// SQL-command.
     enum_sql_command m_sql_command;
 
-    Query_tables_list m_query_tables_list;
+    Query_tables_list *m_query_tables_list;
 
     /// Open-tables state.
     Open_tables_backup m_open_tables_state;
@@ -1726,23 +1740,7 @@ private:
   {
   public:
     bool is_read_only() const { return false; }
-    Attachable_trx_rw(THD *thd, Attachable_trx *prev_trx= NULL)
-      : Attachable_trx(thd, prev_trx)
-    {
-      m_thd->tx_read_only= false;
-      m_thd->lex->sql_command= SQLCOM_END;
-      m_xa_state_saved= m_thd->get_transaction()->xid_state()->get_state();
-      thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
-    }
-    ~Attachable_trx_rw()
-    {
-      /* The attachable transaction has been already committed */
-      DBUG_ASSERT(!m_thd->get_transaction()->is_active(Transaction_ctx::STMT)
-                  && !m_thd->get_transaction()->is_active(Transaction_ctx::SESSION));
-
-      m_thd->get_transaction()->xid_state()->set_state(m_xa_state_saved);
-      m_thd->tx_read_only= true;
-    }
+    Attachable_trx_rw(THD *thd, Attachable_trx *prev_trx= NULL);
 
   private:
     XID_STATE::xa_states m_xa_state_saved;
@@ -1932,11 +1930,11 @@ public:
   }
   inline void reset_first_successful_insert_id()
   {
-    arg_of_last_insert_id_function= FALSE;
+    arg_of_last_insert_id_function= false;
     first_successful_insert_id_in_prev_stmt= 0;
     first_successful_insert_id_in_cur_stmt= 0;
     first_successful_insert_id_in_prev_stmt_for_binlog= 0;
-    stmt_depends_on_first_successful_insert_id_in_prev_stmt= FALSE;
+    stmt_depends_on_first_successful_insert_id_in_prev_stmt= false;
   }
 
   /*
@@ -2103,7 +2101,7 @@ public:
 
   const CHARSET_INFO *db_charset;
 #if defined(ENABLED_PROFILING)
-  PROFILING  profiling;
+  std::unique_ptr<PROFILING> profiling;
 #endif
 
   /** Current stage progress instrumentation. */
@@ -2381,7 +2379,7 @@ public:
 
   uchar      password;
   /**
-    Set to TRUE if execution of the current compound statement
+    Set to true if execution of the current compound statement
     can not continue. In particular, disables activation of
     CONTINUE or EXIT handlers of stored routines.
     Reset in the end of processing of the current user request, in
@@ -2395,7 +2393,7 @@ public:
   */
   bool       transaction_rollback_request;
   /**
-    TRUE if we are in a sub-statement and the current error can
+    true if we are in a sub-statement and the current error can
     not be safely recovered until we left the sub-statement mode.
     In particular, disables activation of CONTINUE and EXIT
     handlers inside sub-statements. E.g. if it is a deadlock
@@ -2403,7 +2401,7 @@ public:
     raised (traditionally, MySQL first has to close all the reads
     via @see handler::ha_index_or_rnd_end() and only then perform
     the rollback).
-    Reset to FALSE when we leave the sub-statement mode.
+    Reset to false when we leave the sub-statement mode.
   */
   bool       is_fatal_sub_stmt_error;
   bool	     query_start_usec_used;
@@ -2466,13 +2464,13 @@ public:
     */
     bool do_union;
     /*
-      If TRUE, at least one mysql_bin_log::write(Log_event) call has been
+      If true, at least one mysql_bin_log::write(Log_event) call has been
       made after last mysql_bin_log.start_union_events() call.
     */
     bool unioned_events;
     /*
-      If TRUE, at least one mysql_bin_log::write(Log_event e), where 
-      e.cache_stmt == TRUE call has been made after last 
+      If true, at least one mysql_bin_log::write(Log_event e), where 
+      e.cache_stmt == true call has been made after last 
       mysql_bin_log.start_union_events() call.
     */
     bool unioned_events_trans;
@@ -2655,17 +2653,9 @@ public:
                                   bool needs_thr_lock_abort);
 
   virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
-                                                 bool *victimized)
-  {
-    return ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_PRE_EVENT,
-                                   victimized);
-  }
+                                                 bool *victimized);
 
-  virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key)
-  {
-    bool unused_arg;
-    ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_POST_EVENT, &unused_arg);
-  }
+  virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key);
 
   /**
     Provide thread specific random seed for MDL_context's PRNG.
@@ -2755,7 +2745,7 @@ public:
   }
 
   /**
-    Returns TRUE if session is in a multi-statement transaction mode.
+    Returns true if session is in a multi-statement transaction mode.
 
     OPTION_NOT_AUTOCOMMIT: When autocommit is off, a multi-statement
     transaction is implicitly started on the first statement after a
@@ -2773,7 +2763,7 @@ public:
     set transaction isolation level serializable;  <-- start an active
     flush tables;                                  <-- transaction
 
-    I.e. for the above scenario this function returns TRUE, even
+    I.e. for the above scenario this function returns true, even
     though no active transaction has begun.
     @sa in_active_multi_stmt_transaction()
   */
@@ -2782,7 +2772,7 @@ public:
     return variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN);
   }
   /**
-    TRUE if the session is in a multi-statement transaction mode
+    true if the session is in a multi-statement transaction mode
     (@sa in_multi_stmt_transaction_mode()) *and* there is an
     active transaction, i.e. there is an explicit start of a
     transaction with BEGIN statement, or implicit with a
@@ -2872,7 +2862,7 @@ public:
     DBUG_RETURN(false);
   }
 
-  /** Return FALSE if connection to client is broken. */
+  /** Return false if connection to client is broken. */
   virtual bool is_connected()
   {
     /*
@@ -2901,12 +2891,12 @@ public:
     DBUG_PRINT("error",("Fatal error set"));
   }
   /**
-    TRUE if there is an error in the error stack.
+    true if there is an error in the error stack.
 
     Please use this method instead of direct access to
     net.report_error.
 
-    If TRUE, the current (sub)-statement should be aborted.
+    If true, the current (sub)-statement should be aborted.
     The main difference between this member and is_fatal_error
     is that a fatal error can not be handled by a stored
     procedure continue handler, whereas a normal error can.
@@ -3009,20 +2999,7 @@ public:
   { return variables.character_set_client; }
   void update_charset();
 
-  void change_item_tree(Item **place, Item *new_value)
-  {
-    /* TODO: check for OOM condition here */
-    if (!stmt_arena->is_conventional())
-    {
-      DBUG_PRINT("info",
-                 ("change_item_tree place %p old_value %p new_value %p",
-                  place, *place, new_value));
-      if (new_value)
-        new_value->set_runtime_created(); /* Note the change of item tree */
-      nocheck_register_item_tree_change(place, new_value);
-    }
-    *place= new_value;
-  }
+  void change_item_tree(Item **place, Item *new_value);
 
   /**
     Remember that place was updated with new_value so it can be restored
@@ -3118,14 +3095,15 @@ public:
   { return m_attachable_trx != NULL && m_attachable_trx->is_read_only(); }
 
   /**
-    @return true if there is an active rw attachable transaction.
+    @return true if there is an active attachable transaction.
   */
-  bool is_attachable_rw_transaction_active() const;
+  bool is_attachable_transaction_active() const
+  { return m_attachable_trx != NULL; }
 
   /**
     @return true if there is an active rw attachable transaction.
   */
-  bool is_attachable_rw_i_s_transaction_active() const;
+  bool is_attachable_rw_transaction_active() const;
 
 public:
   /*
@@ -3535,7 +3513,7 @@ public:
 
     Initialize the current database from a NULL-terminated string with
     length. If we run out of memory, we free the current database and
-    return TRUE.  This way the user will notice the error as there will be
+    return true.  This way the user will notice the error as there will be
     no current database selected (in addition to the error message set by
     malloc).
 
@@ -3579,7 +3557,7 @@ public:
     if (m_db.str == NULL)
     {
       my_error(ER_NO_DB_ERROR, MYF(0));
-      return TRUE;
+      return true;
     }
     *p_db= strmake(m_db.str, m_db.length);
     *p_db_length= m_db.length;
@@ -3777,12 +3755,7 @@ public:
 
     @return The current query in normalized form.
   */
-  const String normalized_query()
-  {
-    m_normalized_query.mem_free();
-    lex->unit->print(&m_normalized_query, QT_NORMALIZED_FORMAT);
-    return m_normalized_query;
-  }
+  const String normalized_query();
 
   /**
     Assign a new value to thd->m_query_string.
@@ -3911,7 +3884,7 @@ public:
                          bool some_non_transactional_table,
                          bool non_transactional_tables_are_tmp);
   bool is_ddl_gtid_compatible();
-  void binlog_invoker() { m_binlog_invoker= TRUE; }
+  void binlog_invoker() { m_binlog_invoker= true; }
   bool need_binlog_invoker() { return m_binlog_invoker; }
   void get_definer(LEX_USER *definer);
   void set_invoker(const LEX_STRING *user, const LEX_STRING *host)
@@ -3932,13 +3905,6 @@ private:
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;
 
-  /**
-    The lex to hold the parsed tree of conventional (non-prepared) queries.
-    Whereas for prepared and stored procedure statements we use an own lex
-    instance for each new query, for conventional statements we reuse
-    the same lex. (@see mysql_parse for details).
-  */
-  LEX main_lex;
   /**
     This memory root is used for two purposes:
     - for conventional queries, to allocate structures stored in main_lex
@@ -3961,7 +3927,7 @@ private:
     TRIGGER or VIEW statements.
 
     Current user will be binlogged into Query_log_event if current_user_used
-    is TRUE; It will be stored into m_invoker_host and m_invoker_user by SQL
+    is true; It will be stored into m_invoker_host and m_invoker_user by SQL
     thread.
    */
   bool m_binlog_invoker;
@@ -4112,7 +4078,7 @@ public:
     This is only used by master dump threads.
     When the master receives a new connection from a slave with a
     UUID (for slave versions >= 5.6)/server_id(for slave versions < 5.6)
-    that is already connected, it will set this flag TRUE
+    that is already connected, it will set this flag true
     before killing the old slave connection.
   */
   bool duplicate_slave_id;
@@ -4360,214 +4326,10 @@ inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
   return make_lex_string_root(root, dst, src, strlen(src), false);
 }
 
-/* Inline functions */
-
-inline bool add_item_to_list(THD *thd, Item *item)
-{
-  return thd->lex->select_lex->add_item_to_list(item);
-}
-
-inline void add_order_to_list(THD *thd, ORDER *order)
-{
-  thd->lex->select_lex->add_order_to_list(order);
-}
+bool add_item_to_list(THD *thd, Item *item);
+void add_order_to_list(THD *thd, ORDER *order);
 
 /*************************************************************************/
-
-/** RAII class for temporarily turning off @@autocommit in the connection. */
-
-class Disable_autocommit_guard
-{
-public:
-
-  /**
-    @param thd  non-NULL - pointer to the context of connection in which
-                           @@autocommit mode needs to be disabled.
-                NULL     - if @@autocommit mode needs to be left as is.
-  */
-  Disable_autocommit_guard(THD *thd)
-    : m_thd(thd), m_save_option_bits(thd ? thd->variables.option_bits : 0)
-  {
-    if (m_thd)
-    {
-      /*
-        We can't disable auto-commit if there is ongoing transaction as this
-        might easily break statement/session transaction invariants.
-      */
-      DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
-                  m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
-
-      m_thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
-      m_thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
-    }
-  }
-
-  ~Disable_autocommit_guard()
-  {
-    if (m_thd)
-    {
-      /*
-        Both session and statement transactions need to be finished by the
-        time when we enable auto-commit mode back.
-      */
-      DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
-                  m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
-      m_thd->variables.option_bits= m_save_option_bits;
-    }
-  }
-
-private:
-  THD *m_thd;
-  ulonglong m_save_option_bits;
-};
-
-
-/**
-  RAII class which allows to temporary disable updating Gtid_state.
-*/
-
-class Disable_gtid_state_update_guard
-{
-public:
-  Disable_gtid_state_update_guard(THD *thd)
-    : m_thd(thd),
-      m_save_is_operating_substatement_implicitly(
-          thd->is_operating_substatement_implicitly),
-      m_save_skip_gtid_rollback(thd->skip_gtid_rollback)
-  {
-    m_thd->is_operating_substatement_implicitly= true;
-    m_thd->skip_gtid_rollback= true;
-  }
-
-  ~Disable_gtid_state_update_guard()
-  {
-    m_thd->is_operating_substatement_implicitly=
-      m_save_is_operating_substatement_implicitly;
-    m_thd->skip_gtid_rollback= m_save_skip_gtid_rollback;
-  }
-private:
-  THD *m_thd;
-  bool m_save_is_operating_substatement_implicitly;
-  bool m_save_skip_gtid_rollback;
-};
-
-
-/**
-  RAII class to temporarily disable binlogging.
-*/
-
-class Disable_binlog_guard
-{
-public:
-  Disable_binlog_guard(THD *thd)
-    : m_thd(thd), m_binlog_disabled(thd->variables.option_bits & OPTION_BIN_LOG)
-  {
-    thd->variables.option_bits &= ~OPTION_BIN_LOG;
-  }
-
-  ~Disable_binlog_guard()
-  {
-    if (m_binlog_disabled)
-      m_thd->variables.option_bits |= OPTION_BIN_LOG;
-  }
-
-private:
-  THD * const m_thd;
-  const bool m_binlog_disabled;
-};
-
-
-/**
-  RAII class which allows to save, clear and store binlog format state
-  There are two variables in THD class that will decide the binlog
-  format of a statement
-    i) THD::current_stmt_binlog_format
-   ii) THD::variables.binlog_format
-  Saving or Clearing or Storing of binlog format state should be done
-  for these two variables together all the time.
-*/
-class Save_and_Restore_binlog_format_state
-{
-public:
-  Save_and_Restore_binlog_format_state(THD *thd)
-    : m_thd(thd),
-    m_global_binlog_format(thd->variables.binlog_format),
-    m_current_stmt_binlog_format(BINLOG_FORMAT_STMT)
-  {
-    if (thd->is_current_stmt_binlog_format_row())
-      m_current_stmt_binlog_format= BINLOG_FORMAT_ROW;
-
-    thd->variables.binlog_format= BINLOG_FORMAT_STMT;
-    thd->clear_current_stmt_binlog_format_row();
-  }
-
-  ~Save_and_Restore_binlog_format_state()
-  {
-    DBUG_ASSERT(!m_thd->is_current_stmt_binlog_format_row());
-    m_thd->variables.binlog_format= m_global_binlog_format;
-    if (m_current_stmt_binlog_format == BINLOG_FORMAT_ROW)
-      m_thd->set_current_stmt_binlog_format_row();
-  }
-private:
-  THD *m_thd;
-  ulong m_global_binlog_format;
-  enum_binlog_format m_current_stmt_binlog_format;
-};
-
-
-/**
-  RAII class to temporarily turn off SQL modes that affect parsing
-  of expressions. Can also be used when printing expressions even
-  if it turns off more SQL modes than strictly necessary for it
-  (these extra modes are harmless as they do not affect expression
-  printing).
-*/
-class Sql_mode_parse_guard
-{
-public:
-  Sql_mode_parse_guard(THD *thd)
-    : m_thd(thd), m_old_sql_mode(thd->variables.sql_mode)
-  {
-    /*
-      Switch off modes which can prevent normal parsing of expressions:
-
-      - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
-      + MODE_PIPES_AS_CONCAT          affect expression parsing
-      + MODE_ANSI_QUOTES              affect expression parsing
-      + MODE_IGNORE_SPACE             affect expression parsing
-      - MODE_NOT_USED                 not used :)
-      * MODE_ONLY_FULL_GROUP_BY       affect execution
-      * MODE_NO_UNSIGNED_SUBTRACTION  affect execution
-      - MODE_NO_DIR_IN_CREATE         affect table creation only
-      - MODE_POSTGRESQL               compounded from other modes
-      - MODE_ORACLE                   compounded from other modes
-      - MODE_MSSQL                    compounded from other modes
-      - MODE_DB2                      compounded from other modes
-      - MODE_MAXDB                    affect only CREATE TABLE parsing
-      - MODE_NO_KEY_OPTIONS           affect only SHOW
-      - MODE_NO_TABLE_OPTIONS         affect only SHOW
-      - MODE_NO_FIELD_OPTIONS         affect only SHOW
-      - MODE_MYSQL323                 affect only SHOW
-      - MODE_MYSQL40                  affect only SHOW
-      - MODE_ANSI                     compounded from other modes
-                                      (+ transaction mode)
-      ? MODE_NO_AUTO_VALUE_ON_ZERO    affect UPDATEs
-      + MODE_NO_BACKSLASH_ESCAPES     affect expression parsing
-    */
-    thd->variables.sql_mode&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                                MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
-  }
-
-  ~Sql_mode_parse_guard()
-  {
-    m_thd->variables.sql_mode= m_old_sql_mode;
-  }
-
-private:
-  THD *m_thd;
-  const sql_mode_t m_old_sql_mode;
-};
-
 
 /**
   The function re-attaches the engine ha_data (which was previously detached by
@@ -4579,19 +4341,7 @@ private:
   @param hton        pointer to handlerton
 */
 
-inline void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton)
-{
-  if (hton->replace_native_transaction_in_thd)
-  {
-    /* restore the saved original engine transaction's link with thd */
-    void **trx_backup= &thd->get_ha_data(hton->slot)->ha_ptr_backup;
+void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton);
 
-    hton->
-      replace_native_transaction_in_thd(thd, *trx_backup, NULL);
-    *trx_backup= NULL;
-  }
-}
-
-/*************************************************************************/
 
 #endif /* SQL_CLASS_INCLUDED */

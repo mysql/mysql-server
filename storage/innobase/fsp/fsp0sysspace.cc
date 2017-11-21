@@ -29,6 +29,7 @@ Refactored 2013-7-26 by Kevin Lewis
 
 #include "dict0load.h"
 #include "fsp0sysspace.h"
+#ifndef UNIV_HOTBACKUP
 #include "ha_prototypes.h"
 #include "mem0mem.h"
 #include "my_inttypes.h"
@@ -36,8 +37,11 @@ Refactored 2013-7-26 by Kevin Lewis
 If server passes the option for create/open DB to SE, we should remove such
 direct reference to server header and global variable */
 #include "mysqld.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "os0file.h"
+#ifndef UNIV_HOTBACKUP
 #include "row0mysql.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "srv0start.h"
 #include "trx0sys.h"
 #include "ut0new.h"
@@ -305,7 +309,11 @@ invalid_size:
 
 			/* Initialize new raw device only during initialize */
 			m_files.back().m_type =
+#ifndef UNIV_HOTBACKUP
 				opt_initialize ? SRV_NEW_RAW : SRV_OLD_RAW;
+#else /* !UNIV_HOTBACKUP */
+				SRV_OLD_RAW;
+#endif /* !UNIV_HOTBACKUP */
 		}
 
 		if (*ptr == ';') {
@@ -524,6 +532,7 @@ SysTablespace::open_file(
 	return(err);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Check the tablespace header for this tablespace.
 @param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
 @return DB_SUCCESS or error code */
@@ -961,6 +970,7 @@ SysTablespace::open_or_create(
 
 	return(err);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**
 @return next increment size */

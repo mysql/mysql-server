@@ -31,8 +31,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_thread_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_THREAD_VERSION_1
   Performance Schema Thread Interface number for version 1.
@@ -136,7 +134,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_thread_service_t *psi_thread_service;
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
 /** @} (end of group psi_abi_thread) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_THREAD_H */

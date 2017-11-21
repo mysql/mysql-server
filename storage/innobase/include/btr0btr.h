@@ -37,7 +37,6 @@ Created 6/2/1994 Heikki Tuuri
 #include "page0cur.h"
 #include "univ.i"
 
-#ifndef UNIV_HOTBACKUP
 /** Maximum record size which can be stored on a page, without using the
 special big record storage structure */
 #define	BTR_PAGE_MAX_REC_SIZE	(UNIV_PAGE_SIZE / 2 - 200)
@@ -140,7 +139,6 @@ record is in spatial index */
 	((latch_mode) & ~(BTR_LATCH_FOR_INSERT		\
 			  | BTR_LATCH_FOR_DELETE	\
 			  | BTR_MODIFY_EXTERNAL))
-#endif /* UNIV_HOTBACKUP */
 
 /**************************************************************//**
 Report that an index page is corrupted. */
@@ -161,7 +159,6 @@ btr_corruption_report(
 		ut_error;					\
 	}
 
-#ifndef UNIV_HOTBACKUP
 /**************************************************************//**
 Gets the root node of a tree and sx-latches it for segment access.
 @return root page, sx-latched */
@@ -247,7 +244,6 @@ btr_block_get_func(
 # define btr_page_get(page_id, page_size, mode, index, mtr)	\
 	buf_block_get_frame(btr_block_get(page_id, page_size,	\
 					  mode, index, mtr))
-#endif /* !UNIV_HOTBACKUP */
 /**************************************************************//**
 Gets the index id field of a page.
 @return index id */
@@ -257,7 +253,6 @@ btr_page_get_index_id(
 /*==================*/
 	const page_t*	page)	/*!< in: index page */
 	MY_ATTRIBUTE((warn_unused_result));
-#ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Gets the node level field in an index page.
 @return level, leaf level == 0 */
@@ -436,7 +431,7 @@ btr_page_reorganize(
 /*************************************************************//**
 Decides if the page should be split at the convergence point of
 inserts converging to left.
-@return TRUE if split recommended */
+@return true if split recommended */
 ibool
 btr_page_get_split_rec_to_left(
 /*===========================*/
@@ -448,7 +443,7 @@ btr_page_get_split_rec_to_left(
 /*************************************************************//**
 Decides if the page should be split at the convergence point of
 inserts converging to right.
-@return TRUE if split recommended */
+@return true if split recommended */
 ibool
 btr_page_get_split_rec_to_right(
 /*============================*/
@@ -496,7 +491,6 @@ btr_insert_on_non_leaf_level_func(
 	mtr_t*		mtr);	/*!< in: mtr */
 # define btr_insert_on_non_leaf_level(f,i,l,t,m)			\
 	btr_insert_on_non_leaf_level_func(f,i,l,t,__FILE__,__LINE__,m)
-#endif /* !UNIV_HOTBACKUP */
 /****************************************************************//**
 Sets a record as the predefined minimum record. */
 void
@@ -504,7 +498,6 @@ btr_set_min_rec_mark(
 /*=================*/
 	rec_t*	rec,	/*!< in/out: record */
 	mtr_t*	mtr);	/*!< in: mtr */
-#ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Deletes on the upper level the node pointer to a page. */
 void
@@ -516,7 +509,7 @@ btr_node_ptr_delete(
 #ifdef UNIV_DEBUG
 /************************************************************//**
 Checks that the node pointer to a page is appropriate.
-@return TRUE */
+@return true */
 ibool
 btr_check_node_ptr(
 /*===============*/
@@ -534,7 +527,7 @@ level lifts the records of the page to the father page, thus reducing the
 tree height. It is assumed that mtr holds an x-latch on the tree and on the
 page. If cursor is on the leaf level, mtr must also hold x-latches to
 the brothers, if they exist.
-@return TRUE on success */
+@return true on success */
 ibool
 btr_compress(
 /*=========*/
@@ -555,7 +548,6 @@ btr_discard_page(
 	btr_cur_t*	cursor,	/*!< in: cursor on the page to discard: not on
 				the root page */
 	mtr_t*		mtr);	/*!< in: mtr */
-#endif /* !UNIV_HOTBACKUP */
 /****************************************************************//**
 Parses the redo log record for setting an index record as the predefined
 minimum record.
@@ -582,7 +574,6 @@ btr_parse_page_reorganize(
 	buf_block_t*	block,	/*!< in: page to be reorganized, or NULL */
 	mtr_t*		mtr)	/*!< in: mtr or NULL */
 	MY_ATTRIBUTE((warn_unused_result));
-#ifndef UNIV_HOTBACKUP
 /**************************************************************//**
 Gets the number of pages in a B-tree.
 @return number of pages, or ULINT_UNDEFINED if the index is unavailable */
@@ -676,7 +667,7 @@ btr_print_index(
 /************************************************************//**
 Checks the size and number of fields in a record based on the definition of
 the index.
-@return TRUE if ok */
+@return true if ok */
 ibool
 btr_index_rec_validate(
 /*===================*/
@@ -708,7 +699,6 @@ btr_sdi_create_index(
 
 #define BTR_N_LEAF_PAGES	1
 #define BTR_TOTAL_SIZE		2
-#endif /* !UNIV_HOTBACKUP */
 
 #include "btr0btr.ic"
 

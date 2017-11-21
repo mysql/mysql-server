@@ -1788,6 +1788,8 @@ bool space_needed(const THD *thd, const Json_wrapper *value,
   @param destination   pointer to the shadow copy of the JSON document
                        (it could be the same as @a original, in which case the
                        original document will be modified)
+  @param[out] changed  gets set to true if a change was made to the document,
+                       or to false if this operation was a no-op
   @return false on success, true if an error occurred
 
   @par Example of partial update
@@ -1921,11 +1923,15 @@ bool space_needed(const THD *thd, const Json_wrapper *value,
 bool Value::update_in_shadow(const Field_json *field,
                              size_t pos, Json_wrapper *new_value,
                              size_t data_offset, size_t data_length,
-                             const char *original, char *destination) const
+                             const char *original, char *destination,
+                             bool *changed) const
 {
   DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
 
   const bool inlined= (data_length == 0);
+
+  // Assume no changes. Update the flag when the document is actually changed.
+  *changed= false;
 
   /*
     Create a buffer large enough to hold the new value entry. (Plus one since
@@ -1970,6 +1976,7 @@ bool Value::update_in_shadow(const Field_json *field,
       memcpy(value_dest, buffer.ptr() + 1, length);
       if (field->table->add_binary_diff(field, value_offset, length))
         return true;                            /* purecov: inspected */
+      *changed= true;
     }
   }
 
@@ -1986,6 +1993,7 @@ bool Value::update_in_shadow(const Field_json *field,
     memcpy(destination + entry_offset, new_entry.ptr(), new_entry.length());
     if (field->table->add_binary_diff(field, entry_offset, new_entry.length()))
       return true;                              /* purecov: inspected */
+    *changed= true;
   }
 
   return false;

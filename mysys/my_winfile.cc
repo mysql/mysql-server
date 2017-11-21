@@ -52,6 +52,7 @@
 #include <sys/stat.h>
 
 #include "my_dbug.h"
+#include "my_io.h"
 #include "my_thread_local.h"
 #include "mysys_priv.h"
 
@@ -610,7 +611,7 @@ int my_win_fstat(File fd, struct _stati64 *buf)
 
   hFile= my_get_osfhandle(fd);
   if(!DuplicateHandle( GetCurrentProcess(), hFile, GetCurrentProcess(), 
-    &hDup ,0,FALSE,DUPLICATE_SAME_ACCESS))
+    &hDup ,0,false,DUPLICATE_SAME_ACCESS))
   {
     my_osmaperr(GetLastError());
     DBUG_RETURN(-1);
@@ -667,7 +668,7 @@ int my_win_dup(File fd)
   HANDLE hDup;
   DBUG_ENTER("my_win_dup");
   if (DuplicateHandle(GetCurrentProcess(), my_get_osfhandle(fd),
-       GetCurrentProcess(), &hDup, 0, FALSE, DUPLICATE_SAME_ACCESS))
+       GetCurrentProcess(), &hDup, 0, false, DUPLICATE_SAME_ACCESS))
   {
      DBUG_RETURN(my_open_osfhandle(hDup, my_get_open_flags(fd)));
   }

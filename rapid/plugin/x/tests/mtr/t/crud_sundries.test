@@ -12,7 +12,7 @@ INSERT INTO xtable (doc) VALUES ('{"a":10, "b":20, "c":"30", "d":"40", "e":"foo"
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/crud_sundries.tmp
-
+-->quiet
 ##-- function concat
 Mysqlx.Crud.Find {
   collection { name: "xtable" schema: "xtest" }
@@ -795,6 +795,64 @@ Mysqlx.Crud.Find {
             value {type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "e" }}}
             value {type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "f" }}}
           }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- function json_type
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "string"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "json_type" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "e" } }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "number"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "json_type" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "a" } }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "root"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "json_type" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER } }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- function json_keys
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "keys"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "json_keys" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER } }
         }
       }
     }

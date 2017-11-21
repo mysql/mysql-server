@@ -29,6 +29,7 @@
 #ifndef STATEMENT_EVENT_INCLUDED
 #define STATEMENT_EVENT_INCLUDED
 
+#include "byteorder.h"
 #include "control_events.h"
 
 namespace binary_log

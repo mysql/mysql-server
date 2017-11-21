@@ -718,6 +718,12 @@ PFS_file *find_or_create_file(PFS_thread *thread,
                               uint len,
                               bool create);
 
+void find_and_rename_file(PFS_thread *thread,
+                          const char *old_filename,
+                          uint old_len,
+                          const char *new_filename,
+                          uint new_len);
+
 void release_file(PFS_file *pfs);
 void destroy_file(PFS_thread *thread, PFS_file *pfs);
 PFS_table *create_table(PFS_table_share *share,

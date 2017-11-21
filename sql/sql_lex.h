@@ -36,6 +36,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
+#include "memory_debugging.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -70,12 +71,12 @@
 #include "sql/resourcegroups/resource_group_basic_types.h" // Type, Range
 #include "sql/set_var.h"
 #include "sql/sql_admin.h"
-#include "sql/sql_alloc.h"            // Sql_alloc
 #include "sql/sql_alter.h"            // Alter_info
 #include "sql/sql_array.h"
 #include "sql/sql_connect.h"          // USER_RESOURCES
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"      // enum_duplicates
+#include "sql/sql_exchange.h"
 #include "sql/sql_get_diagnostics.h"  // Diagnostics_information
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
@@ -197,8 +198,6 @@ enum enum_yes_no_unknown
 };
 
 enum class enum_ha_read_modes;
-
-enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
 /**
   used by the parser to store internal variable name
@@ -337,7 +336,7 @@ extern char internal_table_name[2];
 
 class Table_function;
 
-class Table_ident :public Sql_alloc
+class Table_ident
 {
 public:
   LEX_CSTRING db;
@@ -486,7 +485,7 @@ typedef uchar index_clause_map;
                              INDEX_HINT_MASK_ORDER)
 
 /* Single element of an USE/FORCE/IGNORE INDEX list specified as a SQL hint  */
-class Index_hint : public Sql_alloc
+class Index_hint
 {
 public:
   /* The type of the hint : USE/FORCE/IGNORE */
@@ -637,7 +636,7 @@ struct LEX;
   This class represents a query expression (one query block or
   several query blocks combined with UNION).
 */
-class SELECT_LEX_UNIT: public Sql_alloc
+class SELECT_LEX_UNIT
 {
   /**
     Intrusive double-linked list of all query expressions
@@ -912,7 +911,7 @@ enum class enum_explain_type
   a query consisting of a SELECT keyword, followed by a table list,
   optionally followed by a WHERE clause, a GROUP BY, etc.
 */
-class SELECT_LEX: public Sql_alloc
+class SELECT_LEX
 {
 public:
   Item  *where_cond() const { return m_where_cond; }
@@ -1226,9 +1225,9 @@ public:
   */
   uint with_wild;
   bool  braces;   	///< SELECT ... UNION (SELECT ... ) <- this braces
-  /// TRUE when having fix field called in processing of this query block
+  /// true when having fix field called in processing of this query block
   bool having_fix_field;
-  /// TRUE when GROUP BY fix field called in processing of this query block
+  /// true when GROUP BY fix field called in processing of this query block
   bool group_fix_field;
   /// List of references to fields referenced from inner query blocks
   List<Item_outer_ref> inner_refs_list;
@@ -1700,7 +1699,7 @@ public:
   Item **add_hidden_item(Item *item);
 
   bool add_tables(THD *thd,
-                  const Trivial_array<Table_ident *> *tables,
+                  const Mem_root_array<Table_ident *> *tables,
                   ulong table_options,
                   thr_lock_type lock_type,
                   enum_mdl_type mdl_type);
@@ -1741,58 +1740,6 @@ struct Query_options {
 
   bool merge(const Query_options &a, const Query_options &b);
   bool save_to(Parse_context *);
-};
-
-
-/**
-  Helper for the sql_exchange class
-*/
-
-struct Line_separators
-{
-  const String *line_term;
-  const String *line_start;
-
-  void cleanup() { line_term= line_start= NULL; }
-  void merge_line_separators(const Line_separators &s)
-  {
-    if (s.line_term != NULL)
-      line_term= s.line_term;
-    if (s.line_start != NULL)
-      line_start= s.line_start;
-  }
-};
-
-
-/**
-  Helper for the sql_exchange class
-*/
-
-struct Field_separators
-{
-  const String *field_term;
-  const String *escaped;
-  const String *enclosed;
-  bool opt_enclosed;
-  
-  void cleanup()
-  {
-    field_term= escaped= enclosed= NULL;
-    opt_enclosed= false;
-  }
-  void merge_field_separators(const Field_separators &s)
-  {
-    if (s.field_term != NULL)
-      field_term= s.field_term;
-    if (s.escaped != NULL)
-      escaped= s.escaped;
-    if (s.enclosed != NULL)
-      enclosed= s.enclosed;
-    // TODO: a bug?
-    // OPTIONALLY ENCLOSED BY x ENCLOSED BY y == OPTIONALLY ENCLOSED BY y
-    if (s.opt_enclosed)
-      opt_enclosed= s.opt_enclosed;
-  }
 };
 
 
@@ -1979,7 +1926,7 @@ union YYSTYPE {
   List<String> *string_list;
   String *string;
   Key_part_spec *key_part;
-  Trivial_array<Table_ident *> *table_list;
+  Mem_root_array<Table_ident *> *table_list;
   udf_func *udf;
   LEX_USER *lex_user;
   List<LEX_USER> *user_list;
@@ -2132,20 +2079,20 @@ union YYSTYPE {
   class PT_common_table_expr *common_table_expr;
   Create_col_name_list simple_ident_list;
   class PT_partition_option *partition_option;
-  Trivial_array<PT_partition_option *> *partition_option_list;
+  Mem_root_array<PT_partition_option *> *partition_option_list;
   class PT_subpartition *sub_part_definition;
-  Trivial_array<PT_subpartition *> *sub_part_list;
+  Mem_root_array<PT_subpartition *> *sub_part_list;
   class PT_part_value_item *part_value_item;
-  Trivial_array<PT_part_value_item *> *part_value_item_list;
+  Mem_root_array<PT_part_value_item *> *part_value_item_list;
   class PT_part_value_item_list_paren *part_value_item_list_paren;
-  Trivial_array<PT_part_value_item_list_paren *> *part_value_list;
+  Mem_root_array<PT_part_value_item_list_paren *> *part_value_list;
   class PT_part_values *part_values;
   struct {
     partition_type type;
     PT_part_values *values;
   } opt_part_values;
   class PT_part_definition *part_definition;
-  Trivial_array<PT_part_definition *> *part_def_list;
+  Mem_root_array<PT_part_definition *> *part_def_list;
   List<char> *name_list; // TODO: merge with string_list
   enum_key_algorithm opt_key_algo;
   class PT_sub_partition *opt_sub_part;
@@ -2159,13 +2106,13 @@ union YYSTYPE {
   enum_drop_mode opt_restrict;
   Ternary_option ternary_option;
   class PT_create_table_option *create_table_option;
-  Trivial_array<PT_create_table_option *> *create_table_options;
-  Trivial_array<PT_ddl_table_option *> *space_separated_alter_table_opts;
+  Mem_root_array<PT_create_table_option *> *create_table_options;
+  Mem_root_array<PT_ddl_table_option *> *space_separated_alter_table_opts;
   On_duplicate on_duplicate;
   class PT_column_attr_base *col_attr;
   column_format_type column_format;
   ha_storage_media storage_media;
-  Trivial_array<PT_column_attr_base *> *col_attr_list;
+  Mem_root_array<PT_column_attr_base *> *col_attr_list;
   Virtual_or_stored virtual_or_stored;
   Field_option field_option;
   Int_type int_type;
@@ -2192,9 +2139,9 @@ union YYSTYPE {
   } fk_references;
   class PT_column_def *column_def;
   class PT_table_element *table_element;
-  Trivial_array<PT_table_element *> *table_element_list;
+  Mem_root_array<PT_table_element *> *table_element_list;
   struct {
-    Trivial_array<PT_create_table_option *> *opt_create_table_options;
+    Mem_root_array<PT_create_table_option *> *opt_create_table_options;
     PT_partition *opt_partitioning;
     On_duplicate on_duplicate;
     PT_query_expression *opt_query_expression;
@@ -2203,7 +2150,7 @@ union YYSTYPE {
   Locked_row_action locked_row_action;
   class PT_locking_clause *locking_clause;
   class PT_locking_clause_list *locking_clause_list;
-  Trivial_array<PT_json_table_column *> *jtc_list;
+  Mem_root_array<PT_json_table_column *> *jtc_list;
   struct jt_on_response {
     enum_jtc_on type;
     const LEX_STRING *default_str;
@@ -2226,9 +2173,9 @@ union YYSTYPE {
     int num_buckets;
   } histogram;
   Acl_type acl_type;
-  Trivial_array<LEX_CSTRING> *lex_cstring_list;
+  Mem_root_array<LEX_CSTRING> *lex_cstring_list;
   class PT_role_or_privilege *role_or_privilege;
-  Trivial_array<PT_role_or_privilege *> *role_or_privilege_list;
+  Mem_root_array<PT_role_or_privilege *> *role_or_privilege_list;
   enum_order order_direction;
   Alter_info::enum_with_validation with_validation;
   class PT_alter_table_action *alter_table_action;
@@ -2255,29 +2202,29 @@ union YYSTYPE {
   } algo_and_lock_and_validation;
   struct {
     Algo_and_lock_and_validation flags;
-    Trivial_array<PT_ddl_table_option *> *actions;
+    Mem_root_array<PT_ddl_table_option *> *actions;
   } alter_list;
   struct {
     Algo_and_lock_and_validation flags;
     PT_alter_table_standalone_action *action;
   } standalone_alter_table_action;
   class PT_assign_to_keycache *assign_to_keycache;
-  Trivial_array<PT_assign_to_keycache *> *keycache_list;
+  Mem_root_array<PT_assign_to_keycache *> *keycache_list;
   class PT_adm_partition *adm_partition;
   class PT_preload_keys *preload_keys;
-  Trivial_array<PT_preload_keys *> *preload_list;
+  Mem_root_array<PT_preload_keys *> *preload_list;
   PT_alter_tablespace_option_base *ts_option;
-  Trivial_array<PT_alter_tablespace_option_base *> *ts_options;
+  Mem_root_array<PT_alter_tablespace_option_base *> *ts_options;
   struct {
     resourcegroups::platform::cpu_id_t start;
     resourcegroups::platform::cpu_id_t end;
   } vcpu_range_type;
-  Trivial_array<resourcegroups::Range> *resource_group_vcpu_list_type;
+  Mem_root_array<resourcegroups::Range> *resource_group_vcpu_list_type;
   Value_or_default<int> resource_group_priority_type;
   Value_or_default<bool> resource_group_state_type;
   bool resource_group_flag_type;
   resourcegroups::Type resource_group_type;
-  Trivial_array<ulonglong> *thread_id_list_type;
+  Mem_root_array<ulonglong> *thread_id_list_type;
   Explain_format_type explain_format_type;
   struct {
     Item *set_var;
@@ -2871,8 +2818,8 @@ public:
            e.g. temporary, transactional, non-transactional.
 
     @return
-      @retval TRUE  if the type of the table is about to be accessed
-      @retval FALSE otherwise
+      @retval true  if the type of the table is about to be accessed
+      @retval false otherwise
   */
   inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table)
   {
@@ -2895,15 +2842,15 @@ public:
     @param trx_isolation defines the isolation level.
  
     @return
-      @retval TRUE if the mixed statement is unsafe
-      @retval FALSE otherwise
+      @retval true if the mixed statement is unsafe
+      @retval false otherwise
   */
   inline bool is_mixed_stmt_unsafe(bool in_multi_stmt_transaction_mode,
                                    bool binlog_direct,
                                    bool trx_cache_is_not_empty,
                                    uint tx_isolation)
   {
-    bool unsafe= FALSE;
+    bool unsafe= false;
 
     if (in_multi_stmt_transaction_mode)
     {
@@ -2932,11 +2879,11 @@ public:
     if (stmt_accessed_table(STMT_WRITES_NON_TRANS_TABLE) &&
       stmt_accessed_table(STMT_READS_TRANS_TABLE) &&
       tx_isolation < ISO_REPEATABLE_READ)
-      unsafe= TRUE;
+      unsafe= true;
     else if (stmt_accessed_table(STMT_WRITES_TEMP_NON_TRANS_TABLE) &&
       stmt_accessed_table(STMT_READS_TRANS_TABLE) &&
       tx_isolation < ISO_REPEATABLE_READ)
-      unsafe= TRUE;
+      unsafe= true;
 
     return(unsafe);
   }
@@ -2948,7 +2895,7 @@ public:
   bool uses_stored_routines() const
   { return sroutines_list.elements != 0; }
 
-  void set_using_match() { using_match= TRUE; }
+  void set_using_match() { using_match= true; }
   bool get_using_match() { return using_match; }
 private:
 
@@ -2992,7 +2939,7 @@ private:
   uint32 stmt_accessed_table_flag;
 
   /**
-     It will be set TRUE if 'MATCH () AGAINST' is used in the statement.
+     It will be set true if 'MATCH () AGAINST' is used in the statement.
   */
   bool using_match;
 };
@@ -3073,8 +3020,8 @@ public:
   /**
      Object initializer. Must be called before usage.
 
-     @retval FALSE OK
-     @retval TRUE  Error
+     @retval false OK
+     @retval true  Error
   */
   bool init(THD *thd, const char *buff, size_t length);
 
@@ -3471,12 +3418,12 @@ public:
   bool ignore_space;
 
   /**
-    TRUE if we're parsing a prepared statement: in this mode
+    true if we're parsing a prepared statement: in this mode
     we should allow placeholders.
   */
   bool stmt_prepare_mode;
   /**
-    TRUE if we should allow multi-statements.
+    true if we should allow multi-statements.
   */
   bool multi_statements;
 
@@ -3528,7 +3475,7 @@ public:
 };
 
 
-class LEX_COLUMN : public Sql_alloc
+class LEX_COLUMN
 {
 public:
   String column;
@@ -3903,6 +3850,13 @@ public:
     on explicit_defaults_for_timestamp
   */
   bool binlog_need_explicit_defaults_ts;
+
+  /**
+    Used to inform MYSQLparse() whether it should contextualize the parse
+    tree. When we get a pure parser this will not be needed.
+  */
+  bool will_contextualize;
+
   LEX();
 
   virtual ~LEX();
@@ -3976,8 +3930,8 @@ public:
       LEX::which_check_option_applicable()
 
     RETURN
-      TRUE   have to take 'WHITH CHECK OPTION' clause into account
-      FALSE  'WHITH CHECK OPTION' clause do not need
+      true   have to take 'WHITH CHECK OPTION' clause into account
+      false  'WHITH CHECK OPTION' clause do not need
   */
   inline bool which_check_option_applicable()
   {
@@ -3989,9 +3943,9 @@ public:
     case SQLCOM_REPLACE:
     case SQLCOM_REPLACE_SELECT:
     case SQLCOM_LOAD:
-      return TRUE;
+      return true;
     default:
-      return FALSE;
+      return false;
     }
   }
 
@@ -4031,9 +3985,9 @@ public:
   /**
     @brief check if the statement is a single-level join
     @return result of the check
-      @retval TRUE  The statement doesn't contain subqueries, unions and 
+      @retval true  The statement doesn't contain subqueries, unions and 
                     stored procedure calls.
-      @retval FALSE There are subqueries, UNIONs or stored procedure calls.
+      @retval false There are subqueries, UNIONs or stored procedure calls.
   */
   bool is_single_level_stmt() 
   { 
@@ -4046,9 +4000,9 @@ public:
         (sroutines == nullptr || sroutines->empty()))
     {
       DBUG_ASSERT(!all_selects_list->next_select_in_list());
-      return TRUE;
+      return true;
     }
-    return FALSE;
+    return false;
   }
 
   /**
@@ -4187,8 +4141,8 @@ public:
   /**
      Object initializer. Must be called before usage.
 
-     @retval FALSE OK
-     @retval TRUE  Error
+     @retval false OK
+     @retval true  Error
   */
   bool init(THD *thd, const char *buff, size_t length)
   {

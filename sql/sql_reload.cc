@@ -133,7 +133,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
         result= 1;
     }
 
-    reset_mqh(thd, (LEX_USER *)NULL, TRUE);
+    reset_mqh(thd, (LEX_USER *)NULL, true);
     if (tmp_thd)
     {
       delete tmp_thd;
@@ -249,7 +249,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       if (thd->global_read_lock.lock_global_read_lock(thd))
 	return 1;                               // Killed
       if (close_cached_tables(thd, tables,
-                              ((options & REFRESH_FAST) ?  FALSE : TRUE),
+                              ((options & REFRESH_FAST) ?  false : true),
                               thd->variables.lock_wait_timeout))
       {
         /*
@@ -310,7 +310,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       }
 
       if (close_cached_tables(thd, tables,
-                              ((options & REFRESH_FAST) ?  FALSE : TRUE),
+                              ((options & REFRESH_FAST) ?  false : true),
                               (thd ? thd->variables.lock_wait_timeout :
                                LONG_TIMEOUT)))
       {
@@ -467,7 +467,7 @@ bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
     /* Request removal of table from cache. */
     tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
                      table_list->db,
-                     table_list->table_name, FALSE);
+                     table_list->table_name, false);
     /* Reset ticket to satisfy asserts in open_tables(). */
     table_list->mdl_request.ticket= NULL;
   }
@@ -497,10 +497,10 @@ bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
     thd->sql_command= SQLCOM_LOCK_TABLES hacks to enter the LTM.
   */
 
-  return FALSE;
+  return false;
 
 error:
-  return TRUE;
+  return true;
 }
 
 

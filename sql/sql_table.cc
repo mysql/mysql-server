@@ -29,22 +29,29 @@
 #include <string>
 #include <type_traits>
 
+#ifndef UNIV_HOTBACKUP
 #include "binary_log_types.h"
 #include "binlog_event.h"
 #include "lex_string.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "m_ctype.h"
 #include "m_string.h"                 // my_stpncpy
+#ifndef UNIV_HOTBACKUP
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_check_opt.h"             // T_EXTEND
 #include "my_compiler.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "my_dbug.h"
+#include "mysql_com.h"
+#ifndef UNIV_HOTBACKUP
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "my_time.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -129,9 +136,15 @@
 #include "sql/sql_tablespace.h"       // validate_tablespace_name
 #include "sql/sql_time.h"             // make_truncated_value_warning
 #include "sql/sql_trigger.h"          // change_trigger_table_name
+#endif /* !UNIV_HOTBACKUP */
+#include "sql/strfunc.h"                  // find_type2
+#ifndef UNIV_HOTBACKUP
 #include "sql/strfunc.h"              // find_type2
 #include "sql/system_variables.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "sql/table.h"
+#ifndef UNIV_HOTBACKUP
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"          // trans_commit_stmt
 #include "sql/transaction_info.h"
@@ -176,6 +189,13 @@ static bool prepare_enum_field(THD *thd, Create_field *sql_field);
 static uint blob_length_by_type(enum_field_types type);
 static const Create_field *get_field_by_index(Alter_info *alter_info, uint idx);
 
+#else /* !UNIV_HOTBACKUP */
+/* Branches which use these, should not be taken by backup. */
+#define ER_THD_OR_DEFAULT(thd,X) ("Cannot explain file name, MySQL error")
+#define get_quote_char_for_identifier(thd, conv_name, len) ('`')
+#endif /* !UNIV_HOTBACKUP */
+
+#ifndef UNIV_HOTBACKUP
 /**
   RAII class to control the atomic DDL commit on slave.
   A slave context flag responsible to mark the DDL as committed is
@@ -230,6 +250,7 @@ static bool trans_intermediate_ddl_commit(THD *thd, bool error)
   }
   return trans_commit_stmt(thd) || trans_commit(thd);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 
 /**
@@ -504,6 +525,7 @@ size_t explain_filename(THD* thd,
   DBUG_RETURN(static_cast<size_t>(to_p - to));
 }
 
+#ifndef UNIV_HOTBACKUP
 void parse_filename(const char *filename, size_t filename_length,
                     const char ** schema_name, size_t *schema_name_length,
                     const char ** table_name, size_t *table_name_length,
@@ -618,6 +640,7 @@ void parse_filename(const char *filename, size_t filename_length,
   *subpartition_name= id_ptr;
   *subpartition_name_length= id_length;
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*
   Translate a file name to a table name (WL #1324).
@@ -652,6 +675,7 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length,
                     system_charset_info,  to, to_length, &errors);
     if (errors) // Old 5.0 name
     {
+#ifndef UNIV_HOTBACKUP
       if (!stay_quiet) {
         LogErr(ERROR_LEVEL, ER_INVALID_OR_OLD_TABLE_OR_DB_NAME, from);
       }
@@ -659,6 +683,7 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length,
         TODO: add a stored procedure for fix table and database names,
         and mention its name in error log.
       */
+#endif /* !UNIV_HOTBACKUP */
     }
   }
 
@@ -667,6 +692,7 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length,
 }
 
 
+#ifndef UNIV_HOTBACKUP
 /*
   Translate a table name to a file name (WL #1324).
 
@@ -901,7 +927,7 @@ static bool rea_create_tmp_table(THD *thd, const char *path,
   // Transfer ownership of dd::Table object to TABLE_SHARE.
   table->s->tmp_table_def= tmp_table_ptr.release();
 
-  thd->thread_specific_used= TRUE;
+  thd->thread_specific_used= true;
 
   if (binlog_to_trx_cache != NULL)
     *binlog_to_trx_cache= table->file->has_transactions();
@@ -1102,9 +1128,9 @@ int write_bin_log(THD *thd, bool clear_error,
     if (clear_error)
       thd->clear_error();
     else
-      errcode= query_error_code(thd, TRUE);
+      errcode= query_error_code(thd, true);
     error= thd->binlog_query(THD::STMT_QUERY_TYPE,
-                             query, query_length, is_trans, FALSE, FALSE,
+                             query, query_length, is_trans, false, false,
                              errcode);
   }
   return error;
@@ -1401,8 +1427,8 @@ void Foreign_key_parents_invalidator::invalidate(THD *thd)
     not if under LOCK TABLES.
 
   RETURN
-    FALSE OK.  In this case ok packet is sent to user
-    TRUE  Error
+    false OK.  In this case ok packet is sent to user
+    true  Error
 
 */
 
@@ -1568,7 +1594,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, bool if_exists,
   }
 
   if (error)
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   if (thd->lex->drop_temporary && thd->in_multi_stmt_transaction_mode())
   {
@@ -1581,7 +1607,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, bool if_exists,
     thd->server_status|= SERVER_STATUS_IN_TRANS;
   }
   my_ok(thd);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -4799,6 +4825,29 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         my_error(ER_SPATIAL_MUST_HAVE_GEOM_COL, MYF(0));
         DBUG_RETURN(true);
       }
+
+      /*
+        If the field is without an SRID specification, issue a warning telling
+        the user that this index will not be used by the optimizer (useless
+        spatial index). We do however have to allow creating such index in
+        order to support dump/restore from older MySQL versions to new
+        versions.
+
+        NOTE: At this stage of ALTER TABLE/CREATE INDEX/whatever DDL, we may
+        have copied all existing indexes into key list. Thus, this function may
+        run for indexes that already exists. The variable
+        "check_for_duplicate_indexes" will however be set to "false" for indexes
+        that already are created, so we use this variable to distinguish between
+        indexes that are to be created, and those that already are created.
+      */
+      if (key->check_for_duplicate_indexes && !sql_field->m_srid.has_value())
+      {
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            WARN_USELESS_SPATIAL_INDEX,
+                            ER_THD(thd, WARN_USELESS_SPATIAL_INDEX),
+                            sql_field->field_name);
+      }
+
       /*
         4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
         Lately we'll extend this code to support more dimensions
@@ -4959,7 +5008,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
                (key_info->flags & HA_NOSAME))))
     {
       my_error(ER_WRONG_SUB_KEY, MYF(0));
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
     else if (!(file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS))
       key_part_length= column_length;
@@ -5868,7 +5917,7 @@ bool mysql_prepare_create_table(THD *thd,
   {
     my_error(ER_WRONG_STRING_LENGTH, MYF(0),
              connect_string->str, "CONNECTION", CONNECT_STRING_MAXLEN);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   LEX_STRING *compress= &create_info->compress;
@@ -5897,7 +5946,7 @@ bool mysql_prepare_create_table(THD *thd,
   {
     my_error(ER_WRONG_STRING_LENGTH, MYF(0),
              encrypt_type->str, "ENCRYPTION", TABLE_COMMENT_MAXLEN);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (validate_comment_length(thd,
@@ -6509,7 +6558,7 @@ bool create_table_impl(THD *thd,
     }
     part_handler->set_auto_partitions(part_info);
     part_info->default_engine_type= create_info->db_type;
-    part_info->is_auto_partitioned= TRUE;
+    part_info->is_auto_partitioned= true;
   }
   if (part_info)
   {
@@ -6579,7 +6628,7 @@ bool create_table_impl(THD *thd,
              ha_resolve_storage_engine_name(part_info->default_engine_type),
              ha_resolve_storage_engine_name(create_info->db_type)));
     if (part_info->check_partition_info(thd, &engine_type, file.get(),
-                                        create_info, FALSE))
+                                        create_info, false))
       DBUG_RETURN(true);
     part_info->default_engine_type= engine_type;
 
@@ -6604,7 +6653,7 @@ bool create_table_impl(THD *thd,
       if (file.get() == nullptr)
       {
         mem_alloc_error(sizeof(handler));
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
       create_info->db_type= engine_type;
     }
@@ -7344,7 +7393,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                         Alter_info *alter_info)
 {
   bool result;
-  bool is_trans= FALSE;
+  bool is_trans= false;
   uint not_used;
   handlerton *post_ddl_ht= nullptr;
   Foreign_key_parents_invalidator fk_invalidator;
@@ -7984,17 +8033,16 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     create_info Create info
 
   RETURN VALUES
-    FALSE OK
-    TRUE  error
+    false OK
+    true  error
 */
 
 bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
                              HA_CREATE_INFO *create_info)
 {
-  HA_CREATE_INFO local_create_info;
   Alter_info local_alter_info(thd->mem_root);
   Alter_table_ctx local_alter_ctx; // Not used
-  bool is_trans= FALSE;
+  bool is_trans= false;
   uint not_used;
   Tablespace_hash_set tablespace_set(PSI_INSTRUMENT_ME);
   handlerton *post_ddl_ht= nullptr;
@@ -8056,7 +8104,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   if (src_table->table->s->tablespace &&
       strlen(src_table->table->s->tablespace) > 0)
   {
-    DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+    DBUG_ASSERT(src_table->table->s->tmp_table ||
+                  thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
                   src_table->db, src_table->table_name, MDL_SHARED));
 
     tablespace_set.insert(src_table->table->s->tablespace);
@@ -8079,7 +8128,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   }
 
   /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
-  memset(&local_create_info, 0, sizeof(local_create_info));
+  HA_CREATE_INFO local_create_info;
   local_create_info.db_type= src_table->table->s->db_type();
   local_create_info.row_type= src_table->table->s->row_type;
   if (mysql_prepare_alter_table(thd, src_table_obj,
@@ -8112,6 +8161,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   */
   local_create_info.data_file_name= local_create_info.index_file_name= NULL;
   local_create_info.alias= create_info->alias;
+
+  /*
+    Keep tablespace, only if it was specified explicitly in CREATE
+    TABLE when source table was created.
+  */
+  if (src_table_obj && !src_table_obj->is_explicit_tablespace())
+  {
+    local_create_info.tablespace= nullptr;
+  }
 
   /*
     Lock the FK children, in case the new table introduces a missing parent.
@@ -8206,7 +8264,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         String query(buf, sizeof(buf), system_charset_info);
         query.length(0);  // Have to zero it since constructor doesn't
         Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
-        bool new_table= FALSE; // Whether newly created table is open.
+        bool new_table= false; // Whether newly created table is open.
 
         /*
           The condition avoids a crash as described in BUG#48506. Other
@@ -8236,7 +8294,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
             if (result)
               goto err;
-            new_table= TRUE;
+            new_table= true;
           }
 
           /*
@@ -8264,7 +8322,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
           int result MY_ATTRIBUTE((unused))=
             store_create_info(thd, table, &query,
-                              create_info, TRUE /* show_database */);
+                              create_info, true /* show_database */);
 
           DBUG_ASSERT(result == 0); // store_create_info() always return 0
 
@@ -9601,8 +9659,8 @@ static bool push_zero_date_warning(THD *thd, Create_field *datetime_field)
       keys_onoff             ENABLE | DISABLE | LEAVE_AS_IS
 
   RETURN VALUES
-    FALSE  OK
-    TRUE   Error
+    false  OK
+    true   Error
 */
 
 static
@@ -9991,6 +10049,43 @@ adjust_fks_for_complex_alter_table(THD *thd, TABLE_LIST *table_list,
 
 
 /**
+  Check if a table is empty, i.e., it has no rows.
+
+  @param[in] table The table.
+  @param[out] is_empty Set to true if the table is empty.
+
+  @retval false Success.
+  @retval true An error occurred (and has been reported with print_error).
+*/
+static bool table_is_empty(TABLE * table, bool *is_empty)
+{
+  *is_empty= false;
+  int error= 0;
+  if (!(error= table->file->ha_rnd_init(true)))
+  {
+    do
+    {
+      error= table->file->ha_rnd_next(table->record[0]);
+    } while (error == HA_ERR_RECORD_DELETED);
+    if (error == HA_ERR_END_OF_FILE)
+      *is_empty= true;
+  }
+  if (error && error != HA_ERR_END_OF_FILE)
+  {
+    table->file->print_error(error, MYF(0));
+    table->file->ha_rnd_end();
+    return true;
+  }
+  if ((error= table->file->ha_rnd_end()))
+  {
+    table->file->print_error(error, MYF(0));
+    return true;
+  }
+  return false;
+}
+
+
+/**
   Perform in-place alter table.
 
   @param thd                Thread handle.
@@ -10124,16 +10219,10 @@ static bool mysql_inplace_alter_table(THD *thd,
   {
     DBUG_ASSERT(table->mdl_ticket->get_type() == MDL_EXCLUSIVE);
 
-    // Check if the handler supports ha_records()
-    if (!(table_list->table->file->ha_table_flags() & HA_HAS_RECORDS))
-    {
-      // If ha_records() is not supported, be conservative.
-      my_error(ER_INVALID_USE_OF_NULL, MYF(0));
+    bool empty_table= false;
+    if (table_is_empty(table_list->table, &empty_table))
       goto cleanup;
-    }
-
-    ha_rows tmp= 0;
-    if (table_list->table->file->ha_records(&tmp) || tmp > 0)
+    if (!empty_table)
     {
       if (alter_ctx->error_if_not_empty &
           Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT)
@@ -11699,9 +11788,9 @@ bool prepare_fields_and_keys(THD *thd,
     Sets create_info->varchar if the table has a VARCHAR column.
     Prepares alter_info->create_list and alter_info->key_list with
     columns and keys of the new table.
-  @retval TRUE   error, out of memory or a semantical error in ALTER
+  @retval true   error, out of memory or a semantical error in ALTER
                  TABLE instructions
-  @retval FALSE  success
+  @retval false  success
 */
 
 bool mysql_prepare_alter_table(THD *thd, const dd::Table *src_table,
@@ -14340,9 +14429,9 @@ bool mysql_trans_prepare_alter_copy_data(THD *thd)
   */
   Disable_gtid_state_update_guard disabler(thd);
 
-  if (ha_enable_transaction(thd, FALSE))
-    DBUG_RETURN(TRUE);
-  DBUG_RETURN(FALSE);
+  if (ha_enable_transaction(thd, false))
+    DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 
@@ -14352,15 +14441,15 @@ bool mysql_trans_prepare_alter_copy_data(THD *thd)
 
 bool mysql_trans_commit_alter_copy_data(THD *thd)
 {
-  bool error= FALSE;
+  bool error= false;
   DBUG_ENTER("mysql_commit_alter_copy_data");
   /*
     Ensure that ha_commit_trans() which is implicitly called by
     ha_enable_transaction() doesn't update GTID and slave info states.
   */
   Disable_gtid_state_update_guard disabler(thd);
-  if (ha_enable_transaction(thd, TRUE))
-    DBUG_RETURN(TRUE);
+  if (ha_enable_transaction(thd, true))
+    DBUG_RETURN(true);
 
   /*
     Ensure that the new table is saved properly to disk before installing
@@ -14369,9 +14458,9 @@ bool mysql_trans_commit_alter_copy_data(THD *thd)
     when waiting on other instances of the table before rename (Bug#54747).
   */
   if (trans_commit_stmt(thd))
-    error= TRUE;
+    error= true;
   if (trans_commit_implicit(thd))
-    error= TRUE;
+    error= true;
 
   DBUG_RETURN(error);
 }
@@ -14391,7 +14480,6 @@ copy_data_between_tables(THD * thd,
   Copy_field *copy,*copy_end;
   ulong found_count,delete_count;
   READ_RECORD info;
-  TABLE_LIST   tables;
   List<Item>   fields;
   List<Item>   all_fields;
   ha_rows examined_rows, found_rows, returned_rows;
@@ -14452,7 +14540,7 @@ copy_data_between_tables(THD * thd,
     {
       if (*ptr == to->next_number_field)
       {
-        auto_increment_field_copied= TRUE;
+        auto_increment_field_copied= true;
         /*
           If we are going to copy contents of one auto_increment column to
           another auto_increment column it is sensible to preserve zeroes.
@@ -14488,7 +14576,7 @@ copy_data_between_tables(THD * thd,
       from->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
                                                 sizeof(IO_CACHE),
                                                 MYF(MY_FAE | MY_ZEROFILL));
-      memset(&tables, 0, sizeof(tables));
+      TABLE_LIST   tables;
       tables.table= from;
       tables.alias= tables.table_name= from->s->table_name.str;
       tables.db= from->s->db.str;
@@ -14513,7 +14601,7 @@ copy_data_between_tables(THD * thd,
 
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
-  if (init_read_record(&info, thd, from, NULL, 1, 1, FALSE))
+  if (init_read_record(&info, thd, from, NULL, 1, 1, false))
   {
     error= 1;
     goto err;
@@ -14551,7 +14639,7 @@ copy_data_between_tables(THD * thd,
     if (to->next_number_field)
     {
       if (auto_increment_field_copied)
-        to->auto_increment_field_not_null= TRUE;
+        to->auto_increment_field_not_null= true;
       else
         to->next_number_field->reset();
     }
@@ -14579,7 +14667,7 @@ copy_data_between_tables(THD * thd,
     }
 
     error=to->file->ha_write_row(to->record[0]);
-    to->auto_increment_field_not_null= FALSE;
+    to->auto_increment_field_not_null= false;
     if (error)
     {
       if (!to->file->is_ignorable_error(error))
@@ -14712,7 +14800,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   item->maybe_null= 1;
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /*
     Close all temporary tables which were pre-open to simplify
@@ -14863,10 +14951,10 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   }
 
   my_eof(thd);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 err:
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 /**
@@ -14932,3 +15020,4 @@ static bool check_engine(THD *thd, const char *db_name,
 
   DBUG_RETURN(false);
 }
+#endif /* !UNIV_HOTBACKUP */

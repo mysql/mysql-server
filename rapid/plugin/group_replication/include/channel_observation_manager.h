@@ -20,6 +20,7 @@
 #include <list>
 
 #include "my_inttypes.h"
+#include "mysql/plugin.h"
 
 /**
   A interface class to code channel state response methods

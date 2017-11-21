@@ -243,7 +243,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
 
   if (field == field->table->next_number_field)
   {
-    field->table->auto_increment_field_not_null= FALSE;
+    field->table->auto_increment_field_not_null= false;
     return TYPE_OK;		        // field is set in fill_record()
   }
 
@@ -259,12 +259,21 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     // There's no valid conversion for geometry values.
     if (field->type() == MYSQL_TYPE_GEOMETRY)
     {
-      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+      my_error(ER_BAD_NULL_ERROR_NOT_IGNORED, MYF(0), field->field_name);
       return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
     }
     field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:
+    if (field->type() == MYSQL_TYPE_BLOB)
+    {
+      /*
+        BLOB/TEXT fields only store a pointer to their actual contents
+        in the record. Make this a valid pointer to an empty string
+        instead of nullptr.
+      */
+      return field->store("", 0, field->charset());
+    }
     return TYPE_OK;
   case CHECK_FIELD_ERROR_FOR_NULL:
     my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);

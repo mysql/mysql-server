@@ -33,7 +33,6 @@ Created 12/7/1995 Heikki Tuuri
 // Forward declaration
 struct dict_index_t;
 
-#ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Writes 1, 2 or 4 bytes to a file page. Writes the corresponding log
 record to the mini-transaction log if mtr is not NULL. */
@@ -198,6 +197,7 @@ mlog_write_initial_log_record_low(
 	byte*		log_ptr,
 	mtr_t*		mtr);
 
+#ifndef UNIV_HOTBACKUP
 /** Writes the initial part of a log record (3..11 bytes).
 If the implementation of this function is changed, all size parameters to
 mlog_open() should be adjusted accordingly!
@@ -269,7 +269,6 @@ mlog_parse_string(
 	byte*	page,	/*!< in: page where to apply the log record, or NULL */
 	void*	page_zip);/*!< in/out: compressed page, or NULL */
 
-#ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Opens a buffer for mlog, writes the initial log record and,
 if needed, the field lengths of an index.  Reserves space
@@ -286,7 +285,6 @@ mlog_open_and_write_index(
 	ulint			size);	/*!< in: requested buffer size in bytes
 					(if 0, calls mlog_close() and
 					returns NULL) */
-#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************//**
 Parses a log record written by mlog_open_and_write_index.
@@ -299,11 +297,9 @@ mlog_parse_index(
 	ibool		comp,	/*!< in: TRUE=compact record format */
 	dict_index_t**	index);	/*!< out, own: dummy index */
 
-#ifndef UNIV_HOTBACKUP
 /** Insert, update, and maybe other functions may use this value to define an
 extra mlog buffer size for variable size data */
 #define MLOG_BUF_MARGIN	256
-#endif /* !UNIV_HOTBACKUP */
 
 #include "mtr0log.ic"
 

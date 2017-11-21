@@ -56,9 +56,9 @@ public:
 
   int add_observer(void *observer, st_plugin_int *plugin)
   {
-    int ret= FALSE;
+    int ret= false;
     if (!inited)
-      return TRUE;
+      return true;
     write_lock();
     Observer_info_iterator iter(observer_info_list);
     Observer_info *info= iter++;
@@ -68,19 +68,19 @@ public:
     {
       info= new Observer_info(observer, plugin);
       if (!info || observer_info_list.push_back(info, &memroot))
-        ret= TRUE;
+        ret= true;
     }
     else
-      ret= TRUE;
+      ret= true;
     unlock();
     return ret;
   }
 
   int remove_observer(void *observer)
   {
-    int ret= FALSE;
+    int ret= false;
     if (!inited)
-      return TRUE;
+      return true;
     write_lock();
     Observer_info_iterator iter(observer_info_list);
     Observer_info *info= iter++;
@@ -92,7 +92,7 @@ public:
       delete info;
     }
     else
-      ret= TRUE;
+      ret= true;
     unlock();
     return ret;
   }
@@ -111,21 +111,21 @@ public:
   inline int read_lock()
   {
     if (!inited)
-      return TRUE;
+      return true;
     return mysql_rwlock_rdlock(&lock);
   }
 
   inline int write_lock()
   {
     if (!inited)
-      return TRUE;
+      return true;
     return mysql_rwlock_wrlock(&lock);
   }
 
   inline int unlock()
   {
     if (!inited)
-      return TRUE;
+      return true;
     return mysql_rwlock_unlock(&lock);
   }
 
@@ -142,7 +142,7 @@ public:
 
   ~Delegate()
   {
-    inited= FALSE;
+    inited= false;
     mysql_rwlock_destroy(&lock);
     free_root(&memroot, MYF(0));
   }

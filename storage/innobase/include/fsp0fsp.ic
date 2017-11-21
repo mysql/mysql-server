@@ -26,7 +26,7 @@ Created 12/18/1995 Heikki Tuuri
 /** Checks if a page address is an extent descriptor page address.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
-@return TRUE if a descriptor page */
+@return true if a descriptor page */
 UNIV_INLINE
 ibool
 fsp_descr_page(
@@ -245,7 +245,7 @@ xdes_calc_descriptor_index(
 
 /**********************************************************************//**
 Gets a descriptor bit of a page.
-@return TRUE if free */
+@return true if free */
 UNIV_INLINE
 ibool
 xdes_get_bit(
@@ -413,7 +413,7 @@ fsp_flags_is_valid(
 		return(false);
 	}
 
-	/* The actual page size must be within 4k and 16K (3 =< ssize =< 5). */
+	/* The actual page size must be within 4k and 64K (3 =< ssize =< 7). */
 	if (page_ssize != 0
 	    && (page_ssize < UNIV_PAGE_SSIZE_MIN
 	        || page_ssize > UNIV_PAGE_SSIZE_MAX)) {

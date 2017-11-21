@@ -47,6 +47,7 @@
 #include "sql/item_cmpfunc.h"
 #include "sql/key.h"
 #include "sql/merge_sort.h"     // merge_sort
+#include "sql/nested_join.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_hints.h"      // hint_table_state
 #include "sql/opt_range.h"      // QUICK_SELECT_I
@@ -495,7 +496,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
           create quick select over another index), so we can't compare
           them to (**). We'll make indirect judgements instead.
           The sufficient conditions for re-use are:
-          (C1) All e_i in (**) are constants, i.e. table_deps==FALSE. (if
+          (C1) All e_i in (**) are constants, i.e. table_deps==false. (if
           this is not satisfied we have no way to know which ranges
           will be actually scanned by 'ref' until we execute the
           join)
@@ -543,8 +544,6 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
               on the same index,
               (2) and that quick select uses more keyparts (i.e. it will
               scan equal/smaller interval then this ref(const))
-              (3) and E(#rows) for quick select is higher then our
-              estimate,
               Then use E(#rows) from quick select.
 
               One observation is that when there are multiple
@@ -560,12 +559,10 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
               TODO: figure this out and adjust the plan choice if needed.
             */
             if (!table_deps && table->quick_keys.is_set(key) &&     // (1)
-                table->quick_key_parts[key] > cur_used_keyparts &&  // (2)
-                cur_fanout < (double)table->quick_rows[key])        // (3)
+                table->quick_key_parts[key] > cur_used_keyparts)    // (2)
             {
               trace_access_idx.add("chosen", false).
-                add_alnum("cause",
-                          "unreliable_ref_cost_and_range_uses_more_keyparts");
+                add_alnum("cause", "range_uses_more_keyparts");
               continue;
             }
 
@@ -947,7 +944,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
   @param remaining_tables  set of tables not included in the partial plan yet.
   @param idx               the index in join->position[] where 'tab' is added
                            to the partial plan.
-  @param disable_jbuf      TRUE<=> Don't use join buffering
+  @param disable_jbuf      true<=> Don't use join buffering
   @param prefix_rowcount   estimate for the number of records returned by the
                            partial plan
   @param[out] pos          Table access plan
@@ -3257,7 +3254,7 @@ prev_record_reads(JOIN *join, uint idx, table_map found_ref)
 /**
   @brief Fix semi-join strategies for the picked join order
 
-  @return FALSE if success, TRUE if error
+  @return false if success, true if error
 
   @details
     Fix semi-join strategies for the picked join order. This is a step that
@@ -3439,7 +3436,7 @@ bool Optimize_table_order::fix_semijoin_strategies()
 
   DBUG_ASSERT(remaining_tables == (join->all_table_map&~join->const_table_map));
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -3528,10 +3525,10 @@ bool Optimize_table_order::fix_semijoin_strategies()
   @param tab   Table we're going to extend the current partial join with
 
   @retval
-    FALSE  Join order extended, nested joins info about current join
+    false  Join order extended, nested joins info about current join
     order (see NOTE section) updated.
   @retval
-    TRUE   Requested join order extension not allowed.
+    true   Requested join order extension not allowed.
 */
 
 bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab)

@@ -28,6 +28,8 @@
 #include <string>
 
 #include "client/client_priv.h"
+#include "m_ctype.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -327,7 +329,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
                                     opt->name);
     break;
   case OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
+    using_opt_enable_cleartext_plugin= true;
     break;
   }
   if (error)
@@ -349,11 +351,11 @@ int main(int argc,char *argv[])
 
   MY_INIT(argv[0]);
   mysql_init(&mysql);
-  my_getopt_use_args_separator= TRUE;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  my_getopt_use_args_separator= true;
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   if (load_defaults("my",load_default_groups,&argc,&argv,&alloc))
    return EXIT_FAILURE;
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= false;
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
   {
@@ -417,7 +419,7 @@ int main(int argc,char *argv[])
 
   first_command= find_type(argv[0], &command_typelib, FIND_TYPE_BASIC);
   can_handle_passwords= first_command == ADMIN_PASSWORD ?
-    TRUE : FALSE;
+    true : false;
   mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_passwords);
 

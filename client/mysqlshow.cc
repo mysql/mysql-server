@@ -27,7 +27,9 @@
 
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
+#include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
@@ -81,11 +83,11 @@ int main(int argc, char **argv)
   MYSQL mysql;
   MY_INIT(argv[0]);
 
-  my_getopt_use_args_separator= TRUE;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  my_getopt_use_args_separator= true;
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   if (load_defaults("my",load_default_groups,&argc,&argv,&alloc))
     exit(1);
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= false;
 
   get_options(&argc,&argv);
 
@@ -332,7 +334,7 @@ get_one_option(int optid, const struct my_option *opt,
 #endif
     break;
   case (int) OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
+    using_opt_enable_cleartext_plugin= true;
     break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,

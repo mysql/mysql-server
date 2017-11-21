@@ -86,6 +86,7 @@
 #include "sql/sql_table.h"   // build_table_filename
 #include "sql/system_variables.h"
 #include "sql/table.h"       // TABLE_LIST
+#include "sql/thd_raii.h"
 #include "sql/transaction.h" // trans_rollback_stmt
 #include "sql_string.h"
 #include "typelib.h"
@@ -169,7 +170,7 @@ static bool write_db_cmd_to_binlog(THD *thd, const char *db, bool trx_cache)
 {
   if (mysql_bin_log.is_open())
   {
-    int errcode= query_error_code(thd, TRUE);
+    int errcode= query_error_code(thd, true);
     Query_log_event qinfo(thd, thd->query().str, thd->query().length,
                           trx_cache, false,
                           /* suppress_use */ true, errcode);
@@ -253,6 +254,30 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if (lock_schema_name(thd, lock_db_name))
     DBUG_RETURN(true);
 
+  dd::cache::Dictionary_client &dc= *thd->dd_client();
+  dd::String_type schema_name{db};
+  const dd::Schema *existing_schema= nullptr;
+  if (dc.acquire(schema_name, &existing_schema))
+  {
+     DBUG_RETURN(true);
+  }
+
+  bool store_in_dd= true;
+  bool if_not_exists= (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS);
+  if (existing_schema != nullptr)
+  {
+    if (if_not_exists == false)
+    {
+      my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
+      DBUG_RETURN(true);
+    }
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
+                        ER_DB_CREATE_EXISTS,
+                        ER_THD(thd, ER_DB_CREATE_EXISTS), db);
+
+    store_in_dd= false;
+  }
+
   /* Check directory */
   char	 path[FN_REFLEN+16];
   bool   was_truncated;
@@ -271,8 +296,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   // the physical representation of the schema is not re-created since it
   // already exists.
   MY_STAT stat_info;
-  bool store_in_dd= true;
-  bool schema_exists= (mysql_file_stat(key_file_misc,
+  bool schema_dir_exists= (mysql_file_stat(key_file_misc,
                                        path, &stat_info, MYF(0)) != NULL);
   if (thd->is_dd_system_thread() &&
       (!opt_initialize || dd::upgrade::in_progress()) &&
@@ -283,7 +307,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
       Server should either be in restart mode or upgrade mode to create only
       dd::Schema object for the dictionary cache.
     */
-    if (!schema_exists)
+    if (!schema_dir_exists)
     {
       my_printf_error(ER_BAD_DB_ERROR,
                       "System schema directory does not exist.",
@@ -291,21 +315,15 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
       DBUG_RETURN(true);
     }
   }
-  else if (schema_exists)
+  else if (store_in_dd)
   {
-    if (!(create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS))
+    if (schema_dir_exists)
     {
-      my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
+      my_error(ER_SCHEMA_DIR_EXISTS, MYF(0), path);
       DBUG_RETURN(true);
     }
-    push_warning_printf(thd, Sql_condition::SL_NOTE,
-                        ER_DB_CREATE_EXISTS,
-                        ER_THD(thd, ER_DB_CREATE_EXISTS), db);
-    store_in_dd= false;
-  }
-  // Don't create folder inside data directory in case we are upgrading.
-  else
-  {
+
+    // Don't create folder inside data directory in case we are upgrading.
     if (my_errno() != ENOENT)
     {
       char errbuf[MYSYS_STRERROR_SIZE];
@@ -316,7 +334,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     if (my_mkdir(path, 0777, MYF(0)) < 0)
     {
       char errbuf[MYSQL_ERRMSG_SIZE];
-      my_error(ER_CANT_CREATE_DB, MYF(0), db, my_errno(),
+      my_error(ER_SCHEMA_DIR_CREATE_FAILED, MYF(0), db, my_errno(),
                my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
       DBUG_RETURN(true);
     }
@@ -354,7 +372,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
         We rely on called to do rollback in case of error and thus
         revert change to the binary log.
       */
-      if (!schema_exists)
+      if (!schema_dir_exists)
         rm_dir_w_symlink(path, true);
       DBUG_RETURN(true);
     }
@@ -367,7 +385,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   */
   if (write_db_cmd_to_binlog(thd, db, store_in_dd))
   {
-    if (!schema_exists)
+    if (!schema_dir_exists)
       rm_dir_w_symlink(path, true);
     DBUG_RETURN(true);
   }
@@ -378,7 +396,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   */
   if (trans_commit_stmt(thd) || trans_commit(thd))
   {
-    if (!schema_exists)
+    if (!schema_dir_exists)
       rm_dir_w_symlink(path, true);
     DBUG_RETURN(true);
   }
@@ -519,7 +537,6 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   ulong deleted_tables= 0;
   bool error= false;
   char	path[2 * FN_REFLEN + 16];
-  MY_DIR *dirp;
   TABLE_LIST *tables= NULL;
   TABLE_LIST *table;
   Drop_table_error_handler err_handler;
@@ -555,44 +572,62 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   });
 
   /* See if the directory exists */
-  if (!(dirp= my_dir(path,MYF(MY_DONT_SORT))) ||
-      schema == nullptr)
+  MY_DIR *schema_dirp= my_dir(path, MYF(MY_DONT_SORT));
+
+  auto dirender= [] (MY_DIR *dirp) { my_dirend(dirp); };
+  std::unique_ptr<MY_DIR, decltype(dirender)> grd{schema_dirp, dirender};
+
+  if (schema == nullptr) // Schema not found in DD
   {
-    my_dirend(dirp);
-    if (!if_exists)
+    if (schema_dirp != nullptr) // Schema directory exists
+    {
+      // This is always an error, even when if_exists is true
+      my_error(ER_SCHEMA_DIR_UNKNOWN, MYF(0), db.str, path);
+      DBUG_RETURN(true);
+    }
+
+    if (!if_exists) // IF EXISTS not given
     {
       my_error(ER_DB_DROP_EXISTS, MYF(0), db.str);
       DBUG_RETURN(true);
     }
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
+                        ER_DB_DROP_EXISTS,
+                        ER_THD(thd, ER_DB_DROP_EXISTS), db.str);
+
+    /*
+      We don't have active transaction at this point so we can't use
+      binlog's trx cache, which requires transaction with valid XID.
+    */
+    if (write_db_cmd_to_binlog(thd, db.str, false))
+      DBUG_RETURN(true);
+
+    if (trans_commit_stmt(thd) ||  trans_commit_implicit(thd))
+      DBUG_RETURN(true);
+
+    /* Fall-through to resetting current database in connection. */
+  }
+  else // Schema found in DD
+  {
+    /* Database directory does not exist. */
+    if (schema_dirp == nullptr)
+    {
+      if (!if_exists)
+      {
+        my_error(ER_SCHEMA_DIR_MISSING, MYF(0), path);
+        DBUG_RETURN(true);
+      }
+      push_warning_printf(thd, Sql_condition::SL_NOTE,
+                          ER_SCHEMA_DIR_MISSING,
+                          ER_THD(thd, ER_SCHEMA_DIR_MISSING), path);
+    }
     else
     {
-      push_warning_printf(thd, Sql_condition::SL_NOTE,
-			  ER_DB_DROP_EXISTS,
-                          ER_THD(thd, ER_DB_DROP_EXISTS), db.str);
-
-      /*
-        We don't have active transaction at this point so we can't use
-        binlog's trx cache, which requires transaction with valid XID.
-      */
-      if (write_db_cmd_to_binlog(thd, db.str, false))
+      if (find_unknown_and_remove_deletable_files(thd, schema_dirp, path))
+      {
         DBUG_RETURN(true);
-
-      if (trans_commit_stmt(thd) ||  trans_commit_implicit(thd))
-        DBUG_RETURN(true);
-
-      /* Fall-through to resetting current database in connection. */
+      }
     }
-  }
-  else
-  {
-    /* Database exists. */
-
-    if (find_unknown_and_remove_deletable_files(thd, dirp, path))
-    {
-      my_dirend(dirp);
-      DBUG_RETURN(true);
-    }
-    my_dirend(dirp);
 
     if (find_db_tables(thd, *schema, db.str, &tables))
     {
@@ -712,7 +747,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
       failure to remove the directory as an error. Instead we report it
       as a warning, which is sent to user and written to server error log.
     */
-    if (!error)
+    if (!error && schema_dirp != nullptr)
     {
       Rmdir_error_handler rmdir_handler;
       thd->push_internal_handler(&rmdir_handler);
@@ -1154,7 +1189,7 @@ static void backup_current_db_name(THD *thd,
 
 
 /**
-  Return TRUE if db1_name is equal to db2_name, FALSE otherwise.
+  Return true if db1_name is equal to db2_name, false otherwise.
 
   The function allows to compare database names according to the MySQL
   rules. The database names db1 and db2 are equal if:
@@ -1183,7 +1218,7 @@ cmp_db_names(const char *db1_name,
 
   @param thd          thread handle
   @param new_db_name  database name
-  @param force_switch if force_switch is FALSE, then the operation will fail if
+  @param force_switch if force_switch is false, then the operation will fail if
 
                         - new_db_name is NULL or empty;
 
@@ -1194,7 +1229,7 @@ cmp_db_names(const char *db1_name,
 
                         - OR new database does not exist;
 
-                      if force_switch is TRUE, then
+                      if force_switch is true, then
 
                         - if new_db_name is NULL or empty, the current
                           database will be NULL, @@collation_database will
@@ -1462,7 +1497,7 @@ bool mysql_opt_change_db(THD *thd,
   *cur_db_changed= !cmp_db_names(thd->db().str, new_db_name.str);
 
   if (!*cur_db_changed)
-    return FALSE;
+    return false;
 
   backup_current_db_name(thd, saved_db_name);
 

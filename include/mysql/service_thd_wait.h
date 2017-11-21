@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,16 +46,8 @@
   thread workload.
 */
 
-#ifdef __cplusplus
 class THD;
 #define MYSQL_THD THD*
-#else
-#define MYSQL_THD void*
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*
   One should only report wait events that could potentially block for a
@@ -88,7 +80,7 @@ typedef enum _thd_wait_type_e {
   THD_WAIT_LAST= 11
 } thd_wait_type;
 
-extern struct thd_wait_service_st {
+extern "C" struct thd_wait_service_st {
   void (*thd_wait_begin_func)(MYSQL_THD, int);
   void (*thd_wait_end_func)(MYSQL_THD);
 } *thd_wait_service;
@@ -104,10 +96,6 @@ extern struct thd_wait_service_st {
 void thd_wait_begin(MYSQL_THD thd, int wait_type);
 void thd_wait_end(MYSQL_THD thd);
 
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif

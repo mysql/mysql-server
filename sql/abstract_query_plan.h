@@ -22,7 +22,6 @@
 
 #include "my_dbug.h"
 #include "sql/item_cmpfunc.h" // Item_equal_iterator
-#include "sql/sql_alloc.h"
 
 class Item;
 class Item_field;
@@ -65,7 +64,7 @@ namespace AQP
     sequence of n table access operations that will execute as a nested loop 
     join.
   */
-  class Join_plan : public Sql_alloc
+  class Join_plan
   {
     friend class Equal_set_iterator;
     friend class Table_access;
@@ -105,7 +104,7 @@ namespace AQP
     SELECT * FROM T1, T2, T3 WHERE T1.b = T2.a AND T2.a = T3.a
     then there would be such a set of {T1.b, T2.a, T3.a}.
   */
-  class Equal_set_iterator : public Sql_alloc
+  class Equal_set_iterator
   {
   public:
     explicit Equal_set_iterator(Item_equal& item_equal)
@@ -174,7 +173,7 @@ namespace AQP
     owned by a Join_plan object, such that the life time of the Table_access 
     object ends when the life time of the owning Join_plan object ends.
    */
-  class Table_access : public Sql_alloc
+  class Table_access
   {
     friend class Join_plan;
     friend inline bool equal(const Table_access*, const Table_access*);

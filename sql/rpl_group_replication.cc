@@ -23,6 +23,7 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_group_replication.h"

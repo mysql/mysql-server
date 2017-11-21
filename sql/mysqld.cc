@@ -389,6 +389,7 @@
 #include "my_time.h"
 #include "my_timer.h"                   // my_timer_initialize
 #include "myisam.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
@@ -461,6 +462,7 @@
 #include "sql/options_mysqld.h"         // OPT_THREAD_CACHE_SIZE
 #include "sql/partitioning/partition_handler.h" // partitioning_init
 #include "sql/persisted_variable.h"     // Persisted_variables_cache
+#include "sql/plugin_table.h"
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"         // key_memory_MYSQL_RELAY_LOG_index
 #include "sql/query_options.h"
@@ -506,6 +508,7 @@
 #include "sql/sys_vars_shared.h"        // intern_find_sys_var
 #include "sql/table_cache.h"            // table_cache_manager
 #include "sql/tc_log.h"                 // tc_log
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"
 #include "sql/tztime.h"                 // Time_zone
@@ -988,7 +991,7 @@ ulong stored_program_cache_size= 0;
 */
 bool avoid_temporal_upgrade;
 
-bool persisted_globals_load= TRUE;
+bool persisted_globals_load= true;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -1081,7 +1084,7 @@ Lt_creator lt_creator;
 Ge_creator ge_creator;
 Le_creator le_creator;
 
-Rpl_filter* global_rpl_filter;
+Rpl_global_filter rpl_global_filter;
 Rpl_filter* binlog_filter;
 
 struct System_variables global_system_variables;
@@ -1182,7 +1185,7 @@ char *default_auth_plugin;
 /**
   Memory for allocating command line arguments, after load_defaults().
 */
-static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 /** Remaining command line arguments (count), filtered by handle_options().*/
 static int remaining_argc;
 /** Remaining command line arguments (arguments), filtered by handle_options().*/
@@ -1317,8 +1320,6 @@ struct System_status_var* get_thd_status_var(THD *thd)
   return & thd->status_var;
 }
 
-C_MODE_START
-
 static void option_error_reporter(enum loglevel level, const char *format, ...)
   MY_ATTRIBUTE((format(printf, 2, 3)));
 
@@ -1360,7 +1361,6 @@ static void charset_error_reporter(enum loglevel level,
   error_log_printf(level, format, args);
   va_end(args);
 }
-C_MODE_END
 
 struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 
@@ -1784,7 +1784,7 @@ void kill_mysql(void)
     }
     /*
       or:
-      HANDLE hEvent=OpenEvent(0, FALSE, "MySqlShutdown");
+      HANDLE hEvent=OpenEvent(0, false, "MySqlShutdown");
       SetEvent(hEventShutdown);
       CloseHandle(hEvent);
     */
@@ -2017,8 +2017,7 @@ static void clean_up(bool print_message)
   free_max_user_conn();
   end_slave_list();
   delete binlog_filter;
-  delete global_rpl_filter;
-  rpl_filter_map.clean_up();
+  rpl_channel_filters.clean_up();
   end_ssl();
   vio_end();
   my_regex_end();
@@ -2030,7 +2029,7 @@ static void clean_up(bool print_message)
   delete_pid_file(MYF(0));
 
   if (print_message && my_default_lc_messages && server_start_time)
-    LogErr(INFORMATION_LEVEL, ER_SHUTDOWN_COMPLETE, my_progname).force_print();
+    LogErr(SYSTEM_LEVEL, ER_SHUTDOWN_COMPLETE, my_progname);
   cleanup_errmsgs();
 
   free_connection_acceptors();
@@ -2114,8 +2113,10 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_default_password_lifetime);
   mysql_mutex_destroy(&LOCK_mandatory_roles);
   mysql_mutex_destroy(&LOCK_server_started);
+  mysql_cond_destroy(&COND_server_started);
   mysql_mutex_destroy(&LOCK_reset_gtid_table);
   mysql_mutex_destroy(&LOCK_compress_gtid_table);
+  mysql_cond_destroy(&COND_compress_gtid_table);
   mysql_mutex_destroy(&LOCK_password_history);
   mysql_mutex_destroy(&LOCK_password_reuse_interval);
   mysql_cond_destroy(&COND_manager);
@@ -2525,9 +2526,9 @@ static BOOL WINAPI console_event_handler( DWORD type )
        kill_mysql();
      else
        LogErr(WARNING_LEVEL, ER_NOT_RIGHT_NOW);
-     DBUG_RETURN(TRUE);
+     DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -2563,7 +2564,7 @@ static void wait_for_debugger(int timeout_sec)
 
 LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
 {
-   static BOOL first_time= TRUE;
+   static BOOL first_time= true;
    if(!first_time)
    {
      /*
@@ -2573,7 +2574,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
      */
      return EXCEPTION_EXECUTE_HANDLER;
    }
-   first_time= FALSE;
+   first_time= false;
 #ifdef DEBUG_UNHANDLED_EXCEPTION_FILTER
    /*
     Unfortunately there is no clean way to debug unhandled exception filters,
@@ -2609,7 +2610,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
 void my_init_signals()
 {
   if(opt_console)
-    SetConsoleCtrlHandler(console_event_handler,TRUE);
+    SetConsoleCtrlHandler(console_event_handler,true);
 
     /* Avoid MessageBox()es*/
   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
@@ -3318,9 +3319,8 @@ int init_common_variables()
   max_system_variables.pseudo_thread_id= (my_thread_id) ~0;
   server_start_time= flush_status_time= my_time(0);
 
-  global_rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
-  if (!global_rpl_filter || !binlog_filter)
+  if (!binlog_filter)
   {
     LogErr(ERROR_LEVEL, ER_RPL_BINLOG_FILTERS_OOM, strerror(errno));
     return 1;
@@ -3480,8 +3480,8 @@ int init_common_variables()
   }
   set_server_version();
 
-  LogErr(INFORMATION_LEVEL, ER_STARTING_AS,
-         my_progname, server_version, (ulong) getpid()).force_print();
+  LogErr(SYSTEM_LEVEL, ER_STARTING_AS,
+         my_progname, server_version, (ulong) getpid());
 
   if (opt_help && !opt_verbose)
     unireg_abort(MYSQLD_SUCCESS_EXIT);
@@ -3788,13 +3788,24 @@ int init_common_variables()
     Build do_table and ignore_table rules to hashes
     after the resetting of table_alias_charset.
   */
-  if (global_rpl_filter->build_do_table_hash() ||
-      global_rpl_filter->build_ignore_table_hash())
+  if (rpl_global_filter.build_do_table_hash() ||
+      rpl_global_filter.build_ignore_table_hash())
   {
     LogErr(ERROR_LEVEL, ER_CANT_HASH_DO_AND_IGNORE_RULES);
     return 1;
   }
-  if (rpl_filter_map.build_do_and_ignore_table_hashes())
+
+  /*
+    Reset the P_S view for global replication filter at
+    the end of server startup.
+  */
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  rpl_global_filter.wrlock();
+  rpl_global_filter.reset_pfs_view();
+  rpl_global_filter.unlock();
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+  if (rpl_channel_filters.build_do_and_ignore_table_hashes())
     return 1;
 
   return 0;
@@ -4238,7 +4249,7 @@ static int init_server_auto_options()
   }
 
   /* load all options in 'auto.cnf'. */
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   if (my_load_defaults(fname, groups, &argc, &argv, &alloc, NULL))
     DBUG_RETURN(1);
 
@@ -4273,7 +4284,7 @@ static int init_server_auto_options()
   else
   {
     DBUG_PRINT("info", ("generating server_uuid"));
-    flush= TRUE;
+    flush= true;
     /* server_uuid will be set in the function */
     if (generate_server_uuid())
       goto err;
@@ -4296,7 +4307,7 @@ initialize_storage_engine(char *se_name, const char *se_kind,
   LEX_STRING name= { se_name, strlen(se_name) };
   plugin_ref plugin;
   handlerton *hton;
-  if ((plugin= ha_resolve_by_name(0, &name, FALSE)))
+  if ((plugin= ha_resolve_by_name(0, &name, false)))
     hton= plugin_data<handlerton*>(plugin);
   else
   {
@@ -4540,7 +4551,7 @@ static int init_server_components()
       to avoid creating the file in an otherwise empty datadir, which will
       cause a succeeding 'mysqld --initialize' to fail.
     */
-    if (!opt_help && mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
+    if (!opt_help && mysql_bin_log.open_index_file(opt_binlog_index_name, ln, true))
     {
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
@@ -4928,10 +4939,12 @@ static int init_server_components()
   query_logger.set_handlers(log_output_options);
 
   // Open slow log file if enabled.
+  query_logger.set_log_file(QUERY_LOG_SLOW);
   if (opt_slow_log && query_logger.reopen_log_file(QUERY_LOG_SLOW))
     opt_slow_log= false;
 
   // Open general log file if enabled.
+  query_logger.set_log_file(QUERY_LOG_GENERAL);
   if (opt_general_log && query_logger.reopen_log_file(QUERY_LOG_GENERAL))
     opt_general_log= false;
 
@@ -5078,7 +5091,7 @@ extern "C" void *handle_shutdown(void *arg)
   PeekMessage(&msg, NULL, 1, 65534,PM_NOREMOVE);
   if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
   {
-    LogErr(INFORMATION_LEVEL, ER_NORMAL_SHUTDOWN, my_progname).force_print();
+    LogErr(SYSTEM_LEVEL, ER_NORMAL_SHUTDOWN, my_progname);
     set_connection_events_loop_aborted(true);
     close_connections();
     my_thread_end();
@@ -5090,7 +5103,7 @@ extern "C" void *handle_shutdown(void *arg)
 
 static void create_shutdown_thread()
 {
-  hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
+  hEventShutdown=CreateEvent(0, false, false, shutdown_event_name);
   my_thread_attr_t thr_attr;
   DBUG_ENTER("create_shutdown_thread");
 
@@ -5180,8 +5193,8 @@ int mysqld_main(int argc, char **argv)
 
   orig_argc= argc;
   orig_argv= argv;
-  my_getopt_use_args_separator= TRUE;
-  my_defaults_read_login_file= FALSE;
+  my_getopt_use_args_separator= true;
+  my_defaults_read_login_file= false;
   if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, &argv_alloc))
   {
     flush_error_log_messages();
@@ -5197,7 +5210,7 @@ int mysqld_main(int argc, char **argv)
       persisted_variables_cache.load_persist_file() ||
       persisted_variables_cache.append_read_only_variables(&argc, &argv))
     return 1;
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= false;
   remaining_argc= argc;
   remaining_argv= argv;
 
@@ -5880,7 +5893,7 @@ int mysqld_main(int argc, char **argv)
       /* Add back the program name handle_options removes */
       remaining_argc++;
       remaining_argv--;
-      my_getopt_skip_unknown= TRUE;
+      my_getopt_skip_unknown= true;
 
       if (remaining_argc > 1)
       {
@@ -6023,7 +6036,7 @@ int mysqld_main(int argc, char **argv)
       Group replication filters should be discarded before init_slave(), otherwise
       the pre-configured filters will be referenced by group replication channels.
     */
-    rpl_filter_map.discard_group_replication_filters();
+    rpl_channel_filters.discard_group_replication_filters();
 
     /*
       init_slave() must be called after the thread keys are created.
@@ -6043,7 +6056,7 @@ int mysqld_main(int argc, char **argv)
       'group_replication_applier' which is disallowed, then the
       per-channel replication filter is discarded with a warning.
     */
-    rpl_filter_map.discard_all_unattached_filters();
+    rpl_channel_filters.discard_all_unattached_filters();
   }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -6101,7 +6114,7 @@ int mysqld_main(int argc, char **argv)
   create_compress_gtid_table_thread();
 
   LogEvent().type(LOG_TYPE_ERROR)
-            .prio(INFORMATION_LEVEL)
+            .prio(SYSTEM_LEVEL)
             .lookup(ER_STARTUP,
                     my_progname,
                     server_version,
@@ -6110,7 +6123,7 @@ int mysqld_main(int argc, char **argv)
 #  else
                     (char*) "",
 #  endif
-                    mysqld_port, MYSQL_COMPILATION_COMMENT).force_print();
+                    mysqld_port, MYSQL_COMPILATION_COMMENT);
 
 #if defined(_WIN32)
   Service.SetRunning();
@@ -6441,13 +6454,13 @@ static bool read_init_file(char *file_name)
 
   if (!(file= mysql_file_fopen(key_file_init, file_name,
                                O_RDONLY, MYF(MY_WME))))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   (void) bootstrap::run_bootstrap_thread(file, NULL, SYSTEM_THREAD_INIT_FILE);
   mysql_file_fclose(file, MYF(MY_WME));
 
   LogErr(INFORMATION_LEVEL, ER_END_INITFILE, file_name);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -6474,7 +6487,7 @@ static int handle_early_options()
 
   my_getopt_register_get_addr(NULL);
   /* Skip unknown options so that they may be processed later */
-  my_getopt_skip_unknown= TRUE;
+  my_getopt_skip_unknown= true;
 
   /* Add the system variables parsed early */
   sys_var_add_options(&all_early_options, sys_var::PARSE_EARLY);
@@ -6499,7 +6512,7 @@ static int handle_early_options()
     remaining_argv--;
 
     if (opt_initialize_insecure)
-      opt_initialize= TRUE;
+      opt_initialize= true;
   }
 
   // Swap with an empty vector, i.e. delete elements and free allocated space.
@@ -8034,7 +8047,7 @@ static int mysql_init_variables()
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
   prepared_stmt_count= 0;
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
-  memset(&mysql_tmpdir_list, 0, sizeof(mysql_tmpdir_list));
+  new (&mysql_tmpdir_list) MY_TMPDIR;
   memset(&global_status_var, 0, sizeof(global_status_var));
   opt_large_pages= 0;
   opt_super_large_pages= 0;
@@ -8199,9 +8212,9 @@ static int mysql_init_variables()
   @retval
     1    Error
 */
-static bool is_global_rpl_filter_setting(char* argument)
+static bool is_rpl_global_filter_setting(char* argument)
 {
-  DBUG_ENTER("is_global_rpl_filter_setting");
+  DBUG_ENTER("is_rpl_global_filter_setting");
 
   bool res= false;
   char *p= strchr(argument, ':');
@@ -8401,60 +8414,60 @@ mysqld_get_one_option(int optid,
     break;
   case (int)OPT_REPLICATE_IGNORE_DB:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      global_rpl_filter->add_ignore_db(argument);
-      global_rpl_filter->ignore_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.add_ignore_db(argument);
+      rpl_global_filter.ignore_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       rpl_filter->add_ignore_db(filter_val);
       rpl_filter->ignore_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_DO_DB:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      global_rpl_filter->add_do_db(argument);
-      global_rpl_filter->do_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.add_do_db(argument);
+      rpl_global_filter.do_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       rpl_filter->add_do_db(filter_val);
       rpl_filter->do_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_REWRITE_DB:
   {
     char* key,*val;
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
       if (parse_replicate_rewrite_db(&key, &val, argument))
         return 1;
-      global_rpl_filter->add_db_rewrite(key, val);
-      global_rpl_filter->rewrite_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.add_db_rewrite(key, val);
+      rpl_global_filter.rewrite_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (parse_replicate_rewrite_db(&key, &val, filter_val))
         return 1;
       rpl_filter->add_db_rewrite(key, val);
       rpl_filter->rewrite_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
@@ -8471,73 +8484,73 @@ mysqld_get_one_option(int optid,
   }
   case (int)OPT_REPLICATE_DO_TABLE:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      if (global_rpl_filter->add_do_table_array(argument))
+      if (rpl_global_filter.add_do_table_array(argument))
       {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_DO_TABLE, argument);
         return 1;
       }
-      global_rpl_filter->do_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.do_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_do_table_array(filter_val))
       {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_DO_TABLE, argument);
         return 1;
       }
       rpl_filter->do_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_WILD_DO_TABLE:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      if (global_rpl_filter->add_wild_do_table(argument))
+      if (rpl_global_filter.add_wild_do_table(argument))
       {
         sql_print_error("Could not add wild do table rule '%s'!\n", argument);
         return 1;
       }
-      global_rpl_filter->wild_do_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.wild_do_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_wild_do_table(filter_val))
       {
         sql_print_error("Could not add wild do table rule '%s'!\n", argument);
         return 1;
       }
       rpl_filter->wild_do_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_WILD_IGNORE_TABLE:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      if (global_rpl_filter->add_wild_ignore_table(argument))
+      if (rpl_global_filter.add_wild_ignore_table(argument))
       {
         sql_print_error("Could not add wild ignore table rule '%s'!\n",
                         argument);
         return 1;
       }
-      global_rpl_filter->wild_ignore_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.wild_ignore_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_wild_ignore_table(filter_val))
       {
         sql_print_error("Could not add wild ignore table rule '%s'!\n",
@@ -8545,33 +8558,33 @@ mysqld_get_one_option(int optid,
         return 1;
       }
       rpl_filter->wild_ignore_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_IGNORE_TABLE:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      if (global_rpl_filter->add_ignore_table_array(argument))
+      if (rpl_global_filter.add_ignore_table_array(argument))
       {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_IGNORE_TABLE, argument);
         return 1;
       }
-      global_rpl_filter->ignore_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.ignore_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_ignore_table_array(filter_val))
       {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_IGNORE_TABLE, argument);
         return 1;
       }
       rpl_filter->ignore_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
@@ -8886,7 +8899,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   }
 
   /* Skip unknown options so that they may be processed later by plugins */
-  my_getopt_skip_unknown= TRUE;
+  my_getopt_skip_unknown= true;
 
   if ((ho_error= handle_options(argc_ptr, argv_ptr, &all_options[0],
                                 mysqld_get_one_option)))
@@ -9116,8 +9129,8 @@ static char *get_relative_path(const char *path)
   @param path null terminated character string
 
   @return
-    @retval TRUE The path is secure
-    @retval FALSE The path isn't secure
+    @retval true The path is secure
+    @retval false The path isn't secure
 */
 
 bool is_secure_file_path(const char *path)
@@ -9128,15 +9141,15 @@ bool is_secure_file_path(const char *path)
     All paths are secure if opt_secure_file_priv is 0
   */
   if (!opt_secure_file_priv[0])
-    return TRUE;
+    return true;
 
   opt_secure_file_priv_len= strlen(opt_secure_file_priv);
 
   if (strlen(path) >= FN_REFLEN)
-    return FALSE;
+    return false;
 
   if (!my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
-    return FALSE;
+    return false;
 
   if (my_realpath(buff1, path, 0))
   {
@@ -9145,17 +9158,17 @@ bool is_secure_file_path(const char *path)
     */
     int length= (int)dirname_length(path);
     if (length >= FN_REFLEN)
-      return FALSE;
+      return false;
     memcpy(buff2, path, length);
     buff2[length]= '\0';
     if (length == 0 || my_realpath(buff1, buff2, 0))
-      return FALSE;
+      return false;
   }
   convert_dirname(buff2, buff1, NullS);
   if (!lower_case_file_system)
   {
     if (strncmp(opt_secure_file_priv, buff2, opt_secure_file_priv_len))
-      return FALSE;
+      return false;
   }
   else
   {
@@ -9163,10 +9176,10 @@ bool is_secure_file_path(const char *path)
                                             (uchar *) buff2, strlen(buff2),
                                             (uchar *) opt_secure_file_priv,
                                             opt_secure_file_priv_len,
-                                            TRUE))
-      return FALSE;
+                                            true))
+      return false;
   }
-  return TRUE;
+  return true;
 }
 
 
@@ -9267,7 +9280,7 @@ static bool check_secure_file_priv_path()
           opt_datadir_len,
           (uchar *) opt_secure_file_priv,
           opt_secure_file_priv_len,
-          TRUE))
+          true))
     {
       warn= true;
       strcpy(whichdir, "Data directory");
@@ -9301,7 +9314,7 @@ static bool check_secure_file_priv_path()
           opt_plugindir_len,
           (uchar *) opt_secure_file_priv,
           opt_secure_file_priv_len,
-          TRUE))
+          true))
       {
         warn= true;
         strcpy(whichdir, "Plugin directory");

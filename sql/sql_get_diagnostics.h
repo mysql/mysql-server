@@ -18,7 +18,6 @@
 
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
-#include "sql/sql_alloc.h" // Sql_alloc
 #include "sql/sql_cmd.h" // Sql_cmd
 
 class Diagnostics_area;
@@ -68,7 +67,7 @@ private:
   Diagnostic information is made available through statement
   information and condition information items.
 */
-class Diagnostics_information : public Sql_alloc
+class Diagnostics_information
 {
 public:
   /**
@@ -144,7 +143,7 @@ private:
   A diagnostics information item. Used to associate a specific
   diagnostics information item to a target variable.
 */
-class Diagnostics_information_item : public Sql_alloc
+class Diagnostics_information_item
 {
 public:
   /**

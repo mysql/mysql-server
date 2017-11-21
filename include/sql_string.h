@@ -30,11 +30,12 @@
 #include "lex_string.h"
 #include "m_ctype.h"                         // my_convert
 #include "m_string.h"                        // LEX_CSTRING
+#include "memory_debugging.h"
+#include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_sys.h"                          // alloc_root
 #include "mysql/mysql_lex_string.h"          // LEX_STRING
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
@@ -43,9 +44,7 @@
 struct MEM_ROOT;
 
 #ifdef MYSQL_SERVER
-extern "C" {
 extern PSI_memory_key key_memory_String_value;
-}
 #define STRING_PSI_MEMORY_KEY key_memory_String_value
 #else
 #define STRING_PSI_MEMORY_KEY PSI_NOT_INSTRUMENTED
@@ -672,20 +671,7 @@ public:
 
     @return allocated string or NULL
   */
-  char *dup(MEM_ROOT *root) const
-  {
-    if (m_length > 0 && m_ptr[m_length - 1] == 0)
-      return static_cast<char *>(memdup_root(root, m_ptr, m_length));
-
-    char *ret= static_cast<char*>(alloc_root(root, m_length + 1));
-    if (ret != NULL)
-    {
-      if (m_length > 0)
-        memcpy(ret, m_ptr, m_length);
-      ret[m_length]= 0;
-    }
-    return ret;
-  }
+  char *dup(MEM_ROOT *root) const;
 };
 
 static inline void swap(String &a, String &b) noexcept

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,16 +22,8 @@
 #ifndef MYSQL_GET_PASSWORD_H_INCLUDED
 #define MYSQL_GET_PASSWORD_H_INCLUDED
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef char *(* strdup_handler_t)(const char *, int);
 char *get_tty_password_ext(const char *opt_message,
                            strdup_handler_t strdup_function);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* ! MYSQL_GET_PASSWORD_H_INCLUDED */

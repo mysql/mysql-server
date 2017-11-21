@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,7 +23,7 @@ The index tree persistent cursor
 Created 2/23/1996 Heikki Tuuri
 *******************************************************/
 
-
+#ifndef UNIV_HOTBACKUP
 /*********************************************************//**
 Gets the rel_pos field for a cursor whose position has been stored.
 @return BTR_PCUR_ON, ... */
@@ -41,6 +41,7 @@ btr_pcur_get_rel_pos(
 
 	return(cursor->rel_pos);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /*********************************************************//**
@@ -112,6 +113,7 @@ btr_pcur_get_rec(
 }
 #endif /* UNIV_DEBUG */
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************//**
 Gets the up_match value for a pcur after a search.
 @return number of matched fields at the cursor or to the right if
@@ -300,7 +302,7 @@ btr_pcur_move_to_last_on_page(
 /*********************************************************//**
 Moves the persistent cursor to the next user record in the tree. If no user
 records are left, the cursor ends up 'after last in tree'.
-@return TRUE if the cursor moved forward, ending on a user record */
+@return true if the cursor moved forward, ending on a user record */
 UNIV_INLINE
 ibool
 btr_pcur_move_to_next_user_rec(
@@ -336,7 +338,7 @@ loop:
 /*********************************************************//**
 Moves the persistent cursor to the next record in the tree. If no records are
 left, the cursor stays 'after last in tree'.
-@return TRUE if the cursor was not after last in tree */
+@return true if the cursor was not after last in tree */
 UNIV_INLINE
 ibool
 btr_pcur_move_to_next(
@@ -657,3 +659,4 @@ btr_pcur_move_before_first_on_page(
 
 	cursor->old_stored = false;
 }
+#endif /* !UNIV_HOTBACKUP */

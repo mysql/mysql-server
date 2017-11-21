@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +27,6 @@
 #include "my_config.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-
-C_MODE_START
 
 extern const char _my_bits_nbits[256];
 extern const uchar _my_bits_reverse_table[256];
@@ -126,9 +124,6 @@ static inline uint32 my_reverse_bits(uint32 key)
      _my_bits_reverse_table[(key>>24)      ];
 }
 
-C_MODE_END
-
-#ifdef __cplusplus
 /**
   Determine if a single bit is set among some bits.
   @tparam IntType   an integer type
@@ -159,6 +154,5 @@ constexpr bool is_single_bit(IntType bits)
   */
   return bits != 0 && (bits & (bits - 1)) == 0;
 }
-#endif /* __cplusplus */
 
 #endif /* MY_BIT_INCLUDED */

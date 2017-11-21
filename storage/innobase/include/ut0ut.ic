@@ -27,6 +27,7 @@ Created 5/30/1994 Heikki Tuuri
 
 #include "ut0dbg.h"
 
+#ifndef UNIV_HOTBACKUP
 /** Calculate the minimum of two pairs.
 @param[out]	min_hi	MSB of the minimum pair
 @param[out]	min_lo	LSB of the minimum pair
@@ -55,6 +56,7 @@ ut_pair_min(
 		*min_lo = b_lo;
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /******************************************************//**
 Compares two ulints.

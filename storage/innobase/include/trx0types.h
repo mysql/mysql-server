@@ -250,12 +250,16 @@ public:
 		m_latch(),
 		m_active(false)
 	{
+#ifndef UNIV_HOTBACKUP
 		init();
+#endif /* !UNIV_HOTBACKUP */
 	}
 
 	~Rsegs()
 	{
+#ifndef UNIV_HOTBACKUP
 		deinit();
+#endif /* !UNIV_HOTBACKUP */
 	}
 
 	/** Initialize */

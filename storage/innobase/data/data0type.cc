@@ -29,7 +29,6 @@ Created 1/16/1996 Heikki Tuuri
 
 #include "ha_prototypes.h"
 #include "my_inttypes.h"
-#ifndef UNIV_HOTBACKUP
 /* At the database startup we store the default-charset collation number of
 this MySQL installation to this global variable. If we have < 4.1.2 format
 column definitions, or records in the insert buffer, we use this
@@ -76,12 +75,11 @@ dtype_get_at_most_n_mbchars(
 
 	return(data_len);
 }
-#endif /* UNIV_HOTBACKUP */
 
 /*********************************************************************//**
 Checks if a data main type is a string type. Also a BLOB is considered a
 string type.
-@return TRUE if string type */
+@return true if string type */
 ibool
 dtype_is_string_type(
 /*=================*/
@@ -101,7 +99,7 @@ dtype_is_string_type(
 Checks if a type is a binary string type. Note that for tables created with
 < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column. For
 those DATA_BLOB columns this function currently returns FALSE.
-@return TRUE if binary string type */
+@return true if binary string type */
 ibool
 dtype_is_binary_string_type(
 /*========================*/
@@ -123,7 +121,7 @@ Checks if a type is a non-binary string type. That is, dtype_is_string_type is
 TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
 with < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column.
 For those DATA_BLOB columns this function currently returns TRUE.
-@return TRUE if non-binary string type */
+@return true if non-binary string type */
 ibool
 dtype_is_non_binary_string_type(
 /*============================*/
@@ -158,7 +156,7 @@ dtype_form_prtype(
 
 /*********************************************************************//**
 Validates a data type structure.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dtype_validate(
 /*===========*/
@@ -172,14 +170,12 @@ dtype_validate(
 		ut_a((type->prtype & DATA_MYSQL_TYPE_MASK) < DATA_N_SYS_COLS);
 	}
 
-#ifndef UNIV_HOTBACKUP
 	ut_a(dtype_get_mbminlen(type) <= dtype_get_mbmaxlen(type));
-#endif /* !UNIV_HOTBACKUP */
 
 	return(TRUE);
 }
 
-#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
+#ifdef UNIV_DEBUG
 /** Print a data type structure.
 @param[in]	type	data type */
 void
@@ -297,4 +293,4 @@ dtype_print(
 
 	fprintf(stderr, " len %lu", (ulong) len);
 }
-#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG */

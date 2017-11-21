@@ -999,6 +999,7 @@ sync_latch_get_pfs_key(latch_id_t id)
 }
 #endif /* UNIV_PFS_MUTEX */
 
+#ifndef UNIV_HOTBACKUP
 /** String representation of the filename and line number where the
 latch was created
 @param[in]	id		Latch ID
@@ -1019,6 +1020,7 @@ sync_latch_get_name(latch_level_t level);
 @return the basename */
 const char*
 sync_basename(const char* filename);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Register a latch, called when it is created
 @param[in]	ptr		Latch instance that was created

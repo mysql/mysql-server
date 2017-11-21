@@ -26,6 +26,8 @@
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
+#include "sql/plugin_table.h"
+#include "sql/table.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_events_stages.h"
 #include "storage/perfschema/pfs_instr.h"

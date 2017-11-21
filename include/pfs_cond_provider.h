@@ -35,8 +35,6 @@
 
 #define PSI_COND_CALL(M) pfs_ ## M ## _v1
 
-C_MODE_START
-
 void pfs_register_cond_v1(const char *category,
                           PSI_cond_info_v1 *info,
                           int count);
@@ -57,8 +55,6 @@ void pfs_signal_cond_v1(PSI_cond* cond);
 void pfs_broadcast_cond_v1(PSI_cond* cond);
 
 void pfs_end_cond_wait_v1(PSI_cond_locker* locker, int rc);
-
-C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */

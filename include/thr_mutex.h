@@ -48,8 +48,6 @@
 */
 #include "mysql/components/services/thr_mutex_bits.h"
 
-C_MODE_START
-
 /* Define mutex types, see my_thr_init.c */
 #define MY_MUTEX_INIT_SLOW   NULL
 
@@ -181,7 +179,7 @@ static inline int my_mutex_lock(my_mutex_t *mp
                                 )
 {
 #ifdef SAFE_MUTEX
-  return safe_mutex_lock(mp->m_u.m_safe_ptr, FALSE, file, line);
+  return safe_mutex_lock(mp->m_u.m_safe_ptr, false, file, line);
 #else
   return native_mutex_lock(& mp->m_u.m_native);
 #endif
@@ -194,7 +192,7 @@ static inline int my_mutex_trylock(my_mutex_t *mp
                                    )
 {
 #ifdef SAFE_MUTEX
-  return safe_mutex_lock(mp->m_u.m_safe_ptr, TRUE, file, line);
+  return safe_mutex_lock(mp->m_u.m_safe_ptr, true, file, line);
 #else
   return native_mutex_trylock(& mp->m_u.m_native);
 #endif
@@ -228,7 +226,5 @@ static inline int my_mutex_destroy(my_mutex_t *mp
   return native_mutex_destroy(& mp->m_u.m_native);
 #endif
 }
-
-C_MODE_END
 
 #endif /* THR_MUTEX_INCLUDED */

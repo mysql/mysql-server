@@ -28,6 +28,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
+#include "sql/debug_sync.h"
 #include "sql/derror.h"       // ER_THD
 #include "sql/field.h"        // Field
 #include "sql/log_event.h"
@@ -638,15 +639,11 @@ unpack_row(Relay_log_info const *rli,
                                        &partial_bits, &event_value_options);
     /*
       We *can* compute partial updates if event_value_options has
-      PARTIAL_JSON, and we *need* the partial updates if
-      session_value_options has PARTIAL_JSON, unless only_seek==true.
+      PARTIAL_JSON, unless only_seek==true.
     */
-    ulonglong session_value_options=
-      current_thd->variables.binlog_row_value_options;
     DBUG_PRINT("info", ("event_value_options=%llu only_seek=%d",
                         event_value_options, (int)only_seek));
     if ((event_value_options & PARTIAL_JSON_UPDATES) != 0 &&
-        (session_value_options & PARTIAL_JSON_UPDATES) &&
         !only_seek)
     {
       if (table->has_columns_marked_for_partial_update())
@@ -669,14 +666,33 @@ unpack_row(Relay_log_info const *rli,
           of the statement, when close_thread_tables calls
           cleanup_partial_update.
         */
+#ifndef DBUG_OFF
+        int marked_columns= 0;
+#endif
         for (uint col_i= 0;
              col_i < master_column_count && table->field[col_i] != nullptr;
              col_i++)
           if (tabledef->type(col_i) == MYSQL_TYPE_JSON &&
               bitmap_is_set(column_image, col_i))
+          {
+#ifndef DBUG_OFF
+            marked_columns++;
+#endif
             if (table->mark_column_for_partial_update(table->field[col_i]))
               // my_error was already called
               DBUG_RETURN(true); /* purecov: inspected */
+          }
+#ifndef DBUG_OFF
+        DBUG_EXECUTE_IF("rpl_row_jsondiff_binarydiff",
+                        {if (marked_columns == 1)
+                         {
+                           const char act[]= "now SIGNAL signal.rpl_row_jsondiff_binarydiff_marked_columns";
+                           DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                           DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                              STRING_WITH_LEN(act)));
+                         }};
+                       );
+#endif
         table->setup_partial_update();
       }
     }
@@ -824,7 +840,7 @@ unpack_row(Relay_log_info const *rli,
                              field_ptr->field_name,
                              source_type.c_ptr_safe(), value_string.c_ptr_safe()));
 #endif
-        copy.set(field_ptr, f, TRUE);
+        copy.set(field_ptr, f, true);
         copy.invoke_do_copy(&copy);
 #ifndef DBUG_OFF
         char target_buf[MAX_FIELD_WIDTH];

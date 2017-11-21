@@ -428,14 +428,12 @@ static int initialize_bucket(LF_HASH *, std::atomic<LF_SLIST *> *, uint, LF_PINS
   Adaptor function which allows to use hash function from character
   set with LF_HASH.
 */
-extern "C" {
 static uint cset_hash_sort_adapter(const LF_HASH *hash, const uchar *key,
                                    size_t length)
 {
   ulong nr1=1, nr2=4;
   hash->charset->coll->hash_sort(hash->charset, key, length, &nr1, &nr2);
   return (uint)nr1;
-}
 }
 
 
@@ -522,10 +520,13 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data)
   node= (LF_SLIST *)lf_alloc_new(pins);
   if (unlikely(!node))
     return -1;
+  uchar *extra_data= (uchar *)(node + 1);  // Stored immediately after the node.
   if (hash->initialize)
-    (*hash->initialize)((uchar*)(node + 1), (const uchar*)data);
+    (*hash->initialize)(extra_data, (const uchar*)data);
   else
-    memcpy(node+1, data, hash->element_size);
+  {
+    memcpy(extra_data, data, hash->element_size);
+  }
   node->key= hash_key(hash, (uchar *)(node+1), &node->keylen);
   hashnr= calc_hash(hash, node->key, node->keylen);
   bucket= hashnr % hash->size;

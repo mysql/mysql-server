@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # Test Case 1: master_user has no privilege
 #
 CREATE USER rpl_user;
-[connection slave]
+include/sync_slave_sql_with_master.inc
 include/stop_slave_io.inc
 CHANGE MASTER TO master_user='rpl_user';
 Warnings:

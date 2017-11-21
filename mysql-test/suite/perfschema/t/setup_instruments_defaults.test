@@ -57,39 +57,9 @@ SHOW VARIABLES LIKE "%/wait/synch/mutex%";
 --echo # Verify command line options are processed correctly
 --echo #
 
-# The instrument wait/io/table/sql/handler should be enabled and timed. We will
-# restart the server with the instrument disabled from the command line.
+# The instrument wait/io/table/sql/handler should be enabled and timed.
 --echo #
 --echo # Verify that wait/io/table/sql/handler is enabled and timed
---echo #
-SELECT * FROM performance_schema.setup_instruments
-WHERE name like "%wait/io/table/sql/handler%";
-
-# Write file to make mysql-test-run.pl wait for the server to stop
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
-# Restart the server
---echo #
---echo # Stop server
---send_shutdown
---echo # Restart server with wait/io/table/sql/handler disabled
-
---exec echo "restart:--loose-performance-schema-instrument='%wait/io/table/sql/%=off'" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
-# Turn on reconnect
---echo # Enable reconnect
---enable_reconnect
-
-# Wait for server to be back online again
---echo # Wait until connected again
---source include/wait_until_connected_again.inc
-
-# Turn off reconnect again
---echo # Disable reconnect
---disable_reconnect
-
---echo #
---echo # Verify that wait/io/table is disabled
 --echo #
 SELECT * FROM performance_schema.setup_instruments
 WHERE name like "%wait/io/table/sql/handler%";

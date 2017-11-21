@@ -38,7 +38,6 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"        // Item_result
 #include "prealloced_array.h" // Prealloced_array
-#include "sql/sql_alloc.h"    // Sql_alloc
 #include "sql/sql_const.h"    // SHOW_COMP_OPTION
 #include "sql/sql_plugin_ref.h" // plugin_ref
 #include "typelib.h"          // TYPELIB
@@ -225,7 +224,7 @@ public:
   virtual bool check_update_type(Item_result type) = 0;
   
   /**
-    Return TRUE for success if:
+    Return true for success if:
       Global query and variable scope is GLOBAL or SESSION, or
       Session query and variable scope is SESSION or ONLY_SESSION.
   */
@@ -302,7 +301,7 @@ protected:
   It's similar to Items, an instance of this is created by the parser
   for every assigmnent in SET (or elsewhere, e.g. in SELECT).
 */
-class set_var_base :public Sql_alloc
+class set_var_base
 {
 public:
   set_var_base() {}

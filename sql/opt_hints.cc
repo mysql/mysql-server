@@ -29,6 +29,7 @@
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/mysqld.h"    // table_alias_charset
+#include "sql/nested_join.h"
 #include "sql/parse_tree_hints.h"
 #include "sql/set_var.h"
 #include "sql/sql_class.h" // THD
@@ -426,7 +427,7 @@ static table_map get_other_dep(opt_hints_enum type,
   Auxiluary class is used to save/restore table dependencies.
 */
 
-class Join_order_hint_handler : public Sql_alloc
+class Join_order_hint_handler
 {
   JOIN *join;
   table_map *orig_dep_array;     ///< Original table dependencies

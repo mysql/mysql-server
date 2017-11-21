@@ -213,8 +213,7 @@ static void copy_string(MEM_ROOT *mem_root, String* dst, const String* src)
 
 
 Sql_condition::Sql_condition(MEM_ROOT *mem_root)
- :Sql_alloc(),
-  m_class_origin((const char*) NULL, 0, & my_charset_utf8_bin),
+ :m_class_origin((const char*) NULL, 0, & my_charset_utf8_bin),
   m_subclass_origin((const char*) NULL, 0, & my_charset_utf8_bin),
   m_constraint_catalog((const char*) NULL, 0, & my_charset_utf8_bin),
   m_constraint_schema((const char*) NULL, 0, & my_charset_utf8_bin),
@@ -238,8 +237,7 @@ Sql_condition::Sql_condition(MEM_ROOT *mem_root, uint mysql_errno,
                              const char* returned_sqlstate,
                              Sql_condition::enum_severity_level severity,
                              const char* message_text)
- :Sql_alloc(),
-  m_class_origin((const char*) NULL, 0, & my_charset_utf8_bin),
+ :m_class_origin((const char*) NULL, 0, & my_charset_utf8_bin),
   m_subclass_origin((const char*) NULL, 0, & my_charset_utf8_bin),
   m_constraint_catalog((const char*) NULL, 0, & my_charset_utf8_bin),
   m_constraint_schema((const char*) NULL, 0, & my_charset_utf8_bin),

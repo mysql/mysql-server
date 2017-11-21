@@ -221,7 +221,7 @@ static void log_builtins_filter_defaults()
   r= log_builtins_filter_rule_init();
   log_item_set_with_key(&r->match, LOG_ITEM_LOG_PRIO, nullptr,
                         LOG_ITEM_FREE_NONE)->data_integer= log_error_verbosity;
-  r->cond=   LOG_FILTER_COND_GE;
+  r->cond=   LOG_FILTER_COND_GT;
   r->verb=   LOG_FILTER_GAG;
   r->flags=  LOG_FILTER_FLAG_SYNTHETIC;
   log_filter_rules.count++;
@@ -541,10 +541,14 @@ static log_filter_match log_filter_try_match(log_item *li, log_filter_rule *ri)
           e= LOG_FILTER_MATCH_SUCCESS;
         break;
 
+      case LOG_FILTER_COND_GT:
+        if (lf > rf)
+          e= LOG_FILTER_MATCH_SUCCESS;
+        break;
+
       // WL#9651: will probably want to add the following
       case LOG_FILTER_COND_LT:
       case LOG_FILTER_COND_LE:
-      case LOG_FILTER_COND_GT:
         e= LOG_FILTER_MATCH_UNSUPPORTED_FOR_TYPE;
         break;
 
@@ -601,11 +605,7 @@ int log_builtins_filter_run(void *instance MY_ATTRIBUTE((unused)),
     /*
       WL#9651: currently applies to 0 or 1 match, do we ever have multi-match?
     */
-    if ((r->match.type == LOG_ITEM_LOG_PRIO) &&
-        (ll->seen & LOG_ITEM_LOG_EPRIO))
-      ln= log_line_index_by_type(ll, LOG_ITEM_LOG_EPRIO);
-    else
-      ln= log_line_index_by_item(ll, &r->match);
+    ln= log_line_index_by_item(ll, &r->match);
 
     /*
       If we found a suitable field, see whether its value satisfies
@@ -664,7 +664,7 @@ int log_builtins_filter_update_verbosity(int verbosity)
 
     if ((r->match.type == LOG_ITEM_LOG_PRIO) &&
         (r->verb       == LOG_FILTER_GAG) &&
-        (r->cond       == LOG_FILTER_COND_GE) &&
+        (r->cond       == LOG_FILTER_COND_GT) &&
         (r->flags      &  LOG_FILTER_FLAG_SYNTHETIC))
     {
       r->match.data.data_integer= verbosity;
@@ -684,7 +684,7 @@ int log_builtins_filter_update_verbosity(int verbosity)
   r= log_builtins_filter_rule_init();
   log_item_set_with_key(&r->match, LOG_ITEM_LOG_PRIO, nullptr,
                         LOG_ITEM_FREE_NONE)->data_integer= verbosity;
-  r->cond=   LOG_FILTER_COND_GE;
+  r->cond=   LOG_FILTER_COND_GT;
   r->verb=   LOG_FILTER_GAG;
   r->flags=  LOG_FILTER_FLAG_SYNTHETIC;
 

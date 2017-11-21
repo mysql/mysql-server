@@ -22,15 +22,14 @@
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
+#include "my_sys.h"
 #include "mysql_com.h"    // MAX_BIGINT_WIDTH
 
 using std::min;
 using std::max;
 
 #ifdef MYSQL_SERVER
-extern "C" {
 PSI_memory_key key_memory_String_value;
-}
 #endif
 
 /*****************************************************************************
@@ -1176,6 +1175,11 @@ void String::swap(String &s) noexcept
   swap(m_alloced_length, s.m_alloced_length);
   swap(m_is_alloced, s.m_is_alloced);
   swap(m_charset, s.m_charset);
+}
+
+char *String::dup(MEM_ROOT *root) const
+{
+  return strmake_root(root, m_ptr, m_length);
 }
 
 

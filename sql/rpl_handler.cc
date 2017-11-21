@@ -28,6 +28,7 @@
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_loglevel.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
@@ -74,7 +75,7 @@ Delegate::Delegate(
 #endif
          )
 {
-  inited= FALSE;
+  inited= false;
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (mysql_rwlock_init(key, &lock))
     return;
@@ -83,7 +84,7 @@ Delegate::Delegate(
     return;
 #endif
   init_sql_alloc(key_memory_delegate, &memroot, 1024, 0);
-  inited= TRUE;
+  inited= true;
 }
 
 
@@ -363,42 +364,33 @@ int Trans_delegate::before_commit(THD *thd, bool all,
  Helper method to check if the given table has 'CASCADE' foreign key or not.
 
  @param[in]   table     Table object that needs to be verified.
- @param[in]   thd       Current execution thread.
 
- @return bool TRUE      If the table has 'CASCADE' foreign key.
-              FALSE     If the table does not have 'CASCADE' foreign key.
+ @return bool true      If the table has 'CASCADE' foreign key.
+              false     If the table does not have 'CASCADE' foreign key.
 */
-bool has_cascade_foreign_key(TABLE *table, THD *thd)
+bool has_cascade_foreign_key(TABLE *table)
 {
   DBUG_ENTER("has_cascade_foreign_key");
-  List<FOREIGN_KEY_INFO> f_key_list;
-  table->file->get_foreign_key_list(thd, &f_key_list);
 
-  FOREIGN_KEY_INFO *f_key_info;
-  List_iterator_fast<FOREIGN_KEY_INFO> foreign_key_iterator(f_key_list);
-  while ((f_key_info=foreign_key_iterator++))
+  TABLE_SHARE_FOREIGN_KEY_INFO *fk= table->s->foreign_key;
+
+  for (uint i= 0; i < table->s->foreign_keys; i++)
   {
     /*
-     The possible values for update_method are
-     {"CASCADE", "SET NULL", "NO ACTION", "RESTRICT"}.
-
-     Hence we are avoiding the usage of strncmp
-     ("'update_method' value with 'CASCADE' or 'SET NULL'") and just comparing
-     the first character of the update_method value with 'C' or 'S'.
+      The supported values of update/delete_rule are: CASCADE, SET NULL,
+      NO ACTION, RESTRICT and SET DEFAULT.
     */
-    if (f_key_info->update_method->str[0] == 'C' ||
-        f_key_info->delete_method->str[0] == 'C' ||
-        f_key_info->update_method->str[0] == 'S' ||
-        f_key_info->delete_method->str[0] == 'S')
+    if (dd::Foreign_key::RULE_CASCADE == fk[i].update_rule ||
+        dd::Foreign_key::RULE_CASCADE == fk[i].delete_rule ||
+        dd::Foreign_key::RULE_SET_NULL == fk[i].update_rule ||
+        dd::Foreign_key::RULE_SET_NULL == fk[i].delete_rule ||
+        dd::Foreign_key::RULE_SET_DEFAULT == fk[i].update_rule ||
+        dd::Foreign_key::RULE_SET_DEFAULT == fk[i].delete_rule)
     {
-      DBUG_ASSERT(!strncmp(f_key_info->update_method->str, "CASCADE", 7) ||
-                  !strncmp(f_key_info->delete_method->str, "CASCADE", 7) ||
-                  !strncmp(f_key_info->update_method->str, "SET NUL", 7) ||
-                  !strncmp(f_key_info->delete_method->str, "SET NUL", 7));
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**
@@ -452,7 +444,7 @@ prepare_table_info(THD* thd,
       Find out if the table has foreign key with ON UPDATE/DELETE CASCADE
       clause.
     */
-    table_info.has_cascade_foreign_key= has_cascade_foreign_key(open_tables, thd);
+    table_info.has_cascade_foreign_key= has_cascade_foreign_key(open_tables);
 
     table_info_holder.push_back(table_info);
   }

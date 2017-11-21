@@ -29,6 +29,7 @@
 #include "my_compiler.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_plugin_registry.h"
@@ -51,6 +52,7 @@
 #include "sql/resourcegroups/thread_resource_control.h"
 #include "sql/sql_class.h"                       // class THD
 #include "sql/system_variables.h"
+#include "sql/thd_raii.h"
 #include "sql_string.h"                          // to_lex_cstring
 
 namespace resourcegroups
@@ -317,6 +319,9 @@ bool Resource_group_mgr::post_init()
   if (!m_resource_group_support)
     DBUG_RETURN(false);
 
+  if (!m_thread_priority_available)
+    LogErr(INFORMATION_LEVEL, ER_THREAD_PRIORITY_IGNORED);
+
   // Create temporary THD to read Resource groups from disk.
   std::unique_ptr<THD> thd(new (std::nothrow) THD());
   if (thd.get() == nullptr)
@@ -361,6 +366,7 @@ bool Resource_group_mgr::init()
 
   m_resource_group_support= true;
   mysql_rwlock_init(key_rwlock_resource_group_mgr_map_lock, &m_map_rwlock);
+
   m_thread_priority_available= platform::can_thread_priority_be_set();
 
   m_registry_svc= mysql_plugin_registry_acquire();
@@ -616,8 +622,7 @@ bool Resource_group_mgr::switch_resource_group_if_needed(
     }
 
     Security_context *sctx= thd->security_context();
-    if (!(sctx->check_access(SUPER_ACL) ||
-          sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first ||
+    if (!(sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first ||
           sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_USER")).first))
     {
       thd->resource_group_ctx()->m_warn= WARN_RESOURCE_GROUP_ACCESS_DENIED;

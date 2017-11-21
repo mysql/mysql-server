@@ -1641,7 +1641,7 @@ int mi_repair(MI_CHECK *param, MI_INFO *info,
   /* This function always recreates all enabled indexes. */
   if (param->testflag & T_CREATE_MISSING_KEYS)
     mi_set_all_keys_active(share->state.key_map, share->base.keys);
-  mi_drop_all_indexes(param, info, TRUE);
+  mi_drop_all_indexes(param, info, true);
 
   /* Re-create all keys, which are set in key_map. */
   while (!(error=sort_get_next_record(&sort_param)))
@@ -2318,7 +2318,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
   /* Optionally drop indexes and optionally modify the key_map. */
-  mi_drop_all_indexes(param, info, FALSE);
+  mi_drop_all_indexes(param, info, false);
   key_map= share->state.key_map;
   if (param->testflag & T_CREATE_MISSING_KEYS)
   {
@@ -2771,7 +2771,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
   /* Optionally drop indexes and optionally modify the key_map. */
-  mi_drop_all_indexes(param, info, FALSE);
+  mi_drop_all_indexes(param, info, false);
   key_map= share->state.key_map;
   if (param->testflag & T_CREATE_MISSING_KEYS)
   {
@@ -4334,7 +4334,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
     Allow for creating an auto_increment key. This has an effect only if
     an auto_increment key exists in the original table.
   */
-  create_info.with_auto_increment= TRUE;
+  create_info.with_auto_increment= true;
   /* We don't have to handle symlinks here because we are using
      HA_DONT_TOUCH_DATA */
   if (mi_create(filename,
@@ -4686,7 +4686,7 @@ void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
 
 
 /*
-  Return TRUE if we can use repair by sorting
+  Return true if we can use repair by sorting
   One can set the force argument to force to use sorting
   even if the temporary file would be quite big!
 */
@@ -4703,16 +4703,16 @@ bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows,
     have any keys, we should use the normal repair.
   */
   if (! mi_is_any_key_active(key_map))
-    return FALSE;				/* Can't use sort */
+    return false;				/* Can't use sort */
   if (!force)
   {
      for (i=0 ; i < share->base.keys ; i++,key++)
      {
         if (mi_too_big_key_for_sort(key,rows))
-          return FALSE;
+          return false;
      }
   }
-  return TRUE;
+  return true;
 }
 
 

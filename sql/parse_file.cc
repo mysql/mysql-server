@@ -184,9 +184,9 @@ parse_string(const char *ptr, const char *end, MEM_ROOT *mem_root,
   @param str		  target string
 
   @retval
-    FALSE   OK
+    false   OK
   @retval
-    TRUE    error
+    true    error
 */
 
 static bool
@@ -201,7 +201,7 @@ read_escaped_string(const char *ptr, const char *eol, LEX_STRING *str)
     {
       ptr++;
       if (ptr >= eol)
-	return TRUE;
+	return true;
       /*
 	Should be in sync with write_escaped_string() and
 	parse_quoted_escaped_string()
@@ -223,14 +223,14 @@ read_escaped_string(const char *ptr, const char *eol, LEX_STRING *str)
 	*write_pos= '\'';
         break;
       default:
-	return TRUE;
+	return true;
       }
     }
     else
       *write_pos= c;
   }
   str->str[str->length= write_pos-str->str]= '\0'; // just for safety
-  return FALSE;
+  return false;
 }
 
 
@@ -351,12 +351,12 @@ bool get_file_options_ulllist(const char *&ptr, const char *end, const char *lin
 end_of_nlist:
   if (*(ptr++) != '\n')
     goto nlist_err;
-  return FALSE;
+  return false;
 
 nlist_err_w_message:
   my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0), parameter->name.str, line);
 nlist_err:
-  return TRUE;
+  return true;
 }
 
 
@@ -375,9 +375,9 @@ nlist_err:
   @param hook                hook called for unknown keys
 
   @retval
-    FALSE   OK
+    false   OK
   @retval
-    TRUE    error
+    true    error
 */
 
 
@@ -402,7 +402,7 @@ File_parser::parse(uchar* base, MEM_ROOT *mem_root,
       if (!(ptr= strchr(ptr, '\n')))
       {
 	my_error(ER_FPARSER_EOF_IN_COMMENT, MYF(0), line);
-	DBUG_RETURN(TRUE);
+	DBUG_RETURN(true);
       }
       ptr++;
     }
@@ -445,7 +445,7 @@ File_parser::parse(uchar* base, MEM_ROOT *mem_root,
 	  {
 	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
                      parameter->name.str, line);
-	    DBUG_RETURN(TRUE);
+	    DBUG_RETURN(true);
 	  }
 	  break;
 	}
@@ -457,7 +457,7 @@ File_parser::parse(uchar* base, MEM_ROOT *mem_root,
 	  {
 	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
                      parameter->name.str, line);
-	    DBUG_RETURN(TRUE);
+	    DBUG_RETURN(true);
 	  }
 	  break;
 	}
@@ -466,7 +466,7 @@ File_parser::parse(uchar* base, MEM_ROOT *mem_root,
 	  {
 	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
                      parameter->name.str, line);
-	    DBUG_RETURN(TRUE);
+	    DBUG_RETURN(true);
 	  }
           {
             int not_used;
@@ -484,7 +484,7 @@ File_parser::parse(uchar* base, MEM_ROOT *mem_root,
 	  {
 	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
                      parameter->name.str, line);
-	    DBUG_RETURN(TRUE);
+	    DBUG_RETURN(true);
 	  }
 	  memcpy(val->str, ptr, PARSE_FILE_TIMESTAMPLENGTH);
 	  val->str[val->length= PARSE_FILE_TIMESTAMPLENGTH]= '\0';
@@ -526,12 +526,12 @@ list_err_w_message:
 	  my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
                    parameter->name.str, line);
 list_err:
-	  DBUG_RETURN(TRUE);
+	  DBUG_RETURN(true);
 	}
         case FILE_OPTIONS_ULLLIST:
           if (get_file_options_ulllist(ptr, end, line, base,
                                        parameter, mem_root))
-            DBUG_RETURN(TRUE);
+            DBUG_RETURN(true);
           break;
 	default:
 	  DBUG_ASSERT(0); // never should happened
@@ -542,13 +542,13 @@ list_err:
         ptr= line;
         if (hook->process_unknown_string(ptr, base, mem_root, end))
         {
-          DBUG_RETURN(TRUE);
+          DBUG_RETURN(true);
         }
         // skip unknown parameter
         if (!(ptr= strchr(ptr, '\n')))
         {
           my_error(ER_FPARSER_EOF_IN_UNKNOWN_PARAMETER, MYF(0), line);
-          DBUG_RETURN(TRUE);
+          DBUG_RETURN(true);
         }
         ptr++;
       }
@@ -561,7 +561,7 @@ list_err:
     contains less parameters.
   */
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**
@@ -577,9 +577,9 @@ list_err:
     This hook does nothing except debug output.
 
   @retval
-    FALSE OK
+    false OK
   @retval
-    TRUE  Error
+    true  Error
 */
 
 bool
@@ -590,5 +590,5 @@ process_unknown_string(const char *&unknown_key MY_ATTRIBUTE((unused)),
 {
   DBUG_ENTER("file_parser_dummy_hook::process_unknown_string");
   DBUG_PRINT("info", ("Unknown key: '%60s'", unknown_key));
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }

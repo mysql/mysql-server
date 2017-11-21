@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include <utility>
 
+#include "mysql/mysql_lex_string.h"
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql/dd/impl/sdi.h"    // dd::Sdi_type
 #include "sql/dd/object_id.h"   // dd::Object_id
@@ -56,15 +57,6 @@ const String_type EXT= ".sdi";
 String_type sdi_filename(Object_id id, const String_type &entity_name,
                          const String_type &schema);
 
-/**
-  Stores sdi for schema in a file.
-
-  @param sdi json string to store
-  @param schema dd object from which sdi was generated
-  @retval true if an error occurs
-  @retval false otherwise
-*/
-bool store_sch_sdi(const dd::Sdi_type &sdi, const dd::Schema &schema);
 
 /**
   Stores sdi for table in a file.
@@ -87,14 +79,6 @@ bool store_tbl_sdi(const Sdi_type &sdi, const dd::Table &table,
 */
 bool remove(const String_type &fname);
 
-/**
-  Removes sdi file for a schema.
-
-  @param schema dd object for which to remove sdi
-  @retval true if an error occurs
-  @retval false otherwise
-*/
-bool drop_sch_sdi(const dd::Schema &schema);
 
 /**
   Removes sdi file for a table.

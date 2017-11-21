@@ -480,20 +480,16 @@ que_graph_free_recursive(
 	case QUE_NODE_UPDATE:
 		upd = static_cast<upd_node_t*>(node);
 
-		DBUG_PRINT("que_graph_free_recursive",
-			   ("QUE_NODE_UPDATE: %p, processed_cascades: %p",
-			    upd, upd->processed_cascades));
-
 		if (upd->in_mysql_interface) {
 
 			btr_pcur_free_for_mysql(upd->pcur);
 			upd->in_mysql_interface = FALSE;
 		}
 
-		if (upd->cascade_top) {
+		que_graph_free_recursive(upd->cascade_node);
+		if (upd->cascade_heap) {
 			mem_heap_free(upd->cascade_heap);
 			upd->cascade_heap = NULL;
-			upd->cascade_top = false;
 		}
 
 		que_graph_free_recursive(upd->select);
@@ -650,7 +646,7 @@ que_thr_move_to_run_state(
 /**********************************************************************//**
 Stops a query thread if graph or trx is in a state requiring it. The
 conditions are tested in the order (1) graph, (2) trx.
-@return TRUE if stopped */
+@return true if stopped */
 ibool
 que_thr_stop(
 /*=========*/

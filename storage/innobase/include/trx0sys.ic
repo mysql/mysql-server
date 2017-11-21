@@ -25,8 +25,8 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "trx0trx.h"
 #include "data0type.h"
+#include "srv0srv.h"
 #ifndef UNIV_HOTBACKUP
-# include "srv0srv.h"
 # include "mtr0log.h"
 
 /* The typedef for rseg slot in the file copy */
@@ -264,7 +264,7 @@ trx_rw_min_trx_id_low(void)
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 /***********************************************************//**
 Assert that a transaction has been recovered.
-@return TRUE */
+@return true */
 UNIV_INLINE
 ibool
 trx_assert_recovered(

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,6 +24,7 @@ Created 10/16/1994 Heikki Tuuri
 *******************************************************/
 
 #ifndef UNIV_HOTBACKUP
+#endif /* !UNIV_HOTBACKUP */
 #include "btr0btr.h"
 
 #ifdef UNIV_DEBUG
@@ -119,7 +120,7 @@ btr_cur_position(
 /*********************************************************************//**
 Checks if compressing an index page where a btr cursor is placed makes
 sense.
-@return TRUE if compression is recommended */
+@return true if compression is recommended */
 UNIV_INLINE
 ibool
 btr_cur_compress_recommendation(
@@ -158,7 +159,7 @@ btr_cur_compress_recommendation(
 /*********************************************************************//**
 Checks if the record on which the cursor is placed can be deleted without
 making tree compression necessary (or, recommended).
-@return TRUE if can be deleted without recommended compression */
+@return true if can be deleted without recommended compression */
 UNIV_INLINE
 ibool
 btr_cur_can_delete_without_compress(
@@ -207,4 +208,4 @@ btr_rec_set_deleted_flag(
 	}
 }
 
-#endif /* !UNIV_HOTBACKUP */
+

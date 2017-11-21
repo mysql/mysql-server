@@ -22,23 +22,15 @@
 */
 
 #include <float.h>
-#include <mysql/mysql_lex_string.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>  // IWYU pragma: keep
+#include <stdint.h>
+#include <stdlib.h>
 
 #include "lex_string.h"
-#include "my_byteorder.h"    /* uint8korr */
 #include "my_config.h"
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "mysql_com.h"
-
-#define bfill please_use_memset_rather_than_bfill
-#define bzero please_use_memset_rather_than_bzero
-#define bmove please_use_memmove_rather_than_bmove
-#define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov
-#define strnmov please_use_my_stpncpy_or_my_stpnmov_rather_than_strnmov
 
 /**
   Definition of the null string (a null pointer of type char *),
@@ -46,10 +38,6 @@
   nullptr instead.
 */
 #define NullS (char *) 0
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 /*
   my_str_malloc(), my_str_realloc() and my_str_free() are assigned to
@@ -301,7 +289,9 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
 #define MY_GCVT_MAX_FIELD_WIDTH (DBL_DIG + 4 + MY_MAX(5, MAX_DECPT_FOR_F_FORMAT)) \
 
 extern char *int2str(long val, char *dst, int radix, int upcase);
+C_MODE_START
 extern char *int10_to_str(long val,char *dst,int radix);
+C_MODE_END
 extern char *str2int(const char *src,int radix,long lower,long upper,
 			 long *val);
 longlong my_strtoll10(const char *nptr, char **endptr, int *error);
@@ -333,91 +323,23 @@ static inline char *ullstr(longlong value, char *buff)
   return buff;
 }
 
-#if defined(__cplusplus)
-}
-#endif
-
 #define STRING_WITH_LEN(X) (X), ((sizeof(X) - 1))
 #define USTRING_WITH_LEN(X) ((uchar*) X), ((sizeof(X) - 1))
 #define C_STRING_WITH_LEN(X) ((char *) (X)), ((sizeof(X) - 1))
 
 /**
-  Skip trailing space.
+  Skip trailing space (ASCII spaces only).
 
-  On most systems reading memory in larger chunks (ideally equal to the size of
-  the chinks that the machine physically reads from memory) causes fewer memory
-  access loops and hence increased performance.
-  This is why the 'int' type is used : it's closest to that (according to how
-  it's defined in C).
-  So when we determine the amount of whitespace at the end of a string we do
-  the following :
-    1. We divide the string into 3 zones :
-      a) from the start of the string (__start) to the first multiple
-        of sizeof(int)  (__start_words)
-      b) from the end of the string (__end) to the last multiple of sizeof(int)
-        (__end_words)
-      c) a zone that is aligned to sizeof(int) and can be safely accessed
-        through an int *
-    2. We start comparing backwards from (c) char-by-char. If all we find is
-       space then we continue
-    3. If there are elements in zone (b) we compare them as unsigned ints to a
-       int mask (SPACE_INT) consisting of all spaces
-    4. Finally we compare the remaining part (a) of the string char by char.
-       This covers for the last non-space unsigned int from 3. (if any)
-
-   This algorithm works well for relatively larger strings, but it will slow
-   the things down for smaller strings (because of the additional calculations
-   and checks compared to the naive method). Thus the barrier of length 20
-   is added.
-
-   @param     ptr   pointer to the input string
-   @param     len   the length of the string
-   @return          the last non-space character
-*/
-#if defined(__sparc) || defined(__sparcv9)
-static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
-{
-  /* SPACE_INT is a word that contains only spaces */
-#if SIZEOF_INT == 4
-  const unsigned SPACE_INT= 0x20202020U;
-#elif SIZEOF_INT == 8
-  const unsigned SPACE_INT= 0x2020202020202020ULL;
-#else
-#error define the appropriate constant for a word full of spaces
-#endif
-
-  const uchar *end= ptr + len;
-
-  if (len > 20)
-  {
-    const uchar *end_words= (const uchar *)(intptr)
-      (((ulonglong)(intptr)end) / SIZEOF_INT * SIZEOF_INT);
-    const uchar *start_words= (const uchar *)(intptr)
-       ((((ulonglong)(intptr)ptr) + SIZEOF_INT - 1) / SIZEOF_INT * SIZEOF_INT);
-
-    DBUG_ASSERT(end_words > ptr);
-    while (end > end_words && end[-1] == 0x20)
-      end--;
-    if (end[-1] == 0x20 && start_words < end_words)
-      while (end > start_words && ((unsigned *)end)[-1] == SPACE_INT)
-        end -= SIZEOF_INT;
-  }
-  while (end > ptr && end[-1] == 0x20)
-    end--;
-  return (end);
-}
-#else
-/*
-  Reads 8 bytes at a time, ignoring alignment.
-  We use uint8korr, which is fast (it simply reads a *ulonglong)
-  on all platforms, except sparc.
+  @return New end of the string.
 */
 static inline const uchar *skip_trailing_space(const uchar *ptr, size_t len)
 {
   const uchar *end= ptr + len;
   while (end - ptr >= 8)
   {
-    if (uint8korr(end-8) != 0x2020202020202020ULL)
+    uint64_t chunk;
+    memcpy(&chunk, end - 8, sizeof(chunk));
+    if (chunk != 0x2020202020202020ULL)
       break;
     end-= 8;
   }
@@ -425,7 +347,6 @@ static inline const uchar *skip_trailing_space(const uchar *ptr, size_t len)
     end--;
   return (end);
 }
-#endif
 
 static inline void lex_string_set(LEX_STRING *lex_str, const char *c_str)
 {

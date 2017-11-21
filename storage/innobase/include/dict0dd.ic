@@ -24,10 +24,12 @@ Created  10/2016 Jimmy Yamg
 *******************************************************/
 
 #include "sql_table.h"
+#ifndef UNIV_HOTBACKUP
 #include "dict0crea.h"
 #include "sql_base.h"
 #include "field.h"
 #include "dict0priv.h"
+#include "sql/table.h"
 
 /** Get the explicit dd::Tablespace::id of a partition.
 @param[in]	partition	partition or subpartition
@@ -58,6 +60,7 @@ dd_get_space_id(const dd::Partition& partition)
 	}
 	return(id);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** partition name separator */
 extern const char*	part_sep;
@@ -65,14 +68,15 @@ extern const char*	part_sep;
 /** sub-partition name separator */
 extern const char*	sub_sep;
 
-/** Parse a table file name into table name and database name
+/** Parse a table file name into table name and database name.
+Note the table name may have trailing TMP_POSTFIX for temporary table name.
 @param[in]	tbl_name	table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
 @param[in,out]	dd_tbl_name	table name buffer to be filled
 @param[in,out]	dd_part_name	partition name to be filled if not nullptr
 @param[in,out]	dd_sub_name	sub-partition name to be filled if not nullptr
-@param[in,out]	is_temp_part	true if it is a temporary partition name which
-				ends with "#tmp".
+@param[in,out]	is_temp		true if it is a temporary table name which
+				ends with TMP_POSTFIX.
 @return true if table name is parsed properly, false if the table name
 is invalid */
 inline
@@ -83,11 +87,12 @@ dd_parse_tbl_name(
 	char*		dd_tbl_name,
 	char*		dd_part_name,
 	char*		dd_sub_name,
-	bool*		is_temp_part)
+	bool*		is_temp)
 {
 	char	db_buf[MAX_DATABASE_NAME_LEN + 1];
 	char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
 	ulint	db_len = dict_get_db_name_len(tbl_name);
+	ulint	tbl_len = 0;
 	char*	is_part;
 	char*	is_sub;
 	char*	trailing_sharp;
@@ -99,9 +104,9 @@ dd_parse_tbl_name(
 	ut_ad(db_len <= MAX_DATABASE_NAME_LEN);
 	memcpy(db_buf, tbl_name, db_len);
 	db_buf[db_len] = 0;
-	memcpy(tbl_buf, tbl_name + db_len + 1,
-	       strlen(tbl_name) - db_len - 1);
-	tbl_buf[strlen(tbl_name) - db_len - 1] = 0;
+	tbl_len = strlen(tbl_name) - db_len - 1;
+	memcpy(tbl_buf, tbl_name + db_len + 1, tbl_len);
+	tbl_buf[tbl_len] = 0;
 
 	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1,
 			      true);
@@ -110,6 +115,15 @@ dd_parse_tbl_name(
 
 	if (is_part != nullptr) {
 		*is_part = '\0';
+	} else {
+		if (tbl_len > strlen(TMP_POSTFIX)
+		    && strcmp(tbl_buf + tbl_len - strlen(TMP_POSTFIX),
+			      TMP_POSTFIX) == 0) {
+			tbl_buf[tbl_len - strlen(TMP_POSTFIX)] = '\0';
+			if (is_temp != nullptr) {
+				*is_temp = true;
+			}
+		}
 	}
 
 	filename_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1
@@ -132,11 +146,11 @@ dd_parse_tbl_name(
 	}
 
 	if (trailing_sharp != nullptr) {
-		ut_ad(strcmp(trailing_sharp, "#tmp") == 0);
+		ut_ad(strcmp(trailing_sharp, TMP_POSTFIX) == 0);
 		*trailing_sharp = '\0';
 
-		if (is_temp_part != nullptr) {
-			*is_temp_part = true;
+		if (is_temp != nullptr) {
+			*is_temp = true;
 		}
 	}
 
@@ -154,6 +168,7 @@ dd_parse_tbl_name(
 	return(true);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Look up a column in a table using the system_charset_info collation.
 @param[in]	dd_table	data dictionary table
 @param[in]	name		column name
@@ -471,3 +486,4 @@ dd_get_version(
 
 	return(version);
 }
+#endif /* !UNIV_HOTBACKUP */

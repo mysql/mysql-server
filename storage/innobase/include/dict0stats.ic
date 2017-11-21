@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -62,7 +62,7 @@ dict_stats_set_persistent(
 
 /*********************************************************************//**
 Check whether persistent statistics is enabled for a given table.
-@return TRUE if enabled, FALSE otherwise */
+@return true if enabled, false otherwise */
 UNIV_INLINE
 ibool
 dict_stats_is_persistent_enabled(
@@ -128,7 +128,7 @@ dict_stats_auto_recalc_set(
 
 /*********************************************************************//**
 Check whether auto recalc is enabled for a given table.
-@return TRUE if enabled, FALSE otherwise */
+@return true if enabled, false otherwise */
 UNIV_INLINE
 ibool
 dict_stats_auto_recalc_is_enabled(

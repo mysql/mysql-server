@@ -306,22 +306,22 @@ Certification_handler::handle_transaction_id(Pipeline_event *pevent,
     transaction_termination_ctx.m_thread_id= tcle->get_thread_id();
     if (seq_number > 0)
     {
-      transaction_termination_ctx.m_rollback_transaction= FALSE;
+      transaction_termination_ctx.m_rollback_transaction= false;
       if (tcle->is_gtid_specified())
       {
-        transaction_termination_ctx.m_generated_gtid= FALSE;
+        transaction_termination_ctx.m_generated_gtid= false;
       }
       else
       {
-        transaction_termination_ctx.m_generated_gtid= TRUE;
+        transaction_termination_ctx.m_generated_gtid= true;
         transaction_termination_ctx.m_sidno= group_sidno;
         transaction_termination_ctx.m_gno= seq_number;
       }
     }
     else
     {
-      transaction_termination_ctx.m_rollback_transaction= TRUE;
-      transaction_termination_ctx.m_generated_gtid= FALSE;
+      transaction_termination_ctx.m_rollback_transaction= true;
+      transaction_termination_ctx.m_generated_gtid= false;
       transaction_termination_ctx.m_sidno= -1;
       transaction_termination_ctx.m_gno= -1;
     }

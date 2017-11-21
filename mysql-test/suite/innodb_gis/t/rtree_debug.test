@@ -6,7 +6,7 @@
 --source include/have_debug.inc
 
 # Create table with R-tree index.
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 
 # Insert enough values to let R-tree split.
 delimiter |;

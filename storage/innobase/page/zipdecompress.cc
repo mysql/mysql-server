@@ -49,7 +49,9 @@ MY_ATTRIBUTE((format (printf, 1, 2)))
 /**********************************************************************//**
 Report a failure to decompress or compress.
 @return number of characters printed */
+#ifndef UNIV_HOTBACKUP
 static
+#endif /* !UNIV_HOTBACKUP */
 int
 page_zip_fail_func(
 /*===============*/
@@ -114,7 +116,9 @@ page_zip_fields_free(
 {
 	if (index) {
 		dict_table_t*	table = index->table;
+#ifndef UNIV_HOTBACKUP
 		dict_index_zip_pad_mutex_destroy(index);
+#endif /* !UNIV_HOTBACKUP */
 		mem_heap_free(index->heap);
 
 		dict_mem_table_free(table);
@@ -138,7 +142,7 @@ page_zip_set_alloc(
 
 /**********************************************************************//**
 Populate the sparse page directory from the dense directory.
-@return TRUE on success, FALSE on failure */
+@return true on success, false on failure */
 static MY_ATTRIBUTE((warn_unused_result))
 ibool
 page_zip_dir_decode(
@@ -648,7 +652,7 @@ page_zip_apply_log(
 /**********************************************************************//**
 Set the heap_no in a record, and skip the fixed-size record header
 that is not included in the d_stream.
-@return TRUE on success, FALSE if d_stream does not end at rec */
+@return true on success, false if d_stream does not end at rec */
 static
 ibool
 page_zip_decompress_heap_no(
@@ -673,7 +677,7 @@ page_zip_decompress_heap_no(
 
 /**********************************************************************//**
 Decompress the records of a node pointer page.
-@return TRUE on success, FALSE on failure */
+@return true on success, false on failure */
 static
 ibool
 page_zip_decompress_node_ptrs(
@@ -862,7 +866,7 @@ zlib_done:
 
 /**********************************************************************//**
 Decompress the records of a leaf node of a secondary index.
-@return TRUE on success, FALSE on failure */
+@return true on success, false on failure */
 static
 ibool
 page_zip_decompress_sec(
@@ -999,7 +1003,7 @@ zlib_done:
 
 /**********************************************************************//**
 Initialize the REC_N_NEW_EXTRA_BYTES of each record.
-@return TRUE on success, FALSE on failure */
+@return true on success, false on failure */
 static
 ibool
 page_zip_set_extra_bytes(
@@ -1097,7 +1101,7 @@ page_zip_set_extra_bytes(
 /**********************************************************************//**
 Decompress a record of a leaf node of a clustered index that contains
 externally stored columns.
-@return TRUE on success */
+@return true on success */
 static
 ibool
 page_zip_decompress_clust_ext(
@@ -1207,7 +1211,7 @@ page_zip_decompress_clust_ext(
 
 /**********************************************************************//**
 Compress the records of a leaf node of a clustered index.
-@return TRUE on success, FALSE on failure */
+@return true on success, false on failure */
 static
 ibool
 page_zip_decompress_clust(
@@ -1505,7 +1509,7 @@ zlib_done:
 Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
 inconsistency is detected.
-@return TRUE on success, FALSE on failure */
+@return true on success, false on failure */
 ibool
 page_zip_decompress_low(
 /*====================*/

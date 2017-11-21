@@ -6482,7 +6482,6 @@ static const uint16 to_uni_cp1250_polish_ci[] = {
 };
 
 
-extern "C" {
 CHARSET_INFO compiled_charsets[] = {
 {
   3,0,0,
@@ -8592,4 +8591,3 @@ CHARSET_INFO compiled_charsets[] = {
   PAD_SPACE
 }
 };
-} // extern "C"

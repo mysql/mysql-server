@@ -34,11 +34,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @file ha_innodb.cc */
 
-#include "my_config.h"
+#ifndef UNIV_HOTBACKUP
+# include "my_config.h"
 
-#include <current_thd.h>
-#include <debug_sync.h>
-#include <derror.h>
+# include <current_thd.h>
+# include <debug_sync.h>
+# include <derror.h>
+#endif /* !UNIV_HOTBACKUP */
 #include <errno.h>
 #include <fcntl.h>
 #include <gstream.h>
@@ -47,33 +49,39 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <math.h>
 #include <my_bitmap.h>
 #include <my_check_opt.h>
-#include <mysql/service_thd_alloc.h>
-#include <mysql/service_thd_wait.h>
-#include <mysql_com.h>
-#include <mysqld.h>
-#include <sql_acl.h>
-#include <sql_class.h>
-#include <sql_show.h>
+#ifndef UNIV_HOTBACKUP
+# include <mysql/service_thd_alloc.h>
+# include <mysql/service_thd_wait.h>
+# include <mysql_com.h>
+# include <mysqld.h>
+# include <sql_acl.h>
+# include <sql_class.h>
+# include <sql_show.h>
+#endif /* !UNIV_HOTBACKUP */
 #include <sql_table.h>
-#include <sql_tablespace.h>
-#include <sql_thd_internal_api.h>
+#ifndef UNIV_HOTBACKUP
+# include <sql_tablespace.h>
+# include <sql_thd_internal_api.h>
+#endif /* !UNIV_HOTBACKUP */
 #include <stdlib.h>
 #include <strfunc.h>
 #include <time.h>
+#include <auto_thd.h>
 
-#include "api0api.h"
-#include "api0misc.h"
+#ifndef UNIV_HOTBACKUP
+# include "api0api.h"
+# include "api0misc.h"
 /* Include necessary InnoDB headers */
 #include "auth_acls.h"
-#include "btr0btr.h"
-#include "btr0bulk.h"
-#include "btr0cur.h"
-#include "btr0sea.h"
-#include "buf0dblwr.h"
-#include "buf0dump.h"
-#include "buf0flu.h"
-#include "buf0lru.h"
-#include "buf0stats.h"
+# include "btr0btr.h"
+# include "btr0bulk.h"
+# include "btr0cur.h"
+# include "btr0sea.h"
+# include "buf0dblwr.h"
+# include "buf0dump.h"
+# include "buf0flu.h"
+# include "buf0lru.h"
+# include "buf0stats.h"
 #include "clone0api.h"
 #include "dd/dd.h"
 #include "dd/dictionary.h"
@@ -82,72 +90,86 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dd/types/partition.h"
 #include "dd/types/table.h"
 #include "dd/types/tablespace.h"
-#include "dict0boot.h"
-#include "dict0crea.h"
-#include "dict0dd.h"
-#include "dict0dict.h"
-#include "dict0load.h"
-#include "dict0stats.h"
-#include "dict0stats_bg.h"
-#include "fil0fil.h"
-#include "fsp0fsp.h"
-#include "fsp0space.h"
-#include "fsp0sysspace.h"
-#include "fts0fts.h"
-#include "fts0plugin.h"
-#include "fts0priv.h"
-#include "fts0types.h"
-#include "ha_innodb.h"
-#include "ha_innopart.h"
-#include "ha_prototypes.h"
-#include "i_s.h"
-#include "ibuf0ibuf.h"
-#include "lex_string.h"
-#include "lob0lob.h"
-#include "lock0lock.h"
+# include "dict0boot.h"
+# include "dict0crea.h"
+# include "dict0dd.h"
+# include "dict0dict.h"
+# include "dict0load.h"
+# include "dict0stats.h"
+# include "dict0stats_bg.h"
+# include "fil0fil.h"
+# include "fsp0fsp.h"
+# include "fsp0space.h"
+# include "fsp0sysspace.h"
+# include "fts0fts.h"
+# include "fts0plugin.h"
+# include "fts0priv.h"
+# include "fts0types.h"
+# include "ha_innodb.h"
+# include "ha_innopart.h"
+# include "ha_prototypes.h"
+# include "i_s.h"
+# include "ibuf0ibuf.h"
+# include "lex_string.h"
+# include "lob0lob.h"
+# include "lock0lock.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "log0log.h"
-#include "mem0mem.h"
-#include "mtr0mtr.h"
-#include "my_dbug.h"
-#include "my_double2ulonglong.h"
-#include "my_io.h"
-#include "my_macros.h"
-#include "my_psi_config.h"
-#include "mysql/psi/mysql_data_lock.h"
+#ifndef UNIV_HOTBACKUP
+# include "mem0mem.h"
+# include "mtr0mtr.h"
+# include "my_dbug.h"
+# include "my_double2ulonglong.h"
+# include "my_io.h"
+# include "my_macros.h"
+# include "my_psi_config.h"
+# include "mysql/components/services/log_builtins.h"
+# include "mysql/psi/mysql_data_lock.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "mysys_err.h"
 #include "os0file.h"
-#include "os0thread.h"
-#include "p_s.h"
-#include "page0zip.h"
-#include "pars0pars.h"
-#include "rem0types.h"
-#include "row0ext.h"
-#include "row0import.h"
-#include "row0ins.h"
-#include "row0merge.h"
-#include "row0mysql.h"
-#include "row0quiesce.h"
-#include "row0sel.h"
-#include "row0upd.h"
-#include "srv0mon.h"
-#include "srv0srv.h"
-#include "srv0start.h"
-#include "sync0sync.h"
+#ifndef UNIV_HOTBACKUP
+# include "os0thread.h"
+# include "p_s.h"
+# include "page0zip.h"
+# include "pars0pars.h"
+# include "rem0types.h"
+# include "row0ext.h"
+# include "row0import.h"
+# include "row0ins.h"
+# include "row0merge.h"
+# include "row0mysql.h"
+# include "row0quiesce.h"
+# include "row0sel.h"
+# include "row0upd.h"
+# include "sql/plugin_table.h"
+# include "srv0mon.h"
+# include "srv0srv.h"
+# include "srv0start.h"
+# include "sync0sync.h"
 #ifdef UNIV_DEBUG
-#include "trx0purge.h"
+# include "trx0purge.h"
 #endif /* UNIV_DEBUG */
 #include "dict0priv.h"
 #include "dict0sdi.h"
 #include "dict0upgrade.h"
 #include "sql_base.h" // OPEN_FRM_FILE_ONLY
-#include "trx0roll.h"
+#include "sql/item.h"
+# include "trx0roll.h"
 #include "trx0rseg.h"
-#include "trx0sys.h"
-#include "trx0trx.h"
-#include "trx0xa.h"
-#include "univ.i"
-#include "ut0mem.h"
+# include "trx0sys.h"
+# include "trx0trx.h"
+# include "trx0xa.h"
+# include "univ.i"
+# include "ut0mem.h"
+#endif /* !UNIV_HOTBACKUP */
 
+#ifdef UNIV_HOTBACKUP
+# include <typelib.h>
+# include "buf0types.h"
+#endif /* UNIV_HOTBACKUP */
+
+#ifndef UNIV_HOTBACKUP
 #include <mysql/components/services/system_variable_source.h>
 
 SERVICE_TYPE(registry) *reg_svc = nullptr;
@@ -363,6 +385,7 @@ static TYPELIB innodb_stats_method_typelib = {
 	NULL
 };
 
+#endif /* UNIV_HOTBACKUP */
 /** Possible values of the parameter innodb_checksum_algorithm */
 static const char* innodb_checksum_algorithm_names[] = {
 	"crc32",
@@ -383,6 +406,7 @@ static TYPELIB innodb_checksum_algorithm_typelib = {
 	NULL
 };
 
+#ifndef UNIV_HOTBACKUP
 /** Names of allowed values of innodb_flush_method */
 static const char* innodb_flush_method_names[] = {
 #ifndef _WIN32 /* See srv_unix_flush_t */
@@ -423,7 +447,46 @@ static TYPELIB innodb_default_row_format_typelib = {
 	innodb_default_row_format_names,
 	NULL
 };
+#endif /* !UNIV_HOTBACKUP */
 
+#ifdef UNIV_HOTBACKUP
+/** Returns the name of the checksum algorithm corresponding to the
+algorithm id given by "algo_enum" parameter.
+@param[in]	algo_enum	algorithm enumerator
+@return		C-string	algorithm name */
+const char*
+meb_get_checksum_algorithm_name(
+	srv_checksum_algorithm_t algo_enum)
+{
+	return(get_type(&innodb_checksum_algorithm_typelib, algo_enum));
+}
+
+/** Retrieves the enum corresponding to the checksum algorithm
+name specified by algo_name. If the call succeeds, returns
+TRUE and checksum algorithm enum is returned in algo_enum.
+@param[in]	algo_name	algorithm name
+@param[out]	algo_enum	algorithm enumerator
+@retval	true	if successful
+@retval	false	if algorithn name not found */
+ibool
+meb_get_checksum_algorithm_enum(
+	const char* algo_name,
+	srv_checksum_algorithm_t &algo_enum)
+{
+	int type = find_type(
+		algo_name, &innodb_checksum_algorithm_typelib, FIND_TYPE_BASIC);
+	if (type <= 0) {
+		/** Invalid algorithm name */
+		return(FALSE);
+	} else {
+		algo_enum = srv_checksum_algorithm_t(type - 1);
+	}
+
+	return(TRUE);
+}
+#endif /* UNIV_HOTBACKUP */
+
+#ifndef UNIV_HOTBACKUP
 /* The following counter is used to convey information to InnoDB
 about server activity: in case of normal DML ops it is not
 sensible to call srv_active_wake_master_thread after each
@@ -2084,6 +2147,9 @@ convert_error_code_to_mysql(
 	case DB_OUT_OF_FILE_SPACE:
 		return(HA_ERR_RECORD_FILE_FULL);
 
+	case DB_OUT_OF_DISK_SPACE:
+		return(HA_ERR_DISK_FULL_NOWAIT);
+
 	case DB_TEMP_FILE_WRITE_FAIL:
 		return(HA_ERR_TEMP_FILE_WRITE_FAILURE);
 
@@ -2277,7 +2343,7 @@ innobase_check_identifier_length(
 		cs, id, id + strlen(id),
 		NAME_CHAR_LEN, &well_formed_error);
 
-	if (well_formed_error || len == NAME_CHAR_LEN) {
+	if (well_formed_error || len != strlen(id)) {
 		my_error(ER_TOO_LONG_IDENT, MYF(0), id);
 		DBUG_RETURN(true);
 	}
@@ -2298,6 +2364,7 @@ innobase_convert_from_id(
 
 	strconvert(cs, from, system_charset_info, to, len, &errors);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /******************************************************************//**
 Compares NUL-terminated UTF-8 strings case insensitively.
@@ -2321,6 +2388,7 @@ innobase_strcasecmp(
 	return(my_strcasecmp(system_charset_info, a, b));
 }
 
+#ifndef UNIV_HOTBACKUP
 /******************************************************************//**
 Compares NUL-terminated UTF-8 strings case insensitively. The
 second string contains wildcards.
@@ -2334,6 +2402,7 @@ innobase_wildcasecmp(
 {
 	return(wild_case_compare(system_charset_info, a, b));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Strip dir name from a full path name and return only the file name
 @param[in]	path_name	full path name
@@ -2346,6 +2415,7 @@ innobase_basename(
 
 	return((name) ? name : "null");
 }
+#ifndef UNIV_HOTBACKUP
 
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
@@ -2558,6 +2628,7 @@ innobase_raw_format(
 	return(ut_str_sql_format(buf_tmp, buf_tmp_used, buf, buf_size));
 }
 
+#endif /* !UNIV_HOTBACKUP */
 /** Check if the string is "empty" or "none".
 @param[in]      algorithm       Compression algorithm to check
 @return true if no algorithm requested */
@@ -2613,6 +2684,7 @@ Compression::validate(const char* algorithm)
 	return(check(algorithm, &compression));
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Check if the string is "" or "n".
 @param[in]      algorithm       Encryption algorithm to check
 @return true if no algorithm requested */
@@ -3084,7 +3156,7 @@ innobase_register_trx(
 	THD*		thd,	/* in: MySQL thd (connection) object */
 	trx_t*		trx)	/* in: transaction to register */
 {
-	const ulonglong	trx_id = static_cast<const ulonglong>(
+	const ulonglong	trx_id = static_cast<ulonglong>(
 		trx_get_id_for_print(trx));
 
 	trans_register_ha(thd, FALSE, hton, &trx_id);
@@ -3127,6 +3199,7 @@ innobase_quote_identifier(
 		putc(q, file);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Convert a table name to the MySQL system_charset_info (UTF-8)
 and quote it.
@@ -3202,6 +3275,7 @@ innobase_convert_name(
 	return(s);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 A wrapper function of innobase_convert_name(), convert a table name
 to the MySQL system_charset_info (UTF-8) and quote it if needed.
@@ -3224,7 +3298,7 @@ innobase_format_name(
 
 /**********************************************************************//**
 Determines if the currently running transaction has been interrupted.
-@return TRUE if interrupted */
+@return true if interrupted */
 ibool
 trx_is_interrupted(
 /*===============*/
@@ -3235,7 +3309,7 @@ trx_is_interrupted(
 
 /**********************************************************************//**
 Determines if the currently running transaction is in strict mode.
-@return TRUE if strict */
+@return true if strict */
 ibool
 trx_is_strict(
 /*==========*/
@@ -3462,10 +3536,6 @@ boot_tablespaces(THD* thd)
 		fil_type_t	purpose = fsp_is_system_temporary(id)
 			? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE;
 		const char*	filename = f->filename().c_str();
-		char		buf[FN_REFLEN * 2 + 1];
-
-		ut_ad(strlen(filename) < sizeof(buf));
-		strncpy(buf, filename, strlen(filename) + 1);
 
 		if (fsp_is_system_or_temp_tablespace(id)
 		    || fsp_is_undo_tablespace(id)
@@ -3712,13 +3782,18 @@ innobase_post_recover()
 		return;
 	}
 
+	Auto_THD thd;
+	if (dd_tablespace_update_cache(thd.thd)) {
+		ut_ad(0);
+	}
+
 	/* Now the InnoDB Metadata and file system should be consistent.
 	start the Purge thread */
 	srv_start_purge_threads();
 }
 
 /** Check if InnoDB is in a mode where the data dictionary is read-only.
-@return true if srv_read_only_mode is TRUE or if srv_force_recovery > 0 */
+@return true if srv_read_only_mode is true or if srv_force_recovery > 0 */
 static
 bool
 innobase_is_dict_readonly()
@@ -3865,11 +3940,14 @@ static uint innobase_partition_flags()
 {
 	return(HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Update log_checksum_algorithm_ptr with a pointer to the function
 corresponding to whether checksums are enabled.
 @param[in]	check	whether redo log block checksums are enabled */
+#ifndef UNIV_HOTBACKUP
 static
+#endif /* !UNIV_HOTBACKUP */
 void
 innodb_log_checksums_func_update(bool	check)
 {
@@ -3878,6 +3956,7 @@ innodb_log_checksums_func_update(bool	check)
 		: log_block_calc_checksum_none;
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Minimum expected tablespace size. (5M) */
 static const ulint MIN_EXPECTED_TABLESPACE_SIZE = 5 * 1024 * 1024;
 
@@ -4359,6 +4438,8 @@ innodb_init_params()
 	/* Create the filespace flags. */
 	predefined_flags = fsp_flags_init(
 		univ_page_size, false, false, true, false);
+	predefined_flags = FSP_FLAGS_SET_SDI(predefined_flags);
+
 	srv_sys_space.set_flags(predefined_flags);
 
 	srv_sys_space.set_name(dict_sys_t::s_sys_space_name);
@@ -4468,6 +4549,7 @@ innodb_init(
 		innobase_is_valid_tablespace_name;
 	innobase_hton->alter_tablespace = innobase_alter_tablespace;
 	innobase_hton->upgrade_tablespace = dd_upgrade_tablespace;
+	innobase_hton->upgrade_space_version = upgrade_space_version;
 	innobase_hton->upgrade_logs = dd_upgrade_logs;
 	innobase_hton->finish_upgrade = dd_upgrade_finish;
 	innobase_hton->pre_dd_shutdown = innodb_pre_dd_shutdown;
@@ -4708,16 +4790,12 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 {
 	bool		fail = false;
 	fil_space_t*	space = fil_space_acquire_silent(space_id);
-	ulint		mysql_flags = FSP_FLAGS_SET_SDI(predefined_flags);
 
 	if (space != NULL) {
-		/* ADD SDI flag presence in predefined flags of mysql
-		tablespace. */
-
 		/* The tablespace was already opened up by redo log apply. */
-		ut_ad(space->flags == mysql_flags);
+		ut_ad(space->flags == predefined_flags);
 		if (strstr(UT_LIST_GET_FIRST(space->chain)->name, filename) != 0
-		    && space->flags == mysql_flags) {
+		    && space->flags == predefined_flags) {
 			fil_space_open_if_needed(space);
 		} else {
 			fail = true;
@@ -4725,7 +4803,7 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 
 		fil_space_release(space);
 	} else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id,
-				mysql_flags, dict_sys_t::s_dd_space_name,
+				predefined_flags, dict_sys_t::s_dd_space_name,
 				dict_sys_t::s_dd_space_name,
 				filename, true, false)
 		   == DB_SUCCESS) {
@@ -7246,15 +7324,6 @@ ha_innobase::close()
 /*================*/
 {
 	DBUG_ENTER("ha_innobase::close");
-
-	/*
-	  Make sure no garbage is left in trx->duplicates. If this
-	  fires, it is necessary to call ha_reset() before calling
-	  ha_close()
-	*/
-	DBUG_ASSERT(ha_thd() == nullptr ||
-		    m_prebuilt->trx != thd_to_trx(ha_thd()) ||
-		    m_prebuilt->trx->duplicates == 0);
 
 	if (m_prebuilt->m_temp_read_shared) {
 		temp_prebuilt_vec*	vec = m_prebuilt->table->temp_prebuilt;
@@ -11126,6 +11195,12 @@ create_index(
 	/* Assert that "GEN_CLUST_INDEX" cannot be used as non-primary index */
 	ut_a(innobase_strcasecmp(key->name, innobase_index_reserve_name) != 0);
 
+	if(key->key_length == 0) {
+		my_error(ER_WRONG_KEY_COLUMN,
+			 MYF(0),
+			 key->key_part->field->field_name);
+		DBUG_RETURN(ER_WRONG_KEY_COLUMN);
+	}
 	ind_type = 0;
 	if (key->flags & HA_SPATIAL) {
 		ind_type = DICT_SPATIAL;
@@ -11903,7 +11978,7 @@ ha_innobase::update_create_info(
 
 /*****************************************************************//**
 Initialize the table FTS stopword list
-@return TRUE if success */
+@return true if success */
 ibool
 innobase_fts_load_stopword(
 /*=======================*/
@@ -12786,6 +12861,94 @@ create_table_info_t::prepare_create_table(
 	DBUG_RETURN(parse_table_name(name));
 }
 
+/** Check a column (name) is a base column for any stored column in the table
+@param[in]	table	TABLE* for the table
+@param[in]	name	column name to check
+@return true if this is a base column */
+static
+bool
+innobase_is_base_s_col(
+	const TABLE*	table,
+	const char*	name)
+{
+
+	for (uint i = 0; i < table->s->fields; ++i) {
+                const Field* field = table->field[i];
+
+		if (!innobase_is_s_fld(field)) {
+			continue;
+		}
+
+		for (uint j = 0; j < table->s->fields; ++j) {
+			if (bitmap_is_set(
+				&field->gcol_info->base_columns_map, j)) {
+				const Field* base_field = table->field[j];
+				if (innobase_strcasecmp(
+					base_field->field_name, name) == 0) {
+					return(true);
+				}
+			}
+		}
+	}
+
+	return(false);
+}
+
+/** Check any cascading foreign key columns are base columns
+for any stored columns in the table
+@param[in]	dd_table	dd::Table for the table
+@param[in]	table		TABLE* for the table
+@return DB_NO_FK_ON_S_BASE_COL if found or DB_SUCCESS */
+static
+dberr_t
+innobase_check_fk_base_col(
+	const dd::Table*	dd_table,
+	const TABLE*		table)
+{
+
+	for (const dd::Foreign_key* key : dd_table->foreign_keys()) {
+		bool	upd_cascade = false;
+		bool	del_cascade = false;
+
+		switch (key->update_rule()) {
+		case dd::Foreign_key::RULE_CASCADE:
+		case dd::Foreign_key::RULE_SET_NULL:
+			upd_cascade = true;
+			break;
+		case dd::Foreign_key::RULE_NO_ACTION:
+		case dd::Foreign_key::RULE_RESTRICT:
+		case dd::Foreign_key::RULE_SET_DEFAULT:
+			break;
+		}
+
+		switch (key->delete_rule()) {
+		case dd::Foreign_key::RULE_CASCADE:
+		case dd::Foreign_key::RULE_SET_NULL:
+			del_cascade = true;
+			break;
+		case dd::Foreign_key::RULE_NO_ACTION:
+		case dd::Foreign_key::RULE_RESTRICT:
+		case dd::Foreign_key::RULE_SET_DEFAULT:
+			break;
+		}
+
+		if (!upd_cascade && !del_cascade) {
+			continue;
+		}
+
+		for (const dd::Foreign_key_element* key_e : key->elements()) {
+			dd::String_type col_name
+				= key_e->column().name();
+
+			if (innobase_is_base_s_col(
+				table, col_name.c_str())) {
+				return(DB_NO_FK_ON_S_BASE_COL);
+			}
+		}
+	}
+	return(DB_SUCCESS);
+}
+
 /** Create the internal innodb table.
 @param[in]	dd_table	dd::Table or nullptr for intrinsic table
 @return 0 or error number */
@@ -12807,6 +12970,14 @@ create_table_info_t::create_table(
 	Note: in case of TRUNCATE a fulltext table with
 	hidden doc id index. */
 	if (dd_table != nullptr) {
+		dberr_t	err = innobase_check_fk_base_col(dd_table, m_form);
+
+		if (err != DB_SUCCESS) {
+			error = convert_error_code_to_mysql(err, m_flags, NULL);
+
+			DBUG_RETURN(error);
+		}
+
 		for (auto index : dd_table->indexes()) {
 			if (my_strcasecmp(
 				system_charset_info,
@@ -14262,7 +14433,6 @@ ha_innobase::truncate(dd::Table *table_def)
 	HA_CREATE_INFO	info;
 	const bool	file_per_table
 		= dict_table_is_file_per_table(m_prebuilt->table);
-	memset(&info, 0, sizeof info);
 	update_create_info_from_table(&info, table);
 	char* tsname	= NULL;
 
@@ -17288,7 +17458,7 @@ ha_innobase::get_cascade_foreign_key_table_list(
 Checks if ALTER TABLE may change the storage engine of the table.
 Changing storage engines is not allowed for tables for which there
 are foreign key constraints (parent or child tables).
-@return TRUE if can switch engines */
+@return true if can switch engines */
 
 bool
 ha_innobase::can_switch_engines(void)
@@ -19956,7 +20126,7 @@ innodb_monitor_id_by_name_get(
 /*************************************************************//**
 Validate that the passed in monitor name matches at least one
 monitor counter name with wildcard compare.
-@return TRUE if at least one monitor name matches */
+@return true if at least one monitor name matches */
 static
 ibool
 innodb_monitor_validate_wildcard_name(
@@ -22733,6 +22903,10 @@ ib_senderrf(
 	case IB_LOG_LEVEL_FATAL:
 		l = Sql_condition::SEVERITY_END;
 		break;
+#ifdef UNIV_HOTBACKUP
+	default:
+		break;
+#endif /* UNIV_HOTBACKUP */
 	}
 
 	if (level != IB_LOG_LEVEL_ERROR) {
@@ -22811,6 +22985,7 @@ ib_errf(
 	va_end(args);
 	free(str);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /* Keep the first 16 characters as-is, since the url is sometimes used
 as an offset from this.*/
@@ -22843,6 +23018,7 @@ const char*	FOREIGN_KEY_CONSTRAINTS_MSG =
 const char*	INNODB_PARAMETERS_MSG =
 	"Please refer to " REFMAN "innodb-parameters.html";
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Converts an identifier from my_charset_filename to UTF-8 charset.
 @return result string length, as returned by strconvert() */
@@ -22965,12 +23141,21 @@ debug_set:
 		}
 	}
 
+        if (srv_buf_pool_size == static_cast<ulint>(intbuf)) {
+                /* nothing to do */
+                return(0);
+        }
+
 	ulint	requested_buf_pool_size
 		= buf_pool_size_align(static_cast<ulint>(intbuf));
 
 	*static_cast<longlong*>(save) = requested_buf_pool_size;
 
 	if (srv_buf_pool_size == requested_buf_pool_size) {
+                push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WRONG_ARGUMENTS,
+                        "InnoDB: Cannot resize buffer pool to lesser than"
+                        " chunk size of %lu bytes.", srv_buf_pool_chunk_unit);
 		/* nothing to do */
 		return(0);
 	}
@@ -22991,4 +23176,4 @@ debug_set:
 
 	return(0);
 }
-
+#endif /* !UNIV_HOTBACKUP */

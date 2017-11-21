@@ -38,10 +38,6 @@
 #include "my_tree.h"
 #include "thr_lock.h"
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 	/* defines used by heap-funktions */
 
 #define HP_MAX_LEVELS	4		/* 128^5 records is enough */
@@ -73,20 +69,20 @@ struct HP_PTRS
 struct st_level_info
 {
   /* Number of unused slots in *last_blocks HP_PTRS block (0 for 0th level) */
-  uint free_ptrs_in_block;
+  uint free_ptrs_in_block{0};
   
   /*
     Maximum number of records that can be 'contained' inside of each element
     of last_blocks array. For level 0 - 1, for level 1 - HP_PTRS_IN_NOD, for 
     level 2 - HP_PTRS_IN_NOD^2 and so forth.
   */
-  ulong records_under_level;
+  ulong records_under_level{0};
 
   /*
     Ptr to last allocated HP_PTRS (or records buffer for level 0) on this 
     level.
   */
-  HP_PTRS *last_blocks;			
+  HP_PTRS *last_blocks{nullptr};
 };
 
 
@@ -108,35 +104,35 @@ struct st_level_info
 
 struct HP_BLOCK
 {
-  HP_PTRS *root;                        /* Top-level block */ 
+  HP_PTRS *root{nullptr};                        /* Top-level block */ 
   struct st_level_info level_info[HP_MAX_LEVELS+1];
-  uint levels;                          /* number of used levels */
-  uint records_in_block;		/* Records in one heap-block */
-  uint recbuffer;			/* Length of one saved record */
-  ulong last_allocated; /* number of records there is allocated space for */
+  uint levels{0};                          /* number of used levels */
+  uint records_in_block{0};		/* Records in one heap-block */
+  uint recbuffer{0};			/* Length of one saved record */
+  ulong last_allocated{0}; /* number of records there is allocated space for */
 };
 
 struct HP_INFO;			/* For referense */
 
 struct HP_KEYDEF		/* Key definition with open */
 {
-  uint flag;				/* HA_NOSAME | HA_NULL_PART_KEY */
-  uint keysegs;				/* Number of key-segment */
-  uint length;				/* Length of key (automatic) */
-  uint8 algorithm;			/* HASH / BTREE */
-  HA_KEYSEG *seg;
+  uint flag{0};				/* HA_NOSAME | HA_NULL_PART_KEY */
+  uint keysegs{0};				/* Number of key-segment */
+  uint length{0};				/* Length of key (automatic) */
+  uint8 algorithm{0};			/* HASH / BTREE */
+  HA_KEYSEG *seg{nullptr};
   HP_BLOCK block;			/* Where keys are saved */
   /*
     Number of buckets used in hash table. Used only to provide
     #records estimates for heap key scans.
   */
-  ha_rows hash_buckets; 
+  ha_rows hash_buckets{0}; 
   TREE rb_tree;
   int (*write_key)(HP_INFO *info, HP_KEYDEF *keyinfo,
-		   const uchar *record, uchar *recpos);
+		   const uchar *record, uchar *recpos){nullptr};
   int (*delete_key)(HP_INFO *info, HP_KEYDEF *keyinfo,
-		   const uchar *record, uchar *recpos, int flag);
-  uint (*get_key_length)(HP_KEYDEF *keydef, const uchar *key);
+		   const uchar *record, uchar *recpos, int flag){nullptr};
+  uint (*get_key_length)(HP_KEYDEF *keydef, const uchar *key){nullptr};
 };
 
 struct HP_SHARE
@@ -259,8 +255,4 @@ extern uchar * heap_find(HP_INFO *info,int inx,const uchar *key);
 extern int heap_check_heap(HP_INFO *info, bool print_status);
 extern void heap_position(HP_INFO *info, HP_HEAP_POSITION *pos);
 
-
-#ifdef	__cplusplus
-}
-#endif
 #endif

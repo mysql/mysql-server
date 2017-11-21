@@ -33,8 +33,6 @@
 #include "mysql/service_mysql_alloc.h"
 #include "sql_string.h"
 
-C_MODE_START
-
 /*
   wait-free dynamic array, see lf_dynarray.c
 
@@ -235,8 +233,6 @@ static inline void lf_hash_search_unpin(LF_PINS *pins)
 typedef int lf_hash_match_func(const uchar *el);
 void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
                            lf_hash_match_func *match, uint rand_val);
-
-C_MODE_END
 
 #endif
 

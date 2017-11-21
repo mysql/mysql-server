@@ -15,6 +15,7 @@
 
 #include "binary_log_types.h"
 
+#include "byteorder.h"
 #include "statement_events.h"
 
 #include <algorithm>

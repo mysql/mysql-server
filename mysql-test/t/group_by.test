@@ -501,20 +501,46 @@ drop table t1;
 # Test BUG#8216 when referring in HAVING to n alias which is rand() function
 #
 
-create table t1 (a integer, b integer, c integer);
-insert into t1 (a,b) values (1,2),(1,3),(2,5);
+CREATE TABLE t1 (a INTEGER, b INTEGER, c INTEGER);
+INSERT INTO t1 (a,b) VALUES (1,2),(1,3),(2,5);
 
-select a, 0.1*0+1 r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2=1;
-# rand(100)*10 will be < 2 only for the first row (of 6)
-select a, round(rand(100)*10) r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2<=2;
-select a,sum(b) from t1 where a=1 group by c;
-select a*sum(b) from t1 where a=1 group by c;
-select sum(a)*sum(b) from t1 where a=1 group by c;
-select a,sum(b) from t1 where a=1 group by c having a=1;
-select a as d,sum(b) from t1 where a=1 group by c having d=1;
-select sum(a)*sum(b) as d from t1 where a=1 group by c having d > 0;
+SELECT a, 0.1*0+1 r2, SUM(1) r1 FROM t1 WHERE a = 1 GROUP BY a HAVING r1>1 AND r2=1;
 
-drop table t1;
+SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 GROUP BY a;
+# Will have two rows unless by mistake RAND() is done again for the
+# HAVING r2 reference (not cached).
+# The last predicate (r2 > 0) will detect if r2 has been computed when we
+# reference it from the tmp table's field (pre-computed since it's an alias).
+# This requires a certain order of evaluation in copy_funcs
+# ("aliased Item" before "referencing Item")
+SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 GROUP BY a
+  HAVING r1>=1 AND r2<=7 AND r2 > 0;
+# Referencing item might be in a subquery:
+SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 GROUP BY a
+  HAVING r1>=1 AND (SELECT r2<=7 AND r2 > 0 FROM t1 AS t2 LIMIT 1);
+
+# rand(100)*10 will be < 2 only for the first row (of 3)
+SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 WHERE a = 1
+ GROUP BY a HAVING r1>1 AND r2<=2;
+SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 WHERE a = 1
+ GROUP BY a HAVING r1>1 AND r2<=2 ORDER BY a+r2+r1;
+SELECT a,SUM(b) FROM t1 WHERE a=1 GROUP BY c;
+SELECT a*SUM(b) FROM t1 WHERE a=1 GROUP BY c;
+SELECT SUM(a)*SUM(b) FROM t1 WHERE a=1 GROUP BY c;
+SELECT a,SUM(b) FROM t1 WHERE a=1 GROUP BY c HAVING a=1;
+SELECT a AS d,SUM(b) FROM t1 WHERE a=1 GROUP BY c HAVING d=1;
+SELECT SUM(a)*SUM(b) AS d FROM t1 WHERE a=1 GROUP BY c HAVING d > 0;
+
+SELECT a, ROUND(RAND(100)*10) r2 FROM t1;
+SELECT ROUND(RAND(100)*10) r2 FROM t1 GROUP BY r2;
+
+DROP TABLE t1;
+
+# Another query where order of evaluation in copy_funcs matters:
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (NULL),(1);
+SELECT DISTINCT STD(i)+0 as splus0, i+0 as plain FROM t1 GROUP BY i ;
+DROP TABLE t1;
 
 # Following is a Myisam specific bug.
 # Test for BUG#9213 GROUP BY query on utf-8 key returns wrong results
@@ -1388,6 +1414,7 @@ DROP TABLE t1;
 SET BIG_TABLES=1;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (0),(0);
+--error ER_WRONG_KEY_COLUMN
 SELECT 1 FROM t1 GROUP BY IF(`a`,'','');
 SELECT 1 FROM t1 GROUP BY TRIM(LEADING RAND() FROM '');
 SELECT 1 FROM t1 GROUP BY SUBSTRING('',SLEEP(0),'');

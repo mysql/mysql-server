@@ -32,6 +32,7 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"             // mysql_file_open
@@ -63,6 +64,7 @@
 #include "sql/stateless_allocator.h"
 #include "sql/strfunc.h"                      // lex_cstring_handle
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                  // trans_rollback
 
 namespace dd {
@@ -192,9 +194,9 @@ static bool ha_finish_upgrade(THD *thd,
   if (hton->finish_upgrade)
   {
     if (hton->finish_upgrade(thd, *(static_cast<bool *>(failed_upgrade))))
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -560,6 +562,11 @@ bool add_sdi_info(THD *thd)
                       "with engine %s", ts->name().c_str(),
                       ts->engine().c_str());
 
+    // In case of error, we will continue with upgrade.
+    if (hton && hton->upgrade_space_version(ts))
+      sql_print_error("Error in updating version number in %s tablespace",
+                      ts->name().c_str());
+
     if (hton && hton->sdi_create)
     {
       // Error handling not possible at this stage, upgrade should complete.
@@ -577,6 +584,7 @@ bool add_sdi_info(THD *thd)
       trans_commit_stmt(thd);
       trans_commit(thd);
     }
+
   }
   thd->pop_internal_handler();
 
@@ -742,56 +750,6 @@ bool Upgrade_status::remove()
 }
 
 
-/**
-  Bootstrap thread executes SQL statements.
-  Any error in the execution of SQL statements causes call to my_error().
-  At this moment, error handler hook is set to my_message_stderr.
-  my_message_stderr() prints the error messages to standard error stream but
-  it does not follow the standard error format. Further, the error status is
-  not set in Diagnostics Area.
-
-  This class is to create RAII error handler hooks to be used when executing
-  statements from bootstrap thread.
-
-  It will print the error in the standard error format.
-  Diagnostics Area error status will be set to avoid asserts.
-  Error will be handler by caller function.
-*/
-
-class Bootstrap_error_handler
-{
-private:
-  void (*m_old_error_handler_hook)(uint, const char *, myf);
-
-  //  Set the error in DA. Optionally print error in log.
-  static void my_message_bootstrap(uint error, const char *str, myf MyFlags)
-  {
-    my_message_sql(error, str, MyFlags | (m_log_error ? ME_ERRORLOG : 0));
-  }
-
-public:
-  Bootstrap_error_handler()
-  {
-    m_old_error_handler_hook= error_handler_hook;
-    error_handler_hook= my_message_bootstrap;
-  }
-
-  // Mark as error is set.
-  void set_log_error(bool log_error)
-  {
-    m_log_error= log_error;
-  }
-
-  ~Bootstrap_error_handler()
-  {
-    error_handler_hook= m_old_error_handler_hook;
-  }
-  static bool m_log_error;
-};
-
-bool Bootstrap_error_handler::m_log_error= true;
-
-
 // Delete dictionary tables
 bool terminate(THD *thd)
 {
@@ -850,10 +808,10 @@ static bool ha_migrate_tablespaces(THD *thd,
     {
       sql_print_error("Got error %d from SE while migrating tablespaces",
                       error);
-      return TRUE;
+      return true;
     }
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -948,9 +906,9 @@ static bool upgrade_logs(THD *thd,
   if (hton->upgrade_logs)
   {
     if (hton->upgrade_logs(thd))
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -1285,6 +1243,14 @@ bool fill_dd_and_finalize(THD *thd)
   // RAII to handle error messages.
   Bootstrap_error_handler bootstrap_error_handler;
 
+  /*
+    While migrating tables, mysql_prepare_create_table() is called which checks
+    for duplicated value in SET data type. Error is reported for duplicated
+    values only in strict sql mode. Reset the value of sql_mode to zero while
+    migrating data to dictionary.
+  */
+  thd->variables.sql_mode= 0;
+
   std::vector<dd::String_type> db_name;
   std::vector<dd::String_type>::iterator it;
 
@@ -1328,14 +1294,6 @@ bool fill_dd_and_finalize(THD *thd)
 
   error|= migrate_events_to_dd(thd);
   error|= migrate_routines_to_dd(thd);
-
-  if (error)
-  {
-    // Reset error log output behavior.
-    bootstrap_error_handler.set_log_error(true);
-    terminate(thd);
-    return true;
-  }
 
   // We will not get error in this step unless its a fatal error.
   for (it= db_name.begin(); it != db_name.end(); it++)

@@ -16,75 +16,68 @@
 #include "my_dbug.h"
 #include "mysql/service_srv_session.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-  int srv_session_init_thread(const void*)
-  {
-    DBUG_ASSERT(0);
-    return 0;
-  }
-
-  void srv_session_deinit_thread()
-  {
-    DBUG_ASSERT(0);
-  }
-
-  MYSQL_THD srv_session_info_get_thd(MYSQL_SESSION)
-  {
-    DBUG_ASSERT(0);
-    return 0;
-  }
-
-  MYSQL_SESSION srv_session_open(srv_session_error_cb,
-                                 void*)
-  {
-    DBUG_ASSERT(0);
-    return 0;
-  }
-
-  int srv_session_close(MYSQL_SESSION)
-  {
-    DBUG_ASSERT(0);
-    return 0;
-  }
-
-  int srv_session_detach(MYSQL_SESSION)
-  {
-    DBUG_ASSERT(0);
-    return 0;
-  }
-
-  my_thread_id srv_session_info_get_session_id(MYSQL_SESSION)
-  {
-    DBUG_ASSERT(0);
-    return 0;
-  }
-
-  int srv_session_server_is_available()
-  {
-    DBUG_ASSERT(0);
-    return 0;
-  }
-
-  int srv_session_info_set_client_port(Srv_session*, uint16_t)
-  {
-    DBUG_ASSERT(0);
-    return 0;
-  }
-
-  int srv_session_info_set_connection_type(Srv_session*, enum_vio_type)
-  {
-    DBUG_ASSERT(0);
-    return 0;
-  }
-
-  int srv_session_info_killed(MYSQL_SESSION)
-  {
-    DBUG_ASSERT(0);
-    return 0;
-  }
-#ifdef __cplusplus
+int srv_session_init_thread(const void*)
+{
+  DBUG_ASSERT(0);
+  return 0;
 }
-#endif
+
+void srv_session_deinit_thread()
+{
+  DBUG_ASSERT(0);
+}
+
+MYSQL_THD srv_session_info_get_thd(MYSQL_SESSION)
+{
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+MYSQL_SESSION srv_session_open(srv_session_error_cb,
+                               void*)
+{
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+int srv_session_close(MYSQL_SESSION)
+{
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+int srv_session_detach(MYSQL_SESSION)
+{
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+my_thread_id srv_session_info_get_session_id(MYSQL_SESSION)
+{
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+int srv_session_server_is_available()
+{
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+int srv_session_info_set_client_port(Srv_session*, uint16_t)
+{
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+int srv_session_info_set_connection_type(Srv_session*, enum_vio_type)
+{
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+int srv_session_info_killed(MYSQL_SESSION)
+{
+  DBUG_ASSERT(0);
+  return 0;
+}

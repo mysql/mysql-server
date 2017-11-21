@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 ***********************************************************************/
 
 /**************************************************//**
-@file innodb_config.c
+@file
 InnoDB Memcached configurations
 
 Created 04/12/2011 Jimmy Yang

@@ -28,13 +28,14 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/lex_symbol.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_class.h"
 #include "sql/sql_digest_stream.h"
-#include "sql/sql_hints.yy.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_lex_hash.h"
 #include "sql_chars.h"
+
+// This must be last, due to bison 2.3 on OsX
+#include "sql/sql_hints.yy.h"
 
 class PT_hint_list;
 
@@ -46,7 +47,7 @@ void hint_lex_init_maps(CHARSET_INFO *cs, hint_lex_char_classes *hint_map);
 /// the hint parser (HINT_PARSER_parse) to consume the rest of hint tokens
 /// including the */ delimiter. The hint parser uses Hint_scanner as its own
 /// lexer to scan hint-specific tokens.
-class Hint_scanner : public Sql_alloc
+class Hint_scanner
 {
   THD *thd;
   const CHARSET_INFO *cs;

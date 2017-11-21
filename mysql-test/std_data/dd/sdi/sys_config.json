@@ -1,24 +1,6 @@
 ["ibd2sdi"
 ,
 {
-	"type": 0,
-	"id": X,
-	"object":
-		{
-    "mysqld_version_id": X,
-    "dd_version": 1,
-    "sdi_version": 1,
-    "dd_object_type": "Schema",
-    "dd_object": {
-        "name": "sys",
-        "default_collation_id": 33,
-        "created": NNN,
-        "last_altered": NNN
-    }
-}
-}
-,
-{
 	"type": 1,
 	"id": X,
 	"object":
@@ -29,7 +11,7 @@
     "dd_object_type": "Table",
     "dd_object": {
         "name": "sys_config",
-        "mysql_version_id": 80003,
+        "mysql_version_id": X,
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
@@ -53,6 +35,8 @@
                 "datetime_precision_null": 1,
                 "has_no_default": true,
                 "default_value_null": false,
+                "srs_id_null": true,
+                "srs_id": 0,
                 "default_value": "",
                 "default_value_utf8_null": true,
                 "default_value_utf8": "",
@@ -86,6 +70,8 @@
                 "datetime_precision_null": 1,
                 "has_no_default": false,
                 "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
                 "default_value": "",
                 "default_value_utf8_null": true,
                 "default_value_utf8": "",
@@ -119,6 +105,8 @@
                 "datetime_precision_null": 0,
                 "has_no_default": false,
                 "default_value_null": false,
+                "srs_id_null": true,
+                "srs_id": 0,
                 "default_value": "",
                 "default_value_utf8_null": false,
                 "default_value_utf8": "CURRENT_TIMESTAMP",
@@ -152,6 +140,8 @@
                 "datetime_precision_null": 1,
                 "has_no_default": false,
                 "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
                 "default_value": "",
                 "default_value_utf8_null": true,
                 "default_value_utf8": "",
@@ -185,6 +175,8 @@
                 "datetime_precision_null": 1,
                 "has_no_default": false,
                 "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
                 "default_value": "",
                 "default_value_utf8_null": true,
                 "default_value_utf8": "",
@@ -218,6 +210,8 @@
                 "datetime_precision_null": 1,
                 "has_no_default": false,
                 "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
                 "default_value": "",
                 "default_value_utf8_null": true,
                 "default_value_utf8": "",
@@ -256,7 +250,7 @@
                 "ordinal_position": 1,
                 "comment": "",
                 "options": "flags=32;",
-                "se_private_data": "id=X;root=Y;trx_id=Z",
+                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
                 "type": 1,
                 "algorithm": 2,
                 "is_algorithm_explicit": false,
@@ -300,7 +294,7 @@
                         "column_opx": 3
                     }
                 ],
-                "tablespace_ref": "innodb_file_per_table.X"
+                "tablespace_ref": "sys/sys_config"
             }
         ],
         "foreign_keys": [],
@@ -320,7 +314,7 @@
     "sdi_version": 1,
     "dd_object_type": "Tablespace",
     "dd_object": {
-        "name": "innodb_file_per_table.X",
+        "name": "sys/sys_config",
         "comment": "",
         "options": "",
         "se_private_data": "flags=X;id=Y;",

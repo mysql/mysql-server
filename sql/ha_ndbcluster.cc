@@ -63,6 +63,8 @@
 #include "sql/ndb_tdc.h"
 #include "sql/ndb_thd.h"
 #include "sql/partition_info.h"
+#include "sql/sql_alter.h"
+#include "sql/sql_lex.h"
 #include "storage/ndb/include/ndb_global.h"
 #include "storage/ndb/include/ndb_version.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"

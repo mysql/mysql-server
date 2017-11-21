@@ -39,6 +39,7 @@
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "myisam.h"               // MI_COLUMNDEF
+#include "mysql/plugin.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -125,7 +126,7 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
     if (org_field->maybe_null() || (item && item->maybe_null))
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
     if (org_field->type() == FIELD_TYPE_DOUBLE)
-      ((Field_double *) new_field)->not_fixed= TRUE;
+      ((Field_double *) new_field)->not_fixed= true;
     /*
       This field will belong to an internal temporary table, it cannot be
       generated.
@@ -168,7 +169,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table,
   case REAL_RESULT:
     new_field= new (*THR_MALLOC) Field_double(item->max_length, maybe_null,
                                               item->item_name.ptr(),
-                                              item->decimals, TRUE);
+                                              item->decimals, true);
     break;
   case INT_RESULT:
     /* 
@@ -232,7 +233,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table,
   if (modify_item)
     item->set_result_field(new_field);
   if (item->type() == Item::NULL_ITEM)
-    new_field->is_created_from_null_item= TRUE;
+    new_field->is_created_from_null_item= true;
   return new_field;
 }
 
@@ -296,10 +297,13 @@ static Field *create_tmp_field_for_schema(Item *item, TABLE *table)
                        the temporary table
   @param table_cant_handle_bit_fields
   @param make_copy_field
-  @param copy_result_field TRUE <=> return item's result field in the from_field
-                       arg. This is used for a window's OUT table when
-                       windows uses frame buffer to copy a function's result
-                       field from OUT table to frame buffer (and back).
+  @param copy_result_field true <=> save item's result_field in the from_field
+                       arg, before changing it. This is used for a window's
+                       OUT table when window uses frame buffer to copy a
+                       function's result field from OUT table to frame buffer
+                       (and back). @note that the goals of 'from_field' when
+                       this argument is true and when it is false, are
+                       different.
 
   @retval NULL On error.
 
@@ -307,7 +311,7 @@ static Field *create_tmp_field_for_schema(Item *item, TABLE *table)
 */
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-                        Mem_root_array<Item *> *copy_func, Field **from_field,
+                        Func_ptr_array *copy_func, Field **from_field,
                         Field **default_field,
                         bool group, bool modify_item,
                         bool table_cant_handle_bit_fields,
@@ -432,8 +436,6 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::VARBIN_ITEM:
   case Item::PARAM_ITEM:
   case Item::SUM_FUNC_ITEM:
-      // Need to make result field for WF in the 'else' branch as WFs are
-      // evaluated via copy_funcs
       if (type == Item::SUM_FUNC_ITEM && !is_wf)
       {
         Item_sum *item_sum=(Item_sum*) item;
@@ -443,7 +445,25 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       }
       else
       {
-        if (make_copy_field || (copy_result_field && !is_wf))
+        /*
+          (2) we're windowing. The Item doesn't contain any not-yet-calculated
+          window function (per logic in our caller create_tmp_table()). So it
+          is an ordinary function or can be considered as such. We're creating
+          the OUT table using IN table as source, and we have previously
+          created a frame buffer (FB) using IN table as source. That previous
+          creation has set IN's item's result_field to be the FB field. Here
+          we save that FB field in from_field. Right after that,
+          create_tmp_field_from_item() sets IN's item's result_field to the
+          OUT field (which OUT field is the 'result' variable). We mark the
+          OUT field with FIELD_IS_MARKED. Later we detect the mark, and create
+          a Copy_field to from_field (FB) from the marked field (OUT). The end
+          situation is: IN's item's result_field is in OUT, enabling the
+          initial function evaluation and saving of its result in OUT; the
+          Copy_field from OUT to FB and back will allow buffering/restoration
+          of that result.
+        */
+        if (make_copy_field ||
+            (copy_result_field && !is_wf)) // (2)
         {
           *from_field= item->get_tmp_table_field();
           DBUG_ASSERT(*from_field);
@@ -480,13 +500,13 @@ static void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
 {
   uint field_count= table->s->fields;
   bitmap_init(&table->def_read_set, (my_bitmap_map*) bitmaps, field_count,
-              FALSE);
+              false);
   bitmap_init(&table->tmp_set,
               (my_bitmap_map*) (bitmaps + bitmap_buffer_size(field_count)),
-              field_count, FALSE);
+              field_count, false);
   bitmap_init(&table->cond_set,
               (my_bitmap_map*) (bitmaps + bitmap_buffer_size(field_count) * 2),
-              field_count, FALSE);
+              field_count, false);
   /* write_set and all_set are copies of read_set */
   table->def_write_set= table->def_read_set;
   table->s->all_set= table->def_read_set;
@@ -706,6 +726,131 @@ static void set_real_row_type(TABLE *table)
 }
 
 
+bool Func_ptr::set_contains_alias_of_expr(const SELECT_LEX *select)
+{
+  // We cast 'const' away, but the walker will not modify '*select'.
+  uchar *walk_arg=
+    const_cast<uchar*>(reinterpret_cast<const uchar*>(select));
+  return
+    m_contains_alias_of_expr=
+    m_func->walk(&Item::contains_alias_of_expr,
+                 Item::enum_walk(Item::WALK_PREFIX |
+                                 // ref to alias might be in a subquery
+                                 Item::WALK_SUBQUERY),
+                 walk_arg);
+}
+
+
+/**
+  Moves to the end of the 'copy_func' array the elements which contain a
+  reference to an alias of an expression of the SELECT list of 'select'.
+  @param[in,out]  copy_func  array to sort
+  @param          select     query block to search in.
+*/
+void sort_copy_func(const SELECT_LEX *select, Func_ptr_array *copy_func)
+{
+  /*
+    In the select->all_fields list, there are hidden elements first, then
+    non-hidden. Non-hidden are those of the SELECT list. Hidden ones are:
+    (a) those of GROUP BY, HAVING, ORDER BY
+    (b) those which have been extracted from higher-level elements (of the
+    SELECT, GROUP BY, etc) by split_sum_func() (when aggregates are
+    involved).
+    Note that the clauses in (a) are allowed to reference a non-hidden
+    expression through an alias (e.g. "SELECT a+2 AS x GROUP BY x+3"),
+
+    Let's go through the process of writing to the tmp table
+    (e.g. end_write(), end_write_group()). We also include here the
+    "pseudo-tmp table" embedded into REF_ITEM_SLICE3, used by
+    end_send_group().
+    (1) we switch to the REF_SLICE used to read from that tmp table
+    (2.1) we (copy_fields() part 1) copy some columns from the
+    output of the previous step of execution (e.g. the join's output) to the
+    tmp table
+    (2.2) (specifically for REF_SLICE_TMP3 in end_send_group()) we
+    (copy_fields() part 2) evaluate some expressions from the same previous
+    step of execution, with Item_copy::copy(). The mechanism of Item_copy is:
+    * copy() evaluates the expression and caches its value in memory
+    * val_*() returns the cached value;
+    so Item_copy::copy() for "a+2" evaluates "a+2" (using the join's value
+    of "a") and caches the value; then Item_copy::copy() for "x+3" evaluates
+    "x", through Item_ref (because of the alias), that Item_ref points to
+    the Item_copy for "a+2" (does not point to the "a+2" Item_func_plus
+    expression, as we advanced the REF_SLICE to TMP3); copy() on
+    "x+3" thus evaluates the Item_copy for "a+2" which returns the cached value.
+    This way, if "a+2" were rather some non-deterministic expression
+    (e.g. rand()), the logic above does only one evaluation of rand(), which is
+    correct (the two objects "x" and "a+2" in 'fields' thus have equal
+    values).
+    For this to work, the Item_copy for "x" must be copy()d after that
+    of "a+2", so it can use the value cached for "a+2". setup_copy_fields()
+    ensures this by putting Item_copy-s of hidden elements last.
+    (3) We are now done with copy_fields(). Next is copy_funcs(). It
+    is meant to evaluate expressions and store their values into the tmp table.
+    [ note that we could replace Item_copy in (2) with a real one-row tmp
+    table; then end_send_group() could just use copy_funcs() instead of
+    Item_copy: copy_funcs() would store into the tmp table's column which
+    would thus be the storage for the cached value ].
+    Because we advanced the REF_SLICE, when copy_funcs() evaluates an
+    expression which uses Item_ref, that Item_ref may point to a column of
+    the tmp table. It is thus important that this column has been filled
+    already. So the order of evaluation of expressions by copy_funcs() must
+    respect "dependencies".
+    It is correct to evaluate elements of (b) first, as they are inner to
+    others. But it is incorrect to evaluate elements of (a) first if they
+    refer to non-hidden elements through aliases.
+    So, we sort elements below, putting to the end the ones which use
+    aliases. We use a stable sort, to not disturb any dependence already
+    reflected in the order.
+
+    A simpler and more robust solution would be to break the design that
+    hidden elements are always first in SELECT_LEX::all_fields: references
+    using aliases (in GROUP BY, HAVING, ORDER BY) would be added to
+    all_fields last (after the SELECT list); an inner element (split by
+    split_sum_func) would be added right before its containing element. That
+    would reflect dependencies naturally. But it is hard to implement, as
+    some code relies on the fact that non-hidden elements are last, and
+    other code relies on the fact that SELECT::fields is just a part of
+    SELECT::all_fields (i.e. they share 'next' pointers, in the
+    implementation).
+
+    You may wonder why setup_copy_fields() can solve the dependency problem
+    by putting all hidden elements last, while for the copy_func array we
+    have a (more complex) sort. It's because setup_copy_fields() is for
+    end_send_group() which handles only queries with GROUP BY without ORDER
+    BY, window functions or DISTINCT. So the hidden elements produced by
+    split_sum_func are only group aggregates (not anything from WFs), which
+    setup_copy_fields() ignores: these aggregates are thus not cached
+    (neither in Item_copy, nor in a further tmp table's row as there's no tmp
+    table); so any parent item which references them,
+    if evaluated, will reach to the aggregate, not to any cache
+    materializing the aggregate, so will get an up-to-date value.
+    Whereas with window functions, it's possible to have a hidden element be an
+    aggregate (produced by split_sum_func) _and_ be materialized (into a
+    further tmp table), so we cannot ignore such Item anymore: we have to
+    leave it at the beginning of the copy_func array. Except if it contains
+    an alias to an expression of the SELECT list: in that case, the sorting
+    will move it to the end, but will also move the aliased expression, and
+    their relative order will remain unchanged thanks to stable sort, so
+    their evaluation will be in the right order.
+
+    So we walk each item to copy, and record if it uses an alias. If we
+    found such items, we sort.
+  */
+  bool need_sort= false;
+  for (uint i= 0 ; i < copy_func->size() ; i++)
+    need_sort|= copy_func->at(i).set_contains_alias_of_expr(select);
+  if (need_sort)
+    std::stable_sort(copy_func->begin(), copy_func->end(),
+                     [] (const Func_ptr &lhs, const Func_ptr &rhs)
+                     {
+                       return !lhs.contains_alias_of_expr() &&
+                         rhs.contains_alias_of_expr();
+                     }
+                     );
+}
+
+
 /**
   Helper function for create_tmp_table_* family for setting tmp table fields
   to their place in record buffer
@@ -748,7 +893,7 @@ inline void relocate_field(Field *field, uchar *pos, uchar *null_flags,
   TABLE_SHARE.
   This function will replace Item_sum items in 'fields' list with
   corresponding Item_field items, pointing at the fields in the
-  temporary table, unless this was prohibited by TRUE
+  temporary table, unless this was prohibited by true
   value of argument save_sum_fields. The Item_field objects
   are created in THD memory root.
 
@@ -902,7 +1047,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   param->items_to_copy= copy_func;
   /* make table according to fields */
 
-  memset(table, 0, sizeof(*table));
+  new (table) TABLE;
   memset(reg_field, 0, sizeof(Field*)*(field_count + 2));
   memset(default_field, 0, sizeof(Field*) * (field_count + 1));
   memset(from_field, 0, sizeof(Field*)*(field_count + 1));
@@ -982,15 +1127,24 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                                         ((windowing == TMP_WIN_CONDITIONAL) &&
                                          (param->m_window != tmp_file_window))))
         /*
-          we are not evaluating wf (or expression containing a wf
+          we are not evaluating wf (or expression containing a wf)
           for this window yet, i.e. it will happen in a later windowing step.
         */
         || (!item->m_is_window_function &&
             windowing != TMP_WIN_UNCONDITIONAL && item->has_wf()))
         /*
-          Query_result_union::create_result_table always sees the
+          If this is not the last tmp table of windowing, this function of a
+          WF can, or cannot, be evaluated yet (it depends on if the WF's
+          window step has passed or not). So we do not evaluate it. Note that
+          it means that a function of a WF is always evaluated when we are at
+          the last tmp table of windowing, even though its WF has possibly
+          been evaluated earlier in a previous tmp table of windowing (that is
+          possible if we have 2 windows or more).
+
+          If this is a tmp table to store a query's result:
+          Query_result_union::create_result_table should always see the
           evaluated field, not the expression function containing a wf, it is
-          already evaluated:
+          already evaluated. And this field must be copied.
         */
     {
       /* Do nothing */
@@ -1051,32 +1205,34 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     else
     {
       /*
-        The last parameter to create_tmp_field() is a bit tricky:
+        Parameters of create_tmp_field():
 
+        (1) is a bit tricky:
         We need to set it to 0 in union, to get fill_record() to modify the
         temporary table.
         We need to set it to 1 on multi-table-update and in select to
         write rows to the temporary table.
         We here distinguish between UNION and multi-table-updates by the fact
         that in the later case group is set to the row pointer.
+        (2) If item->marker == 4 then we force create_tmp_field
+        to create a 64-bit longs for BIT fields because HEAP
+        tables can't index BIT fields directly. We do the same
+        for distinct, as we want the distinct index to be
+        usable in this case too.
+        (3) This is the OUT table of windowing, there is a frame buffer, and
+        the item is an expression which can store its value in a result_field
+        (e.g. it is Item_func). In that case we pass copy_result_field=true.
       */
       new_field= (param->schema_table) ?
         create_tmp_field_for_schema(item, table) :
         create_tmp_field(thd, table, item, type, copy_func,
                          tmp_from_field, &default_field[fieldnr],
-                         group != 0,
+                         group != 0, // (1)
                          !force_copy_fields &&
                            (not_all_columns || group !=0),
-                         /*
-                           If item->marker == 4 then we force create_tmp_field
-                           to create a 64-bit longs for BIT fields because HEAP
-                           tables can't index BIT fields directly. We do the same
-                           for distinct, as we want the distinct index to be
-                           usable in this case too.
-                         */
-                         item->marker == 4 || param->bit_fields_as_long,
+                         item->marker == 4 || param->bit_fields_as_long, //(2)
                          force_copy_fields,
-                         (windowing == TMP_WIN_CONDITIONAL &&
+                         (windowing == TMP_WIN_CONDITIONAL && // (3)
                           param->m_window->frame_buffer_param() &&
                           item->is_result_field()));
 
@@ -1085,7 +1241,14 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         DBUG_ASSERT(thd->is_fatal_error);
         goto err;				// Got OOM
       }
-      if (type == Item::SUM_FUNC_ITEM)
+      /*
+        Some group aggregate function use result_field to maintain their
+        current value (e.g. Item_avg_field stores both count and sum there).
+        But only for the group-by table. So do not set result_field if this is
+        a tmp table for UNION or derived table materialization.
+      */
+      if (type == Item::SUM_FUNC_ITEM &&
+          windowing != TMP_WIN_UNCONDITIONAL)
 	((Item_sum *) item)->result_field= new_field;
       tmp_from_field++;
       reclength+=new_field->pack_length();
@@ -1137,10 +1300,6 @@ update_hidden:
         distinct_key_length+= new_field->pack_length();
     }
 
-    // Update the hidden function count (used in copy_funcs)
-    if (hidden_field_count > 0)
-      param->hidden_func_count= copy_func->size();
-
     if (!--hidden_field_count)
     {
       /*
@@ -1163,7 +1322,7 @@ update_hidden:
       hidden_uneven_bit_length= total_uneven_bit_length;
       total_uneven_bit_length= 0;
     }
-  }
+  } // end of while ((item=li++)).
 
   DBUG_ASSERT(fieldnr == (uint) (reg_field - table->field));
   DBUG_ASSERT(field_count >= (uint) (reg_field - table->field));
@@ -1199,6 +1358,13 @@ update_hidden:
     table->group= group;				/* Table is grouped by key */
     param->group_buff= group_buff;
     share->keys= 1;
+    // Let each group expression know the column which materializes its value
+    for (ORDER *cur_group= group; cur_group; cur_group= cur_group->next)
+    {
+      Field *field= (*cur_group->item)->get_tmp_table_field();
+      DBUG_ASSERT(field->table == table);
+      cur_group->field_in_tmp_table= field;
+    }
     // Use key definition created below only if the key isn't too long.
     // Otherwise a dedicated key over a hash value will be created and this
     // definition will be used by server to calc hash.
@@ -1218,8 +1384,7 @@ update_hidden:
       ORDER *cur_group= group;
       for (; cur_group ; cur_group= cur_group->next, key_part_info++)
       {
-        Field *field= (*cur_group->item)->get_tmp_table_field();
-        DBUG_ASSERT(field->table == table);
+        Field *field= cur_group->field_in_tmp_table;
         key_part_info->init_from_field(field);
 
         /* In GROUP BY 'a' and 'a ' are equal for VARCHAR fields */
@@ -1251,12 +1416,8 @@ update_hidden:
       Field **reg_field;
       keyinfo->user_defined_key_parts= field_count-param->hidden_field_count;
       keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
-      if (!(key_part_info= (KEY_PART_INFO*)
-            alloc_root(&share->mem_root,
-                       keyinfo->user_defined_key_parts * sizeof(KEY_PART_INFO))))
+      if (!(key_part_info= new (&share->mem_root) KEY_PART_INFO[keyinfo->user_defined_key_parts]))
         goto err;
-      memset(key_part_info, 0, keyinfo->user_defined_key_parts *
-             sizeof(KEY_PART_INFO));
       table->key_info= share->key_info= keyinfo;
       keyinfo->key_part= key_part_info;
       keyinfo->actual_flags= keyinfo->flags= HA_NOSAME | HA_NULL_ARE_EQUAL;
@@ -1294,32 +1455,8 @@ update_hidden:
     using_unique_constraint= true;
   }
 
-  /*
-    On the 3rd argument - force_disk_table:
-
-    unique constraint is implemented as index lookups (ha_index_read); if
-    allow_scan_from_position is true, we will be doing, on table->file:
-    Initialize Scan (rnd_init), Read Next Row (rnd_next, many times),
-    Get Position of Current row (position()), End Scan (rnd_end),
-    Write Row (write_row, many times),
-    Initialize Scan (rnd_init), Read Row at Position (rnd_pos),
-    Read Next Row (rnd_next).
-    This will work if TempTable is used, but will not work for the Heap
-    engine (TMP_TABLE_MEMORY) for the reason below. So only pick
-    on-disk if the configured engine is Heap.
-    write_row checks unique constraint so calls ha_index_read.
-    rnd_pos re-starts the scan on the same row where it had left. In
-    MEMORY, write_row modifies this member of the cursor:
-    HEAP_INFO::current_ptr; current_ptr is properly restored by
-    rnd_pos. But the write, to check the unique constraint, calls
-    ha_index_read (hp_rkey) which modifies another member of the cursor:
-    HEAP_INFO::current_record, which rnd_pos cannot restore. In that case,
-    rnd_pos will work, but rnd_next won't. Thus we switch to InnoDB.
-  */
-  if (setup_tmp_table_handler(table, select_options,
-            (param->allow_scan_from_position && using_unique_constraint &&
-            thd->variables.internal_tmp_mem_storage_engine == TMP_TABLE_MEMORY),
-            param->schema_table))
+  if (setup_tmp_table_handler(table, select_options, false,
+                              param->schema_table))
     goto err;                                   /* purecov: inspected */
 
   if (table->s->keys == 1 && table->key_info)
@@ -1392,7 +1529,7 @@ update_hidden:
     goto err;
   param->func_count= copy_func->size();
   DBUG_ASSERT(param->func_count <= copy_func_count); // Used <= allocated
-
+  sort_copy_func(thd->lex->current_select(), copy_func);
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
   recinfo=param->start_recinfo;
@@ -1448,18 +1585,23 @@ update_hidden:
          by the Item_field object from which 'field' has been created.
       */
       Field *orig_field= default_field[i];
-      /* Get the value from default_values */
+      /*
+        Get the value from default_values. Note that orig_field->ptr might not
+        point into record[0] if previous step is REF_SLICE_TMP3 and we are
+        creating a tmp table to materialize the query's result.
+      */
       my_ptrdiff_t diff= orig_field->table->default_values_offset();
-      orig_field->move_field_offset(diff);      // Points now at default_values
-      if (orig_field->is_real_null())
+      Field *f_in_record0= orig_field->table->field[orig_field->field_index];
+      f_in_record0->move_field_offset(diff);      // Points now at default_values
+      if (f_in_record0->is_real_null())
         field->set_null();
       else
       {
         field->set_notnull();
-        memcpy(field->ptr, orig_field->ptr, field->pack_length());
+        memcpy(field->ptr, f_in_record0->ptr, field->pack_length());
       }
-      orig_field->move_field_offset(-diff);     // Back to record[0]
-    } 
+      f_in_record0->move_field_offset(-diff);     // Back to record[0]
+    }
 
     if (from_field[i])
     {						/* Not a table Item */
@@ -1468,8 +1610,7 @@ update_hidden:
           field->flags & FIELD_IS_MARKED)
       {
         Temp_table_param *window_fb= param->m_window->frame_buffer_param();
-        // This is the result field of a function in the out-table.
-        // We need to copy it from out-table to window's frame buffer
+        // Grep for FIELD_IS_MARKED in this file.
         field->flags^= FIELD_IS_MARKED;
         window_fb->copy_field_end->set(from_field[i], field,
                                        save_sum_fields);
@@ -1529,17 +1670,17 @@ update_hidden:
     */
     for (; cur_group ; cur_group= cur_group->next, key_part_info++)
     {
-      Field *field= (*cur_group->item)->get_tmp_table_field();
-      DBUG_ASSERT(field->table == table);
+      Field *field= cur_group->field_in_tmp_table;
       bool maybe_null= (*cur_group->item)->maybe_null;
       key_part_info->init_from_field(key_part_info->field);
       keyinfo->key_length+= key_part_info->store_length;
 
       cur_group->buff= (char*) group_buff;
-      cur_group->field= field->new_key_field(thd->mem_root, table,
-                                             group_buff + maybe_null);
+      cur_group->field_in_tmp_table=
+        field->new_key_field(thd->mem_root, table,
+                             group_buff + maybe_null);
 
-      if (!cur_group->field)
+      if (!cur_group->field_in_tmp_table)
         goto err; /* purecov: inspected */
 
       if (maybe_null)
@@ -1554,7 +1695,7 @@ update_hidden:
         cur_group->buff++;                        // Pointer to field data
         group_buff++;                         // Skipp null flag
       }
-      group_buff+= cur_group->field->pack_length();
+      group_buff+= cur_group->field_in_tmp_table->pack_length();
     }
   }
 
@@ -1721,7 +1862,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   }
 
   /* STEP 3: Create TABLE description */
-  memset(table, 0, sizeof(*table));
+  new (table) TABLE;
   memset(reg_field, 0, sizeof(Field*) * 3);
   table->init_tmp_table(thd, share, &own_root, NULL, "weedout-tmp",
                         reg_field, blob_field, false);
@@ -1757,7 +1898,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
       For the sake of uniformity, always use Field_varstring (altough we could
       use Field_string for shorter keys)
     */
-    field= new (*THR_MALLOC) Field_varstring(uniq_tuple_length_arg, FALSE,
+    field= new (*THR_MALLOC) Field_varstring(uniq_tuple_length_arg, false,
                                              "rowids", share, &my_charset_bin);
     if (!field)
       DBUG_RETURN(0);
@@ -1971,8 +2112,8 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
                         NullS))
     return 0;
 
-  memset(table, 0, sizeof(*table));
-  memset(share, 0, sizeof(*share));
+  new (table) TABLE;
+  new (share) TABLE_SHARE;
   table->init_tmp_table(thd, share, m_root, NULL, alias, reg_field,
                         blob_field, is_virtual);
 
@@ -2073,7 +2214,7 @@ error:
 
   @param table            table to allocate SE for
   @param select_options   current select's options
-  @param force_disk_table TRUE <=> Use MyISAM or InnoDB
+  @param force_disk_table true <=> Use MyISAM or InnoDB
   @param schema_table     whether the table is a schema table
 
   @returns
@@ -2259,8 +2400,8 @@ bool open_tmp_table(TABLE *table)
     constraint.
 
    RETURN
-     FALSE - OK
-     TRUE  - Error
+     false - OK
+     true  - Error
 */
 
 static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
@@ -2497,8 +2638,8 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
     Creates tmp table and opens it.
 
   @return
-     FALSE - OK
-     TRUE  - Error
+     false - OK
+     true  - Error
 */
 
 bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
@@ -2516,12 +2657,12 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
   if (share->db_type() == temptable_hton)
   {
     if (create_tmp_table_with_fallback(table))
-      return TRUE;
+      return true;
   }
   else if (share->db_type() == innodb_hton)
   {
     if (create_tmp_table_with_fallback(table))
-      return TRUE;
+      return true;
     // Make empty record so random data is not written to disk
     empty_record(table);
   }
@@ -2530,7 +2671,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
     DBUG_ASSERT(start_recinfo && recinfo);
     if (create_myisam_tmp_table(table, keyinfo, start_recinfo, recinfo,
                                 options, big_tables))
-      return TRUE;
+      return true;
     // Make empty record so random data is not written to disk
     empty_record(table);
   }
@@ -2543,7 +2684,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
       TABLE::is_created() also implies that table is open.
     */
     table->file->ha_delete_table(share->table_name.str, nullptr); /* purecov: inspected */
-    return TRUE;
+    return true;
   }
 
   if (share->first_unused_tmp_key < share->keys)
@@ -2565,7 +2706,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
     Opt_trace_object convert(trace, "creating_tmp_table");
     trace_tmp_table(trace, table);
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -2605,7 +2746,7 @@ void free_tmp_table(THD *thd, TABLE *entry)
     (*ptr)->mem_free();
   free_io_cache(entry);
 
-  DBUG_ASSERT(!alloc_root_inited(&entry->mem_root));
+  DBUG_ASSERT(entry->mem_root.allocated_size() == 0);
   
   DBUG_ASSERT(entry->s->ref_count >= 1);
   if (--entry->s->ref_count == 0) // no more TABLE objects
@@ -2614,7 +2755,7 @@ void free_tmp_table(THD *thd, TABLE *entry)
     /*
       In create_tmp_table(), the share's memroot is allocated inside own_root
       and is then made a copy of own_root, so it is inside its memory blocks,
-      so as soon as we free a memory block the memroot becomes unreadbable.
+      so as soon as we free a memory block the memroot becomes unreadable.
       So we need a copy to free it.
     */
     MEM_ROOT own_root= std::move(entry->s->mem_root);
@@ -2638,9 +2779,9 @@ void free_tmp_table(THD *thd, TABLE *entry)
   @param error           Reason why inserting into MEMORY table failed. 
   @param ignore_last_dup If true, ignore duplicate key error for last
                          inserted key (see detailed description below).
-  @param [out] is_duplicate if non-NULL and ignore_last_dup is TRUE,
-                         return TRUE if last key was a duplicate,
-                         and FALSE otherwise.
+  @param [out] is_duplicate if non-NULL and ignore_last_dup is true,
+                         return true if last key was a duplicate,
+                         and false otherwise.
 
   @details
     Function can be called with any error code, but only HA_ERR_RECORD_FILE_FULL
@@ -2782,12 +2923,24 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
       table= wtable;
     }
 
-    /*
-      TABLE has no copy ctor; can't use the move ctor as we use both objects
-      when we migrate rows.
-    */
-    DBUG_ASSERT(!alloc_root_inited(&table->mem_root));
-    memcpy(&new_table, table, sizeof(new_table));
+    table->mem_root.Clear();
+
+    // Set up a partial copy of the table.
+    new_table.record[0]= table->record[0];
+    new_table.record[1]= table->record[1];
+    new_table.field= table->field;
+    new_table.key_info= table->key_info;
+    new_table.in_use= table->in_use;
+    new_table.db_stat= table->db_stat;
+    new_table.key_info= table->key_info;
+    new_table.hash_field= table->hash_field;
+    new_table.group= table->group;
+    new_table.distinct= table->distinct;
+    new_table.alias= table->alias;
+    new_table.pos_in_table_list= table->pos_in_table_list;
+    new_table.reginfo= table->reginfo;
+    new_table.read_set= table->read_set;
+    new_table.write_set= table->write_set;
 
     new_table.s= &share; // New table points to new share
 
@@ -2886,12 +3039,12 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
               !ignore_last_dup)
             goto err_after_open;
           if (is_duplicate)
-            *is_duplicate= TRUE;
+            *is_duplicate= true;
         }
         else
         {
           if (is_duplicate)
-            *is_duplicate= FALSE;
+            *is_duplicate= false;
         }
 
         (void) table->file->ha_rnd_end();
@@ -2930,19 +3083,19 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
 
     }
 
-    destroy(table->file);
-    table->file=0;
     /*
-      '*table' is overwritten with 'new_table'. new_table was set up as
-      '*table', so, between the start and end of this function, pointers like
-      'table, table->record, table->record[i]' are preserved. This is important,
-      for example because some Item_field->field->ptr points into
-      table->record[0]: such pointer remains valid after the conversion and
-      will allow to access rows of the new TABLE.
+      Replace the guts of the old table with the new one, although keeping
+      most members.
     */
-    *table= std::move(new_table);
-
-    // 'table' is now new and points to new share
+    destroy(table->file);
+    table->s= new_table.s;
+    table->file= new_table.file;
+    table->db_stat= new_table.db_stat;
+    table->in_use= new_table.in_use;
+    table->no_rows= new_table.no_rows;
+    table->record[0]= new_table.record[0];
+    table->record[1]= new_table.record[1];
+    table->mem_root= std::move(new_table.mem_root);
 
     /*
       Depending on if this TABLE clone is early/late in optimization, or in

@@ -296,10 +296,17 @@ SELECT * FROM t4;
 
 connection con1;
 --echo # But metadata lock on old name can be still kept.
+# Disable prepared statements, since for them the below check
+# works differently. The prepare phase of statements execution
+# acquires weaker S metadata lock (which do not conflict with
+# SNRW locks held by LOCK TABLE WRITE) and manages to discover
+# that table with such name doesn't exist.
+--disable_ps_protocol
 SET @@lock_wait_timeout= 1;
 --error ER_LOCK_WAIT_TIMEOUT
 SELECT * FROM t2;
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--enable_ps_protocol
 --echo # New name should not be locked.
 SELECT * FROM t4;
 
@@ -396,10 +403,17 @@ SELECT * FROM t4;
 
 connection con1;
 --echo # But metadata lock on old name can be still kept.
+# Disable prepared statements, since for them the below check
+# works differently. The prepare phase of statements execution
+# acquires weaker S metadata lock (which do not conflict with
+# SNRW locks held by LOCK TABLE WRITE) and manages to discover
+# that table with such name doesn't exist.
+--disable_ps_protocol
 SET @@lock_wait_timeout= 1;
 --error ER_LOCK_WAIT_TIMEOUT
 SELECT * FROM t2;
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--enable_ps_protocol
 --echo # New name should not be locked.
 SELECT * FROM t4;
 
@@ -496,12 +510,19 @@ SELECT * FROM t4;
 
 connection con1;
 --echo # Metadata locks on both old and new names are still kept.
+# Disable prepared statements, since for them the below check
+# works differently. The prepare phase of statements execution
+# acquires weaker S metadata locks (which do not conflict with
+# SNRW locks held by LOCK TABLE WRITE) and manages to discover
+# that tables with such names don't exist.
+--disable_ps_protocol
 SET @@lock_wait_timeout= 1;
 --error ER_LOCK_WAIT_TIMEOUT
 SELECT * FROM t2;
 --error ER_LOCK_WAIT_TIMEOUT
 SELECT * FROM t4;
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--enable_ps_protocol
 
 connection default;
 UNLOCK TABLES;
@@ -528,12 +549,19 @@ SELECT * FROM t3;
 
 connection con1;
 --echo # However, metadata locks on both old and new names are still kept.
+# Disable prepared statements, since for them the below check
+# works differently. The prepare phase of statements execution
+# acquires weaker S metadata locks (which do not conflict with
+# SNRW locks held by LOCK TABLE WRITE) and manages to discover
+# that tables with such names don't exist.
+--disable_ps_protocol
 SET @@lock_wait_timeout= 1;
 --error ER_LOCK_WAIT_TIMEOUT
 SELECT * FROM t2;
 --error ER_LOCK_WAIT_TIMEOUT
 SELECT * FROM t3;
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--enable_ps_protocol
 
 connection default;
 --echo # And delete from parent table is possible and doesn't cause asserts.

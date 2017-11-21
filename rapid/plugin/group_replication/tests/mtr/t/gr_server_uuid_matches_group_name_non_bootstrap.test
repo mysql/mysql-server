@@ -15,7 +15,6 @@
 ## 1.   Restart server2 with group_name as server2_uuid
 ## 1.1. Assert GR do not start.
 ##      Since server_uuid matches group_name GR should not start.
-## 1.2. Validate failure logged in error file.
 ## 2.   Start server1 with unique group_name.
 ##      Server1 will work as seed.
 ## 2.1. Assert GR starts on server1.
@@ -23,7 +22,8 @@
 ## 2.2. Restart server2 with unique group_name.
 ## 2.3. Assert GR starts on server2.
 ##      Since server_uuid does not match group_name GR should start.
-## 3.   Cleanup
+## 3.   Validate failure logged in error file.
+## 4.   Cleanup
 ################################################################################
 
 --source include/big_test.inc
@@ -83,14 +83,6 @@ set session sql_log_bin=1;
 --let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 0
 --source include/assert.inc
 
-## 1.2. Validate failure logged in error file.
-
---let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_server_uuid_matches_group_name_non_bootstrap.2.err
---let $assert_text = Found the expected error about server_uuid incompatible with the group_name
---let $assert_select = Member server_uuid is incompatible with the group
---let $assert_count = 1
---source include/assert_grep.inc
-
 --echo
 --echo ###########################
 --echo ##  SUCCESSFUL SCENARIO  ##
@@ -134,12 +126,26 @@ set session sql_log_bin=1;
 --source include/assert.inc
 
 --echo
+--echo ############################
+--echo ##  VALIDATE ERROR LOGGED ##
+--echo ############################
+--echo
+
+## 3. Validate failure logged in error file.
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_server_uuid_matches_group_name_non_bootstrap.2.err
+--let $assert_text = Found the expected error about server_uuid incompatible with the group_name
+--let $assert_select = Member server_uuid is incompatible with the group
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo
 --echo ###############
 --echo ##  Cleanup  ##
 --echo ###############
 --echo
 
-## 3.   Cleanup
+## 4.   Cleanup
 
 SET @@GLOBAL.group_replication_local_address= @debug_group_replication_local_address;
 SET @@GLOBAL.group_replication_group_seeds= @debug_group_replication_group_seeds;

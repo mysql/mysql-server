@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -87,7 +87,9 @@ page_update_max_trx_id(
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	ut_ad(block);
+#ifndef UNIV_HOTBACKUP
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+#endif /* !UNIV_HOTBACKUP */
 	/* During crash recovery, this function may be called on
 	something else than a leaf page of a secondary index or the
 	insert buffer index tree (dict_index_is_sec_or_ibuf() returns
@@ -399,7 +401,7 @@ page_get_supremum_offset(
 
 /************************************************************//**
 TRUE if the record is a user record on the page.
-@return TRUE if a user record */
+@return true if a user record */
 UNIV_INLINE
 ibool
 page_rec_is_user_rec_low(
@@ -435,7 +437,7 @@ page_rec_is_user_rec_low(
 
 /************************************************************//**
 TRUE if the record is the supremum record on a page.
-@return TRUE if the supremum record */
+@return true if the supremum record */
 UNIV_INLINE
 ibool
 page_rec_is_supremum_low(
@@ -451,7 +453,7 @@ page_rec_is_supremum_low(
 
 /************************************************************//**
 TRUE if the record is the infimum record on a page.
-@return TRUE if the infimum record */
+@return true if the infimum record */
 UNIV_INLINE
 ibool
 page_rec_is_infimum_low(
@@ -466,7 +468,7 @@ page_rec_is_infimum_low(
 
 /************************************************************//**
 TRUE if the record is a user record on the page.
-@return TRUE if a user record */
+@return true if a user record */
 UNIV_INLINE
 ibool
 page_rec_is_user_rec(
@@ -480,7 +482,7 @@ page_rec_is_user_rec(
 
 /************************************************************//**
 TRUE if the record is the supremum record on a page.
-@return TRUE if the supremum record */
+@return true if the supremum record */
 UNIV_INLINE
 ibool
 page_rec_is_supremum(
@@ -494,7 +496,7 @@ page_rec_is_supremum(
 
 /************************************************************//**
 TRUE if the record is the infimum record on a page.
-@return TRUE if the infimum record */
+@return true if the infimum record */
 UNIV_INLINE
 ibool
 page_rec_is_infimum(
@@ -709,7 +711,7 @@ page_dir_get_nth_slot(
 
 /**************************************************************//**
 Used to check the consistency of a record on a page.
-@return TRUE if succeed */
+@return true if succeed */
 UNIV_INLINE
 ibool
 page_rec_check(

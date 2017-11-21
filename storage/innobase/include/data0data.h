@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -198,12 +198,11 @@ dfield_dup(
 	dfield_t*	field,
 	mem_heap_t*	heap);
 
-#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Tests if two data fields are equal.
 If len==0, tests the data length and content for equality.
 If len>0, tests the first len bytes of the content for equality.
-@return TRUE if both fields are NULL or if they are equal */
+@return true if both fields are NULL or if they are equal */
 UNIV_INLINE
 ibool
 dfield_datas_are_binary_equal(
@@ -215,7 +214,7 @@ dfield_datas_are_binary_equal(
 	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Tests if dfield data length and content is equal to the given.
-@return TRUE if equal */
+@return true if equal */
 UNIV_INLINE
 ibool
 dfield_data_is_binary_equal(
@@ -224,7 +223,6 @@ dfield_data_is_binary_equal(
 	ulint		len,	/*!< in: data length or UNIV_SQL_NULL */
 	const byte*	data)	/*!< in: data */
 	MY_ATTRIBUTE((warn_unused_result));
-#endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Gets number of fields in a data tuple.
 @return number of fields */
@@ -456,7 +454,7 @@ dtuple_set_types_binary(
 
 /**********************************************************************//**
 Checks if a dtuple contains an SQL null value.
-@return TRUE if some field is SQL null */
+@return true if some field is SQL null */
 UNIV_INLINE
 ibool
 dtuple_contains_null(
@@ -465,7 +463,7 @@ dtuple_contains_null(
 	MY_ATTRIBUTE((warn_unused_result));
 /**********************************************************//**
 Checks that a data field is typed. Asserts an error if not.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dfield_check_typed(
 /*===============*/
@@ -473,7 +471,7 @@ dfield_check_typed(
 	MY_ATTRIBUTE((warn_unused_result));
 /**********************************************************//**
 Checks that a data tuple is typed. Asserts an error if not.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dtuple_check_typed(
 /*===============*/
@@ -483,7 +481,7 @@ dtuple_check_typed(
 /**********************************************************//**
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dtuple_validate(
 /*============*/

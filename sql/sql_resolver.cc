@@ -56,6 +56,7 @@
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"        // Item_sum
 #include "sql/mem_root_array.h"
+#include "sql/nested_join.h"
 #include "sql/opt_hints.h"
 #include "sql/opt_range.h"       // prune_partitions
 #include "sql/opt_trace.h"       // Opt_trace_object
@@ -408,7 +409,7 @@ bool SELECT_LEX::prepare(THD *thd)
     { 
       item_sum= item_sum->next;
       item_sum->split_sum_func2(thd, base_ref_items,
-                                all_fields, item_sum->ref_by, false);
+                                all_fields, nullptr, false);
     } while (item_sum != end);
   }
 
@@ -652,7 +653,7 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune)
   @param select_lex SELECT_LEX of the subquery
   @param outer      Parent SELECT_LEX (outer to subquery)
 
-  @return TRUE if subquery allows materialization, FALSE otherwise.
+  @return true if subquery allows materialization, false otherwise.
 */
 
 bool subquery_allows_materialization(Item_in_subselect *predicate,
@@ -766,7 +767,7 @@ bool subquery_allows_materialization(Item_in_subselect *predicate,
       else
       {
         trace_mat.add("possible", true);
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
     }
   }
@@ -1100,8 +1101,8 @@ bool SELECT_LEX::resolve_placeholder_tables(THD *thd, bool apply_semijoin)
 
   @param thd     Pointer to THD.
 
-  @retval FALSE  Success.
-  @retval TRUE   Error.
+  @retval false  Success.
+  @retval true   Error.
 
   @details
   Perform early unconditional subquery transformations:
@@ -1323,7 +1324,7 @@ bool SELECT_LEX::setup_conds(THD *thd)
   DBUG_ENTER("SELECT_LEX::setup_conds");
 
   /*
-    it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
+    it_is_update set to true when tables of primary SELECT_LEX (SELECT_LEX
     which belong to LEX, i.e. most up SELECT) will be updated by
     INSERT/UPDATE/LOAD
     NOTE: using this condition helps to prevent call of prepare_check_option()
@@ -1559,7 +1560,7 @@ void SELECT_LEX::reset_nj_counters(List<TABLE_LIST> *join_list)
   @param thd         thread handler
   @param join_list   list representation of the join to be converted
   @param top         true <=> cond is the where condition
-  @param in_sj       TRUE <=> processing semi-join nest's children
+  @param in_sj       true <=> processing semi-join nest's children
   @param[in,out] cond In: condition to which the join condition for converted
                           outer joins is to be added;
                       Out: new condition
@@ -1988,8 +1989,8 @@ static void fix_tables_after_pullout(SELECT_LEX *parent_select,
   @param subq_pred   Subquery predicate to be converted.
                      This is either an IN, =ANY or EXISTS predicate.
 
-  @retval FALSE OK
-  @retval TRUE  Error
+  @retval false OK
+  @retval true  Error
 
   @details
 
@@ -2285,16 +2286,16 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
 
        (TODO: can we just create a list of pointers and hope the expressions
        will not substitute themselves on fix_fields()? or we need to wrap
-       them into Item_direct_view_refs and store pointers to those. The
-       pointers to Item_direct_view_refs are guaranteed to be stable as 
-       Item_direct_view_refs doesn't substitute itself with anything in 
-       Item_direct_view_ref::fix_fields.
+       them into Item_view_refs and store pointers to those. The
+       pointers to Item_view_refs are guaranteed to be stable as
+       Item_view_refs doesn't substitute itself with anything in
+       Item_view_ref::fix_fields.
 
     We have a special case for IN predicates with a scalar subquery or a
     row subquery in the predicand (left operand), such as this:
        (SELECT 1,2 FROM t1) IN (SELECT x,y FROM t2)
     We cannot make the join condition 1=x AND 2=y, since that might evaluate
-    to TRUE even if t1 is empty. Instead make the join condition
+    to true even if t1 is empty. Instead make the join condition
     (SELECT 1,2 FROM t1) = (x,y) in this case.
 
     */
@@ -2647,7 +2648,21 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
           is_distinct() ||
           is_ordered() ||
           get_table_list()->next_local != NULL))
+    {
       order_list.push_back(&derived_select->order_list);
+      /*
+        If at outer-most level (not within another derived table), ensure
+        the ordering columns are marked in read_set, since columns selected
+        from derived tables are not marked in initial resolving.
+      */
+      if (!thd->derived_tables_processing)
+      {
+        Mark_field mf(thd->mark_used_columns);
+        for (ORDER *o= derived_select->order_list.first; o != NULL; o= o->next)
+          o->item[0]->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX,
+                           pointer_cast<uchar *>(&mf));
+      }
+    }
   }
 
   // Add any full-text functions from derived table into outer query
@@ -2694,8 +2709,8 @@ static bool replace_subcondition(THD *thd, Item **tree,
   {
     *tree= new_cond;
     if (do_fix_fields && new_cond->fix_fields(thd, tree))
-      return TRUE;
-    return FALSE;
+      return true;
+    return false;
   }
   else if ((*tree)->type() == Item::COND_ITEM) 
   {
@@ -2707,16 +2722,16 @@ static bool replace_subcondition(THD *thd, Item **tree,
       {
         li.replace(new_cond);
         if (do_fix_fields && new_cond->fix_fields(thd, li.ref()))
-          return TRUE;
-        return FALSE;
+          return true;
+        return false;
       }
     }
   }
   else
     // If we came here it means there were an error during prerequisites check.
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
 
-  return TRUE;
+  return true;
 }
 
 
@@ -2762,8 +2777,8 @@ static bool replace_subcondition(THD *thd, Item **tree,
     "priority".
 
   RETURN 
-    FALSE  OK
-    TRUE   Error
+    false  OK
+    true   Error
 */
 bool SELECT_LEX::flatten_subqueries()
 {
@@ -2856,8 +2871,8 @@ bool SELECT_LEX::flatten_subqueries()
     Item **tree= ((*subq)->embedding_join_nest == NULL) ?
                  &m_where_cond :
                 (*subq)->embedding_join_nest->join_cond_ref();
-    if (replace_subcondition(thd, tree, *subq, new Item_int(1), FALSE))
-      DBUG_RETURN(TRUE); /* purecov: inspected */
+    if (replace_subcondition(thd, tree, *subq, new Item_int(1), false))
+      DBUG_RETURN(true); /* purecov: inspected */
   }
 
   for (subq= subq_begin; subq < subq_end; subq++)
@@ -2870,7 +2885,7 @@ bool SELECT_LEX::flatten_subqueries()
                         "IN (SELECT)", "semijoin");
     oto1.add("chosen", true);
     if (convert_subquery_to_semijoin(*subq))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
   /* 
     3. Finalize the subqueries that we did not convert,
@@ -2899,7 +2914,7 @@ bool SELECT_LEX::flatten_subqueries()
     thd->lex->set_current_select(save_select_lex);
 
     if (res == Item_subselect::RES_ERROR)
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
 
     (*subq)->changed= 1;
     (*subq)->fixed= 1;
@@ -2911,12 +2926,12 @@ bool SELECT_LEX::flatten_subqueries()
     Item **tree= subquery_in_join_clause ?
       ((*subq)->embedding_join_nest->join_cond_ref()) : &m_where_cond;
     if (replace_subcondition(thd, tree, *subq, substitute, do_fix_fields))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     (*subq)->substitution= NULL;
   }
 
   sj_candidates->clear();
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**
@@ -3036,25 +3051,13 @@ void SELECT_LEX::merge_contexts(SELECT_LEX *inner)
 
     - adds fields referenced from inner query blocks to the current select list
 
-    - Decides which class to use to reference the items (Item_ref or
-      Item_direct_ref)
+    - creates an object to use to reference the items (Item_ref)
 
     - fixes references (Item_ref objects) to these fields.
 
     If a field isn't already on the select list and the base_ref_items array
     is provided then it is added to the all_fields list and the pointer to
     it is saved in the base_ref_items array.
-
-    The class to access the outer field is determined by the following rules:
-
-    -#. If the outer field isn't used under an aggregate function then the
-        Item_ref class should be used.
-
-    -#. If the outer field is used under an aggregate function and this
-        function is, in turn, aggregated in the query block where the outer
-        field was resolved or some query nested therein, then the
-        Item_direct_ref class should be used. Also it should be used if we are
-        grouping by a subquery containing the outer field.
 
     The resolution is done here and not at the fix_fields() stage as
     it can be done only after aggregate functions are fixed and pulled up to
@@ -3076,7 +3079,6 @@ bool SELECT_LEX::fix_inner_refs(THD *thd)
   List_iterator<Item_outer_ref> ref_it(inner_refs_list);
   while ((ref= ref_it++))
   {
-    bool direct_ref= false;
     Item *item= ref->outer_ref;
     Item **item_ref= ref->ref;
 
@@ -3096,44 +3098,7 @@ bool SELECT_LEX::fix_inner_refs(THD *thd)
       item_ref= add_hidden_item(item);
     }
 
-    if (ref->in_sum_func)
-    {
-      if (ref->in_sum_func->base_select->nest_level > nest_level)
-        direct_ref= true;
-      else
-      {
-        for (Item_sum *sum_func= ref->in_sum_func;
-             sum_func && sum_func->aggr_select &&
-                         sum_func->aggr_select->nest_level >= nest_level;
-             sum_func= sum_func->in_sum_func)
-        {
-          if (sum_func->aggr_select->nest_level == nest_level)
-          {
-            direct_ref= true;
-            break;
-          }
-        }
-      }
-    }
-    else
-    {
-      /*
-        Check if GROUP BY item trees contain the outer ref:
-        in this case we have to use Item_direct_ref instead of Item_ref.
-      */
-      for (ORDER *group= group_list.first; group; group= group->next)
-      {
-        if ((*group->item)->walk(&Item::find_item_processor, walk_subquery,
-                                 (uchar *) ref))
-        {
-          direct_ref= true;
-          break;
-        }
-      }
-    }
-    Item_ref *const new_ref= direct_ref ?
-              new Item_direct_ref(ref->context, item_ref, ref->table_name,
-                                  ref->field_name, ref->is_alias_of_expr()) :
+    Item_ref *const new_ref=
               new Item_ref(ref->context, item_ref, ref->table_name,
                            ref->field_name, ref->is_alias_of_expr());
     if (!new_ref)
@@ -3326,9 +3291,9 @@ void SELECT_LEX::empty_order_list(int hidden_order_field_count)
     ORDER by field
 
   @retval
-    FALSE if OK
+    false if OK
   @retval
-    TRUE  if error occurred
+    true  if error occurred
 */
 
 bool
@@ -3337,7 +3302,7 @@ find_order_in_list(THD *thd, Ref_item_array ref_item_array,
                    List<Item> &fields, List<Item> &all_fields,
                    bool is_group_field)
 {
-  Item *order_item= *order->item; /* The item from the GROUP/ORDER caluse. */
+  Item *order_item= *order->item; /* The item from the GROUP/ORDER clause. */
   Item::Type order_item_type;
   Item **select_item; /* The corresponding item from the SELECT clause. */
   Field *from_field;  /* The corresponding field from the FROM clause. */
@@ -3355,18 +3320,18 @@ find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     {
       my_error(ER_BAD_FIELD_ERROR, MYF(0),
                order_item->full_name(), thd->where);
-      return TRUE;
+      return true;
     }
     order->item= &ref_item_array[count - 1];
     order->in_field_list= 1;
     order->is_position= true;
-    return FALSE;
+    return false;
   }
   /* Lookup the current GROUP/ORDER field in the SELECT clause. */
   select_item= find_item_in_list(thd, order_item, fields, &counter,
                                  REPORT_EXCEPT_NOT_FOUND, &resolution);
   if (!select_item)
-    return TRUE; /* The item is not unique, or some other error occured. */
+    return true; /* The item is not unique, or some other error occured. */
 
   /* Check whether the resolved field is not ambiguos. */
   if (select_item != not_found_item)
@@ -3379,7 +3344,7 @@ find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     */
     if (resolution == RESOLVED_BEHIND_ALIAS && !order_item->fixed &&
         order_item->fix_fields(thd, order->item))
-      return TRUE;
+      return true;
 
     /* Lookup the current GROUP field in the FROM clause. */
     order_item_type= order_item->type();
@@ -3389,8 +3354,8 @@ find_order_in_list(THD *thd, Ref_item_array ref_item_array,
         order_item_type == Item::REF_ITEM)
     {
       from_field= find_field_in_tables(thd, (Item_ident*) order_item, tables,
-                                       NULL, &view_ref, IGNORE_ERRORS, TRUE,
-                                       FALSE);
+                                       NULL, &view_ref, IGNORE_ERRORS, true,
+                                       false);
       if (thd->is_error())
         return true;
 
@@ -3433,7 +3398,7 @@ find_order_in_list(THD *thd, Ref_item_array ref_item_array,
       order->in_field_list=1;
       if (resolution == RESOLVED_AGAINST_ALIAS)
         order->used_alias= true;
-      return FALSE;
+      return false;
     }
     else
     {
@@ -3462,7 +3427,7 @@ find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     We check order_item->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.
     
-    group_fix_field= TRUE is to resolve aliases from the SELECT list
+    group_fix_field= true is to resolve aliases from the SELECT list
     without creating of Item_ref-s: JOIN::exec() wraps aliased items
     in SELECT list with Item_copy items. To re-evaluate such a tree
     that includes Item_copy items we have to refresh Item_copy caches,
@@ -3477,13 +3442,13 @@ find_order_in_list(THD *thd, Ref_item_array ref_item_array,
   */
   bool save_group_fix_field= thd->lex->current_select()->group_fix_field;
   if (is_group_field)
-    thd->lex->current_select()->group_fix_field= TRUE;
+    thd->lex->current_select()->group_fix_field= true;
   bool ret= (!order_item->fixed &&
       (order_item->fix_fields(thd, order->item) ||
        (order_item= *order->item)->check_cols(1)));
   thd->lex->current_select()->group_fix_field= save_group_fix_field;
   if (ret)
-    return TRUE; /* Wrong field. */
+    return true; /* Wrong field. */
 
   uint el= all_fields.elements;
   all_fields.push_front(order_item); /* Add new field to field list. */
@@ -3497,7 +3462,7 @@ find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     newly created object.
   */
   if (order_item->type() == Item::SUM_FUNC_ITEM)
-    ((Item_sum *)order_item)->ref_by= all_fields.head_ref();
+    ((Item_sum *)order_item)->ref_by[0]= all_fields.head_ref();
 
   /*
     Currently, we assume that this assertion holds. If it turns out
@@ -3860,6 +3825,14 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
           item->eq(*group->item, false))
       {
         item->maybe_null= true;
+        /*
+          If this is a reference, e.g a view column, we need the column to be
+          marked as nullable also, since this will form the basis of temporary
+          table fields.  Copy_field's from_null_ptr, to_null_ptr will be
+          missing if the Item_field isn't marked correctly, which will cause
+          problems if we have buffered windowing.
+        */
+        item->real_item()->maybe_null= true;
         found_in_group= true;
         break;
       }

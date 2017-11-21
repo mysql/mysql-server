@@ -50,9 +50,8 @@
 #include "mysql_com.h"                     // SERVER_VERSION_LENGTH
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"                 // UUID_LENGTH
-#include "sql/system_variables.h"
 
-class Rpl_filter;
+class Rpl_global_filter;
 class THD;
 class Time_zone;
 struct MEM_ROOT;
@@ -140,7 +139,7 @@ extern bool opt_safe_user_create;
 extern bool opt_local_infile, opt_myisam_use_mmap;
 extern bool opt_slave_compressed_protocol;
 extern ulong slave_exec_mode_options;
-extern Rpl_filter* global_rpl_filter;
+extern Rpl_global_filter rpl_global_filter;
 
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,

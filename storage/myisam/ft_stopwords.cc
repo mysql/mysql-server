@@ -102,7 +102,7 @@ int ft_init_stopwords()
       goto err0;
     len=my_read(fd, buffer, len, MYF(MY_WME));
     end=start+len;
-    while (ft_simple_get_word(ft_stopword_cs, &start, end, &w, TRUE))
+    while (ft_simple_get_word(ft_stopword_cs, &start, end, &w, true))
     {
       if (ft_add_stopword(my_strndup(mi_key_memory_ft_stopwords,
                                      (char*) w.pos, w.len, MYF(0))))

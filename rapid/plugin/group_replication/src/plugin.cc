@@ -122,8 +122,8 @@ const char *group_replication_plugin_name= "group_replication";
 char *group_name_var= NULL;
 bool start_group_replication_at_boot_var= true;
 rpl_sidno group_sidno;
-bool single_primary_mode_var= FALSE;
-bool enforce_update_everywhere_checks_var= TRUE;
+bool single_primary_mode_var= false;
+bool enforce_update_everywhere_checks_var= true;
 
 /* Applier module related */
 bool known_server_reset;
@@ -216,9 +216,6 @@ uint member_weight_var= DEFAULT_MEMBER_WEIGHT;
 
 /* Downgrade options */
 bool allow_local_lower_version_join_var= 0;
-
-/* Allow errand transactions */
-bool allow_local_disjoint_gtids_join_var= 0;
 
 /* Define what debug options will be activated */
 char * communication_debug_options_var= NULL;
@@ -719,8 +716,12 @@ int configure_group_member_manager(char *hostname, char *uuid,
                     local_version= plugin_version + (0x010000);
                   };);
   Member_version local_member_plugin_version(local_version);
-  delete local_member_info;
 
+  DBUG_EXECUTE_IF("group_replication_force_member_uuid",
+                  {
+                    uuid= const_cast<char*>("cccccccc-cccc-cccc-cccc-cccccccccccc");
+                  };);
+  delete local_member_info;
   local_member_info= new Group_member_info(hostname,
                                            port,
                                            uuid,
@@ -1662,12 +1663,6 @@ bool get_allow_local_lower_version_join()
   DBUG_RETURN(allow_local_lower_version_join_var);
 }
 
-bool get_allow_local_disjoint_gtids_join()
-{
-  DBUG_ENTER("get_allow_local_disjoint_gtids_join");
-  DBUG_RETURN(allow_local_disjoint_gtids_join_var);
-}
-
 ulong get_transaction_size_limit()
 {
   DBUG_ENTER("get_transaction_size_limit");
@@ -1842,6 +1837,8 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR*, void* save,
   char buff[NAME_CHAR_LEN];
   const char *str;
 
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+
   if (plugin_is_group_replication_running())
   {
     my_message(ER_GROUP_REPLICATION_RUNNING,
@@ -2002,6 +1999,8 @@ static void update_recovery_retry_count(MYSQL_THD, SYS_VAR*,
 {
   DBUG_ENTER("update_recovery_retry_count");
 
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+
   (*(ulong*) var_ptr)= (*(ulong*) save);
   ulong in_val= *static_cast<const ulong*>(save);
 
@@ -2017,6 +2016,8 @@ static void update_recovery_reconnect_interval(MYSQL_THD, SYS_VAR*,
                                                void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_recovery_reconnect_interval");
+
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
   (*(ulong*) var_ptr)= (*(ulong*) save);
   ulong in_val= *static_cast<const ulong*>(save);
@@ -2036,6 +2037,8 @@ static void update_ssl_use(MYSQL_THD, SYS_VAR*,
                            void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_ssl_use");
+
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
   bool use_ssl_val= *((bool *) save);
   (*(bool *) var_ptr)= (*(bool *) save);
@@ -2101,6 +2104,7 @@ static void update_recovery_ssl_option(MYSQL_THD, SYS_VAR *var,
 {
   DBUG_ENTER("update_recovery_ssl_option");
 
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
   const char *new_option_val= *(const char**)save;
   (*(const char **) var_ptr)= (*(const char **) save);
@@ -2149,6 +2153,8 @@ update_ssl_server_cert_verification(MYSQL_THD, SYS_VAR*,
 {
   DBUG_ENTER("update_ssl_server_cert_verification");
 
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+
   bool ssl_verify_server_cert= *((bool *) save);
   (*(bool *) var_ptr)= (*(bool *) save);
 
@@ -2169,6 +2175,8 @@ update_recovery_completion_policy(MYSQL_THD, SYS_VAR*,
 {
   DBUG_ENTER("update_recovery_completion_policy");
 
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+
   ulong in_val= *static_cast<const ulong*>(save);
   (*(ulong*) var_ptr)= (*(ulong*) save);
 
@@ -2188,6 +2196,8 @@ static void update_component_timeout(MYSQL_THD, SYS_VAR*,
                                      void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_component_timeout");
+
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
   ulong in_val= *static_cast<const ulong*>(save);
   (*(ulong*) var_ptr)= (*(ulong*) save);
@@ -2216,6 +2226,8 @@ static int check_auto_increment_increment(MYSQL_THD, SYS_VAR*,
 
   longlong in_val;
   value->val_int(value, &in_val);
+
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
   if (plugin_is_group_replication_running())
   {
@@ -2255,6 +2267,8 @@ static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR*,
   const char *str;
   int length= sizeof(buff);
 
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+
   if (plugin_is_group_replication_running())
   {
     my_message(ER_GROUP_REPLICATION_RUNNING,
@@ -2293,6 +2307,8 @@ static int check_compression_threshold(MYSQL_THD, SYS_VAR*,
                                        struct st_mysql_value *value)
 {
   DBUG_ENTER("check_compression_threshold");
+
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
   longlong in_val;
   value->val_int(value, &in_val);
@@ -2463,7 +2479,7 @@ get_bool_value_using_type_lib(struct st_mysql_value *value,
     value->val_int(value, &value_to_check);
   }
 
-  resulting_value = value_to_check > 0 ? TRUE : FALSE;
+  resulting_value = value_to_check > 0 ? true : false;
 
   DBUG_RETURN(true);
 }
@@ -2478,6 +2494,8 @@ check_single_primary_mode(MYSQL_THD, SYS_VAR*,
 
   if (!get_bool_value_using_type_lib(value, single_primary_mode_val))
     DBUG_RETURN(1);
+
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
   if (plugin_is_group_replication_running())
   {
@@ -2511,6 +2529,8 @@ check_enforce_update_everywhere_checks(MYSQL_THD, SYS_VAR*,
 
   if (!get_bool_value_using_type_lib(value, enforce_update_everywhere_checks_val))
     DBUG_RETURN(1);
+
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
   if (plugin_is_group_replication_running())
   {
@@ -2561,6 +2581,8 @@ static void update_unreachable_timeout(MYSQL_THD, SYS_VAR*,
 {
   DBUG_ENTER("update_unreachable_timeout");
 
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+
   ulong in_val= *static_cast<const ulong*>(save);
   (*(ulong*) var_ptr)= (*(ulong*) save);
 
@@ -2577,6 +2599,8 @@ update_member_weight(MYSQL_THD, SYS_VAR*,
                      void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_member_weight");
+
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
   (*(uint*) var_ptr)= (*(uint*) save);
   uint in_val= *static_cast<const uint*>(save);
@@ -2848,16 +2872,6 @@ static MYSQL_SYSVAR_BOOL(
   0                                      /* default */
 );
 
-static MYSQL_SYSVAR_BOOL(
-  allow_local_disjoint_gtids_join,       /* name */
-  allow_local_disjoint_gtids_join_var,   /* var */
-  PLUGIN_VAR_OPCMDARG,                   /* optional var */
-  "Allow this server to join the group even if it has transactions not present in the group",
-  NULL,                                  /* check func. */
-  NULL,                                  /* update func*/
-  0                                      /* default */
-);
-
 static MYSQL_SYSVAR_ULONG(
   auto_increment_increment,          /* name */
   auto_increment_increment_var,      /* var */
@@ -2949,7 +2963,7 @@ static MYSQL_SYSVAR_BOOL(
   "PRIMARY all others are SECONDARIES. Default: TRUE.",
   check_single_primary_mode,                  /* check func*/
   NULL,                                       /* update func*/
-  TRUE);                                      /* default*/
+  true);                                      /* default*/
 
 static MYSQL_SYSVAR_BOOL(
   enforce_update_everywhere_checks,           /* name */
@@ -2959,7 +2973,7 @@ static MYSQL_SYSVAR_BOOL(
   "update everywhere. Default: FALSE.",
   check_enforce_update_everywhere_checks,     /* check func*/
   NULL,                                       /* update func*/
-  FALSE);                                     /* default*/
+  false);                                     /* default*/
 
 const char* flow_control_mode_values[]= {
   "DISABLED",
@@ -3185,7 +3199,6 @@ static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(recovery_reconnect_interval),
   MYSQL_SYSVAR(components_stop_timeout),
   MYSQL_SYSVAR(allow_local_lower_version_join),
-  MYSQL_SYSVAR(allow_local_disjoint_gtids_join),
   MYSQL_SYSVAR(auto_increment_increment),
   MYSQL_SYSVAR(compression_threshold),
   MYSQL_SYSVAR(gtid_assignment_block_size),

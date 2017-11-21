@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <mutex>
 #include <unordered_map>
+#include <algorithm>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -67,35 +68,39 @@ bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2)
   return ((cs1 == cs2) || !strcmp(cs1->csname,cs2->csname));
 }
 
-
 std::unordered_map<std::string, int> *coll_name_num_map= nullptr;
 std::unordered_map<std::string, int> *cs_name_pri_num_map= nullptr;
 std::unordered_map<std::string, int> *cs_name_bin_num_map= nullptr;
 
+#define MY_CS_BUFFER_SIZE (MY_CS_NAME_SIZE * 8)
+
 static void map_coll_name_to_number(const char *name, int num)
 {
-  char lower_case_name[256];
-  strncpy(lower_case_name, name, 256);
+  char lower_case_name[MY_CS_BUFFER_SIZE]= {0};
+  size_t len= std::min(strlen(name), sizeof(lower_case_name) - 2);
+  strncpy(lower_case_name, name, len);
   my_casedn_str(&my_charset_latin1, lower_case_name);
   (*coll_name_num_map)[lower_case_name]= num;
 }
 
 static void map_cs_name_to_number(const char *name, int num, int state)
 {
-  char lower_case_name[256];
-  strncpy(lower_case_name, name, 256);
+  char lower_case_name[MY_CS_BUFFER_SIZE]= {0};
+  size_t len= std::min(strlen(name), sizeof(lower_case_name) - 2);
+  strncpy(lower_case_name, name, len);
   my_casedn_str(&my_charset_latin1, lower_case_name);
+
   if ((state & MY_CS_PRIMARY))
     (*cs_name_pri_num_map)[lower_case_name]= num;
   if ((state & MY_CS_BINSORT))
     (*cs_name_bin_num_map)[lower_case_name]= num;
 }
 
-static uint
-get_collation_number_internal(const char *name)
+static uint get_collation_number_internal(const char *name)
 {
-  char lower_case_name[256];
-  strncpy(lower_case_name, name, 256);
+  char lower_case_name[MY_CS_BUFFER_SIZE]= {0};
+  size_t len= std::min(strlen(name), sizeof(lower_case_name) - 2);
+  strncpy(lower_case_name, name, len);
   my_casedn_str(&my_charset_latin1, lower_case_name);
   return (*coll_name_num_map)[lower_case_name];
 }
@@ -132,36 +137,36 @@ static int cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
   if (from->ctype)
   {
     if (!(to->ctype= (uchar*) my_once_memdup((char*) from->ctype,
-					     MY_CS_CTYPE_TABLE_SIZE,
-					     MYF(MY_WME))))
+                                              MY_CS_CTYPE_TABLE_SIZE,
+                                              MYF(MY_WME))))
       goto err;
     if (init_state_maps(to))
       goto err;
   }
   if (from->to_lower)
     if (!(to->to_lower= (uchar*) my_once_memdup((char*) from->to_lower,
-						MY_CS_TO_LOWER_TABLE_SIZE,
-						MYF(MY_WME))))
+                                                MY_CS_TO_LOWER_TABLE_SIZE,
+                                                MYF(MY_WME))))
       goto err;
 
   if (from->to_upper)
     if (!(to->to_upper= (uchar*) my_once_memdup((char*) from->to_upper,
-						MY_CS_TO_UPPER_TABLE_SIZE,
-						MYF(MY_WME))))
+                                                MY_CS_TO_UPPER_TABLE_SIZE,
+                                                MYF(MY_WME))))
       goto err;
   if (from->sort_order)
   {
     if (!(to->sort_order= (uchar*) my_once_memdup((char*) from->sort_order,
-						  MY_CS_SORT_ORDER_TABLE_SIZE,
-						  MYF(MY_WME))))
+                                                  MY_CS_SORT_ORDER_TABLE_SIZE,
+                                                  MYF(MY_WME))))
       goto err;
 
   }
   if (from->tab_to_uni)
   {
     uint sz= MY_CS_TO_UNI_TABLE_SIZE*sizeof(uint16);
-    if (!(to->tab_to_uni= (uint16*)  my_once_memdup((char*)from->tab_to_uni,
-						    sz, MYF(MY_WME))))
+    if (!(to->tab_to_uni= (uint16*) my_once_memdup((char*)from->tab_to_uni,
+                                                   sz, MYF(MY_WME))))
       goto err;
   }
   if (from->tailoring)
@@ -179,9 +184,9 @@ err:
 static bool simple_cs_is_full(CHARSET_INFO *cs)
 {
   return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
-	   cs->to_lower) &&
-	  (cs->number && cs->name &&
-	  (cs->sort_order || (cs->state & MY_CS_BINSORT) )));
+    cs->to_lower) &&
+    (cs->number && cs->name &&
+    (cs->sort_order || (cs->state & MY_CS_BINSORT) )));
 }
 
 
@@ -202,7 +207,6 @@ copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from)
 }
 
 
-extern "C" {
 static int add_collation(CHARSET_INFO *cs)
 {
   if (cs->name && (cs->number ||
@@ -307,14 +311,14 @@ static int add_collation(CHARSET_INFO *cs)
       CHARSET_INFO *dst= all_charsets[cs->number];
       dst->number= cs->number;
       if (cs->comment)
-	if (!(dst->comment= my_once_strdup(cs->comment,MYF(MY_WME))))
-	  return MY_XML_ERROR;
+        if (!(dst->comment= my_once_strdup(cs->comment,MYF(MY_WME))))
+          return MY_XML_ERROR;
       if (cs->csname)
         if (!(dst->csname= my_once_strdup(cs->csname,MYF(MY_WME))))
-	  return MY_XML_ERROR;
+          return MY_XML_ERROR;
       if (cs->name)
-	if (!(dst->name= my_once_strdup(cs->name,MYF(MY_WME))))
-	  return MY_XML_ERROR;
+        if (!(dst->name= my_once_strdup(cs->name,MYF(MY_WME))))
+          return MY_XML_ERROR;
     }
     cs->number= 0;
     cs->primary_number= 0;
@@ -365,7 +369,6 @@ my_free_c(void *ptr)
 {
   my_free(ptr);
 }
-} // extern C
 
 /**
   Initialize character set loader to use mysys memory management functions.
@@ -404,7 +407,7 @@ my_read_charset_file(MY_CHARSET_LOADER *loader,
        ((len= (uint)stat_info.st_size) > MY_MAX_ALLOWED_BUF) ||
        !(buf= (uchar*) my_malloc(key_memory_charset_file,
                                  len,myflags)))
-    return TRUE;
+    return true;
   
   if ((fd= mysql_file_open(key_file_charset, filename, O_RDONLY, myflags)) < 0)
     goto error;
@@ -421,11 +424,11 @@ my_read_charset_file(MY_CHARSET_LOADER *loader,
   }
   
   my_free(buf);
-  return FALSE;
+  return false;
 
 error:
   my_free(buf);
-  return TRUE;
+  return true;
 }
 
 char *get_charsets_dir(char *buf)
@@ -439,11 +442,11 @@ char *get_charsets_dir(char *buf)
   else
   {
     if (test_if_hard_path(sharedir) ||
-	is_prefix(sharedir, DEFAULT_CHARSET_HOME))
-      strxmov(buf, sharedir, "/", CHARSET_DIR, NullS);
+        is_prefix(sharedir, DEFAULT_CHARSET_HOME))
+        strxmov(buf, sharedir, "/", CHARSET_DIR, NullS);
     else
       strxmov(buf, DEFAULT_CHARSET_HOME, "/", sharedir, "/", CHARSET_DIR,
-	      NullS);
+              NullS);
   }
   res= convert_dirname(buf,buf,NullS);
   DBUG_PRINT("info",("charsets dir: '%s'", buf));
@@ -465,7 +468,6 @@ void add_compiled_collation(CHARSET_INFO *cs)
 
 static std::once_flag charsets_initialized;
 
-extern "C" {
 static void init_available_charsets(void)
 {
   char fname[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
@@ -482,7 +484,6 @@ static void init_available_charsets(void)
   my_charset_loader_init_mysys(&loader);
   my_stpcpy(get_charsets_dir(fname), MY_CHARSET_INDEX);
   my_read_charset_file(&loader, fname, MYF(0));
-}
 }
 
 static const char*
@@ -519,8 +520,9 @@ uint get_collation_number(const char *name)
 static uint
 get_charset_number_internal(const char *charset_name, uint cs_flags)
 {
-  char lower_case_name[256];
-  strncpy(lower_case_name, charset_name, 256);
+  char lower_case_name[MY_CS_BUFFER_SIZE]= {0};
+  size_t len= std::min(strlen(charset_name), sizeof(lower_case_name) - 2);
+  strncpy(lower_case_name, charset_name, len);
   my_casedn_str(&my_charset_latin1, lower_case_name);
   /*
     So far, all our calls to get the collation number by its charset name
@@ -737,14 +739,14 @@ get_charset_by_csname(const char *cs_name, uint cs_flags, myf flags)
 
   The function tries to resolve character set by the specified name. If
   there is character set with the given name, it is assigned to the "cs"
-  parameter and FALSE is returned. If there is no such character set,
-  "default_cs" is assigned to the "cs" and TRUE is returned.
+  parameter and false is returned. If there is no such character set,
+  "default_cs" is assigned to the "cs" and true is returned.
 
   @param[in] cs_name    Character set name.
   @param[in] default_cs Default character set.
   @param[out] cs        Variable to store character set.
 
-  @return FALSE if character set was resolved successfully; TRUE if there
+  @return false if character set was resolved successfully; true if there
   is no character set with given name.
 */
 
@@ -757,10 +759,10 @@ bool resolve_charset(const char *cs_name,
   if (*cs == NULL)
   {
     *cs= default_cs;
-    return TRUE;
+    return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -769,14 +771,14 @@ bool resolve_charset(const char *cs_name,
 
   The function tries to resolve collation by the specified name. If there
   is collation with the given name, it is assigned to the "cl" parameter
-  and FALSE is returned. If there is no such collation, "default_cl" is
-  assigned to the "cl" and TRUE is returned.
+  and false is returned. If there is no such collation, "default_cl" is
+  assigned to the "cl" and true is returned.
 
   @param[out] cl        Variable to store collation.
   @param[in] cl_name    Collation name.
   @param[in] default_cl Default collation.
 
-  @return FALSE if collation was resolved successfully; TRUE if there is no
+  @return false if collation was resolved successfully; true if there is no
   collation with given name.
 */
 
@@ -789,10 +791,10 @@ bool resolve_collation(const char *cl_name,
   if (*cl == NULL)
   {
     *cl= default_cl;
-    return TRUE;
+    return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -827,7 +829,7 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
-  bool overflow= FALSE;
+  bool overflow= false;
   bool use_mb_flag= use_mb(charset_info);
   for (end= from + length; from < end; from++)
   {
@@ -837,11 +839,11 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
     {
       if (to + tmp_length > to_end)
       {
-        overflow= TRUE;
+        overflow= true;
         break;
       }
       while (tmp_length--)
-	*to++= *from++;
+        *to++= *from++;
       from--;
       continue;
     }
@@ -887,7 +889,7 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
     {
       if (to + 2 > to_end)
       {
-        overflow= TRUE;
+        overflow= true;
         break;
       }
       *to++= '\\';
@@ -897,7 +899,7 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
     {
       if (to + 1 > to_end)
       {
-        overflow= TRUE;
+        overflow= true;
         break;
       }
       *to++= *from;
@@ -966,7 +968,7 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
-  bool overflow= FALSE;
+  bool overflow= false;
   bool use_mb_flag= use_mb(charset_info);
   for (end= from + length; from < end; from++)
   {
@@ -975,11 +977,11 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
     {
       if (to + tmp_length > to_end)
       {
-        overflow= TRUE;
+        overflow= true;
         break;
       }
       while (tmp_length--)
-	*to++= *from++;
+        *to++= *from++;
       from--;
       continue;
     }
@@ -992,7 +994,7 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
     {
       if (to + 2 > to_end)
       {
-        overflow= TRUE;
+        overflow= true;
         break;
       }
       *to++= quote;
@@ -1002,7 +1004,7 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
     {
       if (to + 1 > to_end)
       {
-        overflow= TRUE;
+        overflow= true;
         break;
       }
       *to++= *from;

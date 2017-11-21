@@ -539,6 +539,135 @@ struct intersection_of_linestring_with_areal
 };
 
 
+template <typename Turns, typename OutputIterator>
+inline OutputIterator intersection_output_turn_points(Turns const& turns,
+                                                      OutputIterator out)
+{
+    for (typename Turns::const_iterator
+            it = turns.begin(); it != turns.end(); ++it)
+    {
+        *out++ = it->point;
+    }
+
+    return out;
+}
+
+template <typename PointOut>
+struct intersection_areal_areal_point
+{
+    template
+    <
+        typename Geometry1, typename Geometry2,
+        typename RobustPolicy,
+        typename OutputIterator,
+        typename Strategy
+    >
+    static inline OutputIterator apply(Geometry1 const& geometry1,
+                                       Geometry2 const& geometry2,
+                                       RobustPolicy const& robust_policy,
+                                       OutputIterator out,
+                                       Strategy const& strategy)
+    {
+        typedef detail::overlay::turn_info
+            <
+                PointOut,
+                typename segment_ratio_type<PointOut, RobustPolicy>::type
+            > turn_info;
+        std::vector<turn_info> turns;
+
+        detail::get_turns::no_interrupt_policy policy;
+
+        geometry::get_turns
+            <
+                false, false, detail::overlay::assign_null_policy
+            >(geometry1, geometry2, strategy, robust_policy, turns, policy);
+
+        return intersection_output_turn_points(turns, out);
+    }
+};
+
+template <typename PointOut>
+struct intersection_linear_areal_point
+{
+    template
+    <
+        typename Geometry1, typename Geometry2,
+        typename RobustPolicy,
+        typename OutputIterator,
+        typename Strategy
+    >
+    static inline OutputIterator apply(Geometry1 const& geometry1,
+                                       Geometry2 const& geometry2,
+                                       RobustPolicy const& robust_policy,
+                                       OutputIterator out,
+                                       Strategy const& strategy)
+    {
+        typedef typename geometry::segment_ratio_type
+            <
+                PointOut, RobustPolicy
+            >::type segment_ratio_type;
+
+        typedef detail::overlay::turn_info
+            <
+                PointOut,
+                segment_ratio_type,
+                detail::overlay::turn_operation_linear
+                    <
+                        PointOut,
+                        segment_ratio_type
+                    >
+            > turn_info;
+
+        typedef detail::overlay::get_turn_info_linear_areal
+            <
+                detail::overlay::assign_null_policy
+            > turn_policy;
+
+        std::vector<turn_info> turns;
+
+        detail::get_turns::no_interrupt_policy interrupt_policy;
+
+        dispatch::get_turns
+            <
+                typename geometry::tag<Geometry1>::type,
+                typename geometry::tag<Geometry2>::type,
+                Geometry1,
+                Geometry2,
+                false,
+                false,
+                turn_policy
+            >::apply(0, geometry1, 1, geometry2,
+                     strategy, robust_policy,
+                     turns, interrupt_policy);
+
+        return intersection_output_turn_points(turns, out);
+    }
+};
+
+template <typename PointOut>
+struct intersection_areal_linear_point
+{
+    template
+    <
+        typename Geometry1, typename Geometry2,
+        typename RobustPolicy,
+        typename OutputIterator,
+        typename Strategy
+    >
+    static inline OutputIterator apply(Geometry1 const& geometry1,
+                                       Geometry2 const& geometry2,
+                                       RobustPolicy const& robust_policy,
+                                       OutputIterator out,
+                                       Strategy const& strategy)
+    {
+        return intersection_linear_areal_point
+            <
+                PointOut
+            >::apply(geometry2, geometry1, robust_policy, out, strategy);
+    }
+};
+
+
 }} // namespace detail::intersection
 #endif // DOXYGEN_NO_DETAIL
 
@@ -564,9 +693,9 @@ template
     typename TagIn2 = typename geometry::tag<Geometry2>::type,
     typename TagOut = typename geometry::tag<GeometryOut>::type,
     // metafunction finetuning helpers:
-    bool Areal1 = geometry::is_areal<Geometry1>::value,
-    bool Areal2 = geometry::is_areal<Geometry2>::value,
-    bool ArealOut = geometry::is_areal<GeometryOut>::value
+    typename CastedTagIn1 = typename geometry::tag_cast<TagIn1, areal_tag, linear_tag, pointlike_tag>::type,
+    typename CastedTagIn2 = typename geometry::tag_cast<TagIn2, areal_tag, linear_tag, pointlike_tag>::type,
+    typename CastedTagOut = typename geometry::tag_cast<TagOut, areal_tag, linear_tag, pointlike_tag>::type
 >
 struct intersection_insert
 {
@@ -593,7 +722,7 @@ struct intersection_insert
         OverlayType,
         Reverse1, Reverse2, ReverseOut,
         TagIn1, TagIn2, TagOut,
-        true, true, true
+        areal_tag, areal_tag, areal_tag
     > : detail::overlay::overlay
         <Geometry1, Geometry2, Reverse1, Reverse2, ReverseOut, GeometryOut, OverlayType>
 {};
@@ -615,7 +744,7 @@ struct intersection_insert
         OverlayType,
         Reverse1, Reverse2, ReverseOut,
         TagIn, box_tag, TagOut,
-        true, true, true
+        areal_tag, areal_tag, areal_tag
     > : detail::overlay::overlay
         <Geometry, Box, Reverse1, Reverse2, ReverseOut, GeometryOut, OverlayType>
 {};
@@ -635,7 +764,7 @@ struct intersection_insert
         OverlayType,
         Reverse1, Reverse2, ReverseOut,
         segment_tag, segment_tag, point_tag,
-        false, false, false
+        linear_tag, linear_tag, pointlike_tag
     > : detail::intersection::intersection_segment_segment_point<GeometryOut>
 {};
 
@@ -654,7 +783,7 @@ struct intersection_insert
         OverlayType,
         Reverse1, Reverse2, ReverseOut,
         linestring_tag, linestring_tag, point_tag,
-        false, false, false
+        linear_tag, linear_tag, pointlike_tag
     > : detail::intersection::intersection_linestring_linestring_point<GeometryOut>
 {};
 
@@ -672,7 +801,7 @@ struct intersection_insert
         overlay_intersection,
         Reverse1, Reverse2, ReverseOut,
         linestring_tag, box_tag, linestring_tag,
-        false, true, false
+        linear_tag, areal_tag, linear_tag
     >
 {
     template <typename RobustPolicy, typename OutputIterator, typename Strategy>
@@ -703,7 +832,7 @@ struct intersection_insert
         OverlayType,
         ReverseLinestring, ReversePolygon, ReverseOut,
         linestring_tag, polygon_tag, linestring_tag,
-        false, true, false
+        linear_tag, areal_tag, linear_tag
     > : detail::intersection::intersection_of_linestring_with_areal
             <
                 ReversePolygon,
@@ -727,7 +856,7 @@ struct intersection_insert
         OverlayType,
         ReverseLinestring, ReverseRing, ReverseOut,
         linestring_tag, ring_tag, linestring_tag,
-        false, true, false
+        linear_tag, areal_tag, linear_tag
     > : detail::intersection::intersection_of_linestring_with_areal
             <
                 ReverseRing,
@@ -750,7 +879,7 @@ struct intersection_insert
         OverlayType,
         Reverse1, Reverse2, ReverseOut,
         segment_tag, box_tag, linestring_tag,
-        false, true, false
+        linear_tag, areal_tag, linear_tag
     >
 {
     template <typename RobustPolicy, typename OutputIterator, typename Strategy>
@@ -774,8 +903,7 @@ template
     typename PointOut,
     overlay_type OverlayType,
     bool Reverse1, bool Reverse2, bool ReverseOut,
-    typename Tag1, typename Tag2,
-    bool Areal1, bool Areal2
+    typename Tag1, typename Tag2
 >
 struct intersection_insert
     <
@@ -784,38 +912,59 @@ struct intersection_insert
         OverlayType,
         Reverse1, Reverse2, ReverseOut,
         Tag1, Tag2, point_tag,
-        Areal1, Areal2, false
+        areal_tag, areal_tag, pointlike_tag
     >
-{
-    template <typename RobustPolicy, typename OutputIterator, typename Strategy>
-    static inline OutputIterator apply(Geometry1 const& geometry1,
-            Geometry2 const& geometry2,
-            RobustPolicy const& robust_policy,
-            OutputIterator out, Strategy const& strategy)
-    {
+    : public detail::intersection::intersection_areal_areal_point
+        <
+            PointOut
+        >
+{};
 
-        typedef detail::overlay::turn_info
-            <
-                PointOut,
-                typename segment_ratio_type<PointOut, RobustPolicy>::type
-            > turn_info;
-        std::vector<turn_info> turns;
+template
+<
+    typename Geometry1, typename Geometry2,
+    typename PointOut,
+    overlay_type OverlayType,
+    bool Reverse1, bool Reverse2, bool ReverseOut,
+    typename Tag1, typename Tag2
+>
+struct intersection_insert
+    <
+        Geometry1, Geometry2,
+        PointOut,
+        OverlayType,
+        Reverse1, Reverse2, ReverseOut,
+        Tag1, Tag2, point_tag,
+        linear_tag, areal_tag, pointlike_tag
+    >
+    : public detail::intersection::intersection_linear_areal_point
+        <
+            PointOut
+        >
+{};
 
-        detail::get_turns::no_interrupt_policy policy;
-        geometry::get_turns
-            <
-                false, false, detail::overlay::assign_null_policy
-            >(geometry1, geometry2, strategy, robust_policy, turns, policy);
-        for (typename std::vector<turn_info>::const_iterator it
-            = turns.begin(); it != turns.end(); ++it)
-        {
-            *out++ = it->point;
-        }
-
-        return out;
-    }
-};
-
+template
+<
+    typename Geometry1, typename Geometry2,
+    typename PointOut,
+    overlay_type OverlayType,
+    bool Reverse1, bool Reverse2, bool ReverseOut,
+    typename Tag1, typename Tag2
+>
+struct intersection_insert
+    <
+        Geometry1, Geometry2,
+        PointOut,
+        OverlayType,
+        Reverse1, Reverse2, ReverseOut,
+        Tag1, Tag2, point_tag,
+        areal_tag, linear_tag, pointlike_tag
+    >
+    : public detail::intersection::intersection_areal_linear_point
+        <
+            PointOut
+        >
+{};
 
 template
 <
@@ -857,7 +1006,7 @@ struct intersection_insert
         overlay_intersection,
         Reverse1, Reverse2, ReverseOut,
         Tag1, Tag2, linestring_tag,
-        true, true, false
+        areal_tag, areal_tag, linear_tag
     >
 {
     template
@@ -883,47 +1032,20 @@ struct intersection_insert
     }
 };
 
-// dispatch for non-areal geometries
+// dispatch for difference/intersection of linear geometries
 template
 <
-    typename Geometry1, typename Geometry2, typename GeometryOut,
+    typename Linear1, typename Linear2, typename LineStringOut,
     overlay_type OverlayType,
     bool Reverse1, bool Reverse2, bool ReverseOut,
     typename TagIn1, typename TagIn2
 >
 struct intersection_insert
     <
-        Geometry1, Geometry2, GeometryOut,
-        OverlayType,
-        Reverse1, Reverse2, ReverseOut,
-        TagIn1, TagIn2, linestring_tag,
-        false, false, false
-    > : intersection_insert
-        <
-           Geometry1, Geometry2, GeometryOut,
-           OverlayType,
-           Reverse1, Reverse2, ReverseOut,
-           typename tag_cast<TagIn1, pointlike_tag, linear_tag>::type,
-           typename tag_cast<TagIn2, pointlike_tag, linear_tag>::type,
-           linestring_tag,
-           false, false, false
-        >
-{};
-
-
-// dispatch for difference/intersection of linear geometries
-template
-<
-    typename Linear1, typename Linear2, typename LineStringOut,
-    overlay_type OverlayType,
-    bool Reverse1, bool Reverse2, bool ReverseOut
->
-struct intersection_insert
-    <
         Linear1, Linear2, LineStringOut, OverlayType,
         Reverse1, Reverse2, ReverseOut,
-        linear_tag, linear_tag, linestring_tag,
-        false, false, false
+        TagIn1, TagIn2, linestring_tag,
+        linear_tag, linear_tag, linear_tag
     > : detail::overlay::linear_linear_linestring
         <
             Linear1, Linear2, LineStringOut, OverlayType
@@ -944,7 +1066,7 @@ struct intersection_insert
         Point1, Point2, PointOut, OverlayType,
         Reverse1, Reverse2, ReverseOut,
         point_tag, point_tag, point_tag,
-        false, false, false
+        pointlike_tag, pointlike_tag, pointlike_tag
     > : detail::overlay::point_point_point
         <
             Point1, Point2, PointOut, OverlayType
@@ -963,7 +1085,7 @@ struct intersection_insert
         MultiPoint, Point, PointOut, OverlayType,
         Reverse1, Reverse2, ReverseOut,
         multi_point_tag, point_tag, point_tag,
-        false, false, false
+        pointlike_tag, pointlike_tag, pointlike_tag
     > : detail::overlay::multipoint_point_point
         <
             MultiPoint, Point, PointOut, OverlayType
@@ -982,7 +1104,7 @@ struct intersection_insert
         Point, MultiPoint, PointOut, OverlayType,
         Reverse1, Reverse2, ReverseOut,
         point_tag, multi_point_tag, point_tag,
-        false, false, false
+        pointlike_tag, pointlike_tag, pointlike_tag
     > : detail::overlay::point_multipoint_point
         <
             Point, MultiPoint, PointOut, OverlayType
@@ -1001,7 +1123,7 @@ struct intersection_insert
         MultiPoint1, MultiPoint2, PointOut, OverlayType,
         Reverse1, Reverse2, ReverseOut,
         multi_point_tag, multi_point_tag, point_tag,
-        false, false, false
+        pointlike_tag, pointlike_tag, pointlike_tag
     > : detail::overlay::multipoint_multipoint_point
         <
             MultiPoint1, MultiPoint2, PointOut, OverlayType
@@ -1022,7 +1144,7 @@ struct intersection_insert
         Point, Linear, PointOut, OverlayType,
         Reverse1, Reverse2, ReverseOut,
         point_tag, Tag, point_tag,
-        false, false, false
+        pointlike_tag, linear_tag, pointlike_tag
     > : detail_dispatch::overlay::pointlike_linear_point
         <
             Point, Linear, PointOut, OverlayType,
@@ -1043,7 +1165,7 @@ struct intersection_insert
         MultiPoint, Linear, PointOut, OverlayType,
         Reverse1, Reverse2, ReverseOut,
         multi_point_tag, Tag, point_tag,
-        false, false, false
+        pointlike_tag, linear_tag, pointlike_tag
     > : detail_dispatch::overlay::pointlike_linear_point
         <
             MultiPoint, Linear, PointOut, OverlayType,
@@ -1063,7 +1185,7 @@ struct intersection_insert
         Linestring, MultiPoint, PointOut, overlay_intersection,
         Reverse1, Reverse2, ReverseOut,
         linestring_tag, multi_point_tag, point_tag,
-        false, false, false
+        linear_tag, pointlike_tag, pointlike_tag
     >
 {
     template <typename RobustPolicy, typename OutputIterator, typename Strategy>

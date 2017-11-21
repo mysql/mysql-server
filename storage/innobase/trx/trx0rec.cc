@@ -1833,7 +1833,7 @@ trx_undo_rec_get_partial_row(
 
 /***********************************************************************//**
 Erases the unused undo log page end.
-@return TRUE if the page contained something, FALSE if it was empty */
+@return true if the page contained something, false if it was empty */
 static
 ibool
 trx_undo_erase_page_end(

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -181,7 +181,7 @@ row_merge_create_fts_sort_index(
 
 /********************************************************************//**
 Initialize FTS parallel sort structures.
-@return TRUE if all successful */
+@return true if all successful */
 ibool
 row_fts_psort_info_init(
 /*====================*/

@@ -48,30 +48,38 @@ Created 10/16/1994 Heikki Tuuri
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "row0upd.h"
 #ifndef UNIV_HOTBACKUP
-#include <zlib.h>
-
-#include "btr0btr.h"
-#include "btr0sea.h"
-#include "buf0lru.h"
-#include "ibuf0ibuf.h"
-#include "lob0lob.h"
-#include "lock0lock.h"
-#include "mtr0log.h"
+# include <zlib.h>
+# include "row0upd.h"
+# include "btr0btr.h"
+# include "btr0sea.h"
+# include "buf0lru.h"
+# include "ibuf0ibuf.h"
+# include "lob0lob.h"
+# include "lock0lock.h"
+# include "mtr0log.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "page0page.h"
 #include "page0zip.h"
-#include "que0que.h"
+#ifndef UNIV_HOTBACKUP
+# include "que0que.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "rem0cmp.h"
 #include "rem0rec.h"
 #include "row0log.h"
-#include "row0purge.h"
-#include "row0row.h"
+#ifndef UNIV_HOTBACKUP
+# include "row0purge.h"
+# include "row0row.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "row0upd.h"
-#include "srv0srv.h"
+#ifndef UNIV_HOTBACKUP
+# include "srv0srv.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "srv0start.h"
-#include "trx0rec.h"
-#include "trx0roll.h"
+#ifndef UNIV_HOTBACKUP
+# include "trx0rec.h"
+# include "trx0roll.h"
+#endif /* !UNIV_HOTBACKUP */
 
 /** Buffered B-tree operation types, introduced as part of delete buffering. */
 enum btr_op_t {
@@ -135,7 +143,6 @@ can be released by page reorganize, then it is reorganized */
 	(((value) * static_cast<int64_t>(index->stat_n_leaf_pages) \
 	  + (sample) - 1 + (ext_size) + (not_empty)) / ((sample) + (ext_size)))
 
-#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
@@ -149,9 +156,7 @@ btr_cur_add_path_info(
 	ulint		height,		/*!< in: height of the page in tree;
 					0 means leaf node */
 	ulint		root_height);	/*!< in: root node height in tree */
-#endif /* !UNIV_HOTBACKUP */
 
-#ifndef UNIV_HOTBACKUP
 /*==================== B-TREE SEARCH =========================*/
 
 /** Latches the leaf page or pages requested.
@@ -4172,7 +4177,6 @@ btr_cur_pess_upd_restore_supremum(
 					     PAGE_HEAP_NO_SUPREMUM,
 					     page_rec_get_heap_no(rec));
 }
-
 /*************************************************************//**
 Performs an update of a record on a page of a tree. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. If the
@@ -4981,7 +4985,7 @@ that mtr holds an x-latch on the tree and on the cursor page. To avoid
 deadlocks, mtr must also own x-latches to brothers of page, if those
 brothers exist. NOTE: it is assumed that the caller has reserved enough
 free extents so that the compression will always succeed if done!
-@return TRUE if compression occurred */
+@return true if compression occurred */
 ibool
 btr_cur_compress_if_useful(
 /*=======================*/
@@ -5029,7 +5033,7 @@ btr_cur_compress_if_useful(
 Removes the record on which the tree cursor is positioned on a leaf page.
 It is assumed that the mtr has an x-latch on the page where the cursor is
 positioned, but no latch on the whole tree.
-@return TRUE if success, i.e., the page did not become too empty */
+@return true if success, i.e., the page did not become too empty */
 ibool
 btr_cur_optimistic_delete_func(
 /*===========================*/
@@ -5137,7 +5141,7 @@ or if it is the only page on the level. It is assumed that mtr holds
 an x-latch on the tree and on the cursor page. To avoid deadlocks,
 mtr must also own x-latches to brothers of page, if those brothers
 exist.
-@return TRUE if compression occurred and FALSE if not or something
+@return true if compression occurred and false if not or something
 wrong. */
 ibool
 btr_cur_pessimistic_delete(

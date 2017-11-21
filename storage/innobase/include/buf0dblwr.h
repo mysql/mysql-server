@@ -32,8 +32,6 @@ Created 2011/12/19 Inaam Rana
 #include "buf0types.h"
 #include "log0recv.h"
 
-#ifndef UNIV_HOTBACKUP
-
 /** Doublewrite system */
 extern buf_dblwr_t*	buf_dblwr;
 /** Set to TRUE when the doublewrite buffer is being created */
@@ -78,7 +76,7 @@ buf_dblwr_update(
 	buf_flush_t		flush_type);/*!< in: flush type */
 /****************************************************************//**
 Determines if a page number is located inside the doublewrite buffer.
-@return TRUE if the location is inside the two blocks of the
+@return true if the location is inside the two blocks of the
 doublewrite buffer */
 ibool
 buf_dblwr_page_inside(
@@ -163,7 +161,5 @@ struct buf_dblwr_t{
 				cached to write_buf */
 };
 
-
-#endif /* UNIV_HOTBACKUP */
 
 #endif

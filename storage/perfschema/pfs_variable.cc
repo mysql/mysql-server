@@ -31,6 +31,8 @@
 #include "sql/persisted_variable.h"
 #include "sql/sql_audit.h"  // audit_global_variable_get
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_show.h"
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_visitor.h"
@@ -918,7 +920,7 @@ PFS_status_variable_cache::materialize_account(PFS_account *pfs_account)
   Compare status variable scope to desired scope.
   @param variable_scope         Scope of current status variable
   @param strict                 Strict mode, for compatibility with SHOW
-  @return TRUE if variable matches the query scope
+  @return true if variable matches the query scope
 */
 bool
 PFS_status_variable_cache::match_scope(SHOW_SCOPE variable_scope, bool strict)
@@ -953,7 +955,7 @@ PFS_status_variable_cache::match_scope(SHOW_SCOPE variable_scope, bool strict)
 
 /*
   Exclude specific status variables from the query by name or prefix.
-  Return TRUE if variable should be filtered.
+  Return true if variable should be filtered.
 */
 bool
 PFS_status_variable_cache::filter_by_name(const SHOW_VAR *show_var)
@@ -1000,7 +1002,7 @@ PFS_status_variable_cache::filter_by_name(const SHOW_VAR *show_var)
   Check that the variable type is aggregatable.
 
   @param variable_type         Status variable type
-  @return TRUE if variable type can be aggregated
+  @return true if variable type can be aggregated
 */
 bool
 PFS_status_variable_cache::can_aggregate(enum_mysql_show_type variable_type)
@@ -1047,7 +1049,7 @@ PFS_status_variable_cache::can_aggregate(enum_mysql_show_type variable_type)
 
 /**
   Check if a status variable should be excluded from the query.
-  Return TRUE if the variable should be excluded.
+  Return true if the variable should be excluded.
 */
 bool
 PFS_status_variable_cache::filter_show_var(const SHOW_VAR *show_var,

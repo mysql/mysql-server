@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <string>
 
+#include "byteorder.h"
+
 namespace binary_log
 {
 

@@ -622,6 +622,8 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
     }
     case 0:
     {
+      if (digest_storage->m_byte_count < SIZE_OF_A_TOKEN)
+        break;
       unsigned int temp_tok;
       read_token(digest_storage,
                  digest_storage->m_byte_count-SIZE_OF_A_TOKEN,

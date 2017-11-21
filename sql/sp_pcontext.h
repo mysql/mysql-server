@@ -26,7 +26,6 @@
 #include "mysql_com.h"
 #include "sql/field.h"                          // Create_field
 #include "sql/mem_root_array.h"                 // Mem_root_array
-#include "sql/sql_alloc.h"
 #include "sql/sql_error.h"
 #include "sql/sql_list.h"
 
@@ -39,7 +38,7 @@ class sp_pcontext;
 /// This class represents a stored program variable or a parameter
 /// (also referenced as 'SP-variable').
 
-class sp_variable : public Sql_alloc
+class sp_variable
 {
 public:
   enum enum_mode
@@ -74,8 +73,7 @@ public:
 public:
   sp_variable(LEX_STRING _name, enum_field_types _type, enum_mode _mode,
               uint _offset)
-   :Sql_alloc(),
-    name(_name),
+   :name(_name),
     type(_type),
     mode(_mode),
     offset(_offset),
@@ -92,7 +90,7 @@ public:
 /// IF/WHILE/REPEAT/LOOP, when such statement is rewritten into a
 /// combination of low-level jump/jump_if instructions and labels.
 
-class sp_label : public Sql_alloc
+class sp_label
 {
 public:
   enum enum_type
@@ -121,8 +119,7 @@ public:
 
 public:
   sp_label(LEX_STRING _name, uint _ip, enum_type _type, sp_pcontext *_ctx)
-   :Sql_alloc(),
-    name(_name),
+   :name(_name),
     ip(_ip),
     type(_type),
     ctx(_ctx)
@@ -138,7 +135,7 @@ public:
 /// In some sense, this class is a union -- a set of filled attributes
 /// depends on the sp_condition_value::type value.
 
-class sp_condition_value : public Sql_alloc
+class sp_condition_value
 {
 public:
   enum enum_type
@@ -161,22 +158,19 @@ public:
 
 public:
   sp_condition_value(uint _mysqlerr)
-   :Sql_alloc(),
-    type(ERROR_CODE),
+   :type(ERROR_CODE),
     mysqlerr(_mysqlerr)
   { }
 
   sp_condition_value(const char *_sql_state)
-   :Sql_alloc(),
-    type(SQLSTATE)
+   :type(SQLSTATE)
   {
     memcpy(sql_state, _sql_state, SQLSTATE_LENGTH);
     sql_state[SQLSTATE_LENGTH]= 0;
   }
 
   sp_condition_value(enum_type _type)
-   :Sql_alloc(),
-    type(_type)
+   :type(_type)
   {
     DBUG_ASSERT(type != ERROR_CODE && type != SQLSTATE);
   }
@@ -199,7 +193,7 @@ public:
 /// This class represents 'DECLARE CONDITION' statement.
 /// sp_condition has little to do with SQL-conditions.
 
-class sp_condition : public Sql_alloc
+class sp_condition
 {
 public:
   /// Name of the condition.
@@ -210,8 +204,7 @@ public:
 
 public:
   sp_condition(LEX_STRING _name, sp_condition_value *_value)
-   :Sql_alloc(),
-    name(_name),
+   :name(_name),
     value(_value)
   { }
 };
@@ -220,7 +213,7 @@ public:
 
 /// This class represents 'DECLARE HANDLER' statement.
 
-class sp_handler : public Sql_alloc
+class sp_handler
 {
 public:
   /// Enumeration of possible handler types.
@@ -246,8 +239,7 @@ public:
   /// @param _type    SQL-handler type.
   /// @param _scope   Handler scope.
   sp_handler(enum_type _type, sp_pcontext *_scope)
-   :Sql_alloc(),
-    type(_type),
+   :type(_type),
     scope(_scope)
   { }
 
@@ -287,7 +279,7 @@ public:
 ///   - for error checking (e.g. to check correct number of parameters);
 ///   - to resolve SQL-handlers.
 
-class sp_pcontext : public Sql_alloc
+class sp_pcontext
 {
 public:
   enum enum_scope
@@ -597,7 +589,7 @@ private:
 
   /// Scope of this parsing context.
   enum_scope m_scope;
-}; // class sp_pcontext : public Sql_alloc
+};
 
 
 #endif /* _SP_PCONTEXT_H_ */

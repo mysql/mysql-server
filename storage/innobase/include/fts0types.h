@@ -134,6 +134,7 @@ struct fts_sync_t {
 that new entries are added to, until it grows over the configured maximum
 size, at which time its contents are written to the INDEX table. */
 struct fts_cache_t {
+#ifndef UNIV_HOTBACKUP
 	rw_lock_t	lock;		/*!< lock protecting all access to the
 					memory buffer. FIXME: this needs to
 					be our new upgrade-capable rw-lock */
@@ -141,6 +142,7 @@ struct fts_cache_t {
 	rw_lock_t	init_lock;	/*!< lock used for the cache
 					intialization, it has different
 					SYNC level as above cache lock */
+#endif  /* !UNIV_HOTBACKUP */
 
 	ib_mutex_t	optimize_lock;	/*!< Lock for OPTIMIZE */
 

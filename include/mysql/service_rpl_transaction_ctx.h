@@ -31,10 +31,6 @@
 #include <stdlib.h>
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct Transaction_termination_ctx
 {
   unsigned long m_thread_id;
@@ -55,7 +51,7 @@ struct Transaction_termination_ctx
   long long int m_gno;
 };
 
-extern struct rpl_transaction_ctx_service_st {
+extern "C" struct rpl_transaction_ctx_service_st {
   int (*set_transaction_ctx)(Transaction_termination_ctx transaction_termination_ctx);
 } *rpl_transaction_ctx_service;
 
@@ -68,10 +64,6 @@ extern struct rpl_transaction_ctx_service_st {
 
 int set_transaction_ctx(Transaction_termination_ctx transaction_termination_ctx);
 
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #define MYSQL_SERVICE_RPL_TRANSACTION_CTX_INCLUDED

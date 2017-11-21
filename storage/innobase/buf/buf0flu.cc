@@ -29,39 +29,41 @@ Created 11/11/1995 Heikki Tuuri
 #include <sys/types.h>
 #include <time.h>
 
-#include "buf0buf.h"
-#include "buf0checksum.h"
-#include "buf0flu.h"
-#include "ha_prototypes.h"
-#include "my_inttypes.h"
-#include "page0zip.h"
-#include "srv0srv.h"
-#include "srv0start.h"
 #ifndef UNIV_HOTBACKUP
-#include "buf0lru.h"
-#include "buf0rea.h"
-#include "fil0fil.h"
-#include "fsp0sysspace.h"
-#include "ibuf0ibuf.h"
-#include "log0log.h"
-#include "os0file.h"
-#include "os0thread-create.h"
-#include "page0page.h"
-#include "srv0mon.h"
-#include "trx0sys.h"
-#include "ut0byte.h"
-#include "ut0stage.h"
+# include "buf0buf.h"
+# include "buf0checksum.h"
+# include "buf0flu.h"
+# include "ha_prototypes.h"
+# include "my_inttypes.h"
+#endif /* !UNIV_HOTBACKUP */
+#include "page0zip.h"
+#ifndef UNIV_HOTBACKUP
+# include "srv0srv.h"
+# include "srv0start.h"
+# include "buf0lru.h"
+# include "buf0rea.h"
+# include "fil0fil.h"
+# include "fsp0sysspace.h"
+# include "ibuf0ibuf.h"
+# include "log0log.h"
+# include "os0file.h"
+# include "os0thread-create.h"
+# include "page0page.h"
+# include "srv0mon.h"
+# include "trx0sys.h"
+# include "ut0byte.h"
+# include "ut0stage.h"
 #include "arch0arch.h"
 
-#ifdef UNIV_LINUX
+# ifdef UNIV_LINUX
 /* include defs for CPU time priority settings */
-#include <sys/resource.h>
-#include <sys/syscall.h>
-#include <sys/time.h>
-#include <unistd.h>
+#  include <sys/resource.h>
+#  include <sys/syscall.h>
+#  include <sys/time.h>
+#  include <unistd.h>
 
 static const int buf_flush_page_cleaner_priority = -20;
-#endif /* UNIV_LINUX */
+# endif /* UNIV_LINUX */
 
 /** Sleep time in microseconds for loop waiting for the oldest
 modification lsn */
@@ -69,6 +71,7 @@ static const ulint buf_flush_wait_flushed_sleep_time = 10000;
 
 /** Number of pages flushed through non flush_list flushes. */
 static ulint buf_lru_flush_page_count = 0;
+#endif /* !UNIV_HOTBACKUP */
 
 /** Flag indicating if the page_cleaner is in active state. This flag
 is set to TRUE by the page_cleaner thread when it is spawned and is set
@@ -77,6 +80,7 @@ need to protect it by a mutex. It is only ever read by the thread
 doing the shutdown */
 bool buf_page_cleaner_is_active = false;
 
+#ifndef UNIV_HOTBACKUP
 /** Factor for scan length to determine n_pages for intended oldest LSN
 progress */
 static ulint buf_flush_lsn_scan_factor = 3;
@@ -235,7 +239,7 @@ incr_flush_list_size_in_bytes(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /******************************************************************//**
 Validates the flush list.
-@return TRUE if ok */
+@return true if ok */
 static
 ibool
 buf_flush_validate_low(
@@ -244,7 +248,7 @@ buf_flush_validate_low(
 
 /******************************************************************//**
 Validates the flush list some of the time.
-@return TRUE if ok or the check was skipped */
+@return true if ok or the check was skipped */
 static
 ibool
 buf_flush_validate_skip(
@@ -580,7 +584,7 @@ i.e., the transition FILE_PAGE => NOT_USED allowed. The caller must hold the
 LRU list and block mutexes.
 @param[in]	bpage	buffer control block, must be buf_page_in_file() and
 			in the LRU list
-@return TRUE if can replace immediately */
+@return true if can replace immediately */
 ibool
 buf_flush_ready_for_replace(
 	buf_page_t*	bpage)
@@ -1158,7 +1162,7 @@ returns true.
 @param[in]	bpage		buffer control block
 @param[in]	flush_type	type of flush
 @param[in]	sync		true if sync IO request
-@return TRUE if page was flushed */
+@return true if page was flushed */
 ibool
 buf_flush_page(
 	buf_pool_t*	buf_pool,
@@ -1310,7 +1314,7 @@ they will be released by this function after flushing. This is loosely based on
 buf_flush_batch() and buf_flush_page().
 @param[in,out]	buf_pool	buffer pool instance
 @param[in,out]	block		buffer control block
-@return TRUE if the page was flushed and the mutex released */
+@return true if the page was flushed and the mutex released */
 ibool
 buf_flush_page_try(
 	buf_pool_t*	buf_pool,
@@ -1562,7 +1566,7 @@ must hold the buffer pool list mutex corresponding to the type of flush.
 @param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST
 @param[in]	n_to_flush	number of pages to flush
 @param[in,out]	count		number of pages flushed
-@return	TRUE if the list mutex was released during this function.  This does
+@return	true if the list mutex was released during this function.  This does
 not guarantee that some pages were written as well. */
 static
 bool
@@ -3623,7 +3627,7 @@ struct	Check {
 
 /******************************************************************//**
 Validates the flush list.
-@return TRUE if ok */
+@return true if ok */
 static
 ibool
 buf_flush_validate_low(
@@ -3689,7 +3693,7 @@ buf_flush_validate_low(
 
 /******************************************************************//**
 Validates the flush list.
-@return TRUE if ok */
+@return true if ok */
 ibool
 buf_flush_validate(
 /*===============*/
@@ -3706,7 +3710,6 @@ buf_flush_validate(
 	return(ret);
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-#endif /* !UNIV_HOTBACKUP */
 
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush
@@ -3884,3 +3887,4 @@ FlushObserver::flush()
 		}
 	}
 }
+#endif /* UNIV_HOTBACKUP */

@@ -111,6 +111,9 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	  share->changed=0;
 	  if (myisam_flush)
 	  {
+            if (share->file_map)
+              my_msync(info->dfile, share->file_map, share->mmaped_length, MS_SYNC);
+
             if (mysql_file_sync(share->kfile, MYF(0)))
 	      error= my_errno();
             if (mysql_file_sync(info->dfile, MYF(0)))
@@ -293,7 +296,7 @@ void mi_get_status(void* param, int concurrent_insert)
   info->state= &info->save_state;
   info->append_insert_at_end= concurrent_insert;
   if (concurrent_insert)
-    info->s->state.state.uncacheable= TRUE;
+    info->s->state.state.uncacheable= true;
   DBUG_VOID_RETURN;
 }
 
@@ -456,6 +459,8 @@ int _mi_writeinfo(MI_INFO *info, uint operation)
 #ifdef _WIN32
       if (myisam_flush)
       {
+        if (share->file_map)
+          my_msync(info->dfile, share->file_map, share->mmaped_length, MS_SYNC);
         mysql_file_sync(share->kfile, 0);
         mysql_file_sync(info->dfile, 0);
       }

@@ -859,6 +859,13 @@
   @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" to pick a value
   automatically, based on system information. The parallel option may
   also be given using the environment variable <b>MTR_PARALLEL</b>.
+
+  @note
+  Test cases which use <b>not_parallel.inc</b> are run at the end with
+  a parallel value of <b>1</b> overriding the <b>`--parallel`</b>
+  option value. Such test cases will be executed at the end of the test
+  run one at a time. These tests also require
+  <b>`--non-parallel-test`</b> option to be ON.
 */
 
 ###############################################################################
@@ -4537,6 +4544,15 @@
     </li>
 
     <li>
+      <tt>`--non-parallel-test`</tt>
+
+      Allow tests marked as "non-parallel" to run. Tests can be thus
+      marked by including the line
+      <b>`--source` include/not_parallel.inc</b>, and they will only
+      be run if this option is enabled.
+    </li>
+
+    <li>
       <tt>`--sanitize`</tt>
 
       Scan the server log files for warnings from various sanitizers.
@@ -5712,23 +5728,39 @@
     </li>
 
     <li>
-      <tt>copy_file <b>from_file to_file</b></tt>
+      <tt>copy_file <b>from_file to_file</b> [<b>retry</b>]</tt>
 
       Copy the file <b><em>from_file</em></b> to the file
       <b><em>to_file</em></b>. The command fails if
       <b><em>to_file</em></b> already exists. The file name arguments
       are subject to variable substitution.
+
+      <b>copy_file</b> can also take an optional argument <b>retry</b>.
+      If the command fails due to an environmental issue, the command
+      can be retried for a <b>retry</b> number of times. Each retry
+      happens after an interval of one second.
+
+      @verbatim
+  copy_file $MYSQL_TMP_DIR/copy1.txt $MYSQL_TMP_DIR/copy2.txt;
+  copy_file $MYSQL_TMP_DIR/foo.txt $MYSQL_TMP_DIR/foo2.txt 5;
+      @endverbatim
     </li>
 
     <li>
       <tt>copy_files_wildcard <b>src_dir_name dst_dir_name</b>
-                              [<b>pattern</b>]</tt>
+                              <b>pattern</b> [<b>retry</b>]</tt>
 
       Copy all files that match the pattern in the source directory to
       the destination directory. Patterns can use <b>?</b> to
       represent any single character, or <b>*</b> for any sequence of
       0 or more characters. The <b>.</b> character is treated like any
-      other. The pattern may not include <b>/</b>.
+      other. The pattern may not include <b>/</b>. If all the files
+      need to be copied, the <b>*</b> wildcard can be used.
+
+      <b>copy_files_wildcard</b> can also take an optional argument
+      <b>retry</b>. If the command fails due to an environmental
+      issue, the command can be retried for a <b>retry</b> number
+      of times. Each retry happens after an interval of one second.
 
       The command works like this:
 
@@ -5750,14 +5782,7 @@
         </li>
 
         <li>
-          The pattern argument is optional. If no pattern is provided,
-          all files from the source directory are copied to the
-          destination directory.
-        </li>
-
-        <li>
-          If a pattern is provided, but no files match it, an error
-          occurs.
+          If no files match the specified pattern, an error occurs.
         </li>
 
         <li>
@@ -5766,7 +5791,8 @@
       </ul>
 
       @verbatim
-  copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ *.txt
+  copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ *.txt;
+  copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ *.txt 5;
       @endverbatim
     </li>
 
@@ -6229,7 +6255,7 @@
 
       Execute the shell command using the <b>popen()</b> library call.
       References to variables within the command are replaced with the
-      corresponding values. Use “<b>\$</b>” to specify a literal
+      corresponding values. Use “<b>\\$</b>” to specify a literal
       “<b>$</b>” character.
 
       On Cygwin, the command is executed from <b>cmd.exe</b>, so
@@ -6328,14 +6354,21 @@
     </li>
 
     <li>
-      <tt>file_exists <b>file_name</b></tt>
+      <tt>file_exists <b>file_name</b> [<b>retry</b>]</tt>
 
       <b>file_exists</b> succeeds if the named file exists and fails
       otherwise. The file name argument is subject to variable
       substitution.
 
+      <b>file_exists</b> can also take an optional argument
+      <b>retry</b>. If the command fails due to an environmental
+      issue, the command can be retried for a <b>retry</b> number
+      of times. Each retry happens after an interval of one second.
+
+
       @verbatim
   file_exists /etc/passwd;
+  file_exists /etc/passwd 5;
       @endverbatim
     </li>
 
@@ -6552,15 +6585,22 @@
     </li>
 
     <li>
-      <tt>move_file <b>from_name to_name</b></tt>
+      <tt>move_file <b>from_name to_name</b> [<b>retry</b>]</tt>
 
       <b>move_file</b> renames <b><em>from_name</em></b> to
       <b><em>to_name</em></b>. The file name arguments are subject to
       variable substitution, but must evaluate to a literal file name,
       not a file name pattern.
 
+      <b>move_file</b> can also take an optional argument <b>retry</b>.
+      If the command fails due to an environmental issue, the command
+      can be retried for a <b>retry</b> number of times. Each retry
+      happens after an interval of one second.
+
+
       @verbatim
   move_file $MYSQL_TMP_DIR/data01 $MYSQL_TMP_DIR/test.out;
+  move_file $MYSQL_TMP_DIR/data01 $MYSQL_TMP_DIR/test.out 5;
       @endverbatim
     </li>
 
@@ -6707,33 +6747,43 @@
     </li>
 
     <li>
-      <tt>remove_file <b>file_name</b></tt>
+      <tt>remove_file <b>file_name</b> [<b>retry</b>]</tt>
 
       <b>remove_file</b> removes the file. It fails with an error if
       the file does not exist. The file name argument is subject to
       variable substitution, but must evaluate to a literal file name,
       not a file name pattern.
 
+      <b>remove_file</b> also takes an optional argument <b>retry</b>.
+      If the command fails due to an environmental issue, the command
+      can be retried for a <b>retry</b> number of times. Each retry
+      happens after an interval of one second.
+
       @verbatim
   remove_file $MYSQL_TMP_DIR/data01;
+  remove_file $MYSQL_TMP_DIR/data01 5
       @endverbatim
     </li>
 
     <li>
-      <tt>remove_files_wildcard <b>dir_name</b> [<b>pattern</b>]</tt>
+      <tt>remove_files_wildcard <b>dir_name</b> <b>pattern</b> [<b>retry</b>]</tt>
 
       Remove all files in the named directory that match the pattern.
       Removal does not apply to directories matching the pattern or
       matching files in subdirectories. Patterns can use <b>?</b> to
       represent any single character, or <b>*</b> for any sequence of
       0 or more characters. The <b>.</b> character is treated like any
-      other. The pattern may not include <b>/</b>.
+      other. The pattern may not include <b>/</b>. If all the files
+      need to be removed, the <b>*</b> wildcard can be used.
 
-      If no pattern argument is given, all files in the directory will
-      be removed, but not the directory itself.
+      <b>remove_files_wildcard</b> can also take an optional argument
+      <b>retry</b>. If the command fails due to an environmental
+      issue, the command can be retried for a <b>retry</b> number of
+      times. Each retry happens after an interval of one second.
 
       @verbatim
   remove_files_wildcard $MYSQL_TMP_DIR file*.txt;
+  remove_files_wildcard $MYSQL_TMP_DIR file*.txt 5;
       @endverbatim
     </li>
 

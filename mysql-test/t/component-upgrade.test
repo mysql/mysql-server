@@ -1,6 +1,3 @@
-# Temporarily skipped with binary logging due to Bug#24343582
---source include/not_log_bin.inc
-
 --source include/have_example_component.inc
 --source include/no_valgrind_without_big.inc
 --source include/mysql_upgrade_preparation.inc

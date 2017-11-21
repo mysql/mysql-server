@@ -86,7 +86,6 @@ USED_MEM* my_once_root_block=0;			/* pointer to first block */
 uint	  my_once_extra=ONCE_ALLOC_INIT;	/* Memory to alloc / block */
 
 	/* from errors.c */
-extern "C" {
 void (*error_handler_hook)(uint error, const char *str, myf MyFlags)=
   my_message_stderr;
 void (*fatal_error_handler_hook)(uint error, const char *str, myf MyFlags)=
@@ -156,7 +155,6 @@ int (*is_killed_hook)(const void *)= is_killed_dummy;
 */
 void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-} // extern C
 
 #ifdef _WIN32
 /* from my_getsystime.c */

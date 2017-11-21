@@ -2217,6 +2217,9 @@ trx_commit(
 	if (trx_is_rseg_updated(trx)) {
 		mtr = &local_mtr;
 
+		DBUG_EXECUTE_IF("ib_trx_commit_crash_rseg_updated",
+				DBUG_SUICIDE(););
+
 		mtr_start_sync(mtr);
 	} else {
 		mtr = NULL;
@@ -2688,7 +2691,7 @@ trx_print(
 /**********************************************************************//**
 Asserts that a transaction has been started.
 The caller must hold trx_sys->mutex.
-@return TRUE if started */
+@return true if started */
 ibool
 trx_assert_started(
 /*===============*/
@@ -2727,7 +2730,7 @@ trx_assert_started(
 Compares the "weight" (or size) of two transactions. Transactions that
 have edited non-transactional tables are considered heavier than ones
 that have not.
-@return TRUE if weight(a) >= weight(b) */
+@return true if weight(a) >= weight(b) */
 bool
 trx_weight_ge(
 /*==========*/

@@ -36,13 +36,15 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
 %{!?src_base:                    %global src_base mysql}
 
+%if 0%{?fedora} < 27
 %global compatver             5.6.37
 %global compatlib             18
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
+%endif
 
 %global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
 
-# No debuginfo for now, ships /usr/sbin/mysqld-debug and libmysqlcliet-debug.a
+# No debuginfo for now
 %if 0%{?nodebuginfo}
 %global _enable_debug_package 0
 %global debug_package         %{nil}
@@ -67,7 +69,9 @@ Release:        0.1%{?milestone:.%{milestone}}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 Source1:        http://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
+%if 0%{?compatlib}
 Source2:        %{compatsrc}
+%endif
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
@@ -140,6 +144,11 @@ Obsoletes:      mariadb-galera-server
 Obsoletes:      mariadb-server-galera
 Obsoletes:      community-mysql-server < %{version}-%{release}
 Obsoletes:      mysql-server < %{version}-%{release}
+%if 0%{?compatlib}
+%else
+Obsoletes:      mysql-community-embedded-compat < 8.0.3
+Obsoletes:      mysql-community-libs-compat < 8.0.4
+%endif
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-compat-server = %{version}-%{release}
@@ -194,9 +203,11 @@ Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-common < %{version}-%{release}
 %endif
+%if 0%{?compatlib}
 Obsoletes:      mariadb-common
-Obsoletes:      mariadb-config
 Obsoletes:      mariadb-errmsg
+%endif # compatlib
+Obsoletes:      mariadb-config
 Obsoletes:      community-mysql-common < %{version}-%{release}
 Obsoletes:      community-mysql-errmsg < %{version}-%{release}
 Obsoletes:      mysql-common < %{version}-%{release}
@@ -237,6 +248,7 @@ Requires:       mysql-commercial-libs%{?_isa} >= %{min}
 Requires:       mysql-community-libs%{?_isa} >= %{min}
 %endif
 Obsoletes:      mariadb-devel
+Obsoletes:      mariadb-connector-c-devel
 Obsoletes:      community-mysql-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
 Provides:       mysql-devel = %{version}-%{release}
@@ -255,7 +267,9 @@ Requires:       mysql-commercial-common%{?_isa} >= %{min}
 %else
 Requires:       mysql-community-common%{?_isa} >= %{min}
 %endif
+%if 0%{?compatlib}
 Obsoletes:      mariadb-libs
+%endif # compatlib
 Obsoletes:      community-mysql-libs < %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
 Provides:       mysql-libs = %{version}-%{release}
@@ -265,6 +279,7 @@ Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 This package contains the shared libraries for MySQL client
 applications.
 
+%if 0%{?compatlib}
 %package        libs-compat
 Summary:        Shared compat libraries for MySQL %{compatver} database client applications
 Group:          Applications/Databases
@@ -282,7 +297,9 @@ Requires:       mysql-community-libs%{?_isa} >= %{min}
 %description    libs-compat
 This package contains the shared compat libraries for MySQL %{compatver} client
 applications.
+%endif # compatlib
 
+%if 0%{?compatlib}
 %package        embedded-compat
 Summary:        MySQL embedded compat library
 Group:          Applications/Databases
@@ -302,9 +319,15 @@ Obsoletes:      mariadb-embedded-devel
 %description    embedded-compat
 This package contains the MySQL server as an embedded library with
 compatibility for applications using version %{compatlib} of the library.
+%endif # compatlib
 
 %prep
+%if 0%{?compatlib}
 %setup -q -T -a 0 -a 1 -a 2 -c -n %{src_dir}
+%else
+%setup -q -T -a 0 -a 1 -c -n %{src_dir}
+%endif # 0%{?compatlib}
+
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -318,6 +341,7 @@ fi
 %endif
 
 # Build compat libs
+%if 0%{?compatlib}
 (
   pushd mysql-%{compatver}
   mkdir build && pushd build
@@ -336,12 +360,13 @@ fi
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_EMBEDDED_SERVER=1 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
-           %{?ssl_option} \
+           -DWITH_SSL=bundled \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
+%endif # compatlib
 
 # Build debug versions of mysqld
 mkdir debug
@@ -366,9 +391,12 @@ mkdir debug
 %if 0%{?ndb_nodejs_extras_path:1}
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
+%if 0%{?with_meb:1}
+           -DWITH_MEB=1 \
+%endif
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
-           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin/debug" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -400,6 +428,9 @@ mkdir release
 %if 0%{?ndb_nodejs_extras_path:1}
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
+%if 0%{?with_meb:1}
+           -DWITH_MEB=1 \
+%endif
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
@@ -416,11 +447,13 @@ mkdir release
 
 %install
 # Install compat libs
+%if 0%{?compatlib}
 for dir in libmysql libmysqld ; do
     pushd mysql-%{compatver}/build/$dir
     make DESTDIR=%{buildroot} install
     popd
 done
+%endif # compatlib
 rm -f %{buildroot}%{_libdir}/mysql/libmysqlclient{,_r}.{a,la,so}
 rm -f %{buildroot}%{_libdir}/mysql/libmysqld.{a,la,so}
 
@@ -461,10 +494,10 @@ rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
 
 # Remove removed manpages here until they are removed from the docs repo
-rm -f  %{buildroot}%{_mandir}/man1/mysql_plugin.1
-rm -f  %{buildroot}%{_mandir}/man1/mysql_install_db.1
-rm -f  %{buildroot}%{_mandir}/man1/mysql_client_test_embedded.1*
-rm -f  %{buildroot}%{_mandir}/man1/mysqltest_embedded.1*
+rm -f %{buildroot}%{_mandir}/man1/mysql-stress-test.pl.1
+rm -f %{buildroot}%{_mandir}/man1/mysql-test-run.pl.1
+rm -f %{buildroot}%{_mandir}/man1/mysql_client_test.1
+rm -f %{buildroot}%{_mandir}/man1/mysqltest.1
 
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
@@ -507,9 +540,11 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 
 %postun libs -p /sbin/ldconfig
 
+%if 0%{?compatlib}
 %post embedded-compat -p /sbin/ldconfig
 
 %postun embedded-compat -p /sbin/ldconfig
+%endif
 
 %files server
 %defattr(-, root, root, -)
@@ -708,6 +743,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.21*
 
+%if 0%{?compatlib}
 %files libs-compat
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
@@ -717,6 +753,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %{_libdir}/mysql/libmysqlclient.so.%{compatlib}.*.0
 %{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}
 %{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}.*.0
+%endif # compatlib
 
 %files test
 %defattr(-, root, root, -)
@@ -858,21 +895,20 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_security_context.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_plugin_registry.so
 
-%attr(644, root, root) %{_mandir}/man1/mysql_client_test.1*
-%attr(644, root, root) %{_mandir}/man1/mysql-stress-test.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysql-test-run.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysqltest.1*
-
+%if 0%{?compatlib}
 %files embedded-compat
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so.18*
+%endif # compatlib
 
 %changelog
-* Tue Aug 29 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
+* Wed Nov 15 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
 - Change the global milestone to 'dmr'
+- Remove obsoleted mysqltest man pages
+- Do not pass SSL option to 5.6 compat build, just use bundled
 
 * Wed Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
 - Updated for 8.0.3 release

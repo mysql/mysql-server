@@ -64,17 +64,30 @@ typedef struct PSI_stage_progress_v1 PSI_stage_progress_v1;
 */
 struct PSI_stage_info_v1
 {
+  /*
+    These constructors are no longer needed when we go to C++14, where
+    aggregate initialization is allowed on classes that have default
+    member initializers.
+  */
+  PSI_stage_info_v1() {}
+
+  PSI_stage_info_v1(PSI_stage_key key, const char *name,
+                    unsigned int flags, const char *documentation)
+    : m_key(key), m_name(name), m_flags(flags), m_documentation(documentation)
+  {
+  }
+
   /** The registered stage key. */
-  PSI_stage_key m_key;
+  PSI_stage_key m_key{0};
   /** The name of the stage instrument to register. */
-  const char *m_name;
+  const char *m_name{nullptr};
   /**
     The flags of the stage instrument to register.
     @sa PSI_FLAG_PROGRESS
   */
-  unsigned int m_flags;
+  unsigned int m_flags{0};
   /** Documentation. */
-  const char *m_documentation;
+  const char *m_documentation{nullptr};
 };
 typedef struct PSI_stage_info_v1 PSI_stage_info_v1;
 

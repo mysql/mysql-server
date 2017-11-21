@@ -26,6 +26,19 @@
 set sql_mode='';
 set default_storage_engine=InnoDB;
 
+# Create a user mysql.infoschema@localhost as the owner of views in information_schema.
+# That user should be created at the beginning of the script, because a query against a
+# view from information_schema leads to check for presence of a user specified in view's DEFINER clause.
+# If the user mysql.infoschema@localhost hadn't been created at the beginning of the script,
+# the query from information_schema.tables below would have failed with the error
+# ERROR 1449 (HY000): The user specified as a definer ('mysql.infoschema'@'localhost') does not exist.
+
+INSERT IGNORE INTO mysql.user
+(host, user, select_priv, plugin, authentication_string, ssl_cipher, x509_issuer, x509_subject)
+VALUES ('localhost','mysql.infoschema','Y','mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','','','');
+
+FLUSH PRIVILEGES;
+
 # Move distributed grant tables to default engine during upgrade, remember
 # which tables was moved so they can be moved back after upgrade
 SET @had_distributed_user =
@@ -618,6 +631,8 @@ UPDATE user SET account_locked = 'N' WHERE @hadAccountLocked=0;
 -- need to compensate for the ALTER TABLE user .. CONVERT TO CHARACTER SET above
 ALTER TABLE user MODIFY account_locked ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
 
+UPDATE user SET account_locked ='Y' WHERE host = 'localhost' AND user = 'mysql.infoschema';
+
 --
 -- Drop password column
 --
@@ -643,10 +658,17 @@ FROM mysql.user WHERE super_priv = 'Y' AND @hadXARecoverAdminPriv = 0;
 COMMIT;
 
 -- Add the privilege BACKUP_ADMIN for every user who has the privilege RELOAD
--- provided that there isn't a user who already has the privilige BACKUP_ADMIN.
+-- provided that there isn't a user who already has the privilege BACKUP_ADMIN.
 SET @hadBackupAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'BACKUP_ADMIN');
 INSERT INTO global_grants SELECT user, host, 'BACKUP_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
 FROM mysql.user WHERE Reload_priv = 'Y' AND @hadBackupAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege RESOURCE_GROUP_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilege RESOURCE_GROUP_ADMIN.
+SET @hadResourceGroupAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'RESOURCE_GROUP_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'RESOURCE_GROUP_ADMIN',
+IF(grant_priv = 'Y', 'Y', 'N') FROM mysql.user WHERE super_priv = 'Y' AND @hadResourceGroupAdminPriv = 0;
 COMMIT;
 
 # Activate the new, possible modified privilege tables

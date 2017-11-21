@@ -29,6 +29,8 @@
        use iconv to convert.
     3. ucadump ja < /path/to/ja_han.txt > /path/to/yourfile
 */
+
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

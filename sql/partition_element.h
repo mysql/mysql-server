@@ -105,7 +105,8 @@ typedef struct p_elem_val
   part_column_list_val *col_val_array;
 } part_elem_value;
 
-class partition_element :public Sql_alloc {
+class partition_element
+{
 public:
   List<partition_element> subpartitions;
   List<part_elem_value> list_val_list;  // list of LIST values/column arrays
@@ -133,8 +134,8 @@ public:
     part_comment(NULL),
     data_file_name(NULL), index_file_name(NULL),
     engine_type(NULL), part_state(PART_NORMAL),
-    nodegroup_id(UNDEF_NODEGROUP), has_null_value(FALSE),
-    signed_flag(FALSE), max_value(FALSE)
+    nodegroup_id(UNDEF_NODEGROUP), has_null_value(false),
+    signed_flag(false), max_value(false)
   {
   }
   partition_element(partition_element *part_elem)
@@ -148,7 +149,9 @@ public:
     engine_type(part_elem->engine_type),
     part_state(part_elem->part_state),
     nodegroup_id(part_elem->nodegroup_id),
-    has_null_value(FALSE)
+    has_null_value(false),
+    signed_flag(false),
+    max_value(false)
   {
   }
   inline void set_from_info(const HA_CREATE_INFO* info)

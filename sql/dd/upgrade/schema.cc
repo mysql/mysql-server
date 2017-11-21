@@ -29,6 +29,7 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_file.h"             // mysql_file_open
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -38,6 +39,7 @@
 #include "sql/sql_class.h"                    // THD
 #include "sql/sql_table.h"                    // build_tablename
 #include "sql/system_variables.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                  // trans_commit
 #include "sql_string.h"
 

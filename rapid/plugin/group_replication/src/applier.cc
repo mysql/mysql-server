@@ -26,6 +26,7 @@
 #include "plugin/group_replication/include/plugin_log.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
 #include "plugin/group_replication/include/single_primary_message.h"
+#include "plugin/group_replication/include/plugin_server_include.h"
 
 char applier_module_channel_name[] = "group_replication_applier";
 bool applier_thread_is_exiting= false;
@@ -363,6 +364,10 @@ Applier_module::applier_thread_handle()
   //set the thread context
   set_applier_thread_context();
 
+  mysql_mutex_lock(&run_lock);
+  applier_thread_running=true;
+  mysql_mutex_unlock(&run_lock);
+
   Handler_THD_setup_action *thd_conf_action= NULL;
   Format_description_log_event* fde_evt= NULL;
   Continuation* cont= NULL;
@@ -513,6 +518,8 @@ end:
     local_applier_error= applier_error;
 
   applier_running= false;
+  applier_killed_status= false;
+  applier_thread_running= false;
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
@@ -528,9 +535,14 @@ Applier_module::initialize_applier_thread()
 {
   DBUG_ENTER("Applier_module::initialize_applier_thd");
 
+  struct timespec abstime;
+  set_timespec(&abstime, 1);
+
   //avoid concurrency calls against stop invocations
   mysql_mutex_lock(&run_lock);
 
+  applier_thread_is_exiting= false;
+  applier_killed_status= false;
   applier_error= 0;
 
   if ((mysql_thread_create(key_GR_THD_applier_module_receiver,
@@ -546,7 +558,17 @@ Applier_module::initialize_applier_thread()
   while (!applier_running && !applier_error)
   {
     DBUG_PRINT("sleep",("Waiting for applier thread to start"));
-    mysql_cond_wait(&run_cond, &run_lock);
+    if (current_thd != NULL && current_thd->is_killed())
+    {
+      applier_error= 1;
+      applier_killed_status= true;
+      log_message(MY_WARNING_LEVEL,
+                  "Unblocking the group replication thread waiting for"
+                  " applier to start, as the start group replication"
+                  " was killed.");
+      break;
+    }
+    mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
   }
 
   mysql_mutex_unlock(&run_lock);
@@ -582,18 +604,22 @@ Applier_module::terminate_applier_thread()
 
   applier_aborted= true;
 
-  if (!applier_running)
+  if (!applier_thread_running)
   {
     goto delete_pipeline;
   }
 
-  while (applier_running)
+  while (applier_thread_running)
   {
     DBUG_PRINT("loop", ("killing group replication applier thread"));
 
     mysql_mutex_lock(&applier_thd->LOCK_thd_data);
 
-    applier_thd->awake(THD::NOT_KILLED);
+    if (applier_killed_status)
+      applier_thd->awake(THD::KILL_CONNECTION);
+    else
+      applier_thd->awake(THD::NOT_KILLED);
+
     mysql_mutex_unlock(&applier_thd->LOCK_thd_data);
 
     //before waiting for termination, signal the queue to unlock.
@@ -612,11 +638,12 @@ Applier_module::terminate_applier_thread()
     int error=
 #endif
       mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
+
     if (stop_wait_timeout >= 2)
     {
       stop_wait_timeout= stop_wait_timeout - 2;
     }
-    else if (applier_running) // quit waiting
+    else if (applier_thread_running) // quit waiting
     {
       mysql_mutex_unlock(&run_lock);
       DBUG_RETURN(1);
@@ -624,7 +651,7 @@ Applier_module::terminate_applier_thread()
     DBUG_ASSERT(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!applier_running);
+  DBUG_ASSERT(!applier_thread_running);
 
 delete_pipeline:
 
@@ -753,6 +780,12 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
   //kill pending transactions
   blocked_transaction_handler->unblock_waiting_transactions();
 
+  DBUG_EXECUTE_IF("group_replication_applier_thread_wait_kill_pending_transaction",
+                  {
+                    const char act[]= "now wait_for signal.gr_applier_early_failure";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                  });
+
   if (!already_locked)
     shared_stop_write_lock->release_write_lock();
 
@@ -810,7 +843,7 @@ Applier_module::wait_for_applier_complete_suspension(bool *abort_flag,
   {
     error= APPLIER_GTID_CHECK_TIMEOUT_ERROR; //timeout error
     while (error == APPLIER_GTID_CHECK_TIMEOUT_ERROR && !(*abort_flag))
-      error= wait_for_applier_event_execution(1); //blocking
+      error= wait_for_applier_event_execution(1, true); //blocking
   }
 
   return (error == APPLIER_RELAY_LOG_NOT_INITED);
@@ -840,7 +873,8 @@ Applier_module::is_applier_thread_waiting()
 }
 
 int
-Applier_module::wait_for_applier_event_execution(double timeout)
+Applier_module::wait_for_applier_event_execution(double timeout,
+                                                 bool check_and_purge_partial_transactions)
 {
   DBUG_ENTER("Applier_module::wait_for_applier_event_execution");
   int error= 0;
@@ -858,7 +892,8 @@ Applier_module::wait_for_applier_event_execution(double timeout)
       the applier thread will release the lock and update the applier thread
       execution position correctly and safely.
     */
-    if (((Applier_handler*)event_applier)->is_partial_transaction_on_relay_log())
+    if (check_and_purge_partial_transactions &&
+        ((Applier_handler*)event_applier)->is_partial_transaction_on_relay_log())
     {
         error= purge_applier_queue_and_restart_applier_module();
     }

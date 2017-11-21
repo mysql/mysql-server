@@ -38,12 +38,23 @@ ut_dbg_assertion_failed(
 	const char* file,	/*!< in: source file containing the assertion */
 	ulint line)		/*!< in: line number of the assertion */
 {
-	sql_print_error("InnoDB: Assertion failure: %s:" ULINTPF "%s%s\n"
-			"InnoDB: thread " UINT64PF,
-			innobase_basename(file), line,
-			expr != nullptr ? ":" : "",
-			expr != nullptr ? expr : "",
-			os_thread_handle());
+#ifndef UNIV_HOTBACKUP
+	sql_print_error(
+		"InnoDB: Assertion failure: %s:" ULINTPF "%s%s\n"
+		"InnoDB: thread " UINT64PF,
+		innobase_basename(file), line,
+		expr != nullptr ? ":" : "",
+		expr != nullptr ? expr : "",
+		os_thread_handle());
+#else /* !UNIV_HOTBACKUP */
+	fprintf(stderr,
+		"InnoDB: Assertion failure: %s:" ULINTPF "%s%s\n"
+		"InnoDB: thread " UINT64PF,
+		innobase_basename(file), line,
+		expr != nullptr ? ":" : "",
+		expr != nullptr ? expr : "",
+		os_thread_handle());
+#endif /* !UNIV_HOTBACKUP */
 
 	fputs("InnoDB: We intentionally generate a memory trap.\n"
 	      "InnoDB: Submit a detailed bug report"

@@ -80,7 +80,7 @@ ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMI
 # only count nodes and edges as the sorting order is depending on platform
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
 num_nodes
-12
+13
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 num_edges
 8
@@ -155,6 +155,7 @@ DROP ROLE r1;
 DROP DATABASE db1;
 SELECT user,host FROM mysql.user;
 user	host
+mysql.infoschema	localhost
 mysql.session	localhost
 mysql.sys	localhost
 root	localhost

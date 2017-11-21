@@ -1,0 +1,69 @@
+# ==== Purpose ====
+#
+# Verify that GTID_EXECUTED and GTID_PURGED are correctly restored by
+# mysqlpump, even after a restart.
+#
+# ==== Implementation ====
+#
+# Execute some transactions in different binary logs, purge some of them.
+# Take a dump. Drop the table and RESET MASTER. Verify that
+# GTID_EXECUTED and GTID_PURGED after the dump equal GTID_EXECUTED before
+# the dump. Restart server. Repeat the check.
+#
+# ==== Bugs ====
+#
+# BUG#24590891: RESTARTING A SLAVE AFTER SEEDING IT WITH A MYSQLDUMP LOSES IT'S POSITION
+
+# Agnostic to binlog_format.
+--source include/have_binlog_format_statement.inc
+
+--echo ==== Initialize ====
+
+CREATE TABLE t1 (a INT);
+FLUSH LOGS;
+--let $current_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--replace_result $current_binlog_file <CURRENT_BINLOG>
+eval PURGE BINARY LOGS TO '$current_binlog_file';
+INSERT INTO t1 VALUES (1);
+FLUSH LOGS;
+INSERT INTO t1 VALUES (2);
+--let $gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
+
+--let $name= pump
+# Skip routines to workaround BUG#25292963
+--let $program= $MYSQL_PUMP --add-drop-table --all-databases --include-routines=o
+
+--echo ==== $name and restore ====
+
+--echo # $name
+# Apparently mysql.proc is not fully restored on the slave, so
+# unless we remove it from the dump, check-testcase will fail.
+--exec $PROGRAM >> $MYSQL_TMP_DIR/mysql$name.sql
+
+DROP TABLE t1;
+RESET MASTER;
+
+--echo # restore
+--exec $MYSQL < $MYSQL_TMP_DIR/mysql$name.sql
+
+--echo ==== Verify after restoring from $name ====
+
+--let $assert_text= GTID_EXECUTED should equal master GTID_EXECUTED after $name restored
+--let $assert_cond= @@GLOBAL.GTID_EXECUTED = "$gtid_executed"
+--source include/assert.inc
+--let $assert_text= GTID_PURGED should equal master GTID_EXECUTED after $name restored
+--let $assert_cond= @@GLOBAL.GTID_PURGED = "$gtid_executed"
+--source include/assert.inc
+
+--source include/restart_mysqld.inc
+
+--let $assert_text= GTID_EXECUTED should equal master GTID_EXECUTED after server restarted
+--let $assert_cond= @@GLOBAL.GTID_EXECUTED = "$gtid_executed"
+--source include/assert.inc
+--let $assert_text= GTID_PURGED should equal master GTID_EXECUTED after server restarted
+--let $assert_cond= @@GLOBAL.GTID_PURGED = "$gtid_executed"
+--source include/assert.inc
+
+--echo ==== Clean up ====
+
+DROP TABLE t1;

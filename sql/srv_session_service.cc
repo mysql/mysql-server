@@ -42,9 +42,6 @@
 #include "sql/sql_class.h"
 #include "sql/srv_session.h"
 
-extern "C"
-{
-
 /**
   Initializes physical thread to use with session service.
 
@@ -89,10 +86,15 @@ Srv_session* srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx)
     DBUG_RETURN(NULL);
   }
 
+  bool simulate_reach_max_connections= false;
+  DBUG_EXECUTE_IF("simulate_reach_max_connections",
+                  simulate_reach_max_connections= true;);
+
   Connection_handler_manager *conn_manager=
       Connection_handler_manager::get_instance();
 
-  if (!conn_manager->check_and_incr_conn_count())
+  if (simulate_reach_max_connections ||
+      !conn_manager->check_and_incr_conn_count())
   {
     if (error_cb)
       error_cb(plugin_ctx, ER_CON_COUNT_ERROR, ER_DEFAULT(ER_CON_COUNT_ERROR));
@@ -196,5 +198,3 @@ int srv_session_server_is_available()
 {
   return get_server_state() == SERVER_OPERATING;
 }
-
-} /* extern "C" */

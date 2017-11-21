@@ -19,9 +19,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file dict/dict0dd.cc
 Data dictionary interface */
 
-#include <current_thd.h>
-#include <sql_thd_internal_api.h>
+#ifndef UNIV_HOTBACKUP
+# include <current_thd.h>
+# include <sql_thd_internal_api.h>
 #include <sql_class.h>
+#include <auto_thd.h>
+#else /* !UNIV_HOTBACKUP */
+# include <my_base.h>
+#endif /* !UNIV_HOTBACKUP */
 
 #include "dict0dd.h"
 #include "dict0dict.h"
@@ -29,26 +34,34 @@ Data dictionary interface */
 #include "dict0priv.h"
 #include <dd/properties.h>
 #include "dict0mem.h"
-#include "dict0stats.h"
+#include "mysql_com.h"
+#ifndef UNIV_HOTBACKUP
+# include "dict0stats.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "rem0rec.h"
 #include "data0type.h"
 #include "mach0data.h"
 #include "dict0dict.h"
-#include "fts0priv.h"
-#include "gis/rtree_support.h"  // fetch_srs
+#ifndef UNIV_HOTBACKUP
+# include "fts0priv.h"
+# include "gis/rtree_support.h"  // fetch_srs
+#endif /* !UNIV_HOTBACKUP */
 #include "ut0crc32.h"
 #include "srv0start.h"
-#include "sql_table.h"
-#include "sql_base.h"
-#include "ha_innodb.h"
-#include "ha_innopart.h"
-#include "ha_prototypes.h"
-#include "derror.h"
-#include "fts0plugin.h"
-#include "btr0sea.h"
-#include "query_options.h"
+#ifndef UNIV_HOTBACKUP
+# include "sql_table.h"
+# include "sql_base.h"
+# include "ha_innodb.h"
+# include "ha_innopart.h"
+# include "ha_prototypes.h"
+# include "derror.h"
+# include "fts0plugin.h"
+# include "btr0sea.h"
+# include "query_options.h"
+#endif /* !UNIV_HOTBACKUP */
 #include <bitset>
 
+#ifndef UNIV_HOTBACKUP
 /** Check if the InnoDB index is consistent with dd::Index
 @param[in]	index		InnoDB index
 @param[in]	dd_index	dd::Index or dd::Partition_index
@@ -512,6 +525,7 @@ dd_table_open_on_id_low(
 
 	return(ib_table);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Check if access to a table should be refused.
 @param[in,out]	table	InnoDB table or partition
@@ -524,9 +538,18 @@ dd_check_corrupted(dict_table_t*& table)
 
 	if (table->is_corrupted()) {
 		if (dict_table_is_sdi(table->id)
-		    || dict_table_is_system(table->id)) {
+#ifndef UNIV_HOTBACKUP
+		    || dict_table_is_system(table->id)
+#endif /* !UNIV_HOTBACKUP */
+		    ) {
+#ifndef UNIV_HOTBACKUP
 			my_error(ER_TABLE_CORRUPT, MYF(0),
 				 "", table->name.m_name);
+#else /* !UNIV_HOTBACKUP */
+			ib::fatal()
+				<< "table is corrupt: "
+				<< table->name.m_name;
+#endif /* !UNIV_HOTBACKUP */
 		} else {
 			char	db_buf[MAX_DATABASE_NAME_LEN + 1];
 			char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
@@ -534,8 +557,14 @@ dd_check_corrupted(dict_table_t*& table)
 			dd_parse_tbl_name(
 				table->name.m_name, db_buf, tbl_buf,
 				nullptr, nullptr, nullptr);
+#ifndef UNIV_HOTBACKUP
 			my_error(ER_TABLE_CORRUPT, MYF(0),
 				 db_buf, tbl_buf);
+#else /* !UNIV_HOTBACKUP */
+			ib::fatal()
+				<< "table is corrupt: "
+				<< db_buf << "." << tbl_buf;
+#endif /* !UNIV_HOTBACKUP */
 		}
 		table = nullptr;
 		return(HA_ERR_TABLE_CORRUPT);
@@ -544,7 +573,13 @@ dd_check_corrupted(dict_table_t*& table)
 	dict_index_t* index = table->first_index();
 	if (!dict_table_is_sdi(table->id)
 	    && fil_space_get(index->space) == nullptr) {
+#ifndef UNIV_HOTBACKUP
 		my_error(ER_TABLESPACE_MISSING, MYF(0), table->name.m_name);
+#else /* !UNIV_HOTBACKUP */
+		ib::fatal()
+			<< "table space is missing: "
+			<< table->name.m_name;
+#endif /* !UNIV_HOTBACKUP */
 		table = nullptr;
 		return(HA_ERR_TABLESPACE_MISSING);
 	}
@@ -594,6 +629,7 @@ dd_table_open_on_id(
 
 reopen:
 	if (ib_table == nullptr) {
+#ifndef UNIV_HOTBACKUP
 		if (dict_table_is_sdi(table_id)) {
 			/* The table is SDI table */
 			space_id_t	space_id = dict_sdi_get_space_id(
@@ -628,6 +664,11 @@ reopen:
 				mutex_enter(&dict_sys->mutex);
 			}
 		}
+#else /* !UNIV_HOTBACKUP */
+		/* PRELIMINARY TEMPORARY WORKAROUND: is this ever used? */
+		bool	not_hotbackup = false;
+		ut_a(not_hotbackup);
+#endif /* !UNIV_HOTBACKUP */
 	} else if (mdl == nullptr || ib_table->is_temporary()
 		   || dict_table_is_sdi(ib_table->id)) {
 		if (dd_check_corrupted(ib_table)) {
@@ -660,12 +701,14 @@ reopen:
 				return(nullptr);
 			}
 
+#ifndef UNIV_HOTBACKUP
 			if (dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
 				if (dict_locked) {
 					mutex_enter(&dict_sys->mutex);
 				}
 				return(nullptr);
 			}
+#endif /* !UNIV_HOTBACKUP */
 
 			/* Re-lookup the table after acquiring MDL. */
 			mutex_enter(&dict_sys->mutex);
@@ -686,16 +729,22 @@ reopen:
 				if (namelen != strlen(full_name)
 				    || memcmp(ib_table->name.m_name,
 					      full_name, namelen)) {
+#ifndef UNIV_HOTBACKUP
 					dd_mdl_release(thd, mdl);
+#endif /* !UNIV_HOTBACKUP */
 					continue;
 				} else if (check_corruption
 					   && dd_check_corrupted(ib_table)) {
 					ut_ad(ib_table == nullptr);
 				} else if (ib_table->discard_after_ddl) {
+#ifndef UNIV_HOTBACKUP
 					btr_drop_ahi_for_table(ib_table);
 					dict_table_remove_from_cache(ib_table);
+#endif /* !UNIV_HOTBACKUP */
 					ib_table = nullptr;
+#ifndef UNIV_HOTBACKUP
 					dd_mdl_release(thd, mdl);
+#endif /* !UNIV_HOTBACKUP */
 					goto reopen;
 				} else {
 					ib_table->acquire();
@@ -706,6 +755,7 @@ reopen:
 			break;
 		}
 
+#ifndef UNIV_HOTBACKUP
 		ut_ad(*mdl != nullptr);
 
 		/* Now the table can't be found, release MDL,
@@ -720,6 +770,11 @@ reopen:
 				dd_mdl_release(thd, mdl);
 			}
 		}
+#else /* !UNIV_HOTBACKUP */
+		/* PRELIMINARY TEMPORARY WORKAROUND: is this ever used? */
+		bool	not_hotbackup = false;
+		ut_a(not_hotbackup);
+#endif /* !UNIV_HOTBACKUP */
 
 		if (dict_locked) {
 			mutex_enter(&dict_sys->mutex);
@@ -731,6 +786,7 @@ reopen:
 	return(ib_table);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Set the discard flag for a non-partitioned dd table.
 @param[in,out]	thd		current thread
 @param[in]	table		InnoDB table
@@ -959,6 +1015,7 @@ dd_table_open_on_name(
 
 	DBUG_RETURN(table);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Close an internal InnoDB table handle.
 @param[in,out]	table		InnoDB table handle
@@ -974,12 +1031,20 @@ dd_table_close(
 {
 	dict_table_close(table, dict_locked, false);
 
+#ifndef UNIV_HOTBACKUP
 	if (mdl != nullptr && *mdl != nullptr) {
 		ut_ad(!table->is_temporary());
 		dd_mdl_release(thd, mdl);
 	}
+#endif /* !UNIV_HOTBACKUP */
 }
 
+#ifndef UNIV_HOTBACKUP
+/** Update filename of dd::Tablespace
+@param[in]	dd_space_id	dd tablespace id
+@param[in]	new_space_name	new tablespace name
+@param[in]	new_path	new data file path
+@retval true if fail. */
 bool
 dd_rename_tablespace(
 	dd::Object_id	dd_space_id,
@@ -2508,9 +2573,14 @@ dd_fill_dict_table(
 		This way the compatibility with 5.7 FTS AUX tables is also
 		maintained. */
 		if (m_table->is_fts_aux()) {
-			  if ((strcmp(field->field_name, "doc_id") == 0)
-			      || (strcmp(field->field_name, "key") == 0)) {
-				nulls_allowed = 0;
+
+			const dd::Table& dd_table = dd_tab->table();
+			const dd::Column* dd_col = dd_find_column(&dd_table, field->field_name);
+			const dd::Properties& p = dd_col->se_private_data();
+			if (p.exists("nullable")) {
+				bool nullable;
+				p.get_bool("nullable", &nullable);
+				nulls_allowed = nullable ? 0 : DATA_NOT_NULL;
 			}
 		}
 
@@ -2597,6 +2667,7 @@ dd_fill_dict_table(
 
 	return(m_table);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Parse the tablespace name from filename charset to table name charset
 @param[in]      space_name      tablespace name
@@ -2612,12 +2683,12 @@ dd_filename_to_spacename(
 	char			part_buf[NAME_LEN + 1];
 	char			sub_buf[NAME_LEN + 1];
 	char			orig_tablespace[NAME_LEN + 1];
-	bool			is_part_tmp = false;
+	bool			is_tmp = false;
 
 	db_buf[0] = tbl_buf[0] = part_buf[0] = sub_buf[0] = '\0';
 
 	dd_parse_tbl_name(
-		space_name, db_buf, tbl_buf, part_buf, sub_buf, &is_part_tmp);
+		space_name, db_buf, tbl_buf, part_buf, sub_buf, &is_tmp);
 
 	if (db_buf[0] == '\0') {
 		filename_to_tablename((char*) space_name, orig_tablespace,
@@ -2640,15 +2711,15 @@ dd_filename_to_spacename(
 		tablespace_name->append(sub_buf);
 	}
 
-	if (is_part_tmp) {
-		ut_ad(part_buf[0] != '\0');
-		tablespace_name->append("#tmp");
+	if (is_tmp) {
+		tablespace_name->append(TMP_POSTFIX);
 	}
 
 	/* Name should not exceed schema/table#P#partition#SP#subpartition. */
 	ut_ad(tablespace_name->size() < MAX_SPACE_NAME_LEN);
 }
 
+#ifndef UNIV_HOTBACKUP
 /* Create metadata for specified tablespace, acquiring exlcusive MDL first
 @param[in,out]	dd_client	data dictionary client
 @param[in,out]	thd		THD
@@ -3513,9 +3584,10 @@ dd_load_tablespace(
 		filepath = dd_get_first_path(heap, table, dd_table);
 		mutex_enter(&dict_sys->mutex);
 		if (filepath == nullptr) {
-			ib::warn() << "Could not find the filepath"
-				" for table " << table->name <<
-				", space ID " << table->space;
+			ib::warn()
+				<< "Could not find the filepath for table "
+				<< table->name
+				<< ", space ID " << table->space;
 		} else {
 			alloc_from_heap = true;
 		}
@@ -4982,6 +5054,20 @@ dd_set_fts_table_options(
 	}
 }
 
+/** Add nullability info to column se_private_data
+@param[in,out]	dd_col	DD table column
+@param[in]	col	InnoDB table column */
+static
+void
+dd_set_fts_nullability(
+	dd::Column*		dd_col,
+	const dict_col_t*	col)
+{
+	bool is_nullable = !(col->prtype & DATA_NOT_NULL);
+	dd::Properties& p = dd_col->se_private_data();
+	p.set_bool("nullable", is_nullable);
+}
+
 /** Create dd table for fts aux index table
 @param[in]	parent_table	parent table of fts table
 @param[in,out]	table		fts table
@@ -5033,12 +5119,16 @@ dd_create_fts_index_table(
 
 	/* Fill columns */
 	/* 1st column: word */
+	const char* col_name = nullptr;
 	dd::Column*	col = dd_table->add_column();
-	col->set_name("word");
+	col_name = "word";
+	col->set_name(col_name);
 	col->set_type(dd::enum_column_types::VARCHAR);
 	col->set_char_length(FTS_INDEX_WORD_LEN);
 	col->set_nullable(false);
 	col->set_collation_id(charset->number);
+	ut_ad(strcmp(col_name, table->get_col_name(0)) == 0);
+	dd_set_fts_nullability(col, table->get_col(0));
 
 	dd::Column*	key_col1 = col;
 
@@ -5172,18 +5262,22 @@ dd_create_fts_common_table(
 	dd_table->set_schema_id(schema->id());
 
 	dd_set_fts_table_options(dd_table, table);
+	const char* col_name = nullptr;
 
 	/* Fill columns */
 	if (!is_config) {
 		/* 1st column: doc_id */
 		dd::Column*	col = dd_table->add_column();
-		col->set_name("doc_id");
+		col_name= "doc_id";
+		col->set_name(col_name);
 		col->set_type(dd::enum_column_types::LONGLONG);
 		col->set_char_length(20);
 		col->set_numeric_scale(0);
 		col->set_nullable(false);
 		col->set_unsigned(true);
 		col->set_collation_id(my_charset_bin.number);
+		ut_ad(strcmp(col_name, table->get_col_name(0)) == 0);
+		dd_set_fts_nullability(col, table->get_col(0));
 
 		dd::Column*	key_col1 = col;
 
@@ -5207,11 +5301,14 @@ dd_create_fts_common_table(
 		/* Fill columns */
 		/* 1st column: key */
 		dd::Column*	col = dd_table->add_column();
-		col->set_name("key");
+		col_name = "key";
+		col->set_name(col_name);
 		col->set_type(dd::enum_column_types::VARCHAR);
 		col->set_char_length(FTS_CONFIG_TABLE_KEY_COL_LEN);
 		col->set_nullable(false);
 		col->set_collation_id(my_charset_latin1.number);
+		ut_ad(strcmp(col_name, table->get_col_name(0)) == 0);
+		dd_set_fts_nullability(col, table->get_col(0));
 
 		dd::Column*	key_col1 = col;
 
@@ -5518,3 +5615,120 @@ dd_get_referenced_table(
 
 	return(ref);
 }
+
+/** Update all InnoDB tablespace cache objects. This step is done post
+dictionary trx rollback, binlog recovery and DDL_LOG apply. So DD is consistent.
+Update the cached tablespace objects, if they differ from dictionary
+@param[in,out]	thd	thread handle
+@retval	true	on error
+@retval	false	on success */
+bool
+dd_tablespace_update_cache(THD* thd)
+{
+	/* If there are no prepared trxs, then DD reads would have been
+	already consistent. No need to update cache */
+	if (!trx_sys->found_prepared_trx) {
+		return(false);
+	}
+
+	dd::cache::Dictionary_client*			dc
+		= dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(dc);
+	std::vector<const dd::Tablespace*>		tablespaces;
+
+	space_id_t	max_id = 0;
+
+	if (dc->fetch_global_components(&tablespaces)) {
+		return(true);
+	}
+
+	bool		fail = false;
+
+	for (const dd::Tablespace* t : tablespaces) {
+		ut_ad(!fail);
+
+		if (t->engine() != innobase_hton_name) {
+			continue;
+		}
+
+		const dd::Properties&	p	= t->se_private_data();
+		uint32			id;
+		uint32			flags	= 0;
+
+		/* There should be exactly one file name associated
+		with each InnoDB tablespace, except innodb_system */
+		fail = p.get_uint32(dd_space_key_strings[DD_SPACE_ID], &id)
+			|| p.get_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
+					&flags)
+			|| (t->files().size() != 1 &&
+			    strcmp(t->name().c_str(),
+				   dict_sys_t::s_sys_space_name) != 0);
+
+		if (fail) {
+			break;
+		}
+
+		/* Undo tablespaces may be deleted and re-created at
+		startup and not registered in DD. So exempt undo tablespaces
+		from verification */
+		if (fsp_is_undo_tablespace(id)) {
+			continue;
+		}
+
+		if (!dict_sys_t::is_reserved(id) && id > max_id) {
+			/* Currently try to find the max one only, it should
+			be able to reuse the deleted smaller ones later */
+			max_id = id;
+		}
+
+		const dd::Tablespace_file* f = *t->files().begin();
+		fail = f == nullptr;
+		if (fail) {
+			break;
+		}
+
+		const char*	space_name = t->name().c_str();
+		fil_space_t*	space = fil_space_get(id);
+
+		if (space != nullptr) {
+
+			/* If the tablespace is already in cache, verify that
+			the tablespace name matches the name in dictionary.
+			If it doesn't match, use the name from dictionary. */
+
+			ut_ad(space->flags == flags);
+
+			fil_space_update_name(space, space_name, false);
+
+		} else {
+			fil_type_t	purpose = fsp_is_system_temporary(id)
+				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE;
+
+			const char*	filename = f->filename().c_str();
+
+			/* If the user tablespace is not in cache, load the
+			tablespace now, with the name from dictionary */
+
+			/* It's safe to pass space_name in tablename charset
+			because filename is already in filename charset. */
+			dberr_t	err = fil_ibd_open(
+				false, purpose, id, flags, space_name,
+				nullptr, filename, false, false);
+			switch (err) {
+			case DB_SUCCESS:
+			case DB_CANNOT_OPEN_FILE:
+				break;
+			default:
+				ib::info() << "Unable to open tablespace " << id
+					<< " (flags=" << flags
+					<< ", filename=" << filename << ")."
+					<< " Have you deleted/moved the .IBD";
+				ut_strerr(err);
+			}
+		}
+	}
+
+	fil_set_max_space_id_if_bigger(max_id);
+	return(fail);
+}
+#endif /* !UNIV_HOTBACKUP */
