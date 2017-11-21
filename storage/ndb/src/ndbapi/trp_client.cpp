@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,12 +20,11 @@
 #include <NdbMem.h>
 
 trp_client::trp_client()
-  : m_blockNo(~Uint32(0)), m_facade(0)
+  : m_blockNo(~Uint32(0)), m_facade(NULL),
+    m_locked_for_poll(false), m_mutex(NULL), m_enabled_nodes_mask(),
+    m_send_nodes_cnt(0), m_send_buffers(NULL)
 {
   m_mutex = NdbMutex_Create();
-
-  m_locked_for_poll = false;
-  m_send_nodes_cnt = 0;
   m_send_buffers = new TFBuffer[MAX_NODES];
 }
 
@@ -114,6 +113,53 @@ trp_client::close()
   }
 }
 
+/**
+ * Enable/disable of trp_client sending.
+ *
+ * Protected by either locking the m_mutex, or being 'parked'
+ * in the inactive poll queue (is_locked_for_poll())
+ *
+ * Called from TransporterFacade when TF enable/disable
+ * its own 'global' send buffers.
+ *
+ * When disabling the send_buffers any buffered data is also
+ * discarded. The TransportRegistry 'protocol' also requires
+ * isSendEnabled() to be checked before attempting to allocate
+ * send buffers (getWritePtr() / updateWritePtr).
+ *
+ * No WritePtr allocation should be attempted from a disabled send buffer.
+ * Furthermore, finding pending send data to flush for a disabled send
+ * buffer will indicate a concurrency control problem. (Asserted)
+ */
+void
+trp_client::set_enabled_send(const NodeBitmask &nodes)
+{
+  assert(m_poll.m_locked || NdbMutex_Trylock(m_mutex) != 0);
+  m_enabled_nodes_mask.assign(nodes);
+}
+
+void
+trp_client::enable_send(NodeId node)
+{
+  assert(m_poll.m_locked || NdbMutex_Trylock(m_mutex) != 0);
+  m_enabled_nodes_mask.set(node);
+}
+
+void
+trp_client::disable_send(NodeId node)
+{
+  assert(m_poll.m_locked || NdbMutex_Trylock(m_mutex) != 0);
+  if (m_send_nodes_mask.get(node))
+  {
+    // Discard any buffered data to disabled node.
+    TFBuffer* b = m_send_buffers + node;
+    TFBufferGuard g0(* b);
+    m_facade->m_send_buffer.release_list(b->m_head);
+    b->clear();
+  }
+  m_enabled_nodes_mask.clear(node);
+}
+
 void
 trp_client::start_poll()
 {
@@ -169,6 +215,24 @@ trp_client::do_forceSend(int val)
   return 0;
 }
 
+void
+trp_client::flush_send_buffers()
+{
+  assert(m_poll.m_locked);
+  const Uint32 cnt = m_send_nodes_cnt;
+  for (Uint32 i = 0; i<cnt; i++)
+  {
+    const Uint32 node = m_send_nodes_list[i];
+    assert(m_send_nodes_mask.get(node));
+    TFBuffer* b = m_send_buffers + node;
+    TFBufferGuard g0(* b);
+    m_facade->flush_send_buffer(node, b);
+    b->clear();
+  }
+  m_send_nodes_cnt = 0;
+  m_send_nodes_mask.clear();
+}
+
 int
 trp_client::safe_noflush_sendSignal(const NdbApiSignal* signal, Uint32 nodeId)
 {
@@ -186,10 +250,29 @@ trp_client::safe_sendSignal(const NdbApiSignal* signal, Uint32 nodeId)
   return res;
 }
 
+
+/**
+ * ::isSendEnabled() and get-/updateWritePtr()
+ *
+ * We assume (and assert) that TransporterRegistry::prepareSend()
+ * check whether a node is 'isSendEnabled()' before allocating send buffer
+ * for a node send by calling getWritePtr() - updateWritePtr().
+ *
+ * Requires the 'm_mutex' to be held prior to calling these functions
+ */
+bool
+trp_client::isSendEnabled(NodeId node) const
+{
+  assert(m_poll.m_locked);
+  return m_enabled_nodes_mask.get(node);
+}
+
 Uint32 *
 trp_client::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
                         Uint32 max_use)
 {
+  assert(isSendEnabled(node));
+  
   TFBuffer* b = m_send_buffers+node;
   TFBufferGuard g0(* b);
   bool found = m_send_nodes_mask.get(node);
@@ -245,6 +328,22 @@ trp_client::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
   return NULL;
 }
 
+Uint32
+trp_client::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
+{
+  TFBuffer* b = m_send_buffers+node;
+  TFBufferGuard g0(* b);
+  assert(m_send_nodes_mask.get(node));
+  assert(b->m_head != 0);
+  assert(b->m_tail != 0);
+
+  TFPage *page = b->m_tail;
+  assert(page->m_bytes + lenBytes <= page->max_data_bytes());
+  page->m_bytes += lenBytes;
+  b->m_bytes_in_buffer += lenBytes;
+  return b->m_bytes_in_buffer;
+}
+
 /**
  * This is the implementation used by the NDB API. I update the
  * current send buffer size every time a thread gets the send mutex and
@@ -272,41 +371,6 @@ trp_client::getSendBufferLevel(NodeId node, SB_LevelType &level)
                               0,
                               level);
   return;
-}
-
-Uint32
-trp_client::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
-{
-  TFBuffer* b = m_send_buffers+node;
-  TFBufferGuard g0(* b);
-  assert(m_send_nodes_mask.get(node));
-  assert(b->m_head != 0);
-  assert(b->m_tail != 0);
-
-  TFPage *page = b->m_tail;
-  assert(page->m_bytes + lenBytes <= page->max_data_bytes());
-  page->m_bytes += lenBytes;
-  b->m_bytes_in_buffer += lenBytes;
-  return b->m_bytes_in_buffer;
-}
-
-void
-trp_client::flush_send_buffers()
-{
-  assert(m_poll.m_locked);
-  Uint32 cnt = m_send_nodes_cnt;
-  for (Uint32 i = 0; i<cnt; i++)
-  {
-    Uint32 node = m_send_nodes_list[i];
-    assert(m_send_nodes_mask.get(node));
-    TFBuffer* b = m_send_buffers + node;
-    TFBufferGuard g0(* b);
-    m_facade->flush_send_buffer(node, b);
-    b->clear();
-  }
-
-  m_send_nodes_cnt = 0;
-  m_send_nodes_mask.clear();
 }
 
 bool
