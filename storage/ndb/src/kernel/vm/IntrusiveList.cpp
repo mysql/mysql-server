@@ -174,7 +174,7 @@ void testSLList(Pool& pool)
 {
   diag("testSLList");
   SLList<SL>::Head head;
-  LocalSLList<Pool, SL> list(pool, head);
+  LocalSLList<Pool> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -186,7 +186,7 @@ void testDLList(Pool& pool)
 {
   diag("testDLList");
   DLList<DL>::Head head;
-  LocalDLList<Pool, DL> list(pool, head);
+  LocalDLList<Pool> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -200,7 +200,7 @@ void testSLCList(Pool& pool)
 {
   diag("testSLCList");
   SLCList<SL>::Head head;
-  LocalSLCList<Pool, SL> list(pool, head);
+  LocalSLCList<Pool> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -214,7 +214,7 @@ void testDLCList(Pool& pool)
 {
   diag("testDLCList");
   DLCList<DL>::Head head;
-  LocalDLCList<Pool, DL> list(pool, head);
+  LocalDLCList<Pool> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -232,7 +232,7 @@ void testSLFifoList(Pool& pool)
 {
   diag("testSLFifoList");
   SLFifoList<SL>::Head head;
-  LocalSLFifoList<Pool, SL> list(pool, head);
+  LocalSLFifoList<Pool> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -246,7 +246,7 @@ void testDLFifoList(Pool& pool)
 {
   diag("testDLFifoList");
   DLFifoList<DL>::Head head;
-  LocalDLFifoList<Pool, DL> list(pool, head);
+  LocalDLFifoList<Pool> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -262,7 +262,7 @@ void testSLCFifoList(Pool& pool)
 {
   diag("testSLCFifoList");
   SLCFifoList<SL>::Head head;
-  LocalSLCFifoList<Pool, SL> list(pool, head);
+  LocalSLCFifoList<Pool> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -282,7 +282,7 @@ void testDLCFifoList(Pool& pool)
 {
   diag("testDLCFifoList");
   DLCFifoList<DL>::Head head;
-  LocalDLCFifoList<Pool, DL> list(pool, head);
+  LocalDLCFifoList<Pool> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -315,7 +315,7 @@ void testConcat(Pool& pool)
   Uint32 c_seized = 0;
 
   {
-    LocalSLFifoList<Pool, SL> list(pool, slhead);
+    LocalSLFifoList<Pool> list(pool, slhead);
     for (; c_seized < 1 * scale ; c_seized ++)
     {
       list.seizeFirst(p);
@@ -323,7 +323,7 @@ void testConcat(Pool& pool)
     }
   } /* sl: 100-1 */
   {
-    LocalDLFifoList<Pool, DL> list(pool, dlhead);
+    LocalDLFifoList<Pool> list(pool, dlhead);
     for (; c_seized < 2 * scale ; c_seized ++)
     {
       list.seizeFirst(p);
@@ -331,7 +331,7 @@ void testConcat(Pool& pool)
     }
   } /* dl: 200-101 */
   {
-    LocalSLCFifoList<Pool, SL> list(pool, slchead);
+    LocalSLCFifoList<Pool> list(pool, slchead);
     for (; c_seized < 3 * scale; c_seized ++)
     {
       list.seizeFirst(p);
@@ -340,7 +340,7 @@ void testConcat(Pool& pool)
     ok(list.getCount() == 1 * scale, "slc.count %u (%u)", list.getCount(), 1 * scale);
   } /* slc: 300-201 */
   {
-    LocalDLCFifoList<Pool, DL> list(pool, dlchead);
+    LocalDLCFifoList<Pool> list(pool, dlchead);
     for (; c_seized < 4 * scale; c_seized ++)
     {
       list.seizeFirst(p);
@@ -349,12 +349,12 @@ void testConcat(Pool& pool)
     ok(list.getCount() == 1 * scale, "dlc.count %u (%u)", list.getCount(), 1 * scale);
   } /* dlc: 400-301 */
   {
-    LocalSLCFifoList<Pool, SL> list(pool, slchead);
+    LocalSLCFifoList<Pool> list(pool, slchead);
     list.appendList(dlchead);
     ok(list.getCount() == 2 * scale, "slc.append(dlc) %u (%u) items", list.getCount(), 2 * scale);
   } /* slc: 300-201, 400-301 */
   {
-    LocalSLFifoList<Pool, SL> list(pool, slhead);
+    LocalSLFifoList<Pool> list(pool, slhead);
     list.prependList(slchead);
     Uint32 c = 0;
     if (list.first(p))
@@ -365,7 +365,7 @@ void testConcat(Pool& pool)
     ok(c == 3 * scale, "sl.prepend(slc) %u (%u) items", c, 3 * scale);
   } /* sl: 300-201, 400-301, 100-1 */
   {
-    LocalDLCFifoList<Pool, DL> list(pool, dlchead);
+    LocalDLCFifoList<Pool> list(pool, dlchead);
     for (; c_seized < 5 * scale; c_seized ++)
     {
       list.seizeFirst(p);
@@ -373,7 +373,7 @@ void testConcat(Pool& pool)
     }
   } /* dlc: 500-401 */
   {
-    LocalDLFifoList<Pool, DL> list(pool, dlhead);
+    LocalDLFifoList<Pool> list(pool, dlhead);
     list.appendList(dlchead);
     Uint32 c = 0;
     if (list.first(p))
@@ -384,7 +384,7 @@ void testConcat(Pool& pool)
     ok(c == 2 * scale, "dl.append(dlc) %u (%u) items", c, 2 * scale);
   } /* dl: 200-101, 500-401 */
   {
-    LocalSLFifoList<Pool, SL> list(pool, slhead);
+    LocalSLFifoList<Pool> list(pool, slhead);
     list.prependList(dlhead);
     Uint32 c = 0;
     if (list.first(p))
@@ -397,7 +397,7 @@ void testConcat(Pool& pool)
   ok(slchead.getCount() == 0, "slc.count %u (0)", slchead.getCount());
   ok(dlchead.getCount() == 0, "dlc.count %u (0)", dlchead.getCount());
   {
-    LocalSLFifoList<Pool, SL> list(pool, slhead);
+    LocalSLFifoList<Pool> list(pool, slhead);
     list.first(p);
     ok(p.p->key == 2 * scale, "sl#1: %u (%u)", p.p->key, 2 * scale);
     for (unsigned i = 0; i < 1 * scale; i++) list.next(p);

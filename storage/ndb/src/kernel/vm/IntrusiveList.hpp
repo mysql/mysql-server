@@ -96,6 +96,7 @@
  **/
 
 #include <ndb_limits.h>
+#include <IntrusiveTags.hpp>
 #include <Pool.hpp>
 
 #define JAM_FILE_ID 298
@@ -218,6 +219,30 @@ static void setPrev(U& t, Uint32 v) { t.prevList = v; }
 template<class T2> static void copyPrev(T& t, T2& t2) { setPrev(t, getPrev(t2)); }
 };
 
+template<typename T, IntrusiveTags tag>
+struct TaggedSingleLinkMethods
+{
+static bool hasNext(T& t) { return getNext(t) != RNIL; }
+static Uint32 getNext(T& t) { return IntrusiveAccess<tag>::getNext(t); }
+static void setNext(T& t, Uint32 v) { IntrusiveAccess<tag>::getNext(t) = v; }
+template<class T2> static void copyNext(T& t, T2& t2) { setNext(t, T2::getNext(t2)); }
+static void setPrev(T& t, Uint32 v) { }
+template<class T2> static void copyPrev(T& t, T2& t2) { setPrev(t, T2::getPrev(t2)); }
+};
+
+template<typename T, IntrusiveTags tag>
+struct TaggedDoubleLinkMethods
+{
+static bool hasNext(T& t) { return getNext(t) != RNIL; }
+static Uint32 getNext(T& t) { return IntrusiveAccess<tag>::getNext(t); }
+static void setNext(T& t, Uint32 v) { IntrusiveAccess<tag>::getNext(t) = v; }
+template<class T2> static void copyNext(T& t, T2& t2) { setNext(t, T2::getNext(t2)); }
+static bool hasPrev(T& t) { return getPrev(t) != RNIL; }
+static Uint32 getPrev(T& t) { return IntrusiveAccess<tag>::getPrev(t); }
+static void setPrev(T& t, Uint32 v) { IntrusiveAccess<tag>::getPrev(t) = v; }
+template<class T2> static void copyPrev(T& t, T2& t2) { setPrev(t, T2::getPrev(t2)); }
+};
+
 template<typename T> struct remove_reference { typedef T type; };
 template<typename T> struct remove_reference<T&> { typedef T type; };
 template<typename T> struct pod { typedef typename T::POD type; };
@@ -280,17 +305,17 @@ protected:
 /* Specialisations */
 
 #define INTRUSIVE_LIST_COMPAT(prefix, links) \
-template <typename P, typename U = typename P::Type, typename LM = Default##links##LinkMethods<typename P::Type, U> > \
+template <typename P, IntrusiveTags tag = IA_List, typename LM = Tagged##links##LinkMethods<typename P::Type, tag> > \
 class prefix##List : public IntrusiveList<P, prefix##Head, LM> { \
 public: prefix##List(P& pool): IntrusiveList<P, prefix##Head, LM>(pool) { } \
 }; \
  \
-template <typename P, typename U = typename P::Type, typename LM = Default##links##LinkMethods<typename P::Type, U> > \
+template <typename P, IntrusiveTags tag = IA_List, typename LM = Tagged##links##LinkMethods<typename P::Type, tag> > \
 class Local##prefix##List : public IntrusiveList<P, prefix##Head::POD&, LM> { \
 public: Local##prefix##List(P& pool, prefix##Head::POD& head): IntrusiveList<P, prefix##Head::POD&, LM>(pool, head) { } \
 }; \
  \
-template <typename P, typename U = typename P::Type, typename LM = Default##links##LinkMethods<typename P::Type, U> > \
+template <typename P, IntrusiveTags tag = IA_List, typename LM = Tagged##links##LinkMethods<typename P::Type, tag> > \
 class ConstLocal##prefix##List : public IntrusiveList<P, const prefix##Head::POD&, LM> { \
 public: ConstLocal##prefix##List(P& pool, const prefix##Head::POD& head): IntrusiveList<P, const prefix##Head::POD&, LM>(pool, head) { } \
 }

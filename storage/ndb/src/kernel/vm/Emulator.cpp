@@ -644,6 +644,7 @@ static const char* const jamFileNames[] =
    "StaticSlotPool.hpp",                 // 508
    "StaticSlotPool.cpp",                 // 509
    "ComposedSlotPool.hpp",               // 510
+   "IntrusiveTags.hpp",                  // 511
    };
 
 bool 

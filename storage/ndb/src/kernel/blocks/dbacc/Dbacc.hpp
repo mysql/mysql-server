@@ -375,10 +375,10 @@ private:
   Page32_pool& m_page_pool;
 };
 
-typedef SLCFifoList<Page8_pool,Page8,Page8SLinkMethods> Page8List;
-typedef LocalSLCFifoList<Page8_pool,Page8,Page8SLinkMethods> LocalPage8List;
-typedef DLCFifoList<Page8_pool,Page8,ContainerPageLinkMethods> ContainerPageList;
-typedef LocalDLCFifoList<Page8_pool,Page8,ContainerPageLinkMethods> LocalContainerPageList;
+typedef SLCFifoList<Page8_pool, IA_Page8> Page8List;
+typedef LocalSLCFifoList<Page8_pool, IA_Page8> LocalPage8List;
+typedef DLCFifoList<Page8_pool, IA_Page8> ContainerPageList;
+typedef LocalDLCFifoList<Page8_pool, IA_Page8> LocalContainerPageList;
 
 /* --------------------------------------------------------------------------------- */
 /* FRAGMENTREC. ALL INFORMATION ABOUT FRAMENT AND HASH TABLE IS SAVED IN FRAGMENT    */
