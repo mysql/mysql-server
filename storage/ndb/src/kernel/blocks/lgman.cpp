@@ -4813,6 +4813,35 @@ Lgman::wait_pending(Uint64 lsn, const Uint32* ptr, Uint32 len)
   return false;
 }
 
+#ifdef VM_TRACE
+class TransientStackBuff
+{
+public:
+  Uint32 my_data[MAX_UNDO_DATA];
+
+  TransientStackBuff(const Uint32* data, const Uint32 len)
+  {
+    assert(len<= MAX_UNDO_DATA);
+    memcpy(my_data, data, len << 2);
+  }
+
+  const Uint32* getPtr() const
+  {
+    return my_data;
+  }
+
+  void zap()
+  {
+    memset(my_data, 0xff, (MAX_UNDO_DATA) << 2);
+  }
+
+  ~TransientStackBuff()
+  {
+    zap();
+  }
+};
+#endif
+
 void
 Lgman::execute_undo_record(Signal* signal)
 {
@@ -5026,6 +5055,11 @@ Lgman::execute_undo_record(Signal* signal)
       {
         jam();
         jamLine(mask);
+#ifdef VM_TRACE
+        /* Test that TUP does not rely on us keeping ptr valid */
+        TransientStackBuff tsb((ptr-len) + 1, len);
+        ptr = (tsb.getPtr() + len) - 1;
+#endif
         Dbtup_client tup(this, m_tup);
         tup.disk_restart_undo(signal, lsn, mask, ptr - len + 1, len);
         jamEntry();
