@@ -636,6 +636,8 @@ private:
   void updateWritePtr(TransporterSendBufferHandle *handle,
                       NodeId node, Uint32 lenBytes, Uint32 prio);
 
+  void discard_send_buffer(NodeId node);
+
 public:
   /**
    * TransporterSendBufferHandle implementation.
@@ -677,6 +679,7 @@ private:
 
   /* Send buffer for one transporter. */
   struct SendBuffer {
+    bool m_enabled;
     /* Total size of data in buffer, from m_offset_start_data to end. */
     Uint32 m_used_bytes;
     /* Linked list of active buffer pages with first and last pointer. */
@@ -712,11 +715,11 @@ private:
   Uint64 m_total_max_send_buffer;
 
 public:
+  void enable_send_buffer(NodeId node);
+  void disable_send_buffer(NodeId node);
+
   Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
   Uint32 bytes_sent(NodeId node, Uint32 bytes);
-  bool has_data_to_send(NodeId node);
-
-  void reset_send_buffer(NodeId node);
 
   void print_transporters(const char* where, NdbOut& out = ndbout);
 
