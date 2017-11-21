@@ -396,7 +396,7 @@ public:
    *
    * When IOState is HaltOutput or HaltIO do not send or insert any 
    * signals in the SendBuffer, unless it is intended for the remote 
-   * CMVMI block (blockno 252)
+   * QMGR block (blockno 252)
    * Perform prepareSend on the transporter. 
    *
    * NOTE signalHeader->xxxBlockRef should contain block numbers and 
