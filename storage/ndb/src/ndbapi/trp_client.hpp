@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,6 +52,11 @@ public:
   void complete_poll();
   void wakeup();
 
+  // Called under m_mutex protection
+  void set_enabled_send(const NodeBitmask &nodes);
+  void enable_send(NodeId node);
+  void disable_send(NodeId node);
+  
   void flush_send_buffers();
   int do_forceSend(int val = 1);
 
@@ -99,6 +104,7 @@ private:
   /**
    * TransporterSendBufferHandle interface
    */
+  virtual bool isSendEnabled(NodeId node) const;
   virtual Uint32 *getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
                               Uint32 max_use);
   virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
@@ -150,6 +156,8 @@ private:
     Uint32 m_lock_array_size;
     trp_client ** m_locked_clients;
   } m_poll;
+
+  NodeBitmask m_enabled_nodes_mask;
 
   /**
    * This is used for sending
