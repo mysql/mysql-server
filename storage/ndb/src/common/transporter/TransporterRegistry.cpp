@@ -21,6 +21,7 @@
 
 #include "Transporter.hpp"
 #include <SocketAuthenticator.hpp>
+#include "BlockNumbers.h"
 
 #ifdef NDB_TCP_TRANSPORTER
 #include "TCP_Transporter.hpp"
@@ -889,46 +890,53 @@ TransporterRegistry::prepareSendTemplate(
                                  AnySectionArg section)
 {
   Transporter *t = theTransporters[nodeId];
-  if(t != NULL && 
-     (((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
-      ((signalHeader->theReceiversBlockNumber == 252) ||
-       (signalHeader->theReceiversBlockNumber == 4002)))) {
-	 
-    if (likely(sendHandle->isSendEnabled(nodeId))){
-      Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, section.m_ptr);
-      if(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE){
-	Uint32 * insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-	if(insertPtr != 0){
+  if (unlikely(t == NULL))
+  {
+    DEBUG("Discarding message to unknown node: " << nodeId);
+    return SEND_UNKNOWN_NODE;
+  }
+  else if(
+    likely((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
+           (signalHeader->theReceiversBlockNumber == QMGR) ||
+           (signalHeader->theReceiversBlockNumber == API_CLUSTERMGR))
+  {
+    if (likely(sendHandle->isSendEnabled(nodeId)))
+    {
+      const Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, section.m_ptr);
+      if (likely(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE))
+      {
+	Uint32 *insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
+	if (likely(insertPtr != NULL))
+	{
 	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, section);
 	  updateWritePtr(sendHandle, nodeId, lenBytes, prio);
 	  return SEND_OK;
 	}
 
         set_status_overloaded(nodeId, true);
-        int sleepTime = 2;
+        const int sleepTime = 2;
 
 	/**
 	 * @note: on linux/i386 the granularity is 10ms
 	 *        so sleepTime = 2 generates a 10 ms sleep.
 	 */
-	for(int i = 0; i<50; i++){
+	for (int i = 0; i<50; i++)
+	{
 	  if((nSHMTransporters+nSCITransporters) == 0)
 	    NdbSleep_MilliSleep(sleepTime);
           /* FC : Consider counting sleeps here */
 	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-	  if(insertPtr != 0){
+	  if (insertPtr != NULL)
+	  {
 	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, section);
 	    updateWritePtr(sendHandle, nodeId, lenBytes, prio);
-	    break;
+	    
+	    /**
+	     * Send buffer full, but resend works
+	     */
+	    report_error(nodeId, TE_SEND_BUFFER_FULL);
+	    return SEND_OK;
 	  }
-	}
-	
-	if(insertPtr != 0){
-	  /**
-	   * Send buffer full, but resend works
-	   */
-	  report_error(nodeId, TE_SEND_BUFFER_FULL);
-	  return SEND_OK;
 	}
 	
 	WARNING("Signal to " << nodeId << " lost(buffer)");
@@ -955,9 +963,6 @@ TransporterRegistry::prepareSendTemplate(
     DEBUG("Discarding message to block: " 
 	  << signalHeader->theReceiversBlockNumber 
 	  << " node: " << nodeId);
-    
-    if(t == NULL)
-      return SEND_UNKNOWN_NODE;
     
     return SEND_BLOCKED;
   }
