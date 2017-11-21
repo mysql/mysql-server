@@ -228,7 +228,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   D("proxy: disk_restart_undo" << V(type) << hex << V(ptr) << dec << V(len) << V(lsn));
   undo.m_type = type;
   undo.m_len = len;
-  undo.m_ptr = ptr;
+  undo.m_ptr = ptr; /* Ptr to memory managed by lgman */
   undo.m_lsn = lsn;
 
   ndbrequire(undo.m_len <= MAX_UNDO_DATA);
@@ -382,6 +382,12 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
         c_tableRec[tableId] != create_table_version)
     {
       jam();
+      /*
+       * The timeslice via PGMAN/5 gives LGMAN a chance to overwrite the
+       * data pointed to by ptr.  So save it now and do not use ptr.
+       */
+      memcpy(undo.m_data, undo.m_ptr, undo.m_len << 2);
+      undo.m_ptr = undo.m_data;
       /*
        * An invalid table id or an incorrect table version means that
        * the extent information was not to be trusted. We attempt to
