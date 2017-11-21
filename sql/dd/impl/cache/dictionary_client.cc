@@ -364,11 +364,10 @@ private:
     if (!column_statistics)
       return true;  /* purecov: deadcode */
 
-    return thd->mdl_context.owns_equal_or_stronger_lock(
-                              MDL_key::COLUMN_STATISTICS,
-                              "",
-                              column_statistics->create_mdl_key().c_str(),
-                              lock_type);
+    MDL_key mdl_key;
+    column_statistics->create_mdl_key(&mdl_key);
+
+    return thd->mdl_context.owns_equal_or_stronger_lock(&mdl_key, lock_type);
   }
 
 

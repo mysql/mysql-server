@@ -50,8 +50,8 @@ struct row_metadata_lock
   ulong m_owner_thread_id;
   /** Column OWNER_EVENT_ID. */
   ulong m_owner_event_id;
-  /** Columns OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME. */
-  PFS_object_row m_object;
+  /** Columns OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME. */
+  PFS_column_row m_object;
 };
 
 class PFS_index_metadata_locks : public PFS_engine_index
@@ -68,8 +68,9 @@ public:
 
   PFS_index_metadata_locks(PFS_engine_key *key_1,
                            PFS_engine_key *key_2,
-                           PFS_engine_key *key_3)
-    : PFS_engine_index(key_1, key_2, key_3)
+                           PFS_engine_key *key_3,
+                           PFS_engine_key *key_4)
+    : PFS_engine_index(key_1, key_2, key_3, key_4)
   {
   }
 
@@ -102,10 +103,11 @@ class PFS_index_metadata_locks_by_object : public PFS_index_metadata_locks
 {
 public:
   PFS_index_metadata_locks_by_object()
-    : PFS_index_metadata_locks(&m_key_1, &m_key_2, &m_key_3),
+    : PFS_index_metadata_locks(&m_key_1, &m_key_2, &m_key_3, &m_key_4),
       m_key_1("OBJECT_TYPE"),
       m_key_2("OBJECT_SCHEMA"),
-      m_key_3("OBJECT_NAME")
+      m_key_3("OBJECT_NAME"),
+      m_key_4("COLUMN_NAME")
   {
   }
 
@@ -119,6 +121,7 @@ private:
   PFS_key_object_type m_key_1;
   PFS_key_object_schema m_key_2;
   PFS_key_object_name m_key_3;
+  PFS_key_column_name m_key_4;
 };
 
 class PFS_index_metadata_locks_by_owner : public PFS_index_metadata_locks

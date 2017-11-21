@@ -57,6 +57,7 @@
   - setup_instruments (modified)
   - variables_info (modified)
   - setup_timers (removed)
+  - metadata_locks (modified, added column COLUMN_NAME)
 */
 static const uint PFS_DD_VERSION= 80004;
 

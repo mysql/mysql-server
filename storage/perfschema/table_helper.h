@@ -602,9 +602,32 @@ struct PFS_object_row
   /** Build a row from a memory buffer. */
   int make_row(PFS_table_share *pfs);
   int make_row(PFS_program *pfs);
-  int make_row(const MDL_key *pfs);
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
+  void set_nullable_field(uint index, Field *f);
+};
+
+/** Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, COLUMN_NAME. */
+struct PFS_column_row
+{
+  /** Column OBJECT_TYPE. */
+  enum_object_type m_object_type;
+  /** Column SCHEMA_NAME. */
+  char m_schema_name[NAME_LEN];
+  /** Length in bytes of @c m_schema_name. */
+  uint m_schema_name_length;
+  /** Column OBJECT_NAME. */
+  char m_object_name[NAME_LEN];
+  /** Length in bytes of @c m_object_name. */
+  uint m_object_name_length;
+  /** Column OBJECT_NAME. */
+  char m_column_name[NAME_LEN];
+  /** Length in bytes of @c m_column_name. */
+  uint m_column_name_length;
+
+  /** Build a row from a memory buffer. */
+  int make_row(const MDL_key *pfs);
+  /** Set a table field from the row. */
   void set_nullable_field(uint index, Field *f);
 };
 
@@ -1750,6 +1773,7 @@ public:
   bool match(const PFS_program *pfs);
   bool match(const PFS_prepared_stmt *pfs);
   bool match(const PFS_object_row *pfs);
+  bool match(const PFS_column_row *pfs);
   bool match(const PFS_setup_object *pfs);
   bool match(const char *schema_name, uint schema_name_length);
 };
@@ -1769,9 +1793,24 @@ public:
   bool match(const PFS_program *pfs);
   bool match(const PFS_prepared_stmt *pfs);
   bool match(const PFS_object_row *pfs);
+  bool match(const PFS_column_row *pfs);
   bool match(const PFS_index_row *pfs);
   bool match(const PFS_setup_object *pfs);
   bool match(const char *schema_name, uint schema_name_length);
+};
+
+class PFS_key_column_name : public PFS_key_string<NAME_CHAR_LEN>
+{
+public:
+  PFS_key_column_name(const char *name) : PFS_key_string(name)
+  {
+  }
+
+  ~PFS_key_column_name()
+  {
+  }
+
+  bool match(const PFS_column_row *pfs);
 };
 
 class PFS_key_object_type : public PFS_engine_key
@@ -1790,6 +1829,7 @@ public:
 
   bool match(enum_object_type object_type);
   bool match(const PFS_object_row *pfs);
+  bool match(const PFS_column_row *pfs);
   bool match(const PFS_program *pfs);
 
   enum_object_type m_object_type;

@@ -884,13 +884,14 @@ def	performance_schema	memory_summary_global_by_event_name	HIGH_NUMBER_OF_BYTES_
 def	performance_schema	metadata_locks	OBJECT_TYPE	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	MUL		select,insert,update,references			NULL
 def	performance_schema	metadata_locks	OBJECT_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	metadata_locks	OBJECT_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	OBJECT_INSTANCE_BEGIN	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references			NULL
-def	performance_schema	metadata_locks	LOCK_TYPE	5	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	LOCK_DURATION	6	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	LOCK_STATUS	7	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	SOURCE	8	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	OWNER_THREAD_ID	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references			NULL
-def	performance_schema	metadata_locks	OWNER_EVENT_ID	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	COLUMN_NAME	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	OBJECT_INSTANCE_BEGIN	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references			NULL
+def	performance_schema	metadata_locks	LOCK_TYPE	6	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	LOCK_DURATION	7	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	LOCK_STATUS	8	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	SOURCE	9	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	OWNER_THREAD_ID	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references			NULL
+def	performance_schema	metadata_locks	OWNER_EVENT_ID	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	mutex_instances	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)	MUL		select,insert,update,references			NULL
 def	performance_schema	mutex_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references			NULL
 def	performance_schema	mutex_instances	LOCKED_BY_THREAD_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references			NULL
