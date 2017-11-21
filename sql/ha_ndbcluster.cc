@@ -6978,6 +6978,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
 void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
 {
   int res;
+  (void)res; // Bug#27150980 NDB_UNPACK_RECORD NEED ERROR HANDLING
   DBUG_ASSERT(src_row != NULL);
 
   my_ptrdiff_t dst_offset= dst_row - table->record[0];

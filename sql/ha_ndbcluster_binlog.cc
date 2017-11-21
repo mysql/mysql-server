@@ -6256,6 +6256,7 @@ handle_data_event(NdbEventOperation *pOp,
                         table->s->db.str, table->s->table_name.str));
     {
       int ret;
+      (void) ret; // Bug27150740 HANDLE_DATA_EVENT NEED ERROR HANDLING
       if (event_data->have_blobs)
       {
         my_ptrdiff_t ptrdiff= 0;
@@ -6300,6 +6301,7 @@ handle_data_event(NdbEventOperation *pOp,
               */
 
       int ret;
+      (void) ret; // Bug27150740 HANDLE_DATA_EVENT NEED ERROR HANDLING
       if (event_data->have_blobs)
       {
         my_ptrdiff_t ptrdiff= table->record[n] - table->record[0];
@@ -6329,6 +6331,7 @@ handle_data_event(NdbEventOperation *pOp,
                         table->s->db.str, table->s->table_name.str));
     {
       int ret;
+      (void) ret; // Bug27150740 HANDLE_DATA_EVENT NEED ERROR HANDLING
       if (event_data->have_blobs)
       {
         my_ptrdiff_t ptrdiff= 0;
@@ -6918,7 +6921,6 @@ restart_cluster_failure:
     log_verbose(1, "Wait for first event");
     // wait for the first event
     thd->proc_info= "Waiting for first event from ndbcluster";
-    int schema_res;
     Uint64 schema_gci;
     do
     {
@@ -6929,7 +6931,7 @@ restart_cluster_failure:
 
       my_thread_yield();
       mysql_mutex_lock(&injector_event_mutex);
-      schema_res= s_ndb->pollEvents(100, &schema_gci);
+      (void)s_ndb->pollEvents(100, &schema_gci);
       mysql_mutex_unlock(&injector_event_mutex);
     } while (schema_gci == 0 || ndb_latest_received_binlog_epoch == schema_gci);
 
@@ -6952,8 +6954,7 @@ restart_cluster_failure:
       }
     }
     // now check that we have epochs consistent with what we had before the restart
-    DBUG_PRINT("info", ("schema_res: %d  schema_gci: %u/%u", schema_res,
-                        (uint)(schema_gci >> 32),
+    DBUG_PRINT("info", ("schema_gci: %u/%u", (uint)(schema_gci >> 32),
                         (uint)(schema_gci)));
     {
       i_ndb->flushIncompleteEvents(schema_gci);
