@@ -61,8 +61,7 @@ std::vector<Block_processor_ptr> create_block_processors(
 int process_client_input(std::istream &input,
                          std::vector<Block_processor_ptr> *eaters,
                          Script_stack *script_stack, const Console &console) {
-  const std::size_t k_buffer_length = 64 * 1024 + 1024;
-  char linebuf[k_buffer_length] = {0};
+  std::string linebuf;
 
   if (!input.good()) {
     console.print_error("Input stream isn't valid\n");
@@ -72,7 +71,7 @@ int process_client_input(std::istream &input,
 
   Block_processor_ptr hungry_block_reader;
 
-  while (input.getline(linebuf, k_buffer_length)) {
+  while (std::getline(input, linebuf)) {
     Block_processor::Result result = Block_processor::Result::Not_hungry;
 
     script_stack->front().m_line_number++;
@@ -82,7 +81,7 @@ int process_client_input(std::istream &input,
 
       while (i != eaters->end() &&
              Block_processor::Result::Not_hungry == result) {
-        result = (*i)->feed(input, linebuf);
+        result = (*i)->feed(input, linebuf.c_str());
         if (Block_processor::Result::Indigestion == result) return 1;
         if (Block_processor::Result::Feed_more == result)
           hungry_block_reader = (*i);
@@ -92,7 +91,7 @@ int process_client_input(std::istream &input,
       continue;
     }
 
-    result = hungry_block_reader->feed(input, linebuf);
+    result = hungry_block_reader->feed(input, linebuf.c_str());
 
     if (Block_processor::Result::Indigestion == result) return 1;
 
