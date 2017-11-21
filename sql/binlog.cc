@@ -109,6 +109,7 @@
 #include "statement_events.h"
 #include "table_id.h"
 #include "thr_lock.h"
+#include "sql/sql_backup_lock.h"            // is_instance_backup_locked
 
 class Item;
 
@@ -7716,9 +7717,6 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
 
 /**
   The method executes logs purging routine.
-
-  @retval
-    nonzero - error in rotating routine.
 */
 void MYSQL_BIN_LOG::purge()
 {
@@ -7731,12 +7729,33 @@ void MYSQL_BIN_LOG::purge()
                     { purge_time= my_time(0);});
     if (purge_time >= 0)
     {
-      /*
-        Flush logs for storage engines, so that the last transaction
-        is fsynced inside storage engines.
-      */
-      ha_flush_logs(NULL);
-      purge_logs_before_date(purge_time, true);
+      Is_instance_backup_locked_result is_instance_locked;
+      is_instance_locked = is_instance_backup_locked(current_thd);
+
+      int i= 0;
+      while (is_instance_locked == Is_instance_backup_locked_result::OOM &&
+             i < MYSQL_BIN_LOG::MAX_RETRIES_BY_OOM)
+      {
+        /* Sleep 1 microsecond per try to avoid temporary 'out of memory' */
+        my_sleep(1);
+        is_instance_locked = is_instance_backup_locked(current_thd);
+        i++;
+      }
+
+      if (is_instance_locked == Is_instance_backup_locked_result::OOM)
+      {
+        exec_binlog_error_action_abort("OOM happened while checking if "
+                                       "instance was locked for backup");
+      }
+      if (is_instance_locked == Is_instance_backup_locked_result::NOT_LOCKED)
+      {
+        /*
+          Flush logs for storage engines, so that the last transaction
+          is fsynced inside storage engines.
+        */
+        ha_flush_logs(NULL);
+        purge_logs_before_date(purge_time, true);
+      }
     }
   }
 }

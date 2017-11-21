@@ -928,6 +928,7 @@ public:
     True while rotating binlog, which is caused by logging Incident_log_event.
   */
   bool is_rotating_caused_by_incident;
+  static const int MAX_RETRIES_BY_OOM= 10;
 };
 
 struct LOAD_FILE_INFO
