@@ -43,8 +43,6 @@ template <class T> class List;
   API for the Optimizer trace (WL#5257)
 */
 
-#ifdef OPTIMIZER_TRACE
-
 /**
   @page PAGE_OPT_TRACE The Optimizer Trace
 
@@ -1138,102 +1136,6 @@ int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item*);
 
 //@}
 
-#else /* defined (OPTIMIZER_TRACE) */
-
-/* all empty */
-
-/** Empty implementation used when optimizer trace is not compiled in */
-class Opt_trace_object
-{
-public:
-  Opt_trace_object(Opt_trace_context *ctx, const char *key,
-                   Opt_trace_context::feature_value feature=
-                   Opt_trace_context::MISC)
-  {}
-  Opt_trace_object(Opt_trace_context *ctx,
-                   Opt_trace_context::feature_value feature=
-                   Opt_trace_context::MISC)
-  {}
-  Opt_trace_object& add_alnum(const char *key, const char *value)
-  { return *this; }
-  Opt_trace_object& add_utf8(const char *key,
-                             const char *value, size_t val_length)
-  { return *this; }
-  Opt_trace_object& add_utf8(const char *key, const char *value)
-  { return *this; }
-  Opt_trace_object& add(const char *key, Item *item) { return *this; }
-  Opt_trace_object& add(const char *key, bool value) { return *this; }
-  Opt_trace_object& add(const char *key, int value) { return *this; }
-  Opt_trace_object& add(const char *key, uint value) { return *this; }
-  Opt_trace_object& add(const char *key, ulong value) { return *this; }
-  Opt_trace_object& add(const char *key, longlong value) { return *this; }
-  Opt_trace_object& add(const char *key, ulonglong value) { return *this; }
-  Opt_trace_object& add(const char *key, double value) { return *this; }
-  Opt_trace_object& add(const char *key, const Cost_estimate &cost)
-  { return *this; }
-  Opt_trace_object& add_hex(const char *key, uint64 value) { return *this; }
-  Opt_trace_object& add_utf8_table(const TABLE_LIST *tab) { return *this; }
-  Opt_trace_object& add_select_number(uint select_number) { return *this; }
-  void end() {}
-};
-
-/** Empty implementation used when optimizer trace is not compiled in */
-class Opt_trace_array
-{
-public:
-  Opt_trace_array(Opt_trace_context *ctx, const char *key,
-                  Opt_trace_context::feature_value feature=
-                  Opt_trace_context::MISC)
-  {}
-  Opt_trace_array(Opt_trace_context *ctx,
-                  Opt_trace_context::feature_value feature=
-                  Opt_trace_context::MISC)
-  {}
-  Opt_trace_array& add_alnum(const char *value) { return *this; }
-  Opt_trace_array& add_utf8(const char *value, size_t val_length)
-  { return *this; }
-  Opt_trace_array& add_utf8(const char *value)
-  { return *this; }
-  Opt_trace_array& add(Item *item) { return *this; }
-  Opt_trace_array& add(bool value) { return *this; }
-  Opt_trace_array& add(int value) { return *this; }
-  Opt_trace_array& add(uint value) { return *this; }
-  Opt_trace_array& add(longlong value) { return *this; }
-  Opt_trace_array& add(ulonglong value) { return *this; }
-  Opt_trace_array& add(double value) { return *this; }
-  Opt_trace_array& add_hex(uint64 value) { return *this; }
-  Opt_trace_array& add_utf8_table(const TABLE_LIST *tab) { return *this; }
-  Opt_trace_array& add_select_number(uint select_number) { return *this; }
-  void end() {}
-};
-
-/** Empty implementation used when optimizer trace is not compiled in */
-class Opt_trace_disable_I_S
-{
-public:
-  Opt_trace_disable_I_S(Opt_trace_context *ctx_arg, bool disable_arg) {}
-};
-
-class Opt_trace_start
-{
-public:
-  Opt_trace_start(THD *thd, const TABLE_LIST *tbl,
-                  enum enum_sql_command sql_command,
-                  List<set_var_base> *set_vars,
-                  const char *query, size_t query_length,
-                  sp_printable *instr,
-                  const CHARSET_INFO *query_charset) {}
-};
-
-#define opt_trace_print_expanded_query(thd, select_lex, trace_object) \
-  do {} while (0)
-#define opt_trace_disable_if_no_view_access(thd, view, underlying_tables) \
-  do {} while (0)
-#define opt_trace_disable_if_no_stored_proc_func_access(thd, sp) do{} while(0)
-#define opt_trace_disable_if_no_security_context_access(thd) do {} while (0)
-
-#endif /* OPTIMIZER_TRACE */
-
 /**
    Helper for defining query-transformation-related trace objects in one
    code line. This produces
@@ -1258,13 +1160,5 @@ public:
   Opt_trace_object object_level1(trace, "transformation");              \
   object_level1.add_select_number(select_number);                       \
   object_level1.add_alnum("from", from).add_alnum("to", to);
-
-/*
-  A debug binary without optimizer trace compiled in, will miss some
-  debugging info, be less useful, so:
-*/
-#if !defined(DBUG_OFF) && !defined(OPTIMIZER_TRACE)
-#error debug binaries must support optimizer trace
-#endif
 
 #endif /* OPT_TRACE_INCLUDED */

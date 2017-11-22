@@ -5546,13 +5546,8 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
    fill_open_tables, make_old_format, 0, -1, -1, 1, 0},
-#ifdef OPTIMIZER_TRACE
   {"OPTIMIZER_TRACE", optimizer_trace_info, create_schema_table,
    fill_optimizer_trace_info, NULL, NULL, -1, -1, false, 0},
-#else // for alignment with enum_schema_tables
-  {"OPTIMIZER_TRACE", optimizer_trace_info, create_schema_table,
-   NULL, NULL, NULL, -1, -1, false, 0},
-#endif
   {"PLUGINS", plugin_fields_info, create_schema_table,
    fill_plugins, make_old_format, 0, -1, -1, 0, 0},
   {"PROCESSLIST", processlist_fields_info, create_schema_table,

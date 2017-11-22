@@ -1164,7 +1164,6 @@ void Group_check::find_fd_in_joined_table(List<TABLE_LIST> *join_list)
 /// Writes "check information" to the optimizer trace
 void Group_check::to_opt_trace(THD *thd)
 {
-#ifdef OPTIMIZER_TRACE
   if (fd.empty() && !whole_tables_fd)
     return;
   Opt_trace_context *ctx= &thd->opt_trace;
@@ -1173,7 +1172,6 @@ void Group_check::to_opt_trace(THD *thd)
   Opt_trace_object trace_wrapper(ctx);
   Opt_trace_object trace_fds(ctx, "functional_dependencies_of_GROUP_columns");
   to_opt_trace2(ctx, &trace_fds);
-#endif
 }
 
 /**
@@ -1183,7 +1181,6 @@ void Group_check::to_opt_trace(THD *thd)
 void Group_check::to_opt_trace2(Opt_trace_context *ctx,
                                 Opt_trace_object *parent)
 {
-#ifdef OPTIMIZER_TRACE
   if (table)
     parent->add_utf8_table(table);
   if (whole_tables_fd)
@@ -1213,7 +1210,6 @@ void Group_check::to_opt_trace2(Opt_trace_context *ctx,
       mat_tables.at(j)->to_opt_trace2(ctx, &trace_wrapper);
     }
   }
-#endif
 }
 
 

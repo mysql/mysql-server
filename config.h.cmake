@@ -228,7 +228,6 @@
 #cmakedefine HAVE_ASAN
 #cmakedefine HAVE_UBSAN
 #cmakedefine ENABLED_LOCAL_INFILE 1
-#cmakedefine OPTIMIZER_TRACE 1
 #cmakedefine DEFAULT_MYSQL_HOME "@DEFAULT_MYSQL_HOME@"
 #cmakedefine SHAREDIR "@SHAREDIR@"
 #cmakedefine DEFAULT_BASEDIR "@DEFAULT_BASEDIR@"

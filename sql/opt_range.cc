@@ -2856,7 +2856,6 @@ public:
 void TRP_RANGE::trace_basic_info(const PARAM *param,
                                  Opt_trace_object *trace_object) const
 {
-#ifdef OPTIMIZER_TRACE
   DBUG_ASSERT(param->using_real_indexes);
   const uint keynr_in_table= param->real_keynr[key_idx];
 
@@ -2875,7 +2874,6 @@ void TRP_RANGE::trace_basic_info(const PARAM *param,
   range_info.set_charset(system_charset_info);
   append_range_all_keyparts(&trace_range, NULL, &range_info,
                             key, key_part, false);
-#endif
 }
 
 
@@ -2934,7 +2932,6 @@ public:
 void TRP_ROR_INTERSECT::trace_basic_info(const PARAM *param,
                                          Opt_trace_object *trace_object) const
 {
-#ifdef OPTIMIZER_TRACE
   trace_object->add_alnum("type", "index_roworder_intersect").
     add("rows", records).
     add("cost", cost_est).
@@ -2973,7 +2970,6 @@ void TRP_ROR_INTERSECT::trace_basic_info(const PARAM *param,
       trace_range.add_utf8(range_info.ptr(), range_info.length());
     }
   }
-#endif
 }
 
 /*
@@ -3002,7 +2998,6 @@ public:
 void TRP_ROR_UNION::trace_basic_info(const PARAM *param,
                                      Opt_trace_object *trace_object) const
 {
-#ifdef OPTIMIZER_TRACE
   Opt_trace_context * const trace= &param->thd->opt_trace;
   trace_object->add_alnum("type", "index_roworder_union");
   Opt_trace_array ota(trace, "union_of");
@@ -3013,7 +3008,6 @@ void TRP_ROR_UNION::trace_basic_info(const PARAM *param,
     Opt_trace_object trp_info(trace);
     (*current)->trace_basic_info(param, &trp_info);
   }
-#endif
 }
 
 /*
@@ -3042,7 +3036,6 @@ public:
 void TRP_INDEX_MERGE::trace_basic_info(const PARAM *param,
                                        Opt_trace_object *trace_object) const
 {
-#ifdef OPTIMIZER_TRACE
   Opt_trace_context * const trace= &param->thd->opt_trace;
   trace_object->add_alnum("type", "index_merge");
   Opt_trace_array ota(trace, "index_merge_of");
@@ -3053,7 +3046,6 @@ void TRP_INDEX_MERGE::trace_basic_info(const PARAM *param,
     Opt_trace_object trp_info(trace);
     (*current)->trace_basic_info(param, &trp_info);
   }
-#endif
 }
 
 /*
@@ -3126,7 +3118,6 @@ public:
 void TRP_GROUP_MIN_MAX::trace_basic_info(const PARAM *param,
                                          Opt_trace_object *trace_object) const
 {
-#ifdef OPTIMIZER_TRACE
   trace_object->add_alnum("type", "index_group").
     add_utf8("index", index_info->name);
   if (min_max_arg_part)
@@ -3160,7 +3151,6 @@ void TRP_GROUP_MIN_MAX::trace_basic_info(const PARAM *param,
     append_range_all_keyparts(&trace_range, NULL,
                               &range_info, index_tree, key_part, false);
   }
-#endif
 }
 
 /*
@@ -6423,7 +6413,6 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
         continue;
       }
 
-#ifdef OPTIMIZER_TRACE
       // check_quick_select() says don't use range if it returns HA_POS_ERROR
       if (found_records != HA_POS_ERROR &&
           param->thd->opt_trace.is_started())
@@ -6462,7 +6451,6 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
             add("cost", cost);
         }
       }
-#endif
 
       if ((found_records != HA_POS_ERROR) && param->is_ror_scan)
       {
@@ -13319,7 +13307,6 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
                                                    cur_index_tree, true,
                                                    &mrr_flags, &mrr_bufsize,
                                                    &dummy_cost);
-#ifdef OPTIMIZER_TRACE
       if (unlikely(cur_index_tree && trace->is_started()))
       {
         trace_idx.add("index_dives_for_eq_ranges", !param->use_index_statistics);
@@ -13332,7 +13319,6 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
         append_range_all_keyparts(&trace_range, NULL, &range_info,
                                   cur_index_tree, key_part, false);
       }
-#endif
     }
     cost_group_min_max(table, cur_index, cur_used_key_parts,
                        cur_group_key_parts, tree,

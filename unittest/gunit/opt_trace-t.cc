@@ -27,8 +27,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 
-#ifdef OPTIMIZER_TRACE
-
 #include "m_string.h"                           // llstr
 #include "mysys_err.h"                          // for testing of OOM
 #include "sql/mysqld.h"                         // system_charset_info
@@ -1192,5 +1190,3 @@ TEST_F(TraceContentTest, NoOptTraceStmt)
 }
 
 }  // namespace
-
-#endif // OPTIMIZER_TRACE

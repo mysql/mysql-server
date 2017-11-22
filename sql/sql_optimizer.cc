@@ -8264,7 +8264,6 @@ static void trace_indexes_added_group_distinct(Opt_trace_context *trace,
                                                const Key_map new_keys,
                                                const char* cause)
 {
-#ifdef OPTIMIZER_TRACE
   if (likely(!trace->is_started()))
     return;
 
@@ -8280,7 +8279,6 @@ static void trace_indexes_added_group_distinct(Opt_trace_context *trace,
         trace_key.add_utf8(key_info[j].name);
   }
   trace_summary.add_alnum("cause", cause);
-#endif
 }
 
 

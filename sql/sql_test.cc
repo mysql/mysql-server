@@ -186,7 +186,6 @@ TEST_join(JOIN *join)
 void print_keyuse_array(Opt_trace_context *trace,
                         const Key_use_array *keyuse_array)
 {
-#if !defined(DBUG_OFF) || defined(OPTIMIZER_TRACE)
   if (unlikely(!trace->is_started()))
     return;
   Opt_trace_object wrapper(trace);
@@ -208,7 +207,6 @@ void print_keyuse_array(Opt_trace_context *trace,
       add("equals", keyuse.val).
       add("null_rejecting", keyuse.null_rejecting);
   }
-#endif /* !DBUG_OFF || OPTIMIZER_TRACE */
 }
 
 #ifndef DBUG_OFF

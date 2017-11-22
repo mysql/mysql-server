@@ -3110,8 +3110,6 @@ static Sys_var_bool Sys_var_end_markers_in_json(
        HINT_UPDATEABLE SESSION_VAR(end_markers_in_json), CMD_LINE(OPT_ARG),
        DEFAULT(false));
 
-#ifdef OPTIMIZER_TRACE
-
 static Sys_var_flagset Sys_optimizer_trace(
        "optimizer_trace",
        "Controls tracing of the Optimizer:"
@@ -3166,8 +3164,6 @@ static Sys_var_ulong Sys_optimizer_trace_max_mem_size(
        "Maximum allowed cumulated size of stored optimizer traces",
        SESSION_VAR(optimizer_trace_max_mem_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1));
-
-#endif
 
 static Sys_var_charptr Sys_pid_file(
        "pid_file", "Pid file used by safe_mysqld",

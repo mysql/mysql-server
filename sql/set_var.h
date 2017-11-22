@@ -364,13 +364,11 @@ public:
     return (type == OPT_GLOBAL || type == OPT_PERSIST ||
             type == OPT_PERSIST_ONLY);
   }
-#ifdef OPTIMIZER_TRACE
   virtual bool is_var_optimizer_trace() const
   {
     extern sys_var *Sys_optimizer_trace_ptr;
     return var == Sys_optimizer_trace_ptr;
   }
-#endif
 };
 
 

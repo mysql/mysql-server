@@ -4641,7 +4641,6 @@ backout_nj_state(const table_map remaining_tables MY_ATTRIBUTE((unused)),
 static void trace_plan_prefix(JOIN *join, uint idx,
                               table_map excluded_tables)
 {
-#ifdef OPTIMIZER_TRACE
   THD * const thd= join->thd;
   Opt_trace_array plan_prefix(&thd->opt_trace, "plan_prefix");
   for (uint i= 0; i < idx; i++)
@@ -4657,7 +4656,6 @@ static void trace_plan_prefix(JOIN *join, uint idx,
       plan_prefix.add_utf8(str.ptr(), str.length());
     }
   }
-#endif
 }
 
 /**
