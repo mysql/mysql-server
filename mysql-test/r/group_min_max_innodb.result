@@ -338,7 +338,7 @@ F	30	30
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query'
 AS OK FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
-0
+1
 SET optimizer_trace_max_mem_size=DEFAULT;
 SET optimizer_trace=DEFAULT;
 SET end_markers_in_json=DEFAULT;
