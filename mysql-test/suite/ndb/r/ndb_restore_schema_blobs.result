@@ -139,6 +139,6 @@ a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630
 a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy3
 70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz3
 drop table t1,t2;
-alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
-drop tablespace ts1 engine=ndb;
+alter tablespace ts1 drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine=ndb;

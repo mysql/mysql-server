@@ -39,7 +39,7 @@ namespace AQP
 {
   Join_plan::Join_plan(const JOIN* join)
    : m_qep_tabs(join->qep_tab),
-     m_access_count(join->primary_tables),
+     m_access_count(join->tables),
      m_table_accesses(NULL)
   {
     /*
@@ -82,36 +82,67 @@ namespace AQP
     DBUG_ASSERT(get_access_no() > predecessor->get_access_no());
 
     const QEP_TAB* const me= get_qep_tab();
-    const plan_idx first_inner= me->first_inner();
-    if (first_inner == NO_PLAN_IDX)
+    const plan_idx first_sj_inner= me->first_sj_inner();
+    if (first_sj_inner != NO_PLAN_IDX)
     {
-      // 'this' is not outer joined with any table.
-      DBUG_PRINT("info", ("JT_INNER_JOIN'ed table %s",
-                          me->table()->alias));
-      DBUG_RETURN(JT_INNER_JOIN);
-    }
+      DBUG_ASSERT(me->get_sj_strategy() != SJ_OPT_NONE);
 
+      /**
+       * 'this' is a member in a semi join.
+       * If 'predecessor' is not embedded in the same semi join 'nest',
+       * there is a JT_SEMI_JOIN relation between them.
+       */
+      if (first_sj_inner != predecessor->get_qep_tab()->first_sj_inner())
+      {
+        DBUG_PRINT("info", ("JT_SEMI_JOIN between %s and %s",
+                            predecessor->get_qep_tab()->table()->alias,
+                            me->table()->alias));
+        DBUG_RETURN(JT_SEMI_JOIN);
+      }
+    }
     /**
-     * Fall Through: 'this' is a member in an outer join,
-     * but 'predecessor' may still be embedded in the same
-     * inner join as 'this'.
+     * 'this' is not a semi join itself, but has a join relationship
+     * with a predecessor being part of a semi join 'nest'. Such joins
+     * across nests might require special handling.
      */
-    const plan_idx last_inner= me->join()->qep_tab[first_inner].last_inner();
-    if (predecessor->get_access_no() >= static_cast<uint>(first_inner) &&
-        predecessor->get_access_no() <= static_cast<uint>(last_inner))
+    else if (predecessor->get_qep_tab()->first_sj_inner() != NO_PLAN_IDX)
     {
-      DBUG_PRINT("info", ("JT_INNER_JOIN between %s and %s",
+      DBUG_PRINT("info", ("Semi join 'nest' of %s do not contain %s",
                           predecessor->get_qep_tab()->table()->alias,
-                          me->table()->alias));
-      DBUG_RETURN(JT_INNER_JOIN);
+			  me->table()->alias));
+      DBUG_RETURN(JT_NEST_JOIN);
     }
-    else
+		  
+    const plan_idx first_inner= me->first_inner();
+    if (first_inner != NO_PLAN_IDX)
     {
-      DBUG_PRINT("info", ("JT_OUTER_JOIN between %s and %s",
-                          predecessor->get_qep_tab()->table()->alias,
-                          me->table()->alias));
-      DBUG_RETURN(JT_OUTER_JOIN);
+      /**
+       * 'this' is a member in an outer join.
+       * If 'predecessor' is not embedded in the same join 'nest',
+       * there is a JT_OUTER_JOIN relation between them.
+       */
+      if (first_inner != predecessor->get_qep_tab()->first_inner())
+      {
+        DBUG_PRINT("info", ("JT_OUTER_JOIN between %s and %s",
+			    predecessor->get_qep_tab()->table()->alias,
+                            me->table()->alias));
+        DBUG_RETURN(JT_OUTER_JOIN);
+      }
     }
+ 
+    /**
+     * Note that we do not do similar '...->first_inner() != NO_PLAN_IDX'
+     * checking as for semi joins above. The reason is that even if the
+     * query plan indicate 'this' being joined against an outer joined
+     * predecessor, the equi join between these mandates that there are 
+     * no predecessor NULL-rows among those matching 'this'.
+     * So effectively this is an inner join, even if the query plan
+     * indicate otherwise.
+     */
+
+    /* Else, this is a plain inner join */
+    DBUG_PRINT("info", ("JT_INNER_JOIN'ed table %s", me->table()->alias));
+    DBUG_RETURN(JT_INNER_JOIN);
   } //Table_access::get_join_type
 
   /**
@@ -440,26 +471,6 @@ namespace AQP
   }
 
   /**
-    Check if 'FirstMatch' strategy is used for this table and return
-    the last table 'firstmatch' will skip over.
-    The tables ['last_skipped'..'this'] will form a range of tables
-    which we skipped when a 'firstmatch' is found
-  */
-  const Table_access* Table_access::get_firstmatch_last_skipped() const
-  {
-    const QEP_TAB* const qep_tab= get_qep_tab();
-    if (qep_tab->do_firstmatch())
-    {
-      DBUG_ASSERT(qep_tab->firstmatch_return < qep_tab->idx());
-      const uint firstmatch_last_skipped= 
-        qep_tab->firstmatch_return + 1;
-
-      return m_join_plan->get_table_access(firstmatch_last_skipped);
-    }
-    return NULL;
-  }
-
-  /**
    Check if this table will be presorted to an intermediate record storage
    before it is joined with its siblings.
   */
@@ -505,7 +516,10 @@ namespace AQP
     // Remove the QEP_TABs constness allowing the QEP_TAB
     // instance for this part ot the join to be modified
     QEP_TAB* const qep_tab= const_cast<QEP_TAB*>(get_qep_tab());
-    qep_tab->set_pushed_table_access_method();
+    if (qep_tab->table() != NULL)
+    {
+      qep_tab->set_pushed_table_access_method();
+    }
   }
 
 }

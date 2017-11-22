@@ -233,6 +233,15 @@ public abstract class AbstractClusterJTest extends TestCase {
         }
     }
 
+    protected void verifyException(String message, Exception ex, String exceptionPattern) {
+        if(ex == null) {
+            error(message + ", didn't fail.");
+        } else if(!ex.getMessage().matches(exceptionPattern)) {
+            error(message + ", failed with wrong exception :");
+            error(ex.getMessage());
+        }
+    }
+
     protected void failOnError() {
         if (errorMessages != null) {
             fail(errorMessages.toString());

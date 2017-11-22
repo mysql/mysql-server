@@ -51,7 +51,7 @@ enum enum_binlog_extra_info_conflict_flags
   NDB_ERIF_CFT_READ_OP = 0x4
 };
 
-static const Uint32 MAX_CONFLICT_ARGS= 8;
+static const uint MAX_CONFLICT_ARGS= 8;
 
 enum enum_conflict_fn_arg_type
 {
@@ -507,7 +507,6 @@ setup_conflict_fn(Ndb* ndb,
                   NDB_CONFLICT_FN_SHARE** ppcfn_share,
                   const char* dbName,
                   const char* tabName,
-                  bool tableUsesBlobs,
                   bool tableBinlogUseUpdate,
                   const NdbDictionary::Table *ndbtab,
                   char *msg, uint msg_len,

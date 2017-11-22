@@ -296,8 +296,6 @@ ndbcluster_global_schema_lock(THD *thd,
   }
   else if (ndb_error.code != 4009 || report_cluster_disconnected)
   {
-    ndb_log_warning("Failed to acquire global schema lock, error: (%d)%s",
-                    ndb_error.code, ndb_error.message);
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_GET_ERRMSG, ER_DEFAULT(ER_GET_ERRMSG),
                         ndb_error.code, ndb_error.message,
@@ -585,7 +583,7 @@ Ndb_global_schema_lock_guard::~Ndb_global_schema_lock_guard()
  * 'victimized' as part of deadlock resolution. In the later case we
  * retry the GSL locking.
  */
-int Ndb_global_schema_lock_guard::lock(bool report_cluster_disconnected)
+int Ndb_global_schema_lock_guard::lock(void)
 {
   /* only one lock call allowed */
   assert(!m_locked);
@@ -600,8 +598,7 @@ int Ndb_global_schema_lock_guard::lock(bool report_cluster_disconnected)
   bool ret;
   do
   {
-    ret= ndbcluster_global_schema_lock(m_thd, report_cluster_disconnected,
-                                       &victimized);
+    ret= ndbcluster_global_schema_lock(m_thd, false, &victimized);
   }
   while (victimized);
 

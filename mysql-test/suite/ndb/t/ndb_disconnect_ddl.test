@@ -36,10 +36,6 @@ create table t2(i int primary key) engine=ndb;
 # cluster has been restored or timeout occurs
 #
 connection default;
---disable_result_log
---disable_query_log
 --source include/ndb_not_readonly.inc
---enable_result_log
---enable_query_log
 
 --echo "end of test the bug#31853"

@@ -3562,6 +3562,34 @@ struct NdbApiWrapper {
         obj.unlock_ndb_objects();
     }
 
+    static int
+    Ndb_cluster_connection__set_recv_thread_activation_threshold
+    ( Ndb_cluster_connection & obj, int p0 )
+    {
+        return obj.set_recv_thread_activation_threshold(p0);
+    }
+
+    static int
+    Ndb_cluster_connection__get_recv_thread_activation_threshold
+    ( Ndb_cluster_connection & obj )
+    {
+        return obj.get_recv_thread_activation_threshold();
+    }
+
+    static int
+    Ndb_cluster_connection__set_recv_thread_cpu
+    ( Ndb_cluster_connection & obj, short p0 )
+    {
+        return obj.set_recv_thread_cpu(p0);
+    }
+
+    static int
+    Ndb_cluster_connection__unset_recv_thread_cpu
+    ( Ndb_cluster_connection & obj )
+    {
+        return obj.unset_recv_thread_cpu(0);
+    }
+
     static const Ndb *
     Ndb_cluster_connection__get_next_ndb_object
     ( Ndb_cluster_connection & obj, const Ndb * p0 )

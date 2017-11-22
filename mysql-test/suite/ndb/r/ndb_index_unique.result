@@ -685,7 +685,7 @@ create table t1 (a int primary key, b varchar(1000) not null, unique key (b))
 engine=ndb charset=utf8;
 insert into t1 values (1, repeat(_utf8 0xe288ab6474, 200));
 insert into t1 values (2, repeat(_utf8 0xe288ab6474, 200));
-ERROR 23000: Duplicate entry '\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bd' for key 'b'
+ERROR 23000: Duplicate entry '∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫d' for key 'b'
 select a, sha1(b) from t1;
 a	sha1(b)
 1	08f5d02c8b8bc244f275bdfc22c42c5cab0d9d7d
@@ -737,8 +737,8 @@ insert into t1 values
 (15,15,repeat('B', 500));
 alter table t1 add unique(un);
 drop table t1;
-alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
-drop tablespace ts1 engine=ndb;
+alter tablespace ts1 drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine=ndb;
 # bug#57032
 create table t1 (
@@ -1014,7 +1014,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `uk1` (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
 # Make sure dropping multiple indexes together works
 alter table t2 drop index uk3, drop index uk4;
 # Verify through show create table
@@ -1024,7 +1024,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `uk1` (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
 # cleanup
 drop table t2,t1;
 #
@@ -1058,7 +1058,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   UNIQUE KEY `uk1` (`a`),
   UNIQUE KEY `uk2` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
 # Modify column on t1 - remove not null
 alter table t1 modify column a int;
 # verify that pk is now on b.
@@ -1073,7 +1073,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   UNIQUE KEY `uk2` (`b`),
   UNIQUE KEY `uk1` (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
 # Verify that the fk constraint is intact through inserts
 insert into t1 values (1,10), (2,20), (3,30);
 insert into t2 values (1), (2), (3);
@@ -1092,7 +1092,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) NOT NULL,
   UNIQUE KEY `uk1` (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
 # Verify that the fk constraint is intact through inserts
 insert into t2 values (1), (2), (3);
 insert into t2 values (4);

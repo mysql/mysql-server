@@ -112,13 +112,11 @@ set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 create table t1 (a int) engine = ndb;
 drop table t1;
-desc t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+select * from t1 /* force discovery */;
+a
 drop table t1;
-desc t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+select * from t1 /* force discovery */;
+a
 drop table t1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
@@ -129,15 +127,11 @@ create table t1 (a int) engine=myisam;
 create table t1 (a int) engine = ndb;
 alter table t1 algorithm=copy, add column b int column_format dynamic;
 drop table t1;
-desc t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	
+select * from t1 /* force discovery */;
+a	b
 drop table t1;
-desc t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	
+select * from t1 /* force discovery */;
+a	b
 drop table t1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
@@ -148,15 +142,11 @@ create table t1 (a int) engine=myisam;
 create table t1 (a int primary key) engine = ndb;
 alter table t1 algorithm=inplace, add column b int column_format dynamic;
 drop table t1;
-desc t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	
-b	int(11)	YES		NULL	
+select * from t1 /* force discovery */;
+a	b
 drop table t1;
-desc t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	
-b	int(11)	YES		NULL	
+select * from t1 /* force discovery */;
+a	b
 drop table t1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
@@ -166,12 +156,10 @@ create table t1 (a int) engine=myisam;
 create table t1 (a int) engine=myisam;
 create table t1 (a int) engine = ndb;
 rename table t1 to t2;
-desc t2;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-desc t2;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+select * from t2 /* force discovery */;
+a
+select * from t2 /* force discovery */;
+a
 drop table t2;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
@@ -275,30 +263,22 @@ set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 create table t1 (a int) engine=ndbcluster;
 create table t2 (a int) engine=ndbcluster;
-desc t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-desc t2;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-desc t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-desc t2;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-desc t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-desc t2;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-desc t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-desc t2;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+select * from t1 /* force discovery */;
+a
+select * from t2 /* force discovery */;
+a
+select * from t1 /* force discovery */;
+a
+select * from t2 /* force discovery */;
+a
+select * from t1 /* force discovery */;
+a
+select * from t2 /* force discovery */;
+a
+select * from t1 /* force discovery */;
+a
+select * from t2 /* force discovery */;
+a
 drop table t1, t2;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
@@ -306,21 +286,21 @@ set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 create table t1 (a int) engine=ndbcluster;
 create table t2 (a int) engine=ndbcluster;
-desc t1;
+select * from t1 /* force discovery */;
 ERROR 42S02: Table 'test.t1' doesn't exist
-desc t2;
+select * from t2 /* force discovery */;
 ERROR 42S02: Table 'test.t2' doesn't exist
-desc t1;
+select * from t1 /* force discovery */;
 ERROR 42S02: Table 'test.t1' doesn't exist
-desc t2;
+select * from t2 /* force discovery */;
 ERROR 42S02: Table 'test.t2' doesn't exist
-desc t1;
+select * from t1 /* force discovery */;
 ERROR 42S02: Table 'test.t1' doesn't exist
-desc t2;
+select * from t2 /* force discovery */;
 ERROR 42S02: Table 'test.t2' doesn't exist
-desc t1;
+select * from t1 /* force discovery */;
 ERROR 42S02: Table 'test.t1' doesn't exist
-desc t2;
+select * from t2 /* force discovery */;
 ERROR 42S02: Table 'test.t2' doesn't exist
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;

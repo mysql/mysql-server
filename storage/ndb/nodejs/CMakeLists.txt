@@ -130,6 +130,13 @@ else()
 #  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 endif()
 
+# Suppress a few compiler warnings
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  ADD_COMPILE_FLAGS(${ADAPTER_SOURCE_FILES}
+                    COMPILE_FLAGS
+                    "-Wno-unused-parameter")
+ENDIF()
+
 add_library(ndb_adapter MODULE ${ADAPTER_SOURCE_FILES})
 
 target_link_libraries(ndb_adapter ${ADAPTER_REQUIRED_LIBS})

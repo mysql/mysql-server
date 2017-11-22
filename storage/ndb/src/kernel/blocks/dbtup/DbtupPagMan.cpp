@@ -133,16 +133,38 @@ void Dbtup::allocConsPages(EmulatedJamBuffer* jamBuf,
     return;
   }//if
 
-  noOfPagesAllocated = noOfPagesToAllocate;
-  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE,
-                         &allocPageRef,
-                         &noOfPagesAllocated,
-                         1);
+  if (noOfPagesToAllocate == 1)
+  {
+    void* p = m_ctx.m_mm.alloc_page(RT_DBTUP_PAGE,
+                                    &allocPageRef,
+                                    Ndbd_mem_manager::NDB_ZONE_LE_30);
+    if (p != NULL)
+    {
+      noOfPagesAllocated = 1;
+    }
+    else
+    {
+      noOfPagesAllocated = 0;
+    }
+  }
+  else
+  {
+#ifndef VM_TRACE
+    ndbrequire(noOfPagesToAllocate == 1);
+#else
+    /* For DUMP_STATE_ORD 1211, 1212, and, 1213 */
+    noOfPagesAllocated = noOfPagesToAllocate;
+    m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE,
+                           &allocPageRef,
+                           &noOfPagesAllocated,
+                           1);
+#endif
+  }
   if(noOfPagesAllocated == 0 && c_allow_alloc_spare_page)
   {
     void* p = m_ctx.m_mm.alloc_spare_page(RT_DBTUP_PAGE,
                                           &allocPageRef,
-                                          Ndbd_mem_manager::NDB_ZONE_LE_32);
+                                          Ndbd_mem_manager::NDB_ZONE_LE_30);
     if (p != NULL)
     {
       noOfPagesAllocated = 1;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,10 +39,6 @@ class NdbIndexStat {
 public:
   NdbIndexStat();
   ~NdbIndexStat();
-
-  // dummy defs to make handler compile at "ndb api" patch level
-  int alloc_cache(Uint32 entries) { return 0; }
-  enum { RR_UseDb = 1, RR_NoUpdate = 2 };
 
   /*
    * Get latest error.  Can be printed like any NdbError instance and

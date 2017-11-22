@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,8 +32,8 @@ struct record
   int dummy;
 };
 
-template class CountingPool<record, RecordPool<record, RWPool<record> > >;
-template class CountingPool<record, RecordPool<record, WOPool<record> > >;
+template class CountingPool<RecordPool<RWPool<record> > >;
+template class CountingPool<RecordPool<WOPool<record> > >;
 
 TAPTEST(CountingPool)
 {

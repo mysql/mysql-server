@@ -394,6 +394,11 @@ public:
    */
   const NdbQueryDef* prepare(const Ndb *ndb);
 
+  /**
+   * Compatible older version of prepare(); not recommended
+   */
+  const NdbQueryDef* prepare();
+
   // NdbQueryOperand builders:
   //
   // ::constValue constructors variants, considder to added/removed variants

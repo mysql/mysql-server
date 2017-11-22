@@ -1,0 +1,102 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE DATABASE mysqltest1;
+CREATE DATABASE mysqltest2;
+use mysqltest1;
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b char(20)
+) engine = ndb;
+INSERT INTO t1 VALUES (1, "row1"), (2, "row2");
+use mysqltest2;
+CREATE TABLE t2 (
+a INT PRIMARY KEY,
+b char(20)
+) engine = ndb;
+INSERT INTO t2 VALUES (3, "row4"), (4, "row4");
+CREATE USER 'testuser1'@'localhost';
+SET PASSWORD = 'cleartext password';
+OK
+
+SET PASSWORD = 'new cleartext password';
+OK
+
+SET PASSWORD FOR testuser1@localhost= 'pass_for_user1';
+OK
+
+SET PASSWORD FOR testuser1@localhost = 'another pass';
+OK
+
+SET PASSWORD FOR no_such_user@localhost= 'new pass';
+ERROR 42000: Can't find any matching row in the user table
+OK
+
+GRANT SELECT ON *.* TO testuser1@localhost;
+OK
+
+REVOKE SELECT ON *.* FROM testuser1@localhost;
+OK
+
+GRANT SELECT ON * TO testuser1@localhost;
+OK
+
+REVOKE SELECT ON * FROM testuser1@localhost;
+OK
+
+GRANT SELECT ON mysqltest2.* TO testuser1@localhost;
+OK
+
+REVOKE SELECT ON mysqltest2.* FROM testuser1@localhost;
+OK
+
+GRANT SELECT ON mysqltest2.t2 TO testuser1@localhost;
+OK
+
+REVOKE SELECT ON mysqltest2.t2 FROM testuser1@localhost;
+OK
+
+GRANT SELECT(a,b), UPDATE(a) ON mysqltest2.t2 TO testuser1@localhost;
+OK
+
+REVOKE SELECT(a,b), UPDATE(a) ON mysqltest2.t2 FROM testuser1@localhost;
+OK
+
+GRANT SELECT(c,b), UPDATE(a) ON mysqltest2.t2 TO testuser1@localhost;
+ERROR 42S22: Unknown column 'c' in 't2'
+OK
+
+CREATE USER testuser2@localhost IDENTIFIED BY 'pass4';
+OK
+
+DROP USER testuser2@localhost;
+OK
+
+ALTER USER testuser1@localhost PASSWORD EXPIRE;
+OK
+
+SET PASSWORD FOR testuser1@localhost= 'pass_for_user1';
+OK
+
+CREATE DATABASE mysqltest3;
+USE mysqltest3;
+SELECT DATABASE();
+DATABASE()
+mysqltest3
+DROP DATABASE mysqltest3;
+SELECT DATABASE();
+DATABASE()
+NULL
+GRANT ALL ON *.* TO testuser1@localhost;
+OK
+
+REVOKE ALL ON *.* FROM testuser1@localhost;
+OK
+
+DROP USER 'testuser1'@'localhost';
+DROP TABLE mysqltest1.t1, mysqltest2.t2;
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+include/rpl_end.inc

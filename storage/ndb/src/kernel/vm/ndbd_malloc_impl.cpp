@@ -1111,6 +1111,7 @@ Ndbd_mem_manager::alloc_pages(Uint32 type,
                               Uint32* i,
                               Uint32 *cnt,
                               Uint32 min,
+                              AllocZone zone,
                               bool locked)
 {
   Uint32 idx = type & RG_MASK;
@@ -1142,7 +1143,7 @@ Ndbd_mem_manager::alloc_pages(Uint32 type,
   }
 
   // Hi order allocations can always use any zone
-  alloc(NDB_ZONE_LE_32, i, &req, min);
+  alloc(zone, i, &req, min);
   const Uint32 spare_taken = m_resource_limits.post_alloc_resource_pages(idx, req);
   if (spare_taken > 0)
   {

@@ -1047,7 +1047,7 @@ ndb_serialize_cond(const Item *item, void *arg)
                 {
                   DBUG_PRINT("info", ("Found non-matching collation %s",  
                                       item->collation.collation->name)); 
-                  context->supported= false;                
+                  context->supported= false;
                 }
               }
               break;
@@ -1619,7 +1619,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           else
           {
             /* Did not expect condition */
-            context->supported= false;          
+            context->supported= false;
           }
           break;
         }

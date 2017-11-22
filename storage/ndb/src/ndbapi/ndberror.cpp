@@ -738,6 +738,7 @@ ErrorBundle ErrorCodes[] = {
   { 4329, DMEC, AE, "Variable stored attributes not yet supported" },
   { 4340, DMEC, AE, "Result or attribute record must be a base table ndbrecord, not an index ndbrecord" },
   { 4342, DMEC, AE, "Scan defined but not prepared" },
+  { 4343, DMEC, AE, "Table with blobs does not support refreshTuple()" },
 
   { 4400, DMEC, AE, "Status Error in NdbSchemaCon" },
   { 4401, DMEC, AE, "Only one schema operation per schema transaction" },

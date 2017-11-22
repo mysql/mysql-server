@@ -42,8 +42,6 @@ static const char* _wait_nodes = 0;
 static const char* _nowait_nodes = 0;
 static NdbNodeBitmask nowait_nodes_bitmask;
 
-const char *load_default_groups[]= { "mysql_cluster",0 };
-
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_waiter"),
@@ -70,16 +68,6 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-static void short_usage_sub(void)
-{
-  ndb_short_usage_sub(NULL);
-}
-
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
-
 extern "C"
 void catch_signal(int signum)
 {
@@ -88,10 +76,7 @@ void catch_signal(int signum)
 #include "../src/common/util/parse_mask.hpp"
 
 int main(int argc, char** argv){
-  NDB_INIT(argv[0]);
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  MEM_ROOT alloc;
-  ndb_load_defaults(NULL,load_default_groups,&argc,&argv,&alloc);
+  Ndb_opts opts(argc, argv, my_long_options);
 
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_waiter.trace";
@@ -103,8 +88,7 @@ int main(int argc, char** argv){
   signal(SIGUSR1, catch_signal);
 #endif
 
-  if (handle_options(&argc, &argv, my_long_options,
-                     ndb_std_get_one_option))
+  if (opts.handle_options())
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
   const char* connect_string = argv[0];

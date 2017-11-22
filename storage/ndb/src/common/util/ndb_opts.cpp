@@ -22,10 +22,16 @@
 #include "my_alloc.h"
 #include "my_default.h"
 
+static const char *load_default_groups[]= { "mysql_cluster", 0 };
+
 static void default_ndb_opt_short(void)
 {
   ndb_short_usage_sub(NULL);
 }
+
+extern "C"     /* declaration only */
+void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
+               struct my_option *my_long_options);
 
 static void default_ndb_opt_usage(void)
 {
@@ -33,7 +39,6 @@ static void default_ndb_opt_usage(void)
     {
       NDB_STD_OPTS("ndbapi_program")
     };
-  const char *load_default_groups[]= { "mysql_cluster", 0 };
 
   ndb_usage(default_ndb_opt_short, load_default_groups, my_long_options);
 }
@@ -81,6 +86,11 @@ void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
   puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
+}
+
+static
+void empty_long_usage_extra_func()
+{
 }
 
 extern "C"
@@ -147,4 +157,65 @@ ndb_free_defaults(MEM_ROOT *mem_root)
 {
   free_root(mem_root, MYF(0));
 }
+
+static Ndb_opts * registeredNdbOpts;
+
+static void ndb_opts_usage()
+{
+  registeredNdbOpts->usage();
+}
+
+void
+Ndb_opts::registerUsage(Ndb_opts *r)
+{
+  assert(registeredNdbOpts == NULL);
+  registeredNdbOpts = r;
+  ndb_opt_set_usage_funcs(default_ndb_opt_short, ndb_opts_usage);
+}
+
+void Ndb_opts::release()
+{
+  registeredNdbOpts = NULL;
+}
+
+Ndb_opts::Ndb_opts(int & argc_ref, char** & argv_ref,
+                   struct my_option * long_options,
+                   const char * default_groups[])
+:
+  opts_mem_root(),
+  main_argc_ptr(& argc_ref),
+  main_argv_ptr(& argv_ref),
+  mycnf_default_groups(default_groups ? default_groups : load_default_groups),
+  options(long_options),
+  short_usage_fn(g_ndb_opt_short_usage)
+{
+  NDB_INIT(argv_ref[0]);   // ndb_init() can safely be called more than once
+  ndb_load_defaults(NULL, mycnf_default_groups, main_argc_ptr, main_argv_ptr, &opts_mem_root);
+  Ndb_opts::registerUsage(this);
+};
+
+Ndb_opts::~Ndb_opts()
+{
+  Ndb_opts::release();
+  ndb_end(0);  // ndb_end() can safely be called more than once
+}
+
+int Ndb_opts::handle_options(bool (*get_opt_fn)
+                             (int, const struct my_option *, char *)) const
+{
+  return ::handle_options(main_argc_ptr, main_argv_ptr, options, get_opt_fn);
+};
+
+void Ndb_opts::set_usage_funcs(void (*short_fn)(void),
+                               void (*long_fn)(void))
+{
+  short_usage_fn = short_fn;
+  long_usage_extra_fn = long_fn ? long_fn : empty_long_usage_extra_func;
+};
+
+void Ndb_opts::usage() const
+{
+  long_usage_extra_fn();
+  ndb_usage(short_usage_fn, mycnf_default_groups, options);
+};
 

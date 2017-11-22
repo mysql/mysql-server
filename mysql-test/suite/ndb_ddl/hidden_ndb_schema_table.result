@@ -1,0 +1,36 @@
+SHOW TABLES FROM mysql LIKE 'ndb_schema';
+Tables_in_mysql (ndb_schema)
+SELECT count(1) FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema';
+count(1)
+0
+SHOW TABLES FROM mysql LIKE 'ndb_schema';
+Tables_in_mysql (ndb_schema)
+SELECT count(1) FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema';
+count(1)
+0
+SHOW TABLES FROM mysql LIKE 'ndb_schema';
+Tables_in_mysql (ndb_schema)
+SELECT count(1) FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema';
+count(1)
+0
+SHOW TABLES FROM mysql LIKE 'ndb_schema';
+Tables_in_mysql (ndb_schema)
+SELECT count(1) FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema';
+count(1)
+0
+SHOW TABLES FROM mysql LIKE 'ndb_schema';
+Tables_in_mysql (ndb_schema)
+SELECT count(1) FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema';
+count(1)
+0
+SHOW TABLES FROM mysql LIKE 'ndb_schema';
+Tables_in_mysql (ndb_schema)
+SELECT count(1) FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema';
+count(1)
+0

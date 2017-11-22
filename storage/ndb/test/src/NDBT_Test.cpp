@@ -1436,15 +1436,9 @@ static struct my_option my_long_options[] =
 
 extern int global_flag_skip_invalidate_cache;
 
-const char *load_default_groups[]= { "mysql_cluster",0 };
-
 static void short_usage_sub(void)
 {
   ndb_short_usage_sub("[tabname1 tabname2 ... tabnameN]");
-}
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 int NDBT_TestSuite::execute(int argc, const char** argv){
@@ -1470,23 +1464,15 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   */
 
   char **_argv= (char **)argv;
+  Ndb_opts opts(argc, _argv, my_long_options);
+  opts.set_usage_funcs(short_usage_sub);
 
-  if (!my_progname)
-    my_progname= _argv[0];
-
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-
-  MEM_ROOT alloc;
-  ndb_load_defaults(NULL, load_default_groups,&argc,&_argv,&alloc);
-
-  int ho_error;
 #ifndef DBUG_OFF
   opt_debug= "d:t:i:F:L";
 #endif
-  if ((ho_error=handle_options(&argc, &_argv, my_long_options,
-			       ndb_std_get_one_option)))
+  if (opts.handle_options())
   {
-    usage();
+    opts.usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 

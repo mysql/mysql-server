@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,21 +26,25 @@
 /**
  * KeyTable2 is DLHashTable2 with hardcoded Uint32 key named "key".
  */
-template <typename P, typename T>
-class KeyTable : public DLHashTable<P, T> {
+/**
+ * Using TT instead of T since VisualStudio2013 tries to access private
+ * typedef of DLMHashTable instance!
+ */
+template <typename P, typename TT = typename P::Type>
+class KeyTable : public DLHashTable<P, TT> {
 public:
   KeyTable(P & pool) :
-    DLHashTable<P, T>(pool) {
+    DLHashTable<P, TT>(pool) {
   }
 
-  bool find(Ptr<T>& ptr, const T& rec) const {
-    return DLHashTable<P, T>::find(ptr, rec);
+  bool find(Ptr<TT>& ptr, const TT& rec) const {
+    return DLHashTable<P, TT>::find(ptr, rec);
   }
 
-  bool find(Ptr<T>& ptr, Uint32 key) const {
-    T rec;
+  bool find(Ptr<TT>& ptr, Uint32 key) const {
+    TT rec;
     rec.key = key;
-    return DLHashTable<P, T>::find(ptr, rec);
+    return DLHashTable<P, TT>::find(ptr, rec);
   }
 };
 

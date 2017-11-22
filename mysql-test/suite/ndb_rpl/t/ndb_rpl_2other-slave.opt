@@ -1,1 +1,1 @@
---loose-ndbcluster=OFF --log-slave-updates=0
+--loose-ndbcluster=OFF --log-slave-updates=0 --slave-preserve-commit-order=0

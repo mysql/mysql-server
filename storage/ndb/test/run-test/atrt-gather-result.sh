@@ -48,6 +48,7 @@ while [ $# -gt 0 ]; do
     SRC_PATH="$HOST:$DIR"
   fi
 
+  set +e
   #
   # The below commented out lines can be used if we want to keep the file
   # as part of the result from a faulty test in autotest. The first line
@@ -59,6 +60,13 @@ while [ $# -gt 0 ]; do
   # rsync -a --exclude='BACKUP' "$SRC_PATH" .
   # rsync -a --exclude='BACKUP' --exclude='ndb_*_fs/D*' "$SRC_PATH" .
   # rsync -a --exclude='BACKUP' --exclude='ndb_*_fs/D*' --exclude='ndb_*_fs/*.dat' "$SRC_PATH" .
-  rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' "$SRC_PATH" .
+  # rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' "$SRC_PATH" .
+  rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' --exclude='mysqld.*/data' "$SRC_PATH" .
+  RESULT="$?"
+  set -e
+  if [ ${RESULT} -ne 0 -a ${RESULT} -ne 24 ] ; then
+    echo "rsync error: $RESULT"
+    exit 1
+  fi 
   shift
 done

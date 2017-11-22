@@ -91,6 +91,7 @@ public:
     NdbNodeBitmask m_waitTO;
     Uint32 m_lastGci;
     Uint32 m_lastGciNodeId;
+    Uint32 m_lastLcpId;
 
     // Timeouts in ms since 'm_startTime' 
     Uint64 m_startPartialTimeout;  // UNUSED!

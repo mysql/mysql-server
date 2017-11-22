@@ -37,8 +37,6 @@ static int _fully_qualified = 0;
 static int _parsable = 0;
 static int show_temp_status = 0;
 
-const char *load_default_groups[]= { "mysql_cluster",0 };
-
 static void
 fatal(char const* fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
@@ -322,23 +320,14 @@ static void short_usage_sub(void)
   ndb_short_usage_sub("[table-name]");
 }
 
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
-
 int main(int argc, char** argv){
-  NDB_INIT(argv[0]);
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  MEM_ROOT alloc;
-  ndb_load_defaults(NULL,load_default_groups,&argc,&argv,&alloc);
-  int ho_error;
+  Ndb_opts opts(argc, argv, my_long_options);
+  opts.set_usage_funcs(short_usage_sub);
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_show_tables.trace";
 #endif
   bool using_default_database = false;
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-			       ndb_std_get_one_option)))
+  if (opts.handle_options())
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   if(_dbname && argc==0) {
     ndbout << "-d option given without table name." << endl;

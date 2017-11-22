@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -347,6 +347,15 @@
 #define MAX_INDEX_STAT_VALUE_SIZE   MAX_INDEX_STAT_VALUE_COUNT
 #define MAX_INDEX_STAT_VALUE_CSIZE  512 /* Longvarbinary(2048) */
 #define MAX_INDEX_STAT_VALUE_FORMAT 1
+
+/**
+ * When calculating batch size for unique key builds, reorg builds,
+ * and foreign key builds we will treat this as the maximum normal
+ * row size, if rows are bigger than this we will decrease the
+ * parallelism to adjust for this.
+ * See Suma.cpp
+ */
+#define MAX_NORMAL_ROW_SIZE 2048
 
 #ifdef NDB_STATIC_ASSERT
 

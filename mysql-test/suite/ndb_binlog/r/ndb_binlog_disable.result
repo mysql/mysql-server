@@ -1,0 +1,40 @@
+create table test.ndbt1 (a int primary key, b int) engine=ndb;
+SET sql_log_bin = 0;
+use test;
+create table test.ndbt2 (a int primary key, b int) engine=ndb;
+create table test.ndbt3 (a int primary key, b int) engine=ndb;
+begin;
+insert into ndbt1 values (1,1);
+insert into ndbt2 values (1,1),(2,2);
+insert into ndbt3 values (1,1);
+commit;
+SET sql_log_bin = 1;
+begin;
+insert into ndbt1 values (2,2);
+insert into ndbt3 values (2,2);
+commit;
+Show + reset Binlog contents on Mysqld 1
+We should se tables ndbt1 and ndbt3 added to Table_map,
+but not table ndbt2
+create table table_map_binlog_rows (table_map varchar(1000));
+select * from table_map_binlog_rows order by table_map;
+table_map
+ `mysql`.`ndb_apply_status` 
+ `test`.`ndbt1` 
+ `test`.`ndbt3` 
+drop table table_map_binlog_rows;
+reset master;
+Show + reset Binlog contents on Mysqld 2
+We should se tables ndbt1 and ndbt3 added to Table_map,
+but not table ndbt2
+create table table_map_binlog_rows (table_map varchar(1000));
+select * from table_map_binlog_rows order by table_map;
+table_map
+ `mysql`.`ndb_apply_status` 
+ `test`.`ndbt1` 
+ `test`.`ndbt3` 
+drop table table_map_binlog_rows;
+reset master;
+drop table ndbt1;
+drop table ndbt2;
+drop table ndbt3;

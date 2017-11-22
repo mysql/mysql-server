@@ -45,4 +45,10 @@ public interface ClusterConnection {
     public void initializeAutoIncrement(long[] autoIncrement);
 
     public void setByteBufferPoolSizes(int[] poolSizes);
+
+    public void setRecvThreadCPUid(short cpuid);
+
+    public void unsetRecvThreadCPUid();
+
+    public void setRecvThreadActivationThreshold(int threshold);
 }

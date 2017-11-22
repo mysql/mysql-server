@@ -7330,15 +7330,6 @@ extern "C" void *handle_slave_sql(void *arg)
 #endif
   DBUG_ASSERT(rli->info_thd == thd);
 
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  /* engine specific hook, to be made generic */
-  if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
-  {
-    LogErr(WARNING_LEVEL, ER_RPL_SLAVE_NDB_TABLES_NOT_AVAILABLE,
-           opt_ndb_wait_setup);
-  }
-#endif
-
   DBUG_PRINT("master_info",("log_file_name: %s  position: %s",
                             rli->get_group_master_log_name(),
                             llstr(rli->get_group_master_log_pos(),llbuff)));

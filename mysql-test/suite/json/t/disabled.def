@@ -9,5 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-
-json.json_ddl_ndb : Bug#26609059 2017-08-10 Bin, PB2 failures.
+json_ddl_ndb : Bug #26616564 FAILURE OF JSON_DDL_NDB TEST, Bug#26609059 2017-08-10 Bin, PB2 failures

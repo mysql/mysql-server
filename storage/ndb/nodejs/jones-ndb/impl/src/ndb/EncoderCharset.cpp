@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <m_ctype.h>
 #include <mysql.h>
 #include <my_sys.h>
 

@@ -23,6 +23,12 @@
 class Ndb_local_schema
 {
   /*
+     NOTE! This class is now similar to the Ndb_dd_client class,
+     they could probably merged into one in order to have only
+     one class which interfaces with the DD.
+  */
+
+  /*
     Base functionality for working with local schema
     objects like tables, triggers and databases
   */
@@ -62,15 +68,17 @@ public:
 
     bool mdl_try_lock_for_rename(const char* new_db,
                                  const char* new_name) const;
+    bool mdl_try_lock_exclusive(void) const;
 
   public:
     Table(); // Not implemented
     Table(const Table&); // Not implemented
     Table(class THD* thd, const char* db, const char* name);
 
-    bool is_local_table(void) const;
+    bool is_local_table(bool* exists) const;
     void remove_table(void) const;
-    void rename_table(const char* new_db, const char* new_name) const;
+    void rename_table(const char* new_db, const char* new_name,
+                      int new_id, int new_version) const;
   };
 };
 

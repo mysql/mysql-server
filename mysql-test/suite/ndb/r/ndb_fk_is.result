@@ -195,9 +195,9 @@ from information_schema.referential_constraints
 order by constraint_schema, constraint_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
 def	mydb1	fk_b1a1	def	mydb1	PRIMARY	NONE	NO ACTION	NO ACTION	t1	t1
-def	mydb1	fk_b1b2	def	mydb2	xb2$unique	NONE	NO ACTION	NO ACTION	t1	t2
+def	mydb1	fk_b1b2	def	mydb2	xb2	NONE	NO ACTION	NO ACTION	t1	t2
 def	mydb2	fk_b2a2	def	mydb2	PRIMARY	NONE	NO ACTION	NO ACTION	t2	t2
-def	mydb2	fk_b2b1	def	mydb1	xb1$unique	NONE	NO ACTION	NO ACTION	t2	t1
+def	mydb2	fk_b2b1	def	mydb1	xb1	NONE	NO ACTION	NO ACTION	t2	t1
 select *
 from information_schema.table_constraints
 where table_schema like 'mydb%'
