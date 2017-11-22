@@ -171,7 +171,7 @@ SHOW CREATE SCHEMA s;
 Database	Create Database
 s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8 */
 DROP SCHEMA s;
-ERROR HY000: Can't drop database 's'; database doesn't exist
+ERROR HY000: Schema directory './s/' does not exist
 DROP SCHEMA s;
 CREATE SCHEMA s;
 CREATE VIEW s.v AS SELECT * FROM mysql.time_zone;
@@ -241,3 +241,78 @@ Warning	3607	Problem while dropping database. Can't remove database directory (E
 # ... and error log too. Let's check that.
 Pattern "Problem while dropping database. Can't remove database directory .* Please remove it manually." found
 # Clean-up.
+#
+# Bug#24510948: ALTER TABLE+INSERT+DROP DB HANG
+#
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(id INT, title VARCHAR(100),
+FULLTEXT fidx(title), PRIMARY KEY(id));
+# Con1 will attempt insert and block holding open_in_progress on share
+SET DEBUG_SYNC= 'get_share_before_open SIGNAL wait_share WAIT_FOR continue_insert';
+SET SESSION lock_wait_timeout= 5;
+INSERT INTO db1.t1 VALUES(1, 'mysql database');
+# Con2 will attempt alter and block before waiting on COND_open
+SET DEBUG_SYNC= 'now WAIT_FOR wait_share';
+SET DEBUG_SYNC= 'get_share_before_COND_open_wait SIGNAL wait_cond WAIT_FOR continue_alter';
+ALTER TABLE db1.t1 DROP INDEX fidx;
+# Con3 will wait until the other connections are waiting for signals,
+# then attempt to drop schema, which requires X-MDL
+SET DEBUG_SYNC= 'now WAIT_FOR wait_cond';
+DROP DATABASE db1;
+# Con3 is now waiting for MDL on schema. Waking the other connections
+# should let them continue (before fix con1 and con2 would deadlock
+# on schema MDL and LOCK_open (protecting share->open_in_progress)
+# until con1 aborts with lock timeout
+SET DEBUG_SYNC= 'now SIGNAL continue_insert';
+SET DEBUG_SYNC= 'now SIGNAL continue_alter';
+# Reaping connection con1
+# Reaping connection con2
+# Reaping connection con3
+#
+# Bug#26043994: CREATE DATABASE/DIRECTORY INCONSISTENCY
+#
+# Dropping a non-existing schema fails
+DROP SCHEMA s1;
+ERROR HY000: Can't drop database 's1'; database doesn't exist
+# but drop succeeds (with a warning) when using IF EXISTS
+DROP SCHEMA IF EXISTS s1;
+Warnings:
+Note	1008	Can't drop database 's1'; database doesn't exist
+# Verify that schema can be created successfully
+CREATE SCHEMA s1;
+# Verify that trying to create it again fails
+CREATE SCHEMA s1;
+ERROR HY000: Can't create database 's1'; database exists
+# but create succeds (with a warning) when using IF NOT EXITSTS
+CREATE SCHEMA IF NOT EXISTS s1;
+Warnings:
+Note	1007	Can't create database 's1'; database exists
+DROP SCHEMA s1;
+# Create a directory in datadir manually
+# Creating a schema with the same name as directory in datadir fails
+# but with new error message
+CREATE SCHEMA bogus__;
+ERROR HY000: Schema directory './bogus__' already exists. This must be resolved manually (e.g. by moving the schema directory to another location).
+# Creating a schema with the same name as a directory in datadir
+# with IF NOT EXISTS fails.
+CREATE SCHEMA IF NOT EXISTS bogus__;
+ERROR HY000: Schema directory './bogus__' already exists. This must be resolved manually (e.g. by moving the schema directory to another location).
+# Drop a non-existent schema with the same name as a directory in
+# datadir fails.
+DROP SCHEMA bogus__;
+ERROR HY000: Schema 'bogus__' does not exist, but schema directory './bogus__/' was found. This must be resolved manually (e.g. by moving the schema directory to another location).
+# Drop a non-existent schema with the same name as a directory in
+# datadir with IF EXISTS fails.
+DROP SCHEMA IF EXISTS bogus__;
+ERROR HY000: Schema 'bogus__' does not exist, but schema directory './bogus__/' was found. This must be resolved manually (e.g. by moving the schema directory to another location).
+CREATE SCHEMA broken;
+# Remove the schema directory for an existing schema
+# Drop then fails with new error message
+DROP SCHEMA broken;
+ERROR HY000: Schema directory './broken/' does not exist
+# but drop succeeds (with warning) when adding IF EXISTS
+# Suppress output since it is not stable across platforms
+DROP SCHEMA IF EXISTS broken;
+# Create and drop schema again to make sure nothing is left behind
+CREATE SCHEMA broken;
+DROP SCHEMA broken;

@@ -16,11 +16,11 @@
 #ifndef COMPONENTS_SERVICES_PSI_FILE_BITS_H
 #define COMPONENTS_SERVICES_PSI_FILE_BITS_H
 
-#include "my_inttypes.h"
-#include "my_io.h"
-#include "my_macros.h"
+#ifndef MYSQL_ABI_CHECK
+#include <stddef.h> /* size_t */
+#endif
 
-C_MODE_START
+#include <mysql/components/services/my_io_bits.h> /* File */
 
 /**
   @file
@@ -117,7 +117,7 @@ struct PSI_file_info_v1
     The flags of the file instrument to register.
     @sa PSI_FLAG_SINGLETON
   */
-  uint m_flags;
+  unsigned int m_flags;
   /** Volatility index. */
   int m_volatility;
   /** Documentation. */
@@ -139,7 +139,7 @@ typedef struct PSI_file_info_v1 PSI_file_info_v1;
 struct PSI_file_locker_state_v1
 {
   /** Internal state. */
-  uint m_flags;
+  unsigned int m_flags;
   /** Current operation. */
   enum PSI_file_operation m_operation;
   /** Current file. */
@@ -153,9 +153,9 @@ struct PSI_file_locker_state_v1
   /** Operation number of bytes. */
   size_t m_number_of_bytes;
   /** Timer start. */
-  ulonglong m_timer_start;
+  unsigned long long m_timer_start;
   /** Timer function. */
-  ulonglong (*m_timer)(void);
+  unsigned long long (*m_timer)(void);
   /** Internal data. */
   void *m_wait;
 };
@@ -229,7 +229,7 @@ typedef struct PSI_file_locker *(*get_thread_file_descriptor_locker_v1_t)(
 */
 typedef void (*start_file_open_wait_v1_t)(struct PSI_file_locker *locker,
                                           const char *src_file,
-                                          uint src_line);
+                                          unsigned int src_line);
 
 /**
   End a file instrumentation open operation, for file streams.
@@ -267,7 +267,7 @@ typedef void (*end_temp_file_open_wait_and_bind_to_descriptor_v1_t)(
 typedef void (*start_file_wait_v1_t)(struct PSI_file_locker *locker,
                                      size_t count,
                                      const char *src_file,
-                                     uint src_line);
+                                     unsigned int src_line);
 
 /**
   Record a file instrumentation end event.
@@ -292,7 +292,7 @@ typedef void (*end_file_wait_v1_t)(struct PSI_file_locker *locker,
 */
 typedef void (*start_file_close_wait_v1_t)(struct PSI_file_locker *locker,
                                            const char *src_file,
-                                           uint src_line);
+                                           unsigned int src_line);
 
 /**
   End a file instrumentation close operation.
@@ -302,11 +302,20 @@ typedef void (*start_file_close_wait_v1_t)(struct PSI_file_locker *locker,
 typedef void (*end_file_close_wait_v1_t)(struct PSI_file_locker *locker,
                                          int rc);
 
+ /**
+  Rename a file instrumentation close operation.
+  @param locker the file locker.
+  @param old_name name of the file to be renamed.
+  @param new_name name of the file after rename.
+  @param rc the rename operation return code (0 for success).
+*/
+typedef void (*end_file_rename_wait_v1_t)(struct PSI_file_locker *locker,
+                                          const char *old_name,
+                                          const char *new_name, int rc);
+
 typedef struct PSI_file_info_v1 PSI_file_info;
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 
 /** @} (end of group psi_abi_file) */
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_PSI_FILE_BITS_H */

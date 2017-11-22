@@ -17513,7 +17513,7 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
                                            ndbtab->getObjectVersion());
   }
 
-  delete alter_data;
+  destroy(alter_data);
   ha_alter_info->handler_ctx= 0;
 
 
@@ -17543,7 +17543,7 @@ ha_ndbcluster::abort_inplace_alter_table(TABLE *altered_table,
     ERR_PRINT(dict->getNdbError());
   }
 
-  delete alter_data;
+  destroy(alter_data);
   ha_alter_info->handler_ctx= 0;
 
   // Unpin the NDB_SHARE of the altered table

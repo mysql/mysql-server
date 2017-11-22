@@ -370,14 +370,13 @@ void mysql_string_free(mysql_string_handle);
 void mysql_string_iterator_free(mysql_string_iterator_handle);
 #include <mysql/service_mysql_alloc.h>
 #include "mysql/components/services/psi_memory_bits.h"
-#include "my_inttypes.h"
 typedef unsigned int PSI_memory_key;
 struct PSI_thread;
 struct PSI_memory_info_v1
 {
   PSI_memory_key *m_key;
   const char *m_name;
-  uint m_flags;
+  unsigned int m_flags;
   int m_volatility;
   const char *m_documentation;
 };

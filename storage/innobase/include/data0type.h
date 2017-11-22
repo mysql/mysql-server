@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -355,7 +355,6 @@ dtype_get_prtype(
 /*=============*/
 	const dtype_t*	type);	/*!< in: data type */
 
-#ifndef UNIV_HOTBACKUP
 /** Compute the mbminlen and mbmaxlen members of a data type structure.
 @param[in]	mtype		main type
 @param[in]	prtype		precise type (and collation)
@@ -397,7 +396,6 @@ ibool
 dtype_is_utf8(
 /*==========*/
 	ulint	prtype);/*!< in: precise data type */
-#endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Gets the type length.
 @return fixed length of the type, in bytes, or 0 if variable-length */
@@ -457,7 +455,6 @@ dtype_get_fixed_size_low(
 	ulint	mbminmaxlen,
 	ulint	comp);
 
-#ifndef UNIV_HOTBACKUP
 /** Returns the minimum size of a data type.
 @param[in]	mtype		main type
 @param[in]	prtype		precise type
@@ -483,7 +480,6 @@ ulint
 dtype_get_max_size_low(
 	ulint	mtype,
 	ulint	len);
-#endif /* !UNIV_HOTBACKUP */
 
 /** Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a type.
 For fixed length types it is the fixed length of the type, otherwise 0.
@@ -592,13 +588,11 @@ struct dtype_t{
 					string data (in addition to
 					the string, MySQL uses 1 or 2
 					bytes to store the string length) */
-#ifndef UNIV_HOTBACKUP
 	unsigned	mbminmaxlen:5;	/*!< minimum and maximum length of a
 					character, in bytes;
 					DATA_MBMINMAXLEN(mbminlen,mbmaxlen);
 					mbminlen=DATA_MBMINLEN(mbminmaxlen);
 					mbmaxlen=DATA_MBMINLEN(mbminmaxlen) */
-#endif /* !UNIV_HOTBACKUP */
 };
 
 #include "data0type.ic"

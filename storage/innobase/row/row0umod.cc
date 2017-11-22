@@ -48,6 +48,7 @@ Created 2/27/1997 Heikki Tuuri
 #include "trx0trx.h"
 #include "trx0undo.h"
 
+#include <debug_sync.h>
 #include "current_thd.h"
 
 /* Considerations on undoing a modify operation.
@@ -276,6 +277,8 @@ row_undo_mod_clust(
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	online = dict_index_is_online_ddl(index);
+	DEBUG_SYNC(current_thd, "row_undo_mod_clust");
+
 	if (online) {
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
 	}

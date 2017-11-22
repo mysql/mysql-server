@@ -1823,6 +1823,29 @@ a	UNIX_TIMESTAMP(a)	UNIX_TIMESTAMP('5000-01-01 00:00:00')
 5000-01-01 00:00:00	0.000000	0
 DROP TABLE t1;
 #
+# Bug#23529242 CONCAT: ASSERTION FAILED: MAYBE_NULL
+#
+Disable strict mode. This affects the nullability of string
+functions, and the bug only reproduces when CONCAT's return
+type is NOT NULL.
+SET @savmode=@@SESSION.SQL_MODE;
+SET SESSION SQL_MODE='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT UNIX_TIMESTAMP(COUNT(1));
+UNIX_TIMESTAMP(COUNT(1))
+0
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+SELECT CONCAT(UNIX_TIMESTAMP(COUNT(1)), '|');
+CONCAT(UNIX_TIMESTAMP(COUNT(1)), '|')
+0|
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+SET SESSION SQL_MODE=@savmode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+#
 # Bug#13988413 CRASH/ASSERTION AFTER INVALID MEMORY READ 
 #              IN MY_USECONDS_TO_STR
 #
@@ -1832,7 +1855,7 @@ CREATE TABLE t1 AS SELECT IF(0, coalesce(NULL), now(0)) + 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `IF(0, coalesce(NULL), now(0)) + 0` decimal(21,6) DEFAULT NULL
+  `IF(0, coalesce(NULL), now(0)) + 0` bigint(16) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 #
@@ -1874,3 +1897,26 @@ LOCATE(".", SYSDATE(6)) != 0
 # Cleanup
 DROP VIEW v1, v2;
 SET @@TIMESTAMP= DEFAULT;
+#
+# Bug#26740635: DAYOFYEAR FUNC: ASSERTION FAILED: NULL_VALUE
+#
+DO DAYOFYEAR(SEC_TO_TIME((~(((RELEASE_ALL_LOCKS())-((1)))))));
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(release_all_locks() - 1)'
+DO DAYOFYEAR(((MBRDISJOINT(0xbc,1))OR(WEEK(SEC_TO_TIME(419824656)))));
+ERROR 22023: Invalid GIS data provided to function mbrdisjoint.
+DO DAYOFYEAR(SEC_TO_TIME(OCT(BIT_AND(JSON_REPLACE((23533),'key3',NULL)))));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_replace; a JSON string or JSON type is required.
+DO DAYOFYEAR(MAKETIME(((0x965a)^((@g :=(1 IS NULL)))),
+EXP(39988664861.65638662152600787509),
+((STD(@f))LIKE(1))));
+ERROR 22003: DOUBLE value is out of range in 'exp(39988664861.65638662152600787509)'
+DO DAYOFYEAR(MAKETIME('1981-06-27 11:16:09.211343',
+(((NOT(ST_DISTANCE_SPHERE(POINT(4472,28027),
+POINT(28061,-9007199254740996),-644021130))))<=>(@c)),(1)));
+ERROR HY000: Incorrect arguments to st_distance_sphere
+DO DAYOFYEAR(MAKETIME(ROUND(-23797,'6588-01-08'),
+COERCIBILITY(BIT_COUNT(RTRIM((~(
+INET6_NTOA(0xa04810f0839d318fa075bd)))))),
+((ST_ASWKT(1))OR(1))));
+ERROR 22023: Invalid GIS data provided to function st_astext.
+# End of test for Bug#26740635

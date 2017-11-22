@@ -289,41 +289,39 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables)
 }
 
 
-/*
-  Implicitly commit a active transaction if statement requires so.
+/**
+  Returns whether the command in thd->lex->sql_command should cause an
+  implicit commit. An active transaction should be implicitly commited if the
+  statement requires so.
 
   @param thd    Thread handle.
   @param mask   Bitmask used for the SQL command match.
 
+  @retval true This statement shall cause an implicit commit.
+  @retval false This statement shall not cause an implicit commit.
 */
 bool stmt_causes_implicit_commit(const THD *thd, uint mask)
 {
-  const LEX *lex= thd->lex;
-  bool skip= FALSE;
   DBUG_ENTER("stmt_causes_implicit_commit");
+  const LEX *lex= thd->lex;
 
-  if (!(sql_command_flags[lex->sql_command] & mask) ||
+  if ((sql_command_flags[lex->sql_command] & mask) == 0 ||
       thd->is_plugin_fake_ddl())
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   switch (lex->sql_command) {
   case SQLCOM_DROP_TABLE:
-    skip= lex->drop_temporary;
-    break;
+    DBUG_RETURN(!lex->drop_temporary);
   case SQLCOM_ALTER_TABLE:
   case SQLCOM_CREATE_TABLE:
     /* If CREATE TABLE of non-temporary table, do implicit commit */
-    skip= (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
-    break;
+    DBUG_RETURN((lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) == 0);
   case SQLCOM_SET_OPTION:
     /* Implicitly commit a transaction started by a SET statement */
-    skip= lex->autocommit ? FALSE : TRUE;
-    break;
+    DBUG_RETURN(lex->autocommit);
   default:
-    break;
+    DBUG_RETURN(true);
   }
-
-  DBUG_RETURN(!skip);
 }
 
 
@@ -1624,6 +1622,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
         LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
       });
+      DBUG_EXECUTE_IF("parser_stmt_to_error_log_with_system_prio", {
+        LogErr(SYSTEM_LEVEL, ER_PARSER_TRACE, thd->query().str);
+      });
     }
     break;
   }
@@ -1707,6 +1708,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
     DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
         LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
+      });
+    DBUG_EXECUTE_IF("parser_stmt_to_error_log_with_system_prio", {
+        LogErr(SYSTEM_LEVEL, ER_PARSER_TRACE, thd->query().str);
       });
 
     while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
@@ -5824,6 +5828,7 @@ SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
   node->m_is_derived_table= true;
   auto wc_save= wc->enter_parsing_definition(tl);
 
+  DBUG_ASSERT(thd->lex->will_contextualize);
   if (node->contextualize(pc))
     return true;
 
@@ -6132,16 +6137,31 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
     else
     {
       schema_table= find_schema_table(thd, ptr->table_name);
-      if (!schema_table ||
-          (schema_table->hidden &&
+      /*
+        Report an error
+          if hidden schema table name is used in the statement other than
+          SHOW statement OR
+          if unknown schema table is used in the statement other than
+          SHOW CREATE VIEW statement.
+        Invalid view warning is reported for SHOW CREATE VIEW statement in
+        the table open stage.
+      */
+      if ((!schema_table &&
+           !(thd->query_plan.get_command() == SQLCOM_SHOW_CREATE &&
+             thd->query_plan.get_lex()->only_view)) ||
+          (schema_table && schema_table->hidden &&
            (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0))
       {
         my_error(ER_UNKNOWN_TABLE, MYF(0),
                  ptr->table_name, INFORMATION_SCHEMA_NAME.str);
         DBUG_RETURN(0);
       }
-      ptr->schema_table_name= const_cast<char*>(ptr->table_name);
-      ptr->schema_table= schema_table;
+
+      if (schema_table)
+      {
+        ptr->schema_table_name= const_cast<char*>(ptr->table_name);
+        ptr->schema_table= schema_table;
+      }
     }
   }
 

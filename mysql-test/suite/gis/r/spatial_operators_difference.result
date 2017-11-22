@@ -965,14 +965,11 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@sta
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)))
 POINT(15 25)
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145)));
-ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145)))
-POINT(15 25)
+ERROR 22S00: st_difference(POINT, POINT) has not been implemented for geographic spatial reference systems.
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326)));
-ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326)))
-POINT(15 25)
+ERROR 22S00: st_difference(POINT, POINT) has not been implemented for geographic spatial reference systems.
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135)));
-ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135)))
-POINT(15 25)
+ERROR 22S00: st_difference(POINT, POINT) has not been implemented for geographic spatial reference systems.
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024)));
@@ -1643,16 +1640,12 @@ ST_GEOMFROMTEXT('POINT(0 0)', 2000),
 ST_GEOMFROMTEXT('POINT(0 0)', 2000)
 ))
 GEOMETRYCOLLECTION EMPTY
-# Geographic SRS (should pass)
+# Geographic SRS (should fail)
 SELECT ST_ASTEXT(ST_DIFFERENCE(
 ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 ));
-ST_ASTEXT(ST_DIFFERENCE(
-ST_GEOMFROMTEXT('POINT(0 0)', 4326),
-ST_GEOMFROMTEXT('POINT(0 0)', 4326)
-))
-GEOMETRYCOLLECTION EMPTY
+ERROR 22S00: st_difference(POINT, POINT) has not been implemented for geographic spatial reference systems.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
@@ -1663,3 +1656,12 @@ ST_GEOMFROMTEXT('POINT(0 0)', 11000001)
 ));
 ERROR SR002: Can't parse the spatial reference system definition of SRID 11000001.
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 11000001;
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_DIFFERENCE(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.

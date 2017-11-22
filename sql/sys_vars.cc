@@ -2223,6 +2223,7 @@ static Sys_var_charptr Sys_log_error_filter_rules(
 
 static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
 {
+  // test whether syntax is OK and services exist
   int i;
 
   if (var->save_result.string_value.str == nullptr)
@@ -2251,10 +2252,23 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
 
 
 static bool fix_log_error_services(sys_var *self MY_ATTRIBUTE((unused)),
-                                   THD *thd MY_ATTRIBUTE((unused)),
+                                   THD *thd,
                                    enum_var_type type MY_ATTRIBUTE((unused)))
 {
-  return (log_builtins_error_stack(opt_log_error_services, false) < 0);
+  // syntax is OK and services exist; try to initialize them!
+  int rr= log_builtins_error_stack(opt_log_error_services, false);
+  if (rr < 0)
+  {
+    rr= -(rr + 1);
+    if (((size_t) rr) < strlen(opt_log_error_services))
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_CANT_START_ERROR_LOG_SERVICE,
+                          ER_THD(thd, ER_CANT_START_ERROR_LOG_SERVICE),
+                          self->name.str,
+                          &((char *) opt_log_error_services)[rr]);
+    return true;
+  }
+  return false;
 }
 
 static Sys_var_charptr Sys_log_error_services(
@@ -2325,7 +2339,7 @@ static Sys_var_ulong Sys_log_error_verbosity(
        "Messages sent to the client are unaffected by this setting.",
        GLOBAL_VAR(log_error_verbosity),
        CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 3), DEFAULT(3), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       VALID_RANGE(1, 3), DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_log_error_verbosity));
 
 static Sys_var_enum Sys_log_timestamps(
@@ -3154,7 +3168,7 @@ static Sys_var_ulong Sys_optimizer_trace_max_mem_size(
        "optimizer_trace_max_mem_size",
        "Maximum allowed cumulated size of stored optimizer traces",
        SESSION_VAR(optimizer_trace_max_mem_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*16), BLOCK_SIZE(1));
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1));
 
 #endif
 
@@ -4163,9 +4177,9 @@ bool Sys_var_gtid_mode::global_update(THD* thd, set_var *var)
   lock_count= 3;
 
   // Generate note in log
-  LogErr(INFORMATION_LEVEL, ER_CHANGED_GTID_MODE,
+  LogErr(SYSTEM_LEVEL, ER_CHANGED_GTID_MODE,
          gtid_mode_names[old_gtid_mode],
-         gtid_mode_names[new_gtid_mode]).force_print();
+         gtid_mode_names[new_gtid_mode]);
 
   // Rotate
   {
@@ -6169,10 +6183,10 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
-  LogErr(INFORMATION_LEVEL, ER_GTID_PURGED_WAS_CHANGED,
-         previous_gtid_purged, current_gtid_purged).force_print();
-  LogErr(INFORMATION_LEVEL, ER_GTID_EXECUTED_WAS_CHANGED,
-         previous_gtid_executed, current_gtid_executed).force_print();
+  LogErr(SYSTEM_LEVEL, ER_GTID_PURGED_WAS_CHANGED,
+         previous_gtid_purged, current_gtid_purged);
+  LogErr(SYSTEM_LEVEL, ER_GTID_EXECUTED_WAS_CHANGED,
+         previous_gtid_executed, current_gtid_executed);
 
 end:
   global_sid_lock->unlock();

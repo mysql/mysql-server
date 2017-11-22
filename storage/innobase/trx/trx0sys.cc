@@ -49,7 +49,6 @@ Created 3/26/1996 Heikki Tuuri
 
 /** The transaction system */
 trx_sys_t*		trx_sys		= NULL;
-#endif /* !UNIV_HOTBACKUP */
 
 /** Check whether transaction id is valid.
 @param[in]	id              transaction id to check
@@ -92,7 +91,6 @@ ReadView::check_trx_id_sanity(
 	}
 }
 
-#ifndef UNIV_HOTBACKUP
 # ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
 uint	trx_rseg_n_slots_debug = 0;
@@ -420,6 +418,8 @@ trx_sys_init_at_db_start(void)
 		ib::info() << "Trx id counter is " << trx_sys->max_trx_id;
 	}
 
+	trx_sys->found_prepared_trx = trx_sys->n_prepared_trx > 0;
+
 	trx_sys_mutex_exit();
 
 	return(purge_queue);
@@ -487,7 +487,8 @@ trx_sys_print_mysql_binlog_offset_from_page(
 			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
 	    == TRX_SYS_MYSQL_LOG_MAGIC_N) {
 
-		ib::info() << "mysqlbackup: Last MySQL binlog file position "
+		ib::info()
+			<< "Last MySQL binlog file position "
 			<< mach_read_from_4(
 				sys_header + TRX_SYS_MYSQL_LOG_INFO
 				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH) << " "
@@ -684,6 +685,7 @@ trx_sys_validate_trx_list()
 	return(true);
 }
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 /** A list of undo tablespace IDs found in the TRX_SYS page. These are the
 old type of undo tablespaces that do not have space_IDs in the reserved
@@ -711,4 +713,3 @@ trx_sys_undo_spaces_deinit()
 
 	trx_sys_undo_spaces = nullptr;
 }
-#endif /* !UNIV_HOTBACKUP */

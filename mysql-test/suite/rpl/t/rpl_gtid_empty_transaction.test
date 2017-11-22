@@ -91,8 +91,8 @@ ALTER TABLE t_ignore_wild ADD COLUMN b INT;
 INSERT INTO t_ignore_wild VALUES (1, 2);
 DROP TEMPORARY TABLE t_ignore_wild;
 
-# Verify that 2 GTIDs were generated.
---let $gtid_step_count= 2
+# Verify that 0 GTIDs were generated.
+--let $gtid_step_count= 0
 --source include/gtid_step_assert.inc
 
 # Verify that the GTIDs make it to every slave.

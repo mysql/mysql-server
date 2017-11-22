@@ -27,7 +27,8 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 		mtr_warning mtr_error mtr_debug mtr_verbose
 		mtr_verbose_restart mtr_report_test_passed
 		mtr_report_test_skipped mtr_print
-		mtr_report_test isotime mtr_summary_file_init mtr_xml_init);
+		mtr_report_test isotime mtr_summary_file_init mtr_xml_init
+                disk_usage);
 
 use mtr_match;
 use File::Spec;
@@ -47,9 +48,34 @@ our $name;
 our $verbose;
 our $verbose_restart= 0;
 our $timer= 1;
+our $disk_usage= 0;
 
 our $xml_report_file;
 our $summary_report_file;
+
+sub disk_usage() {
+  my $du = "";
+  if ($disk_usage) {
+    if(IS_WINDOWS)
+    {
+      $du = "";
+    }
+    else
+    {
+      $du = `du -sm $::opt_vardir 2>/dev/null`;
+      #
+      # Please note the leading space before duMB. The caller can do
+      # "other_information%s", where the %s is for the disk usage. If
+      # the disk usage is not requested, nothing is added to the string.
+      # otherwise the space separates the disk usage element from the
+      # other information.
+      #
+      $du =~ s/(\d*)\s.*/ duMB:$1/;
+      chomp $du;
+    }
+  }
+  return $du;
+}
 
 sub report_option {
   my ($opt, $value)= @_;
@@ -236,7 +262,12 @@ sub mtr_report_test ($) {
   {
     my $timer_str= $tinfo->{timer} || "";
     $tot_real_time += ($timer_str/1000);
-    mtr_report("[ ${retry}pass ] ", sprintf("%5s", $timer_str));
+    #
+    # Please note, that disk_usage() will print a space to separate its
+    # information from the preceding string, if the disk usage report is
+    # enabled. Otherwise an empty string is returned.
+    #
+    mtr_report("[ ${retry}pass ] ", sprintf("%5s%s", $timer_str, disk_usage()));
 
     # Show any problems check-testcase found
     if ( defined $tinfo->{'check'} )

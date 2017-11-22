@@ -95,7 +95,7 @@ DROP TABLE t2, t1;
 let $SAVED_foreign_key_checks= `SELECT @@foreign_key_checks`;
 set @@foreign_key_checks=0;
 
-CREATE TABLE t1(a CHAR(100), b GEOMETRY NOT NULL) ENGINE InnoDB;
+CREATE TABLE t1(a CHAR(100), b GEOMETRY NOT NULL SRID 0) ENGINE InnoDB;
 
 --echo # Creating a foreign key on a GEOMETRY column is not supported
 --error ER_BLOB_KEY_WITHOUT_LENGTH
@@ -221,3 +221,55 @@ CREATE TABLE t2_fk (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#27014308 - UPGRADING TO 8.0.3 FAILS IF FOREIGN KEYS OF EXACTLY 64 CHARACTERS ARE PRESENT
+--echo #
+
+--echo # test with FK identifier of length exactly 64 characters;
+CREATE TABLE parent (
+    id INT NOT NULL,
+    PRIMARY KEY (id)
+) ENGINE=INNODB;
+
+CREATE TABLE child (
+    id INT,
+    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+INT,
+    INDEX par_ind
+(xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx),
+    CONSTRAINT
+`xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+FOREIGN
+KEY (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+        REFERENCES parent(id)
+        ON DELETE CASCADE
+) ENGINE=INNODB;
+
+DROP TABLE child;
+DROP TABLE parent;
+
+--echo # test with FK identifier of length exactly 65 characters,
+--echo # child table creation should fail
+
+CREATE TABLE parent (
+    id INT NOT NULL,
+    PRIMARY KEY (id)
+) ENGINE=INNODB;
+
+--error ER_TOO_LONG_IDENT
+CREATE TABLE child (
+    id INT,
+    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+INT,
+    INDEX par_ind
+(xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx),
+    CONSTRAINT
+`xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+FOREIGN
+KEY (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+        REFERENCES parent(id)
+        ON DELETE CASCADE
+) ENGINE=INNODB;
+
+DROP TABLE parent;

@@ -126,11 +126,8 @@ void typed_gc_union(double semi_major, double semi_minor,
   }
 
   std::unique_ptr<MLs> linestrings(new MLs());
-  for (auto &ls : *down_cast<MLs *>(mls->get())) {
-    linestrings.reset(down_cast<MLs *>(union_(linestrings.get(), &ls)));
-  }
   linestrings.reset(
-      down_cast<MLs *>(difference(linestrings.get(), polygons.get())));
+      down_cast<MLs *>(difference(mls->get(), polygons.get())));
 
   std::unique_ptr<MPt> points(down_cast<MPt *>(
       difference(down_cast<MPt *>(mpt->get()), linestrings.get())));

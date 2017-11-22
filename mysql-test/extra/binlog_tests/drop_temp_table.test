@@ -25,10 +25,6 @@ CREATE TABLE t(c1 int);
 
 DROP TEMPORARY TABLE IF EXISTS tmp;
 
-# In RBR DROP TEMPORARY TABLE statements are always binlogged, so tables
-# which were added prior switching to RBR are cleaned up.
-# IF EXISTS clause is always added to ensure that statement doesn't fail
-# if table was created after switch to RBR.
 --disable_warnings
 DROP TEMPORARY TABLE IF EXISTS tmp;
 

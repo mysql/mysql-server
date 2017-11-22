@@ -79,7 +79,8 @@ void Key::store_field_length(uchar *buffer, size_t *buffer_position, size_t leng
 
 void Key::store_field(uchar *buffer, size_t *buffer_position, const char *field, size_t field_length) const
 {
-  memcpy(buffer + *buffer_position, field, field_length);
+  if (field_length > 0)
+    memcpy(buffer + *buffer_position, field, field_length);
   *buffer_position+= field_length;
 }
 

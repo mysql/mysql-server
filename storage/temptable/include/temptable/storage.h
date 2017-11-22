@@ -411,7 +411,12 @@ inline Storage::Storage(Allocator<uint8_t>* allocator)
       m_last_page(nullptr),
       m_last_element(nullptr) {}
 
-inline Storage::Storage(Storage&& other) { *this = std::move(other); }
+inline Storage::Storage(Storage&& other)
+    : m_first_page(nullptr),
+      m_last_page(nullptr),
+      m_last_element(nullptr) {
+  *this = std::move(other);
+}
 
 inline Storage& Storage::operator=(Storage&& rhs) {
   DBUG_ASSERT(m_first_page == nullptr);
@@ -607,8 +612,6 @@ inline void Storage::clear() {
   if (m_first_page == m_last_page) {
     DBUG_ASSERT(m_number_of_elements <= m_number_of_elements_per_page);
   } else {
-    DBUG_ASSERT(m_number_of_elements > m_number_of_elements_per_page);
-
     Page* p = m_first_page;
     do {
       p = *page_next_page_ptr(p);

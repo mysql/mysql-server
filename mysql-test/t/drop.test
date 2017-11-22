@@ -275,7 +275,7 @@ FLUSH TABLES t1 FOR EXPORT;
 --echo # Wait until DROP DATABASE becomes blocked on table metadata lock
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE state = "Waiting for table metadata lock" AND
+  WHERE state = "Waiting for schema metadata lock" AND
         info = "DROP DATABASE bug19573998";
 --source include/wait_condition.inc
 UNLOCK TABLES;

@@ -16,7 +16,8 @@
 # rpl and binlog suites run with all 3
 # binlog-formats  row, stmt and mixed
 # Run with --big-test option so that longer tests are also run
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=all-default-big  --vardir=var-all-default-big  --report-features  --unit-tests-report --no-skip
+# Run with --non-parallel-test option so that non parallel tests are also run
+perl mysql-test-run.pl --force --timer  --big-test --non-parallel-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=all-default-big  --vardir=var-all-default-big  --report-features  --unit-tests-report --no-skip
 
 # Run default suites with ps protocol
 perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=ps --vardir=var-ps  --ps-protocol
@@ -27,7 +28,7 @@ perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collecti
 
 #################SECTION2: RUN SUITES THAT ARE NOT PART OF DEFAULT##########
 # Run the suites that are not part of the default - funcs_2, stress, jp, nist
-# interactive_utilities,engines, memcached, rpl_many_mysqlds
+# interactive_utilities,engines, memcached
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60   --parallel=auto --experimental=collections/default.experimental --comment=funcs2-big  --vardir=var-funcs2-big --suite=funcs_2 --no-skip
 perl mysql-test-run.pl --force --timer --big-test  --parallel=auto --experimental=collections/default.experimental --comment=stress --vardir=var-stress  --suite=stress --no-skip
 perl mysql-test-run.pl --force --timer --big-test  --parallel=auto --experimental=collections/default.experimental --comment=jp --vardir=var-jp --suite=jp --no-skip
@@ -40,8 +41,6 @@ perl mysql-test-run.pl --timer --force  --parallel=auto --comment=eits-tests-inn
 
 # Memcached tests
 perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto --suite=memcached  --no-skip
-# Replication test cases using many mysqlds (rpl_many_mysqlds)
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=90 --parallel=1 --experimental=collections/default.experimental --comment=rpl_many_mysqlds-big  --vardir=var-rpl_many_mysqlds-big --suite=rpl_many_mysqlds --no-skip
 ######END OF SECTION 2 (NON-DEFAULT SUITES)######################
 
 ######## SECTION 3: EXTENDED RUNS FOR REPLICATION AND BINLOG#######

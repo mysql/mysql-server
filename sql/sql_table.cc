@@ -28,16 +28,21 @@
 #include <memory>
 #include <string>
 
+#ifndef UNIV_HOTBACKUP
 #include "binary_log_types.h"
 #include "binlog_event.h"
 #include "lex_string.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "m_ctype.h"
 #include "m_string.h"                 // my_stpncpy
+#ifndef UNIV_HOTBACKUP
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_check_opt.h"             // T_EXTEND
 #include "my_compiler.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "my_dbug.h"
+#ifndef UNIV_HOTBACKUP
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
@@ -125,9 +130,14 @@
 #include "sql/sql_tablespace.h"       // validate_tablespace_name
 #include "sql/sql_time.h"             // make_truncated_value_warning
 #include "sql/sql_trigger.h"          // change_trigger_table_name
+#endif /* !UNIV_HOTBACKUP */
+#include "sql/strfunc.h"                  // find_type2
+#ifndef UNIV_HOTBACKUP
 #include "sql/strfunc.h"              // find_type2
 #include "sql/system_variables.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "sql/table.h"
+#ifndef UNIV_HOTBACKUP
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"          // trans_commit_stmt
 #include "sql/transaction_info.h"
@@ -172,6 +182,13 @@ static bool prepare_enum_field(THD *thd, Create_field *sql_field);
 static uint blob_length_by_type(enum_field_types type);
 static const Create_field *get_field_by_index(Alter_info *alter_info, uint idx);
 
+#else /* !UNIV_HOTBACKUP */
+/* Branches which use these, should not be taken by backup. */
+#define ER_THD_OR_DEFAULT(thd,X) ("Cannot explain file name, MySQL error")
+#define get_quote_char_for_identifier(thd, conv_name, len) ('`')
+#endif /* !UNIV_HOTBACKUP */
+
+#ifndef UNIV_HOTBACKUP
 /**
   RAII class to control the atomic DDL commit on slave.
   A slave context flag responsible to mark the DDL as committed is
@@ -226,6 +243,7 @@ static bool trans_intermediate_ddl_commit(THD *thd, bool error)
   }
   return trans_commit_stmt(thd) || trans_commit(thd);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 
 /**
@@ -500,6 +518,7 @@ size_t explain_filename(THD* thd,
   DBUG_RETURN(static_cast<size_t>(to_p - to));
 }
 
+#ifndef UNIV_HOTBACKUP
 void parse_filename(const char *filename, size_t filename_length,
                     const char ** schema_name, size_t *schema_name_length,
                     const char ** table_name, size_t *table_name_length,
@@ -614,6 +633,7 @@ void parse_filename(const char *filename, size_t filename_length,
   *subpartition_name= id_ptr;
   *subpartition_name_length= id_length;
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*
   Translate a file name to a table name (WL #1324).
@@ -648,6 +668,7 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length,
                     system_charset_info,  to, to_length, &errors);
     if (errors) // Old 5.0 name
     {
+#ifndef UNIV_HOTBACKUP
       if (!stay_quiet) {
         LogErr(ERROR_LEVEL, ER_INVALID_OR_OLD_TABLE_OR_DB_NAME, from);
       }
@@ -655,6 +676,7 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length,
         TODO: add a stored procedure for fix table and database names,
         and mention its name in error log.
       */
+#endif /* !UNIV_HOTBACKUP */
     }
   }
 
@@ -663,6 +685,7 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length,
 }
 
 
+#ifndef UNIV_HOTBACKUP
 /*
   Translate a table name to a file name (WL #1324).
 
@@ -1596,7 +1619,9 @@ public:
       base_atomic_tables(PSI_INSTRUMENT_ME),
       base_non_atomic_tables(PSI_INSTRUMENT_ME),
       tmp_trans_tables(PSI_INSTRUMENT_ME),
+      tmp_trans_tables_to_binlog(PSI_INSTRUMENT_ME),
       tmp_non_trans_tables(PSI_INSTRUMENT_ME),
+      tmp_non_trans_tables_to_binlog(PSI_INSTRUMENT_ME),
       nonexistent_tables(PSI_INSTRUMENT_ME),
       views(PSI_INSTRUMENT_ME),
       dropped_non_atomic(PSI_INSTRUMENT_ME),
@@ -1615,7 +1640,9 @@ public:
   Prealloced_array<TABLE_LIST*, 1> base_atomic_tables;
   Prealloced_array<TABLE_LIST*, 1> base_non_atomic_tables;
   Prealloced_array<TABLE_LIST*, 1> tmp_trans_tables;
+  Prealloced_array<TABLE_LIST*, 1> tmp_trans_tables_to_binlog;
   Prealloced_array<TABLE_LIST*, 1> tmp_non_trans_tables;
+  Prealloced_array<TABLE_LIST*, 1> tmp_non_trans_tables_to_binlog;
   Prealloced_array<TABLE_LIST*, 1> nonexistent_tables;
   Prealloced_array<TABLE_LIST*, 1> views;
 
@@ -1635,10 +1662,21 @@ public:
     return tmp_trans_tables.size() != 0;
   }
 
+  bool has_tmp_trans_tables_to_binlog() const
+  {
+    return tmp_trans_tables_to_binlog.size() != 0;
+  }
+
   bool has_tmp_non_trans_tables() const
   {
     return tmp_non_trans_tables.size() != 0;
   }
+
+  bool has_tmp_non_trans_tables_to_binlog() const
+  {
+    return tmp_non_trans_tables_to_binlog.size() != 0;
+  }
+
 
   bool has_any_nonexistent_tables() const
   {
@@ -1904,10 +1942,6 @@ rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
        other hand it can't fail once first simple checks are done. So it
        makes sense to drop them after base tables.
 
-       If the current binlog format is row, the IF EXISTS clause needs to be
-       appended because one does not know if CREATE TEMPORARY was previously
-       written to the binary log.
-
        Unlike for base tables, it is possible to drop database in which some
        connection has temporary tables open. So we can end-up in situation
        when connection's default database is no more, but still the connection
@@ -1989,10 +2023,18 @@ rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
         DBUG_ASSERT(table->table->query_id == thd->query_id);
 
         if (table->table->file->has_transactions())
+        {
           drop_ctx->tmp_trans_tables.push_back(table);
+          if (table->table->should_binlog_drop_if_temp())
+            drop_ctx->tmp_trans_tables_to_binlog.push_back(table);
+        }
         else
+        {
           drop_ctx->tmp_non_trans_tables.push_back(table);
-        continue;
+          if (table->table->should_binlog_drop_if_temp())
+            drop_ctx->tmp_non_trans_tables_to_binlog.push_back(table);
+        }
+         continue;
       }
     }
 
@@ -2111,13 +2153,13 @@ rm_table_eval_gtid_and_table_groups_state(THD *thd, Drop_tables_ctx *drop_ctx)
       /* Only DROP DATABASE drops views. */
       DBUG_ASSERT(!drop_ctx->has_views());
 
-      if ((drop_ctx->has_tmp_trans_tables() &&
-           drop_ctx->has_tmp_non_trans_tables()) ||
+      if ((drop_ctx->has_tmp_trans_tables_to_binlog() &&
+           drop_ctx->has_tmp_non_trans_tables_to_binlog()) ||
           ((drop_ctx->has_base_non_atomic_tables() ||
             drop_ctx->has_base_atomic_tables() ||
             drop_ctx->has_base_nonexistent_tables()) &&
-           (drop_ctx->has_tmp_trans_tables() ||
-            drop_ctx->has_tmp_non_trans_tables())))
+           (drop_ctx->has_tmp_trans_tables_to_binlog() ||
+            drop_ctx->has_tmp_non_trans_tables_to_binlog())))
       {
         /*
           Prohibited case. We have either both kinds of temporary tables or
@@ -2163,8 +2205,8 @@ rm_table_eval_gtid_and_table_groups_state(THD *thd, Drop_tables_ctx *drop_ctx)
           Can be logged as one atomic multi-table DROP TABLES statement.
           Other groups are empty.
         */
-        DBUG_ASSERT(!drop_ctx->has_tmp_trans_tables());
-        DBUG_ASSERT(!drop_ctx->has_tmp_non_trans_tables());
+        DBUG_ASSERT(!drop_ctx->has_tmp_trans_tables_to_binlog());
+        DBUG_ASSERT(!drop_ctx->has_tmp_non_trans_tables_to_binlog());
         drop_ctx->gtid_and_table_groups_state=
           Drop_tables_ctx::GTID_SINGLE_TABLE_GROUP;
       }
@@ -2181,7 +2223,7 @@ rm_table_eval_gtid_and_table_groups_state(THD *thd, Drop_tables_ctx *drop_ctx)
         DBUG_ASSERT(!drop_ctx->has_base_non_atomic_tables());
         DBUG_ASSERT(!drop_ctx->has_base_atomic_tables() &&
                     !drop_ctx->has_base_nonexistent_tables());
-        DBUG_ASSERT(!drop_ctx->has_tmp_non_trans_tables());
+        DBUG_ASSERT(!drop_ctx->has_tmp_non_trans_tables_to_binlog());
         drop_ctx->gtid_and_table_groups_state=
           Drop_tables_ctx::GTID_SINGLE_TABLE_GROUP;
       }
@@ -2852,19 +2894,6 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     DBUG_RETURN(true);
   }
 
-  /*
-    Check early if default database exists. We don't want code responsible
-    for dropping temporary tables fail due to this check after some tables
-    were dropped already.
-  */
-  if (thd->db().str != NULL)
-  {
-    bool exists= false;
-    if (dd::schema_exists(thd, thd->db().str, &exists))
-      DBUG_RETURN(true);
-    default_db_doesnt_exist= !exists;
-  }
-
   if (drop_ctx.if_exists && drop_ctx.has_any_nonexistent_tables())
   {
     for (TABLE_LIST *table : drop_ctx.nonexistent_tables)
@@ -2876,6 +2905,36 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                           ER_THD(thd, ER_BAD_TABLE_ERROR),
                           tbl_name.c_ptr());
     }
+  }
+
+  /* Non-existent temporary tables with IF EXISTS do not need any
+     further processing */
+  if (drop_ctx.if_exists && drop_ctx.has_tmp_nonexistent_tables())
+  {
+    drop_ctx.nonexistent_tables.clear();
+
+    /* If such tables were all we had, there is nothing else to do */
+    if (!drop_ctx.has_base_atomic_tables()
+        && !drop_ctx.has_base_non_atomic_tables()
+        && !drop_ctx.has_tmp_trans_tables()
+        && !drop_ctx.has_tmp_non_trans_tables()
+        && !drop_ctx.has_views())
+    {
+      DBUG_RETURN(false);
+    }
+  }
+
+  /*
+    Check early if default database exists. We don't want code responsible
+    for dropping temporary tables fail due to this check after some tables
+    were dropped already.
+  */
+  if (thd->db().str != NULL)
+  {
+    bool exists= false;
+    if (dd::schema_exists(thd, thd->db().str, &exists))
+      DBUG_RETURN(true);
+    default_db_doesnt_exist= !exists;
   }
 
   if (drop_ctx.has_base_non_atomic_tables())
@@ -3264,34 +3323,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   */
   if (drop_ctx.has_tmp_non_trans_tables())
   {
-    /*
-      Handle non-transactional temporary tables.
-    */
-
-    /* DROP DATABASE doesn't deal with temporary tables. */
-    DBUG_ASSERT(!drop_ctx.drop_database);
-
-    /*
-      If the current format is row, the IF EXISTS clause needs to be
-      appended because one does not know if CREATE TEMPORARY was
-      previously written to the binary log.
-
-      If default database does not exist, set
-      'is_drop_tmp_if_exists_with_no_defaultdb flag to 'true',
-      so that the 'DROP TEMPORARY TABLE IF EXISTS' command is logged
-      with a fully-qualified table name and we don't write "USE db"
-      prefix.
-    */
-    bool log_if_exists= (thd->is_current_stmt_binlog_format_row() ||
-                         drop_ctx.if_exists);
-    bool is_drop_tmp_if_exists_with_no_defaultdb= log_if_exists &&
-                                                  default_db_doesnt_exist;
-
-    Drop_tables_query_builder built_query(thd, true /* DROP TEMPORARY */,
-                                log_if_exists, false /* stmt cache */,
-                                is_drop_tmp_if_exists_with_no_defaultdb);
-
-    for (TABLE_LIST *table : drop_ctx.tmp_non_trans_tables)
+    for (auto *table : drop_ctx.tmp_non_trans_tables)
     {
       /*
         Don't check THD::killed flag. We can't rollback deletion of
@@ -3302,9 +3334,33 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       */
       drop_temporary_table(thd, table);
     }
+    thd->get_transaction()->mark_dropped_temp_table(Transaction_ctx::STMT);
+  }
 
-    built_query.add_array(drop_ctx.tmp_non_trans_tables);
+  if (drop_ctx.has_tmp_non_trans_tables_to_binlog())
+  {
+    DBUG_ASSERT(drop_ctx.has_tmp_non_trans_tables());
+    /*
+      Handle non-transactional temporary tables.
+    */
 
+    /* DROP DATABASE doesn't deal with temporary tables. */
+    DBUG_ASSERT(!drop_ctx.drop_database);
+
+    /*
+      If default database does not exist, set
+      'is_drop_tmp_if_exists_with_no_defaultdb flag to 'true',
+      so that the 'DROP TEMPORARY TABLE IF EXISTS' command is logged
+      with a fully-qualified table name and we don't write "USE db"
+      prefix.
+    */
+    const bool is_drop_tmp_if_exists_with_no_defaultdb= (drop_ctx.if_exists
+      && default_db_doesnt_exist);
+    Drop_tables_query_builder built_query(thd, true /* DROP TEMPORARY */,
+                                drop_ctx.if_exists, false /* stmt cache */,
+                                is_drop_tmp_if_exists_with_no_defaultdb);
+
+    built_query.add_array(drop_ctx.tmp_non_trans_tables_to_binlog);
     /*
       If there are no transactional temporary tables to be dropped
       add non-existent tables to this group. This ensures that on
@@ -3314,7 +3370,6 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     if (drop_ctx.drop_temporary && !drop_ctx.has_tmp_trans_tables())
       built_query.add_array(drop_ctx.nonexistent_tables);
 
-    thd->get_transaction()->mark_dropped_temp_table(Transaction_ctx::STMT);
     thd->thread_specific_used= true;
 
     if (built_query.write_bin_log())
@@ -3383,7 +3438,23 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
   }
 
-  if (drop_ctx.has_tmp_trans_tables() ||
+  if (drop_ctx.has_tmp_trans_tables())
+  {
+    for (auto *table : drop_ctx.tmp_trans_tables)
+    {
+      /*
+        Don't check THD::killed flag. We can't rollback deletion of
+        temporary table, so aborting on KILL will make DROP TABLES
+        less atomic.
+        OTOH it is unlikely that we have many temporary tables to drop
+        so being immune to KILL is not that horrible in most cases.
+      */
+      drop_temporary_table(thd, table);
+    }
+    thd->get_transaction()->mark_dropped_temp_table(Transaction_ctx::STMT);
+  }
+
+  if (drop_ctx.has_tmp_trans_tables_to_binlog() ||
       (!drop_ctx.has_tmp_non_trans_tables() &&
        drop_ctx.has_tmp_nonexistent_tables()))
   {
@@ -3396,10 +3467,6 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     DBUG_ASSERT(!drop_ctx.drop_database);
 
     /*
-      If the current format is row, the IF EXISTS clause needs to be
-      appended because one does not know if CREATE TEMPORARY was
-      previously written to the binary log.
-
       If default database does not exist, set
       'is_drop_tmp_if_exists_with_no_defaultdb flag to 'true',
       so that the 'DROP TEMPORARY TABLE IF EXISTS' command is logged
@@ -3412,29 +3479,15 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       this case and DROP TEMPORARY TABLES where it is really needed is
       exempted from this rule.
     */
-    bool log_if_exists= (thd->is_current_stmt_binlog_format_row() ||
-                         drop_ctx.if_exists);
-    bool is_drop_tmp_if_exists_with_no_defaultdb= log_if_exists &&
-                                                  default_db_doesnt_exist;
+    const bool is_drop_tmp_if_exists_with_no_defaultdb= (drop_ctx.if_exists
+      && default_db_doesnt_exist);
 
     Drop_tables_query_builder built_query(thd, true /* DROP TEMPORARY */,
-                                log_if_exists,
+                                drop_ctx.if_exists,
                                 drop_ctx.drop_temporary /* trx/stmt cache */,
                                 is_drop_tmp_if_exists_with_no_defaultdb);
 
-    for (TABLE_LIST *table : drop_ctx.tmp_trans_tables)
-    {
-      /*
-        Don't check THD::killed flag. We can't rollback deletion of
-        temporary table, so aborting on KILL will make DROP TABLES
-        less atomic.
-        OTOH it is unlikely that we have many temporary tables to drop
-        so being immune to KILL is not that horrible in most cases.
-      */
-      drop_temporary_table(thd, table);
-    }
-
-    built_query.add_array(drop_ctx.tmp_trans_tables);
+    built_query.add_array(drop_ctx.tmp_trans_tables_to_binlog);
 
     /*
       Add non-existent temporary tables to this group if there are some
@@ -3445,7 +3498,6 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     if (drop_ctx.drop_temporary)
       built_query.add_array(drop_ctx.nonexistent_tables);
 
-    thd->get_transaction()->mark_dropped_temp_table(Transaction_ctx::STMT);
     thd->thread_specific_used= true;
 
     if (built_query.write_bin_log())
@@ -4766,6 +4818,29 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         my_error(ER_SPATIAL_MUST_HAVE_GEOM_COL, MYF(0));
         DBUG_RETURN(true);
       }
+
+      /*
+        If the field is without an SRID specification, issue a warning telling
+        the user that this index will not be used by the optimizer (useless
+        spatial index). We do however have to allow creating such index in
+        order to support dump/restore from older MySQL versions to new
+        versions.
+
+        NOTE: At this stage of ALTER TABLE/CREATE INDEX/whatever DDL, we may
+        have copied all existing indexes into key list. Thus, this function may
+        run for indexes that already exists. The variable
+        "check_for_duplicate_indexes" will however be set to "false" for indexes
+        that already are created, so we use this variable to distinguish between
+        indexes that are to be created, and those that already are created.
+      */
+      if (key->check_for_duplicate_indexes && !sql_field->m_srid.has_value())
+      {
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            WARN_USELESS_SPATIAL_INDEX,
+                            ER_THD(thd, WARN_USELESS_SPATIAL_INDEX),
+                            sql_field->field_name);
+      }
+
       /*
         4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
         Lately we'll extend this code to support more dimensions
@@ -8023,7 +8098,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   if (src_table->table->s->tablespace &&
       strlen(src_table->table->s->tablespace) > 0)
   {
-    DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+    DBUG_ASSERT(src_table->table->s->tmp_table ||
+                  thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
                   src_table->db, src_table->table_name, MDL_SHARED));
 
     tablespace_set.insert(src_table->table->s->tablespace);
@@ -8079,6 +8155,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   */
   local_create_info.data_file_name= local_create_info.index_file_name= NULL;
   local_create_info.alias= create_info->alias;
+
+  /*
+    Keep tablespace, only if it was specified explicitly in CREATE
+    TABLE when source table was created.
+  */
+  if (src_table_obj && !src_table_obj->is_explicit_tablespace())
+  {
+    local_create_info.tablespace= nullptr;
+  }
 
   /*
     Lock the FK children, in case the new table introduces a missing parent.
@@ -9958,6 +10043,43 @@ adjust_fks_for_complex_alter_table(THD *thd, TABLE_LIST *table_list,
 
 
 /**
+  Check if a table is empty, i.e., it has no rows.
+
+  @param[in] table The table.
+  @param[out] is_empty Set to true if the table is empty.
+
+  @retval false Success.
+  @retval true An error occurred (and has been reported with print_error).
+*/
+static bool table_is_empty(TABLE * table, bool *is_empty)
+{
+  *is_empty= false;
+  int error= 0;
+  if (!(error= table->file->ha_rnd_init(true)))
+  {
+    do
+    {
+      error= table->file->ha_rnd_next(table->record[0]);
+    } while (error == HA_ERR_RECORD_DELETED);
+    if (error == HA_ERR_END_OF_FILE)
+      *is_empty= true;
+  }
+  if (error && error != HA_ERR_END_OF_FILE)
+  {
+    table->file->print_error(error, MYF(0));
+    table->file->ha_rnd_end();
+    return true;
+  }
+  if ((error= table->file->ha_rnd_end()))
+  {
+    table->file->print_error(error, MYF(0));
+    return true;
+  }
+  return false;
+}
+
+
+/**
   Perform in-place alter table.
 
   @param thd                Thread handle.
@@ -10091,16 +10213,10 @@ static bool mysql_inplace_alter_table(THD *thd,
   {
     DBUG_ASSERT(table->mdl_ticket->get_type() == MDL_EXCLUSIVE);
 
-    // Check if the handler supports ha_records()
-    if (!(table_list->table->file->ha_table_flags() & HA_HAS_RECORDS))
-    {
-      // If ha_records() is not supported, be conservative.
-      my_error(ER_INVALID_USE_OF_NULL, MYF(0));
+    bool empty_table= false;
+    if (table_is_empty(table_list->table, &empty_table))
       goto cleanup;
-    }
-
-    ha_rows tmp= 0;
-    if (table_list->table->file->ha_records(&tmp) || tmp > 0)
+    if (!empty_table)
     {
       if (alter_ctx->error_if_not_empty &
           Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT)
@@ -13575,9 +13691,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     {
-      if (!open_table_uncached(thd, alter_ctx.get_tmp_path(),
-                               alter_ctx.new_db, alter_ctx.tmp_name,
-                               true, true, *table_def))
+      if (thd->decide_logging_format(table_list)
+          || !open_table_uncached(thd, alter_ctx.get_tmp_path(),
+                                  alter_ctx.new_db, alter_ctx.tmp_name,
+                                  true, true, *table_def))
         goto err_new_table_cleanup;
       /* in case of alter temp table send the tracker in OK packet */
       if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
@@ -14898,3 +15015,4 @@ static bool check_engine(THD *thd, const char *db_name,
 
   DBUG_RETURN(false);
 }
+#endif /* !UNIV_HOTBACKUP */

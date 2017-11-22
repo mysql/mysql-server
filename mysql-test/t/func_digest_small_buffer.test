@@ -1,0 +1,35 @@
+--echo #
+--echo # Tests that the same token buffer size is applied in STATEMENT_DIGEST()
+--echo # as in performance_schema.
+--echo #
+
+let $statement_digest_a=statement_digest( 'SELECT 1' );
+let $statement_digest_b=statement_digest( 'SELECT 1 FROM DUAL' );
+
+--echo #
+--echo # Just making sure that these digests are equal, otherwise this test
+--echo # won't test what we want it to.
+--echo #
+eval SELECT $statement_digest_a = $statement_digest_b;
+
+let $compare_digests_fn=statement_digest;
+let $compare_digests_query=SELECT $statement_digest_a IS NULL;
+let $compare_digests_pfs_query=SELECT $statement_digest_b IS NULL;
+let $compare_digests_pfs_column=digest;
+source include/compare_digests.inc;
+
+let $compare_digests_fn=statement_digest_text;
+let $compare_digests_query=SELECT $statement_digest_a IS NULL;
+let $compare_digests_pfs_query=SELECT $statement_digest_b IS NULL;
+let $compare_digests_pfs_column=digest_text;
+source include/compare_digests.inc;
+
+
+--echo #
+--echo # Test of the data type.
+--echo #
+CREATE TABLE t1 AS SELECT statement_digest_text( 'select 1, 2, 3' ) AS digest;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+SELECT statement_digest_text( 'SELECT 1' );

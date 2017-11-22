@@ -21,8 +21,6 @@ typedef int myf;
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_mdl_bits.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
 struct MDL_key;
 typedef int opaque_mdl_type;
 typedef int opaque_mdl_duration;
@@ -33,11 +31,11 @@ struct PSI_metadata_locker;
 typedef struct PSI_metadata_locker PSI_metadata_locker;
 struct PSI_metadata_locker_state_v1
 {
-  uint m_flags;
+  unsigned int m_flags;
   struct PSI_metadata_lock *m_metadata_lock;
   struct PSI_thread *m_thread;
-  ulonglong m_timer_start;
-  ulonglong (*m_timer)(void);
+  unsigned long long m_timer_start;
+  unsigned long long (*m_timer)(void);
   void *m_wait;
 };
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state_v1;
@@ -48,7 +46,7 @@ typedef PSI_metadata_lock *(*create_metadata_lock_v1_t)(
   opaque_mdl_duration mdl_duration,
   opaque_mdl_status mdl_status,
   const char *src_file,
-  uint src_line);
+  unsigned int src_line);
 typedef void (*set_metadata_lock_status_v1_t)(PSI_metadata_lock *lock,
                                               opaque_mdl_status mdl_status);
 typedef void (*destroy_metadata_lock_v1_t)(PSI_metadata_lock *lock);
@@ -56,7 +54,7 @@ typedef struct PSI_metadata_locker *(*start_metadata_wait_v1_t)(
   struct PSI_metadata_locker_state_v1 *state,
   struct PSI_metadata_lock *mdl,
   const char *src_file,
-  uint src_line);
+  unsigned int src_line);
 typedef void (*end_metadata_wait_v1_t)(struct PSI_metadata_locker *locker,
                                        int rc);
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state;

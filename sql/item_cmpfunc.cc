@@ -2381,7 +2381,7 @@ longlong Item_in_optimizer::val_int()
       else 
       {
         /* The subquery has to be evaluated */
-        (void) item_subs->val_bool_result();
+        (void) item_subs->val_bool();
         if (!item_subs->value)
           null_value= item_subs->null_value;
         else
@@ -2396,7 +2396,7 @@ longlong Item_in_optimizer::val_int()
     }
     return 0;
   }
-  tmp= args[1]->val_bool_result();
+  tmp= args[1]->val_bool();
   null_value= args[1]->null_value;
   return tmp;
 }
@@ -3360,6 +3360,9 @@ void Item_func_between::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
+/**
+  @todo Consolidate type resolution logic with CASE and COALESCE.
+*/
 bool Item_func_ifnull::resolve_type(THD *)
 {
   uint32 char_length;
@@ -3375,14 +3378,15 @@ bool Item_func_ifnull::resolve_type(THD *)
     int len1= args[1]->max_char_length() - args[1]->decimals
       - (args[1]->unsigned_flag ? 0 : 1);
 
-    char_length= max(len0, len1) + decimals + (unsigned_flag ? 0 : 1);
+    char_length= max(len0, len1) + decimals + (unsigned_flag ? 0 : 1) +
+      (decimals > 0 ? 1 : 0);
   }
   else
     char_length= max(args[0]->max_char_length(), args[1]->max_char_length());
 
   switch (hybrid_type) {
   case STRING_RESULT:
-    if (aggregate_string_properties(data_type(), func_name(), args, 2))
+    if (aggregate_string_properties(func_name(), args, 2))
       return true;
     break;
   case DECIMAL_RESULT:
@@ -3578,12 +3582,11 @@ bool Item_func_if::resolve_type(THD*)
 
   if (cached_result_type == STRING_RESULT)
   {
-    if (aggregate_string_properties(data_type(), func_name(), args + 1, 2))
+    if (aggregate_string_properties(func_name(), args + 1, 2))
       return true;
   }
   else
   {
-    collation.set_numeric(); // Number
     aggregate_num_type(cached_result_type, args + 1, 2);
   }
   return false;
@@ -4064,7 +4067,7 @@ bool Item_func_case::resolve_type(THD *thd)
   if (cached_result_type == STRING_RESULT)
   {
     /* Note: String result type is the same for CASE and COALESCE. */
-    if (aggregate_string_properties(data_type(), func_name(), agg, nagg))
+    if (aggregate_string_properties(func_name(), agg, nagg))
       return true;
     /*
       Copy all THEN and ELSE items back to args[] array.
@@ -4078,7 +4081,6 @@ bool Item_func_case::resolve_type(THD *thd)
   }
   else
   {
-    collation.set_numeric();
     aggregate_num_type(cached_result_type, agg, nagg);
   }
 
@@ -4227,10 +4229,6 @@ void Item_func_case::cleanup()
   Coalesce - return first not NULL argument.
 */
 
-Item_func_coalesce::Item_func_coalesce(const POS &pos, PT_item_list *list)
-  : Item_func_numhybrid(pos, list)
-{}
-
 String *Item_func_coalesce::str_op(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -4339,12 +4337,11 @@ bool Item_func_coalesce::resolve_type(THD *)
   hybrid_type= Field::result_merge_type(data_type());
   if (hybrid_type == STRING_RESULT)
   {
-    if (aggregate_string_properties(data_type(), func_name(), args, arg_count))
+    if (aggregate_string_properties(func_name(), args, arg_count))
       return true;
   }
   else
   {
-    collation.set_numeric(); // Number
     aggregate_num_type(hybrid_type, args, arg_count);
   }
 

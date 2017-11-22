@@ -90,7 +90,6 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
                                Delayed_initialization_thread *delayed_init_thd);
 void register_server_reset_master();
 bool get_allow_local_lower_version_join();
-bool get_allow_local_disjoint_gtids_join();
 ulong get_transaction_size_limit();
 bool is_plugin_waiting_to_set_server_read_mode();
 bool check_async_channel_running_on_secondary();

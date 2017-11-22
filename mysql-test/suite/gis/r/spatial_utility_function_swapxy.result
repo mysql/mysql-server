@@ -326,3 +326,8 @@ DROP TABLE gis_multi_point;
 DROP TABLE gis_multi_linestring;
 DROP TABLE gis_multi_polygon;
 DROP TABLE gis_geometrycollection;
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+DO ST_SWAPXY(x'0A000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.

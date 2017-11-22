@@ -27,20 +27,18 @@ struct PSI_placeholder
   int m_placeholder;
 };
 #include "mysql/components/services/psi_stage_bits.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
 typedef unsigned int PSI_stage_key;
 struct PSI_stage_progress_v1
 {
-  ulonglong m_work_completed;
-  ulonglong m_work_estimated;
+  unsigned long long m_work_completed;
+  unsigned long long m_work_estimated;
 };
 typedef struct PSI_stage_progress_v1 PSI_stage_progress_v1;
 struct PSI_stage_info_v1
 {
   PSI_stage_key m_key;
   const char *m_name;
-  uint m_flags;
+  unsigned int m_flags;
   const char *m_documentation;
 };
 typedef struct PSI_stage_info_v1 PSI_stage_info_v1;

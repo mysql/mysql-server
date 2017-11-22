@@ -16,6 +16,9 @@
 IF(WIN32)
   # CMake 3.8.0 is needed for Visual Studio 2017 and x64 toolset.
   CMAKE_MINIMUM_REQUIRED(VERSION 3.8.0)
+ELSEIF(APPLE)
+  # FindOpenSSL needs at least:
+  CMAKE_MINIMUM_REQUIRED(VERSION 3.1.2)
 ELSEIF(UNIX)
   # CMake 3.4.0 is needed for Solaris due to CMake bug 15673.
   # Cannot use CMAKE_SYSTEM_NAME until after PROJECT(), use uname directly.
@@ -260,6 +263,8 @@ INCLUDE(character_sets)
 INCLUDE(cpu_info)
 INCLUDE(zlib)
 INCLUDE(lz4)
+INCLUDE(lzma)
+INCLUDE(re2)
 INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(readline)
@@ -364,7 +369,22 @@ OPTION(WITH_ASAN "Enable address sanitizer" OFF)
 IF(WITH_ASAN)
   MY_SANITIZER_CHECK("-fsanitize=address" TRUE WITH_ASAN_OK)
   IF(WITH_ASAN_OK)
+    OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" ON)
     SET(HAVE_ASAN 1)
+    # This works with clang, but not gcc it seems.
+    MY_CHECK_CXX_COMPILER_FLAG(
+      "-fsanitize=address -fsanitize-address-use-after-scope"
+      HAVE_SANITIZE_SCOPE)
+    IF(WITH_ASAN_SCOPE AND HAVE_SANITIZE_SCOPE)
+      SET(CMAKE_C_FLAGS_DEBUG
+        "${CMAKE_C_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
+      SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+        "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
+      SET(CMAKE_CXX_FLAGS_DEBUG
+        "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
+      SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+        "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
+    ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Do not know how to enable address sanitizer")
   ENDIF()
@@ -655,6 +675,10 @@ MYSQL_CHECK_EDITLINE()
 MYSQL_CHECK_LIBEVENT()
 # Add lz4 library
 MYSQL_CHECK_LZ4()
+# Add lzma library
+MYSQL_CHECK_LZMA()
+# Add re2 library
+MYSQL_CHECK_RE2()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
@@ -677,6 +701,14 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     return ret;
   }"
   HAVE_PTHREAD_SETNAME_NP)
+ENDIF()
+
+IF (BUILD_BUNDLED_LZMA)
+  ADD_SUBDIRECTORY(extra/lzma)
+ENDIF()
+
+IF (BUILD_BUNDLED_RE2)
+  ADD_SUBDIRECTORY(extra/re2)
 ENDIF()
 
 #
@@ -791,10 +823,10 @@ CONFIGURE_FILE(
 SET(KNOWN_CONVENIENCE_LIBRARIES "" CACHE INTERNAL "")
 # Add to the 'make clean' target.
 # With this you need to do 'cmake .' before doing 'make' again.
-GET_PROPERTY(CLEAN_FILES DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES)
-SET_PROPERTY(DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-  "${CLEAN_FILES}" "${CMAKE_BINARY_DIR}/archive_output_directory"
-)
+SET_PROPERTY(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+  "${CMAKE_BINARY_DIR}/archive_output_directory"
+  "${CMAKE_BINARY_DIR}/library_output_directory"
+  )
 
 # Handle the "INFO_*" files.
 INCLUDE(${CMAKE_BINARY_DIR}/info_macros.cmake)
@@ -848,6 +880,33 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
     PATTERN "mysql.info" EXCLUDE
     PATTERN "sp-imp-spec.txt" EXCLUDE
   )
+ENDIF()
+
+IF(UNIX)
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_COMMAND} -E make_directory library_output_directory
+    COMMAND ${CMAKE_COMMAND} -E make_directory plugin_output_directory
+    COMMAND ${CMAKE_COMMAND} -E make_directory runtime_output_directory
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  )
+ENDIF()
+
+# Pre-create directories for library_output_directory and
+# plugin_output_directory, so create_symlink does not fail in ssl.cmake
+# Do not pre-create runtime_output_directory/Debug or
+# runtime_output_directory/RelWithDebInfo, mtr gets confused, and must be
+# run with --vs-config=Debug or --vs-config=RelWithDebInfo in order to work.
+IF(APPLE AND NOT BUILD_IS_SINGLE_CONFIG)
+  FOREACH(dir
+      library_output_directory
+      plugin_output_directory
+      )
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${dir}/Debug
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${dir}/RelWithDebInfo
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      )
+  ENDFOREACH()
 ENDIF()
 
 IF(UNIX)

@@ -6663,7 +6663,7 @@ int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr)
 size_t Field_newdate::make_sort_key(uchar *to,
                                     size_t length MY_ATTRIBUTE((unused)))
 {
-  DBUG_ASSERT(length == 3);
+  memset(to, 0, length);
   to[0] = ptr[2];
   to[1] = ptr[1];
   to[2] = ptr[0];
@@ -8930,19 +8930,8 @@ type_conversion_status Field_json::store_binary(const char *ptr, size_t length)
   /*
     We expect that a valid binary representation of a JSON document is
     passed to us.
-
-    We make an exception for the case of an empty binary string. Even
-    though an empty binary string is not a valid representation of a
-    JSON document, we might be served one as a result of inserting
-    NULL or DEFAULT into a not nullable JSON column using INSERT
-    IGNORE, or inserting DEFAULT into a not nullable JSON column in
-    non-strict SQL mode.
-
-    We accept an empty binary string in those cases. Such values will
-    be converted to the JSON null literal when they are read with
-    Field_json::val_json().
   */
-  DBUG_ASSERT(length == 0 || json_binary::parse_binary(ptr, length).is_valid());
+  DBUG_ASSERT(json_binary::parse_binary(ptr, length).is_valid());
 
   if (length > UINT_MAX32)
   {
@@ -9047,25 +9036,6 @@ bool Field_json::val_json(Json_wrapper *wr)
 
   String tmp;
   String *s= Field_blob::val_str(&tmp, &tmp);
-
-  /*
-    The empty string is not a valid JSON binary representation, so we
-    should have returned an error. However, sometimes an empty
-    Field_json object is created in order to retrieve meta-data.
-    Return a dummy value instead of raising an error. Bug#21104470.
-
-    The field could also contain an empty string after forcing NULL or
-    DEFAULT into a not nullable JSON column using lax error checking
-    (such as INSERT IGNORE or non-strict SQL mode). The JSON null
-    literal is used to represent the empty value in this case.
-    Bug#21437989.
-  */
-  if (s->length() == 0)
-  {
-    using namespace json_binary;
-    *wr= Json_wrapper(Value(Value::LITERAL_NULL));
-    DBUG_RETURN(false);
-  }
 
   json_binary::Value v(json_binary::parse_binary(s->ptr(), s->length()));
   if (v.type() == json_binary::Value::ERROR)
@@ -9352,6 +9322,21 @@ bool Field_json::get_time(MYSQL_TIME *ltime)
   if (result)
     set_zero_time(ltime, MYSQL_TIMESTAMP_DATETIME); /* purecov: inspected */
   return result;
+}
+
+
+int Field_json::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
+                           uint32 /* max_length */)
+{
+  char *a;
+  char *b;
+  memcpy(&a, a_ptr + packlength, sizeof(a));
+  memcpy(&b, b_ptr + packlength, sizeof(b));
+  uint32 a_length= get_length(a_ptr);
+  uint32 b_length= get_length(b_ptr);
+  Json_wrapper aw(json_binary::parse_binary(a, a_length));
+  Json_wrapper bw(json_binary::parse_binary(b, b_length));
+  return aw.compare(bw);
 }
 
 
@@ -11020,7 +11005,6 @@ bool Create_field::init(THD *thd, const char *fld_name,
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
-  case MYSQL_TYPE_GEOMETRY:
   case MYSQL_TYPE_JSON:
     if (fld_default_value)
     {
@@ -11048,6 +11032,14 @@ bool Create_field::init(THD *thd, const char *fld_name,
                             fld_name);
       }
       def= 0;
+    }
+    flags|= BLOB_FLAG;
+    break;
+  case MYSQL_TYPE_GEOMETRY:
+    if (fld_default_value)
+    {
+      my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), fld_name);
+      DBUG_RETURN(TRUE);
     }
     flags|= BLOB_FLAG;
     break;

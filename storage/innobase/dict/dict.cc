@@ -52,6 +52,7 @@ dict_index_add_col(
 
 #ifndef UNIV_LIBRARY
 	if (col->is_virtual()) {
+#ifndef UNIV_HOTBACKUP
 		dict_v_col_t*	v_col = reinterpret_cast<dict_v_col_t*>(col);
 
 		/* When v_col->v_indexes==NULL,
@@ -70,6 +71,11 @@ dict_index_add_col(
 
 		col_name = dict_table_get_v_col_name_mysql(
 			table, dict_col_get_no(col));
+#else  /* !UNIV_HOTBACKUP */
+		/* PRELIMINARY TEMPORARY WORKAROUND: is this ever used? */
+		bool	not_hotbackup = false;
+		ut_a(not_hotbackup);
+#endif  /* !UNIV_HOTBACKUP */
 	} else
 #endif /* !UNIV_LIBRARY */
 	{

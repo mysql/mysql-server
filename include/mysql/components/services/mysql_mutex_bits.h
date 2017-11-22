@@ -21,7 +21,7 @@
   ABI for instrumented mutexes.
 */
 
-#include "thr_mutex_bits.h"
+#include <mysql/components/services/thr_mutex_bits.h>
 
 /**
   @defgroup psi_api_mutex Mutex Instrumentation (API)

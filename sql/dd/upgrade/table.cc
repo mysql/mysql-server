@@ -56,6 +56,7 @@
 #include "sql/dd/types/foreign_key.h"         // dd::Foreign_key
 #include "sql/dd/types/table.h"               // dd::Table
 #include "sql/dd/upgrade/global.h"
+#include "sql/dd/upgrade/upgrade.h"
 #include "sql/field.h"
 #include "sql/handler.h"                      // legacy_db_type
 #include "sql/key.h"
@@ -633,6 +634,7 @@ class Table_upgrade_guard
   handler *m_handler;
   bool m_is_table_open;
   LEX *m_lex_saved;
+  Item *m_free_list_saved;
 public:
 
   void update_mem_root(MEM_ROOT *mem_root)
@@ -661,6 +663,15 @@ public:
   {
     m_sql_mode= m_thd->variables.sql_mode;
     m_thd->variables.sql_mode= m_sql_mode;
+
+    /*
+      During table upgrade, allocation for the Item objects could happen in the
+      mem_root set for this scope. Hence saving current free_list state. Item
+      objects stored in THD::free_list during table upgrade are deallocated in
+      the destructor of the class.
+    */
+    m_free_list_saved= thd->free_list;
+    m_thd->free_list= nullptr;
   }
 
   ~Table_upgrade_guard()
@@ -671,6 +682,10 @@ public:
     // Free item list for partitions
     if (m_table->s->m_part_info)
       free_items(m_table->s->m_part_info->item_free_list);
+
+    // Free items allocated during table upgrade and restore old free list.
+    m_thd->free_items();
+    m_thd->free_list= m_free_list_saved;
 
     // Restore thread lex
     if (m_lex_saved != nullptr)
@@ -955,15 +970,28 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
   */
   if (error)
   {
+    error= false;
     /*
       Do not print warning if view belongs to sys schema. Sys schema views will
       get fixed when mysql_upgrade is executed.
     */
     if (db_name != "sys")
-      LogErr(WARNING_LEVEL, ER_DD_CANT_RESOLVE_VIEW,
-             db_name.c_str(), view_name.c_str());
+    {
+      if (Bootstrap_error_handler::abort_on_error)
+      {
+        // Exit the upgrade process by reporting an error.
+        sql_print_error("Upgrade of view '%s.%s' failed. Re-create the view "
+                        "with the explicit column name lesser than 64 characters.",
+                         db_name.c_str(), view_name.c_str());
+        error= true;
+      }
+      else
+      {
+         LogErr(WARNING_LEVEL, ER_DD_CANT_RESOLVE_VIEW,
+                db_name.c_str(), view_name.c_str());
+      }
+    }
     update_view_status(thd, db_name.c_str(), view_name.c_str(), false, true);
-    error= false;
   }
 
   // Restore variables
@@ -1619,6 +1647,7 @@ static bool migrate_table_to_dd(THD *thd,
   }
 
   // Object to handle cleanup.
+  LEX lex;
   Table_upgrade_guard table_guard(thd, table, &table->mem_root);
 
   // Dont upgrade tables, we are fixing dependency for views.
@@ -1689,7 +1718,13 @@ static bool migrate_table_to_dd(THD *thd,
 
   if (error)
   {
-    LogErr(ERROR_LEVEL, ER_TABLE_NEEDS_UPGRADE, table_name.c_str());
+    if (error == HA_ADMIN_NEEDS_DUMP_UPGRADE)
+      sql_print_error("Table upgrade required for "
+                      "`%-.64s`.`%-.64s`. Please dump/reload table to "
+                      "fix it!", schema_name.c_str(), table_name.c_str());
+    else
+      LogErr(ERROR_LEVEL, ER_TABLE_NEEDS_UPGRADE, table_name.c_str());
+
     return true;
   }
 
@@ -1774,7 +1809,6 @@ static bool migrate_table_to_dd(THD *thd,
   // open_table_from_share and partition expression parsing needs a
   // valid SELECT_LEX to parse generated columns
   LEX *lex_saved= thd->lex;
-  LEX lex;
   thd->lex= &lex;
   lex_start(thd);
   table_guard.update_lex(lex_saved);
@@ -1842,12 +1876,15 @@ static bool migrate_table_to_dd(THD *thd,
     asserts that Field objects in TABLE_SHARE doesn't have
     expressions assigned.
   */
+  Bootstrap_error_handler bootstrap_error_handler;
+  bootstrap_error_handler.set_log_error(false);
   if (fix_generated_columns_for_upgrade(thd, table, alter_info.create_list))
   {
-    LogErr(ERROR_LEVEL,
-           ER_CANT_UPGRADE_GENERATED_COLUMNS_TO_DD);
+    LogErr(ERROR_LEVEL, ER_CANT_UPGRADE_GENERATED_COLUMNS_TO_DD,
+           schema_name.c_str(), table_name.c_str());
     return true;
   }
+  bootstrap_error_handler.set_log_error(true);
 
   FOREIGN_KEY *fk_key_info_buffer= NULL;
   uint fk_number= 0;

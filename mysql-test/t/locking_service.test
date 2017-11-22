@@ -201,9 +201,8 @@ SELECT service_get_write_locks("namespace1", "lock2", 0);
 --error ER_LOCKING_SERVICE_TIMEOUT
 SELECT service_get_read_locks("namespace1", "lock1", 0);
 --echo # 4.2: The content of performance_schema.events_waits_history_long
---echo #      should show that we have waited six times including correct
+--echo #      should show that we have waited three times including correct
 --echo #      service lock namespace and lock name.
---echo #      BTW: Even a timeout of 0 leads to wait.
 --sorted_result
 SELECT OBJECT_SCHEMA, OBJECT_NAME, OBJECT_TYPE, OPERATION
 FROM performance_schema.events_waits_history_long
@@ -229,7 +228,7 @@ SELECT OBJECT_SCHEMA, OBJECT_NAME, OBJECT_TYPE, OPERATION
 FROM performance_schema.events_waits_current
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 --echo #      Per performance_schema six waits in history
-SELECT COUNT(*) = 6 AS expect_1
+SELECT COUNT(*) = 3 AS expect_1
 FROM performance_schema.events_waits_history_long
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 --echo # 4.4: Show the impact of releasing and getting a service lock on
@@ -245,7 +244,7 @@ WHERE state = 'Waiting for locking service lock';
 SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.events_waits_current
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 --echo #      Per performance_schema now seven waits in history
-SELECT COUNT(*) = 7 AS expect_1
+SELECT COUNT(*) = 4 AS expect_1
 FROM performance_schema.events_waits_history_long
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 SELECT service_release_locks("namespace1");

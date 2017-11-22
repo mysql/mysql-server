@@ -29,39 +29,41 @@ Created 11/11/1995 Heikki Tuuri
 #include <sys/types.h>
 #include <time.h>
 
-#include "buf0buf.h"
-#include "buf0checksum.h"
-#include "buf0flu.h"
-#include "ha_prototypes.h"
-#include "my_inttypes.h"
-#include "page0zip.h"
-#include "srv0srv.h"
-#include "srv0start.h"
 #ifndef UNIV_HOTBACKUP
-#include "buf0lru.h"
-#include "buf0rea.h"
-#include "fil0fil.h"
-#include "fsp0sysspace.h"
-#include "ibuf0ibuf.h"
-#include "log0log.h"
-#include "os0file.h"
-#include "os0thread-create.h"
-#include "page0page.h"
-#include "srv0mon.h"
-#include "trx0sys.h"
-#include "ut0byte.h"
-#include "ut0stage.h"
+# include "buf0buf.h"
+# include "buf0checksum.h"
+# include "buf0flu.h"
+# include "ha_prototypes.h"
+# include "my_inttypes.h"
+#endif /* !UNIV_HOTBACKUP */
+#include "page0zip.h"
+#ifndef UNIV_HOTBACKUP
+# include "srv0srv.h"
+# include "srv0start.h"
+# include "buf0lru.h"
+# include "buf0rea.h"
+# include "fil0fil.h"
+# include "fsp0sysspace.h"
+# include "ibuf0ibuf.h"
+# include "log0log.h"
+# include "os0file.h"
+# include "os0thread-create.h"
+# include "page0page.h"
+# include "srv0mon.h"
+# include "trx0sys.h"
+# include "ut0byte.h"
+# include "ut0stage.h"
 #include "arch0arch.h"
 
-#ifdef UNIV_LINUX
+# ifdef UNIV_LINUX
 /* include defs for CPU time priority settings */
-#include <sys/resource.h>
-#include <sys/syscall.h>
-#include <sys/time.h>
-#include <unistd.h>
+#  include <sys/resource.h>
+#  include <sys/syscall.h>
+#  include <sys/time.h>
+#  include <unistd.h>
 
 static const int buf_flush_page_cleaner_priority = -20;
-#endif /* UNIV_LINUX */
+# endif /* UNIV_LINUX */
 
 /** Sleep time in microseconds for loop waiting for the oldest
 modification lsn */
@@ -69,6 +71,7 @@ static const ulint buf_flush_wait_flushed_sleep_time = 10000;
 
 /** Number of pages flushed through non flush_list flushes. */
 static ulint buf_lru_flush_page_count = 0;
+#endif /* !UNIV_HOTBACKUP */
 
 /** Flag indicating if the page_cleaner is in active state. This flag
 is set to TRUE by the page_cleaner thread when it is spawned and is set
@@ -77,6 +80,7 @@ need to protect it by a mutex. It is only ever read by the thread
 doing the shutdown */
 bool buf_page_cleaner_is_active = false;
 
+#ifndef UNIV_HOTBACKUP
 /** Factor for scan length to determine n_pages for intended oldest LSN
 progress */
 static ulint buf_flush_lsn_scan_factor = 3;
@@ -3706,7 +3710,6 @@ buf_flush_validate(
 	return(ret);
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-#endif /* !UNIV_HOTBACKUP */
 
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush
@@ -3884,3 +3887,4 @@ FlushObserver::flush()
 		}
 	}
 }
+#endif /* UNIV_HOTBACKUP */

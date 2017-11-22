@@ -49,7 +49,9 @@ MY_ATTRIBUTE((format (printf, 1, 2)))
 /**********************************************************************//**
 Report a failure to decompress or compress.
 @return number of characters printed */
+#ifndef UNIV_HOTBACKUP
 static
+#endif /* !UNIV_HOTBACKUP */
 int
 page_zip_fail_func(
 /*===============*/
@@ -114,7 +116,9 @@ page_zip_fields_free(
 {
 	if (index) {
 		dict_table_t*	table = index->table;
+#ifndef UNIV_HOTBACKUP
 		dict_index_zip_pad_mutex_destroy(index);
+#endif /* !UNIV_HOTBACKUP */
 		mem_heap_free(index->heap);
 
 		dict_mem_table_free(table);

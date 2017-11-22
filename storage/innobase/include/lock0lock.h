@@ -37,7 +37,9 @@ Created 5/7/1996 Heikki Tuuri
 #include "hash0hash.h"
 #include "srv0srv.h"
 #include "ut0vec.h"
+#ifndef UNIV_HOTBACKUP
 #include "gis0rtree.h"
+#endif /* UNIV_HOTBACKUP */
 #include "lock0prdt.h"
 
 // Forward declaration

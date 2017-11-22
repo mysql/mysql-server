@@ -69,6 +69,7 @@ Dictionary_impl *Dictionary_impl::instance()
 }
 
 Object_id Dictionary_impl::DEFAULT_CATALOG_ID= 1;
+Object_id Dictionary_impl::DD_TABLESPACE_ID= 1;
 const String_type Dictionary_impl::DEFAULT_CATALOG_NAME("def");
 
 ///////////////////////////////////////////////////////////////////////////

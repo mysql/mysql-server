@@ -497,6 +497,16 @@ private:
     defaults to -1.
   */
   longlong m_srid_found_in_document;
+  /// The minimum allowed longitude value (non-inclusive).
+  double m_min_longitude= -180.0;
+  /// The maximum allowed longitude (inclusive).
+  double m_max_longitude= 180.0;
+  /// The minimum allowed latitude value (inclusive).
+  double m_min_latitude= -90.0;
+  /// The maximum allowed latitude (inclusive).
+  double m_max_latitude= 90.0;
+  /// True if we're currently parsing the top-level object.
+  bool m_toplevel= true;
 };
 
 
@@ -1412,7 +1422,8 @@ private:
   Geometry *bg_geo_set_op(Geometry *g1, Geometry *g2, String *result);
 
   template<typename Coordsys>
-  Geometry *combine_sub_results(Geometry *g1, Geometry *g2, String *result);
+  Geometry *combine_sub_results(Geometry *g1, Geometry *g2,
+                                gis::srid_t default_srid, String *result);
   Geometry *simplify_multilinestring(Gis_multi_line_string *mls,
                                      String *result);
 

@@ -55,6 +55,9 @@ CREATE TABLE t_spec (c1 BIT(16),
                      c2 ENUM('v1','v2','v3'),
                      c3 SET('v1','v2','v3'));
 
+SET @orig_log_error_verbosity= @@GLOBAL.log_error_verbosity;
+SET GLOBAL log_error_verbosity=3;
+
 --echo # Inserting values into the tables
 INSERT INTO t_int VALUES (91,92,93,94,95,96,97,98,99),(81,82,83,84,85,86,87,88,89);
 
@@ -155,3 +158,4 @@ EOF
 --source include/force_restart.inc
 --enable_warnings
 
+SET GLOBAL log_error_verbosity= @orig_log_error_verbosity;

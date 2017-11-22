@@ -22,6 +22,7 @@
 
 #include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/crosses_functor.h"
+#include "sql/gis/difference_functor.h"
 #include "sql/gis/disjoint_functor.h"
 #include "sql/gis/gc_utils.h"
 #include "sql/gis/geometries.h"
@@ -69,33 +70,211 @@ static bool geometry_collection_apply_crosses(const Crosses &f,
         throw null_value_exception();
       gc_union(f.semi_major(), f.semi_minor(), &g2_mpt, &g2_mls, &g2_mpy);
 
-      return ((!g1_mpt->empty() && !g2_mls->empty() &&
-               f(g1_mpt.get(), g2_mls.get())) ||
-              (!g1_mpt->empty() && !g2_mpy->empty() &&
-               f(g1_mpt.get(), g2_mpy.get())) ||
-              (!g1_mls->empty() && !g2_mls->empty() &&
-               f(g1_mls.get(), g2_mls.get())) ||
-              (!g1_mls->empty() && !g2_mpy->empty() &&
-               f(g1_mls.get(), g2_mpy.get())));
+      // g1 and g2 must have at least one interior point in common.
+      bool shared_interior = false;
+      DBUG_ASSERT(g1_mpy->empty());  // Should have returned already.
+      if (g1->coordinate_system() == Coordinate_system::kCartesian) {
+        if (g1_mpy->empty() && !g1_mls->empty() && g2_mpy->empty() &&
+            !g2_mls->empty()) {
+          // Both g1 and g2 are of dimenision 1, so the common interior has to
+          // be of dimension 0 for g1 and g2 to cross.
+          boost::geometry::de9im::mask mask("0********");
+          shared_interior = bg::relate(
+              *down_cast<Cartesian_multipoint *>(g1_mpt.get()),
+              *down_cast<Cartesian_multipoint *>(g2_mpt.get()), mask);
+          for (std::size_t i = 0;
+               i < down_cast<Cartesian_multipoint *>(g1_mpt.get())->size();
+               i++) {
+            auto &pt = (*down_cast<Cartesian_multipoint *>(g1_mpt.get()))[i];
+            shared_interior |= bg::relate(
+                pt, *down_cast<Cartesian_multilinestring *>(g2_mls.get()),
+                mask);
+          }
+          for (std::size_t i = 0;
+               i < down_cast<Cartesian_multipoint *>(g2_mpt.get())->size();
+               i++) {
+            auto &pt = (*down_cast<Cartesian_multipoint *>(g2_mpt.get()))[i];
+            shared_interior |= bg::relate(
+                pt, *down_cast<Cartesian_multilinestring *>(g1_mls.get()),
+                mask);
+          }
+          if (bg::relate(*down_cast<Cartesian_multilinestring *>(g1_mls.get()),
+                         *down_cast<Cartesian_multilinestring *>(g2_mls.get()),
+                         mask)) {
+            shared_interior = true;
+          } else {
+            boost::geometry::de9im::mask line_mask("1********");
+            if (bg::relate(
+                    *down_cast<Cartesian_multilinestring *>(g1_mls.get()),
+                    *down_cast<Cartesian_multilinestring *>(g2_mls.get()),
+                    line_mask)) {
+              shared_interior = false;  // Shared interior is a line.
+            }
+          }
+        } else {
+          // Either g1 or g2 are not of dimension 1. Therefore, it's enough to
+          // have some common interior, there's no requirement on the
+          // dimensionality.
+          boost::geometry::de9im::mask mask("T********");
+          shared_interior = bg::relate(
+              *down_cast<Cartesian_multipoint *>(g1_mpt.get()),
+              *down_cast<Cartesian_multipoint *>(g2_mpt.get()), mask);
+          for (std::size_t i = 0;
+               i < down_cast<Cartesian_multipoint *>(g1_mpt.get())->size();
+               i++) {
+            auto &pt = (*down_cast<Cartesian_multipoint *>(g1_mpt.get()))[i];
+            shared_interior |=
+                bg::relate(
+                    pt, *down_cast<Cartesian_multilinestring *>(g2_mls.get()),
+                    mask) ||
+                bg::relate(pt,
+                           *down_cast<Cartesian_multipolygon *>(g2_mpy.get()),
+                           mask);
+          }
+          for (std::size_t i = 0;
+               i < down_cast<Cartesian_multipoint *>(g2_mpt.get())->size();
+               i++) {
+            auto &pt = (*down_cast<Cartesian_multipoint *>(g2_mpt.get()))[i];
+            shared_interior |= bg::relate(
+                pt, *down_cast<Cartesian_multilinestring *>(g1_mls.get()),
+                mask);
+          }
+          shared_interior |=
+              bg::relate(*down_cast<Cartesian_multilinestring *>(g1_mls.get()),
+                         *down_cast<Cartesian_multilinestring *>(g2_mls.get()),
+                         mask) ||
+              bg::relate(*down_cast<Cartesian_multilinestring *>(g1_mls.get()),
+                         *down_cast<Cartesian_multipolygon *>(g2_mpy.get()),
+                         mask);
+        }
+      } else {
+        DBUG_ASSERT(g1->coordinate_system() == Coordinate_system::kGeographic);
+        if (g1_mpy->empty() && !g1_mls->empty() && g2_mpy->empty() &&
+            !g2_mls->empty()) {
+          // Both g1 and g2 are of dimenision 1, so the common interior has to
+          // be of dimension 0 for g1 and g2 to cross.
+          boost::geometry::de9im::mask mask("0********");
+          shared_interior = bg::relate(
+              *down_cast<Geographic_multipoint *>(g1_mpt.get()),
+              *down_cast<Geographic_multipoint *>(g2_mpt.get()), mask);
+          for (std::size_t i = 0;
+               i < down_cast<Geographic_multipoint *>(g1_mpt.get())->size();
+               i++) {
+            auto &pt = (*down_cast<Geographic_multipoint *>(g1_mpt.get()))[i];
+            shared_interior |= bg::relate(
+                pt, *down_cast<Geographic_multilinestring *>(g2_mls.get()),
+                mask);
+          }
+          for (std::size_t i = 0;
+               i < down_cast<Geographic_multipoint *>(g2_mpt.get())->size();
+               i++) {
+            auto &pt = (*down_cast<Geographic_multipoint *>(g2_mpt.get()))[i];
+            shared_interior |= bg::relate(
+                pt, *down_cast<Geographic_multilinestring *>(g1_mls.get()),
+                mask);
+          }
+          if (bg::relate(*down_cast<Geographic_multilinestring *>(g1_mls.get()),
+                         *down_cast<Geographic_multilinestring *>(g2_mls.get()),
+                         mask)) {
+            shared_interior = true;
+          } else {
+            boost::geometry::de9im::mask line_mask("1********");
+            if (bg::relate(
+                    *down_cast<Geographic_multilinestring *>(g1_mls.get()),
+                    *down_cast<Geographic_multilinestring *>(g2_mls.get()),
+                    line_mask)) {
+              shared_interior = false;  // Shared interior is a line.
+            }
+          }
+        } else {
+          // Either g1 or g2 are not of dimension 1. Therefore, it's enough to
+          // have some common interior, there's no requirement on the
+          // dimensionality.
+          boost::geometry::de9im::mask mask("T********");
+          boost::geometry::strategy::within::geographic_winding<
+              Geographic_point>
+          geographic_pl_pa_strategy(
+              bg::srs::spheroid<double>(f.semi_major(), f.semi_minor()));
+          boost::geometry::strategy::intersection::geographic_segments<>
+          geographic_ll_la_aa_strategy(
+              bg::srs::spheroid<double>(f.semi_major(), f.semi_minor()));
+
+          shared_interior = bg::relate(
+              *down_cast<Geographic_multipoint *>(g1_mpt.get()),
+              *down_cast<Geographic_multipoint *>(g2_mpt.get()), mask);
+          for (std::size_t i = 0;
+               i < down_cast<Geographic_multipoint *>(g1_mpt.get())->size();
+               i++) {
+            auto &pt = (*down_cast<Geographic_multipoint *>(g1_mpt.get()))[i];
+            shared_interior |=
+                bg::relate(
+                    pt, *down_cast<Geographic_multilinestring *>(g2_mls.get()),
+                    mask, geographic_pl_pa_strategy) ||
+                bg::relate(pt,
+                           *down_cast<Geographic_multipolygon *>(g2_mpy.get()),
+                           mask, geographic_pl_pa_strategy);
+          }
+          for (std::size_t i = 0;
+               i < down_cast<Geographic_multipoint *>(g2_mpt.get())->size();
+               i++) {
+            auto &pt = (*down_cast<Geographic_multipoint *>(g1_mpt.get()))[i];
+            shared_interior |= bg::relate(
+                pt, *down_cast<Geographic_multilinestring *>(g1_mls.get()),
+                mask, geographic_pl_pa_strategy);
+          }
+          shared_interior |=
+              bg::relate(*down_cast<Geographic_multilinestring *>(g1_mls.get()),
+                         *down_cast<Geographic_multilinestring *>(g2_mls.get()),
+                         mask, geographic_ll_la_aa_strategy) ||
+              bg::relate(*down_cast<Geographic_multilinestring *>(g1_mls.get()),
+                         *down_cast<Geographic_multipolygon *>(g2_mpy.get()),
+                         mask, geographic_ll_la_aa_strategy);
+        }
+      }
+
+      if (!shared_interior) return false;
+
+      // At least one point of g1 must be in g2's exterior.
+      std::unique_ptr<Multipoint> mpt_diff;
+      Difference d(f.semi_major(), f.semi_minor());
+      mpt_diff.reset(down_cast<Multipoint *>(d(g1_mpt.get(), g2_mpt.get())));
+      mpt_diff.reset(down_cast<Multipoint *>(d(mpt_diff.get(), g2_mls.get())));
+      mpt_diff.reset(down_cast<Multipoint *>(d(mpt_diff.get(), g2_mpy.get())));
+      if (mpt_diff->size() > 0) return true;
+      std::unique_ptr<Multilinestring> mls_diff;
+      mls_diff.reset(
+          down_cast<Multilinestring *>(d(g1_mls.get(), g2_mls.get())));
+      mls_diff.reset(
+          down_cast<Multilinestring *>(d(mls_diff.get(), g2_mpy.get())));
+      return (mls_diff->size() > 0);
     } else {
-      return (!g1_mpt->empty() && f(g1_mpt.get(), g2)) ||
-             (!g1_mls->empty() && f(g1_mls.get(), g2));
+      if (g1->coordinate_system() == Coordinate_system::kCartesian) {
+        Cartesian_geometrycollection gc;
+        gc.push_back(*g2);
+        return geometry_collection_apply_crosses<Cartesian_geometrycollection>(
+            f, g1, &gc);
+      } else {
+        DBUG_ASSERT(g1->coordinate_system() == Coordinate_system::kGeographic);
+        Geographic_geometrycollection gc;
+        gc.push_back(*g2);
+        return geometry_collection_apply_crosses<Geographic_geometrycollection>(
+            f, g1, &gc);
+      }
     }
   } else {
     if (g2->type() == Geometry_type::kGeometrycollection) {
-      std::unique_ptr<Multipoint> g2_mpt;
-      std::unique_ptr<Multilinestring> g2_mls;
-      std::unique_ptr<Multipolygon> g2_mpy;
-      split_gc(down_cast<const Geometrycollection *>(g2), &g2_mpt, &g2_mls,
-               &g2_mpy);
-      if (g1->type() == Geometry_type::kPolygon ||
-          g1->type() == Geometry_type::kMultipolygon ||
-          (!g2_mpt->empty() && g2_mls->empty() && g2_mpy->empty()))
-        throw null_value_exception();
-      gc_union(f.semi_major(), f.semi_minor(), &g2_mpt, &g2_mls, &g2_mpy);
-
-      return ((!g2_mls->empty() && f(g1, g2_mls.get())) ||
-              (!g2_mpy->empty() && f(g1, g2_mpy.get())));
+      if (g1->coordinate_system() == Coordinate_system::kCartesian) {
+        Cartesian_geometrycollection gc;
+        gc.push_back(*g1);
+        return geometry_collection_apply_crosses<Cartesian_geometrycollection>(
+            f, &gc, g2);
+      } else {
+        DBUG_ASSERT(g1->coordinate_system() == Coordinate_system::kGeographic);
+        Geographic_geometrycollection gc;
+        gc.push_back(*g1);
+        return geometry_collection_apply_crosses<Geographic_geometrycollection>(
+            f, &gc, g2);
+      }
     } else {
       return f(g1, g2);
     }
@@ -245,7 +424,8 @@ bool Crosses::eval(const Cartesian_multipoint *g1,
   bool found_within = false;
   bool found_disjoint = false;
 
-  // At least one point in g1 has to be within g2, and at least one point in g1
+  // At least one point in g1 has to be within g2, and at least one point in
+  // g1
   // has to be disjoint from g2.
   for (auto &pt : *g1) {
     bool pt_disjoint = false;
@@ -269,7 +449,8 @@ bool Crosses::eval(const Cartesian_multipoint *g1,
   bool found_within = false;
   bool found_disjoint = false;
 
-  // At least one point in g1 has to be within g2, and at least one point in g1
+  // At least one point in g1 has to be within g2, and at least one point in
+  // g1
   // has to be disjoint from g2.
   for (auto &pt : *g1) {
     bool pt_disjoint = false;
@@ -305,7 +486,8 @@ bool Crosses::eval(const Cartesian_multipoint *g1,
   bool found_within = false;
   bool found_disjoint = false;
 
-  // At least one point in g1 has to be within g2, and at least one point in g1
+  // At least one point in g1 has to be within g2, and at least one point in
+  // g1
   // has to be disjoint from g2.
   for (auto &pt : *g1) {
     bool pt_disjoint = false;
@@ -329,7 +511,8 @@ bool Crosses::eval(const Cartesian_multipoint *g1,
   bool found_within = false;
   bool found_disjoint = false;
 
-  // At least one point in g1 has to be within g2, and at least one point in g1
+  // At least one point in g1 has to be within g2, and at least one point in
+  // g1
   // has to be disjoint from g2.
   for (auto &pt : *g1) {
     bool pt_disjoint = false;
@@ -522,7 +705,8 @@ bool Crosses::eval(const Geographic_multipoint *g1,
   bool found_within = false;
   bool found_disjoint = false;
 
-  // At least one point in g1 has to be within g2, and at least one point in g1
+  // At least one point in g1 has to be within g2, and at least one point in
+  // g1
   // has to be disjoint from g2.
   for (auto &pt : *g1) {
     bool pt_disjoint = false;
@@ -546,7 +730,8 @@ bool Crosses::eval(const Geographic_multipoint *g1,
   bool found_within = false;
   bool found_disjoint = false;
 
-  // At least one point in g1 has to be within g2, and at least one point in g1
+  // At least one point in g1 has to be within g2, and at least one point in
+  // g1
   // has to be disjoint from g2.
   for (auto &pt : *g1) {
     bool pt_disjoint = false;
@@ -582,7 +767,8 @@ bool Crosses::eval(const Geographic_multipoint *g1,
   bool found_within = false;
   bool found_disjoint = false;
 
-  // At least one point in g1 has to be within g2, and at least one point in g1
+  // At least one point in g1 has to be within g2, and at least one point in
+  // g1
   // has to be disjoint from g2.
   for (auto &pt : *g1) {
     bool pt_disjoint = false;
@@ -606,7 +792,8 @@ bool Crosses::eval(const Geographic_multipoint *g1,
   bool found_within = false;
   bool found_disjoint = false;
 
-  // At least one point in g1 has to be within g2, and at least one point in g1
+  // At least one point in g1 has to be within g2, and at least one point in
+  // g1
   // has to be disjoint from g2.
   for (auto &pt : *g1) {
     bool pt_disjoint = false;

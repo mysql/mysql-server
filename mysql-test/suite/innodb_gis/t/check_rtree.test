@@ -3,7 +3,7 @@
 --source include/have_debug.inc
 
 # Create table with R-tree index.
-create table t1 (i int, g geometry not null, spatial index (g))engine=innodb;
+create table t1 (i int, g geometry not null SRID 0, spatial index (g))engine=innodb;
 
 # Turn on the geometry data print.
 SET SESSION debug="+d,rtree_test_check_count";

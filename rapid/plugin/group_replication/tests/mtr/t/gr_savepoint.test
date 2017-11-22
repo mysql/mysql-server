@@ -27,8 +27,8 @@ CREATE TABLE t1(a int primary key);
 --echo # Don't cause conflict due the rollback
 --echo #
 
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction=INSERT INTO t1 VALUES(1); SAVEPOINT A; INSERT INTO t1 values(2); ROLLBACK TO A; RELEASE SAVEPOINT A
 --let $remote_transaction=INSERT INTO t1 VALUES (2)
@@ -44,8 +44,8 @@ CREATE TABLE t1(a int primary key);
 --echo # Don't cause conflict due the rollback and the release don't interfere
 --echo #
 
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction=INSERT INTO t1 VALUES(3); SAVEPOINT A; INSERT INTO t1 values(4); ROLLBACK TO A
 --let $remote_transaction=INSERT INTO t1 VALUES (4)
@@ -61,8 +61,8 @@ CREATE TABLE t1(a int primary key);
 --echo # Using SAVEPOINT don't modify the conflict detection
 --echo #
 
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction=INSERT INTO t1 VALUES(5); SAVEPOINT A; INSERT INTO t1 values(6)
 --let $remote_transaction=INSERT INTO t1 VALUES (6); INSERT INTO t1 VALUES(7)

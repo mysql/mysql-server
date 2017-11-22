@@ -9,7 +9,7 @@ install plugin mysqlx soname "mysqlx.so";
 [connection slave]
 install plugin mysqlx soname "mysqlx.so";
 Starting the slave server
-RUN CHANGE MASTER TO MASTER_HOST= 'localhost', MASTER_USER= 'root'
+RUN CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_USER= 'root'
 
 0 rows affected
 RUN START SLAVE

@@ -775,6 +775,17 @@ Variable_name	Value
 Handler_update	11
 Variable_name	Value
 Handler_delete	1
+#
+# Bug#27041288: ASSERTION FAILURE:
+# ROW0SEL.CC:3955:PREBUILT->MYSQL_PREFIX_LEN <= RECORD_BUFFER..
+#
+CREATE TABLE t(a INT PRIMARY KEY, b CHAR(0), c CHAR(1));
+INSERT INTO t VALUES (1, '', 'a'), (2, '', 'b');
+SELECT * FROM t;
+a	b	c
+1		a
+2		b
+DROP TABLE t;
 count_alloc WHERE event_name like 'memory/innodb/other'
 count_alloc
 0

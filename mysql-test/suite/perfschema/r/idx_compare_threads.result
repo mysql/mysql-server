@@ -147,7 +147,7 @@ SELECT * FROM performance_schema.threads WHERE processlist_host = 'localhost' AN
 
 OK: Handler_read_key
 
-*** ERROR ***: Result set: Empty  Expected: Non-empty
+OK: Result set: Empty  Expected: Empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========

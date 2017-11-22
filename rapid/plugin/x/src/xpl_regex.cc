@@ -16,48 +16,35 @@
 #include "plugin/x/src/xpl_regex.h"
 
 #include <cstring>
+#include "include/my_dbug.h"
 
-#include "my_dbug.h"
+namespace xpl {
+namespace {
 
-
-namespace
-{
-
-inline void check_result(const int err MY_ATTRIBUTE((unused)))
-{
-  DBUG_ASSERT( err == 0 );
+inline void check_result(const int err MY_ATTRIBUTE((unused))) {
+  DBUG_ASSERT(err == 0);
 }
 
-
-const struct Regex_finalizer
-{
+const struct Regex_finalizer {
   Regex_finalizer() {}
   ~Regex_finalizer() { my_regex_end(); }
 } regex_finalizer;
 
-} // namespace
+}  // namespace
 
-
-xpl::Regex::Regex(const char* const pattern)
-{
+Regex::Regex(const char *const pattern) {
   memset(&m_re, 0, sizeof(m_re));
   int err = my_regcomp(&m_re, pattern,
                        (MY_REG_EXTENDED | MY_REG_ICASE | MY_REG_NOSUB),
-                       &my_charset_latin1);
-
+                       &my_charset_utf8mb4_general_ci);
   // Workaround for unused variable
   check_result(err);
 }
 
+Regex::~Regex() { my_regfree(&m_re); }
 
-xpl::Regex::~Regex()
-{
-  my_regfree(&m_re);
+bool xpl::Regex::match(const char *value) const {
+  return my_regexec(&m_re, value, static_cast<size_t>(0), nullptr, 0) == 0;
 }
 
-
-bool xpl::Regex::match(const char *value) const
-{
-  return my_regexec(&m_re, value, (size_t)0, NULL, 0) == 0;
-}
-
+}  // namespace xpl

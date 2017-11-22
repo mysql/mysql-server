@@ -23,14 +23,18 @@
 --enable_result_log
 --enable_query_log
 
+--let $accounts_host=/$ip%$interface/localhost/
+
 --echo # Account user1 was created with interface name.
 --echo # The authentication must be succesful
+--replace_regex $accounts_host
 exec $execute_command -uuser1 --password='p1'
  -h$ip%$interface -e "SELECT USER()" 2>&1;
 
 --echo # Account user2 was created without interface name.
 --echo # The authentication must fail because account IP
 --echo # and client IP doesn't match
+--replace_regex $accounts_host
 error 1;
 exec $execute_command -uuser2 --password='p2'
  -h$ip%$interface -e "SELECT USER()" 2>&1;

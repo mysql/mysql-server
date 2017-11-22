@@ -628,9 +628,9 @@ drop tables tm, ti, th;
 --echo # 2) For SPATIAL and FULLTEXT keys we always use special key
 --echo #    algorithms and there is no way to specify it explicitly.
 --echo #
-create table tm (pk int primary key, p point not null, spatial index (p))
+create table tm (pk int primary key, p point not null SRID 0, spatial index (p))
 charset utf8mb4 engine=myisam;
-create table ti (pk int primary key, p point not null, spatial index (p))
+create table ti (pk int primary key, p point not null SRID 0, spatial index (p))
 charset utf8mb4 engine=innodb;
 --error ER_CHECK_NOT_IMPLEMENTED
 create table th (pk int primary key, p point not null, spatial index (p))
@@ -650,8 +650,8 @@ select table_name, index_type from information_schema.statistics
 --echo #
 --echo # Same applies when keys are added by ALTER TABLE
 --echo #
-alter table tm add column q point not null, add spatial index (q);
-alter table ti add column q point not null, add spatial index (q);
+alter table tm add column q point not null SRID 0, add spatial index (q);
+alter table ti add column q point not null SRID 0, add spatial index (q);
 show create table tm;
 show create table ti;
 select table_name, index_type from information_schema.statistics

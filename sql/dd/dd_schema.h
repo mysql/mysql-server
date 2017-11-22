@@ -18,10 +18,13 @@
 
 #include <stddef.h>
 
+#include "sql/mdl.h"    // enum_mdl_duration
+
 class MDL_ticket;
 class THD;
 
 typedef struct charset_info_st CHARSET_INFO;
+
 
 namespace dd {
 
@@ -38,6 +41,18 @@ bool schema_exists(THD *thd, const char *schema_name, bool *exists);
 /** Create a schema record into dd.schemata. */
 bool create_schema(THD *thd, const char *schema_name,
                    const CHARSET_INFO *charset_info);
+
+/**
+  Acquire MDL on schema name.
+  @param thd         Thread context.
+  @param schema_name Schema to check for.
+  @param duration    Duration type for MDL
+  @param ticket      Where to store ticket pointer
+  (default: nullptr, no ticket pointer will be stored)
+  @return        false if success, true if error.
+*/
+bool mdl_lock_schema(THD *thd, const char *schema_name,
+                     enum_mdl_duration duration, MDL_ticket **ticket= nullptr);
 
 /**
   RAII based class to acquire and release schema meta data locks.

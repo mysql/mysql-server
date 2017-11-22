@@ -31,8 +31,8 @@ Created 11/5/1995 Heikki Tuuri
 #define buf0lru_h
 
 #include "univ.i"
-#ifndef UNIV_HOTBACKUP
 #include "buf0types.h"
+#ifndef UNIV_HOTBACKUP
 #include "ut0byte.h"
 
 // Forward declaration
@@ -53,6 +53,7 @@ These are low-level functions
 
 /** Minimum LRU list length for which the LRU_old pointer is defined */
 #define BUF_LRU_OLD_MIN_LEN	512	/* 8 megabytes of 16k pages */
+#endif /* !UNIV_HOTBACKUP */
 
 /******************************************************************//**
 Flushes all dirty pages or removes all pages belonging
@@ -67,6 +68,7 @@ buf_LRU_flush_or_remove_pages(
 	const trx_t*	trx);		/*!< to check if the operation must
 					be interrupted */
 
+#ifndef UNIV_HOTBACKUP
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Insert a compressed block into buf_pool->zip_clean in the LRU order.
 @param[in]	bpage	pointer to the block in question */

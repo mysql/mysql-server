@@ -53,6 +53,17 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share,
 
 bool parse_view_definition(THD *thd, TABLE_LIST *view_ref);
 
+/*
+  Check if view is updatable.
+
+  @param  thd       Thread Handle.
+  @param  view      View description.
+
+  @retval true      View is updatable.
+  @retval false     Otherwise.
+*/
+bool is_updatable_view(THD *thd, TABLE_LIST *view);
+
 #define VIEW_ANY_ACL (SELECT_ACL | UPDATE_ACL | INSERT_ACL | DELETE_ACL)
 
 #endif /* SQL_VIEW_INCLUDED */

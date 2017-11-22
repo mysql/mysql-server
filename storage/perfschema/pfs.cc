@@ -6000,6 +6000,31 @@ pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc)
   return;
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::end_file_rename_wait.
+*/
+void pfs_end_file_rename_wait_v1(PSI_file_locker *locker, const char *old_name,
+                                 const char *new_name, int rc)
+{
+  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+  DBUG_ASSERT(state->m_operation == PSI_FILE_RENAME);
+
+  if (rc == 0)
+  {
+    PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+
+    uint old_len= (uint)strlen(old_name);
+    uint new_len= (uint)strlen(new_name);
+
+    find_and_rename_file(thread, old_name, old_len, new_name, new_len);
+  }
+
+  pfs_end_file_wait_v1(locker, 0);
+  return;
+}
+
 PSI_stage_progress *
 pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
 {
@@ -8906,7 +8931,8 @@ PSI_file_service_v1 pfs_file_service_v1 = {
   pfs_start_file_wait_v1,
   pfs_end_file_wait_v1,
   pfs_start_file_close_wait_v1,
-  pfs_end_file_close_wait_v1};
+  pfs_end_file_close_wait_v1,
+  pfs_end_file_rename_wait_v1};
 
 SERVICE_TYPE(psi_file_v1)
 SERVICE_IMPLEMENTATION(performance_schema, psi_file_v1) = {
@@ -8923,7 +8949,8 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_file_v1) = {
   pfs_start_file_wait_v1,
   pfs_end_file_wait_v1,
   pfs_start_file_close_wait_v1,
-  pfs_end_file_close_wait_v1};
+  pfs_end_file_close_wait_v1,
+  pfs_end_file_rename_wait_v1};
 
 PSI_socket_service_v1 pfs_socket_service_v1 = {
   /* Old interface, for plugins. */

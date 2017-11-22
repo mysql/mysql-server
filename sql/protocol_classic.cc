@@ -534,7 +534,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err)
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>name</td>
-      <td>name of the changed system variable</td></tr>
+      <td>name of the changed schema</td></tr>
   </table>
 
   Example:

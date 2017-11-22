@@ -53,7 +53,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "sync0rw.h"
 #include "trx0purge.h"
 #include "trx0undo.h"
-#endif /* !UNIV_HOTBACKUP */
 
 #include <errno.h>
 #include <stdarg.h>
@@ -74,6 +73,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "sync0sync.h"
 #include "ut0new.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef HAVE_LIBNUMA
 #include <numa.h>
@@ -2503,8 +2503,23 @@ buf_pool_clear_hash_index(void)
 					continue;
 				}
 
-				ut_ad(buf_block_get_state(block)
-				      == BUF_BLOCK_FILE_PAGE);
+				switch(buf_block_get_state(block)) {
+				case BUF_BLOCK_FILE_PAGE:
+					break;
+				case BUF_BLOCK_REMOVE_HASH:
+					/* It is possible that a parallel thread
+					might have set this state. It means AHI
+					for this block is being removed. After
+					this function, AHI entries would anyway
+					be removed. So its Ok to reset block
+					index/pointers here otherwise it would
+					be pointing to removed AHI entries. */
+					break;
+				default:
+					/* No other state should have AHI */
+					ut_ad(block->index == nullptr);
+					ut_ad(block->n_pointers == 0);
+				}
 
 # if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 				block->n_pointers = 0;
@@ -6352,13 +6367,13 @@ buf_get_free_list_len(void)
 @param[in]	page_size	page size
 @param[in,out]	block		block to init */
 void
-buf_page_init_for_backup_restore(
+meb_page_init(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	buf_block_t*		block)
 {
 	block->page.state = BUF_BLOCK_FILE_PAGE;
-	block->page.id = page_id;
+	block->page.id.copy_from(page_id);
 	block->page.size.copy_from(page_size);
 
 	page_zip_des_init(&block->page.zip);
@@ -6371,6 +6386,12 @@ buf_page_init_for_backup_restore(
 	} else {
 		page_zip_set_size(&block->page.zip, 0);
 	}
+
+	ib::trace()
+		<< "meb_page_init: block  Space: "
+		<< block->page.id.space() << " , zip_size: "
+		<< block->page.size.physical() << " unzip_size: "
+		<< block->page.size.logical() << " }\n";
 }
 
 #endif /* !UNIV_HOTBACKUP */
@@ -6384,6 +6405,7 @@ operator<<(
 	std::ostream&		out,
 	const buf_pool_t&	buf_pool)
 {
+#ifndef UNIV_HOTBACKUP
 	/* These locking requirements might be relaxed if desired */
 	ut_ad(mutex_own(&buf_pool.LRU_list_mutex));
 	ut_ad(mutex_own(&buf_pool.free_list_mutex));
@@ -6406,5 +6428,6 @@ operator<<(
 		<< ", pages read=" << buf_pool.stat.n_pages_read
 		<< ", created=" << buf_pool.stat.n_pages_created
 		<< ", written=" << buf_pool.stat.n_pages_written << "]";
+#endif /* !UNIV_HOTBACKUP */
 	return(out);
 }

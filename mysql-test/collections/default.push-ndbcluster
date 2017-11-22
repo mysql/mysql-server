@@ -14,3 +14,6 @@ perl mysql-test-run.pl --timer --force --parallel=auto --comment=ndbcluster --va
 # The tests in the gcol_ndb suite use the include files present in the gcol
 # suite.
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=gcol_ndb --vardir=var-gcol-ndb --experimental=collections/default.experimental --suite=gcol_ndb
+
+# Run the NDB memcache plugin tests.
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=ndb_memcache --vardir=var-memc-ndb --experimental=collections/default.experimental --suite=ndb_memcache

@@ -25,7 +25,7 @@ include/rpl_sync.inc
 
 ############################################################
 # 0. Initial setup and checks.
-[connection server_1]
+[connection server1]
 SET SESSION sql_log_bin= 0;
 include/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
@@ -34,7 +34,7 @@ include/gtid_step_reset.inc
 ############################################################
 # 1. Set a debug sync before broadcast message to group on
 #    connection local_server_connection1.
-[connection server_1]
+[connection server1]
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
 
@@ -47,7 +47,7 @@ COMMIT;
 ############################################################
 # 3. Wait until local transaction reaches the
 # group_replication_before_message_broadcast debug sync point.
-[connection server1]
+[connection server_1]
 
 ############################################################
 # 4. Execute a transaction on remote server, that will reach first
@@ -61,7 +61,7 @@ COMMIT;
 ############################################################
 # 5. Signal the waiting thread on local server to resume the
 #    transaction.
-[connection server1]
+[connection server_1]
 SET DEBUG_SYNC='now SIGNAL waiting';
 SET @@GLOBAL.DEBUG= @debug_save;
 
@@ -76,9 +76,9 @@ include/sync_slave_sql_with_master.inc
 #    since transactions are conflicting and transaction on
 #    remote server was ordered first. If the test case is
 #    is positive scenario, no error will be seen here.
-[connection server_1]
+[connection server1]
 ERROR 40000: Plugin instructed the server to rollback the current transaction.
-[connection server_1]
+[connection server1]
 SET @@GLOBAL.DEBUG=@debug_save;
 ############################################################
 # 8. Sync everything
@@ -91,7 +91,7 @@ include/assert.inc [The value of Count_Conflicts_Detected should be 1 after star
 ############################################################
 # 10. Assert that GTID is increased as expected
 include/gtid_step_assert.inc [count=1, only_count=1]
-[connection server_1]
+[connection server1]
 SET SESSION sql_log_bin= 0;
 include/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
@@ -112,7 +112,7 @@ include/assert.inc [Table t2 should have zero rows after the above conflict]
 
 ############################################################
 # 0. Initial setup and checks.
-[connection server_1]
+[connection server1]
 SET SESSION sql_log_bin= 0;
 include/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
@@ -121,7 +121,7 @@ include/gtid_step_reset.inc
 ############################################################
 # 1. Set a debug sync before broadcast message to group on
 #    connection local_server_connection1.
-[connection server_1]
+[connection server1]
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
 
@@ -134,7 +134,7 @@ COMMIT;
 ############################################################
 # 3. Wait until local transaction reaches the
 # group_replication_before_message_broadcast debug sync point.
-[connection server1]
+[connection server_1]
 
 ############################################################
 # 4. Execute a transaction on remote server, that will reach first
@@ -148,7 +148,7 @@ COMMIT;
 ############################################################
 # 5. Signal the waiting thread on local server to resume the
 #    transaction.
-[connection server1]
+[connection server_1]
 SET DEBUG_SYNC='now SIGNAL waiting';
 SET @@GLOBAL.DEBUG= @debug_save;
 
@@ -163,8 +163,8 @@ include/sync_slave_sql_with_master.inc
 #    since transactions are conflicting and transaction on
 #    remote server was ordered first. If the test case is
 #    is positive scenario, no error will be seen here.
-[connection server_1]
-[connection server_1]
+[connection server1]
+[connection server1]
 SET @@GLOBAL.DEBUG=@debug_save;
 ############################################################
 # 8. Sync everything
@@ -177,7 +177,7 @@ include/assert.inc [The value of Count_Conflicts_Detected should be 1 after star
 ############################################################
 # 10. Assert that GTID is increased as expected
 include/gtid_step_assert.inc [count=2, only_count=1]
-[connection server_1]
+[connection server1]
 SET SESSION sql_log_bin= 0;
 include/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;

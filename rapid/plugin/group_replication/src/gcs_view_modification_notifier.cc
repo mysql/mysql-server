@@ -78,12 +78,12 @@ Plugin_gcs_view_modification_notifier::end_view_modification()
 }
 
 void
-Plugin_gcs_view_modification_notifier::cancel_view_modification(int error)
+Plugin_gcs_view_modification_notifier::cancel_view_modification(int errnr)
 {
   mysql_mutex_lock(&wait_for_view_mutex);
   view_changing= false;
   cancelled_view_change= true;
-  this->error= error;
+  this->error= errnr;
   mysql_cond_broadcast(&wait_for_view_cond);
   mysql_mutex_unlock(&wait_for_view_mutex);
 }

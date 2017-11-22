@@ -77,7 +77,6 @@ CREATE TEMPORARY TABLE tmp3 (a int);
 DROP TEMPORARY TABLE tmp3;
 
 connection slave;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 
 connection master;

@@ -24,7 +24,6 @@ Database monitor counter interfaces
 Created 12/9/2009 Jimmy Yang
 *******************************************************/
 
-#ifndef UNIV_HOTBACKUP
 
 #include <time.h>
 
@@ -2078,4 +2077,3 @@ srv_mon_default_on(void)
 		}
 	}
 }
-#endif /* !UNIV_HOTBACKUP */

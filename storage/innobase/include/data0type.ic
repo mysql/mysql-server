@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,6 @@ Created 1/16/1996 Heikki Tuuri
 *******************************************************/
 
 #include "mach0data.h"
-#ifndef UNIV_HOTBACKUP
 # include "ha_prototypes.h"
 
 /*********************************************************************//**
@@ -39,6 +38,7 @@ dtype_get_charset_coll(
 	return((prtype >> 16) & CHAR_COLL_MASK);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Determines if a MySQL string type is a subset of UTF-8.  This function
 may return false negatives, in case further character-set collation
@@ -519,6 +519,7 @@ dtype_get_fixed_size_low(
 		} else if (!comp) {
 			return(len);
 		} else {
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 			ulint	i_mbminlen, i_mbmaxlen;
 
@@ -529,6 +530,7 @@ dtype_get_fixed_size_low(
 			ut_ad(DATA_MBMINMAXLEN(i_mbminlen, i_mbmaxlen)
 			      == mbminmaxlen);
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 			if (DATA_MBMINLEN(mbminmaxlen)
 			    == DATA_MBMAXLEN(mbminmaxlen)) {
 				return(len);
@@ -553,7 +555,6 @@ dtype_get_fixed_size_low(
 	return(0);
 }
 
-#ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
 Returns the minimum size of a data type.
 @return minimum size */
@@ -660,7 +661,6 @@ dtype_get_max_size_low(
 
 	return(ULINT_MAX);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************//**
 Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a type.

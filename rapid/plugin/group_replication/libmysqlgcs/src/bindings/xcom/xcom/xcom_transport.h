@@ -73,9 +73,38 @@ typedef struct envelope envelope;
 
 int check_protoversion(xcom_proto x_proto, xcom_proto negotiated);
 int flush_srv_buf(server *s, int64_t *ret);
-int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
-                      int64_t *ret);
-int read_msg(connection_descriptor *rfd, pax_msg *p, int64_t *ret);
+
+/**
+  Reads message from connection rfd with buffering reads.
+
+  @param[in]     rfd Pointer to open connection.
+  @param[in,out] buf Used for buffering reads.
+  @param[out]    p   Output buffer.
+  @param[out]    s   Pointer to server. Server timestamp updated if not 0.
+  @param[out]    ret Number of bytes read, or -1 if failure.
+
+  @return
+    @retval 0 if task should terminate.
+    @retval 1 if it should continue.
+*/
+
+int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf,
+                      pax_msg *p, server *s, int64_t *ret);
+
+/**
+  Reads message from connection rfd without buffering reads.
+
+  @param[in]     rfd Pointer to open connection.
+  @param[out]    p   Output buffer.
+  @param[in,out] s   Pointer to server. Server timestamp updated if not 0.
+  @param[in,out] ret Number of bytes read, or -1 if failure.
+
+  @return
+    @retval 0 if task should terminate.
+    @retval 1 if it should continue.
+*/
+int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret);
+
 int send_to_acceptors(pax_msg *p, const char *dbg);
 int send_to_all(pax_msg *p, const char *dbg);
 int send_to_all_site(site_def const *s, pax_msg *p, const char *dbg);
@@ -90,7 +119,6 @@ int srv_ref(server *s);
 int srv_unref(server *s);
 int tcp_reaper_task(task_arg arg);
 int tcp_server(task_arg arg);
-server *get_server(site_def const *s, node_no i);
 uint32_t crc32c_hash(char *buf, char *end);
 int apply_xdr(xcom_proto x_proto, void *buff, uint32_t bufflen,
               xdrproc_t xdrfunc, void *xdrdata, enum xdr_op op);
@@ -106,6 +134,11 @@ void garbage_collect_servers();
 int client_task(task_arg arg);
 int send_msg(server *s, node_no from, node_no to, uint32_t group_id,
              pax_msg *p);
+/**
+  Updates timestamp of server.
+
+  @param[in]     s  Pointer to server.
+*/
 void server_detected(server *s);
 
 void invalidate_servers(const site_def* old_site_def,

@@ -5,12 +5,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 [connection server1]
 SET GLOBAL group_replication_group_name="00000000-1111-2222-3333-444444444444";
-SET GLOBAL group_replication_ip_whitelist="-2";
-START GROUP_REPLICATION;
-ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
-SET GLOBAL group_replication_ip_whitelist="NULL";
-START GROUP_REPLICATION;
-ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+SET GLOBAL group_replication_ip_whitelist=NULL;
+ERROR 42000: Variable 'group_replication_ip_whitelist' can't be set to the value of 'NULL'
 SET GLOBAL group_replication_ip_whitelist="192.256.1.20";
 START GROUP_REPLICATION;
 ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
@@ -43,11 +39,15 @@ include/start_and_bootstrap_group_replication.inc
 include/assert.inc [Assert value changed to 8.9.10.0/20]
 include/stop_group_replication.inc
 include/assert_grep.inc [ip_whitelist was successfully logged to the error log]
-SET GLOBAL group_replication_ip_whitelist="8.9.10.0/20,192.168.1.1,192.168.2.0/24";
+SET GLOBAL group_replication_ip_whitelist="fe80::f6dd:5a39:661b:b00b/64,8.9.10.0/20,192.168.1.1,192.168.2.0/24";
 include/start_and_bootstrap_group_replication.inc
-include/assert.inc [Assert value changed to 8.9.10.0/20,192.168.1.1,192.168.2.0/24]
+include/assert.inc [Assert value changed to fe80::f6dd:5a39:661b:b00b/64,8.9.10.0/20,192.168.1.1,192.168.2.0/24]
 include/stop_group_replication.inc
 include/assert_grep.inc [ip_whitelist was successfully logged to the error log]
+SET GLOBAL group_replication_ip_whitelist="CORRECT_HOSTNAME";
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [Assert value with hostname is not empty]
+include/stop_group_replication.inc
 SET GLOBAL group_replication_ip_whitelist="";
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [Assert value changed to ""]

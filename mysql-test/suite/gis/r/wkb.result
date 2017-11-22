@@ -953,3 +953,13 @@ DROP PROCEDURE gis_wkb_funcs;
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 66666666;
 DELETE FROM mysql.st_spatial_reference_systems
 WHERE id >= 31000000 AND id <= 33000000;
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined. Should raise warning.
+DO ST_ASBINARY(x'0A000000010100000000000000000000000000000000000000');
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
+DO ST_ASWKB(x'0A000000010100000000000000000000000000000000000000');
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.

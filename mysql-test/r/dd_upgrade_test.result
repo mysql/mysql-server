@@ -145,8 +145,6 @@ test_tablespace_2.ibd
 test_tablespace_3.ibd
 triggers
 view_with_column_names
-# Create a bootstrap file in temp location
-MYSQL_TMP_DIR/bootstrap.log
 # Start the DB server. Server will create and populate Dictionary tables.
 # Test for Bug#25518436 : MYSQL 8.0.1 - MYSQLD ERRORLOG HAS UPGRADE ERRORS
 #                         AT SERVER START AT LIVE UPGRADE
@@ -236,11 +234,13 @@ tablespace.t1                                      OK
 tablespace.t2                                      OK
 tablespace.t3                                      OK
 tablespace.t4                                      OK
+test.child                                         OK
 test.geom                                          OK
 test.initial_tü                                   OK
 test.jemp                                          OK
 test.jemp_myisam                                   OK
 test.opening_lines                                 OK
+test.parent                                        OK
 test.t_blackhole                                   OK
 test.t_blob                                        OK
 test.t_blob_myisam                                 OK
@@ -458,12 +458,14 @@ jemp_myisam	CREATE TABLE `jemp_myisam` (
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT
 FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
 TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT
+test	child	BASE TABLE	InnoDB	10	Dynamic
 test	geom	BASE TABLE	InnoDB	10	Dynamic
 test	initial_tü	BASE TABLE	BLACKHOLE	10	Fixed
 test	initial_vü	VIEW	NULL	NULL	NULL
 test	jemp	BASE TABLE	InnoDB	10	Dynamic
 test	jemp_myisam	BASE TABLE	MyISAM	10	Dynamic
 test	opening_lines	BASE TABLE	InnoDB	10	Dynamic
+test	parent	BASE TABLE	InnoDB	10	Dynamic
 test	t_blackhole	BASE TABLE	BLACKHOLE	10	Fixed
 test	t_blob	BASE TABLE	InnoDB	10	Dynamic
 test	t_blob_myisam	BASE TABLE	InnoDB	10	Dynamic
@@ -821,6 +823,18 @@ sakila.film_text	optimize	status	OK
 # Check SDI from ibdata1
 # Check SDI from test_tablespace_3.ibd
 # Check SDI from test_tablespace_2.ibd
+# Remove copied files
+#
+# Bug#26944731 : UPGRADE TO 8.0 FAILS: DUPLICATE SET VALUES IN TABLE FROM A PERMISSIVE SQL_MODE..
+# Bug#26948678 : MYSQLD: INVALID DEFAULT VALUE FOR 'CACHED_TIME'
+#
+# Unzip the zip file.
+SHOW CREATE TABLE test.t_set;
+Table	Create Table
+t_set	CREATE TABLE `t_set` (
+  `a` set('','') DEFAULT NULL
+) ENGINE=BLACKHOLE DEFAULT CHARSET=latin1
+# Stop the server
 # Remove copied files
 # Restart the server with default options.
 # restart

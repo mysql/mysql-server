@@ -11125,7 +11125,7 @@ Warning	1364	Field 'j' doesn't have a default value
 UPDATE t SET j = JSON_REMOVE(j, '$[0]');
 SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
 j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
-null	2	0
+null	0	0
 DROP TABLE t;
 #
 # Bug#25893720: TABLE::SETUP_PARTIAL_UPDATE():
@@ -11222,7 +11222,7 @@ SELECT *, JSON_STORAGE_SIZE(j) ss,
 JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
 id	j	ss	sf
 1	["x", [1, 2, 4, 5, 6]]	42	10
-2	{"x": {"defghijkl": "m"}, "y": "z"}	45	0
+2	{"x": {"defghijkl": "m"}, "y": "z"}	81	36
 3	null	2	0
 4	NULL	NULL	NULL
 UPDATE t SET j = JSON_SET(JSON_REMOVE(j, '$.x.a'), '$.x.a', 'abcd', '$.x.b', 9);

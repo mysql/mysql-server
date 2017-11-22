@@ -425,7 +425,6 @@ struct mem_block_info_t {
 			user data in the block */
 	ulint	start;	/*!< the value of the struct field 'free' at the
 			creation of the block */
-#ifndef UNIV_HOTBACKUP
 	void*	free_block;
 			/* if the MEM_HEAP_BTR_SEARCH bit is set in type,
 			and this is the heap root, this can contain an
@@ -436,7 +435,6 @@ struct mem_block_info_t {
 			/* if this block has been allocated from the buffer
 			pool, this contains the buf_block_t handle;
 			otherwise, this is NULL */
-#endif /* !UNIV_HOTBACKUP */
 };
 
 #define MEM_BLOCK_MAGIC_N	0x445566778899AABB

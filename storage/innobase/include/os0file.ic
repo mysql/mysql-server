@@ -209,6 +209,7 @@ pfs_os_file_close_func(
 	return(result);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** NOTE! Please use the corresponding macro os_aio(), not directly this
 function!
 Performance schema wrapper function of os_aio() which requests
@@ -265,6 +266,7 @@ pfs_os_aio_func(
 
 	return(result);
 }
+#endif /* UNIV_HOTBACKUP */
 
 /** NOTE! Please use the corresponding macro os_file_read(), not directly
 this function!
@@ -583,7 +585,7 @@ pfs_os_file_rename_func(
 
 	bool	result = os_file_rename_func(oldpath, newpath);
 
-	register_pfs_file_rename_end(locker, 0);
+	register_pfs_file_rename_end(locker, oldpath, newpath, !result);
 
 	return(result);
 }

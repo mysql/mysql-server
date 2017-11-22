@@ -1452,9 +1452,8 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     /* if we have a password supplied we update the expiration field */
     if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
     {
-      if (auth_plugin_supports_expiration(combo->plugin.str))
-        table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store("N",
-                                       1, system_charset_info);
+      table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store("N",
+                                     1, system_charset_info);
     }
     else
     {

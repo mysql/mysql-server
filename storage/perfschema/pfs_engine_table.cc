@@ -1243,7 +1243,9 @@ ACL_internal_access_result
 PFS_unknown_acl::check(ulong want_access, ulong *) const
 {
   const ulong always_forbidden = CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
-                                 ALTER_ACL | CREATE_VIEW_ACL | TRIGGER_ACL;
+                                 ALTER_ACL | CREATE_VIEW_ACL | TRIGGER_ACL |
+                                 INSERT_ACL | UPDATE_ACL | DELETE_ACL |
+                                 SHOW_VIEW_ACL | LOCK_TABLES_ACL;
 
   if (unlikely(want_access & always_forbidden))
   {

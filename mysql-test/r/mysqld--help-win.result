@@ -1477,7 +1477,7 @@ optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,i
 optimizer-trace 
 optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
 optimizer-trace-limit 1
-optimizer-trace-max-mem-size 16384
+optimizer-trace-max-mem-size 1048576
 optimizer-trace-offset -1
 parser-max-mem-size 18446744073709551615
 password-history 0

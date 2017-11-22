@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,9 +23,10 @@
 */
 
 enum loglevel {
-   ERROR_LEVEL=       0,
-   WARNING_LEVEL=     1,
-   INFORMATION_LEVEL= 2
+   SYSTEM_LEVEL=      0,
+   ERROR_LEVEL=       1,
+   WARNING_LEVEL=     2,
+   INFORMATION_LEVEL= 3
 };
 
 #endif  // MY_LOGLEVEL_H

@@ -501,7 +501,7 @@ ERROR 42000: FUNCTION db.fn_err1 does not exist
 ## Expect 0 transactions
 SELECT COUNT(*) FROM performance_schema.events_transactions_history;
 COUNT(*)
-1
+0
 
 CREATE FUNCTION fn_err2() RETURNS VARCHAR(10) BEGIN COMMIT; RETURN invalid ; END|
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
@@ -516,7 +516,7 @@ ERROR 42000: FUNCTION db.fn_err2 does not exist
 ## Expect 0 transactions
 SELECT COUNT(*) FROM performance_schema.events_transactions_history;
 COUNT(*)
-2
+0
 
 ## Clear transaction and statement tables
 CALL test.clear_history();
@@ -586,18 +586,13 @@ DROP TRIGGER trigger_before_update;
 EVENTS_TRANSACTIONS_CURRENT
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	         26	         26	transaction	COMMITTED  	READ ONLY  	READ UNCOMMITTED	YES 	                 20	STATEMENT         
+thread_id	         21	         21	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                 20	STATEMENT         
 
 EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	          2	         19	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  1	STATEMENT         
-thread_id	         21	         21	transaction	COMMITTED  	READ ONLY  	READ COMMITTED  	YES 	                 20	STATEMENT         
-thread_id	         22	         22	transaction	COMMITTED  	READ ONLY  	READ COMMITTED  	YES 	                 20	STATEMENT         
-thread_id	         23	         23	transaction	COMMITTED  	READ ONLY  	READ COMMITTED  	YES 	                 20	STATEMENT         
-thread_id	         25	         25	transaction	COMMITTED  	READ ONLY  	READ UNCOMMITTED	YES 	                 20	STATEMENT         
-thread_id	         26	         26	transaction	COMMITTED  	READ ONLY  	READ UNCOMMITTED	YES 	                 20	STATEMENT         
-thread_id	         26	         26	transaction	COMMITTED  	READ ONLY  	READ UNCOMMITTED	YES 	                 20	STATEMENT         
+thread_id	         21	         21	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                 20	STATEMENT         
 
 EVENTS_STATEMENTS_HISTORY_LONG
 
@@ -620,7 +615,7 @@ thread_id	         16	         16	statement/sp/jump_if_not      	trigger_befo	  
 thread_id	         17	         17	statement/sp/stmt             	trigger_befo	                 10	STATEMENT         	    1	SIGNAL sqlstate '45001' SET message_text = "FORCE ERROR"
 thread_id	         18	         18	statement/sql/select          	NULL        	                  2	TRANSACTION       	    0	SELECT * FROM t1 ORDER BY s1
 thread_id	         19	         19	statement/sql/commit          	NULL        	                  2	TRANSACTION       	    0	COMMIT
-thread_id	         20	         26	statement/sql/drop_trigger    	NULL        	               NULL	NULL              	    0	DROP TRIGGER trigger_before_update
+thread_id	         20	         21	statement/sql/drop_trigger    	NULL        	               NULL	NULL              	    0	DROP TRIGGER trigger_before_update
 
 ## Combined statement and transaction event history ordered by event id
 
@@ -646,12 +641,8 @@ thread_id	         16	         16	statement/sp/jump_if_not 	                 10	
 thread_id	         17	         17	statement/sp/stmt        	                 10	STATEMENT         	SIGNAL sqlstate '45001' SET message_text = "FORCE ERROR"
 thread_id	         18	         18	statement/sql/select     	                  2	TRANSACTION       	SELECT * FROM t1 ORDER BY s1
 thread_id	         19	         19	statement/sql/commit     	                  2	TRANSACTION       	COMMIT
-thread_id	         20	         26	statement/sql/drop_trigge	               NULL	NULL              	DROP TRIGGER trigger_before_update
+thread_id	         20	         21	statement/sql/drop_trigge	               NULL	NULL              	DROP TRIGGER trigger_before_update
 thread_id	         21	         21	transaction              	                 20	STATEMENT         	<transaction started>
-thread_id	         22	         22	transaction              	                 20	STATEMENT         	<transaction started>
-thread_id	         23	         23	transaction              	                 20	STATEMENT         	<transaction started>
-thread_id	         25	         25	transaction              	                 20	STATEMENT         	<transaction started>
-thread_id	         26	         26	transaction              	                 20	STATEMENT         	<transaction started>
 
 ## Clear statement and transaction history
 CALL test.clear_history();

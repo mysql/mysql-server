@@ -813,6 +813,90 @@ err:
 }
 
 
+/*
+  Check if view is updatable.
+
+  @param  thd       Thread Handle.
+  @param  view      View description.
+
+  @retval true      View is updatable.
+  @retval false     Otherwise.
+*/
+
+bool is_updatable_view(THD *thd, TABLE_LIST *view)
+{
+  bool updatable_view= false;
+  LEX *lex= thd->lex;
+
+  /*
+    A view can be merged if it is technically possible and if the user didn't
+    ask that we create a temporary table instead.
+  */
+  bool can_be_merged=
+    lex->unit->is_mergeable() && view->algorithm != VIEW_ALGORITHM_TEMPTABLE;
+
+  if (!dd::get_dictionary()->is_system_view_name(view->db, view->table_name) &&
+      (updatable_view= can_be_merged))
+  {
+    /// @see SELECT_LEX::merge_derived()
+    bool updatable= false;
+    bool outer_joined= false;
+    for (TABLE_LIST *tbl= lex->select_lex->table_list.first;
+         tbl;
+         tbl= tbl->next_local)
+    {
+      updatable|= !((tbl->is_view() && !tbl->updatable_view) ||
+                     tbl->schema_table);
+      outer_joined|= tbl->is_inner_table_of_outer_join();
+    }
+    updatable&= !outer_joined;
+
+    if (updatable)
+    {
+      // check that at least one column in view is updatable.
+      bool view_has_updatable_column= false;
+      List_iterator_fast<Item> it(lex->select_lex->item_list);
+      Item *item;
+      while ((item= it++))
+      {
+	Item_field *item_field= item->field_for_view_update();
+	if (item_field && !item_field->table_ref->schema_table)
+	{
+	  view_has_updatable_column= true;
+	  break;
+	}
+      }
+      updatable&= view_has_updatable_column;
+    }
+
+    if (!updatable)
+      updatable_view= false;
+  }
+
+  /*
+    Check that table of main select do not used in subqueries.
+
+    This test can catch only very simple cases of such non-updateable views,
+    all other will be detected before updating commands execution.
+    (it is more optimisation then real check)
+
+    NOTE: this skip cases of using table via VIEWs, joined VIEWs, VIEWs with
+    UNION
+  */
+  if (updatable_view &&
+      !lex->select_lex->master_unit()->is_union() &&
+      !(lex->select_lex->table_list.first)->next_local &&
+      find_table_in_global_list(lex->query_tables->next_global,
+				lex->query_tables->db,
+				lex->query_tables->table_name))
+  {
+    updatable_view= false;
+  }
+
+  return updatable_view;
+}
+
+
 /**
   Register view by writing its definition to the data-dictionary.
 
@@ -924,43 +1008,7 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
   view->view_suid= lex->create_view_suid;
   view->with_check= lex->create_view_check;
 
-  if (!dd::get_dictionary()->is_system_view_name(view->db, view->table_name) &&
-      (view->updatable_view= can_be_merged))
-  {
-    /// @see SELECT_LEX::merge_derived()
-    bool updatable= false;
-    bool outer_joined= false;
-    for (TABLE_LIST *tbl= lex->select_lex->table_list.first;
-         tbl;
-         tbl= tbl->next_local)
-    {
-      updatable|= !((tbl->is_view() && !tbl->updatable_view) ||
-                     tbl->schema_table);
-      outer_joined|= tbl->is_inner_table_of_outer_join();
-    }
-    updatable&= !outer_joined;
-
-    if (updatable)
-    {
-      // check that at least one column in view is updatable.
-      bool view_has_updatable_column= false;
-      List_iterator_fast<Item> it(lex->select_lex->item_list);
-      Item *item;
-      while ((item= it++))
-      {
-	Item_field *item_field= item->field_for_view_update();
-	if (item_field && !item_field->table_ref->schema_table)
-	{
-	  view_has_updatable_column= true;
-	  break;
-	}
-      }
-      updatable&= view_has_updatable_column;
-    }
-
-    if (!updatable)
-      view->updatable_view= 0;
-  }
+  view->updatable_view= is_updatable_view(thd, view);
 
   /* init timestamp */
   if (!view->timestamp.str)
@@ -1038,26 +1086,6 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
   {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     DBUG_RETURN(true);
-  }
-
-  /*
-    Check that table of main select do not used in subqueries.
-
-    This test can catch only very simple cases of such non-updateable views,
-    all other will be detected before updating commands execution.
-    (it is more optimisation then real check)
-
-    NOTE: this skip cases of using table via VIEWs, joined VIEWs, VIEWs with
-    UNION
-  */
-  if (view->updatable_view &&
-      !lex->select_lex->master_unit()->is_union() &&
-      !(lex->select_lex->table_list.first)->next_local &&
-      find_table_in_global_list(lex->query_tables->next_global,
-				lex->query_tables->db,
-				lex->query_tables->table_name))
-  {
-    view->updatable_view= 0;
   }
 
   if (view->with_check != VIEW_CHECK_NONE &&

@@ -48,6 +48,8 @@
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/spatial_reference_system.h"
 #include "sql/derror.h"                        // ER_THD
 #include "sql/item.h"
 #include "sql/item_geofunc.h"
@@ -391,17 +393,21 @@ String *Item_func_buffer::val_str(String *str_value_arg)
   DBUG_ENTER("Item_func_buffer::val_str");
   DBUG_ASSERT(fixed == 1);
   String strat_bufs[side_strategy + 1];
+
   String *obj= args[0]->val_str(&tmp_value);
+  if (!obj || args[0]->null_value)
+    DBUG_RETURN(error_str());
+
   double dist= args[1]->val_real();
+  if (args[1]->null_value)
+    DBUG_RETURN (error_str());
+
   Geometry_buffer buffer;
   Geometry *geom;
   String *str_result= str_value_arg;
 
   null_value= false;
   bg_resbuf_mgr.free_result_buffer();
-
-  if (!obj || args[0]->null_value || args[1]->null_value)
-    DBUG_RETURN(error_str());
 
   // Reset the two arrays, set_strategies() requires the settings array to
   // be brand new on every ST_Buffer() call.
@@ -430,18 +436,27 @@ String *Item_func_buffer::val_str(String *str_value_arg)
 
   if (geom->get_srid() != 0)
   {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(geom->get_srid(), &srs))
       DBUG_RETURN(error_str()); // Error has already been flagged.
 
-    if (!srs_exists)
+    if (srs == nullptr)
     {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          geom->get_srid(),
-                          func_name());
+      my_error(ER_SRS_NOT_FOUND, MYF(0), geom->get_srid());
+      DBUG_RETURN(error_str());
+    }
+
+    if (!srs->is_cartesian())
+    {
+      DBUG_ASSERT(srs->is_geographic());
+      std::string parameters(geom->get_class_info()->m_name.str);
+      parameters.append(", ...");
+      my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
+               parameters.c_str());
+      DBUG_RETURN(error_str());
     }
   }
 

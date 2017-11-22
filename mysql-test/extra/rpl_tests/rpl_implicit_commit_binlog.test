@@ -545,7 +545,7 @@ while ($ddl_cases >= 1)
     let $cmd= DROP TEMPORARY TABLE IF EXISTS new_tt_xx;
     let $in_temporary= yes;
     #
-    # In SBR and MIXED modes, the DDL statement is written to the binary log
+    # In SBR mode, the DDL statement is written to the binary log
     # but does not commit the current transaction:
     #
     # In SBR, we have what follows:
@@ -556,43 +556,32 @@ while ($ddl_cases >= 1)
     # 4: DROP TEMPORARY
     # 5: COMMIT
     #
-    # In RBR the transaction is not committed either and the statement is not
-    # written to the binary log:
+    # In RBR and MIXED modes, the transaction is not committed either and the
+    # statement is not written to the binary log:
     #
+    # RBR:
     # 1: GTID
     # 2: BEGIN
     # 3: TABLE MAP EVENT
     # 4: ROW EVENT
     # 5: COMMIT
     #
+    # MIXED:
+    # 1: GTID
+    # 2: BEGIN
+    # 3: ROW EVENT
+    # 4: COMMIT
     if (`select @@binlog_format = 'STATEMENT'`)
     {
       let $commit_event_row_number= 5;
     }
-    # In ROW mode, the changes are logged as rows and we have what follows:
-    #
-    # 1: GTID
-    # 2: BEGIN
-    # 3: TABLE MAP EVENT
-    # 4: ROW EVENT
-    # 5: DROP TEMPORARY table IF EXISTS
-    # 6: COMMIT
-    #
     if (`select @@binlog_format = 'ROW'`)
     {
-      let $commit_event_row_number= 6;
+      let $commit_event_row_number= 5;
     }
-    # In MIXED mode, the changes are logged as rows and we have what follows:
-    #
-    # 1: GTID
-    # 2: BEGIN
-    # 2: ROW EVENT
-    # 3: DROP TEMPORARY table IF EXISTS
-    # 4: COMMIT
-    #
     if (`select @@binlog_format = 'MIXED'`)
     {
-      let $commit_event_row_number= 5;
+      let $commit_event_row_number= 4;
     }
     #
     # In NDB (RBR and MIXED modes), the commit event is the sixth event

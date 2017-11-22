@@ -1202,9 +1202,16 @@ static Value parse_value(uint8 type, const char *data, size_t len)
 Value parse_binary(const char *data, size_t len)
 {
   DBUG_ENTER("json_binary::parse_binary");
-  // Each document should start with a one-byte type specifier.
-  if (len < 1)
-    DBUG_RETURN(err());                             /* purecov: inspected */
+  /*
+    Each document should start with a one-byte type specifier, so an
+    empty document is invalid according to the format specification.
+    Empty documents may appear due to inserts using the IGNORE keyword
+    or with non-strict SQL mode, which will insert an empty string if
+    the value NULL is inserted into a NOT NULL column. We choose to
+    interpret empty values as the JSON null literal.
+  */
+  if (len == 0)
+    DBUG_RETURN(Value(Value::LITERAL_NULL));
 
   Value ret= parse_value(data[0], data + 1, len - 1);
   DBUG_RETURN(ret);
@@ -1782,6 +1789,8 @@ bool space_needed(const THD *thd, const Json_wrapper *value,
   @param destination   pointer to the shadow copy of the JSON document
                        (it could be the same as @a original, in which case the
                        original document will be modified)
+  @param[out] changed  gets set to true if a change was made to the document,
+                       or to false if this operation was a no-op
   @return false on success, true if an error occurred
 
   @par Example of partial update
@@ -1915,11 +1924,15 @@ bool space_needed(const THD *thd, const Json_wrapper *value,
 bool Value::update_in_shadow(const Field_json *field,
                              size_t pos, Json_wrapper *new_value,
                              size_t data_offset, size_t data_length,
-                             const char *original, char *destination) const
+                             const char *original, char *destination,
+                             bool *changed) const
 {
   DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
 
   const bool inlined= (data_length == 0);
+
+  // Assume no changes. Update the flag when the document is actually changed.
+  *changed= false;
 
   /*
     Create a buffer large enough to hold the new value entry. (Plus one since
@@ -1964,6 +1977,7 @@ bool Value::update_in_shadow(const Field_json *field,
       memcpy(value_dest, buffer.ptr() + 1, length);
       if (field->table->add_binary_diff(field, value_offset, length))
         return true;                            /* purecov: inspected */
+      *changed= true;
     }
   }
 
@@ -1980,6 +1994,7 @@ bool Value::update_in_shadow(const Field_json *field,
     memcpy(destination + entry_offset, new_entry.ptr(), new_entry.length());
     if (field->table->add_binary_diff(field, entry_offset, new_entry.length()))
       return true;                              /* purecov: inspected */
+    *changed= true;
   }
 
   return false;

@@ -3573,8 +3573,11 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   DBUG_ASSERT(number > 0);
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(!no_errors))
-    DBUG_RETURN(true);
+  if (sctx->get_active_roles()->size() == 0)
+  {
+    if (!acl_cache_lock.lock(!no_errors))
+      DBUG_RETURN(true);
+  }
 
   for (tl= tables;
        tl && number-- && tl != first_not_own_table;
@@ -7522,5 +7525,8 @@ bool operator==(std::pair<const Role_id, std::pair<std::string, bool> > &a,
 
 bool operator==(const LEX_CSTRING &a, const LEX_CSTRING &b)
 {
-  return (a.length == b.length && memcmp(a.str, b.str, a.length) == 0);
+  return
+    (a.length == b.length &&
+     ( (a.length == 0) ||
+       (memcmp(a.str, b.str, a.length) == 0)) );
 }

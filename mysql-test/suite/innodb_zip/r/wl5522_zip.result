@@ -303,7 +303,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL AUTO_INCREMENT,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4
 FLUSH TABLES t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: Table '`test`.`t1`' in system tablespace

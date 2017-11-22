@@ -1,0 +1,117 @@
+# Bug#26436185 Assertion 'buf_is_inside_another(data_in_mysql_buf, ...)
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int_key int DEFAULT NULL,
+col_int int DEFAULT NULL,
+col_varchar varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+);
+INSERT INTO t1 VALUES (10,7,5,'l'), (12,7,4,'o');
+CREATE TABLE t2 (
+col_date_key date DEFAULT NULL,
+col_datetime_key datetime DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar varchar(1) DEFAULT NULL,
+col_time time DEFAULT NULL,
+pk int NOT NULL,
+col_date date DEFAULT NULL,
+col_time_key time DEFAULT NULL,
+col_datetime datetime DEFAULT NULL,
+col_int int DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_date_key (col_date_key),
+KEY col_datetime_key (col_datetime_key),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key),
+KEY col_time_key (col_time_key)
+);
+INSERT INTO t2(col_int_key,col_varchar_key,col_varchar,pk,col_int)  VALUES
+(8,'a','w',1,5),
+(9,'y','f',7,0),
+(9,'z','i',11,9),
+(9,'r','s',12,3),
+(7,'n','i',13,6),
+(9,'j','v',17,9),
+(240,'u','k',20,6);
+CREATE TABLE t3 (
+col_int int DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+pk int NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+);
+INSERT INTO t3 VALUES (8,4,1);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN SELECT table2.col_int_key AS field1
+FROM (SELECT sq1_t1.*
+FROM t1 AS sq1_t1 RIGHT OUTER JOIN t2 AS sq1_t2
+ON sq1_t2.col_varchar_key = sq1_t1.col_varchar
+) AS table1
+LEFT JOIN t1 AS table2
+RIGHT JOIN t2 AS table3
+ON table3.pk = table2.col_int_key
+ON table3.col_int_key = table2.col_int
+WHERE table3.col_int_key >= ALL
+(SELECT sq2_t1.col_int AS sq2_field1
+FROM t2 AS sq2_t1 STRAIGHT_JOIN t3 AS sq2_t2
+ON sq2_t2.col_int = sq2_t1.pk AND
+sq2_t1.col_varchar IN
+(SELECT sq21_t1.col_varchar AS sq21_field1
+FROM t2 AS sq21_t1 STRAIGHT_JOIN t1 AS sq21_t2
+ON sq21_t2.col_int_key = sq21_t1.pk
+WHERE sq21_t1.pk = 7
+)
+WHERE sq2_t2.col_int_key >= table2.col_int AND
+sq2_t1.col_int_key <= table2.col_int_key
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	sq1_t2	NULL	index	NULL	col_varchar_key	7	NULL	7	100.00	Using index
+1	PRIMARY	sq1_t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	table2	NULL	ALL	col_int_key	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	table3	NULL	eq_ref	PRIMARY,col_int_key	PRIMARY	4	test.table2.col_int_key	1	100.00	Using where
+3	DEPENDENT SUBQUERY	<subquery4>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+3	DEPENDENT SUBQUERY	sq2_t1	NULL	ALL	PRIMARY,col_int_key	NULL	NULL	NULL	7	14.29	Range checked for each record (index map: 0x9)
+3	DEPENDENT SUBQUERY	sq2_t2	NULL	ALL	col_int_key	NULL	NULL	NULL	1	100.00	Range checked for each record (index map: 0x2)
+4	MATERIALIZED	sq21_t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+4	MATERIALIZED	sq21_t2	NULL	ref	col_int_key	col_int_key	5	const	2	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.table2.col_int' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.table2.col_int_key' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`table2`.`col_int_key` AS `field1` from `test`.`t2` `sq1_t2` left join `test`.`t1` `sq1_t1` on((`test`.`sq1_t1`.`col_varchar` = `test`.`sq1_t2`.`col_varchar_key`)) left join (`test`.`t2` `table3` join `test`.`t1` `table2`) on(((`test`.`table3`.`pk` = `test`.`table2`.`col_int_key`) and (`test`.`table3`.`col_int_key` = `test`.`table2`.`col_int`))) where <not>(<in_optimizer>(`test`.`table3`.`col_int_key`,<exists>(/* select#3 */ select 1 from `test`.`t2` `sq2_t1` semi join (`test`.`t2` `sq21_t1` straight_join `test`.`t1` `sq21_t2`) straight_join `test`.`t3` `sq2_t2` where ((`test`.`sq2_t2`.`col_int` = `test`.`sq2_t1`.`pk`) and (`test`.`sq2_t1`.`col_varchar` = `<subquery4>`.`sq21_field1`) and (`test`.`sq21_t1`.`pk` = 7) and (`test`.`sq21_t2`.`col_int_key` = 7) and (`test`.`sq2_t2`.`col_int_key` >= `test`.`table2`.`col_int`) and (`test`.`sq2_t1`.`col_int_key` <= `test`.`table2`.`col_int_key`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`table3`.`col_int_key`) < `test`.`sq2_t1`.`col_int`) or isnull(`test`.`sq2_t1`.`col_int`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`sq2_t1`.`col_int`), true))))
+SELECT table2.col_int_key AS field1
+FROM (SELECT sq1_t1.*
+FROM t1 AS sq1_t1 RIGHT OUTER JOIN t2 AS sq1_t2
+ON sq1_t2.col_varchar_key = sq1_t1.col_varchar
+) AS table1
+LEFT JOIN t1 AS table2
+RIGHT JOIN t2 AS table3
+ON table3.pk = table2.col_int_key
+ON table3.col_int_key = table2.col_int
+WHERE table3.col_int_key >= ALL
+(SELECT sq2_t1.col_int AS sq2_field1
+FROM t2 AS sq2_t1 STRAIGHT_JOIN t3 AS sq2_t2
+ON sq2_t2.col_int = sq2_t1.pk AND
+sq2_t1.col_varchar IN
+(SELECT sq21_t1.col_varchar AS sq21_field1
+FROM t2 AS sq21_t1 STRAIGHT_JOIN t1 AS sq21_t2
+ON sq21_t2.col_int_key = sq21_t1.pk
+WHERE sq21_t1.pk = 7
+)
+WHERE sq2_t2.col_int_key >= table2.col_int AND
+sq2_t1.col_int_key <= table2.col_int_key
+);
+field1
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+DROP TABLE t1, t2, t3;

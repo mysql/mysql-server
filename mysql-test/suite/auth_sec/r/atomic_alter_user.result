@@ -9,6 +9,7 @@ user	authentication_string
 userX	
 userY	
 userZ	
+mysql.infoschema	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 root	
@@ -72,6 +73,7 @@ SELECT user FROM mysql.user;
 user
 userY
 userZ
+mysql.infoschema
 mysql.session
 mysql.sys
 root
@@ -127,6 +129,7 @@ Note	3162	Authorization ID 'userW'@'%' does not exist.
 SELECT user FROM mysql.user;
 user
 userY
+mysql.infoschema
 mysql.session
 mysql.sys
 root

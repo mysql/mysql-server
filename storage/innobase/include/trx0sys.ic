@@ -25,8 +25,8 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "trx0trx.h"
 #include "data0type.h"
+#include "srv0srv.h"
 #ifndef UNIV_HOTBACKUP
-# include "srv0srv.h"
 # include "mtr0log.h"
 
 /* The typedef for rseg slot in the file copy */

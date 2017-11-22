@@ -1139,7 +1139,9 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
     /*
       Field is set in the read_set and is isn't NULL.
      */
-    if (bitmap_is_set(cols, f->field_index) && !f->is_null())
+    if (bitmap_is_set(cols, f->field_index) &&
+        !f->is_virtual_gcol() && // Avoid virtual generated columns on hashes
+        !f->is_null())
     {
       /*
         BLOB and VARCHAR have pointers in their field, we must convert

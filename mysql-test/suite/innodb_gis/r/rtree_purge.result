@@ -1,6 +1,6 @@
 create table t (
-a point not null,b point not null,c point,
-d point not null,e point,f point,
+a point not null,b point not null SRID 0,c point,
+d point not null SRID 0,e point,f point,
 spatial key (d),spatial key (b)
 ) engine=innodb;
 create procedure p(i int)

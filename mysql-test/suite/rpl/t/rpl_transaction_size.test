@@ -36,7 +36,7 @@
 --echo # Step 1                                          #
 --echo ###################################################
 --let $transactions=200
-CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 TEXT);
+CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 LONGTEXT);
 --echo Generating $transactions transactions on master
 --disable_query_log
 while ($transactions)
@@ -47,7 +47,7 @@ while ($transactions)
   {
     --let $string_size=`SELECT FLOOR(1 + RAND() * 65534)`
     # Make the last transaction having at least one huge event
-    if ($transaction == 1)
+    if ($transactions == 1)
     {
       if ($inserts == 1)
       {

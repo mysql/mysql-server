@@ -33,6 +33,10 @@ Created 11/28/1995 Heikki Tuuri
 #include "mtr0types.h"
 #include "univ.i"
 
+#ifdef UNIV_HOTBACKUP
+# include "ut0byte.h"
+#endif /* UNIV_HOTBACKUP */
+
 /* The data and all fields are always stored in a database file
 in the same format: ascii, big-endian, ... .
 All data in the files MUST be accessed using the functions in this
@@ -295,7 +299,6 @@ mach_u64_parse_compressed(
 	const byte**	ptr,
 	const byte*	end_ptr);
 
-#ifndef UNIV_HOTBACKUP
 /*********************************************************//**
 Reads a double. It is stored in a little-endian format.
 @return double read */
@@ -426,8 +429,6 @@ mach_read_ulint(
 	const byte*	ptr,
 	mlog_id_t	type)
 	MY_ATTRIBUTE((warn_unused_result));
-
-#endif /* !UNIV_HOTBACKUP */
 
 #include "mach0data.ic"
 

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -45,8 +45,8 @@ static void stderror_logger_log(EXTENSION_LOG_LEVEL severity __attribute__((unus
 }
 
 static EXTENSION_LOGGER_DESCRIPTOR stderror_logger_descriptor = {
-.get_name = stderror_get_name,
-.log = stderror_logger_log
+  stderror_get_name,
+  stderror_logger_log
 };
 
 EXTENSION_LOGGER_DESCRIPTOR* get_stderr_logger(void) {

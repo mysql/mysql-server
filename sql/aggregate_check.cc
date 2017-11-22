@@ -39,7 +39,6 @@
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_nodes.h"
-#include "sql/sql_array.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -120,7 +119,7 @@ bool Distinct_check::check_query(THD *thd)
       This query is valid because the expression in ORDER BY is the same as
       the one in SELECT list. But in setup_order():
       'b' in ORDER BY (not yet fixed) is still a 'generic' Item_field,
-      'b' in SELECT (already fixed) is Item_direct_view_ref referencing 'x*2'
+      'b' in SELECT (already fixed) is Item_view_ref referencing 'x*2'
       (so type()==REF_ITEM).
       So Item_field::eq() says the 'b's are different, so 'sin(b)' of
       ORDER BY is not found equal to 'sin(b)' of SELECT.
@@ -168,8 +167,8 @@ bool Distinct_check::check_query(THD *thd)
 
 /**
    Rejects the query if it does aggregation or grouping, and expressions in
-   its SELECT list, ORDER BY clause, or HAVING condition, may vary inside a
-   group (are not "group-invariant").
+   its SELECT list, ORDER BY clause, HAVING condition, or window functions
+   may vary inside a group (are not "group-invariant").
 */
 bool Group_check::check_query(THD *thd)
 {
@@ -180,6 +179,7 @@ bool Group_check::check_query(THD *thd)
   Item *expr;
   uint number_in_list= 1;
   const char *place= "SELECT list";
+
   while ((expr= select_exprs_it++))
   {
     if (check_expression(thd, expr, true))
@@ -213,21 +213,18 @@ bool Group_check::check_query(THD *thd)
       goto err;
   }
 
-  // Validate windows' ORDER BY and PARTITION BY clauses
+  // Validate windows' ORDER BY and PARTITION BY clauses.
   char buff[STRING_BUFFER_USUAL_SIZE];
   {
     List_iterator<Window> li(select->m_windows);
     for (Window *w= li++; w != nullptr; w= li++)
     {
-      const PT_order_list *li[]= { w->partition(), w->order() };
-      auto constexpr size= sizeof(li) / sizeof(PT_order_list*);
-      number_in_list= 1;
-
-      for (auto it: Bounds_checked_array<const PT_order_list *>(li, size))
+      for (auto it: {w->first_partition_by(), w->first_order_by()})
       {
         if (it != nullptr)
         {
-          for (ORDER *o= it->value.first; o != nullptr; o= o->next)
+          number_in_list= 1;
+          for (ORDER *o= it; o != nullptr; o= o->next)
           {
             Item *expr= *(o->item);
             if (check_expression(thd, expr, false))
@@ -817,7 +814,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
                       pointer_cast<uchar *>(&ut));
     /*
       todo When we eliminate all uses of cached_table, we can probably add a
-      derived_table_ref field to Item_direct_view_ref objects and use it here.
+      derived_table_ref field to Item_view_ref objects and use it here.
     */
     TABLE_LIST *const tl= item->cached_table;
     DBUG_ASSERT(tl->is_view_or_derived());

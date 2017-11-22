@@ -40,7 +40,7 @@ Pattern "len 22. hex 38000000000012860cb7809781e80006626f67757300. asc 8        
 Pattern "InnoDB: Set innodb_force_recovery to ignore this error" found
 # Test a corrupted record.
 # valid header, invalid checkpoint 1, valid checkpoint 2
-Pattern "InnoDB: The log file was created by mysqlbackup --apply-log at ibbackup was here!!!1!\. The following crash recovery is part of a normal restore\." found
+Pattern "InnoDB: The log file was created by mysqlbackup --apply-log at MEB      was here!!!1!\. The following crash recovery is part of a normal restore\." found
 Pattern "InnoDB: ############### CORRUPT LOG RECORD FOUND ###############" found
 Pattern "InnoDB: Log record type 56, page 0:0\. Log parsing proceeded successfully up to 1213964\. Previous log record type 128, is multi 0 Recv offset 0, prev 0" found
 Pattern "InnoDB: Hex dump starting 0 bytes before and ending 22 bytes after the corrupted record" found
@@ -48,4 +48,4 @@ Pattern "len 22. hex 38000000000012860cb7809781e80006626f67757300. asc 8        
 Pattern "InnoDB: Set innodb_force_recovery to ignore this error" found
 # Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
 # redo log
-Pattern "InnoDB: Upgrading redo log: 2\*.* pages, LSN=1213973" found
+Pattern "InnoDB: Upgrading redo log: 2\*.* pages, LSN=1319985" found

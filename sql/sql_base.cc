@@ -682,12 +682,32 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db,
   for ( ;; )
   {
     auto it= table_def_cache->find(string(key, key_length));
-    if (it == table_def_cache->end()) break;
+    if (it == table_def_cache->end())
+    {
+      if (thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SCHEMA,
+                                                       db, "",
+                                                       MDL_INTENTION_EXCLUSIVE))
+      {
+         break;
+      }
+      mysql_mutex_unlock(&LOCK_open);
 
+      if (dd::mdl_lock_schema(thd, db, MDL_TRANSACTION))
+      {
+        // Lock LOCK_open again to preserve function contract
+        mysql_mutex_lock(&LOCK_open);
+        DBUG_RETURN(nullptr);
+      }
+
+      mysql_mutex_lock(&LOCK_open);
+      // Need to re-try the find after getting the mutex again
+      continue;
+    }
     share= it->second.get();
     if (!share->m_open_in_progress)
       DBUG_RETURN(process_found_table_share(thd, share, open_view));
 
+    DEBUG_SYNC(thd, "get_share_before_COND_open_wait");
     mysql_cond_wait(&COND_open, &LOCK_open);
   }
 
@@ -742,13 +762,11 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db,
 
   {
     // We must make sure the schema is released and unlocked in the right order.
-    dd::Schema_MDL_locker mdl_handler(thd);
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Schema *sch= nullptr;
     const dd::Abstract_table *abstract_table= nullptr;
     open_table_err= true; // Assume error to simplify code below.
-    if (mdl_handler.ensure_locked(share->db.str) ||
-        thd->dd_client()->acquire(share->db.str, &sch) ||
+    if (thd->dd_client()->acquire(share->db.str, &sch) ||
         thd->dd_client()->acquire(share->db.str, share->table_name.str, &
                                   abstract_table))
     { }
@@ -8928,7 +8946,7 @@ find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
         SELECT 1 FROM t1 AS t1_o GROUP BY a
           HAVING (SELECT t1_o.a FROM t1 AS t1_i GROUP BY t1_i.a LIMIT 1).
         Processing all Item_refs here will cause t1_o.a to resolve to itself.
-        We still need to process the special case of Item_direct_view_ref 
+        We still need to process the special case of Item_view_ref
         because in the context of views they have the same meaning as 
         Item_field for tables.
       */
@@ -9838,9 +9856,21 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
 
     if (sum_func_list)
     {
+      /*
+        (1) Contains a grouped aggregate but is not one. If it is one, we do
+        not split, but in create_tmp_table() we look at its arguments and add
+        them to the tmp table, which achieves the same result as for window
+        functions in (2) but differently.
+        @todo: unify this (do like (2), probably).
+        (2) Contains a window function. Even if it is a window function, we
+        have to collect its arguments and add them to the hidden list of
+        items, as those arguments have to be stored in the first tmp tables,
+        and carried forward up to the tmp table where the WF can be
+        evaluated.
+      */
       if ((item->has_aggregation() && !(item->type() == Item::SUM_FUNC_ITEM &&
-           !item->m_is_window_function)) ||
-          item->has_wf())
+                                        !item->m_is_window_function)) || //(1)
+          item->has_wf())                       // (2)
         item->split_sum_func(thd, ref_item_array, *sum_func_list);
     }
 

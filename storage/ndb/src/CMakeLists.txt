@@ -99,6 +99,11 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libndbclient.ver.in
 
 ADD_LIBRARY(ndbclient_so SHARED ndbclient_exports.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_so ${NDBCLIENT_SO_LIBS})
+IF(APPLE)
+  SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
+    MACOSX_RPATH ON
+  )
+ENDIF()
 
 IF(MSVC)
 # All "convenience" libraries are now well-known, we *could* do this:

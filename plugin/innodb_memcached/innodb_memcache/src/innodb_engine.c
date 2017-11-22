@@ -786,6 +786,7 @@ innodb_conn_clean(
 	void*			thd = NULL;
 
 	if (clear_all) {
+		my_thread_init();
 		thd = handler_create_thd(engine->enable_binlog);
 	}
 
@@ -859,6 +860,7 @@ innodb_conn_clean(
 	if (thd) {
 		handler_thd_attach(thd, NULL);
 		handler_close_thd(thd);
+		my_thread_end();
 	}
 
 	return(num_freed);

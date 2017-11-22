@@ -40,10 +40,14 @@ Table::Table(uint64 id, const std::string& name, const std::string& schema,
   std::stringstream definition_stream(sql_formatted_definition);
   for (std::string line; std::getline(definition_stream, line); )
   {
+    /*
+      MAINTAINER: This code parses the output of SHOW CREATE TABLE.
+      @TODO: Instead, look up INFORMATION_SCHEMA and get the table details.
+    */
+
     boost::trim_left(line);
     if (!engine_line_read)
       boost::trim_if(line, boost::is_any_of(","));
-    // TODO: Look up INFORMATION_SCHEMA and get the table details.
     if (boost::starts_with(line, "KEY ")
       || boost::starts_with(line, "INDEX ")
       || boost::starts_with(line, "UNIQUE KEY ")
@@ -58,7 +62,12 @@ Table::Table(uint64 id, const std::string& name, const std::string& schema,
     }
     else
     {
-      if (boost::starts_with(line, ") ENGINE="))
+      /*
+        Make sure we detect the table options clauses,
+        even with different syntaxes (with or without TABLESPACE)
+      */
+      if (boost::starts_with(line, ")") &&
+          boost::contains(line, "ENGINE="))
       {
         engine_line_read= true;
         std::string &sql_def = m_sql_definition_without_indexes;

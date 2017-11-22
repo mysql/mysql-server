@@ -36,8 +36,6 @@ Created 2011/12/19
 #include "srv0start.h"
 #include "trx0purge.h"
 
-#ifndef UNIV_HOTBACKUP
-
 /** The doublewrite buffer */
 buf_dblwr_t*	buf_dblwr = NULL;
 
@@ -1365,4 +1363,3 @@ recv_dblwr_t::Page::Page(page_no_t no, const byte* page)
 
 	memcpy(m_page, page, UNIV_PAGE_SIZE);
 }
-#endif /* !UNIV_HOTBACKUP */

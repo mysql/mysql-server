@@ -36,7 +36,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "ut0new.h"
 #include "sql/handler.h"
 
-#ifndef UNIV_HOTBACKUP
 #include "lock0types.h"
 #include "log0log.h"
 #include "usr0types.h"
@@ -44,7 +43,9 @@ Created 3/26/1996 Heikki Tuuri
 #include "mem0mem.h"
 #include "trx0xa.h"
 #include "ut0vec.h"
-#include "fts0fts.h"
+#ifndef UNIV_HOTBACKUP
+# include "fts0fts.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "srv0srv.h"
 
 // Forward declaration
@@ -59,6 +60,7 @@ class FlushObserver;
 /** Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
 
+#ifndef UNIV_HOTBACKUP
 /** Set flush observer for the transaction
 @param[in,out]	trx		transaction struct
 @param[in]	observer	flush observer */
@@ -397,7 +399,6 @@ trx_set_dict_operation(
 	trx_t*			trx,
 	enum trx_dict_op_t	op);
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Determines if a transaction is in the given state.
 The caller must hold trx_sys->mutex, or it must be the thread
@@ -437,9 +438,6 @@ ibool
 trx_is_strict(
 /*==========*/
 	trx_t*	trx);	/*!< in: transaction */
-#else /* !UNIV_HOTBACKUP */
-#define trx_is_interrupted(trx) FALSE
-#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************************//**
 Calculates the "weight" of a transaction. The weight of one transaction
@@ -663,6 +661,7 @@ rw_trx_list and that it is a read-only transaction.
 The tranasction must be in the mysql_trx_list. */
 # define assert_trx_nonlocking_or_in_list(trx) ((void)0)
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 typedef std::vector<ib_lock_t*, ut_allocator<ib_lock_t*> >	lock_pool_t;
 
@@ -1237,6 +1236,7 @@ struct trx_t {
 	ib_uint32_t	will_lock;	/*!< Will acquire some locks. Increment
 					each time we determine that a lock will
 					be acquired by the MySQL layer. */
+#ifndef UNIV_HOTBACKUP
 	/*------------------------------*/
 	fts_trx_t*	fts_trx;	/*!< FTS information, or NULL if
 					transaction hasn't modified tables
@@ -1276,6 +1276,7 @@ struct trx_t {
 					transaction branch */
 	trx_mod_tables_t mod_tables;	/*!< List of tables that were modified
 					by this transaction */
+#endif /* !UNIV_HOTBACKUP */
         /*------------------------------*/
 	bool		api_trx;	/*!< trx started by InnoDB API */
 	bool		api_auto_commit;/*!< automatic commit */
@@ -1312,6 +1313,7 @@ struct trx_t {
 		return(skip_gap_locks());
 	}
 };
+#ifndef UNIV_HOTBACKUP
 
 /* Transaction isolation levels (trx->isolation_level) */
 #define TRX_ISO_READ_UNCOMMITTED	trx_t::READ_UNCOMMITTED

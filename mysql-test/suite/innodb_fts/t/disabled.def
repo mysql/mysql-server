@@ -1,3 +1,0 @@
-innodb_fts.mecab_sjis : 2017-04-13 Allen Failing sporadically on PB2
-innodb_fts.mecab_ujis @windows : Bug#25633175  2017-06-09 Erlend
-innodb_fts.mecab_utf8 @windows : Bug#25633175  2017-06-09 Erlend

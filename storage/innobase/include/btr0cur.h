@@ -69,6 +69,7 @@ struct btr_latch_leaves_t {
 #include "ha0ha.h"
 #include "que0types.h"
 #include "row0types.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #define BTR_CUR_ADAPT
 #define BTR_CUR_HASH_ADAPT
@@ -595,7 +596,6 @@ btr_cur_pessimistic_delete(
 	ulint		flags,	/*!< in: BTR_CREATE_FLAG or 0 */
 	bool		rollback,/*!< in: performing rollback? */
 	mtr_t*		mtr);	/*!< in: mtr */
-#endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses a redo log record of updating a record in-place.
 @return end of log record or NULL */
@@ -724,6 +724,7 @@ btr_cur_latch_leaves(
 	ulint			latch_mode,
 	btr_cur_t*		cursor,
 	mtr_t*			mtr);
+#endif /* !UNIV_HOTBACKUP */
 
 /*######################################################################*/
 
@@ -886,7 +887,6 @@ extern ulint	btr_cur_n_non_sea_old;
 srv_refresh_innodb_monitor_stats().  Referenced by
 srv_printf_innodb_monitor(). */
 extern ulint	btr_cur_n_sea_old;
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /* Flag to limit optimistic insert records */

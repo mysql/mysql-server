@@ -366,9 +366,7 @@ private:
         // If needed (eq1 && eq2 ? 0) could be returned
 
         calculation_type const c0 = 0;
-        calculation_type const c2 = 2;
         calculation_type const pi = constants::half_period();
-        calculation_type const half_pi = pi / c2;
 
         calculation_type const p = get<0>(point);
         calculation_type const s1 = get<0>(seg1);

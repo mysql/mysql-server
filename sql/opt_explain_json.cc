@@ -1334,7 +1334,8 @@ private:
       }
       if (!w->outtable_param()->m_window_short_circuit)
         to.add(K_USING_TMP_TABLE, true);
-      if (w->needs_sorting() && !w->sort_redundant() && w->order())
+      if (w->needs_sorting() && !w->sort_redundant() &&
+          w->effective_order_by())
       {
         obj->add(K_USING_FILESORT, true);
         Opt_trace_array sort_order(json, K_FILESORT_KEY);

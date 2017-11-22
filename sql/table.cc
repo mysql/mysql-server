@@ -4354,8 +4354,24 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!db_stat || !file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
 
-  bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
-  DBUG_ASSERT(!error);
+  /*
+    Do not call refix_gc_items() for tables which are not directly used by the
+    statement (i.e. used by the substatements of routines or triggers to be
+    invoked by the statement).
+
+    Firstly, there will be call to refix_gc_items() at the start of execution
+    of substatement which directly uses this table anyway.Secondly, cleanup of
+    generated column (call to cleanup_gc_items()) for the table will be done
+    only at the end of execution of substatement which uses it. Because of this
+    call to refix_gc_items() for prelocking placeholder will miss corresponding
+    call to cleanup_gc_items() if substatement which uses the table is not
+    executed for some reason.
+  */
+  if (!pos_in_table_list->prelocking_placeholder)
+  {
+    bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
+    DBUG_ASSERT(!error);
+  }
 }
 
 
@@ -5492,16 +5508,16 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
     table_name= view->table_name;
   }
   /*
-    @note Creating an Item_direct_view_ref object on top of an Item_field
+    @note Creating an Item_view_ref object on top of an Item_field
           means that the underlying Item_field object may be shared by
           multiple occurrences of superior fields. This is a vulnerable
           practice, so special precaution must be taken to avoid programming
           mistakes, such as forgetting to mark the use of a field in both
           read_set and write_set (may happen e.g in an UPDATE statement).
   */
-  Item *item= new Item_direct_view_ref(context, field_ref,
-                                       view->alias, table_name,
-                                       name, view);
+  Item *item= new Item_view_ref(context, field_ref,
+                                view->alias, table_name,
+                                name, view);
   DBUG_RETURN(item);
 }
 
@@ -6556,18 +6572,7 @@ void TABLE::drop_unused_tmp_keys(bool modify_share)
 void TABLE::mark_columns_needed_for_insert(THD *thd)
 {
   mark_columns_per_binlog_row_image(thd);
-  if (triggers)
-  {
-    /*
-      We don't need to mark columns which are used by ON DELETE and
-      ON UPDATE triggers, which may be invoked in case of REPLACE or
-      INSERT ... ON DUPLICATE KEY UPDATE, since before doing actual
-      row replacement or update write_record() will mark all table
-      fields as used.
-    */
-    if (triggers->mark_fields(TRG_EVENT_INSERT))
-      return;
-  }
+
   if (found_next_number_field)
     mark_auto_increment_column();
   /* Mark all generated columns as writable */

@@ -32,6 +32,26 @@ Created 2013-7-26 by Kevin Lewis
 #include "os0file.h"
 #include <vector>
 
+#ifdef UNIV_HOTBACKUP
+# include "fil0fil.h"
+# include "fsp0types.h"
+
+/** MEB routine to get the tables' encryption key. MEB will
+extract the encryption key from the backup.
+@param[in]	space_id	sace_id of the tablespace for which
+encryption-key is needed.
+@param[out]	encryption_key	The encryption-key of the tablespace.
+@param[out]	encryption_iv	The encryption-iv to be used with the
+encryption-key.
+@return	true	if the encryption-key/iv for the given space_id
+is found, false otherwise. */
+extern bool
+meb_get_encryption_key(
+	ulint	space_id,
+	byte*	encryption_key,
+	byte*	encryption_iv);
+#endif /* UNIV_HOTBACKUP */
+
 /** Types of raw partitions in innodb_data_file_path */
 enum device_t {
 	SRV_NOT_RAW = 0,	/*!< Not a raw partition */
@@ -52,6 +72,9 @@ public:
 		:
 		m_name(),
 		m_filepath(),
+#ifdef UNIV_HOTBACKUP
+		m_dirpath(NULL),
+#endif /* UNIV_HOTBACKUP */
 		m_filename(),
 		m_open_flags(OS_FILE_OPEN),
 		m_size(),
@@ -76,6 +99,9 @@ public:
 		:
 		m_name(mem_strdup(name)),
 		m_filepath(),
+#ifdef UNIV_HOTBACKUP
+		m_dirpath(NULL),
+#endif /* UNIV_HOTBACKUP */
 		m_filename(),
 		m_open_flags(OS_FILE_OPEN),
 		m_size(size),
@@ -100,6 +126,9 @@ public:
 
 	Datafile(const Datafile& file)
 		:
+#ifdef UNIV_HOTBACKUP
+		m_dirpath(NULL),
+#endif /* UNIV_HOTBACKUP */
 		m_handle(file.m_handle),
 		m_open_flags(file.m_open_flags),
 		m_size(file.m_size),
@@ -369,6 +398,26 @@ public:
 	@return true if it is the same file, else false */
 	bool same_as(const Datafile&	other) const;
 
+	ulint	size()	const
+	{
+		return(m_size);
+	}
+
+	void set_space_id(ulint space_id)
+	{
+		ut_ad(space_id <= 0xFFFFFFFFU);
+		m_space_id = space_id;
+	}
+
+#ifdef UNIV_HOTBACKUP
+	/** Set the tablespace flags
+	@param[in]	fsp_flags	tablespace flags */
+	void set_flags(ulint flags)
+	{
+		m_flags = flags;
+	}
+#endif /* UNIV_HOTBACKUP */
+
 private:
 	/** Free the filepath buffer. */
 	void free_filepath();
@@ -422,6 +471,11 @@ private:
 protected:
 	/** Physical file path with base name and extension */
 	char*			m_filepath;
+
+#ifdef UNIV_HOTBACKUP
+	/** directory path where tablespace resides */
+	char*			m_dirpath;
+#endif /* UNIV_HOTBACKUP */
 
 private:
 	/** Determine the space id of the given file descriptor by reading

@@ -13,6 +13,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
+IF(WITHOUT_SERVER)
+  MESSAGE(STATUS "The mysqlservices library is for server plugins only")
+  RETURN()
+ENDIF()
+
 SET(MYSQLSERVICES_SOURCES
   service_command.c
   locking_service.c

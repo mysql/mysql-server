@@ -37,6 +37,10 @@ Created 12/18/1995 Heikki Tuuri
 
 #include "fsp0types.h"
 
+#ifdef UNIV_HOTBACKUP
+# include "buf0buf.h"
+#endif /* UNIV_HOTBACKUP */
+
 /* @defgroup Tablespace Header Constants (moved from fsp0fsp.c) @{ */
 
 /** Offset of the space header within a file page */

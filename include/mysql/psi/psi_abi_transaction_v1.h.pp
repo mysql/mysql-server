@@ -21,36 +21,34 @@ typedef int myf;
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_transaction_bits.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
 struct PSI_transaction_locker;
 typedef struct PSI_transaction_locker PSI_transaction_locker;
 struct PSI_transaction_locker_state_v1
 {
-  uint m_flags;
+  unsigned int m_flags;
   void *m_class;
   struct PSI_thread *m_thread;
-  ulonglong m_timer_start;
-  ulonglong (*m_timer)(void);
+  unsigned long long m_timer_start;
+  unsigned long long (*m_timer)(void);
   void *m_transaction;
   bool m_read_only;
   bool m_autocommit;
-  ulong m_statement_count;
-  ulong m_savepoint_count;
-  ulong m_rollback_to_savepoint_count;
-  ulong m_release_savepoint_count;
+  unsigned long m_statement_count;
+  unsigned long m_savepoint_count;
+  unsigned long m_rollback_to_savepoint_count;
+  unsigned long m_release_savepoint_count;
 };
 typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state_v1;
 typedef struct PSI_transaction_locker *(*get_thread_transaction_locker_v1_t)(
   struct PSI_transaction_locker_state_v1 *state,
   const void *xid,
-  const ulonglong *trxid,
+  const unsigned long long *trxid,
   int isolation_level,
   bool read_only,
   bool autocommit);
 typedef void (*start_transaction_v1_t)(struct PSI_transaction_locker *locker,
                                        const char *src_file,
-                                       uint src_line);
+                                       unsigned int src_line);
 typedef void (*set_transaction_xid_v1_t)(struct PSI_transaction_locker *locker,
                                          const void *xid,
                                          int xa_state);
@@ -60,13 +58,13 @@ typedef void (*set_transaction_gtid_v1_t)(struct PSI_transaction_locker *locker,
                                           const void *sid,
                                           const void *gtid_spec);
 typedef void (*set_transaction_trxid_v1_t)(
-  struct PSI_transaction_locker *locker, const ulonglong *trxid);
+  struct PSI_transaction_locker *locker, const unsigned long long *trxid);
 typedef void (*inc_transaction_savepoints_v1_t)(
-  struct PSI_transaction_locker *locker, ulong count);
+  struct PSI_transaction_locker *locker, unsigned long count);
 typedef void (*inc_transaction_rollback_to_savepoint_v1_t)(
-  struct PSI_transaction_locker *locker, ulong count);
+  struct PSI_transaction_locker *locker, unsigned long count);
 typedef void (*inc_transaction_release_savepoint_v1_t)(
-  struct PSI_transaction_locker *locker, ulong count);
+  struct PSI_transaction_locker *locker, unsigned long count);
 typedef void (*end_transaction_v1_t)(struct PSI_transaction_locker *locker,
                                      bool commit);
 typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state;

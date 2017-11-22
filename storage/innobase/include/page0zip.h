@@ -83,7 +83,6 @@ page_zip_set_size(
 	page_zip_des_t*	page_zip,
 	ulint		size);
 
-#ifndef UNIV_HOTBACKUP
 /** Determine if a record is so big that it needs to be stored externally.
 @param[in]	rec_size	length of the record in bytes
 @param[in]	comp		nonzero=compact format
@@ -110,6 +109,7 @@ page_zip_empty_size(
 	ulint	zip_size)	/*!< in: compressed page size in bytes */
 	MY_ATTRIBUTE((const));
 
+#ifndef UNIV_HOTBACKUP
 /** Check whether a tuple is too big for compressed table
 @param[in]	index	dict index object
 @param[in]	entry	entry for the index
@@ -276,13 +276,13 @@ The information must already have been updated on the uncompressed page. */
 void
 page_zip_write_blob_ptr(
 /*====================*/
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
-	const byte*	rec,	/*!< in/out: record whose data is being
-				written */
-	dict_index_t*	index,	/*!< in: index of the page */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	ulint		n,	/*!< in: column index */
-	mtr_t*		mtr);	/*!< in: mini-transaction handle,
+	page_zip_des_t*		page_zip,/*!< in/out: compressed page */
+	const byte*		rec,	/*!< in/out: record whose data is being
+					written */
+	const dict_index_t*	index,	/*!< in: index of the page */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	ulint			n,	/*!< in: column index */
+	mtr_t*			mtr);	/*!< in: mini-transaction handle,
 				or NULL if no logging is needed */
 
 /***********************************************************//**
@@ -421,7 +421,6 @@ page_zip_reorganize(
 				m_start, m_end, m_nonempty */
 	dict_index_t*	index,	/*!< in: index of the B-tree node */
 	mtr_t*		mtr);	/*!< in: mini-transaction */
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Copy the records of a page byte for byte.  Do not copy the page header
 or trailer, except those B-tree header fields that are directly
@@ -438,6 +437,7 @@ page_zip_copy_recs(
 	const page_t*		src,		/*!< in: page */
 	dict_index_t*		index,		/*!< in: index of the B-tree */
 	mtr_t*			mtr);		/*!< in: mini-transaction */
+#ifndef UNIV_HOTBACKUP
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
@@ -481,6 +481,7 @@ page_zip_parse_compress_no_data(
 	page_zip_des_t*	page_zip,
 	dict_index_t*	index);
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Reset the counters used for filling
 INFORMATION_SCHEMA.innodb_cmp_per_index. */
@@ -493,6 +494,7 @@ page_zip_reset_stat_per_index();
 # undef UNIV_INLINE
 # define UNIV_INLINE	UNIV_INLINE_ORIGINAL
 #endif
+#endif /* !UNIV_HOTBACKUP */
 
 # include "page0zip.ic"
 

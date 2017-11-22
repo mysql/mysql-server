@@ -33,13 +33,20 @@ Created 10/25/1995 Heikki Tuuri
 #include "page0size.h"
 #include "fil0types.h"
 #ifndef UNIV_HOTBACKUP
-#include "ibuf0types.h"
+# include "ibuf0types.h"
 #endif /* !UNIV_HOTBACKUP */
 
 #include <list>
 #include <vector>
 
 extern const char general_space_name[];
+
+#ifdef UNIV_HOTBACKUP
+# include<unordered_set>
+using dir_set = std::unordered_set<std::string>;
+extern dir_set rem_gen_ts_dirs;
+extern bool replay_in_datadir;
+#endif /* UNIV_HOTBACKUP */
 
 // Forward declaration
 struct trx_t;
@@ -391,7 +398,7 @@ extern const char*	fil_path_to_mysql_datadir;
 extern Folder		folder_mysql_datadir;
 
 /** Initial size of a single-table tablespace in pages */
-#define FIL_IBD_FILE_INITIAL_SIZE	6
+#define FIL_IBD_FILE_INITIAL_SIZE	5
 
 /** 'null' (undefined) page offset in the context of file spaces */
 constexpr page_no_t FIL_NULL = std::numeric_limits<page_no_t>::max();
@@ -492,7 +499,6 @@ extern ulint	fil_n_pending_tablespace_flushes;
 /** Number of files currently open */
 extern ulint	fil_n_file_opened;
 
-#ifndef UNIV_HOTBACKUP
 /** Look up a tablespace.
 The caller should hold an InnoDB table lock or a MDL that prevents
 the tablespace from being dropped during the operation,
@@ -506,6 +512,7 @@ fil_space_t*
 fil_space_get(
 	space_id_t	id)
 	MY_ATTRIBUTE((warn_unused_result));
+#ifndef UNIV_HOTBACKUP
 /** Returns the latch of a file space.
 @param[in]	id	space id
 @param[out]	flags	tablespace flags
@@ -710,6 +717,7 @@ system tablespace.
 dberr_t
 fil_write_flushed_lsn(
 	lsn_t	lsn);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Acquire a tablespace when it could be dropped concurrently.
 Used by background threads that do not necessarily hold proper locks
@@ -737,6 +745,7 @@ void
 fil_space_release(
 	fil_space_t*	space);
 
+#ifndef UNIV_HOTBACKUP
 /** Wrapper with reference-counting for a fil_space_t. */
 class FilSpace
 {
@@ -791,7 +800,6 @@ private:
 	/** The wrapped pointer */
 	fil_space_t*	m_space;
 };
-
 #endif /* !UNIV_HOTBACKUP */
 
 /** Deletes an IBD tablespace, either general or single-table.
@@ -806,7 +814,6 @@ fil_delete_tablespace(
 	space_id_t	id,
 	buf_remove_t	buf_remove);
 
-#ifndef UNIV_HOTBACKUP
 /* Convert the paths into absolute paths and compare them.
 @param[in]	lhs		Filename to compare
 @param[in]	rhs		Filename to compare
@@ -858,7 +865,6 @@ fil_discard_tablespace(
 /*===================*/
 	space_id_t	id)	/*!< in: space id */
 	MY_ATTRIBUTE((warn_unused_result));
-#endif /* !UNIV_HOTBACKUP */
 
 /** Test if a tablespace file can be renamed to a new filepath by checking
 if that the old filepath exists and the new filepath does not exist.
@@ -921,7 +927,6 @@ fil_ibd_create(
 	ulint		flags,
 	page_no_t	size)
 	MY_ATTRIBUTE((warn_unused_result));
-#ifndef UNIV_HOTBACKUP
 /** Open a single-table tablespace and optionally check the space id is
 right in it. If not successful, print an error message to the error log. This
 function is used to open a tablespace when we start up mysqld, and also in
@@ -959,6 +964,7 @@ fil_ibd_open(
 	bool		old_space)
 	MY_ATTRIBUTE((warn_unused_result));
 
+#ifndef UNIV_HOTBACKUP
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
 memory cache. Note that if we have not done a crash recovery at the database
 startup, there may be many tablespaces which are not yet in the memory cache.
@@ -981,14 +987,13 @@ fil_space_for_table_exists_in_mem(
 	mem_heap_t*	heap,
 	table_id_t	table_id);
 #else /* !UNIV_HOTBACKUP */
-/********************************************************************//**
-Extends all tablespaces to the size stored in the space header. During the
-mysqlbackup --apply-log phase we extended the spaces on-demand so that log
-records could be appllied, but that may have left spaces still too small
-compared to the size stored in the space header. */
+/** Extends all tablespaces to the size stored in the space header.
+During the mysqlbackup --apply-log phase we extended the spaces
+on-demand so that log records could be appllied, but that may have left
+spaces still too small compared to the size stored in the space
+header. */
 void
-fil_extend_tablespaces_to_stored_len(void);
-/*======================================*/
+meb_extend_tablespaces_to_stored_len(void);
 #endif /* !UNIV_HOTBACKUP */
 /** Try to extend a tablespace if it is smaller than the specified size.
 @param[in,out]	space	tablespace
@@ -1338,6 +1343,7 @@ const fil_node_t*
 fil_node_next(
 	const fil_node_t*	prev_node);
 
+#ifndef UNIV_HOTBACKUP
 /** Check if swapping two .ibd files can be done without failure
 @param[in]	old_table	old table
 @param[in]	new_table	new table
@@ -1349,6 +1355,7 @@ fil_rename_precheck(
 	const dict_table_t*	new_table,
 	const char*		tmp_name);
 
+#endif /* !UNIV_HOTBACKUP */
 /** Set the compression type for the tablespace of a table
 @param[in]	table		Table that should be compressesed
 @param[in]	algorithm	Text representation of the algorithm
@@ -1532,5 +1539,18 @@ dberr_t
 fil_rename_tablespace_by_name(
         const char*	old_name,
         const char*     new_name);
+
+/** Update the tablespace name. Incase, the new name
+and old name are same, no update done.
+@param[in,out]	space		tablespace object on which name
+				will be updated
+@param[in]	name		new name for tablespace
+@param[in]	has_fil_sys	true if fil_system mutex is
+				acquired */
+void
+fil_space_update_name(
+	fil_space_t*	space,
+	const char*	name,
+	bool		has_fil_sys);
 
 #endif /* fil0fil_h */

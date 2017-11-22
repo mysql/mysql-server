@@ -296,6 +296,7 @@
 
 /* {{{ Defines and constants */
 
+#define SYS_STRERROR_SIZE 512
 unsigned int event_horizon = EVENT_HORIZON_MIN;
 
 static void set_event_horizon(unsigned int eh) MY_ATTRIBUTE((unused));
@@ -3619,6 +3620,7 @@ int acceptor_learner_task(task_arg arg) {
   char *buf;
   linkage reply_queue;
   int errors;
+  server *srv;
   END_ENV;
 
   TASK_BEGIN
@@ -3633,6 +3635,7 @@ int acceptor_learner_task(task_arg arg) {
   ep->buflen = 0;
   ep->buf = NULL;
   ep->errors = 0;
+  ep->srv = 0;
 
   /* We have a connection, make socket non-blocking and wait for request */
   unblock_fd(ep->rfd.fd);
@@ -3689,9 +3692,9 @@ again:
     unchecked_replace_pax_msg(&ep->p, pax_msg_new_0(null_synode));
 
     if (use_buffered_read) {
-      TASK_CALL(buffered_read_msg(&ep->rfd, ep->in_buf, ep->p, &n));
+      TASK_CALL(buffered_read_msg(&ep->rfd, ep->in_buf, ep->p, ep->srv, &n));
     } else {
-      TASK_CALL(read_msg(&ep->rfd, ep->p, &n));
+      TASK_CALL(read_msg(&ep->rfd, ep->p, ep->srv, &n));
     }
     if (((int)ep->p->op < (int)client_msg || ep->p->op > LAST_OP)) {
       /* invalid operation, ignore message */
@@ -3704,6 +3707,19 @@ again:
       break;
     }
     site = find_site_def(ep->p->synode);
+    /*
+      Getting a pointer to the server needs to be done after we have
+      received a message, since without having received a message, we
+      cannot know who it is from. We could peek at the message and de‐
+      serialize the message number and from field, but since the server
+      does not change, it should be sufficient to cache the server in
+      the acceptor_learner task. A cleaner solution would have been to
+      move the timestamps out of the server object, and have a map in‐
+      dexed by IP/port or UUID to track the timestamps, since this is
+      common to both the sender_task, reply_handler_task,  and the ac‐
+      ceptor_learner_task.
+    */
+    ep->srv = get_server(site, ep->p->from);
     ep->p->refcnt = 1; /* Refcnt from other end is void here */
     MAY_DBG(FN; NDBG(ep->rfd.fd, d); NDBG(task_now(), f);
             COPY_AND_FREE_GOUT(dbg_pax_msg(ep->p)););
@@ -3852,7 +3868,7 @@ int reply_handler_task(task_arg arg) {
 
       ADD_EVENTS(add_event(string_arg("ep->s->con.fd"));
                  add_event(int_arg(ep->s->con.fd)););
-      TASK_CALL(read_msg(&ep->s->con, ep->reply, &n));
+      TASK_CALL(read_msg(&ep->s->con, ep->reply, ep->s, &n));
       ADD_EVENTS(add_event(string_arg("ep->s->con.fd"));
                  add_event(int_arg(ep->s->con.fd)););
       ep->reply->refcnt = 1; /* Refcnt from other end is void here */
@@ -4562,6 +4578,7 @@ static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size) {
   struct timeval timeout;
   fd_set rfds, wfds, efds;
   int res;
+  char buf[SYS_STRERROR_SIZE];
 
   timeout.tv_sec = 10;
   timeout.tv_usec = 0;
@@ -4634,13 +4651,8 @@ static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size) {
                 "connection error!",
                 fd);
           } else {
-#if defined(_WIN32)
-            G_WARNING("Connection to socket %d failed with error %d.", fd,
-                      socket_errno);
-#else
             G_WARNING("Connection to socket %d failed with error %d - %s.", fd,
-                      socket_errno, strerror(socket_errno));
-#endif
+                      socket_errno, strerr_msg(buf, sizeof(buf), socket_errno));
           }
           return -1;
         }
@@ -4688,6 +4700,7 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
   result ret = {0, 0};
   struct sockaddr_in sock_addr;
   socklen_t sock_size;
+  char buf[SYS_STRERROR_SIZE];
 
   DBGOUT(FN; STREXP(server); NEXP(port, d));
   G_MESSAGE("connecting to %s %d", server, port);
@@ -4709,19 +4722,11 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
   SET_OS_ERR(0);
   if (timed_connect(fd.val, (struct sockaddr *)&sock_addr, sock_size) == -1) {
     fd.funerr = to_errno(GET_OS_ERR);
-#if defined(_WIN32)
-    G_MESSAGE(
-        "Connecting socket to address %s in port %d failed with error %d.",
-        server, port, fd.funerr);
-#else
-    G_MESSAGE(
-        "Connecting socket to address %s in port %d failed with error %d - %s.",
-        server, port, fd.funerr, strerror(fd.funerr));
-#endif
+    G_MESSAGE("Connecting socket to address %s in port %d failed with error %d - %s.",
+              server, port, fd.funerr, strerr_msg(buf, sizeof(buf), fd.funerr));
     xcom_close_socket(&fd.val);
     return NULL;
   }
-
   {
     int peer = 0;
     /* Sanity check before return */

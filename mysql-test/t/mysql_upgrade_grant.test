@@ -1,3 +1,5 @@
+--source include/big_test.inc
+
 #mysql_upgrade test for user and priviledge tables.
 -- source include/no_valgrind_without_big.inc
 -- source include/mysql_upgrade_preparation.inc
@@ -484,6 +486,36 @@ DROP USER u2;
 # Revoke privilege XA_RECOVER_ADMIN from the user mysql.session@localhost in order to
 # match contol checksum for mysql.global_grants
 REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
+
+--echo #
+--echo # Bug#26948662 - REMOVE SUPER_ACL CHECK IN RESOURCE GROUPS.
+--echo #
+
+REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM root@localhost;
+REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM `mysql.session`@localhost;
+
+
+# Create a new user user1 and grant super privilege to user1.
+CREATE USER user1;
+GRANT SUPER ON *.* TO user1;
+--echo # Users root@localhost and user1 have privilege SUPER but not RESOURCE_GROUP_ADMIN 
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR user1;
+
+--echo # Start upgrade
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo # After upgrade users root@localhost and user1 has privilege RESOURCE_GROUP_ADMIN.
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR user1;
+DROP USER user1;
+
+# Revoke privilege RESOURCE_GROUP_ADMIN from the user mysql.session@localhost in order to
+# match contol checksum for mysql.global_grants
+REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM `mysql.session`@localhost;
 
 --source include/mysql_upgrade_cleanup.inc
 --echo

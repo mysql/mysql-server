@@ -1,6 +1,7 @@
 --source include/no_valgrind_without_big.inc
-# Disabled in --log-bin runs until atomic DDL is properly supported
---source include/not_log_bin.inc
+# Skipping the test when binlog_format=STATEMENT due to unsafe statements:
+# unsafe auto-increment column.
+--source include/not_binlog_format_statement.inc
 
 --echo # This test case is introduced to test the persisted autoinc, basic
 --echo # autoinc features are not the main part of this one.

@@ -198,6 +198,10 @@ SELECT @@character_set_server AS res_with_true;
 
 --Error ER_UNKNOWN_CHARACTER_SET
 SET @@character_set_server = ON;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_server = repeat('e', 256);
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_server = repeat('e', 1024);
 
 --echo '#--------------------FN_DYNVARS_009_11-------------------------#'
 ###############################################################################
@@ -222,6 +226,10 @@ SET @@global.character_set_server = true;
 
 --Error ER_UNKNOWN_CHARACTER_SET
 SET @@global.character_set_server = ON;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_server = repeat('e', 256);
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_server = repeat('e', 1024);
 
 --echo '#--------------------FN_DYNVARS_009_12-------------------------#'
 ###############################################################################

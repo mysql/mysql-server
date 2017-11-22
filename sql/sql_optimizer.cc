@@ -3765,6 +3765,17 @@ static bool check_simple_equality(THD *thd,
       const_item= left_item;
     }
 
+    /*
+      If the constant expression contains a reference to the field
+      (for example, a = (a IS NULL)), we don't want to replace the
+      field with the constant expression as it makes the predicates
+      more complex and may introduce cycles in the Item tree.
+    */
+    if (const_item != nullptr &&
+        const_item->walk(&Item::find_field_processor, Item::WALK_POSTFIX,
+                         pointer_cast<uchar*>(field_item->field)))
+      return false;
+
     if (const_item &&
         field_item->result_type() == const_item->result_type())
     {
@@ -11691,6 +11702,16 @@ void JOIN::refine_best_rowcount()
   */
   set_if_smaller(best_rowcount, unit->select_limit_cnt);
 }
+
+
+List<Item> *JOIN::get_current_fields()
+{
+  DBUG_ASSERT((int)current_ref_item_slice >= 0);
+  if (current_ref_item_slice == REF_SLICE_SAVE)
+    return fields;
+  return &tmp_fields_list[current_ref_item_slice];
+}
+
 
 /**
   @} (end of group Query_Optimizer)

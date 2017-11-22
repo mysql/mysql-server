@@ -1,2 +1,2 @@
---no-console --log_error=$MYSQLTEST_VARDIR/tmp/group_replication_recovery_ssl_and_ssl_mode.1.err
+--no-console --log_error=$MYSQLTEST_VARDIR/tmp/group_replication_recovery_ssl_and_ssl_mode.1.err --log-error-verbosity=3
 --loose-group_replication_ssl_mode=REQUIRED

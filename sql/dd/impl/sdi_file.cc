@@ -299,12 +299,6 @@ String_type sdi_filename(Object_id id, const String_type &entity_name,
   return String_type(path);
 }
 
-bool store_sch_sdi(const dd::Sdi_type &sdi, const dd::Schema &schema)
-{
-  return checked_return(write_sdi_file(sdi_filename(schema.id(),
-                                                    schema.name(), ""), sdi));
-}
-
 bool store_tbl_sdi(const dd::Sdi_type &sdi, const dd::Table &table,
                    const dd::Schema &schema)
 {
@@ -332,12 +326,6 @@ static bool remove_sdi_file_if_exists(const String_type &fname)
   }
 
   return checked_return(remove(fname));
-}
-
-bool drop_sch_sdi(const dd::Schema &schema)
-{
-  String_type sdi_fname= sdi_filename(schema.id(), schema.name(), "");
-  return checked_return(remove_sdi_file_if_exists(sdi_fname));
 }
 
 bool drop_tbl_sdi(const dd::Table &table, const dd::Schema &schema)

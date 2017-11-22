@@ -18,20 +18,17 @@
 
 #include "extra/regex/my_regex.h"
 
-namespace xpl
-{
+namespace xpl {
 
-class Regex
-{
-public:
-  explicit Regex(const char* const pattern);
-   ~Regex();
+class Regex {
+ public:
+  explicit Regex(const char *const pattern);
+  ~Regex();
   bool match(const char *value) const;
 
-private:
+ private:
   my_regex_t m_re;
 };
-
 }
 
-#endif // XPL_REGEX_H_
+#endif  // XPL_REGEX_H_

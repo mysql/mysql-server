@@ -4457,10 +4457,10 @@ static ulong read_event(MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
   /* Check if eof packet */
   if (rpl->size == 0)
   {
-    LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_DUMP_THREAD_KILLED_BY_MASTER,
+    LogErr(SYSTEM_LEVEL, ER_RPL_SLAVE_DUMP_THREAD_KILLED_BY_MASTER,
            mi->get_for_channel_str(),
            ::server_uuid,
-           mysql_error(mysql)).force_print();
+           mysql_error(mysql));
      DBUG_RETURN(packet_error);
   }
 
@@ -5583,12 +5583,12 @@ extern "C" void *handle_slave_io(void *arg)
   // we can get killed during safe_connect
   if (!safe_connect(thd, mysql, mi))
   {
-    LogErr(INFORMATION_LEVEL,
+    LogErr(SYSTEM_LEVEL,
            ER_RPL_SLAVE_CONNECTED_TO_MASTER_REPLICATION_STARTED,
            mi->get_for_channel_str(),
            mi->get_user(), mi->host, mi->port,
            mi->get_io_rpl_log_name(),
-           llstr(mi->get_master_log_pos(), llbuff)).force_print();
+           llstr(mi->get_master_log_pos(), llbuff));
   }
   else
   {
@@ -8566,12 +8566,12 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
     if (reconnect)
     {
       if (!suppress_warnings)
-        LogErr(INFORMATION_LEVEL,
+        LogErr(SYSTEM_LEVEL,
                ER_RPL_SLAVE_CONNECTED_TO_MASTER_REPLICATION_RESUMED,
                mi->get_for_channel_str(), mi->get_user(),
                mi->host, mi->port,
                mi->get_io_rpl_log_name(),
-               llstr(mi->get_master_log_pos(),llbuff)).force_print();
+               llstr(mi->get_master_log_pos(),llbuff));
     }
     else
     {
@@ -10633,11 +10633,11 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
   }
 
   if (have_receive_option)
-    LogErr(INFORMATION_LEVEL, ER_SLAVE_CHANGE_MASTER_TO_EXECUTED,
+    LogErr(SYSTEM_LEVEL, ER_SLAVE_CHANGE_MASTER_TO_EXECUTED,
            mi->get_for_channel_str(true),
            saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
            saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
-           (ulong) mi->get_master_log_pos(), mi->bind_addr).force_print();
+           (ulong) mi->get_master_log_pos(), mi->bind_addr);
 
   if (have_execute_option)
     change_execute_options(lex_mi, mi);
@@ -11085,8 +11085,7 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli)
         channel_mts_submode == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
     {
       my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
-               "unless the binlog and log_slave update options are "
-               "both enabled");
+               "unless both log_bin and log_slave_updates are enabled");
       return ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER;
     }
   }

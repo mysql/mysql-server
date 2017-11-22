@@ -507,7 +507,7 @@ t2	CREATE TABLE `t2` (
   `ifnull(d,d)` int(11) DEFAULT NULL,
   `ifnull(e,e)` bigint(20) DEFAULT NULL,
   `ifnull(f,f)` float(3,2) DEFAULT NULL,
-  `ifnull(g,g)` double(4,3) DEFAULT NULL,
+  `ifnull(g,g)` double(22,3) DEFAULT NULL,
   `ifnull(h,h)` decimal(5,4) DEFAULT NULL,
   `ifnull(i,i)` year(4) DEFAULT NULL,
   `ifnull(j,j)` date DEFAULT NULL,
@@ -1880,7 +1880,7 @@ DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
 ERROR HY000: Error dropping database (can't rmdir './db_with_tables_and_an_unrelated_file_in_data_directory/', errno: ## - ...)
 DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
 DROP DATABASE db_created_with_mkdir_and_an_unrelated_file_in_data_directory;
-ERROR HY000: Can't drop database 'db_created_with_mkdir_and_an_unrelated_file_in_data_directory'; database doesn't exist
+ERROR HY000: Schema 'db_created_with_mkdir_and_an_unrelated_file_in_data_directory' does not exist, but schema directory './db_created_with_mkdir_and_an_unrelated_file_in_data_directory/' was found. This must be resolved manually (e.g. by moving the schema directory to another location).
 #
 # Bug#20857556: IMPROPER ERROR DURING CREATE TABLE
 #

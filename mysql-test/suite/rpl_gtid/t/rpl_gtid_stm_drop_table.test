@@ -1,0 +1,2 @@
+--source include/have_binlog_format_statement.inc
+--source extra/rpl_tests/rpl_gtid_drop_table.test

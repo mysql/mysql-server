@@ -194,11 +194,13 @@ extern  mysql_pfs_key_t trx_sys_rw_lock_key;
 extern  mysql_pfs_key_t hash_table_locks_key;
 #endif /* UNIV_PFS_RWLOCK */
 
+#ifdef HAVE_PSI_INTERFACE
 /* There are mutexes/rwlocks that we want to exclude from instrumentation
 even if their corresponding performance schema define is set. And this
 PFS_NOT_INSTRUMENTED is used as the key value to identify those objects that
 would be excluded from instrumentation.*/
 extern mysql_pfs_key_t	PFS_NOT_INSTRUMENTED;
+#endif /* HAVE_PFS_INTERFACE */
 
 /** Prints info of the sync system.
 @param[in]	file	where to print */

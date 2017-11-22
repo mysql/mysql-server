@@ -413,28 +413,34 @@ public:
 
 
 /**
-  Class to maintain a filter map which maps a replication filter to a channel
-  name. It is needed, because replication channels are not created and
+  The class is a container for all the per-channel filters, both a map of
+  Rpl_filter objects and a list of Rpl_pfs_filter objects.
+  It maintains a filter map which maps a replication filter to a channel
+  name. Which is needed, because replication channels are not created and
   channel_map is not filled in when these global and per-channel replication
   filters are evaluated with current code frame.
   In theory, after instantiating all channels from the repository and throwing
   all the warnings about the filters configured for non-existent channels, we
-  can forget about its global object rpl_filter_map and rely only in the
-  global and per channel rpl_filter objects. But to avoid holding the
-  channel_map.rdlock() when quering P_S.replication_applier_filters table, we
-  keep the rpl_channel_map. So that we just need to hold the small
-  rpl_filter_map.rdlock() when quering P_S.replication_applier_filters table.
-  Many operations (RESET SLAVE [FOR CHANNEL], START SLAVE, INIT SLAVE,
+  can forget about its global object rpl_channel_filters and rely only on the
+  global and per channel Rpl_filter objects. But to avoid holding the
+  channel_map.rdlock() when quering P_S.replication_applier_filters table,
+  we keep the rpl_channel_filters. So that we just need to hold the small
+  rpl_channel_filters.rdlock() when quering P_S.replication_applier_filters
+  table. Many operations (RESET SLAVE [FOR CHANNEL], START SLAVE, INIT SLAVE,
   END SLAVE, CHANGE MASTER TO, FLUSH RELAY LOGS, START CHANNEL, PURGE CHANNEL,
   and so on) hold the channel_map.wrlock().
+
+  There is one instance, rpl_channel_filters, created globally for Multisource
+  channel filters. The rpl_channel_filters is created when the server is
+  started, destroyed when the server is stopped.
 */
-class Multisource_filter_info
+class Rpl_channel_filters
 {
 private:
   /* Store all replication filters with channel names. */
   filter_map channel_to_filter;
-  /* Store pointers of all Rpl_pfs_filter objects in the channel_to_filter. */
-  std::vector<Rpl_pfs_filter*> rpl_pfs_filter_vec;
+  /* Store all Rpl_pfs_filter objects in the channel_to_filter. */
+  std::vector<Rpl_pfs_filter> rpl_pfs_filter_vec;
   /*
     This lock was designed to protect the channel_to_filter from reading,
     adding, or removing its objects from the map. It is used to preventing
@@ -491,10 +497,10 @@ public:
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
   /**
-    This member function is called everytime a filter is created
-    deleted or dropped. Once that happens the PFS view is
+    This member function is called everytime a filter is created or deleted,
+    or its filter rules are changed. Once that happens the PFS view is
     recreated.
-   */
+  */
   void reset_pfs_view();
 
   /**
@@ -528,7 +534,7 @@ public:
   bool build_do_and_ignore_table_hashes();
 
   /* Constructor for this class.*/
-  Multisource_filter_info()
+  Rpl_channel_filters()
   {
      m_channel_to_filter_lock=
        new Checkable_rwlock(
@@ -539,7 +545,7 @@ public:
   }
 
   /* Destructor for this class. */
-  ~Multisource_filter_info()
+  ~Rpl_channel_filters()
   {
     delete m_channel_to_filter_lock;
   }
@@ -559,24 +565,6 @@ public:
         delete it->second;
         it->second= NULL;
       }
-    }
-
-    if (rpl_pfs_filter_vec.size() > 0)
-      cleanup_rpl_pfs_filter_vec();
-  }
-
-  /**
-    Delete all objects in the rpl_pfs_filter_vec vector
-    and then clear the vector.
-  */
-  void cleanup_rpl_pfs_filter_vec()
-  {
-    /* Delete all objects in the rpl_pfs_filter_vec vector. */
-    std::vector<Rpl_pfs_filter*>::iterator it;
-    for(it= rpl_pfs_filter_vec.begin(); it != rpl_pfs_filter_vec.end(); ++it)
-    {
-      delete(*it);
-      *it= NULL;
     }
 
     rpl_pfs_filter_vec.clear();
@@ -606,7 +594,7 @@ public:
 extern Multisource_info channel_map;
 
 /* Global object for storing per-channel replication filters */
-extern Multisource_filter_info rpl_filter_map;
+extern Rpl_channel_filters rpl_channel_filters;
 
 static bool inline is_slave_configured()
 {

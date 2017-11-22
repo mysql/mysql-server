@@ -16,6 +16,13 @@
 #ifndef COMPONENTS_SERVICES_THR_MUTEX_BITS_H
 #define COMPONENTS_SERVICES_THR_MUTEX_BITS_H
 
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <pthread.h>                // IWYU pragma: export
+#include <sched.h>                  // IWYU pragma: export
+#endif
+
 /**
   @file
   ABI for thd_mutex
@@ -32,15 +39,6 @@
        Functions that include Performance Schema instrumentation.
        See include/mysql/psi/mysql_thread.h
 */
-
-#include <stddef.h>
-#include <sys/types.h>
-
-#include "my_inttypes.h"
-#include "my_macros.h"
-#include "my_thread.h"
-
-C_MODE_START
 
 #ifdef _WIN32
 typedef CRITICAL_SECTION native_mutex_t;
@@ -61,7 +59,5 @@ struct my_mutex_t
   } m_u;
 };
 typedef struct my_mutex_t my_mutex_t;
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_THR_MUTEX_BITS_H */

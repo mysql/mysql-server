@@ -4287,6 +4287,8 @@ public:
   Field_json *clone() const override;
   uint is_equal(const Create_field *new_field) override;
   Item_result cast_to_int_type () const override { return INT_RESULT; }
+  int cmp_binary(const uchar *a, const uchar *b, uint32 max_length=~0L)
+    override;
   bool sort_key_is_varlen() const override { return true; }
   size_t make_sort_key(uchar *to, size_t length) override;
 

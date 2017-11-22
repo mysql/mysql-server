@@ -66,10 +66,13 @@ bool create_schema(THD *thd, const char *schema_name,
 }
 
 
-bool Schema_MDL_locker::ensure_locked(const char* schema_name)
+bool mdl_lock_schema(THD *thd, const char *schema_name,
+                     enum_mdl_duration duration, MDL_ticket **ticket)
 {
-  // Make sure we have at least an IX lock on the schema name.
-  // Acquire a lock unless we already have it.
+  /*
+    Make sure we have at least an IX lock on the schema name.
+    Acquire a lock unless we already have it.
+  */
   char name_buf[NAME_LEN + 1];
   const char *converted_name= schema_name;
   if (lower_case_table_names == 2)
@@ -83,29 +86,40 @@ bool Schema_MDL_locker::ensure_locked(const char* schema_name)
   }
 
   // If we do not already have one, acquire a new lock.
-  if (!m_thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SCHEMA,
-                                                      converted_name, "",
-                                                      MDL_INTENTION_EXCLUSIVE))
+  if (thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SCHEMA,
+                                                   converted_name, "",
+                                                   MDL_INTENTION_EXCLUSIVE))
   {
-    // Create a request for an IX_lock with explicit duration
-    // on the converted schema name.
-    MDL_request mdl_request;
-    MDL_REQUEST_INIT(&mdl_request, MDL_key::SCHEMA,
-                     converted_name, "",
-                     MDL_INTENTION_EXCLUSIVE,
-                     MDL_EXPLICIT);
+    return false;
+  }
 
-    // Acquire the lock request created above, and check if
-    // acquisition fails (e.g. timeout or deadlock).
-    if (m_thd->mdl_context.acquire_lock(&mdl_request,
-                                        m_thd->variables.lock_wait_timeout))
-    {
-      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
-      return true;
-    }
-    m_ticket= mdl_request.ticket;
+  // Create a request for an IX_lock on the converted schema name.
+  MDL_request mdl_request;
+  MDL_REQUEST_INIT(&mdl_request, MDL_key::SCHEMA,
+                   converted_name, "",
+                   MDL_INTENTION_EXCLUSIVE,
+                   duration);
+
+  /*
+    Acquire the lock request created above, and check if
+    acquisition fails (e.g. timeout or deadlock).
+  */
+  if (thd->mdl_context.acquire_lock(&mdl_request,
+                                    thd->variables.lock_wait_timeout))
+  {
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    return true;
+  }
+  if (ticket != nullptr)
+  {
+    *ticket= mdl_request.ticket;
   }
   return false;
+}
+
+bool Schema_MDL_locker::ensure_locked(const char* schema_name)
+{
+  return mdl_lock_schema(m_thd, schema_name, MDL_EXPLICIT, &m_ticket);
 }
 
 

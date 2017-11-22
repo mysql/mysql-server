@@ -110,17 +110,15 @@ USER()	CURRENT_USER()
 u2@localhost	u2@%
 [on master]
 FLUSH PRIVILEGES;
-# Ensure that affect of FLUSH PRIVILEGE is prpoagated and cache from slave is also cleaned
+# Ensure that affect of FLUSH PRIVILEGE is propagated and cache from slave is also cleaned
 mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 2061 (HY000): Authentication plugin 'caching_sha2_password' reported error: Authentication requires secure connection.
-mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 2061 (HY000): Authentication plugin 'caching_sha2_password' reported error: Authentication requires secure connection.
+include/sync_slave_sql_with_master.inc
 [on slave]
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2061 (HY000): Authentication plugin 'caching_sha2_password' reported error: Authentication requires secure connection.
 include/stop_slave.inc
 ==== Cleanup (Note that slave IO thread is not running) ====
-include/stop_slave_sql.inc
-Warnings:
-Note	3084	Replication thread(s) for channel '' are already stopped.
 CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

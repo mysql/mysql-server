@@ -3373,7 +3373,7 @@ void SELECT_LEX::print(THD *thd, String *str, enum_query_type query_type)
     append_identifier(thd, str, w->name()->item_name.ptr(),
                       strlen(w->name()->item_name.ptr()));
     str->append(" AS ");
-    w->print(thd, this, str, query_type, true);
+    w->print(thd, str, query_type, true);
   }
 
   if (order_list.elements)
@@ -3636,7 +3636,8 @@ LEX::LEX()
    contains_plaintext_password(false),
    keep_diagnostics(DA_KEEP_UNSPECIFIED),
    is_lex_started(0),
-   in_update_value_clause(false)
+   in_update_value_clause(false),
+   will_contextualize(true)
 {
   reset_query_tables_list(TRUE);
 }

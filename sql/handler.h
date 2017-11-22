@@ -165,6 +165,8 @@ extern ulong total_ha_2pc;
 #define HA_ADMIN_NEEDS_ALTER    -11
 #define HA_ADMIN_NEEDS_CHECK    -12
 #define HA_ADMIN_STATS_UPD_ERR  -13
+/** User needs to dump and re-create table to fix pre 5.0 decimal types */
+#define HA_ADMIN_NEEDS_DUMP_UPGRADE -14
 
 /**
    Return values for check_if_supported_inplace_alter().
@@ -1244,9 +1246,60 @@ typedef int (*prepare_t)(handlerton *hton, THD *thd, bool all);
 
 typedef int (*recover_t)(handlerton *hton, XID *xid_list, uint len);
 
-typedef int (*commit_by_xid_t)(handlerton *hton, XID *xid);
 
-typedef int (*rollback_by_xid_t)(handlerton *hton, XID *xid);
+/** X/Open XA distributed transaction status codes */
+enum xa_status_code
+{
+  /**
+    normal execution
+  */
+  XA_OK= 0,
+
+  /**
+    asynchronous operation already outstanding
+  */
+  XAER_ASYNC= -2,
+
+  /**
+    a resource manager error  occurred in the transaction branch
+  */
+  XAER_RMERR= -3,
+
+  /**
+    the XID is not valid
+  */
+  XAER_NOTA= -4,
+
+  /**
+    invalid arguments were given
+  */
+  XAER_INVAL= -5,
+
+  /**
+    routine invoked in an improper context
+  */
+  XAER_PROTO= -6,
+
+  /**
+    resource manager unavailable
+  */
+  XAER_RMFAIL= -7,
+
+  /**
+    the XID already exists
+  */
+  XAER_DUPID= -8,
+
+  /**
+    resource manager doing work outside transaction
+  */
+  XAER_OUTSIDE= -9
+};
+
+
+typedef xa_status_code (*commit_by_xid_t)(handlerton *hton, XID *xid);
+
+typedef xa_status_code (*rollback_by_xid_t)(handlerton *hton, XID *xid);
 
 /**
   Create handler object for the table in the storage engine.
@@ -1354,6 +1407,17 @@ typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd,
 */
 typedef int (*upgrade_tablespace_t)(THD *thd);
 
+
+/**
+  Get the tablespace data from SE and insert it into Data dictionary
+
+  @param[in]  tablespace     tablespace object
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (handler error code returned)
+*/
+typedef bool (*upgrade_space_version_t)(dd::Tablespace *tablespace);
 
 /**
   Finish upgrade process inside storage engines.
@@ -1927,6 +1991,7 @@ struct handlerton
   get_tablespace_t get_tablespace;
   alter_tablespace_t alter_tablespace;
   upgrade_tablespace_t upgrade_tablespace;
+  upgrade_space_version_t upgrade_space_version;
   upgrade_logs_t upgrade_logs;
   finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;
@@ -3517,13 +3582,18 @@ protected:
   bool in_range_check_pushed_down;
 
 public:  
-  /*
+  /**
     End value for a range scan. If this is NULL the range scan has no
     end value. Should also be NULL when there is no ongoing range scan.
     Used by the read_range() functions and also evaluated by pushed
     index conditions.
   */
   key_range *end_range;
+  /**
+    Flag which tells if #end_range contains a virtual generated column.
+    The content is invalid when #end_range is @c nullptr.
+  */
+  bool m_virt_gcol_in_end_range= false;
   uint errkey;				/* Last dup key */
   uint key_used_on_scan;
   uint active_index;
@@ -5504,7 +5574,9 @@ public:
 
     @remark Engine is responsible for resetting the auto-increment counter.
 
-    @remark The table is locked in exclusive mode.
+    @remark The table is locked in exclusive mode. All open TABLE/handler
+            instances except the one which is used for truncate() call
+            are closed.
 
     @note   It is assumed that transactional storage engines implementing
             this method can revert its effects if transaction is rolled

@@ -752,6 +752,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_WRONG_FILE_NAME,		ER_DEFAULT(ER_WRONG_FILE_NAME));
   SETMSG(HA_ERR_NOT_ALLOWED_COMMAND,		ER_DEFAULT(ER_NOT_ALLOWED_COMMAND));
   SETMSG(HA_ERR_COMPUTE_FAILED,		"Compute virtual column value failed");
+  SETMSG(HA_ERR_DISK_FULL_NOWAIT,	ER_DEFAULT(ER_DISK_FULL_NOWAIT));
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -1423,7 +1424,8 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
 */
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi == NULL &&
-      ht_arg->db_type != DB_TYPE_BINLOG)
+      ht_arg->db_type != DB_TYPE_BINLOG &&
+      !thd->is_attachable_transaction_active())
   {
     const XID *xid= trn_ctx->xid_state()->get_xid();
     bool autocommit= !thd->in_multi_stmt_transaction_mode();
@@ -4359,6 +4361,13 @@ void handler::print_error(int error, myf errflag)
     errflag|= ME_ERRORLOG;
     break;
   }
+  case HA_ERR_DISK_FULL_NOWAIT:
+  {
+    textno=ER_DISK_FULL_NOWAIT;
+    /* Write the error message to error log */
+    errflag|= ME_ERRORLOG;
+    break;
+  }
   case HA_ERR_LOCK_WAIT_TIMEOUT:
     textno=ER_LOCK_WAIT_TIMEOUT;
     break;
@@ -4624,7 +4633,7 @@ int check_table_for_old_types(const TABLE *table)
     if (table->s->mysql_version == 0) // prior to MySQL 5.0
     {
       /* check for bad DECIMAL field */
-      if ((*field)->type() == MYSQL_TYPE_NEWDECIMAL) // TODO: error? MYSQL_TYPE_DECIMAL?
+      if ((*field)->type() == MYSQL_TYPE_NEWDECIMAL)
       {
         return HA_ADMIN_NEEDS_ALTER;
       }
@@ -4633,6 +4642,19 @@ int check_table_for_old_types(const TABLE *table)
         return HA_ADMIN_NEEDS_ALTER;
       }
     }
+
+    /*
+      Check for old DECIMAL field.
+
+      Above check does not take into account for pre 5.0 decimal types which can
+      be present in the data directory if user did in-place upgrade from
+      mysql-4.1 to mysql-5.0.
+    */
+    if ((*field)->type() == MYSQL_TYPE_DECIMAL)
+    {
+      return HA_ADMIN_NEEDS_DUMP_UPGRADE;
+    }
+
     if ((*field)->type() == MYSQL_TYPE_YEAR && (*field)->field_length == 2)
       return HA_ADMIN_NEEDS_ALTER; // obsolete YEAR(2) type
 
@@ -7767,6 +7789,23 @@ int handler::read_range_next()
 }
 
 
+/**
+  Check if one of the columns in a key is a virtual generated column.
+
+  @param part    the first part of the key to check
+  @param length  the length of the key
+  @retval true   if the key contains a virtual generated column
+  @retval false  if the key does not contain a virtual generated column
+*/
+static bool key_has_vcol(const KEY_PART_INFO *part, uint length)
+{
+  for (uint len= 0; len < length; len+= part->store_length, ++part)
+    if (part->field->is_virtual_gcol())
+      return true;
+  return false;
+}
+
+
 void handler::set_end_range(const key_range* range,
                             enum_range_scan_direction direction)
 {
@@ -7777,6 +7816,7 @@ void handler::set_end_range(const key_range* range,
     range_key_part= table->key_info[active_index].key_part;
     key_compare_result_on_equal= ((range->flag == HA_READ_BEFORE_KEY) ? 1 :
                                   (range->flag == HA_READ_AFTER_KEY) ? -1 : 0);
+    m_virt_gcol_in_end_range= key_has_vcol(range_key_part, range->length);
   }
   else
     end_range= NULL;
@@ -9212,17 +9252,20 @@ std::string row_to_string(const uchar* mysql_row, TABLE* mysql_table) {
   }
 
   const uint number_of_fields = mysql_table->s->fields;
-  DBUG_ASSERT(number_of_fields > 0);
 
   /* See where the fields currently point to. */
   uchar* fields_orig_buf;
-  Field* first_field = mysql_table->field[0];
-  if (first_field->ptr >= buf0 && first_field->ptr < buf0 + mysql_row_length) {
-    fields_orig_buf = buf0;
+  if (number_of_fields == 0) {
+    fields_orig_buf = buf_used_by_mysql;
   } else {
-    DBUG_ASSERT(first_field->ptr >= buf1);
-    DBUG_ASSERT(first_field->ptr < buf1 + mysql_row_length);
-    fields_orig_buf = buf1;
+    Field* first_field = mysql_table->field[0];
+    if (first_field->ptr >= buf0 && first_field->ptr < buf0 + mysql_row_length) {
+      fields_orig_buf = buf0;
+    } else {
+      DBUG_ASSERT(first_field->ptr >= buf1);
+      DBUG_ASSERT(first_field->ptr < buf1 + mysql_row_length);
+      fields_orig_buf = buf1;
+    }
   }
 
   /* Repoint if necessary. */

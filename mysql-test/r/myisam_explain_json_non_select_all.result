@@ -6410,7 +6410,8 @@ EXPLAIN
             "data_read_per_join": "64"
           } /* cost_info */,
           "used_columns": [
-            "a"
+            "a",
+            "b"
           ] /* used_columns */
         } /* table */
       }
@@ -6567,7 +6568,8 @@ EXPLAIN
             "data_read_per_join": "64"
           } /* cost_info */,
           "used_columns": [
-            "a"
+            "a",
+            "b"
           ] /* used_columns */
         } /* table */
       }

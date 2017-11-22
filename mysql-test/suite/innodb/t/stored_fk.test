@@ -9,11 +9,9 @@ create table t1(f1 int primary key);
 create table t2(f1 int not null, f2 int as (f1) virtual,
 		foreign key(f1) references t1(f1) on update cascade)engine=innodb;
 
-# TODO: NewDD: Bug 25339192 - SERVER SHOULD DISALLOW FOREIGN KEYS ON
-# BASE COLUMN OF STORED COLUMN 
-#--replace_regex  /Error on rename of '.*' to '.*'/Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME'/
-#--error ER_ERROR_ON_RENAME
-#alter table t2 add column f3 int as (f1) stored, add column f4 int as (f1) virtual;
+--replace_regex  /Error on rename of '.*' to '.*'/Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME'/
+--error ER_CANNOT_ADD_FOREIGN
+alter table t2 add column f3 int as (f1) stored, add column f4 int as (f1) virtual;
 drop table t2, t1;
 
 --echo # adding foreign key constraint for base columns during alter copy.

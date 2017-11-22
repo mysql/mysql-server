@@ -67,6 +67,11 @@ DELETE FROM t1 WHERE i=2;
 --echo [VALID SYNTAX read from remote server ,The from->to database names are correctly mentioned]
 --exec $MYSQL_BINLOG --force-if-open --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --rewrite-db="db1->new_db1" $binlog_file > $MYSQLTEST_VARDIR/tmp/row_event_from_remote_server_rewrite.sql
 
+# BUG26878022: MYSQLBINLOG: ASSERTION `(OLD_MH->M_KEY == KEY) || (OLD_MH->M_KEY == 0)' FAILED
+--echo [VALID SYNTAX read from remote server in raw mode, the from->to database names are correctly mentioned]
+--exec $MYSQL_BINLOG --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --rewrite-db="db1->new_db1" $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
+--exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/tmp/$binlog_file > $MYSQLTEST_VARDIR/tmp/row_event_from_remote_server_rewrite_raw.sql
+
 --echo [VALID SYNTAX, but during the application of rewrite_db filter an invalid event is found. Hence mysqlbinlog tool should exit with an appropriate error]
 --echo [ERROR: Got fatal error while applying rewrite db filter.]
 --error 1
@@ -111,11 +116,25 @@ RESET MASTER;
 --let $assert_cond= `SELECT COUNT(*)=1 from new_db1.t1`
 --source include/assert.inc
 
+DROP DATABASE db1;
+DROP DATABASE new_db1;
+CREATE DATABASE new_db1;
+# With gtid-mode=on we need purge gtid_executed, if not transactions
+# replayed through mysqlbinlog will be skipped.
+RESET MASTER;
+--echo [The event of table db1.t1 has been successfully applied to new_db1.t1 from raw mode]
+--exec $MYSQL  --database=new_db1 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/row_event_from_remote_server_rewrite_raw.sql
+--let $assert_text= Assert that table new_db1.t1 has one row after applying the sql file from raw binlog dump.
+--let $assert_cond= `SELECT COUNT(*)=1 from new_db1.t1`
+--source include/assert.inc
+
 --echo CLEANUP
 
 --remove_file $MYSQLTEST_VARDIR/tmp/row_event.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/row_event_from_remote_server_rewrite.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/row_event_from_remote_server_rewrite_raw.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/tmp.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/$binlog_file
 DROP DATABASE db1;
 DROP DATABASE new_db1;

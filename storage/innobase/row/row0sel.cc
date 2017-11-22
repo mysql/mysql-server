@@ -3308,7 +3308,8 @@ row_sel_store_mysql_rec(
 		ulint		sec_field_no = ULINT_UNDEFINED;
 
 		/* We should never deliver column prefixes to MySQL,
-		except for evaluating innobase_index_cond(). */
+		except for evaluating innobase_index_cond() or
+		row_search_end_range_check(). */
 		ut_ad(index->get_field(field_no)->prefix_len == 0);
 
 		if (clust_templ_for_sec) {
@@ -4159,22 +4160,56 @@ row_search_idx_cond_check(
 /** Check the pushed-down end-range condition to avoid extra traversal
 if records are not with in view and also to avoid prefetching too
 many records into the record buffer.
-@param[in]	mysql_rec	record in MySQL format
-@param[in,out]	handler		the MySQL handler performing the scan
-@param[in,out]	record_buffer	the record buffer we are reading into
-				or it can be NULL
+@param[in]	mysql_rec		record in MySQL format
+@param[in]	rec			InnoDB record
+@param[in]	prebuilt		prebuilt struct
+@param[in]	clust_templ_for_sec	true if \a rec belongs to the secondary
+					index but the \a prebuilt template is in
+					clustered index format
+@param[in]	offsets			information about column offsets in the
+					secondary index, if virtual columns need
+					to be copied into \a mysql_rec
+@param[in,out]	record_buffer		the record buffer we are reading into,
+					or \c nullptr if there is no buffer
 @retval true	if the row in \a mysql_rec is out of range
 @retval false	if the row in \a mysql_rec is in range */
 static
 bool
 row_search_end_range_check(
-	const byte*	mysql_rec,
-	ha_innobase*	handler,
+	byte*		mysql_rec,
+	const rec_t*	rec,
+	row_prebuilt_t*	prebuilt,
+	bool clust_templ_for_sec,
+	const ulint*	offsets,
 	Record_buffer*	record_buffer)
 {
-	if (handler->end_range &&
-	    handler->compare_key_in_buffer(mysql_rec) > 0) {
+	const auto handler = prebuilt->m_mysql_handler;
+	ut_ad(handler->end_range != nullptr);
 
+	/* When reading from non-covering secondary indexes, mysql_rec won't
+	have the values of virtual columns until the handler has called
+	update_generated_read_fields(). If the end-range condition refers to a
+	virtual column, we may have to copy its value from the secondary index
+	before evaluating the condition. */
+	if (clust_templ_for_sec && handler->m_virt_gcol_in_end_range) {
+		ut_ad(offsets != nullptr);
+		for (ulint i = 0; i < prebuilt->n_template; ++i) {
+			const auto& templ = prebuilt->mysql_template[i];
+			if (templ.is_virtual &&
+			    templ.icp_rec_field_no != ULINT_UNDEFINED &&
+			    !row_sel_store_mysql_field(mysql_rec, prebuilt,
+						       rec,
+						       prebuilt->index,
+						       offsets,
+						       templ.icp_rec_field_no,
+						       &templ,
+						       ULINT_UNDEFINED)) {
+				return(false);
+			}
+		}
+	}
+
+	if (handler->compare_key_in_buffer(mysql_rec) > 0) {
 		if (record_buffer != NULL) {
 			record_buffer->set_out_of_range(true);
 		}
@@ -4601,6 +4636,9 @@ row_search_mvcc(
 	btr_pcur_t*	pcur		= prebuilt->pcur;
 	trx_t*		trx		= prebuilt->trx;
 	dict_index_t*	clust_index;
+	/* True if we are scanning a secondary index, but the template is based
+	on the primary index. */
+	bool		clust_templ_for_sec;
 	que_thr_t*	thr;
 	const rec_t*	prev_rec = NULL;
 	const rec_t*	rec = NULL;
@@ -4626,6 +4664,8 @@ row_search_mvcc(
 	mem_heap_t*	heap				= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
+	ulint		sec_offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*		sec_offsets = nullptr;
 	ibool		table_lock_waited		= FALSE;
 	byte*		next_buf			= 0;
 	bool		spatial_search			= false;
@@ -4997,6 +5037,9 @@ row_search_mvcc(
 
 	clust_index = index->table->first_index();
 
+	clust_templ_for_sec =
+		index != clust_index && prebuilt->need_to_access_clustered;
+
 	/* Do some start-of-statement preparations */
 
 	if (!prebuilt->sql_stat_start) {
@@ -5184,19 +5227,16 @@ rec_loop:
 		    && prebuilt->idx_cond == false && end_loop >= 100) {
 
 			dict_index_t*	key_index = prebuilt->index;
-			bool		clust_templ_for_sec = false;
 
 			if (end_range_cache == NULL) {
 				end_range_cache = static_cast<byte*>(
 					ut_malloc_nokey(prebuilt->mysql_row_len));
 			}
 
-			if (index != clust_index
-			    && prebuilt->need_to_access_clustered) {
+			if (clust_templ_for_sec) {
 				/** Secondary index record but the template
 				based on PK. */
 				key_index = clust_index;
-				clust_templ_for_sec = true;
 			}
 
 			/** Create offsets based on prebuilt index. */
@@ -5210,7 +5250,10 @@ rec_loop:
 
 				if (row_search_end_range_check(
 					end_range_cache,
-					prebuilt->m_mysql_handler,
+					prev_rec,
+					prebuilt,
+					clust_templ_for_sec,
+					offsets,
 					record_buffer)) {
 
 					/** In case of prebuilt->fetch,
@@ -5900,15 +5943,37 @@ requires_clust_rec:
 			server has pushed down an end range condition, evaluate
 			the condition to prevent that we read too many rows. */
 			if (record_buffer != nullptr &&
-			    row_search_end_range_check(
-				    next_buf, prebuilt->m_mysql_handler,
-				    record_buffer)) {
-				if (next_buf != buf) {
-					record_buffer->remove_last();
+			    prebuilt->m_mysql_handler->end_range != nullptr) {
+
+				/* If the end-range condition refers to a
+				virtual column and we are reading from the
+				clustered index, next_buf does not have the
+				value of the virtual column. Get the offsets in
+				the secondary index so that we can read the
+				virtual column from the index. */
+				if (clust_templ_for_sec &&
+				    prebuilt->m_mysql_handler->
+				    m_virt_gcol_in_end_range) {
+					if (sec_offsets == nullptr) {
+						rec_offs_init(sec_offsets_);
+						sec_offsets = sec_offsets_;
+					}
+					sec_offsets = rec_get_offsets(
+						rec, index, sec_offsets,
+						ULINT_UNDEFINED, &heap);
 				}
-				next_buf = prev_buf;
-				err = DB_RECORD_NOT_FOUND;
-				goto normal_return;
+
+				if (row_search_end_range_check(
+					    next_buf, rec, prebuilt,
+					    clust_templ_for_sec,
+					    sec_offsets, record_buffer)) {
+					if (next_buf != buf) {
+						record_buffer->remove_last();
+					}
+					next_buf = prev_buf;
+					err = DB_RECORD_NOT_FOUND;
+					goto normal_return;
+				}
 			}
 
 			if (next_buf != buf) {

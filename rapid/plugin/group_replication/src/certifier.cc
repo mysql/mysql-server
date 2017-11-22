@@ -1222,6 +1222,9 @@ bool Certifier::set_group_stable_transactions_set(Gtid_set* executed_gtid_set)
 void Certifier::garbage_collect()
 {
   DBUG_ENTER("Certifier::garbage_collect");
+  DBUG_EXECUTE_IF("group_replication_do_not_clear_certification_database",
+                    { DBUG_VOID_RETURN; };);
+
   mysql_mutex_lock(&LOCK_certification_info);
 
   /*
@@ -1334,22 +1337,7 @@ int Certifier::handle_certifier_data(const uchar *data, ulong len,
     {
       this->incoming->push(new Data_packet(data, len));
     }
-    else
-    {
-      /*
-        As member is already received we can throw the necessary warning of the
-        member message already received.
-      */
-      Group_member_info *member_info=
-          group_member_mgr->get_group_member_info_by_member_id(gcs_member_id);
-      if (member_info != NULL)
-      {
-        log_message(MY_WARNING_LEVEL, "The member with address %s:%u has "
-                    "already sent the stable set. Therefore discarding the second "
-                    "message.", member_info->get_hostname().c_str(),
-                    member_info->get_port());
-      }
-    }
+    //else: ignore the message, no point in alerting the user about this.
 
     mysql_mutex_unlock(&LOCK_members);
 
@@ -1371,9 +1359,10 @@ int Certifier::handle_certifier_data(const uchar *data, ulong len,
   }
   else
   {
-    log_message(MY_WARNING_LEVEL, "Skipping this round of stable set "
-                "computation as certification garbage collection process is "
-                "still running."); /* purecov: inspected */
+    log_message(MY_WARNING_LEVEL, "Skipping the computation of "
+                "the Transactions_committed_all_members field as "
+                "an older instance of this computation is still "
+                "ongoing."); /* purecov: inspected */
     mysql_mutex_unlock(&LOCK_members); /* purecov: inspected */
   }
 

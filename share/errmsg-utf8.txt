@@ -7683,6 +7683,9 @@ ER_KEYRING_AWS_UDF_AWS_KMS_ERROR
 ER_BINLOG_UNSAFE_XA
   eng "Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements."
 
+ER_UDF_ERROR
+  eng "%s UDF failed; %s"
+
 #
 #  End of 5.7 error messages.
 #
@@ -8002,7 +8005,7 @@ ER_WINDOW_EXPLAIN_JSON
 ER_WINDOW_FUNCTION_IGNORES_FRAME
   eng "Window function '%s' ignores the frame clause of window '%s' and aggregates over the whole partition"
 
-ER_WINDOW_SE_NOT_ACCEPTABLE
+ER_WL9236_NOW_UNUSED
   eng "Windowing requires @@internal_tmp_mem_storage_engine=TempTable."
 
 ER_INVALID_NO_OF_ARGS
@@ -8057,7 +8060,7 @@ ER_LATITUDE_OUT_OF_RANGE 22S03
   eng "Latitude %f is out of range in function %.192s. It must be within [%f, %f]."
 
 ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS 22S00
-  eng "%.192s(%.40s, %.40s) has not been implemented for geographic spatial reference systems."
+  eng "%.192s(%.80s) has not been implemented for geographic spatial reference systems."
 
 ER_ILLEGAL_PRIVILEGE_LEVEL
   eng "Illegal privilege level specified for %s"
@@ -10368,7 +10371,7 @@ ER_CANT_LOCK_TABLESPACE
   eng "Unable to acquire lock on tablespace name %s"
 
 ER_CANT_UPGRADE_GENERATED_COLUMNS_TO_DD
-  eng "Error in processing generated columns"
+  eng "Error in processing generated columns for table %s.%s"
 
 ER_DD_ERROR_CREATING_ENTRY
   eng "Error in Creating DD entry for %s.%s"
@@ -10924,7 +10927,50 @@ ER_JT_VALUE_OUT_OF_RANGE 22003
 
 ER_JT_MAX_NESTED_PATH 42000
   eng "More than supported %u NESTED PATHs were found in JSON_TABLE '%.192s'"
+
+ER_PASSWORD_EXPIRATION_NOT_SUPPORTED_BY_AUTH_METHOD
+  eng "The selected authentication method %.*s does not support password expiration"
+  bg "Избрания метод за удостоверяване %.*s не поддържа изтичане на пароли"
+
+ER_INVALID_GEOJSON_CRS_NOT_TOP_LEVEL
+  eng "Invalid GeoJSON data provided to function %s: Member 'crs' must be specified in the top level object."
+
+ER_BAD_NULL_ERROR_NOT_IGNORED 23000
+  eng "Column '%-.192s' cannot be null"
+
+ER_THREAD_PRIORITY_IGNORED
+  eng "Thread priority attribute setting in Resource Group SQL shall be ignored due to unsupported platform or insufficient privilege."
+
+WARN_USELESS_SPATIAL_INDEX
+  eng "The spatial index on column '%.64s' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column."
+
+ER_DISK_FULL_NOWAIT
+  eng "Create table/tablespace '%-.192s' failed, as disk is full"
+
+ER_PARSE_ERROR_IN_DIGEST_FN
+  eng "Could not parse argument to digest function: \"%s\"."
+
+ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+  eng "Could not parse argument to digest function."
+
+ER_CANT_START_ERROR_LOG_SERVICE
+  eng "Failed to set %s at or around \"%s\" -- service is valid, but can not be initialized; please check its configuration and make sure it can read its input(s) and write to its output(s)."
+
+ER_SCHEMA_DIR_EXISTS
+  eng "Schema directory '%.192s' already exists. This must be resolved manually (e.g. by moving the schema directory to another location)."
+
+ER_SCHEMA_DIR_MISSING
+  eng "Schema directory '%.192s' does not exist"
+
+ER_SCHEMA_DIR_CREATE_FAILED
+  eng "Failed to create schema directory '%.192s' (errno: %d - %s)"
+
+ER_SCHEMA_DIR_UNKNOWN
+  eng "Schema '%.192s' does not exist, but schema directory '%.192s' was found. This must be resolved manually (e.g. by moving the schema directory to another location)."
+
+ER_ONLY_IMPLEMENTED_FOR_SRID_0_AND_4326 22S00
+  eng "Function %.192s is only defined for SRID 0 and SRID 4326."
+
 #
 #  End of 8.0 error messages.
 #
-

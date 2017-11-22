@@ -398,7 +398,7 @@ bool Query_result_export::send_data(List<Item> &items)
     bool enclosed = (exchange->field.enclosed->length() &&
                      (!exchange->field.opt_enclosed ||
                       result_type == STRING_RESULT));
-    res=item->str_result(&tmp);
+    res=item->val_str(&tmp);
     if (res && !my_charset_same(write_cs, res->charset()) &&
         !my_charset_same(write_cs, &my_charset_bin))
     {
@@ -743,7 +743,7 @@ bool Query_result_dump::send_data(List<Item> &items)
   }
   while ((item=li++))
   {
-    res=item->str_result(&tmp);
+    res=item->val_str(&tmp);
     if (!res)					// If NULL
     {
       if (my_b_write(&cache,(uchar*) "",1))

@@ -182,7 +182,7 @@ public:
   virtual String_type build_ddl_create_view() const
   {
     Stringstream_type ss;
-    ss << "CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW "
+    ss << "CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW "
        << "information_schema." << view_name()
        << " AS " + build_select_query();
 
@@ -232,7 +232,7 @@ public:
   virtual String_type build_ddl_create_view() const
   {
     Stringstream_type ss;
-    ss << "CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW "
+    ss << "CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW "
        << "information_schema." << view_name() << " AS "
        << "(" << m_first_select.build_select_query() << ")"
        << " UNION " << "(" << m_second_select.build_select_query() << ")";

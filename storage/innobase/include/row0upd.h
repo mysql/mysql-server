@@ -34,20 +34,11 @@ Created 12/27/1996 Heikki Tuuri
 #include "trx0types.h"
 #include <stack>
 
-#ifndef UNIV_HOTBACKUP
 # include "btr0pcur.h"
+#ifndef UNIV_HOTBACKUP
 # include "que0types.h"
 # include "pars0types.h"
 #endif /* !UNIV_HOTBACKUP */
-
-/** The std::deque to store cascade update nodes, that uses mem_heap_t
-as allocator. */
-typedef std::deque<upd_node_t*, mem_heap_allocator<upd_node_t*> >
-	deque_mem_heap_t;
-
-/** Double-ended queue of update nodes to be processed for cascade
-operations */
-typedef deque_mem_heap_t upd_cascade_t;
 
 /** Creates an update vector object.
 @param[in]	n	number of fields
@@ -82,7 +73,6 @@ upd_get_nth_field(
 #else
 # define upd_get_nth_field(update, n) ((update)->fields + (n))
 #endif
-#ifndef UNIV_HOTBACKUP
 /** Sets an index field number to be updated by an update vector field.
 @param[in]	upd_field	update vector field
 @param[in]	field_no	field number in a clustered index
@@ -200,7 +190,6 @@ row_upd_changes_disowned_external(
 /*==============================*/
 	const upd_t*	update)	/*!< in: update vector */
 	MY_ATTRIBUTE((warn_unused_result));
-#endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the
 record given. No field size changes are allowed. This function is
@@ -216,7 +205,6 @@ row_upd_rec_in_place(
 	const upd_t*	update,	/*!< in: update vector */
 	page_zip_des_t*	page_zip);/*!< in: compressed page with enough space
 				available, or NULL */
-#ifndef UNIV_HOTBACKUP
 /***************************************************************//**
 Builds an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare
@@ -410,7 +398,6 @@ que_thr_t*
 row_upd_step(
 /*=========*/
 	que_thr_t*	thr);	/*!< in: query thread */
-#endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Parses the log data of system field values.
 @return log data end or NULL */
@@ -464,7 +451,6 @@ struct upd_field_t{
 					this is the position in the secondary
 					index, also it could be the position
 					in virtual index for virtual column */
-#ifndef UNIV_HOTBACKUP
 	unsigned	orig_len:16;	/*!< original length of the locally
 					stored part of an externally stored
 					column, or 0 */
@@ -472,7 +458,6 @@ struct upd_field_t{
 					value: it refers to column values and
 					constants in the symbol table of the
 					query graph */
-#endif /* !UNIV_HOTBACKUP */
 	dfield_t	new_val;	/*!< new value for the column */
 	dfield_t*	old_v_val;	/*!< old value for the virtual column */
 };
@@ -547,38 +532,12 @@ struct upd_node_t{
 	dict_foreign_t*	foreign;/* NULL or pointer to a foreign key
 				constraint if this update node is used in
 				doing an ON DELETE or ON UPDATE operation */
-
-	bool		cascade_top;
-				/*!< true if top level in cascade */
-
-	upd_cascade_t*	cascade_upd_nodes;
-				/*!< Queue of update nodes to handle the
-				cascade of update and delete operations in an
-				iterative manner.  Their parent/child
-				relations are properly maintained. All update
-				nodes point to this same queue.  All these
-				nodes are allocated in heap pointed to by
-				upd_node_t::cascade_heap. */
-
-	upd_cascade_t*	new_upd_nodes;
-				/*!< Intermediate list of update nodes in a
-				cascading update/delete operation.  After
-				processing one update node, this will be
-				concatenated to cascade_upd_nodes.  This extra
-				list is needed so that retry because of
-				DB_LOCK_WAIT works corrrectly. */
-
-	upd_cascade_t*	processed_cascades;
-				/*!< List of processed update nodes in a
-				cascading update/delete operation.  All the
-				cascade nodes are stored here, so that memory
-				can be freed. */
-
+        upd_node_t*     cascade_node;/* NULL or an update node template which
+                                is used to implement ON DELETE/UPDATE CASCADE
+                                or ... SET NULL for foreign keys */
 	mem_heap_t*	cascade_heap;
 				/*!< NULL or a mem heap where cascade_upd_nodes
-				are created.  This heap is owned by the node
-				that has cascade_top=true. */
-
+				are created.*/
 	sel_node_t*	select;	/*!< query graph subtree implementing a base
 				table cursor: the rows returned will be
 				updated */
@@ -626,24 +585,8 @@ struct upd_node_t{
 	que_node_t*	col_assign_list;
 				/* column assignment list */
 
-	doc_id_t	fts_doc_id;
-				/* The FTS doc id of the row that is now
-				pointed to by the pcur. */
-
-	doc_id_t	fts_next_doc_id;
-				/* The new fts doc id that will be used
-				in update operation */
-
 	ulint		magic_n;
 
-#ifdef UNIV_DEBUG
-	/** Print information about this object into the trace log file. */
-	void dbug_trace();
-
-	/** Ensure that the member cascade_upd_nodes has only one update node
-	for each of the tables.  This is useful for testing purposes. */
-	void check_cascade_only_once();
-#endif /* UNIV_DEBUG */
 };
 
 #define	UPD_NODE_MAGIC_N	1579975

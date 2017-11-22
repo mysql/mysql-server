@@ -1275,3 +1275,13 @@ ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()', 32100000))
 GEOMETRYCOLLECTION EMPTY
 DELETE FROM mysql.st_spatial_reference_systems
 WHERE id >= 30000000 AND id <= 33000000;
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined. Should raise warning.
+DO ST_ASTEXT(x'0A000000010100000000000000000000000000000000000000');
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
+DO ST_ASWKT(x'0A000000010100000000000000000000000000000000000000');
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.

@@ -1885,6 +1885,13 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
   if (outer_join_first_inner && qep_tab->first_unmatched == NO_PLAN_IDX)
     qep_tab->not_null_compl= true;
 
+  /*
+    We're going to read records of previous tables from our buffer, and also
+    records of our table; none of these can be a group-by/window tmp table, so
+    we should still be on the join's first slice.
+  */
+  DBUG_ASSERT(qep_tab->join()->get_ref_item_slice() == REF_SLICE_SAVE);
+
   if (qep_tab->first_unmatched == NO_PLAN_IDX)
   {
     const bool pfs_batch_update= qep_tab->pfs_batch_update(join);
@@ -2207,9 +2214,6 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
     if (!qep_tab->check_weed_out_table ||
         !(res= do_sj_dups_weedout(join->thd, qep_tab->check_weed_out_table)))
     {
-      // Set proper slice before going to the next qep_tab
-      Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
-
       set_curr_rec_link(rec_ptr);
       rc= (qep_tab->next_select)(join, qep_tab + 1, 0);
       if (rc != NESTED_LOOP_OK)

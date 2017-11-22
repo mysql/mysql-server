@@ -214,13 +214,24 @@ from performance_schema.variables_info
 where VARIABLE_NAME = 'sort_buffer_size';
 CHECK_TIME
 1
-Sleep 1 second
-SET PERSIST foreign_key_checks = 0;
 select SET_TIME is not null as CHECK_TIME
 from performance_schema.variables_info
 where VARIABLE_NAME = 'foreign_key_checks';
 CHECK_TIME
 1
+SELECT now() into @before_timestamp;
+Sleep 1 second
+SET PERSIST foreign_key_checks = 0;
+Sleep 1 second
+SELECT now() into @after_timestamp;
+select VARIABLE_NAME, VARIABLE_SOURCE,
+if (SET_TIME >= @before_timestamp, "pass", "fail") as SET_TIME_BEFORE_CHECK,
+if (SET_TIME <= @after_timestamp, "pass", "fail") as SET_TIME_AFTER_CHECK,
+SET_USER, SET_HOST
+from performance_schema.variables_info
+where VARIABLE_NAME = 'foreign_key_checks';
+VARIABLE_NAME	VARIABLE_SOURCE	SET_TIME_BEFORE_CHECK	SET_TIME_AFTER_CHECK	SET_USER	SET_HOST
+foreign_key_checks	DYNAMIC	pass	pass	root	localhost
 select SET_TIME
 from performance_schema.variables_info
 where VARIABLE_NAME = 'sql_log_bin';

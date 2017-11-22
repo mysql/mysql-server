@@ -35,7 +35,6 @@ Created 2013/03/27 Allen Lai and Jimmy Yang
 #include "page0page.h"
 #include "page0zip.h"
 
-#ifndef UNIV_HOTBACKUP
 #include "btr0cur.h"
 #include "btr0pcur.h"
 #include "btr0sea.h"
@@ -45,8 +44,6 @@ Created 2013/03/27 Allen Lai and Jimmy Yang
 #include "rem0cmp.h"
 #include "srv0mon.h"
 #include "trx0trx.h"
-
-#endif /* UNIV_HOTBACKUP */
 
 /*************************************************************//**
 Initial split nodes info for R-tree split.

@@ -23,7 +23,6 @@ Mysqlx.Ok {
 }
 ok
 include/gr_wait_for_member_state.inc
-include/assert.inc [group_replication_allow_local_disjoint_gtids_join is OFF]
 include/assert.inc [group_replication_allow_local_lower_version_join is OFF]
 include/assert.inc [group_replication_auto_increment_increment is 7]
 include/assert.inc [group_replication_components_stop_timeout is 31536000]
@@ -40,7 +39,6 @@ include/assert.inc [group_replication_recovery_retry_count is 10]
 include/assert.inc [group_replication_start_on_boot is OFF]
 include/assert.inc [group_replication_single_primary_mode is OFF]
 include/stop_group_replication.inc
-SET @group_replication_allow_local_disjoint_gtids_join_save= @@GLOBAL.group_replication_allow_local_disjoint_gtids_join;
 SET @group_replication_allow_local_lower_version_join_save= @@GLOBAL.group_replication_allow_local_lower_version_join;
 SET @group_replication_auto_increment_increment_save= @@GLOBAL.group_replication_auto_increment_increment;
 SET @group_replication_components_stop_timeout_save= @@GLOBAL.group_replication_components_stop_timeout;
@@ -69,9 +67,6 @@ SET @group_replication_recovery_use_ssl_save= @@GLOBAL.group_replication_recover
 SET @group_replication_single_primary_mode_save= @@GLOBAL.group_replication_single_primary_mode;
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 SET @group_replication_start_on_boot_save= @@GLOBAL.group_replication_start_on_boot;
-RUN SET GLOBAL group_replication_allow_local_disjoint_gtids_join= ON
-
-0 rows affected
 RUN SET GLOBAL group_replication_allow_local_lower_version_join= ON
 
 0 rows affected
@@ -170,7 +165,6 @@ Mysqlx.Ok {
 }
 ok
 START GROUP_REPLICATION;
-include/assert.inc [group_replication_allow_local_disjoint_gtids_join is ON]
 include/assert.inc [group_replication_allow_local_lower_version_join is ON]
 include/assert.inc [group_replication_auto_increment_increment is 5]
 include/assert.inc [group_replication_components_stop_timeout is 10]
@@ -210,7 +204,6 @@ Mysqlx.Ok {
 ok
 include/gr_wait_for_member_state.inc
 include/assert_and_disable_read_only.inc
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= @group_replication_allow_local_disjoint_gtids_join_save;
 SET GLOBAL group_replication_allow_local_lower_version_join= @group_replication_allow_local_lower_version_join_save;
 SET GLOBAL group_replication_auto_increment_increment= @group_replication_auto_increment_increment_save;
 SET GLOBAL group_replication_components_stop_timeout= @group_replication_components_stop_timeout_save;

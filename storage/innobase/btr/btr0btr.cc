@@ -28,27 +28,28 @@ Created 6/2/1994 Heikki Tuuri
 
 #include <sys/types.h>
 
-#include "fsp0sysspace.h"
-#include "gis0rtree.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "page0page.h"
-#include "page0zip.h"
+#ifndef UNIV_HOTBACKUP
+# include "fsp0sysspace.h"
+# include "gis0rtree.h"
+# include "my_dbug.h"
+# include "my_inttypes.h"
+# include "page0page.h"
+# include "page0zip.h"
+# include "btr0cur.h"
+# include "btr0pcur.h"
+# include "btr0sea.h"
+# include "buf0stats.h"
+# include "dict0boot.h"
+# include "gis0geo.h"
+# include "ibuf0ibuf.h"
+# include "lock0lock.h"
+# include "rem0cmp.h"
+# include "srv0mon.h"
+# include "trx0trx.h"
+# include "ut0new.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
-#include "btr0cur.h"
-#include "btr0pcur.h"
-#include "btr0sea.h"
-#include "buf0stats.h"
-#include "dict0boot.h"
-#include "gis0geo.h"
-#include "ibuf0ibuf.h"
-#include "lock0lock.h"
-#include "rem0cmp.h"
-#include "srv0mon.h"
-#include "trx0trx.h"
-#include "ut0new.h"
-
 /**************************************************************//**
 Checks if the page in the cursor can be merged with given page.
 If necessary, re-organize the merge_page.
@@ -61,8 +62,7 @@ btr_can_merge_with_page(
 	page_no_t	page_no,	/*!< in: a sibling page */
 	buf_block_t**	merge_block,	/*!< out: the merge block */
 	mtr_t*		mtr);		/*!< in: mini-transaction */
-
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************//**
 Report that an index page is corrupted. */
@@ -1365,7 +1365,9 @@ btr_page_reorganize_low(
 	ulint		pos;
 	bool		log_compressed;
 
+#ifndef UNIV_HOTBACKUP
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
+#endif /* !UNIV_HOTBACKUP */
 	btr_assert_not_corrupted(block, index);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
@@ -1379,12 +1381,13 @@ btr_page_reorganize_low(
 #ifndef UNIV_HOTBACKUP
 	temp_block = buf_block_alloc(buf_pool);
 #else /* !UNIV_HOTBACKUP */
-	ut_ad(block == back_block1);
 	temp_block = back_block2;
 #endif /* !UNIV_HOTBACKUP */
 	temp_page = temp_block->frame;
 
+#ifndef UNIV_HOTBACKUP
 	MONITOR_INC(MONITOR_INDEX_REORG_ATTEMPTS);
+#endif /* !UNIV_HOTBACKUP */
 
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
@@ -1570,7 +1573,6 @@ btr_page_reorganize_block(
 	return(btr_page_reorganize_low(recovery, z_level, &cur, index, mtr));
 }
 
-#ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Reorganizes an index page.
 
@@ -1592,7 +1594,6 @@ btr_page_reorganize(
 	return(btr_page_reorganize_low(false, page_zip_level,
 				       cursor, index, mtr));
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************//**
 Parses a redo log record of reorganizing a page.

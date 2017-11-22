@@ -1,7 +1,3 @@
-# Temporarily skipping the test when log-bin is enabled due to Bug#22508362
---source include/not_log_bin.inc
-
-
 # *********************************************************
 # Test Multiple Spatial Indexes on compression table
 # Test spatial index with table having primary key column

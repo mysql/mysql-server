@@ -200,6 +200,10 @@ SET @@character_set_connection = true;
 SELECT @@character_set_connection AS res_with_true;
 --Error ER_UNKNOWN_CHARACTER_SET
 SET @@character_set_connection = ON;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_connection = repeat('e', 256);
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_connection = repeat('e', 1024);
 
 --echo '#--------------------FN_DYNVARS_011_11-------------------------#'
 ###############################################################################
@@ -224,6 +228,10 @@ SET @@global.character_set_connection = true;
 
 --Error ER_UNKNOWN_CHARACTER_SET
 SET @@global.character_set_connection = ON;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_connection = repeat('e', 256);
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_connection = repeat('e', 1024);
 
 --echo '#--------------------FN_DYNVARS_011_12-------------------------#'
 ##########################################################################

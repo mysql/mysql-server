@@ -26,8 +26,10 @@ Created 5/30/1994 Heikki Tuuri
 #include "rem0rec.h"
 
 #include <sys/types.h>
+#ifndef UNIV_HOTBACKUP
 
 #include "fts0fts.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "gis0geo.h"
 #include "mach0data.h"
 #include "mtr0log.h"
@@ -847,10 +849,12 @@ rec_convert_dtuple_to_rec_comp(
 		} else {
 			/* DATA_POINT would have a fixed_len */
 			ut_ad(dtype_get_mtype(type) != DATA_POINT);
+#ifndef UNIV_HOTBACKUP
 			ut_ad(len <= dtype_get_len(type)
 			      || DATA_LARGE_MTYPE(dtype_get_mtype(type))
 			      || !strcmp(index->name,
 					 FTS_INDEX_TABLE_IND_NAME));
+#endif /* !UNIV_HOTBACKUP */
 			if (len < 128 || !DATA_BIG_LEN_MTYPE(
 				dtype_get_len(type), dtype_get_mtype(type))) {
 

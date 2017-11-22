@@ -303,11 +303,12 @@ init_continent_share(PFS_engine_table_share_proxy *share)
                                  continent_index_next,
                                  continent_read_column_value,
                                  continent_reset_position,
-                                 NULL, /* READONLY TABLE */
-                                 NULL, /* READONLY TABLE */
-                                 NULL, /* READONLY TABLE */
-                                 NULL, /* READONLY TABLE */
-                                 NULL, /* READONLY TABLE */
+                                 /* READONLY TABLE */
+                                 NULL, /* write_column_value */
+                                 NULL, /* write_row_values */
+                                 NULL, /* update_column_value */
+                                 NULL, /* update_row_values */
+                                 NULL, /* delete_row_values */
                                  continent_open_table,
                                  continent_close_table};
 }

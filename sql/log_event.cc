@@ -3208,6 +3208,11 @@ static bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
       my_error(ER_MTS_INCONSISTENT_DATA, MYF(0), errbuf);
       return true;
     }
+    /* Don't have to do anything. */
+    return true;
+  case -1:
+    /* Unable to schedule: wait_for_last_committed_trx has failed */
+    return true;
   default:
     return false;
   }
@@ -3976,7 +3981,7 @@ int Log_event::apply_event(Relay_log_info *rli)
 #endif
 
 err:
-  if (rli_thd->is_error())
+  if (rli_thd->is_error() || (!worker && rli->abort_slave))
   {
     DBUG_ASSERT(!worker);
 
@@ -3998,7 +4003,7 @@ err:
     DBUG_ASSERT(worker || rli->curr_group_assigned_parts.size() == 0);
   }
 
-  DBUG_RETURN((!rli_thd->is_error() ||
+  DBUG_RETURN((!(rli_thd->is_error() || (!worker && rli->abort_slave)) ||
                DBUG_EVALUATE_IF("fault_injection_get_slave_worker", 1, 0)) ?
               0 : -1);
 }
@@ -9164,7 +9169,7 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols)
          ptr++)
     {
       Field *field= *ptr;
-      if (bitmap_is_set(cols, field->field_index))
+      if (bitmap_is_set(cols, field->field_index) && !field->is_virtual_gcol())
       {
         /* compare null bit */
         if (field->is_null() != field->is_null_in_record(table->record[1]))
@@ -10207,7 +10212,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       DBUG_RETURN(-1);
     }
     else if (state == GTID_STATEMENT_SKIP)
-      DBUG_RETURN(0);
+      goto end;
 
     /*
       The current statement is just about to begin and 
@@ -13857,19 +13862,39 @@ void Gtid_log_event::set_trx_length_by_cache_size(ulonglong cache_size,
   transaction_length+= POST_HEADER_LENGTH;
   transaction_length+= get_commit_timestamp_length();
   transaction_length+= is_checksum_enabled ? BINLOG_CHECKSUM_LEN : 0;
+  /*
+    Notice that it is not possible to determine the transaction_length field
+    size using pack.cc:net_length_size() since the length of the field itself
+    must be added to the value.
+
+    Example: Suppose transaction_length is 250 without considering the
+    transaction_length field. Using net_length_size(250) would return 1, but
+    when adding the transaction_length field size to it (+1), the
+    transaction_length becomes 251, and the field must be represented using two
+    more bytes, so the correct transaction length must be in fact 253.
+  */
+#ifndef DBUG_OFF
+  ulonglong size_without_transaction_length= transaction_length;
+#endif
   // transaction_length will use at least TRANSACTION_LENGTH_MIN_LENGTH
   transaction_length+= TRANSACTION_LENGTH_MIN_LENGTH;
+  DBUG_ASSERT(transaction_length - size_without_transaction_length == 1);
   if (transaction_length >= 251ULL)
   {
     // transaction_length will use at least 3 bytes
     transaction_length+= 2;
+    DBUG_ASSERT(transaction_length - size_without_transaction_length == 3);
     if (transaction_length >= 65536ULL)
     {
       // transaction_length will use at least 4 bytes
       transaction_length+= 1;
+      DBUG_ASSERT(transaction_length - size_without_transaction_length == 4);
       if (transaction_length >= 16777216ULL)
-      // transaction_length will use 9 bytes
-        transaction_length+= 4;
+      {
+        // transaction_length will use 9 bytes
+        transaction_length+= 5;
+        DBUG_ASSERT(transaction_length - size_without_transaction_length == 9);
+      }
     }
   }
 }

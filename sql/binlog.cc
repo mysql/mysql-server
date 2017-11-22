@@ -161,8 +161,8 @@ static bool binlog_savepoint_rollback_can_release_mdl(handlerton *hton,
 static int binlog_commit(handlerton *hton, THD *thd, bool all);
 static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
-static int binlog_xa_commit(handlerton *hton,  XID *xid);
-static int binlog_xa_rollback(handlerton *hton,  XID *xid);
+static xa_status_code binlog_xa_commit(handlerton *hton,  XID *xid);
+static xa_status_code binlog_xa_rollback(handlerton *hton,  XID *xid);
 static void exec_binlog_error_action_abort(const char* err_string);
 
 static inline bool has_commit_order_manager(THD *thd)
@@ -2084,6 +2084,8 @@ inline int do_binlog_xa_commit_rollback(THD *thd, XID *xid, bool commit)
     return 0;
   if (!xid_state->is_binlogged())
     return 0; // nothing was really logged at prepare
+  if (thd->is_error() && DBUG_EVALUATE_IF("simulate_xa_rm_error", 0, 1))
+    return 0; // don't binlog if there are some errors.
 
   DBUG_ASSERT(!xid->is_null() ||
               !(thd->variables.option_bits & OPTION_BIN_LOG));
@@ -2108,7 +2110,7 @@ inline int do_binlog_xa_commit_rollback(THD *thd, XID *xid, bool commit)
    @return error code, 0 success
 */
 
-inline int binlog_xa_commit_or_rollback(THD *thd, XID *xid, bool commit)
+inline xa_status_code binlog_xa_commit_or_rollback(THD *thd, XID *xid, bool commit)
 {
   int error= 0;
 
@@ -2131,29 +2133,26 @@ inline int binlog_xa_commit_or_rollback(THD *thd, XID *xid, bool commit)
     if (cache_mngr)
       cache_mngr->has_logged_xid= true;
     if (commit)
-      (void) mysql_bin_log.commit(thd, true);
+      error= mysql_bin_log.commit(thd, true);
     else
-      (void) mysql_bin_log.rollback(thd, true);
+      error= mysql_bin_log.rollback(thd, true);
     if (cache_mngr)
       cache_mngr->has_logged_xid= false;
   }
-  return error;
+
+  return error == TC_LOG::RESULT_SUCCESS ? XA_OK : XAER_RMERR;
 }
 
 
-static int binlog_xa_commit(handlerton*,  XID *xid)
+static xa_status_code binlog_xa_commit(handlerton*,  XID *xid)
 {
-  (void) binlog_xa_commit_or_rollback(current_thd, xid, true);
-
-  return 0;
+  return binlog_xa_commit_or_rollback(current_thd, xid, true);
 }
 
 
-static int binlog_xa_rollback(handlerton*,  XID *xid)
+static xa_status_code binlog_xa_rollback(handlerton*,  XID *xid)
 {
-  (void) binlog_xa_commit_or_rollback(current_thd, xid, false);
-
-  return 0;
+  return binlog_xa_commit_or_rollback(current_thd, xid, false);
 }
 
 /**
@@ -7130,7 +7129,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
       DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
       close_on_error= true;
       my_printf_error(ER_ERROR_ON_WRITE,
-                      ER_THD(current_thd, ER_CANT_OPEN_FILE),
+                      ER_THD(current_thd, ER_ERROR_ON_WRITE),
                       MYF(ME_FATALERROR), name,
                       errno, my_strerror(errbuf, sizeof(errbuf), errno));
       goto end;

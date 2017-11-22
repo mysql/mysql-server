@@ -1348,7 +1348,8 @@ static bool fill_dd_tablespace_id_or_name(THD *thd,
        also store the innodb_file_per_table tablespace name here since it
        is not a name of a real tablespace.
   */
-  const char *innodb_prefix= "innodb_";
+  const char *innodb_prefix= "innodb_file_per_table";
+  dd::Properties *options= &obj->options();
 
   if (hton->alter_tablespace &&
       !is_temporary_table &&
@@ -1393,9 +1394,17 @@ static bool fill_dd_tablespace_id_or_name(THD *thd,
       TABLE, even though the tablespaces are not supported by
       the engine.
     */
-    dd::Properties *options= &obj->options();
     options->set("tablespace", tablespace_name);
   }
+
+  /*
+    We are here only when user explicitly specifies the tablespace clause
+    in CREATE TABLE statement. Store a boolean flag in dd::Table::options
+    properties.
+    This is required in order for SHOW CREATE and CREATE LIKE to ignore
+    implicitly assumed tablespace, e.g., 'innodb_system'
+  */
+  options->set_bool("explicit_tablespace", true);
 
   DBUG_RETURN(false);
 }

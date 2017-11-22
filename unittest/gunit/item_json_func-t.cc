@@ -217,6 +217,15 @@ TEST_F(ItemJsonFuncTest, PartialUpdate)
                       true, true);
   }
 
+  // No-op update.
+  {
+    SCOPED_TRACE("");
+    do_partial_update(json_set, &m_field, "[0,\"abc\",100]", "[0,\"abc\",100]",
+                      true, true);
+    EXPECT_EQ(0U, m_table.get_binary_diffs(&m_field)->size());
+    EXPECT_EQ(0U, m_table.get_logical_diffs(&m_field)->size());
+  }
+
   // The array grows, so only logical update is OK.
   {
     SCOPED_TRACE("");

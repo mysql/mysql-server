@@ -2644,8 +2644,6 @@ CREATE TABLE test.t1 (
 
 DROP TABLE test.t1;
 
-# Needs to be removed after Bug#24619634 is fixed.
---source include/force_restart.inc
 --echo #
 --echo # Bug #25717383: MYSQLDUMP MAY EXECUTE ANY ARBITRARY QUERY
 --echo #

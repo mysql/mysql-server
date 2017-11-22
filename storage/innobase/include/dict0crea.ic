@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -90,6 +90,9 @@ dict_create_add_foreign_id(
 
 			if (innobase_check_identifier_length(
 				strchr(id,'/') + 1)) {
+				/* Server has already done this check,
+				So assert here */
+				ut_ad(0);
 				DBUG_RETURN(DB_IDENTIFIER_TOO_LONG);
 			}
 		}

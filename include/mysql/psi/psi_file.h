@@ -25,8 +25,6 @@
   @{
 */
 
-#include "my_inttypes.h"
-#include "my_io.h"
 #include "my_macros.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
 #include "my_sharedlib.h"
@@ -99,6 +97,8 @@ struct PSI_file_service_v1
   start_file_close_wait_v1_t start_file_close_wait;
   /** @sa end_file_close_wait_v1_t. */
   end_file_close_wait_v1_t end_file_close_wait;
+  /** @sa rename_file_close_wait_v1_t. */
+  end_file_rename_wait_v1_t end_file_rename_wait;
 };
 
 typedef struct PSI_file_service_v1 PSI_file_service_t;

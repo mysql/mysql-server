@@ -1,5 +1,7 @@
 call mtr.add_suppression("This is a warning from test plugin");
 call mtr.add_suppression("This is an error from test plugin");
+SET @orig_log_error_verbosity= @@global.log_error_verbosity;
+SET @@global.log_error_verbosity= 3;
 ------ Run plugin ------------------------------------------------
 INSTALL PLUGIN test_services_threaded SONAME 'TESTSERVICESTHREADED';
 ------ Wait until test execution in plugin is ready --------------
@@ -9,6 +11,7 @@ WHERE variable_name LIKE 'test_services_status';
 source include/wait_condition.inc;
 ------ Stop plugin -----------------------------------------------
 UNINSTALL PLUGIN test_services_threaded;
+SET @@global.log_error_verbosity= @orig_log_error_verbosity;
 ------ Service: my_snprintf --------------------------------------
 Starting test of my_snprintf in test_services_threaded.
 This is a text output of test_services_threaded formatted with my_snprintf.

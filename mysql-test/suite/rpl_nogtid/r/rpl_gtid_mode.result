@@ -342,7 +342,7 @@ SET @debug_saved= @@GLOBAL.DEBUG;
 SET GLOBAL DEBUG= "d,fault_injection_new_file_rotate_event";
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET @@GLOBAL.GTID_MODE= OFF_PERMISSIVE;
-ERROR HY000: Can't open file: 'slave-bin' (errno: 2 - No such file or directory)
+ERROR HY000: Error writing file 'slave-bin' (errno: 2 - No such file or directory)
 SET @@GLOBAL.GTID_MODE= OFF;
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET GLOBAL binlog_error_action= ABORT_SERVER;

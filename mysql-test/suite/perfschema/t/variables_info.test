@@ -286,17 +286,30 @@ select SET_TIME is not null as CHECK_TIME
   from performance_schema.variables_info
   where VARIABLE_NAME = 'sort_buffer_size';
 
-# See bug#26428017
-# select SET_TIME
-#   from performance_schema.variables_info
-#   where VARIABLE_NAME = 'foreign_key_checks';
+# foreign_key_checks is a Sys_var_bit,
+# which can NOT be set on the command line
+# It shows as DYNAMIC, with a SET_TIME
+
+select SET_TIME is not null as CHECK_TIME
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'foreign_key_checks';
+
+SELECT now() into @before_timestamp;
 
 --echo Sleep 1 second
 sleep 1;
 
 SET PERSIST foreign_key_checks = 0;
 
-select SET_TIME is not null as CHECK_TIME
+--echo Sleep 1 second
+sleep 1;
+
+SELECT now() into @after_timestamp;
+
+select VARIABLE_NAME, VARIABLE_SOURCE,
+  if (SET_TIME >= @before_timestamp, "pass", "fail") as SET_TIME_BEFORE_CHECK,
+  if (SET_TIME <= @after_timestamp, "pass", "fail") as SET_TIME_AFTER_CHECK,
+  SET_USER, SET_HOST
   from performance_schema.variables_info
   where VARIABLE_NAME = 'foreign_key_checks';
 

@@ -490,8 +490,6 @@ IF(WIN32)
   LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_win.cc)
 ENDIF()
 
-SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} ${SQL_GIS_SOURCES} PARENT_SCOPE)
-
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
@@ -700,10 +698,6 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
   )
 ENDIF()
 
-ADD_CONVENIENCE_LIBRARY(sql_rtree gis/rtree_support.cc)
-ADD_DEPENDENCIES(sql_rtree GenError)
-ADD_DEPENDENCIES(sql_rtree GenServerSource)
-ADD_DEPENDENCIES(sql_rtree sql_gis)
 ADD_CONVENIENCE_LIBRARY(sql_main ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
@@ -711,7 +705,7 @@ ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
   ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio regex
-  binlogevents_static sql_rtree ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
+  binlogevents_static ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
 
 ADD_CONVENIENCE_LIBRARY(sql_gis ${SQL_GIS_SOURCES})
 ADD_DEPENDENCIES(sql_gis GenServerSource)

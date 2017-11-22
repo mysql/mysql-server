@@ -11,4 +11,7 @@
 ##############################################################################
 
 rpl_row_binlog_max_cache_size : BUG#14126780 May 29 2012 Vasil Dimov timeout if est number of rows is 3 instead of 4
-rpl_perfschema_applier_xa_status_check : BUG#26710081 Aug 30 2017 Sujatha Disabled until bug is fixed
+
+# Expects behavor no longer possible
+rpl_nogtid.transactional_ddl_locking    : Bug#26953043 2017-10-11 dtjeldvo
+

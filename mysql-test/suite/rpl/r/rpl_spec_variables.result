@@ -144,6 +144,7 @@ SET @@global.default_week_format=0;
 SET @@session.default_week_format=0;
 
 * local_infile *
+SET @old_local_infile= @@global.local_infile;
 SET @@global.local_infile=0;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(20), c CHAR(254)) ENGINE=MyISAM;
 LOAD DATA LOCAL INFILE 'FILE' INTO TABLE t1 (b);
@@ -269,6 +270,7 @@ Warning	1681	Updating 'character_set_database' is deprecated. It will be made re
 SET @@global.collation_server=@restore_slave_collation_server;
 SET @@global.max_heap_table_size=@restore_slave_max_heap_table_size;
 SET @@global.default_storage_engine=@restore_slave_storage_engine;
+SET @@global.local_infile= @old_local_infile;
 
 call mtr.add_suppression("The table 't[12]' is full");
 include/rpl_end.inc

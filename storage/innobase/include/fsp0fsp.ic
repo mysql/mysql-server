@@ -413,7 +413,7 @@ fsp_flags_is_valid(
 		return(false);
 	}
 
-	/* The actual page size must be within 4k and 16K (3 =< ssize =< 5). */
+	/* The actual page size must be within 4k and 64K (3 =< ssize =< 7). */
 	if (page_ssize != 0
 	    && (page_ssize < UNIV_PAGE_SSIZE_MIN
 	        || page_ssize > UNIV_PAGE_SSIZE_MAX)) {

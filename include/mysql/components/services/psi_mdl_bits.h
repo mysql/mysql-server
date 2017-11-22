@@ -16,11 +16,6 @@
 #ifndef COMPONENTS_SERVICES_PSI_MDL_BITS_H
 #define COMPONENTS_SERVICES_PSI_MDL_BITS_H
 
-#include "my_inttypes.h"
-#include "my_macros.h"
-
-C_MODE_START
-
 /**
   @file
   Performance schema instrumentation interface.
@@ -67,15 +62,15 @@ typedef struct PSI_metadata_locker PSI_metadata_locker;
 struct PSI_metadata_locker_state_v1
 {
   /** Internal state. */
-  uint m_flags;
+  unsigned int m_flags;
   /** Current metadata lock. */
   struct PSI_metadata_lock *m_metadata_lock;
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Timer start. */
-  ulonglong m_timer_start;
+  unsigned long long m_timer_start;
   /** Timer function. */
-  ulonglong (*m_timer)(void);
+  unsigned long long (*m_timer)(void);
   /** Internal data. */
   void *m_wait;
 };
@@ -88,7 +83,7 @@ typedef PSI_metadata_lock *(*create_metadata_lock_v1_t)(
   opaque_mdl_duration mdl_duration,
   opaque_mdl_status mdl_status,
   const char *src_file,
-  uint src_line);
+  unsigned int src_line);
 
 typedef void (*set_metadata_lock_status_v1_t)(PSI_metadata_lock *lock,
                                               opaque_mdl_status mdl_status);
@@ -99,7 +94,7 @@ typedef struct PSI_metadata_locker *(*start_metadata_wait_v1_t)(
   struct PSI_metadata_locker_state_v1 *state,
   struct PSI_metadata_lock *mdl,
   const char *src_file,
-  uint src_line);
+  unsigned int src_line);
 
 typedef void (*end_metadata_wait_v1_t)(struct PSI_metadata_locker *locker,
                                        int rc);
@@ -107,7 +102,5 @@ typedef void (*end_metadata_wait_v1_t)(struct PSI_metadata_locker *locker,
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state;
 
 /** @} (end of group psi_abi_mdl) */
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_PSI_MDL_BITS_H */

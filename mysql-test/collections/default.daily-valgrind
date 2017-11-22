@@ -6,8 +6,6 @@ perl mysql-test-run.pl --force --timer --testcase-timeout=60  --debug-server --p
 perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=stress-debug --vardir=var-stress-debug  --suite=stress
 perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=jp-debug --vardir=var-jp-debug --suite=jp
 perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=nist-debug  --vardir=var-nist-debug --suite=nist
-perl mysql-test-run.pl --force --timer  --debug-server --parallel=1 --experimental=collections/default.experimental --comment=rpl_many_mysqlds-debug  --vardir=var-rpl_many_mysqlds-debug --suite=rpl_many_mysqlds
-
 
 # Engine independent tests
 perl mysql-test-run.pl --timer --force  --testcase-timeout=60 --debug-server --parallel=auto  --comment=eits-tests-myisam-engine-debug --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-myisam-engine-debug --suite=engines/iuds,engines/funcs --suite-timeout=500 --mysqld=--default-storage-engine=myisam --mysqld=--default-tmp-storage-engine=myisam  --no-skip

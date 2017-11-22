@@ -9,6 +9,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/begin_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
 # Configure partial JSON on master
 [connection master]
+SET @old_binlog_row_image= @@SESSION.BINLOG_ROW_IMAGE;
+SET @old_binlog_row_value_options= @@SESSION.BINLOG_ROW_VALUE_OPTIONS;
 SET @@SESSION.BINLOG_ROW_IMAGE = 'MINIMAL';
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 # Add error suppressions on slave
@@ -1068,4 +1070,10 @@ RESET MASTER;
 [connection slave]
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
+[connection master]
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
+SET @@SESSION.BINLOG_ROW_IMAGE= @old_binlog_row_image;
+include/end_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
+[connection slave]
+include/end_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
 include/rpl_end.inc

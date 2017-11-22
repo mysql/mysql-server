@@ -21,14 +21,12 @@ typedef int myf;
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_mutex_bits.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
 typedef unsigned int PSI_mutex_key;
 struct PSI_mutex_info_v1
 {
   PSI_mutex_key *m_key;
   const char *m_name;
-  uint m_flags;
+  unsigned int m_flags;
   int m_volatility;
   const char *m_documentation;
 };
@@ -44,12 +42,12 @@ enum PSI_mutex_operation
 typedef enum PSI_mutex_operation PSI_mutex_operation;
 struct PSI_mutex_locker_state_v1
 {
-  uint m_flags;
+  unsigned int m_flags;
   enum PSI_mutex_operation m_operation;
   struct PSI_mutex *m_mutex;
   struct PSI_thread *m_thread;
-  ulonglong m_timer_start;
-  ulonglong (*m_timer)(void);
+  unsigned long long m_timer_start;
+  unsigned long long (*m_timer)(void);
   void *m_wait;
 };
 typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state_v1;

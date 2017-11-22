@@ -1,6 +1,10 @@
 #ifndef ITEMS_H
 #define ITEMS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * You should not try to aquire any of the item locks before calling these
  * functions.
@@ -188,5 +192,9 @@ tap_event_t item_tap_walker(ENGINE_HANDLE* handle,
 bool initialize_item_tap_walker(struct default_engine *engine,
                                 const void* cookie);
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

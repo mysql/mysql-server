@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#ifndef UNIV_HOTBACKUP
 #include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -64,6 +65,12 @@
 #include "thr_lock.h"
 #include "typelib.h"
 
+#else /* !UNIV_HOTBACKUP */
+#ifdef MYSQL_CLIENT
+#undef MYSQL_CLIENT
+#endif /* MYSQL_CLIENT */
+#endif /* !UNIV_HOTBACKUP */
+#ifndef UNIV_HOTBACKUP
 namespace histograms
 {
   class Histogram;
@@ -133,6 +140,7 @@ enum class enum_json_diff_operation;
   structures representing outer joins that have not been simplified away).
 */
 typedef ulonglong nested_join_map;
+#endif /* !UNIV_HOTBACKUP */
 
 
 #define tmp_file_prefix "#sql"			/**< Prefix for tmp tables */
@@ -140,6 +148,7 @@ typedef ulonglong nested_join_map;
 #define TMP_TABLE_KEY_EXTRA 8
 #define PLACEHOLDER_TABLE_ROW_ESTIMATE 2
 
+#ifndef UNIV_HOTBACKUP
 /**
   Enumerate possible types of a table from re-execution
   standpoint.
@@ -295,7 +304,16 @@ typedef struct st_order {
      SELECT a AS foo GROUP BY a: false.
   */
   bool   used_alias;
-  Field  *field;                        /* If tmp-table group */
+  /**
+    When GROUP BY is implemented with a temporary table (i.e. the table takes
+    care to store only unique group rows, table->group != nullptr), each GROUP
+    BY expression is stored in a column of the table, which is
+    'field_in_tmp_table'.
+    Such field may point into table->record[0] (if we only use it to get its
+    value from a tmp table's row), or into 'buff' (if we use it to do index
+    lookup into the tmp table).
+  */
+  Field  *field_in_tmp_table;
   char   *buff;                         /* If tmp-table group */
   table_map used, depend_map;
   bool is_position;  /* An item expresses a position in a ORDER clause */
@@ -631,6 +649,17 @@ typedef struct Table_share_foreign_key_info
 {
   LEX_CSTRING referenced_table_db;
   LEX_CSTRING referenced_table_name;
+  /**
+    Name of unique key matching FK in parent table, "" if there is no
+    unique key.
+  */
+  LEX_CSTRING unique_constraint_name;
+  dd::Foreign_key::enum_rule update_rule, delete_rule;
+  uint columns;
+  /**
+    Arrays with names of referencing columns of the FK.
+  */
+  LEX_CSTRING *column_name;
 } TABLE_SHARE_FOREIGN_KEY_INFO;
 
 
@@ -3809,8 +3838,10 @@ extern LEX_STRING MYSQL_TABLESPACE_NAME;
 extern LEX_STRING RLI_INFO_NAME;
 extern LEX_STRING MI_INFO_NAME;
 extern LEX_STRING WORKER_INFO_NAME;
+#endif /* !UNIV_HOTBACKUP */
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
+#ifndef UNIV_HOTBACKUP
 inline bool is_infoschema_db(const char *name, size_t len)
 {
   return (INFORMATION_SCHEMA_NAME.length == len &&
@@ -4026,4 +4057,5 @@ bool create_table_share_for_upgrade(THD *thd,
                                     bool is_fix_view_cols_and_deps);
 //////////////////////////////////////////////////////////////////////////
 
+#endif /* !UNIV_HOTBACKUP */
 #endif /* TABLE_INCLUDED */

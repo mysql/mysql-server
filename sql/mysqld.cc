@@ -663,6 +663,8 @@ const char *my_localhost= "localhost";
 
 bool opt_large_files= sizeof(my_off_t) > 4;
 static bool opt_autocommit; ///< for --autocommit command-line option
+static get_opt_arg_source source_autocommit;
+
 /*
   Used with --help for detailed option
 */
@@ -1080,7 +1082,7 @@ Lt_creator lt_creator;
 Ge_creator ge_creator;
 Le_creator le_creator;
 
-Rpl_filter* global_rpl_filter;
+Rpl_global_filter rpl_global_filter;
 Rpl_filter* binlog_filter;
 
 struct System_variables global_system_variables;
@@ -2023,8 +2025,7 @@ static void clean_up(bool print_message)
   free_max_user_conn();
   end_slave_list();
   delete binlog_filter;
-  delete global_rpl_filter;
-  rpl_filter_map.clean_up();
+  rpl_channel_filters.clean_up();
   end_ssl();
   vio_end();
   my_regex_end();
@@ -2036,7 +2037,7 @@ static void clean_up(bool print_message)
   delete_pid_file(MYF(0));
 
   if (print_message && my_default_lc_messages && server_start_time)
-    LogErr(INFORMATION_LEVEL, ER_SHUTDOWN_COMPLETE, my_progname).force_print();
+    LogErr(SYSTEM_LEVEL, ER_SHUTDOWN_COMPLETE, my_progname);
   cleanup_errmsgs();
 
   free_connection_acceptors();
@@ -2120,8 +2121,10 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_default_password_lifetime);
   mysql_mutex_destroy(&LOCK_mandatory_roles);
   mysql_mutex_destroy(&LOCK_server_started);
+  mysql_cond_destroy(&COND_server_started);
   mysql_mutex_destroy(&LOCK_reset_gtid_table);
   mysql_mutex_destroy(&LOCK_compress_gtid_table);
+  mysql_cond_destroy(&COND_compress_gtid_table);
   mysql_mutex_destroy(&LOCK_password_history);
   mysql_mutex_destroy(&LOCK_password_reuse_interval);
   mysql_cond_destroy(&COND_manager);
@@ -3324,9 +3327,8 @@ int init_common_variables()
   max_system_variables.pseudo_thread_id= (my_thread_id) ~0;
   server_start_time= flush_status_time= my_time(0);
 
-  global_rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
-  if (!global_rpl_filter || !binlog_filter)
+  if (!binlog_filter)
   {
     LogErr(ERROR_LEVEL, ER_RPL_BINLOG_FILTERS_OOM, strerror(errno));
     return 1;
@@ -3486,8 +3488,8 @@ int init_common_variables()
   }
   set_server_version();
 
-  LogErr(INFORMATION_LEVEL, ER_STARTING_AS,
-         my_progname, server_version, (ulong) getpid()).force_print();
+  LogErr(SYSTEM_LEVEL, ER_STARTING_AS,
+         my_progname, server_version, (ulong) getpid());
 
   if (opt_help && !opt_verbose)
     unireg_abort(MYSQLD_SUCCESS_EXIT);
@@ -3796,13 +3798,24 @@ int init_common_variables()
     Build do_table and ignore_table rules to hashes
     after the resetting of table_alias_charset.
   */
-  if (global_rpl_filter->build_do_table_hash() ||
-      global_rpl_filter->build_ignore_table_hash())
+  if (rpl_global_filter.build_do_table_hash() ||
+      rpl_global_filter.build_ignore_table_hash())
   {
     LogErr(ERROR_LEVEL, ER_CANT_HASH_DO_AND_IGNORE_RULES);
     return 1;
   }
-  if (rpl_filter_map.build_do_and_ignore_table_hashes())
+
+  /*
+    Reset the P_S view for global replication filter at
+    the end of server startup.
+  */
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  rpl_global_filter.wrlock();
+  rpl_global_filter.reset_pfs_view();
+  rpl_global_filter.unlock();
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+  if (rpl_channel_filters.build_do_and_ignore_table_hashes())
     return 1;
 
   return 0;
@@ -5096,7 +5109,7 @@ extern "C" void *handle_shutdown(void *arg)
   PeekMessage(&msg, NULL, 1, 65534,PM_NOREMOVE);
   if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
   {
-    LogErr(INFORMATION_LEVEL, ER_NORMAL_SHUTDOWN, my_progname).force_print();
+    LogErr(SYSTEM_LEVEL, ER_NORMAL_SHUTDOWN, my_progname);
     set_connection_events_loop_aborted(true);
     close_connections();
     my_thread_end();
@@ -5615,7 +5628,7 @@ int mysqld_main(int argc, char **argv)
   /*
     We have enough space for fiddling with the argv, continue
   */
-  if (my_setwd(mysql_real_data_home,MYF(MY_WME)) && !opt_help)
+  if (!opt_help && my_setwd(mysql_real_data_home,MYF(MY_WME)))
   {
     LogErr(ERROR_LEVEL, ER_CANT_SET_DATADIR, mysql_real_data_home);
     unireg_abort(MYSQLD_ABORT_EXIT);        /* purecov: inspected */
@@ -5934,10 +5947,62 @@ int mysqld_main(int argc, char **argv)
   }
 
   /*
-    activate loadable error logging components, if any
+    Activate loadable error logging components, if any.
   */
   if (log_builtins_error_stack(opt_log_error_services, true) >= 0)
-    log_builtins_error_stack(opt_log_error_services, false);
+  {
+    // Syntax is OK and services exist; let's try to initialize them:
+    int rr= log_builtins_error_stack(opt_log_error_services, false);
+
+    // Well, that didn't work. Print diagnostics and bail.
+    if (rr < 0)
+    {
+      char       *problem=  opt_log_error_services;
+      const char *var_name= "log_error_services";
+
+      rr= -(rr + 1);
+
+      if (((size_t) rr) < strlen(opt_log_error_services))
+        problem= &((char *) opt_log_error_services)[rr];
+
+      /*
+        Try to fall back to default error logging stack.
+        If that's possible, print diagnostics there, then exit.
+      */
+      sys_var *var= intern_find_sys_var(var_name, strlen(var_name));
+
+      if (var != nullptr)
+      {
+        opt_log_error_services= (char *) var->get_default();
+        if (log_builtins_error_stack(opt_log_error_services, false) >= 0)
+        {
+          LogErr(ERROR_LEVEL, ER_CANT_START_ERROR_LOG_SERVICE,
+                 var_name, problem);
+          unireg_abort(MYSQLD_ABORT_EXIT);
+        }
+      }
+
+      /*
+        We failed to set the default error logging stack. At this point,
+        we don't know whether ANY of the requested sinks work,
+        so our best bet is to write directly to the error stream.
+        Then, we abort.
+      */
+      {
+        char        buff[512];
+        size_t      len;
+
+        len= snprintf(buff, sizeof(buff),
+                      ER_DEFAULT(ER_CANT_START_ERROR_LOG_SERVICE),
+                      var_name, problem);
+        len= std::min(len, sizeof(buff) - 1);
+
+        log_write_errstream(buff, len);
+
+        unireg_abort(MYSQLD_ABORT_EXIT);
+      }
+    }
+  }
   else
   {
     sql_print_information("Cannot set services \"%s\" requested in "
@@ -5990,7 +6055,7 @@ int mysqld_main(int argc, char **argv)
       Group replication filters should be discarded before init_slave(), otherwise
       the pre-configured filters will be referenced by group replication channels.
     */
-    rpl_filter_map.discard_group_replication_filters();
+    rpl_channel_filters.discard_group_replication_filters();
 
     /*
       init_slave() must be called after the thread keys are created.
@@ -6010,7 +6075,7 @@ int mysqld_main(int argc, char **argv)
       'group_replication_applier' which is disallowed, then the
       per-channel replication filter is discarded with a warning.
     */
-    rpl_filter_map.discard_all_unattached_filters();
+    rpl_channel_filters.discard_all_unattached_filters();
   }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -6068,7 +6133,7 @@ int mysqld_main(int argc, char **argv)
   create_compress_gtid_table_thread();
 
   LogEvent().type(LOG_TYPE_ERROR)
-            .prio(INFORMATION_LEVEL)
+            .prio(SYSTEM_LEVEL)
             .lookup(ER_STARTUP,
                     my_progname,
                     server_version,
@@ -6077,7 +6142,7 @@ int mysqld_main(int argc, char **argv)
 #  else
                     (char*) "",
 #  endif
-                    mysqld_port, MYSQL_COMPILATION_COMMENT).force_print();
+                    mysqld_port, MYSQL_COMPILATION_COMMENT);
 
 #if defined(_WIN32)
   Service.SetRunning();
@@ -6642,11 +6707,13 @@ struct my_option my_long_options[]=
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   /*
     Because Sys_var_bit does not support command-line options, we need to
-    explicitely add one for --autocommit
+    explicitly add one for --autocommit
   */
   {"autocommit", 0, "Set default value for autocommit (0 or 1)",
    &opt_autocommit, &opt_autocommit, 0,
-   GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, NULL},
+   GET_BOOL, OPT_ARG, 1, 0, 0,
+   & source_autocommit, /* arg_source, to be copied to Sys_var */
+   0, NULL},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, "
    "and exclude all others not explicitly mentioned.",
@@ -8164,9 +8231,9 @@ static int mysql_init_variables()
   @retval
     1    Error
 */
-static bool is_global_rpl_filter_setting(char* argument)
+static bool is_rpl_global_filter_setting(char* argument)
 {
-  DBUG_ENTER("is_global_rpl_filter_setting");
+  DBUG_ENTER("is_rpl_global_filter_setting");
 
   bool res= false;
   char *p= strchr(argument, ':');
@@ -8291,7 +8358,19 @@ mysqld_get_one_option(int optid,
       LogErr(WARNING_LEVEL, ER_THE_USER_ABIDES, argument, mysqld_user);
     break;
   case 's':
-    push_deprecated_warn_no_replacement(NULL, "--symbolic-links/-s");
+    if (argument[0] == '0')
+    {
+      sql_print_warning("Disabling symbolic links using --skip-symbolic-links "
+                        "(or equivalent) is the default. Consider not using "
+                        "this option as it is deprecated and will be removed "
+                        "in a future release.");
+    }
+    else
+    {
+      sql_print_warning("Enabling symbolic links using --symbolic-links/-s "
+                        "(or equivalent) is deprecated and will be removed in "
+                        "a future release.");
+    }
     break;
   case 'L':
     push_deprecated_warn(NULL, "--language/-l", "'--lc-messages-dir'");
@@ -8354,60 +8433,60 @@ mysqld_get_one_option(int optid,
     break;
   case (int)OPT_REPLICATE_IGNORE_DB:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      global_rpl_filter->add_ignore_db(argument);
-      global_rpl_filter->ignore_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.add_ignore_db(argument);
+      rpl_global_filter.ignore_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       rpl_filter->add_ignore_db(filter_val);
       rpl_filter->ignore_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_DO_DB:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      global_rpl_filter->add_do_db(argument);
-      global_rpl_filter->do_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.add_do_db(argument);
+      rpl_global_filter.do_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       rpl_filter->add_do_db(filter_val);
       rpl_filter->do_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_REWRITE_DB:
   {
     char* key,*val;
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
       if (parse_replicate_rewrite_db(&key, &val, argument))
         return 1;
-      global_rpl_filter->add_db_rewrite(key, val);
-      global_rpl_filter->rewrite_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.add_db_rewrite(key, val);
+      rpl_global_filter.rewrite_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (parse_replicate_rewrite_db(&key, &val, filter_val))
         return 1;
       rpl_filter->add_db_rewrite(key, val);
       rpl_filter->rewrite_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
@@ -8424,73 +8503,73 @@ mysqld_get_one_option(int optid,
   }
   case (int)OPT_REPLICATE_DO_TABLE:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      if (global_rpl_filter->add_do_table_array(argument))
+      if (rpl_global_filter.add_do_table_array(argument))
       {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_DO_TABLE, argument);
         return 1;
       }
-      global_rpl_filter->do_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.do_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_do_table_array(filter_val))
       {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_DO_TABLE, argument);
         return 1;
       }
       rpl_filter->do_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_WILD_DO_TABLE:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      if (global_rpl_filter->add_wild_do_table(argument))
+      if (rpl_global_filter.add_wild_do_table(argument))
       {
         sql_print_error("Could not add wild do table rule '%s'!\n", argument);
         return 1;
       }
-      global_rpl_filter->wild_do_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.wild_do_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_wild_do_table(filter_val))
       {
         sql_print_error("Could not add wild do table rule '%s'!\n", argument);
         return 1;
       }
       rpl_filter->wild_do_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_WILD_IGNORE_TABLE:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      if (global_rpl_filter->add_wild_ignore_table(argument))
+      if (rpl_global_filter.add_wild_ignore_table(argument))
       {
         sql_print_error("Could not add wild ignore table rule '%s'!\n",
                         argument);
         return 1;
       }
-      global_rpl_filter->wild_ignore_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.wild_ignore_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_wild_ignore_table(filter_val))
       {
         sql_print_error("Could not add wild ignore table rule '%s'!\n",
@@ -8498,33 +8577,33 @@ mysqld_get_one_option(int optid,
         return 1;
       }
       rpl_filter->wild_ignore_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_IGNORE_TABLE:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      if (global_rpl_filter->add_ignore_table_array(argument))
+      if (rpl_global_filter.add_ignore_table_array(argument))
       {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_IGNORE_TABLE, argument);
         return 1;
       }
-      global_rpl_filter->ignore_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.ignore_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_ignore_table_array(filter_val))
       {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_IGNORE_TABLE, argument);
         return 1;
       }
       rpl_filter->ignore_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
@@ -8930,12 +9009,19 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   else
     global_system_variables.option_bits&= ~OPTION_BIG_SELECTS;
 
-  // Synchronize @@global.autocommit on --autocommit
+  // Synchronize @@global.autocommit value on --autocommit
   const ulonglong turn_bit_on= opt_autocommit ?
     OPTION_AUTOCOMMIT : OPTION_NOT_AUTOCOMMIT;
   global_system_variables.option_bits=
     (global_system_variables.option_bits &
      ~(OPTION_NOT_AUTOCOMMIT | OPTION_AUTOCOMMIT)) | turn_bit_on;
+
+  // Synchronize @@global.autocommit metadata on --autocommit
+  my_option *opt = & my_long_options[3];
+  DBUG_ASSERT(strcmp(opt->name, "autocommit") == 0);
+  DBUG_ASSERT(opt->arg_source != NULL);
+  Sys_autocommit_ptr->set_source_name(opt->arg_source->m_path_name);
+  Sys_autocommit_ptr->set_source(opt->arg_source->m_source);
 
   global_system_variables.sql_mode=
     expand_sql_mode(global_system_variables.sql_mode, NULL);

@@ -174,7 +174,7 @@ explain SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)'));
 #select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6)),ST_issimple(ST_PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),ST_issimple(ST_GeometryFromText('POINT(1 4)')), ST_issimple(ST_AsWKB(ST_GeometryFromText('POINT(1 4)')));
 explain select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6));
 
-create table t1 (a geometry not null);
+create table t1 (a geometry not null SRID 0);
 insert into t1 values (ST_GeomFromText('Point(1 2)'));
 -- error 1416
 insert into t1 values ('Garbage');
@@ -188,7 +188,7 @@ drop table t1;
 # Bug #5219: problem with range optimizer
 #
 
-create table t1(a geometry not null, spatial index(a));
+create table t1(a geometry not null SRID 0, spatial index(a));
 insert into t1 values
 (ST_GeomFromText('POINT(1 1)')), (ST_GeomFromText('POINT(3 3)')),
 (ST_GeomFromText('POINT(4 4)')), (ST_GeomFromText('POINT(6 6)'));
@@ -202,7 +202,7 @@ select ST_AsText(a) from t1 where
   MBRContains(ST_GeomFromText('Polygon((0 0, 0 7, 7 7, 7 0, 0 0))'), a);
 drop table t1;
 
-CREATE TABLE t1 (Coordinates POINT NOT NULL, SPATIAL INDEX(Coordinates));
+CREATE TABLE t1 (Coordinates POINT NOT NULL SRID 0, SPATIAL INDEX(Coordinates));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(383293632 1754448)'));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(564952612 157516260)'));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(903994614 180726515)'));
@@ -298,7 +298,7 @@ drop table t1;
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
-geometry NOT NULL default '');
+geometry NOT NULL);
 SET sql_mode = default;
 
 insert into t1 values ('85984',ST_GeomFromText('MULTIPOLYGON(((-115.006363
@@ -396,7 +396,7 @@ select ST_asbinary(g) from t1;
 --disable_metadata
 drop table t1;
 
-create table t1 (a TEXT, b GEOMETRY NOT NULL, SPATIAL KEY(b));
+create table t1 (a TEXT, b GEOMETRY NOT NULL SRID 0, SPATIAL KEY(b));
 alter table t1 disable keys;
 --error 1263
 load data infile '../../std_data/bad_gis_data.dat' into table t1;
@@ -462,12 +462,12 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (
-  geomdata polygon NOT NULL,
+  geomdata polygon NOT NULL SRID 0,
   SPATIAL KEY index_geom (geomdata)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
 
 CREATE TABLE t2 (
-  geomdata polygon NOT NULL,
+  geomdata polygon NOT NULL SRID 0,
   SPATIAL KEY index_geom (geomdata)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
 
@@ -493,7 +493,7 @@ drop table t3;
 #
 
 create table t1(col1 geometry default null,col15 geometrycollection not
-null,spatial index(col15),index(col1(15)))engine=innodb;
+null SRID 0,spatial index(col15),index(col1(15)))engine=innodb;
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
 insert into t1 set col15 = ST_GeomFromText('POINT(6 5)');
 --error ER_CANT_CREATE_GEOMETRY_OBJECT

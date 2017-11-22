@@ -21,14 +21,14 @@ typedef int myf;
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_thread_bits.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
-#include "my_thread.h"
-#include "my_io.h"
-static inline int is_directory_separator(char c)
+#include <mysql/components/services/my_thread_bits.h>
+typedef pthread_t my_thread_t;
+typedef pthread_attr_t my_thread_attr_t;
+typedef struct st_my_thread_handle
 {
-  return c == '/';
-}
+  my_thread_t thread;
+} my_thread_handle;
+#include <mysql/components/services/my_io_bits.h>
 typedef int File;
 typedef mode_t MY_MODE;
 typedef socklen_t socket_len_t;
@@ -46,7 +46,7 @@ struct PSI_thread_info_v1
 {
   PSI_thread_key *m_key;
   const char *m_name;
-  uint m_flags;
+  unsigned int m_flags;
   int m_volatility;
   const char *m_documentation;
 };
@@ -61,9 +61,9 @@ typedef int (*spawn_thread_v1_t)(PSI_thread_key key,
                                  void *arg);
 typedef struct PSI_thread *(*new_thread_v1_t)(PSI_thread_key key,
                                               const void *identity,
-                                              ulonglong thread_id);
+                                              unsigned long long thread_id);
 typedef void (*set_thread_THD_v1_t)(struct PSI_thread *thread, THD *thd);
-typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread, ulonglong id);
+typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread, unsigned long long id);
 typedef void (*set_thread_os_id_v1_t)(struct PSI_thread *thread);
 typedef struct PSI_thread *(*get_thread_v1_t)(void);
 typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
@@ -76,12 +76,12 @@ typedef void (*set_thread_command_v1_t)(int command);
 typedef void (*set_connection_type_v1_t)(opaque_vio_type conn_type);
 typedef void (*set_thread_start_time_v1_t)(time_t start_time);
 typedef void (*set_thread_state_v1_t)(const char *state);
-typedef void (*set_thread_info_v1_t)(const char *info, uint info_len);
+typedef void (*set_thread_info_v1_t)(const char *info, unsigned int info_len);
 typedef int (*set_thread_resource_group_v1_t)(const char *group_name,
                                               int group_name_len,
                                               void *user_data);
 typedef int (*set_thread_resource_group_by_id_v1_t)(PSI_thread *thread,
-                                                    ulonglong thread_id,
+                                                    unsigned long long thread_id,
                                                     const char *group_name,
                                                     int group_name_len,
                                                     void *user_data);
@@ -89,15 +89,15 @@ typedef void (*set_thread_v1_t)(struct PSI_thread *thread);
 typedef void (*delete_current_thread_v1_t)(void);
 typedef void (*delete_thread_v1_t)(struct PSI_thread *thread);
 typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer,
-                                             uint length,
+                                             unsigned int length,
                                              const void *from_cs);
-typedef void (*get_thread_event_id_v1_t)(ulonglong *thread_internal_id,
-                                         ulonglong *event_id);
+typedef void (*get_thread_event_id_v1_t)(unsigned long long *thread_internal_id,
+                                         unsigned long long *event_id);
 struct PSI_thread_attrs_v1
 {
-  ulonglong m_thread_internal_id;
-  ulong m_processlist_id;
-  ulonglong m_thread_os_id;
+  unsigned long long m_thread_internal_id;
+  unsigned long m_processlist_id;
+  unsigned long long m_thread_os_id;
   void *m_user_data;
   char m_username[(32 * 3)];
   size_t m_username_length;
@@ -122,7 +122,7 @@ struct PSI_notification_v1
 typedef struct PSI_notification_v1 PSI_notification;
 typedef int (*get_thread_system_attrs_v1_t)(PSI_thread_attrs *thread_attrs);
 typedef int (*get_thread_system_attrs_by_id_v1_t)(
-  PSI_thread *thread, ulonglong thread_id, PSI_thread_attrs *thread_attrs);
+  PSI_thread *thread, unsigned long long thread_id, PSI_thread_attrs *thread_attrs);
 typedef int (*register_notification_v1_t)(const PSI_notification *callbacks,
                                           bool with_ref_count);
 typedef int (*unregister_notification_v1_t)(int handle);

@@ -859,6 +859,13 @@
   @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" to pick a value
   automatically, based on system information. The parallel option may
   also be given using the environment variable <b>MTR_PARALLEL</b>.
+
+  @note
+  Test cases which use <b>not_parallel.inc</b> are run at the end with
+  a parallel value of <b>1</b> overriding the <b>`--parallel`</b>
+  option value. Such test cases will be executed at the end of the test
+  run one at a time. These tests also require
+  <b>`--non-parallel-test`</b> option to be ON.
 */
 
 ###############################################################################
@@ -4537,6 +4544,15 @@
     </li>
 
     <li>
+      <tt>`--non-parallel-test`</tt>
+
+      Allow tests marked as "non-parallel" to run. Tests can be thus
+      marked by including the line
+      <b>`--source` include/not_parallel.inc</b>, and they will only
+      be run if this option is enabled.
+    </li>
+
+    <li>
       <tt>`--sanitize`</tt>
 
       Scan the server log files for warnings from various sanitizers.
@@ -6229,7 +6245,7 @@
 
       Execute the shell command using the <b>popen()</b> library call.
       References to variables within the command are replaced with the
-      corresponding values. Use “<b>\$</b>” to specify a literal
+      corresponding values. Use “<b>\\$</b>” to specify a literal
       “<b>$</b>” character.
 
       On Cygwin, the command is executed from <b>cmd.exe</b>, so

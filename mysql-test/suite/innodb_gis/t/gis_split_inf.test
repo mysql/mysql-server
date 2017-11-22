@@ -1,7 +1,7 @@
 
 --source include/have_debug.inc
 
-create table t1(a geometrycollection not null,spatial key(a))engine=innodb;
+create table t1(a geometrycollection not null srid 0,spatial key(a))engine=innodb;
 
 --error ER_GIS_INVALID_DATA
 insert into  t1(a)  values( geometrycollection(multipolygon(polygon(linestring(point(-14,98), point(-14,98)), linestring(point(-97,64), point(-70,99), point(-97,64)), linestring(point(143851215403059150000000000000000000000.000000,13040009882500140000000000000000000000.000000), point(-73,85), point(-88,-29)))), multipolygon(polygon(linestring(point(41,95), point(4294967298,2050)), linestring(point(-61,85), point(-75,93), point(14,-2), point(1,84), point(-61,85)), linestring(point(-62,52), point(39,5), point(-18,12), point(-62,52))), polygon(linestring(point(-77,1), point(66,61), point(-77,1)), linestring(point(18446744073709551615,1125899906842622), point(-72,49), point(24,-66), point(82,73), point(68,22))), polygon(linestring(point(1048576,17179869181), point(-18,95), point(-90,-3), point(-33,82), point(20,-85)), linestring(point(-43,-97), point(-7,-3), point(39,-82), point(-65,-58), point(-43,-97)), linestring(point(44,-34), point(-69,58), point(44,-34)), linestring(point(57,-13), point(-17,74), point(57,-13)), linestring(point(3,71), point(-58,81), point(3,71)), linestring(point(9,25), point(77,-71), point(8388607,67108864), point(46,46), point(9,25)), linestring(point(98,-82), point(98,-82))))) )  ;

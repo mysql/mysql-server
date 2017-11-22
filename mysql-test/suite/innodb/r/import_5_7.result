@@ -12,24 +12,6 @@ a	b	c	d
 ["ibd2sdi"
 ,
 {
-	"type": 0,
-	"id": X,
-	"object":
-		{
-    "mysqld_version_id": X,
-    "dd_version": 80004,
-    "sdi_version": 1,
-    "dd_object_type": "Schema",
-    "dd_object": {
-        "name": "test",
-        "default_collation_id": 255,
-        "created": NNN,
-        "last_altered": NNN
-    }
-}
-}
-,
-{
 	"type": 1,
 	"id": X,
 	"object":
