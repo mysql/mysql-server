@@ -14603,7 +14603,10 @@ role_or_privilege:
         | FILE_SYM
           { $$= NEW_PTN PT_static_privilege(@1, FILE_ACL); }
         | GRANT OPTION
-          { $$= NEW_PTN PT_static_privilege(@1, GRANT_ACL); }
+          {
+            $$= NEW_PTN PT_static_privilege(@1, GRANT_ACL);
+            Lex->grant_privilege= true;
+          }
         | SHOW DATABASES
           { $$= NEW_PTN PT_static_privilege(@1, SHOW_DB_ACL); }
         | SUPER_SYM

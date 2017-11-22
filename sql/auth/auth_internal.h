@@ -284,6 +284,10 @@ bool rename_dynamic_grant(const LEX_CSTRING &old_user,
                           const LEX_CSTRING &new_user,
                           const LEX_CSTRING &new_host,
                           Update_dynamic_privilege_table &update_table);
+bool grant_grant_option_for_all_dynamic_privileges(const LEX_CSTRING &str_user,
+  const LEX_CSTRING &str_host, Update_dynamic_privilege_table &func);
+bool revoke_grant_option_for_all_dynamic_privileges(const LEX_CSTRING &str_user,
+  const LEX_CSTRING &str_host, Update_dynamic_privilege_table &func);
 bool operator==(const Role_id &a, const Auth_id_ref &b);
 bool operator==(const Auth_id_ref &a, const Role_id &b);
 bool operator==(const std::pair<const Role_id, const Role_id> &a,

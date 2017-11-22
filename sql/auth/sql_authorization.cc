@@ -3338,6 +3338,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     }
 
     bool with_grant_option= ((rights & GRANT_ACL) != 0);
+    bool grant_option= thd->lex->grant_privilege;
     if (db == 0 && with_grant_option && (rights | GRANT_ACL) == 0 &&
         dynamic_privilege.elements > 0)
     {
@@ -3490,6 +3491,24 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
             my_error(ER_SYNTAX_ERROR, MYF(0));
           break;
         }
+      }
+    }
+    if (!db && grant_option)
+    {
+      bool error= 0;
+      Update_dynamic_privilege_table update_table(thd, dynpriv_table);
+      if (!revoke_grant)
+        error= grant_grant_option_for_all_dynamic_privileges(user->user,
+                                                             user->host,
+                                                             update_table);
+      else
+        error= revoke_grant_option_for_all_dynamic_privileges(user->user,
+                                                              user->host,
+                                                              update_table);
+      if (error)
+      {
+        if (!thd->get_stmt_da()->is_error())
+          my_error(ER_SYNTAX_ERROR, MYF(0));
       }
     }
   } // for each user
@@ -7166,6 +7185,117 @@ bool grant_dynamic_privilege(const LEX_CSTRING &str_priv,
   g_dynamic_privileges_map->insert(std::make_pair(id,
                                    std::make_pair(priv, with_grant_option)));
   } catch(...)
+  {
+    return true;
+  }
+  return false;
+}
+
+/**
+  Grant grant option to one user for all dynamic privileges
+  @param str_user
+  @param str_host
+  @param update_table
+
+  @return Error state
+    @retval true An error occurred. DA must be checked.
+    @retval false Success
+
+*/
+bool grant_grant_option_for_all_dynamic_privileges(const LEX_CSTRING &str_user,
+  const LEX_CSTRING &str_host, Update_dynamic_privilege_table &update_table)
+{
+  try
+  {
+    Role_id id(str_user, str_host);
+    /*
+      For all dynamic privileges associated for a particular user
+      grant with grant option.
+    */
+    auto range= g_dynamic_privileges_map->equal_range(id);
+    std::vector<std::string> priv_list;
+    for (auto it= range.first; it != range.second; ++it)
+    {
+      std::string priv(it->second.first);
+      if (it->second.second != true)
+      {
+        /*
+          if with grant option is not set reovke this privilege and
+          later update the privilege along with "WITH GRANT OPTION".
+        */
+        update_table(priv, {str_user, str_host}, false,
+                     Update_dynamic_privilege_table::REVOKE);
+      }
+      else
+        continue;
+
+      if (update_table(priv, {str_user, str_host}, true,
+                       Update_dynamic_privilege_table::GRANT))
+        return true;
+      /* keep track of privileges, later used to update cache */
+      priv_list.push_back(priv);
+    }
+    for (auto it= priv_list.begin(); it != priv_list.end(); ++it)
+    {
+      g_dynamic_privileges_map->insert(std::make_pair(id,
+                                       std::make_pair(*it, true)));
+    }
+  }
+  catch(...)
+  {
+    return true;
+  }
+  return false;
+}
+
+/**
+  Revoke grant option to one user for all dynamic privileges
+  @param str_user
+  @param str_host
+  @param update_table
+
+  @return Error state
+    @retval true An error occurred. DA must be checked.
+    @retval false Success
+
+*/
+bool revoke_grant_option_for_all_dynamic_privileges(const LEX_CSTRING &str_user,
+  const LEX_CSTRING &str_host, Update_dynamic_privilege_table &update_table)
+{
+  try
+  {
+    Role_id id(str_user, str_host);
+    /*
+      For all dynamic privileges associated for a particular user
+      revoke with grant option.
+    */
+    auto range= g_dynamic_privileges_map->equal_range(id);
+    std::vector<std::string> priv_list;
+    for (auto it= range.first; it != range.second; ++it)
+    {
+      std::string priv(it->second.first);
+      if (it->second.second == true)
+      {
+        if (update_table(priv, {str_user, str_host}, true,
+                         Update_dynamic_privilege_table::REVOKE))
+          return true;
+      }
+      else
+        continue;
+
+      if (update_table(priv, {str_user, str_host}, false,
+                       Update_dynamic_privilege_table::GRANT))
+        return true;
+      /* keep track of privileges, later used to update cache */
+      priv_list.push_back(priv);
+    }
+    for (auto it= priv_list.begin(); it != priv_list.end(); ++it)
+    {
+      g_dynamic_privileges_map->insert(std::make_pair(id,
+                                       std::make_pair(*it, false)));
+    }
+  }
+  catch(...)
   {
     return true;
   }

@@ -326,6 +326,8 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
     rlb->append(STRING_WITH_LEN("PROXY"));
   else if (lex->all_privileges)
     rlb->append(STRING_WITH_LEN("ALL PRIVILEGES"));
+  else if (lex->grant_privilege)
+    rlb->append(STRING_WITH_LEN("GRANT OPTION"));
   else
   {
     ulong priv;
