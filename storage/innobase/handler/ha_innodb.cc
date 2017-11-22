@@ -21223,16 +21223,16 @@ innodb_buffer_pool_size_validate(
 		return(1);
 	}
 
+	ulint	requested_buf_pool_size
+		= buf_pool_size_align(static_cast<ulint>(intbuf));
+
+	*static_cast<longlong*>(save) = requested_buf_pool_size;
+
 	if (srv_buf_pool_size == static_cast<ulint>(intbuf)) {
 		buf_pool_mutex_exit_all();
 		/* nothing to do */
 		return(0);
 	}
-
-	ulint	requested_buf_pool_size
-		= buf_pool_size_align(static_cast<ulint>(intbuf));
-
-	*static_cast<longlong*>(save) = requested_buf_pool_size;
 
 	if (srv_buf_pool_size == requested_buf_pool_size) {
 		buf_pool_mutex_exit_all();
