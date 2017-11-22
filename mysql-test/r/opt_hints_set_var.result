@@ -860,6 +860,18 @@ VARIABLE_VALUE
 OFF
 VARIABLE_VALUE
 ON
+WITH RECURSIVE qn AS (
+SELECT 1 AS a UNION ALL
+SELECT 1+a FROM qn WHERE a<=10)
+SELECT /*+ SET_VAR(cte_max_recursion_depth=5) */ COUNT(*) FROM qn;
+ERROR HY000: Recursive query aborted after 6 iterations. Try increasing @@cte_max_recursion_depth to a larger value.
+CALL test_hint("SET_VAR(cte_max_recursion_depth=5)", "cte_max_recursion_depth");
+VARIABLE_VALUE
+1000
+VARIABLE_VALUE
+5
+VARIABLE_VALUE
+1000
 DROP PROCEDURE test_hint;
 #
 # Bug#26482684 WL681: RESULT DIFF SEEN FOR SQL_SELECT_LIMIT HINT.
