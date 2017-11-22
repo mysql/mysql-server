@@ -45,8 +45,9 @@ static long long_variable_value= 1234567;
 static double double_variable_value= 8.0;
 static long long longlong_variable_value= 123456789;
 static char char_variable_value[]= "Testing CHAR status variable";
-static char *char_ptr_variable_value;
+static char *char_ptr_variable_value= nullptr;
 
+using std::swap;
 static void char_ptr_foo()
 {
   char char_buff[50];
@@ -54,7 +55,7 @@ static void char_ptr_foo()
 
   snprintf(char_buff, sizeof(char_buff), "Testing CHAR_PTR for status vars");
   char_ptr= strdup(char_buff);
-  std::swap(char_ptr, char_ptr_variable_value);
+  swap(char_ptr, char_ptr_variable_value);
 
   if (char_ptr)
     free(char_ptr);
@@ -152,6 +153,7 @@ static SHOW_VAR status_array_var[]=
 static mysql_service_status_t test_component_status_var_service_init()
 {
   outfile= fopen(filename, "w+");
+  char_ptr_variable_value= nullptr;
 
   WRITE_LOG("%s\n", "test_component_status_var init:");
   char_ptr_foo();
