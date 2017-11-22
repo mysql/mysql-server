@@ -12,7 +12,7 @@
 # Check general tablespaces are allowed to create only in known DIR
 # Check relative path and absolute path
 # ********************************************************************
---source include/have_innodb_max_16k.inc
+--source include/have_innodb_16k.inc
 --source include/not_valgrind.inc
 
 let $MYSQLD_OLD_DATADIR = `select @@datadir`;
@@ -259,21 +259,21 @@ DROP TABLESPACE ts1;
 # Test with by providing the relative path
 --echo # Re-start with old --datadir with --innodb-directories as remote *.ibd files are existing.
 --replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
---let $restart_parameters="restart: --datadir=$MYSQLD_OLD_DATADIR --innodb-directories=$MYSQL_OLD_DATADIR/../..$MYSQL_TMP_DIR/db_directory1"
+--let $restart_parameters="restart: --datadir=$MYSQLD_OLD_DATADIR --innodb-directories=$MYSQLD_OLD_DATADIR/../../tmp/db_directory1"
 --source include/start_mysqld.inc
 
 --echo # Check --datadir started with old
 --replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR
 SELECT @@datadir;
 
---replace_result $MYSQL_TMP_DIR db_directory1
+--replace_result $MYSQLD_OLD_DATADIR db_directory1
 SHOW CREATE TABLE tab3;
 
 SHOW CREATE TABLE tab4;
 
 SHOW CREATE TABLE tab5;
 
---replace_result $MYSQL_TMP_DIR db_directory1
+--replace_result $MYSQLD_OLD_DATADIR db_directory1
 SHOW VARIABLES LIKE '%directories%';
 
 # Creating general tablespace in known DIR location (DATA DIRECTORY)
@@ -302,8 +302,8 @@ DELETE FROM tab5;
 
 DELETE FROM tab6;
 
---replace_result $MYSQL_TMP_DIR db_directory1
-SELECT TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
+--replace_column 1 # 
+SELECT TABLESPACE_NAME,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
 
 # Clean up old datadir
 DROP TABLE tab3;

@@ -168,7 +168,7 @@ DROP TABLESPACE ts1;
 ## Copy back --datadir and *.ibd files into old location
 ## Cleanup the new DATA DIRECTORY *.ibd files
 # Re-start with old --datadir with --innodb-directories as remote *.ibd files are existing.
-# restart: --datadir=OLD_DATADIR --innodb-directories=/../..MYSQL_TMP_DIR/db_directory1
+# restart: --datadir=OLD_DATADIR --innodb-directories=OLD_DATADIR/../../tmp/db_directory1
 # Check --datadir started with old
 SELECT @@datadir;
 @@datadir
@@ -183,8 +183,8 @@ tab3	CREATE TABLE `tab3` (
   KEY `ix1` (`ename`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 /*!50100 PARTITION BY HASH (`empno`)
-(PARTITION P0 DATA DIRECTORY = '/../..db_directory1/db_directory1' ENGINE = InnoDB,
- PARTITION P1 DATA DIRECTORY = '/../..db_directory1/db_directory1' ENGINE = InnoDB) */
+(PARTITION P0 DATA DIRECTORY = 'db_directory1/../../tmp/db_directory1' ENGINE = InnoDB,
+ PARTITION P1 DATA DIRECTORY = 'db_directory1/../../tmp/db_directory1' ENGINE = InnoDB) */
 SHOW CREATE TABLE tab4;
 Table	Create Table
 tab4	CREATE TABLE `tab4` (
@@ -199,7 +199,7 @@ tab5	CREATE TABLE `tab5` (
 ) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW VARIABLES LIKE '%directories%';
 Variable_name	Value
-innodb_directories	/../..db_directory1/db_directory1
+innodb_directories	db_directory1/../../tmp/db_directory1
 CREATE TABLESPACE ts4 ADD DATAFILE 'db_directory1/db_directory1/ts4.ibd' Engine=InnoDB;
 CREATE TABLE tab6(c1 int, c2 varchar(10)) TABLESPACE=ts4;
 INSERT INTO tab6 VALUES(1, 'VISH');
@@ -210,19 +210,19 @@ DELETE FROM tab3;
 DELETE FROM tab4;
 DELETE FROM tab5;
 DELETE FROM tab6;
-SELECT TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
-TABLESPACE_NAME	FILE_TYPE	TABLE_NAME	ENGINE
-mysql	TABLESPACE	NULL	InnoDB
-innodb_system	TABLESPACE	NULL	InnoDB
-innodb_temporary	TEMPORARY	NULL	InnoDB
-innodb_undo_001	UNDO LOG	NULL	InnoDB
-innodb_undo_002	UNDO LOG	NULL	InnoDB
-sys/sys_config	TABLESPACE	NULL	InnoDB
-test/tab3#P#P0	TABLESPACE	NULL	InnoDB
-test/tab3#P#P1	TABLESPACE	NULL	InnoDB
-ts2	TABLESPACE	NULL	InnoDB
-ts3	TABLESPACE	NULL	InnoDB
-ts4	TABLESPACE	NULL	InnoDB
+SELECT TABLESPACE_NAME,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
+TABLESPACE_NAME	TABLE_NAME	ENGINE
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
 DROP TABLE tab3;
 DROP TABLE tab4;
 DROP TABLE tab5;
