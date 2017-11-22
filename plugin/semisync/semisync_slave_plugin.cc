@@ -26,7 +26,7 @@
 #include "my_macros.h"
 #include "plugin/semisync/semisync_slave.h"
 
-ReplSemiSyncSlave repl_semisync;
+ReplSemiSyncSlave *repl_semisync= nullptr;
 
 /*
   indicate whether or not the slave should send a reply to the master.
@@ -62,7 +62,7 @@ static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
   const char *query;
   uint mysql_error= 0;
 
-  if (!repl_semisync.getSlaveEnabled())
+  if (!repl_semisync->getSlaveEnabled())
     return 0;
 
   /* Check if master server has semi-sync plugin installed */
@@ -119,7 +119,7 @@ static int repl_semi_slave_read_event(Binlog_relay_IO_param*,
                                       const char **event_buf, unsigned long *event_len)
 {
   if (rpl_semi_sync_slave_status)
-    return repl_semisync.slaveReadSyncHeader(packet, len,
+    return repl_semisync->slaveReadSyncHeader(packet, len,
 					     &semi_sync_need_reply,
 					     event_buf, event_len);
   *event_buf= packet;
@@ -139,7 +139,7 @@ static int repl_semi_slave_queue_event(Binlog_relay_IO_param *param,
       should not cause the slave IO thread to stop, and the error
       messages are already reported.
     */
-    (void) repl_semisync.slaveReply(param->mysql,
+    (void) repl_semisync->slaveReply(param->mysql,
                                     param->master_log_name,
                                     param->master_log_pos);
   }
@@ -148,12 +148,12 @@ static int repl_semi_slave_queue_event(Binlog_relay_IO_param *param,
 
 static int repl_semi_slave_io_start(Binlog_relay_IO_param *param)
 {
-  return repl_semisync.slaveStart(param);
+  return repl_semisync->slaveStart(param);
 }
 
 static int repl_semi_slave_io_end(Binlog_relay_IO_param *param)
 {
-  return repl_semisync.slaveStop(param);
+  return repl_semisync->slaveStop(param);
 }
 
 int repl_semi_slave_sql_start(Binlog_relay_IO_param*)
@@ -172,7 +172,7 @@ static void fix_rpl_semi_sync_slave_enabled(MYSQL_THD,
 					    const void *val)
 {
   *(char *)ptr= *(char *)val;
-  repl_semisync.setSlaveEnabled(rpl_semi_sync_slave_enabled != 0);
+  repl_semisync->setSlaveEnabled(rpl_semi_sync_slave_enabled != 0);
   return;
 }
 
@@ -182,7 +182,7 @@ static void fix_rpl_semi_sync_trace_level(MYSQL_THD,
 					  const void *val)
 {
   *(unsigned long *)ptr= *(unsigned long *)val;
-  repl_semisync.setTraceLevel(rpl_semi_sync_slave_trace_level);
+  repl_semisync->setTraceLevel(rpl_semi_sync_slave_trace_level);
   return;
 }
 
@@ -231,7 +231,8 @@ Binlog_relay_IO_observer relay_io_observer = {
 
 static int semi_sync_slave_plugin_init(void *p)
 {
-  if (repl_semisync.initObject())
+  repl_semisync= new ReplSemiSyncSlave();
+  if (repl_semisync->initObject())
     return 1;
   if (register_binlog_relay_io_observer(&relay_io_observer, p))
     return 1;
@@ -242,6 +243,8 @@ static int semi_sync_slave_plugin_deinit(void *p)
 {
   if (unregister_binlog_relay_io_observer(&relay_io_observer, p))
     return 1;
+  delete repl_semisync;
+  repl_semisync= nullptr;
   return 0;
 }
 
