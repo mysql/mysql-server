@@ -13598,13 +13598,13 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
   Utility function used by min_max_inspect_cond_for_fields() for comparing
   FILED item with given MIN/MAX item and setting appropriate out paramater.
 
-@param[in]     cond   tree (or subtree) describing all or part of the WHERE
-                      clause being analyzed.
-@param[in]     min_max_arg_item   The field referenced by the MIN/MAX
+@param         cond               Tree (or subtree) describing all or part of
+                                  the WHERE clause being analyzed.
+@param         min_max_arg_item   The field referenced by the MIN/MAX
                                   function(s).
-@param[in/out] min_max_arg_present    This out parameter is set to true if
+@param [out]   min_max_arg_present    This out parameter is set to true if
                                       MIN/MAX argument is present in cond.
-@param[in/out] non_min_max_arg_present This out parameter is set to true if
+@param [out]   non_min_max_arg_present This out parameter is set to true if
                                        any field item other than MIN/MAX
                                        argument is present in cond.
 */
@@ -13627,13 +13627,13 @@ static inline void util_min_max_inspect_item(Item *item_field,
   one non MIN/MAX field participation in the given condition. Subqueries
   inspection is skipped as of now.
 
-  @param[in]     cond   tree (or subtree) describing all or part of the WHERE
+  @param         cond   tree (or subtree) describing all or part of the WHERE
                         clause being analyzed.
-  @param[in]     min_max_arg_item   The field referenced by the MIN/MAX
+  @param         min_max_arg_item   The field referenced by the MIN/MAX
                                     function(s).
-  @param[in/out] min_max_arg_present    This out parameter is set to true if
+  @param [out]   min_max_arg_present    This out parameter is set to true if
                                         MIN/MAX argument is present in cond.
-  @param[in/out] non_min_max_arg_present This out parameter is set to true if
+  @param [out]   non_min_max_arg_present This out parameter is set to true if
                                          any field item other than MIN/MAX
                                          argument is present in cond.
 
@@ -13719,6 +13719,8 @@ min_max_inspect_cond_for_fields(Item *cond, Item_field *min_max_arg_item,
             DBUG_RETURN(true);
         }
       }
+
+      break;
     }
     case Item::FIELD_ITEM:  {
       util_min_max_inspect_item(cond,
