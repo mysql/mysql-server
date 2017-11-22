@@ -153,6 +153,10 @@ pfs_example_component_population_init()
   init_continent_share(&continent_st_share);
   init_country_share(&country_st_share);
 
+  /* In case the plugin has been unloaded, and reloaded */
+  continent_delete_all_rows();
+  country_delete_all_rows();
+
   /* From here, prepare rows for tables and insert */
   if (continent_prepare_insert_row() || country_prepare_insert_row())
   {
