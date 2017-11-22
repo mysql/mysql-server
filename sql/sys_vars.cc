@@ -749,7 +749,8 @@ static Sys_var_bool Sys_windowing_use_high_precision(
 static Sys_var_uint Sys_cte_max_recursion_depth(
        "cte_max_recursion_depth", "Abort a recursive common table expression "
        "if it does more than this number of iterations.",
-       SESSION_VAR(cte_max_recursion_depth), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(cte_max_recursion_depth),
+       CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(1000), BLOCK_SIZE(1));
 
 static Sys_var_bool Sys_automatic_sp_privileges(
