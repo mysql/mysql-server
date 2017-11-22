@@ -5839,7 +5839,10 @@ my_decimal *Item_first_last_value::val_decimal(my_decimal *decimal_buffer)
   }
 
   if (compute())
-    return nullptr;
+  {
+    my_decimal_set_zero(decimal_buffer);
+    return null_value ? nullptr : decimal_buffer;
+  }
 
   return m_value->val_decimal(decimal_buffer);
 }
@@ -6062,9 +6065,11 @@ my_decimal *Item_nth_value::val_decimal(my_decimal *decimal_buffer)
     return null_value ? nullptr : decimal_buffer;
   }
 
-
   if (compute())
-    return nullptr;
+  {
+    my_decimal_set_zero(decimal_buffer);
+    return null_value ? nullptr : decimal_buffer;
+  }
 
   return m_value->val_decimal(decimal_buffer);
 }
@@ -6306,9 +6311,11 @@ my_decimal *Item_lead_lag::val_decimal(my_decimal *decimal_buffer)
     return null_value ? nullptr : decimal_buffer;
   }
 
-
   if (compute())
-    return nullptr;
+  {
+    my_decimal_set_zero(decimal_buffer);
+    return null_value ? nullptr : decimal_buffer;
+  }
 
   return m_use_default ? m_default->val_decimal(decimal_buffer) :
     m_value->val_decimal(decimal_buffer);
