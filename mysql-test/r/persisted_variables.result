@@ -334,6 +334,8 @@ SELECT @@global.innodb_buffer_pool_size;
 @@global.innodb_buffer_pool_size
 25165824
 SET PERSIST innodb_buffer_pool_size=10*1024*1024;
+Warnings:
+Warning	1210	InnoDB: Cannot resize buffer pool to lesser than chunk size of 25165824 bytes.
 SELECT @@global.innodb_buffer_pool_size;
 @@global.innodb_buffer_pool_size
 25165824
