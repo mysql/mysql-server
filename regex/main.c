@@ -153,7 +153,7 @@ char *argv[];
 		subs[0].rm_so = startoff;
 		subs[0].rm_eo = strlen(argv[optind]) - endoff;
 	}
-	err = my_regexec(&re, argv[optind], (size_t)NS, subs, eopts);
+    err = my_regexec(&re, argv[optind], strlen(argv[optind]), (size_t)NS, subs, eopts);
 	if (err) {
 		len = my_regerror(err, &re, erbuf, sizeof(erbuf));
 		fprintf(stderr, "error %s, %d/%d `%s'\n",
@@ -333,7 +333,7 @@ int opts;			/* may not match f1 */
 		subs[0].rm_so = strchr(f2, '(') - f2 + 1;
 		subs[0].rm_eo = strchr(f2, ')') - f2;
 	}
-	err = my_regexec(&re, f2copy, NSUBS, subs, options('e', f1));
+    err = my_regexec(&re, f2copy, strlen(f2copy), NSUBS, subs, options('e', f1));
 
 	if (err != 0 && (f3 != NULL || err != MY_REG_NOMATCH)) {
 		/* unexpected error or wrong error */

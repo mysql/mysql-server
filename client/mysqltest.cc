@@ -8847,7 +8847,7 @@ int match_re(my_regex_t *re, char *str)
     str= comm_end + 2;
   }
   
-  int err= my_regexec(re, str, (size_t)0, NULL, 0);
+  int err= my_regexec(re, str, strlen(str), (size_t)0, NULL, 0);
 
   if (err == 0)
     return 1;
@@ -10529,7 +10529,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
   while (!err_code)
   {
     /* find the match */
-    err_code= my_regexec(&r,str_p, r.re_nsub+1, subs,
+    err_code= my_regexec(&r,str_p, strlen(str_p), r.re_nsub+1, subs,
                          (str_p != string) ? MY_REG_NOTBOL : 0);
 
     /* if regular expression error (eg. bad syntax, or out of memory) */

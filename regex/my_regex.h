@@ -66,7 +66,7 @@ extern size_t my_regerror(int, const my_regex_t *, char *, size_t);
 
 
 /* === regexec.c === */
-extern int my_regexec(const my_regex_t *, const char *, size_t, my_regmatch_t [], int);
+extern int my_regexec(const my_regex_t *, const char *, size_t, size_t, my_regmatch_t [], int);
 #define	MY_REG_NOTBOL	00001
 #define	MY_REG_NOTEOL	00002
 #define	MY_REG_STARTEND	00004

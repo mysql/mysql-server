@@ -111,3 +111,13 @@ SELECT '\t' REGEXP '[[:blank:]]';
 
 SELECT ' '  REGEXP '[[:space:]]';
 SELECT '\t' REGEXP '[[:space:]]';
+
+#
+# Bug #85588: When using rlike operator to detect characters with hex values 
+# between 80 and FF, it does not work when converting a binary string that 
+# starts with hexadecimal '00' using unhex function.
+# This test verifies that binary string having hexadecimal 00 byte is
+# processed correctly.
+
+SELECT (CONVERT(UNHEX('00149D5554') USING BINARY) RLIKE CONCAT('[', UNHEX('80'), '-', UNHEX('FF'), ']'));
+
