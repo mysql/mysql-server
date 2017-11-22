@@ -4102,3 +4102,11 @@ EOF
 --rmdir $MYSQLTEST_VARDIR/tmp/tmp1/
 --remove_file $MYSQLTEST_VARDIR/tmp/invalid.txt
 --remove_file $MYSQLTEST_VARDIR/tmp/24671890_2.txt
+
+--echo #
+--echo # BUG#27136445: MTR: EXPORT AND USE # OF AVAILABLE CPUS IN TESTS
+--echo #
+
+# Print the value of environment variable storing number of CPUs
+--replace_result $NUMBER_OF_CPUS NUMBER_OF_CPUS
+--eval SELECT $NUMBER_OF_CPUS
