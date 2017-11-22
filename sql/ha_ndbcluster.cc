@@ -15397,20 +15397,19 @@ int ha_ndbcluster::multi_range_read_next(char **range_info)
 
               DBUG_RETURN(0);
             }
-            else if (current_range_no > expected_range_no)
+
+            if (current_range_no > expected_range_no)
             {
               /* Nothing more in scan for this range. Move to next. */
               break;
             }
-            else
-            {
-              /*
-                Should not happen. Ranges should be returned from NDB API in
-                the order we requested them.
-              */
-              DBUG_ASSERT(0);
-              break;                              // Attempt to carry on
-            }
+
+            /*
+              Should not happen. Ranges should be returned from NDB API in
+              the order we requested them.
+            */
+            DBUG_ASSERT(0);
+            break;                              // Attempt to carry on
           }
 
         default:

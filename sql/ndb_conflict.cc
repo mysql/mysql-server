@@ -2793,22 +2793,17 @@ setup_conflict_fn(Ndb* ndb,
   case CFT_NDB_EPOCH2_TRANS:
   {
     /* Check how updates will be logged... */
-    bool log_update_as_write = (!tableBinlogUseUpdate);
-    
-    if (log_update_as_write)
-    {
+    const bool log_update_as_write = (!tableBinlogUseUpdate);
+    if (log_update_as_write) {
       my_snprintf(msg, msg_len,
                   "Table %s.%s configured to log updates as writes.  "
                   "Not suitable for %s.",
-                  dbName,
-                  tabName,
-                  conflict_fn->name);
+                  dbName, tabName, conflict_fn->name);
       DBUG_PRINT("info", ("%s", msg));
       DBUG_RETURN(-1);
     }
-    
-    /* Fall through for the rest of the EPOCH* processing... */
   }
+  /* Fall through - for the rest of the EPOCH* processing... */
   case CFT_NDB_EPOCH:
   case CFT_NDB_EPOCH_TRANS:
   {

@@ -4820,6 +4820,7 @@ NDB_SHARE::set_binlog_flags(Ndb_binlog_type ndb_binlog_type)
     break;
   case NBT_USE_UPDATE:
     DBUG_PRINT("info", ("NBT_USE_UPDATE"));
+    // fall through
   case NBT_UPDATED_ONLY_USE_UPDATE:
     DBUG_PRINT("info", ("NBT_UPDATED_ONLY_USE_UPDATE"));
     flags &= ~NDB_SHARE::FLAG_BINLOG_MODE_FULL;
