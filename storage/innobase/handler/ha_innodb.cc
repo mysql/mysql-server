@@ -1541,6 +1541,32 @@ innodb_show_status(
 	THD*		thd,
 	stat_print_fn*	stat_print);
 
+/** Implements Instance_log_resource lock.
+@param[in]	hton		the innodb handlerton
+@return false on success */
+static
+bool
+innobase_lock_hton_log(
+	handlerton*	hton);
+
+/** Implements Instance_log_resource unlock.
+@param[in]	hton		the innodb handlerton
+@return false on success */
+static
+bool
+innobase_unlock_hton_log(
+	handlerton*	hton);
+
+/** Implements Instance_log_resource collect_info.
+@param[in]	hton		the innodb handlerton
+@param[in]	json		the JSON dom to receive the log info
+@return false on success */
+static
+bool
+innobase_collect_hton_log_info(
+	handlerton*	hton,
+	Json_dom*	json);
+
 /** Return 0 on success and non-zero on failure. Note: the bool return type
 seems to be abused here, should be an int.
 @param[in]	hton		the innodb handlerton
@@ -4826,6 +4852,9 @@ innodb_init(
 
 	innobase_hton->flush_logs = innobase_flush_logs;
 	innobase_hton->show_status = innobase_show_status;
+	innobase_hton->lock_hton_log = innobase_lock_hton_log;
+	innobase_hton->unlock_hton_log = innobase_unlock_hton_log;
+	innobase_hton->collect_hton_log_info = innobase_collect_hton_log_info;
 	innobase_hton->fill_is_table = innobase_fill_i_s_table;
 	innobase_hton->flags =
 		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
@@ -18550,6 +18579,71 @@ innodb_show_status(
 		STRING_WITH_LEN(""), str, static_cast<uint>(flen));
 
 	my_free(str);
+
+	DBUG_RETURN(ret_val);
+}
+
+/** Implements Instance_log_resource lock.
+@param[in]	hton		the innodb handlerton
+@return false on success */
+static
+bool
+innobase_lock_hton_log(
+	handlerton*	hton)
+{
+	bool			ret_val= false;
+
+	DBUG_ENTER("innodb_lock_hton_log");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	log_lock();
+
+	DBUG_RETURN(ret_val);
+}
+
+/** Implements Instance_log_resource unlock.
+@param[in]	hton		the innodb handlerton
+@return false on success */
+static
+bool
+innobase_unlock_hton_log(
+	handlerton*	hton)
+{
+	bool			ret_val= false;
+
+	DBUG_ENTER("innodb_unlock_hton_log");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	log_unlock();
+
+	DBUG_RETURN(ret_val);
+}
+
+/** Implements Instance_log_resource collect_info.
+@param[in]	hton		the innodb handlerton
+@param[in]	json		the JSON dom to receive the log info
+@return false on success */
+static
+bool
+innobase_collect_hton_log_info(
+	handlerton*	hton,
+	Json_dom*	json)
+{
+	bool			ret_val= false;
+	lsn_t  lsn;
+
+	DBUG_ENTER("innodb_collect_hton_log_info");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	log_collect_lsn(&lsn);
+
+	Json_object *json_engines= static_cast<Json_object *>(json);
+	Json_object json_innodb;
+	Json_int json_lsn(lsn);
+
+	ret_val= json_innodb.add_clone("LSN", &json_lsn);
+	if (!ret_val)
+		ret_val= json_engines->add_clone("InnoDB", &json_innodb);
 
 	DBUG_RETURN(ret_val);
 }

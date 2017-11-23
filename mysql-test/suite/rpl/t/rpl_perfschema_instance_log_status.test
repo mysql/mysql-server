@@ -33,7 +33,8 @@ CREATE TABLE ils_copy (
   uuid VARCHAR(36) PRIMARY KEY,
   master JSON NOT NULL,
   channels JSON NOT NULL,
-  storage_engines JSON NOT NULL);
+  storage_engines JSON NOT NULL)
+ENGINE MyISAM;
 
 --source include/sync_slave_sql_with_master.inc
 # Create a new channel, so we can test a non-empty channel name on results
@@ -58,6 +59,12 @@ if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
 # As we do not start ch1, we cannot verify its positions accurately for this
 # test case purposes. That is fine as the objective is to test a non-empty
 # channel name.
+
+# Save current InnoDB LSN
+--replace_regex /.*Log sequence number[[:space:]]*([0-9]+).*/\1/gso
+--let $innodb_seis=`SHOW ENGINE INNODB STATUS`
+# Remove the "InnoDB" from the collected LSN info
+--let $innodb_lsn=`SELECT LTRIM(RIGHT('$innodb_seis', LENGTH('$innodb_seis') - 6))`
 
 # Collect the instance log status into ils_copy table
 --disable_warnings
@@ -115,6 +122,11 @@ if ($rpl_debug)
 --let $assert_text= Collected replication channel relay log file name for ch1 is correct
 --let $ils_ch1_relay_log_file= `SELECT JSON_EXTRACT(channels, "$.channels[1].relay_log_file") FROM ils_copy`
 --let $assert_cond= $ils_ch1_relay_log_file = "$ch1_relay_log_file"
+--source include/assert.inc
+
+--let $assert_text= Collected InnoDB LSN is correct
+--let $ils_innodb_lsn= `SELECT JSON_EXTRACT(storage_engines, "$.InnoDB.LSN") FROM ils_copy`
+--let $assert_cond= $ils_innodb_lsn = $innodb_lsn
 --source include/assert.inc
 
 

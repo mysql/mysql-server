@@ -8,7 +8,8 @@ CREATE TABLE ils_copy (
 uuid VARCHAR(36) PRIMARY KEY,
 master JSON NOT NULL,
 channels JSON NOT NULL,
-storage_engines JSON NOT NULL);
+storage_engines JSON NOT NULL)
+ENGINE MyISAM;
 include/sync_slave_sql_with_master.inc
 CHANGE MASTER TO MASTER_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
 CALL mtr.add_suppression('Unsafe statement written to the binary log');
@@ -23,6 +24,7 @@ include/assert.inc [Collected default replication channel relay log file name is
 include/assert.inc [Collected default replication channel relay log file position is correct]
 include/assert.inc [Collected replication channel name for ch1 is correct]
 include/assert.inc [Collected replication channel relay log file name for ch1 is correct]
+include/assert.inc [Collected InnoDB LSN is correct]
 # Second step
 CREATE USER user1@'%';
 GRANT SELECT ON *.* TO user1@'%';
