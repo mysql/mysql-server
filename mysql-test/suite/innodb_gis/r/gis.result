@@ -1489,6 +1489,7 @@ FROM buildings, bridges
 WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
 count(*)
 1
+DELETE FROM mysql.st_spatial_reference_systems WHERE id = 101;
 DROP DATABASE gis_ogs;
 #
 # Bug#13362660 ASSERTION `FIELD_POS < FIELD_COUNT' FAILED. IN PROTOCOL_TEXT::STORE
