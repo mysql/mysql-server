@@ -1000,6 +1000,11 @@ public:
        */
       T_INNER_JOIN = 0x40000,
 
+      /**
+       * A TRANSID_AI signal is returned for each row found by the datanodes.
+       */
+      T_EXPECT_TRANSID_AI = 0x80000,
+
       // End marker...
       T_END = 0
     };
