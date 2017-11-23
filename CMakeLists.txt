@@ -902,6 +902,7 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
     PATTERN "myisam.txt" EXCLUDE
     PATTERN "mysql.info" EXCLUDE
     PATTERN "sp-imp-spec.txt" EXCLUDE
+    PATTERN "README.build" EXCLUDE
   )
 ENDIF()
 
