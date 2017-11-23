@@ -1147,7 +1147,9 @@ Configuration::setLockCPU(NdbThread * pThread,
     {
       g_eventLogger->info("Failed to lock tid = %d to CPU, error_no = %d",
                           NdbThread_GetTid(pThread), (-res));
+#ifndef HAVE_MAC_OS_X_THREAD_INFO
       abort(); /* We fail when failing to lock to CPUs */
+#endif
       return 1;
     }
   }
