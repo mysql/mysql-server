@@ -16,6 +16,8 @@ ndb-wait-setup=60
 ndb-cluster-connection-pool=3
 ndb-extra-logging=99
 log-bin=mysql-binlog
+# Enable load data local functionality
+local-infile=true
 
 [cluster_config.ndbd.1.1]
 MaxNoOfExecutionThreads=8
