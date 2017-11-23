@@ -1,5 +1,5 @@
-#ifndef GIS__RELOPS_H_INCLUDED
-#define GIS__RELOPS_H_INCLUDED
+#ifndef SQL_GIS_RELOPS_H_INCLUDED
+#define SQL_GIS_RELOPS_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -329,4 +329,4 @@ bool within(const dd::Spatial_reference_system *srs, const Geometry *g1,
 
 }  // namespace gis
 
-#endif  // GIS__RELOPS_H_INCLUDED
+#endif  // SQL_GIS_RELOPS_H_INCLUDED

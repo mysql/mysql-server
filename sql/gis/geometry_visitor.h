@@ -1,5 +1,5 @@
-#ifndef GIS__GEOMETRY_VISITOR_H_INCLUDED
-#define GIS__GEOMETRY_VISITOR_H_INCLUDED
+#ifndef SQL_GIS_GEOMETRY_VISITOR_H_INCLUDED
+#define SQL_GIS_GEOMETRY_VISITOR_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -224,4 +224,4 @@ class Nop_visitor : public Geometry_visitor {
 
 }  // namespace gis
 
-#endif  // GIS__GEOMETRY_VISITOR_H_INCLUDED
+#endif  // SQL_GIS_GEOMETRY_VISITOR_H_INCLUDED

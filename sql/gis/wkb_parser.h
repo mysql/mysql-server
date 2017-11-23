@@ -1,5 +1,5 @@
-#ifndef GIS__WKB_PARSER_H_INCLUDED
-#define GIS__WKB_PARSER_H_INCLUDED
+#ifndef SQL_GIS_WKB_PARSER_H_INCLUDED
+#define SQL_GIS_WKB_PARSER_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -84,4 +84,4 @@ bool parse_geometry(THD *thd, const char *func_name, const String *str,
 
 }  // namespace gis
 
-#endif  // GIS__WKB_PARSER_H_INCLUDED
+#endif  // SQL_GIS_WKB_PARSER_H_INCLUDED

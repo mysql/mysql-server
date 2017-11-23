@@ -1,5 +1,5 @@
-#ifndef GIS__SRID_H_INCLUDED
-#define GIS__SRID_H_INCLUDED
+#ifndef SQL_GIS_SRID_H_INCLUDED
+#define SQL_GIS_SRID_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -25,4 +25,4 @@ namespace gis {
 typedef std::uint32_t srid_t;
 }
 
-#endif  // GIS__SRID_H_INCLUDED
+#endif  // SQL_GIS_SRID_H_INCLUDED

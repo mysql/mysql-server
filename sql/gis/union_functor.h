@@ -1,5 +1,5 @@
-#ifndef GIS__UNION_FUNCTOR_H_INCLUDED
-#define GIS__UNION_FUNCTOR_H_INCLUDED
+#ifndef SQL_GIS_UNION_FUNCTOR_H_INCLUDED
+#define SQL_GIS_UNION_FUNCTOR_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -88,4 +88,4 @@ class Union : public Functor<Geometry *> {
 
 }  // namespace gis
 
-#endif  // GIS__UNION_FUNCTOR_H_INCLUDED
+#endif  // SQL_GIS_UNION_FUNCTOR_H_INCLUDED

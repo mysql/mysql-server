@@ -1,5 +1,5 @@
-#ifndef GIS__BOX_TRAITS_H_INCLUDED
-#define GIS__BOX_TRAITS_H_INCLUDED
+#ifndef SQL_GIS_BOX_TRAITS_H_INCLUDED
+#define SQL_GIS_BOX_TRAITS_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -110,4 +110,4 @@ struct indexed_access<gis::Geographic_box, max_corner, Dimension> {
 }  // namespace geometry
 }  // namespace boost
 
-#endif  // GIS__BOX_H_INCLUDED
+#endif  // SQL_GIS_BOX_H_INCLUDED

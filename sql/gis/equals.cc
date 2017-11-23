@@ -17,8 +17,9 @@
 ///
 /// This file implements the equals functor and function.
 
-#include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
+
+#include <boost/geometry.hpp>
 
 #include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/box.h"

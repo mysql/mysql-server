@@ -1,5 +1,5 @@
-#ifndef GIS__MBR_UTILS_H_INCLUDED
-#define GIS__MBR_UTILS_H_INCLUDED
+#ifndef SQL_GIS_MBR_UTILS_H_INCLUDED
+#define SQL_GIS_MBR_UTILS_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -84,4 +84,4 @@ void box_envelope(const Geometry *g, const dd::Spatial_reference_system *srs,
 
 }  // namespace gis
 
-#endif  // GIS__MBR_UTILS_H_INCLUDED
+#endif  // SQL_GIS_MBR_UTILS_H_INCLUDED
