@@ -143,59 +143,65 @@ class ha_ndbcluster: public handler, public Partition_handler
 
  public:
   ha_ndbcluster(handlerton *hton, TABLE_SHARE *table);
-  ~ha_ndbcluster();
+  ~ha_ndbcluster() override;
 
   int open(const char *name, int mode, uint test_if_locked,
-           const dd::Table *table_def);
-  int close(void);
+           const dd::Table *table_def) override;
+private:
   void local_close(THD *thd, bool release_metadata);
+public:
+  int close(void) override;
 
-  int optimize(THD* thd, HA_CHECK_OPT*);
+  int optimize(THD* thd, HA_CHECK_OPT*) override;
 private:
   int analyze_index();
 public:
-  int analyze(THD* thd, HA_CHECK_OPT*);
-  int write_row(uchar *buf);
-  int update_row(const uchar *old_data, uchar *new_data);
-  int delete_row(const uchar *buf);
-  int index_init(uint index, bool sorted);
-  int index_end();
+  int analyze(THD* thd, HA_CHECK_OPT*) override;
+  int write_row(uchar *buf) override;
+  int update_row(const uchar *old_data, uchar *new_data) override;
+  int delete_row(const uchar *buf) override;
+  int index_init(uint index, bool sorted) override;
+  int index_end() override;
   int index_read(uchar *buf, const uchar *key, uint key_len, 
-                 enum ha_rkey_function find_flag);
-  int index_next(uchar *buf);
-  int index_prev(uchar *buf);
-  int index_first(uchar *buf);
-  int index_last(uchar *buf);
-  int index_read_last(uchar * buf, const uchar * key, uint key_len);
-  int rnd_init(bool scan);
-  int rnd_end();
-  int rnd_next(uchar *buf);
-  int rnd_pos(uchar *buf, uchar *pos);
-  void position(const uchar *record);
-  virtual int cmp_ref(const uchar * ref1, const uchar * ref2) const;
-  int read_range_first(const key_range *start_key,
-                       const key_range *end_key,
-                       bool eq_range, bool sorted);
+                 enum ha_rkey_function find_flag) override;
+  int index_next(uchar *buf) override;
+  int index_prev(uchar *buf) override;
+  int index_first(uchar *buf) override;
+  int index_last(uchar *buf) override;
+  int index_read_last(uchar * buf, const uchar * key, uint key_len) override;
+  int rnd_init(bool scan) override;
+  int rnd_end() override;
+  int rnd_next(uchar *buf) override;
+  int rnd_pos(uchar *buf, uchar *pos) override;
+  void position(const uchar *record) override;
+  int cmp_ref(const uchar * ref1, const uchar * ref2) const override;
+private:
   int read_range_first_to_buf(const key_range *start_key,
                               const key_range *end_key,
                               bool eq_range, bool sorted,
                               uchar* buf);
-  int read_range_next();
+public:
+  int read_range_first(const key_range *start_key,
+                       const key_range *end_key,
+                       bool eq_range, bool sorted) override;
+  int read_range_next() override;
 
   /**
    * Multi Range Read interface
    */
   int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
-                            uint n_ranges, uint mode, HANDLER_BUFFER *buf);
-  int multi_range_read_next(char **range_info);
+                            uint n_ranges, uint mode,
+                            HANDLER_BUFFER *buf) override;
+  int multi_range_read_next(char **range_info) override;
   ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
-                                      void *seq_init_param, 
-                                      uint n_ranges, uint *bufsz,
-                                      uint *flags, Cost_estimate *cost);
+                                      void *seq_init_param, uint n_ranges,
+                                      uint *bufsz, uint *flags,
+                                      Cost_estimate *cost) override;
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                                uint *bufsz, uint *flags, Cost_estimate *cost);
+                                uint *bufsz, uint *flags,
+                                Cost_estimate *cost) override;
 
-  virtual void append_create_info(String *packet);
+  void append_create_info(String *packet) override;
 
  private:
   bool choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
@@ -209,55 +215,59 @@ private:
   int multi_range_start_retrievals(uint first_range);
 
 public:
-  bool get_error_message(int error, String *buf);
-  virtual int records(ha_rows *num_rows);
-  ha_rows estimate_rows_upper_bound()
-    { return HA_POS_ERROR; }
-  int info(uint);
-  uint32 calculate_key_hash_value(Field **field_array);
-  bool start_read_removal(void);
-  ha_rows end_read_removal(void);
-  int extra(enum ha_extra_function operation);
-  int reset();
-  int external_lock(THD *thd, int lock_type);
-  void unlock_row();
-  int start_stmt(THD *thd, thr_lock_type);
-  void update_create_info(HA_CREATE_INFO *create_info);
+  bool get_error_message(int error, String *buf) override;
+  int records(ha_rows *num_rows) override;
+  ha_rows estimate_rows_upper_bound() override { return HA_POS_ERROR; }
+  int info(uint) override;
+  uint32 calculate_key_hash_value(Field **field_array) override;
+  bool start_read_removal(void) override;
+  ha_rows end_read_removal(void) override;
+  int extra(enum ha_extra_function operation) override;
+  int reset() override;
+  int external_lock(THD *thd, int lock_type) override;
+  void unlock_row() override;
+  int start_stmt(THD *thd, thr_lock_type) override;
+  void update_create_info(HA_CREATE_INFO *create_info) override;
+private:
   void update_comment_info(THD* thd, HA_CREATE_INFO *create_info,
                            const NdbDictionary::Table *tab);
-  void print_error(int error, myf errflag);
-  const char * table_type() const;
-  ulonglong table_flags(void) const;
-  ulong index_flags(uint idx, uint part, bool all_parts) const;
-  bool primary_key_is_clustered() const;
-  uint max_supported_record_length() const;
-  uint max_supported_keys() const;
-  uint max_supported_key_parts() const;
-  uint max_supported_key_length() const;
-  uint max_supported_key_part_length() const;
+public:
+  void print_error(int error, myf errflag) override;
+  const char * table_type() const override;
+  ulonglong table_flags(void) const override;
+  ulong index_flags(uint idx, uint part, bool all_parts) const override;
+  bool primary_key_is_clustered() const override;
+  uint max_supported_record_length() const override;
+  uint max_supported_keys() const override;
+  uint max_supported_key_parts() const override;
+  uint max_supported_key_length() const override;
+  uint max_supported_key_part_length() const override;
 
 private:
   int get_child_or_parent_fk_list(List<FOREIGN_KEY_INFO>*f_key_list,
                                   bool is_child, bool is_parent);
 public:
-  virtual int get_foreign_key_list(THD *thd,
-                                   List<FOREIGN_KEY_INFO>*f_key_list);
-  virtual int get_parent_foreign_key_list(THD *thd,
-                                          List<FOREIGN_KEY_INFO>*f_key_list);
-  virtual uint referenced_by_foreign_key();
+ int get_foreign_key_list(THD *thd,
+                          List<FOREIGN_KEY_INFO> *f_key_list) override;
+ int get_parent_foreign_key_list(THD *thd,
+                                 List<FOREIGN_KEY_INFO> *f_key_list) override;
+ uint referenced_by_foreign_key() override;
+
+private:
   uint is_child_or_parent_of_fk();
-  virtual bool can_switch_engines();
-  virtual char* get_foreign_key_create_info();
-  virtual void free_foreign_key_create_info(char* str);
+public:
+  bool can_switch_engines() override;
+  char* get_foreign_key_create_info() override;
+  void free_foreign_key_create_info(char* str) override;
 
   int rename_table(const char *from, const char *to,
                    const dd::Table *from_table_def,
-                   dd::Table *to_table_def);
-  int delete_table(const char *name, const dd::Table *table_def);
+                   dd::Table *to_table_def) override;
+  int delete_table(const char *name, const dd::Table *table_def) override;
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info,
-             dd::Table* table_def);
-  int truncate(dd::Table* table_def);
-  virtual bool is_ignorable_error(int error)
+             dd::Table* table_def) override;
+  int truncate(dd::Table* table_def) override;
+  bool is_ignorable_error(int error) override
   {
     if (handler::is_ignorable_error(error) ||
         error == HA_ERR_NO_PARTITION_FOUND)
@@ -267,34 +277,35 @@ public:
 
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,
-                             enum thr_lock_type lock_type);
+                             enum thr_lock_type lock_type) override;
 
-  bool low_byte_first() const;
+  bool low_byte_first() const override;
 
-  enum ha_key_alg get_default_index_algorithm() const
+  enum ha_key_alg get_default_index_algorithm() const override
   {
     /* NDB uses hash indexes only when explicitly requested. */
     return HA_KEY_ALG_BTREE;
   }
-  bool is_index_algorithm_supported(enum ha_key_alg key_alg) const
+  bool is_index_algorithm_supported(enum ha_key_alg key_alg) const override
   { return key_alg == HA_KEY_ALG_BTREE || key_alg == HA_KEY_ALG_HASH; }
 
-  double scan_time();
-  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
-  void start_bulk_insert(ha_rows rows);
-  int end_bulk_insert();
+  double scan_time() override;
+  ha_rows records_in_range(uint inx, key_range *min_key,
+                           key_range *max_key) override;
+  void start_bulk_insert(ha_rows rows) override;
+  int end_bulk_insert() override;
 
-  bool start_bulk_update();
+  bool start_bulk_update() override;
   int bulk_update_row(const uchar *old_data, uchar *new_data,
-                      uint *dup_key_found);
-  int exec_bulk_update(uint *dup_key_found);
-  void end_bulk_update();
+                      uint *dup_key_found) override;
+  int exec_bulk_update(uint *dup_key_found) override;
+  void end_bulk_update() override;
+private:
   int ndb_update_row(const uchar *old_data, uchar *new_data,
                      int is_bulk_update);
-
-static void set_dbname(const char *pathname, char *dbname);
-static void set_tabname(const char *pathname, char *tabname);
-
+public:
+  static void set_dbname(const char *pathname, char *dbname);
+  static void set_tabname(const char *pathname, char *tabname);
   /*
     static member function as it needs to access private
     NdbTransaction methods
@@ -331,26 +342,26 @@ static void set_tabname(const char *pathname, char *tabname);
    =, !=, >, >=, <, <=, like, "not like", "is null", and "is not null". 
    Negated conditions are supported by NOT which generate NAND/NOR groups.
  */ 
-  const Item *cond_push(const Item *cond);
+  const Item *cond_push(const Item *cond) override;
  /*
    Pop the top condition from the condition stack of the handler instance.
    SYNOPSIS
      cond_pop()
      Pops the top if condition stack, if stack is not empty
  */
-  void cond_pop();
-
+  void cond_pop() override;
+private:
   bool maybe_pushable_join(const char*& reason) const;
+public:
   int assign_pushed_join(const ndb_pushed_join* pushed_join);
-
-  uint number_of_pushed_joins() const;
-  const TABLE* root_of_pushed_join() const;
-  const TABLE* parent_of_pushed_join() const;
+  uint number_of_pushed_joins() const override;
+  const TABLE* root_of_pushed_join() const override;
+  const TABLE* parent_of_pushed_join() const override;
 
   int index_read_pushed(uchar *buf, const uchar *key,
-                        key_part_map keypart_map);
+                        key_part_map keypart_map) override;
 
-  int index_next_pushed(uchar * buf);
+  int index_next_pushed(uchar * buf) override;
 
   /*
    * Internal to ha_ndbcluster, used by C functions
@@ -359,31 +370,32 @@ static void set_tabname(const char *pathname, char *tabname);
 
   enum_alter_inplace_result
   check_if_supported_inplace_alter(TABLE *altered_table,
-                                   Alter_inplace_info *ha_alter_info);
+                                   Alter_inplace_info *ha_alter_info) override;
 
+private:
   bool parse_comment_changes(NdbDictionary::Table *new_tab,
                              const NdbDictionary::Table *old_tab,
                              HA_CREATE_INFO *create_info,
                              THD *thd,
                              bool & max_rows_changed) const;
-
+public:
   bool prepare_inplace_alter_table(TABLE *altered_table,
                                    Alter_inplace_info *ha_alter_info,
                                    const dd::Table *old_table_def,
-                                   dd::Table *new_table_def);
+                                   dd::Table *new_table_def) override;
 
   bool inplace_alter_table(TABLE *altered_table,
                            Alter_inplace_info *ha_alter_info,
                            const dd::Table *old_table_def,
-                           dd::Table *new_table_def);
+                           dd::Table *new_table_def) override;
 
   bool commit_inplace_alter_table(TABLE *altered_table,
                                   Alter_inplace_info *ha_alter_info,
                                   bool commit,
                                   const dd::Table *old_table_def,
-                                  dd::Table *new_table_def);
+                                  dd::Table *new_table_def) override;
 
-void notify_table_changed(Alter_inplace_info *ha_alter_info);
+  void notify_table_changed(Alter_inplace_info *ha_alter_info) override;
 
 private:
   void prepare_inplace__drop_index(uint key_num);
@@ -479,8 +491,8 @@ private:
   int ndb_write_row(uchar *record, bool primary_key_update,
                     bool batched_update);
 
-  bool start_bulk_delete();
-  int end_bulk_delete();
+  bool start_bulk_delete() override;
+  int end_bulk_delete() override;
   int ndb_delete_row(const uchar *record, bool primary_key_update);
 
   int ndb_optimize_table(THD* thd, uint delay) const;
@@ -553,10 +565,10 @@ private:
   
   int primary_key_cmp(const uchar * old_row, const uchar * new_row);
 
-  virtual void get_auto_increment(ulonglong offset, ulonglong increment,
-                                  ulonglong number_of_desired_values,
-                                  ulonglong *first_value,
-                                  ulonglong *nb_reserved_values);
+  void get_auto_increment(ulonglong offset, ulonglong increment,
+                          ulonglong number_of_desired_values,
+                          ulonglong *first_value,
+                          ulonglong *nb_reserved_values) override;
   bool uses_blob_value(const MY_BITMAP *bitmap) const;
 
   int check_ndb_connection(THD* thd) const;
@@ -612,16 +624,16 @@ private:
   /*
     Implementing Partition_handler API.
   */
-  Partition_handler *get_partition_handler()
+  Partition_handler *get_partition_handler() override
   { return static_cast<Partition_handler*>(this); }
-  uint alter_flags(uint flags) const;
+  uint alter_flags(uint flags) const override;
   void get_dynamic_partition_info(ha_statistics *stat_info,
                                   ha_checksum *checksum,
-                                  uint part_id);
-  int get_default_num_partitions(HA_CREATE_INFO *info);
-  bool get_num_parts(const char *name, uint *num_parts);
-  void set_auto_partitions(partition_info *part_info);
-  void set_part_info(partition_info *part_info, bool early);
+                                  uint part_id) override;
+  int get_default_num_partitions(HA_CREATE_INFO *info) override;
+  bool get_num_parts(const char *name, uint *num_parts) override;
+  void set_auto_partitions(partition_info *part_info) override;
+  void set_part_info(partition_info *part_info, bool early) override;
   /* End of Partition_handler API */
 
   Ndb_table_map* m_table_map;
