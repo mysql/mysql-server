@@ -448,6 +448,7 @@
 #include "sql/histograms/value_map.h"
 #include "sql/hostname.h"               // hostname_cache_init
 #include "sql/init.h"                   // unireg_init
+#include "sql/instance_log_resource.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"           // Arg_comparator
 #include "sql/item_create.h"
@@ -4903,6 +4904,19 @@ static int init_server_components()
   {
     LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_GTID);
     unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
+  {
+    /*
+      We have to call a function in instance_log_resource.cc, or its references
+      won't be visible to plugins.
+    */
+#ifndef DBUG_OFF
+    int dummy=
+#endif
+      Instance_log_resource::
+      dummy_function_to_ensure_we_are_linked_into_the_server();
+    DBUG_ASSERT(dummy == 1);
   }
 
   /*
