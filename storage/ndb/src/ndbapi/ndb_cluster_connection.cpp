@@ -947,10 +947,10 @@ Ndb_cluster_connection_impl::set_service_uri(const char * scheme,
 
 int
 Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
-					       const ndb_mgm_configuration 
-					       &config)
+                               const ndb_mgm_configuration &config)
 {
   DBUG_ENTER("Ndb_cluster_connection_impl::init_nodes_vector");
+  Uint32 my_location_domain_id = m_location_domain_id[nodeid];
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_CONNECTION);
   
   for(iter.first(); iter.valid(); iter.next())
@@ -986,8 +986,67 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
     case CONNECTION_TYPE_TCP:{
       // connecting through localhost
       // check if config_hostname is local
-      if (SocketServer::tryBind(0,remoteHostName))
-	group--; // upgrade group value
+      // check if in same location domain
+
+      /**
+       * There is a configuration item on a communication
+       * linked called Group. This item is mostly set by
+       * other config parameters and checks of the hosts
+       * involved.
+       *
+       * By default the group is set to 55. If two nodes
+       * are in the same location domain the group is set
+       * to 50. If they are both in the same location
+       * domain and additionally on the same host the
+       * group is set to 45.
+       * If no location domain is set and we are on the
+       * same host, we set the group to 54.
+       *
+       * If the nodes are on the same host, but the test
+       * below fails, it is possible in the MySQL server
+       * to set ndb_data_node_neighbour to indicate which
+       * data node is closest to us. This will also have
+       * an impact on the group number.
+       *
+       * Finally it is possible to set the group number
+       * from the configuration to implement any type of
+       * priorities among the nodes.
+       *
+       * The changes due to location domain and hosts
+       * are only relative, so it is relative to the
+       * numbers provided in the config.
+       *
+       * One should not set the config of group to
+       * anything smaller than 50 given that data
+       * node neighbour decreases the group number
+       * by 50.
+       *
+       * If someone has set a node to be in different
+       * location domains and they are still running on the
+       * same host we trust that the user have done this for
+       * a good reason, whether it be testing or some other
+       * reason.
+       */
+      if (my_location_domain_id != 0 &&
+               my_location_domain_id ==
+               m_location_domain_id[remoteNodeId])
+      {
+        if (SocketServer::tryBind(0,remoteHostName))
+        {
+	  group -= 10; // upgrade group value
+        }
+        else
+        {
+          group -= 5;
+        }
+      }
+      else if (my_location_domain_id == 0)
+      {
+        if (SocketServer::tryBind(0,remoteHostName))
+        {
+	  group -= 1; // upgrade group value
+        }
+      }
       break;
     }
     }
@@ -1172,6 +1231,7 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
       m_config.m_default_hashmap_size = default_hashmap_size;
     }
 
+    memset(&m_location_domain_id[0], 0, sizeof(m_location_domain_id));
     // Configure timeouts
     {
       Uint32 timeout = 120000;
@@ -1180,8 +1240,19 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
       for (; iterall.valid(); iterall.next())
       {
         Uint32 tmp1 = 0, tmp2 = 0;
+        Uint32 nodeId = 0;
+        Uint32 location_domain_id = 0;
+        char *host_str;
+        iterall.get(CFG_NODE_ID, &nodeId);
         iterall.get(CFG_DB_TRANSACTION_CHECK_INTERVAL, &tmp1);
         iterall.get(CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, &tmp2);
+        iterall.get(CFG_LOCATION_DOMAIN_ID, &location_domain_id);
+        iterall.get(CFG_NODE_HOST, (const char**)&host_str);
+        require(nodeId != 0);
+        if (host_str != NULL && location_domain_id != 0)
+        {
+          m_location_domain_id[nodeId] = location_domain_id;
+        }
         tmp1 += tmp2;
         if (tmp1 > timeout)
           timeout = tmp1;
@@ -1189,6 +1260,9 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
       m_config.m_waitfor_timeout = timeout;
     }
   }
+
+  m_my_node_id = nodeId;
+  m_my_location_domain_id = m_location_domain_id[nodeId];
 
   // System name
   ndb_mgm_configuration_iterator s_iter(config, CFG_SECTION_SYSTEM);
@@ -1514,7 +1588,85 @@ Ndb_cluster_connection::release_ndb_wait_group(NdbWaitGroup *group)
 }
 
 Uint32
-Ndb_cluster_connection_impl::select_node(const Uint16 * nodes,
+Ndb_cluster_connection_impl::select_any(NdbImpl *impl_ndb)
+{
+  Uint16 prospective_node_ids[MAX_NDB_NODES];
+  Uint32 num_prospective_nodes = 0;
+  Uint32 my_location_domain_id = m_my_location_domain_id;
+  if (my_location_domain_id == 0)
+  {
+    return 0;
+  }
+  for (Uint32 i = 0; i < m_nodes_proximity.size(); i++)
+  {
+    Uint32 nodeid = m_nodes_proximity[i].id;
+    if (my_location_domain_id == m_location_domain_id[nodeid] &&
+        impl_ndb->get_node_available(nodeid))
+    {
+      prospective_node_ids[num_prospective_nodes++] = nodeid;
+    }
+  }
+  if (num_prospective_nodes == 0)
+  {
+    return 0;
+  }
+  else if (num_prospective_nodes == 1)
+  {
+    return prospective_node_ids[0];
+  }
+  else
+  {
+    return select_node(impl_ndb, prospective_node_ids, num_prospective_nodes);
+  }
+}
+
+/**
+ * Select from the same location domain if possible, otherwise select
+ * primary node. If primary is in correct location domain we will pick
+ * it.
+ */
+Uint32
+Ndb_cluster_connection_impl::select_location_based(NdbImpl *impl_ndb,
+                                                   const Uint16 * nodes,
+                                                   Uint32 cnt)
+{
+  Uint16 prospective_node_ids[MAX_NDB_NODES];
+  Uint32 num_prospective_nodes = 0;
+  Uint32 my_location_domain_id = m_my_location_domain_id;
+
+  if (my_location_domain_id == 0)
+  {
+    return nodes[0];
+  }
+  for (Uint32 i = 0; i < cnt; i++)
+  {
+    if (my_location_domain_id == m_location_domain_id[nodes[i]] &&
+        impl_ndb->get_node_available(nodes[i]))
+    {
+      if (i == 0)
+      {
+        return nodes[0];
+      }
+      prospective_node_ids[num_prospective_nodes++] = nodes[i];
+    }
+  }
+  if (num_prospective_nodes == 0)
+  {
+    return nodes[0];
+  }
+  else if (num_prospective_nodes == 1)
+  {
+    return prospective_node_ids[0];
+  }
+  else
+  {
+    return select_node(impl_ndb, prospective_node_ids, num_prospective_nodes);
+  }
+}
+
+Uint32
+Ndb_cluster_connection_impl::select_node(NdbImpl *impl_ndb,
+                                         const Uint16 * nodes,
                                          Uint32 cnt)
 {
   if (cnt == 1)
@@ -1584,6 +1736,9 @@ Ndb_cluster_connection_impl::select_node(const Uint16 * nodes,
         continue;
 
       checked.set(candidate_node);
+
+      if (!impl_ndb->get_node_available(candidate_node))
+        continue;
 
       for (Uint32 i = 0; i < nodes_arr_cnt; i++)
       {

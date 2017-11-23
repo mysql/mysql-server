@@ -90,7 +90,7 @@ private:
   
   static Int32 const MAX_PROXIMITY_GROUP = INT32_MAX;
   static Int32 const INVALID_PROXIMITY_GROUP = INT32_MIN;
-  static Int32 const DATA_NODE_NEIGHBOUR_PROXIMITY_ADJUSTMENT = -50;
+  static Int32 const DATA_NODE_NEIGHBOUR_PROXIMITY_ADJUSTMENT = -30;
   static Uint32 const HINT_COUNT_BITS = 10;
   static Uint32 const HINT_COUNT_HALF = (1 << (HINT_COUNT_BITS - 1));
   static Uint32 const HINT_COUNT_MASK = (HINT_COUNT_HALF | (HINT_COUNT_HALF - 1));
@@ -108,12 +108,19 @@ private:
     Uint32 config_group; // Proximity group from cluster connection config
     Int32 adjusted_group; // Proximity group adjusted via ndbapi calls
     Uint32 id;
-    Uint32 hint_count; // Counts how many times node was choosen for hint when more than one were Ãpossible
+    /**
+     * Counts how many times node was choosen for hint when
+     * more than one were possible.
+     */
+    Uint32 hint_count;
   };
 
   NdbNodeBitmask m_db_nodes;
   NdbMutex* m_nodes_proximity_mutex;
   Vector<Node> m_nodes_proximity;
+  Uint16 m_location_domain_id[MAX_NODES];
+  Uint32 m_my_node_id;
+  Uint32 m_my_location_domain_id;
   int init_nodes_vector(Uint32 nodeid, const ndb_mgm_configuration &config);
   int configure(Uint32 nodeid, const ndb_mgm_configuration &config);
   void connect_thread();
@@ -127,7 +134,19 @@ private:
   /**
    * Select the "closest" node
    */
-  Uint32 select_node(const Uint16* nodes, Uint32 cnt);
+  Uint32 select_node(NdbImpl *impl_ndb, const Uint16* nodes, Uint32 cnt);
+  /**
+   * Select primary or if primary in other location domain
+   * choose a node in the same location domain
+   */
+  Uint32 select_location_based(NdbImpl *impl_ndb,
+                               const Uint16* nodes,
+                               Uint32 cnt);
+  /**
+   * Choose node in same location domain if one exists, otherwise
+   * make no choice.
+   */
+  Uint32 select_any(NdbImpl *impl_ndb);
 
   int connect(int no_retries,
               int retry_delay_in_seconds,
