@@ -10,7 +10,7 @@ f int,
 g char(20),
 h text,
 i int,
-primary key(a,b)) TABLESPACE ts1 engine = ndb;
+primary key(a,b)) engine = ndb;
 insert into t1 values
 (1, 1, 1, 1, '1', 1, 'Rankin', 'Rebus', 1),
 (2, 2, 2, 2, '2', 2, 'Doyle', 'Holmes', 2),
@@ -40,7 +40,7 @@ t1	CREATE TABLE `t1` (
   `h` text,
   `i` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`)
-) /*!50100 TABLESPACE `ts1` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
 select * from t1 order by a;
 a	b	c	d	e	f	g	h	i
 1	1	1	1	1	1	Rankin	Rebus	1
@@ -75,7 +75,7 @@ t1	CREATE TABLE `t1` (
   `h` text,
   `i` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`)
-) /*!50100 TABLESPACE `ts1` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
 Retry with --promote-attributes
 select * from t1 order by a;
 a	b	c	d	e	f	g	h	i
@@ -120,7 +120,7 @@ ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M
 ENGINE NDB;
-alter table t1 change i i int storage disk;
+alter table t1 TABLESPACE ts1, change i i int storage disk;
 select * from t1 order by a;
 a	b	c	d	e	f	g	h	i
 1	1	1	1	1	1	Rankin	Rebus	1
@@ -140,8 +140,8 @@ a	b	c	d	e	f	g	h	i
 4	4	4	4	4	4	Gibbon	Chris	4
 5	5	5	5	5	5	Gray	Lanark	5
 drop table t1;
-alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
-drop tablespace ts1 engine=ndb;
+alter tablespace ts1 drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine=ndb;
 Different PK columns, should fail
 create table t1 (
@@ -154,7 +154,7 @@ f int,
 g char(20),
 h text,
 i int,
-primary key (a)) TABLESPACE ts1 engine = ndb;
+primary key (a)) engine = ndb;
 drop table t1;
 Different distribution keys, should pass
 create table t1 (
@@ -167,7 +167,7 @@ f int,
 g char(20),
 h text,
 i int,
-primary key(a,b)) TABLESPACE ts1 engine = ndb partition by key(a);
+primary key(a,b)) engine = ndb partition by key(a);
 select * from t1 order by a;
 a	b	c	d	e	f	g	h	i
 1	1	1	1	1	1	Rankin	Rebus	1

@@ -37,67 +37,58 @@ ndb_statistics0: Need WL#10167 On the fly frm translation
 
 ndb_basic: Need WL#10665 Extend size of extra table metadata
 ndb_alter_table:  Need WL#10665 Extend size of extra table metadata
+ndb_restore_schema_tolerance: Need WL#10665 Extend size of extra table metadata
 
 # Tests does not autotect tables created from NdbApi tools(like ndb_restore)
 ndb_restore_schema_subsets: Need WL#9185 MySQL Cluster support for new DD
-ndb_restore_schema_blobs: Need WL#9185 MySQL Cluster support for new DD
-ndb_restore_schema_partitions: Need WL#9185 MySQL Cluster support for new DD
-ndb.ndb_restore_discover: Need WL#9185 MySQL Cluster support for new DD
-ndb_fk_bugs: Need WL#9185 MySQL Cluster support for new DD
 ndb_alter_table_online: Need WL#9185 MySQL Cluster support for new DD
 ndb_fk_restore: Need WL#9185 MySQL Cluster support for new DD
-ndb_wl946_main: Need WL#9185 MySQL Cluster support for new DD
-ndb_bug22904640: Need WL#9185 MySQL Cluster support for new DD
-ndb_index_stat_restart: Need WL#9185 MySQL Cluster support for new DD
-ndb_tools_connect: Need WL#9185 MySQL Cluster support for new DD
-ndb_restore_schema_tolerance: Bug#25860404 CREATE TABLE DOES NOT CHECK EXISTENCE OF TABLESPACE IN NDB
-
-# Problem with sync during reconnect, table not in NDB are not deleted from DD 
-ndb_reconnect: Need WL#9185 MySQL Cluster support for new DD
-
 
 # Test which timeout most likley due to mismatches in shares etc.
 ndb.ndb_spj_dict: Need WL#9185 MySQL Cluster support for new DD
 
-ndb_join_pushdown_default: Bug#25868387 WRONG DATA RETURNED WITH NDB JOIN PUSHDOWN
-ndb_join_pushdown_none: Bug#25868387 WRONG DATA RETURNED WITH NDB JOIN PUSHDOWN
-ndb_join_pushdown_nobnl: Bug#25868387 WRONG DATA RETURNED WITH NDB JOIN PUSHDOWN
-
-# Inplace alter table and foreign keys problem
-ndb_fk_alter: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
-ndb_fk_build: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
-ndb_fk_cascade_delete_multi: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
-ndb_fk_create_drop: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
-ndb_fk_locase: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
-ndb_fk_db: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
-ndb_fk_deferred_cascade: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
-ndb_fk_addnode: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
-ndb_fk_disable: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
-ndb_fk_multi_column: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
-ndb_fk_no_fk: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
-
 # Inplace alter table and index problem(same problem as above)
 ndb_alter_table3: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
 
-# Inplace alter table reopen the table from SE and thus table definition
-# does not match
-ndb_index_unique: Bug#26028185 INPLACE ALTER TABLE REOPEN TABLE WITH TABLE DEFINITION OUT OF SYNCH
-
-# Problem with alter table leaving table with old name behind
-# (for example altering from MyISAM to NDB)
-ndb_multi: Need WL#9185 MySQL Cluster support for new DD
-ndb_share: Need WL#9185 MySQL Cluster support for new DD
-ndb_blob: Need WL#9185 MySQL Cluster support for new DD
-ndb_partition_range: Need WL#9185 MySQL Cluster support for new DD
-ndb_database: Need WL#9185 MySQL Cluster support for new DD
-ndb_ddl_open_trans: Need WL#9185 MySQL Cluster support for new DD
-ndb_dist_priv: Need WL#9185 MySQL Cluster support for new DD
+# Problem with alter table which fails while copying data between tables, the
+# temporary named destination table is not dropped. Need to rewrite
+# the copying alter table code path in ndbcluster to drop the table in
+# order to be atomic
+ndb_fk_no_fk: Need WL#9185 MySQL Cluster support for new DD
+ndb_fk_db: Need WL#9185 MySQL Cluster support for new DD
 ndb_dd_alter: Need WL#9185 MySQL Cluster support for new DD
+
+# Problem with the "check_not_readonly" which now has been rewritten to create
+# a table called check_not_readonly, that table is soemtimes installed a second
+# time when running schema distribution synchronization during mysqld restart
+# Should find a different way to wait for "not readonly"
+ndb_share: Need WL#9185 MySQL Cluster support for new DD
+ndb_reconnect: Need WL#9185 MySQL Cluster support for new DD
+
+# Problem with distributed privilege tables in combination with shadow
+# table behaviour causing the DD come severly out of synch on participants
+# Example:
+# --connection server1
+# ALTER TABLE mysql.db engine = NDB;
+# ALTER TABLE mysql.db engine = Innodb;
+#
+# --connection server2
+# SHOW CREATE TABLE mysql.db; << No mysql.db table here anymore
+#
+# Note! Probably we should reimplement distributed privilege tables
+# to just make them be in synch but stay in their original engine
+ndb_dist_priv: Need WL#9185 MySQL Cluster support for new DD
+
+# Need to remove stale .ndb files for DROP DATABASE
+drop_database_stale: Need WL#9185 MySQL Cluster support for new DD
 
 # Problem with inplace alter table, probably share released too early
 # (occurs when mtr.pl is run with --mysqld=--log-bin argument)
 ndb_addnode: Need WL#9185 MySQL Cluster support for new DD
 ndb_addnode_withbinlog: Need WL#9185 MySQL Cluster support for new DD
+
+# Problem with alter table while MDL lock is held on other mysqld
+ndb_ddl_open_trans: Need WL#9185 MySQL Cluster support for new DD
 
 # Schema distribution timeout while altering table
 ndb_alter_table_online_multi: Need WL#9185 MySQL Cluster support for new DD
@@ -113,16 +104,38 @@ ndb_single_user: Need WL#9185 MySQL Cluster support for new DD
 # invalid THD_NDB_SHARE
 ndb_alter_table_error: Need WL#9185 MySQL Cluster support for new DD
 
-# Problem with fully replicated tables
-ndb_fully_replicated_addnode: Bug #26429923 FAILURE OF NDB_FULLY_REPLICATED_ADDNODE TEST
-
 # Problem with different metadata in NDB dictionary and DD
 ndb_dist_priv_bug_13340854: Bug #26434578 NDB_DIST_PRIV_BUG_13340854 TEST FAILS WITH MYSQLD CRASHING
 
 # Tests disabled under various bugs pending further investigation
-ndb_bug19390895: Bug #26435040 FAILURE OF NDB_BUG19390895 TEST
-ndb_spj_skew: Bug #26435061 FAILURE OF NDB_SPJ_SKEW TEST
 ndb_dd_sql_features: Bug #26484275 FAILURE OF NDB_DD_SQL_FEATURES TEST ON WINDOWS
 ndb_bushy_joins: Bug #26484136 FAILURE OF NDB_BUSHY_JOINS AND NDB_MANY_FRAGMENTS TESTS ON WINDOWS
 ndb_many_fragments: Bug #26484136 FAILURE OF NDB_BUSHY_JOINS AND NDB_MANY_FRAGMENTS TESTS ON WINDOWS
-ndb_global_schema_lock_error: Bug #26484255  FAILURE OF NDB_GLOBAL_SCHEMA_LOCK_ERROR TEST ON WINDOWS
+
+# Problem with missing information in information_schema
+ndb_dd_basic: Bug #26794727 MISSING DISK DATA INFORMATION IN INFORMATION_SCHEMA
+
+# Problem with incorrect information about partitions in information_schema
+ndb_add_partition: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
+ndb_fragment_count_addnode: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
+ndb_fully_replicated: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
+ndb_no_rb_fragment_count: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
+ndb_rb_fragment_count: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
+
+# mysqldump fails to dump logfilegroups and partitions, thus the dump
+# is incomplete and tables in tablespaces can't be restored by running
+# the dumped sql file. This problem probably need both bug#26794727 as
+# well as WL#9185
+ndb_dd_dump: Bug#26794727 MISSING DISK DATA INFORMATION IN INFORMATION_SCHEMA
+
+# Problem with table present in DD and not in SE
+ndb_restore_schema_rewrites: Need WL#9185 MySQL Cluster support for new DD
+
+# Problem with SendBufferMemory being exhausted
+ndb_blob_big: Bug #25958538 BLOB SIZE INCREASES IN 8.0
+
+# Clusterj fails to start since libndbclient.se fails to load
+clusterj: Bug#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+
+# Test fails with varying failures in all versions
+ndb_truncate_nologging: Bug#14845851 MYSQL CLUSTER - AUTO INCREMENT NOT RESET WHEN TRUNCATE NON-BINLOGGING SQL NODES

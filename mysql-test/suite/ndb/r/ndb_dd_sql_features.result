@@ -11,6 +11,7 @@ CREATE TABLESPACE ts1
 ADD DATAFILE './table_space1/datafile.dat'
  USE LOGFILE GROUP lg
 INITIAL_SIZE 25M
+EXTENT_SIZE 256K
 ENGINE NDB;
 CREATE TABLESPACE ts2
 ADD DATAFILE './table_space2/datafile.dat'
@@ -588,12 +589,10 @@ a1	a2	a3	a4	a5
 100	aaaaaaaaaaaaaaaa100	bbbbbbbbbbbbbbbbbb100	2006-06-20	root@localhost
 DROP TABLE test.t1;
 ALTER TABLESPACE ts1
-DROP DATAFILE './table_space1/datafile.dat'
- ENGINE=NDB;
-DROP TABLESPACE ts1 ENGINE=NDB;
+DROP DATAFILE './table_space1/datafile.dat';
+DROP TABLESPACE ts1;
 ALTER TABLESPACE ts2
-DROP DATAFILE './table_space2/datafile.dat'
- ENGINE=NDB;
-DROP TABLESPACE ts2 ENGINE=NDB;
+DROP DATAFILE './table_space2/datafile.dat';
+DROP TABLESPACE ts2;
 DROP LOGFILE GROUP lg
 ENGINE=NDB;

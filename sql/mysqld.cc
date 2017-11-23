@@ -6150,14 +6150,6 @@ int mysqld_main(int argc, char **argv)
 
   server_components_initialized();
 
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  /* engine specific hook, to be made generic */
-  if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
-  {
-    LogErr(WARNING_LEVEL, ER_NDB_TABLES_NOT_READY, opt_ndb_wait_setup);
-  }
-#endif
-
   /*
     Set opt_super_readonly here because if opt_super_readonly is set
     in get_option, it will create problem while setting up event scheduler.

@@ -160,7 +160,7 @@ Dbtup::do_tup_abort_operation(Signal* signal,
      * Aborting first operation that performed ALLOC
      */
     tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
-    tuple_ptr->m_header_bits |= Tuple_header::FREED;
+    tuple_ptr->m_header_bits |= Tuple_header::FREE;
   }
   return;
 }
@@ -262,7 +262,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
         }
         loopOpPtr.i = loopOpPtr.p->nextActiveOp;
       }
-      if (tuple_ptr->m_header_bits & Tuple_header::FREED)
+      if (tuple_ptr->m_header_bits & Tuple_header::FREE)
       {
         jam();
         setInvalidChecksum(tuple_ptr, regTabPtr.p);
@@ -295,7 +295,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
 
   if (first_and_last &&
       (flags & ZABORT_DEALLOC) &&
-      (tuple_ptr->m_header_bits & Tuple_header::FREED))
+      (tuple_ptr->m_header_bits & Tuple_header::FREE))
   {
     jam();
     /* Free var and fixed records for this row */

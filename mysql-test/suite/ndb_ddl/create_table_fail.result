@@ -1,0 +1,22 @@
+#
+# Test failure to create NDB_SHARE during CREATE TABLE
+#  - should fail the create table
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_share_create_fail1";
+CREATE TABLE t1(
+id INT PRIMARY KEY,
+val INT
+)
+ENGINE=ndbcluster;
+ERROR HY001: Out of memory; restart server and try again (needed X bytes)
+SET SESSION debug=@save_debug;
+# - check that table can be created, this also checks
+#   that the above failed create properly removed the
+#   table from NDB as well.
+CREATE TABLE t1(
+id INT PRIMARY KEY,
+val INT
+)
+ENGINE=ndbcluster;
+# - cleanup and remove the table
+DROP TABLE t1;

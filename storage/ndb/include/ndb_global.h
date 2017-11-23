@@ -276,6 +276,15 @@ extern "C" {
 #endif
 
 /**
+ *  Attribute used for unused function arguments
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define ATTRIBUTE_UNUSED __attribute__((unused))
+#else
+#define ATTRIBUTE_UNUSED
+#endif
+
+/**
  * sizeof cacheline (in bytes)
  *
  * TODO: Add configure check...

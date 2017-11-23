@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ bool
 Loopback_Transporter::connect_client()
 {
   NDB_SOCKET_TYPE pair[2];
-  if (my_socketpair(pair))
+  if (ndb_socketpair(pair))
   {
     perror("socketpair failed!");
     return false;
@@ -59,8 +59,8 @@ Loopback_Transporter::connect_client()
   return true;
 
 err:
-  my_socket_close(pair[0]);
-  my_socket_close(pair[1]);
+  ndb_socket_close(pair[0]);
+  ndb_socket_close(pair[1]);
   return false;
 }
 
@@ -71,16 +71,16 @@ Loopback_Transporter::disconnectImpl()
 
   get_callback_obj()->lock_transporter(remoteNodeId);
 
-  my_socket_invalidate(&theSocket);
-  my_socket_invalidate(&m_send_socket);
+  ndb_socket_invalidate(&theSocket);
+  ndb_socket_invalidate(&m_send_socket);
 
   get_callback_obj()->unlock_transporter(remoteNodeId);
 
-  if (my_socket_valid(pair[0]))
-    my_socket_close(pair[0]);
+  if (ndb_socket_valid(pair[0]))
+    ndb_socket_close(pair[0]);
 
-  if (my_socket_valid(pair[1]))
-    my_socket_close(pair[1]);
+  if (ndb_socket_valid(pair[1]))
+    ndb_socket_close(pair[1]);
 }
 
 bool
@@ -125,7 +125,7 @@ Loopback_Transporter::doSend() {
   {
     send_cnt++;
     Uint32 iovcnt = cnt > m_os_max_iovec ? m_os_max_iovec : cnt;
-    int nBytesSent = (int)my_socket_writev(m_send_socket, iov+pos, iovcnt);
+    int nBytesSent = (int)ndb_socket_writev(m_send_socket, iov+pos, iovcnt);
     assert(nBytesSent <= (int)remain);
 
     if (Uint32(nBytesSent) == remain)  //Completed this send
@@ -160,7 +160,7 @@ Loopback_Transporter::doSend() {
     }
     else                               //Send failed, terminate
     {
-      const int err = my_socket_errno();
+      const int err = ndb_socket_errno();
       if ((DISCONNECT_ERRNO(err, nBytesSent)))
       {
         do_disconnect(err); //Initiate pending disconnect

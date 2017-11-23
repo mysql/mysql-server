@@ -356,12 +356,16 @@ void Dbtup::execSTTOR(Signal* signal)
   switch (startPhase) {
   case ZSTARTPHASE1:
     jam();
+    c_started = false;
     ndbrequire((c_lqh= (Dblqh*)globalData.getBlock(DBLQH, instance())) != 0);
     ndbrequire((c_backup= (Backup*)globalData.getBlock(BACKUP, instance())) != 0);
     ndbrequire((c_tsman= (Tsman*)globalData.getBlock(TSMAN)) != 0);
     ndbrequire((c_lgman= (Lgman*)globalData.getBlock(LGMAN)) != 0);
     ndbrequire((c_pgman= (Pgman*)globalData.getBlock(PGMAN, instance())) != 0);
     cownref = calcInstanceBlockRef(DBTUP);
+    break;
+  case 50:
+    c_started = true;
     break;
   default:
     jam();
@@ -371,9 +375,10 @@ void Dbtup::execSTTOR(Signal* signal)
   signal->theData[1] = 3;
   signal->theData[2] = 2;
   signal->theData[3] = ZSTARTPHASE1;
-  signal->theData[4] = 255;
+  signal->theData[4] = 50;
+  signal->theData[5] = 255;
   BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBTUP_REF;
-  sendSignal(cntrRef, GSN_STTORRY, signal, 5, JBB);
+  sendSignal(cntrRef, GSN_STTORRY, signal, 6, JBB);
   return;
 }//Dbtup::execSTTOR()
 

@@ -70,7 +70,7 @@ NdbImportCsv_yyerror(NdbImportCsv::Parse& csvparse, const char* msg);
 page:
   line_list
   {
-    csvparse.m_input.m_line_list.push_back(csvparse.m_line_list);
+    csvparse.m_input.m_line_list.push_back_from(csvparse.m_line_list);
   }
   ;
 
@@ -101,7 +101,7 @@ line:
     NdbImportCsv::Chunk chunk_lineend = $2;
     line->m_pos = field_list.front()->m_pos;
     line->m_end = chunk_lineend.m_end;
-    line->m_field_list.push_back(field_list);
+    line->m_field_list.push_back_from(field_list);
     $$ = line;
   }
   |
@@ -114,7 +114,7 @@ line:
     line->m_pos = chunk_lineend.m_pos;
     line->m_end = chunk_lineend.m_end;
     require(line->m_field_list.cnt() == 0);
-    line->m_field_list.push_back(field_list);
+    line->m_field_list.push_back_from(field_list);
     $$ = line;
   }
   ;
@@ -147,7 +147,7 @@ field:
     field->m_end = data_list.back()->m_end;
     field->m_null = false;
     require(field->m_data_list.cnt() == 0);
-    field->m_data_list.push_back(csvparse.m_data_list);
+    field->m_data_list.push_back_from(csvparse.m_data_list);
     $$ = field;
   }
   |
@@ -172,7 +172,7 @@ field:
     field->m_end = chunk_quote2.m_end;
     field->m_null = false;
     require(field->m_data_list.cnt() == 0);
-    field->m_data_list.push_back(csvparse.m_data_list);
+    field->m_data_list.push_back_from(csvparse.m_data_list);
     $$ = field;
   }
   |

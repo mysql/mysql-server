@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,11 +44,14 @@ SCI_Transporter::SCI_Transporter(TransporterRegistry &t_reg,
 				 NodeId serverNodeId,
 				 bool chksm,  
 				 bool signalId, 
-				 Uint32 reportFreq) :  
+				 bool preSendChksm,
+				 Uint32 reportFreq
+				 ) :
   Transporter(t_reg, tt_SCI_TRANSPORTER,
 	      lHostName, rHostName, r_port, isMgmConnection, _localNodeId,
               _remoteNodeId, serverNodeId, 0, false, chksm, signalId,
-              4 * ((packetSize + 3)/4) + MAX_MESSAGE_SIZE)
+              4 * ((packetSize + 3)/4) + MAX_MESSAGE_SIZE,
+              preSendChksm)
 {
   DBUG_ENTER("SCI_Transporter::SCI_Transporter");
   m_PacketSize = (packetSize + 3)/4 ; 

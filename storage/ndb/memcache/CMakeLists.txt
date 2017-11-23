@@ -66,6 +66,24 @@ endif()
 
 ####################################################
 
+# Disable specific types of warnings for current directory
+# if the compiler supports the flag
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  INCLUDE(CheckCXXCompilerFlag)
+  FOREACH(warning
+          "unused-but-set-variable"
+          "strict-aliasing"
+          "unused-parameter")
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
+
 # Don't disable assert
 remove_definitions(-DNDEBUG)
 
@@ -245,6 +263,14 @@ target_link_libraries(ndbmemcache
                       ${MEMCACHED_UTILITIES_LIBRARY})
 
 ### Build the module
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Turn off array-bounds warning in ndb_engine.c wich occurs
+  # when it uses the struct engine_info in the external memcached
+  # file engine.h to define its engine capabilities.
+  ADD_COMPILE_FLAGS(src/ndb_engine.c
+                   COMPILE_FLAGS "-Wno-array-bounds")
+ENDIF()
+
 add_library(ndb_engine MODULE src/ndb_engine.c src/stub.cc)
 
 IF(APPLE)

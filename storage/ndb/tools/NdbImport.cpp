@@ -62,15 +62,16 @@ NdbImport::Opt::Opt()
   m_table = 0;
   m_input_type = "csv";
   m_input_file = 0;
-  m_input_workers = 2;
+  m_input_workers = 4;
   m_output_type = "ndb";
   m_output_workers = 2;
-  m_db_workers = 1;
+  m_db_workers = 4;
   m_ignore_lines = 0;
   m_max_rows = 0;
   m_result_file = 0;
   m_reject_file = 0;
   m_rowmap_file = 0;
+  m_stopt_file = 0;
   m_stats_file = 0;
   m_continue = false;
   m_resume = false;
@@ -81,16 +82,20 @@ NdbImport::Opt::Opt()
   m_no_asynch = false;
   m_no_hint = false;
   m_pagesize = 4096;
-  m_pagecnt = 64;
+  m_pagecnt = 0;
+  m_pagebuffer = 500000;
   m_rowbatch = 0;
-  m_rowbytes = 262144;
-  m_opbatch = 256;
+  m_rowbytes = 500000;
+  m_opbatch = 500;
   m_opbytes = 0;
   m_polltimeout = 1000;
   m_temperrors = 0;
   m_tempdelay = 10;
+  m_rowswait = 10;
   m_idlespin = 0;
   m_idlesleep = 1;
+  m_checkloop = 100;
+  m_alloc_chunk = 20;
   m_rejects = 0;
   // character set
   m_charset_name = "binary";
@@ -98,7 +103,7 @@ NdbImport::Opt::Opt()
   // csv options
   m_csvopt = 0;
   // debug options
-  m_verbose = 0;
+  m_log_level = 0;
   m_abort_on_error = false;
   m_errins_type = 0;
   m_errins_delay = 1000;
@@ -169,6 +174,16 @@ NdbImport::set_opt(Opt& opt)
       return -1;
     }
   }
+  if (opt.m_pagesize == 0)
+  {
+    util.set_error_usage(util.c_error, __LINE__,
+                         "option --pagesize must be non-zero");
+    return -1;
+  }
+  if (opt.m_pagebuffer != 0)
+  {
+    opt.m_pagecnt = (opt.m_pagebuffer + opt.m_pagesize - 1) / opt.m_pagesize;
+  }
   if (opt.m_opbatch == 0)
   {
     util.set_error_usage(util.c_error, __LINE__,
@@ -181,6 +196,12 @@ NdbImport::set_opt(Opt& opt)
   {
     util.set_error_usage(util.c_error, __LINE__,
                          "invalid autoincrement options");
+    return -1;
+  }
+  if (opt.m_alloc_chunk == 0)
+  {
+    util.set_error_usage(util.c_error, __LINE__,
+                         "option --alloc-chunk must be non-zero");
     return -1;
   }
   // character set

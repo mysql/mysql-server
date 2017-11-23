@@ -1,0 +1,71 @@
+-- source include/have_ndb.inc
+-- source include/have_log_bin.inc
+
+connect (server1,127.0.0.1,root,,test,$MYSQLD1_PORT,);
+connect (server2,127.0.0.1,root,,test,$MYSQLD2_PORT,);
+connect (server3,127.0.0.1,root,,test,$MYSQLD3_PORT,);
+
+--echo Check that third mysqld is not writing binlog
+connection server3;
+-- source include/not_log_bin.inc
+# Since this server is intentionally running without log-bin, supress warning
+-- disable_query_log
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+-- enable_query_log
+
+connection server1;
+
+#
+#  Bug #14845851 MYSQL CLUSTER - AUTO INCREMENT NOT RESET WHEN TRUNCATE NON-BINLOGGING SQL NODES
+#
+CREATE TABLE t1 (
+  a bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned
+) engine=ndbcluster;
+
+
+--echo insert records into table on server 1
+let $1=500;
+disable_query_log;
+while ($1>250)
+{
+ eval insert into t1 values(NULL, $1+9, 5*$1), (NULL, $1+10, 7),(NULL, $1+10, 7*$1), (NULL, $1+10, 10+$1),
+ (NULL, $1+10, 70*$1), (NULL, $1+10, 7), (NULL, $1+10, 9), (NULL, $1+299, 899), (NULL, $1+10, 12),
+ (NULL, $1+10, 14*$1);
+ dec $1;
+}
+
+--echo insert records into table on server 3 to get cached auto_increment values
+connection server3;
+let $1=250;
+disable_query_log;
+while ($1)
+{
+ eval insert into t1 values(NULL, $1+9, 5*$1), (NULL, $1+10, 7),(NULL, $1+10, 7*$1), (NULL, $1+10, 10+$1),
+ (NULL, $1+10, 70*$1), (NULL, $1+10, 7), (NULL, $1+10, 9), (NULL, $1+299, 899), (NULL, $1+10, 12),
+ (NULL, $1+10, 14*$1);
+ dec $1;
+}
+enable_query_log;
+
+--echo Check that auto_increment values are correctly generated
+connection server1;
+
+select count(*) from t1;
+
+select * from t1 order by a limit 2;
+
+truncate table t1;
+
+--echo Check that server 3 has properly reset the cached auto_increment values
+connection server3;
+
+select count(*) from t1;
+
+insert into t1 values(NULL,1,1),(NULL,2,2);
+
+select * from t1 order by a;
+
+drop table t1;
+

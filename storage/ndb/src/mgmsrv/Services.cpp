@@ -337,8 +337,8 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   m_errorInsert= 0;
 
   struct sockaddr_in addr;
-  socket_len_t addrlen= sizeof(addr);
-  if (my_getpeername(sock, (struct sockaddr*)&addr, &addrlen) == 0)
+  ndb_socket_len_t addrlen= sizeof(addr);
+  if (ndb_getpeername(sock, (struct sockaddr*)&addr, &addrlen) == 0)
   {
     char addr_buf[NDB_ADDR_STRLEN];
     char *addr_str = Ndb_inet_ntop(AF_INET,
@@ -361,10 +361,10 @@ MgmApiSession::~MgmApiSession()
     delete m_output;
   if (m_parser)
     delete m_parser;
-  if(my_socket_valid(m_socket))
+  if(ndb_socket_valid(m_socket))
   {
-    NDB_CLOSE_SOCKET(m_socket);
-    my_socket_invalidate(&m_socket);
+    ndb_socket_close(m_socket);
+    ndb_socket_invalidate(&m_socket);
   }
   if(m_stopSelf < 0)
     g_RestartServer= true;
@@ -456,10 +456,10 @@ MgmApiSession::runSession()
 
   NdbMutex_Lock(m_mutex);
   m_ctx= NULL;
-  if(my_socket_valid(m_socket))
+  if(ndb_socket_valid(m_socket))
   {
-    my_socket_close(m_socket);
-    my_socket_invalidate(&m_socket);
+    ndb_socket_close(m_socket);
+    ndb_socket_invalidate(&m_socket);
   }
   NdbMutex_Unlock(m_mutex);
 
@@ -524,8 +524,8 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 
   struct sockaddr_in addr;
   {
-    socket_len_t addrlen= sizeof(addr);
-    int r = my_getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
+    ndb_socket_len_t addrlen= sizeof(addr);
+    int r = ndb_getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
     if (r != 0 )
     {
       m_output->println("result: getpeername(" MY_SOCKET_FORMAT \
@@ -1473,7 +1473,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
   {
     if(threshold <= m_clients[i].m_logLevel.getLogLevel(cat))
     {
-      if(!my_socket_valid(m_clients[i].m_socket))
+      if(!ndb_socket_valid(m_clients[i].m_socket))
         continue;
 
       SocketOutputStream out(m_clients[i].m_socket);
@@ -1507,7 +1507,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
   if ((n= (int)copy.size()))
   {
     for(i= 0; i < n; i++)
-      NDB_CLOSE_SOCKET(copy[i]);
+      ndb_socket_close(copy[i]);
 
     LogLevel tmp; tmp.clear();
     m_clients.lock();
@@ -1549,7 +1549,7 @@ Ndb_mgmd_event_service::check_listeners()
   m_clients.lock();
   for(i= m_clients.size() - 1; i >= 0; i--)
   {
-    if(!my_socket_valid(m_clients[i].m_socket))
+    if(!ndb_socket_valid(m_clients[i].m_socket))
       continue;
 
     SocketOutputStream out(m_clients[i].m_socket);
@@ -1560,7 +1560,7 @@ Ndb_mgmd_event_service::check_listeners()
 
     if(out.println("<PING>") < 0)
     {
-      NDB_CLOSE_SOCKET(m_clients[i].m_socket);
+      ndb_socket_close(m_clients[i].m_socket);
       m_clients.erase(i, false);
       n=1;
     }
@@ -1595,9 +1595,9 @@ void
 Ndb_mgmd_event_service::stop_sessions(){
   m_clients.lock();
   for(int i = m_clients.size() - 1; i >= 0; i--){
-    if(my_socket_valid(m_clients[i].m_socket))
+    if(ndb_socket_valid(m_clients[i].m_socket))
     {
-      NDB_CLOSE_SOCKET(m_clients[i].m_socket);
+      ndb_socket_close(m_clients[i].m_socket);
       m_clients.erase(i, false);
     }
   }
@@ -1753,7 +1753,7 @@ done:
   {
     m_mgmsrv.m_event_listner.add_listener(le);
     m_stop = true;
-    my_socket_invalidate(&m_socket);
+    ndb_socket_invalidate(&m_socket);
   }
 }
 
@@ -1795,8 +1795,8 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
                            name(),
                            errormsg.c_str());
     // Close the socket to indicate failure to client
-    ndb_socket_close(m_socket, close_with_reset);
-    my_socket_invalidate(&m_socket); // Already closed
+    ndb_socket_close_with_reset(m_socket, close_with_reset);
+    ndb_socket_invalidate(&m_socket); // Already closed
   }
   else
   {
@@ -1806,7 +1806,7 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
       but don't close the socket, it's been taken over
       by the transporter
     */
-    my_socket_invalidate(&m_socket);   // so nobody closes it
+    ndb_socket_invalidate(&m_socket);   // so nobody closes it
   }
 
   m_stop= true; // Stop the session

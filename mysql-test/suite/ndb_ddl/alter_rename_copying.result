@@ -19,4 +19,12 @@ RENAME TO t6_new_name;
 ALTER TABLE t7
 algorithm=copy,
 RENAME TO t7_new_name;
+ALTER TABLE t8
+algorithm=copy,
+RENAME TO t8_new_name;
+ALTER TABLE t9
+algorithm=copy,
+RENAME TO t9_new_name;
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 == verify_mysql_dd.inc ==

@@ -1098,7 +1098,8 @@ ndbd_support_fully_replicated(Uint32 x)
 /**
  * Uses new Partial LCP format for LCPs
  */
-#define NDBD_USE_PARTIAL_LCP NDB_MAKE_VERSION(7,6,3)
+#define NDBD_USE_PARTIAL_LCP_v1 NDB_MAKE_VERSION(7,6,3)
+#define NDBD_USE_PARTIAL_LCP_v2 NDB_MAKE_VERSION(7,6,4)
 
 static
 inline
@@ -1119,7 +1120,7 @@ ndbd_use_partial_lcp(Uint32 x)
     }
     else if (minor == 5)
     {
-      return x >= NDBD_USE_PARTIAL_LCP;
+      return x >= NDBD_USE_PARTIAL_LCP_v2;
     }
   }
   return 1;

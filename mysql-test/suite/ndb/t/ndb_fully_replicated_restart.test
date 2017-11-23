@@ -219,11 +219,7 @@ insert into t1 values
 # cluster has been restored or timeout occurs
 #
 --echo "Wait reconnect"
---disable_result_log
---disable_query_log
 --source include/ndb_not_readonly.inc
---enable_result_log
---enable_query_log
 
 begin;
 # pk lookup

@@ -156,9 +156,9 @@ while ($not_proven)
   create table raw_binlog_rows_server1 (txt varchar(1000));
   create table raw_binlog_rows_server2 (txt varchar(1000));
 
-  --exec $MYSQL_BINLOG --verbose $SERVER1_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog1.sql
+  --exec $MYSQL_BINLOG --verbose $SERVER1_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog1.sql
   --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog1.sql' into table raw_binlog_rows_server1 columns terminated by '\n';
-  --exec $MYSQL_BINLOG --verbose $SERVER2_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog2.sql
+  --exec $MYSQL_BINLOG --verbose $SERVER2_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog2.sql
   --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog2.sql' into table raw_binlog_rows_server2 columns terminated by '\n';
 
 

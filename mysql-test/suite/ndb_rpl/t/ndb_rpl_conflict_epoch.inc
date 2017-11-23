@@ -298,11 +298,11 @@ eval insert into mysql.ndb_replication values
 call mtr.add_suppression("NDB Slave: .* Too many extra Gci bits at .*");
 --enable_query_log
 
---error 1296 
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table test.t3 (a int primary key) engine=ndb;
 show warnings;
 
---error 1296 
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table test.t4 (a int primary key) engine=ndb;
 show warnings;
 

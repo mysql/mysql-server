@@ -218,10 +218,10 @@ void Win32AsyncFile::openReq(Request* request)
       req->varIndex = index++;
       req->data.pageData[0] = m_page_ptr.i;
 
-      m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal,
-			  FsReadWriteReq::FixedLength + 1,
-                          instance // wl4391_todo This EXECUTE_DIRECT is thread safe
-                          );
+      m_fs.EXECUTE_DIRECT_MT(block, GSN_FSWRITEREQ, signal,
+			     FsReadWriteReq::FixedLength + 1,
+                             instance // wl4391_todo This EXECUTE_DIRECT is thread safe
+                            );
       Uint32 size = request->par.open.page_size;
       char* buf = (char*)m_page_ptr.p;
       DWORD dwWritten;
@@ -394,9 +394,11 @@ bool Win32AsyncFile::isOpen(){
 void
 Win32AsyncFile::syncReq(Request * request)
 {
-  if ((m_auto_sync_freq && m_write_wo_sync == 0) ||
-      m_always_sync)
+  if (m_write_wo_sync == 0)
   {
+    /**
+     * No need to call fsync when nothing to write.
+     */
     return;
   }
   if(!FlushFileBuffers(hFile)) {

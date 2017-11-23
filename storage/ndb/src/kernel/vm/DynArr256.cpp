@@ -128,17 +128,6 @@ Uint32 div15(Uint32 x)
   return ((x << 8) + (x << 4) + x + 255) >> 12;
 }
 
-inline
-void
-require_impl(bool x, int line)
-{
-  if (!x)
-  {
-    ndbout_c("LINE: %d", line);
-    abort();
-  }
-}
-
 DynArr256Pool::DynArr256Pool()
 {
   m_type_id = RNIL;

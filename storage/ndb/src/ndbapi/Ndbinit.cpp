@@ -214,17 +214,6 @@ Ndb::~Ndb()
   DBUG_VOID_RETURN;
 }
 
-NdbWaiter::NdbWaiter(trp_client* clnt)
-  : m_clnt(clnt)
-{
-  m_node = 0;
-  m_state = NO_WAIT;
-}
-
-NdbWaiter::~NdbWaiter()
-{
-  m_clnt = NULL;
-}
 
 NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 		 Ndb& ndb)
@@ -284,7 +273,6 @@ NdbImpl::~NdbImpl()
 {
   m_next_ndb_object = NULL;
   m_prev_ndb_object = NULL;
-  theWaiter = NULL;
   wakeHandler = NULL;
   m_ev_op = NULL;
 }

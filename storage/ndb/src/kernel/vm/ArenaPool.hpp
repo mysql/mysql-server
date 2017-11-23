@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,6 +78,8 @@ template<typename T>
 class ArenaPool
 {
 public:
+  typedef T Type;
+
   ArenaPool() {}
 
   void init(ArenaAllocator*, const Record_info& ri, const Pool_context& pc);

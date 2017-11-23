@@ -173,19 +173,9 @@ static void short_usage_sub(void)
   ndb_service_print_options("ndb_mgmd");
 }
 
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
-
-static char **defaults_argv;
-
 static void mgmd_exit(int result)
 {
   g_eventLogger->close();
-
-  /* Free memory allocated by 'load_defaults' */
-  ndb_free_defaults(defaults_argv);
 
   ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
@@ -196,14 +186,10 @@ static void mgmd_exit(int result)
 
 static int mgmd_main(int argc, char** argv)
 {
-  NDB_INIT(argv[0]);
+  Ndb_opts ndb_opts(argc, argv, my_long_options, load_default_groups);
+  ndb_opts.set_usage_funcs(short_usage_sub);
 
   printf("MySQL Cluster Management Server %s\n", NDB_VERSION_STRING);
-
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-
-  ndb_load_defaults(NULL, load_default_groups,&argc,&argv);
-  defaults_argv= argv; /* Must be freed by 'free_defaults' */
 
   int ho_error;
 #ifndef DBUG_OFF
@@ -211,8 +197,7 @@ static int mgmd_main(int argc, char** argv)
                     "d:t:i:F:o,/tmp/ndb_mgmd.trace");
 #endif
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-                               ndb_std_get_one_option)))
+  if ((ho_error=ndb_opts.handle_options()))
     mgmd_exit(ho_error);
 
   if (opts.interactive ||

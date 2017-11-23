@@ -10300,6 +10300,70 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_unlock_1ndb_1objects(JNIE
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    set_recv_thread_activation_threshold
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1recv_1thread_1activation_1threshold (JNIEnv * env, jobject obj, jint p0)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1recv_1thread_1activation_1threshold(JNIEnv *, jobject, jint)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_int, ttrait_Uint32, &Ndb_cluster_connection::set_recv_thread_activation_threshold >(env, obj, p0);
+#else
+    return gcall_fr< ttrait_int, ttrait_c_m_n_n_Ndb_cluster_connection_r, ttrait_int, &NdbApiWrapper::Ndb_cluster_connection__set_recv_thread_activation_threshold >(env, NULL, obj, p0);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    get_recv_thread_activation_threshold
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1recv_1thread_1activation_1threshold (JNIEnv * env, jobject obj)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1recv_1thread_1activation_1threshold(JNIEnv *, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_int, &Ndb_cluster_connection::get_recv_thread_activation_threshold >(env, obj);
+#else
+    return gcall_fr< ttrait_int, ttrait_c_m_n_n_Ndb_cluster_connection_r, &NdbApiWrapper::Ndb_cluster_connection__get_recv_thread_activation_threshold >(env, NULL, obj);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    set_recv_thread_cpu
+ * Signature: (S)I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1recv_1thread_1cpu (JNIEnv * env, jobject obj, jshort p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1recv_1thread_1cpu (JNIEnv *, jobject, jshort)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_int, ttrait_Uint16, &Ndb_cluster_connection::set_recv_thread_cpu >(env, obj, p0);
+#else
+    return gcall_fr< ttrait_int, ttrait_c_m_n_n_Ndb_cluster_connection_r, ttrait_short, &NdbApiWrapper::Ndb_cluster_connection__set_recv_thread_cpu >(env, NULL, obj, p0);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    unset_recv_thread_cpu
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_unset_1recv_1thread_1cpu (JNIEnv * env, jobject obj)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_unset_1recv_1thread_1cpu (JNIEnv *, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_int, ttrait_Uint32, &Ndb_cluster_connection::unset_recv_thread_cpu >(env, obj, 0);
+#else
+    return gcall_fr< ttrait_int, ttrait_c_m_n_n_Ndb_cluster_connection_r, &NdbApiWrapper::Ndb_cluster_connection__unset_recv_thread_cpu >(env, NULL, obj);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
  * Method:    get_next_ndb_object
  * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbConst;)Lcom/mysql/ndbjtie/ndbapi/NdbConst;
  */

@@ -1344,7 +1344,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
      */
     cpu_set_t cpu_set;
     Uint32 i;
-    Uint32 num_cpus = sizeof(cpu_set_t) * 8;
+    Uint32 num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
     CPU_ZERO(&cpu_set);
     for (i = 0; i < num_cpus; i++)

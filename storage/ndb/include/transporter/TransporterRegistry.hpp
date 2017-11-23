@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -402,43 +402,63 @@ public:
    * NOTE signalHeader->xxxBlockRef should contain block numbers and 
    *                                not references
    */
+
+private:
+  template <typename AnySectionArg>
+  SendStatus prepareSendTemplate(
+                         TransporterSendBufferHandle *sendHandle,
+                         const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
+                         NodeId nodeId,
+                         AnySectionArg section);
+
+
+public:
   SendStatus prepareSend(TransporterSendBufferHandle *sendHandle,
-                         const SignalHeader * const signalHeader, Uint8 prio,
-			 const Uint32 * const signalData,
-			 NodeId nodeId, 
-			 const LinearSectionPtr ptr[3]);
+                         const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
+                         NodeId nodeId,
+                         const LinearSectionPtr ptr[3]);
 
   SendStatus prepareSend(TransporterSendBufferHandle *sendHandle,
-                         const SignalHeader * const signalHeader, Uint8 prio,
-			 const Uint32 * const signalData,
-			 NodeId nodeId, 
-			 class SectionSegmentPool & pool,
-			 const SegmentedSectionPtr ptr[3]);
+                         const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
+                         NodeId nodeId,
+                         class SectionSegmentPool & pool,
+                         const SegmentedSectionPtr ptr[3]);
+
   SendStatus prepareSend(TransporterSendBufferHandle *sendHandle,
-                         const SignalHeader * const signalHeader, Uint8 prio,
-                         const Uint32 * const signalData,
+                         const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
                          NodeId nodeId,
                          const GenericSectionPtr ptr[3]);
   /**
    * Backwards compatiple methods with default send buffer handling.
    */
-  SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
-			 const Uint32 * const signalData,
-			 NodeId nodeId,
-			 const LinearSectionPtr ptr[3])
+  SendStatus prepareSend(const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
+                         NodeId nodeId,
+                         const LinearSectionPtr ptr[3])
   {
     return prepareSend(this, signalHeader, prio, signalData, nodeId, ptr);
   }
-  SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
-			 const Uint32 * const signalData,
-			 NodeId nodeId,
-			 class SectionSegmentPool & pool,
-			 const SegmentedSectionPtr ptr[3])
+  SendStatus prepareSend(const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
+                         NodeId nodeId,
+                         class SectionSegmentPool & pool,
+                         const SegmentedSectionPtr ptr[3])
   {
     return prepareSend(this, signalHeader, prio, signalData, nodeId, pool, ptr);
   }
-  SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
-                         const Uint32 * const signalData,
+  SendStatus prepareSend(const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
                          NodeId nodeId,
                          const GenericSectionPtr ptr[3])
   {

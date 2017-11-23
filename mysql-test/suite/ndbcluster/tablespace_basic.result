@@ -37,13 +37,7 @@ DROP TABLE t1;
 ALTER TABLESPACE ts1 RENAME TO ts2;
 ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... RENAME TO
 ALTER TABLESPACE ts1
-DROP DATAFILE 'ts1_datafile.dat'
-  ENGINE=NDB;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
-DROP TABLESPACE ts1
-ENGINE=NDB;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1
 ENGINE=NDB;

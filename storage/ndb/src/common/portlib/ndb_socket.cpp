@@ -15,59 +15,27 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <stdio.h>
 
-#include "m_string.h"
 #include "ndb_socket.h"
 
 /*
-  Implement my_socket_close here to avoid EventLogger.hpp in
-  header file (causes unrelated link problem on Solaris).
+  Implement ndb_socketpair() so that it works both on UNIX and windows
 */
 
 #if defined _WIN32
 
-/* skip */
-
-#else
-
-#include <sys/stat.h>
-
-int my_socket_close(ndb_socket_t s)
-{
-  struct stat sb;
-  if (fstat(s.fd, &sb) == 0)
-  {
-    if ((sb.st_mode & S_IFMT) != S_IFSOCK)
-    {
-      fprintf(stderr, "fd=%d: not socket: mode=%o",
-              s.fd, sb.st_mode);
-      abort();
-    }
-  }
-  return close(s.fd);
-}
-
-#endif
-
-/*
-  Implement my_socketpair() so that it works both on UNIX and windows
-*/
-
-#if defined _WIN32
-
-int my_socketpair(ndb_socket_t s[2])
+int ndb_socketpair(ndb_socket_t s[2])
 {
   struct sockaddr_in addr;
-  socket_len_t addrlen = sizeof(addr);
+  ndb_socket_len_t addrlen = sizeof(addr);
   ndb_socket_t listener;
 
-  my_socket_invalidate(&listener);
-  my_socket_invalidate(&s[0]);
-  my_socket_invalidate(&s[1]);
+  ndb_socket_invalidate(&listener);
+  ndb_socket_invalidate(&s[0]);
+  ndb_socket_invalidate(&s[1]);
 
-  listener= my_socket_create(AF_INET, SOCK_STREAM, 0);
-  if (!my_socket_valid(listener))
+  listener= ndb_socket_create(AF_INET, SOCK_STREAM, 0);
+  if (!ndb_socket_valid(listener))
     return -1;
 
   bzero(&addr, sizeof(addr));
@@ -76,52 +44,52 @@ int my_socketpair(ndb_socket_t s[2])
   addr.sin_port = 0; /* Any port */
 
   /* bind any local address */
-  if (my_bind_inet(listener, &addr) == -1)
+  if (ndb_bind_inet(listener, &addr) == -1)
     goto err;
 
   /* get sockname */
   if (ndb_getsockname(listener, (struct sockaddr*)&addr, &addrlen) != 0)
     goto err;
 
-  if (my_listen(listener, 1) == -1)
+  if (ndb_listen(listener, 1) == -1)
     goto err;
 
-  s[0]= my_socket_create(AF_INET, SOCK_STREAM, 0);
+  s[0]= ndb_socket_create(AF_INET, SOCK_STREAM, 0);
 
-  if (!my_socket_valid(s[0]))
+  if (!ndb_socket_valid(s[0]))
     goto err;
 
-  if (my_connect_inet(s[0], &addr) == -1)
+  if (ndb_connect_inet(s[0], &addr) == -1)
     goto err;
 
-  s[1]= my_accept(listener, 0, 0);
-  if (!my_socket_valid(s[1]))
+  s[1]= ndb_accept(listener, 0, 0);
+  if (!ndb_socket_valid(s[1]))
     goto err;
 
-  my_socket_close(listener);
+  ndb_socket_close(listener);
   return 0;
 
 err:
   {
-    int save_errno = my_socket_errno();
+    const int save_errno = WSAGetLastError();
 
-    if (my_socket_valid(listener))
-      my_socket_close(listener);
+    if (ndb_socket_valid(listener))
+      ndb_socket_close(listener);
 
-    if (my_socket_valid(s[0]))
-      my_socket_close(s[0]);
+    if (ndb_socket_valid(s[0]))
+      ndb_socket_close(s[0]);
 
-    if (my_socket_valid(s[1]))
-      my_socket_close(s[1]);
+    if (ndb_socket_valid(s[1]))
+      ndb_socket_close(s[1]);
 
-    my_socket_set_errno(save_errno);
+    WSASetLastError(save_errno);
   }
   return -1;
 }
 
 #else
 
-int my_socketpair(ndb_socket_t s[2])
+int ndb_socketpair(ndb_socket_t s[2])
 {
   int ret;
   int sock[2];

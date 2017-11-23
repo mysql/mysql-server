@@ -149,7 +149,7 @@ Ndb_rep_tab_row::Ndb_rep_tab_row()
   memset(conflict_fn_spec, 0, sizeof(conflict_fn_spec));
 }
 const char* Ndb_rep_tab_reader::ndb_rep_db= NDB_REP_DB;
-const char* Ndb_rep_tab_reader::ndb_replication_table= NDB_REPLICATION_TABLE;
+const char* Ndb_rep_tab_reader::ndb_replication_table = "ndb_replication";
 const char* Ndb_rep_tab_reader::nrt_db= "db";
 const char* Ndb_rep_tab_reader::nrt_table_name= "table_name";
 const char* Ndb_rep_tab_reader::nrt_server_id= "server_id";

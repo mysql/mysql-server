@@ -52,6 +52,20 @@
 extern EventLogger * g_eventLogger;
 
 /**
+ * Two new manual(recompile) error-injections in mt.cpp :
+ *
+ *     NDB_BAD_SEND : Causes send buffer code to mess with a byte in a send buffer
+ *     NDB_LUMPY_SEND : Causes transporters to be given small, oddly aligned and
+ *                      sized IOVECs to send, testing ability of new and existing
+ *                      code to handle this.
+ *
+ *   These are useful for testing the correctness of the new code, and
+ *   the resulting behaviour / debugging output.
+ */
+//#define NDB_BAD_SEND
+//#define NDB_LUMPY_SEND
+
+/**
  * Number indicating that the node has no current sender thread.
  */
 #define NO_OWNER_THREAD 0xFFFF
@@ -4085,6 +4099,14 @@ pack_sb_pages(thread_local_pool<thr_send_page>* pool,
       curr->m_next = next->m_next;
 
       pool->release_local(save);
+
+#ifdef NDB_BAD_SEND
+      if ((curr->m_bytes % 40) == 24)
+      {
+        /* Oops */
+        curr->m_data[curr->m_start + 21] = 'F';
+      }
+#endif
     }
     else
     {
@@ -4132,6 +4154,8 @@ trp_callback::get_bytes_to_send_iovec(NodeId node,
 
     if (sb->m_buffer.m_first_page != NULL)
     {
+      // If first page is not NULL, the last page also can't be NULL
+      require(sb->m_buffer.m_last_page != NULL);
       if (sb->m_sending.m_first_page == NULL)
       {
         sb->m_sending = sb->m_buffer;
@@ -4162,6 +4186,44 @@ fill_iovec:
   Uint32 pos = 0;
   thr_send_page * p = sb->m_sending.m_first_page;
   sb->m_bytes_sent = 0;
+
+#ifdef NDB_LUMPY_SEND
+  /* Drip feed transporter a few bytes at a time to send */
+  do
+  {
+    Uint32 offset = 0;
+    while ((offset < p->m_bytes) && (pos < max))
+    {
+      /* 0 -+1-> 1 -+6-> (7)3 -+11-> (18)2 -+10-> 0 */
+      Uint32 lumpSz = 1;
+      switch (offset % 4)
+      {
+      case 0 : lumpSz = 1; break;
+      case 1 : lumpSz = 6; break;
+      case 2 : lumpSz = 10; break;
+      case 3 : lumpSz = 11; break;
+      }
+      const Uint32 remain = p->m_bytes - offset;
+      lumpSz = (remain < lumpSz)?
+        remain :
+        lumpSz;
+
+      dst[pos].iov_base = p->m_data + p->m_start + offset;
+      dst[pos].iov_len = lumpSz;
+      pos ++;
+      offset+= lumpSz;
+    }
+    if (pos == max)
+    {
+      return pos;
+    }
+    assert(offset == p->m_bytes);
+    p = p->m_next;
+  } while (p != NULL);
+
+  return pos;
+#endif
+
 
   do {
     dst[pos].iov_len = p->m_bytes;

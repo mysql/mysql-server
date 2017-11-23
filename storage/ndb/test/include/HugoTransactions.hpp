@@ -39,7 +39,8 @@ public:
                 bool oneTrans = false,
 		int updateValue = 0,
 		bool abort = false,
-                bool abort_on_first_error = false);
+                bool abort_on_first_error = false,
+                int row_step = 1);
 
   int loadTableStartFrom(Ndb*, 
                          int startFrom,
@@ -50,14 +51,16 @@ public:
                          bool oneTrans = false,
                          int updateValue = 0,
                          bool abort = false,
-                         bool abort_on_first_error = false);
+                         bool abort_on_first_error = false,
+                         int row_step = 1);
 
   int scanReadRecords(Ndb*, 
 		      int records,
 		      int abort = 0,
 		      int parallelism = 0,
 		      NdbOperation::LockMode = NdbOperation::LM_Read,
-                      int scan_flags = 0);
+                      int scan_flags = 0,
+                      int force_check_flag = 0);
 
   int scanReadRecords(Ndb*, 
 		      const NdbDictionary::Index*,
@@ -109,11 +112,13 @@ public:
   int pkInterpretedUpdateRecords(Ndb*, 
 				 int records,
 				 int batchsize = 1);
-  int pkDelRecords(Ndb*, 
+  int pkDelRecords(Ndb*,
 		   int records = 0,
 		   int batch = 1,
 		   bool allowConstraintViolation = true,
-		   int doSleep = 0);
+		   int doSleep = 0,
+                   int start_record = 0,
+                   int step = 1);
 
   int pkRefreshRecords(Ndb*, int startFrom, int count = 1, int batch = 1);
 
@@ -125,7 +130,9 @@ public:
   int fillTable(Ndb*,
 		int batch=512);
 
-  int fillTableStartFrom(Ndb*, int startFrom, int batch=512);
+  int fillTableStartFrom(Ndb*,
+                         int startFrom,
+                         int batch=512);
 
   /**
    * Reading using UniqHashIndex with key = pk

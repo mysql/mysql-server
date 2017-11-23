@@ -23,7 +23,7 @@ Next DBDICT 6223
 Next DBDIH 7249
 Next DBTC 8117
 Next CMVMI 9000
-Next BACKUP 10042
+Next BACKUP 10048
 Next PGMAN 11010
 Next DBTUX 12010
 Next SUMA 13049
@@ -613,6 +613,12 @@ Backup Stuff:
 10040: Resume backup (from 10039)
 10038: Receive abort backup in the middle of locking tables.
 10041: delay backup after create trigger. for testing undo log file.
+10042: Send SCAN_NEXTREQ with 10ms delay
+10043: Block indefinitely without closing file
+10044: Crash insertion at FSAPPENDREF
+10045: Crash insertion at FSAPPENDREF
+10046: DIH scan tab around Get next fragment
+10047: Delay start of scan for LCPs
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 

@@ -6,6 +6,9 @@
 --source suite/ndb/include/have_connectorj.inc
 --source suite/ndb/include/have_java.inc
 
+# Avoid check for result file
+--source include/ndb_no_result_file.inc
+
 --let JAVA_CLASSPATH=$CLUSTERJ_TEST_JAR
 --let JAVA_CLASSPATH_1=$CLUSTERJ_JAR
 # MTR_CLASSPATH automatically added to JAVA_CLASSPATH
@@ -22,6 +25,7 @@ DROP TABLE a;
 DROP TABLE allprimitives;
 DROP TABLE autopkint;
 DROP TABLE autopkbigint;
+DROP TABLE autopkmediumint;
 DROP TABLE autopksmallint;
 DROP TABLE autopktinyint;
 DROP TABLE b0;
@@ -54,6 +58,8 @@ DROP TABLE longintstringpk;
 DROP TABLE longlongstringfk;
 DROP TABLE longlongstringpk;
 DROP TABLE longvarbinarypk;
+DROP TABLE mediumintegertypes;
+DROP TABLE mediumunsignedtypes;
 DROP TABLE nullvalues;
 DROP TABLE shortpk;
 DROP TABLE stress;

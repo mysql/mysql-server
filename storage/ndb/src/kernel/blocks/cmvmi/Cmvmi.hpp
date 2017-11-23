@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,7 +97,7 @@ private:
   };
   typedef Ptr<EventRepSubscriber> SubscriberPtr;
   typedef ArrayPool<EventRepSubscriber> EventRepSubscriber_pool;
-  typedef DLList<EventRepSubscriber, EventRepSubscriber_pool> EventRepSubscriber_list;
+  typedef DLList<EventRepSubscriber_pool> EventRepSubscriber_list;
   /**
    * Pool of EventRepSubscriber record
    */

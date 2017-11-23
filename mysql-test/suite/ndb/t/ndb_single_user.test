@@ -56,21 +56,17 @@ ENGINE NDB;
 --connection server2
 --error ER_ALTER_FILEGROUP_FAILED
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
+DROP DATAFILE 'datafile.dat';
 show warnings;
 --connection server1
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
+DROP DATAFILE 'datafile.dat';
 --connection server2
 --error ER_DROP_FILEGROUP_FAILED
-DROP TABLESPACE ts1
-ENGINE NDB;
+DROP TABLESPACE ts1;
 show warnings;
 --connection server1
-DROP TABLESPACE ts1
-ENGINE NDB;
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
 insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0),(6,6,0),(7,7,0),(8,8,0),(9,9,0),(10,10,0);

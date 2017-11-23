@@ -52,11 +52,6 @@ static void short_usage_sub(void)
   ndb_short_usage_sub("[ERRORCODE [ERRORCODE...]]");
 }
 
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
-
 
 static
 int mgmapi_error_string(int err_no, char *str, int size)
@@ -81,13 +76,10 @@ extern "C" int ndbd_exit_string(int err_no, char *str, unsigned int size);
 
 int main(int argc, char** argv)
 {
-  NDB_INIT(argv[0]);
+  Ndb_opts opts(argc, argv, my_long_options, load_default_groups);
+  opts.set_usage_funcs(short_usage_sub);
 
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  ndb_load_defaults(NULL, load_default_groups, &argc, &argv);
-
-  if (handle_options(&argc, &argv, my_long_options,
-                     ndb_std_get_one_option) != 0)
+  if (opts.handle_options() != 0)
     exit(255);
 
   if (opt_silent)
@@ -98,7 +90,7 @@ int main(int argc, char** argv)
 
   if (!argc)
   {
-    usage();
+    opts.usage();
     exit(1);
   }
 

@@ -78,6 +78,8 @@ public:
 
     _CMVMIMin = 103000,
     SetSchedulerResponsiveness = 103000,
+    EnableEventLoggerDebug = 103001,
+    DisableEventLoggerDebug = 103002,
     _CMVMIMax = 103099,
 
     // 1 QMGR Dump information about phase 1 variables
@@ -201,6 +203,7 @@ public:
      * Allows GCP stop thresholds to be set
      */
     DihSetGcpStopVals = 7026,
+    DihStallLcpStart = 7027,
     DihDumpPageRecInfo = 7032,
     DihFragmentsPerNode = 7033,
     DihDisplayPauseState = 7034,

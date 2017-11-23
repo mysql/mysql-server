@@ -20,7 +20,7 @@
 
 #include "m_string.h"       // strend()
 #include "sql/sql_table.h"  // filename_to_table_name()
-
+#include "sql/table.h"      // tmp_file_prefix
 /**
   Set a given location from full pathname to database name.
 */
@@ -70,4 +70,15 @@ ndb_set_tabname(const char *path_name, char * tabname)
   memcpy(tmp_name, ptr + 1, end - ptr);
   tmp_name[name_len]= '\0';
   filename_to_tablename(tmp_name, tabname, sizeof(tmp_buff) - 1);
+}
+
+bool ndb_name_is_temp(const char *name)
+{
+  return is_prefix(name, tmp_file_prefix) == 1;
+}
+
+
+bool ndb_name_is_blob_prefix(const char* name)
+{
+  return is_prefix(name, "NDB$BLOB");
 }

@@ -1,5 +1,7 @@
 --source include/have_ndb.inc
 
+# Avoid check for result file
+--source include/ndb_no_result_file.inc
 
 let NDBAPITEST_NAME=testMgmd;
 let NDBAPITEST_ARGS=--stop-on-error;

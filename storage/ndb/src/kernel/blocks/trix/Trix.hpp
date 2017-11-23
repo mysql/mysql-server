@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -95,7 +95,7 @@ private:
   
   typedef Ptr<NodeRecord> NodeRecPtr;
   typedef ArrayPool<NodeRecord> NodeRecord_pool;
-  typedef DLList<NodeRecord, NodeRecord_pool> NodeRecord_list;
+  typedef DLList<NodeRecord_pool> NodeRecord_list;
 
   /**
    * The pool of node records
@@ -157,7 +157,7 @@ private:
   
   typedef Ptr<SubscriptionRecord> SubscriptionRecPtr;
   typedef ArrayPool<SubscriptionRecord> SubscriptionRecord_pool;
-  typedef DLList<SubscriptionRecord, SubscriptionRecord_pool> SubscriptionRecord_list;
+  typedef DLList<SubscriptionRecord_pool> SubscriptionRecord_list;
 
   /**
    * The pool of node records
@@ -291,6 +291,11 @@ private:
 
   StatOp_pool c_statOpPool;
   RSS_AP_SNAPSHOT(c_statOpPool);
+
+  /* Max schema object build batchsize from config */
+  Uint32 c_maxUIBuildBatchSize;
+  Uint32 c_maxFKBuildBatchSize;
+  Uint32 c_maxReorgBuildBatchSize;
 
   // System start
   void execREAD_CONFIG_REQ(Signal* signal);

@@ -35,17 +35,6 @@ char *ndb_pack_varchar(const NdbDictionary::Column *col,
                        char *buf, const char *str, int sz);
 
 /**
-  Compare the extra metadata in the table with the data provided
-  by the arguments
-
-  @retval
-    0    ok
-*/
-
-int cmp_unpacked_frm(const NdbDictionary::Table* ndbtab, const void* data,
-                     size_t data_length);
-
-/**
    @brief ndb_get_extra_metadata_version, returns the version of the
           extra metadata attached to the table in NDB.
    @param ndbtab
@@ -53,4 +42,23 @@ int cmp_unpacked_frm(const NdbDictionary::Table* ndbtab, const void* data,
  */
 Uint32 ndb_get_extra_metadata_version(const NdbDictionary::Table* ndbtab);
 
+
+/**
+ * @brief ndb_table_has_blobs, check if the NDB table has blobs
+ * @param ndbtab
+ * @return true if the table have blobs
+ */
+bool ndb_table_has_blobs(const NdbDictionary::Table* ndbtab);
+
+
+/**
+ * @brief ndb_table_has_hidden_pk, check if the NDB table has a hidden
+ *        primary key(as created by ndbcluster to support having table
+ *        without primary key in NDB)
+ * @param ndbtab
+ * @return true if the table has a hidden primary key
+ */
+bool ndb_table_has_hidden_pk(const NdbDictionary::Table* ndbtab);
+
 #endif
+

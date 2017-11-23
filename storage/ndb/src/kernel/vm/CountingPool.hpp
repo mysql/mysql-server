@@ -30,7 +30,7 @@
 
 // Implementation CountingPool
 
-template<typename T, class P>
+template<class P, typename T = typename P::Type>
 class CountingPool : public P
 {
   Uint32 m_inuse;
@@ -38,6 +38,7 @@ class CountingPool : public P
   Uint32 m_max_allowed;
 protected:
 public:
+  typedef T Type;
   CountingPool() :m_inuse(0), m_inuse_high(0), m_max_allowed(UINT32_MAX)
     {}
 

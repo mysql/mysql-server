@@ -4,16 +4,6 @@ where resource_name = 'TRANSACTION_MEMORY'
 reserved	(used>reserved)
 640	1
 640	1
-select logfile_group_name, extra from information_schema.files
-where file_type = 'UNDO LOG' and file_name is null;
-logfile_group_name	extra
-initial_lg1	UNDO_BUFFER_SIZE=20971520
-select distinct file_name, initial_size from information_schema.files
-where file_type = 'UNDO LOG' and file_name like '%log'
-    order by file_name;
-file_name	initial_size
-undofile1.log	33554432
-undofile2.log	56623104
 create tablespace ts1
 add datafile 'data1.dat'
   use logfile group initial_lg1
@@ -26,6 +16,6 @@ b varchar(256)
 insert into t1 values
 (1, "initial log file test");
 drop table t1;
-alter tablespace ts1 drop datafile 'data1.dat' engine=ndb;
-drop tablespace ts1 engine = ndb;
+alter tablespace ts1 drop datafile 'data1.dat';
+drop tablespace ts1;
 drop logfile group initial_lg1 engine = ndb;

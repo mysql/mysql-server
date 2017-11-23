@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -126,8 +126,10 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 
     Uint32 sendSignalId = 1;
     Uint32 checksum = 1;
+    Uint32 preSendChecksum = 0;
     if(iter.get(CFG_CONNECTION_SEND_SIGNAL_ID, &sendSignalId)) continue;
     if(iter.get(CFG_CONNECTION_CHECKSUM, &checksum)) continue;
+    if(iter.get(CFG_CONNECTION_PRESEND_CHECKSUM, &preSendChecksum)) continue;
 
     Uint32 type = ~0;
     if(iter.get(CFG_TYPE_OF_SECTION, &type)) continue;
@@ -155,8 +157,9 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 				   server_port);
     }
     
-    DBUG_PRINT("info", ("Transporter between this node %d and node %d using port %d, signalId %d, checksum %d",
-               nodeId, remoteNodeId, server_port, sendSignalId, checksum));
+    DBUG_PRINT("info", ("Transporter between this node %d and node %d using port %d, signalId %d, checksum %d,"
+        "preSendChecksum %d",
+               nodeId, remoteNodeId, server_port, sendSignalId, checksum, preSendChecksum));
     /*
       This may be a dynamic port. It depends on when we're getting
       our configuration. If we've been restarted, we'll be getting
@@ -171,6 +174,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     conf.localNodeId    = nodeId;
     conf.remoteNodeId   = remoteNodeId;
     conf.checksum       = checksum;
+    conf.preSendChecksum = preSendChecksum;
     conf.signalId       = sendSignalId;
     conf.s_port         = server_port;
     conf.localHostName  = localHostName;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -237,7 +237,7 @@ ndb_mgm_create_handle()
   h->connected       = 0;
   h->last_error      = 0;
   h->last_error_line = 0;
-  my_socket_invalidate(&(h->socket));
+  ndb_socket_invalidate(&(h->socket));
   h->timeout         = 60000;
   h->cfg_i           = -1;
   h->errstream       = stdout;
@@ -615,7 +615,7 @@ int ndb_mgm_is_connected(NdbMgmHandle handle)
     if(Ndb_check_socket_hup(handle->socket))
     {
       handle->connected= 0;
-      NDB_CLOSE_SOCKET(handle->socket);
+      ndb_socket_close(handle->socket);
     }
   }
   return handle->connected;
@@ -708,9 +708,9 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
    */
   LocalConfig &cfg= handle->cfg;
   NDB_SOCKET_TYPE sockfd;
-  my_socket_invalidate(&sockfd);
+  ndb_socket_invalidate(&sockfd);
   Uint32 i;
-  while (!my_socket_valid(sockfd))
+  while (!ndb_socket_valid(sockfd))
   {
     // do all the mgmt servers
     for (i = 0; i < cfg.ids.size(); i++)
@@ -770,10 +770,10 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
         }
       }
       sockfd = s.connect(cfg.ids[i].name.c_str(), cfg.ids[i].port);
-      if (my_socket_valid(sockfd))
+      if (ndb_socket_valid(sockfd))
 	break;
     }
-    if (my_socket_valid(sockfd))
+    if (ndb_socket_valid(sockfd))
       break;
 #ifndef DBUG_OFF
     {
@@ -862,8 +862,8 @@ extern "C"
 int
 ndb_mgm_disconnect_quiet(NdbMgmHandle handle)
 {
-  NDB_CLOSE_SOCKET(handle->socket);
-  my_socket_invalidate(&(handle->socket));
+  ndb_socket_close(handle->socket);
+  ndb_socket_invalidate(&(handle->socket));
   handle->connected = 0;
 
   return 0;
@@ -1661,6 +1661,7 @@ ndb_mgm_get_clusterlog_severity_filter(NdbMgmHandle handle,
   for(unsigned int i=0; i < severity_size; i++) {
     reply->get(clusterlog_severity_names[severity[i].category], &severity[i].value);
   }
+  delete reply;
   DBUG_RETURN(severity_size);
 }
 
@@ -1694,6 +1695,7 @@ ndb_mgm_get_clusterlog_severity_filter_old(NdbMgmHandle handle)
   for(int i=0; i < (int)NDB_MGM_EVENT_SEVERITY_ALL; i++) {
     reply->get(clusterlog_severity_names[i], &enabled[i]);
   }
+  delete reply;
   DBUG_RETURN(enabled);
 }
 
@@ -1824,6 +1826,7 @@ ndb_mgm_get_clusterlog_loglevel(NdbMgmHandle handle,
   for(int i=0; i < loglevel_count; i++) {
     reply->get(clusterlog_names[loglevel[i].category], &loglevel[i].value);
   }
+  delete reply;
   DBUG_RETURN(loglevel_count);
 }
 
@@ -1862,6 +1865,7 @@ ndb_mgm_get_clusterlog_loglevel_old(NdbMgmHandle handle)
   for(int i=0; i < loglevel_count; i++) {
     reply->get(clusterlog_names[i], &loglevel[i]);
   }
+  delete reply;
   DBUG_RETURN(loglevel);
 }
 
@@ -1986,7 +1990,7 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
     }
   }
   const NDB_SOCKET_TYPE sockfd = s.connect(hostname, port);
-  if (!my_socket_valid(sockfd))
+  if (!ndb_socket_valid(sockfd))
   {
     setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
 	     "Unable to connect to");
@@ -2014,7 +2018,7 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
   handle->socket = tmp;
 
   if(reply == NULL) {
-    my_socket_close(sockfd);
+    ndb_socket_close(sockfd);
     CHECK_REPLY(handle, reply, -1);
   }
   delete reply;
@@ -2034,7 +2038,7 @@ ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[])
 {
   NDB_SOCKET_TYPE s;
   if(ndb_mgm_listen_event_internal(handle,filter,0,&s)<0)
-    my_socket_invalidate(&s);
+    ndb_socket_invalidate(&s);
   return ndb_socket_get_native(s);
 }
 
@@ -3093,14 +3097,14 @@ ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
   if(handle == 0)
   {
     SET_ERROR(*handle, NDB_MGM_ILLEGAL_SERVER_HANDLE, "");
-    my_socket_invalidate(&s);
+    ndb_socket_invalidate(&s);
     DBUG_RETURN(s);
   }
 
   if ((*handle)->connected != 1)
   {
     SET_ERROR(*handle, NDB_MGM_SERVER_NOT_CONNECTED , "");
-    my_socket_invalidate(&s);
+    ndb_socket_invalidate(&s);
     DBUG_RETURN(s);
   }
 

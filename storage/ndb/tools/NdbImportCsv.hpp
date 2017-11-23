@@ -53,8 +53,12 @@ public:
   typedef NdbImportUtil::Row Row;
   typedef NdbImportUtil::Blob Blob;
   typedef NdbImportUtil::RowList RowList;
+  typedef NdbImportUtil::RowCtl RowCtl;
+  typedef NdbImportUtil::Range Range;
+  typedef NdbImportUtil::RangeList RangeList;
   typedef NdbImportUtil::RowMap RowMap;
   typedef NdbImportUtil::Buf Buf;
+  typedef NdbImportUtil::Stats Stats;
 
   NdbImportCsv(NdbImportUtil& util);
   ~NdbImportCsv();
@@ -121,8 +125,8 @@ public:
     Data* pop_front() {
       return static_cast<Data*>(List::pop_front());
     }
-    void push_back(DataList& list2) {
-      List::push_back(list2);
+    void push_back_from(DataList& src) {
+      List::push_back_from(src);
     }
     uint cnt() const {
       return m_cnt;
@@ -160,8 +164,8 @@ public:
     Field* pop_front() {
       return static_cast<Field*>(List::pop_front());
     }
-    void push_back(FieldList& list2) {
-      List::push_back(list2);
+    void push_back_from(FieldList& src) {
+      List::push_back_from(src);
     }
     uint cnt() const {
       return m_cnt;
@@ -198,8 +202,8 @@ public:
     Line* pop_front() {
       return static_cast<Line*>(List::pop_front());
     }
-    void push_back(LineList& list2) {
-      List::push_back(list2);
+    void push_back_from(LineList& src) {
+      List::push_back_from(src);
     }
     uint cnt() const {
       return m_cnt;
@@ -272,10 +276,11 @@ public:
           Buf& buf,
           RowList& rows_out,
           RowList& rows_reject,
-          RowMap& rowmap_in);
+          RowMap& rowmap_in,
+          Stats& stats);
     ~Input();
     void do_init();
-    void do_resume(RowMap::Range range_in);
+    void do_resume(Range range_in);
     void do_parse();
     void do_eval();
     void do_send(uint& curr, uint& left);
@@ -298,7 +303,7 @@ public:
       return m_util.has_error(m_error);
     }
     LineList m_line_list;
-    RowList m_rows_in;
+    RowList m_rows;     // lines eval'd to rows
     Parse* m_parse;
     Eval* m_eval;
     uint64 m_startpos;
@@ -345,6 +350,8 @@ public:
 
   // eval
 
+  // not used anymore due to extremely bad my_regex performance
+  // remove later or convert to C++ <regex> if it proves useful
   struct Regex {
     Regex(NdbImportUtil& util, const char* pattern, uint nsub);
     ~Regex();
@@ -368,13 +375,6 @@ public:
     NdbImportCsv& m_csv;
     NdbImportUtil& m_util;
     Error& m_error;     // team level
-    // regex
-    Regex* m_regex_decimal;
-    Regex* m_regex_decimalunsigned;
-    Regex* m_regex_year;
-    Regex* m_regex_date;
-    Regex* m_regex_time2;
-    Regex* m_regex_datetime2;
   };
 
   // output

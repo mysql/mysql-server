@@ -27,6 +27,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_table.h"  // build_table_filename
 #include "storage/ndb/src/ndbapi/NdbInfo.hpp"
+#include "sql/ndb_dummy_ts.h"
 
 static MYSQL_THDVAR_UINT(
   max_rows,                          /* name */
@@ -58,7 +59,7 @@ static MYSQL_THDVAR_BOOL(
   "Control if tables should be visible or not",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  FALSE                              /* default */
+  false                              /* default */
 );
 
 static char* opt_ndbinfo_dbname = (char*)"ndbinfo";
@@ -805,6 +806,18 @@ ndbinfo_init(void *plugin)
     HTON_TEMPORARY_NOT_SUPPORTED |
     HTON_ALTER_NOT_SUPPORTED;
   hton->find_files = ndbinfo_find_files;
+
+  {
+    // Install dummy callbacks to avoid writing <tablename>_<id>.SDI files
+    // in the data directory, those are just cumbersome having to delete
+    // and or rename on the other MySQL servers
+    hton->sdi_create = ndb_dummy_ts::sdi_create;
+    hton->sdi_drop = ndb_dummy_ts::sdi_drop;
+    hton->sdi_get_keys = ndb_dummy_ts::sdi_get_keys;
+    hton->sdi_get = ndb_dummy_ts::sdi_get;
+    hton->sdi_set = ndb_dummy_ts::sdi_set;
+    hton->sdi_delete = ndb_dummy_ts::sdi_delete;
+  }
 
   if (ndbcluster_is_disabled())
   {

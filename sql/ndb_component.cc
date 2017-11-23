@@ -19,8 +19,11 @@
 
 #include <stdarg.h>
 
+#include "my_systime.h" // set_timespec
+
 Ndb_component::Ndb_component(const char *name)
   : m_thread_state(TS_UNINIT),
+    m_server_started(false),
     m_name(name)
 {
 }
@@ -155,6 +158,49 @@ Ndb_component::deinit()
   mysql_cond_destroy(&m_start_stop_cond);
   return do_deinit();
 }
+
+
+void Ndb_component::set_server_started()
+{
+  mysql_mutex_lock(&m_start_stop_mutex);
+
+  // Can only transition to "server started" once
+  DBUG_ASSERT(m_server_started == false);
+  m_server_started = true;
+
+  mysql_cond_signal(&m_start_stop_cond);
+  mysql_mutex_unlock(&m_start_stop_mutex);
+}
+
+
+bool Ndb_component::wait_for_server_started(void)
+{
+  log_verbose(1, "Wait for server start");
+
+  mysql_mutex_lock(&m_start_stop_mutex);
+  while (!m_server_started)
+  {
+    // Wait max one second before checking again if server has been
+    // started or shutdown has been requested
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&m_start_stop_cond, &m_start_stop_mutex,
+                         &abstime);
+
+    // Has shutdown been requested
+    if (m_thread_state != TS_RUNNING)
+    {
+      mysql_mutex_unlock(&m_start_stop_mutex);
+      return false;
+    }
+  }
+  mysql_mutex_unlock(&m_start_stop_mutex);
+
+  log_verbose(1, "Detected server start");
+
+  return true;
+}
+
 
 #include "sql/ndb_log.h"
 
