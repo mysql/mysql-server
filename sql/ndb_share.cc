@@ -30,6 +30,7 @@
 #include "sql/ndb_name_util.h"
 #include "sql/ndb_table_map.h"
 #include "sql/sql_class.h"
+#include "sql/table.h"
 #include "storage/ndb/include/ndbapi/NdbEventOperation.hpp"
 
 extern Ndb* g_ndb;
