@@ -935,3 +935,12 @@ LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1 CHARACTER SET 
 SELECT HEX(a), CRC32(a) from t1;
 DROP TABLE t1;
 SET NAMES default;
+
+--echo #
+--echo # Bug#27134168 UBSAN: MY_DOUBLE_ROUND - NEGATION OF BLAH
+--echo #
+
+SELECT truncate(
+  0x123,
+  -9223372036854775808
+);

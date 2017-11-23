@@ -3297,13 +3297,17 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
 {
   double tmp;
   bool dec_negative= (dec < 0) && !dec_unsigned;
+  int log_10_size= array_elements(log_10); // 309
+  if (dec_negative && dec <= -log_10_size)
+    return 0.0;
+
   ulonglong abs_dec= dec_negative ? -dec : dec;
   /*
     tmp2 is here to avoid return the value with 80 bit precision
     This will fix that the test round(0.1,1) = round(0.1,1) is true
     Tagging with volatile is no guarantee, it may still be optimized away...
   */
-  volatile double tmp2;
+  volatile double tmp2= 0.0;
 
   tmp=(abs_dec < array_elements(log_10) ?
        log_10[abs_dec] : pow(10.0,(double) abs_dec));
@@ -3312,9 +3316,7 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
   volatile double value_div_tmp= value / tmp;
   volatile double value_mul_tmp= value * tmp;
 
-  if (dec_negative && std::isinf(tmp))
-    tmp2= 0.0;
-  else if (!dec_negative && !std::isfinite(value_mul_tmp))
+  if (!dec_negative && !std::isfinite(value_mul_tmp))
     tmp2= value;
   else if (truncate)
   {
