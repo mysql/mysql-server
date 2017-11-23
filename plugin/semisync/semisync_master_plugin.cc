@@ -581,6 +581,30 @@ static int semi_sync_master_plugin_init(void *p)
 
   THR_RPL_SEMI_SYNC_DUMP= false;
 
+  /*
+    In case the plugin has been unloaded, and reloaded, we may need to
+    re-initialize some global variables.
+  */
+
+  /*
+    These global variables are bound to various MYSQL_SYSVAR instances,
+    so they get their initial values when those structs are initialized.
+   */
+  rpl_semi_sync_master_enabled= mysql_sysvar_enabled.def_val;
+  rpl_semi_sync_master_timeout= mysql_sysvar_timeout.def_val;
+  rpl_semi_sync_master_wait_no_slave= mysql_sysvar_wait_no_slave.def_val;
+  rpl_semi_sync_master_trace_level= mysql_sysvar_trace_level.def_val;
+  rpl_semi_sync_master_wait_point= mysql_sysvar_wait_point.def_val;
+  rpl_semi_sync_master_wait_for_slave_count=
+    mysql_sysvar_wait_for_slave_count.def_val;
+
+  /*
+    These are initialized to zero by the linker, but may need to be
+    re-initialized
+  */
+  rpl_semi_sync_master_no_transactions= 0;
+  rpl_semi_sync_master_yes_transactions= 0;
+
   repl_semisync= new ReplSemiSyncMaster();
   ack_receiver= new Ack_receiver();
 
