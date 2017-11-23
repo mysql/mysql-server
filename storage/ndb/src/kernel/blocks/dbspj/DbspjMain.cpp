@@ -3786,6 +3786,7 @@ Dbspj::execTRANSID_AI(Signal* signal)
   
   ndbassert(checkRequest(requestPtr));
   ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
+  ndbassert(treeNodePtr.p->m_bits & TreeNode::T_EXPECT_TRANSID_AI);
 
   DEBUG("execTRANSID_AI"
      << ", node: " << treeNodePtr.p->m_node_no
@@ -5017,18 +5018,21 @@ Dbspj::lookup_send(Signal* signal,
   }
 
   /**
-   * Expected reply signal counts:
-   *  2: A non-Leaf will get both a TRANSID_AI reply and a CONF
-   *     (In case of a non-LEAF 'REF', it is counted twice)
-   *  0: A Leaf in a lookup request expect no replies to SPJ.
-   *     (All replies goes directly to API-client)
+   * Count number of expected reply signals:
+   *  CONF or REF reply:
+   *  - Expected by every non-leaf TreeNodes
+   *  - For a scan request evel leaf TreeNodes get a CONF/REF reply.
+   *
+   *  TRANSID_AI reply:
+   *  - Expected for all TreeNodes having T_EXPECT_TRANSID_AI
    */
-  Uint32 cnt = 2;
-  if (requestPtr.p->isLookup() && treeNodePtr.p->isLeaf())
-  {
-    jam();
-    cnt = 0;
-  }
+  Uint32 cnt = 0;
+  
+  if (requestPtr.p->isScan() || !treeNodePtr.p->isLeaf())    //CONF/REF
+    cnt++;
+
+  if (treeNodePtr.p->m_bits & TreeNode::T_EXPECT_TRANSID_AI) //TRANSID_AI
+    cnt++;
 
   LqhKeyReq* req = reinterpret_cast<LqhKeyReq*>(signal->getDataPtrSend());
 
@@ -5229,8 +5233,9 @@ Dbspj::lookup_send(Signal* signal,
       err = DbspjErr::NodeFailure;
       break;
     }
-    else if (! (treeNodePtr.p->isLeaf() && requestPtr.p->isLookup()))
+    else if (cnt > 0)
     {
+      // Register signal 'cnt' required before completion
       jam();
       ndbassert(Tnode < NDB_ARRAY_SIZE(requestPtr.p->m_lookup_node_data));
       requestPtr.p->m_completed_nodes.clear(treeNodePtr.p->m_node_no);
@@ -5297,9 +5302,12 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
 
   DEBUG("lookup_execLQHKEYREF, errorCode:" << errCode);
 
-  // Count the non-arriving TRANSID_AI due to the 'REF'
-  lookup_countSignal(signal, requestPtr, treeNodePtr);
-
+  if (treeNodePtr.p->m_bits & TreeNode::T_EXPECT_TRANSID_AI)
+  {
+    // Count the non-arriving TRANSID_AI due to the 'REF'
+    lookup_countSignal(signal, requestPtr, treeNodePtr);
+  }
+  
   // Count awaiting CONF/REF
   const bool done = lookup_countSignal(signal, requestPtr, treeNodePtr);
 
@@ -7812,11 +7820,16 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
   }
 
   requestPtr.p->m_rows += rows;
-  data.m_rows_expecting += rows;
   data.m_totalRows += rows;
   data.m_totalBytes += bytes;
   data.m_largestBatchRows = MAX(data.m_largestBatchRows, rows);
   data.m_largestBatchBytes = MAX(data.m_largestBatchBytes, bytes);
+
+  if (treeNodePtr.p->m_bits & TreeNode::T_EXPECT_TRANSID_AI)
+  {
+    jam();
+    data.m_rows_expecting += rows;
+  }
 
   ndbrequire(data.m_frags_outstanding);
   ndbrequire(state == ScanFragHandle::SFH_SCANNING ||
@@ -9908,6 +9921,7 @@ Dbspj::parseDA(Build_context& ctx,
           break;
         }
         sum_read += cnt;
+        treeNodePtr.p->m_bits |= TreeNode::T_EXPECT_TRANSID_AI;
       }
       /**
        * If no LINKED_ATTR's including the CORR_FACTOR was requested by
@@ -9915,7 +9929,8 @@ Dbspj::parseDA(Build_context& ctx,
        * Will be used to keep track of whether a 'match' was found
        * for the requested parent row.
        */
-      else if (requestPtr.p->isScan())
+      else if (requestPtr.p->isScan() &&
+	       (treeNodePtr.p->m_bits & TreeNode::T_INNER_JOIN))
       {
         jam();
         Uint32 cnt = 0;
@@ -9931,6 +9946,7 @@ Dbspj::parseDA(Build_context& ctx,
           break;
         }
         sum_read += cnt;
+        treeNodePtr.p->m_bits |= TreeNode::T_EXPECT_TRANSID_AI;
       }
 
       if (interpreted)
