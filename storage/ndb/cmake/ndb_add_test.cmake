@@ -37,24 +37,23 @@ FUNCTION(NDB_ADD_TEST)
   SET(SRC ${ARG_DEFAULT_ARGS})
 
   # Adding executable for the test
-  ADD_EXECUTABLE(${EXEC} ${SRC})
-  # Moving all unit test executables to build_dir/unittest/ndb
-  SET_TARGET_PROPERTIES(${EXEC} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/unittest/ndb)
+  # - built in the default RUNTIME_OUTPUT_DIRECTORY
+  # - adds test to be run by ctest
+  # - skips install ot the unittest binary
+  MYSQL_ADD_EXECUTABLE(${EXEC} ${SRC} ADD_TEST ${EXEC})
 
-  # Linking the libraries
+  # Add additional libraries
   IF(ARG_LIBS)
     TARGET_LINK_LIBRARIES(${EXEC} ${ARG_LIBS})
   ENDIF()
-  # Generating the test name and adding the test to ensure
-  # it is picked up by CTest
+
+  # Automatically generating -DTEST_<name> define for including
+  # the unit test code
   string (REPLACE "-t" "" NAME "${EXEC}")
   string (REPLACE "-" "_" FLAG_NAME "${NAME}")
-  ADD_TEST(${NAME} "${CMAKE_BINARY_DIR}/unittest/ndb/${EXEC}")
-
-  # Automatically generating flag and setting it
-  string (TOUPPER ${FLAG_NAME} TEST_UC)
+  string (TOUPPER ${FLAG_NAME} FLAG_UC)
   SET_TARGET_PROPERTIES(${EXEC}
-                      PROPERTIES COMPILE_FLAGS "-DTEST_${TEST_UC}")
+                      PROPERTIES COMPILE_FLAGS "-DTEST_${FLAG_UC}")
   
   # Link the unit test program with mytap(and thus implicitly mysys)
   TARGET_LINK_LIBRARIES(${EXEC} mytap)
