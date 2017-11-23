@@ -1733,6 +1733,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
+    CFG_LOCATION_DOMAIN_ID,
+    "LocationDomainId",
+    DB_TOKEN,
+    "LocationDomainId for node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    0,
+    "0",
+    "16"
+  },
+
+  {
     CFG_DB_NODEGROUP,
     "Nodegroup",
     DB_TOKEN,
@@ -2545,6 +2558,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
+    CFG_LOCATION_DOMAIN_ID,
+    "LocationDomainId",
+    API_TOKEN,
+    "LocationDomainId for node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    0,
+    "0",
+    "16"
+  },
+
+  {
     CFG_AUTO_RECONNECT,
     "AutoReconnect",
     "API",
@@ -2827,6 +2853,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "256K",
     STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_LOCATION_DOMAIN_ID,
+    "LocationDomainId",
+    MGM_TOKEN,
+    "LocationDomainId for node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    0,
+    "0",
+    "16"
   },
 
   {
@@ -5754,15 +5793,18 @@ add_a_connection(Vector<ConfigInfo::ConfigRuleSection>&sections,
   const Properties *tmp;
   
   Uint32 wan = 0;
+  Uint32 location_domain1 = 0;
+  Uint32 location_domain2 = 0;
   require(ctx.m_config->get("Node", nodeId1, &tmp));
   tmp->get("HostName", &hostname1);
+  tmp->get("LocationDomainId", &location_domain1);
   if (!wan)
   {
     tmp->get("wan", &wan);
   }
 
   if (tmp->get("ConnectionMap", &map))
-{
+  {
     if ((ret = check_connection(ctx, map, nodeId1, hostname1, nodeId2)) != 1)
     {
       return ret == 0 ? true : false;
@@ -5771,9 +5813,21 @@ add_a_connection(Vector<ConfigInfo::ConfigRuleSection>&sections,
 
   require(ctx.m_config->get("Node", nodeId2, &tmp));
   tmp->get("HostName", &hostname2);
+  tmp->get("LocationDomainId", &location_domain2);
   if (!wan)
   {
     tmp->get("wan", &wan);
+  }
+
+  if (!wan)
+  {
+    if (location_domain1 != 0 &&
+        location_domain2 != 0 &&
+        location_domain1 !=
+          location_domain2)
+    {
+      wan = 1;
+    }
   }
   
   if (tmp->get("ConnectionMap", &map))
