@@ -25,6 +25,7 @@
 struct NDB_SHARE;
 class Ndb_cluster_connection;
 struct SHOW_VAR;
+struct SYS_VAR;
 
 class Ndb_index_stat_thread : public Ndb_component
 {
@@ -77,7 +78,15 @@ void ndb_index_stat_end();
   queries. Returns info about ndb index stat related status variables.
 */
 
-int
-show_ndb_status_index_stat(THD* thd, SHOW_VAR* var, char* buff);
+int show_ndb_status_index_stat(THD* thd, SHOW_VAR* var,
+                               char* buff);
+
+// Check and update functions for  --ndb-index-stat-option=
+int ndb_index_stat_option_check(THD*, SYS_VAR*, void* save,
+                                struct st_mysql_value* value);
+void ndb_index_stat_option_update(THD*, SYS_VAR*, void* var_ptr,
+                                  const void* save);
+// Storage for --ndb-index-stat-option=
+extern char ndb_index_stat_option_buf[];
 
 #endif

@@ -508,12 +508,9 @@ ndb_index_stat_str2opt(const char *str, Ndb_index_stat_opt& opt)
 
 /* Need storage between check and update (assume locked) */
 static char ndb_index_stat_option_tmp[ndb_index_stat_option_sz];
- 
-int
-ndb_index_stat_option_check(MYSQL_THD,
-                            SYS_VAR *var,
-                            void *save,
-                            struct st_mysql_value *value)
+
+int ndb_index_stat_option_check(THD *, SYS_VAR*, void *save,
+                                struct st_mysql_value *value)
 {
   DBUG_ENTER("ndb_index_stat_option_check");
   char buf[ndb_index_stat_option_sz];
@@ -536,11 +533,8 @@ ndb_index_stat_option_check(MYSQL_THD,
   DBUG_RETURN(1);
 }
 
-void
-ndb_index_stat_option_update(MYSQL_THD,
-                             SYS_VAR *var,
-                             void *var_ptr,
-                             const void *save)
+void ndb_index_stat_option_update(THD *, SYS_VAR*,
+                                  void *var_ptr, const void *save)
 {
   DBUG_ENTER("ndb_index_stat_option_update");
   const char *str= *(const char**)save;
@@ -798,7 +792,7 @@ Ndb_index_stat::Ndb_index_stat()
 */
 static void
 ndb_index_stat_error(Ndb_index_stat *st,
-                     int from, const char* place, int line)
+                     int from, const char* place MY_ATTRIBUTE((unused)))
 {
   time_t now= ndb_index_stat_time();
   NdbIndexStat::Error error= st->is->getNdbError();
@@ -819,8 +813,8 @@ ndb_index_stat_error(Ndb_index_stat *st,
     st->client_error= error;
   st->error_count++;
 
-  DBUG_PRINT("index_stat", ("%s line %d: error %d line %d extra %d",
-                            place, line, error.code, error.line, error.extra));
+  DBUG_PRINT("index_stat", ("%s error, code: %d, line: %d, extra: %d",
+                            place, error.code, error.line, error.extra));
 }
 
 static void
@@ -1014,7 +1008,7 @@ ndb_index_stat_alloc(const NDBINDEX *index,
 #endif
     if (is->set_index(*index, *table) == 0)
       return st;
-    ndb_index_stat_error(st, 1, "set_index", __LINE__);
+    ndb_index_stat_error(st, 1, "set_index");
     err_out= st->client_error.code;
   }
   else
@@ -1251,13 +1245,13 @@ ndb_index_stat_free(NDB_SHARE *share)
 /* Find entry across shares */
 /* wl4124_todo mutex overkill, hash table, can we find table share */
 static Ndb_index_stat*
-ndb_index_stat_find_entry(int index_id, int index_version, int table_id)
+ndb_index_stat_find_entry(int index_id, int index_version)
 {
   DBUG_ENTER("ndb_index_stat_find_entry");
   mysql_mutex_lock(&ndbcluster_mutex);
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-  DBUG_PRINT("index_stat", ("find index:%d version:%d table:%d",
-                            index_id, index_version, table_id));
+  DBUG_PRINT("index_stat", ("find, id: %d version: %d",
+                            index_id, index_version));
 
   int lt;
   for (lt=1; lt < Ndb_index_stat::LT_Count; lt++)
@@ -1424,7 +1418,7 @@ ndb_index_stat_proc_update(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   if (st->is->update_stat(pr.ndb) == -1)
   {
     mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-    ndb_index_stat_error(st, 0, "update_stat", __LINE__);
+    ndb_index_stat_error(st, 0, "update_stat");
 
     /*
       Turn off force update or else proc_error() thinks
@@ -1481,7 +1475,7 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   if (st->is->read_stat(pr.ndb) == -1)
   {
     mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-    ndb_index_stat_error(st, 0, "read_stat", __LINE__);
+    ndb_index_stat_error(st, 0, "read_stat");
     const bool force_update= st->force_update;
     ndb_index_stat_force_update(st, false);
 
@@ -1657,7 +1651,7 @@ ndb_index_stat_proc_check(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   if (st->is->read_head(pr.ndb) == -1)
   {
     mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-    ndb_index_stat_error(st, 0, "read_head", __LINE__);
+    ndb_index_stat_error(st, 0, "read_head");
     /* no stats is not unexpected error */
     if (st->is->getNdbError().code == NdbIndexStat::NoIndexStats)
     {
@@ -2053,8 +2047,7 @@ ndb_index_stat_proc_event(Ndb_index_stat_proc &pr)
                               head.m_eventType, head.m_indexId));
 
     Ndb_index_stat *st= ndb_index_stat_find_entry(head.m_indexId,
-                                                  head.m_indexVersion,
-                                                  head.m_tableId);
+                                                  head.m_indexVersion);
     /*
       Another process can update stats for an index which is not found
       in this mysqld.  Ignore it.
@@ -2085,7 +2078,7 @@ ndb_index_stat_proc_event(Ndb_index_stat_proc &pr)
 /* Control options */
 
 static void
-ndb_index_stat_proc_control(Ndb_index_stat_proc &pr)
+ndb_index_stat_proc_control()
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   Ndb_index_stat_opt &opt= ndb_index_stat_opt;
@@ -2227,7 +2220,7 @@ ndb_index_stat_proc(Ndb_index_stat_proc &pr)
 {
   DBUG_ENTER("ndb_index_stat_proc");
 
-  ndb_index_stat_proc_control(pr);
+  ndb_index_stat_proc_control();
 
 #ifndef DBUG_OFF
   ndb_index_stat_list_verify(pr);
@@ -2907,7 +2900,7 @@ ha_ndbcluster::ndb_index_stat_query(uint inx,
     if (st->is->convert_range(range, key_record, &ib) == -1)
     {
       mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-      ndb_index_stat_error(st, 1, "convert_range", __LINE__);
+      ndb_index_stat_error(st, 1, "convert_range");
       err= st->client_error.code;
       mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
       break;
@@ -2916,7 +2909,7 @@ ha_ndbcluster::ndb_index_stat_query(uint inx,
     {
       /* Invalid cache - should remove the entry */
       mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-      ndb_index_stat_error(st, 1, "query_stat", __LINE__);
+      ndb_index_stat_error(st, 1, "query_stat");
       err= st->client_error.code;
       mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
       break;
@@ -2965,18 +2958,16 @@ ha_ndbcluster::ndb_index_stat_set_rpk(uint inx)
 {
   DBUG_ENTER("ha_ndbcluster::ndb_index_stat_set_rpk");
 
-  KEY *key_info= table->key_info + inx;
-  int err= 0;
 
   uint8 stat_buffer[NdbIndexStat::StatBufferBytes];
   NdbIndexStat::Stat stat(stat_buffer);
   const key_range *min_key= 0;
   const key_range *max_key= 0;
-  err= ndb_index_stat_query(inx, min_key, max_key, stat, 2);
+  const int err= ndb_index_stat_query(inx, min_key, max_key, stat, 2);
   if (err == 0)
   {
-    uint k;
-    for (k= 0; k < key_info->user_defined_key_parts; k++)
+    KEY *key_info= table->key_info + inx;
+    for (uint k= 0; k < key_info->user_defined_key_parts; k++)
     {
       double rpk= -1.0;
       NdbIndexStat::get_rpk(stat, k, &rpk);
@@ -2993,8 +2984,7 @@ ha_ndbcluster::ndb_index_stat_set_rpk(uint inx)
 }
 
 int
-ha_ndbcluster::ndb_index_stat_analyze(Ndb *ndb,
-                                      uint *inx_list,
+ha_ndbcluster::ndb_index_stat_analyze(uint *inx_list,
                                       uint inx_count)
 {
   DBUG_ENTER("ha_ndbcluster::ndb_index_stat_analyze");
@@ -3016,8 +3006,8 @@ ha_ndbcluster::ndb_index_stat_analyze(Ndb *ndb,
     const NDBINDEX *index= data.index;
     DBUG_PRINT("index_stat", ("force update: %s", index->getName()));
 
-    r.st=
-      ndb_index_stat_get_share(m_share, index, m_table, r.snap, r.err, true, true);
+    r.st = ndb_index_stat_get_share(m_share, index, m_table, r.snap, r.err,
+                                    true, true);
     assert((r.st != 0) == (r.err == 0));
     /* Now holding reference to r.st if r.err == 0 */
   }
