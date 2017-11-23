@@ -14,7 +14,6 @@ archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this le
 ds_mrr-big @solaris      : Bug#14168107 2012-04-03 Hemant disabled new test added by Olav Sandstå,since this leads to timeout on Solaris on slow sparc servers
 
 # For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
-main.status               : Bug#14286343 2015-12-22 Mohit Legacy Bug leading to sporadic failures on PB2 occuring since 2012.
 audit_plugin_2           : Bug#24970428 2016-10-28 Marc TEST AUDIT_PLUGIN_2 USES DEPRECATED FEATURE SHOW_COMPATIBILITY_56
 
 # Disabled list(Due to InnoDB issues)
