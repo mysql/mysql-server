@@ -98,7 +98,9 @@ INSERT INTO tab1 VALUES (300,REPEAT('a',5)),(400,REPEAT('b',5));
 COMMIT;
 SELECT * FROM tab1;
 
+--disable_warnings
 UNINSTALL PLUGIN keyring_file;
+--enable_warnings
 # Cleanup
 DROP TABLE tab1;
 
