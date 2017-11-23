@@ -17,10 +17,11 @@
 ///
 /// This file implements the equals functor and function.
 
-#include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
 
-#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include <boost/geometry.hpp>
+
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/box.h"
 #include "sql/gis/box_traits.h"
 #include "sql/gis/equals_functor.h"
@@ -29,8 +30,8 @@
 #include "sql/gis/geometries_traits.h"
 #include "sql/gis/mbr_utils.h"
 #include "sql/gis/relops.h"
-#include "sql/sql_exception_handler.h" // handle_gis_exception
-#include "template_utils.h"         // down_cast
+#include "sql/sql_exception_handler.h"  // handle_gis_exception
+#include "template_utils.h"             // down_cast
 
 namespace bg = boost::geometry;
 

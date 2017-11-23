@@ -17,9 +17,10 @@
 ///
 /// This file implements the touches functor and function.
 
-#include <boost/geometry.hpp>
 #include <cstddef>  // std::size_t
 #include <memory>   // std::unique_ptr
+
+#include <boost/geometry.hpp>
 
 #include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/box.h"

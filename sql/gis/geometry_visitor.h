@@ -1,5 +1,5 @@
-#ifndef GIS__GEOMETRY_VISITOR_H_INCLUDED
-#define GIS__GEOMETRY_VISITOR_H_INCLUDED
+#ifndef SQL_GIS_GEOMETRY_VISITOR_H_INCLUDED
+#define SQL_GIS_GEOMETRY_VISITOR_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -113,7 +113,7 @@ class Geometry_visitor {
 /// A visitor that implements the entire interface and does nothing.
 class Nop_visitor : public Geometry_visitor {
  public:
-  virtual bool visit_enter(Geometry*) override { return false; }
+  virtual bool visit_enter(Geometry *) override { return false; }
   virtual bool visit_enter(Curve *c) override {
     return visit_enter(static_cast<Geometry *>(c));
   }
@@ -148,7 +148,7 @@ class Nop_visitor : public Geometry_visitor {
     return visit_enter(static_cast<Multisurface *>(mpy));
   }
 
-  virtual bool visit(Geometry*) override { return false; }
+  virtual bool visit(Geometry *) override { return false; }
   virtual bool visit(Point *pt) override {
     return visit(static_cast<Geometry *>(pt));
   }
@@ -186,7 +186,7 @@ class Nop_visitor : public Geometry_visitor {
     return visit(static_cast<Multisurface *>(mpy));
   }
 
-  virtual bool visit_leave(Geometry*) override { return false; }
+  virtual bool visit_leave(Geometry *) override { return false; }
   virtual bool visit_leave(Curve *c) override {
     return visit_leave(static_cast<Geometry *>(c));
   }
@@ -224,4 +224,4 @@ class Nop_visitor : public Geometry_visitor {
 
 }  // namespace gis
 
-#endif  // GIS__GEOMETRY_VISITOR_H_INCLUDED
+#endif  // SQL_GIS_GEOMETRY_VISITOR_H_INCLUDED

@@ -1,5 +1,5 @@
-#ifndef GIS__GC_UTILS_H_INCLUDED
-#define GIS__GC_UTILS_H_INCLUDED
+#ifndef SQL_GIS_GC_UTILS_H_INCLUDED
+#define SQL_GIS_GC_UTILS_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -23,7 +23,7 @@
 
 #include <memory>  // std::unique_ptr
 
-#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/difference_functor.h"
 #include "sql/gis/geometries.h"
 #include "sql/gis/union_functor.h"
@@ -70,4 +70,4 @@ void gc_union(double semi_major, double semi_minor,
 
 }  // namespace gis
 
-#endif  // GIS__GC_UTILS_H_INCLUDED
+#endif  // SQL_GIS_GC_UTILS_H_INCLUDED
