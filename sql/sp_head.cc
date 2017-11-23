@@ -3114,6 +3114,17 @@ bool sp_head::restore_lex(THD *thd)
   */
   merge_table_list(thd, sublex->query_tables, sublex);
 
+  /* Update m_sptabs_sorted to be in sync with m_sptabs. */
+  m_sptabs_sorted.clear();
+  for (auto &key_and_value : m_sptabs)
+  {
+    m_sptabs_sorted.push_back(key_and_value.second);
+  }
+  std::sort(m_sptabs_sorted.begin(), m_sptabs_sorted.end(),
+            [](const SP_TABLE *a, const SP_TABLE *b) {
+              return to_string(a->qname) < to_string(b->qname);
+            });
+
   if (!sublex->sp_lex_in_use)
   {
     sublex->sphead= NULL;
@@ -3468,9 +3479,8 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
   */
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-  for (const auto &key_and_value : m_sptabs)
+  for (SP_TABLE *stab : m_sptabs_sorted)
   {
-    SP_TABLE *stab= key_and_value.second;
     if (stab->temp || stab->lock_type == TL_IGNORE)
       continue;
 

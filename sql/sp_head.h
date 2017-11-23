@@ -961,6 +961,14 @@ private:
   */
   collation_unordered_map<std::string, SP_TABLE *> m_sptabs;
 
+  /*
+    The same information as in m_sptabs, but sorted (by an arbitrary key).
+    This is useful to get consistent locking order, which makes MTR tests
+    more deterministic across platforms. It does not have a bearing on the
+    actual behavior of the server.
+  */
+  std::vector<SP_TABLE *> m_sptabs_sorted;
+
   /**
     Version of the stored routine cache at the moment when the
     routine was added to it. Is used only for functions and

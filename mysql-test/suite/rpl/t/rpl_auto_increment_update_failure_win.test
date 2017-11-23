@@ -1,2 +1,0 @@
---source include/windows.inc
---source extra/rpl_tests/rpl_auto_increment_update_failure.inc
