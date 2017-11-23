@@ -1400,7 +1400,7 @@ public:
       per privileges is 11 chars.
       So, setting max approximate to 200.
     */
-    set_data_type_string(14*11, default_charset());
+    set_data_type_string(14*11, system_charset_info);
     maybe_null= true;
     null_on_null= false;
 
@@ -1424,7 +1424,7 @@ public:
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= false;
     null_on_null= false;
 
@@ -1449,7 +1449,7 @@ public:
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= 1;
     null_on_null= false;
 
@@ -1522,7 +1522,7 @@ public:
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= 1;
     null_on_null= false;
 
@@ -1549,7 +1549,7 @@ public:
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= 1;
     null_on_null= false;
 
@@ -1574,7 +1574,7 @@ public:
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= 1;
     null_on_null= false;
 
