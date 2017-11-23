@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -302,6 +302,14 @@ AsyncIoThread::allocMemReq(Request* request)
 void
 AsyncIoThread::buildIndxReq(Request* request)
 {
+  /**
+   * Rebind thread config to allow different behaviour
+   * during Index build.
+   */
+  THRConfigRebinder idxbuild_cpulock(&m_fs.m_ctx.m_config.m_thr_config,
+                                     THRConfig::T_IXBLD,
+                                     theThreadPtr);
+
   mt_BuildIndxReq req;
   memcpy(&req, &request->par.build.m_req, sizeof(req));
   req.mem_buffer = request->file->m_page_ptr.p;

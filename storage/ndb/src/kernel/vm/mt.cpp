@@ -6052,7 +6052,9 @@ init_thread(thr_data *selfptr)
   fflush(stdout);
   if (fail)
   {
+#ifndef HAVE_MAC_OS_X_THREAD_INFO
     abort();
+#endif
   }
 }
 
