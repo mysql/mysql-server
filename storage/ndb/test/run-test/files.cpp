@@ -346,6 +346,11 @@ setup_files(atrt_config& config, int setup, int sshx)
 		    "[client.%d%s]",
 		    proc.m_index, proc.m_cluster->m_name.c_str());
 	  break;
+  case atrt_process::AP_CUSTOM:
+    printfile(out, proc.m_options.m_generated,
+        "[%s.%d%s]",
+        proc.m_name.c_str(), proc.m_index, proc.m_cluster->m_name.c_str());
+    break;
 	case atrt_process::AP_ALL:
 	case atrt_process::AP_CLUSTER:
 	  abort();
