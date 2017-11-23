@@ -1655,7 +1655,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_ISSIMPLE", SQL_FN(Item_func_issimple, 1) },
   { "ST_ISVALID", SQL_FN(Item_func_isvalid, 1) },
   { "ST_LATFROMGEOHASH", SQL_FN(Item_func_latfromgeohash, 1) },
-  { "ST_LENGTH", SQL_FN(Item_func_glength, 1) },
+  { "ST_LENGTH", SQL_FN(Item_func_st_length, 1) },
   { "ST_LINEFROMTEXT", SQL_FACTORY(Linefromtext_instantiator) },
   { "ST_LINEFROMWKB", SQL_FACTORY(Linefromwkb_instantiator) },
   { "ST_LINESTRINGFROMTEXT", SQL_FACTORY(Linestringfromtext_instantiator) },

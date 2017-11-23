@@ -506,12 +506,6 @@ ST_ISCLOSED(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), P
 SELECT ST_LENGTH(ST_LINEFROMTEXT('LINESTRING(0 0,2 2)'));
 ST_LENGTH(ST_LINEFROMTEXT('LINESTRING(0 0,2 2)'))
 2.8284271247461903
-SELECT ST_LENGTH(ST_LINEFROMTEXT('LINESTRING(0 0,1e308 1e308)'));
-ST_LENGTH(ST_LINEFROMTEXT('LINESTRING(0 0,1e308 1e308)'))
-NULL
-SELECT ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING(1e308 1e308,-1e308 -1e308)'));
-ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING(1e308 1e308,-1e308 -1e308)'))
-NULL
 SELECT ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'));
 ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'))
 20
@@ -527,6 +521,18 @@ ST_LENGTH(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POI
 SELECT ST_LENGTH(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0)))));
 ST_LENGTH(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0)))))
 48.2842712474619
+# Cartesian SRS
+SELECT ST_LENGTH(ST_GEOMFROMTEXT('LINESTRING(0 0,2 2,4 4,6 6,8 8, 10 10, 10 10)', 2000));
+ST_LENGTH(ST_GEOMFROMTEXT('LINESTRING(0 0,2 2,4 4,6 6,8 8, 10 10, 10 10)', 2000))
+14.142135623730951
+# Geographic SRS
+# Different result on Windows and Linux, need to use ROUND
+SELECT ROUND(ST_LENGTH(ST_GEOMFROMTEXT('LINESTRING(0 0,2 2,4 4,6 6,8 8, 10 10, 10 10)', 4326)),7);
+ROUND(ST_LENGTH(ST_GEOMFROMTEXT('LINESTRING(0 0,2 2,4 4,6 6,8 8, 10 10, 10 10)', 4326)),7)
+1565127.2549243
+# Infinite Linestring
+SELECT ST_LENGTH(ST_GEOMFROMTEXT('LINESTRING(1e-300 0,1e300 0,1e-300 0,1e300 0,1e-300 0, 1e300 0, 1e-300 0)', 0));
+ERROR 22003: Length value is out of range in 'st_length'
 #====================================================================================
 # ST_NUMPOINTS(linestring)
 #====================================================================================
@@ -781,17 +787,17 @@ ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,5 0),(0 0,0 5),(0 0,-
 SELECT ST_LENGTH(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(0,0))))));
 ST_LENGTH(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(0,0))))))
 0
-SELECT ST_LENGTH(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e308,1e308))))));
-ST_LENGTH(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e308,1e308))))))
-NULL
-SELECT ST_LENGTH(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(10,10)),
-LINESTRING(POINT(1e308,1e308), POINT(-1e308,-1e308))))));
-ST_LENGTH(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(10,10)),
-LINESTRING(POINT(1e308,1e308), POINT(-1e308,-1e308))))))
-NULL
 SELECT ST_LENGTH(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e10,1e10))))));
 ST_LENGTH(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e10,1e10))))))
 14142135623.730951
+# Cartesian SRS
+SELECT ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,5 0),(0 0,0 5),(0 0,-5 0),(0 0,0 -5))', 2000));
+ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,5 0),(0 0,0 5),(0 0,-5 0),(0 0,0 -5))', 2000))
+20
+# Geographic SRS
+SELECT ROUND(ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,5 0),(0 0,0 5),(0 0,-5 0),(0 0,0 -5))', 4326)), 7);
+ROUND(ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,5 0),(0 0,0 5),(0 0,-5 0),(0 0,0 -5))', 4326)), 7)
+2218953.5324189
 #====================================================================================
 # ST_NUMGEOMETRIES(geometrycollection)
 #====================================================================================
@@ -1071,36 +1077,6 @@ ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_ISCLOSED(ST_LINESTRINGFROMTEXT('LINESTRING(1 1,2 2,a 3)'));
 ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_ISCLOSED(ST_LINESTRINGFROMTEXT('LINESTRING('!' 0,1 1,2 2)'));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,1 1,2 2)'))' at line 1
-#====================================================================================
-# ST_LENGTH(linestring)
-#====================================================================================
-SELECT ST_LENGTH();
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_LENGTH'
-SELECT ST_LENGTH(NULL);
-ST_LENGTH(NULL)
-NULL
-SELECT ST_LENGTH(ST_LINEFROMWKB());
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMWKB'
-SELECT ST_LENGTH(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(2,2)))), 2);
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_LENGTH'
-SELECT ST_LENGTH(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(a,1), POINT(2,2)))));
-ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_LENGTH(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(a,1), POINT(2,b)))));
-ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_LENGTH(ST_LINEFROMTEXT());
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMTEXT'
-SELECT ST_LENGTH(ST_LINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_linefromtext.
-SELECT ST_LENGTH(ST_LINEFROMTEXT('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_linefromtext.
-SELECT ST_LENGTH(ST_LINEFROMTEXT('LINESTRING(0)'));
-ERROR 22023: Invalid GIS data provided to function st_linefromtext.
-SELECT ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING(1 2,1'));
-ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
-SELECT ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING(1 1,2 2,a 3)'));
-ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
-SELECT ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING('!' 0,1 1,2 2)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,1 1,2 2)'))' at line 1
 #====================================================================================
 # ST_NUMPOINTS(linestring)
@@ -1403,30 +1379,6 @@ ERROR 42000: Incorrect parameter count in the call to native function 'ST_LENGTH
 SELECT ST_LENGTH(NULL);
 ST_LENGTH(NULL)
 NULL
-SELECT ST_LENGTH(ST_MLINEFROMWKB());
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_MLINEFROMWKB'
-SELECT ST_LENGTH(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(1,1), POINT(2,2))))), 1);
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_LENGTH'
-SELECT ST_LENGTH(ST_MULTILINESTRINGFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(1,1), POINT(2,2), POINT(3,3), POINT(a,4))))));
-ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_LENGTH(ST_MULTILINESTRINGFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(1,1), POINT(2,2)), LINESTRING(POINT(3,3), POINT(a,4))))));
-ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_LENGTH(ST_POLYFROMTEXT());
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_POLYFROMTEXT'
-SELECT ST_LENGTH(ST_MLINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
-SELECT ST_LENGTH(ST_MLINEFROMTEXT('MULTILINESTRING(())'));
-ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
-SELECT ST_LENGTH(ST_MLINEFROMTEXT('MULTILINESTRING((1 1,2 2),()'));
-ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
-SELECT ST_LENGTH(ST_MLINEFROMTEXT('MULTILINESTRING((1 1,2 2,3 3)'));
-ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
-SELECT ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((1 1,2 3,3 3,4))'));
-ERROR 22023: Invalid GIS data provided to function st_multilinestringfromtext.
-SELECT ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((1 1,2 2,3 3,4 a))'));
-ERROR 22023: Invalid GIS data provided to function st_multilinestringfromtext.
-SELECT ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING(('!' 1,2 2,3 3,4 4'));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 1,2 2,3 3,4 4'))' at line 1
 #====================================================================================
 # ST_NUMGEOMETRIES(geometrycollection)
 #====================================================================================
@@ -1845,9 +1797,10 @@ NULL
 SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
 ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 2000))
 NULL
-# Geographic SRS (should fail)
+# Geographic SRS (should pass)
 SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
-ERROR 22S00: st_length(POINT) has not been implemented for geographic spatial reference systems.
+ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 4326))
+NULL
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
