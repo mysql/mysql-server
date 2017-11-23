@@ -1393,12 +1393,9 @@ bool make_truncated_value_warning(THD *thd,
 bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
                        Interval interval)
 {
-  unsigned long period;
-  long sign;
-
   ltime->neg= 0;
 
-  sign= (interval.neg ? -1 : 1);
+  long long sign= (interval.neg ? -1 : 1);
 
   switch (int_type) {
   case INTERVAL_SECOND:
@@ -1452,7 +1449,8 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
     break;
   }
   case INTERVAL_DAY:
-  case INTERVAL_WEEK:
+  case INTERVAL_WEEK: {
+    unsigned long period;
     period= calc_daynr(ltime->year,ltime->month,ltime->day);
     if (interval.neg)
     {
@@ -1469,8 +1467,11 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
       period+= interval.day;
     }
     get_date_from_daynr((long) period,&ltime->year,&ltime->month,&ltime->day);
+  }
     break;
   case INTERVAL_YEAR:
+    if (interval.year > 10000UL)
+      goto invalid_date;
     ltime->year+= sign * (long) interval.year;
     if ((ulong) ltime->year >= 10000L)
       goto invalid_date;
@@ -1480,10 +1481,20 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
     break;
   case INTERVAL_YEAR_MONTH:
   case INTERVAL_QUARTER:
-  case INTERVAL_MONTH:
-    period= (ltime->year*12 + sign * (long) interval.year*12 +
-	     ltime->month-1 + sign * (long) interval.month);
-    if (period >= 120000L)
+  case INTERVAL_MONTH: {
+    unsigned long long period;
+
+    // Simple guards against arithmetic overflow when calculating period.
+    if (interval.month >= UINT_MAX / 2)
+      goto invalid_date;
+    if (interval.year >= UINT_MAX / 12)
+      goto invalid_date;
+
+    period= (ltime->year * 12ULL +
+             sign * (unsigned long long) interval.year*12ULL +
+	     ltime->month - 1ULL +
+             sign * (unsigned long long) interval.month);
+    if (period >= 120000LL)
       goto invalid_date;
     ltime->year= period / 12;
     ltime->month= (period % 12L)+1;
@@ -1494,12 +1505,13 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
       if (ltime->month == 2 && calc_days_in_year(ltime->year) == 366)
 	ltime->day++;				// Leap-year
     }
+  }
     break;
   default:
     goto null_date;
   }
 
-  return 0;					// Ok
+  return false;					// Ok
 
 invalid_date:
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -1507,7 +1519,7 @@ invalid_date:
                       ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW),
                       "datetime");
 null_date:
-  return 1;
+  return true;
 }
 #endif // ifdef MYSQL_SERVER
 

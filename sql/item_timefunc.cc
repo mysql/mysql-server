@@ -816,7 +816,11 @@ static bool get_interval_info(Item *args,
     longlong value;
     const char *start= str;
     for (value=0; str != end && my_isdigit(cs,*str) ; str++)
+    {
+      if (value > (LLONG_MAX -10) / 10)
+        return true;
       value= value*10LL + (longlong) (*str - '0');
+    }
     msec_length= 6 - (str - start);
     values[i]= value;
     while (str != end && !my_isdigit(cs,*str))
@@ -1674,6 +1678,8 @@ bool get_interval_value(Item *args, interval_type int_type,
     value= args->val_int();
     if (args->null_value)
       return true;
+    if (value == LLONG_MIN)
+      return true;
     if (value < 0)
     {
       interval->neg= true;
@@ -1686,12 +1692,16 @@ bool get_interval_value(Item *args, interval_type int_type,
     interval->year= (ulong) value;
     break;
   case INTERVAL_QUARTER:
+    if (value >=  UINT_MAX / 3)
+      return true;
     interval->month= (ulong)(value*3);
     break;
   case INTERVAL_MONTH:
     interval->month= (ulong) value;
     break;
   case INTERVAL_WEEK:
+    if (value >= UINT_MAX / 7)
+      return true;
     interval->day= (ulong)(value*7);
     break;
   case INTERVAL_DAY:
@@ -2433,9 +2443,21 @@ bool Item_date_add_interval::get_date_internal(MYSQL_TIME *ltime,
 {
   Interval interval;
 
-  if (args[0]->get_date(ltime, TIME_NO_ZERO_DATE) ||
-      get_interval_value(args[1], int_type, &value, &interval))
+  if (args[0]->get_date(ltime, TIME_NO_ZERO_DATE))
     return (null_value= true);
+
+  if (get_interval_value(args[1], int_type, &value, &interval))
+  {
+    // Do not warn about "overflow" for NULL
+    if (!args[1]->null_value)
+    {
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_DATETIME_FUNCTION_OVERFLOW,
+                          ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW),
+                          func_name());
+    }
+    return (null_value= true);
+  }
 
   if (date_sub_interval)
     interval.neg = !interval.neg;
