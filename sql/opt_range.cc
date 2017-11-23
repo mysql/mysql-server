@@ -13598,8 +13598,7 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
   Utility function used by min_max_inspect_cond_for_fields() for comparing
   FILED item with given MIN/MAX item and setting appropriate out paramater.
 
-@param         cond               Tree (or subtree) describing all or part of
-                                  the WHERE clause being analyzed.
+@param         item_field         Item field for comparison.
 @param         min_max_arg_item   The field referenced by the MIN/MAX
                                   function(s).
 @param [out]   min_max_arg_present    This out parameter is set to true if
