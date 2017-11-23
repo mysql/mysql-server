@@ -165,7 +165,7 @@ static struct my_option g_options[] = {
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 const int p_ndb = atrt_process::AP_NDB_MGMD | atrt_process::AP_NDBD;
-const int p_servers = atrt_process::AP_MYSQLD;
+const int p_servers = atrt_process::AP_MYSQLD | atrt_process::AP_CUSTOM;
 const int p_clients = atrt_process::AP_CLIENT | atrt_process::AP_NDB_API;
 
 static int check_testcase_file_main(int argc, char **argv);
@@ -205,11 +205,6 @@ int main(int argc, char **argv) {
   g_config.m_replication = g_replicate;
   if (!setup_config(g_config, g_mysqld_host)) {
     g_logger.critical("Failed to setup configuration");
-    goto end;
-  }
-
-  if (!load_deployment_options(g_config)) {
-    g_logger.critical("Failed to setup deployment options");
     goto end;
   }
 
