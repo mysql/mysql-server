@@ -3484,6 +3484,11 @@ int init_common_variables()
   }
   set_server_version();
 
+  if (!opt_help)
+  {
+    sql_print_information("Basedir set to %s", mysql_home);
+  }
+
   LogErr(SYSTEM_LEVEL, ER_STARTING_AS,
          my_progname, server_version, (ulong) getpid());
 
@@ -8207,10 +8212,6 @@ static int mysql_init_variables()
   }
 #endif
 
-  if (!opt_help)
-  {
-    sql_print_information("Basedir set to %s", mysql_home);
-  }
   return 0;
 }
 
