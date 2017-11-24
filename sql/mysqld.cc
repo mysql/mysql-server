@@ -5040,8 +5040,18 @@ static int init_server_components()
 
   if (opt_bin_log && (expire_logs_days || binlog_expire_logs_seconds))
   {
-    time_t purge_time= server_start_time - expire_logs_days * 24 * 60 * 60 -
-                       binlog_expire_logs_seconds;
+    time_t purge_time= 0;
+
+    if (binlog_expire_logs_seconds)
+    {
+      sql_print_warning("The option expire_logs_days cannot be used together"
+                        " with option binlog_expire_logs_seconds. Therefore,"
+                        " value of expire_logs_days is ignored.");
+      purge_time= my_time(0) - binlog_expire_logs_seconds;
+    }
+    else
+      purge_time= my_time(0) - expire_logs_days * 24 * 60 * 60;
+
     if (purge_time >= 0)
       mysql_bin_log.purge_logs_before_date(purge_time, true);
   }

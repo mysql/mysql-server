@@ -10971,6 +10971,9 @@ ER_SCHEMA_DIR_UNKNOWN
 ER_ONLY_IMPLEMENTED_FOR_SRID_0_AND_4326 22S00
   eng "Function %.192s is only defined for SRID 0 and SRID 4326."
 
+ER_EXPIRE_LOGS_DAYS_IGNORED
+  eng "The option expire_logs_days and binlog_expire_logs_seconds cannot be used together. Please use binlog_expire_logs_seconds to set the expire time (expire_logs_days is deprecated)"
+
 #
 #  End of 8.0 error messages.
 #

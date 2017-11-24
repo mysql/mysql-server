@@ -1813,24 +1813,34 @@ static Sys_var_enum Sys_event_scheduler(
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(event_scheduler_check), ON_UPDATE(event_scheduler_update));
 
+static bool expire_logs_update(sys_var*, THD*, enum_var_type)
+{
+  if (expire_logs_days && binlog_expire_logs_seconds)
+  {
+    my_error(ER_EXPIRE_LOGS_DAYS_IGNORED, MYF(0));
+    return true;
+  }
+  return false;
+}
+
 static Sys_var_ulong Sys_expire_logs_days(
        "expire_logs_days",
        "If non-zero, binary logs will be purged after expire_logs_days "
-       "days; or (binlog_expire_logs_seconds + 24 * 60 * 60 * expire_logs_days)"
-       " seconds if binlog_expire_logs_seconds has a non zero value; "
-       "possible purges happen at startup and at binary log rotation",
+       "days; given binlog_expire_logs_seconds is not set; possible purges"
+       " happen at startup and at binary log rotation",
        GLOBAL_VAR(expire_logs_days),
        CMD_LINE(REQUIRED_ARG, OPT_EXPIRE_LOGS_DAYS), VALID_RANGE(0, 99),
        DEFAULT(30), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(0), DEPRECATED("binlog_expire_logs_seconds"));
+       ON_UPDATE(expire_logs_update), DEPRECATED("binlog_expire_logs_seconds"));
 
 static Sys_var_ulong Sys_binlog_expire_logs_seconds(
        "binlog_expire_logs_seconds",
-       "If non-zero, binary logs will be purged after (binlog_expire_logs_seconds + "
-       "24 * 60 * 60 * expire_logs_days) seconds; "
-       "possible purges happen at startup and at binary log rotation",
-       GLOBAL_VAR(binlog_expire_logs_seconds),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 0xFFFFFFFF), DEFAULT(0), BLOCK_SIZE(1));
+       "If non-zero, binary logs will be purged after binlog_expire_logs_seconds"
+       " seconds; given expire_logs_days is not set; possible purges happen at"
+       " startup and at binary log rotation",
+       GLOBAL_VAR(binlog_expire_logs_seconds), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 0xFFFFFFFF), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(expire_logs_update));
 
 static Sys_var_bool Sys_flush(
        "flush", "Flush MyISAM tables to disk between SQL commands",
