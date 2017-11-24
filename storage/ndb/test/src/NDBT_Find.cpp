@@ -138,6 +138,7 @@ NDBT_find_ndb_mgmd(BaseString& path)
      */
     * basename = 0;
     const char * places[] = {
+      "../../../../runtime_output_directory",
       "../../src/mgmsrv",
       "../storage/ndb/src/mgmsrv",
       "../libexec",
