@@ -7687,6 +7687,15 @@ ER_BINLOG_UNSAFE_XA
 ER_UDF_ERROR
   eng "%s UDF failed; %s"
 
+ER_KEYRING_MIGRATION_FAILURE
+  eng "Can not perform keyring migration : %s"
+
+ER_KEYRING_ACCESS_DENIED_ERROR 42000
+  eng "Access denied; you need %-.128s privileges for this operation"a
+
+ER_KEYRING_MIGRATION_STATUS
+  eng "Keyring migration %s."
+
 #
 #  End of 5.7 error messages.
 #

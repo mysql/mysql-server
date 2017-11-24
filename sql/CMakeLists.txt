@@ -119,6 +119,7 @@ SET(SQL_SHARED_SOURCES
   locking_service.cc
   log.cc
   mdl.cc
+  migrate_keyring.cc
   my_decimal.cc
   net_serv.cc
   opt_costconstantcache.cc
@@ -258,6 +259,7 @@ SET(SQL_SOURCE
   ../libmysql/errmsg.c
   ../sql-common/client.c
   ../sql-common/client_plugin.c
+  ../sql-common/get_password.c
   ../sql-common/my_time.c
   ../sql-common/my_user.c 
   ../sql-common/pack.c

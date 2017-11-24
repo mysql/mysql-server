@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -149,7 +149,10 @@ extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
 extern const LEX_STRING plugin_type_names[];
 
-extern int plugin_init(int *argc, char **argv, int init_flags);
+extern bool plugin_register_early_plugins(int *argc, char **argv, int flags);
+extern bool plugin_register_builtin_and_init_core_se(int *argc, char **argv);
+extern bool plugin_register_dynamic_and_init_all(int *argc,
+                                                 char **argv, int init_flags);
 extern void plugin_shutdown(void);
 extern void memcached_shutdown(void);
 void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root);
@@ -180,5 +183,10 @@ extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
                                      int type, uint state_mask, void *arg);
 int lock_plugin_data();
 int unlock_plugin_data();
+
+/**
+  Initialize one plugin.
+*/
+bool plugin_early_load_one(int *argc, char **argv, const char *plugin);
 
 #endif

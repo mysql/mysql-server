@@ -1379,55 +1379,24 @@ static bool plugin_init_initialize_and_reap()
   return false;
 }
 
+/**
+  Initialize the internals of the plugin system. Allocate required
+  resources, initialize mutex, etc.
 
-/*
-  @brief
-  Initialize plugin infrastructure and load all plugins.
-  Plugins are loaded in following sequnce:
-  - Plugin specified through --early-plugin-load
-  - Mandatory/Built-in Plugins
-  - Plugins specified through --plugin-load/--plugin-load-add
-  - Remaining plugins from mysql.plugin table
-
-  @params argc [in] For parsing plugin options
-  @params argv [in] For parsing plugin options
-  @params flags [in] To detect whether to load dynamic plugins or not
-
-  @returns
-    0 Success
-    1 Failure. Error is raised.
-
-*/
-
-int plugin_init(int *argc, char **argv, int flags)
+  @return Operation outcome, false means no errors
+ */
+static bool plugin_init_internals()
 {
-  uint i;
-  st_mysql_plugin **builtins;
-  st_mysql_plugin *plugin;
-  st_plugin_int tmp, *plugin_ptr;
-  MEM_ROOT tmp_root;
-  bool mandatory= true;
-
-  I_List_iterator<i_string> iter(opt_early_plugin_load_list);
-  i_string *item;
-
-  DBUG_ENTER("plugin_init");
-
-  if (initialized)
-    DBUG_RETURN(0);
-
 #ifdef HAVE_PSI_INTERFACE
   init_plugin_psi_keys();
 #endif
 
   init_alloc_root(key_memory_plugin_mem_root, &plugin_mem_root, 4096, 4096);
-  init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
 
   if (my_hash_init(&bookmark_hash, &my_charset_bin, 16, 0, 0,
                    get_bookmark_hash_key, NULL, HASH_UNIQUE,
                    key_memory_plugin_bookmark))
       goto err;
-
   if (my_hash_init(&malloced_string_type_sysvars_bookmark_hash, &my_charset_bin,
                    16, 0, 0, get_bookmark_hash_key, NULL, HASH_UNIQUE,
                    key_memory_plugin_bookmark))
@@ -1443,7 +1412,7 @@ int plugin_init(int *argc, char **argv, int flags)
   if (plugin_dl_array == NULL || plugin_array == NULL)
     goto err;
 
-  for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
+  for (uint i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
   {
     if (my_hash_init(&plugin_hash[i], system_charset_info, 16, 0, 0,
                      get_plugin_hash_key, NULL, HASH_UNIQUE,
@@ -1451,31 +1420,80 @@ int plugin_init(int *argc, char **argv, int flags)
       goto err;
   }
 
+  return false;
 
-  /*
-    First, register early plugins
-  */
+err:
+  return true;
+}
+
+/**
+   Register and initialize early plugins.
+
+   @param argc  Command line argument counter
+   @param argv  Command line arguments
+   @param flags Flags to control whether dynamic loading
+                and plugin initialization should be skipped
+
+   @return Operation outcome, false if no errors
+*/
+bool plugin_register_early_plugins(int *argc, char **argv, int flags)
+{
+  bool retval= false;
+  DBUG_ENTER("plugin_register_early_plugins");
+
+  /* Don't allow initializing twice */
+  DBUG_ASSERT(!initialized);
+
+  /* Make sure the internals are initialized */
+  if ((retval= plugin_init_internals()))
+    DBUG_RETURN(retval);
+
+  /* Allocate the temporary mem root, will be freed before returning */
+  MEM_ROOT tmp_root;
+  init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
+
+  I_List_iterator<i_string> iter(opt_early_plugin_load_list);
+  i_string *item;
   while (NULL != (item= iter++))
     plugin_load_list(&tmp_root, argc, argv, item->ptr);
 
-  if (!(flags & PLUGIN_INIT_SKIP_INITIALIZATION))
-  {
-    if (plugin_init_initialize_and_reap())
-      goto err;
-  }
-
+  /* Temporary mem root not needed anymore, can free it here */
   free_root(&tmp_root, MYF(0));
+
+  if (!(flags & PLUGIN_INIT_SKIP_INITIALIZATION))
+    retval= plugin_init_initialize_and_reap();
+
+  DBUG_RETURN(retval);
+}
+
+/**
+  Register the builtin plugins. Some of the plugins (MyISAM, CSV and InnoDB)
+  are also initialized.
+
+  @param argc number of arguments, propagated to the plugin
+  @param argv actual arguments, propagated to the plugin
+  @return Operation outcome, false means no errors
+ */
+bool plugin_register_builtin_and_init_core_se(int *argc, char **argv)
+{
+  bool mandatory= true;
+  DBUG_ENTER("plugin_register_builtin_and_init_core_se");
+
+  /* Don't allow initializing twice */
+  DBUG_ASSERT(!initialized);
+
+  /* Allocate the temporary mem root, will be freed before returning */
+  MEM_ROOT tmp_root;
   init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
 
   mysql_mutex_lock(&LOCK_plugin);
+  initialized= true;
 
-  initialized= 1;
-
-  /*
-    Second, register builtin plugins
-  */
-  for (builtins= mysql_mandatory_plugins; *builtins || mandatory; builtins++)
+  /* First we register the builtin mandatory and optional plugins */
+  for (struct st_mysql_plugin **builtins= mysql_mandatory_plugins;
+       *builtins || mandatory; builtins++)
   {
+    /* Switch to optional plugins when done with the mandatory ones */
     if (!*builtins)
     {
       builtins= mysql_optional_plugins;
@@ -1483,8 +1501,9 @@ int plugin_init(int *argc, char **argv, int flags)
       if (!*builtins)
         break;
     }
-    for (plugin= *builtins; plugin->info; plugin++)
+    for (struct st_mysql_plugin *plugin= *builtins; plugin->info; plugin++)
     {
+      struct st_plugin_int tmp;
       memset(&tmp, 0, sizeof(tmp));
       tmp.plugin= plugin;
       tmp.name.str= (char *)plugin->name;
@@ -1518,6 +1537,8 @@ int plugin_init(int *argc, char **argv, int flags)
         tmp.state= PLUGIN_IS_DISABLED;
       else
         tmp.state= PLUGIN_IS_UNINITIALIZED;
+
+      struct st_plugin_int *plugin_ptr;        // Pointer to registered plugin
       if (register_builtin(plugin, &tmp, &plugin_ptr))
         goto err_unlock;
 
@@ -1540,7 +1561,7 @@ int plugin_init(int *argc, char **argv, int flags)
         goto err_unlock;
 
       /*
-        initialize the global default storage engine so that it may
+        Initialize the global default storage engine so that it may
         not be null in any child thread.
       */
       if (is_myisam)
@@ -1556,11 +1577,45 @@ int plugin_init(int *argc, char **argv, int flags)
     }
   }
 
-  /* should now be set to MyISAM storage engine */
+  /* Should now be set to MyISAM storage engine */
   DBUG_ASSERT(global_system_variables.table_plugin);
   DBUG_ASSERT(global_system_variables.temp_table_plugin);
 
   mysql_mutex_unlock(&LOCK_plugin);
+
+  free_root(&tmp_root, MYF(0));
+  DBUG_RETURN(false);
+
+err_unlock:
+  mysql_mutex_unlock(&LOCK_plugin);
+  free_root(&tmp_root, MYF(0));
+  DBUG_RETURN(true);
+}
+
+/**
+  Register and initialize the dynamic plugins. Also initialize
+  the remaining builtin plugins that are not initialized
+  already.
+
+  @param argc  Command line argument counter
+  @param argv  Command line arguments
+  @param flags Flags to control whether dynamic loading
+               and plugin initialization should be skipped
+
+  @return Operation outcome, false if no errors
+*/
+bool plugin_register_dynamic_and_init_all(int *argc,
+                                          char **argv, int flags)
+{
+  DBUG_ENTER("plugin_register_dynamic_and_init_all");
+
+  /* Make sure the internals are initialized and builtins registered */
+  if (!initialized)
+    DBUG_RETURN(true);
+
+  /* Allocate the temporary mem root, will be freed before returning */
+  MEM_ROOT tmp_root;
+  init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
 
   /* Register all dynamic plugins */
   if (!(flags & PLUGIN_INIT_SKIP_DYNAMIC_LOADING))
@@ -1573,7 +1628,6 @@ int plugin_init(int *argc, char **argv, int flags)
     if (!(flags & PLUGIN_INIT_SKIP_PLUGIN_TABLE))
       plugin_load(&tmp_root, argc, argv);
   }
-
   if (flags & PLUGIN_INIT_SKIP_INITIALIZATION)
     goto end;
 
@@ -1588,13 +1642,10 @@ end:
 
   DBUG_RETURN(0);
 
-err_unlock:
-  mysql_mutex_unlock(&LOCK_plugin);
 err:
   free_root(&tmp_root, MYF(0));
   DBUG_RETURN(1);
 }
-
 
 static bool register_builtin(st_mysql_plugin *plugin,
                              st_plugin_int *tmp,
@@ -1966,6 +2017,44 @@ void plugin_shutdown(void)
   DBUG_VOID_RETURN;
 }
 
+/**
+  Initialize one plugin. This function is used to early load one single
+  plugin. This function is used by key migration tool.
+
+   @param[in]   argc  Command line argument counter
+   @param[in]   argv  Command line arguments
+   @param[in]   plugin library file name
+
+   @return Operation status
+     @retval 0 OK
+     @retval 1 ERROR
+*/
+bool plugin_early_load_one(int *argc, char **argv, const char* plugin)
+{
+  bool retval= false;
+  DBUG_ENTER("plugin_early_load_one");
+
+  /* Make sure the internals are initialized */
+  if (!initialized)
+  {
+    if ((retval= plugin_init_internals()))
+      DBUG_RETURN(retval);
+    else
+      initialized= true;
+  }
+  /* Allocate the temporary mem root, will be freed before returning */
+  MEM_ROOT tmp_root;
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_root, 4096, 4096);
+
+  plugin_load_list(&tmp_root, argc, argv, plugin);
+
+  /* Temporary mem root not needed anymore, can free it here */
+  free_root(&tmp_root, MYF(0));
+
+  retval= plugin_init_initialize_and_reap();
+
+  DBUG_RETURN(retval);
+}
 
 static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
                                  const LEX_STRING *dl)

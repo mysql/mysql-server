@@ -178,13 +178,13 @@ SET(CLIENT_API_FUNCTIONS_UNDOCUMENTED
 )
 
 SET(CLIENT_SOURCES
-  get_password.c 
   libmysql.c
   errmsg.c
   ../sql-common/client.c 
   ../sql-common/my_time.c 
   ../sql-common/client_plugin.c 
   ../sql-common/client_authentication.cc
+  ../sql-common/get_password.c
   ../sql/net_serv.cc
   ../sql-common/pack.c 
   ../sql/auth/password.c

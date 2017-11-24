@@ -21,9 +21,11 @@
 #include <my_rnd.h>
 #include <mysqld.h>
 #include "keys_container.h"
+#include "keys_iterator.h"
 #include "keyring_memory.h"
 
 using keyring::IKeys_container;
+using keyring::Keys_iterator;
 using keyring::IKeyring_io;
 using keyring::ILogger;
 using keyring::IKey;
@@ -58,6 +60,10 @@ my_bool mysql_key_fetch(boost::movelib::unique_ptr<IKey> key_to_fetch, char **ke
                         void **key, size_t *key_len);
 my_bool mysql_key_store(boost::movelib::unique_ptr<IKey> key_to_store);
 my_bool mysql_key_remove(boost::movelib::unique_ptr<IKey> key_to_remove);
+
+my_bool mysql_keyring_iterator_init(Keys_iterator *);
+void mysql_keyring_iterator_deinit(Keys_iterator *);
+bool mysql_keyring_iterator_get_key(Keys_iterator *, char *key_id, char *user_id);
 
 my_bool check_key_for_writing(IKey* key, std::string error_for);
 
@@ -109,6 +115,48 @@ my_bool mysql_key_remove(const char *key_id, const char *user_id,
   catch (...)
   {
     log_operation_error("remove a key", plugin_name);
+    return TRUE;
+  }
+}
+
+template <typename T>
+bool mysql_key_iterator_init(Keys_iterator *key_iterator, const char *plugin_name)
+{
+  try
+  {
+    return mysql_keyring_iterator_init(key_iterator);
+  }
+  catch (...)
+  {
+    log_operation_error("iterator init", plugin_name);
+    return TRUE;
+  }
+}
+
+template <typename T>
+void mysql_key_iterator_deinit(Keys_iterator *key_iterator, const char *plugin_name)
+{
+  try
+  {
+    mysql_keyring_iterator_deinit(key_iterator);
+  }
+  catch (...)
+  {
+    log_operation_error("iterator deinit", plugin_name);
+  }
+}
+
+template <typename T>
+bool mysql_key_iterator_get_key(Keys_iterator *key_iterator, char *key_id, char *user_id,
+                                const char *plugin_name)
+{
+  try
+  {
+    return mysql_keyring_iterator_get_key(key_iterator, key_id, user_id);
+  }
+  catch (...)
+  {
+    log_operation_error("iterator get_key", plugin_name);
     return TRUE;
   }
 }

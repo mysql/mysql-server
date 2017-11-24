@@ -65,6 +65,7 @@ debian/extra/authentication_ldap_sasl-plugin
 debian/extra/authentication_ldap_simple-plugin
 debian/extra/firewall-plugin
 debian/extra/keyring_okv-plugin
+debian/extra/keyring_encrypted_file-plugin
 debian/extra/openssl_udf-plugin
 debian/extra/thread_pool-plugin
 ")
@@ -75,6 +76,7 @@ usr/lib/mysql/plugin/authentication_pam.so
 usr/lib/mysql/plugin/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/authentication_ldap_simple.so
 usr/lib/mysql/plugin/keyring_okv.so
+usr/lib/mysql/plugin/keyring_encrypted_file.so
 usr/lib/mysql/plugin/openssl_udf.so
 usr/lib/mysql/plugin/thread_pool.so
 usr/lib/mysql/plugin/firewall.so
@@ -87,6 +89,7 @@ usr/lib/mysql/plugin/debug/authentication_pam.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
 usr/lib/mysql/plugin/debug/keyring_okv.so
+usr/lib/mysql/plugin/debug/keyring_encrypted_file.so
 usr/lib/mysql/plugin/debug/openssl_udf.so
 usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/firewall.so
