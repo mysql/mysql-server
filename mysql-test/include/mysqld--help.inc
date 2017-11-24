@@ -33,7 +33,7 @@ perl;
   @plugins=qw/innodb ngram mecab ndb ndbinfo archive blackhole federated partition ndbcluster debug ssl des-key-file
               thread-concurrency super-large-pages mutex-deadlock-detector null-audit
               sha256-password-private-key-path sha256-password-public-key-path
-              sha256-password-auto-generate-rsa-keys keyring-migration-socket/;
+              sha256-password-auto-generate-rsa-keys/;
 
   # And substitute the content some environment variables with their
   # names:

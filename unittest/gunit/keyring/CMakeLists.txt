@@ -46,7 +46,6 @@ SET(SRC_FILES)
 LIST(APPEND SRC_FILES
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
-  ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_iterator.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
