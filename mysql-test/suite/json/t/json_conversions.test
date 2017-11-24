@@ -15,8 +15,6 @@
 --echo # Test of the conversion from JSON data type to MySQL types
 --echo # ----------------------------------------------------------------------
 
-SET NAMES utf8;
-
 --echo # Set up auxiliary table with possible JSON values. The idea here is to
 --echo # enumerate all possible types of JSON values, including the different
 --echo # opaque values we could possibly end up with. A difficulty here is that
@@ -6657,38 +6655,25 @@ create table t_gco select DISTINCT(_gco) FROM at;
 # first level and second level validation
 #---------------------------------------------
 
-drop table if exists comparison_weight;
-
-create table comparison_weight(`rank` int, type varchar(100));
-INSERT INTO comparison_weight values ( 10,'OPAQUE');
-INSERT INTO comparison_weight values ( 9,'TIMESTAMP');
-INSERT INTO comparison_weight values ( 9,'DATETIME');
-INSERT INTO comparison_weight values ( 8,'TIME');
-INSERT INTO comparison_weight values ( 7,'DATE');
-INSERT INTO comparison_weight values ( 6,'BOOLEAN');
-INSERT INTO comparison_weight values ( 5,'ARRAY');
-INSERT INTO comparison_weight values ( 4,'OBJECT');
-INSERT INTO comparison_weight values ( 3,'STRING');
-INSERT INTO comparison_weight values ( 3,'BLOB');
-INSERT INTO comparison_weight values ( 2,'INTEGER');
-INSERT INTO comparison_weight values ( 2,'UNSIGNED INTEGER');
-INSERT INTO comparison_weight values ( 2,'DOUBLE');
-INSERT INTO comparison_weight values ( 2,'DECIMAL');
-INSERT INTO comparison_weight values ( 1,'NULL');
-INSERT INTO comparison_weight values ( NULL,NULL);
-
-
-delimiter $;
-
-CREATE FUNCTION GET_JSON_WEIGHT(json_type varchar(100)) RETURNS INT
-BEGIN
-DECLARE JSON_WEIGHT INT(11);
-SELECT `rank` into JSON_WEIGHT from  comparison_weight where
-(UPPER(type)=json_type ) OR
-(type is NULL) order by `rank` desc limit 1;
-RETURN (JSON_WEIGHT);
-END $
-delimiter ;$
+CREATE FUNCTION GET_JSON_WEIGHT(json_type VARCHAR(100))
+RETURNS INT DETERMINISTIC
+RETURN CASE json_type
+WHEN 'NULL' THEN 1
+WHEN 'DECIMAL' THEN 2
+WHEN 'DOUBLE' THEN 2
+WHEN 'UNSIGNED INTEGER' THEN 2
+WHEN 'INTEGER' THEN 2
+WHEN 'BLOB' THEN 3
+WHEN 'STRING' THEN 3
+WHEN 'OBJECT' THEN 4
+WHEN 'ARRAY' THEN 5
+WHEN 'BOOLEAN' THEN 6
+WHEN 'DATE' THEN 7
+WHEN 'TIME' THEN 8
+WHEN 'DATETIME' THEN 9
+WHEN 'TIMESTAMP' THEN 9
+WHEN 'OPAQUE' THEN 10
+END;
 
 
 # In this part comparision tests for each comparator
@@ -6752,8 +6737,5 @@ drop table t_gco;
 drop table jj;
 drop table t;
 drop table at;
-drop table comparison_weight;
 
 drop function get_json_weight;
-
-set names default;

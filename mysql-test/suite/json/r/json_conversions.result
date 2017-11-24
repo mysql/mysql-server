@@ -1,6 +1,5 @@
 # Test of the conversion from JSON data type to MySQL types
 # ----------------------------------------------------------------------
-SET NAMES utf8;
 # Set up auxiliary table with possible JSON values. The idea here is to
 # enumerate all possible types of JSON values, including the different
 # opaque values we could possibly end up with. A difficulty here is that
@@ -11981,8 +11980,6 @@ From JSON subselect opaque_mysql_type_string as SIGNED	NULL
 select concat('From JSON subselect ',c, ' as SIGNED'), cast((select j from t where c='opaque_mysql_type_var_string') as SIGNED) from t where c='opaque_mysql_type_var_string';
 concat('From JSON subselect ',c, ' as SIGNED')	cast((select j from t where c='opaque_mysql_type_var_string') as SIGNED)
 From JSON subselect opaque_mysql_type_var_string as SIGNED	NULL
-Warnings:
-Note	1051	Unknown table 'test.comparison_weight'
 "Test for JSON vs JSON"
 ""
 ""
