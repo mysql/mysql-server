@@ -582,14 +582,6 @@ struct dfield_t{
 	unsigned	len;	/*!< data length; UNIV_SQL_NULL if SQL null */
 	dtype_t		type;	/*!< type of data */
 
-	dfield_t()
-	:
-	data(nullptr),
-	ext(FALSE),
-	spatial_status(SPATIAL_UNKNOWN),
-	len(0)
-	{}
-
 	void reset()
 	{
 		data = nullptr;
