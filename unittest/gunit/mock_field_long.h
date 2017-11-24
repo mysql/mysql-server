@@ -17,7 +17,7 @@
 
 #include "sql/field.h"
 
-/*
+/**
   Base class for creating mock Field objects.
 
   To do: Make all other tests #include this file instead of using
@@ -25,8 +25,48 @@
 */
 class Mock_field_long : public Field_long
 {
+public:
+
+  /// Creates a nullable column with the default name.
+  Mock_field_long() : Mock_field_long("field_name", true) {}
+
+  /**
+    Creates a nullable column.
+    @param name The column name.
+  */
+  Mock_field_long(const char *name) : Mock_field_long(name, true) {}
+
+  /**
+    Creates a nullable column.
+    @param name The column name.
+  */
+  Mock_field_long(const std::string &&name, bool is_nullable)
+    : Mock_field_long(name.c_str(), is_nullable) {}
+
+  /**
+    Creates a column.
+    @param name The column name.
+    @param is_nullable Whether it's nullable.
+  */
+  Mock_field_long(const char *name, bool is_nullable)
+    : Field_long(0,                               // ptr_arg
+                 8,                               // len_arg
+                 is_nullable ? &null_byte : NULL, // null_ptr_arg
+                 is_nullable ? 1 : 0,             // null_bit_arg
+                 Field::NONE,                     // auto_flags_arg
+                 name,                            // field_name_arg
+                 false,                           // zero_arg
+                 false)                           // unsigned_arg
+  {
+    initialize(name);
+  }
+
+  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
+
+private:
   uchar buffer[PACK_LENGTH];
-  uchar null_byte;
+  uchar null_byte= '\0';
   char m_name[1024];
 
   void initialize(const char *name)
@@ -41,40 +81,6 @@ class Mock_field_long : public Field_long
       field_name= m_name;
     }
   }
-public:
-
-  Mock_field_long(const char *name, bool is_nullable)
-    : Field_long(0,                               // ptr_arg
-                 8,                               // len_arg
-                 is_nullable ? &null_byte : NULL, // null_ptr_arg
-                 is_nullable ? 1 : 0,             // null_bit_arg
-                 Field::NONE,                     // auto_flags_arg
-                 "field_name",                    // field_name_arg
-                 false,                           // zero_arg
-                 false),                          // unsigned_arg
-      null_byte('\0')
-  {
-    initialize(name);
-    if (is_nullable)
-      set_null_ptr(&null_byte, 1);
-  }
-
-  /// Creates a non NULLable column with an optional name.
-  Mock_field_long(const char *name)
-    : Field_long(0,                           // ptr_arg
-                 8,                           // len_arg
-                 NULL,                        // null_ptr_arg
-                 0,                           // null_bit_arg
-                 Field::NONE,                 // auto_flags_arg
-                 "field_name",                // field_name_arg
-                 false,                       // zero_arg
-                 false)                       // unsigned_arg
-  {
-    initialize(name);
-  }
-
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
-  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
 };
 
 

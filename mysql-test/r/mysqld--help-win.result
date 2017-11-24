@@ -951,6 +951,11 @@ The following options may be given as the first argument:
  --read-rnd-buffer-size=# 
  When reading rows in sorted order after a sort, the rows
  are read through this buffer to avoid a disk seeks
+ --regexp-stack-limit=# 
+ Stack size limit for regular expressions matches
+ --regexp-time-limit=# 
+ Timeout for regular expressions matches, in steps of the
+ match engine, typically on the order of milliseconds.
  --relay-log=name    The location and name to use for relay logs
  --relay-log-index=name 
  File that holds the names for relay log files.
@@ -1576,6 +1581,8 @@ range-optimizer-max-mem-size 8388608
 read-buffer-size 131072
 read-only FALSE
 read-rnd-buffer-size 262144
+regexp-stack-limit 8000000
+regexp-time-limit 32
 relay-log relaylog
 relay-log-index relaylog.index
 relay-log-info-file relay-log.info

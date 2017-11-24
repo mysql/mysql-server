@@ -224,39 +224,31 @@ public:
 
 
   /**
-     Creates a one-column fake table and stores the value in the one field.
+    Creates a fake TABLE and stores the values in their corresponding Fields.
 
-     @param column_value Item holding the integer value to be stored.
+    @param column_value The column values to be stored.
+    @param are_nullable Whether the columns are nullable.
   */
-  Fake_TABLE(Item_int *column_value) :
-    table_share(1),
-      mock_handler(&fake_handlerton, &table_share)
-  {
-    initialize();
-    add(new (*THR_MALLOC) Mock_field_long("field_1"), 0);
-    column_value->save_in_field_no_warnings(field[0], true);
-  }
-
-
-  /**
-     Creates a two-column fake table and stores the values in their
-     corresponding fields.
-
-     @param column1_value Item holding integer value to be stored.
-     @param column2_value Item holding integer value to be stored.
-  */
-  Fake_TABLE(Item_int *column1_value, Item_int *column2_value) :
-    table_share(2),
+  Fake_TABLE(std::initializer_list<int> column_values,
+             bool are_nullable= true) :
+    table_share(column_values.size()),
     mock_handler(static_cast<handlerton*>(NULL), &table_share)
   {
     field= m_field_array;
-    field[0]= new (*THR_MALLOC) Mock_field_long("field_1");
-    field[0]->table= this;
-    field[1]= new (*THR_MALLOC) Mock_field_long("field_2");
-    field[1]->table= this;
+    for (size_t i= 0; i < column_values.size(); ++i)
+    {
+      std::stringstream s;
+      s <<  "field_" << i + 1;
+      field[i]= new (*THR_MALLOC) Mock_field_long(s.str(), are_nullable);
+      field[i]->table= this;
+    }
     initialize();
-    column1_value->save_in_field_no_warnings(field[0], true);
-    column2_value->save_in_field_no_warnings(field[1], true);
+    int i= 0;
+    for (auto column_value : column_values)
+    {
+      auto item= new Item_int(column_value);
+      item->save_in_field_no_warnings(field[i++], true);
+    }
   }
 
   ~Fake_TABLE()

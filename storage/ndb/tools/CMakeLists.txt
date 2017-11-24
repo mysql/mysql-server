@@ -41,6 +41,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel/signaldata
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbtools
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
+  ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_BINARY_DIR}/storage/ndb/tools)
 
 ADD_CONVENIENCE_LIBRARY(ndbtools

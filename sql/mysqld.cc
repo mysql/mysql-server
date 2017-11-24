@@ -572,6 +572,7 @@
 #include <crtdbg.h>
 #include <process.h>
 #endif
+#include "unicode/uclean.h"  // u_cleanup()
 
 #include <algorithm>
 #include <atomic>
@@ -894,6 +895,9 @@ bool check_proxy_users= 0, mysql_native_password_proxy_users= 0, sha256_password
 volatile bool mqh_used = 0;
 bool opt_noacl= 0;
 bool sp_automatic_privileges= 1;
+
+int32_t opt_regexp_time_limit;
+int32_t opt_regexp_stack_limit;
 
 ulong opt_binlog_rows_event_max_size;
 ulong binlog_checksum_options;
@@ -2047,7 +2051,7 @@ static void clean_up(bool print_message)
   rpl_channel_filters.clean_up();
   end_ssl();
   vio_end();
-  my_regex_end();
+  u_cleanup();
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the debug sync facility. See debug_sync.cc. */
   debug_sync_end();
@@ -3676,7 +3680,6 @@ int init_common_variables()
     return 1;
   item_init();
   range_optimizer_init();
-  my_regex_init(&my_charset_latin1, check_enough_stack_size);
   my_string_stack_guard= check_enough_stack_size;
   /*
     Process a comma-separated character set list and choose

@@ -213,7 +213,6 @@ struct System_variables
   ulong trans_alloc_block_size;
   ulong trans_prealloc_size;
   ulong group_concat_max_len;
-
   ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
   ulong rbr_exec_mode_options; // see enum_rbr_exec_mode
   bool binlog_direct_non_trans_update;

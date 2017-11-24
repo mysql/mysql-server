@@ -28,6 +28,6 @@ MYSQL_ADD_EXECUTABLE(keyring-test
                ../checker/checker.cc
                ../file_io.cc
                SKIP_INSTALL)
-TARGET_LINK_LIBRARIES(keyring-test strings dbug regex mysys mysys_ssl)
+TARGET_LINK_LIBRARIES(keyring-test strings dbug mysys mysys_ssl)
 TARGET_LINK_LIBRARIES(keyring-test sql_main sql_gis binlog rpl master slave)
 TARGET_LINK_LIBRARIES(keyring-test sql_main)

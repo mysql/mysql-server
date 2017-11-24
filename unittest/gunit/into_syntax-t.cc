@@ -25,7 +25,6 @@ namespace into_syntax_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
-using my_testing::expect_null;
 
 class IntoSyntaxTest : public ParserTest
 {
@@ -35,7 +34,7 @@ TEST_F(IntoSyntaxTest, Outer)
 {
   SELECT_LEX *term= parse("SELECT 1 INTO @v");
   SELECT_LEX_UNIT *top_union= term->master_unit();
-  expect_null(top_union->outer_select());
+  EXPECT_EQ(nullptr, top_union->outer_select());
 }
 
 }
