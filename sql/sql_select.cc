@@ -171,6 +171,8 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
       goto err;
   }
 
+  lex->set_exec_started();
+
   DBUG_ASSERT(!lex->is_query_tables_locked());
   /*
     Locking of tables is done after preparation but before optimization.
@@ -556,6 +558,8 @@ bool Sql_cmd_dml::execute(THD *thd)
     DEBUG_SYNC(thd, "after_table_open");
 #endif
   }
+
+  lex->set_exec_started();
 
   DBUG_EXECUTE_IF("use_attachable_trx",
                   thd->begin_attachable_ro_transaction(););

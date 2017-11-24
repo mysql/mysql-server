@@ -4755,6 +4755,9 @@ finish:
 
   THD_STAGE_INFO(thd, stage_query_end);
 
+  if (!res)
+    lex->set_exec_started();
+
   // Cleanup EXPLAIN info
   if (!thd->in_sub_stmt)
   {

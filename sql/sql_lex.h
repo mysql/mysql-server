@@ -3746,6 +3746,11 @@ public:
 
 private:
   bool m_broken; ///< see mark_broken()
+  /**
+    Set to true when execution has started (after parsing, tables opened and
+    query preparation is complete. Used to track arena state for SPs).
+  */
+  bool m_exec_started;
   /// Current SP parsing context.
   /// @see also sp_head::m_root_parsing_ctx.
   sp_pcontext *sp_current_parsing_ctx;
@@ -3779,6 +3784,16 @@ public:
       m_broken= false;
   }
 
+  bool is_exec_started() const { return m_exec_started; }
+
+  void set_exec_started()
+  {
+    m_exec_started= true;
+  }
+  void reset_exec_started()
+  {
+    m_exec_started= false;
+  }
   sp_pcontext *get_sp_current_parsing_ctx()
   { return sp_current_parsing_ctx; }
 
