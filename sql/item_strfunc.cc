@@ -2073,6 +2073,11 @@ static size_t calculate_password(String *str, char *buffer)
 #if defined(HAVE_OPENSSL)
   if (old_passwords == 2)
   {
+    if (str->length() > MAX_PLAINTEXT_LENGTH)
+    {
+      my_error(ER_NOT_VALID_PASSWORD, MYF(0));
+      return 0;
+    }
     my_make_scrambled_password(buffer, str->ptr(),
                                str->length());
     buffer_len= strlen(buffer) + 1;

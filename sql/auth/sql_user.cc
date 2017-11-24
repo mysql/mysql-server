@@ -1325,6 +1325,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   size_t new_password_len= strlen(new_password);
   bool transactional_tables;
   bool result= false;
+  bool commit_result= false;
   std::string authentication_plugin;
   bool is_role;
   int ret;
@@ -1435,15 +1436,15 @@ bool change_password(THD *thd, const char *host, const char *user,
   users.insert(combo);
 
 end:
-  result= log_and_commit_acl_ddl(thd, transactional_tables, &users,
-                                 false, !result, false);
+  commit_result= log_and_commit_acl_ddl(thd, transactional_tables, &users,
+                                        false, !result, false);
 
   mysql_audit_notify(thd,
     AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
-    thd->is_error(), user, host, authentication_plugin.c_str(),
+    thd->is_error() || result, user, host, authentication_plugin.c_str(),
     is_role, NULL, NULL);
 
-  DBUG_RETURN(result);
+  DBUG_RETURN(result || commit_result);
 }
 
 namespace {

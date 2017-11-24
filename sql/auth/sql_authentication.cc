@@ -212,6 +212,7 @@ extern bool initialized;
 
 #if defined(HAVE_OPENSSL)
 #define MAX_CIPHER_LENGTH 1024
+#define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
 
 #if !defined(HAVE_YASSL)
 #define DEFAULT_SSL_CLIENT_CERT "client-cert.pem"
@@ -2851,7 +2852,8 @@ static int set_native_salt(const char* password, unsigned int password_len,
 static int generate_sha256_password(char *outbuf, unsigned int *buflen,
                                     const char *inbuf, unsigned int inbuflen)
 {
-  if (my_validate_password_policy(inbuf, inbuflen))
+  if (inbuflen > SHA256_PASSWORD_MAX_PASSWORD_LENGTH ||
+      my_validate_password_policy(inbuf, inbuflen))
     return 1;
   if (inbuflen == 0)
   {
@@ -3189,6 +3191,10 @@ compare_sha256_password_with_hash(const char *hash, unsigned long hash_length,
   char  *user_salt_end;
 
   DBUG_ENTER("compare_sha256_password_with_hash");
+  DBUG_ASSERT(cleartext_length <= SHA256_PASSWORD_MAX_PASSWORD_LENGTH);
+
+  if (cleartext_length > SHA256_PASSWORD_MAX_PASSWORD_LENGTH)
+    DBUG_RETURN(-1);
 
   /*
     Fetch user authentication_string and extract the password salt
@@ -3382,6 +3388,10 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     DBUG_RETURN(CR_ERROR);
 #endif /* HAVE_YASSL */
   } // if(!my_vio_is_encrypter())
+
+  /* Don't process the password if it is longer than maximum limit */
+  if (pkt_len > SHA256_PASSWORD_MAX_PASSWORD_LENGTH + 1)
+    DBUG_RETURN(CR_ERROR);
 
   /* A password was sent to an account without a password */
   if (info->auth_string_length == 0)
