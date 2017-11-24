@@ -662,7 +662,7 @@ SELECT length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'b' ));
 length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'b' ))
 1024
 Warnings:
-Warning	4590	An output string could not be zero-terminated because the length exceeds the buffer capacity.
+Warning	4587	An output string could not be zero-terminated because the length exceeds the buffer capacity.
 SELECT length(regexp_replace( repeat('a', @buf_sz_utf16 + 1), 'a', 'b' ));
 ERROR HY000: The result string is larger than the result buffer.
 SELECT length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'bb' ));

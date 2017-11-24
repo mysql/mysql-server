@@ -24,18 +24,6 @@
 
 namespace regexp {
 
-/// Returns ICU's name for the character set named in this string.
-const char *get_icu_charset_name(const char *mysql_name) {
-  std::string csname{mysql_name};
-  if (csname.substr(0, 4) == "utf8") return "utf8";
-  return mysql_name;
-}
-
-/// Returns ICU's name for the string's character set.
-const char *get_icu_charset_name(const String &s) {
-  return get_icu_charset_name(s.charset()->csname);
-}
-
 String *EvalExprToCharset(Item *expr, String *out) {
   uint dummy_errors;
   if (expr->collation.collation != regexp_lib_charset) {
