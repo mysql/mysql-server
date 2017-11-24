@@ -69,7 +69,9 @@ DELETE FROM parent WHERE a=3;
 #
 # Stop slave and cleanup the blocking
 #
+--disable_warnings
 --source include/stop_slave_sql.inc
+--enable_warnings
 --source include/rpl_connection_slave1.inc
 ROLLBACK;
 
