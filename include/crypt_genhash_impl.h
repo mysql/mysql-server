@@ -31,6 +31,7 @@
                                  SHA256_HASH_LENGTH + \
                                  CRYPT_MAGIC_LENGTH + \
                                  CRYPT_PARAM_LENGTH)
+#define MAX_PLAINTEXT_LENGTH 256
 
 #include <stddef.h>
 

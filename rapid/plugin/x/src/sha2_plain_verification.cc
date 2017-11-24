@@ -24,10 +24,15 @@
 namespace xpl {
 
 const unsigned int STORED_SHA256_DIGEST_LENGTH= 43;
+const size_t CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH= MAX_PLAINTEXT_LENGTH;
 const std::string Sha2_plain_verification::k_empty_salt;
 
 bool Sha2_plain_verification::verify_authentication_string(
     const std::string &client_string, const std::string &db_string) const {
+
+  if (client_string.length() > CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
+    return false;
+
   if (client_string.empty()) return db_string.empty();
 
   /* Format : $A$005$SALTHASH */
