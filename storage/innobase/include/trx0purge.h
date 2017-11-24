@@ -141,6 +141,9 @@ struct purge_iter_t {
 	space_id_t	undo_rseg_space;
 					/*!< Last undo record resided in this
 					space id. */
+	trx_id_t	modifier_trx_id;
+					/*!< the transaction that created the
+					undo log record. Modifier trx id.*/
 };
 
 /* Namespace to hold all the related functions and variables needed

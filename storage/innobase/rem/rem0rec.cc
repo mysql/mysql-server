@@ -1765,7 +1765,6 @@ operator<<(std::ostream& o, const rec_offsets_print& r)
 	return(o);
 }
 
-# ifdef UNIV_DEBUG
 /************************************************************//**
 Reads the DB_TRX_ID of a clustered index record.
 @return the value of DB_TRX_ID */
@@ -1775,8 +1774,6 @@ rec_get_trx_id(
 	const rec_t*		rec,	/*!< in: record */
 	const dict_index_t*	index)	/*!< in: clustered index */
 {
-	const page_t*	page
-		= page_align(rec);
 	ulint		trx_id_col = index->get_sys_col_pos(DATA_TRX_ID);
 	const byte*	trx_id;
 	ulint		len;
@@ -1785,12 +1782,17 @@ rec_get_trx_id(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
-	ut_ad(fil_page_index_page_check(page));
-	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == index->id);
 	ut_ad(index->is_clustered());
 	ut_ad(trx_id_col > 0);
 	ut_ad(trx_id_col != ULINT_UNDEFINED);
+
+#ifdef UNIV_DEBUG
+	const page_t*	page = page_align(rec);
+	if (fil_page_index_page_check(page)) {
+		ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
+		      == index->id);
+	}
+#endif /* UNIV_DEBUG */
 
 	offsets = rec_get_offsets(rec, index, offsets, trx_id_col + 1, &heap);
 
@@ -1804,7 +1806,6 @@ rec_get_trx_id(
 
 	return(trx_read_trx_id(trx_id));
 }
-# endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Mark the nth field as externally stored.

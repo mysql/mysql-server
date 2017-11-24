@@ -421,8 +421,22 @@ typedef	byte	fil_faddr_t;	/*!< 'type' definition in C: an address
 
 /** File space address */
 struct fil_addr_t {
+
+	fil_addr_t() : page(FIL_NULL), boffset(0) {}
+	fil_addr_t(page_no_t p, ulint off) : page(p), boffset(off) {}
+
 	page_no_t	page;		/*!< page number within a space */
 	ulint		boffset;	/*!< byte offset within the page */
+
+	bool is_equal(const fil_addr_t& that) const {
+		return((page == that.page) && (boffset == that.boffset));
+	}
+
+	/** Check if the file address is null.
+	@return true if null, false otherwise. */
+	bool is_null() const {
+		return(page == FIL_NULL && boffset == 0);
+	}
 
 	std::ostream& print(std::ostream& out) const
 	{
@@ -470,11 +484,36 @@ typedef	uint16_t	page_type_t;
 #define FIL_PAGE_ENCRYPTED_RTREE 17	/*!< Encrypted R-tree page */
 #define FIL_PAGE_SDI_BLOB	18	/*!< Uncompressed SDI BLOB page */
 #define FIL_PAGE_SDI_ZBLOB	19	/*!< Commpressed SDI BLOB page */
-#define FIL_PAGE_TYPE_ZBLOB3	20	/*!< Independently compressed LOB page*/
+#define FIL_PAGE_TYPE_UNUSED	20	/*!< Available for future use. */
 #define FIL_PAGE_TYPE_RSEG_ARRAY 21	/*!< Rollback Segment Array page */
 
+/** Index pages of uncompressed LOB */
+#define FIL_PAGE_TYPE_LOB_INDEX		22
+
+/** Data pages of uncompressed LOB */
+#define FIL_PAGE_TYPE_LOB_DATA		23
+
+/** The first page of an uncompressed LOB */
+#define FIL_PAGE_TYPE_LOB_FIRST		24
+
+/** The first page of a compressed LOB */
+#define FIL_PAGE_TYPE_ZLOB_FIRST	25
+
+/** Data pages of compressed LOB */
+#define FIL_PAGE_TYPE_ZLOB_DATA		26
+
+/** Index pages of compressed LOB. This page contains an array of
+z_index_entry_t objects.*/
+#define FIL_PAGE_TYPE_ZLOB_INDEX	27
+
+/** Fragment pages of compressed LOB. */
+#define FIL_PAGE_TYPE_ZLOB_FRAG		28
+
+/** Index pages of fragment pages (compressed LOB). */
+#define FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY	29
+
 /** Used by i_s.cc to index into the text description. */
-#define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_RSEG_ARRAY
+#define FIL_PAGE_TYPE_LAST		FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY
 					/*!< Last page type */
 /* @} */
 

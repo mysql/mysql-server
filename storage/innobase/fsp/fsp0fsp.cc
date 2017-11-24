@@ -3380,6 +3380,7 @@ fsp_reserve_free_extents(
 	ulint		reserve;
 	DBUG_ENTER("fsp_reserve_free_extents");
 
+
 	*n_reserved = n_ext;
 
 	fil_space_t*	space = fil_space_get(space_id);

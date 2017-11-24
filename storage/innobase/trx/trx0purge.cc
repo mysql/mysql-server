@@ -1501,6 +1501,7 @@ trx_purge_read_undo_rec(
 	page_no_t	page_no;
 	ib_uint64_t	undo_no;
 	space_id_t	undo_rseg_space;
+	trx_id_t	modifier_trx_id;
 
 	purge_sys->hdr_offset = purge_sys->rseg->last_offset;
 	page_no = purge_sys->hdr_page_no = purge_sys->rseg->last_page_no;
@@ -1512,6 +1513,7 @@ trx_purge_read_undo_rec(
 		mtr_start(&mtr);
 
 		undo_rec = trx_undo_get_first_rec(
+			&modifier_trx_id,
 			purge_sys->rseg->space_id,
 			page_size,
 			purge_sys->hdr_page_no,
@@ -1533,11 +1535,13 @@ trx_purge_read_undo_rec(
 		offset = 0;
 		undo_no = 0;
 		undo_rseg_space = SPACE_UNKNOWN;
+		modifier_trx_id = 0;
 	}
 
 	purge_sys->offset = offset;
 	purge_sys->page_no = page_no;
 	purge_sys->iter.undo_no = undo_no;
+	purge_sys->iter.modifier_trx_id = modifier_trx_id;
 	purge_sys->iter.undo_rseg_space = undo_rseg_space;
 
 	purge_sys->next_stored = TRUE;
@@ -1704,6 +1708,9 @@ static MY_ATTRIBUTE((warn_unused_result))
 trx_undo_rec_t*
 trx_purge_fetch_next_rec(
 /*=====================*/
+	trx_id_t*	modifier_trx_id,
+					/*!< out: modifier trx id. this is the
+					trx that created the undo record. */
 	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
 	ulint*		n_pages_handled,/*!< in/out: number of UNDO log pages
 					handled */
@@ -1730,6 +1737,8 @@ trx_purge_fetch_next_rec(
 	*roll_ptr = trx_undo_build_roll_ptr(
 		FALSE, purge_sys->rseg->space_id,
 		purge_sys->page_no, purge_sys->offset);
+
+	*modifier_trx_id = purge_sys->iter.modifier_trx_id;
 
 	/* The following call will advance the stored values of the
 	purge iterator. */
@@ -1814,7 +1823,8 @@ trx_purge_attach_undo_recs(
 
 		/* Fetch the next record, and advance the purge_sys->iter. */
 		rec.undo_rec = trx_purge_fetch_next_rec(
-			&rec.roll_ptr, &n_pages_handled, heap);
+			&rec.modifier_trx_id, &rec.roll_ptr, &n_pages_handled,
+			heap);
 
 		if (rec.undo_rec == &trx_purge_ignore_rec) {
 
@@ -1873,10 +1883,11 @@ trx_purge_attach_undo_recs(
 			if (node->recs == nullptr) {
 				node->recs = it->second;
 			} else {
-				node->recs->insert(
-					std::end(*node->recs),
-					std::begin(*it->second),
-					std::end(*it->second));
+
+				for (auto iter = it->second->begin();
+				     iter != it->second->end(); ++iter) {
+					node->recs->push_back(*iter);
+				}
 			}
 		}
 	}

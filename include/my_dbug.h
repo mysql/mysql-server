@@ -194,8 +194,22 @@ extern void _db_flush_gcov_();
 	sout << v; \
 	DBUG_PRINT(keyword, ("%s", sout.str().c_str())); \
 } while(0)
+
+void log_prefix(std::ostream& out);
+void trace(const std::string& note);
+void dump_trace();
+
+#define DBUG_TRACE(x) \
+do { \
+  std::ostringstream sout; \
+  log_prefix(sout); \
+  sout << x; \
+  trace(sout.str());\
+} while(false)
+
 #else /* DBUG_OFF */
 #define DBUG_LOG(keyword, v) do {} while(0)
+#define DBUG_TRACE(x) do {} while(0)
 #endif /* DBUG_OFF */
 #endif /* __cplusplus */
 

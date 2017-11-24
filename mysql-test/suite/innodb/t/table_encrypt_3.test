@@ -315,22 +315,22 @@ INSERT INTO tde_db.t_encrypt(c3,c4) SELECT c3,c4 FROM tde_db.t_encrypt;
 INSERT INTO tde_db.t_encrypt(c3,c4) SELECT c3,c4 FROM tde_db.t_encrypt;
 INSERT INTO tde_db.t_encrypt(c3,c4) SELECT c3,c4 FROM tde_db.t_encrypt;
 INSERT INTO tde_db.t_encrypt(c3,c4) SELECT c3,c4 FROM tde_db.t_encrypt;
-SELECT c2,c4,c5 FROM tde_db.t_encrypt LIMIT 10;
-SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt LIMIT 10;
+SELECT c2,c4,c5 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
+SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
 DELETE FROM tde_db.t_encrypt WHERE c2 > 10;
 UPDATE tde_db.t_encrypt SET c2 = 100 WHERE c2=1;
-SELECT c2,c4,c5 FROM tde_db.t_encrypt LIMIT 10;
-SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt LIMIT 10;
+SELECT c2,c4,c5 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
+SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
 ALTER TABLE tde_db.t_encrypt TRUNCATE PARTITION p2;
-SELECT c2,c4,c5 FROM tde_db.t_encrypt LIMIT 10;
-SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt LIMIT 10;
+SELECT c2,c4,c5 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
+SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
 SHOW CREATE TABLE tde_db.t_encrypt;
 
 --echo # restart with keying
 let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
 --source include/restart_mysqld.inc
-SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt LIMIT 10;
+SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
 
 DROP TABLE tde_db.t_encrypt;
 

@@ -8662,6 +8662,9 @@ calc_row_difference(
 	buf = (byte*) upd_buff;
 
 	for (i = 0; i < n_fields; i++) {
+
+		dfield.reset();
+
 		field = table->field[i];
 		bool		is_virtual = innobase_is_v_fld(field);
 		dict_col_t*	col;
@@ -8818,6 +8821,7 @@ calc_row_difference(
 			/* The field has changed */
 
 			ufield = uvect->fields + n_changed;
+
 			UNIV_MEM_INVALID(ufield, sizeof *ufield);
 
 			/* Let us use a dummy dfield to make the conversion
@@ -8850,6 +8854,8 @@ calc_row_difference(
 
 			ufield->exp = NULL;
 			ufield->orig_len = 0;
+			ufield->mysql_field = field;
+
 			if (is_virtual) {
 				dfield_t*	vfield = dtuple_get_nth_v_field(
 					uvect->old_vrow, num_v);
@@ -9079,6 +9085,9 @@ ha_innobase::update_row(
 	} else {
 		uvect = row_get_prebuilt_update_vector(m_prebuilt);
 	}
+
+	uvect->table = m_prebuilt->table;
+	uvect->mysql_table = table;
 
 	/* Build an update vector from the modified fields in the rows
 	(uses m_upd_buf of the handle) */
@@ -22601,6 +22610,13 @@ innobase_get_computed_value(
 		? dict_table_page_size(index->table)
 		: dict_table_page_size(old_table);
 
+	const dict_index_t*	clust_index = nullptr;
+	if (old_table == nullptr) {
+		clust_index = index->table->first_index();
+	} else {
+		clust_index = old_table->first_index();
+	}
+
 	ulint		ret = 0;
 
 	ut_ad(index->table->vc_templ);
@@ -22651,6 +22667,7 @@ innobase_get_computed_value(
 			}
 
 			data = lob::btr_copy_externally_stored_field(
+				clust_index,
 				&len, data, page_size,
 				dfield_get_len(row_field), false, *local_heap);
 		}

@@ -2563,7 +2563,7 @@ btr_insert_into_right_sibling(
 
 	compressed = btr_cur_pessimistic_delete(
 		&err, TRUE, &next_father_cursor,
-		BTR_CREATE_FLAG, false, mtr);
+		BTR_CREATE_FLAG, false, 0, 0, 0, mtr);
 
 	ut_a(err == DB_SUCCESS);
 
@@ -3182,7 +3182,8 @@ btr_node_ptr_delete(
 	btr_page_get_father(index, block, mtr, &cursor);
 
 	compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor,
-						BTR_CREATE_FLAG, false, mtr);
+						BTR_CREATE_FLAG, false,
+						0, 0, 0, mtr);
 	ut_a(err == DB_SUCCESS);
 
 	if (!compressed) {
@@ -3795,10 +3796,9 @@ retry:
 			lock_mutex_exit();
 		} else {
 
-			compressed = btr_cur_pessimistic_delete(&err, TRUE,
-								&cursor2,
-								BTR_CREATE_FLAG,
-								false, mtr);
+			compressed = btr_cur_pessimistic_delete(
+				&err, TRUE, &cursor2, BTR_CREATE_FLAG,
+				false, 0, 0, 0, mtr);
 			ut_a(err == DB_SUCCESS);
 
 			if (!compressed) {
@@ -4396,7 +4396,7 @@ btr_index_rec_validate(
 	}
 
 #ifdef VIRTUAL_INDEX_DEBUG
-	if (dict_index_has_virtual(index)) {
+	if (dict_index_has_virtual(index) || index->is_clustered()) {
 		fprintf(stderr, "index name is %s\n", index->name());
 	}
 #endif
@@ -4494,7 +4494,7 @@ btr_index_rec_validate(
 	}
 
 #ifdef VIRTUAL_INDEX_DEBUG
-	if (dict_index_has_virtual(index)) {
+	if (dict_index_has_virtual(index) || index->is_clustered()) {
 		rec_print_new(stderr, rec, offsets);
 	}
 #endif
