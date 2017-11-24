@@ -2192,6 +2192,11 @@ static int calculate_password(String *str, char *buffer)
 #if defined(HAVE_OPENSSL)
   if (old_passwords == 2)
   {
+    if (str->length() > MAX_PLAINTEXT_LENGTH)
+    {
+      my_error(ER_NOT_VALID_PASSWORD, MYF(0));
+      return 0;
+    }
     my_make_scrambled_password(buffer, str->ptr(),
                                str->length());
     buffer_len= (int) strlen(buffer) + 1;
@@ -2283,9 +2288,14 @@ char *Item_func_password::
 #if defined(HAVE_OPENSSL)
   else
   {
-    /* Allocate memory for the password scramble and one extra byte for \0 */
-    buff= (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE + 1);
-    my_make_scrambled_password(buff, password, pass_len);
+    if (pass_len <= MAX_PLAINTEXT_LENGTH)
+    {
+      /* Allocate memory for the password scramble and one extra byte for \0 */
+      buff= (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE + 1);
+      my_make_scrambled_password(buff, password, pass_len);
+    }
+    else
+      my_error(ER_NOT_VALID_PASSWORD, MYF(0));
   }
 #endif
   return buff;
