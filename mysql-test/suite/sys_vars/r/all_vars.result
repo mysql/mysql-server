@@ -31,6 +31,10 @@ password_history
 password_history
 password_reuse_interval
 password_reuse_interval
+regexp_stack_limit
+regexp_stack_limit
+regexp_time_limit
+regexp_time_limit
 resultset_metadata
 tls_version
 tls_version

@@ -49,6 +49,7 @@
 #include "sql/item_geofunc.h"    // Item_func_area
 #include "sql/item_inetfunc.h"   // Item_func_inet_ntoa
 #include "sql/item_json_func.h"  // Item_func_json
+#include "sql/item_regexp_func.h"// Item_func_regexp_xxx
 #include "sql/item_strfunc.h"    // Item_func_aes_encrypt
 #include "sql/item_sum.h"        // Item_sum_udf_str
 #include "sql/item_timefunc.h"   // Item_func_add_time
@@ -1590,6 +1591,10 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "RADIANS", SQL_FACTORY(Radians_instantiator) },
   { "RAND", SQL_FN_V(Item_func_rand, 0, 1) },
   { "RANDOM_BYTES", SQL_FN(Item_func_random_bytes, 1) },
+  { "REGEXP_INSTR", SQL_FN_V_LIST(Item_func_regexp_instr, 2, 6) },
+  { "REGEXP_LIKE", SQL_FN_V_LIST(Item_func_regexp_like, 2, 3) },
+  { "REGEXP_REPLACE", SQL_FN_V_LIST(Item_func_regexp_replace, 3, 6) },
+  { "REGEXP_SUBSTR", SQL_FN_V_LIST(Item_func_regexp_substr, 2, 5) },
   { "RELEASE_ALL_LOCKS", SQL_FN(Item_func_release_all_locks, 0) },
   { "RELEASE_LOCK", SQL_FN(Item_func_release_lock, 1) },
   { "REVERSE", SQL_FN(Item_func_reverse, 1) },
@@ -1742,6 +1747,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "CAN_ACCESS_ROUTINE",
     SQL_FN_LIST_INTERNAL(Item_func_can_access_routine, 5) },
   { "CAN_ACCESS_EVENT", SQL_FN_INTERNAL(Item_func_can_access_event, 1) },
+  { "ICU_VERSION", SQL_FN(Item_func_icu_version, 0) },
   { "CAN_ACCESS_RESOURCE_GROUP", SQL_FN_INTERNAL(Item_func_can_access_resource_group, 1) },
   { "CONVERT_CPU_ID_MASK", SQL_FN_INTERNAL(Item_func_convert_cpu_id_mask, 1) },
   { "IS_VISIBLE_DD_OBJECT",

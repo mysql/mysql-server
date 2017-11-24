@@ -1,0 +1,10 @@
+SET NAMES utf8;
+#
+# ICU bug #12884: Timeout ignored for ICU regular expression matches
+# reported by us. Fixed in ICU 59.1.
+#
+# Originates from MySQL Bug#24449090 BUFFER OVERFLOW IN FUNCTION DUPL
+# which was fixed in the Henry Spencer library.
+#
+SELECT regexp_like('', "(((((((){120}){11}){11}){11}){80}){11}){4}" );
+ERROR HY000: Timeout exceeded in regular expression match.

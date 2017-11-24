@@ -25,7 +25,6 @@ insert into t1 values('aaa','aba');
 insert into t1 values(null,'abc');
 insert into t1 values('def',null);
 insert into t1 values(null,null);
-insert into t1 values('ghi','ghi[');
 select HIGH_PRIORITY s1 regexp s2 from t1;
 s1 regexp s2
 1
@@ -41,7 +40,8 @@ s1 regexp s2
 NULL
 NULL
 NULL
-NULL
+SELECT 'ghi' REGEXP 'ghi[';
+ERROR HY000: The regular expression contains an unclosed bracket expression.
 drop table t1;
 create table t1 (xxx char(128));
 insert into t1 (xxx) values('this is a test of some long text to see what happens');
@@ -55,7 +55,7 @@ explain select * from t1 where xxx regexp('is a test of some long text to');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`xxx` AS `xxx` from `test`.`t1` where (`test`.`t1`.`xxx` regexp 'is a test of some long text to')
+Note	1003	/* select#1 */ select `test`.`t1`.`xxx` AS `xxx` from `test`.`t1` where regexp_like(`test`.`t1`.`xxx`,'is a test of some long text to')
 select * from t1 where xxx regexp('is a test of some long text to ');
 xxx
 this is a test of some long text to see what happens
@@ -69,9 +69,12 @@ drop table t1;
 create table t1 (xxx char(128));
 insert into t1 (xxx) values('this is some text: to test - out.reg exp (22/45)');
 select * from t1 where xxx REGEXP '^this is some text: to test - out\\.reg exp [[(][0-9]+[/\\][0-9]+[])][ ]*$';
-xxx
-this is some text: to test - out.reg exp (22/45)
+ERROR HY000: The regular expression contains an unclosed bracket expression.
 drop table t1;
+# The Henry Spencer library used prior to ICU was inonsistent
+# here. When the regular expression search is performed in a
+# case-insensitive manner, both '[[:lower:]]' and '[[:upper:]]'
+# will match.
 select _latin1 0xFF regexp _latin1 '[[:lower:]]' COLLATE latin1_bin;
 _latin1 0xFF regexp _latin1 '[[:lower:]]' COLLATE latin1_bin
 1
@@ -153,7 +156,7 @@ SELECT ' '  REGEXP '[[:blank:]]';
 1
 SELECT '\t' REGEXP '[[:blank:]]';
 '\t' REGEXP '[[:blank:]]'
-0
+1
 SELECT ' '  REGEXP '[[:space:]]';
 ' '  REGEXP '[[:space:]]'
 1

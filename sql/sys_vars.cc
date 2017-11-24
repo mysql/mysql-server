@@ -3628,6 +3628,20 @@ static Sys_var_uint Sys_server_id_bits(
        GLOBAL_VAR(opt_server_id_bits), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 32), DEFAULT(32), BLOCK_SIZE(1));
 
+static Sys_var_int32 Sys_regexp_time_limit (
+       "regexp_time_limit",
+       "Timeout for regular expressions matches, in steps of the match "
+       "engine, typically on the order of milliseconds.",
+       GLOBAL_VAR(opt_regexp_time_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, INT32_MAX),
+       DEFAULT(32), BLOCK_SIZE(1));
+
+static Sys_var_int32 Sys_regexp_stack_limit (
+       "regexp_stack_limit",
+       "Stack size limit for regular expressions matches",
+       GLOBAL_VAR(opt_regexp_stack_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, INT32_MAX), DEFAULT(8000000), BLOCK_SIZE(1));
+
 static Sys_var_bool Sys_slave_compressed_protocol(
        "slave_compressed_protocol",
        "Use compression on master/slave protocol",
