@@ -506,6 +506,7 @@ void LEX::reset()
 
   wild= NULL;
   mark_broken(false);
+  reset_exec_started();
   max_execution_time= 0;
   reparse_common_table_expr_at= 0;
   opt_hints_global= NULL;

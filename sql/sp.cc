@@ -2627,6 +2627,8 @@ Item *sp_prepare_func_item(THD* thd, Item **it_addr)
     return NULL;
   }
 
+  thd->lex->set_exec_started();
+
   return *it_addr;
 }
 
