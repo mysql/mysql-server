@@ -493,6 +493,10 @@ btr_cur_pessimistic_update(
 				| BTR_CREATE_FLAG
 				| BTR_KEEP_SYS_FLAG) */
 	trx_id_t	trx_id,	/*!< in: transaction id */
+	undo_no_t	undo_no,
+				/*!< in: undo number of the transaction. This
+				is needed for rollback to savepoint of
+				partially updated LOB.*/
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; must be committed
 				before latching any further pages */
 	MY_ATTRIBUTE((warn_unused_result));
@@ -595,6 +599,13 @@ btr_cur_pessimistic_delete(
 				deleted record on function exit */
 	ulint		flags,	/*!< in: BTR_CREATE_FLAG or 0 */
 	bool		rollback,/*!< in: performing rollback? */
+	trx_id_t	trx_id,	/*!< in: the current transaction id. */
+	undo_no_t	undo_no,
+				/*!< in: undo number of the transaction. This
+				is needed for rollback to savepoint of
+				partially updated LOB.*/
+	ulint		rec_type,
+				/*!< in: undo record type. */
 	mtr_t*		mtr);	/*!< in: mtr */
 /***********************************************************//**
 Parses a redo log record of updating a record in-place.
@@ -664,6 +675,8 @@ btr_estimate_number_of_different_key_vals(
 	dict_index_t*	index);	/*!< in: index */
 
 /** Copies an externally stored field of a record to mem heap.
+@param[in]	trx		the trx doing the operation.
+@param[in]	index		index containing the LOB.
 @param[in]	rec		record in a clustered index; must be
 				protected by a lock or a page latch
 @param[in]	offsets		array returned by rec_get_offsets()
@@ -675,6 +688,8 @@ btr_estimate_number_of_different_key_vals(
 @return the field copied to heap, or NULL if the field is incomplete */
 byte*
 btr_rec_copy_externally_stored_field_func(
+	trx_t*			trx,
+	dict_index_t*		index,
 	const rec_t*		rec,
 	const ulint*		offsets,
 	const page_size_t&	page_size,

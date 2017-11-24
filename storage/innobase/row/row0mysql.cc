@@ -2354,7 +2354,7 @@ row_del_upd_for_mysql_using_cursor(
 
 	/* Internal table is created by optimiser. So there
 	should not be any virtual columns. */
-	row_upd_store_row(node, NULL, NULL);
+	row_upd_store_row(prebuilt->trx, node, NULL, NULL);
 
 	/* Step-2: Execute DELETE operation. */
 	err = row_delete_for_mysql_using_cursor(node, delete_entries, false);

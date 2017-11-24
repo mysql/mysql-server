@@ -2252,6 +2252,11 @@ buf_LRU_block_remove_hashed(
 			case FIL_PAGE_IBUF_BITMAP:
 			case FIL_PAGE_TYPE_FSP_HDR:
 			case FIL_PAGE_TYPE_XDES:
+			case FIL_PAGE_TYPE_ZLOB_FIRST:
+			case FIL_PAGE_TYPE_ZLOB_DATA:
+			case FIL_PAGE_TYPE_ZLOB_INDEX:
+			case FIL_PAGE_TYPE_ZLOB_FRAG:
+			case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
 				/* These are essentially uncompressed pages. */
 				if (!zip) {
 					/* InnoDB writes the data to the
@@ -2264,7 +2269,6 @@ buf_LRU_block_remove_hashed(
 				break;
 			case FIL_PAGE_TYPE_ZBLOB:
 			case FIL_PAGE_TYPE_ZBLOB2:
-			case FIL_PAGE_TYPE_ZBLOB3:
 			case FIL_PAGE_SDI_ZBLOB:
 				break;
 			case FIL_PAGE_INDEX:

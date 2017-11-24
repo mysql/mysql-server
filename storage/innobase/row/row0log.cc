@@ -554,6 +554,7 @@ This will be merged in row_log_table_apply_delete(). */
 void
 row_log_table_delete(
 /*=================*/
+	trx_t*		trx,	/*!< in: current transaction */
 	const rec_t*	rec,	/*!< in: clustered index leaf page record,
 				page X-latched */
 	const dtuple_t*	ventry,	/*!< in: dtuple holding virtual column info */
@@ -630,7 +631,7 @@ row_log_table_delete(
 	} else {
 		/* The PRIMARY KEY has changed. Translate the tuple. */
 		old_pk = row_log_table_get_pk(
-			rec, index, offsets, NULL, &heap);
+			trx, rec, index, offsets, NULL, &heap);
 
 		if (!old_pk) {
 			ut_ad(index->online_log->error != DB_SUCCESS);
@@ -1100,6 +1101,8 @@ row_log_table_get_pk_old_col(
 }
 
 /** Maps an old table column of a PRIMARY KEY column.
+@param[in]	trx		current transaction
+@param[in]	index		index being operated on
 @param[in]	col		old table column (before ALTER TABLE)
 @param[in]	ifield		clustered index field in the new table (after
 ALTER TABLE)
@@ -1116,6 +1119,8 @@ table
 static
 dberr_t
 row_log_table_get_pk_col(
+	trx_t*			trx,
+	dict_index_t*		index,
 	const dict_col_t*	col,
 	const dict_field_t*	ifield,
 	dfield_t*		dfield,
@@ -1150,7 +1155,8 @@ row_log_table_get_pk_col(
 			mem_heap_alloc(heap, field_len));
 
 		len = lob::btr_copy_externally_stored_field_prefix(
-			blob_field, field_len, page_size, field, false, len);
+			index, blob_field, field_len, page_size, field,
+			false, len);
 
 		if (len >= max_len + 1) {
 			return(DB_TOO_BIG_INDEX_COL);
@@ -1172,6 +1178,7 @@ or NULL if the PRIMARY KEY definition does not change */
 const dtuple_t*
 row_log_table_get_pk(
 /*=================*/
+	trx_t*		trx,	/*!< in: current transaction */
 	const rec_t*	rec,	/*!< in: clustered index leaf page record,
 				page X-latched */
 	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
@@ -1288,6 +1295,7 @@ row_log_table_get_pk(
 				}
 
 				log->error = row_log_table_get_pk_col(
+					trx, index,
 					col, ifield, dfield, *heap,
 					rec, offsets, i, page_size, max_len);
 
@@ -1379,6 +1387,8 @@ row_log_table_blob_free(
 	dict_index_t*	index,	/*!< in/out: clustered index, X-latched */
 	page_no_t	page_no)/*!< in: starting page number of the BLOB */
 {
+	DBUG_ENTER("row_log_table_blob_free");
+
 	ut_ad(index->is_clustered());
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(rw_lock_own_flagged(
@@ -1387,7 +1397,7 @@ row_log_table_blob_free(
 	ut_ad(page_no != FIL_NULL);
 
 	if (index->online_log->error != DB_SUCCESS) {
-		return;
+		DBUG_VOID_RETURN;
 	}
 
 	page_no_map*	blobs	= index->online_log->blobs;
@@ -1413,6 +1423,8 @@ row_log_table_blob_free(
 		p.first->second.blob_free(log_pos);
 	}
 #undef log_pos
+
+	DBUG_VOID_RETURN;
 }
 
 /******************************************************//**
@@ -1423,6 +1435,8 @@ row_log_table_blob_alloc(
 	dict_index_t*	index,	/*!< in/out: clustered index, X-latched */
 	page_no_t	page_no)/*!< in: starting page number of the BLOB */
 {
+	DBUG_ENTER("row_log_table_blob_alloc");
+
 	ut_ad(index->is_clustered());
 	ut_ad(dict_index_is_online_ddl(index));
 
@@ -1433,7 +1447,7 @@ row_log_table_blob_alloc(
 	ut_ad(page_no != FIL_NULL);
 
 	if (index->online_log->error != DB_SUCCESS) {
-		return;
+		DBUG_VOID_RETURN;
 	}
 
 	/* Only track allocations if the same page has been freed
@@ -1446,6 +1460,8 @@ row_log_table_blob_alloc(
 			p->second.blob_alloc(index->online_log->tail.total);
 		}
 	}
+
+	DBUG_VOID_RETURN;
 }
 
 /******************************************************//**
@@ -1455,6 +1471,7 @@ static MY_ATTRIBUTE((warn_unused_result))
 const dtuple_t*
 row_log_table_apply_convert_mrec(
 /*=============================*/
+	trx_t*			trx,	/*!< in: current transaction */
 	const mrec_t*		mrec,		/*!< in: merge record */
 	dict_index_t*		index,		/*!< in: index of mrec */
 	const ulint*		offsets,	/*!< in: offsets of mrec */
@@ -1530,6 +1547,7 @@ row_log_table_apply_convert_mrec(
 					page_no);
 				if (p != blobs->end()
 				    && p->second.is_freed(log->head.total)) {
+
 					/* This BLOB has been freed.
 					We must not access the row. */
 					*error = DB_MISSING_HISTORY;
@@ -1539,8 +1557,11 @@ row_log_table_apply_convert_mrec(
 				}
 			}
 
+			/* Reading a LOB of another transaction. The ALTER
+			TABLE trx is not the owner of this LOB. So instead
+			of passing current trx, a nullptr is passed for trx.*/
 			data = lob::btr_rec_copy_externally_stored_field(
-				mrec, offsets,
+				index, mrec, offsets,
 				dict_table_page_size(index->table),
 				i, &len, false, heap);
 
@@ -1708,9 +1729,10 @@ row_log_table_apply_insert(
 	trx_id_t		trx_id)		/*!< in: DB_TRX_ID of mrec */
 {
 	const row_log_t*log	= dup->index->online_log;
+	trx_t*		trx	= thr_get_trx(thr);
 	dberr_t		error;
 	const dtuple_t*	row	= row_log_table_apply_convert_mrec(
-		mrec, dup->index, offsets, log, heap, trx_id, &error);
+		trx, mrec, dup->index, offsets, log, heap, trx_id, &error);
 
 	switch (error) {
 	case DB_MISSING_HISTORY:
@@ -1749,6 +1771,7 @@ static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_log_table_apply_delete_low(
 /*===========================*/
+	trx_t*			trx,		/*!< in: current transaction*/
 	btr_pcur_t*		pcur,		/*!< in/out: B-tree cursor,
 						will be trashed */
 	const dtuple_t*		ventry,		/*!< in: dtuple holding
@@ -1791,7 +1814,7 @@ row_log_table_apply_delete_low(
 	}
 
 	btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(pcur),
-				   BTR_CREATE_FLAG, false, mtr);
+				   BTR_CREATE_FLAG, false, 0, 0, 0, mtr);
 	mtr_commit(mtr);
 
 	if (error != DB_SUCCESS) {
@@ -1841,7 +1864,8 @@ flag_ok:
 
 		btr_cur_pessimistic_delete(&error, FALSE,
 					   btr_pcur_get_btr_cur(pcur),
-					   BTR_CREATE_FLAG, false, mtr);
+					   BTR_CREATE_FLAG, false, 0, 0, 0,
+					   mtr);
 		mtr_commit(mtr);
 	}
 
@@ -1876,6 +1900,7 @@ row_log_table_apply_delete(
 	btr_pcur_t	pcur;
 	ulint*		offsets;
 	ulint		num_v = new_table->n_v_cols;
+	trx_t*		trx = thr_get_trx(thr);
 
 	ut_ad(rec_offs_n_fields(moffsets)
 	      == dict_index_get_n_unique(index) + 2);
@@ -1982,7 +2007,7 @@ all_done:
 				     &(log->col_map[log->n_old_col]));
         }
 
-	return(row_log_table_apply_delete_low(&pcur, old_pk,
+	return(row_log_table_apply_delete_low(trx, &pcur, old_pk,
 					      offsets, save_ext,
 					      heap, &mtr));
 }
@@ -2018,6 +2043,7 @@ row_log_table_apply_update(
 	btr_pcur_t	pcur;
 	dberr_t		error;
 	ulint		n_index = 0;
+	trx_t*		trx = thr_get_trx(thr);
 
 	ut_ad(dtuple_get_n_fields_cmp(old_pk)
 	      == dict_index_get_n_unique(index));
@@ -2026,7 +2052,7 @@ row_log_table_apply_update(
 	      + (log->same_pk ? 0 : 2));
 
 	row = row_log_table_apply_convert_mrec(
-		mrec, dup->index, offsets, log, heap, trx_id, &error);
+		trx, mrec, dup->index, offsets, log, heap, trx_id, &error);
 
 	switch (error) {
 	case DB_MISSING_HISTORY:
@@ -2197,7 +2223,7 @@ func_exit_committed:
 		/* Some BLOBs are missing, so we are interpreting
 		this ROW_T_UPDATE as ROW_T_DELETE (see *1). */
 		error = row_log_table_apply_delete_low(
-			&pcur, old_pk, cur_offsets, NULL, heap, &mtr);
+			trx, &pcur, old_pk, cur_offsets, NULL, heap, &mtr);
 		goto func_exit_committed;
 	}
 
@@ -2236,7 +2262,7 @@ func_exit_committed:
 		}
 
 		error = row_log_table_apply_delete_low(
-			&pcur, old_pk, cur_offsets, NULL, heap, &mtr);
+			trx, &pcur, old_pk, cur_offsets, NULL, heap, &mtr);
 		ut_ad(mtr.has_committed());
 
 		if (error == DB_SUCCESS) {
@@ -2277,13 +2303,13 @@ func_exit_committed:
 		| BTR_KEEP_POS_FLAG,
 		btr_pcur_get_btr_cur(&pcur),
 		&cur_offsets, &offsets_heap, heap, &big_rec,
-		update, 0, thr, 0, &mtr);
+		update, 0, thr, 0, 0, &mtr);
 
 	if (big_rec) {
 		if (error == DB_SUCCESS) {
 			error = lob::btr_store_big_rec_extern_fields(
-				&pcur, update, cur_offsets, big_rec, &mtr,
-				lob::OPCODE_UPDATE);
+				trx, &pcur, update, cur_offsets, big_rec,
+				&mtr, lob::OPCODE_UPDATE);
 		}
 
 		dtuple_big_rec_free(big_rec);
@@ -2326,7 +2352,7 @@ func_exit_committed:
 
 		btr_cur_pessimistic_delete(
 			&error, FALSE, btr_pcur_get_btr_cur(&pcur),
-			BTR_CREATE_FLAG, false, &mtr);
+			BTR_CREATE_FLAG, false, 0, 0, 0, &mtr);
 
 		if (error != DB_SUCCESS) {
 			break;
@@ -3375,7 +3401,7 @@ row_log_apply_op_low(
 
 			btr_cur_pessimistic_delete(
 				error, FALSE, &cursor,
-				BTR_CREATE_FLAG, false, &mtr);
+				BTR_CREATE_FLAG, false, 0, 0, 0, &mtr);
 			break;
 		case ROW_OP_INSERT:
 			if (exists) {

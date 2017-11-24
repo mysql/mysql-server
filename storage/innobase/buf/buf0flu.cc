@@ -889,12 +889,16 @@ buf_flush_init_for_writing(
 		case FIL_PAGE_IBUF_BITMAP:
 		case FIL_PAGE_TYPE_FSP_HDR:
 		case FIL_PAGE_TYPE_XDES:
+		case FIL_PAGE_TYPE_ZLOB_FIRST:
+		case FIL_PAGE_TYPE_ZLOB_DATA:
+		case FIL_PAGE_TYPE_ZLOB_INDEX:
+		case FIL_PAGE_TYPE_ZLOB_FRAG:
+		case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
 			/* These are essentially uncompressed pages. */
 			memcpy(page_zip->data, page, size);
 			/* fall through */
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
-		case FIL_PAGE_TYPE_ZBLOB3:
 		case FIL_PAGE_SDI_ZBLOB:
 		case FIL_PAGE_INDEX:
 		case FIL_PAGE_SDI:
@@ -954,9 +958,16 @@ buf_flush_init_for_writing(
 				case FIL_PAGE_TYPE_BLOB:
 				case FIL_PAGE_TYPE_ZBLOB:
 				case FIL_PAGE_TYPE_ZBLOB2:
-				case FIL_PAGE_TYPE_ZBLOB3:
 				case FIL_PAGE_SDI_BLOB:
 				case FIL_PAGE_SDI_ZBLOB:
+				case FIL_PAGE_TYPE_LOB_INDEX:
+				case FIL_PAGE_TYPE_LOB_DATA:
+				case FIL_PAGE_TYPE_LOB_FIRST:
+				case FIL_PAGE_TYPE_ZLOB_FIRST:
+				case FIL_PAGE_TYPE_ZLOB_DATA:
+				case FIL_PAGE_TYPE_ZLOB_INDEX:
+				case FIL_PAGE_TYPE_ZLOB_FRAG:
+				case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
 				case FIL_PAGE_TYPE_RSEG_ARRAY:
 					break;
 				case FIL_PAGE_TYPE_FSP_HDR:

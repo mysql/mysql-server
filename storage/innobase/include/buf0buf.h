@@ -1696,6 +1696,28 @@ struct buf_block_t{
 					and accessed; we introduce this new
 					mutex in InnoDB-5.1 to relieve
 					contention on the buffer pool mutex */
+
+	/** Get the page number of the current buffer block.
+	@return page number of the current buffer block. */
+	page_no_t get_page_no() const {
+		return(page.id.page_no());
+	}
+
+	/** Get the next page number of the current buffer block.
+	@return next page number of the current buffer block. */
+	page_no_t get_next_page_no() const {
+		return(mach_read_from_4(frame + FIL_PAGE_NEXT));
+	}
+
+	/** Get the page type of the current buffer block.
+	@return page type of the current buffer block. */
+	ulint get_page_type() const {
+		return(mach_read_from_2(frame + FIL_PAGE_TYPE));
+	}
+
+	/** Get the page type of the current buffer block as string.
+	@return page type of the current buffer block as string. */
+	const char* get_page_type_str() const;
 };
 
 /** Check if a buf_block_t object is in a valid state

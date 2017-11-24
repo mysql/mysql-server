@@ -50,6 +50,10 @@ Created 2012-02-08 by Sunny Bains.
 #include "dict0crea.h"
 #include "lob0lob.h"
 #include "dict0dd.h"
+#include "lob0first.h"
+#include "lob0impl.h"
+#include "lob0pages.h"
+#include "zlob0first.h"
 #include "dict0upgrade.h"
 
 #include <vector>
@@ -1660,7 +1664,8 @@ IndexPurge::purge_pessimistic_delete() UNIV_NOTHROW
 			dict_table_is_comp(m_index->table)));
 
 	btr_cur_pessimistic_delete(
-		&err, FALSE, btr_pcur_get_btr_cur(&m_pcur), 0, false, &m_mtr);
+		&err, FALSE, btr_pcur_get_btr_cur(&m_pcur), 0, false,
+		0, 0, 0, &m_mtr);
 
 	ut_a(err == DB_SUCCESS);
 
@@ -1746,6 +1751,7 @@ PageConverter::adjust_cluster_index_blob_column(
 
 		page_zip_write_blob_ptr(
 			m_page_zip_ptr, rec, m_index->m_srv_index, offsets, i, 0);
+
 	} else {
 		mlog_write_ulint(field, get_space_id(), MLOG_4BYTES, 0);
 	}
@@ -2065,6 +2071,72 @@ PageConverter::update_page(
 		/* This is page 0 in the system tablespace. */
 		return(DB_CORRUPTION);
 
+	case FIL_PAGE_TYPE_LOB_FIRST:
+	{
+		lob::first_page_t first_page(block);
+		first_page.import(m_trx->id);
+		first_page.set_space_id_no_redo(get_space_id());
+		return(err);
+	}
+
+	case FIL_PAGE_TYPE_LOB_INDEX:
+	{
+		lob::node_page_t node_page(block);
+		node_page.import(m_trx->id);
+		node_page.set_space_id_no_redo(get_space_id());
+		return(err);
+	}
+
+	case FIL_PAGE_TYPE_LOB_DATA:
+	{
+		lob::data_page_t data_page(block);
+		data_page.set_trx_id_no_redo(m_trx->id);
+		data_page.set_space_id_no_redo(get_space_id());
+		return(err);
+	}
+
+	case FIL_PAGE_TYPE_ZLOB_FIRST:
+	{
+		dict_index_t* index = const_cast<dict_index_t*>(m_index->m_srv_index);
+		lob::z_first_page_t first_page(block, nullptr, index);
+		first_page.import(m_trx->id);
+		byte* ptr = get_frame(block) + FIL_PAGE_SPACE_ID;
+		mach_write_to_4(ptr, get_space_id());
+		return(err);
+	}
+
+	case FIL_PAGE_TYPE_ZLOB_DATA:
+	{
+		lob::z_data_page_t dpage(block);
+		dpage.set_trx_id_no_redo(m_trx->id);
+		byte* ptr = get_frame(block) + FIL_PAGE_SPACE_ID;
+		mach_write_to_4(ptr, get_space_id());
+		return(err);
+	}
+
+	case FIL_PAGE_TYPE_ZLOB_INDEX:
+	{
+		lob::z_index_page_t ipage(block);
+		ipage.import(m_trx->id);
+		byte* ptr = get_frame(block) + FIL_PAGE_SPACE_ID;
+		mach_write_to_4(ptr, get_space_id());
+		return(err);
+	}
+
+	case FIL_PAGE_TYPE_ZLOB_FRAG:
+	{
+		byte* ptr = get_frame(block) + FIL_PAGE_SPACE_ID;
+		mach_write_to_4(ptr, get_space_id());
+		return(err);
+	}
+
+	case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
+	{
+		byte* ptr = get_frame(block) + FIL_PAGE_SPACE_ID;
+		mach_write_to_4(ptr, get_space_id());
+		return(err);
+	}
+
 	case FIL_PAGE_TYPE_XDES:
 		err = set_current_xdes(
 			block->page.id.page_no(), get_frame(block));
@@ -2077,7 +2149,6 @@ PageConverter::update_page(
 	case FIL_PAGE_TYPE_BLOB:
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
-	case FIL_PAGE_TYPE_ZBLOB3:
 	case FIL_PAGE_SDI_BLOB:
 	case FIL_PAGE_SDI_ZBLOB:
 	case FIL_PAGE_TYPE_RSEG_ARRAY:

@@ -66,6 +66,10 @@ ut_dbg_assertion_failed(
 	      "InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
 	      "InnoDB: about forcing recovery.\n", stderr);
 
+#ifndef DBUG_OFF
+	dump_trace();
+#endif /* DBUG_OFF */
+
 	fflush(stderr);
 	fflush(stdout);
 	abort();

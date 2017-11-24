@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,14 +34,15 @@ Created September 2006 Marko Makela
 #include "page0size.h"
 
 #ifdef UNIV_DEBUG
-# define row_ext_create(n_ext, ext, flags, tuple, is_sdi, heap)	\
-	row_ext_create_func(n_ext, ext, flags, tuple, is_sdi, heap)
+# define row_ext_create(index, n_ext, ext, flags, tuple, is_sdi, heap)	\
+	row_ext_create_func(index, n_ext, ext, flags, tuple, is_sdi, heap)
 #else /* UNIV_DEBUG */
-# define row_ext_create(n_ext, ext, flags, tuple, is_sdi, heap)	\
-	row_ext_create_func(n_ext, ext, flags, tuple, heap)
+# define row_ext_create(index, n_ext, ext, flags, tuple, is_sdi, heap)	\
+	row_ext_create_func(index, n_ext, ext, flags, tuple, heap)
 #endif /* UNIV_DEBUG */
 
 /** Creates a cache of column prefixes of externally stored columns.
+@param[in]	index	the index to which LOB belongs.
 @param[in]	n_ext	number of externally stored columns
 @param[in]	ext	col_no's of externally stored columns in the InnoDB
 table object, as reported by dict_col_get_no(); NOT relative to the records
@@ -56,14 +57,15 @@ or purge)
 @return own: column prefix cache */
 row_ext_t*
 row_ext_create_func(
-	ulint		n_ext,
-	const ulint*	ext,
-	ulint		flags,
-	const dtuple_t*	tuple,
+	const dict_index_t*	index,
+	ulint			n_ext,
+	const ulint*		ext,
+	ulint			flags,
+	const dtuple_t*		tuple,
 #ifdef UNIV_DEBUG
-	bool		is_sdi,
+	bool			is_sdi,
 #endif /* UNIV_DEBUG */
-	mem_heap_t*	heap);
+	mem_heap_t*		heap);
 
 /** Looks up a column prefix of an externally stored column.
 @param[in,out]	ext	column prefix cache
@@ -97,6 +99,10 @@ row_ext_lookup(
 
 /** Prefixes of externally stored columns */
 struct row_ext_t{
+
+	/** The clustered index from where LOB is fetched. */
+	const dict_index_t*	index;
+
 	ulint		n_ext;	/*!< number of externally stored columns */
 	const ulint*	ext;	/*!< col_no's of externally stored columns */
 	byte*		buf;	/*!< backing store of the column prefix cache */
@@ -108,7 +114,28 @@ struct row_ext_t{
 				/*!< page size of the externally stored
 				columns */
 	ulint		len[1];	/*!< prefix lengths; 0 if not cached */
+
+	/* NOTE: Do NOT add new members here. */
+
+	std::ostream& print(std::ostream& out) const {
+		out << "[row_ext_t:";
+		for (ulint i = 0; i < n_ext; i++) {
+			if (len[i] > 0) {
+				byte* ptr = (buf + i * max_len);
+				ut_print_buf(out, ptr, len[i]);
+			}
+		}
+		out << "]" << std::endl;
+		return(out);
+	}
 };
+
+inline
+std::ostream&
+operator<< (std::ostream& out, const row_ext_t& obj)
+{
+	return(obj.print(out));
+}
 
 #include "row0ext.ic"
 

@@ -85,5 +85,6 @@ FOREACH(test ${TESTS})
   IF(NOT MERGE_UNITTESTS)
     ADD_TEST(${test} ${test}-t)
   ENDIF()
-
 ENDFOREACH()
+
+ADD_SUBDIRECTORY(lob)
