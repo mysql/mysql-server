@@ -5814,3 +5814,39 @@ static Sys_var_charptr Sys_disabled_storage_engines(
        READ_ONLY GLOBAL_VAR(opt_disabled_storage_engines),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(""));
+
+static bool check_keyring_access(sys_var*, THD* thd, set_var*)
+{
+  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  {
+    my_error(ER_KEYRING_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER");
+    return true;
+  }
+  return false;
+}
+
+/**
+  This is a mutex used to protect global variable @@keyring_operations.
+*/
+static PolyLock_mutex PLock_keyring_operations(&LOCK_keyring_operations);
+/**
+  This variable provides access to keyring service APIs. When this variable
+  is disabled calls to keyring_key_generate(), keyring_key_store() and
+  keyring_key_remove() will report error until this variable is enabled.
+  This variable is protected under a mutex named PLock_keyring_operations.
+  To access this variable you must first set this mutex.
+
+  @sa PLock_keyring_operations
+*/
+static Sys_var_mybool Sys_keyring_operations(
+       "keyring_operations",
+       "This variable provides access to keyring service APIs. When this "
+       "option is disabled calls to keyring_key_generate(), keyring_key_store() "
+       "and keyring_key_remove() will report error until this variable is enabled.",
+       GLOBAL_VAR(opt_keyring_operations),
+       NO_CMD_LINE, DEFAULT(TRUE),
+       &PLock_keyring_operations,
+       NOT_IN_BINLOG,
+       ON_CHECK(check_keyring_access),
+       ON_UPDATE(0));

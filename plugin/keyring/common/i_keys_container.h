@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,22 @@
 
 #include "i_keyring_key.h"
 #include "i_keyring_io.h"
+#include <vector>
 
 namespace keyring {
+
+struct Key_metadata
+{
+  std::string *id;
+  std::string *user;
+
+  Key_metadata() {}
+  Key_metadata(std::string *id, std::string *user)
+  {
+    this->id= id;
+    this->user= user;
+  }
+};
 
 class IKeys_container : public Keyring_alloc
 {
@@ -29,6 +43,7 @@ public:
   virtual IKey* fetch_key(IKey *key)= 0;
   virtual my_bool remove_key(IKey *key)= 0;
   virtual std::string get_keyring_storage_url()= 0;
+  virtual std::vector<Key_metadata> get_keys_metadata()= 0;
 
   virtual ~IKeys_container() {};
 };

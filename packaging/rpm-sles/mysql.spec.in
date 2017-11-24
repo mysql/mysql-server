@@ -838,6 +838,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
@@ -847,6 +848,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
@@ -1165,6 +1167,9 @@ fi
 %endif # cluster
 
 %changelog
+* Wed 08 2017 Bharathy Satish <bharathy.x.satish@oracle.com> - 5.7.21-1
+- Add keyring_encrypted_file.so plugin
+
 * Tue Oct 31 2017 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.21-1
 - Remove obsoleted mysqltest man pages
 
