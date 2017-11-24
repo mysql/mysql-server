@@ -21,6 +21,8 @@
 # WL#9452: Log Position Lock
 #
 
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 --source include/master-slave.inc
 
 
@@ -34,9 +36,28 @@ CREATE TABLE ils_copy (
   storage_engines JSON NOT NULL);
 
 --source include/sync_slave_sql_with_master.inc
+# Create a new channel, so we can test a non-empty channel name on results
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1' FOR CHANNEL 'ch1'
 
 # Suppression of error messages
 CALL mtr.add_suppression('Unsafe statement written to the binary log');
+
+# Save current master binary log coordinates and gtid_executed
+--let $_saved_gtids=
+if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
+{
+  --let $use_gtids= 1
+}
+--source include/save_master_pos.inc
+
+# Save current slave relay log coordinates
+--let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+--let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+--let $ch1_relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 2)
+# As we do not start ch1, we cannot verify its positions accurately for this
+# test case purposes. That is fine as the objective is to test a non-empty
+# channel name.
 
 # Collect the instance log status into ils_copy table
 --disable_warnings
@@ -46,9 +67,54 @@ INSERT INTO ils_copy (SELECT * FROM performance_schema.instance_log_status);
 #
 # Validate what was collected from performance_schema.instance_log_status table
 #
+if ($rpl_debug)
+{
+  --query_vertical SELECT * FROM ils_copy
+}
 
---let $assert_text= Collected server UUID is same as slave server UUID
---let $assert_cond= "[SELECT * FROM ils_copy, uuid, 1]" = "$server_2_uuid"
+--let $assert_text= Collected server UUID is correct
+--let $ils_uuid= `SELECT uuid FROM ils_copy`
+--let $assert_cond= "$ils_uuid" = "$server_2_uuid"
+--source include/assert.inc
+
+--let $assert_text= Collected master binary log file name is correct
+--let $ils_master_file= `SELECT JSON_EXTRACT(master, "$.binary_log_file") FROM ils_copy`
+--let $assert_cond= $ils_master_file = "$_saved_file"
+--source include/assert.inc
+
+--let $assert_text= Collected master binary log file position is correct
+--let $ils_master_pos= `SELECT JSON_EXTRACT(master, "$.binary_log_position") FROM ils_copy`
+--let $assert_cond= $ils_master_pos = $_saved_pos
+--source include/assert.inc
+
+--let $assert_text= Collected master gtid_executed is correct
+--let $ils_gtid_executed= `SELECT JSON_EXTRACT(master, "$.gtid_executed") FROM ils_copy`
+--let $assert_cond= $ils_gtid_executed = "$_saved_gtids"
+--source include/assert.inc
+
+--let $assert_text= Collected default replication channel name is correct
+--let $ils_channel_name= `SELECT JSON_EXTRACT(channels, "$.channels[0].channel_name") FROM ils_copy`
+--let $assert_cond= $ils_channel_name = ""
+--source include/assert.inc
+
+--let $assert_text= Collected default replication channel relay log file name is correct
+--let $ils_relay_log_file= `SELECT JSON_EXTRACT(channels, "$.channels[0].relay_log_file") FROM ils_copy`
+--let $assert_cond= $ils_relay_log_file = "$relay_log_file"
+--source include/assert.inc
+
+--let $assert_text= Collected default replication channel relay log file position is correct
+--let $ils_relay_log_pos= `SELECT JSON_EXTRACT(channels, "$.channels[0].relay_log_position") FROM ils_copy`
+--let $assert_cond= $ils_relay_log_pos = $relay_log_pos
+--source include/assert.inc
+
+--let $assert_text= Collected replication channel name for ch1 is correct
+--let $ils_ch1_channel_name= `SELECT JSON_EXTRACT(channels, "$.channels[1].channel_name") FROM ils_copy`
+--let $assert_cond= $ils_ch1_channel_name = "ch1"
+--source include/assert.inc
+
+--let $assert_text= Collected replication channel relay log file name for ch1 is correct
+--let $ils_ch1_relay_log_file= `SELECT JSON_EXTRACT(channels, "$.channels[1].relay_log_file") FROM ils_copy`
+--let $assert_cond= $ils_ch1_relay_log_file = "$ch1_relay_log_file"
 --source include/assert.inc
 
 
@@ -78,7 +144,7 @@ SELECT COUNT(*) FROM performance_schema.global_variables;
 --source include/rpl_connection_slave.inc
 --disconnect user1
 DROP USER user1@'%';
-
+RESET SLAVE ALL FOR CHANNEL 'ch1';
 
 # Cleanup
 --source include/rpl_connection_master.inc

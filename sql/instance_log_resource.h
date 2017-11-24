@@ -27,7 +27,10 @@
 #ifndef INSTANCE_LOG_RESOURCE_H
 #define INSTANCE_LOG_RESOURCE_H
 
+#include "sql/binlog.h"
 #include "sql/json_dom.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_mi.h"
 
 
 /**
@@ -51,15 +54,17 @@ public:
     There must be one function of this kind in order for the symbols in the
     server's dynamic library to be visible to plugins.
   */
+
   static int dummy_function_to_ensure_we_are_linked_into_the_server();
 
 
   /**
     Instance_log_resource constructor.
 
-    @param[in] info the pointer to the JSON object to be populated with the
-                    resource log information.
+    @param[in] json_arg the pointer to the JSON object to be populated with the
+                        resource log information.
   */
+
   Instance_log_resource(Json_dom* json_arg)
     : json(json_arg)
   {
@@ -126,6 +131,149 @@ public:
   {
     return false;
   };
+};
+
+
+/**
+  @class Instance_log_resource_mi_wrapper
+
+  This is the Instance_log_resource to handle Master_info resources.
+*/
+class Instance_log_resource_mi_wrapper: public Instance_log_resource
+{
+  Master_info *mi= nullptr;
+
+public:
+  /**
+    Instance_log_resource_mi_wrapper constructor.
+
+    @param[in] mi_arg the pointer to the Master_info object resource.
+    @param[in] json_arg the pointer to the JSON object to be populated with the
+                        resource log information.
+  */
+
+  Instance_log_resource_mi_wrapper(Master_info *mi_arg, Json_dom *json_arg)
+    : Instance_log_resource(json_arg),
+      mi(mi_arg)
+  {
+  };
+
+
+  void lock() override;
+  void unlock() override;
+  bool collect_info() override;
+};
+
+
+/**
+  @class Instance_log_resource_binlog_wrapper
+
+  This is the Instance_log_resource to handle MYSQL_BIN_LOG resources.
+*/
+class Instance_log_resource_binlog_wrapper: public Instance_log_resource
+{
+  MYSQL_BIN_LOG *binlog= nullptr;
+
+public:
+  /**
+    Instance_log_resource_mi_wrapper constructor.
+
+    @param[in] binlog_arg the pointer to the MYSQL_BIN_LOG object resource.
+    @param[in] json_arg the pointer to the JSON object to be populated with the
+                        resource log information.
+  */
+
+  Instance_log_resource_binlog_wrapper(MYSQL_BIN_LOG *binlog_arg,
+                                       Json_dom *json_arg)
+    : Instance_log_resource(json_arg),
+      binlog(binlog_arg)
+  {
+  };
+
+
+  void lock() override;
+  void unlock() override;
+  bool collect_info() override;
+};
+
+
+/**
+  @class Instance_log_resource_gtid_state_wrapper
+
+  This is the Instance_log_resource to handle Gtid_state resources.
+*/
+class Instance_log_resource_gtid_state_wrapper: public Instance_log_resource
+{
+  Gtid_state *gtid_state= nullptr;
+
+public:
+  /**
+    Instance_log_resource_gtid_state_wrapper constructor.
+
+    @param[in] gtid_state_arg the pointer to the Gtid_state object resource.
+    @param[in] json_arg the pointer to the JSON object to be populated with the
+                        resource log information.
+  */
+
+  Instance_log_resource_gtid_state_wrapper(Gtid_state *gtid_state_arg,
+                                           Json_dom *json_arg)
+    : Instance_log_resource(json_arg),
+      gtid_state(gtid_state_arg)
+  {
+  };
+
+
+  void lock() override;
+  void unlock() override;
+  bool collect_info() override;
+};
+
+
+/**
+  @class Instance_log_resource_factory
+
+  This is the Instance_log_resource factory to create wrappers for supported
+  resources.
+*/
+class Instance_log_resource_factory
+{
+public:
+  /**
+    Creates a Instance_log_resource wrapper based on a Master_info object.
+
+    @param[in] mi the pointer to the Master_info object resource.
+    @param[in] json the pointer to the JSON object to be populated with the
+                    resource log information.
+    @return  the pointer to the new Instance_log_resource.
+  */
+
+  static Instance_log_resource *get_wrapper(Master_info *mi, Json_dom *json);
+
+
+  /**
+    Creates a Instance_log_resource wrapper based on a Master_info object.
+
+    @param[in] binog the pointer to the MYSQL_BIN_LOG object resource.
+    @param[in] json the pointer to the JSON object to be populated with the
+                    resource log information.
+    @return  the pointer to the new Instance_log_resource.
+  */
+
+  static Instance_log_resource *get_wrapper(MYSQL_BIN_LOG *binlog,
+                                            Json_dom *json);
+
+
+  /**
+    Creates a Instance_log_resource wrapper based on a Gtid_state object.
+
+    @param[in] gtid_state the pointer to the Gtid_state object resource.
+    @param[in] json the pointer to the JSON object to be populated with the
+                    resource log information.
+    @return  the pointer to the new Instance_log_resource.
+  */
+
+  static Instance_log_resource *get_wrapper(Gtid_state *gtid_state,
+                                            Json_dom *json);
 };
 
 /**

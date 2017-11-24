@@ -164,8 +164,69 @@ table_instance_log_status::make_row()
     Note: the order the resources are added to the resource list is also the
     order they will lock theirs resources.
   */
-  if (error)
-    goto end;
+
+  /*
+    Add existing channels Master_info to the resources list, so that they can
+    be blocked and their data collected in later steps.
+  */
+  for (uint mi_index= 0;
+       mi_index < channel_map.get_max_channels();
+       mi_index++)
+  {
+    Master_info *mi= channel_map.get_mi_at_pos(mi_index);
+    if (Master_info::is_configured(mi)) // channel is configured
+    {
+      Instance_log_resource *res;
+      res= Instance_log_resource_factory::get_wrapper(mi, &json_channels_array);
+      if ((error= !res))
+      {
+        char errfmt[]=
+          "failed to allocate memory to collect "
+          "information from replication channel '%s'";
+        char errbuf[sizeof(errfmt) + CHANNEL_NAME_LENGTH];
+        sprintf(errbuf, errfmt, mi->get_channel());
+        my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0), "CHANNELS",
+                 errbuf);
+        goto end;
+      }
+      resources.push_back(res);
+    }
+  }
+
+  /*
+    Add binary log to the resources list, so that it can be blocked and its
+    data collected in later steps.
+  */
+  {
+    Instance_log_resource *res;
+    res= Instance_log_resource_factory::get_wrapper(&mysql_bin_log,
+                                                    &json_master);
+    if ((error= !res))
+    {
+      my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0), "MASTER",
+               "failed to allocate memory to collect "
+               "binary log information");
+      goto end;
+    }
+    resources.push_back(res);
+  }
+
+  /*
+    Add Gtid_state to the resources list, so that it can be blocked and its
+    data (GTID_EXECUTED) collected in later steps.
+  */
+  {
+    Instance_log_resource *res;
+    res= Instance_log_resource_factory::get_wrapper(gtid_state, &json_master);
+    if ((error= !res))
+    {
+      my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0), "MASTER",
+               "failed to allocate memory to collect "
+               "gtid_executed information");
+      goto end;
+    }
+    resources.push_back(res);
+  }
 
   /* Lock all resources */
   for (it=resources.begin(); it != resources.end(); ++it)

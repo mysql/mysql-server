@@ -10,9 +10,19 @@ master JSON NOT NULL,
 channels JSON NOT NULL,
 storage_engines JSON NOT NULL);
 include/sync_slave_sql_with_master.inc
+CHANGE MASTER TO MASTER_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
 CALL mtr.add_suppression('Unsafe statement written to the binary log');
+include/save_master_pos.inc
 INSERT INTO ils_copy (SELECT * FROM performance_schema.instance_log_status);
-include/assert.inc [Collected server UUID is same as slave server UUID]
+include/assert.inc [Collected server UUID is correct]
+include/assert.inc [Collected master binary log file name is correct]
+include/assert.inc [Collected master binary log file position is correct]
+include/assert.inc [Collected master gtid_executed is correct]
+include/assert.inc [Collected default replication channel name is correct]
+include/assert.inc [Collected default replication channel relay log file name is correct]
+include/assert.inc [Collected default replication channel relay log file position is correct]
+include/assert.inc [Collected replication channel name for ch1 is correct]
+include/assert.inc [Collected replication channel relay log file name for ch1 is correct]
 # Second step
 CREATE USER user1@'%';
 GRANT SELECT ON *.* TO user1@'%';
@@ -21,6 +31,7 @@ SELECT * FROM performance_schema.instance_log_status;
 ERROR 42000: Access denied; you need (at least one of) the BACKUP_ADMIN privilege(s) for this operation
 [connection slave]
 DROP USER user1@'%';
+RESET SLAVE ALL FOR CHANNEL 'ch1';
 [connection master]
 DROP TABLE ils_copy;
 include/rpl_end.inc
