@@ -3401,17 +3401,18 @@ String *Item_sum_bit::val_str(String *str)
   // If the group has no non-NULLs repeat the default value max_length times.
   if (!non_nulls)
   {
-    if (str->alloc(max_length - 1))
-      return nullptr;
-    std::memset(const_cast<char *>(str->ptr()),
-                static_cast<int>(reset_bits), max_length - 1);
-    str->length(max_length - 1);
+    str->length(0);
+    if (str->fill(max_length - 1, static_cast<char>(reset_bits)))
+      return error_str();
+    str->set_charset(&my_charset_bin);
   }
   else
-    // Remove the flag from result
-    str->set(value_buff, 0, value_buff.length() - 1);
+  {
+    // Prepare the result (skip the flag at the end)
+    if (str->copy(value_buff.ptr(), value_buff.length() - 1, &my_charset_bin))
+      return error_str();
+  }
 
-  str->set_charset(&my_charset_bin);
   return str;
 }
 
