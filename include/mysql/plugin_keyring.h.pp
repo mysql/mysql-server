@@ -134,4 +134,7 @@ struct st_mysql_keyring
   bool (*mysql_key_remove)(const char *key_id, const char *user_id);
   bool (*mysql_key_generate)(const char *key_id, const char *key_type,
                              const char *user_id, size_t key_len);
+  void (*mysql_key_iterator_init)(void** key_iterator);
+  void (*mysql_key_iterator_deinit)(void* key_iterator);
+  bool (*mysql_key_iterator_get_key)(void* key_iterator, char *key_id, char *user_id);
 };
