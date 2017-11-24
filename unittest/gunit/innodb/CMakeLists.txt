@@ -47,7 +47,7 @@ IF (MERGE_UNITTESTS)
   TARGET_LINK_LIBRARIES(merge_innodb_tests-t
     gunit_large strings dbug mysys)
   TARGET_LINK_LIBRARIES(merge_innodb_tests-t
-    sql_main binlog rpl master slave sql_main sql_gis sql_dd sql_main sql_dd sql_gis)
+    sql_main binlog rpl master slave sql_main sql_gis sql_main sql_gis)
   TARGET_LINK_LIBRARIES(merge_innodb_tests-t ${ICU_LIBRARIES})
 
   # Download TBB from https://www.threadingbuildingblocks.org
