@@ -28,11 +28,15 @@
 #include "plugin/keyring/common/keyring_memory.h"
 #include "plugin/keyring/common/logger.h"
 #include "sql/sys_vars_shared.h" //For PolyLock, AutoWLock, AutoRLock
+#include <vector>
 
 namespace keyring {
 
 class Keys_container : public IKeys_container
 {
+private:
+  bool remove_keys_metadata(IKey *key);
+  void store_keys_metadata(IKey *key);
 public:
   Keys_container(ILogger* logger);
   bool init(IKeyring_io* keyring_io, std::string keyring_storage_url);
@@ -41,6 +45,10 @@ public:
   bool remove_key(IKey *key);
   std::string get_keyring_storage_url();
   void set_keyring_io(IKeyring_io *keyring_io);
+  std::vector<Key_metadata> get_keys_metadata()
+  {
+    return keys_metadata;
+  }
 
   ~Keys_container();
 
@@ -48,6 +56,7 @@ public:
   {
     return keys_hash->size();
   };
+
 protected:
   Keys_container(const Keys_container &);
 
@@ -65,6 +74,7 @@ protected:
 
   using Key_hash= collation_unordered_map<std::string, std::unique_ptr<IKey>>;
   std::unique_ptr<Key_hash> keys_hash;
+  std::vector<Key_metadata> keys_metadata;
   ILogger *logger;
   IKeyring_io *keyring_io;
   std::string keyring_storage_url;

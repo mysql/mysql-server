@@ -307,6 +307,7 @@ SET(SQL_SHARED_SOURCES
   locking_service.cc
   log.cc
   mdl.cc
+  migrate_keyring.cc
   my_decimal.cc
   mysqld.cc
   mysqld_thd_manager.cc
@@ -502,6 +503,7 @@ SET(SQL_SOURCE
   ../sql-common/client.cc
   ../sql-common/client_plugin.cc
   ../sql-common/client_authentication.cc
+  ../sql-common/get_password.cc
   ../sql-common/net_serv.cc
   ../sql-common/sql_string.cc 
   command_service.cc

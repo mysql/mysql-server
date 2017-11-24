@@ -10974,6 +10974,15 @@ ER_ONLY_IMPLEMENTED_FOR_SRID_0_AND_4326 22S00
 ER_EXPIRE_LOGS_DAYS_IGNORED
   eng "The option expire_logs_days and binlog_expire_logs_seconds cannot be used together. Please use binlog_expire_logs_seconds to set the expire time (expire_logs_days is deprecated)"
 
+ER_KEYRING_MIGRATION_FAILURE
+  eng "Can not perform keyring migration : %s"
+
+ER_KEYRING_ACCESS_DENIED_ERROR 42000
+  eng "Access denied; you need %-.128s privileges for this operation"a
+
+ER_KEYRING_MIGRATION_STATUS
+  eng "Keyring migration %s."
+
 #
 #  End of 8.0 error messages.
 #
