@@ -18,7 +18,6 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 SET (KEYRING_FILE_SOURCES
      common/keyring_key.cc
      common/keys_container.cc
-     common/keys_iterator.cc
      common/keyring_impl.cc
      checker/checker.cc
      checker/checker_factory.cc

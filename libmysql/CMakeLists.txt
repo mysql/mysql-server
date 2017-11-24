@@ -155,12 +155,12 @@ CACHE INTERNAL "Undocumented functions exported by client API"
 )
 
 SET(CLIENT_SOURCES
+  get_password.cc
   libmysql.cc
   errmsg.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.cc
   ../sql-common/client_authentication.cc
-  ../sql-common/get_password.cc
   ../sql-common/net_serv.cc
   ../sql/auth/password.cc
   ../sql/auth/sha2_password_common.cc
