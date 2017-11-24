@@ -8304,7 +8304,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
     /* write the event to the relay log */
     if (likely(rli->relay_log.write_buffer(buf, event_len, mi) == 0))
     {
-      DBUG_SIGNAL_WAIT_FOR("pause_on_queue_event_after_write_buffer",
+      DBUG_SIGNAL_WAIT_FOR(current_thd,
+                           "pause_on_queue_event_after_write_buffer",
                            "receiver_reached_pause_on_queue_event",
                            "receiver_continue_queuing_event");
       mysql_mutex_lock(&mi->data_lock);

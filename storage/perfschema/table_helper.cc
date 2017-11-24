@@ -467,6 +467,15 @@ get_field_year(Field *f)
   return f2->val_int();
 }
 
+/* JSON TYPE */
+void
+set_field_json(Field *f, const Json_wrapper *json)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_JSON);
+  Field_json *f2 = (Field_json *)f;
+  f2->store_json(json);
+}
+
 void
 format_sqltext(const char *source_sqltext,
                size_t source_length,

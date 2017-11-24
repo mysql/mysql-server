@@ -1,0 +1,87 @@
+# ==== Purpose ====
+#
+# This test case validates some of the contents of
+# performance_schema.instance_log_status table and the privileges
+# required to query the table.
+#
+# In a first step, it generates some workload on the master and then collects
+# the instance log resources status on the slave by querying
+# performance_schema.instance_log_status inserting its contents
+# into a new table.
+#
+# The test case then validates some of the contents inserted into
+# the new table.
+#
+# In a second step, the test case creates an unprivileged user asserting
+# that the server will throw an error when the user tries to query
+# performance_schema.instance_log_status table.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# WL#9452: Log Position Lock
+#
+
+--source include/master-slave.inc
+
+
+--echo # First step
+
+# Generate some workload at the master
+CREATE TABLE ils_copy (
+  uuid VARCHAR(36) PRIMARY KEY,
+  master JSON NOT NULL,
+  channels JSON NOT NULL,
+  storage_engines JSON NOT NULL);
+
+--source include/sync_slave_sql_with_master.inc
+
+# Suppression of error messages
+CALL mtr.add_suppression('Unsafe statement written to the binary log');
+
+# Collect the instance log status into ils_copy table
+--disable_warnings
+INSERT INTO ils_copy (SELECT * FROM performance_schema.instance_log_status);
+--enable_warnings
+
+#
+# Validate what was collected from performance_schema.instance_log_status table
+#
+
+--let $assert_text= Collected server UUID is same as slave server UUID
+--let $assert_cond= "[SELECT * FROM ils_copy, uuid, 1]" = "$server_2_uuid"
+--source include/assert.inc
+
+
+--echo # Second step
+
+#
+# Check that unprivileged access to
+# performance_schema.instance_log_status table fails
+#
+
+# Create a new user and allow it to query any table
+CREATE USER user1@'%';
+GRANT SELECT ON *.* TO user1@'%';
+
+# Connect the slave as the new user
+--connect (user1,127.0.0.1,user1,,test,$SLAVE_MYPORT,)
+--connection user1
+# Ensure user1 has access to performance_schema tables.
+# Disabling result log as it is not deterministic.
+--disable_result_log
+SELECT COUNT(*) FROM performance_schema.global_variables;
+--enable_result_log
+# Querying performance_schema.instance_log_status should fail
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+--query_vertical SELECT * FROM performance_schema.instance_log_status
+
+--source include/rpl_connection_slave.inc
+--disconnect user1
+DROP USER user1@'%';
+
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE ils_copy;
+
+--source include/rpl_end.inc

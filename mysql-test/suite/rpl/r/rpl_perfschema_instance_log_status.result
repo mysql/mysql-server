@@ -1,0 +1,26 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# First step
+CREATE TABLE ils_copy (
+uuid VARCHAR(36) PRIMARY KEY,
+master JSON NOT NULL,
+channels JSON NOT NULL,
+storage_engines JSON NOT NULL);
+include/sync_slave_sql_with_master.inc
+CALL mtr.add_suppression('Unsafe statement written to the binary log');
+INSERT INTO ils_copy (SELECT * FROM performance_schema.instance_log_status);
+include/assert.inc [Collected server UUID is same as slave server UUID]
+# Second step
+CREATE USER user1@'%';
+GRANT SELECT ON *.* TO user1@'%';
+SELECT COUNT(*) FROM performance_schema.global_variables;
+SELECT * FROM performance_schema.instance_log_status;
+ERROR 42000: Access denied; you need (at least one of) the BACKUP_ADMIN privilege(s) for this operation
+[connection slave]
+DROP USER user1@'%';
+[connection master]
+DROP TABLE ils_copy;
+include/rpl_end.inc

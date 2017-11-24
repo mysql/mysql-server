@@ -7297,7 +7297,8 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi)
       if (!last_gtid_queued->is_empty())
       {
         mi->rli->get_sid_lock()->rdlock();
-        DBUG_SIGNAL_WAIT_FOR("updating_received_transaction_set",
+        DBUG_SIGNAL_WAIT_FOR(current_thd,
+                             "updating_received_transaction_set",
                              "reached_updating_received_transaction_set",
                              "continue_updating_received_transaction_set");
         mi->rli->add_logged_gtid(last_gtid_queued->sidno,

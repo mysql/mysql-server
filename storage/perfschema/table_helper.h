@@ -440,6 +440,13 @@ void set_field_year(Field *f, ulong value);
 ulong get_field_year(Field *f);
 
 /**
+  Helper, assign a value to a JSON field.
+  @param f the field to set
+  @param json the value to assign
+*/
+void set_field_json(Field *f, const Json_wrapper *json);
+
+/**
   Helper, format sql text for output.
 
   @param source_sqltext  raw sqltext, possibly truncated

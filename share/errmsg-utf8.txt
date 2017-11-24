@@ -12198,6 +12198,9 @@ ER_STOP_SLAVE_IO_THREAD_DISK_SPACE
 ER_LOG_FILE_CANNOT_OPEN
   eng "Could not use %s for logging (error %d - %s). Turning logging off for the server process. To turn it on again: fix the cause, then%s restart the MySQL server."
 
+ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS
+  eng "Unable to collect information for column '%-.192s': %-.192s."
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error
