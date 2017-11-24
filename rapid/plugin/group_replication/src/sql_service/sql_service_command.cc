@@ -62,7 +62,8 @@ establish_session_connection(enum_plugin_con_isolation isolation_param,
     case PSESSION_DEDICATED_THREAD:
       m_plugin_session_thread = new Session_plugin_thread(&sql_service_commands);
       error = m_plugin_session_thread->launch_session_thread(plugin_pointer);
-      m_server_interface = m_plugin_session_thread->get_service_interface();
+      if (!error)
+        m_server_interface = m_plugin_session_thread->get_service_interface();
       break;
   }
 
@@ -486,7 +487,8 @@ Session_plugin_thread(Sql_service_commands* command_interface)
   : command_interface(command_interface), m_server_interface(NULL),
    incoming_methods(NULL), m_plugin_pointer(NULL),
    m_method_execution_completed(false), m_method_execution_return_value(0),
-   m_session_thread_running(false), m_session_thread_terminate(false),
+   m_session_thread_running(false), m_session_thread_starting(false),
+   m_session_thread_terminate(false),
    m_session_thread_error(0)
 {
   mysql_mutex_init(key_GR_LOCK_session_thread_run, &m_run_lock,
@@ -551,6 +553,7 @@ Session_plugin_thread::launch_session_thread(void* plugin_pointer_var)
 
   m_session_thread_error= 0;
   m_session_thread_terminate= false;
+  m_session_thread_starting= true;
   m_plugin_pointer= plugin_pointer_var;
 
   if ((mysql_thread_create(key_GR_THD_plugin_session,
@@ -559,6 +562,7 @@ Session_plugin_thread::launch_session_thread(void* plugin_pointer_var)
                            launch_handler_thread,
                            (void*)this)))
   {
+    m_session_thread_starting= false;
     mysql_mutex_unlock(&m_run_lock); /* purecov: inspected */
     DBUG_RETURN(1);                /* purecov: inspected */
   }
@@ -585,7 +589,7 @@ Session_plugin_thread::terminate_session_thread()
 
   int stop_wait_timeout= GR_PLUGIN_SESSION_THREAD_TIMEOUT;
 
-  while (m_session_thread_running)
+  while (m_session_thread_running || m_session_thread_starting)
   {
     DBUG_PRINT("loop", ("killing plugin session thread"));
 
@@ -601,7 +605,7 @@ Session_plugin_thread::terminate_session_thread()
     {
       stop_wait_timeout= stop_wait_timeout - 1;
     }
-    else if (m_session_thread_running) // quit waiting
+    else if (m_session_thread_running || m_session_thread_starting) // quit waiting
     {
       mysql_mutex_unlock(&m_run_lock);
       DBUG_RETURN(1);
@@ -632,8 +636,11 @@ Session_plugin_thread::session_thread_handler()
   m_server_interface= new Sql_service_interface();
   m_session_thread_error=
     m_server_interface->open_thread_session(m_plugin_pointer);
+  DBUG_EXECUTE_IF("group_replication_sql_service_force_error",
+                  { m_session_thread_error= 1; });
 
   mysql_mutex_lock(&m_run_lock);
+  m_session_thread_starting= false;
   m_session_thread_running= true;
   mysql_cond_broadcast(&m_run_cond);
   mysql_mutex_unlock(&m_run_lock);
