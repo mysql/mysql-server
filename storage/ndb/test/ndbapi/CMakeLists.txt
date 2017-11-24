@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -92,8 +92,8 @@ SET(BINS create_all_tabs create_tab
   testDebugger
   testFK)
 
-IF(MSVC)
-  
+IF(WIN32)
+  # Don't build testMgmd on Windows
 ELSE()
   ADD_EXECUTABLE(testMgmd testMgmd.cpp)
   SET(BINS ${BINS} testMgmd)
