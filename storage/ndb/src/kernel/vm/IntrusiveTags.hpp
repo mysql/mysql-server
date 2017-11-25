@@ -36,8 +36,13 @@ enum IntrusiveTags
   IA_Sublist,
   IA_Dirty,
   IA_Fragment,
-  IA_Page32,
-  IA_Page8
+  IA_Page8,
+  IA_ApiConnect,
+  IA_TcConnect,
+  IA_CacheRec,
+  IA_Gcp,
+  IA_GcpConnect,
+  IA_Scan
 };
 
 template<IntrusiveTags tag> struct IntrusiveAccess;
@@ -60,15 +65,13 @@ INTRUSIVE_ACCESS(Queue);
 INTRUSIVE_ACCESS(Sublist);
 INTRUSIVE_ACCESS(Dirty);
 INTRUSIVE_ACCESS(Fragment);
+INTRUSIVE_ACCESS(ApiConnect);
+INTRUSIVE_ACCESS(TcConnect);
+INTRUSIVE_ACCESS(CacheRec);
+INTRUSIVE_ACCESS(Gcp);
+INTRUSIVE_ACCESS(GcpConnect);
+INTRUSIVE_ACCESS(Scan);
 
-template<> struct IntrusiveAccess<IA_Page32> \
-{ \
-template<typename T> static Uint32& getNext(T& r) { return r.nextList; } // r.word32[P32_NEXT_PAGE]; }
-template<typename T> static Uint32& getPrev(T& r) { return r.prevList; } // r.word32[P32_PREV_PAGE]; }
-template<typename T> static Uint32& getFirst(T& r); \
-template<typename T> static Uint32& getLast(T& r); \
-template<typename T> static Uint32& getCount(T& r); \
-};
 template<> struct IntrusiveAccess<IA_Page8> \
 { \
 template<typename T> static Uint32& getNext(T& r) { return r.word32[r.NEXT_PAGE]; }
