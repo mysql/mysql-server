@@ -1,4 +1,3 @@
-# Skip other platfoms and run only on Linux.
 CREATE TABLE tab(c1 int);
 INSERT INTO tab VALUES(10);
 # copy the win datadir zip into destination location

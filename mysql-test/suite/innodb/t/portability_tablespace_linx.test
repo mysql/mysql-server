@@ -1,19 +1,19 @@
-# ********************************************************************
+# *************************************************************************
 # wl#8619 : Test the functionality of portability to a different OS
 # Check windows --datadir and tablespaces on Linx (posix compliant) OS
 # Inorder to run this testcase tablespace_portable_win.zip file should
-# exist in the suite/innodb/t. The above zip file have to be created
-# by using the Win server and take the zip file.
-# For more info check README_portability_tablespace_linx.txt
-# ********************************************************************
---source include/have_innodb_max_16k.inc
+# exist in the std_data/
+# Note : Please read following note
+# This testcase is valid for the current trunk(9.0) release only , so for
+# the feature versions , this testcase has to modify and update the zip file
+# (tablespace_portable_win.zip) with latest version of --datadir, which is 
+# created on Windows.
+# How to create zip file : check README_portability_tablespace_linx.txt
+# **************************************************************************
+--source include/have_innodb_16k.inc
 --source include/not_valgrind.inc
-
---echo # Skip other platfoms and run only on Linux.
-if (`select convert(@@version_compile_os using latin1) IN ("Linux") = 0`)
-{
-  skip Need Linux;
-}
+--source include/linux.inc
+--source include/not_windows.inc
 
 let $MYSQLD_OLD_DATADIR = `select @@datadir`;
 
@@ -22,7 +22,7 @@ CREATE TABLE tab(c1 int);
 INSERT INTO tab VALUES(10);
 
 --echo # copy the win datadir zip into destination location
---copy_file $MYSQL_TEST_DIR/suite/innodb/t/tablespace_portable_win.zip $MYSQL_TMP_DIR/tablespace_portable_win.zip
+--copy_file $MYSQL_TEST_DIR/std_data/tablespace_portable_win.zip $MYSQL_TMP_DIR/tablespace_portable_win.zip
 
 --echo # Unzip the zip file.
 --exec unzip -qo $MYSQL_TMP_DIR/tablespace_portable_win.zip -d $MYSQL_TMP_DIR

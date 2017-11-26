@@ -12,7 +12,7 @@
 # Check general tablespaces are allowed to create only in known DIR
 # Check relative path and absolute path
 # ********************************************************************
---source include/have_innodb_max_16k.inc
+--source include/have_innodb_16k.inc
 --source include/not_valgrind.inc
 
 let $MYSQLD_OLD_DATADIR = `select @@datadir`;
@@ -110,7 +110,7 @@ SHOW CREATE TABLE tab3;
 --echo ## Start with --innodb-directories along with other initDB options
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR 
 let $innodb_dirs='$MYSQL_TMP_DIR/undo_directory';
---let $restart_parameters="restart: --datadir=$MYSQLD_NEW_DATADIR --innodb_undo_directory=$MYSQL_TMP_DIR/undo_directory --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb-directories=$innodb_dirs"
+--let $restart_parameters=restart: --datadir=$MYSQLD_NEW_DATADIR --innodb_undo_directory=$MYSQL_TMP_DIR/undo_directory --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb-directories=$innodb_dirs
 --source include/start_mysqld_no_echo.inc
 
 --echo ## Check new datadir
@@ -134,7 +134,7 @@ SHOW CREATE TABLE tab3;
 
 --echo ## Start with new --datadir only
 --replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
---let $restart_parameters="restart: --datadir=$MYSQLD_NEW_DATADIR --innodb_undo_directory=$MYSQL_TMP_DIR/undo_directory --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home_dir"
+--let $restart_parameters=restart: --datadir=$MYSQLD_NEW_DATADIR --innodb_undo_directory=$MYSQL_TMP_DIR/undo_directory --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home_dir
 --source include/start_mysqld.inc
 
 --echo ## Check with new --datadir
@@ -258,8 +258,9 @@ DROP TABLESPACE ts1;
 
 # Test with by providing the relative path
 --echo # Re-start with old --datadir with --innodb-directories as remote *.ibd files are existing.
+let $innodb_dirs='$MYSQL_TMP_DIR/db_directory1';
 --replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
---let $restart_parameters="restart: --datadir=$MYSQLD_OLD_DATADIR --innodb-directories=$MYSQL_OLD_DATADIR/../..$MYSQL_TMP_DIR/db_directory1"
+--let $restart_parameters= restart: --datadir=$MYSQLD_OLD_DATADIR --innodb-directories=$innodb_dirs
 --source include/start_mysqld.inc
 
 --echo # Check --datadir started with old
@@ -302,8 +303,8 @@ DELETE FROM tab5;
 
 DELETE FROM tab6;
 
---replace_result $MYSQL_TMP_DIR db_directory1
-SELECT TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
+--replace_column 1 # 
+SELECT TABLESPACE_NAME,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
 
 # Clean up old datadir
 DROP TABLE tab3;
