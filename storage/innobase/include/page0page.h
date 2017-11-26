@@ -386,7 +386,7 @@ page_dir_get_nth_slot(
 
 /**************************************************************//**
 Used to check the consistency of a record on a page.
-@return TRUE if succeed */
+@return true if succeed */
 UNIV_INLINE
 ibool
 page_rec_check(
@@ -574,7 +574,7 @@ page_rec_get_prev(
 				must not be page infimum */
 /************************************************************//**
 TRUE if the record is a user record on the page.
-@return TRUE if a user record */
+@return true if a user record */
 UNIV_INLINE
 ibool
 page_rec_is_user_rec_low(
@@ -583,7 +583,7 @@ page_rec_is_user_rec_low(
 	MY_ATTRIBUTE((const));
 /************************************************************//**
 TRUE if the record is the supremum record on a page.
-@return TRUE if the supremum record */
+@return true if the supremum record */
 UNIV_INLINE
 ibool
 page_rec_is_supremum_low(
@@ -592,7 +592,7 @@ page_rec_is_supremum_low(
 	MY_ATTRIBUTE((const));
 /************************************************************//**
 TRUE if the record is the infimum record on a page.
-@return TRUE if the infimum record */
+@return true if the infimum record */
 UNIV_INLINE
 ibool
 page_rec_is_infimum_low(
@@ -602,7 +602,7 @@ page_rec_is_infimum_low(
 
 /************************************************************//**
 TRUE if the record is a user record on the page.
-@return TRUE if a user record */
+@return true if a user record */
 UNIV_INLINE
 ibool
 page_rec_is_user_rec(
@@ -611,7 +611,7 @@ page_rec_is_user_rec(
 	MY_ATTRIBUTE((warn_unused_result));
 /************************************************************//**
 TRUE if the record is the supremum record on a page.
-@return TRUE if the supremum record */
+@return true if the supremum record */
 UNIV_INLINE
 ibool
 page_rec_is_supremum(
@@ -621,7 +621,7 @@ page_rec_is_supremum(
 
 /************************************************************//**
 TRUE if the record is the infimum record on a page.
-@return TRUE if the infimum record */
+@return true if the infimum record */
 UNIV_INLINE
 ibool
 page_rec_is_infimum(
@@ -922,7 +922,7 @@ if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return TRUE on success; FALSE on compression failure (new_block will
+@return true on success; false on compression failure (new_block will
 be decompressed) */
 ibool
 page_move_rec_list_end(
@@ -941,7 +941,7 @@ if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return TRUE on success; FALSE on compression failure */
+@return true on success; false on compression failure */
 ibool
 page_move_rec_list_start(
 /*=====================*/
@@ -1046,7 +1046,7 @@ page_print(
 The following is used to validate a record on a page. This function
 differs from rec_validate as it can also check the n_owned field and
 the heap_no field.
-@return TRUE if ok */
+@return true if ok */
 ibool
 page_rec_validate(
 /*==============*/
@@ -1066,7 +1066,7 @@ page_check_dir(
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
-@return TRUE if ok */
+@return true if ok */
 ibool
 page_simple_validate_old(
 /*=====================*/
@@ -1075,14 +1075,14 @@ page_simple_validate_old(
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
-@return TRUE if ok */
+@return true if ok */
 ibool
 page_simple_validate_new(
 /*=====================*/
 	const page_t*	page);	/*!< in: index page in ROW_FORMAT!=REDUNDANT */
 /***************************************************************//**
 This function checks the consistency of an index page.
-@return TRUE if ok */
+@return true if ok */
 ibool
 page_validate(
 /*==========*/

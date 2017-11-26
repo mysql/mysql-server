@@ -104,7 +104,19 @@ public:
     stored fields in the TABLE*(i.e those who are
     not virtual).
   */
-  static uint num_stored_fields(const TABLE* table);
+  static uint num_stored_fields(const struct TABLE* table);
+
+  /*
+    Check if the table has physical blob columns(i.e actually stored in
+    the engine)
+   */
+  static bool have_physical_blobs(const struct TABLE* table);
+
+#ifndef DBUG_OFF
+  static void print_record(const struct TABLE *table, const uchar *record);
+  static void print_table(const char *info, const struct TABLE *table);
+#endif
+
 private:
   const NdbDictionary::Table * m_ndb_table;
   MY_BITMAP m_moved_fields;

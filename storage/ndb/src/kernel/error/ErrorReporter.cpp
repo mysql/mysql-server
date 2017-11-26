@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -127,7 +127,7 @@ ErrorReporter::get_trace_no(){
 }
 
 // Using my_progname without including all of mysys
-extern "C" const char* my_progname;
+extern const char* my_progname;
 
 void
 ErrorReporter::formatMessage(int thr_no,

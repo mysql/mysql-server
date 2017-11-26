@@ -122,8 +122,8 @@ const char *group_replication_plugin_name= "group_replication";
 char *group_name_var= NULL;
 bool start_group_replication_at_boot_var= true;
 rpl_sidno group_sidno;
-bool single_primary_mode_var= FALSE;
-bool enforce_update_everywhere_checks_var= TRUE;
+bool single_primary_mode_var= false;
+bool enforce_update_everywhere_checks_var= true;
 
 /* Applier module related */
 bool known_server_reset;
@@ -2479,7 +2479,7 @@ get_bool_value_using_type_lib(struct st_mysql_value *value,
     value->val_int(value, &value_to_check);
   }
 
-  resulting_value = value_to_check > 0 ? TRUE : FALSE;
+  resulting_value = value_to_check > 0 ? true : false;
 
   DBUG_RETURN(true);
 }
@@ -2963,7 +2963,7 @@ static MYSQL_SYSVAR_BOOL(
   "PRIMARY all others are SECONDARIES. Default: TRUE.",
   check_single_primary_mode,                  /* check func*/
   NULL,                                       /* update func*/
-  TRUE);                                      /* default*/
+  true);                                      /* default*/
 
 static MYSQL_SYSVAR_BOOL(
   enforce_update_everywhere_checks,           /* name */
@@ -2973,7 +2973,7 @@ static MYSQL_SYSVAR_BOOL(
   "update everywhere. Default: FALSE.",
   check_enforce_update_everywhere_checks,     /* check func*/
   NULL,                                       /* update func*/
-  FALSE);                                     /* default*/
+  false);                                     /* default*/
 
 const char* flow_control_mode_values[]= {
   "DISABLED",

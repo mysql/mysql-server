@@ -57,7 +57,7 @@ red-black properties:
 #if defined UNIV_DEBUG || defined IB_RBT_TESTING
 /**********************************************************************//**
 Verify that the keys are in order.
-@return TRUE of OK. FALSE if not ordered */
+@return true of OK. false if not ordered */
 static
 ibool
 rbt_check_ordering(
@@ -907,7 +907,7 @@ rbt_lookup(
 
 /**********************************************************************//**
 Delete a node indentified by key.
-@return TRUE if success FALSE if not found */
+@return true if success false if not found */
 ibool
 rbt_delete(
 /*=======*/
@@ -1128,7 +1128,7 @@ rbt_merge_uniq(
 /**********************************************************************//**
 Check that every path from the root to the leaves has the same count and
 the tree nodes are in order.
-@return TRUE if OK FALSE otherwise */
+@return true if OK false otherwise */
 ibool
 rbt_validate(
 /*=========*/

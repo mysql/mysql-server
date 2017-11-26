@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@
 */
 
 Handshake::Handshake(const char *ssp, side_t side)
-: m_atts(0L), m_error(0), m_complete(FALSE),
+: m_atts(0L), m_error(0), m_complete(false),
   m_have_credentials(false), m_have_sec_context(false)
 #ifndef DBUG_OFF
   , m_ssp_info(NULL)

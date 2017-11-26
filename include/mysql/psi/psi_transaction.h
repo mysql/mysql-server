@@ -31,8 +31,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_transaction_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_TRANSACTION_VERSION_1
   Performance Schema Transaction Interface number for version 1.
@@ -100,7 +98,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_transaction_service_t *psi_transaction_service;
 #endif /* HAVE_PSI_TRANSACTION_INTERFACE */
 
 /** @} (end of group psi_abi_transaction) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_TRANSACTION_H */

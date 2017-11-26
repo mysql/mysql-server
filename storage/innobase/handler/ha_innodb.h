@@ -1090,7 +1090,7 @@ public:
 
 /**
 Initialize the table FTS stopword list
-@return TRUE if success */
+@return true if success */
 ibool
 innobase_fts_load_stopword(
 /*=======================*/

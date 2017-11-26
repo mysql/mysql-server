@@ -3653,6 +3653,12 @@
       </td>
     </tr>
     <tr>
+      <td><tt>NUMBER_OF_CPUS</tt></td>
+      <td>
+        Defines number of processors.
+      </td>
+    </tr>
+    <tr>
       <td><tt>TSAN_OPTIONS</tt></td>
       <td>
         Path name to a file containing ThreadSanitizer suppressions.

@@ -31,10 +31,6 @@ class THD;
 #define MYSQL_THD void*
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
   Types of locking service locks.
   LOCKING_SERVICE_READ is compatible with LOCKING_SERVICE_READ.
@@ -66,7 +62,7 @@ typedef int (*mysql_release_locks_t)(MYSQL_THD opaque_thd,
   and thus deadlocks involving locking service locks and other types
   of metadata will be detected using the MDL deadlock detector.
 */
-extern struct mysql_locking_service_st {
+extern "C" struct mysql_locking_service_st {
   /**
     Acquire locking service locks.
 
@@ -123,9 +119,5 @@ int mysql_release_locking_service_locks(MYSQL_THD opaque_thd,
                                         const char* lock_namespace);
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* SERVICE_LOCKING_INCLUDED */

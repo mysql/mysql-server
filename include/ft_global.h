@@ -31,10 +31,6 @@
 #include "my_base.h"
 #include "my_inttypes.h"
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
-
 #define HA_FT_MAXBYTELEN 336
 #define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN/4)
 
@@ -131,7 +127,4 @@ FT_INFO *ft_init_search(uint,void *, uint, uchar *, uint,
                         const CHARSET_INFO *, uchar *);
 bool ft_boolean_check_syntax_string(const uchar *);
 
-#ifdef  __cplusplus
-}
-#endif
 #endif /* FT_GLOBAL_INCLUDED */

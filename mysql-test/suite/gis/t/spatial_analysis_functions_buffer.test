@@ -1368,7 +1368,8 @@ DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 0), 1));
 --echo # Projected SRS (should pass)
 DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 2000), 1));
 
---echo # Geographic SRS (should pass)
+--echo # Geographic SRS (should fail)
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
 DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 1));
 
 --echo # Unparseable SRS definition (should fail)
@@ -1411,3 +1412,11 @@ DO ST_BUFFER(
   ),
   10
 );
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_BUFFER(x'0A000000010100000000000000000000000000000000000000', 10);

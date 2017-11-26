@@ -90,11 +90,12 @@ is alphabetically the same as the corresponding BLOB column in the clustered
 index record.
 NOTE: the comparison is NOT done as a binary comparison, but character
 fields are compared with collation!
-@return TRUE if the columns are equal */
+@return true if the columns are equal */
 static
 ibool
 row_sel_sec_rec_is_for_blob(
 /*========================*/
+	trx_t*		trx,		/*!< in: the operating transaction */
 	ulint		mtype,		/*!< in: main type */
 	ulint		prtype,		/*!< in: precise type */
 	ulint		mbminmaxlen,	/*!< in: minimum and maximum length of
@@ -134,7 +135,8 @@ row_sel_sec_rec_is_for_blob(
 	}
 
 	len = lob::btr_copy_externally_stored_field_prefix(
-		buf, prefix_len, dict_tf_get_page_size(table->flags),
+		table->first_index(), buf, prefix_len,
+		dict_tf_get_page_size(table->flags),
 		clust_field, dict_table_is_sdi(table->id), clust_len);
 
 	if (len == 0) {
@@ -165,7 +167,7 @@ fields are compared with collation!
 				must be protected by a page s-latch
 @param[in]	clust_index	clustered index
 @param[in]	thr		query thread
-@return TRUE if the secondary record is equal to the corresponding
+@return true if the secondary record is equal to the corresponding
 fields in the clustered record, when compared with collation;
 FALSE if not equal or if the clustered record has been marked for deletion */
 static
@@ -188,6 +190,7 @@ row_sel_sec_rec_is_for_clust_rec(
 	ulint*		clust_offs	= clust_offsets_;
 	ulint*		sec_offs	= sec_offsets_;
 	ibool		is_equal	= TRUE;
+	trx_t*		trx = thr_get_trx(thr);
 
 	rec_offs_init(clust_offsets_);
 	rec_offs_init(sec_offsets_);
@@ -276,6 +279,7 @@ row_sel_sec_rec_is_for_clust_rec(
 				|| (dict_table_has_atomic_blobs(
 					sec_index->table) && sec_len == 0))) {
 				if (!row_sel_sec_rec_is_for_blob(
+						trx,
 					    col->mtype, col->prtype,
 					    col->mbminmaxlen,
 					    clust_field, clust_len,
@@ -303,6 +307,7 @@ row_sel_sec_rec_is_for_clust_rec(
 			geo data to generate the MBR for comparing. */
 			if (rec_offs_nth_extern(clust_offs, clust_pos)) {
 				dptr = lob::btr_copy_externally_stored_field(
+					clust_index,
 					&clust_len, dptr,
 					dict_tf_get_page_size(
 						sec_index->table->flags),
@@ -490,6 +495,7 @@ static
 void
 row_sel_fetch_columns(
 /*==================*/
+	trx_t*		trx,	/*!< in: the current transaction or nullptr */
 	dict_index_t*	index,	/*!< in: record index */
 	const rec_t*	rec,	/*!< in: record in a clustered or non-clustered
 				index; must be protected by a page latch */
@@ -528,7 +534,7 @@ row_sel_fetch_columns(
 				heap = mem_heap_create(1);
 
 				data = lob::btr_rec_copy_externally_stored_field(
-					rec, offsets,
+					index, rec, offsets,
 					dict_table_page_size(index->table),
 					field_no, &len,
 					dict_index_is_sdi(index), heap);
@@ -823,7 +829,7 @@ row_sel_build_committed_vers_for_mysql(
 /*********************************************************************//**
 Tests the conditions which determine when the index segment we are searching
 through has been exhausted.
-@return TRUE if row passed the tests */
+@return true if row passed the tests */
 UNIV_INLINE
 ibool
 row_sel_test_end_conds(
@@ -859,7 +865,7 @@ row_sel_test_end_conds(
 
 /*********************************************************************//**
 Tests the other conditions.
-@return TRUE if row passed the tests */
+@return true if row passed the tests */
 UNIV_INLINE
 ibool
 row_sel_test_other_conds(
@@ -1039,7 +1045,7 @@ row_sel_get_clust_rec(
 	released until mtr_commit(mtr). */
 
 	ut_ad(!rec_get_deleted_flag(clust_rec, rec_offs_comp(offsets)));
-	row_sel_fetch_columns(index, clust_rec, offsets,
+	row_sel_fetch_columns(thr_get_trx(thr), index, clust_rec, offsets,
 			      UT_LIST_GET_FIRST(plan->columns));
 	*out_rec = clust_rec;
 func_exit:
@@ -1389,7 +1395,7 @@ row_sel_open_pcur(
 
 /*********************************************************************//**
 Restores a stored pcur position to a table index.
-@return TRUE if the cursor should be moved to the next record after we
+@return true if the cursor should be moved to the next record after we
 return from this function (moved to the previous, in the case of a
 descending cursor) without processing again the current cursor
 record */
@@ -1504,6 +1510,7 @@ static
 ulint
 row_sel_try_search_shortcut(
 /*========================*/
+	trx_t*		trx,	/*!< in: trx doing the operation. */
 	sel_node_t*	node,	/*!< in: select node for a consistent read */
 	plan_t*		plan,	/*!< in: plan for a unique search in clustered
 				index */
@@ -1583,7 +1590,7 @@ row_sel_try_search_shortcut(
 	plan->pcur was positioned.  The latch will not be released
 	until mtr_commit(mtr). */
 
-	row_sel_fetch_columns(index, rec, offsets,
+	row_sel_fetch_columns(trx, index, rec, offsets,
 			      UT_LIST_GET_FIRST(plan->columns));
 
 	/* Test the rest of search conditions */
@@ -1718,7 +1725,7 @@ table_loop:
 			rw_lock_s_lock(btr_get_search_latch(index));
 		}
 
-		found_flag = row_sel_try_search_shortcut(node, plan,
+		found_flag = row_sel_try_search_shortcut(thr_get_trx(thr), node, plan,
 							 search_latch_locked,
 							 &mtr);
 
@@ -1986,6 +1993,7 @@ skip_lock:
 					until mtr_commit(mtr). */
 
 					row_sel_fetch_columns(
+						thr_get_trx(thr),
 						index, rec, offsets,
 						UT_LIST_GET_FIRST(
 							plan->columns));
@@ -2015,7 +2023,7 @@ skip_lock:
 	row_sel_open_pcur() or row_sel_restore_pcur_pos().  The latch
 	will not be released until mtr_commit(mtr). */
 
-	row_sel_fetch_columns(index, rec, offsets,
+	row_sel_fetch_columns(thr_get_trx(thr), index, rec, offsets,
 			      UT_LIST_GET_FIRST(plan->columns));
 
 	/* Test the selection end conditions: these can only contain columns
@@ -3072,9 +3080,13 @@ row_sel_store_mysql_field_func(
 		already run out of memory in the next call, which
 		causes an assert */
 
+		dict_index_t* clust_index = prebuilt->table->first_index();
+
+		const page_size_t page_size
+			= dict_table_page_size(prebuilt->table);
+
 		data = lob::btr_rec_copy_externally_stored_field(
-			rec, offsets,
-			dict_table_page_size(prebuilt->table),
+			clust_index, rec, offsets, page_size,
 			field_no, &len, dict_index_is_sdi(index), heap);
 
 		if (UNIV_UNLIKELY(!data)) {
@@ -3142,8 +3154,6 @@ row_sel_store_mysql_field_func(
 			if (prebuilt->blob_heap == NULL) {
 				prebuilt->blob_heap = mem_heap_create(
 					UNIV_PAGE_SIZE);
-				DBUG_PRINT("anna", ("blob_heap allocated: %p",
-						    prebuilt->blob_heap));
 			}
 
 			data = static_cast<byte*>(
@@ -3191,7 +3201,7 @@ be needed in the query.
 					but the prebuilt->template is in
 					clustered index format and it
 					is used only for end range comparison
-@return TRUE on success, FALSE if not all columns could be retrieved */
+@return true on success, false if not all columns could be retrieved */
 static MY_ATTRIBUTE((warn_unused_result))
 ibool
 row_sel_store_mysql_rec(
@@ -3659,7 +3669,7 @@ err_exit:
 Restores cursor position after it has been stored. We have to take into
 account that the record cursor was positioned on may have been deleted.
 Then we may have to move the cursor one step up or down.
-@return TRUE if we may need to process the record the cursor is now
+@return true if we may need to process the record the cursor is now
 positioned on (i.e. we should not go to the next record yet) */
 static
 ibool
@@ -3699,6 +3709,9 @@ sel_restore_position_for_mysql(
 	/* The position may need be adjusted for rel_pos and moves_up. */
 
 	switch (pcur->rel_pos) {
+	case BTR_PCUR_UNSET:
+		ut_ad(0);
+		return(TRUE);
 	case BTR_PCUR_ON:
 		if (!success && moves_up) {
 next:

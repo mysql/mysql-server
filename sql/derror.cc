@@ -106,7 +106,6 @@ const char* ER_THD(const THD *thd, int mysql_errno)
 }
 
 
-C_MODE_START
 const char *get_server_errmsgs(int mysql_errno)
 {
   if (current_thd)
@@ -126,7 +125,6 @@ const char *get_server_errmsgs(int mysql_errno)
 
   return nullptr;
 }
-C_MODE_END
 
 
 bool init_errmessage()

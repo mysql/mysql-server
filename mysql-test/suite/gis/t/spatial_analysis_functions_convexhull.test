@@ -291,6 +291,7 @@ SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_lines_near_vertical,2000)))
 
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star,0)));
 
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_elem_vertical,4145)));
 
 --error ER_DATA_OUT_OF_RANGE
@@ -414,7 +415,8 @@ SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(0 0)', 0)));
 --echo # Projected SRS (should pass)
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(0 0)', 2000)));
 
---echo # Geographic SRS (should pass)
+--echo # Geographic SRS (should fail)
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(0 0)', 4326)));
 
 --echo # Unparseable SRS definition (should fail)
@@ -425,3 +427,11 @@ VALUES (9000001, 1, 'TEST9000001', 'Foo', 9000001, 'FOOBAR', '');
 --error ER_SRS_PARSE_ERROR
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(0 0)', 9000001)));
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 9000001;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_CONVEXHULL(x'0A000000010100000000000000000000000000000000000000');

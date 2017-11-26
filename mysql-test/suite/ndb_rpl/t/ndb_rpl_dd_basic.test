@@ -36,7 +36,7 @@ ENGINE NDB;
 
 alter tablespace ts1
 add datafile 'datafile02.dat'
-initial_size 4M engine=ndb;
+initial_size 4M;
 
 #
 # Create a table using this tablespace
@@ -75,11 +75,9 @@ select * from t1 order by pk1;
 
 drop table t1;
 alter tablespace ts1
-drop datafile 'datafile.dat'
-engine=ndb;
+drop datafile 'datafile.dat';
 alter tablespace ts1
-drop datafile 'datafile02.dat'
-engine=ndb;
-DROP TABLESPACE ts1 ENGINE=NDB;
+drop datafile 'datafile02.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 ENGINE=NDB;
 --source include/rpl_end.inc

@@ -1,3 +1,6 @@
+# Disabled on Windows ASAN due to https://bugs.llvm.org/show_bug.cgi?id=35365
+--source include/not_asan_windows.inc
+
 ###############################################################################
 #                                                                             #
 # This test is aimed to focus on Functions for testing Relations between      #
@@ -1958,3 +1961,19 @@ SELECT id, ST_AsText(g)
   ORDER BY id;
 
 DROP TABLE t1;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO MBRTOUCHES(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);
+--error ER_SRS_NOT_FOUND
+DO ST_TOUCHES(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);

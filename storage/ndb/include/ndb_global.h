@@ -33,6 +33,12 @@
 #include <sys/time.h>
 #endif
 
+/* Legacy definitions. */
+#ifndef TRUE
+#define TRUE true
+#define FALSE false
+#endif
+
 /*
   Custom version of standard offsetof() macro which can be used to get
   offsets of members in class for non-POD types (according to the current
@@ -275,6 +281,15 @@ extern "C" {
 #endif
 
 /**
+ *  Attribute used for unused function arguments
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define ATTRIBUTE_UNUSED __attribute__((unused))
+#else
+#define ATTRIBUTE_UNUSED
+#endif
+
+/**
  * sizeof cacheline (in bytes)
  *
  * TODO: Add configure check...
@@ -289,7 +304,6 @@ extern "C" {
 /*
  * require is like a normal assert, only it's always on (eg. in release)
  */
-C_MODE_START
 typedef int(*RequirePrinter)(const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 void require_failed(int exitcode, RequirePrinter p,
@@ -297,7 +311,6 @@ void require_failed(int exitcode, RequirePrinter p,
                     ATTRIBUTE_NORETURN;
 int ndbout_printer(const char * fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
-C_MODE_END
 /*
  *  this allows for an exit() call if exitcode is not zero
  *  and takes a Printer to print the error

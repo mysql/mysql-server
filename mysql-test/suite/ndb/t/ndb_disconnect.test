@@ -30,11 +30,7 @@ show create table test.t1;
 --source ndb_restart_start.inc
 
 --echo # Wait until mysqld has connected properly to cluster
---disable_result_log
---disable_query_log
 source include/ndb_not_readonly.inc;
---enable_query_log
---enable_result_log
 
 --echo # mysqld connected to cluster. Now running show create table again.
 --disable_warnings

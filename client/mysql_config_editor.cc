@@ -69,7 +69,7 @@ static char my_key[LOGIN_KEY_LEN];
 
 static bool opt_verbose, opt_all, tty_password= 0, opt_warn,
             opt_remove_host, opt_remove_pass, opt_remove_user,
-            opt_remove_socket, opt_remove_port, login_path_specified= FALSE;
+            opt_remove_socket, opt_remove_port, login_path_specified= false;
 
 static int execute_commands(int command);
 static int set_command(void);
@@ -261,7 +261,7 @@ my_set_command_get_one_option(int optid, const struct my_option *, char*)
                 "Exiting..");
       return 1;
     }
-    login_path_specified= TRUE;
+    login_path_specified= true;
     break;
   case '?':
     usage_command(MY_CONFIG_SET);
@@ -283,7 +283,7 @@ my_remove_command_get_one_option(int optid, const struct my_option*, char*)
                 "Exiting..");
       return 1;
     }
-    login_path_specified= TRUE;
+    login_path_specified= true;
     break;
   case '?':
     usage_command(MY_CONFIG_REMOVE);
@@ -305,7 +305,7 @@ my_print_command_get_one_option(int optid, const struct my_option*, char*)
                 "Exiting..");
       return 1;
     }
-    login_path_specified= TRUE;
+    login_path_specified= true;
     break;
   case '?':
     usage_command(MY_CONFIG_PRINT);
@@ -428,7 +428,7 @@ static int do_handle_options(int argc, char *argv[])
   command_list[i]= NULL;
 
   if ((rc= my_handle_options(&argc, &argv, my_program_long_options,
-                             my_program_get_one_option, command_list, FALSE)))
+                             my_program_get_one_option, command_list, false)))
     exit(rc);
 
   if (argc == 0)                                /* No command specified. */
@@ -641,7 +641,7 @@ static int remove_command(void) {
   /* Warn if no login path is specified. */
   if (opt_warn &&
       ((locate_login_path (&file_buf, opt_login_path)) != NULL) &&
-      (login_path_specified == FALSE)
+      (login_path_specified == false)
       )
   {
     int choice;
@@ -708,8 +708,8 @@ error:
   Create the login file if it does not exist, check
   and set its permissions and modes.
 
-  @return  TRUE           Error
-           FALSE          Success
+  @return  true           Error
+           false          Success
 */
 
 static bool check_and_create_login_file(void)
@@ -838,10 +838,10 @@ static bool check_and_create_login_file(void)
       goto error;
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 error:
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -976,7 +976,7 @@ static void remove_option(DYNAMIC_STRING *file_buf, const char *path_name,
   char *start= NULL, *end= NULL;
   char *search_str;
   size_t search_len, shift_len;
-  bool option_found= FALSE;
+  bool option_found= false;
 
   search_str= (char *) my_malloc(PSI_NOT_INSTRUMENTED,
                                  (uint) strlen(option_name) + 2, MYF(MY_WME));
@@ -1001,7 +1001,7 @@ static void remove_option(DYNAMIC_STRING *file_buf, const char *path_name,
       end= start;
       while(*(++ end) != '\n')
       {}
-      option_found= TRUE;
+      option_found= true;
       break;
     }
     else
@@ -1171,7 +1171,7 @@ static int encrypt_and_write_file(DYNAMIC_STRING *file_buf)
 {
   DBUG_ENTER("encrypt_and_write_file");
 
-  bool done= FALSE;
+  bool done= false;
   char cipher[MY_LINE_MAX], *tmp= NULL;
   uint bytes_read=0, len= 0;
   int enc_len= 0;                               // Can be negative.
@@ -1196,7 +1196,7 @@ static int encrypt_and_write_file(DYNAMIC_STRING *file_buf)
         len ++;
       else
       {
-        done= TRUE;
+        done= true;
         break;
       }
 

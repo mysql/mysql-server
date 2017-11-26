@@ -425,6 +425,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 };
 
 
+extern "C" {
 CHARSET_INFO my_charset_latin1=
 {
     8,0,0,				/* number    */
@@ -459,6 +460,7 @@ CHARSET_INFO my_charset_latin1=
     &my_collation_8bit_simple_ci_handler,
     PAD_SPACE
 };
+}
 
 
 

@@ -527,7 +527,7 @@ public:
   */
   void set_has_protection_against_grl()
   {
-    m_has_protection_against_grl= TRUE;
+    m_has_protection_against_grl= true;
   }
 
   bool has_protection_against_grl() const

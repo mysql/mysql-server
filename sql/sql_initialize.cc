@@ -54,7 +54,7 @@ static const char *initialization_cmds[] =
 
 char insert_user_buffer[sizeof(INSERT_USER_CMD) + GENERATED_PASSWORD_LENGTH * 2];
 
-bool opt_initialize_insecure= FALSE;
+bool opt_initialize_insecure= false;
 
 static const char *initialization_data[] =
 {

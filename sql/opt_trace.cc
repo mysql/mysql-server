@@ -39,8 +39,6 @@
 #include "sql/table.h"
 #include "sql_string.h" // String
 
-#ifdef OPTIMIZER_TRACE
-
 // gcc.gnu.org/bugzilla/show_bug.cgi?id=29365
 namespace random_name_to_avoid_gcc_bug_29365 {
 /**
@@ -1360,5 +1358,3 @@ void Opt_trace_iterator::get_value(Opt_trace_info *info) const
 {
   cursor->fill_info(info);
 }
-
-#endif // OPTIMIZER_TRACE

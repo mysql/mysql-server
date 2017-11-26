@@ -42,16 +42,16 @@ namespace keyring
     if (data == NULL)
     {
       DBUG_ASSERT(size == 0);
-      return TRUE;
+      return true;
     }
     if (key_ptr->load_from_buffer(data + position,
                                   &number_of_bytes_read_from_buffer,
                                   size - position))
-      return TRUE;
+      return true;
 
     position += number_of_bytes_read_from_buffer;
     *key= key_ptr.release();
-    return FALSE;
+    return false;
   }
 
   bool Buffer::has_next_key()

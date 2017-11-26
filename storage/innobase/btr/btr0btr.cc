@@ -137,7 +137,7 @@ we allocate pages for the non-leaf levels of the tree.
 #ifdef UNIV_BTR_DEBUG
 /**************************************************************//**
 Checks a file segment header within a B-tree root page.
-@return TRUE if valid */
+@return true if valid */
 static
 ibool
 btr_root_fseg_validate(
@@ -240,7 +240,7 @@ btr_height_get(
 /**************************************************************//**
 Checks a file segment header within a B-tree root page and updates
 the segment header space id.
-@return TRUE if valid */
+@return true if valid */
 static
 bool
 btr_root_fseg_adjust_on_import(
@@ -1879,7 +1879,7 @@ btr_root_raise_and_insert(
 /*************************************************************//**
 Decides if the page should be split at the convergence point of inserts
 converging to the left.
-@return TRUE if split recommended */
+@return true if split recommended */
 ibool
 btr_page_get_split_rec_to_left(
 /*===========================*/
@@ -1923,7 +1923,7 @@ btr_page_get_split_rec_to_left(
 /*************************************************************//**
 Decides if the page should be split at the convergence point of inserts
 converging to the right.
-@return TRUE if split recommended */
+@return true if split recommended */
 ibool
 btr_page_get_split_rec_to_right(
 /*============================*/
@@ -2431,7 +2431,7 @@ btr_attach_half_pages(
 
 /*************************************************************//**
 Determine if a tuple is smaller than any record on the page.
-@return TRUE if smaller */
+@return true if smaller */
 static MY_ATTRIBUTE((warn_unused_result))
 bool
 btr_page_tuple_smaller(
@@ -2563,7 +2563,7 @@ btr_insert_into_right_sibling(
 
 	compressed = btr_cur_pessimistic_delete(
 		&err, TRUE, &next_father_cursor,
-		BTR_CREATE_FLAG, false, mtr);
+		BTR_CREATE_FLAG, false, 0, 0, 0, mtr);
 
 	ut_a(err == DB_SUCCESS);
 
@@ -3182,7 +3182,8 @@ btr_node_ptr_delete(
 	btr_page_get_father(index, block, mtr, &cursor);
 
 	compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor,
-						BTR_CREATE_FLAG, false, mtr);
+						BTR_CREATE_FLAG, false,
+						0, 0, 0, mtr);
 	ut_a(err == DB_SUCCESS);
 
 	if (!compressed) {
@@ -3388,7 +3389,7 @@ level lifts the records of the page to the father page, thus reducing the
 tree height. It is assumed that mtr holds an x-latch on the tree and on the
 page. If cursor is on the leaf level, mtr must also hold x-latches to the
 brothers, if they exist.
-@return TRUE on success */
+@return true on success */
 ibool
 btr_compress(
 /*=========*/
@@ -3795,10 +3796,9 @@ retry:
 			lock_mutex_exit();
 		} else {
 
-			compressed = btr_cur_pessimistic_delete(&err, TRUE,
-								&cursor2,
-								BTR_CREATE_FLAG,
-								false, mtr);
+			compressed = btr_cur_pessimistic_delete(
+				&err, TRUE, &cursor2, BTR_CREATE_FLAG,
+				false, 0, 0, 0, mtr);
 			ut_a(err == DB_SUCCESS);
 
 			if (!compressed) {
@@ -4288,7 +4288,7 @@ btr_print_index(
 #ifdef UNIV_DEBUG
 /************************************************************//**
 Checks that the node pointer to a page is appropriate.
-@return TRUE */
+@return true */
 ibool
 btr_check_node_ptr(
 /*===============*/
@@ -4366,7 +4366,7 @@ btr_index_rec_validate_report(
 /************************************************************//**
 Checks the size and number of fields in a record based on the definition of
 the index.
-@return TRUE if ok */
+@return true if ok */
 ibool
 btr_index_rec_validate(
 /*===================*/
@@ -4396,7 +4396,7 @@ btr_index_rec_validate(
 	}
 
 #ifdef VIRTUAL_INDEX_DEBUG
-	if (dict_index_has_virtual(index)) {
+	if (dict_index_has_virtual(index) || index->is_clustered()) {
 		fprintf(stderr, "index name is %s\n", index->name());
 	}
 #endif
@@ -4494,7 +4494,7 @@ btr_index_rec_validate(
 	}
 
 #ifdef VIRTUAL_INDEX_DEBUG
-	if (dict_index_has_virtual(index)) {
+	if (dict_index_has_virtual(index) || index->is_clustered()) {
 		rec_print_new(stderr, rec, offsets);
 	}
 #endif
@@ -4508,7 +4508,7 @@ btr_index_rec_validate(
 /************************************************************//**
 Checks the size and number of fields in records based on the definition of
 the index.
-@return TRUE if ok */
+@return true if ok */
 static
 ibool
 btr_index_page_validate(
@@ -4606,7 +4606,7 @@ btr_validate_report2(
 
 /************************************************************//**
 Validates index tree level.
-@return TRUE if ok */
+@return true if ok */
 static
 bool
 btr_validate_level(

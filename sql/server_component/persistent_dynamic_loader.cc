@@ -220,7 +220,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
     });
 
     if (init_read_record(
-      &read_record_info, thd, component_table, NULL, 1, 1, FALSE))
+      &read_record_info, thd, component_table, NULL, 1, 1, false))
     {
       push_warning(thd, Sql_condition::SL_WARNING,
         ER_COMPONENT_TABLE_INCORRECT,
@@ -418,6 +418,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
       if (res != 0)
       {
         my_error(ER_COMPONENT_MANIPULATE_ROW_FAILED, MYF(0), urns[i], res);
+        component_table->file->ha_release_auto_increment();
         return true;
       }
 
@@ -431,6 +432,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
     guard.commit();
     guard_close_tables.commit();
     trans_commit_stmt(thd);
+    close_mysql_tables(thd);
     return false;
   }
   catch (...)
@@ -558,7 +560,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
 
     guard_close_tables.commit();
     trans_commit_stmt(thd);
-
+    close_mysql_tables(thd);
     return false;
   }
   catch (...)

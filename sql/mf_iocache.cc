@@ -44,8 +44,6 @@
 #include "sql/protocol_classic.h"
 #include "sql/sql_class.h"                      // THD
 
-extern "C" {
-
 /**
   Read buffered from the net.
 
@@ -92,5 +90,3 @@ int _my_b_net_read(IO_CACHE *info, uchar *Buffer,
 
   DBUG_RETURN(0);
 }
-
-} /* extern "C" */

@@ -701,7 +701,7 @@ srv_wake_master_thread(void);
 /*========================*/
 /******************************************************************//**
 Outputs to a file the output of the InnoDB Monitor.
-@return FALSE if not all information printed
+@return false if not all information printed
 due to failure to obtain necessary mutex */
 ibool
 srv_printf_innodb_monitor(
@@ -728,7 +728,7 @@ srv_get_activity_count(void);
 /*========================*/
 /*******************************************************************//**
 Check if there has been any activity.
-@return FALSE if no change in activity counter. */
+@return false if no change in activity counter. */
 ibool
 srv_check_activity(
 /*===============*/

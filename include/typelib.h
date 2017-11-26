@@ -25,10 +25,6 @@
 
 struct MEM_ROOT;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct TYPELIB
 {     /* Different types saved here */
   /*
@@ -75,9 +71,5 @@ my_ulonglong find_set_from_flags(const TYPELIB *lib, unsigned int default_name,
                               my_ulonglong cur_set, my_ulonglong default_set,
                               const char *str, unsigned int length,
                               char **err_pos, unsigned int *err_len);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _typelib_h */

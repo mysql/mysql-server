@@ -42,7 +42,7 @@ thr_get_trx(
 /*******************************************************************//**
 Determines if this thread is rolling back an incomplete transaction
 in crash recovery.
-@return TRUE if thr is rolling back an incomplete transaction in crash
+@return true if thr is rolling back an incomplete transaction in crash
 recovery */
 UNIV_INLINE
 ibool
@@ -264,7 +264,7 @@ que_node_get_parent(
 /**********************************************************************//**
 Checks if graph, trx, or session is in a state where the query thread should
 be stopped.
-@return TRUE if should be stopped; NOTE that if the peek is made
+@return true if should be stopped; NOTE that if the peek is made
 without reserving the trx mutex, then another peek with the mutex
 reserved is necessary before deciding the actual stopping */
 UNIV_INLINE
@@ -292,7 +292,7 @@ que_thr_peek_stop(
 
 /***********************************************************************//**
 Returns TRUE if the query graph is for a SELECT statement.
-@return TRUE if a select */
+@return true if a select */
 UNIV_INLINE
 ibool
 que_graph_is_select(

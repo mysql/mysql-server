@@ -267,15 +267,11 @@ public:
     @param[out] errmsg any syntax error message (will be ignored if it is NULL)
     @param[out] offset the position in the parsed string a syntax error was
                        found (will be ignored if it is NULL)
-    @param[in]  handle_numbers_as_double whether numbers should be handled as
-                                         double. If set to TRUE, all numbers are
-                                         parsed as DOUBLE
 
     @result the built DOM if JSON text was parseable, else NULL
   */
   static Json_dom_ptr parse(const char *text, size_t length,
-                            const char **errmsg, size_t *offset,
-                            bool handle_numbers_as_double= false);
+                            const char **errmsg, size_t *offset);
 
   /**
     Construct a DOM object based on a binary JSON value. The ownership
@@ -1608,7 +1604,7 @@ public:
     Extract an int (signed or unsigned) from the JSON if possible
     coercing if need be.
     @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    TRUE <=> error occur during coercion
+    @param[out] err    true <=> error occur during coercion
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
     @returns json value coerced to int
@@ -1620,7 +1616,7 @@ public:
     Extract a real from the JSON if possible, coercing if need be.
 
     @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    TRUE <=> error occur during coercion
+    @param[out] err    true <=> error occur during coercion
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
     @returns json value coerced to real
@@ -1633,7 +1629,7 @@ public:
 
     @param[in,out] decimal_value a value buffer
     @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    TRUE <=> error occur during coercion
+    @param[out] err    true <=> error occur during coercion
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
     @returns json value coerced to decimal

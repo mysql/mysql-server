@@ -1460,3 +1460,12 @@ ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 2 2), '
 ) AS res;
 res
 0
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_CROSSES(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.

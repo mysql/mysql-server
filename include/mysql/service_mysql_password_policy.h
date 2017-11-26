@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,10 +22,6 @@
   Definitions for the password validation service
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
   @ingroup group_ext_plugin_services
 
@@ -39,7 +35,7 @@ extern "C" {
 
   @sa st_mysql_validate_password
 */
-extern struct mysql_password_policy_service_st {
+extern "C" struct mysql_password_policy_service_st {
   /**
     Validates a password.
 
@@ -66,10 +62,6 @@ extern struct mysql_password_policy_service_st {
 int my_validate_password_policy(const char *, unsigned int);
 int my_calculate_password_strength(const char *, unsigned int);
 
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif

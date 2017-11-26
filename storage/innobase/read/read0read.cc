@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -600,6 +600,29 @@ MVCC::view_open(ReadView*& view, trx_t* trx)
 	}
 
 	trx_sys_mutex_exit();
+}
+
+ReadView*
+MVCC::get_view_created_by_trx_id(trx_id_t trx_id) const
+{
+	ReadView*	view;
+
+	ut_ad(mutex_own(&trx_sys->mutex));
+
+	for (view = UT_LIST_GET_LAST(m_views);
+	     view != NULL;
+	     view = UT_LIST_GET_PREV(m_view_list, view)) {
+
+		if (view->is_closed()) {
+			continue;
+		}
+
+		if (view->m_creator_trx_id == trx_id) {
+			break;
+		}
+	}
+
+	return(view);
 }
 
 /**

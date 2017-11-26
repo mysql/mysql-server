@@ -600,7 +600,7 @@ int check_func_bool(THD*, SYS_VAR*,
       goto err;
     result= (int) tmp;
   }
-  *(bool *) save= result ? TRUE : FALSE;
+  *(bool *) save= result ? true : false;
   return 0;
 err:
   return 1;
@@ -804,7 +804,7 @@ int check_func_double(THD *thd, SYS_VAR *var,
 void update_func_bool(THD*, SYS_VAR*,
                              void *tgt, const void *save)
 {
-  *(bool *) tgt= *(bool *) save ? TRUE : FALSE;
+  *(bool *) tgt= *(bool *) save ? true : false;
 }
 
 

@@ -172,8 +172,8 @@ static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int connect_flag=CLIENT_INTERACTIVE;
-static bool opt_binary_mode= FALSE;
-static bool opt_connect_expired_password= FALSE;
+static bool opt_binary_mode= false;
+static bool opt_connect_expired_password= false;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
@@ -240,7 +240,7 @@ const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
   For using this feature in test case, we add the option in debug code.
 */
 #ifndef DBUG_OFF
-static bool opt_build_completion_hash = FALSE;
+static bool opt_build_completion_hash = false;
 #endif
 
 #ifdef _WIN32
@@ -1216,7 +1216,7 @@ inline int get_command_index(char cmd_char)
 
 static int delimiter_index= -1;
 static int charset_index= -1;
-static bool real_binary_mode= FALSE;
+static bool real_binary_mode= false;
 
 #ifdef _WIN32
 BOOL windows_ctrl_handler(DWORD fdwCtrlType)
@@ -1227,14 +1227,14 @@ BOOL windows_ctrl_handler(DWORD fdwCtrlType)
   case CTRL_BREAK_EVENT:
     handle_ctrlc_signal(SIGINT);
     /* Indicate that signal has beed handled. */  
-    return TRUE;
+    return true;
   case CTRL_CLOSE_EVENT:
   case CTRL_LOGOFF_EVENT:
   case CTRL_SHUTDOWN_EVENT:
     handle_quit_signal(SIGINT + 1);
   }
   /* Pass signal to the next control handler function. */
-  return FALSE;
+  return false;
 }
 #endif
 
@@ -1296,13 +1296,13 @@ int main(int argc,char *argv[])
   my_win_translate_command_line_args(&my_charset_utf8mb4_bin, &argc, &argv);
 #endif
 
-  my_getopt_use_args_separator= TRUE;
+  my_getopt_use_args_separator= true;
   if (load_defaults("my",load_default_groups,&argc,&argv,&argv_alloc))
   {
     my_end(0);
     return EXIT_FAILURE;
   }
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= false;
 
   if (get_options(argc, (char **) argv))
   {
@@ -1342,7 +1342,7 @@ int main(int argc,char *argv[])
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
   signal(SIGHUP, handle_quit_signal);           // Catch SIGHUP to clean up
 #else
-  SetConsoleCtrlHandler((PHANDLER_ROUTINE) windows_ctrl_handler, TRUE);
+  SetConsoleCtrlHandler((PHANDLER_ROUTINE) windows_ctrl_handler, true);
 #endif
 
 
@@ -1945,7 +1945,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     using_opt_local_infile=1;
     break;
   case OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
+    using_opt_enable_cleartext_plugin= true;
     break;
   case OPT_TEE:
     if (argument == disabled_my_option)
@@ -2332,10 +2332,10 @@ static int read_and_execute(bool interactive)
 
   /*
     If the function is called by 'source' command, it will return to interactive
-    mode, so real_binary_mode should be FALSE. Otherwise, it will exit the
-    program, it is safe to set real_binary_mode to FALSE.
+    mode, so real_binary_mode should be false. Otherwise, it will exit the
+    program, it is safe to set real_binary_mode to false.
   */
-  real_binary_mode= FALSE;
+  real_binary_mode= false;
   return status.exit_status;
 }
 
@@ -2746,10 +2746,8 @@ static bool add_line(String &buffer, char *line, size_t line_length,
 
 #ifdef HAVE_READLINE
 
-C_MODE_START
 static char *new_command_generator(const char *text, int);
 static char **new_mysql_completion(const char *text, int start, int end);
-C_MODE_END
 
 /*
   Tell the GNU Readline library how to complete.  We want to try to complete
@@ -3569,7 +3567,7 @@ com_go(String *buffer,char *line MY_ATTRIBUTE((unused)))
   do
   {
     char *pos;
-    bool batchmode= (status.batch && verbose <= 1) ? TRUE : FALSE;
+    bool batchmode= (status.batch && verbose <= 1);
     buff[0]= 0;
 
     if (quick)
@@ -3976,13 +3974,13 @@ print_table_data(MYSQL_RES *result)
       if (opt_binhex && is_binary_field(field))
         print_as_hex(PAGER, cur[off], lengths[off], field_max_length);
       else if (field_max_length > MAX_COLUMN_LENGTH)
-        tee_print_sized_data(buffer, data_length, MAX_COLUMN_LENGTH+extra_padding, FALSE);
+        tee_print_sized_data(buffer, data_length, MAX_COLUMN_LENGTH+extra_padding, false);
       else
       {
         if (num_flag[off] != 0) /* if it is numeric, we right-justify it */
-          tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, TRUE);
+          tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, true);
         else 
-          tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, FALSE);
+          tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, false);
       }
       tee_fputs(" |", PAGER);
     }
@@ -5042,8 +5040,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 static void
 init_connection_options(MYSQL *mysql)
 {
-  bool handle_expired= (opt_connect_expired_password || !status.batch) ?
-    TRUE : FALSE;
+  bool handle_expired= (opt_connect_expired_password || !status.batch);
 
   if (opt_init_command)
     mysql_options(mysql, MYSQL_INIT_COMMAND, opt_init_command);

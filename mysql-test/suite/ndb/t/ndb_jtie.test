@@ -7,6 +7,9 @@
 --source suite/ndb/include/have_ndbjtie_junit.inc
 --source suite/ndb/include/have_java.inc
 
+# Avoid check for result file
+--source include/ndb_no_result_file.inc
+
 --let JAVA_CLASSPATH=$CLUSTERJ_JAR
 --let JAVA_CLASSPATH_1=$NDBJTIE_JUNIT_JAR
 --let JAVA_CLASSPATH_2=$NDBJTIE_UNLOAD_JUNIT_JAR

@@ -541,7 +541,7 @@ static const char da_cldr_30[]=
                      "<<< AA";
 
 static Coll_param da_coll_param= {
-  nullptr, FALSE, CASE_FIRST_UPPER
+  nullptr, false, CASE_FIRST_UPPER
 };
 
 /* Lithuanian */
@@ -594,7 +594,7 @@ static Reorder_param fa_reorder_param= {
 };
 
 static Coll_param fa_coll_param= {
-  &fa_reorder_param, TRUE
+  &fa_reorder_param, true
 };
 #endif
 
@@ -656,7 +656,7 @@ static Reorder_param hr_reorder_param= {
 };
 
 static Coll_param hr_coll_param= {
-  &hr_reorder_param, FALSE, CASE_FIRST_OFF
+  &hr_reorder_param, false, CASE_FIRST_OFF
 };
 
 /* Sinhala */
@@ -676,7 +676,7 @@ static const char vi_cldr_30[]=
   "&u       < \\u01B0 <<< \\u01AF";
 
 static Coll_param vi_coll_param= {
-  nullptr, TRUE, CASE_FIRST_OFF
+  nullptr, true, CASE_FIRST_OFF
 };
 
 static Reorder_param ja_reorder_param= {
@@ -960,8 +960,8 @@ my_uca_contraction2_weight(const std::vector<MY_CONTRACTION> *cont_nodes,
   @param wc       Code point
 
   @return
-  @retval   FALSE - cannot be previous context head
-  @retval   TRUE  - can be previous context head
+  @retval   false - cannot be previous context head
+  @retval   true  - can be previous context head
 */
 
 static inline bool
@@ -978,8 +978,8 @@ my_uca_can_be_previous_context_head(const char *flags, my_wc_t wc)
   @param wc       Code point
 
   @return
-  @retval   FALSE - cannot be contraction tail
-  @retval   TRUE - can be contraction tail
+  @retval   false - cannot be contraction tail
+  @retval   true - can be contraction tail
 */
 
 static inline bool
@@ -3592,7 +3592,7 @@ my_coll_parser_scan_shift_sequence(MY_COLL_RULE_PARSER *p)
       It's OK as Unicode's CLDR does not have longer examples.
     */
     my_coll_parser_scan(p);
-    p->rule.with_context= TRUE;
+    p->rule.with_context= true;
     if (!my_coll_parser_scan_character_list(p, p->rule.curr + 1,
                                             MY_UCA_MAX_EXPANSION - 1,
                                             "context"))
@@ -4093,8 +4093,8 @@ my_char_weight_put(MY_UCA_INFO *dst, uint16 *to,
   @param page     page number
 
   @return
-  @retval         FALSE on success
-  @retval         TRUE  on error
+  @retval         false on success
+  @retval         true  on error
 */
 static bool
 my_uca_copy_page(CHARSET_INFO *cs,
@@ -4105,7 +4105,7 @@ my_uca_copy_page(CHARSET_INFO *cs,
 {
   const uint dst_size= 256 * dst->lengths[page] * sizeof(uint16);
   if (!(dst->weights[page]= (uint16 *) (loader->once_alloc)(dst_size)))
-    return TRUE;
+    return true;
 
   DBUG_ASSERT(src->lengths[page] <= dst->lengths[page]);
   memset(dst->weights[page], 0, dst_size);
@@ -4123,7 +4123,7 @@ my_uca_copy_page(CHARSET_INFO *cs,
              src->lengths[page] * sizeof(uint16));
     }
   }
-  return FALSE;
+  return false;
 }
 
 static bool
@@ -4278,7 +4278,7 @@ apply_shift(MY_CHARSET_LOADER *loader,
         snprintf(loader->error, sizeof(loader->error),
                     "Can't reset before "
                     "a primary ignorable character U+%04lX", r->base[0]);
-        return TRUE;
+        return true;
       }
     }
   }
@@ -4288,7 +4288,7 @@ apply_shift(MY_CHARSET_LOADER *loader,
     DBUG_ASSERT(to[0] == 0);
     to[0]= r->diff[level];
   }
-  return FALSE; 
+  return false; 
 }
 
 static MY_CONTRACTION*
@@ -4420,16 +4420,16 @@ check_rules(MY_CHARSET_LOADER *loader,
     {
       snprintf(loader->error, sizeof(loader->error),
                   "Shift character out of range: u%04X", (uint) r->curr[0]);
-      return TRUE;
+      return true;
     }
     else if (r->base[0] > src->maxchar)
     {
       snprintf(loader->error, sizeof(loader->error),
                   "Reset character out of range: u%04X", (uint) r->base[0]);
-      return TRUE;
+      return true;
     }
   }
-  return FALSE;
+  return false;
 }
 
 static void
@@ -4480,18 +4480,18 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
   dst->maxchar= src->maxchar;
 
   if (check_rules(loader, rules, dst, src))
-    return TRUE;
+    return true;
 
   /* Allocate memory for pages and their lengths */
   if (lengths_are_temporary)
   {
     if (!(dst->lengths= (uchar *) (loader->mem_malloc)(npages)))
-      return TRUE;
+      return true;
     if (!(dst->weights= (uint16 **) (loader->once_alloc)(npages *
                                                          sizeof(uint16 *))))
     {
       (loader->mem_free)(dst->lengths);
-      return TRUE;
+      return true;
     }
   }
   else
@@ -4499,7 +4499,7 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
     if (!(dst->lengths= (uchar *) (loader->once_alloc)(npages)) ||
         !(dst->weights= (uint16 **) (loader->once_alloc)(npages *
                                                          sizeof(uint16 *))))
-      return TRUE;
+      return true;
   }
 
   /*
@@ -4578,9 +4578,9 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
   for (r= rules->rule; r < rlast;  r++)
   {
     if (apply_one_rule(cs, loader, rules, r, level, dst))
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 /**

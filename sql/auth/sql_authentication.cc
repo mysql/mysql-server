@@ -202,7 +202,7 @@ LEX_CSTRING default_auth_plugin_name;
 
 plugin_ref native_password_plugin;
 
-bool disconnect_on_expired_password= TRUE;
+bool disconnect_on_expired_password= true;
 
 extern bool initialized;
 
@@ -212,6 +212,7 @@ extern bool initialized;
 
 #if defined(HAVE_OPENSSL)
 #define MAX_CIPHER_LENGTH 1024
+#define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
 
 #if !defined(HAVE_YASSL)
 #define DEFAULT_SSL_CLIENT_CERT "client-cert.pem"
@@ -219,9 +220,9 @@ extern bool initialized;
 
 #define MAX_CN_NAME_LENGTH 64
 
-bool opt_auto_generate_certs= TRUE;
+bool opt_auto_generate_certs= true;
 
-bool auth_rsa_auto_generate_rsa_keys= TRUE;
+bool auth_rsa_auto_generate_rsa_keys= true;
 
 static bool do_auto_rsa_keys_generation();
 
@@ -2247,7 +2248,7 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
                                                &cur_time) >=0 ? false: true;
       else
       {
-        DBUG_ASSERT(FALSE);
+        DBUG_ASSERT(false);
         /* Make the compiler happy. */
       }
     }
@@ -2502,7 +2503,7 @@ acl_authenticate(THD *thd, enum_server_command command)
 
   if (initialized) // if not --skip-grant-tables
   {
-    bool is_proxy_user= FALSE;
+    bool is_proxy_user= false;
     bool password_time_expired= false;
     const char *auth_user = acl_user->user ? acl_user->user : "";
     ACL_PROXY_USER *proxy_user;
@@ -2551,7 +2552,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       acl_proxy_user= find_acl_user(proxy_user->get_proxied_host() ?
                                     proxy_user->get_proxied_host() : "",
                                     mpvio.auth_info.authenticated_as,
-                                    TRUE);
+                                    true);
       if (!acl_proxy_user)
       {
         Host_errors errors;
@@ -2783,9 +2784,9 @@ bool is_secure_transport(int vio_type)
     case VIO_TYPE_SSL:
     case VIO_TYPE_SHARED_MEMORY:
     case VIO_TYPE_SOCKET:
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 static int generate_native_password(char *outbuf, unsigned int *buflen,
@@ -2851,7 +2852,8 @@ static int set_native_salt(const char* password, unsigned int password_len,
 static int generate_sha256_password(char *outbuf, unsigned int *buflen,
                                     const char *inbuf, unsigned int inbuflen)
 {
-  if (my_validate_password_policy(inbuf, inbuflen))
+  if (inbuflen > SHA256_PASSWORD_MAX_PASSWORD_LENGTH ||
+      my_validate_password_policy(inbuf, inbuflen))
     return 1;
   if (inbuflen == 0)
   {
@@ -3189,6 +3191,10 @@ compare_sha256_password_with_hash(const char *hash, unsigned long hash_length,
   char  *user_salt_end;
 
   DBUG_ENTER("compare_sha256_password_with_hash");
+  DBUG_ASSERT(cleartext_length <= SHA256_PASSWORD_MAX_PASSWORD_LENGTH);
+
+  if (cleartext_length > SHA256_PASSWORD_MAX_PASSWORD_LENGTH)
+    DBUG_RETURN(-1);
 
   /*
     Fetch user authentication_string and extract the password salt
@@ -3383,6 +3389,10 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 #endif /* HAVE_YASSL */
   } // if(!my_vio_is_encrypter())
 
+  /* Don't process the password if it is longer than maximum limit */
+  if (pkt_len > SHA256_PASSWORD_MAX_PASSWORD_LENGTH + 1)
+    DBUG_RETURN(CR_ERROR);
+
   /* A password was sent to an account without a password */
   if (info->auth_string_length == 0)
     DBUG_RETURN(CR_ERROR);
@@ -3431,7 +3441,7 @@ static MYSQL_SYSVAR_BOOL(auto_generate_rsa_keys, auth_rsa_auto_generate_rsa_keys
         "Auto generate RSA keys at server startup if correpsonding "
         "system variables are not specified and key files are not present "
         "at the default location.",
-        NULL, NULL, TRUE);
+        NULL, NULL, true);
 
 static SYS_VAR* sha256_password_sysvars[]= {
   MYSQL_SYSVAR(private_key_path),

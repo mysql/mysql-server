@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -145,7 +145,7 @@ create_config(const char* first, ...)
 }
 
 // Global variable for my_getopt
-extern "C" const char* my_defaults_file;
+extern const char* my_defaults_file;
 
 static
 unsigned

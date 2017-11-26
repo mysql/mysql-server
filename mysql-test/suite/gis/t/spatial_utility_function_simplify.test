@@ -411,6 +411,7 @@ SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_all_points,-1), 1));
 
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_top_to_center,0), 1));
 
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_lines_near_vertical,4326), 1));
 
 --error ER_DATA_OUT_OF_RANGE
@@ -534,7 +535,8 @@ DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 0), 1);
 --echo # Projected SRS (should pass)
 DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 2000), 1);
 
---echo # Geographic SRS (should pass)
+--echo # Geographic SRS (should fail)
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
 DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 1);
 
 --echo # Unparseable SRS definition (should fail)
@@ -545,3 +547,11 @@ VALUES (21000001, 1, 'TEST21000001', 'Foo', 21000001, 'FOOBAR', '');
 --error ER_SRS_PARSE_ERROR
 DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 21000001), 1);
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 21000001;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_SIMPLIFY(x'0A000000010100000000000000000000000000000000000000', 1);

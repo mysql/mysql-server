@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,10 +20,6 @@
   @file include/mysql/service_mysql_keyring.h
 */
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
   @ingroup group_ext_plugin_services
@@ -55,7 +51,7 @@ extern "C" {
 
   @sa st_mysql_keyring
 */
-extern struct mysql_keyring_service_st
+extern "C" struct mysql_keyring_service_st
 {
   /**
     Stores a key into the keyring.
@@ -104,10 +100,6 @@ int my_key_fetch(const char *, char **, const char *, void **,
 int my_key_remove(const char *, const char *);
 int my_key_generate(const char *, const char *, const char *, size_t);
 
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif //MYSQL_SERVICE_MYSQL_PLUGIN_KEYRING_INCLUDED

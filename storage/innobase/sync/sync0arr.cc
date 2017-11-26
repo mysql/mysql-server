@@ -177,7 +177,7 @@ static ulint			sg_count;
 /******************************************************************//**
 This function is called only in the debug version. Detects a deadlock
 of one or more threads because of waits of semaphores.
-@return TRUE if deadlock detected */
+@return true if deadlock detected */
 static
 bool
 sync_array_detect_deadlock(
@@ -635,7 +635,7 @@ sync_array_find_thread(
 
 /******************************************************************//**
 Recursion step for deadlock detection.
-@return TRUE if deadlock detected */
+@return true if deadlock detected */
 static
 ibool
 sync_array_deadlock_step(
@@ -694,7 +694,7 @@ sync_array_report_error(
 /******************************************************************//**
 This function is called only in the debug version. Detects a deadlock
 of one or more threads because of waits of semaphores.
-@return TRUE if deadlock detected */
+@return true if deadlock detected */
 static
 bool
 sync_array_detect_deadlock(
@@ -1074,7 +1074,7 @@ sync_arr_wake_threads_if_sema_free(void)
 
 /**********************************************************************//**
 Prints warnings of long semaphore waits to stderr.
-@return TRUE if fatal semaphore wait threshold was exceeded */
+@return true if fatal semaphore wait threshold was exceeded */
 static
 bool
 sync_array_print_long_waits_low(
@@ -1145,7 +1145,7 @@ sync_array_print_long_waits_low(
 
 /**********************************************************************//**
 Prints warnings of long semaphore waits to stderr.
-@return TRUE if fatal semaphore wait threshold was exceeded */
+@return true if fatal semaphore wait threshold was exceeded */
 ibool
 sync_array_print_long_waits(
 /*========================*/

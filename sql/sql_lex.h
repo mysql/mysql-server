@@ -1225,9 +1225,9 @@ public:
   */
   uint with_wild;
   bool  braces;   	///< SELECT ... UNION (SELECT ... ) <- this braces
-  /// TRUE when having fix field called in processing of this query block
+  /// true when having fix field called in processing of this query block
   bool having_fix_field;
-  /// TRUE when GROUP BY fix field called in processing of this query block
+  /// true when GROUP BY fix field called in processing of this query block
   bool group_fix_field;
   /// List of references to fields referenced from inner query blocks
   List<Item_outer_ref> inner_refs_list;
@@ -2818,8 +2818,8 @@ public:
            e.g. temporary, transactional, non-transactional.
 
     @return
-      @retval TRUE  if the type of the table is about to be accessed
-      @retval FALSE otherwise
+      @retval true  if the type of the table is about to be accessed
+      @retval false otherwise
   */
   inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table)
   {
@@ -2842,15 +2842,15 @@ public:
     @param trx_isolation defines the isolation level.
  
     @return
-      @retval TRUE if the mixed statement is unsafe
-      @retval FALSE otherwise
+      @retval true if the mixed statement is unsafe
+      @retval false otherwise
   */
   inline bool is_mixed_stmt_unsafe(bool in_multi_stmt_transaction_mode,
                                    bool binlog_direct,
                                    bool trx_cache_is_not_empty,
                                    uint tx_isolation)
   {
-    bool unsafe= FALSE;
+    bool unsafe= false;
 
     if (in_multi_stmt_transaction_mode)
     {
@@ -2879,11 +2879,11 @@ public:
     if (stmt_accessed_table(STMT_WRITES_NON_TRANS_TABLE) &&
       stmt_accessed_table(STMT_READS_TRANS_TABLE) &&
       tx_isolation < ISO_REPEATABLE_READ)
-      unsafe= TRUE;
+      unsafe= true;
     else if (stmt_accessed_table(STMT_WRITES_TEMP_NON_TRANS_TABLE) &&
       stmt_accessed_table(STMT_READS_TRANS_TABLE) &&
       tx_isolation < ISO_REPEATABLE_READ)
-      unsafe= TRUE;
+      unsafe= true;
 
     return(unsafe);
   }
@@ -2895,7 +2895,7 @@ public:
   bool uses_stored_routines() const
   { return sroutines_list.elements != 0; }
 
-  void set_using_match() { using_match= TRUE; }
+  void set_using_match() { using_match= true; }
   bool get_using_match() { return using_match; }
 private:
 
@@ -2939,7 +2939,7 @@ private:
   uint32 stmt_accessed_table_flag;
 
   /**
-     It will be set TRUE if 'MATCH () AGAINST' is used in the statement.
+     It will be set true if 'MATCH () AGAINST' is used in the statement.
   */
   bool using_match;
 };
@@ -3020,8 +3020,8 @@ public:
   /**
      Object initializer. Must be called before usage.
 
-     @retval FALSE OK
-     @retval TRUE  Error
+     @retval false OK
+     @retval true  Error
   */
   bool init(THD *thd, const char *buff, size_t length);
 
@@ -3418,12 +3418,12 @@ public:
   bool ignore_space;
 
   /**
-    TRUE if we're parsing a prepared statement: in this mode
+    true if we're parsing a prepared statement: in this mode
     we should allow placeholders.
   */
   bool stmt_prepare_mode;
   /**
-    TRUE if we should allow multi-statements.
+    true if we should allow multi-statements.
   */
   bool multi_statements;
 
@@ -3692,6 +3692,7 @@ public:
   my_thread_id show_profile_query_id;
   uint profile_options;
   uint grant, grant_tot_col;
+  bool grant_privilege;
   uint slave_thd_opt, start_transaction_opt;
   int select_number;                     ///< Number of query block (by EXPLAIN)
   uint8 create_view_algorithm;
@@ -3745,6 +3746,11 @@ public:
 
 private:
   bool m_broken; ///< see mark_broken()
+  /**
+    Set to true when execution has started (after parsing, tables opened and
+    query preparation is complete. Used to track arena state for SPs).
+  */
+  bool m_exec_started;
   /// Current SP parsing context.
   /// @see also sp_head::m_root_parsing_ctx.
   sp_pcontext *sp_current_parsing_ctx;
@@ -3778,6 +3784,16 @@ public:
       m_broken= false;
   }
 
+  bool is_exec_started() const { return m_exec_started; }
+
+  void set_exec_started()
+  {
+    m_exec_started= true;
+  }
+  void reset_exec_started()
+  {
+    m_exec_started= false;
+  }
   sp_pcontext *get_sp_current_parsing_ctx()
   { return sp_current_parsing_ctx; }
 
@@ -3930,8 +3946,8 @@ public:
       LEX::which_check_option_applicable()
 
     RETURN
-      TRUE   have to take 'WHITH CHECK OPTION' clause into account
-      FALSE  'WHITH CHECK OPTION' clause do not need
+      true   have to take 'WHITH CHECK OPTION' clause into account
+      false  'WHITH CHECK OPTION' clause do not need
   */
   inline bool which_check_option_applicable()
   {
@@ -3943,9 +3959,9 @@ public:
     case SQLCOM_REPLACE:
     case SQLCOM_REPLACE_SELECT:
     case SQLCOM_LOAD:
-      return TRUE;
+      return true;
     default:
-      return FALSE;
+      return false;
     }
   }
 
@@ -3985,9 +4001,9 @@ public:
   /**
     @brief check if the statement is a single-level join
     @return result of the check
-      @retval TRUE  The statement doesn't contain subqueries, unions and 
+      @retval true  The statement doesn't contain subqueries, unions and 
                     stored procedure calls.
-      @retval FALSE There are subqueries, UNIONs or stored procedure calls.
+      @retval false There are subqueries, UNIONs or stored procedure calls.
   */
   bool is_single_level_stmt() 
   { 
@@ -4000,9 +4016,9 @@ public:
         (sroutines == nullptr || sroutines->empty()))
     {
       DBUG_ASSERT(!all_selects_list->next_select_in_list());
-      return TRUE;
+      return true;
     }
-    return FALSE;
+    return false;
   }
 
   /**
@@ -4141,8 +4157,8 @@ public:
   /**
      Object initializer. Must be called before usage.
 
-     @retval FALSE OK
-     @retval TRUE  Error
+     @retval false OK
+     @retval true  Error
   */
   bool init(THD *thd, const char *buff, size_t length)
   {

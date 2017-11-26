@@ -16,8 +16,6 @@
 #ifndef OPT_TRACE_CONTEXT_INCLUDED
 #define OPT_TRACE_CONTEXT_INCLUDED
 
-#include "my_config.h"  // OPTIMIZER_TRACE
-
 #include "my_dbug.h"
 #include "prealloced_array.h"
 
@@ -27,8 +25,6 @@
    to declare THD.
    It is recommend to read opt_trace.h first.
 */
-
-#ifdef OPTIMIZER_TRACE
 
 class Opt_trace_stmt;           // implementation detail local to opt_trace.cc
 
@@ -403,29 +399,5 @@ private:
   /// Not defined assignment operator, to disallow assignment.
   Opt_trace_context& operator=(const Opt_trace_context&);
 };
-
-#else /* OPTIMIZER_TRACE */
-
-/** Empty implementation used when optimizer trace is not compiled in */
-class Opt_trace_context
-{
-public:
-  /// We need those enums even if tracing is disabled
-  enum feature_value {
-    GREEDY_SEARCH=      1 << 0,
-    RANGE_OPTIMIZER=    1 << 1,
-    DYNAMIC_RANGE=      1 << 2,
-    REPEATED_SUBSELECT= 1 << 3,
-    MISC=               1 << 7
-  };
-  enum {
-    FLAG_DEFAULT=    0,
-    FLAG_ENABLED=    1 << 0,
-    FLAG_ONE_LINE=   1 << 1
-  };
-  static bool is_started() { return false; }
-};
-
-#endif /* OPTIMIZER_TRACE */
 
 #endif /* OPT_TRACE_CONTEXT_INCLUDED */

@@ -69,11 +69,9 @@ struct lex_state_maps_st
   enum hint_lex_char_classes hint_map[256];
 };
 
-C_MODE_START
 typedef struct lex_state_maps_st lex_state_maps_st;
 
 bool init_state_maps(CHARSET_INFO *cs);
-C_MODE_END
 
 #endif /* SQL_LEX_CHARS_INCLUDED */
 

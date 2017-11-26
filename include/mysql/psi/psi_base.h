@@ -18,10 +18,6 @@
 
 #include "my_psi_config.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
   @file include/mysql/psi/psi_base.h
   Performance schema instrumentation interface.
@@ -122,9 +118,5 @@ struct PSI_placeholder
     @} (end of group psi_abi)
   @} (end of group instrumentation_interface)
 */
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* MYSQL_PSI_BASE_H */

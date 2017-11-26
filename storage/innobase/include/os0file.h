@@ -508,6 +508,7 @@ class IORequest {
 public:
 	/** Flags passed in the request, they can be ORred together. */
 	enum {
+		UNSET = 0,
 		READ = 1,
 		WRITE = 2,
 
@@ -1488,7 +1489,7 @@ an asynchronous I/O operation.
 				if mode is OS_AIO_SYNC
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
-@return DB_SUCCESS if request was queued successfully, FALSE if fail */
+@return DB_SUCCESS if request was queued successfully, false if fail */
 UNIV_INLINE
 dberr_t
 pfs_os_aio_func(
@@ -1566,7 +1567,7 @@ Flushes the write buffers of a given file to the disk.
 @param[in]	file		Open file handle
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
-@return TRUE if success */
+@return true if success */
 UNIV_INLINE
 bool
 pfs_os_file_flush_func(

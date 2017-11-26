@@ -555,7 +555,6 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
       &pageRefPtr,
       &scanptr,
       &tabptr,
-      &tcConnectptr,
     }; 
     init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
   }

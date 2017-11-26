@@ -438,7 +438,7 @@ rw_lock_s_lock_func(
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in exclusive mode for the current thread if the lock can be
 obtained immediately.
-@return TRUE if success */
+@return true if success */
 UNIV_INLINE
 ibool
 rw_lock_x_lock_func_nowait(
@@ -716,7 +716,7 @@ Performance schema instrumented wrap function for
 rw_lock_x_lock_func_nowait()
 NOTE! Please use the corresponding macro rw_lock_x_lock_func(),
 not directly this function!
-@return TRUE if success */
+@return true if success */
 UNIV_INLINE
 ibool
 pfs_rw_lock_x_lock_func_nowait(
@@ -840,7 +840,7 @@ pfs_rw_lock_sx_lock_func(
 Performance schema instrumented wrap function for rw_lock_s_lock_func()
 NOTE! Please use the corresponding macro rw_lock_s_lock(), not
 directly this function!
-@return TRUE if success */
+@return true if success */
 UNIV_INLINE
 ibool
 pfs_rw_lock_s_lock_low(
@@ -879,7 +879,7 @@ pfs_rw_lock_s_lock_low(
 Performance schema instrumented wrap function for rw_lock_sx_lock_nowait()
 NOTE! Please use the corresponding macro, not
 directly this function!
-@return TRUE if success */
+@return true if success */
 UNIV_INLINE
 ibool
 pfs_rw_lock_sx_lock_low(

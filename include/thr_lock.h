@@ -32,10 +32,6 @@
 
 extern mysql_mutex_t THR_LOCK_lock;
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 struct THR_LOCK;
 
 extern ulong locks_immediate,locks_waited ;
@@ -187,7 +183,4 @@ void    thr_downgrade_write_lock(THR_LOCK_DATA *data,
                                  enum thr_lock_type new_lock_type);
 void thr_set_lock_wait_callback(void (*before_wait)(void),
                                 void (*after_wait)(void));
-#ifdef	__cplusplus
-}
-#endif
 #endif /* _thr_lock_h */

@@ -228,7 +228,7 @@ class Command_delegate {
     Get LONGLONG value from server
 
     @param value         Value received
-    @param unsigned_flag TRUE <=> value is unsigned
+    @param unsigned_flag true <=> value is unsigned
 
     @returns
     true  an error occured, server will abort the command

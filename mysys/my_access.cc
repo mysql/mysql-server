@@ -174,7 +174,7 @@ int check_if_legal_tablename(const char *name)
 
   @param drive_letter : The drive letter to validate.
  
-  @return TRUE if the drive exists, FALSE otherwise.
+  @return true if the drive exists, false otherwise.
 */
 static bool does_drive_exists(char drive_letter)
 {
@@ -193,10 +193,10 @@ static bool does_drive_exists(char drive_letter)
 
   @param name contains the file name with or without path
   @param length contains the length of file name
-  @param allow_current_dir TRUE if paths like C:foobar are allowed, 
-                           FALSE otherwise
+  @param allow_current_dir true if paths like C:foobar are allowed, 
+                           false otherwise
  
-  @return TRUE if the file name is allowed, FALSE otherwise.
+  @return true if the file name is allowed, false otherwise.
 */
 bool is_filename_allowed(const char *name MY_ATTRIBUTE((unused)),
                          size_t length MY_ATTRIBUTE((unused)),
@@ -223,7 +223,7 @@ bool is_filename_allowed(const char *name MY_ATTRIBUTE((unused)),
               does_drive_exists(*name));
     }
   }
-  return TRUE;
+  return true;
 } /* is_filename_allowed */
 #endif  /* _WIN32 */
 
@@ -250,7 +250,7 @@ int check_if_legal_filename(const char *path)
   const char **reserved_name;
   DBUG_ENTER("check_if_legal_filename");
 
-  if (!is_filename_allowed(path, strlen(path), TRUE))
+  if (!is_filename_allowed(path, strlen(path), true))
     DBUG_RETURN(1);
 
   path+= dirname_length(path);                  /* To start of filename */

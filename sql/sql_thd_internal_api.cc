@@ -312,7 +312,7 @@ bool is_mysql_datadir_path(const char *path)
                                              path_len,
                                              reinterpret_cast<uchar*>(mysql_data_dir),
                                              mysql_data_home_len,
-                                             TRUE);
+                                             true);
 }
 
 

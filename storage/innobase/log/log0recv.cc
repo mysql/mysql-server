@@ -59,6 +59,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "trx0rec.h"
 #include "trx0undo.h"
 #include "ut0new.h"
+
 #ifndef UNIV_HOTBACKUP
 # include "buf0rea.h"
 # include "row0merge.h"

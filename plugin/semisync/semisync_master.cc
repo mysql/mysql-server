@@ -428,18 +428,10 @@ l_end:
  ******************************************************************************/
 
 ReplSemiSyncMaster::ReplSemiSyncMaster()
-  : active_tranxs_(NULL),
-    init_done_(false),
-    reply_file_name_inited_(false),
-    reply_file_pos_(0L),
-    wait_file_name_inited_(false),
-    wait_file_pos_(0),
-    master_enabled_(false),
-    wait_timeout_(0L),
-    state_(0)
 {
-  strcpy(reply_file_name_, "");
-  strcpy(wait_file_name_, "");
+  reply_file_name_[0]= '\0';
+  wait_file_name_[0]= '\0';
+  commit_file_name_[0]= '\0';
 }
 
 int ReplSemiSyncMaster::initObject()

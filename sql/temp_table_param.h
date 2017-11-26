@@ -135,14 +135,14 @@ public:
   bool precomputed_group_by;
   bool force_copy_fields;
   /**
-    TRUE <=> don't actually create table handler when creating the result
+    true <=> don't actually create table handler when creating the result
     table. This allows range optimizer to add indexes later.
     Used for materialized derived tables/views.
     @see TABLE_LIST::update_derived_keys.
   */
   bool skip_create_table;
   /*
-    If TRUE, create_tmp_field called from create_tmp_table will convert
+    If true, create_tmp_field called from create_tmp_table will convert
     all BIT fields to 64-bit longs. This is a workaround the limitation
     that MEMORY tables cannot index BIT columns.
   */

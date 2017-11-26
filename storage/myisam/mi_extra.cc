@@ -334,7 +334,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     break;
   case HA_EXTRA_MARK_AS_LOG_TABLE:
     mysql_mutex_lock(&share->intern_lock);
-    share->is_log_table= TRUE;
+    share->is_log_table= true;
     mysql_mutex_unlock(&share->intern_lock);
     break;
   case HA_EXTRA_KEY_CACHE:

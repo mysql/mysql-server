@@ -20,9 +20,9 @@
 #include <time.h>
 #include "../keyring.cc"
 
-bool random_keys= FALSE;
+bool random_keys= false;
 bool verbose;
-bool generate_random_keys_data= FALSE;
+bool generate_random_keys_data= false;
 std::atomic<int> number_of_keys_added{0};
 int number_of_keys_fetched= 0;
 int number_of_keys_removed= 0;
@@ -49,18 +49,18 @@ void* generate(void *arg)
     strcpy(key_type, "AES");
     sprintf(user, "User#%d", key_nr);
 
-    bool result= FALSE;
+    bool result= false;
 
     if((result= mysql_key_generate(reinterpret_cast<const char*>(key_id),
                                    reinterpret_cast<const char*>(key_type),
-                                   reinterpret_cast<const char*>(user), key_len)) == FALSE)
+                                   reinterpret_cast<const char*>(user), key_len)) == false)
       ++number_of_keys_generated;
 
     if (verbose)
     {
       mysql_mutex_lock(&LOCK_verbose);
       std::cout << "Key generate " << key_id << ' ' << key_type << ' ' << user << ' ';
-      if(result==FALSE)
+      if(result==false)
         std::cout << "successfull" << std::endl;
       else
         std::cout << "failed" << std::endl;
@@ -89,7 +89,7 @@ void* store(void *arg)
       key_len= rand() % max_generated_key_length;
       key= (uchar*)my_malloc(keyring::key_memory_KEYRING, key_len, MYF(0));
       assert(key != NULL);
-      assert(my_rand_buffer(key, key_len) == FALSE);
+      assert(my_rand_buffer(key, key_len) == false);
     }
     else
     {
@@ -102,11 +102,11 @@ void* store(void *arg)
     strcpy(key_type, "AES");
     sprintf(user, "User#%d", key_nr);
 
-    bool result= FALSE;
+    bool result= false;
 
     if((result= mysql_key_store(reinterpret_cast<const char*>(key_id),
                                 reinterpret_cast<const char*>(key_type),
-                                reinterpret_cast<const char*>(user), key, key_len)) == FALSE)
+                                reinterpret_cast<const char*>(user), key, key_len)) == false)
       ++number_of_keys_added;
 
     if (generate_random_keys_data)
@@ -116,7 +116,7 @@ void* store(void *arg)
     {
       mysql_mutex_lock(&LOCK_verbose);
       std::cout << "Key store " << key_id << ' ' << key_type << ' ' << user << ' ';
-      if(result==FALSE)
+      if(result==false)
         std::cout << "successfull" << std::endl;
       else
         std::cout << "failed" << std::endl;
@@ -146,14 +146,14 @@ void* fetch(void *arg)
     void *key_data= NULL;
     size_t key_len= 0;
 
-    bool result= TRUE;
+    bool result= true;
 
     if((result= mysql_key_fetch(reinterpret_cast<const char*>(key_id), &key_type,
                                 reinterpret_cast<const char*>(user), &key_data,
-                                &key_len)) == FALSE && key_data != NULL)
+                                &key_len)) == false && key_data != NULL)
     {
       ++number_of_keys_fetched;
-      if (generate_random_keys_data == FALSE && number_of_keys_to_generate == 0)
+      if (generate_random_keys_data == false && number_of_keys_to_generate == 0)
       {
         assert(key_len == strlen(key)+1);
         assert(strcmp(reinterpret_cast<const char *>(reinterpret_cast<uchar *>(key_data)), key) == 0);
@@ -168,7 +168,7 @@ void* fetch(void *arg)
       if(key_type != NULL)
         std::cout << key_type << ' ';
       std::cout << user << ' ';
-      if(result==FALSE)
+      if(result==false)
         std::cout << "successfull" << std::endl;
       else
         std::cout << "failed" << std::endl;
@@ -196,17 +196,17 @@ void* remove(void *arg)
     sprintf(key_id, "Key#%d", key_nr);
     sprintf(user, "User#%d", key_nr);
 
-    bool result= TRUE;
+    bool result= true;
 
     if((result= mysql_key_remove(reinterpret_cast<const char*>(key_id),
-                                 reinterpret_cast<const char*>(user))) == FALSE)
+                                 reinterpret_cast<const char*>(user))) == false)
       ++number_of_keys_removed;
 
     if (verbose)
     {
       mysql_mutex_lock(&LOCK_verbose);
       std::cout << "Key remove " << key_id << ' ' << user << ' ';
-      if(result==FALSE)
+      if(result==false)
         std::cout << "successfull" << std::endl;
       else
         std::cout << "failed" << std::endl;

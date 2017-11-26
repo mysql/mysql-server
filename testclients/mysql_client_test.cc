@@ -178,7 +178,7 @@ static void test_tran_bdb()
   myheader("test_tran_bdb");
 
   /* set AUTOCOMMIT to OFF */
-  rc= mysql_autocommit(mysql, FALSE);
+  rc= mysql_autocommit(mysql, false);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS my_demo_transaction");
@@ -237,7 +237,7 @@ static void test_tran_bdb()
   mytest_r(row);
 
   mysql_free_result(result);
-  mysql_autocommit(mysql, TRUE);
+  mysql_autocommit(mysql, true);
 }
 
 
@@ -252,7 +252,7 @@ static void test_tran_innodb()
   myheader("test_tran_innodb");
 
   /* set AUTOCOMMIT to OFF */
-  rc= mysql_autocommit(mysql, FALSE);
+  rc= mysql_autocommit(mysql, false);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS my_demo_transaction");
@@ -310,7 +310,7 @@ static void test_tran_innodb()
   mytest_r(row);
 
   mysql_free_result(result);
-  mysql_autocommit(mysql, TRUE);
+  mysql_autocommit(mysql, true);
 }
 
 
@@ -1016,7 +1016,7 @@ static void test_wl4435_2()
   MYSQL_RES *rs_metadata; \
   MYSQL_FIELD *fields; \
   c_type pspv c_type_ext; \
-  bool psp_null= FALSE; \
+  bool psp_null= false; \
   \
   memset(&pspv, 0, sizeof (pspv));                \
   \
@@ -1361,7 +1361,7 @@ static void test_prepare()
 
   myheader("test_prepare");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS my_prepare");
@@ -1535,7 +1535,7 @@ static void test_double_compare()
 
   myheader("test_double_compare");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_double_compare");
@@ -1920,7 +1920,7 @@ static void test_select_direct()
 
   myheader("test_select_direct");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_select");
@@ -1960,7 +1960,7 @@ static void test_select_prepare()
 
   myheader("test_select_prepare");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_select");
@@ -2027,7 +2027,7 @@ static void test_select()
 
   myheader("test_select");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_select");
@@ -2460,7 +2460,7 @@ static void test_select_show()
 
   myheader("test_select_show");
 
-  mysql_autocommit(mysql, TRUE);
+  mysql_autocommit(mysql, true);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_show");
   myquery(rc);
@@ -2529,7 +2529,7 @@ static void test_simple_update()
 
   myheader("test_simple_update");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_update");
@@ -2607,7 +2607,7 @@ static void test_long_data()
 
   myheader("test_long_data");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_long_data");
@@ -2694,7 +2694,7 @@ static void test_long_data_str()
 
   myheader("test_long_data_str");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_long_data_str");
@@ -2787,7 +2787,7 @@ static void test_long_data_str1()
 
   myheader("test_long_data_str1");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_long_data_str");
@@ -2944,7 +2944,7 @@ static void test_long_data_bin()
 
   myheader("test_long_data_bin");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_long_data_bin");
@@ -3023,7 +3023,7 @@ static void test_simple_delete()
 
   myheader("test_simple_delete");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_simple_delete");
@@ -3106,7 +3106,7 @@ static void test_update()
 
   myheader("test_update");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_update");
@@ -4283,7 +4283,7 @@ static void test_insert()
 
   myheader("test_insert");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prep_insert");
@@ -4358,7 +4358,7 @@ static void test_prepare_resultset()
 
   myheader("test_prepare_resultset");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prepare_resultset");
@@ -4473,7 +4473,7 @@ static void test_stmt_close()
 
 
   /* set AUTOCOMMIT to ON*/
-  mysql_autocommit(lmysql, TRUE);
+  mysql_autocommit(lmysql, true);
 
   rc= mysql_query(lmysql, "SET SQL_MODE = ''");
   myquery(rc);
@@ -4573,7 +4573,7 @@ static void test_set_variable()
 
   myheader("test_set_variable");
 
-  mysql_autocommit(mysql, TRUE);
+  mysql_autocommit(mysql, true);
 
   stmt1= mysql_simple_prepare(mysql, "show variables like 'max_error_count'");
   check_stmt(stmt1);
@@ -4672,7 +4672,7 @@ static void test_func_fields()
 
   myheader("test_func_fields");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_dateformat");
@@ -5848,7 +5848,7 @@ static void test_date()
 
   myquery(rc);
 
-  bind_date_conv(5,FALSE);
+  bind_date_conv(5,false);
 }
 
 
@@ -5878,7 +5878,7 @@ static void test_date_frac()
 
   myquery(rc);
 
-  bind_date_conv(5,TRUE);
+  bind_date_conv(5,true);
 }
 
 
@@ -5900,7 +5900,7 @@ static void test_date_date()
 
   myquery(rc);
 
-  bind_date_conv(3,FALSE);
+  bind_date_conv(3,false);
 }
 
 
@@ -5922,7 +5922,7 @@ static void test_date_time()
 
   myquery(rc);
 
-  bind_date_conv(3, FALSE);
+  bind_date_conv(3, false);
 }
 
 
@@ -5944,7 +5944,7 @@ static void test_date_ts()
 
   myquery(rc);
 
-  bind_date_conv(2, FALSE);
+  bind_date_conv(2, false);
 }
 
 
@@ -5963,7 +5963,7 @@ static void test_date_dt()
                          " c2 datetime, c3 datetime, c4 date)");
   myquery(rc);
 
-  bind_date_conv(2, FALSE);
+  bind_date_conv(2, false);
 }
 
 
@@ -6500,7 +6500,7 @@ static void test_ushort_bug()
   memset(my_bind, 0, sizeof(my_bind));
   my_bind[0].buffer_type= MYSQL_TYPE_SHORT;
   my_bind[0].buffer= (void *)&short_value;
-  my_bind[0].is_unsigned= TRUE;
+  my_bind[0].is_unsigned= true;
   my_bind[0].length= &s_length;
 
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -6513,7 +6513,7 @@ static void test_ushort_bug()
 
   my_bind[3].buffer_type= MYSQL_TYPE_TINY;
   my_bind[3].buffer= (void *)&tiny_value;
-  my_bind[3].is_unsigned= TRUE;
+  my_bind[3].is_unsigned= true;
   my_bind[3].length= &t_length;
 
   rc= mysql_stmt_bind_result(stmt, my_bind);
@@ -6600,7 +6600,7 @@ static void test_sshort_bug()
 
   my_bind[3].buffer_type= MYSQL_TYPE_TINY;
   my_bind[3].buffer= (void *)&tiny_value;
-  my_bind[3].is_unsigned= TRUE;
+  my_bind[3].is_unsigned= true;
   my_bind[3].length= &t_length;
 
   rc= mysql_stmt_bind_result(stmt, my_bind);
@@ -6850,7 +6850,7 @@ static void test_set_option()
 
   myheader("test_set_option");
 
-  mysql_autocommit(mysql, TRUE);
+  mysql_autocommit(mysql, true);
 
   /* LIMIT the rows count to 2 */
   rc= mysql_query(mysql, "SET SQL_SELECT_LIMIT= 2");
@@ -6922,7 +6922,7 @@ static void test_prepare_grant()
 
   myheader("test_prepare_grant");
 
-  mysql_autocommit(mysql, TRUE);
+  mysql_autocommit(mysql, true);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_grant");
   myquery(rc);
@@ -7022,7 +7022,7 @@ static void test_decimal_bug()
 
   myheader("test_decimal_bug");
 
-  mysql_autocommit(mysql, TRUE);
+  mysql_autocommit(mysql, true);
 
   rc= mysql_query(mysql, "drop table if exists test_decimal_bug");
   myquery(rc);
@@ -7128,7 +7128,7 @@ static void test_explain_bug()
 
   myheader("test_explain_bug");
 
-  mysql_autocommit(mysql, TRUE);
+  mysql_autocommit(mysql, true);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_explain");
   myquery(rc);
@@ -7632,7 +7632,7 @@ static void test_nstmts()
 
   myheader("test_nstmts");
 
-  mysql_autocommit(mysql, TRUE);
+  mysql_autocommit(mysql, true);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_nstmts");
   myquery(rc);
@@ -9541,7 +9541,7 @@ static void test_bind_nagative()
   MYSQL_BIND      my_bind[1];
   int32           my_val= 0;
   ulong           my_length= 0L;
-  bool            my_null= FALSE;
+  bool            my_null= false;
   myheader("test_insert_select");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
@@ -9585,7 +9585,7 @@ static void test_derived()
   MYSQL_BIND      my_bind[1];
   int32           my_val= 0;
   ulong           my_length= 0L;
-  bool            my_null= FALSE;
+  bool            my_null= false;
   const char *query=
     "select count(1) from (select f.id from t1 f where f.id=?) as x";
 
@@ -10109,7 +10109,7 @@ static void test_union_param()
   MYSQL_BIND      my_bind[2];
   char            my_val[4];
   ulong           my_length= 3L;
-  bool         my_null= FALSE;
+  bool         my_null= false;
   myheader("test_union_param");
 
   my_stpcpy(my_val, "abc");
@@ -11758,7 +11758,7 @@ static void test_bug6096()
   MYSQL_FIELD *query_field_list, *stmt_field_list;
   ulong query_field_count, stmt_field_count;
   int rc;
-  bool update_max_length= TRUE;
+  bool update_max_length= true;
   uint i;
 
   myheader("test_bug6096");
@@ -12256,12 +12256,12 @@ static void test_truncation()
 
   my_bind->buffer= malloc(sizeof(uint8));
   my_bind->buffer_type= MYSQL_TYPE_TINY;
-  my_bind->is_unsigned= TRUE;
+  my_bind->is_unsigned= true;
 
   DIE_UNLESS(my_bind++ < bind_array + bind_count);
   my_bind->buffer= malloc(sizeof(uint32));
   my_bind->buffer_type= MYSQL_TYPE_LONG;
-  my_bind->is_unsigned= TRUE;
+  my_bind->is_unsigned= true;
 
   DIE_UNLESS(my_bind++ < bind_array + bind_count);
   my_bind->buffer= malloc(sizeof(int8));
@@ -12270,7 +12270,7 @@ static void test_truncation()
   DIE_UNLESS(my_bind++ < bind_array + bind_count);
   my_bind->buffer= malloc(sizeof(uint16));
   my_bind->buffer_type= MYSQL_TYPE_SHORT;
-  my_bind->is_unsigned= TRUE;
+  my_bind->is_unsigned= true;
 
   DIE_UNLESS(my_bind++ < bind_array + bind_count);
   my_bind->buffer= malloc(sizeof(int16));
@@ -12279,12 +12279,12 @@ static void test_truncation()
   DIE_UNLESS(my_bind++ < bind_array + bind_count);
   my_bind->buffer= malloc(sizeof(uint16));
   my_bind->buffer_type= MYSQL_TYPE_SHORT;
-  my_bind->is_unsigned= TRUE;
+  my_bind->is_unsigned= true;
 
   DIE_UNLESS(my_bind++ < bind_array + bind_count);
   my_bind->buffer= malloc(sizeof(int8));
   my_bind->buffer_type= MYSQL_TYPE_TINY;
-  my_bind->is_unsigned= TRUE;
+  my_bind->is_unsigned= true;
 
   DIE_UNLESS(my_bind++ < bind_array + bind_count);
   my_bind->buffer= malloc(sizeof(float));
@@ -12305,7 +12305,7 @@ static void test_truncation()
   DIE_UNLESS(my_bind++ < bind_array + bind_count);
   my_bind->buffer= malloc(sizeof(ulonglong));
   my_bind->buffer_type= MYSQL_TYPE_LONGLONG;
-  my_bind->is_unsigned= TRUE;
+  my_bind->is_unsigned= true;
 
   DIE_UNLESS(my_bind++ < bind_array + bind_count);
   my_bind->buffer= malloc(sizeof(longlong));
@@ -12458,7 +12458,7 @@ static void test_truncation_option()
 
   my_bind.buffer= (void*) &buf;
   my_bind.buffer_type= MYSQL_TYPE_TINY;
-  my_bind.is_unsigned= TRUE;
+  my_bind.is_unsigned= true;
   my_bind.error= &error;
 
   rc= mysql_stmt_bind_result(stmt, &my_bind);
@@ -13859,7 +13859,7 @@ static void test_bug10760()
     rc= mysql_query(mysql, buf);
     myquery(rc);
   }
-  mysql_autocommit(mysql, FALSE);
+  mysql_autocommit(mysql, false);
   /* create statement */
   stmt= mysql_stmt_init(mysql);
   type= (ulong) CURSOR_TYPE_READ_ONLY;
@@ -13929,7 +13929,7 @@ static void test_bug10760()
   mysql_stmt_close(stmt);
   rc= mysql_query(mysql, "drop table t1");
   myquery(rc);
-  mysql_autocommit(mysql, TRUE);                /* restore default */
+  mysql_autocommit(mysql, true);                /* restore default */
 }
 
 static void test_bug12001()
@@ -14318,7 +14318,7 @@ static void test_bug12243()
   mysql_query(mysql, "create table t1 (a int) engine=InnoDB");
   rc= mysql_query(mysql, "insert into t1 (a) values (1), (2)");
   myquery(rc);
-  mysql_autocommit(mysql, FALSE);
+  mysql_autocommit(mysql, false);
   /* create statement */
   stmt1= mysql_stmt_init(mysql);
   stmt2= mysql_stmt_init(mysql);
@@ -14352,7 +14352,7 @@ static void test_bug12243()
   mysql_stmt_close(stmt2);
   rc= mysql_query(mysql, "drop table t1");
   myquery(rc);
-  mysql_autocommit(mysql, TRUE);                /* restore default */
+  mysql_autocommit(mysql, true);                /* restore default */
 }
 
 
@@ -14669,7 +14669,7 @@ static void test_bug15510()
 static void test_opt_reconnect()
 {
   MYSQL *lmysql;
-  bool my_true= TRUE;
+  bool my_true= true;
 
   myheader("test_opt_reconnect");
 
@@ -17482,7 +17482,7 @@ static void test_wl4284_1()
   myheader("test_wl4284_1");
 
   /* set AUTOCOMMIT to OFF */
-  rc= mysql_autocommit(mysql, FALSE);
+  rc= mysql_autocommit(mysql, false);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS trans");
@@ -17512,7 +17512,7 @@ static void test_wl4284_1()
   mysql_free_result(result);
 
   /* set AUTOCOMMIT to ON */
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE trans");
@@ -17783,7 +17783,7 @@ static void test_bug36326()
   DBUG_ENTER("test_bug36326");
   myheader("test_bug36326");
 
-  rc= mysql_autocommit(mysql, TRUE);
+  rc= mysql_autocommit(mysql, true);
   myquery(rc);
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
   myquery(rc);
@@ -18344,7 +18344,7 @@ static void test_bug49972()
   MYSQL_BIND in_param_bind;
   MYSQL_BIND out_param_bind;
   int int_data= 0;
-  bool is_null= FALSE;
+  bool is_null= false;
 
   DBUG_ENTER("test_bug49972");
   myheader("test_bug49972");
@@ -18992,7 +18992,7 @@ static void test_wl6587()
   l_mysql= mysql_client_init(NULL);
   DIE_UNLESS(l_mysql != NULL);
 
-  can= TRUE;
+  can= true;
   rc= mysql_options(l_mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &can);
   DIE_UNLESS(rc == 0);
 
@@ -19013,7 +19013,7 @@ static void test_wl6587()
   l_mysql= mysql_client_init(NULL);
   DIE_UNLESS(l_mysql != NULL);
 
-  can= FALSE;
+  can= false;
   rc= mysql_options(l_mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &can);
   DIE_UNLESS(rc == 0);
 
@@ -19024,7 +19024,7 @@ static void test_wl6587()
   DIE_UNLESS(l_mysql != 0);
 
   rc= mysql_change_user(l_mysql, "wl6587_cli", "wl6587", "test");
-  DIE_UNLESS(rc == TRUE);
+  DIE_UNLESS(rc == true);
 
   mysql_close(l_mysql);
 
@@ -19294,7 +19294,7 @@ static void test_wl6791()
 
   for (idx= 0; idx < sizeof(bool_opts) / sizeof(enum mysql_option); idx++)
   {
-    bool opt_before = TRUE, opt_after = FALSE;
+    bool opt_before = true, opt_after = false;
 
     if (!opt_silent)
       fprintf(stdout, "testing bool option #%d (%d)\n", idx,
@@ -20465,7 +20465,7 @@ static void test_mysql_binlog()
   MYSQL *mysql1, *mysql2;
   MYSQL_RPL rpl1, rpl2;
   const char *binlog_name= "mysql-binlog.000001";
-  bool reconnect= TRUE;
+  bool reconnect= true;
 
   myheader("test_mysql_binlog");
 
@@ -20710,13 +20710,13 @@ static void perform_query(MYSQL *mysql1, const char *query, bool store_result, b
 
 static void perform_no_metadata_query(MYSQL *mysql1, const char *query, bool store_result)
 {
-  perform_query(mysql1, query, store_result, FALSE);
+  perform_query(mysql1, query, store_result, false);
 }
 
 
 static void perform_metadata_query(MYSQL *mysql1, const char *query, bool store_result)
 {
-  perform_query(mysql1, query, store_result, TRUE);
+  perform_query(mysql1, query, store_result, true);
 }
 
 
@@ -20758,14 +20758,14 @@ static void test_skip_metadata()
 {
   int rc;
   MYSQL *mysql1;
-  bool optional_resultset_metadata= TRUE;
-  bool get_optional_resultset_metadata= FALSE;
+  bool optional_resultset_metadata= true;
+  bool get_optional_resultset_metadata= false;
   MYSQL_RES *result;
 
   myheader("test_skip_metadata");
 
   /* Check default resultset_metadata value. */
-  perform_metadata_query(mysql, "SELECT @@resultset_metadata", TRUE);
+  perform_metadata_query(mysql, "SELECT @@resultset_metadata", true);
 
   /* Check if we can set it to FULL. */
   rc= mysql_query(mysql, "SET @@session.resultset_metadata=FULL");
@@ -20807,7 +20807,7 @@ static void test_skip_metadata()
 
  /* Check MYSQL_OPT_OPTIONAL_RESULTSET_METADATA option. */
   mysql_get_option(mysql1, MYSQL_OPT_OPTIONAL_RESULTSET_METADATA, &get_optional_resultset_metadata);
-  DIE_UNLESS(get_optional_resultset_metadata == TRUE);
+  DIE_UNLESS(get_optional_resultset_metadata == true);
 
   mysql_close(mysql1);
 
@@ -20831,7 +20831,7 @@ static void test_skip_metadata()
   }
 
   /* Check default resultset_metadata value. */
-  perform_metadata_query(mysql1, "SELECT @@resultset_metadata", TRUE);
+  perform_metadata_query(mysql1, "SELECT @@resultset_metadata", true);
 
   /* Check if we can set resultset_metadata to wrong value. */
   rc= mysql_query(mysql1, "SET @@session.resultset_metadata=XXX");
@@ -20860,16 +20860,16 @@ static void test_skip_metadata()
   mysql_free_result(result);
 
   /* Test different datasets using mysql_store_result()/mysql_use_result(). */
-  perform_no_metadata_query(mysql1, "SELECT @@resultset_metadata", TRUE);
-  perform_no_metadata_query(mysql1, "SELECT 1", FALSE);
-  perform_no_metadata_query(mysql1, "SELECT 1/0", FALSE);
+  perform_no_metadata_query(mysql1, "SELECT @@resultset_metadata", true);
+  perform_no_metadata_query(mysql1, "SELECT 1", false);
+  perform_no_metadata_query(mysql1, "SELECT 1/0", false);
   DIE_IF(mysql_query(mysql1, "DROP TABLE IF EXISTS t"));
   DIE_IF(mysql_query(mysql1, "CREATE TABLE t(a INT, b varchar(20))"));
   DIE_IF(mysql_query(mysql1, "INSERT INTO t VALUES (0, '00'), (1, '01'), (100, '0100')"));
-  perform_no_metadata_query(mysql1, "SELECT * FROM t", TRUE);
-  perform_no_metadata_query(mysql1, "SELECT a FROM t", FALSE);
-  perform_no_metadata_query(mysql1, "SELECT b FROM t", TRUE);
-  perform_no_metadata_query(mysql1, "SELECT b, a FROM t", FALSE);
+  perform_no_metadata_query(mysql1, "SELECT * FROM t", true);
+  perform_no_metadata_query(mysql1, "SELECT a FROM t", false);
+  perform_no_metadata_query(mysql1, "SELECT b FROM t", true);
+  perform_no_metadata_query(mysql1, "SELECT b, a FROM t", false);
 
   /* Tests for prepare statements. */
   perform_no_metadata_stmt(mysql1, "SELECT 1", 0 , 1);
@@ -20886,14 +20886,14 @@ static void test_skip_metadata()
                      "  SELECT 1, 2, 3; "
                      "  SELECT * FROM t; "
                      "END"));
-  perform_no_metadata_query(mysql1, "CALL p()", TRUE);
-  perform_no_metadata_query(mysql1, "CALL p()", FALSE);
+  perform_no_metadata_query(mysql1, "CALL p()", true);
+  perform_no_metadata_query(mysql1, "CALL p()", false);
 
   /* Set resultset_metadata back to FULL. */
   DIE_IF(mysql_query(mysql1, "SET @@session.resultset_metadata=FULL"));
 
   /* Check it's value */
-  perform_metadata_query(mysql1, "SELECT @@resultset_metadata", TRUE);
+  perform_metadata_query(mysql1, "SELECT @@resultset_metadata", true);
 
   /* Test mysql_result_metadata(). */
   DIE_IF(mysql_query(mysql1, "SELECT 1, 2, 3"));
@@ -20903,14 +20903,14 @@ static void test_skip_metadata()
   mysql_free_result(result);
 
   /* Test different datasets again. */
-  perform_metadata_query(mysql1, "SELECT 1", FALSE);
-  perform_metadata_query(mysql1, "SELECT 1/0", TRUE);
-  perform_metadata_query(mysql1, "SELECT * FROM t", FALSE);
-  perform_metadata_query(mysql1, "SELECT a FROM t", TRUE);
-  perform_metadata_query(mysql1, "SELECT b FROM t", FALSE);
-  perform_metadata_query(mysql1, "SELECT b, a FROM t", TRUE);
-  perform_metadata_query(mysql1, "CALL p()", TRUE);
-  perform_metadata_query(mysql1, "CALL p()", FALSE);
+  perform_metadata_query(mysql1, "SELECT 1", false);
+  perform_metadata_query(mysql1, "SELECT 1/0", true);
+  perform_metadata_query(mysql1, "SELECT * FROM t", false);
+  perform_metadata_query(mysql1, "SELECT a FROM t", true);
+  perform_metadata_query(mysql1, "SELECT b FROM t", false);
+  perform_metadata_query(mysql1, "SELECT b, a FROM t", true);
+  perform_metadata_query(mysql1, "CALL p()", true);
+  perform_metadata_query(mysql1, "CALL p()", false);
 
   /* Cleanup. */
   DIE_IF(mysql_query(mysql1, "DROP TABLE t"));

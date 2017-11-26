@@ -51,8 +51,8 @@ void Blocked_transaction_handler::unblock_waiting_transactions()
     memset(&transaction_termination_ctx,
            0, sizeof(transaction_termination_ctx));
     transaction_termination_ctx.m_thread_id= thread_id;
-    transaction_termination_ctx.m_rollback_transaction= TRUE;
-    transaction_termination_ctx.m_generated_gtid= FALSE;
+    transaction_termination_ctx.m_rollback_transaction= true;
+    transaction_termination_ctx.m_generated_gtid= false;
     transaction_termination_ctx.m_sidno= -1;
     transaction_termination_ctx.m_gno= -1;
     if (set_transaction_ctx(transaction_termination_ctx) ||

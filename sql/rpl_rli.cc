@@ -183,7 +183,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   ign_master_log_name_end[0]= 0;
   set_timespec_nsec(&last_clock, 0);
   cached_charset_invalidate();
-  inited_hash_workers= FALSE;
+  inited_hash_workers= false;
   commit_timestamps_status= COMMIT_TS_UNKNOWN;
 
   if (!rli_fake)
@@ -316,7 +316,7 @@ void Relay_log_info::reset_notified_relay_log_change()
   for (Slave_worker **it= workers.begin(); it != workers.end(); ++it)
   {
     Slave_worker *w= *it;
-    w->relay_log_change_notified= FALSE;
+    w->relay_log_change_notified= false;
   }
 }
 
@@ -359,7 +359,7 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
       The worker when assigning a new job will set the value back to
       zero.
     */
-    w->checkpoint_notified= FALSE;
+    w->checkpoint_notified= false;
     w->bitmap_shifted= w->bitmap_shifted + shift;
     /*
       Zero shift indicates the caller rotates the master binlog.
@@ -1371,7 +1371,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
       else
         log_index_name= 0;
 
-      if (relay_log.open_index_file(log_index_name, ln, TRUE))
+      if (relay_log.open_index_file(log_index_name, ln, true))
       {
         sql_print_error("Unable to purge relay log files. Failed to open relay "
                         "log index file:%s.", relay_log.get_index_fname());
@@ -1716,7 +1716,7 @@ void Relay_log_info::clear_tables_to_lock()
     if (tables_to_lock->m_tabledef_valid)
     {
       tables_to_lock->m_tabledef.table_def::~table_def();
-      tables_to_lock->m_tabledef_valid= FALSE;
+      tables_to_lock->m_tabledef_valid= false;
     }
 
     /*
@@ -1782,8 +1782,8 @@ void Relay_log_info::slave_close_thread_tables(THD *thd)
   @param thd Pointer to THD object for the client thread executing the
   statement.
 
-  @retval FALSE success
-  @retval TRUE failure
+  @retval false success
+  @retval true failure
 */
 bool mysql_show_relaylog_events(THD* thd)
 {
@@ -1993,7 +1993,7 @@ int Relay_log_info::rli_init_info()
 
 
 
-    if (relay_log.open_index_file(log_index_name, ln, TRUE))
+    if (relay_log.open_index_file(log_index_name, ln, true))
     {
       LogErr(ERROR_LEVEL, ER_RPL_OPEN_INDEX_FILE_FAILED);
       DBUG_RETURN(1);
@@ -2145,7 +2145,7 @@ int Relay_log_info::rli_init_info()
 
   inited= 1;
   error_on_rli_init_info= false;
-  if (flush_info(TRUE))
+  if (flush_info(true))
   {
     msg= "Error reading relay log configuration";
     error= 1;
@@ -2164,7 +2164,7 @@ int Relay_log_info::rli_init_info()
     load_mi_and_rli_from_repositories.
   */
   if (!mi->rli->mts_recovery_group_cnt)
-    is_relay_log_recovery= FALSE;
+    is_relay_log_recovery= false;
   DBUG_RETURN(error);
 
 err:
@@ -2377,7 +2377,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
   if (from->prepare_info_for_read() ||
       from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
                      (char *) ""))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   lines= strtoul(group_relay_log_name, &first_non_digit, 10);
 
@@ -2387,7 +2387,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
     /* Seems to be new format => read group relay log name */
     if (from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
                        (char *) ""))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
   else
      DBUG_PRINT("info", ("relay_log_info file is in old format."));
@@ -2399,31 +2399,31 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
                      (char *) "") ||
       from->get_info(&temp_group_master_log_pos,
                      0UL))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY)
   {
     if (from->get_info(&temp_sql_delay, 0))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_WORKERS)
   {
     if (from->get_info(&recovery_parallel_workers, 0UL))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_ID)
   {
     if (from->get_info(&temp_internal_id, 1))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL)
   {
     /* the default value is empty string"" */
     if (from->get_info(channel, sizeof(channel), (char*)""))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   group_relay_log_pos=  temp_group_relay_log_pos;
@@ -2433,7 +2433,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
 
   DBUG_ASSERT(lines < LINES_IN_RELAY_LOG_INFO_WITH_ID ||
              (lines >= LINES_IN_RELAY_LOG_INFO_WITH_ID && internal_id == 1));
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 bool Relay_log_info::set_info_search_keys(Rpl_info_handler *to)
@@ -2441,9 +2441,9 @@ bool Relay_log_info::set_info_search_keys(Rpl_info_handler *to)
   DBUG_ENTER("Relay_log_info::set_info_search_keys");
 
   if (to->set_info(LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL, channel))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -2467,9 +2467,9 @@ bool Relay_log_info::write_info(Rpl_info_handler *to)
       to->set_info(recovery_parallel_workers) ||
       to->set_info((int) internal_id) ||
       to->set_info(channel))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**

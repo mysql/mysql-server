@@ -82,7 +82,7 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
   DBUG_ENTER("Sql_cmd_alter_table_exchange_partition::execute");
 
   if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /* also check the table to be exchanged with the partition */
   DBUG_ASSERT(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION);
@@ -95,10 +95,10 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
                    &first_table->next_local->grant.privilege,
                    &first_table->next_local->grant.m_internal,
                    0, 0))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  if (check_grant(thd, priv_needed, first_table, FALSE, UINT_MAX, FALSE))
-    DBUG_RETURN(TRUE);
+  if (check_grant(thd, priv_needed, first_table, false, UINT_MAX, false))
+    DBUG_RETURN(true);
 
   /* Not allowed with EXCHANGE PARTITION */
   DBUG_ASSERT(!create_info.data_file_name && !create_info.index_file_name);
@@ -113,7 +113,7 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
   @param table      Non partitioned table.
   @param part_table Partitioned table.
 
-  @retval FALSE if OK, otherwise error is reported and TRUE is returned.
+  @retval false if OK, otherwise error is reported and true is returned.
 */
 static bool check_exchange_partition(TABLE *table, TABLE *part_table)
 {
@@ -123,33 +123,33 @@ static bool check_exchange_partition(TABLE *table, TABLE *part_table)
   if (!part_table || !table)
   {
     my_error(ER_CHECK_NO_SUCH_TABLE, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /* The first table must be partitioned, and the second must not */
   if (!part_table->part_info)
   {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   if (table->part_info)
   {
     my_error(ER_PARTITION_EXCHANGE_PART_TABLE, MYF(0),
              table->s->table_name.str);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (!part_table->file->ht->partition_flags ||
       !(part_table->file->ht->partition_flags() & HA_CAN_EXCHANGE_PARTITION))
   {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (table->file->ht != part_table->part_info->default_engine_type)
   {
     my_error(ER_MIX_HANDLER_ERROR, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /* Verify that table is not tmp table, partitioned tables cannot be tmp. */
@@ -157,7 +157,7 @@ static bool check_exchange_partition(TABLE *table, TABLE *part_table)
   {
     my_error(ER_PARTITION_EXCHANGE_TEMP_TABLE, MYF(0),
              table->s->table_name.str);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /* The table cannot have foreign keys constraints or be referenced */
@@ -165,9 +165,9 @@ static bool check_exchange_partition(TABLE *table, TABLE *part_table)
   {
     my_error(ER_PARTITION_EXCHANGE_FOREIGN_KEY, MYF(0),
              table->s->table_name.str);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -220,7 +220,7 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
                                 &part_alter_info, &part_alter_ctx))
   {
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /*
@@ -249,14 +249,14 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
                            &metadata_equal))
   {
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   DEBUG_SYNC(thd, "swap_partition_after_compare_tables");
   if (!metadata_equal)
   {
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   DBUG_ASSERT(table->s->db_create_options ==
               part_table->s->db_create_options);
@@ -267,21 +267,21 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   {
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
              "AVG_ROW_LENGTH");
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (table_create_info.table_options != part_create_info.table_options)
   {
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
              "TABLE OPTION");
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (table->s->table_charset != part_table->s->table_charset)
   {
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
              "CHARACTER SET");
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /*
@@ -291,9 +291,9 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
     the frm file and then use EXCHANGE PARTITION when they are the same.
   */
   if (compare_partition_options(&table_create_info, part_elem))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -342,7 +342,7 @@ bool Sql_cmd_alter_table_exchange_partition::
   if (query_logger.check_if_log_table(swap_table_list, false))
   {
     my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /*
@@ -370,7 +370,7 @@ bool Sql_cmd_alter_table_exchange_partition::
   swap_table= swap_table_list->table;
 
   if (check_exchange_partition(swap_table, part_table))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /* set lock pruning on first table */
   partition_name= alter_info->partition_names.head();
@@ -413,18 +413,18 @@ bool Sql_cmd_alter_table_exchange_partition::
   {
     my_error(ER_UNKNOWN_PARTITION, MYF(0), partition_name->c_ptr(),
              part_table->alias);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (swap_part_id == NOT_A_PARTITION_ID)
   {
     DBUG_ASSERT(part_table->part_info->is_sub_partitioned());
     my_error(ER_PARTITION_INSTEAD_OF_SUBPARTITION, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (compare_table_with_partition(thd, swap_table, part_table, part_elem))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /* Table and partition has same structure/options */
 
@@ -669,7 +669,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   */
 
   if (check_one_table_access(thd, DROP_ACL, first_table))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   if (open_tables(thd, &first_table, &table_counter, 0))
     DBUG_RETURN(true);
@@ -712,10 +712,10 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   */
   MDL_ticket *ticket= first_table->table->mdl_ticket;
   if (thd->mdl_context.upgrade_shared_lock(ticket, MDL_EXCLUSIVE, timeout))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN, first_table->db,
-                   first_table->table_name, FALSE);
+                   first_table->table_name, false);
 
   /* Invoke the handler method responsible for truncating the partition. */
   if ((error= part_handler->truncate_partition(table_def)))

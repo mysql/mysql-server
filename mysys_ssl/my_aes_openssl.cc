@@ -216,8 +216,8 @@ int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
   my_aes_needs_iv()
   @param opmode           encryption mode
 
-  @retval TRUE   IV needed
-  @retval FALSE  IV not needed
+  @retval true   IV needed
+  @retval false  IV not needed
 */
 
 bool my_aes_needs_iv(my_aes_opmode opmode)
@@ -227,6 +227,6 @@ bool my_aes_needs_iv(my_aes_opmode opmode)
 
   iv_length= EVP_CIPHER_iv_length(cipher);
   DBUG_ASSERT(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
-  return iv_length != 0 ? TRUE : FALSE;
+  return iv_length != 0 ? true : false;
 }
 

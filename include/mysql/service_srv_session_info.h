@@ -33,11 +33,7 @@
 #include <stdint.h>              /* uint16_t */
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern struct srv_session_info_service_st {
+extern "C" struct srv_session_info_service_st {
   MYSQL_THD (*get_thd)(MYSQL_SESSION session);
 
   my_thread_id (*get_session_id)(MYSQL_SESSION session);
@@ -167,9 +163,5 @@ unsigned int srv_session_info_session_count();
 unsigned int srv_session_info_thread_count(const void *plugin);
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
 
 #endif /* MYSQL_SERVICE_SRV_SESSION_INFO_INCLUDED */

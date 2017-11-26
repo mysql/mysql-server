@@ -795,11 +795,28 @@ using fil_faddr_t = byte;
 /** File space address */
 struct fil_addr_t {
 
-	/** Page number within a space */
-	page_no_t	page;
+	/* Default constructor */
+	fil_addr_t() : page(FIL_NULL), boffset(0) {}
 
-	/** Byte offset within the page */
-	ulint		boffset;
+	/** Constructor
+	@param[in]	p	Logical page number
+	@param[in]	boff	Offset within the page */
+	fil_addr_t(page_no_t p, uint32_t boff) : page(p), boffset(boff) {}
+
+	/** Compare to instances
+	@param[in]	rhs	Instance to compare with
+	@return true if the page number and page offset are equal */
+	bool is_equal(const fil_addr_t& rhs) const
+	{
+		return(page == rhs.page && boffset == rhs.boffset);
+	}
+
+	/** Check if the file address is null.
+	@return true if null */
+	bool is_null() const
+	{
+		return(page == FIL_NULL && boffset == 0);
+	}
 
 	/** Print a string representation.
 	@param[in,out]	out		Stream to write to */
@@ -811,6 +828,12 @@ struct fil_addr_t {
 
 		return(out);
 	}
+
+	/** Page number within a space */
+	page_no_t	page;
+
+	/** Byte offset within the page */
+	uint32_t	boffset;
 };
 
 /* For printing fil_addr_t to a stream.
@@ -897,15 +920,39 @@ constexpr page_type_t FIL_PAGE_SDI_BLOB = 18;
 /** Commpressed SDI BLOB page */
 constexpr page_type_t FIL_PAGE_SDI_ZBLOB = 19;
 
-/** Independently compressed LOB page*/
-constexpr page_type_t FIL_PAGE_TYPE_ZBLOB3 = 20;
+/** Available for future use */
+constexpr page_type_t FIL_PAGE_TYPE_UNUSED = 20;
 
 /** Rollback Segment Array page */
 constexpr page_type_t FIL_PAGE_TYPE_RSEG_ARRAY = 21;
 
+/** Index pages of uncompressed LOB */
+constexpr page_type_t FIL_PAGE_TYPE_LOB_INDEX = 22;
+
+/** Data pages of uncompressed LOB */
+constexpr page_type_t FIL_PAGE_TYPE_LOB_DATA = 23;
+
+/** The first page of an uncompressed LOB */
+constexpr page_type_t FIL_PAGE_TYPE_LOB_FIRST = 24;
+
+/** The first page of a compressed LOB */
+constexpr page_type_t FIL_PAGE_TYPE_ZLOB_FIRST = 25;
+
+/** Data pages of compressed LOB */
+constexpr page_type_t FIL_PAGE_TYPE_ZLOB_DATA = 26;
+
+/** Index pages of compressed LOB. This page contains an array of
+z_index_entry_t objects.*/
+constexpr page_type_t FIL_PAGE_TYPE_ZLOB_INDEX = 27;
+
+/** Fragment pages of compressed LOB. */
+constexpr page_type_t FIL_PAGE_TYPE_ZLOB_FRAG = 28;
+
+/** Index pages of fragment pages (compressed LOB). */
+constexpr page_type_t FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY = 29;
+
 /** Used by i_s.cc to index into the text description. */
-constexpr page_type_t FIL_PAGE_TYPE_LAST = FIL_PAGE_TYPE_RSEG_ARRAY;
-/* @} */
+constexpr page_type_t FIL_PAGE_TYPE_LAST = FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY;
 
 /** Check whether the page type is index (Btree or Rtree or SDI) type */
 #define fil_page_type_is_index(page_type)                          \

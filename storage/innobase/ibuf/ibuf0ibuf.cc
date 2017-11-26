@@ -1077,7 +1077,7 @@ ibuf_update_free_bits_for_two_pages_low(
 /** Returns TRUE if the page is one of the fixed address ibuf pages.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
-@return TRUE if a fixed address ibuf i/o page */
+@return true if a fixed address ibuf i/o page */
 UNIV_INLINE
 ibool
 ibuf_fixed_addr_page(
@@ -1100,7 +1100,7 @@ bitmap page)
 @param[in,out]	mtr		mtr which will contain an x-latch to the
 bitmap page if the page is not one of the fixed address ibuf pages, or NULL,
 in which case a new transaction is created.
-@return TRUE if level 2 or level 3 page */
+@return true if level 2 or level 3 page */
 ibool
 ibuf_page_low(
 	const page_id_t&	page_id,
@@ -1950,7 +1950,7 @@ ibuf_search_tuple_build(
 /*********************************************************************//**
 Checks if there are enough pages in the free list of the ibuf tree that we
 dare to start a pessimistic insert to the insert buffer.
-@return TRUE if enough free pages in list */
+@return true if enough free pages in list */
 UNIV_INLINE
 ibool
 ibuf_data_enough_free_for_insert(void)
@@ -1970,7 +1970,7 @@ ibuf_data_enough_free_for_insert(void)
 /*********************************************************************//**
 Checks if there are enough pages in the free list of the ibuf tree that we
 should remove them and free to the file space management.
-@return TRUE if enough free pages in list */
+@return true if enough free pages in list */
 UNIV_INLINE
 ibool
 ibuf_data_too_much_free(void)
@@ -1984,7 +1984,7 @@ ibuf_data_too_much_free(void)
 /*********************************************************************//**
 Allocates a new page from the ibuf file segment and adds it to the free
 list.
-@return TRUE on success, FALSE if no space left */
+@return true on success, false if no space left */
 static
 ibool
 ibuf_add_free_page(void)
@@ -2773,7 +2773,7 @@ ibuf_contract_after_insert(
 
 /*********************************************************************//**
 Determine if an insert buffer record has been encountered already.
-@return TRUE if a new record, FALSE if possible duplicate */
+@return true if a new record, false if possible duplicate */
 static
 ibool
 ibuf_get_volume_buffered_hash(
@@ -3670,7 +3670,7 @@ is clustered or unique.
 @param[in]	page_id		page id where to insert
 @param[in]	page_size	page size
 @param[in,out]	thr		query thread
-@return TRUE if success */
+@return true if success */
 ibool
 ibuf_insert(
 	ibuf_op_t		op,
@@ -4221,7 +4221,7 @@ ibuf_delete(
 
 /*********************************************************************//**
 Restores insert buffer tree cursor position
-@return TRUE if the position was restored; FALSE if not */
+@return true if the position was restored; false if not */
 static
 ibool
 ibuf_restore_pos(
@@ -4273,7 +4273,7 @@ ibuf_restore_pos(
 Deletes from ibuf the record on which pcur is positioned. If we have to
 resort to a pessimistic delete, this function commits mtr and closes
 the cursor.
-@return TRUE if mtr was committed and pcur closed in this operation */
+@return true if mtr was committed and pcur closed in this operation */
 static MY_ATTRIBUTE((warn_unused_result))
 ibool
 ibuf_delete_rec(
@@ -4376,7 +4376,7 @@ ibuf_delete_rec(
 	root = ibuf_tree_root_get(mtr);
 
 	btr_cur_pessimistic_delete(&err, TRUE, btr_pcur_get_btr_cur(pcur), 0,
-				   false, mtr);
+				   false, 0, 0, 0, mtr);
 	ut_a(err == DB_SUCCESS);
 
 #ifdef UNIV_IBUF_COUNT_DEBUG

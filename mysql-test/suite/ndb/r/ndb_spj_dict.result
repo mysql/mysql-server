@@ -97,9 +97,9 @@ Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`
 alter table child algorithm=inplace, rename to child_orig;
 commit;
 alter table child_orig rename to child;
-======================================*=====================
+============================================================
 OFFLINE ALTER: Rename table to make it go away - temporarily
-==========================================*=================
+============================================================
 explain select straight_join count(*) 
 from parent join child
 on child.a = parent.a and child.b = parent.b

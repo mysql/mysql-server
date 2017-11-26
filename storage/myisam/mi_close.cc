@@ -115,7 +115,7 @@ int mi_close_share(register MI_INFO *info, bool *closed_share)
     }
     my_free(info->s);
     if (closed_share)
-      *closed_share= TRUE;
+      *closed_share= true;
   }
   if (info->open_list.data)
     mysql_mutex_unlock(&THR_LOCK_myisam);

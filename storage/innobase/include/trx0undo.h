@@ -37,7 +37,7 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
 Returns TRUE if the roll pointer is of the insert type.
-@return TRUE if insert undo log */
+@return true if insert undo log */
 UNIV_INLINE
 ibool
 trx_undo_roll_ptr_is_insert(
@@ -176,6 +176,7 @@ trx_undo_get_next_rec(
 	mtr_t*		mtr);	/*!< in: mtr */
 
 /** Gets the first record in an undo log.
+@param[out]	modifier_trx_id	the modifier trx identifier.
 @param[in]	space		undo log header space
 @param[in]	page_size	page size
 @param[in]	page_no		undo log header page number
@@ -185,6 +186,7 @@ trx_undo_get_next_rec(
 @return undo log record, the page latched, NULL if none */
 trx_undo_rec_t*
 trx_undo_get_first_rec(
+	trx_id_t*		modifier_trx_id,
 	space_id_t		space,
 	const page_size_t&	page_size,
 	page_no_t		page_no,

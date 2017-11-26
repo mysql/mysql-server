@@ -44,7 +44,7 @@ ibool	buf_dblwr_being_created = FALSE;
 
 /****************************************************************//**
 Determines if a page number is located inside the doublewrite buffer.
-@return TRUE if the location is inside the two blocks of the
+@return true if the location is inside the two blocks of the
 doublewrite buffer */
 ibool
 buf_dblwr_page_inside(
@@ -931,9 +931,16 @@ buf_dblwr_check_block(
 	case FIL_PAGE_TYPE_BLOB:
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
-	case FIL_PAGE_TYPE_ZBLOB3:
 	case FIL_PAGE_SDI_BLOB:
 	case FIL_PAGE_SDI_ZBLOB:
+	case FIL_PAGE_TYPE_LOB_INDEX:
+	case FIL_PAGE_TYPE_LOB_DATA:
+	case FIL_PAGE_TYPE_LOB_FIRST:
+	case FIL_PAGE_TYPE_ZLOB_FIRST:
+	case FIL_PAGE_TYPE_ZLOB_DATA:
+	case FIL_PAGE_TYPE_ZLOB_INDEX:
+	case FIL_PAGE_TYPE_ZLOB_FRAG:
+	case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
 	case FIL_PAGE_TYPE_RSEG_ARRAY:
 		/* TODO: validate also non-index pages */
 		return;

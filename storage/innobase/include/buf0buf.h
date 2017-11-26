@@ -341,7 +341,7 @@ with care. */
 /********************************************************************//**
 This is the general function used to get optimistic access to a database
 page.
-@return TRUE if success */
+@return true if success */
 ibool
 buf_page_optimistic_get(
 /*====================*/
@@ -354,7 +354,7 @@ buf_page_optimistic_get(
 /********************************************************************//**
 This is used to get access to a known database page, when no waiting can be
 done.
-@return TRUE if success */
+@return true if success */
 ibool
 buf_page_get_known_nowait(
 /*======================*/
@@ -487,7 +487,7 @@ buf_page_make_young(
 NOTE that it is possible that the page is not yet read from disk,
 though.
 @param[in]	page_id	page id
-@return TRUE if found in the page hash table */
+@return true if found in the page hash table */
 UNIV_INLINE
 ibool
 buf_page_peek(
@@ -540,7 +540,7 @@ the LRU list meaning that it is not in danger of getting evicted and also
 implying that it has been accessed recently.
 The page must be either buffer-fixed, either its page hash must be locked.
 @param[in]	bpage	block
-@return TRUE if block is close to MRU end of LRU */
+@return true if block is close to MRU end of LRU */
 UNIV_INLINE
 ibool
 buf_page_peek_if_young(
@@ -550,7 +550,7 @@ buf_page_peek_if_young(
 danger of dropping from the buffer pool.
 NOTE: does not reserve the LRU list mutex.
 @param[in]	bpage	block to make younger
-@return TRUE if should be made younger */
+@return true if should be made younger */
 UNIV_INLINE
 ibool
 buf_page_peek_if_too_old(
@@ -704,7 +704,7 @@ buf_frame_align(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /*********************************************************************//**
 Validates the buffer pool data structure.
-@return TRUE */
+@return true */
 ibool
 buf_validate(void);
 /*==============*/
@@ -737,7 +737,7 @@ buf_page_print(
 
 /********************************************************************//**
 Decompress a block.
-@return TRUE if successful */
+@return true if successful */
 ibool
 buf_zip_decompress(
 /*===============*/
@@ -785,7 +785,7 @@ buf_get_modified_ratio_pct(void);
 void
 buf_refresh_io_stats_all();
 /** Assert that all file pages in the buffer are in a replaceable state.
-@return TRUE */
+@return true */
 ibool
 buf_all_freed(void);
 
@@ -861,7 +861,7 @@ buf_block_set_state(
 
 /*********************************************************************//**
 Determines if a block is mapped to a tablespace.
-@return TRUE if mapped */
+@return true if mapped */
 UNIV_INLINE
 ibool
 buf_page_in_file(
@@ -871,7 +871,7 @@ buf_page_in_file(
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Determines if a block should be on unzip_LRU list.
-@return TRUE if block belongs to unzip_LRU */
+@return true if block belongs to unzip_LRU */
 UNIV_INLINE
 ibool
 buf_page_belongs_to_unzip_LRU(
@@ -987,7 +987,7 @@ buf_page_can_relocate(
 
 /** Determine if a block has been flagged old.
 @param[in]	bpage	control block
-@return TRUE if old */
+@return true if old */
 UNIV_INLINE
 ibool
 buf_page_is_old(
@@ -1065,7 +1065,7 @@ buf_block_from_ahi(const byte* ptr);
 /********************************************************************//**
 Find out if a pointer belongs to a buf_block_t. It can be a pointer to
 the buf_block_t itself or a member of it
-@return TRUE if ptr belongs to a buf_block_t struct */
+@return true if ptr belongs to a buf_block_t struct */
 ibool
 buf_pointer_is_block_field(
 /*=======================*/
@@ -1073,12 +1073,12 @@ buf_pointer_is_block_field(
 					dereferenced */
 /** Find out if a pointer corresponds to a buf_block_t::mutex.
 @param m in: mutex candidate
-@return TRUE if m is a buf_block_t::mutex */
+@return true if m is a buf_block_t::mutex */
 #define buf_pool_is_block_mutex(m)			\
 	buf_pointer_is_block_field((const void*)(m))
 /** Find out if a pointer corresponds to a buf_block_t::lock.
 @param l in: rw-lock candidate
-@return TRUE if l is a buf_block_t::lock */
+@return true if l is a buf_block_t::lock */
 #define buf_pool_is_block_lock(l)			\
 	buf_pointer_is_block_field((const void*)(l))
 
@@ -1247,7 +1247,7 @@ buf_get_free_list_len(void);
 
 /********************************************************************//**
 Determine if a block is a sentinel for a buffer pool watch.
-@return TRUE if a sentinel for a buffer pool watch, FALSE if not */
+@return true if a sentinel for a buffer pool watch, false if not */
 ibool
 buf_pool_watch_is_sentinel(
 /*=======================*/
@@ -1266,7 +1266,7 @@ buf_pool_watch_unset(
 This may only be called after buf_pool_watch_set(space,offset)
 has returned NULL and before invoking buf_pool_watch_unset(space,offset).
 @param[in]	page_id	page id
-@return FALSE if the given page was not read in, TRUE if it was */
+@return false if the given page was not read in, true if it was */
 ibool
 buf_pool_watch_occurred(
 	const page_id_t&	page_id)
@@ -1696,11 +1696,33 @@ struct buf_block_t{
 					and accessed; we introduce this new
 					mutex in InnoDB-5.1 to relieve
 					contention on the buffer pool mutex */
+
+	/** Get the page number of the current buffer block.
+	@return page number of the current buffer block. */
+	page_no_t get_page_no() const {
+		return(page.id.page_no());
+	}
+
+	/** Get the next page number of the current buffer block.
+	@return next page number of the current buffer block. */
+	page_no_t get_next_page_no() const {
+		return(mach_read_from_4(frame + FIL_PAGE_NEXT));
+	}
+
+	/** Get the page type of the current buffer block.
+	@return page type of the current buffer block. */
+	ulint get_page_type() const {
+		return(mach_read_from_2(frame + FIL_PAGE_TYPE));
+	}
+
+	/** Get the page type of the current buffer block as string.
+	@return page type of the current buffer block as string. */
+	const char* get_page_type_str() const;
 };
 
 /** Check if a buf_block_t object is in a valid state
 @param block buffer block
-@return TRUE if valid */
+@return true if valid */
 #define buf_block_state_valid(block)				\
 (buf_block_get_state(block) >= BUF_BLOCK_NOT_USED		\
  && (buf_block_get_state(block) <= BUF_BLOCK_REMOVE_HASH))

@@ -195,5 +195,4 @@ source include/show_binlog_events.inc;
 # cleanup
 drop table t1;
 
-
 # End of tests

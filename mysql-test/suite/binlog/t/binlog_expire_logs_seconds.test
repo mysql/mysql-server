@@ -18,6 +18,7 @@
 
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.
+CALL mtr.add_suppression("The option expire_logs_days cannot be used together*");
 --source include/have_binlog_format_row.inc
 --source include/not_windows.inc
 
@@ -37,18 +38,7 @@ SET GLOBAL expire_logs_days= 0;
 --source suite/binlog/include/binlog_expire_logs_seconds.inc
 
 --echo ####
---echo #### 2.1: binlog_expire_logs_seconds > 0 and expire_logs_days > 0
---echo ####
-
-SET GLOBAL binlog_expire_logs_seconds= 3600;
-SET GLOBAL expire_logs_days= 1;
-
-# This will test the expire period for three scenarios, described in the .inc file.
-
---source suite/binlog/include/binlog_expire_logs_seconds.inc
-
---echo ####
---echo #### 2.2: binlog_expire_logs_seconds > 0 and expire_logs_days == 0
+--echo #### 2.1: binlog_expire_logs_seconds > 0 and expire_logs_days == 0
 --echo ####
  
 # Here we will test both with smaller values and larger values

@@ -103,8 +103,21 @@ SET(INNOBASE_SOURCES
 	handler/i_s.cc
 	handler/p_s.cc
 	ibuf/ibuf0ibuf.cc
-	lob/lob0fit.cc
+        lob/lob0first.cc
+        lob/lob0index.cc
+        lob/lob0ins.cc
+        lob/lob0pages.cc
+        lob/lob0purge.cc
+        lob/lob0update.cc
+        lob/lob0impl.cc
 	lob/lob0lob.cc
+	lob/lob0del.cc
+	lob/lob0util.cc
+        lob/zlob0index.cc
+        lob/zlob0ins.cc
+        lob/zlob0update.cc
+        lob/zlob0first.cc
+        lob/zlob0read.cc
 	lock/lock0iter.cc
 	lock/lock0prdt.cc
 	lock/lock0lock.cc

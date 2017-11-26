@@ -50,6 +50,7 @@ select "Skewed SPJ load", cnt.counter_name, min(cnt.val-old.val), max(cnt.val-ol
   ndbinfo.counters cnt join counters_at_startup old
     using (node_id,block_name,block_instance,counter_name)
   where block_name="DBSPJ" and counter_name = "TABLE_SCANS_RECEIVED"
+  GROUP BY counter_name
   having max(cnt.val-old.val) - min(cnt.val-old.val) > 1;
   
 drop table counters_at_startup;

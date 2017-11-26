@@ -2242,7 +2242,6 @@ bool Explain_format_JSON::end_context(enum_parsing_context ctx)
   if (current_context->parent == NULL)
   {
     Item* item;
-#ifdef OPTIMIZER_TRACE
     Opt_trace_context json; 
     const size_t max_size= ULONG_MAX;
     if (json.start(true,           // support_I_S (enable JSON generation)
@@ -2273,7 +2272,6 @@ bool Explain_format_JSON::end_context(enum_parsing_context ctx)
                             system_charset_info);
     }
     else
-#endif
       item= new Item_null();
 
     List<Item> field_list;

@@ -144,7 +144,7 @@ int pathncmp(const LEX_CSTRING &a, const LEX_CSTRING &b, size_t n)
     strnncoll(files_charset_info,
               reinterpret_cast<const uchar*>(a.str), a.length,
               reinterpret_cast<const uchar*>(b.str), b.length,
-              FALSE);
+              false);
 }
 
 

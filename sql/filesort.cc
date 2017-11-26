@@ -356,7 +356,7 @@ static void trace_filesort_information(Opt_trace_context *trace,
 
   @param      thd            Current thread
   @param      filesort       How to sort the table
-  @param      sort_positions Set to TRUE if we want to force sorting by position
+  @param      sort_positions Set to true if we want to force sorting by position
                              (Needed by UPDATE/INSERT or ALTER TABLE or
                               when rowids are required by executor)
   @param[out] examined_rows  Store number of examined rows here
@@ -1150,7 +1150,7 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
       if ((error= qep_tab->quick()->get_next()))
         break;
       file->position(sort_form->record[0]);
-      DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, TRUE););
+      DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, true););
     }
     else					/* Not quick-select */
     {

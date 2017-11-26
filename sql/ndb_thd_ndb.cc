@@ -127,7 +127,7 @@ void
 Thd_ndb::init_open_tables()
 {
   count= 0;
-  m_error= FALSE;
+  m_error= false;
   open_tables.clear();
 }
 

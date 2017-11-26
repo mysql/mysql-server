@@ -102,7 +102,7 @@ struct ParserRow {
 public:
   enum Type { Cmd, Arg, CmdAlias, ArgAlias, End }; // Put new types before end
   enum ArgType { String, Int, Properties, LongString };
-  enum ArgRequired { Mandatory, Optional };
+  enum ArgRequired { Mandatory, Optional, Ignore };
   enum ArgMinMax { CheckMinMax, IgnoreMinMax };
   
   const char * name;

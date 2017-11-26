@@ -1537,7 +1537,7 @@ int my_b_flush_io_cache(IO_CACHE *info,
 
   DBUG_EXECUTE_IF("simulate_error_during_flush_cache_to_file",
                   {
-                    DBUG_RETURN(TRUE);
+                    DBUG_RETURN(true);
                   });
   if (!append_cache)
     need_append_buffer_lock= 0;

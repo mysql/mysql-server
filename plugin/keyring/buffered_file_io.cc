@@ -75,7 +75,7 @@ Buffered_file_io::~Buffered_file_io()
 
 std::string* Buffered_file_io::get_backup_filename()
 {
-  if(backup_filename.empty() == FALSE)
+  if(backup_filename.empty() == false)
     return &backup_filename;
   backup_filename.append(keyring_filename);
   backup_filename.append(".backup");
@@ -88,51 +88,51 @@ bool Buffered_file_io::open_backup_file(File *backup_file)
                              O_RDONLY, MYF(0));
 
   if (likely(*backup_file < 0))
-    return TRUE;
-  return FALSE;
+    return true;
+  return false;
 }
 
 bool Buffered_file_io::check_file_structure(File file, size_t file_size)
 {
   if(std::find_if(checkers.begin(), checkers.end(), [&](Checker *checker) {
-      return checker->check_file_structure(file, file_size, &digest) == FALSE;
+      return checker->check_file_structure(file, file_size, &digest) == false;
      }) == checkers.end())
   {
     logger->log(MY_ERROR_LEVEL, "Incorrect Keyring file");
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
 //Only called when keyring is initalizing
 bool Buffered_file_io::load_file_into_buffer(File file, Buffer *buffer)
 {
   if (file_io.seek(file, 0, MY_SEEK_END, MYF(MY_WME)) == MY_FILEPOS_ERROR)
-    return TRUE;
+    return true;
   my_off_t file_size= file_io.tell(file, MYF(MY_WME));
   if (file_size == ((my_off_t) - 1))
-    return TRUE;
+    return true;
   if (file_size == 0)
-    return FALSE; //it is OK if file is empty
+    return false; //it is OK if file is empty
   if (check_file_structure(file, file_size))
-    return TRUE;
+    return true;
   //result has to be positive, digest (if exists) was already read by checker
   int digest_length= digest.is_empty ? 0 : SHA256_DIGEST_LENGTH;
   size_t input_buffer_size= file_size - Checker::EOF_TAG_SIZE - file_version.length() -
                             digest_length;
   if (input_buffer_size % sizeof(size_t) != 0)
-    return TRUE; //buffer size in the keyring file must be multiplication of size_t
+    return true; //buffer size in the keyring file must be multiplication of size_t
   if (file_io.seek(file, file_version.length(), MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR) //skip file version
-    return TRUE;
+    return true;
   if (likely(input_buffer_size > 0))
   {
     buffer->reserve(input_buffer_size);
     if (file_io.read(file, buffer->data, input_buffer_size, MYF(MY_WME)) !=
         input_buffer_size)
-      return TRUE;
+      return true;
   }
   memory_needed_for_buffer= buffer->size;
-  return FALSE;
+  return false;
 }
 
 /*!
@@ -145,7 +145,7 @@ bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists()
   Buffer buffer;
   File backup_file;
   if (open_backup_file(&backup_file))
-    return FALSE; //no backup file to recover from
+    return false; //no backup file to recover from
   if (load_file_into_buffer(backup_file, &buffer))
   {
     logger->log(MY_WARNING_LEVEL, "Found malformed keyring backup file - "
@@ -166,7 +166,7 @@ bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists()
   {
     logger->log(MY_ERROR_LEVEL, "Error while restoring keyring from backup file"
                                 " cannot overwrite keyring with backup");
-    return TRUE;
+    return true;
   }
   return remove_backup(MYF(MY_WME));
 }
@@ -182,18 +182,18 @@ bool Buffered_file_io::check_if_keyring_file_can_be_opened_or_created()
                           O_RDWR | O_CREAT, MYF(MY_WME));
   if (file < 0 ||
       file_io.seek(file, 0, MY_SEEK_END, MYF(MY_WME)) == MY_FILEPOS_ERROR)
-    return TRUE;
+    return true;
   my_off_t file_size= file_io.tell(file, MYF(MY_WME));
   if (((file_size == (my_off_t) - 1)) || file_io.close(file, MYF(MY_WME)) < 0)
-    return TRUE;
+    return true;
   if (file_size == 0 && file_io.remove(this->keyring_filename.c_str(), MYF(MY_WME))) //remove empty file
-    return TRUE;
-  return FALSE;
+    return true;
+  return false;
 }
 
 bool Buffered_file_io::init(std::string *keyring_filename)
 {
-  DBUG_ASSERT(keyring_filename->empty() == FALSE);
+  DBUG_ASSERT(keyring_filename->empty() == false);
 #ifdef HAVE_PSI_INTERFACE
   keyring_init_psi_file_keys();
 #endif
@@ -213,11 +213,11 @@ bool Buffered_file_io::flush_buffer_to_file(Buffer *buffer,
                   Checker::eofTAG.length(), MYF(MY_WME)) == Checker::eofTAG.length() &&
     file_io.write(file, reinterpret_cast<const uchar*>(buffer_digest->value),
                   SHA256_DIGEST_LENGTH, MYF(0)) == SHA256_DIGEST_LENGTH)
-    return FALSE;
+    return false;
 
   logger->log(MY_ERROR_LEVEL, "Error while flushing in-memory keyring into "
                               "keyring file");
-  return TRUE;
+  return true;
 }
 
 bool Buffered_file_io::check_keyring_file_structure(File keyring_file)
@@ -225,10 +225,10 @@ bool Buffered_file_io::check_keyring_file_structure(File keyring_file)
   if (keyring_file >= 0) //keyring file exists
   {
     if (file_io.seek(keyring_file, 0, MY_SEEK_END, MYF(MY_WME)) == MY_FILEPOS_ERROR)
-      return TRUE;
+      return true;
     my_off_t file_size=file_io.tell(keyring_file, MYF(MY_WME));
     if (file_size == ((my_off_t) - 1))
-      return TRUE;
+      return true;
     return check_file_structure(keyring_file, file_size);
   }
   //if keyring_file doest not exist, we should be initializing and digest should
@@ -254,7 +254,7 @@ bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object)
   {
     if (keyring_file >= 0)
       file_io.close(keyring_file, MYF(MY_WME));
-    return TRUE;
+    return true;
   }
   if (check_keyring_file_structure(keyring_file) ||
       (keyring_file >= 0 && file_io.close(keyring_file, MYF(MY_WME)) < 0))
@@ -263,7 +263,7 @@ bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object)
       file_io.close(keyring_file, MYF(MY_WME));
     file_io.close(backup_file, MYF(MY_WME));
     remove_backup(MYF(MY_WME));
-    return TRUE;
+    return true;
   }
 
   Buffer *buffer= dynamic_cast<Buffer*>(serialized_object);
@@ -285,12 +285,12 @@ bool Buffered_file_io::flush_buffer_to_storage(Buffer *buffer, File file)
   Digest buffer_digest;
   if (file_io.truncate(file, MYF(MY_WME)) ||
       file_io.seek(file, 0, MY_SEEK_SET, MYF(MY_WME)) != 0)
-    return TRUE;
+    return true;
   buffer_digest.compute(buffer->data, buffer->size);
   if (flush_buffer_to_file(buffer, &buffer_digest, file))
-    return TRUE;
+    return true;
   digest= buffer_digest;
-  return FALSE;
+  return false;
 }
 
 bool Buffered_file_io::flush_to_storage(ISerialized_object *serialized_object)
@@ -307,13 +307,13 @@ bool Buffered_file_io::flush_to_storage(ISerialized_object *serialized_object)
       flush_buffer_to_storage(buffer, keyring_file))
   {
     file_io.close(keyring_file,MYF(MY_WME));
-    return TRUE;
+    return true;
   }
   if (file_io.close(keyring_file, MYF(MY_WME)) < 0 || remove_backup(MYF(MY_WME)))
-    return TRUE;
+    return true;
 
   memory_needed_for_buffer= buffer->size;
-  return FALSE;
+  return false;
 }
 
 ISerializer* Buffered_file_io::get_serializer()
@@ -327,26 +327,26 @@ bool Buffered_file_io::get_serialized_object(ISerialized_object **serialized_obj
   File file= file_io.open(keyring_file_data_key, keyring_filename.c_str(),
                           O_CREAT | O_RDWR, MYF(MY_WME));
   if (file < 0)
-    return TRUE;
+    return true;
 
   std::unique_ptr<Buffer> buffer(new Buffer);
   if (load_file_into_buffer(file, buffer.get()))
   {
     file_io.close(file, MYF(MY_WME));
     *serialized_object= NULL;
-    return TRUE;
+    return true;
   }
   if(file_io.close(file, MYF(MY_WME)) < 0)
-    return TRUE;
+    return true;
   if (buffer->size == 0)  //empty keyring file
     buffer.reset(NULL);
   *serialized_object= buffer.release();
-  return FALSE;
+  return false;
 }
 
 bool Buffered_file_io::has_next_serialized_object()
 {
-  return FALSE;
+  return false;
 }
 
 } //namespace keyring

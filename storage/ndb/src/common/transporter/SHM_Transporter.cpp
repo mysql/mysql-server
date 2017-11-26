@@ -40,12 +40,14 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 				 bool checksum, 
 				 bool signalId,
 				 key_t _shmKey,
-				 Uint32 _shmSize) :
+				 Uint32 _shmSize,
+				 bool preSendChecksum) :
   Transporter(t_reg, tt_SHM_TRANSPORTER,
 	      lHostName, rHostName, r_port, isMgmConnection_arg,
 	      lNodeId, rNodeId, serverNodeId,
 	      0, false, checksum, signalId, 
-              4096 + MAX_SEND_MESSAGE_BYTESIZE),
+              4096 + MAX_SEND_MESSAGE_BYTESIZE,
+              preSendChecksum),
   shmKey(_shmKey),
   shmSize(_shmSize)
 {

@@ -749,7 +749,7 @@ class Aggregator_distinct : public Aggregator
     expensive calculations (like walking the distinct tree for example) 
     which we must do only once if there are no data changes.
     We can re-use the data for the second and subsequent val_xxx() calls.
-    endup_done set to TRUE also means that the calculated values for
+    endup_done set to true also means that the calculated values for
     the aggregate functions are correct and don't need recalculation.
   */
   bool endup_done;
@@ -933,7 +933,7 @@ public:
     {
        maybe_null|= args[i]->maybe_null;
     }
-    null_value= FALSE;
+    null_value= false;
     return false;
   }
   double val_real() override
@@ -1046,7 +1046,7 @@ class Item_sum_count :public Item_sum_int
   bool resolve_type(THD*) override
   {
     maybe_null= false;
-    null_value= FALSE;
+    null_value= false;
     return false;
   }
   void no_rows_in_result() override { count= 0; }
@@ -1922,7 +1922,6 @@ public:
 };
 
 
-C_MODE_START
 int group_concat_key_cmp_with_distinct(const void* arg, const void* key1,
                                        const void* key2);
 int group_concat_key_cmp_with_order(const void* arg, const void* key1,
@@ -1930,7 +1929,6 @@ int group_concat_key_cmp_with_order(const void* arg, const void* key1,
 int dump_leaf_key(void* key_arg,
                   element_count count MY_ATTRIBUTE((unused)),
                   void* item_arg);
-C_MODE_END
 
 class Item_func_group_concat final : public Item_sum
 {

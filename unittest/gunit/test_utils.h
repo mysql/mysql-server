@@ -26,6 +26,8 @@
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "sql/error_handler.h"
 #include "sql/sql_error.h"
+#include "nullable.h"
+
 
 class THD;
 class my_decimal;
@@ -98,18 +100,6 @@ private:
   uint m_expected_error;
   int  m_handle_called;
 };
-
-
-/*
-  Some compilers want to know the type of the NULL when expanding gunit's
-  EXPECT_EQ macros.
-*/
-template <typename T>
-void expect_null(T *t)
-{
-  T *t_null= NULL;
-  EXPECT_EQ(t_null, t);
-}
 
 /*
   A class which wraps the necessary setup/teardown logic for

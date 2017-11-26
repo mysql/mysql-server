@@ -93,7 +93,7 @@ trx_undo_decode_roll_ptr(
 
 /***********************************************************************//**
 Returns TRUE if the roll pointer is of the insert type.
-@return TRUE if insert undo log */
+@return true if insert undo log */
 UNIV_INLINE
 ibool
 trx_undo_roll_ptr_is_insert(

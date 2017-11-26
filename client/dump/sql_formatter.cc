@@ -441,7 +441,7 @@ void Sql_formatter::format_sql_objects_definer(
       {
         object_sql.replace(definer_pos, (object_pos-definer_pos), "");
         new_sql_stmt+= object_sql + "\n";
-        is_replaced= TRUE;
+        is_replaced= true;
       }
       else
         new_sql_stmt+= object_sql + "\n";
@@ -457,7 +457,7 @@ void Sql_formatter::format_sql_objects_definer(
    @param [in] table        Table name
 
   @return
-    @retval TRUE if it is innodb stats table else FALSE
+    @retval true if it is innodb stats table else false
 */
 bool Sql_formatter::innodb_stats_tables(std::string db,
                                         std::string table)

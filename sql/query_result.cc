@@ -75,7 +75,7 @@ void Query_result_send::abort_result_set()
       otherwise the client will hang due to the violation of the
       client/server protocol.
     */
-    thd->sp_runtime_ctx->end_partial_result_set= TRUE;
+    thd->sp_runtime_ctx->end_partial_result_set= true;
   }
   DBUG_VOID_RETURN;
 }
@@ -98,7 +98,7 @@ bool Query_result_send::send_data(List<Item> &items)
   if (thd->send_result_set_row(&items))
   {
     protocol->abort_row();
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   thd->inc_sent_row_count(1);

@@ -65,7 +65,6 @@
     0 success
     1 failure
 */
-extern "C"
 int command_service_run_command(Srv_session *session,
                                 enum enum_server_command command,
                                 const union COM_DATA * data,

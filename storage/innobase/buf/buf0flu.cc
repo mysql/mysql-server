@@ -239,7 +239,7 @@ incr_flush_list_size_in_bytes(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /******************************************************************//**
 Validates the flush list.
-@return TRUE if ok */
+@return true if ok */
 static
 ibool
 buf_flush_validate_low(
@@ -248,7 +248,7 @@ buf_flush_validate_low(
 
 /******************************************************************//**
 Validates the flush list some of the time.
-@return TRUE if ok or the check was skipped */
+@return true if ok or the check was skipped */
 static
 ibool
 buf_flush_validate_skip(
@@ -584,7 +584,7 @@ i.e., the transition FILE_PAGE => NOT_USED allowed. The caller must hold the
 LRU list and block mutexes.
 @param[in]	bpage	buffer control block, must be buf_page_in_file() and
 			in the LRU list
-@return TRUE if can replace immediately */
+@return true if can replace immediately */
 ibool
 buf_flush_ready_for_replace(
 	buf_page_t*	bpage)
@@ -889,12 +889,16 @@ buf_flush_init_for_writing(
 		case FIL_PAGE_IBUF_BITMAP:
 		case FIL_PAGE_TYPE_FSP_HDR:
 		case FIL_PAGE_TYPE_XDES:
+		case FIL_PAGE_TYPE_ZLOB_FIRST:
+		case FIL_PAGE_TYPE_ZLOB_DATA:
+		case FIL_PAGE_TYPE_ZLOB_INDEX:
+		case FIL_PAGE_TYPE_ZLOB_FRAG:
+		case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
 			/* These are essentially uncompressed pages. */
 			memcpy(page_zip->data, page, size);
 			/* fall through */
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
-		case FIL_PAGE_TYPE_ZBLOB3:
 		case FIL_PAGE_SDI_ZBLOB:
 		case FIL_PAGE_INDEX:
 		case FIL_PAGE_SDI:
@@ -954,9 +958,16 @@ buf_flush_init_for_writing(
 				case FIL_PAGE_TYPE_BLOB:
 				case FIL_PAGE_TYPE_ZBLOB:
 				case FIL_PAGE_TYPE_ZBLOB2:
-				case FIL_PAGE_TYPE_ZBLOB3:
 				case FIL_PAGE_SDI_BLOB:
 				case FIL_PAGE_SDI_ZBLOB:
+				case FIL_PAGE_TYPE_LOB_INDEX:
+				case FIL_PAGE_TYPE_LOB_DATA:
+				case FIL_PAGE_TYPE_LOB_FIRST:
+				case FIL_PAGE_TYPE_ZLOB_FIRST:
+				case FIL_PAGE_TYPE_ZLOB_DATA:
+				case FIL_PAGE_TYPE_ZLOB_INDEX:
+				case FIL_PAGE_TYPE_ZLOB_FRAG:
+				case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
 				case FIL_PAGE_TYPE_RSEG_ARRAY:
 					break;
 				case FIL_PAGE_TYPE_FSP_HDR:
@@ -1166,7 +1177,7 @@ returns true.
 @param[in]	bpage		buffer control block
 @param[in]	flush_type	type of flush
 @param[in]	sync		true if sync IO request
-@return TRUE if page was flushed */
+@return true if page was flushed */
 ibool
 buf_flush_page(
 	buf_pool_t*	buf_pool,
@@ -1318,7 +1329,7 @@ they will be released by this function after flushing. This is loosely based on
 buf_flush_batch() and buf_flush_page().
 @param[in,out]	buf_pool	buffer pool instance
 @param[in,out]	block		buffer control block
-@return TRUE if the page was flushed and the mutex released */
+@return true if the page was flushed and the mutex released */
 ibool
 buf_flush_page_try(
 	buf_pool_t*	buf_pool,
@@ -1570,7 +1581,7 @@ must hold the buffer pool list mutex corresponding to the type of flush.
 @param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST
 @param[in]	n_to_flush	number of pages to flush
 @param[in,out]	count		number of pages flushed
-@return	TRUE if the list mutex was released during this function.  This does
+@return	true if the list mutex was released during this function.  This does
 not guarantee that some pages were written as well. */
 static
 bool
@@ -3632,7 +3643,7 @@ struct	Check {
 
 /******************************************************************//**
 Validates the flush list.
-@return TRUE if ok */
+@return true if ok */
 static
 ibool
 buf_flush_validate_low(
@@ -3698,7 +3709,7 @@ buf_flush_validate_low(
 
 /******************************************************************//**
 Validates the flush list.
-@return TRUE if ok */
+@return true if ok */
 ibool
 buf_flush_validate(
 /*===============*/

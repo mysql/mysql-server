@@ -25,6 +25,7 @@
 #include <string.h>
 #include <time.h>
 #include <algorithm>
+#include <thread>
 #include <atomic>
 #include <utility>
 
@@ -256,7 +257,7 @@ inline bool db_stmt_db_ok(THD *thd, char* db)
   DBUG_ENTER("db_stmt_db_ok");
 
   if (!thd->slave_thread)
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   Rpl_filter* rpl_filter= thd->rli_slave->rpl_filter;
 
@@ -1270,11 +1271,11 @@ bool do_command(THD *thd)
 
     if (rc < 0)
     {
-      return_value= TRUE;                       // We have to close it.
+      return_value= true;                       // We have to close it.
       goto out;
     }
     net->error= 0;
-    return_value= FALSE;
+    return_value= false;
     goto out;
   }
 
@@ -1318,8 +1319,8 @@ out:
 
   @see mysql_execute_command
   @returns Status code
-    @retval TRUE The statement should be denied.
-    @retval FALSE The statement isn't updating any relevant tables.
+    @retval true The statement should be denied.
+    @retval false The statement isn't updating any relevant tables.
 */
 static bool deny_updates_if_read_only_option(THD *thd,
                                              TABLE_LIST *all_tables)
@@ -1327,15 +1328,15 @@ static bool deny_updates_if_read_only_option(THD *thd,
   DBUG_ENTER("deny_updates_if_read_only_option");
 
   if (!check_readonly(thd, false))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   LEX *lex = thd->lex;
   if (!(sql_command_flags[lex->sql_command] & CF_CHANGES_DATA))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   /* Multi update is an exception and is dealt with later. */
   if (lex->sql_command == SQLCOM_UPDATE_MULTI)
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   const bool create_temp_tables= 
     (lex->sql_command == SQLCOM_CREATE_TABLE) &&
@@ -1363,12 +1364,12 @@ static bool deny_updates_if_read_only_option(THD *thd,
       /*
         An attempt was made to modify one or more non-temporary tables.
       */
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
 
   /* Assuming that only temporary tables are modified. */
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -1443,7 +1444,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     Commands which always take a long time are logged into
     the slow log only if opt_log_slow_admin_statements is set.
   */
-  thd->enable_slow_log= TRUE;
+  thd->enable_slow_log= true;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
   if (IS_TIME_T_VALID_FOR_TIMESTAMP(thd->query_start_in_secs()) == false)
@@ -1482,7 +1483,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       LogErr(ERROR_LEVEL, ER_UNSUPPORTED_DATE);
       ulong master_access= thd->security_context()->master_access();
       thd->security_context()->set_master_access(master_access | SHUTDOWN_ACL);
-      error= TRUE;
+      error= true;
       kill_mysql();
     }
   }
@@ -1549,7 +1550,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
                         com_data->com_init_db.length, thd->charset());
 
     LEX_CSTRING tmp_cstr= {tmp.str, tmp.length};
-    if (!mysql_change_db(thd, tmp_cstr, FALSE))
+    if (!mysql_change_db(thd, tmp_cstr, false))
     {
       query_logger.general_log_write(thd, command,
                                      thd->db().str, thd->db().length);
@@ -1791,7 +1792,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
     /* Need to set error to true for graceful shutdown */
     if((thd->lex->sql_command == SQLCOM_SHUTDOWN) && (thd->get_stmt_da()->is_ok()))
-      error= TRUE;
+      error= true;
 
     DBUG_PRINT("info",("query ready"));
     break;
@@ -1868,7 +1869,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       break;
 
     if (check_table_access(thd, SELECT_ACL, &table_list,
-                           TRUE, UINT_MAX, FALSE))
+                           true, UINT_MAX, false))
       break;
 
     // See comment in opt_trace_disable_if_no_security_context_access()
@@ -1906,7 +1907,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     if (thd->is_classic_protocol())
       thd->get_protocol_classic()->get_net()->error= 0;
     thd->get_stmt_da()->disable_status();       // Don't send anything back
-    error=TRUE;					// End server
+    error=true;					// End server
     break;
   case COM_BINLOG_DUMP_GTID:
     // TODO: access of protocol_classic should be removed
@@ -1942,8 +1943,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       break;
     query_logger.general_log_print(thd, command, NullS);
 #ifndef DBUG_OFF
-    bool debug_simulate= FALSE;
-    DBUG_EXECUTE_IF("simulate_detached_thread_refresh", debug_simulate= TRUE;);
+    bool debug_simulate= false;
+    DBUG_EXECUTE_IF("simulate_detached_thread_refresh", debug_simulate= true;);
     if (debug_simulate)
     {
       /*
@@ -2163,7 +2164,7 @@ done:
 bool shutdown(THD *thd, enum mysql_enum_shutdown_level level)
 {
   DBUG_ENTER("shutdown");
-  bool res= FALSE;
+  bool res= false;
   thd->lex->no_write_to_binlog= 1;
 
   if (check_global_access(thd,SHUTDOWN_ACL))
@@ -2182,7 +2183,7 @@ bool shutdown(THD *thd, enum mysql_enum_shutdown_level level)
   DBUG_PRINT("quit",("Got shutdown command for level %u", level));
   query_logger.general_log_print(thd, COM_QUERY, NullS);
   kill_mysql();
-  res= TRUE;
+  res= true;
 
   error:
   DBUG_RETURN(res);
@@ -2276,9 +2277,9 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   - query_length
 
   @retval
-    FALSE ok
+    false ok
   @retval
-    TRUE  error;  In this case thd->fatal_error is set
+    true  error;  In this case thd->fatal_error is set
 */
 
 bool alloc_query(THD *thd, const char *packet, size_t packet_length)
@@ -2299,7 +2300,7 @@ bool alloc_query(THD *thd, const char *packet, size_t packet_length)
 
   char *query= static_cast<char*>(thd->alloc(packet_length + 1));
   if (!query)
-    return TRUE;
+    return true;
   memcpy(query, packet, packet_length);
   query[packet_length]= '\0';
 
@@ -2309,7 +2310,7 @@ bool alloc_query(THD *thd, const char *packet, size_t packet_length)
   if (thd->is_classic_protocol())
     thd->convert_buffer.shrink(thd->variables.net_buffer_length);
 
-  return FALSE;
+  return false;
 }
 
 static
@@ -2352,7 +2353,7 @@ bool sp_process_definer(THD *thd)
 
     /* Error has been already reported. */
     if (lex->definer == NULL)
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
 
     if (thd->slave_thread && lex->sphead)
       lex->sphead->m_chistics->suid= SP_IS_NOT_SUID;
@@ -2375,7 +2376,7 @@ bool sp_process_definer(THD *thd)
     {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                "SUPER or SET_USER_ID");
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
   }
 
@@ -2391,7 +2392,7 @@ bool sp_process_definer(THD *thd)
                         lex->definer->host.str);
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -2402,7 +2403,7 @@ bool sp_process_definer(THD *thd)
   @param thd     Thread context.
   @param tables  List of tables to be locked.
 
-  @return FALSE in case of success, TRUE in case of error.
+  @return false in case of success, true in case of error.
 */
 
 static bool lock_tables_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
@@ -2489,7 +2490,7 @@ retry:
 
   thd->in_lock_tables= 0;
 
-  return FALSE;
+  return false;
 
 err:
   thd->in_lock_tables= 0;
@@ -2505,7 +2506,7 @@ err:
   close_thread_tables(thd);
   DBUG_ASSERT(!thd->locked_tables_mode);
   thd->mdl_context.release_transactional_locks();
-  return TRUE;
+  return true;
 }
 
 
@@ -2596,15 +2597,15 @@ static inline bool check_if_backup_lock_has_to_be_acquired(LEX *lex)
     - TODO: use check_change_password()
 
   @retval
-    FALSE       OK
+    false       OK
   @retval
-    TRUE        Error
+    true        Error
 */
 
 int
 mysql_execute_command(THD *thd, bool first_level)
 {
-  int res= FALSE;
+  int res= false;
   LEX  *const lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *const select_lex= lex->select_lex;
@@ -2793,9 +2794,9 @@ mysql_execute_command(THD *thd, bool first_level)
       for (table=all_tables; table; table=table->next_global, nr++)
       {
         if (table_map_for_update & ((table_map)1 << nr))
-          table->updating= TRUE;
+          table->updating= true;
         else
-          table->updating= FALSE;
+          table->updating= false;
       }
 
       if (all_tables_not_ok(thd, all_tables))
@@ -2807,7 +2808,7 @@ mysql_execute_command(THD *thd, bool first_level)
       }
       
       for (table=all_tables; table; table=table->next_global)
-        table->updating= TRUE;
+        table->updating= true;
     }
     
     /*
@@ -3393,11 +3394,11 @@ mysql_execute_command(THD *thd, bool first_level)
       */
       old_list= table[0];
       new_list= table->next_local[0];
-      if (check_grant(thd, ALTER_ACL | DROP_ACL, &old_list, FALSE, 1, FALSE) ||
+      if (check_grant(thd, ALTER_ACL | DROP_ACL, &old_list, false, 1, false) ||
          (!test_all_bits(table->next_local->grant.privilege,
                          INSERT_ACL | CREATE_ACL) &&
-          check_grant(thd, INSERT_ACL | CREATE_ACL, &new_list, FALSE, 1,
-                      FALSE)))
+          check_grant(thd, INSERT_ACL | CREATE_ACL, &new_list, false, 1,
+                      false)))
         goto error;
     }
 
@@ -3429,7 +3430,7 @@ mysql_execute_command(THD *thd, bool first_level)
                            first_table->db, first_table->table_name));
       if (lex->only_view)
       {
-        if (check_table_access(thd, SELECT_ACL, first_table, FALSE, 1, FALSE))
+        if (check_table_access(thd, SELECT_ACL, first_table, false, 1, false))
         {
           DBUG_PRINT("debug", ("check_table_access failed"));
           my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
@@ -3454,7 +3455,7 @@ mysql_execute_command(THD *thd, bool first_level)
           goto error;
 
         /*
-          The fact that check_some_access() returned FALSE does not mean that
+          The fact that check_some_access() returned false does not mean that
           access is granted. We need to check if first_table->grant.privilege
           contains any table-specific privilege.
         */
@@ -3479,7 +3480,7 @@ mysql_execute_command(THD *thd, bool first_level)
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (check_table_access(thd, SELECT_ACL, all_tables,
-                           FALSE, UINT_MAX, FALSE))
+                           false, UINT_MAX, false))
       goto error; /* purecov: inspected */
 
     res = mysql_checksum_table(thd, first_table, &lex->check_opt);
@@ -3510,7 +3511,7 @@ mysql_execute_command(THD *thd, bool first_level)
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (!lex->drop_temporary)
     {
-      if (check_table_access(thd, DROP_ACL, all_tables, FALSE, UINT_MAX, FALSE))
+      if (check_table_access(thd, DROP_ACL, all_tables, false, UINT_MAX, false))
 	goto error;				/* purecov: inspected */
     }
     /* DDL and binlog write order are protected by metadata locks. */
@@ -3548,7 +3549,7 @@ mysql_execute_command(THD *thd, bool first_level)
     const LEX_CSTRING db_str= { select_lex->db,
                                 strlen(select_lex->db) };
 
-    if (!mysql_change_db(thd, db_str, FALSE))
+    if (!mysql_change_db(thd, db_str, false))
       my_ok(thd);
 
     break;
@@ -3558,7 +3559,7 @@ mysql_execute_command(THD *thd, bool first_level)
   {
     List<set_var_base> *lex_var_list= &lex->var_list;
 
-    if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE))
+    if (check_table_access(thd, SELECT_ACL, all_tables, false, UINT_MAX, false))
       goto error;
     if (open_tables_for_query(thd, all_tables, false))
       goto error;
@@ -3941,7 +3942,7 @@ mysql_execute_command(THD *thd, bool first_level)
     if (thd->security_context()->user().str)            // If not replication
     {
       LEX_USER *user, *tmp_user;
-      bool first_user= TRUE;
+      bool first_user= true;
 
       List_iterator <LEX_USER> user_list(lex->users_list);
       while ((tmp_user= user_list++))
@@ -3961,7 +3962,7 @@ mysql_execute_command(THD *thd, bool first_level)
          */
         if (lex->type == TYPE_ENUM_PROXY && first_user)
         {
-          first_user= FALSE;
+          first_user= false;
           if (acl_check_proxy_grant_access (thd, user->host.str, user->user.str,
                                         lex->grant & GRANT_ACL))
             goto error;
@@ -3987,14 +3988,14 @@ mysql_execute_command(THD *thd, bool first_level)
         res= mysql_routine_grant(thd, all_tables,
                                  lex->type == TYPE_ENUM_PROCEDURE, 
                                  lex->users_list, grants,
-                                 lex->sql_command == SQLCOM_REVOKE, TRUE);
+                                 lex->sql_command == SQLCOM_REVOKE, true);
         if (!res)
           my_ok(thd);
       }
       else
       {
 	if (check_grant(thd,(lex->grant | lex->grant_tot_col | GRANT_ACL),
-                        all_tables, FALSE, UINT_MAX, FALSE))
+                        all_tables, false, UINT_MAX, false))
 	  goto error;
         if (lex->dynamic_privileges.elements > 0)
         {
@@ -4067,7 +4068,7 @@ mysql_execute_command(THD *thd, bool first_level)
     {
       /* Check table-level privileges. */
       if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
-                             FALSE, UINT_MAX, FALSE))
+                             false, UINT_MAX, false))
         goto error;
       if (flush_tables_with_read_lock(thd, all_tables))
         goto error;
@@ -4078,7 +4079,7 @@ mysql_execute_command(THD *thd, bool first_level)
     {
       /* Check table-level privileges. */
       if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
-                             FALSE, UINT_MAX, FALSE))
+                             false, UINT_MAX, false))
         goto error;
       if (flush_tables_for_export(thd, all_tables))
         goto error;
@@ -4424,7 +4425,7 @@ mysql_execute_command(THD *thd, bool first_level)
                                 ER_SP_DOES_NOT_EXIST,
                                 ER_THD(thd, ER_SP_DOES_NOT_EXIST),
                                 "FUNCTION (UDF)", lex->spname->m_name.str);
-            res= FALSE;
+            res= false;
             my_ok(thd);
             break;
           }
@@ -4567,7 +4568,7 @@ mysql_execute_command(THD *thd, bool first_level)
     }
   case SQLCOM_DROP_VIEW:
     {
-      if (check_table_access(thd, DROP_ACL, all_tables, FALSE, UINT_MAX, FALSE))
+      if (check_table_access(thd, DROP_ACL, all_tables, false, UINT_MAX, false))
         goto error;
       /* Conditionally writes to binlog. */
       res= mysql_drop_view(thd, first_table);
@@ -4656,7 +4657,7 @@ mysql_execute_command(THD *thd, bool first_level)
     List_iterator <LEX_USER> user_list(lex->users_list);
     while ((tmp_user= user_list++))
     {
-      bool update_password_only= FALSE;
+      bool update_password_only= false;
       bool is_self= false;
 
       /* If it is an empty lex_user update it with current user */
@@ -4683,7 +4684,7 @@ mysql_execute_command(THD *thd, bool first_level)
           !user->alter_status.expire_after_days &&
           user->alter_status.use_default_password_lifetime &&
           (thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED))
-        update_password_only= TRUE;
+        update_password_only= true;
 
       is_self= !strcmp(thd->security_context()->user().length ?
                        thd->security_context()->user().str : "",
@@ -4746,7 +4747,7 @@ mysql_execute_command(THD *thd, bool first_level)
   goto finish;
 
 error:
-  res= TRUE;
+  res= true;
 
 finish:
   /* Restore system variables which were changed by SET_VAR hint. */
@@ -4754,6 +4755,9 @@ finish:
     lex->opt_hints_global->sys_var_hint->restore_vars(thd);
 
   THD_STAGE_INFO(thd, stage_query_end);
+
+  if (!res)
+    lex->set_exec_started();
 
   // Cleanup EXPLAIN info
   if (!thd->in_sub_stmt)
@@ -5199,7 +5203,7 @@ void THD::reset_for_next_command()
         Transaction_ctx::SESSION);
   }
   DBUG_ASSERT(thd->security_context()== &thd->m_main_security_ctx);
-  thd->thread_specific_used= FALSE;
+  thd->thread_specific_used= false;
 
   if (opt_bin_log)
   {
@@ -6099,7 +6103,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
 
   if (table_name->db.str)
   {
-    ptr->is_fqtn= TRUE;
+    ptr->is_fqtn= true;
     ptr->db= const_cast<char*>(table_name->db.str);
     ptr->db_length= table_name->db.length;
   }
@@ -6414,7 +6418,7 @@ TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd, size_t table_cnt)
     table->embedding= ptr;
     embedded_list->push_back(table);
     if (table->natural_join)
-      ptr->is_natural_join= TRUE;
+      ptr->is_natural_join= true;
   }
   if (join_list->push_front(ptr))
     DBUG_RETURN(NULL);
@@ -6572,7 +6576,7 @@ bool SELECT_LEX_UNIT::add_fake_select_lex(THD *thd_arg)
   fake_select_lex->set_context(first_sl->context.outer_context);
 
   /* allow item list resolving in fake select for ORDER BY */
-  fake_select_lex->context.resolve_in_select_list= TRUE;
+  fake_select_lex->context.resolve_in_select_list= true;
 
   if (!is_union())
   {
@@ -6606,9 +6610,9 @@ bool SELECT_LEX_UNIT::add_fake_select_lex(THD *thd_arg)
   context.
 
   @retval
-    FALSE  if all is OK
+    false  if all is OK
   @retval
-    TRUE   if a memory allocation error occured
+    true   if a memory allocation error occured
 */
 
 bool
@@ -6618,7 +6622,7 @@ push_new_name_resolution_context(Parse_context *pc,
   THD *thd= pc->thd;
   Name_resolution_context *on_context;
   if (!(on_context= new (thd->mem_root) Name_resolution_context))
-    return TRUE;
+    return true;
   on_context->init();
   on_context->first_name_resolution_table=
     left_op->first_leaf_for_name_resolution();
@@ -7150,9 +7154,9 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
   @param max_byte_length  max length
 
   @retval
-    FALSE   the passed string is not longer than max_length
+    false   the passed string is not longer than max_length
   @retval
-    TRUE    the passed string is longer than max_length
+    true    the passed string is longer than max_length
 
   NOTE
     The function is not used in existing code but can be useful later?
@@ -7163,11 +7167,11 @@ static bool check_string_byte_length(const LEX_CSTRING &str,
                                      size_t max_byte_length)
 {
   if (str.length <= max_byte_length)
-    return FALSE;
+    return false;
 
   my_error(ER_WRONG_STRING_LENGTH, MYF(0), str.str, err_msg, max_byte_length);
 
-  return TRUE;
+  return true;
 }
 
 
@@ -7182,8 +7186,8 @@ static bool check_string_byte_length(const LEX_CSTRING &str,
       cs               string charset
 
   RETURN
-    FALSE   the passed string is not longer than max_char_length
-    TRUE    the passed string is longer than max_char_length
+    false   the passed string is not longer than max_char_length
+    true    the passed string is longer than max_char_length
 */
 
 
@@ -7196,14 +7200,14 @@ bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
                                         max_char_length, &well_formed_error);
 
   if (!well_formed_error &&  str.length == res)
-    return FALSE;
+    return false;
 
   if (!no_error)
   {
     ErrConvString err(str.str, str.length, cs);
     my_error(ER_WRONG_STRING_LENGTH, MYF(0), err.ptr(), err_msg, max_char_length);
   }
-  return TRUE;
+  return true;
 }
 
 
@@ -7219,8 +7223,6 @@ bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
     0	ok
     1	error  
 */
-C_MODE_START
-
 int test_if_data_home_dir(const char *dir)
 {
   char path[FN_REFLEN];
@@ -7254,8 +7256,6 @@ int test_if_data_home_dir(const char *dir)
   DBUG_RETURN(0);
 }
 
-C_MODE_END
-
 
 /**
   Check that host name string is valid.
@@ -7263,8 +7263,8 @@ C_MODE_END
   @param[in] str string to be checked
 
   @return             Operation status
-    @retval  FALSE    host name is ok
-    @retval  TRUE     host name string is longer than max_length or
+    @retval  false    host name is ok
+    @retval  true     host name string is longer than max_length or
                       has invalid symbols
 */
 
@@ -7274,7 +7274,7 @@ bool check_host_name(const LEX_CSTRING &str)
   const char *end= str.str + str.length;
   if (check_string_byte_length(str, ER_THD(current_thd, ER_HOSTNAME),
                                HOSTNAME_LENGTH))
-    return TRUE;
+    return true;
 
   while (name != end)
   {
@@ -7283,11 +7283,11 @@ bool check_host_name(const LEX_CSTRING &str)
       my_printf_error(ER_UNKNOWN_ERROR, 
                       "Malformed hostname (illegal symbol: '%c')", MYF(0),
                       *name);
-      return TRUE;
+      return true;
     }
     name++;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -7367,8 +7367,8 @@ private:
   @param creation_ctx Object creation context.
 
   @return Error status.
-    @retval FALSE on success.
-    @retval TRUE on parsing error.
+    @retval false on success.
+    @retval true on parsing error.
 */
 
 bool parse_sql(THD *thd,

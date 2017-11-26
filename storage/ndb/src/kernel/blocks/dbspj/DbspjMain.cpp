@@ -751,7 +751,7 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
   failed.assign(NdbNodeBitmask::Size, signal->theData+2);
 
   Request_iterator iter;
-  Request_hash * hash;
+  Request_hash * hash = NULL;
   switch(type){
   case 1:
     hash = &m_lookup_request_hash;
@@ -5270,8 +5270,8 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
   req->get_next_fragid_indicator = 0;
   req->jamBufferPtr = jamBuffer();
 
-  EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                 DiGetNodesReq::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_DIGETNODESREQ, signal,
+                    DiGetNodesReq::SignalLength, 0);
   jamEntry();
 
   DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
@@ -5807,8 +5807,8 @@ Dbspj::scanFrag_prepare(Signal * signal,
   req->schemaTransId = 0;
   req->jamBufferPtr = jamBuffer();
 
-  EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
-                 DihScanTabReq::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
+                    DihScanTabReq::SignalLength, 0);
 
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
   Uint32 senderData = conf->senderData;
@@ -6101,8 +6101,8 @@ Dbspj::scanFrag_sendDihGetNodesReq(Signal* signal,
       req->get_next_fragid_indicator = 0;
       req->jamBufferPtr = jamBuffer();
 
-      EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                     DiGetNodesReq::SignalLength, 0);
+      EXECUTE_DIRECT_MT(DBDIH, GSN_DIGETNODESREQ, signal,
+                        DiGetNodesReq::SignalLength, 0);
 
       const Uint32 errCode = signal->theData[0];
 
@@ -7441,8 +7441,8 @@ Dbspj::scanFrag_complete(Signal* signal,
     rep->scanCookie = data.m_scanCookie;
     rep->jamBufferPtr = jamBuffer();
 
-    EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP,
-                   signal, DihScanTabCompleteRep::SignalLength, 0);
+    EXECUTE_DIRECT_MT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP,
+                      signal, DihScanTabCompleteRep::SignalLength, 0);
   }
 }
 

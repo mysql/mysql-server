@@ -2281,8 +2281,6 @@ build_prefix(const LEX_STRING *prefix,
 
 /* Use C linkage for the interface functions. */
 
-C_MODE_START
-
 /**
   Implementation of the mutex instrumentation interface.
   @sa PSI_v1::register_mutex.
@@ -9361,8 +9359,6 @@ get_data_lock_interface(int version)
     return NULL;
   }
 }
-
-C_MODE_END
 
 struct PSI_thread_bootstrap pfs_thread_bootstrap = {get_thread_interface};
 

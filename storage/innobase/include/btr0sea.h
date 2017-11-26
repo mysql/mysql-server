@@ -108,7 +108,7 @@ both have sensible values.
 				latch mode the caller currently has on
 				search system: RW_S/X_LATCH or 0
 @param[in]	mtr		mini transaction
-@return TRUE if succeeded */
+@return true if succeeded */
 ibool
 btr_search_guess_on_hash(
 	dict_index_t*	index,

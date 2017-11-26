@@ -87,7 +87,7 @@ find_matching_index(NDBDICT* dict,
    * First check if it matches primary key
    */
   {
-    matches_primary_key= FALSE;
+    matches_primary_key= false;
 
     uint cnt_pk= 0, cnt_col= 0;
     for (unsigned i = 0; columns[i] != 0; i++)
@@ -101,7 +101,7 @@ find_matching_index(NDBDICT* dict,
     if (cnt_col == (uint)tab->getNoOfPrimaryKeys() &&
         cnt_col == cnt_pk)
     {
-      matches_primary_key= TRUE;
+      matches_primary_key= true;
       return 0;
     }
   }
@@ -130,12 +130,12 @@ find_matching_index(NDBDICT* dict,
          * Search for matching columns in any order
          * since order does not matter for unique index
          */
-        bool found= FALSE;
+        bool found= false;
         for (unsigned c = 0; c < index->getNoOfColumns(); c++)
         {
           if (!strcmp(columns[j]->getName(), index->getColumn(c)->getName()))
           {
-            found= TRUE;
+            found= true;
             break;
           }
         }
@@ -358,7 +358,7 @@ class Fk_util
     }
 
     // Find matching index
-    bool parent_primary_key= FALSE;
+    bool parent_primary_key= false;
     const NdbDictionary::Index* parent_index= find_matching_index(dict,
                                                                   new_parent_tab.get_table(),
                                                                   columns,
@@ -734,7 +734,7 @@ public:
     {
       DBUG_RETURN(false);
     }
-    mock_tab.setLogging(FALSE);
+    mock_tab.setLogging(false);
 
     unsigned i = 0;
     while (col_names[i])
@@ -1473,7 +1473,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
       childcols[pos]= 0; // NULL terminate
     }
 
-    bool child_primary_key= FALSE;
+    bool child_primary_key= false;
     const NDBINDEX* child_index= find_matching_index(dict,
                                                      child_tab.get_table(),
                                                      childcols,
@@ -1606,7 +1606,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
       parentcols[pos]= 0; // NULL terminate
     }
 
-    bool parent_primary_key= FALSE;
+    bool parent_primary_key= false;
     const NDBINDEX* parent_index= find_matching_index(dict,
                                                       parent_tab.get_table(),
                                                       parentcols,
@@ -1766,7 +1766,7 @@ ha_ndbcluster::is_fk_defined_on_table_or_index(uint index)
   /**
    * This doesnt seem implemented in Innodb either...
    */
-  return FALSE;
+  return false;
 }
 
 uint
@@ -2508,7 +2508,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
             might change during the alter. If not, get a better
             matching index.
            */
-          bool parent_primary = FALSE;
+          bool parent_primary = false;
           const NDBINDEX * idx = find_matching_index(dict,
                                                      dsttab.get_table(),
                                                      cols,
@@ -2552,7 +2552,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         {
           name = fk_split_name(db_and_name, fk.getChildIndex(), true);
           setDbName(ndb, db_and_name);
-          bool child_primary_key = FALSE;
+          bool child_primary_key = false;
           const NDBINDEX * idx = find_matching_index(dict,
                                                      dsttab.get_table(),
                                                      cols,
@@ -2790,7 +2790,7 @@ ha_ndbcluster::recreate_fk_for_truncate(THD* thd, Ndb* ndb, const char* tab_name
       child_cols[pos]= 0;
     }
 
-    bool child_primary_key= FALSE;
+    bool child_primary_key= false;
     const NDBINDEX* child_index= find_matching_index(dict,
                                                      child_tab.get_table(),
                                                      child_cols,

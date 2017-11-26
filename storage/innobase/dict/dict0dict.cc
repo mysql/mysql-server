@@ -172,7 +172,7 @@ index.
 @param[in]	table	table
 @param[in]	index	index
 @param[in]	add_v	new virtual columns added along with an add index call
-@return TRUE if the column names were found */
+@return true if the column names were found */
 static
 ibool
 dict_index_find_cols(
@@ -232,14 +232,14 @@ dict_table_remove_from_cache_low(
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Validate the dictionary table LRU list.
-@return TRUE if validate OK */
+@return true if validate OK */
 static
 ibool
 dict_lru_validate(void);
 /*===================*/
 /**********************************************************************//**
 Check if table is in the dictionary table LRU list.
-@return TRUE if table found */
+@return true if table found */
 static
 ibool
 dict_lru_find_table(
@@ -247,7 +247,7 @@ dict_lru_find_table(
 	const dict_table_t*	find_table);	/*!< in: table to find */
 /**********************************************************************//**
 Check if a table exists in the dict table non-LRU list.
-@return TRUE if table found */
+@return true if table found */
 static
 ibool
 dict_non_lru_find_table(
@@ -263,7 +263,7 @@ ib_mutex_t	dict_foreign_err_mutex;
 
 /********************************************************************//**
 Checks if the database name in two table names is the same.
-@return TRUE if same db name */
+@return true if same db name */
 ibool
 dict_tables_have_same_db(
 /*=====================*/
@@ -923,7 +923,7 @@ dict_table_autoinc_unlock(
 @param[in]	index		index
 @param[in]	n		column number
 @param[in]	is_virtual	whether it is a virtual col
-@return TRUE if contains the column or its prefix */
+@return true if contains the column or its prefix */
 ibool
 dict_index_contains_col_or_prefix(
 	const dict_index_t*	index,
@@ -1066,7 +1066,7 @@ dict_table_mysql_pos_to_innodb(
 /********************************************************************//**
 Checks if a column is in the ordering columns of the clustered index of a
 table. Column prefixes are treated like whole columns.
-@return TRUE if the column, or its prefix, is in the clustered key */
+@return true if the column, or its prefix, is in the clustered key */
 ibool
 dict_table_col_in_clustered_key(
 /*============================*/
@@ -1400,7 +1400,7 @@ dict_table_add_to_cache(
 
 /**********************************************************************//**
 Test whether a table can be evicted from the LRU cache.
-@return TRUE if table can be evicted. */
+@return true if table can be evicted. */
 static
 ibool
 dict_table_can_be_evicted(
@@ -1630,7 +1630,7 @@ struct dict_foreign_remove_partial
 
 /**********************************************************************//**
 Renames a table object.
-@return TRUE if success */
+@return true if success */
 dberr_t
 dict_table_rename_in_cache(
 /*=======================*/
@@ -2246,7 +2246,7 @@ dict_table_remove_from_cache_debug(
 /****************************************************************//**
 If the given column name is reserved for InnoDB system columns, return
 TRUE.
-@return TRUE if name is reserved */
+@return true if name is reserved */
 ibool
 dict_col_name_is_reserved(
 /*======================*/
@@ -2363,7 +2363,7 @@ dict_index_node_ptr_max_size(
 /****************************************************************//**
 If a record of this index might not fit on a single B-tree page,
 return TRUE.
-@return TRUE if the index record could become too big */
+@return true if the index record could become too big */
 static
 bool
 dict_index_too_big_for_tree(
@@ -2913,7 +2913,7 @@ index.
 @param[in]	table	table
 @param[in,out]	index	index
 @param[in]	add_v	new virtual columns added along with an add index call
-@return TRUE if the column names were found */
+@return true if the column names were found */
 static
 ibool
 dict_index_find_cols(
@@ -3458,7 +3458,7 @@ dict_index_build_internal_fts(
 
 /*********************************************************************//**
 Checks if a table is referenced by foreign keys.
-@return TRUE if table is referenced by a foreign key */
+@return true if table is referenced by a foreign key */
 ibool
 dict_table_is_referenced_by_foreign_key(
 /*====================================*/
@@ -5227,7 +5227,7 @@ syntax_error:
 /**********************************************************************//**
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
 no comparison can occur with the page number field in a node pointer.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dict_index_check_search_tuple(
 /*==========================*/
@@ -6544,7 +6544,7 @@ dict_close(void)
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Validate the dictionary table LRU list.
-@return TRUE if valid */
+@return true if valid */
 static
 ibool
 dict_lru_validate(void)
@@ -6573,7 +6573,7 @@ dict_lru_validate(void)
 
 /**********************************************************************//**
 Check if a table exists in the dict table LRU list.
-@return TRUE if table found in LRU list */
+@return true if table found in LRU list */
 static
 ibool
 dict_lru_find_table(
@@ -6601,7 +6601,7 @@ dict_lru_find_table(
 
 /**********************************************************************//**
 Check if a table exists in the dict table non-LRU list.
-@return TRUE if table found in non-LRU list */
+@return true if table found in non-LRU list */
 static
 ibool
 dict_non_lru_find_table(
@@ -7306,7 +7306,7 @@ DDTableBuffer::replace(
 			flags, btr_pcur_get_btr_cur(&pcur),
 			&cur_offsets, &m_dynamic_heap,
 			m_dynamic_heap, &big_rec, update,
-			0, NULL, 0, &mtr);
+			0, NULL, 0, 0, &mtr);
 		ut_a(error == DB_SUCCESS);
 		/* We don't have big rec in this table */
 		ut_ad(!big_rec);
@@ -7342,11 +7342,11 @@ DDTableBuffer::remove(
 	if (!page_rec_is_infimum(btr_pcur_get_rec(&pcur))
 	    && btr_pcur_get_low_match(&pcur) == m_index->n_uniq) {
 
-	DEBUG_SYNC_C("delete_metadata_before");
+		DEBUG_SYNC_C("delete_metadata_before");
 
 		btr_cur_pessimistic_delete(
 			&error, false, btr_pcur_get_btr_cur(&pcur),
-			BTR_CREATE_FLAG, false, &mtr);
+			BTR_CREATE_FLAG, false, 0, 0, 0, &mtr);
 		ut_ad(error == DB_SUCCESS);
 	}
 

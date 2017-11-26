@@ -19,7 +19,8 @@ ENGINE=NDB;
 CREATE TABLESPACE table_space1
 ADD DATAFILE './table_space1/datafile.dat'
 USE LOGFILE GROUP log_group1
-INITIAL_SIZE 24M
+INITIAL_SIZE 28M
+EXTENT_SIZE 256K
 ENGINE NDB;
 
 
@@ -435,11 +436,9 @@ drop table t1;
 #################
 
 ALTER TABLESPACE table_space1
-DROP DATAFILE './table_space1/datafile.dat'
-ENGINE = NDB;
+DROP DATAFILE './table_space1/datafile.dat';
 
-DROP TABLESPACE table_space1
-ENGINE = NDB;
+DROP TABLESPACE table_space1;
 
 DROP LOGFILE GROUP log_group1
 ENGINE =NDB;

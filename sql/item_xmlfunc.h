@@ -35,12 +35,12 @@ public:
   Item_xml_str_func(const POS &pos, Item *a, Item *b):
     Item_str_func(pos, a,b)
   {
-    maybe_null= TRUE;
+    maybe_null= true;
   }
   Item_xml_str_func(const POS &pos, Item *a, Item *b, Item *c):
     Item_str_func(pos, a,b,c)
   {
-    maybe_null= TRUE;
+    maybe_null= true;
   }
   bool resolve_type(THD *thd) override;
   String *parse_xml(String *raw_xml, String *parsed_xml_buf);

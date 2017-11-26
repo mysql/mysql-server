@@ -108,7 +108,6 @@ enum thr_lock_type thr_upgraded_concurrent_insert_lock = TL_WRITE;
 LIST *thr_lock_thread_list;			/* List of threads in use */
 ulong max_write_lock_count= ~(ulong) 0L;
 
-extern "C" {
 static void (*before_lock_wait)(void)= 0;
 static void (*after_lock_wait)(void)= 0;
 
@@ -118,7 +117,6 @@ void thr_set_lock_wait_callback(void (*before_wait)(void),
   before_lock_wait= before_wait;
   after_lock_wait= after_wait;
 }
-} // extern C
 
 
 static inline bool
@@ -1337,7 +1335,6 @@ static ulong sum=0;
 
 /* The following functions is for WRITE_CONCURRENT_INSERT */
 
-extern "C" {
 static void test_get_status(void* param MY_ATTRIBUTE((unused)),
                             int concurrent_insert MY_ATTRIBUTE((unused)))
 {
@@ -1416,7 +1413,6 @@ static void *test_thread(void *arg)
   free((uchar*) arg);
   return 0;
 }
-} // extern C
 
 
 int main(int argc,char **argv)

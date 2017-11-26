@@ -1,5 +1,5 @@
-#ifndef GIS__RING_FLIP_VISITOR_H_INCLUDED
-#define GIS__RING_FLIP_VISITOR_H_INCLUDED
+#ifndef SQL_GIS_RING_FLIP_VISITOR_H_INCLUDED
+#define SQL_GIS_RING_FLIP_VISITOR_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -61,4 +61,4 @@ class Ring_flip_visitor : public Nop_visitor {
 
 }  // namespace gis
 
-#endif  // GIS__RING_FLIP_VISITOR_H_INCLUDED
+#endif  // SQL_GIS_RING_FLIP_VISITOR_H_INCLUDED

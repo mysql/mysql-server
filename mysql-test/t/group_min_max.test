@@ -1641,3 +1641,181 @@ DROP TABLE t1;
 DROP TABLE t2;
 
 --echo # End of test for Bug#24657798
+
+--echo #
+--echo # Bug#24423143 - WRONG RESULTS FOR AGGREGATE QUERY
+--echo #
+
+--echo # Test index merge tree scenario
+CREATE TABLE a (
+  aggr_col int,
+  group_by_col int,
+  KEY aggr_col_key (aggr_col),
+  KEY group_by_col_key (group_by_col, aggr_col)
+) ENGINE=InnoDB;
+
+let $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
+eval set optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
+set @@session.optimizer_trace='enabled=on';
+set end_markers_in_json=on;
+
+INSERT INTO a VALUES (2,3),(5,6),(6,3),(7,NULL),(9,NULL),(10,6);
+ANALYZE TABLE a;
+
+SELECT group_by_col, MIN(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col > 2) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col) FROM a
+WHERE (group_by_col IN (70 ,9)) OR (aggr_col > 2) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SELECT group_by_col, MAX(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MAX(aggr_col) FROM a
+WHERE (group_by_col IN (70 , 9)) OR (aggr_col < 9) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Test IMPOSSIBLE TREE scenario
+ALTER TABLE a DROP KEY aggr_col_key;
+
+SELECT group_by_col, MIN(aggr_col) FROM a
+WHERE (group_by_col IN (70 ,9)) OR (aggr_col > 2) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col > 2) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SELECT group_by_col, MAX(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MAX(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 3: aggregate field used as equal expression.
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col IN (3, 9)) OR (aggr_col = 9) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col IN (3, 9)) OR (aggr_col = 9) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 4: non aggregate field used as equal expression.
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col = 3) OR (aggr_col > 8) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col = 3) OR (aggr_col > 8) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 5: aggregate field used as non-zero expression.
+INSERT INTO a VALUES(0, 3);
+INSERT INTO a VALUES(0, 9);
+INSERT INTO a VALUES(8, 0);
+ANALYZE TABLE a;
+
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col = 9) OR aggr_col GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col = 9 OR aggr_col GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+
+--echo # Scenario 6: non aggregate field used as non-zero expression.
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col OR (aggr_col < 9) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col OR (aggr_col < 9) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+
+--echo # Scenario 7: aggregate field used in equal exp without a CONST
+INSERT INTO a VALUES(1,1),(1,2),(2,1);
+
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col = group_by_col GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col = group_by_col GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 8: aggregate field used in a non-eq exp without a CONST
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col < group_by_col GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col < group_by_col GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 8
+INSERT INTO a VALUES(0,1),(1,0),(0,0);
+
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col OR group_by_col GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col OR group_by_col GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 9
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col AND group_by_col GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col AND group_by_col GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 10: Added for completion. This fix does not have an impact.
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col<>0 AND group_by_col<>0 GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col<>0 AND group_by_col<>0 GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 11: ITEM_FUNC as an argument of ITEM_FUNC
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col OR (group_by_col < (aggr_col = 1)) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col OR (group_by_col < (aggr_col = 1)) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SET optimizer_trace_max_mem_size=DEFAULT;
+SET optimizer_trace=DEFAULT;
+SET end_markers_in_json=DEFAULT;
+
+DROP TABLE a;
+
+--echo # End of test for Bug#24423143

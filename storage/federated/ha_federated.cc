@@ -481,8 +481,8 @@ static void init_federated_psi_keys(void)
     p		Handlerton
 
   RETURN
-    FALSE       OK
-    TRUE        Error
+    false       OK
+    true        Error
 */
 
 static int federated_db_init(void *p)
@@ -512,11 +512,11 @@ static int federated_db_init(void *p)
                        &federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
   mysql_mutex_destroy(&federated_mutex);
 error:
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -527,7 +527,7 @@ error:
     federated_db_end()
 
   RETURN
-    FALSE       OK
+    false       OK
 */
 
 static int federated_done(void*)
@@ -547,8 +547,8 @@ static int federated_done(void*)
   @param[in] quote_char Quote char to use for quoting identifier.
 
   @return Operation Status
-  @retval FALSE OK
-  @retval TRUE  There was an error appending to the string.
+  @retval false OK
+  @retval true  There was an error appending to the string.
 
   @note This function is based upon the append_identifier() function
         in sql_show.cc except that quoting always occurs.
@@ -756,7 +756,7 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
                 share->connection_string));
 
     /* ok, so we do a little parsing, but not completely! */
-    share->parsed= FALSE;
+    share->parsed= false;
     /*
       If there is a single '/' in the connection string, this means the user is
       specifying a table name
@@ -803,7 +803,7 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
   }
   else
   {
-    share->parsed= TRUE;
+    share->parsed= true;
     // Add a null for later termination of table name
     share->connection_string[table->s->connect_string.length]= 0;
     share->scheme= share->connection_string;
@@ -1301,7 +1301,7 @@ bool ha_federated::create_where_from_key(String *to,
                                          bool eq_range_arg)
 {
   bool both_not_null=
-    (start_key != NULL && end_key != NULL) ? TRUE : FALSE;
+    (start_key != NULL && end_key != NULL) ? true : false;
   const uchar *ptr;
   uint remainder, length;
   char tmpbuff[FEDERATED_QUERY_BUFFER_SIZE];
@@ -1720,8 +1720,8 @@ int ha_federated::close(void)
   the supplied query string buffer.
   
   @return
-    @retval FALSE       No error
-    @retval TRUE        Failure
+    @retval false       No error
+    @retval true        Failure
 */
 
 bool ha_federated::append_stmt_insert(String *query)
@@ -1729,7 +1729,7 @@ bool ha_federated::append_stmt_insert(String *query)
   char insert_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   Field **field;
   size_t tmp_length;
-  bool added_field= FALSE;
+  bool added_field= false;
 
   /* The main insert query string */
   String insert_string(insert_buffer, sizeof(insert_buffer), &my_charset_bin);
@@ -1767,7 +1767,7 @@ bool ha_federated::append_stmt_insert(String *query)
         next field is in the write set
       */
       insert_string.append(STRING_WITH_LEN(", "));
-      added_field= TRUE;
+      added_field= true;
     }
   }
 
@@ -1830,7 +1830,7 @@ int ha_federated::write_row(uchar*)
     start both our field and field values strings
     We must disable multi-row insert for "INSERT...ON DUPLICATE KEY UPDATE"
     Ignore duplicates is always true when insert_dup_update is true.
-    When replace_duplicates == TRUE, we can safely enable multi-row insert.
+    When replace_duplicates == true, we can safely enable multi-row insert.
     When performing multi-row insert, we only collect the columns values for
     the row. The start of the statement is only created when the first
     row is copied in to the bulk_insert string.
@@ -1894,7 +1894,7 @@ int ha_federated::write_row(uchar*)
     /*
       Send the current bulk insert out if appending the current row would
       cause the statement to overflow the packet size, otherwise set
-      auto_increment_update_required to FALSE as no query was executed.
+      auto_increment_update_required to false as no query was executed.
     */
     if (bulk_insert.length + values_string.length() + bulk_padding >
         mysql->net.max_packet_size && bulk_insert.length)
@@ -1903,7 +1903,7 @@ int ha_federated::write_row(uchar*)
       bulk_insert.length= 0;
     }
     else
-      auto_increment_update_required= FALSE;
+      auto_increment_update_required= false;
       
     if (bulk_insert.length == 0)
     {
@@ -2735,7 +2735,7 @@ void ha_federated::position(const uchar *record MY_ATTRIBUTE ((unused)))
   
   DBUG_ASSERT(stored_result);
 
-  position_called= TRUE;
+  position_called= true;
   /* Store result set address. */
   memcpy(ref, &stored_result, sizeof(MYSQL_RES *));
   /* Store data cursor position. */
@@ -2929,24 +2929,24 @@ int ha_federated::extra(ha_extra_function operation)
   DBUG_ENTER("ha_federated::extra");
   switch (operation) {
   case HA_EXTRA_IGNORE_DUP_KEY:
-    ignore_duplicates= TRUE;
+    ignore_duplicates= true;
     break;
   case HA_EXTRA_NO_IGNORE_DUP_KEY:
-    insert_dup_update= FALSE;
-    ignore_duplicates= FALSE;
+    insert_dup_update= false;
+    ignore_duplicates= false;
     break;
   case HA_EXTRA_WRITE_CAN_REPLACE:
-    replace_duplicates= TRUE;
+    replace_duplicates= true;
     break;
   case HA_EXTRA_WRITE_CANNOT_REPLACE:
     /*
       We use this flag to ensure that we do not create an "INSERT IGNORE"
       statement when inserting new rows into the remote table.
     */
-    replace_duplicates= FALSE;
+    replace_duplicates= false;
     break;
   case HA_EXTRA_INSERT_WITH_UPDATE:
-    insert_dup_update= TRUE;
+    insert_dup_update= true;
     break;
   default:
     /* do nothing */
@@ -2968,9 +2968,9 @@ int ha_federated::extra(ha_extra_function operation)
 
 int ha_federated::reset(void)
 {
-  insert_dup_update= FALSE;
-  ignore_duplicates= FALSE;
-  replace_duplicates= FALSE;
+  insert_dup_update= false;
+  ignore_duplicates= false;
+  replace_duplicates= false;
 
   /* Free stored result sets. */
   for (MYSQL_RES **result= results.begin(); result != results.end(); ++result)
@@ -3273,7 +3273,7 @@ bool ha_federated::get_error_message(int error, String* buf)
     remote_error_buf[0]= '\0';
   }
   DBUG_PRINT("exit", ("message: %s", buf->ptr()));
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -3296,7 +3296,7 @@ MYSQL_RES *ha_federated::store_result(MYSQL *mysql_arg)
   {
     results.push_back(result);
   }
-  position_called= FALSE;
+  position_called= false;
   DBUG_RETURN(result);
 }
 
@@ -3396,7 +3396,7 @@ int ha_federated::connection_autocommit(bool state)
 {
   const char *text;
   DBUG_ENTER("ha_federated::connection_autocommit");
-  text= (state == TRUE) ? "SET AUTOCOMMIT=1" : "SET AUTOCOMMIT=0";
+  text= (state == true) ? "SET AUTOCOMMIT=1" : "SET AUTOCOMMIT=0";
   DBUG_RETURN(execute_simple_query(text, 16));
 }
 

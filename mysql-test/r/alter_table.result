@@ -3508,7 +3508,7 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	foo	col1	{"buckets": [[1, 0.5], [2, 1]], "data-type": "int", "null-values": 0, "collation-id": 8, "sampling-rate": 1, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	foo	col1	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
 ALTER TABLE foo RENAME COLUMN col1 TO col2;
 SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')

@@ -196,7 +196,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   flags(flags_arg), m_parse_flag(parse_flag), show_val_type(show_val_type_arg),
   guard(lock), offset(off), on_check(on_check_func), on_update(on_update_func),
   deprecation_substitute(substitute),
-  is_os_charset(FALSE)
+  is_os_charset(false)
 {
   /*
     There is a limitation in handle_options() related to short options:
@@ -680,7 +680,7 @@ ulonglong get_system_variable_hash_version(void)
   Constructs an array of system variables for display to the user.
 
   @param show_var_array Prealloced_array of SHOW_VAR elements for display 
-  @param sort           If TRUE, the system variables should be sorted
+  @param sort           If true, the system variables should be sorted
   @param query_scope    OPT_GLOBAL or OPT_SESSION for SHOW GLOBAL|SESSION VARIABLES
   @param strict         Use strict scope checking
   @retval               True on error, false otherwise

@@ -96,7 +96,7 @@ bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
 {
   DBUG_ASSERT(!abort);
 
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
@@ -105,7 +105,7 @@ bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
 {
   DBUG_ASSERT(!abort);
 
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
@@ -113,7 +113,7 @@ bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
 {
   DBUG_ASSERT(!abort);
 
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
@@ -121,7 +121,7 @@ bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
 {
   DBUG_ASSERT(!abort);
 
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
@@ -129,7 +129,7 @@ bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
 {
   DBUG_ASSERT(!abort);
 
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
@@ -137,7 +137,7 @@ bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
 {
   DBUG_ASSERT(!abort);
 
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
@@ -147,7 +147,7 @@ bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
 {
     DBUG_ASSERT(!abort);
 
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
@@ -157,7 +157,7 @@ bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
 {
   DBUG_ASSERT(!abort);
 
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
@@ -166,7 +166,7 @@ bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
 {
   DBUG_ASSERT(!abort);
 
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
@@ -175,7 +175,7 @@ bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
 {
   DBUG_ASSERT(!abort);
 
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
@@ -184,7 +184,7 @@ bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
 {
   DBUG_ASSERT(!abort);
 
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
@@ -193,7 +193,7 @@ bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
 {
   DBUG_ASSERT(!abort);
 
-  return FALSE;
+  return false;
 }
 
 char* Rpl_info_dummy::do_get_description_info()
@@ -207,12 +207,12 @@ bool Rpl_info_dummy::do_is_transactional()
 {
   DBUG_ASSERT(!abort);
 
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_dummy::do_update_is_transactional()
 {
   DBUG_ASSERT(!abort);
 
-  return FALSE;
+  return false;
 }

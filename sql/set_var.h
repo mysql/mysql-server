@@ -224,7 +224,7 @@ public:
   virtual bool check_update_type(Item_result type) = 0;
   
   /**
-    Return TRUE for success if:
+    Return true for success if:
       Global query and variable scope is GLOBAL or SESSION, or
       Session query and variable scope is SESSION or ONLY_SESSION.
   */
@@ -364,13 +364,11 @@ public:
     return (type == OPT_GLOBAL || type == OPT_PERSIST ||
             type == OPT_PERSIST_ONLY);
   }
-#ifdef OPTIMIZER_TRACE
   virtual bool is_var_optimizer_trace() const
   {
     extern sys_var *Sys_optimizer_trace_ptr;
     return var == Sys_optimizer_trace_ptr;
   }
-#endif
 };
 
 

@@ -235,6 +235,11 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   ndbrequire(undo.m_len <= Proxy_undo::MaxData);
   memcpy(undo.m_data, undo.m_ptr, undo.m_len << 2);
 
+  /**
+   * All the logic about when to stop executing the UNDO log
+   * is in lgman.cpp. So this code assumes that we haven't
+   * yet reached the end of the UNDO log execution.
+   */
   switch (undo.m_type) {
   case File_formats::Undofile::UNDO_LOCAL_LCP_FIRST:
   case File_formats::Undofile::UNDO_LOCAL_LCP:

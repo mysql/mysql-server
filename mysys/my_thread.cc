@@ -118,7 +118,7 @@ int my_thread_cancel(my_thread_handle *thread)
 #ifndef _WIN32
   return pthread_cancel(thread->thread);
 #else
-  BOOL ok= FALSE;
+  bool ok= false;
 
   if (thread->handle)
   {

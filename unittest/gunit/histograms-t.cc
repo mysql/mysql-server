@@ -108,23 +108,23 @@ public:
 
     // Decimal values (my_decimal).
     my_decimal decimal1;
-    int2my_decimal(E_DEC_FATAL_ERROR, 0LL, FALSE, &decimal1);
+    int2my_decimal(E_DEC_FATAL_ERROR, 0LL, false, &decimal1);
     decimal_values.add_values(decimal1, 10);
 
     my_decimal decimal2;
-    int2my_decimal(E_DEC_FATAL_ERROR, -1000LL, FALSE, &decimal2);
+    int2my_decimal(E_DEC_FATAL_ERROR, -1000LL, false, &decimal2);
     decimal_values.add_values(decimal2, 10);
 
     my_decimal decimal3;
-    int2my_decimal(E_DEC_FATAL_ERROR, 1000LL, FALSE, &decimal3);
+    int2my_decimal(E_DEC_FATAL_ERROR, 1000LL, false, &decimal3);
     decimal_values.add_values(decimal3, 10);
 
     my_decimal decimal4;
-    int2my_decimal(E_DEC_FATAL_ERROR, 42LL, FALSE, &decimal4);
+    int2my_decimal(E_DEC_FATAL_ERROR, 42LL, false, &decimal4);
     decimal_values.add_values(decimal4, 10);
 
     my_decimal decimal5;
-    int2my_decimal(E_DEC_FATAL_ERROR, 1LL, FALSE, &decimal5);
+    int2my_decimal(E_DEC_FATAL_ERROR, 1LL, false, &decimal5);
     decimal_values.add_values(decimal5, 10);
 
     /*
@@ -200,7 +200,7 @@ public:
     */
     MYSQL_TIME time1;
     set_zero_time(&time1, MYSQL_TIMESTAMP_TIME);
-    set_max_time(&time1, FALSE);
+    set_max_time(&time1, false);
     time_values.add_values(time1, 10);
 
     MYSQL_TIME time2;
@@ -1950,19 +1950,19 @@ TEST_F(HistogramsTest, VerifyEquiHeightContentsDecimal)
   EXPECT_EQ(json_buckets->size(), 3U);
 
   my_decimal lower_bucket1;
-  int2my_decimal(E_DEC_FATAL_ERROR, -1000LL, FALSE, &lower_bucket1);
+  int2my_decimal(E_DEC_FATAL_ERROR, -1000LL, false, &lower_bucket1);
 
   my_decimal upper_bucket1;
-  int2my_decimal(E_DEC_FATAL_ERROR, 0LL, FALSE, &upper_bucket1);
+  int2my_decimal(E_DEC_FATAL_ERROR, 0LL, false, &upper_bucket1);
 
   my_decimal bucket2;
-  int2my_decimal(E_DEC_FATAL_ERROR, 1LL, FALSE, &bucket2);
+  int2my_decimal(E_DEC_FATAL_ERROR, 1LL, false, &bucket2);
 
   my_decimal lower_bucket3;
-  int2my_decimal(E_DEC_FATAL_ERROR, 42LL, FALSE, &lower_bucket3);
+  int2my_decimal(E_DEC_FATAL_ERROR, 42LL, false, &lower_bucket3);
 
   my_decimal upper_bucket3;
-  int2my_decimal(E_DEC_FATAL_ERROR, 1000LL, FALSE, &upper_bucket3);
+  int2my_decimal(E_DEC_FATAL_ERROR, 1000LL, false, &upper_bucket3);
 
 
   // First bucket.
@@ -2289,19 +2289,19 @@ TEST_F(HistogramsTest, VerifySingletonContentsDecimal)
   Json_array *json_buckets= static_cast<Json_array*>(buckets_dom);
 
   my_decimal decimal1;
-  int2my_decimal(E_DEC_FATAL_ERROR, -1000LL, FALSE, &decimal1);
+  int2my_decimal(E_DEC_FATAL_ERROR, -1000LL, false, &decimal1);
 
   my_decimal decimal2;
-  int2my_decimal(E_DEC_FATAL_ERROR, 0LL, FALSE, &decimal2);
+  int2my_decimal(E_DEC_FATAL_ERROR, 0LL, false, &decimal2);
 
   my_decimal decimal3;
-  int2my_decimal(E_DEC_FATAL_ERROR, 1LL, FALSE, &decimal3);
+  int2my_decimal(E_DEC_FATAL_ERROR, 1LL, false, &decimal3);
 
   my_decimal decimal4;
-  int2my_decimal(E_DEC_FATAL_ERROR, 42LL, FALSE, &decimal4);
+  int2my_decimal(E_DEC_FATAL_ERROR, 42LL, false, &decimal4);
 
   my_decimal decimal5;
-  int2my_decimal(E_DEC_FATAL_ERROR, 1000LL, FALSE, &decimal5);
+  int2my_decimal(E_DEC_FATAL_ERROR, 1000LL, false, &decimal5);
 
   VerifySingletonBucketContentsDecimal(json_buckets, 0, (10.0 / 60.0),
                                        decimal1);

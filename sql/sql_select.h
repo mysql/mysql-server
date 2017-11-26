@@ -225,8 +225,8 @@ public:
             an Item_func_trig_cond. This means the equality (and validity of
             this Key_use element) can be turned on and off. The on/off state
             is indicted by the pointed value:
-              *cond_guard == TRUE @<=@> equality condition is on
-              *cond_guard == FALSE @<=@> equality condition is off
+              *cond_guard == true @<=@> equality condition is on
+              *cond_guard == false @<=@> equality condition is off
 
     NULL  - Otherwise (the source equality can't be turned off)
 
@@ -724,7 +724,7 @@ public:
   /** Flags from SE's MRR implementation, to be used by JOIN_CACHE */
   uint join_cache_flags;
 
-  /** TRUE <=> AM will scan backward */
+  /** true <=> AM will scan backward */
   bool reversed_access;
 
   /** Clean up associated table after query execution, including resources */
@@ -914,7 +914,7 @@ extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b);
 class store_key
 {
 public:
-  bool null_key; /* TRUE <=> the value of the key has a null part */
+  bool null_key; /* true <=> the value of the key has a null part */
   enum store_key_result { STORE_KEY_OK, STORE_KEY_FATAL, STORE_KEY_CONV };
   store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null, uint length)
     :null_key(0), null_ptr(null), err(0)

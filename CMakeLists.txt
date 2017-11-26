@@ -266,6 +266,7 @@ INCLUDE(zlib)
 INCLUDE(lz4)
 INCLUDE(lzma)
 INCLUDE(re2)
+INCLUDE(icu)
 INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(readline)
@@ -370,26 +371,48 @@ ENDMACRO()
 
 OPTION(WITH_ASAN "Enable address sanitizer" OFF)
 IF(WITH_ASAN)
-  MY_SANITIZER_CHECK("-fsanitize=address" TRUE WITH_ASAN_OK)
-  IF(WITH_ASAN_OK)
-    OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" ON)
+  IF(WIN32_CLANG)
+    # Feature detection of -faddress=sanitize is problematic with Clang on
+    # Windows, since Clang (at least as of 5.0.0) requires /MT, but CMake
+    # default is /MD, and this code is run before the one in
+    # cmake/os/Windows.cmake, which sets /MT for ASAN on Win32 Clang.
+    # Just enable it unconditionally; we know it's working.
+    SET(CMAKE_C_FLAGS_DEBUG
+      "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address -fsanitize-address-use-after-scope -Wno-error")
+    SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+      "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize=address -fsanitize-address-use-after-scope")
+    SET(CMAKE_CXX_FLAGS_DEBUG
+      "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize-address-use-after-scope -Wno-error")
+    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize=address -fsanitize-address-use-after-scope")
     SET(HAVE_ASAN 1)
-    # This works with clang, but not gcc it seems.
-    MY_CHECK_CXX_COMPILER_FLAG(
-      "-fsanitize=address -fsanitize-address-use-after-scope"
-      HAVE_SANITIZE_SCOPE)
-    IF(WITH_ASAN_SCOPE AND HAVE_SANITIZE_SCOPE)
-      SET(CMAKE_C_FLAGS_DEBUG
-        "${CMAKE_C_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
-      SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-        "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
-      SET(CMAKE_CXX_FLAGS_DEBUG
-        "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
-      SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-        "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
-    ENDIF()
+
+    # Get the path to the ASAN support libraries.
+    GET_FILENAME_COMPONENT(ASAN_LIB_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
+    SET(ASAN_LIB_DIR "${ASAN_LIB_DIR}/../lib/clang/${CMAKE_CXX_COMPILER_VERSION}/lib/windows")
+    GET_FILENAME_COMPONENT(ASAN_LIB_DIR ${ASAN_LIB_DIR} REALPATH)
   ELSE()
-    MESSAGE(FATAL_ERROR "Do not know how to enable address sanitizer")
+    MY_SANITIZER_CHECK("-fsanitize=address" TRUE WITH_ASAN_OK)
+    IF(WITH_ASAN_OK)
+      OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" ON)
+      SET(HAVE_ASAN 1)
+      # This works with clang, but not gcc it seems.
+      MY_CHECK_CXX_COMPILER_FLAG(
+        "-fsanitize=address -fsanitize-address-use-after-scope"
+        HAVE_SANITIZE_SCOPE)
+      IF(WITH_ASAN_SCOPE AND HAVE_SANITIZE_SCOPE)
+        SET(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
+        SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+          "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
+        SET(CMAKE_CXX_FLAGS_DEBUG
+          "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
+        SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+          "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
+      ENDIF()
+    ELSE()
+      MESSAGE(FATAL_ERROR "Do not know how to enable address sanitizer")
+    ENDIF()
   ENDIF()
 ENDIF()
 
@@ -540,8 +563,6 @@ OPTION(ENABLED_LOCAL_INFILE
  "If we should enable LOAD DATA LOCAL by default" OFF)
 MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
 
-OPTION(OPTIMIZER_TRACE "Support tracing of Optimizer" ON)
-
 #
 # Options related to client-side protocol tracing
 #
@@ -682,6 +703,8 @@ MYSQL_CHECK_LZ4()
 MYSQL_CHECK_LZMA()
 # Add re2 library
 MYSQL_CHECK_RE2()
+# Add icu library
+MYSQL_CHECK_ICU()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
@@ -882,6 +905,7 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
     PATTERN "myisam.txt" EXCLUDE
     PATTERN "mysql.info" EXCLUDE
     PATTERN "sp-imp-spec.txt" EXCLUDE
+    PATTERN "README.build" EXCLUDE
   )
 ENDIF()
 

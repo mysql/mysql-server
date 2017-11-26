@@ -22,4 +22,19 @@
 void ndb_set_dbname(const char *pathname, char *dbname);
 void ndb_set_tabname(const char *pathname, char *tabname);
 
+/*
+  Return true if name starts with the prefix used for temporary name
+  (normally this is "#sql")
+*/
+bool ndb_name_is_temp(const char* name);
+
+/*
+  Return true if name starts with the prefix used for NDB blob
+  tables.
+
+  NOTE! Those tables are internal but still returned in the public
+  parts of NdbApi so they may need to be filtered in various places.
+*/
+bool ndb_name_is_blob_prefix(const char* name);
+
 #endif

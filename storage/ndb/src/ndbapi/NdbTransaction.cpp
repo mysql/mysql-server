@@ -2879,6 +2879,13 @@ NdbTransaction::refreshTuple(const NdbRecord *key_rec, const char *key_row,
     return NULL;
   }
 
+  if (key_rec->flags & NdbRecord::RecTableHasBlob)
+  {
+    // Table with blobs does not support refreshTuple()
+    setOperationErrorCodeAbort(4343);
+    return NULL;
+  }
+
   Uint8 keymask[NDB_MAX_ATTRIBUTES_IN_TABLE/8];
   bzero(keymask, sizeof(keymask));
   for (Uint32 i = 0; i<key_rec->key_index_length; i++)

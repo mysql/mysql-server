@@ -243,6 +243,11 @@ namespace sha2_password
                                            const std::string &plaintext_password)
   {
     DBUG_ENTER("Caching_sha2_password::authenticate");
+
+    /* Don't process the password if it is longer than maximum limit */
+    if (plaintext_password.length() > CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
+      DBUG_RETURN(true);
+
     /* Empty authentication string */
     if (!serialized_string.length())
       DBUG_RETURN(plaintext_password.length() ? true : false);
@@ -677,6 +682,7 @@ namespace sha2_password
       {
         char buffer[CRYPT_MAX_PASSWORD_SIZE + 1];
         memset(buffer, 0, sizeof(buffer));
+        DBUG_ASSERT(source.length() <= CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH);
         my_crypt_genhash(buffer, CRYPT_MAX_PASSWORD_SIZE,
                          source.c_str(), source.length(),
                          random.c_str(), nullptr, &iterations);
@@ -690,7 +696,7 @@ namespace sha2_password
         break;
       }
       default:
-        DBUG_ASSERT(FALSE);
+        DBUG_ASSERT(false);
         DBUG_RETURN(true);
     }
     DBUG_RETURN(false);
@@ -1115,10 +1121,6 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
       DBUG_RETURN(CR_AUTH_USER_CREDENTIALS);
   } // if(!my_vio_is_encrypted())
 
-  /* A password was sent to an account without a password */
-  if (info->auth_string_length == 0)
-    DBUG_RETURN(CR_AUTH_USER_CREDENTIALS);
-
   /* Fetch user authentication_string and extract the password salt */
   std::string serialized_string(info->auth_string, info->auth_string_length);
   std::string plaintext_password((char*)pkt, pkt_len-1);
@@ -1159,7 +1161,8 @@ static int caching_sha2_password_generate(char *outbuf,
   std::string random;
   std::string serialized_string;
 
-  if (my_validate_password_policy(inbuf, inbuflen))
+  if (inbuflen > sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH ||
+      my_validate_password_policy(inbuf, inbuflen))
     DBUG_RETURN(1);
 
   if (inbuflen == 0)
@@ -1317,6 +1320,10 @@ compare_caching_sha2_password_with_hash(
   std::string generated_digest;
   sha2_password::Digest_info digest_type;
   size_t iterations;
+
+  DBUG_ASSERT(cleartext_length <= sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH);
+  if (cleartext_length > sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
+    DBUG_RETURN(-1);
 
   if (g_caching_sha2_password->deserialize(serialized_string,
         digest_type, random, digest, iterations))

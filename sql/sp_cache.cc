@@ -49,8 +49,8 @@ public:
    Inserts a sp_head object into a hash table.
 
    @returns Success status
-     @return TRUE Failure
-     @return FALSE Success
+     @return true Failure
+     @return false Success
   */
   bool insert(sp_head *sp)
   {

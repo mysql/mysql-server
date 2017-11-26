@@ -960,10 +960,6 @@ enum enum_session_state_type
 
 #define net_new_transaction(net) ((net)->pkt_nr=0)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 bool	my_net_init(struct NET *net, MYSQL_VIO vio);
 void my_net_local_init(struct NET *net);
 void net_end(struct NET *net);
@@ -987,10 +983,6 @@ struct rand_struct {
   double max_value_dbl;
 };
 
-#ifdef __cplusplus
-}
-#endif
-
 /* Include the types here so existing UDFs can keep compiling */
 #include <mysql/udf_registration_types.h>
 
@@ -1004,10 +996,6 @@ struct rand_struct {
 /** @}*/
 
 /* Prototypes to password functions */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*
   These functions are used for authentication by client and server and
@@ -1041,13 +1029,28 @@ bool generate_sha256_scramble(unsigned char *dst, size_t dst_size,
                               const char *src, size_t src_size,
                               const char *rnd, size_t rnd_size);
 
+// extern "C" since it is an (undocumented) part of the libmysql ABI.
+#ifdef __cplusplus
+extern "C" {
+#endif
 char *get_tty_password(const char *opt_message);
+#ifdef __cplusplus
+}
+#endif
+
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 
 /* Some other useful functions */
 
+// Need to be extern "C" for the time being, due to memcached.
+#ifdef __cplusplus
+extern "C" {
+#endif
 bool my_thread_init(void);
 void my_thread_end(void);
+#ifdef __cplusplus
+}
+#endif
 
 #ifdef STDCALL
 unsigned long STDCALL net_field_length(unsigned char **packet);
@@ -1056,10 +1059,6 @@ unsigned long long net_field_length_ll(unsigned char **packet);
 unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
 unsigned int net_length_size(unsigned long long num);
 unsigned int net_field_length_size(const unsigned char *pos);
-
-#ifdef __cplusplus
-}
-#endif
 
 #define NULL_LENGTH ((unsigned long) ~0) /**< For ::net_store_length() */
 #define MYSQL_STMT_HEADER       4

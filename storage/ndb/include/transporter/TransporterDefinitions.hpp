@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,6 +94,7 @@ struct TransporterConfiguration {
   bool signalId;
   bool isMgmConnection; // is a mgm connection, requires transforming
   TransporterType type;
+  bool preSendChecksum;
 
   union { // Transporter specific configuration information
 

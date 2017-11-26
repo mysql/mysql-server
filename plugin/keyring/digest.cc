@@ -22,13 +22,13 @@
 namespace keyring
 {
   Digest::Digest(DigestKind digest_kind/*=SHA256*/)
-    : is_empty(TRUE)
+    : is_empty(true)
   {
     set_digest_kind(digest_kind);
   }
 
   Digest::Digest(DigestKind digestKind, const char* value)
-    : is_empty(TRUE)
+    : is_empty(true)
   {
     set_digest_kind(digestKind);
     assign(value);
@@ -57,7 +57,7 @@ namespace keyring
   {
     DBUG_ASSERT(value != NULL);
     memcpy(this->value, value, length);
-    is_empty= FALSE;
+    is_empty= false;
   }
 
   bool Digest::operator==(const Digest &digest)
@@ -71,7 +71,7 @@ namespace keyring
   {
     this->length=digest.length;
     this->is_empty= digest.is_empty;
-    if (digest.is_empty == FALSE)
+    if (digest.is_empty == false)
       memcpy(this->value, digest.value, digest.length);
     return *this;
   }
@@ -82,6 +82,6 @@ namespace keyring
     //by mysqld. SHA256 is defined in both cases - when server is linked with openssl
     //and when it is linked with yassl.
     (void)::SHA256(memory, memory_size, value);
-    is_empty= FALSE;
+    is_empty= false;
   }
 }//namespace keyring

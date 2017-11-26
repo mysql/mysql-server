@@ -227,13 +227,13 @@ static TINA_SHARE *get_share(const char *table_name, TABLE*)
     }
 
     share->use_count= 0;
-    share->is_log_table= FALSE;
+    share->is_log_table= false;
     share->table_name_length= length;
     share->table_name= tmp_name;
-    share->crashed= FALSE;
+    share->crashed= false;
     share->rows_recorded= 0;
-    share->update_file_opened= FALSE;
-    share->tina_write_opened= FALSE;
+    share->update_file_opened= false;
+    share->tina_write_opened= false;
     share->data_file_version= 0;
     my_stpcpy(share->table_name, table_name);
     fn_format(share->data_file_name, table_name, "", CSV_EXT,
@@ -262,7 +262,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE*)
                                             O_RDWR|O_CREAT,
                                             MYF(MY_WME))) == -1) ||
         read_meta_file(share->meta_file, &share->rows_recorded))
-      share->crashed= TRUE;
+      share->crashed= true;
   }
   else
   {
@@ -328,7 +328,7 @@ static int read_meta_file(File meta_file, ha_rows *rows)
 
   /* check crashed bit and magic number */
   if ((meta_buffer[0] != (uchar)TINA_CHECK_HEADER) ||
-      ((bool)(*ptr)== TRUE))
+      ((bool)(*ptr)== true))
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   mysql_file_sync(meta_file, MYF(MY_WME));
@@ -407,7 +407,7 @@ int ha_tina::init_tina_writer()
     the file. In the case of the crash it will remain marked crashed,
     which enforce recovery.
   */
-  (void)write_meta_file(share->meta_file, share->rows_recorded, TRUE);
+  (void)write_meta_file(share->meta_file, share->rows_recorded, true);
 
   if ((share->tina_write_filedes=
         mysql_file_open(csv_key_file_data,
@@ -415,10 +415,10 @@ int ha_tina::init_tina_writer()
                         MYF(MY_WME))) == -1)
   {
     DBUG_PRINT("info", ("Could not open tina file writes"));
-    share->crashed= TRUE;
+    share->crashed= true;
     DBUG_RETURN(my_errno() ? my_errno() : -1);
   }
-  share->tina_write_opened= TRUE;
+  share->tina_write_opened= true;
 
   DBUG_RETURN(0);
 }
@@ -441,14 +441,14 @@ static int free_share(TINA_SHARE *share)
   if (!--share->use_count){
     /* Write the meta file. Mark it as crashed if needed. */
     (void)write_meta_file(share->meta_file, share->rows_recorded,
-                          share->crashed ? TRUE :FALSE);
+                          share->crashed ? true :false);
     if (mysql_file_close(share->meta_file, MYF(0)))
       result_code= 1;
     if (share->tina_write_opened)
     {
       if (mysql_file_close(share->tina_write_filedes, MYF(0)))
         result_code= 1;
-      share->tina_write_opened= FALSE;
+      share->tina_write_opened= false;
     }
 
     tina_open_tables->erase(share->table_name);
@@ -1045,7 +1045,7 @@ int ha_tina::open_update_temp_file_if_needed()
                                        MY_REPLACE_EXT | MY_UNPACK_FILENAME),
                              0, O_RDWR | O_TRUNC, MYF(MY_WME))) < 0)
       return 1;
-    share->update_file_opened= TRUE;
+    share->update_file_opened= true;
     temp_file_length= 0;
   }
   return 0;
@@ -1306,7 +1306,7 @@ int ha_tina::extra(enum ha_extra_function operation)
  if (operation == HA_EXTRA_MARK_AS_LOG_TABLE)
  {
    mysql_mutex_lock(&share->mutex);
-   share->is_log_table= TRUE;
+   share->is_log_table= true;
    mysql_mutex_unlock(&share->mutex);
  }
   DBUG_RETURN(0);
@@ -1406,7 +1406,7 @@ int ha_tina::rnd_end()
         mysql_file_close(update_temp_file, MYF(0)))
       DBUG_RETURN(-1);
 
-    share->update_file_opened= FALSE;
+    share->update_file_opened= false;
 
     if (share->tina_write_opened)
     {
@@ -1416,7 +1416,7 @@ int ha_tina::rnd_end()
         Mark that the writer fd is closed, so that init_tina_writer()
         will reopen it later.
       */
-      share->tina_write_opened= FALSE;
+      share->tina_write_opened= false;
     }
 
     /*
@@ -1451,7 +1451,7 @@ int ha_tina::rnd_end()
       closed, so nothing worrying will happen to it in case of a crash.
       Here we record this fact to the meta-file.
     */
-    (void)write_meta_file(share->meta_file, share->rows_recorded, FALSE);
+    (void)write_meta_file(share->meta_file, share->rows_recorded, false);
     /* 
       Update local_saved_data_file_length with the real length of the 
       data file.
@@ -1462,7 +1462,7 @@ int ha_tina::rnd_end()
   DBUG_RETURN(0);
 error:
   mysql_file_close(update_temp_file, MYF(0));
-  share->update_file_opened= FALSE;
+  share->update_file_opened= false;
   DBUG_RETURN(-1);
 }
 
@@ -1592,7 +1592,7 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT*)
     */
     if (mysql_file_close(share->tina_write_filedes, MYF(0)))
       DBUG_RETURN(my_errno() ? my_errno() : -1);
-    share->tina_write_opened= FALSE;
+    share->tina_write_opened= false;
   }
   if (mysql_file_close(data_file, MYF(0)) ||
       mysql_file_close(repair_file, MYF(0)) ||
@@ -1610,7 +1610,7 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT*)
   local_saved_data_file_length= (size_t) current_position;
 
 end:
-  share->crashed= FALSE;
+  share->crashed= false;
   DBUG_RETURN(HA_ADMIN_OK);
 }
 
@@ -1690,7 +1690,7 @@ int ha_tina::create(const char *name, TABLE *table_arg,
                                       0, O_RDWR | O_TRUNC, MYF(MY_WME))) < 0)
     DBUG_RETURN(-1);
 
-  write_meta_file(create_file, 0, FALSE);
+  write_meta_file(create_file, 0, false);
   mysql_file_close(create_file, MYF(0));
 
   if ((create_file= mysql_file_create(csv_key_file_data,
@@ -1745,7 +1745,7 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT*)
 
   if ((rc != HA_ERR_END_OF_FILE) || count)
   {
-    share->crashed= TRUE;
+    share->crashed= true;
     DBUG_RETURN(HA_ADMIN_CORRUPT);
   }
 

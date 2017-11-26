@@ -288,7 +288,7 @@ bool prepare_default_value(THD *thd, uchar *buf, const TABLE &table,
            (field.flags & NOT_NULL_FLAG))
   {
     regfield->set_notnull();
-    regfield->store((longlong) 1, TRUE);
+    regfield->store((longlong) 1, true);
   }
   else
     regfield->reset();

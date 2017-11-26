@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 
-extern "C" CHARSET_INFO *system_charset_info;
+extern CHARSET_INFO *system_charset_info;
 
 TEST(StringTest, EmptyString)
 {
@@ -50,4 +50,13 @@ TEST(StringDeathTest, AppendEmptyString)
   EXPECT_DEATH_IF_SUPPORTED(tbl_name.c_ptr(), ".*m_alloced_length >= .*");
 #endif
   EXPECT_STREQ("aaaaaaa.", tbl_name.c_ptr_safe());
+}
+
+
+TEST(StringTest, StringBuffer)
+{
+  StringBuffer<3> sb("abc", 3, &my_charset_bin);
+  sb.append("def");
+  EXPECT_STREQ("abcdef", sb.c_ptr());
+  EXPECT_EQ(6u, sb.length());
 }

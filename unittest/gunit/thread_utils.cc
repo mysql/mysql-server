@@ -84,7 +84,7 @@ void Thread::run_wrapper(Thread *start_arg)
 }
 
 
-Notification::Notification() : m_notified(FALSE)
+Notification::Notification() : m_notified(false)
 {
   const int failed1= mysql_cond_init(0, &m_cond);
   LOCAL_ASSERT_FALSE(failed1);
@@ -117,7 +117,7 @@ void Notification::wait_for_notification()
 void Notification::notify()
 {
   MUTEX_LOCK(lock, &m_mutex);
-  m_notified= TRUE;
+  m_notified= true;
   const int failed= mysql_cond_broadcast(&m_cond);
   ASSERT_FALSE(failed);
 }

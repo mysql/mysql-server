@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -159,8 +159,8 @@ public:
   };
   typedef Ptr<Subscriber> SubscriberPtr;
   typedef ArrayPool<Subscriber> Subscriber_pool;
-  typedef DLList<Subscriber, Subscriber_pool> Subscriber_list;
-  typedef LocalDLList<Subscriber, Subscriber_pool> Local_Subscriber_list;
+  typedef DLList<Subscriber_pool> Subscriber_list;
+  typedef LocalDLList<Subscriber_pool> Local_Subscriber_list;
 
   struct Table;
   friend struct Table;
@@ -188,6 +188,7 @@ public:
 
     Uint32 m_frag_cnt; // only scan this many fragments...
     Uint32 m_frag_id;  // only scan this specific fragment...
+    Uint32 m_scan_batchsize;
     Uint32 m_tableId;  // redundant...
 
     /**
@@ -233,9 +234,9 @@ public:
     union { Uint32 nextPool; Uint32 nextList; };
   };
   typedef ArrayPool<SyncRecord> SyncRecord_pool;
-  typedef SLList<SyncRecord, SyncRecord_pool> SyncRecord_sllist;
-  typedef DLList<SyncRecord, SyncRecord_pool> SyncRecord_dllist;
-  typedef LocalDLList<SyncRecord, SyncRecord_pool> Local_SyncRecord_dllist;
+  typedef SLList<SyncRecord_pool> SyncRecord_sllist;
+  typedef DLList<SyncRecord_pool> SyncRecord_dllist;
+  typedef LocalDLList<SyncRecord_pool> Local_SyncRecord_dllist;
   friend struct SyncRecord;
 
   struct SubOpRecord
@@ -265,8 +266,8 @@ public:
     };
   };
   typedef ArrayPool<SubOpRecord> SubOpRecord_pool;
-  typedef DLFifoList<SubOpRecord, SubOpRecord_pool> SubOpRecord_fifo;
-  typedef LocalDLFifoList<SubOpRecord, SubOpRecord_pool> Local_SubOpRecord_fifo;
+  typedef DLFifoList<SubOpRecord_pool> SubOpRecord_fifo;
+  typedef LocalDLFifoList<SubOpRecord_pool> Local_SubOpRecord_fifo;
   friend struct SubOpRecord;
 
   struct Subscription
@@ -334,10 +335,10 @@ public:
   };
   typedef Ptr<Subscription> SubscriptionPtr;
   typedef ArrayPool<Subscription> Subscription_pool;
-  typedef DLList<Subscription, Subscription_pool> Subscription_list;
-  typedef LocalDLList<Subscription, Subscription_pool> Local_Subscription_list;
-  typedef DLHashTable<Subscription_pool, Subscription> Subscription_hash;
-  typedef KeyTable<Subscription_pool, Subscription> Subscription_keyhash;
+  typedef DLList<Subscription_pool> Subscription_list;
+  typedef LocalDLList<Subscription_pool> Local_Subscription_list;
+  typedef DLHashTable<Subscription_pool> Subscription_hash;
+  typedef KeyTable<Subscription_pool> Subscription_keyhash;
 
   struct Table {
     Table() { m_tableId = ~0; }
@@ -384,7 +385,7 @@ public:
     Uint32 m_schemaTransId;
   };
   typedef ArrayPool<Table> Table_pool;
-  typedef KeyTable<Table_pool, Table> Table_keyhash;
+  typedef KeyTable<Table_pool> Table_keyhash;
   /**
    * 
    */
@@ -719,7 +720,7 @@ private:
     Uint32 prevList;
   };
   typedef ArrayPool<Gcp_record> Gcp_record_pool;
-  typedef DLCFifoList<Gcp_record, Gcp_record_pool> Gcp_record_fifo;
+  typedef DLCFifoList<Gcp_record_pool> Gcp_record_fifo;
   Gcp_record_pool c_gcp_pool;
   Gcp_record_fifo c_gcp_list;
 

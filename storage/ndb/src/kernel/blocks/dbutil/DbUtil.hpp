@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -206,8 +206,8 @@ public:
     }
   };
   typedef ArrayPool<Prepare> Prepare_pool;
-  typedef SLList<Prepare, Prepare_pool> Prepare_sllist;
-  typedef DLList<Prepare, Prepare_pool> Prepare_dllist;
+  typedef SLList<Prepare_pool> Prepare_sllist;
+  typedef DLList<Prepare_pool> Prepare_dllist;
 
   /**
    * @struct  PreparedOperation
@@ -287,7 +287,7 @@ public:
     }
   };
   typedef ArrayPool<PreparedOperation> PreparedOperation_pool;
-  typedef SLList<PreparedOperation, PreparedOperation_pool> PreparedOperation_list;
+  typedef SLList<PreparedOperation_pool> PreparedOperation_list;
 
   /**
    * @struct  Operation
@@ -331,7 +331,7 @@ public:
     }
   };
   typedef ArrayPool<Operation> Operation_pool;
-  typedef SLList<Operation, Operation_pool> Operation_list;
+  typedef SLList<Operation_pool> Operation_list;
 
   /**
    * @struct  Transaction
@@ -395,8 +395,8 @@ public:
     }
   };
   typedef ArrayPool<Transaction> Transaction_pool;
-  typedef SLList<Transaction, Transaction_pool> Transaction_sllist;
-  typedef DLList<Transaction, Transaction_pool> Transaction_dllist;
+  typedef SLList<Transaction_pool> Transaction_sllist;
+  typedef DLList<Transaction_pool> Transaction_dllist;
 
   typedef Ptr<Page32>             Page32Ptr;
   typedef Ptr<Prepare>            PreparePtr;
@@ -475,8 +475,8 @@ public:
   };
   typedef Ptr<LockQueueInstance> LockQueuePtr;
   typedef ArrayPool<LockQueueInstance> LockQueueInstance_pool;
-  typedef KeyTable<LockQueueInstance_pool, LockQueueInstance> LockQueueInstance_keyhash;
-  typedef DLHashTable<LockQueueInstance_pool, LockQueueInstance> LockQueueInstance_hash;
+  typedef KeyTable<LockQueueInstance_pool> LockQueueInstance_keyhash;
+  typedef DLHashTable<LockQueueInstance_pool> LockQueueInstance_hash;
 
   LockQueueInstance_pool c_lockQueuePool;
   LockQueueInstance_keyhash c_lockQueues;

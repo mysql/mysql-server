@@ -408,8 +408,8 @@ int vio_keepalive(Vio* vio, bool set_keep_alive)
   @param vio  A VIO object
 
   @return Whether a I/O operation should be deferred.
-  @retval TRUE    Temporary failure, retry operation.
-  @retval FALSE   Indeterminate failure.
+  @retval true    Temporary failure, retry operation.
+  @retval false   Indeterminate failure.
 */
 
 bool
@@ -425,8 +425,8 @@ vio_should_retry(Vio *vio)
   @param vio  A VIO object
 
   @return Whether a I/O operation timed out.
-  @retval TRUE    Operation timed out.
-  @retval FALSE   Not a timeout failure.
+  @retval true    Operation timed out.
+  @retval false   Not a timeout failure.
 */
 
 bool
@@ -644,8 +644,8 @@ static void vio_get_normalized_ip(const struct sockaddr *src,
   @param [in] ip_string_size  size of the ip_string.
 
   @return Error status.
-  @retval TRUE in case of error (the ip_string buffer is not enough).
-  @retval FALSE on success.
+  @retval true in case of error (the ip_string buffer is not enough).
+  @retval false on success.
 */
 
 bool vio_get_normalized_ip_string(const struct sockaddr *addr,
@@ -664,12 +664,12 @@ bool vio_get_normalized_ip_string(const struct sockaddr *addr,
                             NI_NUMERICHOST);
 
   if (!err_code)
-    return FALSE;
+    return false;
 
   DBUG_PRINT("error", ("getnameinfo() failed with %d (%s).",
                        (int) err_code,
                        (const char *) gai_strerror(err_code)));
-  return TRUE;
+  return true;
 }
 
 
@@ -724,7 +724,7 @@ bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
     if (err_code)
     {
       DBUG_PRINT("exit", ("getpeername() gave error: %d", socket_errno));
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
 
     /* Normalize IP address. */
@@ -743,7 +743,7 @@ bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
     {
       DBUG_PRINT("exit", ("getnameinfo() gave error: %s",
                           gai_strerror(err_code)));
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
 
     *port= (uint16) strtol(port_buffer, NULL, 10);
@@ -752,7 +752,7 @@ bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
   DBUG_PRINT("exit", ("Client IP address: %s; port: %d",
                       (const char *) ip_buffer,
                       (int) *port));
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -762,8 +762,8 @@ bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
   @param vio          A VIO object.
   @param [out] bytes  The amount of bytes available.
 
-  @retval FALSE   Success.
-  @retval TRUE    Failure.
+  @retval false   Success.
+  @retval true    Failure.
 */
 // WL#4896: Not covered
 static bool socket_peek_read(Vio *vio, uint *bytes)
@@ -772,22 +772,22 @@ static bool socket_peek_read(Vio *vio, uint *bytes)
 #if defined(_WIN32)
   u_long len;
   if (ioctlsocket(sd, FIONREAD, &len))
-    return TRUE;
+    return true;
   *bytes= len;
-  return FALSE;
+  return false;
 #elif defined(FIONREAD_IN_SYS_IOCTL) || defined(FIONREAD_IN_SYS_FILIO)
   int len;
   if (ioctl(sd, FIONREAD, &len) < 0)
-    return TRUE;
+    return true;
   *bytes= len;
-  return FALSE;
+  return false;
 #else
   char buf[1024];
   ssize_t res= recv(sd, &buf, sizeof(buf), MSG_PEEK);
   if (res < 0)
-    return TRUE;
+    return true;
   *bytes= res;
-  return FALSE;
+  return false;
 #endif
 }
 
@@ -1104,8 +1104,8 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   @param timeout   Interval (in milliseconds) to wait until a
                    connection is established.
 
-  @retval FALSE   A connection was successfully established.
-  @retval TRUE    A fatal error. See socket_errno.
+  @retval false   A connection was successfully established.
+  @retval true    A fatal error. See socket_errno.
 */
 
 bool
@@ -1119,8 +1119,8 @@ vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len, int timeout)
   DBUG_ASSERT(vio->type == VIO_TYPE_SOCKET || vio->type == VIO_TYPE_TCPIP);
 
   /* If timeout is not infinite, set socket to non-blocking mode. */
-  if ((timeout > -1) && vio_set_blocking(vio, FALSE))
-    DBUG_RETURN(TRUE);
+  if ((timeout > -1) && vio_set_blocking(vio, false))
+    DBUG_RETURN(true);
 
   /* Initiate the connection. */
   do
@@ -1180,8 +1180,8 @@ vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len, int timeout)
   /* If necessary, restore the blocking mode, but only if connect succeeded. */
   if ((timeout > -1) && (ret == 0))
   {
-    if (vio_set_blocking(vio, TRUE))
-      DBUG_RETURN(TRUE);
+    if (vio_set_blocking(vio, true))
+      DBUG_RETURN(true);
   }
 
   DBUG_RETURN(MY_TEST(ret));
@@ -1196,8 +1196,8 @@ vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len, int timeout)
 
   @param vio      The VIO object.
 
-  @retval TRUE    EOF condition not found.
-  @retval FALSE   EOF condition is signaled.
+  @retval true    EOF condition not found.
+  @retval false   EOF condition is signaled.
 */
 
 bool vio_is_connected(Vio *vio)
@@ -1212,7 +1212,7 @@ bool vio_is_connected(Vio *vio)
     interpreted as if there is data to read.
   */
   if (!vio_io_wait(vio, VIO_IO_EVENT_READ, 0))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /*
     The second step is read() or recv() from the socket returning
@@ -1225,7 +1225,7 @@ bool vio_is_connected(Vio *vio)
   while (socket_peek_read(vio, &bytes))
   {
     if (socket_errno != SOCKET_EINTR)
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(false);
   }
 
 #ifdef HAVE_OPENSSL
@@ -1234,7 +1234,7 @@ bool vio_is_connected(Vio *vio)
     bytes= SSL_pending((SSL*) vio->ssl_arg);
 #endif
 
-  DBUG_RETURN(bytes ? TRUE : FALSE);
+  DBUG_RETURN(bytes ? true : false);
 }
 
 #ifndef DBUG_OFF

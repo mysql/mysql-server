@@ -142,7 +142,7 @@ routine.
 
 For instance, a read-ahead of non-ibuf pages is forbidden by threads
 that are executing an insert buffer routine.
-@return TRUE if inside an insert buffer routine */
+@return true if inside an insert buffer routine */
 UNIV_INLINE
 ibool
 ibuf_inside(
@@ -155,7 +155,7 @@ ibuf_inside(
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
-@return TRUE if a bitmap page */
+@return true if a bitmap page */
 UNIV_INLINE
 ibool
 ibuf_bitmap_page(

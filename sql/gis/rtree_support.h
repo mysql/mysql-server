@@ -1,5 +1,5 @@
-#ifndef GIS__RTREE_SUPPORT_H_INCLUDED
-#define GIS__RTREE_SUPPORT_H_INCLUDED
+#ifndef SQL_GIS_RTREE_SUPPORT_H_INCLUDED
+#define SQL_GIS_RTREE_SUPPORT_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -230,4 +230,4 @@ double rtree_area_overlapping(const dd::Spatial_reference_system* srs,
                               const uchar* mbr_a, const uchar* mbr_b,
                               int mbr_len);
 
-#endif  // GIS__RTREE_SUPPORT_H_INCLUDED
+#endif  // SQL_GIS_RTREE_SUPPORT_H_INCLUDED

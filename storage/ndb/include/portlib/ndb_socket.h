@@ -24,19 +24,20 @@
 #include "ndb_socket_posix.h"
 #endif
 
+
 static inline
-void ndb_socket_close(ndb_socket_t sock, bool with_reset = false)
+void ndb_socket_close_with_reset(ndb_socket_t sock, bool with_reset = false)
 {
   if (with_reset)
   {
     // Force hard reset of the socket by turning on linger
     // with timeout 0
     struct linger hard_reset = {1, 0};
-    my_setsockopt(sock, SOL_SOCKET, SO_LINGER,
+    ndb_setsockopt(sock, SOL_SOCKET, SO_LINGER,
                   (void*)&hard_reset, sizeof(hard_reset));
   }
 
-  my_socket_close(sock);
+  ndb_socket_close(sock);
 }
 
 // Create ndb_socket_t given ndb_native_socket_t
@@ -52,13 +53,9 @@ ndb_socket_t ndb_socket_create_from_native(ndb_native_socket_t native_socket)
   return s;
 }
 
-C_MODE_START
-
 /*
   create a pair of connected sockets
 */
-int my_socketpair(ndb_socket_t s[2]);
-
-C_MODE_END
+int ndb_socketpair(ndb_socket_t s[2]);
 
 #endif

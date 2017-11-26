@@ -227,7 +227,7 @@ rec_set_deleted_flag_new(
 
 /******************************************************//**
 The following function tells if a new-style record is a node pointer.
-@return TRUE if node pointer */
+@return true if node pointer */
 UNIV_INLINE
 ibool
 rec_get_node_ptr_flag(
@@ -278,7 +278,7 @@ rec_set_heap_no_new(
 /******************************************************//**
 The following function is used to test whether the data offsets
 in the record are stored in one-byte or two-byte format.
-@return TRUE if 1-byte form */
+@return true if 1-byte form */
 UNIV_INLINE
 ibool
 rec_get_1byte_offs_flag(
@@ -730,7 +730,7 @@ rec_copy_prefix_to_dtuple(
 #endif /* !UNIV_HOTBACKUP */
 /***************************************************************//**
 Validates the consistency of a physical record.
-@return TRUE if ok */
+@return true if ok */
 ibool
 rec_validate(
 /*=========*/
@@ -878,6 +878,7 @@ private:
 	/** Assignment operator */
 	rec_printer& operator=(const rec_printer& other);
 };
+# endif /* UNIV_DEBUG */
 
 /************************************************************//**
 Reads the DB_TRX_ID of a clustered index record.
@@ -888,7 +889,6 @@ rec_get_trx_id(
 	const rec_t*		rec,	/*!< in: record */
 	const dict_index_t*	index)	/*!< in: clustered index */
 	MY_ATTRIBUTE((warn_unused_result));
-# endif /* UNIV_DEBUG */
 #endif /* UNIV_HOTBACKUP */
 
 /* Maximum lengths for the data in a physical record if the offsets

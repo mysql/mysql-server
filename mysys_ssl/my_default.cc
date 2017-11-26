@@ -161,7 +161,7 @@ bool my_getopt_is_ro_persist_args_separator(const char* arg)
   in order to separate arguments received from config file
   and command line.
 */
-bool my_getopt_use_args_separator= FALSE;
+bool my_getopt_use_args_separator= false;
 bool my_getopt_is_args_separator(const char* arg)
 {
   return (arg == args_separator);
@@ -176,10 +176,10 @@ static const char *my_login_path= 0;
 static char my_defaults_file_buffer[FN_REFLEN];
 static char my_defaults_extra_file_buffer[FN_REFLEN];
 
-static bool defaults_already_read= FALSE;
+static bool defaults_already_read= false;
 
 /* Set to TRUE, if --no-defaults is found. */
-bool no_defaults= FALSE;
+bool no_defaults= false;
 
 /* Which directories are searched for options (and in which order) */
 
@@ -362,7 +362,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       my_defaults_file= my_defaults_file_buffer;
     }
 
-    defaults_already_read= TRUE;
+    defaults_already_read= true;
     init_variable_default_paths();
 
     /*
@@ -659,7 +659,7 @@ int load_defaults(const char *conf_file, const char **groups,
 }
 
 /** A global to turn off or on reading the mylogin file. On by default */
-bool my_defaults_read_login_file= TRUE;
+bool my_defaults_read_login_file= true;
 /*
   Read options from configurations files
 
@@ -721,7 +721,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
     --no-defaults is always the first option
   */
   if (*argc >= 2 && !strcmp(argv[0][1], "--no-defaults"))
-    no_defaults= found_no_defaults= TRUE;
+    no_defaults= found_no_defaults= true;
 
   group.count=0;
   group.name= "defaults";
@@ -1608,7 +1608,7 @@ static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs)
     return 1;  /* Failure */
   /* Should never fail if DEFAULT_DIRS_SIZE is correct size */
   err= array_append_string_unique(p, dirs, DEFAULT_DIRS_SIZE);
-  DBUG_ASSERT(err == FALSE);
+  DBUG_ASSERT(err == false);
 
   return 0;
 }

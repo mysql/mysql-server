@@ -24,9 +24,9 @@ namespace keyring
                                                       Buffer *buffer)
   {
     if (buffer->size < buffer->position + key->get_key_pod_size())
-      return TRUE;
+      return true;
     key->store_in_buffer(buffer->data, &(buffer->position));
-    return FALSE;
+    return false;
   }
 
   bool Hash_to_buffer_serializer::store_keys_in_buffer
@@ -37,9 +37,9 @@ namespace keyring
     for (const auto &key_and_value : keys_hash)
     {
       if (store_key_in_buffer(key_and_value.second.get(), buffer))
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
   }
 
   ISerialized_object* Hash_to_buffer_serializer::serialize

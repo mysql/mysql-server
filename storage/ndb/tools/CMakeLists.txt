@@ -13,6 +13,26 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+# Disable specific types of warnings for current directory
+# if the compiler supports the flag
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  INCLUDE(CheckCXXCompilerFlag)
+  FOREACH(warning
+          "unused-but-set-variable"
+          "strict-aliasing"
+          "unused-parameter"
+          # Downgrade -Werror to warning for "may be used uninitialized"
+          # and "is used uninitialized in this function"
+          "error=maybe-uninitialized")
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitools.cmake)
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
@@ -21,6 +41,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel/signaldata
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbtools
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
+  ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_BINARY_DIR}/storage/ndb/tools)
 
 ADD_CONVENIENCE_LIBRARY(ndbtools
@@ -159,7 +180,7 @@ TARGET_LINK_LIBRARIES(ndb_move_data ndbclient_static ndbNDBT)
 IF(NOT WIN32)
 IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
   IF (HAVE_NCURSESW_1 OR HAVE_NCURSESW_2 OR HAVE_NCURSESW_3 OR HAVE_NCURSESW_4 OR HAVE_NCURSESW_5)
-    MESSAGE("-- Adding ndb_top executable")
+    MESSAGE(STATUS "-- Adding ndb_top executable")
     FIND_LIBRARY(NCURSESW_LIB
                  NAMES ncursesw)
     IF (NOT NCURSESW_LIB)
@@ -201,9 +222,13 @@ INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/ndb_dist_priv.sql
         DESTINATION ${INSTALL_MYSQLSHAREDIR})
 
 if(NOT WIN32)
-  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/ndb_error_reporter.pl" "${CMAKE_CURRENT_BINARY_DIR}/ndb_error_reporter" COPYONLY)
-  EXECUTE_PROCESS(COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/ndb_error_reporter)
-  INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/ndb_error_reporter
+  SET(TARGET_RUNTIME_OUTPUT_DIRECTORY
+    ${CMAKE_BINARY_DIR}/runtime_output_directory)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_error_reporter.pl
+    ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/ndb_error_reporter COPYONLY)
+  EXECUTE_PROCESS(COMMAND chmod +x
+    ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/ndb_error_reporter)
+  INSTALL_SCRIPT(${TARGET_RUNTIME_OUTPUT_DIRECTORY}/ndb_error_reporter
          DESTINATION ${INSTALL_BINDIR}
          COMPONENT ClusterTools)
 ENDIF()

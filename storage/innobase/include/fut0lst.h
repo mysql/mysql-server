@@ -149,22 +149,47 @@ flst_read_addr(
 
 /********************************************************************//**
 Validates a file-based list.
-@return TRUE if ok */
+@return true if ok */
 ibool
 flst_validate(
 /*==========*/
 	const flst_base_node_t*	base,	/*!< in: pointer to base node of list */
 	mtr_t*			mtr1);	/*!< in: mtr */
 
+/** Inserts a node after another in a list.
+@param[in]	base	pointer to base node of list
+@param[in]	node1	node to insert after
+@param[in]	node2	node to add
+@param[in]	mtr	mini-transaction handle. */
+void
+flst_insert_after(
+	flst_base_node_t*	base,
+	flst_node_t*		node1,
+	flst_node_t*		node2,
+	mtr_t*			mtr);
+
+/** Inserts a node before another in a list.
+@param[in]	base	pointer to base node of list
+@param[in]	node2	node to insert
+@param[in]	node3	node to insert before
+@param[in]	mtr	mini-transaction handle. */
+void
+flst_insert_before(
+	flst_base_node_t*	base,
+	flst_node_t*		node2,
+	flst_node_t*		node3,
+	mtr_t*			mtr);
+
 #include "fut0lst.ic"
 
-#ifdef UNIV_DEBUG
 /** In-memory representation of flst_base_node_t */
 struct flst_bnode_t
 {
 	ulint		len;
 	fil_addr_t	first;
 	fil_addr_t	last;
+
+	flst_bnode_t() : len(0) {}
 
 	flst_bnode_t(const flst_base_node_t* base, mtr_t* mtr)
 		:
@@ -180,6 +205,13 @@ struct flst_bnode_t
 		last	= flst_get_last(base, mtr);
 	}
 
+	void reset()
+	{
+		len = 0;
+		first = fil_addr_null;
+		last = fil_addr_null;
+	}
+
 	std::ostream& print(std::ostream& out) const
 	{
 		out << "[flst_base_node_t: len=" << len << ", first="
@@ -193,5 +225,5 @@ std::ostream& operator<<(std::ostream& out, const flst_bnode_t& obj)
 {
 	return(obj.print(out));
 }
-#endif /* UNIV_DEBUG */
-#endif
+
+#endif /* fut0lst_h */

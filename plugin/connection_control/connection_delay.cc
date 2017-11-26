@@ -772,7 +772,7 @@ namespace connection_control
       }
       default:
         /* Should never reach here. */
-        DBUG_ASSERT(FALSE);
+        DBUG_ASSERT(false);
         error_handler->handle_error("Unexpected option type for connection delay.");
     };
     DBUG_RETURN(error);
@@ -974,7 +974,7 @@ namespace connection_control
                       information_schema.connection_control_failed_attempts.
   @param [in] cond    Condition if any.
 
-  @returns Always returns FALSE.
+  @returns Always returns false.
 */
 
 int fill_failed_attempts_view(THD *thd,
@@ -983,7 +983,7 @@ int fill_failed_attempts_view(THD *thd,
 {
   if (connection_control::g_max_failed_connection_handler)
     connection_control::g_max_failed_connection_handler->fill_IS_table(thd, tables, cond);
-  return FALSE;
+  return false;
 }
 
 

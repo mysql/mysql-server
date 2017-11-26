@@ -99,9 +99,14 @@ row_undo_mod_clust_low(
 				latching any further pages */
 	ulint		mode)	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
+	DBUG_ENTER("row_undo_mod_clust_low");
+
+	DBUG_LOG("undo", "undo_no=" << node->undo_no);
+
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	dberr_t		err;
+	trx_t*		trx = thr_get_trx(thr);
 #ifdef UNIV_DEBUG
 	ibool		success;
 #endif /* UNIV_DEBUG */
@@ -122,6 +127,7 @@ row_undo_mod_clust_low(
 	if (mode != BTR_MODIFY_LEAF
 	    && dict_index_is_online_ddl(btr_cur_get_index(btr_cur))) {
 		*rebuilt_old_pk = row_log_table_get_pk(
+			trx,
 			btr_cur_get_rec(btr_cur),
 			btr_cur_get_index(btr_cur), NULL, sys, &heap);
 	} else {
@@ -146,12 +152,13 @@ row_undo_mod_clust_low(
 			| BTR_KEEP_SYS_FLAG,
 			btr_cur, offsets, offsets_heap, heap,
 			&dummy_big_rec, node->update,
-			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
+			node->cmpl_info, thr, thr_get_trx(thr)->id,
+			node->undo_no, mtr);
 
 		ut_a(!dummy_big_rec);
 	}
 
-	return(err);
+	DBUG_RETURN(err);
 }
 
 /***********************************************************//**
@@ -238,7 +245,9 @@ row_undo_mod_remove_clust_low(
 		are passing rollback=false, just like purge does. */
 
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-					   false, mtr);
+					   false, node->trx->id,
+					   node->undo_no, node->rec_type,
+					   mtr);
 
 		/* The delete operation may fail if we have little
 		file space left: TODO: easiest to crash the database
@@ -339,7 +348,7 @@ row_undo_mod_clust(
 			break;
 		case TRX_UNDO_UPD_DEL_REC:
 			row_log_table_delete(
-				btr_pcur_get_rec(pcur), node->row,
+				node->trx, btr_pcur_get_rec(pcur), node->row,
 				index, offsets, sys);
 			break;
 		default:
@@ -529,9 +538,9 @@ row_undo_mod_del_mark_or_remove_sec_low(
 			the distinction only matters when deleting a
 			record that contains externally stored columns. */
 			ut_ad(!index->is_clustered());
-			btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-						   false, &mtr);
-
+			btr_cur_pessimistic_delete(
+				&err, FALSE, btr_cur, 0, false, node->trx->id,
+				node->undo_no, node->rec_type, &mtr);
 			/* The delete operation may fail if we have little
 			file space left: TODO: easiest to crash the database
 			and restart with more file space */
@@ -598,7 +607,9 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 				BTR_MODIFY_TREE */
 	que_thr_t*	thr,	/*!< in: query thread */
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry)	/*!< in: index entry */
+	dtuple_t*	entry,	/*!< in: index entry */
+	undo_no_t	undo_no)
+				/*!< in: undo number upto which to rollback.*/
 {
 	btr_pcur_t		pcur;
 	btr_cur_t*		btr_cur		= btr_pcur_get_btr_cur(&pcur);
@@ -782,7 +793,8 @@ try_again:
 			err = btr_cur_pessimistic_update(
 				flags, btr_cur, &offsets, &offsets_heap,
 				heap, &dummy_big_rec,
-				update, 0, thr, thr_get_trx(thr)->id, &mtr);
+				update, 0, thr, thr_get_trx(thr)->id,
+				undo_no, &mtr);
 			ut_a(!dummy_big_rec);
 		}
 
@@ -928,10 +940,11 @@ row_undo_mod_del_mark_sec(
 		ut_a(entry);
 
 		err = row_undo_mod_del_unmark_sec_and_undo_update(
-			BTR_MODIFY_LEAF, thr, index, entry);
+			BTR_MODIFY_LEAF, thr, index, entry, node->undo_no);
 		if (err == DB_FAIL) {
 			err = row_undo_mod_del_unmark_sec_and_undo_update(
-				BTR_MODIFY_TREE, thr, index, entry);
+				BTR_MODIFY_TREE, thr, index, entry,
+				node->undo_no);
 		}
 
 		if (err == DB_DUPLICATE_KEY) {
@@ -1074,10 +1087,11 @@ row_undo_mod_upd_exist_sec(
 		ut_a(entry);
 
 		err = row_undo_mod_del_unmark_sec_and_undo_update(
-			BTR_MODIFY_LEAF, thr, index, entry);
+			BTR_MODIFY_LEAF, thr, index, entry, node->undo_no);
 		if (err == DB_FAIL) {
 			err = row_undo_mod_del_unmark_sec_and_undo_update(
-				BTR_MODIFY_TREE, thr, index, entry);
+				BTR_MODIFY_TREE, thr, index, entry,
+				node->undo_no);
 		}
 
 		if (err == DB_DUPLICATE_KEY) {

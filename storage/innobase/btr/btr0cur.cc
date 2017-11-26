@@ -3048,7 +3048,8 @@ btr_cur_optimistic_insert(
 
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
-		big_rec_vec = dtuple_convert_big_rec(index, 0, entry, &n_ext);
+		big_rec_vec = dtuple_convert_big_rec(
+			index, 0, entry, &n_ext);
 
 		if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
 
@@ -3345,7 +3346,8 @@ btr_cur_pessimistic_insert(
 			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
 		}
 
-		big_rec_vec = dtuple_convert_big_rec(index, 0, entry, &n_ext);
+		big_rec_vec = dtuple_convert_big_rec(
+			index, 0, entry, &n_ext);
 
 		if (big_rec_vec == NULL) {
 
@@ -4213,9 +4215,14 @@ btr_cur_pessimistic_update(
 				| BTR_CREATE_FLAG
 				| BTR_KEEP_SYS_FLAG) */
 	trx_id_t	trx_id,	/*!< in: transaction id */
+	undo_no_t	undo_no,
+				/*!< in: undo number of the transaction. This
+				is needed for rollback to savepoint of
+				partially updated LOB.*/
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; must be
 				committed before latching any further pages */
 {
+	DBUG_ENTER("btr_cur_pessimistic_update");
 	big_rec_t*	big_rec_vec	= NULL;
 	big_rec_t*	dummy_big_rec;
 	dict_index_t*	index;
@@ -4289,7 +4296,7 @@ btr_cur_pessimistic_update(
 			dtuple_big_rec_free(big_rec_vec);
 		}
 
-		return(err);
+		DBUG_RETURN(err);
 	}
 
 	rec = btr_cur_get_rec(cursor);
@@ -4341,7 +4348,8 @@ btr_cur_pessimistic_update(
 		RECOVERY_CRASH(99);
 
 		lob::BtrContext ctx(mtr, nullptr, index, rec, *offsets, block);
-		ctx.free_updated_extern_fields(update, true);
+
+		ctx.free_updated_extern_fields(trx_id, undo_no, update, true);
 	}
 
 	if (page_zip_rec_needs_ext(
@@ -4350,7 +4358,8 @@ btr_cur_pessimistic_update(
 			dict_index_get_n_fields(index),
 			block->page.size)) {
 
-		big_rec_vec = dtuple_convert_big_rec(index, update, new_entry, &n_ext);
+		big_rec_vec = dtuple_convert_big_rec(
+			index, update, new_entry, &n_ext);
 		if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
 
 			/* We cannot goto return_after_reservations,
@@ -4609,7 +4618,7 @@ return_after_reservations:
 
 	*big_rec = big_rec_vec;
 
-	return(err);
+	DBUG_RETURN(err);
 }
 
 /*==================== B-TREE DELETE MARK AND UNMARK ===============*/
@@ -4815,7 +4824,7 @@ btr_cur_del_mark_set_clust_rec(
 			      rec_printer(rec, offsets).str().c_str()));
 
 	if (dict_index_is_online_ddl(index)) {
-		row_log_table_delete(rec, entry, index, offsets, NULL);
+		row_log_table_delete(trx, rec, entry, index, offsets, NULL);
 	}
 
 	row_upd_rec_sys_fields(rec, page_zip, index, offsets, trx, roll_ptr);
@@ -4985,7 +4994,7 @@ that mtr holds an x-latch on the tree and on the cursor page. To avoid
 deadlocks, mtr must also own x-latches to brothers of page, if those
 brothers exist. NOTE: it is assumed that the caller has reserved enough
 free extents so that the compression will always succeed if done!
-@return TRUE if compression occurred */
+@return true if compression occurred */
 ibool
 btr_cur_compress_if_useful(
 /*=======================*/
@@ -5033,7 +5042,7 @@ btr_cur_compress_if_useful(
 Removes the record on which the tree cursor is positioned on a leaf page.
 It is assumed that the mtr has an x-latch on the page where the cursor is
 positioned, but no latch on the whole tree.
-@return TRUE if success, i.e., the page did not become too empty */
+@return true if success, i.e., the page did not become too empty */
 ibool
 btr_cur_optimistic_delete_func(
 /*===========================*/
@@ -5141,7 +5150,7 @@ or if it is the only page on the level. It is assumed that mtr holds
 an x-latch on the tree and on the cursor page. To avoid deadlocks,
 mtr must also own x-latches to brothers of page, if those brothers
 exist.
-@return TRUE if compression occurred and FALSE if not or something
+@return true if compression occurred and false if not or something
 wrong. */
 ibool
 btr_cur_pessimistic_delete(
@@ -5161,8 +5170,19 @@ btr_cur_pessimistic_delete(
 				deleted record on function exit */
 	ulint		flags,	/*!< in: BTR_CREATE_FLAG or 0 */
 	bool		rollback,/*!< in: performing rollback? */
+	trx_id_t	trx_id,	/*!< in: the current transaction id. */
+	undo_no_t	undo_no,
+				/*!< in: the undo number within the
+				current trx, used for rollback to savepoint
+				for an LOB. */
+	ulint		rec_type,
+				/*!< in: undo record type. */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
+	DBUG_ENTER("btr_cur_pessimistic_delete");
+
+	DBUG_LOG("btr", "rollback=" << rollback << ", trxid=" << trx_id);
+
 	buf_block_t*	block;
 	page_t*		page;
 	dict_index_t*	index;
@@ -5205,7 +5225,7 @@ btr_cur_pessimistic_delete(
 		if (!success) {
 			*err = DB_OUT_OF_FILE_SPACE;
 
-			return(FALSE);
+			DBUG_RETURN(FALSE);
 		}
 	}
 
@@ -5222,7 +5242,8 @@ btr_cur_pessimistic_delete(
 
 		lob::BtrContext btr_ctx(mtr, NULL, index, rec, offsets, block);
 
-		btr_ctx.free_externally_stored_fields(rollback);
+		btr_ctx.free_externally_stored_fields(
+			trx_id, undo_no, rollback, rec_type);
 #ifdef UNIV_ZIP_DEBUG
 		ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
@@ -5295,7 +5316,7 @@ btr_cur_pessimistic_delete(
 				*err = DB_ERROR;
 
 				mem_heap_free(heap);
-				return(FALSE);
+				DBUG_RETURN(FALSE);
 			}
 
 			ut_d(parent_latched = true);
@@ -5352,7 +5373,7 @@ return_after_reservations:
 		fil_space_release_free_extents(index->space, n_reserved);
 	}
 
-	return(ret);
+	DBUG_RETURN(ret);
 }
 
 /*******************************************************************//**

@@ -41,7 +41,6 @@ PSI_memory_key key_memory_string_iterator;
 
   TODO: Marking charset_name as unused for now, see Bug#25533463.
 */
-extern "C"
 int mysql_string_convert_to_char_ptr(mysql_string_handle string_handle,
                                      const char *charset_name MY_ATTRIBUTE((unused)),
                                      char *buffer,
@@ -60,7 +59,6 @@ int mysql_string_convert_to_char_ptr(mysql_string_handle string_handle,
   This service function deallocates the mysql_string_handle allocated on
   server and used in plugins.
 */
-extern "C"
 void mysql_string_free(mysql_string_handle string_handle)
 {
   String *str= (String *) string_handle;
@@ -72,14 +70,12 @@ void mysql_string_free(mysql_string_handle string_handle)
   This service function deallocates the mysql_string_iterator_handle
   allocated on server and used in plugins.
 */
-extern "C"
 void mysql_string_iterator_free(mysql_string_iterator_handle iterator_handle)
 {
   my_free((st_string_iterator *) iterator_handle);
 }
 
 /* This service function allocate mysql_string_iterator_handle and return it */
-extern "C"
 mysql_string_iterator_handle mysql_string_get_iterator(mysql_string_handle
                                                        string_handle)
 {
@@ -94,7 +90,6 @@ mysql_string_iterator_handle mysql_string_get_iterator(mysql_string_handle
 }
 
 /* Provide service which returns the next mysql_string_iterator_handle */
-extern "C"
 int mysql_string_iterator_next(mysql_string_iterator_handle iterator_handle)
 {
   int char_len, char_type, tmp_len;
@@ -119,7 +114,6 @@ int mysql_string_iterator_next(mysql_string_iterator_handle iterator_handle)
   Provide service which calculate weather the current iterator_ptr points to
   upper case character or not
 */
-extern "C"
 int mysql_string_iterator_isupper(mysql_string_iterator_handle iterator_handle)
 {
   st_string_iterator *iterator= (st_string_iterator *) iterator_handle;
@@ -130,7 +124,6 @@ int mysql_string_iterator_isupper(mysql_string_iterator_handle iterator_handle)
   Provide service which calculate weather the current iterator_ptr points to
   lower case character or not
 */
-extern "C"
 int mysql_string_iterator_islower(mysql_string_iterator_handle iterator_handle)
 {
   st_string_iterator *iterator= (st_string_iterator *) iterator_handle;
@@ -141,7 +134,6 @@ int mysql_string_iterator_islower(mysql_string_iterator_handle iterator_handle)
   Provide service which calculate weather the current iterator_ptr points to
   digit or not
 */
-extern "C"
 int mysql_string_iterator_isdigit(mysql_string_iterator_handle iterator_handle)
 {
   st_string_iterator *iterator= (st_string_iterator *) iterator_handle;
@@ -152,7 +144,6 @@ int mysql_string_iterator_isdigit(mysql_string_iterator_handle iterator_handle)
   This function provide plugin service to convert a String pointed by handle to
   lower case. Conversion depends on the client character set info
 */
-extern "C"
 mysql_string_handle mysql_string_to_lowercase(mysql_string_handle string_handle)
 {
   String *str= (String *) string_handle;

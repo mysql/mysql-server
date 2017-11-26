@@ -1606,3 +1606,9 @@ mysqltest: At line 1: Invalid value '-10' for retry argument given to remove_fil
 mysqltest: At line 1: Invalid value 'll11' for retry argument given to remove_file command.
 mysqltest: At line 1: Invalid value '?1?' for retry argument given to remove_file command.
 Retry value is out of range. mysqltest: At line 1: Invalid value '2147483648' for retry argument given to remove_file command.
+#
+# BUG#27136445: MTR: EXPORT AND USE # OF AVAILABLE CPUS IN TESTS
+#
+SELECT NUMBER_OF_CPUS;
+NUMBER_OF_CPUS
+NUMBER_OF_CPUS

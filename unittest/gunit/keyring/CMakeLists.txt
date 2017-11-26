@@ -73,6 +73,7 @@ IF (MERGE_UNITTESTS)
     gunit_large strings dbug regex mysys sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
     sql_main binlog rpl master slave sql_gis sql_dd sql_main)
+  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t ${ICU_LIBRARIES})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t perfschema)
@@ -90,6 +91,7 @@ FOREACH(test ${TESTS})
     gunit_large strings dbug regex mysys sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(${test}-t
     sql_main binlog rpl master slave sql_main sql_gis sql_dd)
+  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(${test}-t perfschema)

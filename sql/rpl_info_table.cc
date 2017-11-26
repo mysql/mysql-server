@@ -52,7 +52,7 @@ Rpl_info_table::Rpl_info_table(uint nparam,
                                const char *param_table,
                                const uint param_n_pk_fields,
                                const uint *param_pk_field_indexes)
-:Rpl_info_handler(nparam), is_transactional(FALSE)
+:Rpl_info_handler(nparam), is_transactional(false)
 {
   str_schema.str= str_table.str= NULL;
   str_schema.length= str_table.length= 0;
@@ -636,12 +636,12 @@ void Rpl_info_table::do_end_info()
 int Rpl_info_table::do_prepare_info_for_read()
 {
   if (!field_values)
-    return TRUE;
+    return true;
 
   cursor= 0;
-  prv_error= FALSE; 
+  prv_error= false; 
 
-  return FALSE;
+  return false;
 }
 
 int Rpl_info_table::do_prepare_info_for_write()
@@ -669,13 +669,13 @@ bool Rpl_info_table::do_set_info(const int pos, const uchar *value,
 
 bool Rpl_info_table::do_set_info(const int pos, const ulong value)
 {
-  return (field_values->value[pos].set_int(value, TRUE,
+  return (field_values->value[pos].set_int(value, true,
                                            &my_charset_bin));
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const int value)
 {
-  return (field_values->value[pos].set_int(value, FALSE,
+  return (field_values->value[pos].set_int(value, false,
                                            &my_charset_bin));
 }
 
@@ -688,9 +688,9 @@ bool Rpl_info_table::do_set_info(const int pos, const float value)
 bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value)
 {
   if (const_cast<Server_ids*>(value)->pack_dynamic_ids(&field_values->value[pos]))
-    return TRUE;
+    return true;
 
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t,
@@ -704,7 +704,7 @@ bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t,
   else
     *value= '\0';
 
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_table::do_get_info(const int pos, uchar *value, const size_t size,
@@ -713,7 +713,7 @@ bool Rpl_info_table::do_get_info(const int pos, uchar *value, const size_t size,
   if (field_values->value[pos].length() == size)
     return (!memcpy((char *) value,
             field_values->value[pos].c_ptr_safe(), size));
-  return TRUE;
+  return true;
 }
 
 bool Rpl_info_table::do_get_info(const int pos, ulong *value,
@@ -722,15 +722,15 @@ bool Rpl_info_table::do_get_info(const int pos, ulong *value,
   if (field_values->value[pos].length())
   {
     *value= strtoul(field_values->value[pos].c_ptr_safe(), 0, 10);
-    return FALSE;
+    return false;
   }
   else if (default_value)
   {
     *value= default_value;
-    return FALSE;
+    return false;
   }
 
-  return TRUE;
+  return true;
 }
 
 bool Rpl_info_table::do_get_info(const int pos, int *value,
@@ -739,15 +739,15 @@ bool Rpl_info_table::do_get_info(const int pos, int *value,
   if (field_values->value[pos].length())
   {
     *value=  atoi(field_values->value[pos].c_ptr_safe());
-    return FALSE;
+    return false;
   }
   else if (default_value)
   {
     *value= default_value;
-    return FALSE;
+    return false;
   }
 
-  return TRUE;
+  return true;
 }
 
 bool Rpl_info_table::do_get_info(const int pos, float *value,
@@ -756,25 +756,25 @@ bool Rpl_info_table::do_get_info(const int pos, float *value,
   if (field_values->value[pos].length())
   {
     if (sscanf(field_values->value[pos].c_ptr_safe(), "%f", value) != 1)
-      return TRUE;
-    return FALSE;
+      return true;
+    return false;
   }
   else if (default_value != 0.0)
   {
     *value= default_value;
-    return FALSE;
+    return false;
   }
 
-  return TRUE;
+  return true;
 }
 
 bool Rpl_info_table::do_get_info(const int pos, Server_ids *value,
                                  const Server_ids *default_value MY_ATTRIBUTE((unused)))
 {
   if (value->unpack_dynamic_ids(field_values->value[pos].c_ptr_safe()))
-    return TRUE;
+    return true;
 
-  return FALSE;
+  return false;
 }
 
 char* Rpl_info_table::do_get_description_info()
@@ -789,7 +789,7 @@ bool Rpl_info_table::do_is_transactional()
 
 bool Rpl_info_table::do_update_is_transactional()
 {
-  bool error= TRUE;
+  bool error= true;
   sql_mode_t saved_mode;
   TABLE *table= NULL;
   Open_tables_backup backup;
@@ -797,7 +797,7 @@ bool Rpl_info_table::do_update_is_transactional()
   DBUG_ENTER("Rpl_info_table::do_update_is_transactional");
   DBUG_EXECUTE_IF("simulate_update_is_transactional_error",
                   {
-                    DBUG_RETURN(TRUE);
+                    DBUG_RETURN(true);
                   });
 
   THD *thd= access->create_thd();
@@ -814,7 +814,7 @@ bool Rpl_info_table::do_update_is_transactional()
     goto end;
 
   is_transactional= table->file->has_transactions();
-  error= FALSE;
+  error= false;
 
 end:
   access->close_table(thd, table, &backup, 0);

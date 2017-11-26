@@ -367,7 +367,7 @@ public:
 /*
   Condition iterator: goes through all nodes in the current
   context and checks a condition, returning those nodes
-  giving TRUE condition result.
+  giving true condition result.
 */
 class Item_nodeset_func_predicate :public Item_nodeset_func
 {
@@ -2742,9 +2742,9 @@ append_node(String *str, MY_XML_NODE *node)
    - At the same time, it avoids excessive memory use.
   */
   if (str->reserve(sizeof(MY_XML_NODE), 2 * str->length() + 512))
-    return TRUE;
+    return true;
   str->q_append((const char*) node, sizeof(MY_XML_NODE));
-  return FALSE;
+  return false;
 }
 
 
@@ -2895,11 +2895,11 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
 String *Item_func_xml_extractvalue::val_str(String *str)
 {
   String *res;
-  null_value= FALSE;
+  null_value= false;
   if (!nodeset_func && parse_xpath(args[1]))
   {
     DBUG_ASSERT(maybe_null);
-    null_value= TRUE;
+    null_value= true;
     return NULL;
   }
 
@@ -2920,11 +2920,11 @@ String *Item_func_xml_update::val_str(String *str)
 {
   String *res, *nodeset, *rep;
 
-  null_value= FALSE;
+  null_value= false;
   if (!nodeset_func && parse_xpath(args[1]))
   {
     DBUG_ASSERT(maybe_null);
-    null_value= TRUE;
+    null_value= true;
     return NULL;
   }
 

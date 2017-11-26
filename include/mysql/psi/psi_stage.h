@@ -32,8 +32,6 @@
 #include "psi_base.h"
 #include "mysql/components/services/psi_stage_bits.h"
 
-C_MODE_START
-
 /** Entry point for the performance schema interface. */
 struct PSI_stage_bootstrap
 {
@@ -73,7 +71,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_stage_service_t *psi_stage_service;
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 /** @} (end of group psi_abi_stage) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_FILE_H */

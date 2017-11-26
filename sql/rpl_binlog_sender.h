@@ -381,7 +381,7 @@ private:
     m_errno= errorno;
   }
 
-  void set_unknow_error(const char *errmsg)
+  void set_unknown_error(const char *errmsg)
   {
     set_error(ER_UNKNOWN_ERROR, errmsg);
   }

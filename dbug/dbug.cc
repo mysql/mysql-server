@@ -204,7 +204,7 @@ struct settings {
  */
 
 
-static bool init_done= FALSE; /* Set to TRUE when initialization done */
+static bool init_done= false; /* Set to true when initialization done */
 /**
   Global debugging settings.
   This structure shared between all threads,
@@ -324,7 +324,7 @@ static CODE_STATE *code_state(void)
 
   if (!init_done)
   {
-    init_done=TRUE;
+    init_done=true;
     native_mutex_init(&THR_LOCK_dbug, NULL);
     native_mutex_init(&THR_LOCK_gcov, NULL);
     native_rw_init(&THR_LOCK_init_settings);
@@ -900,13 +900,13 @@ void _db_push_(const char *control)
 
 
 /**
-  Returns TRUE if session-local settings have been set.
+  Returns true if session-local settings have been set.
 */
 
 int _db_is_pushed_()
 {
   CODE_STATE *cs= NULL;
-  get_code_state_or_return FALSE;
+  get_code_state_or_return false;
   return (cs->stack != &init_settings);
 }
 
@@ -1860,18 +1860,18 @@ FILE *_db_fp_(void)
  *      the current function and process must be accepted based on
  *      their respective lists.
  *
- *      Returns TRUE if keyword accepted, FALSE otherwise.
+ *      Returns true if keyword accepted, false otherwise.
  *
  */
 
 int _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 {
   bool result;
-  get_code_state_if_not_set_or_return FALSE;
+  get_code_state_if_not_set_or_return false;
 
   /* Dirty read, for DBUG_EXECUTE(), DBUG_EXECUTE_IF() ... performance. */
   if (! DEBUGGING)
-    return FALSE;
+    return false;
 
   read_lock_stack(cs);
 
@@ -2230,8 +2230,8 @@ static const char *BaseName(const char *pathname)
  *      of checking the file for write access with the real user id,
  *      or checking the directory where the file will be created.
  *
- *      Returns TRUE if the user would normally be allowed write or
- *      create access to the named file.  Returns FALSE otherwise.
+ *      Returns true if the user would normally be allowed write or
+ *      create access to the named file.  Returns false otherwise.
  *
  */
 
@@ -2241,11 +2241,11 @@ static bool Writable(const char *pathname)
   bool granted;
   char *lastslash;
 
-  granted= FALSE;
+  granted= false;
   if (my_access(pathname, F_OK) == 0)
   {
     if (my_access(pathname, W_OK) == 0)
-      granted= TRUE;
+      granted= true;
   }
   else
   {
@@ -2255,7 +2255,7 @@ static bool Writable(const char *pathname)
     else
       pathname= ".";
     if (my_access(pathname, W_OK) == 0)
-      granted= TRUE;
+      granted= true;
     if (lastslash != NULL)
       *lastslash= '/';
   }
@@ -2325,7 +2325,7 @@ void _db_suicide_()
   assert(retval == 0);
   retval= sigsuspend(&new_mask);
   fprintf(stderr, "sigsuspend returned %d errno %d \n", retval, errno);
-  assert(FALSE); /* With full signal mask, we should never return here. */
+  assert(false); /* With full signal mask, we should never return here. */
   DBUG_ABORT();
 }
 #endif  /* ! _WIN32 */

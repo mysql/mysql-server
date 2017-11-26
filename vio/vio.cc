@@ -92,7 +92,7 @@ static int no_io_wait(Vio *vio MY_ATTRIBUTE((unused)),
 extern "C" {
 static bool has_no_data(Vio *vio MY_ATTRIBUTE((unused)))
 {
-  return FALSE;
+  return false;
 }
 } // extern "C"
 
@@ -333,7 +333,7 @@ static bool vio_init(Vio *vio, enum enum_vio_type type,
 bool vio_reset(Vio* vio, enum enum_vio_type type,
                my_socket sd, void *ssl MY_ATTRIBUTE((unused)), uint flags)
 {
-  int ret= FALSE;
+  int ret= false;
   Vio new_vio(flags);
   DBUG_ENTER("vio_reset");
 
@@ -341,7 +341,7 @@ bool vio_reset(Vio* vio, enum enum_vio_type type,
   DBUG_ASSERT(vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET);
 
   if (vio_init(&new_vio, type, sd, flags))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /* Preserve perfschema info for this connection */
   new_vio.mysql_socket.m_psi= vio->mysql_socket.m_psi;
@@ -451,7 +451,7 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
     }
 
     /* Create an object for event notification. */
-    vio->overlapped.hEvent= CreateEvent(NULL, FALSE, FALSE, NULL);
+    vio->overlapped.hEvent= CreateEvent(NULL, false, false, NULL);
     if (vio->overlapped.hEvent == NULL)
     {
       internal_vio_delete(vio);
@@ -504,7 +504,7 @@ Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
   @param which    Whether timeout is for send (1) or receive (0).
   @param timeout_sec  Timeout interval in seconds.
 
-  @return FALSE on success, TRUE otherwise.
+  @return false on success, true otherwise.
 */
 
 int vio_timeout(Vio *vio, uint which, int timeout_sec)

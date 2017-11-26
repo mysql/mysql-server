@@ -96,7 +96,7 @@ row_purge_node_create(
 /***********************************************************//**
 Repositions the pcur in the purge node on the clustered index record,
 if found. If the record is not found, close pcur.
-@return TRUE if the record was found */
+@return true if the record was found */
 static
 ibool
 row_purge_reposition_pcur(
@@ -188,7 +188,8 @@ row_purge_remove_clust_if_poss_low(
 		ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
 		btr_cur_pessimistic_delete(
 			&err, FALSE, btr_pcur_get_btr_cur(&node->pcur), 0,
-			false, &mtr);
+			false, node->trx_id, node->undo_no, node->rec_type,
+			&mtr);
 
 		switch (err) {
 		case DB_SUCCESS:
@@ -293,7 +294,7 @@ row_purge_poss_sec(
 /***************************************************************
 Removes a secondary index entry if possible, by modifying the
 index tree.  Does not try to buffer the delete.
-@return TRUE if success or if not found */
+@return true if success or if not found */
 static MY_ATTRIBUTE((warn_unused_result))
 ibool
 row_purge_remove_sec_if_poss_tree(
@@ -388,7 +389,8 @@ row_purge_remove_sec_if_poss_tree(
 		}
 
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-					   false, &mtr);
+					   false, 0, node->undo_no,
+					   node->rec_type, &mtr);
 		switch (UNIV_EXPECT(err, DB_SUCCESS)) {
 		case DB_SUCCESS:
 			break;
@@ -731,6 +733,7 @@ row_purge_upd_exist_or_extern_func(
 	mem_heap_free(heap);
 
 skip_secondaries:
+
 	/* Free possible externally stored fields */
 	for (ulint i = 0; i < upd_get_n_fields(node->update); i++) {
 
@@ -815,8 +818,11 @@ skip_secondaries:
 			lob::DeleteContext ctx(btr_ctx,
 				field_ref, 0, false);
 
-			lob::Deleter	free_blob(ctx);
-			free_blob.destroy();
+			lob::ref_t  lobref(field_ref);
+
+			lob::purge(&ctx, index, node->modifier_trx_id,
+				   trx_undo_rec_get_undo_no(undo_rec), lobref,
+				   node->rec_type);
 
 			mtr_commit(&mtr);
 		}
@@ -1286,10 +1292,11 @@ row_purge_step(que_thr_t* thr)
 	if (node->recs != nullptr && !node->recs->empty()) {
 		purge_node_t::rec_t	rec;
 
-		rec = node->recs->back();
-		node->recs->pop_back();
+		rec = node->recs->front();
+		node->recs->pop_front();
 
 		node->roll_ptr = rec.roll_ptr;
+		node->modifier_trx_id = rec.modifier_trx_id;
 
 		row_purge(node, rec.undo_rec, thr);
 

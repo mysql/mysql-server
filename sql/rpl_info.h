@@ -132,9 +132,9 @@ public:
   bool copy_info(Rpl_info_handler *from, Rpl_info_handler *to)
   {
     if (read_info(from) || write_info(to))
-      return(TRUE);
+      return(true);
 
-    return(FALSE);
+    return(false);
   }
 
   uint get_internal_id()

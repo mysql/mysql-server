@@ -703,7 +703,6 @@ buf_page_print(
 		break;
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
-	case FIL_PAGE_TYPE_ZBLOB3:
 		fputs("InnoDB: Page may be a compressed BLOB page\n",
 		      stderr);
 		break;
@@ -2698,7 +2697,7 @@ LRUItr::start()
 /** Determine if a block is a sentinel for a buffer pool watch.
 @param[in]	buf_pool	buffer pool instance
 @param[in]	bpage		block
-@return TRUE if a sentinel for a buffer pool watch, FALSE if not */
+@return true if a sentinel for a buffer pool watch, false if not */
 ibool
 buf_pool_watch_is_sentinel(
 	const buf_pool_t*	buf_pool,
@@ -2900,7 +2899,7 @@ buf_pool_watch_unset(
 This may only be called after buf_pool_watch_set(same_page_id)
 has returned NULL and before invoking buf_pool_watch_unset(same_page_id).
 @param[in]	page_id	page id
-@return FALSE if the given page was not read in, TRUE if it was */
+@return false if the given page was not read in, true if it was */
 ibool
 buf_pool_watch_occurred(
 	const page_id_t&	page_id)
@@ -3223,7 +3222,7 @@ buf_block_init_low(
 
 /********************************************************************//**
 Decompress a block.
-@return TRUE if successful */
+@return true if successful */
 ibool
 buf_zip_decompress(
 /*===============*/
@@ -3281,8 +3280,12 @@ buf_zip_decompress(
 	case FIL_PAGE_TYPE_XDES:
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
-	case FIL_PAGE_TYPE_ZBLOB3:
 	case FIL_PAGE_SDI_ZBLOB:
+	case FIL_PAGE_TYPE_ZLOB_FIRST:
+	case FIL_PAGE_TYPE_ZLOB_DATA:
+	case FIL_PAGE_TYPE_ZLOB_INDEX:
+	case FIL_PAGE_TYPE_ZLOB_FRAG:
+	case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
 		/* Copy to uncompressed storage. */
 		memcpy(block->frame, frame, block->page.size.physical());
 		return(TRUE);
@@ -3341,7 +3344,7 @@ buf_block_from_ahi(const byte* ptr)
 Find out if a pointer belongs to a buf_block_t. It can be a pointer to
 the buf_block_t itself or a member of it. This functions checks one of
 the buffer pool instances.
-@return TRUE if ptr belongs to a buf_block_t struct */
+@return true if ptr belongs to a buf_block_t struct */
 static
 ibool
 buf_pointer_is_block_field_instance(
@@ -3370,7 +3373,7 @@ buf_pointer_is_block_field_instance(
 
 /********************************************************************//**
 Find out if a buffer block was created by buf_chunk_init().
-@return TRUE if "block" has been added to buf_pool->free by buf_chunk_init() */
+@return true if "block" has been added to buf_pool->free by buf_chunk_init() */
 static
 ibool
 buf_block_is_uncompressed(
@@ -4065,7 +4068,7 @@ got_block:
 /********************************************************************//**
 This is the general function used to get optimistic access to a database
 page.
-@return TRUE if success */
+@return true if success */
 ibool
 buf_page_optimistic_get(
 /*====================*/
@@ -4185,7 +4188,7 @@ buf_page_optimistic_get(
 This is used to get access to a known database page, when no waiting can be
 done. For example, if a search in an adaptive hash index leads us to this
 frame.
-@return TRUE if success */
+@return true if success */
 ibool
 buf_page_get_known_nowait(
 /*======================*/
@@ -5319,7 +5322,7 @@ corrupt:
 
 /** Asserts that all file pages in the buffer are in a replaceable state.
 @param[in]	buf_pool	buffer pool instance
-@return TRUE */
+@return true */
 static
 ibool
 buf_all_freed_instance(
@@ -5435,7 +5438,7 @@ buf_pool_invalidate(void)
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Validates data in one buffer pool instance
 @param[in]	buf_pool	buffer pool instance
-@return TRUE */
+@return true */
 static
 ibool
 buf_pool_validate_instance(
@@ -5655,7 +5658,7 @@ buf_pool_validate_instance(
 
 /*********************************************************************//**
 Validates the buffer buf_pool data structure.
-@return TRUE */
+@return true */
 ibool
 buf_validate(void)
 /*==============*/
@@ -6293,7 +6296,7 @@ buf_refresh_io_stats_all(void)
 
 /**********************************************************************//**
 Check if all pages in all buffer pools are in a replacable state.
-@return FALSE if not */
+@return false if not */
 ibool
 buf_all_freed(void)
 /*===============*/
@@ -6431,3 +6434,49 @@ operator<<(
 #endif /* !UNIV_HOTBACKUP */
 	return(out);
 }
+
+/** Get the page type as a string.
+@return the page type as a string. */
+const char*
+buf_block_t::get_page_type_str() const
+{
+	ulint	type = get_page_type();
+
+#define PAGE_TYPE(x) case x: return(#x);
+
+	switch(type) {
+	PAGE_TYPE(FIL_PAGE_INDEX);
+	PAGE_TYPE(FIL_PAGE_RTREE);
+	PAGE_TYPE(FIL_PAGE_SDI);
+	PAGE_TYPE(FIL_PAGE_UNDO_LOG);
+	PAGE_TYPE(FIL_PAGE_INODE);
+	PAGE_TYPE(FIL_PAGE_IBUF_FREE_LIST);
+	PAGE_TYPE(FIL_PAGE_TYPE_ALLOCATED);
+	PAGE_TYPE(FIL_PAGE_IBUF_BITMAP);
+	PAGE_TYPE(FIL_PAGE_TYPE_SYS);
+	PAGE_TYPE(FIL_PAGE_TYPE_TRX_SYS);
+	PAGE_TYPE(FIL_PAGE_TYPE_FSP_HDR);
+	PAGE_TYPE(FIL_PAGE_TYPE_XDES);
+	PAGE_TYPE(FIL_PAGE_TYPE_BLOB);
+	PAGE_TYPE(FIL_PAGE_TYPE_ZBLOB);
+	PAGE_TYPE(FIL_PAGE_TYPE_ZBLOB2);
+	PAGE_TYPE(FIL_PAGE_TYPE_UNKNOWN);
+	PAGE_TYPE(FIL_PAGE_COMPRESSED);
+	PAGE_TYPE(FIL_PAGE_ENCRYPTED);
+	PAGE_TYPE(FIL_PAGE_COMPRESSED_AND_ENCRYPTED);
+	PAGE_TYPE(FIL_PAGE_ENCRYPTED_RTREE);
+	PAGE_TYPE(FIL_PAGE_SDI_BLOB);
+	PAGE_TYPE(FIL_PAGE_SDI_ZBLOB);
+	PAGE_TYPE(FIL_PAGE_TYPE_LOB_INDEX);
+	PAGE_TYPE(FIL_PAGE_TYPE_LOB_DATA);
+	PAGE_TYPE(FIL_PAGE_TYPE_LOB_FIRST);
+	PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_FIRST);
+	PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_DATA);
+	PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_INDEX);
+	PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_FRAG);
+	PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY);
+	}
+	ut_ad(0);
+	return("UNKNOWN");
+}
+

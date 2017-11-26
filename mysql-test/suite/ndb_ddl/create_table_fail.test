@@ -1,0 +1,30 @@
+-- source include/have_ndb.inc
+-- source include/have_debug.inc
+
+
+--echo #
+--echo # Test failure to create NDB_SHARE during CREATE TABLE
+--echo #  - should fail the create table
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_share_create_fail1";
+# Mask nuber of needed bytes in error message
+--replace_regex /needed ([0-9]* bytes)/needed X bytes/
+--error 1037
+CREATE TABLE t1(
+  id INT PRIMARY KEY,
+  val INT
+)
+ENGINE=ndbcluster;
+SET SESSION debug=@save_debug;
+
+--echo # - check that table can be created, this also checks
+--echo #   that the above failed create properly removed the
+--echo #   table from NDB as well.
+CREATE TABLE t1(
+  id INT PRIMARY KEY,
+  val INT
+)
+ENGINE=ndbcluster;
+
+--echo # - cleanup and remove the table
+DROP TABLE t1;

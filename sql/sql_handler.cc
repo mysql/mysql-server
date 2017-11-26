@@ -160,8 +160,8 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
 
   @param  thd   The current thread.
 
-  @retval FALSE on success.
-  @retval TRUE on failure.
+  @retval false on success.
+  @retval true on failure.
 */
 
 bool Sql_cmd_handler_open::execute(THD *thd)
@@ -177,14 +177,14 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   if (thd->locked_tables_mode)
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   if (tables->schema_table)
   {
     my_error(ER_WRONG_USAGE, MYF(0), "HANDLER OPEN",
              INFORMATION_SCHEMA_NAME.str);
     DBUG_PRINT("exit",("ERROR"));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /*
@@ -199,7 +199,7 @@ bool Sql_cmd_handler_open::execute(THD *thd)
     DBUG_PRINT("info",("duplicate '%s'", tables->alias));
     DBUG_PRINT("exit",("ERROR"));
     my_error(ER_NONUNIQ_TABLE, MYF(0), tables->alias);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /* copy the TABLE_LIST struct */
@@ -215,7 +215,7 @@ bool Sql_cmd_handler_open::execute(THD *thd)
                         NullS)))
   {
     DBUG_PRINT("exit",("ERROR"));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   /* structure copy */
   *hash_tables= *tables;
@@ -247,20 +247,20 @@ bool Sql_cmd_handler_open::execute(THD *thd)
     alias, unique_ptr_my_free<TABLE_LIST>(hash_tables));
 
   if (open_temporary_tables(thd, hash_tables) ||
-      check_table_access(thd, SELECT_ACL, hash_tables, FALSE, UINT_MAX,
-                         FALSE) ||
+      check_table_access(thd, SELECT_ACL, hash_tables, false, UINT_MAX,
+                         false) ||
       mysql_ha_open_table(thd, hash_tables))
 
   {
     thd->handler_tables_hash.erase(alias);
     DBUG_PRINT("exit",("ERROR"));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   my_ok(thd);
 
   DBUG_PRINT("exit",("OK"));
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -270,8 +270,8 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   @param thd          Thread context..
   @param hash_tables  Table list element for table to open.
 
-  @retval FALSE - Success.
-  @retval TRUE  - Failure.
+  @retval false - Success.
+  @retval true  - Failure.
 */
 
 static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
@@ -309,7 +309,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
       ! (hash_tables->table->file->ha_table_flags() & HA_CAN_SQL_HANDLER))
   {
     my_error(ER_ILLEGAL_HA, MYF(0), hash_tables->alias);
-    error= TRUE;
+    error= true;
   }
   if (!error &&
       hash_tables->mdl_request.ticket &&
@@ -335,14 +335,14 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
     /* Safety, cleanup the pointer to satisfy MDL assertions. */
     hash_tables->mdl_request.ticket= NULL;
     DBUG_PRINT("exit",("ERROR"));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   thd->set_open_tables(backup_open_tables);
   if (hash_tables->mdl_request.ticket)
   {
     thd->mdl_context.set_lock_duration(hash_tables->mdl_request.ticket,
                                        MDL_EXPLICIT);
-    thd->mdl_context.set_needs_thr_lock_abort(TRUE);
+    thd->mdl_context.set_needs_thr_lock_abort(true);
   }
 
   /*
@@ -361,7 +361,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
   hash_tables->table->open_by_handler= 1;
 
   DBUG_PRINT("exit",("OK"));
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -373,8 +373,8 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
   @note  Closes the table that is associated (on the handler tables hash)
          with the name (TABLE_LIST::alias) of the specified table.
 
-  @retval FALSE on success.
-  @retval TRUE on failure.
+  @retval false on success.
+  @retval true on failure.
 */
 
 bool Sql_cmd_handler_close::execute(THD *thd)
@@ -387,7 +387,7 @@ bool Sql_cmd_handler_close::execute(THD *thd)
   if (thd->locked_tables_mode)
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   auto it= thd->handler_tables_hash.find(tables->alias);
   if (it != thd->handler_tables_hash.end())
@@ -399,7 +399,7 @@ bool Sql_cmd_handler_close::execute(THD *thd)
   {
     my_error(ER_UNKNOWN_TABLE, MYF(0), tables->alias, "HANDLER");
     DBUG_PRINT("exit",("ERROR"));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /*
@@ -407,11 +407,11 @@ bool Sql_cmd_handler_close::execute(THD *thd)
     closed last HANDLER.
   */
   if (thd->handler_tables_hash.empty())
-    thd->mdl_context.set_needs_thr_lock_abort(FALSE);
+    thd->mdl_context.set_needs_thr_lock_abort(false);
 
   my_ok(thd);
   DBUG_PRINT("exit", ("OK"));
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -423,8 +423,8 @@ bool Sql_cmd_handler_close::execute(THD *thd)
   @note  Closes the table that is associated (on the handler tables hash)
          with the name (TABLE_LIST::alias) of the specified table.
 
-  @retval FALSE on success.
-  @retval TRUE on failure.
+  @retval false on success.
+  @retval true on failure.
 */
 
 bool Sql_cmd_handler_read::execute(THD *thd)
@@ -457,7 +457,7 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   if (thd->locked_tables_mode)
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
@@ -850,7 +850,7 @@ ok:
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
   my_eof(thd);
   DBUG_PRINT("exit",("OK"));
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 err:
   trans_rollback_stmt(thd);
@@ -859,7 +859,7 @@ err1:
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 err0:
   DBUG_PRINT("exit",("ERROR"));
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -939,7 +939,7 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables)
     closed last HANDLER.
   */
   if (thd->handler_tables_hash.empty())
-    thd->mdl_context.set_needs_thr_lock_abort(FALSE);
+    thd->mdl_context.set_needs_thr_lock_abort(false);
 
   DBUG_VOID_RETURN;
 }
@@ -1085,7 +1085,7 @@ void mysql_ha_rm_temporary_tables(THD *thd)
   */
   if (thd->handler_tables_hash.empty())
   {
-    thd->mdl_context.set_needs_thr_lock_abort(FALSE);
+    thd->mdl_context.set_needs_thr_lock_abort(false);
   }
   DBUG_VOID_RETURN;
 }

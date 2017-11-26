@@ -307,7 +307,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
                                            (const uchar *)record_begin.str,
                                            record_begin.length,
                                            (const uchar *)event_name.str,
-                                           event_name.length, FALSE))
+                                           event_name.length, false))
     {
       /* Do not expect any more events. */
       THDVAR(thd, event_record_def)= 0;
@@ -322,7 +322,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
                                           (const uchar *)record_begin.str,
                                           record_begin.length,
                                           (const uchar *)event_name.str,
-                                          event_name.length, FALSE))
+                                          event_name.length, false))
     {
       /* Event not matching. */
       return;
@@ -410,7 +410,7 @@ static int audit_null_notify(MYSQL_THD thd,
   LEX_CSTRING event_token= get_token(&order_str);
   LEX_CSTRING event_data= get_token(&order_str);
   LEX_CSTRING event_command= get_token(&order_str);
-  bool consume_event= TRUE;
+  bool consume_event= true;
 
   /* prone to races, oh well */
   number_of_calls++;
@@ -724,7 +724,7 @@ static int audit_null_notify(MYSQL_THD thd,
           the next event is matched.
         */
         THDVAR(thd, event_order_check_consume_ignore_count)= consume - 1;
-        consume_event= FALSE;
+        consume_event= false;
       }
       else
       {

@@ -152,7 +152,7 @@ the LRU list meaning that it is not in danger of getting evicted and also
 implying that it has been accessed recently.
 The page must be either buffer-fixed, either its page hash must be locked.
 @param[in]	bpage	block
-@return TRUE if block is close to MRU end of LRU */
+@return true if block is close to MRU end of LRU */
 UNIV_INLINE
 ibool
 buf_page_peek_if_young(
@@ -175,7 +175,7 @@ buf_page_peek_if_young(
 danger of dropping from the buffer pool.
 NOTE: does not reserve the LRU list mutex.
 @param[in]	bpage	block to make younger
-@return TRUE if should be made younger */
+@return true if should be made younger */
 UNIV_INLINE
 ibool
 buf_page_peek_if_too_old(
@@ -369,7 +369,7 @@ buf_block_set_state(
 
 /*********************************************************************//**
 Determines if a block is mapped to a tablespace.
-@return TRUE if mapped */
+@return true if mapped */
 UNIV_INLINE
 ibool
 buf_page_in_file(
@@ -397,7 +397,7 @@ buf_page_in_file(
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Determines if a block should be on unzip_LRU list.
-@return TRUE if block belongs to unzip_LRU */
+@return true if block belongs to unzip_LRU */
 UNIV_INLINE
 ibool
 buf_page_belongs_to_unzip_LRU(
@@ -634,7 +634,7 @@ buf_page_can_relocate(
 
 /** Determine if a block has been flagged old.
 @param[in]	bpage	control block
-@return TRUE if old */
+@return true if old */
 UNIV_INLINE
 ibool
 buf_page_is_old(
@@ -1282,7 +1282,7 @@ buf_block_hash_get_locked(
 NOTE that it is possible that the page is not yet read from disk,
 though.
 @param[in]	page_id	page id
-@return TRUE if found in the page hash table */
+@return true if found in the page hash table */
 UNIV_INLINE
 ibool
 buf_page_peek(

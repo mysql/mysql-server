@@ -106,7 +106,7 @@ static MYSQL_THDVAR_ULONGLONG(sort_buffer_size, PLUGIN_VAR_RQCMDARG,
   8192 * 1024, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD), SIZE_T_MAX, 1);
 
 static MYSQL_SYSVAR_BOOL(use_mmap, opt_myisam_use_mmap, PLUGIN_VAR_NOCMDARG,
-  "Use memory mapping for reading and writing MyISAM tables", NULL, NULL, FALSE);
+  "Use memory mapping for reading and writing MyISAM tables", NULL, NULL, false);
 
 static MYSQL_SYSVAR_ULONGLONG(mmap_size, myisam_mmap_size,
   PLUGIN_VAR_RQCMDARG|PLUGIN_VAR_READONLY, "Restricts the total memory "
@@ -713,8 +713,8 @@ static const char *ha_myisam_exts[] = {
         ha_example.cc.
 
   @return
-    @retval TRUE   Given db.table_name is supported system table.
-    @retval FALSE  Given db.table_name is not a supported system table.
+    @retval true   Given db.table_name is supported system table.
+    @retval false  Given db.table_name is not a supported system table.
 */
 
 static bool myisam_is_supported_system_table(const char*,
@@ -912,7 +912,7 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked,
 
 int ha_myisam::close(void)
 {
-  bool closed_share= FALSE;
+  bool closed_share= false;
   lock_shared_ha_data();
   int err= mi_close_share(file, &closed_share);
   file= 0;
@@ -1212,7 +1212,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
           copying file stats from old to new.
         */
         error = mi_repair_parallel(&param, file, fixed_name,
-                                   param.testflag & T_QUICK, TRUE);
+                                   param.testflag & T_QUICK, true);
         thd_proc_info(thd, "Repair done"); // to reset proc_info, as
                                       // it was pointing to local buffer
       }
@@ -1224,7 +1224,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
           copying file stats from old to new.
         */
         error = mi_repair_by_sort(&param, file, fixed_name,
-                                  param.testflag & T_QUICK, TRUE);
+                                  param.testflag & T_QUICK, true);
       }
     }
     else
@@ -1236,7 +1236,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
         copying file stats from old to new.
       */
       error=  mi_repair(&param, file, fixed_name,
-			param.testflag & T_QUICK, TRUE);
+			param.testflag & T_QUICK, true);
     }
     if (remap)
       mi_dynmap_file(file, file->state->data_file_length);
@@ -1254,7 +1254,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
         The new file is created with the right stats, so we can skip
         copying file stats from old to new.
       */
-      error=mi_sort_index(&param,file,fixed_name, TRUE);
+      error=mi_sort_index(&param,file,fixed_name, true);
     }
     if (!statistics_done && (local_testflag & T_STATISTICS))
     {
@@ -1755,7 +1755,7 @@ int ha_myisam::index_end()
   active_index=MAX_KEY;
   //pushed_idx_cond_keyno= MAX_KEY;
   mi_set_index_cond_func(file, NULL, 0);
-  in_range_check_pushed_down= FALSE;
+  in_range_check_pushed_down= false;
   ds_mrr.dsmrr_close();
   return 0; 
 }
@@ -2399,7 +2399,7 @@ Item *ha_myisam::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
 
   pushed_idx_cond_keyno= keyno_arg;
   pushed_idx_cond= idx_cond_arg;
-  in_range_check_pushed_down= TRUE;
+  in_range_check_pushed_down= true;
   if (active_index == pushed_idx_cond_keyno)
     mi_set_index_cond_func(file, index_cond_func_myisam, this);
   return NULL;

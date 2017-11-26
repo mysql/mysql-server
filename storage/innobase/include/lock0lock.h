@@ -613,7 +613,7 @@ lock_report_trx_id_insanity(
 	trx_id_t		max_trx_id);	/*!< in: trx_sys_get_max_trx_id() */
 /*********************************************************************//**
 Prints info of locks for all transactions.
-@return FALSE if not able to obtain lock mutex and exits without
+@return false if not able to obtain lock mutex and exits without
 printing info */
 bool
 lock_print_info_summary(
@@ -771,7 +771,7 @@ lock_rec_get_page_no(
 	const lock_t*	lock);	/*!< in: lock */
 /*******************************************************************//**
 Check if there are any locks (table or rec) against table.
-@return TRUE if locks exist */
+@return true if locks exist */
 bool
 lock_table_has_locks(
 /*=================*/

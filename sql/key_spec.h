@@ -106,9 +106,9 @@ public:
 
   const LEX_CSTRING field_name;
   const uint length;
-  /// TRUE <=> ascending, FALSE <=> descending.
+  /// true <=> ascending, false <=> descending.
   const bool is_ascending;
-  /// TRUE <=> ASC/DESC is explicitly specified, FALSE <=> implicit ASC
+  /// true <=> ASC/DESC is explicitly specified, false <=> implicit ASC
   const bool is_explicit;
 };
 

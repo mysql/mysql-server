@@ -1,0 +1,95 @@
+SET foreign_key_checks=0;
+CREATE TABLE t1 (id int primary key, foreign key (id) references t2(id)) ENGINE=engine;
+CREATE TABLE t2 (id int primary key, foreign key (id) references t1(id)) ENGINE=engine;
+SET foreign_key_checks=1;
+SELECT COUNT(*) FROM information_schema.key_column_usage
+WHERE REFERENCED_TABLE_NAME in ('t1', 't2');
+COUNT(*)
+2
+SET foreign_key_checks=0;
+DROP TABLE t1, t2;
+SET foreign_key_checks=0;
+CREATE TABLE t1 (id int primary key, foreign key (id) references t2(id)) ENGINE=engine;
+CREATE TABLE t2 (id int primary key, foreign key (id) references t1(id)) ENGINE=engine;
+SET foreign_key_checks=1;
+SELECT COUNT(*) FROM information_schema.key_column_usage
+WHERE REFERENCED_TABLE_NAME in ('t1', 't2');
+COUNT(*)
+2
+SET foreign_key_checks=0;
+DROP TABLE t2, t1;
+SET foreign_key_checks=1;
+SET foreign_key_checks=0;
+CREATE TABLE t1 (id int primary key, foreign key (id) references no_such_db.t2(id)) ENGINE=engine;
+drop table t1;
+SET foreign_key_checks=1;
+create table t1(pk1 int primary key auto_increment,
+a int,
+b int
+) engine=engine;
+create table t2(pk2 int primary key auto_increment,
+c int not null,
+unique(c),
+d int not null,
+unique(d)
+) engine=engine;
+alter table t1
+add constraint fk3 foreign key (a) references t2(c),
+add constraint fk3 foreign key (b) references t2(d);
+ERROR 42000: Duplicate key name 'fk3'
+SET foreign_key_checks=0;
+alter table t1
+add constraint fk3 foreign key (a) references t2(c),
+add constraint fk3 foreign key (b) references t2(d);
+ERROR 42000: Duplicate key name 'fk3'
+SET foreign_key_checks=1;
+drop table t1, t2;
+create table t2 (
+pk2 int not null primary key,
+c int
+) engine=engine;
+create table t1 (
+pk1 int not null primary key,
+b int,
+foreign key (b) references t2(pk2)
+) engine=engine;
+truncate table t2;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (<fk_def>)
+set foreign_key_checks=1;
+truncate table t2;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (<fk_def>)
+set foreign_key_checks=0;
+drop table t1, t2;
+create table t2 (
+pk2 int not null primary key,
+c int
+) engine=engine;
+create table t1 (
+pk1 int not null primary key,
+b int,
+foreign key (b) references t2(pk2)
+) engine=engine;
+truncate table t1;
+set foreign_key_checks=1;
+truncate table t1;
+set foreign_key_checks=0;
+drop table t1, t2;
+create table t1 (
+a1 int primary key,
+b1 int not null,
+c1 int not null,
+key (b1,c1)
+) engine engine;
+create table t2 (
+a2 int primary key auto_increment,
+b2 int not null,
+c2 int not null
+) engine engine;
+alter table t2
+add constraint foreign key fk1 (b2,c2) references t1 (c1,b1);
+ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
+insert into t1 (a1,b1,c1) values
+(1,11,12),(2,21,22),(3,31,32);
+insert into t2 (b2,c2)
+select c1, b1 from t1;
+drop table t2,t1;

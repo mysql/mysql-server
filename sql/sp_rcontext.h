@@ -420,7 +420,7 @@ private:
     uint get_field_count() { return field_count; }
     void set_spvar_list(List<sp_variable> *vars) { spvar_list= vars; }
 
-    virtual bool send_eof() { return FALSE; }
+    virtual bool send_eof() { return false; }
     virtual bool send_data(List<Item> &items);
     virtual bool prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   };

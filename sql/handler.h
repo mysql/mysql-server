@@ -3410,10 +3410,10 @@ public:
   RANGE_SEQ_IF mrr_funcs;  /* Range sequence traversal functions */
   HANDLER_BUFFER *multi_range_buffer; /* MRR buffer info */
   uint ranges_in_seq; /* Total number of ranges in the traversed sequence */
-  /* TRUE <=> source MRR ranges and the output are ordered */
+  /* true <=> source MRR ranges and the output are ordered */
   bool mrr_is_output_sorted;
   
-  /* TRUE <=> we're currently traversing a range in mrr_cur_range. */
+  /* true <=> we're currently traversing a range in mrr_cur_range. */
   bool mrr_have_range;
   /* Current range (the one we're now returning rows from) */
   KEY_MULTI_RANGE mrr_cur_range;
@@ -3441,7 +3441,7 @@ protected:
   KEY_PART_INFO *range_key_part;
   bool eq_range;
   /* 
-    TRUE <=> the engine guarantees that returned records are within the range
+    true <=> the engine guarantees that returned records are within the range
     being scanned.
   */
   bool in_range_check_pushed_down;
@@ -4139,7 +4139,7 @@ public:
   */
   virtual int exec_bulk_update(uint *dup_key_found MY_ATTRIBUTE((unused)))
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return HA_ERR_WRONG_COMMAND;
   }
   /**
@@ -4155,7 +4155,7 @@ public:
   */
   virtual int end_bulk_delete()
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return HA_ERR_WRONG_COMMAND;
   }
 protected:
@@ -4266,7 +4266,7 @@ public:
     int error;
     DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
 
-    error = ha_rnd_init(FALSE);
+    error = ha_rnd_init(false);
     if (error != 0)
             return error;
 
@@ -4465,11 +4465,11 @@ public:
 
     @param  index            Index to check if foreign key uses it
 
-    @retval   TRUE            Foreign key defined on table or index
-    @retval   FALSE           No foreign key defined
+    @retval   true            Foreign key defined on table or index
+    @retval   false           No foreign key defined
   */
   virtual bool is_fk_defined_on_table_or_index(uint index MY_ATTRIBUTE((unused)))
-  { return FALSE; }
+  { return false; }
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
   /**
@@ -4575,8 +4575,8 @@ public:
   /**
     Check if the table is crashed.
 
-    @retval TRUE  Crashed
-    @retval FALSE Not crashed
+    @retval true  Crashed
+    @retval false Not crashed
   */
 
   virtual bool is_crashed() const  { return 0; }
@@ -4585,8 +4585,8 @@ public:
   /**
     Check if the table can be automatically repaired.
 
-    @retval TRUE  Can be auto repaired
-    @retval FALSE Cannot be auto repaired
+    @retval true  Can be auto repaired
+    @retval false Cannot be auto repaired
   */
 
   virtual bool auto_repair() const { return 0; }
@@ -5402,7 +5402,7 @@ public:
                               uchar *new_data MY_ATTRIBUTE((unused)),
                               uint *dup_key_found MY_ATTRIBUTE((unused)))
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return HA_ERR_WRONG_COMMAND;
   }
   /**
@@ -5465,14 +5465,14 @@ public:
 
     @param thd    Thread object
 
-    @retval TRUE  Error/Not supported
-    @retval FALSE Success
+    @retval true  Error/Not supported
+    @retval false Success
 
     @note Called if open_table_from_share fails and is_crashed().
   */
 
   virtual bool check_and_repair(THD *thd MY_ATTRIBUTE((unused)))
-  { return TRUE; }
+  { return true; }
 
 
   /**
@@ -5719,12 +5719,12 @@ private:
   uchar *rowids_buf_last;  /* When reading: end of used buffer space */
   uchar *rowids_buf_end;   /* End of the buffer */
 
-  bool dsmrr_eof; /* TRUE <=> We have reached EOF when reading index tuples */
+  bool dsmrr_eof; /* true <=> We have reached EOF when reading index tuples */
 
-  /* TRUE <=> need range association, buffer holds {rowid, range_id} pairs */
+  /* true <=> need range association, buffer holds {rowid, range_id} pairs */
   bool is_mrr_assoc;
 
-  bool use_default_impl; /* TRUE <=> shortcut all calls to default MRR impl */
+  bool use_default_impl; /* true <=> shortcut all calls to default MRR impl */
 public:
   /**
     Initialize the DsMrr_impl object.
@@ -5812,7 +5812,7 @@ static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint3
 static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
 {
   return (db_type && db_type->create) ?
-         (db_type->state == SHOW_OPTION_YES) : FALSE;
+         (db_type->state == SHOW_OPTION_YES) : false;
 }
 
 /* basic stuff */

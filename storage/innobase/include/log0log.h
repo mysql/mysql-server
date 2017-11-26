@@ -300,7 +300,7 @@ log_group_set_fields(
 #endif /* !UNIV_HOTBACKUP */
 /************************************************************//**
 Gets a log block flush bit.
-@return TRUE if this block was the first to be written in a log flush */
+@return true if this block was the first to be written in a log flush */
 UNIV_INLINE
 ibool
 log_block_get_flush_bit(
@@ -309,7 +309,7 @@ log_block_get_flush_bit(
 
 /** Gets a log block encrypt bit.
 @param[in]	log_block	log block
-@return TRUE if this block was encrypted */
+@return true if this block was encrypted */
 UNIV_INLINE
 bool
 log_block_get_encrypt_bit(
@@ -445,7 +445,7 @@ log_print(
 	FILE*	file);	/*!< in: file where to print */
 /******************************************************//**
 Peeks the current lsn.
-@return TRUE if success, FALSE if could not get the log system mutex */
+@return true if success, false if could not get the log system mutex */
 ibool
 log_peek_lsn(
 /*=========*/

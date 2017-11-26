@@ -27,7 +27,7 @@ class THD;
 
 struct Key_data
 {
-  Key_data() : result(TRUE)
+  Key_data() : result(true)
   {}
 
   const char *key_id;
@@ -55,7 +55,7 @@ static bool key_fetch(THD*, plugin_ref plugin, void *arg)
   //this function should get executed only for the first plugin. This is why
   //it always returns error. plugin_foreach will stop after first iteration.
   plugin_unlock(NULL, plugin);
-  return TRUE;
+  return true;
 }
 
 static bool key_store(THD*, plugin_ref plugin, void *arg)
@@ -72,7 +72,7 @@ static bool key_store(THD*, plugin_ref plugin, void *arg)
   //this function should get executed only for the first plugin. This is why
   //it always returns error. plugin_foreach will stop after first iteration.
   plugin_unlock(NULL, plugin);
-  return TRUE;
+  return true;
 }
 
 static bool key_remove(THD*, plugin_ref plugin, void *arg)
@@ -88,7 +88,7 @@ static bool key_remove(THD*, plugin_ref plugin, void *arg)
   //this function should get executed only for the first plugin. This is why
   //it always returns error. plugin_foreach will stop after first iteration.
   plugin_unlock(NULL, plugin);
-  return TRUE;
+  return true;
 }
 
 static bool key_generate(THD*, plugin_ref plugin, void *arg)
@@ -105,7 +105,7 @@ static bool key_generate(THD*, plugin_ref plugin, void *arg)
   //this function should get executed only for the first plugin. This is why
   //it always returns error. plugin_foreach will stop after first iteration.
   plugin_unlock(NULL, plugin);
-  return TRUE;
+  return true;
 }
 
 /**

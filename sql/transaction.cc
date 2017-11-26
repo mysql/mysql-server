@@ -88,8 +88,8 @@ void trans_reset_one_shot_chistics(THD *thd)
   that we are not executing a stored program and that we don't
   have an active XA transaction.
 
-  @return TRUE if the commit/rollback cannot be executed,
-          FALSE otherwise.
+  @return true if the commit/rollback cannot be executed,
+          false otherwise.
 */
 
 bool trans_check_state(THD *thd)
@@ -124,8 +124,8 @@ bool trans_check_state(THD *thd)
   @param thd     Current thread
   @param flags   Transaction flags
 
-  @retval FALSE  Success
-  @retval TRUE   Failure
+  @retval false  Success
+  @retval true   Failure
 */
 
 bool trans_begin(THD *thd, uint flags)
@@ -136,7 +136,7 @@ bool trans_begin(THD *thd, uint flags)
   DBUG_ENTER("trans_begin");
 
   if (trans_check_state(thd))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
     tst= (Transaction_state_tracker *)
@@ -153,14 +153,14 @@ bool trans_begin(THD *thd, uint flags)
     thd->server_status&=
       ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
     DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-    res= ha_commit_trans(thd, TRUE);
+    res= ha_commit_trans(thd, true);
   }
 
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::SESSION);
 
   if (res)
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /*
     Release transactional metadata locks only after the
@@ -251,8 +251,8 @@ bool trans_begin(THD *thd, uint flags)
                                        used to allow changes to internal tables
                                        (e.g. slave status tables, analyze table).
 
-  @retval FALSE  Success
-  @retval TRUE   Failure
+  @retval false  Success
+  @retval true   Failure
 */
 
 bool trans_commit(THD *thd, bool ignore_global_read_lock)
@@ -261,13 +261,13 @@ bool trans_commit(THD *thd, bool ignore_global_read_lock)
   DBUG_ENTER("trans_commit");
 
   if (trans_check_state(thd))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   thd->server_status&=
     ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-  res= ha_commit_trans(thd, TRUE, ignore_global_read_lock);
-  if (res == FALSE)
+  res= ha_commit_trans(thd, true, ignore_global_read_lock);
+  if (res == false)
     if (thd->rpl_thd_ctx.session_gtids_ctx().
         notify_after_transaction_commit(thd))
       LogErr(WARNING_LEVEL, ER_TRX_GTID_COLLECT_REJECT);
@@ -314,13 +314,13 @@ bool trans_commit(THD *thd, bool ignore_global_read_lock)
                                        (e.g. slave status tables, analyze table).
 
 
-  @retval FALSE  Success
-  @retval TRUE   Failure
+  @retval false  Success
+  @retval true   Failure
 */
 
 bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock)
 {
-  bool res= FALSE;
+  bool res= false;
   DBUG_ENTER("trans_commit_implicit");
 
   /*
@@ -341,12 +341,12 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock)
     thd->server_status&=
       ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
     DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-    res= ha_commit_trans(thd, TRUE, ignore_global_read_lock);
+    res= ha_commit_trans(thd, true, ignore_global_read_lock);
   }
   else if (tc_log)
     tc_log->commit(thd, true);
 
-  if (res == FALSE)
+  if (res == false)
     if (thd->rpl_thd_ctx.session_gtids_ctx().
         notify_after_transaction_commit(thd))
       LogErr(WARNING_LEVEL, ER_TRX_GTID_COLLECT_REJECT);
@@ -377,8 +377,8 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock)
 
   @param thd     Current thread
 
-  @retval FALSE  Success
-  @retval TRUE   Failure
+  @retval false  Success
+  @retval true   Failure
 */
 
 bool trans_rollback(THD *thd)
@@ -387,12 +387,12 @@ bool trans_rollback(THD *thd)
   DBUG_ENTER("trans_rollback");
 
   if (trans_check_state(thd))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   thd->server_status&=
     ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-  res= ha_rollback_trans(thd, TRUE);
+  res= ha_rollback_trans(thd, true);
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->get_transaction()->reset_unsafe_rollback_flags(
       Transaction_ctx::SESSION);
@@ -477,14 +477,14 @@ bool trans_rollback_implicit(THD *thd)
                                        (e.g. slave status tables, analyze table).
 
 
-  @retval FALSE  Success
-  @retval TRUE   Failure
+  @retval false  Success
+  @retval true   Failure
 */
 
 bool trans_commit_stmt(THD *thd, bool ignore_global_read_lock)
 {
   DBUG_ENTER("trans_commit_stmt");
-  int res= FALSE;
+  int res= false;
   /*
     We currently don't invoke commit/rollback at end of
     a sub-statement.  In future, we perhaps should take
@@ -503,13 +503,13 @@ bool trans_commit_stmt(THD *thd, bool ignore_global_read_lock)
 
   if (thd->get_transaction()->is_active(Transaction_ctx::STMT))
   {
-    res= ha_commit_trans(thd, FALSE, ignore_global_read_lock);
+    res= ha_commit_trans(thd, false, ignore_global_read_lock);
     if (! thd->in_active_multi_stmt_transaction())
       trans_reset_one_shot_chistics(thd);
   }
   else if (tc_log)
     tc_log->commit(thd, false);
-  if (res == FALSE && !thd->in_active_multi_stmt_transaction())
+  if (res == false && !thd->in_active_multi_stmt_transaction())
     if (thd->rpl_thd_ctx.session_gtids_ctx().
         notify_after_transaction_commit(thd))
       LogErr(WARNING_LEVEL, ER_TRX_GTID_COLLECT_REJECT);
@@ -528,8 +528,8 @@ bool trans_commit_stmt(THD *thd, bool ignore_global_read_lock)
 
   @param thd     Current thread
 
-  @retval FALSE  Success
-  @retval TRUE   Failure
+  @retval false  Success
+  @retval true   Failure
 */
 bool trans_rollback_stmt(THD *thd)
 {
@@ -553,7 +553,7 @@ bool trans_rollback_stmt(THD *thd)
 
   if (thd->get_transaction()->is_active(Transaction_ctx::STMT))
   {
-    ha_rollback_trans(thd, FALSE);
+    ha_rollback_trans(thd, false);
     if (! thd->in_active_multi_stmt_transaction())
       trans_reset_one_shot_chistics(thd);
   }
@@ -601,7 +601,7 @@ bool trans_rollback_stmt(THD *thd)
 
   thd->get_transaction()->reset(Transaction_ctx::STMT);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -673,8 +673,8 @@ find_savepoint(THD *thd, LEX_STRING name)
   @param thd    Current thread
   @param name   Savepoint name
 
-  @retval FALSE  Success
-  @retval TRUE   Failure
+  @retval false  Success
+  @retval true   Failure
 */
 
 bool trans_savepoint(THD *thd, LEX_STRING name)
@@ -684,7 +684,7 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
 
   if (!(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt) ||
       !opt_using_transactions)
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   if (thd->get_transaction()->xid_state()->check_has_uncommitted_xa())
     DBUG_RETURN(true);
@@ -701,7 +701,7 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
       savepoint_alloc_size)) == NULL)
   {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   newsv->name= thd->get_transaction()->strmake(name.str, name.length);
@@ -713,7 +713,7 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
     be free'd when transaction ends anyway
   */
   if (ha_savepoint(thd, newsv))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   newsv->prev= thd->get_transaction()->m_savepoints;
   thd->get_transaction()->m_savepoints= newsv;
@@ -735,7 +735,7 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
         ->add_savepoint(name.str);
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -752,27 +752,27 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
   @param thd    Current thread
   @param name   Savepoint name
 
-  @retval FALSE  Success
-  @retval TRUE   Failure
+  @retval false  Success
+  @retval true   Failure
 */
 
 bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
 {
-  int res= FALSE;
+  int res= false;
   SAVEPOINT *sv= *find_savepoint(thd, name);
   DBUG_ENTER("trans_rollback_to_savepoint");
 
   if (sv == NULL)
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "SAVEPOINT", name.str);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (thd->get_transaction()->xid_state()->check_has_uncommitted_xa())
     DBUG_RETURN(true);
 
   if (ha_rollback_to_savepoint(thd, sv))
-    res= TRUE;
+    res= true;
   else if (thd->get_transaction()->cannot_safely_rollback(
            Transaction_ctx::SESSION) &&
            !thd->slave_thread)
@@ -823,27 +823,27 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   @param thd    Current thread
   @param name   Savepoint name
 
-  @retval FALSE  Success
-  @retval TRUE   Failure
+  @retval false  Success
+  @retval true   Failure
 */
 
 bool trans_release_savepoint(THD *thd, LEX_STRING name)
 {
-  int res= FALSE;
+  int res= false;
   SAVEPOINT *sv= *find_savepoint(thd, name);
   DBUG_ENTER("trans_release_savepoint");
 
   if (sv == NULL)
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "SAVEPOINT", name.str);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (thd->get_transaction()->xid_state()->check_has_uncommitted_xa())
     DBUG_RETURN(true);
 
   if (ha_release_savepoint(thd, sv))
-    res= TRUE;
+    res= true;
 
   thd->get_transaction()->m_savepoints= sv->prev;
 

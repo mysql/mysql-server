@@ -308,8 +308,8 @@ uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, uchar *old,
     _mi_put_key_in_record()
     info		MyISAM handler
     keynr		Key number that was used
-    unpack_blobs        TRUE  <=> Unpack blob columns
-                        FALSE <=> Skip them. This is used by index condition 
+    unpack_blobs        true  <=> Unpack blob columns
+                        false <=> Skip them. This is used by index condition 
                                   pushdown check function
     record 		Store key here
 
@@ -459,7 +459,7 @@ int _mi_read_key_record(MI_INFO *info, my_off_t filepos, uchar *buf)
   {
     if (info->lastinx >= 0)
     {				/* Read only key */
-      if (_mi_put_key_in_record(info, (uint)info->lastinx, TRUE, buf))
+      if (_mi_put_key_in_record(info, (uint)info->lastinx, true, buf))
       {
         mi_print_error(info->s, HA_ERR_CRASHED);
 	set_my_errno(HA_ERR_CRASHED);
@@ -493,7 +493,7 @@ int _mi_read_key_record(MI_INFO *info, my_off_t filepos, uchar *buf)
 
 int mi_check_index_cond(MI_INFO *info, uint keynr, uchar *record)
 {
-  if (_mi_put_key_in_record(info, keynr, FALSE, record))
+  if (_mi_put_key_in_record(info, keynr, false, record))
   {
     mi_print_error(info->s, HA_ERR_CRASHED);
     set_my_errno(HA_ERR_CRASHED);

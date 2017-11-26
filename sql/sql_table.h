@@ -346,9 +346,9 @@ find_fk_parent_key(const dd::Table *parent_table_def,
   @param[in,out]  alter_ctx    Runtime context for ALTER TABLE.
   @param[in]      used_fields  used_fields from HA_CREATE_INFO.
 
-  @retval TRUE   error, out of memory or a semantical error in ALTER
+  @retval true   error, out of memory or a semantical error in ALTER
                  TABLE instructions
-  @retval FALSE  success
+  @retval false  success
 
 */
 bool prepare_fields_and_keys(THD *thd,
@@ -420,7 +420,7 @@ bool validate_comment_length(THD *thd, const char *comment_str,
                              uint err_code, const char *comment_name);
 int write_bin_log(THD *thd, bool clear_error,
                   const char *query, size_t query_length,
-                  bool is_trans= FALSE);
+                  bool is_trans= false);
 void promote_first_timestamp_column(List<Create_field> *column_definitions);
 
 

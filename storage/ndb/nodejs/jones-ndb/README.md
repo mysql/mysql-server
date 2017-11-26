@@ -100,11 +100,6 @@ Skipped:  2
 NDB Connection Properties
 -------------------------
 Each Jones Service Provider supports a different set of connection properties, based on the data source it supports.  These properties, and their default values, are documented in the file [DefaultConnectionProperties.js](DefaultConnectionProperties.js)
- 
-
-Copyright
----------
-Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 
 
 

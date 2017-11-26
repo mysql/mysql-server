@@ -910,12 +910,6 @@ USE gis_ogs;
 --echo # C.3.3.1 Geometry types and functions schema construction
 --echo #
 
-# TODO: WL#2377
-#CREATE TABLE spatial_ref_sys (
-#ST_srid INTEGER NOT NULL PRIMARY KEY,
-#auth_name CHARACTER VARYING,
-#auth_srid INTEGER,
-#srtext CHARACTER VARYING(2048));
 
 CREATE TABLE lakes (
   fid INTEGER NOT NULL PRIMARY KEY,
@@ -977,20 +971,27 @@ CREATE TABLE map_neatlines (
 
 # TODO: WL#2377
 #-- Spatial Reference System
-#INSERT INTO spatial_ref_sys VALUES
-#(101, 'POSC', 32214, 'PROJCS["UTM_ZONE_14N",
-#GEOGCS["World Geodetic System 72",
-#DATUM["WGS_72",
-#ELLIPSOID["NWL_10D", 6378135, 298.26]],
-#PRIMEM["Greenwich", 0],
-#UNIT["Meter", 1.0]],
-#PROJECTION["Transverse_Mercator"],
-#PARAMETER["False_Easting", 500000.0],
-#PARAMETER["False_Northing", 0.0],
-#PARAMETER["Central_Meridian", -99.0],
-#PARAMETER["Scale_Factor", 0.9996],
-#PARAMETER["Latitude_of_origin", 0.0],
-#UNIT["Meter", 1.0]]');
+#INSERT INTO mysql.st_spatial_reference_systems( id, catalog_id, name, organization, organization_coordsys_id, definition, description)
+#VALUES (101, 1, 'TEST101', 'POSC', 32214,
+#'PROJCS[
+#   "UTM_ZONE_14N",
+#   GEOGCS[
+#    "World Geodetic System 72",
+#    DATUM[
+#      "WGS_72",
+#      SPHEROID["NWL_10D", 6378135, 298.26]
+#    ],
+#    PRIMEM["Greenwich", 0],
+#    UNIT["Degree", 0.017453292519943278]
+#  ],
+#  PROJECTION["Transverse_Mercator"],
+#  PARAMETER["False_Easting", 500000.0],
+#  PARAMETER["False_Northing", 0.0],
+#  PARAMETER["Central_Meridian", -99.0],
+#  PARAMETER["Scale_Factor", 0.9996],
+#  PARAMETER["Latitude_of_origin", 0.0],
+#  UNIT["Meter", 1.0]
+#]', '');
 
 --echo # Lakes
 INSERT INTO lakes VALUES (
@@ -1416,6 +1417,8 @@ WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
 #SELECT ST_AsText(ConvexHull(shore))
 #FROM lakes
 #WHERE lakes.name = 'Blue Lake';
+
+DELETE FROM mysql.st_spatial_reference_systems WHERE id = 101;
 
 DROP DATABASE gis_ogs;
 

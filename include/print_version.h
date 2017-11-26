@@ -20,10 +20,6 @@
   @file include/print_version.h
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
-
 /**
   This function prints a standard version string. Should be used by
   all utilities.
@@ -49,9 +45,5 @@ void print_version_debug();
 */
 
 void print_explicit_version(const char* version);
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
 
 #endif /* _print_version_h_  */

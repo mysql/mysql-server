@@ -615,7 +615,7 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
     return NULL;
   }
 
-  (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+  (void) RUN_HOOK(transaction, after_rollback, (thd, false));
 
   switch (database_type) {
   case DB_TYPE_MRG_ISAM:
@@ -665,12 +665,10 @@ handler *get_new_handler(TABLE_SHARE *share, bool partitioned,
 
 static const char **handler_errmsgs;
 
-C_MODE_START
 static const char *get_handler_errmsg(int nr)
 {
   return handler_errmsgs[nr - HA_ERR_FIRST];
 }
-C_MODE_END
 
 
 /**
@@ -984,7 +982,7 @@ static bool dropdb_handlerton(THD *, plugin_ref plugin,
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->drop_database)
     hton->drop_database(hton, (char *)path);
-  return FALSE;
+  return false;
 }
 
 
@@ -1009,7 +1007,7 @@ static bool closecon_handlerton(THD *thd, plugin_ref plugin,
     /* make sure ha_data is reset and ha_data_lock is released */
     thd_set_ha_data(thd, hton, NULL);
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -1033,7 +1031,7 @@ static bool kill_handlerton(THD *thd, plugin_ref plugin, void *)
       hton->kill_connection(hton, thd);
   }
 
-  return FALSE;
+  return false;
 }
 
 void ha_kill_connection(THD *thd)
@@ -1044,13 +1042,13 @@ void ha_kill_connection(THD *thd)
 
 /** Invoke handlerton::pre_dd_shutdown() on a plugin.
 @param plugin	storage engine plugin
-@retval FALSE (always) */
+@retval false (always) */
 static bool pre_dd_shutdown_handlerton(THD *, plugin_ref plugin, void *)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->pre_dd_shutdown)
     hton->pre_dd_shutdown(hton);
-  return FALSE;
+  return false;
 }
 
 
@@ -1546,7 +1544,7 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
         that ha_info_all is registered in thd->transaction.all.
         Since otherwise we only clutter the normal transaction flags.
       */
-      if (ha_info_all->is_started()) /* FALSE if autocommit. */
+      if (ha_info_all->is_started()) /* false if autocommit. */
         ha_info_all->coalesce_trx_with(ha_info);
     }
     else if (rw_ha_count > 1)
@@ -1780,7 +1778,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
     rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
     trn_ctx->set_rw_ha_count(trx_scope, rw_ha_count);
-    /* rw_trans is TRUE when we in a transaction changing data */
+    /* rw_trans is true when we in a transaction changing data */
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
     DBUG_EXECUTE_IF("dbug.enabled_commit",
@@ -2098,7 +2096,7 @@ int ha_rollback_trans(THD *thd, bool all)
     enclosing 'all' transaction is rolled back.
     We establish the value of 'is_real_trans' by checking
     if it's an explicit COMMIT or BEGIN statement, or implicit
-    commit issued by DDL (in these cases all == TRUE),
+    commit issued by DDL (in these cases all == true),
     or if we're running in autocommit mode (it's only in the autocommit mode
     ha_commit_one_phase() is called with an empty
     transaction.all.ha_list, see why in trans_register_ha()).
@@ -2151,7 +2149,7 @@ int ha_rollback_trans(THD *thd, bool all)
   }
 
   if (all)
-    thd->transaction_rollback_request= FALSE;
+    thd->transaction_rollback_request= false;
 
   /*
     Only call gtid_rollback(THD*), which will purge thd->owned_gtid, if
@@ -2487,7 +2485,7 @@ static bool snapshot_handlerton(THD *thd, plugin_ref plugin,
     hton->start_consistent_snapshot(hton, thd);
     *((bool *)arg)= false;
   }
-  return FALSE;
+  return false;
 }
 
 int ha_start_consistent_snapshot(THD *thd)
@@ -2514,8 +2512,8 @@ static bool flush_handlerton(THD *, plugin_ref plugin,
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->flush_logs &&
       hton->flush_logs(hton, *(static_cast<bool *>(arg))))
-    return TRUE;
-  return FALSE;
+    return true;
+  return false;
 }
 
 
@@ -2526,16 +2524,16 @@ bool ha_flush_logs(handlerton *db_type, bool binlog_group_flush)
     if (plugin_foreach(NULL, flush_handlerton,
                        MYSQL_STORAGE_ENGINE_PLUGIN,
                        static_cast<void *>(&binlog_group_flush)))
-      return TRUE;
+      return true;
   }
   else
   {
     if (db_type->state != SHOW_OPTION_YES ||
         (db_type->flush_logs &&
          db_type->flush_logs(db_type, binlog_group_flush)))
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -3774,7 +3772,7 @@ prev_insert_id(ulonglong nr, struct System_variables *variables)
 int handler::update_auto_increment()
 {
   ulonglong nr, nb_reserved_values= 0;
-  bool append= FALSE;
+  bool append= false;
   THD *thd= table->in_use;
   struct System_variables *variables= &thd->variables;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
@@ -3903,7 +3901,7 @@ int handler::update_auto_increment()
     if (table->s->next_number_keypart == 0)
     {
       /* We must defer the appending until "nr" has been possibly truncated */
-      append= TRUE;
+      append= true;
     }
     else
     {
@@ -3922,7 +3920,7 @@ int handler::update_auto_increment()
 
   DBUG_PRINT("info",("auto_increment: %lu", (ulong) nr));
 
-  if (unlikely(table->next_number_field->store((longlong) nr, TRUE)))
+  if (unlikely(table->next_number_field->store((longlong) nr, true)))
   {
     /*
       first test if the query was aborted due to strict mode constraints
@@ -3940,7 +3938,7 @@ int handler::update_auto_increment()
       interval will cause a duplicate key).
     */
     nr= prev_insert_id(table->next_number_field->val_int(), variables);
-    if (unlikely(table->next_number_field->store((longlong) nr, TRUE)))
+    if (unlikely(table->next_number_field->store((longlong) nr, true)))
       nr= table->next_number_field->val_int();
   }
   if (append)
@@ -4536,7 +4534,7 @@ void handler::print_error(int error, myf errflag)
 bool handler::get_error_message(int error MY_ATTRIBUTE((unused)),
                                 String* buf MY_ATTRIBUTE((unused)))
 {
-  return FALSE;
+  return false;
 }
 
 
@@ -5391,7 +5389,7 @@ int ha_create_table(THD *thd, const char *path,
 
   // When db_stat is 0, we can pass nullptr as dd::Table since it won't be used.
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
-                            TRUE, nullptr))
+                            true, nullptr))
   {
 #ifdef HAVE_PSI_TABLE_INTERFACE
     PSI_TABLE_CALL(drop_table_share)
@@ -5505,7 +5503,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 
   TABLE table;
   // When db_stat is 0, we can pass nullptr as dd::Table since it won't be used.
-  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE, nullptr))
+  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, false, nullptr))
   {
     free_table_share(&share);
     DBUG_RETURN(3);
@@ -5537,8 +5535,8 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   @param name Normalized table name.
   @param[out] exists Only valid if the function succeeded.
 
-  @retval TRUE   An error is found
-  @retval FALSE  Success, check *exists
+  @retval true   An error is found
+  @retval false  Success, check *exists
 */
 
 bool
@@ -5553,7 +5551,7 @@ ha_check_if_table_exists(THD* thd, const char *db, const char *name,
   if (*exists)
     my_free(frmblob);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -5693,14 +5691,14 @@ static bool check_engine_system_table_handlerton(THD *,
                                        check_params->table_name,
                                        check_params->is_sql_layer_system_table))
         check_params->status= st_sys_tbl_chk_params::SUPPORTED_SYSTEM_TABLE;
-      return TRUE;
+      return true;
     }
     /*
       If this is a different SE, there is no point in asking the SE
       since we already know it's a system table and we don't care
       if it is supported or not.
     */
-    return FALSE;
+    return false;
   }
 
   /*
@@ -5719,13 +5717,13 @@ static bool check_engine_system_table_handlerton(THD *,
     if (hton->db_type == check_params->db_type)
     {
       check_params->status= st_sys_tbl_chk_params::SUPPORTED_SYSTEM_TABLE;
-      return TRUE;
+      return true;
     }
     else
       check_params->status= st_sys_tbl_chk_params::KNOWN_SYSTEM_TABLE;
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -5924,9 +5922,9 @@ static bool discover_handlerton(THD *thd, plugin_ref plugin,
       (!(hton->discover(hton, thd, vargs->db, vargs->name, 
                         vargs->frmblob, 
                         vargs->frmlen))))
-    return TRUE;
+    return true;
 
-  return FALSE;
+  return false;
 }
 
 
@@ -5975,9 +5973,9 @@ static bool find_files_handlerton(THD *thd, plugin_ref plugin,
   if (hton->state == SHOW_OPTION_YES && hton->find_files)
       if (hton->find_files(hton, thd, vargs->db, vargs->path, vargs->wild, 
                           vargs->dir, vargs->files))
-        return TRUE;
+        return true;
 
-  return FALSE;
+  return false;
 }
 
 int
@@ -6023,9 +6021,9 @@ static bool table_exists_in_engine_handlerton(THD *thd, plugin_ref plugin,
 
   vargs->err = err;
   if (vargs->err == HA_ERR_TABLE_EXIST)
-    return TRUE;
+    return true;
 
-  return FALSE;
+  return false;
 }
 
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
@@ -6061,10 +6059,10 @@ static bool make_pushed_join_handlerton(THD *thd, plugin_ref plugin,
     if (unlikely(error))
     {
       vargs->err = error;
-      return TRUE;
+      return true;
     }
   }
-  return FALSE;
+  return false;
 }
 
 int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan)
@@ -6109,12 +6107,12 @@ static bool binlog_func_list(THD *, plugin_ref plugin, void *arg)
     if (sz == MAX_HTON_LIST_ST-1)
     {
       /* list full */
-      return FALSE;
+      return false;
     }
     hton_list->hton[sz]= hton;
     hton_list->sz= sz+1;
   }
-  return FALSE;
+  return false;
 }
 
 static bool binlog_func_foreach(THD *thd, binlog_func_st *bfn)
@@ -6128,7 +6126,7 @@ static bool binlog_func_foreach(THD *thd, binlog_func_st *bfn)
 
   for (i= 0, sz= hton_list.sz; i < sz ; i++)
     hton_list.hton[i]->binlog_func(hton_list.hton[i], thd, bfn->fn, bfn->arg);
-  return FALSE;
+  return false;
 }
 
 
@@ -6179,7 +6177,7 @@ static bool binlog_log_query_handlerton2(THD *thd,
                            b->query_length,
                            b->db,
                            b->table_name);
-  return FALSE;
+  return false;
 }
 
 static bool binlog_log_query_handlerton(THD *thd,
@@ -6431,8 +6429,8 @@ Cost_estimate handler::read_cost(uint index, double ranges, double rows)
     Allow use of DS-MRR in cases where the index has partially-covered
     components but they are not used for scanning.
 
-  @retval TRUE   Yes
-  @retval FALSE  No
+  @retval true   Yes
+  @retval false  No
 */
 
 static bool key_uses_partial_cols(TABLE *table, uint keyno)
@@ -6442,9 +6440,9 @@ static bool key_uses_partial_cols(TABLE *table, uint keyno)
   for (; kp != kp_end; kp++)
   {
     if (!kp->field->part_of_key.is_set(keyno))
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 /****************************************************************************
@@ -6703,7 +6701,7 @@ handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
   mrr_iter= seq_funcs->init(seq_init_param, n_ranges, mode);
   mrr_funcs= *seq_funcs;
   mrr_is_output_sorted= mode & HA_MRR_SORTED;
-  mrr_have_range= FALSE;
+  mrr_have_range= false;
   DBUG_RETURN(0);
 }
 
@@ -6748,7 +6746,7 @@ int handler::multi_range_read_next(char **range_info)
 
   if (!mrr_have_range)
   {
-    mrr_have_range= TRUE;
+    mrr_have_range= true;
     goto start;
   }
 
@@ -6850,7 +6848,7 @@ int DsMrr_impl::dsmrr_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
                       MRR_HINT_ENUM, OPTIMIZER_SWITCH_MRR) ||
       mode & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED)) // DS-MRR doesn't sort
   {
-    use_default_impl= TRUE;
+    use_default_impl= true;
     retval= h->handler::multi_range_read_init(seq_funcs, seq_init_param,
                                               n_ranges, mode, buf);
     DBUG_RETURN(retval);
@@ -7005,14 +7003,14 @@ int DsMrr_impl::dsmrr_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
      used.
   */
   if ((h->inited != handler::RND) && 
-      ((h->inited==handler::INDEX? h->ha_index_end(): FALSE) || 
-       (h->ha_rnd_init(FALSE))))
+      ((h->inited==handler::INDEX? h->ha_index_end(): false) || 
+       (h->ha_rnd_init(false))))
   {
     retval= 1;
     goto error;
   }
 
-  use_default_impl= FALSE;
+  use_default_impl= false;
   h->mrr_funcs= *seq_funcs;
   
   DBUG_RETURN(0);
@@ -7083,7 +7081,7 @@ int DsMrr_impl::dsmrr_fill_buffer()
   DBUG_ASSERT(rowids_buf < rowids_buf_end);
 
   /*
-    Set key_read to TRUE since we only read fields from the index.
+    Set key_read to true since we only read fields from the index.
     This ensures that any virtual columns are read from index and are not
     attempted to be evaluated from base columns.
     (Do not use TABLE::set_keyread() since the MRR implementation operates
@@ -7091,8 +7089,8 @@ int DsMrr_impl::dsmrr_fill_buffer()
     property of the wrong handler. MRR sets the handlers' keyread properties
     when initializing the MRR operation, independent of this call).
   */
-  DBUG_ASSERT(table->key_read == FALSE);
-  table->key_read= TRUE;
+  DBUG_ASSERT(table->key_read == false);
+  table->key_read= true;
 
   rowids_buf_cur= rowids_buf;
   /*
@@ -7120,7 +7118,7 @@ int DsMrr_impl::dsmrr_fill_buffer()
   }
 
   // Restore key_read since the next read operation will read complete rows
-  table->key_read= FALSE;
+  table->key_read= false;
 
   if (res && res != HA_ERR_END_OF_FILE)
     DBUG_RETURN(res); 
@@ -7291,8 +7289,8 @@ ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
                 OUT  If DS-MRR is choosen, cost of DS-MRR scan
                      else the value is not modified
 
-  @retval TRUE   Default MRR implementation should be used
-  @retval FALSE  DS-MRR implementation should be used
+  @retval true   Default MRR implementation should be used
+  @retval false  DS-MRR implementation should be used
 */
 
 bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
@@ -7314,7 +7312,7 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
        table->s->tmp_table != NO_TMP_TABLE)
   {
     /* Use the default implementation, don't modify args: See comments  */
-    return TRUE;
+    return true;
   }
 
   /*
@@ -7351,7 +7349,7 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
 
   Cost_estimate dsmrr_cost;
   if (get_disk_sweep_mrr_cost(keyno, rows, *flags, bufsz, &dsmrr_cost))
-    return TRUE;
+    return true;
   
   /* 
     If @@optimizer_switch has "mrr" on and "mrr_cost_based" off, then set cost
@@ -7372,12 +7370,12 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
     *flags &= ~HA_MRR_USE_DEFAULT_IMPL;  /* Use the DS-MRR implementation */
     *flags &= ~HA_MRR_SUPPORT_SORTED;    /* We can't provide ordered output */
     *cost= dsmrr_cost;
-    res= FALSE;
+    res= false;
   }
   else
   {
     /* Use the default MRR implementation */
-    res= TRUE;
+    res= true;
   }
   return res;
 }
@@ -7396,8 +7394,8 @@ static void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows,
   @param buffer_size INOUT  Buffer size
   @param cost        OUT    The cost
 
-  @retval FALSE  OK
-  @retval TRUE   Error, DS-MRR cannot be used (the buffer is too small
+  @retval false  OK
+  @retval true   Error, DS-MRR cannot be used (the buffer is too small
                  for even 1 rowid)
 */
 
@@ -7413,7 +7411,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   const ha_rows max_buff_entries= *buffer_size / elem_size;
 
   if (!max_buff_entries)
-    return TRUE; /* Buffer has not enough space for even 1 rowid */
+    return true; /* Buffer has not enough space for even 1 rowid */
 
   /* Number of iterations we'll make with full buffer */
   n_full_steps= (uint)floor(rows2double(rows) / max_buff_entries);
@@ -7467,7 +7465,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   */
   cost->add_cpu(table->cost_model()->row_evaluate_cost(
     static_cast<double>(rows)));
-  return FALSE;
+  return false;
 }
 
 
@@ -7492,7 +7490,7 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
   DBUG_ASSERT(cost->is_zero());
   if (nrows)
   {
-    get_sweep_read_cost(table, nrows, FALSE, cost);
+    get_sweep_read_cost(table, nrows, false, cost);
 
     /*
       @todo CostModel: For the old version of the cost model the
@@ -8029,7 +8027,7 @@ static bool exts_handlerton(THD *, plugin_ref plugin, void *arg)
       it.rewind();
     }
   }
-  return FALSE;
+  return false;
 }
 
 TYPELIB* ha_known_exts()
@@ -8069,8 +8067,8 @@ static bool stat_print(THD *thd, const char *type, size_t type_len,
   protocol->store(file, file_len, system_charset_info);
   protocol->store(status, status_len, system_charset_info);
   if (protocol->end_row())
-    return TRUE;
-  return FALSE;
+    return true;
+  return false;
 }
 
 
@@ -8081,8 +8079,8 @@ static bool showstat_handlerton(THD *thd, plugin_ref plugin,
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->show_status &&
       hton->show_status(hton, thd, stat_print, stat))
-    return TRUE;
-  return FALSE;
+    return true;
+  return false;
 }
 
 bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
@@ -8096,7 +8094,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
 
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    return TRUE;
+    return true;
 
   if (db_type == NULL)
   {
@@ -8231,7 +8229,7 @@ static int write_locked_table_maps(THD *thd)
           /* Binlog Rows_query log event once for one statement which updates
              two or more tables.*/
           if (need_binlog_rows_query)
-            need_binlog_rows_query= FALSE;
+            need_binlog_rows_query= false;
           /*
             If an error occurs, it is the responsibility of the caller to
             roll back the transaction.
@@ -8986,12 +8984,12 @@ notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
     {
       // Ignore failures from post event notification.
       if (params->notification_type == HA_NOTIFY_PRE_EVENT)
-        return TRUE;
+        return true;
     }
     else
       params->some_htons_were_notified= true;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -9056,12 +9054,12 @@ notify_alter_table_helper(THD *thd, plugin_ref plugin, void *arg)
     {
       // Ignore failures from post event notification.
       if (params->notification_type == HA_NOTIFY_PRE_EVENT)
-        return TRUE;
+        return true;
     }
     else
       params->some_htons_were_notified= true;
   }
-  return FALSE;
+  return false;
 }
 
 

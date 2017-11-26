@@ -680,7 +680,7 @@ TEST_F(PropertiesTest, IterationSize)
   EXPECT_TRUE(p->size() == 0);
 
   for (dd::Properties::Iterator it= p->begin(); it != p->end(); ++it)
-    EXPECT_TRUE(FALSE);
+    EXPECT_TRUE(false);
 
   delete p;
 }

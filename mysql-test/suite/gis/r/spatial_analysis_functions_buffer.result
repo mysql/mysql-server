@@ -1214,8 +1214,9 @@ DROP TABLE t1, t2;
 DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 0), 1));
 # Projected SRS (should pass)
 DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 2000), 1));
-# Geographic SRS (should pass)
+# Geographic SRS (should fail)
 DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 1));
+ERROR 22S00: st_buffer(POINT, ...) has not been implemented for geographic spatial reference systems.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
@@ -1255,3 +1256,9 @@ ST_GEOMFROMTEXT(
   ),
 10
 );
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_BUFFER(x'0A000000010100000000000000000000000000000000000000', 10);
+ERROR SR001: There's no spatial reference system with SRID 10.

@@ -124,8 +124,8 @@ static void ssl_set_sys_error(int ssl_error)
   @param [out] ssl_errno_holder  The SSL error code.
 
   @return Whether a SSL I/O operation should be deferred.
-  @retval TRUE    Temporary failure, retry operation.
-  @retval FALSE   Indeterminate failure.
+  @retval true    Temporary failure, retry operation.
+  @retval false   Indeterminate failure.
 */
 
 static bool ssl_should_retry(Vio *vio, int ret,
@@ -134,7 +134,7 @@ static bool ssl_should_retry(Vio *vio, int ret,
 {
   int ssl_error;
   SSL *ssl= static_cast<SSL*>(vio->ssl_arg);
-  bool should_retry= TRUE;
+  bool should_retry= true;
 
   /* Retrieve the result for the SSL I/O operation. */
   ssl_error= SSL_get_error(ssl, ret);
@@ -158,7 +158,7 @@ static bool ssl_should_retry(Vio *vio, int ret,
     ERR_clear_error();
 # endif
 #endif
-    should_retry= FALSE;
+    should_retry= false;
     ssl_set_sys_error(ssl_error);
     break;
   }
@@ -531,7 +531,7 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
 
 bool vio_ssl_has_data(Vio *vio)
 {
-  return SSL_pending(static_cast<SSL*>(vio->ssl_arg)) > 0 ? TRUE : FALSE;
+  return SSL_pending(static_cast<SSL*>(vio->ssl_arg)) > 0 ? true : false;
 }
 
 #endif /* HAVE_OPENSSL */

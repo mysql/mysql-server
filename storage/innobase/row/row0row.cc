@@ -237,11 +237,14 @@ row_build_index_entry_low(
 						: dict_table_page_size(
 							index->table);
 
+					const dict_index_t* clust_index =
+						(ext == nullptr
+						 ? index->table->first_index()
+						 : ext->index);
+
 					dptr = lob::btr_copy_externally_stored_field(
-						&dlen, dptr,
-						page_size,
-						flen,
-						false,
+						clust_index, &dlen, dptr,
+						page_size, flen, false,
 						temp_heap);
 				} else {
 					dptr = static_cast<uchar*>(
@@ -541,8 +544,9 @@ row_build_low(
 		row_log_table_delete(). */
 
 	} else if (j) {
-		*ext = row_ext_create(j, ext_cols, index->table->flags, row,
-				      dict_index_is_sdi(index), heap);
+		*ext = row_ext_create(
+			index, j, ext_cols, index->table->flags, row,
+			dict_index_is_sdi(index), heap);
 	} else {
 		*ext = NULL;
 	}
@@ -726,6 +730,7 @@ row_rec_to_index_entry(
 	dtuple_t*	entry;
 	byte*		buf;
 	const rec_t*	copy_rec;
+	DBUG_ENTER("row_rec_to_index_entry");
 
 	ut_ad(rec != NULL);
 	ut_ad(heap != NULL);
@@ -746,7 +751,7 @@ row_rec_to_index_entry(
 	dtuple_set_info_bits(entry,
 			     rec_get_info_bits(rec, rec_offs_comp(offsets)));
 
-	return(entry);
+	DBUG_RETURN(entry);
 }
 
 /*******************************************************************//**
@@ -959,7 +964,7 @@ row_build_row_ref_in_tuple(
 
 /***************************************************************//**
 Searches the clustered index record for a row, if we have the row reference.
-@return TRUE if found */
+@return true if found */
 ibool
 row_search_on_row_ref(
 /*==================*/
@@ -1106,6 +1111,10 @@ row_search_index_entry(
 	}
 
 	switch (btr_pcur_get_btr_cur(pcur)->flag) {
+	case BTR_CUR_UNSET:
+		ut_ad(0);
+		break;
+
 	case BTR_CUR_DELETE_REF:
 		ut_a(mode & BTR_DELETE && !dict_index_is_spatial(index));
 		return(ROW_NOT_DELETED_REF);

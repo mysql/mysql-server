@@ -26,8 +26,6 @@
   MAINTAINER: Please keep this list in order, to limit merge collisions.
 */
 
-extern "C" {
-
 PSI_memory_key key_memory_DATE_TIME_FORMAT;
 PSI_memory_key key_memory_DD_column_statistics;
 PSI_memory_key key_memory_DD_default_values;
@@ -155,8 +153,6 @@ PSI_memory_key key_memory_user_var_entry_value;
 PSI_memory_key key_memory_warning_info_warn_root;
 PSI_memory_key key_memory_sp_cache;
 PSI_memory_key key_memory_write_set_extraction;
-
-}
 
 #ifdef HAVE_PSI_INTERFACE
 

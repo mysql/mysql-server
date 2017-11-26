@@ -194,9 +194,9 @@ static bool ha_finish_upgrade(THD *thd,
   if (hton->finish_upgrade)
   {
     if (hton->finish_upgrade(thd, *(static_cast<bool *>(failed_upgrade))))
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -808,10 +808,10 @@ static bool ha_migrate_tablespaces(THD *thd,
     {
       sql_print_error("Got error %d from SE while migrating tablespaces",
                       error);
-      return TRUE;
+      return true;
     }
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -906,9 +906,9 @@ static bool upgrade_logs(THD *thd,
   if (hton->upgrade_logs)
   {
     if (hton->upgrade_logs(thd))
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 

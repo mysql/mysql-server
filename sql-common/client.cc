@@ -332,8 +332,8 @@ void net_clear_error(NET *net)
 */
 
 void set_mysql_extended_error(MYSQL *mysql, int errcode,
-                                     const char *sqlstate,
-                                     const char *format, ...)
+                              const char *sqlstate,
+                              const char *format, ...)
 {
   NET *net;
   va_list args;
@@ -513,7 +513,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
     prefix= name_prefixes[i];
     suffix_pos = strxmov(tmp, prefix , shared_memory_base_name, "_", NullS);
     my_stpcpy(suffix_pos, "CONNECT_REQUEST");
-    event_connect_request= OpenEvent(event_access_rights, FALSE, tmp);
+    event_connect_request= OpenEvent(event_access_rights, false, tmp);
     if (event_connect_request)
     {
       break;
@@ -525,13 +525,13 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
     goto err;
   }
   my_stpcpy(suffix_pos, "CONNECT_ANSWER");
-  if (!(event_connect_answer= OpenEvent(event_access_rights,FALSE,tmp)))
+  if (!(event_connect_answer= OpenEvent(event_access_rights,false,tmp)))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_ANSWER_ERROR;
     goto err;
   }
   my_stpcpy(suffix_pos, "CONNECT_DATA");
-  if (!(handle_connect_file_map= OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)))
+  if (!(handle_connect_file_map= OpenFileMapping(FILE_MAP_WRITE,false,tmp)))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_FILE_MAP_ERROR;
     goto err;
@@ -545,7 +545,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   }
 
   my_stpcpy(suffix_pos, "CONNECT_NAMED_MUTEX");
-  connect_named_mutex= OpenMutex(SYNCHRONIZE, FALSE, tmp);
+  connect_named_mutex= OpenMutex(SYNCHRONIZE, false, tmp);
   if (connect_named_mutex == NULL)
   {
     error_allow= CR_SHARED_MEMORY_CONNECT_SET_ERROR;
@@ -595,7 +595,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   suffix_pos = strxmov(tmp, prefix , shared_memory_base_name, "_", connect_number_char,
 		       "_", NullS);
   my_stpcpy(suffix_pos, "DATA");
-  if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL)
+  if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE,false,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_FILE_MAP_ERROR;
     goto err2;
@@ -609,35 +609,35 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   }
 
   my_stpcpy(suffix_pos, "SERVER_WROTE");
-  if ((event_server_wrote = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
+  if ((event_server_wrote = OpenEvent(event_access_rights,false,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   my_stpcpy(suffix_pos, "SERVER_READ");
-  if ((event_server_read = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
+  if ((event_server_read = OpenEvent(event_access_rights,false,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   my_stpcpy(suffix_pos, "CLIENT_WROTE");
-  if ((event_client_wrote = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
+  if ((event_client_wrote = OpenEvent(event_access_rights,false,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   my_stpcpy(suffix_pos, "CLIENT_READ");
-  if ((event_client_read = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
+  if ((event_client_read = OpenEvent(event_access_rights,false,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   my_stpcpy(suffix_pos, "CONNECTION_CLOSED");
-  if ((event_conn_closed = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
+  if ((event_conn_closed = OpenEvent(event_access_rights,false,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
@@ -1061,10 +1061,10 @@ void read_ok_ex(MYSQL *mysql, ulong length)
   or packet is an error message
 
   @param[in]    mysql           connection handle
-  @param[in]    parse_ok        if set to TRUE then parse OK packet
+  @param[in]    parse_ok        if set to true then parse OK packet
                                 if it is received
   @param[out]   is_data_packet
-                                if set to TRUE then packet received is
+                                if set to true then packet received is
                                 a "data packet", that is not OK or ERR
                                 packet or EOF in case of old servers
 
@@ -1083,7 +1083,7 @@ cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok,
   MYSQL_TRACE(READ_PACKET, mysql, ());
 
   if (is_data_packet)
-    *is_data_packet= FALSE;
+    *is_data_packet= false;
 
   if (net->vio != 0)
     len=my_net_read(net);
@@ -1174,7 +1174,7 @@ cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok,
       0xFE - we detect that case below.
     */
     if (is_data_packet)
-      *is_data_packet= TRUE;
+      *is_data_packet= true;
     /*
        For a packet starting with 0xFE detect if it is OK packet or a
        huge data packet. Note that old servers do not send OK packets
@@ -1188,7 +1188,7 @@ cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok,
         return len;
       /* otherwise we have OK packet starting with 0xFE */
       if (is_data_packet)
-        *is_data_packet= FALSE;
+        *is_data_packet= false;
       /* parse it if requested */
       if (parse_ok)
         read_ok_ex(mysql, len);
@@ -1199,7 +1199,7 @@ cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok,
         (net->read_pos[0] == 254) && (len < 8))
     {
       if (is_data_packet)
-        *is_data_packet= FALSE;
+        *is_data_packet= false;
     }
   }
   return len;
@@ -1213,7 +1213,7 @@ cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok,
 
   @param[in]  mysql           connection handle
   @param[out] is_data_packet
-                              if set to TRUE then the packet received
+                              if set to true then the packet received
                               was a "data packet".
 
   @retval The length of the packet that was read or packet_error in case of
@@ -1243,7 +1243,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 {
   NET *net= &mysql->net;
   bool result= 1;
-  bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : FALSE;
+  bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : false;
   DBUG_ENTER("cli_advanced_command");
 
   if (mysql->net.vio == 0)
@@ -1407,8 +1407,8 @@ void free_old_query(MYSQL *mysql)
   Get the EOF packet, and update mysql->status
   and mysql->warning_count.
 
-  @return  TRUE if a communication or protocol error, an error
-           is set in this case, FALSE otherwise.
+  @return  true if a communication or protocol error, an error
+           is set in this case, false otherwise.
 */
 
 static bool flush_one_result(MYSQL *mysql)
@@ -1431,7 +1431,7 @@ static bool flush_one_result(MYSQL *mysql)
       cli_safe_read() has set an error for us, just return.
     */
     if (packet_length == packet_error)
-      return TRUE;
+      return true;
   }
   while (mysql->net.read_pos[0] == 0 || is_data_packet);
 
@@ -1457,15 +1457,15 @@ static bool flush_one_result(MYSQL *mysql)
   else
     MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
 #endif
-  return FALSE;
+  return false;
 }
 
 
 /**
   Read a packet from network. If it's an OK packet, flush it.
 
-  @return  TRUE if error, FALSE otherwise. In case of 
-           success, is_ok_packet is set to TRUE or FALSE,
+  @return  true if error, false otherwise. In case of 
+           success, is_ok_packet is set to true or false,
            based on what we got from network.
 */
 
@@ -1475,7 +1475,7 @@ static bool opt_flush_ok_packet(MYSQL *mysql, bool *is_ok_packet)
   ulong packet_length= cli_safe_read(mysql, &is_data_packet);
 
   if (packet_length == packet_error)
-    return TRUE;
+    return true;
 
   /* cli_safe_read always reads a non-empty packet. */
   DBUG_ASSERT(packet_length);
@@ -1495,7 +1495,7 @@ static bool opt_flush_ok_packet(MYSQL *mysql, bool *is_ok_packet)
 #endif
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -1664,10 +1664,10 @@ mysql_free_result(MYSQL_RES *result)
         mysql->unbuffered_fetch_owner= 0;
       if (mysql->status == MYSQL_STATUS_USE_RESULT)
       {
-        (*mysql->methods->flush_use_result)(mysql, FALSE);
+        (*mysql->methods->flush_use_result)(mysql, false);
         mysql->status=MYSQL_STATUS_READY;
         if (mysql->unbuffered_fetch_owner)
-          *mysql->unbuffered_fetch_owner= TRUE;
+          *mysql->unbuffered_fetch_owner= true;
       }
     }
     free_rows(result->data);
@@ -2038,7 +2038,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
         case OPT_enable_cleartext_plugin:
           ENSURE_EXTENSIONS_PRESENT(options);
           options->extension->enable_cleartext_plugin= 
-            (!opt_arg || atoi(opt_arg) != 0) ? TRUE : FALSE;
+            (!opt_arg || atoi(opt_arg) != 0) ? true : false;
           break;
         case OPT_optional_resultset_metadata:
           if (!opt_arg || atoi(opt_arg) != 0)
@@ -2614,7 +2614,7 @@ mysql_init(MYSQL *mysql)
   mysql->options.shared_memory_base_name= (char*) def_shared_memory_base_name;
 #endif
 
-  mysql->options.report_data_truncation= TRUE;  /* default */
+  mysql->options.report_data_truncation= true;  /* default */
 
   /* Initialize extensions. */
   if (!(mysql->extension= mysql_extension_init(mysql)))
@@ -3202,7 +3202,6 @@ mysql_set_character_set_with_default_collation(MYSQL *mysql)
 }
 
 
-C_MODE_START
 int mysql_init_character_set(MYSQL *mysql)
 {
   /* Set character set */
@@ -3240,7 +3239,6 @@ int mysql_init_character_set(MYSQL *mysql)
   }
   return 0;
 }
-C_MODE_END
 
 /*********** client side authentication support **************************/
 
@@ -4261,9 +4259,9 @@ static bool check_plugin_enabled(MYSQL *mysql, auth_plugin_t *plugin)
                              ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD),
                              clear_password_client_plugin.name,
                              "plugin not enabled");
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -4512,7 +4510,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   const char    *scramble_plugin;
   ulong		pkt_length;
   NET		*net= &mysql->net;
-  bool          scramble_buffer_allocated= FALSE;
+  bool          scramble_buffer_allocated= false;
 #ifdef _WIN32
   HANDLE	hPipe=INVALID_HANDLE_VALUE;
 #endif
@@ -4932,7 +4930,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     goto error;
   }
-  vio_keepalive(net->vio,TRUE);
+  vio_keepalive(net->vio,true);
 
   /* If user set read_timeout, let it override the default */
   if (mysql->options.read_timeout)
@@ -5112,7 +5110,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
       goto error;
     }
-    scramble_buffer_allocated= TRUE;
+    scramble_buffer_allocated= true;
     memcpy(scramble_buffer, scramble_data, scramble_data_len);
   }
   else
@@ -5131,9 +5129,9 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
                       scramble_plugin, db))
     goto error;
 
-  if (scramble_buffer_allocated == TRUE)
+  if (scramble_buffer_allocated == true)
   {
-    scramble_buffer_allocated= FALSE;
+    scramble_buffer_allocated= false;
     my_free(scramble_buffer);
   }
 
@@ -6166,7 +6164,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_OPT_GET_SERVER_PUBLIC_KEY:
     ENSURE_EXTENSIONS_PRESENT(&mysql->options);
     mysql->options.extension->get_server_public_key=
-    (*(bool*) arg) ? TRUE : FALSE;
+    (*(bool*) arg) ? true : false;
     break;
 
   case MYSQL_OPT_CONNECT_ATTR_RESET:
@@ -6203,7 +6201,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_ENABLE_CLEARTEXT_PLUGIN:
     ENSURE_EXTENSIONS_PRESENT(&mysql->options);
     mysql->options.extension->enable_cleartext_plugin= 
-      (*(bool*) arg) ? TRUE : FALSE;
+      (*(bool*) arg) ? true : false;
     break;
   case MYSQL_OPT_RETRY_COUNT:
      ENSURE_EXTENSIONS_PRESENT(&mysql->options);
@@ -6300,11 +6298,11 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
     *((uint *)arg)= mysql->options.write_timeout;
     break;
   case MYSQL_OPT_COMPRESS:
-    *((bool *)arg) = mysql->options.compress ? TRUE : FALSE;
+    *((bool *)arg) = mysql->options.compress ? true : false;
     break;
   case MYSQL_OPT_LOCAL_INFILE:			/* Allow LOAD DATA LOCAL ?*/
     *((uint *)arg)= (mysql->options.client_flag & CLIENT_LOCAL_FILES) ?
-                    TRUE : FALSE;
+                    true : false;
     break;
   case MYSQL_READ_DEFAULT_FILE:
     *((char **)arg)= mysql->options.my_cnf_file;
@@ -6387,16 +6385,16 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
   case MYSQL_OPT_GET_SERVER_PUBLIC_KEY:
     *((bool *)arg)= (mysql->options.extension &&
                      mysql->options.extension->get_server_public_key) ?
-                       TRUE : FALSE;
+                       true : false;
     break;
   case MYSQL_ENABLE_CLEARTEXT_PLUGIN:
     *((bool *)arg)= (mysql->options.extension &&
                         mysql->options.extension->enable_cleartext_plugin) ?
-			TRUE : FALSE;
+			true : false;
     break;
   case MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS:
     *((bool*)arg)= (mysql->options.client_flag &
-                       CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS) ? TRUE : FALSE;
+                       CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS) ? true : false;
     break;
 
   case MYSQL_OPT_MAX_ALLOWED_PACKET:
@@ -6412,7 +6410,7 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
 
   case MYSQL_OPT_OPTIONAL_RESULTSET_METADATA:
     *((bool *) arg)= (mysql->options.client_flag &
-                      CLIENT_OPTIONAL_RESULTSET_METADATA) ? TRUE : FALSE;
+                      CLIENT_OPTIONAL_RESULTSET_METADATA) ? true : false;
     break;
 
   case MYSQL_OPT_NAMED_PIPE:			/* This option is depricated */

@@ -28,9 +28,7 @@
 #include "sql/sql_sort.h"
 #include "sql/thr_malloc.h"
 
-extern "C" {
 PSI_memory_key key_memory_Filesort_buffer_sort_keys;
-}
 
 namespace {
 /**

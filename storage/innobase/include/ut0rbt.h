@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -245,7 +245,7 @@ rbt_merge_uniq(
 /**********************************************************************//**
 Verify the integrity of the RB tree. For debugging. 0 failure else height
 of tree (in count of black nodes).
-@return TRUE if OK FALSE if tree invalid. */
+@return true if OK false if tree invalid. */
 ibool
 rbt_validate(
 /*=========*/

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,14 +34,10 @@
 
 #define PSI_IDLE_CALL(M) pfs_ ## M ## _v1
 
-C_MODE_START
-
 PSI_idle_locker*
 pfs_start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_line);
 
 void pfs_end_idle_wait_v1(PSI_idle_locker* locker);
-
-C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */

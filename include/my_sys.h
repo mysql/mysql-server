@@ -73,8 +73,6 @@ struct PSI_thread_bootstrap;
 struct PSI_transaction_bootstrap;
 struct MEM_ROOT;
 
-C_MODE_START
-
 #define MY_INIT(name)   { my_progname= name; my_init(); }
 
 /**
@@ -184,7 +182,7 @@ extern PSI_memory_key key_memory_max_alloca;
                                                my_free(ptr)
 
 #if defined(ENABLED_DEBUG_SYNC)
-extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
+extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #define DEBUG_SYNC_C(_sync_point_name_) do {                            \
     if (debug_sync_C_callback_ptr != NULL)                              \
       (*debug_sync_C_callback_ptr)(STRING_WITH_LEN(_sync_point_name_)); } \
@@ -625,7 +623,7 @@ extern int check_if_legal_tablename(const char *path);
 extern bool is_filename_allowed(const char *name, size_t length,
                    bool allow_current_dir);
 #else /* _WIN32 */
-# define is_filename_allowed(name, length, allow_cwd) (TRUE)
+# define is_filename_allowed(name, length, allow_cwd) (true)
 #endif /* _WIN32 */ 
 
 #ifdef _WIN32
@@ -979,5 +977,4 @@ extern void set_psi_data_lock_service(void *psi);
 struct MYSQL_FILE;
 extern MYSQL_FILE *mysql_stdin;
 
-C_MODE_END
 #endif /* _my_sys_h */

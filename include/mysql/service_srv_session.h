@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -36,15 +36,11 @@ typedef struct Srv_session* MYSQL_SESSION;
 #include "mysql/plugin.h"  /* MYSQL_THD */
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef void (*srv_session_error_cb)(void *ctx,
                                      unsigned int sql_errno,
                                      const char *err_msg);
 
-extern struct srv_session_service_st
+extern "C" struct srv_session_service_st
 {
   int (*init_session_thread)(const void *plugin);
 
@@ -164,10 +160,6 @@ int srv_session_close(MYSQL_SESSION session);
 int srv_session_server_is_available();
 
 
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif /* MYSQL_SRV_SESSION_SERVICE_INCLUDED */

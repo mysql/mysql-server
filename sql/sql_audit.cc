@@ -1063,7 +1063,7 @@ int mysql_audit_notify(THD *thd,
   @param         plugin Plugin reference.
   @param[in,out] arg    Opaque st_mysql_subscribe_event pointer.
 
-  @return FALSE is always returned.
+  @return false is always returned.
 */
 static bool acquire_lookup_mask(THD*, plugin_ref plugin, void *arg)
 {
@@ -1075,7 +1075,7 @@ static bool acquire_lookup_mask(THD*, plugin_ref plugin, void *arg)
                         evt->event_subclass))
     add_audit_mask(evt->lookup_mask, audit->class_mask);
 
-  return FALSE;
+  return false;
 }
 
 /**
@@ -1086,7 +1086,7 @@ static bool acquire_lookup_mask(THD*, plugin_ref plugin, void *arg)
   @param         plugin Plugin reference.
   @param[in,out] arg    Opaque st_mysql_subscribe_event pointer.
 
-  @return This function always returns FALSE.
+  @return This function always returns false.
 */
 static bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
 {
@@ -1097,7 +1097,7 @@ static bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
   if (check_audit_mask(data->class_mask, evt->lookup_mask))
   {
     add_audit_mask(evt->not_subscribed_mask, data->class_mask);
-    return FALSE;
+    return false;
   }
 
   /* Copy subscription mask from the plugin into the array. */
@@ -1105,13 +1105,13 @@ static bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
 
   /* Prevent from adding the same plugin more than one time. */
   if (thd->audit_class_plugins.exists(plugin))
-    return FALSE;
+    return false;
 
   /* lock the plugin and add it to the list */
   plugin= my_plugin_lock(NULL, &plugin);
   thd->audit_class_plugins.push_back(plugin);
 
-  return FALSE;
+  return false;
 }
 
 /**
@@ -1283,8 +1283,8 @@ void mysql_audit_finalize()
 
   @param[in] plugin
 
-  @retval FALSE  OK
-  @retval TRUE   There was an error.
+  @retval false  OK
+  @retval true   There was an error.
 */
 
 int initialize_audit_plugin(st_plugin_int *plugin)
@@ -1335,7 +1335,7 @@ int initialize_audit_plugin(st_plugin_int *plugin)
   @param[in] plugin
   @param[in] arg
 
-  @retval FALSE  always
+  @retval false  always
 */
 static bool calc_class_mask(THD*, plugin_ref plugin, void *arg)
 {
@@ -1351,8 +1351,8 @@ static bool calc_class_mask(THD*, plugin_ref plugin, void *arg)
 
   @param[in] plugin
 
-  @retval FALSE  OK
-  @retval TRUE   There was an error.
+  @retval false  OK
+  @retval true   There was an error.
 */
 int finalize_audit_plugin(st_plugin_int *plugin)
 {
@@ -1393,7 +1393,7 @@ int finalize_audit_plugin(st_plugin_int *plugin)
   @param[in] plugin
   @param[in] arg
 
-  @retval FALSE  always
+  @retval false  always
 */
 
 static int plugins_dispatch(THD *thd, plugin_ref plugin, void *arg)
@@ -1414,7 +1414,7 @@ static int plugins_dispatch(THD *thd, plugin_ref plugin, void *arg)
 
 static bool plugins_dispatch_bool(THD *thd, plugin_ref plugin, void *arg)
 {
-  return plugins_dispatch(thd, plugin, arg) ? TRUE : FALSE;
+  return plugins_dispatch(thd, plugin, arg) ? true : false;
 }
 
 /**

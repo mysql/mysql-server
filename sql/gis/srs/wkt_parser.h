@@ -1,37 +1,37 @@
-#ifndef GIS__SRS__WKT_PARSER_H_INCLUDED
-#define GIS__SRS__WKT_PARSER_H_INCLUDED
+#ifndef SQL_GIS_SRS_WKT_PARSER_H_INCLUDED
+#define SQL_GIS_SRS_WKT_PARSER_H_INCLUDED
 
-/*
-  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+//
+// This program is free software; you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation; version 2 of the License.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+// details.
+//
+// You should have received a copy of the GNU General Public License along with
+// this program; if not, write to the Free Software Foundation, 51 Franklin
+// Street, Suite 500, Boston, MA 02110-1335 USA.
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
-*/
-
-#include <boost/variant/variant.hpp>
 #include <string>
 #include <vector>
+
+#include <boost/variant/variant.hpp>
 
 #include "sql/gis/srid.h"
 #include "sql/gis/srs/srs.h"
 
-namespace gis { namespace srs { namespace wkt_parser {
+namespace gis {
+namespace srs {
+namespace wkt_parser {
 
 /// String type used in the parse tree
 typedef std::string String;
 
-struct Authority
-{
+struct Authority {
   bool valid;
   String name;
   String code;
@@ -39,8 +39,7 @@ struct Authority
   Authority() : valid(false) {}
 };
 
-struct Spheroid
-{
+struct Spheroid {
   String name;
   double semi_major_axis;
   double inverse_flattening;
@@ -49,8 +48,7 @@ struct Spheroid
   Spheroid() : semi_major_axis(0.0), inverse_flattening(0.0) {}
 };
 
-struct Towgs84
-{
+struct Towgs84 {
   bool valid;
   double dx;
   double dy;
@@ -60,21 +58,25 @@ struct Towgs84
   double ez;
   double ppm;
 
-  Towgs84() : valid(false), dx(0.0), dy(0.0), dz(0.0), ex(0.0), ey(0.0),
-              ez(0.0), ppm(0.0)
-  {}
+  Towgs84()
+      : valid(false),
+        dx(0.0),
+        dy(0.0),
+        dz(0.0),
+        ex(0.0),
+        ey(0.0),
+        ez(0.0),
+        ppm(0.0) {}
 };
 
-struct Datum
-{
+struct Datum {
   String name;
   Spheroid spheroid;
   Towgs84 towgs84;
   Authority authority;
 };
 
-struct Prime_meridian
-{
+struct Prime_meridian {
   String name;
   double longitude;
   Authority authority;
@@ -82,8 +84,7 @@ struct Prime_meridian
   Prime_meridian() : longitude(0.0) {}
 };
 
-struct Unit
-{
+struct Unit {
   String name;
   double conversion_factor;
   Authority authority;
@@ -91,16 +92,14 @@ struct Unit
   Unit() : conversion_factor(0.0) {}
 };
 
-struct Axis
-{
+struct Axis {
   String name;
   Axis_direction direction;
 
   Axis() : direction(Axis_direction::UNSPECIFIED) {}
 };
 
-struct Twin_axes
-{
+struct Twin_axes {
   bool valid;
   Axis x;
   Axis y;
@@ -108,8 +107,7 @@ struct Twin_axes
   Twin_axes() : valid(false) {}
 };
 
-struct Geographic_cs
-{
+struct Geographic_cs {
   String name;
   Datum datum;
   Prime_meridian prime_meridian;
@@ -118,14 +116,12 @@ struct Geographic_cs
   Authority authority;
 };
 
-struct Projection
-{
+struct Projection {
   String name;
   Authority authority;
 };
 
-struct Projection_parameter
-{
+struct Projection_parameter {
   String name;
   double value;
   Authority authority;
@@ -135,8 +131,7 @@ struct Projection_parameter
 
 typedef std::vector<Projection_parameter> Projection_parameters;
 
-struct Projected_cs
-{
+struct Projected_cs {
   String name;
   Geographic_cs geographic_cs;
   Projection projection;
@@ -147,7 +142,6 @@ struct Projected_cs
 };
 
 typedef boost::variant<Projected_cs, Geographic_cs> Coordinate_system;
-
 
 /**
   Parse an SRS definition WKT string.
@@ -166,6 +160,8 @@ typedef boost::variant<Projected_cs, Geographic_cs> Coordinate_system;
 bool parse_wkt(srid_t srid, const char *begin, const char *end,
                Coordinate_system *cs);
 
-}}} // gis::srs::wkt_parser
+}  // namespace wkt_parser
+}  // namespace srs
+}  // namespace gis
 
-#endif // GIS__SRS__WKT_PARSER_H_INCLUDED
+#endif  // SQL_GIS_SRS_WKT_PARSER_H_INCLUDED

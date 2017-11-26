@@ -110,23 +110,23 @@ bool Key::load_string_from_buffer(const uchar *buffer, size_t *buffer_position,
                                   size_t string_length)
 {
   if (key_pod_size < *buffer_position + string_length)
-    return TRUE;
+    return true;
 
   string->assign(reinterpret_cast<const char*>(buffer)+*buffer_position, string_length);
   *buffer_position+= string_length;
 
-  return FALSE;
+  return false;
 }
 
 bool Key::load_field_size(const uchar *buffer, size_t *buffer_position,
                           size_t key_pod_size, size_t *field_length)
 {
   if (key_pod_size <  *buffer_position + sizeof(size_t))
-    return TRUE;
+    return true;
   *field_length= *reinterpret_cast<const size_t*>(buffer + *buffer_position);
   *buffer_position+= sizeof(size_t);
 
-  return FALSE;
+  return false;
 }
 
 bool Key::load_from_buffer(uchar* buffer, size_t *number_of_bytes_read_from_buffer,
@@ -139,12 +139,12 @@ bool Key::load_from_buffer(uchar* buffer, size_t *number_of_bytes_read_from_buff
   size_t buffer_position= 0;
 
   if (input_buffer_size <  buffer_position + sizeof(size_t))
-    return TRUE;
+    return true;
 
   key_pod_size= *reinterpret_cast<size_t*>(buffer + buffer_position);
 
   if (input_buffer_size < buffer_position + key_pod_size)
-    return TRUE;
+    return true;
 
   buffer_position+= sizeof(size_t);
 
@@ -152,12 +152,12 @@ bool Key::load_from_buffer(uchar* buffer, size_t *number_of_bytes_read_from_buff
       load_field_size(buffer, &buffer_position, key_pod_size, &key_type_length) ||
       load_field_size(buffer, &buffer_position, key_pod_size, &user_id_length)  ||
       load_field_size(buffer, &buffer_position, key_pod_size, &key_len))
-    return TRUE;
+    return true;
 
  if (load_string_from_buffer(buffer, &buffer_position, key_pod_size, &key_id, key_id_length)     ||
      load_string_from_buffer(buffer, &buffer_position, key_pod_size, &key_type, key_type_length) ||
      load_string_from_buffer(buffer, &buffer_position, key_pod_size, &user_id, user_id_length))
-    return TRUE;
+    return true;
 
   key.reset(new uchar[key_len]);
   memcpy(this->key.get(), buffer + buffer_position, key_len);
@@ -170,7 +170,7 @@ bool Key::load_from_buffer(uchar* buffer, size_t *number_of_bytes_read_from_buff
 
   *number_of_bytes_read_from_buffer= buffer_position;
 
-  return FALSE;
+  return false;
 }
 
 /*!
@@ -224,7 +224,7 @@ bool Key::is_key_length_valid()
   if (key_type == "DSA")
     return key_len == 128 || key_len == 256 || key_len == 384;
 
-  return FALSE;
+  return false;
 }
 
 uchar* Key::release_key_data()
@@ -264,7 +264,7 @@ void Key::create_key_signature() const
 
 std::string* Key::get_key_signature() const
 {
-  if (key_signature.empty() == TRUE)
+  if (key_signature.empty() == true)
     create_key_signature();
   return &key_signature;
 }

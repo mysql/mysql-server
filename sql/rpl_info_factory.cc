@@ -160,8 +160,8 @@ err:
   @param[in]  mi_option Type of the repository, e.g. FILE TABLE.
   @param[out] msg       Error message if something goes wrong.
 
-  @retval FALSE No error
-  @retval TRUE  Failure
+  @retval false No error
+  @retval true  Failure
 */
 bool Rpl_info_factory::change_mi_repository(Master_info *mi,
                                             uint mi_option,
@@ -180,14 +180,14 @@ bool Rpl_info_factory::change_mi_repository(Master_info *mi,
   if (decide_repository(mi, mi_option, &handler_src, &handler_dest, msg))
     goto err;
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 err:
   delete handler_dest;
   handler_dest= NULL;
 
   LogErr(ERROR_LEVEL, ER_RPL_ERROR_CHANGING_MASTER_INFO_REPO_TYPE, *msg);
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 /**
@@ -339,8 +339,8 @@ err:
   @param[in]  rli_option Type of the repository, e.g. FILE TABLE.
   @param[out] msg       Error message if something goes wrong.
 
-  @retval FALSE No error
-  @retval TRUE  Failure
+  @retval false No error
+  @retval true  Failure
 */
 bool Rpl_info_factory::change_rli_repository(Relay_log_info *rli,
                                              uint rli_option,
@@ -360,14 +360,14 @@ bool Rpl_info_factory::change_rli_repository(Relay_log_info *rli,
                         msg))
     goto err;
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 err:
   delete handler_dest;
   handler_dest= NULL;
 
   LogErr(ERROR_LEVEL, ER_RPL_ERROR_CHANGING_RELAY_LOG_INFO_REPO_TYPE, *msg);
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 /**
@@ -611,8 +611,8 @@ void Rpl_info_factory::init_repository_metadata()
                            copied.
   @param[out] msg          Error message if something goes wrong.
 
-  @retval FALSE No error
-  @retval TRUE  Failure
+  @retval false No error
+  @retval true  Failure
 */
 bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
                                          Rpl_info_handler **handler_src,
@@ -803,7 +803,7 @@ Rpl_info_factory::check_src_repository(Rpl_info *info,
   @param  err_dst      Possible error status of the destination repo check
   @param[out] msg      Error message if something goes wrong.
 
-  @retval TRUE  Failure
+  @retval true  Failure
 */
 bool Rpl_info_factory::check_error_repository(Rpl_info_handler *handler_src,
                                               Rpl_info_handler *handler_dest,
@@ -843,8 +843,8 @@ bool Rpl_info_factory::check_error_repository(Rpl_info_handler *handler_src,
                            copied.
   @param[out] msg          Error message if something goes wrong.
 
-  @retval FALSE No error
-  @retval TRUE  Failure
+  @retval false No error
+  @retval true  Failure
 */
 bool Rpl_info_factory::init_repositories(Rpl_info *info,
                                          Rpl_info_handler **handler_src,
@@ -888,8 +888,8 @@ bool Rpl_info_factory::init_repositories(Rpl_info *info,
                            copied.
   @param[out] msg          Error message if something goes wrong.
 
-  @retval FALSE No error
-  @retval TRUE  Failure
+  @retval false No error
+  @retval true  Failure
 */
 bool Rpl_info_factory::init_repositories(const struct_table_data table_data,
                                          const struct_file_data file_data,
@@ -898,7 +898,7 @@ bool Rpl_info_factory::init_repositories(const struct_table_data table_data,
                                          Rpl_info_handler **handler_dest,
                                          const char **msg)
 {
-  bool error= TRUE;
+  bool error= true;
   *msg= "Failed to allocate memory for master info repositories";
 
   DBUG_ENTER("Rpl_info_factory::init_mi_repositories");
@@ -944,7 +944,7 @@ bool Rpl_info_factory::init_repositories(const struct_table_data table_data,
     default:
       DBUG_ASSERT(0);
   }
-  error= FALSE;
+  error= false;
 
 err:
   DBUG_RETURN(error);

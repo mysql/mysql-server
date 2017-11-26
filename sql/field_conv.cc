@@ -243,7 +243,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
 
   if (field == field->table->next_number_field)
   {
-    field->table->auto_increment_field_not_null= FALSE;
+    field->table->auto_increment_field_not_null= false;
     return TYPE_OK;		        // field is set in fill_record()
   }
 

@@ -93,7 +93,7 @@ int CharsetMap::getUTF16CharsetNumber() const
 
 int CharsetMap::getCharsetNumber(const char *name) const 
 {
-    return get_charset_number(name, MY_CS_AVAILABLE);
+    return get_charset_number(name, MY_CS_PRIMARY);
 }
 
 const bool * CharsetMap::isMultibyte(int cs_number) const

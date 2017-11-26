@@ -1,5 +1,5 @@
-#ifndef GIS__GEOMETRIES_TRAITS_H_INCLUDED
-#define GIS__GEOMETRIES_TRAITS_H_INCLUDED
+#ifndef SQL_GIS_GEOMETRIES_TRAITS_H_INCLUDED
+#define SQL_GIS_GEOMETRIES_TRAITS_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -323,4 +323,4 @@ struct tag<gis::Geographic_multipolygon> {
 }  // namespace geometry
 }  // namespace boost
 
-#endif  // GIS__GEOMETRIES_TRAITS_H_INCLUDED
+#endif  // SQL_GIS_GEOMETRIES_TRAITS_H_INCLUDED

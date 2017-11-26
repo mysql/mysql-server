@@ -24,8 +24,6 @@
 
 void register_server_memory_keys();
 
-extern "C" {
-
 typedef unsigned int PSI_memory_key;
 
 /*
@@ -180,7 +178,5 @@ extern PSI_memory_key key_memory_warning_info_warn_root;
 extern PSI_memory_key key_memory_sp_cache;
 extern PSI_memory_key key_memory_write_set_extraction;
 extern PSI_memory_key key_memory_string_service_iterator;
-
-}
 
 #endif  // PSI_MEMORY_KEY_INCLUDED

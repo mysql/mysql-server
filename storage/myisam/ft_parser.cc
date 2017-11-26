@@ -246,7 +246,7 @@ uchar ft_simple_get_word(const CHARSET_INFO *cs, uchar **start,
 
     word->len= (uint)(doc-word->pos) - mwc;
 
-    if (skip_stopwords == FALSE ||
+    if (skip_stopwords == false ||
         (length >= ft_min_word_len && length < ft_max_word_len &&
          !is_stopword((char*) word->pos, word->len)))
     {
@@ -305,7 +305,7 @@ static int ft_parse_internal(MYSQL_FTPARSER_PARAM *param,
   FT_WORD w;
   DBUG_ENTER("ft_parse_internal");
 
-  while (ft_simple_get_word((CHARSET_INFO *)wtree->custom_arg, &doc, end, &w, TRUE))
+  while (ft_simple_get_word((CHARSET_INFO *)wtree->custom_arg, &doc, end, &w, true))
     if (param->mysql_add_word(param, (char*) w.pos, w.len, 0))
       DBUG_RETURN(1);
   DBUG_RETURN(0);

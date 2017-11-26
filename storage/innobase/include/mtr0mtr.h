@@ -86,22 +86,22 @@ savepoint. */
 #ifdef UNIV_DEBUG
 
 /** Check if memo contains the given item ignore if table is intrinsic
-@return TRUE if contains or table is intrinsic. */
+@return true if contains or table is intrinsic. */
 #define mtr_is_block_fix(m, o, t, table)				\
 	(mtr_memo_contains(m, o, t) || table->is_intrinsic())
 
 /** Check if memo contains the given page ignore if table is intrinsic
-@return TRUE if contains or table is intrinsic. */
+@return true if contains or table is intrinsic. */
 #define mtr_is_page_fix(m, p, t, table)					\
 	(mtr_memo_contains_page(m, p, t) || table->is_intrinsic())
 
 /** Check if memo contains the given item.
-@return	TRUE if contains */
+@return	true if contains */
 #define mtr_memo_contains(m, o, t)					\
 				(m)->memo_contains((m)->get_memo(), (o), (t))
 
 /** Check if memo contains the given page.
-@return	TRUE if contains */
+@return	true if contains */
 #define mtr_memo_contains_page(m, p, t)					\
 	(m)->memo_contains_page_flagged((p), (t))
 #endif /* UNIV_DEBUG */

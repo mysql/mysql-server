@@ -29,6 +29,7 @@ Created 5/24/1996 Heikki Tuuri
 /* Do not include univ.i because univ.i includes this. */
 
 enum dberr_t {
+	DB_ERROR_UNSET = 0,
 	DB_SUCCESS_LOCKED_REC = 9,	/*!< like DB_SUCCESS, but a new
 					explicit record lock was created */
 	DB_SUCCESS = 10,

@@ -3297,7 +3297,7 @@ innobase_format_name(
 
 /**********************************************************************//**
 Determines if the currently running transaction has been interrupted.
-@return TRUE if interrupted */
+@return true if interrupted */
 ibool
 trx_is_interrupted(
 /*===============*/
@@ -3308,7 +3308,7 @@ trx_is_interrupted(
 
 /**********************************************************************//**
 Determines if the currently running transaction is in strict mode.
-@return TRUE if strict */
+@return true if strict */
 ibool
 trx_is_strict(
 /*==========*/
@@ -4076,7 +4076,7 @@ innobase_post_recover()
 }
 
 /** Check if InnoDB is in a mode where the data dictionary is read-only.
-@return true if srv_read_only_mode is TRUE or if srv_force_recovery > 0 */
+@return true if srv_read_only_mode is true or if srv_force_recovery > 0 */
 static
 bool
 innobase_is_dict_readonly()
@@ -8968,6 +8968,9 @@ calc_row_difference(
 	buf = (byte*) upd_buff;
 
 	for (i = 0; i < n_fields; i++) {
+
+		dfield.reset();
+
 		field = table->field[i];
 		bool		is_virtual = innobase_is_v_fld(field);
 		dict_col_t*	col;
@@ -9124,6 +9127,7 @@ calc_row_difference(
 			/* The field has changed */
 
 			ufield = uvect->fields + n_changed;
+
 			UNIV_MEM_INVALID(ufield, sizeof *ufield);
 
 			/* Let us use a dummy dfield to make the conversion
@@ -9156,6 +9160,8 @@ calc_row_difference(
 
 			ufield->exp = NULL;
 			ufield->orig_len = 0;
+			ufield->mysql_field = field;
+
 			if (is_virtual) {
 				dfield_t*	vfield = dtuple_get_nth_v_field(
 					uvect->old_vrow, num_v);
@@ -9385,6 +9391,9 @@ ha_innobase::update_row(
 	} else {
 		uvect = row_get_prebuilt_update_vector(m_prebuilt);
 	}
+
+	uvect->table = m_prebuilt->table;
+	uvect->mysql_table = table;
 
 	/* Build an update vector from the modified fields in the rows
 	(uses m_upd_buf of the handle) */
@@ -12309,7 +12318,7 @@ ha_innobase::update_create_info(
 
 /*****************************************************************//**
 Initialize the table FTS stopword list
-@return TRUE if success */
+@return true if success */
 ibool
 innobase_fts_load_stopword(
 /*=======================*/
@@ -15982,7 +15991,11 @@ innodb_rec_per_key(
 				/ (n_diff - n_null);
 		}
 	} else {
-		DEBUG_SYNC_C("after_checking_for_0");
+#ifdef UNIV_DEBUG
+		if (!index->table->is_dd_table) {
+			DEBUG_SYNC_C("after_checking_for_0");
+		}
+#endif /* UNIV_DEBUG */
 		rec_per_key = static_cast<rec_per_key_t>(records) / n_diff;
 	}
 
@@ -16823,11 +16836,12 @@ innobase_get_index_column_cardinality(
 				fixed as 1.0 */
 				*cardinality = ib_table->stat_n_rows;
 			} else {
-				double records = (ib_table->stat_n_rows
+				uint64_t n_rows = ib_table->stat_n_rows;
+				double records = (n_rows
 					/ innodb_rec_per_key(
 						index,
 						(ulint) column_ordinal_position,
-						ib_table->stat_n_rows));
+						n_rows));
 				*cardinality=
 				   static_cast<ulonglong>(round(records));
 			}
@@ -17804,7 +17818,7 @@ ha_innobase::get_cascade_foreign_key_table_list(
 Checks if ALTER TABLE may change the storage engine of the table.
 Changing storage engines is not allowed for tables for which there
 are foreign key constraints (parent or child tables).
-@return TRUE if can switch engines */
+@return true if can switch engines */
 
 bool
 ha_innobase::can_switch_engines(void)
@@ -20472,7 +20486,7 @@ innodb_monitor_id_by_name_get(
 /*************************************************************//**
 Validate that the passed in monitor name matches at least one
 monitor counter name with wildcard compare.
-@return TRUE if at least one monitor name matches */
+@return true if at least one monitor name matches */
 static
 ibool
 innodb_monitor_validate_wildcard_name(
@@ -22950,6 +22964,13 @@ innobase_get_computed_value(
 		? dict_table_page_size(index->table)
 		: dict_table_page_size(old_table);
 
+	const dict_index_t*	clust_index = nullptr;
+	if (old_table == nullptr) {
+		clust_index = index->table->first_index();
+	} else {
+		clust_index = old_table->first_index();
+	}
+
 	ulint		ret = 0;
 
 	ut_ad(index->table->vc_templ);
@@ -23000,6 +23021,7 @@ innobase_get_computed_value(
 			}
 
 			data = lob::btr_copy_externally_stored_field(
+				clust_index,
 				&len, data, page_size,
 				dfield_get_len(row_field), false, *local_heap);
 		}
@@ -23495,7 +23517,16 @@ debug_set:
 
 	*static_cast<longlong*>(save) = requested_buf_pool_size;
 
+        if (srv_buf_pool_size == static_cast<ulint>(intbuf)) {
+                /* nothing to do */
+                return(0);
+        }
+
 	if (srv_buf_pool_size == requested_buf_pool_size) {
+                push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WRONG_ARGUMENTS,
+                        "InnoDB: Cannot resize buffer pool to lesser than"
+                        " chunk size of %lu bytes.", srv_buf_pool_chunk_unit);
 		/* nothing to do */
 		return(0);
 	}

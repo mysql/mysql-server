@@ -168,7 +168,7 @@ TEST_join(JOIN *join)
       else
       {
 	fprintf(DBUG_FILE, "                  quick select used:\n");
-        tab->quick()->dbug_dump(18, FALSE);
+        tab->quick()->dbug_dump(18, false);
       }
     }
     if (tab->ref().key_parts)
@@ -186,7 +186,6 @@ TEST_join(JOIN *join)
 void print_keyuse_array(Opt_trace_context *trace,
                         const Key_use_array *keyuse_array)
 {
-#if !defined(DBUG_OFF) || defined(OPTIMIZER_TRACE)
   if (unlikely(!trace->is_started()))
     return;
   Opt_trace_object wrapper(trace);
@@ -208,7 +207,6 @@ void print_keyuse_array(Opt_trace_context *trace,
       add("equals", keyuse.val).
       add("null_rejecting", keyuse.null_rejecting);
   }
-#endif /* !DBUG_OFF || OPTIMIZER_TRACE */
 }
 
 #ifndef DBUG_OFF
@@ -314,9 +312,7 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
 
 #endif  /* !DBUG_OFF */
 
-C_MODE_START
 static int print_key_cache_status(const char *name, KEY_CACHE *key_cache);
-C_MODE_END
 
 struct TABLE_LOCK_INFO
 {
@@ -405,13 +401,13 @@ static void display_table_locks(void)
     THR_LOCK *lock=(THR_LOCK*) list->data;
 
     mysql_mutex_lock(&lock->mutex);
-    push_locks_into_array(&saved_table_locks, lock->write.data, FALSE,
+    push_locks_into_array(&saved_table_locks, lock->write.data, false,
 			  "Locked - write");
-    push_locks_into_array(&saved_table_locks, lock->write_wait.data, TRUE,
+    push_locks_into_array(&saved_table_locks, lock->write_wait.data, true,
 			  "Waiting - write");
-    push_locks_into_array(&saved_table_locks, lock->read.data, FALSE,
+    push_locks_into_array(&saved_table_locks, lock->read.data, false,
 			  "Locked - read");
-    push_locks_into_array(&saved_table_locks, lock->read_wait.data, TRUE,
+    push_locks_into_array(&saved_table_locks, lock->read_wait.data, true,
 			  "Waiting - read");
     mysql_mutex_unlock(&lock->mutex);
   }
@@ -569,9 +565,9 @@ public:
     if (first < last)
     {
       *elem= elems[first++];
-      return TRUE;
+      return true;
     }
-    return FALSE;
+    return false;
   }
 
   void reset()

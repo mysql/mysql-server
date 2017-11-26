@@ -53,7 +53,7 @@ Pass-through version of rw_lock_own(), which normally checks that the
 thread has locked the rw-lock in the specified mode.
 @param[in]	rw-lock		pointer to rw-lock
 @param[in]	lock type	lock type: RW_LOCK_S, RW_LOCK_X
-@return TRUE if success */
+@return true if success */
 UNIV_INLINE
 bool
 rw_lock_own(
@@ -362,7 +362,7 @@ spinning.
 				to another thread to unlock
 @param[in]	file_name	file name where lock requested
 @param[in]	line		line where requested
-@return TRUE if success */
+@return true if success */
 UNIV_INLINE
 ibool
 rw_lock_s_lock_low(
@@ -395,7 +395,7 @@ immediately.
 @param[in]	lock		pointer to rw-lock
 @param[in]	file_name	file name where lock requested
 @param[in]	line		line where requested
-@return TRUE if success */
+@return true if success */
 UNIV_INLINE
 ibool
 rw_lock_x_lock_func_nowait(
@@ -434,7 +434,7 @@ rw_lock_x_lock_func(
 	ulint		line);	/*!< in: line where requested */
 /******************************************************************//**
 Low-level function for acquiring an sx lock.
-@return FALSE if did not succeed, TRUE if success. */
+@return false if did not succeed, true if success. */
 ibool
 rw_lock_sx_lock_low(
 /*================*/
@@ -848,7 +848,7 @@ NOTE! Please use the corresponding macro, not directly this function!
 @param[in]	lock		pointer to rw-lock
 @param[in]	file_name	file name where lock requested
 @param[in]	line		line where requested
-@return TRUE if success */
+@return true if success */
 UNIV_INLINE
 ibool
 pfs_rw_lock_x_lock_func_nowait(
@@ -880,7 +880,7 @@ function!
 				to another thread to unlock
 @param[in]	file_name	file name where lock requested
 @param[in]	line		line where requested
-@return TRUE if success */
+@return true if success */
 UNIV_INLINE
 ibool
 pfs_rw_lock_s_lock_low(

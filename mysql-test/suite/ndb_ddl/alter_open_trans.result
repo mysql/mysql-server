@@ -1,0 +1,16 @@
+create table t1(a int primary key, b int not null, index(b)) engine = ndb;
+insert into t1 values (1,1), (2,2);
+set autocommit=0;
+begin;
+select count(*) from t1;
+count(*)
+2
+ALTER TABLE t1 algorithm=copy, ADD COLUMN c int;
+select a from t1 where b = 2;
+a
+2
+commit;
+show tables;
+Tables_in_test
+t1
+drop table t1;

@@ -166,9 +166,9 @@ int Persisted_variables_cache::init(int *argc, char ***argv)
   res= (char **) (ptr);
   memcpy((uchar *) res, (char *) (*argv), (*argc) * sizeof(char *));
 
-  my_getopt_skip_unknown= TRUE;
+  my_getopt_skip_unknown= true;
   if (my_handle_options(&temp_argc, &res, persist_options,
-                        NULL, NULL, TRUE))
+                        NULL, NULL, true))
   {
     free_root(&alloc, MYF(0));
     return 1;
@@ -330,8 +330,8 @@ const char* Persisted_variables_cache::get_variable_name(sys_var *system_var)
   stream to persisted config file
 
   @return Error state
-    @retval TRUE An error occurred
-    @retval FALSE Success
+    @retval true An error occurred
+    @retval false Success
 */
 bool Persisted_variables_cache::flush_to_file()
 {
@@ -431,8 +431,8 @@ bool Persisted_variables_cache::flush_to_file()
 
   @param [in] flag    File open mode
   @return Error state
-    @retval TRUE An error occurred
-    @retval FALSE Success
+    @retval true An error occurred
+    @retval false Success
 */
 bool Persisted_variables_cache::open_persist_file(int flag)
 {
@@ -455,8 +455,8 @@ void Persisted_variables_cache::close_persist_file()
   load_persist_file() read persisted config file
 
   @return Error state
-    @retval TRUE An error occurred
-    @retval FALSE Success
+    @retval true An error occurred
+    @retval false Success
 */
 bool Persisted_variables_cache::load_persist_file()
 {
@@ -472,12 +472,12 @@ bool Persisted_variables_cache::load_persist_file()
   persisted_globals_load is set to false
 
    @param [in] plugin_options      Flag which tells what options are being set.
-                                   If set to FALSE non plugin variables are set
+                                   If set to false non plugin variables are set
                                    else plugin variables are set
 
   @return Error state
-    @retval TRUE An error occurred
-    @retval FALSE Success
+    @retval true An error occurred
+    @retval false Success
 */
 bool Persisted_variables_cache::set_persist_options(bool plugin_options)
 {
@@ -764,7 +764,7 @@ int Persisted_variables_cache::read_persist_file()
   @param [in] argc                      Pointer to argc of original program
   @param [in] argv                      Pointer to argv of original program
   @param [in] plugin_options            This flag tells wether options are handled
-                                        during plugin install. If set to TRUE
+                                        during plugin install. If set to true
                                         options are handled as part of install
                                         plugin.
 
@@ -849,7 +849,7 @@ err:
   @param [in] thd                     Pointer to connection handle.
   @param [in] name                    Name of variable to remove, if NULL all
                                       variables are removed from config file.
-  @param [in] if_exists               Bool value when set to TRUE reports
+  @param [in] if_exists               Bool value when set to true reports
                                       warning else error if variable is not
                                       present in the config file.
 

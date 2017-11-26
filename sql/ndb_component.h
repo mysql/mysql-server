@@ -41,6 +41,13 @@ public:
   virtual int stop();
   virtual int deinit();
 
+  /*
+    Set the server as started, this means that the Ndb_component
+    can continue processing and use parts of the MySQL Server which are
+    not available unilt it's been fully started
+  */
+  void set_server_started();
+
 protected:
   /**
    * Con/de-structor is protected...so that sub-class needs to provide own
@@ -85,6 +92,15 @@ protected:
   void log_info(const char *fmt, ...) const
     MY_ATTRIBUTE((format(printf, 2, 3)));
 
+  /*
+    Wait for the server started. The Ndb_component(and its thread(s))
+    are normally started before the MySQL Server is fully operational
+    and some functionality which the Ndb_component depend on isn't
+    yet initialized fully. This function will wait until the server
+    has reported started or shutdown has been requested.
+   */
+  bool wait_for_server_started(void);
+
 private:
 
   enum ThreadState
@@ -101,6 +117,7 @@ private:
   my_thread_handle m_thread;
   mysql_mutex_t m_start_stop_mutex;
   mysql_cond_t m_start_stop_cond;
+  bool m_server_started; // Protected by m_start_stop_mutex
 
   const char* m_name;
 

@@ -535,7 +535,7 @@ bool JOIN::rollup_write_data(uint idx, TABLE *table_arg)
         if (create_ondisk_from_heap(thd, table_arg,
                                     tmp_table_param.start_recinfo,
                                     &tmp_table_param.recinfo,
-                                    write_error, FALSE, NULL))
+                                    write_error, false, NULL))
           return true;
       }
     }
@@ -577,9 +577,9 @@ bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct)
     if (func->set_aggregator(need_distinct && func->has_with_distinct() ?
                              Aggregator::DISTINCT_AGGREGATOR :
                              Aggregator::SIMPLE_AGGREGATOR))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -595,9 +595,9 @@ bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct)
   @param func_ptr      sum function list
 
   @retval
-    FALSE  ok
+    false  ok
   @retval
-    TRUE   error
+    true   error
 */
 
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr)
@@ -607,9 +607,9 @@ bool setup_sum_funcs(THD *thd, Item_sum **func_ptr)
   while ((func= *(func_ptr++)))
   {
     if (func->aggregator_setup(thd))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -692,9 +692,9 @@ update_sum_func(Item_sum **func_ptr)
   @param type      type of function Items that need to be copied (used
                    w.r.t windowing functions).
   @retval
-    FALSE if OK
+    false if OK
   @retval
-    TRUE on error  
+    true on error  
 */
 bool
 copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type)
@@ -747,10 +747,10 @@ copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type)
         are extended to return status code.
       */
       if (thd->is_error())
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -761,9 +761,9 @@ copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type)
     end_sj_materialize()
       join            The join 
       join_tab        Last join table
-      end_of_records  FALSE <=> This call is made to pass another record 
+      end_of_records  false <=> This call is made to pass another record 
                                 combination
-                      TRUE  <=> EOF (no action)
+                      true  <=> EOF (no action)
 
   DESCRIPTION
     This function is used by semi-join materialization to capture suquery's
@@ -810,7 +810,7 @@ end_sj_materialize(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
           create_ondisk_from_heap(thd, table,
                                   sjm->table_param.start_recinfo, 
                                   &sjm->table_param.recinfo, error,
-                                  TRUE, NULL))
+                                  true, NULL))
         DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     }
   }
@@ -926,7 +926,7 @@ return_zero_rows(JOIN *join, List<Item> &fields)
                                                Protocol::SEND_NUM_ROWS | 
                                                Protocol::SEND_EOF)))
   {
-    bool send_error= FALSE;
+    bool send_error= false;
     if (join->send_row_on_empty_set())
     {
       // Mark tables as containing only NULL values
@@ -1379,7 +1379,7 @@ do_select(JOIN *join)
 
   @param join  pointer to the structure providing all context info for the query
   @param qep_tab the QEP_TAB object to which the operation is attached
-  @param end_of_records  TRUE <=> all records were accumulated, send them further
+  @param end_of_records  true <=> all records were accumulated, send them further
 
   @details
   This function accumulates records, one by one, in QEP operation's buffer by
@@ -1789,7 +1789,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
       DBUG_RETURN(1);
     else
     {
-      sjtbl->have_confluent_row= TRUE;
+      sjtbl->have_confluent_row= true;
       DBUG_RETURN(0);
     }
   }
@@ -1849,7 +1849,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
     bool is_duplicate;
     if (create_ondisk_from_heap(thd, sjtbl->tmp_table,
                                 sjtbl->start_recinfo, &sjtbl->recinfo,
-                                error, TRUE, &is_duplicate))
+                                error, true, &is_duplicate))
       DBUG_RETURN(-1);
     DBUG_RETURN(is_duplicate ? 1 : 0);
   }
@@ -1869,7 +1869,7 @@ static int do_sj_reset(SJ_TMP_TABLE *sj_tbl)
     int rc= sj_tbl->tmp_table->file->ha_delete_all_rows();
     DBUG_RETURN(rc);
   }
-  sj_tbl->have_confluent_row= FALSE;
+  sj_tbl->have_confluent_row= false;
   DBUG_RETURN(0);
 }
 
@@ -1895,7 +1895,7 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
   ha_rows found_records=join->found_records;
   Item *condition= qep_tab->condition();
   const plan_idx qep_tab_idx= qep_tab->idx();
-  bool found= TRUE;
+  bool found= true;
   DBUG_ENTER("evaluate_join_record");
   DBUG_PRINT("enter",
              ("join: %p join_tab index: %d table: %s cond: %p",
@@ -2011,7 +2011,7 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
       if (res == -1)
         DBUG_RETURN(NESTED_LOOP_ERROR);
       else if (res == 1)
-        found= FALSE;
+        found= false;
     }
     else if (qep_tab->do_loosescan() &&
              QEP_AT(qep_tab, match_tab).found_match)
@@ -2847,7 +2847,6 @@ join_init_quick_read_record(QEP_TAB *tab)
   */
 
   THD *const thd= tab->join()->thd;
-#ifdef OPTIMIZER_TRACE
   Opt_trace_context * const trace= &thd->opt_trace;
   const bool disable_trace=
     tab->quick_traced_before &&
@@ -2859,7 +2858,6 @@ join_init_quick_read_record(QEP_TAB *tab)
   Opt_trace_object wrapper(trace);
   Opt_trace_object trace_table(trace, "rows_estimation_per_outer_row");
   trace_table.add_utf8_table(tab->table_ref);
-#endif
 
   /* 
     If this join tab was read through a QUICK for the last record
@@ -2961,7 +2959,7 @@ int join_init_read_record(QEP_TAB *tab)
     return 1;
   }
   if (init_read_record(&tab->read_record, tab->join()->thd, NULL, tab,
-                       1, 1, FALSE))
+                       1, 1, false))
     return 1;
 
   if (first_init && tab->table()->file->inited && set_record_buffer(tab))
@@ -3128,7 +3126,7 @@ QEP_TAB::sort_table()
     There is an exception to the reasoning above. If the filtering condition
     contains a condition triggered by Item_func_trig_cond::FOUND_MATCH
     (i.e. QEP_TAB is inner to an outer join), the trigger variable is still
-    false at this stage, so the condition evaluated to TRUE in skip_record()
+    false at this stage, so the condition evaluated to true in skip_record()
     and did not filter rows. In that case, we leave the condition in place for
     the next stage (evaluate_join_record()). We can still delete the QUICK as
     triggered conditions don't use that.
@@ -3180,7 +3178,7 @@ join_read_last(QEP_TAB *tab)
   TABLE *table=tab->table();
   int error;
   if (table->covering_keys.is_set(tab->index()) && !table->no_keyread)
-    table->set_keyread(TRUE);
+    table->set_keyread(true);
   tab->read_record.read_record=join_read_prev;
   tab->read_record.table=table;
   tab->read_record.record=table->record[0];
@@ -4036,7 +4034,7 @@ buffer_record_somewhere(THD *thd, Window *w, int64 rowno)
           (thd, t,
            w->frame_buffer_param()->start_recinfo,
            &w->frame_buffer_param()->recinfo,
-           error, TRUE, &is_duplicate))
+           error, true, &is_duplicate))
       DBUG_RETURN(-1);
 
     DBUG_ASSERT(t->s->db_type() == innodb_hton);
@@ -5663,7 +5661,7 @@ write_or_send_row(JOIN *join,
     if (create_ondisk_from_heap(join->thd, table,
                                 out_tbl->start_recinfo,
                                 &out_tbl->recinfo,
-                                error, TRUE, NULL) ||
+                                error, true, NULL) ||
         (table->hash_field && table->file->ha_index_init(0, 0)))
       return NESTED_LOOP_ERROR;        // Not a table_is_full error
   }
@@ -5721,7 +5719,7 @@ end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
 	if (create_ondisk_from_heap(join->thd, table,
                                     tmp_tbl->start_recinfo,
                                     &tmp_tbl->recinfo,
-				    error, TRUE, NULL))
+				    error, true, NULL))
 	  DBUG_RETURN(NESTED_LOOP_ERROR);        // Not a table_is_full error
       }
       if (++qep_tab->send_records >=
@@ -6113,7 +6111,7 @@ end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
     if (create_ondisk_from_heap(join->thd, table,
                                 tmp_tbl->start_recinfo,
                                 &tmp_tbl->recinfo,
-				error, FALSE, NULL))
+				error, false, NULL))
       DBUG_RETURN(NESTED_LOOP_ERROR);            // Not a table_is_full error
     /* Change method to update rows */
     if ((error= table->file->ha_index_init(0, 0)))
@@ -6178,7 +6176,7 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
               create_ondisk_from_heap(join->thd, table,
                                       tmp_tbl->start_recinfo,
                                       &tmp_tbl->recinfo,
-                                      error, FALSE, NULL))
+                                      error, false, NULL))
             DBUG_RETURN(NESTED_LOOP_ERROR);
         }
         if (join->rollup.state != ROLLUP::STATE_NONE)
@@ -6286,7 +6284,7 @@ create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab)
   table->sort.found_records= returned_rows;
   tab->set_records(found_rows);                     // For SQL_CALC_ROWS
   tab->join()->examined_rows+=examined_rows;
-  table->set_keyread(FALSE); // Restore if we used indexes
+  table->set_keyread(false); // Restore if we used indexes
   if (tab->type() == JT_FT)
     table->file->ft_end();
   else
@@ -6699,11 +6697,11 @@ alloc_group_fields(JOIN *join, ORDER *group)
     {
       Cached_item *tmp=new_Cached_item(join->thd, *group->item);
       if (!tmp || join->group_fields.push_front(tmp))
-	return TRUE;
+	return true;
     }
   }
   join->sort_and_group=1;			/* Mark for do_select */
-  return FALSE;
+  return false;
 }
 
 
@@ -6902,7 +6900,7 @@ setup_copy_fields(THD *thd, Temp_table_param *param,
   destroy_array(param->copy_field, param->field_count);
   param->copy_field= nullptr;
 err2:
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 

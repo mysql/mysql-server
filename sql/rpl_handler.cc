@@ -75,7 +75,7 @@ Delegate::Delegate(
 #endif
          )
 {
-  inited= FALSE;
+  inited= false;
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (mysql_rwlock_init(key, &lock))
     return;
@@ -84,7 +84,7 @@ Delegate::Delegate(
     return;
 #endif
   init_sql_alloc(key_memory_delegate, &memroot, 1024, 0);
-  inited= TRUE;
+  inited= true;
 }
 
 
@@ -365,8 +365,8 @@ int Trans_delegate::before_commit(THD *thd, bool all,
 
  @param[in]   table     Table object that needs to be verified.
 
- @return bool TRUE      If the table has 'CASCADE' foreign key.
-              FALSE     If the table does not have 'CASCADE' foreign key.
+ @return bool true      If the table has 'CASCADE' foreign key.
+              false     If the table does not have 'CASCADE' foreign key.
 */
 bool has_cascade_foreign_key(TABLE *table)
 {
@@ -387,10 +387,10 @@ bool has_cascade_foreign_key(TABLE *table)
         dd::Foreign_key::RULE_SET_DEFAULT == fk[i].update_rule ||
         dd::Foreign_key::RULE_SET_DEFAULT == fk[i].delete_rule)
     {
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**

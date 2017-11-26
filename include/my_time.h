@@ -26,8 +26,6 @@
 
 struct timeval;
 
-C_MODE_START
-
 extern ulonglong log_10_int[20];
 extern uchar days_in_month[];
 extern const char my_zero_datetime6[]; /* "0000-00-00 00:00:00.000000" */
@@ -178,8 +176,8 @@ void my_init_time(void);
     estimate.
 
   RETURN VALUES
-    TRUE    The value seems sane
-    FALSE   The MYSQL_TIME value is definitely out of range
+    true    The value seems sane
+    false   The MYSQL_TIME value is definitely out of range
 */
 
 static inline bool validate_timestamp_range(const MYSQL_TIME *t)
@@ -187,9 +185,9 @@ static inline bool validate_timestamp_range(const MYSQL_TIME *t)
   if ((t->year > TIMESTAMP_MAX_YEAR || t->year < TIMESTAMP_MIN_YEAR) ||
       (t->year == TIMESTAMP_MAX_YEAR && (t->month > 1 || t->day > 19)) ||
       (t->year == TIMESTAMP_MIN_YEAR && (t->month < 12 || t->day < 31)))
-    return FALSE;
+    return false;
 
-  return TRUE;
+  return true;
 }
 
 my_time_t 
@@ -241,7 +239,5 @@ enum interval_type
   INTERVAL_MINUTE_SECOND, INTERVAL_DAY_MICROSECOND, INTERVAL_HOUR_MICROSECOND,
   INTERVAL_MINUTE_MICROSECOND, INTERVAL_SECOND_MICROSECOND, INTERVAL_LAST
 };
-
-C_MODE_END
 
 #endif /* _my_time_h_ */

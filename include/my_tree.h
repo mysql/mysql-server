@@ -28,10 +28,6 @@
 #include "my_inttypes.h"
 #include "my_sys.h"             /* qsort2_cmp */
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 /* Worst case tree is half full. This gives use 2^(MAX_TREE_HEIGHT/2) leafs */
 #define MAX_TREE_HEIGHT	64
 
@@ -105,7 +101,4 @@ ha_rows tree_record_pos(TREE *tree, const void *key,
 
 #define TREE_ELEMENT_EXTRA_SIZE (sizeof(TREE_ELEMENT) + sizeof(void*))
 
-#ifdef	__cplusplus
-}
-#endif
 #endif

@@ -224,7 +224,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   if (escaped->length() > 1 || enclosed->length() > 1)
   {
     my_error(ER_WRONG_FIELD_TERMINATORS, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /* Report problems with non-ascii separators */
@@ -262,7 +262,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
       check_key_in_view(thd, table_list, insert_table_ref))
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "LOAD");
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   if (select->derived_table_count &&
       select->check_view_privileges(thd, INSERT_ACL, SELECT_ACL))
@@ -271,7 +271,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   if (table_list->is_merged())
   {
     if (table_list->prepare_check_option(thd))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
 
     if (handle_duplicates == DUP_REPLACE &&
         table_list->prepare_replace_filter(thd))
@@ -291,7 +291,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   if (unique_table(insert_table_ref, table_list->next_global, 0))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   TABLE *const table= insert_table_ref->table;
@@ -311,7 +311,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
     {
       Item *item;
       if (!(item= field_iterator.create_item(thd)))
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
 
       if (item->field_for_view_update() == NULL)
       {
@@ -329,7 +329,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
                      nullptr, false, true) ||
         setup_fields(thd, Ref_item_array(), m_opt_set_exprs, SELECT_ACL,
                      nullptr, false, false))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
   else
   {						// Part field list
@@ -341,7 +341,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
                      nullptr, false, false) ||
         setup_fields(thd, Ref_item_array(), m_opt_set_fields, INSERT_ACL,
                      nullptr, false, true))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
 
     /*
       Special updatability test is needed because m_opt_fields_or_vars may contain
@@ -374,11 +374,11 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
       }
     }
     if (check_that_all_fields_are_given_values(thd, table, table_list))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     /* Fix the expressions in SET clause */
     if (setup_fields(thd, Ref_item_array(), m_opt_set_exprs, SELECT_ACL,
                      nullptr, false, false))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   const int escape_char= (escaped->length() && (m_exchange.escaped_given() ||
@@ -400,7 +400,13 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
                  handle_duplicates, escape_char);
 
   if (info.add_function_default_columns(table, table->write_set))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
+
+  if (table->triggers)
+  {
+    if (table->triggers->mark_fields(TRG_EVENT_INSERT))
+      DBUG_RETURN(true);
+  }
 
   prepare_triggers_for_insert_stmt(thd, table);
 
@@ -432,12 +438,12 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
       field_term->is_empty())
   {
     my_error(ER_BLOBS_AND_NO_TERMINATED, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   if (use_vars && !field_term->length() && !enclosed->length())
   {
     my_error(ER_LOAD_FROM_FIXED_SIZE_ROWS_TO_VAR, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (m_is_local_file)
@@ -475,20 +481,20 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
         */
         LogErr(ERROR_LEVEL, ER_LOAD_DATA_INFILE_FAILED_IN_UNEXPECTED_WAY);
         my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--slave-load-tmpdir");
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
     }
     else if (!is_secure_file_path(name))
     {
       /* Read only allowed from within dir specified by secure_file_priv */
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
 
 #if !defined(_WIN32)
     MY_STAT stat_info;
     if (!my_stat(name, &stat_info, MYF(MY_WME)))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
 
     // if we are not in slave thread, the file must be:
     if (!thd->slave_thread &&
@@ -497,7 +503,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
            (stat_info.st_mode & S_IFIFO) == S_IFIFO)))  // named pipe
     {
       my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
     if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
       is_fifo= 1;
@@ -505,7 +511,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
     if ((file= mysql_file_open(key_file_load,
                                name, O_RDONLY, MYF(MY_WME))) < 0)
 
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   READ_INFO read_info(file,tot_length,
@@ -520,7 +526,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   {
     if (file >= 0)
       mysql_file_close(file, MYF(0));           // no files in net reading
-    DBUG_RETURN(TRUE);				// Can't allocate buffers
+    DBUG_RETURN(true);				// Can't allocate buffers
   }
 
   if (mysql_bin_log.is_open())
@@ -675,7 +681,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
       after this point.
      */
     if (thd->is_current_stmt_binlog_format_row())
-      error= thd->binlog_flush_pending_rows_event(TRUE, transactional_table);
+      error= thd->binlog_flush_pending_rows_event(true, transactional_table);
     else
     {
       /*
@@ -714,7 +720,7 @@ err:
               thd->get_transaction()->cannot_safely_rollback(
                 Transaction_ctx::STMT));
   table->file->ha_release_auto_increment();
-  table->auto_increment_field_not_null= FALSE;
+  table->auto_increment_field_not_null= false;
   DBUG_RETURN(error);
 }
 
@@ -762,7 +768,7 @@ bool Sql_cmd_load_table::write_execute_load_query_log_event(THD *thd,
       (duplicates == DUP_REPLACE) ? binary_log::LOAD_DUP_REPLACE :
       (thd->lex->is_ignore() ? binary_log::LOAD_DUP_IGNORE :
                                binary_log::LOAD_DUP_ERROR),
-      transactional_table, FALSE, FALSE, errcode);
+      transactional_table, false, false, errcode);
 
   return mysql_bin_log.write_event(&e);
 }
@@ -826,7 +832,7 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
       Item_field *sql_field= static_cast<Item_field*>(item->real_item());
       Field *field= sql_field->field;                  
       if (field == table->next_number_field)
-        table->auto_increment_field_not_null= TRUE;
+        table->auto_increment_field_not_null= true;
       /*
         No fields specified in fields_vars list can be null in this format.
         Mark field as not null, we should do this for each row because of
@@ -886,7 +892,7 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
     }
 
     err= write_record(thd, table, &info, NULL);
-    table->auto_increment_field_not_null= FALSE;
+    table->auto_increment_field_not_null= false;
     if (err)
       DBUG_RETURN(true);
    
@@ -1043,7 +1049,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd,
         field->set_notnull();
         read_info.row_end[0]=0;			// Safe to change end marker
         if (field == table->next_number_field)
-          table->auto_increment_field_not_null= TRUE;
+          table->auto_increment_field_not_null= true;
         field->store((char*) pos, length, read_info.read_charset);
       }
       else if (item->type() == Item::STRING_ITEM)
@@ -1149,7 +1155,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd,
     }
 
     err= write_record(thd, table, &info, NULL);
-    table->auto_increment_field_not_null= FALSE;
+    table->auto_increment_field_not_null= false;
     if (err)
       DBUG_RETURN(true);
     /*
@@ -1252,7 +1258,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd,
           field->reset();
           field->set_null();
           if (field == table->next_number_field)
-            table->auto_increment_field_not_null= TRUE;
+            table->auto_increment_field_not_null= true;
           if (!field->maybe_null())
           {
             if (field->type() == FIELD_TYPE_TIMESTAMP)
@@ -1276,7 +1282,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd,
         Field *field= ((Item_field *)item)->field;
         field->set_notnull();
         if (field == table->next_number_field)
-          table->auto_increment_field_not_null= TRUE;
+          table->auto_increment_field_not_null= true;
         field->store((char *) tag->value.ptr(), tag->value.length(), cs);
       }
       else

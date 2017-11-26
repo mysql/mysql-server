@@ -79,7 +79,7 @@ my_coll_init_8bit_bin(CHARSET_INFO *cs,
                       MY_CHARSET_LOADER *loader MY_ATTRIBUTE((unused)))
 {
   cs->max_sort_char=255; 
-  return FALSE;
+  return false;
 }
 
 static int my_strnncoll_binary(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),

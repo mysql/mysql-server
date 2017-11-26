@@ -1,0 +1,135 @@
+#
+# Test variations of inplace alter table on all the defined tables
+#
+--source setup.inc
+
+
+
+let $num_tables = `select count(*) from information_schema.tables
+                     where TABLE_SCHEMA = 'ndb_ddl_test'`;
+if (!$num_tables)
+{
+  die Could not figure out number of tables in ndb_ddl_test database;
+}
+
+
+let $counter = 1;
+while ($counter <= $num_tables)
+{
+  # Default table name is t$counter, ie. t1, t2, etc
+  let $tx=t$counter;
+
+  # Save table id
+  let $table_id = `SELECT id FROM test.ndbinfo_dict_obj_info
+                   WHERE fq_name = 'ndb_ddl_test/def/$tx'`;
+
+  ##
+  # Test ALTER TABLE, ADD INDEX
+  #
+  eval ALTER TABLE $tx ALGORITHM=inplace, ADD INDEX a_idx1(a);
+
+  # Show that table id is still the same
+  let $new_table_id = `SELECT id FROM test.ndbinfo_dict_obj_info
+                       WHERE fq_name = 'ndb_ddl_test/def/$tx'`;
+  if ($table_id != $new_table_id)
+  {
+    die The table was not altered inplace, its table id changed;
+  }
+
+  # Check that table still contains expected number of rows
+  let $tx_count = `SELECT count(*) from $tx`;
+  if ($tx_count != 5)
+  {
+    echo Wrong number of rows, expected 5 got $tx_count;
+    die Wrong number of rows in altered table;
+  }
+
+  if ($counter == 6)
+  {
+    # Disable warnings for t6 where column 'a' is a VARCHAR and reads from the
+    # table causes "Truncated incorrect DOUBLE value: 'value1'" for each row
+    --disable_warnings ONCE
+  }
+
+  # Run query presumably using the new index
+  eval SELECT a FROM $tx WHERE a = 1;
+
+
+  ##
+  # Test ALTER TABLE, DROP INDEX
+  #
+  eval ALTER TABLE $tx ALGORITHM=inplace, DROP INDEX a_idx1;
+
+  # Show that table id is still the same
+  let $new_table_id = `SELECT id FROM test.ndbinfo_dict_obj_info
+                     WHERE fq_name = 'ndb_ddl_test/def/$tx'`;
+  if ($table_id != $new_table_id)
+  {
+    die The table was not altered inplace, its table id changed;
+  }
+
+  # Check that table still contains expected number of rows
+  let $tx_count = `SELECT count(*) from $tx`;
+  if ($tx_count != 5)
+  {
+    echo Wrong number of rows, expected 5 got $tx_count;
+    die Wrong number of rows in altered table;
+  }
+
+  if ($counter == 6)
+  {
+    # Disable warnings for t6 where column 'a' is a VARCHAR and reads from the
+    # table causes "Truncated incorrect DOUBLE value: 'value1'" for each row
+    --disable_warnings ONCE
+  }
+
+  # Run query
+  eval SELECT a FROM $tx WHERE a = 4;
+
+
+  ##
+  # Test ALTER TABLE, ADD COLUMN
+  #
+  let $skip_inplace_add_column = 0;
+  if (`select FIND_IN_SET('$tx', 't6,t8,t9')`)
+  {
+    # inplace add column not supported on table without primary key
+    let $skip_inplace_add_column = 1;
+
+    --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+    eval ALTER TABLE $tx ALGORITHM=inplace,
+           ADD COLUMN m VARCHAR(255) DEFAULT NULL;
+  }
+
+  if (!$skip_inplace_add_column)
+  {
+    eval ALTER TABLE $tx ALGORITHM=inplace,
+           ADD COLUMN m VARCHAR(255) COLUMN_FORMAT DYNAMIC DEFAULT NULL;
+
+    # Show that table id is still the same
+    let $new_table_id = `SELECT id FROM test.ndbinfo_dict_obj_info
+                         WHERE fq_name = 'ndb_ddl_test/def/$tx'`;
+    if ($table_id != $new_table_id)
+    {
+      die The table was not altered inplace, its table id changed;
+    }
+
+    # Check that table still contains expected number of rows
+    let $tx_count = `SELECT count(*) from $tx`;
+    if ($tx_count != 5)
+    {
+      echo Wrong number of rows, expected 5 got $tx_count;
+      die Wrong number of rows in altered table;
+    }
+
+    # Set values for the new column
+    eval UPDATE $tx SET m = CONCAT("row-", a);
+    eval SELECT m FROM $tx WHERE a = 3;
+  }
+
+  inc $counter;
+}
+
+--source verify_mysql_dd.inc
+
+--source cleanup.inc

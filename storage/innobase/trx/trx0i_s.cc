@@ -410,7 +410,7 @@ table_cache_create_empty_row(
 #ifdef UNIV_DEBUG
 /*******************************************************************//**
 Validates a row in the locks cache.
-@return TRUE if valid */
+@return true if valid */
 static
 ibool
 i_s_locks_row_validate(
@@ -434,7 +434,7 @@ i_s_locks_row_validate(
 /*******************************************************************//**
 Fills i_s_trx_row_t object.
 If memory can not be allocated then FALSE is returned.
-@return FALSE if allocation fails */
+@return false if allocation fails */
 static
 ibool
 fill_trx_row(
@@ -748,7 +748,7 @@ p_s_fill_lock_data(
 /*******************************************************************//**
 Fills i_s_locks_row_t object. Returns its first argument.
 If memory can not be allocated then FALSE is returned.
-@return FALSE if allocation fails */
+@return false if allocation fails */
 static
 ibool
 fill_locks_row(
@@ -834,7 +834,7 @@ innodb_locks and a pointer to the added row is returned in
 requested_lock_row, otherwise requested_lock_row is set to NULL.
 If rows can not be allocated then FALSE is returned and the value of
 requested_lock_row is undefined.
-@return FALSE if allocation fails */
+@return false if allocation fails */
 static
 ibool
 add_trx_relevant_locks_to_cache(
@@ -918,7 +918,7 @@ the same version of the cache. */
 
 /*******************************************************************//**
 Checks if the cache can safely be updated.
-@return TRUE if can be updated */
+@return true if can be updated */
 static
 ibool
 can_cache_be_updated(
@@ -1098,7 +1098,7 @@ trx_i_s_possibly_fetch_data_into_cache(
 /*******************************************************************//**
 Returns TRUE if the data in the cache is truncated due to the memory
 limit posed by TRX_I_S_MEM_LIMIT.
-@return TRUE if truncated */
+@return true if truncated */
 ibool
 trx_i_s_cache_is_truncated(
 /*=======================*/

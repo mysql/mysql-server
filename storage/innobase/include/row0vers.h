@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -59,7 +59,7 @@ index record, because it is >= the purge view.
 @param[in,out]	mtr		mini transaction  holding the latch on the
 				clustered index record; it will also hold
 				 the latch on purge_view
-@return TRUE if earlier version should be preserved */
+@return true if earlier version should be preserved */
 ibool
 row_vers_must_preserve_del_marked(
 /*==============================*/
@@ -73,7 +73,7 @@ purge view, should have ientry as its secondary index entry. We check
 if there is any not delete marked version of the record where the trx
 id >= purge view, and the secondary index entry == ientry; exactly in
 this case we return TRUE.
-@return TRUE if earlier version should have */
+@return true if earlier version should have */
 ibool
 row_vers_old_has_index_entry(
 /*=========================*/

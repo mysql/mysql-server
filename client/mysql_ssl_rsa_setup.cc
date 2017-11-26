@@ -141,7 +141,7 @@ static struct my_option my_options[]= {
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Be more verbose when running program",
-   &opt_verbose, 0, 0, GET_BOOL, NO_ARG, FALSE, 0, 0, 0, 0, 0},
+   &opt_verbose, 0, 0, GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0},
   {"version", 'V', "Print program version and exit", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"datadir", 'd', "Directory to store generated files.", &opt_datadir, &opt_datadir, 0,
@@ -467,7 +467,7 @@ int main(int argc, char *argv[])
   /* Convert command line parameters from UTF16LE to UTF8MB4. */
   my_win_translate_command_line_args(&my_charset_utf8mb4_bin, &argc, &argv);
 #endif
-  my_getopt_use_args_separator= TRUE;
+  my_getopt_use_args_separator= true;
   if (load_defaults("my", load_default_groups, &argc, &argv, &alloc))
   {
     my_end(0);
@@ -479,8 +479,8 @@ int main(int argc, char *argv[])
   MY_MODE saved_umask= umask(~(file_creation_mode));
 
   defaults_argv= argv;
-  my_getopt_use_args_separator= FALSE;
-  my_getopt_skip_unknown= TRUE;
+  my_getopt_use_args_separator= false;
+  my_getopt_skip_unknown= true;
 
   if (handle_options(&argc, &argv, my_options,
                      my_arguments_get_one_option))
@@ -493,7 +493,7 @@ int main(int argc, char *argv[])
   my_getopt_skip_unknown= save_skip_unknown;
 
   /* Process opt_verbose */
-  if (opt_verbose != TRUE)
+  if (opt_verbose != true)
     info.enabled(false);
 
   /* Process opt_datadir */

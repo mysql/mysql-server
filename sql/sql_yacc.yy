@@ -57,6 +57,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/item_create.h"
 #include "sql/item_geofunc.h"
 #include "sql/item_json_func.h"
+#include "sql/item_regexp_func.h"
 #include "sql/key_spec.h"
 #include "sql/keycaches.h"
 #include "sql/lex_symbol.h"
@@ -2100,14 +2101,14 @@ prepare_src:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             lex->prepared_stmt_code= $1;
-            lex->prepared_stmt_code_is_varref= FALSE;
+            lex->prepared_stmt_code_is_varref= false;
           }
         | '@' ident_or_text
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             lex->prepared_stmt_code= $2;
-            lex->prepared_stmt_code_is_varref= TRUE;
+            lex->prepared_stmt_code_is_varref= true;
           }
         ;
 
@@ -2656,7 +2657,7 @@ create:
           {
             Lex->create_view_mode= enum_view_create_mode::VIEW_CREATE_NEW;
             Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
-            Lex->create_view_suid= TRUE;
+            Lex->create_view_suid= true;
             Lex->create_info= YYTHD->alloc_typed<HA_CREATE_INFO>();
             if (Lex->create_info == NULL)
               MYSQL_YYABORT; // OOM
@@ -3001,7 +3002,7 @@ ev_sql_stmt:
             sp_finish_parsing(thd);
 
             lex->sp_chistics.suid= SP_IS_SUID;  //always the definer!
-            lex->event_parse_data->body_changed= TRUE;
+            lex->event_parse_data->body_changed= true;
           }
         ;
 
@@ -3085,8 +3086,8 @@ sp_chistic:
 /* Create characteristics */
 sp_c_chistic:
           sp_chistic            { }
-        | DETERMINISTIC_SYM     { Lex->sp_chistics.detistic= TRUE; }
-        | not DETERMINISTIC_SYM { Lex->sp_chistics.detistic= FALSE; }
+        | DETERMINISTIC_SYM     { Lex->sp_chistics.detistic= true; }
+        | not DETERMINISTIC_SYM { Lex->sp_chistics.detistic= false; }
         ;
 
 sp_suid:
@@ -3143,7 +3144,7 @@ sp_fdparam:
             if (sp_check_name(&$1))
               MYSQL_YYABORT;
 
-            if (pctx->find_variable($1, TRUE))
+            if (pctx->find_variable($1, true))
             {
               my_error(ER_SP_DUP_PARAM, MYF(0), $1.str);
               MYSQL_YYABORT;
@@ -3196,7 +3197,7 @@ sp_pdparam:
             if (sp_check_name(&$2))
               MYSQL_YYABORT;
 
-            if (pctx->find_variable($2, TRUE))
+            if (pctx->find_variable($2, true))
             {
               my_error(ER_SP_DUP_PARAM, MYF(0), $2.str);
               MYSQL_YYABORT;
@@ -3383,7 +3384,7 @@ sp_decl:
             LEX *lex= thd->lex;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
-            if (pctx->find_condition($2, TRUE))
+            if (pctx->find_condition($2, true))
             {
               my_error(ER_SP_DUP_COND, MYF(0), $2.str);
               MYSQL_YYABORT;
@@ -3507,7 +3508,7 @@ sp_decl:
 
             uint offp;
 
-            if (pctx->find_cursor($2, &offp, TRUE))
+            if (pctx->find_cursor($2, &offp, true))
             {
               my_error(ER_SP_DUP_CURS, MYF(0), $2.str);
               delete cursor_lex;
@@ -3982,7 +3983,7 @@ sp_decl_idents:
             LEX *lex= thd->lex;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
-            if (pctx->find_variable($1, TRUE))
+            if (pctx->find_variable($1, true))
             {
               my_error(ER_SP_DUP_VAR, MYF(0), $1.str);
               MYSQL_YYABORT;
@@ -4002,7 +4003,7 @@ sp_decl_idents:
             LEX *lex= thd->lex;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
-            if (pctx->find_variable($3, TRUE))
+            if (pctx->find_variable($3, true))
             {
               my_error(ER_SP_DUP_VAR, MYF(0), $3.str);
               MYSQL_YYABORT;
@@ -4266,7 +4267,7 @@ sp_proc_stmt_iterate:
             uint ip= sp->instructions();
 
             /* Inclusive the dest. */
-            size_t n= pctx->diff_handlers(lab->ctx, FALSE);
+            size_t n= pctx->diff_handlers(lab->ctx, false);
 
             if (n)
             {
@@ -4277,7 +4278,7 @@ sp_proc_stmt_iterate:
             }
 
             /* Inclusive the dest. */
-            n= pctx->diff_cursors(lab->ctx, FALSE);
+            n= pctx->diff_cursors(lab->ctx, false);
 
             if (n)
             {
@@ -8977,11 +8978,18 @@ predicate:
           }
         | bit_expr REGEXP bit_expr
           {
-            $$= NEW_PTN Item_func_regex(@$, $1, $3);
+            auto args= NEW_PTN PT_item_list;
+            args->push_back($1);
+            args->push_back($3);
+
+            $$= NEW_PTN Item_func_regexp_like(@1, args);
           }
         | bit_expr not REGEXP bit_expr
           {
-            Item *item= NEW_PTN Item_func_regex(@$, $1, $4);
+            auto args= NEW_PTN PT_item_list;
+            args->push_back($1);
+            args->push_back($4);
+            Item *item= NEW_PTN Item_func_regexp_like(@$, args);
             $$= NEW_PTN PTI_negate_expression(@$, item);
           }
         | bit_expr
@@ -9644,11 +9652,11 @@ set_function_specification:
 sum_expr:
           AVG_SYM '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_avg(@$, $3, FALSE, $5);
+            $$= NEW_PTN Item_sum_avg(@$, $3, false, $5);
           }
         | AVG_SYM '(' DISTINCT in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_avg(@$, $4, TRUE, $6);
+            $$= NEW_PTN Item_sum_avg(@$, $4, true, $6);
           }
         | BIT_AND  '(' in_sum_expr ')' opt_windowing_clause
           {
@@ -9721,11 +9729,11 @@ sum_expr:
           }
         | SUM_SYM '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_sum(@$, $3, FALSE, $5);
+            $$= NEW_PTN Item_sum_sum(@$, $3, false, $5);
           }
         | SUM_SYM '(' DISTINCT in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_sum(@$, $4, TRUE, $6);
+            $$= NEW_PTN Item_sum_sum(@$, $4, true, $6);
           }
         | GROUP_CONCAT_SYM '(' opt_distinct
           expr_list opt_gorder_clause
@@ -14603,7 +14611,10 @@ role_or_privilege:
         | FILE_SYM
           { $$= NEW_PTN PT_static_privilege(@1, FILE_ACL); }
         | GRANT OPTION
-          { $$= NEW_PTN PT_static_privilege(@1, GRANT_ACL); }
+          {
+            $$= NEW_PTN PT_static_privilege(@1, GRANT_ACL);
+            Lex->grant_privilege= true;
+          }
         | SHOW DATABASES
           { $$= NEW_PTN PT_static_privilege(@1, SHOW_DB_ACL); }
         | SUPER_SYM
@@ -15207,8 +15218,8 @@ view_select:
           {
             THD *thd= YYTHD;
             LEX *lex= Lex;
-            lex->parsing_options.allows_variable= FALSE;
-            lex->parsing_options.allows_select_into= FALSE;
+            lex->parsing_options.allows_variable= false;
+            lex->parsing_options.allows_select_into= false;
 
             /*
               In CREATE VIEW v ... the table_list initially contains
@@ -15248,8 +15259,8 @@ view_select:
             lex->create_view_select.length= len;
             trim_whitespace(thd->charset(), &lex->create_view_select);
 
-            lex->parsing_options.allows_variable= TRUE;
-            lex->parsing_options.allows_select_into= TRUE;
+            lex->parsing_options.allows_variable= true;
+            lex->parsing_options.allows_select_into= true;
           }
         ;
 

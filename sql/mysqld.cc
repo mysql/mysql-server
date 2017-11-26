@@ -572,6 +572,7 @@
 #include <crtdbg.h>
 #include <process.h>
 #endif
+#include "unicode/uclean.h"  // u_cleanup()
 
 #include <algorithm>
 #include <atomic>
@@ -886,6 +887,9 @@ volatile bool mqh_used = 0;
 bool opt_noacl= 0;
 bool sp_automatic_privileges= 1;
 
+int32_t opt_regexp_time_limit;
+int32_t opt_regexp_stack_limit;
+
 ulong opt_binlog_rows_event_max_size;
 ulong binlog_checksum_options;
 ulong binlog_row_metadata;
@@ -991,7 +995,7 @@ ulong stored_program_cache_size= 0;
 */
 bool avoid_temporal_upgrade;
 
-bool persisted_globals_load= TRUE;
+bool persisted_globals_load= true;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -1320,8 +1324,6 @@ struct System_status_var* get_thd_status_var(THD *thd)
   return & thd->status_var;
 }
 
-C_MODE_START
-
 static void option_error_reporter(enum loglevel level, const char *format, ...)
   MY_ATTRIBUTE((format(printf, 2, 3)));
 
@@ -1363,7 +1365,6 @@ static void charset_error_reporter(enum loglevel level,
   error_log_printf(level, format, args);
   va_end(args);
 }
-C_MODE_END
 
 struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 
@@ -1787,7 +1788,7 @@ void kill_mysql(void)
     }
     /*
       or:
-      HANDLE hEvent=OpenEvent(0, FALSE, "MySqlShutdown");
+      HANDLE hEvent=OpenEvent(0, false, "MySqlShutdown");
       SetEvent(hEventShutdown);
       CloseHandle(hEvent);
     */
@@ -2023,7 +2024,7 @@ static void clean_up(bool print_message)
   rpl_channel_filters.clean_up();
   end_ssl();
   vio_end();
-  my_regex_end();
+  u_cleanup();
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the debug sync facility. See debug_sync.cc. */
   debug_sync_end();
@@ -2529,9 +2530,9 @@ static BOOL WINAPI console_event_handler( DWORD type )
        kill_mysql();
      else
        LogErr(WARNING_LEVEL, ER_NOT_RIGHT_NOW);
-     DBUG_RETURN(TRUE);
+     DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -2567,7 +2568,7 @@ static void wait_for_debugger(int timeout_sec)
 
 LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
 {
-   static BOOL first_time= TRUE;
+   static BOOL first_time= true;
    if(!first_time)
    {
      /*
@@ -2577,7 +2578,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
      */
      return EXCEPTION_EXECUTE_HANDLER;
    }
-   first_time= FALSE;
+   first_time= false;
 #ifdef DEBUG_UNHANDLED_EXCEPTION_FILTER
    /*
     Unfortunately there is no clean way to debug unhandled exception filters,
@@ -2613,7 +2614,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
 void my_init_signals()
 {
   if(opt_console)
-    SetConsoleCtrlHandler(console_event_handler,TRUE);
+    SetConsoleCtrlHandler(console_event_handler,true);
 
     /* Avoid MessageBox()es*/
   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
@@ -3606,7 +3607,6 @@ int init_common_variables()
     return 1;
   item_init();
   range_optimizer_init();
-  my_regex_init(&my_charset_latin1, check_enough_stack_size);
   my_string_stack_guard= check_enough_stack_size;
   /*
     Process a comma-separated character set list and choose
@@ -4287,7 +4287,7 @@ static int init_server_auto_options()
   else
   {
     DBUG_PRINT("info", ("generating server_uuid"));
-    flush= TRUE;
+    flush= true;
     /* server_uuid will be set in the function */
     if (generate_server_uuid())
       goto err;
@@ -4310,7 +4310,7 @@ initialize_storage_engine(char *se_name, const char *se_kind,
   LEX_STRING name= { se_name, strlen(se_name) };
   plugin_ref plugin;
   handlerton *hton;
-  if ((plugin= ha_resolve_by_name(0, &name, FALSE)))
+  if ((plugin= ha_resolve_by_name(0, &name, false)))
     hton= plugin_data<handlerton*>(plugin);
   else
   {
@@ -4554,7 +4554,7 @@ static int init_server_components()
       to avoid creating the file in an otherwise empty datadir, which will
       cause a succeeding 'mysqld --initialize' to fail.
     */
-    if (!opt_help && mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
+    if (!opt_help && mysql_bin_log.open_index_file(opt_binlog_index_name, ln, true))
     {
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
@@ -5043,8 +5043,18 @@ static int init_server_components()
 
   if (opt_bin_log && (expire_logs_days || binlog_expire_logs_seconds))
   {
-    time_t purge_time= server_start_time - expire_logs_days * 24 * 60 * 60 -
-                       binlog_expire_logs_seconds;
+    time_t purge_time= 0;
+
+    if (binlog_expire_logs_seconds)
+    {
+      sql_print_warning("The option expire_logs_days cannot be used together"
+                        " with option binlog_expire_logs_seconds. Therefore,"
+                        " value of expire_logs_days is ignored.");
+      purge_time= my_time(0) - binlog_expire_logs_seconds;
+    }
+    else
+      purge_time= my_time(0) - expire_logs_days * 24 * 60 * 60;
+
     if (purge_time >= 0)
       mysql_bin_log.purge_logs_before_date(purge_time, true);
   }
@@ -5106,7 +5116,7 @@ extern "C" void *handle_shutdown(void *arg)
 
 static void create_shutdown_thread()
 {
-  hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
+  hEventShutdown=CreateEvent(0, false, false, shutdown_event_name);
   my_thread_attr_t thr_attr;
   DBUG_ENTER("create_shutdown_thread");
 
@@ -5196,8 +5206,8 @@ int mysqld_main(int argc, char **argv)
 
   orig_argc= argc;
   orig_argv= argv;
-  my_getopt_use_args_separator= TRUE;
-  my_defaults_read_login_file= FALSE;
+  my_getopt_use_args_separator= true;
+  my_defaults_read_login_file= false;
   if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, &argv_alloc))
   {
     flush_error_log_messages();
@@ -5213,7 +5223,7 @@ int mysqld_main(int argc, char **argv)
       persisted_variables_cache.load_persist_file() ||
       persisted_variables_cache.append_read_only_variables(&argc, &argv))
     return 1;
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= false;
   remaining_argc= argc;
   remaining_argv= argv;
 
@@ -5896,7 +5906,7 @@ int mysqld_main(int argc, char **argv)
       /* Add back the program name handle_options removes */
       remaining_argc++;
       remaining_argv--;
-      my_getopt_skip_unknown= TRUE;
+      my_getopt_skip_unknown= true;
 
       if (remaining_argc > 1)
       {
@@ -6133,14 +6143,6 @@ int mysqld_main(int argc, char **argv)
 #endif
 
   server_components_initialized();
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  /* engine specific hook, to be made generic */
-  if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
-  {
-    LogErr(WARNING_LEVEL, ER_NDB_TABLES_NOT_READY, opt_ndb_wait_setup);
-  }
-#endif
 
   /*
     Set opt_super_readonly here because if opt_super_readonly is set
@@ -6465,13 +6467,13 @@ static bool read_init_file(char *file_name)
 
   if (!(file= mysql_file_fopen(key_file_init, file_name,
                                O_RDONLY, MYF(MY_WME))))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   (void) bootstrap::run_bootstrap_thread(file, NULL, SYSTEM_THREAD_INIT_FILE);
   mysql_file_fclose(file, MYF(MY_WME));
 
   LogErr(INFORMATION_LEVEL, ER_END_INITFILE, file_name);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -6498,7 +6500,7 @@ static int handle_early_options()
 
   my_getopt_register_get_addr(NULL);
   /* Skip unknown options so that they may be processed later */
-  my_getopt_skip_unknown= TRUE;
+  my_getopt_skip_unknown= true;
 
   /* Add the system variables parsed early */
   sys_var_add_options(&all_early_options, sys_var::PARSE_EARLY);
@@ -6523,7 +6525,7 @@ static int handle_early_options()
     remaining_argv--;
 
     if (opt_initialize_insecure)
-      opt_initialize= TRUE;
+      opt_initialize= true;
   }
 
   // Swap with an empty vector, i.e. delete elements and free allocated space.
@@ -8910,7 +8912,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   }
 
   /* Skip unknown options so that they may be processed later by plugins */
-  my_getopt_skip_unknown= TRUE;
+  my_getopt_skip_unknown= true;
 
   if ((ho_error= handle_options(argc_ptr, argv_ptr, &all_options[0],
                                 mysqld_get_one_option)))
@@ -9140,8 +9142,8 @@ static char *get_relative_path(const char *path)
   @param path null terminated character string
 
   @return
-    @retval TRUE The path is secure
-    @retval FALSE The path isn't secure
+    @retval true The path is secure
+    @retval false The path isn't secure
 */
 
 bool is_secure_file_path(const char *path)
@@ -9152,15 +9154,15 @@ bool is_secure_file_path(const char *path)
     All paths are secure if opt_secure_file_priv is 0
   */
   if (!opt_secure_file_priv[0])
-    return TRUE;
+    return true;
 
   opt_secure_file_priv_len= strlen(opt_secure_file_priv);
 
   if (strlen(path) >= FN_REFLEN)
-    return FALSE;
+    return false;
 
   if (!my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
-    return FALSE;
+    return false;
 
   if (my_realpath(buff1, path, 0))
   {
@@ -9169,17 +9171,17 @@ bool is_secure_file_path(const char *path)
     */
     int length= (int)dirname_length(path);
     if (length >= FN_REFLEN)
-      return FALSE;
+      return false;
     memcpy(buff2, path, length);
     buff2[length]= '\0';
     if (length == 0 || my_realpath(buff1, buff2, 0))
-      return FALSE;
+      return false;
   }
   convert_dirname(buff2, buff1, NullS);
   if (!lower_case_file_system)
   {
     if (strncmp(opt_secure_file_priv, buff2, opt_secure_file_priv_len))
-      return FALSE;
+      return false;
   }
   else
   {
@@ -9187,10 +9189,10 @@ bool is_secure_file_path(const char *path)
                                             (uchar *) buff2, strlen(buff2),
                                             (uchar *) opt_secure_file_priv,
                                             opt_secure_file_priv_len,
-                                            TRUE))
-      return FALSE;
+                                            true))
+      return false;
   }
-  return TRUE;
+  return true;
 }
 
 
@@ -9291,7 +9293,7 @@ static bool check_secure_file_priv_path()
           opt_datadir_len,
           (uchar *) opt_secure_file_priv,
           opt_secure_file_priv_len,
-          TRUE))
+          true))
     {
       warn= true;
       strcpy(whichdir, "Data directory");
@@ -9325,7 +9327,7 @@ static bool check_secure_file_priv_path()
           opt_plugindir_len,
           (uchar *) opt_secure_file_priv,
           opt_secure_file_priv_len,
-          TRUE))
+          true))
       {
         warn= true;
         strcpy(whichdir, "Plugin directory");

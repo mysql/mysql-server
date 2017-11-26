@@ -846,7 +846,7 @@ public:
      variable 'sync_binlog'. If file is synchronized, @c synced will
      be set to 1, otherwise 0.
 
-     @param[in] force if TRUE, ignores the 'sync_binlog' and synchronizes the file.
+     @param[in] force if true, ignores the 'sync_binlog' and synchronizes the file.
 
      @retval 0 Success
      @retval other Failure
@@ -928,6 +928,7 @@ public:
     True while rotating binlog, which is caused by logging Incident_log_event.
   */
   bool is_rotating_caused_by_incident;
+  static const int MAX_RETRIES_BY_OOM= 10;
 };
 
 struct LOAD_FILE_INFO

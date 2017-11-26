@@ -52,10 +52,6 @@ struct Vio;
 #include <atomic>
 #endif
 
-#ifdef	__cplusplus
-extern "C" {
-#endif /* __cplusplus */
-
 #ifdef HAVE_PSI_INTERFACE
 void init_vio_psi_keys();
 #endif
@@ -197,7 +193,9 @@ int vio_getnameinfo(const struct sockaddr *sa,
                     int flags);
 
 #ifdef HAVE_OPENSSL
+extern "C" {
 #include <openssl/opensslv.h>
+}
 #if OPENSSL_VERSION_NUMBER < 0x0090700f
 #define DES_cblock des_cblock
 #define DES_key_schedule des_key_schedule
@@ -217,8 +215,10 @@ int vio_getnameinfo(const struct sockaddr *sa,
 /* Set yaSSL to use same type as MySQL do for socket handles */
 typedef my_socket YASSL_SOCKET_T;
 #define YASSL_SOCKET_T_DEFINED
+extern "C" {
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+}
 
 enum enum_ssl_init_error
 {
@@ -284,7 +284,6 @@ enum SSL_type
   SSL_TYPE_SPECIFIED
 };
 
-#ifdef __cplusplus
 /*
  This structure is for every connection on both sides.
  Note that it has a non-default move assignment operator, so if adding more
@@ -400,8 +399,5 @@ public:
   Vio &operator=(const Vio&) = delete;
   Vio &operator=(Vio&& vio);
 };
-
-}
-#endif /* __cpluscplus */
 
 #endif /* vio_violite_h_ */

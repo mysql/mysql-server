@@ -666,7 +666,6 @@ rtr_adjust_upper_level(
 
 	/* Create a memory heap where the data tuple is stored */
 	heap = mem_heap_create(1024);
-	memset(&cursor, 0, sizeof(cursor));
 
 	cursor.thr = sea_cur->thr;
 
@@ -809,7 +808,7 @@ if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return TRUE on success; FALSE on compression failure */
+@return true on success; false on compression failure */
 static
 ibool
 rtr_split_page_move_rec_list(
@@ -1351,7 +1350,6 @@ rtr_ins_enlarge_mbr(
 	page_cur_t*		page_cursor;
 	ulint*			offsets;
 	node_visit_t*		node_visit;
-	btr_cur_t		cursor;
 	page_t*			page;
 
 	ut_ad(dict_index_is_spatial(index));
@@ -1385,7 +1383,7 @@ rtr_ins_enlarge_mbr(
 		rtr_page_cal_mbr(index, block, &new_mbr, heap);
 
 		/* Get father block. */
-		memset(&cursor, 0, sizeof(cursor));
+		btr_cur_t cursor;
 		offsets = rtr_page_get_father_block(
 			NULL, heap, index, block, mtr, btr_cur, &cursor);
 
@@ -1764,7 +1762,8 @@ rtr_node_ptr_delete(
 	dberr_t		err;
 
 	compressed = btr_cur_pessimistic_delete(&err, TRUE, cursor,
-						BTR_CREATE_FLAG, false, mtr);
+						BTR_CREATE_FLAG, false,
+						0, 0, 0, mtr);
 	ut_a(err == DB_SUCCESS);
 
 	if (!compressed) {

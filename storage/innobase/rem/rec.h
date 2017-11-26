@@ -423,7 +423,7 @@ rec_init_offsets(
 #ifdef UNIV_DEBUG
 /************************************************************//**
 Validates offsets returned by rec_get_offsets().
-@return TRUE if valid */
+@return true if valid */
 UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 ibool
 rec_offs_validate(
@@ -618,7 +618,7 @@ resolved:
 /******************************************************//**
 The following function is used to test whether the data offsets in the record
 are stored in one-byte or two-byte format.
-@return TRUE if 1-byte form */
+@return true if 1-byte form */
 UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 ibool
 rec_get_1byte_offs_flag(

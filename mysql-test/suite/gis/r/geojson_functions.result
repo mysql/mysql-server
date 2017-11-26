@@ -1,10 +1,10 @@
 # Checking all valid GEOMETRY types
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)"))
-{"type": "Point", "coordinates": [10, 11]}
+{"type": "Point", "coordinates": [10.0, 11.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(-10 -11)"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(-10 -11)"))
-{"type": "Point", "coordinates": [-10, -11]}
+{"type": "Point", "coordinates": [-10.0, -11.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E+308)"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E+308)"))
 {"type": "Point", "coordinates": [1.7976931348623157e308, 1.7976931348623157e308]}
@@ -13,54 +13,54 @@ ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E-308 1.7976931348623157E-
 {"type": "Point", "coordinates": [1.7976931348623155e-308, 1.7976931348623155e-308]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("LINESTRING(30 10, 10 30, 40 40)"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("LINESTRING(30 10, 10 30, 40 40)"))
-{"type": "LineString", "coordinates": [[30, 10], [10, 30], [40, 40]]}
+{"type": "LineString", "coordinates": [[30.0, 10.0], [10.0, 30.0], [40.0, 40.0]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("LINESTRING(0 0, 0 10, 10 10, 10 0)"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("LINESTRING(0 0, 0 10, 10 10, 10 0)"))
-{"type": "LineString", "coordinates": [[0, 0], [0, 10], [10, 10], [10, 0]]}
+{"type": "LineString", "coordinates": [[0.0, 0.0], [0.0, 10.0], [10.0, 10.0], [10.0, 0.0]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POLYGON((30 10, 40 40, 20 40, 10 20, 30 10))"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POLYGON((30 10, 40 40, 20 40, 10 20, 30 10))"))
-{"type": "Polygon", "coordinates": [[[30, 10], [40, 40], [20, 40], [10, 20], [30, 10]]]}
+{"type": "Polygon", "coordinates": [[[30.0, 10.0], [40.0, 40.0], [20.0, 40.0], [10.0, 20.0], [30.0, 10.0]]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POLYGON((35 10, 45 45, 15 40, 10 20, 35 10),"
                                     "(20 30, 35 35, 30 20, 20 30))"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POLYGON((35 10, 45 45, 15 40, 10 20, 35 10),"
                                     "(20 30, 35 35, 30 20, 20 30))"))
-{"type": "Polygon", "coordinates": [[[35, 10], [45, 45], [15, 40], [10, 20], [35, 10]], [[20, 30], [35, 35], [30, 20], [20, 30]]]}
+{"type": "Polygon", "coordinates": [[[35.0, 10.0], [45.0, 45.0], [15.0, 40.0], [10.0, 20.0], [35.0, 10.0]], [[20.0, 30.0], [35.0, 35.0], [30.0, 20.0], [20.0, 30.0]]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOINT(10 40, 40 30, 20 20, 30 10)"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOINT(10 40, 40 30, 20 20, 30 10)"))
-{"type": "MultiPoint", "coordinates": [[10, 40], [40, 30], [20, 20], [30, 10]]}
+{"type": "MultiPoint", "coordinates": [[10.0, 40.0], [40.0, 30.0], [20.0, 20.0], [30.0, 10.0]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOINT(0 0, 10 10, 20 20, 30 30, 40 40)"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOINT(0 0, 10 10, 20 20, 30 30, 40 40)"))
-{"type": "MultiPoint", "coordinates": [[0, 0], [10, 10], [20, 20], [30, 30], [40, 40]]}
+{"type": "MultiPoint", "coordinates": [[0.0, 0.0], [10.0, 10.0], [20.0, 20.0], [30.0, 30.0], [40.0, 40.0]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRING((10 10, 20 20, 10 40),"
                                     "(40 40, 30 30, 40 20, 30 10))"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRING((10 10, 20 20, 10 40),"
                                     "(40 40, 30 30, 40 20, 30 10))"))
-{"type": "MultiLineString", "coordinates": [[[10, 10], [20, 20], [10, 40]], [[40, 40], [30, 30], [40, 20], [30, 10]]]}
+{"type": "MultiLineString", "coordinates": [[[10.0, 10.0], [20.0, 20.0], [10.0, 40.0]], [[40.0, 40.0], [30.0, 30.0], [40.0, 20.0], [30.0, 10.0]]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRING((10 10, 20 20, 10 40),"
                                     "(40 40, 30 30, 40 20, 30 10),"
                                     "(10 10, 20 20, 50 50, 100 100))"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRING((10 10, 20 20, 10 40),"
                                     "(40 40, 30 30, 40 20, 30 10),"
                                     "(10 10, 20 20, 50 50, 100 100))"))
-{"type": "MultiLineString", "coordinates": [[[10, 10], [20, 20], [10, 40]], [[40, 40], [30, 30], [40, 20], [30, 10]], [[10, 10], [20, 20], [50, 50], [100, 100]]]}
+{"type": "MultiLineString", "coordinates": [[[10.0, 10.0], [20.0, 20.0], [10.0, 40.0]], [[40.0, 40.0], [30.0, 30.0], [40.0, 20.0], [30.0, 10.0]], [[10.0, 10.0], [20.0, 20.0], [50.0, 50.0], [100.0, 100.0]]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
                                     "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35)))"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
                                     "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35)))"))
-{"type": "MultiPolygon", "coordinates": [[[[40, 40], [20, 45], [45, 30], [40, 40]]], [[[20, 35], [10, 30], [10, 10], [30, 5], [45, 20], [20, 35]]]]}
+{"type": "MultiPolygon", "coordinates": [[[[40.0, 40.0], [20.0, 45.0], [45.0, 30.0], [40.0, 40.0]]], [[[20.0, 35.0], [10.0, 30.0], [10.0, 10.0], [30.0, 5.0], [45.0, 20.0], [20.0, 35.0]]]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
                                     "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35),"
                                     "(30 20, 20 15, 20 25, 30 20)))"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
                                     "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35),"
                                     "(30 20, 20 15, 20 25, 30 20)))"))
-{"type": "MultiPolygon", "coordinates": [[[[40, 40], [20, 45], [45, 30], [40, 40]]], [[[20, 35], [10, 30], [10, 10], [30, 5], [45, 20], [20, 35]], [[30, 20], [20, 15], [20, 25], [30, 20]]]]}
+{"type": "MultiPolygon", "coordinates": [[[[40.0, 40.0], [20.0, 45.0], [45.0, 30.0], [40.0, 40.0]]], [[[20.0, 35.0], [10.0, 30.0], [10.0, 10.0], [30.0, 5.0], [45.0, 20.0], [20.0, 35.0]], [[30.0, 20.0], [20.0, 15.0], [20.0, 25.0], [30.0, 20.0]]]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION()"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION()"))
 {"type": "GeometryCollection", "geometries": []}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 20)))"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 20)))"))
-{"type": "GeometryCollection", "geometries": [{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [10, 20]}]}]}
+{"type": "GeometryCollection", "geometries": [{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [10.0, 20.0]}]}]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))"))
 {"type": "GeometryCollection", "geometries": [{"type": "GeometryCollection", "geometries": [{"type": "GeometryCollection", "geometries": []}]}]}
@@ -74,7 +74,7 @@ ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION( "
                                     "GEOMETRYCOLLECTION(POINT(10 20)),"
                                     "GEOMETRYCOLLECTION(LINESTRING(0 0, 100 100)),"
                                     "GEOMETRYCO
-{"type": "GeometryCollection", "geometries": [{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [10, 20]}]}, {"type": "GeometryCollection", "geometries": [{"type": "LineString", "coordinates": [[0, 0], [100, 100]]}]}, {"type": "GeometryCollection", "geometries": [{"type": "Polygon", "coordinates": [[[0, 0], [0, 10], [10, 10], [0, 0]]]}]}]}
+{"type": "GeometryCollection", "geometries": [{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [10.0, 20.0]}]}, {"type": "GeometryCollection", "geometries": [{"type": "LineString", "coordinates": [[0.0, 0.0], [100.0, 100.0]]}]}, {"type": "GeometryCollection", "geometries": [{"type": "Polygon", "coordinates": [[[0.0, 0.0], [0.0, 10.0], [10.0, 10.0], [0.0, 0.0]]]}]}]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION( "
                                     "POINT(4 6),"
                                     "LINESTRING(4 6,7 10),"
@@ -91,7 +91,7 @@ ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION( "
                                     "LINESTRING(4 6,7 10),"
                                     "POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10)),"
         
-{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [4, 6]}, {"type": "LineString", "coordinates": [[4, 6], [7, 10]]}, {"type": "Polygon", "coordinates": [[[30, 10], [40, 40], [20, 40], [10, 20], [30, 10]]]}, {"type": "MultiPoint", "coordinates": [[10, 40], [40, 30], [20, 20], [30, 10]]}, {"type": "MultiLineString", "coordinates": [[[10, 10], [20, 20], [10, 40]], [[40, 40], [30, 30], [40, 20], [30, 10]]]}, {"type": "MultiPolygon", "coordinates": [[[[30, 20], [45, 40], [10, 40], [30, 20]]], [[[15, 5], [40, 10], [10, 20], [5, 10], [15, 5]]]]}]}
+{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [4.0, 6.0]}, {"type": "LineString", "coordinates": [[4.0, 6.0], [7.0, 10.0]]}, {"type": "Polygon", "coordinates": [[[30.0, 10.0], [40.0, 40.0], [20.0, 40.0], [10.0, 20.0], [30.0, 10.0]]]}, {"type": "MultiPoint", "coordinates": [[10.0, 40.0], [40.0, 30.0], [20.0, 20.0], [30.0, 10.0]]}, {"type": "MultiLineString", "coordinates": [[[10.0, 10.0], [20.0, 20.0], [10.0, 40.0]], [[40.0, 40.0], [30.0, 30.0], [40.0, 20.0], [30.0, 10.0]]]}, {"type": "MultiPolygon", "coordinates": [[[[30.0, 20.0], [45.0, 40.0], [10.0, 40.0], [30.0, 20.0]]], [[[15.0, 5.0], [40.0, 10.0], [10.0, 20.0], [5.0, 10.0], [15.0, 5.0]]]]}]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION( "
                                     "POINT(4 6),"
                                     "GEOMETRYCOLLECTION("
@@ -110,7 +110,7 @@ ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION( "
                                     "GEOMETRYCOLLECTION("
                                       "POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10)),"
         
-{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [4, 6]}, {"type": "GeometryCollection", "geometries": [{"type": "Polygon", "coordinates": [[[30, 10], [40, 40], [20, 40], [10, 20], [30, 10]]]}, {"type": "MultiPoint", "coordinates": [[10, 40], [40, 30], [20, 20], [30, 10]]}, {"type": "MultiLineString", "coordinates": [[[10, 10], [20, 20], [10, 40]], [[40, 40], [30, 30], [40, 20], [30, 10]]]}, {"type": "MultiPolygon", "coordinates": [[[[30, 20], [45, 40], [10, 40], [30, 20]]], [[[15, 5], [40, 10], [10, 20], [5, 10], [15, 5]]]]}]}, {"type": "Point", "coordinates": [6, 4]}]}
+{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [4.0, 6.0]}, {"type": "GeometryCollection", "geometries": [{"type": "Polygon", "coordinates": [[[30.0, 10.0], [40.0, 40.0], [20.0, 40.0], [10.0, 20.0], [30.0, 10.0]]]}, {"type": "MultiPoint", "coordinates": [[10.0, 40.0], [40.0, 30.0], [20.0, 20.0], [30.0, 10.0]]}, {"type": "MultiLineString", "coordinates": [[[10.0, 10.0], [20.0, 20.0], [10.0, 40.0]], [[40.0, 40.0], [30.0, 30.0], [40.0, 20.0], [30.0, 10.0]]]}, {"type": "MultiPolygon", "coordinates": [[[[30.0, 20.0], [45.0, 40.0], [10.0, 40.0], [30.0, 20.0]]], [[[15.0, 5.0], [40.0, 10.0], [10.0, 20.0], [5.0, 10.0], [15.0, 5.0]]]]}]}, {"type": "Point", "coordinates": [6.0, 4.0]}]}
 # Checking NULL as one or more of the arguments.
 SELECT ST_ASGEOJSON(NULL);
 ST_ASGEOJSON(NULL)
@@ -148,19 +148,19 @@ NULL
 # Checking options argument and maxdecimaldigits argument
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 100, 2);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 100, 2)
-{"crs": {"type": "name", "properties": {"name": "EPSG:4326"}}, "type": "Point", "coordinates": [11, 10]}
+{"crs": {"type": "name", "properties": {"name": "EPSG:4326"}}, "type": "Point", "coordinates": [11.0, 10.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 100, 4);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 100, 4)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4326"}}, "type": "Point", "coordinates": [11, 10]}
+{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4326"}}, "type": "Point", "coordinates": [11.0, 10.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 100, 6);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 100, 6)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4326"}}, "type": "Point", "coordinates": [11, 10]}
+{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4326"}}, "type": "Point", "coordinates": [11.0, 10.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 0), 100, 5);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 0), 100, 5)
-{"bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
+{"bbox": [10.0, 11.0, 10.0, 11.0], "type": "Point", "coordinates": [10.0, 11.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 0), 100, 2);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 0), 100, 2)
-{"type": "Point", "coordinates": [10, 11]}
+{"type": "Point", "coordinates": [10.0, 11.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", -1), 100, 4);
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", -1000), 100, 6);
@@ -171,7 +171,7 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967295123), 100, 7);
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 0, 0);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 0, 0)
-{"type": "Point", "coordinates": [10, 11]}
+{"type": "Point", "coordinates": [10.0, 11.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 4, 7);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 4, 7)
 {"bbox": [10.1235, 11.1235, 10.1235, 11.1235], "type": "Point", "coordinates": [10.1235, 11.1235]}
@@ -180,7 +180,7 @@ ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 10, 0)
 {"type": "Point", "coordinates": [10.123456789, 11.123456789]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 0);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 0)
-{"type": "Point", "coordinates": [10, 11]}
+{"type": "Point", "coordinates": [10.0, 11.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 4);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 4)
 {"type": "Point", "coordinates": [10.1235, 11.1235]}
@@ -222,7 +222,7 @@ ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.123456789012345678
 {"bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "0"), 100, 1);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "0"), 100, 1)
-{"bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
+{"bbox": [10.0, 11.0, 10.0, 11.0], "type": "Point", "coordinates": [10.0, 11.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "-1"), 100, 2);
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "-1000"), 100, 3);
@@ -233,10 +233,10 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967295123"), 100, 6);
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", (CAST(4326 AS CHAR))), 100, 7);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", (CAST(4326 AS CHAR))), 100, 7)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4326"}}, "bbox": [11, 10, 11, 10], "type": "Point", "coordinates": [11, 10]}
+{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4326"}}, "bbox": [11.0, 10.0, 11.0, 10.0], "type": "Point", "coordinates": [11.0, 10.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), "0", 1);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), "0", 1)
-{"bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
+{"bbox": [10.0, 11.0, 10.0, 11.0], "type": "Point", "coordinates": [10.0, 11.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), "4", 2);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), "4", 2)
 {"type": "Point", "coordinates": [10.1235, 11.1235]}
@@ -260,32 +260,32 @@ ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.123456789012345678
 {"bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", " 4326.34 "), 100, 1);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", " 4326.34 "), 100, 1)
-{"bbox": [11, 10, 11, 10], "type": "Point", "coordinates": [11, 10]}
+{"bbox": [11.0, 10.0, 11.0, 10.0], "type": "Point", "coordinates": [11.0, 10.0]}
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ' 4326.34 '
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "*&$%4326"), 100, 2);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "*&$%4326"), 100, 2)
-{"type": "Point", "coordinates": [10, 11]}
+{"type": "Point", "coordinates": [10.0, 11.0]}
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '*&$%4326'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 0), "12.34", 3);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 0), "12.34", 3)
-{"bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
+{"bbox": [10.0, 11.0, 10.0, 11.0], "type": "Point", "coordinates": [10.0, 11.0]}
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '12.34'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), "*&$%$123", 4);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), "*&$%$123", 4)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4326"}}, "type": "Point", "coordinates": [11, 10]}
+{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4326"}}, "type": "Point", "coordinates": [11.0, 10.0]}
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '*&$%$123'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4236), 10, "06.34");
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4236), 10, "06.34")
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4236"}}, "type": "Point", "coordinates": [11, 10]}
+{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4236"}}, "type": "Point", "coordinates": [11.0, 10.0]}
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '06.34'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 10, "*&$%$123");
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 10, "*&$%$123")
-{"type": "Point", "coordinates": [11, 10]}
+{"type": "Point", "coordinates": [11.0, 10.0]}
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '*&$%$123'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
@@ -294,7 +294,7 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40))
 ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
                                     "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35),"
                                     "(30 20, 20 15, 20 25, 30 20)))"), 10, 1)
-{"bbox": [10, 5, 45, 45], "type": "MultiPolygon", "coordinates": [[[[40, 40], [20, 45], [45, 30], [40, 40]]], [[[20, 35], [10, 30], [10, 10], [30, 5], [45, 20], [20, 35]], [[30, 20], [20, 15], [20, 25], [30, 20]]]]}
+{"bbox": [10.0, 5.0, 45.0, 45.0], "type": "MultiPolygon", "coordinates": [[[[40.0, 40.0], [20.0, 45.0], [45.0, 30.0], [40.0, 40.0]]], [[[20.0, 35.0], [10.0, 30.0], [10.0, 10.0], [30.0, 5.0], [45.0, 20.0], [20.0, 35.0]], [[30.0, 20.0], [20.0, 15.0], [20.0, 25.0], [30.0, 20.0]]]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION( "
                                     "GEOMETRYCOLLECTION(POINT(10 20)),"
                                     "GEOMETRYCOLLECTION(LINESTRING(0 0, 100 100)),"
@@ -305,7 +305,7 @@ ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION( "
                                     "GEOMETRYCOLLECTION(POINT(10 20)),"
                                     "GEOMETRYCOLLECTION(LINESTRING(0 0, 100 100)),"
                                     "GEOMETRYCO
-{"bbox": [0, 0, 100, 100], "type": "GeometryCollection", "geometries": [{"bbox": [10, 20, 10, 20], "type": "GeometryCollection", "geometries": [{"bbox": [10, 20, 10, 20], "type": "Point", "coordinates": [10, 20]}]}, {"bbox": [0, 0, 100, 100], "type": "GeometryCollection", "geometries": [{"bbox": [0, 0, 100, 100], "type": "LineString", "coordinates": [[0, 0], [100, 100]]}]}, {"bbox": [0, 0, 10, 10], "type": "GeometryCollection", "geometries": [{"bbox": [0, 0, 10, 10], "type": "Polygon", "coordinates": [[[0, 0], [0, 10], [10, 10], [0, 0]]]}]}]}
+{"bbox": [0.0, 0.0, 100.0, 100.0], "type": "GeometryCollection", "geometries": [{"bbox": [10.0, 20.0, 10.0, 20.0], "type": "GeometryCollection", "geometries": [{"bbox": [10.0, 20.0, 10.0, 20.0], "type": "Point", "coordinates": [10.0, 20.0]}]}, {"bbox": [0.0, 0.0, 100.0, 100.0], "type": "GeometryCollection", "geometries": [{"bbox": [0.0, 0.0, 100.0, 100.0], "type": "LineString", "coordinates": [[0.0, 0.0], [100.0, 100.0]]}]}, {"bbox": [0.0, 0.0, 10.0, 10.0], "type": "GeometryCollection", "geometries": [{"bbox": [0.0, 0.0, 10.0, 10.0], "type": "Polygon", "coordinates": [[[0.0, 0.0], [0.0, 10.0], [10.0, 10.0], [0.0, 0.0]]]}]}]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION("
                                     "POINT(4 6),"
                                     "GEOMETRYCOLLECTION("
@@ -324,25 +324,25 @@ ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION("
                                     "GEOMETRYCOLLECTION("
                                       "POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10)),"
          
-{"bbox": [4, 4, 45, 40], "type": "GeometryCollection", "geometries": [{"bbox": [4, 6, 4, 6], "type": "Point", "coordinates": [4, 6]}, {"bbox": [5, 5, 45, 40], "type": "GeometryCollection", "geometries": [{"bbox": [10, 10, 40, 40], "type": "Polygon", "coordinates": [[[30, 10], [40, 40], [20, 40], [10, 20], [30, 10]]]}, {"bbox": [10, 10, 40, 40], "type": "MultiPoint", "coordinates": [[10, 40], [40, 30], [20, 20], [30, 10]]}, {"bbox": [10, 10, 40, 40], "type": "MultiLineString", "coordinates": [[[10, 10], [20, 20], [10, 40]], [[40, 40], [30, 30], [40, 20], [30, 10]]]}, {"bbox": [5, 5, 45, 40], "type": "MultiPolygon", "coordinates": [[[[30, 20], [45, 40], [10, 40], [30, 20]]], [[[15, 5], [40, 10], [10, 20], [5, 10], [15, 5]]]]}]}, {"bbox": [6, 4, 6, 4], "type": "Point", "coordinates": [6, 4]}]}
+{"bbox": [4.0, 4.0, 45.0, 40.0], "type": "GeometryCollection", "geometries": [{"bbox": [4.0, 6.0, 4.0, 6.0], "type": "Point", "coordinates": [4.0, 6.0]}, {"bbox": [5.0, 5.0, 45.0, 40.0], "type": "GeometryCollection", "geometries": [{"bbox": [10.0, 10.0, 40.0, 40.0], "type": "Polygon", "coordinates": [[[30.0, 10.0], [40.0, 40.0], [20.0, 40.0], [10.0, 20.0], [30.0, 10.0]]]}, {"bbox": [10.0, 10.0, 40.0, 40.0], "type": "MultiPoint", "coordinates": [[10.0, 40.0], [40.0, 30.0], [20.0, 20.0], [30.0, 10.0]]}, {"bbox": [10.0, 10.0, 40.0, 40.0], "type": "MultiLineString", "coordinates": [[[10.0, 10.0], [20.0, 20.0], [10.0, 40.0]], [[40.0, 40.0], [30.0, 30.0], [40.0, 20.0], [30.0, 10.0]]]}, {"bbox": [5.0, 5.0, 45.0, 40.0], "type": "MultiPolygon", "coordinates": [[[[30.0, 20.0], [45.0, 40.0], [10.0, 40.0], [30.0, 20.0]]], [[[15.0, 5.0], [40.0, 10.0], [10.0, 20.0], [5.0, 10.0], [15.0, 5.0]]]]}]}, {"bbox": [6.0, 4.0, 6.0, 4.0], "type": "Point", "coordinates": [6.0, 4.0]}]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION()"), 10, 1);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION()"), 10, 1)
 {"type": "GeometryCollection", "geometries": []}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E-308)"), 0, 1);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E-308)"), 0, 1)
-{"bbox": [1.7976931348623157e308, 0, 1.7976931348623157e308, 0], "type": "Point", "coordinates": [1.7976931348623157e308, 0]}
+{"bbox": [1.7976931348623157e308, 0.0, 1.7976931348623157e308, 0.0], "type": "Point", "coordinates": [1.7976931348623157e308, 0.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E-308)"), 10, 1);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E-308)"), 10, 1)
-{"bbox": [1.7976931348623157e308, 0, 1.7976931348623157e308, 0], "type": "Point", "coordinates": [1.7976931348623157e308, 0]}
+{"bbox": [1.7976931348623157e308, 0.0, 1.7976931348623157e308, 0.0], "type": "Point", "coordinates": [1.7976931348623157e308, 0.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E-308)"), 20, 1);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E-308)"), 20, 1)
-{"bbox": [1.7976931348623157e308, 0, 1.7976931348623157e308, 0], "type": "Point", "coordinates": [1.7976931348623157e308, 0]}
+{"bbox": [1.7976931348623157e308, 0.0, 1.7976931348623157e308, 0.0], "type": "Point", "coordinates": [1.7976931348623157e308, 0.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E-308)"), 30, 1);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E-308)"), 30, 1)
-{"bbox": [1.7976931348623157e308, 0, 1.7976931348623157e308, 0], "type": "Point", "coordinates": [1.7976931348623157e308, 0]}
+{"bbox": [1.7976931348623157e308, 0.0, 1.7976931348623157e308, 0.0], "type": "Point", "coordinates": [1.7976931348623157e308, 0.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E-308)"), 40, 1);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E-308)"), 40, 1)
-{"bbox": [1.7976931348623157e308, 0, 1.7976931348623157e308, 0], "type": "Point", "coordinates": [1.7976931348623157e308, 0]}
+{"bbox": [1.7976931348623157e308, 0.0, 1.7976931348623157e308, 0.0], "type": "Point", "coordinates": [1.7976931348623157e308, 0.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E-308)"), 1000, 1);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(1.7976931348623157E+308 1.7976931348623157E-308)"), 1000, 1)
 {"bbox": [1.7976931348623157e308, 1.7976931348623155e-308, 1.7976931348623157e308, 1.7976931348623155e-308], "type": "Point", "coordinates": [1.7976931348623157e308, 1.7976931348623155e-308]}
@@ -485,7 +485,7 @@ LENGTH(ST_ASTEXT(g))
 15519
 SELECT LENGTH(ST_ASGEOJSON(g)) FROM t1;
 LENGTH(ST_ASGEOJSON(g))
-28726
+38726
 SET @@global.max_allowed_packet = 27648;
 SELECT LENGTH(ST_ASGEOJSON(g)) FROM t1;
 LENGTH(ST_ASGEOJSON(g))
@@ -3164,21 +3164,21 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.0, 0.0]}"));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.0, 0.0]}"))
-{"type": "Point", "coordinates": [102, 0]}
+{"type": "Point", "coordinates": [102.0, 0.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"LineString\", \"coordinates\": "
   "[ [102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0] ] }"));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"LineString\", \"coordinates\": "
   "[ [102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0] ] }"))
-{"type": "LineString", "coordinates": [[102, 0], [103, 1], [104, 0], [105, 1]]}
+{"type": "LineString", "coordinates": [[102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"MultiPoint\", \"coordinates\": "
   "[ [-105.01, 39.57],[-80.66, 35.0] ] }"));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"MultiPoint\", \"coordinates\": "
   "[ [-105.01, 39.57],[-80.66, 35.0] ] }"))
-{"type": "MultiPoint", "coordinates": [[-105.01, 39.57], [-80.66, 35]]}
+{"type": "MultiPoint", "coordinates": [[-105.01, 39.57], [-80.66, 35.0]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"MultiLineString\", \"coordinates\":      "
 "  [                                                      "
@@ -3278,7 +3278,7 @@ ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  [                                                  "
 "    [                                                "
 "      [                                              "
-{"type": "MultiPolygon", "coordinates": [[[[102, 2], [103, 2], [103, 3], [102, 3], [102, 2]]], [[[100, 0], [101, 0], [101, 1], [100, 1], [100, 0]]]]}
+{"type": "MultiPolygon", "coordinates": [[[[102.0, 2.0], [103.0, 2.0], [103.0, 3.0], [102.0, 3.0], [102.0, 2.0]]], [[[100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0]]]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"MultiPolygon\", \"coordinates\":     "
 "  [                                                  "
@@ -3313,7 +3313,7 @@ ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  [                                                  "
 "    [                                                "
 "      [                                              "
-{"type": "MultiPolygon", "coordinates": [[[[102, 2], [103, 2], [103, 3], [102, 3], [102, 2]], [[1, 0], [0, 0], [0, 1], [1, 0]]], [[[100, 0], [101, 0], [101, 1], [100, 1], [100, 0]]]]}
+{"type": "MultiPolygon", "coordinates": [[[[102.0, 2.0], [103.0, 2.0], [103.0, 3.0], [102.0, 3.0], [102.0, 2.0]], [[1.0, 0.0], [0.0, 0.0], [0.0, 1.0], [1.0, 0.0]]], [[[100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0]]]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"GeometryCollection\", \"geometries\":    "
 "    [ ]                                                  "
@@ -3367,7 +3367,7 @@ ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "    [                                                    "
 "      { \"type\": \"LineString\", \"coordinates\":       "
 "        [                                 
-{"type": "GeometryCollection", "geometries": [{"type": "LineString", "coordinates": [[102, 0], [103, 1], [104, 0], [105, 1]]}, {"type": "LineString", "coordinates": [[102, 0], [103, 1], [104, 0], [105, 1]]}]}
+{"type": "GeometryCollection", "geometries": [{"type": "LineString", "coordinates": [[102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0]]}, {"type": "LineString", "coordinates": [[102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0]]}]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"GeometryCollection\", \"geometries\":    "
 "    [                                                    "
@@ -3397,7 +3397,7 @@ ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "    [                                                    "
 "      { \"type\": \"LineString\", \"coordinates\":       "
 "        [                                 
-{"type": "GeometryCollection", "geometries": [{"type": "LineString", "coordinates": [[102, 0], [103, 1], [104, 0], [105, 1]]}, {"type": "LineString", "coordinates": [[102, 0], [103, 1], [104, 0], [105, 1]]}, {"type": "Point", "coordinates": [102, 0]}]}
+{"type": "GeometryCollection", "geometries": [{"type": "LineString", "coordinates": [[102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0]]}, {"type": "LineString", "coordinates": [[102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0]]}, {"type": "Point", "coordinates": [102.0, 0.0]}]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"GeometryCollection\", \"geometries\":      "
 "    [                                                      "
@@ -3427,7 +3427,7 @@ ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "    [                                                      "
 "      { \"type\": \"Point\", \"coordinates\":              "
 "        [102.0, 0.5]                
-{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [102, 0.5]}, {"type": "Point", "coordinates": [102, 0.5]}, {"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [102, 0.5]}, {"type": "Point", "coordinates": [102, 0.5]}]}, {"type": "Point", "coordinates": [102, 0.5]}]}
+{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [102.0, 0.5]}, {"type": "Point", "coordinates": [102.0, 0.5]}, {"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [102.0, 0.5]}, {"type": "Point", "coordinates": [102.0, 0.5]}]}, {"type": "Point", "coordinates": [102.0, 0.5]}]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"GeometryCollection\", \"geometries\":      "
 "    [                                                      "
@@ -3463,7 +3463,7 @@ ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "    [                                                      "
 "      { \"type\": \"MultiPoint\", \"coordinates\":         "
 "        [                           
-{"type": "GeometryCollection", "geometries": [{"type": "MultiPoint", "coordinates": [[-105.01, 39.57], [-80.66, 35]]}, {"type": "Point", "coordinates": [102, 0.5]}, {"type": "Point", "coordinates": [102, 0.5]}, {"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [102, 0.5]}, {"type": "Point", "coordinates": [102, 0.5]}]}, {"type": "Point", "coordinates": [102, 0.5]}]}
+{"type": "GeometryCollection", "geometries": [{"type": "MultiPoint", "coordinates": [[-105.01, 39.57], [-80.66, 35.0]]}, {"type": "Point", "coordinates": [102.0, 0.5]}, {"type": "Point", "coordinates": [102.0, 0.5]}, {"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [102.0, 0.5]}, {"type": "Point", "coordinates": [102.0, 0.5]}]}, {"type": "Point", "coordinates": [102.0, 0.5]}]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"GeometryCollection\", \"geometries\":      "
 "  [                                                        "
@@ -3544,7 +3544,7 @@ ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  [                                                        "
 "    { \"type\": \"Point\", \"coordinates\":                "
 "      [-105.01621, 39.57422]        
-{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [-105.01621, 39.57422]}, {"type": "MultiPoint", "coordinates": [[-105.01, 39.57], [-80.66, 35.05]]}, {"type": "LineString", "coordinates": [[-101.5, 39.662], [-101.75, 39.2415], [-101.64, 39.2415]]}, {"type": "MultiLineString", "coordinates": [[[-101.5, 39.662], [-101.75, 39.2415], [-101.23, 39.2415], [-101.749, 39.7984], [-101.5, 39.011]], [[-99.23, 38.6605], [-99.56, 38.727], [-99.25, 38.018]], [[-98.499, 38.913], [-98.499, 38.913], [-98.38, 38.15], [-97.5, 38.629]]]}, {"type": "Polygon", "coordinates": [[[41.83, 71.01], [56.95, 33.75], [21.79, 36.56], [41.83, 71.01]]]}, {"type": "MultiPolygon", "coordinates": [[[[102, 2], [103, 2], [103, 3], [102, 3], [102, 2]]], [[[100, 0], [101, 0], [101, 1], [100, 1], [100, 0]]]]}]}
+{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [-105.01621, 39.57422]}, {"type": "MultiPoint", "coordinates": [[-105.01, 39.57], [-80.66, 35.05]]}, {"type": "LineString", "coordinates": [[-101.5, 39.662], [-101.75, 39.2415], [-101.64, 39.2415]]}, {"type": "MultiLineString", "coordinates": [[[-101.5, 39.662], [-101.75, 39.2415], [-101.23, 39.2415], [-101.749, 39.7984], [-101.5, 39.011]], [[-99.23, 38.6605], [-99.56, 38.727], [-99.25, 38.018]], [[-98.499, 38.913], [-98.499, 38.913], [-98.38, 38.15], [-97.5, 38.629]]]}, {"type": "Polygon", "coordinates": [[[41.83, 71.01], [56.95, 33.75], [21.79, 36.56], [41.83, 71.01]]]}, {"type": "MultiPolygon", "coordinates": [[[[102.0, 2.0], [103.0, 2.0], [103.0, 3.0], [102.0, 3.0], [102.0, 2.0]]], [[[100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0]]]]}]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  {                                                              "
 "  \"type\": \"Feature\", \"id\": \"stadium\", \"geometry\":      "
@@ -3642,12 +3642,12 @@ ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "    [                                                  "
 "      { \"type\": \"Feature\", \"geometry\":           "
 "        { \"type\": \"Point\", \"coordinates\": 
-{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [-80.83775386582222, 35.24980190252168]}, {"type": "Point", "coordinates": [-80.83827000459532, 35.25674709224663]}, {"type": "Point", "coordinates": [-87.83827000459532, 42]}]}
+{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [-80.83775386582222, 35.24980190252168]}, {"type": "Point", "coordinates": [-80.83827000459532, 35.25674709224663]}, {"type": "Point", "coordinates": [-87.83827000459532, 42.0]}]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [1.23e3, 2.2e-1]}", 1, 0));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [1.23e3, 2.2e-1]}", 1, 0))
-{"type": "Point", "coordinates": [1230, 0.22]}
+{"type": "Point", "coordinates": [1230.0, 0.22]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [1e-300, 1e300]}", 1, 0));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
@@ -3662,7 +3662,7 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 20] }"));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 20] }"))
-{"type": "Point", "coordinates": [10, 20]}
+{"type": "Point", "coordinates": [10.0, 20.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
 "      \"crs\":                                           "
@@ -3719,7 +3719,7 @@ ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
 "      \"crs\": null                                      "
 "  }"))
-{"type": "Point", "coordinates": [10, 20]}
+{"type": "Point", "coordinates": [10.0, 20.0]}
 # Check that GeomFromGeoJSON can read data from a JSON field.
 CREATE TABLE json_tbl
 (
@@ -4064,7 +4064,7 @@ DROP TABLE t1;
 # SRID 0 (should pass)
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 0));
 ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 0))
-{"type": "Point", "coordinates": [0, 0]}
+{"type": "Point", "coordinates": [0.0, 0.0]}
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
 "      \"crs\":                                                    "
@@ -4081,7 +4081,7 @@ ST_SRID(ST_GEOMFROMGEOJSON(
 # Projected SRS (should pass)
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
 ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 2000))
-{"type": "Point", "coordinates": [0, 0]}
+{"type": "Point", "coordinates": [0.0, 0.0]}
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
 "      \"crs\":                                                    "
@@ -4098,7 +4098,7 @@ ST_SRID(ST_GEOMFROMGEOJSON(
 # Geographic SRS (should pass)
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
 ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 4326))
-{"type": "Point", "coordinates": [0, 0]}
+{"type": "Point", "coordinates": [0.0, 0.0]}
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
 "      \"crs\":                                                    "

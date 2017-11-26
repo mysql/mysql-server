@@ -41,8 +41,6 @@
 
 #define PSI_SOCKET_CALL(M) pfs_ ## M ## _v1
 
-C_MODE_START
-
 void pfs_register_socket_v1(const char *category,
                             PSI_socket_info_v1 *info,
                             int count);
@@ -70,8 +68,6 @@ void pfs_set_socket_info_v1(PSI_socket *socket,
                             socklen_t addr_len);
 
 void pfs_set_socket_thread_owner_v1(PSI_socket *socket);
-
-C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */

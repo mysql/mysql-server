@@ -46,7 +46,7 @@ Trigger_creation_ctx::create(THD *thd,
   const CHARSET_INFO *connection_cl;
   const CHARSET_INFO *db_cl= NULL;
 
-  bool invalid_creation_ctx= FALSE;
+  bool invalid_creation_ctx= false;
 
   if (resolve_charset(client_cs_name.str,
                       thd->variables.character_set_client,
@@ -58,7 +58,7 @@ Trigger_creation_ctx::create(THD *thd,
            "character_set_client",
            (const char *) client_cs_name.str);
 
-    invalid_creation_ctx= TRUE;
+    invalid_creation_ctx= true;
   }
 
   if (resolve_collation(connection_cl_name.str,
@@ -71,7 +71,7 @@ Trigger_creation_ctx::create(THD *thd,
            "collation_connection",
            (const char *) connection_cl_name.str);
 
-    invalid_creation_ctx= TRUE;
+    invalid_creation_ctx= true;
   }
 
   if (resolve_collation(db_cl_name.str, NULL, &db_cl))
@@ -82,7 +82,7 @@ Trigger_creation_ctx::create(THD *thd,
            "database_collation",
            (const char *) db_cl_name.str);
 
-    invalid_creation_ctx= TRUE;
+    invalid_creation_ctx= true;
   }
 
   if (invalid_creation_ctx)

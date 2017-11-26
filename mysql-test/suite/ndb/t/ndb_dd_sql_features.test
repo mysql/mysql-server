@@ -44,6 +44,7 @@
  ADD DATAFILE './table_space1/datafile.dat'
  USE LOGFILE GROUP lg
  INITIAL_SIZE 25M
+ EXTENT_SIZE 256K
  ENGINE NDB;
 
  CREATE TABLESPACE ts2
@@ -530,14 +531,12 @@ select length(@x0),length(@b2),length(@d2) from dual;
  DROP TABLE test.t1;
 
  ALTER TABLESPACE ts1
- DROP DATAFILE './table_space1/datafile.dat'
- ENGINE=NDB;
- DROP TABLESPACE ts1 ENGINE=NDB;
+ DROP DATAFILE './table_space1/datafile.dat';
+ DROP TABLESPACE ts1;
 
  ALTER TABLESPACE ts2
- DROP DATAFILE './table_space2/datafile.dat'
- ENGINE=NDB;
- DROP TABLESPACE ts2 ENGINE=NDB;
+ DROP DATAFILE './table_space2/datafile.dat';
+ DROP TABLESPACE ts2;
 
  DROP LOGFILE GROUP lg
  ENGINE=NDB;

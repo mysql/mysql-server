@@ -665,7 +665,7 @@ void free_table_share(TABLE_SHARE *share)
 
 
 /**
-  Return TRUE if a table name matches one of the system table names.
+  Return true if a table name matches one of the system table names.
   Currently these are:
 
   help_category, help_keyword, help_relation, help_topic,
@@ -1851,7 +1851,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
       name.str= (char*) next_chunk + 2;
       name.length= str_db_type_length;
 
-      plugin_ref tmp_plugin= ha_resolve_by_name(thd, &name, FALSE);
+      plugin_ref tmp_plugin= ha_resolve_by_name(thd, &name, false);
       if (tmp_plugin != NULL && !plugin_equals(tmp_plugin, share->db_plugin))
       {
         if (legacy_db_type > DB_TYPE_UNKNOWN &&
@@ -2530,7 +2530,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   if (!(bitmaps= (my_bitmap_map*) alloc_root(&share->mem_root,
                                              share->column_bitmap_size)))
     goto err;
-  bitmap_init(&share->all_set, bitmaps, share->fields, FALSE);
+  bitmap_init(&share->all_set, bitmaps, share->fields, false);
   bitmap_set_all(&share->all_set);
 
   destroy(handler_file);
@@ -2561,8 +2561,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
 
   @param field  Pointer of generated column
 
-  @retval TRUE  The generated expression has some invalid objects
-  @retval FALSE No illegal objects in the generated expression
+  @retval true  The generated expression has some invalid objects
+  @retval false No illegal objects in the generated expression
  */
 static bool validate_generated_expr(Field *field)
 {
@@ -2584,7 +2584,7 @@ static bool validate_generated_expr(Field *field)
       (expr->cols() != 1))                      // 3)
   {
     my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   DBUG_ASSERT(!expr->has_subquery());           // 4)
   /*
@@ -2598,10 +2598,10 @@ static bool validate_generated_expr(Field *field)
                  pointer_cast<uchar*>(&args)))
   {
     my_error(args[1], MYF(0), field_name);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**
@@ -2611,13 +2611,13 @@ static bool validate_generated_expr(Field *field)
   @param thd                The thread object
   @param field              The processed field
 
-  @retval TRUE An error occurred, something was wrong with the function.
-  @retval FALSE Ok, generated expression is fixed sucessfully 
+  @retval true An error occurred, something was wrong with the function.
+  @retval false Ok, generated expression is fixed sucessfully 
  */
 static bool fix_fields_gcol_func(THD *thd, Field *field)
 {
   uint dir_length, home_dir_length;
-  bool result= TRUE;
+  bool result= true;
   Item* func_expr= field->gcol_info->expr_item;
   TABLE *table= field->table;
   TABLE_LIST tables;
@@ -2651,7 +2651,7 @@ static bool fix_fields_gcol_func(THD *thd, Field *field)
   thd->mark_used_columns= MARK_COLUMNS_NONE;
 
   context= thd->lex->current_context();
-  table->get_fields_in_item_tree= TRUE;
+  table->get_fields_in_item_tree= true;
   save_table_list= context->table_list;
   save_first_table= context->first_name_resolution_table;
   save_last_table= context->last_name_resolution_table;
@@ -2665,7 +2665,7 @@ static bool fix_fields_gcol_func(THD *thd, Field *field)
 
   /* Save the context before fixing the fields*/
   save_use_only_table_context= thd->lex->use_only_table_context;
-  thd->lex->use_only_table_context= TRUE;
+  thd->lex->use_only_table_context= true;
 
   bool charset_switched= false;
   const CHARSET_INFO *saved_collation_connection= func_expr->default_charset();
@@ -2702,10 +2702,10 @@ static bool fix_fields_gcol_func(THD *thd, Field *field)
 
   // Virtual columns expressions that substitute themselves are invalid
   DBUG_ASSERT(new_func == func_expr);
-  result= FALSE;
+  result= false;
 
 end:
-  table->get_fields_in_item_tree= FALSE;
+  table->get_fields_in_item_tree= false;
   thd->mark_used_columns= save_mark_used_columns;
   DBUG_RETURN(result);
 }
@@ -2806,7 +2806,7 @@ bool unpack_gcol_info(THD *thd,
                                           gcol_expr->length +
                                             PARSE_GCOL_KEYWORD.length + 3)))
   {
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   memcpy(gcol_expr_str,
          PARSE_GCOL_KEYWORD.str,
@@ -2891,7 +2891,7 @@ bool unpack_gcol_info(THD *thd,
         It is not ok if it happens during the opening of an frm
         file as part of a normal query.
       */
-      *error_reported= TRUE;
+      *error_reported= true;
     }
     // Any memory allocated in this function is freed in parse_err
     field->gcol_info= 0;
@@ -2907,7 +2907,7 @@ bool unpack_gcol_info(THD *thd,
   thd->want_privilege= save_old_privilege;
   thd->lex->expr_allows_subselect= save_allow_subselects;
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 parse_err:
   // Any created window is eliminated as not allowed:
@@ -2920,7 +2920,7 @@ parse_err:
   thd->variables.character_set_client= old_character_set_client;
   thd->want_privilege= save_old_privilege;
   thd->lex->expr_allows_subselect= save_allow_subselects;
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -3050,7 +3050,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 {
   int error;
   uint records, i, bitmap_size;
-  bool error_reported= FALSE;
+  bool error_reported= false;
   const bool internal_tmp=
     share->table_category == TABLE_CATEGORY_TEMPORARY;
   DBUG_ASSERT(!internal_tmp || share->ref_count != 0);
@@ -3250,7 +3250,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
         It is not ok if it happens during the opening of an frm
         file as part of a normal query.
       */
-      error_reported= TRUE;
+      error_reported= true;
     }
     goto err;
   }
@@ -3262,7 +3262,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN,
              MYF(0),
              "Specified storage engine");
-    error_reported= TRUE;
+    error_reported= true;
     goto err;
   }
 
@@ -3276,16 +3276,16 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (!(bitmaps= (uchar*) alloc_root(root, bitmap_size * 5)))
     goto err;
   bitmap_init(&outparam->def_read_set,
-              (my_bitmap_map*) bitmaps, share->fields, FALSE);
+              (my_bitmap_map*) bitmaps, share->fields, false);
   bitmap_init(&outparam->def_write_set,
-              (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, FALSE);
+              (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, false);
   bitmap_init(&outparam->tmp_set,
-              (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
+              (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, false);
   bitmap_init(&outparam->cond_set,
-              (my_bitmap_map*) (bitmaps+bitmap_size*3), share->fields, FALSE);
+              (my_bitmap_map*) (bitmaps+bitmap_size*3), share->fields, false);
   bitmap_init(&outparam->def_fields_set_during_insert,
               (my_bitmap_map*) (bitmaps + bitmap_size * 4), share->fields,
-              FALSE);
+              false);
   outparam->default_column_bitmaps();
 
   /*
@@ -3390,7 +3390,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
           break;
         default:
           outparam->file->print_error(ha_err, MYF(0));
-          error_reported= TRUE;
+          error_reported= true;
           if (ha_err == HA_ERR_TABLE_DEF_CHANGED)
             error= 7;
           else if (ha_err == HA_ERR_ROW_FORMAT_CHANGED)
@@ -3407,7 +3407,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       (share->table_category == TABLE_CATEGORY_RPL_INFO) ||
       (share->table_category == TABLE_CATEGORY_GTID))
   {
-    outparam->no_replicate= TRUE;
+    outparam->no_replicate= true;
   }
   else if (outparam->file)
   {
@@ -3418,7 +3418,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   }
   else
   {
-    outparam->no_replicate= FALSE;
+    outparam->no_replicate= false;
   }
 
   /* Increment the opened_tables counter, only when open flags set. */
@@ -3864,7 +3864,7 @@ Ident_name_check check_table_name(const char *name, size_t length)
   const char *end= name+length;
   if (!length || length > NAME_LEN)
     return Ident_name_check::WRONG;
-  bool last_char_is_space= FALSE;
+  bool last_char_is_space= false;
 
   while (name != end)
   {
@@ -3894,7 +3894,7 @@ bool check_column_name(const char *name)
 {
   // name length in symbols
   size_t name_length= 0;
-  bool last_char_is_space= TRUE;
+  bool last_char_is_space= true;
 
   while (*name)
   {
@@ -3928,8 +3928,8 @@ bool check_column_name(const char *name)
   @param[in] table_def         Expected structure of the table (column name
                                and type)
 
-  @retval  FALSE  OK
-  @retval  TRUE   There was an error.
+  @retval  false  OK
+  @retval  true   There was an error.
 */
 
 bool
@@ -3937,7 +3937,7 @@ Table_check_intact::check(THD *thd, TABLE *table,
                           const TABLE_FIELD_DEF *table_def)
 {
   uint i;
-  bool error= FALSE;
+  bool error= false;
   const TABLE_FIELD_TYPE *field_def= table_def->field;
   DBUG_ENTER("table_check_intact");
   DBUG_PRINT("info",("table: %s  expected_count: %d",
@@ -3945,7 +3945,7 @@ Table_check_intact::check(THD *thd, TABLE *table,
 
   /* Whether the table definition has already been validated. */
   if (table->s->table_field_def_cache == table_def)
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   if (table->s->fields != table_def->count)
   {
@@ -3960,7 +3960,7 @@ Table_check_intact::check(THD *thd, TABLE *table,
                    table_def->count, table->s->fields,
                    static_cast<int>(table->s->mysql_version),
                    MYSQL_VERSION_ID);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
     {
@@ -3968,7 +3968,7 @@ Table_check_intact::check(THD *thd, TABLE *table,
                    ER_THD(thd, ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2),
                    table->s->db.str, table->s->table_name.str,
                    table_def->count, table->s->fields);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
     /*
       Something has definitely changed, but we're running an older
@@ -4026,7 +4026,7 @@ Table_check_intact::check(THD *thd, TABLE *table,
                      "have type %s, found type %s.", table->s->db.str,
                      table->alias, field_def->name.str, i, field_def->type.str,
                      sql_type.c_ptr_safe());
-        error= TRUE;
+        error= true;
       }
       else if (field_def->cset.str && !field->has_charset())
       {
@@ -4035,7 +4035,7 @@ Table_check_intact::check(THD *thd, TABLE *table,
                      "position %d to have character set '%s' but the type "
                      "has no character set.", table->s->db.str, table->alias,
                      field_def->name.str, i, field_def->cset.str);
-        error= TRUE;
+        error= true;
       }
       else if (field_def->cset.str &&
                strcmp(field->charset()->csname, field_def->cset.str))
@@ -4046,7 +4046,7 @@ Table_check_intact::check(THD *thd, TABLE *table,
                      "character set '%s'.", table->s->db.str, table->alias,
                      field_def->name.str, i, field_def->cset.str,
                      field->charset()->csname);
-        error= TRUE;
+        error= true;
       }
     }
     else
@@ -4056,7 +4056,7 @@ Table_check_intact::check(THD *thd, TABLE *table,
                    "have type %s but the column is not found.",
                    table->s->db.str, table->alias,
                    field_def->name.str, i, field_def->type.str);
-      error= TRUE;
+      error= true;
     }
   }
 
@@ -4071,9 +4071,9 @@ Table_check_intact::check(THD *thd, TABLE *table,
   Traverse portion of wait-for graph which is reachable through edge
   represented by this flush ticket in search for deadlocks.
 
-  @retval TRUE  A deadlock is found. A victim is remembered
+  @retval true  A deadlock is found. A victim is remembered
                 by the visitor.
-  @retval FALSE Success, no deadlocks.
+  @retval false Success, no deadlocks.
 */
 
 bool Wait_for_flush::accept_visitor(MDL_wait_for_graph_visitor *gvisitor)
@@ -4095,9 +4095,9 @@ uint Wait_for_flush::get_deadlock_weight() const
   @param wait_for_flush Undocumented.
   @param gvisitor        Deadlock detection visitor.
 
-  @retval TRUE  A deadlock is found. A victim is remembered
+  @retval true  A deadlock is found. A victim is remembered
                 by the visitor.
-  @retval FALSE No deadlocks, it's OK to begin wait.
+  @retval false No deadlocks, it's OK to begin wait.
 */
 
 bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
@@ -4105,8 +4105,8 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
 {
   TABLE *table;
   MDL_context *src_ctx= wait_for_flush->get_ctx();
-  bool result= TRUE;
-  bool locked= FALSE;
+  bool result= true;
+  bool locked= false;
 
   /*
     To protect used_tables list from being concurrently modified
@@ -4117,7 +4117,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
   */
   if (gvisitor->m_lock_open_count++ == 0)
   {
-    locked= TRUE;
+    locked= true;
     table_cache_manager.lock_all_and_tdc();
   }
 
@@ -4130,7 +4130,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
   */
   if (src_ctx->m_wait.get_status() != MDL_wait::EMPTY)
   {
-    result= FALSE;
+    result= false;
     goto end;
   }
 
@@ -4154,7 +4154,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
     }
   }
 
-  result= FALSE;
+  result= false;
 
 end_leave_node:
   gvisitor->leave_node(src_ctx);
@@ -4210,8 +4210,8 @@ const histograms::Histogram* TABLE_SHARE::find_histogram(uint field_index)
        this connection does not reference the share.
        LOCK_open will be unlocked temporarily during execution.
 
-  @retval FALSE - Success.
-  @retval TRUE  - Error (OOM, deadlock, timeout, etc...).
+  @retval false - Success.
+  @retval true  - Error (OOM, deadlock, timeout, etc...).
 */
 
 bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
@@ -4241,7 +4241,7 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
 
   DEBUG_SYNC(thd, "flush_complete");
 
-  wait_status= mdl_context->m_wait.timed_wait(thd, abstime, TRUE,
+  wait_status= mdl_context->m_wait.timed_wait(thd, abstime, true,
                                               &stage_waiting_for_table_flush);
 
   mdl_context->done_waiting_for();
@@ -4275,18 +4275,18 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
   switch (wait_status)
   {
   case MDL_wait::GRANTED:
-    return FALSE;
+    return false;
   case MDL_wait::VICTIM:
     my_error(ER_LOCK_DEADLOCK, MYF(0));
-    return TRUE;
+    return true;
   case MDL_wait::TIMEOUT:
     my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
-    return TRUE;
+    return true;
   case MDL_wait::KILLED:
-    return TRUE;
+    return true;
   default:
     DBUG_ASSERT(0);
-    return TRUE;
+    return true;
   }
 }
 
@@ -4344,8 +4344,8 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
     memcpy((char*) alias, tl->alias, length);
   }
 
-  const_table= FALSE;
-  nullable= FALSE;
+  const_table= false;
+  nullable= false;
   force_index= 0;
   force_index_order= 0;
   force_index_group= 0;
@@ -4357,7 +4357,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
 
   /* Catch wrong handling of the auto_increment_field_not_null. */
   DBUG_ASSERT(!auto_increment_field_not_null);
-  auto_increment_field_not_null= FALSE;
+  auto_increment_field_not_null= false;
 
   pos_in_table_list= tl;
 
@@ -4400,7 +4400,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   @param alias_arg  table's alias
   @param fld        table's fields array
   @param blob_fld   buffer for blob field index
-  @param is_virtual TRUE <=> it's a virtual tmp table
+  @param is_virtual true <=> it's a virtual tmp table
 
   @returns
     true  OOM
@@ -4518,7 +4518,7 @@ bool TABLE::refix_gc_items(THD *thd)
 
         // Restore any privileges check
         thd->want_privilege= sav_want_priv;
-        get_fields_in_item_tree= FALSE;
+        get_fields_in_item_tree= false;
 
         /* error occurs */
         if (res)
@@ -4565,9 +4565,9 @@ bool TABLE::fill_item_list(List<Item> *item_list) const
   {
     Item_field *item= new Item_field(*ptr);
     if (!item || item_list->push_back(item))
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 /**
@@ -4671,7 +4671,7 @@ bool TABLE_LIST::merge_underlying_tables(SELECT_LEX *select)
 void TABLE_LIST::reset()
 {
   // @todo If TABLE::init() was always called, this would not be necessary:
-  table->const_table= FALSE;
+  table->const_table= false;
   table->set_not_started();
 
   table->force_index= force_index;
@@ -5072,7 +5072,7 @@ bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
     NATURAL/USING join, or a nested join with materialized join
     columns.
 
-  @retval TRUE if a leaf, FALSE otherwise.
+  @retval true if a leaf, false otherwise.
 */
 bool TABLE_LIST::is_leaf_for_name_resolution() const
 {
@@ -5190,8 +5190,8 @@ TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution()
 
   @param thd                  thread handler
 
-  @retval FALSE OK
-  @retval TRUE Error
+  @retval false OK
+  @retval true Error
 */
 
 bool TABLE_LIST::prepare_view_security_context(THD *thd)
@@ -5237,11 +5237,11 @@ bool TABLE_LIST::prepare_view_security_context(THD *thd)
                      thd->security_context()->priv_host().str,
                      (thd->password ?  ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO)));
         }
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -5285,8 +5285,8 @@ Security_context *TABLE_LIST::find_view_security_context(THD *thd)
 
   @param thd                  thread handler
 
-  @retval FALSE OK
-  @retval TRUE Error
+  @retval false OK
+  @retval true Error
 */
 
 bool TABLE_LIST::prepare_security(THD *thd)
@@ -5298,7 +5298,7 @@ bool TABLE_LIST::prepare_security(THD *thd)
 
   DBUG_ASSERT(!prelocking_placeholder);
   if (prepare_view_security_context(thd))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   /* Acl_map was previously checked out by get_aclroot */
   thd->set_security_context(find_view_security_context(thd));
   opt_trace_disable_if_no_security_context_access(thd);
@@ -5326,7 +5326,7 @@ bool TABLE_LIST::prepare_security(THD *thd)
                                     local_table_name);
   }
   thd->set_security_context(save_security_ctx);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -5337,7 +5337,7 @@ Natural_join_column::Natural_join_column(Field_translator *field_param,
   view_field= field_param;
   table_field= NULL;
   table_ref= tab;
-  is_common= FALSE;
+  is_common= false;
 }
 
 
@@ -5354,7 +5354,7 @@ Natural_join_column::Natural_join_column(Item_field *field_param,
     field_param->cached_table= tab;
   view_field= NULL;
   table_ref= tab;
-  is_common= FALSE;
+  is_common= false;
 }
 
 
@@ -5712,7 +5712,7 @@ Natural_join_column *
 Field_iterator_table_ref::get_or_create_column_ref(THD *thd, TABLE_LIST *parent_table_ref)
 {
   Natural_join_column *nj_col;
-  bool is_created= TRUE;
+  bool is_created= true;
   uint field_count= 0;
   TABLE_LIST *add_table_ref= parent_table_ref ?
                              parent_table_ref : table_ref;
@@ -5744,7 +5744,7 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, TABLE_LIST *parent_
       we just return the already created column reference.
     */
     DBUG_ASSERT(table_ref->is_join_columns_complete);
-    is_created= FALSE;
+    is_created= false;
     nj_col= natural_join_it.column_ref();
     DBUG_ASSERT(nj_col);
   }
@@ -5765,7 +5765,7 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, TABLE_LIST *parent_
       /* Create a list of natural join columns on demand. */
       if (!(add_table_ref->join_columns= new (*THR_MALLOC) List<Natural_join_column>))
         return NULL;
-      add_table_ref->is_join_columns_complete= FALSE;
+      add_table_ref->is_join_columns_complete= false;
     }
     add_table_ref->join_columns->push_back(nj_col);
     /*
@@ -5777,7 +5777,7 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, TABLE_LIST *parent_
     */
     if (!parent_table_ref &&
         add_table_ref->join_columns->elements == field_count)
-      add_table_ref->is_join_columns_complete= TRUE;
+      add_table_ref->is_join_columns_complete= true;
   }
 
   return nj_col;
@@ -5949,7 +5949,7 @@ void TABLE::mark_columns_used_by_index(uint index)
   MY_BITMAP *bitmap= &tmp_set;
   DBUG_ENTER("TABLE::mark_columns_used_by_index");
 
-  set_keyread(TRUE);
+  set_keyread(true);
   bitmap_clear_all(bitmap);
   mark_columns_used_by_index_no_reset(index, bitmap);
   column_bitmaps_set(bitmap, bitmap);
@@ -6263,7 +6263,7 @@ void TABLE::mark_columns_per_binlog_row_image(THD *thd)
         break;
 
       default: 
-        DBUG_ASSERT(FALSE);
+        DBUG_ASSERT(false);
     }
     file->column_bitmaps_signal();
   }
@@ -6346,8 +6346,8 @@ bool TABLE::alloc_tmp_keys(uint key_count, bool modify_share)
   @todo somehow manage to create keys in tmp_table_param for unification
         purposes
 
-  @return TRUE OOM error.
-  @return FALSE the key was created or ignored (too long key).
+  @return true OOM error.
+  @return false the key was created or ignored (too long key).
 */
 
 bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name,
@@ -6357,7 +6357,7 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name,
 
   Field **reg_field;
   uint i;
-  bool key_start= TRUE;
+  bool key_start= true;
   uint field_count= 0;
   uint key_len= 0;
 
@@ -6450,7 +6450,7 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name,
 
     if (key_start)
       (*reg_field)->key_start.set_bit(keyno);
-    key_start= FALSE;
+    key_start= false;
     (*reg_field)->part_of_key.set_bit(keyno);
     (*reg_field)->part_of_sortkey.set_bit(keyno);
     (*reg_field)->flags|= PART_KEY_FLAG;
@@ -6623,8 +6623,8 @@ void TABLE::mark_columns_needed_for_insert(THD *thd)
   @brief Update the write/read_set for generated columns
          when doing update and insert operation.
 
-  @param        is_update  TRUE means the operation is UPDATE.
-                           FALSE means it's INSERT.
+  @param        is_update  true means the operation is UPDATE.
+                           false means it's INSERT.
 
   @return       void
 
@@ -6670,7 +6670,7 @@ void TABLE::mark_columns_needed_for_insert(THD *thd)
 void TABLE::mark_generated_columns(bool is_update)
 {
   Field **vfield_ptr, *tmp_vfield;
-  bool bitmap_updated= FALSE;
+  bool bitmap_updated= false;
 
   if (is_update)
   {
@@ -6704,7 +6704,7 @@ void TABLE::mark_generated_columns(bool is_update)
         // In order to update the new value, we have to read the old value
         tmp_vfield->table->mark_column_used(in_use, tmp_vfield,
                                             MARK_COLUMNS_READ);
-        bitmap_updated= TRUE;
+        bitmap_updated= true;
       }
     }
   }
@@ -6716,7 +6716,7 @@ void TABLE::mark_generated_columns(bool is_update)
       DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
       tmp_vfield->table->mark_column_used(in_use, tmp_vfield,
                                           MARK_COLUMNS_WRITE);
-      bitmap_updated= TRUE;
+      bitmap_updated= true;
     }
   }
 
@@ -6728,7 +6728,7 @@ void TABLE::mark_generated_columns(bool is_update)
   Check whether a base field is dependent on any generated columns.
 
   @return
-    TRUE     The field is dependent by some GC.
+    true     The field is dependent by some GC.
 
 */
 bool TABLE::is_field_used_by_generated_columns(uint field_index)
@@ -6885,8 +6885,8 @@ bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl)
     Key_map index_order[INDEX_HINT_FORCE + 1];
     Key_map index_group[INDEX_HINT_FORCE + 1];
     Index_hint *hint;
-    bool have_empty_use_join= FALSE, have_empty_use_order= FALSE, 
-         have_empty_use_group= FALSE;
+    bool have_empty_use_join= false, have_empty_use_order= false, 
+         have_empty_use_group= false;
     List_iterator <Index_hint> iter(*index_hints);
 
     /* iterate over the hints list */
@@ -6900,17 +6900,17 @@ bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl)
         if (hint->clause & INDEX_HINT_MASK_JOIN)
         {
           index_join[hint->type].clear_all();
-          have_empty_use_join= TRUE;
+          have_empty_use_join= true;
         }
         if (hint->clause & INDEX_HINT_MASK_ORDER)
         {
           index_order[hint->type].clear_all();
-          have_empty_use_order= TRUE;
+          have_empty_use_order= true;
         }
         if (hint->clause & INDEX_HINT_MASK_GROUP)
         {
           index_group[hint->type].clear_all();
-          have_empty_use_group= TRUE;
+          have_empty_use_group= true;
         }
         continue;
       }
@@ -6955,13 +6955,13 @@ bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl)
     /* process FORCE INDEX as USE INDEX with a flag */
     if (!index_order[INDEX_HINT_FORCE].is_clear_all())
     {
-      tbl->force_index_order= TRUE;
+      tbl->force_index_order= true;
       index_order[INDEX_HINT_USE].merge(index_order[INDEX_HINT_FORCE]);
     }
 
     if (!index_group[INDEX_HINT_FORCE].is_clear_all())
     {
-      tbl->force_index_group= TRUE;
+      tbl->force_index_group= true;
       index_group[INDEX_HINT_USE].merge(index_group[INDEX_HINT_FORCE]);
     }
 
@@ -6973,7 +6973,7 @@ bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl)
     if (!index_join[INDEX_HINT_FORCE].is_clear_all() ||
         tbl->force_index_group || tbl->force_index_order)
     {
-      tbl->force_index= TRUE;
+      tbl->force_index= true;
       index_join[INDEX_HINT_USE].merge(index_join[INDEX_HINT_FORCE]);
     }
 
@@ -7289,8 +7289,8 @@ int TABLE_LIST::fetch_number_of_rows()
   which freezes the key definition: other query blocks will not be allowed to
   add keys.
 
-  @return TRUE  OOM
-  @return FALSE otherwise
+  @return true  OOM
+  @return false otherwise
 */
 
 static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
@@ -7327,11 +7327,11 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
     key++;
     entry= new (thd->mem_root) Derived_key();
     if (!entry)
-      return TRUE;
+      return true;
     entry->referenced_by= ref_by_tbl;
     entry->used_fields.clear_all();
     if (derived_key_list.push_back(entry, thd->mem_root))
-      return TRUE;
+      return true;
   }
   /* Don't create keys longer than REF access can use. */
   if (entry->used_fields.bits_set() < MAX_REF_PARTS)
@@ -7340,7 +7340,7 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
     field->flags|= PART_KEY_FLAG;
     entry->used_fields.set_bit(field->field_index);
   }
-  return FALSE;
+  return false;
 }
 
 /*
@@ -7360,8 +7360,8 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
   part_of_key bitmaps are updated accordingly.
   @see add_derived_key
 
-  @return TRUE  new possible key can't be allocated.
-  @return FALSE list of possible keys successfully updated.
+  @return true  new possible key can't be allocated.
+  @return false list of possible keys successfully updated.
 */
 
 bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
@@ -7374,7 +7374,7 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
   if (field->table->in_use->lex->is_ps_or_view_context_analysis() ||
       field->flags & BLOB_FLAG ||
       field->field_length == 0)
-    return FALSE;
+    return false;
 
   /* Allow all keys to be used. */
   if (derived_key_list.elements == 0)
@@ -7390,13 +7390,13 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
       if (! (tables & tbl))
         continue;
       if (add_derived_key(derived_key_list, field, tbl))
-        return TRUE;
+        return true;
     }
   }
   /* Extend key which includes all referenced fields. */
   if (add_derived_key(derived_key_list, field, (table_map)0))
-    return TRUE;
-  return FALSE;
+    return true;
+  return false;
 }
 
 
@@ -7423,8 +7423,8 @@ static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void*)
   sequential number, is given to each key to ease debugging.
   @see add_derived_key
 
-  @return TRUE  an error occur.
-  @return FALSE all keys were successfully added.
+  @return true  an error occur.
+  @return false all keys were successfully added.
 */
 
 bool TABLE_LIST::generate_keys()
@@ -7484,14 +7484,14 @@ bool TABLE_LIST::generate_keys()
       if (t->add_tmp_key(&entry->used_fields, name_buf,
                          t->pos_in_table_list->select_lex != select_lex,
                          ref_it.is_first()))
-        return TRUE;                            /* purecov: inspected */
+        return true;                            /* purecov: inspected */
     }
   }
 
   if (table->s->keys)
     table->s->owner_of_possible_tmp_keys= select_lex; // Acquire lock
 
-  return FALSE;
+  return false;
 }
 
 
@@ -7500,8 +7500,8 @@ bool TABLE_LIST::generate_keys()
 
   @param conds               WHERE clause expression
 
-  @retval TRUE   error (OOM)
-  @retval FALSE  success
+  @retval true   error (OOM)
+  @retval false  success
 
   @note
     Set const_key_parts bits if key fields are equal to constants in
@@ -7513,7 +7513,7 @@ bool TABLE::update_const_key_parts(Item *conds)
   memset(const_key_parts, 0, sizeof(key_part_map) * s->keys);
 
   if (conds == NULL)
-    return FALSE;
+    return false;
 
   for (uint index= 0; index < s->keys; index++)
   {
@@ -7531,7 +7531,7 @@ bool TABLE::update_const_key_parts(Item *conds)
 
   /*
     Handle error for the whole function here instead of along with the call for
-    const_expression_in_where() as the function does not return TRUE for errors.
+    const_expression_in_where() as the function does not return true for errors.
   */
   return this->in_use && this->in_use->is_error();
 }
@@ -7581,7 +7581,7 @@ bool TABLE::check_read_removal(uint index)
 
   @param order                Linked list of ORDER BY arguments
 
-  @return TRUE if @a order is empty or consist of simple field expressions
+  @return true if @a order is empty or consist of simple field expressions
 */
 
 bool is_simple_order(ORDER *order)
@@ -7589,9 +7589,9 @@ bool is_simple_order(ORDER *order)
   for (ORDER *ord= order; ord; ord= ord->next)
   {
     if (ord->item[0]->real_item()->type() != Item::FIELD_ITEM)
-      return FALSE;
+      return false;
   }
-  return TRUE;
+  return true;
 }
 
 
@@ -7772,8 +7772,8 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table)
   }
 
   if (error > 0)
-    DBUG_RETURN(TRUE);
-  DBUG_RETURN(FALSE);
+    DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 
@@ -8503,9 +8503,9 @@ bool create_table_share_for_upgrade(THD *thd,
                     table_name, is_fix_view_cols_and_deps))
   {
     free_table_share(share);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 void TABLE::blobs_need_not_keep_old_value()

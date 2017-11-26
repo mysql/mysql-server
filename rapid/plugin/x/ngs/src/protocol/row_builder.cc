@@ -137,7 +137,7 @@ static inline int count_leading_zeroes(int i, dec1 val)
   case 2: if (val >= 100) break; ++ret;  // Fall through.
   case 1: if (val >= 10) break; ++ret;  // Fall through.
   case 0: if (val >= 1) break; ++ret;  // Fall through.
-  default: { DBUG_ASSERT(FALSE); }
+  default: { DBUG_ASSERT(false); }
   }
   return ret;
 }

@@ -2509,7 +2509,6 @@ int log_message(int log_type, ...)
   New plugins should use the service structure.
 */
 
-extern "C"
 int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
                           const char *format, ...)
 {

@@ -927,7 +927,7 @@ static bool rea_create_tmp_table(THD *thd, const char *path,
   // Transfer ownership of dd::Table object to TABLE_SHARE.
   table->s->tmp_table_def= tmp_table_ptr.release();
 
-  thd->thread_specific_used= TRUE;
+  thd->thread_specific_used= true;
 
   if (binlog_to_trx_cache != NULL)
     *binlog_to_trx_cache= table->file->has_transactions();
@@ -1128,9 +1128,9 @@ int write_bin_log(THD *thd, bool clear_error,
     if (clear_error)
       thd->clear_error();
     else
-      errcode= query_error_code(thd, TRUE);
+      errcode= query_error_code(thd, true);
     error= thd->binlog_query(THD::STMT_QUERY_TYPE,
-                             query, query_length, is_trans, FALSE, FALSE,
+                             query, query_length, is_trans, false, false,
                              errcode);
   }
   return error;
@@ -1427,8 +1427,8 @@ void Foreign_key_parents_invalidator::invalidate(THD *thd)
     not if under LOCK TABLES.
 
   RETURN
-    FALSE OK.  In this case ok packet is sent to user
-    TRUE  Error
+    false OK.  In this case ok packet is sent to user
+    true  Error
 
 */
 
@@ -1594,7 +1594,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, bool if_exists,
   }
 
   if (error)
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   if (thd->lex->drop_temporary && thd->in_multi_stmt_transaction_mode())
   {
@@ -1607,7 +1607,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, bool if_exists,
     thd->server_status|= SERVER_STATUS_IN_TRANS;
   }
   my_ok(thd);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -5008,7 +5008,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
                (key_info->flags & HA_NOSAME))))
     {
       my_error(ER_WRONG_SUB_KEY, MYF(0));
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
     else if (!(file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS))
       key_part_length= column_length;
@@ -5917,7 +5917,7 @@ bool mysql_prepare_create_table(THD *thd,
   {
     my_error(ER_WRONG_STRING_LENGTH, MYF(0),
              connect_string->str, "CONNECTION", CONNECT_STRING_MAXLEN);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   LEX_STRING *compress= &create_info->compress;
@@ -5946,7 +5946,7 @@ bool mysql_prepare_create_table(THD *thd,
   {
     my_error(ER_WRONG_STRING_LENGTH, MYF(0),
              encrypt_type->str, "ENCRYPTION", TABLE_COMMENT_MAXLEN);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (validate_comment_length(thd,
@@ -6558,7 +6558,7 @@ bool create_table_impl(THD *thd,
     }
     part_handler->set_auto_partitions(part_info);
     part_info->default_engine_type= create_info->db_type;
-    part_info->is_auto_partitioned= TRUE;
+    part_info->is_auto_partitioned= true;
   }
   if (part_info)
   {
@@ -6628,7 +6628,7 @@ bool create_table_impl(THD *thd,
              ha_resolve_storage_engine_name(part_info->default_engine_type),
              ha_resolve_storage_engine_name(create_info->db_type)));
     if (part_info->check_partition_info(thd, &engine_type, file.get(),
-                                        create_info, FALSE))
+                                        create_info, false))
       DBUG_RETURN(true);
     part_info->default_engine_type= engine_type;
 
@@ -6653,7 +6653,7 @@ bool create_table_impl(THD *thd,
       if (file.get() == nullptr)
       {
         mem_alloc_error(sizeof(handler));
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
       create_info->db_type= engine_type;
     }
@@ -7393,7 +7393,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                         Alter_info *alter_info)
 {
   bool result;
-  bool is_trans= FALSE;
+  bool is_trans= false;
   uint not_used;
   handlerton *post_ddl_ht= nullptr;
   Foreign_key_parents_invalidator fk_invalidator;
@@ -8033,8 +8033,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     create_info Create info
 
   RETURN VALUES
-    FALSE OK
-    TRUE  error
+    false OK
+    true  error
 */
 
 bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
@@ -8042,7 +8042,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 {
   Alter_info local_alter_info(thd->mem_root);
   Alter_table_ctx local_alter_ctx; // Not used
-  bool is_trans= FALSE;
+  bool is_trans= false;
   uint not_used;
   Tablespace_hash_set tablespace_set(PSI_INSTRUMENT_ME);
   handlerton *post_ddl_ht= nullptr;
@@ -8264,7 +8264,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         String query(buf, sizeof(buf), system_charset_info);
         query.length(0);  // Have to zero it since constructor doesn't
         Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
-        bool new_table= FALSE; // Whether newly created table is open.
+        bool new_table= false; // Whether newly created table is open.
 
         /*
           The condition avoids a crash as described in BUG#48506. Other
@@ -8294,7 +8294,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
             if (result)
               goto err;
-            new_table= TRUE;
+            new_table= true;
           }
 
           /*
@@ -8322,7 +8322,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
           int result MY_ATTRIBUTE((unused))=
             store_create_info(thd, table, &query,
-                              create_info, TRUE /* show_database */);
+                              create_info, true /* show_database */);
 
           DBUG_ASSERT(result == 0); // store_create_info() always return 0
 
@@ -9659,8 +9659,8 @@ static bool push_zero_date_warning(THD *thd, Create_field *datetime_field)
       keys_onoff             ENABLE | DISABLE | LEAVE_AS_IS
 
   RETURN VALUES
-    FALSE  OK
-    TRUE   Error
+    false  OK
+    true   Error
 */
 
 static
@@ -11788,9 +11788,9 @@ bool prepare_fields_and_keys(THD *thd,
     Sets create_info->varchar if the table has a VARCHAR column.
     Prepares alter_info->create_list and alter_info->key_list with
     columns and keys of the new table.
-  @retval TRUE   error, out of memory or a semantical error in ALTER
+  @retval true   error, out of memory or a semantical error in ALTER
                  TABLE instructions
-  @retval FALSE  success
+  @retval false  success
 */
 
 bool mysql_prepare_alter_table(THD *thd, const dd::Table *src_table,
@@ -14429,9 +14429,9 @@ bool mysql_trans_prepare_alter_copy_data(THD *thd)
   */
   Disable_gtid_state_update_guard disabler(thd);
 
-  if (ha_enable_transaction(thd, FALSE))
-    DBUG_RETURN(TRUE);
-  DBUG_RETURN(FALSE);
+  if (ha_enable_transaction(thd, false))
+    DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 
@@ -14441,15 +14441,15 @@ bool mysql_trans_prepare_alter_copy_data(THD *thd)
 
 bool mysql_trans_commit_alter_copy_data(THD *thd)
 {
-  bool error= FALSE;
+  bool error= false;
   DBUG_ENTER("mysql_commit_alter_copy_data");
   /*
     Ensure that ha_commit_trans() which is implicitly called by
     ha_enable_transaction() doesn't update GTID and slave info states.
   */
   Disable_gtid_state_update_guard disabler(thd);
-  if (ha_enable_transaction(thd, TRUE))
-    DBUG_RETURN(TRUE);
+  if (ha_enable_transaction(thd, true))
+    DBUG_RETURN(true);
 
   /*
     Ensure that the new table is saved properly to disk before installing
@@ -14458,9 +14458,9 @@ bool mysql_trans_commit_alter_copy_data(THD *thd)
     when waiting on other instances of the table before rename (Bug#54747).
   */
   if (trans_commit_stmt(thd))
-    error= TRUE;
+    error= true;
   if (trans_commit_implicit(thd))
-    error= TRUE;
+    error= true;
 
   DBUG_RETURN(error);
 }
@@ -14540,7 +14540,7 @@ copy_data_between_tables(THD * thd,
     {
       if (*ptr == to->next_number_field)
       {
-        auto_increment_field_copied= TRUE;
+        auto_increment_field_copied= true;
         /*
           If we are going to copy contents of one auto_increment column to
           another auto_increment column it is sensible to preserve zeroes.
@@ -14601,7 +14601,7 @@ copy_data_between_tables(THD * thd,
 
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
-  if (init_read_record(&info, thd, from, NULL, 1, 1, FALSE))
+  if (init_read_record(&info, thd, from, NULL, 1, 1, false))
   {
     error= 1;
     goto err;
@@ -14639,7 +14639,7 @@ copy_data_between_tables(THD * thd,
     if (to->next_number_field)
     {
       if (auto_increment_field_copied)
-        to->auto_increment_field_not_null= TRUE;
+        to->auto_increment_field_not_null= true;
       else
         to->next_number_field->reset();
     }
@@ -14667,7 +14667,7 @@ copy_data_between_tables(THD * thd,
     }
 
     error=to->file->ha_write_row(to->record[0]);
-    to->auto_increment_field_not_null= FALSE;
+    to->auto_increment_field_not_null= false;
     if (error)
     {
       if (!to->file->is_ignorable_error(error))
@@ -14800,7 +14800,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   item->maybe_null= 1;
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /*
     Close all temporary tables which were pre-open to simplify
@@ -14951,10 +14951,10 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   }
 
   my_eof(thd);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 err:
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 /**

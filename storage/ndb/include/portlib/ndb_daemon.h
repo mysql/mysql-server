@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,6 @@
 */
 #ifndef NDB_DAEMON_H
 #define NDB_DAEMON_H
-
-C_MODE_START
-
 
 typedef int (*ndb_daemon_run_t)(int, char**);
 typedef void (*ndb_daemon_stop_t)(void);
@@ -73,7 +70,5 @@ void ndb_service_print_options(const char* name);
   started as a service.
 */
 void ndb_service_wait_for_debugger(int timeout_sec);
-
-C_MODE_END
 
 #endif

@@ -75,6 +75,10 @@ OPTION(WIN_DEBUG_NO_INLINE "Disable inlining for debug builds on Windows" OFF)
 
 IF(MSVC)
   OPTION(LINK_STATIC_RUNTIME_LIBRARIES "Link with /MT" OFF)
+  IF(WITH_ASAN AND WIN32_CLANG)
+    SET(LINK_STATIC_RUNTIME_LIBRARIES ON)
+  ENDIF()
+
   # Enable debug info also in Release build,
   # and create PDB to be able to analyze crashes.
   FOREACH(type EXE SHARED MODULE)

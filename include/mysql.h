@@ -84,7 +84,7 @@ typedef int my_socket;
 // The error messages are part of our public API.
 #include "errmsg.h"  // IWYU pragma: keep
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -758,7 +758,7 @@ void STDCALL mysql_close(MYSQL *sock);
 
 #define HAVE_MYSQL_REAL_CONNECT
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

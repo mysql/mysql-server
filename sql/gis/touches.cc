@@ -17,9 +17,10 @@
 ///
 /// This file implements the touches functor and function.
 
-#include <boost/geometry.hpp>
 #include <cstddef>  // std::size_t
 #include <memory>   // std::unique_ptr
+
+#include <boost/geometry.hpp>
 
 #include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/box.h"
@@ -372,9 +373,10 @@ static bool geometry_collection_apply_touches(const Touches &f,
                  i < down_cast<const Geographic_multipoint *>(g1)->size();
                  i++) {
               auto &pt = (*down_cast<const Geographic_multipoint *>(g1))[i];
-              if (bg::relate(pt, *down_cast<Geographic_multilinestring *>(
-                                     g2_mls.get()),
-                             mask, geographic_pl_pa_strategy) ||
+              if (bg::relate(
+                      pt,
+                      *down_cast<Geographic_multilinestring *>(g2_mls.get()),
+                      mask, geographic_pl_pa_strategy) ||
                   bg::relate(
                       pt, *down_cast<Geographic_multipolygon *>(g2_mpy.get()),
                       mask, geographic_pl_pa_strategy))

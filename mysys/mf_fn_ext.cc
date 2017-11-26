@@ -42,7 +42,7 @@
     points at the end ASCII(0) of the filename.
 */
 
-extern "C" char *fn_ext(const char *name)
+char *fn_ext(const char *name)
 {
   const char *pos, *gpos;
   DBUG_ENTER("fn_ext");

@@ -57,9 +57,7 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 #include "mysql/service_mysql_alloc.h"
 
-extern "C" {
 extern PSI_memory_key key_memory_queue_item;
-}
 
 class PROFILING;
 class QUERY_PROFILE;

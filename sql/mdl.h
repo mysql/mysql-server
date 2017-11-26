@@ -1143,13 +1143,13 @@ private:
   Ticket_list m_tickets[MDL_DURATION_END];
   MDL_context_owner *m_owner;
   /**
-    TRUE -  if for this context we will break protocol and try to
+    true -  if for this context we will break protocol and try to
             acquire table-level locks while having only S lock on
             some table.
             To avoid deadlocks which might occur during concurrent
             upgrade of SNRW lock on such object to X lock we have to
             abort waits for table-level locks for such connections.
-    FALSE - Otherwise.
+    false - Otherwise.
   */
   bool m_needs_thr_lock_abort;
 
@@ -1263,7 +1263,7 @@ extern mysql_mutex_t LOCK_open;
   max_write_lock_count high priority, strong locks successively,
   to avoid starving out weak, lower priority locks.
 */
-extern "C" ulong max_write_lock_count;
+extern ulong max_write_lock_count;
 
 extern int32 mdl_locks_unused_locks_low_water;
 
@@ -1284,5 +1284,44 @@ const int32 MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT= 1000;
 const double MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO= 0.25;
 
 int32 mdl_get_unused_locks_count();
+
+/**
+  Inspect if MDL_context is owned by any thread.
+*/
+class MDL_lock_is_owned_visitor : public MDL_context_visitor
+{
+public:
+  MDL_lock_is_owned_visitor()
+    : m_exists(false)
+  { }
+
+
+  /**
+    Collects relevant information about the MDL lock owner.
+
+    This function is only called by MDL_context::find_lock_owner() when
+    searching for MDL lock owners to collect extra information about the
+    owner. As we only need to know that the MDL lock is owned, setting
+    m_exists to true is enough.
+  */
+
+  void visit_context(const MDL_context *ctx MY_ATTRIBUTE((unused))) override
+  {
+    m_exists= true;
+  }
+
+
+  /**
+    Returns if an owner for the MDL lock being inspected exists.
+
+    @return true when MDL lock is owned, false otherwise.
+  */
+
+  bool exists() const { return m_exists; }
+
+private:
+  /* holds information about MDL being owned by any thread */
+  bool m_exists;
+};
 
 #endif

@@ -325,7 +325,7 @@ get_one_option(int optid, const struct my_option *opt,
     break;
   case 'V': print_version(); exit(0);
   case OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
+    using_opt_enable_cleartext_plugin= true;
     break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
@@ -354,11 +354,11 @@ static int get_options(int *argc, char ***argv, MEM_ROOT *alloc)
     exit(0);
   }
 
-  my_getopt_use_args_separator= TRUE;
+  my_getopt_use_args_separator= true;
   if ((ho_error= load_defaults("my", load_default_groups, argc, argv, alloc)) ||
       (ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= false;
 
   if (!what_to_do)
   {

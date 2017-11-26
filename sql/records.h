@@ -33,7 +33,7 @@ struct TABLE;
 @code
   READ_RECORD read_record;
   if (init_read_record(&read_record, ...))
-    return TRUE;
+    return true;
   while (read_record.read_record())
   {
     ...

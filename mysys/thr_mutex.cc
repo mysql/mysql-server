@@ -30,7 +30,7 @@
 #if defined(SAFE_MUTEX)
 /* This makes a wrapper for mutex handling to make it easier to debug mutex */
 
-static bool safe_mutex_inited= FALSE;
+static bool safe_mutex_inited= false;
 
 /**
   While it looks like this function is pointless, it makes it possible to
@@ -40,7 +40,7 @@ static bool safe_mutex_inited= FALSE;
 */
 void safe_mutex_global_init(void)
 {
-  safe_mutex_inited= TRUE;
+  safe_mutex_inited= true;
 }
 
 

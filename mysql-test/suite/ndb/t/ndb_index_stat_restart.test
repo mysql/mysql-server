@@ -44,11 +44,9 @@ show status like 'ndb_index_stat_cache%';
 --exec $NDB_MGM --no-defaults -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
 
 --echo # wait for mysqld
---disable_query_log
 --source include/ndb_not_readonly.inc
 # wait for stats thread to re-initialize
 --source include/ndb_index_stat_wait.inc
---enable_query_log
 
 --error 0,1193
 set global ndb_dbg_check_shares=1;

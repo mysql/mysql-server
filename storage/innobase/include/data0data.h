@@ -32,6 +32,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "data0type.h"
 #include "mem0mem.h"
 #include "dict0types.h"
+#include "trx0types.h"
 
 #include <ostream>
 
@@ -202,7 +203,7 @@ dfield_dup(
 Tests if two data fields are equal.
 If len==0, tests the data length and content for equality.
 If len>0, tests the first len bytes of the content for equality.
-@return TRUE if both fields are NULL or if they are equal */
+@return true if both fields are NULL or if they are equal */
 UNIV_INLINE
 ibool
 dfield_datas_are_binary_equal(
@@ -214,7 +215,7 @@ dfield_datas_are_binary_equal(
 	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Tests if dfield data length and content is equal to the given.
-@return TRUE if equal */
+@return true if equal */
 UNIV_INLINE
 ibool
 dfield_data_is_binary_equal(
@@ -454,7 +455,7 @@ dtuple_set_types_binary(
 
 /**********************************************************************//**
 Checks if a dtuple contains an SQL null value.
-@return TRUE if some field is SQL null */
+@return true if some field is SQL null */
 UNIV_INLINE
 ibool
 dtuple_contains_null(
@@ -463,7 +464,7 @@ dtuple_contains_null(
 	MY_ATTRIBUTE((warn_unused_result));
 /**********************************************************//**
 Checks that a data field is typed. Asserts an error if not.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dfield_check_typed(
 /*===============*/
@@ -471,7 +472,7 @@ dfield_check_typed(
 	MY_ATTRIBUTE((warn_unused_result));
 /**********************************************************//**
 Checks that a data tuple is typed. Asserts an error if not.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dtuple_check_typed(
 /*===============*/
@@ -481,7 +482,7 @@ dtuple_check_typed(
 /**********************************************************//**
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dtuple_validate(
 /*============*/
@@ -581,6 +582,14 @@ struct dfield_t{
 	unsigned	len;	/*!< data length; UNIV_SQL_NULL if SQL null */
 	dtype_t		type;	/*!< type of data */
 
+	void reset()
+	{
+		data = nullptr;
+		ext = FALSE;
+		spatial_status = SPATIAL_UNKNOWN,
+		len = 0;
+	}
+
 	/** Create a deep copy of this object
 	@param[in]	heap	the memory heap in which the clone will be
 				created.
@@ -588,7 +597,33 @@ struct dfield_t{
 	dfield_t* clone(mem_heap_t* heap);
 
 	byte*	blobref() const;
+
+	dfield_t()
+	  : data(nullptr),
+	    ext(0),
+	    spatial_status(0),
+	    len(0),
+	    type({0, 0, 0, 0}) {}
+
+	/** Print the dfield_t object into the given output stream.
+	@param[in]	out	the output stream.
+	@return	the ouput stream. */
+	std::ostream& print(std::ostream& out) const;
 };
+
+/** Overloading the global output operator to easily print the given dfield_t
+object into the given output stream.
+@param[in]	out	the output stream
+@param[in]	obj	the given object to print.
+@return the output stream. */
+inline
+std::ostream&
+operator<<(
+	std::ostream&	out,
+	const dfield_t&	obj)
+{
+	return(obj.print(out));
+}
 
 /** Structure for an SQL data tuple of fields (logical record) */
 struct dtuple_t {
@@ -616,8 +651,16 @@ struct dtuple_t {
 /** Value of dtuple_t::magic_n */
 # define		DATA_TUPLE_MAGIC_N	65478679
 #endif /* UNIV_DEBUG */
-};
 
+	std::ostream& print(std::ostream& out) const {
+		dtuple_print(out, this);
+		return(out);
+	}
+
+	/* Read the trx id from the tuple (DB_TRX_ID)
+	@return transaction id of the tuple. */
+	trx_id_t get_trx_id() const;
+};
 
 /** A slot for a field in a big rec vector */
 struct big_rec_field_t {
@@ -627,9 +670,12 @@ struct big_rec_field_t {
 	@param[in]	len_		the data length
 	@param[in]	data_		the data */
 	big_rec_field_t(ulint field_no_, ulint len_, void* data_)
-		: field_no(field_no_),
-		  len(len_),
-		  data(data_)
+		:
+		field_no(field_no_),
+		len(len_),
+		data(data_),
+		ext_in_old(false),
+		ext_in_new(false)
 	{}
 
 	byte*	ptr() const
@@ -640,7 +686,34 @@ struct big_rec_field_t {
 	ulint		field_no;	/*!< field number in record */
 	ulint		len;		/*!< stored data length, in bytes */
 	void*		data;		/*!< stored data */
+
+	/** If true, this field was stored externally in the old row.
+	If false, this field was stored inline in the old row.*/
+	bool		ext_in_old;
+
+	/** If true, this field is stored externally in the new row.
+	If false, this field is stored inline in the new row.*/
+	bool		ext_in_new;
+
+	/** Print the big_rec_field_t object into the given output stream.
+	@param[in]	out	the output stream.
+	@return	the ouput stream. */
+	std::ostream& print(std::ostream& out) const;
 };
+
+/** Overloading the global output operator to easily print the given
+big_rec_field_t object into the given output stream.
+@param[in]	out	the output stream
+@param[in]	obj	the given object to print.
+@return the output stream. */
+inline
+std::ostream&
+operator<<(
+	std::ostream&		out,
+	const big_rec_field_t&	obj)
+{
+	return(obj.print(out));
+}
 
 /** Storage format for overflow data in a big record, that is, a
 clustered index record which needs external storage of data fields */
@@ -677,7 +750,26 @@ struct big_rec_t {
 	static big_rec_t* alloc(
 		mem_heap_t*	heap,
 		ulint		n_fld);
+
+	/** Print the current object into the given output stream.
+	@param[in]	out	the output stream.
+	@return	the ouput stream. */
+	std::ostream& print(std::ostream& out) const;
 };
+
+/** Overloading the global output operator to easily print the given
+big_rec_t object into the given output stream.
+@param[in]	out	the output stream
+@param[in]	obj	the given object to print.
+@return the output stream. */
+inline
+std::ostream&
+operator<<(
+	std::ostream&		out,
+	const big_rec_t&	obj)
+{
+	return(obj.print(out));
+}
 
 #include "data0data.ic"
 

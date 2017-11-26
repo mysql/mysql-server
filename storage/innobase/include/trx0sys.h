@@ -245,7 +245,7 @@ trx_rw_is_active(
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 /***********************************************************//**
 Assert that a transaction has been recovered.
-@return TRUE */
+@return true */
 UNIV_INLINE
 ibool
 trx_assert_recovered(

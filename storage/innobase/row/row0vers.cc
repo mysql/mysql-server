@@ -40,6 +40,7 @@ Created 2/6/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "row0row.h"
 #include "row0upd.h"
+#include "row0ext.h"
 #include "row0vers.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -401,7 +402,7 @@ index record, because it is >= the purge view.
 @param[in,out]	mtr		mini transaction holding the latch on the
 				clustered index record; it will also hold
 				the latch on purge_view
-@return TRUE if earlier version should be preserved */
+@return true if earlier version should be preserved */
 ibool
 row_vers_must_preserve_del_marked(
 /*==============================*/
@@ -854,7 +855,7 @@ purge view, should have ientry as its secondary index entry. We check
 if there is any not delete marked version of the record where the trx
 id >= purge view, and the secondary index entry and ientry are identified in
 the alphabetical ordering; exactly in this case we return TRUE.
-@return TRUE if earlier version should have */
+@return true if earlier version should have */
 ibool
 row_vers_old_has_index_entry(
 /*=========================*/
@@ -1089,7 +1090,8 @@ row_vers_old_has_index_entry(
 			/* The stack of versions is locked by mtr.
 			Thus, it is safe to fetch the prefixes for
 			externally stored columns. */
-			row = row_build(ROW_COPY_POINTERS, clust_index,
+			row = row_build(ROW_COPY_POINTERS,
+					clust_index,
 					prev_version, clust_offsets,
 					NULL, NULL, NULL, &ext, heap);
 

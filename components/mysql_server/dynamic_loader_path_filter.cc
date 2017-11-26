@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 typedef std::string my_string;
 
-extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
   size_t max_char_length, const CHARSET_INFO *cs,
   bool no_error);

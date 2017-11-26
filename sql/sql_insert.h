@@ -155,6 +155,13 @@ public:
   bool send_eof() override;
   void abort_result_set() override;
   void cleanup() override;
+
+private:
+  /**
+    Indicates whether this statement should be written to binary log's
+    transactional cache in statement mode.
+  */
+  virtual bool stmt_binlog_is_trans() const;
 };
 
 
@@ -196,6 +203,7 @@ public:
   bool start_execution() override;
 
 private:
+  bool stmt_binlog_is_trans() const override;
   int binlog_show_create_table();
   void drop_open_table();
 };

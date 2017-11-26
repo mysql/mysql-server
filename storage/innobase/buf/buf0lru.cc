@@ -183,7 +183,7 @@ incr_LRU_size_in_bytes(
 /** Determines if the unzip_LRU list should be used for evicting a victim
 instead of the general LRU list.
 @param[in,out]	buf_pool	buffer pool instance
-@return TRUE if should use unzip_LRU */
+@return true if should use unzip_LRU */
 ibool
 buf_LRU_evict_from_unzip_LRU(
 	buf_pool_t*	buf_pool)
@@ -1193,7 +1193,7 @@ buf_LRU_scan_and_free_block(
 Returns TRUE if less than 25 % of the buffer pool in any instance is
 available. This can be used in heuristics to prevent huge transactions
 eating up the whole buffer pool for their locks.
-@return TRUE if less than 25 % of buffer pool left */
+@return true if less than 25 % of buffer pool left */
 ibool
 buf_LRU_buf_pool_running_out(void)
 /*==============================*/
@@ -2252,6 +2252,11 @@ buf_LRU_block_remove_hashed(
 			case FIL_PAGE_IBUF_BITMAP:
 			case FIL_PAGE_TYPE_FSP_HDR:
 			case FIL_PAGE_TYPE_XDES:
+			case FIL_PAGE_TYPE_ZLOB_FIRST:
+			case FIL_PAGE_TYPE_ZLOB_DATA:
+			case FIL_PAGE_TYPE_ZLOB_INDEX:
+			case FIL_PAGE_TYPE_ZLOB_FRAG:
+			case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
 				/* These are essentially uncompressed pages. */
 				if (!zip) {
 					/* InnoDB writes the data to the
@@ -2264,7 +2269,6 @@ buf_LRU_block_remove_hashed(
 				break;
 			case FIL_PAGE_TYPE_ZBLOB:
 			case FIL_PAGE_TYPE_ZBLOB2:
-			case FIL_PAGE_TYPE_ZBLOB3:
 			case FIL_PAGE_SDI_ZBLOB:
 				break;
 			case FIL_PAGE_INDEX:
@@ -2740,7 +2744,7 @@ buf_LRU_validate_instance(
 
 /**********************************************************************//**
 Validates the LRU list.
-@return TRUE */
+@return true */
 ibool
 buf_LRU_validate(void)
 /*==================*/

@@ -163,7 +163,8 @@ namespace AQP
   {
     JT_OUTER_JOIN,
     JT_INNER_JOIN,
-    JT_SEMI_JOIN
+    JT_SEMI_JOIN,
+    JT_NEST_JOIN
   };
 
   /**
@@ -205,9 +206,7 @@ namespace AQP
     void dbug_print() const;
 
     bool uses_join_cache() const;
-
-    const Table_access* get_firstmatch_last_skipped() const;
-
+    
     bool filesort_before_join() const;
 
     /**

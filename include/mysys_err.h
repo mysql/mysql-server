@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,10 +19,6 @@
 /**
   @file include/mysys_err.h
 */
-
-#ifdef	__cplusplus
-extern "C" {
-#endif
 
 #define GLOBERRS (EE_ERROR_LAST - EE_ERROR_FIRST + 1) /* Nr of global errors */
 #define EE(X)    (globerrs[(X) - EE_ERROR_FIRST])
@@ -91,9 +87,5 @@ extern const char *globerrs[];  /* my_error_messages is here */
 #define EXIT_OPTION_DISABLED            12
 #define EXIT_ARGUMENT_INVALID           13
 
-
-#ifdef	__cplusplus
-}
-#endif
 #endif
 

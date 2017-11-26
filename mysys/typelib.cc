@@ -353,7 +353,7 @@ my_ulonglong find_set_from_flags(const TYPELIB *lib, uint default_name,
         /* Using 'default' twice isn't allowed. */
         if (set_defaults)
           goto err;
-        set_defaults= TRUE;
+        set_defaults= true;
       }
       else
       {

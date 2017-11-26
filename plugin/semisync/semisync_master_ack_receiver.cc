@@ -27,7 +27,7 @@
 #include "plugin/semisync/semisync_master.h"
 #include "plugin/semisync/semisync_master_socket_listener.h"
 
-extern ReplSemiSyncMaster repl_semisync;
+extern ReplSemiSyncMaster *repl_semisync;
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave;
@@ -286,7 +286,7 @@ void Ack_receiver::run()
 
           len= my_net_read(&net);
           if (likely(len != packet_error))
-            repl_semisync.reportReplyPacket(m_slaves[i].server_id(),
+            repl_semisync->reportReplyPacket(m_slaves[i].server_id(),
                                             net.read_pos, len);
           else if (net.last_errno == ER_NET_READ_ERROR)
             listener.clear_socket_info(i);

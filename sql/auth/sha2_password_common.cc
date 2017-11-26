@@ -454,7 +454,6 @@ namespace sha2_password
 
 */
 
-extern "C"
 bool generate_sha256_scramble(unsigned char *scramble, size_t scramble_size,
                               const char *src, size_t src_size,
                               const char *rnd, size_t rnd_size)

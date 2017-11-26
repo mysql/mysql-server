@@ -122,7 +122,7 @@ public:
   TAB *tabs_end;
   
   /* 
-    is_confluent==TRUE means this is a special case where the temptable record
+    is_confluent==true means this is a special case where the temptable record
     has zero length (and presence of a unique key means that the temptable can
     have either 0 or 1 records). 
     In this case we don't create the physical temptable but instead record
@@ -131,7 +131,7 @@ public:
   bool is_confluent;
 
   /* 
-    When is_confluent==TRUE: the contents of the table (whether it has the
+    When is_confluent==true: the contents of the table (whether it has the
     record or not).
   */
   bool have_confluent_row;
@@ -175,7 +175,7 @@ public:
   ~Semijoin_mat_exec()
   {}
   TABLE_LIST *const sj_nest;    ///< Semi-join nest for this materialization
-  const bool is_scan;           ///< TRUE if executing a scan, FALSE if lookup
+  const bool is_scan;           ///< true if executing a scan, false if lookup
   const uint table_count;       ///< Number of tables in the sj-nest
   const uint mat_table_index;   ///< Index in join_tab for materialized table
   const uint inner_table_index; ///< Index in join_tab for first inner table
@@ -517,7 +517,7 @@ public:
 
   inline bool skip_record(THD *thd, bool *skip_record_arg)
   {
-    *skip_record_arg= condition() ? condition()->val_int() == FALSE : FALSE;
+    *skip_record_arg= condition() ? condition()->val_int() == false : false;
     return thd->is_error();
   }
 
@@ -579,7 +579,7 @@ public:
   plan_idx match_tab;
 
   /*
-    Used by FirstMatch and LooseScan. TRUE <=> there is a matching
+    Used by FirstMatch and LooseScan. true <=> there is a matching
     record combination
   */
   bool found_match;
@@ -636,7 +636,7 @@ public:
   bool keep_current_rowid;
   CACHE_FIELD *copy_current_rowid;
 
-  /** TRUE <=> remove duplicates on this table. */
+  /** true <=> remove duplicates on this table. */
   bool distinct;
 
   bool not_used_in_distinct;

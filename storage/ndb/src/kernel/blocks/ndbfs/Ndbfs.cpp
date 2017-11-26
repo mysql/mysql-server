@@ -247,6 +247,22 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
                   "FileSystemPathDataFiles");
       }
     }
+    else
+    {
+      BaseString path;
+      add_path(path, m_base_path[FsOpenReq::BP_FS].c_str());
+      do_mkdir(path.c_str());
+      BaseString tmpTS;
+      tmpTS.assfmt("TS%s", DIR_SEPARATOR);
+      add_path(path, tmpTS.c_str());
+      do_mkdir(path.c_str());
+      if (!validate_path(m_base_path[FsOpenReq::BP_DD_DF], path.c_str()))
+      {
+        ERROR_SET(fatal, NDBD_EXIT_AFS_INVALIDPATH,
+                  m_base_path[FsOpenReq::BP_DD_DF].c_str(),
+                  "FileSystemPathDataFiles");
+      }
+    }
   }
 
   {
@@ -265,6 +281,22 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
       add_path(path, tmp.c_str());
       do_mkdir(path.c_str());
       
+      if (!validate_path(m_base_path[FsOpenReq::BP_DD_UF], path.c_str()))
+      {
+        ERROR_SET(fatal, NDBD_EXIT_AFS_INVALIDPATH,
+                  m_base_path[FsOpenReq::BP_DD_UF].c_str(),
+                  "FileSystemPathUndoFiles");
+      }
+    }
+    else
+    {
+      BaseString path;
+      add_path(path, m_base_path[FsOpenReq::BP_FS].c_str());
+      do_mkdir(path.c_str());
+      BaseString tmpLG;
+      tmpLG.assfmt("LG%s", DIR_SEPARATOR);
+      add_path(path, tmpLG.c_str());
+      do_mkdir(path.c_str());
       if (!validate_path(m_base_path[FsOpenReq::BP_DD_UF], path.c_str()))
       {
         ERROR_SET(fatal, NDBD_EXIT_AFS_INVALIDPATH,

@@ -551,7 +551,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(THD *thd, LEX_STRING var
     {
       if (find_sys_var_ex(thd, var.str, var.length, throw_error, true))
       {
-	if (insert(NULL, var) == TRUE)
+	if (insert(NULL, var) == true)
 	{
 	/* Error inserting into the hash. */
 	  unlock_plugin_mutex();
@@ -573,7 +573,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(THD *thd, LEX_STRING var
     }
     else
     {
-      if (insert(NULL, var) == TRUE)
+      if (insert(NULL, var) == true)
       {
       /* Error inserting into the hash. */
 	return true;                            /* Error */

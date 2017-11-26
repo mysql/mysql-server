@@ -872,8 +872,8 @@ update_checksum(
 
 	func_exit:
 	/* The following code is to check the stored checksum with the
-	calculated checksum. If it matches, then return FALSE to skip
-	the rewrite of checksum, otherwise return TRUE. */
+	calculated checksum. If it matches, then return false to skip
+	the rewrite of checksum, otherwise return true. */
 	if (iscompressed) {
 		if (!memcmp(stored1, page + FIL_PAGE_SPACE_OR_CHKSUM, 4)) {
 			return (false);

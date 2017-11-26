@@ -1242,7 +1242,7 @@ static bool setup_index(keytype key_type,
       {
         my_error(ER_WRONG_USAGE, MYF(0),"spatial/fulltext/hash index",
                  "explicit index order");
-        return TRUE;
+        return true;
       }
     }
   }

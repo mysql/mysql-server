@@ -19,9 +19,10 @@
 
 #include "sql/gis/mbr_utils.h"
 
-#include <boost/geometry.hpp>
 #include <cmath>  // std::isnan
 #include <exception>
+
+#include <boost/geometry.hpp>
 
 #include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/box.h"

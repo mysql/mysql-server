@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,8 +31,6 @@
 #include "my_config.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-
-C_MODE_START
 
 /*
   HAVE_BACKTRACE - Linux, FreeBSD, OSX
@@ -120,7 +118,5 @@ size_t my_write_stderr(const void *buf, size_t count);
   Writes system time to STDERR without allocating new memory.
 */
 void my_safe_print_system_time();
-
-C_MODE_END
 
 #endif /* _my_stacktrace_h_ */

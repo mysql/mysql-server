@@ -142,13 +142,11 @@ public:
 };
 
 
-extern "C"
 MYSQL_THD mysql_parser_current_session()
 {
   return current_thd;
 }
 
-extern "C"
 MYSQL_THD mysql_parser_open_session()
 {
   THD *old_thd= current_thd;
@@ -180,7 +178,6 @@ struct thread_args
   void *m_arg;
 };
 
-extern "C"
 void *parser_service_start_routine(void *arg)
 {
   thread_args *tt= pointer_cast<thread_args*>(arg);
@@ -222,7 +219,6 @@ void *parser_service_start_routine(void *arg)
 } // namespace
 
 
-extern "C"
 void mysql_parser_start_thread(THD *thd, callback_function fun, void *arg,
                                my_thread_handle *thread_handle)
 {
@@ -238,14 +234,12 @@ void mysql_parser_start_thread(THD *thd, callback_function fun, void *arg,
 }
 
 
-extern "C"
 void mysql_parser_join_thread(my_thread_handle *thread_id)
 {
   my_thread_join(thread_id, NULL);
 }
 
 
-extern "C"
 void mysql_parser_set_current_database(MYSQL_THD thd, const MYSQL_LEX_STRING db)
 {
   if (db.length == 0)
@@ -261,7 +255,6 @@ void mysql_parser_set_current_database(MYSQL_THD thd, const MYSQL_LEX_STRING db)
 }
 
 
-extern "C"
 int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,
                        unsigned char is_prepared,
                        sql_condition_handler_function handle_condition,
@@ -318,7 +311,6 @@ int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,
 }
 
 
-extern "C"
 int mysql_parser_get_statement_type(MYSQL_THD thd)
 {
   LEX* lex= thd->lex;
@@ -328,7 +320,6 @@ int mysql_parser_get_statement_type(MYSQL_THD thd)
 }
 
 
-extern "C"
 int mysql_parser_get_statement_digest(MYSQL_THD thd, uchar *digest)
 {
   static_assert(PARSER_SERVICE_DIGEST_LENGTH == DIGEST_HASH_SIZE,
@@ -341,14 +332,12 @@ int mysql_parser_get_statement_digest(MYSQL_THD thd, uchar *digest)
 }
 
 
-extern "C"
 int mysql_parser_get_number_params(MYSQL_THD thd)
 {
   return thd->lex->param_list.elements;
 }
 
 
-extern "C"
 int mysql_parser_extract_prepared_params(MYSQL_THD thd, int *positions)
 {
   LEX* lex= thd->lex;
@@ -359,7 +348,6 @@ int mysql_parser_extract_prepared_params(MYSQL_THD thd, int *positions)
 }
 
 
-extern "C"
 int mysql_parser_visit_tree(MYSQL_THD thd,
                             parse_node_visit_function processor,
                             unsigned char* arg)
@@ -369,7 +357,6 @@ int mysql_parser_visit_tree(MYSQL_THD thd,
 }
 
 
-extern "C"
 MYSQL_LEX_STRING mysql_parser_item_string(MYSQL_ITEM item)
 {
   String str;
@@ -384,14 +371,12 @@ MYSQL_LEX_STRING mysql_parser_item_string(MYSQL_ITEM item)
 }
 
 
-extern "C"
 void mysql_parser_free_string(MYSQL_LEX_STRING string)
 {
   delete [] string.str;
 }
 
 
-extern "C"
 MYSQL_LEX_STRING mysql_parser_get_query(MYSQL_THD thd)
 {
   MYSQL_LEX_STRING str= {
@@ -402,7 +387,6 @@ MYSQL_LEX_STRING mysql_parser_get_query(MYSQL_THD thd)
 }
 
 
-extern "C"
 MYSQL_LEX_STRING mysql_parser_get_normalized_query(MYSQL_THD thd)
 {
   String normalized_query= thd->normalized_query();
