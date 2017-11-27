@@ -135,13 +135,24 @@ bool serialize(const THD *thd, const Json_dom *dom, String *dest)
 }
 
 
+/**
+  Reserve space for the given amount of extra bytes at the end of a
+  String buffer. If the String needs to allocate more memory, it will
+  grow by at least 50%, to avoid frequent reallocations.
+*/
+static bool reserve(String *buffer, size_t bytes_needed)
+{
+  return buffer->reserve(bytes_needed, buffer->length() / 2);
+}
+
+
 /** Encode a 16-bit int at the end of the destination string. */
 static bool append_int16(String *dest, int16 value)
 {
-  if (dest->reserve(2))
+  if (reserve(dest, sizeof(value)))
     return true;                              /* purecov: inspected */
   int2store(const_cast<char *>(dest->ptr()) + dest->length(), value);
-  dest->length(dest->length() + 2);
+  dest->length(dest->length() + sizeof(value));
   return false;
 }
 
@@ -149,10 +160,10 @@ static bool append_int16(String *dest, int16 value)
 /** Encode a 32-bit int at the end of the destination string. */
 static bool append_int32(String *dest, int32 value)
 {
-  if (dest->reserve(4))
+  if (reserve(dest, sizeof(value)))
     return true;                              /* purecov: inspected */
   int4store(const_cast<char *>(dest->ptr()) + dest->length(), value);
-  dest->length(dest->length() + 4);
+  dest->length(dest->length() + sizeof(value));
   return false;
 }
 
@@ -160,10 +171,10 @@ static bool append_int32(String *dest, int32 value)
 /** Encode a 64-bit int at the end of the destination string. */
 static bool append_int64(String *dest, int64 value)
 {
-  if (dest->reserve(8))
+  if (reserve(dest, sizeof(value)))
     return true;                              /* purecov: inspected */
   int8store(const_cast<char *>(dest->ptr()) + dest->length(), value);
-  dest->length(dest->length() + 8);
+  dest->length(dest->length() + sizeof(value));
   return false;
 }
 
@@ -894,7 +905,7 @@ serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
     {
       // Store the double in a platform-independent eight-byte format.
       const Json_double *d= down_cast<const Json_double*>(dom);
-      if (dest->reserve(8))
+      if (reserve(dest, 8))
         return FAILURE;                       /* purecov: inspected */
       float8store(const_cast<char *>(dest->ptr()) + dest->length(), d->value());
       dest->length(dest->length() + 8);
