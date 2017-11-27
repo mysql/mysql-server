@@ -56,7 +56,6 @@ void Dbtc::initData()
 
   // Trigger and index pools
   c_theDefinedTriggerPool.setSize(c_maxNumberOfDefinedTriggers);
-  c_theFiredTriggerPool.setSize(c_maxNumberOfFiredTriggers);
   c_theIndexPool.setSize(c_maxNumberOfIndexes);
   c_theAttributeBufferPool.setSize(c_transactionBufferSpace);
   c_firedTriggerHash.setSize((c_maxNumberOfFiredTriggers+10)/10);
@@ -85,23 +84,6 @@ void Dbtc::initRecords()
     p = &apiConnectRecord[i];
     new (p) ApiConnectRecord();
   }
-  // Init all fired triggers
-  DLFifoList<TcFiredTriggerData_pool> triggers(c_theFiredTriggerPool);
-  FiredTriggerPtr tptr;
-  while (c_theFiredTriggerPool.seize(tptr))
-  {
-    triggers.addLast(tptr);
-    new (tptr.p) TcFiredTriggerData();
-  }
-  while (triggers.removeFirst(tptr))
-  {
-    c_theFiredTriggerPool.release(tptr);
-  }
-  /*
-    The code above temporarily allocates all TcFiredTriggerData records.
-    Therefore we need to reset freeMin now, to get meaningful values.
-  */
-  c_theFiredTriggerPool.resetFreeMin();
 
   // Init all index records
   TcIndexData_list indexes(c_theIndexPool);
@@ -147,6 +129,7 @@ void Dbtc::initRecords()
   c_cacheRecordPool.init(CacheRecord::TYPE_ID, pc, 0, UINT32_MAX);
   c_gcpRecordPool.init(GcpRecord::TYPE_ID, pc, 0, UINT32_MAX);
   c_gcpRecordList.init();
+  c_theFiredTriggerPool.init(TcFiredTriggerData::TYPE_ID, pc, 0, UINT32_MAX);
 }//Dbtc::initRecords()
 
 bool

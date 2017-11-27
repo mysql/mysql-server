@@ -441,8 +441,15 @@ public:
   /* WHEN A TRIGGER IS ACTIVATED AND RELEASED */
   /* WHEN THE TRIGGER IS DEACTIVATED.         */
   /* **************************************** */
-  struct TcFiredTriggerData {
-    TcFiredTriggerData() {}
+  struct TcFiredTriggerData
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_FIRED_TRIGGER_DATA );
+
+    TcFiredTriggerData()
+      : m_magic(Magic::make(TYPE_ID))
+    {}
+
+    Uint32 m_magic;
 
     /**
      * Trigger id, used to identify the trigger
@@ -492,10 +499,10 @@ public:
     AttributeBuffer::Head afterValues;
 
     /**
-     * Next ptr (used in pool/list)
+     * Next ptr (used in list/hash)
      */
-    union {
-      Uint32 nextPool;
+    union
+    {
       Uint32 nextList;
       Uint32 nextHash;
     };
@@ -521,7 +528,7 @@ public:
     }
   };
   typedef Ptr<TcFiredTriggerData> FiredTriggerPtr;
-  typedef ArrayPool<TcFiredTriggerData> TcFiredTriggerData_pool;
+  typedef TransientPool<TcFiredTriggerData> TcFiredTriggerData_pool;
   typedef LocalDLFifoList<TcFiredTriggerData_pool> Local_TcFiredTriggerData_fifo;
   typedef DLHashTable<TcFiredTriggerData_pool> TcFiredTriggerData_hash;
   
