@@ -85,7 +85,6 @@ using std::unique_ptr;
   The following is used to initialise Table_ident with a internal
   table name
 */
-char internal_table_name[2]= "";
 char empty_c_string[1]= {0};    /* used for not defined db */
 
 LEX_STRING EMPTY_STR= { (char *) "", 0 };
