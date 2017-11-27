@@ -672,6 +672,8 @@ Lgman::Lgman(Block_context & ctx) :
     ct.m_entry = m_callbackEntry;
     m_callbackTableAddr = &ct;
   }
+  m_serial_record.ptr = NULL;
+  m_serial_record.lsn = 0;
 }
   
 Lgman::~Lgman()
@@ -4593,6 +4595,13 @@ Lgman::init_run_undo_log(Signal* signal)
     return;
   }
   
+  if (isNdbMtLqh())
+  {
+    for (unsigned int i = 0; i <= getLqhWorkers(); i++)
+    {
+      m_pending_undo_records[i] = 0; //initialize
+    }
+  }
   execute_undo_record(signal);
 }
 
@@ -4781,6 +4790,58 @@ Lgman::read_undo_pages(Signal* signal, Ptr<Logfile_group> lg_ptr,
   return max;
 }
 
+bool
+Lgman::wait_pending(Uint64 lsn, const Uint32* ptr, Uint32 len)
+{
+  assert(m_serial_record.ptr == NULL);
+  if (m_pending_undo_records[0] != 0)
+  {
+    jam();
+    if (DEBUG_UNDO_EXECUTION)
+    {
+      g_eventLogger->info("LGMAN undo PAUSED- Serial");
+    }
+    // save serial undo record
+    m_serial_record.lsn = lsn;
+    memcpy(m_serial_record.ptr_array, ptr - len + 1, len << 2);
+    m_serial_record.ptr = m_serial_record.ptr_array + len - 1;
+    ndbrequire((m_serial_record.ptr >= m_serial_record.ptr_array) &&
+               (m_serial_record.ptr < (m_serial_record.ptr_array +
+                   MAX_UNDO_DATA)));
+    return true;
+  }
+  return false;
+}
+
+#ifdef VM_TRACE
+class TransientStackBuff
+{
+public:
+  Uint32 my_data[MAX_UNDO_DATA];
+
+  TransientStackBuff(const Uint32* data, const Uint32 len)
+  {
+    assert(len<= MAX_UNDO_DATA);
+    memcpy(my_data, data, len << 2);
+  }
+
+  const Uint32* getPtr() const
+  {
+    return my_data;
+  }
+
+  void zap()
+  {
+    memset(my_data, 0xff, (MAX_UNDO_DATA) << 2);
+  }
+
+  ~TransientStackBuff()
+  {
+    zap();
+  }
+};
+#endif
+
 void
 Lgman::execute_undo_record(Signal* signal)
 {
@@ -4791,8 +4852,119 @@ Lgman::execute_undo_record(Signal* signal)
    */
 
   Uint64 lsn;
-  const Uint32* ptr;
-  if((ptr = get_next_undo_record(&lsn)))
+  const Uint32* ptr = NULL;
+  if (isNdbMtLqh())
+  {
+    Uint32 block_reference = signal->getSendersBlockRef();
+    BlockInstance block_instance = refToInstance(block_reference);
+
+    /**
+     * block_instance is 0 for DbtupProxy, non-zero for DBTUP instances
+     * operating from LDM threads.
+     */
+    if (refToMain(block_reference) == DBTUP)
+    {
+      if (block_instance)
+      {
+        // CONTINUEB sent from LDM
+
+        /**
+         * CONTINUEB from LDM has 2 functionalities:
+         * (1) decrement pending count and
+         * (2) restart paused undo log fetching and sending when LDM capacity
+         *     becomes available again
+         */
+
+        /**
+         *  "resume" is true if fetching of undo records was paused earlier,
+         *  i.e, max. limit was reached. It can be resumed now because we
+         *  have received a CONTINUEB from LDM which signifies the completion
+         *  of processing of at least one undo log record.
+         */
+
+        bool resume = (m_pending_undo_records[block_instance] == MAX_PENDING_UNDO_RECORDS);
+        Uint32 count_processed = signal->theData[2];
+        DEB_LGMAN(("LGMAN: Applied from LDM(%u) count:%u",
+                    block_instance, count_processed));
+        ndbassert((count_processed != 0) &&
+                  (count_processed <= MAX_PENDING_UNDO_RECORDS));
+        ndbrequire(abs(m_pending_undo_records[block_instance]) <= MAX_PENDING_UNDO_RECORDS);
+        ndbrequire(abs(m_pending_undo_records[0]) <=
+                       MAX_NDBMT_LQH_WORKERS * MAX_PENDING_UNDO_RECORDS);
+        m_pending_undo_records[0] -= count_processed; // decrement total_pending
+        m_pending_undo_records[block_instance] -= count_processed;
+
+        if (DEBUG_UNDO_EXECUTION)
+        {
+          g_eventLogger->info("<m_pending_undo_records>");
+          for (Uint32 i = 0; i <= getLqhWorkers(); i++)
+          {
+            g_eventLogger->info("[%d]:%d", i, m_pending_undo_records[i]);
+          }
+          g_eventLogger->info("</m_pending_undo_records>");
+        }
+        if (m_serial_record.ptr)
+        {
+          jam();
+          if (m_pending_undo_records[0] != 0)
+          {
+            // wait for zero pending records.
+            return;
+          }
+        }
+        else if (!resume)
+        {
+          return;
+        }
+        DEB_LGMAN(("LGMAN: Undo RESUMED"));
+      }
+      else
+      {
+        // CONTINUEB from TUPProxy
+        jam();
+        DEB_LGMAN(("LGMAN: CONTINUEB from DBTUP(0)"));
+        Uint32 ldm_tup_instance = signal->theData[2];
+        if (ldm_tup_instance)
+        {
+          /**
+           * Undo record has been sent to an LDM.
+           * Pending count needs to be incremented.
+           */
+          m_pending_undo_records[0] += 1;
+          m_pending_undo_records[ldm_tup_instance] += 1;
+          ndbrequire(abs(m_pending_undo_records[ldm_tup_instance]) <= MAX_PENDING_UNDO_RECORDS);
+          if (DEBUG_UNDO_EXECUTION)
+          {
+            g_eventLogger->info("<m_pending_undo_records>");
+            for (Uint32 i = 0; i <= getLqhWorkers(); i++)
+            {
+              g_eventLogger->info("[%d]:%d", i, m_pending_undo_records[i]);
+            }
+            g_eventLogger->info("</m_pending_undo_records>");
+          }
+          if (m_pending_undo_records[ldm_tup_instance] == MAX_PENDING_UNDO_RECORDS)
+          {
+            // do not fetch next log record
+            DEB_LGMAN(("LGMAN: Undo PAUSED, Max. reached"));
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  if (m_serial_record.ptr)
+  {
+    ptr = m_serial_record.ptr;
+    lsn = m_serial_record.lsn;
+    m_serial_record.ptr = NULL;
+  }
+  else
+  {
+    ptr = get_next_undo_record(&lsn);
+  }
+
+  if(ptr)
   {
     /* Report progress information while the log is applied.
      * Progress reported at intervals of 30,000 records.
@@ -4808,9 +4980,16 @@ Lgman::execute_undo_record(Signal* signal)
     Uint32 len= (* ptr) & 0xFFFF;
     Uint32 type= (* ptr) >> 16;
     Uint32 mask= type & (~((Uint32)File_formats::Undofile::UNDO_NEXT_LSN));
+    DEB_LGMAN(("LGMAN type:%u", mask));
+
     switch(mask){
     case File_formats::Undofile::UNDO_END:
       jam();
+      if (isNdbMtLqh() && wait_pending(lsn, ptr, len))
+      {
+        // wait for pending records to complete
+        return;
+      }
       g_eventLogger->info("LGMAN: Stop UNDO log execution at LSN %llu,"
                           " found END record",
                           lsn);
@@ -4824,6 +5003,11 @@ Lgman::execute_undo_record(Signal* signal)
     case File_formats::Undofile::UNDO_LCP_FIRST:
     {
       jam();
+      if (isNdbMtLqh() && wait_pending(lsn, ptr, len))
+      {
+        // wait for pending records to complete
+        return;
+      }
       Uint32 lcp = * (ptr - len + 1);
       Uint32 local_lcp;
       if (mask == File_formats::Undofile::UNDO_LOCAL_LCP_FIRST ||
@@ -4855,16 +5039,27 @@ Lgman::execute_undo_record(Signal* signal)
       }
       // Fallthrough
     }
+    case File_formats::Undofile::UNDO_TUP_DROP:
+      jam();
+      if (isNdbMtLqh() && wait_pending(lsn, ptr, len))
+      {
+        // wait for pending records to complete
+        return;
+      }
     case File_formats::Undofile::UNDO_TUP_ALLOC:
     case File_formats::Undofile::UNDO_TUP_UPDATE:
     case File_formats::Undofile::UNDO_TUP_FREE:
-    case File_formats::Undofile::UNDO_TUP_DROP:
     case File_formats::Undofile::UNDO_TUP_FIRST_UPDATE_PART:
     case File_formats::Undofile::UNDO_TUP_UPDATE_PART:
     case File_formats::Undofile::UNDO_TUP_FREE_PART:
       {
         jam();
         jamLine(mask);
+#ifdef VM_TRACE
+        /* Test that TUP does not rely on us keeping ptr valid */
+        TransientStackBuff tsb((ptr-len) + 1, len);
+        ptr = (tsb.getPtr() + len) - 1;
+#endif
         Dbtup_client tup(this, m_tup);
         tup.disk_restart_undo(signal, lsn, mask, ptr - len + 1, len);
         jamEntry();
