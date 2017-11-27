@@ -2332,3 +2332,21 @@ SHOW DATABASES;
 
 RENAME USER master@localhost TO root@localhost;
 FLUSH PRIVILEGES;
+
+
+--echo #
+--echo # Bug#27041452 assertion
+--echo # `ticket->m_lock->m_obtrusive_locks_granted_waiting_count != 0' failed.
+--echo #
+
+CREATE TABLE t1(c1 INT);
+LOCK TABLES t1 WRITE;
+
+--echo # The following statement asserts while trying to acquire lock
+--echo # on TABLESPACE, without the fix.
+SELECT file_name, initial_size!=0 FROM information_schema.files
+  WHERE tablespace_name='test/t1';
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
