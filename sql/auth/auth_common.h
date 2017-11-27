@@ -620,7 +620,8 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
 bool set_and_validate_user_attributes(THD *thd,
                                       LEX_USER *Str,
                                       ulong &what_to_set,
-                                      bool is_privileged_user);
+                                      bool is_privileged_user,
+                                      const char * cmd);
 
 /* sql_auth_cache */
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
