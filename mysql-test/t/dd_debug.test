@@ -309,31 +309,6 @@ SET SESSION debug= '-d,skip_dd_table_access_check';
 
 DROP TABLE t2, t1;
 
---echo #
---echo # Bug#25685371: `E->USAGE() == 1' AT DD::CACHE::SHARED_MULTI_MAP<T>::
---echo #               REMOVE FOR DROP VIEW
---echo #
-
---enable_connect_log
-CREATE TABLE t1 (a INT) engine= myisam;
-CREATE VIEW v1 AS SELECT * FROM t1;
---connect(con1, localhost, root)
-SET debug_sync= 'view_metadata_updater_context_dtor SIGNAL blocked WAIT_FOR next';
---send ALTER TABLE t1 ADD COLUMN b INT
---connection default
-SET debug_sync= 'now WAIT_FOR blocked';
-DROP VIEW v1;
-SET debug_sync= 'now SIGNAL next';
---connection con1
---reap
---disconnect con1
---source include/wait_until_disconnected.inc
---connection default
-DROP TABLE t1;
-SET DEBUG_SYNC= 'RESET';
---disable_connect_log
-
-
 --echo ###################################################################
 
 --disable_connect_log

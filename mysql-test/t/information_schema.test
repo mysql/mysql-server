@@ -2332,3 +2332,42 @@ SHOW DATABASES;
 
 RENAME USER master@localhost TO root@localhost;
 FLUSH PRIVILEGES;
+
+
+--echo #
+--echo # Bug#27041452 assertion
+--echo # `ticket->m_lock->m_obtrusive_locks_granted_waiting_count != 0' failed.
+--echo #
+
+CREATE TABLE t1(c1 INT);
+LOCK TABLES t1 WRITE;
+
+--echo # The following statement asserts while trying to acquire lock
+--echo # on TABLESPACE, without the fix.
+SELECT file_name, initial_size!=0 FROM information_schema.files
+  WHERE tablespace_name='test/t1';
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#27041526 assertion `mon > 0 && mon < 13' failed.
+--echo #
+
+CREATE TABLE t1(c1 int);
+SET TIMESTAMP=UNIX_TIMESTAMP('2017-11-20 10:44:01');
+SET SESSION TIME_ZONE='-10:00';
+SHOW VARIABLES LIKE 'collation_connection';
+SELECT table_rows FROM information_schema.tables
+  WHERE table_name='t1';
+
+--echo # This SELECT does not return any row without the fix.
+SELECT table_rows FROM information_schema.tables
+  WHERE table_name='t1' AND table_rows>=0;
+
+--echo # The following statement asserts or throws a warning without the fix.
+SET SESSION collation_connection='utf32_general_ci';
+SELECT table_rows FROM information_schema.tables WHERE table_name='t1';
+DROP TABLE t1;
+SET SESSION TIMESTAMP=default;
+SET SESSION collation_connection=default;
