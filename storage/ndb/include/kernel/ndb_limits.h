@@ -357,6 +357,10 @@
  */
 #define MAX_NORMAL_ROW_SIZE 2048
 
+#define MAX_UNDO_DATA            20 + MAX_TUPLE_SIZE_IN_WORDS
+// Max. number of pending undo records allowed per LDM
+#define MAX_PENDING_UNDO_RECORDS 100
+
 #ifdef NDB_STATIC_ASSERT
 
 static inline void ndb_limits_constraints()

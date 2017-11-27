@@ -34,9 +34,10 @@ protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 
   class Pgman* c_pgman; // PGMAN proxy
+  class Tsman *c_tsman;
 
   Uint32 c_tableRecSize;
-  Uint8* c_tableRec;    // bool => table exists
+  Uint32* c_tableRec;    // bool => table exists
 
   // GSN_READ_CONFIG_REQ
   virtual void callREAD_CONFIG_REQ(Signal*);
@@ -74,11 +75,10 @@ protected:
   // LGMAN
 
   struct Proxy_undo {
-    enum { MaxData = 20 + MAX_TUPLE_SIZE_IN_WORDS };
     Uint32 m_type;
     Uint32 m_len;
     const Uint32* m_ptr;
-    Uint32 m_data[MaxData]; // copied from m_ptr at once
+    Uint32 m_data[MAX_UNDO_DATA]; // copied from m_ptr at once
     Uint64 m_lsn;
     // from undo entry and page
     Local_key m_key;
@@ -108,7 +108,7 @@ protected:
 
   void disk_restart_undo_finish(Signal*);
 
-  void disk_restart_undo_send_next(Signal*);
+  void disk_restart_undo_send_next(Signal*, Uint32);
 
   void disk_restart_undo_send(Signal*, Uint32 i);
 

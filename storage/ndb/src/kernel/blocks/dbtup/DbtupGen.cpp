@@ -78,6 +78,7 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
     c_undo_buffer(&ctx.m_mm),
     m_pages_allocated(0),
     m_pages_allocated_max(0),
+    c_pending_undo_page_hash(c_pending_undo_page_pool),
     f_undo_done(true)
 {
   BLOCK_CONSTRUCTOR(Dbtup);
@@ -327,12 +328,12 @@ void Dbtup::execCONTINUEB(Signal* signal)
     ndbrequire(handle.m_cnt == 1);
     SegmentedSectionPtr ssptr;
     handle.getSection(ssptr, 0);
-    ::copy(c_proxy_undo_data, ssptr);
+    ::copy(f_undo.m_data, ssptr);
     releaseSections(handle);
     disk_restart_undo(signal,
                       lsn,
                       type,
-                      c_proxy_undo_data,
+                      f_undo.m_data,
                       len);
     return;
   }
@@ -451,10 +452,15 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   c_triggerPool.setSize(noOfTriggers, false, true, true, CFG_TUP_NO_TRIGGERS);
 
   c_extent_hash.setSize(1024); // 4k
+
+  c_pending_undo_page_hash.setSize(MAX_PENDING_UNDO_RECORDS);
   
   Pool_context pc;
   pc.m_block = this;
   c_page_request_pool.wo_pool_init(RT_DBTUP_PAGE_REQUEST, pc);
+  c_apply_undo_pool.init(RT_DBTUP_UNDO, pc);
+  c_pending_undo_page_pool.init(RT_DBTUP_UNDO, pc);
+
   c_extent_pool.init(RT_DBTUP_EXTENT_INFO, pc);
   NdbMutex_Init(&c_page_map_pool_mutex);
   c_page_map_pool.init(&c_page_map_pool_mutex, RT_DBTUP_PAGE_MAP, pc);
