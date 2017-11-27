@@ -93,9 +93,11 @@ enum_gcs_error Gcs_async_buffer::initialize()
     it.set_event(false);
   }
 
-  m_wait_for_events_cond->init();
-  m_free_buffer_cond->init();
-  m_free_buffer_mutex->init(NULL);
+  m_wait_for_events_cond->init(
+    key_GCS_COND_Gcs_async_buffer_m_wait_for_events_cond);
+  m_free_buffer_cond->init(key_GCS_COND_Gcs_async_buffer_m_free_buffer_cond);
+  m_free_buffer_mutex->init(key_GCS_MUTEX_Gcs_async_buffer_m_free_buffer_mutex,
+                            NULL);
 
   m_terminated= false;
   if ((ret_thread= m_consumer->create(

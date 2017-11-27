@@ -15,138 +15,57 @@
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_cond.h"
 
-#ifdef _WIN32
-My_xp_cond_win::My_xp_cond_win()
-  :m_cond(static_cast<native_cond_t *>(malloc(sizeof(*m_cond))))
+#ifndef XCOM_STANDALONE
+My_xp_cond_server::My_xp_cond_server()
+:m_cond(static_cast<mysql_cond_t *>(malloc(sizeof(*m_cond))))
 {}
 
 
-My_xp_cond_win::~My_xp_cond_win()
+My_xp_cond_server::~My_xp_cond_server()
 {
   free(m_cond);
 }
 
 
-native_cond_t *My_xp_cond_win::get_native_cond()
+int My_xp_cond_server::init(PSI_cond_key key)
+{
+  return mysql_cond_init(key, m_cond);
+}
+
+
+int My_xp_cond_server::destroy()
+{
+  return mysql_cond_destroy(m_cond);
+}
+
+
+int My_xp_cond_server::timed_wait(mysql_mutex_t *mutex,
+                                  const struct timespec *abstime)
+{
+  return mysql_cond_timedwait(m_cond, mutex, abstime);
+}
+
+
+int My_xp_cond_server::wait(mysql_mutex_t *mutex)
+{
+  return mysql_cond_wait(m_cond, mutex);
+}
+
+
+int My_xp_cond_server::signal()
+{
+  return mysql_cond_signal(m_cond);
+}
+
+
+int My_xp_cond_server::broadcast()
+{
+  return mysql_cond_broadcast(m_cond);
+}
+
+
+mysql_cond_t *My_xp_cond_server::get_native_cond()
 {
   return m_cond;
-}
-
-
-/**
-  Convert abstime to milliseconds on Windows.
-*/
-DWORD My_xp_cond_win::get_milliseconds(const struct timespec *abstime)
-{
-  if (abstime == NULL)
-    return INFINITE;
-  /*
-    Convert timespec to millis and subtract current time.
-    My_xp_util::getsystime() returns time in 100 ns units.
-  */
-  unsigned long long future = abstime->tv_sec * 1000 + abstime->tv_nsec / 1000000;
-  unsigned long long now = My_xp_util::getsystime() / 10000;
-  /* Don't allow the timeout to be negative. */
-  if (future < now)
-    return 0;
-  return (DWORD)(future - now);
-}
-
-
-int My_xp_cond_win::init()
-{
-  InitializeConditionVariable(m_cond);
-  return 0;
-};
-
-
-int My_xp_cond_win::destroy()
-{
-  return 0;
-}
-
-
-int My_xp_cond_win::timed_wait(native_mutex_t *mutex, const struct timespec *abstime)
-{
-  DWORD timeout= get_milliseconds(abstime);
-  if (!SleepConditionVariableCS(m_cond, mutex, timeout))
-    return ETIMEDOUT;
-
-  return 0;
-}
-
-
-int My_xp_cond_win::wait(native_mutex_t *mutex)
-{
-  return timed_wait(mutex, NULL);
-}
-
-
-int My_xp_cond_win::signal()
-{
-  WakeConditionVariable(m_cond);
-  return 0;
-}
-
-
-int My_xp_cond_win::broadcast()
-{
-  WakeAllConditionVariable(m_cond);
-  return 0;
-}
-#else
-My_xp_cond_pthread::My_xp_cond_pthread()
-  :m_cond(static_cast<native_cond_t *>(malloc(sizeof(*m_cond))))
-{}
-
-
-My_xp_cond_pthread::~My_xp_cond_pthread()
-{
-  free(m_cond);
-}
-
-/* purecov: begin deadcode */
-native_cond_t *My_xp_cond_pthread::get_native_cond()
-{
-  return m_cond;
-}
-/* purecov: end */
-
-int My_xp_cond_pthread::init()
-{
-  if (m_cond == NULL)
-    return -1;
-
-  return pthread_cond_init(m_cond, NULL);
-};
-
-
-int My_xp_cond_pthread::destroy()
-{
-  return pthread_cond_destroy(m_cond);
-}
-
-
-int My_xp_cond_pthread::timed_wait(native_mutex_t *mutex, const struct timespec *abstime)
-{
-  return pthread_cond_timedwait(m_cond, mutex, abstime);
-}
-
-
-int My_xp_cond_pthread::wait(native_mutex_t *mutex)
-{
-  return pthread_cond_wait(m_cond, mutex);
-}
-
-/* purecov: begin deadcode */
-int My_xp_cond_pthread::signal()
-{
-  return pthread_cond_signal(m_cond);
-}
-/* purecov: end */
-
-int My_xp_cond_pthread::broadcast()
-{
-  return pthread_cond_broadcast(m_cond);
 }
 #endif

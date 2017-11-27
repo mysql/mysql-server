@@ -513,13 +513,18 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl()
   for (int i= 0; i < m_xcom_handlers_size; i++)
     m_xcom_handlers[i]= new Xcom_handler();
 
-  m_lock_xcom_cursor.init(NULL);
-  m_lock_xcom_ready.init(NULL);
-  m_cond_xcom_ready.init();
-  m_lock_xcom_comms_status.init(NULL);
-  m_cond_xcom_comms_status.init();
-  m_lock_xcom_exit.init(NULL);
-  m_cond_xcom_exit.init();
+  m_lock_xcom_cursor.init(key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_cursor,
+                          NULL);
+  m_lock_xcom_ready.init(key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_ready,
+                         NULL);
+  m_cond_xcom_ready.init(key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_ready);
+  m_lock_xcom_comms_status.init(
+    key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_comms_status, NULL);
+  m_cond_xcom_comms_status.init(
+    key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_comms_status);
+  m_lock_xcom_exit.init(key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_exit,
+                        NULL);
+  m_cond_xcom_exit.init(key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_exit);
 
   m_socket_util= new My_xp_socket_util_impl();
 }
@@ -552,13 +557,18 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl(unsigned int wt)
   for (int i= 0; i < m_xcom_handlers_size; i++)
     m_xcom_handlers[i]= new Xcom_handler();
 
-  m_lock_xcom_cursor.init(NULL);
-  m_lock_xcom_ready.init(NULL);
-  m_cond_xcom_ready.init();
-  m_lock_xcom_comms_status.init(NULL);
-  m_cond_xcom_comms_status.init();
-  m_lock_xcom_exit.init(NULL);
-  m_cond_xcom_exit.init();
+  m_lock_xcom_cursor.init(key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_cursor,
+                          NULL);
+  m_lock_xcom_ready.init(key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_ready,
+                         NULL);
+  m_cond_xcom_ready.init(key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_ready);
+  m_lock_xcom_comms_status.init(
+    key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_comms_status, NULL);
+  m_cond_xcom_comms_status.init(
+    key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_comms_status);
+  m_lock_xcom_exit.init(key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_exit,
+                        NULL);
+  m_cond_xcom_exit.init(key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_exit);
 
   m_socket_util= new My_xp_socket_util_impl();
 }
@@ -591,7 +601,7 @@ site_def const *Gcs_xcom_proxy_impl::find_site_def(synode_no synode)
 Gcs_xcom_proxy_impl::Xcom_handler::Xcom_handler()
   :m_lock(), m_fd(NULL)
 {
-  m_lock.init(NULL);
+  m_lock.init(key_GCS_MUTEX_Xcom_handler_m_lock, NULL);
 }
 
 

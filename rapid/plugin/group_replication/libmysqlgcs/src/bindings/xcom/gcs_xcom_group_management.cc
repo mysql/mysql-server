@@ -31,7 +31,8 @@ Gcs_xcom_group_management(Gcs_xcom_proxy *xcom_proxy,
     ),
     m_nodes_mutex()
 {
-  m_nodes_mutex.init(NULL);
+  m_nodes_mutex.init(
+    key_GCS_MUTEX_Gcs_xcom_group_management_m_nodes_mutex, NULL);
 }
 
 

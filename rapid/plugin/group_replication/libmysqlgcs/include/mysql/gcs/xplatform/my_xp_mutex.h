@@ -16,34 +16,19 @@
 #ifndef MY_XP_MUTEX_INCLUDED
 #define MY_XP_MUTEX_INCLUDED
 
-#include <errno.h>
-#include <stdlib.h>
-
-#ifdef _WIN32
-#include <winsock2.h>  // Must come before <windows.h>.
-#include <windows.h>
-
-typedef CRITICAL_SECTION native_mutex_t;
-typedef int              native_mutexattr_t;
-#else
-#include <pthread.h>
-#include <stdio.h>
-
-typedef pthread_mutex_t     native_mutex_t;
-typedef pthread_mutexattr_t native_mutexattr_t;
-#endif
+#include "mysql/psi/mysql_mutex.h"
 
 /**
   @class My_xp_mutex
 
-  Abstract class used to wrap mutex for various platforms.
+  Abstract class used to wrap mutex for various implementations.
 
   A typical use case is:
 
   @code{.cpp}
 
-  My_xp_mutex mutex= new My_xp_mutex_impl();
-  mutex->init(NULL);
+  My_xp_mutex *mutex= new My_xp_mutex_impl();
+  mutex->init(mutex_PSI_key, NULL);
 
   mutex->lock();
   ...
@@ -57,11 +42,12 @@ public:
   /**
     Initialize mutex.
 
+    @param key mutex instrumentation key
     @param attr mutex attributes reference
     @return success status
   */
 
-  virtual int init(const native_mutexattr_t *attr)= 0;
+  virtual int init(PSI_mutex_key key, const native_mutexattr_t *attr)= 0;
 
 
   /**
@@ -106,52 +92,34 @@ public:
     @return native mutex pointer
   */
 
-  virtual native_mutex_t *get_native_mutex()= 0;
+  virtual mysql_mutex_t *get_native_mutex()= 0;
 
 
   virtual ~My_xp_mutex() {}
 };
 
-#ifdef _WIN32
-class My_xp_mutex_win : public My_xp_mutex
+#ifndef XCOM_STANDALONE
+class My_xp_mutex_server : public My_xp_mutex
 {
-private:
-  /*
-    Disabling the copy constructor and assignment operator.
-  */
-  My_xp_mutex_win(My_xp_mutex_win const&);
-  My_xp_mutex_win& operator=(My_xp_mutex_win const&);
 public:
-  explicit My_xp_mutex_win();
-  virtual ~My_xp_mutex_win();
-#else
-class My_xp_mutex_pthread : public My_xp_mutex
-{
-private:
-  /*
-    Disabling the copy constructor and assignment operator.
-  */
-  My_xp_mutex_pthread(My_xp_mutex_pthread const&);
-  My_xp_mutex_pthread& operator=(My_xp_mutex_pthread const&);
-public:
-  explicit My_xp_mutex_pthread();
-  virtual ~My_xp_mutex_pthread();
-#endif
-  int init(const native_mutexattr_t *attr);
+  explicit My_xp_mutex_server();
+  virtual ~My_xp_mutex_server();
+
+  int init(PSI_mutex_key key, const native_mutexattr_t *attr);
   int destroy();
   int lock();
   int trylock();
   int unlock();
-  native_mutex_t *get_native_mutex();
+  mysql_mutex_t *get_native_mutex();
 
 protected:
-  native_mutex_t *m_mutex;
+  mysql_mutex_t *m_mutex;
 };
+#endif
 
-#ifdef _WIN32
-class My_xp_mutex_impl : public My_xp_mutex_win
-#else
-class My_xp_mutex_impl : public My_xp_mutex_pthread
+
+#ifndef XCOM_STANDALONE
+class My_xp_mutex_impl : public My_xp_mutex_server
 #endif
 {
 public:
