@@ -57,7 +57,6 @@ void Dbtc::initData()
   // Trigger and index pools
   c_theDefinedTriggerPool.setSize(c_maxNumberOfDefinedTriggers);
   c_theIndexPool.setSize(c_maxNumberOfIndexes);
-  c_theAttributeBufferPool.setSize(c_transactionBufferSpace);
   c_firedTriggerHash.setSize((c_maxNumberOfFiredTriggers+10)/10);
 }//Dbtc::initData()
 
@@ -130,6 +129,7 @@ void Dbtc::initRecords()
   c_gcpRecordList.init();
   c_theFiredTriggerPool.init(TcFiredTriggerData::TYPE_ID, pc, 0, UINT32_MAX);
   c_theCommitAckMarkerBufferPool.init(RT_DBTC_COMMIT_ACK_MARKER_BUFFER, pc, 0, UINT32_MAX);
+  c_theAttributeBufferPool.init(RT_DBTC_ATTRIBUTE_BUFFER, pc, 0, UINT32_MAX);
 }//Dbtc::initRecords()
 
 bool
@@ -177,12 +177,9 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
     ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
-  Uint32 transactionBufferMemory = 0;
   Uint32 maxNoOfIndexes = 0;
   Uint32 maxNoOfTriggers = 0, maxNoOfFiredTriggers = 0;
 
-  ndb_mgm_get_int_parameter(p, CFG_DB_TRANS_BUFFER_MEM,  
-			    &transactionBufferMemory);
   ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE,
 			    &maxNoOfIndexes);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, 
@@ -190,8 +187,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGER_OPS, 
 			    &maxNoOfFiredTriggers);
   
-  c_transactionBufferSpace = 
-    transactionBufferMemory / AttributeBuffer::getSegmentSize();
   c_maxNumberOfIndexes = maxNoOfIndexes;
   c_maxNumberOfDefinedTriggers = maxNoOfTriggers;
   c_maxNumberOfFiredTriggers = maxNoOfFiredTriggers;

@@ -343,8 +343,12 @@ public:
     2.3 RECORDS AND FILESIZES
     -------------------------
   */
-  typedef DataBuffer<11,ArrayPool<DataBufferSegment<11> > > AttributeBuffer;
-  typedef LocalDataBuffer<11,ArrayPool<DataBufferSegment<11> > > LocalAttributeBuffer;
+  typedef TransientPool<DataBufferSegment<11, RT_DBTC_ATTRIBUTE_BUFFER> >
+            AttributeBuffer_pool;
+  typedef DataBuffer<11, AttributeBuffer_pool, RT_DBTC_ATTRIBUTE_BUFFER>
+            AttributeBuffer;
+  typedef LocalDataBuffer<11, AttributeBuffer_pool, RT_DBTC_ATTRIBUTE_BUFFER>
+            LocalAttributeBuffer;
 
   /* **************************************************************** */
   /* ---------------------------------------------------------------- */
@@ -422,7 +426,7 @@ public:
    */  
   TcDefinedTriggerData_list c_theDefinedTriggers;
 
-  AttributeBuffer::DataBufferPool c_theAttributeBufferPool;
+  AttributeBuffer_pool c_theAttributeBufferPool;
 
   typedef DataBufferSegment<5, RT_DBTC_COMMIT_ACK_MARKER_BUFFER>
               CommitAckMarkerSegment;
@@ -436,8 +440,6 @@ public:
                               LocalCommitAckMarkerBuffer;
 
   CommitAckMarkerBuffer_pool c_theCommitAckMarkerBufferPool;
-
-  UintR c_transactionBufferSpace;
 
 
   /* ********** FIRED TRIGGER DATA ********** */
