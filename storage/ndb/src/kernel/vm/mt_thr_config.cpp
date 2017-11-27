@@ -20,9 +20,6 @@
 #include "../../common/util/parse_mask.hpp"
 #include <NdbLockCpuUtil.h>
 #include <NdbThread.h>
-#include <EventLogger.hpp>
-
-extern EventLogger *g_eventLogger;
 
 static const struct ParseEntries m_parse_entries[] =
 {
@@ -1191,8 +1188,8 @@ THRConfigRebinder::THRConfigRebinder(THRConfigApplier* tca,
   int rc = m_config_applier->do_unbind(m_thread);
   if (rc < 0)
   {
-    g_eventLogger->info("THRConfigRebinder(%p) unbind failed: %u",
-                        m_thread, rc);
+    printf("THRConfigRebinder(%p) unbind failed: %u\n",
+           m_thread, rc);
     return;
   }
   /* Unbound */
@@ -1201,8 +1198,8 @@ THRConfigRebinder::THRConfigRebinder(THRConfigApplier* tca,
   rc = m_config_applier->do_bind_idxbuild(m_thread);
   if (rc < 0)
   {
-    g_eventLogger->info("THRConfigRebinder(%p) bind failed : %u",
-                        m_thread, rc);
+    printf("THRConfigRebinder(%p) bind failed : %u\n",
+           m_thread, rc);
     return;
   }
   /* Bound */
@@ -1220,8 +1217,8 @@ THRConfigRebinder::~THRConfigRebinder()
     int rc = m_config_applier->do_unbind(m_thread);
     if (rc < 0)
     {
-      g_eventLogger->info("~THRConfigRebinder(%p) unbind failed: %u",
-                          m_thread, rc);
+      printf("~THRConfigRebinder(%p) unbind failed: %u\n",
+             m_thread, rc);
       return;
     }
     /* Fall through */
@@ -1232,8 +1229,8 @@ THRConfigRebinder::~THRConfigRebinder()
     int rc = m_config_applier->do_bind_io(m_thread);
     if (rc < 0)
     {
-      g_eventLogger->info("~THRConfigRebinder(%p) bind failed : %u",
-                          m_thread, rc);
+      printf("~THRConfigRebinder(%p) bind failed : %u\n",
+             m_thread, rc);
     }
     break;
   }
