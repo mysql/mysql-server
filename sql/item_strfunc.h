@@ -1392,6 +1392,7 @@ public:
     :Item_str_func(pos, a, b, c)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     /*
@@ -1401,6 +1402,7 @@ public:
     */
     set_data_type_string(14*11, default_charset());
     maybe_null= true;
+    null_on_null= false;
 
     return false;
   }
@@ -1417,12 +1419,14 @@ public:
     :Item_str_func(pos, a, b)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256, default_charset());
     maybe_null= false;
+    null_on_null= false;
 
     return false;
   }
@@ -1440,12 +1444,14 @@ public:
     :Item_str_func(pos, list)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256, default_charset());
     maybe_null= 1;
+    null_on_null= false;
 
     return false;
   }
@@ -1463,12 +1469,14 @@ public:
     :Item_str_func(pos, a, b)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     /* maximum string length of the property value is expected
     to be less than 256 characters. */
     max_length= 256;
     maybe_null= false;
+    null_on_null= false;
 
     return false;
   }
@@ -1485,12 +1493,14 @@ public:
     :Item_str_func(pos, a, b)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     /* maximum string length of the property value is expected
     to be less than 256 characters. */
     max_length= 256;
     maybe_null= false;
+    null_on_null= false;
 
     return false;
   }
@@ -1507,12 +1517,14 @@ public:
     :Item_str_func(pos, a)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256, default_charset());
     maybe_null= 1;
+    null_on_null= false;
 
     return false;
   }
@@ -1539,6 +1551,7 @@ public:
     // to be less than 256 characters.
     set_data_type_string(256, default_charset());
     maybe_null= 1;
+    null_on_null= false;
 
     return false;
   }
@@ -1563,6 +1576,7 @@ public:
     // to be less than 256 characters.
     set_data_type_string(256, default_charset());
     maybe_null= 1;
+    null_on_null= false;
 
     return false;
   }

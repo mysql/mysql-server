@@ -101,8 +101,8 @@ Statistics::Statistics()
       "tbl.engine,"
       "tbl.se_private_id,"
       "tbl.hidden != 'Visible' OR idx.hidden OR icu.hidden,"
-      "IF(ISNULL(stat.cardinality), CAST(-1 AS UNSIGNED), stat.cardinality),"
-      "IF(ISNULL(stat.cached_time), 0, stat.cached_time))");
+      "COALESCE(stat.cardinality, CAST(-1 AS UNSIGNED)),"
+      "COALESCE(CAST(stat.cached_time as UNSIGNED), 0))");
 
   m_target_def.add_from("LEFT JOIN mysql.index_stats stat"
                                   "  ON tbl.name=stat.table_name"

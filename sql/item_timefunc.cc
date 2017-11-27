@@ -3471,6 +3471,7 @@ bool Item_func_internal_update_time::resolve_type(THD *thd)
 {
   set_data_type_datetime(0);
   maybe_null= true;
+  null_on_null= false;
   thd->time_zone_used= true;
   return false;
 }
@@ -3546,6 +3547,7 @@ bool Item_func_internal_check_time::resolve_type(THD *thd)
 {
   set_data_type_datetime(0);
   maybe_null= true;
+  null_on_null= false;
   thd->time_zone_used= true;
   return false;
 }
