@@ -1234,7 +1234,7 @@ bool set_and_validate_user_attributes(THD *thd,
       if (!thd->is_error())
       {
         String error_user;
-        append_user(thd, &error_user, Str, FALSE, FALSE);
+        append_user(thd, &error_user, Str, false, false);
         my_error(ER_CANNOT_USER, MYF(0), cmd, error_user.c_ptr_safe());
       }
       return(1);
