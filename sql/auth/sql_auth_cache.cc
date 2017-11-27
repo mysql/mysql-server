@@ -1106,7 +1106,7 @@ insert_entry_in_db_cache(THD *thd, acl_entry *entry)
     2. Someone already inserted a similar entry.
   */
   unique_ptr_my_free<acl_entry> entry_ptr(entry);
-  if (acl_cache_lock.lock(false))
+  if (!acl_cache_lock.lock(false))
     DBUG_VOID_RETURN;
   db_cache.emplace(std::string(entry->key, entry->length),
                    std::move(entry_ptr));
