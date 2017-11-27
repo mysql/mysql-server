@@ -36,7 +36,5 @@ regexp_time_limit
 resultset_metadata
 tls_version
 tls_version
-windowing_use_high_precision
-windowing_use_high_precision
 drop table t1;
 drop table t2;
