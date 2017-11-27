@@ -424,11 +424,18 @@ public:
 
   AttributeBuffer::DataBufferPool c_theAttributeBufferPool;
 
-  typedef ArrayPool<DataBufferSegment<5> > CommitAckMarkerBuffer_pool;
-  typedef DataBuffer<5,CommitAckMarkerBuffer_pool> CommitAckMarkerBuffer;
-  typedef LocalDataBuffer<5,CommitAckMarkerBuffer_pool> LocalCommitAckMarkerBuffer;
+  typedef DataBufferSegment<5, RT_DBTC_COMMIT_ACK_MARKER_BUFFER>
+              CommitAckMarkerSegment;
+  typedef TransientPool<CommitAckMarkerSegment> CommitAckMarkerBuffer_pool;
+  typedef DataBuffer<5,
+                     CommitAckMarkerBuffer_pool,
+                     RT_DBTC_COMMIT_ACK_MARKER_BUFFER> CommitAckMarkerBuffer;
+  typedef LocalDataBuffer<5,
+                          CommitAckMarkerBuffer_pool,
+                          RT_DBTC_COMMIT_ACK_MARKER_BUFFER>
+                              LocalCommitAckMarkerBuffer;
 
-  CommitAckMarkerBuffer::DataBufferPool c_theCommitAckMarkerBufferPool;
+  CommitAckMarkerBuffer_pool c_theCommitAckMarkerBufferPool;
 
   UintR c_transactionBufferSpace;
 

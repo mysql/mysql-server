@@ -95,7 +95,6 @@ void Dbtc::initRecords()
   while (indexes.releaseFirst());
 
   m_commitAckMarkerHash.setSize(1024);
-  c_theCommitAckMarkerBufferPool.setSize(4 * capiConnectFilesize);
 
   hostRecord = (HostRecord*)allocRecord("HostRecord",
 					sizeof(HostRecord),
@@ -130,6 +129,7 @@ void Dbtc::initRecords()
   c_gcpRecordPool.init(GcpRecord::TYPE_ID, pc, 0, UINT32_MAX);
   c_gcpRecordList.init();
   c_theFiredTriggerPool.init(TcFiredTriggerData::TYPE_ID, pc, 0, UINT32_MAX);
+  c_theCommitAckMarkerBufferPool.init(RT_DBTC_COMMIT_ACK_MARKER_BUFFER, pc, 0, UINT32_MAX);
 }//Dbtc::initRecords()
 
 bool
