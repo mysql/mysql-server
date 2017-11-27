@@ -537,7 +537,6 @@ public:
    */
   TcFiredTriggerData_pool c_theFiredTriggerPool;
   TcFiredTriggerData_hash c_firedTriggerHash;
-  AttributeBuffer::DataBufferPool c_theTriggerAttrInfoPool;
   RSS_AP_SNAPSHOT(c_theFiredTriggerPool);
 
   Uint32 c_maxNumberOfDefinedTriggers;
