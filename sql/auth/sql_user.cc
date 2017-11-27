@@ -869,6 +869,7 @@ end:
   @param is_role      CREATE ROLE was used to create the authid.
   @param history_table          The table to verify history against.
   @param[out] history_check_done  Set to on if the history table is updated
+  @param cmd          Command information
 
   @retval 0 ok
   @retval 1 ERROR;
@@ -880,7 +881,8 @@ bool set_and_validate_user_attributes(THD *thd,
                                       bool is_privileged_user,
                                       bool is_role,
                                       TABLE_LIST *history_table,
-                                      bool *history_check_done)
+                                      bool *history_check_done,
+                                      const char * cmd)
 {
   bool user_exists= false;
   ACL_USER *acl_user;
@@ -1224,6 +1226,17 @@ bool set_and_validate_user_attributes(THD *thd,
                                      history_table, what_to_set))
     {
       plugin_unlock(0, plugin);
+
+      /*
+        generate_authentication_string may return error status
+        without setting actual error.
+      */
+      if (!thd->is_error())
+      {
+        String error_user;
+        append_user(thd, &error_user, Str, FALSE, FALSE);
+        my_error(ER_CANNOT_USER, MYF(0), cmd, error_user.c_ptr_safe());
+      }
       return(1);
     }
     if (history_check_done)
@@ -1410,7 +1423,8 @@ bool change_password(THD *thd, const char *host, const char *user,
     combo->uses_identified_by_clause= false;
 
   if (set_and_validate_user_attributes(thd, combo, what_to_set, true, false,
-                                       &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL))
+                                       &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
+                                       "SET PASSWORD"))
   {
     authentication_plugin.assign(combo->plugin.str);
     result= 1;
@@ -2036,7 +2050,8 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
     if (set_and_validate_user_attributes(thd, user_name, what_to_update, true,
                                          is_role,
                                          &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY],
-                                         &history_check_done))
+                                         &history_check_done,
+                                         "CREATE USER"))
     {
       result= 1;
       append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
@@ -2554,7 +2569,8 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     if (set_and_validate_user_attributes(thd, user_from, what_to_alter,
                                          is_privileged_user, false,
                                          &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY],
-                                         &history_check_done))
+                                         &history_check_done,
+                                         "ALTER USER"))
     {
       result= 1;
       continue;

@@ -351,7 +351,8 @@ bool set_and_validate_user_attributes(THD *thd,
                                       bool is_privileged_user,
                                       bool is_role,
                                       TABLE_LIST *history_table,
-                                      bool *history_check_done);
+                                      bool *history_check_done,
+                                      const char * cmd);
 typedef std::pair<std::string, bool> Grant_privilege;
 typedef std::unordered_multimap<const Role_id, Grant_privilege,
                                 role_id_hash >
