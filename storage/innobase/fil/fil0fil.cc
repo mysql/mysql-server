@@ -4973,12 +4973,6 @@ Fil_path::make(
 	    || has_prefix(name, DOT_SLASH)
 	    || has_prefix(name, DOT_DOT_SLASH)) {
 
-		/* The datadir in InnoDB is always referred to by "./"
-		and so it is currenlty not possible for this routine to be
-		called with an absolute(path) and one of the name types in
-		this condition. */
-		ut_ad(path.empty() || path == DOT_SLASH);
-
 		path.clear();
 	}
 
@@ -10903,7 +10897,12 @@ Tablespace_dirs::tokenize_paths(
 		auto	pos = path.find('*');
 
 		/* Filter out invalid path components. */
-		if (pos == std::string::npos) {
+
+		if (path == "/") {
+
+			ib::warn() << "Scan path '" << path << "' ignored";
+
+		} else if (pos == std::string::npos) {
 
 			Fil_path::normalize(dir.data());
 
@@ -10971,7 +10970,7 @@ Tablespace_dirs::tokenize_paths(
 
 			auto&	path_j = dirs[j].second;
 
-			if (Fil_path::is_ancestor(path_i,path_j)) {
+			if (Fil_path::is_ancestor(path_i, path_j)) {
 
 				path_j.resize(0);
 			}

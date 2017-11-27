@@ -10324,7 +10324,7 @@ Dir_Walker::is_directory(const Path& path)
 		return(type == OS_FILE_TYPE_DIR);
 	}
 
-	ut_ad(exists);
+	ut_ad(exists || type == OS_FILE_TYPE_FAILED);
 	ut_ad(type != OS_FILE_TYPE_MISSING);
 
 	return(false);
