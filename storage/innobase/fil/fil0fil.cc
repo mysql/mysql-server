@@ -7465,16 +7465,18 @@ meb_tablespace_redo_rename(
 	meb_fil_name_process(from_name, page_id.space());
 	meb_fil_name_process(new_name, page_id.space());
 
-	if (meb_replay_file_ops
-	    && !fil_op_replay_rename(
-		    page_id, abs_from_path.c_str(), abs_to_path.c_str())) {
+	if (meb_replay_file_ops) {
 
-		recv_sys->found_corrupt_fs = true;
+		if (!fil_op_replay_rename(
+			page_id, abs_from_path.c_str(), abs_to_path.c_str())) {
+
+			recv_sys->found_corrupt_fs = true;
+		}
+
+		meb_fil_name_process(to_name, page_id.space());
 	}
 
 	ut_free(new_name);
-
-	meb_fil_name_process(to_name, page_id.space());
 }
 
 /** Process a MLOG_FILE_DELETE redo record.
@@ -10603,6 +10605,8 @@ fil_tablespace_redo_rename(
 
 	char*	to_name = reinterpret_cast<char*>(ptr);
 
+	ptr += to_len;
+
 	Fil_path::normalize(to_name);
 
 #ifdef UNIV_HOTBACKUP
@@ -10623,8 +10627,6 @@ fil_tablespace_redo_rename(
 
 		return(nullptr);
 	}
-
-	ptr += to_len;
 
 	if (!Fil_path::has_ibd_suffix(abs_to_name)) {
 
