@@ -1877,6 +1877,7 @@ void Dbtc::printState(Signal* signal, int place, bool force_trace)
   if (apiConnectptr.p->cachePtr != RNIL)
   {
     jam();
+    CacheRecordPtr cachePtr;
     cachePtr.i = apiConnectptr.p->cachePtr;
     if (c_cacheRecordPool.getValidPtr(cachePtr))
     {
@@ -2392,9 +2393,9 @@ void Dbtc::execKEYINFO(Signal* signal)
     return;
   }//switch
 
-  UintR TcachePtr = apiConnectptr.p->cachePtr;
   UintR TtcTimer = ctcTimer;
-  cachePtr.i = TcachePtr;
+  CacheRecordPtr cachePtr;
+  cachePtr.i = apiConnectptr.p->cachePtr;
   if (!c_cacheRecordPool.getValidPtr(cachePtr) || cachePtr.isNull())
   {
     TCKEY_abort(signal, 42);
@@ -2406,7 +2407,7 @@ void Dbtc::execKEYINFO(Signal* signal)
   if (apiConnectptr.p->apiConnectstate == CS_START_SCAN)
   {
     jam();
-    scanKeyinfoLab(signal);
+    scanKeyinfoLab(signal, regCachePtr);
     return;
   }
 
@@ -2416,7 +2417,7 @@ void Dbtc::execKEYINFO(Signal* signal)
   {
   case OS_WAIT_KEYINFO:
     jam();
-    tckeyreq020Lab(signal);
+    tckeyreq020Lab(signal, cachePtr);
     return;
   default:
     jam();
@@ -2471,7 +2472,7 @@ void Dbtc::sendKeyInfoTrain(Signal* signal,
  * tckeyreq020Lab
  * Handle received KEYINFO signal
  */
-void Dbtc::tckeyreq020Lab(Signal* signal) 
+void Dbtc::tckeyreq020Lab(Signal* signal, CacheRecordPtr const cachePtr)
 {
   CacheRecord * const regCachePtr = cachePtr.p;
   UintR TkeyLen = regCachePtr->keylen;
@@ -2510,7 +2511,7 @@ void Dbtc::tckeyreq020Lab(Signal* signal)
      * TCKEYREQ
      */
     jam();
-    tckeyreq050Lab(signal);
+    tckeyreq050Lab(signal, cachePtr);
     return;
   }
 }//Dbtc::tckeyreq020Lab()
@@ -2561,10 +2562,10 @@ void Dbtc::execATTRINFO(Signal* signal)
       CLEAR_ERROR_INSERT_VALUE;
       return;
     }//if
-    UintR TcachePtr = regApiPtr->cachePtr;
     UintR TtcTimer = ctcTimer;
-    cachePtr.i = TcachePtr;
-    if (!c_cacheRecordPool.getValidPtr(cachePtr) || cachePtr.i == RNIL)
+    CacheRecordPtr cachePtr;
+    cachePtr.i = regApiPtr->cachePtr;
+    if (!c_cacheRecordPool.getValidPtr(cachePtr) || cachePtr.isNull())
     {
       TCKEY_abort(signal, 43);
       return;
@@ -2611,7 +2612,7 @@ void Dbtc::execATTRINFO(Signal* signal)
         jam();
         regApiPtr->apiConnectstate = CS_START_COMMITTING;
       }//if
-      attrinfoDihReceivedLab(signal);
+      attrinfoDihReceivedLab(signal, cachePtr);
     } else if (TattrlengthRemain < 0) {
       jam();
       DEBUG("ATTRINFO wrong total length="<<Tlength
@@ -2668,11 +2669,10 @@ void Dbtc::execATTRINFO(Signal* signal)
 /*       MODULE: HASH MODULE                                              */
 /*       DESCRIPTION: CONTAINS THE HASH VALUE CALCULATION                 */
 /* *********************************************************************> */
-void Dbtc::hash(Signal* signal)
+void Dbtc::hash(Signal* signal, CacheRecord * const regCachePtr)
 {
   UintR*  Tdata32;
   
-  CacheRecord * const regCachePtr = cachePtr.p;
   SegmentedSectionPtr keyInfoSection;
   UintR keylen = (UintR)regCachePtr->keylen;
   Uint32 distKey = regCachePtr->distributionKeyIndicator;
@@ -2918,7 +2918,7 @@ Dbtc::seizeTcRecord(Signal* signal)
 }//Dbtc::seizeTcRecord()
 
 int
-Dbtc::seizeCacheRecord(Signal* signal)
+Dbtc::seizeCacheRecord(Signal* signal, CacheRecordPtr& cachePtr)
 {
   if (!c_cacheRecordPool.seize(cachePtr))
   {
@@ -2940,6 +2940,7 @@ void
 Dbtc::releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord* regCachePtr)
 {
   ApiConnectRecord * const regApiPtr = transPtr.p;
+  CacheRecordPtr cachePtr;
   cachePtr.p = regCachePtr;
   cachePtr.i = regApiPtr->cachePtr;
   c_cacheRecordPool.release(cachePtr);
@@ -3264,7 +3265,9 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     return;
   }//if
   
-  if (seizeCacheRecord(signal) != 0) {
+  CacheRecordPtr cachePtr;
+  if (seizeCacheRecord(signal, cachePtr) != 0)
+  {
     releaseSections(handle);
     return;
   }//if
@@ -3706,13 +3709,13 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   {
     jamDebug();
     /* Have all the KeyInfo (and AttrInfo), process now */
-    tckeyreq050Lab(signal);
+    tckeyreq050Lab(signal, cachePtr);
   } 
   else if (TkeyLength <= TcKeyReq::MaxKeyInfo) 
   {
     jam();
     /* Have all the KeyInfo, get any extra AttrInfo */
-    tckeyreq050Lab(signal);
+    tckeyreq050Lab(signal, cachePtr);
   }
   else 
   {
@@ -3829,16 +3832,16 @@ Dbtc::check_own_location_domain(Uint16 *nodes,
  * This method is executed once all KeyInfo has been obtained for
  * the TcKeyReq signal
  */
-void Dbtc::tckeyreq050Lab(Signal* signal) 
+void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr)
 {
+  CacheRecord* const regCachePtr = cachePtr.p;
   UintR tnoOfBackup;
   UintR tnoOfStandby;
 
   terrorCode = 0;
 
-  hash(signal); /* NOW IT IS TIME TO CALCULATE THE HASH VALUE*/
+  hash(signal, regCachePtr); /* NOW IT IS TIME TO CALCULATE THE HASH VALUE*/
   
-  CacheRecord * const regCachePtr = cachePtr.p;
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
 
@@ -4211,7 +4214,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
       systemErrorLab(signal, __LINE__);
       return;
     }//switch
-    attrinfoDihReceivedLab(signal);
+    attrinfoDihReceivedLab(signal, cachePtr);
     return;
   } else {
     if (regCachePtr->lenAiInTckeyreq < regCachePtr->attrlength) {
@@ -4228,7 +4231,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   return;
 }//Dbtc::tckeyreq050Lab()
 
-void Dbtc::attrinfoDihReceivedLab(Signal* signal)
+void Dbtc::attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr)
 {
   CacheRecord * const regCachePtr = cachePtr.p;
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
@@ -4277,7 +4280,7 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
       const Uint32 instanceKey = regTcPtr->lqhInstanceKey;
       lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
     }
-    packLqhkeyreq(signal, lqhRef);
+    packLqhkeyreq(signal, lqhRef, cachePtr);
   }
   else
   {
@@ -4291,8 +4294,8 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
     jam();
     Uint32 trigOp = regTcPtr->triggeringOperation;
     Uint32 TclientData = regTcPtr->clientData;
-    releaseKeys();
-    releaseAttrinfo();
+    releaseKeys(regCachePtr);
+    releaseAttrinfo(cachePtr);
     regApiPtr->lqhkeyreqrec--;
     unlinkReadyTcCon(signal);
     clearCommitAckMarker(regApiPtr, regTcPtr);
@@ -4327,14 +4330,15 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
 }//Dbtc::attrinfoDihReceivedLab()
 
 void Dbtc::packLqhkeyreq(Signal* signal,
-                         BlockReference TBRef)
+                         BlockReference TBRef,
+                         CacheRecordPtr cachePtr)
 {
   CacheRecord * const regCachePtr = cachePtr.p;
   UintR Tkeylen = regCachePtr->keylen;
 
   ndbassert( signal->getNoOfSections() == 0 );
 
-  sendlqhkeyreq(signal, TBRef);
+  sendlqhkeyreq(signal, TBRef, regCachePtr);
 
   /* Do we need to send a KeyInfo signal train? */
   if ((! regCachePtr->useLongLqhKeyReq) &&
@@ -4349,20 +4353,19 @@ void Dbtc::packLqhkeyreq(Signal* signal,
   }//if
 
   /* Release key storage */ 
-  releaseKeys();
-  packLqhkeyreq040Lab(signal,
-                      TBRef);
+  releaseKeys(regCachePtr);
+  packLqhkeyreq040Lab(signal, TBRef, cachePtr);
 }//Dbtc::packLqhkeyreq()
 
 
 void Dbtc::sendlqhkeyreq(Signal* signal,
-                         BlockReference TBRef)
+                         BlockReference TBRef,
+                         CacheRecord * const regCachePtr)
 {
   UintR tslrAttrLen;
   UintR Tdata10;
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  CacheRecord * const regCachePtr = cachePtr.p;
   Uint32 version = getNodeInfo(refToNode(TBRef)).m_version;
   UintR sig0, sig1, sig2, sig3, sig4, sig5, sig6;
 #ifdef ERROR_INSERT
@@ -4635,10 +4638,11 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
 }//Dbtc::sendlqhkeyreq()
 
 void Dbtc::packLqhkeyreq040Lab(Signal* signal,
-                               BlockReference TBRef)
+                               BlockReference TBRef,
+                               CacheRecordPtr cachePtr)
 {
-  TcConnectRecord * const regTcPtr = tcConnectptr.p;
   CacheRecord * const regCachePtr = cachePtr.p;
+  TcConnectRecord * const regTcPtr = tcConnectptr.p;
 #ifdef ERROR_INSERT
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
 
@@ -4676,7 +4680,7 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
   } // useLongLqhKeyReq
 
   /* Release AttrInfo related storage, and the Cache Record */
-  releaseAttrinfo();
+  releaseAttrinfo(cachePtr);
 
   UintR TtcTimer = ctcTimer;
   UintR Tread = (regTcPtr->operation == ZREAD);
@@ -4699,7 +4703,7 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
 /* ========================================================================= */
 /* -------      RELEASE ALL ATTRINFO RECORDS IN AN OPERATION RECORD  ------- */
 /* ========================================================================= */
-void Dbtc::releaseAttrinfo() 
+void Dbtc::releaseAttrinfo(CacheRecordPtr cachePtr)
 {
   CacheRecord * const regCachePtr = cachePtr.p;
   Uint32 attrInfoSectionI= cachePtr.p->attrInfoSectionI;
@@ -4714,8 +4718,6 @@ void Dbtc::releaseAttrinfo()
   //---------------------------------------------------
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   c_cacheRecordPool.release(cachePtr);
-cachePtr.i = RNIL+1;
-cachePtr.p = (CacheRecord*)(void*)~0;
   regApiPtr->cachePtr = RNIL;
   return;
 }//Dbtc::releaseAttrinfo()
@@ -12858,7 +12860,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   else
   {
     jam();
-    seizeCacheRecord(signal);
+    CacheRecordPtr cachePtr;
+    ndbrequire(seizeCacheRecord(signal, cachePtr) == 0); // TODO handle seize failure
     cachePtr.p->attrlength = aiLength;
     cachePtr.p->keylen = keyLen;
     cachePtr.p->save1 = 0;
@@ -13089,12 +13092,11 @@ void Dbtc::scanTabRefLab(Signal* signal, Uint32 errCode)
  * scanKeyinfoLab
  * Handle reception of KeyInfo for a Scan
  */
-void Dbtc::scanKeyinfoLab(Signal* signal)
+void Dbtc::scanKeyinfoLab(Signal* signal, CacheRecord * const regCachePtr)
 {
   /* Receive KEYINFO for a SCAN operation 
    * Note that old NDBAPI nodes sometimes send header-only KEYINFO signals
    */
-  CacheRecord * const regCachePtr = cachePtr.p;
   UintR TkeyLen = regCachePtr->keylen;
   UintR Tlen = regCachePtr->save1;
 
@@ -13158,6 +13160,7 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen)
   ScanRecordPtr scanptr;
   scanptr.i = apiConnectptr.p->apiScanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+  CacheRecordPtr cachePtr;
   cachePtr.i = apiConnectptr.p->cachePtr;
   c_cacheRecordPool.getPtr(cachePtr);
   CacheRecord * const regCachePtr = cachePtr.p;
@@ -13504,11 +13507,13 @@ void Dbtc::releaseScanResources(Signal* signal,
                                 ScanRecordPtr scanPtr,
 				bool not_started)
 {
-  if (apiConnectptr.p->cachePtr != RNIL) {
+  if (apiConnectptr.p->cachePtr != RNIL)
+  {
+    CacheRecordPtr cachePtr;
     cachePtr.i = apiConnectptr.p->cachePtr;
     c_cacheRecordPool.getPtr(cachePtr);
-    releaseKeys();
-    releaseAttrinfo();
+    releaseKeys(cachePtr.p);
+    releaseAttrinfo(cachePtr);
   }//if
 
   if (not_started)
@@ -15338,10 +15343,11 @@ void Dbtc::releaseAbortResources(Signal* signal)
   }
   if (apiConnectptr.p->cachePtr != RNIL)
   {
+    CacheRecordPtr cachePtr;
     cachePtr.i = apiConnectptr.p->cachePtr;
     c_cacheRecordPool.getPtr(cachePtr);
-    releaseAttrinfo();
-    releaseKeys();
+    releaseAttrinfo(cachePtr);
+    releaseKeys(cachePtr.p);
   }//if
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiConnectptr.p->tcConnect);
   while (tcConList.removeFirst(tcConnectptr))
@@ -15487,13 +15493,13 @@ void Dbtc::releaseApiConnectFail(Signal* signal)
   ndbrequire(apiConnectptr.p->commitAckMarker == RNIL);
 }//Dbtc::releaseApiConnectFail()
 
-void Dbtc::releaseKeys() 
+void Dbtc::releaseKeys(CacheRecord* regCachePtr)
 {
-  Uint32 keyInfoSectionI= cachePtr.p->keyInfoSectionI;
+  Uint32 keyInfoSectionI= regCachePtr->keyInfoSectionI;
 
   /* Release KeyInfo section if there is one */
   releaseSection(keyInfoSectionI);
-  cachePtr.p->keyInfoSectionI= RNIL;
+  regCachePtr->keyInfoSectionI= RNIL;
 
 }//Dbtc::releaseKeys()
 

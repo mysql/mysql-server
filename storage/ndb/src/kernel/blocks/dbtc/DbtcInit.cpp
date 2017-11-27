@@ -70,7 +70,6 @@ void Dbtc::initRecords()
   {
     void* tmp[] = { &apiConnectptr, 
 		    &tcConnectptr,
-		    &cachePtr,
 		    &hostptr,
 		    &timeOutptr,
 		    &scanFragptr, 

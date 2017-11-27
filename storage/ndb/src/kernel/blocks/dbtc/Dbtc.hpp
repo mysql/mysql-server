@@ -1883,7 +1883,7 @@ private:
   void warningReport(Signal* signal, int place);
   void printState(Signal* signal, int place, bool force_trace=false);
   int seizeTcRecord(Signal* signal);
-  int seizeCacheRecord(Signal* signal);
+  int seizeCacheRecord(Signal* signal, CacheRecordPtr& cachePtr);
   void releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord*);
   void TCKEY_abort(Signal* signal, int place);
   void copyFromToLen(UintR* sourceBuffer, UintR* destBuffer, UintR copyLen);
@@ -2005,7 +2005,7 @@ private:
   void DIVER_node_fail_handling(Signal* signal, Uint64 Tgci);
   void gcpTcfinished(Signal* signal, Uint64 gci);
   void handleGcp(Signal* signal, Ptr<ApiConnectRecord>);
-  void hash(Signal* signal);
+  void hash(Signal* signal, CacheRecord * regCachePtr);
   bool handle_special_hash(Uint32 dstHash[4], 
                            const Uint32* src, Uint32 srcLen, 
                            Uint32 tabPtrI, bool distr);
@@ -2028,8 +2028,8 @@ private:
   void releaseApiCon(Signal* signal, UintR aApiConnectPtr);
   void releaseApiConCopy(Signal* signal);
   void releaseApiConnectFail(Signal* signal);
-  void releaseAttrinfo();
-  void releaseKeys();
+  void releaseAttrinfo(CacheRecordPtr cachePtr);
+  void releaseKeys(CacheRecord* regCachePtr);
   void releaseDirtyRead(Signal*, ApiConnectRecordPtr, TcConnectRecord*);
   void releaseDirtyWrite(Signal* signal);
   void releaseTcCon();
@@ -2051,7 +2051,8 @@ private:
                          Uint32 attrInfoIVal);
   void sendContinueTimeOutControl(Signal* signal, Uint32 TapiConPtr);
   void sendlqhkeyreq(Signal* signal, 
-                     BlockReference TBRef);
+                     BlockReference TBRef,
+                     CacheRecord*);
   void sendSystemError(Signal* signal, int line);
   void sendtckeyconf(Signal* signal, UintR TcommitFlag);
   void unlinkApiConnect(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);
@@ -2224,9 +2225,11 @@ private:
   void abort010Lab(Signal* signal);
   void abort015Lab(Signal* signal);
   void packLqhkeyreq(Signal* signal, 
-                     BlockReference TBRef);
+                     BlockReference TBRef,
+                     CacheRecordPtr);
   void packLqhkeyreq040Lab(Signal* signal,
-                           BlockReference TBRef);
+                           BlockReference TBRef,
+                           CacheRecordPtr);
   void returnFromQueuedDeliveryLab(Signal* signal);
   void insert_take_over_failed_node(Signal*, Uint32 failedNodeId);
   void startTakeOverLab(Signal* signal,
@@ -2245,9 +2248,9 @@ private:
   void releaseAtErrorLab(Signal* signal);
   void seizeDatabuferrorLab(Signal* signal);
   void appendToSectionErrorLab(Signal* signal);
-  void scanKeyinfoLab(Signal* signal);
+  void scanKeyinfoLab(Signal* signal, CacheRecord*);
   void scanAttrinfoLab(Signal* signal, UintR Tlen);
-  void attrinfoDihReceivedLab(Signal* signal);
+  void attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr);
   void aiErrorLab(Signal* signal);
   void scanReleaseResourcesLab(Signal* signal);
   void scanCompletedLab(Signal* signal);
@@ -2259,14 +2262,14 @@ private:
   void tabStateErrorLab(Signal* signal);
   void wrongSchemaVersionErrorLab(Signal* signal);
   void noFreeConnectionErrorLab(Signal* signal);
-  void tckeyreq050Lab(Signal* signal);
+  void tckeyreq050Lab(Signal* signal, CacheRecordPtr cachePtr);
   void timeOutFoundLab(Signal* signal, UintR anAdd, Uint32 errCode);
   void completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd);
   void completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd);
   void completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd);
   void timeOutLoopStartLab(Signal* signal, Uint32 apiConnectPtr);
   void initialiseRecordsLab(Signal* signal, UintR Tdata0, Uint32, Uint32);
-  void tckeyreq020Lab(Signal* signal);
+  void tckeyreq020Lab(Signal* signal, CacheRecordPtr cachePtr);
   void intstartphase1x010Lab(Signal* signal, NodeId nodeId);
   void startphase1x010Lab(Signal* signal);
 
@@ -2342,7 +2345,6 @@ private:
   UintR ctcConnectFailCount;
 
   CacheRecord_pool c_cacheRecordPool;
-  CacheRecordPtr cachePtr;
 
   HostRecord *hostRecord;
   HostRecordPtr hostptr;
