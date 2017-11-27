@@ -38,7 +38,6 @@
 void Dbtc::initData() 
 {
   capiConnectFilesize = ZAPI_CONNECT_FILESIZE;
-  ccacheFilesize = ZAPI_CONNECT_FILESIZE;
   chostFilesize = MAX_NODES;
   cgcpFilesize = ZGCP_FILESIZE;
   cscanrecFileSize = ZSCANREC_FILE_SIZE;
@@ -80,10 +79,6 @@ void Dbtc::initRecords()
   }
 #endif
   // Records with dynamic sizes
-  cacheRecord = (CacheRecord*)allocRecord("CacheRecord",
-					  sizeof(CacheRecord), 
-					  ccacheFilesize);
-
   apiConnectRecord = (ApiConnectRecord*)allocRecord("ApiConnectRecord",
 						    sizeof(ApiConnectRecord),
 						    capiConnectFilesize);
@@ -155,6 +150,7 @@ void Dbtc::initRecords()
   tcConnectRecord.init(TcConnectRecord::TYPE_ID, pc, 0, UINT32_MAX);
   c_apiConTimersPool.init(ApiConTimers::TYPE_ID, pc, 0, UINT32_MAX);
   c_apiConTimersList.init();
+  c_cacheRecordPool.init(CacheRecord::TYPE_ID, pc, 0, UINT32_MAX);
 }//Dbtc::initRecords()
 
 bool
@@ -312,7 +308,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   addRecSignal(GSN_SCAN_TABCONF, &Dbtc::execSCAN_TABCONF);
   addRecSignal(GSN_KEYINFO20, &Dbtc::execKEYINFO20);
 
-  cacheRecord = 0;
   apiConnectRecord = 0;
   hostRecord = 0;
   tableRecord = 0;
@@ -322,7 +317,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   cpackedListIndex = 0;
   c_ongoing_take_over_cnt = 0;
 
-  cacheRecord = 0;
   apiConnectRecord = 0;
   hostRecord = 0;
   tableRecord = 0;
@@ -336,10 +330,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
 Dbtc::~Dbtc() 
 {
   // Records with dynamic sizes
-  deallocRecord((void **)&cacheRecord, "CacheRecord",
-		sizeof(CacheRecord), 
-		ccacheFilesize);
-  
   deallocRecord((void **)&apiConnectRecord, "ApiConnectRecord",
 		sizeof(ApiConnectRecord),
 		capiConnectFilesize);

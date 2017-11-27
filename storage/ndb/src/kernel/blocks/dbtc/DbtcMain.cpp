@@ -938,7 +938,6 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_TABLE, &tables));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_SCAN, &tcScan));
 
-  ccacheFilesize = (apiConnect/3) + 1;
   capiConnectFilesize = apiConnect;
   ctcConnectFailCount = tcConnectFail;
   ctabrecFilesize     = tables;
@@ -1875,14 +1874,14 @@ void Dbtc::printState(Signal* signal, int place, bool force_trace)
   ndbout << "tckeyrec = " << apiConnectptr.p->tckeyrec
 	 << " returnsignal = " << apiConnectptr.p->returnsignal
 	 << " apiFailState = " << apiConnectptr.p->apiFailState << endl;
-  if (apiConnectptr.p->cachePtr != RNIL) {
+  if (apiConnectptr.p->cachePtr != RNIL)
+  {
     jam();
-    CacheRecord *localCacheRecord = cacheRecord;
-    UintR TcacheFilesize = ccacheFilesize;
-    UintR TcachePtr = apiConnectptr.p->cachePtr;
-    if (TcachePtr < TcacheFilesize) {
+    cachePtr.i = apiConnectptr.p->cachePtr;
+    if (c_cacheRecordPool.getValidPtr(cachePtr))
+    {
       jam();
-      CacheRecord * const regCachePtr = &localCacheRecord[TcachePtr];
+      CacheRecord * const regCachePtr = cachePtr.p;
       ndbout << "currReclenAi = " << regCachePtr->currReclenAi
 	     << " attrlength = " << regCachePtr->attrlength
 	     << " tableref = " << regCachePtr->tableref
@@ -2393,18 +2392,16 @@ void Dbtc::execKEYINFO(Signal* signal)
     return;
   }//switch
 
-  CacheRecord *localCacheRecord = cacheRecord;
-  UintR TcacheFilesize = ccacheFilesize;
   UintR TcachePtr = apiConnectptr.p->cachePtr;
   UintR TtcTimer = ctcTimer;
-  CacheRecord * const regCachePtr = &localCacheRecord[TcachePtr];
-  if (TcachePtr >= TcacheFilesize) {
+  cachePtr.i = TcachePtr;
+  if (!c_cacheRecordPool.getValidPtr(cachePtr) || cachePtr.isNull())
+  {
     TCKEY_abort(signal, 42);
     return;
   }//if
+  CacheRecord * const regCachePtr = cachePtr.p;
   setApiConTimer(apiConnectptr, TtcTimer, __LINE__);
-  cachePtr.i = TcachePtr;
-  cachePtr.p = regCachePtr;
 
   if (apiConnectptr.p->apiConnectstate == CS_START_SCAN)
   {
@@ -2564,19 +2561,15 @@ void Dbtc::execATTRINFO(Signal* signal)
       CLEAR_ERROR_INSERT_VALUE;
       return;
     }//if
-    CacheRecord *localCacheRecord = cacheRecord;
-    UintR TcacheFilesize = ccacheFilesize;
     UintR TcachePtr = regApiPtr->cachePtr;
     UintR TtcTimer = ctcTimer;
-    CacheRecord * const regCachePtr = &localCacheRecord[TcachePtr];
-    if (TcachePtr >= TcacheFilesize) {
+    cachePtr.i = TcachePtr;
+    if (!c_cacheRecordPool.getValidPtr(cachePtr) || cachePtr.i == RNIL)
+    {
       TCKEY_abort(signal, 43);
       return;
     }//if
-
-    /* Update TC global cache ptr */
-    cachePtr.i= TcachePtr;
-    cachePtr.p= regCachePtr;
+    CacheRecord * const regCachePtr = cachePtr.p;
 
     regCachePtr->currReclenAi+= Tlength;
     int TattrlengthRemain = regCachePtr->attrlength - 
@@ -2927,20 +2920,15 @@ Dbtc::seizeTcRecord(Signal* signal)
 int
 Dbtc::seizeCacheRecord(Signal* signal)
 {
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  UintR TfirstfreeCacheRec = cfirstfreeCacheRec;
-  UintR TcacheFilesize = ccacheFilesize;
-  CacheRecord *localCacheRecord = cacheRecord;
-  if (TfirstfreeCacheRec >= TcacheFilesize) {
+  if (!c_cacheRecordPool.seize(cachePtr))
+  {
     TCKEY_abort(signal, 41);
     return 1;
-  }//if
-  CacheRecord * const regCachePtr = &localCacheRecord[TfirstfreeCacheRec];
+  }
+  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+  CacheRecord * const regCachePtr = cachePtr.p;
 
-  regApiPtr->cachePtr = TfirstfreeCacheRec;
-  cfirstfreeCacheRec = regCachePtr->nextCacheRec;
-  cachePtr.i = TfirstfreeCacheRec;
-  cachePtr.p = regCachePtr;
+  regApiPtr->cachePtr = cachePtr.i;
 
   regCachePtr->currReclenAi = 0;
   regCachePtr->keyInfoSectionI = RNIL;
@@ -2952,10 +2940,9 @@ void
 Dbtc::releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord* regCachePtr)
 {
   ApiConnectRecord * const regApiPtr = transPtr.p;
-  UintR TfirstfreeCacheRec = cfirstfreeCacheRec;
-  UintR TCacheIndex = transPtr.p->cachePtr;
-  regCachePtr->nextCacheRec = TfirstfreeCacheRec;
-  cfirstfreeCacheRec = TCacheIndex;
+  cachePtr.p = regCachePtr;
+  cachePtr.i = regApiPtr->cachePtr;
+  c_cacheRecordPool.release(cachePtr);
   regApiPtr->cachePtr = RNIL;
 }
 
@@ -4726,10 +4713,9 @@ void Dbtc::releaseAttrinfo()
   // time as releasing the attrinfo records.
   //---------------------------------------------------
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  UintR TfirstfreeCacheRec = cfirstfreeCacheRec;
-  UintR TCacheIndex = cachePtr.i;
-  regCachePtr->nextCacheRec = TfirstfreeCacheRec;
-  cfirstfreeCacheRec = TCacheIndex;
+  c_cacheRecordPool.release(cachePtr);
+cachePtr.i = RNIL+1;
+cachePtr.p = (CacheRecord*)(void*)~0;
   regApiPtr->cachePtr = RNIL;
   return;
 }//Dbtc::releaseAttrinfo()
@@ -13173,7 +13159,7 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen)
   scanptr.i = apiConnectptr.p->apiScanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
   cachePtr.i = apiConnectptr.p->cachePtr;
-  ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
+  c_cacheRecordPool.getPtr(cachePtr);
   CacheRecord * const regCachePtr = cachePtr.p;
   ndbrequire(scanptr.p->scanState == ScanRecord::WAIT_AI);
 
@@ -13520,7 +13506,7 @@ void Dbtc::releaseScanResources(Signal* signal,
 {
   if (apiConnectptr.p->cachePtr != RNIL) {
     cachePtr.i = apiConnectptr.p->cachePtr;
-    ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
+    c_cacheRecordPool.getPtr(cachePtr);
     releaseKeys();
     releaseAttrinfo();
   }//if
@@ -15007,17 +14993,6 @@ void Dbtc::initApiConnect(Signal* signal)
 
   tiacTmp = capiConnectFilesize / 3;
   ndbrequire(tiacTmp > 0);
-  guard4 = tiacTmp + 1;
-  for (cachePtr.i = 0; cachePtr.i < guard4; cachePtr.i++) {
-    refresh_watch_dog();
-    ptrAss(cachePtr, cacheRecord);
-    cachePtr.p->nextCacheRec = cachePtr.i + 1;
-  }//for
-  cachePtr.i = tiacTmp;
-  ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
-  cachePtr.p->nextCacheRec = RNIL;
-  cfirstfreeCacheRec = 0;
-
   guard4 = tiacTmp - 1;
   for (apiConnectptr.i = 0; apiConnectptr.i <= guard4; apiConnectptr.i++) {
     refresh_watch_dog();
@@ -15361,9 +15336,10 @@ void Dbtc::releaseAbortResources(Signal* signal)
     cfirstfreeApiConnectCopy = copyPtr.i;
     apiConnectptr.p->apiCopyRecord = RNIL;
   }
-  if (apiConnectptr.p->cachePtr != RNIL) {
+  if (apiConnectptr.p->cachePtr != RNIL)
+  {
     cachePtr.i = apiConnectptr.p->cachePtr;
-    ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
+    c_cacheRecordPool.getPtr(cachePtr);
     releaseAttrinfo();
     releaseKeys();
   }//if

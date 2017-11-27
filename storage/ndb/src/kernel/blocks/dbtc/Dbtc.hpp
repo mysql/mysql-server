@@ -1290,7 +1290,16 @@ public:
   // the necessary memory storage in NDB Cluster.
   //---------------------------------------------------------------------------
 
-  struct CacheRecord {
+  struct CacheRecord
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_CACHE_RECORD );
+
+    CacheRecord()
+      : m_magic(Magic::make(TYPE_ID))
+    {}
+
+    Uint32 m_magic;
+
     /* Fields used by TCKEYREQ/TCINDXREQ/SCANTABREQ */
       Uint32 keyInfoSectionI;   /* KeyInfo section I-val */
       Uint32 attrInfoSectionI;  /* AttrInfo section I-val */
@@ -1335,7 +1344,6 @@ public:
       Uint8  isLongTcKeyReq;   /* Incoming TcKeyReq used long signal */
       Uint8  useLongLqhKeyReq; /* Outgoing LqhKeyReq should be long */
     
-      UintR  nextCacheRec;
       Uint32 scanInfo;
     
       Uint32 scanTakeOverInd;
@@ -1345,6 +1353,7 @@ public:
   };
   
   typedef Ptr<CacheRecord> CacheRecordPtr;
+  typedef TransientPool<CacheRecord> CacheRecord_pool;
   
   /* ************************ HOST RECORD ********************************** */
   /********************************************************/
@@ -2332,9 +2341,8 @@ private:
   TcConnectRecordPtr tcConnectptr;
   UintR ctcConnectFailCount;
 
-  CacheRecord *cacheRecord;
+  CacheRecord_pool c_cacheRecordPool;
   CacheRecordPtr cachePtr;
-  UintR ccacheFilesize;
 
   HostRecord *hostRecord;
   HostRecordPtr hostptr;
@@ -2459,7 +2467,6 @@ private:
   Uint16 terrorCode;
 
   UintR cfirstfreeApiConnectCopy; /* CS_RESTART */
-  UintR cfirstfreeCacheRec;
   Uint32 cfirstApiConnectPREPARE_TO_COMMIT;
   Uint32 clastApiConnectPREPARE_TO_COMMIT;
 
