@@ -39,7 +39,6 @@ void Dbtc::initData()
 {
   capiConnectFilesize = ZAPI_CONNECT_FILESIZE;
   chostFilesize = MAX_NODES;
-  cgcpFilesize = ZGCP_FILESIZE;
   cscanrecFileSize = ZSCANREC_FILE_SIZE;
   ctabrecFilesize = ZTABREC_FILESIZE;
   cdihblockref = DBDIH_REF;
@@ -136,10 +135,6 @@ void Dbtc::initRecords()
     new (ptr.p) ScanRecord();
   }
   
-  gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
-				      sizeof(GcpRecord), 
-				      cgcpFilesize);
-
   Pool_context pc;
   pc.m_block = this;
   c_scan_frag_pool.init(RT_DBTC_SCAN_FRAGMENT, pc, 0, UINT32_MAX);
@@ -150,6 +145,8 @@ void Dbtc::initRecords()
   c_apiConTimersPool.init(ApiConTimers::TYPE_ID, pc, 0, UINT32_MAX);
   c_apiConTimersList.init();
   c_cacheRecordPool.init(CacheRecord::TYPE_ID, pc, 0, UINT32_MAX);
+  c_gcpRecordPool.init(GcpRecord::TYPE_ID, pc, 0, UINT32_MAX);
+  c_gcpRecordList.init();
 }//Dbtc::initRecords()
 
 bool
@@ -311,7 +308,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   hostRecord = 0;
   tableRecord = 0;
   scanRecord = 0;
-  gcpRecord = 0;
   tcFailRecord = 0;
   cpackedListIndex = 0;
   c_ongoing_take_over_cnt = 0;
@@ -320,7 +316,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   hostRecord = 0;
   tableRecord = 0;
   scanRecord = 0;
-  gcpRecord = 0;
   tcFailRecord = 0;
   m_deferred_enabled = ~Uint32(0);
   m_max_writes_per_trans = ~Uint32(0);
@@ -345,10 +340,6 @@ Dbtc::~Dbtc()
 		sizeof(ScanRecord),
 		cscanrecFileSize);
     
-  deallocRecord((void **)&gcpRecord, "GcpRecord",
-		sizeof(GcpRecord), 
-		cgcpFilesize);
-  
   deallocRecord((void **)&tcFailRecord, "TcFailRecord",
 		sizeof(TcFailRecord), 1);
   

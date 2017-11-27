@@ -68,7 +68,6 @@
 #define ZCOMMITING 0			 /* VALUE FOR TRANSTATUS        */
 #define ZCOMMIT_SETUP 2
 #define ZCONTINUE_ABORT_080 4
-#define ZGCP_FILESIZE 10
 #define ZINTSPH1 1
 #define ZINTSPH2 2
 #define ZINTSPH3 3
@@ -1742,15 +1741,25 @@ public:
   /*                                                                         */
   /*       GCP RECORD ALIGNED TO BE 32 BYTES                                 */
   /*************************************************************************>*/
-  struct GcpRecord {
+  struct GcpRecord
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_GCP_RECORD );
+
+    GcpRecord()
+      : m_magic(Magic::make(TYPE_ID))
+    {}
+
+    Uint32 m_magic;
     Uint16 gcpNomoretransRec;
     UintR firstApiConnect;
     UintR lastApiConnect;
-    UintR nextGcp;
+    UintR nextList;
     Uint64 gcpId;
   }; /* p2c: size = 32 bytes */
   
   typedef Ptr<GcpRecord> GcpRecordPtr;
+  typedef TransientPool<GcpRecord> GcpRecord_pool;
+  typedef LocalSLFifoList<GcpRecord_pool> LocalGcpRecord_list;
 
   /*************************************************************************>*/
   /*               TC_FAIL_RECORD                                            */
@@ -2014,7 +2023,6 @@ private:
   void initApiConnectRec(Signal* signal, 
 			 ApiConnectRecord * const regApiPtr,
 			 bool releaseIndexOperations = false);
-  void initgcp(Signal* signal);
   void inithost(Signal* signal);
   void initialiseScanrec(Signal* signal);
   void initialiseScanFragrec(Signal* signal);
@@ -2038,7 +2046,7 @@ private:
   void seizeApiConnect(Signal* signal);
   void seizeApiConnectCopy(Signal* signal);
   void seizeApiConnectFail(Signal* signal);
-  void crash_gcp(Uint32 line);
+  void crash_gcp(Uint32 line) ATTRIBUTE_NORETURN;
   void seizeGcp(Ptr<GcpRecord> & dst, Uint64 gci);
   void seizeTcConnectFail(Signal* signal);
   Ptr<ApiConnectRecord> sendApiCommitAndCopy(Signal* signal);
@@ -2056,7 +2064,7 @@ private:
   void sendSystemError(Signal* signal, int line);
   void sendtckeyconf(Signal* signal, UintR TcommitFlag);
   void unlinkApiConnect(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);
-  void unlinkGcp(Ptr<GcpRecord>);
+  void unlinkAndReleaseGcp(Ptr<GcpRecord>);
   void unlinkReadyTcCon(Signal* signal);
   void handleFailedOperation(Signal* signal,
 			     const LqhKeyRef * const lqhKeyRef, 
@@ -2352,8 +2360,7 @@ private:
   NdbNodeBitmask c_alive_nodes;
 
   Uint32 c_ongoing_take_over_cnt;
-  GcpRecord *gcpRecord;
-  UintR cgcpFilesize;
+  GcpRecord_pool c_gcpRecordPool;
 
   TableRecord *tableRecord;
   UintR ctabrecFilesize;
@@ -2472,9 +2479,7 @@ private:
   Uint32 cfirstApiConnectPREPARE_TO_COMMIT;
   Uint32 clastApiConnectPREPARE_TO_COMMIT;
 
-  UintR cfirstgcp;
-  UintR clastgcp;
-  UintR cfirstfreeGcp;
+  LocalGcpRecord_list::Head c_gcpRecordList;
   UintR cfirstfreeScanrec;
   UintR cConcScanCount;
   RSS_OP_SNAPSHOT(cConcScanCount);

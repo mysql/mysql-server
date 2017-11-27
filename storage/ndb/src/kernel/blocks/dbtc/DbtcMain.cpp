@@ -6154,48 +6154,34 @@ void Dbtc::commitGciHandling(Signal* signal, Uint64 Tgci)
 {
   GcpRecordPtr localGcpPointer;
 
-  UintR TgcpFilesize = cgcpFilesize;
-  UintR Tfirstgcp = cfirstgcp;
   Ptr<ApiConnectRecord> regApiPtr = apiConnectptr;
-  GcpRecord *localGcpRecord = gcpRecord;
-
   regApiPtr.p->globalcheckpointid = Tgci;
-  if (Tfirstgcp != RNIL) {
+
+  LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
+  if (gcp_list.first(localGcpPointer))
+  {
     /* IF THIS GLOBAL CHECKPOINT ALREADY EXISTS */
-    localGcpPointer.i = Tfirstgcp;
-    ptrCheckGuard(localGcpPointer, TgcpFilesize, localGcpRecord);
     do {
       if (regApiPtr.p->globalcheckpointid == localGcpPointer.p->gcpId) {
         jam();
         linkApiToGcp(localGcpPointer, regApiPtr);
         return;
-      } else {
-        if (unlikely(! (regApiPtr.p->globalcheckpointid > localGcpPointer.p->gcpId)))
-        {
-          ndbout_c("%u/%u %u/%u",
-                   Uint32(regApiPtr.p->globalcheckpointid >> 32),
-                   Uint32(regApiPtr.p->globalcheckpointid),
-                   Uint32(localGcpPointer.p->gcpId >> 32),
-                   Uint32(localGcpPointer.p->gcpId));
-          crash_gcp(__LINE__);
-        }
-        localGcpPointer.i = localGcpPointer.p->nextGcp;
-        jam();
-        if (localGcpPointer.i != RNIL) {
-          jam();
-          ptrCheckGuard(localGcpPointer, TgcpFilesize, localGcpRecord);
-          continue;
-        }//if
-      }//if
-      seizeGcp(localGcpPointer, Tgci);
-      linkApiToGcp(localGcpPointer, regApiPtr);
-      return;
-    } while (1);
-  } else {
-    jam();
-    seizeGcp(localGcpPointer, Tgci);
-    linkApiToGcp(localGcpPointer, regApiPtr);
-  }//if
+      }
+      if (unlikely(! (regApiPtr.p->globalcheckpointid > localGcpPointer.p->gcpId)))
+      {
+        ndbout_c("%u/%u %u/%u",
+                 Uint32(regApiPtr.p->globalcheckpointid >> 32),
+                 Uint32(regApiPtr.p->globalcheckpointid),
+                 Uint32(localGcpPointer.p->gcpId >> 32),
+                 Uint32(localGcpPointer.p->gcpId));
+        crash_gcp(__LINE__);
+      }
+      jam();
+    } while (gcp_list.next(localGcpPointer));
+  }
+
+  seizeGcp(localGcpPointer, Tgci);
+  linkApiToGcp(localGcpPointer, regApiPtr);
 }//Dbtc::commitGciHandling()
 
 /* --------------------------------------------------------------------------*/
@@ -6232,20 +6218,20 @@ Dbtc::crash_gcp(Uint32 line)
 {
   GcpRecordPtr localGcpPointer;
 
-  localGcpPointer.i = cfirstgcp;
-
-  while (localGcpPointer.i != RNIL)
+  LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
+  if (gcp_list.first(localGcpPointer))
   {
-    ptrCheckGuard(localGcpPointer, cgcpFilesize, gcpRecord);
-    ndbout_c("%u : %u/%u nomoretrans: %u api %u %u next: %u",
-             localGcpPointer.i,
-             Uint32(localGcpPointer.p->gcpId >> 32),
-             Uint32(localGcpPointer.p->gcpId),             
-             localGcpPointer.p->gcpNomoretransRec,
-             localGcpPointer.p->firstApiConnect,
-             localGcpPointer.p->lastApiConnect,
-             localGcpPointer.p->nextGcp);
-    localGcpPointer.i = localGcpPointer.p->nextGcp;
+    do
+    {
+      ndbout_c("%u : %u/%u nomoretrans: %u api %u %u next: %u",
+               localGcpPointer.i,
+               Uint32(localGcpPointer.p->gcpId >> 32),
+               Uint32(localGcpPointer.p->gcpId),
+               localGcpPointer.p->gcpNomoretransRec,
+               localGcpPointer.p->firstApiConnect,
+               localGcpPointer.p->lastApiConnect,
+               localGcpPointer.p->nextList);
+    } while (gcp_list.next(localGcpPointer));
   }
   progError(line, NDBD_EXIT_NDBREQUIRE);
   ndbabort();
@@ -6253,38 +6239,20 @@ Dbtc::crash_gcp(Uint32 line)
 
 void Dbtc::seizeGcp(Ptr<GcpRecord> & dst, Uint64 Tgci)
 {
-  GcpRecordPtr tmpGcpPointer;
   GcpRecordPtr localGcpPointer;
 
-  UintR Tfirstgcp = cfirstgcp;
-  UintR TgcpFilesize = cgcpFilesize;
-  GcpRecord *localGcpRecord = gcpRecord;
-
-  localGcpPointer.i = cfirstfreeGcp;
-  if (unlikely(localGcpPointer.i > TgcpFilesize))
+  if (!c_gcpRecordPool.seize(localGcpPointer))
   {
     ndbout_c("%u/%u", Uint32(Tgci >> 32), Uint32(Tgci));
     crash_gcp(__LINE__);
   }
-  ptrCheckGuard(localGcpPointer, TgcpFilesize, localGcpRecord);
-  UintR TfirstfreeGcp = localGcpPointer.p->nextGcp;
   localGcpPointer.p->gcpId = Tgci;
-  localGcpPointer.p->nextGcp = RNIL;
   localGcpPointer.p->firstApiConnect = RNIL;
   localGcpPointer.p->lastApiConnect = RNIL;
   localGcpPointer.p->gcpNomoretransRec = ZFALSE;
-  cfirstfreeGcp = TfirstfreeGcp;
 
-  if (Tfirstgcp == RNIL) {
-    jam();
-    cfirstgcp = localGcpPointer.i;
-  } else {
-    tmpGcpPointer.i = clastgcp;
-    jam();
-    ptrCheckGuard(tmpGcpPointer, TgcpFilesize, localGcpRecord);
-    tmpGcpPointer.p->nextGcp = localGcpPointer.i;
-  }//if
-  clastgcp = localGcpPointer.i;
+  LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
+  gcp_list.addLast(localGcpPointer);
   dst = localGcpPointer;
 }//Dbtc::seizeGcp()
 
@@ -6693,10 +6661,8 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
   UintR Ttransid2 = regApiPtr.p->transid[1];
   UintR Tlqhkeyconfrec = regApiPtr.p->lqhkeyconfrec;
   UintR TgcpPointer = regApiPtr.p->gcpPointer;
-  UintR TgcpFilesize = cgcpFilesize;
   Uint32 Tmarker = regApiPtr.p->commitAckMarker;
   NdbNodeBitmask Tnodes = regApiPtr.p->m_transaction_nodes;
-  GcpRecord *localGcpRecord = gcpRecord;
 
   copyPtr.p->ndbapiBlockref = regApiPtr.p->ndbapiBlockref;
   copyPtr.p->ndbapiConnect = TndbapiConnect;
@@ -6710,9 +6676,9 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
   copyPtr.p->num_commit_ack_markers = 0;
   copyPtr.p->singleUserMode = 0;
 
-  Ptr<GcpRecord> gcpPtr;
+  GcpRecordPtr gcpPtr;
   gcpPtr.i = TgcpPointer;
-  ptrCheckGuard(gcpPtr, TgcpFilesize, localGcpRecord);
+  c_gcpRecordPool.getPtr(gcpPtr);
   unlinkApiConnect(gcpPtr, regApiPtr);
   linkApiToGcp(gcpPtr, copyPtr);
   setApiConTimer(regApiPtr, 0, __LINE__);
@@ -7557,11 +7523,9 @@ void Dbtc::releaseTransResources(Signal* signal)
 /* *********************************************************************>> */
 void Dbtc::handleGcp(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
 {
-  GcpRecord *localGcpRecord = gcpRecord;
   GcpRecordPtr localGcpPtr;
-  UintR TgcpFilesize = cgcpFilesize;
   localGcpPtr.i = apiConnectptr.p->gcpPointer;
-  ptrCheckGuard(localGcpPtr, TgcpFilesize, localGcpRecord);
+  c_gcpRecordPool.getPtr(localGcpPtr);
   unlinkApiConnect(localGcpPtr, regApiPtr);
   if (localGcpPtr.p->firstApiConnect == RNIL) {
     if (localGcpPtr.p->gcpNomoretransRec == ZTRUE) {
@@ -7569,7 +7533,7 @@ void Dbtc::handleGcp(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
       {
         jam();
         gcpTcfinished(signal, localGcpPtr.p->gcpId);
-        unlinkGcp(localGcpPtr);
+        unlinkAndReleaseGcp(localGcpPtr);
       }
     }//if
   }
@@ -9852,12 +9816,13 @@ void Dbtc::execGCP_NOMORETRANS(Signal* signal)
   tcheckGcpId = gci_lo | (Uint64(gci_hi) << 32);
   const bool nfhandling = (c_ongoing_take_over_cnt > 0);
 
-  Ptr<GcpRecord> gcpPtr;
-  if (cfirstgcp != RNIL) {
+  LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
+  GcpRecordPtr gcpPtr;
+  if (gcp_list.first(gcpPtr))
+  {
     jam();
-                                      /* A GLOBAL CHECKPOINT IS GOING ON */
-    gcpPtr.i = cfirstgcp;             /* SET POINTER TO FIRST GCP IN QUEUE*/
-    ptrCheckGuard(gcpPtr, cgcpFilesize, gcpRecord);
+    /* A GLOBAL CHECKPOINT IS GOING ON */
+    /* SET POINTER TO FIRST GCP IN QUEUE*/
     if (gcpPtr.p->gcpId == tcheckGcpId)
     {
       jam();
@@ -9890,7 +9855,7 @@ void Dbtc::execGCP_NOMORETRANS(Signal* signal)
           jam();
           /* All transactions completed, no nfhandling, complete it now */
           gcpTcfinished(signal, tcheckGcpId);
-          unlinkGcp(gcpPtr);
+          unlinkAndReleaseGcp(gcpPtr);
         }
       }
     }
@@ -9945,17 +9910,16 @@ outoforder:
   {
     jam();
 
-    Ptr<GcpRecord> tmp;
-    tmp.i = cfirstfreeGcp;
-    ptrCheckGuard(tmp, cgcpFilesize, gcpRecord);
-    cfirstfreeGcp = tmp.p->nextGcp;
+    GcpRecordPtr tmp;
+    ndbrequire(c_gcpRecordPool.seize(tmp));
 
     tmp.p->gcpId = tcheckGcpId;
-    tmp.p->nextGcp = cfirstgcp;
     tmp.p->firstApiConnect = RNIL;
     tmp.p->lastApiConnect = RNIL;
     tmp.p->gcpNomoretransRec = ZTRUE;
-    cfirstgcp = tmp.i;
+
+    LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
+    gcp_list.addFirst(tmp);
     g_eventLogger->info("DBTC %u: Out of order GCP %u/%u linked first",
                         instance(),
                         gci_hi,
@@ -9965,10 +9929,11 @@ outoforder:
   else
   {
     Ptr<GcpRecord> prev = gcpPtr;
+    LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
     while (tcheckGcpId > gcpPtr.p->gcpId)
     {
       jam();
-      if (gcpPtr.p->nextGcp == RNIL)
+      if (gcpPtr.p->nextList == RNIL)
       {
         g_eventLogger->info("DBTC %u: Out of order GCP %u/%u linked last",
                             instance(),
@@ -9978,8 +9943,7 @@ outoforder:
       }
 
       prev = gcpPtr;
-      gcpPtr.i = gcpPtr.p->nextGcp;
-      ptrCheckGuard(gcpPtr, cgcpFilesize, gcpRecord);
+      ndbrequire(gcp_list.next(gcpPtr));
     }
 
     if (tcheckGcpId == gcpPtr.p->gcpId)
@@ -9996,17 +9960,15 @@ outoforder:
     ndbrequire(prev.p->gcpId < tcheckGcpId);
     ndbrequire(gcpPtr.p->gcpId > tcheckGcpId);
 
-    Ptr<GcpRecord> tmp;
-    tmp.i = cfirstfreeGcp;
-    ptrCheckGuard(tmp, cgcpFilesize, gcpRecord);
-    cfirstfreeGcp = tmp.p->nextGcp;
+    GcpRecordPtr tmp;
+    ndbrequire(c_gcpRecordPool.seize(tmp));
 
     tmp.p->gcpId = tcheckGcpId;
-    tmp.p->nextGcp = gcpPtr.i;
     tmp.p->firstApiConnect = RNIL;
     tmp.p->lastApiConnect = RNIL;
     tmp.p->gcpNomoretransRec = ZTRUE;
-    prev.p->nextGcp = tmp.i;
+    gcp_list.insertAfter(tmp, prev);
+    ndbassert(tmp.p->nextList == gcpPtr.i);
     g_eventLogger->info("DBTC %u: Out of order Gcp %u/%u linked mid-list. "
                         "%u/%u < %u/%u < %u/%u",
                         instance(),
@@ -10472,14 +10434,13 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
   c_ongoing_take_over_cnt = cnt - 1;
   checkNodeFailComplete(signal, hostptr.i, HostRecord::NF_TAKEOVER);
 
-  if (cnt == 1 && cfirstgcp != RNIL)
+  GcpRecordPtr tmpGcpPointer;
+  LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
+  if (cnt == 1 && gcp_list.first(tmpGcpPointer))
   {
     /**
      * Check if there are any hanging GCP_NOMORETRANS
      */
-    GcpRecordPtr tmpGcpPointer;
-    tmpGcpPointer.i = cfirstgcp;
-    ptrCheckGuard(tmpGcpPointer, cgcpFilesize, gcpRecord);
     if (tmpGcpPointer.p->gcpNomoretransRec)
     {
       if (tmpGcpPointer.p->firstApiConnect == RNIL)
@@ -10491,7 +10452,7 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
                             Uint32(tmpGcpPointer.p->gcpId >> 32),
                             Uint32(tmpGcpPointer.p->gcpId));
         gcpTcfinished(signal, tmpGcpPointer.p->gcpId);
-        unlinkGcp(tmpGcpPointer);
+        unlinkAndReleaseGcp(tmpGcpPointer);
       }
       else
       {
@@ -15097,22 +15058,6 @@ void Dbtc::initApiConnect(Signal* signal)
   clastApiConnectPREPARE_TO_COMMIT = RNIL;
 }//Dbtc::initApiConnect()
 
-void Dbtc::initgcp(Signal* signal) 
-{
-  Ptr<GcpRecord> gcpPtr;
-  ndbrequire(cgcpFilesize > 0);
-  for (gcpPtr.i = 0; gcpPtr.i < cgcpFilesize; gcpPtr.i++) {
-    ptrAss(gcpPtr, gcpRecord);
-    gcpPtr.p->nextGcp = gcpPtr.i + 1;
-  }//for
-  gcpPtr.i = cgcpFilesize - 1;
-  ptrCheckGuard(gcpPtr, cgcpFilesize, gcpRecord);
-  gcpPtr.p->nextGcp = RNIL;
-  cfirstfreeGcp = 0;
-  cfirstgcp = RNIL;
-  clastgcp = RNIL;
-}//Dbtc::initgcp()
-
 void Dbtc::inithost(Signal* signal) 
 {
   cpackedListIndex = 0;
@@ -15155,7 +15100,7 @@ void Dbtc::initialiseRecordsLab(Signal* signal, UintR Tdata0,
     break;
   case 3:
     jam();
-    initgcp(signal);
+    // UNUSED Free to initialise something
     break;
   case 4:
     jam();
@@ -15295,17 +15240,8 @@ void Dbtc::initialiseTcConnect(Signal* signal)
 /* ------------------------------------------------------------------------- */
 void Dbtc::linkGciInGcilist(Ptr<GcpRecord> gcpPtr)
 {
-  GcpRecordPtr tmpGcpPointer;
-  if (cfirstgcp == RNIL) {
-    jam();
-    cfirstgcp = gcpPtr.i;
-  } else {
-    jam();
-    tmpGcpPointer.i = clastgcp;
-    ptrCheckGuard(tmpGcpPointer, cgcpFilesize, gcpRecord);
-    tmpGcpPointer.p->nextGcp = gcpPtr.i;
-  }//if
-  clastgcp = gcpPtr.i;
+  LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
+  gcp_list.addLast(gcpPtr);
 }//Dbtc::linkGciInGcilist()
 
 /* ------------------------------------------------------------------------- */
@@ -15601,19 +15537,14 @@ void Dbtc::sendSystemError(Signal* signal, int line)
 /* ========================================================================= */
 /* -------             LINK ACTUAL GCP OUT OF LIST                   ------- */
 /* ------------------------------------------------------------------------- */
-void Dbtc::unlinkGcp(Ptr<GcpRecord> tmpGcpPtr)
+void Dbtc::unlinkAndReleaseGcp(Ptr<GcpRecord> tmpGcpPtr)
 {
-  ndbrequire(cfirstgcp == tmpGcpPtr.i);
+  ndbrequire(c_gcpRecordList.getFirst() == tmpGcpPtr.i);
 
-  cfirstgcp = tmpGcpPtr.p->nextGcp;
-  if (tmpGcpPtr.i == clastgcp) {
-    jam();
-    clastgcp = RNIL;
-  }//if
-
-  tmpGcpPtr.p->nextGcp = cfirstfreeGcp;
-  cfirstfreeGcp = tmpGcpPtr.i;
-}//Dbtc::unlinkGcp()
+  LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
+  gcp_list.removeFirst(tmpGcpPtr);
+  c_gcpRecordPool.release(tmpGcpPtr);
+}
 
 void
 Dbtc::execDUMP_STATE_ORD(Signal* signal)
