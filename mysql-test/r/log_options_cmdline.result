@@ -21,6 +21,9 @@ DROP TABLE t1;
 # restart: --log-error=LOG_FILE8 --lc-messages-dir=MSG_DIR --log-error-verbosity=3
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
+# restart: --log-error=LOG_FILE8B --lc-messages=invalid_arg1 --lc-time-names=invalid_arg2
+connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 # restart: --log-error=LOG_FILE9 --log-error-services=abcd 
 SELECT @@GLOBAL.LOG_ERROR_SERVICES;
 @@GLOBAL.LOG_ERROR_SERVICES
