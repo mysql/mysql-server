@@ -4083,6 +4083,7 @@ static void dump_table(char *table, char *db)
     {
       fputs("\n", md_result_file);
       check_io(md_result_file);
+      fflush(md_result_file);
     }
     if (mysql_query_with_error_report(mysql, 0, query_string.str))
     {

@@ -1285,7 +1285,16 @@ int main(int argc,char *argv[])
     int stdout_fileno_copy;
     stdout_fileno_copy= dup(fileno(stdout)); /* Okay if fileno fails. */
     if (stdout_fileno_copy == -1)
+    {
       fclose(stdout);
+#ifdef LINUX_ALPINE
+      // On Alpine linux we need to open a dummy file, so that the first
+      // call to socket() does not get file number 1
+      // If socket gets file number 1, then everything printed to stdout
+      // will be sent back to the server over the socket connection.
+      fopen("/dev/null", "r");
+#endif
+    }
     else
       close(stdout_fileno_copy);             /* Clean up dup(). */
   }
@@ -5316,6 +5325,7 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
   {
     if (info_type == INFO_ERROR)
     {
+      (void) fflush(stdout); // flush stdout before stderr
       (void) fflush(file);
       fprintf(file,"ERROR");
       if (error)
