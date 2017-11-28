@@ -593,7 +593,8 @@ using std::min;
 using std::max;
 using std::vector;
 
-#define mysqld_charset &my_charset_latin1
+#define mysqld_charset              &my_charset_latin1
+#define mysqld_default_locale_name  "en_US"
 
 #if defined(HAVE_SOLARIS_LARGE_PAGES) && defined(__GNUC__)
 extern "C" int getpagesizes(size_t *, int);
@@ -3606,12 +3607,15 @@ int init_common_variables()
   if (back_log == 0 && (back_log= max_connections) > 65535)
     back_log= 65535;
 
-  unireg_init(opt_specialflag); /* Set up extern variabels */
-  if (!(my_default_lc_messages=
-        my_locale_by_name(NULL, lc_messages)))
+  unireg_init(opt_specialflag); /* Set up extern variables */
+  while (!(my_default_lc_messages=
+           my_locale_by_name(NULL, lc_messages)))
   {
     LogErr(ERROR_LEVEL, ER_UNKNOWN_LOCALE, lc_messages);
-    return 1;
+    if (!my_strcasecmp(&my_charset_latin1,
+                       lc_messages, mysqld_default_locale_name))
+      return 1;
+    lc_messages= (char*) mysqld_default_locale_name;
   }
   global_system_variables.lc_messages= my_default_lc_messages;
   if (init_errmessage())  /* Read error messages from file */
@@ -3698,11 +3702,14 @@ int init_common_variables()
     return 1;
   }
 
-  if (!(my_default_lc_time_names=
-        my_locale_by_name(NULL, lc_time_names_name)))
+  while (!(my_default_lc_time_names=
+           my_locale_by_name(NULL, lc_time_names_name)))
   {
     LogErr(ERROR_LEVEL, ER_UNKNOWN_LOCALE, lc_time_names_name);
-    return 1;
+    if (!my_strcasecmp(&my_charset_latin1,
+                       lc_time_names_name, mysqld_default_locale_name))
+      return 1;
+    lc_time_names_name= (char*) mysqld_default_locale_name;
   }
   global_system_variables.lc_time_names= my_default_lc_time_names;
 
@@ -8132,14 +8139,14 @@ static int mysql_init_variables()
   log_bin_index= NULL;
 
   /* Handler variables */
-  total_ha_2pc= 0;
+  total_ha_2pc=                  0;
   /* Variables in libraries */
-  charsets_dir= 0;
-  default_character_set_name= (char*) MYSQL_DEFAULT_CHARSET_NAME;
-  default_collation_name= compiled_default_collation_name;
+  charsets_dir=                  0;
+  default_character_set_name=    (char*) MYSQL_DEFAULT_CHARSET_NAME;
+  default_collation_name=        compiled_default_collation_name;
   character_set_filesystem_name= (char*) "binary";
-  lc_messages= (char*) "en_US";
-  lc_time_names_name= (char*) "en_US";
+  lc_messages=                   (char*) mysqld_default_locale_name;
+  lc_time_names_name=            (char*) mysqld_default_locale_name;
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
