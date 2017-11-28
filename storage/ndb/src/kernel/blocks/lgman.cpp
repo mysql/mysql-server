@@ -5037,8 +5037,8 @@ Lgman::execute_undo_record(Signal* signal)
 	stop_run_undo_log(signal);
 	return;
       }
-      // Fallthrough
     }
+    break;
     case File_formats::Undofile::UNDO_TUP_DROP:
       jam();
       if (isNdbMtLqh() && wait_pending(lsn, ptr, len))
@@ -5046,28 +5046,34 @@ Lgman::execute_undo_record(Signal* signal)
         // wait for pending records to complete
         return;
       }
+      break;
     case File_formats::Undofile::UNDO_TUP_ALLOC:
     case File_formats::Undofile::UNDO_TUP_UPDATE:
     case File_formats::Undofile::UNDO_TUP_FREE:
     case File_formats::Undofile::UNDO_TUP_FIRST_UPDATE_PART:
     case File_formats::Undofile::UNDO_TUP_UPDATE_PART:
     case File_formats::Undofile::UNDO_TUP_FREE_PART:
-      {
-        jam();
-        jamLine(mask);
-#ifdef VM_TRACE
-        /* Test that TUP does not rely on us keeping ptr valid */
-        TransientStackBuff tsb((ptr-len) + 1, len);
-        ptr = (tsb.getPtr() + len) - 1;
-#endif
-        Dbtup_client tup(this, m_tup);
-        tup.disk_restart_undo(signal, lsn, mask, ptr - len + 1, len);
-        jamEntry();
-      }
-      return;
+      break;
     default:
       ndbrequire(false);
     }
+    /**
+     * If we've reached here, it means we have decided to send the undo record
+     * to DBTUP(0)
+     */
+    {
+      jam();
+      jamLine(mask);
+#ifdef VM_TRACE
+      /* Test that TUP does not rely on us keeping ptr valid */
+      TransientStackBuff tsb((ptr-len) + 1, len);
+      ptr = (tsb.getPtr() + len) - 1;
+#endif
+      Dbtup_client tup(this, m_tup);
+      tup.disk_restart_undo(signal, lsn, mask, ptr - len + 1, len);
+      jamEntry();
+    }
+    return;
   }
   signal->theData[0] = LgmanContinueB::EXECUTE_UNDO_RECORD;
   signal->theData[1] = 0; /* Not applied flag */
