@@ -2541,6 +2541,10 @@ SELECT * FROM t2;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP DATABASE db_20772273;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/t2.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/t2.txt
 
 --echo #
 --echo # WL#8132 JSON datatype and binary storage format
@@ -2601,6 +2605,10 @@ SELECT * FROM t2;
 DROP TABLE t2;
 
 DROP DATABASE dump_generated;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/t2.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/t2.txt
 
 --echo #
 --echo # End of 5.7 tests
@@ -2695,6 +2703,7 @@ SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
        ORDER BY ROUTINE_NAME;
 
 DROP DATABASE bug25717383;
+--remove_file $MYSQLTEST_VARDIR/tmp/bug25717383.sql
 
 --echo #
 --echo # Bug #25469161: MYSQLDUMP SHOULD EXCLUDE REPLICATION
