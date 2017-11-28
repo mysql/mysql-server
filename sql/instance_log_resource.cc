@@ -131,6 +131,32 @@ bool Instance_log_resource_gtid_state_wrapper::collect_info()
 };
 
 
+void Instance_log_resource_hton_wrapper::lock()
+{
+  if (hton->lock_hton_log)
+    hton->lock_hton_log(hton);
+
+};
+
+
+void Instance_log_resource_hton_wrapper::unlock()
+{
+  if (hton->unlock_hton_log)
+    hton->unlock_hton_log(hton);
+
+};
+
+
+bool Instance_log_resource_hton_wrapper::collect_info()
+{
+  if (hton->collect_hton_log_info)
+  {
+    return hton->collect_hton_log_info(hton, get_json());
+  }
+  return false;
+};
+
+
 Instance_log_resource *
 Instance_log_resource_factory::get_wrapper(Master_info *mi, Json_dom *json)
 {
@@ -156,5 +182,14 @@ Instance_log_resource_factory::get_wrapper(Gtid_state *gtid_state,
 {
   Instance_log_resource_gtid_state_wrapper *wrapper;
   wrapper= new Instance_log_resource_gtid_state_wrapper(gtid_state, json);
+  return wrapper;
+}
+
+
+Instance_log_resource *
+Instance_log_resource_factory::get_wrapper(handlerton *hton, Json_dom *json)
+{
+  Instance_log_resource_hton_wrapper *wrapper;
+  wrapper= new Instance_log_resource_hton_wrapper(hton, json);
   return wrapper;
 }

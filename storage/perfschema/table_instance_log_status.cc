@@ -124,6 +124,36 @@ int table_instance_log_status::rnd_pos(const void *pos MY_ATTRIBUTE((unused)))
 }
 
 
+
+struct st_register_hton_arg
+{
+  std::list<Instance_log_resource *> *resources;
+  Json_dom *json;
+};
+
+
+static bool iter_storage_engines_register(THD*, plugin_ref plugin, void *arg)
+{
+  st_register_hton_arg *vargs= (st_register_hton_arg *)arg;
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+
+  DBUG_ASSERT(plugin_state(plugin) == PLUGIN_IS_READY);
+
+  /* The storage engine must implement all three functions to be supported */
+  if (hton->lock_hton_log &&
+      hton->unlock_hton_log &&
+      hton->collect_hton_log_info)
+  {
+    Instance_log_resource *resource;
+    resource= Instance_log_resource_factory::get_wrapper(hton, vargs->json);
+    if (!resource)
+      return true;
+    vargs->resources->push_back(resource);
+  }
+  return false;
+}
+
+
 int
 table_instance_log_status::make_row()
 {
@@ -226,6 +256,25 @@ table_instance_log_status::make_row()
       goto end;
     }
     resources.push_back(res);
+  }
+
+  /* To block storage engines logs, collect their logs information */
+  /*
+    Add storage engine's handlertons to the resources list, so that they can be
+    blocked and their data collected in later steps.
+  */
+  {
+    st_register_hton_arg args= {&resources, &json_storage_engines};
+    error= plugin_foreach(thd, iter_storage_engines_register,
+                          MYSQL_STORAGE_ENGINE_PLUGIN, &args);
+    if (error)
+    {
+      my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0),
+               "STORAGE_ENGINE",
+               "failed to allocate memory to collect "
+               "storage engines information");
+      goto end;
+    }
   }
 
   /* Lock all resources */

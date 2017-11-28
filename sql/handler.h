@@ -63,6 +63,7 @@
 #include "sql/thr_malloc.h"
 #include "thr_lock.h"          // thr_lock_type
 #include "typelib.h"
+#include "sql/json_dom.h"
 
 class Alter_info;
 class Create_field;
@@ -1960,6 +1961,27 @@ typedef void (*post_recover_t)(void);
 
 
 /**
+  Lock a handlerton (resource) log to collect log information.
+*/
+
+typedef bool (*lock_hton_log_t)(handlerton *hton);
+
+
+/**
+  Unlock a handlerton (resource) log after collecting log information.
+*/
+
+typedef bool (*unlock_hton_log_t)(handlerton *hton);
+
+
+/**
+  Collect a handlerton (resource) log information.
+*/
+
+typedef bool (*collect_hton_log_info_t)(handlerton *hton, Json_dom *json);
+
+
+/**
   handlerton is a singleton structure - one instance per storage engine -
   to provide access to storage engine functionality that works on the
   "global" level (unlike handler class that works on a per-table basis).
@@ -2111,6 +2133,14 @@ struct handlerton
   uint32 license;
   /** Location for engines to keep personal structures. */
   void *data;
+
+  /*
+    Instance_log_resource functions that must be supported by storage engines
+    with relevant log information to be collected.
+  */
+  lock_hton_log_t lock_hton_log;
+  unlock_hton_log_t unlock_hton_log;
+  collect_hton_log_info_t collect_hton_log_info;
 };
 
 

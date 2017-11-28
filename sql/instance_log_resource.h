@@ -28,6 +28,7 @@
 #define INSTANCE_LOG_RESOURCE_H
 
 #include "sql/binlog.h"
+#include "sql/handler.h"
 #include "sql/json_dom.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_mi.h"
@@ -176,7 +177,7 @@ class Instance_log_resource_binlog_wrapper: public Instance_log_resource
 
 public:
   /**
-    Instance_log_resource_mi_wrapper constructor.
+    Instance_log_resource_binlog_wrapper constructor.
 
     @param[in] binlog_arg the pointer to the MYSQL_BIN_LOG object resource.
     @param[in] json_arg the pointer to the JSON object to be populated with the
@@ -230,6 +231,39 @@ public:
 
 
 /**
+  @class Instance_log_resource_hton_wrapper
+
+  This is the Instance_log_resource to handle handlerton resources.
+*/
+class Instance_log_resource_hton_wrapper: public Instance_log_resource
+{
+  handlerton *hton= nullptr;
+
+public:
+  /**
+    Instance_log_resource_hton_wrapper constructor.
+
+    @param[in] hton_arg the pointer to the hton resource.
+    @param[in] json_arg the pointer to the JSON object to be populated with the
+                        resource log information.
+  */
+
+  Instance_log_resource_hton_wrapper(handlerton *hton_arg,
+                                     Json_dom *json_arg)
+    : Instance_log_resource(json_arg),
+      hton(hton_arg)
+  {
+  };
+
+
+  void lock() override;
+  void unlock() override;
+  bool collect_info() override;
+
+};
+
+
+/**
   @class Instance_log_resource_factory
 
   This is the Instance_log_resource factory to create wrappers for supported
@@ -273,6 +307,19 @@ public:
   */
 
   static Instance_log_resource *get_wrapper(Gtid_state *gtid_state,
+                                            Json_dom *json);
+
+
+  /**
+    Creates a Instance_log_resource wrapper based on a handlerton.
+
+    @param[in] hton the pointer to the handlerton resource.
+    @param[in] json the pointer to the JSON object to be populated with the
+                    resource log information.
+    @return  the pointer to the new Instance_log_resource.
+  */
+
+  static Instance_log_resource *get_wrapper(handlerton *hton,
                                             Json_dom *json);
 };
 
