@@ -59,6 +59,18 @@ struct Uninitialized_uchar {
 using ReplacementBufferType = std::vector<Uninitialized_uchar>;
 
 /**
+  Implements a match callback function for icu that aborts execution if the
+  query was killed.
+
+  @param context The session to check for killed query.
+  @param steps Not used.
+
+  @retval false Query was killed in the session and the match should abort.
+  @retval true Query was not killed, matching should continue.
+*/
+UBool QueryNotKilled(const void *context, int32_t steps);
+
+/**
   This class exposes high-level regular expression operations to the
   facade. It implements the algorithm for search-and-replace and the various
   matching options.
@@ -95,6 +107,7 @@ class Regexp_engine {
     m_re = uregex_open(upattern, length, flags, &error, &m_error_code);
     uregex_setStackLimit(m_re, stack_limit, &m_error_code);
     uregex_setTimeLimit(m_re, time_limit, &m_error_code);
+    uregex_setMatchCallback(m_re, QueryNotKilled, current_thd, &m_error_code);
     check_icu_status(m_error_code, &error);
   }
 

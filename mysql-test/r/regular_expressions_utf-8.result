@@ -739,3 +739,16 @@ DO ( (@b) regexp (exp ( 0x1fc5574c )) );
 ERROR 22003: DOUBLE value is out of range in 'exp(0x1fc5574c)'
 DO ( (25091) rlike (exp ( 14373 )) );
 ERROR 22003: DOUBLE value is out of range in 'exp(14373)'
+#
+# Bug#27183583: REGEXP OPERATIONS CANT BE KILLED
+#
+SET GLOBAL regexp_time_limit = 1000000;
+connect conn1, localhost, root;
+SELECT regexp_instr('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC', '(A+)+B');
+connection default;
+KILL QUERY <conn1_id>;
+connection conn1;
+ERROR 70100: Query execution was interrupted
+disconnect conn1;
+connection default;
+SET GLOBAL regexp_time_limit = DEFAULT;
