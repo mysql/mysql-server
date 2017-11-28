@@ -42,7 +42,9 @@ CREATE DEFINER=root@localhost TRIGGER ts_insert
 BEFORE INSERT ON test_suppressions
 FOR EACH ROW BEGIN
   DECLARE dummy INT;
+  SET GLOBAL regexp_time_limit = 0;
   SELECT "" REGEXP NEW.pattern INTO dummy;
+  SET GLOBAL regexp_time_limit = DEFAULT;
 END
 */||
 SET @@character_set_client = @character_set_client_saved||
@@ -73,7 +75,9 @@ CREATE DEFINER=root@localhost TRIGGER gs_insert
 BEFORE INSERT ON global_suppressions
 FOR EACH ROW BEGIN
   DECLARE dummy INT;
+  SET GLOBAL regexp_time_limit = 0;
   SELECT "" REGEXP NEW.pattern INTO dummy;
+  SET GLOBAL regexp_time_limit = DEFAULT;
 END
 */||
 SET @@character_set_client = @character_set_client_saved||
@@ -311,6 +315,7 @@ BEGIN
   --
   -- Remove mark from lines that are suppressed by global suppressions
   --
+  SET GLOBAL regexp_time_limit = 0;
   UPDATE error_log el, global_suppressions gs
     SET suspicious=0
       WHERE el.suspicious=1 AND el.line REGEXP gs.pattern;
@@ -321,6 +326,7 @@ BEGIN
   UPDATE error_log el, test_suppressions ts
     SET suspicious=0
       WHERE el.suspicious=1 AND el.line REGEXP ts.pattern;
+  SET GLOBAL regexp_time_limit = DEFAULT;
 
   --
   -- Get the number of marked lines and return result
