@@ -374,6 +374,7 @@
 #include "ft_global.h"
 #include "keycache.h"                   // KEY_CACHE
 #include "m_string.h"
+#include "migrate_keyring.h"            // Migrate_keyring
 #include "my_base.h"
 #include "my_bitmap.h"                  // MY_BITMAP
 #include "my_command.h"
@@ -416,6 +417,7 @@
 #include "mysql/psi/psi_transaction.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
+#include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
@@ -741,6 +743,7 @@ static PSI_cond_key key_COND_start_signal_handler;
 #endif // _WIN32
 static PSI_mutex_key key_LOCK_server_started;
 static PSI_cond_key key_COND_server_started;
+static PSI_mutex_key key_LOCK_keyring_operations;
 #endif /* HAVE_PSI_INTERFACE */
 
 /**
@@ -804,6 +807,14 @@ char *opt_log_error_filter_rules;
 char *opt_log_error_services;
 bool  opt_log_syslog_enable;
 char *opt_log_syslog_tag= NULL;
+char *opt_keyring_migration_user= NULL;
+char *opt_keyring_migration_host= NULL;
+char *opt_keyring_migration_password= NULL;
+char *opt_keyring_migration_socket= NULL;
+char *opt_keyring_migration_source= NULL;
+char *opt_keyring_migration_destination= NULL;
+ulong opt_keyring_migration_port= 0;
+bool migrate_connect_options= 0;
 #ifndef _WIN32
 bool  opt_log_syslog_include_pid;
 char *opt_log_syslog_facility;
@@ -996,6 +1007,8 @@ bool avoid_temporal_upgrade;
 
 bool persisted_globals_load= TRUE;
 
+bool opt_keyring_operations= true;
+
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
   1e010, 1e011, 1e012, 1e013, 1e014, 1e015, 1e016, 1e017, 1e018, 1e019,
@@ -1156,6 +1169,12 @@ mysql_cond_t COND_socket_listener_active;
 mysql_mutex_t LOCK_start_signal_handler;
 mysql_cond_t COND_start_signal_handler;
 #endif
+
+/*
+  The below lock protects access to global server variable
+  keyring_operations.
+*/
+mysql_mutex_t LOCK_keyring_operations;
 
 bool mysqld_server_started= false;
 
@@ -2143,6 +2162,7 @@ static void clean_up_mutexes()
   mysql_cond_destroy(&COND_start_signal_handler);
   mysql_mutex_destroy(&LOCK_start_signal_handler);
 #endif
+  mysql_mutex_destroy(&LOCK_keyring_operations);
 }
 
 
@@ -3355,7 +3375,6 @@ int init_common_variables()
 #endif
 
   }
-
   /*
     We set SYSTEM time zone as reasonable default and
     also for failure of my_tz_init() and bootstrap mode.
@@ -3621,6 +3640,7 @@ int init_common_variables()
   if (init_errmessage())  /* Read error messages from file */
     return 1;
   init_client_errs();
+
   mysql_client_plugin_init();
   if (item_create_init())
     return 1;
@@ -3906,6 +3926,8 @@ static int init_thread_environment()
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 #endif
 
+  mysql_mutex_init(key_LOCK_keyring_operations,
+                   &LOCK_keyring_operations, MY_MUTEX_INIT_FAST);
   return 0;
 }
 
@@ -5650,15 +5672,6 @@ int mysqld_main(int argc, char **argv)
   }
 #endif
 
-  /*
-    We have enough space for fiddling with the argv, continue
-  */
-  if (!opt_help && my_setwd(mysql_real_data_home,MYF(MY_WME)))
-  {
-    LogErr(ERROR_LEVEL, ER_CANT_SET_DATADIR, mysql_real_data_home);
-    unireg_abort(MYSQLD_ABORT_EXIT);        /* purecov: inspected */
-  }
-
 #ifndef _WIN32
   if ((user_info= check_user(mysqld_user)))
   {
@@ -5700,6 +5713,58 @@ int mysqld_main(int argc, char **argv)
       set_user(mysqld_user, user_info);
   }
 #endif // !_WIN32
+
+  /*
+   initiate key migration if any one of the migration specific
+   options are provided.
+  */
+  if (opt_keyring_migration_source ||
+      opt_keyring_migration_destination ||
+     migrate_connect_options)
+  {
+    Migrate_keyring mk;
+    my_getopt_skip_unknown= TRUE;
+    if (mk.init(remaining_argc, remaining_argv,
+                opt_keyring_migration_source,
+                opt_keyring_migration_destination,
+                opt_keyring_migration_user,
+                opt_keyring_migration_host,
+                opt_keyring_migration_password,
+                opt_keyring_migration_socket,
+                opt_keyring_migration_port))
+    {
+      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                      "failed");
+      log_error_dest= "stderr";
+      flush_error_log_messages();
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+
+    if (mk.execute())
+    {
+      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                      "failed");
+      log_error_dest= "stderr";
+      flush_error_log_messages();
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+
+    my_getopt_skip_unknown= 0;
+    sql_print_information(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                          "sucessfull");
+    log_error_dest= "stderr";
+    flush_error_log_messages();
+    exit(MYSQLD_SUCCESS_EXIT);
+  }
+
+  /*
+   We have enough space for fiddling with the argv, continue
+  */
+  if (!opt_help && my_setwd(mysql_real_data_home,MYF(MY_WME)))
+  {
+    LogErr(ERROR_LEVEL, ER_CANT_SET_DATADIR, mysql_real_data_home);
+    unireg_abort(MYSQLD_ABORT_EXIT);        /* purecov: inspected */
+  }
 
   /*
    The subsequent calls may take a long time : e.g. innodb log read.
@@ -6705,6 +6770,37 @@ struct my_option my_long_early_options[]=
    " Create a super user with empty password.",
    &opt_initialize_insecure, &opt_initialize_insecure, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
+  {"keyring-migration-source", OPT_KEYRING_MIGRATION_SOURCE,
+   "Keyring plugin from where the keys needs to "
+   "be migrated to. This option must be specified along with "
+   "--keyring-migration-destination.",
+   &opt_keyring_migration_source, &opt_keyring_migration_source,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"keyring-migration-destination", OPT_KEYRING_MIGRATION_DESTINATION,
+   "Keyring plugin to which the keys are "
+   "migrated to. This option must be specified along with "
+   "--keyring-migration-source.",
+   &opt_keyring_migration_destination, &opt_keyring_migration_destination,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"keyring-migration-user", OPT_KEYRING_MIGRATION_USER,
+   "User to login to server.",
+   &opt_keyring_migration_user, &opt_keyring_migration_user,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"keyring-migration-host", OPT_KEYRING_MIGRATION_HOST, "Connect to host.",
+   &opt_keyring_migration_host, &opt_keyring_migration_host,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"keyring-migration-password", 'p',
+   "Password to use when connecting to server during keyring migration. "
+   "If password value is not specified then it will be asked from the tty.",
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"keyring-migration-socket", OPT_KEYRING_MIGRATION_SOCKET,
+   "The socket file to use for connection.",
+   &opt_keyring_migration_socket, &opt_keyring_migration_socket,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"keyring-migration-port", OPT_KEYRING_MIGRATION_PORT,
+   "Port number to use for connection.",
+   &opt_keyring_migration_port, &opt_keyring_migration_port,
+   0, GET_ULONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 
@@ -8825,6 +8921,27 @@ pfs_error:
   case OPT_SHOW_OLD_TEMPORALS:
     push_deprecated_warn_no_replacement(NULL, "show_old_temporals");
     break;
+  case 'p':
+    if (argument)
+    {
+      char *start= argument;
+      my_free(opt_keyring_migration_password);
+      opt_keyring_migration_password= my_strdup(PSI_NOT_INSTRUMENTED,
+        argument, MYF(MY_FAE));
+      while (*argument) *argument++= 'x';
+      if (*start)
+       start[1]= 0;
+    }
+    else
+      opt_keyring_migration_password= get_tty_password(NullS);
+    migrate_connect_options= 1;
+    break;
+  case OPT_KEYRING_MIGRATION_USER:
+  case OPT_KEYRING_MIGRATION_HOST:
+  case OPT_KEYRING_MIGRATION_SOCKET:
+  case OPT_KEYRING_MIGRATION_PORT:
+    migrate_connect_options= 1;
+    break;
   case OPT_ENFORCE_GTID_CONSISTENCY:
   {
     const char *wrong_value=
@@ -9797,7 +9914,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_mandatory_roles, "LOCK_mandatory_roles", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_password_history, "LOCK_password_history", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_LOCK_password_reuse_interval, "LOCK_password_reuse_interval", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
+  { &key_LOCK_password_reuse_interval, "LOCK_password_reuse_interval", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_keyring_operations, "LOCK_keyring_operations", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 

@@ -865,6 +865,26 @@ err:
   DBUG_RETURN(error);
 }
 
+/**
+  This function is used to check if key management UDFs like
+  keying_key_generate/store/remove should proceed or not. If global
+  variable @@keyring_operations is OFF then above said udfs will fail.
+
+  @return Operation status
+    @retval 0 OK
+    @retval 1 ERROR, keyring operations are not allowed
+
+  @sa Sys_keyring_operations
+*/
+bool keyring_access_test()
+{
+  bool keyring_operations;
+  mysql_mutex_lock(&LOCK_keyring_operations);
+  keyring_operations= !opt_keyring_operations;
+  mysql_mutex_unlock(&LOCK_keyring_operations);
+  return keyring_operations;
+}
+
 /*****************************************************************************
   Functions to handle SET mysql_internal_variable=const_expr
 *****************************************************************************/
