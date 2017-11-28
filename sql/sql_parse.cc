@@ -6049,7 +6049,8 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   DBUG_ENTER("add_table_to_list");
 
   DBUG_ASSERT(table_name != nullptr);
-  if (!(table_options & TL_OPTION_ALIAS))
+  // A derived table has no table name, only an alias.
+  if (!(table_options & TL_OPTION_ALIAS) && !table_name->is_derived_table())
   {
     Ident_name_check ident_check_status=
       check_table_name(table_name->table.str, table_name->table.length);
@@ -6262,6 +6263,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   {
     ptr->derived_key_list.empty();
     derived_table_count++;
+    ptr->save_name_temporary();
   }
 
   // Check access to DD tables. We must allow CHECK and ALTER TABLE
