@@ -99,7 +99,7 @@ let $partitions = `select @partitions`;
 set @@new = 1;
 eval create table hints (i int primary key) engine=ndb partition by list(i) ($partitions);
 let $i = $nodes;
-while ($i)
+while($i)
 {
   eval insert into hints values ($i);
 # Use 'eval select * from hints where i = $i;' first in a transaction to force
@@ -495,7 +495,7 @@ select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_
 }
 
 # Decrement $i to next node hint value and rerun all tests against a new node
-  dec $i;
+  let $i=0;
 }
 drop table hints;
 
