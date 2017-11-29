@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  *  External interface: 
  *      mcc.server.api.hostInfoReq: Get HW resource info for a host
+ *      mcc.server.api.hostDockerReq: Get Docker status for a host
  *      mcc.server.api.createFileReq: Create a file with given contents
  *      mcc.server.api.appendFileReq: Append a file to another
  *      mcc.server.api.startClusterReq: Start cluster processes
@@ -69,6 +70,7 @@ dojo.require("mcc.storage");
 /**************************** External interface  *****************************/
 
 mcc.server.api.hostInfoReq = hostInfoReq;
+mcc.server.api.hostDockerReq = hostDockerReq;
 mcc.server.api.checkFileReq = checkFileReq;
 mcc.server.api.createFileReq = createFileReq;
 mcc.server.api.appendFileReq = appendFileReq;
@@ -309,6 +311,80 @@ function hostInfoReq(hostname, onReply, onError) {
     }
 }
 
+// Send hostDockerReq
+function hostDockerReq(hostname, onReply, onError) {
+    // First, check if there are HOST bound credentials:
+    mcc.util.dbg("Running hostDockerReq for host " + hostname);
+    if (hostname != "") {
+        if (hostHasCreds(hostname)) {
+            mcc.util.dbg("Host " + hostname + " has creds.");
+            mcc.storage.hostStorage().getItems({name: hostname}).then(
+                function (hosts) {
+                    if (hosts[0]) {
+                        if (hosts[0].getValue("key_auth")) {
+                            //Remote host with its own credentials (PK).
+                            mcc.util.dbg("Running hostDockerReq for host " + hostname + " with Host keys");
+                            var msg = {
+                                head: getHead("hostDockerReq"),
+                                body: {
+                                    ssh: createSSHBlock(hosts[0].getValue("key_usr"), hosts[0].getValue("key_passp"),
+                                        hosts[0].getValue("key_file")),
+                                    hostName: hostname
+                                }
+                            }
+                        } else {
+                            //Remote host with its own credentials but not PK.
+                            mcc.util.dbg("Running hostDockerReq for host " + hostname + " with Host creds");
+                            var msg = {
+                                head: getHead("hostDockerReq"),
+                                body: {
+                                    ssh: getSSH(hostname, false, 
+                                            hosts[0].getValue("usr"),
+                                            hosts[0].getValue("usrpwd")),
+                                    hostName: hostname
+                                }
+                            }
+                            
+                        }
+
+                        // Call do_post, provide callbacks
+                        do_post(msg).then(replyHandler(onReply, onError), 
+                                errorHandler(msg.head, onError));
+                    }
+                }
+            );
+        } else {
+            // Do it the old way.
+            mcc.util.dbg("Host " + hostname + " has no creds.");
+            mcc.util.dbg("Running hostDockerReq for host " + hostname + " with Cluster creds");
+            mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
+                // Create message
+                var msg = {
+                    head: getHead("hostDockerReq"),
+                    body: {
+                        ssh: getSSH(hostname, cluster.getValue("ssh_keybased"), 
+                                cluster.getValue("ssh_user"),
+                                mcc.gui.getSSHPwd()),
+                        hostName: hostname
+                    }
+                };
+
+                // Register last seq no
+                mcc.storage.hostStorage().getItems({name: hostname}).then(
+                    function (hosts) {
+                        if (hosts[0]) {
+
+                            // Call do_post, provide callbacks
+                            do_post(msg).then(replyHandler(onReply, onError), 
+                                    errorHandler(msg.head, onError));
+                        }
+                    }
+                );
+            });
+        }
+    }
+}
+
 // Send checkFile
 function checkFileReq(hostname, path, filename, contents, overwrite, 
         onReply, onError) {
@@ -371,9 +447,10 @@ function checkFileReq(hostname, path, filename, contents, overwrite,
                 var msg = {
                     head: getHead("checkFileReq"),
                     body: {
-                        ssh: getSSH(cluster.getValue("ssh_keybased"), 
-                                cluster.getValue("ssh_user"),
-                                mcc.gui.getSSHPwd()),
+                         ssh: getSSH(cluster.getValue("ssh_keybased"),
+                            cluster.getValue("ssh_user"),
+                            mcc.gui.getSSHPwd()),
+                        //ssh: getSSH('localhost', false, "", ""),
                         file: {
                             hostName: hostname,
                             path: path
@@ -434,6 +511,7 @@ function createFileReq(hostname, path, filename, contents, overwrite,
                                     }
                                 }
                             }
+                            
                         }
 
                         if (filename) {
@@ -456,17 +534,35 @@ function createFileReq(hostname, path, filename, contents, overwrite,
             mcc.util.dbg("Running createFileReq for host " + hostname + " with Cluster creds");
             mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
                 // Create message
-                var msg = {
-                    head: getHead("createFileReq"),
-                    body: {
-                        ssh: getSSH(cluster.getValue("ssh_keybased"), 
-                                cluster.getValue("ssh_user"),
-                                mcc.gui.getSSHPwd()),
-                        file: {
-                            hostName: hostname,
-                            path: path
+                try {
+                    var msg = {
+                        head: getHead("createFileReq"),
+                        body: {
+                            ssh: getSSH(cluster.getValue("ssh_keybased"), 
+                                    cluster.getValue("ssh_user"),
+                                    mcc.gui.getSSHPwd()),
+                            file: {
+                                hostName: hostname,
+                                path: path
+                            }
                         }
-                    }
+                    };
+                } catch (e){
+                    //IF mcc.gui.getSSHPwd() fails, which is the only case,
+                    //then we can safely assume we are BEFORE gui initialization,
+                    //which means on welcome page and not yet on content. Thus,
+                    //no creds are available, we're on lacalhost.
+                    mcc.util.dbg("Inside CATCH");
+                    msg = {
+                        head: getHead("createFileReq"),
+                        body: {
+                            ssh: getSSH("localhost", false, "",""),
+                            file: {
+                                hostName: hostname,
+                                path: path
+                            }
+                        }
+                    };
                 };
                 if (filename) {
                     msg.body.file.name = filename;
@@ -519,7 +615,7 @@ function appendFileReq(hostname, srcPath, srcName, destPath, destName,
                             var msg = {
                                 head: getHead("appendFileReq"),
                                 body: {
-                                    ssh: getSSH(hostname, false, 
+                                    ssh: getSSH(hostname, false,
                                             hosts[0].getValue("usr"),
                                             hosts[0].getValue("usrpwd")),
                                     sourceFile: {
@@ -537,7 +633,7 @@ function appendFileReq(hostname, srcPath, srcName, destPath, destName,
                         }
 
                         // Call do_post, provide callbacks
-                        do_post(msg).then(replyHandler(onReply, onError), 
+                        do_post(msg).then(replyHandler(onReply, onError),
                                 errorHandler(msg.head, onError));
                     }
                 }

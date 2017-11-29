@@ -46,14 +46,23 @@ import random
 import stat
 import errno
 import contextlib
-
+#
+import base64
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
+#
 import util
 import config_parser
 import mcc_config
 
+#from Crypto.Cipher import AES
+#from Crypto.Hash import SHA256
 from clusterhost import produce_ABClusterHost 
 
 _logger = logging.getLogger(__name__)
+configFile = None
+passphrase = None
 
 class ShutdownException(Exception):
     """Exception thrown when shutdown command arrives"""
@@ -81,7 +90,6 @@ class ReplyJsonEncoder(json.JSONEncoder):
         # Ordinary json serialization
         return json.JSONEncoder.default(self, obj)
 
-
 def handle_req(req):
     """Primary dispatcher function for messages from the client-frontend. Uses 
     introspection to look for a function named handle_<command name> and
@@ -98,10 +106,26 @@ def make_rep(req, body=None):
     rep = { 'head': { 'seq': req['head']['seq'] +1,
                      'cmd': req['head']['cmd'], 
                      'rSeq': req['head']['seq'] }}
+    _logger.warning('make_rep rep: ' + str(rep))
     if body:
         rep['body'] = body
+        _logger.warning('make_rep body')
     
     return rep
+
+def is_host_local(HostDesignation):
+    if (HostDesignation == 'localhost' or HostDesignation == '127.0.0.1'):
+        _logger.warning('Host is local (1-1).')
+        return true
+        
+    # Check if proper IP address is provided for localhost:
+    ips = socket.gethostbyname_ex(socket.gethostname())[2]
+    for ipadr in ips:
+        if ipadr == HostDesignation:
+            _logger.warning('Host is local (1-2).')
+            return true
+    
+    return False
 
 def get_cred(HostNm, body):
     """Get the credentials from the message in the form of a (user, pwd) tuple.
@@ -109,18 +133,97 @@ def get_cred(HostNm, body):
     (User, passphrase, key_file) block."""
     try:
         if ((not body.has_key('ssh') or util.get_val(body['ssh'], 'keyBased', False)) and 
-            (HostNm != 'localhost' and HostNm != '127.0.0.1')):
+            (not is_host_local(HostNm))):
             # It's key-based, implement new logic. {keyBased: true, key: "", key_user: "", key_passp: "", key_file: ""};
             return (True, body['ssh']['key_user'], body['ssh']['key_passp'], 
                     body['ssh']['key_file'])
     except KeyError:
         if ((not body.has_key('ssh') or util.get_val(body['ssh'], 'keyBased', False)) and 
-            (HostNm != 'localhost' and  HostNm != '127.0.0.1')):
+            (not is_host_local(HostNm))):
             # It's key-based, implement new logic. {keyBased: true, key: "", key_user: "", key_passp: "", key_file: ""};
             return (True, body['ssh']['key_user'], body['ssh']['key_passp'], 
                     body['ssh']['key_file'])
     
     return (False, body['ssh']['user'], body['ssh']['pwd'], None)
+
+"""
+def encrypt(key, filename):
+    chunk_size = 64*1024
+    output_file = filename + ".encrypted"
+    file_size = str(os.path.getsize(filename)).zfill(16)
+    InitializationVector = ''
+    for i in range(16):
+        InitializationVector += chr(random.randint(0, 0xFF))
+    encryptor = AES.new(key, AES.MODE_CBC, InitializationVector)
+    with open(filename, 'rb') as inputfile:
+        with open(output_file, 'wb') as outf:
+            outf.write(file_size)
+            outf.write(InitializationVector)
+            while True:
+                chunk = inputfile.read(chunk_size)
+                if len(chunk) == 0:
+                    break
+                elif len(chunk) % 16 != 0:
+                   chunk += ' '*(16 - len(chunk)%16)
+                outf.write(encryptor.encrypt(chunk))
+    #Remove plain text file.
+    if os.path.isfile(filename):
+        os.remove(filename)
+    else: #Show an error.
+        print("Encrypt error: Original file %s not found" % filename)
+    #Rename new file to old name.
+    old_file = output_file #name.mcc.encrypted.
+    new_file = filename #name.mcc
+    os.rename(old_file, new_file)
+
+def decrypt(key, filename):
+    chunk_size = 64*1024
+    output_file = filename[:-4] #- .mcc
+    with open(filename, 'rb') as inf:
+        filesize = long(inf.read(16))
+        InitializationVector = inf.read(16)
+        decryptor = AES.new(key, AES.MODE_CBC, InitializationVector)
+        with open(output_file, 'wb') as outf:
+            while True:
+                chunk = inf.read(chunk_size)
+                if len(chunk)==0:
+                    break
+                outf.write(decryptor.decrypt(chunk))
+            outf.truncate(filesize)
+
+    #Return decrypted file as string.
+    content = None
+    with open(output_file, 'rb') as outf:
+        content = outf.read()
+
+    #Remove plain text file.
+    if os.path.isfile(output_file):
+        os.remove(output_file)
+    else: #Show an error.
+        print("Decrypt error: Plain text file %s not found" % output_file)
+
+    return content
+
+def getKey(password):
+    hasher = SHA256.new(password)
+    return hasher.digest()
+"""
+def get_key(password):
+    _logger.warning('Getting key from passp.')
+    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    #digest.update(bytes(password, "utf8")) does not work...
+    digest.update(bytes(password))
+    return base64.urlsafe_b64encode(digest.finalize())
+
+def encrypt(key, token):
+    f = Fernet(get_key(key))
+    _logger.warning('Encrypting.')
+    return f.encrypt(bytes(token))
+
+def decrypt(key, token):
+    f = Fernet(get_key(key))
+    _logger.warning('Decrypting.')
+    return f.decrypt(bytes(token))
 
 def handle_hostInfoReq(req, body):
     """Handler function for hostInfoReq commands. Will connect to the specified
@@ -138,7 +241,22 @@ def handle_hostInfoReq(req, body):
                                            'installdir': ch.installdir, 
                                            'datadir': ch.hostInfo.pm.join(ch.homedir, 'MySQL_Cluster'),
                                            'diskfree': ch.hostInfo.disk_free,
-                                           'fqdn': socket.getfqdn(ch.host) }})
+                                           'fqdn': socket.getfqdn(ch.host),
+                                           'osver': ch.hostInfo.osver,
+                                           'osflavor': ch.hostInfo.osflavor,
+                                           'docker_info': ch.hostInfo.docker_info}})
+
+def handle_hostDockerReq(req, body):
+    """Handler function for hostDockerReq command. Will connect to the specified
+    host through a remote.ClusterHost object to retrieve information.
+    req - top level message object
+    body - shortcut to the body part of the message
+    """
+    
+    (key_based, user, pwd, key_file) = get_cred(body['hostName'], body)
+    with produce_ABClusterHost(body['hostName'], key_based, user, pwd, key_file) as ch:
+        return make_rep(req, { 'host': {'name': ch.host },
+                               'hostRes': {'DockerInfo':ch.hostInfo.docker_info}})
 
 
 def start_proc(proc, body):
@@ -188,15 +306,17 @@ def handle_createFileReq(req, body):
     host with content from the message.
     req - top level message object
     body - shortcut to the body part of the message
+    There is a problem with this function on Windows:
+      Since pathname = ch.path_module.join(pathname, f['name'])
+      DIRECTORY pathname instead of file PATH/NAME is created leading to Access violation :-/
     """
     
     f = body['file']
     (key_based, user, pwd, key_file) = get_cred(f['hostName'], body)
-    
     with produce_ABClusterHost(f['hostName'], key_based, user, pwd, key_file) as ch:
         pathname = f['path']
         if f.has_key('name'):
-            pathname = ch.path_module.join(f['path'], f['name'])
+            pathname = ch.path_module.join(pathname, f['name'])
             assert not (f.has_key('autoComplete') and f['autoComplete']) 
             assert not (not (f.has_key('overwrite') and f['overwrite']) and ch.file_exists(pathname)), 'File '+pathname+' already exists on host '+ch.host
             ch.mkdir_p(f['path'])
@@ -205,6 +325,7 @@ def handle_createFileReq(req, body):
 
             with ch.open(pathname) as rf:
                 assert rf.read() == body['contentString']
+            
         else:
             ch.mkdir_p(f['path'])
 
@@ -249,16 +370,150 @@ def handle_checkFileReq(req, body):
     """
     
     f = body['file']
-    
     (key_based, user, pwd, key_file) = get_cred(f['hostName'], body)
 
     with produce_ABClusterHost(f['hostName'], key_based, user, pwd, key_file) as ch:
         sp = ch.path_module.join(f['path'], f['name'])
+        _logger.warning('pathname ' + sp + ' in checking')
         assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host        
                 
     _logger.debug('pathname ' + sp + ' checked')
 
     return  make_rep(req)
+
+def handle_listDirectoryReq(req, body):
+    """Handler function for listDirectoryReq command.
+    req - top level message object
+    body - shortcut to the body part of the message
+    """
+    # This is what new session starts with so reset globals from previous run.
+    global passphrase
+    global configFile
+    passphrase = None
+    configFile = None
+    _logger.warning('Passphrase & ConfigFileName reset.')
+    
+    f = body['file']
+    results = []
+    path = f['path']
+    ext = f['ext']
+    (key_based, user, pwd, key_file) = get_cred(f['hostName'], body)
+    with produce_ABClusterHost(f['hostName'], key_based, user, pwd, key_file) as ch:
+        if (path == "~"):
+            path = ch.homedir #os.path.expanduser(path)
+        path = os.path.join(path, '') #Add last /... Well, IF MCC is not running on localhost, this will fail. Will fix later if needs be.
+        results += [each for each in os.listdir(path) if (each.endswith(ext) and os.path.getsize(path+each) > 10)]
+        return make_rep(req, { 'host': {'name': ch.host },
+            'hostRes': {'listDirectory': results,
+                        'realpath': path.replace("\\","/")}})
+                        #Will return / instead of \ on Windows. repr(path) would return \\
+
+def handle_fileExistsReq(req, body):
+    """Handler function for fileExistsReq command.
+    req - top level message object
+    body - shortcut to the body part of the message
+    Plain file exists on host or not.
+    """
+    path = body['path']
+    filename = body['fname']
+    resStr = ""
+    (key_based, user, pwd, key_file) = get_cred(body['hostName'], body)
+    with produce_ABClusterHost(body['hostName'], key_based, user, pwd, key_file) as ch:
+        _logger.warning('Produced ABC (FER).')
+        if (path == "~"):
+            path = ch.homedir
+        sp = ch.path_module.join(path, filename)
+        _logger.warning('pathname ' + sp + ' in checking.')
+        resStr = ch.file_exists(sp)
+        if not(resStr is None):
+            result = 1
+        else:
+            result = 0
+        _logger.warning('FER result is ' + str(result) + '.')
+        return  make_rep(req, { 'host': {'name': ch.host },
+                'hostRes': {'fname': filename, 'exists': result}})
+
+def handle_createCfgFileReq(req, body):
+    """Handler function for createCfgFileReq command.
+    req - top level message object
+    body - shortcut to the body part of the message
+    Plain file create on host.
+    """
+    global passphrase
+    global configFile
+    path = body['path']
+    #if passphrase is None:
+    passphrase = body['phr']
+    configFile = body['fname']
+    (key_based, user, pwd, key_file) = get_cred(body['hostName'], body)
+    with produce_ABClusterHost(body['hostName'], key_based, user, pwd, key_file) as ch:
+        if (path == "~"):
+            path = ch.homedir
+        _logger.warning('path is ' + path + ' and name is ' + configFile + '.')
+        pathname = ch.path_module.join(path, configFile)
+        if (body.has_key('contentString')):
+            with ch.open(pathname, 'w+') as rf:
+                rf.write(body['contentString'])
+
+            with ch.open(pathname) as rf:
+                assert rf.read() == body['contentString']
+
+            #encrypt(getKey(passphrase), pathname)
+        #"""
+        output_file = pathname + ".encrypted"
+        with open(pathname, 'r') as inputfile:
+            inp = inputfile.read()
+            res = encrypt(passphrase, inp)
+            with open(output_file, 'wb') as outf:
+                outf.write(res)
+
+        #Remove plain text file.
+        if os.path.isfile(pathname):
+            os.remove(pathname)
+        else: #Show an error.
+            print("Encrypt error: Original file %s not found" % pathname)
+        #Rename new file to old name.
+        old_file = output_file #name.mcc.encrypted.
+        new_file = pathname #name.mcc
+        os.rename(old_file, new_file)
+        #"""
+        _logger.warning('File ' + pathname + ' created.')
+        return  make_rep(req, { 'host': {'name': ch.host },
+                'hostRes': {'fname': configFile, 'created': 1}})
+
+def handle_readCfgFileReq(req, body):
+    """Handler function for readCfgFileReq command.
+    req - top level message object
+    body - shortcut to the body part of the message
+    Plain file read on host.
+    Body:
+        hostName
+        path
+        fname
+        phr
+    Ignore passphrase for now.
+    """
+    path = body['path']
+    #name = body['fname']
+    global passphrase
+    global configFile
+    #if passphrase is None:
+    passphrase = body['phr']
+    #if configFile is None:
+    configFile = body['fname']
+    (key_based, user, pwd, key_file) = get_cred(body['hostName'], body)
+    with produce_ABClusterHost(body['hostName'], key_based, user, pwd, key_file) as ch:
+        _logger.warning('Inside produce_ABClusterHost, readcfgfilereq.')
+        if (path == "~"):
+            path = ch.homedir
+        pathname = ch.path_module.join(path, configFile)
+        _logger.warning('pathname ' + pathname + ' in opening.')
+        with open(pathname, 'rb') as rencf:
+            inp = rencf.read()
+            res = decrypt(passphrase, inp)
+        _logger.warning('File ' + pathname + ' read.')
+        return  make_rep(req, { 'host': {'name': ch.host },
+                'hostRes': {'fname': configFile, 'contentString': res}})
 
 def handle_shutdownServerReq(req, body):
     """x"""
@@ -366,6 +621,7 @@ class ConfiguratorHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/json')
         self.end_headers()
+
         for possible_encoding in ["utf-8", "cp1252"]:
           try:
             # obj can contain messages from the OS that could be encoded
@@ -374,6 +630,7 @@ class ConfiguratorHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             break
           except UnicodeDecodeError:
             self.server.logger.debug('%s encoding failed', possible_encoding)
+            self.server.logger.warning('%s encoding failed', possible_encoding)
             pass
         if json_str is None:
           raise UnicodeDecodeError
@@ -388,7 +645,8 @@ class ConfiguratorHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             if self.path == '/':
                self.path = '/'+mcc_config.MCC_BROWSER_START_PAGE
             self.server.logger.debug(rt+' fdir='+self.server.opts['fdir']+ " path="+os.path.normpath(self.path))
-            fn = os.path.join(self.server.opts['fdir'], os.path.normpath(self.path[1:]))
+            #Make sure to remove options if there are any.
+            fn = os.path.join(self.server.opts['fdir'], os.path.normpath(self.path[1:]).split("?")[0])
             try:
                 os.stat(fn)                
             except OSError as ose:
@@ -454,6 +712,8 @@ class ConfiguratorHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
             self.server.logger.debug('<-- ' + rep['head']['cmd'] + ':')
             self.server.logger.debug(pprint.pformat(rep))
+            self.server.logger.warning('<-- ' + rep['head']['cmd'] + ':')
+            #self.server.logger.warning(pprint.pformat(rep))
             self._send_as_json(rep)
         except:
             traceback.print_exc()
@@ -545,6 +805,8 @@ def main(prefix, cfgdir):
                             help='log requests to this file. The value - means log to stderr: [default: %default]')
     # option for level/logcfg file
  
+    cmdln_parser.add_option('-H', '--use-http', action='store_true', help='use http for communication with browser.')
+    
     cmdln_parser.add_option('-S', '--use-https', action='store_true', help='use https to secure communication with browser.')
 
     cmdln_parser.add_option('-c', '--cert-file', action='store', type='string', default=os.path.join(cfgdir, 'cfg.pem'), help='file containing X509 certificate which identifies the server (possibly self-signed): [default: %default]')
@@ -576,6 +838,9 @@ def main(prefix, cfgdir):
                'cdir': cfgdir,
                'fdir': os.path.join(cfgdir, 'frontend') }
     
+    if not options.use_http:
+        options.use_https = True
+    
     if options.use_https:
         srvopts['ssl'] = True
         srvopts['certfile'] = options.cert_file
@@ -583,11 +848,14 @@ def main(prefix, cfgdir):
         srvopts['ca_certs'] = options.ca_certs_file
 
     flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    hpath = os.path.expanduser('~')
+    global pidf
+    pidf = os.path.join(hpath, 'mcc.pid')
     try:
-        file_handle = os.open('mcc.pid', flags)
+        file_handle = os.open(pidf, flags)
     except OSError as e:
         if e.errno == errno.EEXIST:  # Failed as the file already exists.
-            file_handle = open('mcc.pid') # , os.O_RDONLY)
+            file_handle = open(pidf) # , os.O_RDONLY)
             print 'mcc.pid file found at '+os.path.realpath(file_handle.name)+'. Please remove before restarting process.'
             file_handle.close()
             sys.exit("Web server already running!")
@@ -605,11 +873,31 @@ def main(prefix, cfgdir):
     url_host = options.server_name
     if url_host == '':
         url_host = 'localhost'
-    if options.use_https:
-        url = 'https://{0}:{opt.port}/{opt.browser_start_page}'.format(url_host, opt=options)
+    #Here we should send list of config files too.
+    results = []
+    resStr = ""
+    path = os.path.expanduser('~')
+    path = os.path.join(path, '')
+    results += [each for each in os.listdir(path) if (each.endswith('.mcc') and os.path.getsize(path+each) > 10)]
+    resStr = '&'.join(results)
+    #Check there is anything.
+    if len(results):
+        resStr = "?" + resStr + "#"
     else:
-        url = 'http://{0}:{opt.port}/{opt.browser_start_page}'.format(url_host, opt=options)
-        
+        resStr = ""
+    
+    if options.use_https:
+        if not resStr:
+            url = 'https://{0}:{opt.port}/{opt.browser_start_page}'.format(url_host, opt=options)
+        else:
+            url = 'https://{0}:{opt.port}/{opt.browser_start_page}{1}'.format(url_host, resStr, opt=options)
+    else:
+        if not resStr:
+            url = 'http://{0}:{opt.port}/{opt.browser_start_page}'.format(url_host, opt=options)
+        else:
+            url = 'http://{0}:{opt.port}/{opt.browser_start_page}{1}'.format(url_host, resStr, opt=options)
+    print("URL is {}.".format(url))
+
     httpsrv = None
     global deathkey
     deathkey = random.randint(100000, 1000000)
@@ -641,4 +929,5 @@ def main(prefix, cfgdir):
         if httpsrv:
             httpsrv.socket.close()
         #os.remove('deathkey.txt')
-        os.remove('mcc.pid')
+        print 'Removing ' + pidf
+        os.remove(pidf)
