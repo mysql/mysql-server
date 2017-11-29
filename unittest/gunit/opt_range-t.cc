@@ -1239,7 +1239,7 @@ TEST_F(OptRangeTest, treeAndOrComboSingleColIndex3)
 */
 TEST_F(OptRangeTest, SelArgOnevalue)
 {
-  Fake_TABLE fake_table(new Item_int(7));
+  Fake_TABLE fake_table({7}, false);
   Field *field_long7= fake_table.field[0];
 
   KEY_PART_INFO kpi;
@@ -1286,7 +1286,7 @@ TEST_F(OptRangeTest, SelArgOnevalue)
 */
 TEST_F(OptRangeTest, SelArgBetween)
 {
-  Fake_TABLE fake_table(new Item_int(3), new Item_int(5));
+  Fake_TABLE fake_table({3, 5}, false);
   Field *field_long3= fake_table.field[0];
   Field *field_long5= fake_table.field[1];
 
@@ -1344,7 +1344,7 @@ TEST_F(OptRangeTest, SelArgBetween)
 */
 TEST_F(OptRangeTest, CopyMax)
 {
-  Fake_TABLE fake_table(new Item_int(3), new Item_int(5));
+  Fake_TABLE fake_table({3, 5}, false);
   Field *field_long3= fake_table.field[0];
   Field *field_long5= fake_table.field[1];
 
@@ -1418,7 +1418,7 @@ TEST_F(OptRangeTest, CopyMax)
 */
 TEST_F(OptRangeTest, CopyMin)
 {
-  Fake_TABLE fake_table(new Item_int(3), new Item_int(5));
+  Fake_TABLE fake_table({3, 5}, false);
   Field *field_long3= fake_table.field[0];
   Field *field_long5= fake_table.field[1];
 
@@ -1495,7 +1495,7 @@ TEST_F(OptRangeTest, KeyOr1)
 {
   Fake_RANGE_OPT_PARAM opt_param(thd(), &m_alloc, 0, false);
 
-  Fake_TABLE fake_table(new Item_int(3), new Item_int(4));
+  Fake_TABLE fake_table({3, 4}, false);
   Field *field_long3= fake_table.field[0];
   Field *field_long4= fake_table.field[1];
 
@@ -1918,8 +1918,8 @@ TEST_F(OptRangeTest, CombineAlways2)
   always_root.min_flag= NO_MIN_RANGE;
   always_root.max_flag= NO_MAX_RANGE;
   SEL_ROOT always(&always_root), key_range(&key_range_root);
-  Mock_field_long field1("col_1");
-  Mock_field_long field2("col_2");
+  Mock_field_long field1("col_1", false);
+  Mock_field_long field2("col_2", false);
   Fake_TABLE table(&field1, &field2);
   String res(1000), so_far(1000);
   Fake_key_part_info key_part_info[]= { Fake_key_part_info(&field1),
@@ -1939,7 +1939,7 @@ TEST_F(OptRangeTest, CombineAlways2)
 TEST_F(OptRangeTest, AppendRange)
 {
   String out(100);
-  Mock_field_long field("my_field");
+  Mock_field_long field("my_field", false);
   Fake_TABLE table(&field);
   KEY_PART_INFO kp;
   kp.field= &field;

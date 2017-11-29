@@ -841,7 +841,6 @@ bool Item_subselect::exec()
     1) this is not the first time the subselect is executed, and
     2) REPEATED_SUBSELECT is disabled
   */
-#ifdef OPTIMIZER_TRACE
   Opt_trace_context * const trace= &thd->opt_trace;
   const bool disable_trace=
     traced_before &&
@@ -853,7 +852,6 @@ bool Item_subselect::exec()
   Opt_trace_object trace_exec(trace, "subselect_execution");
   trace_exec.add_select_number(unit->first_select()->select_number);
   Opt_trace_array trace_steps(trace, "steps");
-#endif
   // Statements like DO and SET may still rely on lazy optimization
   if (!unit->is_optimized() && unit->optimize(thd))
     DBUG_RETURN(true);

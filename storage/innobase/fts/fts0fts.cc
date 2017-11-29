@@ -3875,6 +3875,7 @@ static
 void
 fts_fetch_doc_from_rec(
 /*===================*/
+	trx_t*		trx,		/*!< in: current transaction */
 	fts_get_doc_t*  get_doc,	/*!< in: FTS index's get_doc struct */
 	dict_index_t*	clust_index,	/*!< in: cluster index */
 	btr_pcur_t*	pcur,		/*!< in: cursor whose position
@@ -3920,6 +3921,7 @@ fts_fetch_doc_from_rec(
 		if (rec_offs_nth_extern(offsets, clust_pos)) {
 			doc->text.f_str =
 				lob::btr_rec_copy_externally_stored_field(
+					clust_index,
 					clust_rec, offsets,
 					dict_table_page_size(table),
 					clust_pos, &doc->text.f_len,
@@ -4218,7 +4220,8 @@ fts_add_doc_by_id(
 			fts_doc_init(&doc);
 
 			fts_fetch_doc_from_rec(
-				get_doc, clust_index, doc_pcur, offsets, &doc);
+				ftt->fts_trx->trx, get_doc, clust_index,
+				doc_pcur, offsets, &doc);
 
 			if (doc.found) {
 				ibool	success MY_ATTRIBUTE((unused));
@@ -6999,7 +7002,10 @@ fts_init_recover_doc(
 		if (dfield_is_ext(dfield)) {
 			dict_table_t*	table = cache->sync->table;
 
+			/** When a nullptr is passed for trx, it means we will
+			fetch the latest LOB (and no MVCC will be done). */
 			doc.text.f_str = lob::btr_copy_externally_stored_field(
+				get_doc->index_cache->index,
 				&doc.text.f_len,
 				static_cast<byte*>(dfield_get_data(dfield)),
 				dict_table_page_size(table), len, false,

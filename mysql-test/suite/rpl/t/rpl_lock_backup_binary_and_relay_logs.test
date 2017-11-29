@@ -1,0 +1,125 @@
+# ==== Purpose ====
+#
+# This test case will test binary log expire, purge binary logs and automatic
+# relay log purge wrt backup lock.
+#
+# According to backup lock specification:
+# - No files must be created, renamed, or removed (exception: new binary log
+#   files can be created);
+#
+# There are no exceptions with respect to removal of binary log files.
+#
+# There is no mention about exceptions for relay log files. Relay log files
+# shall be handled with same exceptions of binary log files.
+#
+# Any automatic purge or binary and relay log files should be avoided
+# while the server instance is locked for backup.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#27030339: BACKUP_LOCK IS ALLOWING REMOVAL OF BINARY AND RELAY LOG FILES
+#
+
+# This test case is binary log format agnostic
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+CREATE TABLE t1 (c1 INT);
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+
+# Save global variables to be changed during the test case
+SET @saved_expire_logs_days= @@GLOBAL.expire_logs_days;
+SET @saved_binlog_expire_logs_seconds= @@GLOBAL.binlog_expire_logs_seconds;
+
+SET @@GLOBAL.expire_logs_days= 0;
+SET @@GLOBAL.binlog_expire_logs_seconds= 1;
+
+# Prevent removal of files (among other restrictions)
+--source include/rpl_connection_master1.inc
+LOCK INSTANCE FOR BACKUP;
+--source include/rpl_connection_slave.inc
+LOCK INSTANCE FOR BACKUP;
+--let $s1= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+
+# Generate workload on master
+--source include/rpl_connection_master.inc
+--let $m1= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOCAL LOGS;
+
+--let $m2= query_get_value(SHOW MASTER STATUS, File, 1)
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+FLUSH LOCAL LOGS;
+
+--let $m3= query_get_value(SHOW MASTER STATUS, File, 1)
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+INSERT INTO t1 VALUES (6);
+FLUSH LOCAL LOGS;
+INSERT INTO t1 VALUES (7);
+
+# Ensure slave has consumed first three binary log files
+--source include/sync_slave_sql_with_master.inc
+--let $sN= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+
+--source include/rpl_connection_master.inc
+# Take a nap to allow binary log expiration to take action
+--sleep 4
+FLUSH LOCAL LOGS;
+INSERT INTO t1 VALUES (8);
+
+--source include/sync_slave_sql_with_master.inc
+# Check that relay log files are still around
+--disable_result_log
+--replace_result $s1 FIRST_RELAY_LOG_FILE
+--eval SHOW RELAYLOG EVENTS IN '$s1'
+--replace_result $sN LAST_RELAY_LOG_FILE
+--eval SHOW RELAYLOG EVENTS IN '$sn'
+--enable_result_log
+
+--source include/rpl_connection_master.inc
+# Check that binary log files are still around
+--let $assert_text= 1st binary log file should still be available
+--let $assert_cond= "[SHOW BINARY LOGS, Log_name, 1]" = "$m1"
+--source include/assert.inc
+--let $assert_text= 2nd binary log file should still be available
+--let $assert_cond= "[SHOW BINARY LOGS, Log_name, 2]" = "$m2"
+--source include/assert.inc
+--let $assert_text= 3rd binary log file should still be available
+--let $assert_cond= "[SHOW BINARY LOGS, Log_name, 3]" = "$m3"
+--source include/assert.inc
+
+# Assume backup as taken at this point
+--source include/rpl_connection_slave.inc
+UNLOCK INSTANCE;
+--source include/rpl_connection_master1.inc
+UNLOCK INSTANCE;
+FLUSH LOCAL LOGS;
+
+# Expired binary log files should not be available
+--let $assert_text= 1st to 3rd binary log file should be not available
+--let $assert_cond= "[SHOW BINARY LOGS, Log_name, 1]" <> "$m1" AND "<1>" <> "$m2" AND "<1>" <> "$m3"
+--source include/assert.inc
+
+DROP TABLE t1;
+# Unused relay log files should not be available
+--source include/sync_slave_sql_with_master.inc
+--disable_result_log
+--replace_result $s1 FIRST_RELAY_LOG_FILE
+--error ER_ERROR_WHEN_EXECUTING_COMMAND
+--eval SHOW RELAYLOG EVENTS IN '$s1'
+--replace_result $sN LAST_RELAY_LOG_FILE
+--error ER_ERROR_WHEN_EXECUTING_COMMAND
+--eval SHOW RELAYLOG EVENTS IN '$sn'
+--enable_result_log
+
+# Cleanup
+--source include/rpl_connection_master.inc
+
+# Restore changed global variables
+SET @@GLOBAL.binlog_expire_logs_seconds= @saved_binlog_expire_logs_seconds;
+SET @@GLOBAL.expire_logs_days= @saved_expire_logs_days;
+
+--source include/rpl_end.inc

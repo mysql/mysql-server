@@ -3,6 +3,8 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
+# Disabled on Windows ASAN due to https://bugs.llvm.org/show_bug.cgi?id=35365
+--source include/not_asan_windows.inc
 
 
 #

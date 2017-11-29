@@ -244,7 +244,7 @@ callmacro Document_UpdatePatchObj_Find
 	ER_SUCCESS
 	{"a":20, "_id": 1}
 	%PROTOBUF_FIELDS%
-	{"a": 20, "b": 10, "c": 40, "_id": 1};
+	{"a": 20, "b": 10, "c": 40.0, "_id": 1};
 
 
 #

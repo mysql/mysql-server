@@ -287,7 +287,7 @@ private:
 #define FTS_PENDING_DOC_MEMORY_LIMIT	1000000
 
 /** Insert sorted data tuples to the index.
-@param[in]	trx_id		transaction identifier
+@param[in]	trx		current transaction
 @param[in]	index		index to be inserted
 @param[in]	old_table	old table
 @param[in]	fd		file descriptor
@@ -302,7 +302,7 @@ and then stage->inc() will be called for each record that is processed.
 static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_merge_insert_index_tuples(
-	trx_id_t		trx_id,
+	trx_t*			trx,
 	dict_index_t*		index,
 	const dict_table_t*	old_table,
 	int			fd,
@@ -441,18 +441,20 @@ row_merge_buf_free(
 }
 
 #ifdef UNIV_DEBUG
-# define row_merge_buf_redundant_convert(row_field, field, len,			\
-	page_size, is_sdi, heap)						\
-	row_merge_buf_redundant_convert_func(row_field, field, len,		\
+# define row_merge_buf_redundant_convert(trx, index, row_field, field,  \
+        len, page_size, is_sdi, heap)					\
+	row_merge_buf_redundant_convert_func(trx, index, row_field, field, len,	\
 	page_size, is_sdi, heap)
 # else /* UNIV_DEBUG */
-# define row_merge_buf_redundant_convert(row_field, field, len,			\
+# define row_merge_buf_redundant_convert(trx, index, row_field, field, len,	\
 	page_size, is_sdi, heap)						\
-	row_merge_buf_redundant_convert_func(row_field, field, len, 		\
+	row_merge_buf_redundant_convert_func(trx, index, row_field, field, len, \
 	page_size, heap)
 # endif /* UNIV_DEBUG */
 
 /** Convert the field data from compact to redundant format.
+@param[in]	trx		current transaction
+@param[in]	clust_index	clustered index being built
 @param[in]	row_field	field to copy from
 @param[out]	field		field to copy to
 @param[in]	len		length of the field data
@@ -466,6 +468,8 @@ row_merge_buf_free(
 static
 void
 row_merge_buf_redundant_convert_func(
+	trx_t*			trx,
+        const dict_index_t*	clust_index,
 	const dfield_t*		row_field,
 	dfield_t*		field,
 	ulint			len,
@@ -492,6 +496,7 @@ row_merge_buf_redundant_convert_func(
 			    field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
 
 		byte*	data = lob::btr_copy_externally_stored_field(
+			clust_index,
 			&ext_len, field_data, page_size, field_len, is_sdi,
 			heap);
 
@@ -724,6 +729,7 @@ row_merge_buf_add(
 			    && col->len != field->len) {
 				if (conv_heap != NULL) {
 					row_merge_buf_redundant_convert(
+						trx, old_table->first_index(),
 						row_field, field, col->len,
 						dict_table_page_size(old_table),
 						dict_table_is_sdi(old_table->id),
@@ -2386,7 +2392,7 @@ write_buffers:
 					}
 
 					err = row_merge_insert_index_tuples(
-						trx->id, index[i], old_table,
+						trx, index[i], old_table,
 						-1, NULL, buf, clust_btr_bulk);
 
 					if (row == NULL) {
@@ -2492,7 +2498,7 @@ write_buffers:
 					btr_bulk.init();
 
 					err = row_merge_insert_index_tuples(
-						trx->id, index[i], old_table,
+						trx, index[i], old_table,
 						-1, NULL, buf, &btr_bulk);
 
 					err = btr_bulk.finish(err);
@@ -3136,17 +3142,19 @@ row_merge_sort(
 
 #ifdef UNIV_DEBUG
 # define row_merge_copy_blobs(					\
-		mrec, offsets, page_size, tuple, is_sdi, heap)	\
+		trx, index, mrec, offsets, page_size, tuple, is_sdi, heap)	\
 	row_merge_copy_blobs_func(				\
-		mrec, offsets, page_size, tuple, is_sdi, heap)
+		trx, index, mrec, offsets, page_size, tuple, is_sdi, heap)
 #else /* UNIV_DEBUG */
 # define row_merge_copy_blobs(					\
-		mrec, offsets, page_size, tuple, is_sdi, heap)	\
+		trx, index, mrec, offsets, page_size, tuple, is_sdi, heap)	\
 	row_merge_copy_blobs_func(				\
-		mrec, offsets, page_size, tuple, heap)
+		trx, index, mrec, offsets, page_size, tuple, heap)
 #endif /* UNIV_DEBUG */
 
 /** Copy externally stored columns to the data tuple.
+@param[in]	trx		current transaction
+@param[in]	index		index dictionary object.
 @param[in]	mrec		record containing BLOB pointers,
 				or NULL to use tuple instead
 @param[in]	offsets		offsets of mrec
@@ -3157,6 +3165,8 @@ row_merge_sort(
 static
 void
 row_merge_copy_blobs_func(
+	trx_t*			trx,
+	const dict_index_t*	index,
 	const mrec_t*		mrec,
 	const ulint*		offsets,
 	const page_size_t&	page_size,
@@ -3200,11 +3210,12 @@ row_merge_copy_blobs_func(
 				     BTR_EXTERN_FIELD_REF_SIZE));
 
 			data = lob::btr_copy_externally_stored_field(
-				&len, field_data, page_size, field_len, is_sdi,
+				index, &len, field_data, page_size,
+				field_len, is_sdi,
 				heap);
 		} else {
 			data = lob::btr_rec_copy_externally_stored_field(
-				mrec, offsets, page_size, i, &len,
+				index, mrec, offsets, page_size, i, &len,
 				is_sdi, heap);
 		}
 
@@ -3238,7 +3249,7 @@ row_merge_mtuple_to_dtuple(
 }
 
 /** Insert sorted data tuples to the index.
-@param[in]	trx_id		transaction identifier
+@param[in]	trx		current transaction
 @param[in]	index		index to be inserted
 @param[in]	old_table	old table
 @param[in]	fd		file descriptor
@@ -3253,7 +3264,7 @@ and then stage->inc() will be called for each record that is processed.
 static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_merge_insert_index_tuples(
-	trx_id_t		trx_id,
+	trx_t*			trx,
 	dict_index_t*		index,
 	const dict_table_t*	old_table,
 	int			fd,
@@ -3276,7 +3287,7 @@ row_merge_insert_index_tuples(
 	ut_ad(!srv_read_only_mode);
 	ut_ad(!(index->type & DICT_FTS));
 	ut_ad(!dict_index_is_spatial(index));
-	ut_ad(trx_id);
+	ut_ad(trx->id);
 
 	if (stage != NULL) {
 		stage->begin_phase_insert();
@@ -3392,6 +3403,8 @@ row_merge_insert_index_tuples(
 			row_log_table_blob_alloc() and
 			row_log_table_blob_free(). */
 			row_merge_copy_blobs(
+				trx,
+				old_index,
 				mrec, offsets,
 				dict_table_page_size(old_table),
 				dtuple, dict_index_is_sdi(index), tuple_heap);
@@ -4055,7 +4068,7 @@ row_merge_build_indexes(
 			dup->n_dup = 0;
 
 			row_fts_psort_info_init(
-				trx, dup, new_table, opt_doc_id_size,
+				trx, dup, old_table, new_table, opt_doc_id_size,
 				&psort_info, &merge_info);
 
 			/* We need to ensure that we free the resources
@@ -4174,7 +4187,7 @@ wait_again:
 				btr_bulk.init();
 
 				error = row_merge_insert_index_tuples(
-					trx->id, sort_idx, old_table,
+					trx, sort_idx, old_table,
 					merge_files[i].fd, block, NULL,
 					&btr_bulk, stage);
 

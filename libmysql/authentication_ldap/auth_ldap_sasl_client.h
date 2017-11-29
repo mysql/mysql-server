@@ -30,7 +30,8 @@
 #define SASL_BUFFER_SIZE 9000
 #define SASL_SERVICE_NAME "ldap"
 
-static const sasl_callback_t callbacks[] = {
+static const sasl_callback_t callbacks[]=
+{
 #ifdef SASL_CB_GETREALM
   {SASL_CB_GETREALM, NULL, NULL},
 #endif
@@ -42,7 +43,9 @@ static const sasl_callback_t callbacks[] = {
   {SASL_CB_LIST_END, NULL, NULL}
 };
 
-sasl_security_properties_t security_properties = {
+
+sasl_security_properties_t security_properties=
+{
   /** Minimum acceptable final level. */
   0,
   /** Maximum acceptable final level. */
@@ -57,11 +60,13 @@ sasl_security_properties_t security_properties = {
   NULL,
 };
 
-class Sasl_client {
+
+class Sasl_client
+{
 public:
   Sasl_client();
+  ~Sasl_client();
   int initilize();
-  int de_initilize();
   void set_plugin_info(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
   void interact(sasl_interact_t *ilist);
   int read_method_name_from_server();
@@ -70,6 +75,7 @@ public:
   int send_sasl_request_to_server(const unsigned char *request, int request_len, unsigned char** reponse, int* response_len);
   void set_user_info(std::string name, std::string pwd);
   void sasl_client_done_wrapper();
+
 protected:
   char m_user_name[SASL_MAX_STR_SIZE];
   char m_user_pwd[SASL_MAX_STR_SIZE];

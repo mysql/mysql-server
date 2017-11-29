@@ -562,7 +562,7 @@ PageBulk::storeExt(
 	page_cur->block = m_block;
 
 	dberr_t	err = lob::btr_store_big_rec_extern_fields(
-		&btr_pcur, NULL, offsets, big_rec, m_mtr,
+		nullptr, &btr_pcur, NULL, offsets, big_rec, m_mtr,
 		lob::OPCODE_INSERT_BULK);
 
 	ut_ad(page_offset(m_cur_rec) == page_offset(page_cur->rec));
@@ -807,7 +807,8 @@ BtrBulk::insert(
 	if (page_bulk->needExt(tuple, rec_size)) {
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
-		big_rec = dtuple_convert_big_rec(m_index, 0, tuple, &n_ext);
+		big_rec = dtuple_convert_big_rec(
+			m_index, 0, tuple, &n_ext);
 
 		if (big_rec == NULL) {
 			return(DB_TOO_BIG_RECORD);

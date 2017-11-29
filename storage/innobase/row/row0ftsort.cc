@@ -182,6 +182,7 @@ row_fts_psort_info_init(
 	trx_t*			trx,	/*!< in: transaction */
 	row_merge_dup_t*	dup,	/*!< in,own: descriptor of
 					FTS index being created */
+	const dict_table_t*	old_table,
 	const dict_table_t*	new_table,/*!< in: table on which indexes are
 					created */
 	ibool			opt_doc_id_size,
@@ -222,6 +223,7 @@ row_fts_psort_info_init(
 	}
 
 	common_info->dup = dup;
+	common_info->old_table = (dict_table_t*) old_table;
 	common_info->new_table = (dict_table_t*) new_table;
 	common_info->trx = trx;
 	common_info->all_info = psort_info;
@@ -742,6 +744,7 @@ fts_parallel_tokenization_thread(fts_psort_t* psort_info)
 	mem_heap_t*		blob_heap = NULL;
 	fts_doc_t		doc;
 	dict_table_t*		table = psort_info->psort_common->new_table;
+	dict_table_t*		old_table = psort_info->psort_common->old_table;
 	dtype_t			word_dtype;
 	dict_field_t*		idx_field;
 	fts_tokenize_ctx_t	t_ctx;
@@ -759,7 +762,6 @@ fts_parallel_tokenization_thread(fts_psort_t* psort_info)
 	merge_file = psort_info->merge_file;
 	blob_heap = mem_heap_create(512);
 	memset(&doc, 0, sizeof(doc));
-	memset(&t_ctx, 0, sizeof(t_ctx));
 	memset(mycount, 0, FTS_NUM_AUX_INDEX * sizeof(int));
 
 	doc.charset = fts_index_get_charset(
@@ -800,8 +802,11 @@ loop:
 			data_len = dfield_get_len(dfield);
 
 			if (dfield_is_ext(dfield)) {
+				dict_index_t* clust_index =
+					old_table->first_index();
 				doc.text.f_str =
 					lob::btr_copy_externally_stored_field(
+						clust_index,
 						&doc.text.f_len, data,
 						page_size, data_len, false,
 						blob_heap);

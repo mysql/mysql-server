@@ -115,7 +115,7 @@ row_undo_ins_remove_clust_rec(
 		mem_heap_t*	heap	= NULL;
 		const ulint*	offsets	= rec_get_offsets(
 			rec, index, NULL, ULINT_UNDEFINED, &heap);
-		row_log_table_delete(rec, node->row, index, offsets, NULL);
+		row_log_table_delete(node->trx, rec, node->row, index, offsets, NULL);
 		mem_heap_free(heap);
 	}
 
@@ -136,7 +136,9 @@ retry:
 			&node->pcur, &mtr);
 	ut_a(success);
 
-	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, true, &mtr);
+	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, true,
+				   node->trx->id, node->undo_no,
+				   node->rec_type, &mtr);
 
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
@@ -182,7 +184,6 @@ row_undo_ins_remove_sec_low(
 	ibool			modify_leaf = false;
 
 	log_free_check();
-	memset(&pcur, 0, sizeof(pcur));
 
 	mtr_start(&mtr);
 
@@ -247,7 +248,7 @@ row_undo_ins_remove_sec_low(
 		externally stored columns. */
 		ut_ad(!index->is_clustered());
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-					   false, &mtr);
+					   false, 0, 0, 0, &mtr);
 	}
 func_exit:
 	btr_pcur_close(&pcur);

@@ -749,7 +749,8 @@ static Sys_var_bool Sys_windowing_use_high_precision(
 static Sys_var_uint Sys_cte_max_recursion_depth(
        "cte_max_recursion_depth", "Abort a recursive common table expression "
        "if it does more than this number of iterations.",
-       SESSION_VAR(cte_max_recursion_depth), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(cte_max_recursion_depth),
+       CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(1000), BLOCK_SIZE(1));
 
 static Sys_var_bool Sys_automatic_sp_privileges(
@@ -1812,24 +1813,34 @@ static Sys_var_enum Sys_event_scheduler(
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(event_scheduler_check), ON_UPDATE(event_scheduler_update));
 
+static bool expire_logs_update(sys_var*, THD*, enum_var_type)
+{
+  if (expire_logs_days && binlog_expire_logs_seconds)
+  {
+    my_error(ER_EXPIRE_LOGS_DAYS_IGNORED, MYF(0));
+    return true;
+  }
+  return false;
+}
+
 static Sys_var_ulong Sys_expire_logs_days(
        "expire_logs_days",
        "If non-zero, binary logs will be purged after expire_logs_days "
-       "days; or (binlog_expire_logs_seconds + 24 * 60 * 60 * expire_logs_days)"
-       " seconds if binlog_expire_logs_seconds has a non zero value; "
-       "possible purges happen at startup and at binary log rotation",
+       "days; given binlog_expire_logs_seconds is not set; possible purges"
+       " happen at startup and at binary log rotation",
        GLOBAL_VAR(expire_logs_days),
        CMD_LINE(REQUIRED_ARG, OPT_EXPIRE_LOGS_DAYS), VALID_RANGE(0, 99),
        DEFAULT(30), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(0), DEPRECATED("binlog_expire_logs_seconds"));
+       ON_UPDATE(expire_logs_update), DEPRECATED("binlog_expire_logs_seconds"));
 
 static Sys_var_ulong Sys_binlog_expire_logs_seconds(
        "binlog_expire_logs_seconds",
-       "If non-zero, binary logs will be purged after (binlog_expire_logs_seconds + "
-       "24 * 60 * 60 * expire_logs_days) seconds; "
-       "possible purges happen at startup and at binary log rotation",
-       GLOBAL_VAR(binlog_expire_logs_seconds),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 0xFFFFFFFF), DEFAULT(0), BLOCK_SIZE(1));
+       "If non-zero, binary logs will be purged after binlog_expire_logs_seconds"
+       " seconds; given expire_logs_days is not set; possible purges happen at"
+       " startup and at binary log rotation",
+       GLOBAL_VAR(binlog_expire_logs_seconds), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 0xFFFFFFFF), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(expire_logs_update));
 
 static Sys_var_bool Sys_flush(
        "flush", "Flush MyISAM tables to disk between SQL commands",
@@ -3110,8 +3121,6 @@ static Sys_var_bool Sys_var_end_markers_in_json(
        HINT_UPDATEABLE SESSION_VAR(end_markers_in_json), CMD_LINE(OPT_ARG),
        DEFAULT(false));
 
-#ifdef OPTIMIZER_TRACE
-
 static Sys_var_flagset Sys_optimizer_trace(
        "optimizer_trace",
        "Controls tracing of the Optimizer:"
@@ -3166,8 +3175,6 @@ static Sys_var_ulong Sys_optimizer_trace_max_mem_size(
        "Maximum allowed cumulated size of stored optimizer traces",
        SESSION_VAR(optimizer_trace_max_mem_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1));
-
-#endif
 
 static Sys_var_charptr Sys_pid_file(
        "pid_file", "Pid file used by safe_mysqld",
@@ -3620,6 +3627,20 @@ static Sys_var_uint Sys_server_id_bits(
        "Set number of significant bits in server-id",
        GLOBAL_VAR(opt_server_id_bits), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 32), DEFAULT(32), BLOCK_SIZE(1));
+
+static Sys_var_int32 Sys_regexp_time_limit (
+       "regexp_time_limit",
+       "Timeout for regular expressions matches, in steps of the match "
+       "engine, typically on the order of milliseconds.",
+       GLOBAL_VAR(opt_regexp_time_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, INT32_MAX),
+       DEFAULT(32), BLOCK_SIZE(1));
+
+static Sys_var_int32 Sys_regexp_stack_limit (
+       "regexp_stack_limit",
+       "Stack size limit for regular expressions matches",
+       GLOBAL_VAR(opt_regexp_stack_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, INT32_MAX), DEFAULT(8000000), BLOCK_SIZE(1));
 
 static Sys_var_bool Sys_slave_compressed_protocol(
        "slave_compressed_protocol",
@@ -6626,3 +6647,41 @@ static Sys_var_set Sys_binlog_row_value_options(
        SESSION_VAR(binlog_row_value_options), CMD_LINE(REQUIRED_ARG),
        binlog_row_value_options_names, DEFAULT(0),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_binlog_row_value_options));
+
+static bool check_keyring_access(sys_var*, THD* thd, set_var*)
+{
+  if (!(thd->security_context()->has_global_grant(
+      STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN")).first))
+  {
+    my_error(ER_KEYRING_ACCESS_DENIED_ERROR, MYF(0),
+             "ENCRYPTION_KEY_ADMIN");
+    return true;
+  }
+  return false;
+}
+
+/**
+  This is a mutex used to protect global variable @@keyring_operations.
+*/
+static PolyLock_mutex PLock_keyring_operations(&LOCK_keyring_operations);
+/**
+  This variable provides access to keyring service APIs. When this variable
+  is disabled calls to keyring_key_generate(), keyring_key_store() and
+  keyring_key_remove() will report error until this variable is enabled.
+  This variable is protected under a mutex named PLock_keyring_operations.
+  To access this variable you must first set this mutex.
+
+  @sa PLock_keyring_operations
+*/
+static Sys_var_bool Sys_keyring_operations(
+       "keyring_operations",
+       "This variable provides access to keyring service APIs. When this "
+       "option is disabled calls to keyring_key_generate(), keyring_key_store() "
+       "and keyring_key_remove() will report error until this variable is enabled.",
+       NON_PERSIST GLOBAL_VAR(opt_keyring_operations),
+       NO_CMD_LINE, DEFAULT(true),
+       &PLock_keyring_operations,
+       NOT_IN_BINLOG,
+       ON_CHECK(check_keyring_access),
+       ON_UPDATE(0));
+

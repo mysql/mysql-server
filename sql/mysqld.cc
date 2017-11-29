@@ -375,6 +375,7 @@
 #include "keycache.h"                   // KEY_CACHE
 #include "m_string.h"
 #include "my_alloc.h"
+#include "migrate_keyring.h"            // Migrate_keyring
 #include "my_base.h"
 #include "my_bitmap.h"                  // MY_BITMAP
 #include "my_command.h"
@@ -419,6 +420,7 @@
 #include "mysql/psi/psi_transaction.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
+#include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
@@ -572,6 +574,7 @@
 #include <crtdbg.h>
 #include <process.h>
 #endif
+#include "unicode/uclean.h"  // u_cleanup()
 
 #include <algorithm>
 #include <atomic>
@@ -594,7 +597,8 @@ using std::min;
 using std::max;
 using std::vector;
 
-#define mysqld_charset &my_charset_latin1
+#define mysqld_charset              &my_charset_latin1
+#define mysqld_default_locale_name  "en_US"
 
 #if defined(HAVE_SOLARIS_LARGE_PAGES) && defined(__GNUC__)
 extern "C" int getpagesizes(size_t *, int);
@@ -741,6 +745,7 @@ static PSI_cond_key key_COND_start_signal_handler;
 #endif // _WIN32
 static PSI_mutex_key key_LOCK_server_started;
 static PSI_cond_key key_COND_server_started;
+static PSI_mutex_key key_LOCK_keyring_operations;
 #endif /* HAVE_PSI_INTERFACE */
 
 /**
@@ -804,6 +809,14 @@ char *opt_log_error_filter_rules;
 char *opt_log_error_services;
 bool  opt_log_syslog_enable;
 char *opt_log_syslog_tag= NULL;
+char *opt_keyring_migration_user= NULL;
+char *opt_keyring_migration_host= NULL;
+char *opt_keyring_migration_password= NULL;
+char *opt_keyring_migration_socket= NULL;
+char *opt_keyring_migration_source= NULL;
+char *opt_keyring_migration_destination= NULL;
+ulong opt_keyring_migration_port= 0;
+bool migrate_connect_options= 0;
 #ifndef _WIN32
 bool  opt_log_syslog_include_pid;
 char *opt_log_syslog_facility;
@@ -885,6 +898,9 @@ bool check_proxy_users= 0, mysql_native_password_proxy_users= 0, sha256_password
 volatile bool mqh_used = 0;
 bool opt_noacl= 0;
 bool sp_automatic_privileges= 1;
+
+int32_t opt_regexp_time_limit;
+int32_t opt_regexp_stack_limit;
 
 ulong opt_binlog_rows_event_max_size;
 ulong binlog_checksum_options;
@@ -992,6 +1008,8 @@ ulong stored_program_cache_size= 0;
 bool avoid_temporal_upgrade;
 
 bool persisted_globals_load= true;
+
+bool opt_keyring_operations= true;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -1153,6 +1171,12 @@ mysql_cond_t COND_socket_listener_active;
 mysql_mutex_t LOCK_start_signal_handler;
 mysql_cond_t COND_start_signal_handler;
 #endif
+
+/*
+  The below lock protects access to global server variable
+  keyring_operations.
+*/
+mysql_mutex_t LOCK_keyring_operations;
 
 bool mysqld_server_started= false;
 
@@ -2020,7 +2044,7 @@ static void clean_up(bool print_message)
   rpl_channel_filters.clean_up();
   end_ssl();
   vio_end();
-  my_regex_end();
+  u_cleanup();
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the debug sync facility. See debug_sync.cc. */
   debug_sync_end();
@@ -2130,6 +2154,7 @@ static void clean_up_mutexes()
   mysql_cond_destroy(&COND_start_signal_handler);
   mysql_mutex_destroy(&LOCK_start_signal_handler);
 #endif
+  mysql_mutex_destroy(&LOCK_keyring_operations);
 }
 
 
@@ -3342,7 +3367,6 @@ int init_common_variables()
 #endif
 
   }
-
   /*
     We set SYSTEM time zone as reasonable default and
     also for failure of my_tz_init() and bootstrap mode.
@@ -3480,6 +3504,11 @@ int init_common_variables()
   }
   set_server_version();
 
+  if (!opt_help)
+  {
+    sql_print_information("Basedir set to %s", mysql_home);
+  }
+
   LogErr(SYSTEM_LEVEL, ER_STARTING_AS,
          my_progname, server_version, (ulong) getpid());
 
@@ -3587,23 +3616,26 @@ int init_common_variables()
   if (back_log == 0 && (back_log= max_connections) > 65535)
     back_log= 65535;
 
-  unireg_init(opt_specialflag); /* Set up extern variabels */
-  if (!(my_default_lc_messages=
-        my_locale_by_name(NULL, lc_messages)))
+  unireg_init(opt_specialflag); /* Set up extern variables */
+  while (!(my_default_lc_messages=
+           my_locale_by_name(NULL, lc_messages)))
   {
     LogErr(ERROR_LEVEL, ER_UNKNOWN_LOCALE, lc_messages);
-    return 1;
+    if (!my_strcasecmp(&my_charset_latin1,
+                       lc_messages, mysqld_default_locale_name))
+      return 1;
+    lc_messages= (char*) mysqld_default_locale_name;
   }
   global_system_variables.lc_messages= my_default_lc_messages;
   if (init_errmessage())  /* Read error messages from file */
     return 1;
   init_client_errs();
+
   mysql_client_plugin_init();
   if (item_create_init())
     return 1;
   item_init();
   range_optimizer_init();
-  my_regex_init(&my_charset_latin1, check_enough_stack_size);
   my_string_stack_guard= check_enough_stack_size;
   /*
     Process a comma-separated character set list and choose
@@ -3680,11 +3712,14 @@ int init_common_variables()
     return 1;
   }
 
-  if (!(my_default_lc_time_names=
-        my_locale_by_name(NULL, lc_time_names_name)))
+  while (!(my_default_lc_time_names=
+           my_locale_by_name(NULL, lc_time_names_name)))
   {
     LogErr(ERROR_LEVEL, ER_UNKNOWN_LOCALE, lc_time_names_name);
-    return 1;
+    if (!my_strcasecmp(&my_charset_latin1,
+                       lc_time_names_name, mysqld_default_locale_name))
+      return 1;
+    lc_time_names_name= (char*) mysqld_default_locale_name;
   }
   global_system_variables.lc_time_names= my_default_lc_time_names;
 
@@ -3881,6 +3916,8 @@ static int init_thread_environment()
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 #endif
 
+  mysql_mutex_init(key_LOCK_keyring_operations,
+                   &LOCK_keyring_operations, MY_MUTEX_INIT_FAST);
   return 0;
 }
 
@@ -5040,8 +5077,18 @@ static int init_server_components()
 
   if (opt_bin_log && (expire_logs_days || binlog_expire_logs_seconds))
   {
-    time_t purge_time= server_start_time - expire_logs_days * 24 * 60 * 60 -
-                       binlog_expire_logs_seconds;
+    time_t purge_time= 0;
+
+    if (binlog_expire_logs_seconds)
+    {
+      sql_print_warning("The option expire_logs_days cannot be used together"
+                        " with option binlog_expire_logs_seconds. Therefore,"
+                        " value of expire_logs_days is ignored.");
+      purge_time= my_time(0) - binlog_expire_logs_seconds;
+    }
+    else
+      purge_time= my_time(0) - expire_logs_days * 24 * 60 * 60;
+
     if (purge_time >= 0)
       mysql_bin_log.purge_logs_before_date(purge_time, true);
   }
@@ -5606,15 +5653,6 @@ int mysqld_main(int argc, char **argv)
   }
 #endif
 
-  /*
-    We have enough space for fiddling with the argv, continue
-  */
-  if (!opt_help && my_setwd(mysql_real_data_home,MYF(MY_WME)))
-  {
-    LogErr(ERROR_LEVEL, ER_CANT_SET_DATADIR, mysql_real_data_home);
-    unireg_abort(MYSQLD_ABORT_EXIT);        /* purecov: inspected */
-  }
-
 #ifndef _WIN32
   if ((user_info= check_user(mysqld_user)))
   {
@@ -5656,6 +5694,58 @@ int mysqld_main(int argc, char **argv)
       set_user(mysqld_user, user_info);
   }
 #endif // !_WIN32
+
+  /*
+   initiate key migration if any one of the migration specific
+   options are provided.
+  */
+  if (opt_keyring_migration_source ||
+      opt_keyring_migration_destination ||
+     migrate_connect_options)
+  {
+    Migrate_keyring mk;
+    my_getopt_skip_unknown= TRUE;
+    if (mk.init(remaining_argc, remaining_argv,
+                opt_keyring_migration_source,
+                opt_keyring_migration_destination,
+                opt_keyring_migration_user,
+                opt_keyring_migration_host,
+                opt_keyring_migration_password,
+                opt_keyring_migration_socket,
+                opt_keyring_migration_port))
+    {
+      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                      "failed");
+      log_error_dest= "stderr";
+      flush_error_log_messages();
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+
+    if (mk.execute())
+    {
+      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                      "failed");
+      log_error_dest= "stderr";
+      flush_error_log_messages();
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+
+    my_getopt_skip_unknown= 0;
+    sql_print_information(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                          "sucessfull");
+    log_error_dest= "stderr";
+    flush_error_log_messages();
+    exit(MYSQLD_SUCCESS_EXIT);
+  }
+
+  /*
+   We have enough space for fiddling with the argv, continue
+  */
+  if (!opt_help && my_setwd(mysql_real_data_home,MYF(MY_WME)))
+  {
+    LogErr(ERROR_LEVEL, ER_CANT_SET_DATADIR, mysql_real_data_home);
+    unireg_abort(MYSQLD_ABORT_EXIT);        /* purecov: inspected */
+  }
 
   /*
    The subsequent calls may take a long time : e.g. innodb log read.
@@ -6661,6 +6751,37 @@ struct my_option my_long_early_options[]=
    " Create a super user with empty password.",
    &opt_initialize_insecure, &opt_initialize_insecure, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
+  {"keyring-migration-source", OPT_KEYRING_MIGRATION_SOURCE,
+   "Keyring plugin from where the keys needs to "
+   "be migrated to. This option must be specified along with "
+   "--keyring-migration-destination.",
+   &opt_keyring_migration_source, &opt_keyring_migration_source,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"keyring-migration-destination", OPT_KEYRING_MIGRATION_DESTINATION,
+   "Keyring plugin to which the keys are "
+   "migrated to. This option must be specified along with "
+   "--keyring-migration-source.",
+   &opt_keyring_migration_destination, &opt_keyring_migration_destination,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"keyring-migration-user", OPT_KEYRING_MIGRATION_USER,
+   "User to login to server.",
+   &opt_keyring_migration_user, &opt_keyring_migration_user,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"keyring-migration-host", OPT_KEYRING_MIGRATION_HOST, "Connect to host.",
+   &opt_keyring_migration_host, &opt_keyring_migration_host,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"keyring-migration-password", 'p',
+   "Password to use when connecting to server during keyring migration. "
+   "If password value is not specified then it will be asked from the tty.",
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"keyring-migration-socket", OPT_KEYRING_MIGRATION_SOCKET,
+   "The socket file to use for connection.",
+   &opt_keyring_migration_socket, &opt_keyring_migration_socket,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"keyring-migration-port", OPT_KEYRING_MIGRATION_PORT,
+   "Port number to use for connection.",
+   &opt_keyring_migration_port, &opt_keyring_migration_port,
+   0, GET_ULONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 
@@ -8095,14 +8216,14 @@ static int mysql_init_variables()
   log_bin_index= NULL;
 
   /* Handler variables */
-  total_ha_2pc= 0;
+  total_ha_2pc=                  0;
   /* Variables in libraries */
-  charsets_dir= 0;
-  default_character_set_name= (char*) MYSQL_DEFAULT_CHARSET_NAME;
-  default_collation_name= compiled_default_collation_name;
+  charsets_dir=                  0;
+  default_character_set_name=    (char*) MYSQL_DEFAULT_CHARSET_NAME;
+  default_collation_name=        compiled_default_collation_name;
   character_set_filesystem_name= (char*) "binary";
-  lc_messages= (char*) "en_US";
-  lc_time_names_name= (char*) "en_US";
+  lc_messages=                   (char*) mysqld_default_locale_name;
+  lc_time_names_name=            (char*) mysqld_default_locale_name;
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
@@ -8194,10 +8315,6 @@ static int mysql_init_variables()
   }
 #endif
 
-  if (!opt_help)
-  {
-    sql_print_information("Basedir set to %s", mysql_home);
-  }
   return 0;
 }
 
@@ -8784,6 +8901,27 @@ pfs_error:
     break;
   case OPT_SHOW_OLD_TEMPORALS:
     push_deprecated_warn_no_replacement(NULL, "show_old_temporals");
+    break;
+  case 'p':
+    if (argument)
+    {
+      char *start= argument;
+      my_free(opt_keyring_migration_password);
+      opt_keyring_migration_password= my_strdup(PSI_NOT_INSTRUMENTED,
+        argument, MYF(MY_FAE));
+      while (*argument) *argument++= 'x';
+      if (*start)
+       start[1]= 0;
+    }
+    else
+      opt_keyring_migration_password= get_tty_password(NullS);
+    migrate_connect_options= 1;
+    break;
+  case OPT_KEYRING_MIGRATION_USER:
+  case OPT_KEYRING_MIGRATION_HOST:
+  case OPT_KEYRING_MIGRATION_SOCKET:
+  case OPT_KEYRING_MIGRATION_PORT:
+    migrate_connect_options= 1;
     break;
   case OPT_ENFORCE_GTID_CONSISTENCY:
   {
@@ -9757,7 +9895,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_mandatory_roles, "LOCK_mandatory_roles", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_password_history, "LOCK_password_history", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_LOCK_password_reuse_interval, "LOCK_password_reuse_interval", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
+  { &key_LOCK_password_reuse_interval, "LOCK_password_reuse_interval", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_keyring_operations, "LOCK_keyring_operations", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 

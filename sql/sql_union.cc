@@ -1149,7 +1149,6 @@ public:
 #endif
 
     row_count= new_row_count;
-#ifdef OPTIMIZER_TRACE
     Opt_trace_context &trace= thd->opt_trace;
     /*
       If recursive query blocks have been executed at least once, and repeated
@@ -1162,7 +1161,6 @@ public:
       flags|= DISABLED_TRACE;
       trace.disable_I_S_for_this_and_children();
     }
-#endif
 
     flags|= EXEC_RECURSIVE;
 
@@ -1228,10 +1226,8 @@ public:
   {
     if (unit->is_recursive())
     {
-#ifdef OPTIMIZER_TRACE
       if (flags & DISABLED_TRACE)
         thd->opt_trace.restore_I_S();
-#endif
       if (flags & POP_HANDLER)
       {
         thd->pop_internal_handler();

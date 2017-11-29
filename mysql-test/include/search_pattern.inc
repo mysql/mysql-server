@@ -43,7 +43,7 @@ perl;
         shift @context;
         push  @context, $line;
 
-	if ($line =~ /$search_pattern/)
+        if ($line =~ /$search_pattern/)
         {
             if (!(length $ignore_pattern) or !($line =~ /$ignore_pattern/))
             {
@@ -77,7 +77,7 @@ perl;
                     }
                 }
             }
-	}
+        }
     }
 
     if ($flag == 1)

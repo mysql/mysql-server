@@ -58,6 +58,11 @@
 #undef MYSQL_CLIENT
 #endif /* MYSQL_CLIENT */
 #endif /* !UNIV_HOTBACKUP */
+
+#include "sql/mem_root_array.h"
+
+class Field;
+
 #ifndef UNIV_HOTBACKUP
 namespace histograms
 {
@@ -67,7 +72,6 @@ namespace histograms
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class COND_EQUAL;
-class Field;
 class Field_json;
 /* Structs that defines the TABLE */
 class File_parser;
@@ -1159,6 +1163,8 @@ public:
 };
 
 
+#endif /* UNIV_HOTBACKUP */
+
 /**
   Class that represents a single change to a column value in partial
   update of a JSON column.
@@ -1206,6 +1212,7 @@ public:
 */
 using Binary_diff_vector= Mem_root_array<Binary_diff>;
 
+#ifndef UNIV_HOTBACKUP
 
 /**
   Flags for TABLE::m_status (maximum 8 bits).

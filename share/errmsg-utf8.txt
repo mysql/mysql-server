@@ -10971,6 +10971,78 @@ ER_SCHEMA_DIR_UNKNOWN
 ER_ONLY_IMPLEMENTED_FOR_SRID_0_AND_4326 22S00
   eng "Function %.192s is only defined for SRID 0 and SRID 4326."
 
+ER_EXPIRE_LOGS_DAYS_IGNORED
+  eng "The option expire_logs_days and binlog_expire_logs_seconds cannot be used together. Please use binlog_expire_logs_seconds to set the expire time (expire_logs_days is deprecated)"
+
+#
+# Regular expression errors. None of these should take any arguments.
+# We strive to keep this list in the same order as in UErrorCode
+# common/unicode/utypes.h.
+#
+
+ER_REGEXP_STRING_NOT_TERMINATED
+  eng "An output string could not be zero-terminated because the length exceeds the buffer capacity."
+
+ER_REGEXP_BUFFER_OVERFLOW
+  eng "The result string is larger than the result buffer."
+
+ER_REGEXP_ILLEGAL_ARGUMENT
+  eng "Illegal argument to a regular expression."
+
+ER_REGEXP_INDEX_OUTOFBOUNDS_ERROR
+  eng "Index out of bounds in regular expression search."
+
+ER_REGEXP_INTERNAL_ERROR
+  eng "Internal error in the regular expression library."
+
+ER_REGEXP_RULE_SYNTAX
+  eng "Syntax error in regular expression on line %u, character %u."
+
+ER_REGEXP_BAD_ESCAPE_SEQUENCE
+  eng "Unrecognized escape sequence in regular expression."
+
+ER_REGEXP_UNIMPLEMENTED
+  eng "The regular expression contains a feature that is not implemented in this library version."
+
+ER_REGEXP_MISMATCHED_PAREN
+  eng "Mismatched parenthesis in regular expression."
+
+ER_REGEXP_BAD_INTERVAL
+  eng "Incorrect description of a {min,max} interval."
+
+ER_REGEXP_MAX_LT_MIN
+  eng "The maximum is less than the minumum in a {min,max} interval."
+
+ER_REGEXP_INVALID_BACK_REF
+  eng "Invalid back-reference in regular expression."
+
+ER_REGEXP_LOOK_BEHIND_LIMIT
+  eng "The look-behind assertion exceeds the limit in regular expression."
+
+ER_REGEXP_MISSING_CLOSE_BRACKET
+  eng "The regular expression contains an unclosed bracket expression."
+
+ER_REGEXP_INVALID_RANGE
+  eng "The regular expression contains an [x-y] character range where x comes after y."
+
+ER_REGEXP_STACK_OVERFLOW
+  eng "Overflow in the regular expression backtrack stack."
+
+ER_REGEXP_TIME_OUT
+  eng "Timeout exceeded in regular expression match."
+
+ER_REGEXP_PATTERN_TOO_BIG
+  eng "The regular expression pattern exceeds limits on size or complexity."
+
+ER_KEYRING_MIGRATION_FAILURE
+  eng "Can not perform keyring migration : %s"
+
+ER_KEYRING_ACCESS_DENIED_ERROR 42000
+  eng "Access denied; you need %-.128s privileges for this operation"a
+
+ER_KEYRING_MIGRATION_STATUS
+  eng "Keyring migration %s."
+
 #
 #  End of 8.0 error messages.
 #

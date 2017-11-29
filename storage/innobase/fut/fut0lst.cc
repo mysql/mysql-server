@@ -71,7 +71,6 @@ flst_add_to_empty(
 
 /********************************************************************//**
 Inserts a node after another in a list. */
-static
 void
 flst_insert_after(
 /*==============*/
@@ -81,7 +80,6 @@ flst_insert_after(
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
 Inserts a node before another in a list. */
-static
 void
 flst_insert_before(
 /*===============*/
@@ -193,7 +191,6 @@ flst_add_first(
 
 /********************************************************************//**
 Inserts a node after another in a list. */
-static
 void
 flst_insert_after(
 /*==============*/
@@ -258,7 +255,6 @@ flst_insert_after(
 
 /********************************************************************//**
 Inserts a node before another in a list. */
-static
 void
 flst_insert_before(
 /*===============*/

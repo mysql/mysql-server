@@ -152,3 +152,23 @@ bool acquire_shared_backup_lock(THD *thd, ulong lock_wait_timeout)
   return acquire_mdl_for_backup(thd, MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION,
                                 lock_wait_timeout);
 }
+
+
+Is_instance_backup_locked_result is_instance_backup_locked(THD *thd)
+{
+  Is_instance_backup_locked_result res;
+  MDL_key key(MDL_key::BACKUP_LOCK, "", "");
+  MDL_lock_is_owned_visitor backup_lock_owner;
+
+  if (thd->mdl_context.find_lock_owner(&key, &backup_lock_owner))
+    res= Is_instance_backup_locked_result::OOM;
+  else
+  {
+    if (backup_lock_owner.exists())
+      res= Is_instance_backup_locked_result::LOCKED;
+    else
+      res= Is_instance_backup_locked_result::NOT_LOCKED;
+  }
+
+  return res;
+}

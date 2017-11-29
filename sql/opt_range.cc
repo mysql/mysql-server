@@ -2856,7 +2856,6 @@ public:
 void TRP_RANGE::trace_basic_info(const PARAM *param,
                                  Opt_trace_object *trace_object) const
 {
-#ifdef OPTIMIZER_TRACE
   DBUG_ASSERT(param->using_real_indexes);
   const uint keynr_in_table= param->real_keynr[key_idx];
 
@@ -2875,7 +2874,6 @@ void TRP_RANGE::trace_basic_info(const PARAM *param,
   range_info.set_charset(system_charset_info);
   append_range_all_keyparts(&trace_range, NULL, &range_info,
                             key, key_part, false);
-#endif
 }
 
 
@@ -2934,7 +2932,6 @@ public:
 void TRP_ROR_INTERSECT::trace_basic_info(const PARAM *param,
                                          Opt_trace_object *trace_object) const
 {
-#ifdef OPTIMIZER_TRACE
   trace_object->add_alnum("type", "index_roworder_intersect").
     add("rows", records).
     add("cost", cost_est).
@@ -2973,7 +2970,6 @@ void TRP_ROR_INTERSECT::trace_basic_info(const PARAM *param,
       trace_range.add_utf8(range_info.ptr(), range_info.length());
     }
   }
-#endif
 }
 
 /*
@@ -3002,7 +2998,6 @@ public:
 void TRP_ROR_UNION::trace_basic_info(const PARAM *param,
                                      Opt_trace_object *trace_object) const
 {
-#ifdef OPTIMIZER_TRACE
   Opt_trace_context * const trace= &param->thd->opt_trace;
   trace_object->add_alnum("type", "index_roworder_union");
   Opt_trace_array ota(trace, "union_of");
@@ -3013,7 +3008,6 @@ void TRP_ROR_UNION::trace_basic_info(const PARAM *param,
     Opt_trace_object trp_info(trace);
     (*current)->trace_basic_info(param, &trp_info);
   }
-#endif
 }
 
 /*
@@ -3042,7 +3036,6 @@ public:
 void TRP_INDEX_MERGE::trace_basic_info(const PARAM *param,
                                        Opt_trace_object *trace_object) const
 {
-#ifdef OPTIMIZER_TRACE
   Opt_trace_context * const trace= &param->thd->opt_trace;
   trace_object->add_alnum("type", "index_merge");
   Opt_trace_array ota(trace, "index_merge_of");
@@ -3053,7 +3046,6 @@ void TRP_INDEX_MERGE::trace_basic_info(const PARAM *param,
     Opt_trace_object trp_info(trace);
     (*current)->trace_basic_info(param, &trp_info);
   }
-#endif
 }
 
 /*
@@ -3126,7 +3118,6 @@ public:
 void TRP_GROUP_MIN_MAX::trace_basic_info(const PARAM *param,
                                          Opt_trace_object *trace_object) const
 {
-#ifdef OPTIMIZER_TRACE
   trace_object->add_alnum("type", "index_group").
     add_utf8("index", index_info->name);
   if (min_max_arg_part)
@@ -3160,7 +3151,6 @@ void TRP_GROUP_MIN_MAX::trace_basic_info(const PARAM *param,
     append_range_all_keyparts(&trace_range, NULL,
                               &range_info, index_tree, key_part, false);
   }
-#endif
 }
 
 /*
@@ -6423,7 +6413,6 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
         continue;
       }
 
-#ifdef OPTIMIZER_TRACE
       // check_quick_select() says don't use range if it returns HA_POS_ERROR
       if (found_records != HA_POS_ERROR &&
           param->thd->opt_trace.is_started())
@@ -6462,7 +6451,6 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
             add("cost", cost);
         }
       }
-#endif
 
       if ((found_records != HA_POS_ERROR) && param->is_ror_scan)
       {
@@ -12666,6 +12654,11 @@ static bool
 check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
                                Field::imagetype image_type);
 
+static bool
+min_max_inspect_cond_for_fields(Item *cond, Item_field *min_max_arg_item,
+                                bool *min_max_arg_present,
+                                bool *non_min_max_arg_present);
+
 static void
 cost_group_min_max(TABLE* table, uint key, uint used_key_parts,
                    uint group_key_parts, SEL_TREE *range_tree,
@@ -12918,6 +12911,43 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
       }
       else
         DBUG_RETURN(NULL);
+    }
+  }
+
+  /**
+    Test (Part of WA2): Skip loose index scan on disjunctive WHERE clause which
+    results in null tree or merge tree.
+  */
+  if (tree && !tree->merges.is_empty())
+  {
+    /**
+      The tree structure contains multiple disjoint trees. This happens when
+      the WHERE clause can't be represented in a single range tree due to the
+      disjunctive nature of it but there exists indexes to perform index
+      merge scan.
+    */
+    trace_group.add("chosen", false).
+      add_alnum("cause", "disjuntive_predicate_present");
+    DBUG_RETURN(NULL);
+  }
+  else if (!tree && join->where_cond && min_max_arg_item)
+  {
+    /**
+      Skip loose index scan if min_max attribute is present along with
+      at least one other attribute in the WHERE cluse when the tree is null.
+      There is no range tree if WHERE condition can't be represented in a
+      single range tree and index merge is not possible.
+    */
+    bool min_max_arg_present= false;
+    bool non_min_max_arg_present= false;
+    if (min_max_inspect_cond_for_fields(join->where_cond,
+                                        min_max_arg_item,
+                                        &min_max_arg_present,
+                                        &non_min_max_arg_present))
+    {
+      trace_group.add("chosen", false).
+        add_alnum("cause", "minmax_keypart_in_disjunctive_query");
+      DBUG_RETURN(NULL);
     }
   }
 
@@ -13241,7 +13271,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
     }
 
     /**
-      Test WA2:If there are conditions on a column C participating in
+      Test Part of WA2:If there are conditions on a column C participating in
       MIN/MAX, those conditions must be conjunctions to all earlier
       keyparts. Otherwise, Loose Index Scan cannot be used.
     */
@@ -13277,7 +13307,6 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
                                                    cur_index_tree, true,
                                                    &mrr_flags, &mrr_bufsize,
                                                    &dummy_cost);
-#ifdef OPTIMIZER_TRACE
       if (unlikely(cur_index_tree && trace->is_started()))
       {
         trace_idx.add("index_dives_for_eq_ranges", !param->use_index_statistics);
@@ -13290,7 +13319,6 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
         append_range_all_keyparts(&trace_range, NULL, &range_info,
                                   cur_index_tree, key_part, false);
       }
-#endif
     }
     cost_group_min_max(table, cur_index, cur_used_key_parts,
                        cur_group_key_parts, tree,
@@ -13433,6 +13461,8 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
     be done, is that here we should analyze whether the subselect references
     the MIN/MAX argument field, and disallow the optimization only if this is
     so.
+    Need to handle subselect in min_max_inspect_cond_for_fields() once this
+    is fixed.
   */
   if (cond_type == Item::SUBSELECT_ITEM)
     DBUG_RETURN(false);
@@ -13564,6 +13594,147 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
   DBUG_RETURN(true);
 }
 
+/**
+  Utility function used by min_max_inspect_cond_for_fields() for comparing
+  FILED item with given MIN/MAX item and setting appropriate out paramater.
+
+@param         item_field         Item field for comparison.
+@param         min_max_arg_item   The field referenced by the MIN/MAX
+                                  function(s).
+@param [out]   min_max_arg_present    This out parameter is set to true if
+                                      MIN/MAX argument is present in cond.
+@param [out]   non_min_max_arg_present This out parameter is set to true if
+                                       any field item other than MIN/MAX
+                                       argument is present in cond.
+*/
+static inline void util_min_max_inspect_item(Item *item_field,
+                                             Item_field *min_max_arg_item,
+                                             bool *min_max_arg_present,
+                                             bool *non_min_max_arg_present)
+{
+  if (item_field->type() == Item::FIELD_ITEM)
+  {
+    if(min_max_arg_item->eq(item_field, 1))
+      *min_max_arg_present= true;
+    else
+      *non_min_max_arg_present= true;
+  }
+}
+
+/**
+  This function detects the presents of MIN/MAX field along with at least
+  one non MIN/MAX field participation in the given condition. Subqueries
+  inspection is skipped as of now.
+
+  @param         cond   tree (or subtree) describing all or part of the WHERE
+                        clause being analyzed.
+  @param         min_max_arg_item   The field referenced by the MIN/MAX
+                                    function(s).
+  @param [out]   min_max_arg_present    This out parameter is set to true if
+                                        MIN/MAX argument is present in cond.
+  @param [out]   non_min_max_arg_present This out parameter is set to true if
+                                         any field item other than MIN/MAX
+                                         argument is present in cond.
+
+  @return  TRUE if both MIN/MAX field and non MIN/MAX field is present in cond.
+           FALSE o/w.
+
+  @todo: When the hack present in check_group_min_max_predicate() is removed,
+         subqueries needs to be inspected.
+*/
+
+static bool
+min_max_inspect_cond_for_fields(Item *cond, Item_field *min_max_arg_item,
+                                bool *min_max_arg_present,
+                                bool *non_min_max_arg_present)
+{
+  DBUG_ENTER("inspect_cond_for_fields");
+  DBUG_ASSERT(cond && min_max_arg_item);
+
+  cond= cond->real_item();
+  Item::Type cond_type= cond->type();
+
+  switch (cond_type)  {
+    case Item::COND_ITEM:  {
+      DBUG_PRINT("info", ("Analyzing: %s", ((Item_func*) cond)->func_name()));
+      List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
+      Item *and_or_arg;
+      while ((and_or_arg= li++))
+      {
+        min_max_inspect_cond_for_fields(and_or_arg, min_max_arg_item,
+                                            min_max_arg_present,
+                                            non_min_max_arg_present);
+        if (*min_max_arg_present && *non_min_max_arg_present)
+          DBUG_RETURN(true);
+      }
+
+      DBUG_RETURN(false);
+    }
+    case Item::FUNC_ITEM:  {
+      /* Test if cond references both group-by and non-group fields. */
+      Item_func *pred= (Item_func*) cond;
+      Item *cur_arg;
+      DBUG_PRINT("info", ("Analyzing: %s", pred->func_name()));
+      for (uint arg_idx= 0; arg_idx < pred->argument_count(); arg_idx++)
+      {
+        Item **arguments= pred->arguments();
+        cur_arg= arguments[arg_idx]->real_item();
+        DBUG_PRINT("info", ("cur_arg: %s", cur_arg->full_name()));
+
+        if (cur_arg->type() == Item::FUNC_ITEM)
+        {
+          min_max_inspect_cond_for_fields(cur_arg, min_max_arg_item,
+                                              min_max_arg_present,
+                                              non_min_max_arg_present);
+        }
+        else
+        {
+          util_min_max_inspect_item(cur_arg,
+                                    min_max_arg_item,
+                                    min_max_arg_present,
+                                    non_min_max_arg_present);
+        }
+
+        if (*min_max_arg_present && *non_min_max_arg_present)
+          DBUG_RETURN(true);
+      }
+
+      if (((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
+      {
+        /*
+          Analyze participating fields in a multiequal condition.
+        */
+        Item_equal_iterator it(*(Item_equal*)cond);
+
+        Item *item_field;
+        while ((item_field= it++))
+        {
+          util_min_max_inspect_item(item_field,
+                                    min_max_arg_item,
+                                    min_max_arg_present,
+                                    non_min_max_arg_present);
+
+          if (*min_max_arg_present && *non_min_max_arg_present)
+            DBUG_RETURN(true);
+        }
+      }
+
+      break;
+    }
+    case Item::FIELD_ITEM:  {
+      util_min_max_inspect_item(cond,
+                                min_max_arg_item,
+                                min_max_arg_present,
+                                non_min_max_arg_present);
+      DBUG_PRINT("info", ("Analyzing: %s", cond->full_name()));
+      DBUG_RETURN(false);
+    }
+    default:
+      break;
+  }
+
+  DBUG_RETURN(false);
+}
 
 /*
   Get the SEL_ARG tree 'tree' for the keypart covering 'field', if

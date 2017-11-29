@@ -30,6 +30,7 @@
 #include "sql/item_strfunc.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <zconf.h>
 #include <zlib.h>
 #include <algorithm>
@@ -2073,6 +2074,11 @@ static size_t calculate_password(String *str, char *buffer)
 #if defined(HAVE_OPENSSL)
   if (old_passwords == 2)
   {
+    if (str->length() > MAX_PLAINTEXT_LENGTH)
+    {
+      my_error(ER_NOT_VALID_PASSWORD, MYF(0));
+      return 0;
+    }
     my_make_scrambled_password(buffer, str->ptr(),
                                str->length());
     buffer_len= strlen(buffer) + 1;
@@ -3689,7 +3695,7 @@ bool Item_func_weight_string::eq(const Item *item, bool binary_cmp) const
     return 1;
   if (item->type() != FUNC_ITEM ||
       functype() != ((Item_func*)item)->functype() ||
-      func_name() != ((Item_func*)item)->func_name())
+      strcmp(func_name(), ((Item_func*)item)->func_name()) != 0)
     return 0;
 
   Item_func_weight_string *wstr= (Item_func_weight_string*)item;

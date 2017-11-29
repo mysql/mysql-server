@@ -206,3 +206,8 @@ have_thread_prio.inc
 have_not_thread_prio.inc
 resource_group_init.inc
 have_mac_os.inc
+
+# 20.0 Library dependent tests
+# This file skips test for certain features in versions of the library where
+# the feature is missing.
+require_icu_version.inc

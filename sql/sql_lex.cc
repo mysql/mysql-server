@@ -507,6 +507,7 @@ void LEX::reset()
 
   wild= NULL;
   mark_broken(false);
+  reset_exec_started();
   max_execution_time= 0;
   reparse_common_table_expr_at= 0;
   opt_hints_global= NULL;
@@ -3498,7 +3499,7 @@ void LEX::clear_privileges()
 {
   users_list.empty();
   columns.empty();
-  grant= grant_tot_col= 0;
+  grant= grant_tot_col= grant_privilege= 0;
   all_privileges= false;
   ssl_type= SSL_TYPE_NOT_SPECIFIED;
   ssl_cipher= x509_subject= x509_issuer= nullptr;

@@ -21,7 +21,8 @@ ADD_DEPENDENCIES(pfs_server_stubs GenError)
 
 MACRO (PFS_ADD_TEST name)
   MYSQL_ADD_EXECUTABLE(${name}-t ${name}-t.cc ADD_TEST ${name})
-  TARGET_LINK_LIBRARIES(${name}-t mytap perfschema mysys pfs_server_stubs strings)
+  TARGET_LINK_LIBRARIES(${name}-t
+    mytap perfschema mysys pfs_server_stubs strings ${ICU_LIBRARIES})
 ENDMACRO()
 
 SET(tests
@@ -62,7 +63,8 @@ TARGET_LINK_LIBRARIES(pfs_connect_attr-t sql_main binlog rpl master slave)
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t sql_main sql_dd sql_gis sql_main sql_dd)
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t mysys mysys_ssl)
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t vio ${SSL_LIBRARIES})
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t strings dbug regex mysys ${ZLIB_LIBRARY})
+TARGET_LINK_LIBRARIES(pfs_connect_attr-t strings dbug mysys ${ZLIB_LIBRARY})
+TARGET_LINK_LIBRARIES(pfs_connect_attr-t mytap perfschema ${ICU_LIBRARIES})
 
 # ADD_EXECUTABLE(pfs_benchmark-t pfs_benchmark-t.cc pfs_benchmark_helper.cc)
 # TARGET_LINK_LIBRARIES(pfs_benchmark-t mytap perfschema mysys pfs_server_stubs)

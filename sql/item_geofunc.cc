@@ -58,6 +58,7 @@
 #include "sql/derror.h"   // ER_THD
 #include "sql/gis/distance.h"
 #include "sql/gis/geometries.h"
+#include "sql/gis/length.h"
 #include "sql/gis/srid.h"
 #include "sql/gis/wkb_parser.h"
 #include "sql/gstream.h"  // Gis_read_stream
@@ -1020,7 +1021,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
   }
 
   Json_wrapper wr;
-  if (get_json_wrapper(args, 0, buf, func_name(), &wr, true))
+  if (get_json_wrapper(args, 0, buf, func_name(), &wr))
     return error_str();
 
   /*
@@ -3734,7 +3735,7 @@ String *Item_func_as_wkt::val_str_ascii(String *str)
   if ((null_value= g->as_wkt(str)))
   {
     DBUG_ASSERT(maybe_null);
-    return nullptr;    
+    return nullptr;
   }
 
   return str;
@@ -6369,33 +6370,48 @@ double Item_func_area::val_real()
   return res;
 }
 
-double Item_func_glength::val_real()
+double Item_func_st_length::val_real()
 {
-  DBUG_ASSERT(fixed == 1);
-  double res= 0;				// In case of errors
+  DBUG_ENTER("Item_func_st_length::val_real");
+  DBUG_ASSERT(fixed);
   String *swkb= args[0]->val_str(&value);
-  Geometry_buffer buffer;
-  Geometry *geom;
 
-  if ((null_value= (!swkb || args[0]->null_value)))
-    return res;
-  if (!(geom= Geometry::construct(&buffer, swkb)))
+  if ((null_value= (args[0]->null_value)))
   {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_real();
+    DBUG_ASSERT(maybe_null);
+    DBUG_RETURN(0.0);
   }
 
-  if (verify_cartesian_srs(geom, func_name()))
-    return error_real();
-
-  if ((null_value= geom->geom_length(&res)))
-    return res;
-  if (!std::isfinite(res))
+  if (swkb == nullptr)
   {
+    /*
+    We've already found out that args[0]->null_value is false.
+    Therefore, swkb should never be null.
+    */
+    DBUG_ASSERT(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_real();
+    DBUG_RETURN(error_real());
   }
-  return res;
+
+  const dd::Spatial_reference_system *srs= nullptr;
+  std::unique_ptr<gis::Geometry> g;
+  dd::cache::Dictionary_client::Auto_releaser m_releaser(current_thd->dd_client());
+  if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g))
+  {
+    DBUG_RETURN(error_real());
+  }
+
+  double length;
+  if (gis::length(srs, g.get(), &length, &null_value))
+    DBUG_RETURN(error_real()); /* purecov: inspected */
+
+  if (null_value)
+  {
+    DBUG_ASSERT(maybe_null);
+    DBUG_RETURN(0.0);
+  }
+
+  DBUG_RETURN(length);
 }
 
 longlong Item_func_get_srid::val_int()

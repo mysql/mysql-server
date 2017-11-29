@@ -3389,7 +3389,7 @@ static void do_remove_file(struct st_command *command)
   */
   for(int i= 0; error && (i < retry); i++)
   {
-    sleep(1);
+    my_sleep(1000*1000);
     error= my_delete(ds_filename.str, MYF(0)) !=0;
   }
 
@@ -3488,7 +3488,7 @@ static void do_remove_files_wildcard(struct st_command *command)
     */
     for(int j= 0; error && (j < retry); j++)
     {
-      sleep(1);
+      my_sleep(1000*1000);
       error= my_delete(ds_file_to_remove.str, MYF(0)) !=0;
     }
     if (error)
@@ -3555,7 +3555,7 @@ static void do_copy_file(struct st_command *command)
   */
   for(int i= 0; error && (i < retry); i++)
   {
-    sleep(1);
+    my_sleep(1000*1000);
     error=
       (my_copy(ds_from_file.str, ds_to_file.str,
                MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
@@ -3886,7 +3886,7 @@ static void do_copy_files_wildcard(struct st_command * command)
     */
     for(int j= 0; error && (j < retry); j++)
     {
-      sleep(1);
+      my_sleep(1000*1000);
       error=
         (my_copy(ds_source.str, ds_destination.str,
                  MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
@@ -4008,7 +4008,7 @@ static void do_move_file(struct st_command *command)
  */
   for(int i= 0; error && (i < retry); i++)
   {
-    sleep(1);
+    my_sleep(1000*1000);
     error= (my_rename(ds_from_file.str, ds_to_file.str, MYF(0)) != 0);
 
     if (error && (my_errno() == EXDEV))
@@ -4113,7 +4113,7 @@ static void do_file_exist(struct st_command *command)
   */
   for(int i= 0; error && (i < retry); i++)
   {
-    sleep(1);
+    my_sleep(1000*1000);
     error= (access(ds_filename.str, F_OK) != 0);
   }
 

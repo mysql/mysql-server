@@ -200,17 +200,17 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }"));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }"))
-{"type": "Point", "coordinates": [10, 15]}
+{"type": "Point", "coordinates": [10.0, 15.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"LineString\", \"coordinates\": [ [102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0] ]}"));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"LineString\", \"coordinates\": [ [102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0] ]}"))
-{"type": "LineString", "coordinates": [[102, 0], [103, 1], [104, 0], [105, 1]]}
+{"type": "LineString", "coordinates": [[102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"MultiPoint\", \"coordinates\": [ [-105.01, 39.57],[-80.66, 35.0] ] }"));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"MultiPoint\", \"coordinates\": [ [-105.01, 39.57],[-80.66, 35.0] ] }"))
-{"type": "MultiPoint", "coordinates": [[-105.01, 39.57], [-80.66, 35]]}
+{"type": "MultiPoint", "coordinates": [[-105.01, 39.57], [-80.66, 35.0]]}
 SELECT CHARSET(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"MultiPoint\", \"coordinates\": [ [-105.01, 39.57],[-80.66, 35.0] ] }"));
 CHARSET(ST_GEOMFROMGEOJSON(

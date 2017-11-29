@@ -1,0 +1,12 @@
+CALL mtr.add_suppression("The option expire_logs_days cannot be used together*");
+# restart:--binlog_expire_logs_seconds=2 --expire_logs_days=1 --log-error=MYSQLTEST_VARDIR/tmp/binlog_deprecations-output.err
+FLUSH LOGS;
+FLUSH LOGS;
+include/assert_grep.inc [Assert that there is a warning at bootstrap for expire_logs_days]
+SET GLOBAL binlog_expire_logs_seconds= 50;
+ERROR HY000: The option expire_logs_days and binlog_expire_logs_seconds cannot be used together. Please use binlog_expire_logs_seconds to set the expire time (expire_logs_days is deprecated)
+SET GLOBAL expire_logs_days= 5;
+ERROR HY000: The option expire_logs_days and binlog_expire_logs_seconds cannot be used together. Please use binlog_expire_logs_seconds to set the expire time (expire_logs_days is deprecated)
+# restart: --expire_logs_days=1 --binlog_expire_logs_seconds=0
+FLUSH LOGS;
+FLUSH LOGS;

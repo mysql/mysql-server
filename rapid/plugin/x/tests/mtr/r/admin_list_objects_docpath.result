@@ -293,18 +293,6 @@ GENERATION_EXPRESSION
 json_unquote(json_extract(`doc`,_utf8mb4\'$.""\'))
 0 rows affected
 
-Member: $.łódź
-=================
-GENERATION_EXPRESSION
-json_unquote(json_extract(`doc`,_utf8mb4\'$.ÅÃ³dÅº\'))
-0 rows affected
-
-Member: $.część
-==================
-GENERATION_EXPRESSION
-json_unquote(json_extract(`doc`,_utf8mb4\'$.czÄÅÄ\'))
-0 rows affected
-
 Member: $**.path
 ================
 GENERATION_EXPRESSION

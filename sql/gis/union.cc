@@ -17,8 +17,9 @@
 ///
 /// This file implements the union functor and function.
 
-#include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
+
+#include <boost/geometry.hpp>
 
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometries_traits.h"

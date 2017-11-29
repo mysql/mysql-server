@@ -1,5 +1,5 @@
-#ifndef GIS__COORDINATE_RANGE_VISITOR_H_INCLUDED
-#define GIS__COORDINATE_RANGE_VISITOR_H_INCLUDED
+#ifndef SQL_GIS_COORDINATE_RANGE_VISITOR_H_INCLUDED
+#define SQL_GIS_COORDINATE_RANGE_VISITOR_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -104,4 +104,4 @@ class Coordinate_range_visitor : public Nop_visitor {
 
 }  // namespace gis
 
-#endif  // GIS__COORDINATE_RANGE_VISITOR_H_INCLUDED
+#endif  // SQL_GIS_COORDINATE_RANGE_VISITOR_H_INCLUDED

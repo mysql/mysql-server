@@ -2069,6 +2069,44 @@ bool end_transaction(THD *thd, bool error)
   return error;
 }
 
+/**
+  Initialize one plugin. This function is used to early load one single
+  plugin. This function is used by key migration tool.
+
+   @param[in]   argc  Command line argument counter
+   @param[in]   argv  Command line arguments
+   @param[in]   plugin library file name
+
+   @return Operation status
+     @retval 0 OK
+     @retval 1 ERROR
+*/
+bool plugin_early_load_one(int *argc, char **argv, const char* plugin)
+{
+  bool retval= false;
+  DBUG_ENTER("plugin_early_load_one");
+
+  /* Make sure the internals are initialized */
+  if (!initialized)
+  {
+    if ((retval= plugin_init_internals()))
+      DBUG_RETURN(retval);
+    else
+      initialized= true;
+  }
+  /* Allocate the temporary mem root, will be freed before returning */
+  MEM_ROOT tmp_root;
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_root, 4096, 4096);
+
+  plugin_load_list(&tmp_root, argc, argv, plugin);
+
+  /* Temporary mem root not needed anymore, can free it here */
+  free_root(&tmp_root, MYF(0));
+
+  retval= plugin_init_initialize_and_reap();
+
+  DBUG_RETURN(retval);
+}
 
 static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
                                  const LEX_STRING *dl)

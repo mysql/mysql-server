@@ -18,6 +18,8 @@
 
 #include "sql/item_json_func.h"
 
+#include <string.h>
+
 #include <algorithm>               // std::fill
 #include <cstring>
 #include <memory>
@@ -109,9 +111,6 @@ bool ensure_utf8mb4(const String &val, String *buf,
                            as input
   @param[out] parse_error  set to true if the parser was run and found an error
                            else false
-  @param[in]  handle_numbers_as_double
-                           Whether numbers should be handled as double. If set
-                           to true, all numbers are parsed as DOUBLE
 
   @returns false if the arg parsed as valid JSON, true otherwise
 */
@@ -120,8 +119,7 @@ bool parse_json(const String &res,
                 const char *func_name,
                 Json_dom_ptr *dom,
                 bool require_str_or_json,
-                bool *parse_error,
-                bool handle_numbers_as_double)
+                bool *parse_error)
 {
   char buff[MAX_FIELD_WIDTH];
   String utf8_res(buff, sizeof(buff), &my_charset_utf8mb4_bin);
@@ -145,8 +143,7 @@ bool parse_json(const String &res,
 
   const char *parse_err;
   size_t err_offset;
-  *dom= Json_dom::parse(safep, safe_length, &parse_err, &err_offset,
-                        handle_numbers_as_double);
+  *dom= Json_dom::parse(safep, safe_length, &parse_err, &err_offset);
 
   if (*dom == NULL && parse_err != NULL)
   {
@@ -251,9 +248,6 @@ bool get_json_string(Item *arg_item,
                             as input
   @param[out]    valid      true if a valid JSON value was found (or NULL),
                             else false
-  @param[in]     handle_numbers_as_double
-                            whether numbers should be handled as double. If set
-                            to true, all numbers are parsed as DOUBLE
 
   @returns true iff syntax error *and* dom != null, else false
 */
@@ -263,8 +257,7 @@ static bool json_is_valid(Item **args,
                           const char *func_name,
                           Json_dom_ptr *dom,
                           bool require_str_or_json,
-                          bool *valid,
-                          bool handle_numbers_as_double= false)
+                          bool *valid)
 {
   Item *const arg_item= args[arg_idx];
 
@@ -312,7 +305,7 @@ static bool json_is_valid(Item **args,
       bool parse_error= false;
       const bool failure= parse_json(*res, arg_idx, func_name,
                                      dom, require_str_or_json,
-                                     &parse_error, handle_numbers_as_double);
+                                     &parse_error);
       *valid= !failure;
       return parse_error;
     }
@@ -977,8 +970,7 @@ bool get_json_wrapper(Item **args,
                       uint arg_idx,
                       String *str,
                       const char *func_name,
-                      Json_wrapper *wrapper,
-                      bool handle_numbers_as_double)
+                      Json_wrapper *wrapper)
 {
   if (!json_value(args, arg_idx, wrapper))
   {
@@ -1005,8 +997,7 @@ bool get_json_wrapper(Item **args,
   Json_dom_ptr dom; //@< we'll receive a DOM here from a successful text parse
 
   bool valid;
-  if (json_is_valid(args, arg_idx, str, func_name, &dom, true, &valid,
-                    handle_numbers_as_double))
+  if (json_is_valid(args, arg_idx, str, func_name, &dom, true, &valid))
     return true;
 
   if (!valid)
@@ -2016,7 +2007,7 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const
     return false;
   const auto item_func= down_cast<const Item_func*>(item);
   if (arg_count != item_func->arg_count ||
-      func_name() != item_func->func_name())
+      strcmp(func_name(), item_func->func_name()) != 0)
     return false;
 
   auto cmp= [binary_cmp](const Item *arg1, const Item *arg2)

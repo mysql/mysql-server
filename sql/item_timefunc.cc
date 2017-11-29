@@ -1012,7 +1012,7 @@ bool Item_date_literal::eq(const Item *item, bool) const
 {
   return
     item->basic_const_item() && type() == item->type() &&
-    func_name() == ((Item_func *) item)->func_name() &&
+    strcmp(func_name(), ((Item_func *) item)->func_name()) == 0 &&
     cached_time.eq(((Item_date_literal *) item)->cached_time);
 }
 
@@ -1029,7 +1029,7 @@ bool Item_datetime_literal::eq(const Item *item, bool) const
 {
   return
     item->basic_const_item() && type() == item->type() &&
-    func_name() == ((Item_func *) item)->func_name() &&
+    strcmp(func_name(), ((Item_func *) item)->func_name()) == 0 &&
     cached_time.eq(((Item_datetime_literal *) item)->cached_time);
 }
 
@@ -1046,7 +1046,7 @@ bool Item_time_literal::eq(const Item *item, bool) const
 {
   return
     item->basic_const_item() && type() == item->type() &&
-    func_name() == ((Item_func *) item)->func_name() &&
+    strcmp(func_name(), ((Item_func *) item)->func_name()) == 0 &&
     cached_time.eq(((Item_time_literal *) item)->cached_time);
 }
 
@@ -2126,7 +2126,7 @@ bool Item_func_date_format::eq(const Item *item, bool binary_cmp) const
 
   if (item->type() != FUNC_ITEM)
     return 0;
-  if (func_name() != ((Item_func*) item)->func_name())
+  if (strcmp(func_name(), ((Item_func*) item)->func_name()) != 0)
     return 0;
   if (this == item)
     return 1;
@@ -3479,6 +3479,7 @@ bool Item_func_internal_update_time::resolve_type(THD *thd)
 {
   set_data_type_datetime(0);
   maybe_null= true;
+  null_on_null= false;
   thd->time_zone_used= true;
   return false;
 }
@@ -3554,6 +3555,7 @@ bool Item_func_internal_check_time::resolve_type(THD *thd)
 {
   set_data_type_datetime(0);
   maybe_null= true;
+  null_on_null= false;
   thd->time_zone_used= true;
   return false;
 }

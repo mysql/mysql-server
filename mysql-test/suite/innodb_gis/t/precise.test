@@ -1,4 +1,5 @@
-
+# Disabled on Windows ASAN due to https://bugs.llvm.org/show_bug.cgi?id=35365
+--source include/not_asan_windows.inc
 
 #
 # Spatial objects

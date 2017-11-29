@@ -61,6 +61,8 @@ struct fts_psort_t;
 /** Common info passed to each parallel sort thread */
 struct fts_psort_common_t {
 	row_merge_dup_t*	dup;		/*!< descriptor of FTS index */
+	dict_table_t*		old_table;	/*!< Needed to fetch LOB from
+						old table. */
 	dict_table_t*		new_table;	/*!< source table */
 	trx_t*			trx;		/*!< transaction */
 	fts_psort_t*		all_info;	/*!< all parallel sort info */
@@ -104,15 +106,15 @@ typedef UT_LIST_BASE_NODE_T(row_fts_token_t)     fts_token_list_t;
 
 /** Structure stores information from string tokenization operation */
 struct fts_tokenize_ctx {
-	ulint			processed_len;  /*!< processed string length */
-	ulint			init_pos;       /*!< doc start position */
-	ulint			buf_used;       /*!< the sort buffer (ID) when
-						tokenization stops, which
-						could due to sort buffer full */
-	ulint			rows_added[FTS_NUM_AUX_INDEX];
+	ulint			processed_len{0};  /*!< processed string length */
+	ulint			init_pos{0};       /*!< doc start position */
+	ulint			buf_used{0};       /*!< the sort buffer (ID) when
+							tokenization stops, which
+							could due to sort buffer full */
+	ulint			rows_added[FTS_NUM_AUX_INDEX]{0};
 						/*!< number of rows added for
 						each FTS index partition */
-	ib_rbt_t*		cached_stopword;/*!< in: stopword list */
+	ib_rbt_t*		cached_stopword{nullptr};/*!< in: stopword list */
 	dfield_t		sort_field[FTS_NUM_FIELDS_SORT];
 						/*!< in: sort field */
 	fts_token_list_t	fts_token_list;
@@ -188,6 +190,9 @@ row_fts_psort_info_init(
 	trx_t*			trx,	/*!< in: transaction */
 	row_merge_dup_t*	dup,	/*!< in,own: descriptor of
 					FTS index being created */
+	const dict_table_t*	old_table,
+					/*!< in: Needed to fetch LOB from old
+					table */
 	const dict_table_t*	new_table,/*!< in: table where indexes are
 					created */
 	ibool			opt_doc_id_size,

@@ -68,7 +68,7 @@ bool apply_to_table_graph(const dd::Table &table,
     return true;
   }
 
-  for (auto &&ix : table.indexes())
+  for (auto &ix : table.indexes())
   {
     if (ftor(*ix, std::forward<CLOSURE_TYPE>(clos)))
     {
@@ -76,19 +76,22 @@ bool apply_to_table_graph(const dd::Table &table,
     }
   }
 
-  for (auto &&part : table.partitions())
+  if (table.partitions().empty())
   {
-    if (ftor(*part, std::forward<CLOSURE_TYPE>(clos)))
+    return false;
+  }
+  const dd::Partition *part= table.partitions().front();
+
+  if (ftor(*part, std::forward<CLOSURE_TYPE>(clos)))
+  {
+    return true;
+  }
+
+  for (auto &part_ix : part->indexes())
+  {
+    if (ftor(*part_ix, std::forward<CLOSURE_TYPE>(clos)))
     {
       return true;
-    }
-
-    for (auto &&part_ix : part->indexes())
-    {
-      if (ftor(*part_ix, std::forward<CLOSURE_TYPE>(clos)))
-      {
-        return true;
-      }
     }
   }
   return false;

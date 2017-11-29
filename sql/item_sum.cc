@@ -23,6 +23,7 @@
 
 #include "sql/item_sum.h"
 
+#include <string.h>
 #include <algorithm>
 #include <cstring>
 #include <functional>
@@ -621,7 +622,7 @@ bool Item_sum::eq(const Item *item, bool binary_cmp) const
     return false;
   if (arg_count != item_sum->arg_count ||
       (my_sum_func != Item_sum::UDF_SUM_FUNC &&
-       func_name() != item_sum->func_name()) ||
+       strcmp(func_name(), item_sum->func_name()) != 0) ||
       (my_sum_func == Item_sum::UDF_SUM_FUNC &&
        my_strcasecmp(system_charset_info, func_name(), item_sum->func_name())))
     return false;
@@ -3401,17 +3402,18 @@ String *Item_sum_bit::val_str(String *str)
   // If the group has no non-NULLs repeat the default value max_length times.
   if (!non_nulls)
   {
-    if (str->alloc(max_length - 1))
-      return nullptr;
-    std::memset(const_cast<char *>(str->ptr()),
-                static_cast<int>(reset_bits), max_length - 1);
-    str->length(max_length - 1);
+    str->length(0);
+    if (str->fill(max_length - 1, static_cast<char>(reset_bits)))
+      return error_str();
+    str->set_charset(&my_charset_bin);
   }
   else
-    // Remove the flag from result
-    str->set(value_buff, 0, value_buff.length() - 1);
+  {
+    // Prepare the result (skip the flag at the end)
+    if (str->copy(value_buff.ptr(), value_buff.length() - 1, &my_charset_bin))
+      return error_str();
+  }
 
-  str->set_charset(&my_charset_bin);
   return str;
 }
 
@@ -5839,7 +5841,10 @@ my_decimal *Item_first_last_value::val_decimal(my_decimal *decimal_buffer)
   }
 
   if (compute())
-    return nullptr;
+  {
+    my_decimal_set_zero(decimal_buffer);
+    return null_value ? nullptr : decimal_buffer;
+  }
 
   return m_value->val_decimal(decimal_buffer);
 }
@@ -6062,9 +6067,11 @@ my_decimal *Item_nth_value::val_decimal(my_decimal *decimal_buffer)
     return null_value ? nullptr : decimal_buffer;
   }
 
-
   if (compute())
-    return nullptr;
+  {
+    my_decimal_set_zero(decimal_buffer);
+    return null_value ? nullptr : decimal_buffer;
+  }
 
   return m_value->val_decimal(decimal_buffer);
 }
@@ -6306,9 +6313,11 @@ my_decimal *Item_lead_lag::val_decimal(my_decimal *decimal_buffer)
     return null_value ? nullptr : decimal_buffer;
   }
 
-
   if (compute())
-    return nullptr;
+  {
+    my_decimal_set_zero(decimal_buffer);
+    return null_value ? nullptr : decimal_buffer;
+  }
 
   return m_use_default ? m_default->val_decimal(decimal_buffer) :
     m_value->val_decimal(decimal_buffer);

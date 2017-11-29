@@ -449,17 +449,23 @@ sub main {
   $num_tests_for_report = $num_tests * $opt_repeat;
   $remaining= $num_tests_for_report;
 
-  if ( $opt_parallel eq "auto" ) {
-    # Try to find a suitable value for number of workers
-    my $sys_info= My::SysInfo->new();
-    $opt_parallel= $sys_info->num_cpus();
+  # Environment variable to hold number of CPUs
+  my $sys_info= My::SysInfo->new();
+  $ENV{NUMBER_OF_CPUS}= $sys_info->num_cpus();
 
-    if(defined $ENV{MTR_MAX_PARALLEL}) {
+  if ($opt_parallel eq "auto")
+  {
+    # Try to find a suitable value for number of workers
+    $opt_parallel= $ENV{NUMBER_OF_CPUS};
+
+    if(defined $ENV{MTR_MAX_PARALLEL})
+    {
       my $max_par= $ENV{MTR_MAX_PARALLEL};
       $opt_parallel= $max_par if ($opt_parallel > $max_par);
     }
     $opt_parallel= 1 if ($opt_parallel < 1);
   }
+
   # Limit parallel workers to number of tests to avoid idle workers
   $opt_parallel= $num_tests if ($num_tests > 0 and $opt_parallel > $num_tests);
   $ENV{MTR_PARALLEL} = $opt_parallel;
@@ -5574,7 +5580,7 @@ sub check_warnings ($) {
 	  return $result;
 	}
 	# Wait for next process to exit
-	next;
+	next if not $result;
       }
       else
       {

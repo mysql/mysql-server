@@ -62,4 +62,13 @@ TEST(NullableTest, Assignment)
   EXPECT_FALSE(mynull2.has_value());
 }
 
+TEST(NullableTest, Equals)
+{
+  Nullable<int> ni1(42), ni2(123);
+  Nullable<int> nn1, nn2;
+  EXPECT_NE(ni1, ni2);
+  EXPECT_EQ(nn1, nn2);
+  EXPECT_EQ(Nullable<int>(), nn2);
+}
+
 }

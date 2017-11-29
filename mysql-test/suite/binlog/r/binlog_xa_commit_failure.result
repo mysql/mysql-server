@@ -26,3 +26,6 @@ SET @@GLOBAL.DEBUG= @debug_save;
 ############################################################
 # 4. Clean up.
 DROP TABLE t1;
+# restart
+CALL mtr.add_suppression("Found 1 prepared XA transactions");
+XA ROLLBACK 'xid1';

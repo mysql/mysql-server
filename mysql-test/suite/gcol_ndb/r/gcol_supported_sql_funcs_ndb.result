@@ -1099,7 +1099,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint(1) GENERATED ALWAYS AS ((not((`a` regexp _latin1'H.+o')))) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((not(regexp_like(`a`,_latin1'H.+o')))) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 insert into t1 values ('Hello',default);
 insert into t1 values ('hello',default);
@@ -1176,7 +1176,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint(1) GENERATED ALWAYS AS ((`a` regexp _latin1'H.+o')) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS (regexp_like(`a`,_latin1'H.+o')) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 insert into t1 values ('Hello',default);
 insert into t1 values ('hello',default);
@@ -1253,7 +1253,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint(1) GENERATED ALWAYS AS ((`a` regexp _latin1'H.+o')) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS (regexp_like(`a`,_latin1'H.+o')) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 insert into t1 values ('Hello',default);
 insert into t1 values ('MySQL',default);

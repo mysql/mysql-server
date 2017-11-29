@@ -385,7 +385,11 @@ ib_read_tuple(
 			const page_size_t	page_size(
 				dict_table_page_size(index->table));
 
+			/** Passing nullptr to the transaction object.  This
+			means that partial update of LOB is not supported
+			via this interface.*/
 			data = lob::btr_rec_copy_externally_stored_field(
+				index,
 				copy, offsets, page_size, i, &len,
 				dict_index_is_sdi(index),
 				tuple->heap);

@@ -1,5 +1,5 @@
-#ifndef GIS__COVERED_BY_FUNCTOR_H_INCLUDED
-#define GIS__COVERED_BY_FUNCTOR_H_INCLUDED
+#ifndef SQL_GIS_COVERED_BY_FUNCTOR_H_INCLUDED
+#define SQL_GIS_COVERED_BY_FUNCTOR_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -22,8 +22,9 @@
 ///
 /// The functor is not intended for use directly by MySQL code.
 
-#include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
+
+#include <boost/geometry.hpp>
 
 #include "sql/gis/box.h"
 #include "sql/gis/functor.h"
@@ -67,4 +68,4 @@ class Covered_by : public Functor<bool> {
 
 }  // namespace gis
 
-#endif  // GIS__COVERED_BY_FUNCTOR_H_INCLUDED
+#endif  // SQL_GIS_COVERED_BY_FUNCTOR_H_INCLUDED

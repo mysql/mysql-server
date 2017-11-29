@@ -73,7 +73,7 @@ SET SQL_LOG_BIN=0;
 CREATE TABLE test.gms_listener_example(log_message TEXT);
 call mtr.add_suppression("The member has failed to gracefully leave the group.");
 call mtr.add_suppression("Timeout while waiting for the group communication");
-call mtr.add_suppression("'read failed'");
+call mtr.add_suppression("read failed");
 SET SQL_LOG_BIN=1;
 --enable_query_log
 

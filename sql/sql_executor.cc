@@ -2847,7 +2847,6 @@ join_init_quick_read_record(QEP_TAB *tab)
   */
 
   THD *const thd= tab->join()->thd;
-#ifdef OPTIMIZER_TRACE
   Opt_trace_context * const trace= &thd->opt_trace;
   const bool disable_trace=
     tab->quick_traced_before &&
@@ -2859,7 +2858,6 @@ join_init_quick_read_record(QEP_TAB *tab)
   Opt_trace_object wrapper(trace);
   Opt_trace_object trace_table(trace, "rows_estimation_per_outer_row");
   trace_table.add_utf8_table(tab->table_ref);
-#endif
 
   /* 
     If this join tab was read through a QUICK for the last record

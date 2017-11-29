@@ -25,6 +25,7 @@
 #include <string.h>
 #include <time.h>
 #include <algorithm>
+#include <thread>
 #include <atomic>
 #include <utility>
 
@@ -4754,6 +4755,9 @@ finish:
     lex->opt_hints_global->sys_var_hint->restore_vars(thd);
 
   THD_STAGE_INFO(thd, stage_query_end);
+
+  if (!res)
+    lex->set_exec_started();
 
   // Cleanup EXPLAIN info
   if (!thd->in_sub_stmt)

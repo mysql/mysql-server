@@ -25,6 +25,7 @@
 
 #include <limits.h>
 #include <math.h>
+#include <string.h>
 #include <algorithm>
 #include <array>
 #include <functional>
@@ -5842,7 +5843,7 @@ bool Item_cond::eq(const Item *item, bool binary_cmp) const
   const Item_cond *item_cond= down_cast<const Item_cond *>(item);
   if (functype() != item_cond->functype() ||
       list.elements != item_cond->list.elements ||
-      func_name() != item_cond->func_name())
+      strcmp(func_name(), item_cond->func_name()) != 0)
     return false;
   // Item_cond never uses "args". Inspect "list" instead.
   DBUG_ASSERT(arg_count == 0 && item_cond->arg_count == 0);
@@ -6515,160 +6516,6 @@ bool Item_func_like::eval_escape_clause(THD *thd)
   escape_evaluated= true;
 
   return false;
-}
-
-/**
-  @brief Compile regular expression.
-
-  @param[in]    send_error     send error message if any.
-
-  @details Make necessary character set conversion then 
-  compile regular expression passed in the args[1].
-
-  @retval    0     success.
-  @retval    1     error occurred.
-  @retval   -1     given null regular expression.
- */
-
-int Item_func_regex::regcomp(bool send_error)
-{
-  char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),&my_charset_bin);
-  String *res= args[1]->val_str(&tmp);
-  int error;
-
-  if (args[1]->null_value)
-    return -1;
-
-  if (regex_compiled)
-  {
-    if (!stringcmp(res, &prev_regexp))
-      return 0;
-    prev_regexp.copy(*res);
-    my_regfree(&preg);
-    regex_compiled= 0;
-  }
-
-  if (cmp_collation.collation != regex_lib_charset)
-  {
-    /* Convert UCS2 strings to UTF8 */
-    uint dummy_errors;
-    if (conv.copy(res->ptr(), res->length(), res->charset(),
-                  regex_lib_charset, &dummy_errors))
-      return 1;
-    res= &conv;
-  }
-
-  if ((error= my_regcomp(&preg, res->c_ptr_safe(),
-                         regex_lib_flags, regex_lib_charset)))
-  {
-    if (send_error)
-    {
-      (void) my_regerror(error, &preg, buff, sizeof(buff));
-      my_error(ER_REGEXP_ERROR, MYF(0), buff);
-    }
-    return 1;
-  }
-  regex_compiled= 1;
-  return 0;
-}
-
-
-bool
-Item_func_regex::fix_fields(THD *thd, Item**)
-{
-  DBUG_ASSERT(fixed == 0);
-
-  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
-
-  if ((!args[0]->fixed &&
-       args[0]->fix_fields(thd, args)) || args[0]->check_cols(1) ||
-      (!args[1]->fixed &&
-       args[1]->fix_fields(thd, args + 1)) || args[1]->check_cols(1))
-    return true;				/* purecov: inspected */
-  m_accum_properties= 0;
-  add_accum_properties(args[0]);
-  add_accum_properties(args[1]);
-  max_length= 1;
-  decimals= 0;
-
-  if (agg_arg_charsets_for_comparison(cmp_collation, args, 2))
-    return true;
-
-  regex_lib_flags= (cmp_collation.collation->state &
-                    (MY_CS_BINSORT | MY_CS_CSSORT)) ?
-                   MY_REG_EXTENDED | MY_REG_NOSUB :
-                   MY_REG_EXTENDED | MY_REG_NOSUB | MY_REG_ICASE;
-  /*
-    If the case of UCS2 and other non-ASCII character sets,
-    we will convert patterns and strings to UTF8.
-  */
-  regex_lib_charset= (cmp_collation.collation->mbminlen > 1) ?
-                     &my_charset_utf8_general_ci :
-                     cmp_collation.collation;
-
-  used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
-  not_null_tables_cache= (args[0]->not_null_tables() |
-			  args[1]->not_null_tables());
-  if (!regex_compiled && args[1]->may_evaluate_const(thd))
-  {
-    int comp_res= regcomp(true);
-    if (comp_res == -1)
-    {						// Will always return NULL
-      maybe_null=1;
-      fixed= 1;
-      return thd->is_error();
-    }
-    else if (comp_res)
-      return true;
-    regex_is_const= 1;
-    maybe_null= args[0]->maybe_null;
-  }
-  else
-    maybe_null=1;
-  fixed= 1;
-  return false;
-}
-
-
-longlong Item_func_regex::val_int()
-{
-  DBUG_ASSERT(fixed == 1);
-  char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),&my_charset_bin);
-  String *res= args[0]->val_str(&tmp);
-
-  if ((null_value= (args[0]->null_value ||
-                    (!regex_is_const && regcomp(false)))))
-    return 0;
-
-  if (cmp_collation.collation != regex_lib_charset)
-  {
-    /* Convert UCS2 strings to UTF8 */
-    uint dummy_errors;
-    if (conv.copy(res->ptr(), res->length(), res->charset(),
-                  regex_lib_charset, &dummy_errors))
-    {
-      null_value= 1;
-      return 0;
-    }
-    res= &conv;
-  }
-  return my_regexec(&preg,res->c_ptr_safe(),0,(my_regmatch_t*) 0,0) ? 0 : 1;
-}
-
-
-void Item_func_regex::cleanup()
-{
-  DBUG_ENTER("Item_func_regex::cleanup");
-  Item_bool_func::cleanup();
-  if (regex_compiled)
-  {
-    my_regfree(&preg);
-    regex_compiled=0;
-    prev_regexp.length(0);
-  }
-  DBUG_VOID_RETURN;
 }
 
 

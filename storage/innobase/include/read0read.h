@@ -105,6 +105,7 @@ private:
 	marked read views from the views list to the freed list.
 	@return oldest view if found or NULL */
 	inline ReadView* get_oldest_view() const;
+	ReadView* get_view_created_by_trx_id(trx_id_t trx_id) const;
 
 private:
 	// Prevent copying

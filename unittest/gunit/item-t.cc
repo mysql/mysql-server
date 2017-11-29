@@ -61,9 +61,9 @@ protected:
 class Mock_field_long : public Field_long
 {
 public:
-  Mock_field_long(uint32 lenght)
+  Mock_field_long(uint32 length)
     : Field_long(0,                             // ptr_arg
-                 lenght,                        // len_arg
+                 length,                        // len_arg
                  NULL,                          // null_ptr_arg
                  0,                             // null_bit_arg
                  Field::NONE,                   // auto_flags_arg
@@ -78,7 +78,7 @@ public:
   /*
     This is the only member function we need to override.
     Note: Sun Studio needs a little help in resolving longlong.
-   */
+  */
   MOCK_METHOD2(store, type_conversion_status(::longlong nr, bool unsigned_val));
 };
 

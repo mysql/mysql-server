@@ -56,8 +56,6 @@
 
 class Item;
 
-#ifdef OPTIMIZER_TRACE
-
 namespace {
 
 const char I_S_table_name[]= "OPTIMIZER_TRACE";
@@ -576,8 +574,6 @@ int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item*)
 
   return 0;
 }
-
-#endif // OPTIMIZER_TRACE
 
 ST_FIELD_INFO optimizer_trace_info[]=
 {

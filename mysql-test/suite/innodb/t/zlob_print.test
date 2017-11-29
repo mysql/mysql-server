@@ -1,0 +1,12 @@
+--source include/have_debug.inc
+--source include/have_innodb_max_16k.inc
+
+set global innodb_compression_level = 0;
+create table t1 (f1 int primary key, f2 longblob)
+   row_format=compressed, engine=innodb;
+set debug='+d,innodb_zlob_print';
+insert into t1 values (1, repeat('+', 1048576));
+set debug='-d,innodb_zlob_print';
+select f1, right(f2, 40) from t1;
+drop table t1;
+set global innodb_compression_level = default;

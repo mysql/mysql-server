@@ -92,9 +92,12 @@ struct purge_node_t {
 
 		/** File pointer to UNDO record */
 		roll_ptr_t	roll_ptr;
+
+		/** Trx that created this undo record */
+		trx_id_t	modifier_trx_id;
 	};
 
-	using Recs = std::vector<rec_t, mem_heap_allocator<rec_t>>;
+	using Recs = std::list<rec_t, mem_heap_allocator<rec_t>>;
 
 	/** node type: QUE_NODE_PURGE */
 	que_common_t		common;
@@ -158,9 +161,13 @@ struct purge_node_t {
 	/** trx id for this purging record */
 	trx_id_t		trx_id;
 
+	/** trx id for this purging record */
+	trx_id_t		modifier_trx_id;
+
 	/** Undo recs to purge */
 	Recs*			recs;
 
+	trx_rseg_t*		rseg;
 #ifdef UNIV_DEBUG
 	/***********************************************************//**
 	Validate the persisent cursor. The purge node has two references

@@ -1964,6 +1964,8 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
   lex->m_deny_window_func= 0;
   lex->in_sum_func= NULL;
 
+  lex->reset_exec_started();
+
   if (unlikely(lex->is_broken()))
   {
     // Force a Reprepare, to get a fresh LEX

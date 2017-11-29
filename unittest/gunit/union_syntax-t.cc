@@ -30,7 +30,6 @@ namespace union_syntax_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
-using my_testing::expect_null;
 
 class UnionSyntaxTest : public ParserTest
 {
@@ -39,19 +38,19 @@ protected:
                          bool expect_syntax_error= false)
   {
     SELECT_LEX *term1= parse(query, expect_syntax_error ? ER_PARSE_ERROR : 0);
-    expect_null<SELECT_LEX_UNIT>(term1->first_inner_unit());
-    expect_null<SELECT_LEX>(term1->next_select_in_list());
+    EXPECT_EQ(nullptr, term1->first_inner_unit());
+    EXPECT_EQ(nullptr, term1->next_select_in_list());
     EXPECT_EQ(1, term1->get_item_list()->head()->val_int());
 
     SELECT_LEX_UNIT *top_union= term1->master_unit();
-    expect_null<SELECT_LEX>(top_union->outer_select());
+    EXPECT_EQ(nullptr, top_union->outer_select());
 
     if (num_terms > 1)
     {
       SELECT_LEX *term2= term1->next_select();
       ASSERT_FALSE(term2 == NULL);
 
-      expect_null<SELECT_LEX_UNIT>(term2->first_inner_unit());
+      EXPECT_EQ(nullptr, term2->first_inner_unit());
       EXPECT_EQ(term1, term2->next_select_in_list());
       EXPECT_EQ(2, term2->get_item_list()->head()->val_int());
 
@@ -59,7 +58,7 @@ protected:
       {
       }
       else
-        expect_null<SELECT_LEX>(term2->next_select());
+        EXPECT_EQ(nullptr, term2->next_select());
 
       EXPECT_EQ(top_union, term2->master_unit());
     }
@@ -69,17 +68,17 @@ protected:
   {
     SELECT_LEX *term1= parse(query);
 
-    expect_null<Item>(term1->select_limit);
+    EXPECT_EQ(nullptr, term1->select_limit);
 
     SELECT_LEX_UNIT *top_union= term1->master_unit();
 
     EXPECT_EQ(4, top_union->fake_select_lex->select_limit->val_int());
 
-    expect_null<SELECT_LEX>(top_union->outer_select());
+    EXPECT_EQ(nullptr, top_union->outer_select());
 
     SELECT_LEX *term2= term1->next_select();
 
-    expect_null<SELECT_LEX_UNIT>(term2->first_inner_unit());
+    EXPECT_EQ(nullptr, term2->first_inner_unit());
     EXPECT_EQ(term1, term2->next_select_in_list());
     EXPECT_EQ(2, term2->get_item_list()->head()->val_int());
 
@@ -112,7 +111,7 @@ TEST_F(UnionSyntaxTest, First)
   SELECT_LEX_UNIT *top_union= top->master_unit();
 
   EXPECT_FALSE(top->braces);
-  expect_null<SELECT_LEX>(top->outer_select());
+  EXPECT_EQ(nullptr, top->outer_select());
   EXPECT_EQ(top, top_union->first_select());
 
 }
@@ -133,8 +132,8 @@ TEST_F(UnionSyntaxTest, QueryExpParensDualOrder)
 {
   SELECT_LEX *term= parse("( SELECT 1 FROM t1 ORDER BY 2 ) ORDER BY 3");
   ASSERT_FALSE(term == NULL);
-  expect_null<SELECT_LEX>(term->next_select());
-  expect_null<SELECT_LEX_UNIT>(term->first_inner_unit());
+  EXPECT_EQ(nullptr, term->next_select());
+  EXPECT_EQ(nullptr, term->first_inner_unit());
 
   // The query expression.
   SELECT_LEX_UNIT *exp= term->master_unit();
@@ -158,8 +157,8 @@ TEST_F(UnionSyntaxTest, QueryExpParensOrder)
 {
   SELECT_LEX *term= parse("(SELECT 1 FROM t1) ORDER BY 3");
   ASSERT_FALSE(term == NULL);
-  expect_null<SELECT_LEX>(term->next_select());
-  expect_null<SELECT_LEX_UNIT>(term->first_inner_unit());
+  EXPECT_EQ(nullptr, term->next_select());
+  EXPECT_EQ(nullptr, term->first_inner_unit());
 
   // The query expression.
   SELECT_LEX_UNIT *exp= term->master_unit();
@@ -184,8 +183,8 @@ TEST_F(UnionSyntaxTest, QueryExpParensLimit)
 {
   SELECT_LEX *term= parse("(SELECT 1 FROM t1 LIMIT 2) LIMIT 3");
   ASSERT_FALSE(term == NULL);
-  expect_null<SELECT_LEX>(term->next_select());
-  expect_null<SELECT_LEX_UNIT>(term->first_inner_unit());
+  EXPECT_EQ(nullptr, term->next_select());
+  EXPECT_EQ(nullptr, term->first_inner_unit());
 
   // The query expression.
   SELECT_LEX_UNIT *exp= term->master_unit();
@@ -236,7 +235,7 @@ TEST_F(UnionSyntaxTest, ThreeWay)
 
 const char *get_order_by_column_name(SELECT_LEX *query_block, int index = 0)
 {
-  expect_null<ORDER>(*query_block->order_list.next);
+  EXPECT_EQ(nullptr, *query_block->order_list.next);
   ORDER *current= query_block->order_list.first;
   for (int i= 0; i < index; ++i)
     current= current->next;
@@ -272,12 +271,11 @@ TEST_F(UnionSyntaxTest, UnionOrderLimit)
   EXPECT_FALSE(block1->braces);
   EXPECT_FALSE(block2->braces);
 
-  expect_null<Item>(block1->select_limit);
-//    << "First query block should not have a limit clause.";
+  EXPECT_EQ(nullptr, block1->select_limit)
+    << "First query block should not have a limit clause.";
 
-  expect_null<Item>(block2->select_limit);
-
-//    << "Second query block should not have a limit clause.";
+  EXPECT_EQ(nullptr, block2->select_limit)
+    << "Second query block should not have a limit clause.";
 
   EXPECT_EQ(0U, block1->order_list.elements)
     << "First query block should not have an order by clause.";
@@ -310,8 +308,8 @@ TEST_F(UnionSyntaxTest, UnionNestedQueryBlock)
     parse("SELECT 1 UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 123)");
   SELECT_LEX *block2= block1->next_select();
 
-  expect_null<Item>(block1->select_limit);
-//    << "First query block should not have a limit clause.";
+  EXPECT_EQ(nullptr, block1->select_limit)
+    << "First query block should not have a limit clause.";
 
   EXPECT_EQ(0U, block1->order_list.elements)
     << "First query block should not have an order by clause.";
@@ -324,7 +322,7 @@ TEST_F(UnionSyntaxTest, UnionNestedQueryBlock)
   // The limit and order by clauses should belong to the whole query
   // expression, i.e. the "fake select lex".
   SELECT_LEX *fake= query_expression->fake_select_lex;
-//  expect_null<Item>(fake->select_limit);
+//  EXPECT_EQ(nullptr, fake->select_limit);
 
   EXPECT_EQ(0U, fake->order_list.elements)
     << "The union should not have an order by clause.";
@@ -352,8 +350,8 @@ TEST_F(UnionSyntaxTest, IgnoredTrailingLimitOnQueryTerm)
   EXPECT_EQ(2, block2->get_item_list()->head()->val_int());
 
   // Neither query block should have a limit clause.
-  expect_null<Item>(block1->select_limit);
-  expect_null<Item>(block2->select_limit);
+  EXPECT_EQ(nullptr, block1->select_limit);
+  EXPECT_EQ(nullptr, block2->select_limit);
 
   SELECT_LEX_UNIT *query_expression= block1->master_unit();
 

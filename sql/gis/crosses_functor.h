@@ -1,5 +1,5 @@
-#ifndef GIS__CROSSES_FUNCTOR_H_INCLUDED
-#define GIS__CROSSES_FUNCTOR_H_INCLUDED
+#ifndef SQL_GIS_CROSSES_FUNCTOR_H_INCLUDED
+#define SQL_GIS_CROSSES_FUNCTOR_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -239,4 +239,4 @@ class Crosses : public Functor<bool> {
 
 }  // namespace gis
 
-#endif  // GIS__CROSSES_FUNCTOR_H_INCLUDED
+#endif  // SQL_GIS_CROSSES_FUNCTOR_H_INCLUDED

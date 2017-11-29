@@ -84,9 +84,9 @@ public:
 
 private:
   /* True when initObject has been called */
-  bool init_done_;
-  bool slave_enabled_;        /* semi-sycn is enabled on the slave */
-  MYSQL *mysql_reply;         /* connection to send reply */
+  bool init_done_ = false;
+  bool slave_enabled_ = false;        /* semi-sycn is enabled on the slave */
+  MYSQL *mysql_reply = nullptr;         /* connection to send reply */
 };
 
 

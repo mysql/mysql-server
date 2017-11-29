@@ -364,13 +364,11 @@ public:
     return (type == OPT_GLOBAL || type == OPT_PERSIST ||
             type == OPT_PERSIST_ONLY);
   }
-#ifdef OPTIMIZER_TRACE
   virtual bool is_var_optimizer_trace() const
   {
     extern sys_var *Sys_optimizer_trace_ptr;
     return var == Sys_optimizer_trace_ptr;
   }
-#endif
 };
 
 
@@ -460,7 +458,7 @@ sys_var *find_sys_var(THD *thd, const char *str, size_t length=0);
 sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length=0,
                          bool throw_error= false, bool locked= false);
 int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened);
-
+bool keyring_access_test();
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);
 
 sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd);

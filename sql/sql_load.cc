@@ -402,6 +402,12 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   if (info.add_function_default_columns(table, table->write_set))
     DBUG_RETURN(true);
 
+  if (table->triggers)
+  {
+    if (table->triggers->mark_fields(TRG_EVENT_INSERT))
+      DBUG_RETURN(true);
+  }
+
   prepare_triggers_for_insert_stmt(thd, table);
 
   uint tot_length=0;

@@ -188,8 +188,6 @@ void my_free(void *ptr)
 static void *my_raw_malloc(size_t size, myf my_flags)
 {
   void* point;
-  DBUG_ENTER("my_raw_malloc");
-  DBUG_PRINT("my",("size: %lu  my_flags: %d", (ulong) size, my_flags));
 
   /* Safety */
   if (!size)
@@ -231,8 +229,7 @@ static void *my_raw_malloc(size_t size, myf my_flags)
       exit(1);
   }
 
-  DBUG_PRINT("exit",("ptr: %p", point));
-  DBUG_RETURN(point);
+  return(point);
 }
 
 
@@ -298,14 +295,11 @@ end:
 */
 static void my_raw_free(void *ptr)
 {
-  DBUG_ENTER("my_free");
-  DBUG_PRINT("my",("ptr: %p", ptr));
 #if defined(MY_MSCRT_DEBUG)
   _free_dbg(ptr, _CLIENT_BLOCK);
 #else
   free(ptr);
 #endif
-  DBUG_VOID_RETURN;
 }
 
 
