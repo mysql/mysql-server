@@ -447,6 +447,11 @@ function deploymentTreeSetup() {
     }
 
     // Create tooltip widget and connect to the buttons
+    var install_tt = new dijit.Tooltip({
+        connectId: ["configWizardInstallCluster"],
+        label: "Install Cluster on host(s) if requested"
+    });
+
     var deploy_tt = new dijit.Tooltip({
         connectId: ["configWizardDeployCluster"],
         label: "Create necessary directories and distribute configuration files"
@@ -454,8 +459,7 @@ function deploymentTreeSetup() {
 
     var start_tt = new dijit.Tooltip({
         connectId: ["configWizardStartCluster"],
-        label: "Create necessary directories and distribute configuration " +
-                "files, start all cluster processes"
+        label: "Start all cluster processes"
     });
 
     var stop_tt = new dijit.Tooltip({
@@ -469,7 +473,6 @@ function deploymentTreeSetup() {
 
 var _statii = {};
 function getStatii(nodeid) {
-  console.log(_statii[nodeid]);
   return _statii[nodeid] ? _statii[nodeid].status : "UNKNOWN"; 
 }
  

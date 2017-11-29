@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -349,6 +349,11 @@ h2 {
   margin-bottom: 20px;
 }
 
+#installDetails {
+  margin-left: 15px;
+  margin-bottom: 20px;
+}
+
 #configDetails {
   line-height: 1.4em;
 }
@@ -361,6 +366,17 @@ h2 {
     width: 300px;
 }
 
+#hostGrid .dojoxGridSortNode {
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    padding: 1px;
+    margin: 0px;
+}
+
+#hostGrid .dojoxGridSortNode:hover {
+    overflow: visible;
+}
 /******************* Button without background or border **********************/
 
 .menuButton .dijitButtonNode {
@@ -400,6 +416,11 @@ h2 {
 
 /****************************** Various icons *********************************/
 
+.installIcon {
+    background-image: url('../img/flag.gif');
+    width: 11px;
+    height: 11px;
+} 
 .deployIcon {
     background-image: url('../img/deploy.gif');
     width: 11px;
@@ -454,6 +475,13 @@ h2 {
 } 
 .continueClusterIcon {
     background-image: url('../img/icon_continue_cluster.png');
+    background-position: center center;
+    background-repeat: no-repeat;
+    width: 60px;
+    height: 40px;
+} 
+.continueClusterDisabledIcon {
+    background-image: url('../img/icon_continue_cluster_disabled.png');
     background-position: center center;
     background-repeat: no-repeat;
     width: 60px;
