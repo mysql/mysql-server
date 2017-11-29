@@ -1024,11 +1024,11 @@ ulint
 fsp_header_get_sdi_offset(
 	const page_size_t&	page_size);
 
-/** Determine if the tablespace contians an SDI.
+/** Determine if the tablespace has SDI.
 @param[in]	space_id	Tablespace id
-@retval		false		if there is no SDI
-@retval		true		if SDI is present */
-bool
+@return DB_SUCCESS if SDI is present else DB_ERROR
+or DB_TABLESPACE_NOT_FOUND */
+dberr_t
 fsp_has_sdi(space_id_t space_id);
 
 #endif
