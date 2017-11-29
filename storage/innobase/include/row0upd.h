@@ -32,6 +32,8 @@ Created 12/27/1996 Heikki Tuuri
 #include "btr0types.h"
 #include "dict0types.h"
 #include "trx0types.h"
+#include "lob0lob.h"
+#include "table.h"
 #include <stack>
 
 # include "btr0pcur.h"
@@ -289,6 +291,7 @@ Replaces the new column values stored in the update vector. */
 void
 row_upd_replace(
 /*============*/
+	trx_t*			trx,	/*!< in: current transaction. */
 	dtuple_t*		row,	/*!< in/out: row where replaced,
 					indexed by col_no;
 					the clustered index record must be
@@ -387,6 +390,7 @@ row_upd_changes_some_index_ord_field_binary(
 				user thread invokes dml */
 void
 row_upd_store_row(
+	trx_t*		trx,
 	upd_node_t*	node,
 	THD*		thd,
 	TABLE*		mysql_table);
@@ -458,10 +462,23 @@ struct upd_field_t{
 					value: it refers to column values and
 					constants in the symbol table of the
 					query graph */
+	dfield_t	old_val;	/*!< old value for the column */
 	dfield_t	new_val;	/*!< new value for the column */
 	dfield_t*	old_v_val;	/*!< old value for the virtual column */
+
+	Field*		mysql_field;	/*!< the mysql field object. */
+
+	/** If true, the field was stored externally in the old row. */
+	bool		ext_in_old;
+
+	std::ostream& print(std::ostream& out) const;
 };
 
+inline
+std::ostream& operator<<(std::ostream& out, const upd_field_t& obj)
+{
+	return(obj.print(out));
+}
 
 /* check whether an update field is on virtual column */
 #define upd_fld_is_virtual_col(upd_fld)			\
@@ -478,6 +495,9 @@ struct upd_t{
 					default is 0 */
 	dtuple_t*	old_vrow;	/*!< pointer to old row, used for
 					virtual column update now */
+	dict_table_t*	table;		/*!< the table object */
+	TABLE*		mysql_table;	/*!< the mysql table object */
+
 	ulint		n_fields;	/*!< number of update fields */
 	upd_field_t*	fields;		/*!< array of update fields */
 
@@ -500,6 +520,13 @@ struct upd_t{
 		return(false);
 	}
 
+	/** Get field by field number.
+	@param[in]	field_no	the field number.
+	@return the updated field information. */
+	upd_field_t*
+	get_upd_field(
+		ulint	field_no) const;
+
 #ifdef UNIV_DEBUG
         bool validate() const
         {
@@ -514,7 +541,58 @@ struct upd_t{
         }
 #endif // UNIV_DEBUG
 
+	/** Check if the given field number is partially updated.
+	@param[in]	field_no	the field number.
+	@return true if partially updated, false otherwise. */
+	bool is_partially_updated(ulint field_no) const;
+
+	upd_field_t* get_field_by_field_no(
+		ulint field_no, dict_index_t* index) const;
+
+	const Binary_diff_vector*
+	get_binary_diff_by_field_no(ulint field_no) const;
+
+	std::ostream& print(std::ostream& out) const;
+	std::ostream& print_puvect(std::ostream& out) const;
 };
+
+#ifdef UNIV_DEBUG
+/** Print the given binary diff into the given output stream.
+@param[in]	out	the output stream
+@param[in]	bdiff	binary diff to be printed.
+@param[in]	table	the table dictionary object.
+@param[in]	field	mysql field object.
+@return the output stream */
+std::ostream&
+print_binary_diff(
+	std::ostream&		out,
+	const Binary_diff*	bdiff,
+	const dict_table_t*	table,
+	const Field*		field);
+
+std::ostream&
+print_binary_diff(
+	std::ostream&		out,
+	const Binary_diff*	bdiff);
+
+inline
+std::ostream&
+operator<<(
+	std::ostream&	out,
+	const upd_t&	obj)
+{
+	return(obj.print(out));
+}
+
+inline
+std::ostream&
+operator<<(
+	std::ostream&			out,
+	const Binary_diff_vector&	obj)
+{
+	return(out);
+}
+#endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
 /* Update node structure which also implements the delete operation

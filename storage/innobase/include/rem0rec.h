@@ -878,6 +878,7 @@ private:
 	/** Assignment operator */
 	rec_printer& operator=(const rec_printer& other);
 };
+# endif /* UNIV_DEBUG */
 
 /************************************************************//**
 Reads the DB_TRX_ID of a clustered index record.
@@ -888,7 +889,6 @@ rec_get_trx_id(
 	const rec_t*		rec,	/*!< in: record */
 	const dict_index_t*	index)	/*!< in: clustered index */
 	MY_ATTRIBUTE((warn_unused_result));
-# endif /* UNIV_DEBUG */
 #endif /* UNIV_HOTBACKUP */
 
 /* Maximum lengths for the data in a physical record if the offsets

@@ -17,8 +17,9 @@
 ///
 /// This file implements the difference functor and function.
 
-#include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
+
+#include <boost/geometry.hpp>
 
 #include "sql/gis/difference_functor.h"
 #include "sql/gis/disjoint_functor.h"

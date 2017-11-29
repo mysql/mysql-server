@@ -1764,7 +1764,8 @@ rtr_node_ptr_delete(
 	dberr_t		err;
 
 	compressed = btr_cur_pessimistic_delete(&err, TRUE, cursor,
-						BTR_CREATE_FLAG, false, mtr);
+						BTR_CREATE_FLAG, false,
+						0, 0, 0, mtr);
 	ut_a(err == DB_SUCCESS);
 
 	if (!compressed) {

@@ -13,6 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-SET(DBUG_SOURCES dbug.c)
+SET(DBUG_SOURCES dbug.c trace.cc)
 ADD_CONVENIENCE_LIBRARY(dbug ${DBUG_SOURCES})
 TARGET_LINK_LIBRARIES(dbug mysys)

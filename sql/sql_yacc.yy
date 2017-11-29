@@ -53,6 +53,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/item_create.h"
 #include "sql/item_geofunc.h"
 #include "sql/item_json_func.h"
+#include "sql/item_regexp_func.h"
 #include "sql/key_spec.h"
 #include "sql/keycaches.h"
 #include "sql/lex_symbol.h"
@@ -8977,11 +8978,18 @@ predicate:
           }
         | bit_expr REGEXP bit_expr
           {
-            $$= NEW_PTN Item_func_regex(@$, $1, $3);
+            auto args= NEW_PTN PT_item_list;
+            args->push_back($1);
+            args->push_back($3);
+
+            $$= NEW_PTN Item_func_regexp_like(@1, args);
           }
         | bit_expr not REGEXP bit_expr
           {
-            Item *item= NEW_PTN Item_func_regex(@$, $1, $4);
+            auto args= NEW_PTN PT_item_list;
+            args->push_back($1);
+            args->push_back($4);
+            Item *item= NEW_PTN Item_func_regexp_like(@$, args);
             $$= NEW_PTN PTI_negate_expression(@$, item);
           }
         | bit_expr
@@ -14603,7 +14611,10 @@ role_or_privilege:
         | FILE_SYM
           { $$= NEW_PTN PT_static_privilege(@1, FILE_ACL); }
         | GRANT OPTION
-          { $$= NEW_PTN PT_static_privilege(@1, GRANT_ACL); }
+          {
+            $$= NEW_PTN PT_static_privilege(@1, GRANT_ACL);
+            Lex->grant_privilege= true;
+          }
         | SHOW DATABASES
           { $$= NEW_PTN PT_static_privilege(@1, SHOW_DB_ACL); }
         | SUPER_SYM

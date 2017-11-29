@@ -1,5 +1,5 @@
-#ifndef GIS__RING_FLIP_VISITOR_H_INCLUDED
-#define GIS__RING_FLIP_VISITOR_H_INCLUDED
+#ifndef SQL_GIS_RING_FLIP_VISITOR_H_INCLUDED
+#define SQL_GIS_RING_FLIP_VISITOR_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -16,7 +16,7 @@
 // this program; if not, write to the Free Software Foundation, 51 Franklin
 // Street, Suite 500, Boston, MA 02110-1335 USA.
 
-#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/geometry_visitor.h"
 
 namespace gis {
@@ -61,4 +61,4 @@ class Ring_flip_visitor : public Nop_visitor {
 
 }  // namespace gis
 
-#endif  // GIS__RING_FLIP_VISITOR_H_INCLUDED
+#endif  // SQL_GIS_RING_FLIP_VISITOR_H_INCLUDED

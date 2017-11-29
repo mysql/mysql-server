@@ -198,4 +198,9 @@ malloc_unordered_map<std::string, st_bookmark *>* get_bookmark_hash();
 
 bool end_transaction(THD *thd, bool error);
 
+/**
+  Initialize one plugin.
+*/
+bool plugin_early_load_one(int *argc, char **argv, const char *plugin);
+
 #endif

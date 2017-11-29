@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -61,6 +61,8 @@ struct fts_psort_t;
 /** Common info passed to each parallel sort thread */
 struct fts_psort_common_t {
 	row_merge_dup_t*	dup;		/*!< descriptor of FTS index */
+	dict_table_t*		old_table;	/*!< Needed to fetch LOB from
+						old table. */
 	dict_table_t*		new_table;	/*!< source table */
 	trx_t*			trx;		/*!< transaction */
 	fts_psort_t*		all_info;	/*!< all parallel sort info */
@@ -188,6 +190,9 @@ row_fts_psort_info_init(
 	trx_t*			trx,	/*!< in: transaction */
 	row_merge_dup_t*	dup,	/*!< in,own: descriptor of
 					FTS index being created */
+	const dict_table_t*	old_table,
+					/*!< in: Needed to fetch LOB from old
+					table */
 	const dict_table_t*	new_table,/*!< in: table where indexes are
 					created */
 	ibool			opt_doc_id_size,

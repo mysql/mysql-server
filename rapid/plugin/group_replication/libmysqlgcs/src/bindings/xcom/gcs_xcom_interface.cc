@@ -90,6 +90,15 @@ Gcs_interface *Gcs_xcom_interface::get_interface()
 {
   if (interface_reference_singleton == NULL)
   {
+
+#ifdef SAFE_MUTEX
+    /*
+      Must invoke this function in order for safe mutexes to be used when GCS is
+      used without the server, like in unit or JET tests.
+    */
+    safe_mutex_global_init();
+#endif
+
     interface_reference_singleton= new Gcs_xcom_interface();
   }
 
@@ -237,11 +246,14 @@ Gcs_xcom_interface::initialize(const Gcs_interface_parameters &interface_params)
     return GCS_OK;
 
   register_gcs_thread_psi_keys();
+  register_gcs_mutex_cond_psi_keys();
 
   last_config_id.group_id= 0;
 
-  m_wait_for_ssl_init_mutex.init(NULL);
-  m_wait_for_ssl_init_cond.init();
+  m_wait_for_ssl_init_mutex.init(
+    key_GCS_MUTEX_Gcs_xcom_interface_m_wait_for_ssl_init_mutex, NULL);
+  m_wait_for_ssl_init_cond.init(
+    key_GCS_COND_Gcs_xcom_interface_m_wait_for_ssl_init_cond);
 
   /*
     Initialize logging sub-systems.

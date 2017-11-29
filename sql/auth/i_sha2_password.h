@@ -62,6 +62,8 @@ namespace sha2_password
   const size_t MIN_STORED_DIGEST_ROUNDS= ROUNDS_MIN;
   const size_t DEFAULT_STORED_DIGEST_ROUNDS= ROUNDS_DEFAULT;
   const size_t MAX_STORED_DIGEST_ROUNDS= ROUNDS_MAX;
+  /* Maximum password length */
+  const size_t CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH= MAX_PLAINTEXT_LENGTH;
 
 
   typedef struct sha2_cache_entry

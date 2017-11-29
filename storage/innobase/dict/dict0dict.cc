@@ -7289,7 +7289,7 @@ DDTableBuffer::replace(
 			flags, btr_pcur_get_btr_cur(&pcur),
 			&cur_offsets, &m_dynamic_heap,
 			m_dynamic_heap, &big_rec, update,
-			0, NULL, 0, &mtr);
+			0, NULL, 0, 0, &mtr);
 		ut_a(error == DB_SUCCESS);
 		/* We don't have big rec in this table */
 		ut_ad(!big_rec);
@@ -7325,11 +7325,11 @@ DDTableBuffer::remove(
 	if (!page_rec_is_infimum(btr_pcur_get_rec(&pcur))
 	    && btr_pcur_get_low_match(&pcur) == m_index->n_uniq) {
 
-	DEBUG_SYNC_C("delete_metadata_before");
+		DEBUG_SYNC_C("delete_metadata_before");
 
 		btr_cur_pessimistic_delete(
 			&error, false, btr_pcur_get_btr_cur(&pcur),
-			BTR_CREATE_FLAG, false, &mtr);
+			BTR_CREATE_FLAG, false, 0, 0, 0, &mtr);
 		ut_ad(error == DB_SUCCESS);
 	}
 

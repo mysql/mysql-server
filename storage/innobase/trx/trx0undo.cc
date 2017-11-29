@@ -311,6 +311,7 @@ trx_undo_get_next_rec(
 }
 
 /** Gets the first record in an undo log.
+@param[out]	modifier_trx_id	the modifier trx identifier.
 @param[in]	space		undo log header space
 @param[in]	page_size	page size
 @param[in]	page_no		undo log header page number
@@ -320,6 +321,7 @@ trx_undo_get_next_rec(
 @return undo log record, the page latched, NULL if none */
 trx_undo_rec_t*
 trx_undo_get_first_rec(
+	trx_id_t*		modifier_trx_id,
 	space_id_t		space,
 	const page_size_t&	page_size,
 	page_no_t		page_no,
@@ -337,6 +339,11 @@ trx_undo_get_first_rec(
 			page_id, page_size, mtr);
 	} else {
 		undo_page = trx_undo_page_get(page_id, page_size, mtr);
+	}
+
+	if (modifier_trx_id != nullptr) {
+		trx_ulogf_t*	undo_header = undo_page + offset;
+		*modifier_trx_id = mach_read_from_8(undo_header + TRX_UNDO_TRX_ID);
 	}
 
 	rec = trx_undo_page_get_first_rec(undo_page, page_no, offset);
@@ -1107,7 +1114,7 @@ loop:
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	}
 
-	rec = trx_undo_get_first_rec(rseg->space_id, rseg->page_size,
+	rec = trx_undo_get_first_rec(nullptr, rseg->space_id, rseg->page_size,
 				     hdr_page_no, hdr_offset,
 				     RW_X_LATCH, &mtr);
 	if (rec == NULL) {

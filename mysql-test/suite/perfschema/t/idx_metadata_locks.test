@@ -17,8 +17,13 @@ lock table explain_test_db.explain_test_table write;
 
 select OBJECT_INSTANCE_BEGIN, OWNER_THREAD_ID, OWNER_EVENT_ID
    from performance_schema.metadata_locks
-   limit 1
+   where OBJECT_SCHEMA = 'explain_test_db'
+   and OBJECT_NAME = 'explain_test_table'
+   and LOCK_STATUS = 'GRANTED'
    into @oib, @o_tid, @o_eid;
+
+# Make sure we found the metadata lock to test.
+select @oib is not null, @o_tid is not null, @o_eid is not null;
 
 ###########################################################################
 # Test index on OBJECT_INSTANCE_BEGIN

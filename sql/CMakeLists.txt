@@ -18,6 +18,8 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
 )
 
+INCLUDE_DIRECTORIES(SYSTEM ${ICU_INCLUDE_DIRS})
+
 SET(CONF_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc 
 )
@@ -26,7 +28,7 @@ SET(GEN_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
+  ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
 )
 SET(GEN_DIGEST_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h 
@@ -207,6 +209,7 @@ SET(SQL_GIS_SOURCES
   gis/gc_utils.cc
   gis/geometries.cc
   gis/intersects.cc
+  gis/length.cc
   gis/mbr_utils.cc
   gis/overlaps.cc
   gis/ring_flip_visitor.cc
@@ -286,6 +289,7 @@ SET(SQL_SHARED_SOURCES
   item_create.cc
   item_func.cc
   item_json_func.cc
+  item_regexp_func.cc
   item_row.cc 
   item_strfunc.cc
   item_subselect.cc
@@ -305,6 +309,7 @@ SET(SQL_SHARED_SOURCES
   locking_service.cc
   log.cc
   mdl.cc
+  migrate_keyring.cc
   my_decimal.cc
   mysqld.cc
   mysqld_thd_manager.cc
@@ -340,6 +345,9 @@ SET(SQL_SHARED_SOURCES
   psi_memory_key.cc
   query_result.cc
   records.cc
+  regexp/errors.cc
+  regexp/regexp_engine.cc
+  regexp/regexp_facade.cc
   resourcegroups/thread_resource_control.cc
   resourcegroups/platform/thread_attrs_api_common.cc
   resourcegroups/resource_group_mgr.cc
@@ -456,6 +464,7 @@ SET(SQL_SHARED_SOURCES
   ${MYSQL_SERVER_SUB_COMPONENT_SOURCES}
 )
 
+
 # Needed so that IDEs (e.g. Xcode) can see all sources when searching
 FILE(GLOB_RECURSE SQL_HEADERS
   "${CMAKE_SOURCE_DIR}/include/*.h"
@@ -501,6 +510,7 @@ SET(SQL_SOURCE
   ../sql-common/client.cc
   ../sql-common/client_plugin.c
   ../sql-common/client_authentication.cc
+  ../sql-common/get_password.cc
   ../sql-common/net_serv.cc
   ../sql-common/sql_string.cc 
   command_service.cc
@@ -704,7 +714,7 @@ ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio regex
+  ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio
   binlogevents_static ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
 
 ADD_CONVENIENCE_LIBRARY(sql_gis ${SQL_GIS_SOURCES})
@@ -804,7 +814,6 @@ IF(NOT DISABLE_SHARED)
       "$<TARGET_FILE:dbug>"
       "$<TARGET_FILE:mysys>"
       "$<TARGET_FILE:mysys_ssl>"
-      "$<TARGET_FILE:regex>"
       "$<TARGET_FILE:slave>"
       "$<TARGET_FILE:sql_main>"
       "$<TARGET_FILE:strings>"
@@ -818,7 +827,8 @@ ENDIF()
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
 TARGET_LINK_LIBRARIES(mysqld
   sql_main sql_gis binlog rpl master slave sql_main sql_gis mysys mysys_ssl
-  binlogevents_static)
+  binlogevents_static ${ICU_LIBRARIES}
+)
 
 # Remove transitive link dependencies when linking plugins
 SET_TARGET_PROPERTIES(mysqld PROPERTIES INTERFACE_LINK_LIBRARIES "")

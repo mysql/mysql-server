@@ -103,13 +103,32 @@ DROP TABLE t1;
 
 # 3.1. Test giving an empty lc-messages-dir and verify that the
 #      server makes use of builtin english messages when the
-#      language files(errmsg.sys) are not found
+#      language files (errmsg.sys) are not found
 #--------------------------------------------------------------
 --let LOG_FILE8 = $MYSQLTEST_VARDIR/tmp/wl9344.err
 --let $MSG_DIR = $MYSQLTEST_VARDIR/tmp/empty_lcmsgsdir
 --mkdir $MSG_DIR
 --let restart_parameters="restart: --log-error=$LOG_FILE8 --lc-messages-dir=$MSG_DIR --log-error-verbosity=3"
 --replace_result $LOG_FILE8 LOG_FILE8 $MSG_DIR MSG_DIR
+--source include/restart_mysqld.inc
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con4,localhost,unknown_user,,*NO-ONE*);
+--rmdir $MSG_DIR
+
+
+# Related:
+#
+# Bug#26576922: SERVER DOESN'T ALWAYS FALL BACK TO DEFAULT ERROR MESSAGES
+#
+#      Test giving an empty lc-messages and verify that the
+#      server makes use of builtin english messages when the
+#      language files (errmsg.sys) are not found
+#--------------------------------------------------------------
+--let LOG_FILE8B = $MYSQLTEST_VARDIR/tmp/bug26576922.err
+--mkdir $MSG_DIR
+--let restart_parameters="restart: --log-error=$LOG_FILE8B --lc-messages=invalid_arg1 --lc-time-names=invalid_arg2"
+--replace_result $LOG_FILE8B LOG_FILE8B $MSG_DIR MSG_DIR
 --source include/restart_mysqld.inc
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
@@ -437,6 +456,7 @@ EOF
 --remove_file $LOG_FILE5
 --remove_file $LOG_FILE7
 --remove_file $LOG_FILE8
+--remove_file $LOG_FILE8B
 --remove_file $LOG_FILE9
 --remove_file $LOG_FILE10
 --remove_file $LOG_FILE11

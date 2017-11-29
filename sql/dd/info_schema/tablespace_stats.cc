@@ -213,7 +213,7 @@ bool Tablespace_statistics::read_stat_from_SE(
                    MDL_key::TABLESPACE,
                    "",
                    tablespace_name_ptr.ptr(),
-                   MDL_SHARED_HIGH_PRIO, MDL_EXPLICIT);
+                   MDL_SHARED, MDL_EXPLICIT);
 
   // Push deadlock error handler
   bool error= false;

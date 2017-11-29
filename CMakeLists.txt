@@ -265,6 +265,7 @@ INCLUDE(zlib)
 INCLUDE(lz4)
 INCLUDE(lzma)
 INCLUDE(re2)
+INCLUDE(icu)
 INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(readline)
@@ -679,6 +680,8 @@ MYSQL_CHECK_LZ4()
 MYSQL_CHECK_LZMA()
 # Add re2 library
 MYSQL_CHECK_RE2()
+# Add icu library
+MYSQL_CHECK_ICU()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
@@ -879,6 +882,7 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
     PATTERN "myisam.txt" EXCLUDE
     PATTERN "mysql.info" EXCLUDE
     PATTERN "sp-imp-spec.txt" EXCLUDE
+    PATTERN "README.build" EXCLUDE
   )
 ENDIF()
 

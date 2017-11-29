@@ -83,8 +83,6 @@
 -->callmacro Correct_path_to_member	$.\"#path\"
 -->callmacro Correct_path_to_member	$.\"#\"[1]
 -->callmacro Correct_path_to_member	$.\"\"
--->callmacro Correct_path_to_member	$.łódź
--->callmacro Correct_path_to_member	$.część
 -->callmacro Correct_path_to_member	$**.path
 -->callmacro Correct_path_to_member	$**[1]
 -->callmacro Correct_path_to_member	$.path**.path

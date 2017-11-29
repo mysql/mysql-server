@@ -14,6 +14,8 @@
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
+%global milestone       rc
+
 %global mysql_vendor    Oracle and/or its affiliates
 %global mysqldatadir    /var/lib/mysql
 
@@ -84,7 +86,7 @@
 Name:           mysql%{?cluster:-cluster}-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
-Version:        @MYSQL_RPM_VERSION@
+Version:        @MYSQL_NO_DASH_VERSION@
 Release:        0.1%{?milestone:.%{milestone}}%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
@@ -823,6 +825,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_clone.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
@@ -833,6 +836,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_clone.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
@@ -955,35 +959,35 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_waiter
 %attr(755, root, root) %{_bindir}/ndbinfo_select_all
 
-#%attr(644, root, root) %{_mandir}/man1/ndb-common-options.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_blob_tool.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_config.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_cpcd.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_delete_all.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_desc.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_drop_index.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_drop_table.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_error_reporter.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_import.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_index_stat.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_mgm.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_move_data.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_perror.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_print_backup_file.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_print_file.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_print_frag_file.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_print_schema_file.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_print_sys_file.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_restore.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_select_all.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_select_count.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_setup.py.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_show_tables.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_size.pl.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_top.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_waiter.1*
-#%attr(644, root, root) %{_mandir}/man1/ndb_redo_log_reader.1*
-#%attr(644, root, root) %{_mandir}/man1/ndbinfo_select_all.1*
+%attr(644, root, root) %{_mandir}/man1/ndb-common-options.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_blob_tool.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_config.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_cpcd.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_delete_all.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_desc.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_drop_index.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_drop_table.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_error_reporter.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_import.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_index_stat.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_mgm.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_move_data.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_perror.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_backup_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_frag_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_schema_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_sys_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_restore.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_select_all.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_select_count.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_setup.py.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_show_tables.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_size.pl.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_top.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_waiter.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_redo_log_reader.1*
+%attr(644, root, root) %{_mandir}/man1/ndbinfo_select_all.1*
 %endif #cluster
 
 %files devel
@@ -1163,15 +1167,15 @@ fi
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(755, root, root) %{_sbindir}/ndb_mgmd
-#%attr(644, root, root) %{_mandir}/man8/ndb_mgmd.8*
+%attr(644, root, root) %{_mandir}/man8/ndb_mgmd.8*
 
 %files data-node
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(755, root, root) %{_sbindir}/ndbd
 %attr(755, root, root) %{_sbindir}/ndbmtd
-#%attr(644, root, root) %{_mandir}/man8/ndbd.8*
-#%attr(644, root, root) %{_mandir}/man8/ndbmtd.8*
+%attr(644, root, root) %{_mandir}/man8/ndbd.8*
+%attr(644, root, root) %{_mandir}/man8/ndbmtd.8*
 
 %files auto-installer
 %defattr(-, root, root, -)

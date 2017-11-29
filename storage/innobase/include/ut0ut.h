@@ -30,6 +30,8 @@ Created 1/20/1994 Heikki Tuuri
 
 #include <ostream>
 #include <sstream>
+#include <algorithm>
+#include <iterator>
 #include <string.h>
 
 #include "db0err.h"

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -79,4 +79,27 @@ ut_strlcpy_rev(
 	char*		dst,	/*!< in: destination buffer */
 	const char*	src,	/*!< in: source buffer */
 	ulint		size);	/*!< in: size of destination buffer */
+
+struct PrintBuffer
+{
+	PrintBuffer(const void* buf, ulint len)
+	: m_buf(buf), m_len(len)
+	{}
+
+	std::ostream& print(std::ostream& out) const {
+		if (m_buf != nullptr) {
+			ut_print_buf(out, m_buf, m_len);
+		}
+		return(out);
+	}
+private:
+	const void* m_buf;
+	ulint m_len;
+};
+
+inline
+std::ostream& operator<< (std::ostream& out, const PrintBuffer& obj) {
+	return(obj.print(out));
+}
+
 #endif

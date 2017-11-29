@@ -5,8 +5,13 @@ lock table explain_test_db.explain_test_table write;
 # Connection default
 select OBJECT_INSTANCE_BEGIN, OWNER_THREAD_ID, OWNER_EVENT_ID
 from performance_schema.metadata_locks
-limit 1
-into @oib, @o_tid, @o_eid;
+where OBJECT_SCHEMA = 'explain_test_db'
+   and OBJECT_NAME = 'explain_test_table'
+   and LOCK_STATUS = 'GRANTED'
+   into @oib, @o_tid, @o_eid;
+select @oib is not null, @o_tid is not null, @o_eid is not null;
+@oib is not null	@o_tid is not null	@o_eid is not null
+1	1	1
 
 ====================================================================
 Testing index for columns OBJECT_INSTANCE_BEGIN
@@ -226,7 +231,6 @@ from performance_schema.metadata_locks
 where OWNER_THREAD_ID = @o_tid
 and OWNER_EVENT_ID = @o_eid;
 LOCK_TYPE
-#
 #
 OK: handler_read_key incremented
 # Connection con1

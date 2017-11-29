@@ -576,7 +576,7 @@ dtuple_create_with_vcol(
 	ut_ad(heap);
 
 	buf_size = DTUPLE_EST_ALLOC(n_fields + n_v_fields);
-	buf = mem_heap_alloc(heap, buf_size);
+	buf = mem_heap_zalloc(heap, buf_size);
 
 	tuple = dtuple_create_from_mem(buf, buf_size, n_fields, n_v_fields);
 

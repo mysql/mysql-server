@@ -18,10 +18,11 @@
 
 #include "my_config.h"
 
+#include <atomic>
 #include <signal.h>
+#include <stdint.h>  // int32_t
 #include <sys/types.h>
 #include <time.h>
-#include <atomic>
 
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -159,6 +160,9 @@ extern bool opt_local_infile, opt_myisam_use_mmap;
 extern bool opt_slave_compressed_protocol;
 extern ulong slave_exec_mode_options;
 extern Rpl_global_filter rpl_global_filter;
+extern int32_t opt_regexp_time_limit;
+extern int32_t opt_regexp_stack_limit;
+
 
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
@@ -331,6 +335,20 @@ extern uint host_cache_size;
 extern ulong log_error_verbosity;
 
 extern bool persisted_globals_load;
+extern bool opt_keyring_operations;
+extern char *opt_keyring_migration_user;
+extern char *opt_keyring_migration_host;
+extern char *opt_keyring_migration_password;
+extern char *opt_keyring_migration_socket;
+extern char *opt_keyring_migration_source;
+extern char *opt_keyring_migration_destination;
+extern ulong opt_keyring_migration_port;
+/**
+  Variable to check if connection related options are set
+  as part of keyring migration.
+*/
+extern bool migrate_connect_options;
+
 
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 
@@ -629,6 +647,7 @@ extern mysql_mutex_t LOCK_default_password_lifetime;
 extern mysql_mutex_t LOCK_server_started;
 extern mysql_mutex_t LOCK_reset_gtid_table;
 extern mysql_mutex_t LOCK_compress_gtid_table;
+extern mysql_mutex_t LOCK_keyring_operations;
 
 extern mysql_cond_t COND_server_started;
 extern mysql_cond_t COND_compress_gtid_table;

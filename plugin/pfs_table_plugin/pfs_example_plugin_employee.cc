@@ -304,6 +304,11 @@ pfs_example_plugin_employee_init(void *p)
   mysql_mutex_init(0, &LOCK_esalary_records_array, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(0, &LOCK_machine_records_array, MY_MUTEX_INIT_FAST);
 
+  /* In case the plugin has been unloaded, and reloaded */
+  ename_delete_all_rows();
+  esalary_delete_all_rows();
+  machine_delete_all_rows();
+
   result = pfs_example_func(reinterpret_cast<MYSQL_PLUGIN>(p)) ? 1 : 0;
 
   if (result)

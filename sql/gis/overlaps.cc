@@ -17,10 +17,11 @@
 ///
 /// This file implements the overlaps functor and function.
 
-#include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
 
-#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include <boost/geometry.hpp>
+
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/box.h"
 #include "sql/gis/box_traits.h"
 #include "sql/gis/gc_utils.h"
@@ -29,7 +30,7 @@
 #include "sql/gis/mbr_utils.h"
 #include "sql/gis/overlaps_functor.h"
 #include "sql/gis/relops.h"
-#include "sql/sql_exception_handler.h" // handle_gis_exception
+#include "sql/sql_exception_handler.h"  // handle_gis_exception
 
 namespace bg = boost::geometry;
 

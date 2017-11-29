@@ -82,7 +82,9 @@ public:
     m_thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
 
     // Backup open tables state.
-    m_thd->reset_n_backup_open_tables_state(&m_open_tables_state_backup, 0);
+    m_open_tables_state_backup.set_open_tables_state(m_thd);
+    m_thd->reset_open_tables_state();
+    m_thd->state_flags|= (Open_tables_state::BACKUPS_AVAIL);
   }
 
   ~View_metadata_updater_context()
@@ -94,7 +96,7 @@ public:
     m_thd->variables.sql_mode= m_saved_sql_mode;
 
     // Restore open tables state.
-    m_thd->restore_backup_open_tables_state(&m_open_tables_state_backup);
+    m_thd->set_open_tables_state(&m_open_tables_state_backup);
 
     // Restore lex.
     m_thd->lex->unit->cleanup(true);
@@ -105,8 +107,6 @@ public:
     // While opening views, there is chance of hitting deadlock error. Returning
     // error in this case and resetting transaction_rollback_request here.
     m_thd->transaction_rollback_request= false;
-
-    DEBUG_SYNC(m_thd, "view_metadata_updater_context_dtor");
   }
 
 private:
@@ -561,6 +561,7 @@ static bool open_views_and_update_metadata(
     lex_end(view_lex);
     thd->lex= org_lex;
   }
+  DEBUG_SYNC(thd, "after_updating_view_metadata");
 
   DBUG_RETURN(false);
 }

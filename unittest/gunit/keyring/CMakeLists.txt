@@ -46,6 +46,7 @@ SET(SRC_FILES)
 LIST(APPEND SRC_FILES
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_iterator.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
@@ -70,9 +71,10 @@ IF (MERGE_UNITTESTS)
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t keyring_test)
 
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
-    gunit_large strings dbug regex mysys sql_main sql_gis)
+    gunit_large strings dbug mysys sql_main sql_gis)
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
     sql_main binlog rpl master slave sql_gis sql_main)
+  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t ${ICU_LIBRARIES})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t perfschema)
@@ -87,9 +89,10 @@ FOREACH(test ${TESTS})
   TARGET_LINK_LIBRARIES(${test}-t keyring_test)
 
   TARGET_LINK_LIBRARIES(${test}-t
-    gunit_large strings dbug regex mysys sql_main sql_gis)
+    gunit_large strings dbug mysys sql_main sql_gis)
   TARGET_LINK_LIBRARIES(${test}-t
     sql_main binlog rpl master slave sql_main sql_gis)
+  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(${test}-t perfschema)

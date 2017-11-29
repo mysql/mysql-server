@@ -721,32 +721,37 @@ trx_undo_rec_skip_row_ref(
 
 #ifdef UNIV_DEBUG
 # define trx_undo_page_fetch_ext(					\
-		ext_buf, prefix_len, page_size, field, is_sdi, len)	\
+		trx, index, ext_buf, prefix_len, page_size, field,	\
+		is_sdi, len)						\
 	trx_undo_page_fetch_ext_func(					\
-		ext_buf, prefix_len, page_size, field, is_sdi, len)
+		trx, index, ext_buf, prefix_len, page_size, field,	\
+		is_sdi, len)
 
 # define trx_undo_page_report_modify_ext(				\
-		ptr, ext_buf, prefix_len, page_size, field, len,	\
-		is_sdi, spatial_status)					\
+		trx, index, ptr, ext_buf, prefix_len, page_size, field,	\
+		len, is_sdi, spatial_status)				\
 	trx_undo_page_report_modify_ext_func(				\
-		ptr, ext_buf, prefix_len, page_size, field, len,	\
-		is_sdi, spatial_status)
+		trx, index, ptr, ext_buf, prefix_len, page_size, field, \
+		len, is_sdi, spatial_status)
 #else /* UNIV_DEBUG */
 # define trx_undo_page_fetch_ext(					\
-		ext_buf, prefix_len, page_size, field, is_sdi, len)	\
+		trx, index, ext_buf, prefix_len, page_size, field,	\
+		is_sdi, len)						\
 	trx_undo_page_fetch_ext_func(					\
-		ext_buf, prefix_len, page_size, field, len)
+		trx, index, ext_buf, prefix_len, page_size, field, len)
 
 # define trx_undo_page_report_modify_ext(				\
-		ptr, ext_buf, prefix_len, page_size, field, len,	\
-		is_sdi, spatial_status)					\
+		trx, index, ptr, ext_buf, prefix_len, page_size, field, \
+                len, is_sdi, spatial_status)				\
 	trx_undo_page_report_modify_ext_func(				\
-		ptr, ext_buf, prefix_len, page_size, field, len,	\
-		spatial_status)
+		trx, index, ptr, ext_buf, prefix_len, page_size, field, \
+		len, spatial_status)
 #endif /* UNIV_DEBUG */
 
 /** Fetch a prefix of an externally stored column, for writing to the undo
 log of an update or delete marking of a clustered index record.
+@param[in]	trx		transaction object
+@param[in]	index		the clustered index object
 @param[out]	ext_buf		buffer to hold the prefix data and BLOB pointer
 @param[in]	prefix_len	prefix size to store in the undo log
 @param[in]	page_size	page size
@@ -758,6 +763,8 @@ ext_buf
 static
 byte*
 trx_undo_page_fetch_ext_func(
+	trx_t*			trx,
+	dict_index_t*		index,
 	byte*			ext_buf,
 	ulint			prefix_len,
 	const page_size_t&	page_size,
@@ -769,10 +776,22 @@ trx_undo_page_fetch_ext_func(
 {
 	/* Fetch the BLOB. */
 	ulint	ext_len = lob::btr_copy_externally_stored_field_prefix(
-		ext_buf, prefix_len, page_size, field, is_sdi, *len);
+		index, ext_buf, prefix_len, page_size, field,
+		is_sdi, *len);
+
+#ifdef UNIV_DEBUG
+	if (ext_len == 0) {
+		byte* field_ref = const_cast<byte*>(field) + (*len)
+			- lob::ref_t::SIZE;
+		lob::ref_t ref(field_ref);
+		lob::ref_mem_t ref_mem;
+		ref.parse(ref_mem);
+		lob::print(trx, index, std::cout, ref, true);
+	}
+#endif /* UNIV_DEBUG */
 
 	/* BLOBs should always be nonempty. */
-	ut_a(ext_len);
+	ut_a(ext_len > 0);
 	/* Append the BLOB pointer to the prefix. */
 	memcpy(ext_buf + ext_len,
 	       field + *len - BTR_EXTERN_FIELD_REF_SIZE,
@@ -782,8 +801,10 @@ trx_undo_page_fetch_ext_func(
 }
 
 /** Writes to the undo log a prefix of an externally stored column.
+@param[in]	trx		transaction object
+@param[in]	index		the clustered index object
 @param[out]	ptr		undo log position, at least 15 bytes must be
-available
+				available
 @param[out]	ext_buf		a buffer of DICT_MAX_FIELD_LEN_BY_FORMAT()
 				size, or NULL when should not fetch a longer
 				prefix
@@ -799,6 +820,8 @@ stored column
 static
 byte*
 trx_undo_page_report_modify_ext_func(
+	trx_t*			trx,
+	dict_index_t*		index,
 	byte*			ptr,
 	byte*			ext_buf,
 	ulint			prefix_len,
@@ -846,7 +869,8 @@ trx_undo_page_report_modify_ext_func(
 
 		ptr += mach_write_compressed(ptr, *len);
 
-		*field = trx_undo_page_fetch_ext(ext_buf, prefix_len,
+		*field = trx_undo_page_fetch_ext(trx, index, ext_buf,
+						 prefix_len,
 						 page_size, *field, is_sdi,
 						 len);
 
@@ -860,6 +884,8 @@ trx_undo_page_report_modify_ext_func(
 }
 
 /** Get MBR from a Geometry column stored externally
+@param[in]	trx		transaction object
+@param[in]	index		the clustered index object
 @param[out]	mbr		MBR to fill
 @param[in]	page_size	table pagesize
 @param[in]	field		field contain the geometry data
@@ -870,6 +896,8 @@ static
 void
 trx_undo_get_mbr_from_ext(
 /*======================*/
+	trx_t*			trx,
+	dict_index_t*		index,
 	double*			mbr,
 	const page_size_t&      page_size,
 	const byte*             field,
@@ -881,7 +909,7 @@ trx_undo_get_mbr_from_ext(
 	mem_heap_t*	heap = mem_heap_create(100);
 
 	dptr = lob::btr_copy_externally_stored_field(
-		&dlen, field, page_size, *len, false, heap);
+		index, &dlen, field, page_size, *len, false, heap);
 
 	if (dlen <= GEO_DATA_HEADER_SIZE) {
 		for (uint i = 0; i < SPDIMS; ++i) {
@@ -1159,7 +1187,7 @@ trx_undo_page_report_modify(
 				      <= sizeof ext_buf);
 
 				ptr = trx_undo_page_report_modify_ext(
-					ptr,
+					trx, index, ptr,
 					col->ord_part
 					&& !ignore_prefix
 					&& flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
@@ -1298,6 +1326,8 @@ trx_undo_page_report_modify(
 								col->mtype));
 
 						trx_undo_get_mbr_from_ext(
+							trx,
+							index,
 							mbr,
 							dict_table_page_size(
 								table),
@@ -1306,7 +1336,7 @@ trx_undo_page_report_modify(
 					}
 
 					ptr = trx_undo_page_report_modify_ext(
-						ptr,
+						trx, index, ptr,
 						flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
 						&& !ignore_prefix
 						? ext_buf : NULL, prefix_len,

@@ -823,7 +823,8 @@ DDL_Log_Table::remove(
 	offsets = rec_get_offsets(btr_pcur_get_rec(&pcur), clust_index, NULL,
 				  ULINT_UNDEFINED, &m_heap);
 
-	row = row_build(ROW_COPY_DATA, clust_index, btr_pcur_get_rec(&pcur),
+	row = row_build(ROW_COPY_DATA, clust_index,
+			btr_pcur_get_rec(&pcur),
 			offsets, NULL, NULL, NULL, NULL, m_heap);
 
 	rec = btr_cur_get_rec(btr_cur);

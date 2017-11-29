@@ -1,5 +1,5 @@
-#ifndef GIS__DISTANCE_H_INCLUDED
-#define GIS__DISTANCE_H_INCLUDED
+#ifndef SQL_GIS_DISTANCE_H_INCLUDED
+#define SQL_GIS_DISTANCE_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -21,7 +21,7 @@
 /// This file declares the interface to calculate distance between two
 /// geometries.
 
-#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/geometries.h"
 
 namespace gis {
@@ -48,4 +48,4 @@ bool distance(const dd::Spatial_reference_system *srs, const Geometry *g1,
 
 }  // namespace gis
 
-#endif  // GIS__DISTANCE_H_INCLUDED
+#endif  // SQL_GIS_DISTANCE_H_INCLUDED

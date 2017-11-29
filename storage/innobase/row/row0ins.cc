@@ -310,11 +310,12 @@ row_ins_sec_index_entry_by_modify(
 			return(DB_LOCK_TABLE_FULL);
 		}
 
+		trx_t* trx = thr_get_trx(thr);
 		err = btr_cur_pessimistic_update(
 			flags | BTR_KEEP_SYS_FLAG, cursor,
 			offsets, &offsets_heap,
 			heap, &dummy_big_rec, update, 0,
-			thr, thr_get_trx(thr)->id, mtr);
+			thr, trx->id, trx->undo_no, mtr);
 		ut_ad(!dummy_big_rec);
 	}
 
@@ -394,21 +395,23 @@ row_ins_clust_index_entry_by_modify(
 		}
 
 		big_rec_t*	big_rec	= NULL;
+		trx_t*		trx = thr_get_trx(thr);
+		trx_id_t	trx_id = thr_get_trx(thr)->id;
 
     DEBUG_SYNC_C("before_row_ins_upd_pessimistic");
 
 		err = btr_cur_pessimistic_update(
 			flags | BTR_KEEP_POS_FLAG,
 			cursor, offsets, offsets_heap, heap,
-			&big_rec, update, 0, thr, thr_get_trx(thr)->id, mtr);
+			&big_rec, update, 0, thr, trx_id, trx->undo_no, mtr);
 
 		if (big_rec) {
 			ut_a(err == DB_SUCCESS);
 
 			DEBUG_SYNC_C("before_row_ins_upd_extern");
 			err = lob::btr_store_big_rec_extern_fields(
-				pcur, update, *offsets, big_rec, mtr,
-				lob::OPCODE_INSERT_UPDATE);
+				trx, pcur, update, *offsets, big_rec,
+				mtr, lob::OPCODE_INSERT_UPDATE);
 			DEBUG_SYNC_C("after_row_ins_upd_extern");
 			dtuple_big_rec_free(big_rec);
 		}
@@ -916,6 +919,7 @@ row_ins_foreign_report_add_err(
 }
 
 /** Fill virtual column information in cascade node for the child table.
+@param[in]	trx		current transaction
 @param[out]	cascade		child update node
 @param[in]	rec		clustered rec of child table
 @param[in]	index		clustered index of child table
@@ -925,6 +929,7 @@ row_ins_foreign_report_add_err(
 static
 void
 row_ins_foreign_fill_virtual(
+	trx_t*			trx,
 	upd_node_t*		cascade,
 	const rec_t*		rec,
 	dict_index_t*		index,
@@ -1290,7 +1295,7 @@ row_ins_foreign_check_on_constraint(
 		if (foreign->v_cols != NULL
 		    && foreign->v_cols->size() > 0) {
 			row_ins_foreign_fill_virtual(
-				cascade, clust_rec, clust_index,
+				trx, cascade, clust_rec, clust_index,
 				node, foreign, &err);
 
 			if (err != DB_SUCCESS) {
@@ -1329,7 +1334,7 @@ row_ins_foreign_check_on_constraint(
 		if (foreign->v_cols != NULL
 		    && foreign->v_cols->size() > 0) {
 			row_ins_foreign_fill_virtual(
-				cascade, clust_rec, clust_index,
+				trx, cascade, clust_rec, clust_index,
 				node, foreign, &err);
 
 			if (err != DB_SUCCESS) {
@@ -2501,6 +2506,7 @@ row_ins_must_modify_rec(
 
 /** Insert the externally stored fields (off-page columns)
 of a clustered index entry.
+@param[in]	trx	current transaction
 @param[in]	entry	index entry to insert
 @param[in]	big_rec	externally stored fields
 @param[in,out]	offsets	rec_get_offsets()
@@ -2513,6 +2519,7 @@ of a clustered index entry.
 static
 dberr_t
 row_ins_index_entry_big_rec_func(
+	trx_t*			trx,	/*!< in: current transaction */
 	const dtuple_t*		entry,	/*!< in/out: index entry to insert */
 	const big_rec_t*	big_rec,/*!< in: externally stored fields */
 	ulint*			offsets,/*!< in/out: rec offsets */
@@ -2543,7 +2550,8 @@ row_ins_index_entry_big_rec_func(
 
 	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern");
 	error = lob::btr_store_big_rec_extern_fields(
-		&pcur, 0, offsets, big_rec, &mtr, lob::OPCODE_INSERT);
+		trx, &pcur, 0, offsets, big_rec, &mtr,
+		lob::OPCODE_INSERT);
 	DEBUG_SYNC_C_IF_THD(thd, "after_row_ins_extern");
 
 	if (error == DB_SUCCESS
@@ -2560,11 +2568,11 @@ row_ins_index_entry_big_rec_func(
 }
 
 #ifndef UNIV_DEBUG
-# define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd) \
-	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index)
+# define row_ins_index_entry_big_rec(trx,e,big,ofs,heap,index,thd) \
+	row_ins_index_entry_big_rec_func(trx, e,big,ofs,heap,index)
 #else /* UNIV_DEBUG */
-# define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd) \
-	row_ins_index_entry_big_rec_func(e,big,ofs,heap,thd,index)
+# define row_ins_index_entry_big_rec(trx,e,big,ofs,heap,index,thd) \
+	row_ins_index_entry_big_rec_func(trx,e,big,ofs,heap,thd,index)
 #endif /* UNIV_DEBUG */
 
 /** Update all the prebuilts working on this temporary table
@@ -2834,6 +2842,7 @@ err_exit:
 				log_make_checkpoint_at(
 					LSN_MAX, TRUE););
 			err = row_ins_index_entry_big_rec(
+				thr_get_trx(thr),
 				entry, big_rec, offsets, &offsets_heap, index,
 				thr_get_trx(thr)->mysql_thd);
 			dtuple_convert_back_big_rec(index, entry, big_rec);
@@ -2981,6 +2990,7 @@ row_ins_sorted_clust_index_entry(
 			index->last_ins_cur->disable_caching = true;
 
 			err = row_ins_index_entry_big_rec(
+				thr_get_trx(thr),
 				entry, big_rec, offsets, &offsets_heap, index,
 				thr_get_trx(thr)->mysql_thd);
 

@@ -40,6 +40,7 @@ Created 2/6/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "row0row.h"
 #include "row0upd.h"
+#include "row0ext.h"
 #include "row0vers.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -1089,7 +1090,8 @@ row_vers_old_has_index_entry(
 			/* The stack of versions is locked by mtr.
 			Thus, it is safe to fetch the prefixes for
 			externally stored columns. */
-			row = row_build(ROW_COPY_POINTERS, clust_index,
+			row = row_build(ROW_COPY_POINTERS,
+					clust_index,
 					prev_version, clust_offsets,
 					NULL, NULL, NULL, &ext, heap);
 

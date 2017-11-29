@@ -1,5 +1,5 @@
-#ifndef GIS__WITHIN_FUNCTOR_H_INCLUDED
-#define GIS__WITHIN_FUNCTOR_H_INCLUDED
+#ifndef SQL_GIS_WITHIN_FUNCTOR_H_INCLUDED
+#define SQL_GIS_WITHIN_FUNCTOR_H_INCLUDED
 
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
@@ -316,4 +316,4 @@ class Within : public Functor<bool> {
 
 }  // namespace gis
 
-#endif  // GIS__WITHIN_FUNCTOR_H_INCLUDED
+#endif  // SQL_GIS_WITHIN_FUNCTOR_H_INCLUDED

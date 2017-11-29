@@ -2517,7 +2517,7 @@ static bool agg_item_collations(DTCollation &c, const char *fname,
     return true;
   }
   
-  /* If all arguments where numbers, reset to @@collation_connection */
+  /* If all arguments were numbers, reset to @@collation_connection */
   if (flags & MY_COLL_ALLOW_NUMERIC_CONV &&
       c.derivation == DERIVATION_NUMERIC)
     c.set(Item::default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_NUMERIC);

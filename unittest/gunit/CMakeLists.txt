@@ -27,6 +27,7 @@
 # Either way: we will unpack the zip, compile gmock-all.cc and gtest-all.cc
 # and link them into the executables.
 
+
 # Default location for where to download and build gmock/gtest.
 IF(NOT DOWNLOAD_ROOT)
   SET(DOWNLOAD_ROOT ${CMAKE_SOURCE_DIR}/source_downloads)
@@ -233,6 +234,7 @@ ENDIF()
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
+  SYSTEM ${ICU_INCLUDE_DIRS}
 )
 
 # main-wrapper libraries (with tap-compatible option).
@@ -310,7 +312,6 @@ SET(TESTS
   my_error
   my_fileutils
   my_murmur3
-  my_regex
   my_thread
   mysys_base64
   mysys_lf
@@ -387,6 +388,7 @@ SET(SERVER_TESTS
   item_func_case
   item_func_now_local
   item_json_func
+  item_func_regexp
   item_like
   item_timefunc
   join_syntax
@@ -406,6 +408,7 @@ SET(SERVER_TESTS
   opt_range
   opt_ref
   opt_trace
+  regexp_facade
   security_context
   segfault
   select_lex_visitor
@@ -454,7 +457,7 @@ IF (MERGE_UNITTESTS)
   MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
     ADD_TEST merge_small_tests)
   TARGET_LINK_LIBRARIES(merge_small_tests-t
-    mysys mysys_ssl regex sqlgunitlib gunit_small)
+    mysys mysys_ssl sqlgunitlib gunit_small)
   
   IF(WIN32)
     LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)
@@ -466,7 +469,7 @@ IF (MERGE_UNITTESTS)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main binlog rpl master slave)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main sql_gis)
   TARGET_LINK_LIBRARIES(merge_large_tests-t
-    gunit_large strings dbug regex mysys)
+    gunit_large strings dbug mysys ${ICU_LIBRARIES})
   TARGET_LINK_LIBRARIES(merge_large_tests-t
     sql_main binlog rpl master slave sql_gis sql_main)
 
@@ -485,7 +488,8 @@ ENDIF()
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc SKIP_INSTALL ${EXCLUDE_FROM_ALL})
   ADD_COMPILE_FLAGS(${test}-t.cc COMPILE_FLAGS ${DISABLE_PSI_OPTIONS})
-  TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug regex)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug)
+  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
   IF(NOT MERGE_UNITTESTS)
     ADD_TEST(${test} ${test}-t)
   ENDIF()
@@ -527,9 +531,10 @@ FOREACH(test ${SERVER_TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
   TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main)
   TARGET_LINK_LIBRARIES(${test}-t sql_main sql_gis)
-  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug mysys)
   TARGET_LINK_LIBRARIES(${test}-t
     sql_main binlog rpl master slave sql_gis sql_main)
+  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(${test}-t perfschema)
