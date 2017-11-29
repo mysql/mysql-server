@@ -3260,7 +3260,7 @@ ib_sdi_open_table(
 	trx_t*		trx,
 	ib_crsr_t*	ib_crsr)
 {
-	if (!fsp_has_sdi(tablespace_id)) {
+	if (fsp_has_sdi(tablespace_id) != DB_SUCCESS) {
 		return(DB_ERROR);
 	}
 
