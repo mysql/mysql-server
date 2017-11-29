@@ -21,7 +21,7 @@ let SEARCH_FILE= $server_log;
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 perl;
@@ -79,7 +79,7 @@ disconnect ssl_root_1;
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 perl;
@@ -120,7 +120,7 @@ disconnect root_2;
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 --copy_file std_data/server-key.pem $DATADIR_LOCATION/server-key.pem
