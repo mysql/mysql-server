@@ -8189,12 +8189,7 @@ static int write_locked_table_maps(THD *thd)
 
   if (thd->get_binlog_table_maps() == 0)
   {
-    MYSQL_LOCK *locks[2];
-    locks[0]= thd->extra_lock;
-    locks[1]= thd->lock;
-    for (uint i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
-    {
-      MYSQL_LOCK const *const lock= locks[i];
+    for (MYSQL_LOCK *lock : { thd->extra_lock, thd->lock }) {
       if (lock == NULL)
         continue;
 

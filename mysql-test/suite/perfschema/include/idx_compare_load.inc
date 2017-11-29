@@ -32,7 +32,6 @@ IF ($key_group == 1.1)
   eval CALL index_test($table, "WHERE owner_thread_id = @target_thread_id AND owner_event_id = 99999999");
   eval CALL index_test($table, "WHERE owner_thread_id >= @target_thread_id");
   eval CALL index_test($table, "WHERE owner_thread_id <= @target_thread_id");
-  eval CALL index_test($table, "WHERE owner_thread_id = 9999999 OR owner_event_id != 9999999");
   eval CALL index_test($table, "WHERE owner_thread_id != 9999999 AND owner_event_id = @target_event_id");
   eval CALL index_test($table, "WHERE owner_thread_id = 9999999 ORDER BY owner_thread_id");
 }
@@ -51,7 +50,6 @@ IF ($key_group == 1.2)
   eval CALL index_test($table, "WHERE thread_id < @target_thread_id");
   eval CALL index_test($table, "WHERE thread_id >= @target_thread_id");
   eval CALL index_test($table, "WHERE thread_id <= @target_thread_id");
-  eval CALL index_test($table, "WHERE thread_id = 9999999 OR error_number != 9999999");
   eval CALL index_test($table, "WHERE thread_id = 9999999 ORDER BY thread_id");
   eval CALL index_test($table, "WHERE thread_id > 9999999");
   eval CALL index_test($table, "WHERE thread_id < 9999999");
@@ -204,7 +202,6 @@ IF ($key_group == 4)
   eval CALL index_test($table, "WHERE thread_id < @target_thread_id");
   eval CALL index_test($table, "WHERE thread_id >= @target_thread_id");
   eval CALL index_test($table, "WHERE thread_id <= @target_thread_id");
-  eval CALL index_test($table, "WHERE thread_id = 9999999 OR event_name = '$target_event_name'");
   eval CALL index_test($table, "WHERE thread_id > 9999999");
   eval CALL index_test($table, "WHERE thread_id < 9999999");
   eval CALL index_test($table, "WHERE thread_id >= 9999999");
@@ -221,7 +218,6 @@ IF ($key_group == 4.1)
   eval CALL index_test($table, "WHERE thread_id < @target_thread_id");
   eval CALL index_test($table, "WHERE thread_id >= @target_thread_id");
   eval CALL index_test($table, "WHERE thread_id <= @target_thread_id");
-  eval CALL index_test($table, "WHERE thread_id = 9999999 OR event_name = '$target_event_name'");
   eval CALL index_test($table, "WHERE thread_id > 9999999");
   eval CALL index_test($table, "WHERE thread_id < 9999999");
   eval CALL index_test($table, "WHERE thread_id >= 9999999");
@@ -300,7 +296,6 @@ IF ($key_group == 7)
   eval CALL index_test($table, "WHERE thread_id < @target_thread_id");
   eval CALL index_test($table, "WHERE thread_id >= @target_thread_id");
   eval CALL index_test($table, "WHERE thread_id <= @target_thread_id");
-  eval CALL index_test($table, "WHERE thread_id = 9999999 OR variable_name = '$target_variable_name'");
   eval CALL index_test($table, "WHERE thread_id > 9999999");
   eval CALL index_test($table, "WHERE thread_id < 9999999");
   eval CALL index_test($table, "WHERE thread_id >= 9999999");
@@ -330,7 +325,6 @@ IF ($key_group == 9)
   eval CALL index_test($table, "WHERE thread_id < @target_thread_id");
   eval CALL index_test($table, "WHERE thread_id >= @target_thread_id");
   eval CALL index_test($table, "WHERE thread_id <= @target_thread_id");
-  eval CALL index_test($table, "WHERE thread_id = 9999999 OR name = '$target_name'");
   eval CALL index_test($table, "WHERE thread_id > 9999999");
   eval CALL index_test($table, "WHERE thread_id < 9999999");
   eval CALL index_test($table, "WHERE thread_id >= 9999999");
@@ -350,7 +344,6 @@ IF ($key_group == 9.1)
   eval CALL index_test($table, "WHERE processlist_id < @target_id");
   eval CALL index_test($table, "WHERE processlist_id >= @target_id");
   eval CALL index_test($table, "WHERE processlist_id <= @target_id");
-  eval CALL index_test($table, "WHERE processlist_id = 9999999 OR attr_name = '$target_name'");
   eval CALL index_test($table, "WHERE processlist_id > 9999999");
   eval CALL index_test($table, "WHERE processlist_id < 9999999");
   eval CALL index_test($table, "WHERE processlist_id >= 9999999");
@@ -371,7 +364,6 @@ IF ($key_group == 9.2)
   eval CALL index_test($table, "WHERE processlist_id < @target_id");
   eval CALL index_test($table, "WHERE processlist_id >= @target_id");
   eval CALL index_test($table, "WHERE processlist_id <= @target_id");
-  eval CALL index_test($table, "WHERE processlist_id = 9999999 OR attr_name = '$target_name'");
   eval CALL index_test($table, "WHERE processlist_id > 9999999");
   eval CALL index_test($table, "WHERE processlist_id < 9999999");
   eval CALL index_test($table, "WHERE processlist_id >= 9999999");

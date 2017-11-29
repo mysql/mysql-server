@@ -34,6 +34,7 @@
 using keyring::Buffered_file_io;
 using keyring::Key;
 using keyring::Keys_container;
+using keyring::Keys_iterator;
 using keyring::Logger;
 
 mysql_rwlock_t LOCK_keyring;
@@ -209,6 +210,27 @@ static bool mysql_key_generate(const char *key_id, const char *key_type,
   }
 }
 
+static void mysql_key_iterator_init(void **key_iterator)
+{
+  *key_iterator= new Keys_iterator(logger.get());
+  mysql_key_iterator_init<keyring::Key>(static_cast<Keys_iterator*>(*key_iterator),
+                                               "keyring_file");
+}
+
+static void mysql_key_iterator_deinit(void *key_iterator)
+{
+  mysql_key_iterator_deinit<keyring::Key>(static_cast<Keys_iterator*>(key_iterator),
+                                          "keyring_file");
+  delete static_cast<Keys_iterator*>(key_iterator);
+}
+
+static bool mysql_key_iterator_get_key(void *key_iterator,
+                                       char *key_id, char *user_id)
+{
+  return mysql_key_iterator_get_key<keyring::Key>(static_cast<Keys_iterator*>(key_iterator),
+                                                  key_id, user_id, "keyring_file");
+}
+
 /* Plugin type-specific descriptor */
 static struct st_mysql_keyring keyring_descriptor=
 {
@@ -216,7 +238,10 @@ static struct st_mysql_keyring keyring_descriptor=
   mysql_key_store,
   mysql_key_fetch,
   mysql_key_remove,
-  mysql_key_generate
+  mysql_key_generate,
+  mysql_key_iterator_init,
+  mysql_key_iterator_deinit,
+  mysql_key_iterator_get_key
 };
 
 mysql_declare_plugin(keyring_file)

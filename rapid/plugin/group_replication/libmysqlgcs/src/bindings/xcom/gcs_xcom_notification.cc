@@ -162,8 +162,10 @@ Gcs_xcom_engine::Gcs_xcom_engine()
   : m_wait_for_notification_cond(), m_wait_for_notification_mutex(),
     m_notification_queue(), m_engine_thread(), m_schedule(true)
 {
-  m_wait_for_notification_cond.init();
-  m_wait_for_notification_mutex.init(NULL);
+  m_wait_for_notification_cond.init(
+    key_GCS_COND_Gcs_xcom_engine_m_wait_for_notification_cond);
+  m_wait_for_notification_mutex.init(
+    key_GCS_MUTEX_Gcs_xcom_engine_m_wait_for_notification_mutex, NULL);
 }
 
 

@@ -25,6 +25,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_time.h"
 #include "sql_string.h"
+#include "unittest/gunit/benchmark.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace json_binary_unittest {
@@ -1422,5 +1423,78 @@ TEST_F(JsonBinaryTest, HasSpace)
   }
 }
 
+/**
+  Helper function for microbenchmarks that test the performance of
+  json_binary::serialize().
+
+  @param dom             the Json_dom to serialize
+  @param num_iterations  the number of iterations in the test
+*/
+static void serialize_benchmark(const Json_dom *dom, size_t num_iterations)
+{
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+  const THD *thd= initializer.thd();
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    String buf;
+    EXPECT_FALSE(json_binary::serialize(thd, dom, &buf));
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+
+/**
+  Microbenchmark which tests the performance of serializing a JSON
+  array with 10000 integers.
+*/
+static void BM_JsonBinarySerializeIntArray(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  Json_array array;
+  for (int i= 0; i < 10000; ++i)
+    array.append_alias(create_dom_ptr<Json_int>(i * 1000));
+
+  serialize_benchmark(&array, num_iterations);
+}
+BENCHMARK(BM_JsonBinarySerializeIntArray);
+
+/**
+  Microbenchmark which tests the performance of serializing a JSON
+  array with 10000 double values.
+*/
+static void BM_JsonBinarySerializeDoubleArray(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  Json_array array;
+  for (int i= 0; i < 10000; ++i)
+    array.append_alias(create_dom_ptr<Json_double>(i * 1000));
+
+  serialize_benchmark(&array, num_iterations);
+}
+BENCHMARK(BM_JsonBinarySerializeDoubleArray);
+
+/**
+  Microbenchmark which tests the performance of serializing a JSON
+  array with 10000 strings.
+*/
+static void BM_JsonBinarySerializeStringArray(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  Json_array array;
+  for (int i= 0; i < 10000; ++i)
+    array.append_alias(create_dom_ptr<Json_string>(std::to_string(i)));
+
+  serialize_benchmark(&array, num_iterations);
+}
+BENCHMARK(BM_JsonBinarySerializeStringArray);
 
 }

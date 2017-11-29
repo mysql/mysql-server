@@ -11034,6 +11034,15 @@ ER_REGEXP_TIME_OUT
 ER_REGEXP_PATTERN_TOO_BIG
   eng "The regular expression pattern exceeds limits on size or complexity."
 
+ER_KEYRING_MIGRATION_FAILURE
+  eng "Can not perform keyring migration : %s"
+
+ER_KEYRING_ACCESS_DENIED_ERROR 42000
+  eng "Access denied; you need %-.128s privileges for this operation"a
+
+ER_KEYRING_MIGRATION_STATUS
+  eng "Keyring migration %s."
+
 #
 #  End of 8.0 error messages.
 #

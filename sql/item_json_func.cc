@@ -18,6 +18,8 @@
 
 #include "sql/item_json_func.h"
 
+#include <string.h>
+
 #include <algorithm>               // std::fill
 #include <cstring>
 #include <memory>
@@ -2005,7 +2007,7 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const
     return false;
   const auto item_func= down_cast<const Item_func*>(item);
   if (arg_count != item_func->arg_count ||
-      func_name() != item_func->func_name())
+      strcmp(func_name(), item_func->func_name()) != 0)
     return false;
 
   auto cmp= [binary_cmp](const Item *arg1, const Item *arg2)

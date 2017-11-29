@@ -2289,7 +2289,6 @@ public:
   const char *func_name() const override { return "can_access_database"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
     return false;
   }
@@ -2305,7 +2304,6 @@ public:
   const char *func_name() const override { return "can_access_table"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
     return false;
   }
@@ -2354,7 +2352,6 @@ public:
   const char *func_name() const { return "can_access_event"; }
   bool resolve_type(THD*)
   {
-    max_length= 21;
     maybe_null= true;
     return false;
   }
@@ -2386,7 +2383,6 @@ public:
   const char *func_name() const override { return "can_access_view"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
     return false;
   }
@@ -2402,7 +2398,6 @@ public:
   const char *func_name() const override { return "can_access_column"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
     return false;
   }
@@ -2439,9 +2434,9 @@ public:
   const char *func_name() const override { return "internal_table_rows"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
     unsigned_flag= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2458,9 +2453,9 @@ public:
   const char *func_name() const override { return "internal_avg_row_length"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
     unsigned_flag= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2477,9 +2472,9 @@ public:
   const char *func_name() const override { return "internal_data_length"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
     unsigned_flag= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2496,9 +2491,9 @@ public:
   const char *func_name() const override { return "internal_max_data_length"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
     unsigned_flag= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2515,9 +2510,9 @@ public:
   const char *func_name() const override { return "internal_index_length"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
     unsigned_flag= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2534,9 +2529,9 @@ public:
   const char *func_name() const override { return "internal_data_free"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
     unsigned_flag= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2553,9 +2548,9 @@ public:
   const char *func_name() const override { return "internal_auto_increment"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
     unsigned_flag= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2572,8 +2567,8 @@ public:
   const char *func_name() const override { return "internal_checksum"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2588,8 +2583,8 @@ public:
   const char *func_name() const override { return "internal_keys_disabled"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= false;
+    null_on_null= false;
     return false;
   }
 };
@@ -2607,8 +2602,8 @@ public:
   { return "internal_index_column_cardinality"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2624,8 +2619,8 @@ public:
   const char *func_name() const override { return "internal_dd_char_length"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2644,6 +2639,7 @@ public:
   {
     max_length= 1;
     maybe_null= false;
+    null_on_null= false;
     return false;
   }
 };
@@ -2657,8 +2653,8 @@ public:
   longlong val_int() override;
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
+    null_on_null= false;
     return false;
   }
   const char *func_name() const override
@@ -2678,8 +2674,8 @@ public:
   const char *func_name() const override { return "internal_tablespace_id"; }
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2701,8 +2697,8 @@ public:
 
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2724,8 +2720,8 @@ public:
 
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2747,8 +2743,8 @@ public:
 
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2770,8 +2766,8 @@ public:
 
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2793,8 +2789,8 @@ public:
 
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2816,8 +2812,8 @@ public:
 
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
+    null_on_null= false;
     return false;
   }
 };
@@ -2839,8 +2835,8 @@ public:
 
   bool resolve_type(THD *) override
   {
-    max_length= 21;
     maybe_null= true;
+    null_on_null= false;
     return false;
   }
 };

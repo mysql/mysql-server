@@ -167,8 +167,7 @@ void Regexp_engine::AppendReplacement(const UChar *replacement, size_t length) {
     */
     m_replace_buffer.reserve(required_buffer_size);
     m_error_code = U_ZERO_ERROR;
-    int actual_size = TryToAppendReplacement(replacement, length);
-    DBUG_ASSERT(actual_size == replacement_size);
+    TryToAppendReplacement(replacement, length);
     /*
       The string gets terminated in AppendTail(), which should always be
       called. No need to worry about that here.
@@ -205,8 +204,7 @@ void Regexp_engine::AppendTail() {
     */
     m_replace_buffer.reserve(required_buffer_size);
     m_error_code = U_ZERO_ERROR;
-    int new_tail_size = TryToAppendTail();
-    DBUG_ASSERT(new_tail_size + 1 == tail_size);
+    TryToAppendTail();
     DBUG_ASSERT(m_error_code == U_ZERO_ERROR);
   }
   m_replace_buffer.resize(m_replace_buffer.size() + tail_size - 1);

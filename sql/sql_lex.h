@@ -332,7 +332,6 @@ enum enum_drop_mode
 /* Structure for db & table in sql_yacc */
 extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;
-extern char internal_table_name[2];
 
 class Table_function;
 
@@ -362,10 +361,8 @@ public:
   */
   Table_ident(SELECT_LEX_UNIT *s) : sel(s), table_function(NULL)
   {
-    /* We must have a table name here as this is used with add_table_to_list */
     db= EMPTY_CSTR;                    /* a subject to casedn_str */
-    table.str= internal_table_name;
-    table.length=1;
+    table = EMPTY_CSTR;
   }
   /*
     This constructor is used only for the case when we create a table function.

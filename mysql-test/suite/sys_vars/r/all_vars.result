@@ -23,6 +23,8 @@ disabled_storage_engines
 disabled_storage_engines
 innodb_dedicated_server
 innodb_dedicated_server
+keyring_operations
+keyring_operations
 mandatory_roles
 mandatory_roles
 password_history
@@ -36,7 +38,5 @@ regexp_time_limit
 resultset_metadata
 tls_version
 tls_version
-windowing_use_high_precision
-windowing_use_high_precision
 drop table t1;
 drop table t2;

@@ -18,6 +18,33 @@
 
 #include <my_sys.h>
 #include "mysql/psi/psi_thread.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_cond.h"
+
+
+extern PSI_mutex_key key_GCS_MUTEX_Gcs_async_buffer_m_free_buffer_mutex,
+                     key_GCS_MUTEX_Gcs_suspicions_manager_m_suspicions_mutex,
+                     key_GCS_MUTEX_Gcs_xcom_group_management_m_nodes_mutex,
+                     key_GCS_MUTEX_Gcs_xcom_interface_m_wait_for_ssl_init_mutex,
+                     key_GCS_MUTEX_Gcs_xcom_engine_m_wait_for_notification_mutex,
+                     key_GCS_MUTEX_Gcs_xcom_view_change_control_m_wait_for_view_mutex,
+                     key_GCS_MUTEX_Gcs_xcom_view_change_control_m_current_view_mutex,
+                     key_GCS_MUTEX_Gcs_xcom_view_change_control_m_joining_leaving_mutex,
+                     key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_cursor,
+                     key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_ready,
+                     key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_comms_status,
+                     key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_exit,
+                     key_GCS_MUTEX_Xcom_handler_m_lock;
+
+
+extern PSI_cond_key key_GCS_COND_Gcs_async_buffer_m_wait_for_events_cond,
+                    key_GCS_COND_Gcs_async_buffer_m_free_buffer_cond,
+                    key_GCS_COND_Gcs_xcom_interface_m_wait_for_ssl_init_cond,
+                    key_GCS_COND_Gcs_xcom_engine_m_wait_for_notification_cond,
+                    key_GCS_COND_Gcs_xcom_view_change_control_m_wait_for_view_cond,
+                    key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_ready,
+                    key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_comms_status,
+                    key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_exit;
 
 
 extern PSI_thread_key
@@ -32,6 +59,14 @@ extern PSI_thread_key
 */
 
 void register_gcs_thread_psi_keys();
+
+
+/**
+  Registers the psi keys for the mutexes and conds that will be instrumented.
+*/
+
+void register_gcs_mutex_cond_psi_keys();
+
 
 #endif	/* GCS_PSI_H */
 
