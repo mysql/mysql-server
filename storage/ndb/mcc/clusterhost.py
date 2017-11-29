@@ -50,12 +50,14 @@ class ExecException(Exception):
 
 class HostInfo(object):
     """Class which provides host information from a Linux-style /proc file system."""
-    def __init__(self, ch, uname, machine):
+    def __init__(self, ch, uname, machine, osver, osflavor):
         self.ch = ch
         self.pm = posixpath
         self.uname = uname
         self.machine = machine
         self.envcmd = [ 'env' ]
+        self.osver = osver
+        self.osflavor = osflavor
 
     @property
     def _host_info_path(self):
@@ -113,7 +115,40 @@ class HostInfo(object):
         else:
             _logger.warning('df output had less than 2 lines.')
             return 'unknown'
-     
+
+    @property
+    def docker_info(self):
+        """Returns NOT INSTALLED, NOT RUNNING and RUNNING."""
+        #We will ask for this info if necessary. IF docker is requested and it's NOT INSTALLED, we will install and run docker.
+        #IF docker is NOT RUNNING we will start it. IF docker is RUNNING, front-end will do nothing.
+        #All *nix platforms share same code.
+        dtest = None
+        try:
+            dtest=self.ch.exec_blocking(['docker', '-v'])
+            _logger.warning('docker -v finished with dtest = ' + str(dtest))
+        except:
+            _logger.warning('docker -v failed with dtest = ' + str(dtest))
+            dtest = ""
+        #We ignore version info for now and send new request for result of command.
+        #dtest=self.ch.exec_blocking(['echo', '$?'])
+        #IF 0, we're on.
+        if dtest != "":
+            #Now check if docker is running.
+            try:
+                dtest=self.ch.exec_blocking(['ps', '-e', '-o', 'comm', '|', 'grep', '[d]ocker'])
+                _logger.warning('ps finished with dtest = ' + str(dtest))
+            except:
+                _logger.warning('ps failed with dtest = ' + str(dtest))
+                dtest = ""
+            #IF 0, we're on.
+            if dtest != "":
+                return 'RUNNING'
+            else:
+                return 'NOT RUNNING'
+        else:
+            return 'NOT INSTALLED'
+
+
 class  SolarisHostInfo(HostInfo):
     """Specialization for Solaris which uses prtconf and psrinfo to retrieve host information."""
 
@@ -159,12 +194,38 @@ class CygwinHostInfo(HostInfo):
             wmic = unicode(wmic, 'utf-16')
         return sum([ int(ln.split('=')[1]) for ln in wmic.split('\n') if  'NumberOfLogicalProcessors' in ln ])
 
+    @property
+    def docker_info(self):
+        """Returns NOT INSTALLED, NOT RUNNING and RUNNING."""
+        #We will ask for this info if necessary. IF docker is requested and it's NOT INSTALLED, we will install and run docker.
+        #IF docker is NOT RUNNING we will start it. IF docker is RUNNING, front-end will do nothing.
+        dtest = self.ch.exec_blocking(['C:/Windows/System32/Wbem/wmic', 'product', 'where', """Name like '%docker%'""" , 'get', 'name'])      
+        wmic = dtest.split('\n')[0]
+        if wmic.startswith("No Instanc"): #No Instance(s) Available.
+            wmic = ""
+        #IF there is something in wmic, we're on.
+        if wmic != "":
+            #Now check if docker is running.
+            dtest = self.ch.exec_blocking(['C:/Windows/System32/Wbem/wmic', 'process', 'where', """Name like '%docker%'""" , 'get', 'name'])
+            wmic = dtest.split('\n')[0]
+            if wmic.startswith("No Instanc"):
+                wmic = ""
+            #IF there is something in wmic, we're on.
+            if wmic != "":
+                _logger.warning('wmic is ' + wmic)
+                return 'RUNNING'
+            else:
+                _logger.warning('wmic is ' + wmic)
+                return 'NOT RUNNING'
+        else:
+            _logger.warning('wmic is ' + wmic)
+            return 'NOT INSTALLED'
 
 class WindowsHostInfo(CygwinHostInfo):
     """Specialization of CygwinHostInfo for native Windows which uses ntpath as the path module."""
 
-    def __init__(self, ch, uname, machine):
-        super(type(self), self).__init__(ch, uname, machine)
+    def __init__(self, ch, uname, machine, osver, osflavor):
+        super(type(self), self).__init__(ch, uname, machine, osver, osflavor)
         self.pm = ntpath
         self.envcmd = [ 'cmd.exe', '/c', 'set' ]
 
@@ -246,12 +307,12 @@ class ABClusterHost(object):
         Uses Pythons platform.system() to determine the type of HostInfo object to return. 
         """
         if self._hostInfo == None:
-            (system, machine) = self._get_system_tuple()
+            (system, machine, osver, osflavor) = self._get_system_tuple()
             if hostInfo_map.has_key(system):
-                self._hostInfo = hostInfo_map[system](self, system, machine)
+                self._hostInfo = hostInfo_map[system](self, system, machine, osver, osflavor)
             else:
                 _logger.debug('Using default HostInfo for host='+self.host+'('+system+','+machine+')')
-                return HostInfo(self, system, machine)
+                return HostInfo(self, system, machine, osver, osflavor)
 
         return self._hostInfo
     
@@ -292,7 +353,11 @@ class ABClusterHost(object):
     @property
     def disk_free(self):
         return self.hostInfo.disk_free
-   
+
+    @property
+    def docker_info(self):
+        return self.hostInfo.docker_info
+
     @abc.abstractmethod    
     def drop(self, paths=[]):
         """Close open connections and remove files.
@@ -375,16 +440,69 @@ class LocalClusterHost(ABClusterHost):
         self.host = host
 
     def _get_system_tuple(self):
+        osver = None
+        osflavor = None
+        hlpstr = None
         system = platform.system()
         if system == 'Windows':
             try:
                 subprocess.check_call(['uname'])
             except:
                 _logger.debug('No uname available, assuming native Windows')
-                return (system, platform.uname()[-2])
+                hlpstr = (self.exec_blocking(['cmd.exe', '/c', 'systeminfo'])).split('\n')
+                for line in hlpstr:
+                    if line.startswith("OS Name:" ):
+                        hlp = line.split("OS Name:")[1]
+                        osflavor = hlp.strip()
+                    if line.startswith("OS Version:"):
+                        hlp = line.split("OS Version:")[1]
+                        hlp = hlp.strip()
+                        osver = hlp.split('.')[0]    
+                    if osver and osflavor:
+                        break
+                return (system, platform.uname()[-2], osver, osflavor)
             else:
-                return ('CYGWIN', 'Unknown')            
-        return (system, platform.uname()[-1])
+                return ('CYGWIN', 'Unknown', osver, osflavor)
+        #System is either Linux, SunOS or Darwin
+        if system.startswith('Darwin'):
+            hlp = self.exec_blocking(['uname', '-r'])
+            lc = hlp.count('\n')
+            if lc > 1:
+                hlpstr = str(str(((hlp).split('\n')[lc-1])))
+            else:
+                hlpstr = str(hlp)
+            osver = hlpstr
+            osflavor = "MacOSX"
+
+        if system.startswith("SunOS"): #or system.startswith("Solaris"):
+            hlp = self.exec_blocking(['uname', '-v'])
+            lc = hlp.count('\n')
+            if lc > 1:
+                hlpstr = str(str(((hlp).split('\n')[lc-1])))
+            else:
+                hlpstr = str(hlp)
+            osver = hlpstr
+            osflavor = "Solaris"
+            
+        if "Linux" in system:
+            # Assumption is all Linux flavors will have /etc/os-release file.
+            try:
+                hlpstr = self.exec_blocking(['test', '-f', '/etc/os-release'])
+            except:
+                hlpstr = "0"
+            if (hlpstr != "0"):
+                hlpstr = self.exec_blocking(['cat', '/etc/os-release'])
+                matched_lines = [line for line in hlpstr.split('\n') if "ID=" in line]
+                hlp = (str(matched_lines[0]).split("ID=", 1)[1]).strip('"')
+                osflavor = hlp
+                matched_lines = [line for line in hlpstr.split('\n') if "VERSION_ID=" in line]
+                hlp = (str(matched_lines[0]).split("VERSION_ID=", 1)[1]).strip('"')
+                osver = hlp
+            else:
+                #Bail out, no file
+                _logger.warning('OS version (Linux) does not have /etc/os-release file!')
+        
+        return (system, platform.uname()[-1], osver, osflavor)
 
     def _exec_pkg_cmdv(self, cmdv):
         """Locally this just forwards to exec_cmdv."""
@@ -449,7 +567,7 @@ class LocalClusterHost(ABClusterHost):
         procCtrl - procCtrl object from message which controls how the process
         is started (blocking vs non-blocking and output reporting)
         """
-        
+                
         # Add nohup when running locally to prevent server from
         # waiting on the children
         if util.get_val(procCtrl, 'nohup'):
@@ -505,11 +623,20 @@ def produce_ABClusterHost(hostname='localhost', key_based=None, user=None, pwd=N
     on the value of hostname.."""
 
     if hostname == 'localhost' or hostname == '127.0.0.1' or hostname == socket.gethostname():
+        _logger.warning('Host is local (1).')
         return LocalClusterHost(hostname)
     
     hostname_fqdn = socket.getfqdn(hostname)
     if hostname_fqdn == socket.getfqdn('localhost') or hostname_fqdn == socket.getfqdn(socket.gethostname()):
+        _logger.warning('Host is local (2).')
         return LocalClusterHost(hostname)
+    
+    # Check if proper IP address is provided for localhost:
+    ips = socket.gethostbyname_ex(socket.gethostname())[2]
+    for ipadr in ips:
+        if ipadr == hostname:
+            _logger.warning('Host is local (3).')
+            return LocalClusterHost(hostname)
     
     # Sanitize input:
     if not (user and user.strip()):

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -77,6 +77,8 @@ mcc.util.terminatePath = mcc.util.platform.terminatePath;
 mcc.util.quotePath = mcc.util.platform.quotePath;
 mcc.util.unixPath = mcc.util.platform.unixPath;
 mcc.util.winPath = mcc.util.platform.winPath;
+mcc.util.countOccurrences = mcc.util.platform.countOccurrences;
+mcc.util.ValidateIPAddress = mcc.util.platform.ValidateIPAddress;
 
 /******************************** Initialize  *********************************/
 

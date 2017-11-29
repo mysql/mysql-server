@@ -34,6 +34,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *      mcc.configuration.deploy.deployCluster: Create dirs, distribute files
  *      mcc.configuration.deploy.startCluster: Deploy configuration, start procs
  *      mcc.configuration.deploy.stopCluster: Stop processes
+ *      mcc.configuration.deploy.installCluster: (Optionally) Install Cluster on requested host(s).
+ *      mcc.configuration.deploy.clServStatus: Check state of Cluster services.
+ *      mcc.configuration.deploy.determineClusterRunning: Determine just if Cluster services are in any sort of running state.
  *
  *  External data: 
  *      None
@@ -49,6 +52,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *      getConnectstring: Get the connect string for this cluster
  *      getCreateDirCommands: Generate cluster directory creation commands
  *      getStartClusterCommands: Start processes - build array of process groups
+ *      getInstallCommands: List of commands to install Cluster on host(s).
  *
  *  Internal data: 
  *      cluster:          The cluster item
@@ -85,14 +89,51 @@ mcc.configuration.deploy.getConfigurationFile = getConfigurationFile;
 mcc.configuration.deploy.deployCluster = deployCluster;
 mcc.configuration.deploy.startCluster = startCluster;
 mcc.configuration.deploy.stopCluster = stopCluster;
+mcc.configuration.deploy.installCluster = installCluster;
+mcc.configuration.deploy.clServStatus = clServStatus;
+mcc.configuration.deploy.determineClusterRunning = determineClusterRunning;
 
-function logIt(x) {
-    var msg = "Logged "+x.toString()+":";
-    mcc.util.dbg(msg);
-    console.log(x);
-    alert(msg);
+// List of statuses: "CONNECTED", "STARTED", "STARTING", "SHUTTING_DOWN", "NO_CONTACT", "UNKNOWN" + "undefined"
+function clServStatus() {
+    // Check all status information in the process tree
+    var stat = [];
+    mcc.storage.processStorage().getItems().then(function (processes) {
+        for (var p in processes) {
+            // No need to check API nodes.
+            if (processes[p].item.processtype[0] < 4) {
+                mcc.storage.processTreeStorage().getItem(processes[p].item.id[0]).then(
+                function (proc) {
+                    // No need to iterate over top level items.
+                    if (mcc.storage.processTreeStorage().store().getValue(proc.item, "type") == "process") {
+                        stat.push(mcc.storage.processTreeStorage().store().getValue(proc.item, "name") + ":" + 
+                            mcc.storage.processTreeStorage().store().getValue(proc.item, "status"));
+                    };
+                });
+            };
+        };
+        mcc.util.dbg("STAT is: " + stat);
+    });
+    return stat;
+    // Simple Cluster, NOT started, stat is:
+    //0:  "Management node 1:undefined"
+    //1:  "SQL node 1:undefined"
+    //2:  "Multi threaded data node 1:undefined"
+    //then Management node 1:CONNECTED,SQL node 1:UNKNOWN,Multi threaded data node 1:NO_CONTACT
+    // and so on.
 }
 
+function determineClusterRunning(clSt) {
+    if (clSt.length <= 0) { return false;};
+    var inp = [];
+    for (var i in clSt) {
+        inp = clSt[i].split(":");
+        if (["CONNECTED", "STARTED", "STARTING", "SHUTTING_DOWN"].indexOf(inp[1]) >= 0) {
+            mcc.util.dbg(inp[0] + " is in running state.")
+            return true;
+        }
+    }
+    return false;
+}
 /******************************* Internal data ********************************/
 
 var cluster = null;         // The cluster item
@@ -742,6 +783,48 @@ function removeProgressDialog() {
     }
 }
 
+/****************** Handling install commands display *************************/
+function commandsDialogSetup(instCmd) {
+    /*
+    var commandsDlg = null;
+    // Create the dialog if it does not already exist
+    if (!dijit.byId("commandsDlg")) {
+        commandsDlg= new dijit.Dialog({
+            id: "commandsDlg",
+            title: "Review and approve install commands",
+            style: {width: "500px"},
+            content: "\
+                <form id='reviewInstallCommandsForm' data-dojo-type='dijit.form.Form'>\
+                    <p>Please confirm running install commands.\
+                    </p>\
+                    <p>\
+                    <br />Commands: \
+                    <br /><span id='sd_installCommands'></span>\
+                    </p>\
+                    <div data-dojo-type='dijit.form.Button' type='submit'\
+                        id='confirmInstallCommands'>OK\
+                    </div>\
+                    <div data-dojo-type='dijit.form.Button' type='button'\
+                        id='cancelInstallCommands'>CANCEL\
+                    </div>\
+                </form>"
+        });
+
+        // Define widgets
+        var sd_installCommands = new dijit.form.SimpleTextarea({
+            //disabled: true,
+            rows: "30",
+            columns: "1",
+            style: "width: 450px;"},// resize : none
+            "sd_installCommands");
+    }
+    dijit.byId("sd_installCommands").setValue(dojo.toJson(instCmd));
+    */
+    var res = confirm("Confirm executing following commands:\n\n"+dojo.toJson(instCmd));
+    return res;
+}
+
+
 /****************** Directory and startup command handling ********************/
 
 function isFirstStart(nodeid) {
@@ -794,6 +877,113 @@ function getCheckCommands() {
                     });
     }
     return checkDirCommands;
+}
+
+// Generate the array of install commands for all required host(s).
+function getInstallCommands() {
+
+    // Array to return
+    var installCommands = [];
+
+    // Loop over all cluster hosts
+    // Loop over all hosts and send install command(s) if requested.
+    
+      // openfwhost
+      // installonhost
+      // osver
+      // osflavor
+      // installonhostrepourl
+      // installonhostdockerurl
+      // installonhostdockernet IF empty THEN --net=host ELSE --net=FirstWordIn(installonhostdockernet, split by space))
+      // dockerinfo (docker_info in back-end server) NOT INSTALLED, NOT RUNNING, RUNNING
+
+    for (var h in hosts) {
+        var dirs = [];
+        var ports = [];
+
+        var hostId = hosts[h].getId();
+        var hostName = hosts[h].getValue("name");
+        var instOnHost = hosts[h].getValue("installonhost");
+        var instOnHostRepo = hosts[h].getValue("installonhostrepourl");
+        var instOnHostDocker = hosts[h].getValue("installonhostdockerurl");
+        var dockInf = hosts[h].getValue("dockerinfo");
+        mcc.util.dbg("Check installation on host " + hostName);
+        /*Proto-message block:
+                installCommands.push({
+                    host: host.getValue("name"),
+                    path: datadir,
+                    name: null
+                });
+        */
+        if (instOnHost) {
+            //Determine type of install:
+            if (instOnHostRepo == "") {
+                //Try Docker
+                if (instOnHostDocker == "") {
+                    //ERROR condition; INSTALL but both REPO and DOCKER urls are empty.
+                    //Return empty array (meaning abort).
+                    mcc.util.dbg("Both Docker and Repo URLs are empty for host " + hostName + "! Aborting.");
+                    alert("Both Docker and Repo URLs are empty for host " + hostName + "! Aborting.");
+                    installCommands = []; //Or installCommands.length = 0
+                    break; //No installation will be done since one host failed completely.
+                } else {
+                    //DOCKER install
+                    mcc.util.dbg("Will use Docker for host " + hostName + ".");
+                    //Make list of commands.
+                    installCommands.push({
+                        host: hostName,
+                        command: "Docker",
+                        name: instOnHostDocker
+                    });
+                    if (dockInf == "NOT INSTALLED") {
+                        installCommands.push({
+                            host: hostName,
+                            command: "CMD to install Docker.",
+                            name: ""
+                        });
+                        installCommands.push({
+                            host: hostName,
+                            command: "CMD to start Docker.",
+                            name: ""
+                        });
+                    } else {
+                        if (dockInf == "NOT RUNNING") {
+                            installCommands.push({
+                                host: hostName,
+                                command: "CMD to start Docker.",
+                                name: ""
+                            });
+                        }                            
+                    }
+                    installCommands.push({
+                        host: hostName,
+                        command: "WGET docker image to ~install",
+                        name: instOnHostRepo
+                    });
+                }
+            } else {
+                //REPO install
+                mcc.util.dbg("Will use REPO for host " + hostName + ".");
+                //Make list of commands.
+                installCommands.push({
+                    host: hostName,
+                    command: "Repo",
+                    name: instOnHostRepo
+                });
+                installCommands.push({
+                    host: hostName,
+                    command: "WGET repo file to ~install",
+                    name: instOnHostRepo
+                });
+                installCommands.push({
+                    host: hostName,
+                    command: "CMD to install stuff from ~install",
+                    name: instOnHostRepo
+                });
+            }
+        };
+    }    
+    return installCommands;
 }
 
 // Generate the (array of) directory creation commands for all processes
@@ -1165,8 +1355,8 @@ function sendFileOp(createCmds, curr, waitCondition) {
     var createCmd = createCmds[curr];
  
     if (createCmd.cmd == "checkFileReq") {
-    // Assert if the file exists
-            mcc.server.checkFileReq(
+        // Assert if the file exists
+        mcc.server.checkFileReq(
             createCmd.host,
             createCmd.path,
             createCmd.name,
@@ -1260,6 +1450,55 @@ function sendFileOps(createCmds) {
     return waitCondition;
 }
 
+// Install cluster: Installs cluster on host(s).
+function installCluster(silent, fraction) {
+    // External wait condition
+    var waitCondition = new dojo.Deferred();
+    var waitList = [];
+    var waitAll = null;
+
+    mcc.util.dbg("Preparing install commands...");
+    // Get the install commands
+    var installCmd = getInstallCommands();
+
+    // Prevent additional error messages
+    var alerted = false; 
+
+    // Check if all went OK.
+    if (installCmd.length <= 0) {
+        //Bail out of procedure, host with wrong parameters detected.
+        mcc.util.dbg("List of install commands for all hosts returns empty...");
+        alert("No commands to execute, aborting.");
+        waitCondition.resolve(false);
+        return waitCondition;
+    }
+    mcc.util.dbg("Finished creating list of install commands...");
+    //Show install commands to user and let him decide whether to continue.
+    if (commandsDialogSetup(installCmd)) {
+        //Continue with install.
+        mcc.util.dbg("Executing install commands...");
+        
+    } else {
+        //No install.
+        mcc.util.dbg("You chose not to install Cluster.");
+        waitCondition.resolve(false);
+        return waitCondition;
+        
+    }
+    //dijit.byId("commandsDlg").show();
+
+    //If user choose to continue with installation, display progress.
+/*
+    updateProgressDialog("Installing Cluster on host(s)", 
+            "Running install commands", 
+            {maximum: fraction? fraction * installCmd.length : installCmd.length}
+    );
+
+    mcc.util.dbg("Executing install commands...");
+*/
+    return waitCondition;
+}
+
 // Deploy cluster: Create directories, distribute files
 function deployCluster(silent, fraction) {
 
@@ -1321,13 +1560,16 @@ function startCluster() {
   // External wait condition
   var waitCondition = new dojo.Deferred();
   var timeout = null;
-    
+  var clRunning = [];
+  
+  clRunning = clServStatus();
+  dijit.byId("configWizardStopCluster").setDisabled(!determineClusterRunning(clRunning));
+  dijit.byId("configWizardStartCluster").setDisabled(determineClusterRunning(clRunning));
+  
   deployCluster(true, 10).
     then(function (deployed) {
         if (!deployed) {
           mcc.util.dbg("Not starting cluster due to previous error");
-          dijit.byId("configWizardStopCluster").setDisabled(true);
-          dijit.byId("configWizardStartCluster").setDisabled(false);
           dijit.byId("configWizardDeployCluster").setDisabled(false);
           return;
         }
@@ -1345,7 +1587,7 @@ function startCluster() {
                 ++currseq;
                 updateProgressAndStartNext();
               } else {
-                console.log(commands[currseq].isDone);
+                mcc.util.dbg(commands[currseq].isDone);
                 mcc.util.dbg("returned false for "+commands[currseq].progTitle)
                 timeout = setTimeout(onTimeout, 2000);
               }
@@ -1354,14 +1596,18 @@ function startCluster() {
             function onError(errMsg) {
                 alert(errMsg);
                 removeProgressDialog();
-                dijit.byId("configWizardStopCluster").setDisabled(false);
-              
+                clRunning = clServStatus();
+                dijit.byId("configWizardStopCluster").setDisabled(!determineClusterRunning(clRunning));
+ 
+                //Notify user of the location of log files.
+                displayLogFilesLocation();
+                
                 waitCondition.resolve();
             }
 
             function onReply(rep) {
               mcc.util.dbg("Got reply for: "+commands[currseq].progTitle);
-              console.log(rep.body);
+              mcc.util.dbg(rep.body);
               // Start status polling timer after mgmd has been started
               // Ignore errors since it may not be available right away           
               if (currseq == 0) { mcc.gui.startStatusPoll(false); } 
@@ -1376,12 +1622,19 @@ function startCluster() {
                          {progress: "100%"});
                 alert("Cluster started");
                 removeProgressDialog();
-                dijit.byId("configWizardStopCluster").setDisabled(false);
-                dijit.byId("configWizardStartCluster").setDisabled(true);
+  
+                clRunning = clServStatus();
+                dijit.byId("configWizardStopCluster").setDisabled(!determineClusterRunning(clRunning));
+                dijit.byId("configWizardStartCluster").setDisabled(determineClusterRunning(clRunning));
                 dijit.byId("configWizardDeployCluster").setDisabled(true);
                 waitCondition.resolve();
                 return;
               }
+              clRunning = clServStatus();
+              dijit.byId("configWizardStopCluster").setDisabled(!determineClusterRunning(clRunning));
+              dijit.byId("configWizardStartCluster").setDisabled(determineClusterRunning(clRunning));
+              dijit.byId("configWizardDeployCluster").setDisabled(true);
+
               mcc.util.dbg("commands["+currseq+"].progTitle: " + 
                        commands[currseq].progTitle);
               updateProgressDialog("Starting cluster",
@@ -1401,8 +1654,59 @@ function startCluster() {
     return waitCondition;
 }
 
+function displayLogFilesLocation() {
+    var processesOnHost = [];
+    var redoLogChecked = false;
+    for (var p in processes) {
+        if (!processesOnHost[processes[p].getValue("host")]) {
+            processesOnHost[processes[p].getValue("host")] = [];
+        }
+        // Append process to array
+        processesOnHost[processes[p].getValue("host")].push(processes[p]);
+    }
+
+    // Do search for each host individually
+    for (var h in hosts) {
+        var dirs = [];
+
+        var hostId = hosts[h].getId();
+        var hostName = hosts[h].getValue("name");
+
+        // One loop 
+        for (var p in processesOnHost[hostId]) {
+            // Process instance
+            var proc = processesOnHost[hostId][p];
+
+            // Various attributes
+            var id = proc.getId();
+            var nodeid = proc.getValue("NodeId");
+            var name = proc.getValue("name");
+            var dir = null;
+            // All processes except api have datadir
+            if (processTypes[proc.getValue("processtype")].getValue("name") != 
+                    "api") {
+                dir = hostName + ":" + processTypes[proc.getValue("processtype")].getValue("name") + ": " +  getEffectiveInstanceValue(proc, "DataDir");
+            }
+            if (dir) {
+                // Store this process' datadir on its array index
+                dirs[p] = dir;
+            }
+        }
+    }
+    if (dirs.length > 0) {
+        var msg = "Please check log files in following locations for more clues:\n";
+        for (var dir in dirs) {
+            msg += dirs[dir] + "\n";
+        };
+        alert(msg);
+    }
+}
+
 // Stop cluster
 function stopCluster() {
+    // CHECK if Cluster is running at all first.
+    
+    
     // External wait condition
     var waitCondition = new dojo.Deferred();
     mcc.util.dbg("Stopping cluster...");
@@ -1424,8 +1728,8 @@ function stopCluster() {
 
     function onError(errMsg, errReply) {
         mcc.util.dbg("stopCluster failed: "+errMsg);
-        alert("Error occurred while stopping cluster: `"+errMsg+
-          "' (Press OK to continue)");
+        //No need to *alert* on each failure since it is perfectly possible service was not even started.
+        mcc.util.dbg("Error occurred while stopping cluster: "+errMsg);
         ++errorReplies;
 
         var cwpb = dijit.byId("configWizardProgressBar");
@@ -1438,7 +1742,7 @@ function stopCluster() {
     function onReply(rep) {
       mcc.util.dbg("Got reply for: "+commands[currseq].progTitle);
       var cc = commands[currseq];
-      console.log(rep.body, cc)
+      mcc.util.dbg(rep.body, cc)
       if (cc.msg.isCommand) {
         result = cc.check_result(rep);
         if (result == "retry") {
