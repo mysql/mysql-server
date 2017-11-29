@@ -59,7 +59,6 @@ dd_get_space_id(const dd::Partition& partition)
 	}
 	return(id);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /** partition name separator */
 extern const char*	part_sep;
@@ -167,7 +166,6 @@ dd_parse_tbl_name(
 	return(true);
 }
 
-#ifndef UNIV_HOTBACKUP
 /** Look up a column in a table using the system_charset_info collation.
 @param[in]	dd_table	data dictionary table
 @param[in]	name		column name
