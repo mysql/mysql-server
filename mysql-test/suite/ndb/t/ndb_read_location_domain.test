@@ -1,5 +1,6 @@
 -- source include/have_ndb.inc
 --source include/not_windows.inc
+--source suite/ndb/include/have_little_endian.inc
 
 --let $KEYS=40
 
