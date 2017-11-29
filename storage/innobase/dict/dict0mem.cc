@@ -81,7 +81,11 @@ operator<<(
 	std::ostream&		s,
 	const table_name_t&	table_name)
 {
+#ifndef UNIV_HOTBACKUP
 	return(s << ut_get_name(NULL, table_name.m_name));
+#else /* !UNIV_HOTBACKUP */
+	return(s << table_name.m_name);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 #ifndef UNIV_HOTBACKUP

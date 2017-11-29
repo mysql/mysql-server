@@ -3199,7 +3199,6 @@ innobase_quote_identifier(
 		putc(q, file);
 	}
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /** Convert a table name to the MySQL system_charset_info (UTF-8)
 and quote it.
@@ -3275,7 +3274,6 @@ innobase_convert_name(
 	return(s);
 }
 
-#ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 A wrapper function of innobase_convert_name(), convert a table name
 to the MySQL system_charset_info (UTF-8) and quote it if needed.

@@ -920,7 +920,6 @@ MY_ATTRIBUTE((warn_unused_result))
 innodb_session_t*&
 thd_to_innodb_session(
 	THD*	thd);
-#endif /* !UNIV_HOTBACKUP */
 
 /** Parse a table file name into table name and database name.
 Note the table name may have trailing TMP_POSTFIX for temporary table name.
@@ -943,7 +942,6 @@ dd_parse_tbl_name(
 	char*		dd_sub_name,
 	bool*		is_temp);
 
-#ifndef UNIV_HOTBACKUP
 /** Look up a column in a table using the system_charset_info collation.
 @param[in]	dd_table	data dictionary table
 @param[in]	name		column name

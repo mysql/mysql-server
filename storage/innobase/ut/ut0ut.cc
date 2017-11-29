@@ -323,6 +323,7 @@ ut_2_power_up(
 	return(res);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Get a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
@@ -341,19 +342,13 @@ ut_get_name(
 	char		buf[3 * NAME_LEN];
 	const char*	bufend;
 
-#ifndef UNIV_HOTBACKUP
 	bufend = innobase_convert_name(buf, sizeof buf,
 				       name, strlen(name),
 				       trx ? trx->mysql_thd : NULL);
-#else /* !UNIV_HOTBACKUP */
-	bufend = innobase_convert_name(
-		buf, sizeof buf, name, strlen(name), NULL);
-#endif /* !UNIV_HOTBACKUP */
 	buf[bufend - buf] = '\0';
 	return(std::string(buf, 0, bufend - buf));
 }
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be

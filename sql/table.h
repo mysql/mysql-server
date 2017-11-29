@@ -20,7 +20,6 @@
 #include <sys/types.h>
 #include <string>
 
-#ifndef UNIV_HOTBACKUP
 #include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -53,17 +52,11 @@
 #include "thr_lock.h"
 #include "typelib.h"
 
-#else /* !UNIV_HOTBACKUP */
-#ifdef MYSQL_CLIENT
-#undef MYSQL_CLIENT
-#endif /* MYSQL_CLIENT */
-#endif /* !UNIV_HOTBACKUP */
 
 #include "sql/mem_root_array.h"
 
 class Field;
 
-#ifndef UNIV_HOTBACKUP
 namespace histograms
 {
   class Histogram;
@@ -130,14 +123,12 @@ enum class enum_json_diff_operation;
                           if ((A)->s->null_bytes > 0) \
                           memset((A)->null_flags, 255, (A)->s->null_bytes);\
                         }
-#endif /* !UNIV_HOTBACKUP */
 
 #define tmp_file_prefix "#sql"			/**< Prefix for tmp tables */
 #define tmp_file_prefix_length 4
 #define TMP_TABLE_KEY_EXTRA 8
 #define PLACEHOLDER_TABLE_ROW_ESTIMATE 2
 
-#ifndef UNIV_HOTBACKUP
 /**
   Enumerate possible types of a table from re-execution
   standpoint.
@@ -1163,8 +1154,6 @@ public:
 };
 
 
-#endif /* UNIV_HOTBACKUP */
-
 /**
   Class that represents a single change to a column value in partial
   update of a JSON column.
@@ -1211,8 +1200,6 @@ public:
   of the diffs should be overlapping or adjacent.
 */
 using Binary_diff_vector= Mem_root_array<Binary_diff>;
-
-#ifndef UNIV_HOTBACKUP
 
 /**
   Flags for TABLE::m_status (maximum 8 bits).
@@ -3706,9 +3693,7 @@ extern LEX_STRING MYSQL_TABLESPACE_NAME;
 extern LEX_STRING RLI_INFO_NAME;
 extern LEX_STRING MI_INFO_NAME;
 extern LEX_STRING WORKER_INFO_NAME;
-#endif /* !UNIV_HOTBACKUP */
 
-#ifndef UNIV_HOTBACKUP
 inline bool is_infoschema_db(const char *name, size_t len)
 {
   return (INFORMATION_SCHEMA_NAME.length == len &&
@@ -3924,5 +3909,4 @@ bool create_table_share_for_upgrade(THD *thd,
                                     bool is_fix_view_cols_and_deps);
 //////////////////////////////////////////////////////////////////////////
 
-#endif /* !UNIV_HOTBACKUP */
 #endif /* TABLE_INCLUDED */
