@@ -156,7 +156,6 @@ SELECT * FROM purchase;
 --move_file $MYSQL_TMP_DIR/datadir1/test/tab3#p#p0.ibd $MYSQL_TMP_DIR/part0/test/tab3#p#p0.ibd
 --move_file $MYSQL_TMP_DIR/datadir1/test/tab3#p#p1.ibd $MYSQL_TMP_DIR/part1/test/tab3#p#p1.ibd
 --move_file $MYSQL_TMP_DIR/undo_files/ts2.ibd $MYSQL_TMP_DIR/data_home/ts2.ibd
---rmdir  $MYSQL_TMP_DIR/undo_files/test
 
 --echo ## Start winDB with --innodb-directories
 let $innodb_dirs='$MYSQL_TMP_DIR/win-DB/../datadir1;$MYSQL_TMP_DIR/win-DB/../undo_files;$MYSQL_TMP_DIR/win-DB/../part0;$MYSQL_TMP_DIR/win-DB/../part1;$MYSQL_TMP_DIR/part2;$MYSQL_TMP_DIR/part3';
