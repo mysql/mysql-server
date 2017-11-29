@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -73,7 +73,9 @@ dojo.provide("mcc.storage.stores");
 dojo.require("dojo.data.ItemFileWriteStore");
 dojo.require("dojo.data.ItemFileReadStore");
 
+dojo.require("mcc.userconfig");
 dojo.require("mcc.util");
+dojo.require("mcc.server");
 
 /**************************** External interface  *****************************/
 
@@ -101,6 +103,7 @@ var hostStore = null;
 var hostTreeStore = null;
 var loadStore = null;
 var appAreaStore = null;
+var CFContents = "";
 
 /****************************** Implementation  *******************************/
 
@@ -142,56 +145,134 @@ function getAppAreaStore() {
 
 // Setup store for cluster information with default values
 function clusterStoreSetup() {
-    var clusterStoreCookie = mcc.util.getCookie("clusterStore");
-    var clusterStoreContents = {identifier: "id", label: "name", items: [
-        {
-            id: 0,
-            ssh_keybased: true,
-            ssh_user: "",
-            name: 'MyCluster', 
-            apparea: 'simple testing',
-            writeload: 'medium'
-        }
-    ]};
+    var confData = mcc.userconfig.getConfigFileContents();
+    
+    if (confData) {
+        mcc.util.dbg("stores.clusterStoreSetup from config.")
+        var arr = JSON.parse("[" + confData + "]");
+        var clusterStoreContents1 = JSON.parse(JSON.stringify(arr[0]));
+        
+        clusterStore= new dojo.data.ItemFileWriteStore({
+            data: clusterStoreContents1
+        });
+        mcc.util.dbg("clusterStoreSetup from config, cluster store set.")
+        clusterStore.data = clusterStore._jsonData;
+        mcc.util.dbg("clusterStoreSetup from config, moved _jsonData -> data.")
+    } else {
+        mcc.util.dbg("clusterStoreSetup from cookie.")
+        var clusterStoreCookie = mcc.util.getCookie("clusterStore");
+        var clusterStoreContents = {identifier: "id", label: "name", items: [
+            {
+                id: 0,
+                ssh_keybased: true,
+                ssh_user: "",
+                name: 'MyCluster', 
+                apparea: 'simple testing',
+                writeload: 'medium'
+            }
+        ]};
 
-    // In the presence of a cookie, use contents from it
-    if (clusterStoreCookie !== undefined) {
-        clusterStoreContents = dojo.fromJson(clusterStoreCookie);
-    }
-    clusterStore= new dojo.data.ItemFileWriteStore({
-        data: clusterStoreContents
-    });   
+        // In the presence of a cookie, use contents from it
+        if (clusterStoreCookie !== undefined) {
+            clusterStoreContents = dojo.fromJson(clusterStoreCookie);
+        }
+        clusterStore= new dojo.data.ItemFileWriteStore({
+            data: clusterStoreContents
+        });
+    }    
     clusterStore.save();
 }
 
 // Setup stores for process instances, types and their relationship
 function processStoreSetup() {
-    var processStoreCookie = mcc.util.getCookie("processStore");
-    var processStoreContents = {identifier: "id", label: "name", items: []};
-
-    var processTypeStoreCookie = mcc.util.getCookie("processTypeStore");
-    var processTypeStoreContents = {identifier: "id", label: "name", items: []};
-
-    // In the presence of a cookie, use contents from it
-    if (processStoreCookie !== undefined) {
-        processStoreContents = dojo.fromJson(processStoreCookie);
-    }
-    if (processTypeStoreCookie !== undefined) {
-        processTypeStoreContents = dojo.fromJson(processTypeStoreCookie);
-    }
-
-    processStore = new dojo.data.ItemFileWriteStore({
-        data: processStoreContents
-    });
-    processTypeStore = new dojo.data.ItemFileWriteStore({
-        data: processTypeStoreContents
-    });
+    var confData = mcc.userconfig.getConfigFileContents();
     
-    // The tree store is not persistent, it is re-created form the other stores
-    processTreeStore = new dojo.data.ItemFileWriteStore({
-        data: {identifier: "id", label: "name", items: []}
-    });
+    if (confData) {
+        //PROCESS, PROCESSTYPE and PROCESSTREE.
+        var processStoreContents = {identifier: "id", label: "name", items: []};
 
+        //PROCESS:
+        mcc.util.dbg("processStoreSetup from config.");
+        var arr = JSON.parse("[" + confData + "]");
+        var processStoreContents1 = JSON.parse(JSON.stringify(arr[3]))
+        var itcnt = 0;
+        try {
+            itcnt = arr[3].items.length;
+        }
+        catch(err) {
+            itcnt = 0;
+        } 
+        if (itcnt > 0) {
+            processStore= new dojo.data.ItemFileWriteStore({
+                data: processStoreContents1
+            });
+            processStore.data = processStore._jsonData;
+            mcc.util.dbg("processStoreSetup from config, moved _jsonData -> data.");
+        } else {
+            processStore= new dojo.data.ItemFileWriteStore({
+                data: processStoreContents
+            });
+            mcc.util.dbg("processStoreSetup from config, empty.");
+        }
+        mcc.util.dbg("processStoreSetup from config, process store set.")
+        
+        //PROCESSTYPE:
+        var processTypeStoreContents = {identifier: "id", label: "name", items: []};
+        var processTypeStoreContents1 = JSON.parse(JSON.stringify(arr[4]));
+        
+        itcnt = 0;
+        try {
+            itcnt = arr[4].items.length;
+        }
+        catch(err) {
+            itcnt = 0;
+        } 
+        if (itcnt > 0) {
+            processTypeStore= new dojo.data.ItemFileWriteStore({
+                data: processTypeStoreContents1
+            });
+            processTypeStore.data = processTypeStore._jsonData;
+            mcc.util.dbg("processStoreSetup from config, moved _jsonData -> data.");
+        } else {
+            processTypeStore= new dojo.data.ItemFileWriteStore({
+                data: processTypeStoreContents
+            });
+            mcc.util.dbg("processTypeStore from config, empty.");
+        }
+        mcc.util.dbg("processTypeStoreSetup from config, process store set.")
+
+        // The tree store is not persistent, it is re-created from the other stores
+        processTreeStore = new dojo.data.ItemFileWriteStore({
+            data: {identifier: "id", label: "name", items: []}
+        });
+    } else {
+        mcc.util.dbg("processStoreSetup from cookies.");
+        var processStoreCookie = mcc.util.getCookie("processStore");
+        var processStoreContents = {identifier: "id", label: "name", items: []};
+
+        var processTypeStoreCookie = mcc.util.getCookie("processTypeStore");
+        var processTypeStoreContents = {identifier: "id", label: "name", items: []};
+
+        // In the presence of a cookie, use contents from it
+        if (processStoreCookie !== undefined) {
+            processStoreContents = dojo.fromJson(processStoreCookie);
+        }
+        if (processTypeStoreCookie !== undefined) {
+            processTypeStoreContents = dojo.fromJson(processTypeStoreCookie);
+        }
+
+        processStore = new dojo.data.ItemFileWriteStore({
+            data: processStoreContents
+        });
+        processTypeStore = new dojo.data.ItemFileWriteStore({
+            data: processTypeStoreContents
+        });
+        
+        // The tree store is not persistent, it is re-created from the other stores
+        processTreeStore = new dojo.data.ItemFileWriteStore({
+            data: {identifier: "id", label: "name", items: []}
+        });
+    }
     // Save stores
     processStore.save();
     processTypeStore.save();
@@ -200,21 +281,53 @@ function processStoreSetup() {
 
 // Setup store for hosts and host tree
 function hostStoreSetup() {
-    var hostStoreCookie = mcc.util.getCookie("hostStore");
-    var hostStoreContents = {identifier: "id", label: "name", items: []};
+    var confData = mcc.userconfig.getConfigFileContents();
+    if (confData) {
+        //HOST:
+        var hostStoreContents = {identifier: "id", label: "name", items: []};
+        var arr = JSON.parse("[" + confData + "]");
+        var hostStoreContents1 = JSON.parse(JSON.stringify(arr[1]))
+        var itcnt = 0;
+        try {
+            itcnt = arr[1].items.length;
+        }
+        catch(err) {
+            itcnt = 0;
+        } 
+        if (itcnt > 0) {
+            hostStore= new dojo.data.ItemFileWriteStore({
+                data: hostStoreContents1
+            });
+            hostStore.data = hostStore._jsonData;
+            mcc.util.dbg("hostStoreSetup from config, moved _jsonData -> data.");
+        } else {
+            hostStore= new dojo.data.ItemFileWriteStore({
+                data: hostStoreContents
+            });
+            mcc.util.dbg("hostStoreSetup from config, empty.");
+        }
+        mcc.util.dbg("hostStoreSetup from config, host store set.")
+        // The tree store is not persistent, it is re-created form the other stores
+        hostTreeStore = new dojo.data.ItemFileWriteStore({
+            data: {identifier: "id", label: "name", items: []}
+        });
+    } else {
+        mcc.util.dbg("hostStoreSetup from cookie.");
+        var hostStoreCookie = mcc.util.getCookie("hostStore");
+        var hostStoreContents = {identifier: "id", label: "name", items: []};
 
-    // In the presence of a cookie, use contents from it
-    if (hostStoreCookie !== undefined) {
-        hostStoreContents = dojo.fromJson(hostStoreCookie);
+        // In the presence of a cookie, use contents from it
+        if (hostStoreCookie !== undefined) {
+            hostStoreContents = dojo.fromJson(hostStoreCookie);
+        }
+
+        hostStore = new dojo.data.ItemFileWriteStore({data: hostStoreContents});
+
+        // The tree store is not persistent, it is re-created form the other stores
+        hostTreeStore = new dojo.data.ItemFileWriteStore({
+            data: {identifier: "id", label: "name", items: []}
+        });
     }
-
-    hostStore = new dojo.data.ItemFileWriteStore({data: hostStoreContents});
-
-    // The tree store is not persistent, it is re-created form the other stores
-    hostTreeStore = new dojo.data.ItemFileWriteStore({
-        data: {identifier: "id", label: "name", items: []}
-    });
-
     hostStore.save();
     hostTreeStore.save();
 }
@@ -309,7 +422,6 @@ function initialize() {
     processStoreSetup();
     hostStoreSetup();
     miscStoreSetup();
-
     // Enable cookie based persistence?
     if (mcc.util.getCookie("autoSave") == "on") {
         setupSaveExtensions();
