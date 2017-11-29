@@ -399,7 +399,7 @@ dict_sdi_set(
 	Sdi_Compressor	compressor(static_cast<uint32_t>(sdi_len), sdi);
 	compressor.compress();
 
-        dberr_t	err = ib_sdi_set(space_id, &ib_sdi_key, sdi_len,
+               	err = ib_sdi_set(space_id, &ib_sdi_key, sdi_len,
 				 compressor.get_comp_len(),
 				 compressor.get_data(), trx);
 
