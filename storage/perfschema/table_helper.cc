@@ -773,90 +773,116 @@ PFS_object_row::make_row(PFS_program *pfs)
 }
 
 int
-PFS_object_row::make_row(const MDL_key *mdl)
+PFS_column_row::make_row(const MDL_key *mdl)
 {
+  static_assert(MDL_key::NAMESPACE_END == 16,
+                "Adjust performance schema when changing enum_mdl_namespace");
+
   switch (mdl->mdl_namespace())
   {
   case MDL_key::GLOBAL:
     m_object_type = OBJECT_TYPE_GLOBAL;
     m_schema_name_length = 0;
     m_object_name_length = 0;
-    break;
-  case MDL_key::SCHEMA:
-    m_object_type = OBJECT_TYPE_SCHEMA;
-    m_schema_name_length = mdl->db_name_length();
-    m_object_name_length = 0;
-    break;
-  case MDL_key::TABLE:
-    m_object_type = OBJECT_TYPE_TABLE;
-    m_schema_name_length = mdl->db_name_length();
-    m_object_name_length = mdl->name_length();
-    break;
-  case MDL_key::FUNCTION:
-    m_object_type = OBJECT_TYPE_FUNCTION;
-    m_schema_name_length = mdl->db_name_length();
-    m_object_name_length = mdl->name_length();
-    break;
-  case MDL_key::PROCEDURE:
-    m_object_type = OBJECT_TYPE_PROCEDURE;
-    m_schema_name_length = mdl->db_name_length();
-    m_object_name_length = mdl->name_length();
-    break;
-  case MDL_key::TRIGGER:
-    m_object_type = OBJECT_TYPE_TRIGGER;
-    m_schema_name_length = mdl->db_name_length();
-    m_object_name_length = mdl->name_length();
-    break;
-  case MDL_key::EVENT:
-    m_object_type = OBJECT_TYPE_EVENT;
-    m_schema_name_length = mdl->db_name_length();
-    m_object_name_length = mdl->name_length();
-    break;
-  case MDL_key::COMMIT:
-    m_object_type = OBJECT_TYPE_COMMIT;
-    m_schema_name_length = 0;
-    m_object_name_length = 0;
-    break;
-  case MDL_key::USER_LEVEL_LOCK:
-    m_object_type = OBJECT_TYPE_USER_LEVEL_LOCK;
-    m_schema_name_length = 0;
-    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
     break;
   case MDL_key::TABLESPACE:
     m_object_type = OBJECT_TYPE_TABLESPACE;
     m_schema_name_length = 0;
     m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::SCHEMA:
+    m_object_type = OBJECT_TYPE_SCHEMA;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = 0;
+    m_column_name_length = 0;
+    break;
+  case MDL_key::TABLE:
+    m_object_type = OBJECT_TYPE_TABLE;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::FUNCTION:
+    m_object_type = OBJECT_TYPE_FUNCTION;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::PROCEDURE:
+    m_object_type = OBJECT_TYPE_PROCEDURE;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::TRIGGER:
+    m_object_type = OBJECT_TYPE_TRIGGER;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::EVENT:
+    m_object_type = OBJECT_TYPE_EVENT;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::COMMIT:
+    m_object_type = OBJECT_TYPE_COMMIT;
+    m_schema_name_length = 0;
+    m_object_name_length = 0;
+    m_column_name_length = 0;
+    break;
+  case MDL_key::USER_LEVEL_LOCK:
+    m_object_type = OBJECT_TYPE_USER_LEVEL_LOCK;
+    m_schema_name_length = 0;
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
     break;
   case MDL_key::LOCKING_SERVICE:
     m_object_type = OBJECT_TYPE_LOCKING_SERVICE;
     m_schema_name_length = mdl->db_name_length();
     m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::SRID:
+    m_object_type = OBJECT_TYPE_SRID;
+    m_schema_name_length = 0;
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
     break;
   case MDL_key::ACL_CACHE:
     m_object_type = OBJECT_TYPE_ACL_CACHE;
     m_schema_name_length = mdl->db_name_length();
     m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::COLUMN_STATISTICS:
+    m_object_type = OBJECT_TYPE_COLUMN_STATISTICS;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = mdl->col_name_length();
     break;
   case MDL_key::BACKUP_LOCK:
     m_object_type = OBJECT_TYPE_BACKUP_LOCK;
     m_schema_name_length = 0;
     m_object_name_length = 0;
+    m_column_name_length = 0;
     break;
   case MDL_key::RESOURCE_GROUPS:
     m_object_type = OBJECT_TYPE_RESOURCE_GROUPS;
     m_schema_name_length = mdl->db_name_length();
     m_object_name_length = mdl->name_length();
-    break;
-  case MDL_key::COLUMN_STATISTICS:
-    m_object_type = OBJECT_TYPE_COLUMN_STATISTICS;
-    m_schema_name_length = 0;
-    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
     break;
   case MDL_key::NAMESPACE_END:
   default:
+    DBUG_ASSERT(false);
     m_object_type = NO_OBJECT_TYPE;
     m_schema_name_length = 0;
     m_object_name_length = 0;
+    m_column_name_length = 0;
     break;
   }
 
@@ -876,6 +902,15 @@ PFS_object_row::make_row(const MDL_key *mdl)
   if (m_object_name_length > 0)
   {
     memcpy(m_object_name, mdl->name(), m_object_name_length);
+  }
+
+  if (m_column_name_length > sizeof(m_column_name))
+  {
+    return 1;
+  }
+  if (m_column_name_length > 0)
+  {
+    memcpy(m_column_name, mdl->col_name(), m_column_name_length);
   }
 
   return 0;
@@ -929,6 +964,56 @@ PFS_object_row::set_nullable_field(uint index, Field *f)
     if (m_object_name_length > 0)
     {
       set_field_varchar_utf8(f, m_object_name, m_object_name_length);
+    }
+    else
+    {
+      f->set_null();
+    }
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
+}
+
+void
+PFS_column_row::set_nullable_field(uint index, Field *f)
+{
+  switch (index)
+  {
+  case 0: /* OBJECT_TYPE */
+    if (m_object_type != NO_OBJECT_TYPE)
+    {
+      set_field_object_type(f, m_object_type);
+    }
+    else
+    {
+      f->set_null();
+    }
+    break;
+  case 1: /* SCHEMA_NAME */
+    if (m_schema_name_length > 0)
+    {
+      set_field_varchar_utf8(f, m_schema_name, m_schema_name_length);
+    }
+    else
+    {
+      f->set_null();
+    }
+    break;
+  case 2: /* OBJECT_NAME */
+    if (m_object_name_length > 0)
+    {
+      set_field_varchar_utf8(f, m_object_name, m_object_name_length);
+    }
+    else
+    {
+      f->set_null();
+    }
+    break;
+  case 3: /* COLUMN_NAME */
+    if (m_column_name_length > 0)
+    {
+      set_field_varchar_utf8(f, m_column_name, m_column_name_length);
     }
     else
     {
@@ -1267,6 +1352,9 @@ set_field_lock_type(Field *f, PFS_TL_LOCK_TYPE lock_type)
 void
 set_field_mdl_type(Field *f, opaque_mdl_type mdl_type)
 {
+  static_assert(MDL_TYPE_END == 11,
+                "Adjust performance schema when changing enum_mdl_type");
+
   enum_mdl_type e = (enum_mdl_type)mdl_type;
   switch (e)
   {
@@ -1303,6 +1391,7 @@ set_field_mdl_type(Field *f, opaque_mdl_type mdl_type)
   case MDL_EXCLUSIVE:
     set_field_varchar_utf8(f, "EXCLUSIVE", 9);
     break;
+  case MDL_TYPE_END:
   default:
     DBUG_ASSERT(false);
   }
@@ -1311,6 +1400,9 @@ set_field_mdl_type(Field *f, opaque_mdl_type mdl_type)
 void
 set_field_mdl_duration(Field *f, opaque_mdl_duration mdl_duration)
 {
+  static_assert(MDL_DURATION_END == 3,
+                "Adjust performance schema when changing enum_mdl_duration");
+
   enum_mdl_duration e = (enum_mdl_duration)mdl_duration;
   switch (e)
   {
@@ -2336,6 +2428,12 @@ PFS_key_object_type::match(const PFS_object_row *pfs)
 }
 
 bool
+PFS_key_object_type::match(const PFS_column_row *pfs)
+{
+  return (m_object_type == pfs->m_object_type);  // FIXME null check?
+}
+
+bool
 PFS_key_object_type::match(const PFS_program *pfs)
 {
   return (m_object_type == pfs->m_type);
@@ -2410,6 +2508,13 @@ PFS_key_object_schema::match(const PFS_object_row *pfs)
 }
 
 bool
+PFS_key_object_schema::match(const PFS_column_row *pfs)
+{
+  bool record_null = (pfs->m_object_name_length == 0);
+  return do_match(record_null, pfs->m_schema_name, pfs->m_schema_name_length);
+}
+
+bool
 PFS_key_object_schema::match(const PFS_setup_object *pfs)
 {
   bool record_null = (pfs->m_schema_name_length == 0);
@@ -2450,6 +2555,13 @@ PFS_key_object_name::match(const PFS_object_row *pfs)
 }
 
 bool
+PFS_key_object_name::match(const PFS_column_row *pfs)
+{
+  bool record_null = (pfs->m_object_name_length == 0);
+  return do_match(record_null, pfs->m_object_name, pfs->m_object_name_length);
+}
+
+bool
 PFS_key_object_name::match(const PFS_index_row *pfs)
 {
   bool record_null = (pfs->m_index_name_length == 0);
@@ -2468,6 +2580,13 @@ PFS_key_object_name::match(const char *object_name, size_t object_name_length)
 {
   bool record_null = (object_name_length == 0);
   return do_match(record_null, object_name, object_name_length);
+}
+
+bool
+PFS_key_column_name::match(const PFS_column_row *pfs)
+{
+  bool record_null = (pfs->m_column_name_length == 0);
+  return do_match(record_null, pfs->m_column_name, pfs->m_column_name_length);
 }
 
 bool

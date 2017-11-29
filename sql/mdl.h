@@ -392,7 +392,31 @@ public:
   uint db_name_length() const { return m_db_name_length; }
 
   const char *name() const { return m_ptr + m_db_name_length + 2; }
-  uint name_length() const { return m_length - m_db_name_length - 3; }
+  uint name_length() const { return m_object_name_length; }
+
+  const char *col_name() const
+  {
+    if (m_db_name_length + m_object_name_length + 3 < m_length)
+    {
+      /* A column name was stored in the key buffer. */
+      return m_ptr + m_db_name_length + m_object_name_length + 3;
+    }
+
+    /* No column name stored. */
+    return NULL;
+  }
+
+  uint col_name_length() const
+  {
+    if (m_db_name_length + m_object_name_length + 3 < m_length)
+    {
+      /* A column name was stored in the key buffer. */
+      return m_length - m_db_name_length - m_object_name_length - 4;
+    }
+
+    /* No column name stored. */
+    return 0;
+  }
 
   enum_mdl_namespace mdl_namespace() const
   { return (enum_mdl_namespace)(m_ptr[0]); }
@@ -426,17 +450,116 @@ public:
 	    effectively lock all implicit tablespaces in the same
 	    schema. A possible fix is to lock on a prefix of length
 	    NAME_LEN * 2, since this is the real buffer size of
-	    the metadata lock key. Dependecies from the PFS
+	    the metadata lock key. Dependencies from the PFS
 	    implementation, possibly relying on the key format,
 	    must be investigated first, though.
     */
-    DBUG_ASSERT(strlen(db) <= NAME_LEN && (mdl_namespace == TABLESPACE ||
-					   strlen(name) <= NAME_LEN));
+    DBUG_ASSERT(strlen(db) <= NAME_LEN);
+    DBUG_ASSERT((mdl_namespace == TABLESPACE) || (strlen(name) <= NAME_LEN));
     m_db_name_length= static_cast<uint16>(strmake(m_ptr + 1, db, NAME_LEN) -
                                           m_ptr - 1);
-    m_length= static_cast<uint16>(strmake(m_ptr + m_db_name_length + 2, name,
-                                          NAME_LEN) - m_ptr + 1);
+    m_object_name_length= static_cast<uint16>(strmake(m_ptr + m_db_name_length + 2, name,
+                                          NAME_LEN) - m_ptr - m_db_name_length - 2);
+    m_length= m_db_name_length + m_object_name_length + 3;
   }
+
+  /**
+    Construct a metadata lock key from a quadruplet (mdl_namespace,
+    database, table and column name).
+
+    @remark The key for a column is
+      @<mdl_namespace@>+@<database name@>+@<table name@>+@<column name@>
+
+    @param  mdl_namespace Id of namespace of object to be locked
+    @param  db            Name of database to which the object belongs
+    @param  name          Name of of the object
+    @param  column_name   Name of of the column
+  */
+  void mdl_key_init(enum_mdl_namespace mdl_namespace,
+                    const char *db, const char *name,
+                    const char *column_name)
+  {
+    m_ptr[0]= (char) mdl_namespace;
+    char *start;
+    char *end;
+
+    DBUG_ASSERT(strlen(db) <= NAME_LEN);
+    start = m_ptr + 1;
+    end= strmake(start, db, NAME_LEN);
+    m_db_name_length= static_cast<uint16>(end - start);
+
+    DBUG_ASSERT(strlen(name) <= NAME_LEN);
+    start = end + 1;
+    end= strmake(start, name, NAME_LEN);
+    m_object_name_length= static_cast<uint16>(end - start);
+
+    size_t col_len= strlen(column_name);
+    DBUG_ASSERT(col_len <= NAME_LEN);
+    start = end + 1;
+    size_t remaining = MAX_MDLKEY_LENGTH - m_db_name_length - m_object_name_length - 3;
+    uint16 extra_length= 0;
+
+    /*
+      In theory:
+      - schema name is up to NAME_LEN characters
+      - object name is up to NAME_LEN characters
+      - column name is up to NAME_LEN characters
+      - NAME_LEN is 64 characters
+      - 1 character is up to 3 bytes (UTF8MB3),
+        and when moving to UTF8MB4, up to 4 bytes.
+      - Storing a SCHEMA + OBJECT MDL key
+        can take up to 387 bytes
+      - Storing a SCHEMA + OBJECT + COLUMN MDL key
+        can take up to 580 bytes.
+
+      In practice:
+      - full storage is allocated for SCHEMA + OBJECT only,
+        storage for COLUMN is **NOT** reserved.
+      - SCHEMA and OBJECT names are typically shorter,
+        and are not using systematically multi-bytes characters
+        for each character, so that less space is required.
+      - MDL keys that are not COLUMN_STATISTICS
+        are stored in full, without truncation.
+
+      For the COLUMN_STATISTICS name space:
+      - either the full SCHEMA + OBJECT + COLUMN key fits
+        within 387 bytes, in which case the fully qualified
+        column name is stored,
+        leading to MDL locks per column (as intended)
+      - or the SCHEMA and OBJECT names are very long,
+        so that not enough room is left to store a column name,
+        in which case the MDL key is truncated to be
+        COLUMN_STATISTICS + SCHEMA + NAME.
+        In this case, MDL locks for columns col_X and col_Y
+        in table LONG_FOO.LONG_BAR will both share the same
+        key LONG_FOO.LONG_BAR, in effect providing a lock
+        granularity not per column but per table.
+        This is a degraded mode of operation,
+        which serializes MDL access to columns
+        (for tables with a very long fully qualified name),
+        to reduce the memory footprint for all MDL access.
+
+      To be revised if the MDL key buffer is allocated dynamically
+      instead.
+    */
+
+    static_assert(MAX_MDLKEY_LENGTH == 387, "UTF8MB3");
+
+    /*
+      Check if there is room to store the whole column name.
+      This code is not trying to store truncated column names,
+      to avoid cutting column_name in the middle of a
+      multi-byte character.
+    */
+    if (remaining >= col_len + 1)
+    {
+      end= strmake(start, column_name, remaining);
+      extra_length= static_cast<uint16>(end - start) + 1; // With \0
+    }
+    m_length= m_db_name_length + m_object_name_length + 3 + extra_length;
+    DBUG_ASSERT(m_length <= MAX_MDLKEY_LENGTH);
+  }
+
   /**
     Construct a metadata lock key from namespace and partial key, which
     contains info about object database and name.
@@ -465,17 +588,20 @@ public:
     memcpy(m_ptr + 1, part_key, part_key_length);
     m_length= static_cast<uint16>(part_key_length + 1);
     m_db_name_length= static_cast<uint16>(db_length);
+    m_object_name_length= m_length - m_db_name_length - 3;
   }
   void mdl_key_init(const MDL_key *rhs)
   {
     memcpy(m_ptr, rhs->m_ptr, rhs->m_length);
     m_length= rhs->m_length;
     m_db_name_length= rhs->m_db_name_length;
+    m_object_name_length= rhs->m_object_name_length;
   }
   void reset()
   {
     m_ptr[0]= NAMESPACE_END;
     m_db_name_length= 0;
+    m_object_name_length= 0;
     m_length= 0;
   }
   bool is_equal(const MDL_key *rhs) const
@@ -519,6 +645,7 @@ public:
 private:
   uint16 m_length{0};
   uint16 m_db_name_length{0};
+  uint16 m_object_name_length{0};
   char m_ptr[MAX_MDLKEY_LENGTH]{0};
   static PSI_stage_info m_namespace_to_wait_state_name[NAMESPACE_END];
 private:
@@ -977,6 +1104,9 @@ public:
   void release_all_locks_for_name(MDL_ticket *ticket);
   void release_locks(MDL_release_locks_visitor *visitor);
   void release_lock(MDL_ticket *ticket);
+
+  bool owns_equal_or_stronger_lock(const MDL_key *mdl_key,
+                                   enum_mdl_type mdl_type);
 
   bool owns_equal_or_stronger_lock(MDL_key::enum_mdl_namespace mdl_namespace,
                                    const char *db, const char *name,

@@ -424,6 +424,10 @@ table_events_waits_common::make_metadata_lock_object_columns(
 
   if (safe_metadata_lock->get_version() == wait->m_weak_version)
   {
+    // TODO: remove code duplication with PFS_column_row::make_row()
+    static_assert(MDL_key::NAMESPACE_END == 16,
+                  "Adjust performance schema when changing enum_mdl_namespace");
+
     MDL_key *mdl = &safe_metadata_lock->m_mdl_key;
 
     switch (mdl->mdl_namespace())
@@ -433,96 +437,120 @@ table_events_waits_common::make_metadata_lock_object_columns(
       m_row.m_object_type_length = 6;
       m_row.m_object_schema_length = 0;
       m_row.m_object_name_length = 0;
-      break;
-    case MDL_key::SCHEMA:
-      m_row.m_object_type = "SCHEMA";
-      m_row.m_object_type_length = 6;
-      m_row.m_object_schema_length = mdl->db_name_length();
-      m_row.m_object_name_length = 0;
-      break;
-    case MDL_key::TABLE:
-      m_row.m_object_type = "TABLE";
-      m_row.m_object_type_length = 5;
-      m_row.m_object_schema_length = mdl->db_name_length();
-      m_row.m_object_name_length = mdl->name_length();
-      break;
-    case MDL_key::FUNCTION:
-      m_row.m_object_type = "FUNCTION";
-      m_row.m_object_type_length = 8;
-      m_row.m_object_schema_length = mdl->db_name_length();
-      m_row.m_object_name_length = mdl->name_length();
-      break;
-    case MDL_key::PROCEDURE:
-      m_row.m_object_type = "PROCEDURE";
-      m_row.m_object_type_length = 9;
-      m_row.m_object_schema_length = mdl->db_name_length();
-      m_row.m_object_name_length = mdl->name_length();
-      break;
-    case MDL_key::TRIGGER:
-      m_row.m_object_type = "TRIGGER";
-      m_row.m_object_type_length = 7;
-      m_row.m_object_schema_length = mdl->db_name_length();
-      m_row.m_object_name_length = mdl->name_length();
-      break;
-    case MDL_key::EVENT:
-      m_row.m_object_type = "EVENT";
-      m_row.m_object_type_length = 5;
-      m_row.m_object_schema_length = mdl->db_name_length();
-      m_row.m_object_name_length = mdl->name_length();
-      break;
-    case MDL_key::COMMIT:
-      m_row.m_object_type = "COMMIT";
-      m_row.m_object_type_length = 6;
-      m_row.m_object_schema_length = 0;
-      m_row.m_object_name_length = 0;
-      break;
-    case MDL_key::USER_LEVEL_LOCK:
-      m_row.m_object_type = "USER LEVEL LOCK";
-      m_row.m_object_type_length = 15;
-      m_row.m_object_schema_length = 0;
-      m_row.m_object_name_length = mdl->name_length();
+      m_row.m_index_name_length = 0;
       break;
     case MDL_key::TABLESPACE:
       m_row.m_object_type = "TABLESPACE";
       m_row.m_object_type_length = 10;
       m_row.m_object_schema_length = 0;
       m_row.m_object_name_length = mdl->name_length();
+      m_row.m_index_name_length = 0;
+      break;
+    case MDL_key::SCHEMA:
+      m_row.m_object_type = "SCHEMA";
+      m_row.m_object_type_length = 6;
+      m_row.m_object_schema_length = mdl->db_name_length();
+      m_row.m_object_name_length = 0;
+      m_row.m_index_name_length = 0;
+      break;
+    case MDL_key::TABLE:
+      m_row.m_object_type = "TABLE";
+      m_row.m_object_type_length = 5;
+      m_row.m_object_schema_length = mdl->db_name_length();
+      m_row.m_object_name_length = mdl->name_length();
+      m_row.m_index_name_length = 0;
+      break;
+    case MDL_key::FUNCTION:
+      m_row.m_object_type = "FUNCTION";
+      m_row.m_object_type_length = 8;
+      m_row.m_object_schema_length = mdl->db_name_length();
+      m_row.m_object_name_length = mdl->name_length();
+      m_row.m_index_name_length = 0;
+      break;
+    case MDL_key::PROCEDURE:
+      m_row.m_object_type = "PROCEDURE";
+      m_row.m_object_type_length = 9;
+      m_row.m_object_schema_length = mdl->db_name_length();
+      m_row.m_object_name_length = mdl->name_length();
+      m_row.m_index_name_length = 0;
+      break;
+    case MDL_key::TRIGGER:
+      m_row.m_object_type = "TRIGGER";
+      m_row.m_object_type_length = 7;
+      m_row.m_object_schema_length = mdl->db_name_length();
+      m_row.m_object_name_length = mdl->name_length();
+      m_row.m_index_name_length = 0;
+      break;
+    case MDL_key::EVENT:
+      m_row.m_object_type = "EVENT";
+      m_row.m_object_type_length = 5;
+      m_row.m_object_schema_length = mdl->db_name_length();
+      m_row.m_object_name_length = mdl->name_length();
+      m_row.m_index_name_length = 0;
+      break;
+    case MDL_key::COMMIT:
+      m_row.m_object_type = "COMMIT";
+      m_row.m_object_type_length = 6;
+      m_row.m_object_schema_length = 0;
+      m_row.m_object_name_length = 0;
+      m_row.m_index_name_length = 0;
+      break;
+    case MDL_key::USER_LEVEL_LOCK:
+      m_row.m_object_type = "USER LEVEL LOCK";
+      m_row.m_object_type_length = 15;
+      m_row.m_object_schema_length = 0;
+      m_row.m_object_name_length = mdl->name_length();
+      m_row.m_index_name_length = 0;
       break;
     case MDL_key::LOCKING_SERVICE:
       m_row.m_object_type = "LOCKING SERVICE";
       m_row.m_object_type_length = 15;
       m_row.m_object_schema_length = mdl->db_name_length();
       m_row.m_object_name_length = mdl->name_length();
+      m_row.m_index_name_length = 0;
+      break;
+    case MDL_key::SRID:
+      m_row.m_object_type = "SRID";
+      m_row.m_object_type_length = 4;
+      m_row.m_object_schema_length = 0;
+      m_row.m_object_name_length = mdl->name_length();
+      m_row.m_index_name_length = 0;
       break;
     case MDL_key::ACL_CACHE:
       m_row.m_object_type = "ACL CACHE";
       m_row.m_object_type_length = 9;
       m_row.m_object_schema_length = mdl->db_name_length();
       m_row.m_object_name_length = mdl->name_length();
+      m_row.m_index_name_length = 0;
+      break;
+    case MDL_key::COLUMN_STATISTICS:
+      m_row.m_object_type = "COLUMN STATISTICS";
+      m_row.m_object_type_length = 17;
+      m_row.m_object_schema_length = mdl->db_name_length();
+      m_row.m_object_name_length = mdl->name_length();
+      // Reusing the INDEX_NAME column for COLUMN_NAME
+      m_row.m_index_name_length = mdl->col_name_length();
       break;
     case MDL_key::BACKUP_LOCK:
       m_row.m_object_type = "BACKUP_LOCK";
       m_row.m_object_type_length = sizeof("BACKUP_LOCK") - 1;
       m_row.m_object_schema_length = 0;
       m_row.m_object_name_length = 0;
+      m_row.m_index_name_length = 0;
       break;
     case MDL_key::RESOURCE_GROUPS:
       m_row.m_object_type = "RESOURCE_GROUPS";
       m_row.m_object_type_length = 15;
       m_row.m_object_schema_length = mdl->db_name_length();
       m_row.m_object_name_length = mdl->name_length();
-      break;
-    case MDL_key::COLUMN_STATISTICS:
-      m_row.m_object_type = "COLUMN STATISTICS";
-      m_row.m_object_type_length = 17;
-      m_row.m_object_schema_length = 0;
-      m_row.m_object_name_length = mdl->name_length();
+      m_row.m_index_name_length = 0;
       break;
     case MDL_key::NAMESPACE_END:
     default:
       m_row.m_object_type_length = 0;
       m_row.m_object_schema_length = 0;
       m_row.m_object_name_length = 0;
+      m_row.m_index_name_length = 0;
       break;
     }
 
@@ -531,8 +559,10 @@ table_events_waits_common::make_metadata_lock_object_columns(
       return 1;
     }
     if (m_row.m_object_schema_length > 0)
+    {
       memcpy(
         m_row.m_object_schema, mdl->db_name(), m_row.m_object_schema_length);
+    }
 
     if (m_row.m_object_name_length > sizeof(m_row.m_object_name))
     {
@@ -543,6 +573,15 @@ table_events_waits_common::make_metadata_lock_object_columns(
       memcpy(m_row.m_object_name, mdl->name(), m_row.m_object_name_length);
     }
 
+    if (m_row.m_index_name_length > sizeof(m_row.m_index_name))
+    {
+      return 1;
+    }
+    if (m_row.m_index_name_length > 0)
+    {
+      memcpy(m_row.m_index_name, mdl->col_name(), m_row.m_index_name_length);
+    }
+
     m_row.m_object_instance_addr = (intptr)wait->m_object_instance_addr;
   }
   else
@@ -550,11 +589,9 @@ table_events_waits_common::make_metadata_lock_object_columns(
     m_row.m_object_type_length = 0;
     m_row.m_object_schema_length = 0;
     m_row.m_object_name_length = 0;
+    m_row.m_index_name_length = 0;
     m_row.m_object_instance_addr = 0;
   }
-
-  /* INDEX NAME */
-  m_row.m_index_name_length = 0;
 
   return 0;
 }

@@ -4678,6 +4678,35 @@ void MDL_ticket::downgrade_lock(enum_mdl_type new_type)
   a object. Returns true if we have a lock of an equal to given or stronger
   type.
 
+  @param mdl_key       Key to check for ownership
+  @param mdl_type      Lock type. Pass in the weakest type to find
+                       out if there is at least some lock.
+
+  @return TRUE if current context contains satisfied lock for the object,
+          FALSE otherwise.
+*/
+
+bool
+MDL_context::owns_equal_or_stronger_lock(
+               const MDL_key *mdl_key, enum_mdl_type mdl_type)
+{
+  MDL_request mdl_request;
+  enum_mdl_duration not_used;
+  /* We don't care about exact duration of lock here. */
+  MDL_REQUEST_INIT_BY_KEY(&mdl_request, mdl_key, mdl_type, MDL_TRANSACTION);
+  MDL_ticket *ticket= find_ticket(&mdl_request, &not_used);
+
+  DBUG_ASSERT(ticket == NULL || ticket->m_lock);
+
+  return ticket;
+}
+
+
+/**
+  Auxiliary function which allows to check if we have some kind of lock on
+  a object. Returns TRUE if we have a lock of an equal to given or stronger
+  type.
+
   @param mdl_namespace Id of object namespace
   @param db            Name of the database
   @param name          Name of the object
@@ -4695,11 +4724,11 @@ MDL_context::owns_equal_or_stronger_lock(
                enum_mdl_type mdl_type)
 {
   MDL_request mdl_request;
-  enum_mdl_duration not_unused;
+  enum_mdl_duration not_used;
   /* We don't care about exact duration of lock here. */
   MDL_REQUEST_INIT(&mdl_request,
                    mdl_namespace, db, name, mdl_type, MDL_TRANSACTION);
-  MDL_ticket *ticket= find_ticket(&mdl_request, &not_unused);
+  MDL_ticket *ticket= find_ticket(&mdl_request, &not_used);
 
   DBUG_ASSERT(ticket == NULL || ticket->m_lock);
 
