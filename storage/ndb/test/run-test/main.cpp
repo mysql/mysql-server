@@ -198,6 +198,7 @@ int main(int argc, char **argv) {
   g_logger.info("Starting...");
 
   if (!find_binaries()) {
+    g_logger.critical("Failed to find required binaries for execution");
     goto end;
   }
 
@@ -228,6 +229,7 @@ int main(int argc, char **argv) {
   }
 
   if (g_do_deploy) {
+    g_logger.info("Deploying files...");
     if (!deploy(g_do_deploy, g_config)) {
       g_logger.critical("Failed to deploy");
       goto end;
@@ -278,6 +280,7 @@ int main(int argc, char **argv) {
       goto end;
     }
 
+    g_logger.info("Setting up database...");
     if (!setup_db(g_config)) {
       g_logger.critical("Failed to setup database");
       goto end;
@@ -314,6 +317,12 @@ int main(int argc, char **argv) {
         goto end;
       }
 
+      g_logger.info("Waiting for all processes to stop...");
+      if (!wait_for_processes_to_stop(g_config, ~0)) {
+        g_logger.critical("Fail to stop all processes");
+        goto end;
+      }
+
       if (!setup_directories(g_config, 2)) {
         g_logger.critical("Failed to setup directories");
         goto end;
@@ -337,7 +346,7 @@ int main(int argc, char **argv) {
         int tmp;
         if (!gather_result(g_config, &tmp)) {
           g_logger.critical("Failed to gather results");
-          goto end;
+          goto cleanup;
         }
 
         if (g_report_file != 0) {
@@ -353,14 +362,14 @@ int main(int argc, char **argv) {
         if (rename("result", resdir.c_str()) != 0) {
           g_logger.critical("Failed to rename %s as %s", "result",
                             resdir.c_str());
-          goto end;
+          goto cleanup;
         }
-        goto end;
+        goto cleanup;
       }
 
       if (!setup_db(g_config)) {
         g_logger.critical("Failed to setup database");
-        goto end;
+        goto cleanup;
       }
 
       g_logger.info("All servers start completed");
@@ -377,19 +386,19 @@ int main(int argc, char **argv) {
     if (num_element_lines < 0) {
       g_logger.critical("Corrupt testcase at line %d (error %d)", lineno,
                         num_element_lines);
-      goto end;
+      goto cleanup;
     }
     g_logger.info("#%d - %s", test_no, test_case.m_name.c_str());
 
     // Assign processes to programs
     if (!setup_test_case(g_config, test_case)) {
       g_logger.critical("Failed to setup test case");
-      goto end;
+      goto cleanup;
     }
 
     if (!start_processes(g_config, p_clients)) {
       g_logger.critical("Failed to start client processes");
-      goto end;
+      goto cleanup;
     }
 
     int result = 0;
@@ -399,15 +408,17 @@ int main(int argc, char **argv) {
     do {
       if (!update_status(g_config, atrt_process::AP_ALL)) {
         g_logger.critical("Failed to get updated status for all processes");
-        goto end;
+        goto cleanup;
       }
 
       if (is_running(g_config, p_ndb) != 2) {
+        g_logger.critical("Failure on data/mgmd node(s)");
         result = ERR_NDB_FAILED;
         break;
       }
 
       if (is_running(g_config, p_servers) != 2) {
+        g_logger.critical("Failure on server(s)");
         result = ERR_SERVERS_FAILED;
         break;
       }
@@ -418,6 +429,7 @@ int main(int argc, char **argv) {
 
       if (!do_command(g_config)) {
         result = ERR_COMMAND_FAILED;
+        g_logger.critical("Failure on client command execution");
         break;
       }
 
@@ -436,7 +448,12 @@ int main(int argc, char **argv) {
 
     if (!stop_processes(g_config, p_clients)) {
       g_logger.critical("Failed to stop client processes");
-      goto end;
+      goto cleanup;
+    }
+
+    if (!wait_for_processes_to_stop(g_config, p_clients)) {
+      g_logger.critical("Failed to stop client processes");
+      goto cleanup;
     }
 
     int tmp, *rp = result ? &tmp : &result;
@@ -474,6 +491,10 @@ int main(int argc, char **argv) {
       remove_dir("result", true);
     }
 
+    if (!update_status(g_config, atrt_process::AP_ALL)) {
+      g_logger.critical("Failed to get updated status for all processes");
+    }
+
     if (reset_config(g_config)) {
       restart = true;
     }
@@ -485,7 +506,13 @@ int main(int argc, char **argv) {
   }
   return_code = 0;
 
+cleanup:
+  g_logger.info("Stopping all processes");
+  stop_processes(g_config, atrt_process::AP_ALL);
+  wait_for_processes_to_stop(g_config, atrt_process::AP_ALL);
+
 end:
+  g_logger.info("Finishing, result: %d", return_code);
   if (return_code != 0 && g_report_file != 0) {
     fprintf(g_report_file, "%s ; %d ; %d ; %d\n", "critical error", test_no,
             ERR_FAILED_TO_START, 0);
@@ -501,8 +528,6 @@ end:
     g_test_case_file = 0;
   }
 
-  g_logger.info("Stopping all processes, result: %d", return_code);
-  stop_processes(g_config, atrt_process::AP_ALL);
   return return_code;
 }
 
@@ -1047,7 +1072,10 @@ bool stop_process(atrt_process &proc) {
       if (status != 4) {
         BaseString msg;
         reply.get("errormessage", msg);
-        g_logger.error("Unable to stop process: %s(%d)", msg.c_str(), status);
+        g_logger.error(
+            "Unable to stop process id: %d host: %s cmd: %s, msg: %s, status: %d",
+            proc.m_proc.m_id, proc.m_host->m_hostname.c_str(),
+            proc.m_proc.m_path.c_str(), msg.c_str(), status);
         return false;
       }
     }
@@ -1057,27 +1085,31 @@ bool stop_process(atrt_process &proc) {
     if (proc.m_host->m_cpcd->undefine_process(proc.m_proc.m_id, reply) != 0) {
       BaseString msg;
       reply.get("errormessage", msg);
-      g_logger.error("Unable to undefine process: %s", msg.c_str());
+      g_logger.error("Unable to stop process id: %d host: %s cmd: %s, msg: %s",
+                     proc.m_proc.m_id, proc.m_host->m_hostname.c_str(),
+                     proc.m_proc.m_path.c_str(), msg.c_str());
       return false;
     }
-    proc.m_proc.m_id = -1;
   }
+
   return true;
 }
 
 bool stop_processes(atrt_config &config, int types) {
+  int failures = 0;
+
   for (unsigned i = 0; i < config.m_processes.size(); i++) {
     atrt_process &proc = *config.m_processes[i];
     if ((types & proc.m_type) != 0) {
       if (!stop_process(proc)) {
-        return false;
+        failures++;
       }
     }
   }
-  return true;
+  return failures == 0;
 }
 
-bool update_status(atrt_config &config, int) {
+bool update_status(atrt_config &config, int types, bool fail_on_missing) {
   Vector<Vector<SimpleCpcClient::Process> > m_procs;
 
   Vector<SimpleCpcClient::Process> dummy;
@@ -1091,27 +1123,35 @@ bool update_status(atrt_config &config, int) {
 
   for (unsigned i = 0; i < config.m_processes.size(); i++) {
     atrt_process &proc = *config.m_processes[i];
-    if (proc.m_proc.m_id != -1) {
-      Vector<SimpleCpcClient::Process> &h_procs = m_procs[proc.m_host->m_index];
-      bool found = false;
+
+    if (proc.m_proc.m_id == -1 || (proc.m_type & types) == 0) {
+      continue;
+    }
+
+    Vector<SimpleCpcClient::Process> &h_procs = m_procs[proc.m_host->m_index];
+    bool found = false;
+    for (unsigned j = 0; j < h_procs.size() && !found; j++) {
+      if (proc.m_proc.m_id == h_procs[j].m_id) {
+        found = true;
+        proc.m_proc.m_status = h_procs[j].m_status;
+      }
+    }
+
+    if (found) continue;
+
+    if (!fail_on_missing) {
+      proc.m_proc.m_id = -1;
+      proc.m_proc.m_status.clear();
+    } else {
+      g_logger.error("update_status: not found");
+      g_logger.error("id: %d host: %s cmd: %s", proc.m_proc.m_id,
+                     proc.m_host->m_hostname.c_str(),
+                     proc.m_proc.m_path.c_str());
       for (unsigned j = 0; j < h_procs.size(); j++) {
-        if (proc.m_proc.m_id == h_procs[j].m_id) {
-          found = true;
-          proc.m_proc.m_status = h_procs[j].m_status;
-          break;
-        }
+        g_logger.error("found: %d %s", h_procs[j].m_id,
+                       h_procs[j].m_path.c_str());
       }
-      if (!found) {
-        g_logger.error("update_status: not found");
-        g_logger.error("id: %d host: %s cmd: %s", proc.m_proc.m_id,
-                       proc.m_host->m_hostname.c_str(),
-                       proc.m_proc.m_path.c_str());
-        for (unsigned j = 0; j < h_procs.size(); j++) {
-          g_logger.error("found: %d %s", h_procs[j].m_id,
-                         h_procs[j].m_path.c_str());
-        }
-        return false;
-      }
+      return false;
     }
   }
   return true;
@@ -1136,6 +1176,56 @@ int is_running(atrt_config &config, int types) {
   if (found == running) return 2;
   if (running == 0) return 0;
   return 1;
+}
+
+bool wait_for_processes_to_stop(atrt_config &config, int types, int retries,
+                                int wait_between_retries_s) {
+  for (int attempts = 0; attempts < retries; attempts++) {
+    bool last_attempt = attempts == (retries - 1);
+
+    update_status(config, types, false);
+
+    int found = 0;
+    for (unsigned i = 0; i < config.m_processes.size(); i++) {
+      atrt_process &proc = *config.m_processes[i];
+      if ((types & proc.m_type) == 0 || proc.m_proc.m_id == -1) continue;
+
+      found++;
+
+      if (!last_attempt) continue;  // skip logging
+      g_logger.error(
+          "Failed to stop process id: %d host: %s status: %s cmd: %s",
+          proc.m_proc.m_id, proc.m_host->m_hostname.c_str(),
+          proc.m_proc.m_status.c_str(), proc.m_proc.m_path.c_str());
+    }
+
+    if (found == 0) return true;
+
+    if (!last_attempt) NdbSleep_SecSleep(wait_between_retries_s);
+  }
+
+  return false;
+}
+
+bool wait_for_process_to_stop(atrt_config &config, atrt_process &proc,
+                              int retries, int wait_between_retries_s) {
+  for (int attempts = 0; attempts < retries; attempts++) {
+    update_status(config, proc.m_type, false);
+
+    if (proc.m_proc.m_id == -1) return true;
+
+    bool last_attempt = attempts == (retries - 1);
+    if (!last_attempt) {
+      NdbSleep_SecSleep(wait_between_retries_s);
+      continue;
+    }
+
+    g_logger.error("Failed to stop process id: %d host: %s status: %s cmd: %s",
+                   proc.m_proc.m_id, proc.m_host->m_hostname.c_str(),
+                   proc.m_proc.m_status.c_str(), proc.m_proc.m_path.c_str());
+  }
+
+  return false;
 }
 
 int insert(const char *pair, Properties &p) {
@@ -1326,12 +1416,17 @@ bool setup_test_case(atrt_config &config, const atrt_testcase &tc) {
     for (unsigned i = 0; i < config.m_processes.size(); i++) {
       atrt_process &proc = *config.m_processes[i];
       if (proc.m_type == atrt_process::AP_MYSQLD) {
-        proc.m_save.m_proc = proc.m_proc;
-        proc.m_save.m_saved = true;
-        proc.m_proc.m_args.appfmt(" %s", tc.m_mysqld_options.c_str());
         if (!stop_process(proc)) {
           return false;
         }
+
+        if (!wait_for_process_to_stop(config, proc)) {
+          return false;
+        }
+
+        proc.m_save.m_proc = proc.m_proc;
+        proc.m_save.m_saved = true;
+        proc.m_proc.m_args.appfmt(" %s", tc.m_mysqld_options.c_str());
 
         if (!start_process(proc)) {
           return false;
@@ -1519,15 +1614,15 @@ bool reset_config(atrt_config &config) {
   for (unsigned i = 0; i < config.m_processes.size(); i++) {
     atrt_process &proc = *config.m_processes[i];
     if (proc.m_save.m_saved) {
-      if (proc.m_proc.m_status == "running") {
+      if (proc.m_proc.m_id != -1) {
         if (!stop_process(proc)) return false;
+        if (!wait_for_process_to_stop(config, proc)) return false;
 
         changed = true;
       }
 
       proc.m_save.m_saved = false;
       proc.m_proc = proc.m_save.m_proc;
-      proc.m_proc.m_id = -1;
     }
   }
   return changed;
