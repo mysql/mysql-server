@@ -19,17 +19,14 @@
 
 #include "m_ctype.h"                            // my_charset_latin1
 #include "my_dbug.h"
-#ifndef UNIV_HOTBACKUP
 #include "mysql/udf_registration_types.h"
 #include "sql/session_tracker.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/table.h"
-#endif /* !UNIV_HOTBACKUP */
 #include "sql_string.h"
 #include "typelib.h"                            // TYPELIB
 
-#ifndef UNIV_HOTBACKUP
 /*
   Return bitmap for strings used in a set
 
@@ -215,7 +212,6 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
     *end_of_word= ptr;
   return res;
 }
-#endif /* !UNIV_HOTBACKUP */
 
 
 /*
@@ -293,7 +289,6 @@ outp:
 }
 
 
-#ifndef UNIV_HOTBACKUP
 char *set_to_string(THD *thd, LEX_STRING *result, ulonglong set,
                     const char *lib[])
 {
@@ -348,5 +343,3 @@ char *flagset_to_string(THD *thd, LEX_STRING *result, ulonglong set,
 
   return result->str;
 }
-#endif /* !UNIV_HOTBACKUP */
-
