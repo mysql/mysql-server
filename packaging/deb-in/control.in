@@ -227,4 +227,5 @@ Description: MySQL source
  as for embedding into mass-deployed software. MySQL is a trademark of
  Oracle.
 
+@DEB_CONTROL_DBGSYM@
 @DEB_NDB_CONTROL_EXTRAS@
