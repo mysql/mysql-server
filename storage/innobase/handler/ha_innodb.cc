@@ -12857,8 +12857,10 @@ create_table_info_t::prepare_create_table(
 	}
 
 	/* Create the table flags and flags2 */
-	if (!innobase_table_flags()) {
-		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+	if (flags() == 0 && flags2() == 0) {
+		if (!innobase_table_flags()) {
+			DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+		}
 	}
 
 	if (high_level_read_only && !is_intrinsic_temp_table()) {
@@ -13390,6 +13392,8 @@ template int create_table_info_t::create_table_update_global_dd<dd::Partition>(
 				dict_table_t to be kept in memory
 @param[in]	skip_strict	whether to skip strict check for create
 				option
+@param[in]	old_flags	old Table flags
+@param[in]	old_flags2	old Table flags2
 @return	error number
 @retval 0 on success */
 template<typename Table>
@@ -13402,7 +13406,9 @@ innobase_basic_ddl::create_impl(
 	Table*			dd_tab,
 	bool			file_per_table,
 	bool			evictable,
-	bool			skip_strict)
+	bool			skip_strict,
+	ulint			old_flags,
+	ulint			old_flags2)
 {
 	int		error;
 	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
@@ -13425,7 +13431,9 @@ innobase_basic_ddl::create_impl(
 				     remote_path,
 				     tablespace,
 				     file_per_table,
-				     skip_strict);
+				     skip_strict,
+				     old_flags,
+				     old_flags2);
 
 	/* Initialize the object. */
 	if ((error = info.initialize())) {
@@ -13546,10 +13554,10 @@ cleanup:
 }
 
 template int innobase_basic_ddl::create_impl<dd::Table>(
-	THD*, const char*, TABLE*, HA_CREATE_INFO*, dd::Table*, bool, bool, bool);
+	THD*, const char*, TABLE*, HA_CREATE_INFO*, dd::Table*, bool, bool, bool, ulint, ulint);
 
 template int innobase_basic_ddl::create_impl<dd::Partition>(
-	THD*, const char*, TABLE*, HA_CREATE_INFO*, dd::Partition*, bool, bool, bool);
+	THD*, const char*, TABLE*, HA_CREATE_INFO*, dd::Partition*, bool, bool, bool, ulint, ulint);
 
 
 /** Drop a table.
@@ -14175,7 +14183,7 @@ ha_innobase::create(
 	decisions based on this. */
 	return(innobase_basic_ddl::create_impl(
 		ha_thd(), name, form, create_info, table_def,
-		srv_file_per_table, true, false));
+		srv_file_per_table, true, false, 0, 0));
 }
 
 /** Discards or imports an InnoDB tablespace.
@@ -14441,7 +14449,9 @@ ha_innobase::truncate(dd::Table *table_def)
 	const bool	file_per_table
 		= dict_table_is_file_per_table(m_prebuilt->table);
 	update_create_info_from_table(&info, table);
-	char* tsname	= NULL;
+	char*		tsname	= NULL;
+	ulint		old_flags = m_prebuilt->table->flags;
+	ulint		old_flags2 = m_prebuilt->table->flags2;
 
 	if (m_prebuilt->table->is_temporary()) {
 		info.options|= HA_LEX_CREATE_TMP_TABLE;
@@ -14503,7 +14513,7 @@ ha_innobase::truncate(dd::Table *table_def)
 
 		error = innobase_basic_ddl::create_impl(
 			thd, name, table, &info, table_def,
-			file_per_table, true, true);
+			file_per_table, true, true, old_flags, old_flags2);
 		trx->in_truncate = false;
 	}
 
