@@ -419,7 +419,7 @@ public:
 	}
 
 	/** Check if m_path is the same as path.
-	@param[in]	name	directory path to compare to
+	@param[in]	path	directory path to compare to
 	@return true if m_path is the same as path */
 	bool is_same_as(const std::string& path) const
 		MY_ATTRIBUTE((warn_unused_result))
