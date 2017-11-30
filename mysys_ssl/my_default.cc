@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -267,7 +267,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
                                       (char **) &my_login_path, found_no_defaults);
 
     if (! my_defaults_group_suffix)
-      my_defaults_group_suffix= getenv(STRINGIFY_ARG(DEFAULT_GROUP_SUFFIX_ENV));
+      my_defaults_group_suffix= getenv("MYSQL_GROUP_SUFFIX");
 
     if (forced_extra_defaults && !defaults_already_read)
     {
