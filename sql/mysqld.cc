@@ -2955,49 +2955,6 @@ int init_common_variables()
     return 1;
   init_client_errs();
 
-  /*
-    initiate key migration if any one of the migration specific
-    options are provided.
-  */
-  if (opt_keyring_migration_source ||
-      opt_keyring_migration_destination ||
-      migrate_connect_options)
-  {
-    Migrate_keyring mk;
-    my_getopt_skip_unknown= TRUE;
-    if (mk.init(remaining_argc, remaining_argv,
-                opt_keyring_migration_source,
-                opt_keyring_migration_destination,
-                opt_keyring_migration_user,
-                opt_keyring_migration_host,
-                opt_keyring_migration_password,
-                opt_keyring_migration_socket,
-                opt_keyring_migration_port))
-    {
-      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                      "failed");
-      log_error_dest= "stderr";
-      flush_error_log_messages();
-      return 1;
-    }
-
-    if (mk.execute())
-    {
-      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                      "failed");
-      log_error_dest= "stderr";
-      flush_error_log_messages();
-      return 1;
-    }
-
-    my_getopt_skip_unknown= 0;
-    sql_print_information(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                          "sucessfull");
-    log_error_dest= "stderr";
-    flush_error_log_messages();
-    exit(MYSQLD_SUCCESS_EXIT);
-  }
-
   mysql_client_plugin_init();
   if (item_create_init())
     return 1;
@@ -4680,15 +4637,6 @@ int mysqld_main(int argc, char **argv)
   srand(static_cast<uint>(time(NULL)));
 #endif
 
-  /*
-    We have enough space for fiddling with the argv, continue
-  */
-  if (my_setwd(mysql_real_data_home,MYF(MY_WME)) && !opt_help)
-  {
-    sql_print_error("failed to set datadir to %s", mysql_real_data_home);
-    unireg_abort(MYSQLD_ABORT_EXIT);        /* purecov: inspected */
-  }
-
 #ifndef _WIN32
   if ((user_info= check_user(mysqld_user)))
   {
@@ -4732,6 +4680,56 @@ int mysqld_main(int argc, char **argv)
       set_user(mysqld_user, user_info);
   }
 #endif // !_WIN32
+
+  /*
+   initiate key migration if any one of the migration specific
+   options are provided.
+  */
+  if (opt_keyring_migration_source ||
+      opt_keyring_migration_destination ||
+      migrate_connect_options)
+  {
+    Migrate_keyring mk;
+    if (mk.init(remaining_argc, remaining_argv,
+                opt_keyring_migration_source,
+                opt_keyring_migration_destination,
+                opt_keyring_migration_user,
+                opt_keyring_migration_host,
+                opt_keyring_migration_password,
+                opt_keyring_migration_socket,
+                opt_keyring_migration_port))
+    {
+      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                      "failed");
+      log_error_dest= "stderr";
+      flush_error_log_messages();
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+
+    if (mk.execute())
+    {
+      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                      "failed");
+      log_error_dest= "stderr";
+      flush_error_log_messages();
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+
+    sql_print_information(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                          "successfull");
+    log_error_dest= "stderr";
+    flush_error_log_messages();
+    unireg_abort(MYSQLD_SUCCESS_EXIT);
+  }
+
+  /*
+   We have enough space for fiddling with the argv, continue
+  */
+  if (my_setwd(mysql_real_data_home,MYF(MY_WME)) && !opt_help)
+  {
+    sql_print_error("failed to set datadir to %s", mysql_real_data_home);
+    unireg_abort(MYSQLD_ABORT_EXIT);        /* purecov: inspected */
+  }
 
   //If the binlog is enabled, one needs to provide a server-id
   if (opt_bin_log && !(server_id_supplied) )
