@@ -27,8 +27,6 @@ SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memc
 # If current CMAKE_C_FLAGS is with Werror, turn it off to compile successfully
 IF(CMAKE_C_FLAGS MATCHES "-Werror")
   STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-  # Turn -Wdeclaration-after-statement off to reduce the number of warnings
-  STRING(REGEX REPLACE "-Wdeclaration-after-statement" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 ENDIF(CMAKE_C_FLAGS MATCHES "-Werror")
 
 # Set extra flags for the C compiler
