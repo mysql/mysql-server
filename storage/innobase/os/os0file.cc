@@ -5535,7 +5535,7 @@ Dir_Walker::walk_win32(const Path& basedir, Function&& f)
 
 		if (h == INVALID_HANDLE_VALUE) {
 
-			ib::warn()
+			ib::info()
 				<< "Directory read failed:"
 				<< " '" << current.m_path << "' during scan";
 
