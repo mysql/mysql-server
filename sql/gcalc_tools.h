@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -200,7 +200,8 @@ public:
 #endif
   };
 
-  Gcalc_result_receiver() : collection_result(FALSE), n_shapes(0), n_holes(0)
+  Gcalc_result_receiver() : n_points(0), collection_result(FALSE), n_shapes(0),
+    n_holes(0), prev_x(0), prev_y(0), shape_area(0)
     {}
   int start_shape(Gcalc_function::shape_type shape);
   int add_point(double x, double y);
@@ -353,11 +354,17 @@ private:
                            bool intersection_point)
   {
     res_point *result= (res_point *) new_item();
+    result->up= result->down= result->glue= NULL;
+    result->set_outer_poly(NULL);
+    result->pi= NULL;
+    result->first_poly_node= NULL;
     *m_res_hook= result;
     result->prev_hook= m_res_hook;
     m_res_hook= &result->next;
     result->pi= pi;
     result->intersection_point= intersection_point;
+    result->x= 0;
+    result->y= 0;
     return result;
   }
 

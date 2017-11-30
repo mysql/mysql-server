@@ -84,45 +84,6 @@ override_dh_auto_install:
 	@DEB_RULES_INSTALL_APPARMOR@
 	# add systemd script
 	@DEB_RULES_INSTALL_SYSTEMD@
-	# add directory for legal docs
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-server
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-server
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-client
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-client
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-common
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/libmysqlclient18
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/libmysqlclient-dev
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/libmysqld-dev
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-bench
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-testsuite
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-test
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-source
-	# add @DEB_INSTALL_LICENSEFILE@ file to each package
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/mysql-server/@DEB_INSTALL_LICENSEFILE@
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-server/@DEB_INSTALL_LICENSEFILE@
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/mysql-client/@DEB_INSTALL_LICENSEFILE@
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-client/@DEB_INSTALL_LICENSEFILE@
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/mysql-common/@DEB_INSTALL_LICENSEFILE@
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/libmysqlclient18/@DEB_INSTALL_LICENSEFILE@
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/libmysqlclient-dev/@DEB_INSTALL_LICENSEFILE@
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/libmysqld-dev/@DEB_INSTALL_LICENSEFILE@
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-bench/@DEB_INSTALL_LICENSEFILE@
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/mysql-testsuite/@DEB_INSTALL_LICENSEFILE@
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/@DEB_INSTALL_LICENSEFILE@
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-source/@DEB_INSTALL_LICENSEFILE@
-	# add README file to each package
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-server/README
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-server/README
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-client/README
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-client/README
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-common/README
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/libmysqlclient18/README
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/libmysqlclient-dev/README
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/libmysqld-dev/README
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-bench/README
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-testsuite/README
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/README
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-source/README
 	touch $@
 
 override_dh_installinit:
@@ -139,8 +100,10 @@ override_dh_install:
 		-Xusr/share/mysql/mysql.server \
 		-Xusr/share/man/man1/mysql.server.1 \
 		-Xusr/share/mysql/binary-configure \
-		-Xusr/share/mysql/@DEB_INSTALL_LICENSEFILE@ \
-		-Xusr/share/mysql/README \
 		-Xusr/share/mysql/docs/mysql.info \
 		-Xusr/share/man/man1/mysqlman.1 \
+		-Xusr/share/man/man1/mysqltest \
+		-Xusr/share/man/man1/mysql_client_test \
+		-Xusr/share/man/man1/mysql-stress-test.pl.1 \
+		-Xusr/share/man/man1/mysql-test-run.pl.1 \
 		-X.h.pp
