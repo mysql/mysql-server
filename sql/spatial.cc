@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1777,7 +1777,7 @@ bool Gis_multi_polygon::get_mbr(MBR *mbr, wkb_parser *wkb) const
     
   while (n_polygons--)
   {
-    uint32 n_linear_rings;
+    uint32 n_linear_rings= 0;
     if (wkb->skip_wkb_header() ||
         wkb->scan_non_zero_uint4(&n_linear_rings))
       return true;

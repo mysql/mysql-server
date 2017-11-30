@@ -702,7 +702,7 @@ int ha_partition::create_handler_files(const char *path,
 int ha_partition::create(const char *name, TABLE *table_arg,
 			 HA_CREATE_INFO *create_info)
 {
-  int error;
+  int error= 0;
   char name_buff[FN_REFLEN + 1], name_lc_buff[FN_REFLEN + 1];
   char *name_buffer_ptr;
   const char *path;
@@ -3317,7 +3317,16 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   }
   m_start_key.length= 0;
   m_rec0= table->record[0];
-  m_rec_length= table_share->reclength;
+  legacy_db_type db_type = ha_legacy_type(m_part_info->default_engine_type);
+  if(db_type == DB_TYPE_HEAP)
+  {
+   m_rec_length= table_share->rec_buff_length;
+  }
+  else {
+   m_rec_length= table_share->rec_buff_length;
+  }
+  DBUG_ASSERT(db_type !=  DB_TYPE_UNKNOWN);
+
   if (!m_part_ids_sorted_by_num_of_records)
   {
     if (!(m_part_ids_sorted_by_num_of_records=
@@ -5415,9 +5424,16 @@ int ha_partition::index_first(uchar * buf)
 int ha_partition::index_last(uchar * buf)
 {
   DBUG_ENTER("ha_partition::index_last");
-
+  int error = HA_ERR_END_OF_FILE;
+  uint part_id = bitmap_get_first_set(&(m_part_info->read_partitions));
+  if (part_id == MY_BIT_NONE)
+  {
+	/* No partition to scan. */
+	DBUG_RETURN(error);
+  }
   m_index_scan_type= partition_index_last;
   DBUG_RETURN(common_first_last(buf));
+
 }
 
 /*

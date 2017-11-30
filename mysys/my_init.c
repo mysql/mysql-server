@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 my_bool have_tcpip=0;
 static void my_win_init(void);
 static my_bool win32_init_tcp_ip();
+my_bool win_init_get_system_time_as_file_time();
 #else
 #define my_win_init()
 #endif
@@ -109,6 +110,8 @@ my_bool my_init(void)
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
 #ifdef __WIN__
     win32_init_tcp_ip();
+    if (win_init_get_system_time_as_file_time())
+      DBUG_RETURN(1);
 #endif
     DBUG_RETURN(0);
   }

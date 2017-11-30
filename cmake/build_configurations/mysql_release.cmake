@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,13 +23,6 @@ OPTION(ENABLED_LOCAL_INFILE "" ON)
 
 IF(NOT COMPILATION_COMMENT)
   SET(COMPILATION_COMMENT "MySQL Community Server (GPL)")
-ENDIF()
-
-IF(WIN32)
-  IF(NOT CMAKE_USING_VC_FREE_TOOLS)
-    # Sign executables with authenticode certificate
-    SET(SIGNCODE 1 CACHE BOOL "")
-  ENDIF()
 ENDIF()
 
 IF(UNIX)
