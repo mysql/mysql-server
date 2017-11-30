@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ IF(UNIX)
   CONFIGURE_FILE(mysql.spec.in ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
 
   FOREACH(fedfile my.cnf)
-    CONFIGURE_FILE(${fedfile}.in ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
+    CONFIGURE_FILE(${fedfile}.in ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} @ONLY)
   ENDFOREACH()
 ENDIF()
 
