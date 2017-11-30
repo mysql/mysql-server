@@ -4,9 +4,9 @@
 SET NAMES utf8mb4 COLLATE utf8mb4_0900_as_ci;
 
 set @euro64 = repeat(_utf8 x'E282AC', 64);
-set @euro37 = repeat(_utf8 x'E282AC', 37);
+set @euro36 = repeat(_utf8 x'E282AC', 36);
 
-set @query = concat("drop database if exists ", @euro37);
+set @query = concat("drop database if exists ", @euro36);
 
 select @query;
 
@@ -16,7 +16,7 @@ execute stmt;
 --enable_warnings
 drop prepare stmt;
 
-set @query = concat("create database ", @euro37);
+set @query = concat("create database ", @euro36);
 
 select @query;
 
@@ -24,7 +24,7 @@ prepare stmt from @query;
 execute stmt;
 drop prepare stmt;
 
-set @query = concat("create table ", @euro37, ".", @euro37,
+set @query = concat("create table ", @euro36, ".", @euro36,
                     "(a integer, bb integer, ", @euro64, " integer)");
 
 select @query;
@@ -33,7 +33,7 @@ prepare stmt from @query;
 execute stmt;
 drop prepare stmt;
 
-set @query = concat("insert into ", @euro37, ".", @euro37,
+set @query = concat("insert into ", @euro36, ".", @euro36,
                     " values (1, 2, 3)");
 
 select @query;
@@ -44,7 +44,7 @@ drop prepare stmt;
 
 begin;
 
-set @query = concat("select * from ", @euro37, ".", @euro37);
+set @query = concat("select * from ", @euro36, ".", @euro36);
 
 select @query;
 
@@ -60,7 +60,7 @@ select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME,
 
 commit;
 
-set @query = concat("drop table ", @euro37, ".", @euro37);
+set @query = concat("drop table ", @euro36, ".", @euro36);
 
 select @query;
 
@@ -68,7 +68,7 @@ prepare stmt from @query;
 execute stmt;
 drop prepare stmt;
 
-set @query = concat("drop schema ", @euro37);
+set @query = concat("drop schema ", @euro36);
 
 select @query;
 
