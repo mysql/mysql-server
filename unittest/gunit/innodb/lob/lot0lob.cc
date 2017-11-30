@@ -40,7 +40,7 @@ namespace lob {
 
 /** An uncompressed LOB will be treated as a small LOB if the number of
 pages it occupies is less than or equal to SMALL_THRESHOLD_PAGE_COUNT. */
-const ulint SMALL_THRESHOLD_PAGE_COUNT = 10;
+// const ulint SMALL_THRESHOLD_PAGE_COUNT = 10;
 
 static std::map<ref_t, buf_block_t *> g_lob;
 
@@ -300,7 +300,7 @@ dberr_t replace(trx_id_t trxid, ref_t ref, ulint offset, ulint len, byte *buf) {
     buf_block_t *block = buf_page_get(page_no);
     page_type_t type = fil_page_get_type(block->m_frame);
 
-    buf_block_t *new_block;
+    buf_block_t *new_block = nullptr;
     if (type == FIL_PAGE_TYPE_LOB_FIRST) {
       base_node_page_t page(block);
       new_block = page.replace(trxid, page_offset, ptr, want);
