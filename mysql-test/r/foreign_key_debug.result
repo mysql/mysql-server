@@ -404,11 +404,15 @@ LOCK TABLES parent WRITE;
 # There are two metadata locks because the child has
 # two different FK roles wrt. the parent. Note that
 # the locks are stronger for LOCK TABLES.
-SELECT LOCK_TYPE FROM performance_schema.metadata_locks
-WHERE OBJECT_NAME LIKE 'child';
-LOCK_TYPE
-SHARED_READ_ONLY
-SHARED_NO_READ_WRITE
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME,
+LOCK_TYPE FROM performance_schema.metadata_locks
+WHERE OBJECT_NAME LIKE 'child'
+  ORDER BY OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME, LOCK_TYPE;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COLUMN_NAME	LOCK_TYPE
+COLUMN STATISTICS	test	child	fk	SHARED_READ
+COLUMN STATISTICS	test	child	pk	SHARED_READ
+TABLE	test	child	NULL	SHARED_NO_READ_WRITE
+TABLE	test	child	NULL	SHARED_READ_ONLY
 # From another connection, verify that child is locked.
 SET @@session.lock_wait_timeout= 1;
 INSERT INTO child VALUES (1, 1);
