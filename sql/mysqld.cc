@@ -5732,10 +5732,10 @@ int mysqld_main(int argc, char **argv)
 
     my_getopt_skip_unknown= 0;
     sql_print_information(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                          "sucessfull");
+                          "successfull");
     log_error_dest= "stderr";
     flush_error_log_messages();
-    exit(MYSQLD_SUCCESS_EXIT);
+    unireg_abort(MYSQLD_SUCCESS_EXIT);
   }
 
   /*

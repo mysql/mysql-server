@@ -1650,14 +1650,6 @@ type_conversion_status Field::check_constraints(int mysql_errno)
   if (this == table->next_number_field)
     return TYPE_OK;
 
-  /*
-    If the field is of TIMESTAMP its default value is CURRENT_TIMESTAMP
-    and was set before calling this method. Therefore m_is_tmp_null == false
-    for such field and we leave check_constraints() before this
-    DBUG_ASSERT is fired.
-  */
-  DBUG_ASSERT (type() != MYSQL_TYPE_TIMESTAMP);
-
   switch (m_check_for_truncated_fields_saved) {
   case CHECK_FIELD_WARN:
     set_warning(Sql_condition::SL_WARNING, mysql_errno, 1);
