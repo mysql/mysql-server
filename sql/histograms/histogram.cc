@@ -1154,7 +1154,11 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
   /*
     Ensure that we estimate at least one row in the table, so we avoid
     division by zero error.
+
+    NOTE: We ignore errors from "fetch_number_of_rows()" on purpose, since we
+    don't consider it fatal not having the correct row estimate.
   */
+  table->fetch_number_of_rows();
   ha_rows rows_in_table= std::max(1ULL, tbl->file->stats.records);
 
   double sample_percentage= rows_in_memory / rows_in_table * 100.0;
