@@ -1003,7 +1003,7 @@
    fun:_Z*8clean_upb*
 }
 
-#Suppress warnings from glibc implementation of 'malloc_info' 
+#Suppress warnings from glibc implementation of 'malloc_info'
 {
    Malloc_info uninitialised value of size 8
    Memcheck:Value8
@@ -1479,7 +1479,7 @@
   ...
 }
 
-{ 
+{
   TPL leak 11
   Memcheck:Leak
   match-leak-kinds: reachable
@@ -1493,7 +1493,7 @@
   fun:by_file_ctrl
   fun:X509_STORE_load_locations
   obj:*
-  obj:* 
+  obj:*
   obj:*
   obj:*
   obj:*
@@ -1706,4 +1706,143 @@
    ppoll(sigmask)
    fun:ppoll
    fun:vio_io_wait
+}
+
+# Workarounds for
+#
+# Bug#22833138 KEYRING_OKV : MEMORY LEAKS FROM OKV CLIENT LIB
+{
+  Keyring_OKV_workaround_addtoTagObj
+  Memcheck:Leak
+  fun:malloc
+  fun:okimem_nat_malloc
+  fun:OKIMemAlloc
+  fun:addtoTagObj
+}
+{
+  Keyring_OKV_workaround_OKIGetKey
+   Memcheck:Leak
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:OKIAPIResultAlloc
+   fun:OKIGetKey
+}
+{
+  Keyring_OKV_workaround_OKICreateKey
+   Memcheck:Leak
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:OKIAPIResultAlloc
+   fun:OKICreateKey
+}
+{
+   Keyring_OKV_workaround_OKIGetAttributes
+   Memcheck:Leak
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:OKIAPIResultAlloc
+   fun:OKIGetAttributes
+}
+{
+   Keyring_OKV_workaround_OKIGetAttributes2
+   Memcheck:Leak
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:OKIPostGetUIDTTLV
+   fun:OKIAPIPostProcessing
+   fun:OKIGetAttributes
+}
+{
+   Keyring_OKV_workaround_OKIAddAttribute
+   Memcheck:Leak
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:OKIAPIResultAlloc
+   fun:OKIAddAttribute
+}
+{
+   Keyring_OKV_workaround_OKIAddAttribute2
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:OKIOpsCreate
+   fun:OKIAddAttribute
+}
+{
+   Keyring_OKV_workaround_OKILocate
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:OKIAPIResultAlloc
+   fun:OKILocate
+}
+{
+   Keyring_OKV_workaround_OKIActivate
+   Memcheck:Leak
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:OKIAPIResultAlloc
+   fun:OKIActivate
+}
+{
+   Keyring_OKV_workaround_OKIRegKey
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:OKIAPIResultAlloc
+   fun:OKIRegKey
+}
+{
+   Keyring_OKV_workaround_OKIRevoke
+   Memcheck:Leak
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:OKIAPIResultAlloc
+   fun:OKIRevoke
+}
+{
+   Keyring_OKV_workaround_OKIEnvCreate
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:OKIEnvCreate
+}
+{
+   Keyring_OKV_workaround_OKITTLVMoveChildWithTag
+   Memcheck:Leak
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:OKITTLVMoveChildWithTag
+}
+{
+   Keyring_OKV_workaround_OKIParseUnpackTTLVFromBuffer
+   Memcheck:Leak
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:OKIParseUnpackTTLVFromBuffer
+}
+{
+   Keyring_OKV_workaround_OKITTLVAddChildObject
+   Memcheck:Leak
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:OKITTLVAddChildObject
 }
