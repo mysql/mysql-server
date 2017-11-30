@@ -35,7 +35,7 @@ IF(UNIX)
   CONFIGURE_FILE(mysql.spec.in ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
 
   FOREACH(fedfile my.cnf)
-    CONFIGURE_FILE(${fedfile}.in ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
+    CONFIGURE_FILE(${fedfile}.in ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} @ONLY)
   ENDFOREACH()
 ENDIF()
 
