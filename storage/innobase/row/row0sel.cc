@@ -2796,7 +2796,7 @@ row_sel_store_mysql_field_func(
 {
 	const byte*	data;
 	ulint		len;
-	ulint		clust_field_no;
+	ulint		clust_field_no = 0;
 	bool		clust_templ_for_sec = (sec_field_no != ULINT_UNDEFINED);
 
 	ut_ad(prebuilt->default_rec);

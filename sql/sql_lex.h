@@ -2545,6 +2545,8 @@ public:
   
   bool escape_used;
   bool is_lex_started; /* If lex_start() did run. For debugging. */
+  /// Set to true while resolving values in ON DUPLICATE KEY UPDATE clause
+  bool in_update_value_clause;
 
   /*
     The set of those tables whose fields are referenced in all subqueries

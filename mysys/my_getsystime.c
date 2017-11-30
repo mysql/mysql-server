@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,42 @@
 
 #include "mysys_priv.h"
 #include "my_static.h"
+
+#if defined(_WIN32)
+#include "my_sys.h" /* for my_printf_error */
+typedef VOID(WINAPI *time_fn)(LPFILETIME);
+static time_fn my_get_system_time_as_file_time= GetSystemTimeAsFileTime;
+
+/**
+Initialise highest available time resolution API on Windows
+@return Initialization result
+@retval FALSE Success
+@retval TRUE  Error. Couldn't initialize environment
+*/
+my_bool win_init_get_system_time_as_file_time()
+{
+  DWORD error;
+  HMODULE h;
+  h= LoadLibrary("kernel32.dll");
+  if (h != NULL)
+  {
+    time_fn pfn= (time_fn) GetProcAddress(h, "GetSystemTimePreciseAsFileTime");
+    if (pfn)
+      my_get_system_time_as_file_time= pfn;
+
+    return FALSE;
+  }
+
+  error= GetLastError();
+  my_printf_error(0,
+    "LoadLibrary(\"kernel32.dll\") failed: GetLastError returns %lu",
+    MYF(0),
+    error);
+
+  return TRUE;
+}
+#endif
+
 
 /**
   Get high-resolution time.
@@ -89,18 +125,16 @@ time_t my_time(myf flags)
   Return time in microseconds.
 
   @remark This function is to be used to measure performance in
-          micro seconds. As it's not defined whats the start time
-          for the clock, this function us only useful to measure
-          time between two moments.
+  micro seconds.
 
-  @retval Value in microseconds from some undefined point in time.
+  @retval Number of microseconds since the Epoch, 1970-01-01 00:00:00 +0000 (UTC)
 */
 
 ulonglong my_micro_time()
 {
 #ifdef _WIN32
   ulonglong newtime;
-  GetSystemTimeAsFileTime((FILETIME*)&newtime);
+  my_get_system_time_as_file_time((FILETIME*)&newtime);
   newtime-= OFFSET_TO_EPOCH;
   return (newtime/10);
 #else

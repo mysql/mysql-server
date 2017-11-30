@@ -1367,8 +1367,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->profiling.set_query_source(thd->query(), thd->query_length());
 #endif
 
-    MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query(), thd->query_length());
-
     Parser_state parser_state;
     if (parser_state.init(thd, thd->query(), thd->query_length()))
       break;
@@ -1441,7 +1439,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                                                   thd->db, thd->db_length,
                                                   thd->charset());
       THD_STAGE_INFO(thd, stage_init);
-      MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, beginning_of_next_stmt, length);
 
       thd->set_query_and_id(beginning_of_next_stmt, length,
                             thd->charset(), next_query_id());
@@ -5849,10 +5846,11 @@ bool check_global_access(THD *thd, ulong want_access)
 /**
   Checks foreign key's parent table access.
 
-  @param thd	       [in]	Thread handler
-  @param create_info   [in]     Create information (like MAX_ROWS, ENGINE or
+  @param thd              [in]  Thread handler
+  @param child_table_db   [in]  Database of child table
+  @param create_info      [in]  Create information (like MAX_ROWS, ENGINE or
                                 temporary table flag)
-  @param alter_info    [in]     Initial list of columns and indexes for the
+  @param alter_info       [in]  Initial list of columns and indexes for the
                                 table to be created
 
   @retval
@@ -5861,6 +5859,7 @@ bool check_global_access(THD *thd, ulong want_access)
    true	  error or access denied. Error is sent to client in this case.
 */
 bool check_fk_parent_table_access(THD *thd,
+                                  const char *child_table_db,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info)
 {
@@ -5905,10 +5904,17 @@ bool check_fk_parent_table_access(THD *thd,
         if (fk_key->ref_db.str && check_and_convert_db_name(&db_name, false))
           return true;
       }
-      else if (thd->lex->copy_db_to(&db_name.str, &db_name.length))
-        return true;
       else
+      {
+        /*
+          If database name for parent table is not specified explicitly
+          SEs assume that it is the same as database name of child table.
+          We do the same here.
+        */
         is_qualified_table_name= false;
+        db_name.str= const_cast<char*>(child_table_db);
+        db_name.length= strlen(child_table_db);
+      }
 
       // if lower_case_table_names is set then convert tablename to lower case.
       if (lower_case_table_names)
@@ -6359,26 +6365,34 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     if (!err)
     {
       /*
-        See whether we can do any query rewriting. opt_log_raw only controls
-        writing to the general log, so rewriting still needs to happen because
-        the other logs (binlog, slow query log, ...) can not be set to raw mode
-        for security reasons.
+        Rewrite the query for logging and for the Performance Schema statement
+        tables. Raw logging happened earlier.
+      
         Query-cache only handles SELECT, which we don't rewrite, so it's no
         concern of ours.
-        We're not general-logging if we're the slave, or if we've already
-        done raw-logging earlier.
+
         Sub-routines of mysql_rewrite_query() should try to only rewrite when
         necessary (e.g. not do password obfuscation when query contains no
-        password), but we can optimize out even those necessary rewrites when
-        no logging happens at all. If rewriting does not happen here,
-        thd->rewritten_query is still empty from being reset in alloc_query().
+        password).
+      
+        If rewriting does not happen here, thd->rewritten_query is still empty
+        from being reset in alloc_query().
       */
-      if (!(opt_log_raw || thd->slave_thread) || opt_slow_log || opt_bin_log)
-      {
-        mysql_rewrite_query(thd);
+      mysql_rewrite_query(thd);
 
-        if (thd->rewritten_query.length())
-          lex->safe_to_cache_query= false; // see comments below
+      if (thd->rewritten_query.length())
+      {
+        lex->safe_to_cache_query= false; // see comments below
+
+        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
+                                 thd->rewritten_query.c_ptr_safe(),
+                                 thd->rewritten_query.length());
+      }
+      else
+      {
+        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
+                                 thd->query(),
+                                 thd->query_length());
       }
 
       if (!(opt_log_raw || thd->slave_thread))
@@ -6398,15 +6412,15 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (mqh_used && thd->get_user_connect() &&
-	  check_mqh(thd, lex->sql_command))
+          check_mqh(thd, lex->sql_command))
       {
-	thd->net.error = 0;
+        thd->net.error = 0;
       }
       else
 #endif
       {
-	if (! thd->is_error())
-	{
+        if (! thd->is_error())
+        {
           /*
             Binlog logs a string starting from thd->query and having length
             thd->query_length; so we set thd->query_length correctly (to not
@@ -6474,18 +6488,39 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
             error= gtid_empty_group_log_and_cleanup(thd);
           }
           MYSQL_QUERY_EXEC_DONE(error);
-	}
+        }
       }
     }
     else
     {
+      /*
+        Log the failed raw query in the Performance Schema. This statement did not
+        parse, so there is no way to tell if it may contain a password of not.
+      
+        The tradeoff is:
+          a) If we do log the query, a user typing by accident a broken query
+             containing a password will have the password exposed. This is very
+             unlikely, and this behavior can be documented. Remediation is to use
+             a new password when retyping the corrected query.
+
+          b) If we do not log the query, finding broken queries in the client
+             application will be much more difficult. This is much more likely.
+
+        Considering that broken queries can typically be generated by attempts at
+        SQL injection, finding the source of the SQL injection is critical, so the
+        design choice is to log the query text of broken queries (a).
+      */
+      MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
+                               thd->query(),
+                               thd->query_length());
+
       /* Instrument this broken statement as "statement/sql/error" */
       thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
                                                    sql_statement_info[SQLCOM_END].m_key);
 
       DBUG_ASSERT(thd->is_error());
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
-			 thd->is_fatal_error));
+                 thd->is_fatal_error));
 
       query_cache_abort(&thd->query_cache_tls);
     }
@@ -8008,7 +8043,8 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
       goto err;
   }
 
-  if (check_fk_parent_table_access(thd, &lex->create_info, &lex->alter_info))
+  if (check_fk_parent_table_access(thd, create_table->db,
+                                   &lex->create_info, &lex->alter_info))
     goto err;
 
   error= FALSE;
