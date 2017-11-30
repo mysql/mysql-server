@@ -69,6 +69,8 @@ override_dh_auto_test:
 	make test || true
 	touch $@
 
+@DEB_RULES_STRIP@
+
 override_dh_auto_install:
 
 	@echo "RULES.$@"
