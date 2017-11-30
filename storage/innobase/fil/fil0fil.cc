@@ -527,10 +527,11 @@ public:
 		Fil_path	file{path};
 
 		for (const auto& dir : m_dirs) {
-			const auto&	root = dir.root().abs_path();
+			const auto&	d = dir.root().abs_path();
+			auto		abs_path = Fil_path::get_real_path(d);
 
 			if (dir.root().is_ancestor(file)
-			    || root.compare(file.abs_path()) == 0) {
+			    || abs_path.compare(file.abs_path()) == 0) {
 
 				return(dir.root());
 			}
@@ -10906,27 +10907,26 @@ Tablespace_dirs::tokenize_paths(
 
 			Fil_path::normalize(dir.data());
 
+			std::string	cur_path;
+			std::string	d{dir.data()};
+
 			if (Fil_path::get_file_type(dir.data())
 			    == OS_FILE_TYPE_DIR) {
 
-				std::string	cur_path;
-				std::string	d{dir.data()};
-
 				cur_path = Fil_path::get_real_path(d);
 
-				if (!Fil_path::is_separator(d.back())) {
-					d.push_back(Fil_path::OS_SEPARATOR);
-				}
-
-				using	value = Paths::value_type;
-
-				dirs.push_back(value(d, cur_path));
-
 			} else {
-				ib::info()
-					<< "'" << path << "' ignored"
-					<< ", not a directory.";
+				cur_path = d;
 			}
+
+			if (!Fil_path::is_separator(d.back())) {
+				d.push_back(Fil_path::OS_SEPARATOR);
+			}
+
+			using	value = Paths::value_type;
+
+			dirs.push_back(value(d, cur_path));
+
 		} else {
 			ib::warn()
 				<< "Scan path '" << path << "' ignored"

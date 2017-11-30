@@ -4103,11 +4103,9 @@ Dir_Walker::walk_posix(const Path& basedir, Function&& f)
 
 		if (parent == nullptr) {
 
-			std::cerr
-				<< std::endl
+			ib::info()
 				<< "Failed to walk directory"
-				<< " '" << current.m_path << "'"
-				<< std::endl;
+				<< " '" << current.m_path << "'";
 
 			continue;
 		}
