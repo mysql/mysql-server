@@ -33,9 +33,9 @@ Migrate_keyring::Migrate_keyring()
 
 /**
   This function does the following:
-    1. Read command line arguments specific to migration operation
-    2. Get plugin_dir value.
-    3. Get a connection handle by connecting to server.
+    1. Validate all keyring migration specific options.
+    2. Get a connection handle by connecting to server if connection
+       specific options are set.
 
    @param [in] argc               Pointer to argc of original program
    @param [in] argv               Pointer to argv of original program
@@ -61,14 +61,6 @@ bool Migrate_keyring::init(int  argc,
 {
   DBUG_ENTER("Migrate_keyring::init");
 
-  my_option migration_options[]= {
-    {"basedir", 0, "", &mysql_home_ptr, 0,
-     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"plugin_dir", 0, "", &opt_plugin_dir_ptr, 0,
-      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
-  };
   std::size_t found= std::string::npos;
   string equal("=");
   string so(".so");
@@ -120,16 +112,9 @@ bool Migrate_keyring::init(int  argc,
     DBUG_RETURN(true);
   }
 
-  if (my_handle_options(&m_argc, &m_argv, migration_options,
-                        NULL, NULL, TRUE))
-    DBUG_RETURN(true);
   /* Restore program name */
   m_argc++;
   m_argv--;
-
-  convert_dirname(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr :
-                                  PLUGINDIR, NullS);
-  opt_plugin_dir_ptr= opt_plugin_dir;
 
   /* if connect options are provided then initiate connection */
   if (migrate_connect_options)
