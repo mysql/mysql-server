@@ -620,6 +620,7 @@ var configWizardPages = {
         enter: function () {
             mcc.util.dbg("Enter configWizardDeployConfig");
             mcc.configuration.setupContext().then(function () {
+                dijit.byId("configWizardInstallCluster").setDisabled(true);
                 mcc.gui.deploymentTreeSetup();
                 mcc.gui.startStatusPoll(true);
                 var clRunning = mcc.configuration.clServStatus();

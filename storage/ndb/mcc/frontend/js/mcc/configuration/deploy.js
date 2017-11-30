@@ -1587,7 +1587,6 @@ function startCluster() {
                 ++currseq;
                 updateProgressAndStartNext();
               } else {
-                mcc.util.dbg(commands[currseq].isDone);
                 mcc.util.dbg("returned false for "+commands[currseq].progTitle)
                 timeout = setTimeout(onTimeout, 2000);
               }
@@ -1607,7 +1606,6 @@ function startCluster() {
 
             function onReply(rep) {
               mcc.util.dbg("Got reply for: "+commands[currseq].progTitle);
-              mcc.util.dbg(rep.body);
               // Start status polling timer after mgmd has been started
               // Ignore errors since it may not be available right away           
               if (currseq == 0) { mcc.gui.startStatusPoll(false); } 
@@ -1742,7 +1740,6 @@ function stopCluster() {
     function onReply(rep) {
       mcc.util.dbg("Got reply for: "+commands[currseq].progTitle);
       var cc = commands[currseq];
-      mcc.util.dbg(rep.body, cc)
       if (cc.msg.isCommand) {
         result = cc.check_result(rep);
         if (result == "retry") {
