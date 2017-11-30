@@ -35,20 +35,34 @@ enum enum_plugin_type
 class Key_info
 {
 public:
+  Key_info()
+    : m_key_id_len(0),
+      m_user_id_len(0)
+  {}
   Key_info(char     *key_id,
            char     *user_id)
   {
-    memcpy(m_key_id, key_id, strlen(key_id));
-    memcpy(m_user_id, user_id, strlen(user_id));
+    m_key_id_len= strlen(key_id);
+    memcpy(m_key_id, key_id, m_key_id_len);
+    m_key_id[m_key_id_len]= '\0';
+    m_user_id_len= strlen(user_id);
+    memcpy(m_user_id, user_id, m_user_id_len);
+    m_user_id[m_user_id_len]= '\0';
   }
   Key_info(const Key_info &ki)
   {
-    memcpy(this->m_key_id, ki.m_key_id, strlen(ki.m_key_id));
-    memcpy(this->m_user_id, ki.m_user_id, strlen(ki.m_user_id));
+    this->m_key_id_len= ki.m_key_id_len;
+    memcpy(this->m_key_id, ki.m_key_id, this->m_key_id_len);
+    this->m_key_id[this->m_key_id_len]= '\0';
+    this->m_user_id_len= ki.m_user_id_len;
+    memcpy(this->m_user_id, ki.m_user_id, this->m_user_id_len);
+    this->m_user_id[this->m_user_id_len]= '\0';
   }
 public:
   char     m_key_id[MAX_KEY_LEN];
+  int      m_key_id_len;
   char     m_user_id[USERNAME_LENGTH];
+  int      m_user_id_len;
 };
 
 class Migrate_keyring
