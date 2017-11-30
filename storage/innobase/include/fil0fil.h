@@ -625,17 +625,6 @@ public:
 		return(std::equal(lhs.begin(), lhs.end(), rhs.begin()));
 	}
 
-	/** Check if the filepath provided is in a valid placement.
-	1) File-per-table must be in a dir named for the schema.
-	2) File-per-table must not be in the datadir.
-	3) General tablespace must no be under the datadir.
-	@param[in]	space_name	tablespace name
-	@param[in]	path		filepath to validate
-	@retval true if the filepath is a valid datafile location */
-	static bool is_valid_location(
-		const char*		space_name,
-		const std::string&	path);
-
 	/** Check if the name is an undo tablespace name.
 	@param[in]	name		Tablespace name
 	@return true if it is an undo tablespace name */
@@ -754,9 +743,22 @@ public:
 		return(s_null_path);
 	}
 
+#ifndef UNIV_HOTBACKUP
+	/** Check if the filepath provided is in a valid placement.
+	1) File-per-table must be in a dir named for the schema.
+	2) File-per-table must not be in the datadir.
+	3) General tablespace must no be under the datadir.
+	@param[in]	space_name	tablespace name
+	@param[in]	path		filepath to validate
+	@retval true if the filepath is a valid datafile location */
+	static bool is_valid_location(
+		const char*		space_name,
+		const std::string&	path);
+
 	/** Convert filename to the file system charset format.
 	@param[in,out]	name		Filename to convert */
 	static void convert_to_filename_charset(std::string& name);
+#endif /* !UNIV_HOTBACKUP */
 
 protected:
 	/** Path to a file or directory. */

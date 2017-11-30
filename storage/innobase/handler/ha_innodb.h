@@ -830,7 +830,9 @@ public:
 		char*		remote_path,
 		char*		tablespace,
 		bool		file_per_table,
-		bool		skip_strict)
+		bool		skip_strict,
+		ulint		old_flags,
+		ulint		old_flags2)
 	:m_thd(thd),
 	m_trx(thd_to_trx(thd)),
 	m_form(form),
@@ -839,6 +841,8 @@ public:
 	m_remote_path(remote_path),
 	m_tablespace(tablespace),
 	m_innodb_file_per_table(file_per_table),
+	m_flags(old_flags),
+	m_flags2(old_flags2),
 	m_skip_strict(skip_strict)
 	{}
 
@@ -899,6 +903,14 @@ public:
 	/** Get table flags2. */
 	ulint flags2() const
 	{ return(m_flags2); }
+
+	/** Reset table flags. */
+	void flags_reset()
+	{ m_flags = 0; }
+
+	/** Reset table flags2. */
+	void flags2_reset()
+	{ m_flags2 = 0; }
 
 	/** whether to skip strict check. */
 	bool skip_strict() const
@@ -1039,6 +1051,8 @@ public:
 					dict_table_t to be kept in memory
 	@param[in]	skip_strict	whether to skip strict check for create
 					option
+	@param[in]	old_flags	old Table flags
+	@param[in]	old_flags2	old Table flags2
 	@return	error number
 	@retval	0 on success */
 	template<typename Table>
@@ -1050,7 +1064,9 @@ public:
 		Table*		dd_tab,
 		bool		file_per_table,
 		bool		evictable,
-		bool		skip_strict);
+		bool		skip_strict,
+		ulint		old_flags,
+		ulint		old_flags2);
 
 	/** Drop an InnoDB table.
 	@tparam		Table		dd::Table or dd::Partition

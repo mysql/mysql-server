@@ -574,12 +574,14 @@ static bool read_histograms(THD *thd, TABLE_SHARE *share,
     if (column->is_hidden())
       continue;
 
+    MDL_key mdl_key;
+    dd::Column_statistics::create_mdl_key(schema->name(),
+                                          table_def->name(),
+                                          column->name(),
+                                          &mdl_key);
+
     MDL_request *request= new (thd->mem_root) MDL_request;
-    dd::String_type mdl_key=
-      dd::Column_statistics::create_mdl_key(schema->name(), table_def->name(),
-                                            column->name());
-    MDL_REQUEST_INIT(request, MDL_key::COLUMN_STATISTICS, "", mdl_key.c_str(),
-                     MDL_SHARED_READ, MDL_STATEMENT);
+    MDL_REQUEST_INIT_BY_KEY(request, &mdl_key, MDL_SHARED_READ, MDL_STATEMENT);
     mdl_requests.push_front(request);
   }
 

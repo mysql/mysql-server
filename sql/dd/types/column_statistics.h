@@ -20,6 +20,7 @@
 #include "sql/dd/sdi_fwd.h"               // RJ_Document
 
 class THD;
+struct MDL_key;
 
 namespace histograms {
   class Histogram;
@@ -129,20 +130,15 @@ public:
                                           column_name());
   }
 
-  /*
-    This function will create a SHA1 hash from a triplet SCHEMA_NAME TABLE_NAME
-    COLUMN_NAME to be used as a MDL key. We would ideally have used the
-    triplet directly as a MDL key, but the key can not be longer than 64
-    characters.
-  */
-  static String_type create_mdl_key(const String_type &schema_name,
-                                    const String_type &table_name,
-                                    const String_type &column_name);
+  static void create_mdl_key(const String_type &schema_name,
+                             const String_type &table_name,
+                             const String_type &column_name,
+                             MDL_key *key);
 
-  String_type create_mdl_key() const
+  void create_mdl_key(MDL_key *key) const
   {
-    return Column_statistics::create_mdl_key(schema_name(), table_name(),
-                                             column_name());
+    Column_statistics::create_mdl_key(schema_name(), table_name(),
+                                      column_name(), key);
   }
 
   virtual Column_statistics *clone() const = 0;

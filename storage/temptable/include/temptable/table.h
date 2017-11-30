@@ -116,10 +116,23 @@ class Table {
   Result enable_indexes();
 
  private:
-  /** Create the indexes in `m_indexes` from `m_mysql_table->key_info[]`. */
+  /** Index entry for storing index pointer as well
+   * as allocated memory size. */
+  struct Index_entry {
+    Index* m_index;
+
+    size_t m_alloc_size;
+  };
+
+  /** Create index for given key and append it to indexes table. */
+  template <class T>
+  void append_new_index(const KEY& mysql_index);
+
+  /** Create the indexes in `m_index_entries`
+   * from `m_mysql_table->key_info[]`. */
   void indexes_create();
 
-  /** Destroy the indexes in `m_indexes`. */
+  /** Destroy the indexes in `m_index_entries`. */
   void indexes_destroy();
 
   /** Allocator for all members that need dynamic memory allocation. */
@@ -134,7 +147,7 @@ class Table {
 
   uint32_t m_mysql_row_length;
 
-  std::vector<Index*, Allocator<Index*>> m_indexes;
+  std::vector<Index_entry, Allocator<Index_entry>> m_index_entries;
 
   std::vector<Cursor, Allocator<Cursor>> m_insert_undo;
 
@@ -173,11 +186,11 @@ inline Table& Table::operator=(Table&& rhs) {
 
   indexes_destroy();
 
-  m_indexes = std::move(rhs.m_indexes);
+  m_index_entries = std::move(rhs.m_index_entries);
 
   /* No need to move `m_insert_undo[]`. It does not bring a state - it is only
    * used by the `insert()` method as a scratch-pad. */
-  m_insert_undo.reserve(m_indexes.size());
+  m_insert_undo.reserve(m_index_entries.size());
 
   m_columns = std::move(rhs.m_columns);
 
@@ -195,7 +208,9 @@ inline void Table::mysql_table(TABLE* mysql_table) {
 
 inline size_t Table::mysql_row_length() const { return m_mysql_row_length; }
 
-inline size_t Table::number_of_indexes() const { return m_indexes.size(); }
+inline size_t Table::number_of_indexes() const {
+  return m_index_entries.size();
+}
 
 inline size_t Table::number_of_columns() const { return m_columns.size(); }
 
@@ -203,7 +218,9 @@ inline const Columns& Table::columns() const { return m_columns; }
 
 inline size_t Table::number_of_rows() const { return m_rows.size(); }
 
-inline const Index& Table::index(size_t i) const { return *m_indexes[i]; }
+inline const Index& Table::index(size_t i) const {
+  return *m_index_entries[i].m_index;
+}
 
 inline const Column& Table::column(size_t i) const {
   DBUG_ASSERT(i < m_columns.size());
@@ -242,8 +259,8 @@ inline void Table::truncate() {
   /* Truncate indexes even if `m_indexes_are_enabled` is false. Somebody may
    * use truncate() before enabling indexes and we don't want an empty m_rows
    * with some stale data inside the indexes. */
-  for (Index* index : m_indexes) {
-    index->truncate();
+  for (auto& entry : m_index_entries) {
+    entry.m_index->truncate();
   }
 }
 
@@ -259,6 +276,24 @@ inline Result Table::enable_indexes() {
   }
 
   return Result::WRONG_COMMAND;
+}
+
+/** Create index for given key and appends it to indexes table. */
+template <class T>
+inline void Table::append_new_index(const KEY& mysql_index) {
+  Index_entry entry;
+
+  entry.m_alloc_size = sizeof(T);
+
+  auto mem_ptr = m_allocator.allocate(entry.m_alloc_size);
+  try {
+    entry.m_index = new (mem_ptr) T (*this, mysql_index, m_allocator);
+
+    m_index_entries.push_back(entry);
+  } catch (...) {
+    m_allocator.deallocate(mem_ptr, entry.m_alloc_size);
+    throw;
+  }
 }
 
 } /* namespace temptable */

@@ -45,6 +45,7 @@ Plugin_table table_metadata_locks::m_table_def(
   "  OBJECT_TYPE VARCHAR(64) not null,\n"
   "  OBJECT_SCHEMA VARCHAR(64),\n"
   "  OBJECT_NAME VARCHAR(64),\n"
+  "  COLUMN_NAME VARCHAR(64),\n"
   "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
   "  LOCK_TYPE VARCHAR(32) not null,\n"
   "  LOCK_DURATION VARCHAR(32) not null,\n"
@@ -53,7 +54,7 @@ Plugin_table table_metadata_locks::m_table_def(
   "  OWNER_THREAD_ID BIGINT unsigned,\n"
   "  OWNER_EVENT_ID BIGINT unsigned,\n"
   "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
-  "  KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH,\n"
+  "  KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME) USING HASH,\n"
   "  KEY (OWNER_THREAD_ID, OWNER_EVENT_ID) USING HASH\n",
   /* Options */
   " ENGINE=PERFORMANCE_SCHEMA",
@@ -92,7 +93,7 @@ PFS_index_metadata_locks_by_instance::match(const PFS_metadata_lock *pfs)
 bool
 PFS_index_metadata_locks_by_object::match(const PFS_metadata_lock *pfs)
 {
-  PFS_object_row object_row;
+  PFS_column_row object_row;
 
   if (object_row.make_row(&pfs->m_mdl_key))
   {
@@ -118,6 +119,14 @@ PFS_index_metadata_locks_by_object::match(const PFS_metadata_lock *pfs)
   if (m_fields >= 3)
   {
     if (!m_key_3.match(&object_row))
+    {
+      return false;
+    }
+  }
+
+  if (m_fields >= 4)
+  {
+    if (!m_key_4.match(&object_row))
     {
       return false;
     }
@@ -326,24 +335,25 @@ table_metadata_locks::read_row_values(TABLE *table,
       case 0: /* OBJECT_TYPE */
       case 1: /* OBJECT_SCHEMA */
       case 2: /* OBJECT_NAME */
+      case 3: /* COLUMN_NAME */
         m_row.m_object.set_nullable_field(f->field_index, f);
         break;
-      case 3: /* OBJECT_INSTANCE */
+      case 4: /* OBJECT_INSTANCE */
         set_field_ulonglong(f, (intptr)m_row.m_identity);
         break;
-      case 4: /* LOCK_TYPE */
+      case 5: /* LOCK_TYPE */
         set_field_mdl_type(f, m_row.m_mdl_type);
         break;
-      case 5: /* LOCK_DURATION */
+      case 6: /* LOCK_DURATION */
         set_field_mdl_duration(f, m_row.m_mdl_duration);
         break;
-      case 6: /* LOCK_STATUS */
+      case 7: /* LOCK_STATUS */
         set_field_mdl_status(f, m_row.m_mdl_status);
         break;
-      case 7: /* SOURCE */
+      case 8: /* SOURCE */
         set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
         break;
-      case 8: /* OWNER_THREAD_ID */
+      case 9: /* OWNER_THREAD_ID */
         if (m_row.m_owner_thread_id != 0)
         {
           set_field_ulonglong(f, m_row.m_owner_thread_id);
@@ -353,7 +363,7 @@ table_metadata_locks::read_row_values(TABLE *table,
           f->set_null();
         }
         break;
-      case 9: /* OWNER_EVENT_ID */
+      case 10: /* OWNER_EVENT_ID */
         if (m_row.m_owner_event_id != 0)
         {
           set_field_ulonglong(f, m_row.m_owner_event_id);

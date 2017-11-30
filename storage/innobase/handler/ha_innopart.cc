@@ -2617,7 +2617,7 @@ ha_innopart::create(
 				     remote_path,
 				     tablespace_name,
 				     srv_file_per_table,
-				     false);
+				     false, 0, 0);
 
 	DBUG_ENTER("ha_innopart::create");
 	ut_ad(create_info != NULL);
@@ -2755,6 +2755,8 @@ ha_innopart::create(
 		} else {
 			create_info->tablespace = tablespace_name;
 		}
+		info.flags_reset();
+		info.flags2_reset();
 
 		error = info.prepare_create_table(partition_name);
 		if (error != 0) {
@@ -3250,6 +3252,12 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 	size_t		alloc_size = sizeof(HA_CREATE_INFO) * num_used_parts;
 	create_infos = static_cast<HA_CREATE_INFO*>(mem_heap_zalloc(
 		heap, alloc_size));
+
+	ulint* old_flags = static_cast<ulint*>(mem_heap_zalloc(
+		heap, sizeof(*old_flags) * num_used_parts));
+	ulint* old_flags2 = static_cast<ulint*>(mem_heap_zalloc(
+		heap, sizeof(*old_flags2) * num_used_parts));
+
 	ut_a(create_infos != NULL);
 
 	/* TRUNCATE TABLE and ALTER TABLE...TRUNCATE PARTITION ALL
@@ -3283,6 +3291,9 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 			error = HA_ERR_NO_SUCH_TABLE;
 			break;
 		}
+
+		old_flags[i] = table_part->flags;
+		old_flags2[i] = table_part->flags2;
 
 		info->data_file_name = table_part->data_dir_path == NULL
 			? NULL
@@ -3370,7 +3381,9 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 
 			error = innobase_basic_ddl::create_impl(
 				thd, name, table, info, dd_part,
-				file_per_table, true, true);
+				file_per_table, true, true,
+				old_flags[processed - 1],
+				old_flags2[processed - 1]);
 
 			if (reset) {
 				dd_part->set_tablespace_id(

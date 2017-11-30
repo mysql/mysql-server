@@ -21,8 +21,6 @@
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 
-#include "my_md5.h"                // array_to_hex
-#include "sha1.h"                  // compute_sha1_hash
 #include "m_ctype.h"
 #include "m_string.h"                      // STRING_WITH_LEN
 #include "my_dbug.h"
@@ -83,20 +81,25 @@ String_type Column_statistics::create_name(const String_type &schema_name,
 
 ///////////////////////////////////////////////////////////////////////////
 
-String_type Column_statistics::create_mdl_key(const String_type &schema_name,
-                                              const String_type &table_name,
-                                              const String_type &column_name)
+void Column_statistics::create_mdl_key(const String_type &schema_name,
+                                       const String_type &table_name,
+                                       const String_type &column_name,
+                                       MDL_key *mdl_key)
 {
-  String_type name= Column_statistics::create_name(schema_name, table_name,
-                                                  column_name);
+  /*
+    Column names are always case insensitive, so convert it to lowercase.
+    Lookups in MDL is always done using this method, so this should
+    ensure that we always have consistent locks.
+  */
+  DBUG_ASSERT(column_name.length() <= NAME_LEN);
+  char lowercase_name[NAME_LEN + 1]; // Max column length name + \0
+  memcpy(lowercase_name, column_name.c_str(), column_name.length() + 1);
+  my_casedn_str(system_charset_info, lowercase_name);
 
-  // Temporary buffer to store 160bit digest.
-  uint8 digest[SHA1_HASH_SIZE];
-  compute_sha1_hash(digest, name.data(), name.length());
-
-  char output[SHA1_HASH_SIZE * 2];
-  array_to_hex(output, digest, SHA1_HASH_SIZE);
-  return String_type(output, SHA1_HASH_SIZE * 2);
+  mdl_key->mdl_key_init(MDL_key::COLUMN_STATISTICS,
+                        schema_name.c_str(),
+                        table_name.c_str(),
+                        lowercase_name);
 }
 
 ///////////////////////////////////////////////////////////////////////////

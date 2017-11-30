@@ -2040,85 +2040,6 @@ Fil_shard::update_space_name_map(fil_space_t* space, const char* new_name)
 	ut_a(it.second);
 }
 
-/** Check if the filepath provided is in a valid placement.
-1) File-per-table must be in a dir named for the schema.
-2) File-per-table must not be in the datadir.
-3) General tablespace must not be under the datadir.
-@param[in]	space_name	tablespace name
-@param[in]	path		filepath to validate
-@retval true if the filepath is a valid datafile location */
-bool
-Fil_path::is_valid_location(
-	const char*		space_name,
-	const std::string&	path)
-{
-	ut_ad(path.length() > 0);
-	ut_ad(space_name != nullptr);
-
-	std::string	name{space_name};
-
-	/* The path is a realpath to a file. Make sure it is not an
-	undo tablespace filename. Undo datafiles can be located anywhere. */
-	if (Fil_path::is_undo_tablespace_name(path)) {
-		return(true);
-	}
-
-	/* Strip off the filename to reduce the path to a directory. */
-	std::string	dirpath{path};
-	auto		pos = dirpath.find_last_of(SEPARATOR);
-
-	dirpath.resize(pos);
-
-	pos = name.find_last_of(SEPARATOR);
-
-	if (pos == std::string::npos) {
-
-		/* This is a general or system tablespace. */
-
-		if (MySQL_datadir_path.is_ancestor(dirpath)) {
-			ib::error()
-				<< "A general tablespace cannot"
-				<< " be located under the datadir."
-				<< " Cannot open file '" << path << "'.";
-			return(false);
-		}
-
-	} else {
-		/* This is a file-per-table datafile.
-		Reduce the name to just the db name. */
-
-		name.resize(pos);
-
-		if (MySQL_datadir_path.is_same_as(dirpath)) {
-			ib::error()
-				<< "A file-per-table tablespace cannot"
-				<< " be located in the datadir."
-				<< " Cannot open file" << path << "'.";
-			return(false);
-		}
-
-		/* Get the subdir that the file is in. */
-		pos = dirpath.find_last_of(SEPARATOR);
-
-		std::string	subdir =
-			(pos == std::string::npos)
-			 ? dirpath
-			 : dirpath.substr(pos + 1, dirpath.length());
-
-		if (name != subdir) {
-
-			Fil_path::convert_to_filename_charset(name);
-
-			if (name != subdir) {
-
-				return(false);
-			}
-		}
-	}
-
-	return(true);
-}
-
 /** Check if the basename of a filepath is an undo tablespace name
 @param[in]	name	Tablespace name
 @return true if it is an undo tablespace name */
@@ -10180,7 +10101,6 @@ fil_tablespace_open_for_recovery(space_id_t space_id)
 {
 	return(fil_system->open_for_recovery(space_id));
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /** Lookup the tablespace ID and return the path to the file. The filename
 is ignored when testing for equality. Only the path up to the file name is
@@ -10299,6 +10219,8 @@ fil_tablespace_path_equals(
 
 	return(Fil_state::MATCHES);
 }
+
+#endif /* !UNIV_HOTBACKUP */
 
 /** This function should be called after recovery has completed.
 Check for tablespace files for which we did not see any MLOG_FILE_DELETE
@@ -11691,17 +11613,97 @@ fil_space_update_name(fil_space_t* space, const char* name)
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
+/** Check if the filepath provided is in a valid placement.
+1) File-per-table must be in a dir named for the schema.
+2) File-per-table must not be in the datadir.
+3) General tablespace must not be under the datadir.
+@param[in]	space_name	tablespace name
+@param[in]	path		filepath to validate
+@retval true if the filepath is a valid datafile location */
+bool
+Fil_path::is_valid_location(
+	const char*		space_name,
+	const std::string&	path)
+{
+	ut_ad(!path.empty());
+	ut_ad(space_name != nullptr);
+
+	std::string	name{space_name};
+
+	/* The path is a realpath to a file. Make sure it is not an
+	undo tablespace filename. Undo datafiles can be located anywhere. */
+	if (Fil_path::is_undo_tablespace_name(path)) {
+		return(true);
+	}
+
+	/* Strip off the filename to reduce the path to a directory. */
+	std::string	dirpath{path};
+	auto		pos = dirpath.find_last_of(SEPARATOR);
+
+	dirpath.resize(pos);
+
+	pos = name.find_last_of(SEPARATOR);
+
+	if (pos == std::string::npos) {
+
+		/* This is a general or system tablespace. */
+
+		if (MySQL_datadir_path.is_ancestor(dirpath)) {
+			ib::error()
+				<< "A general tablespace cannot"
+				<< " be located under the datadir."
+				<< " Cannot open file '" << path << "'.";
+			return(false);
+		}
+
+	} else {
+		/* This is a file-per-table datafile.
+		Reduce the name to just the db name. */
+
+		name.resize(pos);
+
+		if (MySQL_datadir_path.is_same_as(dirpath)) {
+			ib::error()
+				<< "A file-per-table tablespace cannot"
+				<< " be located in the datadir."
+				<< " Cannot open file" << path << "'.";
+			return(false);
+		}
+
+		/* Get the subdir that the file is in. */
+		pos = dirpath.find_last_of(SEPARATOR);
+
+		std::string	subdir =
+			(pos == std::string::npos)
+			 ? dirpath
+			 : dirpath.substr(pos + 1, dirpath.length());
+
+		if (name != subdir) {
+
+			Fil_path::convert_to_filename_charset(name);
+
+			if (name != subdir) {
+
+				return(false);
+			}
+		}
+	}
+
+	return(true);
+}
+
 /** Convert filename to the file system charset format.
 @param[in,out]	name		Filename to convert */
 void
 Fil_path::convert_to_filename_charset(std::string& name)
 {
 	uint	errors = 0;
-	char	old_name[MAX_TABLE_NAME_LEN + 20] = "";
-	char	filename[MAX_TABLE_NAME_LEN + 20] = "";
+	char	old_name[MAX_TABLE_NAME_LEN + 20];
+	char	filename[MAX_TABLE_NAME_LEN + 20];
 
-	strncpy(filename, name.c_str(), MAX_TABLE_NAME_LEN + 20);
-	strncpy(old_name, filename, MAX_TABLE_NAME_LEN + 20);
+	strncpy(filename, name.c_str(), sizeof(filename));
+	strncpy(old_name, filename, sizeof(old_name));
 
 	ut_ad(strchr(filename, '/') == nullptr);
 
@@ -11712,3 +11714,5 @@ Fil_path::convert_to_filename_charset(std::string& name)
 		name.assign(filename);
 	}
 }
+
+#endif /* !UNIV_HOTBACKUP */

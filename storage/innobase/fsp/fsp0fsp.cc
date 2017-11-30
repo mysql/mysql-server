@@ -4406,13 +4406,12 @@ fsp_check_tablespace_size(space_id_t space_id)
 	return(true);
 }
 #endif /* UNIV_DEBUG */
-#endif /* !UNIV_HOTBACKUP */
 
-/** Determine if the tablespace contians an SDI.
+/** Determine if the tablespace has SDI.
 @param[in]	space_id	Tablespace id
-@retval		false		if there is no SDI
-@retval		true		if SDI is present */
-bool
+@return DB_SUCCESS if SDI is present else DB_ERROR
+or DB_TABLESPACE_NOT_FOUND */
+dberr_t
 fsp_has_sdi(space_id_t space_id)
 {
 	fil_space_t*	space = fil_space_acquire_silent(space_id);
@@ -4422,10 +4421,9 @@ fsp_has_sdi(space_id_t space_id)
 				<< space_id;
 			ib::warn() << "Is the tablespace dropped or discarded";
 		);
-		return(false);
+		return(DB_TABLESPACE_NOT_FOUND);
 	}
 
-#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 	mtr_t	mtr;
 	mtr.start();
@@ -4434,7 +4432,6 @@ fsp_has_sdi(space_id_t space_id)
 		&mtr) != 0);
 	mtr.commit();
 #endif /* UNIV_DEBUG */
-#endif /* !UNIV_HOTBACKUP */
 
 	fil_space_release(space);
 	DBUG_EXECUTE_IF("ib_sdi",
@@ -4443,5 +4440,6 @@ fsp_has_sdi(space_id_t space_id)
 				<< space->name;
 		}
 	);
-	return(FSP_FLAGS_HAS_SDI(space->flags));
+	return(FSP_FLAGS_HAS_SDI(space->flags) ? DB_SUCCESS : DB_ERROR);
 }
+#endif /* !UNIV_HOTBACKUP */

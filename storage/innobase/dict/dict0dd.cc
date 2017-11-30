@@ -553,16 +553,16 @@ dd_check_corrupted(dict_table_t*& table)
 			char	db_buf[MAX_DATABASE_NAME_LEN + 1];
 			char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
 
+#ifndef UNIV_HOTBACKUP
 			dd_parse_tbl_name(
 				table->name.m_name, db_buf, tbl_buf,
 				nullptr, nullptr, nullptr);
-#ifndef UNIV_HOTBACKUP
 			my_error(ER_TABLE_CORRUPT, MYF(0),
 				 db_buf, tbl_buf);
 #else /* !UNIV_HOTBACKUP */
 			ib::fatal()
 				<< "table is corrupt: "
-				<< db_buf << "." << tbl_buf;
+				<< table->name.m_name;
 #endif /* !UNIV_HOTBACKUP */
 		}
 		table = nullptr;
@@ -681,9 +681,11 @@ reopen:
 		}
 	} else {
 		for (;;) {
+#ifndef UNIV_HOTBACKUP
 			bool ret = dd_parse_tbl_name(
 				ib_table->name.m_name, db_buf, tbl_buf,
 				nullptr, nullptr, nullptr);
+#endif /* !UNIV_HOTBACKUP */
 
 			memset(full_name, 0, MAX_FULL_NAME_LEN + 1);
 
@@ -693,6 +695,7 @@ reopen:
 
 			mutex_exit(&dict_sys->mutex);
 
+#ifndef UNIV_HOTBACKUP
 			if (ret == false) {
 				if (dict_locked) {
 					mutex_enter(&dict_sys->mutex);
@@ -700,7 +703,6 @@ reopen:
 				return(nullptr);
 			}
 
-#ifndef UNIV_HOTBACKUP
 			if (dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
 				if (dict_locked) {
 					mutex_enter(&dict_sys->mutex);
@@ -2669,7 +2671,6 @@ dd_fill_dict_table(
 
 	return(m_table);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /** Parse the tablespace name from filename charset to table name charset
 @param[in]      space_name      tablespace name
@@ -2722,7 +2723,6 @@ dd_filename_to_spacename(
 	ut_ad(tablespace_name->size() < MAX_SPACE_NAME_LEN);
 }
 
-#ifndef UNIV_HOTBACKUP
 /* Create metadata for specified tablespace, acquiring exlcusive MDL first
 @param[in,out]	dd_client	data dictionary client
 @param[in,out]	thd		THD
