@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -151,60 +151,6 @@ IF(UNIX)
 ENDIF()
 ENDMACRO()
 
-IF(WIN32)
-  OPTION(SIGNCODE "Sign executables and dlls with digital certificate" OFF)
-  MARK_AS_ADVANCED(SIGNCODE)
-  IF(SIGNCODE)
-   SET(SIGNTOOL_PARAMETERS 
-     /a /t http://timestamp.verisign.com/scripts/timstamp.dll
-     CACHE STRING "parameters for signtool (list)")
-    FIND_PROGRAM(SIGNTOOL_EXECUTABLE signtool)
-    IF(NOT SIGNTOOL_EXECUTABLE)
-      MESSAGE(FATAL_ERROR 
-      "signtool is not found. Signing executables not possible")
-    ENDIF()
-    IF(NOT DEFINED SIGNCODE_ENABLED)
-      FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/testsign.c "int main(){return 0;}")
-      MAKE_DIRECTORY(${CMAKE_CURRENT_BINARY_DIR}/testsign)
-     TRY_COMPILE(RESULT ${CMAKE_CURRENT_BINARY_DIR}/testsign ${CMAKE_CURRENT_BINARY_DIR}/testsign.c  
-      COPY_FILE ${CMAKE_CURRENT_BINARY_DIR}/testsign.exe
-     )
-      
-     EXECUTE_PROCESS(COMMAND 
-      ${SIGNTOOL_EXECUTABLE} sign ${SIGNTOOL_PARAMETERS} ${CMAKE_CURRENT_BINARY_DIR}/testsign.exe
-      RESULT_VARIABLE ERR ERROR_QUIET OUTPUT_QUIET
-      )
-      IF(ERR EQUAL 0)
-       SET(SIGNCODE_ENABLED 1 CACHE INTERNAL "Can sign executables")
-      ELSE()
-       MESSAGE(STATUS "Disable authenticode signing for executables")
-        SET(SIGNCODE_ENABLED 0 CACHE INTERNAL "Invalid or missing certificate")
-      ENDIF()
-    ENDIF()
-    MARK_AS_ADVANCED(SIGNTOOL_EXECUTABLE  SIGNTOOL_PARAMETERS)
-  ENDIF()
-ENDIF()
-
-MACRO(SIGN_TARGET target)
- GET_TARGET_PROPERTY(target_type ${target} TYPE)
- IF(target_type AND NOT target_type MATCHES "STATIC")
-   GET_TARGET_PROPERTY(target_location ${target}  LOCATION)
-   IF(CMAKE_GENERATOR MATCHES "Visual Studio")
-   STRING(REPLACE "${CMAKE_CFG_INTDIR}" "\${CMAKE_INSTALL_CONFIG_NAME}" 
-     target_location ${target_location})
-   ENDIF()
-   INSTALL(CODE
-   "EXECUTE_PROCESS(COMMAND 
-     ${SIGNTOOL_EXECUTABLE} sign ${SIGNTOOL_PARAMETERS} ${target_location}
-     RESULT_VARIABLE ERR)
-    IF(NOT \${ERR} EQUAL 0)
-      MESSAGE(FATAL_ERROR \"Error signing  ${target_location}\")
-    ENDIF()
-   ")
- ENDIF()
-ENDMACRO()
-
-
 # Installs targets, also installs pdbs on Windows.
 #
 #
@@ -225,10 +171,6 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
 
  
   FOREACH(target ${TARGETS})
-    # If signing is required, sign executables before installing
-     IF(SIGNCODE AND SIGNCODE_ENABLED)
-      SIGN_TARGET(${target})
-    ENDIF()
     # Install man pages on Unix
     IF(UNIX)
       GET_TARGET_PROPERTY(target_location ${target} LOCATION)

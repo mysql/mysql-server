@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -721,6 +721,7 @@ trx_purge_rseg_get_next_history_log(
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
+#ifdef UNIV_DEBUG
 		mutex_enter(&kernel_mutex);
 
 		/* Add debug code to track history list corruption reported
@@ -734,18 +735,20 @@ trx_purge_rseg_get_next_history_log(
 		if (trx_sys->rseg_history_len > 2000000) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"  InnoDB: Warning: purge reached the"
+				" InnoDB: Warning: purge reached the"
 				" head of the history list,\n"
 				"InnoDB: but its length is still"
-				" reported as %lu! Make a detailed bug\n"
-				"InnoDB: report, and submit it"
-				" to http://bugs.mysql.com\n",
+				" reported as %lu!."
+				" This can happen becasue a long"
+				" running transaction is  withholding"
+				" purging of undo logs or a read"
+				" view is open. Please try to commit"
+				" the long running transaction.",
 				(ulong) trx_sys->rseg_history_len);
-			ut_ad(0);
 		}
 
 		mutex_exit(&kernel_mutex);
-
+#endif
 		return;
 	}
 

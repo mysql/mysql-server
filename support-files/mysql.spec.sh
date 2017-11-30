@@ -611,6 +611,12 @@ install -m 644 "%{malloc_lib_source}" \
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
 # This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+rm -f $RBR%{_mandir}/man1/mysql-stress-test.pl.1
+rm -f $RBR%{_mandir}/man1/mysql-test-run.pl.1
+rm -f $RBR%{_mandir}/man1/mysql_client_test.1
+rm -f $RBR%{_mandir}/man1/mysql_client_test_embedded.1
+rm -f $RBR%{_mandir}/man1/mysqltest.1
+rm -f $RBR%{_mandir}/man1/mysqltest_embedded.1
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -1077,7 +1083,6 @@ echo "====="                                                       >> $STATUS_HI
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlman.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlbug.1*
@@ -1261,11 +1266,6 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysql_client_test_embedded
 %attr(755, root, root) %{_bindir}/mysqltest_embedded
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql-stress-test.pl.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql-test-run.pl.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test_embedded.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 # ----------------------------------------------------------------------------
 %files -n MySQL-Cluster-embedded%{product_suffix}
@@ -1280,6 +1280,9 @@ echo "====="                                                       >> $STATUS_HI
 # merging BK trees)
 ##############################################################################
 %changelog
+* Tue Oct 31 2017 Bjorn Munch <bjorn.munch@oracle.com>
+- Remove obsoleted mysqltest man pages
+
 * Mon Sep 26 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Include mysql-files directory
 

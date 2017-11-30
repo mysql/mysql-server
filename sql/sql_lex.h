@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2537,6 +2537,8 @@ struct LEX: public Query_tables_list
   
   bool escape_used;
   bool is_lex_started; /* If lex_start() did run. For debugging. */
+  /// Set to true while resolving values in ON DUPLICATE KEY UPDATE clause
+  bool in_update_value_clause;
 
   /*
     The set of those tables whose fields are referenced in all subqueries
