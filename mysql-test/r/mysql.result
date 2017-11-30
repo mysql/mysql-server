@@ -1,13 +1,13 @@
 drop table if exists t1;
 create table t1(a int);
 insert into t1 values(1);
-ERROR at line 9: DELIMITER must be followed by a 'delimiter' character or string
 
 Test default delimiter ;
 a
 1
 
 Test delimiter without arg
+ERROR at line 9: DELIMITER must be followed by a 'delimiter' character or string
 
 Test delimiter :
 a
@@ -515,10 +515,10 @@ mysql: [Warning] Using a password on the command line interface can be insecure.
 mysql: [Warning] Using a password on the command line interface can be insecure.
 1
 1
-ERROR 1243 (HY000) at line 15: Unknown prepared statement handler (x) given to EXECUTE
 a
 1
 2
+ERROR 1243 (HY000) at line 15: Unknown prepared statement handler (x) given to EXECUTE
 #
 # Bug #16102788: INDETERMINATE BEHAVIOR DUE TO EMPTY OPTION VALUES
 #
