@@ -5424,7 +5424,7 @@ ha_innobase::prepare_inplace_alter_table_impl(
 				     NULL,
 				     NULL,
 				     is_file_per_table,
-				     false);
+				     false, 0, 0);
 
 	info.set_tablespace_type(is_file_per_table);
 
@@ -8640,7 +8640,7 @@ alter_part::create(
 
 	return(innobase_basic_ddl::create_impl<dd::Partition>(
 		current_thd, part_name, table, &create_info, dd_part,
-		file_per_table, false, false));
+		file_per_table, false, false, 0, 0));
 }
 
 typedef std::vector<alter_part*, ut_allocator<alter_part*>> alter_part_array;
