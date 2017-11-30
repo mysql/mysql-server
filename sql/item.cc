@@ -7120,7 +7120,7 @@ Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
 bool Item_insert_value::eq(const Item *item, bool binary_cmp) const
 {
   return item->type() == INSERT_VALUE_ITEM &&
-    ((Item_default_value *)item)->arg->eq(arg, binary_cmp);
+    ((Item_insert_value *)item)->arg->eq(arg, binary_cmp);
 }
 
 
@@ -7149,11 +7149,12 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
 
   Item_field *field_arg= (Item_field *)arg;
 
-  if (field_arg->field->table->insert_values)
+  if (field_arg->field->table->insert_values &&
+      thd->lex->in_update_value_clause)
   {
     Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
     if (!def_field)
-      return TRUE;
+      return true;
     memcpy(def_field, field_arg->field, field_arg->field->size_of());
     def_field->move_field_offset((my_ptrdiff_t)
                                  (def_field->table->insert_values -
@@ -7162,17 +7163,17 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
   }
   else
   {
-    Field *tmp_field= field_arg->field;
-    /* charset doesn't matter here, it's to avoid sigsegv only */
-    tmp_field= new Field_null(0, 0, Field::NONE, field_arg->field->field_name,
-                          &my_charset_bin);
-    if (tmp_field)
-    {
-      tmp_field->init(field_arg->field->table);
-      set_field(tmp_field);
-    }
+    // VALUES() is used out-of-scope - its value is always NULL
+    Query_arena backup;
+    Query_arena *const arena= thd->activate_stmt_arena_if_needed(&backup);
+    Item *const item= new Item_null(this->name);
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
+    if (!item)
+      return TRUE;
+    *items= item;
   }
-  return FALSE;
+  return false;
 }
 
 void Item_insert_value::print(String *str, enum_query_type query_type)
