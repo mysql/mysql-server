@@ -1832,6 +1832,8 @@ public:
   bool match(const PFS_column_row *pfs);
   bool match(const PFS_program *pfs);
 
+private:
+  bool do_match(bool record_null, enum_object_type object_type);
   enum_object_type m_object_type;
 };
 
@@ -1854,6 +1856,8 @@ public:
   bool match(const PFS_object_row *pfs);
   bool match(const PFS_program *pfs);
 
+private:
+  bool do_match(bool record_null, enum_object_type object_type);
   enum_object_type m_object_type;
 };
 
