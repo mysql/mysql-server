@@ -57,7 +57,9 @@ protected:
       EXPECT_EQ(2, term2->get_item_list()->head()->val_int());
 
       if (num_terms <= 2)
+      {
         EXPECT_EQ(nullptr, term2->next_select());
+      }
 
       EXPECT_EQ(top_union, term2->master_unit());
     }
