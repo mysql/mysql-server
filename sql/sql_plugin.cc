@@ -556,8 +556,17 @@ static st_plugin_dl *plugin_dl_insert_or_reuse(st_plugin_dl *plugin_dl)
 
 static inline void free_plugin_mem(st_plugin_dl *p)
 {
+#ifdef HAVE_VALGRIND
+  /*
+    The valgrind leak report is done at the end of the program execution.
+    But since the plugins are unloaded from the memory,
+    it is impossible for valgrind to correctly report the leak locations.
+    So leave the shared objects (.DLL/.so) open for the symbols definition.
+  */
+#else /* not HAVE_VALGRIND */
   if (p->handle)
     dlclose(p->handle);
+#endif
   my_free(p->dl.str);
   if (p->version != MYSQL_PLUGIN_INTERFACE_VERSION)
     my_free(p->plugins);
@@ -1111,6 +1120,12 @@ static void plugin_deinitialize(st_plugin_int *plugin, bool ref_check)
            plugin->name.str, plugin->ref_count);
 }
 
+/*
+  Unload a plugin.
+  Note: During valgrind testing, the plugin's shared object (.dll/.so)
+        is not unloaded in order to keep the call stack
+        of the leaked objects.
+*/
 static void plugin_del(st_plugin_int *plugin)
 {
   DBUG_ENTER("plugin_del(plugin)");
@@ -1978,6 +1993,12 @@ void memcached_shutdown(void)
   }
 }
 
+/*
+  Deinitialize and unload all the loaded plugins.
+  Note: During valgrind testing, the shared objects (.dll/.so)
+        are not unloaded in order to keep the call stack
+        of the leaked objects.
+*/
 void plugin_shutdown(void)
 {
   size_t i;
@@ -2844,7 +2865,7 @@ static st_bookmark *register_var(const char *plugin, const char *name,
         string.
       */
       memset(global_system_variables.dynamic_variables_ptr +
-             global_variables_dynamic_size, 0, 
+             global_variables_dynamic_size, 0,
              new_size - global_variables_dynamic_size);
       memset(max_system_variables.dynamic_variables_ptr +
              global_variables_dynamic_size, 0,
@@ -3028,11 +3049,11 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
   plugin_ref old_table_plugin= thd->variables.table_plugin;
   plugin_ref old_temp_table_plugin= thd->variables.temp_table_plugin;
   DBUG_ENTER("plugin_thdvar_init");
-  
+
   thd->variables.table_plugin= NULL;
   thd->variables.temp_table_plugin= NULL;
   cleanup_variables(thd, &thd->variables);
-  
+
   mysql_mutex_lock(&LOCK_global_system_variables);
   thd->variables= global_system_variables;
   thd->variables.table_plugin= NULL;
@@ -3088,7 +3109,7 @@ static void cleanup_variables(THD *thd, struct System_variables *vars)
   {
     /* Block the Performance Schema from accessing THD::variables. */
     mysql_mutex_lock(&thd->LOCK_thd_data);
-    
+
     plugin_var_memalloc_free(&thd->variables);
     thd->session_sysvar_res_mgr.deinit();
   }
@@ -3457,7 +3478,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
       if (opt->flags & PLUGIN_VAR_NOCMDOPT)
         continue;
 
-      optname= (char*) memdup_root(mem_root, v->key + 1, 
+      optname= (char*) memdup_root(mem_root, v->key + 1,
                                    (optnamelen= v->name_len) + 1);
     }
 
@@ -3722,7 +3743,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
     }
   }
   DBUG_RETURN(0);
-  
+
 err:
   if (opts)
     my_cleanup_options(opts);
@@ -3757,7 +3778,7 @@ void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root)
   }
 }
 
-/** 
+/**
   Searches for a correctly loaded plugin of a particular type by name
 
   @param plugin   the name of the plugin we're looking for
@@ -3774,7 +3795,7 @@ st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type)
 }
 
 
-/** 
+/**
   Locks the plugin strucutres so calls to plugin_find_inner can be issued.
 
   Must be followed by unlock_plugin_data.
@@ -3786,7 +3807,7 @@ int lock_plugin_data()
 }
 
 
-/** 
+/**
   Unlocks the plugin strucutres as locked by lock_plugin_data()
 */
 int unlock_plugin_data()
