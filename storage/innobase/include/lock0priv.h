@@ -150,6 +150,16 @@ struct lock_t {
 	uint64_t		m_seq;
 #endif /* UNIV_DEBUG */
 
+	/** Remove GAP lock from a next Key Lock */
+	void remove_gap_lock()
+	{
+		ut_ad(!is_gap());
+		ut_ad(!is_insert_intention());
+		ut_ad(is_record_lock());
+
+		type_mode |= LOCK_REC_NOT_GAP;
+	}
+
 	/** Determine if the lock object is a record lock.
 	@return true if record lock, false otherwise. */
 	bool is_record_lock() const
@@ -191,6 +201,13 @@ struct lock_t {
 	lock_mode mode() const
 	{
 		return(static_cast<lock_mode>(type_mode & LOCK_MODE_MASK));
+	}
+
+	/** Get lock hash table
+	@return lock hash table */
+	hash_table_t* hash_table() const
+	{
+		return(lock_hash_get(type_mode));
 	}
 
 	/** @return the record lock tablespace ID */
