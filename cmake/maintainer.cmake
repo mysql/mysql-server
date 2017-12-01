@@ -111,7 +111,7 @@ ENDIF()
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Disable a few default Clang++ warnings
   SET(MY_CXX_WARNING_FLAGS
-      "${MY_CXX_WARNING_FLAGS} -Wno-null-conversion -Wno-unused-private-field")
+      "${MY_CXX_WARNING_FLAGS} -Wno-null-conversion -Wno-unused-private-field -Wno-string-plus-int")
 
   SET(MY_CXX_WARNING_FLAGS
       "${MY_CXX_WARNING_FLAGS} -Wconditional-uninitialized")
