@@ -3850,7 +3850,11 @@ const char *MYSQL_BIN_LOG::generate_name(const char *log_name,
 {
   if (!log_name || !log_name[0])
   {
-    strmake(buff, default_logfile_name, FN_REFLEN - strlen(suffix) - 1);
+    if (is_relay_log || log_bin_supplied)
+      strmake(buff, default_logfile_name, FN_REFLEN - strlen(suffix) - 1);
+    else
+      strmake(buff, default_binlogfile_name, FN_REFLEN - strlen(suffix) - 1);
+
     return (const char *)
       fn_format(buff, buff, "", suffix, MYF(MY_REPLACE_EXT|MY_REPLACE_DIR));
   }

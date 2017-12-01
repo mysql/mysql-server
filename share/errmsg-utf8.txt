@@ -10838,7 +10838,7 @@ ER_TABLESPACE_ENGINE_MISMATCH
 
 
 ER_RPL_CANT_HAVE_SAME_BASENAME
-  eng "Cannot have same base name '%s' for both binary and relay logs. Please check %s (default '%s') and %s (default '%s') options to ensure they do not conflict"
+  eng "Cannot have same base name '%s' for both binary and relay logs. Please check %s (default '%s' if --log-bin option is not used, default '%s' if --log-bin option is used without argument) and %s (default '%s') options to ensure they do not conflict."
 
 ER_WARN_NO_SERVERID_SPECIFIED
   eng "You have not provided a mandatory server-id. Servers in a replication topology must have unique server-ids. Please refer to the proper server start-up parameters documentation."
