@@ -127,6 +127,8 @@ trx_init(
 
 	trx->no = TRX_ID_MAX;
 
+	trx->skip_lock_inheritance = false;
+
 	trx->is_recovered = false;
 
 	trx->op_info = "";
@@ -2833,6 +2835,17 @@ trx_prepare(
 	trx_sys->n_prepared_trx++;
 	trx_sys_mutex_exit();
 	/*--------------------------------------*/
+
+	/* Release read locks after PREAPARE for READ COMMITTED
+	and lower isolation. */
+	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED) {
+
+		/* Stop inherting GAP locks. */
+		trx->skip_lock_inheritance = true;
+
+		/* Release only GAP locks for now. */
+		lock_trx_release_read_locks(trx, true);
+	}
 
 	switch (thd_requested_durability(trx->mysql_thd)) {
 	case HA_IGNORE_DURABILITY:

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -130,6 +130,16 @@ struct lock_t {
 					LOCK_INSERT_INTENTION,
 					wait flag, ORed */
 
+	/** Remove GAP lock from a next Key Lock */
+	void remove_gap_lock()
+	{
+		ut_ad(!is_gap());
+		ut_ad(!is_insert_intention());
+		ut_ad(is_record_lock());
+
+		type_mode |= LOCK_REC_NOT_GAP;
+	}
+
 	/** Determine if the lock object is a record lock.
 	@return true if record lock, false otherwise. */
 	bool is_record_lock() const
@@ -164,6 +174,27 @@ struct lock_t {
 	enum lock_mode mode() const
 	{
 		return(static_cast<enum lock_mode>(type_mode & LOCK_MODE_MASK));
+	}
+
+	/** Get lock hash table
+	@return lock hash table */
+	hash_table_t* hash_table() const
+	{
+		return(lock_hash_get(type_mode));
+	}
+
+	/** Get tablespace ID for the lock
+	@return space ID */
+	ulint space() const
+	{
+		return(un_member.rec_lock.space);
+	}
+
+	/** Get page number of the lock
+	@return page number */
+	ulint page_number() const
+	{
+		return(un_member.rec_lock.page_no);
 	}
 
 	/** Print the lock object into the given output stream.
