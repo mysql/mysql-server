@@ -54,9 +54,13 @@ SET GLOBAL innodb_master_thread_disabled_debug = 1;
 INSERT INTO test.t_compressed VALUES (1, 'hello'), (2, 'hi');
 INSERT INTO test.t_compressed VALUES (3, 'satya'), (4, 'bodapati');
 
+INSERT INTO test.t_blob VALUES ('hello', 'hi', 'satya', 'bodapati');
+INSERT INTO test.t_blob VALUES ('hi', 'hello', 'satya', 'bodapati');
+
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
 --source include/kill_and_restart_mysqld.inc
 SELECT * FROM test.t_compressed;
+SELECT * FROM test.t_blob;
 
 let $restart_parameters =;
 --echo # Restart the server with default options.

@@ -1502,9 +1502,9 @@ retry:
 
 		IORequest	request(IORequest::READ);
 
-		success = os_file_read(
+		success = os_file_read_first_page(
 			request,
-			node->handle, page, 0, UNIV_ZIP_SIZE_MIN);
+			node->handle, page, UNIV_PAGE_SIZE);
 
 		space_id = fsp_header_get_space_id(page);
 		flags = fsp_header_get_flags(page);
@@ -1515,7 +1515,15 @@ retry:
 
 		const page_size_t	page_size(flags);
 
-		min_size = FIL_IBD_FILE_INITIAL_SIZE * page_size.physical();
+		/* To determine if tablespace is from 5.7 or not, we
+		rely on SDI flag. For IBDs from 5.7, which are opened
+		during import or during upgrade, their initial size
+		is lesser than the initial size in 8.0 */
+		bool has_sdi = FSP_FLAGS_HAS_SDI(flags);
+		uint8_t expected_size = has_sdi ? FIL_IBD_FILE_INITIAL_SIZE
+			: FIL_IBD_FILE_INITIAL_SIZE_5_7;
+
+		min_size = expected_size * page_size.physical();
 
 		if (size_bytes < min_size) {
 
@@ -2251,25 +2259,17 @@ fil_assign_new_space_id(
 	return(success);
 }
 
-/*******************************************************************//**
-Returns a pointer to the fil_space_t that is in the memory cache
-associated with a space id. The caller must lock fil_system->mutex.
-@return file_space_t pointer, NULL if space not found */
-UNIV_INLINE
+/** Prepares the tablespace file for IO. If the file is closed, it is
+opened. Also makes sure that we can open at least one file.
+@param[in]	space	the space object
+@return fil_space_t object (this can happen if current space object
+is evicted) on success, else nullptr */
+static
 fil_space_t*
-fil_space_get_space(
-/*================*/
-	space_id_t	id)	/*!< in: space id */
+fil_space_prepare_for_io(
+	fil_space_t*	space)
 {
-	fil_space_t*	space;
 	fil_node_t*	node;
-
-	ut_ad(fil_system);
-
-	space = fil_space_get_by_id(id);
-	if (space == NULL || space->size != 0) {
-		return(space);
-	}
 
 	switch (space->purpose) {
 	case FIL_TYPE_LOG:
@@ -2277,7 +2277,7 @@ fil_space_get_space(
 	case FIL_TYPE_TEMPORARY:
 	case FIL_TYPE_TABLESPACE:
 	case FIL_TYPE_IMPORT:
-		ut_a(id != 0);
+		ut_a(space->id != 0);
 
 		mutex_exit(&fil_system->mutex);
 
@@ -2285,13 +2285,13 @@ fil_space_get_space(
 		before the fil_mutex_enter_and_prepare_for_io() acquires
 		the fil_system->mutex. Check for this after completing the
 		call to fil_mutex_enter_and_prepare_for_io(). */
-		fil_mutex_enter_and_prepare_for_io(id);
+		fil_mutex_enter_and_prepare_for_io(space->id);
 
 		/* We are still holding the fil_system->mutex. Check if
 		the space is still in memory cache. */
-		space = fil_space_get_by_id(id);
-		if (space == NULL) {
-			return(NULL);
+		space = fil_space_get_by_id(space->id);
+		if (space == nullptr) {
+			return(nullptr);
 		}
 
 		/* The following code must change when InnoDB supports
@@ -2307,13 +2307,35 @@ fil_space_get_space(
 		if (!fil_node_prepare_for_io(node, fil_system, space, false)) {
 			/* The single-table tablespace can't be opened,
 			because the ibd file is missing. */
-			return(NULL);
+			return(nullptr);
 		}
 
 		fil_node_complete_io(node, fil_system, IORequestRead);
 	}
 
 	return(space);
+}
+
+/*******************************************************************//**
+Returns a pointer to the fil_space_t that is in the memory cache
+associated with a space id. The caller must lock fil_system->mutex.
+@return file_space_t pointer, NULL if space not found */
+UNIV_INLINE
+fil_space_t*
+fil_space_get_space(
+/*================*/
+	space_id_t	id)	/*!< in: space id */
+{
+	fil_space_t*	space;
+
+	ut_ad(fil_system);
+
+	space = fil_space_get_by_id(id);
+	if (space == NULL || space->size != 0) {
+		return(space);
+	}
+
+	return(fil_space_prepare_for_io(space));
 }
 
 /** Returns the path from the first fil_node_t found with this space ID.
@@ -4532,6 +4554,7 @@ fil_ibd_create(
 			"fil_ibd_create_log",
 			log_make_checkpoint_at(LSN_MAX, true););
 	}
+
 #endif /* !UNIV_HOTBACKUP */
 	/* For encryption tablespace, initial encryption information. */
 	if (space != nullptr && FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
@@ -4545,6 +4568,25 @@ fil_ibd_create(
 	os_file_close(file);
 	if (err != DB_SUCCESS) {
 		os_file_delete(innodb_data_file_key, path);
+	} else {
+		/* For CREATE TABLE, the file was actually opened on IO. i.e
+		when we extend datafile. We now estimate the initial size
+		better, so we longer need to extend datafile. This inturn means,
+		we may not open the file at all and we miss MLOG_FILE_OPEN entry
+		to redo log. So open the file now.
+
+		If there are too many open files, ensure we are able to open
+		atleast one file by closing some unused files in fil_sys LRU.*/
+
+		/* TODO: WL#8619. Remove this entire else part and the function
+		fil_space_prepare_for_io() */
+		mutex_enter(&fil_system->mutex);
+#ifdef UNIV_DEBUG
+		fil_space_t*	prepared_space =
+#endif
+			fil_space_prepare_for_io(space);
+		ut_ad(prepared_space != nullptr);
+		mutex_exit(&fil_system->mutex);
 	}
 
 	return(err);
@@ -7249,13 +7291,7 @@ fil_tablespace_iterate(
 
 	IORequest	request(IORequest::READ);
 
-	err = os_file_read(request, file, page, 0, UNIV_ZIP_SIZE_MIN);
-
-	/** Get tablespace page size */
-	ulint flags = fsp_header_get_flags(page);
-
-	/* Read full page 0 now */
-	err = os_file_read(request, file, page, 0, page_size_t(flags).physical());
+	err = os_file_read_first_page(request, file, page, UNIV_PAGE_SIZE);
 
 	if (err != DB_SUCCESS) {
 

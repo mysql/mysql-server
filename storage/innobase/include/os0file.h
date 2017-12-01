@@ -1205,6 +1205,10 @@ The wrapper functions have the prefix of "innodb_". */
 # define os_file_read_pfs(type, file, buf, offset, n)			\
 	pfs_os_file_read_func(type, file, buf, offset, n, __FILE__, __LINE__)
 
+# define os_file_read_first_page_pfs(type, file, buf, n)		\
+	pfs_os_file_read_first_page_func(type, file, buf,n,		\
+					 __FILE__, __LINE__)
+
 # define os_file_copy_pfs(src, src_offset, dest, dest_offset, size)	\
 	pfs_os_file_copy_func(src, src_offset, dest, dest_offset,	\
 	size, __FILE__, __LINE__)
@@ -1367,6 +1371,28 @@ pfs_os_file_read_func(
 	pfs_os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
+	ulint		n,
+	const char*	src_file,
+	uint		src_line);
+
+/** NOTE! Please use the corresponding macro os_file_read_first_page(),
+not directly this function!
+This is the performance schema instrumented wrapper function for
+os_file_read_first_page() which requests a synchronous read operation
+of page 0 of IBD file
+@param[in, out]	type		IO request context
+@param[in]	file		Open file handle
+@param[out]	buf		buffer where to read
+@param[in]	n		number of bytes to read
+@param[in]	src_file	file name where func invoked
+@param[in]	src_line	line where the func invoked
+@return DB_SUCCESS if request was successful */
+UNIV_INLINE
+dberr_t
+pfs_os_file_read_first_page_func(
+	IORequest&	type,
+	pfs_os_file_t	file,
+	void*		buf,
 	ulint		n,
 	const char*	src_file,
 	uint		src_line);
@@ -1638,6 +1664,9 @@ to original un-instrumented file I/O APIs */
 # define os_file_read_pfs(type, file, buf, offset, n)			\
 	os_file_read_func(type, file, buf, offset, n)
 
+# define os_file_read_first_page_pfs(type, file, buf, n)		\
+	os_file_read_first_page_func(type, file, buf, n)
+
 # define os_file_copy_pfs(src, src_offset, dest, dest_offset, size)	\
 	os_file_copy_func(src, src_offset, dest, dest_offset, size)
 
@@ -1678,6 +1707,15 @@ to original un-instrumented file I/O APIs */
 	#define os_file_read(type, file, buf, offset, n)                \
                 os_file_read_pfs(type, file.m_file, buf, offset, n)
 #endif
+
+#ifdef UNIV_PFS_IO
+	#define os_file_read_first_page(type, file, buf, n)	\
+		os_file_read_first_page_pfs(type, file, buf, n)
+#else
+	#define os_file_read_first_page(type, file, buf, n)	\
+                os_file_read_first_page_pfs(type, file.m_file, buf, n)
+#endif
+
 
 #ifdef UNIV_PFS_IO
 	#define os_file_flush(file)	os_file_flush_pfs(file)
@@ -1820,6 +1858,22 @@ os_file_read_func(
 	os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
+	ulint		n)
+	MY_ATTRIBUTE((warn_unused_result));
+
+/** NOTE! Use the corresponding macro os_file_read_first_page(),
+not directly this function!
+Requests a synchronous read operation of page 0 of IBD file
+@param[in]	type		IO request context
+@param[in]	file		Open file handle
+@param[out]	buf		buffer where to read
+@param[in]	n		number of bytes to read
+@return DB_SUCCESS if request was successful */
+dberr_t
+os_file_read_first_page_func(
+	IORequest&	type,
+	os_file_t	file,
+	void*		buf,
 	ulint		n)
 	MY_ATTRIBUTE((warn_unused_result));
 
