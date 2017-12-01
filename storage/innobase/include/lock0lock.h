@@ -525,6 +525,16 @@ void
 lock_trx_release_locks(
 /*===================*/
 	trx_t*	trx);	/*!< in/out: transaction */
+
+/** Release read locks of a transacion. It is called during XA
+prepare to release locks early.
+@param[in,out]	trx		transaction
+@param[in]	only_gap	release only GAP locks */
+void
+lock_trx_release_read_locks(
+	trx_t*	trx,
+	bool	only_gap);
+
 /*********************************************************************//**
 Removes locks on a table to be dropped.
 If remove_also_table_sx_locks is TRUE then table-level S and X locks are
