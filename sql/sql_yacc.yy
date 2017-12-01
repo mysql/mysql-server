@@ -7229,7 +7229,8 @@ alter_user_stmt:
             List<LEX_USER> *role_list= new (*THR_MALLOC) List<LEX_USER>;
             auto *tmp=
                 NEW_PTN PT_alter_user_default_role(Lex->drop_if_exists,
-                                                   users, role_list, ROLE_ALL);
+                                                   users, role_list,
+                                                   role_enum::ROLE_ALL);
               MAKE_CMD(tmp);
           }
         | alter_user_command user DEFAULT_SYM ROLE_SYM NONE_SYM
@@ -7240,7 +7241,8 @@ alter_user_stmt:
             List<LEX_USER> *role_list= new (*THR_MALLOC) List<LEX_USER>;
             auto *tmp=
                 NEW_PTN PT_alter_user_default_role(Lex->drop_if_exists,
-                                                   users, role_list, ROLE_NONE);
+                                                   users, role_list,
+                                                   role_enum::ROLE_NONE);
               MAKE_CMD(tmp);
           }
         | alter_user_command user DEFAULT_SYM ROLE_SYM role_list
@@ -7250,7 +7252,8 @@ alter_user_stmt:
               MYSQL_YYABORT;
             auto *tmp=
               NEW_PTN PT_alter_user_default_role(Lex->drop_if_exists,
-                                                 users, $5, ROLE_NAME);
+                                                 users, $5,
+                                                 role_enum::ROLE_NAME);
             MAKE_CMD(tmp);
           }
         | ALTER RESOURCE_SYM GROUP_SYM ident opt_resource_group_vcpu_list
@@ -13966,29 +13969,32 @@ set_role_stmt:
           }
         | SET_SYM ROLE_SYM NONE_SYM
           {
-            $$= NEW_PTN PT_set_role(ROLE_NONE);
+            $$= NEW_PTN PT_set_role(role_enum::ROLE_NONE);
             Lex->sql_command= SQLCOM_SET_ROLE;
           }
         | SET_SYM ROLE_SYM DEFAULT_SYM
           {
-            $$= NEW_PTN PT_set_role(ROLE_DEFAULT);
+            $$= NEW_PTN PT_set_role(role_enum::ROLE_DEFAULT);
             Lex->sql_command= SQLCOM_SET_ROLE;
           }
         | SET_SYM DEFAULT_SYM ROLE_SYM role_list TO_SYM role_list
           {
-            $$= NEW_PTN PT_alter_user_default_role(false, $6, $4, ROLE_NAME);
+            $$= NEW_PTN PT_alter_user_default_role(false, $6, $4,
+                                                    role_enum::ROLE_NAME);
           }
         | SET_SYM DEFAULT_SYM ROLE_SYM NONE_SYM TO_SYM role_list
           {
-            $$= NEW_PTN PT_alter_user_default_role(false, $6, NULL, ROLE_NONE);
+            $$= NEW_PTN PT_alter_user_default_role(false, $6, NULL,
+                                                   role_enum::ROLE_NONE);
           }
         | SET_SYM DEFAULT_SYM ROLE_SYM ALL TO_SYM role_list
           {
-            $$= NEW_PTN PT_alter_user_default_role(false, $6, NULL, ROLE_ALL);
+            $$= NEW_PTN PT_alter_user_default_role(false, $6, NULL,
+                                                   role_enum::ROLE_ALL);
           }
         | SET_SYM ROLE_SYM ALL opt_except_role_list
           {
-            $$= NEW_PTN PT_set_role(ROLE_ALL, $4);
+            $$= NEW_PTN PT_set_role(role_enum::ROLE_ALL, $4);
             Lex->sql_command= SQLCOM_SET_ROLE;
           }
         ;

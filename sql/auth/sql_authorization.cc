@@ -82,6 +82,7 @@
 #include "sql/auth/sql_auth_cache.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/auth/sql_user_table.h"
+#include "sql/sql_admin.h"              // enum role_enum
 #include "sql/current_thd.h"
 #include "sql/dd/dd_table.h"            // dd::table_exists
 #include "sql/debug_sync.h"
@@ -247,10 +248,6 @@ static bool check_routine_level_acl(THD *thd, const char *db,
                                     const char *name, bool is_proc);
 void get_granted_roles(Role_vertex_descriptor &v,
                        List_of_granted_roles *granted_roles);
-bool alter_user_set_default_roles(THD *thd, TABLE *table, LEX_USER *user,
-                                  const List_of_auth_id_refs &new_auth_ids);
-bool clear_default_roles(THD *thd, TABLE *table, LEX_USER *user,
-                         std::vector<Role_id > *default_roles);
 
 /**
   This utility function is used by revoke_role() and remove_all_granted_roles()
@@ -6507,57 +6504,153 @@ bool clear_default_roles(THD *thd, TABLE *table,
                          std::vector<Role_id > *default_roles)
 {
   DBUG_ENTER("clear_default_roles");
+  DBUG_ASSERT(assert_acl_cache_write_lock(thd));
   Default_roles::iterator role_it, role_end, begin_it;
   Role_id user_role_id(user_auth_id);
   boost::tie(begin_it, role_end)= g_default_roles->equal_range(user_role_id);
   role_it= begin_it;
-  for( ;role_it != role_end; ++role_it)
+  bool error= false;
+  for( ;role_it != role_end && !error; ++role_it)
   {
     if (default_roles != 0)
     {
       default_roles->push_back(role_it->second);
     }
     Auth_id_ref role_auth_id= create_authid_from(role_it->second);
-    modify_default_roles_in_table(thd, table, user_auth_id, role_auth_id,
-                                    true);
+    error= modify_default_roles_in_table(thd, table, user_auth_id,
+                                          role_auth_id, true);
   }
   g_default_roles->erase(begin_it, role_end);
-  DBUG_RETURN(false);
+
+  DBUG_RETURN(error);
 }
 
-bool mysql_clear_default_roles(THD *thd, LEX_USER *user)
+/**
+  Set the default roles to NONE, ALL or list of authorization IDs as
+  roles, depending upon the role_type argument. It writes to table
+  mysql.default_roles and binlog.
+
+  @param thd Thread handler
+  @param user Users for whom the default roles are set.
+  @param roles list of default roles to be set.
+
+  @return
+    @retval true An error occurred and DA is set
+    @retval false Successful
+*/
+bool mysql_alter_or_clear_roles(THD *thd, role_enum role_type,
+                                const List<LEX_USER> *users,
+                                const List<LEX_USER> *roles)
 {
-  bool ret= false;
+  DBUG_ENTER("mysql_alter_or_clear_roles");
+
+  List<LEX_USER> *tmp_users= const_cast<List<LEX_USER> *>(users);
+  List<LEX_USER> *tmp_roles= const_cast<List<LEX_USER > * >(roles);
+  List_iterator<LEX_USER > users_it(*tmp_users);
+  List_iterator<LEX_USER > roles_it;
+  List_of_auth_id_refs authids;
+  Auth_id_ref authid;
+  LEX_USER *user= nullptr;
+  LEX_USER *role= nullptr;
+
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The binlog state will be cleared here to
+    row-based replication. The binlog state will be cleared here to
     statement based replication and will be reset to the originals
     values when we are out of this function scope
   */
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
+
   TABLE *table= open_default_role_table(thd);
   if (!table)
   {
     my_error(ER_OPEN_ROLE_TABLES, MYF(MY_WME));
-    return true;
+    DBUG_RETURN(true);
   }
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   if (!acl_cache_lock.lock())
   {
     commit_and_close_mysql_tables(thd);
-    return true;
+    DBUG_RETURN(true);
   }
 
-  Auth_id_ref authid= create_authid_from(user);
-  ret= clear_default_roles(thd, table, authid, 0);
-  int result= 0;
+  bool ret= false;
+  while ((user= users_it++) && !ret)
+  {
+    // Check for CURRENT_USER token
+    user= get_current_user(thd, user);
+    if (strcmp(thd->security_context()->priv_user().str, user->user.str) != 0)
+    {
+      if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
+          check_global_access(thd, CREATE_USER_ACL))
+      {
+        my_error(ER_ACCESS_DENIED_ERROR,MYF(0),
+                 user->user.str, user->host.str,
+                 (thd->password ? ER_THD(thd, ER_YES) :
+                  ER_THD(thd, ER_NO)));
+        DBUG_RETURN(true);
+      }
+      if (roles != nullptr)
+      {
+        roles_it= *tmp_roles;
+        while ((role= roles_it++))
+        {
+          authid= std::make_pair(role->user, role->host);
+          authids.push_back(authid);
+        }
+      }
+    }
+    else
+    {
+      // Verify that the user actually is granted the role before it is
+      // set as default.
+      if (roles != nullptr)
+      {
+        roles_it= *tmp_roles;
+        while ((role= roles_it++))
+        {
+          if (!is_granted_role(thd->security_context()->priv_user(),
+                                thd->security_context()->priv_host(),
+                                role->user, role->host))
+          {
+            my_error(ER_ACCESS_DENIED_ERROR,MYF(0),
+                     user->user.str, user->host.str,
+                     (thd->password ? ER_THD(thd, ER_YES) :
+                      ER_THD(thd, ER_NO)));
+            DBUG_RETURN(true);
+          }
+          authid= std::make_pair(role->user, role->host);
+          authids.push_back(authid);
+        }
+      }
+    }
 
-  result= log_and_commit_acl_ddl(thd, true, NULL, ret);
+    if (role_type == role_enum::ROLE_NONE)
+    {
+      authid= create_authid_from(user);
+      ret= clear_default_roles(thd, table, authid, nullptr);
+    }
+    else if (role_type == role_enum::ROLE_ALL)
+    {
+      ret= alter_user_set_default_roles_all(thd, table, user);
+    }
+    else if (role_type == role_enum::ROLE_NAME)
+    {
+      ret= alter_user_set_default_roles(thd, table, user, authids);
+    }
+
+    if (ret)
+    {
+      my_error(ER_FAILED_DEFAULT_ROLES, MYF(0));
+    }
+  }
+
+  ret= log_and_commit_acl_ddl(thd, true, nullptr, ret);
   get_global_acl_cache()->increase_version();
-  return result;
-}
 
+  DBUG_RETURN(ret);
+}
 
 /**
   Set all granted role as default roles. Writes to table mysql.default_roles
@@ -6571,30 +6664,10 @@ bool mysql_clear_default_roles(THD *thd, LEX_USER *user)
     @retval false Successful
 */
 
-bool mysql_alter_user_set_default_roles_all(THD *thd, LEX_USER *user)
+bool alter_user_set_default_roles_all(THD *thd, TABLE *def_role_table,
+                                      LEX_USER *user)
 {
-  /*
-    This statement will be replicated as a statement, even when using
-    row-based replication.  The binlog state will be cleared here to
-    statement based replication and will be reset to the originals
-    values when we are out of this function scope
-  */
-  Save_and_Restore_binlog_format_state binlog_format_state(thd);
-
-  TABLE *table= open_default_role_table(thd);
-  if (!table)
-  {
-    my_error(ER_OPEN_ROLE_TABLES, MYF(MY_WME));
-    return true;
-  }
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock())
-  {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
-
+  DBUG_ASSERT(assert_acl_cache_write_lock(thd));
   std::string authid_role= create_authid_str_from(user);
   Role_index_map::iterator it= g_authid_to_vertex->find(authid_role);
   if (it == g_authid_to_vertex->end())
@@ -6624,15 +6697,9 @@ bool mysql_alter_user_set_default_roles_all(THD *thd, LEX_USER *user)
       new_default_role_ref.push_back(authid);
     }
   }
-  bool errors= alter_user_set_default_roles(thd, table, user,
+  bool errors= alter_user_set_default_roles(thd, def_role_table, user,
                                             new_default_role_ref);
-  if (errors)
-  {
-    my_error(ER_FAILED_DEFAULT_ROLES, MYF(0));
-  }
 
-  errors= log_and_commit_acl_ddl(thd, true);
-  get_global_acl_cache()->increase_version();
   return errors;
 }
 
@@ -6652,10 +6719,13 @@ bool mysql_alter_user_set_default_roles_all(THD *thd, LEX_USER *user)
 bool alter_user_set_default_roles(THD *thd, TABLE *table, LEX_USER *user,
                                   const List_of_auth_id_refs &new_auth_ids)
 {
-  ACL_USER *acl_user = find_acl_user(user->host.str, user->user.str, true);
+  DBUG_ASSERT(assert_acl_cache_write_lock(thd));
+  bool errors= false;
+
+  ACL_USER *acl_user= find_acl_user(user->host.str, user->user.str, true);
   if (acl_user == 0)
     return true;
-  bool errors= false;
+
   if (new_auth_ids.size() != 0)
   {
     Default_roles::iterator role_it, role_end;
@@ -6691,58 +6761,8 @@ bool alter_user_set_default_roles(THD *thd, TABLE *table, LEX_USER *user,
       g_default_roles->insert(std::make_pair(user_role_id, role_role_id));
     }
   }
+
   return errors;
-}
-
-/**
-  Sets a list of authorization IDs as the default roles for a given
-  authorization ID.
-
-  This function aquire the acl_cache->lock mutex.
-
-  @see Sql_cmd_alter_user_default_role::execute
-  @param thd Thread handler
-  @param user The user which should get a default role
-  @param new_auth_ids A list of authentication IDs which will be the new default
- roles.
-
-  @return Success state
-    @retval true The operation failed and the DA is set.
-    @retval false The operation succeeded and the DA isn't set.
-*/
-bool mysql_alter_user_set_default_roles(THD *thd, LEX_USER *user,
-                       const List_of_auth_id_refs &new_auth_ids)
-{
-  /*
-    This statement will be replicated as a statement, even when using
-    row-based replication.  The binlog state will be cleared here to
-    statement based replication and will be reset to the originals
-    values when we are out of this function scope
-  */
-  Save_and_Restore_binlog_format_state binlog_format_state(thd);
-  TABLE *table= open_default_role_table(thd);
-  if (!table)
-  {
-    my_error(ER_OPEN_ROLE_TABLES, MYF(MY_WME));
-    return true;
-  }
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock())
-  {
-    commit_and_close_mysql_tables(thd);
-    return true;
-  }
-
-  bool ret= alter_user_set_default_roles(thd, table, user, new_auth_ids);
-  if (ret)
-  {
-    my_error(ER_FAILED_DEFAULT_ROLES, MYF(0));
-  }
-
-  ret= log_and_commit_acl_ddl(thd, true);
-  get_global_acl_cache()->increase_version();
-  return ret;
 }
 
 /**

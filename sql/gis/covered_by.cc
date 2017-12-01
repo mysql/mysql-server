@@ -58,8 +58,7 @@ bool Covered_by::operator()(const Box *b1, const Box *b2) const {
 bool Covered_by::eval(const Geometry *g1, const Geometry *g2) const {
   // Currently only implemented for boxes (MBRs).
   DBUG_ASSERT(false);
-  throw not_implemented_exception(g1->coordinate_system(), g1->type(),
-                                  g2->type());
+  throw not_implemented_exception::for_non_projected(*g1, *g2);
 }
 
 //////////////////////////////////////////////////////////////////////////////

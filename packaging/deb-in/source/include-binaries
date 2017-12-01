@@ -26,6 +26,7 @@ debian/extra/component_example_component2-plugin
 debian/extra/component_example_component3-plugin
 debian/extra/component_log_sink_test-plugin
 debian/extra/component_log_sink_syseventlog-plugin
+debian/extra/component_log_filter_dragnet-plugin
 debian/extra/component_log_sink_json-plugin
 debian/extra/component_test_string_service_charset-plugin
 debian/extra/component_test_string_service_long-plugin
@@ -99,6 +100,7 @@ debian/extra/rewrite_example-plugin
 debian/extra/semisync_master-plugin
 debian/extra/semisync_slave-plugin
 debian/extra/test_udf_services-plugin
+debian/extra/udf_example-plugin
 debian/extra/test_security_context-plugin
 debian/extra/test_services_plugin_registry-plugin
 debian/extra/validate_password-plugin

@@ -56,4 +56,13 @@ int         log_message(int log_type MY_ATTRIBUTE((unused)), ...)
 const char *get_server_errmsgs(int mysql_errcode MY_ATTRIBUTE((unused)))
 { return NULL; }
 
+void push_warning(THD *thd
+                    MY_ATTRIBUTE((unused)),
+                  Sql_condition::enum_severity_level severity
+                    MY_ATTRIBUTE((unused)),
+                  uint code
+                     MY_ATTRIBUTE((unused)),
+                  const char *message_text
+                      MY_ATTRIBUTE((unused))) {}
+
 #endif

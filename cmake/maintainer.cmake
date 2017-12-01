@@ -43,7 +43,7 @@ ENDIF()
 
 # Common warning flags for GCC and Clang
 SET(MY_C_WARNING_FLAGS
-    "${MY_WARNING_FLAGS} -Wwrite-strings -Wdeclaration-after-statement")
+    "${MY_WARNING_FLAGS} -Wwrite-strings")
 
 # Common warning flags for G++ and Clang++
 SET(MY_CXX_WARNING_FLAGS "${MY_WARNING_FLAGS} -Woverloaded-virtual")

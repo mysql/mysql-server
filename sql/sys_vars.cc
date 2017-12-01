@@ -125,6 +125,7 @@
 #include "storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
+
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 
 static bool update_buffer_size(THD*, KEY_CACHE *key_cache,
@@ -2185,50 +2186,6 @@ static Sys_var_charptr Sys_log_error(
        NULL, sys_var::PARSE_EARLY);
 
 
-/*
-  log_error_filter_rules: internal
-  (until components can have their own sysvars)
-*/
-
-static bool fix_log_error_filter_rules(sys_var *self,
-                                       THD *thd MY_ATTRIBUTE((unused)),
-                                       enum_var_type type
-                                         MY_ATTRIBUTE((unused)))
-{
-  int ret= LogVar(self->name).val(opt_log_error_filter_rules)
-                             .group("log_filter")
-                             .update();
-
-#if 0
-  /*
-    This will be enabled in the context of WL#9651:
-    Logging services: log filter (configuration engine)
-  */
-  if (ret < 1)
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_COMPONENT_FILTER_FLABBERGASTED,
-                        ER_THD(thd, ER_COMPONENT_FILTER_FLABBERGASTED),
-                        "draugnet", &opt_log_error_filter_rules[ret]);
-  return (ret != 0);
-#endif
-  return (ret == 0);
-}
-
-static Sys_var_charptr Sys_log_error_filter_rules(
-       "log_error_filter_rules", "Error log filter rules",
-       GLOBAL_VAR(opt_log_error_filter_rules),
-       CMD_LINE(OPT_ARG),
-       IN_SYSTEM_CHARSET,
-       DEFAULT("prio>=3? gag. "
-               "err_code==1408? set_priority 0. "
-               "err_code==1408? add_field log_label:=\"HELO\". "
-               "+source_line? delete_field. "
-               "+err_code? delete_field."),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(0),
-       ON_UPDATE(fix_log_error_filter_rules));
-
-
 static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
 {
   // test whether syntax is OK and services exist
@@ -2241,8 +2198,8 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
                                     true)) < 0)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_WRONG_VALUE_FOR_VAR,
-                        "Value for %s got confusing at or around %s",
+                        ER_CANT_SET_ERROR_LOG_SERVICE,
+                        ER_THD(thd, ER_CANT_SET_ERROR_LOG_SERVICE),
                         self->name.str,
                         &((char *) var->save_result.string_value.str)[-(i+1)]);
     return true;
@@ -2250,8 +2207,8 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
   else if (strlen(var->save_result.string_value.str) < 1)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_WRONG_VALUE_FOR_VAR,
-                        "Setting an empty %s pipeline disables error logging!",
+                        ER_EMPTY_PIPELINE_FOR_ERROR_LOG_SERVICE,
+                        ER_THD(thd, ER_EMPTY_PIPELINE_FOR_ERROR_LOG_SERVICE),
                         self->name.str);
   }
 
@@ -2276,6 +2233,7 @@ static bool fix_log_error_services(sys_var *self MY_ATTRIBUTE((unused)),
                           &((char *) opt_log_error_services)[rr]);
     return true;
   }
+
   return false;
 }
 

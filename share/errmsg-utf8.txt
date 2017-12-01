@@ -7686,6 +7686,15 @@ ER_BINLOG_UNSAFE_XA
 ER_UDF_ERROR
   eng "%s UDF failed; %s"
 
+ER_KEYRING_MIGRATION_FAILURE
+  eng "Can not perform keyring migration : %s"
+
+ER_KEYRING_ACCESS_DENIED_ERROR 42000
+  eng "Access denied; you need %-.128s privileges for this operation"
+
+ER_KEYRING_MIGRATION_STATUS
+  eng "Keyring migration %s."
+
 #
 #  End of 5.7 error messages.
 #
@@ -8075,8 +8084,8 @@ ER_BOOTSTRAP_CANT_THREAD
   eng "Can't create thread to handle bootstrap (errno: %d)"
 
 ER_COMPONENT_FILTER_FLABBERGASTED
-  eng "The log-filter component \"%s\" got confused at \"%s\" ..."
-  ger "Der Logfilter \"%s\" wunderte sich ueber \"%s\" ..."
+  eng "The log-filter component \"%s\" got confused at \"%s\" (state: %s) ..."
+  ger "Der Logfilter \"%s\" wunderte sich ueber \"%s\" (Status: %s) ..."
 
 ER_TRIGGER_INVALID_VALUE
   eng "Trigger for table '%s'.'%s': invalid %s value (%s)."
@@ -11034,14 +11043,24 @@ ER_REGEXP_TIME_OUT
 ER_REGEXP_PATTERN_TOO_BIG
   eng "The regular expression pattern exceeds limits on size or complexity."
 
-ER_KEYRING_MIGRATION_FAILURE
-  eng "Can not perform keyring migration : %s"
+ER_CANT_SET_ERROR_LOG_SERVICE
+  eng "Value for %s got confusing at or around \"%s\". Syntax may be wrong, component may not be INSTALLed, or a component that does not support instances may be listed more than once."
 
-ER_KEYRING_ACCESS_DENIED_ERROR 42000
-  eng "Access denied; you need %-.128s privileges for this operation"a
+ER_EMPTY_PIPELINE_FOR_ERROR_LOG_SERVICE
+  eng "Setting an empty %s pipeline disables error logging!"
 
-ER_KEYRING_MIGRATION_STATUS
-  eng "Keyring migration %s."
+# could use verbatim, but we want an error-code
+ER_COMPONENT_FILTER_DIAGNOSTICS
+  eng "filter %s: %s"
+
+ER_NOT_IMPLEMENTED_FOR_CARTESIAN_SRS 22S00
+  eng "%.192s(%.80s) has not been implemented for Cartesian spatial reference systems."
+
+ER_NOT_IMPLEMENTED_FOR_PROJECTED_SRS 22S00
+  eng "%.192s(%.80s) has not been implemented for projected spatial reference systems."
+
+ER_NONPOSITIVE_RADIUS 22003
+  eng "Invalid radius provided to function %s: Radius must be greater than zero."
 
 #
 #  End of 8.0 error messages.

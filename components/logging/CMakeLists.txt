@@ -39,10 +39,10 @@ MYSQL_ADD_COMPONENT(log_sink_json
 # MYSQL_ADD_COMPONENT(log_sink_xml
 #   log_sink_xml.cc
 #   MODULE)
-#
-# MYSQL_ADD_COMPONENT(log_filter_draugnet
-#   log_filter_draugnet.cc
-#   MODULE)
+
+MYSQL_ADD_COMPONENT(log_filter_dragnet
+  log_filter_dragnet.cc
+  MODULE)
 
 MYSQL_ADD_COMPONENT(log_sink_test
   log_sink_test.cc

@@ -1913,7 +1913,7 @@ ERROR 22003: DOUBLE value is out of range in 'exp(39988664861.656386621526007875
 DO DAYOFYEAR(MAKETIME('1981-06-27 11:16:09.211343',
 (((NOT(ST_DISTANCE_SPHERE(POINT(4472,28027),
 POINT(28061,-9007199254740996),-644021130))))<=>(@c)),(1)));
-ERROR HY000: Incorrect arguments to st_distance_sphere
+ERROR 22003: Invalid radius provided to function st_distance_sphere: Radius must be greater than zero.
 DO DAYOFYEAR(MAKETIME(ROUND(-23797,'6588-01-08'),
 COERCIBILITY(BIT_COUNT(RTRIM((~(
 INET6_NTOA(0xa04810f0839d318fa075bd)))))),

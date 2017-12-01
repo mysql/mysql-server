@@ -206,10 +206,12 @@ SET(SQL_GIS_SOURCES
   gis/difference.cc
   gis/disjoint.cc
   gis/distance.cc
+  gis/distance_sphere.cc
   gis/equals.cc
   gis/gc_utils.cc
   gis/geometries.cc
   gis/intersects.cc
+  gis/is_simple.cc
   gis/length.cc
   gis/mbr_utils.cc
   gis/overlaps.cc
@@ -812,7 +814,7 @@ ADD_CUSTOM_TARGET(
 
 
 MYSQL_ADD_PLUGIN(udf_example udf_example.cc
-                 MODULE_ONLY SKIP_INSTALL MODULE_OUTPUT_NAME "udf_example")
+                 MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example")
 IF(NOT DISABLE_SHARED)
   IF(WIN32)
     SET_TARGET_PROPERTIES(udf_example

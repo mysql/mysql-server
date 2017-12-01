@@ -230,7 +230,8 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
          pfs_example_plugin_employee.so qa_auth_client.so qa_auth_interface.so \
          qa_auth_server.so replication_observers_example_plugin.so \
          test_security_context.so test_services_plugin_registry.so \
-         test_udf_services.so component_test_backup_lock_service.so ; do
+         udf_example.so \
+	 test_udf_services.so component_test_backup_lock_service.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
 
@@ -319,6 +320,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_filter_dragnet.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
@@ -396,8 +398,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
-* Fri Nov 28 2017 Bharathy Satish <bharathy.x.satish@oracle.com> - 8.0.4-0.1
+* Thu Nov 30 2017 Bharathy Satish <bharathy.x.satish@oracle.com> - 8.0.4-0.1
 - Add keyring_encrypted_file.so plugin
+- Do not package udf_example.so
 
 * Mon Nov 06 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
 - Change the global milestone to 'dmr'

@@ -903,6 +903,32 @@ void flush_error_log_messages();
 
 
 /**
+  Compare two NUL-terminated byte strings
+
+  Note that when comparing without length limit, the long string
+  is greater if they're equal up to the length of the shorter
+  string, but the shorter string will be considered greater if
+  its "value" up to that point is greater:
+
+  compare 'abc','abcd':      -100  (longer wins if otherwise same)
+  compare 'abca','abcd':       -3  (higher value wins)
+  compare 'abcaaaaa','abcd':   -3  (higher value wins)
+
+  @param  a                 the first string
+  @param  b                 the second string
+  @param  len               compare at most this many characters --
+                            0 for no limit
+  @param  case_insensitive  ignore upper/lower case in comparison
+
+  @retval -1                a < b
+  @retval  0                a == b
+  @retval  1                a > b
+*/
+int log_string_compare(const char *a, const char *b, size_t len,
+                       bool case_insensitive);
+
+
+/**
   Predicate used to determine whether a type is generic
   (generic string, generic float, generic integer) rather
   than a well-known type.
@@ -936,6 +962,14 @@ bool             log_item_string_class(log_item_class c);
 */
 bool             log_item_numeric_class(log_item_class c);
 
+
+/**
+  Get an integer value from a log-item of float or integer type.
+
+  @param li      log item to get the value from
+  @param i       longlong to store  the value in
+*/
+void             log_item_get_int(log_item *li, longlong *i);
 
 /**
   Get a float value from a log-item of float or integer type.
@@ -1010,14 +1044,14 @@ bool log_item_set_cstring(log_item_data *lid, const char *s);
 /**
   See whether a string is a wellknown field name.
 
-  @param k       potential key starts here
-  @param l       length of the string to examine
+  @param key     potential key starts here
+  @param len     length of the string to examine
 
   @retval        LOG_ITEM_TYPE_RESERVED:  reserved, but not "wellknown" key
   @retval        LOG_ITEM_TYPE_NOT_FOUND: key not found
   @retval        >0:                      index in array of wellknowns
 */
-int              log_item_wellknown_by_name(const char *k, size_t l);
+int              log_item_wellknown_by_name(const char *key, size_t len);
 
 /**
   See whether a type is wellknown.
@@ -1073,6 +1107,15 @@ void             log_item_free(log_item *li);
   @retval  true   if full
 */
 bool             log_line_full(log_line *ll);
+
+/**
+  How many items are currently set on the given log_line?
+
+  @param   ll     the log-line to examine
+
+  @retval         the number of items set
+*/
+int              log_line_item_count(log_line *ll);
 
 /**
   Test whether a given type is presumed present on the log line.
@@ -1135,6 +1178,31 @@ void             log_line_item_free_all(log_line *ll);
   @param         elem  index of the key/value pair to release
 */
 void             log_line_item_remove(log_line *ll, int elem);
+
+/**
+  Find the (index of the) last key/value pair of the given name
+  in the log line.
+
+  @param         ll   log line
+  @param         key  the key to look for
+
+  @retval        -1:  none found
+  @retval        -2:  invalid search-key given
+  @retval        -3:  no log_line given
+  @retval        >=0: index of the key/value pair in the log line
+*/
+int log_line_index_by_name(log_line *ll, const char *key);
+
+/**
+  Find the last item matching the given key in the log line.
+
+  @param         ll   log line
+  @param         key  the key to look for
+
+  @retval        nullptr    item not found
+  @retval        otherwise  pointer to the item (not a copy thereof!)
+*/
+log_item *log_line_item_by_name(log_line *ll, const char *key);
 
 /**
   Find the (index of the) first key/value pair of the given type
@@ -1446,7 +1514,7 @@ public:
 
   LogVar &group(const char *g);   /**< set non-default service group */
 
-  int check();                    /**< sanity check value. true: failure */
+  int check();                    /**< check value. true: failure */
   int update();                   /**< apply new value */
 };
 

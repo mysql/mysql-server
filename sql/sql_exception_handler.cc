@@ -110,12 +110,32 @@ void handle_gis_exception(const char *funcname)
   {
     throw;
   }
+  catch (const gis::longitude_out_of_range_exception &e)
+  {
+    my_error(ER_LONGITUDE_OUT_OF_RANGE, MYF(0),
+        e.value, funcname, e.range_min, e.range_max);
+  }
+  catch (const gis::latitude_out_of_range_exception &e)
+  {
+    my_error(ER_LATITUDE_OUT_OF_RANGE, MYF(0),
+        e.value, funcname, e.range_min, e.range_max);
+  }
   catch (const gis::not_implemented_exception &e)
   {
-    std::string parameters(e.type_name(1));
-    parameters.append(", ").append(e.type_name(2));
-    my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), funcname,
-             parameters.c_str());
+    int er_variant;
+    switch (e.srs_type()) {
+      default: DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
+      case gis::not_implemented_exception::kCartesian:
+        er_variant = ER_NOT_IMPLEMENTED_FOR_CARTESIAN_SRS;
+        break;
+      case gis::not_implemented_exception::kGeographic:
+        er_variant = ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS;
+        break;
+      case gis::not_implemented_exception::kProjected:
+        er_variant = ER_NOT_IMPLEMENTED_FOR_PROJECTED_SRS;
+        break;
+    }
+    my_error(er_variant, MYF(0), funcname, e.typenames());
   }
   catch (const gis::invalid_geometry_exception &e)
   {

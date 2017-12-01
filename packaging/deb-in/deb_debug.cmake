@@ -67,6 +67,7 @@ SET (DEB_INSTALL_DEBUG_SERVER_PLUGINS
 usr/lib/mysql/plugin/debug/adt_null.so
 usr/lib/mysql/plugin/debug/auth_socket.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
+usr/lib/mysql/plugin/debug/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/debug/component_log_sink_json.so
 usr/lib/mysql/plugin/debug/component_log_sink_syseventlog.so
 usr/lib/mysql/plugin/debug/group_replication.so
@@ -141,6 +142,7 @@ usr/lib/mysql/plugin/debug/qa_auth_server.so
 usr/lib/mysql/plugin/debug/replication_observers_example_plugin.so
 usr/lib/mysql/plugin/debug/rewrite_example.so
 usr/lib/mysql/plugin/debug/test_udf_services.so
+usr/lib/mysql/plugin/debug/udf_example.so
 usr/lib/mysql/plugin/debug/test_security_context.so
 usr/lib/mysql/plugin/debug/test_services_plugin_registry.so
 usr/lib/mysql/plugin/debug/component_test_status_var_service.so
