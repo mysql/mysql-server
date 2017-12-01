@@ -39,27 +39,27 @@ Length::Length(double major, double minor)
     : m_geographic_strategy(new bgsd::andoyer<bgs::spheroid<double>>(
           bgs::spheroid<double>(major, minor))) {}
 
-double Length::operator()(const Geometry *g1) { return apply(*this, g1); }
+double Length::operator()(const Geometry &g1) const { return apply(*this, g1); }
 
-double Length::eval(const Geometry *) const {
+double Length::eval(const Geometry &) const {
   DBUG_ASSERT(false); /* purecov: inspected */
   throw std::exception();
 }
 
-double Length::eval(const Geographic_linestring *g1) {
-  return bg::length(*g1, *m_geographic_strategy);
+double Length::eval(const Geographic_linestring &g1) const {
+  return bg::length(g1, *m_geographic_strategy);
 }
 
-double Length::eval(const Cartesian_linestring *g1) { return bg::length(*g1); }
+double Length::eval(const Cartesian_linestring &g1) const { return bg::length(g1); }
 
 /////////////////////////////////////////////////////////////////////////////
 
-double Length::eval(const Geographic_multilinestring *g1) {
-  return bg::length(*g1, *m_geographic_strategy);
+double Length::eval(const Geographic_multilinestring &g1) const {
+  return bg::length(g1, *m_geographic_strategy);
 }
 
-double Length::eval(const Cartesian_multilinestring *g1) {
-  return bg::length(*g1);
+double Length::eval(const Cartesian_multilinestring &g1) const {
+  return bg::length(g1);
 }
 /////////////////////////////////////////////////////////////////////////////
 
@@ -82,7 +82,7 @@ bool length(const dd::Spatial_reference_system *srs, const Geometry *g1,
 
     Length len(srs ? srs->semi_major_axis() : 0.0,
                srs ? srs->semi_minor_axis() : 0.0);
-    *length = len(g1);
+    *length = len(*g1);
   } catch (...) {
     handle_gis_exception("st_length");
     return true;

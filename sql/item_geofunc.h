@@ -1609,20 +1609,12 @@ public:
   }
 };
 
-class Item_func_issimple: public Item_bool_func
+class Item_func_st_issimple: public Item_bool_func
 {
-  String tmp;
 public:
-  Item_func_issimple(const POS &pos, Item *a): Item_bool_func(pos, a) {}
+  Item_func_st_issimple(const POS &pos, Item *a): Item_bool_func(pos, a) {}
   longlong val_int() override;
-  bool issimple(Geometry *g);
-  optimize_type select_optimize() const override { return OPTIMIZE_NONE; }
   const char *func_name() const override { return "st_issimple"; }
-  bool resolve_type(THD *) override
-  {
-    maybe_null= true;
-    return false;
-  }
 };
 
 class Item_func_isclosed: public Item_bool_func

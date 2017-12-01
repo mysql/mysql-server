@@ -1176,7 +1176,7 @@ create table t1 as select concat(ST_IsSimple(ST_GeomFromText('Point(1 1)'))) as 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(21) DEFAULT NULL
+  `c1` varbinary(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(concat(ST_IsClosed(ST_GeomFromText('LineString(1 1,2 2)'))));

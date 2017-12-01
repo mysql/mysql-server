@@ -1225,11 +1225,11 @@ SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
 --echo # BUG#17535294 : ISSIMPLE() PRODUCING WRONG RESULTS W.R.T. SINGLE POINT POLYGON
 --echo ######################################################################################################
 
---error ER_GIS_INVALID_DATA
-SELECT ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
+--echo # Invalid polygon in input
+DO ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
 
---error ER_GIS_INVALID_DATA
-SELECT ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
+--echo # Invalid polygon in input
+DO ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
 
 --echo ######################################################################################################
 --echo # BUG#17507827 : ISSIMPLE() FUNCTION PRODUCING WRONG RESULTS
