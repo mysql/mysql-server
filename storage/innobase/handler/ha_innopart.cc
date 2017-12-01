@@ -3235,6 +3235,7 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 	ulint		num_used_parts = m_part_info->num_partitions_used();
 	ulint		processed = 0;
 	uint		i = 0;
+	uint		n_saved = 0;
 	THD*		thd = ha_thd();
 	DBUG_ENTER("ha_innopart::truncate_partition_low");
 
@@ -3248,7 +3249,8 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 	/* Use a heap to ease the memory alloc/free. Initialize with one
 	create_info + 5 bytes for short names (t#P#p) per partition. */
 	mem_heap_t*	heap = mem_heap_create(
-		num_used_parts * (sizeof(HA_CREATE_INFO) + 5));
+		num_used_parts * (sizeof(HA_CREATE_INFO) + 5
+				  + sizeof(ulint) * 2));
 	if (heap == NULL) {
 		DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 	}
@@ -3298,8 +3300,8 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 			break;
 		}
 
-		old_flags[i] = table_part->flags;
-		old_flags2[i] = table_part->flags2;
+		old_flags[n_saved] = table_part->flags;
+		old_flags2[n_saved] = table_part->flags2;
 
 		info->data_file_name = table_part->data_dir_path == NULL
 			? NULL
@@ -3320,6 +3322,7 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 			dict_table_ddl_acquire(table_part);
 			mutex_exit(&dict_sys->mutex);
 		}
+		n_saved++;
 	}
 
 	if (error != 0) {
