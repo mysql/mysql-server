@@ -90,7 +90,7 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0108
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0109
 
 /*
   The allowable types of plugins
@@ -179,6 +179,12 @@ __MYSQL_DECLARE_PLUGIN(NAME, \
 #define PLUGIN_VAR_MEMALLOC     0x8000 /* String needs memory allocated */
 #define PLUGIN_VAR_NOPERSIST    0x10000 /* SET PERSIST_ONLY is prohibited
                                            for read only variables */
+/**
+  There can be some variables which needs to be set before plugin is loaded but
+  not after plugin is loaded. ex: GR specific variables. Below flag must be set
+  for these kind of variables.
+*/
+#define PLUGIN_VAR_PERSIST_AS_READ_ONLY    0x20000
 
 struct st_mysql_sys_var;
 struct st_mysql_value;
@@ -232,7 +238,8 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd,
         (PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR | \
          PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_NOCMDARG | \
          PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC | \
-         PLUGIN_VAR_NODEFAULT | PLUGIN_VAR_NOPERSIST)
+         PLUGIN_VAR_NODEFAULT | PLUGIN_VAR_NOPERSIST | \
+         PLUGIN_VAR_PERSIST_AS_READ_ONLY)
 
 #define MYSQL_PLUGIN_VAR_HEADER \
   int flags;                    \

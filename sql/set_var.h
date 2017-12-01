@@ -194,6 +194,11 @@ public:
     timestamp = 0;
   }
   virtual bool is_non_persistent() {return flags & NOTPERSIST; }
+  /**
+    Check if plugin variable is persisted as a read only variable. For
+    server variables always return false.
+  */
+  virtual bool is_plugin_var_read_only() { return 0; }
 
   /**
      Update the system variable with the default value from either
