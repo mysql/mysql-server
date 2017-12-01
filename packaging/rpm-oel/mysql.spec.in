@@ -1227,6 +1227,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_security_context.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_services_plugin_registry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/udf_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
@@ -1292,6 +1293,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_security_context.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_plugin_registry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/udf_example.so
 
 %if 0%{?rhel} == 7
 %files embedded-compat
@@ -1365,10 +1367,11 @@ fi
 %endif
 
 %changelog
-* Wed Nov 15 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
+* Thu Nov 30 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
 - Add meb as sub package
 - Remove obsoleted mysqltest man pages
 - Independently choose SSL for the 5.6 compat lib, depending on commercial
+- Include udf_example.so in test package
 
 * Tue Aug 29 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
 - Change the global milestone to 'dmr'

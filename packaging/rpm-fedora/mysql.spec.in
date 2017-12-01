@@ -829,6 +829,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_security_context.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_services_plugin_registry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/udf_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
@@ -866,6 +867,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_system_variable_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/udf_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_framework.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_services.so
@@ -905,10 +907,11 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %endif # compatlib
 
 %changelog
-* Wed Nov 15 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
+* Thu Nov 30 2017 Bjorn Munch <bjorn.munch@oracle.com> - 9.0.0-0.1
 - Change the global milestone to 'dmr'
 - Remove obsoleted mysqltest man pages
 - Do not pass SSL option to 5.6 compat build, just use bundled
+- Include udf_example.so in test package
 
 * Wed Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
 - Updated for 8.0.3 release
