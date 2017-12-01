@@ -277,6 +277,15 @@ public:
   { return (plugin_var->flags & PLUGIN_VAR_NOPERSIST); }
   void set_is_plugin(bool val)
   { is_plugin= val; }
+  /**
+    Check if plugin variable is persisted as a read only variable.
+
+     @return
+       @retval true
+       @retval false
+  */
+  bool is_plugin_var_read_only()
+  { return (plugin_var->flags & PLUGIN_VAR_PERSIST_AS_READ_ONLY); }
 };
 
 /*

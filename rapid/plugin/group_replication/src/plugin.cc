@@ -2619,7 +2619,8 @@ static MYSQL_SYSVAR_STR(
   group_name,                                 /* name */
   group_name_var,                             /* var */
   /* optional var | malloc string | no set default */
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NODEFAULT,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NODEFAULT |
+  PLUGIN_VAR_PERSIST_AS_READ_ONLY,
   "The group name",
   check_group_name,                           /* check func*/
   NULL,                                       /* update func*/
@@ -2628,7 +2629,7 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_BOOL(
   start_on_boot,                              /* name */
   start_group_replication_at_boot_var,        /* var */
-  PLUGIN_VAR_OPCMDARG,                        /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,  /* optional var */
   "Whether the server should start Group Replication or not during bootstrap.",
   NULL,                                       /* check func*/
   NULL,                                       /* update func*/
@@ -2639,7 +2640,8 @@ static MYSQL_SYSVAR_BOOL(
 static MYSQL_SYSVAR_STR(
   local_address,                              /* name */
   local_address_var,                          /* var */
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,  /* optional var | malloc string*/
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+  PLUGIN_VAR_PERSIST_AS_READ_ONLY,                 /* optional var | malloc string*/
   "The local address, i.e., host:port.",
   NULL,                                       /* check func*/
   NULL,                                       /* update func*/
@@ -2648,7 +2650,8 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_STR(
   group_seeds,                                /* name */
   group_seeds_var,                            /* var */
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,  /* optional var | malloc string*/
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+  PLUGIN_VAR_PERSIST_AS_READ_ONLY,                 /* optional var | malloc string*/
   "The list of group seeds, comma separated. E.g., host1:port1,host2:port2.",
   NULL,                                       /* check func*/
   NULL,                                       /* update func*/
@@ -2657,7 +2660,8 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_STR(
   force_members,                              /* name */
   force_members_var,                          /* var */
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,  /* optional var | malloc string*/
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+  PLUGIN_VAR_PERSIST_AS_READ_ONLY,                 /* optional var | malloc string*/
   "The list of members, comma separated. E.g., host1:port1,host2:port2. "
   "This option is used to force a new group membership, on which the excluded "
   "members will not receive a new view and will be blocked. The DBA will need "
@@ -2669,7 +2673,7 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_BOOL(
   bootstrap_group,                            /* name */
   bootstrap_group_var,                        /* var */
-  PLUGIN_VAR_OPCMDARG,                        /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,  /* optional var */
   "Specify if this member will bootstrap the group.",
   NULL,                                       /* check func. */
   NULL,                                       /* update func*/
@@ -2679,7 +2683,7 @@ static MYSQL_SYSVAR_BOOL(
 static MYSQL_SYSVAR_ULONG(
   poll_spin_loops,                            /* name */
   poll_spin_loops_var,                        /* var */
-  PLUGIN_VAR_OPCMDARG,                        /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,  /* optional var */
   "The number of times a thread waits for a communication engine "
   "mutex to be freed before the thread is suspended.",
   NULL,                                       /* check func. */
@@ -2695,7 +2699,7 @@ static MYSQL_SYSVAR_ULONG(
 static MYSQL_SYSVAR_ULONG(
   recovery_retry_count,              /* name */
   recovery_retry_count_var,          /* var */
-  PLUGIN_VAR_OPCMDARG,               /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
   "The number of times that the joiner tries to connect to the available donors before giving up.",
   NULL,                              /* check func. */
   update_recovery_retry_count,       /* update func. */
@@ -2708,7 +2712,7 @@ static MYSQL_SYSVAR_ULONG(
 static MYSQL_SYSVAR_ULONG(
   recovery_reconnect_interval,        /* name */
   recovery_reconnect_interval_var,    /* var */
-  PLUGIN_VAR_OPCMDARG,                /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
   "The sleep time between reconnection attempts when no donor was found in the group",
   NULL,                               /* check func. */
   update_recovery_reconnect_interval, /* update func. */
@@ -2723,7 +2727,7 @@ static MYSQL_SYSVAR_ULONG(
 static MYSQL_SYSVAR_BOOL(
     recovery_use_ssl,              /* name */
     recovery_use_ssl_var,          /* var */
-    PLUGIN_VAR_OPCMDARG,           /* optional var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
     "Whether SSL use should be obligatory during Group Replication recovery process.",
     NULL,                          /* check func*/
     update_ssl_use,                /* update func*/
@@ -2732,7 +2736,8 @@ static MYSQL_SYSVAR_BOOL(
 static MYSQL_SYSVAR_STR(
     recovery_ssl_ca,                 /* name */
     recovery_ssl_ca_var,             /* var */
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC, /* optional var | malloc string*/
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+    PLUGIN_VAR_PERSIST_AS_READ_ONLY,      /* optional var | malloc string*/
     "The path to a file that contains a list of trusted SSL certificate authorities.",
     check_recovery_ssl_option,       /* check func*/
     update_recovery_ssl_option,      /* update func*/
@@ -2741,7 +2746,8 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_STR(
     recovery_ssl_capath,             /* name */
     recovery_ssl_capath_var,         /* var */
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC, /* optional var | malloc string*/
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+    PLUGIN_VAR_PERSIST_AS_READ_ONLY,      /* optional var | malloc string*/
     "The path to a directory that contains trusted SSL certificate authority certificates.",
     check_recovery_ssl_option,       /* check func*/
     update_recovery_ssl_option,      /* update func*/
@@ -2750,7 +2756,8 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_STR(
     recovery_ssl_cert,               /* name */
     recovery_ssl_cert_var,           /* var */
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC, /* optional var | malloc string*/
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+    PLUGIN_VAR_PERSIST_AS_READ_ONLY,      /* optional var | malloc string*/
     "The name of the SSL certificate file to use for establishing a secure connection.",
     check_recovery_ssl_option,       /* check func*/
     update_recovery_ssl_option,      /* update func*/
@@ -2759,7 +2766,8 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_STR(
     recovery_ssl_cipher,             /* name */
     recovery_ssl_cipher_var,         /* var */
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC, /* optional var | malloc string*/
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+    PLUGIN_VAR_PERSIST_AS_READ_ONLY,      /* optional var | malloc string*/
     "A list of permissible ciphers to use for SSL encryption.",
     check_recovery_ssl_option,       /* check func*/
     update_recovery_ssl_option,      /* update func*/
@@ -2768,7 +2776,8 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_STR(
     recovery_ssl_key,                /* name */
     recovery_ssl_key_var,            /* var */
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC, /* optional var | malloc string*/
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+    PLUGIN_VAR_PERSIST_AS_READ_ONLY,      /* optional var | malloc string*/
     "The name of the SSL key file to use for establishing a secure connection.",
     check_recovery_ssl_option,       /* check func*/
     update_recovery_ssl_option,      /* update func*/
@@ -2777,7 +2786,8 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_STR(
     recovery_ssl_crl,                /* name */
     recovery_ssl_crl_var,            /* var */
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC, /* optional var | malloc string*/
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+    PLUGIN_VAR_PERSIST_AS_READ_ONLY,      /* optional var | malloc string*/
     "The path to a file containing certificate revocation lists.",
     check_recovery_ssl_option,       /* check func*/
     update_recovery_ssl_option,      /* update func*/
@@ -2786,7 +2796,8 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_STR(
     recovery_ssl_crlpath,            /* name */
     recovery_ssl_crlpath_var,        /* var */
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC, /* optional var | malloc string*/
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+    PLUGIN_VAR_PERSIST_AS_READ_ONLY,      /* optional var | malloc string*/
     "The path to a directory that contains files containing certificate revocation lists.",
     check_recovery_ssl_option,       /* check func*/
     update_recovery_ssl_option,      /* update func*/
@@ -2795,7 +2806,7 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_BOOL(
     recovery_ssl_verify_server_cert,        /* name */
     recovery_ssl_verify_server_cert_var,    /* var */
-    PLUGIN_VAR_OPCMDARG,                    /* optional var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
     "Make recovery check the server's Common Name value in the donor sent certificate.",
     NULL,                                   /* check func*/
     update_ssl_server_cert_verification,    /* update func*/
@@ -2837,7 +2848,7 @@ TYPELIB recovery_policies_typelib_t= {
 static MYSQL_SYSVAR_ENUM(
    recovery_complete_at,                                 /* name */
    recovery_completion_policy_var,                       /* var */
-   PLUGIN_VAR_OPCMDARG,                                  /* optional var */
+   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,     /* optional var */
    "Recovery policies when handling cached transactions after state transfer."
    "possible values are TRANSACTIONS_CERTIFIED or TRANSACTION_APPLIED", /* values */
    NULL,                                                 /* check func. */
@@ -2850,7 +2861,7 @@ static MYSQL_SYSVAR_ENUM(
 static MYSQL_SYSVAR_ULONG(
   components_stop_timeout,                         /* name */
   components_stop_timeout_var,                     /* var */
-  PLUGIN_VAR_OPCMDARG,                             /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,/* optional var */
   "Timeout in seconds that the plugin waits for each of the components when shutting down.",
   NULL,                                            /* check func. */
   update_component_timeout,                        /* update func. */
@@ -2865,7 +2876,7 @@ static MYSQL_SYSVAR_ULONG(
 static MYSQL_SYSVAR_BOOL(
   allow_local_lower_version_join,        /* name */
   allow_local_lower_version_join_var,    /* var */
-  PLUGIN_VAR_OPCMDARG,                   /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
   "Allow this server to join the group even if it has a lower plugin version than the group",
   NULL,                                  /* check func. */
   NULL,                                  /* update func*/
@@ -2875,7 +2886,8 @@ static MYSQL_SYSVAR_BOOL(
 static MYSQL_SYSVAR_ULONG(
   auto_increment_increment,          /* name */
   auto_increment_increment_var,      /* var */
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT, /* optional var | no set default */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT |
+  PLUGIN_VAR_PERSIST_AS_READ_ONLY,        /* optional var | no set default */
   "The group replication auto_increment_increment determines interval between successive column values",
   check_auto_increment_increment,    /* check func. */
   NULL,                              /* update by update_func_long func. */
@@ -2888,7 +2900,8 @@ static MYSQL_SYSVAR_ULONG(
 static MYSQL_SYSVAR_ULONG(
   compression_threshold,             /* name */
   compression_threshold_var,         /* var */
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT, /* optional var | no set default */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT |
+  PLUGIN_VAR_PERSIST_AS_READ_ONLY,        /* optional var | no set default */
   "The value in bytes above which (lz4) compression is "
   "enforced. When set to zero, deactivates compression. "
   "Default: 1000000.",
@@ -2903,7 +2916,8 @@ static MYSQL_SYSVAR_ULONG(
 static MYSQL_SYSVAR_ULONGLONG(
   gtid_assignment_block_size,        /* name */
   gtid_assignment_block_size_var,    /* var */
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT, /* optional var | no set default */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT |
+  PLUGIN_VAR_PERSIST_AS_READ_ONLY,        /* optional var | no set default */
   "The number of consecutive GTIDs that are reserved to each "
   "member. Each member will consume its blocks and reserve "
   "more when needed. Default: 1000000.",
@@ -2925,7 +2939,7 @@ TYPELIB ssl_mode_values_typelib_t= {
 static MYSQL_SYSVAR_ENUM(
   ssl_mode,                          /* name */
   ssl_mode_var,                      /* var */
-  PLUGIN_VAR_OPCMDARG,               /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
   "Specifies the security state of the connection between Group "
   "Replication members. Default: DISABLED",
   NULL,                              /* check func. */
@@ -2938,7 +2952,8 @@ static MYSQL_SYSVAR_STR(
   ip_whitelist,                             /* name */
   ip_whitelist_var,                         /* var */
   /* optional var | malloc string | no set default */
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NODEFAULT,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NODEFAULT |
+  PLUGIN_VAR_PERSIST_AS_READ_ONLY,
   "This option can be used to specify which members "
   "are allowed to connect to this member. The input "
   "takes the form of a comma separated list of IPv4 "
@@ -2957,7 +2972,8 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_BOOL(
   single_primary_mode,                        /* name */
   single_primary_mode_var,                    /* var */
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT, /* optional var | no set default */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT |
+  PLUGIN_VAR_PERSIST_AS_READ_ONLY,                 /* optional var | no set default */
   "Instructs the group to automatically pick a single server to be "
   "the one that handles read/write workload. This server is the "
   "PRIMARY all others are SECONDARIES. Default: TRUE.",
@@ -2968,7 +2984,8 @@ static MYSQL_SYSVAR_BOOL(
 static MYSQL_SYSVAR_BOOL(
   enforce_update_everywhere_checks,           /* name */
   enforce_update_everywhere_checks_var,       /* var */
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT, /* optional var | no set default */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT |
+  PLUGIN_VAR_PERSIST_AS_READ_ONLY,                 /* optional var | no set default */
   "Enable/Disable strict consistency checks for multi-master "
   "update everywhere. Default: FALSE.",
   check_enforce_update_everywhere_checks,     /* check func*/
@@ -2991,7 +3008,7 @@ TYPELIB flow_control_mode_typelib_t= {
 static MYSQL_SYSVAR_ENUM(
   flow_control_mode,                 /* name */
   flow_control_mode_var,             /* var */
-  PLUGIN_VAR_OPCMDARG,               /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,/* optional var */
   "Specifies the mode used on flow control. "
   "Default: QUOTA",
   NULL,                              /* check func. */
@@ -3003,7 +3020,7 @@ static MYSQL_SYSVAR_ENUM(
 static MYSQL_SYSVAR_LONG(
   flow_control_certifier_threshold,     /* name */
   flow_control_certifier_threshold_var, /* var */
-  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
   "Specifies the number of waiting transactions that will trigger "
   "flow control. Default: 25000",
   NULL,                                 /* check func. */
@@ -3017,7 +3034,7 @@ static MYSQL_SYSVAR_LONG(
 static MYSQL_SYSVAR_LONG(
   flow_control_applier_threshold,      /* name */
   flow_control_applier_threshold_var,  /* var */
-  PLUGIN_VAR_OPCMDARG,                 /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,/* optional var */
   "Specifies the number of waiting transactions that will trigger "
   "flow control. Default: 25000",
   NULL,                                /* check func. */
@@ -3031,7 +3048,7 @@ static MYSQL_SYSVAR_LONG(
 static MYSQL_SYSVAR_ULONG(
   transaction_size_limit,              /* name */
   transaction_size_limit_var,          /* var */
-  PLUGIN_VAR_OPCMDARG,                 /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
   "Specifies the limit of transaction size that can be transferred over network.",
   NULL,                                /* check func. */
   NULL,                                /* update func. */
@@ -3044,7 +3061,8 @@ static MYSQL_SYSVAR_ULONG(
 static MYSQL_SYSVAR_STR(
   communication_debug_options,                /* name */
   communication_debug_options_var,            /* var */
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,  /* optional var | malloc string */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+  PLUGIN_VAR_PERSIST_AS_READ_ONLY,                 /* optional var | malloc string */
   "The set of debug options, comma separated. E.g., DEBUG_BASIC, DEBUG_ALL.",
   check_communication_debug_options,          /* check func */
   NULL,                                       /* update func */
@@ -3054,7 +3072,7 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_ULONG(
   unreachable_majority_timeout,                    /* name */
   timeout_on_unreachable_var,                      /* var */
-  PLUGIN_VAR_OPCMDARG,                             /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,/* optional var */
   "The number of seconds before going into error when a majority of members is unreachable."
   "If 0 there is no action taken.",
   NULL,                                            /* check func. */
@@ -3068,7 +3086,7 @@ static MYSQL_SYSVAR_ULONG(
 static MYSQL_SYSVAR_UINT(
   member_weight,                       /* name */
   member_weight_var,                   /* var */
-  PLUGIN_VAR_OPCMDARG,                 /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,/* optional var */
   "Member weight will determine the member role in the group on"
   " future primary elections",
   NULL,                                /* check func. */
@@ -3082,7 +3100,7 @@ static MYSQL_SYSVAR_UINT(
 static MYSQL_SYSVAR_LONG(
   flow_control_min_quota,                /* name */
   flow_control_min_quota_var,            /* var */
-  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,/* optional var */
   "Specifies the minimum flow-control quota that can be assigned to a node."
   "Default: 0 (5% of thresholds)",
   check_flow_control_min_quota,         /* check func. */
@@ -3096,7 +3114,7 @@ static MYSQL_SYSVAR_LONG(
 static MYSQL_SYSVAR_LONG(
   flow_control_min_recovery_quota,      /* name */
   flow_control_min_recovery_quota_var,  /* var */
-  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,/* optional var */
   "Specifies the minimum flow-control quota that can be assigned to a node,"
   "if flow control was needed due to a recovering node. Default: 0 (disabled)",
   check_flow_control_min_recovery_quota,/* check func. */
@@ -3110,7 +3128,7 @@ static MYSQL_SYSVAR_LONG(
 static MYSQL_SYSVAR_LONG(
   flow_control_max_quota,               /* name */
   flow_control_max_quota_var,           /* var */
-  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,/* optional var */
   "Specifies the maximum cluster commit rate allowed when flow-control is active."
   "Default: 0 (disabled)",
   check_flow_control_max_quota,         /* check func. */
@@ -3124,7 +3142,7 @@ static MYSQL_SYSVAR_LONG(
 static MYSQL_SYSVAR_INT(
   flow_control_member_quota_percent,    /* name */
   flow_control_member_quota_percent_var,/* var */
-  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
   "Specifies the proportion of the quota that is assigned to this member."
   "Default: 0% (disabled)",
   NULL,                                 /* check func. */
@@ -3138,7 +3156,7 @@ static MYSQL_SYSVAR_INT(
 static MYSQL_SYSVAR_INT(
   flow_control_period,                  /* name */
   flow_control_period_var,              /* var */
-  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,/* optional var */
   "Specifies how many seconds to wait between flow-control iterations."
   "Default: 1",
   NULL,                                 /* check func. */
@@ -3152,7 +3170,7 @@ static MYSQL_SYSVAR_INT(
 static MYSQL_SYSVAR_INT(
   flow_control_hold_percent,            /* name */
   flow_control_hold_percent_var,        /* var */
-  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
   "Specifies the percentage of the quota that is reserved for catch-up."
   "Default: 10%, 0 disables",
   NULL,                                 /* check func. */
@@ -3166,7 +3184,7 @@ static MYSQL_SYSVAR_INT(
 static MYSQL_SYSVAR_INT(
   flow_control_release_percent,         /* name */
   flow_control_release_percent_var,     /* var */
-  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
   "Specifies the percentage of the quota the can increase per iteration"
   "when flow-control is released. Default: 50%, 0 disables",
   NULL,                                 /* check func. */
