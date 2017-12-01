@@ -1,0 +1,133 @@
+include/save_binlog_position.inc
+
+# Create a few users
+CREATE USER userX, userY, userZ;
+# Create a few roles
+CREATE ROLE 'administrator', 'qa', 'developer', 'manager';
+# Grant roles to the created users
+GRANT 'administrator', 'qa', 'developer', 'manager' to userX, userY, userZ;
+# Check the number of the roles and users created.
+SELECT COUNT(*) FROM mysql.user;
+COUNT(*)
+11
+# Check the number of default roles.
+SELECT COUNT(*) FROM mysql.default_roles;
+COUNT(*)
+0
+
+#
+# 1. Tests to SET list of roles as DEFAULT
+#
+
+# 1.1 : Set the default roles for a valid and an invalid user; Must fail.
+SET DEFAULT ROLE 'administrator', 'qa' to userX, invalidUser;
+ERROR HY000: Failed to set default roles
+
+# No default roles must be added for valid user i.e. userX
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+
+# This event sequence pattern MUST NOT be present in binlog: !Q(SET DEFAULT ROLE .*userX.*invalidUser.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+
+# 1.2 : Set the default roles for two valid users
+SET DEFAULT ROLE administrator, qa to userX, userY;
+
+# Default roles must be added for both users
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+%	userX	%	administrator
+%	userX	%	qa
+%	userY	%	administrator
+%	userY	%	qa
+
+# This event sequence pattern MUST be present in binlog: !Q(SET DEFAULT ROLE .*userX.*userY.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+
+#
+# 2. Tests to set the default roles to ALL
+#
+
+# 2.1 : Set default roles for valid users and an invalid user; Must fail.
+SET DEFAULT ROLE ALL to userY, userZ, invalidUser;
+ERROR HY000: Unknown authorization ID `invalidUser`@`%`
+
+# No default roles must be added for valid users i.e. userY, userZ
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+%	userX	%	administrator
+%	userX	%	qa
+%	userY	%	administrator
+%	userY	%	qa
+
+# This event sequence pattern MUST NOT be present in binlog: !Q(SET DEFAULT ROLE ALL .*userX.*userY.*invalidUser.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+
+# 2.2 : Set the default roles for multiple users
+SET DEFAULT ROLE ALL to userX, userY, userZ;
+
+# All default roles must be added/updated for users
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+%	userX	%	administrator
+%	userX	%	developer
+%	userX	%	manager
+%	userX	%	qa
+%	userY	%	administrator
+%	userY	%	developer
+%	userY	%	manager
+%	userY	%	qa
+%	userZ	%	administrator
+%	userZ	%	developer
+%	userZ	%	manager
+%	userZ	%	qa
+
+# This event sequence pattern MUST be present in binlog: !Q(SET DEFAULT ROLE ALL .*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+
+#
+# 3. Tests to set the default roles to NONE
+#
+
+# 3.1 : Set default roles to NONE for valid users and ignore invalid user;
+SET DEFAULT ROLE NONE to userY, invalidUser;
+
+# Default roles must be removed from valid users
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+%	userX	%	administrator
+%	userX	%	developer
+%	userX	%	manager
+%	userX	%	qa
+%	userZ	%	administrator
+%	userZ	%	developer
+%	userZ	%	manager
+%	userZ	%	qa
+
+# This event sequence pattern MUST be present in binlog: !Q(SET DEFAULT ROLE NONE .*userY.*invalidUser.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+
+# 3.2 : Set the default roles to NONE for valid users
+SET DEFAULT ROLE NONE to userX, userY, userZ;
+
+# All default roles must be removed for users
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+
+# This event sequence pattern MUST be present in binlog: !Q(SET DEFAULT ROLE NONE .*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+
+#
+# End of tests
+#
+
+# Drop the roles
+DROP ROLE 'administrator', 'qa', 'developer', 'manager';
+# Drop the users
+DROP USER userX, userY, userZ;

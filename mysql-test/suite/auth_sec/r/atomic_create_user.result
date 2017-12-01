@@ -163,3 +163,62 @@ DROP USER userV, userW, userX, userY, userZ;
 include/save_binlog_position.inc
 # END : Tests for CREATE USER IF NOT EXISTS
 # ----------------------------------------------------------------------
+# Begin : Tests for CREATE USER with DEFAULT ROLE
+CREATE USER userX;
+CREATE ROLE 'roleX', 'roleY', 'roleZ';
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+# Case 1 : Execute CREATE USER for existing user
+CREATE USER userY, userZ, userX DEFAULT ROLE 'roleX';
+ERROR HY000: Operation CREATE USER failed for 'userX'@'%'
+# Must not show entries for userY and userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+SELECT user FROM mysql.default_roles where user LIKE 'user%';
+user
+# This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER .*userY.*userZ.*.userX)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Case 2 : Execute CREATE USER for non-existing users
+CREATE USER userY, userZ DEFAULT ROLE 'roleX', 'roleY';
+# Must show entries for userX, userY and userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+userY
+userZ
+SELECT user FROM mysql.default_roles where user LIKE 'user%';
+user
+userY
+userY
+userZ
+userZ
+# This event sequence pattern MUST be present in binlog: !Q(CREATE USER .userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Case 3 : Try creating user with invalid hash
+CREATE USER userA IDENTIFIED BY 'abcd',
+userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha'
+            DEFAULT ROLE roleX;
+ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+# Must not show userA, userB
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+userY
+userZ
+SELECT user FROM mysql.default_roles WHERE user LIKE 'user%';
+user
+userY
+userY
+userZ
+userZ
+# Check binlog for Cases 3
+# This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER.*)
+include/assert_binlog_events.inc
+DROP USER userX, userY, userZ;
+DROP ROLE roleX, roleY, roleZ;
+include/save_binlog_position.inc
+# ----------------------------------------------------------------------
