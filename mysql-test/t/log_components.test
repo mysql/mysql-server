@@ -66,7 +66,7 @@ SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_js
 SELECT "logging as traditional MySQL error log and as JSON";
 --echo # Force a call to variable-checking in all loaded log-services
 # currently nothing is loaded that can handle this, so we'll fail on update
---error ER_WRONG_ARGUMENTS
+--error ER_UNKNOWN_SYSTEM_VARIABLE
 SET @@global.log_error_filter_rules= DEFAULT;
 --echo # Reload logging services
 FLUSH ERROR LOGS;

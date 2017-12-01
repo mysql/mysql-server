@@ -218,11 +218,18 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins)
 END_SERVICE_IMPLEMENTATION()
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_filter)
-  log_builtins_filter_imp::filter_run,
-  log_builtins_filter_imp::filter_ruleset_get,
+  log_builtins_filter_imp::filter_ruleset_new,
+  log_builtins_filter_imp::filter_ruleset_lock,
+  log_builtins_filter_imp::filter_ruleset_unlock,
   log_builtins_filter_imp::filter_ruleset_drop,
-  log_builtins_filter_imp::filter_ruleset_release,
-  log_builtins_filter_imp::filter_rule_init
+  log_builtins_filter_imp::filter_ruleset_free,
+  log_builtins_filter_imp::filter_ruleset_move,
+  log_builtins_filter_imp::filter_rule_init,
+  log_builtins_filter_imp::filter_run
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_filter_debug)
+  log_builtins_filter_debug_imp::filter_debug_ruleset_get
 END_SERVICE_IMPLEMENTATION()
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_string)
@@ -241,7 +248,8 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_string)
 END_SERVICE_IMPLEMENTATION()
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_tmp)
-  log_builtins_tmp_imp::connection_loop_aborted
+  log_builtins_tmp_imp::connection_loop_aborted,
+  log_builtins_tmp_imp::notify_client
 END_SERVICE_IMPLEMENTATION()
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_syseventlog)
@@ -307,6 +315,7 @@ BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, mysql_string_ctype)
   PROVIDES_SERVICE(mysql_server, log_builtins)
   PROVIDES_SERVICE(mysql_server, log_builtins_filter)
+  PROVIDES_SERVICE(mysql_server, log_builtins_filter_debug)
   PROVIDES_SERVICE(mysql_server, log_builtins_string)
   PROVIDES_SERVICE(mysql_server, log_builtins_tmp)
   PROVIDES_SERVICE(mysql_server, log_builtins_syseventlog)

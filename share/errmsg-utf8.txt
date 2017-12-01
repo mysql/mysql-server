@@ -8084,8 +8084,8 @@ ER_BOOTSTRAP_CANT_THREAD
   eng "Can't create thread to handle bootstrap (errno: %d)"
 
 ER_COMPONENT_FILTER_FLABBERGASTED
-  eng "The log-filter component \"%s\" got confused at \"%s\" ..."
-  ger "Der Logfilter \"%s\" wunderte sich ueber \"%s\" ..."
+  eng "The log-filter component \"%s\" got confused at \"%s\" (state: %s) ..."
+  ger "Der Logfilter \"%s\" wunderte sich ueber \"%s\" (Status: %s) ..."
 
 ER_TRIGGER_INVALID_VALUE
   eng "Trigger for table '%s'.'%s': invalid %s value (%s)."
@@ -11042,6 +11042,16 @@ ER_REGEXP_TIME_OUT
 
 ER_REGEXP_PATTERN_TOO_BIG
   eng "The regular expression pattern exceeds limits on size or complexity."
+
+ER_CANT_SET_ERROR_LOG_SERVICE
+  eng "Value for %s got confusing at or around \"%s\". Syntax may be wrong, component may not be INSTALLed, or a component that does not support instances may be listed more than once."
+
+ER_EMPTY_PIPELINE_FOR_ERROR_LOG_SERVICE
+  eng "Setting an empty %s pipeline disables error logging!"
+
+# could use verbatim, but we want an error-code
+ER_COMPONENT_FILTER_DIAGNOSTICS
+  eng "filter %s: %s"
 
 #
 #  End of 8.0 error messages.

@@ -455,8 +455,6 @@ The following options may be given as the first argument:
  user statements in replication binlogs, general query
  logs and audit logs.
  --log-error[=name]  Error log file
- --log-error-filter-rules[=name] 
- Error log filter rules
  --log-error-services=name 
  Services that should be called when an error event is
  received
@@ -1431,7 +1429,6 @@ log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
 log-builtin-as-identified-by-password FALSE
 log-error stderr
-log-error-filter-rules prio>=3? gag. err_code==1408? set_priority 0. err_code==1408? add_field log_label:="HELO". +source_line? delete_field. +err_code? delete_field.
 log-error-services log_filter_internal; log_sink_internal
 log-error-verbosity 2
 log-isam myisam.log

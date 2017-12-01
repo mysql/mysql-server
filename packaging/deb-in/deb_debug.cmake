@@ -67,6 +67,7 @@ SET (DEB_INSTALL_DEBUG_SERVER_PLUGINS
 usr/lib/mysql/plugin/debug/adt_null.so
 usr/lib/mysql/plugin/debug/auth_socket.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
+usr/lib/mysql/plugin/debug/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/debug/component_log_sink_json.so
 usr/lib/mysql/plugin/debug/component_log_sink_syseventlog.so
 usr/lib/mysql/plugin/debug/group_replication.so

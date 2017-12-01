@@ -194,6 +194,11 @@ class log_builtins_tmp_imp
 {
 public: /* Service Implementations */
   static DEFINE_METHOD(bool,             connection_loop_aborted, (void));
+  static DEFINE_METHOD(size_t,           notify_client,
+                                           (void *thd,
+                                            uint severity, uint code,
+                                            char *to, size_t n,
+                                            const char *format, ...));
 };
 
 

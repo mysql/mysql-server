@@ -1619,13 +1619,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       PS_PARAM *parameters= com_data->com_stmt_execute.parameters;
       mysqld_stmt_execute(thd, stmt, com_data->com_stmt_execute.has_new_types,
                           com_data->com_stmt_execute.open_cursor, parameters);
-
-      DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
-        LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
-      });
-      DBUG_EXECUTE_IF("parser_stmt_to_error_log_with_system_prio", {
-        LogErr(SYSTEM_LEVEL, ER_PARSER_TRACE, thd->query().str);
-      });
     }
     break;
   }
@@ -1656,6 +1649,16 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     /* Clear possible warnings from the previous command */
     thd->reset_for_next_command();
     Prepared_statement *stmt= nullptr;
+
+    DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
+      LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE,
+             com_data->com_stmt_prepare.query);
+    });
+    DBUG_EXECUTE_IF("parser_stmt_to_error_log_with_system_prio", {
+      LogErr(SYSTEM_LEVEL, ER_PARSER_TRACE,
+             com_data->com_stmt_prepare.query);
+    });
+
     if (!mysql_stmt_precheck(thd, com_data, command, &stmt))
       mysqld_stmt_prepare(thd, com_data->com_stmt_prepare.query,
                           com_data->com_stmt_prepare.length, stmt);

@@ -219,9 +219,10 @@ void log_syslog_exit(void)
 
   @param   ll  a log_line with a list-item describing the variable
                (name, new value)
+
   @retval   0  for allow (including when we don't feel the event is for us),
-  @retval  -1  for deny (malformed input, caller broken)
-  @retval   1  for deny (wrong data-type, or invalid value submitted by user)
+  @retval  <0  deny (nullptr, malformed structures, etc. -- caller broken?)
+  @retval  >0  deny (user input rejected)
 */
 DEFINE_METHOD(int, log_service_imp::variable_check, (log_line *ll))
 {
@@ -280,9 +281,10 @@ done:
 
   @param  ll  a log_line with a list-item describing the variable
               (name, new value)
-  @retval  0  event is not for us
-  @retval -1  for failure (invalid input that wasn't caught in variable_check)
-  @retval >0  for success (at least one variable was processed successfully)
+
+  @retval  0  the event is not for us
+  @retval <0  for failure
+  @retval >0  for success (at least one item was updated)
 */
 DEFINE_METHOD(int, log_service_imp::variable_update, (log_line *ll))
 {
@@ -308,7 +310,8 @@ DEFINE_METHOD(int, log_service_imp::variable_update, (log_line *ll))
 
     if (li->data.data_integer == 0)
     {
-      rr= log_syslog_close();
+      log_syslog_close();
+      rr= 1;
       goto done;
     }
     else if (li->data.data_integer == 1)
@@ -362,9 +365,9 @@ DEFINE_METHOD(int, log_service_imp::variable_update, (log_line *ll))
     {
       log_syslog_facility= rsf.id;
       log_syslog_reopen();
-      rr= 1;
-      goto done;
     }
+    rr= 1;
+    goto done;
   }
 #endif
 
@@ -424,12 +427,12 @@ DEFINE_METHOD(int, log_service_imp::variable_update, (log_line *ll))
 
       if (old_ident != nullptr)
         log_bs->free(old_ident);
-
-      rr= 1;
-      goto done;
     }
     else
       log_bs->free(new_ident);
+
+    rr= 1;
+    goto done;
   }
 
 
@@ -449,9 +452,9 @@ DEFINE_METHOD(int, log_service_imp::variable_update, (log_line *ll))
     {
       log_syslog_include_pid= inc_pid;
       log_syslog_reopen();
-      rr= 1;
-      goto done;
     }
+    rr= 1;
+    goto done;
   }
 
   rr= 0;

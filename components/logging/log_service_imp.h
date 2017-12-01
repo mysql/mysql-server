@@ -193,7 +193,8 @@ public: /* Service Implementations */
                  (name, new value)
 
     @retval   0  for allow (including when we don't feel the event is for us),
-    @retval  -1  for deny
+    @retval  <0  deny (nullptr, malformed structures, etc. -- caller broken?)
+    @retval  >0  deny (user input rejected)
   */
   static DEFINE_METHOD(int, variable_check,  (log_line *ll));
 
@@ -214,8 +215,9 @@ public: /* Service Implementations */
     @param  ll  a log_line containing a list-item describing the variable
                 (name, new value)
 
-    @retval  0  for success (including when we don't feel the event is for us),
-    @retval !0  for failure
+    @retval  0  the event is not for us
+    @retval <0  for failure
+    @retval >0  for success (at least one item was updated)
   */
   static DEFINE_METHOD(int, variable_update, (log_line *ll));
 };
