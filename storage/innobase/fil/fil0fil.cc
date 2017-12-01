@@ -2512,21 +2512,29 @@ Fil_shard::get_file_size(
 
 	IORequest	request(IORequest::READ);
 
-	success = os_file_read(
-		request, file->handle, page, 0, UNIV_ZIP_SIZE_MIN);
+	dberr_t	err = os_file_read_first_page(
+		request, file->handle, page, UNIV_PAGE_SIZE);
 
-	ut_ad(success);
+	ut_a(err == DB_SUCCESS);
+
+	os_file_close(file->handle);
 
 	ulint		flags = fsp_header_get_flags(page);
 	space_id_t	space_id = fsp_header_get_space_id(page);
 
-	/* Close the file now that we have read the space id from it */
+	/* To determine if tablespace is from 5.7 or not, we
+	rely on SDI flag. For IBDs from 5.7, which are opened
+	during import or during upgrade, their initial size
+	is lesser than the initial size in 8.0 */
+	bool	has_sdi = FSP_FLAGS_HAS_SDI(flags);
 
-	os_file_close(file->handle);
+	uint8_t	expected_size = has_sdi
+		? FIL_IBD_FILE_INITIAL_SIZE
+		: FIL_IBD_FILE_INITIAL_SIZE_5_7;
 
 	const page_size_t	page_size(flags);
 
-	ulint	min_size = FIL_IBD_FILE_INITIAL_SIZE * page_size.physical();
+	ulint	min_size = expected_size * page_size.physical();
 
 	if (size_bytes < min_size) {
 
@@ -5756,6 +5764,7 @@ fil_ibd_create(
 			"fil_ibd_create_log",
 			log_make_checkpoint_at(LSN_MAX, true););
 	}
+
 #endif /* !UNIV_HOTBACKUP */
 
 	/* For encryption tablespace, initial encryption information. */
@@ -9095,13 +9104,7 @@ fil_tablespace_iterate(
 
 	IORequest	request(IORequest::READ);
 
-	err = os_file_read(request, file, page, 0, UNIV_ZIP_SIZE_MIN);
-
-	/** Get tablespace page size */
-	ulint flags = fsp_header_get_flags(page);
-
-	/* Read full page 0 now */
-	err = os_file_read(request, file, page, 0, page_size_t(flags).physical());
+	err = os_file_read_first_page(request, file, page, UNIV_PAGE_SIZE);
 
 	if (err != DB_SUCCESS) {
 

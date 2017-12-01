@@ -40,6 +40,20 @@ let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 $server_filter_p
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 
+--echo #
+--echo # Verify that mysql server reports an error and aborts, if the relay log
+--echo # base name conflicts with binary log defaults.
+--echo #
+--let $server_filter_params= --relay-log=binlog
+let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Cannot have same base name '.*binlog'
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
 # Clean up.
 --source include/start_mysqld.inc
 --source include/wait_until_connected_again.inc

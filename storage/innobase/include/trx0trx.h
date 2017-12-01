@@ -1003,6 +1003,13 @@ struct trx_t {
 
 	trx_state_t	state;
 
+	/* If set, this transaction should stop inheriting (GAP)locks.
+	Generally set to true during transaction prepare for RC or lower
+	isolation, if requested. Needed for replication replay where
+	we don't want to get blocked on GAP locks taken for protecting
+	concurrent unique insert or replace operation. */
+	bool		skip_lock_inheritance;
+
 	ReadView*	read_view;	/*!< consistent read view used in the
 					transaction, or NULL if not yet set */
 

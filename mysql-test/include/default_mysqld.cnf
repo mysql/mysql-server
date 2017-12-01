@@ -12,10 +12,6 @@ connect-timeout=            60
 # stored function creation.
 log-bin-trust-function-creators=1
 
-# Set log-bin ON for replication tests that use multiple mysqld servers
-# and other tests that may have replication scenarios.
-log-bin=binlog
-
 # Set innodb_dedicated_serer=OFF, to make sure it doesn't autoscale
 # to use maximum available resources on system which might cause issue
 # with MTR suites run.
