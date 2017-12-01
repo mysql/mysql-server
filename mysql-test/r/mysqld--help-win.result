@@ -425,11 +425,13 @@ The following options may be given as the first argument:
  Timeout in seconds to wait for a lock before returning an
  error.
  --log-bin[=name]    Configures the name prefix to use for binary log files.
- The name prefix defaults to `hostname`-bin if the
- --log-bin option is not configured. To set a different
- name prefix for binary log files use --log-bin=name. To
- disable binary logging use the --skip-log-bin or
- --disable-log-bin option.
+ If the --log-bin option is not supplied, the name prefix
+ defaults to "binlog". If the --log-bin option is supplied
+ without argument, the name prefix defaults to
+ "HOSTNAME-bin", where HOSTNAME is the machine's hostname.
+ To set a different name prefix for binary log files, use
+ --log-bin=name. To disable binary logging, use the
+ --skip-log-bin or --disable-log-bin option.
  --log-bin-index=name 
  File that holds the names for binary log files.
  --log-bin-trust-function-creators 

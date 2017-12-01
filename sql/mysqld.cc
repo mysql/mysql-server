@@ -1049,6 +1049,8 @@ const int index_ext_length= 6;
 const char *index_ext= ".index";
 const int relay_ext_length= 10;
 const char *relay_ext= "-relay-bin";
+/* True if --log-bin option is used. */
+bool log_bin_supplied= false;
 
 time_t server_start_time, flush_status_time;
 
@@ -1056,6 +1058,7 @@ char server_uuid[UUID_LENGTH+1];
 const char *server_uuid_ptr;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char default_logfile_name[FN_REFLEN];
+char default_binlogfile_name[FN_REFLEN];
 char default_binlog_index_name[FN_REFLEN+index_ext_length];
 char default_relaylogfile_name[FN_REFLEN+relay_ext_length];
 char default_relaylog_index_name[FN_REFLEN+relay_ext_length+index_ext_length];
@@ -3433,6 +3436,7 @@ int init_common_variables()
     strmake(default_logfile_name, glob_hostname,
       sizeof(default_logfile_name)-5);
 
+  strmake(default_binlogfile_name, STRING_WITH_LEN("binlog"));
   if (opt_initialize || opt_initialize_insecure)
   {
     /*
@@ -4578,14 +4582,24 @@ static int init_server_components()
 
     char buf[FN_REFLEN];
     const char *ln;
-    /*
-      Binary log basename defaults to "`hostname`-bin" name prefix
-      if no configuration and argument were provided to --log-bin
-      and --loose-log-bin, and no one of --(loose-)skip-log-bin
-      and --(loose-)disable-log-bin is set explicitly.
-    */
-    ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", buf);
-    if (!opt_bin_logname && !opt_binlog_index_name)
+    if (log_bin_supplied)
+    {
+      /*
+        Binary log basename defaults to "`hostname`-bin" name prefix
+        if --log-bin is used without argument.
+      */
+      ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", buf);
+    }
+    else
+    {
+      /*
+        Binary log basename defaults to "binlog" name prefix
+        if --log-bin is not used.
+      */
+      ln= mysql_bin_log.generate_name(opt_bin_logname, "", buf);
+    }
+
+    if (!opt_bin_logname && !opt_binlog_index_name && log_bin_supplied)
     {
       /*
         User didn't give us info to name the binlog index file.
@@ -4594,7 +4608,7 @@ static int init_server_components()
         require a name. But as we don't want to break many existing setups, we
         only give warning, not error.
       */
-      LogErr(WARNING_LEVEL, ER_LOG_BIN_BETTER_WITH_NAME, ln);
+      LogErr(INFORMATION_LEVEL, ER_LOG_BIN_BETTER_WITH_NAME, ln);
     }
     if (ln == buf)
     {
@@ -4621,10 +4635,21 @@ static int init_server_components()
       not an empty string, incase it is an empty string default file
       extension will be passed
      */
-    log_bin_basename=
-      rpl_make_log_name(key_memory_MYSQL_BIN_LOG_basename,
-                        opt_bin_logname, default_logfile_name,
-                        (opt_bin_logname && opt_bin_logname[0]) ? "" : "-bin");
+    if (log_bin_supplied)
+    {
+      log_bin_basename=
+        rpl_make_log_name(key_memory_MYSQL_BIN_LOG_basename,
+                          opt_bin_logname, default_logfile_name,
+                          (opt_bin_logname && opt_bin_logname[0]) ?
+                          "" : "-bin");
+    }
+    else
+    {
+      log_bin_basename=
+        rpl_make_log_name(key_memory_MYSQL_BIN_LOG_basename,
+                          opt_bin_logname, default_binlogfile_name, "");
+    }
+
     log_bin_index=
       rpl_make_log_name(key_memory_MYSQL_BIN_LOG_index,
                         opt_binlog_index_name, log_bin_basename, ".index");
@@ -4700,10 +4725,11 @@ static int init_server_components()
   if (log_bin_basename != NULL && !strcmp(log_bin_basename, relay_log_basename))
   {
     const int bin_ext_length= 4;
-    char default_binlogfile_name[FN_REFLEN+bin_ext_length];
+    char default_binlogfile_name_from_hostname[FN_REFLEN+bin_ext_length];
     /* Generate default bin log file name. */
-    strmake(default_binlogfile_name, default_logfile_name, FN_REFLEN - 1);
-    strcat(default_binlogfile_name, "-bin");
+    strmake(default_binlogfile_name_from_hostname, default_logfile_name,
+            FN_REFLEN - 1);
+    strcat(default_binlogfile_name_from_hostname, "-bin");
 
     if (!default_relaylogfile_name[0])
     {
@@ -4717,6 +4743,7 @@ static int init_server_components()
     */
     LogErr(ERROR_LEVEL, ER_RPL_CANT_HAVE_SAME_BASENAME, log_bin_basename,
            "--log-bin", default_binlogfile_name,
+           default_binlogfile_name_from_hostname,
            "--relay-log", default_relaylogfile_name);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
@@ -5788,7 +5815,7 @@ int mysqld_main(int argc, char **argv)
   }
 
   if (!server_id_supplied)
-    LogErr(WARNING_LEVEL, ER_WARN_NO_SERVERID_SPECIFIED);
+    LogErr(INFORMATION_LEVEL, ER_WARN_NO_SERVERID_SPECIFIED);
 
 
   /*
@@ -6926,11 +6953,12 @@ struct my_option my_long_options[]=
    &lc_time_names_name, &lc_time_names_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"log-bin", OPT_BIN_LOG,
-   "Configures the name prefix to use for binary log files. The name prefix "
-   "defaults to `hostname`-bin if the --log-bin option is not configured. "
-   "To set a different name prefix for binary log files use --log-bin=name. "
-   "To disable binary logging use the --skip-log-bin or --disable-log-bin "
-   "option.",
+   "Configures the name prefix to use for binary log files. If the --log-bin "
+   "option is not supplied, the name prefix defaults to \"binlog\". If the "
+   "--log-bin option is supplied without argument, the name prefix defaults "
+   "to \"HOSTNAME-bin\", where HOSTNAME is the machine's hostname. To set a "
+   "different name prefix for binary log files, use --log-bin=name. To disable "
+   "binary logging, use the --skip-log-bin or --disable-log-bin option.",
    &opt_bin_logname, &opt_bin_logname, 0, GET_STR_ALLOC,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", 0,
@@ -8547,6 +8575,7 @@ mysqld_get_one_option(int optid,
         opt_bin_logname= NULL;
       }
     }
+    log_bin_supplied= true;
     break;
   case (int)OPT_REPLICATE_IGNORE_DB:
   {
