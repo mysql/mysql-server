@@ -141,6 +141,7 @@ usr/lib/mysql/plugin/debug/qa_auth_server.so
 usr/lib/mysql/plugin/debug/replication_observers_example_plugin.so
 usr/lib/mysql/plugin/debug/rewrite_example.so
 usr/lib/mysql/plugin/debug/test_udf_services.so
+usr/lib/mysql/plugin/debug/udf_example.so
 usr/lib/mysql/plugin/debug/test_security_context.so
 usr/lib/mysql/plugin/debug/test_services_plugin_registry.so
 usr/lib/mysql/plugin/debug/component_test_status_var_service.so

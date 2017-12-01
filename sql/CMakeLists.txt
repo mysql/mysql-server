@@ -915,7 +915,7 @@ ADD_CUSTOM_TARGET(
 
 
 MYSQL_ADD_PLUGIN(udf_example udf_example.cc
-                 MODULE_ONLY SKIP_INSTALL MODULE_OUTPUT_NAME "udf_example")
+                 MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example")
 IF(NOT DISABLE_SHARED)
   IF(WIN32)
     SET_TARGET_PROPERTIES(udf_example
