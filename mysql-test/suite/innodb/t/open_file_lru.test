@@ -15,7 +15,7 @@ SET @total_tables = @open_files + 250;
 
 --enable_query_log
 
---echo "Total tables: " @total_tables;
+SELECT @total_tables;
 
 CREATE DATABASE lru_test;
 USE lru_test;
@@ -77,3 +77,5 @@ DROP PROCEDURE ins;
 DROP PROCEDURE sel;
 
 DROP DATABASE lru_test;
+
+call mtr.add_suppression("InnoDB: Too many (300) files are open the maximum allowed value is 301. You should raise the value of --innodb-open-files in my.cnf");
