@@ -234,7 +234,7 @@ public:
 };
 
 
-enum role_enum
+enum class role_enum
 {
   ROLE_NONE, ROLE_DEFAULT, ROLE_ALL, ROLE_NAME
 };
@@ -255,12 +255,13 @@ public:
                    const List<LEX_USER> *except_roles_arg)
   : role_type(role_type_arg), role_list(NULL), except_roles(except_roles_arg)
   {
-    DBUG_ASSERT(role_type == ROLE_NONE || role_type == ROLE_DEFAULT ||
-                role_type == ROLE_ALL);
-    DBUG_ASSERT(role_type == ROLE_ALL || except_roles == NULL);
+    DBUG_ASSERT(role_type == role_enum::ROLE_NONE ||
+                role_type == role_enum::ROLE_DEFAULT ||
+                role_type == role_enum::ROLE_ALL);
+    DBUG_ASSERT(role_type == role_enum::ROLE_ALL || except_roles == NULL);
   }
   explicit Sql_cmd_set_role(const List<LEX_USER> *role_arg)
-  : role_type(ROLE_NAME), role_list(role_arg)
+  : role_type(role_enum::ROLE_NAME), role_list(role_arg)
   {}
 
   virtual bool execute(THD *thd);

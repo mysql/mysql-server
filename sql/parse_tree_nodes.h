@@ -3581,7 +3581,7 @@ public:
                        const List<LEX_USER> *opt_except_roles= NULL)
   : sql_cmd(role_type, opt_except_roles)
   {
-    DBUG_ASSERT(role_type == ROLE_ALL || opt_except_roles == NULL);
+    DBUG_ASSERT(role_type == role_enum::ROLE_ALL || opt_except_roles == NULL);
   }
   explicit PT_set_role(const List<LEX_USER> *roles) : sql_cmd(roles) {}
 

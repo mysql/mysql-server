@@ -52,14 +52,13 @@ typedef struct user_conn USER_CONN;
 class Security_context;
 struct TABLE;
 struct TABLE_LIST;
+enum class role_enum;
 
 /** user, host tuple which reference either acl_cache or g_default_roles */
 typedef std::pair< LEX_CSTRING, LEX_CSTRING > Auth_id_ref;
 typedef std::vector< Auth_id_ref >  List_of_auth_id_refs;
 
 bool operator<(const Auth_id_ref &a, const Auth_id_ref &b);
-
-/* Classes */
 
 enum ACL_internal_access_result
 {
@@ -75,6 +74,8 @@ enum ACL_internal_access_result
   /** No decision yet, use the grant tables. */
   ACL_INTERNAL_ACCESS_CHECK_GRANT
 };
+
+/* Classes */
 
 /**
   Per internal table ACL access rules.
@@ -822,12 +823,13 @@ bool mysql_grant_role(THD *thd, const List <LEX_USER > *users,
 bool mysql_revoke_role(THD *thd, const List <LEX_USER > *users,
                        const List <LEX_USER > *roles);
 void get_default_roles(const Auth_id_ref &user, List_of_auth_id_refs *list);
-bool mysql_alter_user_set_default_roles(THD *thd, LEX_USER *user,
-                       const List_of_auth_id_refs &authids);
-bool mysql_alter_user_set_default_roles_all(THD *thd, LEX_USER *user);
+
 bool is_granted_table_access(THD *thd, ulong required_acl,
                              TABLE_LIST *table);
-bool mysql_clear_default_roles(THD *thd, LEX_USER *user);
+
+bool mysql_alter_or_clear_roles(THD *thd, role_enum role_type,
+                                const List<LEX_USER> *users,
+                                const List<LEX_USER> *roles);
 void roles_graphml(THD *thd, String *);
 bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
                               const LEX_CSTRING &role_host);
