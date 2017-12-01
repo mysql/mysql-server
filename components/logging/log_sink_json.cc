@@ -69,8 +69,10 @@ struct my_state
   can veto.
 
   @param   ll  a list-item describing the variable (name, new value)
+
   @retval   0  for allow (including when we don't feel the event is for us),
-  @retval  -1  for deny
+  @retval  <0  deny (nullptr, malformed structures, etc. -- caller broken?)
+  @retval  >0  deny (user input rejected)
 */
 DEFINE_METHOD(int, log_service_imp::variable_check,
               (log_line *ll MY_ATTRIBUTE((unused))))
@@ -85,8 +87,10 @@ DEFINE_METHOD(int, log_service_imp::variable_check,
   to update our state (if the variable concerns us to begin with).
 
   @param   ll  a list-item describing the variable (name, new value)
-  @retval   0  for success (including when we don't feel the event is for us),
-  @retval  -1  for failure
+
+  @retval  0  the event is not for us
+  @retval <0  for failure
+  @retval >0  for success (at least one item was updated)
 */
 DEFINE_METHOD(int, log_service_imp::variable_update,
               (log_line *ll MY_ATTRIBUTE((unused))))

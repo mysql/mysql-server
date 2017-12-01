@@ -630,6 +630,12 @@ END_SERVICE_DEFINITION(log_builtins_string)
 BEGIN_SERVICE_DEFINITION(log_builtins_tmp)
   // Are we shutting down yet?  Windows EventLog needs to know.
   DECLARE_METHOD(bool,             connection_loop_aborted, (void));
+  DECLARE_METHOD(size_t,           notify_client,
+                                           (void *thd,
+                                            uint severity, uint code,
+                                            char *to, size_t n,
+                                            const char *format, ...))
+                       MY_ATTRIBUTE((format(printf, 6, 7)));
 END_SERVICE_DEFINITION(log_builtins_tmp)
 
 

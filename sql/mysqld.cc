@@ -9053,7 +9053,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   if (opt_help || opt_initialize)
   {
     /*
-      Show errors during --help, but gag everything else so the info the
+      Show errors during --help, but mute everything else so the info the
       user actually wants isn't lost in the spam.  (For --help --verbose,
       we need to set up far enough to be able to print variables provided
       by plugins, so a good number of warnings/notes might get printed.)

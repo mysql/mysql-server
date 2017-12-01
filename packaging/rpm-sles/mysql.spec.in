@@ -774,6 +774,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_filter_dragnet.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
@@ -797,6 +798,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_filter_dragnet.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
