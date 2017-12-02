@@ -6530,9 +6530,10 @@ bool clear_default_roles(THD *thd, TABLE *table,
   roles, depending upon the role_type argument. It writes to table
   mysql.default_roles and binlog.
 
-  @param thd Thread handler
-  @param user Users for whom the default roles are set.
-  @param roles list of default roles to be set.
+  @param thd        Thread handler
+  @param role_type  default role type specified by the user.
+  @param users      Users for whom the default roles are set.
+  @param roles      list of default roles to be set.
 
   @return
     @retval true An error occurred and DA is set
@@ -6657,6 +6658,7 @@ bool mysql_alter_or_clear_roles(THD *thd, role_enum role_type,
   and binlog.
 
   @param thd Thread handler
+  @param def_role_table Default role table
   @param user The user whose default roles are set.
 
   @return
