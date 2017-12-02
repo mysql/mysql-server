@@ -262,6 +262,12 @@ INSERT INTO global_suppressions VALUES
  ("Insecure configuration for --secure-file-priv:*"),
 
  /*
+   Bug#26585560, warning related to --pid-file
+ */
+ ("Insecure configuration for --pid-file:*"),
+ ("Few location(s) are inaccessible while checking PID filepath"),
+
+ /*
    On slow runs (valgrind) the message may be sent twice.
   */
  ("The member with address .* has already sent the stable set. Therefore discarding the second message."),
