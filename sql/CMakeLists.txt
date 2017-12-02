@@ -200,6 +200,7 @@ SET(SQL_SOURCE
   ../libmysql/errmsg.c
   ../sql-common/client.c
   ../sql-common/client_plugin.c
+  ../sql-common/my_path_permissions.cc
   ../sql-common/my_time.c
   ../sql-common/my_user.c 
   ../sql-common/pack.c
