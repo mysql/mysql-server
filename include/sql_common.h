@@ -209,6 +209,7 @@ struct st_mysql_client_plugin;
 extern struct st_mysql_client_plugin *mysql_client_builtins[];
 uchar * send_client_connect_attrs(MYSQL *mysql, uchar *buf);
 extern bool libmysql_cleartext_plugin_enabled;
+int is_file_or_dir_world_writable(const char *filepath);
 void read_ok_ex(MYSQL *mysql, unsigned long len);
 
 #ifdef	__cplusplus
