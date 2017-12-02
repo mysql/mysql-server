@@ -24,7 +24,7 @@ extern "C" {
 /**
   Check if a file/dir is world-writable (only on non-Windows platforms)
 
-  @param [in] Path of the file/dir to be checked
+  @param [in] path Path of the file/dir to be checked
 
   @returns Status of the file/dir check
     @retval -2 Permission denied to check attributes of file/dir
