@@ -107,6 +107,7 @@ void mysql_client_plugin_deinit();
 struct st_mysql_client_plugin;
 extern struct st_mysql_client_plugin *mysql_client_builtins[];
 extern my_bool libmysql_cleartext_plugin_enabled;
+int is_file_or_dir_world_writable(const char *filepath);
 
 #ifdef	__cplusplus
 }
