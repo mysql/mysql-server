@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3572,6 +3572,34 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       accordingly, so we can simply return success.
     */
     return FALSE;
+  }
+
+  /*
+    Return early if we did not get the lock and are not willing to wait.
+    This way we avoid reporting "fake" deadlock for lock_wait_timeout == 0.
+  */
+  if (lock_wait_timeout == 0)
+  {
+    /*
+      Lock acquired inside try_acquire_lock_impl(). Release before
+      leaving scope.
+    */
+    mysql_prlock_unlock(&ticket->m_lock->m_rwlock);
+
+    /*
+      If SEs were notified about impending lock acquisition, the failure
+      to acquire it requires the same notification as lock release.
+    */
+    if (ticket->m_hton_notified)
+    {
+      mysql_mdl_set_status(ticket->m_psi, MDL_ticket::POST_RELEASE_NOTIFY);
+      m_owner->notify_hton_post_release_exclusive(&mdl_request->key);
+    }
+    DEBUG_SYNC(get_thd(), "mdl_acquire_lock_wait");
+
+    MDL_ticket::destroy(ticket);
+    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+    return true;
   }
 
   /*

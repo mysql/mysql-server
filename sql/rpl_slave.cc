@@ -3700,6 +3700,7 @@ bool show_slave_status_send_data(THD *thd, Master_info *mi,
     break;
   case Relay_log_info::UNTIL_SQL_AFTER_MTS_GAPS:
     until_type= "SQL_AFTER_MTS_GAPS";
+    break;
   case Relay_log_info::UNTIL_DONE:
     until_type= "DONE";
     break;
@@ -4868,6 +4869,23 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
 #endif
 
       error= ev->update_pos(rli);
+      /*
+        Slave skips an event if the slave_skip_counter is greater than zero.
+        We have to free thd's mem_root here after we update the positions
+        in the repository table if the event is a skipped event.
+        Otherwise, imagine a situation where slave_skip_counter is big number
+        and slave is skipping the events and updating the repository.
+        All the memory used while these operations are going on is never
+        freed unless slave starts executing the events (after slave_skip_counter
+        becomes zero).
+
+        Hence we free thd's mem_root here if it is a skipped event.
+        (freeing mem_root generally happens from Query_log_event::do_apply_event
+        or Rows_log_event::do_apply_event when they find the end of
+        the group event).
+      */
+      if (skip_event)
+        free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
 
 #ifndef DBUG_OFF
       DBUG_PRINT("info", ("update_pos error = %d", error));
@@ -11528,8 +11546,7 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli)
         channel_mts_submode == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
     {
       my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
-               "unless the binlog and log_slave update options are "
-               "both enabled");
+               "unless both log_bin and log_slave_updates are enabled");
       return ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER;
     }
   }

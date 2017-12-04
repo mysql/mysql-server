@@ -513,7 +513,7 @@ int Recovery_module::wait_for_applier_module_recovery()
     {
       if (recovery_completion_policy == RECOVERY_POLICY_WAIT_EXECUTED)
       {
-        int error= applier_module->wait_for_applier_event_execution(1);
+        int error= applier_module->wait_for_applier_event_execution(1, false);
         if (!error)
           applier_monitoring= false;
         /* purecov: begin inspected */

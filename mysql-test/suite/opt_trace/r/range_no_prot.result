@@ -5414,6 +5414,69 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
             ] /* considered_execution_plans */
           },
           {
+            "rerunning_range_optimizer_for_single_index": [
+              {
+                "table_scan": {
+                  "rows": 5,
+                  "cost": 4.1
+                } /* table_scan */,
+                "potential_range_indexes": [
+                  {
+                    "index": "PRIMARY",
+                    "usable": false,
+                    "cause": "not_applicable"
+                  },
+                  {
+                    "index": "i1_idx",
+                    "usable": true,
+                    "key_parts": [
+                      "i1",
+                      "pk"
+                    ] /* key_parts */
+                  },
+                  {
+                    "index": "v_idx",
+                    "usable": false,
+                    "cause": "not_applicable"
+                  }
+                ] /* potential_range_indexes */,
+                "best_covering_index_scan": {
+                  "index": "v_idx",
+                  "cost": 2.0063,
+                  "chosen": true
+                } /* best_covering_index_scan */,
+                "setup_range_conditions": [
+                ] /* setup_range_conditions */,
+                "group_index_range": {
+                  "chosen": false,
+                  "cause": "not_group_by_or_distinct"
+                } /* group_index_range */,
+                "analyzing_range_alternatives": {
+                  "range_scan_alternatives": [
+                    {
+                      "index": "i1_idx",
+                      "ranges": [
+                        "1 <= i1 <= 1 AND pk < 3"
+                      ] /* ranges */,
+                      "index_dives_for_eq_ranges": true,
+                      "rowid_ordered": true,
+                      "using_mrr": false,
+                      "index_only": false,
+                      "rows": 1,
+                      "cost": 2.21,
+                      "chosen": false,
+                      "cause": "cost"
+                    }
+                  ] /* range_scan_alternatives */,
+                  "analyzing_roworder_intersect": {
+                    "usable": false,
+                    "cause": "too_few_roworder_scans"
+                  } /* analyzing_roworder_intersect */
+                } /* analyzing_range_alternatives */
+              } /* range_analysis */
+            ] /* rerunning_range_optimizer_for_single_index */
+          },
+          {
             "attaching_conditions_to_tables": {
               "original_condition": "((`t1`.`v` = 'a') and (`t1`.`i1` = 1) and (`t1`.`pk` < 3))",
               "attached_conditions_computation": [
@@ -5453,10 +5516,10 @@ ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 
-# Covering ROR intersect not chosen: cost
+# Covering ROR intersect not chosen: Index with more keyparts found.
 EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,v_idx,i1_i2_idx	v_idx	9	const,const	1	20.00	Using index condition; Using where
+1	SIMPLE	t1	NULL	range	PRIMARY,v_idx,i1_i2_idx	v_idx	13	NULL	1	20.00	Using index condition; Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i2` = 1) and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
 
@@ -5733,6 +5796,86 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
             ] /* considered_execution_plans */
           },
           {
+            "rerunning_range_optimizer_for_single_index": [
+              {
+                "table_scan": {
+                  "rows": 5,
+                  "cost": 4.1
+                } /* table_scan */,
+                "potential_range_indexes": [
+                  {
+                    "index": "PRIMARY",
+                    "usable": false,
+                    "cause": "not_applicable"
+                  },
+                  {
+                    "index": "v_idx",
+                    "usable": true,
+                    "key_parts": [
+                      "v",
+                      "i1",
+                      "pk"
+                    ] /* key_parts */
+                  },
+                  {
+                    "index": "i1_i2_idx",
+                    "usable": false,
+                    "cause": "not_applicable"
+                  }
+                ] /* potential_range_indexes */,
+                "setup_range_conditions": [
+                ] /* setup_range_conditions */,
+                "group_index_range": {
+                  "chosen": false,
+                  "cause": "not_group_by_or_distinct"
+                } /* group_index_range */,
+                "analyzing_range_alternatives": {
+                  "range_scan_alternatives": [
+                    {
+                      "index": "v_idx",
+                      "ranges": [
+                        "a <= v <= a AND 1 <= i1 <= 1 AND pk < 3"
+                      ] /* ranges */,
+                      "index_dives_for_eq_ranges": true,
+                      "rowid_ordered": true,
+                      "using_mrr": false,
+                      "index_only": false,
+                      "rows": 1,
+                      "cost": 2.21,
+                      "chosen": true
+                    }
+                  ] /* range_scan_alternatives */,
+                  "analyzing_roworder_intersect": {
+                    "usable": false,
+                    "cause": "too_few_roworder_scans"
+                  } /* analyzing_roworder_intersect */
+                } /* analyzing_range_alternatives */,
+                "chosen_range_access_summary": {
+                  "range_access_plan": {
+                    "type": "range_scan",
+                    "index": "v_idx",
+                    "rows": 1,
+                    "ranges": [
+                      "a <= v <= a AND 1 <= i1 <= 1 AND pk < 3"
+                    ] /* ranges */
+                  } /* range_access_plan */,
+                  "rows_for_plan": 1,
+                  "cost_for_plan": 2.21,
+                  "chosen": true
+                } /* chosen_range_access_summary */
+              } /* range_analysis */
+            ] /* rerunning_range_optimizer_for_single_index */
+          },
+          {
+            "access_type_changed": {
+              "table": "`t1`",
+              "index": "v_idx",
+              "old_type": "ref",
+              "new_type": "range",
+              "cause": "uses_more_keyparts"
+            } /* access_type_changed */
+          },
+          {
             "attaching_conditions_to_tables": {
               "original_condition": "((`t1`.`v` = 'a') and (`t1`.`i2` = 1) and (`t1`.`i1` = 1) and (`t1`.`pk` < 3))",
               "attached_conditions_computation": [
@@ -5740,7 +5883,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "((`t1`.`i2` = 1) and (`t1`.`pk` < 3))"
+                  "attached": "((`t1`.`v` = 'a') and (`t1`.`i2` = 1) and (`t1`.`i1` = 1) and (`t1`.`pk` < 3))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -5749,7 +5892,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
             "refine_plan": [
               {
                 "table": "`t1`",
-                "pushed_index_condition": "(`t1`.`pk` < 3)",
+                "pushed_index_condition": "((`t1`.`v` = 'a') and (`t1`.`i1` = 1) and (`t1`.`pk` < 3))",
                 "table_condition_attached": "(`t1`.`i2` = 1)"
               }
             ] /* refine_plan */

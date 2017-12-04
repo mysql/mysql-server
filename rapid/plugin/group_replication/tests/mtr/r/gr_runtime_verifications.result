@@ -13,10 +13,58 @@ tn(cn) ON UPDATE CASCADE ON DELETE RESTRICT) ENGINE = InnoDB;
 CREATE TABLE t7 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES tn(cn) ON DELETE CASCADE) ENGINE = InnoDB;
 CREATE TABLE t8 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
 tn(cn) ON DELETE CASCADE ON UPDATE RESTRICT) ENGINE = InnoDB;
+CREATE TABLE t9 (c1 char(50), c2 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
+tn(cn) ON DELETE SET NULL) ENGINE = InnoDB;
+CREATE TABLE t10 (c1 char(50), c2 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
+tn(cn) ON UPDATE SET NULL) ENGINE = InnoDB;
 #
 # Testing all tables that will fail.
 #
+INSERT INTO t10 VALUES('a','a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t10 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t10 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t10 (c1,c2) SELECT tn.cn,'a' FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t10;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t10;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t10(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t10 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t10, tn FROM t10, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t10, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t10;
+INSERT INTO t9 VALUES('a','a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t9 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t9 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t9 (c1,c2) SELECT tn.cn,'a' FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t9;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t9;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t9(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t9 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t9, tn FROM t9, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t9, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t9;
 INSERT INTO t8 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t8 SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 UPDATE t8 SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.
@@ -39,6 +87,8 @@ INSERT INTO t7 VALUES('a');
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 UPDATE t7 SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t7 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
 INSERT INTO t7 (c1) SELECT tn.cn FROM tn;
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 DELETE FROM t7;
@@ -55,6 +105,8 @@ UPDATE t7, tn SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 DROP TABLE t7;
 INSERT INTO t6 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t6 SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 UPDATE t6 SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.
@@ -77,6 +129,8 @@ INSERT INTO t5 VALUES('a');
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 UPDATE t5 SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t5 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
 INSERT INTO t5 (c1) SELECT tn.cn FROM tn;
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 DELETE FROM t5;
@@ -93,6 +147,8 @@ UPDATE t5, tn SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 DROP TABLE t5;
 INSERT INTO t4 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t4 SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 UPDATE t4 SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.
@@ -115,6 +171,8 @@ INSERT INTO t3 VALUES('a');
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 UPDATE t3 SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t3 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
 INSERT INTO t3 (c1) SELECT tn.cn FROM tn;
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 DELETE FROM t3;
@@ -134,6 +192,8 @@ INSERT INTO t2 VALUES('a');
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 UPDATE t2 SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t2 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
 INSERT INTO t2 (c1) SELECT tn.cn FROM tn;
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 DELETE FROM t2;
@@ -150,6 +210,8 @@ UPDATE t2, tn SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 DROP TABLE t2;
 INSERT INTO t1 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t1 SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 UPDATE t1 SET c1 = 'a';
 ERROR HY000: The table does not comply with the requirements by an external plugin.

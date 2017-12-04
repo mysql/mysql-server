@@ -36,7 +36,8 @@ ENDIF()
 # Build static ndbclient library
 #
 SET(NDBCLIENT_LIBS
-  mysys dbug strings
+  mysys dbug strings mysys_ssl
+  ${SSL_LIBRARIES} ${ZLIB_LIBRARY}
   ndbapi
   ndbtransport
   ndbtrace
@@ -48,7 +49,25 @@ SET(NDBCLIENT_LIBS
   ndbgeneral
   ndbconf)
 
-MERGE_LIBRARIES(ndbclient_static STATIC ${NDBCLIENT_LIBS} COMPONENT Development)
+MERGE_CONVENIENCE_LIBRARIES(
+  ndbclient_static ${NDBCLIENT_LIBS} COMPONENT Development)
+
+SET(KNOWN_CONVENIENCE_LIBRARIES
+  ${KNOWN_CONVENIENCE_LIBRARIES} ndbclient_static CACHE INTERNAL "" FORCE)
+
+# Generate a cmake file which will save the name of the library.
+CONFIGURE_FILE(
+  ${MYSQL_CMAKE_SCRIPT_DIR}/save_archive_location.cmake.in
+  ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_ndbclient_static.cmake
+  @ONLY)
+ADD_CUSTOM_COMMAND(TARGET ndbclient_static POST_BUILD
+  COMMAND ${CMAKE_COMMAND}
+  -DTARGET_NAME=ndbclient_static
+  -DTARGET_LOC=$<TARGET_FILE:ndbclient_static>
+  -DCFG_INTDIR=${CMAKE_CFG_INTDIR}
+  -P ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_ndbclient_static.cmake
+  )
+
 # Build test program to check linking against ndclient_static
 ADD_EXECUTABLE(ndbclient_static_link_test ndbclient_link_test.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_static_link_test ndbclient_static)
@@ -72,29 +91,22 @@ ADD_LIBRARY(ndbclient_so SHARED ndbclient_exports.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_so ${NDBCLIENT_SO_LIBS})
 
 IF(MSVC)
-# Not yet!
-#  # Add a PREBUILD command which creates a module definition file
-#  # for all the symbols which should be exported from ndbclient_so
-#  # PROBLEM: Fails to get the full path to mysys, strings etc since those
-#  # targets haven't been added yet -> defer this step to build time?
-#  FOREACH (lib ${NDBCLIENT_SO_LIBS})
-#    GET_TARGET_PROPERTY(loc ${lib} LOCATION)
-#    FILE(TO_NATIVE_PATH ${loc} loc)
-#    SET (lib_locations ${lib_locations} ${loc})
-#  ENDFOREACH ()
-#  
-#  SET(_PLATFORM x86)
-#  IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
-#    SET(_PLATFORM  x64)
-#  ENDIF()
-#  ADD_CUSTOM_COMMAND(TARGET ndbclient_so PRE_BUILD
+# All "convenience" libraries are now well-known, we *could* do this:
+#  SET(_PLATFORM  x64)
+#
+#  ADD_CUSTOM_COMMAND(TARGET ndbclient_so PRE_LINK
 #    COMMAND cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
-#                         ${_PLATFORM}  ${lib_locations} > ndbclient_exports.def
+#                         ${_PLATFORM}
+#                         "$<TARGET_FILE:lib1>"
+#                         "$<TARGET_FILE:lib2>"
+#                         ...
+#                         > ndbclient_exports.def
 #    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 #	
 #  # Modify link flags to use the generated module definition file
 #  GET_TARGET_PROPERTY(ndbclient_so_link_flags ndbclient_so LINK_FLAGS)
-#  SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES LINK_FLAGS "${ndbclient_link_flags} /DEF:ndbclient_exports.def")
+#  SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES LINK_FLAGS
+#                        "${ndbclient_link_flags} /DEF:ndbclient_exports.def")
 ELSE()
   # Turn off cmake's transitive link behaviour so that the shared
   # ndbclient library contains everything except functions from
@@ -124,8 +136,8 @@ ELSE()
       ENDIF()
 
       # Ignore libs where location is known(this means it's built locally)
-      GET_TARGET_PROPERTY(dep_lib_location ${dep_lib} LOCATION)
-      IF(dep_lib_location)
+      LIST(FIND KNOWN_CONVENIENCE_LIBRARIES ${dep_lib} FOUNDIT)
+      IF(FOUNDIT GREATER -1)
         # MESSAGE(STATUS "Ignoring ${dep_lib} since location is known")
         SET(ignore_dep_lib 1)
       ENDIF()
@@ -136,6 +148,9 @@ ELSE()
 
     ENDFOREACH()
   ENDFOREACH()
+  IF(NDBCLIENT_SYSTEM_LIBS)
+    LIST(REMOVE_DUPLICATES NDBCLIENT_SYSTEM_LIBS)
+  ENDIF()
   MESSAGE(STATUS "System libs used by ndbclient_so: ${NDBCLIENT_SYSTEM_LIBS}")
   TARGET_LINK_LIBRARIES(ndbclient_so LINK_INTERFACE_LIBRARIES
     ${NDBCLIENT_SYSTEM_LIBS})

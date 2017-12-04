@@ -1,0 +1,1 @@
+$SEMISYNC_PLUGIN_OPT --sync_binlog=0

@@ -67,9 +67,10 @@ SHOW WARNINGS;
 SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
   WHERE CREATE_OPTIONS LIKE '%partitioned%';
 
---echo # Verify that the startup option --disable-partition-engine-check skips the I_S query.
+--echo # Verify that the startup by default skips the I_S query, since the
+--echo # option --disable-partition-engine-check defaults to TRUE.
 --let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/my_restart.err
---let $restart_parameters= restart: --disable-partition-engine-check --no-console --log-error=$SEARCH_FILE
+--let $restart_parameters= restart: --no-console --log-error=$SEARCH_FILE
 --replace_result $SEARCH_FILE LOG_FILE
 --source include/restart_mysqld.inc
 perl;
@@ -87,8 +88,9 @@ perl;
 EOF
 --remove_file $SEARCH_FILE
 
---echo # Verify that the I_S query on bootstrap prints warnings in the error log.
---let $restart_parameters= restart: --no-console --log-error=$SEARCH_FILE
+--echo # Verify that the I_S query on bootstrap prints warnings in the error log
+--echo # when '--disable-partition-engine-check=0'.
+--let $restart_parameters= restart: --disable-partition-engine-check=0 --no-console --log-error=$SEARCH_FILE
 --replace_result $SEARCH_FILE LOG_FILE
 --source include/restart_mysqld.inc
 perl;

@@ -97,8 +97,12 @@ SET @group_replication_recovery_reconnect_interval_save= @@GLOBAL.group_replicat
 SET @group_replication_allow_local_disjoint_gtids_join_save= @@GLOBAL.group_replication_allow_local_disjoint_gtids_join;
 SET GLOBAL group_replication_recovery_reconnect_interval= 1;
 SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1;
+Warnings:
+Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
 STOP GROUP_REPLICATION;
 START GROUP_REPLICATION;
+Warnings:
+Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
 include/gr_wait_for_member_state.inc
 
 ############################################################
@@ -107,6 +111,8 @@ include/gr_wait_for_member_state.inc
 include/stop_group_replication.inc
 SET GLOBAL group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_save;
 SET GLOBAL group_replication_allow_local_disjoint_gtids_join= @group_replication_allow_local_disjoint_gtids_join_save;
+Warnings:
+Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
 ALTER EVENT e1 DISABLE;
 SET GLOBAL EVENT_SCHEDULER= OFF;
 DROP EVENT e1;

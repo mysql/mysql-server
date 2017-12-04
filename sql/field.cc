@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10881,7 +10881,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
   case MYSQL_TYPE_DATE:
     /* Old date type. */
     sql_type= MYSQL_TYPE_NEWDATE;
-    /* fall trough */
+    /* fall through */
   case MYSQL_TYPE_NEWDATE:
     length= MAX_DATE_WIDTH;
     break;
@@ -11600,9 +11600,11 @@ Field_temporal::set_datetime_warning(Sql_condition::enum_severity_level level,
     make_truncated_value_warning(thd, level, val, ts_type, field_name);
 }
 
-bool Field::is_part_of_actual_key(THD *thd, uint cur_index)
+bool Field::is_part_of_actual_key(THD *thd, uint cur_index, KEY *cur_index_info)
 {
-  return thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) ?
+  return
+    thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) &&
+    !(cur_index_info->flags & HA_NOSAME) ?
     part_of_key.is_set(cur_index) :
     part_of_key_not_extended.is_set(cur_index);
 }

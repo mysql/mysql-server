@@ -141,6 +141,7 @@ int Delayed_initialization_thread::launch_initialization_thread()
 int Delayed_initialization_thread::initialization_thread_handler()
 {
   DBUG_ENTER("initialize_thread_handler");
+  int error= 0;
 
   mysql_mutex_lock(&run_lock);
   thread_running= true;
@@ -155,12 +156,21 @@ int Delayed_initialization_thread::initialization_thread_handler()
   }
   mysql_mutex_unlock(&server_ready_lock);
 
-  DBUG_ASSERT(server_engine_initialized());
+  if (server_engine_initialized())
+  {
+    //Protect this delayed start against other start/stop requests
+    Mutex_autolock auto_lock_mutex(get_plugin_running_lock());
 
-  //Protect this delayed start against other start/stop requests
-  Mutex_autolock auto_lock_mutex(get_plugin_running_lock());
-
-  int error= initialize_plugin_and_join(PSESSION_INIT_THREAD, this);
+    error= initialize_plugin_and_join(PSESSION_INIT_THREAD, this);
+  }
+  else
+  {
+    error= 1;
+    log_message(MY_ERROR_LEVEL,
+                "Unable to start Group Replication. Replication applier "
+                "infrastructure is not initialized since the server was "
+                "started with --initialize or --initialize-insecure.");
+  }
 
   mysql_mutex_lock(&run_lock);
   thread_running= false;

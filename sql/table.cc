@@ -4702,8 +4702,24 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
   
-  bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
-  DBUG_ASSERT(!error);
+  /*
+    Do not call refix_gc_items() for tables which are not directly used by the
+    statement (i.e. used by the substatements of routines or triggers to be
+    invoked by the statement).
+
+    Firstly, there will be call to refix_gc_items() at the start of execution
+    of substatement which directly uses this table anyway.Secondly, cleanup of
+    generated column (call to cleanup_gc_items()) for the table will be done
+    only at the end of execution of substatement which uses it. Because of this
+    call to refix_gc_items() for prelocking placeholder will miss corresponding
+    call to cleanup_gc_items() if substatement which uses the table is not
+    executed for some reason.
+  */
+  if (!pos_in_table_list->prelocking_placeholder)
+  {
+    bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
+    DBUG_ASSERT(!error);
+  }
 }
 
 

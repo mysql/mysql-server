@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -320,11 +320,18 @@ void Sql_formatter::format_dump_start(
     if (*((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_ON) ||
         *((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_AUTO))
     {
-      if (!m_mysqldump_tool_options->m_dump_all_databases)
+      if (!m_mysqldump_tool_options->m_dump_all_databases &&
+          *((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_AUTO))
       {
         m_options->m_mysql_chain_element_options->get_program()->error(
           Mysql::Tools::Base::Message_data(1,
-          "A partial dump from a server that has GTIDs is not allowed.\n",
+          "A partial dump from a server that is using GTID-based replication "
+          "requires the --set-gtid-purged=[ON|OFF] option to be specified. Use ON "
+          "if the intention is to deploy a new replication slave using only some "
+          "of the data from the dumped server. Use OFF if the intention is to "
+          "repair a table by copying it within a topology, and use OFF if the "
+          "intention is to copy a table between replication topologies that are "
+          "disjoint and will remain so.\n",
           Mysql::Tools::Base::Message_type_error));
         return;
       }

@@ -1,0 +1,30 @@
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL);
+CREATE SPATIAL INDEX idx1 on tab(c2);
+INSERT INTO tab(c1,c2) VALUES(1,ST_GeomFromText('POINT(10 10)'));
+
+# On connection 1
+set transaction isolation level serializable ;
+START TRANSACTION;
+SELECT ST_AsText(c2) FROM tab WHERE MBRWithin(c2, ST_GeomFromText('POLYGON((5 5, 15 5, 15 15, 5 15, 5 5))'));
+ST_AsText(c2)
+POINT(10 10)
+
+# On connection 2
+start transaction;
+INSERT INTO tab(c1,c2) VALUES(7, ST_GeomFromText('POINT(11 11)'));;
+
+# On connection 3
+include/start_transaction_high_prio.inc
+START TRANSACTION /* HIGH PRIORITY */;
+INSERT INTO tab(c1,c2) VALUES(8, ST_GeomFromText('POINT(10 10)'));
+COMMIT;
+
+# On connection 1
+COMMIT;
+ERROR HY000: Got error 149 during COMMIT
+include/assert.inc ['There is a 8 in tab']
+SELECT c1 FROM tab;
+c1
+1
+8
+DROP TABLE tab;

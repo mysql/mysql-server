@@ -1,0 +1,73 @@
+#
+# Step-1) Create M1<->M2 replication topology
+#
+include/rpl_init.inc [topology=1->2->1]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+#
+# Step-2) Create a sample table to create ignored/skipped
+#         insert events on the table. And run some sample
+#         inserts on both nodes, so that initial hiccups
+#         in bytes used will not be counted.
+#
+[connection server_1]
+CREATE TABLE t1(i INT);
+include/rpl_sync.inc
+[connection server_1]
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+[connection server_2]
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+include/rpl_sync.inc
+#
+# Step-3) If gtid_mode is OFF, set sql_slave_skip_counter to 50 on
+#         M2 node and restart sql thread to make the change effective.
+#
+#         If gtid_mode is ON, execute 50 empty transactions on
+#         M2 node, so that 50 transactions from M1 will be skipped.
+#
+[connection server_2]
+include/stop_slave_sql.inc
+include/start_slave_sql.inc
+#
+# Step-4) Record thd::main_mem_root usage values on both servers before
+#         starting the experiment.
+#
+[connection server_1]
+[connection server_2]
+#
+# Step-5) Insert 100 sample queries on M1 node. First 50 inserts will
+#         be ignored on M2 node (because sql_slave_skip_counter set to
+#         50). Second 50 inserts will be executed on M2 and will be
+#         replicated back to M1 node. But they will be ignored on M1
+#         because they were originated on M1 node.
+#
+[connection server_1]
+include/rpl_sync.inc
+[connection server_2]
+INSERT INTO t1 VALUES (100);
+include/rpl_sync.inc
+#
+# Step-6) Record thd::main_mem_root usage value on M1 after
+#         the experiment. Check that thd::main_mem_root value
+#         did not increased.
+#
+[connection server_1]
+include/assert.inc [thd::main_mem_root on M1 should be the same value as before experiment value.]
+#
+# Step-7) Record thd::main_mem_root usage value on M2 after
+#         the experiment. Check that thd::main_mem_root value
+#         did not increased.
+#
+[connection server_2]
+include/assert.inc [thd::main_mem_root on M2 should be the same value as before experiment value.]
+#
+# Step-8) Cleanup.
+#
+DROP TABLE t1;
+include/rpl_end.inc

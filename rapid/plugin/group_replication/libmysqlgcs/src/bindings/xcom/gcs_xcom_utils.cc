@@ -1149,7 +1149,7 @@ is_parameters_syntax_correct(const Gcs_interface_parameters &interface_params)
     }
 
     // hostname was validated already, lets find the IP
-    if (get_ipv4_addr_from_hostname(host, ip))
+    if (resolve_ip_addr_from_hostname(host, ip))
     {
       MYSQL_GCS_LOG_ERROR("Unable to translate hostname " << host <<
                           " to IP address!");

@@ -826,6 +826,7 @@ public:
         is_handled= false;
         break;
       }
+      // Fall through
     case ER_COLUMNACCESS_DENIED_ERROR:
     // ER_VIEW_NO_EXPLAIN cannot happen here.
     case ER_PROCACCESS_DENIED_ERROR:
@@ -8178,7 +8179,7 @@ bool get_schema_tables_result(JOIN *join,
   {
     QEP_TAB *const tab= join->qep_tab + i;
     if (!tab->table() || !tab->table_ref)
-      break;
+      continue;
 
     TABLE_LIST *const table_list= tab->table_ref;
     if (table_list->schema_table && thd->fill_information_schema_tables())
