@@ -4838,6 +4838,7 @@ Item_copy_json::save_in_field_inner(Field *field, bool no_conversions)
   }
   else
   {
+    str_value.length(0);
     if (m_value->to_string(&str_value, true, item_name.ptr()))
       return set_field_to_null(field);        /* purecov: inspected */
     return save_str_value_in_field(field, &str_value);
@@ -9090,7 +9091,7 @@ Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
 bool Item_insert_value::eq(const Item *item, bool binary_cmp) const
 {
   return item->type() == INSERT_VALUE_ITEM &&
-    ((Item_default_value *)item)->arg->eq(arg, binary_cmp);
+    (down_cast<const Item_insert_value *>(item))->arg->eq(arg, binary_cmp);
 }
 
 

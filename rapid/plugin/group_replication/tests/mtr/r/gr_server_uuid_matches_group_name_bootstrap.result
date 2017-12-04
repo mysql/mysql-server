@@ -11,7 +11,6 @@ SET @debug_group_replication_local_address= @@GLOBAL.group_replication_local_add
 [connection server1]
 # restart:--group_replication_group_name=MEMBER_UUID --group_replication_bootstrap_group=ON --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_start_on_boot=1
 include/assert.inc ['Assert server1 do not join group when server_uuid and group_name are same.']
-include/assert_grep.inc [Found the expected error about server_uuid incompatible with the group_name]
 
 ###########################
 ##  SUCCESSFUL SCENARIO  ##
@@ -23,6 +22,12 @@ include/assert.inc ['Assert server1 joins group when server_uuid and group_name 
 SET GLOBAL group_replication_bootstrap_group=OFF;
 include/start_group_replication.inc
 include/assert.inc ['Assert server2 joins group when server_uuid and group_name are different.']
+
+############################
+##  VALIDATE ERROR LOGGED ##
+############################
+
+include/assert_grep.inc [Found the expected error about server_uuid incompatible with the group_name]
 
 ###############
 ##  Cleanup  ##

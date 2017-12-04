@@ -1,0 +1,135 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+TRUNCATE TABLE performance_schema.events_transactions_current;
+[connection master]
+CREATE TABLE t ( f INT) ENGINE=INNODB;
+XA START 'xatest';
+INSERT INTO t VALUES (10);
+XA END 'xatest';
+XA PREPARE 'xatest';
+[connection slave]
+# Wait until SQL thread reaches desired master binlog position
+include/wait_for_slave_param.inc [Relay_Master_Log_File]
+include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	6	0	xatest
+####################################################################
+# Asserting XA_STATE is PREPARED on Slave
+####################################################################
+include/assert.inc [Verify that XA_STATE is set PREPARED.]
+[connection master]
+XA COMMIT 'xatest';
+include/sync_slave_sql_with_master.inc
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+####################################################################
+# Asserting XA_STATE is COMMITTED on Slave
+####################################################################
+include/assert.inc [Verify that XA_STATE is set COMMITTED.]
+include/assert.inc [Expected gtid is MASTER_UUID:3]
+include/diff_tables.inc [master:t,slave:t]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+include/rpl_reset.inc
+####################################################################
+# Test Case 2: Enable Multithreaded Slave with slave_parallel_type as
+# DATABASE. Verify that slave displays appropriate XA_STATE in
+# performance schema table, post XA PREPARE AND XA COMMIT command
+# execution.
+####################################################################
+[connection slave]
+SET @save_slave_parallel_workers=@@global.slave_parallel_workers;
+SET @slave_parallel_type=@@global.slave_parallel_type;
+include/stop_slave.inc
+SET GLOBAL slave_parallel_workers=4;
+SET GLOBAL slave_parallel_type='DATABASE';
+include/start_slave.inc
+[connection slave]
+TRUNCATE TABLE performance_schema.events_transactions_current;
+[connection master]
+CREATE TABLE t ( f INT) ENGINE=INNODB;
+XA START 'xatest';
+INSERT INTO t VALUES (10);
+XA END 'xatest';
+XA PREPARE 'xatest';
+[connection slave]
+# Wait until SQL thread reaches desired master binlog position
+include/wait_for_slave_param.inc [Relay_Master_Log_File]
+include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	6	0	xatest
+####################################################################
+# Asserting XA_STATE is PREPARED on Slave
+####################################################################
+include/assert.inc [Verify that XA_STATE is set PREPARED.]
+[connection master]
+XA COMMIT 'xatest';
+include/sync_slave_sql_with_master.inc
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+####################################################################
+# Asserting XA_STATE is COMMITTED on Slave
+####################################################################
+include/assert.inc [Verify that XA_STATE is set COMMITTED.]
+include/assert.inc [Expected gtid is MASTER_UUID:3]
+include/diff_tables.inc [master:t,slave:t]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+include/rpl_reset.inc
+####################################################################
+# Test Case 3: Enable Multithreaded Slave with slave_parallel_type as
+# LOGICAL_CLOCK. Verify that slave displays appropriate XA_STATE in
+# performance schema table, post XA PREPARE AND XA COMMIT command
+# execution.
+####################################################################
+include/stop_slave.inc
+SET GLOBAL slave_parallel_workers=4;
+SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
+include/start_slave.inc
+[connection slave]
+TRUNCATE TABLE performance_schema.events_transactions_current;
+[connection master]
+CREATE TABLE t ( f INT) ENGINE=INNODB;
+XA START 'xatest';
+INSERT INTO t VALUES (10);
+XA END 'xatest';
+XA PREPARE 'xatest';
+[connection slave]
+# Wait until SQL thread reaches desired master binlog position
+include/wait_for_slave_param.inc [Relay_Master_Log_File]
+include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	6	0	xatest
+####################################################################
+# Asserting XA_STATE is PREPARED on Slave
+####################################################################
+include/assert.inc [Verify that XA_STATE is set PREPARED.]
+[connection master]
+XA COMMIT 'xatest';
+include/sync_slave_sql_with_master.inc
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+####################################################################
+# Asserting XA_STATE is COMMITTED on Slave
+####################################################################
+include/assert.inc [Verify that XA_STATE is set COMMITTED.]
+include/assert.inc [Expected gtid is MASTER_UUID:3]
+include/diff_tables.inc [master:t,slave:t]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/stop_slave.inc
+set @@global.slave_parallel_workers= @save_slave_parallel_workers;
+set @@global.slave_parallel_type= @slave_parallel_type;
+include/start_slave.inc
+include/rpl_end.inc

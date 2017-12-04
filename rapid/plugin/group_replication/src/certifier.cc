@@ -1214,6 +1214,9 @@ bool Certifier::set_group_stable_transactions_set(Gtid_set* executed_gtid_set)
 void Certifier::garbage_collect()
 {
   DBUG_ENTER("Certifier::garbage_collect");
+  DBUG_EXECUTE_IF("group_replication_do_not_clear_certification_database",
+                    { DBUG_VOID_RETURN; };);
+
   mysql_mutex_lock(&LOCK_certification_info);
 
   /*

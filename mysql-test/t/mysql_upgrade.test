@@ -1179,6 +1179,22 @@ SET sql_mode= @orig_sql_mode;
 --echo Check mysql.proc structure
 SHOW CREATE TABLE mysql.proc;
 
+--echo #
+--echo # BUG#26727481: SEGMENTATION FAULT DURING MYSQL_UPGRADE IN 8.0.3
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--copy_file std_data/41_decimal.frm $MYSQLD_DATADIR/test/t1.frm
+--copy_file std_data/41_decimal.MYD $MYSQLD_DATADIR/test/t1.MYD
+--copy_file std_data/41_decimal.MYI $MYSQLD_DATADIR/test/t1.MYI
+
+--echo #mysql_upgrade will not fix pre 5.0 decimal types.
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo #re-execute mysql_upgrade to check consistency
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+DROP TABLE t1;
 
 --source include/mysql_upgrade_cleanup.inc
 

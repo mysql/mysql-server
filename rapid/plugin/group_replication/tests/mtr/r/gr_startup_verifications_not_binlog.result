@@ -6,4 +6,4 @@ START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 call mtr.add_suppression("Binlog must be enabled for Group Replication");
 call mtr.add_suppression("You need to use --log-bin");
-call mtr.add_suppression("slave_preserve_commit_order is not supported unless the binlog and log_slave update options are both enabled.");
+call mtr.add_suppression("slave_preserve_commit_order is not supported unless both log_bin and log_slave_updates are enabled.");

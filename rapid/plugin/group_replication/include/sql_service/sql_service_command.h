@@ -210,6 +210,8 @@ private:
   long m_method_execution_return_value;
   /** Session thread running flag */
   bool m_session_thread_running;
+  /** Session thread starting flag */
+  bool m_session_thread_starting;
   /** Session termination flag */
   bool m_session_thread_terminate;
   /** Session tread error flag */

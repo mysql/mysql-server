@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("LOG_SLAVE_UPDATES should be ON for Group Replication");
-call mtr.add_suppression("slave_preserve_commit_order is not supported unless the binlog and log_slave update options are both enabled.");
+call mtr.add_suppression("slave_preserve_commit_order is not supported unless both log_bin and log_slave_updates are enabled.");
 SET SESSION sql_log_bin= 1;
 include/assert.inc [LOG_SLAVE_UPDATES is set to OFF]
 #

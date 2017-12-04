@@ -4738,6 +4738,31 @@ void pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc)
   return;
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::end_file_rename_wait.
+*/
+void pfs_end_file_rename_wait_v1(PSI_file_locker *locker, const char *old_name,
+                                 const char *new_name, int rc)
+{
+  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+  DBUG_ASSERT(state->m_operation == PSI_FILE_RENAME);
+
+  if (rc == 0)
+  {
+    PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+
+    uint old_len= (uint)strlen(old_name);
+    uint new_len= (uint)strlen(new_name);
+
+    find_and_rename_file(thread, old_name, old_len, new_name, new_len);
+  }
+
+  pfs_end_file_wait_v1(locker, 0);
+  return;
+}
+
 PSI_stage_progress*
 pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
 {
@@ -6389,6 +6414,26 @@ void pfs_reprepare_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
   return;
 }
 
+void pfs_set_prepared_stmt_text_v1(PSI_prepared_stmt *prepared_stmt,
+                                   const char *text,
+                                   uint text_len)
+{
+  PFS_prepared_stmt *pfs_prepared_stmt =
+    reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
+  DBUG_ASSERT(pfs_prepared_stmt != NULL);
+
+  uint max_len = COL_INFO_SIZE;
+  if (text_len > max_len)
+  {
+    text_len = max_len;
+  }
+
+  memcpy(pfs_prepared_stmt->m_sqltext, text, text_len);
+  pfs_prepared_stmt->m_sqltext_length = text_len;
+
+  return;
+}
+
 /**
   Implementation of the thread attribute connection interface
   @sa PSI_v1::set_thread_connect_attr.
@@ -7006,6 +7051,7 @@ PSI_v1 PFS_v1=
   pfs_end_file_wait_v1,
   pfs_start_file_close_wait_v1,
   pfs_end_file_close_wait_v1,
+  pfs_end_file_rename_wait_v1,
   pfs_start_stage_v1,
   pfs_get_current_stage_progress_v1,
   pfs_end_stage_v1,
@@ -7049,6 +7095,7 @@ PSI_v1 PFS_v1=
   pfs_destroy_prepared_stmt_v1,
   pfs_reprepare_prepared_stmt_v1,
   pfs_execute_prepared_stmt_v1,
+  pfs_set_prepared_stmt_text_v1,
   pfs_digest_start_v1,
   pfs_digest_end_v1,
   pfs_set_thread_connect_attrs_v1,

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,10 +39,14 @@ Table::Table(uint64 id, const std::string& name, const std::string& schema,
   for (std::vector<std::string>::iterator it= definition_lines.begin();
     it != definition_lines.end(); ++it)
   {
+    /*
+      MAINTAINER: This code parses the output of SHOW CREATE TABLE.
+      @TODO: Instead, look up INFORMATION_SCHEMA and get the table details.
+    */
+
     boost::trim_left(*it);
     if (!engine_line_read)
       boost::trim_if(*it, boost::is_any_of(","));
-    // TODO: Look up INFORMATION_SCHEMA and get the table details.
     if (boost::starts_with(*it, "KEY ")
       || boost::starts_with(*it, "INDEX ")
       || boost::starts_with(*it, "UNIQUE KEY ")
@@ -57,7 +61,12 @@ Table::Table(uint64 id, const std::string& name, const std::string& schema,
     }
     else
     {
-      if (boost::starts_with(*it, ") ENGINE="))
+      /*
+        Make sure we detect the table options clauses,
+        even with different syntaxes (with or without TABLESPACE)
+      */
+      if (boost::starts_with(*it, ")") &&
+          boost::contains(*it, "ENGINE="))
       {
         engine_line_read= true;
         std::string &sql_def = m_sql_definition_without_indexes;

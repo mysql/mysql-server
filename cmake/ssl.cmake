@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -87,6 +87,7 @@ MACRO (MYSQL_CHECK_SSL)
   FILE(GLOB WITH_SSL_HEADER ${WITH_SSL}/include/openssl/ssl.h)
   IF (WITH_SSL_HEADER)
     SET(WITH_SSL_PATH ${WITH_SSL} CACHE PATH "path to custom SSL installation")
+    SET(WITH_SSL_PATH ${WITH_SSL})
   ENDIF()
 
   IF(WITH_SSL STREQUAL "bundled")
@@ -187,7 +188,7 @@ MACRO (MYSQL_CHECK_SSL)
     # and we have found static libraries, then link them statically
     # into our executables and libraries.
     # Adding IMPORTED_LOCATION allows MERGE_STATIC_LIBS
-    # to get LOCATION and do correct dependency analysis.
+    # to merge imported libraries as well as our own libraries.
     SET(MY_CRYPTO_LIBRARY "${CRYPTO_LIBRARY}")
     SET(MY_OPENSSL_LIBRARY "${OPENSSL_LIBRARY}")
     IF (WITH_SSL_PATH)
@@ -195,15 +196,11 @@ MACRO (MYSQL_CHECK_SSL)
       GET_FILENAME_COMPONENT(OPENSSL_EXT "${OPENSSL_LIBRARY}" EXT)
       IF (CRYPTO_EXT STREQUAL ".a" OR OPENSSL_EXT STREQUAL ".lib")
         SET(MY_CRYPTO_LIBRARY imported_crypto)
-        ADD_LIBRARY(imported_crypto STATIC IMPORTED)
-        SET_TARGET_PROPERTIES(imported_crypto
-          PROPERTIES IMPORTED_LOCATION "${CRYPTO_LIBRARY}")
+        ADD_IMPORTED_LIBRARY(imported_crypto "${CRYPTO_LIBRARY}")
       ENDIF()
       IF (OPENSSL_EXT STREQUAL ".a" OR OPENSSL_EXT STREQUAL ".lib")
         SET(MY_OPENSSL_LIBRARY imported_openssl)
-        ADD_LIBRARY(imported_openssl STATIC IMPORTED)
-        SET_TARGET_PROPERTIES(imported_openssl
-          PROPERTIES IMPORTED_LOCATION "${OPENSSL_LIBRARY}")
+        ADD_IMPORTED_LIBRARY(imported_openssl "${OPENSSL_LIBRARY}")
       ENDIF()
     ENDIF()
 
@@ -269,7 +266,9 @@ MACRO (COPY_OPENSSL_DLLS target_name)
     GET_FILENAME_COMPONENT(OPENSSL_NAME "${OPENSSL_LIBRARY}" NAME_WE)
     FILE(GLOB HAVE_CRYPTO_DLL "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll")
     FILE(GLOB HAVE_OPENSSL_DLL "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll")
-    IF (HAVE_CRYPTO_DLL AND HAVE_OPENSSL_DLL)
+    MESSAGE(STATUS "HAVE_CRYPTO_DLL ${HAVE_CRYPTO_DLL}")
+    MESSAGE(STATUS "HAVE_OPENSSL_DLL ${HAVE_OPENSSL_DLL}")
+    IF(HAVE_CRYPTO_DLL AND HAVE_OPENSSL_DLL)
       ADD_CUSTOM_COMMAND(OUTPUT ${target_name}
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
           "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll"

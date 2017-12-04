@@ -224,3 +224,37 @@ my_bool mysql_key_remove(boost::movelib::unique_ptr<IKey> key_to_remove)
   mysql_rwlock_unlock(&LOCK_keyring);
   return retval;
 }
+
+my_bool mysql_keyring_iterator_init(Keys_iterator *key_iterator)
+{
+  mysql_rwlock_rdlock(&LOCK_keyring);
+  key_iterator->init();
+  mysql_rwlock_unlock(&LOCK_keyring);
+  return false;
+}
+
+void mysql_keyring_iterator_deinit(Keys_iterator *key_iterator)
+{
+  key_iterator->deinit();
+}
+
+bool mysql_keyring_iterator_get_key(Keys_iterator *key_iterator,
+                                    char *key_id, char *user_id)
+{
+  keyring::Key_metadata *key_loaded= NULL;
+  bool error= key_iterator->get_key(&key_loaded);
+  if (error == FALSE && key_loaded != NULL)
+  {
+    if (key_id)
+      strcpy(key_id, key_loaded->id->c_str());
+    if (user_id)
+      strcpy(user_id, key_loaded->user->c_str());
+    delete key_loaded;
+  }
+  else if (error == FALSE && key_loaded == NULL)
+  {
+    /* no keys exists or all keys are read */
+    return TRUE;
+  }
+  return error;
+}

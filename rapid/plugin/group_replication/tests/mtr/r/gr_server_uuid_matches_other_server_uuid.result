@@ -1,0 +1,46 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap a group on server1, forcing server1 uuid to
+#    "cccccccc-cccc-cccc-cccc-cccccccccccc".
+[connection server1]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_force_member_uuid';
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+SET GLOBAL group_replication_bootstrap_group= 1;
+START GROUP_REPLICATION;
+
+############################################################
+# 2. Try to join a second member to the group with the same
+#    server uuid as server1. The join must fail.
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There is already a member with server_uuid cccccccc-cccc-cccc-cccc-cccccccccccc. The member will now exit the group.");
+SET SESSION sql_log_bin= 1;
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_force_member_uuid';
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+
+############################################################
+# 3. Assert that group membership is reported properly on
+#    both servers.
+[connection server2]
+include/assert.inc [Member2 only reports one member]
+include/assert.inc [Member2 is reported as OFFLINE]
+[connection server1]
+include/assert.inc [Member1 only reports one member]
+include/assert.inc [Member1 is reported as ONLINE]
+
+############################################################
+# 4. Clean up.
+[connection server1]
+SET @@GLOBAL.DEBUG= @debug_save;
+[connection server2]
+SET @@GLOBAL.DEBUG= @debug_save;
+include/group_replication_end.inc

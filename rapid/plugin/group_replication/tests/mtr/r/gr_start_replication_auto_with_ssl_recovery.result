@@ -37,10 +37,6 @@ set session sql_log_bin=1;
 include/stop_group_replication.inc
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 RESET MASTER;
-SET GLOBAL AUTO_INCREMENT_INCREMENT= 1;
-SET GLOBAL AUTO_INCREMENT_OFFSET= 1;
 include/stop_group_replication.inc
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 RESET MASTER;
-SET GLOBAL AUTO_INCREMENT_INCREMENT= 7;
-SET GLOBAL AUTO_INCREMENT_OFFSET= 1;

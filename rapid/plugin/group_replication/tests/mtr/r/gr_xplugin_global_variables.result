@@ -153,6 +153,8 @@ Mysqlx.Ok {
 }
 ok
 START GROUP_REPLICATION;
+Warnings:
+Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
 include/assert.inc [group_replication_allow_local_disjoint_gtids_join is ON]
 include/assert.inc [group_replication_allow_local_lower_version_join is ON]
 include/assert.inc [group_replication_auto_increment_increment is 5]
@@ -185,6 +187,8 @@ include/assert.inc [group_replication_start_on_boot is ON]
 include/assert.inc [group_replication_ssl_mode is VERIFY_CA]
 include/stop_group_replication.inc
 SET GLOBAL group_replication_allow_local_disjoint_gtids_join= @group_replication_allow_local_disjoint_gtids_join_save;
+Warnings:
+Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
 SET GLOBAL group_replication_allow_local_lower_version_join= @group_replication_allow_local_lower_version_join_save;
 SET GLOBAL group_replication_auto_increment_increment= @group_replication_auto_increment_increment_save;
 SET GLOBAL group_replication_components_stop_timeout= @group_replication_components_stop_timeout_save;

@@ -92,24 +92,6 @@ SET @@GLOBAL.null_audit_abort_message= NULL;
 # Let's hope 10000 calls will overrun the stack frame
 SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 0;
 
---echo # test
-connect(user1_con,localhost,root,);
-
-SET @@null_audit_event_order_check= "MYSQL_AUDIT_GENERAL_ERROR;;ABORT_RET";
-SET @@null_audit_abort_message= "Abort message.";
---echo # Try to enter error state infinitely. my_message calls will overrun the stack frame.
-SET @@null_audit_event_order_check_consume_ignore_count= 10000;
-
---echo # Must not crash
---replace_regex /[0-9]+ byte[s]?/<NUMBER>/
---error ER_NO_SUCH_TABLE
-SELECT 1 FROM mysql.fictional_table;
-SELECT @@null_audit_event_order_check_consume_ignore_count;
-
---echo # Clean up
-connection default;
-disconnect user1_con;
-
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
 

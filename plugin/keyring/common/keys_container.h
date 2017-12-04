@@ -25,12 +25,17 @@
 #include "i_keys_container.h"
 #include "keyring_memory.h"
 
+#include <vector>
+
 namespace keyring {
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 class Keys_container : public IKeys_container
 {
+private:
+  bool remove_keys_metadata(IKey *key);
+  void store_keys_metadata(IKey *key);
 public:
   Keys_container(ILogger* logger);
   my_bool init(IKeyring_io* keyring_io, std::string keyring_storage_url);
@@ -38,6 +43,11 @@ public:
   IKey* fetch_key(IKey *key);
   my_bool remove_key(IKey *key);
   std::string get_keyring_storage_url();
+  std::vector<Key_metadata> get_keys_metadata()
+  {
+    return keys_metadata;
+  }
+
 
   ~Keys_container();
 
@@ -60,6 +70,7 @@ protected:
   virtual my_bool flush_to_storage(IKey *key, Key_operation operation);
 
   HASH *keys_hash;
+  std::vector<Key_metadata> keys_metadata;
   ILogger *logger;
   IKeyring_io *keyring_io;
   std::string keyring_storage_url;

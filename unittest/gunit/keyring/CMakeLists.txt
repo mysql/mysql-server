@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ IF (MERGE_UNITTESTS)
   LIST(APPEND SRC_FILES
        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_iterator.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc

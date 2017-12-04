@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -182,6 +182,9 @@ This function creates its own transaction and commits it.
 dberr_t
 dict_stats_rename_table(
 /*====================*/
+	bool		dict_locked,	/*!< in: true if dict_sys mutex
+                                        and dict_operation_lock are held,
+                                        otherwise false*/
 	const char*	old_name,	/*!< in: old table name */
 	const char*	new_name,	/*!< in: new table name */
 	char*		errstr,		/*!< out: error string if != DB_SUCCESS

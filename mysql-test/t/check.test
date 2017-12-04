@@ -81,6 +81,21 @@ UNLOCK TABLES;
 DROP TABLE t1;
 disconnect con1;
 
+--echo #
+--echo # BUG#26727481: SEGMENTATION FAULT DURING MYSQL_UPGRADE IN 8.0.3
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--copy_file std_data/41_decimal.frm $MYSQLD_DATADIR/test/t1.frm
+--copy_file std_data/41_decimal.MYD $MYSQLD_DATADIR/test/t1.MYD
+--copy_file std_data/41_decimal.MYI $MYSQLD_DATADIR/test/t1.MYI
+
+CHECK TABLE t1;
+CHECK TABLE t1 FOR UPGRADE;
+REPAIR TABLE t1;
+--echo #REPAIR TABLE does not fix pre 5.0 decimal types.
+CHECK TABLE t1;
+DROP TABLE t1;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
