@@ -1186,7 +1186,7 @@ fi
 %endif # cluster
 
 %changelog
-* Wed 08 2017 Bharathy Satish <bharathy.x.satish@oracle.com> - 5.7.21-1
+* Wed Nov 08 2017 Bharathy Satish <bharathy.x.satish@oracle.com> - 5.7.21-1
 - Add keyring_encrypted_file.so plugin
 
 * Tue Oct 31 2017 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.21-1
