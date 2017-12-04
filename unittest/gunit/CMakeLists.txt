@@ -326,6 +326,7 @@ SET(TESTS
   nullable
   opt_recperkey
   partitioned_rwlock
+  pattern_matcher
   prealloced_array
   priority_queue
   record_buffer
