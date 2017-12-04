@@ -11053,6 +11053,9 @@ ER_EMPTY_PIPELINE_FOR_ERROR_LOG_SERVICE
 ER_COMPONENT_FILTER_DIAGNOSTICS
   eng "filter %s: %s"
 
+ER_CREATING_NEW_UUID_FIRST_START
+  eng "Generating a new UUID: %s."
+
 ER_NOT_IMPLEMENTED_FOR_CARTESIAN_SRS 22S00
   eng "%.192s(%.80s) has not been implemented for Cartesian spatial reference systems."
 
