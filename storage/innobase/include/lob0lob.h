@@ -185,6 +185,9 @@ private:
 		const page_size_t&	page_size,
 		const ulint		lob_length)
 	{
+		/* Disable a performance optimization */
+		return(true);
+
 		const ulint limit
 			= page_size.physical() * LOB_BIG_THRESHOLD_SIZE;
 		return(lob_length >= limit);
@@ -195,6 +198,9 @@ private:
 	@return true if LOB is big enough, false otherwise. */
 	bool is_big(const page_size_t& page_size) const
 	{
+		/* Disable a performance optimization */
+		return(true);
+
 		const ulint limit
 			= page_size.physical() * LOB_BIG_THRESHOLD_SIZE;
 		const ulint lob_length = length();
