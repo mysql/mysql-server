@@ -2592,3 +2592,35 @@ TABLE_ROWS
 DROP TABLE t1;
 SET SESSION TIMESTAMP=default;
 SET SESSION collation_connection=default;
+#
+# Bug#27041323 INNODB: ASSERTION FAILURE:
+# REM0REC.CC:372:LEN <= COL->LEN || ((COL->MTYPE)==5...
+#
+CREATE TABLE t1(c1 INT,c2 CHAR (1)COMMENT'')
+COMMENT='abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghi
+jabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefg
+hijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde
+fghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabc
+defghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghija
+bcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghi
+jabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefg
+hijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde
+fghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabc
+defghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghija
+bcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghi
+jabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefg
+hijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde
+fghijabcdefghijabcde';
+SET big_tables=1;
+SET character_set_connection=ucs2;
+# The below statement asserts or shows comment text in ucs2 instead of
+# using system charset, when run without the fix.
+SHOW TABLE STATUS;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Dynamic	0	0	#	#	0	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghi
+jabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefg
+hijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde
+fghijabcdefghijabcdefghijabc
+SET big_tables=default;
+SET character_set_connection=default;
+DROP TABLE t1;

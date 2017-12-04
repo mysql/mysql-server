@@ -1199,6 +1199,17 @@ bool opt_relaylog_index_name_supplied= false;
   config file or command line.
 */
 bool opt_relay_logname_supplied= false;
+/*
+  True if --log-slave-updates option is set explicitly
+  on command line or configuration file.
+*/
+bool log_slave_updates_supplied= false;
+
+/*
+  True if --slave-preserve-commit-order-supplied option is set explicitly
+  on command line or configuration file.
+*/
+bool slave_preserve_commit_order_supplied= false;
 char *opt_general_logname, *opt_slow_logname, *opt_bin_logname;
 
 /* Static variables */
@@ -3498,6 +3509,29 @@ int init_common_variables()
 
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
+
+  /*
+    The opt_bin_log can be false (binary log is disabled) only if
+    --skip-log-bin/--disable-log-bin is configured or while the
+    system is initializing.
+  */
+  if (!opt_bin_log)
+  {
+    /*
+      The log-slave-updates should be disabled if binary log is disabled
+      and --log-slave-updates option is not set explicitly on command
+      line or configuration file.
+    */
+    if (!log_slave_updates_supplied)
+      opt_log_slave_updates= false;
+    /*
+      The slave-preserve-commit-order should be disabled if binary log is
+      disabled and --slave-preserve-commit-order option is not set
+      explicitly on command line or configuration file.
+    */
+    if (!slave_preserve_commit_order_supplied)
+      opt_slave_preserve_commit_order= false;
+  }
 
   update_parser_max_mem_size();
 
@@ -8952,6 +8986,12 @@ pfs_error:
   case OPT_KEYRING_MIGRATION_PORT:
     migrate_connect_options= 1;
     break;
+  case OPT_LOG_SLAVE_UPDATES:
+    log_slave_updates_supplied= true;
+    break;
+  case OPT_SLAVE_PRESERVE_COMMIT_ORDER:
+    slave_preserve_commit_order_supplied= true;
+    break;
   case OPT_ENFORCE_GTID_CONSISTENCY:
   {
     const char *wrong_value=
@@ -9660,6 +9700,41 @@ static int test_if_case_insensitive(const char *dir_name)
 static void create_pid_file()
 {
   File file;
+  bool check_parent_path= 1, is_path_accessible= 1;
+  char pid_filepath[FN_REFLEN], *pos= NULL;
+  /* Copy pid file name to get pid file path */
+  strcpy(pid_filepath, pidfile_name);
+
+  /* Iterate through the entire path to check if even one of the sub-dirs
+     is world-writable */
+  while (check_parent_path && (pos= strrchr(pid_filepath, FN_LIBCHAR))
+         && (pos != pid_filepath)) /* shouldn't check root */
+  {
+    *pos= '\0';  /* Trim the inner-most dir */
+    switch (is_file_or_dir_world_writable(pid_filepath))
+    {
+      case -2:
+        is_path_accessible= 0;
+        break;
+      case -1:
+        sql_print_error("Can't start server: can't check PID filepath: %s",
+                        strerror(errno));
+        exit(MYSQLD_ABORT_EXIT);
+      case 1:
+        sql_print_warning("Insecure configuration for --pid-file: Location "
+                          "'%s' in the path is accessible to all OS users. "
+                          "Consider choosing a different directory.",
+                          pid_filepath);
+        check_parent_path= 0;
+        break;
+      case 0:
+        continue; /* Keep checking the parent dir */
+    }
+  }
+  if (!is_path_accessible)
+  {
+    sql_print_warning("Few location(s) are inaccessible while checking PID filepath.");
+  }
   if ((file= mysql_file_create(key_file_pid, pidfile_name, 0664,
                                O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
   {

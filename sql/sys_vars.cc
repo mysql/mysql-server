@@ -3779,7 +3779,8 @@ static Sys_var_bool Sys_slave_preserve_commit_order(
        "slave_preserve_commit_order",
        "Force slave workers to make commits in the same order as on the master. "
        "Enabled by default.",
-       GLOBAL_VAR(opt_slave_preserve_commit_order), CMD_LINE(OPT_ARG),
+       GLOBAL_VAR(opt_slave_preserve_commit_order),
+       CMD_LINE(OPT_ARG, OPT_SLAVE_PRESERVE_COMMIT_ORDER),
        DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
@@ -5625,7 +5626,8 @@ static Sys_var_set Sys_log_output(
 static Sys_var_bool Sys_log_slave_updates(
        "log_slave_updates", "Tells the slave to log the updates from "
        "the slave thread to the binary log.",
-       READ_ONLY GLOBAL_VAR(opt_log_slave_updates), CMD_LINE(OPT_ARG),
+       READ_ONLY GLOBAL_VAR(opt_log_slave_updates),
+       CMD_LINE(OPT_ARG, OPT_LOG_SLAVE_UPDATES),
        DEFAULT(1));
 
 static Sys_var_charptr Sys_relay_log(

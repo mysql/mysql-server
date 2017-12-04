@@ -2371,3 +2371,35 @@ SELECT table_rows FROM information_schema.tables WHERE table_name='t1';
 DROP TABLE t1;
 SET SESSION TIMESTAMP=default;
 SET SESSION collation_connection=default;
+
+--echo #
+--echo # Bug#27041323 INNODB: ASSERTION FAILURE:
+--echo # REM0REC.CC:372:LEN <= COL->LEN || ((COL->MTYPE)==5...
+--echo #
+
+CREATE TABLE t1(c1 INT,c2 CHAR (1)COMMENT'')
+COMMENT='abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghi
+jabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefg
+hijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde
+fghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabc
+defghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghija
+bcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghi
+jabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefg
+hijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde
+fghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabc
+defghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghija
+bcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghi
+jabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefg
+hijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde
+fghijabcdefghijabcde';
+SET big_tables=1;
+SET character_set_connection=ucs2;
+
+--echo # The below statement asserts or shows comment text in ucs2 instead of
+--echo # using system charset, when run without the fix.
+--replace_column 7 # 8 # 12 # 13 #
+SHOW TABLE STATUS;
+
+SET big_tables=default;
+SET character_set_connection=default;
+DROP TABLE t1;
