@@ -51,4 +51,4 @@ ADD_CONVENIENCE_LIBRARY(ndbNDBT
 	HugoQueryBuilder.cpp
         HugoQueries.cpp
 )
-TARGET_LINK_LIBRARIES(ndbNDBT ${LIBM})
+TARGET_LINK_LIBRARIES(ndbNDBT ${LIBM} mysys_ssl)

@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -59,6 +59,7 @@ SET(BINS
 FOREACH(B ${BINS})
   TARGET_LINK_LIBRARIES(${B} ndbNDBT)
   TARGET_LINK_LIBRARIES(${B} ndbclient_so)
+  TARGET_LINK_LIBRARIES(${B} mysys_ssl)
 ENDFOREACH()
 
 INSTALL(TARGETS ${BINS} DESTINATION bin)
