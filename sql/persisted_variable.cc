@@ -517,7 +517,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
   {
     if (!(thd= new THD))
     {
-      LogErr(ERROR_LEVEL, ER_CANT_SET_PERSISTED);
+      LogErr(ERROR_LEVEL, ER_FAILED_TO_SET_PERSISTED_OPTIONS);
       return 1;
     }
     thd->thread_stack= (char*) &thd;
@@ -615,9 +615,9 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
       else
       {
         if (thd->is_error())
-          sql_print_error("%s", thd->get_stmt_da()->message_text());
+          LogErr(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno());
         else
-          LogErr(ERROR_LEVEL, ER_CANT_SET_PERSISTED);
+          LogErr(ERROR_LEVEL, ER_FAILED_TO_SET_PERSISTED_OPTIONS);
       }
     result= 1;
     goto err;

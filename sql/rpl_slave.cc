@@ -548,8 +548,8 @@ int init_slave()
                                 mi,
                                 thread_mask))
         {
-          sql_print_error("Failed to start slave threads for channel '%s'",
-                          mi->get_channel());
+          LogErr(ERROR_LEVEL, ER_FAILED_TO_START_SLAVE_THREAD,
+                 mi->get_channel());
         }
       }
     }
@@ -559,11 +559,8 @@ err:
 
   channel_map.unlock();
   if (error)
-    sql_print_information("Some of the channels are not created/initialized "
-                          "properly. Check for additional messages above. "
-                          "You will not be able to start replication on those "
-                          "channels until the issue is resolved and "
-                          "the server restarted.");
+    LogErr(INFORMATION_LEVEL, ER_SLAVE_NOT_STARTED_ON_SOME_CHANNELS);
+
   DBUG_RETURN(error);
 }
 
@@ -5411,7 +5408,8 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
   if (io_slave_killed(thd, mi))
   {
     if (info)
-      sql_print_information("%s%s", info, mi->get_for_channel_str());
+      LogErr(INFORMATION_LEVEL, ER_RPL_IO_THREAD_KILLED, info,
+             mi->get_for_channel_str());
     return true;
   }
   return false;
@@ -5462,28 +5460,33 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
   thd->proc_info = messages[SLAVE_RECON_MSG_AFTER];
   if (!suppress_warnings) 
   {
-    char buf[256], llbuff[22];
-    snprintf(buf, sizeof(buf), messages[SLAVE_RECON_MSG_FAILED], 
-                mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(),
-                llbuff));
+    char llbuff[22];
     /* 
       Raise a warining during registering on master/requesting dump.
       Log a message reading event.
     */
     if (messages[SLAVE_RECON_MSG_COMMAND][0])
     {
+      char buf[256];
+      snprintf(buf, sizeof(buf), messages[SLAVE_RECON_MSG_FAILED],
+               mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(),
+                                                   llbuff));
+
       mi->report(WARNING_LEVEL, ER_SLAVE_MASTER_COM_FAILURE,
                  ER_THD(thd, ER_SLAVE_MASTER_COM_FAILURE), 
                  messages[SLAVE_RECON_MSG_COMMAND], buf);
     }
     else
     {
-      sql_print_information("%s%s", buf, mi->get_for_channel_str());
+      LogErr(INFORMATION_LEVEL, ER_SLAVE_RECONNECT_FAILED,
+             mi->get_io_rpl_log_name(),
+             llstr(mi->get_master_log_pos(), llbuff),
+             mi->get_for_channel_str());
     }
   }
   if (safe_reconnect(thd, mysql, mi, 1) || io_slave_killed(thd, mi))
   {
-    sql_print_information("%s", messages[SLAVE_RECON_MSG_KILLED_AFTER]);
+    LogErr(INFORMATION_LEVEL, ER_SLAVE_KILLED_AFTER_RECONNECT);
     return 1;
   }
   return 0;
@@ -6476,7 +6479,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
     {
       if ((file= open_binlog_file(&log, linfo.log_file_name, &errmsg)) < 0)
       {
-        sql_print_error("%s", errmsg);
+        LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED, errmsg);
         goto err;
       }
       /*
@@ -6500,7 +6503,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
         }
         if (!checksum_detected)
         {
-          sql_print_error("%s", "malformed or very old relay log which does not have FormatDescriptor");
+          LogErr(ERROR_LEVEL, ER_BINLOG_MALFORMED_OR_OLD_RELAY_LOG);
           goto err;
         }
       }
@@ -8753,8 +8756,7 @@ void dump_next_event_debug_information(Relay_log_info *rli,
   @param rli Relay_log_info structure for the slave SQL thread.
 
   @return The event read, or NULL on error.  If an error occurs, the
-  error is reported through the sql_print_information() or
-  sql_print_error() functions.
+  error is reported through the LogErr() method.
 */
 static Log_event* next_event(Relay_log_info* rli)
 {
@@ -9735,7 +9737,13 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel,
     {
       push_warning(thd, Sql_condition::SL_NOTE, slave_errno,
                    ER_THD(thd, slave_errno));
-      sql_print_warning("%s",ER_DEFAULT(slave_errno));
+
+      /*
+        If new slave_errno is added in the if() condition above then make sure
+        that there are no % in the error message or change the logging API
+        to use verbatim() to avoid % substitutions.
+      */
+      LogErr(WARNING_LEVEL, slave_errno);
     }
     if (net_report)
       my_error(slave_errno, MYF(0));
@@ -10392,7 +10400,7 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
   /*
     We want to save the old receive configurations so that we can use them to
     print the changes in these configurations (from-to form). This is used in
-    sql_print_information() later.
+    LogErr() later.
   */
   char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
   uint saved_port= 0;

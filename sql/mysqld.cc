@@ -1307,8 +1307,7 @@ void substitute_progpath(char** argv)
 #endif // defined(_WIN32)
   if (my_orig_progname == nullptr)
   {
-    sql_print_warning("Failed to get absolute path of program executable %s",
-                      argv[0]);
+    LogErr(WARNING_LEVEL, ER_FAILED_TO_GET_ABSOLUTE_PATH, argv[0]);
   }
 }
 } // namespace
@@ -1502,7 +1501,7 @@ static bool component_infrastructure_init()
   }
   if (pfs_init_services(&imp_mysql_server_registry_registration))
   {
-    sql_print_error("Failed to bootstrap performance schema components infrastructure.\n");
+    LogErr(ERROR_LEVEL, ER_PERFSCHEMA_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP);
     return true;
   }
   return false;
@@ -1570,7 +1569,7 @@ static bool component_infrastructure_deinit()
 
   if (pfs_deinit_services(&imp_mysql_server_registry_registration))
   {
-    sql_print_error("Failed to deinit performance schema components infrastructure.\n");
+    LogErr(ERROR_LEVEL, ER_PERFSCHEMA_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
     return true;
   }
   if (mysql_services_shutdown())
@@ -3544,7 +3543,7 @@ int init_common_variables()
 
   if (!opt_help)
   {
-    sql_print_information("Basedir set to %s", mysql_home);
+    LogErr(INFORMATION_LEVEL, ER_BASEDIR_SET_TO, mysql_home);
   }
 
   LogErr(SYSTEM_LEVEL, ER_STARTING_AS,
@@ -3791,8 +3790,9 @@ int init_common_variables()
   if (global_system_variables.transaction_write_set_extraction == HASH_ALGORITHM_OFF
       && mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode != DEPENDENCY_TRACKING_COMMIT_ORDER)
   {
-    sql_print_error("The transaction_write_set_extraction must be set to XXHASH64 or MURMUR32"
-                    " when binlog_transaction_dependency_tracking is WRITESET or WRITESET_SESSION.");
+    LogErr(ERROR_LEVEL,
+           ER_TX_EXTRACTION_ALGORITHM_FOR_BINLOG_TX_DEPEDENCY_TRACKING,
+           "XXHASH64 or MURMUR32", "WRITESET or WRITESET_SESSION");
     return 1;
   }
   else
@@ -4498,8 +4498,7 @@ static int init_server_components()
       nstdout= fdopen(dup(STDOUT_FILENO), "a");
       if (nstdout == nullptr)
       {
-        sql_print_error("Could not open duplicate fd for stdout: %s",
-                        strerror(errno));
+        LogErr(ERROR_LEVEL, ER_DUP_FD_OPEN_FAILED, "stdout", strerror(errno));
         unireg_abort(MYSQLD_ABORT_EXIT);
       }
       // Display location of error log file on stdout if connected to tty
@@ -4791,10 +4790,10 @@ static int init_server_components()
       {
       case ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED:
       case ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES:
-        sql_print_warning(ER_DEFAULT(err), msg, "PARTIAL_JSON");
+        LogErr(WARNING_LEVEL, err, msg, "PARTIAL_JSON");
         break;
       case ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED:
-        sql_print_warning(ER_DEFAULT(err), msg);
+        LogErr(WARNING_LEVEL, err, msg);
         break;
       default:
         DBUG_ASSERT(0); /* purecov: deadcode */
@@ -4871,7 +4870,7 @@ static int init_server_components()
 
       if (dd::init(dd::enum_dd_init_type::DD_INITIALIZE_SYSTEM_VIEWS))
       {
-        sql_print_error("System views initialization failed.");
+        LogErr(ERROR_LEVEL, ER_SYSTEM_VIEW_INIT_FAILED);
         unireg_abort(1);
       }
     }
@@ -4963,7 +4962,7 @@ static int init_server_components()
 
     if (st)
     {
-      sql_print_error("Performance schema initialization failed.");
+      LogErr(ERROR_LEVEL, ER_PERFSCHEMA_TABLES_INIT_FAILED);
       unireg_abort(1);
     }
   }
@@ -4975,7 +4974,7 @@ static int init_server_components()
   {
     if (res_grp_mgr->post_init())
     {
-      sql_print_error("Resource group post initialization failed");
+      LogErr(ERROR_LEVEL, ER_RESOURCE_GROUP_POST_INIT_FAILED);
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
   }
@@ -5146,9 +5145,7 @@ static int init_server_components()
 
     if (binlog_expire_logs_seconds)
     {
-      sql_print_warning("The option expire_logs_days cannot be used together"
-                        " with option binlog_expire_logs_seconds. Therefore,"
-                        " value of expire_logs_days is ignored.");
+      LogErr(WARNING_LEVEL, ER_BINLOG_EXPIRAY_LOG_DAYS_AND_SECS_USED_TOGETHER);
       purge_time= my_time(0) - binlog_expire_logs_seconds;
     }
     else
@@ -5583,7 +5580,7 @@ int mysqld_main(int argc, char **argv)
   {
     if (res_grp_mgr->init())
     {
-      sql_print_error("Resource Group subsystem initialization failed.");
+      LogErr(ERROR_LEVEL, ER_RESOURCE_GROUP_SUBSYSTEM_INIT_FAILED);
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
   }
@@ -5691,15 +5688,13 @@ int mysqld_main(int argc, char **argv)
   {
     if (chdir("/") < 0)
     {
-      fprintf(stderr, "Cannot change to root directory: %s\n",
-                      strerror(errno));
+      LogErr(ERROR_LEVEL, ER_CANNOT_CHANGE_TO_ROOT_DIR, strerror(errno));
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
 
     if ((pipe_write_fd= mysqld::runtime::mysqld_daemonize()) < -1)
     {
-      sql_print_error("Failed to start mysqld daemon. "
-                      "Check mysqld error log.");
+      LogErr(ERROR_LEVEL, ER_FAILED_START_MYSQLD_DAEMON);
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
 
@@ -5779,8 +5774,7 @@ int mysqld_main(int argc, char **argv)
                 opt_keyring_migration_socket,
                 opt_keyring_migration_port))
     {
-      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                      "failed");
+      LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_FAILED);
       log_error_dest= "stderr";
       flush_error_log_messages();
       unireg_abort(MYSQLD_ABORT_EXIT);
@@ -5788,16 +5782,14 @@ int mysqld_main(int argc, char **argv)
 
     if (mk.execute())
     {
-      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                      "failed");
+      LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_FAILED);
       log_error_dest= "stderr";
       flush_error_log_messages();
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
 
     my_getopt_skip_unknown= 0;
-    sql_print_information(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                          "successfull");
+    LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_SUCCESSFUL);
     log_error_dest= "stderr";
     flush_error_log_messages();
     unireg_abort(MYSQLD_SUCCESS_EXIT);
@@ -6071,9 +6063,7 @@ int mysqld_main(int argc, char **argv)
       and issue a warning.
     */
     opt_noacl= true;
-    sql_print_warning("The privilege system failed to initialize correctly. "
-      "If you have upgraded your server, make sure you're executing "
-      "mysql_upgrade to correct the issue.");
+    LogErr(WARNING_LEVEL, ER_PRIVILEGE_SYSTEM_INIT_FAILED);
   }
   if (abort || my_tz_init((THD *)0, default_tz_name, opt_initialize)
       || grant_init(opt_noacl))
@@ -6144,9 +6134,8 @@ int mysqld_main(int argc, char **argv)
   }
   else
   {
-    sql_print_information("Cannot set services \"%s\" requested in "
-                          "--log-error-services, using defaults",
-                          opt_log_error_services);
+    LogErr(INFORMATION_LEVEL, ER_CANNOT_SET_LOG_ERROR_SERVICES,
+           opt_log_error_services);
     /*
       We were given an illegal value at start-up, so the default was
       used instead. We have reported the problem (and the dodgy value);
@@ -6164,7 +6153,7 @@ int mysqld_main(int argc, char **argv)
   */
   if (dynamic_privilege_init())
   {
-    sql_print_warning("Failed to bootstrap persistent privileges.");
+    LogErr(WARNING_LEVEL, ER_PERSISTENT_PRIVILEGES_BOOTSTRAP);
   }
 
   if (!opt_initialize)
@@ -8527,16 +8516,15 @@ mysqld_get_one_option(int optid,
   case 's':
     if (argument[0] == '0')
     {
-      sql_print_warning("Disabling symbolic links using --skip-symbolic-links "
-                        "(or equivalent) is the default. Consider not using "
-                        "this option as it is deprecated and will be removed "
-                        "in a future release.");
+      LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_NO_REPLACEMENT,
+             "Disabling symbolic links using --skip-symbolic-links"
+             " (or equivalent) is the default. Consider not using"
+             " this option as it");
     }
     else
     {
-      sql_print_warning("Enabling symbolic links using --symbolic-links/-s "
-                        "(or equivalent) is deprecated and will be removed in "
-                        "a future release.");
+      LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_NO_REPLACEMENT,
+             "Enabling symbolic using --symbolic-links/-s (or equivalent)");
     }
     break;
   case 'L':
@@ -8701,7 +8689,7 @@ mysqld_get_one_option(int optid,
     {
       if (rpl_global_filter.add_wild_do_table(argument))
       {
-        sql_print_error("Could not add wild do table rule '%s'!\n", argument);
+        LogErr(ERROR_LEVEL, ER_RPL_FILTER_ADD_WILD_DO_TABLE_FAILED, argument);
         return 1;
       }
       rpl_global_filter.wild_do_table_statistics.set_all(
@@ -8713,7 +8701,7 @@ mysqld_get_one_option(int optid,
       rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_wild_do_table(filter_val))
       {
-        sql_print_error("Could not add wild do table rule '%s'!\n", argument);
+        LogErr(ERROR_LEVEL, ER_RPL_FILTER_ADD_WILD_DO_TABLE_FAILED, argument);
         return 1;
       }
       rpl_filter->wild_do_table_statistics.set_all(
@@ -8727,8 +8715,8 @@ mysqld_get_one_option(int optid,
     {
       if (rpl_global_filter.add_wild_ignore_table(argument))
       {
-        sql_print_error("Could not add wild ignore table rule '%s'!\n",
-                        argument);
+        LogErr(ERROR_LEVEL, ER_RPL_FILTER_ADD_WILD_IGNORE_TABLE_FAILED,
+               argument);
         return 1;
       }
       rpl_global_filter.wild_ignore_table_statistics.set_all(
@@ -8740,8 +8728,8 @@ mysqld_get_one_option(int optid,
       rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_wild_ignore_table(filter_val))
       {
-        sql_print_error("Could not add wild ignore table rule '%s'!\n",
-                        argument);
+        LogErr(ERROR_LEVEL, ER_RPL_FILTER_ADD_WILD_IGNORE_TABLE_FAILED,
+               argument);
         return 1;
       }
       rpl_filter->wild_ignore_table_statistics.set_all(

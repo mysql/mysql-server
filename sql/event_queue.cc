@@ -477,7 +477,7 @@ Event_queue::recalculate_activation_times(THD *thd)
                                           element->m_schema_name,
                                           element->m_event_name)))
         {
-         sql_print_warning("Unable to construct DROP EVENT SQL query string");
+         LogErr(WARNING_LEVEL, ER_FAILED_TO_CONSTRUCT_DROP_EVENT_QUERY);
         }
         else
         {
@@ -486,9 +486,9 @@ Event_queue::recalculate_activation_times(THD *thd)
           if((ret= write_bin_log(thd, true, sp_sql.c_ptr_safe(),
                                  sp_sql.length(), event_exists)))
           {
-            sql_print_warning("Unable to binlog drop event %s.%s.",
-                              element->m_schema_name.str,
-                              element->m_event_name.str);
+            LogErr(WARNING_LEVEL, ER_FAILED_TO_BINLOG_DROP_EVENT,
+                   element->m_schema_name.str,
+                   element->m_event_name.str);
           }
         }
       }

@@ -35,7 +35,7 @@ if ($thr_prio_enable == 0)
 # Insert invalid VCPU ids and enable the resource group.
 INSERT INTO mysql.resource_groups VALUES(3, 'r1', 'USER', 1, "0100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", 0);
 }
-call mtr.add_suppression("Invalid VCPU ID.*");
+call mtr.add_suppression("Invalid cpu id.*");
 call mtr.add_suppression("Validation of resource group.*");
 call mtr.add_suppression("Invalid thread priority.*");
 SET SESSION debug= '-d,skip_dd_table_access_check';

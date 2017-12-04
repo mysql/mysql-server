@@ -26,12 +26,12 @@ Clone handler implementation
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_clone.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
-#include "sql/log.h"              // sql_print_error
 #include "sql/mysqld.h"
 #include "sql/sql_parse.h"
 #include "sql/sql_plugin.h"       // plugin_unlock
@@ -94,7 +94,7 @@ int Clone_handler::init()
   if (plugin == nullptr)
   {
     m_plugin_handle= nullptr;
-    sql_print_error("Clone Plugin not loaded.");
+    LogErr(ERROR_LEVEL, ER_CLONE_PLUGIN_NOT_LOADED);
     return 1;
   }
 
@@ -190,7 +190,7 @@ int clone_handle_create(const char* plugin_name)
 {
   if (clone_handle != nullptr)
   {
-    sql_print_error("Clone Handler exists.");
+    LogErr(ERROR_LEVEL, ER_CLONE_HANDLER_EXISTS);
     return 1;
   }
 
@@ -198,7 +198,7 @@ int clone_handle_create(const char* plugin_name)
 
   if (clone_handle == nullptr)
   {
-    sql_print_error("Could not create Clone Handler.");
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_CREATE_CLONE_HANDLER);
     return 1;
   }
 

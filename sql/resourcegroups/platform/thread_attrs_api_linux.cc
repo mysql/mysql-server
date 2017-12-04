@@ -29,7 +29,8 @@
 #include <vector>
 
 #include "my_dbug.h"     // DBUG_*
-#include "sql/log.h"         // sql_print_*
+#include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"
 
 namespace resourcegroups
 {
@@ -58,10 +59,9 @@ bool bind_to_cpu(cpu_id_t cpu_id, my_thread_os_id_t thread_id)
   if (rc != 0)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("Unable to bind thread id %llu to "
-                    "cpu id %u (error code %d - %-.192s)",
-                    thread_id, cpu_id, my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_SET_THR_AFFINITY_FAILED,
+           thread_id, cpu_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
@@ -91,10 +91,9 @@ bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids,
   if (rc != 0)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("Unable to bind thread id %llu to "
-                    "cpu ids (error code %d - %-.192s)",
-                    thread_id, my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_SET_THR_AFFINITY_FAILED,
+           thread_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
@@ -115,7 +114,10 @@ bool unbind_thread(my_thread_os_id_t thread_id)
   uint32_t num_cpus= num_vcpus();
   if (num_cpus == 0)
   {
-    sql_print_error("Unable to unbind thread %llu", thread_id);
+    char errbuf[MYSQL_ERRMSG_SIZE];
+    LogErr(ERROR_LEVEL, ER_RES_GRP_THD_UNBIND_FROM_CPU_FAILED,
+           thread_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     DBUG_RETURN(true);
   }
   for (cpu_id_t cpu_id= 0; cpu_id < num_cpus; ++cpu_id)
@@ -124,9 +126,9 @@ bool unbind_thread(my_thread_os_id_t thread_id)
   if (rc != 0)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("Unbind thread id %llu failed. (error code %d - %-.192s)",
-                    thread_id, my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_THD_UNBIND_FROM_CPU_FAILED,
+           thread_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
@@ -159,10 +161,9 @@ bool set_thread_priority(int priority, my_thread_os_id_t thread_id)
   if (setpriority(PRIO_PROCESS, thread_id, priority) < 0)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("Setting thread priority %d to thread id %llu failed."
-                    " (error code %d - %-.192s)",
-                    priority, thread_id, my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_SET_THREAD_PRIORITY_FAILED,
+           priority, thread_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
@@ -199,7 +200,7 @@ bool can_thread_priority_be_set()
     return cap_bits[index].effective & mask;
   }
 
-  sql_print_warning("Unable to determine CAP_SYS_NICE capability");
+  LogErr(ERROR_LEVEL, ER_RES_GRP_FAILED_TO_DETERMINE_NICE_CAPABILITY);
   return false;
 }
 } // platform
