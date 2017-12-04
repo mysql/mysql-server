@@ -137,13 +137,13 @@ private:
   mysql_mutex_t m_LOCK_persist_variables;
   static Persisted_variables_cache* m_instance;
 
-  /* file handler members */
-  MYSQL_FILE *fd;
+  /* File handler members */
+  MYSQL_FILE *m_fd;
   string m_persist_filename;
   mysql_mutex_t m_LOCK_persist_file;
-  /* memory for read only persisted options */
+  /* Memory for read only persisted options */
   MEM_ROOT ro_persisted_argv_alloc{PSI_NOT_INSTRUMENTED, 512};
-  /* memory for read only persisted plugin options */
+  /* Memory for read only persisted plugin options */
   MEM_ROOT ro_persisted_plugin_argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 };
 

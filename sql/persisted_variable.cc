@@ -336,8 +336,10 @@ const char* Persisted_variables_cache::get_variable_name(sys_var *system_var)
 */
 bool Persisted_variables_cache::flush_to_file()
 {
+  mysql_mutex_lock(&m_LOCK_persist_variables);
   mysql_mutex_lock(&m_LOCK_persist_file);
-  /* construct json formatted string buffer */
+
+  /* Construct json formatted string buffer */
   String dest("{ \"mysql_server\": {", &my_charset_utf8mb4_bin);
 
   for (auto iter= m_persist_variables.begin();
@@ -405,26 +407,25 @@ bool Persisted_variables_cache::flush_to_file()
     we dont read contents of mysqld-auto.cnf file, thus append any new
     variables which are persisted to this file.
   */
-  bool ret= 0;
-  ret= open_persist_file(O_CREAT | O_WRONLY);
+  bool ret= false;
 
-  if(ret)
+  if(open_persist_file(O_CREAT | O_WRONLY))
   {
-    mysql_mutex_unlock(&m_LOCK_persist_file);
-    close_persist_file();
-    return 1;
+    ret= true;
   }
-  /* write to file */
-  if ((mysql_file_fputs(dest.c_ptr(), fd)) < 0)
+  else
   {
-    mysql_mutex_unlock(&m_LOCK_persist_file);
-    close_persist_file();
-    return 1;
+    /* write to file */
+    if (mysql_file_fputs(dest.c_ptr(), m_fd) < 0)
+    {
+      ret= true;
+    }
   }
 
   close_persist_file();
   mysql_mutex_unlock(&m_LOCK_persist_file);
-  return 0;
+  mysql_mutex_unlock(&m_LOCK_persist_variables);
+  return ret;
 }
 
 /**
@@ -437,9 +438,9 @@ bool Persisted_variables_cache::flush_to_file()
 */
 bool Persisted_variables_cache::open_persist_file(int flag)
 {
-  fd= mysql_file_fopen(key_persist_file_cnf,
+  m_fd= mysql_file_fopen(key_persist_file_cnf,
                        m_persist_filename.c_str(), flag, MYF(0));
-  return (fd ? 0 : 1);
+  return (m_fd ? 0 : 1);
 }
 
 /**
@@ -448,8 +449,8 @@ bool Persisted_variables_cache::open_persist_file(int flag)
 */
 void Persisted_variables_cache::close_persist_file()
 {
-  mysql_file_fclose(fd, MYF(0));
-  fd= NULL;
+  mysql_file_fclose(m_fd, MYF(0));
+  m_fd= NULL;
 }
 
 /**
@@ -573,7 +574,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
     case SHOW_LONGLONG:
     case SHOW_HA_ROWS:
       res= new (thd->mem_root) Item_uint(iter->value.c_str(),
-                                          iter->value.length());
+                                         (uint)iter->value.length());
     break;
     case SHOW_CHAR:
     case SHOW_CHAR_PTR:
@@ -586,7 +587,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
     break;
     case SHOW_DOUBLE:
       res= new (thd->mem_root) Item_float(iter->value.c_str(),
-                                          iter->value.length());
+                                          (uint)iter->value.length());
     break;
     default:
       my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), sysvar->name.str);
@@ -679,7 +680,7 @@ int Persisted_variables_cache::read_persist_file()
     /* Read the persisted config file into a string buffer */
     parsed_value.append(buff);
     buff[0]='\0';
-  } while (mysql_file_fgets(buff, sizeof(buff) - 1, fd));
+  } while (mysql_file_fgets(buff, sizeof(buff) - 1, m_fd));
   close_persist_file();
 
   /* parse the file contents to check if it is in json format or not */
@@ -827,7 +828,7 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
       memcpy((res + *argc + 1), &my_args[0], my_args.size() * sizeof(char *));
     }
     res[my_args.size() + *argc + 1] = 0;  /* last null */
-    (*argc)+= my_args.size() + 1;
+    (*argc)+= (int)my_args.size() + 1;
     *argv= res;
     if (plugin_options)
       ro_persisted_plugin_argv_alloc= std::move(alloc);  // Possibly overwrite previous.
