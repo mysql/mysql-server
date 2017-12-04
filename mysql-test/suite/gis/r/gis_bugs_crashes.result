@@ -1368,10 +1368,10 @@ GEOMETRYCOLLECTION(POLYGON((4294967211 0,1.8446744073709552e19 0,1.8446744073709
 ######################################################################################################
 # BUG#17535294 : ISSIMPLE() PRODUCING WRONG RESULTS W.R.T. SINGLE POINT POLYGON
 ######################################################################################################
-SELECT ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
-ERROR 22023: Invalid GIS data provided to function st_issimple.
-SELECT ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
-ERROR 22023: Invalid GIS data provided to function st_issimple.
+# Invalid polygon in input
+DO ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
+# Invalid polygon in input
+DO ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
 ######################################################################################################
 # BUG#17507827 : ISSIMPLE() FUNCTION PRODUCING WRONG RESULTS
 ######################################################################################################

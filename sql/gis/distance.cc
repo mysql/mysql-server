@@ -99,8 +99,7 @@ double Distance::operator()(const Geometry *g1, const Geometry *g2) const {
 double Distance::eval(const Geometry *g1, const Geometry *g2) const {
   // Not all geographic type combinations have been implemented.
   DBUG_ASSERT(g1->coordinate_system() == Coordinate_system::kGeographic);
-  throw not_implemented_exception(g1->coordinate_system(), g1->type(),
-                                  g2->type());
+  throw not_implemented_exception::for_non_projected(*g1, *g2);
 }
 
 //////////////////////////////////////////////////////////////////////////////

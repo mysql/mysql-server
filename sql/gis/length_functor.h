@@ -46,15 +46,15 @@ class Length : public Unary_functor<double> {
 
  public:
   Length(double major, double minor);
-  double operator()(const Geometry *g1);
+  double operator()(const Geometry &g1) const;
 
-  double eval(const Geometry *g1) const;
+  double eval(const Geometry &g1) const;
 
-  double eval(const Geographic_linestring *g1);
-  double eval(const Cartesian_linestring *g1);
+  double eval(const Geographic_linestring &g1) const;
+  double eval(const Cartesian_linestring &g1) const;
 
-  double eval(const Geographic_multilinestring *g1);
-  double eval(const Cartesian_multilinestring *g1);
+  double eval(const Geographic_multilinestring &g1) const;
+  double eval(const Cartesian_multilinestring &g1) const;
 };
 
 }  // namespace gis

@@ -26,7 +26,6 @@
 #include <boost/geometry/algorithms/area.hpp>
 #include <boost/geometry/algorithms/centroid.hpp>
 #include <boost/geometry/algorithms/convex_hull.hpp>
-#include <boost/geometry/algorithms/is_simple.hpp>  // IWYU pragma: keep
 #include <boost/geometry/algorithms/is_valid.hpp>  // IWYU pragma: keep
 #include <boost/geometry/algorithms/simplify.hpp>
 #include <boost/geometry/core/cs.hpp>
@@ -58,6 +57,7 @@
 #include "sql/derror.h"   // ER_THD
 #include "sql/gis/distance.h"
 #include "sql/gis/geometries.h"
+#include "sql/gis/is_simple.h"
 #include "sql/gis/length.h"
 #include "sql/gis/srid.h"
 #include "sql/gis/wkb_parser.h"
@@ -5540,147 +5540,52 @@ longlong Item_func_isempty::val_int()
 }
 
 
-longlong Item_func_issimple::val_int()
+longlong Item_func_st_issimple::val_int()
 {
-  DBUG_ENTER("Item_func_issimple::val_int");
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ENTER("Item_func_st_issimple::val_int");
+  DBUG_ASSERT(fixed);
 
-  tmp.length(0);
-  String *arg_wkb= args[0]->val_str(&tmp);
-  if ((null_value= args[0]->null_value))
-  {
+  String backing_arg_wkb;
+  String *arg_wkb= args[0]->val_str(&backing_arg_wkb);
+
+  // Note: Item.null_value is valid only after Item.val_* has been invoked.
+
+  if (args[0]->null_value) {
+    null_value= true;
     DBUG_ASSERT(maybe_null);
     DBUG_RETURN(0);
   }
-  if (arg_wkb == NULL)
-  {
-    // Invalid geometry.
+
+  if (!arg_wkb) {
+    // Item.val_str should not have returned nullptr if Item.null_value is
+    // false.
+    DBUG_ASSERT(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_int());
   }
 
-  Geometry_buffer buffer;
-  Geometry *arg= Geometry::construct(&buffer, arg_wkb);
-  if (arg == NULL)
-  {
-    // Invalid geometry.
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  // Auto_releaser for *srs to be allocated in gis::parse_geometry
+  dd::cache::Dictionary_client::Auto_releaser
+    releaser(current_thd->dd_client());
+
+  const dd::Spatial_reference_system *srs;
+  std::unique_ptr<gis::Geometry> g;
+  if (gis::parse_geometry(current_thd, func_name(), arg_wkb, &srs, &g)) {
+    DBUG_ASSERT(current_thd->is_error());
     DBUG_RETURN(error_int());
   }
+  DBUG_ASSERT(g);
 
-  if (verify_cartesian_srs(arg, func_name()))
+  bool result;
+  if (gis::is_simple(srs, g.get(), func_name(), &result, &null_value)) {
+    DBUG_ASSERT(current_thd->is_error());
     DBUG_RETURN(error_int());
-
-  DBUG_RETURN(issimple(arg));
-}
-
-
-/**
-  Evaluate if a geometry object is simple according to the OGC definition.
-
-  @param g The geometry to evaluate.
-  @return True if the geometry is simple, false otherwise.
-*/
-bool Item_func_issimple::issimple(Geometry *g)
-{
-  bool res= false;
-
-  try
-  {
-    switch (g->get_type())
-    {
-    case Geometry::wkb_point:
-      {
-        Gis_point arg(g->get_data_ptr(), g->get_data_size(),
-                      g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_linestring:
-      {
-        Gis_line_string arg(g->get_data_ptr(), g->get_data_size(),
-                            g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-    break;
-    case Geometry::wkb_polygon:
-      {
-        const void *arg_wkb= g->normalize_ring_order();
-        if (arg_wkb == NULL)
-        {
-          // Invalid polygon.
-          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-          return error_bool();
-        }
-        Gis_polygon arg(arg_wkb, g->get_data_size(),
-                        g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_multipoint:
-      {
-        Gis_multi_point arg(g->get_data_ptr(), g->get_data_size(),
-                            g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_multilinestring:
-      {
-        Gis_multi_line_string arg(g->get_data_ptr(), g->get_data_size(),
-                                  g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_multipolygon:
-      {
-        const void *arg_wkb= g->normalize_ring_order();
-        if (arg_wkb == NULL)
-        {
-          // Invalid multipolygon.
-          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-          return error_bool();
-        }
-        Gis_multi_polygon arg(arg_wkb, g->get_data_size(),
-                              g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_geometrycollection:
-      {
-        BG_geometry_collection collection;
-        collection.fill(g);
-
-        res= true;
-        for (BG_geometry_collection::Geometry_list::iterator i=
-               collection.get_geometries().begin();
-             i != collection.get_geometries().end();
-             ++i)
-        {
-          res= issimple(*i);
-          if (current_thd->is_error())
-          {
-            res= error_bool();
-            break;
-          }
-          if (!res)
-          {
-            break;
-          }
-        }
-      }
-      break;
-    default:
-      DBUG_ASSERT(0);
-      break;
-    }
   }
-  catch (...)
-  {
-    res= error_bool();
-    handle_gis_exception(func_name());
-  }
+  DBUG_ASSERT(!g->is_empty() || result == true);
+  // gis::is_simple never returns null
+  DBUG_ASSERT(!null_value);
 
-  return res;
+  DBUG_RETURN(result);
 }
 
 
