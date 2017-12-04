@@ -20,9 +20,9 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
-#include "sql/log.h"     // sql_print_error
 #include "sql/rpl_mi.h"
 #include "sql/rpl_rli.h" // Relay_log_info
 
@@ -271,8 +271,7 @@ Rpl_filter* Rpl_channel_filters::create_filter(const char* channel_name)
   if (DBUG_EVALUATE_IF("simulate_out_of_memory_on_create_filter", 1, 0) ||
       !ret.second)
   {
-    sql_print_error("Failed to add a replication filter into filter map "
-                    "for channel '%.192s'.", channel_name);
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_ADD_RPL_FILTER, channel_name);
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
     DBUG_RETURN(NULL);
   }
@@ -317,10 +316,8 @@ void Rpl_channel_filters::discard_group_replication_filters()
   {
     if (channel_map.is_group_replication_channel_name(it->first.c_str()))
     {
-      sql_print_warning("There are per-channel replication filter(s) "
-                        "configured for group replication channel '%.192s' "
-                        "which is disallowed. The filter(s) have been "
-                        "discarded.", it->first.c_str());
+      LogErr(WARNING_LEVEL, ER_PER_CHANNEL_RPL_FILTER_CONF_FOR_GRP_RPL,
+             it->first.c_str());
       delete it->second;
       it->second= NULL;
       it= channel_to_filter.erase(it);
@@ -354,10 +351,8 @@ void Rpl_channel_filters::discard_all_unattached_filters()
     */
     delete it->second;
     it->second= NULL;
-    sql_print_warning("There are per-channel replication filter(s) "
-                      "configured for channel '%.192s' which does not "
-                      "exist. The filter(s) have been discarded.",
-                      it->first.c_str());
+    LogErr(WARNING_LEVEL, ER_RPL_FILTERS_NOT_ATTACHED_TO_CHANNEL,
+           it->first.c_str());
     it= channel_to_filter.erase(it);
   }
   /* Reset the P_S view at the end of server startup */
@@ -456,9 +451,7 @@ bool Rpl_channel_filters::build_do_and_ignore_table_hashes()
     if (it->second->build_do_table_hash() ||
         it->second->build_ignore_table_hash())
     {
-      sql_print_error("An error occurred while building do_table"
-                      "and ignore_table rules to hashes for "
-                      "per-channel filter.");
+      LogErr(ERROR_LEVEL, ER_FAILED_TO_BUILD_DO_AND_IGNORE_TABLE_HASHES);
       DBUG_RETURN(-1);
     }
   }

@@ -11053,6 +11053,9 @@ ER_EMPTY_PIPELINE_FOR_ERROR_LOG_SERVICE
 ER_COMPONENT_FILTER_DIAGNOSTICS
   eng "filter %s: %s"
 
+ER_CREATING_NEW_UUID_FIRST_START
+  eng "Generating a new UUID: %s."
+
 ER_NOT_IMPLEMENTED_FOR_CARTESIAN_SRS 22S00
   eng "%.192s(%.80s) has not been implemented for Cartesian spatial reference systems."
 
@@ -11061,6 +11064,447 @@ ER_NOT_IMPLEMENTED_FOR_PROJECTED_SRS 22S00
 
 ER_NONPOSITIVE_RADIUS 22003
   eng "Invalid radius provided to function %s: Radius must be greater than zero."
+
+ER_FAILED_TO_GET_ABSOLUTE_PATH
+  eng "Failed to get absolute path of program executable %s"
+
+ER_PERFSCHEMA_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP
+  eng "Failed to bootstrap performace schema components infrastructure."
+
+ER_PERFSCHEMA_COMPONENTS_INFRASTRUCTURE_SHUTDOWN
+  eng "Failed to deinit performance schema components infrastructure."
+
+ER_DUP_FD_OPEN_FAILED
+  eng "Could not open duplicate fd for %s: %s."
+
+ER_SYSTEM_VIEW_INIT_FAILED
+  eng "System views initialization failed."
+
+ER_RESOURCE_GROUP_POST_INIT_FAILED
+  eng "Resource group post initialization failed."
+
+ER_RESOURCE_GROUP_SUBSYSTEM_INIT_FAILED
+  eng "Resource Group subsystem initialization failed."
+
+ER_FAILED_START_MYSQLD_DAEMON
+  eng "Failed to start mysqld daemon. Check mysqld error log."
+
+ER_CANNOT_CHANGE_TO_ROOT_DIR
+  eng "Cannot change to root directory: %s."
+
+ER_PERSISTENT_PRIVILEGES_BOOTSTRAP
+  eng "Failed to bootstrap persistent privileges."
+
+ER_BASEDIR_SET_TO
+  eng "Basedir set to %s."
+
+ER_RPL_FILTER_ADD_WILD_DO_TABLE_FAILED
+  eng "Could not add wild do table rule '%s'!"
+
+ER_RPL_FILTER_ADD_WILD_IGNORE_TABLE_FAILED
+  eng "Could not add wild ignore table rule '%s'!"
+
+ER_PRIVILEGE_SYSTEM_INIT_FAILED
+  eng "The privilege system failed to initialize correctly. If you have upgraded your server, make sure you're executing mysql_upgrade to correct the issue."
+
+ER_CANNOT_SET_LOG_ERROR_SERVICES
+  eng "Cannot set services \"%s\" requested in --log-error-services, using defaults."
+
+ER_PERFSCHEMA_TABLES_INIT_FAILED
+  eng "Performance schema tables initialization failed."
+
+ER_TX_EXTRACTION_ALGORITHM_FOR_BINLOG_TX_DEPEDENCY_TRACKING
+  eng "The transaction_write_set_extraction must be set to %s when binlog_transaction_dependency_tracking is %s."
+
+ER_INVALID_REPLICATION_TIMESTAMPS
+  eng "Invalid replication timestamps: original commit timestamp is more recent than the immediate commit timestamp. This may be an issue if delayed replication is active. Make sure that servers have their clocks set to the correct time. No further message will be emitted until after timestamps become valid again."
+
+ER_RPL_TIMESTAMPS_RETURNED_TO_NORMAL
+  eng "The replication timestamps have returned to normal values."
+
+ER_BINLOG_FILE_OPEN_FAILED
+  eng "%s."
+
+ER_BINLOG_EVENT_WRITE_TO_STMT_CACHE_FAILED
+  eng "Failed to write an incident event into stmt_cache."
+
+ER_SLAVE_RELAY_LOG_TRUNCATE_INFO
+  eng "Relaylog file %s size was %llu, but was truncated at %llu."
+
+ER_SLAVE_RELAY_LOG_PURGE_FAILED
+  eng "Unable to purge relay log files. %s:%s."
+
+ER_RPL_SLAVE_FILTER_CREATE_FAILED
+  eng "Slave: failed in creating filter for channel '%s'."
+
+ER_RPL_SLAVE_GLOBAL_FILTERS_COPY_FAILED
+  eng "Slave: failed in copying the global filters to its own per-channel filters on configuration for channel '%s'."
+
+ER_RPL_SLAVE_RESET_FILTER_OPTIONS
+  eng "There are per-channel replication filter(s) configured for channel '%.192s' which does not exist. The filter(s) have been discarded."
+
+ER_MISSING_GRANT_SYSTEM_TABLE
+  eng "Missing system table mysql.global_grants; please run mysql_upgrade to create it."
+
+ER_MISSING_ACL_SYSTEM_TABLE
+  eng "ACL table mysql.%.*s missing. Some operations may fail."
+
+ER_ANONYMOUS_AUTH_ID_NOT_ALLOWED_IN_MANDATORY_ROLES
+  eng "Can't set mandatory_role %s@%s: Anonymous authorization IDs are not allowed as roles."
+
+ER_UNKNOWN_AUTH_ID_IN_MANDATORY_ROLE
+  eng "Can't set mandatory_role: There's no such authorization ID %s@%s."
+
+ER_WRITE_ROW_TO_PARTITION_FAILED
+  eng "Table '%-192s' failed to move/insert a row from part %d into part %d: %s."
+
+ER_RESOURCE_GROUP_METADATA_UPDATE_SKIPPED
+  eng "Skipped updating resource group metadata in InnoDB read only mode."
+
+ER_FAILED_TO_PERSIST_RESOURCE_GROUP_METADATA
+  eng "Failed to persist resource group %s to Data Dictionary."
+
+ER_FAILED_TO_DESERIALIZE_RESOURCE_GROUP
+  eng "Failed to deserialize resource group %s."
+
+ER_FAILED_TO_UPDATE_RESOURCE_GROUP
+  eng "Update of resource group %s failed."
+
+ER_RESOURCE_GROUP_VALIDATION_FAILED
+  eng "Validation of resource group %s failed. Resource group is disabled."
+
+ER_FAILED_TO_ALLOCATE_MEMORY_FOR_RESOURCE_GROUP
+  eng "Unable to allocate memory for Resource Group %s."
+
+ER_FAILED_TO_ALLOCATE_MEMORY_FOR_RESOURCE_GROUP_HASH
+  eng "Failed to allocate memory for resource group hash."
+
+ER_FAILED_TO_ADD_RESOURCE_GROUP_TO_MAP
+  eng "Failed to add resource group %s to resource group map."
+
+ER_RESOURCE_GROUP_IS_DISABLED
+  eng "Resource group feature is disabled. (Server is compiled with DISABLE_PSI_THREAD)."
+
+ER_FAILED_TO_APPLY_RESOURCE_GROUP_CONTROLLER
+  eng "Unable to apply resource group controller %s."
+
+ER_FAILED_TO_ACQUIRE_LOCK_ON_RESOURCE_GROUP
+  eng "Unable to acquire lock on the resource group %s. Hint to switch resource group shall be ignored."
+
+ER_PFS_NOTIFICATION_FUNCTION_REGISTER_FAILED
+  eng "PFS %s notification function registration failed."
+
+ER_RES_GRP_SET_THR_AFFINITY_FAILED
+  eng "Unable to bind thread id %llu to cpu id %u (error code %d - %-.192s)."
+
+ER_RES_GRP_SET_THR_AFFINITY_TO_CPUS_FAILED
+  eng "Unable to bind thread id %llu to cpu ids (error code %d - %-.192s)."
+
+ER_RES_GRP_THD_UNBIND_FROM_CPU_FAILED
+  eng "Unbind thread id %llu failed. (error code %d - %-.192s)."
+
+ER_RES_GRP_SET_THREAD_PRIORITY_FAILED
+  eng "Setting thread priority %d to thread id %llu failed. (error code %d - %-.192s)."
+
+ER_RES_GRP_FAILED_TO_DETERMINE_NICE_CAPABILITY
+  eng "Unable to determine CAP_SYS_NICE capability."
+
+ER_RES_GRP_FAILED_TO_GET_THREAD_HANDLE
+  eng "%s failed: Failed to get handle for thread %llu."
+
+ER_RES_GRP_GET_THREAD_PRIO_NOT_SUPPORTED
+  eng "Retrieval of thread priority unsupported on %s."
+
+ER_RES_GRP_FAILED_DETERMINE_CPU_COUNT
+  eng "Unable to determine the number of CPUs."
+
+ER_RES_GRP_FEATURE_NOT_AVAILABLE
+  eng "Resource group feature shall not be available. Incompatible thread handling option."
+
+ER_RES_GRP_INVALID_THREAD_PRIORITY
+  eng "Invalid thread priority %d for a %s resource group. Allowed range is [%d, %d]."
+
+ER_RES_GRP_SOLARIS_PROCESSOR_BIND_TO_CPUID_FAILED
+  eng "bind_to_cpu failed: processor_bind for cpuid %u failed (error code %d - %-.192s)."
+
+ER_RES_GRP_SOLARIS_PROCESSOR_BIND_TO_THREAD_FAILED
+  eng "bind_to_cpu failed: processor_bind for thread %%llx with cpu id %u (error code %d - %-.192s)."
+
+ER_RES_GRP_SOLARIS_PROCESSOR_AFFINITY_FAILED
+  eng "%s failed: processor_affinity failed (error code %d - %-.192s)."
+
+ER_DD_UPGRADE_RENAME_IDX_STATS_FILE_FAILED
+  eng "Error in renaming mysql_index_stats.ibd."
+
+ER_DD_UPGRADE_DD_OPEN_FAILED
+  eng "Error in opening data directory %s."
+
+ER_DD_UPGRADE_FAILED_TO_FETCH_TABLESPACES
+  eng "Error in fetching list of tablespaces."
+
+ER_DD_UPGRADE_FAILED_TO_ACQUIRE_TABLESPACE
+  eng "Error in acquiring Tablespace for SDI insertion %s."
+
+ER_DD_UPGRADE_FAILED_TO_RESOLVE_TABLESPACE_ENGINE
+  eng "Error in resolving Engine name for tablespace %s with engine %s."
+
+ER_FAILED_TO_CREATE_SDI_FOR_TABLESPACE
+  eng "Error in creating SDI for %s tablespace."
+
+ER_FAILED_TO_STORE_SDI_FOR_TABLESPACE
+  eng "Error in storing SDI for %s tablespace."
+
+ER_DD_UPGRADE_FAILED_TO_FETCH_TABLES
+  eng "Error in fetching list of tables."
+
+ER_DD_UPGRADE_DD_POPULATED
+  eng "Finished populating Data Dictionary tables with data."
+
+ER_DD_UPGRADE_INFO_FILE_OPEN_FAILED
+  eng "Could not open the upgrade info file '%s' in the MySQL servers datadir, errno: %d."
+
+ER_DD_UPGRADE_INFO_FILE_CLOSE_FAILED
+  eng "Could not close the upgrade info file '%s' in the MySQL servers datadir, errno: %d."
+
+ER_DD_UPGRADE_TABLESPACE_MIGRATION_FAILED
+  eng "Got error %d from SE while migrating tablespaces."
+
+ER_DD_UPGRADE_FAILED_TO_CREATE_TABLE_STATS
+  eng "Error in creating TABLE statistics entry. Fix statistics data by using ANALYZE command."
+
+ER_DD_UPGRADE_TABLE_STATS_MIGRATE_COMPLETED
+  eng "Finished migrating TABLE statistics data."
+
+ER_DD_UPGRADE_FAILED_TO_CREATE_INDEX_STATS
+  eng "Error in creating Index statistics entry. Fix statistics data by using ANALYZE command."
+
+ER_DD_UPGRADE_INDEX_STATS_MIGRATE_COMPLETED
+  eng "Finished migrating INDEX statistics data."
+
+ER_DD_UPGRADE_FAILED_FIND_VALID_DATA_DIR
+  eng "Failed to find valid data directory."
+
+ER_DD_UPGRADE_START
+  eng "Starting upgrade on data directory."
+
+ER_DD_UPGRADE_FAILED_INIT_DD_SE
+  eng "Failed to initialize DD Storage Engine."
+
+ER_DD_UPGRADE_FOUND_PARTIALLY_UPGRADED_DD_ABORT
+  eng "Found partially upgraded DD. Aborting upgrade and deleting all DD tables. Start the upgrade process again."
+
+ER_DD_UPGRADE_FOUND_PARTIALLY_UPGRADED_DD_CONTINUE
+  eng "Found partially upgraded DD. Upgrade will continue and start the server."
+
+ER_DD_UPGRADE_SE_LOGS_FAILED
+  eng "Error in upgrading engine logs."
+
+ER_DD_UPGRADE_SDI_INFO_UPDATE_FAILED
+  eng "Error in updating SDI information."
+
+ER_SKIP_UPDATING_METADATA_IN_SE_RO_MODE
+  eng "Skip updating %s metadata in InnoDB read-only mode."
+
+ER_CREATED_SYSTEM_WITH_VERSION
+  eng "Created system views with I_S version %d."
+
+ER_UNKNOWN_ERROR_DETECTED_IN_SE
+  eng "Unknown error detected %d in handler."
+
+ER_READ_LOG_EVENT_FAILED
+  eng "Error in Log_event::read_log_event(): '%s', data_len: %lu, event_type: %d."
+
+ER_ROW_DATA_TOO_BIG_TO_WRITE_IN_BINLOG
+  eng "The row data is greater than 4GB, which is too big to write to the binary log."
+
+ER_FAILED_TO_CONSTRUCT_DROP_EVENT_QUERY
+  eng "Unable to construct DROP EVENT SQL query string."
+
+ER_FAILED_TO_BINLOG_DROP_EVENT
+  eng "Unable to binlog drop event %s.%s."
+
+ER_FAILED_TO_START_SLAVE_THREAD
+  eng "Failed to start slave threads for channel '%s'."
+
+ER_RPL_IO_THREAD_KILLED
+  eng "%s%s."
+
+ER_SLAVE_RECONNECT_FAILED
+  eng "Failed registering on master, reconnecting to try again, log '%s' at position %s. %s."
+
+ER_SLAVE_KILLED_AFTER_RECONNECT
+  eng "Slave I/O thread killed during or after reconnect."
+
+ER_SLAVE_NOT_STARTED_ON_SOME_CHANNELS
+  eng "Some of the channels are not created/initialized properly. Check for additional messages above. You will not be able to start replication on those channels until the issue is resolved and the server restarted."
+
+ER_FAILED_TO_ADD_RPL_FILTER
+  eng "Failed to add a replication filter into filter map for channel '%.192s'."
+
+ER_PER_CHANNEL_RPL_FILTER_CONF_FOR_GRP_RPL
+  eng "There are per-channel replication filter(s) configured for group replication channel '%.192s' which is disallowed. The filter(s) have been discarded."
+
+ER_RPL_FILTERS_NOT_ATTACHED_TO_CHANNEL
+  eng "There are per-channel replication filter(s) configured for channel '%.192s' which does not exist. The filter(s) have been discarded."
+
+ER_FAILED_TO_BUILD_DO_AND_IGNORE_TABLE_HASHES
+  eng "An error occurred while building do_table and ignore_table rules to hashes for per-channel filter."
+
+ER_CLONE_PLUGIN_NOT_LOADED
+  eng "Clone plugin not loaded."
+
+ER_CLONE_HANDLER_EXISTS
+  eng "Clone Handler exists."
+
+ER_FAILED_TO_CREATE_CLONE_HANDLER
+  eng "Could not create Clone Handler."
+
+ER_CYCLE_TIMER_IS_NOT_AVAILABLE
+  eng "The CYCLE timer is not available. WAIT events in the performance_schema will not be timed."
+
+ER_NANOSECOND_TIMER_IS_NOT_AVAILABLE
+  eng "The NANOSECOND timer is not available. IDLE/STAGE/STATEMENT/TRANSACTION events in the performance_schema will not be timed."
+
+ER_MICROSECOND_TIMER_IS_NOT_AVAILABLE
+  eng "The MICROSECOND timer is not available. IDLE/STAGE/STATEMENT/TRANSACTION events in the performance_schema will not be timed."
+
+ER_PFS_MALLOC_ARRAY_OVERFLOW
+  eng "Failed to allocate memory for %zu chunks each of size %zu for buffer '%s' due to overflow."
+
+ER_PFS_MALLOC_ARRAY_OOM
+  eng "Failed to allocate %zu bytes for buffer '%s' due to out-of-memory."
+
+ER_INNODB_FAILED_TO_FIND_IDX_WITH_KEY_NO
+  eng "InnoDB could not find index %s key no %u for table %s through its index translation table."
+
+ER_INNODB_FAILED_TO_FIND_IDX
+  eng "Cannot find index %s in InnoDB index translation table."
+
+ER_INNODB_FAILED_TO_FIND_IDX_FROM_DICT_CACHE
+  eng "InnoDB could not find key no %u with name %s from dict cache for table %s."
+
+ER_INNODB_ACTIVE_INDEX_CHANGE_FAILED
+  eng "InnoDB: change_active_index(%u) failed."
+
+ER_INNODB_DIFF_IN_REF_LEN
+  eng "Stored ref len is %lu, but table ref len is %lu."
+
+ER_WRONG_TYPE_FOR_COLUMN_PREFIX_IDX_FLD
+  eng "MySQL is trying to create a column prefix index field, on an inappropriate data type. Table name %s, column name %s."
+
+ER_INNODB_CANNOT_CREATE_TABLE
+  eng "Cannot create table %s."
+
+ER_INNODB_INTERNAL_INDEX
+  eng "Found index %s in InnoDB index list but not its MySQL index number. It could be an InnoDB internal index."
+
+ER_INNODB_IDX_CNT_MORE_THAN_DEFINED_IN_MYSQL
+  eng "InnoDB: Table %s contains %lu indexes inside InnoDB, which is different from the number of indexes %u defined in MySQL."
+
+ER_INNODB_IDX_CNT_FEWER_THAN_DEFINED_IN_MYSQL
+  eng "Table %s contains fewer indexes inside InnoDB than are defined in the MySQL. Have you mixed up with data dictionary from different installation?"
+
+ER_INNODB_IDX_COLUMN_CNT_DIFF
+  eng "Index %s of %s has %lu columns unique inside InnoDB, but MySQL is asking statistics for %lu columns. Have you mixed data dictionary from different installation?"
+
+ER_INNODB_USE_MONITOR_GROUP_NAME
+  eng "Monitor counter '%s' cannot be turned on/off individually. Please use its module name to turn on/off the counters in the module as a group."
+
+ER_INNODB_MONITOR_DEFAULT_VALUE_NOT_DEFINED
+  eng "Default value is not defined for this set option. Please specify correct counter or module name."
+
+ER_INNODB_MONITOR_IS_ENABLED
+  eng "InnoDB: Monitor %s is already enabled."
+
+ER_INNODB_INVALID_MONITOR_COUNTER_NAME
+  eng "Invalid monitor counter : %s."
+
+ER_WIN_LOAD_LIBRARY_FAILED
+  eng "LoadLibrary(\"%s\") failed: GetLastError returns %lu."
+
+ER_PARTITION_HANDLER_ADMIN_MSG
+  eng "%s."
+
+ER_RPL_RLI_INIT_INFO_MSG
+  eng "%s."
+
+ER_DD_UPGRADE_TABLE_INTACT_ERROR
+  eng "%s."
+
+ER_SERVER_INIT_COMPILED_IN_COMMANDS
+  eng "%s."
+
+ER_MYISAM_CHECK_METHOD_ERROR
+  eng "%s."
+
+ER_MYISAM_CRASHED_ERROR
+  eng "%s."
+
+ER_WAITPID_FAILED
+  eng "Unable to wait for process %lld."
+
+ER_FAILED_TO_FIND_MYSQLD_STATUS
+  eng "Unable to determine if daemon is running: %s (rc=%d)."
+
+ER_INNODB_ERROR_LOGGER_MSG
+  eng "InnoDB: %s"
+
+ER_INNODB_ERROR_LOGGER_FATAL_MSG
+  eng "[FATAL] InnoDB: %s"
+
+ER_DEPRECATED_SYNTAX_WITH_REPLACEMENT
+  eng "The syntax '%s' is deprecated and will be removed in a future release. Please use %s instead."
+
+ER_DEPRECATED_SYNTAX_NO_REPLACEMENT
+  eng "The syntax '%s' is deprecated and will be removed in a future release."
+
+ER_DEPRECATE_MSG_NO_REPLACEMENT
+  eng "%s is deprecated and will be removed in a future release."
+
+ER_LOG_PRINTF_MSG
+  eng "%s"
+
+ER_BINLOG_LOGGING_NOT_POSSIBLE
+  eng "Binary logging not possible. Message: %s."
+
+ER_FAILED_TO_SET_PERSISTED_OPTIONS
+  eng "Failed to set persisted options."
+
+ER_COMPONENTS_FAILED_TO_ACQUIRE_SERVICE_IMPLEMENTATION
+  eng "Cannot acquire specified service implementation: '%.192s'."
+
+ER_RES_GRP_INVALID_VCPU_RANGE
+  eng "Invalid VCPU range %u-%u."
+
+ER_RES_GRP_INVALID_VCPU_ID
+  eng "Invalid cpu id %u."
+
+ER_ERROR_DURING_FLUSH_LOG_COMMIT_PHASE
+  eng "Got error %d during FLUSH_LOGS."
+
+ER_DROP_DATABASE_FAILED_RMDIR_MANUALLY
+  eng "Problem while dropping database. Can't remove database directory (%s). Please remove it manually."
+
+ER_BINLOG_EXPIRAY_LOG_DAYS_AND_SECS_USED_TOGETHER
+  eng "The option expire_logs_days cannot be used together with option binlog_expire_logs_seconds. Therefore, value of expire_logs_days is ignored."
+
+ER_BINLOG_MALFORMED_OR_OLD_RELAY_LOG
+  eng "malformed or very old relay log which does not have FormatDescriptor."
+
+ER_DD_UPGRADE_VIEW_COLUMN_NAME_TOO_LONG
+  eng "Upgrade of view '%s.%s' failed. Re-create the view with the explicit column name lesser than 64 characters."
+
+ER_TABLE_NEEDS_DUMP_UPGRADE
+  eng "Table upgrade required for `%-.64s`.`%-.64s`. Please dump/reload table to fix it!"
+
+ER_DD_UPGRADE_FAILED_TO_UPDATE_VER_NO_IN_TABLESPACE
+  eng "Error in updating version number in %s tablespace."
+
+ER_KEYRING_MIGRATION_FAILED
+  eng "Keyring migration failed."
+
+ER_KEYRING_MIGRATION_SUCCESSFUL
+  eng "Keyring migration successful."
 
 #
 #  End of 8.0 error messages.

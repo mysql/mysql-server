@@ -177,7 +177,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
   if (!thd->get_protocol()->connection_alive())
   {
-    sql_print_error("%s", msgbuf);
+    LogErr(ERROR_LEVEL, ER_MYISAM_CHECK_METHOD_ERROR, msgbuf);
     return;
   }
 
@@ -653,13 +653,14 @@ void _mi_report_crashed(MI_INFO *file, const char *message,
     LogErr(ERROR_LEVEL, ER_MYISAM_CRASHED_ERROR_IN, sfile, sline);
 
   if (message)
-    sql_print_error("%s", message);
+    LogErr(ERROR_LEVEL, ER_MYISAM_CRASHED_ERROR, message);
 
   for (element= file->s->in_use; element; element= list_rest(element))
   {
     THD *thd= (THD*) element->data;
-    sql_print_error("%s", thd ? thd_security_context(thd, buf, sizeof(buf), 0)
-                              : "Unknown thread accessing table");
+    LogErr(ERROR_LEVEL, ER_MYISAM_CRASHED_ERROR,
+           thd ? thd_security_context(thd, buf, sizeof(buf), 0)
+               : "Unknown thread accessing table");
   }
   mysql_mutex_unlock(&file->s->intern_lock);
 }

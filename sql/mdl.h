@@ -107,7 +107,7 @@ public:
   /**
      Has the owner thread been killed?
    */
-  virtual int  is_killed() = 0;
+  virtual int  is_killed() const = 0;
 
   /**
     Does the owner still have connection to the client?

@@ -1645,13 +1645,7 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
     if (original_commit_timestamp > immediate_commit_timestamp &&
         !thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged)
     {
-      sql_print_warning("Invalid replication timestamps: original commit "
-                        "timestamp is more recent than the immediate commmit "
-                        "timestamp. This may be an issue if delayed "
-                        "replication is active. Make sure that servers have "
-                        "their clocks set to the correct time. No further "
-                        "message will be emitted until after timestamps become "
-                        "valid again.");
+      LogErr(WARNING_LEVEL, ER_INVALID_REPLICATION_TIMESTAMPS);
       thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged= true;
     }
     else
@@ -1659,8 +1653,7 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
       if (thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged &&
           original_commit_timestamp <= immediate_commit_timestamp)
       {
-        sql_print_warning("The replication timestamps have returned to normal "
-                          "values.");
+        LogErr(WARNING_LEVEL, ER_RPL_TIMESTAMPS_RETURNED_TO_NORMAL);
         thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged= false;
       }
     }
@@ -2213,7 +2206,7 @@ static void exec_binlog_error_action_abort(const char* err_string)
     thd->send_statement_status();
   }
   else
-    sql_print_error("%s",err_string);
+    LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_NOT_POSSIBLE, err_string);
   abort();
 }
 
@@ -4112,7 +4105,7 @@ read_gtids_and_update_trx_parser_from_relaylog(
   const char *errmsg= NULL;
   if ((file= open_binlog_file(&log, filename, &errmsg)) < 0)
   {
-    sql_print_error("%s", errmsg);
+    LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED, errmsg);
     /*
       As read_gtids_from_binlog() will not throw error on truncated
       relaylog files, we should do the same here in order to keep the
@@ -4426,7 +4419,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
   const char *errmsg= NULL;
   if ((file= open_binlog_file(&log, filename, &errmsg)) < 0)
   {
-    sql_print_error("%s", errmsg);
+    LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED, errmsg);
     /*
       We need to revisit the recovery procedure for relay log
       files. Currently, it is called after this routine.
@@ -8067,7 +8060,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
     binlog_cache_data *cache_data= cache_mngr->get_binlog_cache_data(false);
     if ((error= cache_data->write_event(thd, ev)))
     {
-      sql_print_error("Failed to write an incident event into stmt_cache.");
+      LogErr(ERROR_LEVEL, ER_BINLOG_EVENT_WRITE_TO_STMT_CACHE_FAILED);
       cache_mngr->stmt_cache.reset();
       DBUG_RETURN(error);
     }
@@ -8516,7 +8509,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
 
     if ((file= open_binlog_file(&log, log_name, &errmsg)) < 0)
     {
-      sql_print_error("%s", errmsg);
+      LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED, errmsg);
       goto err;
     }
 
@@ -8642,9 +8635,8 @@ bool MYSQL_BIN_LOG::truncate_relaylog_file(Master_info *mi,
     }
     else
     {
-      sql_print_information("Relaylog file %s size was %llu, "
-                            "but was truncated at %llu.",
-                            log_file_name, relaylog_file_size, truncate_pos);
+      LogErr(INFORMATION_LEVEL, ER_SLAVE_RELAY_LOG_TRUNCATE_INFO,
+             log_file_name, relaylog_file_size, truncate_pos);
 
       // Re-init the I/O thread IO_CACHE
       reinit_io_cache(&log_file, WRITE_CACHE, truncate_pos, 0, true);
@@ -11385,7 +11377,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code)
     {
       // Need to print to log so that replication admin knows when users
       // have adjusted their workloads.
-      sql_print_warning("%s", ER_DEFAULT(error_code));
+      LogErr(WARNING_LEVEL, error_code);
       // Need to print to client so that users can adjust their workload.
       push_warning(thd, Sql_condition::SL_WARNING, error_code,
                    ER_THD(thd, error_code));

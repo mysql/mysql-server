@@ -19,9 +19,10 @@
 #include <sys/procset.h>
 #include "sys/pset.h"
 
-#include "sql/log.h"
 #include "my_dbug.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"
 
 namespace resourcegroups
 {
@@ -38,9 +39,9 @@ bool bind_to_cpu(cpu_id_t cpu_id)
                      nullptr) == -1)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("bind_to_cpu failed: processor_bind for cpuid %u failed."
-                    "(error code %d - %-.192s)", cpu_id, my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_SOLARIS_PROCESSOR_BIND_TO_CPUID_FAILED,
+           cpu_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     return true;
   }
   return false;
@@ -53,10 +54,9 @@ bool bind_to_cpu(cpu_id_t cpu_id, my_thread_os_id_t thread_id)
                      nullptr) == -1)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("bind_to_cpu failed: processor_bind for thread %%llx with "
-                    "cpu id %u (error code %d - %-.192s)",
-                    thread_id, cpu_id, my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_SOLARIS_PROCESSOR_BIND_TO_THREAD_FAILED,
+           thread_id, cpu_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     return true;
   }
   return false;
@@ -78,9 +78,9 @@ bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids)
   if (processor_affinity(&ps, &nids, ids, &flags) != 0)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("bind_to_cpus failed: processor_affinity failed with"
-                    " error code %d - %-.192s", my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_SOLARIS_PROCESSOR_AFFINITY_FAILED,
+           "bind_to_cpus", my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     return true;
   }
   return false;
@@ -101,9 +101,9 @@ bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids,
   if (processor_affinity(&ps, &nids, ids, &flags) != 0)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("bind_to_cpus failed: processor_affinity failed with"
-                    " errno %d - %-.192s", my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_SOLARIS_PROCESSOR_AFFINITY_FAILED,
+           "bind_to_cpus", my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     return true;
   }
   return false;
@@ -120,9 +120,9 @@ bool unbind_thread()
   if (processor_affinity(&ps, nullptr, nullptr, &flags) != 0)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("unbind_thread failed: processor_affinity failed with"
-                    " (error code %d - %-.192s", my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_SOLARIS_PROCESSOR_AFFINITY_FAILED,
+           "unbind_thread", my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     return true;
   }
   return false;
@@ -139,9 +139,9 @@ bool unbind_thread(my_thread_os_id_t thread_id)
   if (processor_affinity(&ps, nullptr, nullptr, &flags) != 0)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("unbind_thread failed: processor_affinity failed with"
-                    " error code %d - %-.192s", my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_SOLARIS_PROCESSOR_AFFINITY_FAILED,
+           "unbind_thread", my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     return true;
   }
   return false;

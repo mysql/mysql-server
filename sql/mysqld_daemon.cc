@@ -22,7 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "sql/log.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -87,8 +88,7 @@ int mysqld::runtime::mysqld_daemonize()
     }
     if (rc == -1)
     {
-      sql_print_error("Unable to wait for process %lld",
-                      static_cast<long long>(pid));
+      LogErr(ERROR_LEVEL, ER_WAITPID_FAILED, static_cast<long long>(pid));
       close(pipe_fd[0]);
       close(pipe_fd[1]);
       return -2;
@@ -103,8 +103,7 @@ int mysqld::runtime::mysqld_daemonize()
 
     if (rc != 1)
     {
-      sql_print_error("Unable to determine if daemon is running: %s (rc=%d)",
-                      strerror(errno), rc);
+      LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_MYSQLD_STATUS, strerror(errno), rc);
       return -2;
     }
     else if (waitstatus != 1)

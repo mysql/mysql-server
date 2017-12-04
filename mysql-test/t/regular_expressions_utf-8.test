@@ -633,5 +633,28 @@ DO ( (@b) regexp (exp ( 0x1fc5574c )) );
 --error ER_DATA_OUT_OF_RANGE
 DO ( (25091) rlike (exp ( 14373 )) );
 
+--echo #
+--echo # Bug#27183583: REGEXP OPERATIONS CANT BE KILLED
+--echo #
+SET GLOBAL regexp_time_limit = 1000000;
+
+enable_connect_log;
+
+connect(conn1, localhost, root);
+let $conn1_id= `SELECT CONNECTION_ID()`;
+send SELECT regexp_instr('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC', '(A+)+B');
+
+connection default;
+replace_result $conn1_id <conn1_id>;
+eval KILL QUERY $conn1_id;
+
+connection conn1;
+--error ER_QUERY_INTERRUPTED
+reap;
+disconnect conn1;
+source include/wait_until_disconnected.inc;
+connection default;
+disable_connect_log;
+SET GLOBAL regexp_time_limit = DEFAULT;
 
 --source ../mysql-test/include/cleanup_icu_utils.inc

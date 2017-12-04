@@ -17,9 +17,10 @@
 
 #include <windows.h>
 
-#include "sql/log.h"
 #include "my_dbug.h"
 #include "my_sys.h"
+#include "mysqld_error.h"
+#include "mysql/components/services/log_builtins.h"
 
 namespace resourcegroups
 {
@@ -50,18 +51,18 @@ bool bind_to_cpu(cpu_id_t cpu_id, my_thread_os_id_t thread_id)
     if (!res)
     {
       char errbuf[MYSQL_ERRMSG_SIZE];
-      sql_print_error("Unable to bind thread id %llu to cpu id %u."
-                      "(error code %d - %-.192s)", thread_id, cpu_id,
-                      my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+      LogErr(ERROR_LEVEL, ER_RES_GRP_SET_THR_AFFINITY_FAILED,
+             thread_id, cpu_id, my_errno(),
+             my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     }
     CloseHandle(handle);
   }
   else
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("bind_to_cpu failed: Failed to get handle for %llu."
-                    "(error code %d - %-.192s)", thread_id,
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_FAILED_TO_GET_THREAD_HANDLE,
+           "bind_to_cpu", thread_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
   }
   return res == FALSE;
 }
@@ -91,9 +92,9 @@ bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids,
     if (res == 0)
     {
       char errbuf[MYSQL_ERRMSG_SIZE];
-      sql_print_error("Unable to bind thread id %llu to cpu ids."
-                      "(error code %d - %-.192s)", thread_id,
-                      my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+      LogErr(ERROR_LEVEL, ER_RES_GRP_SET_THR_AFFINITY_TO_CPUS_FAILED,
+             thread_id, my_errno(),
+             my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     }
 
     CloseHandle(handle);
@@ -101,9 +102,9 @@ bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids,
   else
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_warning("bind_to_cpu failed: Failed to get handle for thread %llu."
-                      "(error code %d - %-.192s)", thread_id, my_errno(),
-                      my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(WARNING_LEVEL, ER_RES_GRP_FAILED_TO_GET_THREAD_HANDLE,
+           "bind_to_cpu", thread_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
   }
   return res == 0;
 }
@@ -127,18 +128,19 @@ bool unbind_thread(my_thread_os_id_t thread_id)
     if (res == 0)
     {
       char errbuf[MYSQL_ERRMSG_SIZE];
-      sql_print_error("Unable to unbind thread %llu (error code %d - %-.192s)",
-                      thread_id, my_errno(),
-                      my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+      LogErr(ERROR_LEVEL, ER_RES_GRP_THD_UNBIND_FROM_CPU_FAILED,
+             thread_id, my_errno(),
+             my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     }
     CloseHandle(handle);
   }
   else
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("unbind_thread failed: Failed to get handle for thread "
-                    " %llu (error code %d - %-.192s)", thread_id, my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_FAILED_TO_GET_THREAD_HANDLE,
+           "unbind_thread",
+           thread_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
   }
   return res == 0;
 }
@@ -193,10 +195,9 @@ bool set_thread_priority(int priority, my_thread_os_id_t thread_id)
   else
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("Set thread priority failed: unable to acquire handle"
-                    " thread id %d (error code %d - %-.192s)", thread_id,
-                    my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_FAILED_TO_GET_THREAD_HANDLE,
+           "Set thread priority", thread_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
   }
 
   DBUG_RETURN(res == FALSE);

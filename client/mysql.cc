@@ -44,9 +44,9 @@
 
 #include "client/client_priv.h"
 #include "client/my_readline.h"
+#include "client/pattern_matcher.h"
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "mf_wcomp.h"                  // wild_prefix, wild_one, wild_any
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -55,7 +55,6 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
-#include "prealloced_array.h"
 #include "typelib.h"
 #include "violite.h"
 
@@ -132,6 +131,12 @@ static char *server_version= NULL;
 
 #define MAX_BATCH_BUFFER_SIZE (1024L * 1024L * 1024L)
 
+/** default set of patterns used for history exclusion filter */
+const static std::string HI_DEFAULTS("*IDENTIFIED*:*PASSWORD*");
+
+/** used for matching which history lines to ignore */
+static Pattern_matcher ignore_matcher;
+
 struct STATUS
 {
   int exit_status;
@@ -181,7 +186,6 @@ static char *current_host,*current_db,*current_user=0,*opt_password=0,
 static char *histfile;
 static char *histfile_tmp;
 static char *opt_histignore= NULL;
-DYNAMIC_STRING histignore_buffer;
 static String glob_buffer,old_buffer;
 static String processed_prompt;
 static char *full_username=0,*part_username=0,*default_prompt=0;
@@ -330,14 +334,6 @@ static int get_result_width(MYSQL_RES *res);
 static int get_field_disp_length(MYSQL_FIELD * field);
 static int normalize_dbname(const char *line, char *buff, uint buff_size);
 static int get_quote_count(const char *line);
-
-typedef Prealloced_array<LEX_STRING, 16> Histignore_patterns;
-Histignore_patterns *histignore_patterns;
-
-static bool check_histignore(const char *string);
-static bool parse_histignore();
-static bool init_hist_patterns();
-static void free_hist_patterns();
 
 static void add_filtered_history(const char *string);
 static void add_syslog(const char *buffer);          /* for syslog */
@@ -1373,28 +1369,19 @@ int main(int argc,char *argv[])
 
   if (!status.batch)
   {
-    init_dynamic_string(&histignore_buffer, "*IDENTIFIED*:*PASSWORD*",
-                        1024, 1024);
+    // history ignore patterns are initialized to default values
+    ignore_matcher.add_patterns(HI_DEFAULTS);
 
     /*
-      More history-ignore patterns can be supplied using either --histignore
-      option or MYSQL_HISTIGNORE environment variable. If supplied, it will
-      get appended to the default pattern (*IDENTIFIED*:*PASSWORD*). In case
-      both are specified, pattern(s) supplied using --histignore option will
-      be used.
+      Additional patterns may be supplied using either --histignore option or
+      MYSQL_HISTIGNORE environment variable. If supplied, they'll get appended
+      to the default patterns. In case both are specified, pattern(s) supplied
+      using --histignore option will be used.
     */
     if (opt_histignore)
-    {
-      dynstr_append(&histignore_buffer, ":");
-      dynstr_append(&histignore_buffer, opt_histignore);
-    }
+      ignore_matcher.add_patterns(opt_histignore);
     else if (getenv("MYSQL_HISTIGNORE"))
-    {
-      dynstr_append(&histignore_buffer, ":");
-      dynstr_append(&histignore_buffer, getenv("MYSQL_HISTIGNORE"));
-    }
-
-    parse_histignore();
+      ignore_matcher.add_patterns(getenv("MYSQL_HISTIGNORE"));
 
   #ifdef HAVE_READLINE
     if (!quick)
@@ -1499,8 +1486,6 @@ void mysql_end(int sig)
   my_free(histfile_tmp);
 #endif
   my_free(opt_histignore);
-  dynstr_free(&histignore_buffer);
-  free_hist_patterns();
 
   my_free(current_os_user);
   my_free(current_os_sudouser);
@@ -3137,98 +3122,19 @@ static void fix_line(String *final_command)
 /* Add the given line to mysql history and syslog. */
 static void add_filtered_history(const char *string)
 {
-  if (!check_histignore(string))
-  {
+  // line shouldn't be on history ignore list
+  if (ignore_matcher.is_matching(string, charset_info))
+    return;
+
 #ifdef HAVE_READLINE
-    if (!quick && not_in_history(string))
-      add_history(string);
+  if (!quick && not_in_history(string))
+    add_history(string);
 #endif
-    if (opt_syslog)
-      add_syslog(string);
-  }
+
+  if (opt_syslog)
+    add_syslog(string);
 }
 
-
-/**
-  Perform a check on the given string if it contains
-  any of the histignore patterns.
-
-  @param [in] string         String that needs to be checked.
-
-  @return Operation status
-      @retval 0    No match found
-      @retval 1    Match found
-*/
-
-static
-bool check_histignore(const char *string)
-{
-  int rc;
-
-  LEX_STRING *tmp;
-
-  DBUG_ENTER("check_histignore");
-
-  for (tmp= histignore_patterns->begin();
-       tmp != histignore_patterns->end(); ++tmp)
-  {
-    if ((rc= charset_info->coll->wildcmp(charset_info,
-                                         string, string + strlen(string),
-                                         tmp->str, tmp->str + tmp->length,
-                                         wild_prefix, wild_one,
-                                         wild_many)) == 0)
-      DBUG_RETURN(1);
-  }
-  DBUG_RETURN(0);
-}
-
-
-/**
-  Parse the histignore list into pattern tokens.
-
-  @return Operation status
-      @retval 0    Success
-      @retval 1    Failure
-*/
-
-static
-bool parse_histignore()
-{
-  LEX_STRING pattern;
-
-  char *token;
-  const char *search= ":";
-
-  DBUG_ENTER("parse_histignore");
-
-  if (init_hist_patterns())
-    DBUG_RETURN(1);
-
-  token= strtok(histignore_buffer.str, search);
-
-  while(token != NULL)
-  {
-    pattern.str= token;
-    pattern.length= strlen(pattern.str);
-    histignore_patterns->push_back(pattern);
-    token= strtok(NULL, search);
-  }
-  DBUG_RETURN(0);
-}
-
-static
-bool init_hist_patterns()
-{
-  histignore_patterns=
-    new (std::nothrow) Histignore_patterns(PSI_NOT_INSTRUMENTED);
-  return histignore_patterns == NULL;
-}
-
-static
-void free_hist_patterns()
-{
-  delete histignore_patterns;
-}
 
 void add_syslog(const char *line) {
   char buff[MAX_SYSLOG_MESSAGE_SIZE];

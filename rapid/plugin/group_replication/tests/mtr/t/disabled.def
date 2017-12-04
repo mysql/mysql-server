@@ -9,3 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+gr_start_with_persisted_variables : BUG#27212924 12-04-2017 Bharathy Satish Test fails as GR does not come ONLINE.
