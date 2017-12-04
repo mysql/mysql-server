@@ -1,6 +1,3 @@
-# Test is temporarily run with show_compatibility_56=ON until Bug#21783798 is fixed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 call mtr.add_suppression("Event 'MYSQL_AUDIT_COMMAND_END' cannot be aborted.");
 call mtr.add_suppression("Event 'MYSQL_AUDIT_CONNECTION_DISCONNECT' cannot be aborted.");
 call mtr.add_suppression("Command 'Ping' cannot be aborted.");
@@ -75,6 +72,9 @@ SELECT 1;
 SET @@null_audit_event_order_check_exact = <expected_check_exact>;
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
                                           'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
                                           'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;name="null_audit_abort_value" value="1";ABORT_RET';
 SELECT @@GLOBAL.null_audit_abort_value;
 ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_GET';1).
@@ -99,24 +99,6 @@ SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-OK
 # SHOW GLOBAL VARIABLE
-SET @old_show_compatibility_56=@@global.show_compatibility_56;
-SET @@global.show_compatibility_56=ON;
-SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
-                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
-                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
-                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
-                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="15";;'
-                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;name="null_audit_abort_value" value="1";ABORT_RET',
-@@null_audit_event_order_check_exact = 1;
-SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_GET';1).
-SELECT @@null_audit_event_order_check;
-@@null_audit_event_order_check
-EVENT-ORDER-ABORT
-SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
-Variable_name	Value
-null_audit_abort_value	1
-SET @@global.show_compatibility_56=OFF;
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
                                      'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
@@ -132,7 +114,6 @@ EVENT-ORDER-ABORT
 SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
 Variable_name	Value
 null_audit_abort_value	1
-SET @@global.show_compatibility_56=@old_show_compatibility_56;
 # SHOW GLOBAL VARIABLE
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
                                           'MYSQL_AUDIT_PARSE_PREPARSE;;;'
@@ -167,7 +148,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
                                           'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;name="null_audit_abort_value" value="1";ABORT_RET';
-SELECT * FROM information_schema.global_variables WHERE VARIABLE_NAME = 'null_audit_abort_value';
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'null_audit_abort_value';
 ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_GET';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
@@ -1629,7 +1610,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_GENERAL_RESULT;;;'
                                           'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                           'MYSQL_AUDIT_COMMAND_END;command_id="<expected_command_id>";';
-SELECT * FROM INFORMATION_SCHEMA.TABLES;
+SELECT * FROM INFORMATION_SCHEMA.CHARACTER_SETS;
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-OK
@@ -1838,4 +1819,3 @@ ERROR HY000: Variable 'null_audit_event_record' is a read only variable
 UNINSTALL PLUGIN null_audit;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
-set @@global.show_compatibility_56=@show_compatibility_56_save;

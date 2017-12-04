@@ -29,7 +29,6 @@
 #include "sql/derror.h"
 #include "sql/mysqld.h"
 #include "sql/persisted_variable.h"
-#include "sql/sql_audit.h"  // audit_global_variable_get
 #include "sql/sql_class.h"
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_global.h"
@@ -738,16 +737,6 @@ System_variable::init(THD *target_thd,
   if (target_thd != current_thread)
   {
     mysql_mutex_unlock(&target_thd->LOCK_thd_sysvar);
-  }
-
-  if (show_var_type != SHOW_FUNC && query_scope == OPT_GLOBAL &&
-      mysql_audit_notify(current_thread,
-                         AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
-                         m_name,
-                         value,
-                         (uint)m_value_length))
-  {
-    return;
   }
 
   m_initialized = true;

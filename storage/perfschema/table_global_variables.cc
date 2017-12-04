@@ -33,6 +33,8 @@
 #include "storage/perfschema/pfs_column_values.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_instr_class.h"
+#include "sql/sql_audit.h"  // audit_global_variable_get
+
 
 bool
 PFS_index_global_variables::match(const System_variable *pfs)
@@ -233,6 +235,16 @@ table_global_variables::make_row(const System_variable *system_var)
 
   m_row.m_variable_name.make_row(system_var->m_name, system_var->m_name_length);
   m_row.m_variable_value.make_row(system_var);
+
+  /*
+    We are about to return a row to the SQL layer.
+    Notify the audit plugins that a global variable is read.
+  */
+  mysql_audit_notify(current_thd,
+                     AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
+                     m_row.m_variable_name.m_str,
+                     m_row.m_variable_value.get_str(),
+                     m_row.m_variable_value.get_length());
 
   return 0;
 }

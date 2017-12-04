@@ -1135,6 +1135,9 @@ public:
   /** Set a table field from the row. */
   void set_field(Field *f);
 
+  const char* get_str() const { return m_str; }
+  uint get_length() const { return m_length; }
+
 private:
   int make_row(const CHARSET_INFO *cs, const char *str, size_t length);
 
