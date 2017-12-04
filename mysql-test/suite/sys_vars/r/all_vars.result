@@ -15,8 +15,6 @@ left join t1 on variable_name=test_name where test_name is null ORDER BY variabl
 There should be *no* variables listed below:
 activate_all_roles_on_login
 activate_all_roles_on_login
-binlog_expire_logs_seconds
-binlog_expire_logs_seconds
 cte_max_recursion_depth
 cte_max_recursion_depth
 disabled_storage_engines
