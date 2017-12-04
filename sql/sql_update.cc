@@ -644,15 +644,9 @@ bool mysql_update(THD *thd,
         */
         table->prepare_for_position();
 
-        IO_CACHE tempfile;
-        if (open_cached_file(&tempfile, mysql_tmpdir,TEMP_PREFIX,
-                             DISK_BUFFER_SIZE, MYF(MY_WME)))
-          goto exit_without_my_ok;
-
         /* If quick select is used, initialize it before retrieving rows. */
         if (qep_tab.quick() && (error= qep_tab.quick()->reset()))
         {
-          close_cached_file(&tempfile);
           if (table->file->is_fatal_error(error))
             error_flags|= ME_FATALERROR;
 
@@ -678,13 +672,21 @@ bool mysql_update(THD *thd,
           error= init_read_record_idx(&info, thd, table, 1, used_index, reverse);
 
         if (error)
-        {
-          close_cached_file(&tempfile); /* purecov: inspected */
           goto exit_without_my_ok;
-        }
 
         THD_STAGE_INFO(thd, stage_searching_rows_for_update);
         ha_rows tmp_limit= limit;
+
+        IO_CACHE *tempfile= (IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
+                                                  sizeof(IO_CACHE),
+                                                  MYF(MY_FAE | MY_ZEROFILL));
+
+        if (open_cached_file(tempfile, mysql_tmpdir,TEMP_PREFIX,
+                             DISK_BUFFER_SIZE, MYF(MY_WME)))
+        {
+          my_free(tempfile);
+          goto exit_without_my_ok;
+        }
 
         while (!(error=info.read_record(&info)) && !thd->killed)
         {
@@ -705,7 +707,7 @@ bool mysql_update(THD *thd,
               continue;  /* repeat the read of the same row if it still exists */
 
             table->file->position(table->record[0]);
-            if (my_b_write(&tempfile,table->file->ref,
+            if (my_b_write(tempfile, table->file->ref,
                            table->file->ref_length))
             {
               error=1; /* purecov: inspected */
@@ -726,19 +728,16 @@ bool mysql_update(THD *thd,
         table->file->try_semi_consistent_read(0);
         end_read_record(&info);
         /* Change select to use tempfile */
-        if (reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
+        if (reinit_io_cache(tempfile, READ_CACHE, 0L, 0, 0))
           error=1; /* purecov: inspected */
-        // Read row ptrs from this file.
+
         DBUG_ASSERT(table->sort.io_cache == NULL);
-        table->sort.io_cache= (IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
-                                                    sizeof(IO_CACHE),
-                                                    MYF(MY_FAE | MY_ZEROFILL));
         /*
           After this assignment, init_read_record() will run, and decide to
           read from sort.io_cache. This cache will be freed when qep_tab is
           destroyed.
          */
-        *table->sort.io_cache= tempfile;
+        table->sort.io_cache= tempfile;
         qep_tab.set_quick(NULL);
         qep_tab.set_condition(NULL);
         if (error >= 0)
@@ -2021,6 +2020,9 @@ bool Query_result_update::initialize_tables(JOIN *join)
     List<Item> temp_fields;
     ORDER     group;
     Temp_table_param *tmp_param;
+    if (table->vfield &&
+        validate_gc_assignment(thd, fields, values, table))
+      DBUG_RETURN(0);
 
     if (thd->lex->is_ignore())
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -2080,15 +2082,11 @@ bool Query_result_update::initialize_tables(JOIN *join)
       if (safe_update_on_fly(thd, join->best_ref[0], table_ref, all_tables))
       {
         table->mark_columns_needed_for_update(true/*mark_binlog_columns=true*/);
-	table_to_update= table;			// Update table on the fly
+        table_to_update= table;			// Update table on the fly
 	continue;
       }
     }
     table->mark_columns_needed_for_update(true/*mark_binlog_columns=true*/);
-
-    if (table->vfield &&
-        validate_gc_assignment(thd, fields, values, table))
-      DBUG_RETURN(0);
     /*
       enable uncacheable flag if we update a view with check option
       and check option has a subselect, otherwise, the check option

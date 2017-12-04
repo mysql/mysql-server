@@ -42,6 +42,8 @@ ERROR 42000: Variable 'group_replication_gtid_assignment_block_size' can't be se
 SET @@GLOBAL.group_replication_ip_whitelist= default;
 ERROR 42000: Variable 'group_replication_ip_whitelist' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_allow_local_disjoint_gtids_join= default;
+Warnings:
+Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
 SET @@GLOBAL.group_replication_allow_local_lower_version_join= default;
 SET @@GLOBAL.group_replication_bootstrap_group= default;
 SET @@GLOBAL.group_replication_components_stop_timeout= default;
@@ -101,4 +103,6 @@ include/assert.inc [Default group_replication_member_weight is 50]
 #
 # Clean up
 #
+Warnings:
+Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

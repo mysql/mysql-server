@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ ENDMACRO()
 MACRO(MYSQL_ADD_PLUGIN)
   MYSQL_PARSE_ARGUMENTS(ARG
     "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
-    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;MANDATORY;DEFAULT;DISABLED;NOT_FOR_EMBEDDED;RECOMPILE_FOR_EMBEDDED;TEST_ONLY"
+    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;CLIENT_ONLY;MANDATORY;DEFAULT;DISABLED;NOT_FOR_EMBEDDED;RECOMPILE_FOR_EMBEDDED;TEST_ONLY"
     ${ARGN}
   )
   
@@ -124,6 +124,27 @@ MACRO(MYSQL_ADD_PLUGIN)
     ADD_LIBRARY(${target} STATIC ${SOURCES})
     SET_TARGET_PROPERTIES(${target}
       PROPERTIES COMPILE_DEFINITIONS "MYSQL_SERVER")
+    # Collect all static libraries in the same directory
+    SET_TARGET_PROPERTIES(${target} PROPERTIES
+      ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/archive_output_directory)
+
+    # Keep track of known convenience libraries, in a global scope.
+    # Static plugins may be linked into the mysqlserver library (embedded)
+    SET(KNOWN_CONVENIENCE_LIBRARIES
+      ${KNOWN_CONVENIENCE_LIBRARIES} ${target} CACHE INTERNAL "" FORCE)
+
+    # Generate a cmake file which will save the name of the library.
+    CONFIGURE_FILE(
+      ${MYSQL_CMAKE_SCRIPT_DIR}/save_archive_location.cmake.in
+      ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_${target}.cmake
+      @ONLY)
+    ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+      COMMAND ${CMAKE_COMMAND}
+      -DTARGET_NAME=${target}
+      -DTARGET_LOC=$<TARGET_FILE:${target}>
+      -DCFG_INTDIR=${CMAKE_CFG_INTDIR}
+      -P ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_${target}.cmake
+      )
 
     DTRACE_INSTRUMENT(${target})
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
@@ -200,7 +221,9 @@ MACRO(MYSQL_ADD_PLUGIN)
     DTRACE_INSTRUMENT(${target})
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
-    TARGET_LINK_LIBRARIES (${target} mysqlservices)
+    IF(NOT ARG_CLIENT_ONLY)
+      TARGET_LINK_LIBRARIES (${target} mysqlservices)
+    ENDIF()
 
     GET_TARGET_PROPERTY(LINK_FLAGS ${target} LINK_FLAGS)
     IF(NOT LINK_FLAGS)
@@ -219,8 +242,10 @@ MACRO(MYSQL_ADD_PLUGIN)
     # Thus we skip TARGET_LINK_LIBRARIES on Linux, as it would only generate
     # an additional dependency.
     # Use MYSQL_PLUGIN_IMPORT for static data symbols to be exported.
-    IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
-      TARGET_LINK_LIBRARIES (${target} mysqld ${ARG_LINK_LIBRARIES})
+    IF(NOT ARG_CLIENT_ONLY)
+      IF(WIN32 OR APPLE)
+        TARGET_LINK_LIBRARIES (${target} mysqld ${ARG_LINK_LIBRARIES})
+      ENDIF()
     ENDIF()
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
 

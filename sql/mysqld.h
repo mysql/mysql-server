@@ -323,6 +323,20 @@ extern char *opt_log_syslog_facility;
 extern uint host_cache_size;
 extern ulong log_error_verbosity;
 
+extern bool opt_keyring_operations;
+extern char *opt_keyring_migration_user;
+extern char *opt_keyring_migration_host;
+extern char *opt_keyring_migration_password;
+extern char *opt_keyring_migration_socket;
+extern char *opt_keyring_migration_source;
+extern char *opt_keyring_migration_destination;
+extern ulong opt_keyring_migration_port;
+/**
+  Variable to check if connection related options are set
+  as part of keyring migration.
+*/
+extern bool migrate_connect_options;
+
 /** System variable show_compatibility_56. */
 extern my_bool show_compatibility_56;
 
@@ -413,7 +427,8 @@ extern PSI_mutex_key
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
   key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query,
-  key_LOCK_cost_const, key_LOCK_current_cond;
+  key_LOCK_cost_const, key_LOCK_current_cond,
+  key_LOCK_keyring_operations;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_done;
@@ -824,6 +839,7 @@ extern mysql_rwlock_t LOCK_system_variables_hash;
 extern mysql_cond_t COND_manager;
 extern int32 thread_running;
 extern mysql_mutex_t LOCK_group_replication_handler;
+extern mysql_mutex_t LOCK_keyring_operations;
 
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath, *opt_tls_version;
@@ -902,7 +918,14 @@ enum options_mysqld
   OPT_SHOW_OLD_TEMPORALS,
   OPT_ENFORCE_GTID_CONSISTENCY,
   OPT_TRANSACTION_READ_ONLY,
-  OPT_TRANSACTION_ISOLATION
+  OPT_TRANSACTION_ISOLATION,
+  OPT_KEYRING_MIGRATION_SOURCE,
+  OPT_KEYRING_MIGRATION_DESTINATION,
+  OPT_KEYRING_MIGRATION_USER,
+  OPT_KEYRING_MIGRATION_HOST,
+  OPT_KEYRING_MIGRATION_PASSWORD,
+  OPT_KEYRING_MIGRATION_SOCKET,
+  OPT_KEYRING_MIGRATION_PORT
 };
 
 

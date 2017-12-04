@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -515,7 +515,7 @@ Key_use* Optimize_table_order::find_best_ref(JOIN_TAB *tab,
             */
             if (!table_deps && table->quick_keys.is_set(key) &&     // (1)
                 table->quick_key_parts[key] > cur_used_keyparts &&  // (2)
-                cur_fanout < (double)table->quick_rows[key])        // (3)
+                cur_fanout <= (double)table->quick_rows[key])        // (3)
                 {
                   cur_fanout= (double)table->quick_rows[key];
                   is_dodgy= true;

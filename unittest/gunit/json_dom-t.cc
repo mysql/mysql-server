@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -383,6 +383,33 @@ TEST_F(JsonDomTest, BasicTest)
   dom.reset(Json_dom::parse(half_array_item, std::strlen(half_array_item),
                             &msg, &msg_offset));
   EXPECT_EQ(null_dom, dom.get());
+}
+
+/*
+  Test that special characters are escaped when a Json_string is
+  converted to text, so that it is possible to parse the resulting
+  string. The JSON parser requires all characters in the range [0x00,
+  0x1F] and the characters " (double-quote) and \ (backslash) to be
+  escaped.
+*/
+TEST_F(JsonDomTest, EscapeSpecialChars)
+{
+  // Create a JSON string with all characters in the range [0, 127].
+  char input[128];
+  for (size_t i= 0; i < sizeof(input); ++i)
+    input[i]= static_cast<char>(i);
+  const Json_string jstr(std::string(input, sizeof(input)));
+
+  // Now convert that value from JSON to text and back to JSON.
+  std::string str= format(jstr);
+  std::auto_ptr<Json_dom> dom(Json_dom::parse(str.c_str(), str.length(),
+                                              NULL, NULL));
+  EXPECT_NE(static_cast<Json_dom*>(NULL), dom.get());
+  EXPECT_EQ(Json_dom::J_STRING, dom->json_type());
+
+  // Expect to get the same string back, including all the special characters.
+  const Json_string *jstr2= down_cast<const Json_string *>(dom.get());
+  EXPECT_EQ(jstr.value(), jstr2->value());
 }
 
 void vet_wrapper_length(char * text, size_t expected_length )

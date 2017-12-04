@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "lock.h"   // lock_object_name
 #include "log.h"
 #include "mysql/psi/mysql_sp.h"
+#include "debug_sync.h"
 
 /**
   @addtogroup Event_Scheduler
@@ -241,6 +242,8 @@ common_1_lev_code:
     break;
   case INTERVAL_WEEK:
     expr/= 7;
+    close_quote= FALSE;
+    break;
   default:
     close_quote= FALSE;
     break;
@@ -511,6 +514,8 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     LEX_STRING dbname= new_dbname ? *new_dbname : parse_data->dbname;
     LEX_STRING name= new_name ? *new_name : parse_data->name;
 
+    DEBUG_SYNC(thd, "after_alter_event_updated_event_table");
+
     if (opt_event_scheduler != Events::EVENTS_DISABLED)
     {
       if (!(new_element= new Event_queue_element()))
@@ -529,16 +534,17 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
         if (event_queue)
           event_queue->update_event(thd, parse_data->dbname, parse_data->name,
                                     new_element);
-        /* Binlog the alter event. */
-        DBUG_ASSERT(thd->query().str && thd->query().length);
-
-        thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
-        if (new_dbname)
-          thd->add_to_binlog_accessed_dbs(new_dbname->str);
-
-        ret= write_bin_log(thd, true, thd->query().str, thd->query().length);
       }
     }
+
+    /* Binlog the alter event. */
+    DBUG_ASSERT(thd->query().str && thd->query().length);
+
+    thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
+    if (new_dbname)
+      thd->add_to_binlog_accessed_dbs(new_dbname->str);
+
+    ret|= write_bin_log(thd, true, thd->query().str, thd->query().length);
   }
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());

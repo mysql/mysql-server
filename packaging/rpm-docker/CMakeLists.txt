@@ -23,11 +23,19 @@ IF(UNIX)
     SET(SPECFILENAME "mysql-cluster-${NDBVERSION}.spec")
   ENDIF()
 
+  IF ("${PIDFILE_RPM}" STREQUAL "")
+    SET(PIDFILE_RPM  "/var/run/mysqld/mysqld.pid")
+  ENDIF()
+
+  IF ("${LOGFILE_RPM}" STREQUAL "")
+    SET(LOGFILE_RPM "/var/log/mysqld.log")
+  ENDIF()
+
   # Left in current directory, to be taken during build
   CONFIGURE_FILE(mysql.spec.in ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
 
   FOREACH(fedfile my.cnf)
-    CONFIGURE_FILE(${fedfile} ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
+    CONFIGURE_FILE(${fedfile}.in ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
   ENDFOREACH()
 ENDIF()
 

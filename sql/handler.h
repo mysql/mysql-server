@@ -70,6 +70,8 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #define HA_ADMIN_NEEDS_CHECK    -12
 /** Needs ALTER TABLE t UPGRADE PARTITIONING. */
 #define HA_ADMIN_NEEDS_UPG_PART -13
+/** Needs to dump and re-create to fix pre 5.0 decimal types */
+#define HA_ADMIN_NEEDS_DUMP_UPGRADE -14
 
 /**
    Return values for check_if_supported_inplace_alter().

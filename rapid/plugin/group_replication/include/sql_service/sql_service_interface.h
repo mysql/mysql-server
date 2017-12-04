@@ -53,7 +53,8 @@ private:
     @return the sql error number
       @retval  0    OK
       @retval >0    SQL Error Number returned from MySQL Service API
-      @retval <0    local errors
+      @retval -1    Internal server session failed or was killed
+      @retval -2    Internal API failure
   */
   long
   execute_internal(Sql_resultset *rset,

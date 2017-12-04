@@ -540,7 +540,7 @@ mkdir debug
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
-           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin/debug" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysql/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -642,6 +642,14 @@ rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql 
 rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
+
+# Remove obsoleted man pages
+rm -f %{buildroot}%{_mandir}/man1/mysql-stress-test.pl.1
+rm -f %{buildroot}%{_mandir}/man1/mysql-test-run.pl.1
+rm -f %{buildroot}%{_mandir}/man1/mysql_client_test.1
+rm -f %{buildroot}%{_mandir}/man1/mysql_client_test_embedded.1
+rm -f %{buildroot}%{_mandir}/man1/mysqltest.1
+rm -f %{buildroot}%{_mandir}/man1/mysqltest_embedded.1
 
 # Remove upcoming man pages, to avoid breakage when they materialize
 # Keep this comment as a placeholder for future cases
@@ -847,6 +855,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
@@ -856,6 +865,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
@@ -1107,13 +1117,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_security_context.so
 
-%attr(644, root, root) %{_mandir}/man1/mysql_client_test.1*
-%attr(644, root, root) %{_mandir}/man1/mysql-stress-test.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysql-test-run.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_client_test_embedded.1*
-%attr(644, root, root) %{_mandir}/man1/mysqltest.1*
-%attr(644, root, root) %{_mandir}/man1/mysqltest_embedded.1*
-
 %files embedded
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
@@ -1183,6 +1186,12 @@ fi
 %endif # cluster
 
 %changelog
+* Wed 08 2017 Bharathy Satish <bharathy.x.satish@oracle.com> - 5.7.21-1
+- Add keyring_encrypted_file.so plugin
+
+* Tue Oct 31 2017 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.21-1
+- Remove obsoleted mysqltest man pages
+
 * Fri May 26 2017 Harin Vadodaria <harin.vadodaria@oracle.com> - 5.7.19-1
 - Add keyring_aws.so plugin to commercial server subpackage
 

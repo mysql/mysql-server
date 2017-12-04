@@ -1,0 +1,91 @@
+# ==== Purpose ====
+#
+# This test will make a worker to fail applying a transaction while SQL thread
+# is requested to stop and MTS logical clock was waiting for a transaction to
+# continue scheduling events to workers.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#25585436 ASSERT `!RLI_DESCRIPTION_EVENT || IS_PARALLEL_EXEC()' AT
+#              RPL_RLI.CC:2393
+#
+
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression('The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.');
+SET @save_slave_parallel_type = @@GLOBAL.slave_parallel_type;
+SET @save_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+SET @save_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+SET @save_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+
+SET @@GLOBAL.slave_parallel_type = LOGICAL_CLOCK;
+SET @@GLOBAL.slave_parallel_workers = 3;
+SET @@GLOBAL.slave_transaction_retries = 0;
+SET @@GLOBAL.innodb_lock_wait_timeout = 1;
+--source include/start_slave.inc
+
+#
+# Workload
+#
+--source include/rpl_connection_master.inc
+CREATE TABLE parent (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE child ( a INT NOT NULL PRIMARY KEY, b INT,
+  FOREIGN KEY(a) REFERENCES parent (a) ON DELETE RESTRICT);
+
+INSERT INTO parent VALUES (1, 'a1');
+INSERT INTO parent VALUES (2, 'a2');
+INSERT INTO parent VALUES (3, 'a3');
+INSERT INTO parent VALUES (4, 'a4');
+
+INSERT INTO child VALUES (1,1);
+INSERT INTO child VALUES (2,1);
+INSERT INTO child VALUES (3,1);
+INSERT INTO child VALUES (4,1);
+
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Block MTS worker and put coordinator to wait on logical clock
+#
+--source include/rpl_connection_slave1.inc
+BEGIN;
+DELETE FROM child WHERE a=3;
+
+--source include/rpl_connection_master.inc
+DELETE FROM child WHERE a=3;
+DELETE FROM parent WHERE a=3;
+
+#
+# Wait until coordinator is waiting to schedule transactions
+#
+--source include/sync_slave_io_with_master.inc
+--let $slave_param= Slave_SQL_Running_State
+--let $slave_param_value= Waiting for dependent transaction to commit
+--source include/wait_for_slave_param.inc
+#
+# Stop slave and cleanup the blocking
+#
+--disable_warnings
+--source include/stop_slave_sql.inc
+--enable_warnings
+--source include/rpl_connection_slave1.inc
+ROLLBACK;
+
+#
+# Cleanup
+#
+--source include/rpl_connection_master.inc
+DROP TABLE child, parent;
+
+--source include/rpl_connection_slave.inc
+SET @@GLOBAL.slave_parallel_type= @save_slave_parallel_type;
+SET @@GLOBAL.slave_parallel_workers= @save_slave_parallel_workers;
+SET @@GLOBAL.slave_transaction_retries= @save_slave_transaction_retries;
+SET @@GLOBAL.innodb_lock_wait_timeout= @save_innodb_lock_wait_timeout;
+--source include/start_slave_sql.inc
+
+--source include/rpl_end.inc

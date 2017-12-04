@@ -1912,7 +1912,15 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
       goto finish;
     if (outer_join_first_inner)
     {
-      if (next_cache)
+      /*
+        If the inner-most outer join has a single inner table, all matches for
+        outer table's record from join buffer is already found by
+        join_matching_records. There is no need to call
+        next_cache->join_records now. The full extensions of matched and null
+        extended rows will be generated together at once by calling
+        next_cache->join_records at the end of this function.
+      */
+      if (!qep_tab->is_single_inner_for_outer_join() && next_cache)
       {
         /* 
           Ensure that all matches for outer records from join buffer are to be

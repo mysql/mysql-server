@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -865,7 +865,15 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       entry->n_waiters++;
       wait_result= mysql_cond_timedwait(&entry->cond, &LOCK_binlog_, &abstime);
       entry->n_waiters--;
-      rpl_semi_sync_master_wait_sessions--;
+      /*
+        After we release LOCK_binlog_ above while waiting for the condition,
+        it can happen that some other parallel client session executed
+        RESET MASTER. That can set rpl_semi_sync_master_wait_sessions to zero.
+        Hence check the value before decrementing it and decrement it only if it is
+        non-zero value.
+      */
+      if (rpl_semi_sync_master_wait_sessions > 0)
+        rpl_semi_sync_master_wait_sessions--;
       
       if (wait_result != 0)
       {

@@ -19,12 +19,6 @@ usr/bin/mysql_client_test_embedded
 usr/bin/mysqltest
 usr/bin/mysqltest_embedded
 usr/bin/mysqlxtest
-# manpages
-usr/share/man/man1/mysql_client_test.1
-usr/share/man/man1/mysql_client_test_embedded.1
-usr/share/man/man1/mysql-test-run.pl.1
-usr/share/man/man1/mysqltest.1
-usr/share/man/man1/mysqltest_embedded.1
 # plugins
 usr/lib/mysql/plugin/auth.so
 usr/lib/mysql/plugin/auth_test_plugin.so
@@ -63,5 +57,5 @@ usr/lib/mysql/plugin/test_udf_services.so
 # test suite
 usr/lib/mysql-test/*
 # legal
-usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/@DEB_INSTALL_LICENSEFILE@
-usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/README
+usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/
+usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/
