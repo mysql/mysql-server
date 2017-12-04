@@ -75,12 +75,15 @@ bool Pattern_matcher::is_matching(const std::string& text, const CHARSET_INFO* i
 
   // traverse all patterns, return true on first match
   for (auto& pattern : m_patterns)
+  {
     if (info->coll->wildcmp(info,
                            text.c_str(), text.c_str() + text.length(),
                            pattern.c_str(), pattern.c_str() + pattern.length(),
-                           WILD_ESCAPE, WILD_ONE, WILD_MANY) == 0)
+                            WILD_ESCAPE, WILD_ONE, WILD_MANY) == 0)
+    {
       DBUG_RETURN(true);
-
+    }
+  }
   // none of the patterns matched
   DBUG_RETURN(false);
 }
@@ -91,6 +94,5 @@ bool Pattern_matcher::is_matching(const std::string& text, const CHARSET_INFO* i
 */
 void Pattern_matcher::clear()
 {
-  DBUG_ENTER("Pattern_matcher::clear");
   m_patterns.clear();
 }
