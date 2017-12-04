@@ -81,6 +81,7 @@ my_bool disconnect_on_expired_password= TRUE;
 
 #if defined(HAVE_OPENSSL)
 #define MAX_CIPHER_LENGTH 1024
+#define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
 #if !defined(HAVE_YASSL)
 #define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
 #define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
@@ -2640,7 +2641,8 @@ int set_native_salt(const char* password, unsigned int password_len,
 int generate_sha256_password(char *outbuf, unsigned int *buflen,
                              const char *inbuf, unsigned int inbuflen)
 {
-  if (my_validate_password_policy(inbuf, inbuflen))
+  if (inbuflen > SHA256_PASSWORD_MAX_PASSWORD_LENGTH ||
+      my_validate_password_policy(inbuf, inbuflen))
     return 1;
   if (inbuflen == 0)
   {
@@ -3039,6 +3041,10 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     DBUG_RETURN(CR_ERROR);
 #endif /* HAVE_YASSL */
   } // if(!my_vio_is_encrypter())
+
+  /* Don't process the password if it is longer than maximum limit */
+  if (pkt_len > SHA256_PASSWORD_MAX_PASSWORD_LENGTH + 1)
+    DBUG_RETURN(CR_ERROR);
 
   /* A password was sent to an account without a password */
   if (info->auth_string_length == 0)

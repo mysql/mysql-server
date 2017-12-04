@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -434,7 +434,7 @@ void Expression_generator::in_expression(const Mysqlx::Expr::Operator &arg, cons
       }
       break;
     }
-    // missing "break;"? on purpose
+    // Fall through.
 
   default:
     m_qb.put("(");

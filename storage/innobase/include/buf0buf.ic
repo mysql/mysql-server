@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1244,8 +1244,8 @@ buf_page_release_zip(
 			rw_lock_s_unlock(&block->debug_latch);
 		}
 	}
-		/* Fall through */
 #endif /* UNIV_DEBUG */
+		/* Fall through */
 
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:

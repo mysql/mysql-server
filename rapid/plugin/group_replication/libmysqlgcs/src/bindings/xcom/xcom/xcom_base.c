@@ -307,6 +307,7 @@
 
 /* {{{ Defines and constants */
 
+#define SYS_STRERROR_SIZE 512
 #define TERMINATE_DELAY 3.0
 #define EVENT_HORIZON_MIN 10
 unsigned int event_horizon = EVENT_HORIZON_MIN;
@@ -4628,6 +4629,7 @@ static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size)
   struct timeval timeout;
   fd_set rfds, wfds, efds;
   int res;
+  char buf[SYS_STRERROR_SIZE];
 
   timeout.tv_sec=  10;
   timeout.tv_usec= 0;
@@ -4709,13 +4711,8 @@ static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size)
           }
           else
           {
-#if defined (WIN32) || defined (WIN64)
-            G_WARNING("Connection to socket %d failed with error %d.",
-                      fd, socket_errno);
-#else
             G_WARNING("Connection to socket %d failed with error %d - %s.",
-                      fd, socket_errno, strerror(socket_errno));
-#endif
+                      fd, socket_errno, strerr_msg(buf, sizeof(buf), socket_errno));
           }
           return -1;
         }
@@ -4766,6 +4763,7 @@ static connection_descriptor*	connect_xcom(char *server, xcom_port port)
 	result ret = {0,0};
 	struct sockaddr_in sock_addr;
 	socklen_t sock_size;
+        char buf[SYS_STRERROR_SIZE];
 
 	DBGOUT(FN; STREXP(server); NEXP(port, d));
 	G_MESSAGE("connecting to %s %d", server, port);
@@ -4787,13 +4785,8 @@ static connection_descriptor*	connect_xcom(char *server, xcom_port port)
 	SET_OS_ERR(0);
 	if (timed_connect(fd.val, (struct sockaddr *)&sock_addr, sock_size) == -1) {
 		fd.funerr = to_errno(GET_OS_ERR);
-#if defined (WIN32) || defined (WIN64)
-		G_MESSAGE("Connecting socket to address %s in port %d failed with error %d.",
-				server, port, fd.funerr);
-#else
 		G_MESSAGE("Connecting socket to address %s in port %d failed with error %d - %s.",
-				server, port, fd.funerr, strerror(fd.funerr));
-#endif
+				server, port, fd.funerr, strerr_msg(buf, sizeof(buf), fd.funerr));
 		xcom_close_socket(&fd.val);
 		return NULL;
 	}

@@ -1341,7 +1341,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
       Return to READY_FOR_COMMAND protocol stage in case server reports error 
       or sends OK packet.
     */
-    if (!result || mysql->net.read_pos[0] == 0x00)
+    if (result || mysql->net.read_pos[0] == 0x00)
       MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
 #endif
   }
@@ -1823,6 +1823,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  break;
         case OPT_pipe:
           options->protocol = MYSQL_PROTOCOL_PIPE;
+          break;
 	case OPT_connect_timeout:
 	case OPT_timeout:
 	  if (opt_arg)

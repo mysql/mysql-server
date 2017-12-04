@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -118,7 +118,7 @@ syntax = "proto2";
 
 
 package Mysqlx.Resultset;
-option java_package = "com.mysql.cj.mysqlx.protobuf";
+option java_package = "com.mysql.cj.x.protobuf";
 
 // resultsets are finished, OUT paramset is next
 message FetchDoneMoreOutParams {
@@ -136,7 +136,7 @@ message FetchDone {
 //
 // .. note:: the encoding used for the different ``bytes`` fields in the meta data is externally
 //   controlled.
-//   .. seealso:: https://dev.mysql.com/doc/refman/5.0/en/charset-connection.html
+//   .. seealso:: https://dev.mysql.com/doc/refman/5.7/en/charset-connection.html
 //
 // .. note::
 //   The server may not set the ``original_{table|name}`` fields if they are equal to the plain
@@ -208,7 +208,7 @@ message FetchDone {
 //       LONGLONG SIGNED 20
 //       =============== ==
 //
-//       .. seealso:: definition of ``M`` in https://dev.mysql.com/doc/refman/5.5/en/numeric-type-overview.html
+//       .. seealso:: definition of ``M`` in https://dev.mysql.com/doc/refman/5.7/en/numeric-type-overview.html
 //
 //     ``value``
 //       variable length encoded signed 64 integer
@@ -234,7 +234,7 @@ message FetchDone {
 //       LONGLONG UNSIGNED 20
 //       ================= ==
 //
-//       .. seealso:: definition of ``M`` in https://dev.mysql.com/doc/refman/5.5/en/numeric-type-overview.html
+//       .. seealso:: definition of ``M`` in https://dev.mysql.com/doc/refman/5.7/en/numeric-type-overview.html
 //
 //     ``value``
 //       variable length encoded unsigned 64 integer
@@ -245,7 +245,7 @@ message FetchDone {
 //       maximum number of displayable binary digits
 //
 //       .. note:: valid range for M of the ``BIT`` type is 1 - 64
-//       .. seealso:: https://dev.mysql.com/doc/refman/5.5/en/numeric-type-overview.html
+//       .. seealso:: https://dev.mysql.com/doc/refman/5.7/en/numeric-type-overview.html
 //
 //     ``value``
 //       variable length encoded unsigned 64 integer

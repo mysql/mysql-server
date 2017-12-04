@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -169,7 +169,7 @@ Log_event_header(const char* buf, uint16_t binlog_version)
      extra_headers are not used in the current version.
     @endverbatim
    */
-
+    // Fall through.
   default:
     memcpy(&flags, buf + FLAGS_OFFSET, sizeof(flags));
     flags= le16toh(flags);

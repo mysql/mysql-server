@@ -1295,6 +1295,7 @@ trx_purge_rseg_get_next_history_log(
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
+#ifdef UNIV_DEBUG
 		trx_sys_mutex_enter();
 
 		/* Add debug code to track history list corruption reported
@@ -1308,14 +1309,19 @@ trx_purge_rseg_get_next_history_log(
 		if (trx_sys->rseg_history_len > 2000000) {
 			ib::warn() << "Purge reached the head of the history"
 				" list, but its length is still reported as "
-				<< trx_sys->rseg_history_len << "! Make"
-				" a detailed bug report, and submit it to"
-				" http://bugs.mysql.com";
-			ut_ad(0);
+				<< trx_sys->rseg_history_len << " which is"
+				" unusually high.";
+			ib::info() << "This can happen for multiple reasons";
+			ib::info() << "1. A long running transaction is"
+				" withholding purging of undo logs or a read"
+				" view is open. Please try to commit the long"
+				" running transaction.";
+			ib::info() << "2. Try increasing the number of purge"
+				" threads to expedite purging of undo logs.";
 		}
 
 		trx_sys_mutex_exit();
-
+#endif
 		return;
 	}
 

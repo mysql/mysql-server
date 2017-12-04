@@ -1,4 +1,5 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights
+   reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,6 +23,7 @@
 #include "my_sys.h"
 #include "pfs_global.h"
 #include "pfs_builtin_memory.h"
+#include "log.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -129,11 +131,23 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size, m
   DBUG_ASSERT(klass != NULL);
   DBUG_ASSERT(n > 0);
   DBUG_ASSERT(size > 0);
+  void *ptr= NULL;
   size_t array_size= n * size;
   /* Check for overflow before allocating. */
   if (is_overflow(array_size, n, size))
+  {
+    sql_print_warning("Failed to allocate memory for %zu chunks each of size "
+                      "%zu for buffer '%s' due to overflow", n, size,
+                      klass->m_class.m_name);
     return NULL;
-  return pfs_malloc(klass, array_size, flags);
+  }
+
+  if(NULL == (ptr= pfs_malloc(klass, array_size, flags)))
+  {
+    sql_print_warning("Failed to allocate %zu bytes for buffer '%s' due to "
+                      "out-of-memory", array_size, klass->m_class.m_name);
+  }
+  return ptr;
 }
 
 /**
@@ -242,4 +256,3 @@ uint pfs_get_socket_address(char *host,
   /* Return actual IP address string length */
   return (strlen((const char*)host));
 }
-

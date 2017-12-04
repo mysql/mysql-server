@@ -217,6 +217,7 @@ The following options may be given as the first argument:
  Skip the check for non-natively partitioned tables during
  bootstrap. This option is deprecated along with the
  partition engine.
+ (Defaults to on; use --skip-disable-partition-engine-check to disable.)
  --disabled-storage-engines=name 
  Limit CREATE TABLE for the storage engines listed
  --disconnect-on-expired-password 
@@ -359,6 +360,26 @@ The following options may be given as the first argument:
  The default size of key cache blocks
  --key-cache-division-limit=# 
  The minimum percentage of warm blocks in key cache
+ --keyring-migration-destination=name 
+ Keyring plugin to which the keys are migrated to. This
+ option must be specified along with
+ --keyring-migration-source.
+ --keyring-migration-host=name 
+ Connect to host.
+ --keyring-migration-password[=name] 
+ Password to use when connecting to server during keyring
+ migration. If password value is not specified then it
+ will be asked from the tty.
+ --keyring-migration-port=# 
+ Port number to use for connection.
+ --keyring-migration-socket=name 
+ The socket file to use for connection.
+ --keyring-migration-source=name 
+ Keyring plugin from where the keys needs to be migrated
+ to. This option must be specified along with
+ --keyring-migration-destination.
+ --keyring-migration-user=name 
+ User to login to server.
  -L, --language=name Client error messages in given language. May be given as
  a full path. Deprecated. Use --lc-messages-dir instead.
  --lc-messages=name  Set the language used for the error messages.
@@ -1292,7 +1313,7 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
-disable-partition-engine-check FALSE
+disable-partition-engine-check TRUE
 disabled-storage-engines 
 disconnect-on-expired-password TRUE
 disconnect-slave-event-count 0
@@ -1332,6 +1353,12 @@ key-buffer-size 8388608
 key-cache-age-threshold 300
 key-cache-block-size 1024
 key-cache-division-limit 100
+keyring-migration-destination (No default value)
+keyring-migration-host (No default value)
+keyring-migration-port 0
+keyring-migration-socket (No default value)
+keyring-migration-source (No default value)
+keyring-migration-user (No default value)
 language MYSQL_SHAREDIR/
 lc-messages en_US
 lc-messages-dir MYSQL_SHAREDIR/
@@ -1357,7 +1384,7 @@ log-statements-unsafe-for-binlog TRUE
 log-syslog FALSE
 log-syslog-tag 
 log-tc tc.log
-log-tc-size 24576
+log-tc-size #####
 log-throttle-queries-not-using-indexes 0
 log-timestamps UTC
 log-warnings 0

@@ -1,3 +1,4 @@
+call mtr.add_suppression('Corresponding entry in binary log used default authentication.*');
 DELETE FROM mysql.user WHERE user = 'wl8540';
 FLUSH PRIVILEGES;
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
@@ -163,6 +164,7 @@ Level	Code	Message
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 3
+# Search warnings in the server log
 DELETE FROM mysql.user WHERE user = 'wl8540';
 FLUSH PRIVILEGES;
 
@@ -266,4 +268,5 @@ DROP USER b21807286@localhost;
 ALTER USER IF EXISTS b21807286@localhost IDENTIFIED BY 'xyz';
 Warnings:
 Note	3162	User 'b21807286'@'localhost' does not exist.
+# Search warnings in the server log
 # End of 5.7 tests

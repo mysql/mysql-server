@@ -72,10 +72,18 @@ std::string Keys_container::get_keyring_storage_url()
   return keyring_storage_url;
 }
 
+void Keys_container::store_keys_metadata(IKey *key)
+{
+  /* if key metadata not present store it */
+  Key_metadata km(key->get_key_id(), key->get_user_id());
+  keys_metadata.push_back(km);
+}
+
 my_bool Keys_container::store_key_in_hash(IKey *key)
 {
   if (my_hash_insert(keys_hash, (uchar *) key))
     return TRUE;
+  store_keys_metadata(key);
   return FALSE;
 }
 
@@ -128,12 +136,29 @@ IKey*Keys_container::fetch_key(IKey *key)
   return key;
 }
 
+bool Keys_container::remove_keys_metadata(IKey *key)
+{
+  Key_metadata src(key->get_key_id(), key->get_user_id());
+  std::vector<Key_metadata>::iterator it= keys_metadata.begin();
+  while(it != keys_metadata.end())
+  {
+    if (src.id == it->id && src.user == it->user)
+    {
+      keys_metadata.erase(it);
+      return false;
+    }
+    ++it;
+  }
+  return true;
+}
+
 my_bool Keys_container::remove_key_from_hash(IKey *key)
 {
   my_bool retVal= TRUE;
   keys_hash->free= NULL; //Prevent my_hash_delete from removing key from memory
   retVal= my_hash_delete(keys_hash, reinterpret_cast<uchar*>(key));
   keys_hash->free= free_hash_key;
+  remove_keys_metadata(key);
   return retVal;
 }
 

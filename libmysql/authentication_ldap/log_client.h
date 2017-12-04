@@ -20,61 +20,75 @@
 #include <iostream>
 #include <sstream>
 
-struct ldap_log_type {
-  typedef enum {
+struct ldap_log_type
+{
+  typedef enum
+  {
     LDAP_LOG_DBG, LDAP_LOG_INFO, LDAP_LOG_WARNING, LDAP_LOG_ERROR
   } ldap_type;
 };
 
-enum ldap_log_level {
-  LDAP_LOG_LEVEL_NONE = 1, LDAP_LOG_LEVEL_ERROR, LDAP_LOG_LEVEL_ERROR_WARNING, LDAP_LOG_LEVEL_ERROR_WARNING_INFO, LDAP_LOG_LEVEL_ALL
+
+enum ldap_log_level
+{
+  LDAP_LOG_LEVEL_NONE= 1, LDAP_LOG_LEVEL_ERROR, LDAP_LOG_LEVEL_ERROR_WARNING, LDAP_LOG_LEVEL_ERROR_WARNING_INFO, LDAP_LOG_LEVEL_ALL
 };
 
-class Ldap_log_writer_error {
+
+class Ldap_log_writer_error
+{
 public:
   Ldap_log_writer_error();
   ~Ldap_log_writer_error();
-  int open();
-  int close();
   void write(std::string data);
 };
 
-class Ldap_logger {
+
+class Ldap_logger
+{
 public:
   Ldap_logger();
   ~Ldap_logger();
   template<ldap_log_type::ldap_type type>
   void log(std::string msg);
   void set_log_level(ldap_log_level level);
+
 private:
   Ldap_log_writer_error *m_log_writer;
   ldap_log_level m_log_level;
 };
 
+
 template<ldap_log_type::ldap_type type>
-void Ldap_logger::log(std::string msg) {
+void Ldap_logger::log(std::string msg)
+{
   std::stringstream log_stream;
-  switch (type) {
+  switch (type)
+  {
   case ldap_log_type::LDAP_LOG_DBG:
-    if (LDAP_LOG_LEVEL_ALL > m_log_level) {
+    if (LDAP_LOG_LEVEL_ALL > m_log_level)
+    {
       return;
     }
     log_stream << "[DBG] ";
     break;
   case ldap_log_type::LDAP_LOG_INFO:
-    if (LDAP_LOG_LEVEL_ERROR_WARNING_INFO > m_log_level) {
+    if (LDAP_LOG_LEVEL_ERROR_WARNING_INFO > m_log_level)
+    {
       return;
     }
     log_stream << "[Note] ";
     break;
   case ldap_log_type::LDAP_LOG_WARNING:
-    if (LDAP_LOG_LEVEL_ERROR_WARNING > m_log_level) {
+    if (LDAP_LOG_LEVEL_ERROR_WARNING > m_log_level)
+    {
       return;
     }
     log_stream << "[Warning] ";
     break;
   case ldap_log_type::LDAP_LOG_ERROR:
-    if (LDAP_LOG_LEVEL_NONE >= m_log_level) {
+    if (LDAP_LOG_LEVEL_NONE >= m_log_level)
+    {
       return;
     }
     log_stream << "[Error] ";
@@ -83,11 +97,13 @@ void Ldap_logger::log(std::string msg) {
 
   /** We can write debug messages also in error log file if logging level is set to debug.
       For MySQL client this will come from environment variable */
-  if (m_log_writer){
+  if (m_log_writer)
+  {
     log_stream << ": " << msg;
     m_log_writer->write(log_stream.str());
   }
 }
+
 
 extern Ldap_logger *g_logger_client;
 

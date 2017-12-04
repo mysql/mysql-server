@@ -22,6 +22,7 @@ SET(
     KEYRING_FILE_SOURCES
     common/keyring_key.cc
     common/keys_container.cc
+    common/keys_iterator.cc
     common/keyring_impl.cc
     keyring.cc
     hash_to_buffer_serializer.cc

@@ -15,6 +15,7 @@
 
 #include "sql_service_interface.h"
 #include "plugin_log.h"
+#include <mysqld_error.h>
 
 /* keep it in sync with enum_server_command in my_command.h */
 const LEX_STRING command_name[]={
@@ -74,6 +75,28 @@ Sql_service_interface::~Sql_service_interface()
     srv_session_deinit_thread();
 }
 
+static void srv_session_error_handler(void *ctx, unsigned int sql_errno,
+                                      const char *err_msg)
+{
+  switch (sql_errno)
+  {
+    case ER_CON_COUNT_ERROR:
+      log_message(MY_ERROR_LEVEL,
+                 "Can't establish a internal server connection to "
+                 "execute plugin operations since the server "
+                 "does not have available connections, please "
+                 "increase @@GLOBAL.MAX_CONNECTIONS. Server error: %i.",
+                 sql_errno);
+      break;
+    default:
+      log_message(MY_ERROR_LEVEL,
+                 "Can't establish a internal server connection to "
+                 "execute plugin operations. Server error: %i. "
+                 "Server error message: %s",
+                 sql_errno, err_msg);
+  }
+}
+
 int Sql_service_interface::open_session()
 {
   DBUG_ENTER("Sql_service_interface::open_session");
@@ -82,7 +105,7 @@ int Sql_service_interface::open_session()
   /* open a server session after server is in operating state */
   if (!wait_for_session_server(SESSION_WAIT_TIMEOUT))
   {
-    m_session= srv_session_open(NULL, NULL);
+    m_session= srv_session_open(srv_session_error_handler, NULL);
     if (m_session == NULL)
       DBUG_RETURN(1); /* purecov: inspected */
   }
@@ -112,9 +135,12 @@ int Sql_service_interface::open_thread_session(void *plugin_ptr)
       /* purecov: end */
     }
 
-    m_session= srv_session_open(NULL, NULL);
+    m_session= srv_session_open(srv_session_error_handler, NULL);
     if (m_session == NULL)
-      return 1; /* purecov: inspected */
+    {
+      srv_session_deinit_thread();
+      return 1;
+    }
   }
   else
   {
@@ -132,13 +158,14 @@ long Sql_service_interface::execute_internal(Sql_resultset *rset,
                                              enum enum_server_command cmd_type)
 {
   DBUG_ENTER("Sql_service_interface::execute_internal");
-  int err= 0;
+  long err= 0;
 
   if (!m_session)
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Error, the internal server communication "
-                                "session is not initialized.");
+    log_message(MY_ERROR_LEVEL, "Error running internal SQL query: %s. "
+                "The internal server communication session is not initialized",
+                cmd.com_query.query);
     DBUG_RETURN(-1);
     /* purecov: end */
   }
@@ -146,9 +173,9 @@ long Sql_service_interface::execute_internal(Sql_resultset *rset,
   if (is_session_killed(m_session))
   {
     /* purecov: begin inspected */
-    log_message(MY_INFORMATION_LEVEL, "Error, the internal server communication "
-                                      "session is killed or server is shutting"
-                                      " down.");
+    log_message(MY_INFORMATION_LEVEL, "Error running internal SQL query: %s. "
+                "The internal server session was killed or server is shutting "
+                "down.", cmd.com_query.query);
     DBUG_RETURN(-1);
     /* purecov: end */
   }
@@ -162,12 +189,34 @@ long Sql_service_interface::execute_internal(Sql_resultset *rset,
                                   cs_txt_bin, ctx))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Error running internal command type: %s."
-                                "Got error: %s(%d)", command_name[cmd_type].str,
-                                rset->sql_errno(), rset->err_msg().c_str());
+    err= rset->sql_errno();
+
+    if (err != 0)
+    {
+      log_message(MY_ERROR_LEVEL, "Error running internal SQL query: %s. Got "
+                  "internal SQL error: %s(%d)", cmd.com_query.query,
+                  rset->sql_errno(), rset->err_msg().c_str());
+    }
+    else
+    {
+      if (is_session_killed(m_session) && rset->get_killed_status())
+      {
+        log_message(MY_INFORMATION_LEVEL, "Error running internal SQL query: "
+                    "%s. The internal server session was killed or server is "
+                    "shutting down.", cmd.com_query.query);
+        err= -1;
+      }
+      else
+      {
+        /* sql_errno is empty and session is alive */
+        err= -2;
+        log_message(MY_ERROR_LEVEL, "Error running internal SQL query: %s. "
+                    "Internal failure.", cmd.com_query.query);
+      }
+    }
 
     delete ctx;
-    DBUG_RETURN(rset->sql_errno());
+    DBUG_RETURN(err);
     /* purecov: end */
   }
 

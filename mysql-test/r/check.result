@@ -43,3 +43,20 @@ test.t1	check	status	Operation failed
 # Connection default
 UNLOCK TABLES;
 DROP TABLE t1;
+#
+# BUG#26727481: SEGMENTATION FAULT DURING MYSQL_UPGRADE IN 8.0.3
+#
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	error	Table upgrade required for `test`.`t1`. Please dump/reload table to fix it!
+CHECK TABLE t1 FOR UPGRADE;
+Table	Op	Msg_type	Msg_text
+test.t1	check	error	Table upgrade required for `test`.`t1`. Please dump/reload table to fix it!
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+#REPAIR TABLE does not fix pre 5.0 decimal types.
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	error	Table upgrade required for `test`.`t1`. Please dump/reload table to fix it!
+DROP TABLE t1;

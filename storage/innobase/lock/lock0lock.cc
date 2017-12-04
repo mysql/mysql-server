@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2257,7 +2257,10 @@ RecLock::lock_add_priority(
 	lock_t*	grant_position = NULL;
 	lock_t*	add_position = NULL;
 
-	HASH_SEARCH(hash, lock_sys->rec_hash, m_rec_id.fold(), lock_t*,
+	/* Different lock (such as predicate lock) are on different hash */
+	hash_table_t*	lock_hash = lock_hash_get(m_mode);
+
+	HASH_SEARCH(hash, lock_hash, m_rec_id.fold(), lock_t*,
 		    lock_head, ut_ad(lock_head->is_record_lock()), true);
 
 	ut_ad(lock_head);

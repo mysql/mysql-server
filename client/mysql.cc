@@ -1435,7 +1435,8 @@ int main(int argc,char *argv[])
     "statement.\n");
   put_info(buff,INFO_INFO);
 
-  uint protocol, ssl_mode;
+  uint protocol= MYSQL_PROTOCOL_DEFAULT;
+  uint ssl_mode= 0;
   if (!mysql_get_option(&mysql, MYSQL_OPT_PROTOCOL, &protocol) &&
       !mysql_get_option(&mysql, MYSQL_OPT_SSL_MODE, &ssl_mode))
   {

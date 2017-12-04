@@ -1057,7 +1057,8 @@ HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* 
   HASH_ROW_POS *pos= (HASH_ROW_POS *) my_malloc(key_memory_HASH_ROW_ENTRY,
                                                 sizeof(HASH_ROW_POS), MYF(0));
 
-  if (!entry || !preamble || !pos)
+  if (!entry || !preamble || !pos ||
+      DBUG_EVALUATE_IF("fake_myalloc_failure",1, 0))
     goto err;
 
   /**
@@ -1086,7 +1087,7 @@ err:
   if (entry)
     my_free(entry);
   if (preamble)
-    my_free(entry);
+    my_free(preamble);
   if (pos)
     my_free(pos);
   DBUG_RETURN(NULL);
@@ -1262,7 +1263,9 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
     /*
       Field is set in the read_set and is isn't NULL.
      */
-    if (bitmap_is_set(cols, f->field_index) && !f->is_null())
+    if (bitmap_is_set(cols, f->field_index) &&
+        !f->is_virtual_gcol() && // Avoid virtual generated columns on hashes
+        !f->is_null())
     {
       /*
         BLOB and VARCHAR have pointers in their field, we must convert

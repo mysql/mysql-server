@@ -2774,8 +2774,12 @@ bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
     my_error(ER_MTS_CANT_PARALLEL, MYF(0),
     ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
              "The master event is logically timestamped incorrectly.");
+    return true;
   case ER_MTS_INCONSISTENT_DATA:
     /* Don't have to do anything. */
+    return true;
+  case -1:
+    /* Unable to schedule: wait_for_last_committed_trx has failed */
     return true;
   default:
     return false;
@@ -3470,7 +3474,7 @@ int Log_event::apply_event(Relay_log_info *rli)
 #endif
 
 err:
-  if (rli_thd->is_error())
+  if (rli_thd->is_error() || (!worker && rli->abort_slave))
   {
     DBUG_ASSERT(!worker);
 
@@ -3492,7 +3496,7 @@ err:
     DBUG_ASSERT(worker || rli->curr_group_assigned_parts.size() == 0);
   }
 
-  DBUG_RETURN((!rli_thd->is_error() ||
+  DBUG_RETURN((!(rli_thd->is_error() || (!worker && rli->abort_slave)) ||
                DBUG_EVALUATE_IF("fault_injection_get_slave_worker", 1, 0)) ?
               0 : -1);
 }
@@ -3899,6 +3903,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
             header(), footer()),
   data_buf(0)
 {
+  DBUG_EXECUTE_IF("debug_lock_before_query_log_event",
+                  DBUG_SYNC_POINT("debug_lock.before_query_log_event", 10););
+
   /* save the original thread id; we already know the server id */
   slave_proxy_id= thd_arg->variables.pseudo_thread_id;
   if (query != 0)
@@ -4697,8 +4704,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                                     thd->db().length,
                                                     thd->charset(), NULL);
         THD_STAGE_INFO(thd, stage_starting);
-        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
-                                 thd->query().length);
+
         if (thd->m_digest != NULL)
           thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
@@ -6624,6 +6630,31 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     thd->variables.sql_mode= global_system_variables.sql_mode;
     thd->variables.auto_increment_increment=
       thd->variables.auto_increment_offset= 1;
+    /*
+      Rotate_log_events are generated on Slaves with server_id=0
+      for all the ignored events, so that the positions in the repository
+      is updated properly even for ignored events.
+
+      This kind of Rotate_log_event is generated when
+
+        1) the event is generated on the same host and reached due
+           to circular replication (server_id == ::server_id)
+
+        2) the event is from the host which is listed in ignore_server_ids
+
+        3) IO thread is receiving HEARTBEAT event from the master
+
+        4) IO thread is receiving PREVIOUS_GTID_LOG_EVENT from the master.
+
+      We have to free thd's mem_root here after we update the positions
+      in the repository table. Otherwise, imagine a situation where
+      Slave is keep getting ignored events only and no other (non-ignored)
+      events from the Master, Slave never executes free_root (that generally
+      happens from Query_log_event::do_apply_event or
+      Rows_log_event::do_apply_event when they find end of the group event).
+    */
+    if (server_id == 0)
+      free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
   }
   else
     rli->inc_event_relay_log_pos();
@@ -9853,7 +9884,7 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols)
          ptr++)
     {
       Field *field= *ptr;
-      if (bitmap_is_set(cols, field->field_index))
+      if (bitmap_is_set(cols, field->field_index) && !field->is_virtual_gcol())
       {
         /* compare null bit */
         if (field->is_null() != field->is_null_in_record(table->record[1]))
@@ -10385,7 +10416,11 @@ int Rows_log_event::do_hash_row(Relay_log_info const *rli)
 
   /* create an empty entry to add to the hash table */
   HASH_ROW_ENTRY* entry= m_hash.make_entry();
-
+  if (entry == NULL)
+  {
+    error= 1;
+    goto end;
+  }
   /* Prepare the record, unpack and save positions. */
   entry->positions->bi_start= m_curr_row;        // save the bi start pos
   prepare_record(m_table, &m_cols, false);
@@ -10777,7 +10812,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       DBUG_RETURN(-1);
     }
     else if (state == GTID_STATEMENT_SKIP)
-      DBUG_RETURN(0);
+      goto end;
 
     /*
       The current statement is just about to begin and 
