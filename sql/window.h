@@ -314,6 +314,20 @@ public:
   }
 
   /**
+    Copy frame buffer position hint from one to another.
+  */
+  void copy_pos(retrieve_cached_row_reason from_reason,
+                retrieve_cached_row_reason to_reason)
+  {
+    m_frame_buffer_positions[to_reason].m_rowno=
+      m_frame_buffer_positions[from_reason].m_rowno;
+
+    std::memcpy(m_frame_buffer_positions[to_reason].m_position,
+                m_frame_buffer_positions[from_reason].m_position,
+                frame_buffer()->file->ref_length);
+  }
+
+  /**
      Keys for m_frame_buffer_cache and m_special_rows_cache, for special
      rows.
   */

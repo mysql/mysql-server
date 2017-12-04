@@ -5412,6 +5412,8 @@ process_buffered_windowing_record(THD *thd,
       {
         found_first= true;
         w.set_first_rowno_in_range_frame(rowno);
+        // Found the first row in this range frame. Make a note in the hint.
+        w.copy_pos(Window::REA_LAST_IN_FRAME, Window::REA_FIRST_IN_FRAME);
       }
       w.set_rowno_in_frame(rowno_in_frame).
         set_is_last_row_in_frame(true); // pessimistic assumption
