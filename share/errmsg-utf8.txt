@@ -11053,6 +11053,9 @@ ER_EMPTY_PIPELINE_FOR_ERROR_LOG_SERVICE
 ER_COMPONENT_FILTER_DIAGNOSTICS
   eng "filter %s: %s"
 
+ER_CREATING_NEW_UUID_FIRST_START
+  eng "Generating a new UUID: %s."
+
 #
 #  End of 8.0 error messages.
 #

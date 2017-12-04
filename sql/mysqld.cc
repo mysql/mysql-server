@@ -4220,8 +4220,6 @@ static int generate_server_uuid()
     mysqlds on the same host. This avoids that another mysqld started
     at the same time on the same host get the same "server_uuid".
   */
-  LogErr(INFORMATION_LEVEL, ER_UUID_SALT, current_pid,
-         (ulong)server_start_time, thd->status_var.bytes_sent);
 
   const time_t save_server_start_time= server_start_time;
   server_start_time+= ((ulonglong)current_pid << 48) + current_pid;
@@ -4232,8 +4230,6 @@ static int generate_server_uuid()
   func_uuid->fixed= 1;
   func_uuid->val_str(&uuid);
 
-  LogErr(INFORMATION_LEVEL, ER_UUID_IS, uuid.c_ptr(),
-         (ulong)server_start_time, thd->status_var.bytes_sent);
   // Restore global variables used for salting
   server_start_time = save_server_start_time;
 
@@ -4378,7 +4374,15 @@ static int init_server_auto_options()
     if (generate_server_uuid())
       goto err;
     DBUG_PRINT("info", ("generated server_uuid=%s", server_uuid));
-    LogErr(WARNING_LEVEL, ER_CREATING_NEW_UUID, server_uuid);
+    if (opt_initialize || opt_initialize_insecure)
+    {
+      LogErr(INFORMATION_LEVEL, ER_CREATING_NEW_UUID_FIRST_START, server_uuid);
+
+    }
+    else
+    {
+      LogErr(WARNING_LEVEL, ER_CREATING_NEW_UUID, server_uuid);
+    }
   }
   /*
     The uuid has been copied to server_uuid, so the memory allocated by
@@ -5873,9 +5877,12 @@ int mysqld_main(int argc, char **argv)
   if (gtid_ret)
     unireg_abort(MYSQLD_ABORT_EXIT);
 
-  // Initialize executed_gtids from mysql.gtid_executed table.
-  if (gtid_state->read_gtid_executed_from_table() == -1)
-    unireg_abort(1);
+  if (!opt_initialize && !opt_initialize_insecure)
+  {
+    // Initialize executed_gtids from mysql.gtid_executed table.
+    if (gtid_state->read_gtid_executed_from_table() == -1)
+      unireg_abort(1);
+  }
 
   if (opt_bin_log)
   {
