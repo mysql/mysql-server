@@ -230,26 +230,15 @@ DROP TABLE t;
 # Bug #27135084: WINDOW FUNC: CRASH IN ITEM_FUNC_INT_DIV::VAL_INT
 #
 SELECT ((PERIOD_DIFF('7766-05-30','2955-06-11'))DIV(LAST_VALUE(';')OVER()));
-((PERIOD_DIFF('7766-05-30','2955-06-11'))DIV(LAST_VALUE(';')OVER()))
-NULL
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '7766-05-30'
-Warning	1292	Truncated incorrect INTEGER value: '2955-06-11'
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
-Warning	1365	Division by 0
+ERROR HY000: Incorrect arguments to period_diff
 SELECT ((BIT_OR(COT('f?e')))DIV(LAG(' ',133,0xbb054701d650)OVER()));
 ERROR 22003: DOUBLE value is out of range in 'cot('f?e')'
 SELECT ((EXP(2778419536874221989))DIV(LAST_VALUE('{ }')OVER()));
 ERROR 22003: DOUBLE value is out of range in 'exp(2778419536874221989)'
 SELECT ((PERIOD_ADD(-6001,16973))DIV(LAST_VALUE('')OVER()));
-((PERIOD_ADD(-6001,16973))DIV(LAST_VALUE('')OVER()))
-NULL
-Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
-Warning	1365	Division by 0
+ERROR HY000: Incorrect arguments to period_add
 SELECT((LAST_VALUE(PERIOD_ADD(32733,1518714932))OVER())DIV(NULL));
-((LAST_VALUE(PERIOD_ADD(32733,1518714932))OVER())DIV(NULL))
-NULL
+ERROR HY000: Incorrect arguments to period_add
 SELECT ((EXP(0x6108))DIV(LAG(NULL,21,' 4F')OVER()));
 ERROR 22003: DOUBLE value is out of range in 'exp(0x6108)'
 SELECT ((FIRST_VALUE(EXP(0x41a129))OVER())DIV(-969));
