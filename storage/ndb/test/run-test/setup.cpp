@@ -17,11 +17,10 @@
 
 #include <ndb_global.h>
 #include <util/ndb_opts.h>
-#include <map>
-#include <string>
 #include <util/BaseString.hpp>
 #include <util/File.hpp>
 #include <util/NdbOut.hpp>
+#include <util/Properties.hpp>
 #include "atrt.hpp"
 
 extern int g_mt;
@@ -124,8 +123,7 @@ bool setup_config(atrt_config& config, const char* atrt_mysqld) {
      * Find all processes...
      */
     for (j = 0; j < (size_t)argc; j++) {
-      if (ndb_is_load_default_arg_separator(tmp[j]))
-        continue;
+      if (ndb_is_load_default_arg_separator(tmp[j])) continue;
       for (unsigned k = 0; proc_args[k].name; k++) {
         if (!strncmp(tmp[j], proc_args[k].name, strlen(proc_args[k].name))) {
           proc_args[k].value = tmp[j] + strlen(proc_args[k].name);
@@ -1030,28 +1028,27 @@ static bool pr_set_customprocs_connectstring(Properties& props,
                                              proc_rule_ctx& ctx, int) {
   atrt_cluster& cluster = *ctx.m_cluster;
 
-  std::map<BaseString, BaseString> connectstrings;
-  std::map<BaseString, BaseString>::iterator it;
+  Properties connectstrings;
   for (unsigned i = 0; i < cluster.m_processes.size(); i++) {
     atrt_process* proc = cluster.m_processes[i];
     if (proc->m_type != atrt_process::AP_CUSTOM) continue;
 
-    BaseString host_list;
+    if (connectstrings.contains(proc->m_name.c_str())) {
+      BaseString str;
+      str.assfmt(",%s", proc->m_host->m_hostname.c_str());
 
-    it = connectstrings.find(proc->m_name);
-    if (it != connectstrings.end()) {
-      host_list = it->second;
-      host_list.appfmt(",%s", proc->m_host->m_hostname.c_str());
+      connectstrings.append(proc->m_name.c_str(), str.c_str());
     } else {
-      host_list.assign(proc->m_host->m_hostname);
+      connectstrings.put(proc->m_name.c_str(),
+                         proc->m_host->m_hostname.c_str());
     }
 
     const char* portno;
     if (proc->m_options.m_generated.get("--port", &portno)) {
-      host_list.appfmt(":%s", portno);
+      BaseString str;
+      str.assfmt(":%s", portno);
+      connectstrings.append(proc->m_name.c_str(), str.c_str());
     }
-
-    connectstrings[proc->m_name] = host_list;
   }
 
   for (unsigned i = 0; i < cluster.m_processes.size(); i++) {
@@ -1061,13 +1058,18 @@ static bool pr_set_customprocs_connectstring(Properties& props,
         proc->m_type & (atrt_process::AP_CLIENT | atrt_process::AP_NDB_API);
     if (!client_or_api) continue;
 
-    for (it = connectstrings.begin(); it != connectstrings.end(); ++it) {
-      BaseString connstr(it->first);
+    const char* name;
+    Properties::Iterator it(&connectstrings);
+    while ((name = it.next())) {
+      BaseString connstr(name);
       connstr.ndb_toupper();
       connstr.append("_CONNECTSTRING");
 
+      const char* value;
+      (void)connectstrings.get(name, &value);
+
       if (!proc->m_proc.m_env.empty()) proc->m_proc.m_env.append(" ");
-      proc->m_proc.m_env.appfmt("%s=%s", connstr.c_str(), it->second.c_str());
+      proc->m_proc.m_env.appfmt("%s=%s", connstr.c_str(), value);
     }
   }
 
