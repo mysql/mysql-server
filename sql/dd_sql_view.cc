@@ -523,6 +523,24 @@ static bool open_views_and_update_metadata(
     if (!commit_dd_changes)
       uncommitted_tables->add_table(view);
 
+    // Prepare view query from the Item-tree built from the original query.
+    char view_query_buff[4096];
+    String view_query(view_query_buff, sizeof(view_query_buff), thd->charset());
+    view_query.length(0);
+
+    if (thd->lex->unit->is_mergeable() &&
+        thd->lex->create_view_algorithm != VIEW_ALGORITHM_TEMPTABLE)
+    {
+      for (ORDER *order= thd->lex->select_lex->order_list.first;
+           order; order= order->next)
+        order->used_alias= false;              /// @see Item::print_for_order()
+    }
+    Sql_mode_parse_guard parse_guard(thd);
+    thd->lex->unit->print(&view_query, QT_TO_ARGUMENT_CHARSET);
+    if (!thd->make_lex_string(&view->select_stmt, view_query.ptr(),
+                              view_query.length(), false))
+      DBUG_RETURN(true);
+
     // Update view metadata in the data-dictionary tables.
     view->updatable_view= is_updatable_view(thd, view);
     dd::View *new_view= nullptr;
