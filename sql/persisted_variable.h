@@ -105,7 +105,7 @@ public:
   */
   map<string, string>* get_persist_ro_variables();
   /**
-    append read only persisted variables to command line options with a
+    Append read only persisted variables to command line options with a
     separator.
   */
   bool append_read_only_variables(int *argc, char ***argv,
@@ -127,7 +127,7 @@ private:
 private:
   /* In memory copy of persistent config file */
   vector<st_persist_var> m_persist_variables;
-  /* copy of plugin variables whose plugin is not yet installed */
+  /* Copy of plugin variables whose plugin is not yet installed */
   vector<st_persist_var> m_persist_plugin_variables;
   /* In memory copy of read only persistent variables */
   map<string, string> m_persist_ro_variables;
@@ -135,13 +135,13 @@ private:
   mysql_mutex_t m_LOCK_persist_variables;
   static Persisted_variables_cache* m_instance;
 
-  /* file handler members */
-  MYSQL_FILE *fd;
+  /* File handler members */
+  MYSQL_FILE *m_fd;
   string m_persist_filename;
   mysql_mutex_t m_LOCK_persist_file;
-  /* read only persisted options */
+  /* Read only persisted options */
   char** ro_persisted_argv;
-  /* read only persisted plugin options */
+  /* Read only persisted plugin options */
   char** ro_persisted_plugin_argv;
 };
 
