@@ -11062,6 +11062,9 @@ ER_NOT_IMPLEMENTED_FOR_CARTESIAN_SRS 22S00
 ER_NOT_IMPLEMENTED_FOR_PROJECTED_SRS 22S00
   eng "%.192s(%.80s) has not been implemented for projected spatial reference systems."
 
+ER_NONPOSITIVE_RADIUS 22003
+  eng "Invalid radius provided to function %s: Radius must be greater than zero."
+
 #
 #  End of 8.0 error messages.
 #
