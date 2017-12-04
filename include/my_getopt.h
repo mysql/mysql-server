@@ -136,6 +136,8 @@ typedef void *(*my_getopt_value)(const char *, size_t, const struct my_option *,
 extern char *disabled_my_option;
 extern bool my_getopt_print_errors;
 extern bool my_getopt_skip_unknown;
+extern bool log_slave_updates_supplied;
+extern bool slave_preserve_commit_order_supplied;
 extern my_error_reporter my_getopt_error_reporter;
 
 extern int handle_options (int *argc, char ***argv, 

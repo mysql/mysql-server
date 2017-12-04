@@ -1197,6 +1197,17 @@ bool opt_relaylog_index_name_supplied= false;
   config file or command line.
 */
 bool opt_relay_logname_supplied= false;
+/*
+  True if --log-slave-updates option is set explicitly
+  on command line or configuration file.
+*/
+bool log_slave_updates_supplied= false;
+
+/*
+  True if --slave-preserve-commit-order-supplied option is set explicitly
+  on command line or configuration file.
+*/
+bool slave_preserve_commit_order_supplied= false;
 char *opt_general_logname, *opt_slow_logname, *opt_bin_logname;
 
 /* Static variables */
@@ -3506,6 +3517,29 @@ int init_common_variables()
 
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
+
+  /*
+    The opt_bin_log can be false (binary log is disabled) only if
+    --skip-log-bin/--disable-log-bin is configured or while the
+    system is initializing.
+  */
+  if (!opt_bin_log)
+  {
+    /*
+      The log-slave-updates should be disabled if binary log is disabled
+      and --log-slave-updates option is not set explicitly on command
+      line or configuration file.
+    */
+    if (!log_slave_updates_supplied)
+      opt_log_slave_updates= false;
+    /*
+      The slave-preserve-commit-order should be disabled if binary log is
+      disabled and --slave-preserve-commit-order option is not set
+      explicitly on command line or configuration file.
+    */
+    if (!slave_preserve_commit_order_supplied)
+      opt_slave_preserve_commit_order= false;
+  }
 
   update_parser_max_mem_size();
 
@@ -8970,6 +9004,12 @@ pfs_error:
   case OPT_KEYRING_MIGRATION_SOCKET:
   case OPT_KEYRING_MIGRATION_PORT:
     migrate_connect_options= 1;
+    break;
+  case OPT_LOG_SLAVE_UPDATES:
+    log_slave_updates_supplied= true;
+    break;
+  case OPT_SLAVE_PRESERVE_COMMIT_ORDER:
+    slave_preserve_commit_order_supplied= true;
     break;
   case OPT_ENFORCE_GTID_CONSISTENCY:
   {

@@ -1432,7 +1432,7 @@ log-output FILE
 log-queries-not-using-indexes FALSE
 log-raw FALSE
 log-short-format FALSE
-log-slave-updates TRUE
+log-slave-updates FALSE
 log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
 log-statements-unsafe-for-binlog TRUE
@@ -1625,7 +1625,7 @@ slave-net-timeout 60
 slave-parallel-type LOGICAL_CLOCK
 slave-parallel-workers 4
 slave-pending-jobs-size-max 16777216
-slave-preserve-commit-order TRUE
+slave-preserve-commit-order FALSE
 slave-rows-search-algorithms INDEX_SCAN,HASH_SCAN
 slave-skip-errors (No default value)
 slave-sql-verify-checksum TRUE
