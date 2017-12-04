@@ -26,7 +26,8 @@
 
 #include "my_dbug.h"
 #include "my_rdtsc.h"
-#include "sql/log.h" /* sql_print_warning */
+#include "mysqld_error.h"
+#include "sql/log.h" /* log_errlog */
 
 MY_TIMER_INFO pfs_timer_info;
 
@@ -115,23 +116,14 @@ init_timers(void)
   to_pico_data[TIMER_NAME_MILLISEC].m_factor = millisec_to_pico;
 
   if (cycle_to_pico == 0)
-  {
-    sql_print_warning("The CYCLE timer is not available. "
-                      "WAIT events in the performance_schema will not be timed.");
-  }
+    log_errlog(WARNING_LEVEL, ER_CYCLE_TIMER_IS_NOT_AVAILABLE);
 
 #ifdef HAVE_NANOSEC_TIMER
   if (nanosec_to_pico == 0)
-  {
-    sql_print_warning("The NANOSECOND timer is not available. "
-                      "IDLE/STAGE/STATEMENT/TRANSACTION events in the performance_schema will not be timed.");
-  }
+    log_errlog(WARNING_LEVEL, ER_NANOSECOND_TIMER_IS_NOT_AVAILABLE);
 #else
   if (microsec_to_pico == 0)
-  {
-    sql_print_warning("The MICROSECOND timer is not available. "
-                      "IDLE/STAGE/STATEMENT/TRANSACTION events in the performance_schema will not be timed.");
-  }
+    log_errlog(WARNING_LEVEL, ER_MICROSECOND_TIMER_IS_NOT_AVAILABLE);
 #endif
 
   /* Initialize histograms bucket timers. */

@@ -57,7 +57,7 @@
 #include "sql/dd/types/view.h"
 #include "sql/handler.h"
 #include "sql/item_create.h"
-#include "sql/log.h"                        // sql_print_warning()
+#include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"                     // opt_readonly
 #include "sql/sql_class.h"                  // THD
@@ -98,8 +98,8 @@ bool check_if_server_ddse_readonly(THD *thd, const char *schema_name_abbrev)
   handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
   if (ddse->is_dict_readonly && ddse->is_dict_readonly())
   {
-    sql_print_warning("Skip updating %s metadata in InnoDB read-only mode.",
-                      schema_name_abbrev);
+    LogErr(WARNING_LEVEL, ER_SKIP_UPDATING_METADATA_IN_SE_RO_MODE,
+           schema_name_abbrev);
     return true;
   }
 
@@ -744,8 +744,8 @@ bool initialize(THD *thd)
   if (create_system_views(thd) || store_server_I_S_metadata(thd))
     return true;
 
-  sql_print_information("Created system views with I_S version %d",
-                        (int) d->get_target_dd_version());
+  LogErr(INFORMATION_LEVEL, ER_CREATED_SYSTEM_WITH_VERSION,
+         (int) d->get_target_dd_version());
   return false;
 }
 

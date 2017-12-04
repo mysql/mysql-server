@@ -77,9 +77,8 @@ ut_win_init_time()
 	}
 	DWORD error = GetLastError();
 #ifndef UNIV_HOTBACKUP
-	sql_print_error(
-		"LoadLibrary(\"kernel32.dll\") failed:"
-		" GetLastError returns %lu", error);
+	log_errlog(ERROR_LEVEL, ER_WIN_LOAD_LIBRARY_FAILED, "kernel32.dll",
+		error);
 #else /* !UNIV_HOTBACKUP */
 	fprintf(stderr,
 		"LoadLibrary(\"kernel32.dll\") failed:"
@@ -694,37 +693,41 @@ namespace ib {
 
 info::~info()
 {
-	sql_print_information("InnoDB: %s", m_oss.str().c_str());
+	log_errlog(INFORMATION_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
+		m_oss.str().c_str());
 }
 
 warn::~warn()
 {
-	sql_print_warning("InnoDB: %s", m_oss.str().c_str());
+	log_errlog(WARNING_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, m_oss.str().c_str());
 }
 
 error::~error()
 {
-	sql_print_error("InnoDB: %s", m_oss.str().c_str());
+	log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, m_oss.str().c_str());
 }
 
 fatal::~fatal()
 {
-	sql_print_error("[FATAL] InnoDB: %s", m_oss.str().c_str());
+	log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_FATAL_MSG,
+		m_oss.str().c_str());
 	ut_error;
 }
 
 error_or_warn::~error_or_warn()
 {
 	if (m_error) {
-		sql_print_error("InnoDB: %s", m_oss.str().c_str());
+		log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
+			m_oss.str().c_str());
 	} else {
-		sql_print_warning("InnoDB: %s", m_oss.str().c_str());
+		log_errlog(WARNING_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
+			m_oss.str().c_str());
 	}
 }
 
 fatal_or_error::~fatal_or_error()
 {
-	sql_print_error("InnoDB: %s", m_oss.str().c_str());
+	log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, m_oss.str().c_str());
 	ut_a(!m_fatal);
 }
 

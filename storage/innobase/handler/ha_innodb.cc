@@ -2296,8 +2296,8 @@ innobase_get_cset_width(
 			collation is not found, but issue a warning. */
 			if (cset != 0) {
 
-				sql_print_warning(
-					"Unknown collation #%lu.", cset);
+				log_errlog(ERROR_LEVEL,
+				   ER_INNODB_UNKNOWN_COLLATION);
 			}
 		} else {
 
@@ -4110,19 +4110,19 @@ innodb_init_params()
 	}
 
 	if (strchr(srv_log_group_home_dir, ';')) {
-		sql_print_error("syntax error in innodb_log_group_home_dir");
+		log_errlog(ERROR_LEVEL, ER_INNODB_INVALID_LOG_GROUP_HOME_DIR);
 		DBUG_RETURN(HA_ERR_INITIALIZATION);
 	}
 
 	if (strchr(srv_undo_dir, ';')) {
-		sql_print_error("syntax error in innodb_undo_directory");
+		log_errlog(ERROR_LEVEL,
+		   ER_INNODB_INVALID_INNODB_UNDO_DIRECTORY);
 		DBUG_RETURN(HA_ERR_INITIALIZATION);
 	}
 
 	if (!is_filename_allowed(srv_buf_dump_filename,
 				 strlen(srv_buf_dump_filename), FALSE)) {
-		sql_print_error("InnoDB: innodb_buffer_pool_filename"
-			" cannot have colon (:) in the file name.");
+		log_errlog(ERROR_LEVEL, ER_INNODB_ILLEGAL_COLON_IN_POOL);
 		DBUG_RETURN(HA_ERR_INITIALIZATION);
 	}
 
@@ -4131,7 +4131,7 @@ innodb_init_params()
 	return the associated srv_page_size_shift. */
 	srv_page_size_shift = page_size_validate(srv_page_size);
 	if (!srv_page_size_shift) {
-		sql_print_error("InnoDB: Invalid page size=%lu.\n",
+		log_errlog(ERROR_LEVEL, ER_INNODB_INVALID_PAGE_SIZE,
 				srv_page_size);
 		DBUG_RETURN(HA_ERR_INITIALIZATION);
 	}
@@ -4207,13 +4207,8 @@ innodb_init_params()
 
 	/* Check that interdependent parameters have sane values. */
 	if (srv_max_buf_pool_modified_pct < srv_max_dirty_pages_pct_lwm) {
-		sql_print_warning("InnoDB: innodb_max_dirty_pages_pct_lwm"
-				  " cannot be set higher than"
-				  " innodb_max_dirty_pages_pct.\n"
-				  "InnoDB: Setting"
-				  " innodb_max_dirty_pages_pct_lwm to %lf\n",
-				  srv_max_buf_pool_modified_pct);
-
+		log_errlog(WARNING_LEVEL, ER_INNODB_DIRTY_WATER_MARK_NOT_LOW,
+			srv_max_buf_pool_modified_pct);
 		srv_max_dirty_pages_pct_lwm = srv_max_buf_pool_modified_pct;
 	}
 
@@ -4230,13 +4225,8 @@ innodb_init_params()
 		}
 
 	} else if (srv_max_io_capacity < srv_io_capacity) {
-		sql_print_warning("InnoDB: innodb_io_capacity"
-				  " cannot be set higher than"
-				  " innodb_io_capacity_max.\n"
-				  "InnoDB: Setting"
-				  " innodb_io_capacity to %lu\n",
-				  srv_max_io_capacity);
-
+		log_errlog(WARNING_LEVEL, ER_INNODB_IO_CAPACITY_EXCEEDS_MAX,
+			srv_max_io_capacity);
 		srv_io_capacity = srv_max_io_capacity;
 	}
 
@@ -4726,7 +4716,7 @@ innodb_init(
 
 	/* Perform all sanity check before we take action of deleting files*/
 	if (srv_sys_space.intersection(&srv_tmp_space)) {
-		sql_print_error("%s and %s file names seem to be the same.",
+		log_errlog(ERROR_LEVEL, ER_INNODB_FILES_SAME,
 			srv_tmp_space.name(), srv_sys_space.name());
 		DBUG_RETURN(innodb_init_abort());
 	}
@@ -5153,9 +5143,7 @@ innobase_commit(
 	and do the cleanup though there should be nothing to clean up. */
 
 	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
-
-		sql_print_error("Transaction not registered for MySQL 2PC,"
-				" but transaction is active");
+		log_errlog(ERROR_LEVEL, ER_INNODB_UNREGISTERED_TRX_ACTIVE);
 	}
 
 	bool	read_only = trx->read_only || trx->id == 0;
@@ -5569,9 +5557,8 @@ innobase_close_connection(
 		}
 
 		if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
-
-			sql_print_error("Transaction not registered for MySQL"
-					" 2PC, but transaction is active");
+			log_errlog(ERROR_LEVEL,
+				ER_INNODB_UNREGISTERED_TRX_ACTIVE);
 		}
 
 		/* Disconnect causes rollback in the following cases:
@@ -5590,11 +5577,8 @@ innobase_close_connection(
 					free_trx = true;
 				}
 			} else {
-				sql_print_warning(
-					"MySQL is closing a connection that "
-					"has an active InnoDB transaction.  "
-					TRX_ID_FMT
-					" row modifications will roll back.",
+				log_errlog(WARNING_LEVEL,
+					ER_INNODB_CLOSING_CONNECTION_ROLLS_BACK,
 					trx->undo_no);
 				ut_d(ib::warn()
 				     << "trx: " << trx << " started on: "
@@ -6454,11 +6438,9 @@ innobase_build_index_translation(
 		if (index_mapping == NULL) {
 			/* Report an error if index_mapping continues to be
 			NULL and mysql_num_index is a non-zero value */
-			sql_print_error("InnoDB: fail to allocate memory for"
-					" index translation table. Number of"
-					" Index:%lu, array size:%lu",
-					mysql_num_index,
-					share->idx_trans_tbl.array_size);
+			log_errlog(ERROR_LEVEL, ER_INNODB_TRX_XLATION_TABLE_OOM,
+				mysql_num_index,
+				share->idx_trans_tbl.array_size);
 			ret = false;
 			goto func_exit;
 		}
@@ -6477,9 +6459,9 @@ innobase_build_index_translation(
 			ib_table, table->key_info[count].name);
 
 		if (index_mapping[count] == 0) {
-			sql_print_error("Cannot find index %s in InnoDB"
-					" index dictionary.",
-					table->key_info[count].name);
+			log_errlog(ERROR_LEVEL,
+				ER_INNODB_CANT_FIND_INDEX_IN_INNODB_DD,
+				table->key_info[count].name);
 			ret = false;
 			goto func_exit;
 		}
@@ -6488,9 +6470,9 @@ innobase_build_index_translation(
 		column info as those in mysql key_info. */
 		if (!innobase_match_index_columns(&table->key_info[count],
 						  index_mapping[count])) {
-			sql_print_error("Found index %s whose column info"
-					" does not match that of MySQL.",
-					table->key_info[count].name);
+			log_errlog(ERROR_LEVEL,
+				ER_INNODB_INDEX_COLUMN_INFO_UNLIKE_MYSQLS,
+				table->key_info[count].name);
 			ret = false;
 			goto func_exit;
 		}
@@ -6860,8 +6842,8 @@ reload:
 	if (NULL == ib_table) {
 
 		if (is_part) {
-			sql_print_error("Failed to open table %s.\n",
-					norm_name);
+			log_errlog(ERROR_LEVEL, ER_INNODB_CANT_OPEN_TABLE,
+				norm_name);
 		}
 
 		ib::warn() << "Cannot open table " << norm_name << " from the"
@@ -6967,8 +6949,9 @@ reload:
 	}
 
 	if (!innobase_build_index_translation(table, ib_table, m_share)) {
-		  sql_print_error("Build InnoDB index translation table for"
-				  " Table %s failed", name);
+		  log_errlog(ERROR_LEVEL,
+			ER_INNODB_CANT_BUILD_INDEX_XLATION_TABLE_FOR,
+			name);
 	}
 
 	/* Allocate a buffer for a 'row reference'. A row reference is
@@ -6982,9 +6965,8 @@ reload:
 		m_prebuilt->clust_index_was_generated = FALSE;
 
 		if (table_share->is_missing_primary_key()) {
-			sql_print_error("Table %s has a primary key in"
-					" InnoDB data dictionary, but not"
-					" in MySQL!", name);
+			log_errlog(ERROR_LEVEL, ER_INNODB_PK_NOT_IN_MYSQL,
+				name);
 
 			/* This mismatch could cause further problems
 			if not attended, bring this to the user's attention
@@ -7044,16 +7026,8 @@ reload:
 		}
 	} else {
 		if (!table_share->is_missing_primary_key()) {
-			sql_print_error(
-				"Table %s has no primary key in InnoDB data"
-				" dictionary, but has one in MySQL! If you"
-				" created the table with a MySQL version <"
-				" 3.23.54 and did not define a primary key,"
-				" but defined a unique key with all non-NULL"
-				" columns, then MySQL internally treats that"
-				" key as the primary key. You can fix this"
-				" error by dump + DROP + CREATE + reimport"
-				" of the table.", name);
+			log_errlog(ERROR_LEVEL, ER_INNODB_PK_ONLY_IN_MYSQL,
+				name);
 
 			/* This mismatch could cause further problems
 			if not attended, bring this to the user attention
@@ -7080,10 +7054,9 @@ reload:
 		and it will never be updated anyway. */
 
 		if (key_used_on_scan != MAX_KEY) {
-			sql_print_warning(
-				"Table %s key_used_on_scan is %lu even"
-				" though there is no primary key inside"
-				" InnoDB.", name, (ulong) key_used_on_scan);
+			log_errlog(WARNING_LEVEL,
+				ER_INNODB_CLUSTERED_INDEX_PRIVATE,
+				name, (ulong) key_used_on_scan);
 		}
 	}
 
@@ -7254,21 +7227,9 @@ ha_innobase::open_dict_table(
 		}
 
 		if (ib_table != NULL) {
-#ifndef _WIN32
-			LogErr(WARNING_LEVEL,
-			  ER_INNODB_PARTITION_TABLE_LOWERCASED,
-			  norm_name);
-#else
-			sql_print_warning("Partition table %s opened"
-					  " after skipping the step to"
-					  " lower case the table name."
-					  " The table may have been"
-					  " moved from a case sensitive"
-					  " file system. Please"
-					  " recreate table in the"
-					  " current file system\n",
-					  norm_name);
-#endif
+			log_errlog(WARNING_LEVEL,
+				  ER_INNODB_PARTITION_TABLE_LOWERCASED,
+				  norm_name);
 		}
 	}
 
@@ -9709,14 +9670,11 @@ ha_innobase::innobase_get_index(
 			table. Only print message if the index translation
 			table exists */
 			if (m_share->idx_trans_tbl.index_mapping != NULL) {
-				sql_print_warning("InnoDB could not find"
-						  " index %s key no %u for"
-						  " table %s through its"
-						  " index translation table",
-						  key ? key->name : "NULL",
-						  keynr,
-						  m_prebuilt->table->name
-						  .m_name);
+				log_errlog(WARNING_LEVEL,
+					ER_INNODB_FAILED_TO_FIND_IDX_WITH_KEY_NO,
+					key ? key->name : "NULL",
+					keynr,
+					m_prebuilt->table->name.m_name);
 			}
 
 			index = dict_table_get_index_on_name(
@@ -9728,9 +9686,8 @@ ha_innobase::innobase_get_index(
 	}
 
 	if (index == NULL) {
-		sql_print_error(
-			"InnoDB could not find key no %u with name %s"
-			" from dict cache for table %s",
+		log_errlog(ERROR_LEVEL,
+			ER_INNODB_FAILED_TO_FIND_IDX_FROM_DICT_CACHE,
 			keynr, key ? key->name : "NULL",
 			m_prebuilt->table->name.m_name);
 	}
@@ -9770,8 +9727,8 @@ ha_innobase::change_active_index(
 	m_prebuilt->index = innobase_get_index(keynr);
 
 	if (m_prebuilt->index == NULL) {
-		sql_print_warning("InnoDB: change_active_index(%u) failed",
-				  keynr);
+		log_errlog(WARNING_LEVEL, ER_INNODB_ACTIVE_INDEX_CHANGE_FAILED,
+			keynr);
 		m_prebuilt->index_usable = FALSE;
 		DBUG_RETURN(1);
 	}
@@ -10573,8 +10530,8 @@ ha_innobase::position(
 	table. */
 
 	if (len != ref_length) {
-		sql_print_error("Stored ref len is %lu, but table ref len is"
-				" %lu", (ulong) len, (ulong) ref_length);
+		log_errlog(ERROR_LEVEL, ER_INNODB_DIFF_IN_REF_LEN,
+			(ulong) len, (ulong) ref_length);
 	}
 
 	DBUG_VOID_RETURN;
@@ -11354,11 +11311,8 @@ create_index(
 			case DATA_FLOAT:
 			case DATA_DOUBLE:
 			case DATA_DECIMAL:
-				sql_print_error(
-					"MySQL is trying to create a column"
-					" prefix index field, on an"
-					" inappropriate data type. Table"
-					" name %s, column name %s.",
+				log_errlog(ERROR_LEVEL,
+					ER_WRONG_TYPE_FOR_COLUMN_PREFIX_IDX_FLD,
 					table_name,
 					key_part->field->field_name);
 
@@ -12161,7 +12115,8 @@ create_table_info_t::parse_table_name(
 
 		if ((name[1] == ':')
 		    || (name[0] == '\\' && name[1] == '\\')) {
-			sql_print_error("Cannot create table %s\n", name);
+                        log_errlog(ERROR_LEVEL, ER_INNODB_CANNOT_CREATE_TABLE,
+				name);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
 	}
@@ -15542,8 +15497,8 @@ innobase_get_mysql_key_number_for_index(
 		/* Print an error message if we cannot find the index
 		in the "index translation table". */
 		if (index->is_committed()) {
-			sql_print_error("Cannot find index %s in InnoDB index"
-					" translation table.", index->name());
+			log_errlog(ERROR_LEVEL, ER_INNODB_FAILED_TO_FIND_IDX,
+				index->name());
 		}
 	}
 
@@ -15569,11 +15524,8 @@ innobase_get_mysql_key_number_for_index(
 			not present in the MySQL index list, so no
 			need to print such mismatch warning. */
 			if (index->is_committed()) {
-				sql_print_warning(
-					"Found index %s in InnoDB index list"
-					" but not its MySQL index number."
-					" It could be an InnoDB internal"
-					" index.",
+				log_errlog(WARNING_LEVEL,
+					ER_INNODB_INTERNAL_INDEX,
 					index->name());
 			}
 			return(-1);
@@ -15968,12 +15920,10 @@ ha_innobase::info_low(
 	}
 
 	if (table->s->keys != num_innodb_index) {
-		sql_print_error("InnoDB: Table %s contains %lu"
-				" indexes inside InnoDB, which"
-				" is different from the number of"
-				" indexes %u defined in MySQL",
-				ib_table->name.m_name,
-				num_innodb_index, table->s->keys);
+		log_errlog(ERROR_LEVEL,
+			ER_INNODB_IDX_CNT_MORE_THAN_DEFINED_IN_MYSQL,
+			ib_table->name.m_name,
+			num_innodb_index, table->s->keys);
 	}
 
 	if (!(flag & HA_STATUS_NO_LOCK)) {
@@ -15994,14 +15944,10 @@ ha_innobase::info_low(
 		dict_index_t*	index = innobase_get_index(i);
 
 		if (index == NULL) {
-			sql_print_error("Table %s contains fewer"
-					" indexes inside InnoDB than"
-					" are defined in the MySQL"
-					" .frm file. Have you mixed up"
-					" .frm files from different"
-					" installations? %s\n",
-					ib_table->name.m_name,
-					TROUBLESHOOTING_MSG);
+			log_errlog(ERROR_LEVEL,
+				ER_INNODB_IDX_CNT_FEWER_THAN_DEFINED_IN_MYSQL,
+				ib_table->name.m_name,
+				TROUBLESHOOTING_MSG);
 			break;
 		}
 
@@ -16041,14 +15987,8 @@ ha_innobase::info_low(
 				}
 
 				if (j + 1 > index->n_uniq) {
-					sql_print_error(
-						"Index %s of %s has %lu columns"
-						" unique inside InnoDB, but"
-						" MySQL is asking statistics for"
-						" %lu columns. Have you mixed"
-
-						" up .frm files from different"
-						" installations? %s",
+					log_errlog(ERROR_LEVEL,
+						ER_INNODB_IDX_COLUMN_CNT_DIFF,
 						index->name(),
 						ib_table->name.m_name,
 						(unsigned long)
@@ -19336,8 +19276,7 @@ innobase_xa_prepare(
 
 	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
 
-		sql_print_error("Transaction not registered for MySQL 2PC,"
-				" but transaction is active");
+		log_errlog(ERROR_LEVEL, ER_INNODB_UNREGISTERED_TRX_ACTIVE);
 	}
 
 	if (prepare_trx
@@ -20194,14 +20133,8 @@ innodb_monitor_valid_byname(
 		its module name */
 		if ((monitor_info->monitor_type & MONITOR_GROUP_MODULE)
 		    && (!(monitor_info->monitor_type & MONITOR_MODULE))) {
-			sql_print_warning(
-				"Monitor counter '%s' cannot"
-				" be turned on/off individually."
-				" Please use its module name"
-				" to turn on/off the counters"
-				" in the module as a group.\n",
-				name);
-
+			log_errlog(WARNING_LEVEL,
+				ER_INNODB_USE_MONITOR_GROUP_NAME, name);
 			return(1);
 		}
 
@@ -20333,10 +20266,8 @@ innodb_monitor_update(
 				" this set option. Please specify"
 				" correct counter or module name.");
 		} else {
-			sql_print_error(
-				"Default value is not defined for"
-				" this set option. Please specify"
-				" correct counter or module name.\n");
+			log_errlog(ERROR_LEVEL,
+				ER_INNODB_MONITOR_DEFAULT_VALUE_NOT_DEFINED);
 		}
 
 		if (var_ptr) {
@@ -20379,8 +20310,8 @@ exit:
 	been turned on, we will set err_monitor. Print related
 	information */
 	if (err_monitor) {
-		sql_print_warning("InnoDB: Monitor %s is already enabled.",
-				  srv_mon_get_name((monitor_id_t) err_monitor));
+		log_errlog(WARNING_LEVEL, ER_INNODB_MONITOR_IS_ENABLED,
+			srv_mon_get_name((monitor_id_t) err_monitor));
 	}
 
 	if (free_mem && name) {
@@ -20707,8 +20638,9 @@ innodb_enable_monitor_at_startup(
 			innodb_monitor_update(NULL, NULL, &option,
 					      MONITOR_TURN_ON, FALSE);
 		} else {
-			sql_print_warning("Invalid monitor counter"
-					  " name: '%s'", option);
+			log_errlog(WARNING_LEVEL,
+				ER_INNODB_INVALID_MONITOR_COUNTER_NAME,
+				option);
 		}
 	}
 }

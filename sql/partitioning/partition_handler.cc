@@ -1422,12 +1422,9 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair)
               ignore || result == HA_ADMIN_CORRUPT)
           {
             /* Log this error, so the DBA can notice it and fix it! */
-            sql_print_error("Table '%-192s' failed to move/insert a row"
-                            " from part %d into part %d:\n%s",
-                            m_table->s->table_name.str,
-                            read_part_id,
-                            correct_part_id,
-                            str.c_ptr_safe());
+            LogErr(ERROR_LEVEL, ER_WRITE_ROW_TO_PARTITION_FAILED,
+                   m_table->s->table_name.str, read_part_id,
+                   correct_part_id, str.c_ptr_safe());
           }
           print_admin_msg(thd, MI_MAX_MSG_BUF, "error",
                           m_table->s->db.str, m_table->alias,
@@ -1569,7 +1566,7 @@ bool Partition_helper::print_admin_msg(THD* thd,
 
   if (!thd->get_protocol()->connection_alive())
   {
-    sql_print_error("%s", msgbuf);
+    LogErr(ERROR_LEVEL, ER_PARTITION_HANDLER_ADMIN_MSG, msgbuf);
     goto err;
   }
 

@@ -980,9 +980,8 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
       if (Bootstrap_error_handler::abort_on_error)
       {
         // Exit the upgrade process by reporting an error.
-        sql_print_error("Upgrade of view '%s.%s' failed. Re-create the view "
-                        "with the explicit column name lesser than 64 characters.",
-                         db_name.c_str(), view_name.c_str());
+        LogErr(ERROR_LEVEL, ER_DD_UPGRADE_VIEW_COLUMN_NAME_TOO_LONG,
+               db_name.c_str(), view_name.c_str());
         error= true;
       }
       else
@@ -1719,9 +1718,8 @@ static bool migrate_table_to_dd(THD *thd,
   if (error)
   {
     if (error == HA_ADMIN_NEEDS_DUMP_UPGRADE)
-      sql_print_error("Table upgrade required for "
-                      "`%-.64s`.`%-.64s`. Please dump/reload table to "
-                      "fix it!", schema_name.c_str(), table_name.c_str());
+      LogErr(ERROR_LEVEL, ER_TABLE_NEEDS_DUMP_UPGRADE, schema_name.c_str(),
+             table_name.c_str());
     else
       LogErr(ERROR_LEVEL, ER_TABLE_NEEDS_UPGRADE, table_name.c_str());
 

@@ -193,7 +193,7 @@ bool Gtid_table_access_context::deinit(THD *thd, TABLE *table,
     my_printf_error(ER_ERROR_DURING_FLUSH_LOGS,
                     ER_THD(thd, ER_ERROR_DURING_FLUSH_LOGS),
                     MYF(ME_FATALERROR), err);
-    sql_print_error(ER_THD(thd, ER_ERROR_DURING_FLUSH_LOGS), err);
+    LogErr(ERROR_LEVEL, ER_ERROR_DURING_FLUSH_LOG_COMMIT_PHASE, err);
     DBUG_RETURN(err);
   }
 

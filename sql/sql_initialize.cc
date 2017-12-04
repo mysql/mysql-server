@@ -190,7 +190,8 @@ void Compiled_in_command_iterator::begin(void)
   cmds_ofs= cmd_ofs= 0;
 
   is_active= true;
-  sql_print_information("%s", cmd_descs[cmds_ofs]);
+  LogErr(INFORMATION_LEVEL, ER_SERVER_INIT_COMPILED_IN_COMMANDS,
+         cmd_descs[cmds_ofs]);
   if (opt_initialize_insecure)
   {
     strcpy(insert_user_buffer, INSERT_USER_CMD_INSECURE);
@@ -235,7 +236,8 @@ int Compiled_in_command_iterator::next(std::string &query, int *read_error,
   {
     cmds_ofs++;
     if (cmds[cmds_ofs] != NULL)
-      sql_print_information("%s", cmd_descs[cmds_ofs]);
+      LogErr(INFORMATION_LEVEL, ER_SERVER_INIT_COMPILED_IN_COMMANDS,
+             cmd_descs[cmds_ofs]);
     cmd_ofs= 0;
   }
 

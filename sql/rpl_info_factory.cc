@@ -305,8 +305,7 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option,
   rpl_filter= rpl_channel_filters.get_channel_filter(channel);
   if (rpl_filter == NULL)
   {
-    sql_print_error("Slave: failed in creating filter for channel '%s'",
-                    channel);
+    LogErr(ERROR_LEVEL, ER_RPL_SLAVE_FILTER_CREATE_FAILED, channel);
     msg= msg_alloc;
     goto err;
   }
@@ -1029,9 +1028,8 @@ bool Rpl_info_factory::configure_channel_replication_filters(
     */
     if (rli->rpl_filter->copy_global_replication_filters())
     {
-      sql_print_error("Slave: failed in copying the global filters to "
-                      "its own per-channel filters on configuration "
-                      "for channel '%s'", channel_name);
+      LogErr(ERROR_LEVEL, ER_RPL_SLAVE_GLOBAL_FILTERS_COPY_FAILED,
+             channel_name);
       DBUG_RETURN(true);
     }
   }
@@ -1044,10 +1042,7 @@ bool Rpl_info_factory::configure_channel_replication_filters(
     */
     if (!rli->rpl_filter->is_empty())
     {
-      sql_print_warning("There are per-channel replication filter(s) "
-                        "configured for channel '%.192s' which does not "
-                        "exist. The filter(s) have been discarded.",
-                        channel_name);
+      LogErr(WARNING_LEVEL, ER_RPL_SLAVE_RESET_FILTER_OPTIONS, channel_name);
       rli->rpl_filter->reset();
     }
   }

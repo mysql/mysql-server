@@ -805,9 +805,8 @@ void push_deprecated_warn(THD *thd, const char *old_syntax,
                         ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
                         old_syntax, new_syntax);
   else
-    sql_print_warning("The syntax '%s' is deprecated and will be removed "
-                      "in a future release. Please use %s instead.",
-                      old_syntax, new_syntax);
+    LogErr(WARNING_LEVEL, ER_DEPRECATED_SYNTAX_WITH_REPLACEMENT, old_syntax,
+           new_syntax);
 }
 
 
@@ -819,8 +818,7 @@ void push_deprecated_warn_no_replacement(THD *thd, const char *old_syntax)
                         ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
                         old_syntax);
   else
-    sql_print_warning("The syntax '%s' is deprecated and will be removed "
-                      "in a future release", old_syntax);
+    LogErr(WARNING_LEVEL, ER_DEPRECATED_SYNTAX_NO_REPLACEMENT, old_syntax);
 }
 
 

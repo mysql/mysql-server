@@ -502,7 +502,7 @@ public:
       push_warning_printf(thd, Sql_condition::SL_WARNING,
 			  ER_DB_DROP_RMDIR2,
                           ER_THD(thd, ER_DB_DROP_RMDIR2), msg);
-      sql_print_warning(ER_DEFAULT(ER_DB_DROP_RMDIR2), msg);
+      LogErr(WARNING_LEVEL, ER_DROP_DATABASE_FAILED_RMDIR_MANUALLY, msg);
       m_is_active= false;
       return true;
     }

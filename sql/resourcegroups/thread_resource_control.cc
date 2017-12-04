@@ -43,9 +43,8 @@ bool Thread_resource_control::validate(const Type &type) const
 
     if (m_priority < min || m_priority > max)
     {
-      sql_print_warning("Invalid thread priority %d for a %s resource group."
-                        "Allowed range is [%d, %d].", m_priority,
-                        mgr_ptr->resource_group_type_str(type), min, max);
+      LogErr(WARNING_LEVEL, ER_RES_GRP_INVALID_THREAD_PRIORITY, m_priority,
+             mgr_ptr->resource_group_type_str(type), min, max);
       result= true;
     }
   }
@@ -56,15 +55,15 @@ bool Thread_resource_control::validate(const Type &type) const
   {
     if (vcpu_range.m_start > vcpu_range.m_end)
     {
-      sql_print_warning("Invalid VCPU range specification: %d-%d.",
-                        vcpu_range.m_start, vcpu_range.m_end);
+      LogErr(WARNING_LEVEL, ER_RES_GRP_INVALID_VCPU_RANGE,
+             vcpu_range.m_start, vcpu_range.m_end);
       result= true;
     }
 
     if ((vcpu_id= vcpu_range.m_start) >= num_vcpus ||
         (vcpu_id= vcpu_range.m_end) >= num_vcpus)
     {
-      sql_print_warning("Invalid VCPU ID %d.", vcpu_id);
+      LogErr(WARNING_LEVEL, ER_RES_GRP_INVALID_VCPU_ID, vcpu_id);
       result= true;
     }
   }

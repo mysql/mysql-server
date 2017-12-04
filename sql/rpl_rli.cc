@@ -1371,8 +1371,9 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
 
       if (relay_log.open_index_file(log_index_name, ln, TRUE))
       {
-        sql_print_error("Unable to purge relay log files. Failed to open relay "
-                        "log index file:%s.", relay_log.get_index_fname());
+        LogErr(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_PURGE_FAILED,
+               "Failed to open relay log index file:",
+               relay_log.get_index_fname());
         DBUG_RETURN(1);
       }
       mysql_mutex_lock(&mi->data_lock);
@@ -1386,8 +1387,8 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
       {
         mysql_mutex_unlock(log_lock);
         mysql_mutex_unlock(&mi->data_lock);
-        sql_print_error("Unable to purge relay log files. Failed to open relay "
-                        "log file:%s.", relay_log.get_log_fname());
+        LogErr(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_PURGE_FAILED,
+               "Failed to open relay log file:", relay_log.get_log_fname());
         DBUG_RETURN(1);
       }
       mysql_mutex_unlock(log_lock);
@@ -2170,7 +2171,7 @@ err:
   inited= 0;
   error_on_rli_init_info= true;
   if (msg)
-    sql_print_error("%s.", msg);
+    LogErr(ERROR_LEVEL, ER_RPL_RLI_INIT_INFO_MSG, msg);
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
                   true/*need_lock_log=true*/,
                   true/*need_lock_index=true*/);

@@ -113,8 +113,7 @@ public:
   {
     if (m_resource_group_support)
     {
-      sql_print_information("Resource group feature shall not be available. "
-                            "Incompatible thread handling option");
+      LogErr(INFORMATION_LEVEL, ER_RES_GRP_FEATURE_NOT_AVAILABLE);
       deinit();
       m_resource_group_support= false;
     }

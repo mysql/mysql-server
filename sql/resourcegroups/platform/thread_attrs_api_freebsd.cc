@@ -20,8 +20,9 @@
 #include <sys/cpuset.h>
 #include <errno.h>
 
-#include "sql/log.h"
 #include "my_dbug.h"
+#include "mysqld_error.h"
+#include "sql/log.h"
 
 namespace resourcegroups
 {
@@ -50,10 +51,9 @@ bool bind_to_cpu(cpu_id_t cpu_id, my_thread_os_id_t thread_id)
                          sizeof(cpu_set), &cpu_set) == -1)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("Unable to bind thread id %llu to "
-                    "cpu id %u (error code %d - %-.192s)",
-                    thread_id, cpu_id, my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_SET_THR_AFFINITY_FAILED,
+           thread_id, cpu_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
@@ -83,10 +83,9 @@ bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids,
                          sizeof(cpu_set), &cpu_set) == -1)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("Unable to bind thread id %llu to "
-                    "cpu ids (error code %d - %-.192s)",
-                    thread_id, my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_SET_THR_AFFINITY_FAILED,
+           thread_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
@@ -108,7 +107,10 @@ bool unbind_thread(my_thread_os_id_t thread_id)
   uint32_t num_cpus= num_vcpus();
   if (num_cpus == 0)
   {
-    sql_print_error("Unable to unbind thread %llu", thread_id);
+    char errbuf[MYSQL_ERRMSG_SIZE];
+    LogErr(ERROR_LEVEL, ER_RES_GRP_THD_UNBIND_FROM_CPU_FAILED,
+           thread_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     DBUG_RETURN(true);
   }
   for (cpu_id_t cpu_id= 0; cpu_id < num_cpus; ++cpu_id)
@@ -117,9 +119,9 @@ bool unbind_thread(my_thread_os_id_t thread_id)
                          sizeof(cpu_set), &cpu_set) == -1)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error("Unbind thread id %llu failed. (error code %d - %-.192s)",
-                    thread_id, my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_RES_GRP_THD_UNBIND_FROM_CPU_FAILED,
+           thread_id, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
     DBUG_RETURN(true);
   }
 
@@ -136,7 +138,7 @@ int thread_priority()
 int thread_priority(my_thread_os_id_t thread_id)
 {
   DBUG_ASSERT(0);
-  sql_print_warning("Retrieval of thread priority unsupported on FreeBSD");
+  LogErr(WARNING_LEVEL, ER_RES_GRP_GET_THREAD_PRIO_NOT_SUPPORTED, "FreeBSD");
   return 0;
 }
 
@@ -161,7 +163,7 @@ uint32_t num_vcpus()
   size_t num_vcpus_size= sizeof(cpu_id_t);
   if (sysctlbyname("hw.ncpu", &num_vcpus, &num_vcpus_size, nullptr, 0) != 0)
   {
-    sql_print_error("Unable to determine the number of cpus");
+    LogErr(ERROR_LEVEL, ER_RES_GRP_FAILED_DETERMINE_CPU_COUNT);
     num_vcpus= 0;
   }
   return num_vcpus;

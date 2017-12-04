@@ -21,7 +21,7 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
 #include "sql/handler.h"
-#include "sql/log.h"                          // sql_print_error
+#include "sql/log.h"                           // LogErr
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/system_variables.h"
@@ -57,7 +57,7 @@ void Check_table_intact::report_error(uint, const char *fmt, ...)
   my_vsnprintf(buff, sizeof(buff), fmt, args);
   va_end(args);
 
-  sql_print_error("%s", buff);
+  LogErr(ERROR_LEVEL, ER_DD_UPGRADE_TABLE_INTACT_ERROR, buff);
 }
 
 Routine_event_context_guard:: Routine_event_context_guard(THD *thd): m_thd(thd)

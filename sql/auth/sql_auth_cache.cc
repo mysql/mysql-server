@@ -2258,8 +2258,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
   }
   else
   {
-    sql_print_error("Missing system table mysql.global_grants; "
-                    "please run mysql_upgrade to create it");
+    LogErr(ERROR_LEVEL, ER_MISSING_GRANT_SYSTEM_TABLE);
   }
 
   initialized=1;
@@ -2373,8 +2372,8 @@ bool check_acl_tables_intact(THD *thd)
       if (tables[idx].table)
         table_intact.check(tables[idx].table, (ACL_TABLES) idx);
       else
-        sql_print_warning("ACL table mysql.%.*s missing. Some operations may fail.",
-                          tables[idx].table_name_length, tables[idx].table_name);
+        LogErr(WARNING_LEVEL, ER_MISSING_ACL_SYSTEM_TABLE,
+               tables[idx].table_name_length, tables[idx].table_name);
     commit_and_close_mysql_tables(thd);
   }
   thd->pop_internal_handler();

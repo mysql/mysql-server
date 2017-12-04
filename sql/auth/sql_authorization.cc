@@ -92,8 +92,8 @@
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"               /* Key_spec */
-#include "sql/log.h"
 #include "sql/mdl.h"
+#include "sql/log.h"
 #include "sql/mysqld.h"                 /* lower_case_table_names */
 #include "sql/protocol.h"
 #include "sql/sp.h"                     /* sp_exist_routines */
@@ -7570,10 +7570,9 @@ void get_mandatory_roles(std::vector< Role_id > *mandatory_roles)
             Role_id role_id(el.first, el.second);
             if (role_id.user() == "")
             {
-              sql_print_warning("Can't set mandatory_role %s@%s: Anonymous "
-                                "authorization IDs are not allowed as roles.",
-                                role_id.user().c_str(),
-                                role_id.host().c_str());
+              LogErr(WARNING_LEVEL,
+                     ER_ANONYMOUS_AUTH_ID_NOT_ALLOWED_IN_MANDATORY_ROLES,
+                     role_id.user().c_str(), role_id.host().c_str());
             }
             else if (find_acl_user(role_id.host().c_str(),
                                    role_id.user().c_str(),
@@ -7589,10 +7588,9 @@ void get_mandatory_roles(std::vector< Role_id > *mandatory_roles)
             }
             else
             {
-              sql_print_warning("Can't set mandatory_role: There's no such "
-                                "authorization ID %s@%s.",
-                                role_id.user().c_str(),
-                                role_id.host().c_str());
+              LogErr(WARNING_LEVEL,
+                     ER_UNKNOWN_AUTH_ID_IN_MANDATORY_ROLE,
+                     role_id.user().c_str(), role_id.host().c_str());
             }
             return false; // continue iterating
           });

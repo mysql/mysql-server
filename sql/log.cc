@@ -2260,6 +2260,7 @@ void error_log_printf(enum loglevel level, const char *format, va_list args)
 
   my_vsnprintf(buff, sizeof(buff), format, args);
   LogEvent().type(LOG_TYPE_ERROR)
+            .errcode(ER_LOG_PRINTF_MSG)
             .prio(level)
             .verbatim(buff);
 

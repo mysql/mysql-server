@@ -509,7 +509,7 @@ static int convert_handler_error(int error, THD* thd, TABLE *table)
     actual_error= (thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
-      sql_print_warning("Unknown error detected %d in handler", error);
+      LogErr(WARNING_LEVEL, ER_UNKNOWN_ERROR_DETECTED_IN_SE, error);
   }
 
   return (actual_error);
@@ -1567,9 +1567,14 @@ err:
   if (!res)
   {
     DBUG_ASSERT(error != 0);
+#if defined(MYSQL_SERVER)
+    LogErr(ERROR_LEVEL, ER_READ_LOG_EVENT_FAILED, error, data_len,
+           head[EVENT_TYPE_OFFSET]);
+#else
     sql_print_error("Error in Log_event::read_log_event(): "
                     "'%s', data_len: %lu, event_type: %d",
 		    error,data_len,head[EVENT_TYPE_OFFSET]);
+#endif
     my_free(buf);
     /*
       The SQL slave thread will check if file->error<0 to know
@@ -8640,8 +8645,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     if (length > remaining_space ||
         ((length + block_size) > remaining_space))
     {
-      sql_print_error("The row data is greater than 4GB, which is too big to "
-                      "write to the binary log.");
+      LogErr(ERROR_LEVEL, ER_ROW_DATA_TOO_BIG_TO_WRITE_IN_BINLOG);
       DBUG_RETURN(ER_BINLOG_ROW_LOGGING_FAILED);
     }
     const size_t new_alloc= 
