@@ -866,7 +866,7 @@ THRConfig::handle_spec(char *str,
                        " highest priority");
       return -1;
     }
-    if (values[IX_SPINTIME].found && m_entries[type].m_is_exec_thd)
+    if (values[IX_SPINTIME].found && !m_entries[type].m_is_exec_thd)
     {
       m_err_msg.assfmt("Cannot set spintime on non-exec threads");
       return -1;
