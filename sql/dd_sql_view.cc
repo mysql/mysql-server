@@ -531,7 +531,7 @@ static bool open_views_and_update_metadata(
     view_query.length(0);
 
     if (thd->lex->unit->is_mergeable() &&
-        thd->lex->create_view_algorithm != VIEW_ALGORITHM_TEMPTABLE)
+        view->algorithm != VIEW_ALGORITHM_TEMPTABLE)
     {
       for (ORDER *order= thd->lex->select_lex->order_list.first;
            order; order= order->next)
