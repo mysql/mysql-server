@@ -40,7 +40,7 @@ public:
   {
   }
 
-  virtual int  is_killed() { return 0; }
+  virtual int  is_killed() const final { return 0; }
   virtual bool is_connected() { return true; }
   virtual THD* get_thd()   { return NULL; }
 

@@ -2629,7 +2629,7 @@ public:
     DBUG_VOID_RETURN;
   }
 
-  virtual int is_killed() { return killed; }
+  virtual int is_killed() const final { return killed; }
   virtual THD* get_thd() { return this; }
 
   /**

@@ -25,9 +25,14 @@
 #include "nullable.h"
 #include "sql/regexp/errors.h"
 #include "sql/regexp/regexp_facade.h"
+#include "sql/sql_class.h"
 #include "sql_string.h"
 
 namespace regexp {
+
+UBool QueryNotKilled(const void *thd, int32_t) {
+  return !static_cast<const THD*>(thd)->is_killed();
+}
 
 const char *icu_version_string() { return U_ICU_VERSION; }
 
