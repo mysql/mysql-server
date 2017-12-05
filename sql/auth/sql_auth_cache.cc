@@ -730,7 +730,7 @@ bool GRANT_TABLE::init(TABLE *col_privs)
 
     if (!col_privs->key_info)
     {
-      my_error(ER_TABLE_CORRUPT, MYF(0), col_privs->s->db.str,
+      my_error(ER_MISSING_KEY, MYF(0), col_privs->s->db.str,
                col_privs->s->table_name.str);
       return true;
     }
