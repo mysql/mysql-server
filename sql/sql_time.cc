@@ -1388,7 +1388,7 @@ bool make_truncated_value_warning(THD *thd,
 
 
 /* Daynumber from year 0 to 9999-12-31 */
-#define MAX_DAY_NUMBER 3652424L
+#define MAX_DAY_NUMBER 3652424UL
 
 bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
                        Interval interval)
@@ -1419,11 +1419,23 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
     extra_sec= microseconds/1000000L;
     microseconds= microseconds%1000000L;
 
-    sec=((ltime->day-1)*3600*24L+ltime->hour*3600+ltime->minute*60+
+    if (interval.day > MAX_DAY_NUMBER)
+      goto invalid_date;
+    if (interval.hour > MAX_DAY_NUMBER * 24ULL)
+      goto invalid_date;
+    if (interval.minute > MAX_DAY_NUMBER * 24ULL * 60ULL)
+      goto invalid_date;
+    if (interval.second > MAX_DAY_NUMBER * 24ULL * 60ULL * 60ULL)
+      goto invalid_date;
+    sec=((ltime->day-1) * 3600LL * 24LL +
+         ltime->hour    * 3600LL +
+         ltime->minute  * 60LL +
 	 ltime->second +
-	 sign* (longlong) (interval.day*3600*24L +
-                           interval.hour*3600LL+interval.minute*60LL+
-                           interval.second))+ extra_sec;
+	 sign* (longlong) (interval.day    * 3600ULL * 24ULL +
+                           interval.hour   * 3600ULL +
+                           interval.minute *   60ULL +
+                           interval.second))
+      + extra_sec;
     if (microseconds < 0)
     {
       microseconds+= 1000000LL;
