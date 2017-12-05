@@ -9311,9 +9311,12 @@ Encryption::fill_encryption_info(
 	mach_write_to_4(ptr, master_key_id);
 	ptr += sizeof(uint32_t);
 
-	/* Unused. */
-	mach_write_to_4(ptr, 0);
-	ptr += sizeof(uint32_t);
+	/** FIXME: Encrypted files are not portable between 32 and 64 bit
+	systems due to this bug. */
+	if (sizeof(ulint) == 8) {
+		mach_write_to_4(ptr, 0);
+		ptr += sizeof(uint32_t);
+	}
 
 	if (version == ENCRYPTION_VERSION_2) {
 		strncpy(reinterpret_cast<char*>(ptr), s_uuid, sizeof(s_uuid));
