@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ BEGIN
   eval 'sub USE_NETPING { $use_netping }';
 }
   
-sub sleep_until_file_created ($$$);
+sub sleep_until_pid_file_created ($$$);
 sub mtr_ping_port ($);
 
 sub mtr_ping_port ($) {
@@ -79,8 +79,6 @@ sub mtr_ping_port ($) {
     mtr_error("can't create socket: $!");
   }
 
-  mtr_debug("Pinging server (port: $port)...");
-
   if ( connect(SOCK, $paddr) )
   {
     close(SOCK);                        # FIXME check error?
@@ -94,47 +92,49 @@ sub mtr_ping_port ($) {
   }
 }
 
-##############################################################################
-#
-#  Wait for a file to be created
-#
-##############################################################################
 
-# FIXME check that the pidfile contains the expected pid!
-
-sub sleep_until_file_created ($$$) {
+## Wait for the PID file to be created.
+## FIXME check that the pidfile contains the expected pid!
+sub sleep_until_pid_file_created ($$$)
+{
   my $pidfile= shift;
   my $timeout= shift;
-  my $proc=     shift;
-  my $sleeptime= 100; # Milliseconds
+  my $proc   = shift;
+
+  my $sleeptime = 100; # Milliseconds
+  my $total_time= 0;   # Milliseconds
   my $loops= ($timeout * 1000) / $sleeptime;
 
-  for ( my $loop= 1; $loop <= $loops; $loop++ )
+  for (my $loop= 1; $loop <= $loops; $loop++)
   {
-    if ( -r $pidfile )
+    if (-r $pidfile)
     {
+      mtr_verbose("Waited $total_time milliseconds for '$pidfile' file to " .
+                  "be created.");
       return 1;
     }
 
     my $seconds= ($loop * $sleeptime) / 1000;
 
     # Check if it died after the fork() was successful
-    if ( defined $proc and ! $proc->wait_one(0) )
+    if (defined $proc and !$proc->wait_one(0))
     {
       mtr_warning("Process $proc died after mysql-test-run waited $seconds " .
 		  "seconds for $pidfile to be created.");
       return 0;
     }
 
-    mtr_debug("Sleep $sleeptime milliseconds waiting for $pidfile");
+    $total_time= $total_time + 100;
 
     my $message_timeout = 600; # 60 seconds wait between each message
-    if ($ENV{'VALGRIND_TEST'}) {
+    if ($ENV{'VALGRIND_TEST'})
+    {
       $message_timeout = $message_timeout * 5;
     }
 
     # Print extra message every $message_timeout seconds
-    if ( $seconds > 1 && int($seconds * 10) % $message_timeout == 0 && $seconds < $timeout )
+    if ($seconds > 1 && int($seconds * 10) % $message_timeout == 0 &&
+        $seconds < $timeout)
     {
       my $left= $timeout - $seconds;
       mtr_warning("Waited $seconds seconds for $pidfile to be created, " .
@@ -142,7 +142,6 @@ sub sleep_until_file_created ($$$) {
     }
 
     mtr_milli_sleep($sleeptime);
-
   }
 
   mtr_warning("Timeout after mysql-test-run waited $timeout seconds " .

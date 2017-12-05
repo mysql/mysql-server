@@ -4953,9 +4953,8 @@
     <li>
       <tt>`--verbose`</tt>
 
-      Give more verbose output regarding test execution. Use the
-      option twice to get even more output. Note that the output
-      generated within each test case is not affected.
+      Give more verbose output regarding test execution. Note that the
+      output generated within each test case is not affected.
     </li>
 
     <li>
