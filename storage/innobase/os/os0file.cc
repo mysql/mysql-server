@@ -9309,14 +9309,9 @@ Encryption::fill_encryption_info(
 	ptr += ENCRYPTION_MAGIC_SIZE;
 
 	mach_write_to_4(ptr, master_key_id);
-	ptr += sizeof(uint32_t);
 
-	/** FIXME: Encrypted files are not portable between 32 and 64 bit
-	systems due to this bug. */
-	if (sizeof(ulint) == 8) {
-		mach_write_to_4(ptr, 0);
-		ptr += sizeof(uint32_t);
-	}
+	/** FIXME: This should be uint32_t on all platforms. */
+	ptr += sizeof(ulint);
 
 	if (version == ENCRYPTION_VERSION_2) {
 		strncpy(reinterpret_cast<char*>(ptr), s_uuid, sizeof(s_uuid));
@@ -9401,8 +9396,8 @@ Encryption::decode_encryption_info(
 	/* Get master key id. */
 	auto	key_id = mach_read_from_4(ptr);
 
-	/* 4 bytes are unused */
-	ptr += sizeof(uint64_t);
+	/* FIXME: This is a bug should be uint32_t for all platforms. */
+	ptr += sizeof(ulint);
 
 	/* Get server uuid. */
 	if (version == ENCRYPTION_VERSION_2) {
