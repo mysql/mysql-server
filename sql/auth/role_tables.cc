@@ -123,13 +123,6 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
   if (table_intact.check(table, ACL_TABLES::TABLE_ROLE_EDGES))
     DBUG_RETURN(true);
 
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(true);
-  }
-
   table->use_all_columns();
 
   table->field[MYSQL_ROLE_EDGES_FIELD_FROM_HOST]
@@ -194,13 +187,6 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
 
   if (table_intact.check(table, ACL_TABLES::TABLE_DEFAULT_ROLES))
     DBUG_RETURN(true);
-
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(true);
-  }
 
   table->use_all_columns();
   table->field[MYSQL_DEFAULT_ROLE_FIELD_HOST]
@@ -269,7 +255,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst)
   {
     TABLE *table= ((!tablelst[0].table->key_info) ? tablelst[0].table :
                    tablelst[1].table);
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
+    my_error(ER_MISSING_KEY, MYF(0), table->s->db.str,
              table->s->table_name.str);
     DBUG_RETURN(true);
   }

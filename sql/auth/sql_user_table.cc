@@ -1252,13 +1252,6 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   if (table_intact.check(table, ACL_TABLES::TABLE_USER))
     goto end;
 
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    goto end;
-  }
-
   table->use_all_columns();
   DBUG_ASSERT(combo->host.str != NULL);
   table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
@@ -2101,13 +2094,6 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t,
   if (table_intact.check(table, ACL_TABLES::TABLE_COLUMNS_PRIV))
     DBUG_RETURN(-1);
 
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(-1);
-  }
-  
   KEY_PART_INFO *key_part= table->key_info->key_part;
 
   table->use_all_columns();
@@ -3019,13 +3005,6 @@ int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no, bool d
     user_field->store(user_from->user.str,
                       user_from->user.length,
                       system_charset_info);
-
-    if (!table->key_info)
-    {
-      my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-               table->s->table_name.str);
-      DBUG_RETURN(-1);
-    }
 
     key_prefix_length= (table->key_info->key_part[0].store_length +
                         table->key_info->key_part[1].store_length);
