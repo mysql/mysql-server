@@ -307,9 +307,8 @@ Transporter::doDisconnect() {
     return;
 
   m_connected = false;
-
-  disconnectImpl();
   get_callback_obj()->disable_send_buffer(remoteNodeId);
+  disconnectImpl();
 }
 
 void
