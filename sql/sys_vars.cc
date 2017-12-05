@@ -123,6 +123,7 @@
 #include "sql/xa.h"
 #include "template_utils.h"              // pointer_cast
 #include "thr_lock.h"
+#include "zlib.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -4829,6 +4830,12 @@ static Sys_var_charptr Sys_version_compile_os(
        "version_compile_os", "version_compile_os",
        READ_ONLY NON_PERSIST GLOBAL_VAR(server_version_compile_os_ptr), NO_CMD_LINE,
        IN_SYSTEM_CHARSET, DEFAULT(SYSTEM_TYPE));
+
+static char *server_version_compile_zlib_ptr;
+static Sys_var_charptr Sys_version_compile_zlib(
+       "version_compile_zlib", "version_compile_zlib",
+       READ_ONLY NON_PERSIST GLOBAL_VAR(server_version_compile_zlib_ptr), NO_CMD_LINE,
+       IN_SYSTEM_CHARSET, DEFAULT(ZLIB_VERSION));
 
 static Sys_var_ulong Sys_net_wait_timeout(
        "wait_timeout",
