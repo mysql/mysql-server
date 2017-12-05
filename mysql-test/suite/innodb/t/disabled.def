@@ -14,4 +14,3 @@ analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too 
 innodb.innodb_tsof_use_2  @windows : Bug#25716110 2017-03-14 Anitha Fails consistently on windows
 innodb.innodb_tsof_use_1  : Bug#26161492  2017-05-29 Erlend Fails sporadically
 buf_pool_resize_oom       : Bug#23593654 2017-09-26 Praveenkumar Test repeats issue reported in the Bug#23593654. Test will be enabled by the patch for the bug#23593654.
-innodb.create_tablespace_debug @windows : Bug#27219729 2017-12-05 Satya Hang on windows
