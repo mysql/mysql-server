@@ -8277,9 +8277,6 @@ ER_EXPIRE_LOGS_DAYS_IGNORED
 # common/unicode/utypes.h.
 #
 
-ER_REGEXP_STRING_NOT_TERMINATED
-  eng "An output string could not be zero-terminated because the length exceeds the buffer capacity."
-
 ER_REGEXP_BUFFER_OVERFLOW
   eng "The result string is larger than the result buffer."
 
