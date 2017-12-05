@@ -25,10 +25,6 @@ keyring_operations
 keyring_operations
 mandatory_roles
 mandatory_roles
-password_history
-password_history
-password_reuse_interval
-password_reuse_interval
 regexp_stack_limit
 regexp_stack_limit
 regexp_time_limit
