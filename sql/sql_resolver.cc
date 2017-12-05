@@ -481,6 +481,13 @@ bool SELECT_LEX::prepare(THD *thd)
       DBUG_RETURN(true);
   }
 
+  /*
+    If the query directly contains windowing, remove any unused explicit window
+    definitions.
+  */
+  if (m_windows.elements != 0)
+    Window::remove_unused_windows(thd, m_windows);
+
   DBUG_ASSERT(!thd->is_error());
   DBUG_RETURN(false);
 }

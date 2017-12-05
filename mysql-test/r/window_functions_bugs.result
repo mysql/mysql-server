@@ -267,3 +267,390 @@ i	LAST_VALUE(i) OVER w
 1034	1027
 1039	1034
 DROP TABLE t1;
+#
+# Bug #27062031: WINDOW FUNC: CRASH IN COUNT_FIELD_TYPES() /
+#                ASSERTION FAILED: N < M_SIZE
+#
+CREATE TABLE t(a INT);
+INSERT INTO t values (1),(2),(3),(6),(0);
+Discard w
+SELECT 1 FROM t WINDOW w AS(PARTITION BY NULL,NULL ORDER BY NULL ASC);
+1
+1
+1
+1
+1
+1
+EXPLAIN FORMAT=JSON SELECT 1 FROM t WINDOW w AS(PARTITION BY NULL,NULL ORDER BY NULL ASC);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "table": {
+      "table_name": "t",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 5,
+      "rows_produced_per_join": 5,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "0.50",
+        "prefix_cost": "0.75",
+        "data_read_per_join": "40"
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t`
+Discard w
+SELECT 1 FROM t WINDOW w AS(PARTITION BY 1+2,3+4,5+6 ORDER BY 1+2,3+4);
+1
+1
+1
+1
+1
+1
+EXPLAIN FORMAT=JSON SELECT 1 FROM t WINDOW w AS(PARTITION BY 1+2,3+4,5+6 ORDER BY 1+2,3+4);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "table": {
+      "table_name": "t",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 5,
+      "rows_produced_per_join": 5,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "0.50",
+        "prefix_cost": "0.75",
+        "data_read_per_join": "40"
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t`
+Discard w2
+SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1);
+RANK() OVER w1
+1
+2
+3
+4
+5
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w1",
+          "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`a`"
+          ],
+          "functions": [
+            "rank"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "40"
+        },
+        "used_columns": [
+          "a"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select rank() OVER `w1` AS `RANK() OVER w1` from `test`.`t` window `w1` AS (ORDER BY `test`.`t`.`a` ) 
+Don't discard either w1 or w2. Non-optimal: could replace with
+one window since w1 isn't used and even if it were used, the
+semantics are the same.
+SELECT RANK() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1);
+RANK() OVER w2
+1
+2
+3
+4
+5
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w1",
+          "definition_position": 1,
+          "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`a`"
+          ],
+          "functions": [
+          ]
+        },
+        {
+          "name": "w2",
+          "definition_position": 2,
+          "last_executed_window": true,
+          "functions": [
+            "rank"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "40"
+        },
+        "used_columns": [
+          "a"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select rank() OVER `w2` AS `RANK() OVER w2` from `test`.`t` window `w1` AS (ORDER BY `test`.`t`.`a` ) , `w2` AS (`w1` ) 
+Discard w3. Non-optimal: see previous case.
+SELECT RANK() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1), w3 AS (w1);
+RANK() OVER w2
+1
+2
+3
+4
+5
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1), w3 AS (w1);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w1",
+          "definition_position": 1,
+          "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`a`"
+          ],
+          "functions": [
+          ]
+        },
+        {
+          "name": "w2",
+          "definition_position": 2,
+          "using_temporary_table": true,
+          "functions": [
+            "rank"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "40"
+        },
+        "used_columns": [
+          "a"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select rank() OVER `w2` AS `RANK() OVER w2` from `test`.`t` window `w1` AS (ORDER BY `test`.`t`.`a` ) , `w2` AS (`w1` ) 
+Discard w1. Non-optimal: see previous case.
+SELECT RANK() OVER w3 FROM t WINDOW w1 AS (w2), w3 AS (w2), w2 AS ();
+RANK() OVER w3
+1
+1
+1
+1
+1
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w3 FROM t WINDOW w1 AS (w2), w3 AS (w2), w2 AS ();
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w3",
+          "definition_position": 2,
+          "using_temporary_table": true,
+          "functions": [
+            "rank"
+          ]
+        },
+        {
+          "name": "w2",
+          "definition_position": 3,
+          "last_executed_window": true,
+          "functions": [
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "40"
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select rank() OVER `w3` AS `RANK() OVER w3` from `test`.`t` window `w3` AS (`w2` ) , `w2` AS () 
+Discard w2.
+SELECT RANK() OVER w1 FROM t WINDOW w2 AS (w1), w1 AS (ORDER BY a);
+RANK() OVER w1
+1
+2
+3
+4
+5
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w1 FROM t WINDOW w2 AS (w1), w1 AS (ORDER BY a);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w1",
+          "functions": [
+            "rank"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "40"
+        },
+        "used_columns": [
+          "a"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select rank() OVER `w1` AS `RANK() OVER w1` from `test`.`t` window `w1` AS (ORDER BY `test`.`t`.`a` ) 
+Discard none.
+SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ROWS UNBOUNDED PRECEDING);
+RANK() OVER w1
+1
+1
+1
+1
+1
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ROWS UNBOUNDED PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w1",
+          "functions": [
+            "rank"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "40"
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'rank' ignores the frame clause of window 'w1' and aggregates over the whole partition
+Note	1003	/* select#1 */ select rank() OVER `w1` AS `RANK() OVER w1` from `test`.`t` window `w1` AS (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
+DROP TABLE t;
+# End of test for Bug#27062031
