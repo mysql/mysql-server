@@ -1971,18 +1971,23 @@ Warning	1441	Datetime function: datetime field overflow
 SELECT
 timestampadd(hour ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
 result
-1995-01-05 05:32:20.859724
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 SELECT
 timestampadd(minute ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
 result
-1995-01-05 06:31:20.859724
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 SELECT
 timestampadd(second ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
 result
-1995-01-05 06:32:20.859724
+NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '1.212208'
 Warning	1292	Truncated incorrect DECIMAL value: '99999999999999999999999999999999999999999999999999999999999999999'
+Warning	1441	Datetime function: date_add_interval field overflow
 SELECT
 timestampadd(microsecond ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
 result
@@ -2018,11 +2023,48 @@ Warning	1441	Datetime function: date_add_interval field overflow
 SELECT
 date_add('1995-01-05', INTERVAL '9223372036854775808-02' SECOND) as result;
 result
-1995-01-05 00:00:00
+NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '9223372036854775808'
+Warning	1441	Datetime function: date_add_interval field overflow
 SELECT
 date_add('1995-01-05', INTERVAL '9223372036854775700-02' YEAR_MONTH) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL 9223372036854775806 SECOND) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL 9223372036854775806 MINUTE) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL 9223372036854775806 HOUR) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL -9223372036854775806 SECOND) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL -9223372036854775806 MINUTE) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL -9223372036854775806 HOUR) as result;
 result
 NULL
 Warnings:

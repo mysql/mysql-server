@@ -1655,10 +1655,12 @@ bool get_interval_value(Item *args, interval_type int_type,
   {
     my_decimal decimal_value, *val;
     lldiv_t tmp;
-    if (!(val= args->val_decimal(&decimal_value)) ||
-        my_decimal2lldiv_t(E_DEC_FATAL_ERROR, val, &tmp))
-      return false;
-    
+    if (!(val= args->val_decimal(&decimal_value)))
+      return true;
+    int lldiv_result= my_decimal2lldiv_t(E_DEC_FATAL_ERROR, val, &tmp);
+    if (lldiv_result == E_DEC_OVERFLOW)
+      return true;
+
     if (tmp.quot >= 0 && tmp.rem >= 0)
     {
       interval->neg= false;
@@ -1678,6 +1680,10 @@ bool get_interval_value(Item *args, interval_type int_type,
     value= args->val_int();
     if (args->null_value)
       return true;
+    /*
+      Large floating-point values will be truncated to LLONG_MIN / LLONG_MAX
+      LLONG_MIN cannot be negated below, so reject it here.
+    */
     if (value == LLONG_MIN)
       return true;
     if (value < 0)
