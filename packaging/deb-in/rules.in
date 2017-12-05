@@ -66,8 +66,6 @@ override_dh_auto_test:
 	@echo "RULES.$@"
 	touch $@
 
-@DEB_RULES_STRIP@
-
 override_dh_auto_install:
 
 	@echo "RULES.$@"

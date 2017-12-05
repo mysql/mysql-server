@@ -283,6 +283,5 @@ Description: MySQL Test Run MTR - The MySQL testsuite
  Oracle. This package contains the MySQL regression test suite for MySQL
  database server.
 
-@DEB_CONTROL_DBGSYM@
 @DEB_NDB_CONTROL_EXTRAS@
 @DEB_COMMERCIAL_CONTROL_EXTRAS@
