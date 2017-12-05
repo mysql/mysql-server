@@ -5274,17 +5274,22 @@ alter_fill_stored_column(
 	mem_heap_t**		s_heap)
 {
 	ulint	n_cols = altered_table->s->fields;
+	ulint   stored_col_no = 0;
 
 	for (ulint i = 0; i < n_cols; i++) {
 		Field* field = altered_table->field[i];
 		dict_s_col_t	s_col;
+
+		if (!innobase_is_v_fld(field)) {
+			stored_col_no++;
+		}
 
 		if (!innobase_is_s_fld(field)) {
 			continue;
 		}
 
 		ulint	num_base = field->gcol_info->non_virtual_base_columns();
-		dict_col_t*	col = table->get_col(i);
+		dict_col_t*	col = table->get_col(stored_col_no);
 
 		s_col.m_col = col;
 		s_col.s_pos = i;
