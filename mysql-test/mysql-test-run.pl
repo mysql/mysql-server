@@ -144,7 +144,8 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration";
 my $opt_suites;
 
-our $opt_verbose= 0;  # Verbose output, enable with --verbose
+# Verbose output, enable with --verbose
+our $opt_verbose= 0;
 our $exe_mysql;
 our $exe_mysqladmin;
 our $exe_mysqltest;
@@ -1340,7 +1341,7 @@ sub command_line_setup {
 	     'force-restart'            => \$opt_force_restart,
              'reorder!'                 => \$opt_reorder,
              'enable-disabled'          => \&collect_option,
-             'verbose+'                 => \$opt_verbose,
+             'verbose'                  => \$opt_verbose,
              'verbose-restart'          => \&report_option,
              'sleep=i'                  => \$opt_sleep,
              'start-dirty'              => \$opt_start_dirty,
@@ -1385,10 +1386,9 @@ sub command_line_setup {
   usage("") if $opt_usage;
   list_options(\%options) if $opt_list_options;
 
-  # --------------------------------------------------------------------------
-  # Setup verbosity
-  # --------------------------------------------------------------------------
-  if ($opt_verbose != 0){
+  # Setup verbosity if verbose option is enabled.
+  if ($opt_verbose)
+  {
     report_option('verbose', $opt_verbose);
   }
 
@@ -2653,7 +2653,7 @@ sub environment_setup {
     $ENV{'DYLD_LIBRARY_PATH'}= join(":", @ld_library_paths,
 				    $ENV{'DYLD_LIBRARY_PATH'} ?
 				    split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
-    mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
+    mtr_verbose("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
   }
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
@@ -2744,7 +2744,7 @@ sub environment_setup {
     {    
       $ENV{'NDB_EXAMPLES_BINARY'} = $ndbapi_examples_binary;
       $ENV{'NDB_EXAMPLES_DIR'} = dirname($ndbapi_examples_binary);
-      mtr_debug("NDB_EXAMPLES_DIR: $ENV{'NDB_EXAMPLES_DIR'}");
+      mtr_verbose("NDB_EXAMPLES_DIR: $ENV{'NDB_EXAMPLES_DIR'}");
     }
     else
     {
@@ -3870,42 +3870,39 @@ sub initialize_servers {
 }
 
 
-#
-# Remove all newline characters expect after semicolon
-#
-sub sql_to_bootstrap {
+## Remove all newline characters expect after semicolon
+sub sql_to_bootstrap
+{
   my ($sql) = @_;
-  my @lines= split(/\n/, $sql);
-  my $result= "\n";
+
+  my @lines    = split(/\n/, $sql);
+  my $result   = "\n";
   my $delimiter= ';';
 
-  foreach my $line (@lines) {
-
+  foreach my $line (@lines)
+  {
     # Change current delimiter if line starts with "delimiter"
-    if ( $line =~ /^delimiter (.*)/ ) {
+    if ($line =~ /^delimiter (.*)/)
+    {
       my $new= $1;
       # Remove old delimiter from end of new
       $new=~ s/\Q$delimiter\E$//;
       $delimiter = $new;
-      mtr_debug("changed delimiter to $delimiter");
       # No need to add the delimiter to result
       next;
     }
 
     # Add newline if line ends with $delimiter
     # and convert the current delimiter to semicolon
-    if ( $line =~ /\Q$delimiter\E$/ ){
+    if ($line =~ /\Q$delimiter\E$/)
+    {
       $line =~ s/\Q$delimiter\E$/;/;
       $result.= "$line\n";
-      mtr_debug("Added default delimiter");
       next;
     }
 
-    # Remove comments starting with --
-    if ( $line =~ /^\s*--/ ) {
-      mtr_debug("Discarded $line");
-      next;
-    }
+    # Remove comments starting with '--'
+    next if ($line =~ /^\s*--/);
 
     # Replace @HOSTNAME with localhost
     $line=~ s/\'\@HOSTNAME\@\'/localhost/;
@@ -3913,8 +3910,8 @@ sub sql_to_bootstrap {
     # Default, just add the line without newline
     # but with a space as separator
     $result.= "$line ";
-
   }
+
   return $result;
 }
 
@@ -6190,10 +6187,10 @@ sub mysqld_start ($$) {
     mtr_verbose("Started $mysqld->{proc}");
   }
 
-  if ( $wait_for_pid_file &&
-       !sleep_until_file_created($mysqld->value('pid-file'),
-				 $opt_start_timeout,
-				 $mysqld->{'proc'}))
+  if ($wait_for_pid_file &&
+      !sleep_until_pid_file_created($mysqld->value('pid-file'),
+                                    $opt_start_timeout,
+                                    $mysqld->{'proc'}))
   {
     my $mname= $mysqld->name();
     mtr_error("Failed to start mysqld $mname with command $exe");
@@ -6602,7 +6599,6 @@ sub start_servers($) {
     }
     else
     {
-
       my @options= ('log-bin', 'relay-log');
       foreach my $option_name ( @options )  {
 	next unless $mysqld->option($option_name);
@@ -6612,7 +6608,7 @@ sub start_servers($) {
 	  defined $file_name and
 	    -e $file_name;
 
-	mtr_debug(" -removing '$file_name'");
+	mtr_verbose(" -removing '$file_name'");
 	unlink($file_name) or die ("unable to remove file '$file_name'");
       }
 
@@ -6727,9 +6723,10 @@ sub start_servers($) {
   {
     next if !started($mysqld);
 
-    if (sleep_until_file_created($mysqld->value('pid-file'),
-				 $opt_start_timeout,
-				 $mysqld->{'proc'}) == 0) {
+    if (sleep_until_pid_file_created($mysqld->value('pid-file'),
+                                     $opt_start_timeout,
+                                     $mysqld->{'proc'}) == 0)
+    {
       $tinfo->{comment}=
 	"Failed to start ".$mysqld->name();
 
@@ -7705,7 +7702,7 @@ Misc options
   comment=STR           Write STR to the output
   timer                 Show test case execution time.
   disk-usage            Show disk usage of vardir after each test.
-  verbose               More verbose output(use multiple times for even more)
+  verbose               More verbose output.
   verbose-restart       Write when and why servers are restarted
   start                 Only initialize and start the servers. If a testcase is
                         mentioned server is started with startup settings of the testcase.
