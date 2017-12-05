@@ -2289,7 +2289,7 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
 
   if (!table->key_info)
   {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
+    my_error(ER_MISSING_KEY, MYF(0), table->s->db.str,
              table->s->table_name.str);
     trans_rollback_stmt(thd);
     close_thread_tables(thd);
