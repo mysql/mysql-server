@@ -823,13 +823,6 @@ bool GRANT_TABLE::init(TABLE *col_privs)
     uchar key[MAX_KEY_LENGTH];
     uint key_prefix_len;
 
-    if (!col_privs->key_info)
-    {
-      my_error(ER_TABLE_CORRUPT, MYF(0), col_privs->s->db.str,
-               col_privs->s->table_name.str);
-      return true;
-    }
-
     KEY_PART_INFO *key_part= col_privs->key_info->key_part;
     col_privs->field[0]->store(host.get_host(),
                                host.get_host() ? host.get_host_len() : 0,

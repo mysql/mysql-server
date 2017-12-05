@@ -570,10 +570,11 @@ struct TABLE_FIELD_DEF
 class Table_check_intact
 {
 protected:
+  bool has_keys;
   virtual void report_error(uint code, const char *fmt, ...)= 0;
 
 public:
-  Table_check_intact() {}
+  Table_check_intact() : has_keys(false) {}
   virtual ~Table_check_intact() {}
 
   /**
