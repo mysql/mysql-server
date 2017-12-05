@@ -20,6 +20,15 @@ Mysqlx.Connection.Capabilities {
             }
           }
         }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
+            }
+          }
+        }
       }
     }
   }
@@ -430,6 +439,15 @@ Mysqlx.Connection.Capabilities {
             }
           }
         }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
+            }
+          }
+        }
       }
     }
   }
@@ -646,6 +664,15 @@ Mysqlx.Connection.Capabilities {
             type: V_STRING
             v_string {
               value: "MYSQL41"
+            }
+          }
+        }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
             }
           }
         }
@@ -1232,6 +1259,15 @@ Mysqlx.Connection.Capabilities {
             }
           }
         }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
+            }
+          }
+        }
       }
     }
   }
@@ -1495,6 +1531,15 @@ Mysqlx.Connection.Capabilities {
             type: V_STRING
             v_string {
               value: "MYSQL41"
+            }
+          }
+        }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
             }
           }
         }

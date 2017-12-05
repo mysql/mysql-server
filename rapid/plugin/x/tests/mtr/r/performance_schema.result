@@ -2,8 +2,8 @@ install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 
-12 rows affected
-Rows matched: 12  Changed: 0  Warnings: 0
+13 rows affected
+Rows matched: 13  Changed: 0  Warnings: 0
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
@@ -35,12 +35,14 @@ wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending
 0 rows affected
 name
 wait/synch/rwlock/mysqlx/client_list_clients
+wait/synch/rwlock/mysqlx/sha256_password_cache
 0 rows affected
 NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 wait/synch/mutex/mysqlx/lock_list_access	NO	NO		0	null
 wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending	NO	NO		0	null
 wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit	YES	NO		0	null
 wait/synch/rwlock/mysqlx/client_list_clients	YES	NO		0	null
+wait/synch/rwlock/mysqlx/sha256_password_cache	YES	NO		0	null
 wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending	NO	NO		0	null
 wait/synch/cond/mysqlx/scheduler_dynamic_thread_exit	YES	NO		0	null
 wait/io/socket/mysqlx/tcpip_socket	YES	NO		0	null
@@ -269,6 +271,7 @@ wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending
 command ok
 name
 wait/synch/rwlock/mysqlx/client_list_clients
+wait/synch/rwlock/mysqlx/sha256_password_cache
 command ok
 event_name
 wait/io/socket/mysqlx/client_connection

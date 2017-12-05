@@ -43,6 +43,7 @@ class Mock_connection_state : public XConnection::State {
       std::string());
   MOCK_CONST_METHOD0(get_ssl_cipher,
       std::string());
+  MOCK_CONST_METHOD0(get_connection_type, Connection_type());
 };
 
 }  // namespace test

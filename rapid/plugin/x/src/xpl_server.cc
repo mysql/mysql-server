@@ -34,7 +34,7 @@
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/ngs/include/ngs/server_acceptors.h"
 #include "plugin/x/ngs/include/ngs_common/config.h"
-#include "plugin/x/src/auth_mysql41.h"
+#include "plugin/x/src/auth_challenge_response.h"
 #include "plugin/x/src/auth_plain.h"
 #include "plugin/x/src/io/xpl_listener_factory.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
@@ -45,11 +45,14 @@
 #include "plugin/x/src/xpl_session.h"
 #include "plugin/x/src/xpl_system_variables.h"
 #include "plugin/x/src/udf/mysqlx_error.h"
+#include "plugin/x/src/sha256_password_cache.h"
 #include "plugin/x/src/udf/registrator.h"
 
 #if !defined(HAVE_YASSL)
 #include <openssl/err.h>
 #endif
+
+std::atomic<bool> xpl::g_cache_plugin_started{false};
 
 class Session_scheduler : public ngs::Scheduler_dynamic
 {
@@ -329,9 +332,20 @@ int xpl::Server::main(MYSQL_PLUGIN p)
 
     const bool use_only_through_secure_connection = true, use_only_in_non_secure_connection = false;
 
+    // Cache cleaning plugin started before the X plugin so cache was not
+    // enabled yet
+    if (g_cache_plugin_started)
+      instance->m_sha256_password_cache.enable();
+
+    instance->server().add_sha256_password_cache(
+        &instance->get_sha256_password_cache());
     instance->server().add_authentication_mechanism("PLAIN",   Sasl_plain_auth::create,   use_only_through_secure_connection);
     instance->server().add_authentication_mechanism("MYSQL41", Sasl_mysql41_auth::create, use_only_in_non_secure_connection);
     instance->server().add_authentication_mechanism("MYSQL41", Sasl_mysql41_auth::create, use_only_through_secure_connection);
+    instance->server().add_authentication_mechanism("SHA256_MEMORY",
+        Sasl_sha256_memory_auth::create, use_only_in_non_secure_connection);
+    instance->server().add_authentication_mechanism("SHA256_MEMORY",
+        Sasl_sha256_memory_auth::create, use_only_through_secure_connection);
 
     instance->plugin_system_variables_changed();
 

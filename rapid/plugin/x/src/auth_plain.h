@@ -20,7 +20,10 @@
 #ifndef _XPL_AUTH_PLAIN_H_
 #define _XPL_AUTH_PLAIN_H_
 
+#include <string>
+
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
 #include "plugin/x/src/account_verification_handler.h"
 
 namespace xpl {
@@ -31,7 +34,8 @@ class Sasl_plain_auth : public ngs::Authentication_interface {
       : m_verification_handler(handler) {}
 
   static ngs::Authentication_interface_ptr create(
-      ngs::Session_interface *session);
+      ngs::Session_interface *session,
+      ngs::SHA256_password_cache_interface *sha256_password_cache);
 
   Response handle_start(const std::string &mechanism, const std::string &data,
                         const std::string &initial_response) override;
@@ -39,9 +43,9 @@ class Sasl_plain_auth : public ngs::Authentication_interface {
   Response handle_continue(const std::string &data) override;
 
   ngs::Error_code authenticate_account(const std::string &user,
-                                       const std::string &host,
-                                       const std::string &passwd) const
-      override;
+      const std::string &host, const std::string &passwd) const override;
+
+  std::string get_auth_name() { return "PLAIN"; }
 
  private:
   Account_verification_handler_ptr m_verification_handler;

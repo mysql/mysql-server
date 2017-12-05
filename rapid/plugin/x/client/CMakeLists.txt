@@ -21,6 +21,7 @@ SET(CLIENT_SRC
  "${CMAKE_CURRENT_SOURCE_DIR}/xprotocol_impl.cc"
  "${CMAKE_CURRENT_SOURCE_DIR}/xrow_impl.cc"
  "${CMAKE_CURRENT_SOURCE_DIR}/password_hasher.cc"
+ "${CMAKE_CURRENT_SOURCE_DIR}/sha256_scramble_generator.cc"
  "${CMAKE_CURRENT_SOURCE_DIR}/xquery_result_impl.cc"
  "${CMAKE_CURRENT_SOURCE_DIR}/xsession_impl.cc"
  "${CMAKE_CURRENT_SOURCE_DIR}/xconnection_impl.cc"

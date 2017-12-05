@@ -342,6 +342,10 @@ void Server::add_authentication_mechanism(const std::string &name,
   m_auth_handlers[key] = initiator;
 }
 
+void Server::add_sha256_password_cache(SHA256_password_cache_interface *cache) {
+  m_sha256_password_cache = cache;
+}
+
 Authentication_interface_ptr Server::get_auth_handler(const std::string &name, Session_interface *session)
 {
   Connection_type type = session->client().connection().connection_type();
@@ -353,7 +357,7 @@ Authentication_interface_ptr Server::get_auth_handler(const std::string &name, S
   if (auth_handler == m_auth_handlers.end())
     return Authentication_interface_ptr();
 
-  return auth_handler->second(session);
+  return auth_handler->second(session, m_sha256_password_cache);
 }
 
 void Server::get_authentication_mechanisms(std::vector<std::string> &auth_mech, Client_interface &client)

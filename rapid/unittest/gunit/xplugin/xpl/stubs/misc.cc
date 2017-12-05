@@ -34,6 +34,7 @@
 
 #include <atomic>
 
+
 typedef struct st_vio Vio;
 
 const char  *my_localhost;

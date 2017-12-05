@@ -75,6 +75,7 @@ class Connection_impl : public XConnection {
   Vio *m_vio;
   bool m_ssl_active;
   bool m_connected;
+  Connection_type m_connection_type;
   enum_ssl_init_error m_ssl_init_error;
   std::unique_ptr<State> m_state;
   std::shared_ptr<Context> m_context;

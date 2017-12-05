@@ -1,0 +1,261 @@
+install plugin mysqlx soname "mysqlx.so";
+install plugin mysqlx_cache_cleaner soname "MYSQLXPLUGIN";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+CREATE USER xuser_native@'localhost'
+IDENTIFIED WITH 'mysql_native_password' BY 'native';
+CREATE USER xuser_sha256@'localhost'
+IDENTIFIED WITH 'sha256_password' BY 'sha256';
+CREATE USER xuser_cache2@'localhost'
+IDENTIFIED WITH 'caching_sha2_password' BY 'cache2';
+GRANT ALL ON *.* TO xuser_native@localhost;
+GRANT ALL ON *.* TO xuser_sha256@localhost;
+GRANT ALL ON *.* TO xuser_cache2@localhost;
+
+#######################################################################
+## 1. Memory mechanism fails after altering an account
+##
+## when:
+##  * plain auth is going to fill the cache
+##  * next test is going that ALTER USER, RENAME USER, DROP USER
+##    clears the case
+##
+## Requirements: CI1, CI3, CI4, CI5
+#
+
+#######################################################################
+## Fill cache with all xuser_* accounts
+#
+-- Expecting success with parameters: REQUIRED	plain	xuser_native	native
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_native	mysql_native_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	plain	xuser_sha256	sha256
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	plain	xuser_cache2	cache2
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_cache2	caching_sha2_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+
+#######################################################################
+## Check if the account entries are removed after changing the account.
+#
+-- Expecting success with parameters: DISABLED	memory	xuser_native	native
+--
+connecting...
+active session is now 'sess0'
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+RUN ALTER USER xuser_native@localhost IDENTIFIED BY 'native2';
+
+0 rows affected
+-- Expecting failure with parameters: DISABLED	memory	xuser_native	native
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: DISABLED	memory	xuser_native	native2
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting success with parameters: DISABLED	memory	xuser_sha256	sha256
+--
+connecting...
+active session is now 'sess0'
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+RUN RENAME USER xuser_sha256@localhost TO xuser_sha2@localhost;
+
+0 rows affected
+-- Expecting failure with parameters: DISABLED	memory	xuser_sha2	sha256
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting success with parameters: DISABLED	memory	xuser_cache2	cache2
+--
+connecting...
+active session is now 'sess0'
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+RUN DROP USER xuser_cache2@localhost;
+
+0 rows affected
+-- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+
+#######################################################################
+## Go back to orginal settings
+#
+RUN ALTER USER xuser_native@localhost IDENTIFIED BY 'native'
+
+0 rows affected
+RUN RENAME USER xuser_sha2@localhost TO xuser_sha256@localhost
+
+0 rows affected
+RUN CREATE USER xuser_cache2@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'cache2'
+
+0 rows affected
+RUN GRANT ALL ON *.* TO xuser_cache2@localhost
+
+0 rows affected
+
+#######################################################################
+## Fill cache again
+#
+-- Expecting success with parameters: REQUIRED	plain	xuser_native	native
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_native	mysql_native_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	plain	xuser_sha256	sha256
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	plain	xuser_cache2	cache2
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_cache2	caching_sha2_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: DISABLED	memory	xuser_native	native
+--
+connecting...
+active session is now 'sess0'
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+RUN SET PASSWORD FOR 'xuser_native'@'localhost' = 'native3';
+
+0 rows affected
+-- Expecting failure with parameters: DISABLED	memory	xuser_native	native3
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: DISABLED	memory	xuser_native	native
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting success with parameters: DISABLED	memory	xuser_sha256	sha256
+--
+connecting...
+active session is now 'sess0'
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+RUN GRANT SELECT,LOCK TABLES ON *.* TO xuser_sha256@'localhost' IDENTIFIED BY 'sha256_new';
+
+0 rows affected
+Warnings generated:
+WARNING | 1287 | Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+-- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256_new
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP USER xuser_native@'localhost';
+DROP USER xuser_sha256@'localhost';
+DROP USER xuser_cache2@'localhost';
+UNINSTALL PLUGIN mysqlx;
+UNINSTALL PLUGIN mysqlx_cache_cleaner;

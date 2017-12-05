@@ -20,7 +20,6 @@
 --source include/xplugin_create_user.inc
 
 call mtr.add_suppression('Message of size 4294967040 received, exceeding the limit of 1048576');
-call mtr.add_suppression('21.1: Unsuccessful login attempt: Invalid user or password');
 # Plugin 'InnoDB' has ref_count=1 after shutdown
 call mtr.add_suppression("Plugin \'InnoDB\'");
 # wait a little to give time for internal temporary session to die out

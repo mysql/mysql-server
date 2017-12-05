@@ -187,9 +187,10 @@ class XSession {
     Ssl_crl_path,
     /** Overwrite X Protocol authentication method:
 
-    * "AUTO"    - let the library select authentication method
-    * "MYSQL41" - do not use plain password send through network
-    * "PLAIN"   - use plain password for authentication
+    * "AUTO"         - let the library select authentication method
+    * "SHA256_MEMORY - authentication based on memory-stored credentials
+    * "MYSQL41"      - do not use plain password send through network
+    * "PLAIN"        - use plain password for authentication
 
     Default: "AUTO".
     Option type: STRING.
@@ -204,7 +205,16 @@ class XSession {
       Default: TRUE
       Option type: BOOL
      */
-    Consume_all_notices
+    Consume_all_notices,
+    /** Toggle compatibility with older versions of a server
+
+      * TRUE - work in compatibility mode
+      * FALSE - work in regular mode
+
+      Default: FALSE
+      Option type: BOOL
+    */
+    Compatibility_mode
   };
 
  public:
@@ -264,6 +274,20 @@ class XSession {
   */
   virtual XError set_mysql_option(const Mysqlx_option option,
                                   const std::string &value) = 0;
+  /**
+    Modify mysqlx options.
+
+    This method may only be called before calling `XSession::connect` method.
+
+    @param option       option to set or modify
+    @param values_list  assign list of string values to the option
+
+    @return Error code with description
+      @retval != true     OK
+      @retval == true     error occurred
+  */
+  virtual XError set_mysql_option(const Mysqlx_option option,
+      const std::vector<std::string> &values_list) = 0;
 
   /**
     Modify mysqlx options.

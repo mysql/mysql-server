@@ -23,6 +23,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "errmsg.h"
 #include "plugin/x/client/mysqlxclient/xconnection.h"
@@ -49,9 +50,13 @@ class Connection_manager {
   void connect_default(const bool send_cap_password_expired = false,
                        const bool client_interactive = false,
                        const bool no_auth = false,
-                       const bool use_plain_auth = false);
-  void create(const std::string &name, const std::string &user,
-              const std::string &password, const std::string &db, bool no_ssl);
+                       const std::vector<std::string> &auth_methods = {});
+  void create(const std::string &name,
+              const std::string &user,
+              const std::string &password,
+              const std::string &db,
+              const std::vector<std::string> &auth_methods);
+
   void abort_active();
   bool is_default_active();
 

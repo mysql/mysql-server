@@ -43,7 +43,7 @@ public:
   void SetUp()
   {
     mock_options_session.reset(new StrictMock<ngs::test::Mock_options_session>());
-    sut = Auth_type::create(&mock_session);
+    sut = Auth_type::create(&mock_session, nullptr);
 
     ON_CALL(mock_data_context, authenticate(_, _, _, _, _, _, _)).WillByDefault(Return(default_error));
     EXPECT_CALL(mock_connection,

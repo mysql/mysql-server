@@ -27,6 +27,7 @@
 namespace xcl {
 namespace password_hasher {
 
+char *octet2hex(char *to, const char *str, size_t len);
 std::string generate_user_salt();
 std::string scramble(const char *message, const char *password);
 bool check_scramble_mysql41_hash(const char *scramble_arg,

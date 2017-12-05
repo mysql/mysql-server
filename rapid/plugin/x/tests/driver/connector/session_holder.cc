@@ -120,7 +120,7 @@ void Session_holder::setup_ssl(const Connection_options &options) {
       options.io_timeout);
 }
 
-void Session_holder::setup_msg_callbacks() {
+void Session_holder::setup_msg_callbacks(const bool force_trace_protocol) {
   auto &protocol = m_session->get_protocol();
 
   m_session->set_mysql_option(
@@ -149,7 +149,8 @@ void Session_holder::setup_msg_callbacks() {
    */
   const auto should_enable_tracing = getenv("MYSQLX_TRACE_CONNECTION");
 
-  if (should_enable_tracing && strlen(should_enable_tracing)) {
+  if (force_trace_protocol ||
+      (should_enable_tracing && strlen(should_enable_tracing))) {
     protocol.add_received_message_handler(
         [this] (xcl::XProtocol *protocol,
             const xcl::XProtocol::Server_message_type_id msg_id,

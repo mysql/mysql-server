@@ -1,7 +1,6 @@
 install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
-call mtr.add_suppression("Plugin mysqlx reported: ....: Unsuccessful login attempt: Secure transport required. To log in you must use TCP.SSL or UNIX socket connection");
 Wait for the X Plugin before restarting the server
 Mysqlx.Ok {
   msg: "bye!"

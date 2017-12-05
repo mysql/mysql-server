@@ -63,20 +63,33 @@ Connection_manager::Connection_manager(const Connection_options &co,
     : m_connection_options(co),
       m_variables(variables),
       m_console(console) {
-  m_variables->set("%OPTION_CLIENT_USER%",
-                   m_connection_options.user);
-  m_variables->set("%OPTION_CLIENT_PASSWORD%",
-                   m_connection_options.password);
-  m_variables->set("%OPTION_CLIENT_HOST%",
-                   m_connection_options.host);
-  m_variables->set("%OPTION_CLIENT_SOCKET%",
-                   m_connection_options.socket);
-  m_variables->set("%OPTION_CLIENT_SCHEMA%",
-                   m_connection_options.schema);
-  m_variables->set("%OPTION_CLIENT_PORT%",
-                   std::to_string(m_connection_options.port));
-  m_variables->set("%OPTION_SSL_MODE%",
-                   m_connection_options.ssl_mode);
+  m_variables->make_special_variable(
+      "%OPTION_CLIENT_USER%",
+      new Variable_dynamic_string(m_connection_options.user));
+
+  m_variables->make_special_variable(
+      "%OPTION_CLIENT_PASSWORD%",
+      new Variable_dynamic_string(m_connection_options.password));
+
+  m_variables->make_special_variable(
+      "%OPTION_CLIENT_HOST%",
+      new Variable_dynamic_string(m_connection_options.host));
+
+  m_variables->make_special_variable(
+      "%OPTION_CLIENT_SOCKET%",
+      new Variable_dynamic_string(m_connection_options.socket));
+
+  m_variables->make_special_variable(
+      "%OPTION_CLIENT_SCHEMA%",
+      new Variable_dynamic_string(m_connection_options.schema));
+
+  m_variables->make_special_variable(
+      "%OPTION_CLIENT_PORT%",
+      new Variable_dynamic_int(m_connection_options.port));
+
+  m_variables->make_special_variable(
+      "%OPTION_SSL_MODE%",
+      new Variable_dynamic_string(m_connection_options.ssl_mode));
 
   m_active_holder.reset(new Session_holder(xcl::create_session(), m_console));
 
@@ -124,7 +137,7 @@ void Connection_manager::safe_close(const std::string &name) {
 void Connection_manager::connect_default(const bool send_cap_password_expired,
                                          const bool client_interactive,
                                          const bool no_auth,
-                                         const bool use_plain_auth) {
+                                         const std::vector<std::string> &auth_methods) {
   m_console.print_verbose("Connecting...\n");
 
   auto  session    = m_active_holder->get_session();
@@ -132,7 +145,7 @@ void Connection_manager::connect_default(const bool send_cap_password_expired,
       m_connection_options.ip_mode);
 
   m_active_holder->setup_ssl(m_connection_options);
-  m_active_holder->setup_msg_callbacks();
+  m_active_holder->setup_msg_callbacks(m_connection_options.trace_protocol);
 
   if (send_cap_password_expired) {
     session->set_capability(
@@ -147,8 +160,11 @@ void Connection_manager::connect_default(const bool send_cap_password_expired,
   }
 
   session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Authentication_method,
-      use_plain_auth ? "PLAIN" : "MYSQL41");
+      xcl::XSession::Mysqlx_option::Compatibility_mode,
+      m_connection_options.compatible);
+
+  session->set_mysql_option(
+      xcl::XSession::Mysqlx_option::Authentication_method, auth_methods);
 
   session->set_mysql_option(
       xcl::XSession::Mysqlx_option::Hostname_resolve_to,
@@ -182,23 +198,14 @@ void Connection_manager::connect_default(const bool send_cap_password_expired,
 void Connection_manager::create(const std::string &name,
                                 const std::string &user,
                                 const std::string &password,
-                                const std::string &db, bool no_ssl) {
+                                const std::string &db,
+                                const std::vector<std::string> &auth_methods) {
   if (m_session_holders.count(name))
     throw std::runtime_error("a session named " + name + " already exists");
 
   m_console.print("connecting...\n");
 
   Connection_options co = m_connection_options;
-
-  if (no_ssl) {
-    co.ssl_ca = "";
-    co.ssl_ca_path = "";
-    co.ssl_cert = "";
-    co.ssl_cipher = "";
-    co.ssl_key = "";
-    co.allowed_tls = "";
-    co.ssl_mode = "";
-  }
 
   if (!user.empty()) {
     co.user = user;
@@ -217,8 +224,17 @@ void Connection_manager::create(const std::string &name,
       xcl::XSession::Mysqlx_option::Hostname_resolve_to,
       details::get_ip_mode_to_text(m_connection_options.ip_mode));
 
+  holder->get_session()->set_mysql_option(
+      xcl::XSession::Mysqlx_option::Compatibility_mode,
+      m_connection_options.compatible);
+
+  if (!auth_methods.empty())
+    holder->get_session()->set_mysql_option(
+        xcl::XSession::Mysqlx_option::Authentication_method,
+        auth_methods);
+
   holder->setup_ssl(co);
-  holder->setup_msg_callbacks();
+  holder->setup_msg_callbacks(co.trace_protocol);
 
   xcl::XError error;
 

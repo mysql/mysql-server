@@ -32,6 +32,14 @@ namespace formatter {
 std::string message_to_text(
     const xcl::XProtocol::Message &message);
 
+/*
+   - field_path possible values:
+
+  * msg1_field1
+  * msg1_field1.field1.field2
+  * field1[1].field1[0]
+  * field1[1].field2
+*/
 std::string message_to_text(
     const xcl::XProtocol::Message &message,
     const std::string &field_path);

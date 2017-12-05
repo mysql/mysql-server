@@ -35,6 +35,8 @@
 #include "plugin/x/src/xpl_server.h"
 #include "plugin/x/src/xpl_session.h"
 #include "plugin/x/src/xpl_system_variables.h"
+#include "plugin/x/src/sha256_password_cache.h"
+#include "mysql/plugin_audit.h"
 
 #define BYTE(X)  (X)
 #define KBYTE(X) ((X) * 1024)
@@ -76,7 +78,6 @@ void check_exit_hook()
 }
 
 } // namespace
-
 
 static SERVICE_TYPE(registry) *reg_srv= nullptr;
 SERVICE_TYPE(log_builtins) *log_bi= nullptr;
@@ -360,6 +361,103 @@ static struct st_mysql_show_var xpl_plugin_status[]=
   { NULL, NULL, SHOW_BOOL, SHOW_SCOPE_GLOBAL}
 };
 
+/**
+  Handle an authentication audit event.
+
+  @param [in] thd         MySQL Thread Handle
+  @param [in] event_class Event class information
+  @param [in] event       Event structure
+
+  @returns Success always.
+*/
+static int
+xpl_sha2_cache_cleaner_notify(MYSQL_THD thd,
+                              mysql_event_class_t event_class,
+                              const void *event) {
+  if (event_class == MYSQL_AUDIT_AUTHENTICATION_CLASS) {
+    const struct mysql_event_authentication *authentication_event =
+      (const struct mysql_event_authentication *) event;
+
+    mysql_event_authentication_subclass_t subclass =
+      authentication_event->event_subclass;
+
+    /*
+      If status is set to true, it indicates an error.
+      In which case, don't touch the cache.
+    */
+    if (authentication_event->status)
+      return 0;
+
+    auto server_obj_with_lock = xpl::Server::get_instance();
+
+    // Check if X Plugin was installed
+    if (nullptr == server_obj_with_lock.get())
+      return 0;
+
+    auto &sha256_password_cache =
+        (*server_obj_with_lock)->get_sha256_password_cache();
+    if (subclass == MYSQL_AUDIT_AUTHENTICATION_FLUSH) {
+      sha256_password_cache.clear();
+      return 0;
+    }
+
+    if (subclass == MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE ||
+        subclass == MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME ||
+        subclass == MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP) {
+#ifndef DBUG_OFF
+      // "user" variable is going to be unused when the DBUG_OFF is defined
+      auto user = authentication_event->user;
+      DBUG_ASSERT(user.str[user.length] == '\0');
+#endif  // DBUG_OFF
+      sha256_password_cache.remove(authentication_event->user.str,
+                                   authentication_event->host.str);
+    }
+  }
+  return 0;
+}
+
+/** st_mysql_audit for sha2_cache_cleaner plugin */
+struct st_mysql_audit xpl_sha2_cache_cleaner =
+{
+  MYSQL_AUDIT_INTERFACE_VERSION,                  /* interface version */
+  NULL,                                           /* release_thd() */
+  xpl_sha2_cache_cleaner_notify,                  /* event_notify() */
+  {0,                                             /* MYSQL_AUDIT_GENERAL_CLASS */
+   0,                                             /* MYSQL_AUDIT_CONNECTION_CLASS */
+   0,                                             /* MYSQL_AUDIT_PARSE_CLASS */
+   0,                                             /* MYSQL_AUDIT_AUTHORIZATION_CLASS */
+   0,                                             /* MYSQL_AUDIT_TABLE_ACCESS_CLASS */
+   0,                                             /* MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS */
+   0,                                             /* MYSQL_AUDIT_SERVER_STARTUP_CLASS */
+   0,                                             /* MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS */
+   0,                                             /* MYSQL_AUDIT_COMMAND_CLASS */
+   0,                                             /* MYSQL_AUDIT_QUERY_CLASS */
+   0,                                             /* MYSQL_AUDIT_STORED_PROGRAM_CLASS */
+   (unsigned long) MYSQL_AUDIT_AUTHENTICATION_ALL /* MYSQL_AUDIT_AUTHENTICATION_CLASS */
+  }
+};
+
+/** Init function for sha2_cache_cleaner */
+static int
+xpl_sha2_cache_cleaner_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
+  // If cache cleaner plugin is initialized before the X plugin we set this
+  // flag so that we can enable cache when starting X plugin afterwards
+  xpl::g_cache_plugin_started = true;
+  auto server = xpl::Server::get_instance();
+  if (server)
+    (*server)->get_sha256_password_cache().enable();
+  return 0;
+}
+
+/** Deinit function for sha2_cache_cleaner */
+static int
+xpl_sha2_cache_cleaner_deinit(void *arg MY_ATTRIBUTE((unused))) {
+  xpl::g_cache_plugin_started = false;
+  auto server = xpl::Server::get_instance();
+  if (server)
+    (*server)->get_sha256_password_cache().disable();
+  return 0;
+}
 
 mysql_declare_plugin(xpl)
 {
@@ -377,6 +475,22 @@ mysql_declare_plugin(xpl)
   xpl_plugin_system_variables,  /* system var */
   NULL,                         /* options    */
   0                             /* flags      */
+},
+{
+  MYSQL_AUDIT_PLUGIN,                                  /* plugin type                   */
+  &xpl_sha2_cache_cleaner,                             /* type specific descriptor      */
+  "mysqlx_cache_cleaner",                              /* plugin name                   */
+  "Oracle Inc",                                        /* author                        */
+  "Cache cleaner for sha2 authentication in X plugin", /* description                   */
+  PLUGIN_LICENSE_GPL,                                  /* license                       */
+  xpl_sha2_cache_cleaner_init,                         /* plugin initializer            */
+  nullptr,                                             /* Uninstall notifier            */
+  xpl_sha2_cache_cleaner_deinit,                       /* plugin deinitializer          */
+  0x0100,                                              /* version (1.0)                 */
+  nullptr,                                             /* status variables              */
+  nullptr,                                             /* system variables              */
+  nullptr,                                             /* reserverd                     */
+  0                                                    /* flags                         */
 }
 mysql_declare_plugin_end;
 

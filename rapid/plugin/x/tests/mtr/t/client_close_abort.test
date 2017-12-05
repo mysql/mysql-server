@@ -6,7 +6,6 @@
 --source include/not_windows.inc
 
 call mtr.add_suppression('Message of size 4294967040 received, exceeding the limit of 1048576');
-call mtr.add_suppression('22.1: Unsuccessful login attempt: Invalid user or password');
 # wait a little to give time for internal temporary session to die out
 select sleep(1);
 --replace_regex /localhost[:0-9]*/localhost/ /Execute/Query/

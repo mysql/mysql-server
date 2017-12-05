@@ -49,7 +49,7 @@ class Xcl_session_impl_tests : public Test {
     m_sut = make_sut(false);
   }
 
-  std::unique_ptr<Session_impl> make_sut(const bool is_connected) {
+  std::unique_ptr<Session_impl> prepare_session() {
     std::unique_ptr<Session_impl> result;
     /** Create mock and return it to the `Session_impl` object.
      The object takes ownership of the pointer. We hold a copy
@@ -72,11 +72,24 @@ class Xcl_session_impl_tests : public Test {
         WillRepeatedly(ReturnRef(m_mock_connection));
     EXPECT_CALL(m_mock_connection, state()).
         WillRepeatedly(ReturnRef(m_mock_connection_state));
-    EXPECT_CALL(m_mock_connection_state, is_connected()).
-        WillRepeatedly(Return(is_connected));
 
     result.reset(new Session_impl(
         std::unique_ptr<Protocol_factory>{m_mock_factory}));
+
+    return result;
+  }
+
+  std::unique_ptr<Session_impl> make_sut(const bool is_connected,
+      const std::string &auth = "MYSQL41") {
+    auto result = prepare_session();
+
+    EXPECT_CALL(m_mock_connection_state, is_connected()).
+        WillRepeatedly(Return(false));
+    result->set_mysql_option(
+        xcl::XSession::Mysqlx_option::Authentication_method, auth);
+    ::testing::Mock::VerifyAndClearExpectations(&m_mock_connection_state);
+    EXPECT_CALL(m_mock_connection_state, is_connected()).
+        WillRepeatedly(Return(is_connected));
 
     return result;
   }

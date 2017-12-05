@@ -66,12 +66,16 @@ namespace ngs
     State state() const override { return m_state; }
     State state_before_close() const override { return m_state_before_close; }
 
+    bool can_authenticate_again() const;
+
   protected:
     Client_interface &m_client;
     Protocol_encoder_interface *m_encoder;
     Authentication_interface_ptr m_auth_handler;
     State m_state;
     State m_state_before_close;
+    uint8_t m_failed_auth_count = 0;
+    const uint8_t k_max_auth_attempts = 3;
 
     const Session_id m_id;
     // true if a session session was already scheduled for execution in a thread

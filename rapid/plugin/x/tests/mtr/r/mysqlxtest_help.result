@@ -16,6 +16,10 @@ Options:
 -e=<SQL>, --execute=<SQL> Aliases for "--sql" option
 -n, --no-auth         Skip authentication which is required by -->sql block (run mode)
 --plain-auth          Use PLAIN text authentication mechanism
+--cached-auth         Use SHA256_MEMORY authentication mechanism
+--mysql41-auth        Use MYSQL41 authentication mechanism
+--mysql57-compatible  Use features that are 5.7 compatible:
+                      * limit auth-mechanisms
 -u, --user=<user>     Connection user
 -p, --password=<pass> Connection password
 -h, --host=<host>     Connection host
@@ -55,6 +59,7 @@ Options:
 -vVARIABLE_NAME=VALUE Set variable VARIABLE_NAME from command line
 --fatal-errors=<0|1>  Mysqlxtest is started with ignoring or stopping on fatal error (default: 1)
 -B, --bindump         Dump binary representation of messages sent, in format suitable for
+--trace-protocol      Enable X Protocol tracing
 --verbose             Enable extra verbose messages
 --daemon              Work as a daemon (unix only)
 --help                Show command line help
@@ -87,8 +92,8 @@ The following commands may appear in the input script:
 -->macro_delimiter_compress TRUE|FALSE|0|1
   Enable/disable grouping of adjacent delimiters into
   single one at "callmacro" command.
--->enablessl
-  Enables ssl on current connection
+-->do_ssl_handshake
+  Execute SSL handshake, enables SSL on current connection
 <protomsg>
   Encodes the text format protobuf message and sends it to the server (allows variables).
 -->recv [quiet|<FIELD PATH>]
@@ -135,7 +140,7 @@ The following commands may appear in the input script:
   Expect that xplugin disconnects after given number of milliseconds and tolerance
 -->sleep <SECONDS>
   Stops execution of mysqlxtest for given number of seconds (may be fractional)
--->login <user>	<pass>	<db>	<mysql41|plain>]
+-->login <user>	<pass>	<db>	<mysql41|plain|sha256_memory>]
   Performs authentication steps (use with --no-auth)
 -->loginerror <errno>	<user>	<pass>	<db>
   Performs authentication steps expecting an error (use with --no-auth)
@@ -145,9 +150,13 @@ The following commands may appear in the input script:
   Expect a specific error for the next command and fail if something else occurs
   Works for: newsession, closesession, recvresult, recvok
 -->newsession <name>	<user>	<pass>	<db>
-  Create a new connection with given name and account (use - as user for no-auth)
--->newsessionplain <name>	<user>	<pass>	<db>
-  Create a new connection with given name and account and force it to NOT use ssl, even if its generally enabled
+  Create a new connection which is going to be authenticate using sequence of mechanisms (AUTO). Use '-' in place of the user for raw connection.
+-->newsession_mysql41 <name>	<user>	<pass>	<db>
+  Create a new connection which is going to be authenticate using MYSQL41 mechanism.
+-->newsession_memory <name>	<user>	<pass>	<db>
+  Create a new connection which is going to be authenticate using SHA256_MEMORY mechanism.
+-->newsession_plain <name>	<user>	<pass>	<db>
+  Create a new connection which is going to be authenticate using PLAIN mechanism.
 -->setsession <name>
   Activate the named session
 -->closesession [abort]

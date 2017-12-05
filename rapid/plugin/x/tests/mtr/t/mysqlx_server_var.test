@@ -4,7 +4,6 @@
 
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
-call mtr.add_suppression("Unsuccessful login attempt");
 
 --echo # System Variables Testing
 #

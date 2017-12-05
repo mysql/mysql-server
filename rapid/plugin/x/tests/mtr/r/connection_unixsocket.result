@@ -1,6 +1,7 @@
 install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+call mtr.add_suppression("Maximum number of authentication attempts reached");
 CREATE USER user_127_0_0_1@127.0.0.1 IDENTIFIED WITH 'mysql_native_password' BY '';
 CREATE USER user_8_8_8_8@8.8.8.8 IDENTIFIED WITH 'mysql_native_password' BY '';
 CREATE USER user_all@'%' IDENTIFIED WITH 'mysql_native_password' BY '';
@@ -238,6 +239,15 @@ Mysqlx.Connection.Capabilities(capabilities[0].value.array) = Mysqlx.Datatypes.A
       }
     }
   }
+  value {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "SHA256_MEMORY"
+      }
+    }
+  }
 }
 
 #
@@ -322,6 +332,15 @@ Mysqlx.Connection.Capabilities(capabilities[0].value.array) = Mysqlx.Datatypes.A
       }
     }
   }
+  value {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "SHA256_MEMORY"
+      }
+    }
+  }
 }
 
 #
@@ -334,6 +353,14 @@ Mysqlx.Session.AuthenticateOk {
 ok
 SET GLOBAL require_secure_transport:=0;
 # restart: --mysqlx-socket=SOCKET
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+CONNECTION_TYPE
+Socket
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
 CONNECTION_TYPE
 Socket

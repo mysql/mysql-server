@@ -55,7 +55,7 @@ class Command {
   using Command_method = Result (Command::*)(std::istream &,
                                              Execution_context *,
                                              const std::string &);
-  using Value_callback = std::function<void(std::string)>;
+  using Value_callback = std::function<bool(std::string)>;
   using Command_map    = std::map<std::string, Command_method>;
 
   struct Loop_do {
@@ -89,8 +89,10 @@ class Command {
                         const std::string &args, Value_callback value_callback);
   Result cmd_recvuntil(std::istream &input, Execution_context *context,
                        const std::string &args);
-  Result cmd_enablessl(std::istream &input, Execution_context *context,
-                       const std::string &args);
+  Result cmd_do_ssl_handshake(
+      std::istream &input,
+      Execution_context *context,
+      const std::string &args);
   Result cmd_stmtsql(std::istream &input, Execution_context *context,
                      const std::string &args);
   Result cmd_stmtadmin(std::istream &input, Execution_context *context,
@@ -131,12 +133,18 @@ class Command {
                          const std::string &args);
   Result cmd_nofatalerrors(std::istream &input, Execution_context *context,
                            const std::string &args);
-  Result cmd_newsessionplain(std::istream &input, Execution_context *context,
-                             const std::string &args);
+  Result cmd_newsession_mysql41(std::istream &input, Execution_context *context,
+                                const std::string &args);
+  Result cmd_newsession_memory(std::istream &input, Execution_context *context,
+                               const std::string &args);
+  Result cmd_newsession_plain(std::istream &input, Execution_context *context,
+                              const std::string &args);
   Result cmd_newsession(std::istream &input, Execution_context *context,
                         const std::string &args);
-  Result do_newsession(std::istream &input, Execution_context *context,
-                       const std::string &args, bool plain);
+  Result do_newsession(std::istream &input,
+                       Execution_context *context,
+                       const std::string &args,
+                       const std::vector<std::string> &auth_methods);
   Result cmd_setsession(std::istream &input, Execution_context *context,
                         const std::string &args);
   Result cmd_closesession(std::istream &input, Execution_context *context,
@@ -188,7 +196,7 @@ class Command {
                    const std::string &args);
   Result cmd_noquery(std::istream &input, Execution_context *context,
                      const std::string &args);
-  static void put_variable_to(std::string *result, const std::string &value);
+  static bool put_variable_to(std::string *result, const std::string &value);
   static void try_result(Result result);
 
   Result cmd_wait_for(std::istream &input, Execution_context *context,
