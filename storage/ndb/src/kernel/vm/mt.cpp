@@ -4155,6 +4155,8 @@ mt_send_handle::getWritePtr(NodeId node, Uint32 len, Uint32 prio, Uint32 max)
   thr_send_page * p = b->m_last_page;
   if (p != NULL)
   {
+    assert(p->m_start == 0); //Nothing sent until flushed
+    
     if (likely(p->m_bytes + len <= thr_send_page::max_bytes()))
     {
       return (Uint32*)(p->m_data + p->m_bytes);

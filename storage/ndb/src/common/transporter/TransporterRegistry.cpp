@@ -839,6 +839,10 @@ TransporterRegistry::removeTransporter(NodeId nodeId) {
 /**
  * prepareSend() - queue a signal for later asynchronous sending.
  *
+ * A successfull prepareSend() only guarantee that the signal has been
+ * stored in some send buffers. Normally it will later be sent, but could
+ * also be discarded if the transporter *later* disconnects.
+ *
  * Signal memory is allocated with the implementation dependent
  * ::getWritePtr(). On multithreaded implementations, allocation may
  * take place in thread-local buffer pools which is later 'flushed'
@@ -867,11 +871,7 @@ TransporterRegistry::removeTransporter(NodeId nodeId) {
  * the data nodes. So not being able to detect 'SEND_DISCONNECTED'
  * should not matter.
  *
- * A successfull prepareSend() only guarantee that the signal has been
- * stored in some send buffers. Normally it will later be sent, but could
- * also be discarded if the transporter *later* disconnects.
- *
- * Also note that sending behaves differently wrt disconnect / reconnect
+ * Note that sending behaves differently wrt disconnect / reconnect
  * synching compared to 'receive'. Receiver side *is* synchroinized with
  * the receiver transporter disconnect / reconnect by both requiring the
  * 'poll-right'. Thus receiver logic may check Transporter::isConnected()
@@ -1903,6 +1903,16 @@ TransporterRegistry::do_disconnect(NodeId node_id, int errnum)
   DBUG_VOID_RETURN;
 }
 
+/**
+ * report_connect() / report_disconnect()
+ *
+ * Connect or disconnect the receiver side of a connector.
+ * Is assumed to be called when holding the poll right which serves
+ * the purpose of syncronicing it wrt poll/receive of data.
+ *
+ * The sender needs different synchronization and is handled
+ * when the Transporter connects or disconnects.
+ */
 void
 TransporterRegistry::report_connect(TransporterReceiveHandle& recvdata,
                                     NodeId node_id)
