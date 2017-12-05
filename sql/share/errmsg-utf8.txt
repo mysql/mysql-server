@@ -7109,6 +7109,9 @@ ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP
 
 ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER
   eng "Slave has more GTIDs than the master has, using the master's SERVER_UUID. This may indicate that the end of the binary log was truncated or that the last binary log file was lost, e.g., after a power or disk failure when sync_binlog != 1. The master may or may not have rolled back transactions that were already replicated to the slave. Suggest to replicate any transactions that master has rolled back from slave to master, and/or commit empty transactions on master to account for transactions that have been committed on master but are not included in GTID_EXECUTED."
+
+ER_MISSING_KEY
+  eng "The table '%s.%s' does not have the necessary key(s) defined on it. Please check the table definition and create index(s) accordingly."
 #
 #  End of 5.6 error messages.
 #
