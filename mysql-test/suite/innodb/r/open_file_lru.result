@@ -1150,4 +1150,4 @@ DROP PROCEDURE create_tables;
 DROP PROCEDURE ins;
 DROP PROCEDURE sel;
 DROP DATABASE lru_test;
-call mtr.add_suppression("InnoDB: Too many (300) files are open the maximum allowed value is 301. You should raise the value of --innodb-open-files in my.cnf");
+call mtr.add_suppression("InnoDB: Too many \\(300\\) files are open the maximum allowed value is 301. You should raise the value of --innodb-open-files in my.cnf");
