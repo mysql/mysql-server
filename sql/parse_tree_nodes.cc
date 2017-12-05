@@ -1035,8 +1035,28 @@ bool PT_query_specification::contextualize(Parse_context *pc)
   pc->select->set_where_cond(opt_where_clause);
   pc->select->set_having_cond(opt_having_clause);
 
+  /*
+    Window clause is resolved under CTX_SELECT_LIST and not
+    under CTX_WINDOW. Reasons being:
+    1. Window functions are part of select list and the
+    resolution of window definition happens along with
+    window functions.
+    2. It is tricky to resolve window definition under CTX_WINDOW
+    and window functions under CTX_SELECT_LIST.
+    3. Unnamed window definitions are anyways naturally placed in
+    select list.
+    4. Named window definition are not placed in select list of
+    the query. But if this window definition is
+    used by any window functions, then we resolve under CTX_SELECT_LIST.
+    5. Because of all of the above, unused window definitions are
+    resolved under CTX_SELECT_LIST. (These unused window definitions
+    are removed after syntactic and semantic checks are done).
+  */
+
+  pc->select->parsing_place= CTX_SELECT_LIST;
   if (contextualize_safe(pc, opt_window_clause))
     return true;
+  pc->select->parsing_place= CTX_NONE;
 
   if (opt_hints != NULL)
   {

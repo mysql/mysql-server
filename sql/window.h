@@ -895,6 +895,16 @@ public:
                             List<Window> &windows);
 
   /**
+    Remove unused window definitions. Do this only after syntactic and
+    semantic checking for errors has been performed.
+
+    @param thd             The session's execution thread
+    @param windows         The list of windows defined for this select
+  */
+  static void remove_unused_windows(THD *thd,
+                                    List<Window> &windows);
+
+  /**
     Resolve and set up the PARTITION BY or an ORDER BY list of a window.
 
     @param thd              The session's execution thread
