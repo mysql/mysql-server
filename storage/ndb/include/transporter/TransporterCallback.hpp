@@ -256,7 +256,7 @@ public:
  * SEND_DISCONNECTED errors are also ignored on the data nodes.
  *
  * Reading and freeing data is done from the TransporterCallback class
- * methods get_bytes_to_send_iovec() and bytes_send_iovec(). These *are*
+ * methods get_bytes_to_send_iovec() and bytes_sent(). These *are*
  * synchronized with the connection state of the transporter, such that
  * send data allocated with get-/updateWritePtr() will not show up in
  * get_bytes_to_send_iovec() if the transporter was, or later becomes,
