@@ -2418,25 +2418,76 @@ PFS_key_object_type::read(PFS_key_reader &reader,
 bool
 PFS_key_object_type::match(enum_object_type object_type)
 {
-  return (m_object_type == object_type);
+  bool record_null = (object_type == NO_OBJECT_TYPE);
+  return do_match(record_null, object_type);
 }
 
 bool
 PFS_key_object_type::match(const PFS_object_row *pfs)
 {
-  return (m_object_type == pfs->m_object_type);  // FIXME null check?
+  bool record_null = (pfs->m_object_type == NO_OBJECT_TYPE);
+  return do_match(record_null, pfs->m_object_type);
 }
 
 bool
 PFS_key_object_type::match(const PFS_column_row *pfs)
 {
-  return (m_object_type == pfs->m_object_type);  // FIXME null check?
+  bool record_null = (pfs->m_object_type == NO_OBJECT_TYPE);
+  return do_match(record_null, pfs->m_object_type);
 }
 
 bool
 PFS_key_object_type::match(const PFS_program *pfs)
 {
-  return (m_object_type == pfs->m_type);
+  bool record_null = (pfs->m_type == NO_OBJECT_TYPE);
+  return do_match(record_null, pfs->m_type);
+}
+
+bool
+PFS_key_object_type::do_match(bool record_null, enum_object_type record_value)
+{
+  int cmp = 0;
+
+  if (m_is_null)
+  {
+    cmp = (record_null ? 0 : 1);
+  }
+  else
+  {
+    if (record_null)
+    {
+      cmp = -1;
+    }
+    else if (record_value < m_object_type)
+    {
+      cmp = -1;
+    }
+    else if (record_value > m_object_type)
+    {
+      cmp = +1;
+    }
+    else
+    {
+      cmp = 0;
+    }
+  }
+
+  switch (m_find_flag)
+  {
+  case HA_READ_KEY_EXACT:
+    return (cmp == 0);
+  case HA_READ_KEY_OR_NEXT:
+    return (cmp >= 0);
+  case HA_READ_KEY_OR_PREV:
+    return (cmp <= 0);
+  case HA_READ_BEFORE_KEY:
+    return (cmp < 0);
+  case HA_READ_AFTER_KEY:
+    return (cmp > 0);
+  default:
+    DBUG_ASSERT(false);
+    return false;
+  }
 }
 
 void
@@ -2460,25 +2511,76 @@ PFS_key_object_type_enum::read(PFS_key_reader &reader,
 bool
 PFS_key_object_type_enum::match(enum_object_type object_type)
 {
-  return (m_object_type == object_type);
+  bool record_null = (object_type == NO_OBJECT_TYPE);
+  return do_match(record_null, object_type);
 }
 
 bool
 PFS_key_object_type_enum::match(const PFS_prepared_stmt *pfs)
 {
-  return (m_object_type == pfs->m_owner_object_type);
+  bool record_null = (pfs->m_owner_object_type == NO_OBJECT_TYPE);
+  return do_match(record_null, pfs->m_owner_object_type);
 }
 
 bool
 PFS_key_object_type_enum::match(const PFS_object_row *pfs)
 {
-  return (m_object_type == pfs->m_object_type);  // FIXME null check?
+  bool record_null = (pfs->m_object_type == NO_OBJECT_TYPE);
+  return do_match(record_null, pfs->m_object_type);
 }
 
 bool
 PFS_key_object_type_enum::match(const PFS_program *pfs)
 {
-  return (m_object_type == pfs->m_type);
+  bool record_null = (pfs->m_type == NO_OBJECT_TYPE);
+  return do_match(record_null, pfs->m_type);
+}
+
+bool
+PFS_key_object_type_enum::do_match(bool record_null, enum_object_type record_value)
+{
+  int cmp = 0;
+
+  if (m_is_null)
+  {
+    cmp = (record_null ? 0 : 1);
+  }
+  else
+  {
+    if (record_null)
+    {
+      cmp = -1;
+    }
+    else if (record_value < m_object_type)
+    {
+      cmp = -1;
+    }
+    else if (record_value > m_object_type)
+    {
+      cmp = +1;
+    }
+    else
+    {
+      cmp = 0;
+    }
+  }
+
+  switch (m_find_flag)
+  {
+  case HA_READ_KEY_EXACT:
+    return (cmp == 0);
+  case HA_READ_KEY_OR_NEXT:
+    return (cmp >= 0);
+  case HA_READ_KEY_OR_PREV:
+    return (cmp <= 0);
+  case HA_READ_BEFORE_KEY:
+    return (cmp < 0);
+  case HA_READ_AFTER_KEY:
+    return (cmp > 0);
+  default:
+    DBUG_ASSERT(false);
+    return false;
+  }
 }
 
 bool

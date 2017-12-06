@@ -374,6 +374,8 @@ IF ($key_group == 9.2)
 
 IF ($key_group == 10)
 {
+  eval CALL index_test($table, "WHERE object_type is null");
+  eval CALL index_test($table, "WHERE object_type is not null");
   eval CALL index_test($table, "WHERE object_type = '$target_type'");
   eval CALL index_test($table, "WHERE object_type = '$target_type' AND object_schema = '$target_schema'");
   eval CALL index_test($table, "WHERE object_type = '$target_type' AND object_schema = '$target_schema' AND object_name = '$target_name'");
@@ -387,6 +389,8 @@ IF ($key_group == 10)
 
 IF ($key_group == 10.1)
 {
+  eval CALL index_test($table, "WHERE owner_object_type is null");
+  eval CALL index_test($table, "WHERE owner_object_type is not null");
   eval CALL index_test($table, "WHERE owner_object_type = '$target_type'");
   eval CALL index_test($table, "WHERE owner_object_type = '$target_type' AND owner_object_schema = '$target_schema'");
   eval CALL index_test($table, "WHERE owner_object_type = '$target_type' AND owner_object_schema = '$target_schema' AND owner_object_name = '$target_name'");
@@ -400,6 +404,8 @@ IF ($key_group == 10.1)
 
 IF ($key_group == 11)
 {
+  eval CALL index_test($table, "WHERE object_type is null");
+  eval CALL index_test($table, "WHERE object_type is not null");
   eval CALL index_test($table, "WHERE object_type = '$target_type'");
   eval CALL index_test($table, "WHERE object_type = '$target_type' AND object_schema = '$target_schema'");
   eval CALL index_test($table, "WHERE object_type = '$target_type' AND object_schema = '$target_schema' AND object_name = '$target_name'");
