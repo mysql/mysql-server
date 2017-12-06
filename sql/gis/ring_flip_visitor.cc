@@ -29,7 +29,8 @@ bool Ring_flip_visitor::visit_enter(Polygon *py) {
         boost::geometry::correct(*down_cast<Cartesian_polygon *>(py));
         break;
       case Coordinate_system::kGeographic:
-        boost::geometry::correct(*down_cast<Geographic_polygon *>(py));
+        boost::geometry::correct(*down_cast<Geographic_polygon *>(py),
+                                 m_geographic_strategy);
         break;
     }
   } catch (...) {
@@ -46,7 +47,8 @@ bool Ring_flip_visitor::visit_enter(Multipolygon *mpy) {
         boost::geometry::correct(*down_cast<Cartesian_multipolygon *>(mpy));
         break;
       case Coordinate_system::kGeographic:
-        boost::geometry::correct(*down_cast<Geographic_multipolygon *>(mpy));
+        boost::geometry::correct(*down_cast<Geographic_multipolygon *>(mpy),
+                                 m_geographic_strategy);
         break;
     }
   } catch (...) {
