@@ -7,10 +7,10 @@ call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
 ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 DROP TABLE IF EXISTS t1;
 SET GLOBAL innodb_file_per_table = 0;
 SELECT @@innodb_file_per_table;
@@ -69,7 +69,7 @@ c1	c2
 0	aaaaa
 # restart
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
 0	aaaaa

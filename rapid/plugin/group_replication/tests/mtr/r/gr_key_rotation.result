@@ -10,7 +10,7 @@ call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'keyring_fil
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
 set sql_log_bin=1;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 SET @@global.keyring_file_data='MYSQL_TMP_DIR/keyring_server1/keyring_server1';
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
@@ -29,8 +29,8 @@ INSERT INTO t2 VALUEs(2,2);
 [connection server2]
 set sql_log_bin=0;
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded*");
-call mtr.add_suppression(".*Can't find master key from keyring, please check keyring plugin is loaded*");
-call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': Error 'Can't find master key from keyring, please check keyring plugin is loaded.' on query*");
+call mtr.add_suppression(".*Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.");
+call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': Error 'Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.' on query*");
 call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
 call mtr.add_suppression("\\[Error\\] Plugin group_replication reported: 'The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.'");
 call mtr.add_suppression("\\[Error\\] Plugin group_replication reported: 'Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.'");
@@ -43,7 +43,7 @@ call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyr
 call mtr.add_suppression("\\[Error\\] Plugin group_replication reported: 'Message received while the plugin is not ready, message discarded'*");
 set sql_log_bin=1;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 SET @@global.keyring_file_data='MYSQL_TMP_DIR/keyring_server2/keyring_server2';
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
@@ -63,9 +63,9 @@ UNINSTALL PLUGIN keyring_file;
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 INSERT INTO t1 VALUES(7,'seventh');
 CREATE TABLE t3(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 [connection server1]
 CREATE TABLE t3(c1 INT PRIMARY KEY) ENCRYPTION="Y" ENGINE = InnoDB;
 INSERT INTO t3 VALUES(1);
