@@ -170,6 +170,7 @@ while ($loops)
   {
   # 
   --let gen_current_query = `SELECT REPLACE("$current_query",'.so','_LIB')`
+  --let gen_current_query = `SELECT REPLACE("$gen_current_query",'.dll','_LIB')`
   --echo Loop: $id out of $count_ddl_queries; current query: '$gen_current_query'; pre-binlog check: '$pre_binlog_check'; pre-commit check: '$post_binlog_check';
   }
   --source include/rpl_connection_slave.inc
