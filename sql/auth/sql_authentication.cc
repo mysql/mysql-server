@@ -3626,8 +3626,8 @@ File_IO::operator>>(Sql_string_t &s)
   else
   {
     if (MY_FILEPOS_ERROR == my_seek(m_file, 0, SEEK_SET, MYF(MY_WME)) ||
-      -1 == my_read(m_file, reinterpret_cast<uchar *>(&s[0]),
-        s.size(), MYF(0)))
+        (size_t) -1 == my_read(m_file, reinterpret_cast<uchar *>(&s[0]),
+                               s.size(), MYF(0)))
       set_error();
     close();
   }
