@@ -419,6 +419,7 @@ function addHostsDialogSetup() {
         // Get the (one and only) cluster item and fetch defaults
         clusterStorage.getItem(0).then(function (cluster) {
             var old_user = cluster.getValue("ssh_user");
+            var old_pwd = cluster.getValue("ssh_pwd");
             var old_keybased = cluster.getValue("ssh_keybased");
             var old_openfw = cluster.getValue("openfw");
             var old_installcluster = cluster.getValue("installCluster");
@@ -504,6 +505,7 @@ function addHostsDialogSetup() {
                 sd_key_auth.set("checked", old_keybased);
             } else {
                 sd_usr.set("value", old_user);
+                sd_usrpwd.set("value", old_pwd);
             }
             sd_openfwhost.set("checked", old_openfw);
             sd_installonhost.set("checked", old_installcluster != "NONE");
