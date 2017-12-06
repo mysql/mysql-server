@@ -36,7 +36,6 @@ struct ndb_mgm_configuration;
 
 class Ndb;
 class NdbApiSignal;
-class NdbWaiter;
 class trp_client;
 
 extern "C" {
@@ -326,9 +325,6 @@ private:
 
   bool do_connect_mgm(NodeId, const ndb_mgm_configuration*);
 
-  /**
-   * Block number handling
-   */
 private:
 
   struct ThreadData {
@@ -393,6 +389,11 @@ private:
 
   } m_threads;
 
+  NodeBitmask m_enabled_nodes_mask;  //need m_open_close_mutex
+
+  /**
+   * Block number handling
+   */
   Uint32 m_fixed2dynamic[NO_API_FIXED_BLOCKS];
   Uint32 m_fragmented_signal_id;
 
@@ -404,7 +405,6 @@ public:
   NdbMutex* m_open_close_mutex;  //Protect multiple m_threads members
   NdbMutex* thePollMutex;        //Protect poll-right assignment
 
-public:
   GlobalDictCache *m_globalDictCache;
 
 public:
@@ -427,10 +427,16 @@ public:
     return m_send_buffer.try_alloc(1, reserved);
   }
 
+  /**
+   * Enable / disable send buffers. Will also call similar
+   * methods on all clients known by TF to handle theirs thread local
+   * send buffers.
+   */
+  void enable_send_buffer(NodeId node);
+  void disable_send_buffer(NodeId node);
+
   Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
   Uint32 bytes_sent(NodeId node, Uint32 bytes);
-  bool has_data_to_send(NodeId node);
-  void reset_send_buffer(NodeId node);
 
 #ifdef ERROR_INSERT
   void consume_sendbuffer(Uint32 bytes_remain);
@@ -444,8 +450,8 @@ private:
     TFSendBuffer()
       : m_mutex(),
         m_sending(false),
-        m_reset(false),
         m_node_active(false),
+        m_node_enabled(false),
         m_current_send_buffer_size(0),
         m_buffer(),
         m_out_buffer(),
@@ -468,9 +474,9 @@ private:
      */
     NdbMutex m_mutex;
 
-    bool m_sending;     // Send is ongoing, keep away from 'm_out_buffer'
-    bool m_reset;       // Reset pending, await 'm_sending' to complete
-    bool m_node_active;
+    bool m_sending;      // Send is ongoing, keep away from 'm_out_buffer'
+    bool m_node_active;  // Node defined in config file.
+    bool m_node_enabled; // Node is 'connected' as send dest.
 
     /**
      * A protected view of the current send buffer size of the node.
@@ -506,6 +512,8 @@ private:
    * This is the set of all nodes we have been configured to send to.
    */
   NodeBitmask m_active_nodes;
+
+  void discard_send_buffer(TFSendBuffer *b);
 
   void do_send_buffer(Uint32 node, TFSendBuffer *b);
 

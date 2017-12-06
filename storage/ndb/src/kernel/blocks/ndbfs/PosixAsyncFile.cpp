@@ -276,6 +276,7 @@ void PosixAsyncFile::openReq(Request *request)
     if ((theFd = ::open(theFileName.c_str(), tmp_flags, mode)) != -1)
     {
       close(theFd);
+      theFd = -1;
       request->error = FsRef::fsErrFileExists;
       return;
     }
@@ -441,6 +442,7 @@ no_odirect:
 	}
 #endif
 	close(theFd);
+	theFd = -1;
 	unlink(theFileName.c_str());
 	request->error = err;
 	return;
