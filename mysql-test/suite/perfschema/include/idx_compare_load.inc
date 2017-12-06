@@ -50,11 +50,6 @@ IF ($key_group == 1.2)
   eval CALL index_test($table, "WHERE thread_id < @target_thread_id");
   eval CALL index_test($table, "WHERE thread_id >= @target_thread_id");
   eval CALL index_test($table, "WHERE thread_id <= @target_thread_id");
-  eval CALL index_test($table, "WHERE thread_id = 9999999 ORDER BY thread_id");
-  eval CALL index_test($table, "WHERE thread_id > 9999999");
-  eval CALL index_test($table, "WHERE thread_id < 9999999");
-  eval CALL index_test($table, "WHERE thread_id >= 9999999");
-  eval CALL index_test($table, "WHERE thread_id <= 9999999");
 }
 
 # USER, HOST, EVENT_NAME
