@@ -381,3 +381,31 @@ Warnings:
 Warning	4576	The spatial index on column 'g2' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 ALTER TABLE t1 ADD SPATIAL INDEX idx3 (g3);
 DROP TABLE t1;
+#
+# Bug#27220467 SERVER HANGS WHILE CREATING A NEW SRS WHICH IS USED IN
+#              ANOTHER CLIENT
+#
+# Try to create a point column using a SRID that doesn't exist
+CREATE TABLE t1 (col1 POINT SRID 4326, col2 POINT SRID 1000000000);
+ERROR SR001: There's no spatial reference system with SRID 1000000000.
+# Verify that any lock that was taken for SRIDs is released
+SELECT COUNT(*) AS should_be_zero FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'SRID';
+should_be_zero
+0
+# Force the error to happen after all the columns are contextualized.
+CREATE TABLE t1 (col1 POINT SRID 4326) ENGINE = "foo";
+ERROR 42000: Unknown storage engine 'foo'
+SELECT COUNT(*) AS should_be_zero FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'SRID';
+should_be_zero
+0
+# Verify the same behavior for ALTER TABLE as well.
+CREATE TABLE t1 (col1 INT);
+ALTER TABLE t1 ADD COLUMN col2 POINT SRID 1000000000;
+ERROR SR001: There's no spatial reference system with SRID 1000000000.
+SELECT COUNT(*) AS should_be_zero FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'SRID';
+should_be_zero
+0
+DROP TABLE t1;
