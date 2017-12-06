@@ -49,7 +49,7 @@ enum password_policy_enum { PASSWORD_POLICY_LOW,
 
 static const char* policy_names[] = { "LOW", "MEDIUM", "STRONG", NullS };
 
-static TYPELIB password_policy_typelib_t = {
+static TYPE_LIB password_policy_typelib_t = {
         array_elements(policy_names) - 1,
         "password_policy_typelib_t",
         policy_names,

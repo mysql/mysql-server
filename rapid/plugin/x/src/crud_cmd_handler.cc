@@ -75,6 +75,13 @@ void Crud_command_handler::notice_handling_common(
     notices::send_message(session.proto(), info.message);
 }
 
+namespace {
+inline bool check_message(const std::string &msg, const char *pattern,
+                          std::string::size_type *pos) {
+  return (*pos = msg.find(pattern)) != std::string::npos;
+}
+}  // namespace
+
 // -- Insert
 ngs::Error_code Crud_command_handler::execute_crud_insert(
     Session &session, const Mysqlx::Crud::Insert &msg) {
@@ -97,15 +104,20 @@ ngs::Error_code Crud_command_handler::error_handling(
                         "Document is missing a required field");
 
     case ER_BAD_FIELD_ERROR:
-      return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
-                        "Table '%s' is not a document collection",
-                        msg.collection().name().c_str());
+        return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
+                          "Table '%s' is not a document collection",
+                          msg.collection().name().c_str());
 
     case ER_DUP_ENTRY:
       return ngs::Error(
           ER_X_DOC_ID_DUPLICATE,
           "Document contains a field value that is not unique but "
           "required to be");
+
+    case ER_X_BAD_UPSERT_DATA:
+      return ngs::Error(ER_X_BAD_UPSERT_DATA,
+                        "Unable upsert data in document collection '%s'",
+                        msg.collection().name().c_str());
   }
   return error;
 }
@@ -187,13 +199,6 @@ ngs::Error_code Crud_command_handler::execute_crud_find(
                  &ngs::Protocol_encoder_interface::send_exec_ok);
 }
 
-namespace {
-inline bool check_message(const std::string &msg, const char *pattern,
-                          std::string::size_type &pos) {
-  return (pos = msg.find(pattern)) != std::string::npos;
-}
-}  // namespace
-
 template <>
 ngs::Error_code Crud_command_handler::error_handling(
     const ngs::Error_code &error, const Mysqlx::Crud::Find &msg) const {
@@ -202,16 +207,16 @@ ngs::Error_code Crud_command_handler::error_handling(
   switch (error.error) {
     case ER_BAD_FIELD_ERROR:
       std::string::size_type pos = std::string::npos;
-      if (check_message(error.message, "having clause", pos))
+      if (check_message(error.message, "having clause", &pos))
         return ngs::Error(ER_X_EXPR_BAD_VALUE,
                           "Invalid expression in grouping criteria");
 
-      if (check_message(error.message, "where clause", pos))
+      if (check_message(error.message, "where clause", &pos))
         return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
                           "%sselection criteria",
                           error.message.substr(0, pos - 1).c_str());
 
-      if (check_message(error.message, "field list", pos))
+      if (check_message(error.message, "field list", &pos))
         return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING, "%scollection",
                           error.message.substr(0, pos - 1).c_str());
   }

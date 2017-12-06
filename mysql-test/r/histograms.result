@@ -3069,3 +3069,33 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2`,`test`.`t1`.`col3` AS `col3` from `test`.`t1` where (`test`.`t1`.`col3` < 100)
 DROP TABLE t1;
+#
+# Bug#27197709 TABLE ROWS ESTIMATE DURING HISTOGRAM CREATION MAY BE WAY
+#              OFF
+#
+CREATE TABLE t1 (col1 VARCHAR(255));
+# Insert 10000 rows into the table t1 with random string data
+SET cte_max_recursion_depth = 10000;
+INSERT INTO t1 (col1)
+WITH RECURSIVE cte (n, val) AS
+(
+SELECT 1, CONCAT(MD5(RAND()), MD5(RAND()))
+UNION ALL
+SELECT n + 1, CONCAT(MD5(RAND()), MD5(RAND())) FROM cte WHERE n < 10000
+)
+SELECT val FROM cte;
+# Set the amount of available memory as low as possible, so we are sure
+# that sampling will be used.
+SET histogram_generation_max_mem_size = 1000000;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT
+histogram->>'$."sampling-rate"' < 1.0 AS should_be_true
+FROM
+INFORMATION_SCHEMA.COLUMN_STATISTICS;
+should_be_true
+1
+SET cte_max_recursion_depth = DEFAULT;
+SET histogram_generation_max_mem_size = DEFAULT;
+DROP TABLE t1;

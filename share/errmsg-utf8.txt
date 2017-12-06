@@ -7642,7 +7642,7 @@ ER_INVALID_ENCRYPTION_OPTION
   eng "Invalid encryption option."
 
 ER_CANNOT_FIND_KEY_IN_KEYRING
-  eng "Can't find master key from keyring, please check keyring plugin is loaded."
+  eng "Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully."
 
 ER_CAPACITY_EXCEEDED_IN_PARSER
   eng "Parser bailed out for this query."

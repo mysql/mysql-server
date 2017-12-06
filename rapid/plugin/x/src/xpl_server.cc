@@ -42,6 +42,8 @@
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_session.h"
 #include "plugin/x/src/xpl_system_variables.h"
+#include "plugin/x/src/udf/mysqlx_error.h"
+#include "plugin/x/src/udf/registrator.h"
 
 #if !defined(HAVE_YASSL)
 #include <openssl/err.h>
@@ -333,6 +335,8 @@ int xpl::Server::main(MYSQL_PLUGIN p)
 
     instance->m_nscheduler->post(ngs::bind(&Server::net_thread, instance));
 
+    instance->register_udfs();
+
     instance_rwl.unlock();
   }
   catch(const std::exception &e)
@@ -358,6 +362,8 @@ int xpl::Server::exit(MYSQL_PLUGIN)
 
   if (instance)
   {
+    instance->unregister_udfs();
+
     // Following writelock sometimes blocks network thread in  bool Server::on_net_startup()
     // and call to  self->server().stop() wait for network thread to exit
     // thus its going hand forever. Still we already changed the value of instance. Thus we should exit
@@ -762,3 +768,14 @@ xpl::Client_ptr xpl::Server::get_client_by_thd(Server_ptr &server, THD *thd)
 
   return Client_ptr();
 }
+
+void xpl::Server::register_udfs() {
+  udf::Registrator r;
+  r.registration(udf::get_mysqlx_error_record(), &m_udf_names);
+}
+
+void xpl::Server::unregister_udfs() {
+  udf::Registrator r;
+    r.unregistration(&m_udf_names);
+}
+

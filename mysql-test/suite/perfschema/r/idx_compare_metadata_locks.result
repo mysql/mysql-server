@@ -85,6 +85,22 @@ OK: Extra rows: 0  Missing rows: 0
 
 ===== BEGIN TEST =====
 ========
+SELECT * FROM performance_schema.metadata_locks WHERE object_type is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.metadata_locks WHERE object_type is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT * FROM performance_schema.metadata_locks WHERE object_type = 'TABLE'
 
 OK: Handler_read_key
@@ -210,14 +226,6 @@ OK: Result set: Non-empty  Expected: Non-empty
 OK: Extra rows: 0  Missing rows: 0
 ========
 SELECT * FROM performance_schema.metadata_locks WHERE owner_thread_id <= @target_thread_id
-
-OK: Handler_read_key
-
-OK: Result set: Non-empty  Expected: Non-empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT * FROM performance_schema.metadata_locks WHERE owner_thread_id = 9999999 OR owner_event_id != 9999999
 
 OK: Handler_read_key
 

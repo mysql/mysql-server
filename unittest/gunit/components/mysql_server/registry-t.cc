@@ -24,6 +24,7 @@
 
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
+#include <security_context_imp.h>
 #include <mysql/components/services/backup_lock_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
@@ -184,6 +185,54 @@ DEFINE_BOOL_METHOD(mysql_release_backup_lock,
   return true;
 }
 
+DEFINE_BOOL_METHOD(mysql_security_context_imp::get,
+  (void *, Security_context_handle *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
+  (void *, Security_context_handle))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_security_context_imp::create,
+  (Security_context_handle *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_security_context_imp::destroy,
+  (Security_context_handle))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_security_context_imp::copy,
+  (Security_context_handle, Security_context_handle *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
+  (Security_context_handle, const char *, const char *,
+   const char *, const char *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_security_context_imp::get,
+  (Security_context_handle, const char *, void *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
+  (Security_context_handle, const char *, void *))
+{
+  return true;
+}
 /* TODO following code resembles symbols used in sql library, these should be
   some day extracted to be reused both in sql library and server component unit
   tests. */

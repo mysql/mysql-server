@@ -20,7 +20,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fstream>                     // IWYU pragma: keep
 #include <string>                       /* std::string */
 #include <utility>
 #include <vector>                       /* std::vector */
@@ -3497,21 +3496,17 @@ public:
   File_IO(const File_IO& src)
     : m_file_name(src.file_name()),
       m_read(src.read_mode()),
-      m_error_state(src.get_error())
+      m_error_state(src.get_error()),
+      m_file(-1)
   {
-    m_file.open(m_file_name.c_str(),
-                m_read ? std::ios::in :
-                         std::ios::out|std::ios::trunc);
+    file_open();
   }
 
   File_IO & operator=(const File_IO& src)
   {
     m_file_name= src.file_name();
     m_read= src.read_mode();
-    m_file.open(m_file_name.c_str(),
-                m_read ? std::ios::in :
-                         std::ios::out|std::ios::trunc);
-
+    file_open();
     return *this;
   }
 
@@ -3525,8 +3520,11 @@ public:
   */
   void close()
   {
-    if (m_file.is_open())
-      m_file.close();
+    if (file_is_open())
+    {
+      my_close(m_file, MYF(MY_WME));
+      m_file= -1;
+    }
   }
 
   /*
@@ -3564,17 +3562,43 @@ protected:
   File_IO(const Sql_string_t filename, bool read)
     : m_file_name(filename),
       m_read(read),
-      m_error_state(false)
+      m_error_state(false),
+      m_file(-1)
   {
-    m_file.open(m_file_name.c_str(),
-                m_read ? std::ios::in :
-                         std::ios::out|std::ios::trunc);
+    file_open();
+  }
+
+  /**
+    A constructor to create the class with the right umask mode
+    @param filename name of the file
+    @param mode the create attributes to pass to my_create()
+  */
+  File_IO(const Sql_string_t filename, MY_MODE mode)
+    : m_file_name(filename),
+    m_read(false),
+    m_error_state(false),
+    m_file(-1)
+  {
+    m_file = my_create(m_file_name.c_str(),
+      mode, O_WRONLY, MYF(MY_WME));
+  }
+
+  void file_open()
+  {
+    m_file = my_open(m_file_name.c_str(),
+      m_read ? O_RDONLY : O_WRONLY | O_TRUNC | O_CREAT,
+      MYF(MY_WME));
+  }
+
+  bool file_is_open()
+  {
+    return m_file >= 0;
   }
 private:
   Sql_string_t m_file_name;
   bool m_read;
   bool m_error_state;
-  std::fstream m_file;
+  File m_file;
   /* Only File_creator can create File_IO */
   friend class File_creator;
 };
@@ -3593,15 +3617,18 @@ private:
 File_IO &
 File_IO::operator>>(Sql_string_t &s)
 {
-  DBUG_ASSERT(read_mode() && m_file.is_open());
+  DBUG_ASSERT(read_mode() && file_is_open());
 
-  m_file.seekg(0, std::ios::end);
-  if (resize_no_exception(s, m_file.tellg()) == false)
+  my_off_t off= my_seek(m_file, 0, SEEK_END, MYF(MY_WME));
+  if (off == MY_FILEPOS_ERROR ||
+      resize_no_exception(s, off) == false)
     set_error();
   else
   {
-    m_file.seekg(0, std::ios::beg);
-    m_file.read(&s[0], s.size());
+    if (MY_FILEPOS_ERROR == my_seek(m_file, 0, SEEK_SET, MYF(MY_WME)) ||
+        (size_t) -1 == my_read(m_file, reinterpret_cast<uchar *>(&s[0]),
+                               s.size(), MYF(0)))
+      set_error();
     close();
   }
   return *this;
@@ -3621,12 +3648,14 @@ File_IO::operator>>(Sql_string_t &s)
 File_IO &
 File_IO::operator<<(const Sql_string_t &output_string)
 {
-  DBUG_ASSERT(!read_mode() && m_file.is_open());
+  DBUG_ASSERT(!read_mode() && file_is_open());
 
-  if (!output_string.size())
+  if (!output_string.size() ||
+    MY_FILE_ERROR ==
+    my_write(m_file,
+      reinterpret_cast<const uchar *>(output_string.data()),
+      output_string.length(), MYF(MY_NABP | MY_WME)))
     set_error();
-  else
-    m_file << output_string;
 
   close();
   return *this;
@@ -3657,6 +3686,16 @@ public:
   File_IO * operator()(const Sql_string_t filename, bool read=false)
   {
     File_IO * f= new File_IO(filename, read);
+    m_file_vector.push_back(f);
+    return f;
+  }
+
+  /*
+    Note : Do not free memory.
+  */
+  File_IO * operator()(const Sql_string_t filename, MY_MODE mode)
+  {
+    File_IO * f= new File_IO(filename, mode);
     m_file_vector.push_back(f);
     return f;
   }
@@ -4016,9 +4055,8 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
   File_IO *x509_ca_cert_file_istream= NULL;
   X509_gen x509_gen;
   MY_MODE file_creation_mode= get_file_perm(USER_READ | USER_WRITE);
-  MY_MODE saved_umask= umask(~(file_creation_mode));
 
-  x509_key_file_ostream= filecr(key_filename);
+  x509_key_file_ostream= filecr(key_filename, file_creation_mode);
 
   /* Generate private key for X509 certificate */
   rsa= rsa_gen();
@@ -4047,13 +4085,6 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
   if (x509_key_file_ostream->get_error())
   {
     LogErr(ERROR_LEVEL, ER_X509_CANT_WRITE_KEY, key_filename.c_str());
-    ret_val= false;
-    goto end;
-  }
-
-  if (my_chmod(key_filename.c_str(), USER_READ|USER_WRITE, MYF(MY_FAE+MY_WME)))
-  {
-    LogErr(ERROR_LEVEL, ER_X509_CANT_CHMOD_KEY, key_filename.c_str());
     ret_val= false;
     goto end;
   }
@@ -4145,7 +4176,6 @@ end:
   if (ca_x509)
     X509_free(ca_x509);
 
-  umask(saved_umask);
   return ret_val;
 }
 
@@ -4195,7 +4225,7 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
     goto end;
   }
 
-  priv_key_file_ostream= filecr(priv_key_filename);
+  priv_key_file_ostream= filecr(priv_key_filename, file_creation_mode);
   (*priv_key_file_ostream)<< rsa_priv_key_write(rsa);
 
   DBUG_EXECUTE_IF("key_file_write_error",

@@ -3189,7 +3189,7 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
     being executed.
 
   @param        ev log event that has to be scheduled next.
-  @param       rli Pointer to coordinato's relay log info.
+  @param       rli Pointer to coordinator's relay log info.
   @return      true if error
                false otherwise
  */
@@ -6711,7 +6711,7 @@ bool Xid_log_event::do_commit(THD *thd_arg)
 
 /**
    Worker commits Xid transaction and in case of its transactional
-   info table marks the current group as done in the Coordnator's
+   info table marks the current group as done in the Coordinator's
    Group Assigned Queue.
 
    @return zero as success or non-zero as an error
@@ -9456,8 +9456,7 @@ Rows_log_event::next_record_scan(bool first_read)
                                                  HA_READ_KEY_EXACT)))
       {
         DBUG_PRINT("info",("no record matching the key found in the table"));
-        if (error == HA_ERR_RECORD_DELETED)
-          error= HA_ERR_KEY_NOT_FOUND;
+        error= HA_ERR_KEY_NOT_FOUND;
       }
   }
 

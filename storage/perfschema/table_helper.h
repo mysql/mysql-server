@@ -1135,6 +1135,9 @@ public:
   /** Set a table field from the row. */
   void set_field(Field *f);
 
+  const char* get_str() const { return m_str; }
+  uint get_length() const { return m_length; }
+
 private:
   int make_row(const CHARSET_INFO *cs, const char *str, size_t length);
 
@@ -1832,6 +1835,8 @@ public:
   bool match(const PFS_column_row *pfs);
   bool match(const PFS_program *pfs);
 
+private:
+  bool do_match(bool record_null, enum_object_type object_type);
   enum_object_type m_object_type;
 };
 
@@ -1854,6 +1859,8 @@ public:
   bool match(const PFS_object_row *pfs);
   bool match(const PFS_program *pfs);
 
+private:
+  bool do_match(bool record_null, enum_object_type object_type);
   enum_object_type m_object_type;
 };
 

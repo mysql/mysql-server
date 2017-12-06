@@ -17,8 +17,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <sys/types.h>
 #include <utility>
 
-#include "../../components/mysql_server/component_sys_var_service.h"
-#include "../components/mysql_server/server_component.h"
+#include "components/mysql_server/component_sys_var_service.h"
+#include "components/mysql_server/server_component.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
