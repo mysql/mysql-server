@@ -4261,7 +4261,6 @@ fill_iovec:
   return pos;
 #endif
 
-
   do {
     dst[pos].iov_len = p->m_bytes;
     dst[pos].iov_base = p->m_data + p->m_start;
