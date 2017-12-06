@@ -13,13 +13,13 @@ call mtr.add_suppression("NDB: .*Bad schema for mysql.ndb_replication table.*");
 call mtr.add_suppression("NDB Slave: .* unknown conflict resolution function .*");
 call mtr.add_suppression("NDB Slave: .* has wrong datatype.*");
 call mtr.add_suppression("NDB Slave: .* missing function argument .*");
-call mtr.add_suppression("NDB Slave: .* missing \')\' .*");
+call mtr.add_suppression("NDB Slave: .* missing \'\\)\' .*");
 --connection server2
 call mtr.add_suppression("NDB: .*Bad schema for mysql.ndb_replication table.*");
 call mtr.add_suppression("NDB Slave: .* unknown conflict resolution function .*");
 call mtr.add_suppression("NDB Slave: .* has wrong datatype.*");
 call mtr.add_suppression("NDB Slave: .* missing function argument .*");
-call mtr.add_suppression("NDB Slave: .* missing \')\' .*");
+call mtr.add_suppression("NDB Slave: .* missing \'\\)\' .*");
 --connection default
 --enable_query_log
 
