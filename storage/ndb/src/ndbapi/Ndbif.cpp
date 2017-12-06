@@ -1490,7 +1490,7 @@ Remark: Send a batch of transactions prepared for sending to the NDB kernel.
 void
 Ndb::sendPrepTrans(int forceSend)
 {
-  // Always called when holding mutex on TransporterFacade
+  // Always called when holding the trp_client::lock()
   /*
      We will send a list of transactions to the NDB kernel. Before
      sending we check the following.

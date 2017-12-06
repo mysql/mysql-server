@@ -156,6 +156,7 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
   m_connect_count++;
   resetCounters();
 
+  get_callback_obj()->enable_send_buffer(remoteNodeId);
   m_connected  = true;
 
   DBUG_RETURN(true);
@@ -298,6 +299,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   m_connect_count++;
   resetCounters();
 
+  get_callback_obj()->enable_send_buffer(remoteNodeId);
   m_connected = true;
 
   DBUG_RETURN(true);
@@ -310,7 +312,7 @@ Transporter::doDisconnect() {
     return;
 
   m_connected = false;
-
+  get_callback_obj()->disable_send_buffer(remoteNodeId);
   disconnectImpl();
 }
 

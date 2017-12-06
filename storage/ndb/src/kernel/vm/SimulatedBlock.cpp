@@ -4561,6 +4561,18 @@ SimulatedBlock::checkNodeFailSequence(Signal* signal)
   return false;
 }
 
+#ifdef ERROR_INSERT
+void
+SimulatedBlock::setDelayedPrepare()
+{
+#ifdef NDBD_MULTITHREADED
+  mt_set_delayed_prepare(m_threadId);
+#else
+  // ndbd todo
+#endif
+}
+#endif
+
 void
 SimulatedBlock::setup_wakeup()
 {
