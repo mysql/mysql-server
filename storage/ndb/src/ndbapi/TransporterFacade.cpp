@@ -3582,7 +3582,7 @@ TransporterFacade::disable_send_buffer(NodeId node)
     assert(b->m_node_enabled == true);
     b->m_node_enabled = false;
     discard_send_buffer(b);
-    m_has_data_nodes.clear(node);
+    m_has_data_nodes.set(node);
   }
 }
 
