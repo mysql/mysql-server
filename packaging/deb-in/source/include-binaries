@@ -57,6 +57,7 @@ debian/extra/component_test_status_var_service_reg_only-plugin
 debian/extra/component_test_status_var_service_str-plugin
 debian/extra/component_test_status_var_service_unreg_only-plugin
 debian/extra/component_test_system_variable_source-plugin
+debian/extra/component_validate_password-plugin
 debian/extra/group_replication-plugin
 debian/extra/ha_example-plugin
 debian/extra/innodb_engine-plugin

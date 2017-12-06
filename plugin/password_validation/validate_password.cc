@@ -39,6 +39,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_security_context.h"
 #include "typelib.h"
+#include "sql/sql_error.h"
 
 class THD;
 
@@ -530,6 +531,9 @@ static struct st_mysql_validate_password validate_password_descriptor=
 
 static int validate_password_init(MYSQL_PLUGIN plugin_info)
 {
+  push_deprecated_warn(thd_get_current_thd(),
+                       "validate password plugin",
+                       "validate_password component");
   plugin_info_ptr= plugin_info;
 #ifdef HAVE_PSI_INTERFACE
   init_validate_password_psi_keys();
@@ -548,6 +552,9 @@ static int validate_password_init(MYSQL_PLUGIN plugin_info)
 
 static int validate_password_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
+  push_deprecated_warn(thd_get_current_thd(),
+                       "validate password plugin",
+                       "validate_password component");
   free_dictionary_file();
   mysql_rwlock_destroy(&LOCK_dict_file);
   return (0);

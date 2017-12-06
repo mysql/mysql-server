@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "component_status_var_service.h"
 #include "component_sys_var_service.h"
 #include "system_variable_source_imp.h"
+#include "security_context_imp.h"
 #include "dynamic_loader.h"
 #include "dynamic_loader_path_filter.h"
 #include "dynamic_loader_scheme_file.h"
@@ -294,6 +295,27 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_backup_lock)
   mysql_release_backup_lock
 END_SERVICE_IMPLEMENTATION()
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_security_context)
+  mysql_security_context_imp::get,
+  mysql_security_context_imp::set
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_security_context_factory)
+  mysql_security_context_imp::create,
+  mysql_security_context_imp::destroy,
+  mysql_security_context_imp::copy
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_account_database_security_context_lookup)
+  mysql_security_context_imp::lookup
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_security_context_options)
+  mysql_security_context_imp::get,
+  mysql_security_context_imp::set
+END_SERVICE_IMPLEMENTATION()
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, registry)
   PROVIDES_SERVICE(mysql_server, registry_registration)
@@ -332,6 +354,10 @@ BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, status_variable_registration)
   PROVIDES_SERVICE(mysql_server, system_variable_source)
   PROVIDES_SERVICE(mysql_server, mysql_backup_lock)
+  PROVIDES_SERVICE(mysql_server, mysql_thd_security_context)
+  PROVIDES_SERVICE(mysql_server, mysql_security_context_factory)
+  PROVIDES_SERVICE(mysql_server, mysql_account_database_security_context_lookup)
+  PROVIDES_SERVICE(mysql_server, mysql_security_context_options)
 END_COMPONENT_PROVIDES()
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server)

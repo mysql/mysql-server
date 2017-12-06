@@ -238,6 +238,7 @@ SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
   server_component/component_sys_var_service.cc
   server_component/component_status_var_service.cc
   server_component/system_variable_source_imp.cc
+  server_component/security_context_imp.cc
   )
 
 SET(SQL_SHARED_SOURCES
@@ -666,7 +667,6 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_slave_until_options.cc)
 ADD_CONVENIENCE_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
-
 
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
