@@ -994,10 +994,9 @@ fil_space_get(space_id_t space_id)
 #ifndef UNIV_HOTBACKUP
 /** Returns the latch of a file space.
 @param[in]	space_id	Tablespace ID
-@param[out]	flags	tablespace flags
 @return latch protecting storage allocation */
 rw_lock_t*
-fil_space_get_latch(space_id_t id, ulint* flags)
+fil_space_get_latch(space_id_t id)
 	MY_ATTRIBUTE((warn_unused_result));
 
 # ifdef UNIV_DEBUG

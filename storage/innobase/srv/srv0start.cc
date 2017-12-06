@@ -1193,7 +1193,7 @@ srv_undo_tablespaces_construct(bool create_new_db)
 
 		mtr_start(&mtr);
 
-		mtr_x_lock(fil_space_get_latch(space_id, NULL), &mtr);
+		mtr_x_lock(fil_space_get_latch(space_id), &mtr);
 
 		if (!fsp_header_init(space_id,
 				     SRV_UNDO_TABLESPACE_SIZE_IN_PAGES,

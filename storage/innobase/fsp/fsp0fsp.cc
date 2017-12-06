@@ -710,8 +710,9 @@ xdes_lst_get_descriptor(
 	xdes_t*	descr;
 
 	ut_ad(mtr);
-	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space, NULL),
-				MTR_MEMO_X_LOCK));
+	ut_ad(mtr_memo_contains(
+			mtr, fil_space_get_latch(space), MTR_MEMO_X_LOCK));
+
 	descr = fut_get_ptr(space, page_size, lst_node, RW_SX_LATCH, mtr)
 		- XDES_FLST_NODE;
 
@@ -2828,7 +2829,7 @@ fsp_alloc_xdes_free_frag(
 	ulint		n_used;
 
 	ut_ad(mtr);
-	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space, NULL),
+	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space),
 				MTR_MEMO_X_LOCK));
 
 	fsp_header_t*   header = fsp_get_space_header(space, page_size, mtr);
