@@ -16,6 +16,8 @@
 --source include/not_valgrind.inc
 --source include/linux.inc
 --source include/not_windows.inc
+# Added below inc file due to Bug#22740362
+--source include/have_64bit.inc
 
 let $MYSQLD_OLD_DATADIR = `select @@datadir`;
 
