@@ -28806,6 +28806,87 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
               rate);
   }
 
+
+  if (arg == 2355)
+  {
+    jam();
+    /* Test clean signal shut-off at node failure */
+    const Uint32 sigLen = signal->getLength();
+    
+    if (sigLen < 2)
+    {
+      jam();
+      return;
+    }
+    
+    const Uint32 nodeId = signal->theData[1];
+
+    if (nodeId == cownNodeid)
+    {
+      jam();
+      if (sigLen == 2)
+      {
+        jam();
+        /* Initial request, wait a moment */
+        sendSignalWithDelay(reference(),
+                            GSN_DUMP_STATE_ORD, 
+                            signal,
+                            200,
+                            3);
+        return;
+      }
+
+      jam();
+                            
+      /* Goodbye */
+      progError(__LINE__, NDBD_EXIT_ERROR_INSERT, __FILE__);
+      return;
+    }
+    else
+    {
+      if (sigLen == 2)
+      {
+        /* Send a harmless signal to our counterpart on the node */
+
+        BlockReference luckyRecipient = numberToRef(DBLQH, instance(), nodeId);
+      
+        g_eventLogger->info("LQH %u about to send slow signal to %u",
+                            instance(), nodeId);
+
+#ifdef ERROR_INSERT
+        setDelayedPrepare();
+#endif
+
+        sendSignal(luckyRecipient,
+                   GSN_DUMP_STATE_ORD,
+                   signal,
+                   3,
+                   JBB);
+
+        /* DelayedPrepare cancelled now */
+        /* Do it again, unless the node has failed */
+        if (getNodeInfo(nodeId).m_connected)
+        {
+          sendSignal(reference(),
+                     GSN_DUMP_STATE_ORD,
+                     signal,
+                     2,
+                     JBB);
+        }
+        else
+        {
+          g_eventLogger->info("LQH %u.  DUMP 2355 Node %u not connected anymore",
+                              instance(), nodeId);
+        }
+      }
+      else
+      {
+        jam();
+        /* 'Harmless' longer signal */
+      }
+    }
+    return;
+  }
 }//Dblqh::execDUMP_STATE_ORD()
 
 void Dblqh::get_redo_size(Uint64 & size_in_bytes)
