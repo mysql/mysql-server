@@ -235,16 +235,15 @@ static const ulint ENCRYPTION_SERVER_UUID_LEN = 36;
 
 /** Encryption information total size for 5.7.11: magic number + master_key_id +
 key + iv + checksum */
-static const ulint ENCRYPTION_INFO_SIZE_V1 = (ENCRYPTION_MAGIC_SIZE \
-					 + (ENCRYPTION_KEY_LEN * 2) \
-					 + 2 * sizeof(ulint));
+static const ulint ENCRYPTION_INFO_SIZE_V1 = 
+	ENCRYPTION_MAGIC_SIZE + (ENCRYPTION_KEY_LEN * 2) + 2 * sizeof(ulint);
 
 /** Encryption information total size: magic number + master_key_id +
 key + iv + server_uuid + checksum */
-static const ulint ENCRYPTION_INFO_SIZE_V2 = (ENCRYPTION_MAGIC_SIZE \
-					 + (ENCRYPTION_KEY_LEN * 2) \
-					 + ENCRYPTION_SERVER_UUID_LEN \
-					 + 2 * sizeof(ulint));
+static const ulint ENCRYPTION_INFO_SIZE_V2 =
+	ENCRYPTION_MAGIC_SIZE + (ENCRYPTION_KEY_LEN * 2)
+	+ ENCRYPTION_SERVER_UUID_LEN + 2 * sizeof(ulint);
+
 /** Default master key for bootstrap */
 static const char ENCRYPTION_DEFAULT_MASTER_KEY[] = "DefaultMasterKey";
 
