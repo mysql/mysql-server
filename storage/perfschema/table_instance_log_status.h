@@ -22,9 +22,9 @@
 */
 
 #include "sql/json_dom.h"
+#include "sql/sql_const.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
-#include "storage/perfschema/table_helper.h"
 
 /*
   A row in the table. The fields with string values have an additional

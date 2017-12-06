@@ -18631,17 +18631,21 @@ innobase_collect_hton_log_info(
 {
 	bool			ret_val= false;
 	lsn_t  lsn;
+	lsn_t  lsn_checkpoint;
 
 	DBUG_ENTER("innodb_collect_hton_log_info");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
-	log_collect_lsn(&lsn);
+	log_collect_lsn_info(&lsn, &lsn_checkpoint);
 
 	Json_object *json_engines= static_cast<Json_object *>(json);
 	Json_object json_innodb;
 	Json_int json_lsn(lsn);
+	Json_int json_lsn_checkpoint(lsn_checkpoint);
 
 	ret_val= json_innodb.add_clone("LSN", &json_lsn);
+	if (!ret_val)
+		ret_val=  json_innodb.add_clone("LSN_checkpoint", &json_lsn_checkpoint);
 	if (!ret_val)
 		ret_val= json_engines->add_clone("InnoDB", &json_innodb);
 

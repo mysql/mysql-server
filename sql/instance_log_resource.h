@@ -107,18 +107,14 @@ public:
     Lock the resource avoiding updates.
   */
 
-  virtual void lock()
-  {
-  };
+  virtual void lock() = 0;
 
 
   /**
     Unlock the resource allowing updates.
   */
 
-  virtual void unlock()
-  {
-  };
+  virtual void unlock() = 0;
 
 
   /**
@@ -128,10 +124,7 @@ public:
              true if there was an error collecting the information.
   */
 
-  virtual bool collect_info()
-  {
-    return false;
-  };
+  virtual bool collect_info() = 0;
 };
 
 
@@ -287,7 +280,7 @@ public:
   /**
     Creates a Instance_log_resource wrapper based on a Master_info object.
 
-    @param[in] binog the pointer to the MYSQL_BIN_LOG object resource.
+    @param[in] binlog the pointer to the MYSQL_BIN_LOG object resource.
     @param[in] json the pointer to the JSON object to be populated with the
                     resource log information.
     @return  the pointer to the new Instance_log_resource.

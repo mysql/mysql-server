@@ -63,6 +63,11 @@ while ($c <= $num_channels)
   --eval CREATE EVENT e_start_slave_sql_ch$c   ON SCHEDULE EVERY 1 SECOND DO START SLAVE SQL_THREAD FOR CHANNEL $cn
   --eval CREATE EVENT e_stop_slave_sql_ch$c    ON SCHEDULE EVERY 1 SECOND DO STOP SLAVE SQL_THREAD FOR CHANNEL $cn
   --eval CREATE EVENT e_sss_ch$c               ON SCHEDULE EVERY 1 SECOND DO SHOW SLAVE STATUS FOR CHANNEL $cn
+  if ($c == 0)
+  {
+    --eval CREATE EVENT e_reset_master ON SCHEDULE EVERY 1 SECOND DO RESET MASTER
+    --eval CREATE EVENT e_ils          ON SCHEDULE EVERY 1 SECOND DO SELECT * FROM performance_schema.instance_log_status
+  }
   --inc $c
 }
 
@@ -78,6 +83,11 @@ sleep 10;
 --let $c= $num_channels
 while ($c >= 0)
 {
+  if ($c == 0)
+  {
+    --eval DROP EVENT e_ils
+    --eval DROP EVENT e_reset_master
+  }
   --eval DROP EVENT e_sss_ch$c
   --eval DROP EVENT e_stop_slave_sql_ch$c
   --eval DROP EVENT e_start_slave_sql_ch$c

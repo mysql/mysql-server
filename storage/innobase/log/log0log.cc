@@ -2611,11 +2611,13 @@ log_unlock(void)
 /******************************************************//**
 Collect log info. */
 void
-log_collect_lsn(
+log_collect_lsn_info(
 /*=========*/
-	lsn_t*	lsn)	/*!< out: current lsn */
+	lsn_t*	lsn,	/*!< out: current lsn */
+	lsn_t*	lsn_checkpoint)	/*!< out: current last_checkpoint_lsn */
 {
 	*lsn = log_sys->lsn;
+	*lsn_checkpoint = log_sys->last_checkpoint_lsn;
 }
 
 /******************************************************//**

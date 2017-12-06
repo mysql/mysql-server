@@ -149,11 +149,12 @@ void Instance_log_resource_hton_wrapper::unlock()
 
 bool Instance_log_resource_hton_wrapper::collect_info()
 {
+  bool result= false;
   if (hton->collect_hton_log_info)
   {
-    return hton->collect_hton_log_info(hton, get_json());
+    result= hton->collect_hton_log_info(hton, get_json());
   }
-  return false;
+  return result;
 };
 
 

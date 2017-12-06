@@ -20,11 +20,13 @@
 
 #include "storage/perfschema/table_instance_log_status.h"
 
+#include "sql/current_thd.h"
 #include "sql/debug_sync.h"
-#include "sql/rpl_msr.h"                       // channel_map
 #include "sql/instance_log_resource.h"
+#include "sql/rpl_msr.h"                       // channel_map
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/table_helper.h"
 
 THR_LOCK table_instance_log_status::m_table_lock;
 
@@ -136,6 +138,7 @@ static bool iter_storage_engines_register(THD*, plugin_ref plugin, void *arg)
 {
   st_register_hton_arg *vargs= (st_register_hton_arg *)arg;
   handlerton *hton= plugin_data<handlerton*>(plugin);
+  bool result= false;
 
   DBUG_ASSERT(plugin_state(plugin) == PLUGIN_IS_READY);
 
@@ -146,11 +149,10 @@ static bool iter_storage_engines_register(THD*, plugin_ref plugin, void *arg)
   {
     Instance_log_resource *resource;
     resource= Instance_log_resource_factory::get_wrapper(hton, vargs->json);
-    if (!resource)
-      return true;
-    vargs->resources->push_back(resource);
+    if (!(result= !resource))
+      vargs->resources->push_back(resource);
   }
-  return false;
+  return result;
 }
 
 
@@ -177,7 +179,7 @@ table_instance_log_status::make_row()
   Json_array json_channels_array;              // JSON array for CHANNELS field
   Json_object json_storage_engines;            // STORAGE_ENGINES field
 
-  /* To block replication channels creation/removal/admin */
+  /* To block replication channels creation/removal */
   channel_map.wrlock();
 
   /* List of resources to be locked/collected/unlocked */
@@ -208,7 +210,7 @@ table_instance_log_status::make_row()
     {
       Instance_log_resource *res;
       res= Instance_log_resource_factory::get_wrapper(mi, &json_channels_array);
-      if ((error= !res))
+      if ((error= DBUG_EVALUATE_IF("instance_log_status_oom_mi", 1, !res)))
       {
         char errfmt[]=
           "failed to allocate memory to collect "
@@ -217,6 +219,9 @@ table_instance_log_status::make_row()
         sprintf(errbuf, errfmt, mi->get_channel());
         my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0), "CHANNELS",
                  errbuf);
+        /* To please valgrind */
+        DBUG_EXECUTE_IF("instance_log_status_oom_mi",
+                        resources.push_back(res););
         goto end;
       }
       resources.push_back(res);
@@ -231,11 +236,14 @@ table_instance_log_status::make_row()
     Instance_log_resource *res;
     res= Instance_log_resource_factory::get_wrapper(&mysql_bin_log,
                                                     &json_master);
-    if ((error= !res))
+    if ((error= DBUG_EVALUATE_IF("instance_log_status_oom_binlog", 1, !res)))
     {
       my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0), "MASTER",
                "failed to allocate memory to collect "
                "binary log information");
+      /* To please valgrind */
+      DBUG_EXECUTE_IF("instance_log_status_oom_binlog",
+                      resources.push_back(res););
       goto end;
     }
     resources.push_back(res);
@@ -248,11 +256,14 @@ table_instance_log_status::make_row()
   {
     Instance_log_resource *res;
     res= Instance_log_resource_factory::get_wrapper(gtid_state, &json_master);
-    if ((error= !res))
+    if ((error= DBUG_EVALUATE_IF("instance_log_status_oom_gtid", 1, !res)))
     {
       my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0), "MASTER",
                "failed to allocate memory to collect "
                "gtid_executed information");
+      /* To please valgrind */
+      DBUG_EXECUTE_IF("instance_log_status_oom_gtid",
+                      resources.push_back(res););
       goto end;
     }
     resources.push_back(res);
@@ -267,7 +278,7 @@ table_instance_log_status::make_row()
     st_register_hton_arg args= {&resources, &json_storage_engines};
     error= plugin_foreach(thd, iter_storage_engines_register,
                           MYSQL_STORAGE_ENGINE_PLUGIN, &args);
-    if (error)
+    if (error || DBUG_EVALUATE_IF("instance_log_status_oom_se", 1, 0))
     {
       my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0),
                "STORAGE_ENGINE",
@@ -281,9 +292,15 @@ table_instance_log_status::make_row()
   for (it=resources.begin(); it != resources.end(); ++it)
     (*it)->lock();
 
+  DBUG_SIGNAL_WAIT_FOR(thd,
+                       "pause_collecting_instance_logs_info",
+                       "reached_collecting_instance_logs_info",
+                       "continue_collecting_instance_logs_info");
+
   /* Collect all resources information (up to hitting some error) */
   for (it=resources.begin(); it != resources.end(); ++it)
-    if ((error= (*it)->collect_info()))
+    if ((error= DBUG_EVALUATE_IF("instance_log_status_oom_collecting", 1,
+                                 (*it)->collect_info())))
     {
       my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0),
                (*it)->get_json() == &json_storage_engines ?
@@ -293,11 +310,6 @@ table_instance_log_status::make_row()
                "failed to allocate memory to collect information");
       goto err_unlock;
     }
-
-  DBUG_SIGNAL_WAIT_FOR(thd,
-                       "pause_collecting_instance_logs_info",
-                       "reached_collecting_instance_logs_info",
-                       "continue_collecting_instance_logs_info");
 
 err_unlock:
   /* Unlock all resources */
@@ -322,7 +334,9 @@ end:
   if (!error)
   {
     /* Populate m_row */
-    if ((error= json_channels.add_clone("channels", &json_channels_array)))
+    if ((error= DBUG_EVALUATE_IF("instance_log_status_oom_channels", 1,
+                                 json_channels.add_clone("channels",
+                                                         &json_channels_array))))
     {
       my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0), "CHANNELS",
                "failed to allocate memory to collect information");
