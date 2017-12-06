@@ -548,7 +548,8 @@ PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
 
         system_var.m_name = iter->key.c_str();
         system_var.m_name_length = iter->key.length();
-        system_var.m_value_length = iter->value.length();
+        system_var.m_value_length = std::min(SHOW_VAR_FUNC_BUFF_SIZE,
+                                             (int)iter->value.length());
         memcpy(system_var.m_value_str,
                iter->value.c_str(),
                system_var.m_value_length);
@@ -568,7 +569,8 @@ PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
 
         system_var.m_name = ro_iter->first.c_str();
         system_var.m_name_length = ro_iter->first.length();
-        system_var.m_value_length = ro_iter->second.length();
+        system_var.m_value_length = std::min(SHOW_VAR_FUNC_BUFF_SIZE,
+                                             (int)ro_iter->second.length());
         memcpy(system_var.m_value_str,
                ro_iter->second.c_str(),
                system_var.m_value_length);

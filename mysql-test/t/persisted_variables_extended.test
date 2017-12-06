@@ -530,4 +530,18 @@ EOF
 --echo # start server with all defaults
 --source include/start_mysqld.inc
 
+--echo #
+--echo # Bug#26100122: SERVER CRASHES WHEN SET PERSIST CALLS WITH A LONG STATEMENT
+--echo #
+
+set @a=repeat('A',2000);
+--eval SET PERSIST init_connect=@a;
+set @b=repeat('A',24000);
+--eval SET PERSIST init_connect=@b;
+
+--echo # Cleanup
+SET GLOBAL init_connect=default;
+RESET PERSIST;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
 SELECT 'END OF TEST';

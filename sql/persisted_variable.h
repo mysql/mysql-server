@@ -25,6 +25,7 @@
 #include "my_psi_config.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_file.h"
+#include "sql_string.h"
 
 class THD;
 class set_var;
@@ -114,8 +115,8 @@ public:
 
 private:
   /* Helper function to get variable value */
-  static const char* get_variable_value(THD *thd,
-    sys_var *system_var, char* val_buf, size_t* val_length);
+  static String* get_variable_value(THD *thd,
+    sys_var *system_var, String *str);
   /* Helper function to get variable name */
   static const char* get_variable_name(sys_var *system_var);
 
