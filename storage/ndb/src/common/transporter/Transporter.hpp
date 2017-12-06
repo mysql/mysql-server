@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,11 +99,6 @@ public:
   }
 
   virtual bool doSend() = 0;
-
-  bool has_data_to_send()
-  {
-    return get_callback_obj()->has_data_to_send(remoteNodeId);
-  }
 
   /* Get the configured maximum send buffer usage. */
   Uint32 get_max_send_buffer() { return m_max_send_buffer; }
