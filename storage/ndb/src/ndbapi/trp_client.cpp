@@ -176,7 +176,7 @@ trp_client::disable_send(NodeId node)
  * its result. The call to ::do_poll() should be encapsulate with
  * a ::prepare_poll() - ::complete_poll() pair.
  */
-void
+  void
 trp_client::prepare_poll()
 {
   NdbMutex_Lock(m_mutex);
