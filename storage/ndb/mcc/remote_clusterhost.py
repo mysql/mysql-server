@@ -78,7 +78,7 @@ class RemoteClusterHost(ABClusterHost):
         c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         if key_based is False:
             _logger.warning('--> ' + "Enter 1")
-            c.connect(hostname=self.host, username=self.user, password=self.pwd)
+            c.connect(hostname=self.host, username=self.user, password=self.pwd, pkey=None)
         else:
             if (key_file is None):
                 _logger.warning('--> ' + "Enter 2")

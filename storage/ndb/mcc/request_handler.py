@@ -146,68 +146,7 @@ def get_cred(HostNm, body):
     
     return (False, body['ssh']['user'], body['ssh']['pwd'], None)
 
-"""
-def encrypt(key, filename):
-    chunk_size = 64*1024
-    output_file = filename + ".encrypted"
-    file_size = str(os.path.getsize(filename)).zfill(16)
-    InitializationVector = ''
-    for i in range(16):
-        InitializationVector += chr(random.randint(0, 0xFF))
-    encryptor = AES.new(key, AES.MODE_CBC, InitializationVector)
-    with open(filename, 'rb') as inputfile:
-        with open(output_file, 'wb') as outf:
-            outf.write(file_size)
-            outf.write(InitializationVector)
-            while True:
-                chunk = inputfile.read(chunk_size)
-                if len(chunk) == 0:
-                    break
-                elif len(chunk) % 16 != 0:
-                   chunk += ' '*(16 - len(chunk)%16)
-                outf.write(encryptor.encrypt(chunk))
-    #Remove plain text file.
-    if os.path.isfile(filename):
-        os.remove(filename)
-    else: #Show an error.
-        print("Encrypt error: Original file %s not found" % filename)
-    #Rename new file to old name.
-    old_file = output_file #name.mcc.encrypted.
-    new_file = filename #name.mcc
-    os.rename(old_file, new_file)
 
-def decrypt(key, filename):
-    chunk_size = 64*1024
-    output_file = filename[:-4] #- .mcc
-    with open(filename, 'rb') as inf:
-        filesize = long(inf.read(16))
-        InitializationVector = inf.read(16)
-        decryptor = AES.new(key, AES.MODE_CBC, InitializationVector)
-        with open(output_file, 'wb') as outf:
-            while True:
-                chunk = inf.read(chunk_size)
-                if len(chunk)==0:
-                    break
-                outf.write(decryptor.decrypt(chunk))
-            outf.truncate(filesize)
-
-    #Return decrypted file as string.
-    content = None
-    with open(output_file, 'rb') as outf:
-        content = outf.read()
-
-    #Remove plain text file.
-    if os.path.isfile(output_file):
-        os.remove(output_file)
-    else: #Show an error.
-        print("Decrypt error: Plain text file %s not found" % output_file)
-
-    return content
-
-def getKey(password):
-    hasher = SHA256.new(password)
-    return hasher.digest()
-"""
 def get_key(password):
     _logger.warning('Getting key from passp.')
     digest = hashes.Hash(hashes.SHA256(), backend=default_backend())

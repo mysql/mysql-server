@@ -114,8 +114,9 @@ function saveClusterDefinition() {
                     dijit.byId("sd_keybased").getValue());
             cluster.setValue("ssh_user", 
                     dijit.byId("sd_user").getValue());
+            cluster.setValue("ssh_pwd", 
+                    dijit.byId("sd_pwd").getValue());
 
-            // The password is not stored in cluster store, only as a variable
             ssh_pwd = dijit.byId("sd_pwd").getValue();
             
             // Try to reconnect all hosts to get resource information.
@@ -241,7 +242,10 @@ function showClusterDefinition(initialize) {
                 cluster.getValue("ssh_keybased"));
         dijit.byId("sd_user").setValue(
                 cluster.getValue("ssh_user"));
-        dijit.byId("sd_pwd").setValue(ssh_pwd);
+        dijit.byId("sd_pwd").setValue(
+                cluster.getValue("ssh_pwd"));
+        
+        ssh_pwd = cluster.getValue("ssh_pwd");
 
         // Cluster details
         dijit.byId("cd_name").setValue(
