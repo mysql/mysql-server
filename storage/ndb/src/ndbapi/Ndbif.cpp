@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1475,7 +1475,7 @@ Remark: Send a batch of transactions prepared for sending to the NDB kernel.
 void
 Ndb::sendPrepTrans(int forceSend)
 {
-  // Always called when holding mutex on TransporterFacade
+  // Always called when holding the trp_client::lock()
   /*
      We will send a list of transactions to the NDB kernel. Before
      sending we check the following.

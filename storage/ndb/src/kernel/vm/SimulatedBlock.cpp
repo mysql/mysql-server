@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4549,6 +4549,18 @@ SimulatedBlock::checkNodeFailSequence(Signal* signal)
   sendRoutedSignal(path, 2, dst, 1, gsn, signal, len, JBB, &handle);
   return false;
 }
+
+#ifdef ERROR_INSERT
+void
+SimulatedBlock::setDelayedPrepare()
+{
+#ifdef NDBD_MULTITHREADED
+  mt_set_delayed_prepare(m_threadId);
+#else
+  // ndbd todo
+#endif
+}
+#endif
 
 void
 SimulatedBlock::setup_wakeup()
