@@ -5871,21 +5871,30 @@ fil_ibd_open(
 	const bool	atomic_write = false;
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
+	dberr_t	err;
+
 	if ((validate || is_encrypted)
-	    && df.validate_to_dd(space_id, flags, for_import) != DB_SUCCESS) {
-		if (!is_encrypted) {
+	    && (err = df.validate_to_dd(space_id, flags, for_import))
+	    != DB_SUCCESS) {
+
+		/* We don't reply the rename via the redo log anymore.
+		Therefore we can get a space ID mismatch when validating
+		the files during bootstrap. */
+
+		if (!is_encrypted && err != DB_WRONG_FILE_NAME) {
 			/* The following call prints an error message.
 			For encrypted tablespace we skip print, since it should
 			be keyring plugin issues. */
 			os_file_get_last_error(true);
 
 			ib::error()
+				<< ut_strerr(err) << " - "
 				<< "Could not find a valid tablespace file"
 				<< " for `" << space_name << "`. "
 				<< TROUBLESHOOT_DATADICT_MSG;
 		}
 
-		return(DB_CORRUPTION);
+		return(err);
 	}
 
 	/* If the encrypted tablespace is already opened,

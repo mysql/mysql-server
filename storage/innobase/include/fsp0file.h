@@ -293,7 +293,7 @@ public:
 	@param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
 	@param[in]	for_import	if it is for importing
 	(only valid for the first file of the system tablespace)
-	@retval DB_TABLESPACE_NOT_FOUND tablespace in file header doesn't match
+	@retval DB_WRONG_FILE_NAME tablespace in file header doesn't match
 		expected value
 	@retval DB_SUCCESS on if the datafile is valid
 	@retval DB_CORRUPTION if the datafile is not readable
