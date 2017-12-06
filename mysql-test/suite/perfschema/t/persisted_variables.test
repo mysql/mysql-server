@@ -20,6 +20,7 @@ SET PERSIST max_heap_table_size=DEFAULT, slave_net_timeout=DEFAULT;
 SET PERSIST innodb_default_row_format=DEFAULT;
 SET @@persist.max_execution_time=DEFAULT, @@persist.max_user_connections=DEFAULT;
 
+RESET PERSIST;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 

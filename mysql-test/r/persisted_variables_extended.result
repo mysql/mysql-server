@@ -382,6 +382,16 @@ SELECT @@innodb_fast_shutdown, @@innodb_default_row_format, @@innodb_flush_log_a
 # server should fail to start
 # start server with all defaults
 # restart
+#
+# Bug#26100122: SERVER CRASHES WHEN SET PERSIST CALLS WITH A LONG STATEMENT
+#
+set @a=repeat('A',2000);
+SET PERSIST init_connect=@a;;
+set @b=repeat('A',24000);
+SET PERSIST init_connect=@b;;
+# Cleanup
+SET GLOBAL init_connect=default;
+RESET PERSIST;
 SELECT 'END OF TEST';
 END OF TEST
 END OF TEST

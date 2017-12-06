@@ -224,7 +224,7 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
 {
   char val_buf[1024]= { 0 };
   String str(val_buf, sizeof(val_buf), system_charset_info), *res;
-  size_t val_length= 0;
+  String utf8_str;
 
   struct st_persist_var tmp_var;
   sys_var *system_var= setvar->var;
@@ -236,19 +236,29 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
   {
     res= setvar->value->val_str(&str);
     if (res && res->length())
-      var_value= res->ptr();
+    {
+      /*
+        value held by Item class can be of different charset,
+        so convert to utf8mb4
+      */
+      const CHARSET_INFO *tocs= &my_charset_utf8mb4_bin;
+      uint dummy_err;
+      utf8_str.copy(res->ptr(), res->length(), res->charset(), tocs,
+        &dummy_err);
+      var_value= utf8_str.c_ptr_quick();
+    }
   }
   else
-    var_value= Persisted_variables_cache::get_variable_value(thd,
-                             system_var, val_buf, &val_length);
+  {
+    Persisted_variables_cache::get_variable_value(thd, system_var, &utf8_str);
+    var_value= utf8_str.c_ptr_quick();
+  }
 
   /* structured variables may have basename if specified */
-  string struct_var_name= (setvar->base.str ? setvar->base.str : string());
-  tmp_var.key= var_name;
+  tmp_var.key= (setvar->base.str ?
+                string(setvar->base.str).append(".").append(var_name) :
+                string(var_name));
   tmp_var.value= var_value;
-
-  if (struct_var_name.length())
-    tmp_var.key= struct_var_name.append(".").append(tmp_var.key);
 
   /* modification to in-memory must be thread safe */
   mysql_mutex_lock(&m_LOCK_persist_variables);
@@ -277,16 +287,18 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
 
    @param [in] thd           Pointer to connection handler
    @param [in] system_var    Pointer to sys_var which is being SET
-   @param [out] val_buf      Buffer pointing to variable value
-   @param [out] val_length   Length of the value buffer
+   @param [in] str           Pointer to String instance into which value
+                             is copied
 
    @return
-     Pointer to buffer holding the value
+     Pointer to String instance holding the value
 */
-const char* Persisted_variables_cache::get_variable_value(THD *thd,
-   sys_var *system_var, char* val_buf, size_t* val_length)
+String* Persisted_variables_cache::get_variable_value(THD *thd,
+  sys_var *system_var, String *str)
 {
-  const char* value= val_buf;
+  const char* value;
+  char val_buf[1024];
+  size_t val_length;
   char show_var_buffer[sizeof(SHOW_VAR)];
   SHOW_VAR *show= (SHOW_VAR *)show_var_buffer;
   const CHARSET_INFO *fromcs;
@@ -299,19 +311,12 @@ const char* Persisted_variables_cache::get_variable_value(THD *thd,
 
   mysql_mutex_lock(&LOCK_global_system_variables);
   value= get_one_variable(thd, show, OPT_GLOBAL, show->type, NULL,
-                   &fromcs, val_buf, val_length);
+                          &fromcs, val_buf, &val_length);
   mysql_mutex_unlock(&LOCK_global_system_variables);
-  val_buf[*val_length]= '\0';
 
   /* convert the retrieved value to utf8mb4 */
-  size_t new_len= (tocs->mbmaxlen * (*val_length)) / fromcs->mbminlen + 1;
-  char *result= new char[new_len];
-  memset(result, 0, new_len);
-  *val_length= copy_and_convert(result, new_len, tocs, value, *val_length,
-                               fromcs, &dummy_err);
-  memcpy(val_buf, result, strlen(result)+1);
-  delete []result;
-  return val_buf;
+  str->copy(value, val_length, fromcs, tocs, &dummy_err);
+  return str;
 }
 
 /**
