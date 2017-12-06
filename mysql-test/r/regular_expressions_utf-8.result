@@ -728,6 +728,7 @@ DO ( (@c) rlike (cot ( (!( @f )) )) );
 DO ( ('') rlike (cot ( ' %' )) );
 ERROR 22003: DOUBLE value is out of range in 'cot(' %')'
 DO ( (-28277) regexp (period_add ( -10966, 1381205734 )) );
+ERROR HY000: Incorrect arguments to period_add
 DO ( (( @f )) rlike (json_depth ( 'key4' )) );
 ERROR 22032: Invalid JSON text in argument 1 to function json_depth: "Invalid value." at position 0.
 DO ( ('-  ') regexp (cot ( right (':#.', 33) )) );
