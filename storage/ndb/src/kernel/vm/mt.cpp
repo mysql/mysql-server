@@ -4934,6 +4934,7 @@ do_send(struct thr_data* selfptr, bool must_send, bool assist_send)
     : false;                     // All busy, or didn't find any work (-> -0)
 }
 
+
 #ifdef ERROR_INSERT
 void
 mt_set_delayed_prepare(Uint32 self)
