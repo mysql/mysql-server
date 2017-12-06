@@ -9456,8 +9456,7 @@ Rows_log_event::next_record_scan(bool first_read)
                                                  HA_READ_KEY_EXACT)))
       {
         DBUG_PRINT("info",("no record matching the key found in the table"));
-        if (error == HA_ERR_RECORD_DELETED)
-          error= HA_ERR_KEY_NOT_FOUND;
+        error= HA_ERR_KEY_NOT_FOUND;
       }
   }
 

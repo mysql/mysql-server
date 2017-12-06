@@ -1,0 +1,50 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+**** On Master ****
+CREATE TABLE t1 (C1 CHAR(1), C2 CHAR(1), KEY(C1, C2)) ENGINE = ndb;
+CREATE TABLE t2 (C1 CHAR(1), C2 CHAR(1), KEY(C1, C2)) ENGINE = ndb;
+CREATE TABLE t3 (C1 CHAR(1), C2 CHAR(1), KEY(C1, C2)) ENGINE = ndb;
+INSERT INTO t1 VALUES ('K','K'), ('L','L'), ('M','M'), ('N','N');
+INSERT INTO t2 VALUES ('K','K'), ('L','L'), ('M','M'), ('N','N');
+INSERT INTO t3 VALUES ('K','K'), ('L','L'), ('M','M'), ('N','N');
+include/sync_slave_sql_with_master.inc
+**** On Slave ****
+set @prior_slave_exec_mode=@@global.slave_exec_mode;
+set @prior_slave_rows_search_algorithms=@@global.slave_rows_search_algorithms;
+set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.slave_rows_search_algorithms= 'HASH_SCAN';
+set @@global.slave_allow_batching = OFF;
+include/restart_slave.inc
+DELETE FROM t1 WHERE C1 = 'L';
+DELETE FROM t2 WHERE C1 = 'L';
+DELETE FROM t3 WHERE C1 = 'K';
+**** On Master ****
+DELETE FROM t1;
+include/sync_slave_sql_with_master.inc
+include/check_slave_is_running.inc
+**** On Slave ; expect count to be 0 ****
+SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
+COUNT(*)
+0
+**** On Master ****
+DELETE FROM t2;
+DELETE FROM t3;
+include/sync_slave_sql_with_master.inc
+include/check_slave_is_running.inc
+**** On Slave ; expect count to be 0 ****
+SELECT COUNT(*) FROM t2 ORDER BY c1,c2;
+COUNT(*)
+0
+SELECT COUNT(*) FROM t3 ORDER BY c1,c2;
+COUNT(*)
+0
+**** On Master ****
+drop table t1, t2, t3;
+**** Cleanup on Slave ****
+set @@global.slave_exec_mode= @prior_slave_exec_mode;
+set @@global.slave_rows_search_algorithms= @prior_slave_rows_search_algorithms;
+call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table test.t.* Error_code: 1032");
+include/rpl_end.inc
