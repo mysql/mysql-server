@@ -24,7 +24,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ALTER INSTANCE ROTATE INNODB SLAVE KEY;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SLAVE KEY' at line 1
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 ERROR HY000: Function 'keyring_file' already exists
@@ -70,7 +70,7 @@ INSERT INTO t3 VALUES(2, "ccccc");
 keyring_tmp
 
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 # Check for keyring file.
 keyring_tmp
 
@@ -103,7 +103,7 @@ c1	c2
 2	ccccc
 # restart: --early-plugin-load=keyring_file=keyring_file.so --keyring_file_data=MYSQL_TMP_DIR/keyring/keyring_new
 SELECT * FROM t1;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 CREATE TABLE t12(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 INSERT INTO t12 VALUES(2, "ccccchfc");
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
@@ -116,21 +116,21 @@ PLUGIN_NAME	keyring_file
 PLUGIN_VERSION	1.0
 PLUGIN_STATUS	ACTIVE
 SELECT * FROM t2;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 CREATE TABLE t11(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 SELECT * FROM t2;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 UNINSTALL PLUGIN keyring_file;
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 SELECT * FROM t11;
 c1	c2
 SELECT COUNT(*) FROM t1;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 CREATE TABLE t4(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 CREATE TABLE t5(c1 INT, c2 char(20)) ENGINE = InnoDB;
 INSERT INTO t5 VALUES(100, "without_enc");
 keyring
@@ -143,11 +143,11 @@ PLUGIN_NAME	keyring_file
 PLUGIN_VERSION	1.0
 PLUGIN_STATUS	ACTIVE
 CREATE TABLE t6(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 SELECT * FROM t3;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 
 SELECT * FROM t5;
 c1	c2
