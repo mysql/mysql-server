@@ -118,6 +118,9 @@ private:
   virtual void on_client_closed(const ngs::Client_interface &client);
   virtual bool is_terminating() const;
 
+  void register_udfs();
+  void unregister_udfs();
+
   static Server*      instance;
   static ngs::RWLock  instance_rwl;
   static MYSQL_PLUGIN plugin_ref;
@@ -130,6 +133,7 @@ private:
   ngs::shared_ptr<ngs::Scheduler_dynamic> m_nscheduler;
   ngs::Mutex  m_accepting_mutex;
   ngs::Server m_server;
+  std::set<std::string> m_udf_names;
 
   static bool exiting;
   static bool is_exiting();

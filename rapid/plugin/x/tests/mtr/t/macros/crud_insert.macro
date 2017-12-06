@@ -63,3 +63,30 @@ Mysqlx.Crud.Insert {
   %PAYLOAD%
 }
 -->endmacro
+
+-->macro Insert  %MODEL%  %TABLE%  %ROWS%  %UPSERT%  %ERROR%
+Mysqlx.Crud.Insert {
+  data_model: %MODEL%
+  collection { name: '%TABLE%' schema: 'xtest'}
+  %ROWS%
+  upsert: %UPSERT%
+}
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+-->macro Insert_one  %MODEL%  %TABLE%  %ROW%  %ERROR%
+-->callmacro Insert %MODEL%	%TABLE%	row{field{%ROW%}}	false	%ERROR%
+-->endmacro
+
+-->macro Insert_two  %MODEL%  %TABLE%  %ROW1%  %ROW2%  %ERROR%
+-->callmacro Insert %MODEL%	%TABLE%	row{field{%ROW1%}} row{field{%ROW2%}}	false	%ERROR%
+-->endmacro
+
+-->macro Upsert_one  %MODEL%  %TABLE%  %ROW%  %ERROR%
+-->callmacro Insert %MODEL%	%TABLE%	row{field{%ROW%}}	true	%ERROR%
+-->endmacro
+
+-->macro Upsert_two  %MODEL%  %TABLE%  %ROW1%  %ROW2%  %ERROR%
+-->callmacro Insert %MODEL%	%TABLE%	row{field{%ROW1%}} row{field{%ROW2%}}	true	%ERROR%
+-->endmacro

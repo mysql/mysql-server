@@ -1,0 +1,227 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+CREATE SCHEMA xtest;
+
+Data model: TABLE
+=================
+
+0 rows affected
+
+Insert two docs
+---------------
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+Upsert one doc
+--------------
+Got expected error: Unable update on duplicate key for TABLE data model (code 5014)
+
+Data model: DOCUMENT
+====================
+
+Test0 - No matches
+------------------
+
+command ok
+
+command ok
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+1 rows affected
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+{"_id": "3", "name": "foo", "email": "foo@ora.com"}
+0 rows affected
+
+Test1 - Match on _id
+--------------------
+
+command ok
+
+command ok
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+2 rows affected
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@ora.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+Test2 - Match on secondary key only
+-----------------------------------
+
+command ok
+
+command ok
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+Got expected error: Unable upsert data in document collection 'col2' (code 5018)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+Test3 - Match on _id only, missing secondary index
+--------------------------------------------------
+
+command ok
+
+command ok
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+Got expected error: Document is missing a required field (code 5115)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+Test4 - Match on _id and secondary, but from different rows
+-----------------------------------------------------------
+
+command ok
+
+command ok
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+Test5 - Match on _id and secondary key (other field value updated)
+------------------------------------------------------------------
+
+command ok
+
+command ok
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+2 rows affected
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "bla", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+Test7 - New unique document, with missing field on secondary key
+----------------------------------------------------------------
+
+command ok
+
+command ok
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+Got expected error: Document is missing a required field (code 5115)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+Test8 - Match on _id only, missing  field at secondary index
+------------------------------------------------------------
+
+command ok
+
+command ok
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+Got expected error: Document is missing a required field (code 5115)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+Test9 - Match on _id and null value at secondary index
+------------------------------------------------------
+
+command ok
+
+command ok
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+{"_id": "3", "name": "foo", "email": "foo@ora.com"}
+0 rows affected
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+{"_id": "3", "name": "foo", "email": "foo@ora.com"}
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;
+UNINSTALL PLUGIN mysqlx;

@@ -149,8 +149,10 @@ TEST_F(Insert_statement_builder_test, add_projection_document_one_item) {
 TEST_F(Insert_statement_builder_test, add_upsert) {
   ASSERT_NO_THROW(builder().add_upsert(DM_DOCUMENT));
   EXPECT_STREQ(
-      " ON DUPLICATE KEY UPDATE doc = JSON_SET(VALUES(doc), '$._id',"
-      " JSON_EXTRACT(doc, '$._id'))",
+      " ON DUPLICATE KEY UPDATE"
+      " doc = IF(JSON_EXTRACT(doc, '$._id')"
+      " = JSON_EXTRACT(VALUES(doc), '$._id'),"
+      " VALUES(doc), MYSQLX_ERROR(5018))",
       query.get().c_str());
   ASSERT_THROW(builder().add_upsert(DM_TABLE), ngs::Error_code);
 }
@@ -187,8 +189,9 @@ TEST_F(Insert_statement_builder_test, build_document_upsert) {
   ASSERT_NO_THROW(builder().build(msg));
   EXPECT_STREQ(
       "INSERT INTO `xtest`.`xcoll` (doc) VALUES ('first'),('second')"
-      " ON DUPLICATE KEY UPDATE doc = JSON_SET(VALUES(doc), '$._id',"
-      " JSON_EXTRACT(doc, '$._id'))",
+      " ON DUPLICATE KEY UPDATE"
+      " doc = IF(JSON_EXTRACT(doc, '$._id') = JSON_EXTRACT(VALUES(doc),"
+      " '$._id'), VALUES(doc), MYSQLX_ERROR(5018))",
       query.get().c_str());
 }
 

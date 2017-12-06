@@ -25,6 +25,7 @@
 #define ER_X_CMD_NUM_ARGUMENTS           5015
 #define ER_X_CMD_ARGUMENT_TYPE           5016
 #define ER_X_CMD_ARGUMENT_VALUE          5017
+#define ER_X_BAD_UPSERT_DATA             5018
 
 #define ER_X_BAD_UPDATE_DATA             5050
 #define ER_X_BAD_TYPE_OF_UPDATE          5051
