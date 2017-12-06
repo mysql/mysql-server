@@ -375,3 +375,11 @@ WHERE VARIABLE_NAME = 'max_connections';
 VARIABLE_SOURCE	SET_USER	SET_HOST
 PERSISTED	NULL	NULL
 RESET PERSIST;
+#
+# Bug27193853: ASSERT `(0)' AT SYS_VARS.H:2416 FOR SET PERSIST_ONLY
+#               GTID_OWNED/EXECUTED
+#
+SET PERSIST_ONLY gtid_owned='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+ERROR HY000: Variable 'gtid_owned' is a non persistent read only variable
+SET PERSIST_ONLY gtid_executed='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+ERROR HY000: Variable 'gtid_executed' is a non persistent read only variable

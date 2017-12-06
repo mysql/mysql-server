@@ -420,3 +420,14 @@ SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_inf
 # cleanup
 RESET PERSIST;
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo #
+--echo # Bug27193853: ASSERT `(0)' AT SYS_VARS.H:2416 FOR SET PERSIST_ONLY
+--echo #               GTID_OWNED/EXECUTED
+--echo #
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST_ONLY gtid_owned='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST_ONLY gtid_executed='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+
