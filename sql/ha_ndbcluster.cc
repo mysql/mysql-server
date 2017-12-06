@@ -9126,12 +9126,10 @@ ndb_column_is_dynamic(THD *thd,
                           field->field_name);
     }
     break;
-  case ROW_TYPE_DYNAMIC:
+  default:
     /*
       Columns will be dynamic unless explictly specified FIXED
     */
-    break;
-  default:
     break;
   }
 
@@ -10711,25 +10709,25 @@ int ha_ndbcluster::create(const char *name,
   }
 
   /*
-    Handle table row type
+    ROW_FORMAT=[DEFAULT|FIXED|DYNAMIC|etc.]
 
-    Default is to let table rows have var part reference so that online 
-    add column can be performed in the future.  Explicitly setting row 
-    type to fixed will omit var part reference, which will save data 
-    memory in ndb, but at the cost of not being able to online add 
-    column to this table
+    Controls wheter the NDB table will be created with a "varpart reference",
+    thus allowing columns to be added inplace at a later time.
+    It's possible to turn off "varpart reference" with ROW_FORMAT=FIXED, this
+    will save datamemory in NDB at the cost of not being able to add
+    columns inplace. Any other value enables "varpart reference".
   */
-  switch (create_info->row_type) {
-  case ROW_TYPE_FIXED:
+  if (create_info->row_type == ROW_TYPE_FIXED)
+  {
+    // CREATE TABLE .. ROW_FORMAT=FIXED
+    DBUG_PRINT("info", ("Turning off 'varpart reference'"));
     tab.setForceVarPart(false);
-    break;
-  case ROW_TYPE_DYNAMIC:
-    /* fall through, treat as default */
-  default:
-    /* fall through, treat as default */
-  case ROW_TYPE_DEFAULT:
+    DBUG_ASSERT(ndb_dd_table_is_using_fixed_row_format(table_def));
+  }
+  else
+  {
     tab.setForceVarPart(true);
-    break;
+    DBUG_ASSERT(!ndb_dd_table_is_using_fixed_row_format(table_def));
   }
 
   /*
@@ -16422,19 +16420,33 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
   DBUG_PRINT("info", ("alter_flags & not_supported 0x%llx",
                         alter_flags & not_supported));
 
-  bool auto_increment_value_changed= false;
   bool max_rows_changed= false;
   bool comment_changed = false;
   bool table_storage_changed= false;
   if (alter_flags & Alter_inplace_info::CHANGE_CREATE_OPTION)
   {
     DBUG_PRINT("info", ("Some create options changed"));
-    if (create_info->auto_increment_value !=
-      table->file->stats.auto_increment_value)
+    if (create_info->used_fields & HA_CREATE_USED_AUTO &&
+        create_info->auto_increment_value != stats.auto_increment_value)
     {
       DBUG_PRINT("info", ("The AUTO_INCREMENT value changed"));
-      auto_increment_value_changed= true;
+
+      /* Check that no other create option changed */
+      if (create_info->used_fields ^ ~HA_CREATE_USED_AUTO)
+      {
+        DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                        "Not only AUTO_INCREMENT value "
+                                        "changed"));
+      }
     }
+
+    /* Check that ROW_FORMAT didn't change */
+    if (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT &&
+        create_info->row_type != table_share->real_row_type)
+    {
+      DBUG_RETURN(inplace_unsupported(ha_alter_info, "ROW_FORMAT changed"));
+    }
+
     if (create_info->used_fields & HA_CREATE_USED_MAX_ROWS)
     {
       DBUG_PRINT("info", ("The MAX_ROWS value changed"));
@@ -16813,28 +16825,9 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
     }
   }
 
-  /* Check that only auto_increment value was changed */
-  if (auto_increment_value_changed)
-  {
-    if (create_info->used_fields ^ ~HA_CREATE_USED_AUTO)
-    {
-      DBUG_RETURN(inplace_unsupported(ha_alter_info,
-                                      "Not only auto_increment value changed"));
-    }
-  }
-  else
-  {
-    /* Check that row format didn't change */
-    if (create_info->used_fields & HA_CREATE_USED_AUTO &&
-        table->s->real_row_type != create_info->row_type)
-    {
-      DBUG_RETURN(inplace_unsupported(ha_alter_info, "Row format changed"));
-    }
-  }
-
   // All unsupported cases should have returned directly
   DBUG_ASSERT(result != HA_ALTER_INPLACE_NOT_SUPPORTED);
-  DBUG_PRINT("info", ("Ndb supports ALTER online"));
+  DBUG_PRINT("info", ("Inplace alter is supported"));
   DBUG_RETURN(result);
 }
 

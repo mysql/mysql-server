@@ -264,6 +264,16 @@ public:
                    const dd::Table *from_table_def,
                    dd::Table *to_table_def) override;
   int delete_table(const char *name, const dd::Table *table_def) override;
+  row_type get_real_row_type(const HA_CREATE_INFO *create_info) const override
+  {
+    DBUG_ENTER("ha_ndbcluster::get_real_row_type");
+    // ROW_RORMAT=FIXED -> using FIXED
+    if (create_info->row_type == ROW_TYPE_FIXED)
+      DBUG_RETURN(ROW_TYPE_FIXED);
+
+    // All other values uses DYNAMIC
+    DBUG_RETURN(ROW_TYPE_DYNAMIC);
+  }
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info,
              dd::Table* table_def) override;
   int truncate(dd::Table* table_def) override;
@@ -274,6 +284,7 @@ public:
       return true;
     return false;
   }
+
 
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,

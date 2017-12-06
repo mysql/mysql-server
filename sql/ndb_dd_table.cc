@@ -105,3 +105,8 @@ size_t ndb_dd_table_get_num_columns(const dd::Table* table_def)
   const dd::Abstract_table::Column_collection& cols = table_def->columns();
   return cols.size();
 }
+
+bool ndb_dd_table_is_using_fixed_row_format(const dd::Table* table_def)
+{
+  return table_def->row_format() == dd::Table::RF_FIXED;
+}
