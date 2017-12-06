@@ -46,7 +46,7 @@ SET GLOBAL debug= '$slave_debug';
 #
 # Error: Binary log is not open on master
 #
-include/rpl_restart_server.inc [server_number=1 parameters: --disable-log-bin --gtid-mode=off --slave-preserve-commit-order=OFF]
+include/rpl_restart_server.inc [server_number=1 parameters: --disable-log-bin --gtid-mode=off]
 #
 # Error: master's gtid_mode is not on
 #

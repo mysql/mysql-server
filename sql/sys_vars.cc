@@ -3733,10 +3733,10 @@ static Sys_var_enum Mts_parallel_type(
        "slave_parallel_type",
        "Specifies if the slave will use database partitioning "
        "or information from master to parallelize transactions."
-       "(Default: LOGICAL_CLOCK).",
+       "(Default: DATABASE).",
        GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
        mts_parallel_type_names,
-       DEFAULT(MTS_PARALLEL_TYPE_LOGICAL_CLOCK),  NO_MUTEX_GUARD,
+       DEFAULT(MTS_PARALLEL_TYPE_DB_NAME),  NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 
@@ -3805,10 +3805,10 @@ static Sys_var_ulong Binlog_transaction_dependency_history_size(
 static Sys_var_bool Sys_slave_preserve_commit_order(
        "slave_preserve_commit_order",
        "Force slave workers to make commits in the same order as on the master. "
-       "Enabled by default.",
+       "Disabled by default.",
        GLOBAL_VAR(opt_slave_preserve_commit_order),
        CMD_LINE(OPT_ARG, OPT_SLAVE_PRESERVE_COMMIT_ORDER),
-       DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 
@@ -5936,7 +5936,7 @@ static Sys_var_ulong Sys_slave_parallel_workers(
        "slave_parallel_workers",
        "Number of worker threads for executing events in parallel ",
        GLOBAL_VAR(opt_mts_slave_parallel_workers), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(4), BLOCK_SIZE(1));
+       VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_ulonglong Sys_mts_pending_jobs_size_max(
        "slave_pending_jobs_size_max",

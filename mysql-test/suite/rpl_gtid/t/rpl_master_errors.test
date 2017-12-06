@@ -99,7 +99,7 @@ SET GLOBAL debug= '$slave_debug';
 
 # Need to restart master without binlog
 --let $rpl_server_number= 1
---let $rpl_server_parameters= --disable-log-bin --gtid-mode=off --slave-preserve-commit-order=OFF
+--let $rpl_server_parameters= --disable-log-bin --gtid-mode=off
 --source include/rpl_restart_server.inc
 
 --error 1
