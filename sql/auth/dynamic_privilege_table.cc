@@ -104,15 +104,9 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst)
   READ_RECORD read_record_info;
   Acl_table_intact table_intact(thd);
 
-  if (!tablelst[0].table->key_info ||
-      table_intact.check(tablelst[0].table,
+  if (table_intact.check(tablelst[0].table,
                          ACL_TABLES::TABLE_DYNAMIC_PRIV))
-  {
-    TABLE *table= tablelst[0].table;
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
     DBUG_RETURN(true);
-  }
 
   TABLE *table= tablelst[0].table;
   table->use_all_columns();
@@ -227,14 +221,8 @@ bool modify_dynamic_privileges_in_table(THD *thd, TABLE *table,
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
 
-
-  if (!table->key_info ||
-      table_intact.check(table, ACL_TABLES::TABLE_DYNAMIC_PRIV))
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
+  if (table_intact.check(table, ACL_TABLES::TABLE_DYNAMIC_PRIV))
     DBUG_RETURN(true);
-  }
 
   table->use_all_columns();
   table->field[MYSQL_DYNAMIC_PRIV_FIELD_HOST]

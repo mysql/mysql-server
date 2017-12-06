@@ -3945,7 +3945,7 @@ Table_check_intact::check(THD *thd, TABLE *table,
 
   /* Whether the table definition has already been validated. */
   if (table->s->table_field_def_cache == table_def)
-    DBUG_RETURN(false);
+    goto end;
 
   if (table->s->fields != table_def->count)
   {
@@ -4062,6 +4062,15 @@ Table_check_intact::check(THD *thd, TABLE *table,
 
   if (! error)
     table->s->table_field_def_cache= table_def;
+
+end:
+
+  if (has_keys && !error && !table->key_info)
+  {
+    my_error(ER_MISSING_KEY, MYF(0), table->s->db.str,
+             table->s->table_name.str);
+    error= true;
+  }
 
   DBUG_RETURN(error);
 }

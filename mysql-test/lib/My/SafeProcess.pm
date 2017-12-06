@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2016 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -159,7 +159,7 @@ sub new {
   my ($safe_path, $safe_script)= @safe_process_cmd;
   push(@safe_args, $safe_script) if defined $safe_script;
 
-  push(@safe_args, "--verbose") if $verbose > 0;
+  push(@safe_args, "--verbose") if $verbose;
   push(@safe_args, "--nocore") if $nocore;
 
   # Point the safe_process at the right parent if running on cygwin
@@ -181,8 +181,10 @@ sub new {
   }
   push(@safe_args, @$$args);
 
-  print "### safe_path: ", $safe_path, " ", join(" ", @safe_args), "\n"
-    if $verbose > 1;
+  if ($verbose)
+  {
+    print "### safe_path: ", $safe_path, " ", join(" ", @safe_args), "\n";
+  }
 
   my $pid= create_process(
 			  path      => $safe_path,

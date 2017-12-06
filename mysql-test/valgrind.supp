@@ -1697,15 +1697,23 @@
   ...
 }
 
-# Temp workaround for
+# Workarounds for
 #
 # Bug#26116237 SYSCALL PARAM PPOLL(SIGMASK) POINTS TO UNADDRESSABLE BYTE
 {
-   RPL temp workaround
+   RPL workaround 1
    Memcheck:Param
    ppoll(sigmask)
    fun:ppoll
    fun:vio_io_wait
+}
+
+{
+   RPL workaround 2
+   Memcheck:Param
+   ppoll(sigmask)
+   fun:ppoll
+   fun:_Z11vio_io_waitP3Vio17enum_vio_io_eventi
 }
 
 # Workarounds for

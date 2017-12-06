@@ -23,11 +23,10 @@ use strict;
 
 use base qw(Exporter);
 our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
-		mtr_print_header mtr_report mtr_report_stats
-		mtr_warning mtr_error mtr_debug mtr_verbose
-		mtr_verbose_restart mtr_report_test_passed
-		mtr_report_test_skipped mtr_print
-		mtr_report_test isotime mtr_summary_file_init mtr_xml_init
+                mtr_print_header mtr_report mtr_report_stats mtr_warning
+                mtr_error mtr_verbose mtr_verbose_restart
+                mtr_report_test_passed mtr_report_test_skipped mtr_print
+                mtr_report_test isotime mtr_summary_file_init mtr_xml_init
                 disk_usage);
 
 use mtr_match;
@@ -908,20 +907,11 @@ sub mtr_error (@) {
 }
 
 
-sub mtr_debug (@) {
-  if ( $verbose > 2 )
+sub mtr_verbose (@)
+{
+  if ($verbose)
   {
-    print STDERR _name().
-      _timestamp(). "####: ". join(" ", @_). "\n";
-  }
-}
-
-
-sub mtr_verbose (@) {
-  if ( $verbose )
-  {
-    print STDERR _name(). _timestamp().
-      "> ".join(" ", @_)."\n";
+    print STDERR _name() . _timestamp() . "> " . join(" ", @_) . "\n";
   }
 }
 

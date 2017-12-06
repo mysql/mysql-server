@@ -53,7 +53,7 @@ typedef enum ACL_TABLES
 class Acl_table_intact : public Table_check_intact
 {
 public:
-  Acl_table_intact(THD *c_thd) : thd(c_thd) {}
+  Acl_table_intact(THD *c_thd) : thd(c_thd) { has_keys= true; }
 
   /**
     Checks whether an ACL table is intact.

@@ -107,7 +107,7 @@ private:
   /**
     Actual value, if m_has_value is true. Undefined if m_has_value is false.
   */
-  T_value m_value;
+  T_value m_value{};
 };
 
 }
