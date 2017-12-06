@@ -1519,17 +1519,17 @@ static bool component_infrastructure_init()
 */
 static void server_component_init()
 {
+  mysql_comp_sys_var_services_init();
   /*
     Below are dummy initialization functions. Else linker, is cutting out (as
-    library optimization) the string services, component system variables and
-    backup lock service code. This is because of libsql code is not calling
-    any functions of them
+    library optimization) all the below services code. This is because of
+    libsql code is not calling any functions of them.
   */
   mysql_string_services_init();
   mysql_comp_status_var_services_init();
-  mysql_comp_sys_var_services_init();
   mysql_comp_system_variable_source_init();
   mysql_backup_lock_service_init();
+  mysql_security_context_init();
 }
 
 /**
@@ -1583,7 +1583,6 @@ static bool component_infrastructure_deinit()
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
     return true;
   }
-
   return false;
 }
 

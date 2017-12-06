@@ -56,12 +56,17 @@ bool Auto_THD::handle_condition(THD *thd MY_ATTRIBUTE((unused)),
   Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
   const char *msg)
 {
-  /*
-    Currently logging at ERROR_LEVEL for backward compatibility.
-    Perhaps change this to *level later?
-  */
+  int log_err_level= 0;
+
+  if (*level == Sql_condition::SL_WARNING)
+    log_err_level= WARNING_LEVEL;
+  else if (*level == Sql_condition::SL_ERROR)
+    log_err_level= ERROR_LEVEL;
+  else if (*level == Sql_condition::SL_NOTE)
+    log_err_level= INFORMATION_LEVEL;
+
   LogEvent().type(LOG_TYPE_ERROR)
-            .prio(ERROR_LEVEL)
+            .prio(log_err_level)
             .errcode(sql_errno)
             .sqlstate(sqlstate)
             .verbatim(msg);

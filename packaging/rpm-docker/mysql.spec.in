@@ -226,6 +226,7 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
          component_test_status_var_service_str.so\
          component_test_status_var_service_unreg_only.so\
          component_test_system_variable_source.so\
+         component_validate_password.so\
          daemon_example.ini ha_example.so libdaemon_example.so \
          pfs_example_plugin_employee.so qa_auth_client.so qa_auth_interface.so \
          qa_auth_server.so replication_observers_example_plugin.so \
@@ -398,14 +399,24 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Wed Dec 06 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.4-0.1
+- Add component_validate_password component
+
 * Thu Nov 30 2017 Bharathy Satish <bharathy.x.satish@oracle.com> - 8.0.4-0.1
 - Add keyring_encrypted_file.so plugin
 - Do not package udf_example.so
 
-* Mon Nov 06 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
+* Mon Nov 06 2017 Balasubramanian Kandasamy
+* <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
 - Add mysqlbackup
 
-* Wed Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
+* Thu Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
+- Add component_test_component_sys_status_service plugin
+
+* Tue Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
+- Add component_test_status_var_service plugin
+
+* Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
 - Updated for 8.0.3 release
 - Add component_test_status_var_service plugin
 

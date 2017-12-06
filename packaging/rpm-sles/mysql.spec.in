@@ -1067,6 +1067,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_str.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_unreg_only.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_system_variable_source.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
@@ -1134,6 +1135,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_str.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_unreg_only.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_system_variable_source.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/udf_example.so
@@ -1229,12 +1231,25 @@ fi
 %endif
 
 %changelog
-* Thu Nov 30 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
-- Add meb as sub package
-- Remove obsoleted mysqltest man pages
+* Wed Dec 06 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.4-0.1
+- Add component_validate_password component
+
+* Thu Nov 30 2017 Balasubramanian Kandasamy
+* <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
 - Include udf_example.so in test package
 
-* Wed Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
+* Tue Oct 31 2017 Balasubramanian Kandasamy
+* <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
+- Add meb as sub package
+- Remove obsoleted mysqltest man pages
+
+* Fri Jul 28 2017 Horst Hunger <Horst.hunger@oracle.com> - 8.0.3-0.1
+- Add component_test_status_var_service plugin
+
+* Tue Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
+- Add component_test_status_var_service plugin
+
+* Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
 - Updated for 8.0.3 release
 - Add component_test_status_var_service plugin
 

@@ -58,9 +58,13 @@ Warnings:
 Warning	1287	'SHOW PROFILES' is deprecated and will be removed in a future release. Please use Performance Schema instead
 # --plugin-xyz
 INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
 # restarting the server
 # Restart server.
 UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
 # Search for deprecation warnings in error log.
 # YMMDD HH:MM:SS [Warning] The syntax 'plugin-validate-password-length' is deprecated and will be removed in a future release. Please use validate-password-length instead.
 Deprecation warning count : 1
