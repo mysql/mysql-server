@@ -48,6 +48,7 @@ bool server_shutdown_status= false;
 bool plugin_is_auto_starting= false;
 static bool plugin_is_waiting_to_set_server_read_mode= false;
 static bool plugin_is_being_uninstalled= false;
+bool plugin_is_setting_read_mode = false;
 
 static SERVICE_TYPE(registry) *reg_srv= nullptr;
 SERVICE_TYPE(log_builtins) *log_bi= nullptr;
@@ -551,16 +552,39 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
    This can only be done on START command though, on installs there are
    deadlock issues.
   */
-  if (!plugin_is_auto_starting &&
-      enable_super_read_only_mode(sql_command_interface))
+  if (!plugin_is_auto_starting)
   {
-    /* purecov: begin inspected */
-    error =1;
-    log_message(MY_ERROR_LEVEL,
-                "Could not enable the server read only mode and guarantee a "
-                  "safe recovery execution");
-    goto err;
-    /* purecov: end */
+    if (enable_super_read_only_mode(sql_command_interface))
+    {
+      /* purecov: begin inspected */
+      error =1;
+      log_message(MY_ERROR_LEVEL,
+                  "Could not enable the server read only mode and guarantee a "
+                    "safe recovery execution");
+      goto err;
+      /* purecov: end */
+    }
+  }
+  else
+  {
+    /*
+      This flag is used to prevent that a GCS thread that's setting the read
+      mode and a simultaneous uninstall command block.
+
+      If the plugin is installed with autostart, the following actions occur:
+      1) The install invokes start.
+      2) Start cannot set the read mode because it is inside the install
+      (server MDL locks issue).
+      3) Start delays the read mode setting to the view installation.
+      4) The view is installed, so the start terminates and the install
+      returns.
+      5) Then, some user requests the plugin to uninstall.
+      6) The uninstall command will take a MDL lock.
+      7) This causes the GCS thread that was setting the read mode to block.
+      8) Ultimately, the uninstall command blocks because GCS is not able to
+      set the read mode.
+    */
+    plugin_is_setting_read_mode = true;
   }
   enabled_super_read_only= true;
   if (delayed_init_thd)
@@ -668,6 +692,8 @@ err:
 
   if (error)
   {
+    plugin_is_setting_read_mode = false;
+
     //Unblock the possible stuck delayed thread
     if (delayed_init_thd)
       delayed_init_thd->signal_read_mode_ready();
@@ -1277,8 +1303,13 @@ static int plugin_group_replication_check_uninstall(void *)
 
   int result= 0;
 
-  if (plugin_is_group_replication_running() &&
-      group_member_mgr->is_majority_unreachable())
+  /*
+    Uninstall fails
+    1. Plugin is setting the read mode so uninstall would deadlock
+    2. Plugin in on a network partition
+  */
+  if (plugin_is_setting_read_mode || (plugin_is_group_replication_running() &&
+      group_member_mgr->is_majority_unreachable()))
   {
     result= 1;
     my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0),
