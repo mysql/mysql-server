@@ -26,6 +26,10 @@ INCLUDE_DIRECTORIES(SYSTEM
   ${GMOCK_INCLUDE_DIRS}
 )
 
+IF(LINUX_ALPINE)
+  INCLUDE_DIRECTORIES(SYSTEM "/usr/include/tirpc")
+ENDIF()
+
 # Add tests
 SET(TESTS
     group_replication_member_info
