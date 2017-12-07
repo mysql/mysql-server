@@ -1,5 +1,6 @@
 ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 --echo #
 --echo # Tests for setting the global and session value for net_read_timeout
@@ -19,7 +20,7 @@ SET @@global.net_read_timeout = 100;
 SET @@session.net_read_timeout = 200;
 -->endsql
 EOF
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/net_var_1.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/net_var_1.tmp 2>&1
 
 --echo # Get after values
 SELECT @@global.net_read_timeout;
@@ -47,7 +48,7 @@ SET @@session.net_write_timeout = 200;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/net_var_2.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/net_var_2.tmp 2>&1
 
 --echo # Get after values
 SELECT @@global.net_write_timeout;
@@ -76,7 +77,7 @@ SET @@session.net_retry_count = 200;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/net_var_3.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/net_var_3.tmp 2>&1
 
 --echo # Get after values
 SELECT @@global.net_retry_count;
@@ -91,4 +92,5 @@ SET @@global.net_retry_count = @start_global_retry_value;
 --remove_file $MYSQL_TMP_DIR/net_var_3.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;

@@ -94,6 +94,9 @@ struct st_row_connect_config
   double heartbeat_interval;
   char tls_version[FN_REFLEN];
   uint tls_version_length;
+  char public_key_path[FN_REFLEN];
+  uint public_key_path_length;
+  enum_rpl_yes_no get_public_key;
 };
 
 class PFS_index_rpl_connection_config : public PFS_engine_index

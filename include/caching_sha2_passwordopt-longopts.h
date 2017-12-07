@@ -17,6 +17,10 @@
   @file include/caching_sha2_passwordopt-longopts.h
 */
 
+{"server-public-key-path", OPT_SERVER_PUBLIC_KEY,
+ "File path to the server public RSA key in PEM format.",
+ &opt_server_public_key, &opt_server_public_key, 0,
+ GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 {"get-server-public-key", 0,
  "Get server public key",
  &opt_get_server_public_key,

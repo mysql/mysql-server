@@ -2876,6 +2876,8 @@ drop table t1;
 # Test change_user command
 # ----------------------------------------------------------------------------
 
+--connect(change_user_conn, localhost, root,,,,)
+
 --error ER_BAD_DB_ERROR
 --change_user root,,inexistent
 
@@ -2889,6 +2891,9 @@ drop table t1;
 --change_user root
 --change_user root,,
 --change_user root,,test
+
+--connection default
+--disconnect change_user_conn
 
 # ----------------------------------------------------------------------------
 # Test mkdir and rmdir command

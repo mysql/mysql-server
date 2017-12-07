@@ -2,7 +2,8 @@
 ##
 --source include/not_windows.inc
 --source include/xplugin_preamble.inc
- 
+--source include/xplugin_create_user.inc
+
 create user nonblank@localhost identified by 'nonblank';
 
 --write_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
@@ -19,7 +20,7 @@ let $restart_parameters_restore =;
 let $XPLUGIN_SOCKET=$MASTER_X_MYSOCK;
 if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") != 0`)
 {
-  connect (master,localhost,root,,,,,PIPE);
+  connect (master,localhost,x_root,,,,,PIPE);
   let $restart_parameters = restart: --enable-named-pipe --skip-networking --loose-mysqlx-named-pipe=ON  --loose-mysqlx-socket=MySQLX_$MASTER_MYPORT;
   let $restart_parameters_restore = --enable-named-pipe;
   let $XPLUGIN_SOCKET=MySQLX_$MASTER_MYPORT;
@@ -33,12 +34,12 @@ if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Wind
 --enable_result_log
 
 --echo Verify UNIX socket or Named Pipe connection that it still works
---exec $MYSQLXTEST -u root --password='' --socket=$XPLUGIN_SOCKET --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --socket=$XPLUGIN_SOCKET --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
 --echo Following commands should fail
 --replace_regex /ERROR: .+:[0-9]+/ERROR: Connection refused connecting to localhost:PORT/
 --error 1
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
 --echo try login using mysqlx protocol when server started with skip-networking options and mysqlx loaded with non super user
 --replace_regex /ERROR: .+:[0-9]+/ERROR: Connection refused connecting to localhost:PORT/
@@ -59,11 +60,11 @@ if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Wind
 --disable_result_log
 --echo Following commands should fail
 --error 1
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
 --echo Verify UNIX socket or Named Pipe is disabled
 --error 1
---exec $MYSQLXTEST -u root --password='' --socket=$XPLUGIN_SOCKET --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --socket=$XPLUGIN_SOCKET --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
 --disable_query_log
 let $restart_parameters = restart: $restart_parameters_restore;
@@ -72,6 +73,7 @@ let $restart_parameters = restart: $restart_parameters_restore;
 --enable_result_log
 
 ##cleanup
+--source include/xplugin_drop_user.inc
 --remove_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
 drop user nonblank@localhost;
 UNINSTALL PLUGIN mysqlx;

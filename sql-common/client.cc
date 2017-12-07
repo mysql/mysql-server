@@ -124,6 +124,7 @@ using std::swap;
 }
 
 #define native_password_plugin_name "mysql_native_password"
+#define caching_sha2_password_plugin_name "caching_sha2_password"
 
 PSI_memory_key key_memory_mysql_options;
 PSI_memory_key key_memory_MYSQL_DATA;
@@ -3311,7 +3312,7 @@ static auth_plugin_t caching_sha2_password_client_plugin=
 {
   MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
   MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
-  "caching_sha2_password",
+  caching_sha2_password_plugin_name,
   "Oracle Inc",
   "SHA2 based authentication with salt",
   {1, 0, 0},
@@ -4314,7 +4315,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
   }
   else
   {
-    auth_plugin= &native_password_client_plugin;
+    auth_plugin= &caching_sha2_password_client_plugin;
     auth_plugin_name= auth_plugin->name;
   }
 
@@ -5083,7 +5084,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     else
     {
       scramble_data_len= (int)(pkt_end - scramble_data);
-      scramble_plugin= native_password_plugin_name;
+      scramble_plugin= caching_sha2_password_plugin_name;
     }
   }
   else
@@ -6741,29 +6742,16 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   DBUG_ENTER("native_password_auth_client");
 
+  /* read the scramble */
+  if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
+    DBUG_RETURN(CR_ERROR);
 
-  if (((MCPVIO_EXT *)vio)->mysql_change_user)
-  {
-    /*
-      in mysql_change_user() the client sends the first packet.
-      we use the old scramble.
-    */
-    pkt= (uchar*)mysql->scramble;
-    pkt_len= SCRAMBLE_LENGTH + 1;
-  }
-  else
-  {
-    /* read the scramble */
-    if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
-      DBUG_RETURN(CR_ERROR);
+  if (pkt_len != SCRAMBLE_LENGTH + 1)
+    DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
 
-    if (pkt_len != SCRAMBLE_LENGTH + 1)
-      DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
-
-    /* save it in MYSQL */
-    memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
-    mysql->scramble[SCRAMBLE_LENGTH] = 0;
-  }
+  /* save it in MYSQL */
+  memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
+  mysql->scramble[SCRAMBLE_LENGTH] = 0;
 
   if (mysql->passwd[0])
   {

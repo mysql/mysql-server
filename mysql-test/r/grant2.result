@@ -179,7 +179,7 @@ grant update (c2) on test.t2 to 'mysqltest_2';
 select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 host	user	length(authentication_string)
 %	mysqltest_1	0
-%	mysqltest_2	41
+%	mysqltest_2	70
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 host	db	user
 %	test	mysqltest_2
@@ -202,7 +202,7 @@ GRANT UPDATE ("c2") ON "test"."t2" TO "mysqltest_2"@"%"
 drop user 'mysqltest_1';
 select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 host	user	length(authentication_string)
-%	mysqltest_2	41
+%	mysqltest_2	70
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 host	db	user
 %	test	mysqltest_2
@@ -218,7 +218,7 @@ ERROR 42000: There is no such grant defined for user 'mysqltest_1' on host '%'
 rename user 'mysqltest_2' to 'mysqltest_1';
 select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 host	user	length(authentication_string)
-%	mysqltest_1	41
+%	mysqltest_1	70
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 host	db	user
 %	test	mysqltest_1
@@ -357,7 +357,7 @@ mysqltest_1@127.0.0.1
 set password = 'changed';
 select host, length(authentication_string) from mysql.user where user like 'mysqltest\_1';
 host	length(authentication_string)
-127.0.0.1	41
+127.0.0.1	70
 revoke all on mysqltest_1.* from mysqltest_1@'127.0.0.1';
 delete from mysql.user where user like 'mysqltest\_1';
 flush privileges;
@@ -370,7 +370,7 @@ mysqltest_1@127.0.0.0/255.0.0.0
 set password = 'changed';
 select host, length(authentication_string) from mysql.user where user like 'mysqltest\_1';
 host	length(authentication_string)
-127.0.0.0/255.0.0.0	41
+127.0.0.0/255.0.0.0	70
 revoke all on mysqltest_1.* from mysqltest_1@'127.0.0.0/255.0.0.0';
 delete from mysql.user where user like 'mysqltest\_1';
 flush privileges;
@@ -518,7 +518,7 @@ Warnings:
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
 user	host	length(authentication_string)	insert_priv
-root	localhost	41	Y
+root	localhost	70	Y
 UPDATE user SET authentication_string=@pwd WHERE user=@u AND host=@h;
 SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
 user	host	length(authentication_string)	insert_priv

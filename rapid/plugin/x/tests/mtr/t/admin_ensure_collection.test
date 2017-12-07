@@ -1,6 +1,7 @@
 ## Admin command: ensure_collection
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 
@@ -221,12 +222,13 @@ GRANT SELECT ON xtest.* TO unpriv;
 EOF
 
 
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 --remove_file $xtest_file
 
 SHOW STATUS like 'Mysqlx_stmt_create_collection';
 SHOW STATUS like 'Mysqlx_stmt_ensure_collection';
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 DROP SCHEMA IF EXISTS xtest;
 UNINSTALL PLUGIN mysqlx;

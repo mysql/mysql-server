@@ -1,6 +1,7 @@
 ## Test notices
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 ## Test starts here
 --let $xtest_file= $MYSQL_TMP_DIR/stmtexecute_query_result_mysqlx.tmp
 --write_file $xtest_file
@@ -133,8 +134,9 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 --remove_file $xtest_file
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 UNINSTALL PLUGIN mysqlx;

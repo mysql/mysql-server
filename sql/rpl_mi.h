@@ -274,7 +274,9 @@ public:
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
   char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN], tls_version[FN_REFLEN];
   char ssl_crl[FN_REFLEN], ssl_crlpath[FN_REFLEN];
+  char public_key_path[FN_REFLEN];
   bool ssl_verify_server_cert;
+  bool get_public_key;
 
   MYSQL* mysql;
   uint32 file_id;				/* for 3.23 load data infile */

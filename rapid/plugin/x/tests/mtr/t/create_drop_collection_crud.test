@@ -24,6 +24,7 @@
 
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 call mtr.add_suppression("Error parsing message of type 12: args");
 call mtr.add_suppression("Error handling message: args");
 
@@ -353,7 +354,7 @@ Mysqlx.Sql.StmtExecute {
 
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
 
@@ -373,7 +374,7 @@ DROP TABLE xplugintest.table_sql;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
 
@@ -386,7 +387,7 @@ GRANT USAGE ON *.* TO 'user1'@'localhost';
 CREATE DATABASE xplugintest_user_access;
 -->endsql
 EOF
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
 --write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
@@ -435,7 +436,7 @@ DROP USER 'user1'@'localhost';
 DROP DATABASE xplugintest_user_access;
 -->endsql
 EOF
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
 
@@ -456,7 +457,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 EOF
 --error 1
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-out.tmp
 
@@ -497,7 +498,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
 --write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
@@ -529,7 +530,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
 
@@ -562,7 +563,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp  2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp  2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
 --write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
@@ -591,7 +592,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
 
@@ -625,7 +626,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
 --write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
@@ -657,7 +658,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
 
@@ -670,7 +671,7 @@ DROP DATABASE IF EXISTS xplugintest_1;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
 
@@ -731,8 +732,8 @@ END_MESSAGE
  print OUTPUT "-->endsql\n";
  close (OUTPUT);
 EOF
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1 &
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1 &
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
 let $wait_condition= select count(*)=2 from xplugintest.test_table;
 --source include/wait_condition.inc
 DROP DATABASE xplugintest;
@@ -796,8 +797,8 @@ END_MESSAGE
  print OUTPUT "-->endsql\n";
  close (OUTPUT);
 EOF
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1 &
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1 &
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
 let $wait_condition= select count(*)=2 from xplugintest.test_table;
 --source include/wait_condition.inc
 DROP DATABASE xplugintest;
@@ -805,6 +806,7 @@ DROP DATABASE xplugintest;
 --remove_file $MYSQL_TMP_DIR/mysqlx-out2.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-out.tmp
 
+--source include/xplugin_drop_user.inc
 #
 ## Postamble
 UNINSTALL PLUGIN mysqlx;

@@ -16133,6 +16133,7 @@ static void test_change_user()
   DIE_UNLESS(rc);
   if (! opt_silent)
     printf("Got error (as expected): %s\n", mysql_error(l_mysql));
+  reconnect(&l_mysql);
 
   rc= mysql_change_user(l_mysql, user_no_pw, pw, "");
   DIE_UNLESS(rc);
@@ -16174,6 +16175,7 @@ static void test_change_user()
   DIE_UNLESS(rc);
   if (! opt_silent)
     printf("Got error (as expected): %s\n", mysql_error(l_mysql));
+  reconnect(&l_mysql);
 
   rc= mysql_change_user(l_mysql, NULL, pw, NULL);
   DIE_UNLESS(rc);
@@ -16906,13 +16908,18 @@ static void test_bug31669()
   user[USERNAME_CHAR_LENGTH]= 0;
   memset(buff, 'c', sizeof(buff));
   buff[LARGE_BUFFER_SIZE]= 0;
-  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'%' IDENTIFIED BY "
-                 "'", buff, "' WITH GRANT OPTION", NullS);
+
+  strxmov(query, "CREATE USER '", user, "'@'%' IDENTIFIED WITH 'mysql_native_password' BY '", buff, "'", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'%' WITH GRANT OPTION", NullS);
   rc= mysql_query(mysql, query);
   myquery(rc);
 
-  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'localhost' IDENTIFIED BY "
-                 "'", buff, "' WITH GRANT OPTION", NullS);
+  strxmov(query, "CREATE USER '", user, "'@'localhost' IDENTIFIED WITH 'mysql_native_password' BY '", buff, "'", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'localhost' WITH GRANT OPTION", NullS);
   rc= mysql_query(mysql, query);
   myquery(rc);
 

@@ -104,7 +104,7 @@ max_questions int(11) unsigned DEFAULT 0  NOT NULL,
 max_updates int(11) unsigned DEFAULT 0  NOT NULL,
 max_connections int(11) unsigned DEFAULT 0  NOT NULL,
 max_user_connections int(11) unsigned DEFAULT 0  NOT NULL,
-plugin char(64) DEFAULT 'mysql_native_password' NOT NULL,
+plugin char(64) DEFAULT 'caching_sha2_password' NOT NULL,
 authentication_string TEXT,
 password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 password_last_changed timestamp NULL DEFAULT NULL,
@@ -254,6 +254,8 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS slave_master_info (
   Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
   Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   Tls_version TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version',
+  Public_key_path TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.',
+  Get_public_key BOOLEAN NOT NULL COMMENT 'Preference to get public key from master.',
   PRIMARY KEY(Channel_name)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Master Information'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB TABLESPACE=mysql;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));

@@ -11,7 +11,7 @@ Test different connection types while secure transport when the server was start
 # restart: --require_secure_transport=ON
 send Mysqlx.Session.AuthenticateStart {
   mech_name: "PLAIN"
-  auth_data: "\000root\000"
+  auth_data: "\000x_root\000"
 }
 
 Mysqlx.Session.AuthenticateOk {
@@ -39,7 +39,7 @@ Mysqlx.Ok {
 
 send Mysqlx.Session.AuthenticateStart {
   mech_name: "PLAIN"
-  auth_data: "\000root\000"
+  auth_data: "\000x_root\000"
 }
 
 Mysqlx.Session.AuthenticateOk {
@@ -49,7 +49,7 @@ Mysqlx.Session.AuthenticateOk {
 ok
 send Mysqlx.Session.AuthenticateStart {
   mech_name: "PLAIN"
-  auth_data: "\000root\000"
+  auth_data: "\000x_root\000"
 }
 
 Mysqlx.Error {
@@ -65,7 +65,7 @@ not ok
 SET GLOBAL require_secure_transport=OFF;
 send Mysqlx.Session.AuthenticateStart {
   mech_name: "PLAIN"
-  auth_data: "\000root\000"
+  auth_data: "\000x_root\000"
 }
 
 Mysqlx.Error {
@@ -78,7 +78,7 @@ Mysqlx.Error {
 not ok
 send Mysqlx.Session.AuthenticateStart {
   mech_name: "PLAIN"
-  auth_data: "\000root\000"
+  auth_data: "\000x_root\000"
 }
 
 Mysqlx.Session.AuthenticateOk {

@@ -39,6 +39,9 @@
 
 char *caching_sha2_rsa_private_key_path;
 char *caching_sha2_rsa_public_key_path;
+#if !defined(HAVE_YASSL)
+bool caching_sha2_auto_generate_rsa_keys= TRUE;
+#endif
 Rsa_authentication_keys *g_caching_sha2_rsa_keys= 0;
 
 namespace sha2_password
@@ -225,7 +228,9 @@ namespace sha2_password
 
     /* Don't process the password if it is longer than maximum limit */
     if (plaintext_password.length() > CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
+    {
       DBUG_RETURN(true);
+    }
 
     /* Empty authentication string */
     if (!serialized_string.length())
@@ -1327,6 +1332,24 @@ compare_caching_sha2_password_with_hash(
 }
 
 
+/**
+  Function to display value for status variable : Caching_sha2_password_rsa_public_key
+
+  @param [in]  thd MYSQL_THD handle. Unused.
+  @param [out] var Status variable structure
+  @param [in]  buff Value buffer. Unused.
+*/
+static int show_caching_sha2_password_rsa_public_key(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+                                                     struct st_mysql_show_var *var,
+                                                     char * buff MY_ATTRIBUTE((unused)))
+{
+  var->type= SHOW_CHAR;
+  var->value=
+    const_cast<char *>(g_caching_sha2_rsa_keys->get_public_key_as_pem());
+  return 0;
+}
+
+
 /** st_mysql_auth for caching_sha2_password plugin */
 static struct st_mysql_auth caching_sha2_auth_handler
 {
@@ -1351,10 +1374,34 @@ static MYSQL_SYSVAR_STR(public_key_path, caching_sha2_rsa_public_key_path,
   "A fully qualified path to the public RSA key used for authentication.",
   NULL, NULL, AUTH_DEFAULT_RSA_PUBLIC_KEY);
 
+#if !defined(HAVE_YASSL)
+static MYSQL_SYSVAR_BOOL(auto_generate_rsa_keys, caching_sha2_auto_generate_rsa_keys,
+  PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
+  "Auto generate RSA keys at server startup if correpsonding "
+  "system variables are not specified and key files are not present "
+  "at the default location.",
+  NULL, NULL, TRUE);
+#endif
+
+/** Array of system variables. Used in plugin declaration. */
 static struct st_mysql_sys_var* caching_sha2_password_sysvars[]= {
   MYSQL_SYSVAR(private_key_path),
   MYSQL_SYSVAR(public_key_path),
+#if !defined(HAVE_YASSL)
+  MYSQL_SYSVAR(auto_generate_rsa_keys),
+#endif
   0
+};
+
+/** Array of status variables. Used in plugin declaration. */
+static struct st_mysql_show_var
+caching_sha2_password_status_variables[]={
+  {
+    "Caching_sha2_password_rsa_public_key",
+    (char *)&show_caching_sha2_password_rsa_public_key,
+    SHOW_FUNC, SHOW_SCOPE_GLOBAL
+  },
+  {0, 0, enum_mysql_show_type(0),  enum_mysql_show_scope(0)}
 };
 
 /**
@@ -1463,7 +1510,7 @@ mysql_declare_plugin(caching_sha2_password)
   NULL,                                            /* Uninstall notifier            */
   caching_sha2_authentication_deinit,              /* plugin deinitializer          */
   0x0100,                                          /* version (1.0)                 */
-  NULL,                                            /* status variables              */
+  caching_sha2_password_status_variables,          /* status variables              */
   caching_sha2_password_sysvars,                   /* system variables              */
   NULL,                                            /* reserverd                     */
   0,                                               /* flags                         */

@@ -6,6 +6,7 @@
 #--let $expect_table_error= ER_SUCCESS|ER_TABLE_EXISTS_ERROR
 #--let $expect_db_error= ER_SUCCESS|ER_DB_CREATE_EXISTS
 #--source ../include/admin_list_objects_table_names.inc
+--source include/xplugin_create_user.inc
 
 ## Test starts here
 --let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_table_names.tmp
@@ -46,14 +47,16 @@ DROP SCHEMA IF EXISTS xTeSt;
 -->endsql
 EOF
 
+--replace_regex $result_filter
 exec $MYSQLXTEST
   -v%EXPECT_CASE%=$expect_case_sensitive_variant
   -v%EXPECT_TABLE_ERROR%=$expect_table_error
   -v%EXPECT_DB_ERROR%=$expect_db_error
-  -uroot
+  -ux_root
   --password=''
   --file=$xtest_file 2>&1;
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 --remove_file $xtest_file
 

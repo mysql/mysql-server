@@ -2,6 +2,7 @@
 ## Delete with missing schema or table
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/delete_del_missing_arg.tmp
 ## Test data
@@ -61,9 +62,10 @@ Mysqlx.Crud.Delete {
 
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/delete_del_missing_arg.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/delete_del_missing_arg.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/delete_del_missing_arg.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 drop schema if exists xtest;
 uninstall plugin mysqlx;

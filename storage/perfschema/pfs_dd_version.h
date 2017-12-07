@@ -58,6 +58,7 @@
   - variables_info (modified)
   - setup_timers (removed)
   - metadata_locks (modified, added column COLUMN_NAME)
+  - replication_connection_configuration (modified)
 */
 static const uint PFS_DD_VERSION= 80004;
 

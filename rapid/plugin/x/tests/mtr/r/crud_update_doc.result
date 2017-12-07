@@ -151,8 +151,8 @@ Merge with another document containing _id
 Rows matched: 1  Changed: 1  Warnings: 0
 Got expected error (code 0)
 
-Merge with another document containing _id (differ root)
-========================================================
+Merge with another document containing _id (differ x_root)
+==========================================================
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0

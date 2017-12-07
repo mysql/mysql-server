@@ -11,7 +11,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	sql_session
-1	root	localhost	$SESSION
+1	x_root	localhost	$SESSION
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 connecting...
@@ -22,8 +22,8 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	sql_session
-1	root	localhost	$SESSION
-2	root	localhost	$SESSION
+1	x_root	localhost	$SESSION
+2	x_root	localhost	$SESSION
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 switched to session default
@@ -33,8 +33,8 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	sql_session
-1	root	localhost	$SESSION
-2	root	localhost	$SESSION
+1	x_root	localhost	$SESSION
+2	x_root	localhost	$SESSION
 command ok
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
@@ -60,7 +60,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	sql_session
-1	root	localhost	$SESSION
+1	x_root	localhost	$SESSION
 command ok
 connecting...
 active session is now 'unpriv'
@@ -74,7 +74,7 @@ client_id	user	host	sql_session
 3	unpriv	localhost	$SESSION
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-Try to kill a root session from unpriv
+Try to kill a x_root session from unpriv
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -107,7 +107,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	sql_session
-1	root	localhost	$SESSION
+1	x_root	localhost	$SESSION
 3	unpriv	localhost	$SESSION
 command ok
 Now kill the unpriv session
@@ -129,14 +129,14 @@ RUN select sleep(0.5)
 sleep(0.5)
 0
 0 rows affected
-Should list only root session
+Should list only x_root session
 send Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
   namespace: "xplugin"
 }
 
 client_id	user	host	sql_session
-1	root	localhost	$SESSION
+1	x_root	localhost	$SESSION
 command ok
 RUN drop schema if exists xtest
 

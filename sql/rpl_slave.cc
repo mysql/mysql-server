@@ -3545,6 +3545,9 @@ static void show_slave_status_metadata(List<Item> &field_list,
   field_list.push_back(new Item_empty_string("Replicate_Rewrite_DB", 24));
   field_list.push_back(new Item_empty_string("Channel_Name", CHANNEL_NAME_LENGTH));
   field_list.push_back(new Item_empty_string("Master_TLS_Version", FN_REFLEN));
+  field_list.push_back(new Item_empty_string("Master_public_key_path", FN_REFLEN));
+  field_list.push_back(new Item_return_int("Get_master_public_key", sizeof(ulong),
+                                           MYSQL_TYPE_LONG));
 
 }
 
@@ -3832,6 +3835,10 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(mi->get_channel(), &my_charset_bin);
   // Master_TLS_Version
   protocol->store(mi->tls_version, &my_charset_bin);
+  // Master_public_key_path
+  protocol->store(mi->public_key_path, &my_charset_bin);
+  // Get_master_public_key
+  protocol->store(mi->get_public_key ? 1 : 0);
 
   rpl_filter->unlock();
   mysql_mutex_unlock(&mi->rli->err_lock);
@@ -8428,6 +8435,9 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   if (opt_slave_compressed_protocol)
     client_flag|= CLIENT_COMPRESS;              /* We will use compression */
 
+  /* Always reset public key to remove cached copy */
+  mysql_reset_server_public_key();
+
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
 
@@ -8500,6 +8510,17 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   /* Set MYSQL_PLUGIN_DIR in case master asks for an external authentication plugin */
   else if (opt_plugin_dir_ptr && *opt_plugin_dir_ptr)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir_ptr);
+
+  if (mi->public_key_path[0])
+  {
+    /* Set public key path */
+    DBUG_PRINT("info", ("Set master's public key path"));
+    mysql_options(mysql, MYSQL_SERVER_PUBLIC_KEY, mi->public_key_path);
+  }
+
+  /* Get public key from master */
+  DBUG_PRINT("info", ("Set preference to get public key from master"));
+  mysql_options(mysql, MYSQL_OPT_GET_SERVER_PUBLIC_KEY, &mi->get_public_key);
 
   if (!mi->is_start_user_configured())
     LogErr(WARNING_LEVEL, ER_INSECURE_CHANGE_MASTER);
@@ -10029,7 +10050,9 @@ static bool have_change_master_receive_option(const LEX_MASTER_INFO* lex_mi)
       lex_mi->ssl_cipher ||
       lex_mi->ssl_crl ||
       lex_mi->ssl_crlpath ||
-      lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
+      lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
+      lex_mi->public_key_path ||
+      lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     have_receive_option= true;
 
   DBUG_RETURN(have_receive_option);
@@ -10245,6 +10268,12 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
   if (lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->ssl_verify_server_cert=
       (lex_mi->ssl_verify_server_cert == LEX_MASTER_INFO::LEX_MI_ENABLE);
+
+  if (lex_mi->public_key_path)
+    strmake(mi->public_key_path, lex_mi->public_key_path, sizeof(mi->public_key_path)-1);
+
+  if (lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    mi->get_public_key= (lex_mi->get_public_key == LEX_MASTER_INFO::LEX_MI_ENABLE);
 
   if (lex_mi->ssl_ca)
     strmake(mi->ssl_ca, lex_mi->ssl_ca, sizeof(mi->ssl_ca)-1);
@@ -10953,7 +10982,9 @@ static bool is_invalid_change_master_for_group_replication_recovery(const
       lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
       lex_mi->relay_log_name ||
       lex_mi->relay_log_pos ||
-      lex_mi->sql_delay != -1)
+      lex_mi->sql_delay != -1 ||
+      lex_mi->public_key_path ||
+      lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     have_extra_option_received= true;
 
   DBUG_RETURN(have_extra_option_received);

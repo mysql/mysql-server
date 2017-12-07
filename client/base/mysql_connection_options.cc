@@ -113,6 +113,8 @@ void Mysql_connection_options::create_options()
     "Directory for client-side plugins.");
   this->create_new_option(&this->m_default_auth, "default_auth",
     "Default authentication client-side plugin to use.");
+  this->create_new_option(&this->m_server_public_key, "server_public_key_path",
+    "Path to file containing server public key");
   this->create_new_option(&this->m_get_server_public_key,
     "get-server-public-key",
     "Get public key from server");
@@ -157,6 +159,9 @@ MYSQL* Mysql_connection_options::create_connection()
   mysql_options(connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(connection, MYSQL_OPT_CONNECT_ATTR_ADD,
                   "program_name", this->m_program->get_name().c_str());
+
+  mysql_options(connection, MYSQL_SERVER_PUBLIC_KEY,
+                this->get_null_or_string(this->m_user));
 
   if (this->m_get_server_public_key)
     mysql_options(connection, MYSQL_OPT_GET_SERVER_PUBLIC_KEY,

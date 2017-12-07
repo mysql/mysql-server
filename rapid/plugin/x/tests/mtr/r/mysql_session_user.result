@@ -61,7 +61,7 @@ include/assert.inc [session_user should exist after upgrade]
 RUN SELECT CURRENT_USER()
 
 CURRENT_USER()
-root@localhost
+x_root@localhost
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"

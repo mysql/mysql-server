@@ -88,6 +88,9 @@ extern Rsa_authentication_keys * g_sha256_rsa_keys;
 extern Rsa_authentication_keys * g_caching_sha2_rsa_keys;
 extern char * caching_sha2_rsa_private_key_path;
 extern char * caching_sha2_rsa_public_key_path;
+#if !defined(HAVE_YASSL)
+extern bool caching_sha2_auto_generate_rsa_keys;
+#endif
 
 void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name);
 bool auth_plugin_is_built_in(const char *plugin_name);

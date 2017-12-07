@@ -132,6 +132,7 @@ mysql_reset_connection
 mysql_get_option
 mysql_session_track_get_first
 mysql_session_track_get_next
+mysql_reset_server_public_key
 
 CACHE INTERNAL "Functions exported by client API"
 

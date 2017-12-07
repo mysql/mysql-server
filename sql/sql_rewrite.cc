@@ -749,6 +749,13 @@ static void mysql_rewrite_change_master(THD *thd, String *rlb)
 
   comma= append_str(rlb, comma, "MASTER_TLS_VERSION =", lex->mi.tls_version);
 
+  // Public key
+  comma= append_str(rlb, comma, "MASTER_PUBLIC_KEY_PATH =", lex->mi.public_key_path);
+  comma= append_int(rlb, comma, STRING_WITH_LEN("GET_MASTER_PUBLIC_KEY ="),
+                    (lex->mi.get_public_key == LEX_MASTER_INFO::LEX_MI_ENABLE)
+                    ? 1 : 0,
+                    lex->mi.get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
+
   // IGNORE_SERVER_IDS
   if (lex->mi.repl_ignore_server_ids_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
   {

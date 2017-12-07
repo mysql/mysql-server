@@ -74,7 +74,7 @@ Applier_handler::initialize_repositories(bool reset_logs,
                                               NULL,
                                               false,
                                               GROUP_REPLICATION_APPLIER_THREAD_PRIORITY,
-                                              0, true);
+                                              0, true, NULL, false);
 
   if (error)
   {

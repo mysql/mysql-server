@@ -2,6 +2,7 @@
 ## Kill
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 create user unpriv@localhost;
 set password for unpriv@localhost = password('x');
@@ -19,7 +20,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 
 ## create and activate new session
--->newsession aux	root
+-->newsession aux	x_root
 
 Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
@@ -76,7 +77,7 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recvresult
 
--->echo Try to kill a root session from unpriv
+-->echo Try to kill a x_root session from unpriv
 Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   namespace: "xplugin"
@@ -120,7 +121,7 @@ Mysqlx.Sql.StmtExecute {
 -->sql
 select sleep(0.5);
 -->endsql
--->echo Should list only root session
+-->echo Should list only x_root session
 Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
   namespace: "xplugin"
@@ -137,8 +138,9 @@ drop user unpriv@localhost;
 EOF
 
 --replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_kill.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_kill.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/admin_kill.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;

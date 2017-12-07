@@ -94,7 +94,7 @@ FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Query	#	#	use `test`; CREATE ROLE r1, r2, r3
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
 slave-bin.000001	#	Query	#	#	use `test`; GRANT r1 TO r2
 slave-bin.000001	#	Query	#	#	use `test`; GRANT r2 TO u1@localhost
 slave-bin.000001	#	Query	#	#	use `test`; GRANT r3 TO u1@localhost

@@ -743,6 +743,8 @@ int STDCALL mysql_next_result(MYSQL *mysql);
 int STDCALL mysql_stmt_next_result(MYSQL_STMT *stmt);
 void STDCALL mysql_close(MYSQL *sock);
 
+/* Public key reset */
+void STDCALL mysql_reset_server_public_key(void);
 
 /* status return codes */
 #define MYSQL_NO_DATA        100

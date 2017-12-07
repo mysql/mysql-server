@@ -4399,36 +4399,42 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status)
 
 
 /*
-  Check sha256_password_auto_generate_rsa_keys option and generate
-  RSA key pair if required.
+ Generate RSA keys
 
-  RSA key pair is generated iff following conditions are met.
-  1> sha256_password_auto_generate_rsa_keys is set to ON.
-  2> sha256_password_private_key_path or sha256_password_public_key_path
-     are pointing to non-default locations.
-  3> Following files are not present in data directory.
-     a> private_key.pem
-     b> public_key.pem
+ @param [in] auto_generate Variable to control key generation
+ @param [in] priv_key_path Path to store/check private key
+ @param [in] pub_key_path  Path to store/check public key
+ @param [in] message       Message part to be logged
 
-  If above mentioned conditions are satified private_key.pem and
-  public_key.pem files are generated and placed in data directory.
+ @returns status of key generation
+   @retval true  Success
+   @retval false Error generating keys
 */
-static bool do_auto_rsa_keys_generation()
+
+static bool generate_rsa_keys(bool auto_generate,
+                              const char *priv_key_path,
+                              const char *pub_key_path,
+                              const char *message)
 {
-  if (auth_rsa_auto_generate_rsa_keys == true)
+  DBUG_ENTER("generate_rsa_keys");
+  if (auto_generate)
   {
     MY_STAT priv_stat, pub_stat;
-    if (strcmp(auth_rsa_private_key_path, AUTH_DEFAULT_RSA_PRIVATE_KEY) ||
-        strcmp(auth_rsa_public_key_path, AUTH_DEFAULT_RSA_PUBLIC_KEY))
+    if (strcmp(priv_key_path, AUTH_DEFAULT_RSA_PRIVATE_KEY) ||
+        strcmp(pub_key_path, AUTH_DEFAULT_RSA_PUBLIC_KEY))
     {
-      LogErr(INFORMATION_LEVEL, ER_AUTH_RSA_CONF_PREVENTS_KEY_GENERATION);
-      return true;
+      LogErr(INFORMATION_LEVEL,
+             ER_AUTH_RSA_CONF_PREVENTS_KEY_GENERATION,
+             message);
+      DBUG_RETURN(true);
     }
     else if (my_stat(AUTH_DEFAULT_RSA_PRIVATE_KEY, &priv_stat, MYF(0)) ||
              my_stat(AUTH_DEFAULT_RSA_PUBLIC_KEY, &pub_stat, MYF(0)))
     {
-      LogErr(INFORMATION_LEVEL, ER_AUTH_KEY_GENERATION_SKIPPED_PAIR_PRESENT);
-      return true;
+      LogErr(INFORMATION_LEVEL,
+             ER_AUTH_KEY_GENERATION_SKIPPED_PAIR_PRESENT,
+             message);
+      DBUG_RETURN(true);
     }
     else
     {
@@ -4439,17 +4445,55 @@ static bool do_auto_rsa_keys_generation()
 
       if (create_RSA_key_pair(rsa_gen, "private_key.pem", "public_key.pem",
                               fcr) == false)
-        return false;
+        DBUG_RETURN(false);
 
-      LogErr(INFORMATION_LEVEL, ER_AUTH_KEYS_SAVED_TO_DATADIR);
-      return true;
+      LogErr(INFORMATION_LEVEL, ER_AUTH_KEYS_SAVED_TO_DATADIR, message);
+      DBUG_RETURN(true);
     }
   }
   else
   {
-    LogErr(INFORMATION_LEVEL, ER_AUTH_KEY_GENERATION_DISABLED);
-    return true;
+    LogErr(INFORMATION_LEVEL, ER_AUTH_KEY_GENERATION_DISABLED,
+           message);
+    DBUG_RETURN(true);
   }
+}
+
+
+/*
+  Generate RSA keypair.
+
+  @returns Status of key generation
+    @retval true Success
+    @retval false Failure
+
+  Check sha256_password_auto_generate_rsa_keys/
+  caching_sha2_password_auto_generate_rsa_keys
+  option and generate RSA key pair if required.
+
+  RSA key pair is generated iff following conditions are met.
+  1> sha256_password_auto_generate_rsa_keys/
+     caching_sha2_password_auto_generate_rsa_keys is set to ON.
+  2> sha256_password_private_key_path/caching_sha2_rsa_private_key_path
+     or sha256_password_public_key_path/caching_sha2_rsa_public_key_path
+     are pointing to non-default locations.
+  3> Following files are not present in data directory.
+     a> private_key.pem
+     b> public_key.pem
+
+  If above mentioned conditions are satified private_key.pem and
+  public_key.pem files are generated and placed in data directory.
+*/
+static bool do_auto_rsa_keys_generation()
+{
+  return (generate_rsa_keys(auth_rsa_auto_generate_rsa_keys,
+                            auth_rsa_private_key_path,
+                            auth_rsa_public_key_path,
+                            "--sha256_password_auto_generate_rsa_keys") &&
+          generate_rsa_keys(caching_sha2_auto_generate_rsa_keys,
+                            caching_sha2_rsa_private_key_path,
+                            caching_sha2_rsa_public_key_path,
+                            "--caching_sha2_password_auto_generate_rsa_keys"));
 }
 #endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */

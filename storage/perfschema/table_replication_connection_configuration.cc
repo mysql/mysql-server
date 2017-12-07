@@ -62,6 +62,8 @@ Plugin_table table_replication_connection_configuration::m_table_def(
   "  HEARTBEAT_INTERVAL DOUBLE(10,3) unsigned not null\n"
   "  COMMENT 'Number of seconds after which a heartbeat will be sent .',\n"
   "  TLS_VERSION VARCHAR(255) not null,\n"
+  "  PUBLIC_KEY_PATH VARCHAR(512) not null,\n"
+  "  GET_PUBLIC_KEY ENUM('YES', 'NO') not null,\n"
   "  PRIMARY KEY (channel_name) USING HASH\n",
   /* Options */
   " ENGINE=PERFORMANCE_SCHEMA",
@@ -319,6 +321,13 @@ table_replication_connection_configuration::make_row(Master_info *mi)
   m_row.tls_version_length = strlen(temp_store);
   memcpy(m_row.tls_version, temp_store, m_row.tls_version_length);
 
+  temp_store = (char *)mi->public_key_path;
+  m_row.public_key_path_length = strlen(temp_store);
+  memcpy(m_row.public_key_path, temp_store,
+         m_row.public_key_path_length);
+
+  m_row.get_public_key = mi->get_public_key ? PS_RPL_YES : PS_RPL_NO;
+
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
 
@@ -402,6 +411,13 @@ table_replication_connection_configuration::read_row_values(
         break;
       case 18: /** tls_version */
         set_field_varchar_utf8(f, m_row.tls_version, m_row.tls_version_length);
+        break;
+      case 19: /** master_public_key_path */
+        set_field_varchar_utf8(f, m_row.public_key_path,
+          m_row.public_key_path_length);
+        break;
+      case 20: /** get_master_public_key */
+        set_field_enum(f, m_row.get_public_key);
         break;
       default:
         DBUG_ASSERT(false);

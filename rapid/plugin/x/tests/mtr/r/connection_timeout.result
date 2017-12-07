@@ -8,7 +8,7 @@ call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations
 Got expected error: Read operation failed because of a timeout (code 2500)
 RUN select user();
 user()
-root@localhost
+x_root@localhost
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"

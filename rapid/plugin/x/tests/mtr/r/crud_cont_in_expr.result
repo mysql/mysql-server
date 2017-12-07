@@ -8054,8 +8054,8 @@ cont_in	not_cont_in
 command ok
 Got expected error (code 0)
 
-literal NULL in root document 
-------------------------------
+literal NULL in x_root document 
+--------------------------------
 send Mysqlx.Crud.Find {
   collection {
     name: "xtable"

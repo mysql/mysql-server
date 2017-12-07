@@ -67,6 +67,7 @@ int sha256_password_init(char *, size_t, int, va_list)
 
 int sha256_password_deinit(void)
 {
+  mysql_reset_server_public_key();
   mysql_mutex_destroy(&g_public_key_mutex);
   return 0;
 }
@@ -80,9 +81,10 @@ int sha256_password_deinit(void)
   @return Pointer to the RSA public key storage buffer
 */
 
+static RSA *g_public_key= NULL;
+
 static RSA *rsa_init(MYSQL *mysql)
 {
-  static RSA *g_public_key= NULL;
   RSA *key= NULL;
 
   mysql_mutex_lock(&g_public_key_mutex);
@@ -523,6 +525,18 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   }
 
   DBUG_RETURN(CR_OK);
+}
+
+void STDCALL
+mysql_reset_server_public_key(void)
+{
+  DBUG_ENTER("mysql_reset_server_public_key");
+  mysql_mutex_lock(&g_public_key_mutex);
+  if (g_public_key)
+    RSA_free(g_public_key);
+  g_public_key= NULL;
+  mysql_mutex_unlock(&g_public_key_mutex);
+  DBUG_VOID_RETURN;
 }
 
 #endif

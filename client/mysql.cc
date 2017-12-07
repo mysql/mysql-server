@@ -195,7 +195,6 @@ static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char mysql_charsets_dir[FN_REFLEN+1];
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
-static char *opt_server_public_key= 0;
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
@@ -1876,10 +1875,6 @@ static struct my_option my_long_options[] =
    "piped to mysql or loaded using the 'source' command). This is necessary "
    "when processing output from mysqlbinlog that may contain blobs.",
    &opt_binary_mode, &opt_binary_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"server-public-key-path", OPT_SERVER_PUBLIC_KEY,
-   "File path to the server public RSA key in PEM format.",
-   &opt_server_public_key, &opt_server_public_key, 0,
-   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"connect-expired-password", 0,
    "Notify the server that this client is prepared to handle expired "
    "password sandbox mode.",
@@ -5011,8 +5006,7 @@ init_connection_options(MYSQL *mysql)
   if (opt_default_auth && *opt_default_auth)
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
-  if (opt_server_public_key && *opt_server_public_key)
-    mysql_options(mysql, MYSQL_SERVER_PUBLIC_KEY, opt_server_public_key);
+  set_server_public_key(mysql);
 
   set_get_server_public_key_option(mysql);
 
