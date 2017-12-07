@@ -33,9 +33,13 @@ SET(GEN_SOURCES
 SET(GEN_DIGEST_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h 
 )
+SET(GEN_KEYWORD_LIST_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/keyword_list.h
+)
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
                             ${GEN_DIGEST_SOURCES}
+                            ${GEN_KEYWORD_LIST_SOURCES}
                             ${CONF_SOURCES}
                             PROPERTIES GENERATED 1)
 
@@ -48,6 +52,18 @@ ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
   COMMAND gen_lex_token > lex_token.h
   DEPENDS gen_lex_token
+)
+
+# gen_keyword_list
+# Make sure sql_yacc.h is generated before compiling gen_keyword_list
+MYSQL_ADD_EXECUTABLE(gen_keyword_list gen_keyword_list.cc SKIP_INSTALL)
+ADD_DEPENDENCIES(gen_keyword_list GenServerSource)
+TARGET_LINK_LIBRARIES(gen_keyword_list regex strings dbug)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/keyword_list.h
+  COMMAND gen_keyword_list ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy > ${CMAKE_CURRENT_BINARY_DIR}/keyword_list.h
+  DEPENDS gen_keyword_list
 )
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
@@ -105,6 +121,7 @@ SET(DD_SOURCES
   dd/impl/system_views/innodb_fields.cc
   dd/impl/system_views/innodb_tablespaces_brief.cc
   dd/impl/system_views/key_column_usage.cc
+  dd/impl/system_views/keywords.cc
   dd/impl/system_views/parameters.cc
   dd/impl/system_views/partitions.cc
   dd/impl/system_views/referential_constraints.cc
@@ -511,6 +528,7 @@ ENDIF()
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
+  ${GEN_KEYWORD_LIST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ${SQL_HEADERS}
@@ -923,6 +941,10 @@ ADD_CUSTOM_TARGET(
         DEPENDS ${GEN_DIGEST_SOURCES}
 )
 
+ADD_CUSTOM_TARGET(
+  GenKeywordList
+  DEPENDS ${GEN_KEYWORD_LIST_SOURCES}
+)
 
 MYSQL_ADD_PLUGIN(udf_example udf_example.cc
                  MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example")
