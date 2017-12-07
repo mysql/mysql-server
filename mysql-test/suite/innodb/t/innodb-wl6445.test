@@ -63,3 +63,7 @@ let $restart_parameters = restart;
 DROP TABLE WL6445.t1;
 
 DROP DATABASE WL6445;
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace .*, name '.*', file '.*' is missing");
+--enable_query_log
