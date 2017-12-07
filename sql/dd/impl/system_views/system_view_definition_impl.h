@@ -78,11 +78,14 @@ public:
     @param field_number  Ordinal position of field in the projection list.
     @param field_name    Field name used for the SELECT's projection.
     @param field_definition Expression representing the projection.
+    @param add_quotes    If true, output single quotes around the
+                         field_definition.
 
     @return void.
   */
   virtual void add_field(int field_number, const String_type &field_name,
-                         const String_type field_definition)
+                         const String_type field_definition,
+                         bool add_quotes=false)
   {
     // Make sure the field_number and field_name are not added twise.
     DBUG_ASSERT(
@@ -94,7 +97,15 @@ public:
 
     // Store the field definition expression.
     Stringstream_type ss;
-    ss << field_definition << " AS " << field_name;
+    if (add_quotes)
+    {
+      DBUG_ASSERT(field_definition.find('\'') == String_type::npos);
+      ss << '\'' << field_definition << '\'';
+    }
+    else
+      ss << field_definition;
+
+    ss << " AS " << field_name;
     m_field_definitions[field_number]= ss.str();
   }
 
