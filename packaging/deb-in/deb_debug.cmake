@@ -70,6 +70,7 @@ usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
 usr/lib/mysql/plugin/debug/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/debug/component_log_sink_json.so
 usr/lib/mysql/plugin/debug/component_log_sink_syseventlog.so
+usr/lib/mysql/plugin/debug/component_validate_password.so
 usr/lib/mysql/plugin/debug/group_replication.so
 usr/lib/mysql/plugin/debug/connection_control.so
 usr/lib/mysql/plugin/debug/innodb_engine.so
@@ -157,7 +158,6 @@ usr/lib/mysql/plugin/debug/component_test_sys_var_service_same.so
 usr/lib/mysql/plugin/debug/component_pfs_example_component_population.so
 usr/lib/mysql/plugin/debug/component_test_sys_var_service_str.so
 usr/lib/mysql/plugin/debug/component_test_backup_lock_service.so
-usr/lib/mysql/plugin/debug/component_validate_password.so
 usr/lib/mysql/plugin/debug/pfs_example_plugin_employee.so
 usr/lib/mysql/plugin/debug/component_pfs_example.so
 ")

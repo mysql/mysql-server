@@ -59,6 +59,7 @@ usr/share/man/man8/mysqld.8
 usr/lib/mysql/plugin/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/component_log_sink_json.so
 usr/lib/mysql/plugin/component_log_sink_syseventlog.so
+usr/lib/mysql/plugin/component_validate_password.so
 usr/lib/mysql/plugin/mysql_no_login.so
 usr/lib/mysql/plugin/innodb_engine.so
 usr/lib/mysql/plugin/rewriter.so
