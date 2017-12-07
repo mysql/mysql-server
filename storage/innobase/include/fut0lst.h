@@ -40,10 +40,10 @@ typedef	byte	flst_base_node_t;
 typedef	byte	flst_node_t;
 
 /* The physical size of a list base node in bytes */
-constexpr ulint FLST_BASE_NODE_SIZE = 4 + 2 * FIL_ADDR_SIZE;
+#define	FLST_BASE_NODE_SIZE	(4 + 2 * FIL_ADDR_SIZE)
 
 /* The physical size of a list node in bytes */
-constexpr ulint FLST_NODE_SIZE = 2 * FIL_ADDR_SIZE;
+#define	FLST_NODE_SIZE		(2 * FIL_ADDR_SIZE)
 
 /** Initializes a list base node.
 @param[in]	base	pointer to base node

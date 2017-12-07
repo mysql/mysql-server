@@ -4102,32 +4102,21 @@ row_drop_single_table_tablespace(
 	dberr_t	err = DB_SUCCESS;
 
 	/* If the tablespace is not in the cache, just delete the file. */
-	if (!fil_space_exists_in_mem(
-		space_id, tablename, true, false, NULL, 0)) {
+	if (!fil_space_for_table_exists_in_mem(
+		    space_id, tablename, true, false, NULL, 0)) {
 
 		/* Force a delete of any discarded or temporary files. */
-		if (fil_delete_file(filepath)) {
+		fil_delete_file(filepath);
 
-			ib::info() << "Removed datafile " << filepath;
+		ib::info() << "Removed datafile " << filepath;
 
-		} else {
-			ib::info()
-				<< "Failed to delete the datafile '"
-				<< filepath << "'!";
-		}
+	} else if (fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE)
+		   != DB_SUCCESS) {
 
-	} else {
+		ib::error() << "We are not able to delete the tablespace "
+			<< space_id << " file " << filepath << "!";
 
-		err = fil_delete_tablespace(
-			space_id, BUF_REMOVE_FLUSH_NO_WRITE);
-
-		if (err != DB_SUCCESS && err != DB_TABLESPACE_NOT_FOUND) {
-
-			ib::error()
-				<< "Failed to delete the datafile of"
-				<< " tablespace " << space_id
-				<< ", file '" << filepath << "'!";
-		}
+		err = DB_ERROR;
 	}
 
 	return(err);
@@ -4532,13 +4521,14 @@ row_drop_table_for_mysql(
 	/* Determine the tablespace filename before we drop
 	dict_table_t.  Free this memory before returning. */
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+		ut_a(table->data_dir_path);
 
-		auto	dir = dict_table_get_datadir(table);
-
-		filepath = Fil_path::make(dir, table_name, IBD, true);
-
+		filepath = fil_make_filepath(
+			table->data_dir_path,
+			table_name, IBD, true);
 	} else if (!shared_tablespace) {
-		filepath = Fil_path::make_ibd_from_table_name(table_name);
+		filepath = fil_make_filepath(
+			NULL, table_name, IBD, false);
 	}
 
 	/* Free the dict_table_t object. */
@@ -4554,16 +4544,11 @@ row_drop_table_for_mysql(
 
 	/* Do not attempt to drop known-to-be-missing tablespaces,
 	nor system or shared general tablespaces. */
-	if (is_discarded
-	    || ibd_file_missing
-	    || is_temp
-	    || shared_tablespace
+	if (is_discarded || ibd_file_missing || is_temp || shared_tablespace
 	    || fsp_is_system_or_temp_tablespace(space_id)) {
-
 		/* For encrypted table, if ibd file can not be decrypt,
 		we also set ibd_file_missing. We still need to try to
 		remove the ibd file for this. */
-
 		if (is_discarded || !is_encrypted || !ibd_file_missing) {
 			goto funct_exit;
 		}

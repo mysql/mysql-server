@@ -207,16 +207,6 @@ dict_load_tablespace(
 	mem_heap_t*		heap,
 	dict_err_ignore_t	ignore_err);
 
-/** Using the table->heap, copy the null-terminated filepath into
-table->data_dir_path. The data directory patch is derived form the
-filepath by stripping the the table->name.m_name component suffix.
-@param[in,out]	table		table obj
-@param[in]	filepath	filepath of tablespace */
-void
-dict_save_data_dir_path(
-	dict_table_t*	table,
-	char*		filepath);
-
 /** Load all tablespaces during upgrade */
 void
 dict_load_tablespaces_for_upgrade();

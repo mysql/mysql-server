@@ -54,15 +54,10 @@ meb_get_encryption_key(
 
 /** Types of raw partitions in innodb_data_file_path */
 enum device_t {
-
-	/** Not a raw partition */
-	SRV_NOT_RAW = 0,
-
-	/** A 'newraw' partition, only to be initialized */
-	SRV_NEW_RAW,
-
-	/** An initialized raw partition */
-	SRV_OLD_RAW
+	SRV_NOT_RAW = 0,	/*!< Not a raw partition */
+	SRV_NEW_RAW,		/*!< A 'newraw' partition, only to be
+				initialized */
+	SRV_OLD_RAW		/*!< An initialized raw partition */
 };
 
 /** Data file control information. */
@@ -76,6 +71,10 @@ public:
 	Datafile()
 		:
 		m_name(),
+		m_filepath(),
+#ifdef UNIV_HOTBACKUP
+		m_dirpath(NULL),
+#endif /* UNIV_HOTBACKUP */
 		m_filename(),
 		m_open_flags(OS_FILE_OPEN),
 		m_size(),
@@ -88,11 +87,10 @@ public:
 		m_first_page_buf(),
 		m_first_page(),
 		m_atomic_write(),
-		m_filepath(),
 		m_last_os_error(),
 		m_file_info(),
-		m_encryption_key(),
-		m_encryption_iv()
+		m_encryption_key(NULL),
+		m_encryption_iv(NULL)
 	{
 		m_handle.m_file = OS_FILE_CLOSED;
 	}
@@ -100,6 +98,10 @@ public:
 	Datafile(const char* name, ulint flags, page_no_t size, ulint order)
 		:
 		m_name(mem_strdup(name)),
+		m_filepath(),
+#ifdef UNIV_HOTBACKUP
+		m_dirpath(NULL),
+#endif /* UNIV_HOTBACKUP */
 		m_filename(),
 		m_open_flags(OS_FILE_OPEN),
 		m_size(size),
@@ -112,19 +114,21 @@ public:
 		m_first_page_buf(),
 		m_first_page(),
 		m_atomic_write(),
-		m_filepath(),
 		m_last_os_error(),
 		m_file_info(),
-		m_encryption_key(),
-		m_encryption_iv()
+		m_encryption_key(NULL),
+		m_encryption_iv(NULL)
 	{
-		ut_ad(m_name != nullptr);
+		ut_ad(m_name != NULL);
 		m_handle.m_file = OS_FILE_CLOSED;
 		/* No op */
 	}
 
 	Datafile(const Datafile& file)
 		:
+#ifdef UNIV_HOTBACKUP
+		m_dirpath(NULL),
+#endif /* UNIV_HOTBACKUP */
 		m_handle(file.m_handle),
 		m_open_flags(file.m_open_flags),
 		m_size(file.m_size),
@@ -139,19 +143,19 @@ public:
 		m_atomic_write(file.m_atomic_write),
 		m_last_os_error(),
 		m_file_info(),
-		m_encryption_key(),
-		m_encryption_iv()
+		m_encryption_key(NULL),
+		m_encryption_iv(NULL)
 	{
 		m_name = mem_strdup(file.m_name);
-		ut_ad(m_name != nullptr);
+		ut_ad(m_name != NULL);
 
-		if (file.m_filepath != nullptr) {
+		if (file.m_filepath != NULL) {
 			m_filepath = mem_strdup(file.m_filepath);
-			ut_a(m_filepath != nullptr);
+			ut_a(m_filepath != NULL);
 			set_filename();
 		} else {
-			m_filepath = nullptr;
-			m_filename = nullptr;
+			m_filepath = NULL;
+			m_filename = NULL;
 		}
 	}
 
@@ -164,9 +168,9 @@ public:
 	{
 		ut_a(this != &file);
 
-		ut_ad(m_name == nullptr);
+		ut_ad(m_name == NULL);
 		m_name = mem_strdup(file.m_name);
-		ut_a(m_name != nullptr);
+		ut_a(m_name != NULL);
 
 		m_size = file.m_size;
 		m_order = file.m_order;
@@ -182,24 +186,24 @@ public:
 		m_flags = file.m_flags;
 		m_last_os_error = 0;
 
-		if (m_filepath != nullptr) {
+		if (m_filepath != NULL) {
 			ut_free(m_filepath);
-			m_filepath = nullptr;
-			m_filename = nullptr;
+			m_filepath = NULL;
+			m_filename = NULL;
 		}
 
-		if (file.m_filepath != nullptr) {
+		if (file.m_filepath != NULL) {
 			m_filepath = mem_strdup(file.m_filepath);
-			ut_a(m_filepath != nullptr);
+			ut_a(m_filepath != NULL);
 			set_filename();
 		}
 
 		/* Do not make a copy of the first page,
 		it should be reread if needed */
-		m_first_page_buf = nullptr;
-		m_first_page = nullptr;
-		m_encryption_key = nullptr;
-		m_encryption_iv = nullptr;
+		m_first_page_buf = NULL;
+		m_first_page = NULL;
+		m_encryption_key = NULL;
+		m_encryption_iv = NULL;
 
 		m_atomic_write = file.m_atomic_write;
 
@@ -238,7 +242,7 @@ public:
 
 	/** Make a full filepath from a directory path and a filename.
 	Prepend the dirpath to filename using the extension given.
-	If dirpath is nullptr, prepend the default datadir to filepath.
+	If dirpath is NULL, prepend the default datadir to filepath.
 	Store the result in m_filepath.
 	@param[in]	dirpath		directory path
 	@param[in]	filename	filename or filepath
@@ -246,7 +250,7 @@ public:
 	void make_filepath(
 		const char*	dirpath,
 		const char*	filename,
-		ib_file_suffix	ext);
+		ib_extention	ext);
 
 	/** Set the filepath by duplicating the filepath sent in */
 	void set_filepath(const char* filepath);
@@ -256,7 +260,7 @@ public:
 	extract a file-per-table tablespace name from m_filepath; else it is a
 	general tablespace, so just call it that for now. The value of m_name
 	will be freed in the destructor.
-	@param[in]	name	Tablespace Name if known, nullptr if not */
+	@param[in]	name	Tablespace Name if known, NULL if not */
 	void set_name(const char*	name);
 
 	/** Validates the datafile and checks that it conforms with
@@ -293,7 +297,7 @@ public:
 	@param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
 	@param[in]	for_import	if it is for importing
 	(only valid for the first file of the system tablespace)
-	@retval DB_WRONG_FILE_NAME tablespace in file header doesn't match
+	@retval DB_TABLESPACE_NOT_FOUND tablespace in file header doesn't match
 		expected value
 	@retval DB_SUCCESS on if the datafile is valid
 	@retval DB_CORRUPTION if the datafile is not readable
@@ -394,29 +398,20 @@ public:
 	@return true if it is the same file, else false */
 	bool same_as(const Datafile&	other) const;
 
-	/** Determine the space id of the given file descriptor by reading
-	a few pages from the beginning of the .ibd file.
-	@return DB_SUCCESS if space id was successfully identified,
-	else DB_ERROR. */
-	dberr_t find_space_id();
-
-#ifdef UNIV_HOTBACKUP
-	/** @return file size in number of pages */
-	page_no_t size() const
+	ulint	size()	const
 	{
 		return(m_size);
 	}
 
-	/** Set the tablespace ID.
-	@param[in]	space_id	Tablespace ID to set */
 	void set_space_id(space_id_t space_id)
 	{
 		ut_ad(space_id <= 0xFFFFFFFFU);
 		m_space_id = space_id;
 	}
 
-	/** Set th tablespace flags
-	@param[in]	fsp_flags	Tablespace flags */
+#ifdef UNIV_HOTBACKUP
+	/** Set the tablespace flags
+	@param[in]	fsp_flags	tablespace flags */
 	void set_flags(ulint flags)
 	{
 		m_flags = flags;
@@ -431,7 +426,7 @@ private:
 	in the filepath. */
 	void set_filename()
 	{
-		if (m_filepath == nullptr) {
+		if (m_filepath == NULL) {
 			return;
 		}
 
@@ -463,7 +458,31 @@ private:
 	void set_open_flags(os_file_create_t	open_flags)
 	{
 		m_open_flags = open_flags;
-	}
+	};
+
+	/* DATA MEMBERS */
+
+	/** Datafile name at the tablespace location.
+	This is either the basename of the file if an absolute path
+	was entered, or it is the relative path to the datadir or
+	Tablespace::m_path. */
+	char*			m_name;
+
+protected:
+	/** Physical file path with base name and extension */
+	char*			m_filepath;
+
+#ifdef UNIV_HOTBACKUP
+	/** directory path where tablespace resides */
+	char*			m_dirpath;
+#endif /* UNIV_HOTBACKUP */
+
+private:
+	/** Determine the space id of the given file descriptor by reading
+	a few pages from the beginning of the .ibd file.
+	@return DB_SUCCESS if space id was successfully identified,
+	else DB_ERROR. */
+	dberr_t find_space_id();
 
 	/** Finds a given page of the given space id from the double write
 	buffer and copies it to the corresponding .ibd file.
@@ -471,13 +490,6 @@ private:
 	@return DB_SUCCESS if page was restored, else DB_ERROR */
 	dberr_t restore_from_doublewrite(
 		page_no_t	restore_page_no);
-
-private:
-	/** Datafile name at the tablespace location.
-	This is either the basename of the file if an absolute path
-	was entered, or it is the relative path to the datadir or
-	Tablespace::m_path. */
-	char*			m_name;
 
 	/** Points into m_filepath to the file name with extension */
 	char*			m_filename;
@@ -529,22 +541,17 @@ private:
 	bool			m_atomic_write;
 
 protected:
-	/** Physical file path with base name and extension */
-	char*			m_filepath;
-
 	/** Last OS error received so it can be reported if needed. */
 	ulint			m_last_os_error;
 
 public:
 	/** Use the following to determine the uniqueness of this datafile. */
 #ifdef _WIN32
-	using WIN32_FILE_INFO = BY_HANDLE_FILE_INFORMATION;
-
-	/** Use fields dwVolumeSerialNumber, nFileIndexLow, nFileIndexHigh. */
-	WIN32_FILE_INFO		m_file_info;
+	/* Use fields dwVolumeSerialNumber, nFileIndexLow, nFileIndexHigh. */
+	BY_HANDLE_FILE_INFORMATION	m_file_info;
 #else
-	/** Use field st_ino. */
-	struct stat		m_file_info;
+	/* Use field st_ino. */
+	struct stat			m_file_info;
 #endif	/* WIN32 */
 
 	/** Encryption key read from first page */

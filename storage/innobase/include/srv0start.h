@@ -93,7 +93,7 @@ srv_undo_tablespaces_update(ulong target);
 					recovery "dir1;dir2; ... dirN"
 @return DB_SUCCESS or error code */
 dberr_t
-srv_start(bool create_new_db, const std::string& scan_directories);
+srv_start(bool create_new_db, const char* scan_directories);
 
 /** On a restart, initialize the remaining InnoDB subsystems so that
 any tables (including data dictionary tables) can be accessed. */

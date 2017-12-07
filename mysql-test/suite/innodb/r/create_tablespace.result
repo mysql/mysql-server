@@ -3,10 +3,6 @@
 #
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 SET NAMES utf8;
-# restart:--innodb-directories=MYSQL_TMP_DIR
-SHOW VARIABLES LIKE 'innodb_directories';
-Variable_name	Value
-innodb_directories	MYSQL_TMP_DIR
 # Strict-mode has no effect on CREATE TABLESPACE.
 # It rejects all invalid input, as if strict mode is always ON.
 SHOW VARIABLES LIKE 'innodb_strict_mode';
@@ -47,14 +43,10 @@ CREATE TABLESPACE test/s_bad ADD DATAFILE 's_bad.ibd';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/s_bad ADD DATAFILE 's_bad.ibd'' at line 1
 CREATE TABLESPACE `test/s_bad` ADD DATAFILE 's_bad.ibd';
 ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: File .* 'delete' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: File .* 'stat' returned OS error .*");
 CREATE TABLESPACE `s_too_long_file_name` ADD DATAFILE '../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ibd';
-ERROR HY000: Incorrect File Name '../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ibd'.
-SHOW WARNINGS;
-Level	Code	Message
-Error	3121	Incorrect File Name '../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ibd'.
-Error	3121	CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
-Error	1528	Failed to create TABLESPACE s_too_long_file_name
-Error	1031	Table storage engine for 's_too_long_file_name' doesn't have this option
+ERROR HY000: Failed to create TABLESPACE s_too_long_file_name
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=1k FILE_BLOCK_SIZE=2k;
 ERROR HY000: It is not allowed to specify FILE_BLOCK_SIZE more than once
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=3k;
@@ -282,9 +274,10 @@ Error	3121	Incorrect File Name 's_dir/s_subdir/.ibd'.
 Error	1528	Failed to create TABLESPACE s_bad
 Error	1031	Table storage engine for 's_bad' doesn't have this option
 CREATE TABLESPACE s_bad ADD DATAFILE 's_dir/s_bad.ibs';
-ERROR HY000: An IBD filepath must end with `.ibd`.
+ERROR HY000: Incorrect File Name 's_dir/s_bad.ibs'.
 SHOW WARNINGS;
 Level	Code	Message
+Error	3121	Incorrect File Name 's_dir/s_bad.ibs'.
 Error	3121	An IBD filepath must end with `.ibd`.
 Error	1528	Failed to create TABLESPACE s_bad
 Error	1031	Table storage engine for 's_bad' doesn't have this option
@@ -1649,7 +1642,7 @@ SET GLOBAL innodb_strict_mode=default;
 #
 # Check CREATE TABLESPACE is handled properly in read-only mode
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
-# restart: --innodb_read_only --innodb-directories=MYSQL_TMP_DIR
+# restart: --innodb_read_only
 CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd' ENGINE InnoDB;
 ERROR HY000: Table 'tablespaces' is read only
 SHOW WARNINGS;
@@ -1663,7 +1656,7 @@ Level	Code	Message
 Error	1529	Failed to drop TABLESPACE s1
 Error	1874	InnoDB is in read only mode.
 # Restart in normal mode for cleanup.
-# restart --innodb-directories=MYSQL_TMP_DIR
+# restart
 DROP TABLESPACE s1;
 #
 # Bug#26199233 create like ignores innodb_file_per_table

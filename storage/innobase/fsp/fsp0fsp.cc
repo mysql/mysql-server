@@ -710,9 +710,8 @@ xdes_lst_get_descriptor(
 	xdes_t*	descr;
 
 	ut_ad(mtr);
-	ut_ad(mtr_memo_contains(
-			mtr, fil_space_get_latch(space), MTR_MEMO_X_LOCK));
-
+	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space, NULL),
+				MTR_MEMO_X_LOCK));
 	descr = fut_get_ptr(space, page_size, lst_node, RW_SX_LATCH, mtr)
 		- XDES_FLST_NODE;
 
@@ -852,21 +851,22 @@ fsp_parse_init_file_page(
 	return(ptr);
 }
 
-/** Initializes the fsp system. */
+/**********************************************************************//**
+Initializes the fsp system. */
 void
-fsp_init()
+fsp_init(void)
+/*==========*/
 {
 	/* FSP_EXTENT_SIZE must be a multiple of page & zip size */
-	ut_a(UNIV_PAGE_SIZE > 0);
 	ut_a(0 == (UNIV_PAGE_SIZE % FSP_EXTENT_SIZE));
+	ut_a(UNIV_PAGE_SIZE);
 
-        static_assert(
-                !(UNIV_PAGE_SIZE_MAX % FSP_EXTENT_SIZE_MAX),
-                "UNIV_PAGE_SIZE_MAX % FSP_EXTENT_SIZE_MAX != 0");
-
-        static_assert(
-                !(UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE_MIN),
-                "UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE_MIN != 0");
+#if UNIV_PAGE_SIZE_MAX % FSP_EXTENT_SIZE_MAX
+# error "UNIV_PAGE_SIZE_MAX % FSP_EXTENT_SIZE_MAX != 0"
+#endif
+#if UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE_MIN
+# error "UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE_MIN != 0"
+#endif
 
 	/* Does nothing at the moment */
 }
@@ -953,7 +953,7 @@ fsp_header_write_encryption(
 	tablespaces. */
 	master_key_id = mach_read_from_4(
 		page + offset + ENCRYPTION_MAGIC_SIZE);
-	if (master_key_id == Encryption::s_master_key_id) {
+	if (master_key_id == Encryption::master_key_id) {
 		ut_ad(memcmp(page + offset,
 			     ENCRYPTION_KEY_MAGIC_V1,
 			     ENCRYPTION_MAGIC_SIZE) == 0
@@ -1259,18 +1259,19 @@ fsp_try_extend_data_file_with_pages(
 	fsp_header_t*	header,
 	mtr_t*		mtr)
 {
+	bool		success;
+	ulint	size;
 	DBUG_ENTER("fsp_try_extend_data_file_with_pages");
 
 	ut_a(!fsp_is_system_or_temp_tablespace(space->id));
 	ut_d(fsp_space_modify_check(space->id, mtr));
 
-	page_no_t	size = mach_read_from_4(header + FSP_SIZE);
+	size = mach_read_from_4(header + FSP_SIZE);
 	ut_ad(size == space->size_in_header);
 
 	ut_a(page_no >= size);
 
-	bool	success = fil_space_extend(space, page_no + 1);
-
+	success = fil_space_extend(space, page_no + 1);
 	/* The size may be less than we wanted if we ran out of disk space. */
 	fsp_header_size_update(header, space->size, mtr);
 	space->size_in_header = space->size;
@@ -1592,8 +1593,8 @@ fsp_fill_free_list(
 
 		i += FSP_EXTENT_SIZE;
 	}
-	ut_a(count < std::numeric_limits<uint32_t>::max());
-	space->free_len += (uint32_t) count;
+
+	space->free_len += count;
 }
 
 /** Allocates a new free extent.
@@ -2829,7 +2830,7 @@ fsp_alloc_xdes_free_frag(
 	ulint		n_used;
 
 	ut_ad(mtr);
-	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space),
+	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space, NULL),
 				MTR_MEMO_X_LOCK));
 
 	fsp_header_t*   header = fsp_get_space_header(space, page_size, mtr);
@@ -3475,18 +3476,12 @@ tablespace without running out of space.
 uintmax_t
 fsp_get_available_space_in_free_extents(space_id_t space_id)
 {
-	fil_space_t*	space = fil_space_acquire(space_id);
-
-	if (space == nullptr) {
-
+	FilSpace	space(space_id);
+	if (space() == NULL) {
 		return(UINTMAX_MAX);
 	}
 
-	auto	n_free_extents = fsp_get_available_space_in_free_extents(space);
-
-	fil_space_release(space);
-
-	return(n_free_extents);
+	return(fsp_get_available_space_in_free_extents(space));
 }
 
 /** Calculate how many KiB of new data we will be able to insert to the

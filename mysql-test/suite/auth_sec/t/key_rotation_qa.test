@@ -4,7 +4,6 @@
 # and key rotation testing.
 
 --source include/no_valgrind_without_big.inc
---disable_query_log
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'keyring_file initialization failure.");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Function 'keyring_file' already exists");
@@ -24,8 +23,6 @@ call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot open table .*
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Table .* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("Could not flush keys to keyring's backup");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: Tablespace [0-9]+, name 'test.t[0-9]+', unable to open file '.*test.t[0-9]+.ibd' - Data structure corruption");
---enable_query_log
 
 # Invalid syntax
 --error ER_PARSE_ERROR

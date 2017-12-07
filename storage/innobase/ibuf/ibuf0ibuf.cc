@@ -2187,10 +2187,10 @@ void
 ibuf_free_excess_pages(void)
 /*========================*/
 {
-	ut_ad(rw_lock_own(fil_space_get_latch(IBUF_SPACE_ID), RW_LOCK_X));
+	ut_ad(rw_lock_own(fil_space_get_latch(IBUF_SPACE_ID, NULL), RW_LOCK_X));
 
 	ut_ad(rw_lock_get_x_lock_count(
-			fil_space_get_latch(IBUF_SPACE_ID)) == 1);
+		fil_space_get_latch(IBUF_SPACE_ID, NULL)) == 1);
 
 	/* NOTE: We require that the thread did not own the latch before,
 	because then we know that we can obey the correct latching order

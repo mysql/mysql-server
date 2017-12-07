@@ -243,9 +243,9 @@ page_zip_compress_write_log(
 	/* Add the space occupied by BLOB pointers. */
 	trailer_size += page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
 	ut_a(page_zip->m_end > PAGE_DATA);
-
-	static_assert(FIL_PAGE_DATA <= PAGE_DATA, "FIL_PAGE_DATA > PAGE_DATA");
-
+#if FIL_PAGE_DATA > PAGE_DATA
+# error "FIL_PAGE_DATA > PAGE_DATA"
+#endif
 	ut_a(page_zip->m_end + trailer_size <= page_zip_get_size(page_zip));
 
 	log_ptr = mlog_write_initial_log_record_fast((page_t*) page,
@@ -2799,9 +2799,9 @@ page_zip_write_header_log(
 
 	ut_ad(offset < PAGE_DATA);
 	ut_ad(offset + length < PAGE_DATA);
-
-	static_assert(PAGE_DATA <= 255, "PAGE_DATA > 255");
-
+#if PAGE_DATA > 255
+# error "PAGE_DATA > 255"
+#endif
 	ut_ad(length < 256);
 
 	/* If no logging is requested, we may return now */

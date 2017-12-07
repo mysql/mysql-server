@@ -202,7 +202,6 @@ static const ulint OS_FILE_INSUFFICIENT_RESOURCE = 78;
 static const ulint OS_FILE_AIO_INTERRUPTED = 79;
 static const ulint OS_FILE_OPERATION_ABORTED = 80;
 static const ulint OS_FILE_ACCESS_VIOLATION = 81;
-static const ulint OS_FILE_NAME_TOO_LONG = 82;
 static const ulint OS_FILE_ERROR_MAX = 100;
 /* @} */
 
@@ -235,15 +234,16 @@ static const ulint ENCRYPTION_SERVER_UUID_LEN = 36;
 
 /** Encryption information total size for 5.7.11: magic number + master_key_id +
 key + iv + checksum */
-static const ulint ENCRYPTION_INFO_SIZE_V1 = 
-	ENCRYPTION_MAGIC_SIZE + (ENCRYPTION_KEY_LEN * 2) + 2 * sizeof(ulint);
+static const ulint ENCRYPTION_INFO_SIZE_V1 = (ENCRYPTION_MAGIC_SIZE \
+					 + (ENCRYPTION_KEY_LEN * 2) \
+					 + 2 * sizeof(ulint));
 
 /** Encryption information total size: magic number + master_key_id +
 key + iv + server_uuid + checksum */
-static const ulint ENCRYPTION_INFO_SIZE_V2 =
-	ENCRYPTION_MAGIC_SIZE + (ENCRYPTION_KEY_LEN * 2)
-	+ ENCRYPTION_SERVER_UUID_LEN + 2 * sizeof(ulint);
-
+static const ulint ENCRYPTION_INFO_SIZE_V2 = (ENCRYPTION_MAGIC_SIZE \
+					 + (ENCRYPTION_KEY_LEN * 2) \
+					 + ENCRYPTION_SERVER_UUID_LEN \
+					 + 2 * sizeof(ulint));
 /** Default master key for bootstrap */
 static const char ENCRYPTION_DEFAULT_MASTER_KEY[] = "DefaultMasterKey";
 
@@ -428,8 +428,8 @@ struct Encryption {
 
 	/** Decrypt the log block.
 	@param[in]	type		IORequest
-	@param[in,out]	src		data read from disk, decrypted data
-					will be copied to this page
+	@param[in,out]	src		data read from disk, decrypted data will be
+					copied to this page
 	@param[in,out]	dst		scratch area to use for decryption
 	@return DB_SUCCESS or error code */
 	dberr_t decrypt_log_block(
@@ -439,8 +439,8 @@ struct Encryption {
 
 	/** Decrypt the log data contents.
 	@param[in]	type		IORequest
-	@param[in,out]	src		data read from disk, decrypted data
-					will be copied to this page
+	@param[in,out]	src		data read from disk, decrypted data will be
+					copied to this page
 	@param[in]	src_len		source data length
 	@param[in,out]	dst		scratch area to use for decryption
 	@param[in]	dst_len		size of the scratch area in bytes
@@ -487,10 +487,10 @@ struct Encryption {
 	byte*			m_iv;
 
 	/** Current master key id */
-	static ulint		s_master_key_id;
+	static ulint		master_key_id;
 
 	/** Current uuid of server instance */
-	static char		s_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
+	static char		uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
 };
 
 /** Types for AIO operations @{ */
@@ -852,24 +852,22 @@ struct os_file_size_t {
 static const ulint OS_AIO_N_PENDING_IOS_PER_THREAD = 32;
 
 /** Modes for aio operations @{ */
-enum class AIO_mode : size_t {
-	/** Normal asynchronous i/o not for ibuf pages or ibuf bitmap pages */
-	NORMAL = 21,
+/** Normal asynchronous i/o not for ibuf pages or ibuf bitmap pages */
+static const ulint OS_AIO_NORMAL = 21;
 
-	/**  Asynchronous i/o for ibuf pages or ibuf bitmap pages */
-	IBUF = 22,
+/**  Asynchronous i/o for ibuf pages or ibuf bitmap pages */
+static const ulint OS_AIO_IBUF = 22;
 
-	/** Asynchronous i/o for the log */
-	LOG = 23,
+/** Asynchronous i/o for the log */
+static const ulint OS_AIO_LOG = 23;
 
-	/** Asynchronous i/o where the calling thread will itself wait for
-	the i/o to complete, doing also the job of the i/o-handler thread;
-	can be used for any pages, ibuf or non-ibuf.  This is used to save
-	CPU time, as we can do with fewer thread switches. Plain synchronous
-	I/O is not as good, because it must serialize the file seek and read
-	or write, causing a bottleneck for parallelism. */
-	SYNC = 24
-};
+/** Asynchronous i/o where the calling thread will itself wait for
+the i/o to complete, doing also the job of the i/o-handler thread;
+can be used for any pages, ibuf or non-ibuf.  This is used to save
+CPU time, as we can do with fewer thread switches. Plain synchronous
+I/O is not as good, because it must serialize the file seek and read
+or write, causing a bottleneck for parallelism. */
+static const ulint OS_AIO_SYNC = 24;
 /* @} */
 
 extern ulint	os_n_file_reads;
@@ -879,32 +877,12 @@ extern ulint	os_n_fsyncs;
 /* File types for directory entry data type */
 
 enum os_file_type_t {
-	/** Get status failed. */
-	OS_FILE_TYPE_FAILED,
-
-	/** stat() failed, with ENAMETOOLONG */
-	OS_FILE_TYPE_NAME_TOO_LONG,
-
-	/** stat() failed with EACCESS */
-	OS_FILE_PERMISSION_ERROR,
-
-	/** File doesn't exist. */
-	OS_FILE_TYPE_MISSING,
-
-	/** File exists but type is unknown. */
+	OS_FILE_TYPE_MISSING = 0,
 	OS_FILE_TYPE_UNKNOWN,
-
-	/** Ordinary file. */
-	OS_FILE_TYPE_FILE,
-
-	/** Directory. */
-	OS_FILE_TYPE_DIR,
-
-	/** Symbolic link. */
-	OS_FILE_TYPE_LINK,
-
-	/** Block device. */
-	OS_FILE_TYPE_BLOCK
+	OS_FILE_TYPE_FILE,			/* regular file */
+	OS_FILE_TYPE_DIR,			/* directory */
+	OS_FILE_TYPE_LINK,			/* symbolic link */
+	OS_FILE_TYPE_BLOCK			/* block device */
 };
 
 /* Maximum path string length in bytes when referring to tables with in the
@@ -1519,7 +1497,7 @@ UNIV_INLINE
 dberr_t
 pfs_os_aio_func(
 	IORequest&	type,
-	AIO_mode	mode,
+	ulint		mode,
 	const char*	name,
 	pfs_os_file_t	file,
 	void*		buf,
@@ -1981,6 +1959,39 @@ os_file_status(
 	bool*		exists,
 	os_file_type_t* type);
 
+/** This function returns a new path name after replacing the basename
+in an old path with a new basename.  The old_path is a full path
+name including the extension.  The tablename is in the normal
+form "databasename/tablename".  The new base name is found after
+the forward slash.  Both input strings are null terminated.
+
+This function allocates memory to be returned.  It is the callers
+responsibility to free the return value after it is no longer needed.
+
+@param[in]	old_path		pathname
+@param[in]	tablename		new file name
+@return own: new full pathname */
+char*
+os_file_make_new_pathname(
+	const char*	old_path,
+	const char*	tablename);
+
+/** This function reduces a null-terminated full remote path name into
+the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
+the 'databasename/tablename.ibd' found at the end of the path with just
+'tablename'.
+
+Since the result is always smaller than the path sent in, no new memory
+is allocated. The caller should allocate memory for the path sent in.
+This function manipulates that path in place.
+
+If the path format is not as expected, just return.  The result is used
+to inform a SHOW CREATE TABLE command.
+@param[in,out]	data_dir_path	full path/data_dir_path */
+void
+os_file_make_data_dir_path(
+	char*	data_dir_path);
+
 /** Create all missing subdirectories along the given path.
 @return DB_SUCCESS if OK, otherwise error code. */
 dberr_t
@@ -1998,17 +2009,6 @@ unit_test_os_file_get_parent_dir();
 void
 meb_free_block_cache();
 #endif /* UNIV_HOTBACKUP */
-
-/** Creates and initializes block_cache. Creates array of MAX_BLOCKS
-and allocates the memory in each block to hold BUFFER_BLOCK_SIZE
-of data.
-
-This function is called by InnoDB during AIO init (os_aio_init()).
-It is also by MEB while applying the redo logs on TDE tablespaces, the
-"Blocks" allocated in this block_cache are used to hold the decrypted page
-data. */
-void
-os_create_block_cache();
 
 /** Initializes the asynchronous io system. Creates one array each for ibuf
 and log i/o. Also creates one array each for read and write where each
@@ -2035,7 +2035,7 @@ os_aio_free();
 NOTE! Use the corresponding macro os_aio(), not directly this function!
 Requests an asynchronous i/o operation.
 @param[in]	type		IO request context
-@param[in]	aio_mode	IO mode
+@param[in]	mode		IO mode
 @param[in]	name		Name of the file or path as NUL terminated
 				string
 @param[in]	file		Open file handle
@@ -2053,7 +2053,7 @@ Requests an asynchronous i/o operation.
 dberr_t
 os_aio_func(
 	IORequest&	type,
-	AIO_mode	aio_mode,
+	ulint		mode,
 	const char*	name,
 	pfs_os_file_t	file,
 	void*		buf,
@@ -2217,6 +2217,7 @@ not then the source contents are left unchanged and DB_SUCCESS is returned.
 @param[in,out]	dst		Scratch area to use for decompression
 @param[in]	dst_len		Size of the scratch area in bytes
 @return DB_SUCCESS or error code */
+
 dberr_t
 os_file_decompress_page(
 	bool		dblwr_recover,
@@ -2225,12 +2226,38 @@ os_file_decompress_page(
 	ulint		dst_len)
 	MY_ATTRIBUTE((warn_unused_result));
 
+/** Normalizes a directory path for the current OS:
+On Windows, we convert '/' to '\', else we convert '\' to '/'.
+@param[in,out] str A null-terminated directory and file path */
+void os_normalize_path(char*	str);
+
 /** Determine if O_DIRECT is supported.
 @retval	true	if O_DIRECT is supported.
 @retval	false	if O_DIRECT is not supported. */
 bool
-os_is_o_direct_supported()
-	MY_ATTRIBUTE((warn_unused_result));
+os_is_o_direct_supported();
+
+/* Determine if a path is an absolute path or not.
+@param[in]	OS directory or file path to evaluate
+@retval true if an absolute path
+@retval false if a relative path */
+UNIV_INLINE
+bool
+is_absolute_path(
+	const char*	path)
+{
+	if (path[0] == OS_PATH_SEPARATOR) {
+		return(true);
+	}
+
+#ifdef _WIN32
+	if (path[1] == ':' && path[2] == OS_PATH_SEPARATOR) {
+		return(true);
+	}
+#endif /* _WIN32 */
+
+	return(false);
+}
 
 /** Class to scan the directory heirarch using a depth first scan. */
 class Dir_Walker {

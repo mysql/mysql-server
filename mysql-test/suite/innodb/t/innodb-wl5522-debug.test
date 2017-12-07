@@ -112,11 +112,6 @@ SELECT * FROM test_wl5522.t1;
 --error 2013
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
-perl;
-require 'include/innodb-util.inc';
-ib_unlink_tablespace("test_wl5522", "t1");
-EOF
-
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -143,7 +138,6 @@ ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 # delete the old tablespace files and drop the table,
 # recreate the table and do a proper import.
 -- source include/wait_until_disconnected.inc
-
 perl;
 require 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
@@ -1254,7 +1248,6 @@ call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Trying to import a tab
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Unsupported tablespace format");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number 32 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means that another program is using InnoDB's files.");
-call mtr.add_suppression("\\[Warning\\].*InnoDB: Tablespace.*, name 'test_wl5522.t1', file '.*test_wl5522.t1.ibd' is missing!");
 --enable_query_log
 
 #cleanup

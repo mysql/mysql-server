@@ -61,11 +61,11 @@ dd_get_space_id(const dd::Partition& partition)
 	return(id);
 }
 
-#ifdef DBUG_OFF
-#define	path_to_tablename(t, n, l, f) filename_to_tablename((t), (n), (l))
-#else
-#define	path_to_tablename(t, n, l, f) filename_to_tablename((t), (n), (l), (f))
-#endif /* DBUG_OFF */
+/** partition name separator */
+extern const char*	part_sep;
+
+/** sub-partition name separator */
+extern const char*	sub_sep;
 
 /** Parse a table file name into table name and database name.
 Note the table name may have trailing TMP_POSTFIX for temporary table name.
@@ -91,6 +91,10 @@ dd_parse_tbl_name(
 	char	db_buf[MAX_DATABASE_NAME_LEN + 1];
 	char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
 	ulint	db_len = dict_get_db_name_len(tbl_name);
+	ulint	tbl_len = 0;
+	char*	is_part;
+	char*	is_sub;
+	char*	trailing_sharp;
 
 	if (db_len == 0) {
 		return(false);
@@ -99,46 +103,45 @@ dd_parse_tbl_name(
 	ut_ad(db_len <= MAX_DATABASE_NAME_LEN);
 	memcpy(db_buf, tbl_name, db_len);
 	db_buf[db_len] = 0;
-
-	size_t	tbl_len = strlen(tbl_name) - db_len - 1;
-
+	tbl_len = strlen(tbl_name) - db_len - 1;
 	memcpy(tbl_buf, tbl_name + db_len + 1, tbl_len);
 	tbl_buf[tbl_len] = 0;
 
 	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1,
 			      true);
 
-	auto	is_part = strstr(tbl_buf, PART_SEPARATOR);
+	is_part = strstr(tbl_buf, part_sep);
 
 	if (is_part != nullptr) {
 		*is_part = '\0';
 	} else {
-		if (tbl_len > TMP_POSTFIX_LEN
-		    && strcmp(tbl_buf + tbl_len - TMP_POSTFIX_LEN,
+		if (tbl_len > strlen(TMP_POSTFIX)
+		    && strcmp(tbl_buf + tbl_len - strlen(TMP_POSTFIX),
 			      TMP_POSTFIX) == 0) {
-			tbl_buf[tbl_len - TMP_POSTFIX_LEN] = '\0';
+			tbl_buf[tbl_len - strlen(TMP_POSTFIX)] = '\0';
 			if (is_temp != nullptr) {
 				*is_temp = true;
 			}
 		}
 	}
 
-	path_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1, true);
+	filename_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1
+#ifndef DBUG_OFF
+			      , true
+#endif /* DBUG_OFF */
+	);
 
 	if (is_part == nullptr || dd_part_name == nullptr) {
 		return(true);
 	}
 
-	auto	is_sub = strstr(
-		is_part + PART_SEPARATOR_LEN, SUB_PART_SEPARATOR);
-
-	char*	trailing_sharp;
+	is_sub = strstr(is_part + strlen(part_sep), sub_sep);
 
 	if (is_sub == nullptr) {
-		trailing_sharp = strchr(is_part + PART_SEPARATOR_LEN, '#');
+		trailing_sharp = strchr(is_part + strlen(part_sep), '#');
 	} else {
 		*is_sub = '\0';
-		trailing_sharp = strchr(is_sub + SUB_PART_SEPARATOR_LEN, '#');
+		trailing_sharp = strchr(is_sub + strlen(sub_sep), '#');
 	}
 
 	if (trailing_sharp != nullptr) {
@@ -150,17 +153,14 @@ dd_parse_tbl_name(
 		}
 	}
 
-	if (is_part != nullptr && dd_part_name != nullptr ) {
+	if (is_part && dd_part_name) {
+		filename_to_tablename(is_part + strlen(part_sep), dd_part_name,
+				      MAX_TABLE_NAME_LEN + 1);
 
-		filename_to_tablename(
-			is_part + PART_SEPARATOR_LEN,
-			dd_part_name, MAX_TABLE_NAME_LEN + 1);
-
-		if (is_sub != nullptr && dd_sub_name != nullptr ) {
-
+		if (is_sub && dd_sub_name) {
 			filename_to_tablename(
-				is_sub + SUB_PART_SEPARATOR_LEN,
-				dd_sub_name, MAX_TABLE_NAME_LEN + 1);
+				is_sub + strlen(sub_sep), dd_sub_name,
+				MAX_TABLE_NAME_LEN + 1);
 		}
 	}
 
@@ -476,7 +476,6 @@ dd_get_version(
 {
 	uint64_t		version = 0;
 	const dd::Properties&	p = dd_table->se_private_data();
-
 	if (!p.exists(dd_table_key_strings[DD_TABLE_VERSION])
 	    || p.get_uint64(dd_table_key_strings[DD_TABLE_VERSION],
 			    reinterpret_cast<uint64*>(&version))) {

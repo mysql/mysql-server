@@ -320,7 +320,7 @@ limit both with this same constant. */
 /** Minimum page size InnoDB currently supports. */
 #define UNIV_PAGE_SIZE_MIN	(1 << UNIV_PAGE_SIZE_SHIFT_MIN)
 /** Maximum page size InnoDB currently supports. */
-constexpr size_t UNIV_PAGE_SIZE_MAX = (1 << UNIV_PAGE_SIZE_SHIFT_MAX);
+#define UNIV_PAGE_SIZE_MAX	(1 << UNIV_PAGE_SIZE_SHIFT_MAX)
 /** Default page size for InnoDB tablespaces. */
 #define UNIV_PAGE_SIZE_DEF	(1 << UNIV_PAGE_SIZE_SHIFT_DEF)
 /** Original 16k page size for InnoDB tablespaces. */
@@ -451,9 +451,8 @@ typedef long int		lint;
 
 /** The bitmask of 32-bit unsigned integer */
 #define ULINT32_MASK		0xFFFFFFFF
-
 /** The undefined 32-bit unsigned integer */
-constexpr uint32_t ULINT32_UNDEFINED = ULINT32_MASK;
+#define	ULINT32_UNDEFINED	ULINT32_MASK
 
 /** Maximum value for a ulint */
 #define ULINT_MAX		((ulint)(-2))
@@ -674,20 +673,4 @@ constexpr auto to_int(T v) -> typename std::underlying_type<T>::type
 {
         return(static_cast<typename std::underlying_type<T>::type>(v));
 }
-
-/** If we are doing something that takes longer than this many seconds then
-print an informative message. Type should be return type of ut_time(). */
-static constexpr ib_time_t PRINT_INTERVAL_SECS = 10;
-
-constexpr size_t PART_SEPARATOR_LEN = 3;
-constexpr size_t SUB_PART_SEPARATOR_LEN = 4;
-
-#ifdef _WIN32
-constexpr char PART_SEPARATOR[PART_SEPARATOR_LEN + 1] = "#p#";
-constexpr char SUB_PART_SEPARATOR[SUB_PART_SEPARATOR_LEN + 1] = "#sp#";
-#else
-constexpr char PART_SEPARATOR[PART_SEPARATOR_LEN + 1] = "#P#";
-constexpr char SUB_PART_SEPARATOR[SUB_PART_SEPARATOR_LEN + 1] = "#SP#";
-#endif /* _WIN32 */
-
 #endif

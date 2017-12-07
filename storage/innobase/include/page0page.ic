@@ -409,31 +409,24 @@ page_rec_is_user_rec_low(
 	ulint	offset)	/*!< in: record offset on page */
 {
 	ut_ad(offset >= PAGE_NEW_INFIMUM);
-
-        static_assert(
-                PAGE_OLD_INFIMUM >= PAGE_NEW_INFIMUM,
-                "PAGE_OLD_INFIMUM < PAGE_NEW_INFIMUM");
-
-        static_assert(
-                PAGE_OLD_SUPREMUM >= PAGE_NEW_SUPREMUM,
-                "PAGE_OLD_SUPREMUM < PAGE_NEW_SUPREMUM");
-
-        static_assert(
-                PAGE_NEW_INFIMUM <= PAGE_OLD_SUPREMUM,
-                "PAGE_NEW_INFIMUM > PAGE_OLD_SUPREMUM");
-
-        static_assert(
-                PAGE_OLD_INFIMUM <= PAGE_NEW_SUPREMUM,
-                "PAGE_OLD_INFIMUM > PAGE_NEW_SUPREMUM");
-
-        static_assert(
-                PAGE_NEW_SUPREMUM <= PAGE_OLD_SUPREMUM_END,
-                "PAGE_NEW_SUPREMUM > PAGE_OLD_SUPREMUM_END");
-
-        static_assert(
-                PAGE_OLD_SUPREMUM <= PAGE_NEW_SUPREMUM_END,
-                "PAGE_OLD_SUPREMUM > PAGE_NEW_SUPREMUM_END");
-
+#if PAGE_OLD_INFIMUM < PAGE_NEW_INFIMUM
+# error "PAGE_OLD_INFIMUM < PAGE_NEW_INFIMUM"
+#endif
+#if PAGE_OLD_SUPREMUM < PAGE_NEW_SUPREMUM
+# error "PAGE_OLD_SUPREMUM < PAGE_NEW_SUPREMUM"
+#endif
+#if PAGE_NEW_INFIMUM > PAGE_OLD_SUPREMUM
+# error "PAGE_NEW_INFIMUM > PAGE_OLD_SUPREMUM"
+#endif
+#if PAGE_OLD_INFIMUM > PAGE_NEW_SUPREMUM
+# error "PAGE_OLD_INFIMUM > PAGE_NEW_SUPREMUM"
+#endif
+#if PAGE_NEW_SUPREMUM > PAGE_OLD_SUPREMUM_END
+# error "PAGE_NEW_SUPREMUM > PAGE_OLD_SUPREMUM_END"
+#endif
+#if PAGE_OLD_SUPREMUM > PAGE_NEW_SUPREMUM_END
+# error "PAGE_OLD_SUPREMUM > PAGE_NEW_SUPREMUM_END"
+#endif
 	ut_ad(offset <= UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START);
 
 	return(offset != PAGE_NEW_SUPREMUM

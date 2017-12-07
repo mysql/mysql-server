@@ -74,50 +74,38 @@ pages, we store the compressed page control information in these 8 bytes. */
 FIL_PAGE_FILE_FLUSH_LSN are broken down as follows: */
 
 /** Control information version format (u8) */
-constexpr ulint FIL_PAGE_VERSION = FIL_PAGE_FILE_FLUSH_LSN;
+static const ulint FIL_PAGE_VERSION = FIL_PAGE_FILE_FLUSH_LSN;
 
 /** Compression algorithm (u8) */
-constexpr ulint FIL_PAGE_ALGORITHM_V1 = FIL_PAGE_VERSION + 1;
+static const ulint FIL_PAGE_ALGORITHM_V1 = FIL_PAGE_VERSION + 1;
 
 /** Original page type (u16) */
-constexpr ulint FIL_PAGE_ORIGINAL_TYPE_V1 = FIL_PAGE_ALGORITHM_V1 + 1;
+static const ulint FIL_PAGE_ORIGINAL_TYPE_V1 = FIL_PAGE_ALGORITHM_V1 + 1;
 
 /** Original data size in bytes (u16)*/
-constexpr ulint FIL_PAGE_ORIGINAL_SIZE_V1 = FIL_PAGE_ORIGINAL_TYPE_V1 + 2;
+static const ulint FIL_PAGE_ORIGINAL_SIZE_V1 = FIL_PAGE_ORIGINAL_TYPE_V1 + 2;
 
 /** Size after compression (u16) */
-constexpr ulint FIL_PAGE_COMPRESS_SIZE_V1 = FIL_PAGE_ORIGINAL_SIZE_V1 + 2;
+static const ulint FIL_PAGE_COMPRESS_SIZE_V1 = FIL_PAGE_ORIGINAL_SIZE_V1 + 2;
 
 /** This overloads FIL_PAGE_FILE_FLUSH_LSN for RTREE Split Sequence Number */
-constexpr ulint FIL_RTREE_SPLIT_SEQ_NUM = FIL_PAGE_FILE_FLUSH_LSN;
+#define FIL_RTREE_SPLIT_SEQ_NUM		FIL_PAGE_FILE_FLUSH_LSN
 
 /** starting from 4.1.x this contains the space id of the page */
-constexpr ulint FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID = 34;
+#define FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID	34
 
 /** alias for space id */
 #define FIL_PAGE_SPACE_ID		FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID
 
 /** start of the data on the page */
-constexpr ulint FIL_PAGE_DATA = 38;
+#define FIL_PAGE_DATA			38U
 
 /** File page trailer */
 /** the low 4 bytes of this are used to store the page checksum, the
 last 4 bytes should be identical to the last 4 bytes of FIL_PAGE_LSN */
-constexpr ulint FIL_PAGE_END_LSN_OLD_CHKSUM = 8;
+#define FIL_PAGE_END_LSN_OLD_CHKSUM	8
 
 /** size of the page trailer */
-constexpr ulint FIL_PAGE_DATA_END = 8;
-
-/** First in address is the page offset. */
-constexpr size_t FIL_ADDR_PAGE = 0;
-
-/** Then comes 2-byte byte offset within page.*/
-constexpr size_t FIL_ADDR_BYTE = 4;
-
-/** Address size is 6 bytes. */
-constexpr size_t FIL_ADDR_SIZE = 6;
-
-/** Path separator e.g., 'dir;...;dirN' */
-constexpr char	FIL_PATH_SEPARATOR = ';';
+#define FIL_PAGE_DATA_END		8
 
 #endif /* fil0types_h */

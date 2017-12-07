@@ -511,17 +511,4 @@ buffer pool size.
 void
 innodb_set_buf_pool_size(long long buf_pool_size);
 
-/** Gets the InnoDB transaction handle for a MySQL handler object, creates
-an InnoDB transaction struct if the corresponding MySQL thread struct still
-lacks one.
-@param[in]	thd	MySQL thd (connection) object
-@return InnoDB transaction handle */
-trx_t*
-check_trx_exists(THD* thd);
-
-/** Commits a transaction in an InnoDB database.
-@param[in]	trx	Transaction handle. */
-void
-innobase_commit_low(trx_t* trx);
-
 #endif /* HA_INNODB_PROTOTYPES_H */

@@ -1666,20 +1666,14 @@ dict_table_rename_in_cache(
 	HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
 			dict_table_t*, table2, ut_ad(table2->cached),
 			(ut_strcmp(table2->name.m_name, new_name) == 0));
-
 	DBUG_EXECUTE_IF("dict_table_rename_in_cache_failure",
 		if (table2 == NULL) {
 			table2 = (dict_table_t*) -1;
 		} );
-
-	if (table2 != nullptr) {
-
-		ib::error()
-			<< "Cannot rename table '" << old_name
+	if (table2) {
+		ib::error() << "Cannot rename table '" << old_name
 			<< "' to '" << new_name << "' since the"
-			" dictionary cache already contains '"
-			<< new_name << "'.";
-
+			" dictionary cache already contains '" << new_name << "'.";
 		return(DB_ERROR);
 	}
 
@@ -1695,28 +1689,22 @@ dict_table_rename_in_cache(
 		/* Make sure the data_dir_path is set. */
 		dd_get_and_save_data_dir_path<dd::Table>(table, NULL, true);
 
-		std::string	path = dict_table_get_datadir(table);
+		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+			ut_a(table->data_dir_path);
 
-		filepath = Fil_path::make(path, table->name.m_name, IBD, true);
+			filepath = fil_make_filepath(
+				table->data_dir_path, table->name.m_name,
+				IBD, true);
+		} else {
+			filepath = fil_make_filepath(
+				NULL, table->name.m_name, IBD, false);
+		}
 
 		if (filepath == NULL) {
 			return(DB_OUT_OF_MEMORY);
 		}
 
-		err = fil_delete_tablespace(
-                        table->space, BUF_REMOVE_ALL_NO_WRITE);
-
-                ut_a(err == DB_SUCCESS
-		     || err == DB_TABLESPACE_NOT_FOUND
-		     || err == DB_IO_ERROR);
-
-		if (err == DB_IO_ERROR) {
-
-			ib::info()
-				<< "IO error while deleting: " << table->space
-				<< " during rename of '" << old_name << "' to"
-				<< " '" << new_name << "'";
-		}
+		fil_delete_tablespace(table->space, BUF_REMOVE_ALL_NO_WRITE);
 
 		/* Delete any temp file hanging around. */
 		if (os_file_status(filepath, &exists, &ftype)
@@ -1736,14 +1724,11 @@ dict_table_rename_in_cache(
 		ut_ad(!table->is_temporary());
 
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-			std::string	new_ibd;
-
-			new_ibd = Fil_path::make_new_ibd(old_path, new_name);
-
-			new_path = mem_strdup(new_ibd.c_str());
-
+			new_path = os_file_make_new_pathname(
+				old_path, new_name);
 		} else {
-			new_path = Fil_path::make_ibd_from_table_name(new_name);
+			new_path = fil_make_filepath(
+				NULL, new_name, IBD, false);
 		}
 
 		/* New filepath must not exist. */
@@ -1761,8 +1746,7 @@ dict_table_rename_in_cache(
 		dd_filename_to_spacename(new_name, &new_tablespace_name);
 
 		bool	success = fil_rename_tablespace(
-			table->space, old_path, new_tablespace_name.c_str(),
-			new_path);
+			table->space, old_path, new_tablespace_name.c_str(), new_path);
 
 		clone_mark_active();
 
@@ -2218,9 +2202,8 @@ dict_partitioned_table_remove_from_cache(
 
 			if ((strncmp(name, prev_table->name.m_name, name_len)
 			     == 0)
-			    && strncmp(prev_table->name.m_name + name_len,
-					PART_SEPARATOR,
-					PART_SEPARATOR_LEN) == 0) {
+			    && (strncmp(prev_table->name.m_name + name_len,
+					part_sep, strlen(part_sep)) == 0)) {
 
 				btr_drop_ahi_for_table(prev_table);
 				dict_table_remove_from_cache(prev_table);
@@ -8168,21 +8151,5 @@ dd_sdi_acquire_shared_mdl(
 	}
 
 	return(DB_SUCCESS);
-}
-
-/** Get the tablespace data directory if set, otherwise empty string.
-@return the data directory */
-std::string
-dict_table_get_datadir(const dict_table_t* table)
-{
-	std::string	path;
-
-	if (DICT_TF_HAS_DATA_DIR(table->flags)
-		&& table->data_dir_path != nullptr) {
-
-		path.assign(table->data_dir_path);
-	}
-
-	return(path);
 }
 #endif /* !UNIV_HOTBACKUP */

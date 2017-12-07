@@ -72,28 +72,28 @@ struct buf_page_desc_t{
 
 /** We also define I_S_PAGE_TYPE_INDEX as the Index Page's position
 in i_s_page_type[] array */
-constexpr size_t I_S_PAGE_TYPE_INDEX = 1;
+#define I_S_PAGE_TYPE_INDEX		1
 
 /** Any unassigned FIL_PAGE_TYPE will be treated as unknown. */
-constexpr auto I_S_PAGE_TYPE_UNKNOWN = FIL_PAGE_TYPE_UNKNOWN;
+#define	I_S_PAGE_TYPE_UNKNOWN		FIL_PAGE_TYPE_UNKNOWN
 
 /** R-tree index page */
-constexpr auto I_S_PAGE_TYPE_RTREE = (FIL_PAGE_TYPE_LAST + 1);
+#define	I_S_PAGE_TYPE_RTREE		(FIL_PAGE_TYPE_LAST + 1)
 
 /** Change buffer B-tree page */
-constexpr auto I_S_PAGE_TYPE_IBUF = (FIL_PAGE_TYPE_LAST + 2);
+#define	I_S_PAGE_TYPE_IBUF		(FIL_PAGE_TYPE_LAST + 2)
 
 /** SDI B-tree page */
-constexpr auto I_S_PAGE_TYPE_SDI = (FIL_PAGE_TYPE_LAST + 3);
+#define	I_S_PAGE_TYPE_SDI		(FIL_PAGE_TYPE_LAST + 3)
 
-constexpr auto I_S_PAGE_TYPE_LAST = I_S_PAGE_TYPE_SDI;
+#define I_S_PAGE_TYPE_LAST		I_S_PAGE_TYPE_SDI
 
-constexpr auto I_S_PAGE_TYPE_BITS = 6;
+#define I_S_PAGE_TYPE_BITS		6
 
 /* Check if we can hold all page types */
-static_assert(
-        I_S_PAGE_TYPE_LAST < (1 << I_S_PAGE_TYPE_BITS),
-        "i_s_page_type[] is too large");
+#if I_S_PAGE_TYPE_LAST >= 1 << I_S_PAGE_TYPE_BITS
+# error i_s_page_type[] is too large
+#endif
 
 /** Name string for File Page Types */
 static buf_page_desc_t	i_s_page_type[] = {
@@ -7512,7 +7512,7 @@ i_s_dict_fill_innodb_tablespaces(
 			filepath = fil_space_get_first_path(space);
 			mutex_exit(&dict_sys->mutex);
 		} else {
-			filepath = Fil_path::make_ibd_from_table_name(name);
+			filepath = fil_make_filepath(NULL, name, IBD, false);
 		}
 	}
 
@@ -7610,8 +7610,7 @@ i_s_innodb_tablespaces_fill_table(
 		uint32		server_version;
 		uint32		space_version;
 
-		/* Extract necessary information from a INNODB_TABLESPACES
-		row */
+		/* Extract necessary information from a INNODB_TABLESPACES row */
 		ret = dd_process_dd_tablespaces_rec(
 			heap, rec, &space, &name, &flags, &server_version,
 			&space_version, dd_spaces);
@@ -7715,6 +7714,7 @@ struct st_mysql_plugin	i_s_innodb_tablespaces =
 	/* unsigned long */
 	STRUCT_FLD(flags, 0UL),
 };
+
 
 /** INFORMATION_SCHEMA.INNODB_CACHED_INDEXES */
 

@@ -19,7 +19,6 @@ EOF
 --source include/start_mysqld.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace .*, name '.*', file '.*' is missing");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot calculate statistics for table `test`\.`t` because the \.ibd file is missing");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot delete tablespace [0-9]+ in DISCARD TABLESPACE: Tablespace not found");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Ignoring tablespace .* because it could not be opened");

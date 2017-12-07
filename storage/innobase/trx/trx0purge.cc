@@ -990,8 +990,8 @@ trx_purge_mark_undo_for_truncate(
 	ut_a(undo::spaces->size() >= FSP_MIN_UNDO_TABLESPACES);
 
 	/* Return immediately if
-	 1. truncate is disabled or
-	 2. an undo tablespace is currently marked for truncate. */
+	     * truncate is disabled or
+	     * an undo tablespace is currently marked for truncate. */
 	if (!srv_undo_log_truncate || undo_trunc->is_marked()) {
 		return;
 	}
@@ -1067,8 +1067,7 @@ trx_purge_cleanse_purge_queue(
 		     ++it2) {
 
 			if ((*it2)->space_id
-			    == undo_trunc->get_marked_space_id()) {
-
+				== undo_trunc->get_marked_space_id()) {
 				it->erase(it2);
 				break;
 			}

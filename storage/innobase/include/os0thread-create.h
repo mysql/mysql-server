@@ -108,17 +108,15 @@ private:
 	{
 		my_thread_init();
 
-#if defined(UNIV_PFS_THREAD) && !defined(UNIV_HOTBACKUP)
-		if (m_pfs_key.m_value != PFS_NOT_INSTRUMENTED.m_value) {
-			PSI_thread*	psi;
+#ifdef UNIV_PFS_THREAD
+		PSI_thread*	psi;
 
-			psi = PSI_THREAD_CALL(new_thread)(
-				m_pfs_key.m_value, nullptr, 0);
+		psi = PSI_THREAD_CALL(new_thread)(m_pfs_key.m_value, nullptr,
+						  0);
 
-			PSI_THREAD_CALL(set_thread_os_id)(psi);
-			PSI_THREAD_CALL(set_thread)(psi);
-		}
-#endif /* UNIV_PFS_THREAD && !UNIV_HOTBACKUP */
+		PSI_THREAD_CALL(set_thread_os_id)(psi);
+		PSI_THREAD_CALL(set_thread)(psi);
+#endif /* UNIV_PFS_THREAD */
 
 		std::atomic_thread_fence(std::memory_order_release);
 
@@ -141,11 +139,9 @@ private:
 
 		my_thread_end();
 
-#if defined(UNIV_PFS_THREAD) && !defined(UNIV_HOTBACKUP)
-		if (m_pfs_key.m_value != PFS_NOT_INSTRUMENTED.m_value) {
-			PSI_THREAD_CALL(delete_current_thread)();
-		}
-#endif /* UNIV_PFS_THREAD && !UNIV_HOTBACKUP */
+#ifdef UNIV_PFS_THREAD
+		PSI_THREAD_CALL(delete_current_thread)();
+#endif /* UNIV_PFS_THREAD */
 	}
 private:
 #ifdef UNIV_PFS_THREAD
@@ -171,52 +167,6 @@ create_detached_thread(mysql_pfs_key_t pfs_key, F&& f, Args&& ... args)
 #define os_thread_create(...)		create_detached_thread(__VA_ARGS__)
 #else
 #define os_thread_create(k, ...)	create_detached_thread(0, __VA_ARGS__)
-#endif /* UNIV_PFS_THREAD */
-
-/** Parallel for loop over a container.
-@param[in]	pfs_key		Performance schema thread key
-@param[in]	c		Container to iterate over in parallel
-@param[in]	n		Number of threads to create
-@param[in]	f		Callable instance
-@param[in]	args		zero or more args */
-template<typename Container, typename F, typename ... Args>
-void
-par_for(mysql_pfs_key_t		pfs_key,
-	const Container&	c,
-	size_t			n,
-	F&&			f,
-	Args&&			... args)
-{
-	if (c.empty()) {
-		return;
-	}
-
-	size_t	slice = (n > 0) ? c.size() / n : 0;
-
-	using Workers = std::vector<std::thread>;
-
-	Workers	workers;
-
-	for (size_t i = 0; i < n; ++i) {
-
-		auto	b = c.begin() + (i * slice);
-		auto	e = b + slice;
-
-		workers.push_back(
-			std::thread{Runnable{pfs_key}, f, b, e, i, args ...});
-	}
-
-	f(c.begin() + (n * slice), c.end(), n, args ...);
-
-	for (auto& worker : workers) {
-		worker.join();
-	}
-}
-
-#if defined(UNIV_PFS_THREAD) && !defined(UNIV_HOTBACKUP)
-#define par_for(...)		par_for(__VA_ARGS__)
-#else
-#define par_for(k, ...)		par_for(0, __VA_ARGS__)
 #endif /* UNIV_PFS_THREAD */
 
 #endif /* !os0thread_create_h */

@@ -3616,45 +3616,18 @@ dict_stats_evict_tablespaces()
 {
 	ut_ad(srv_is_upgrade_mode);
 
-	space_id_t	space_id_index_stats =
-                fil_space_get_id_by_name(INDEX_STATS_NAME);
-
-	space_id_t	space_id_table_stats =
-                fil_space_get_id_by_name(TABLE_STATS_NAME);
-
+	space_id_t	space_id_index_stats = fil_space_get_id_by_name(INDEX_STATS_NAME);
+	space_id_t	space_id_table_stats = fil_space_get_id_by_name(TABLE_STATS_NAME);
 	trx_t*		trx = trx_allocate_for_background();
 
 	trx_start_internal(trx);
 
 	if (space_id_index_stats != SPACE_UNKNOWN) {
-
-                dberr_t err;
-
-		err = fil_close_tablespace(trx, space_id_index_stats);
-
-                if (err != DB_SUCCESS) {
-
-			ib::info()
-				<< "dict_stats_evict_tablespace: "
-				<< " fil_close_tablespace("
-				<< space_id_index_stats << ") failed! "
-				<< ut_strerr(err);
-		}
+		fil_close_tablespace(trx, space_id_index_stats);
 	}
 
 	if (space_id_table_stats != SPACE_UNKNOWN) {
-                dberr_t err;
-
-		err = fil_close_tablespace(trx, space_id_table_stats);
-
-                if (err != DB_SUCCESS) {
-
-			ib::info()
-				<< "dict_stats_evict_tablespace: "
-				<< " fil_close_tablespace("
-				<< space_id_index_stats << ") failed! "
-				<< ut_strerr(err);
-		}
+		fil_close_tablespace(trx, space_id_table_stats);
 	}
 
 	trx_commit_for_mysql(trx);

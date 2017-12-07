@@ -2398,7 +2398,7 @@ srv_enable_undo_encryption_if_set()
 	/* If the undo log space is using default key, rotate
 	it. We need the server_uuid initialized, otherwise,
 	the keyname will not contains server uuid. */
-	if (Encryption::s_master_key_id != 0
+	if (Encryption::master_key_id != 0
 	    || srv_read_only_mode
 	    || strlen(server_uuid) == 0) {
 		return;

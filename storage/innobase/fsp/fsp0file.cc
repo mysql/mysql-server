@@ -78,6 +78,12 @@ Datafile::shutdown()
 		ut_free(m_encryption_iv);
 		m_encryption_iv = NULL;
 	}
+#ifdef UNIV_HOTBACKUP
+	if (m_dirpath != NULL) {
+		ut_free(m_dirpath);
+		m_dirpath = NULL;
+	}
+#endif /* UNIV_HOTBACKUP */
 }
 
 /** Create/open a data file.
@@ -212,22 +218,13 @@ void
 Datafile::make_filepath(
 	const char*	dirpath,
 	const char*	filename,
-	ib_file_suffix	ext)
+	ib_extention	ext)
 {
+	ut_ad(dirpath != NULL || filename != NULL);
+
 	free_filepath();
 
-	std::string	path;
-	std::string	name;
-
-	if (dirpath != nullptr) {
-		path.assign(dirpath);
-	}
-
-	if (filename != nullptr) {
-		name.assign(filename);
-	}
-
-	m_filepath = Fil_path::make(path, name, ext);
+	m_filepath = fil_make_filepath(dirpath, filename, ext, false);
 
 	ut_ad(m_filepath != NULL);
 
@@ -431,7 +428,7 @@ Datafile::validate_to_dd(
 	dberr_t err;
 
 	if (!is_open()) {
-		return(DB_ERROR);
+		return DB_ERROR;
 	}
 
 	/* Validate this single-table-tablespace with the data dictionary,
@@ -546,7 +543,7 @@ m_is_valid is set true on success, else false.
 @param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
 @param[in]	for_import	if it is for importing
 (only valid for the first file of the system tablespace)
-@retval DB_WRONG_FILE_NAME tablespace in file header doesn't match
+@retval DB_TABLESPACE_NOT_FOUND tablespace in file header doesn't match
 	expected value
 @retval DB_SUCCESS on if the datafile is valid
 @retval DB_CORRUPTION if the datafile is not readable
@@ -644,7 +641,7 @@ Datafile::validate_first_page(
 		     << m_space_id;
 #endif /* !UNIV_HOTBACKUP */
 
-		return(DB_WRONG_FILE_NAME);
+		return(DB_TABLESPACE_NOT_FOUND);
 
 	} else {
 		BlockReporter	reporter(
@@ -691,7 +688,7 @@ Datafile::validate_first_page(
 		m_encryption_iv = static_cast<byte*>(
 			ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
 #ifdef	UNIV_ENCRYPT_DEBUG
-		fprintf(stderr, "Got from file %lu:", m_space_id);
+                fprintf(stderr, "Got from file %lu:", m_space_id);
 #endif
 
 #ifdef UNIV_HOTBACKUP

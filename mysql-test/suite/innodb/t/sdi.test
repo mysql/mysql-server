@@ -442,9 +442,6 @@ call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means the sy
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot open datafile for read-only:");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot find space for ts1 in tablespace memory cache");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
-call mtr.add_suppression("InnoDB: Tablespace .*, name 'ts1', file 'ts1.ibd' is missing!");
-call mtr.add_suppression("InnoDB: Cannot find tablespace for 'ts1' in tablespace memory cache");
-
 --enable_query_log
 
 let $MYSQLD_DATADIR= `select @@datadir`;

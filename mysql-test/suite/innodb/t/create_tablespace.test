@@ -1,5 +1,5 @@
 #
-# A series of tests to show the correct behavior for
+# WL#6205 - A series of tests to show the correct behavior for
 # CREATE TABLESPACE and associated SQL statements.
 #
 
@@ -11,16 +11,6 @@ SET DEFAULT_STORAGE_ENGINE=InnoDB;
 SET NAMES utf8;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
-
---disable_query_log
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-LET $restart_parameters = restart:--innodb-directories=$MYSQL_TMP_DIR;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---source include/restart_mysqld.inc
---enable_query_log
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW VARIABLES LIKE 'innodb_directories';
 
 --echo # Strict-mode has no effect on CREATE TABLESPACE.
 --echo # It rejects all invalid input, as if strict mode is always ON.
@@ -80,10 +70,10 @@ CREATE TABLESPACE test/s_bad ADD DATAFILE 's_bad.ibd';
 --error ER_WRONG_TABLESPACE_NAME
 CREATE TABLESPACE `test/s_bad` ADD DATAFILE 's_bad.ibd';
 LET $TWOFIFTYFIVE=../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
---error ER_WRONG_FILE_NAME
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: File .* 'delete' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: File .* 'stat' returned OS error .*");
+--error ER_CREATE_FILEGROUP_FAILED
 eval CREATE TABLESPACE `s_too_long_file_name` ADD DATAFILE '$TWOFIFTYFIVE.ibd';
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW WARNINGS;
 --error ER_FILEGROUP_OPTION_ONLY_ONCE
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=1k FILE_BLOCK_SIZE=2k;
 --error ER_ILLEGAL_HA_CREATE_OPTION
@@ -1013,15 +1003,30 @@ SET GLOBAL innodb_strict_mode=default;
 --rmdir $MYSQL_TMP_DIR/test
 --rmdir $MYSQL_TMP_DIR/tablespace.ibd
 
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: File .*\.ibd: 'create' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means mysqld does not have the access rights to the directory. It may also be you have created a subdirectory of the same name as a data file.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Error number .* means");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot create file");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Invalid use of ':' in");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The file .* already exists though the corresponding table did not exist.");
+--enable_query_log
 --echo #
 --echo # Bug #20763179 SEGV WHEN CREATE TABLESPACE IS EXECUTED IN READ ONLY MODE
 --echo #
 --echo # Check CREATE TABLESPACE is handled properly in read-only mode
 
+--disable_query_log
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
+--enable_query_log
+
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
 
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-let $restart_parameters = restart: --innodb_read_only --innodb-directories=$MYSQL_TMP_DIR;
+let $restart_parameters = restart: --innodb_read_only;
 --source include/restart_mysqld.inc
 --error ER_OPEN_AS_READONLY
 CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd' ENGINE InnoDB;
@@ -1031,8 +1036,7 @@ DROP TABLESPACE s1;
 SHOW WARNINGS;
 
 --echo # Restart in normal mode for cleanup.
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-let $restart_parameters = restart --innodb-directories=$MYSQL_TMP_DIR;
+let $restart_parameters = restart;
 --source include/restart_mysqld.inc
 DROP TABLESPACE s1;
 
@@ -1199,21 +1203,3 @@ SHOW CREATE TABLE after_alter_like_t_impl_tmp;
 DROP SCHEMA s1;
 DROP TABLESPACE s1;
 SET GLOBAL innodb_file_per_table= DEFAULT;
-
---disable_query_log
-call mtr.add_suppression("\\[Warning\\].*Skip re-populating collations and character sets tables in InnoDB read-only mode");
-call mtr.add_suppression("\\[Warning\\].*Skip updating information_schema metadata in InnoDB read-only mode");
-call mtr.add_suppression("\\[Warning\\].*Skipped updating resource group metadata in InnoDB read only mode");
-call mtr.add_suppression("\\[Warning\\].*InnoDB: '.*tablespace.ibd' is a directory, can't delete!");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: File .* 'delete' returned OS error .*");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: File .* 'stat' returned OS error .*");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: File .*\.ibd: 'create' returned OS error .*");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: The error means the system cannot find the path specified");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: The error means mysqld does not have the access rights to the directory. It may also be you have created a subdirectory of the same name as a data file.");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: Operating system error number .* in a file operation");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: Error number .* means");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: Cannot create file");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: Invalid use of ':' in");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: The file .* already exists though the corresponding table did not exist.");
---enable_query_log
-

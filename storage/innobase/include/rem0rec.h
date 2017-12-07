@@ -893,12 +893,12 @@ rec_get_trx_id(
 
 /* Maximum lengths for the data in a physical record if the offsets
 are given in one byte (resp. two byte) format. */
-constexpr ulint REC_1BYTE_OFFS_LIMIT = 0x7FUL;
-constexpr ulint REC_2BYTE_OFFS_LIMIT = 0x7FFFUL;
+#define REC_1BYTE_OFFS_LIMIT	0x7FUL
+#define REC_2BYTE_OFFS_LIMIT	0x7FFFUL
 
 /* The data size of record must be smaller than this because we reserve
 two upmost bits in a two byte offset for special purposes */
-constexpr ulint REC_MAX_DATA_SIZE = 16384;
+#define REC_MAX_DATA_SIZE	16384
 
 #include "rem0rec.ic"
 

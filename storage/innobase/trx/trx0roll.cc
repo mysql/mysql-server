@@ -56,7 +56,7 @@ rollback */
 static const ulint TRX_ROLL_TRUNC_THRESHOLD = 1;
 
 /** true if trx_rollback_or_clean_all_recovered() thread is active */
-bool                    trx_rollback_or_clean_is_active;
+bool			trx_rollback_or_clean_is_active;
 
 /** In crash recovery, the current trx to be rolled back; NULL otherwise */
 static const trx_t*	trx_roll_crash_recv_trx	= NULL;
@@ -819,11 +819,11 @@ void
 trx_recovery_rollback_thread()
 {
 #ifdef UNIV_PFS_THREAD
-	THD*	thd = create_thd(
-		false, true, true, trx_recovery_rollback_thread_key.m_value);
+	THD*	thd = create_thd(false, true, true,
+				 trx_recovery_rollback_thread_key.m_value);
 #else
 	THD*	thd = create_thd(false, true, true, 0);
-#endif /* UNIV_PFS_THREAD */
+#endif
 
 	my_thread_init();
 
@@ -831,7 +831,7 @@ trx_recovery_rollback_thread()
 
 	trx_rollback_or_clean_recovered(TRUE);
 
-        trx_rollback_or_clean_is_active = false;
+	trx_rollback_or_clean_is_active = false;
 
 	destroy_thd(thd);
 

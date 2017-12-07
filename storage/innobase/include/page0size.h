@@ -90,10 +90,9 @@ public:
 
 		ssize = FSP_FLAGS_GET_ZIP_SSIZE(fsp_flags);
 
-		/* If the fsp_flags have zero in the zip_ssize field, then
-		it means that the tablespace does not have compressed pages
-		and the physical page size is the same as the logical page
-		size. */
+		/* If the fsp_flags have zero in the zip_ssize field, then it means
+		that the tablespace does not have compressed pages and the physical
+		page size is the same as the logical page size. */
 		if (ssize == 0) {
 			m_is_compressed = false;
 			m_physical = m_logical;
@@ -206,7 +205,8 @@ public:
 		if (ssize == 0) {
 			m_is_compressed = false;
 			m_physical = m_logical;
-		} else {
+		}
+		else {
 			m_is_compressed = true;
 
 			/* Convert from a 'log2 minus 9' to a page size
