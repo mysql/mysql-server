@@ -84,6 +84,7 @@ static void *xcom_taskmain_startup(void *ptr)
   Gcs_xcom_proxy *proxy= gcs_ctrl->get_xcom_proxy();
   xcom_port port= gcs_ctrl->get_node_address()->get_member_port();
 
+  proxy->set_should_exit(false);
   proxy->xcom_init(port);
 
   My_xp_thread_util::exit(0);

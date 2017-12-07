@@ -298,7 +298,8 @@ int Gcs_xcom_proxy_impl::xcom_exit(bool xcom_handlers_open)
   else if (!xcom_handlers_open)
   {
     /* The handlers were not yet open, so use basic xcom stop */
-    ::xcom_fsm(xa_exit, int_arg(0));
+    this->set_should_exit(1);
+
     res= false;
   }
 
@@ -506,7 +507,8 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl()
    m_crl_file(),
    m_crl_path(),
    m_cipher(),
-   m_tls_version()
+   m_tls_version(),
+   m_should_exit(false)
 {
   m_xcom_handlers= new Xcom_handler *[m_xcom_handlers_size];
 
@@ -550,7 +552,8 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl(unsigned int wt)
    m_crl_file(),
    m_crl_path(),
    m_cipher(),
-   m_tls_version()
+   m_tls_version(),
+   m_should_exit(false)
 {
   m_xcom_handlers= new Xcom_handler *[m_xcom_handlers_size];
 
@@ -864,6 +867,18 @@ Gcs_xcom_proxy_impl::xcom_signal_comms_status_changed(int status)
   m_xcom_comms_status= status;
   m_cond_xcom_comms_status.broadcast();
   m_lock_xcom_comms_status.unlock();
+}
+
+bool
+Gcs_xcom_proxy_impl::get_should_exit()
+{
+  return m_should_exit.load(std::memory_order_relaxed);
+}
+
+void
+Gcs_xcom_proxy_impl::set_should_exit(bool should_exit)
+{
+  m_should_exit.store(should_exit, std::memory_order_relaxed);
 }
 
 void Gcs_xcom_app_cfg::init()

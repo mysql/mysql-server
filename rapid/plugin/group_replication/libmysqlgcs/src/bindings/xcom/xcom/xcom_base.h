@@ -27,7 +27,6 @@ extern "C" {
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_os_layer.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_os_layer.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
 
 #define XCOM_THREAD_DEBUG 1
 
@@ -182,6 +181,9 @@ typedef void (*xcom_state_change_cb)(int status);
 void set_xcom_run_cb(xcom_state_change_cb x);
 void set_xcom_terminate_cb(xcom_state_change_cb x);
 void set_xcom_exit_cb(xcom_state_change_cb x);
+
+typedef int (*should_exit_getter)();
+void set_should_exit_getter(should_exit_getter x);
 
 app_data_ptr init_config_with_group(app_data *a, node_list *nl, cargo_type type,
                                     uint32_t group_id);

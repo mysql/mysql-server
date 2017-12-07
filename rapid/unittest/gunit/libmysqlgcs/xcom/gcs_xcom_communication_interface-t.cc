@@ -126,6 +126,9 @@ public:
                                              uint32_t group_id));
   MOCK_METHOD2(xcom_client_force_config, int(node_list *nl,
                                              uint32_t group_id));
+
+  MOCK_METHOD0(get_should_exit, bool());
+  MOCK_METHOD1(set_should_exit,void(bool should_exit));
 };
 
 
