@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <new>
+#include <unordered_map>
 
 #include "m_string.h"
 #include "my_alloc.h"
@@ -857,6 +858,7 @@ public:
   */
   MDL_ticket *next_in_context;
   MDL_ticket **prev_in_context;
+
   /**
     Pointers for participating in the list of satisfied/pending requests
     for the lock. Externally accessible.
@@ -887,6 +889,11 @@ public:
   /** Implement MDL_wait_for_subgraph interface. */
   virtual bool accept_visitor(MDL_wait_for_graph_visitor *dvisitor);
   virtual uint get_deadlock_weight() const;
+
+#ifndef DBUG_OFF
+  enum_mdl_duration get_duration() const { return m_duration; }
+  void set_duration(enum_mdl_duration dur) { m_duration= dur; }
+#endif
 
 public:
   /**
@@ -925,6 +932,7 @@ private:
 #endif
                             );
   static void destroy(MDL_ticket *ticket);
+
 private:
   /** Type of metadata lock. Externally accessible. */
   enum enum_mdl_type m_type;
@@ -965,6 +973,222 @@ private:
 private:
   MDL_ticket(const MDL_ticket &);               /* not implemented */
   MDL_ticket &operator=(const MDL_ticket &);    /* not implemented */
+};
+
+
+/**
+  Keep track of MDL_ticket for different durations. Maintains a
+  hash-based secondary index into the linked lists, to speed up access
+  by MDL_key.
+ */
+class MDL_ticket_store
+{
+public:
+  /**
+    Utility struct for representing a ticket pointer and its duration.
+   */
+  struct MDL_ticket_handle
+  {
+    enum_mdl_duration m_dur= MDL_DURATION_END;
+    MDL_ticket *m_ticket= nullptr;
+
+    MDL_ticket_handle() = default;
+    MDL_ticket_handle(MDL_ticket *t, enum_mdl_duration d)
+      : m_dur{d}, m_ticket{t}
+    {}
+  };
+
+private:
+  using Ticket_p_list=
+    I_P_List<MDL_ticket,
+             I_P_List_adapter<MDL_ticket,
+                              &MDL_ticket::next_in_context,
+                              &MDL_ticket::prev_in_context>>;
+
+  struct Duration
+  {
+    Ticket_p_list m_ticket_list;
+    /**
+      m_mat_front tracks what was the front of m_ticket_list, the last
+      time MDL_context::materialize_fast_path_locks() was called. This
+      just an optimization which allows
+      MDL_context::materialize_fast_path_locks() only to consider the
+      locks added since the last time it ran. Consequently, it can be
+      assumed that every ticket after m_mat_front is materialized, but
+      the converse is not necessarily true as new, already
+      materialized, locks may have been added since the last time
+      materialize_fast_path_locks() ran.
+     */
+    MDL_ticket *m_mat_front = nullptr;
+  };
+
+  Duration m_durations[MDL_DURATION_END];
+
+  struct Hash
+  {
+    size_t operator()(const MDL_key *k) const;
+  };
+
+  struct Key_equal
+  {
+    bool operator()(const MDL_key *a, const MDL_key *b) const
+    {
+      return a->is_equal(b);
+    }
+  };
+
+  using Ticket_map=
+    std::unordered_multimap<const MDL_key*, MDL_ticket_handle, Hash, Key_equal>;
+
+  /**
+    If the number of tickets in the ticket store (in all durations) is equal
+    to, or exceeds this constant the hash index (in the form of an
+    unordered_multi_map) will be maintained and used for lookups.
+
+    The value 256 is chosen as it has worked well in benchmarks.
+  */
+  const size_t THRESHOLD= 256;
+
+  /**
+    Initial number of buckets in the hash index. THRESHOLD is chosen
+    to get a fill-factor of 50% when reaching the threshold value.
+   */
+  const size_t INITIAL_BUCKET_COUNT= THRESHOLD*2;
+  size_t m_count= 0;
+
+  std::unique_ptr<Ticket_map> m_map;
+
+  MDL_ticket_handle find_in_lists(const MDL_request &req) const;
+  MDL_ticket_handle find_in_hash(const MDL_request &req) const;
+
+public:
+  /**
+    Public alias.
+  */
+  using List_iterator= Ticket_p_list::Iterator;
+
+  /**
+    Constructs store. The hash index is initially empty. Filled on demand.
+  */
+  MDL_ticket_store() :
+    // Comment in to test threshold values in unit test micro benchmark
+    // THRESHOLD{read_from_env("TS_THRESHOLD", 500)},
+    m_map{nullptr}
+  {}
+
+  /**
+    Calls the closure provided as argument for each of the MDL_tickets
+    in the given duration.
+    @param dur duration list to iterate over
+    @param clos closure to invoke for each ticket in the list
+   */
+  template <typename CLOS>
+  void for_each_ticket_in_duration_list(enum_mdl_duration dur, CLOS &&clos)
+  {
+    List_iterator it(m_durations[dur].m_ticket_list);
+    for (MDL_ticket *t= it++; t != nullptr; t= it++)
+    {
+      clos(t, dur);
+    }
+  }
+
+  /**
+    Calls the closure provided as argument for each of the MDL_tickets
+    in the store.
+    @param clos closure to invoke for each ticket in the store
+   */
+  template <typename CLOS>
+  void for_each_ticket_in_ticket_lists(CLOS &&clos)
+  {
+    for_each_ticket_in_duration_list(MDL_STATEMENT, std::forward<CLOS>(clos));
+    for_each_ticket_in_duration_list(MDL_TRANSACTION, std::forward<CLOS>(clos));
+    for_each_ticket_in_duration_list(MDL_EXPLICIT, std::forward<CLOS>(clos));
+  }
+
+  /**
+    Predicate for the emptiness of the store.
+    @return true if there are no tickets in the store
+   */
+  bool is_empty() const;
+
+  /**
+    Predicate for the emptiness of a given duration list.
+    @param di the duration to check
+    @return true if there are no tickets with the given duration
+  */
+  bool is_empty(int di) const;
+
+  /**
+    Return the first MDL_ticket for the given duration.
+
+    @param di duration to get first ticket for
+
+    @return first ticket in the given duration or nullptr if no such
+    tickets exist
+   */
+  MDL_ticket *front(int di);
+
+  /**
+    Push a ticket onto the list for a given duration.
+    @param dur duration list to push into
+    @param ticket to push
+  */
+  void push_front(enum_mdl_duration dur, MDL_ticket *ticket);
+
+  /**
+    Remove a ticket from a duration list. Note that since the
+    underlying list is an intrusive linked list there is no guarantee
+    that the ticket is actually in the duration list. It will be
+    removed from which ever list it is in.
+
+    @param dur
+    @param ticket
+   */
+  void remove(enum_mdl_duration dur, MDL_ticket *ticket);
+
+  /**
+    Return a P-list iterator to the given duration.
+    @param di duration list index
+    @return P-list iterator to tickets with given duration
+   */
+  List_iterator list_iterator(int di) const
+  {
+    return List_iterator{m_durations[di].m_ticket_list};
+  }
+
+  /**
+    Move all tickets to the explicit duration list.
+   */
+  void move_all_to_explicit_duration();
+
+  /**
+    Move all tickets to the transaction duration list.
+   */
+  void move_explicit_to_transaction_duration();
+
+  /**
+    Look up a ticket based on its MDL_key.
+    @param req request to locate ticket for
+    @return MDL_ticket_handle with ticket pointer and found duration
+            (or nullptr and MDL_DURATION_END if not found
+   */
+  MDL_ticket_handle find(const MDL_request &req) const;
+
+  /**
+    Mark boundary for tickets with fast_path=false, so that later
+    calls to materialize_fast_path_locks() do not have to traverse the
+    whole set of tickets.
+   */
+  void set_materialized();
+
+  /**
+    Return the first ticket for which materialize_fast_path_locks
+    already has been called for the given duration.
+
+    @param di duration list index
+    @return first materialized ticket for the given duration
+   */
+  MDL_ticket *materialized_front(int di);
 };
 
 
@@ -1118,9 +1342,7 @@ public:
 
   inline bool has_locks() const
   {
-    return !(m_tickets[MDL_STATEMENT].is_empty() &&
-             m_tickets[MDL_TRANSACTION].is_empty() &&
-             m_tickets[MDL_EXPLICIT].is_empty());
+    return !m_ticket_store.is_empty();
   }
 
   bool has_locks(MDL_key::enum_mdl_namespace mdl_namespace) const;
@@ -1129,8 +1351,8 @@ public:
 
   MDL_savepoint mdl_savepoint()
   {
-    return MDL_savepoint(m_tickets[MDL_STATEMENT].front(),
-                         m_tickets[MDL_TRANSACTION].front());
+    return MDL_savepoint(m_ticket_store.front(MDL_STATEMENT),
+                         m_ticket_store.front(MDL_TRANSACTION));
   }
 
   void set_explicit_duration_for_all_locks();
@@ -1270,7 +1492,8 @@ private:
     - HANDLER locks
     - GLOBAL READ LOCK locks
   */
-  Ticket_list m_tickets[MDL_DURATION_END];
+  MDL_ticket_store m_ticket_store;
+
   MDL_context_owner *m_owner;
   /**
     true -  if for this context we will break protocol and try to

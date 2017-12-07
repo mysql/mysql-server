@@ -22,6 +22,10 @@
    The code below should hopefully be (mostly) self-explanatory.
  */
 
+#include <string>
+#include <sstream>
+#include <vector>
+
 #include <gtest/gtest.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -32,6 +36,7 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"
 #include "sql/thr_malloc.h"
+#include "unittest/gunit/benchmark.h"
 #include "unittest/gunit/test_mdl_context_owner.h"
 #include "unittest/gunit/thread_utils.h"
 
@@ -280,7 +285,7 @@ TEST_F(MDLDeathTest, DieWhenMTicketsNonempty)
 
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
   EXPECT_DEATH(m_mdl_context.destroy(),
-               ".*Assertion.*MDL_TRANSACTION.*is_empty.*");
+               ".*Assertion.*m_ticket_store.*is_empty.*");
   m_mdl_context.release_transactional_locks();
 }
 #endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
@@ -4645,7 +4650,91 @@ TEST_F(MDLKeyTest, TruncateTooLongNames)
   EXPECT_LE(strlen(name), (uint)NAME_LEN);
   EXPECT_TRUE(strncmp(name, too_long_name, NAME_LEN) == 0);
 }
-#endif  // defined(DBUG_OFF)
 
+
+struct Mock_MDL_context_owner : public Test_MDL_context_owner
+{
+  void notify_shared_lock(MDL_context_owner *in_use,
+                          bool needs_thr_lock_abort) override final
+  {
+    in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
+  }
+};
+
+
+using Name_vec= std::vector<std::string>;
+
+/*
+  Helper function for benchmark.
+ */
+inline size_t read_from_env(const char *var, size_t def)
+{
+  const char *val= getenv(var);
+  return val?static_cast<size_t>(atoi(val)):def;
+}
+
+/*
+  Helper function for benchmark.
+ */
+static Name_vec make_name_vec(size_t t)
+{
+  std::vector<std::string> names;
+  names.reserve(t);
+  static std::stringstream str;
+  for (size_t i= 0; i < t; ++i)
+  {
+    str << "t_" << i;
+    names.push_back(str.str());
+    str.str("");
+  }
+  return names;
+}
+
+/*
+  Helper function for benchmark.
+ */
+static void lock_bench(MDL_context &ctx, const Name_vec &names)
+{
+  for (auto &name : names)
+  {
+    MDL_request request;
+    MDL_REQUEST_INIT(&request, MDL_key::TABLE, "S", name.c_str(),
+                     MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+    ctx.acquire_lock(&request, 2);
+  }
+  ctx.release_transactional_locks();
+}
+
+/**
+  Microbenchmark which tests the performance of acquire_lock (find_ticket)
+*/
+static void BM_FindTicket(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+  system_charset_info = &my_charset_utf8_bin;
+  mdl_init();
+  MDL_context ctx;
+  Mock_MDL_context_owner owner;
+  ctx.init(&owner);
+  size_t ntickets= read_from_env("NTICKETS", 512);
+
+  std::cout << "Tickets: " << ntickets << "\n";
+
+  Name_vec names= make_name_vec(ntickets);
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    lock_bench(ctx, names);
+  }
+
+  StopBenchmarkTiming();
+  mdl_destroy();
+}
+
+BENCHMARK(BM_FindTicket);
+
+#endif  // defined(DBUG_OFF)
 
 }  // namespace
