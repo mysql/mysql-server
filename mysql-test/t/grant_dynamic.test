@@ -1,4 +1,8 @@
 # Tests for WL#8131
+# The test includes show_binlog_events.inc, which requires that
+# binlog is endabled. So we just run it when binlog is enabled.
+--source include/have_log_bin.inc
+
 call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
 call mtr.add_suppression("ACL table mysql.global_grants missing. Some operations may fail.");
 
