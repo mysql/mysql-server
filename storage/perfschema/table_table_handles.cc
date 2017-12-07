@@ -327,10 +327,24 @@ table_table_handles::read_row_values(TABLE *table,
         set_field_ulonglong(f, (intptr)m_row.m_identity);
         break;
       case 4: /* OWNER_THREAD_ID */
-        set_field_ulonglong(f, m_row.m_owner_thread_id);
+        if (m_row.m_owner_thread_id != 0)
+        {
+          set_field_ulonglong(f, m_row.m_owner_thread_id);
+        }
+        else
+        {
+          f->set_null();
+        }
         break;
       case 5: /* OWNER_EVENT_ID */
-        set_field_ulonglong(f, m_row.m_owner_event_id);
+        if (m_row.m_owner_event_id != 0)
+        {
+          set_field_ulonglong(f, m_row.m_owner_event_id);
+        }
+        else
+        {
+          f->set_null();
+        }
         break;
       case 6: /* INTERNAL_LOCK */
         set_field_lock_type(f, m_row.m_internal_lock);

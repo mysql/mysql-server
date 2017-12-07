@@ -52,6 +52,22 @@ SET @pfs_columns = "ERROR_NUMBER";
 
 ===== BEGIN TEST =====
 ========
+SELECT ERROR_NUMBER FROM performance_schema.events_errors_summary_global_by_error WHERE error_number is null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT ERROR_NUMBER FROM performance_schema.events_errors_summary_global_by_error WHERE error_number is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT ERROR_NUMBER FROM performance_schema.events_errors_summary_global_by_error WHERE error_number = '1146'
 
 OK: Handler_read_key
@@ -101,46 +117,6 @@ OK: Result set: Non-empty  Expected: Non-empty
 OK: Extra rows: 0  Missing rows: 0
 ========
 SELECT ERROR_NUMBER FROM performance_schema.events_errors_summary_global_by_error WHERE error_number <= '1146'
-
-OK: Handler_read_key
-
-OK: Result set: Non-empty  Expected: Non-empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT ERROR_NUMBER FROM performance_schema.events_errors_summary_global_by_error WHERE error_number = 9999999 ORDER BY error_number
-
-OK: Handler_read_key
-
-OK: Result set: Empty  Expected: Empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT ERROR_NUMBER FROM performance_schema.events_errors_summary_global_by_error WHERE error_number > 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Empty  Expected: Empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT ERROR_NUMBER FROM performance_schema.events_errors_summary_global_by_error WHERE error_number < 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Non-empty  Expected: Non-empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT ERROR_NUMBER FROM performance_schema.events_errors_summary_global_by_error WHERE error_number >= 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Empty  Expected: Empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT ERROR_NUMBER FROM performance_schema.events_errors_summary_global_by_error WHERE error_number <= 9999999
 
 OK: Handler_read_key
 

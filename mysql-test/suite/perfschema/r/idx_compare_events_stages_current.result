@@ -52,6 +52,22 @@ CALL SampleProc1();
 
 ===== BEGIN TEST =====
 ========
+SELECT * FROM performance_schema.events_stages_current WHERE thread_id is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.events_stages_current WHERE thread_id is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT * FROM performance_schema.events_stages_current WHERE thread_id = @target_thread_id
 
 OK: Handler_read_key
@@ -77,6 +93,22 @@ OK: Result set: Non-empty  Expected: Non-empty
 OK: Extra rows: 0  Missing rows: 0
 ========
 SELECT * FROM performance_schema.events_stages_current WHERE thread_id = @target_thread_id ORDER BY thread_id DESC
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.events_stages_current WHERE thread_id = @target_thread_id AND event_id is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.events_stages_current WHERE thread_id = @target_thread_id AND event_id is not null
 
 OK: Handler_read_key
 

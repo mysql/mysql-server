@@ -53,6 +53,38 @@ CALL SampleProc1();
 
 ===== BEGIN TEST =====
 ========
+SELECT * FROM performance_schema.session_connect_attrs WHERE processlist_id is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.session_connect_attrs WHERE processlist_id is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.session_connect_attrs WHERE processlist_id = @target_id and attr_name is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.session_connect_attrs WHERE processlist_id = @target_id and attr_name is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT * FROM performance_schema.session_connect_attrs WHERE processlist_id = @target_id
 
 OK: Handler_read_key
@@ -118,38 +150,6 @@ OK: Result set: Non-empty  Expected: Non-empty
 OK: Extra rows: 0  Missing rows: 0
 ========
 SELECT * FROM performance_schema.session_connect_attrs WHERE processlist_id <= @target_id
-
-OK: Handler_read_key
-
-OK: Result set: Non-empty  Expected: Non-empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT * FROM performance_schema.session_connect_attrs WHERE processlist_id > 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Empty  Expected: Empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT * FROM performance_schema.session_connect_attrs WHERE processlist_id < 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Non-empty  Expected: Non-empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT * FROM performance_schema.session_connect_attrs WHERE processlist_id >= 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Empty  Expected: Empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT * FROM performance_schema.session_connect_attrs WHERE processlist_id <= 9999999
 
 OK: Handler_read_key
 

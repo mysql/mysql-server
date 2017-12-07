@@ -53,6 +53,22 @@ CALL SampleProc1();
 
 ===== BEGIN TEST =====
 ========
+SELECT * FROM performance_schema.mutex_instances WHERE object_instance_begin is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.mutex_instances WHERE object_instance_begin is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT * FROM performance_schema.mutex_instances WHERE object_instance_begin = @object_instance_begin
 
 OK: Handler_read_key
@@ -80,6 +96,22 @@ OK: Extra rows: 0  Missing rows: 0
 ## Test NAME
 
 ===== BEGIN TEST =====
+========
+SELECT * FROM performance_schema.mutex_instances WHERE NAME is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.mutex_instances WHERE NAME is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
 ========
 SELECT * FROM performance_schema.mutex_instances WHERE NAME = 'wait/synch/mutex/sql/MDL_wait::LOCK_wait_status'
 
@@ -117,6 +149,22 @@ OK: Extra rows: 0  Missing rows: 0
 
 ===== BEGIN TEST =====
 ========
+SELECT * FROM performance_schema.mutex_instances WHERE LOCKED_BY_THREAD_ID is null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.mutex_instances WHERE LOCKED_BY_THREAD_ID is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT * FROM performance_schema.mutex_instances WHERE LOCKED_BY_THREAD_ID = @target_id
 
 OK: Handler_read_key
@@ -146,14 +194,6 @@ SELECT * FROM performance_schema.mutex_instances WHERE LOCKED_BY_THREAD_ID = 999
 OK: Handler_read_key
 
 OK: Result set: Empty  Expected: Empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT * FROM performance_schema.mutex_instances WHERE LOCKED_BY_THREAD_ID IS NOT NULL
-
-OK: Handler_read_key
-
-OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
 UNLOCK TABLES;

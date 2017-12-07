@@ -119,6 +119,22 @@ SET @pfs_columns = "IP, HOST";
 
 ===== BEGIN TEST =====
 ========
+SELECT IP, HOST FROM performance_schema.host_cache WHERE IP is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT IP, HOST FROM performance_schema.host_cache WHERE IP is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT IP, HOST FROM performance_schema.host_cache WHERE IP = '192.0.2.4'
 
 OK: Handler_read_key
