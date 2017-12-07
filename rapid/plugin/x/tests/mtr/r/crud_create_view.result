@@ -22,7 +22,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-xview	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`first` AS `one` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+xview	CREATE ALGORITHM=UNDEFINED DEFINER=`x_root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`first` AS `one` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Create view (collection)
@@ -31,7 +31,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-xdoc	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xdoc` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+xdoc	CREATE ALGORITHM=UNDEFINED DEFINER=`x_root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xdoc` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 List objects
@@ -48,7 +48,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-au	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`au` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+au	CREATE ALGORITHM=UNDEFINED DEFINER=`x_root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`au` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Create view (algorithm=merge)
@@ -57,7 +57,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-am	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`am` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+am	CREATE ALGORITHM=MERGE DEFINER=`x_root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`am` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Create view (algorithm=temptable)
@@ -66,7 +66,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-at	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`at` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+at	CREATE ALGORITHM=TEMPTABLE DEFINER=`x_root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`at` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Create view (definer=xuser)
@@ -84,7 +84,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-si	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `xtest`.`si` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+si	CREATE ALGORITHM=UNDEFINED DEFINER=`x_root`@`localhost` SQL SECURITY INVOKER VIEW `xtest`.`si` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Create view (security=definer)
@@ -93,7 +93,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-sd	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`sd` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+sd	CREATE ALGORITHM=UNDEFINED DEFINER=`x_root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`sd` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Create view (check=local)
@@ -102,7 +102,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-cl	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`cl` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable` WITH LOCAL CHECK OPTION	utf8mb4	utf8mb4_general_ci
+cl	CREATE ALGORITHM=UNDEFINED DEFINER=`x_root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`cl` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable` WITH LOCAL CHECK OPTION	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Create view (check=cascaded)
@@ -111,7 +111,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-cc	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`cc` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable` WITH CASCADED CHECK OPTION	utf8mb4	utf8mb4_general_ci
+cc	CREATE ALGORITHM=UNDEFINED DEFINER=`x_root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`cc` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable` WITH CASCADED CHECK OPTION	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Create view (column)
@@ -120,7 +120,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-co	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`co` (`third`) AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+co	CREATE ALGORITHM=UNDEFINED DEFINER=`x_root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`co` (`third`) AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Create view (too many columns)
@@ -143,7 +143,7 @@ Mysqlx.Error {
 }
 
 View	Create View	character_set_client	collation_connection
-co	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`co` (`third`) AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+co	CREATE ALGORITHM=UNDEFINED DEFINER=`x_root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`co` (`third`) AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Replace view
@@ -152,7 +152,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-co	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`co` AS select `xtest`.`xtable`.`second` AS `fifth` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+co	CREATE ALGORITHM=UNDEFINED DEFINER=`x_root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`co` AS select `xtest`.`xtable`.`second` AS `fifth` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Inserting data to collection_view

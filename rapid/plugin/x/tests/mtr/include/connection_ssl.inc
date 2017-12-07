@@ -5,6 +5,7 @@
 --echo Preamble
 --source ../include/have_performance_schema_threads.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 SET GLOBAL mysqlx_connect_timeout = 300;
 call mtr.add_suppression("Unsuccessful login attempt");
@@ -214,13 +215,13 @@ GRANT ALL ON *.* TO user7_mysqlx@localhost;
 --let $CLIENT_TLS= --tls-version=TLSv1
 --let $CONNECTION_FILE= --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp
 
---exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth  $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-enable-ssl.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth  $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-enable-ssl.tmp 2>&1
 
 ##setting tls caps with ssl connection
---exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
 
 ##setting tls caps with non-ssl connection
---exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
 
 --echo ## SSL connection testing
 
@@ -280,7 +281,7 @@ ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 
 --replace_regex /4294967295/-1/ /18446744073709551615/-1/
---exec $MYSQLXTEST -u root --ssl-cipher="AES256-SHA" $CLIENT_CA_CERT $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-status.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --ssl-cipher="AES256-SHA" $CLIENT_CA_CERT $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-status.tmp 2>&1
 
 
 # Lets confirm that Mysqlx plugin can't use TCP-IP connections without SSL as secure one
@@ -288,10 +289,12 @@ call mtr.add_suppression("Plugin mysqlx reported: '.+: Unsuccessful login attemp
 SET GLOBAL require_secure_transport:=1;
 --let $expected_error_msg= Secure transport required. To log in you must use TCP\+SSL or UNIX socket connection. \(code 1045\)
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -uroot --password='' $CONNECTION_FILE 2>&1
---exec $MYSQLXTEST -uroot --password='' $CLIENT_TLS $CLIENT_CA_CERT $CLIENT_KEY_CERT $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST -ux_root --password='' $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST -ux_root --password='' $CLIENT_TLS $CLIENT_CA_CERT $CLIENT_KEY_CERT $CONNECTION_FILE 2>&1
 SET GLOBAL require_secure_transport:=0;
 
+
+--source include/xplugin_drop_user.inc
 
 # Postamble
 UNINSTALL PLUGIN mysqlx;

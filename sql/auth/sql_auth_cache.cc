@@ -1503,17 +1503,6 @@ validate_user_plugin_records()
                static_cast<int>(acl_user->host.get_host_len()),
                acl_user->host.get_host(), missing);
       }
-      if (acl_user->plugin.str == caching_sha2_password_plugin_name.str &&
-          caching_sha2_rsa_auth_status() && !ssl_acceptor_fd)
-      {
-        const char *missing= "but neither SSL nor RSA keys are";
-
-        LogErr(WARNING_LEVEL, ER_AUTHCACHE_PLUGIN_CONFIG,
-               caching_sha2_password_plugin_name.str,
-               acl_user->user,
-               static_cast<int>(acl_user->host.get_host_len()),
-               acl_user->host.get_host(), missing);
-      }
     }
   }
   unlock_plugin_data();

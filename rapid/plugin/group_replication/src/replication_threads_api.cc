@@ -35,7 +35,9 @@ Replication_thread_api::initialize_channel(char* hostname,
                                            bool  ssl_verify_server_cert,
                                            int   priority,
                                            int   retry_count,
-                                           bool  preserve_logs)
+                                           bool  preserve_logs,
+                                           char* public_key_path,
+                                           bool  get_public_key)
 {
   DBUG_ENTER("Replication_thread_api::initialize");
   int error= 0;
@@ -61,6 +63,11 @@ Replication_thread_api::initialize_channel(char* hostname,
   info.retry_count= retry_count;
 
   info.preserve_relay_logs= preserve_logs;
+
+  if (public_key_path != NULL)
+    info.public_key_path= public_key_path;
+
+  info.get_public_key= get_public_key;
 
   if( use_ssl || ssl_ca != NULL || ssl_capath != NULL || ssl_cert != NULL ||
       ssl_cipher!= NULL || ssl_key != NULL || ssl_crl != NULL ||

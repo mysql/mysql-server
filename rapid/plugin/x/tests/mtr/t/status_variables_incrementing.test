@@ -2,6 +2,7 @@
 
 ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 # Tests
 
@@ -138,10 +139,11 @@ DROP SCHEMA IF EXISTS xtest;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/xpl_status_vars.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/xpl_status_vars.tmp 2>&1
 
 ## Cleanup
 --remove_file $MYSQL_TMP_DIR/xpl_status_vars.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 UNINSTALL PLUGIN mysqlx;

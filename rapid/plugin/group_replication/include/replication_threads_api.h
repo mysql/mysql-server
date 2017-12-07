@@ -71,6 +71,8 @@ public:
     @param priority      The channel priority on event application
     @param retry_count   The number of retries when connecting
     @param preserve_logs If logs should be always preserved
+    @param public_key_path The file with public key path information
+    @param get_public_key Preference to get public key if unavailable.
 
     @return the operation status
       @retval 0      OK
@@ -89,7 +91,9 @@ public:
                          bool ssl_verify_server_cert,
                          int priority,
                          int retry_count,
-                         bool preserve_logs);
+                         bool preserve_logs,
+                         char *public_key_path,
+                         bool get_public_key);
 
   /**
     Start the Applier/Receiver threads according to the given options.

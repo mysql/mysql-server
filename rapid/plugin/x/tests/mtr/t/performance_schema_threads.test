@@ -3,6 +3,7 @@
 ## Preamble
 --source ../include/have_performance_schema_threads.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 # Tests
 
@@ -37,7 +38,7 @@ GRANT SELECT ON *.* TO 'user_on_127_0_0_1'@127.0.0.1;
 --source ../include/performance_schema_assert_empty_worker_threads.inc
 
 exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.tmp --no-auth
-                 -v%ARG_USER%=root -v%ARG_PASS%= -v%ARG_HOST%=localhost -v%ARG_DB%=performance_schema
+                 -v%ARG_USER%=x_root -v%ARG_PASS%= -v%ARG_HOST%=localhost -v%ARG_DB%=performance_schema
                  2>&1;
 
 exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.tmp --no-auth
@@ -54,6 +55,7 @@ exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.tmp -
 --remove_file $MYSQL_TMP_DIR/verify_process_data_in_thread_table.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 DROP USER 'user_on_localhost'@localhost;
 DROP USER 'user_on_127_0_0_1'@127.0.0.1;
 

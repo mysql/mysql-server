@@ -39,7 +39,8 @@ Recovery_state_transfer(char* recovery_channel_name,
     donor_connection_interface(recovery_channel_name),
     channel_observation_manager(channel_obsr_mngr),
     recovery_channel_observer(NULL),
-    recovery_use_ssl(false), recovery_ssl_verify_server_cert(false),
+    recovery_use_ssl(false), recovery_get_public_key(false),
+    recovery_ssl_verify_server_cert(false),
     max_connection_attempts_to_donors(0), donor_reconnect_interval(0)
 {
   //set the recovery SSL options to 0
@@ -50,6 +51,7 @@ Recovery_state_transfer(char* recovery_channel_name,
   (void) strncpy(recovery_ssl_key, "", 1);
   (void) strncpy(recovery_ssl_crl, "", 1);
   (void) strncpy(recovery_ssl_crlpath, "", 1);
+  (void) strncpy(recovery_public_key_path, "", 1);
 
   this->member_uuid= member_uuid;
 
@@ -519,7 +521,9 @@ int Recovery_state_transfer::initialize_donor_connection()
                                                        recovery_ssl_crlpath,
                                                        recovery_ssl_verify_server_cert,
                                                        DEFAULT_THREAD_PRIORITY,
-                                                       1, false);
+                                                       1, false,
+                                                       recovery_public_key_path,
+                                                       recovery_get_public_key);
 
   if (!error)
   {
@@ -695,7 +699,8 @@ int Recovery_state_transfer::purge_recovery_slave_threads_repos()
                                                   NULL,
                                                   NULL,
                                                   DEFAULT_THREAD_PRIORITY,
-                                                  1, false);
+                                                  1, false,
+                                                  NULL, false);
 
   DBUG_RETURN(error);
 }

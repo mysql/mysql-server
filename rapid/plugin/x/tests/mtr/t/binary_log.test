@@ -2,6 +2,7 @@
 ## Ping
 --source include/have_debug_sync.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 --source ../include/have_performance_schema_events_waits_history.inc
 
 ##
@@ -12,8 +13,8 @@ CREATE TABLE x(id INT);
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/bug_23057045.tmp
 ## Test data
--->newsession con1	root
--->newsession con2	root
+-->newsession con1	x_root
+-->newsession con2	x_root
 
 -->setsession con1
 -->sql
@@ -42,7 +43,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --schema=test --file=$MYSQL_TMP_DIR/bug_23057045.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --schema=test --file=$MYSQL_TMP_DIR/bug_23057045.tmp 2>&1
 
 #make sure only one process is shown in the list even in slower builds(valgrind)
 --sleep 0.5
@@ -54,5 +55,6 @@ SHOW PROCESSLIST;
 
 --remove_file $MYSQL_TMP_DIR/bug_23057045.tmp
 ## Postamble
+--source include/xplugin_drop_user.inc
 DROP TABLE x;
 UNINSTALL PLUGIN mysqlx;

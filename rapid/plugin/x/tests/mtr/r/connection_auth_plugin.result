@@ -8,9 +8,9 @@ CREATE USER xuser_sha256@localhost
 IDENTIFIED WITH 'sha256_password' BY 'sha256';
 GRANT ALL ON *.* TO xuser_native@localhost;
 GRANT ALL ON *.* TO xuser_sha256@localhost;
-Plain connection as root (just check) -> success
+Plain connection as x_root (just check) -> success
 user	plugin
-root	mysql_native_password
+x_root	mysql_native_password
 0 rows affected
 Variable_name	Value
 Mysqlx_ssl_active	OFF
@@ -19,9 +19,9 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Ssl connection as root (just check) -> success
+Ssl connection as x_root (just check) -> success
 user	plugin
-root	mysql_native_password
+x_root	mysql_native_password
 0 rows affected
 Variable_name	Value
 Mysqlx_ssl_active	ON

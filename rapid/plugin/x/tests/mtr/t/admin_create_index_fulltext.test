@@ -1,6 +1,7 @@
 ## manipulate of fulltext indexes on document
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ## Test starts here
 --let $xtest_file= $MYSQL_TMP_DIR/admin_create_index_fulltext.tmp
@@ -172,9 +173,10 @@ EOF
 
 CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 --remove_file $xtest_file
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 DROP SCHEMA IF EXISTS xtest;
 UNINSTALL PLUGIN mysqlx;

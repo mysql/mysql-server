@@ -12,6 +12,7 @@ SET PERSIST group_replication_group_seeds= @@GLOBAL.group_replication_group_seed
 SET PERSIST group_replication_local_address= @@GLOBAL.group_replication_local_address;
 SET PERSIST group_replication_start_on_boot= ON;
 SET PERSIST group_replication_bootstrap_group= ON;
+SET PERSIST group_replication_recovery_get_public_key= ON;
 
 ############################################################
 # 2. Restart server1, it must bootstrap the group.
@@ -24,6 +25,7 @@ group_replication_bootstrap_group	PERSISTED
 group_replication_group_name	PERSISTED
 group_replication_group_seeds	PERSISTED
 group_replication_local_address	PERSISTED
+group_replication_recovery_get_public_key	PERSISTED
 group_replication_start_on_boot	PERSISTED
 
 ############################################################
@@ -33,6 +35,7 @@ SET PERSIST group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
 SET PERSIST group_replication_group_seeds= @@GLOBAL.group_replication_group_seeds;
 SET PERSIST group_replication_local_address= @@GLOBAL.group_replication_local_address;
 SET PERSIST group_replication_start_on_boot= ON;
+SET PERSIST group_replication_recovery_get_public_key= ON;
 
 ############################################################
 # 4. Restart server2, it must join the group.
@@ -45,6 +48,7 @@ variable_name	variable_source
 group_replication_group_name	PERSISTED
 group_replication_group_seeds	PERSISTED
 group_replication_local_address	PERSISTED
+group_replication_recovery_get_public_key	PERSISTED
 group_replication_start_on_boot	PERSISTED
 
 ############################################################

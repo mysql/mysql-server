@@ -93,6 +93,8 @@ struct Channel_creation_info
   int connect_retry;             //How many seconds to wait between retries.
   int retry_count;               //Limits the number of reconnection attempts
   bool preserve_relay_logs;      //If the logs should be preserved on creation
+  char* public_key_path;         //RSA Public key information
+  int get_public_key;            //Preference to get public key from donor if not available
 };
 
 void initialize_channel_creation_info(Channel_creation_info* channel_info);

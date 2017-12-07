@@ -13,7 +13,7 @@ user	plugin
 mysql.infoschema	mysql_native_password
 mysql.session	mysql_native_password
 mysql.sys	mysql_native_password
-qa_test_1_dest	mysql_native_password
+qa_test_1_dest	caching_sha2_password
 qa_test_1_user	qa_auth_interface
 SELECT @@proxy_user;
 @@proxy_user
@@ -27,7 +27,7 @@ current_user()	user()	@@local.proxy_user	@@local.external_user
 qa_test_1_user@%	qa_test_1_user@localhost	NULL	NULL
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-qa_test_1_dest	mysql_native_password
+qa_test_1_dest	caching_sha2_password
 qa_test_1_user	qa_auth_interface
 DROP USER qa_test_1_user;
 DROP USER qa_test_1_dest;
@@ -43,8 +43,8 @@ GRANT PROXY ON qa_test_2_dest TO qa_test_2_user;
 GRANT PROXY ON authenticated_as TO qa_test_2_user;
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-authenticated_as	mysql_native_password
-qa_test_2_dest	mysql_native_password
+authenticated_as	caching_sha2_password
+qa_test_2_dest	caching_sha2_password
 qa_test_2_user	qa_auth_interface
 SELECT @@proxy_user;
 @@proxy_user
@@ -58,8 +58,8 @@ current_user()	user()	@@local.proxy_user	@@local.external_user
 authenticated_as@%	user_name@localhost	'qa_test_2_user'@'%'	externaluser
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-authenticated_as	mysql_native_password
-qa_test_2_dest	mysql_native_password
+authenticated_as	caching_sha2_password
+qa_test_2_dest	caching_sha2_password
 qa_test_2_user	qa_auth_interface
 DROP USER qa_test_2_user;
 DROP USER qa_test_2_dest;
@@ -104,8 +104,8 @@ GRANT PROXY ON qa_test_5_dest TO qa_test_5_user;
 GRANT PROXY ON qa_test_5_dest TO ''@'localhost';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-	mysql_native_password
-qa_test_5_dest	mysql_native_password
+	caching_sha2_password
+qa_test_5_dest	caching_sha2_password
 qa_test_5_user	qa_auth_interface
 exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=qa_test_5_user  --password=qa_test_5_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 mysql: [Warning] Using a password on the command line interface can be insecure.
@@ -122,7 +122,7 @@ Warning	1287	Using GRANT statement to modify existing user's properties other th
 GRANT PROXY ON qa_test_6_dest TO qa_test_6_user;
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-qa_test_6_dest	mysql_native_password
+qa_test_6_dest	caching_sha2_password
 qa_test_6_user	qa_auth_interface
 exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=qa_test_6_user  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 mysql: [Warning] Using a password on the command line interface can be insecure.
@@ -132,7 +132,7 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-qa_test_6_dest	mysql_native_password
+qa_test_6_dest	caching_sha2_password
 qa_test_6_user	qa_auth_interface
 exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=root  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 mysql: [Warning] Using a password on the command line interface can be insecure.
@@ -140,7 +140,7 @@ ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: Y
 REVOKE PROXY ON qa_test_6_dest FROM root;
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-qa_test_6_dest	mysql_native_password
+qa_test_6_dest	caching_sha2_password
 qa_test_6_user	qa_auth_interface
 exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=root  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 mysql: [Warning] Using a password on the command line interface can be insecure.

@@ -3,6 +3,7 @@
 ## Preamble
 --source ../include/have_performance_schema_threads.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 # Tests
 --write_file $MYSQL_TMP_DIR/performance_schema.tmp
@@ -928,7 +929,7 @@ Mysqlx.Crud.Find {
 EOF
 
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/performance_schema.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/performance_schema.tmp 2>&1
 
 ## Needs rework
 ## select DISTINCT EVENT_NAME from performance_schema.events_waits_current 
@@ -942,6 +943,7 @@ where EVENT_NAME rlike '^wait/synch/(cond|mutex)/mysqlx/(queue|client_session|ob
 ## Cleanup
 --remove_file $MYSQL_TMP_DIR/performance_schema.tmp
 
+--source include/xplugin_drop_user.inc
 ## Postamble
 UNINSTALL PLUGIN mysqlx;
 update performance_schema.setup_instruments set ENABLED='YES'

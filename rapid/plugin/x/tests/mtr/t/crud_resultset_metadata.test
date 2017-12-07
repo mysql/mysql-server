@@ -1,5 +1,6 @@
 ## Check column metadata 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 DROP SCHEMA IF EXISTS xtest;
 CREATE SCHEMA xtest;
@@ -28,12 +29,13 @@ Mysqlx.Crud.Find {
 -->callmacro Select ytable
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/crud_resultset_metadata.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_resultset_metadata.tmp 2>&1
 
 
 ## Cleanup
 --remove_file $MYSQL_TMP_DIR/crud_resultset_metadata.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 DROP SCHEMA IF EXISTS xtest;
 UNINSTALL PLUGIN mysqlx;

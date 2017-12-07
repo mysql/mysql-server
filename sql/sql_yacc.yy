@@ -1219,6 +1219,8 @@ static bool assign_cmd(THD *thd, LEX *lex, Parse_tree_root *parse_tree)
 %token  RESOURCE_SYM                  /* MYSQL */
 %token  SYSTEM_SYM                    /* SQL-2003-R */
 %token  VCPU_SYM                      /* MYSQL */
+%token  MASTER_PUBLIC_KEY_PATH_SYM    /* MYSQL */
+%token  GET_MASTER_PUBLIC_KEY_SYM     /* MYSQL */
 
 
 /*
@@ -2486,7 +2488,16 @@ master_def:
           {
             Lex->mi.ssl_crlpath= $3.str;
           }
-
+        | MASTER_PUBLIC_KEY_PATH_SYM EQ TEXT_STRING_sys_nonewline
+          {
+            Lex->mi.public_key_path= $3.str;
+          }
+        | GET_MASTER_PUBLIC_KEY_SYM EQ ulong_num
+          {
+            Lex->mi.get_public_key= $3 ?
+              LEX_MASTER_INFO::LEX_MI_ENABLE :
+              LEX_MASTER_INFO::LEX_MI_DISABLE;
+          }
         | MASTER_HEARTBEAT_PERIOD_SYM EQ NUM_literal
           {
             Item *num= $3;
@@ -13694,6 +13705,7 @@ role_or_label_keyword:
         | MASTER_LOG_POS_SYM       {}
         | MASTER_USER_SYM          {}
         | MASTER_PASSWORD_SYM      {}
+        | MASTER_PUBLIC_KEY_PATH_SYM {}
         | MASTER_SERVER_ID_SYM     {}
         | MASTER_CONNECT_RETRY_SYM {}
         | MASTER_RETRY_COUNT_SYM   {}

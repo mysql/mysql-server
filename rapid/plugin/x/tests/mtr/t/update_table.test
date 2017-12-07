@@ -1,4 +1,5 @@
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 CREATE DATABASE `ytest`;
 
 ## Test starts here
@@ -584,10 +585,11 @@ select * from xtest.xtable;
 
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 --remove_file $xtest_file
 
 ## Postamble
 drop schema ytest;
 drop schema xtest;
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;

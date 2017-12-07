@@ -2,6 +2,7 @@
 ## Rel: Find matches in a table
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/find_table_find.tmp
 ## Test data
@@ -102,8 +103,9 @@ drop schema if exists xtest;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/find_table_find.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/find_table_find.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/find_table_find.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;

@@ -1,6 +1,7 @@
 ## Test cases for connections reset by client
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 
 ## Test starts here
@@ -10,7 +11,7 @@
 -->quiet
 
 -->macro Long_run	%PROC_NAME%	%TABLE_NAME%
--->newsession next_ses	root
+-->newsession next_ses	x_root
 -->stmtsql SELECT COUNT(*) FROM information_schema.processlist
 -->recvresult
 
@@ -50,12 +51,13 @@ CREATE SCHEMA xtest;
 CREATE TABLE xtest.empty(a INT, b FLOAT);
 
 
---exec $MYSQLXTEST -uroot --file=$xtest_file 2>&1
+--exec $MYSQLXTEST -ux_root --file=$xtest_file 2>&1
 
 
 # Postamble
 --remove_file $xtest_file
 
+--source include/xplugin_drop_user.inc
 DROP SCHEMA IF EXISTS xtest;
 UNINSTALL PLUGIN mysqlx;
 

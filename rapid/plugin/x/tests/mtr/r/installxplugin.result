@@ -189,7 +189,7 @@ install plugin mysqlx soname "mysqlx.so";
 # restart: --max_connections=151
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
-root@localhost	root@localhost	*
+x_root@localhost	x_root@localhost	*
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"

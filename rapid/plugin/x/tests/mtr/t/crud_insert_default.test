@@ -2,6 +2,7 @@
 
 ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 ## Test starts here
 
 DROP SCHEMA IF EXISTS xtest;
@@ -106,12 +107,13 @@ Mysqlx.Crud.Insert {
 -->recverror 5151
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/crud_insert_default.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_insert_default.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/crud_insert_default.tmp
 
 SELECT * FROM xtest.table;
 SELECT * FROM xtest.fault;
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 DROP SCHEMA IF EXISTS xtest;
 UNINSTALL PLUGIN mysqlx;

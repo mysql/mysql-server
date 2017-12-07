@@ -2,6 +2,7 @@
 #  with various form of  document members
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 
 ## Test starts here
@@ -138,11 +139,12 @@ EOF
 CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 
 exec $MYSQLXTEST
-  -uroot
+  -ux_root
   --password=''
   --file=$xtest_file 2>&1;
 
 ## Postamble
 --remove_file $xtest_file
 DROP SCHEMA IF EXISTS xtest;
+--source include/xplugin_drop_user.inc
 UNINSTALL PLUGIN mysqlx;

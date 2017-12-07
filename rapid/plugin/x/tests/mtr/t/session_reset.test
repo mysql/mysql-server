@@ -1,5 +1,6 @@
 --source include/restart_mysqld.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unhandled message of type 12'");
 call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unhandled message of type 12'");
@@ -18,7 +19,7 @@ Mysqlx.Session.Reset {
 -->recv
 
 #2) Log back
--->login root
+-->login x_root
 
 #3) Execute query
 Mysqlx.Sql.StmtExecute {
@@ -47,7 +48,7 @@ Mysqlx.Session.Reset {
 -->recvresult
 -->recv
 
--->login root
+-->login x_root
 
 
 ######## Expect error and server disconnect trying to execute query after the session reset
@@ -73,7 +74,7 @@ set @secret = 12345;
 Mysqlx.Session.Reset {
 }
 -->recv
--->login root
+-->login x_root
 
 -->sql
 select IF(@secret is NULL, 'OK', 'FAIL');
@@ -109,12 +110,13 @@ EOF
 
 
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/session_reset.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/session_reset.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/session_reset.tmp
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/session_reset_single_frame.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/session_reset_single_frame.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/session_reset_single_frame.tmp
 
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;

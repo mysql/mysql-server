@@ -1976,6 +1976,7 @@ static Exit_status safe_connect()
                  "program_name", "mysqlbinlog");
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                 "_client_role", "binary_log_listener");
+  set_server_public_key(mysql);
   set_get_server_public_key_option(mysql);
 
   if (!mysql_real_connect(mysql, host, user, pass, 0, port, sock, 0))

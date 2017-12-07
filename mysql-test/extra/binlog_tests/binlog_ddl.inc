@@ -30,7 +30,7 @@
 
 --let $binlog_file=
 
---let $ddl_query=CREATE USER user1
+--let $ddl_query=CREATE USER user1 IDENTIFIED WITH 'mysql_native_password'
 --let $pre_binlog_crash_check=SELECT count(*) = 0 FROM mysql.user WHERE user = 'user1'
 --let $post_binlog_crash_check=SELECT count(*) = 1 FROM mysql.user WHERE user = 'user1'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc

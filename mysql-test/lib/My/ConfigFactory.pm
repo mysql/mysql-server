@@ -297,6 +297,7 @@ my @mysqld_rules=
  { 'ssl-cert' => \&fix_ssl_server_cert },
  { 'ssl-key' => \&fix_ssl_server_key },
  { 'loose-sha256_password_auto_generate_rsa_keys' => "0"},
+ { 'loose-caching_sha2_password_auto_generate_rsa_keys' => "0"},
  { 'caching_sha2_password_private_key_path' => \&fix_rsa_private_key },
  { 'caching_sha2_password_public_key_path' => \&fix_rsa_public_key },
   );

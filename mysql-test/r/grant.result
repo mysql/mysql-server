@@ -62,7 +62,7 @@ max_questions	0
 max_updates	0
 max_connections	0
 max_user_connections	0
-plugin	mysql_native_password
+plugin	caching_sha2_password
 authentication_string	
 password_expired	N
 password_last_changed	DTVALUE
@@ -146,7 +146,7 @@ max_questions	10
 max_updates	0
 max_connections	0
 max_user_connections	0
-plugin	mysql_native_password
+plugin	caching_sha2_password
 authentication_string	
 password_expired	N
 password_last_changed	DTVALUE
@@ -202,7 +202,7 @@ max_questions	10
 max_updates	20
 max_connections	30
 max_user_connections	0
-plugin	mysql_native_password
+plugin	caching_sha2_password
 authentication_string	
 password_expired	N
 password_last_changed	DTVALUE

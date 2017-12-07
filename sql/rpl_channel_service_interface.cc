@@ -186,6 +186,8 @@ initialize_channel_creation_info(Channel_creation_info* channel_info)
   channel_info->preserve_relay_logs= false;
   channel_info->retry_count= 0;
   channel_info->connect_retry= 0;
+  channel_info->public_key_path= 0;
+  channel_info->get_public_key= 0;
 }
 
 void initialize_channel_ssl_info(Channel_ssl_info* channel_ssl_info)
@@ -326,6 +328,30 @@ int channel_create(const char* channel,
     {
       //So change master allows new configurations with a running SQL thread
       lex_mi->auto_position= LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+    }
+  }
+
+  if (channel_info->public_key_path)
+  {
+    lex_mi->public_key_path= channel_info->public_key_path;
+  }
+
+  if (channel_info->get_public_key)
+  {
+    lex_mi->get_public_key= LEX_MASTER_INFO::LEX_MI_ENABLE;
+    if (mi && mi->get_public_key)
+    {
+      //So change master allows new configurations with a running SQL thread
+      lex_mi->get_public_key= LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+    }
+  }
+  else
+  {
+    lex_mi->get_public_key= LEX_MASTER_INFO::LEX_MI_DISABLE;
+    if (mi && !mi->get_public_key)
+    {
+      //So change master allows new configurations with a running SQL thread
+      lex_mi->get_public_key= LEX_MASTER_INFO::LEX_MI_UNCHANGED;
     }
   }
 

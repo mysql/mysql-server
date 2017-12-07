@@ -82,6 +82,7 @@ SHOW GRANTS FOR u1@localhost;
 --sorted_result
 SHOW GRANTS FOR u3@localhost;
 --echo # Must have a password
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/g
 SHOW CREATE USER u2@localhost;
 
 --echo # shut server down
