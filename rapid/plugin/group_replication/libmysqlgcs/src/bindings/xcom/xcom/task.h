@@ -26,6 +26,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
 
+
 #ifdef __cplusplus
 extern "C" {
 #endif

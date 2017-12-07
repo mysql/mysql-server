@@ -71,6 +71,8 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
 
 #ifndef _WIN32
 #include <poll.h>
@@ -935,11 +937,22 @@ static int msdiff(double time) {
   return (int)(1000.5 * (first_delayed()->time - time));
 }
 
+static should_exit_getter get_should_exit;
+
+void set_should_exit_getter(should_exit_getter x)  { get_should_exit = x; }
+
 static double idle_time = 0.0;
 void task_loop() {
+  task_env *t = 0;
   /* While there are tasks */
   for (;;) {
-    task_env *t = first_runnable();
+    //check forced exit callback
+    if(get_should_exit())
+    {
+      xcom_fsm(xa_exit, int_arg(0));
+    }
+
+    t = first_runnable();
     /* While runnable tasks */
     while (runnable_tasks()) {
       task_env *next = next_task(t);
@@ -1023,9 +1036,9 @@ static int init_sockaddr(char *server, struct sockaddr_in *sock_addr,
                          socklen_t *sock_size, xcom_port port) {
   /* Get address of server */
   struct addrinfo *addr = 0;
-  
+
   checked_getaddrinfo(server, 0, 0, &addr);
-  
+
   if (!addr) return 0;
   /* Copy first address */
   memcpy(sock_addr, addr->ai_addr, addr->ai_addrlen);

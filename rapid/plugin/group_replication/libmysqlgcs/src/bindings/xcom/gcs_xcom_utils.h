@@ -16,6 +16,7 @@
 #ifndef GCS_XCOM_UTILS_INCLUDED
 #define GCS_XCOM_UTILS_INCLUDED
 
+#include <atomic>
 #include <string>
 #include <vector>
 
@@ -636,6 +637,20 @@ public:
 
   virtual int xcom_force_nodes(Gcs_xcom_nodes &nodes,
                                unsigned int group_id_hash)= 0;
+
+  /**
+    Function that retrieves the value that signals that XCom
+    must be forcefully stopped.
+
+    @return 1 if XCom needs to forcefully exit. 0 otherwise.
+   */
+  virtual bool get_should_exit()= 0;
+
+  /**
+    Function that sets the value that signals that XCom
+    must be forcefully stopped.
+   */
+  virtual void set_should_exit(bool should_exit)= 0;
 };
 
 
@@ -759,6 +774,8 @@ public:
   int xcom_client_force_config(node_list *nl, uint32_t group_id);
   int xcom_client_force_config(connection_descriptor *fd, node_list *nl,
                                uint32_t group_id);
+  bool get_should_exit();
+  void set_should_exit(bool should_exit);
 private:
   /* A pointer to the next local XCom connection to use. */
   int m_xcom_handlers_cursor;
@@ -805,6 +822,7 @@ private:
   const char *m_cipher;
   const char *m_tls_version;
 
+  std::atomic_bool m_should_exit;
 
   /*
     Disabling the copy constructor and assignment operator.

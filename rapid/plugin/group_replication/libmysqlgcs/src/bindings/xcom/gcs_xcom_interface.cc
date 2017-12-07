@@ -76,6 +76,7 @@ void      cb_xcom_comms(int status);
 void      cb_xcom_ready(int status);
 void      cb_xcom_exit(int status);
 synode_no cb_xcom_get_app_snap(blob *gcs_snap);
+int       cb_xcom_get_should_exit();
 void      cb_xcom_handle_app_snap(blob *gcs_snap);
 int       cb_xcom_socket_accept(int fd);
 
@@ -881,6 +882,7 @@ initialize_xcom(const Gcs_interface_parameters &interface_params)
   ::set_xcom_global_view_receiver(cb_xcom_receive_global_view);
   ::set_port_matcher(cb_xcom_match_port);
   ::set_app_snap_handler(cb_xcom_handle_app_snap);
+  ::set_should_exit_getter(cb_xcom_get_should_exit);
   ::set_app_snap_getter(cb_xcom_get_app_snap);
   ::set_xcom_run_cb(cb_xcom_ready);
   ::set_xcom_comms_cb(cb_xcom_comms);
@@ -1579,6 +1581,13 @@ synode_no cb_xcom_get_app_snap(blob *gcs_snap MY_ATTRIBUTE((unused)))
   return null_synode;
 }
 
+int cb_xcom_get_should_exit()
+{
+  if (xcom_proxy)
+    return (int)xcom_proxy->get_should_exit();
+  else
+    return 0;
+}
 
 void cb_xcom_ready(int status MY_ATTRIBUTE((unused)))
 {
