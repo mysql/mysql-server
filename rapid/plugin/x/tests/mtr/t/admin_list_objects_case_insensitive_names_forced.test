@@ -15,7 +15,7 @@ if (`SELECT CONVERT(@@version_compile_os USING LATIN1) RLIKE '^(osx|macos)'`)
 
 --let $expect_table_error= ER_TABLE_EXISTS_ERROR
 --let $expect_db_error= ER_DB_CREATE_EXISTS
---replace_regex /XTEST/xtest/ /xTeSt/xtest/ /FRUIT/fruit/ /FrUiT/fruit/
+--let $result_filter=/XTEST/xtest/ /xTeSt/xtest/ /FRUIT/fruit/ /FrUiT/fruit/
 --source ../include/admin_list_objects_table_names.inc
 
 ## Postamble

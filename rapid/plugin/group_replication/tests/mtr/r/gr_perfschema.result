@@ -53,6 +53,8 @@ CONNECTION_RETRY_INTERVAL	60
 CONNECTION_RETRY_COUNT	1
 HEARTBEAT_INTERVAL	30.000
 TLS_VERSION	
+PUBLIC_KEY_PATH	
+GET_PUBLIC_KEY	NO
 #group_replication_applier channel configuration
 SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -74,6 +76,8 @@ CONNECTION_RETRY_INTERVAL	60
 CONNECTION_RETRY_COUNT	10
 HEARTBEAT_INTERVAL	30.000
 TLS_VERSION	
+PUBLIC_KEY_PATH	
+GET_PUBLIC_KEY	NO
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -168,6 +172,8 @@ CONNECTION_RETRY_INTERVAL	60
 CONNECTION_RETRY_COUNT	1
 HEARTBEAT_INTERVAL	30.000
 TLS_VERSION	
+PUBLIC_KEY_PATH	
+GET_PUBLIC_KEY	NO
 #group_replication_applier channel configuration
 SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -189,6 +195,8 @@ CONNECTION_RETRY_INTERVAL	60
 CONNECTION_RETRY_COUNT	10
 HEARTBEAT_INTERVAL	30.000
 TLS_VERSION	
+PUBLIC_KEY_PATH	
+GET_PUBLIC_KEY	NO
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier

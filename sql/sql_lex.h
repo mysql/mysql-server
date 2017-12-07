@@ -430,9 +430,10 @@ struct LEX_MASTER_INFO
    */
   enum {LEX_MI_UNCHANGED= 0, LEX_MI_DISABLE, LEX_MI_ENABLE}
     ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt,
-    retry_count_opt, auto_position, port_opt;
+    retry_count_opt, auto_position, port_opt, get_public_key;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *ssl_crl, *ssl_crlpath, *tls_version;
+  char *public_key_path;
   char *relay_log_name;
   ulong relay_log_pos;
   Prealloced_array<ulong, 2> repl_ignore_server_ids;

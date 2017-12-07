@@ -9012,16 +9012,16 @@ ER_AUTH_CERT_GENERATION_DISABLED
   eng "Skipping generation of SSL certificates as --auto_generate_certs is set to OFF."
 
 ER_AUTH_RSA_CONF_PREVENTS_KEY_GENERATION
-  eng "Skipping generation of RSA key pair as options related to RSA keys are specified."
+  eng "Skipping generation of RSA key pair through %s as options related to RSA keys are specified."
 
 ER_AUTH_KEY_GENERATION_SKIPPED_PAIR_PRESENT
-  eng "Skipping generation of RSA key pair as key files are present in data directory."
+  eng "Skipping generation of RSA key pair through %s as key files are present in data directory."
 
 ER_AUTH_KEYS_SAVED_TO_DATADIR
-  eng "Auto generated RSA key files are placed in data directory."
+  eng "Auto generated RSA key files through %s are placed in data directory."
 
 ER_AUTH_KEY_GENERATION_DISABLED
-  eng "Skipping generation of RSA key pair as --sha256_password_auto_generate_rsa_keys is set to OFF."
+  eng "Skipping generation of RSA key pair as %s is set to OFF."
 
 ER_AUTHCACHE_PROXIES_PRIV_SKIPPED_NEEDS_RESOLVE
   eng "'proxies_priv' entry '%s@%s %s@%s' ignored in --skip-name-resolve mode."

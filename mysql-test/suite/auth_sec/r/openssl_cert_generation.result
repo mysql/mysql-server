@@ -49,8 +49,8 @@ Ssl_cipher	SSL_CIPHER
 # 4.1 : Restarting mysqld with :
 #       --sha256_password_auto_generate_rsa_keys=1
 # Restart completed.
-# Search for : Auto generated RSA key files are placed in data directory.
-Pattern "Auto generated RSA key files are placed in data directory." found
+# Search for : Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.
+Pattern "Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory." found
 # Search completed.
 # Search for RSA key files in Data directory.
 # Search completed.
@@ -64,7 +64,7 @@ Pattern "Auto generated RSA key files are placed in data directory." found
 # RSA key pair files is skipped.
 # Search for : Messages related to skipped generation of SSL certificates and RSA key pair files.
 Pattern "Skipping generation of SSL certificates as certificate files are present in data directory" found
-Pattern "Skipping generation of RSA key pair as key files are present in data directory" found
+Pattern "Skipping generation of RSA key pair" found
 # Search completed.
 # 5.2 : System variables
 # auto_generate_certs, ssl_ca, ssl_cert and ssl_key should be set.
@@ -105,8 +105,8 @@ drop user wl7699_sha256;
 # Search for : Auto generated SSL certificates are placed in data directory.
 Pattern "Auto generated SSL certificates are placed in data directory." found
 # Search completed.
-# Search for : Auto generated RSA key files are placed in data directory.
-Pattern "Auto generated RSA key files are placed in data directory." found
+# Search for : Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.
+Pattern "Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory." found
 # Search completed.
 # 6.2 : System variables
 # auto_generate_certs, ssl_ca, ssl_cert and ssl_key should be set.
@@ -149,8 +149,8 @@ drop user wl7699_sha256;
 #       --auto_generate_certs=ON
 #       --sha256_password_auto_generate_rsa_keys=ON
 # Restart completed.
-# Search for : Auto generated RSA key files are placed in data directory.
-Pattern "Auto generated RSA key files are placed in data directory." found
+# Search for : Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.
+Pattern "Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory." found
 # Search completed.
 # 7.2 : System variables
 # No ssl variables should be set

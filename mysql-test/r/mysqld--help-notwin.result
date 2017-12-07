@@ -1362,7 +1362,7 @@ connect-timeout 10
 console FALSE
 cte-max-recursion-depth 1000
 daemonize FALSE
-default-authentication-plugin mysql_native_password
+default-authentication-plugin caching_sha2_password
 default-password-lifetime 0
 default-storage-engine InnoDB
 default-time-zone (No default value)

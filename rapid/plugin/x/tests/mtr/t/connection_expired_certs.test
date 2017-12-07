@@ -2,6 +2,7 @@
 
 ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 # Tests
 --write_file $MYSQL_TMP_DIR/expired_ssl_certs.tmp
@@ -13,10 +14,11 @@
 EOF
 
 --replace_regex /Mysqlx_ssl_server_not_after([[:space:]]*)[-a-zA-Z0-9: ]*/Mysqlx_ssl_server_not_after\1/ /Mysqlx_ssl_server_not_before([[:space:]]*)[a-zA-Z0-9: ]*/Mysqlx_ssl_server_not_before\1/
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/expired_ssl_certs.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/expired_ssl_certs.tmp 2>&1
 
 ## Cleanup
 --remove_file $MYSQL_TMP_DIR/expired_ssl_certs.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 UNINSTALL PLUGIN mysqlx;

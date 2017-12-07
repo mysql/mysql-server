@@ -168,7 +168,7 @@ DROP TABLE `xtest`.`test2`
 
 0 rows affected
 client_id	user	host	sql_session
-1	root	localhost	$SESSION
+1	x_root	localhost	$SESSION
 command ok
 Query
 CREATE USER 'unpriv'@'localhost' IDENTIFIED WITH 'mysql_native_password'
@@ -179,13 +179,13 @@ SHOW WARNINGS
 connecting...
 active session is now 'unpriv'
 connecting...
-active session is now 'root'
+active session is now 'x_root'
 
 command ok
 
 0 rows affected
 Query
-/* xplugin authentication */ SELECT @@require_secure_transport, `authentication_string`, `plugin`,(`account_locked`='Y') as is_account_locked, (`password_expired`!='N') as `is_password_expired`, @@disconnect_on_expired_password as `disconnect_on_expired_password`, @@offline_mode and (`Super_priv`='N') as `is_offline_mode_and_not_super_user`,`ssl_type`, `ssl_cipher`, `x509_issuer`, `x509_subject` FROM mysql.user WHERE 'root' = `user` AND 'localhost' = `host`
+/* xplugin authentication */ SELECT @@require_secure_transport, `authentication_string`, `plugin`,(`account_locked`='Y') as is_account_locked, (`password_expired`!='N') as `is_password_expired`, @@disconnect_on_expired_password as `disconnect_on_expired_password`, @@offline_mode and (`Super_priv`='N') as `is_offline_mode_and_not_super_user`,`ssl_type`, `ssl_cipher`, `x509_issuer`, `x509_subject` FROM mysql.user WHERE 'x_root' = `user` AND 'localhost' = `host`
 KILL
 drop user unpriv@localhost
 0 rows affected
@@ -225,7 +225,7 @@ SHOW WARNINGS
 command ok
 Query
 0 rows affected
-closing session root
+closing session x_root
 Mysqlx.Ok {
   msg: "bye!"
 }

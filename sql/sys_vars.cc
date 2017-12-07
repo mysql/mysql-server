@@ -778,7 +778,7 @@ static Sys_var_charptr Sys_default_authentication_plugin(
        "default_authentication_plugin", "The default authentication plugin "
        "used by the server to hash the password.",
        READ_ONLY NON_PERSIST GLOBAL_VAR(default_auth_plugin), CMD_LINE(REQUIRED_ARG),
-       IN_FS_CHARSET, DEFAULT("mysql_native_password"));
+       IN_FS_CHARSET, DEFAULT("caching_sha2_password"));
 
 static PolyLock_mutex Plock_default_password_lifetime(
                         &LOCK_default_password_lifetime);

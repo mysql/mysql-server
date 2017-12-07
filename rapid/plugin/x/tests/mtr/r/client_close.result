@@ -456,7 +456,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	sql_session
-1	root	localhost	$SESSION
+1	x_root	localhost	$SESSION
 command ok
 
 Bug #21825183 - WHEN CLIENTS LAST SESSION IS CLOSED THEN NOT ALL QUEUED MESSAGES ARE SEND

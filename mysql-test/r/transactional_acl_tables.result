@@ -98,7 +98,7 @@ DROP USER u1a@h, u2a@h, u3a@h;
 ########################################################################
 # A.4. Checking lock-wait-timeout with SET PASSWORD.
 ########################################################################
-CREATE USER u1@h;
+CREATE USER u1@h IDENTIFIED WITH 'mysql_native_password';
 SELECT user, host FROM mysql.user WHERE host = 'h';
 user	host
 u1	h

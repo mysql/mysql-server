@@ -423,6 +423,7 @@ int main(int argc,char *argv[])
   mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_passwords);
 
+  set_server_public_key(&mysql);
   set_get_server_public_key_option(&mysql);
   if (sql_connect(&mysql, option_wait))
   {

@@ -23,7 +23,7 @@
 
 /**
   Below functions are used by the components. And these functions will
-  be in a static library(libcomponent_mysys.a) and the library is statically
+  be in a static library(liblibrary_mysys.a) and the library is statically
   linked whenever any component needs these function.
 */
 

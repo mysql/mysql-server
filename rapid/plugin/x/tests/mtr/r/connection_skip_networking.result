@@ -6,7 +6,7 @@ Test starts here
 Verify UNIX socket or Named Pipe connection that it still works
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
-root@localhost	root@localhost	*
+x_root@localhost	x_root@localhost	*
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"

@@ -1,5 +1,6 @@
 ## Doc: Find using docpaths in expression 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 DROP SCHEMA IF EXISTS xtest;
 CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
@@ -72,12 +73,13 @@ Mysqlx.Crud.Find {
 -->callmacro Find_value	zcoll	name:"name"	no_data	ER_X_DOC_REQUIRED_FIELD_MISSING
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/crud_find_doc_criteria.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_find_doc_criteria.tmp 2>&1
 
 
 ## Cleanup
 --remove_file $MYSQL_TMP_DIR/crud_find_doc_criteria.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 DROP SCHEMA IF EXISTS xtest;
 UNINSTALL PLUGIN mysqlx;

@@ -186,7 +186,6 @@ static bool is_windows= 0;
 static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
-static const char *opt_server_public_key= 0;
 static bool can_handle_expired_passwords= true;
 #include "caching_sha2_passwordopt-vars.h"
 
@@ -6738,9 +6737,7 @@ static void do_connect(struct st_command *command)
     mysql_options(&con_slot->mysql, MYSQL_DEFAULT_AUTH, ds_default_auth.str);
 
   /* Set server public_key */
-  if (opt_server_public_key && *opt_server_public_key)
-    mysql_options(&con_slot->mysql, MYSQL_SERVER_PUBLIC_KEY,
-                  opt_server_public_key);
+  set_server_public_key(&con_slot->mysql);
 
   set_get_server_public_key_option(&con_slot->mysql);
 
@@ -7793,10 +7790,6 @@ static struct my_option my_long_options[] =
    120, 0, 3600 * 12, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
     &opt_plugin_dir, &opt_plugin_dir, 0,
-   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"server-public-key-path", OPT_SERVER_PUBLIC_KEY,
-   "File path to the server public RSA key in PEM format.",
-   &opt_server_public_key, &opt_server_public_key, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

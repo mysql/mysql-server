@@ -177,6 +177,22 @@ public:
     donor_connection_interface.set_stop_wait_timeout(timeout);
   }
 
+  /** Set a public key file*/
+  void set_recovery_public_key_path(const char* public_key_path)
+  {
+    if (public_key_path != NULL)
+    {
+      (void) strncpy(recovery_public_key_path, public_key_path,
+        strlen(public_key_path)+1);
+    }
+  }
+
+  /** Get preference to get public key */
+  void set_recovery_get_public_key(bool set)
+  {
+    recovery_get_public_key= set;
+  }
+
   //Methods that update the state transfer process
 
   /** This method initializes the group membership info */
@@ -364,6 +380,8 @@ private:
 
   /** If the use of SSL is obligatory on recovery connections */
   bool recovery_use_ssl;
+  /** Get public key */
+  bool recovery_get_public_key;
   /** The configured SSL trusted certificate authorities file */
   char recovery_ssl_ca[FN_REFLEN];
   /** The configured directory that contains trusted SSL CA files*/
@@ -380,6 +398,8 @@ private:
   char recovery_ssl_crlpath[FN_REFLEN];
   /** If the server's Common Name value checks against donor sent certificate.*/
   bool recovery_ssl_verify_server_cert;
+  /** Public key information */
+  char recovery_public_key_path[FN_REFLEN];
 
   /* The lock for the recovery wait condition */
   mysql_mutex_t recovery_lock;

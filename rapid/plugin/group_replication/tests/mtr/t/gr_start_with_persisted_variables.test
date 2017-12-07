@@ -25,6 +25,7 @@
 --eval SET PERSIST group_replication_local_address= @@GLOBAL.group_replication_local_address
 SET PERSIST group_replication_start_on_boot= ON;
 SET PERSIST group_replication_bootstrap_group= ON;
+SET PERSIST group_replication_recovery_get_public_key= ON;
 
 
 --echo
@@ -51,6 +52,7 @@ SELECT variable_name, variable_source FROM performance_schema.variables_info WHE
 --eval SET PERSIST group_replication_group_seeds= @@GLOBAL.group_replication_group_seeds
 --eval SET PERSIST group_replication_local_address= @@GLOBAL.group_replication_local_address
 SET PERSIST group_replication_start_on_boot= ON;
+SET PERSIST group_replication_recovery_get_public_key= ON;
 
 
 --echo

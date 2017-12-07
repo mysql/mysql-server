@@ -260,6 +260,19 @@ public:
     this->recovery_completion_policy= completion_policy;
   }
 
+  /** Set a public key file*/
+  void set_recovery_public_key_path(const char* public_key_path)
+  {
+    if (public_key_path != NULL)
+      recovery_state_transfer.set_recovery_public_key_path(public_key_path);
+  }
+
+  /** Get public key automatically */
+  void set_recovery_get_public_key(bool set)
+  {
+    recovery_state_transfer.set_recovery_get_public_key(set);
+  }
+
   /**
     Checks if the given id matches the recovery applier thread
     @param id  the thread id

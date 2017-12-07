@@ -2,6 +2,7 @@
 
 ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ## Test starts here
 --let $xtest_file= $MYSQL_TMP_DIR/crud_cont_in_expr.tmp
@@ -204,12 +205,12 @@ Mysqlx.Crud.Find {
 -->callmacro Cont_in_literal	%LITERAL_OBJECT_SCALAR_10%	%LITERAL_OBJECT_SCALAR_BLUE%	%LITERAL_ARRAY_30_OBJECT_SCALAR_10_WHITE%
 
 
--->varlet %DOCUMENT_ROOT% %IDENT% {%DOCUMENT_PATH% {type: MEMBER}}
+-->varlet %DOCUMENT_x_root% %IDENT% {%DOCUMENT_PATH% {type: MEMBER}}
 
 -->title -Literal object in document
--->callmacro Cont_in_literal	%LITERAL_OBJECT_SCALAR_10%	%LITERAL_OBJECT_SCALAR_BLUE%	%DOCUMENT_ROOT%
+-->callmacro Cont_in_literal	%LITERAL_OBJECT_SCALAR_10%	%LITERAL_OBJECT_SCALAR_BLUE%	%DOCUMENT_x_root%
 -->title -Json octets object in document
--->callmacro Cont_in_literal	%JSON_OCTETS_OBJECT_SCALAR_10%	%JSON_OCTETS_OBJECT_SCALAR_BLUE%	%DOCUMENT_ROOT%
+-->callmacro Cont_in_literal	%JSON_OCTETS_OBJECT_SCALAR_10%	%JSON_OCTETS_OBJECT_SCALAR_BLUE%	%DOCUMENT_x_root%
 
 
 -->varlet %MEMBER_OBJECT_SCALAR_10% %IDENT% {%DOCUMENT_PATH% {%MEMBER%: 'object_scalar_10'}}
@@ -261,8 +262,8 @@ Mysqlx.Crud.Find {
 -->callmacro Cont_in	%LITERAL_NULL%	%LITERAL_OBJECT_SCALAR_NULL%	ER_SUCCESS
 -->title -literal NULL in member object 
 -->callmacro Cont_in	%LITERAL_NULL%	%MEMBER_OBJECT_SCALAR_10%	ER_SUCCESS
--->title -literal NULL in root document 
--->callmacro Cont_in	%LITERAL_NULL%	%DOCUMENT_ROOT%	ER_SUCCESS
+-->title -literal NULL in x_root document 
+-->callmacro Cont_in	%LITERAL_NULL%	%DOCUMENT_x_root%	ER_SUCCESS
 
 
 # function
@@ -285,8 +286,8 @@ Mysqlx.Crud.Find {
 -->callmacro Cont_in	%LITERAL_RED%	%FUNCTION_JSON_ARRAY%	ER_SUCCESS
 
 -->title -JSON_ARRAY_APPEND - Append data to JSON document
--->varlet %ROOT_POINT% %LITERAL% {%V_OCTETS% {value:'$'}}
--->varlet %FUNCTION_JSON_ARRAY_APPEND% %FUNC_CALL% {name{name: 'json_array_append'} param{%LITERAL_ARRAY_10_20_30%} param{%ROOT_POINT%} param{%LITERAL_RED%}}
+-->varlet %x_root_POINT% %LITERAL% {%V_OCTETS% {value:'$'}}
+-->varlet %FUNCTION_JSON_ARRAY_APPEND% %FUNC_CALL% {name{name: 'json_array_append'} param{%LITERAL_ARRAY_10_20_30%} param{%x_root_POINT%} param{%LITERAL_RED%}}
 -->callmacro Cont_in	%LITERAL_RED%	%FUNCTION_JSON_ARRAY_APPEND%	ER_SUCCESS
 
 -->title -JSON_ARRAY_INSERT - Insert into JSON array
@@ -317,11 +318,11 @@ Mysqlx.Crud.Find {
 
 -->title -JSON_KEYS - Array of keys from JSON document
 -->varlet %KEY_SCALAR_10% %LITERAL% {%V_OCTETS% {value:'scalar_10'}}
--->varlet %FUNCTION_JSON_KEYS% %FUNC_CALL% {name{name: 'json_keys'} param{%DOCUMENT_ROOT%}}
+-->varlet %FUNCTION_JSON_KEYS% %FUNC_CALL% {name{name: 'json_keys'} param{%DOCUMENT_x_root%}}
 -->callmacro Cont_in	%KEY_SCALAR_10%	%FUNCTION_JSON_KEYS%	ER_SUCCESS
 
 -->title -JSON_LENGTH - Number of elements in JSON document
--->varlet %FUNCTION_JSON_LENGTH% %FUNC_CALL% {name{name: 'json_length'} param{%DOCUMENT_ROOT%}}
+-->varlet %FUNCTION_JSON_LENGTH% %FUNC_CALL% {name{name: 'json_length'} param{%DOCUMENT_x_root%}}
 -->callmacro Cont_in	%LITERAL_10%	%FUNCTION_JSON_LENGTH%	ER_X_EXPR_BAD_VALUE
 
 -->title -JSON_MERGE - Merge JSON documents
@@ -406,9 +407,10 @@ INSERT INTO xtest.xtable (doc) VALUES
      "object_scalar_10":{"scalar_10":10},
      "object_scalar_red":{"scalar_red":"red"}}');
 
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 --remove_file $xtest_file
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 DROP SCHEMA IF EXISTS xtest;
 UNINSTALL PLUGIN mysqlx;

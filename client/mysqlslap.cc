@@ -369,6 +369,7 @@ int main(int argc, char **argv)
   if (using_opt_enable_cleartext_plugin)
     mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN, 
                   (char*) &opt_enable_cleartext_plugin);
+  set_server_public_key(&mysql);
   set_get_server_public_key_option(&mysql);
   if (!opt_only_print) 
   {

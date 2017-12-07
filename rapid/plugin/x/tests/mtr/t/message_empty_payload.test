@@ -1,5 +1,6 @@
  ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ## TEST STARTS HERE
 --write_file $MYSQL_TMP_DIR/validate_empty_message.tmp
@@ -27,9 +28,9 @@ EOF
 # which is must be greater than the peerdisc/timeout
 SET GLOBAL mysqlx_connect_timeout = 300;
 
---exec $MYSQLXTEST -u root  --file=$MYSQL_TMP_DIR/validate_empty_message.tmp 2>&1
---exec $MYSQLXTEST -u root  --file=$MYSQL_TMP_DIR/validate_empty_message.tmp --no-auth 2>&1
---exec $MYSQLXTEST -u root  --file=$MYSQL_TMP_DIR/validate_empty_message_on_valid_session.tmp 2>&1
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message.tmp 2>&1
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message.tmp --no-auth 2>&1
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message_on_valid_session.tmp 2>&1
 
 --let $wait_condition= SELECT variable_value = 2 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_sessions_fatal_error'
 --source include/wait_condition_or_abort.inc
@@ -38,4 +39,5 @@ SET GLOBAL mysqlx_connect_timeout = 300;
 --remove_file $MYSQL_TMP_DIR/validate_empty_message.tmp
 --remove_file $MYSQL_TMP_DIR/validate_empty_message_on_valid_session.tmp
 
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;

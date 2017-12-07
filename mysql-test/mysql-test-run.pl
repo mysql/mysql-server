@@ -3973,6 +3973,7 @@ sub mysql_install_db {
   # Do not generate SSL/RSA certificates automatically.
   mtr_add_arg($args, "--loose-auto_generate_certs=OFF");
   mtr_add_arg($args, "--loose-sha256_password_auto_generate_rsa_keys=OFF");
+  mtr_add_arg($args, "--loose-caching_sha2_password_auto_generate_rsa_keys=OFF");
 
   # InnoDB arguments that affect file location and sizes may
   # need to be given to the bootstrap process as well as the

@@ -138,6 +138,7 @@ static const int RECOVERY_SSL_CIPHER_OPT= 4;
 static const int RECOVERY_SSL_KEY_OPT= 5;
 static const int RECOVERY_SSL_CRL_OPT= 6;
 static const int RECOVERY_SSL_CRLPATH_OPT= 7;
+static const int RECOVERY_SSL_PUBLIC_KEY_PATH_OPT= 8;
 //The option map <SSL var_name, SSL var code>
 std::map<const char*, int> recovery_ssl_opt_map;
 
@@ -155,6 +156,10 @@ ulong  recovery_completion_policy_var;
 
 ulong recovery_retry_count_var= 0;
 ulong recovery_reconnect_interval_var= 0;
+
+/* Public key related options */
+char* recovery_public_key_path_var= NULL;
+bool recovery_get_public_key_var= false;
 
 /* Write set extraction algorithm*/
 int write_set_extraction_algorithm= HASH_ALGORITHM_OFF;
@@ -405,7 +410,9 @@ int plugin_group_replication_start(char **)
       check_recovery_ssl_string(recovery_ssl_key_var, "ssl_key_pointer") ||
       check_recovery_ssl_string(recovery_ssl_crl_var, "ssl_crl_pointer") ||
       check_recovery_ssl_string(recovery_ssl_crlpath_var,
-                                "ssl_crlpath_pointer"))
+                                "ssl_crlpath_pointer") ||
+      check_recovery_ssl_string(recovery_public_key_path_var,
+                                        "public_key_path"))
     DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
   if (!start_group_replication_at_boot_var &&
       !server_engine_initialized())
@@ -1632,6 +1639,9 @@ int initialize_recovery_module()
   recovery_module->
       set_recovery_donor_reconnect_interval(recovery_reconnect_interval_var);
 
+  recovery_module->set_recovery_public_key_path(recovery_public_key_path_var);
+  recovery_module->set_recovery_get_public_key(recovery_get_public_key_var);
+
   return 0;
 }
 
@@ -2140,8 +2150,32 @@ static void update_recovery_ssl_option(MYSQL_THD, SYS_VAR *var,
       if (recovery_module != NULL)
         recovery_module->set_recovery_ssl_crlpath(new_option_val);
       break;
+    case RECOVERY_SSL_PUBLIC_KEY_PATH_OPT:
+      if (recovery_module != NULL)
+        recovery_module->set_recovery_public_key_path(new_option_val);
+      break;
     default:
       DBUG_ASSERT(0); /* purecov: inspected */
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+static void
+update_recovery_get_public_key(MYSQL_THD, SYS_VAR*,
+                               void *var_ptr, const void *save)
+{
+  DBUG_ENTER("update_recovery_get_public_key");
+
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+
+  bool get_public_key= *((bool *) save);
+  (*(bool *) var_ptr)= (*(bool *) save);
+
+  if (recovery_module != NULL)
+  {
+    recovery_module->
+        set_recovery_get_public_key(get_public_key);
   }
 
   DBUG_VOID_RETURN;
@@ -2812,6 +2846,27 @@ static MYSQL_SYSVAR_BOOL(
     update_ssl_server_cert_verification,    /* update func*/
     0);                                     /* default*/
 
+// Public key path information
+
+static MYSQL_SYSVAR_STR(
+    recovery_public_key_path,        /* name */
+    recovery_public_key_path_var,    /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+    PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | malloc string*/
+    "The path to a file containing donor's public key information.",
+    check_recovery_ssl_option,       /* check func*/
+    update_recovery_ssl_option,      /* update func*/
+    "");                             /* default*/
+
+static MYSQL_SYSVAR_BOOL(
+    recovery_get_public_key,         /* name */
+    recovery_get_public_key_var,     /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
+    "Make recovery fetch the donor's public key information during authentication.",
+    NULL,                            /* check func*/
+    update_recovery_get_public_key,  /* update func*/
+    0);                              /* default*/
+
 /** Initialize the ssl option map with variable names*/
 static void initialize_ssl_option_map()
 {
@@ -2830,6 +2885,8 @@ static void initialize_ssl_option_map()
   recovery_ssl_opt_map[ssl_crl_var->name]= RECOVERY_SSL_CRL_OPT;
   SYS_VAR* ssl_crlpath_var=MYSQL_SYSVAR(recovery_ssl_crlpath);
   recovery_ssl_opt_map[ssl_crlpath_var->name]= RECOVERY_SSL_CRLPATH_OPT;
+  SYS_VAR* public_key_path_var=MYSQL_SYSVAR(recovery_public_key_path);
+  recovery_ssl_opt_map[public_key_path_var->name]= RECOVERY_SSL_PUBLIC_KEY_PATH_OPT;
 }
 
 // Recovery threshold options
@@ -3215,6 +3272,8 @@ static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(recovery_ssl_verify_server_cert),
   MYSQL_SYSVAR(recovery_complete_at),
   MYSQL_SYSVAR(recovery_reconnect_interval),
+  MYSQL_SYSVAR(recovery_public_key_path),
+  MYSQL_SYSVAR(recovery_get_public_key),
   MYSQL_SYSVAR(components_stop_timeout),
   MYSQL_SYSVAR(allow_local_lower_version_join),
   MYSQL_SYSVAR(auto_increment_increment),

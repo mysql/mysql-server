@@ -836,7 +836,7 @@ SSL/TLS
 0 rows affected
 RUN SELECT USER()
 USER()
-root@localhost
+x_root@localhost
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
 Variable_name	Value
@@ -1703,7 +1703,7 @@ SSL/TLS
 0 rows affected
 RUN SELECT USER()
 USER()
-root@localhost
+x_root@localhost
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
 Variable_name	Value
@@ -2570,7 +2570,7 @@ SSL/TLS
 0 rows affected
 RUN SELECT USER()
 USER()
-root@localhost
+x_root@localhost
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
 Variable_name	Value

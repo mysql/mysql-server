@@ -1673,6 +1673,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
   mysql_options(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysqldump");
+  set_server_public_key(&mysql_connection);
   set_get_server_public_key_option(&mysql_connection);
 
   if (opt_network_timeout)

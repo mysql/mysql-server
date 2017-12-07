@@ -155,6 +155,7 @@ int main(int argc, char **argv)
   mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysqlshow");
+  set_server_public_key(&mysql);
   set_get_server_public_key_option(&mysql);
   if (!(mysql_real_connect(&mysql,host,user,opt_password,
 			   (first_argument_uses_wildcards) ? "" :
