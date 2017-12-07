@@ -1542,7 +1542,23 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
   DBUG_ENTER("TransporterFacade::open");
   dbg("open(%p)", clnt);
 
+  /**
+   * Need 'm_open_close_mutex' as m_threads[] will be updated.
+   * Also needed by the 'protocol' maintaining a consistent
+   * view of 'enabled' nodes across TransporterFacade and trp_clients
+   */
   NdbMutex_Lock(m_open_close_mutex);
+
+  /**
+   * Allow this client to send to nodes already having their
+   * (global) send buffers enabled.
+   *
+   * See comments for disable_/enable_send_buffer regarding how
+   * the set of enabled nodes is kept in sync between the
+   * TransporterFacade and each client thread.
+   */
+  clnt->set_enabled_send(m_enabled_nodes_mask);
+  
   while (unlikely(m_threads.freeCnt() == 0))
   {
     // First ::open_clnt seeing 'freeCnt() == 0' will expand
@@ -1574,7 +1590,17 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
       signal.theData[0] = 0;  //Unused
 
       clnt->prepare_poll();
-      clnt->raw_sendSignal(&signal, theOwnId);
+      // This client should be allowed to sent to 'ownId'
+      assert(theOwnId > 0);
+      assert(clnt->isSendEnabled(theOwnId));
+
+      const int res = clnt->raw_sendSignal(&signal, theOwnId);
+      if (res != 0)
+      {
+        // 'open' failed if expand request could not be sent.
+        clnt->complete_poll();
+        DBUG_RETURN(0);
+      }
       clnt->do_forceSend(1);
       clnt->do_poll(10);
       clnt->complete_poll();
@@ -1591,24 +1617,6 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
   {
     DBUG_RETURN(0);
   }
-
-  /**
-   * Update global mask of enabled nodes:
-   * (Also see disable_/enable_send_buffer comments)
-   *
-   * As the lock order requires client lock to be taken before open_close_mutex,
-   * we have to release it above, before relocking below in correct order.
-   * This create a possible race inbetween here, where a Transporter (dis)connect
-   * may enable/disable a send buffer for the client now being in m_client[], without
-   * its enabled_nodes_mask yet being set.
-   * This should not really matter, as we 'set' the updated enabled mask to the
-   * latest value below anyway, overwritting what any races did inbetween here.
-   */
-  clnt->lock();
-  NdbMutex_Lock(m_open_close_mutex);
-  clnt->set_enabled_send(m_enabled_nodes_mask);
-  NdbMutex_Unlock(m_open_close_mutex);
-  clnt->unlock();
 
   if (unlikely(blockNo != -1))
   {
@@ -3396,7 +3404,6 @@ TransporterFacade::disable_send_buffer(NodeId node)
     b->m_node_enabled = false;
     discard_send_buffer(b);
   }
-
 }
 
 /**

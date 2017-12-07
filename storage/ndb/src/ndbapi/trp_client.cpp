@@ -88,6 +88,7 @@ Uint32
 trp_client::open(TransporterFacade* tf, int blockNo)
 {
   Uint32 res = 0;
+  assert(m_enabled_nodes_mask.isclear());
   assert(m_facade == NULL);
   if (m_facade == NULL)
   {
@@ -121,6 +122,23 @@ trp_client::close()
     m_facade = NULL;
     m_blockNo = ~Uint32(0);
   }
+  m_enabled_nodes_mask.clear();
+}
+
+/**
+ * Initial setup of the nodes having their send buffers enabled.
+ * Callback from TransporterFacade::open_clnt' called above.
+ *
+ * Required to be called before this trp_client has been
+ * inserted in the TransporterFacade::m_threads[] array.
+ * Thus, no locking should be required in order to set
+ * the 'm_enabled_nodes_mask'
+ */
+void
+trp_client::set_enabled_send(const NodeBitmask &nodes)
+{
+  assert(m_enabled_nodes_mask.isclear());
+  m_enabled_nodes_mask.assign(nodes);
 }
 
 /**
@@ -141,13 +159,6 @@ trp_client::close()
  * Furthermore, finding pending send data to flush for a disabled send
  * buffer will indicate a concurrency control problem. (Asserted)
  */
-void
-trp_client::set_enabled_send(const NodeBitmask &nodes)
-{
-  assert(m_poll.m_locked || NdbMutex_Trylock(m_mutex) != 0);
-  m_enabled_nodes_mask.assign(nodes);
-}
-
 void
 trp_client::enable_send(NodeId node)
 {
