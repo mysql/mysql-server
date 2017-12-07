@@ -335,12 +335,8 @@ static void dump_header(char *buf) {
 
 void dbg_app_data(app_data_ptr a);
 
-#ifdef HAVE___CONST
-#define const __const
-#else
 #ifdef OLD_XDR
 #define const
-#endif
 #endif
 
 /* ARGSUSED */
@@ -373,9 +369,8 @@ static bool_t x_putbytes(XDR *xdrs, const char *bp MY_ATTRIBUTE((unused)),
 #endif
 
 static u_int
-#if defined(__APPLE__) || defined(__FreeBSD__) || \
-    defined(X_GETPOSTN_NOT_USE_CONST)
-x_getpostn(__const XDR *xdrs)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(LINUX_ALPINE)
+x_getpostn(XDR *xdrs)
 #else
 x_getpostn(const XDR *xdrs)
 #endif

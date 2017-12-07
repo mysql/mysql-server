@@ -31,6 +31,10 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom
   ${CMAKE_SOURCE_DIR}/rapid/unittest/gunit/libmysqlgcs/include)
 
+IF(LINUX_ALPINE)
+  INCLUDE_DIRECTORIES(SYSTEM "/usr/include/tirpc")
+ENDIF()
+
 IF (WIN32)
   SET (XCOM_BASEDIR
        ${CMAKE_SOURCE_DIR}/rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom)
