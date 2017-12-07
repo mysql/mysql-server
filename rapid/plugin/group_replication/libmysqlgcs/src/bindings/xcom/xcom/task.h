@@ -40,7 +40,6 @@ extern "C" {
         Nonblocking IO and event handling need to be rewritten for each new OS.
 */
 
-/* #define USE_SELECT */
 #ifdef TASK_EVENT_TRACE
 void add_base_event(double when, char const *file, int state);
 #define ADD_BASE_EVENT                             \
