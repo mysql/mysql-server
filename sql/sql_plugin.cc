@@ -2259,6 +2259,7 @@ deinit:
   tmp->state= PLUGIN_IS_DELETED;
   reap_needed= true;
   reap_plugins();
+  mysql_mutex_unlock(&LOCK_plugin);
 err:
   trans_rollback_stmt(thd);
   close_mysql_tables(thd);
