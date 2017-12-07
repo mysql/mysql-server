@@ -5888,7 +5888,6 @@ fil_ibd_open(
 			os_file_get_last_error(true);
 
 			ib::error()
-				<< ut_strerr(err) << " - "
 				<< "Could not find a valid tablespace file"
 				<< " for `" << space_name << "`. "
 				<< TROUBLESHOOT_DATADICT_MSG;
