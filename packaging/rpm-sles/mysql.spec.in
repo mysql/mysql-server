@@ -110,9 +110,7 @@ BuildRequires:  pkgconfig(systemd)
 BuildRequires:  systemd-rpm-macros
 %endif
 BuildRequires:  cyrus-sasl-devel
-%if 0%{?commercial}
 BuildRequires:  openldap2-devel
-%endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
