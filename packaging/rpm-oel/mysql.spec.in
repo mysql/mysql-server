@@ -118,9 +118,7 @@ BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
 %endif
 BuildRequires:  cyrus-sasl-devel
-%if 0%{?commercial}
 BuildRequires:  openldap-devel
-%endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
