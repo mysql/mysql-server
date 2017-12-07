@@ -13,7 +13,7 @@ ALTER TABLE t1 ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
 ALTER TABLE t1 DROP INDEX b, ADD INDEX (b);
 # Kill the server
 # restart: --debug=d,ib_log
-Pattern "scan .*:.*log rec MLOG_FILE_CREATE2.*page .*:0" found
+Pattern "scan .*:.*log rec MLOG_FILE_CREATE.*page .*:0" found
 Pattern "scan .*:.*log rec MLOG_INDEX_LOAD" found
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text

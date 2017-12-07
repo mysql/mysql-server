@@ -644,6 +644,9 @@ SET DEBUG_SYNC= 'now SIGNAL continue_alter';
 --connection con3
 --reap
 
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace .*, name '.*', file '.*' is missing!");
+--enable_query_log
 
 --echo #
 --echo # Bug#26043994: CREATE DATABASE/DIRECTORY INCONSISTENCY
