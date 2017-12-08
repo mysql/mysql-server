@@ -3588,15 +3588,9 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   TABLE_LIST *const first_not_own_table= thd->lex->first_not_own_table();
   Security_context *sctx= thd->security_context();
   ulong orig_want_access= want_access;
+  std::vector<TABLE_LIST *> tables_to_be_processed_further;
   DBUG_ENTER("check_grant");
   DBUG_ASSERT(number > 0);
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (sctx->get_active_roles()->size() == 0)
-  {
-    if (!acl_cache_lock.lock(!no_errors))
-      DBUG_RETURN(true);
-  }
 
   for (tl= tables;
        tl && number-- && tl != first_not_own_table;
@@ -3701,6 +3695,36 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     }
     else
     {
+      /*
+        For these tables we have to access ACL caches.
+        We will first go over all TABLE_LIST objects and
+        create a list of objects to be processed further.
+        Later, we will access ACL caches for these tables.
+        It allows us to delay locking of ACL caches.
+      */
+      tables_to_be_processed_further.push_back(tl);
+    } // end else
+  } // end for
+
+  if (!tables_to_be_processed_further.empty())
+  {
+    tl= 0;
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+    if (!acl_cache_lock.lock(!no_errors))
+      DBUG_RETURN(true);
+
+    for(TABLE_LIST *tl_tmp : tables_to_be_processed_further)
+    {
+      tl= tl_tmp;
+      TABLE_LIST *const t_ref=
+        tl->correspondent_table ? tl->correspondent_table : tl;
+      sctx = (t_ref->security_ctx != nullptr) ? t_ref->security_ctx :
+                                          thd->security_context();
+
+      want_access= orig_want_access;
+      want_access&= ~sctx->master_access();
+      DBUG_ASSERT(want_access != 0);
+
       GRANT_TABLE *grant_table= table_hash_search(sctx->host().str,
                                                   sctx->ip().str,
                                                   t_ref->get_db_name(),
@@ -3736,8 +3760,8 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
         want_access &= ~(grant_table->cols | t_ref->grant.privilege);
         goto err;                                 // impossible
       }
-    } // end else
-  } // end for
+    }
+  }
   DBUG_RETURN(FALSE);
 
 err:
