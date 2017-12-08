@@ -84,6 +84,11 @@ SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=
 SHOW WARNINGS;
 --echo
 
+--echo # test presence/absence operator
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a=1. IF NOT EXISTS a THEN SET a='asd'.";
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF EXISTS a THEN SET a='asd'.";
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF NOT EXISTS a THEN SET a='asd'.";
+
 --echo # correct conditions:
 SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.';
 SHOW WARNINGS;
