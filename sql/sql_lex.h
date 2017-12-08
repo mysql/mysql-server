@@ -119,6 +119,7 @@ class SELECT_LEX_UNIT;
 class Select_lex_visitor;
 class THD;
 class Window;
+struct Sql_cmd_srs_attributes;
 
 class Json_table_column;
 enum class enum_jt_column;
@@ -2289,6 +2290,7 @@ union YYSTYPE {
     PT_item_list *set_expr_list;
     List<String> *set_expr_str_list;
   } load_set_list;
+  Sql_cmd_srs_attributes *sql_cmd_srs_attributes;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");

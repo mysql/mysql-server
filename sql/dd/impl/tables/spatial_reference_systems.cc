@@ -38,6 +38,9 @@ const Spatial_reference_systems & Spatial_reference_systems::instance()
 
 Spatial_reference_systems::Spatial_reference_systems()
 {
+  // Note: The maximum length of various strings is hard-coded here. These
+  // lengths must match those in sql/sql_cmd_srs.cc.
+
   m_target_def.table_name(table_name());
 
   m_target_def.add_field(FIELD_ID,

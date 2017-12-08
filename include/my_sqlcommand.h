@@ -193,6 +193,7 @@ enum enum_sql_command {
   SQLCOM_LOCK_INSTANCE,
   SQLCOM_UNLOCK_INSTANCE,
   SQLCOM_RESTART_SERVER,
+  SQLCOM_CREATE_SRS,
   /* This should be the last !!! */
   SQLCOM_END
 };

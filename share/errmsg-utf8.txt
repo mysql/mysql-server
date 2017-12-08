@@ -11514,6 +11514,39 @@ ER_RESTART_SERVER_FAILED
 ER_RESTART_RECEIVED_INFO
   eng "Received RESTART from user %s.  Restarting mysqld (Version: %s)."
 
+ER_SRS_MISSING_MANDATORY_ATTRIBUTE SR006
+  eng "Missing mandatory attribute %s."
+
+ER_SRS_MULTIPLE_ATTRIBUTE_DEFINITIONS SR006
+  eng "Multiple definitions of attribute %s."
+
+ER_SRS_NAME_CANT_BE_EMPTY_OR_WHITESPACE SR006
+  eng "The spatial reference system name can't be an empty string or start or end with whitespace."
+
+ER_SRS_ORGANIZATION_CANT_BE_EMPTY_OR_WHITESPACE SR006
+  eng "The organization name can't be an empty string or start or end with whitespace."
+
+ER_SRS_ID_ALREADY_EXISTS SR004
+  eng "There is already a spatial reference system with SRID %u."
+
+ER_WARN_SRS_ID_ALREADY_EXISTS 01S00
+  eng "There is already a spatial reference system with SRID %u."
+
+ER_CANT_MODIFY_SRID_0 SR000
+  eng "SRID 0 is not modifiable."
+
+ER_WARN_RESERVED_SRID_RANGE 01S01
+  eng "The SRID range [%u, %u] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade."
+
+ER_CANT_MODIFY_SRS_USED_BY_COLUMN SR005
+  eng "Can't modify SRID %u. There is at least one column depending on it."
+
+ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE SR006
+  eng "Invalid character in attribute %s."
+
+ER_SRS_ATTRIBUTE_STRING_TOO_LONG SR006
+  eng "Attribute %s is too long. The maximum length is %u characters."
+
 #
 #  End of 8.0 error messages.
 #

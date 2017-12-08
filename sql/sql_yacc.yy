@@ -79,6 +79,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
                                                // Sql_cmd_unlock_instance
 #include "sql/sql_base.h"                        // find_temporary_table
 #include "sql/sql_class.h"      /* Key_part_spec, enum_filetype */
+#include "sql/sql_cmd_srs.h"
 #include "sql/sql_component.h"
 #include "sql/sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
 #include "sql/sql_handler.h"                       // Sql_cmd_handler_*
@@ -135,6 +136,13 @@ int yylex(void *yylval, void *yythd);
     LEX::cleanup_lex_after_parse_error(YYTHD);\
     YYABORT;                                  \
   } while (0)
+
+#define MYSQL_YYABORT_ERROR(...)              \
+  do                                          \
+  {                                           \
+    my_error(__VA_ARGS__);                    \
+    MYSQL_YYABORT;                            \
+  } while(0)
 
 #define MYSQL_YYABORT_UNLESS(A)         \
   if (!(A))                             \
@@ -1222,6 +1230,11 @@ static bool assign_cmd(THD *thd, LEX *lex, Parse_tree_root *parse_tree)
 %token  MASTER_PUBLIC_KEY_PATH_SYM    /* MYSQL */
 %token  GET_MASTER_PUBLIC_KEY_SYM     /* MYSQL */
 %token  RESTART_SYM                   /* SQL-2003-N */
+%token  DEFINITION_SYM                /* MYSQL */
+%token  DESCRIPTION_SYM               /* MYSQL */
+%token  ORGANIZATION_SYM              /* MYSQL */
+%token  REFERENCE_SYM                 /* MYSQL */
+
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1616,6 +1629,7 @@ static bool assign_cmd(THD *thd, LEX *lex, Parse_tree_root *parse_tree)
         call_stmt
         check_table_stmt
         create_index_stmt
+        create_srs_stmt
         create_table_stmt
         delete_stmt
         do_stmt
@@ -1860,6 +1874,9 @@ static bool assign_cmd(THD *thd, LEX *lex, Parse_tree_root *parse_tree)
 %type <load_set_element> load_data_set_elem
 
 %type <load_set_list> load_data_set_list opt_load_data_set_spec
+
+%type <sql_cmd_srs_attributes> srs_attributes
+
 %%
 
 /*
@@ -2001,6 +2018,7 @@ simple_statement:
         | clone_stmt
         | commit
         | create
+        | create_srs_stmt       { MAKE_CMD($1); }
         | deallocate
         | delete_stmt           { MAKE_CMD($1); }
         | describe
@@ -2666,16 +2684,7 @@ create:
             lex->name= $4;
             lex->create_info->options= $3 ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
           }
-        | CREATE
-          {
-            Lex->create_view_mode= enum_view_create_mode::VIEW_CREATE_NEW;
-            Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
-            Lex->create_view_suid= TRUE;
-            Lex->create_info= YYTHD->alloc_typed<HA_CREATE_INFO>();
-            if (Lex->create_info == NULL)
-              MYSQL_YYABORT; // OOM
-          }
-          view_or_trigger_or_sp_or_event
+        | CREATE view_or_trigger_or_sp_or_event
           {}
         | CREATE USER opt_if_not_exists grant_list default_role_clause
                       require_clause connect_options
@@ -2755,6 +2764,78 @@ create:
             Lex->server_options.set_scheme($7);
             Lex->m_sql_cmd=
               NEW_PTN Sql_cmd_create_server(&Lex->server_options);
+          }
+        ;
+
+create_srs_stmt:
+          CREATE OR_SYM REPLACE_SYM SPATIAL_SYM REFERENCE_SYM SYSTEM_SYM
+          real_ulonglong_num srs_attributes
+          {
+            $$= NEW_PTN PT_create_srs($7, *$8, true, false);
+          }
+        | CREATE SPATIAL_SYM REFERENCE_SYM SYSTEM_SYM opt_if_not_exists
+          real_ulonglong_num srs_attributes
+          {
+            $$= NEW_PTN PT_create_srs($6, *$7, false, $5);
+          }
+        ;
+
+srs_attributes:
+          /* empty */
+          {
+            $$ = NEW_PTN Sql_cmd_srs_attributes();
+            if (!$$)
+              MYSQL_YYABORT_ERROR(ER_OOM, MYF(0)); /* purecov: inspected */
+          }
+        | srs_attributes NAME_SYM TEXT_STRING_sys_nonewline
+          {
+            if ($1->srs_name.str != nullptr)
+            {
+              MYSQL_YYABORT_ERROR(ER_SRS_MULTIPLE_ATTRIBUTE_DEFINITIONS, MYF(0),
+                                  "NAME");
+            }
+            else
+            {
+              $1->srs_name= $3;
+            }
+          }
+        | srs_attributes DEFINITION_SYM TEXT_STRING_sys_nonewline
+          {
+            if ($1->definition.str != nullptr)
+            {
+              MYSQL_YYABORT_ERROR(ER_SRS_MULTIPLE_ATTRIBUTE_DEFINITIONS, MYF(0),
+                                  "DEFINITION");
+            }
+            else
+            {
+              $1->definition= $3;
+            }
+          }
+        | srs_attributes ORGANIZATION_SYM TEXT_STRING_sys_nonewline
+          IDENTIFIED_SYM BY real_ulonglong_num
+          {
+            if ($1->organization.str != nullptr)
+            {
+              MYSQL_YYABORT_ERROR(ER_SRS_MULTIPLE_ATTRIBUTE_DEFINITIONS, MYF(0),
+                                  "ORGANIZATION");
+            }
+            else
+            {
+              $1->organization= $3;
+              $1->organization_coordsys_id= $6;
+            }
+          }
+        | srs_attributes DESCRIPTION_SYM TEXT_STRING_sys_nonewline
+          {
+            if ($1->description.str != nullptr)
+            {
+              MYSQL_YYABORT_ERROR(ER_SRS_MULTIPLE_ATTRIBUTE_DEFINITIONS, MYF(0),
+                                  "DESCRIPTION");
+            }
+            else
+            {
+              $1->description= $3;
+            }
           }
         ;
 
@@ -13629,7 +13710,9 @@ role_or_label_keyword:
         | DAY_SYM                  {}
         | DEFAULT_AUTH_SYM         {}
         | DEFINER_SYM              {}
+        | DEFINITION_SYM           {}
         | DELAY_KEY_WRITE_SYM      {}
+        | DESCRIPTION_SYM          {}
         | DIAGNOSTICS_SYM          {}
         | DIRECTORY_SYM            {}
         | DISABLE_SYM              {}
@@ -13762,6 +13845,7 @@ role_or_label_keyword:
         | OFFSET_SYM               {}
         | ONE_SYM                  {}
         | ONLY_SYM                 {}
+        | ORGANIZATION_SYM         {}
         | OTHERS_SYM               {}        
         | ORDINALITY_SYM           {}
         | PACK_KEYS_SYM            {}
@@ -13793,6 +13877,7 @@ role_or_label_keyword:
         | RECOVER_SYM              {}
         | REDO_BUFFER_SIZE_SYM     {}
         | REDUNDANT_SYM            {}
+        | REFERENCE_SYM            {}
         | RELAY                    {}
         | RELAYLOG_SYM             {}
         | RELAY_LOG_FILE_SYM       {}
@@ -15106,12 +15191,22 @@ query_spec_option:
 
 **************************************************************************/
 
+init_lex_create_info:
+          /* empty */
+          {
+            // Initialize context for 'CREATE view_or_trigger_or_sp_or_event'
+            Lex->create_info= YYTHD->alloc_typed<HA_CREATE_INFO>();
+            if (Lex->create_info == NULL)
+              MYSQL_YYABORT; // OOM
+          }
+        ;
+
 view_or_trigger_or_sp_or_event:
-          definer definer_tail
+          definer init_lex_create_info definer_tail
           {}
-        | no_definer no_definer_tail
+        | no_definer init_lex_create_info no_definer_tail
           {}
-        | view_replace_or_algorithm definer_opt view_tail
+        | view_replace_or_algorithm definer_opt init_lex_create_info view_tail
           {}
         ;
 

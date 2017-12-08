@@ -387,6 +387,7 @@ SET(SQL_SHARED_SOURCES
   sql_class.cc
   sql_component.cc
   sql_cmd_ddl_table.cc
+  sql_cmd_srs.cc
   sql_connect.cc
   sql_cursor.cc
   sql_data_change.cc
