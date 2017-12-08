@@ -3136,6 +3136,7 @@ SHOW_VAR com_status_vars[]= {
   {"create_udf",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_FUNCTION]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_user",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_USER]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_view",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_VIEW]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_spatial_reference_system", (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_SRS]),      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"dealloc_sql",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DEALLOCATE_PREPARE]),         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"delete",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DELETE]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"delete_multi",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DELETE_MULTI]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},

@@ -452,6 +452,11 @@ LEX::~LEX()
 
 void LEX::reset()
 {
+  // CREATE VIEW
+  create_view_mode= enum_view_create_mode::VIEW_CREATE_NEW;
+  create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
+  create_view_suid= true;
+
   context_stack.empty();
   unit= NULL;
   select_lex= NULL;

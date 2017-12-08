@@ -122,6 +122,7 @@ class Select_lex_visitor;
 class THD;
 class Window;
 struct MEM_ROOT;
+struct Sql_cmd_srs_attributes;
 
 enum class enum_jt_column;
 enum class enum_jtc_on : uint16;
@@ -2234,6 +2235,7 @@ union YYSTYPE {
     PT_item_list *set_expr_list;
     List<String> *set_expr_str_list;
   } load_set_list;
+  Sql_cmd_srs_attributes *sql_cmd_srs_attributes;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");
