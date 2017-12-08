@@ -224,7 +224,7 @@ const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("catalogs", 2),
 	INNODB_DD_TABLE("column_statistics", 3),
 	INNODB_DD_TABLE("schemata", 3),
-	INNODB_DD_TABLE("st_spatial_reference_systems", 2),
+	INNODB_DD_TABLE("st_spatial_reference_systems", 3),
 	INNODB_DD_TABLE("tables", 6),
 	INNODB_DD_TABLE("view_table_usage", 2),
 	INNODB_DD_TABLE("view_routine_usage", 2),
