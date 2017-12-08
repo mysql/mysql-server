@@ -54,6 +54,7 @@ CREATE TABLE t1 ( c1 INT, c2 INT, c3 INT );
 ##########
 CREATE USER 'b54866_user'@'localhost';
 GRANT ALL ON b54866.* TO 'b54866_user'@'localhost';
+call mtr.add_suppression("\\[ERROR\\] REVOKE/GRANT failed while granting/revoking privileges in databases");
 REVOKE ALL ON b54866.* FROM 'b54866_user'@'localhost', 'b54866_fake_user';
 ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host '%'
 call mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occured on the master.*");
@@ -91,6 +92,7 @@ GRANT USAGE ON *.* TO 'b54866_user'@'localhost'
 GRANT ALL PRIVILEGES ON `b54866`.* TO 'b54866_user'@'localhost'
 GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO 'b54866_user'@'localhost'
 *************************************************************
+call mtr.add_suppression("\\[ERROR\\] REVOKE/GRANT failed while storing table level and column level grants in the privilege tables.");
 REVOKE ALTER ON TABLE b54866.t1 FROM 'b54866_user'@'localhost', 'b54866_fake_user';
 ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host '%'
 ****** Checking grants on the master for user: b54866_user ******
@@ -113,6 +115,7 @@ GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO 'b54866_user'@'localhost'
 ##########
 ########## setup (PART II)
 ##########
+call mtr.add_suppression("\\[ERROR\\] REVOKE/GRANT failed while storing routine level grants in the privilege tables");
 CREATE PROCEDURE b54866_p() BEGIN SELECT 1; END|
 CREATE FUNCTION b54866_f() RETURNS INT BEGIN RETURN 1; END|
 GRANT EXECUTE ON PROCEDURE b54866.b54866_p TO 'b54866_user'@'localhost';
