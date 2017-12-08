@@ -1,0 +1,83 @@
+## XPLUGIN: Test case for triggering read timeout while using a SSL connection
+
+--echo Preamble
+--source include/not_windows.inc
+--source include/have_ssl.inc
+--source ../include/have_performance_schema_threads.inc
+--source include/xplugin_preamble.inc
+
+###################################################################
+
+--write_file $MYSQL_TMP_DIR/mysqlx-timeouting-read.tmp
+-->sql
+SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+SELECT USER();
+SHOW STATUS LIKE 'Mysqlx_ssl_active';
+-->endsql
+
+# Cause read timeout
+-->binparse %RAW_STMT_EXECUTE% Mysqlx.Sql.StmtExecute {
+  stmt: "select 1"
+}
+-->binsendoffset %RAW_STMT_EXECUTE% 0 4
+-->recvtype Mysqlx.Notice.Frame
+-->recvuntildisc show-received
+
+EOF
+
+###################################################################
+
+SET GLOBAL mysqlx_read_timeout = 5;
+
+eval CREATE USER temp_user@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+
+GRANT ALL ON *.* TO temp_user@localhost;
+
+let $wait_condition=
+    SELECT 1 FROM performance_schema.global_status WHERE VARIABLE_NAME
+         like "Mysqlx_aborted_clients" and VARIABLE_VALUE=0;
+--source include/wait_condition_or_abort.inc
+
+--echo #
+--echo # Run the test without SSL
+--echo #
+--replace_regex /(.*IO Read error:).*(read_timeout exceeded)/\1 \2/
+exec $MYSQLXTEST
+  --user temp_user
+  --password='auth_string'
+  --file=$MYSQL_TMP_DIR/mysqlx-timeouting-read.tmp 2>&1;
+
+let $wait_condition=
+    SELECT 1 FROM performance_schema.global_status WHERE VARIABLE_NAME
+         like "Mysqlx_aborted_clients" and VARIABLE_VALUE=1;
+--source include/wait_condition_or_abort.inc
+
+--echo #
+--echo # Run the test with SSL
+--echo #
+--replace_regex /(.*IO Read error:).*(read_timeout exceeded)/\1 \2/
+exec $MYSQLXTEST
+  --user temp_user
+  --password='auth_string'
+  --ssl-mode=REQUIRED
+  --file=$MYSQL_TMP_DIR/mysqlx-timeouting-read.tmp 2>&1;
+
+let $wait_condition=
+    SELECT 1 FROM performance_schema.global_status WHERE VARIABLE_NAME
+         like "Mysqlx_aborted_clients" and VARIABLE_VALUE=2;
+--source include/wait_condition_or_abort.inc
+
+###################################################################
+
+SET GLOBAL mysqlx_read_timeout = 30;
+
+# Postamble
+UNINSTALL PLUGIN mysqlx;
+
+###################################################################
+
+# Cleanup
+--remove_file $MYSQL_TMP_DIR/mysqlx-timeouting-read.tmp
+
+DROP USER temp_user@localhost;

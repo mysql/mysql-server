@@ -96,6 +96,7 @@ void Driver_command_line_options::print_help() {
   std::cout << "--ssl-cipher          SSL cipher to use\n";
   std::cout << "--tls-version         TLS version to use\n";
   std::cout << "--connect-expired-password Allow expired password\n";
+  std::cout << "--client-interactive  Connect in interactive mode\n";
   std::cout << "--quiet               Don't print out messages sent\n";
   std::cout << "-vVARIABLE_NAME=VALUE Set variable VARIABLE_NAME from "
                "command line\n";
@@ -122,6 +123,7 @@ Driver_command_line_options::Driver_command_line_options(
       m_run_without_auth(false),
       m_has_file(false),
       m_cap_expired_password(false),
+      m_client_interactive(false),
       m_use_plain_auth(false),
       m_daemon(false) {
   std::string user;
@@ -185,6 +187,8 @@ Driver_command_line_options::Driver_command_line_options(
       m_context_options.m_bindump = true;
     } else if (check_arg(argv, i, "--connect-expired-password", NULL)) {
       m_cap_expired_password = true;
+    } else if (check_arg(argv, i, "--client-interactive", NULL)) {
+      m_client_interactive = true;
     } else if (check_arg(argv, i, "--quiet", "-q")) {
       m_context_options.m_quiet = true;
     } else if (check_arg(argv, i, "--verbose", NULL)) {

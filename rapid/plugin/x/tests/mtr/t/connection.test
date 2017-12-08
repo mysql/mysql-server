@@ -726,7 +726,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 
 -->setsession xcon1
--->recvuntildisc xcon3
+-->recvuntildisc
 -->sleep 1
 Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"

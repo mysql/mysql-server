@@ -68,7 +68,7 @@ public:
   virtual Client_interface &client() = 0;
 
   virtual void mark_as_tls_session() = 0;
-  virtual bool is_handled_by(const void *handler) const = 0;
+  virtual THD* get_thd() const = 0;
   virtual Sql_session_interface &data_context() = 0;
   virtual Protocol_encoder_interface &proto() = 0;
 
