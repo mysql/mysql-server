@@ -53,6 +53,7 @@
 #include "sql/query_result.h"        // Query_result
 #include "sql/resourcegroups/resource_group_sql_cmd.h"
 #include "sql/resourcegroups/resource_group_sql_cmd.h" // Type, Range
+#include "sql/sql_restart_server.h"  // Sql_cmd_restart_server
 #include "sql/session_tracker.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h"             // sp_head
@@ -5772,6 +5773,25 @@ private:
   PT_item_list *m_opt_fields_or_vars;
   PT_item_list *m_opt_set_fields;
   PT_item_list *m_opt_set_exprs;
+};
+
+
+/**
+  Top-level node for the SHUTDOWN statement
+
+  @ingroup ptn_stmt
+*/
+
+class PT_restart_server final : public Parse_tree_root
+{
+public:
+  Sql_cmd *make_cmd(THD *thd) override {
+    thd->lex->sql_command= SQLCOM_RESTART_SERVER;
+    return &sql_cmd;
+  }
+
+private:
+  Sql_cmd_restart_server sql_cmd;
 };
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

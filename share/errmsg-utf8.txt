@@ -10985,7 +10985,6 @@ ER_ONLY_IMPLEMENTED_FOR_SRID_0_AND_4326 22S00
 
 ER_EXPIRE_LOGS_DAYS_IGNORED
   eng "The option expire_logs_days and binlog_expire_logs_seconds cannot be used together. Please use binlog_expire_logs_seconds to set the expire time (expire_logs_days is deprecated)"
-
 #
 # Regular expression errors. None of these should take any arguments.
 # We strive to keep this list in the same order as in UErrorCode
@@ -11508,6 +11507,12 @@ ER_KEYRING_MIGRATION_FAILED
 
 ER_KEYRING_MIGRATION_SUCCESSFUL
   eng "Keyring migration successful."
+
+ER_RESTART_SERVER_FAILED
+  eng "Restart server failed (%s)."
+
+ER_RESTART_RECEIVED_INFO
+  eng "Received RESTART from user %s.  Restarting mysqld (Version: %s)."
 
 #
 #  End of 8.0 error messages.

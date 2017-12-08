@@ -4617,6 +4617,7 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_UNLOCK_INSTANCE:
   case SQLCOM_ALTER_TABLESPACE:
   case SQLCOM_EXPLAIN_OTHER:
+  case SQLCOM_RESTART_SERVER:
 
     DBUG_ASSERT(lex->m_sql_cmd != nullptr);
     res= lex->m_sql_cmd->execute(thd);

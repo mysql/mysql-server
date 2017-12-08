@@ -373,7 +373,7 @@ enum enum_mark_columns
   Exit code used by mysqld_exit, exit and _exit function to
   signify unsuccessful termination of mysqld. The exit
   code signifies the server should NOT BE RESTARTED AUTOMATICALLY
-  by init systems like systemd. 
+  by init systems like systemd.
 */
 #define MYSQLD_ABORT_EXIT 1
 /*
@@ -383,6 +383,13 @@ enum enum_mark_columns
   init systems like systemd.
 */
 #define MYSQLD_FAILURE_EXIT 2
+/*
+  Exit code used by mysqld_exit, my_thread_exit function which allows
+  for external programs like systemd, mysqld_safe to restart mysqld
+  server. The exit code  16 is choosen so it is safe as InnoDB code
+  exit directly with values like 3.
+*/
+#define MYSQLD_RESTART_EXIT 16
 
 #define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
 

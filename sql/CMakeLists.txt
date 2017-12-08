@@ -424,6 +424,7 @@ SET(SQL_SHARED_SOURCES
   sql_reload.cc
   sql_rename.cc
   sql_resolver.cc
+  sql_restart_server.cc
   sql_rewrite.cc
   sql_select.cc
   sql_servers.cc
@@ -546,9 +547,10 @@ ENDIF()
 
 IF(WIN32)
   LIST(APPEND SQL_SOURCE
-              named_pipe.cc
               conn_handler/named_pipe_connection.cc
               conn_handler/shared_memory_connection.cc
+              named_pipe.cc
+              restart_monitor_win.cc
       )
 ENDIF()
 

@@ -61,6 +61,9 @@
 #include "mysql/psi/psi_statement.h"       /* PSI_statement_info */
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"                     // SERVER_VERSION_LENGTH
+#ifdef _WIN32
+#include "sql/nt_servc.h"
+#endif // _WIN32
 #include "sql/rpl_filter.h"                // Rpl_filter
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"                 // UUID_LENGTH
@@ -112,6 +115,16 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> Key_map; /* Used for finding keys */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
 
 /* Function prototypes */
+
+
+/**
+  Signal the server thread for restart.
+
+  @return false if the thread has been successfully signalled for restart
+          else true.
+*/
+
+bool signal_restart_server();
 void kill_mysql(void);
 void refresh_status();
 bool is_secure_file_path(const char *path);
@@ -692,6 +705,13 @@ static inline void set_connection_events_loop_aborted(bool value)
 {
   connection_events_loop_aborted_flag.store(value);
 }
+
+#ifdef _WIN32
+
+bool is_windows_service();
+NTService *get_win_service_ptr();
+
+#endif
 
 extern LEX_STRING opt_mandatory_roles;
 extern bool opt_mandatory_roles_cache;

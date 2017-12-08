@@ -332,6 +332,7 @@ enum enum_sql_command {
   SQLCOM_CLONE,
   SQLCOM_LOCK_INSTANCE,
   SQLCOM_UNLOCK_INSTANCE,
+  SQLCOM_RESTART_SERVER,
   SQLCOM_END
 };
 typedef enum

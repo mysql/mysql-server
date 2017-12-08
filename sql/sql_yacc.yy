@@ -1221,7 +1221,7 @@ static bool assign_cmd(THD *thd, LEX *lex, Parse_tree_root *parse_tree)
 %token  VCPU_SYM                      /* MYSQL */
 %token  MASTER_PUBLIC_KEY_PATH_SYM    /* MYSQL */
 %token  GET_MASTER_PUBLIC_KEY_SYM     /* MYSQL */
-
+%token  RESTART_SYM                   /* SQL-2003-N */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1631,6 +1631,7 @@ static bool assign_cmd(THD *thd, LEX *lex, Parse_tree_root *parse_tree)
         preload_stmt
         repair_table_stmt
         replace_stmt
+        restart_server_stmt
         select_stmt
         select_stmt_with_into
         set_resource_group_stmt
@@ -2042,6 +2043,7 @@ simple_statement:
         | replace_stmt          { MAKE_CMD($1); }
         | reset
         | resignal_stmt
+        | restart_server_stmt   { MAKE_CMD($1); }
         | revoke
         | rollback
         | savepoint
@@ -13480,6 +13482,7 @@ ident_keyword:
         | role_or_ident_keyword {}
         | EXECUTE_SYM           {}
         | SHUTDOWN              {}
+        | RESTART_SYM           {}
         ;
 
 // These are the non-reserved keywords which may be used for roles or idents.
@@ -13912,6 +13915,7 @@ role_or_label_keyword:
     RELOAD
     REPLICATION
     RESOURCE_SYM
+    RESTART_SYM
     SHUTDOWN
     SUPER_SYM
 */
@@ -14362,6 +14366,13 @@ shutdown_stmt:
           {
             Lex->sql_command= SQLCOM_SHUTDOWN;
             $$= NEW_PTN PT_shutdown();
+          }
+        ;
+
+restart_server_stmt:
+          RESTART_SYM
+          {
+            $$= NEW_PTN PT_restart_server();
           }
         ;
 

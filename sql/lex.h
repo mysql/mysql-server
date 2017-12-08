@@ -544,6 +544,7 @@ static const SYMBOL symbols[] = {
   { SYM("RESPECT",                  RESPECT_SYM)},
   { SYM("RESIGNAL",                 RESIGNAL_SYM)},
   { SYM("RESOURCE",                 RESOURCE_SYM)},
+  { SYM("RESTART",                  RESTART_SYM)},
   { SYM("RESTORE",                  RESTORE_SYM)},
   { SYM("RESTRICT",                 RESTRICT)},
   { SYM("RESUME",                   RESUME_SYM)},
