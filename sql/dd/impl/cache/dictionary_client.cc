@@ -2977,6 +2977,8 @@ template void Dictionary_client::dump<Schema>() const;
 
 template bool Dictionary_client::acquire(Object_id,
                                          const Spatial_reference_system**);
+template bool Dictionary_client::acquire_for_modification(
+    Object_id, Spatial_reference_system **);
 template bool Dictionary_client::acquire_uncached(
     Object_id,
     Spatial_reference_system**);
