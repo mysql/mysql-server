@@ -16,5 +16,8 @@ EOF
 --source include/start_mysqld.inc
 SET GLOBAL innodb_random_read_ahead = 1;
 
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: '.*t1.ibd' read failed! - attempted to read 4 bytes, read only 0 bytes at offset 16418");
+call mtr.add_suppression("\\[Warning\\].*InnoDB: Ignoring '.*t1.ibd' invalid tablespace ID in the header");
+
 DROP TABLE t1;
 SET GLOBAL innodb_random_read_ahead = default;

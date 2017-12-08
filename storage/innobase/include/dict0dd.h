@@ -29,7 +29,6 @@ Data dictionary interface */
 #ifndef UNIV_HOTBACKUP
 # include <dd/properties.h>
 # include "sess0sess.h"
-
 # include "dd/dd.h"
 # include "dd/dictionary.h"
 # include "dd/cache/dictionary_client.h"
@@ -48,6 +47,8 @@ Data dictionary interface */
 # include "dd_table_share.h"
 # include "dd/types/foreign_key.h"
 # include "dd/types/foreign_key_element.h"
+#else
+# include "mysql_com.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "mysql_version.h"
 
@@ -58,7 +59,7 @@ class MDL_ticket;
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
 
-static const char innobase_hton_name[]= "InnoDB";
+static const char innobase_hton_name[] = "InnoDB";
 #endif /* !UNIV_HOTBACKUP */
 
 /** Postfix for a table name which is being altered. Since during
@@ -66,10 +67,14 @@ ALTER TABLE ... PARTITION, new partitions have to be created before
 dropping existing partitions, so a postfix is appended to the name
 to prevent name conflicts. This is also used for EXCHANGE PARTITION */
 static constexpr char TMP_POSTFIX[] = "#tmp";
+static constexpr size_t TMP_POSTFIX_LEN = sizeof(TMP_POSTFIX) - 1;
 
 /** Max space name length */
-#define	MAX_SPACE_NAME_LEN	((4 * NAME_LEN) + strlen(part_sep)	\
-				 + strlen(sub_sep) + strlen(TMP_POSTFIX))
+static constexpr size_t MAX_SPACE_NAME_LEN =
+	(4 * NAME_LEN)
+	 + PART_SEPARATOR_LEN
+	 + SUB_PART_SEPARATOR_LEN
+	 + TMP_POSTFIX_LEN;
 
 #ifndef UNIV_HOTBACKUP
 /** Maximum hardcoded data dictionary tables. */
@@ -286,7 +291,6 @@ inline
 const dd::Index*
 dd_first_index(const dd::Table* table)
 {
-	ut_ad(table->partitions().empty());
 	return(dd_first<dd::Table, dd::Index>(table));
 }
 
@@ -840,8 +844,8 @@ operation.
 @param[in]	dd_space_id	dd tablespace id
 @param[in]	new_space_name	dd_tablespace name
 @param[in]	new_path	new data file path
-@retval false if fail. */
-bool
+@retval DB_SUCCESS on success. */
+dberr_t
 dd_rename_tablespace(
 	dd::Object_id	dd_space_id,
 	const char*	new_space_name,

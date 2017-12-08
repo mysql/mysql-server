@@ -1133,11 +1133,15 @@ buf_flush_write_block_low(
 
 		ulint	type = IORequest::WRITE | IORequest::DO_NOT_WAKE;
 
+                dberr_t         err;
 		IORequest	request(type);
 
-		fil_io(request,
-		       sync, bpage->id, bpage->size, 0, bpage->size.physical(),
-		       frame, bpage);
+		err = fil_io(
+                        request,
+                        sync, bpage->id, bpage->size, 0, bpage->size.physical(),
+                        frame, bpage);
+
+                ut_a(err == DB_SUCCESS);
 
 	} else if (flush_type == BUF_FLUSH_SINGLE_PAGE) {
 		buf_dblwr_write_single_page(bpage, sync);
@@ -3301,16 +3305,17 @@ buf_flush_page_coordinator_thread(size_t n_page_cleaners)
 
 			if (curr_time > next_loop_time + 3000) {
 				if (warn_count == 0) {
-					ib::info() << "page_cleaner: 1000ms"
-						" intended loop took "
-						<< 1000 + curr_time
-						   - next_loop_time
-						<< "ms. The settings might not"
-						" be optimal. (flushed="
+					ulint	us;
+
+					us = 1000 + curr_time - next_loop_time;
+
+					ib::info()
+						<< "Page cleaner took "
+						<< us << "ms to flush"
 						<< n_flushed_last
-						<< " and evicted="
-						<< n_evicted
-						<< ", during the time.)";
+						<< " and evict "
+						<< n_evicted << " pages";
+
 					if (warn_interval > 300) {
 						warn_interval = 600;
 					} else {
