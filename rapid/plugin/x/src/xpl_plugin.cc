@@ -25,7 +25,6 @@
 
 #include "my_inttypes.h"
 #include "plugin/x/generated/mysqlx_version.h"
-#include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 #include "plugin/x/src/xpl_server.h"
@@ -191,33 +190,6 @@ static MYSQL_SYSVAR_UINT(port_open_timeout, xpl::Plugin_system_variables::port_o
       "How long X Plugin is going to retry binding of server socket (in case of failure)",
       NULL, &xpl::Plugin_system_variables::update_func<unsigned int>, 0, 0, 120, 0);
 
-static MYSQL_THDVAR_UINT(wait_timeout, PLUGIN_VAR_OPCMDARG,
-      "Number or seconds that X Plugin must wait for activity on noninteractive connection",
-      NULL,
-      (&xpl::Server::thd_variable<uint32_t, &ngs::Client_interface::set_wait_timeout>),
-      Global_timeouts::Default::k_wait_timeout, 1, 2147483, 0);
-
-static MYSQL_SYSVAR_UINT(interactive_timeout,
-      xpl::Plugin_system_variables::m_interactive_timeout,
-      PLUGIN_VAR_OPCMDARG,
-      "Default value for \"mysqlx_wait_timeout\", when the connection is \
-interactive. The value defines number or seconds that X Plugin must wait for \
-activity on interactive connection",
-      NULL, &xpl::Plugin_system_variables::update_func<uint32_t>,
-      Global_timeouts::Default::k_interactive_timeout, 1, 2147483, 0);
-
-static MYSQL_THDVAR_UINT(read_timeout, PLUGIN_VAR_OPCMDARG,
-      "Number or seconds that X Plugin must wait for blocking read operation to complete",
-      NULL,
-      (&xpl::Server::thd_variable<uint32_t, &ngs::Client_interface::set_read_timeout>),
-      Global_timeouts::Default::k_read_timeout, 1, 2147483, 0);
-
-static MYSQL_THDVAR_UINT(write_timeout, PLUGIN_VAR_OPCMDARG,
-      "Number or seconds that X Plugin must wait for blocking write operation to complete",
-      NULL,
-      (&xpl::Server::thd_variable<uint32_t, &ngs::Client_interface::set_write_timeout>),
-      Global_timeouts::Default::k_write_timeout, 1, 2147483, 0);
-
 static SYS_VAR* xpl_plugin_system_variables[]= {
   MYSQL_SYSVAR(port),
   MYSQL_SYSVAR(max_connections),
@@ -235,10 +207,6 @@ static SYS_VAR* xpl_plugin_system_variables[]= {
   MYSQL_SYSVAR(socket),
   MYSQL_SYSVAR(bind_address),
   MYSQL_SYSVAR(port_open_timeout),
-  MYSQL_SYSVAR(wait_timeout),
-  MYSQL_SYSVAR(interactive_timeout),
-  MYSQL_SYSVAR(read_timeout),
-  MYSQL_SYSVAR(write_timeout),
   NULL
 };
 
@@ -325,7 +293,6 @@ static SHOW_VAR xpl_plugin_status[]=
   GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("connection_errors",        xpl::Global_status_variables::m_connection_errors_count),
   GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("worker_threads",           xpl::Global_status_variables::m_worker_thread_count),
   GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("worker_threads_active",    xpl::Global_status_variables::m_active_worker_thread_count),
-  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("aborted_clients",          xpl::Global_status_variables::m_aborted_clients),
 
   SESSION_SSL_STATUS_VARIABLE_ENTRY_ARRAY("ssl_cipher_list", xpl::Client::get_status_ssl_cipher_list),
   SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_active",       bool,        ngs::IOptions_session::active_tls),
@@ -366,14 +333,3 @@ mysql_declare_plugin(xpl)
   0                             /* flags      */
 }
 mysql_declare_plugin_end;
-
-Global_timeouts get_global_timeouts() {
-  return {xpl::Plugin_system_variables::m_interactive_timeout,
-          THDVAR(nullptr, wait_timeout),
-          THDVAR(nullptr, read_timeout),
-          THDVAR(nullptr, write_timeout)};
-}
-
-void set_session_wait_timeout(THD *thd, const uint32_t wait_timeout) {
-  THDVAR(thd, wait_timeout) = wait_timeout;
-}

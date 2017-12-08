@@ -197,10 +197,8 @@ bool xpl::Server::on_verify_server_state()
 ngs::shared_ptr<ngs::Client_interface> xpl::Server::create_client(ngs::Connection_ptr connection)
 {
   ngs::shared_ptr<ngs::Client_interface> result;
-  auto global_timeouts = m_config->get_global_timeouts();
-  result = ngs::allocate_shared<xpl::Client>(connection, ngs::ref(m_server),
-      ++m_client_id, ngs::allocate_object<xpl::Protocol_monitor>(),
-      global_timeouts);
+  result = ngs::allocate_shared<xpl::Client>(connection, ngs::ref(m_server), ++m_client_id,
+                                             ngs::allocate_object<xpl::Protocol_monitor>());
   return result;
 }
 
@@ -262,6 +260,7 @@ void xpl::Server::did_reject_client(ngs::Server_delegate::Reject_reason reason)
   }
 }
 
+
 void xpl::Server::plugin_system_variables_changed()
 {
   const unsigned int min = m_wscheduler->set_num_workers(Plugin_system_variables::min_worker_threads);
@@ -270,15 +269,10 @@ void xpl::Server::plugin_system_variables_changed()
 
   m_wscheduler->set_idle_worker_timeout(Plugin_system_variables::idle_worker_thread_timeout * 1000);
 
-  m_config->m_interactive_timeout =
-      Plugin_system_variables::m_interactive_timeout;
   m_config->max_message_size = Plugin_system_variables::max_allowed_packet;
   m_config->connect_timeout = ngs::chrono::seconds(Plugin_system_variables::connect_timeout);
 }
 
-void xpl::Server::update_global_timeout_values() {
-  m_config->set_global_timeouts(get_global_timeouts());
-}
 
 bool xpl::Server::is_terminating() const
 {
@@ -337,12 +331,7 @@ int xpl::Server::main(MYSQL_PLUGIN p)
     thd_scheduler->launch();
     instance->m_nscheduler->launch();
 
-    xpl::Plugin_system_variables::registry_callback(ngs::bind(
-          &Server::plugin_system_variables_changed,
-          instance));
-    xpl::Plugin_system_variables::registry_callback(ngs::bind(
-          &Server::update_global_timeout_values,
-          instance));
+    xpl::Plugin_system_variables::registry_callback(ngs::bind(&Server::plugin_system_variables_changed, instance));
 
     instance->m_nscheduler->post(ngs::bind(&Server::net_thread, instance));
 

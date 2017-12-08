@@ -124,10 +124,50 @@ T *allocate_object(Arg1 const &arg1, Arg2 const &arg2, Arg3 const &arg3, Arg4 co
   return new ( my_malloc( x_psf_objects_key, sizeof(T), MYF(MY_WME) ) ) T(arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
-template <typename T, typename ... Args>
-ngs::shared_ptr<T> allocate_shared(Args&&... args) {
-  return ngs::detail::allocate_shared<T>(detail::PFS_allocator<T>(),
-      std::forward<Args>(args)...);
+template <typename T>
+ngs::shared_ptr<T> allocate_shared()
+{
+  return ngs::detail::allocate_shared<T>(detail::PFS_allocator<T>());
+}
+
+
+template <typename T, typename Arg1>
+ngs::shared_ptr<T> allocate_shared(Arg1 const &arg1)
+{
+  return ngs::detail::allocate_shared<T>(detail::PFS_allocator<T>(), arg1);
+}
+
+
+template <typename T, typename Arg1, typename Arg2>
+ngs::shared_ptr<T> allocate_shared(Arg1 const &arg1, Arg2 const &arg2)
+{
+  return ngs::detail::allocate_shared<T>(detail::PFS_allocator<T>(), arg1, arg2);
+}
+
+
+template <typename T, typename Arg1, typename Arg2, typename Arg3>
+ngs::shared_ptr<T> allocate_shared(Arg1 const &arg1, Arg2 const &arg2, Arg3 const &arg3)
+{
+  return ngs::detail::allocate_shared<T>(detail::PFS_allocator<T>(), arg1, arg2, arg3);
+}
+
+
+template <typename T, typename Arg1, typename Arg2, typename Arg3, typename Arg4>
+ngs::shared_ptr<T> allocate_shared(Arg1 const &arg1, Arg2 const &arg2, Arg3 const &arg3, Arg4 const &arg4)
+{
+  return ngs::detail::allocate_shared<T>(detail::PFS_allocator<T>(), arg1, arg2, arg3, arg4);
+}
+
+template <typename T, typename Arg1, typename Arg2, typename Arg3, typename Arg4, typename Arg5>
+ngs::shared_ptr<T> allocate_shared(Arg1 const &arg1, Arg2 const &arg2, Arg3 const &arg3, Arg4 const &arg4, Arg5 const &arg5)
+{
+  return ngs::detail::allocate_shared<T>(detail::PFS_allocator<T>(), arg1, arg2, arg3, arg4, arg5);
+}
+
+template <typename T, typename Arg1, typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6>
+ngs::shared_ptr<T> allocate_shared(Arg1 const &arg1, Arg2 const &arg2, Arg3 const &arg3, Arg4 const &arg4, Arg5 const &arg5, Arg6 const &arg6)
+{
+  return ngs::detail::allocate_shared<T>(detail::PFS_allocator<T>(), arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 

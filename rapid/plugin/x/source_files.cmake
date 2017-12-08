@@ -42,7 +42,6 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/xpl_session_status_variables.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_log.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_regex.h"
-  "${MYSQLX_PROJECT_DIR}/src/xpl_performance_schema.h"
   "${MYSQLX_PROJECT_DIR}/src/auth_plain.h"
   "${MYSQLX_PROJECT_DIR}/src/auth_mysql41.h"
   "${MYSQLX_PROJECT_DIR}/src/native_plain_verification.h"
@@ -78,7 +77,6 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/mysql_function_names.h"
   "${MYSQLX_PROJECT_DIR}/src/udf/registrator.h"
   "${MYSQLX_PROJECT_DIR}/src/udf/mysqlx_error.h"
-  "${MYSQLX_PROJECT_DIR}/src/global_timeouts.h"
   ${ngs_HDRS}
 )
 
@@ -92,8 +90,6 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/xpl_dispatcher.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_system_variables.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_regex.cc"
-  "${MYSQLX_PROJECT_DIR}/src/xpl_plugin.cc"
-  "${MYSQLX_PROJECT_DIR}/src/xpl_performance_schema.cc"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_factory.cc"
   "${MYSQLX_PROJECT_DIR}/src/mysql_variables.cc"
   "${MYSQLX_PROJECT_DIR}/src/mysql_function_names.cc"

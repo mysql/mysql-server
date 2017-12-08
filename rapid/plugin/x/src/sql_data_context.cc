@@ -159,6 +159,9 @@ bool Sql_data_context::wait_api_ready(ngs::function<bool()> exiting) {
   return result;
 }
 
+void Sql_data_context::detach() {
+  if (m_mysql_session) srv_session_detach(m_mysql_session);
+}
 
 Sql_data_context::~Sql_data_context() {
   if (m_mysql_session)
@@ -434,32 +437,4 @@ ngs::Error_code Sql_data_context::execute(const char *sql, std::size_t sql_len,
                                           ngs::Resultset_interface *rset) {
   return execute_sql(sql, sql_len, &rset->get_callbacks());
 }
-
-ngs::Error_code Sql_data_context::attach() {
-  THD *previous_thd = nullptr;
-
-  if (nullptr == m_mysql_session ||
-      srv_session_attach(m_mysql_session, &previous_thd)) {
-    return ngs::Error_code(
-        ER_X_SERVICE_ERROR,
-        "Internal error attaching");
-  }
-
-  DBUG_ASSERT(nullptr == previous_thd);
-
-  return {};
-}
-
-ngs::Error_code Sql_data_context::detach() {
-  if (nullptr == m_mysql_session ||
-      srv_session_detach(m_mysql_session)) {
-    return ngs::Error_code(
-        ER_X_SERVICE_ERROR,
-        "Internal error when detaching");
-  }
-
-  return {};
-}
-
-
 }  // namespace xpl

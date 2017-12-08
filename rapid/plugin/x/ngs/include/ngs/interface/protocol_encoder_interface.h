@@ -110,8 +110,6 @@ class Protocol_encoder_interface {
   virtual void on_error(int error) = 0;
 
   virtual Protocol_monitor_interface &get_protocol_monitor() = 0;
-
-  virtual void set_write_timeout(const uint32_t timeout) = 0;
 };
 
 }  // namespace ngs

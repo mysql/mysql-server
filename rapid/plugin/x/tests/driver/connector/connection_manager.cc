@@ -122,7 +122,6 @@ void Connection_manager::safe_close(const std::string &name) {
 }
 
 void Connection_manager::connect_default(const bool send_cap_password_expired,
-                                         const bool client_interactive,
                                          const bool no_auth,
                                          const bool use_plain_auth) {
   m_console.print_verbose("Connecting...\n");
@@ -137,12 +136,6 @@ void Connection_manager::connect_default(const bool send_cap_password_expired,
   if (send_cap_password_expired) {
     session->set_capability(
         xcl::XSession::Capability_can_handle_expired_password,
-        true);
-  }
-
-  if (client_interactive) {
-    session->set_capability(
-        xcl::XSession::Capability_client_interactive,
         true);
   }
 

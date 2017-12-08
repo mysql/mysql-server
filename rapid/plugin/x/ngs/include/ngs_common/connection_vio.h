@@ -24,8 +24,6 @@
 
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
-#include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs_common/connection_type.h"
 #include "plugin/x/ngs/include/ngs_common/options.h"
 #include "plugin/x/ngs/include/ngs_common/socket_interface.h"
@@ -42,24 +40,19 @@ namespace ngs
 {
 
 class Ssl_context;
-class Vio_interface;
 
 class Connection_vio
 {
 public:
-  Connection_vio(Ssl_context_interface &ssl_context,
-      std::unique_ptr<Vio_interface> vio);
-
-  virtual ~Connection_vio() = default;
+  Connection_vio(Ssl_context &ssl_context, Vio *vio);
+  virtual ~Connection_vio();
 
   my_socket get_socket_id();
   virtual IOptions_session_ptr options();
 
-  ssize_t read(char *buffer, const std::size_t buffer_size,
-      const long read_timeout);
-  ssize_t write(const Const_buffer_sequence &data, const long write_timeout);
-  ssize_t write(const char *buffer, const std::size_t buffer_size,
-      const long write_timeout);
+  ssize_t read(char *buffer, const std::size_t buffer_size);
+  ssize_t write(const Const_buffer_sequence &data);
+  ssize_t write(const char *buffer, const std::size_t buffer_size);
 
   sockaddr_storage * peer_address(std::string &address, uint16 &port);
   virtual Connection_type connection_type();
@@ -83,15 +76,16 @@ private:
   friend class Ssl_context;
 
   Mutex m_shutdown_mutex;
-  std::unique_ptr<Vio_interface> m_vio;
+  Vio  *m_vio;
   IOptions_session_ptr m_options_session;
-  Ssl_context_interface &m_ssl_context;
+  Ssl_context &m_ssl_context;
 };
 
 /* A shared SSL context object.
 
  SSL sessions can be established for a Connection_vio object through this context.  */
-class Ssl_context : public Ssl_context_interface {
+class Ssl_context
+{
 public:
   Ssl_context();
   bool setup(const char* tls_version,
@@ -101,13 +95,13 @@ public:
               const char* ssl_cert,
               const char* ssl_cipher,
               const char* ssl_crl,
-              const char* ssl_crlpath) override;
+              const char* ssl_crlpath);
   ~Ssl_context();
 
-  bool activate_tls(Connection_vio &conn, const int handshake_timeout) override;
+  bool activate_tls(Connection_vio &conn, int handshake_timeout);
 
-  IOptions_context_ptr options() override { return m_options; }
-  bool has_ssl() override { return nullptr != m_ssl_acceptor; }
+  IOptions_context_ptr options() { return m_options; }
+  bool has_ssl() { return NULL != m_ssl_acceptor; }
 
 private:
   st_VioSSLFd *m_ssl_acceptor;

@@ -5,7 +5,7 @@
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/stmtexecute_query_result.tmp
--->import assert_variable.macro
+-->import assert_status_variable.macro
 -->echo check with password function which is deprecated
 Mysqlx.Sql.StmtExecute {
   stmt: "select 1/0,1/0,password('test'),password('')"
@@ -827,7 +827,7 @@ Mysqlx.Sql.StmtExecute {
 EOF
 
 --write_file $MYSQL_TMP_DIR/stmtexecute_proc_warnings.tmp
--->import assert_variable.macro
+-->import assert_status_variable.macro
 -->echo checking warnings with procedure execution
 -->sql
 SET @start_global_value = @@global.max_error_count;
@@ -986,7 +986,7 @@ drop table worklog5743_8;
 EOF
 
 --write_file $MYSQL_TMP_DIR/enable_noti.tmp
--->import assert_variable.macro
+-->import assert_status_variable.macro
 -->echo Try enable warnings
 Mysqlx.Sql.StmtExecute {
   stmt: "enable_notices"
@@ -1075,7 +1075,7 @@ Mysqlx.Sql.StmtExecute {
 EOF
 
 --write_file $MYSQL_TMP_DIR/enable_multiple_notices.tmp
--->import assert_variable.macro
+-->import assert_status_variable.macro
 -->echo Enable multiple notices both read-only and read-write with single StmtExecute,expect success
 Mysqlx.Sql.StmtExecute {
   stmt: "enable_notices"
@@ -1142,7 +1142,7 @@ Mysqlx.Sql.StmtExecute {
 EOF
 
 --write_file $MYSQL_TMP_DIR/stats_notices.tmp
--->import assert_variable.macro
+-->import assert_status_variable.macro
 
 -->echo check with password function which is deprecated
 Mysqlx.Sql.StmtExecute {
@@ -1236,7 +1236,7 @@ Mysqlx.Sql.StmtExecute {
 EOF
 
 --write_file $MYSQL_TMP_DIR/stats_noti.tmp
--->import assert_variable.macro
+-->import assert_status_variable.macro
 Mysqlx.Sql.StmtExecute {
   stmt: "select 1/0,1/0,password('test'),password('')"
 }
@@ -1259,7 +1259,7 @@ Mysqlx.Sql.StmtExecute {
 EOF
 
 --write_file $MYSQL_TMP_DIR/stats_noti_no_err.tmp
--->import assert_variable.macro
+-->import assert_status_variable.macro
 Mysqlx.Sql.StmtExecute {
   stmt: "select 1/0,1/0,password('test'),password('')"
 }

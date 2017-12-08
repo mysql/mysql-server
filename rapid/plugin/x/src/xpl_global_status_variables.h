@@ -52,7 +52,6 @@ public:
   Variable m_accepted_sessions_count;
   Variable m_rejected_sessions_count;
   Variable m_killed_sessions_count;
-  Variable m_aborted_clients;
 
 private:
   Global_status_variables() {}

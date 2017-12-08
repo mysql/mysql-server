@@ -69,7 +69,7 @@ public: // impl ngs::Session_interface
   virtual void on_auth_failure(const ngs::Authentication_interface::Response &response) override;
 
   virtual void mark_as_tls_session() override;
-  virtual THD* get_thd() const override;
+  virtual bool is_handled_by(const void *handler) const override;
   ngs::Sql_session_interface &data_context() override { return m_sql; }
 
 public:

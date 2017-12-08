@@ -122,7 +122,6 @@ int client_connect_and_process(const Driver_command_line_options &options,
 
     cm.connect_default(
         options.m_cap_expired_password,
-        options.m_client_interactive,
         options.m_run_without_auth,
         options.m_use_plain_auth);
 

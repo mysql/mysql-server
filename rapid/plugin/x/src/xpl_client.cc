@@ -36,16 +36,13 @@
 #include "plugin/x/src/xpl_session.h"
 #include "sql/hostname.h"
 
-
 namespace xpl {
 
 Client::Client(ngs::Connection_ptr connection, ngs::Server_interface &server,
-               Client_id client_id, ngs::Protocol_monitor_interface *pmon,
-               const Global_timeouts &timeouts)
-    : ngs::Client(connection, server, client_id, *pmon, timeouts),
+               Client_id client_id, Protocol_monitor *pmon)
+    : ngs::Client(connection, server, client_id, *pmon),
       m_protocol_monitor(pmon) {
-  if (m_protocol_monitor)
-    static_cast<Protocol_monitor*>(m_protocol_monitor)->init(this);
+  if (m_protocol_monitor) m_protocol_monitor->init(this);
 }
 
 Client::~Client() { ngs::free_object(m_protocol_monitor); }
@@ -73,30 +70,6 @@ ngs::Capabilities_configurator *Client::capabilities_configurator() {
 
   return caps;
 }
-
-void Client::set_is_interactive(const bool flag)  {
-  m_is_interactive = flag;
-
-  if (nullptr == m_session.get())
-    return;
-
-  auto thd = m_session->get_thd();
-
-  if (nullptr == thd)
-    return;
-
-  if (!m_session->data_context().attach()) {
-    auto global_timeouts = get_global_timeouts();
-
-    m_wait_timeout = m_is_interactive ?
-        global_timeouts.interactive_timeout :
-        global_timeouts.wait_timeout;
-    set_session_wait_timeout(thd, m_wait_timeout);
-
-    m_session->data_context().detach();
-  }
-}
-
 
 ngs::shared_ptr<xpl::Session> Client::get_session() {
   return ngs::static_pointer_cast<xpl::Session>(session());
@@ -140,7 +113,7 @@ void Client::on_auth_timeout() {
 bool Client::is_handler_thd(THD *thd) {
   ngs::shared_ptr<ngs::Session_interface> session = this->session();
 
-  return thd && session && (session->get_thd() == thd);
+  return thd && session && (session->is_handled_by(thd));
 }
 
 void Client::get_status_ssl_cipher_list(SHOW_VAR *var) {

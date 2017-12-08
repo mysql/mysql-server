@@ -70,7 +70,6 @@ debian/extra/libtest_framework-plugin
 debian/extra/libtest_services-plugin
 debian/extra/libtest_services_threaded-plugin
 debian/extra/libtest_session_detach-plugin
-debian/extra/libtest_session_attach-plugin
 debian/extra/libtest_session_info-plugin
 debian/extra/libtest_session_in_thd-plugin
 debian/extra/libtest_sql_2_sessions-plugin

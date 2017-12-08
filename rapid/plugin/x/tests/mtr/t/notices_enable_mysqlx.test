@@ -6,7 +6,7 @@
 ## Test starts here
 --let $xtest_result= $MYSQL_TMP_DIR/stmtexecute_query_result_mysqlx.tmp
 --write_file $xtest_result
--->import assert_variable.macro
+-->import assert_status_variable.macro
 -->quiet
 -->echo check with password function which is deprecated
 -->stmtsql select 1/0,1/0,password('test'),password('')
@@ -566,7 +566,7 @@ EOF
 
 --let $xtest_warnings= $MYSQL_TMP_DIR/stmtexecute_proc_warnings_mysqlx.tmp
 --write_file $xtest_warnings
--->import assert_variable.macro
+-->import assert_status_variable.macro
 -->quiet
 -->echo checking warnings with procedure execution
 -->sql
@@ -723,7 +723,7 @@ EOF
 
 --let $xtest_enable_notice= $MYSQL_TMP_DIR/enable_notice_mysqlx.tmp
 --write_file $xtest_enable_notice
--->import assert_variable.macro
+-->import assert_status_variable.macro
 -->quiet
 -->echo Try enable warnings
 -->stmtadmin enable_notices	{"notice":"warnings"}
@@ -753,7 +753,7 @@ EOF
 
 --let $xtest_multiple_notices= $MYSQL_TMP_DIR/enable_multiple_notices_mysqlx.tmp
 --write_file $xtest_multiple_notices
--->import assert_variable.macro
+-->import assert_status_variable.macro
 -->quiet
 -->echo Enable multiple notices both read-only and read-write with single StmtExecute,expect success
 -->stmtadmin enable_notices	{"notice":["warnings","account_expired","generated_insert_id","rows_affected","produced_message"]}
@@ -770,7 +770,7 @@ EOF
 
 --let $xtest_stats= $MYSQL_TMP_DIR/stats_notices_mysqlx.tmp
 --write_file $xtest_stats
--->import assert_variable.macro
+-->import assert_status_variable.macro
 -->quiet
 
 -->echo check with password function which is deprecated
@@ -818,7 +818,7 @@ EOF
 
 --let $xtest_stats_noti= $MYSQL_TMP_DIR/stats_noti_mysqlx.tmp
 --write_file $xtest_stats_noti
--->import assert_variable.macro
+-->import assert_status_variable.macro
 -->quiet
 -->stmtsql select 1/0,1/0,password('test'),password('')
 -->recvresult
@@ -840,7 +840,7 @@ EOF
 
 --let $xtest_stats_noti_no_err= $MYSQL_TMP_DIR/stats_noti_no_err_mysqlx.tmp
 --write_file $xtest_stats_noti_no_err
--->import assert_variable.macro
+-->import assert_status_variable.macro
 -->quiet
 -->stmtsql select 1/0,1/0,password('test'),password('')
 -->recvresult

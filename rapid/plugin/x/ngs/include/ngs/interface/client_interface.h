@@ -74,13 +74,6 @@ public:
   virtual Client_state  get_state() const = 0;
   virtual bool          supports_expired_passwords() const = 0;
 
-  virtual bool is_interactive() const = 0;
-  virtual void set_is_interactive(const bool is_interactive) = 0;
-
-  virtual void set_write_timeout(const uint32_t) = 0;
-  virtual void set_read_timeout(const uint32_t) = 0;
-  virtual void set_wait_timeout(const uint32_t) = 0;
-
   virtual ngs::shared_ptr<Session_interface> session() = 0;
 
 public:

@@ -1367,12 +1367,3 @@ unsigned int Srv_session::thread_count(const void *plugin)
 {
   return server_session_threads.count(plugin);
 }
-
-
-/**
-  Check if current physical thread was created to be used with this class.
-*/
-bool Srv_session::is_srv_session_thread()
-{
-  return nullptr != THR_srv_session_thread;
-}

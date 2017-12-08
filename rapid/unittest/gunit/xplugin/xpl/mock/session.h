@@ -22,7 +22,6 @@
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
-#include "plugin/x/ngs/include/ngs/client.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 #include "plugin/x/src/account_verification_handler.h"
@@ -36,60 +35,18 @@ namespace ngs
 namespace test
 {
 
-class Mock_vio : public Vio_interface
-{
-public:
-  MOCK_METHOD2(read, ssize_t(uchar* buffer, ssize_t bytes_to_send));
-  MOCK_METHOD2(write, ssize_t(const uchar* buffer, ssize_t bytes_to_send));
-  MOCK_METHOD2(set_timeout, void(const Vio_interface::Direction,
-               const uint32_t timeout));
-  MOCK_METHOD1(set_state, void(PSI_socket_state state));
-  MOCK_METHOD0(set_thread_owner, void());
-  MOCK_METHOD0(get_fd, my_socket());
-  MOCK_METHOD0(get_type, enum_vio_type());
-  MOCK_METHOD2(peer_addr, sockaddr_storage*(std::string &address, uint16 &port));
-  MOCK_METHOD0(shutdown, int());
-  MOCK_METHOD0(delete_vio, void());
-  MOCK_METHOD0(get_vio, Vio*());
-};
-
-class Mock_ssl_context : public Ssl_context_interface
-{
- public:
-  MOCK_METHOD8(setup, bool(const char* tls_version, const char* ssl_key,
-      const char* ssl_ca, const char* ssl_capath, const char* ssl_cert,
-      const char* ssl_cipher, const char* ssl_crl, const char* ssl_crlpath));
-  MOCK_METHOD2(activate_tls, bool(Connection_vio &conn, int handshake_timeout));
-  MOCK_METHOD0(options, IOptions_context_ptr());
-  MOCK_METHOD0(has_ssl, bool());
-};
-
-
 class Mock_connection : public ngs::Connection_vio
 {
 public:
   Mock_connection()
-  : ngs::Connection_vio(m_context, std::unique_ptr<Mock_vio>(new Mock_vio()))
-  {
-  }
-
-  Mock_connection(Mock_vio *mock_vio)
-  : ngs::Connection_vio(m_context, std::unique_ptr<Mock_vio>(mock_vio)),
-    m_mock_vio(mock_vio)
+  : ngs::Connection_vio(m_context, NULL)
   {
   }
 
   MOCK_METHOD0(connection_type, Connection_type ());
   MOCK_METHOD0(options, ngs::IOptions_session_ptr());
-  MOCK_METHOD0(mark_idle, void ());
-  MOCK_METHOD0(mark_active, void ());
-  MOCK_METHOD0(set_socket_thread_owner, void ());
-  MOCK_METHOD2(read, ssize_t(uchar* buffer, ssize_t bytes_to_send));
-  MOCK_METHOD2(write, ssize_t(const uchar* buffer, ssize_t bytes_to_send));
-
-  Mock_vio *m_mock_vio;
 private:
-  Mock_ssl_context m_context;
+  Ssl_context m_context;
 };
 
 
@@ -175,8 +132,6 @@ class Mock_sql_data_context : public ngs::Sql_session_interface {
                           const Authentication_interface &, bool));
   MOCK_METHOD3(execute,
                Error_code(const char *, std::size_t, Resultset_interface *));
-  MOCK_METHOD0(attach, Error_code ());
-  MOCK_METHOD0(detach, Error_code ());
 };
 
 class Mock_protocol_encoder : public ngs::Protocol_encoder_interface {
@@ -208,7 +163,6 @@ class Mock_protocol_encoder : public ngs::Protocol_encoder_interface {
   MOCK_METHOD3(send_message, bool(int8_t, const Message &, bool));
   MOCK_METHOD1(on_error, void(int error));
   MOCK_METHOD0(get_protocol_monitor, Protocol_monitor_interface &());
-  MOCK_METHOD1(set_write_timeout, void(unsigned int));
 };
 
 class Mock_session : public Session_interface
@@ -225,24 +179,11 @@ public:
   MOCK_CONST_METHOD0(state_before_close, State ());
   MOCK_METHOD0(client, Client_interface &());
   MOCK_METHOD0(mark_as_tls_session, void ());
-  MOCK_CONST_METHOD0(get_thd, THD* ());
+  MOCK_CONST_METHOD1(is_handled_by, bool (const void *));
   MOCK_METHOD0(data_context, Sql_session_interface &());
   MOCK_METHOD0(proto, Protocol_encoder_interface &());
 };
 
-class Mock_protocol_monitor : public ngs::Protocol_monitor_interface
-{
-public:
-  MOCK_METHOD0(on_notice_warning_send, void());
-  MOCK_METHOD0(on_notice_other_send, void());
-  MOCK_METHOD0(on_fatal_error_send, void());
-  MOCK_METHOD0(on_init_error_send, void());
-  MOCK_METHOD0(on_row_send, void());
-  MOCK_METHOD1(on_send, void (long));
-  MOCK_METHOD1(on_receive, void (long));
-  MOCK_METHOD0(on_error_send, void());
-  MOCK_METHOD0(on_error_unknown_msg_type, void());
-};
 
 }  // namespace test
 }  // namespace ngs
@@ -253,16 +194,6 @@ namespace xpl
 namespace test
 {
 
-class Mock_ngs_client : public ngs::Client
-{
-public:
-  using ngs::Client::Client;
-  using ngs::Client::read_one_message;
-  using ngs::Client::set_encoder;
-  MOCK_METHOD0(resolve_hostname, std::string ());
-  MOCK_CONST_METHOD0(is_interactive, bool ());
-  MOCK_METHOD1(set_is_interactive, void (const bool ));
-};
 
 class Mock_client : public ngs::Client_interface
 {
@@ -285,14 +216,6 @@ public:
 
   MOCK_METHOD0(session, ngs::shared_ptr<ngs::Session_interface> ());
   MOCK_CONST_METHOD0(supports_expired_passwords, bool ());
-
-  MOCK_CONST_METHOD0(is_interactive, bool ());
-  MOCK_METHOD1(set_is_interactive, void (bool));
-
-  MOCK_METHOD1(set_wait_timeout, void (const unsigned int));
-  MOCK_METHOD1(set_interactive_timeout, void (const unsigned int));
-  MOCK_METHOD1(set_read_timeout, void (const unsigned int));
-  MOCK_METHOD1(set_write_timeout, void (const unsigned int));
 
 public:
   MOCK_METHOD1(on_session_reset_void, bool (ngs::Session_interface &));

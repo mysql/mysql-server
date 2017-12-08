@@ -52,12 +52,6 @@ int srv_session_detach(MYSQL_SESSION)
   return 0;
 }
 
-int srv_session_attach(MYSQL_SESSION, MYSQL_THD *)
-{
-  DBUG_ASSERT(0);
-  return 0;
-}
-
 my_thread_id srv_session_info_get_session_id(MYSQL_SESSION)
 {
   DBUG_ASSERT(0);

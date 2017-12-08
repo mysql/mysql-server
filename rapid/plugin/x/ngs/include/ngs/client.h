@@ -17,10 +17,8 @@
  * 02110-1301  USA
  */
 
-#ifndef RAPID_PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_H_
-#define RAPID_PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_H_
-
-#include <string>
+#ifndef _NGS_CLIENT_H_
+#define _NGS_CLIENT_H_
 
 #include "my_inttypes.h"
 #include "plugin/x/ngs/include/ngs/capabilities/configurator.h"
@@ -33,9 +31,6 @@
 #include "plugin/x/ngs/include/ngs_common/atomic.h"
 #include "plugin/x/ngs/include/ngs_common/chrono.h"
 #include "plugin/x/ngs/include/ngs_common/connection_vio.h"
-
-#include "plugin/x/src/global_timeouts.h"
-#include "plugin/x/src/xpl_system_variables.h"
 
 #ifndef WIN32
 #include <netinet/in.h>
@@ -52,8 +47,7 @@ namespace ngs
     Client(Connection_ptr connection,
            Server_interface &server,
            Client_id client_id,
-           Protocol_monitor_interface &pmon,
-           const Global_timeouts &timeouts);
+           Protocol_monitor_interface &pmon);
     virtual ~Client();
 
     Mutex &get_session_exit_mutex() override { return m_session_exit_mutex; }
@@ -93,18 +87,10 @@ namespace ngs
       m_supports_expired_passwords = flag;
     }
 
-    bool is_interactive() const override {
-      return m_is_interactive;
-    }
-
     bool supports_expired_passwords() const override
     {
       return m_supports_expired_passwords;
     }
-
-    void set_wait_timeout(const uint32_t) override;
-    void set_read_timeout(const uint32_t) override;
-    void set_write_timeout(const uint32_t) override;
 
   protected:
     char m_id[2+sizeof(Client_id)*2+1]; // 64bits in hex, plus 0x plus \0
@@ -135,19 +121,12 @@ namespace ngs
       Close_error,
       Close_reject,
       Close_normal,
-      Close_connect_timeout,
-      Close_write_timeout,
-      Close_read_timeout
+      Close_connect_timeout
     } m_close_reason;
 
     char* m_msg_buffer;
     size_t m_msg_buffer_size;
     bool m_supports_expired_passwords;
-    bool m_is_interactive = false;
-
-    uint32_t m_wait_timeout = Global_timeouts::Default::k_wait_timeout;
-    uint32_t m_read_timeout = Global_timeouts::Default::k_read_timeout;
-    uint32_t m_write_timeout = Global_timeouts::Default::k_write_timeout;
 
     Request *read_one_message(Error_code &ret_error);
 
@@ -160,17 +139,14 @@ namespace ngs
     void handle_message(Request &message);
     virtual std::string resolve_hostname() = 0;
     virtual void on_network_error(int error);
-    void on_read_timeout(int error_code, const std::string &message);
 
     Protocol_monitor_interface &get_protocol_monitor();
-
-    void set_encoder(ngs::Protocol_encoder_interface* enc);
 
   private:
     Client(const Client &) = delete;
     Client &operator=(const Client &) = delete;
 
-    void get_last_error(int *out_error_code, std::string *out_message);
+    void get_last_error(int &error_code, std::string &message);
     void shutdown_connection();
 
     void on_client_addr(const bool skip_resolve_name);
@@ -180,4 +156,4 @@ namespace ngs
 
 } // namespace ngs
 
-#endif  // RAPID_PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_H_
+#endif

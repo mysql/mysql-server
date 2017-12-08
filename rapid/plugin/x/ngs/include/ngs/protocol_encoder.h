@@ -38,9 +38,6 @@
 #include "plugin/x/ngs/include/ngs_common/chrono.h"
 #include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
-#include "plugin/x/src/global_timeouts.h"
-#include "plugin/x/src/xpl_system_variables.h"
-
 
 namespace ngs
 {
@@ -99,10 +96,6 @@ public:
   static void log_protobuf(const char *direction_name, const Message *request);
   static void log_protobuf(int8_t type);
 
-  void set_write_timeout(const uint32_t timeout) override {
-    m_write_timeout = timeout;
-  }
-
 private:
   Protocol_encoder(const Protocol_encoder &) = delete;
   Protocol_encoder &operator=(const Protocol_encoder &) = delete;
@@ -122,9 +115,6 @@ private:
   Metadata_builder  m_metadata_builder;
   Message_builder   m_empty_msg_builder;
   Notice_builder    m_notice_builder;
-
-  uint32_t m_write_timeout =
-      static_cast<uint32_t>(Global_timeouts::Default::k_write_timeout);
 
   // add the m_out_buffer contents to the output queue... thread-safe
   bool flush_buffer(); // ownership of buffer is taken
