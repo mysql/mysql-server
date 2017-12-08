@@ -1305,7 +1305,8 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
         itself should be considered opaque; in particular, it
         may be non-numerical: [ <alpha> | <digit> | '_' | '.' ]
       */
-      len= snprintf(buff_line, sizeof(buff_line), "%.*s %u [%.*s] [%06u] %.*s",
+      len= snprintf(buff_line, sizeof(buff_line),
+                    "%.*s %u [%.*s] [MY-%06u] %.*s",
                     (int) ts_len,    iso_timestamp,
                     thread_id,
                     (int) label_len, label,
