@@ -465,7 +465,17 @@ public:
 	using Result = std::pair<std::string, Tablespace_files::Names*>;
 
 	/** Constructor */
-	Tablespace_dirs() : m_dirs(), m_checked() { }
+	Tablespace_dirs()
+		:
+		m_dirs()
+#if !defined(__SUNPRO_CC)
+		,m_checked()
+#endif /* !__SUNPRO_CC */
+	{
+#if defined(__SUNPRO_CC)
+		m_checked = ATOMIC_VAR_INIT(0);
+#endif /* __SUNPRO_CC */
+	}
 
 	/** Discover tablespaces by reading the header from .ibd files.
 	@param[in]	in_directories	Directories to scan
