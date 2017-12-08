@@ -539,8 +539,11 @@ static log_filter_match log_filter_try_match(log_item *li, log_filter_rule *ri)
       ? LOG_FILTER_MATCH_SUCCESS
       : LOG_FILTER_MATCH_UNSATISFIED;
 
-  if (ri->cond == LOG_FILTER_COND_PRESENT)
+  else if (ri->cond == LOG_FILTER_COND_PRESENT)
     return LOG_FILTER_MATCH_SUCCESS;
+
+  else if (ri->cond == LOG_FILTER_COND_ABSENT)
+    return LOG_FILTER_MATCH_UNSATISFIED;
 
   // item class on left hand side / right hand side
   rc= log_item_string_class(ri->match.item_class);
