@@ -2946,6 +2946,46 @@ public:
 
 
 /**
+  Top-level node for the DROP SPATIAL REFERENCE SYSTEM statement.
+
+  @ingroup ptn_stmt
+*/
+class PT_drop_srs final : public Parse_tree_root
+{
+  /// The SQL command object.
+  Sql_cmd_drop_srs sql_cmd;
+  /// SRID of the SRS to drop.
+  ///
+  /// The range is larger than that of gis::srid_t, so it must be
+  /// verified to be less than the uint32 maximum value.
+  unsigned long long m_srid;
+
+public:
+  PT_drop_srs (unsigned long long srid, bool if_exists)
+    : sql_cmd(srid, if_exists), m_srid(srid)
+  {}
+
+  Sql_cmd *make_cmd(THD *thd) override {
+    thd->lex->sql_command= SQLCOM_DROP_SRS;
+
+    if (m_srid > std::numeric_limits<gis::srid_t>::max())
+    {
+      my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "SRID",
+               "DROP SPATIAL REFERENCE SYSTEM");
+      return nullptr;
+    }
+    if (m_srid == 0)
+    {
+      my_error(ER_CANT_MODIFY_SRID_0, MYF(0));
+      return nullptr;
+    }
+
+    return &sql_cmd;
+  }
+};
+
+
+/**
   Top-level node for the ALTER INSTANCE statement
 
   @ingroup ptn_stmt

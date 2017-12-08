@@ -1635,6 +1635,7 @@ static bool assign_cmd(THD *thd, LEX *lex, Parse_tree_root *parse_tree)
         do_stmt
         drop_index_stmt
         drop_role_stmt
+        drop_srs_stmt
         explain_stmt
         explainable_stmt
         handler_stmt
@@ -2031,6 +2032,7 @@ simple_statement:
         | drop_procedure_stmt
         | drop_role_stmt        { MAKE_CMD($1); }
         | drop_server_stmt
+        | drop_srs_stmt         { MAKE_CMD($1); }
         | drop_tablespace_stmt
         | drop_table_stmt
         | drop_trigger_stmt
@@ -11562,6 +11564,13 @@ drop_server_stmt:
             Lex->m_sql_cmd= NEW_PTN Sql_cmd_drop_server($4, $3);
           }
         ;
+
+drop_srs_stmt:
+          DROP SPATIAL_SYM REFERENCE_SYM SYSTEM_SYM if_exists real_ulonglong_num
+	  {
+	    $$= NEW_PTN PT_drop_srs($6, $5);
+	  }
+	;
 
 drop_role_stmt:
           DROP ROLE_SYM if_exists role_list

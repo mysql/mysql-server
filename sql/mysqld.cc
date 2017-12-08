@@ -3149,6 +3149,7 @@ SHOW_VAR com_status_vars[]= {
   {"drop_resource_group",  (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_RESOURCE_GROUP]),        SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_role",            (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_ROLE]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_server",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_SERVER]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_spatial_reference_system", (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_SRS]),          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_table",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_TABLE]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_trigger",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_TRIGGER]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_user",            (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_USER]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
