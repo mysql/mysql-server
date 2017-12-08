@@ -30,6 +30,7 @@
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/ngs/include/ngs/server_acceptors.h"
 #include "plugin/x/ngs/include/ngs/server_client_timeout.h"
+#include "plugin/x/ngs/include/ngs/vio_wrapper.h"
 #include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 #include "plugin/x/src/xpl_log.h"
 
@@ -266,7 +267,9 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor)
     return;
   }
 
-  Connection_ptr connection(ngs::allocate_shared<ngs::Connection_vio>(ngs::ref(*m_ssl_context), vio));
+  std::unique_ptr<Vio_interface> vio_wrapper(new Vio_wrapper(vio));
+  Connection_ptr connection(ngs::allocate_shared<ngs::Connection_vio>(
+      ngs::ref(*m_ssl_context), std::move(vio_wrapper)));
   ngs::shared_ptr<Client_interface> client(m_delegate->create_client(connection));
 
   if (m_delegate->will_accept_client(*client))

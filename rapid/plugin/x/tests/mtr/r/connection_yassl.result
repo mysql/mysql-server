@@ -76,6 +76,16 @@ Mysqlx.Connection.Capabilities {
     }
   }
   capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  capabilities {
     name: "node_type"
     value {
       type: SCALAR
@@ -171,6 +181,16 @@ Mysqlx.Connection.Capabilities {
     }
   }
   capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  capabilities {
     name: "node_type"
     value {
       type: SCALAR
@@ -236,6 +256,16 @@ Mysqlx.Connection.Capabilities {
         v_string {
           value: "text"
         }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
       }
     }
   }
@@ -411,6 +441,16 @@ Mysqlx.Connection.Capabilities {
         v_string {
           value: "text"
         }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
       }
     }
   }
@@ -943,6 +983,16 @@ Mysqlx.Connection.Capabilities {
     }
   }
   capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  capabilities {
     name: "node_type"
     value {
       type: SCALAR
@@ -1038,6 +1088,16 @@ Mysqlx.Connection.Capabilities {
     }
   }
   capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  capabilities {
     name: "node_type"
     value {
       type: SCALAR
@@ -1103,6 +1163,16 @@ Mysqlx.Connection.Capabilities {
         v_string {
           value: "text"
         }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
       }
     }
   }
@@ -1278,6 +1348,16 @@ Mysqlx.Connection.Capabilities {
         v_string {
           value: "text"
         }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
       }
     }
   }
@@ -1810,6 +1890,16 @@ Mysqlx.Connection.Capabilities {
     }
   }
   capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  capabilities {
     name: "node_type"
     value {
       type: SCALAR
@@ -1905,6 +1995,16 @@ Mysqlx.Connection.Capabilities {
     }
   }
   capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  capabilities {
     name: "node_type"
     value {
       type: SCALAR
@@ -1970,6 +2070,16 @@ Mysqlx.Connection.Capabilities {
         v_string {
           value: "text"
         }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
       }
     }
   }
@@ -2145,6 +2255,16 @@ Mysqlx.Connection.Capabilities {
         v_string {
           value: "text"
         }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
       }
     }
   }

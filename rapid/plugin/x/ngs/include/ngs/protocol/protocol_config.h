@@ -25,6 +25,8 @@
 
 #include "plugin/x/ngs/include/ngs_common/chrono.h"
 
+#include "plugin/x/src/global_timeouts.h"
+#include "plugin/x/src/xpl_system_variables.h"
 
 namespace ngs
 {
@@ -37,6 +39,23 @@ public:
 
   chrono::seconds connect_timeout;
   chrono::milliseconds connect_timeout_hysteresis;
+  uint32_t m_wait_timeout = Global_timeouts::Default::k_wait_timeout;
+  uint32_t m_interactive_timeout =
+      Global_timeouts::Default::k_interactive_timeout;
+  uint32_t m_read_timeout = Global_timeouts::Default::k_read_timeout;
+  uint32_t m_write_timeout = Global_timeouts::Default::k_write_timeout;
+
+  void set_global_timeouts(const Global_timeouts &timeouts) {
+    m_interactive_timeout = timeouts.interactive_timeout;
+    m_wait_timeout = timeouts.wait_timeout;
+    m_read_timeout = timeouts.read_timeout;
+    m_write_timeout = timeouts.write_timeout;
+  }
+
+  Global_timeouts get_global_timeouts() const {
+    return {m_interactive_timeout, m_wait_timeout, m_read_timeout,
+        m_write_timeout};
+  }
 
   Protocol_config()
   : default_max_frame_size(16*1024*1024),

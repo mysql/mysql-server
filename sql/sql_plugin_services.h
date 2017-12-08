@@ -225,7 +225,8 @@ static struct srv_session_service_st srv_session_service_handler= {
   srv_session_open,
   srv_session_detach,
   srv_session_close,
-  srv_session_server_is_available
+  srv_session_server_is_available,
+  srv_session_attach
 };
 
 static struct command_service_st command_handler= {

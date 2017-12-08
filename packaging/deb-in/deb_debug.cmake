@@ -119,6 +119,7 @@ usr/lib/mysql/plugin/debug/libtest_framework.so
 usr/lib/mysql/plugin/debug/libtest_services.so
 usr/lib/mysql/plugin/debug/libtest_services_threaded.so
 usr/lib/mysql/plugin/debug/libtest_session_detach.so
+usr/lib/mysql/plugin/debug/libtest_session_attach.so
 usr/lib/mysql/plugin/debug/libtest_session_info.so
 usr/lib/mysql/plugin/debug/libtest_session_in_thd.so
 usr/lib/mysql/plugin/debug/libtest_sql_2_sessions.so

@@ -206,6 +206,9 @@ std::pair<std::string, Capability_datatype> get_capability_type(
       capability)
     return {"client.pwd_expire_ok", Capability_datatype::Bool};
 
+  if (XSession::Capability_client_interactive == capability)
+    return {"client.interactive", Capability_datatype::Bool};
+
   return {};
 }
 

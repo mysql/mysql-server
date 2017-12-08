@@ -68,6 +68,13 @@ class XSession {
       Capability type: BOOL. Value: enable/disable the support.
     */
     Capability_can_handle_expired_password,
+
+    /**
+      Handle input line by line and process it using the interactive pipeline.
+
+      Capability type: BOOL. Value: enable/disable the support.
+     */
+    Capability_client_interactive,
   };
 
   /**

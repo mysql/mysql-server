@@ -139,9 +139,8 @@ void xpl::Session::mark_as_tls_session()
 }
 
 
-bool xpl::Session::is_handled_by(const void *handler) const
-{
-  return m_sql.get_thd() == handler;
+THD* xpl::Session::get_thd() const {
+  return m_sql.get_thd();
 }
 
 

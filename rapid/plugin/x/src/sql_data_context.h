@@ -84,12 +84,16 @@ class Sql_data_context : public ngs::Sql_session_interface {
   ngs::Error_code execute(const char *sql, std::size_t sql_len,
                           ngs::Resultset_interface *rset) override;
 
+  ngs::Error_code attach() override;
+  ngs::Error_code detach() override;
+
+
   ngs::Error_code init();
   ngs::Error_code init(const int client_port, const ngs::Connection_type type);
   void deinit();
 
   MYSQL_THD get_thd() const;
-  void detach();
+
   bool kill();
   bool is_acl_disabled();
   void switch_to_local_user(const std::string &username);

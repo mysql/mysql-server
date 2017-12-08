@@ -76,6 +76,11 @@ public:
   template <typename ReturnType, ReturnType (ngs::IOptions_context::*method)()>
   static void global_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
 
+  template <typename Copy_type,
+           void (ngs::Client_interface::*method)(const Copy_type value)>
+  static void thd_variable(THD *thd, st_mysql_sys_var*, void *tgt,
+                           const void *save);
+
   ngs::Server &server() { return m_server; }
 
   ngs::Error_code kill_client(uint64_t client_id, Session &requester);
@@ -105,6 +110,7 @@ private:
   bool on_verify_server_state();
 
   void plugin_system_variables_changed();
+  void update_global_timeout_values();
 
   virtual ngs::shared_ptr<ngs::Client_interface>  create_client(ngs::Connection_ptr connection);
   virtual ngs::shared_ptr<ngs::Session_interface> create_session(ngs::Client_interface &client,
@@ -268,6 +274,32 @@ void Server::global_status_variable(THD*, st_mysql_show_var *var, char *buff)
   ReturnType result = ((*context).*method)();
 
   mysqld::xpl_show_var(var).assign(result);
+}
+
+template <typename Copy_type,
+         void (ngs::Client_interface::*method)(const Copy_type value)>
+void Server::thd_variable(THD *thd, st_mysql_sys_var* sys_var, void *tgt,
+                          const void *save) {
+  // Lets copy the data to mysqld storage
+  // this is going to allow following to return correct value:
+  // SHOW SESSION VARIABLE LIKE '**var-name**';
+  *static_cast<Copy_type*>(tgt) = *static_cast<const Copy_type*>(save);
+
+  // Lets make our own copy of it
+  Server_ptr server(get_instance());
+  if (server)
+  {
+    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
+
+    Client_ptr client = get_client_by_thd(server, thd);
+    if (client)
+      ((*client).*method)(*static_cast<Copy_type*>(tgt));
+
+    // We should store the variables values so that they can be set when new
+    // client is connecting. This is done through a registered
+    // update_global_timeout_values callback.
+    Plugin_system_variables::update_func<Copy_type>(thd, sys_var, tgt, save);
+  }
 }
 
 } // namespace xpl

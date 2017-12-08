@@ -202,4 +202,36 @@ int srv_session_server_is_available()
   return get_server_state() == SERVER_OPERATING;
 }
 
+/**
+  Attaches a session to current srv_session physical thread.
+
+  @param session  Session handle to attach
+  @param ret_previous_thd Previously attached THD
+
+  @returns
+    0  success
+    1  failure
+*/
+int srv_session_attach(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd)
+{
+  DBUG_ENTER("srv_session_attach");
+
+  if (!Srv_session::is_srv_session_thread())
+  {
+    DBUG_PRINT("error", ("Thread can't be used with srv_session API"));
+    DBUG_RETURN(1);
+  }
+
+  if (!session || !Srv_session::is_valid(session))
+  {
+    DBUG_PRINT("error", ("Session is not valid"));
+    DBUG_RETURN(1);
+  }
+
+  if (ret_previous_thd)
+    *ret_previous_thd = current_thd;
+
+  DBUG_RETURN(session->attach());
+}
+
 } /* extern "C" */

@@ -42,7 +42,7 @@ EOF
 -->sleep 6
 -->stmtadmin ping
 -->recvresult
-##timer should get restarted here
+##Afert the Mysqlx.Reset connection isn't considered a target for release
 Mysqlx.Session.Reset {
 }
 -->recv
@@ -50,7 +50,7 @@ Mysqlx.Session.Reset {
 -->login x_root
 -->stmtadmin ping
 -->recvresult
-#timer should get restarted here
+##Afert the Mysqlx.Reset connection isn't considered a target for release
 Mysqlx.Session.Reset {
 }
 -->recv

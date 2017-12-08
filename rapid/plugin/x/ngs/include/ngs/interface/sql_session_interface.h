@@ -48,6 +48,9 @@ class Sql_session_interface {
       bool allow_expired_passwords) = 0;
   virtual Error_code execute(const char *sql, std::size_t sql_len,
                              Resultset_interface *rset) = 0;
+
+  virtual Error_code attach() = 0;
+  virtual Error_code detach() = 0;
 };
 
 }  // namespace ngs
