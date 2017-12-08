@@ -723,223 +723,223 @@ SET @@global.log_error_verbosity=DEFAULT;
 ### error log file
 ###
 
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@session.debug="+d,log_error_normalize"
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SELECT @@global.log_error_services
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @save_filters= @@global.dragnet.log_error_filter_rules
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules= DEFAULT
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSTALL COMPONENT "file://component_log_filter_dragnet"
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @save_filters= @@global.dragnet.log_error_filter_rules
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules=""
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.log_error_services="log_sink_internal; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_filter_dragnet"
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='ELSE drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<3 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=>0 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=<3 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<>2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/30.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b=2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b= 2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:="2".'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.0.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN unset.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN unset.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==ER_STARTUP THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP' THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN set err_code:=ER_YES.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=="\\\\a\\\"\\\'" THEN set err_symbol:="ER_YES".'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='DRAUGR.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b==2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP' THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP\" THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==\"ER_STARTUP' THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF misc_cstring=='1' THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF a=='1' THEN set misc_cstring:='abc'."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS misc_cstring THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set component:=1."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set component:=1..5."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set prio:=1.5."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP"
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF NOT field THEN action."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF\tEXISTS\tfield\tTHEN\tDROP."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol==ER_STARTUP THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code=="ER_STARTUP" THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 AND b==3 THEN unset.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a>0 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS field THEN AND."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS field DROP."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set :=2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules=NULL
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules=""
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SELECT @@global.dragnet.log_error_filter_rules
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET PERSIST dragnet.log_error_filter_rules= ''
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SELECT @@global.dragnet.log_error_filter_rules
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SELECT @@session.dragnet.log_error_filter_rules
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: RESET PERSIST
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: select @@datadir
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>9999 THEN set prio:=WARNING."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg== \'Parser saw: select 1\' THEN set a:=1. "
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg==\'Parser saw: select 1\' THEN set a:=1. "
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 1/1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 ."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF err_code == 001045 THEN throttle 1/1.1."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/3600."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604800."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604801."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/0."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/-1."
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop a.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle a.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1.5.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/b.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle a/.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle -1/2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 0/2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE throttle 1/30.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE IF a==5 THEN throttle 1/30.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSE IF a==5 THEN throttle 2/5 ELSE throttle 3/5.'
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: CREATE TABLE my_rules (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, rule VARCHAR(256))
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules= @rules
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set s1:="string". IF s1=="string" THEN set cmp01:="EQ/S works" ELSE set cmp01:="EQ/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1!="stringx" THEN set cmp02:="NE/S works" ELSE set cmp02:="NE/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="string" THEN set cmp03:="GE/S works" ELSE set cmp03:="GE/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="strin" THEN set cmp04:="GE/S works" ELSE set cmp04:="GE/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="strinx" THEN set cmp04:="GE/S is broken" ELSE set cmp04:="GE/S works".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"strinx" THEN set cmp05:="GT/S is broken" ELSE set cmp05:="GT/S works".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"string" THEN set cmp06:="GT/S is broken" ELSE set cmp06:="GT/S works".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"strin" THEN set cmp07:="GT/S works" ELSE set cmp07:="GT/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="string" THEN set cmp08:="LE/S works" ELSE set cmp08:="LE/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="strin" THEN set cmp09:="LE/S is broken" ELSE set cmp09:="LE/S works".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="strinx" THEN set cmp10:="LE/S works" ELSE set cmp10:="LE/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"string" THEN set cmp11:="LT/S is broken" ELSE set cmp11:="LT/S works".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"strin" THEN set cmp12:="LT/S is broken" ELSE set cmp12:="LT/S works".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"strinx" THEN set cmp1:="LT/S works" ELSE set cmp13:="LT/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set f1:=1.4. IF f1>=1.4 THEN set cmp14:="GE/# works" ELSE set cmp14:="GE/# is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF f1>=1 THEN set cmp15:="GE/# works" ELSE set cmp15:="GE/# is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF f1>=1.5 THEN set cmp16:="GE/# is broken" ELSE set cmp16:="GE/# works".')
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET SESSION group_concat_max_len=65535
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SELECT group_concat(rule ORDER BY id SEPARATOR ' ') FROM my_rules INTO @rules
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: DROP TABLE my_rules
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSTALL COMPONENT   "file://component_log_sink_test"
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: INSTALL COMPONENT   "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@session.debug="+d,log_error_normalize"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SELECT @@global.log_error_services
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @save_filters= @@global.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules= DEFAULT
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSTALL COMPONENT "file://component_log_filter_dragnet"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @save_filters= @@global.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules=""
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.log_error_services="log_sink_internal; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_filter_dragnet"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='ELSE drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<3 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=>0 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=<3 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<>2 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/30.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b=2.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b= 2.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:="2".'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.0.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN unset.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN unset.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==ER_STARTUP THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP' THEN drop."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN set err_code:=ER_YES.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=="\\\\a\\\"\\\'" THEN set err_symbol:="ER_YES".'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='DRAUGR.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b==2.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP THEN drop."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP' THEN drop."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP\" THEN drop."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==\"ER_STARTUP' THEN drop."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF misc_cstring=='1' THEN drop."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF a=='1' THEN set misc_cstring:='abc'."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS misc_cstring THEN drop."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set component:=1."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set component:=1..5."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set prio:=1.5."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF NOT field THEN action."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF\tEXISTS\tfield\tTHEN\tDROP."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol==ER_STARTUP THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code=="ER_STARTUP" THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 AND b==3 THEN unset.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a>0 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS field THEN AND."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS field DROP."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set :=2.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules=NULL
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules=""
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SELECT @@global.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET PERSIST dragnet.log_error_filter_rules= ''
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SELECT @@global.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SELECT @@session.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: RESET PERSIST
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: select @@datadir
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>9999 THEN set prio:=WARNING."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg== \'Parser saw: select 1\' THEN set a:=1. "
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg==\'Parser saw: select 1\' THEN set a:=1. "
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 1/1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 ."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF err_code == 001045 THEN throttle 1/1.1."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/3600."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604800."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604801."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/0."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/-1."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop a.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle a.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1.5.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/b.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle a/.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle -1/2.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 0/2.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE throttle 1/30.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE IF a==5 THEN throttle 1/30.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSE IF a==5 THEN throttle 2/5 ELSE throttle 3/5.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: CREATE TABLE my_rules (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, rule VARCHAR(256))
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules= @rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set s1:="string". IF s1=="string" THEN set cmp01:="EQ/S works" ELSE set cmp01:="EQ/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1!="stringx" THEN set cmp02:="NE/S works" ELSE set cmp02:="NE/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="string" THEN set cmp03:="GE/S works" ELSE set cmp03:="GE/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="strin" THEN set cmp04:="GE/S works" ELSE set cmp04:="GE/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="strinx" THEN set cmp04:="GE/S is broken" ELSE set cmp04:="GE/S works".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"strinx" THEN set cmp05:="GT/S is broken" ELSE set cmp05:="GT/S works".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"string" THEN set cmp06:="GT/S is broken" ELSE set cmp06:="GT/S works".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"strin" THEN set cmp07:="GT/S works" ELSE set cmp07:="GT/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="string" THEN set cmp08:="LE/S works" ELSE set cmp08:="LE/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="strin" THEN set cmp09:="LE/S is broken" ELSE set cmp09:="LE/S works".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="strinx" THEN set cmp10:="LE/S works" ELSE set cmp10:="LE/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"string" THEN set cmp11:="LT/S is broken" ELSE set cmp11:="LT/S works".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"strin" THEN set cmp12:="LT/S is broken" ELSE set cmp12:="LT/S works".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"strinx" THEN set cmp1:="LT/S works" ELSE set cmp13:="LT/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set f1:=1.4. IF f1>=1.4 THEN set cmp14:="GE/# works" ELSE set cmp14:="GE/# is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF f1>=1 THEN set cmp15:="GE/# works" ELSE set cmp15:="GE/# is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF f1>=1.5 THEN set cmp16:="GE/# is broken" ELSE set cmp16:="GE/# works".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET SESSION group_concat_max_len=65535
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SELECT group_concat(rule ORDER BY id SEPARATOR ' ') FROM my_rules INTO @rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: DROP TABLE my_rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSTALL COMPONENT   "file://component_log_sink_test"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSTALL COMPONENT   "file://component_log_sink_json"
 [prio=3];[err_code=3621];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_test"];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
 [prio=3];[msg=using log_message() in external service];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
 [prio=1];[thread=0];[msg=using log_message() with duplicate source-line k/v pair];[time=1970-01-01T00:00:00.000000Z];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
@@ -988,11 +988,11 @@ SET @@global.log_error_verbosity=DEFAULT;
 { "prio" : 3, "err_code" : 3621, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @rules= CONCAT(\"IF \", REPEAT(\"x\", 20000), \">9 THEN drop.\")", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
 { "prio" : 3, "err_code" : 3621, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.dragnet.log_error_filter_rules= @rules", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
 { "prio" : 3, "err_code" : 3621, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SHOW WARNINGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.log_error_services=DEFAULT
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET @@global.dragnet.log_error_filter_rules=@save_filters
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: UNINSTALL COMPONENT "file://component_log_filter_dragnet"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.log_error_services=DEFAULT
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.dragnet.log_error_filter_rules=@save_filters
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: UNINSTALL COMPONENT "file://component_log_filter_dragnet"
 
 ###
 ### done
