@@ -19,6 +19,11 @@
 
 INCLUDE(CheckIncludeFiles)
 
+IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+  INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
+  LIST(APPEND CMAKE_REQUIRED_INCLUDES "/usr/local/include")
+ENDIF()
+
 CHECK_INCLUDE_FILES(sasl/sasl.h HAVE_SASL_H)
 CHECK_INCLUDE_FILES(lber.h HAVE_LBER_H)
 
@@ -48,7 +53,9 @@ ENDIF()
 # IF someone like can build the cyrus sasl library on windows and build LDAP authentication sasl client as well.
 IF (CMAKE_SYSTEM_NAME MATCHES "SunOS")
   SET(SASL_LIBRARY "sasl")
-ELSE ()
+ELSEIF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+  SET(SASL_LIBRARY "-L/usr/local/lib -R/usr/local/lib -lsasl2")
+ELSE()
   SET(SASL_LIBRARY "sasl2")
 ENDIF ()
 
