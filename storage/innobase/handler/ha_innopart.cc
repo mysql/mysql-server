@@ -69,13 +69,6 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "ut0ut.h"
 
 /* To be backwards compatible we also fold partition separator on windows. */
-#ifdef _WIN32
-const char* part_sep = "#p#";
-const char* sub_sep = "#sp#";
-#else
-const char* part_sep = "#P#";
-const char* sub_sep = "#SP#";
-#endif /* _WIN32 */
 
 Ha_innopart_share::Ha_innopart_share(
 	TABLE_SHARE*	table_share)
@@ -159,18 +152,19 @@ Ha_innopart_share::create_partition_postfix(
 
 	part_name_len = append_sep_and_name(
 		partition_name, part->name().c_str(),
-		part_sep, size);
+		PART_SEPARATOR, size);
 
 	if (part_name_len < size && part != dd_part) {
 		char*	part_name_end = partition_name + part_name_len;
 
 		subpart_name_len = append_sep_and_name(
 			part_name_end, dd_part->name().c_str(),
-			sub_sep, size - part_name_len);
+			SUB_PART_SEPARATOR, size - part_name_len);
 
-		if (subpart_name_len >= strlen(sub_sep)) {
+		if (subpart_name_len >= SUB_PART_SEPARATOR_LEN) {
+
 			partition_name_casedn_str(
-				part_name_end + strlen(sub_sep));
+				part_name_end + SUB_PART_SEPARATOR_LEN);
 		}
 	}
 
@@ -2441,8 +2435,8 @@ ha_innopart::update_part_elem(
 		if (part_elem->tablespace_name != NULL) {
 			if (0 != strcmp(part_elem->tablespace_name,
 					tablespace_name)) {
-				/* Update part_elem ablespace to NULL same as in
-				innodb data dictionary ib_table. */
+				/* Update part_elem tablespace to NULL same
+				as in innodb data dictionary ib_table. */
 				part_elem->tablespace_name = NULL;
 			}
 		} else if (display_tablespace) {

@@ -99,32 +99,43 @@ Clone_Snapshot::add_file_from_desc(
 	ptr += dir_len;
 	name_len += dir_len;
 
-	const char*	name_ptr;
+	std::string	name;
 	char		name_buf[MAX_LOG_FILE_NAME];
 
 	if (m_snapshot_state == CLONE_SNAPSHOT_FILE_COPY) {
 
-		name_ptr = file_desc->m_file_name;
+		name.assign(file_desc->m_file_name);
 
 		/* For absolute path, we must ensure that the file is not
 		present. This would always fail for local clone. */
-		if (is_absolute_path(file_desc->m_file_name)) {
+		if (Fil_path::is_absolute_path(name)) {
 
-			os_file_type_t	type;
-			bool		exists = false;
+			auto	type = Fil_path::get_file_type(name);
 
-			os_file_status(file_desc->m_file_name, &exists, &type);
+			if (type != OS_FILE_TYPE_MISSING) {
 
-			if (exists) {
+				if (type == OS_FILE_TYPE_FILE) {
 
-				my_error(ER_FILE_EXISTS_ERROR, MYF(0),
-					 file_desc->m_file_name);
-				return(DB_TABLESPACE_EXISTS);
+					my_error(ER_FILE_EXISTS_ERROR, MYF(0),
+						 name.c_str());
+
+					return(DB_TABLESPACE_EXISTS);
+				} else {
+
+					/* Either the stat() call failed or
+					the name is a directory/block device,
+					or permission error etc. */
+
+					my_error(ER_INTERNAL_ERROR, MYF(0),
+						 name.c_str());
+
+					return(DB_ERROR);
+				}
 			}
 
-		} else if (name_ptr[0] == '.' && name_ptr[1] == OS_PATH_SEPARATOR) {
+		} else if (Fil_path::has_prefix(name, Fil_path::DOT_SLASH)) {
 
-			name_ptr += 2;
+			name.erase(0, 2);
 		}
 	} else {
 
@@ -134,13 +145,14 @@ Clone_Snapshot::add_file_from_desc(
 		snprintf(name_buf, MAX_LOG_FILE_NAME, "%s%u",
 			 ib_logfile_basename, idx);
 
-		name_ptr = const_cast<const char*>(name_buf);
+		name.assign(name_buf);
 	}
 
-	strcpy(ptr, name_ptr);
+	strcpy(ptr, name.c_str());
 
-	name_len += strlen(name_ptr);
-	name_len++;
+	name_len += name.length();
+
+	++name_len;
 
 	file_meta->m_file_name_len = name_len;
 
@@ -337,7 +349,7 @@ Clone_Handle::receive_data(
 	success = os_file_seek(nullptr, file_hdl, offset);
 	if (!success) {
 
-		my_error(ER_ERROR_ON_READ, MYF(0), file_meta->m_file_name, errno,
+		my_error(ER_ERROR_ON_READ, MYF(0),file_meta->m_file_name, errno,
 			 my_strerror(errbuf, sizeof(errbuf), errno));
 		return(DB_ERROR);
 	}

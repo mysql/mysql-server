@@ -1144,7 +1144,7 @@ dict_get_first_path(
 
 				/* The dictionary may have been written on
 				another OS. */
-				os_normalize_path(filepath);
+				Fil_path::normalize(filepath);
 			}
 		}
 	}
@@ -1427,7 +1427,7 @@ dict_check_sys_tablespaces(
 		if (fsp_is_system_or_temp_tablespace(space_id)
 		    || fsp_is_undo_tablespace(space_id)
 		    || !fsp_is_shared_tablespace(fsp_flags)
-		    || fil_space_for_table_exists_in_mem(
+		    || fil_space_exists_in_mem(
 			    space_id, space_name, false, true, NULL, 0)) {
 			continue;
 		}
@@ -1665,7 +1665,7 @@ dict_check_sys_tables(
 		whether it is a shared tablespace or a single table
 		tablespace, look to see if it is already in the tablespace
 		cache. */
-		if (fil_space_for_table_exists_in_mem(
+		if (fil_space_exists_in_mem(
 			    space_id, space_name, false, true, NULL, 0)) {
 			ut_free(table_name.m_name);
 			ut_free(space_name_from_dict);
@@ -2210,34 +2210,48 @@ dict_load_table_low(
 	return(NULL);
 }
 
+/** Using the table->heap, copy the null-terminated filepath into
+table->data_dir_path. The data directory path is derived from the
+filepath by stripping the the table->name.m_name component suffix.
+If the filepath is not of the correct form (".../db/table.ibd"),
+then table->data_dir_path will remain nullptr.
+@param[in,out]	table		table instance
+@param[in]	filepath	filepath of tablespace */
 void
 dict_save_data_dir_path(
-/*====================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	char*		filepath)	/*!< in: filepath of tablespace */
+	dict_table_t*	table,
+	char*		filepath)
 {
 	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_a(DICT_TF_HAS_DATA_DIR(table->flags));
+	ut_ad(DICT_TF_HAS_DATA_DIR(table->flags));
+	ut_ad(table->data_dir_path == nullptr);
+	ut_a(Fil_path::has_ibd_suffix(filepath));
 
-	ut_a(!table->data_dir_path);
-	ut_a(filepath);
+	/* Ensure this filepath is not the default filepath. */
+	char*	default_filepath = Fil_path::make(
+		"", table->name.m_name, IBD);
 
-	/* Be sure this filepath is not the default filepath. */
-	char*	default_filepath = fil_make_filepath(
-			NULL, table->name.m_name, IBD, false);
-	if (default_filepath) {
-		if (0 != strcmp(filepath, default_filepath)) {
-			ulint pathlen = strlen(filepath);
-			ut_a(pathlen < OS_FILE_MAX_PATH);
-			ut_a(0 == strcmp(filepath + pathlen - 4, DOT_IBD));
-
-			table->data_dir_path = mem_heap_strdup(
-				table->heap, filepath);
-			os_file_make_data_dir_path(table->data_dir_path);
-		}
-
-		ut_free(default_filepath);
+	if (default_filepath == nullptr) {
+		/* Memory allocation problem. */
+		return;
 	}
+
+	if (strcmp(filepath, default_filepath) != 0) {
+		size_t	pathlen = strlen(filepath);
+
+		ut_a(pathlen < OS_FILE_MAX_PATH);
+		ut_a(Fil_path::has_ibd_suffix(filepath));
+
+		char* data_dir_path = mem_heap_strdup(table->heap, filepath);
+
+		Fil_path::make_data_dir_path(data_dir_path);
+
+		if (strlen(data_dir_path)) {
+			table->data_dir_path = data_dir_path;
+		}
+	}
+
+	ut_free(default_filepath);
 }
 
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
@@ -2249,34 +2263,30 @@ dict_get_and_save_data_dir_path(
 	dict_table_t*	table,
 	bool		dict_mutex_own)
 {
-	if (DICT_TF_HAS_DATA_DIR(table->flags)
-	    && (!table->data_dir_path)) {
-		char*	path = fil_space_get_first_path(table->space);
+	if (!(DICT_TF_HAS_DATA_DIR(table->flags)
+	      && table->data_dir_path == nullptr)) {
+		return;
+	}
 
-		if (!dict_mutex_own) {
-			dict_mutex_enter_for_mysql();
-		}
+	char*	path = fil_space_get_first_path(table->space);
 
-		if (path == NULL) {
-			path = dict_get_first_path(table->space);
-		}
+	if (!dict_mutex_own) {
+		dict_mutex_enter_for_mysql();
+	}
 
-		if (path != NULL) {
-			dict_save_data_dir_path(table, path);
-			ut_free(path);
-		}
+	if (path == nullptr) {
+		path = dict_get_first_path(table->space);
+	}
 
-		if (table->data_dir_path == NULL) {
-			/* Since we did not set the table data_dir_path,
-			unset the flag.  This does not change SYS_DATAFILES
-			or SYS_TABLES or FSP_FLAGS on the header page of the
-			tablespace, but it makes dict_table_t consistent. */
-			table->flags &= ~DICT_TF_MASK_DATA_DIR;
-		}
+	if (path != nullptr) {
+		dict_save_data_dir_path(table, path);
+		ut_free(path);
+	}
 
-		if (!dict_mutex_own) {
-			dict_mutex_exit_for_mysql();
-		}
+	ut_ad(table->data_dir_path != nullptr);
+
+	if (!dict_mutex_own) {
+		dict_mutex_exit_for_mysql();
 	}
 }
 
@@ -2446,7 +2456,7 @@ dict_load_tablespace(
 	}
 
 	/* The tablespace may already be open. */
-	if (fil_space_for_table_exists_in_mem(
+	if (fil_space_exists_in_mem(
 		    table->space, space_name, false,
 		    true, heap, table->id)) {
 		ut_free(shared_space_name);
@@ -2469,10 +2479,9 @@ dict_load_tablespace(
 		fil_system or SYS_DATAFILES */
 		dict_get_and_save_data_dir_path(table, true);
 
-		if (table->data_dir_path) {
-			filepath = fil_make_filepath(
-				table->data_dir_path,
-				table->name.m_name, IBD, true);
+		if (table->data_dir_path != nullptr) {
+			filepath = Fil_path::make(
+				table->data_dir_path, table->name.m_name, IBD);
 		}
 
 	} else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {

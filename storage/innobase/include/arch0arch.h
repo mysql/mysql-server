@@ -955,6 +955,13 @@ using Arch_Block_Vec = std::vector<Arch_Block*, ut_allocator<Arch_Block*>>;
 /** Page archiver in memory data */
 struct ArchPageData
 {
+	/** Constructor */
+	ArchPageData() :
+		m_blocks(),
+		m_block_size(),
+		m_num_blocks(),
+		m_buffer() { }
+
 	/** Allocate buffer and initialize blocks
 	@return true, if successful */
 	bool init();

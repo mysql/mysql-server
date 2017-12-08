@@ -46,22 +46,18 @@ Created 10/21/1995 Heikki Tuuri
 # include "os0event.h"
 # include "os0thread.h"
 #endif /* !UNIV_HOTBACKUP */
+
 #ifdef _WIN32
-# include <sys/types.h>
 # include <sys/stat.h>
 # include <errno.h>
 # include <tchar.h>
 # include <codecvt>
 # include <mbstring.h>
-# endif /* _WIN32 */
+#endif /* _WIN32 */
 
 #ifdef __linux__
 #include <sys/sendfile.h>
 #endif /* __linux__ */
-
-#include <functional>
-#include <new>
-#include <vector>
 
 #ifdef LINUX_NATIVE_AIO
 # ifndef UNIV_HOTBACKUP
@@ -78,15 +74,17 @@ Created 10/21/1995 Heikki Tuuri
 
 #include <errno.h>
 #include <lz4.h>
-#include <my_aes.h>
-#include <my_rnd.h>
-#include <mysql/service_mysql_keyring.h>
-#ifndef UNIV_HOTBACKUP
-# include <mysqld.h>
-#endif /* !UNIV_HOTBACKUP */
-#include <sys/types.h>
-#include <time.h>
+#include "my_aes.h"
+#include "my_rnd.h"
+#include "mysql/service_mysql_keyring.h"
+#include "mysqld.h"
+
+#include <new>
+#include <ctime>
 #include <zlib.h>
+#include <vector>
+#include <sys/types.h>
+#include <functional>
 
 #ifdef UNIV_HOTBACKUP
 # include <data0type.h>
@@ -651,14 +649,14 @@ public:
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Select the IO slot array
-	@param[in]	type		Type of IO, READ or WRITE
+	@param[in,out]	type		Type of IO, READ or WRITE
 	@param[in]	read_only	true if running in read-only mode
-	@param[in]	mode		IO mode
+	@param[in]	aio_mode	IO mode
 	@return slot array or NULL if invalid mode specified */
 	static AIO* select_slot_array(
 		IORequest&	type,
 		bool		read_only,
-		ulint		mode)
+		AIO_mode	aio_mode)
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Calculates segment number for a slot.
@@ -967,6 +965,66 @@ os_aio_windows_handler(
 	void**		m2,
 	IORequest*	type);
 #endif /* WIN_ASYNC_IO */
+
+/** Check the file type and determine if it can be deleted.
+@param[in]	name		Filename/Path to check
+@return true if it's a file or a symlink and can be deleted */
+static
+bool
+os_file_can_delete(const char* name)
+{
+	switch (Fil_path::get_file_type(name)) {
+	case OS_FILE_TYPE_FILE:
+	case OS_FILE_TYPE_LINK:
+		return(true);
+
+	case OS_FILE_TYPE_DIR:
+
+		ib::warn()
+			<< "'" << name << "'"
+			<< " is a directory, can't delete!";
+		break;
+
+	case OS_FILE_TYPE_BLOCK:
+
+		ib::warn()
+			<< "'" << name << "'"
+			<< " is a block device, can't delete!";
+		break;
+
+	case OS_FILE_TYPE_FAILED:
+
+		ib::warn()
+			<< "'" << name << "'"
+			<< " get file type failed, won't delete!";
+		break;
+
+	case OS_FILE_TYPE_UNKNOWN:
+
+		ib::warn()
+			<< "'" << name << "'"
+			<< " unknown file type, won't delete!";
+		break;
+
+	case OS_FILE_TYPE_NAME_TOO_LONG:
+
+		ib::warn()
+			<< "'" << name << "'"
+			<< " name too long, can't delete!";
+		break;
+
+	case OS_FILE_PERMISSION_ERROR:
+		ib::warn()
+			<< "'" << name << "'"
+			<< " permission error, can't delete!";
+		break;
+
+	case OS_FILE_TYPE_MISSING:
+		break;
+	}
+
+	return(false);
+}
 
 /** Allocate a page for sync IO
 @return pointer to page */
@@ -1851,103 +1909,6 @@ os_file_io_complete(
 	return(DB_SUCCESS);
 }
 
-/** This function returns a new path name after replacing the basename
-in an old path with a new basename.  The old_path is a full path
-name including the extension.  The tablename is in the normal
-form "databasename/tablename".  The new base name is found after
-the forward slash.  Both input strings are null terminated.
-
-This function allocates memory to be returned.  It is the callers
-responsibility to free the return value after it is no longer needed.
-
-@param[in]	old_path		Pathname
-@param[in]	tablename		Contains new base name
-@return own: new full pathname */
-char*
-os_file_make_new_pathname(
-	const char*	old_path,
-	const char*	tablename)
-{
-	ulint		dir_len;
-	char*		last_slash;
-	char*		base_name;
-	char*		new_path;
-	ulint		new_path_len;
-
-	/* Split the tablename into its database and table name components.
-	They are separated by a '/'. */
-	last_slash = strrchr((char*) tablename, '/');
-	base_name = last_slash ? last_slash + 1 : (char*) tablename;
-
-	/* Find the offset of the last slash. We will strip off the
-	old basename.ibd which starts after that slash. */
-	last_slash = strrchr((char*) old_path, OS_PATH_SEPARATOR);
-	dir_len = last_slash ? last_slash - old_path : strlen(old_path);
-
-	/* allocate a new path and move the old directory path to it. */
-	new_path_len = dir_len + strlen(base_name) + sizeof "/.ibd";
-	new_path = static_cast<char*>(ut_malloc_nokey(new_path_len));
-	memcpy(new_path, old_path, dir_len);
-
-	snprintf(new_path + dir_len,
-		    new_path_len - dir_len,
-		    "%c%s.ibd",
-		    OS_PATH_SEPARATOR,
-		    base_name);
-
-	return(new_path);
-}
-
-/** This function reduces a null-terminated full remote path name into
-the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
-the 'databasename/tablename.ibd' found at the end of the path with just
-'tablename'.
-
-Since the result is always smaller than the path sent in, no new memory
-is allocated. The caller should allocate memory for the path sent in.
-This function manipulates that path in place.
-
-If the path format is not as expected, just return.  The result is used
-to inform a SHOW CREATE TABLE command.
-@param[in,out]	data_dir_path		Full path/data_dir_path */
-void
-os_file_make_data_dir_path(
-	char*	data_dir_path)
-{
-	/* Replace the period before the extension with a null byte. */
-	char*	ptr = strrchr((char*) data_dir_path, '.');
-
-	if (ptr == NULL) {
-		return;
-	}
-
-	ptr[0] = '\0';
-
-	/* The tablename starts after the last slash. */
-	ptr = strrchr((char*) data_dir_path, OS_PATH_SEPARATOR);
-
-	if (ptr == NULL) {
-		return;
-	}
-
-	ptr[0] = '\0';
-
-	char*	tablename = ptr + 1;
-
-	/* The databasename starts after the next to last slash. */
-	ptr = strrchr((char*) data_dir_path, OS_PATH_SEPARATOR);
-
-	if (ptr == NULL) {
-		return;
-	}
-
-	ulint	tablename_len = ut_strlen(tablename);
-
-	ut_memmove(++ptr, tablename, tablename_len);
-
-	ptr[tablename_len] = '\0';
-}
-
 /** Check if the path refers to the root of a drive using a pointer
 to the last directory separator that the caller has fixed.
 @param[in]	path		path name
@@ -2048,8 +2009,8 @@ test_os_file_get_parent_dir(
 
 	/* os_file_get_parent_dir() assumes that separators are
 	converted to OS_PATH_SEPARATOR. */
-	os_normalize_path(child);
-	os_normalize_path(expected);
+	Fil_path::normalize(child);
+	Fil_path::normalize(expected);
 
 	char* parent = os_file_get_parent_dir(child);
 
@@ -3004,8 +2965,6 @@ AIO::is_linux_native_aio_supported()
 		}
 	} else {
 
-		os_normalize_path(srv_log_group_home_dir);
-
 		ulint	dirnamelen = strlen(srv_log_group_home_dir);
 
 		ut_a(dirnamelen < (sizeof name) - 10 - sizeof "ib_logfile");
@@ -3180,6 +3139,8 @@ os_file_get_last_error_low(
 		break;
 	case EACCES:
 		return(OS_FILE_ACCESS_VIOLATION);
+	case ENAMETOOLONG:
+		return(OS_FILE_NAME_TOO_LONG);
 	}
 	return(OS_FILE_ERROR_MAX + err);
 }
@@ -3280,14 +3241,32 @@ os_file_status_posix(
 		/* file exists, everything OK */
 
 	} else if (errno == ENOENT || errno == ENOTDIR) {
+
+		if (exists != nullptr) {
+			*exists = false;
+		}
+
 		/* file does not exist */
 		*type = OS_FILE_TYPE_MISSING;
 		return(true);
 
+	} else if (errno == ENAMETOOLONG) {
+		*type = OS_FILE_TYPE_NAME_TOO_LONG;
+		return(false);
+	} else if (errno == EACCES) {
+		*type = OS_FILE_PERMISSION_ERROR;
+		return(false);
 	} else {
+
+		*type = OS_FILE_TYPE_FAILED;
+
 		/* file exists, but stat call failed */
 		os_file_handle_error_no_exit(path, "stat", false);
 		return(false);
+	}
+
+	if (exists != nullptr) {
+		*exists = true;
 	}
 
 	if (S_ISDIR(statinfo.st_mode)) {
@@ -3815,17 +3794,24 @@ os_file_delete_if_exists_func(
 	const char*	name,
 	bool*		exist)
 {
-	if (exist != NULL) {
+	if (!os_file_can_delete(name)) {
+		return(false);
+	}
+
+	if (exist != nullptr) {
 		*exist = true;
 	}
 
 	int	ret = unlink(name);
 
 	if (ret != 0 && errno == ENOENT) {
-		if (exist != NULL) {
+
+		if (exist != nullptr) {
 			*exist = false;
 		}
+
 	} else if (ret != 0 && errno != ENOENT) {
+
 		os_file_handle_error_no_exit(name, "delete", false);
 
 		return(false);
@@ -4106,16 +4092,16 @@ Dir_Walker::walk_posix(const Path& basedir, Function&& f)
 
 		if (parent == nullptr) {
 
-			std::cerr
-				<< std::endl
+			ib::info()
 				<< "Failed to walk directory"
-				<< " '" << current.m_path << "'"
-				<< std::endl;
+				<< " '" << current.m_path << "'";
 
 			continue;
 		}
 
-		f(current.m_path, current.m_depth);
+		if (!is_directory(current.m_path)) {
+			f(current.m_path, current.m_depth);
+		}
 
 		struct dirent*	dirent = nullptr;
 
@@ -4135,7 +4121,12 @@ Dir_Walker::walk_posix(const Path& basedir, Function&& f)
 
 			Path	path(current.m_path);
 
-			path.append("/");
+			if (path.back() != '/' && path.back() != '\\') {
+				path += OS_PATH_SEPARATOR;
+			}
+
+			Fil_path::normalize(dirent->d_name);
+
 			path.append(dirent->d_name);
 
 			if (is_directory(path)) {
@@ -4280,30 +4271,50 @@ os_file_status_win32(
 	bool*		exists,
 	os_file_type_t* type)
 {
-	int		ret;
 	struct _stat64	statinfo;
 
-	ret = _stat64(path, &statinfo);
+	int	ret = _stat64(path, &statinfo);
 
-	*exists = !ret;
+	if (ret == 0) {
 
-	if (!ret) {
 		/* file exists, everything OK */
 
 	} else if (errno == ENOENT || errno == ENOTDIR) {
+
+		*type = OS_FILE_TYPE_MISSING;
+
 		/* file does not exist */
+
+		if (exists != nullptr) {
+			*exists = false;
+		}
+
 		return(true);
 
+	} else if (errno == EACCES) {
+
+		*type = OS_FILE_PERMISSION_ERROR;
+		return(false);
+
 	} else {
+
+		*type = OS_FILE_TYPE_FAILED;
+
 		/* file exists, but stat call failed */
 		os_file_handle_error_no_exit(path, "stat", false);
 		return(false);
 	}
 
+	if (exists != nullptr) {
+		*exists = true;
+	}
+
 	if (_S_IFDIR & statinfo.st_mode) {
+
 		*type = OS_FILE_TYPE_DIR;
 
 	} else if (_S_IFREG & statinfo.st_mode) {
+
 		*type = OS_FILE_TYPE_FILE;
 
 	} else {
@@ -4843,8 +4854,7 @@ os_file_create_func(
 	if (!read_only) {
 		access |= GENERIC_WRITE;
 
-	} else if (type == OS_CLONE_LOG_FILE
-		   || type ==  OS_CLONE_DATA_FILE) {
+	} else if (type == OS_CLONE_LOG_FILE || type ==  OS_CLONE_DATA_FILE) {
 
 		/* Clone must allow concurrent write to file. */
 		share_mode |= FILE_SHARE_WRITE;
@@ -4969,7 +4979,7 @@ os_file_create_simple_no_error_handling_func(
 
 		access = GENERIC_READ;
 
-		/*!< A backup program has to give mysqld the maximum
+		/* A backup program has to give mysqld the maximum
 		freedom to do what it likes with the file */
 
 		share_mode |= FILE_SHARE_DELETE | FILE_SHARE_WRITE;
@@ -5001,15 +5011,17 @@ os_file_create_simple_no_error_handling_func(
 @param[out]	exist		indicate if file pre-exist
 @return true if success */
 bool
-os_file_delete_if_exists_func(
-	const char*	name,
-	bool*		exist)
+os_file_delete_if_exists_func(const char* name, bool* exist)
 {
-	ulint	count	= 0;
+	if (!os_file_can_delete(name)) {
+		return(false);
+	}
 
-	if (exist != NULL) {
+	if (exist != nullptr) {
 		*exist = true;
 	}
+
+	ulint	count = 0;
 
 	for (;;) {
 		/* In Windows, deleting an .ibd file may fail if mysqlbackup
@@ -5026,12 +5038,13 @@ os_file_delete_if_exists_func(
 		if (lasterr == ERROR_FILE_NOT_FOUND
 		    || lasterr == ERROR_PATH_NOT_FOUND) {
 
-			/* the file does not exist, this not an error */
+			/* The file does not exist, this not an error */
 			if (exist != NULL) {
 				*exist = false;
 			}
 
 			return(true);
+
 		}
 
 		++count;
@@ -5275,7 +5288,7 @@ os_file_get_status_win32(
 			fh = CreateFile(
 				(LPCTSTR) path,		// File to open
 				access,
-				0,			// No sharing
+				FILE_SHARE_READ,
 				NULL,			// Default security
 				OPEN_EXISTING,		// Existing file only
 				FILE_ATTRIBUTE_NORMAL,	// Normal file
@@ -5372,7 +5385,9 @@ os_file_truncate_win32(
 	LARGE_INTEGER	length;
 
 	length.QuadPart = size;
-	BOOL	success = SetFilePointerEx(file.m_file, length, NULL, FILE_BEGIN);
+
+	BOOL	success = SetFilePointerEx(
+		file.m_file, length, NULL, FILE_BEGIN);
 
 	if (!success) {
 		os_file_handle_error_no_exit(
@@ -5509,7 +5524,7 @@ Dir_Walker::walk_win32(const Path& basedir, Function&& f)
 
 		if (h == INVALID_HANDLE_VALUE) {
 
-			ib::warn()
+			ib::info()
 				<< "Directory read failed:"
 				<< " '" << current.m_path << "' during scan";
 
@@ -5615,10 +5630,8 @@ os_file_io(
 		} else {
 			/* Skip encrypt log file header */
 			if (offset >= LOG_FILE_HDR_SIZE) {
-				block = os_file_encrypt_log(type,
-							    buf,
-							    encrypt_log_buf,
-							    &n);
+				block = os_file_encrypt_log(
+					type, buf, encrypt_log_buf, &n);
 			}
 		}
         }
@@ -5995,6 +6008,9 @@ os_file_handle_error_cond_exit(
 		os_thread_sleep(100000);	/* 100 ms */
 		return(true);
 
+	case OS_FILE_NAME_TOO_LONG:
+		return(false);
+
 	default:
 
 		/* If it is an operation that can crash on error then it
@@ -6177,14 +6193,14 @@ os_file_set_size(
 
 		err = os_file_write(
 			request, name, file, buf, current_size, n_bytes);
-#else /* UNIV_HOTBACKUP */
-		/* Using OS_AIO_SYNC mode on POSIX systems will result in
+#else
+		/* Using AIO_mode::SYNC mode on POSIX systems will result in
 		fall back to os_file_write/read. On Windows it will use
 		special mechanism to wait before it returns back. */
 
 		err = os_aio(
 			request,
-			OS_AIO_SYNC, name,
+			AIO_mode::SYNC, name,
 			file, buf, current_size, n_bytes,
 			read_only, NULL, NULL);
 #endif /* UNIV_HOTBACKUP */
@@ -6671,8 +6687,7 @@ os_file_get_status(
 	return(ret);
 }
 
-/**
-Waits for an AIO operation to complete. This function is used to wait the
+/** Waits for an AIO operation to complete. This function is used to wait
 for completed requests. The aio array of pending requests is divided
 into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
@@ -7201,7 +7216,6 @@ os_create_block_cache()
 void
 meb_free_block_cache()
 {
-
 	if (block_cache ==  NULL) {
 		return;
 	}
@@ -7243,8 +7257,6 @@ os_aio_init(
 		limit = SRV_N_PENDING_IOS_PER_THREAD;
 	}
 #endif /* _WIN32 */
-
-	os_create_block_cache();
 
 	/* Get sector size for DIRECT_IO. In this case, we need to
 	know the sector size for aligning the write buffer. */
@@ -7687,24 +7699,24 @@ os_aio_simulated_wake_handler_threads()
 }
 
 /** Select the IO slot array
-@param[in]	type		Type of IO, READ or WRITE
+@param[in,out]	type		Type of IO, READ or WRITE
 @param[in]	read_only	true if running in read-only mode
-@param[in]	mode		IO mode
+@param[in]	aio_mode	IO mode
 @return slot array or NULL if invalid mode specified */
 AIO*
-AIO::select_slot_array(IORequest& type, bool read_only, ulint mode)
+AIO::select_slot_array(IORequest& type, bool read_only, AIO_mode aio_mode)
 {
 	AIO*	array;
 
 	ut_ad(type.validate());
 
-	switch (mode) {
-	case OS_AIO_NORMAL:
+	switch (aio_mode) {
+	case AIO_mode::NORMAL:
 
 		array = type.is_read() ? AIO::s_reads : AIO::s_writes;
 		break;
 
-	case OS_AIO_IBUF:
+	case AIO_mode::IBUF:
 		ut_ad(type.is_read());
 
 		/* Reduce probability of deadlock bugs in connection with ibuf:
@@ -7715,12 +7727,12 @@ AIO::select_slot_array(IORequest& type, bool read_only, ulint mode)
 		array = read_only ? AIO::s_reads : AIO::s_ibuf;
 		break;
 
-	case OS_AIO_LOG:
+	case AIO_mode::LOG:
 
 		array = read_only ? AIO::s_reads : AIO::s_log;
 		break;
 
-	case OS_AIO_SYNC:
+	case AIO_mode::SYNC:
 
 		array = AIO::s_sync;
 #if defined(LINUX_NATIVE_AIO)
@@ -7895,7 +7907,9 @@ os_aio_windows_handler(
 
 			BOOL	ret;
 			ret = GetOverlappedResult(
-				slot->file.m_file, &slot->control, &slot->n_bytes, TRUE);
+				slot->file.m_file, &slot->control,
+				&slot->n_bytes, TRUE);
+
 			n_bytes = ret ? slot->n_bytes : -1;
 		}
 
@@ -7916,7 +7930,7 @@ os_aio_windows_handler(
 NOTE! Use the corresponding macro os_aio(), not directly this function!
 Requests an asynchronous i/o operation.
 @param[in]	type		IO request context
-@param[in]	mode		IO mode
+@param[in]	aio_mode	IO mode
 @param[in]	name		Name of the file or path as NUL terminated
 				string
 @param[in]	file		Open file handle
@@ -7926,15 +7940,15 @@ Requests an asynchronous i/o operation.
 @param[in]	read_only	if true read only mode checks are enforced
 @param[in,out]	m1		Message for the AIO handler, (can be used to
 				identify a completed AIO operation); ignored
-				if mode is OS_AIO_SYNC
+				if mode is AIO_mode::SYNC
 @param[in,out]	m2		message for the AIO handler (can be used to
 				identify a completed AIO operation); ignored
-				if mode is OS_AIO_SYNC
+				if mode is AIO_mode::SYNC
 @return DB_SUCCESS or error code */
 dberr_t
 os_aio_func(
 	IORequest&	type,
-	ulint		mode,
+	AIO_mode	aio_mode,
 	const char*	name,
 	pfs_os_file_t	file,
 	void*		buf,
@@ -7959,7 +7973,7 @@ os_aio_func(
 	ut_ad((n & 0xFFFFFFFFUL) == n);
 #endif /* WIN_ASYNC_IO */
 
-	if (mode == OS_AIO_SYNC
+	if (aio_mode == AIO_mode::SYNC
 #ifdef WIN_ASYNC_IO
 	    && !srv_use_native_aio
 #endif /* WIN_ASYNC_IO */
@@ -7978,22 +7992,24 @@ os_aio_func(
 		and os_file_write_func() */
 
 		if (type.is_read()) {
-			return(os_file_read_func(type, file.m_file, buf, offset, n));
+			return(os_file_read_func(
+				type, file.m_file, buf, offset, n));
 		}
 
 		ut_ad(type.is_write());
-		return(os_file_write_func(type, name, file.m_file, buf, offset, n));
+		return(os_file_write_func(
+			type, name, file.m_file, buf, offset, n));
 	}
 
 try_again:
 
 	AIO*	array;
 
-	array = AIO::select_slot_array(type, read_only, mode);
+	array = AIO::select_slot_array(type, read_only, aio_mode);
 
 	Slot*	slot;
 
-	 slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n);
+	slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n);
 
 	if (type.is_read()) {
 
@@ -8042,9 +8058,9 @@ try_again:
 	if (srv_use_native_aio) {
 		if ((ret && slot->len == slot->n_bytes)
 		     || (!ret && GetLastError() == ERROR_IO_PENDING)) {
-			/* aio was queued successfully! */
+			/* AIO was queued successfully! */
 
-			if (mode == OS_AIO_SYNC) {
+			if (aio_mode == AIO_mode::SYNC) {
 				IORequest	dummy_type;
 				void*		dummy_mess2;
 				struct fil_node_t* dummy_mess1;
@@ -8992,7 +9008,8 @@ Encryption::to_string(Type type)
 
 /** Generate random encryption value for key and iv.
 @param[in,out]	value	Encryption value */
-void Encryption::random_value(byte* value)
+void
+Encryption::random_value(byte* value)
 {
 	ut_ad(value != NULL);
 
@@ -9005,40 +9022,43 @@ void
 Encryption::create_master_key(byte** master_key)
 {
 #ifndef UNIV_HOTBACKUP
-	char*	key_type = NULL;
 	size_t	key_len;
+	char*	key_type = NULL;
 	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
-	int	ret;
 
 	/* If uuid does not match with current server uuid,
 	set uuid as current server uuid. */
-	if (strcmp(uuid, server_uuid) != 0) {
-		memcpy(uuid, server_uuid, ENCRYPTION_SERVER_UUID_LEN);
+	if (strcmp(s_uuid, server_uuid) != 0) {
+		strncpy(s_uuid, server_uuid, sizeof(s_uuid) - 1);
 	}
-	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
 
 	/* Generate new master key */
 	snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-		    "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-		    uuid, master_key_id + 1);
+		 "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
+		 s_uuid, s_master_key_id + 1);
 
 	/* We call key ring API to generate master key here. */
-	ret = my_key_generate(key_name, "AES",
-			      NULL, ENCRYPTION_KEY_LEN);
+	int	ret = my_key_generate(
+		key_name, "AES", nullptr, ENCRYPTION_KEY_LEN);
 
 	/* We call key ring API to get master key here. */
-	ret = my_key_fetch(key_name, &key_type, NULL,
-			   reinterpret_cast<void**>(master_key), &key_len);
+	ret = my_key_fetch(
+		key_name, &key_type, nullptr,
+		reinterpret_cast<void**>(master_key), &key_len);
 
-	if (ret || *master_key == NULL) {
-		ib::error() << "Encryption can't find master key"
-			    << ", please check the keyring plugin is loaded.";
-		*master_key = NULL;
+	if (ret != 0 || *master_key == nullptr) {
+
+		ib::error()
+			<< "Encryption can't find master key,"
+			<< " please check the keyring plugin is loaded."
+			<< " ret=" << ret;
+
+		*master_key = nullptr;
 	} else {
-		master_key_id++;
+		++s_master_key_id;
 	}
 
-	if (key_type) {
+	if (key_type != nullptr) {
 		my_free(key_type);
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -9049,159 +9069,177 @@ Encryption::create_master_key(byte** master_key)
 @param[in]	srv_uuid	uuid of server instance
 @param[in,out]	master_key	master key */
 void
-Encryption::get_master_key(ulint master_key_id,
-			   char* srv_uuid,
-			   byte** master_key)
+Encryption::get_master_key(
+	ulint		master_key_id,
+	char*		srv_uuid,
+	byte**		master_key)
 {
 #ifndef UNIV_HOTBACKUP
-	char*	key_type = NULL;
-	size_t	key_len;
+	size_t	key_len = 0;
+	char*	key_type = nullptr;
 	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
-	int	ret;
 
-	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
+	if (srv_uuid != nullptr) {
 
-	if (srv_uuid != NULL) {
+		ut_ad(strlen(srv_uuid) > 0);
+
 		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-			    "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-			    srv_uuid, master_key_id);
+			 "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
+			 srv_uuid, master_key_id);
 	} else {
+
 		/* For compitable with 5.7.11, we need to get master key with
 		server id. */
-		memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
+
 		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-			    "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-			    server_id, master_key_id);
+			 "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
+			 server_id, master_key_id);
 	}
 
 	/* We call key ring API to get master key here. */
-	ret = my_key_fetch(key_name, &key_type, NULL,
-			   reinterpret_cast<void**>(master_key),
-			   &key_len);
+	int	ret = my_key_fetch(
+		key_name, &key_type, nullptr,
+		reinterpret_cast<void**>(master_key), &key_len);
 
-	if (key_type) {
+	if (key_type != nullptr) {
 		my_free(key_type);
 	}
 
-	if (ret) {
-		*master_key = NULL;
-		ib::error() << "Encryption can't find master key"
-			    << ", please check the keyring plugin is loaded.";
+	if (ret != 0) {
+
+		*master_key = nullptr;
+
+		ib::error()
+			<< "Encryption can't find master key,"
+			<< " please check the keyring plugin is loaded.";
 	}
 
 #ifdef UNIV_ENCRYPT_DEBUG
-	if (!ret && *master_key) {
-		fprintf(stderr, "Fetched master key:%lu ", master_key_id);
-		ut_print_buf(stderr, *master_key, key_len);
-		fprintf(stderr, "\n");
+	if (ret == 0 && *master_key != nullptr) {
+		std::ostringstream	msg;
+
+		ut_print_buf(msg, *master_key, key_len);
+
+		ib::info()
+			<< "Fetched master key: " << master_key_id
+			<< "{" << msg.str() << "}";
 	}
-#endif /* DEBUG_TDE */
+#endif /* UNIV_ENCRYPT_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 }
 
 /** Current master key id */
-ulint	Encryption::master_key_id = 0;
+ulint	Encryption::s_master_key_id = 0;
 
 /** Current uuid of server instance */
-char	Encryption::uuid[ENCRYPTION_SERVER_UUID_LEN + 1] = {0};
+char	Encryption::s_uuid[ENCRYPTION_SERVER_UUID_LEN + 1] = {0};
 
 /** Get current master key and master key id
 @param[in,out]	master_key_id	master key id
 @param[in,out]	master_key	master key
 @param[in,out]	version		encryption information version */
 void
-Encryption::get_master_key(ulint* master_key_id,
-			   byte** master_key,
-			   Encryption::Version*  version)
+Encryption::get_master_key(
+	ulint*		master_key_id,
+	byte**		master_key,
+	Version*	version)
 {
 #ifndef UNIV_HOTBACKUP
-	char*	key_type = NULL;
-	size_t	key_len;
-	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
 	int	ret;
+	size_t	key_len;
+	char*	key_type = nullptr;
+	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
 
-	memset(key_name, 0, ENCRYPTION_KEY_LEN);
 	*version = Encryption::ENCRYPTION_VERSION_2;
 
-	if (Encryption::master_key_id == 0) {
+	if (s_master_key_id == 0) {
+
 		/* If m_master_key is 0, means there's no encrypted
 		tablespace, we need to generate the first master key,
 		and store it to key ring. */
-		memset(uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
-		memcpy(uuid, server_uuid, ENCRYPTION_SERVER_UUID_LEN);
+		strncpy(s_uuid, server_uuid, sizeof(s_uuid) - 1);
 
-		/* Prepare the server uuid. */
+		/* Prepare the server s_uuid. */
 		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-			    "%s-%s-1", ENCRYPTION_MASTER_KEY_PRIFIX,
-			    uuid);
+			 "%s-%s-1", ENCRYPTION_MASTER_KEY_PRIFIX, s_uuid);
 
 		/* We call key ring API to generate master key here. */
-		ret = my_key_generate(key_name, "AES",
-				      NULL, ENCRYPTION_KEY_LEN);
+		ret = my_key_generate(
+			key_name, "AES", nullptr, ENCRYPTION_KEY_LEN);
 
 		/* We call key ring API to get master key here. */
-		ret = my_key_fetch(key_name, &key_type, NULL,
-				   reinterpret_cast<void**>(master_key),
-				   &key_len);
+		ret = my_key_fetch(
+			key_name, &key_type, nullptr,
+			reinterpret_cast<void**>(master_key), &key_len);
 
-		if (!ret && *master_key != NULL) {
-			Encryption::master_key_id++;
-			*master_key_id = Encryption::master_key_id;
+		if (ret == 0 && *master_key != nullptr) {
+			++s_master_key_id;
+			*master_key_id = s_master_key_id;
 		}
 #ifdef UNIV_ENCRYPT_DEBUG
-		if (!ret && *master_key) {
-			fprintf(stderr, "Generated new master key:");
-			ut_print_buf(stderr, *master_key, key_len);
-			fprintf(stderr, "\n");
+		if (ret == 0 && *master_key != nullptr) {
+			std::ostringstream	msg;
+
+			ut_print_buf(msg, *master_key, key_len);
+
+			ib::info()
+				<<"Generated new master key: {"
+				<< msg.str() << "}";
 		}
-#endif
+#endif /* UNIV_ENCRYPT_DEBUG */
 	} else {
-		*master_key_id = Encryption::master_key_id;
+		*master_key_id = s_master_key_id;
 
 		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-			    "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-			    uuid, *master_key_id);
+			 "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
+			 s_uuid, *master_key_id);
 
 		/* We call key ring API to get master key here. */
-		ret = my_key_fetch(key_name, &key_type, NULL,
-				   reinterpret_cast<void**>(master_key),
-				   &key_len);
+		ret = my_key_fetch(
+			key_name, &key_type, nullptr,
+			reinterpret_cast<void**>(master_key), &key_len);
 
-		/* For compitable with 5.7.11, we need to try to get master key with
-		server id when get master key with server uuid failure. */
-		if (ret || *master_key == NULL) {
-			if (key_type) {
+		/* For compitability with 5.7.11, we need to try to get master
+		key with server id when get master key with server uuid
+		failure. */
+		if (ret != 0 || *master_key == nullptr) {
+
+			if (key_type != nullptr) {
 				my_free(key_type);
 			}
 
-			memset(key_name, 0,
-			       ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
-			snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-				    "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-				    server_id, *master_key_id);
+			snprintf(key_name,
+				 ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
+				 "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
+				 server_id, *master_key_id);
 
-			ret = my_key_fetch(key_name, &key_type, NULL,
-					   reinterpret_cast<void**>(master_key),
-					   &key_len);
+			ret = my_key_fetch(
+				key_name, &key_type, nullptr,
+				reinterpret_cast<void**>(master_key), &key_len);
+
 			*version = Encryption::ENCRYPTION_VERSION_1;
 		}
 #ifdef UNIV_ENCRYPT_DEBUG
-		if (!ret && *master_key) {
-			fprintf(stderr, "Fetched master key:%lu ",
-				*master_key_id);
-			ut_print_buf(stderr, *master_key, key_len);
-			fprintf(stderr, "\n");
+		if (ret == 0 && *master_key != nullptr) {
+			std::ostringstream	msg;
+
+			ut_print_buf(msg, *master_key, key_len);
+
+			ib::info()
+				<< "Fetched master key: " << *master_key_id
+				<< ": {" << msg.str() << "}";
 		}
-#endif
+#endif /* UNIV_ENCRYPT_DEBUG */
 	}
 
-	if (ret) {
-		*master_key = NULL;
-		ib::error() << "Encryption can't find master key, please check"
-				" the keyring plugin is loaded.";
+	if (ret != 0) {
+		*master_key = nullptr;
+		ib::error()
+			<< "Encryption can't find master key, please check"
+			<< " the keyring plugin is loaded.";
 	}
 
-	if (key_type) {
+	if (key_type != nullptr) {
 		my_free(key_type);
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -9213,84 +9251,88 @@ Encryption::get_master_key(ulint* master_key_id,
 @param[in,out]	encrypt_info	encryption information
 @param[in]	is_boot		if it's for bootstrap
 @return true if success */
-bool Encryption::fill_encryption_info(byte*	key,
-				      byte*	iv,
-				      byte*	encrypt_info,
-				      bool	is_boot)
+bool
+Encryption::fill_encryption_info(
+	byte*		key,
+	byte*		iv,
+	byte*		encrypt_info,
+	bool		is_boot)
 {
-	byte*			ptr;
-	lint			elen;
-	ulint			master_key_id;
-	byte*			master_key;
-	byte			key_info[ENCRYPTION_KEY_LEN * 2];
-	ulint			crc;
-	Version			version;
-#ifdef UNIV_ENCRYPT_DEBUG
-	const byte*		data;
-	ulint			i;
-#endif
+	Version		version;
+	byte*		master_key;
+	ulint		master_key_id;
 
 	/* Get master key from key ring. For bootstrap, we use a default
 	master key which master_key_id is 0. */
 	if (is_boot) {
 		master_key_id = 0;
+
 		master_key = static_cast<byte*>(ut_zalloc_nokey(
 			ENCRYPTION_KEY_LEN));
-		memcpy(master_key, ENCRYPTION_DEFAULT_MASTER_KEY,
-		       strlen(ENCRYPTION_DEFAULT_MASTER_KEY));
+
+		ut_ad(ENCRYPTION_KEY_LEN
+		      >= sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
+
+		strcpy(reinterpret_cast<char*>(master_key),
+		       ENCRYPTION_DEFAULT_MASTER_KEY);
+
 		version = ENCRYPTION_VERSION_2;
 	} else {
+
 		get_master_key(&master_key_id, &master_key, &version);
-		if (master_key == NULL) {
+
+		if (master_key == nullptr) {
 			return(false);
 		}
 	}
 
-	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
-	memset(key_info, 0, ENCRYPTION_KEY_LEN * 2);
-
 	/* Use the new master key to encrypt the key. */
-	ut_ad(encrypt_info != NULL);
-	ptr = encrypt_info;
+	ut_ad(encrypt_info != nullptr);
+	auto	ptr = encrypt_info;
 
 	if (version == ENCRYPTION_VERSION_1) {
 		memcpy(ptr, ENCRYPTION_KEY_MAGIC_V1, ENCRYPTION_MAGIC_SIZE);
 	} else {
 		memcpy(ptr, ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE);
 	}
+
 	ptr += ENCRYPTION_MAGIC_SIZE;
 
 	mach_write_to_4(ptr, master_key_id);
+
+	/** FIXME: This should be uint32_t on all platforms. */
 	ptr += sizeof(ulint);
 
 	if (version == ENCRYPTION_VERSION_2) {
-		memcpy(ptr, uuid, ENCRYPTION_SERVER_UUID_LEN);
-		ptr += ENCRYPTION_SERVER_UUID_LEN;
+		strncpy(reinterpret_cast<char*>(ptr), s_uuid, sizeof(s_uuid));
+		ptr += sizeof(s_uuid) - 1;
 	}
+
+	byte	key_info[ENCRYPTION_KEY_LEN * 2];
 
 	memcpy(key_info, key, ENCRYPTION_KEY_LEN);
 
 	memcpy(key_info + ENCRYPTION_KEY_LEN, iv, ENCRYPTION_KEY_LEN);
 
 	/* Encrypt key and iv. */
-	elen = my_aes_encrypt(key_info,
-			      ENCRYPTION_KEY_LEN * 2,
-			      ptr,
-			      master_key,
-			      ENCRYPTION_KEY_LEN,
-			      my_aes_256_ecb,
-			      NULL, false);
+	auto	elen = my_aes_encrypt(
+		key_info, sizeof(key_info), ptr, master_key,
+		ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
 
 	if (elen == MY_AES_BAD_DATA) {
 		my_free(master_key);
 		return(false);
 	}
 
-	ptr += ENCRYPTION_KEY_LEN * 2;
+	ptr += sizeof(key_info);
 
 	/* Write checksum bytes. */
-	crc = ut_crc32(key_info, ENCRYPTION_KEY_LEN * 2);
+	auto	crc = ut_crc32(key_info, sizeof(key_info));
+
 	mach_write_to_4(ptr, crc);
+	ptr += sizeof(uint32_t);
+
+	memset(ptr, 0x0, ENCRYPTION_INFO_SIZE_V2 - (ptr - encrypt_info));
 
 	if (is_boot) {
 		ut_free(master_key);
@@ -9301,37 +9343,27 @@ bool Encryption::fill_encryption_info(byte*	key,
 	return(true);
  }
 
-/** Decoding the encryption info
-from the first page of a tablespace.
+/** Decoding the encryption info from the first page of a tablespace.
 @param[in,out]	key		key
 @param[in,out]	iv		iv
 @param[in]	encryption_info	encrytion info.
 @return true if success */
 bool
-Encryption::decode_encryption_info(byte*	key,
-				   byte*	iv,
-				   byte*	encryption_info)
+Encryption::decode_encryption_info(
+	byte*		key,
+	byte*		iv,
+	byte*		encryption_info)
 {
-	byte*			ptr;
-	ulint			m_key_id;
-	byte*			master_key = NULL;
-	lint			elen;
-	byte			key_info[ENCRYPTION_KEY_LEN * 2];
-	ulint			crc1;
-	ulint			crc2;
-	char			srv_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
-	Version			version;
-#ifdef	UNIV_ENCRYPT_DEBUG
-	const byte*		data;
-	ulint			i;
-#endif
+	byte*		ptr;
+	Version		version;
+	byte*		master_key = nullptr;
+	char		srv_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
 
 	ptr = encryption_info;
 
 	/* For compatibility with 5.7.11, we need to handle the
 	encryption information which created in this old version. */
-	if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V1,
-		     ENCRYPTION_MAGIC_SIZE) == 0) {
+	if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V1, ENCRYPTION_MAGIC_SIZE) == 0) {
 		version = ENCRYPTION_VERSION_1;
 	} else {
 		version = ENCRYPTION_VERSION_2;
@@ -9339,85 +9371,108 @@ Encryption::decode_encryption_info(byte*	key,
 
 	/* Check magic. */
 	if (version == ENCRYPTION_VERSION_2
-	    && memcmp(ptr, ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) != 0) {
-		/* We ignore report error for recovery,
-		since the encryption info maybe hasn't writen
-		into datafile when the table is newly created. */
-		if (!recv_recovery_is_on()) {
-			return(false);
-		} else {
-			return(true);
-		}
+	    && memcmp(ptr,
+		      ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) != 0) {
+
+		/* We don't report an error during recovery, since the
+		encryption info maybe hasn't writen into datafile when
+		the table is newly created. */
+
+		return(recv_recovery_is_on());
 	}
 
 	ptr += ENCRYPTION_MAGIC_SIZE;
 
 	/* Get master key id. */
-	m_key_id = mach_read_from_4(ptr);
+	auto	key_id = mach_read_from_4(ptr);
+
+	/* FIXME: This is a bug should be uint32_t for all platforms. */
 	ptr += sizeof(ulint);
 
 	/* Get server uuid. */
 	if (version == ENCRYPTION_VERSION_2) {
-		memset(srv_uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
-		memcpy(srv_uuid, ptr, ENCRYPTION_SERVER_UUID_LEN);
-		ptr += ENCRYPTION_SERVER_UUID_LEN;
+
+		constexpr size_t	len = sizeof(srv_uuid) - 1;
+
+		srv_uuid[len] = 0;
+		memcpy(srv_uuid, ptr, len);
+
+		ptr += len;
 	}
 
 	/* Get master key by key id. */
-	memset(key_info, 0, ENCRYPTION_KEY_LEN * 2);
+
 	if (version == ENCRYPTION_VERSION_1) {
-		get_master_key(m_key_id, NULL, &master_key);
+
+		get_master_key(key_id, nullptr, &master_key);
+
+	} else if (key_id == 0) {
+
+		/* When key_id is 0, which means it's the
+		default master key for bootstrap. */
+		master_key = static_cast<byte*>(ut_zalloc_nokey(
+			ENCRYPTION_KEY_LEN));
+
+		ut_ad(ENCRYPTION_KEY_LEN
+		      >= sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
+
+		memcpy(reinterpret_cast<char*>(master_key),
+			ENCRYPTION_DEFAULT_MASTER_KEY,
+			sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
+
 	} else {
-		if (m_key_id == 0) {
-			/* When m_key_id is 0, which means it's the
-			default master key for bootstrap. */
-			master_key = static_cast<byte*>(ut_zalloc_nokey(
-				ENCRYPTION_KEY_LEN));
-			memcpy(master_key, ENCRYPTION_DEFAULT_MASTER_KEY,
-			       strlen(ENCRYPTION_DEFAULT_MASTER_KEY));
-		} else {
-			get_master_key(m_key_id, srv_uuid, &master_key);
-		}
+		get_master_key(key_id, srv_uuid, &master_key);
 	}
 
-        if (master_key == NULL) {
+        if (master_key == nullptr) {
                 return(false);
         }
 
 #ifdef	UNIV_ENCRYPT_DEBUG
-	fprintf(stderr, "%lu ", m_key_id);
-	for (data = (const byte*) master_key, i = 0;
-	     i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-#endif
+	{
+		std::ostringstream	msg;
 
-	/* Decrypt tablespace key and iv. */
-	elen = my_aes_decrypt(
-		ptr,
-		ENCRYPTION_KEY_LEN * 2,
-		key_info,
-		master_key,
-		ENCRYPTION_KEY_LEN,
-		my_aes_256_ecb, NULL, false);
+		ut_print_buf_hex(msg, master_key, ENCRYPTION_KEY_LEN);
 
-	if (elen == MY_AES_BAD_DATA) {
-		if (m_key_id == 0) {
-			ut_free(master_key);
-		} else {
-			my_free(master_key);
+		ib::info()
+			<< "Key ID: " << key_id
+			<< " hex: {" << msg.str() << "}";
+	}
+#endif /* UNIV_ENCRYPT_DEBUG */
+
+	byte	key_info[ENCRYPTION_KEY_LEN * 2];
+
+	{
+		/* Decrypt tablespace key and iv. */
+
+		auto	len = my_aes_decrypt(
+			ptr, sizeof(key_info), key_info,
+			master_key, ENCRYPTION_KEY_LEN, my_aes_256_ecb,
+			nullptr, false);
+
+		if (len == MY_AES_BAD_DATA) {
+			if (key_id == 0) {
+				ut_free(master_key);
+			} else {
+				my_free(master_key);
+			}
+			return(false);
 		}
-		return(NULL);
 	}
 
 	/* Check checksum bytes. */
-	ptr += ENCRYPTION_KEY_LEN * 2;
+	ptr += sizeof(key_info);
 
-	crc1 = mach_read_from_4(ptr);
-	crc2 = ut_crc32(key_info, ENCRYPTION_KEY_LEN * 2);
+	auto	crc1 = mach_read_from_4(ptr);
+	auto	crc2 = ut_crc32(key_info, sizeof(key_info));
+
 	if (crc1 != crc2) {
-		ib::error() << "Failed to decrypt encryption information,"
+
+		ib::error()
+			<< "Failed to decrypt encryption information,"
 			<< " please check whether key file has been changed!";
-		if (m_key_id == 0) {
+
+		if (key_id == 0) {
 			ut_free(master_key);
 		} else {
 			my_free(master_key);
@@ -9429,30 +9484,33 @@ Encryption::decode_encryption_info(byte*	key,
 	memcpy(key, key_info, ENCRYPTION_KEY_LEN);
 
 	/* Get tablespace iv */
-	memcpy(iv, key_info + ENCRYPTION_KEY_LEN,
-	       ENCRYPTION_KEY_LEN);
+	memcpy(iv, key_info + ENCRYPTION_KEY_LEN, ENCRYPTION_KEY_LEN);
 
 #ifdef	UNIV_ENCRYPT_DEBUG
-	fprintf(stderr, " ");
-	for (data = (const byte*) key,
-	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-	fprintf(stderr, " ");
-	for (data = (const byte*) iv,
-	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-	fprintf(stderr, "\n");
-#endif
+	{
+		std::ostringstream	msg;
 
-	if (m_key_id == 0) {
+		ut_print_buf_hex(msg, key, ENCRYPTION_KEY_LEN);
+
+		ib::info() << "Key: {" << msg.str() << "}";
+	}
+	{
+		std::ostringstream	msg;
+
+		ut_print_buf_hex(msg, iv, ENCRYPTION_KEY_LEN);
+		ib::info() << "IV: {" << msg.str() << "}";
+	}
+#endif /* UNIV_ENCRYPT_DEBUG */
+
+	if (key_id == 0) {
 		ut_free(master_key);
 	} else {
 		my_free(master_key);
 	}
 
-	if (master_key_id < m_key_id) {
-		master_key_id = m_key_id;
-		memcpy(uuid, srv_uuid, ENCRYPTION_SERVER_UUID_LEN);
+	if (s_master_key_id < key_id) {
+		s_master_key_id = key_id;
+		memcpy(s_uuid, srv_uuid, sizeof(s_uuid) - 1);
 	}
 
 	return(true);
@@ -9498,11 +9556,18 @@ Encryption::encrypt_log_block(
 	byte		remain_buf[MY_AES_BLOCK_SIZE * 2];
 
 #ifdef UNIV_ENCRYPT_DEBUG
-	fprintf(stderr, "Encrypting block %lu.\n",
-		log_block_get_hdr_no(src_ptr));
-	ut_print_buf_hex(stderr, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
-	fprintf(stderr, "\n");
-#endif
+	{
+		std::ostringstream	msg;
+
+		ut_print_buf_hex(msg, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
+
+		ib::info()
+			<< "Encrypting block: "
+			<< log_block_get_hdr_no(src_ptr)
+			<< "{" << msg.str() << "}";
+	}
+#endif /* UNIV_ENCRYPT_DEBUG */
+
 	/* This is data size which need to encrypt. */
 	data_len = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE;
 	main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
@@ -9518,11 +9583,9 @@ Encryption::encrypt_log_block(
 		ut_error;
 
 	case Encryption::AES: {
-		lint			elen;
-
 		ut_ad(m_klen == ENCRYPTION_KEY_LEN);
 
-		elen = my_aes_encrypt(
+		auto	elen = my_aes_encrypt(
 			src_ptr + LOG_BLOCK_HDR_SIZE,
 			static_cast<uint32>(main_len),
 			dst_ptr + LOG_BLOCK_HDR_SIZE,
@@ -9607,7 +9670,7 @@ Encryption::encrypt_log_block(
 	}
 	ut_free(buf2);
 	ut_free(check_buf);
-#endif
+#endif /* UNIV_ENCRYPT_DEBUG */
 
 	/* Set the encrypted flag. */
 	log_block_set_encrypt_bit(dst_ptr, true);
@@ -9665,7 +9728,7 @@ Encryption::encrypt_log(
 	}
 	ut_free(buf2);
 	ut_free(check_buf);
-#endif
+#endif /* UNIV_ENCRYPT_DEBUG */
 
 	return(dst);
 }
@@ -9706,7 +9769,7 @@ Encryption::encrypt(
 		space_id, page_no, src_len);
 	ut_print_buf(stderr, m_key, 32);
 	ut_print_buf(stderr, m_iv, 32);
-#endif
+#endif /* UNIV_ENCRYPT_DEBUG */
 
 	/* Shouldn't encrypte an already encrypted page. */
 	ut_ad(page_type != FIL_PAGE_ENCRYPTED
@@ -9840,7 +9903,8 @@ Encryption::encrypt(
 	ut_free(buf2);
 	ut_free(check_buf);
 	fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
-#endif
+#endif /* UNIV_ENCRYPT_DEBUG */
+
 	*dst_len = src_len;
 
 	return(dst);
@@ -9985,12 +10049,21 @@ Encryption::decrypt_log(
 
 	/* Encrypt the log blocks one by one. */
 	while (ptr != src + src_len) {
+
 #ifdef UNIV_ENCRYPT_DEBUG
-		fprintf(stderr, "Decrypting block %lu.\n",
-			log_block_get_hdr_no(ptr));
-		ut_print_buf_hex(stderr, ptr, OS_FILE_LOG_BLOCK_SIZE);
-		fprintf(stderr, "\n");
-#endif
+		{
+			std::ostringstream	msg;
+
+			ut_print_buf_hex(msg, ptr, OS_FILE_LOG_BLOCK_SIZE);
+
+			ib::info()
+				<< "Decrypting block: "
+				<< log_block_get_hdr_no(ptr) << std::endl
+				<< "data={" << std::endl
+				<< msg.str << std::endl << "}";
+		}
+#endif /* UNIV_ENCRYPT_DEBUG */
+
 		/* If it's not an encrypted block, skip it. */
 		if (!is_encrypted_log(ptr)) {
 			ptr += OS_FILE_LOG_BLOCK_SIZE;
@@ -10058,15 +10131,26 @@ Encryption::decrypt(
 	}
 
 #ifdef UNIV_ENCRYPT_DEBUG
-	ulint space_id =
-		mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-	ulint page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
+	{
+		auto	space_id =
+			mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-	fprintf(stderr, "Decrypting page:%lu.%lu len:%lu\n",
-		space_id, page_no, src_len);
-	ut_print_buf(stderr, m_key, 32);
-	ut_print_buf(stderr, m_iv, 32);
-#endif
+		auto	page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
+
+		std::ostringstream	msg;
+
+		msg << "key={"
+		ut_print_buf(msg, m_key, 32);
+		msg << "}" << std::endl << "iv= {";
+		ut_print_buf(msg, m_iv, 32);
+		msg << "}";
+
+		ib::info()
+			<< "Decrypting page: "
+			<< space_id << "." <<  page_no, << " len: " <<  src_len
+			<< std::endl << msg.str();
+	}
+#endif /* UNIV_ENCRYPT_DEBUG */
 
 	original_type = static_cast<uint16_t>(
 		mach_read_from_2(src + FIL_PAGE_ORIGINAL_TYPE_V1));
@@ -10187,8 +10271,8 @@ Encryption::decrypt(
 	}
 
 #ifdef UNIV_ENCRYPT_DEBUG
-	fprintf(stderr, "Decrypted page:%lu.%lu\n", space_id, page_no);
-#endif
+	ib::info() << "Decrypted page: " << space_id << "." << page_no;
+#endif /* UNIV_ENCRYPT_DEBUG */
 
 	DBUG_EXECUTE_IF("ib_crash_during_decrypt_page", DBUG_SUICIDE(););
 
@@ -10197,63 +10281,48 @@ Encryption::decrypt(
 
 #ifndef UNIV_HOTBACKUP
 /** Check if keyring plugin loaded. */
-bool Encryption::check_keyring()
+bool
+Encryption::check_keyring()
 {
-	char*	key_type = NULL;
 	size_t	key_len;
-	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
-	int	my_ret;
 	bool	ret = false;
-	char*	master_key = NULL;
+	char*	key_type = nullptr;
+	char*	master_key = nullptr;
+	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
 
-	memset(key_name, 0, ENCRYPTION_KEY_LEN);
-	ut_strcpy(key_name, ENCRYPTION_DEFAULT_MASTER_KEY);
+	key_name[sizeof(ENCRYPTION_DEFAULT_MASTER_KEY)] = 0;
+
+	strncpy(key_name, ENCRYPTION_DEFAULT_MASTER_KEY, sizeof(key_name));
 
 	/* We call key ring API to generate master key here. */
-	my_ret = my_key_generate(key_name, "AES",
-			      NULL, ENCRYPTION_KEY_LEN);
+	int	my_ret = my_key_generate(
+		key_name, "AES", NULL, ENCRYPTION_KEY_LEN);
 
 	/* We call key ring API to get master key here. */
-	my_ret = my_key_fetch(key_name, &key_type, NULL,
-			   reinterpret_cast<void**>(&master_key),
-			   &key_len);
+	my_ret = my_key_fetch(
+		key_name, &key_type, nullptr,
+		reinterpret_cast<void**>(&master_key), &key_len);
 
-	if (my_ret) {
-		ib::error() << "Check keyring plugin fail, please check"
-				" the keyring plugin is loaded.";
+	if (my_ret != 0) {
+		ib::error()
+			<< "Check keyring plugin fail, please check the"
+			<< " keyring plugin is loaded.";
 	} else {
-		my_key_remove(key_name, NULL);
+		my_key_remove(key_name, nullptr);
 		ret = true;
 	}
 
-	if (key_type != NULL) {
+	if (key_type != nullptr) {
 		my_free(key_type);
 	}
 
-	if (master_key != NULL) {
+	if (master_key != nullptr) {
 		my_free(master_key);
 	}
 
 	return(ret);
 }
 #endif /* !UNIV_HOTBACKUP */
-
-/** Normalizes a directory path for the current OS:
-On Windows, we convert '/' to '\', else we convert '\' to '/'.
-@param[in,out] str A null-terminated directory and file path */
-void
-os_normalize_path(
-	char*	str)
-{
-	if (str != NULL) {
-		for (; *str; str++) {
-			if (*str == OS_PATH_SEPARATOR_ALT) {
-				*str = OS_PATH_SEPARATOR;
-			}
-		}
-	}
-}
-
 
 /** Check if the path is a directory. The file/directory must exist.
 @param[in]	path		The path to check
@@ -10272,7 +10341,7 @@ Dir_Walker::is_directory(const Path& path)
 		return(type == OS_FILE_TYPE_DIR);
 	}
 
-	ut_ad(exists);
+	ut_ad(exists || type == OS_FILE_TYPE_FAILED);
 	ut_ad(type != OS_FILE_TYPE_MISSING);
 
 	return(false);

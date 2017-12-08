@@ -1533,7 +1533,9 @@ struct dict_sys_t{
 	@param[in]	space	tablespace id to check
 	@return true if a reserved tablespace id, otherwise false */
 	static bool is_reserved(space_id_t space)
-	{ return(space >= dict_sys_t::s_reserved_space_id); }
+	{
+		return(space >= dict_sys_t::s_reserved_space_id);
+	}
 
 	/** Check if a table is hardcoded. it only includes the dd tables
 	@param[in]	id	table ID
@@ -2251,6 +2253,12 @@ an earlier upgrade. This will update the table_id by adding DICT_MAX_DD_TABLES *
 void
 dict_table_change_id_sys_tables();
 
+
+/** Get the tablespace data directory if set, otherwise empty string.
+@return the data directory */
+std::string
+dict_table_get_datadir(const dict_table_t* table)
+	MY_ATTRIBUTE((warn_unused_result));
 
 #include "dict0dict.ic"
 

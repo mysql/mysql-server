@@ -61,7 +61,7 @@ trx_rseg_header_create(
 	buf_block_t*	block;
 
 	ut_ad(mtr);
-	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space_id, NULL),
+	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space_id),
 				MTR_MEMO_X_LOCK));
 
 	/* Allocate a new file segment for the rollback segment */

@@ -74,6 +74,7 @@ let SEARCH_PATTERN = ib_undo_trunc_before_ddl_log_end;
 --disable_query_log
 call mtr.add_suppression("InnoDB: Header page consists of zero bytes in datafile");
 call mtr.add_suppression("InnoDB: Datafile '.*' is corrupted. Cannot determine the space ID from the first 64 pages");
+call mtr.add_suppression("InnoDB: Ignoring.*undo_002.*invalid tablespace ID in the header");
 --enable_query_log
 #
 #

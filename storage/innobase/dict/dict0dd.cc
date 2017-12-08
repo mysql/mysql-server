@@ -810,7 +810,8 @@ dd_table_discard_tablespace(
 #ifdef UNIV_DEBUG
 	btrsea_sync_check       check(false);
 	ut_ad(!sync_check_iterate(check));
-#endif
+#endif /* UNIV_DEBUG */
+
 	ut_ad(!srv_is_being_shutdown);
 
 	if (table_def->se_private_id() != dd::INVALID_OBJECT_ID) {
@@ -840,10 +841,13 @@ dd_table_discard_tablespace(
 		dd::Properties& p = table_def->se_private_data();
 		p.set_bool(dd_table_key_strings[DD_TABLE_DISCARD], discard);
 
+		using Client = dd::cache::Dictionary_client;
+		using Releaser = dd::cache::Dictionary_client::Auto_releaser;
+
 		/* Get Tablespace object */
-		dd::Tablespace*		dd_space = nullptr;
-		dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
-		dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+		dd::Tablespace*	dd_space = nullptr;
+		Client*		client = dd::get_dd_client(thd);
+		Releaser	releaser{client};
 
 		dd::Object_id   dd_space_id =
 			(*table_def->indexes()->begin())->tablespace_id();
@@ -852,8 +856,9 @@ dd_table_discard_tablespace(
 
 		dd_filename_to_spacename(table->name.m_name, &space_name);
 
-		if (dd::acquire_exclusive_tablespace_mdl(thd, space_name.c_str(),
-							 false)) {
+		if (dd::acquire_exclusive_tablespace_mdl(
+				thd, space_name.c_str(), false)) {
+
 			ut_a(false);
 		}
 
@@ -1042,38 +1047,36 @@ dd_table_close(
 
 #ifndef UNIV_HOTBACKUP
 /** Update filename of dd::Tablespace
-@param[in]	dd_space_id	dd tablespace id
-@param[in]	new_space_name	new tablespace name
-@param[in]	new_path	new data file path
-@retval true if fail. */
-bool
+@param[in]	dd_space_id	DD tablespace id
+@param[in]	new_space_name	New tablespace name
+@param[in]	new_path	New data file path
+@retval DB_SUCCESS on success. */
+dberr_t
 dd_rename_tablespace(
 	dd::Object_id	dd_space_id,
 	const char*	new_space_name,
 	const char*	new_path)
 {
-	dd::Tablespace*		dd_space = nullptr;
-	dd::Tablespace*		new_space = nullptr;
-	bool			ret = false;
 	THD*			thd = current_thd;
 	std::string		tablespace_name;
 
-	DBUG_ENTER("dd_tablespace_update_for_rename");
+	DBUG_ENTER("dd_rename_tablespace");
 #ifdef UNIV_DEBUG
 	btrsea_sync_check       check(false);
 	ut_ad(!sync_check_iterate(check));
-#endif
+#endif /* UNIV_DEBUG */
 	ut_ad(!srv_is_being_shutdown);
 
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
-	/* Get the dd tablespace */
+	dd::Tablespace*		dd_space = nullptr;
 
+	/* Get the dd tablespace */
 	if (client->acquire_uncached_uncommitted<dd::Tablespace>(
 			dd_space_id, &dd_space)) {
 		ut_ad(false);
-		DBUG_RETURN(true);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	ut_a(dd_space != nullptr);
@@ -1081,23 +1084,24 @@ dd_rename_tablespace(
 	if (dd::acquire_exclusive_tablespace_mdl(
 		    thd, dd_space->name().c_str(), false)) {
 		ut_ad(false);
-		DBUG_RETURN(true);
+		DBUG_RETURN(DB_ERROR);
 	}
 
-	dd_filename_to_spacename(new_space_name,
-				 &tablespace_name);
+	dd_filename_to_spacename(new_space_name, &tablespace_name);
 
 	if (dd::acquire_exclusive_tablespace_mdl(
 			thd, tablespace_name.c_str(), false)) {
 		ut_ad(false);
-		DBUG_RETURN(true);
+		DBUG_RETURN(DB_ERROR);
 	}
+
+	dd::Tablespace*		new_space = nullptr;
 
 	/* Acquire the new dd tablespace for modification */
 	if (client->acquire_for_modification<dd::Tablespace>(
 			dd_space_id, &new_space)) {
 		ut_ad(false);
-		DBUG_RETURN(true);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	ut_ad(new_space->files().size() == 1);
@@ -1105,9 +1109,12 @@ dd_rename_tablespace(
 	new_space->set_name(tablespace_name.c_str());
 
 	if (new_path != nullptr) {
+
 		dd::Tablespace_file*	dd_file = const_cast<
 			dd::Tablespace_file*>(*(new_space->files().begin()));
+
 		dd_file->set_filename(new_path);
+
 	} else {
 #ifdef UNIV_DEBUG
 		const dd::Properties& p = dd_space->se_private_data();
@@ -1119,14 +1126,10 @@ dd_rename_tablespace(
 #endif /* UNIV_DEBUG */
 	}
 
-	bool fail = client->update(new_space);
+	bool	fail = client->update(new_space);
+	ut_ad(!fail);
 
-	if (fail) {
-		ut_ad(false);
-		ret = true;
-	}
-
-	DBUG_RETURN(ret);
+	DBUG_RETURN(fail ? DB_ERROR : DB_SUCCESS);
 }
 
 /** Validate the table format options.
@@ -2694,6 +2697,7 @@ dd_filename_to_spacename(
 		filename_to_tablename((char*) space_name, orig_tablespace,
 				      (NAME_LEN + 1));
 		tablespace_name->append(orig_tablespace);
+
 		return;
 	}
 
@@ -2702,12 +2706,12 @@ dd_filename_to_spacename(
 	tablespace_name->append(tbl_buf);
 
 	if (part_buf[0] != '\0') {
-		tablespace_name->append(part_sep);
+		tablespace_name->append(PART_SEPARATOR);
 		tablespace_name->append(part_buf);
 	}
 
 	if (sub_buf[0] != '\0') {
-		tablespace_name->append(sub_sep);
+		tablespace_name->append(SUB_PART_SEPARATOR);
 		tablespace_name->append(sub_buf);
 	}
 
@@ -2805,11 +2809,11 @@ dd_create_implicit_tablespace(
 	bool				discarded,
 	dd::Object_id&			dd_space_id)
 {
-	fil_space_t*	space = fil_space_get(space_id);
-	ulint flags = space->flags;
 	std::string	space_name;
-	dd_filename_to_spacename(tablespace_name,
-				 &space_name);
+	fil_space_t*	space = fil_space_get(space_id);
+	ulint		flags = space->flags;
+
+	dd_filename_to_spacename(tablespace_name, &space_name);
 
 	bool fail = create_dd_tablespace(
 		dd_client, thd, space_name.c_str(), space_id,
@@ -3278,44 +3282,8 @@ dd_table_get_space_name(
 	DBUG_RETURN(space_name);
 }
 
-/** Using the table->heap, copy the null-terminated filepath into
-table->data_dir_path and replace the 'databasename/tablename.ibd'
-portion with 'tablename'.
-This allows SHOW CREATE TABLE to return the correct DATA DIRECTORY path.
-Make this data directory path only if it has not yet been saved.
-@param[in,out]	table		table obj
-@param[in]	filepath	filepath of tablespace */
-static
-void
-dd_save_data_dir_path(
-       dict_table_t*   table,
-       char*           filepath)
-{
-       ut_ad(mutex_own(&dict_sys->mutex));
-       ut_ad(DICT_TF_HAS_DATA_DIR(table->flags));
-
-       ut_ad(!table->data_dir_path);
-       ut_ad(filepath);
-
-       /* Be sure this filepath is not the default filepath. */
-       char*   default_filepath = fil_make_filepath(
-                       NULL, table->name.m_name, IBD, false);
-       if (default_filepath) {
-               if (0 != strcmp(filepath, default_filepath)) {
-                       ulint pathlen = strlen(filepath);
-                       ut_a(pathlen < OS_FILE_MAX_PATH);
-                       ut_a(0 == strcmp(filepath + pathlen - 4, DOT_IBD));
-
-                       table->data_dir_path = mem_heap_strdup(
-                               table->heap, filepath);
-                       os_file_make_data_dir_path(table->data_dir_path);
-               }
-
-               ut_free(default_filepath);
-       }
-}
-
-/** Get the first filepath from mysql.tablespace_datafiles for a given space_id.
+/** Get the first filepath from mysql.tablespace_datafiles
+for a given space_id.
 @tparam		Table		dd::Table or dd::Partition
 @param[in,out]	heap		heap for store file name.
 @param[in]	table		dict table
@@ -3332,8 +3300,8 @@ dd_get_first_path(
 	char*		filepath = nullptr;
 	dd::Tablespace*	dd_space = nullptr;
 	THD*		thd = current_thd;
-	MDL_ticket*     mdl = nullptr;
-	dd::Object_id   dd_space_id;
+	MDL_ticket*	mdl = nullptr;
+	dd::Object_id	dd_space_id;
 
 	ut_ad(!srv_is_being_shutdown);
 	ut_ad(!mutex_own(&dict_sys->mutex));
@@ -3350,13 +3318,13 @@ dd_get_first_path(
 				table->name.m_name, db_buf,
 				tbl_buf, nullptr, nullptr, nullptr)
 		    || dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
-			return(filepath);
+			return(nullptr);
 		}
 
 		if (client->acquire(db_buf, tbl_buf, &table_def)
 			|| table_def == nullptr) {
 			dd_mdl_release(thd, &mdl);
-			return(filepath);
+			return(nullptr);
 		}
 
 		dd_space_id = dd_first_index(table_def)->tablespace_id();
@@ -3371,17 +3339,22 @@ dd_get_first_path(
 		ut_a(false);
 	}
 
-	ut_a(dd_space != nullptr);
-	dd::Tablespace_file*	dd_file = const_cast<
-		dd::Tablespace_file*>(*(dd_space->files().begin()));
+	if (dd_space != nullptr) {
+		dd::Tablespace_file*	dd_file = const_cast<
+			dd::Tablespace_file*>(*(dd_space->files().begin()));
 
-	filepath = mem_heap_strdup(heap, dd_file->filename().c_str());
+		filepath = mem_heap_strdup(heap, dd_file->filename().c_str());
 
-	return(filepath);
+		return(filepath);
+	}
+
+	return(nullptr);
 }
 
-/** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
-was used. Try to read it from the fil_system first, then from NEW DD.
+/** Make sure the data_dir_path is saved in dict_table_t if this is a
+remote single file tablespace. This allows DATA DIRECTORY to be
+displayed correctly for SHOW CREATE TABLE. Try to read the filepath
+from the fil_system first, then from the DD.
 @tparam		Table		dd::Table or dd::Partition
 @param[in,out]	table		Table object
 @param[in]	dd_table	DD table object
@@ -3395,40 +3368,40 @@ dd_get_and_save_data_dir_path(
 {
 	mem_heap_t*		heap = NULL;
 
-	if (DICT_TF_HAS_DATA_DIR(table->flags)
-	    && (!table->data_dir_path)) {
-		char*	path = fil_space_get_first_path(table->space);
+	if (!DICT_TF_HAS_DATA_DIR(table->flags)
+	    || table->data_dir_path != nullptr) {
+		return;
+	}
 
-		if (!dict_mutex_own) {
-			dict_mutex_enter_for_mysql();
-		}
+	char*	path = fil_space_get_first_path(table->space);
 
-		if (path == NULL) {
-			heap = mem_heap_create(1000);
-			dict_mutex_exit_for_mysql();
-			path = dd_get_first_path(heap, table, dd_table);
-			dict_mutex_enter_for_mysql();
-		}
-
-		if (path != NULL) {
-			dd_save_data_dir_path(table, path);
-		}
-
-		if (table->data_dir_path == NULL) {
-			/* Since we did not set the table data_dir_path,
-			unset the flag. */
-			table->flags &= ~DICT_TF_MASK_DATA_DIR;
-		}
-
-		if (!dict_mutex_own) {
+	if (path == nullptr) {
+		heap = mem_heap_create(1000);
+		if (dict_mutex_own) {
 			dict_mutex_exit_for_mysql();
 		}
-
-		if (heap) {
-			mem_heap_free(heap);
-		} else {
-			ut_free(path);
+		path = dd_get_first_path(heap, table, dd_table);
+		if (dict_mutex_own) {
+			dict_mutex_enter_for_mysql();
 		}
+	}
+
+	if (!dict_mutex_own) {
+		dict_mutex_enter_for_mysql();
+	}
+
+	if (path != nullptr) {
+		dict_save_data_dir_path(table, path);
+	}
+
+	if (!dict_mutex_own) {
+		dict_mutex_exit_for_mysql();
+	}
+
+	if (heap != nullptr) {
+		mem_heap_free(heap);
+	} else {
+		ut_free(path);
 	}
 }
 
@@ -3451,28 +3424,18 @@ dd_get_meta_data_filename(
 	char*			filename,
 	ulint			max_len)
 {
-	ulint		len;
-	char*		path;
-
 	/* Make sure the data_dir_path is set. */
 	dd_get_and_save_data_dir_path(table, dd_table, false);
 
-	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		ut_a(table->data_dir_path);
+	std::string	path = dict_table_get_datadir(table);
 
-		path = fil_make_filepath(
-			table->data_dir_path, table->name.m_name, CFG, true);
-	} else {
-		path = fil_make_filepath(NULL, table->name.m_name, CFG, false);
-	}
+	auto	filepath = Fil_path::make(path, table->name.m_name, CFG, true);
 
-	ut_a(path);
-	len = ut_strlen(path);
-	ut_a(max_len >= len);
+	ut_a(max_len >= strlen(filepath) + 1);
 
-	strcpy(filename, path);
+	strcpy(filename, filepath);
 
-	ut_free(path);
+	ut_free(filepath);
 }
 
 /** Opens a tablespace for dd_load_table_one()
@@ -3494,7 +3457,8 @@ dd_load_tablespace(
 	ut_ad(!table->is_temporary());
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	/* The system and temporary tablespaces are preloaded and always available. */
+	/* The system and temporary tablespaces are preloaded and
+	always available. */
 	if (fsp_is_system_or_temp_tablespace(table->space)) {
 		return;
 	}
@@ -3547,9 +3511,10 @@ dd_load_tablespace(
 	}
 
 	/* The tablespace may already be open. */
-	if (fil_space_for_table_exists_in_mem(
+	if (fil_space_exists_in_mem(
 		table->space, space_name, false,
 		true, heap, table->id)) {
+
 		ut_free(shared_space_name);
 		return;
 	}
@@ -3561,32 +3526,24 @@ dd_load_tablespace(
 			<< table->space;
 	}
 
-	/* Use the remote filepath if needed. This parameter is optional
-	in the call to fil_ibd_open(). If not supplied, it will be built
-	from the space_name. */
-	char* filepath = nullptr;
-	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		/* This will set table->data_dir_path from either
-		fil_system */
-		dd_get_and_save_data_dir_path(table, dd_table, true);
+	/* Try to get the filepath if this space_id is already open.
+	If the filepath is not found, fil_ibd_open() will make a default
+	filepath from the tablespace name */
+	char*	filepath = fil_space_get_first_path(table->space);
 
-		if (table->data_dir_path) {
-			filepath = fil_make_filepath(
-				table->data_dir_path,
-				table->name.m_name, IBD, true);
-		}
-
-	}
-	else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
-
+	if (filepath == nullptr) {
+		/* boot_tablespaces() made sure that the scanned filepath
+		is in the DD even if the datafile was moved. So let's use
+		that path to open this tablespace. */
 		mutex_exit(&dict_sys->mutex);
-		filepath = dd_get_first_path(heap, table, dd_table);
+		char*	filepath = dd_get_first_path(heap, table, dd_table);
 		mutex_enter(&dict_sys->mutex);
+
 		if (filepath == nullptr) {
-			ib::warn()
-				<< "Could not find the filepath for table "
-				<< table->name
-				<< ", space ID " << table->space;
+			ib::warn() << "Could not find the filepath"
+				<< " for table " << table->name
+				<< ", space ID " << table->space
+				<< " in the data dictionary.";
 		} else {
 			alloc_from_heap = true;
 		}
@@ -3602,7 +3559,11 @@ dd_load_tablespace(
 		true, FIL_TYPE_TABLESPACE, table->space,
 		fsp_flags, space_name, tbl_name, filepath, true, false);
 
-	if (err != DB_SUCCESS) {
+	if (err == DB_SUCCESS) {
+		/* This will set the DATA DIRECTORY for SHOW CREATE TABLE. */
+		dd_get_and_save_data_dir_path(table, dd_table, true);
+
+	} else {
 		/* We failed to find a sensible tablespace file */
 		table->ibd_file_missing = TRUE;
 	}
@@ -3627,22 +3588,22 @@ dd_space_get_name(
 	dict_table_t*	table,
 	Table*		dd_table)
 {
-	char*		space_name = nullptr;
-	dd::Tablespace*	dd_space = nullptr;
-	THD*		thd = current_thd;
-	MDL_ticket*     mdl = nullptr;
 	dd::Object_id   dd_space_id;
+	THD*		thd = current_thd;
+	dd::Tablespace*	dd_space = nullptr;
 
 	ut_ad(!srv_is_being_shutdown);
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
-	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
-	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+	dd::cache::Dictionary_client*   client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser     releaser(client);
 
 	if (dd_table == nullptr) {
 		char		db_buf[MAX_DATABASE_NAME_LEN + 1];
 		char		tbl_buf[MAX_TABLE_NAME_LEN + 1];
 		const dd::Table*	table_def = nullptr;
+
+		MDL_ticket*     mdl = nullptr;
 
 		if (!dd_parse_tbl_name(
 				table->name.m_name, db_buf,
@@ -3652,7 +3613,8 @@ dd_space_get_name(
 		}
 
 		if (client->acquire(db_buf, tbl_buf, &table_def)
-			|| table_def == nullptr) {
+		    || table_def == nullptr) {
+
 			dd_mdl_release(thd, &mdl);
 			return(nullptr);
 		}
@@ -3671,9 +3633,7 @@ dd_space_get_name(
 
 	ut_a(dd_space != nullptr);
 
-	space_name = mem_heap_strdup(heap, dd_space->name().c_str());
-
-	return(space_name);
+	return(mem_heap_strdup(heap, dd_space->name().c_str()));
 }
 
 /** Make sure the tablespace name is saved in dict_table_t if the table
@@ -5478,7 +5438,7 @@ dd_rename_fts_table(
 
 		if (dd_rename_tablespace(table->dd_space_id,
 					 table->name.m_name,
-					 new_path)) {
+					 new_path) != DB_SUCCESS) {
 			ut_a(false);
 		}
 
@@ -5562,7 +5522,9 @@ dd_get_referenced_table(
 {
 	char*		ref;
 	const char*	db_name;
-	bool		is_part = (strstr(name, part_sep) != nullptr);
+	bool		is_part;
+
+	is_part = (strstr(name, PART_SEPARATOR) != nullptr);
 
 	*table = nullptr;
 
@@ -5595,7 +5557,8 @@ dd_get_referenced_table(
 		}
 		memcpy(ref, db_name, database_name_len);
 		ref[database_name_len] = '/';
-		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
+		memcpy(ref + database_name_len + 1,
+		       table_name, table_name_len + 1);
 
 	} else {
 #ifndef _WIN32
@@ -5697,7 +5660,7 @@ dd_tablespace_update_cache(THD* thd)
 
 			ut_ad(space->flags == flags);
 
-			fil_space_update_name(space, space_name, false);
+			fil_space_update_name(space, space_name);
 
 		} else {
 			fil_type_t	purpose = fsp_is_system_temporary(id)
