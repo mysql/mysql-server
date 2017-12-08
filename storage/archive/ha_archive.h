@@ -34,10 +34,10 @@
   ha_example.h.
 */
 
-typedef struct st_archive_record_buffer {
+struct archive_record_buffer {
   uchar *buffer;
   uint32 length;
-} archive_record_buffer;
+};
 
 
 class Archive_share : public Handler_share

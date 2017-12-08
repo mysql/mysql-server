@@ -45,7 +45,7 @@
   ((type *)((char *)ptr - offsetof(type, member)))
 
 
-struct st_thd_timer_info
+struct THD_timer_info
 {
   my_thread_id thread_id;
   my_timer_t timer;
@@ -53,9 +53,7 @@ struct st_thd_timer_info
   bool destroy;
 };
 
-C_MODE_START
 static void timer_callback(my_timer_t *);
-C_MODE_END
 
 /**
   Allocate and initialize a thread timer object.

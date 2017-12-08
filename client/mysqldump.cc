@@ -63,7 +63,6 @@
 #include "my_sys.h"
 #include "my_user.h"
 #include "mysql.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
@@ -146,10 +145,10 @@ static char  *opt_password=0,*current_user=0,
              *opt_compatible_mode_str= 0,
              *err_ptr= 0, *opt_ignore_error= 0,
              *log_error_file= NULL;
-static char **defaults_argv= 0;
+static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static char compatible_mode_normal_str[255];
 /* Server supports character_set_results session variable? */
-static bool server_supports_switching_charsets= TRUE;
+static bool server_supports_switching_charsets= true;
 static ulong opt_compatible_mode= 0;
 #define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
@@ -970,7 +969,7 @@ get_one_option(int optid, const struct my_option *opt,
       break;
     }
   case (int) OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
+    using_opt_enable_cleartext_plugin= true;
     break;
   case (int) OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
@@ -1005,12 +1004,10 @@ static int get_options(int *argc, char ***argv)
   }
 
   md_result_file= stdout;
-  my_getopt_use_args_separator= TRUE;
-  if (load_defaults("my",load_default_groups,argc,argv))
+  my_getopt_use_args_separator= true;
+  if (load_defaults("my",load_default_groups,argc,argv,&argv_alloc))
     return 1;
-  my_getopt_use_args_separator= FALSE;
-
-  defaults_argv= *argv;
+  my_getopt_use_args_separator= false;
 
   ignore_table= new collation_unordered_set<string>(charset_info, PSI_NOT_INSTRUMENTED);
   /* Don't copy internal log tables */
@@ -1120,11 +1117,14 @@ static void DB_error(MYSQL *mysql_arg, const char *when)
     terminates the process.
 */
 static void die(int error_num, const char* fmt_reason, ...)
+  MY_ATTRIBUTE((format(printf, 2, 3)));
+
+static void die(int error_num, const char* fmt_reason, ...)
 {
   char buffer[1000];
   va_list args;
   va_start(args,fmt_reason);
-  my_vsnprintf(buffer, sizeof(buffer), fmt_reason, args);
+  vsnprintf(buffer, sizeof(buffer), fmt_reason, args);
   va_end(args);
 
   fprintf(stderr, "%s: %s\n", my_progname, buffer);
@@ -1159,11 +1159,14 @@ static void die(int error_num, const char* fmt_reason, ...)
     
 */
 static void maybe_die(int error_num, const char* fmt_reason, ...)
+  MY_ATTRIBUTE((format(printf, 2, 3)));
+
+static void maybe_die(int error_num, const char* fmt_reason, ...)
 {
   char buffer[1000];
   va_list args;
   va_start(args,fmt_reason);
-  my_vsnprintf(buffer, sizeof(buffer), fmt_reason, args);
+  vsnprintf(buffer, sizeof(buffer), fmt_reason, args);
   va_end(args);
 
   fprintf(stderr, "%s: %s\n", my_progname, buffer);
@@ -1208,14 +1211,14 @@ static int fetch_db_collation(const char *db_name,
                               char *db_cl_name,
                               int db_cl_size)
 {
-  bool err_status= FALSE;
+  bool err_status= false;
   char query[QUERY_LENGTH];
   MYSQL_RES *db_cl_res;
   MYSQL_ROW db_cl_row;
   char quoted_database_buf[NAME_LEN*2+3];
   char *qdatabase= quote_name(db_name, quoted_database_buf, 1);
 
-  my_snprintf(query, sizeof (query), "use %s", qdatabase);
+  snprintf(query, sizeof (query), "use %s", qdatabase);
 
   if (mysql_query_with_error_report(mysql, NULL, query))
     return 1;
@@ -1228,20 +1231,20 @@ static int fetch_db_collation(const char *db_name,
   {
     if (mysql_num_rows(db_cl_res) != 1)
     {
-      err_status= TRUE;
+      err_status= true;
       break;
     }
 
     if (!(db_cl_row= mysql_fetch_row(db_cl_res)))
     {
-      err_status= TRUE;
+      err_status= true;
       break;
     }
 
     strncpy(db_cl_name, db_cl_row[0], db_cl_size-1);
     db_cl_name[db_cl_size - 1]= 0;
 
-  } while (FALSE);
+  } while (false);
 
   mysql_free_result(db_cl_res);
 
@@ -1275,7 +1278,7 @@ static int switch_db_collation(FILE *sql_file,
   if (strcmp(current_db_cl_name, required_db_cl_name) != 0)
   {
     char quoted_db_buf[NAME_LEN * 2 + 3];
-    char *quoted_db_name= quote_name(db_name, quoted_db_buf, FALSE);
+    char *quoted_db_name= quote_name(db_name, quoted_db_buf, false);
 
     CHARSET_INFO *db_cl= get_charset_by_name(required_db_cl_name, MYF(0));
 
@@ -1306,7 +1309,7 @@ static int restore_db_collation(FILE *sql_file,
                                 const char *db_cl_name)
 {
   char quoted_db_buf[NAME_LEN * 2 + 3];
-  char *quoted_db_name= quote_name(db_name, quoted_db_buf, FALSE);
+  char *quoted_db_name= quote_name(db_name, quoted_db_buf, false);
 
   CHARSET_INFO *db_cl= get_charset_by_name(db_cl_name, MYF(0));
 
@@ -1430,12 +1433,14 @@ static int switch_character_set_results(MYSQL *mysql, const char *cs_name)
 
   /* Server lacks facility.  This is not an error, by arbitrary decision . */
   if (!server_supports_switching_charsets)
-    return FALSE;
+    return false;
 
-  query_length= my_snprintf(query_buffer,
-                            sizeof (query_buffer),
-                            "SET SESSION character_set_results = '%s'",
-                            (const char *) cs_name);
+  query_length= std::min<int>
+    (sizeof (query_buffer) - 1,
+     snprintf(query_buffer,
+              sizeof (query_buffer),
+              "SET SESSION character_set_results = '%s'",
+              (const char *) cs_name));
 
   return mysql_real_query(mysql, query_buffer, (ulong)query_length);
 }
@@ -1542,8 +1547,6 @@ static void free_resources()
   }
   if (insert_pat_inited)
     dynstr_free(&insert_pat);
-  if (defaults_argv)
-    free_defaults(defaults_argv);
   if (opt_ignore_error)
     my_free(opt_ignore_error);
   my_end(my_end_arg);
@@ -1699,14 +1702,14 @@ static int connect_to_db(char *host, char *user,char *passwd)
     opt_set_charset= 0;
 
     /* Don't switch charsets for 4.1 and earlier.  (bug#34192). */
-    server_supports_switching_charsets= FALSE;
+    server_supports_switching_charsets= false;
   } 
   /*
     As we're going to set SQL_MODE, it would be lost on reconnect, so we
     cannot reconnect.
   */
   mysql->reconnect= 0;
-  my_snprintf(buff, sizeof(buff), "/*!40100 SET @@SQL_MODE='%s' */",
+  snprintf(buff, sizeof(buff), "/*!40100 SET @@SQL_MODE='%s' */",
               compatible_mode_normal_str);
   if (mysql_query_with_error_report(mysql, 0, buff))
     DBUG_RETURN(1);
@@ -1716,7 +1719,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
   */
   if (opt_tz_utc)
   {
-    my_snprintf(buff, sizeof(buff), "/*!40103 SET TIME_ZONE='+00:00' */");
+    snprintf(buff, sizeof(buff), "/*!40103 SET TIME_ZONE='+00:00' */");
     if (mysql_query_with_error_report(mysql, 0, buff))
       DBUG_RETURN(1);
   }
@@ -1748,8 +1751,8 @@ static int connect_to_db(char *host, char *user,char *passwd)
     option is preferred here to get statistics dynamically from
     SE by setting information_schema_stats_expiry=0.
   */
-  my_snprintf(buff, sizeof(buff),
-              "/*!80000 SET SESSION information_schema_stats_expiry=0 */");
+  snprintf(buff, sizeof(buff),
+           "/*!80000 SET SESSION information_schema_stats_expiry=0 */");
   if (mysql_query_with_error_report(mysql, 0, buff))
     DBUG_RETURN(1);
 
@@ -1760,7 +1763,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
   */
   if (opt_network_timeout)
   {
-    my_snprintf(buff, sizeof(buff), "SET SESSION NET_READ_TIMEOUT= 700, "
+    snprintf(buff, sizeof(buff), "SET SESSION NET_READ_TIMEOUT= 700, "
                 "SESSION NET_WRITE_TIMEOUT= 700 ");
     if (mysql_query_with_error_report(mysql, 0, buff))
       DBUG_RETURN(1);
@@ -2185,6 +2188,10 @@ static void print_xml_comment(FILE *xml_file, size_t len,
 
 static void print_comment(FILE *sql_file, bool is_error, const char *format,
                           ...)
+  MY_ATTRIBUTE((format(printf, 3, 4)));
+
+static void print_comment(FILE *sql_file, bool is_error, const char *format,
+                          ...)
 {
   static char comment_buff[COMMENT_LENGTH];
   va_list args;
@@ -2194,7 +2201,7 @@ static void print_comment(FILE *sql_file, bool is_error, const char *format,
     return;
 
   va_start(args, format);
-  my_vsnprintf(comment_buff, COMMENT_LENGTH, format, args);
+  vsnprintf(comment_buff, COMMENT_LENGTH, format, args);
   va_end(args);
 
   if (!opt_xml)
@@ -2347,7 +2354,7 @@ static uint dump_events_for_db(char *db)
   MYSQL_ROW  row, event_list_row;
 
   char       db_cl_name[MY_CS_NAME_SIZE];
-  int        db_cl_altered= FALSE;
+  int        db_cl_altered= false;
 
   DBUG_ENTER("dump_events_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
@@ -2389,7 +2396,7 @@ static uint dump_events_for_db(char *db)
     {
       event_name= quote_name(event_list_row[1], name_buff, 0);
       DBUG_PRINT("info", ("retrieving CREATE EVENT for %s", name_buff));
-      my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE EVENT %s", 
+      snprintf(query_buff, sizeof(query_buff), "SHOW CREATE EVENT %s", 
           event_name);
 
       if (mysql_query_with_error_report(mysql, &event_res, query_buff))
@@ -2557,7 +2564,7 @@ static uint dump_routines_for_db(char *db)
   MYSQL_ROW  row, routine_list_row;
 
   char       db_cl_name[MY_CS_NAME_SIZE];
-  int        db_cl_altered= FALSE;
+  int        db_cl_altered= false;
 
   DBUG_ENTER("dump_routines_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
@@ -2594,7 +2601,7 @@ static uint dump_routines_for_db(char *db)
   /* 0, retrieve and dump functions, 1, procedures */
   for (i= 0; i <= 1; i++)
   {
-    my_snprintf(query_buff, sizeof(query_buff),
+    snprintf(query_buff, sizeof(query_buff),
                 "SHOW %s STATUS WHERE Db = '%s'",
                 routine_type[i], db_name_buff);
 
@@ -2609,7 +2616,7 @@ static uint dump_routines_for_db(char *db)
         routine_name= quote_name(routine_list_row[1], name_buff, 0);
         DBUG_PRINT("info", ("retrieving CREATE %s for %s", routine_type[i],
                             name_buff));
-        my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE %s %s",
+        snprintf(query_buff, sizeof(query_buff), "SHOW CREATE %s %s",
                     routine_type[i], routine_name);
 
         if (mysql_query_with_error_report(mysql, &routine_res, query_buff))
@@ -2759,7 +2766,7 @@ static inline bool replication_metadata_tables(const char *db,
    @param [in] table        Table name
 
   @return
-    @retval TRUE if it is innodb stats table else FALSE
+    @retval true if it is innodb stats table else false
 */
 static inline bool innodb_stats_tables(const char *db,
                                        const char *table)
@@ -2779,7 +2786,7 @@ static inline bool innodb_stats_tables(const char *db,
    @param [in] argv         Pointer to positional arguments
 
   @return
-    @retval TRUE if dump contains innodb stats table or else FALSE
+    @retval true if dump contains innodb stats table or else false
 */
 static inline bool is_innodb_stats_tables_included(int argc, char**argv)
 {
@@ -2879,7 +2886,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
   verbose_msg("-- Retrieving table structure for table %s...\n", table);
 
-  len= my_snprintf(query_buff, sizeof(query_buff),
+  len= snprintf(query_buff, sizeof(query_buff),
                    "SET SQL_QUOTE_SHOW_CREATE=%d",
                    (opt_quoted || opt_keywords));
   if (!create_options)
@@ -2901,7 +2908,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       char buff[20+FN_REFLEN];
       MYSQL_FIELD *field;
 
-      my_snprintf(buff, sizeof(buff), "show create table %s", result_table);
+      snprintf(buff, sizeof(buff), "show create table %s", result_table);
 
       if (switch_character_set_results(mysql, "binary") ||
           mysql_query_with_error_report(mysql, &result, buff) ||
@@ -2971,7 +2978,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           This will not be necessary once we can determine dependencies
           between views and can simply dump them in the appropriate order.
         */
-        my_snprintf(query_buff, sizeof(query_buff),
+        snprintf(query_buff, sizeof(query_buff),
                     "SHOW FIELDS FROM %s", result_table);
         if (switch_character_set_results(mysql, "binary") ||
             mysql_query_with_error_report(mysql, &result, query_buff) ||
@@ -3092,7 +3099,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       check_io(sql_file);
       mysql_free_result(result);
     }
-    my_snprintf(query_buff, sizeof(query_buff), "show fields from %s",
+    snprintf(query_buff, sizeof(query_buff), "show fields from %s",
                 result_table);
     if (mysql_query_with_error_report(mysql, &result, query_buff))
     {
@@ -3164,7 +3171,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") != 0;
       }
       else
-        real_columns[colno]= TRUE;
+        real_columns[colno]= true;
 
       if (real_columns[colno++] && complete_insert)
       {
@@ -3185,7 +3192,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     verbose_msg("%s: Warning: Can't set SQL_QUOTE_SHOW_CREATE option (%s)\n",
                 my_progname, mysql_error(mysql));
 
-    my_snprintf(query_buff, sizeof(query_buff), show_fields_stmt, db, table);
+    snprintf(query_buff, sizeof(query_buff), show_fields_stmt, db, table);
 
     if (mysql_query_with_error_report(mysql, &result, query_buff))
       DBUG_RETURN(0);
@@ -3275,7 +3282,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") != 0;
       }
       else
-        real_columns[colno]= TRUE;
+        real_columns[colno]= true;
 
       if (!real_columns[colno++])
         continue;
@@ -3329,7 +3336,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
       uint keynr,primary_key;
-      my_snprintf(buff, sizeof(buff), "show keys from %s", result_table);
+      snprintf(buff, sizeof(buff), "show keys from %s", result_table);
       if (mysql_query_with_error_report(mysql, &result, buff))
       {
         if (mysql_errno(mysql) == ER_WRONG_OBJECT)
@@ -3405,7 +3412,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         char show_name_buff[NAME_LEN*2+2+24];
 
         /* Check memory for quote_for_like() */
-        my_snprintf(buff, sizeof(buff), "show table status like %s",
+        snprintf(buff, sizeof(buff), "show table status like %s",
                     quote_for_like(table, show_name_buff));
 
         if (mysql_query_with_error_report(mysql, &result, buff))
@@ -3523,8 +3530,8 @@ static void dump_trigger_old(FILE *sql_file, MYSQL_RES *show_triggers_rs,
 
     fprintf(sql_file,
             "/*!50017 DEFINER=%s@%s */ ",
-            quote_name(user_name_str, quoted_user_name_str, FALSE),
-            quote_name(host_name_str, quoted_host_name_str, FALSE));
+            quote_name(user_name_str, quoted_user_name_str, false),
+            quote_name(host_name_str, quoted_host_name_str, false));
   }
 
   fprintf(sql_file,
@@ -3549,7 +3556,7 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
 {
   MYSQL_ROW row;
   char *query_str;
-  int db_cl_altered= FALSE;
+  int db_cl_altered= false;
 
   DBUG_ENTER("dump_trigger");
 
@@ -3569,7 +3576,7 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
                                     C_STRING_WITH_LEN(" TRIGGER"));
     if (switch_db_collation(sql_file, db_name, ";",
                             db_cl_name, row[5], &db_cl_altered))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
 
     switch_cs_variables(sql_file, ";",
                         row[3],   /* character_set_client */
@@ -3593,13 +3600,13 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
     if (db_cl_altered)
     {
       if (restore_db_collation(sql_file, db_name, ";", db_cl_name))
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
     }
 
     my_free(query_str);
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**
@@ -3612,8 +3619,8 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
   @param[in] db_name
 
   @return Error status.
-    @retval TRUE error has occurred.
-    @retval FALSE operation succeed.
+    @retval true error has occurred.
+    @retval false operation succeed.
 */
 
 static int dump_triggers_for_table(char *table_name, char *db_name)
@@ -3626,7 +3633,7 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
   FILE      *sql_file= md_result_file;
 
   char       db_cl_name[MY_CS_NAME_SIZE];
-  int        ret= TRUE;
+  int        ret= true;
 
   DBUG_ENTER("dump_triggers_for_table");
   DBUG_PRINT("enter", ("db: %s, table_name: %s", db_name, table_name));
@@ -3648,7 +3655,7 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
 
   /* Get list of triggers. */
 
-  my_snprintf(query_buff, sizeof(query_buff),
+  snprintf(query_buff, sizeof(query_buff),
               "SHOW TRIGGERS LIKE %s",
               quote_for_like(table_name, name_buff));
 
@@ -3667,9 +3674,9 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
   while ((row= mysql_fetch_row(show_triggers_rs)))
   {
 
-    my_snprintf(query_buff, sizeof (query_buff),
+    snprintf(query_buff, sizeof (query_buff),
                 "SHOW CREATE TRIGGER %s",
-                quote_name(row[0], name_buff, TRUE));
+                quote_name(row[0], name_buff, true));
 
     if (mysql_query(mysql, query_buff))
     {
@@ -3714,7 +3721,7 @@ skip:
   */
   opt_compatible_mode=old_opt_compatible_mode;
 
-  ret= FALSE;
+  ret= false;
 
 done:
   if (path)
@@ -3755,7 +3762,7 @@ static bool dump_column_statistics_for_table(char *table_name, char *db_name)
                                  static_cast<ulong>(strlen(db_name)), '\'');
 
   /* Get list of columns with statistics. */
-  my_snprintf(query_buff, sizeof(query_buff),
+  snprintf(query_buff, sizeof(query_buff),
               "SELECT COLUMN_NAME, \
                       JSON_EXTRACT(HISTOGRAM, '$.\"number-of-buckets-specified\"') \
                FROM information_schema.COLUMN_STATISTICS \
@@ -4372,7 +4379,7 @@ static void dump_table(char *table, char *db)
     check_io(md_result_file);
     if (mysql_errno(mysql))
     {
-      my_snprintf(buf, sizeof(buf),
+      snprintf(buf, sizeof(buf),
                   "%s: Error %d: %s when dumping table %s at row: %ld\n",
                   my_progname,
                   mysql_errno(mysql),
@@ -4706,7 +4713,7 @@ is_ndbinfo(MYSQL* mysql, const char* dbname)
     MYSQL_ROW row;
     char buf[32], query[64];
 
-    my_snprintf(query, sizeof(query),
+    snprintf(query, sizeof(query),
                 "SHOW VARIABLES LIKE %s",
                 quote_for_like("ndbinfo_version", buf));
 
@@ -4865,7 +4872,7 @@ int init_dumping_tables(char *qdatabase)
     MYSQL_ROW row;
     MYSQL_RES *dbinfo;
 
-    my_snprintf(qbuf, sizeof(qbuf),
+    snprintf(qbuf, sizeof(qbuf),
                 "SHOW CREATE DATABASE IF NOT EXISTS %s",
                 qdatabase);
 
@@ -5215,7 +5222,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root)
 
   /* Check memory for quote_for_like() */
   DBUG_ASSERT(2*sizeof(old_table_name) < sizeof(show_name_buff));
-  my_snprintf(query, sizeof(query), "SHOW TABLES LIKE %s",
+  snprintf(query, sizeof(query), "SHOW TABLES LIKE %s",
               quote_for_like(old_table_name, show_name_buff));
 
   if (mysql_query_with_error_report(mysql, 0, query))
@@ -5763,7 +5770,7 @@ static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
   Check if the table is one of the table types that should be ignored:
   MRG_ISAM, MRG_MYISAM.
 
-  If the table should be altogether ignored, it returns a TRUE, FALSE if it
+  If the table should be altogether ignored, it returns a true, false if it
   should not be ignored.
 
   ARGS
@@ -5790,7 +5797,7 @@ char check_if_ignore_table(const char *table_name, char *table_type)
 
   /* Check memory for quote_for_like() */
   DBUG_ASSERT(2*sizeof(table_name) < sizeof(show_name_buff));
-  my_snprintf(buff, sizeof(buff), "show table status like %s",
+  snprintf(buff, sizeof(buff), "show table status like %s",
               quote_for_like(table_name, show_name_buff));
   if (mysql_query_with_error_report(mysql, &res, buff))
   {
@@ -5888,7 +5895,7 @@ static char *primary_key_fields(const char *table_name)
   char buff[NAME_LEN * 2 + 3];
   char *quoted_field;
 
-  my_snprintf(show_keys_buff, sizeof(show_keys_buff),
+  snprintf(show_keys_buff, sizeof(show_keys_buff),
               "SHOW KEYS FROM %s", table_name);
   if (mysql_query(mysql, show_keys_buff) ||
       !(res= mysql_store_result(mysql)))
@@ -5991,14 +5998,14 @@ static int replace(DYNAMIC_STRING *ds_str,
   @note: md_result_file should have been opened, before
          this function is called.
 
-  @param[in]      flag          If FALSE, disable binlog.
-                                If TRUE and binlog disabled previously,
+  @param[in]      flag          If false, disable binlog.
+                                If true and binlog disabled previously,
                                 restore the session binlog.
 */
 
 static void set_session_binlog(bool flag)
 {
-  static bool is_binlog_disabled= FALSE;
+  static bool is_binlog_disabled= false;
 
   if (!flag && !is_binlog_disabled)
   {
@@ -6023,9 +6030,9 @@ static void set_session_binlog(bool flag)
 
   @param[in]  mysql_con     connection to the server
 
-  @retval     FALSE         succesfully printed GTID_PURGED sets
+  @retval     false         succesfully printed GTID_PURGED sets
                              in the dump file.
-  @retval     TRUE          failed.
+  @retval     true          failed.
 
 */
 
@@ -6038,7 +6045,7 @@ static bool add_set_gtid_purged(MYSQL *mysql_con)
   /* query to get the GTID_EXECUTED */
   if (mysql_query_with_error_report(mysql_con, &gtid_purged_res,
                   "SELECT @@GLOBAL.GTID_EXECUTED"))
-    return TRUE;
+    return true;
 
   /* Proceed only if gtid_purged_res is non empty */
   if ((num_sets= mysql_num_rows(gtid_purged_res)) > 0)
@@ -6062,7 +6069,7 @@ static bool add_set_gtid_purged(MYSQL *mysql_con)
   }
   mysql_free_result(gtid_purged_res);
 
-  return FALSE;  /*success */
+  return false;  /*success */
 }
 
 
@@ -6073,9 +6080,9 @@ static bool add_set_gtid_purged(MYSQL *mysql_con)
 
   @param[in]          mysql_con     the connection to the server
 
-  @retval             FALSE         successful according to the value
+  @retval             false         successful according to the value
                                     of opt_set_gtid_purged.
-  @retval             TRUE          fail.
+  @retval             true          fail.
 */
 
 static bool process_set_gtid_purged(MYSQL* mysql_con)
@@ -6086,17 +6093,17 @@ static bool process_set_gtid_purged(MYSQL* mysql_con)
   char buf[32], query[64];
 
   if (opt_set_gtid_purged_mode == SET_GTID_PURGED_OFF)
-    return FALSE;  /* nothing to be done */
+    return false;  /* nothing to be done */
 
   /*
     Check if the server has the knowledge of GTIDs(pre mysql-5.6)
     or if the gtid_mode is ON or OFF.
   */
-  my_snprintf(query, sizeof(query), "SHOW VARIABLES LIKE %s",
+  snprintf(query, sizeof(query), "SHOW VARIABLES LIKE %s",
               quote_for_like("gtid_mode", buf));
 
   if (mysql_query_with_error_report(mysql_con, &gtid_mode_res, query))
-    return TRUE;
+    return true;
 
   gtid_mode_row = mysql_fetch_row(gtid_mode_res);
 
@@ -6123,11 +6130,11 @@ static bool process_set_gtid_purged(MYSQL* mysql_con)
                      "--all-databases --triggers --routines --events. \n");
     }
 
-    set_session_binlog(FALSE);
+    set_session_binlog(false);
     if (add_set_gtid_purged(mysql_con))
     {
       mysql_free_result(gtid_mode_res);
-      return TRUE;
+      return true;
     }
   }
   else /* gtid_mode is off */
@@ -6136,12 +6143,12 @@ static bool process_set_gtid_purged(MYSQL* mysql_con)
     {
       fprintf(stderr, "Error: Server has GTIDs disabled.\n");
       mysql_free_result(gtid_mode_res);
-      return TRUE;
+      return true;
     }
   }
 
   mysql_free_result(gtid_mode_res);
-  return FALSE;
+  return false;
 }
 
 
@@ -6181,7 +6188,7 @@ static bool get_view_structure(char *table, char* db)
   if (switch_character_set_results(mysql, "binary"))
     DBUG_RETURN(1);
 
-  my_snprintf(query, sizeof(query), "SHOW CREATE TABLE %s", result_table);
+  snprintf(query, sizeof(query), "SHOW CREATE TABLE %s", result_table);
 
   if (mysql_query_with_error_report(mysql, &table_res, query))
   {
@@ -6221,7 +6228,7 @@ static bool get_view_structure(char *table, char* db)
   verbose_msg("-- Dropping the temporary view structure created\n");
   fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n", opt_quoted_table);
 
-  my_snprintf(query, sizeof(query),
+  snprintf(query, sizeof(query),
               "SELECT CHECK_OPTION, DEFINER, SECURITY_TYPE, "
               "       CHARACTER_SET_CLIENT, COLLATION_CONNECTION "
               "FROM information_schema.views "
@@ -6299,16 +6306,16 @@ static bool get_view_structure(char *table, char* db)
       ptr= search_buf;
       search_len=
         (ulong)(strxmov(ptr, "DEFINER=",
-                        quote_name(user_name_str, quoted_user_name_str, FALSE),
+                        quote_name(user_name_str, quoted_user_name_str, false),
                         "@",
-                        quote_name(host_name_str, quoted_host_name_str, FALSE),
+                        quote_name(host_name_str, quoted_host_name_str, false),
                         " SQL SECURITY ", row[2], NullS) - ptr);
       ptr= replace_buf;
       replace_len=
         (ulong)(strxmov(ptr, "*/\n/*!50013 DEFINER=",
-                        quote_name(user_name_str, quoted_user_name_str, FALSE),
+                        quote_name(user_name_str, quoted_user_name_str, false),
                         "@",
-                        quote_name(host_name_str, quoted_host_name_str, FALSE),
+                        quote_name(host_name_str, quoted_host_name_str, false),
                         " SQL SECURITY ", row[2],
                         " */\n/*!50001", NullS) - ptr);
       replace(&ds_view, search_buf, search_len, replace_buf, replace_len);
@@ -6537,7 +6544,7 @@ int main(int argc, char **argv)
     if --set-gtid-purged, restore binlog at the end of the session
     if required.
   */
-  set_session_binlog(TRUE);
+  set_session_binlog(true);
 
   /* add 'START SLAVE' to end of dump */
   if (opt_slave_apply && add_slave_statements())

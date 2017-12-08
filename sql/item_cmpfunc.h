@@ -24,29 +24,26 @@
 
 #include "binary_log_types.h"
 #include "extra/regex/my_regex.h" // my_regex_t
+#include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"
+#include "mysql_time.h"
 #include "sql/enum_query_type.h"
-#include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_func.h"   // Item_int_func
 #include "sql/item_row.h"    // Item_row
 #include "sql/mem_root_array.h" // Mem_root_array
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
 #include "sql/table.h"
-#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "template_utils.h"  // down_cast
 
@@ -60,12 +57,13 @@ class Json_wrapper;
 class PT_item_list;
 class SELECT_LEX;
 class THD;
+struct MY_BITMAP;
 
 typedef int (Arg_comparator::*arg_cmp_func)();
 
 typedef int (*Item_field_cmpfunc)(Item_field *f1, Item_field *f2, void *arg); 
 
-class Arg_comparator: public Sql_alloc
+class Arg_comparator
 {
   Item **a, **b;
   arg_cmp_func func;
@@ -75,8 +73,8 @@ class Arg_comparator: public Sql_alloc
   double precision;
   /* Fields used in DATE/DATETIME comparison. */
   Item *a_cache, *b_cache;         // Cached values of a and b items
-  bool is_nulls_eq;                // TRUE <=> compare for the EQUAL_FUNC
-  bool set_null;                   // TRUE <=> set owner->null_value
+  bool is_nulls_eq;                // true <=> compare for the EQUAL_FUNC
+  bool set_null;                   // true <=> set owner->null_value
                                    //   when one of arguments is NULL.
   longlong (*get_value_a_func)(THD *thd, Item ***item_arg, Item **cache_arg,
                                Item *warn_item, bool *is_null);
@@ -98,12 +96,12 @@ public:
   String value1, value2;
 
   Arg_comparator(): comparators(0), comparator_count(0),
-    a_cache(0), b_cache(0), set_null(TRUE),
+    a_cache(0), b_cache(0), set_null(true),
     get_value_a_func(0), get_value_b_func(0), json_scalar(0)
   {}
   Arg_comparator(Item **a1, Item **a2): a(a1), b(a2),
     comparators(0), comparator_count(0),
-    a_cache(0), b_cache(0), set_null(TRUE),
+    a_cache(0), b_cache(0), set_null(true),
     get_value_a_func(0), get_value_b_func(0), json_scalar(0)
   {}
 
@@ -476,16 +474,16 @@ protected:
 
 public:
   Item_bool_func2(Item *a,Item *b)
-    :Item_bool_func(a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(FALSE) {}
+    :Item_bool_func(a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(false) {}
 
   Item_bool_func2(const POS &pos, Item *a,Item *b)
-    :Item_bool_func(pos, a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(FALSE)
+    :Item_bool_func(pos, a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(false)
   {}
 
   bool resolve_type(THD *) override;
   bool set_cmp_func()
   {
-    return cmp.set_cmp_func(this, tmp_arg, tmp_arg+1, TRUE);
+    return cmp.set_cmp_func(this, tmp_arg, tmp_arg+1, true);
   }
   optimize_type select_optimize() const override { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
@@ -575,7 +573,7 @@ class Item_maxmin_subselect;
 class JOIN;
 
 /*
-  trigcond<param>(arg) ::= param? arg : TRUE
+  trigcond<param>(arg) ::= param? arg : true
 
   The class Item_func_trig_cond is used for guarded predicates 
   which are employed only for internal purposes.
@@ -953,7 +951,7 @@ class Item_func_between final : public Item_func_opt_neg
 public:
   Item_result cmp_type;
   String value0,value1,value2;
-  /* TRUE <=> arguments will be compared as dates. */
+  /* true <=> arguments will be compared as dates. */
   bool compare_as_dates_with_strings;
   bool compare_as_temporal_dates;
   bool compare_as_temporal_times;
@@ -962,9 +960,9 @@ public:
   Arg_comparator ge_cmp, le_cmp;
   Item_func_between(const POS &pos, Item *a, Item *b, Item *c, bool is_negation)
     :Item_func_opt_neg(pos, a, b, c, is_negation),
-    compare_as_dates_with_strings(FALSE),
-    compare_as_temporal_dates(FALSE),
-    compare_as_temporal_times(FALSE) {}
+    compare_as_dates_with_strings(false),
+    compare_as_temporal_dates(false),
+    compare_as_temporal_times(false) {}
   longlong val_int() override;
   optimize_type select_optimize() const override { return OPTIMIZE_KEY; }
   enum Functype functype() const override { return BETWEEN; }
@@ -1188,7 +1186,7 @@ public:
 
 /* A vector of values of some type  */
 
-class in_vector :public Sql_alloc
+class in_vector
 {
 public:
   const uint count;  ///< Original size of the vector
@@ -1452,14 +1450,14 @@ public:
 ** Classes for easy comparing of non const items
 */
 
-class cmp_item :public Sql_alloc
+class cmp_item
 {
 public:
   cmp_item() {}
   virtual ~cmp_item() {}
   virtual void store_value(Item *item)= 0;
   /**
-     @returns result (TRUE, FALSE or UNKNOWN) of
+     @returns result (true, false or UNKNOWN) of
      "stored argument's value <> item's value"
   */
   virtual int cmp(Item *item)= 0;
@@ -1521,9 +1519,9 @@ public:
     if (value_res && res)
       return sortcmp(value_res, res, cmp_charset) != 0;
     else if (!value_res && !res)
-      return FALSE;
+      return false;
     else
-      return TRUE;
+      return true;
   }
   virtual cmp_item *make_same();
 };
@@ -2187,7 +2185,7 @@ public:
                              double rows_in_table) override;
 };
 
-class COND_EQUAL: public Sql_alloc
+class COND_EQUAL
 {
 public:
   uint max_members;               /* max number of members the current level

@@ -219,6 +219,7 @@ DROP TABLE t1;
 --echo #                ASSERTION FAILED: N < M_SIZE
 --echo #
 
+
 CREATE TABLE t(a INT);
 INSERT INTO t values (1),(2),(3),(6),(0);
 
@@ -275,3 +276,4 @@ eval EXPLAIN FORMAT=JSON $query;
 DROP TABLE t;
 
 --echo # End of test for Bug#27062031
+

@@ -58,12 +58,6 @@
 #define DEFAULT_THREAD_STACK	(STACK_MULTIPLIER * 216UL * 1024UL)
 #endif
 
-#ifdef  __cplusplus
-#define EXTERNC extern "C"
-#else
-#define EXTERNC
-#endif
-
 static inline int is_timeout(int e) {
 #if ETIMEDOUT == ETIME
   return e == ETIMEDOUT;
@@ -71,8 +65,6 @@ static inline int is_timeout(int e) {
   return e == ETIMEDOUT || e == ETIME;
 #endif
 }
-
-C_MODE_START
 
 #ifdef _WIN32
 #define MY_THREAD_CREATE_JOINABLE 0
@@ -178,9 +170,9 @@ void my_thread_exit(void *value_ptr) MY_ATTRIBUTE((noreturn));
 extern bool my_thread_global_init();
 extern void my_thread_global_reinit();
 extern void my_thread_global_end();
-extern bool my_thread_init();
-extern void my_thread_end();
 
-C_MODE_END
+// Need to be extern "C" for the time being, due to memcached.
+extern "C" bool my_thread_init();
+extern "C" void my_thread_end();
 
 #endif /* MY_THREAD_INCLUDED */

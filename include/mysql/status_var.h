@@ -61,7 +61,7 @@ enum enum_mysql_show_scope
 /**
   SHOW STATUS Server status variable
 */
-struct st_mysql_show_var
+struct SHOW_VAR
 {
   const char *name;
   char *value;
@@ -77,6 +77,6 @@ class THD;
 #else
 #define MYSQL_THD void*
 #endif
-typedef int (*mysql_show_var_func)(MYSQL_THD, struct st_mysql_show_var*, char *);
+typedef int (*mysql_show_var_func)(MYSQL_THD, SHOW_VAR*, char *);
 
 #endif

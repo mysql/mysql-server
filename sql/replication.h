@@ -20,8 +20,8 @@
 #include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
 #include "sql/handler.h"              // enum_tx_isolation
 
-typedef struct st_mysql MYSQL;
-typedef struct st_io_cache IO_CACHE;
+struct MYSQL;
+struct IO_CACHE;
 
 #ifdef __cplusplus
 class THD;

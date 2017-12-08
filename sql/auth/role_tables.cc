@@ -16,21 +16,22 @@
 #include "sql/auth/role_tables.h"
 
 #include <string.h>
+#include <type_traits>
 #include <utility>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_internal.h"
 #include "sql/auth/sql_auth_cache.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/auth/sql_user_table.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -40,7 +41,6 @@
 #include "sql/records.h"
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
-#include "sql/sql_servers.h"
 #include "sql/table.h"
 #include "thr_lock.h"
 
@@ -263,7 +263,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst)
   TABLE *table= tablelst[0].table;
   table->use_all_columns();
   if (init_read_record(&read_record_info, thd, table,
-                       NULL, 1, 1, FALSE))
+                       NULL, 1, 1, false))
   {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);
@@ -303,14 +303,14 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst)
       free_root(&tmp_mem, MYF(0));
       DBUG_RETURN(true);
     }
-    grant_role(thd, acl_role, acl_user, *with_admin_opt == 'Y' ? 1 : 0);
+    grant_role(acl_role, acl_user, *with_admin_opt == 'Y' ? 1 : 0);
   }
   end_read_record(&read_record_info);
 
   table= tablelst[1].table;
   table->use_all_columns();
   if (init_read_record(&read_record_info, thd, table,
-                       NULL, 1, 1, FALSE))
+                       NULL, 1, 1, false))
   {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);

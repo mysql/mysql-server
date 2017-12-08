@@ -29,6 +29,7 @@
 #ifndef STATEMENT_EVENT_INCLUDED
 #define STATEMENT_EVENT_INCLUDED
 
+#include "byteorder.h"
 #include "control_events.h"
 
 namespace binary_log
@@ -37,7 +38,7 @@ namespace binary_log
   The following constant represents the maximum of MYSQL_XID domain.
   The maximum XID value practically is never supposed to grow beyond UINT64 range.
 */
-const uint64_t INVALID_XID= -1ULL;
+const uint64_t INVALID_XID= 0xffffffffffffffffULL;
 
 /**
   @class Query_event

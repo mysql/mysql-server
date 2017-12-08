@@ -16,8 +16,9 @@
 */
 
 #include "ndb_modifiers.h"
-#include "mysql/service_my_snprintf.h"
 #include "m_string.h"
+#include "my_dbug.h" // DBUG_PRINT
+#include <stdio.h>
 
 static
 bool
@@ -64,10 +65,10 @@ NDB_Modifiers::parse_modifier(struct NDB_Modifier* m,
 {
   if (m->m_found)
   {
-    my_snprintf(m_errmsg,
-                sizeof(m_errmsg),
-                "%s : modifier %s specified twice",
-                m_prefix, m->m_name);
+    snprintf(m_errmsg,
+             sizeof(m_errmsg),
+             "%s : modifier %s specified twice",
+             m_prefix, m->m_name);
     return -1;
   }
 
@@ -114,9 +115,9 @@ NDB_Modifiers::parse_modifier(struct NDB_Modifier* m,
     char * tmp = new (std::nothrow) char[len+1];
     if (tmp == 0)
     {
-      my_snprintf(m_errmsg,
-                  sizeof(m_errmsg),
-                  "Memory allocation error");
+      snprintf(m_errmsg,
+               sizeof(m_errmsg),
+               "Memory allocation error");
       return -1;
     }
     memcpy(tmp, start_str, len);
@@ -132,17 +133,17 @@ NDB_Modifiers::parse_modifier(struct NDB_Modifier* m,
     const char * end = strpbrk(str, " ,");
     if (end)
     {
-      my_snprintf(m_errmsg,
-                  sizeof(m_errmsg),
-                  "%s : invalid value '%.*s' for %s",
-                  m_prefix, (int)(end - str), str, m->m_name);
+      snprintf(m_errmsg,
+               sizeof(m_errmsg),
+               "%s : invalid value '%.*s' for %s",
+               m_prefix, (int)(end - str), str, m->m_name);
     }
     else
     {
-      my_snprintf(m_errmsg,
-                  sizeof(m_errmsg),
-                  "%s : invalid value '%s' for %s",
-                  m_prefix, str, m->m_name);
+      snprintf(m_errmsg,
+               sizeof(m_errmsg),
+               "%s : invalid value '%s' for %s",
+               m_prefix, str, m->m_name);
     }
   }
   return -1;
@@ -201,17 +202,17 @@ NDB_Modifiers::parseModifierListString(const char* string)
     {
       if (end)
       {
-        my_snprintf(m_errmsg,
-                    sizeof(m_errmsg),
-                    "%s : unknown modifier: %.*s",
-                    m_prefix, (int)(end - pos), pos);
+        snprintf(m_errmsg,
+                 sizeof(m_errmsg),
+                 "%s : unknown modifier: %.*s",
+                 m_prefix, (int)(end - pos), pos);
       }
       else
       {
-        my_snprintf(m_errmsg,
-                    sizeof(m_errmsg),
-                    "%s : unknown modifier: %s",
-                    m_prefix, pos);
+        snprintf(m_errmsg,
+                 sizeof(m_errmsg),
+                 "%s : unknown modifier: %s",
+                 m_prefix, pos);
       }
       DBUG_PRINT("info", ("Error : %s", m_errmsg));
       return -1;
@@ -244,9 +245,9 @@ NDB_Modifiers::loadComment(const char* str,
   m_comment_buf = new (std::nothrow) char[len+1];
   if (m_comment_buf == NULL)
   {
-    my_snprintf(m_errmsg,
-                sizeof(m_errmsg),
-                "Memory allocation failed");
+    snprintf(m_errmsg,
+             sizeof(m_errmsg),
+             "Memory allocation failed");
     return -1;
   }
   memcpy(m_comment_buf, str, len);
@@ -379,9 +380,9 @@ NDB_Modifiers::generateModifierListString(char* buf, size_t buflen) const
       {
         if (buf)
         {
-          my_snprintf(buf + length,
-                      buflen - length,
-                      ",");
+          snprintf(buf + length,
+                   buflen - length,
+                   ",");
         }
         
         length ++;
@@ -390,9 +391,9 @@ NDB_Modifiers::generateModifierListString(char* buf, size_t buflen) const
 
       if (buf)
       {
-        my_snprintf(buf + length,
-                    buflen - length,
-                    "%s", mod.m_name);
+        snprintf(buf + length,
+                 buflen - length,
+                 "%s", mod.m_name);
       }
       
       length += mod.m_name_len;
@@ -403,10 +404,10 @@ NDB_Modifiers::generateModifierListString(char* buf, size_t buflen) const
       {
         if (buf)
         {
-          my_snprintf(buf + length,
-                      buflen - length,
-                      "=%u",
-                      mod.m_val_bool?1:0);
+          snprintf(buf + length,
+                   buflen - length,
+                   "=%u",
+                   mod.m_val_bool?1:0);
         }
         length += 2;
         break;
@@ -415,10 +416,10 @@ NDB_Modifiers::generateModifierListString(char* buf, size_t buflen) const
       {
         if (buf)
         {
-          my_snprintf(buf+length,
-                      buflen - length,
-                      "=%s",
-                      mod.m_val_str.str);
+          snprintf(buf+length,
+                   buflen - length,
+                   "=%s",
+                   mod.m_val_str.str);
         }
         length += (mod.m_val_str.len + 1);
         break;
@@ -476,9 +477,9 @@ NDB_Modifiers::generateCommentString()
   char* newBuf = new (std::nothrow) char[newCommentLen + 1];
   if (newBuf == NULL)
   {
-    my_snprintf(m_errmsg,
-                sizeof(m_errmsg),
-                "Memory allocation failed");
+    snprintf(m_errmsg,
+             sizeof(m_errmsg),
+             "Memory allocation failed");
     return NULL;
   }
   

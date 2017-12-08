@@ -20,17 +20,12 @@
 #include <sys/types.h>
 #include <memory>
 #include <string>
-#include <unordered_map>
 
 #include "lex_string.h"
-#include "m_string.h"
 #include "map_helpers.h"
 #include "my_base.h"                // ha_extra_function
 #include "my_inttypes.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql/udf_registration_types.h"
-#include "sql/malloc_allocator.h"
 #include "sql/mdl.h"                // MDL_savepoint
 #include "sql/sql_array.h"          // Bounds_checked_array
 #include "sql/sql_const.h"          // enum_resolution_type
@@ -45,21 +40,20 @@ class Open_table_context;
 class Open_tables_backup;
 class Prelocking_strategy;
 class Query_tables_list;
+class SELECT_LEX;
 class Sroutine_hash_entry;
 class THD;
 class sp_head;
 struct LEX;
+struct MY_BITMAP;
 struct Name_resolution_context;
+struct OPEN_TABLE_LIST;
 struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
 struct handlerton;
 template <class T> class List;
 template <class T> class List_iterator;
-
-typedef struct st_bitmap MY_BITMAP;
-typedef struct st_open_table_list OPEN_TABLE_LIST;
-class SELECT_LEX;
 
 typedef Bounds_checked_array<Item *> Ref_item_array;
 namespace dd {
@@ -533,7 +527,7 @@ public:
   */
   void set_has_protection_against_grl()
   {
-    m_has_protection_against_grl= TRUE;
+    m_has_protection_against_grl= true;
   }
 
   bool has_protection_against_grl() const

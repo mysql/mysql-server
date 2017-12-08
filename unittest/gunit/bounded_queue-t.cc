@@ -61,7 +61,7 @@ struct Test_element
   Test_element &operator=(int i)
   {
     val= static_cast<int>(i);
-    my_snprintf(text, array_elements(text), "%4d", i);
+    snprintf(text, array_elements(text), "%4d", i);
     return *this;
   }
 

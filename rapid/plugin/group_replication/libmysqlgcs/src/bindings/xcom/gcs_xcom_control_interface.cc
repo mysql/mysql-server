@@ -740,9 +740,7 @@ add_event_listener(const Gcs_control_event_listener &event_listener)
   }
   while (event_listeners.count(handler_key) != 0);
 
-  std::pair<int,const Gcs_control_event_listener &> to_insert(handler_key,
-                                                              event_listener);
-  event_listeners.insert(to_insert);
+  event_listeners.emplace(handler_key, event_listener);
 
   return handler_key;
 }

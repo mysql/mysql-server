@@ -26,6 +26,8 @@
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
+#include "sql/plugin_table.h"
+#include "sql/table.h"
 #include "sql/xa.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_events_transactions.h"
@@ -273,7 +275,7 @@ table_events_transactions_common::make_row(PFS_events_transactions *transaction)
   }
 
   base = base_name(safe_source_file);
-  m_row.m_source_length = (uint)my_snprintf(m_row.m_source,
+  m_row.m_source_length = (uint)snprintf(m_row.m_source,
                                             sizeof(m_row.m_source),
                                             "%s:%d",
                                             base,

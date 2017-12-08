@@ -16,9 +16,12 @@
 #ifndef SQL_LOCK_INCLUDED
 #define SQL_LOCK_INCLUDED
 
+#include <sys/types.h>
+
 #include "my_sqlcommand.h"  // SQLCOM_LOCK_INSTANCE, SQLCOM_UNLOCK_INSTANCE
-#include "mdl.h"            // enum_mdl_type, enum_mdl_duration
 #include "sql_cmd.h"        // Sql_cmd
+
+class THD;
 
 
 /**
@@ -82,7 +85,7 @@ public:
     @retval true  Failure
 */
 
-bool acquire_exclusive_backup_lock(THD *thd, ulong lock_wait_timeout);
+bool acquire_exclusive_backup_lock(THD *thd, unsigned long lock_wait_timeout);
 
 
 /**
@@ -96,7 +99,7 @@ bool acquire_exclusive_backup_lock(THD *thd, ulong lock_wait_timeout);
     @retval true  Failure
 */
 
-bool acquire_shared_backup_lock(THD *thd, ulong lock_wait_timeout);
+bool acquire_shared_backup_lock(THD *thd, unsigned long lock_wait_timeout);
 
 
 /**

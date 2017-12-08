@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,10 +19,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 /**
   @file include/my_check_opt.h
 */
-
-#ifdef	__cplusplus
-extern "C" {
-#endif
 
 /*
   All given definitions needed for MyISAM storage engine:
@@ -67,7 +63,4 @@ extern "C" {
 
 #define T_REP_ANY		(T_REP | T_REP_BY_SORT | T_REP_PARALLEL)
 
-#ifdef	__cplusplus
-}
-#endif
 #endif

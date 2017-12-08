@@ -222,8 +222,8 @@ bool net_flush(NET *net)
   @param net          NET handler.
   @param retry_count  Maximum number of interrupted operations.
 
-  @retval TRUE    Operation should be retried.
-  @retval FALSE   Operation should not be retried. Fatal error.
+  @retval true    Operation should be retried.
+  @retval false   Operation should not be retried. Fatal error.
 */
 
 static bool
@@ -558,7 +558,7 @@ net_write_buff(NET *net, const uchar *packet, size_t len)
   @param  buf     Buffer containing the data to be written.
   @param  count   The length, in bytes, of the buffer.
 
-  @return TRUE on error, FALSE on success.
+  @return true on error, false on success.
 */
 
 static bool
@@ -669,7 +669,7 @@ compress_packet(NET *net, const uchar *packet, size_t *length)
 
   @remark The packet might be encapsulated into a compressed packet.
 
-  @return TRUE on error, FALSE on success.
+  @return true on error, false on success.
 */
 
 bool
@@ -680,7 +680,7 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
 
   /* Socket can't be used */
   if (net->error == 2)
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   net->reading_or_writing= 2;
 
@@ -693,7 +693,7 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
       net->last_errno= ER_OUT_OF_RESOURCES;
       /* In the server, allocation failure raises a error. */
       net->reading_or_writing= 0;
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
   }
 
@@ -721,7 +721,7 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
   @param  net     NET handler.
   @param  count   The number of bytes to read.
 
-  @return TRUE on error, FALSE on success.
+  @return true on error, false on success.
 */
 
 static bool net_read_raw_loop(NET *net, size_t count)
@@ -792,7 +792,7 @@ static bool net_read_raw_loop(NET *net, size_t count)
 
   @param  net  NET handler.
 
-  @return TRUE on error, FALSE on success.
+  @return true on error, false on success.
 */
 
 static bool net_read_packet_header(NET *net)
@@ -805,9 +805,9 @@ static bool net_read_packet_header(NET *net)
     count+= COMP_HEADER_SIZE;
 
 #ifdef MYSQL_SERVER
-  struct st_net_server *server_extension;
+  NET_SERVER *server_extension;
 
-  server_extension= static_cast<st_net_server*> (net->extension);
+  server_extension= static_cast<NET_SERVER*> (net->extension);
 
   if (server_extension != NULL)
   {
@@ -826,7 +826,7 @@ static bool net_read_packet_header(NET *net)
   }
 
   if (rc)
-    return TRUE;
+    return true;
 
   DBUG_DUMP("packet_header", net->buff + net->where_b, NET_HEADER_SIZE);
 
@@ -853,12 +853,12 @@ static bool net_read_packet_header(NET *net)
                      (uint) pkt_nr, net->pkt_nr);
     DBUG_ASSERT(pkt_nr == net->pkt_nr);
 #endif
-    return TRUE;
+    return true;
   }
 
   net->pkt_nr++;
 
-  return FALSE;
+  return false;
 }
 
 

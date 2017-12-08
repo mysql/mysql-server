@@ -27,7 +27,8 @@
 #include "my_loglevel.h"
 #include "my_sys.h"
 #if defined(_WIN32)
-#include "mysql/service_my_snprintf.h"
+#include <stdio.h>
+
 #include "mysys/mysys_priv.h"
 #endif
 
@@ -203,7 +204,7 @@ static int windows_eventlog_create_registry_entry(const char *key)
   if ((buff= (char *) my_malloc(PSI_NOT_INSTRUMENTED, l, MYF(0))) == NULL)
     DBUG_RETURN(-1);
 
-  my_snprintf(buff, l, "%s%s", registry_prefix, key);
+  snprintf(buff, l, "%s%s", registry_prefix, key);
 
   // Opens the event source registry key; creates it first if required.
   dwError= RegCreateKey(HKEY_LOCAL_MACHINE, buff, &hRegKey);

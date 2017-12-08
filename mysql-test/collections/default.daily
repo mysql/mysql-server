@@ -48,8 +48,10 @@ perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcach
 # MTR or mysqld options in this section
 
 # Additional modes for rpl. Multi-Threaded Slave
-perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_MTS_db_part --vardir=var-mts-rpl_db --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip
-perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_MTS_LC --vardir=var-rpl_mts_LC --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --do-suite=rpl --no-skip
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_MTS_db_part --vardir=var-mts-rpl_db --experimental=collections/default.experimental --mysqld=--slave-parallel-type=database --mysqld=--slave-preserve-commit-order=OFF --do-suite=rpl --no-skip
+
+# Additional mode for rpl. Single-Threaded Slave
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_STS --vardir=var-rpl_sts --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=0 --do-suite=rpl --no-skip
 
 # Additional GTID coverage (rpl suite with gtid_mode=ON)
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_with_gtid --vardir=var-rpl_gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip

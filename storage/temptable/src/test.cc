@@ -17,6 +17,7 @@ TempTable C++ unit tests hooked inside CREATE TABLE. */
 
 #include <array>
 #include <cstring>
+#include <iostream>
 #include <memory>
 #include <thread>
 

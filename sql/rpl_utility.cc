@@ -26,9 +26,11 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/thr_malloc.h"
+
+struct TYPELIB;
 
 #ifdef MYSQL_SERVER
 
@@ -39,6 +41,7 @@
 #include "m_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysqld_error.h"
 #include "sql/dd/dd.h"                   // get_dictionary
@@ -57,10 +60,10 @@
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_tmp_table.h"           // create_tmp_table_from_fields
+#include "sql_show.h"                    // show_sql_type
 #include "sql_string.h"
 #include "template_utils.h"              // delete_container_pointers
 #include "typelib.h"
-#include "sql_show.h"                    // show_sql_type
 
 using std::min;
 using std::max;
@@ -639,7 +642,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
   uint const cols_to_create= min<ulong>(target_table->s->fields, size());
 
   // Default value : treat all values signed
-  bool unsigned_flag= FALSE;
+  bool unsigned_flag= false;
 
   // Check if slave_type_conversions contains ALL_UNSIGNED
   unsigned_flag= slave_type_conversions_options &
@@ -686,7 +689,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
       precision= field_metadata(col) >> 8;
       decimals= field_metadata(col) & 0x00ff;
       max_length=
-        my_decimal_precision_to_length(precision, decimals, FALSE);
+        my_decimal_precision_to_length(precision, decimals, false);
       break;
 
     case MYSQL_TYPE_DECIMAL:
@@ -716,11 +719,11 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     DBUG_PRINT("debug", ("sql_type: %d, target_field: '%s', max_length: %d, decimals: %d,"
                          " maybe_null: %d, unsigned_flag: %d",
                          binlog_type(col), target_table->field[col]->field_name,
-                         max_length, decimals, TRUE, unsigned_flag));
+                         max_length, decimals, true, unsigned_flag));
     field_def->init_for_tmp_table(field_type,
                                   max_length,
                                   decimals,
-                                  TRUE,          // maybe_null
+                                  true,          // maybe_null
                                   unsigned_flag, // unsigned_flag
                                   pack_length_override);
     field_def->charset= target_table->field[col]->charset();
@@ -756,9 +759,7 @@ err:
 
 #endif /* MYSQL_SERVER */
 
-extern "C" {
 PSI_memory_key key_memory_table_def_memory;
-}
 
 table_def::table_def(unsigned char *types, ulong size,
                      uchar *field_metadata, int metadata_size,

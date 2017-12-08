@@ -41,21 +41,17 @@
 #include <utility>                     // std::pair
 
 #include "lex_string.h"                // LEX_CSTRING
+#include "m_ctype.h"
 #include "my_base.h"                   // ha_rows
-#include "sql/histograms/value_map.h"  // Histogram_comparator
 #include "sql/histograms/value_map_type.h"
-#include "sql/key.h"
 #include "sql/memroot_allocator.h"     // Memroot_allocator
-#include "sql/sql_alloc.h"             // Sql_alloc
 #include "sql/stateless_allocator.h"   // Stateless_allocator
-#include "sql/table.h"                 // TABLE_LIST
-#include "sql_string.h"
-
 
 class Item;
 class Json_dom;
 class Json_object;
 class THD;
+struct TYPELIB;
 
 namespace dd {
 class Table;
@@ -64,10 +60,8 @@ namespace histograms {
 struct Histogram_comparator;
 template <class T> class Value_map;
 }  // namespace histograms
+struct MEM_ROOT;
 struct TABLE_LIST;
-struct st_mem_root;
-
-typedef struct st_mem_root MEM_ROOT;
 
 namespace histograms {
 
@@ -88,7 +82,7 @@ enum class Message
   NO_HISTOGRAM_FOUND,
   HISTOGRAM_DELETED,
   NO_SUCH_TABLE,
-  READ_ONLY
+  SERVER_READ_ONLY
 };
 
 struct Histogram_psi_key_alloc
@@ -136,7 +130,7 @@ enum class enum_operator
 /**
   Histogram base class.
 */
-class Histogram : public Sql_alloc
+class Histogram
 {
 public:
   /// All supported histogram types in MySQL.

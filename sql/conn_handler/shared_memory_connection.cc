@@ -22,6 +22,7 @@
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
 #include "my_shm_defaults.h"
+#include "mysql/components/services/log_builtins.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"                 // connection_events_loop_aborted
 #include "sql/psi_memory_key.h"
@@ -172,21 +173,21 @@ bool Shared_mem_listener::setup_listener()
   m_suffix_pos= strxmov(m_temp_buffer,m_shared_mem_name.c_str(),"_",NullS);
   my_stpcpy(m_suffix_pos, "CONNECT_REQUEST");
   if ((m_event_connect_request= CreateEvent(m_sa_event,
-                                            FALSE, FALSE, m_temp_buffer)) == 0)
+                                            false, false, m_temp_buffer)) == 0)
   {
     errmsg= "Could not create request event";
     goto error;
   }
   my_stpcpy(m_suffix_pos, "CONNECT_ANSWER");
-  if ((m_event_connect_answer= CreateEvent(m_sa_event, FALSE,
-                                           FALSE, m_temp_buffer)) == 0)
+  if ((m_event_connect_answer= CreateEvent(m_sa_event, false,
+                                           false, m_temp_buffer)) == 0)
   {
     errmsg="Could not create answer event";
     goto error;
   }
 
   my_stpcpy(m_suffix_pos, "CONNECT_NAMED_MUTEX");
-  m_connect_named_mutex= CreateMutex(NULL, FALSE, m_temp_buffer);
+  m_connect_named_mutex= CreateMutex(NULL, false, m_temp_buffer);
   if (m_connect_named_mutex == NULL)
   {
     errmsg="Unable to create connect named mutex.";
@@ -273,35 +274,35 @@ Channel_info* Shared_mem_listener::listen_for_connection_event()
     goto errorconn;
   }
   my_stpcpy(m_suffix_pos, "CLIENT_WROTE");
-  if ((m_event_client_wrote= CreateEvent(m_sa_event, FALSE, FALSE,
+  if ((m_event_client_wrote= CreateEvent(m_sa_event, false, false,
                                          m_temp_buffer)) == 0)
   {
     errmsg= "Could not create client write event";
     goto errorconn;
   }
   my_stpcpy(m_suffix_pos, "CLIENT_READ");
-  if ((m_event_client_read= CreateEvent(m_sa_event, FALSE, FALSE,
+  if ((m_event_client_read= CreateEvent(m_sa_event, false, false,
                                         m_temp_buffer)) == 0)
   {
     errmsg= "Could not create client read event";
     goto errorconn;
   }
   my_stpcpy(m_suffix_pos, "SERVER_READ");
-  if ((m_event_server_read= CreateEvent(m_sa_event, FALSE, FALSE,
+  if ((m_event_server_read= CreateEvent(m_sa_event, false, false,
                                         m_temp_buffer)) == 0)
   {
     errmsg= "Could not create server read event";
     goto errorconn;
   }
   my_stpcpy(m_suffix_pos, "SERVER_WROTE");
-  if ((m_event_server_wrote= CreateEvent(m_sa_event, FALSE, FALSE,
+  if ((m_event_server_wrote= CreateEvent(m_sa_event, false, false,
                                          m_temp_buffer)) == 0)
   {
     errmsg= "Could not create server write event";
     goto errorconn;
   }
   my_stpcpy(m_suffix_pos, "CONNECTION_CLOSED");
-  if ((m_event_conn_closed= CreateEvent(m_sa_event, TRUE, FALSE,
+  if ((m_event_conn_closed= CreateEvent(m_sa_event, true, false,
                                         m_temp_buffer)) == 0)
   {
     errmsg= "Could not create closed connection event";

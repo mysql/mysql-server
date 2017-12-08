@@ -24,7 +24,9 @@
 #include "my_io.h"
 #include "my_psi_config.h"
 #include "my_sys.h"                             // my_write, my_malloc
+#include "mysql/psi/mysql_thread.h"
 #include "mysql_com.h"
+#include "mysql/components/services/psi_thread_bits.h"
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
 
 
@@ -33,24 +35,24 @@ static const char *log_filename= "test_session_info";
 
 static File outfile;
 
-#define STRING_BUFFER_SIZE 512
+#define STRING_BUFFER_SIZE 1100
 
 #define WRITE_STR(format) \
   { \
-    my_snprintf(buffer, sizeof(buffer), (format)); \
+    snprintf(buffer, sizeof(buffer), "%s", (format)); \
     my_write(outfile, (uchar*) buffer, strlen(buffer), MYF(0)); \
   }
 
 
 #define WRITE_VAL(format,value) \
   { \
-    my_snprintf(buffer, sizeof(buffer), (format), (value)); \
+    snprintf(buffer, sizeof(buffer), (format), (value)); \
     my_write(outfile, (uchar*)buffer, strlen(buffer), MYF(0)); \
   }
 
 #define WRITE_VAL2(format,value1, value2) \
   { \
-    my_snprintf(buffer, sizeof(buffer), (format), (value1), (value2)); \
+    snprintf(buffer, sizeof(buffer), (format), (value1), (value2)); \
     my_write(outfile, (uchar*) buffer, strlen(buffer), MYF(0)); \
   }
 
@@ -289,7 +291,7 @@ static int sql_get_integer(void * ctx, longlong value)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer), "%d", value);
+  size_t len= snprintf(buffer, sizeof(buffer), "%lld", value);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col]= len;
@@ -308,7 +310,7 @@ static int sql_get_longlong(void * ctx, longlong value, uint is_unsigned)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           is_unsigned? "%llu":"%lld", value);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
@@ -329,11 +331,11 @@ static int sql_get_decimal(void * ctx, const decimal_t * value)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           "%s%d.%d(%d)[%s]",
                           value->sign? "+":"-",
                           value->intg, value->frac, value->len,
-                          value->buf);
+                          (char *)value->buf);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
 
@@ -358,7 +360,7 @@ static int sql_get_double(void * ctx, double value, uint32 decimals)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer), "%3.7g", value);
+  size_t len= snprintf(buffer, sizeof(buffer), "%3.7g", value);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col]= len;
@@ -379,7 +381,7 @@ static int sql_get_date(void * ctx, const MYSQL_TIME * value)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           "%s%4d-%02d-%02d",
                           value->neg? "-":"",
                           value->year, value->month, value->day);
@@ -410,7 +412,7 @@ static int sql_get_time(void * ctx, const MYSQL_TIME * value, uint decimals)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           "%s%02d:%02d:%02d",
                           value->neg? "-":"",
                           value->day? (value->day*24 + value->hour):value->hour,
@@ -443,7 +445,7 @@ static int sql_get_datetime(void * ctx, const MYSQL_TIME * value, uint decimals)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           "%s%4d-%02d-%02d %02d:%02d:%02d",
                           value->neg? "-":"",
                           value->year, value->month, value->day,
@@ -724,10 +726,10 @@ static void test_sql(void *p)
   }
 
   /* All information from performance_schema  */
-  my_snprintf(buffer_query, sizeof(buffer_query), "SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  %lu",  session_1_id);
+  snprintf(buffer_query, sizeof(buffer_query), "SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  %u",  session_1_id);
   EXEC_TEST_CMD(session_1, buffer_query, p, plugin_ctx);
 
-  my_snprintf(buffer_query, sizeof(buffer_query), "SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  %lu",  session_2_id);
+  snprintf(buffer_query, sizeof(buffer_query), "SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  %u",  session_2_id);
   EXEC_TEST_CMD(session_2, buffer_query, p, plugin_ctx);
 
   /* srv_session_info_get_current_db */
@@ -799,7 +801,7 @@ static void test_sql(void *p)
   WRITE_SEP();
   WRITE_STR("Session 1 : srv_session_info_set_connection_type\n");
   WRITE_SEP();
-  my_snprintf(buffer_query, sizeof(buffer_query), "SELECT CONNECTION_TYPE, CONNECTION_TYPE IS NULL FROM performance_schema.threads WHERE PROCESSLIST_ID =  %lu /*session_1_id*/",  session_1_id);
+  snprintf(buffer_query, sizeof(buffer_query), "SELECT CONNECTION_TYPE, CONNECTION_TYPE IS NULL FROM performance_schema.threads WHERE PROCESSLIST_ID =  %u /*session_1_id*/",  session_1_id);
   WRITE_STR("Session 1's view\n");
   EXEC_TEST_CMD(session_1, buffer_query, p, plugin_ctx);
 
@@ -807,19 +809,19 @@ static void test_sql(void *p)
   if (0 == srv_session_info_set_connection_type(session_1, NO_VIO_TYPE))
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_info_set_connection_type(NO_VIO_TYPE) should fail but did not");
 
-  my_snprintf(buffer_query, sizeof(buffer_query), "SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  %lu /*session_1_id*/", session_1_id);
+  snprintf(buffer_query, sizeof(buffer_query), "SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  %u /*session_1_id*/", session_1_id);
   WRITE_STR("Session 1's view\n");
   EXEC_TEST_CMD(session_1, buffer_query, p, plugin_ctx);
 
   WRITE_STR("Setting VIO_TYPE_TCPIP on session_1\n");
   srv_session_info_set_connection_type(session_1, VIO_TYPE_TCPIP);
-  my_snprintf(buffer_query, sizeof(buffer_query), "SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  %lu /*session_1_id*/", session_1_id);
+  snprintf(buffer_query, sizeof(buffer_query), "SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  %u /*session_1_id*/", session_1_id);
   WRITE_STR("Session 1's view\n");
   EXEC_TEST_CMD(session_1, buffer_query, p, plugin_ctx);
 
   WRITE_STR("Setting VIO_TYPE_NAMEDPIPE on session_1\n");
   srv_session_info_set_connection_type(session_1, VIO_TYPE_NAMEDPIPE);
-  my_snprintf(buffer_query, sizeof(buffer_query), "SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  %lu /*session_1_id*/", session_1_id);
+  snprintf(buffer_query, sizeof(buffer_query), "SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  %u /*session_1_id*/", session_1_id);
   WRITE_STR("Session 1's view\n");
   EXEC_TEST_CMD(session_1, buffer_query, p, plugin_ctx);
 
@@ -827,7 +829,7 @@ static void test_sql(void *p)
   WRITE_SEP();
   WRITE_STR("Session 2 : srv_session_info_set_connection_type\n");
   WRITE_SEP();
-  my_snprintf(buffer_query, sizeof(buffer_query), "SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  %lu /*session_2_id*/", session_2_id);
+  snprintf(buffer_query, sizeof(buffer_query), "SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  %u /*session_2_id*/", session_2_id);
   WRITE_STR("Session 2's view\n");
   EXEC_TEST_CMD(session_2, buffer_query, p, plugin_ctx);
 
@@ -837,12 +839,12 @@ static void test_sql(void *p)
   /* Don't delete the following. We check if set of type on detached session will affect PFS. The thread should be SSL */
   WRITE_STR("Setting VIO_TYPE_TCPIP on session_1\n");
   srv_session_info_set_connection_type(session_1, VIO_TYPE_TCPIP); 
-  my_snprintf(buffer_query, sizeof(buffer_query), "SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  %lu /*session_2_id*/", session_2_id);
+  snprintf(buffer_query, sizeof(buffer_query), "SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  %u /*session_2_id*/", session_2_id);
   WRITE_STR("Session 2's view\n");
   EXEC_TEST_CMD(session_2, buffer_query, p, plugin_ctx);
 
   srv_session_info_set_connection_type(session_2, VIO_TYPE_SHARED_MEMORY);
-  my_snprintf(buffer_query, sizeof(buffer_query), "SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  %lu  /*session_2_id*/", session_2_id);
+  snprintf(buffer_query, sizeof(buffer_query), "SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  %u  /*session_2_id*/", session_2_id);
   WRITE_STR("Session 2's view\n");
   EXEC_TEST_CMD(session_2, buffer_query, p, plugin_ctx);
 
@@ -858,7 +860,7 @@ static void test_sql(void *p)
 
   WRITE_SEP();
   WRITE_STR("Killing Session 1\n");
-  my_snprintf(buffer_query, sizeof(buffer_query), "KILL CONNECTION %lu /*session_1_id*/", session_1_id);
+  snprintf(buffer_query, sizeof(buffer_query), "KILL CONNECTION %u /*session_1_id*/", session_1_id);
   EXEC_TEST_CMD(session_2, buffer_query, p, plugin_ctx);
 
   WRITE_SEP();
@@ -881,7 +883,7 @@ static void test_sql(void *p)
 
   db_name= srv_session_info_get_current_db(session_1);
 
-  WRITE_VAL("srv_session_info_get_thd             : %d\n", srv_session_info_get_thd(session_1));
+  WRITE_VAL("srv_session_info_get_thd             : %d\n", (bool) srv_session_info_get_thd(session_1));
   WRITE_VAL("srv_session_info_get_session_id      : %d\n", srv_session_info_get_session_id(session_1));
   WRITE_VAL("srv_session_info_set_client_port     : %d\n", srv_session_info_set_client_port(session_1, 11111));
   WRITE_VAL("srv_session_info_get_client_port     : %d\n", srv_session_info_get_client_port(session_1));
@@ -894,7 +896,7 @@ static void test_sql(void *p)
   WRITE_SEP();
   WRITE_STR("Perform KILL QUERY and suicide (KILL CONNECTION) on Session 2\n");
   WRITE_SEP();
-  my_snprintf(buffer_query, sizeof(buffer_query), "KILL QUERY %i /*session_2_id*/", session_2_id);
+  snprintf(buffer_query, sizeof(buffer_query), "KILL QUERY %i /*session_2_id*/", session_2_id);
   WRITE_VAL("%s\n", buffer_query);
   cmd.com_query.query = buffer_query;
   cmd.com_query.length = strlen(buffer_query);
@@ -911,7 +913,7 @@ static void test_sql(void *p)
 
   WRITE_VAL("srv_session_info_killed(Session 2) : %d\n", srv_session_info_killed(session_2));
 
-  my_snprintf(buffer_query, sizeof(buffer_query), "KILL CONNECTION %i  /*session_2_id*/", session_2_id);
+  snprintf(buffer_query, sizeof(buffer_query), "KILL CONNECTION %i  /*session_2_id*/", session_2_id);
   WRITE_VAL("%s\n", buffer_query);
   cmd.com_query.query = buffer_query;
   cmd.com_query.length = strlen(buffer_query);

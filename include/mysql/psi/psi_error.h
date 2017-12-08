@@ -30,8 +30,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_error_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_ERROR_VERSION_1
   Performance Schema Error Interface number for version 1.
@@ -80,7 +78,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_error_service_t* psi_error_service;
 #endif /* HAVE_PSI_ERROR_INTERFACE */
 
 /** @} (end of group psi_abi_error) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_ERROR_H */

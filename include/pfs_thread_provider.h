@@ -39,8 +39,6 @@ class THD;
 
 #define PSI_THREAD_CALL(M) pfs_ ## M ## _v1
 
-C_MODE_START
-
 void pfs_register_thread_v1(const char *category,
                             PSI_thread_info_v1 *info,
                             int count);
@@ -114,8 +112,6 @@ void pfs_notify_session_connect_v1(PSI_thread *thread);
 void pfs_notify_session_disconnect_v1(PSI_thread *thread);
 
 void pfs_notify_session_change_user_v1(PSI_thread *thread);
-
-C_MODE_END
 
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 

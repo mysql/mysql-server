@@ -175,7 +175,7 @@ row_merge_create_fts_sort_index(
 }
 /*********************************************************************//**
 Initialize FTS parallel sort structures.
-@return TRUE if all successful */
+@return true if all successful */
 ibool
 row_fts_psort_info_init(
 /*====================*/
@@ -364,7 +364,7 @@ row_fts_free_pll_merge_buf(
 
 /*********************************************************************//**
 FTS plugin parser 'myql_add_word' callback function for row merge.
-Refer to 'st_mysql_ftparser_param' for more detail.
+Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
 @return always returns 0 */
 static
 int
@@ -445,7 +445,7 @@ row_merge_fts_doc_tokenize_by_parser(
 
 /*********************************************************************//**
 Tokenize incoming text data and add to the sort buffer.
-@return TRUE if the record passed, FALSE if out of space */
+@return true if the record passed, false if out of space */
 static
 ibool
 row_merge_fts_doc_tokenize(
@@ -762,7 +762,6 @@ fts_parallel_tokenization_thread(fts_psort_t* psort_info)
 	merge_file = psort_info->merge_file;
 	blob_heap = mem_heap_create(512);
 	memset(&doc, 0, sizeof(doc));
-	memset(&t_ctx, 0, sizeof(t_ctx));
 	memset(mycount, 0, FTS_NUM_AUX_INDEX * sizeof(int));
 
 	doc.charset = fts_index_get_charset(

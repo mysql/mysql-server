@@ -79,7 +79,7 @@ opt_invert_cmp_op(
 Checks if the value of an expression can be calculated BEFORE the nth table
 in a join is accessed. If this is the case, it can possibly be used in an
 index search for the nth table.
-@return TRUE if already determined */
+@return true if already determined */
 static
 ibool
 opt_check_exp_determined_before(
@@ -472,7 +472,7 @@ opt_op_to_search_mode(
 
 /*******************************************************************//**
 Determines if a node is an argument node of a function node.
-@return TRUE if is an argument */
+@return true if is an argument */
 static
 ibool
 opt_is_arg(

@@ -39,19 +39,19 @@ static int int_variable_value=4096;
 static int int_var_2_value=2048;
 static unsigned int uint_variable_value=0;
 
-STATUS_VAR int_variable[]=
+SHOW_VAR int_variable[]=
 { 
   {"test_int_component.int_variable", (char *) &int_variable_value,
    SHOW_INT, SHOW_SCOPE_GLOBAL},
   {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF} // null terminator required
 };
-STATUS_VAR int_var_2[]=
+SHOW_VAR int_var_2[]=
 { 
   {"int_var_2", (char *) &int_var_2_value,
    SHOW_INT, SHOW_SCOPE_GLOBAL},
   {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF} // null terminator required
 };
-STATUS_VAR uint_variable[]=
+SHOW_VAR uint_variable[]=
 { 
   {"test_int_component.uint_variable", (char *) &uint_variable_value,
    SHOW_INT, SHOW_SCOPE_GLOBAL},
@@ -69,19 +69,19 @@ static mysql_service_status_t test_component_status_var_service_int_init()
   WRITE_LOG("%s\n", "test_component_status_var_int init:");
 
   if (mysql_service_status_variable_registration->register_variable(
-                 (STATUS_VAR *) &int_variable))
+                 (SHOW_VAR *) &int_variable))
   {
     WRITE_LOG ("%s\n", "int register_variable failed.");
   }
 
   if (mysql_service_status_variable_registration->register_variable(
-                 (STATUS_VAR *) &int_var_2))
+                 (SHOW_VAR *) &int_var_2))
   {
     WRITE_LOG ("%s\n", "int register_variable_2 failed.");
   }
 
   if (mysql_service_status_variable_registration->register_variable(
-                 (STATUS_VAR *) &uint_variable))
+                 (SHOW_VAR *) &uint_variable))
   {
     WRITE_LOG ("%s\n", "uint register_variable failed.");
   }
@@ -102,26 +102,26 @@ static mysql_service_status_t test_component_status_var_service_int_deinit()
   WRITE_LOG("%s\n", "test_component_status_var_int deinit:");
 
   if (mysql_service_status_variable_registration->unregister_variable(
-                 (STATUS_VAR *) &int_variable))
+                 (SHOW_VAR *) &int_variable))
   {
     WRITE_LOG ("%s\n", "int unregister_variable failed.");
   }
 
 // Unregister status variable a second time
   if (mysql_service_status_variable_registration->unregister_variable(
-                 (STATUS_VAR *) &int_variable))
+                 (SHOW_VAR *) &int_variable))
   {
     WRITE_LOG ("%s\n", "int unregister_variable failed.");
   }
 
   if (mysql_service_status_variable_registration->unregister_variable(
-                 (STATUS_VAR *) &int_var_2))
+                 (SHOW_VAR *) &int_var_2))
   {
     WRITE_LOG ("%s\n", "int unregister_variable failed.");
   }
 
   if (mysql_service_status_variable_registration->unregister_variable(
-                 (STATUS_VAR *) &uint_variable))
+                 (SHOW_VAR *) &uint_variable))
   {
     WRITE_LOG ("%s\n", "uint unregister_variable failed.");
   }

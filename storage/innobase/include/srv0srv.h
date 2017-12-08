@@ -701,7 +701,7 @@ srv_wake_master_thread(void);
 /*========================*/
 /******************************************************************//**
 Outputs to a file the output of the InnoDB Monitor.
-@return FALSE if not all information printed
+@return false if not all information printed
 due to failure to obtain necessary mutex */
 ibool
 srv_printf_innodb_monitor(
@@ -728,7 +728,7 @@ srv_get_activity_count(void);
 /*========================*/
 /*******************************************************************//**
 Check if there has been any activity.
-@return FALSE if no change in activity counter. */
+@return false if no change in activity counter. */
 ibool
 srv_check_activity(
 /*===============*/
@@ -821,6 +821,8 @@ bool
 srv_purge_threads_active();
 
 #ifdef UNIV_DEBUG
+struct SYS_VAR;
+
 /** Disables master thread. It's used by:
 	SET GLOBAL innodb_master_thread_disabled_debug = 1 (0).
 @param[in]	thd		thread handle
@@ -830,7 +832,7 @@ srv_purge_threads_active();
 void
 srv_master_thread_disabled_debug_update(
 	THD*				thd,
-	struct st_mysql_sys_var*	var,
+	SYS_VAR*	var,
 	void*				var_ptr,
 	const void*			save);
 #endif /* UNIV_DEBUG */

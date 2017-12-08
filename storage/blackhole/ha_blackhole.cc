@@ -20,6 +20,7 @@
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
 #include "sql/sql_class.h"                      // THD, SYSTEM_THREAD_SLAVE_*
 #include "template_utils.h"
@@ -165,7 +166,7 @@ int ha_blackhole::info(uint flag)
 {
   DBUG_ENTER("ha_blackhole::info");
 
-  memset(&stats, 0, sizeof(stats));
+  stats= ha_statistics();
   if (flag & HA_STATUS_AUTO)
     stats.auto_increment_value= 1;
   DBUG_RETURN(0);

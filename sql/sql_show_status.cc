@@ -22,7 +22,6 @@
 #include "m_string.h"                  // C_STRING_WITH_LEN
 #include "my_sqlcommand.h"
 #include "sql/item_cmpfunc.h"          // Item_func_like
-#include "sql/key.h"
 #include "sql/mem_root_array.h"
 #include "sql/parse_tree_items.h"      // PTI_simple_ident_ident
 #include "sql/parse_tree_nodes.h"      // PT_select_item_list

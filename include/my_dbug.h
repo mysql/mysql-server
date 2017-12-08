@@ -32,6 +32,7 @@
 #include <stdio.h>
 #endif
 
+// Needs to be extern "C" for the time being, since extra/regex/ uses it.
 #ifdef  __cplusplus
 extern "C" {
 #endif
@@ -44,10 +45,10 @@ struct _db_stack_frame_ {
   struct _db_stack_frame_ *prev; /* pointer to the previous frame */
 };
 
-struct  _db_code_state_;
+struct  CODE_STATE;
 
-extern  int _db_keyword_(struct _db_code_state_ *, const char *, int);
-extern  int _db_explain_(struct _db_code_state_ *cs, char *buf, size_t len);
+extern  int _db_keyword_(struct CODE_STATE *, const char *, int);
+extern  int _db_explain_(struct CODE_STATE *cs, char *buf, size_t len);
 extern  int _db_explain_init_(char *buf, size_t len);
 extern	int _db_is_pushed_(void);
 extern  void _db_process_(const char *name);
@@ -167,7 +168,7 @@ extern void _db_flush_gcov_();
 
 #endif
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

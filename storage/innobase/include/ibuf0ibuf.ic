@@ -142,7 +142,7 @@ routine.
 
 For instance, a read-ahead of non-ibuf pages is forbidden by threads
 that are executing an insert buffer routine.
-@return TRUE if inside an insert buffer routine */
+@return true if inside an insert buffer routine */
 UNIV_INLINE
 ibool
 ibuf_inside(
@@ -155,7 +155,7 @@ ibuf_inside(
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
-@return TRUE if a bitmap page */
+@return true if a bitmap page */
 UNIV_INLINE
 ibool
 ibuf_bitmap_page(
@@ -317,14 +317,16 @@ ibuf_update_free_bits_if_full(
 		block->page.size.physical(), max_ins_size);
 
 	if (max_ins_size >= increase) {
-#if ULINT32_UNDEFINED <= UNIV_PAGE_SIZE_MAX
-# error "ULINT32_UNDEFINED <= UNIV_PAGE_SIZE_MAX"
-#endif
+                static_assert(
+                        ULINT32_UNDEFINED > UNIV_PAGE_SIZE_MAX,
+                        "ULINT32_UNDEFINED <= UNIV_PAGE_SIZE_MAX");
+
 		after = ibuf_index_page_calc_free_bits(
 			block->page.size.physical(), max_ins_size - increase);
 #ifdef UNIV_IBUF_DEBUG
 		ut_a(after <= ibuf_index_page_calc_free(block));
-#endif
+#endif /* UNIV_IBUF_DEBUG */
+
 	} else {
 		after = ibuf_index_page_calc_free(block);
 	}

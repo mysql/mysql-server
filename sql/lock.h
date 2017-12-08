@@ -21,22 +21,19 @@
 #include <string>
 
 #include "map_helpers.h"
-#include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/mdl.h"
 
 class THD;
 // Forward declarations
 struct TABLE;
+struct THR_LOCK_DATA;
 
-typedef struct st_thr_lock_data THR_LOCK_DATA;
-
-typedef struct st_mysql_lock
+struct MYSQL_LOCK
 {
   TABLE **table;
   uint table_count,lock_count;
   THR_LOCK_DATA **locks;
-} MYSQL_LOCK;
+};
 
 MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, size_t count, uint flags);
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);

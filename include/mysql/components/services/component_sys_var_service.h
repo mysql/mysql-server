@@ -71,15 +71,16 @@ struct TYPE_LIB
                                            for read only variables */
 
 class THD;
+struct SYS_VAR;
 #define MYSQL_THD THD*
 
 typedef int (*mysql_sys_var_check_func) (MYSQL_THD thd,
-                                         struct st_mysql_sys_var *var,
+                                         SYS_VAR *var,
                                          void *save,
                                          struct st_mysql_value *value);
 
 typedef void (*mysql_sys_var_update_func) (MYSQL_THD thd,
-                                           struct st_mysql_sys_var *var,
+                                           SYS_VAR *var,
                                            void *var_ptr,
                                            const void *save);
 

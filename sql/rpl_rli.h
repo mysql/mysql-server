@@ -46,19 +46,13 @@
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/thread_type.h"
-#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/binlog.h"        // MYSQL_BIN_LOG
-#include "sql/handler.h"
 #include "sql/log_event.h"    //Gtid_log_event
-#include "sql/mysqld.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
-#include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"      // Gtid_set
 #include "sql/rpl_info.h"      // Rpl_info
 #include "sql/rpl_mts_submode.h" // enum_mts_parallel_type
@@ -66,22 +60,19 @@
 #include "sql/rpl_tblmap.h"    // table_mapping
 #include "sql/rpl_utility.h"   // Deferred_log_events
 #include "sql/sql_class.h"     // THD
-#include "sql/sql_lex.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql_string.h"
 
 class Commit_order_manager;
-class Format_description_log_event;
-class Log_event;
 class Master_info;
-class Rows_query_log_event;
 class Rpl_filter;
 class Rpl_info_handler;
 class Slave_committed_queue;
 class Slave_worker;
+class String;
+struct LEX_MASTER_INFO;
+struct db_worker_hash_entry;
 
-typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 extern uint sql_slave_skip_counter;
 
 typedef Prealloced_array<Slave_worker*, 4> Slave_worker_array;
@@ -1113,7 +1104,7 @@ public:
 
   int rli_init_info();
   void end_info();
-  int flush_info(bool force= FALSE);
+  int flush_info(bool force= false);
   int flush_current_log();
   void set_master_info(Master_info *info);
 
@@ -1230,7 +1221,7 @@ public:
   bool reported_unsafe_warning;
 
   /*
-    'sql_thread_kill_accepted is set to TRUE when killed status is recognized.
+    'sql_thread_kill_accepted is set to true when killed status is recognized.
   */
   bool sql_thread_kill_accepted;
 
@@ -1613,7 +1604,7 @@ bool mysql_show_relaylog_events(THD* thd);
 
 /**
    @param  thd a reference to THD
-   @return TRUE if thd belongs to a Worker thread and FALSE otherwise.
+   @return true if thd belongs to a Worker thread and false otherwise.
 */
 inline bool is_mts_worker(const THD *thd)
 {

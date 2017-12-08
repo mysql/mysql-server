@@ -26,7 +26,7 @@ Created 12/18/1995 Heikki Tuuri
 /** Checks if a page address is an extent descriptor page address.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
-@return TRUE if a descriptor page */
+@return true if a descriptor page */
 UNIV_INLINE
 ibool
 fsp_descr_page(
@@ -245,7 +245,7 @@ xdes_calc_descriptor_index(
 
 /**********************************************************************//**
 Gets a descriptor bit of a page.
-@return TRUE if free */
+@return true if free */
 UNIV_INLINE
 ibool
 xdes_get_bit(
@@ -279,18 +279,17 @@ xdes_calc_descriptor_page(
 	const page_size_t&	page_size,
 	page_no_t		offset)
 {
-#ifndef DOXYGEN /* Doxygen gets confused by these */
-# if UNIV_PAGE_SIZE_MAX <= XDES_ARR_OFFSET				\
-			   + (UNIV_PAGE_SIZE_MAX / FSP_EXTENT_SIZE_MAX)	\
-			   * XDES_SIZE_MAX
-#  error
-# endif
-# if UNIV_ZIP_SIZE_MIN <= XDES_ARR_OFFSET				\
-			  + (UNIV_ZIP_SIZE_MIN / FSP_EXTENT_SIZE_MIN)	\
-			  * XDES_SIZE_MIN
-#  error
-# endif
-#endif /* !DOXYGEN */
+	static_assert(
+		UNIV_PAGE_SIZE_MAX
+		> XDES_ARR_OFFSET
+		   + (UNIV_PAGE_SIZE_MAX / FSP_EXTENT_SIZE_MAX)
+		   * XDES_SIZE_MAX, "Extent descriptor won't fit on a page");
+
+	static_assert(
+		UNIV_ZIP_SIZE_MIN
+		> XDES_ARR_OFFSET
+		   + (UNIV_ZIP_SIZE_MIN / FSP_EXTENT_SIZE_MIN)
+		   * XDES_SIZE_MIN, "Extent descriptor won't fit on a page");
 
 	ut_ad(UNIV_PAGE_SIZE > XDES_ARR_OFFSET
 	      + (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE)

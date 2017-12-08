@@ -617,7 +617,7 @@ static void dd_upgrade_process_index(Index dd_index, dict_index_t* index,
   p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], index->page);
   p.set_uint64(dd_index_key_strings[DD_INDEX_SPACE_ID], index->space);
   p.set_uint64(dd_index_key_strings[DD_INDEX_ID], index->id);
-  p.set_uint32(dd_index_key_strings[DD_TABLE_ID], index->table->id);
+  p.set_uint64(dd_index_key_strings[DD_TABLE_ID], index->table->id);
   p.set_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], 0);
 
   if (has_auto_inc) {
@@ -679,7 +679,7 @@ static bool dd_upgrade_partitions(THD* thd, const char* norm_name,
     /* Set table id */
     part_obj->set_se_private_id(part_table->id);
 
-    /* Set DATADIRECTORY attribute in se_private_data */
+    /* Set DATA_DIRECTORY attribute in se_private_data */
     if (DICT_TF_HAS_DATA_DIR(part_table->flags)) {
       ut_ad(dict_table_is_file_per_table(part_table));
       part_obj->se_private_data().set_bool(
@@ -872,7 +872,7 @@ bool dd_upgrade_table(THD* thd, const char* db_name, const char* table_name,
 
   dd_table->set_se_private_id(ib_table->id);
 
-  /* Set DATADIRECTORY attribute in se_private_data */
+  /* Set DATA_DIRECTORY attribute in se_private_data */
   if (DICT_TF_HAS_DATA_DIR(ib_table->flags)) {
     ut_ad(dict_table_is_file_per_table(ib_table));
     dd_table->se_private_data().set_bool(

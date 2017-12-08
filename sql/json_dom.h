@@ -30,20 +30,18 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
+#include "my_sys.h"
 #include "mysql_time.h"         // MYSQL_TIME
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql/json_binary.h"    // json_binary::Value
 #include "sql/malloc_allocator.h" // Malloc_allocator
 #include "sql/my_decimal.h"     // my_decimal
-#include "sql/sql_alloc.h"      // Sql_alloc
 
 class Field_json;
 class Json_array;
 class Json_dom;
 class Json_object;
 class Json_path;
-class Json_path_leg;
 class Json_seekable_path;
 class Json_wrapper;
 class String;
@@ -1178,10 +1176,10 @@ enum enum_coercion_error {
 
   Instances of this class are usually created on the stack. In some
   cases instances are cached in an Item and reused, in which case they
-  are allocated from query-duration memory (which is why the class
-  inherits from Sql_alloc).
+  are allocated from query-duration memory (by allocating them on a
+  MEM_ROOT).
 */
-class Json_wrapper : Sql_alloc
+class Json_wrapper
 {
 private:
   /*
@@ -1219,20 +1217,6 @@ public:
     // Workaround for Solaris Studio, initialize in CTOR body.
     m_dom_alias= true;
   }
-
-  using Sql_alloc::operator new;
-  using Sql_alloc::operator delete;
-
-  /** Placement new. */
-  void *operator new(size_t, void *ptr,
-                     const std::nothrow_t &arg MY_ATTRIBUTE((unused))
-                     = std::nothrow) throw()
-  { return ptr; }
-
-  /** Placement delete. */
-  void operator delete(void*, void*,
-                       const std::nothrow_t&) throw ()
-  {}
 
   /**
     Wrap the supplied DOM value (no copy taken). The wrapper takes
@@ -1620,7 +1604,7 @@ public:
     Extract an int (signed or unsigned) from the JSON if possible
     coercing if need be.
     @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    TRUE <=> error occur during coercion
+    @param[out] err    true <=> error occur during coercion
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
     @returns json value coerced to int
@@ -1632,7 +1616,7 @@ public:
     Extract a real from the JSON if possible, coercing if need be.
 
     @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    TRUE <=> error occur during coercion
+    @param[out] err    true <=> error occur during coercion
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
     @returns json value coerced to real
@@ -1645,7 +1629,7 @@ public:
 
     @param[in,out] decimal_value a value buffer
     @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    TRUE <=> error occur during coercion
+    @param[out] err    true <=> error occur during coercion
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
     @returns json value coerced to decimal
@@ -1792,7 +1776,7 @@ bool is_valid_json_syntax(const char *text, size_t length);
   Json_scalar. Used for pre-allocating space in query-duration memory
   for JSON scalars that are to be returned by get_json_atom_wrapper().
 */
-class Json_scalar_holder : public Sql_alloc
+class Json_scalar_holder
 {
   /**
     Union of all concrete subclasses of Json_scalar. The union is

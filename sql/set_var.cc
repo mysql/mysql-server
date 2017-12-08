@@ -29,9 +29,11 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -41,7 +43,6 @@
 #include "sql/enum_query_type.h"
 #include "sql/item.h"
 #include "sql/item_func.h"
-#include "sql/key.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"          // system_charset_info
 #include "sql/persisted_variable.h"
@@ -56,7 +57,6 @@
 #include "sql/sql_parse.h"       // is_supported_parser_charset
 #include "sql/sql_select.h"      // free_underlaid_joins
 #include "sql/sql_show.h"        // append_identifier
-#include "sql/sql_table.h"
 #include "sql/sys_vars_shared.h" // PolyLock_mutex
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -196,7 +196,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   flags(flags_arg), m_parse_flag(parse_flag), show_val_type(show_val_type_arg),
   guard(lock), offset(off), on_check(on_check_func), on_update(on_update_func),
   deprecation_substitute(substitute),
-  is_os_charset(FALSE)
+  is_os_charset(false)
 {
   /*
     There is a limitation in handle_options() related to short options:
@@ -536,11 +536,11 @@ const CHARSET_INFO *sys_var::charset(THD *thd)
     system_charset_info;
 }
 
-typedef struct old_names_map_st
+struct my_old_conv
 {
   const char *old_name;
   const char *new_name;
-} my_old_conv;
+};
 
 static my_old_conv old_conv[]=
 {
@@ -680,7 +680,7 @@ ulonglong get_system_variable_hash_version(void)
   Constructs an array of system variables for display to the user.
 
   @param show_var_array Prealloced_array of SHOW_VAR elements for display 
-  @param sort           If TRUE, the system variables should be sorted
+  @param sort           If true, the system variables should be sorted
   @param query_scope    OPT_GLOBAL or OPT_SESSION for SHOW GLOBAL|SESSION VARIABLES
   @param strict         Use strict scope checking
   @retval               True on error, false otherwise
@@ -742,7 +742,7 @@ bool enumerate_sys_vars(Show_var_array *show_var_array,
                  show_var_array->element_size(), show_cmp);
 
     /* Make last element empty. */
-    show_var_array->push_back(st_mysql_show_var());
+    show_var_array->push_back(SHOW_VAR());
   }
   
   return false;
@@ -1241,8 +1241,7 @@ void set_var_user::print(THD*, String *str)
 int set_var_password::check(THD *thd)
 {
   /* Returns 1 as the function sends error to client */
-  return check_change_password(thd, user->host.str, user->user.str,
-                               password, strlen(password)) ? 1 : 0;
+  return check_change_password(thd, user->host.str, user->user.str) ? 1 : 0;
 }
 
 int set_var_password::update(THD *thd)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,8 +37,6 @@ struct MDL_key;
 
 #define PSI_METADATA_CALL(M) pfs_ ## M ## _v1
 
-C_MODE_START
-
 PSI_metadata_lock* pfs_create_metadata_lock_v1
   (void *identity,
    const MDL_key *key,
@@ -62,8 +60,6 @@ pfs_start_metadata_wait_v1
 
 void pfs_end_metadata_wait_v1
   (struct PSI_metadata_locker *locker, int rc);
-
-C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */

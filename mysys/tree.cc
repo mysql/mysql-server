@@ -103,7 +103,7 @@ void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,
   if (default_alloc_size < DEFAULT_ALLOC_SIZE)
     default_alloc_size= DEFAULT_ALLOC_SIZE;
   default_alloc_size= MY_ALIGN(default_alloc_size, DEFAULT_ALIGN_SIZE);
-  memset(&tree->null_element, 0, sizeof(tree->null_element));
+  new (&tree->null_element) TREE_ELEMENT();
   tree->root= &tree->null_element;
   tree->compare=compare;
   tree->size_of_element=size > 0 ? (uint) size : 0;
@@ -139,7 +139,6 @@ void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,
   {
     init_alloc_root(key_memory_TREE,
                     &tree->mem_root, default_alloc_size, 0);
-    tree->mem_root.min_malloc=(sizeof(TREE_ELEMENT)+tree->size_of_element);
   }
   DBUG_VOID_RETURN;
 }

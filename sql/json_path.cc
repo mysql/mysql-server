@@ -165,16 +165,9 @@ Json_seekable_path::Json_seekable_path()
 // Json_path
 
 Json_path::Json_path()
-  : m_mem_root(key_memory_JSON, 256, 0)
+  : m_mem_root(key_memory_JSON, 256)
 {}
 
-
-void Json_path::pop()
-{
-  DBUG_ASSERT(m_path_legs.size() > 0);
-  m_path_legs.back()->~Json_path_leg();
-  m_path_legs.pop_back();
-}
 
 bool Json_path::to_string(String *buf) const
 {

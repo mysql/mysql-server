@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -98,7 +98,7 @@ sync_arr_wake_threads_if_sema_free();
 
 /**********************************************************************//**
 Prints warnings of long semaphore waits to stderr.
-@return TRUE if fatal semaphore wait threshold was exceeded */
+@return true if fatal semaphore wait threshold was exceeded */
 ibool
 sync_array_print_long_waits(
 	os_thread_id_t*	waiter,	/*!< out: longest waiting thread */

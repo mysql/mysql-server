@@ -23,6 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h" // internal structs
                               // connection_events_loop_aborted()
+
+#include "my_dir.h"
+
 #include <mysql/components/services/log_service.h>
 #include <mysql/components/services/log_shared.h>   // data types
 
@@ -36,11 +39,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "sql/mysqld.h"       // opt_log_(timestamps|error_services),
 #include "sql/sql_class.h"    // THD
 
+// Must come after sql/log.h.
+#include "mysql/components/services/log_builtins.h"
+
 #ifndef _WIN32
 #include <syslog.h>
 #else
+#include <stdio.h>
+
 #include "my_sys.h"
-#include "mysql/service_my_snprintf.h"
 
 extern CHARSET_INFO       my_charset_utf16le_bin;  // used in Windows EventLog
 static HANDLE             hEventLog= NULL;         // global
@@ -49,11 +56,8 @@ static HANDLE             hEventLog= NULL;         // global
 
 extern log_filter_ruleset *log_filter_builtin_rules; // what it says on the tin
 
-extern "C"
-{
 PSI_memory_key key_memory_log_error_loaded_services;
 PSI_memory_key key_memory_log_error_stack;
-}
 
 using std::string;
 using std::unique_ptr;
@@ -174,11 +178,11 @@ static log_service_instance       *log_service_instances= nullptr; ///< anchor
   log_errstream struct to describe their log-files. These structs are
   opaque to the log-services.
 */
-typedef struct _log_errstream
+struct log_errstream
 {
-  FILE                            *file;           ///< file to log to
+  FILE                            *file{nullptr};  ///< file to log to
   mysql_mutex_t                    LOCK_errstream; ///< lock for logging
-} log_errstream;
+};
 
 
 /**
@@ -1693,7 +1697,7 @@ int log_line_submit(log_line *ll)
 int make_iso8601_timestamp(char *buf, ulonglong utime, int mode)
 {
   struct tm  my_tm;
-  char       tzinfo[7]="Z";  // max 6 chars plus \0
+  char       tzinfo[8]="Z";  // max 6 chars plus \0
   size_t     len;
   time_t     seconds;
 
@@ -1724,7 +1728,7 @@ int make_iso8601_timestamp(char *buf, ulonglong utime, int mode)
       dir= '+';
       tim= -tim;
     }
-    my_snprintf(tzinfo, sizeof(tzinfo), "%c%02d:%02d",
+    snprintf(tzinfo, sizeof(tzinfo), "%c%02d:%02d",
                 dir, (int) (tim / (60 * 60)), (int) ((tim / 60) % 60));
   }
   else
@@ -1732,15 +1736,15 @@ int make_iso8601_timestamp(char *buf, ulonglong utime, int mode)
     DBUG_ASSERT(false);
   }
 
-  len= my_snprintf(buf, iso8601_size, "%04d-%02d-%02dT%02d:%02d:%02d.%06lu%s",
-                   my_tm.tm_year + 1900,
-                   my_tm.tm_mon  + 1,
-                   my_tm.tm_mday,
-                   my_tm.tm_hour,
-                   my_tm.tm_min,
-                   my_tm.tm_sec,
-                   (unsigned long) utime,
-                   tzinfo);
+  len= snprintf(buf, iso8601_size, "%04d-%02d-%02dT%02d:%02d:%02d.%06lu%s",
+                my_tm.tm_year + 1900,
+                my_tm.tm_mon  + 1,
+                my_tm.tm_mday,
+                my_tm.tm_hour,
+                my_tm.tm_min,
+                my_tm.tm_sec,
+                (unsigned long) utime,
+                tzinfo);
 
   return std::min<int>((int) len, iso8601_size - 1);
 }
@@ -1790,8 +1794,8 @@ static my_h_service log_service_get_by_name(const char *name, size_t len,
   my_h_service               service= nullptr;
   size_t                     needed;
 
-  needed= my_snprintf(buf, bufsiz, LOG_SERVICES_PREFIX ".%.*s",
-                      (int) len, name);
+  needed= snprintf(buf, bufsiz, LOG_SERVICES_PREFIX ".%.*s",
+                   (int) len, name);
 
   if (needed > bufsiz)
     return service;
@@ -3006,7 +3010,7 @@ DEFINE_METHOD(int, log_builtins_imp::open_errstream,  (const char *file,
   if (les == nullptr)
     return -3;
 
-  memset(les, 0, sizeof(log_errstream));
+  new (les) log_errstream();
 
   if (mysql_mutex_init(0, &les->LOCK_errstream, MY_MUTEX_INIT_FAST))
   {
@@ -3270,7 +3274,7 @@ DEFINE_METHOD(int,     log_builtins_string_imp::compare,
 
 
 /**
-  Wrapper for my_vsnprintf()
+  Wrapper for vsnprintf()
   Replace all % in format string with variables from list
 
   @param  to    buffer to write the result to
@@ -3278,19 +3282,19 @@ DEFINE_METHOD(int,     log_builtins_string_imp::compare,
   @param  fmt   format string
   @param  ap    va_list with valuables for all substitutions in format string
 
-  @retval       return value of my_vsnprintf
+  @retval       return value of vsnprintf
 */
 DEFINE_METHOD(size_t, log_builtins_string_imp::substitutev, (char *to,
                                                              size_t n,
                                                              const char *fmt,
                                                              va_list ap))
 {
-  return my_vsnprintf(to, n, fmt, ap);
+  return vsnprintf(to, n, fmt, ap);
 }
 
 
 /**
-  Wrapper for my_vsnprintf()
+  Wrapper for vsnprintf()
   Replace all % in format string with variables from list
 */
 DEFINE_METHOD(size_t, log_builtins_string_imp::substitute, (char *to,
@@ -3302,7 +3306,7 @@ DEFINE_METHOD(size_t, log_builtins_string_imp::substitute, (char *to,
   va_list ap;
 
   va_start(ap, fmt);
-  ret= my_vsnprintf(to, n, fmt, ap);
+  ret= vsnprintf(to, n, fmt, ap);
   va_end(ap);
   return ret;
 }
@@ -3331,7 +3335,7 @@ DEFINE_METHOD(size_t, log_builtins_tmp_imp::notify_client,
     va_list ap;
 
     va_start(ap, format);
-    ret= my_vsnprintf(to, n, format, ap);
+    ret= vsnprintf(to, n, format, ap);
     va_end(ap);
 
     push_warning((THD *) thd, (Sql_condition::enum_severity_level) severity,
@@ -3388,7 +3392,7 @@ static int log_eventlog_create_registry_entry(const char *key)
   if ((buff= (char *) my_malloc(PSI_NOT_INSTRUMENTED, l, MYF(0))) == NULL)
     return -1;
 
-  my_snprintf(buff, l, "%s%s", log_registry_prefix, key);
+  snprintf(buff, l, "%s%s", log_registry_prefix, key);
 
   // Opens the event source registry key; creates it first if required.
   dwError= RegCreateKey(HKEY_LOCAL_MACHINE, buff, &hRegKey);

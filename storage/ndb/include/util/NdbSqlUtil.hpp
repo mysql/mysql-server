@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,7 @@
 #include <ndb_global.h>
 #include <kernel/ndb_limits.h>
 
-struct charset_info_st;
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 
 /**
  * Helper class with comparison functions on NDB (column) data types.

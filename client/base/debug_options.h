@@ -56,8 +56,8 @@ private:
   void debug_option_callback(char *argument MY_ATTRIBUTE((unused)));
 
   Abstract_program* m_program;
-  bool m_debug_info_flag;
-  bool m_debug_check_flag;
+  bool m_debug_info_flag{false};
+  bool m_debug_check_flag{false};
   Nullable<std::string> m_dbug_option;
 };
 

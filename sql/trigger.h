@@ -20,25 +20,22 @@
 #include "my_config.h"
 
 #include <string.h>
-
-#include "sql/dd/properties.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"
-#include "sql/key.h"
-#include "sql/sql_alloc.h"            // Sql_alloc
 #include "sql/table.h"                // GRANT_INFO
-#include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"          // enum_trigger_event_type
 
 class Query_tables_list;
 class String;
 class THD;
 class sp_head;
+struct MEM_ROOT;
 
 typedef ulonglong sql_mode_t;
 
@@ -67,7 +64,7 @@ typedef ulonglong sql_mode_t;
 
       @see Trigger::create_from_parser().
 */
-class Trigger : public Sql_alloc
+class Trigger
 {
 public:
   static Trigger *create_from_parser(THD *thd,

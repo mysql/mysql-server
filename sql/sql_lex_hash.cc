@@ -23,7 +23,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/lex.h"
 #include "sql/lex_hash.h"
 #include "sql/lex_symbol.h"

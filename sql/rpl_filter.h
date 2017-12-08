@@ -36,7 +36,6 @@
 #include "sql_string.h"
 
 class Item;
-class String;
 class THD;
 struct TABLE_LIST;
 
@@ -66,12 +65,13 @@ The vectors of Rpl_pfs_filters objects are rebuilt whenever filters
 are modified (i.e., channels created/dropped or filters changed).
 */
 
-typedef struct st_table_rule_ent
+
+struct TABLE_RULE_ENT
 {
   char* db;
   char* tbl_name;
   uint key_len;
-} TABLE_RULE_ENT;
+};
 
 
 /** Enum values for CONFIGURED_BY column. */

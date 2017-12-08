@@ -15,7 +15,11 @@
 
 #include "sql/auth/sql_authentication.h"
 
+#include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <string>                       /* std::string */
 #include <utility>
 #include <vector>                       /* std::vector */
@@ -28,16 +32,19 @@
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_plugin_log.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_mysql_password_policy.h"
 #include "mysql_com.h"
@@ -54,10 +61,8 @@
 #include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
 #include "sql/current_thd.h"            // current_thd
 #include "sql/derror.h"                 // ER_THD
-#include "sql/histograms/value_map.h"
 #include "sql/hostname.h"               // Host_errors, inc_host_errors
 #include "sql/log.h"                    // query_logger
-#include "sql/my_decimal.h"
 #include "sql/mysqld.h"                 // global_system_variables
 #include "sql/protocol.h"
 #include "sql/protocol_classic.h"
@@ -69,13 +74,14 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"             // my_plugin_lock_by_name
-#include "sql/sql_servers.h"
 #include "sql/sql_time.h"               // Interval
 #include "sql/system_variables.h"
 #include "sql/tztime.h"                 // Time_zone
 #include "sql_common.h"                 // mpvio_info
 #include "sql_string.h"
 #include "violite.h"
+
+struct MEM_ROOT;
 
 #if defined(HAVE_OPENSSL)
 #ifndef HAVE_YASSL
@@ -195,7 +201,7 @@ LEX_CSTRING default_auth_plugin_name;
 
 plugin_ref native_password_plugin;
 
-bool disconnect_on_expired_password= TRUE;
+bool disconnect_on_expired_password= true;
 
 extern bool initialized;
 
@@ -213,9 +219,9 @@ extern bool initialized;
 
 #define MAX_CN_NAME_LENGTH 64
 
-bool opt_auto_generate_certs= TRUE;
+bool opt_auto_generate_certs= true;
 
-bool auth_rsa_auto_generate_rsa_keys= TRUE;
+bool auth_rsa_auto_generate_rsa_keys= true;
 
 static bool do_auto_rsa_keys_generation();
 
@@ -997,7 +1003,7 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
                               native_password_plugin_name.str));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     query_logger.general_log_print(thd, COM_CONNECT,
-                                   ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
+                                   "%s", ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN (1);
   }
 
@@ -1018,7 +1024,7 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
 
 static bool
 read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
-                          MPVIO_EXT *mpvio)
+                          MPVIO_EXT *mpvio MY_ATTRIBUTE((unused)))
 {
   size_t length, length_length;
   char *ptr_save;
@@ -2241,7 +2247,7 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
                                                &cur_time) >=0 ? false: true;
       else
       {
-        DBUG_ASSERT(FALSE);
+        DBUG_ASSERT(false);
         /* Make the compiler happy. */
       }
     }
@@ -2496,7 +2502,7 @@ acl_authenticate(THD *thd, enum_server_command command)
 
   if (initialized) // if not --skip-grant-tables
   {
-    bool is_proxy_user= FALSE;
+    bool is_proxy_user= false;
     bool password_time_expired= false;
     const char *auth_user = acl_user->user ? acl_user->user : "";
     ACL_PROXY_USER *proxy_user;
@@ -2534,7 +2540,7 @@ acl_authenticate(THD *thd, enum_server_command command)
         DBUG_RETURN(1);
       }
 
-      my_snprintf(proxy_user_buf, sizeof(proxy_user_buf) - 1,
+      snprintf(proxy_user_buf, sizeof(proxy_user_buf) - 1,
                   "'%s'@'%s'", auth_user,
                   acl_user->host.get_host() ? acl_user->host.get_host() : "");
       sctx->assign_proxy_user(proxy_user_buf, strlen(proxy_user_buf));
@@ -2545,7 +2551,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       acl_proxy_user= find_acl_user(proxy_user->get_proxied_host() ?
                                     proxy_user->get_proxied_host() : "",
                                     mpvio.auth_info.authenticated_as,
-                                    TRUE);
+                                    true);
       if (!acl_proxy_user)
       {
         Host_errors errors;
@@ -2663,7 +2669,7 @@ acl_authenticate(THD *thd, enum_server_command command)
 
       my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
       query_logger.general_log_print(thd, COM_CONNECT,
-                                     ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
+                                     "%s", ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
       LogErr(INFORMATION_LEVEL, ER_MUST_CHANGE_PASSWORD_LOGIN);
 
       errors.m_authentication= 1;
@@ -2777,9 +2783,9 @@ bool is_secure_transport(int vio_type)
     case VIO_TYPE_SSL:
     case VIO_TYPE_SHARED_MEMORY:
     case VIO_TYPE_SOCKET:
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 static int generate_native_password(char *outbuf, unsigned int *buflen,
@@ -3046,7 +3052,11 @@ static int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
   return (mpvio->vio_is_encrypted);
 }
 
-int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff)
+/*
+  The unused parameters must be here due to function pointer casting
+  in sql_show.cc.
+*/
+int show_rsa_public_key(THD *, SHOW_VAR *var MY_ATTRIBUTE((unused)), char *)
 {
 #ifndef HAVE_YASSL
   var->type= SHOW_CHAR;
@@ -3430,9 +3440,9 @@ static MYSQL_SYSVAR_BOOL(auto_generate_rsa_keys, auth_rsa_auto_generate_rsa_keys
         "Auto generate RSA keys at server startup if correpsonding "
         "system variables are not specified and key files are not present "
         "at the default location.",
-        NULL, NULL, TRUE);
+        NULL, NULL, true);
 
-static struct st_mysql_sys_var* sha256_password_sysvars[]= {
+static SYS_VAR* sha256_password_sysvars[]= {
   MYSQL_SYSVAR(private_key_path),
   MYSQL_SYSVAR(public_key_path),
   MYSQL_SYSVAR(auto_generate_rsa_keys),

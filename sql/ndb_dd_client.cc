@@ -22,6 +22,7 @@
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dd.h"
 #include "sql/dd/dd_table.h"
+#include "sql/dd/properties.h"
 #include "sql/dd/types/table.h"
 #include "sql/dd/types/schema.h"
 #include "sql/mdl.h"            // MDL_*

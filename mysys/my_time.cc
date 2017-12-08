@@ -131,7 +131,7 @@ bool check_date(const MYSQL_TIME *ltime, bool not_zero_date,
         (ltime->month == 0 || ltime->day == 0))
     {
       *was_cut= MYSQL_TIME_WARN_ZERO_IN_DATE;
-      return TRUE;
+      return true;
     }
     else if ((!(flags & TIME_INVALID_DATES) &&
               ltime->month && ltime->day > days_in_month[ltime->month-1] &&
@@ -139,23 +139,23 @@ bool check_date(const MYSQL_TIME *ltime, bool not_zero_date,
                ltime->day != 29)))
     {
       *was_cut= MYSQL_TIME_WARN_OUT_OF_RANGE;
-      return TRUE;
+      return true;
     }
   }
   else if (flags & TIME_NO_ZERO_DATE)
   {
     *was_cut= MYSQL_TIME_WARN_ZERO_DATE;
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
 
 /**
   Check if TIME fields are fatally bad and cannot be further adjusted.
   @param ltime  Time value.
-  @retval  TRUE   if the value is fatally bad.
-  @retval  FALSE  if the value is Ok.
+  @retval  true   if the value is fatally bad.
+  @retval  false  if the value is Ok.
 */
 bool check_time_mmssff_range(const MYSQL_TIME *ltime)
 {
@@ -173,8 +173,8 @@ bool check_time_mmssff_range(const MYSQL_TIME *ltime)
 
   @param ltime   Rime value.
   @returns       Test result.
-  @retval        FALSE if value is Ok.
-  @retval        TRUE if value is out of range. 
+  @retval        false if value is Ok.
+  @retval        true if value is out of range. 
 */
 bool check_time_range_quick(const MYSQL_TIME *ltime)
 {
@@ -184,8 +184,8 @@ bool check_time_range_quick(const MYSQL_TIME *ltime)
   if (hour <= TIME_MAX_HOUR &&
       (hour != TIME_MAX_HOUR || ltime->minute != TIME_MAX_MINUTE ||
        ltime->second != TIME_MAX_SECOND || !ltime->second_part))
-    return FALSE;
-  return TRUE;
+    return false;
+  return true;
 }
 
 
@@ -193,8 +193,8 @@ bool check_time_range_quick(const MYSQL_TIME *ltime)
   Check datetime, date, or normalized time (i.e. time without days) range.
   @param ltime   Datetime value.
   @returns
-  @retval   FALSE on success
-  @retval   TRUE  on error
+  @retval   false on success
+  @retval   true  on error
 */
 bool check_datetime_range(const MYSQL_TIME *ltime)
 {
@@ -818,7 +818,7 @@ fractional:
   if (check_time_mmssff_range(l_time))
   {
     status->warnings|= MYSQL_TIME_WARN_OUT_OF_RANGE;
-    return TRUE;
+    return true;
   }
 
   /* Adjust the value into supported MYSQL_TIME range */
@@ -865,18 +865,18 @@ number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings)
     {
       int warnings_backup= *warnings;
       if (number_to_datetime(nr, ltime, 0, warnings) != -1LL)
-        return FALSE;
+        return false;
       *warnings= warnings_backup;
     }
     set_max_time(ltime, 0);
     *warnings|= MYSQL_TIME_WARN_OUT_OF_RANGE;
-    return TRUE;
+    return true;
   }
   else if (nr < -TIME_MAX_VALUE)
   {
     set_max_time(ltime, 1);
     *warnings|= MYSQL_TIME_WARN_OUT_OF_RANGE;
-    return TRUE;
+    return true;
   }
   if ((ltime->neg= (nr < 0)))
     nr= -nr;
@@ -884,13 +884,13 @@ number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings)
   {
     set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
     *warnings|= MYSQL_TIME_WARN_OUT_OF_RANGE;
-    return TRUE;
+    return true;
   }
   ltime->time_type= MYSQL_TIMESTAMP_TIME;
   ltime->year= ltime->month= ltime->day= 0;
   TIME_set_hhmmss(ltime, (uint)nr);
   ltime->second_part= 0;
-  return FALSE;
+  return false;
 }
 
 
@@ -903,7 +903,7 @@ number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings)
   @param  my_time  pointer to MYSQL_TIME value
   @param  warning  set MYSQL_TIME_WARN_OUT_OF_RANGE flag if the value is out of range
 */
-void adjust_time_range(struct st_mysql_time *my_time, int *warning) 
+void adjust_time_range(MYSQL_TIME *my_time, int *warning) 
 {
   DBUG_ASSERT(!check_time_mmssff_range(my_time));
   if (check_time_range_quick(my_time))

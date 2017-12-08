@@ -35,20 +35,19 @@
 #include "my_compare.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
-#include "my_thread_local.h"
 #include "myisam.h"               // MI_COLUMNDEF
-#include "mysql/service_my_snprintf.h"
+#include "mysql/plugin.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/auth/auth_common.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"       // DEBUG_SYNC
 #include "sql/field.h"
 #include "sql/filesort.h"         // filesort_free_buffers
+#include "sql/gis/srid.h"
 #include "sql/handler.h"
 #include "sql/item_func.h"        // Item_func
 #include "sql/item_sum.h"         // Item_sum
@@ -61,24 +60,21 @@
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/sql_base.h"         // free_io_cache
-#include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"     // SJ_TMP_TABLE
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
-#include "sql/sql_parse.h"
 #include "sql/sql_plugin.h"       // plugin_unlock
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_select.h"
-#include "sql/sql_servers.h"
 #include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql/temp_table_param.h"
 #include "sql/thr_malloc.h"
 #include "sql/window.h"
 #include "template_utils.h"
-#include "thr_lock.h"
 
 using std::max;
 using std::min;
@@ -130,7 +126,7 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
     if (org_field->maybe_null() || (item && item->maybe_null))
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
     if (org_field->type() == FIELD_TYPE_DOUBLE)
-      ((Field_double *) new_field)->not_fixed= TRUE;
+      ((Field_double *) new_field)->not_fixed= true;
     /*
       This field will belong to an internal temporary table, it cannot be
       generated.
@@ -173,7 +169,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table,
   case REAL_RESULT:
     new_field= new (*THR_MALLOC) Field_double(item->max_length, maybe_null,
                                               item->item_name.ptr(),
-                                              item->decimals, TRUE);
+                                              item->decimals, true);
     break;
   case INT_RESULT:
     /* 
@@ -237,7 +233,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table,
   if (modify_item)
     item->set_result_field(new_field);
   if (item->type() == Item::NULL_ITEM)
-    new_field->is_created_from_null_item= TRUE;
+    new_field->is_created_from_null_item= true;
   return new_field;
 }
 
@@ -301,7 +297,7 @@ static Field *create_tmp_field_for_schema(Item *item, TABLE *table)
                        the temporary table
   @param table_cant_handle_bit_fields
   @param make_copy_field
-  @param copy_result_field TRUE <=> save item's result_field in the from_field
+  @param copy_result_field true <=> save item's result_field in the from_field
                        arg, before changing it. This is used for a window's
                        OUT table when window uses frame buffer to copy a
                        function's result field from OUT table to frame buffer
@@ -504,13 +500,13 @@ static void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
 {
   uint field_count= table->s->fields;
   bitmap_init(&table->def_read_set, (my_bitmap_map*) bitmaps, field_count,
-              FALSE);
+              false);
   bitmap_init(&table->tmp_set,
               (my_bitmap_map*) (bitmaps + bitmap_buffer_size(field_count)),
-              field_count, FALSE);
+              field_count, false);
   bitmap_init(&table->cond_set,
               (my_bitmap_map*) (bitmaps + bitmap_buffer_size(field_count) * 2),
-              field_count, FALSE);
+              field_count, false);
   /* write_set and all_set are copies of read_set */
   table->def_write_set= table->def_read_set;
   table->s->all_set= table->def_read_set;
@@ -674,7 +670,7 @@ void get_max_key_and_part_length(uint *max_key_length,
 static const char *create_tmp_table_field_tmp_name(THD *thd, int field_index)
 {
   char buf[64];
-  my_snprintf(buf, 64, "tmp_field_%d", field_index);
+  snprintf(buf, 64, "tmp_field_%d", field_index);
   return thd->mem_strdup(buf);
 }
 
@@ -897,7 +893,7 @@ inline void relocate_field(Field *field, uchar *pos, uchar *null_flags,
   TABLE_SHARE.
   This function will replace Item_sum items in 'fields' list with
   corresponding Item_field items, pointing at the fields in the
-  temporary table, unless this was prohibited by TRUE
+  temporary table, unless this was prohibited by true
   value of argument save_sum_fields. The Item_field objects
   are created in THD memory root.
 
@@ -1051,7 +1047,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   param->items_to_copy= copy_func;
   /* make table according to fields */
 
-  memset(table, 0, sizeof(*table));
+  new (table) TABLE;
   memset(reg_field, 0, sizeof(Field*)*(field_count + 2));
   memset(default_field, 0, sizeof(Field*) * (field_count + 1));
   memset(from_field, 0, sizeof(Field*)*(field_count + 1));
@@ -1420,12 +1416,8 @@ update_hidden:
       Field **reg_field;
       keyinfo->user_defined_key_parts= field_count-param->hidden_field_count;
       keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
-      if (!(key_part_info= (KEY_PART_INFO*)
-            alloc_root(&share->mem_root,
-                       keyinfo->user_defined_key_parts * sizeof(KEY_PART_INFO))))
+      if (!(key_part_info= new (&share->mem_root) KEY_PART_INFO[keyinfo->user_defined_key_parts]))
         goto err;
-      memset(key_part_info, 0, keyinfo->user_defined_key_parts *
-             sizeof(KEY_PART_INFO));
       table->key_info= share->key_info= keyinfo;
       keyinfo->key_part= key_part_info;
       keyinfo->actual_flags= keyinfo->flags= HA_NOSAME | HA_NULL_ARE_EQUAL;
@@ -1870,7 +1862,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   }
 
   /* STEP 3: Create TABLE description */
-  memset(table, 0, sizeof(*table));
+  new (table) TABLE;
   memset(reg_field, 0, sizeof(Field*) * 3);
   table->init_tmp_table(thd, share, &own_root, NULL, "weedout-tmp",
                         reg_field, blob_field, false);
@@ -1906,7 +1898,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
       For the sake of uniformity, always use Field_varstring (altough we could
       use Field_string for shorter keys)
     */
-    field= new (*THR_MALLOC) Field_varstring(uniq_tuple_length_arg, FALSE,
+    field= new (*THR_MALLOC) Field_varstring(uniq_tuple_length_arg, false,
                                              "rowids", share, &my_charset_bin);
     if (!field)
       DBUG_RETURN(0);
@@ -2120,8 +2112,8 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
                         NullS))
     return 0;
 
-  memset(table, 0, sizeof(*table));
-  memset(share, 0, sizeof(*share));
+  new (table) TABLE;
+  new (share) TABLE_SHARE;
   table->init_tmp_table(thd, share, m_root, NULL, alias, reg_field,
                         blob_field, is_virtual);
 
@@ -2222,7 +2214,7 @@ error:
 
   @param table            table to allocate SE for
   @param select_options   current select's options
-  @param force_disk_table TRUE <=> Use MyISAM or InnoDB
+  @param force_disk_table true <=> Use MyISAM or InnoDB
   @param schema_table     whether the table is a schema table
 
   @returns
@@ -2408,8 +2400,8 @@ bool open_tmp_table(TABLE *table)
     constraint.
 
    RETURN
-     FALSE - OK
-     TRUE  - Error
+     false - OK
+     true  - Error
 */
 
 static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
@@ -2646,8 +2638,8 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
     Creates tmp table and opens it.
 
   @return
-     FALSE - OK
-     TRUE  - Error
+     false - OK
+     true  - Error
 */
 
 bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
@@ -2665,12 +2657,12 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
   if (share->db_type() == temptable_hton)
   {
     if (create_tmp_table_with_fallback(table))
-      return TRUE;
+      return true;
   }
   else if (share->db_type() == innodb_hton)
   {
     if (create_tmp_table_with_fallback(table))
-      return TRUE;
+      return true;
     // Make empty record so random data is not written to disk
     empty_record(table);
   }
@@ -2679,7 +2671,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
     DBUG_ASSERT(start_recinfo && recinfo);
     if (create_myisam_tmp_table(table, keyinfo, start_recinfo, recinfo,
                                 options, big_tables))
-      return TRUE;
+      return true;
     // Make empty record so random data is not written to disk
     empty_record(table);
   }
@@ -2692,7 +2684,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
       TABLE::is_created() also implies that table is open.
     */
     table->file->ha_delete_table(share->table_name.str, nullptr); /* purecov: inspected */
-    return TRUE;
+    return true;
   }
 
   if (share->first_unused_tmp_key < share->keys)
@@ -2714,7 +2706,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
     Opt_trace_object convert(trace, "creating_tmp_table");
     trace_tmp_table(trace, table);
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -2754,7 +2746,7 @@ void free_tmp_table(THD *thd, TABLE *entry)
     (*ptr)->mem_free();
   free_io_cache(entry);
 
-  DBUG_ASSERT(!alloc_root_inited(&entry->mem_root));
+  DBUG_ASSERT(entry->mem_root.allocated_size() == 0);
   
   DBUG_ASSERT(entry->s->ref_count >= 1);
   if (--entry->s->ref_count == 0) // no more TABLE objects
@@ -2763,7 +2755,7 @@ void free_tmp_table(THD *thd, TABLE *entry)
     /*
       In create_tmp_table(), the share's memroot is allocated inside own_root
       and is then made a copy of own_root, so it is inside its memory blocks,
-      so as soon as we free a memory block the memroot becomes unreadbable.
+      so as soon as we free a memory block the memroot becomes unreadable.
       So we need a copy to free it.
     */
     MEM_ROOT own_root= std::move(entry->s->mem_root);
@@ -2787,9 +2779,9 @@ void free_tmp_table(THD *thd, TABLE *entry)
   @param error           Reason why inserting into MEMORY table failed. 
   @param ignore_last_dup If true, ignore duplicate key error for last
                          inserted key (see detailed description below).
-  @param [out] is_duplicate if non-NULL and ignore_last_dup is TRUE,
-                         return TRUE if last key was a duplicate,
-                         and FALSE otherwise.
+  @param [out] is_duplicate if non-NULL and ignore_last_dup is true,
+                         return true if last key was a duplicate,
+                         and false otherwise.
 
   @details
     Function can be called with any error code, but only HA_ERR_RECORD_FILE_FULL
@@ -2931,12 +2923,24 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
       table= wtable;
     }
 
-    /*
-      TABLE has no copy ctor; can't use the move ctor as we use both objects
-      when we migrate rows.
-    */
-    DBUG_ASSERT(!alloc_root_inited(&table->mem_root));
-    memcpy(&new_table, table, sizeof(new_table));
+    table->mem_root.Clear();
+
+    // Set up a partial copy of the table.
+    new_table.record[0]= table->record[0];
+    new_table.record[1]= table->record[1];
+    new_table.field= table->field;
+    new_table.key_info= table->key_info;
+    new_table.in_use= table->in_use;
+    new_table.db_stat= table->db_stat;
+    new_table.key_info= table->key_info;
+    new_table.hash_field= table->hash_field;
+    new_table.group= table->group;
+    new_table.distinct= table->distinct;
+    new_table.alias= table->alias;
+    new_table.pos_in_table_list= table->pos_in_table_list;
+    new_table.reginfo= table->reginfo;
+    new_table.read_set= table->read_set;
+    new_table.write_set= table->write_set;
 
     new_table.s= &share; // New table points to new share
 
@@ -3035,12 +3039,12 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
               !ignore_last_dup)
             goto err_after_open;
           if (is_duplicate)
-            *is_duplicate= TRUE;
+            *is_duplicate= true;
         }
         else
         {
           if (is_duplicate)
-            *is_duplicate= FALSE;
+            *is_duplicate= false;
         }
 
         (void) table->file->ha_rnd_end();
@@ -3079,19 +3083,19 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
 
     }
 
-    destroy(table->file);
-    table->file=0;
     /*
-      '*table' is overwritten with 'new_table'. new_table was set up as
-      '*table', so, between the start and end of this function, pointers like
-      'table, table->record, table->record[i]' are preserved. This is important,
-      for example because some Item_field->field->ptr points into
-      table->record[0]: such pointer remains valid after the conversion and
-      will allow to access rows of the new TABLE.
+      Replace the guts of the old table with the new one, although keeping
+      most members.
     */
-    *table= std::move(new_table);
-
-    // 'table' is now new and points to new share
+    destroy(table->file);
+    table->s= new_table.s;
+    table->file= new_table.file;
+    table->db_stat= new_table.db_stat;
+    table->in_use= new_table.in_use;
+    table->no_rows= new_table.no_rows;
+    table->record[0]= new_table.record[0];
+    table->record[1]= new_table.record[1];
+    table->mem_root= std::move(new_table.mem_root);
 
     /*
       Depending on if this TABLE clone is early/late in optimization, or in

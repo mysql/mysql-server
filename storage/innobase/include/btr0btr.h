@@ -431,7 +431,7 @@ btr_page_reorganize(
 /*************************************************************//**
 Decides if the page should be split at the convergence point of
 inserts converging to left.
-@return TRUE if split recommended */
+@return true if split recommended */
 ibool
 btr_page_get_split_rec_to_left(
 /*===========================*/
@@ -443,7 +443,7 @@ btr_page_get_split_rec_to_left(
 /*************************************************************//**
 Decides if the page should be split at the convergence point of
 inserts converging to right.
-@return TRUE if split recommended */
+@return true if split recommended */
 ibool
 btr_page_get_split_rec_to_right(
 /*============================*/
@@ -509,7 +509,7 @@ btr_node_ptr_delete(
 #ifdef UNIV_DEBUG
 /************************************************************//**
 Checks that the node pointer to a page is appropriate.
-@return TRUE */
+@return true */
 ibool
 btr_check_node_ptr(
 /*===============*/
@@ -527,7 +527,7 @@ level lifts the records of the page to the father page, thus reducing the
 tree height. It is assumed that mtr holds an x-latch on the tree and on the
 page. If cursor is on the leaf level, mtr must also hold x-latches to
 the brothers, if they exist.
-@return TRUE on success */
+@return true on success */
 ibool
 btr_compress(
 /*=========*/
@@ -667,7 +667,7 @@ btr_print_index(
 /************************************************************//**
 Checks the size and number of fields in a record based on the definition of
 the index.
-@return TRUE if ok */
+@return true if ok */
 ibool
 btr_index_rec_validate(
 /*===================*/

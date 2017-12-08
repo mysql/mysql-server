@@ -25,20 +25,12 @@
 #include "my_thread_local.h"   // my_thread_id
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/psi/mysql_cond.h"
-#include "mysql/psi/mysql_mutex.h"
 #include "prealloced_array.h"
 
 class THD;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 void thd_lock_thread_count();
 void thd_unlock_thread_count();
-#ifdef __cplusplus
-}
-#endif
 
 
 /**

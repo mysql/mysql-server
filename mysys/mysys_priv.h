@@ -25,8 +25,7 @@
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_file.h"
-
-C_MODE_START
+#include "mysql/psi/psi_rwlock.h"
 
 extern PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock,
@@ -82,8 +81,6 @@ extern PSI_memory_key key_memory_win_IP_ADAPTER_ADDRESSES;
 #endif
 
 extern PSI_thread_key key_thread_timer_notifier;
-
-C_MODE_END
 
 /*
   EDQUOT is used only in 3 C files only in mysys/. If it does not exist on

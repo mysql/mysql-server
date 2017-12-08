@@ -27,7 +27,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "my_sys.h"
 #include "mysql/components/services/mysql_cond_bits.h"
@@ -37,13 +36,10 @@
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"                 // Item_result
-#include "sql/rpl_gtid.h"              // Gtid_set, Sid_map
 #include "sql/rpl_trx_tracking.h"
 #include "sql/tc_log.h"                // TC_LOG
-#include "sql_string.h"
 #include "thr_mutex.h"
 
 class Format_description_log_event;
@@ -314,20 +310,20 @@ private:
   This means that object instances cannot be destroyed/go out of scope
   until we have reset thd->current_linfo to NULL;
  */
-typedef struct st_log_info
+struct LOG_INFO
 {
   char log_file_name[FN_REFLEN];
   my_off_t index_file_offset, index_file_start_offset;
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
   int entry_index; //used in purge_logs(), calculatd in find_log_pos().
-  st_log_info()
+  LOG_INFO()
     : index_file_offset(0), index_file_start_offset(0),
       pos(0), fatal(0), entry_index(0)
     {
       memset(log_file_name, 0, FN_REFLEN);
     }
-} LOG_INFO;
+};
 
 
 /*
@@ -850,7 +846,7 @@ public:
      variable 'sync_binlog'. If file is synchronized, @c synced will
      be set to 1, otherwise 0.
 
-     @param[in] force if TRUE, ignores the 'sync_binlog' and synchronizes the file.
+     @param[in] force if true, ignores the 'sync_binlog' and synchronizes the file.
 
      @retval 0 Success
      @retval other Failure
@@ -935,12 +931,12 @@ public:
   static const int MAX_RETRIES_BY_OOM= 10;
 };
 
-typedef struct st_load_file_info
+struct LOAD_FILE_INFO
 {
   THD* thd;
   my_off_t last_pos_in_file;
   bool logged_data_file, log_delayed;
-} LOAD_FILE_INFO;
+};
 
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
 

@@ -25,12 +25,11 @@
 #include <sys/types.h>
 
 #include "my_config.h"
+#include "my_io.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"                             /* loglevel */
 #include <mysql/components/services/system_variable_source_type.h> /* enum_variable_source */
-
-C_MODE_START
 
 #define GET_NO_ARG     1
 #define GET_BOOL       2
@@ -80,7 +79,7 @@ struct get_opt_arg_source
   enum enum_variable_source m_source;
 };
 
-struct st_typelib;
+struct TYPELIB;
 
 struct my_option
 {
@@ -109,7 +108,7 @@ struct my_option
                                          */
   void       *value;                    /**< A pointer to the variable value */
   void       *u_max_value;              /**< The user def. max variable value */
-  struct st_typelib *typelib;           /**< Pointer to possible values */
+  TYPELIB *typelib;           /**< Pointer to possible values */
   ulong     var_type;                   /**< GET_BOOL, GET_ULL, etc */
   enum get_opt_arg_type arg_type;       /**< e.g. REQUIRED_ARG or OPT_ARG */
   longlong   def_value;                 /**< Default value */
@@ -140,8 +139,8 @@ extern bool log_slave_updates_supplied;
 extern bool slave_preserve_commit_order_supplied;
 extern my_error_reporter my_getopt_error_reporter;
 
-extern int handle_options (int *argc, char ***argv, 
-			   const struct my_option *longopts, my_get_one_option);
+extern "C" int handle_options (int *argc, char ***argv, 
+                               const struct my_option *longopts, my_get_one_option);
 extern int my_handle_options (int *argc, char ***argv,
                               const struct my_option *longopts,
                               my_get_one_option,
@@ -166,8 +165,6 @@ double getopt_ulonglong2double(ulonglong);
 int findopt(char *, uint, const struct my_option **);
 
 bool is_key_cache_variable_suffix(const char *suffix);
-
-C_MODE_END
 
 #endif /* _my_getopt_h */
 

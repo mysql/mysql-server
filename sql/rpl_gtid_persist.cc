@@ -19,10 +19,7 @@
 
 #include "my_config.h"
 
-#include <assert.h>
-
 #include "my_loglevel.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/derror.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -35,9 +32,9 @@
 #include "my_base.h"
 #include "my_command.h"
 #include "my_dbug.h"
-#include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"

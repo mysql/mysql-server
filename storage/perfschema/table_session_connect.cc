@@ -24,6 +24,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/field.h"
+#include "sql/table.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 
 bool

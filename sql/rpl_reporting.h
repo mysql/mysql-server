@@ -67,7 +67,8 @@ public:
   virtual void report(loglevel level, int err_code, const char *msg, ...) const
     MY_ATTRIBUTE((format(printf, 4, 5)));
   void va_report(loglevel level, int err_code, const char *prefix_msg,
-                 const char *msg, va_list v_args) const;
+                 const char *msg, va_list v_args) const
+    MY_ATTRIBUTE((format(printf, 5, 0)));
 
   /**
      Clear errors. They will not show up under <code>SHOW SLAVE
@@ -155,9 +156,7 @@ protected:
 
   virtual void do_report(loglevel level, int err_code,
                  const char *msg, va_list v_args) const
-  {
-    va_report(level, err_code, NULL, msg, v_args);
-  }
+    MY_ATTRIBUTE((format(printf, 4, 0)));
 
   /**
      Last error produced by the I/O or SQL thread respectively.
@@ -172,6 +171,12 @@ private:
   Slave_reporting_capability(const Slave_reporting_capability& rhs);
   Slave_reporting_capability& operator=(const Slave_reporting_capability& rhs);
 };
+
+inline void Slave_reporting_capability::do_report
+  (loglevel level, int err_code, const char *msg, va_list v_args) const
+{
+  va_report(level, err_code, NULL, msg, v_args);
+}
 
 #endif // RPL_REPORTING_H
 

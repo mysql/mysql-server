@@ -39,6 +39,7 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "sql/dd_sql_view.h"                // update_referencing_views_metadata
@@ -57,16 +58,17 @@
 #include "sql/dd/types/view.h"
 #include "sql/handler.h"
 #include "sql/item_create.h"
-#include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"                     // opt_readonly
 #include "sql/sql_class.h"                  // THD
+#include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"                 // plugin_foreach
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_profile.h"
 #include "sql/sql_show.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 
 namespace {
 

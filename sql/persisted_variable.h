@@ -21,15 +21,17 @@
 #include <string>
 #include <vector>
 
+#include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/psi_base.h"
 #include "sql_string.h"
 
 class THD;
 class set_var;
 class sys_var;
+struct MYSQL_FILE;
 
 using std::string;
 using std::map;
@@ -92,7 +94,7 @@ public:
   /**
     Set persisted options
   */
-  bool set_persist_options(bool plugin_options= FALSE);
+  bool set_persist_options(bool plugin_options= false);
   /**
     Reset persisted options
   */
@@ -106,11 +108,11 @@ public:
   */
   map<string, string>* get_persist_ro_variables();
   /**
-    Append read only persisted variables to command line options with a
+    append read only persisted variables to command line options with a
     separator.
   */
   bool append_read_only_variables(int *argc, char ***argv,
-    bool plugin_options= FALSE);
+    bool plugin_options= false);
   void cleanup();
 
 private:
@@ -128,7 +130,7 @@ private:
 private:
   /* In memory copy of persistent config file */
   vector<st_persist_var> m_persist_variables;
-  /* Copy of plugin variables whose plugin is not yet installed */
+  /* copy of plugin variables whose plugin is not yet installed */
   vector<st_persist_var> m_persist_plugin_variables;
   /* In memory copy of read only persistent variables */
   map<string, string> m_persist_ro_variables;
@@ -140,10 +142,10 @@ private:
   MYSQL_FILE *m_fd;
   string m_persist_filename;
   mysql_mutex_t m_LOCK_persist_file;
-  /* Read only persisted options */
-  char** ro_persisted_argv;
-  /* Read only persisted plugin options */
-  char** ro_persisted_plugin_argv;
+  /* Memory for read only persisted options */
+  MEM_ROOT ro_persisted_argv_alloc{PSI_NOT_INSTRUMENTED, 512};
+  /* Memory for read only persisted plugin options */
+  MEM_ROOT ro_persisted_plugin_argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 };
 
 #endif /* PERSISTED_VARIABLE_H_INCLUDED */

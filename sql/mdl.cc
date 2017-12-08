@@ -39,6 +39,7 @@
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_mdl.h"
 #include "mysql/service_thd_wait.h"
 #include "mysqld_error.h"
@@ -46,7 +47,7 @@
 #include "sql/debug_sync.h"
 #include "sql/thr_malloc.h"
 
-extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 static PSI_memory_key key_memory_MDL_context_acquire_locks;
 
@@ -306,7 +307,7 @@ public:
     : m_start_node(start_node_arg),
       m_victim(NULL),
       m_current_search_depth(0),
-      m_found_deadlock(FALSE)
+      m_found_deadlock(false)
   {}
   virtual bool enter_node(MDL_context *node);
   virtual void leave_node(MDL_context *node);
@@ -335,7 +336,7 @@ private:
     loop.
   */
   uint m_current_search_depth;
-  /** TRUE if we found a deadlock. */
+  /** true if we found a deadlock. */
   bool m_found_deadlock;
   /**
     Maximum depth for deadlock searches. After this depth is
@@ -362,8 +363,8 @@ private:
   We call "enter_node()" for all nodes we inspect,
   including the starting node.
 
-  @retval  TRUE  Maximum search depth exceeded.
-  @retval  FALSE OK.
+  @retval  true  Maximum search depth exceeded.
+  @retval  false OK.
 */
 
 bool Deadlock_detection_visitor::enter_node(MDL_context *node)
@@ -397,8 +398,8 @@ void Deadlock_detection_visitor::leave_node(MDL_context *node)
 /**
   Inspect a wait-for graph edge from one MDL context to another.
 
-  @retval TRUE   A loop is found.
-  @retval FALSE  No loop is found.
+  @retval true   A loop is found.
+  @retval false  No loop is found.
 */
 
 bool Deadlock_detection_visitor::inspect_edge(MDL_context *node)
@@ -1012,7 +1013,7 @@ public:
   */
   static bitmap_t scoped_lock_fast_path_granted_bitmap(const MDL_lock &lock)
   {
-    return (lock.m_fast_path_state & 0xFFFFFFFFFFFFFFFULL) ?
+    return (lock.m_fast_path_state.load() & 0xFFFFFFFFFFFFFFFULL) ?
             MDL_BIT(MDL_INTENTION_EXCLUSIVE) : 0;
   }
 
@@ -1104,7 +1105,7 @@ mdl_locks_key(const uchar *record, size_t *length)
 void mdl_init()
 {
   DBUG_ASSERT(! mdl_initialized);
-  mdl_initialized= TRUE;
+  mdl_initialized= true;
 
 #ifdef HAVE_PSI_INTERFACE
   init_mdl_psi_keys();
@@ -1125,7 +1126,7 @@ void mdl_destroy()
 {
   if (mdl_initialized)
   {
-    mdl_initialized= FALSE;
+    mdl_initialized= false;
     mdl_locks.destroy();
   }
 }
@@ -1218,8 +1219,8 @@ void MDL_map::destroy()
   @param[in,out]  pins     LF_PINS to be used for pinning pointers during
                            look-up and returned MDL_lock object.
   @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
-  @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
-                           FALSE - if MDL_lock object doesn't require pinning
+  @param[out]     pinned   true  - if MDL_lock object is pinned,
+                           false - if MDL_lock object doesn't require pinning
                                    (i.e. it is an object for GLOBAL, COMMIT or
                                    ACL_CACHE namespaces).
 
@@ -1291,8 +1292,8 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
   @param[in,out]  pins     LF_PINS to be used for pinning pointers during
                            look-up and returned MDL_lock object.
   @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
-  @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
-                           FALSE - if MDL_lock object doesn't require pinning
+  @param[out]     pinned   true  - if MDL_lock object is pinned,
+                           false - if MDL_lock object doesn't require pinning
                                    (i.e. it is an object for GLOBAL, COMMIT or
                                    ACL_CACHE namespaces).
 
@@ -1349,7 +1350,7 @@ static int mdl_lock_match_unused(const uchar *arg)
     since the fact that MDL_lock object is unused will be properly
     validated later anyway.
   */
-  return (lock->m_fast_path_state == 0);
+  return (lock->m_fast_path_state.load() == 0);
 }
 } /* extern "C" */
 
@@ -1506,7 +1507,7 @@ void MDL_map::remove_random_unused(MDL_context *ctx, LF_PINS *pins,
 MDL_context::MDL_context()
   :
   m_owner(NULL),
-  m_needs_thr_lock_abort(FALSE),
+  m_needs_thr_lock_abort(false),
   m_force_dml_deadlock_weight(false),
   m_waiting_for(NULL),
   m_pins(NULL),
@@ -1883,17 +1884,17 @@ MDL_wait::~MDL_wait()
 
 
 /**
-  Set the status unless it's already set. Return FALSE if set,
-  TRUE otherwise.
+  Set the status unless it's already set. Return false if set,
+  true otherwise.
 */
 
 bool MDL_wait::set_status(enum_wait_status status_arg)
 {
-  bool was_occupied= TRUE;
+  bool was_occupied= true;
   mysql_mutex_lock(&m_LOCK_wait_status);
   if (m_wait_status == EMPTY)
   {
-    was_occupied= FALSE;
+    was_occupied= false;
     m_wait_status= status_arg;
     mysql_cond_signal(&m_COND_wait_status);
   }
@@ -1929,10 +1930,10 @@ void MDL_wait::reset_status()
 
   @param owner           MDL context owner.
   @param abs_timeout     Absolute time after which waiting should stop.
-  @param set_status_on_timeout TRUE  - If in case of timeout waiting
+  @param set_status_on_timeout true  - If in case of timeout waiting
                                        context should close the wait slot by
                                        sending TIMEOUT to itself.
-                               FALSE - Otherwise.
+                               false - Otherwise.
   @param wait_state_name  Thread state name to be set for duration of wait.
 
   @returns Signal posted.
@@ -2578,8 +2579,8 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_object_lock_strategy =
   @param  type_arg             The requested lock type.
   @param  requestor_ctx        The MDL context of the requestor.
 
-  @retval TRUE   Lock request can be satisfied
-  @retval FALSE  There is some conflicting lock.
+  @retval true   Lock request can be satisfied
+  @retval false  There is some conflicting lock.
 
   @note In cases then current context already has "stronger" type
         of lock on the object it will be automatically granted
@@ -2590,7 +2591,7 @@ bool
 MDL_lock::can_grant_lock(enum_mdl_type type_arg,
                          const MDL_context *requestor_ctx) const
 {
-  bool can_grant= FALSE;
+  bool can_grant= false;
   bitmap_t waiting_incompat_map= incompatible_waiting_types_bitmap()[type_arg];
   bitmap_t granted_incompat_map= incompatible_granted_types_bitmap()[type_arg];
 
@@ -2606,7 +2607,7 @@ MDL_lock::can_grant_lock(enum_mdl_type type_arg,
     if (! (fast_path_granted_bitmap() & granted_incompat_map))
     {
       if (! (m_granted.bitmap() & granted_incompat_map))
-        can_grant= TRUE;
+        can_grant= true;
       else
       {
         Ticket_iterator it(m_granted);
@@ -2634,7 +2635,7 @@ MDL_lock::can_grant_lock(enum_mdl_type type_arg,
             break;
         }
         if (ticket == NULL)             /* Incompatible locks are our own. */
-          can_grant= TRUE;
+          can_grant= true;
       }
     }
     else
@@ -2787,7 +2788,7 @@ void MDL_lock::remove_ticket(MDL_context *ctx, LF_PINS *pins,
 
   @pre The ticket must match an acquired lock.
 
-  @return TRUE if there is a conflicting lock request, FALSE otherwise.
+  @return true if there is a conflicting lock request, false otherwise.
 */
 
 bool MDL_lock::has_pending_conflicting_lock(enum_mdl_type type)
@@ -2817,8 +2818,8 @@ MDL_wait_for_subgraph::~MDL_wait_for_subgraph()
   than specified one. I.e. if metadata lock represented by ticket won't
   allow any of locks which are not allowed by specified type of lock.
 
-  @return TRUE  if ticket has stronger or equal type
-          FALSE otherwise.
+  @return true  if ticket has stronger or equal type
+          false otherwise.
 */
 
 bool MDL_ticket::has_stronger_or_equal_type(enum_mdl_type type) const
@@ -2917,10 +2918,10 @@ MDL_context::find_ticket(MDL_request *mdl_request,
 
   @param [in,out] mdl_request Lock request object for lock to be acquired
 
-  @retval  FALSE   Success. The lock may have not been acquired.
+  @retval  false   Success. The lock may have not been acquired.
                    Check the ticket, if it's NULL, a conflicting lock
                    exists.
-  @retval  TRUE    Out of resources, an error has been reported.
+  @retval  true    Out of resources, an error has been reported.
 */
 
 bool
@@ -2929,7 +2930,7 @@ MDL_context::try_acquire_lock(MDL_request *mdl_request)
   MDL_ticket *ticket;
 
   if (try_acquire_lock_impl(mdl_request, &ticket))
-    return TRUE;
+    return true;
 
   if (! mdl_request->ticket)
   {
@@ -2992,7 +2993,7 @@ MDL_context::try_acquire_lock(MDL_request *mdl_request)
     MDL_ticket::destroy(ticket);
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -3052,13 +3053,13 @@ void MDL_context::materialize_fast_path_locks()
   @param [out] out_ticket     Ticket for the request in case when lock
                               has not been acquired.
 
-  @retval  FALSE   Success. The lock may have not been acquired.
+  @retval  false   Success. The lock may have not been acquired.
                    Check MDL_request::ticket, if it's NULL, a conflicting
                    lock exists. In this case "out_ticket" out parameter
                    points to ticket which was constructed for the request.
                    MDL_ticket::m_lock points to the corresponding MDL_lock
                    object and MDL_lock::m_rwlock write-locked.
-  @retval  TRUE    Out of resources, an error has been reported.
+  @retval  true    Out of resources, an error has been reported.
 */
 
 bool
@@ -3111,9 +3112,9 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
     {
       /* Clone failed. */
       mdl_request->ticket= NULL;
-      return TRUE;
+      return true;
     }
-    return FALSE;
+    return false;
   }
 
   /*
@@ -3123,14 +3124,14 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
     might happen during lock release).
   */
   if (fix_pins())
-    return TRUE;
+    return true;
 
   if (!(ticket= MDL_ticket::create(this, mdl_request->type
 #ifndef DBUG_OFF
                                    , mdl_request->duration
 #endif
                                    )))
-    return TRUE;
+    return true;
 
   /*
     Get increment for "fast path" or indication that this is
@@ -3177,7 +3178,7 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
     {
       MDL_ticket::destroy(ticket);
       my_error(victimized ? ER_LOCK_DEADLOCK : ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
-      return TRUE;
+      return true;
     }
     ticket->m_hton_notified= true;
 
@@ -3201,7 +3202,7 @@ retry:
       m_owner->notify_hton_post_release_exclusive(key);
     }
     MDL_ticket::destroy(ticket);
-    return TRUE;
+    return true;
   }
 
   /*
@@ -3312,7 +3313,7 @@ retry:
     mdl_request->ticket= ticket;
 
     mysql_mdl_set_status(ticket->m_psi, MDL_ticket::GRANTED);
-    return FALSE;
+    return false;
   }
 
 slow_path:
@@ -3437,7 +3438,7 @@ slow_path:
   else
     *out_ticket= ticket;
 
-  return FALSE;
+  return false;
 }
 
 
@@ -3450,8 +3451,8 @@ slow_path:
   vice versa -- when we COMMIT, we don't mistakenly
   release a ticket for an open HANDLER.
 
-  @retval TRUE   Out of memory.
-  @retval FALSE  Success.
+  @retval true   Out of memory.
+  @retval false  Success.
 */
 
 bool
@@ -3469,7 +3470,7 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
     are not allocated already.
   */
   if (fix_pins())
-    return TRUE;
+    return true;
 
   /*
     By submitting mdl_request->type to MDL_ticket::create()
@@ -3481,7 +3482,7 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
                                    , mdl_request->duration
 #endif
                                    )))
-    return TRUE;
+    return true;
 
   DBUG_ASSERT(ticket->m_psi == NULL);
   ticket->m_psi= mysql_mdl_create(ticket,
@@ -3513,7 +3514,7 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
     {
       MDL_ticket::destroy(ticket);
       my_error(victimized ? ER_LOCK_DEADLOCK : ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
-      return TRUE;
+      return true;
     }
     ticket->m_hton_notified= true;
 
@@ -3575,7 +3576,7 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
   m_ticket_store.push_front(mdl_request->duration, ticket);
   mysql_mdl_set_status(ticket->m_psi, MDL_ticket::GRANTED);
 
-  return FALSE;
+  return false;
 }
 
 
@@ -3650,9 +3651,9 @@ void MDL_lock::object_lock_notify_conflicting_locks(MDL_context *ctx, MDL_lock *
 
   @param lock_wait_timeout Seconds to wait before timeout.
 
-  @retval  FALSE   Success. MDL_request::ticket points to the ticket
+  @retval  false   Success. MDL_request::ticket points to the ticket
                    for the lock.
-  @retval  TRUE    Failure (Out of resources or waiting is aborted),
+  @retval  true    Failure (Out of resources or waiting is aborted),
 */
 
 bool
@@ -3666,7 +3667,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
   set_timespec(&abs_timeout, lock_wait_timeout);
 
   if (try_acquire_lock_impl(mdl_request, &ticket))
-    return TRUE;
+    return true;
 
   if (mdl_request->ticket)
   {
@@ -3675,7 +3676,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       MDL_lock, MDL_context and MDL_request were updated
       accordingly, so we can simply return success.
     */
-    return FALSE;
+    return false;
   }
 
   /*
@@ -3757,7 +3758,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
     while (cmp_timespec(&abs_shortwait, &abs_timeout) <= 0)
     {
       /* abs_timeout is far away. Wait a short while and notify locks. */
-      wait_status= m_wait.timed_wait(m_owner, &abs_shortwait, FALSE,
+      wait_status= m_wait.timed_wait(m_owner, &abs_shortwait, false,
                                      mdl_request->key.get_wait_state_name());
 
       if (wait_status != MDL_wait::EMPTY)
@@ -3790,12 +3791,12 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       set_timespec(&abs_shortwait, 1);
     }
     if (wait_status == MDL_wait::EMPTY)
-      wait_status= m_wait.timed_wait(m_owner, &abs_timeout, TRUE,
+      wait_status= m_wait.timed_wait(m_owner, &abs_timeout, true,
                                      mdl_request->key.get_wait_state_name());
   }
   else
   {
-    wait_status= m_wait.timed_wait(m_owner, &abs_timeout, TRUE,
+    wait_status= m_wait.timed_wait(m_owner, &abs_timeout, true,
                                    mdl_request->key.get_wait_state_name());
   }
 
@@ -3841,7 +3842,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       DBUG_ASSERT(0);
       break;
     }
-    return TRUE;
+    return true;
   }
 
   /*
@@ -3857,7 +3858,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 
   mysql_mdl_set_status(ticket->m_psi, MDL_ticket::GRANTED);
 
-  return FALSE;
+  return false;
 }
 
 
@@ -3906,8 +3907,8 @@ public:
         locks atomic (all or nothing). This is needed for the locking
         service plugin API.
 
-  @retval FALSE  Success
-  @retval TRUE   Failure
+  @retval false  Success
+  @retval true   Failure
 */
 
 bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
@@ -3924,13 +3925,13 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
   const size_t req_count= mdl_requests->elements();
 
   if (req_count == 0)
-    return FALSE;
+    return false;
 
   /* Sort requests according to MDL_key. */
   Prealloced_array<MDL_request*, 16>
     sort_buf(key_memory_MDL_context_acquire_locks);
   if (sort_buf.reserve(req_count))
-    return TRUE;
+    return true;
 
   for (size_t ii=0; ii < req_count; ++ii)
   {
@@ -3946,7 +3947,7 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
       goto err;
     ++num_acquired;
   }
-  return FALSE;
+  return false;
 
 err:
   /*
@@ -3968,7 +3969,7 @@ err:
   {
     (*p_req)->ticket= NULL;
   }
-  return TRUE;
+  return true;
 }
 
 
@@ -3993,8 +3994,8 @@ err:
         is compatible with 'S'. But the deadlock is recovered by backoff and
         retry mechanism.
 
-  @retval FALSE  Success
-  @retval TRUE   Failure (thread was killed)
+  @retval false  Success
+  @retval true   Failure (thread was killed)
 */
 
 bool
@@ -4015,14 +4016,14 @@ MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
     LOCK TABLES and a table is listed twice in LOCK TABLES list.
   */
   if (mdl_ticket->has_stronger_or_equal_type(new_type))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   MDL_REQUEST_INIT_BY_KEY(&mdl_new_lock_request,
                           &mdl_ticket->m_lock->key, new_type,
                           MDL_TRANSACTION);
 
   if (acquire_lock(&mdl_new_lock_request, lock_wait_timeout))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   is_new_ticket= ! has_lock(mdl_svp, mdl_new_lock_request.ticket);
 
@@ -4110,7 +4111,7 @@ MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
     MDL_ticket::destroy(mdl_new_lock_request.ticket);
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -4128,7 +4129,7 @@ bool MDL_lock::visit_subgraph(MDL_ticket *waiting_ticket,
 {
   MDL_ticket *ticket;
   MDL_context *src_ctx= waiting_ticket->get_ctx();
-  bool result= TRUE;
+  bool result= true;
 
   mysql_prlock_rdlock(&m_rwlock);
 
@@ -4186,7 +4187,7 @@ bool MDL_lock::visit_subgraph(MDL_ticket *waiting_ticket,
   */
   if (src_ctx->m_wait.get_status() != MDL_wait::EMPTY)
   {
-    result= FALSE;
+    result= false;
     goto end;
   }
 
@@ -4257,7 +4258,7 @@ bool MDL_lock::visit_subgraph(MDL_ticket *waiting_ticket,
     }
   }
 
-  result= FALSE;
+  result= false;
 
 end_leave_node:
   gvisitor->leave_node(src_ctx);
@@ -4273,9 +4274,9 @@ end:
   through the edge represented by this ticket and search
   for deadlocks.
 
-  @retval TRUE  A deadlock is found. A pointer to deadlock
+  @retval true  A deadlock is found. A pointer to deadlock
                  victim is saved in the visitor.
-  @retval FALSE
+  @retval false
 */
 
 bool MDL_ticket::accept_visitor(MDL_wait_for_graph_visitor *gvisitor)
@@ -4295,14 +4296,14 @@ bool MDL_ticket::accept_visitor(MDL_wait_for_graph_visitor *gvisitor)
   graph if it waits on a resource that is held by the other
   context.
 
-  @retval TRUE  A deadlock is found. A pointer to deadlock
+  @retval true  A deadlock is found. A pointer to deadlock
                 victim is saved in the visitor.
-  @retval FALSE
+  @retval false
 */
 
 bool MDL_context::visit_subgraph(MDL_wait_for_graph_visitor *gvisitor)
 {
-  bool result= FALSE;
+  bool result= false;
 
   mysql_prlock_rdlock(&m_LOCK_waiting_for);
 
@@ -4682,7 +4683,7 @@ void MDL_ticket::downgrade_lock(enum_mdl_type new_type)
 
 /**
   Auxiliary function which allows to check if we have some kind of lock on
-  a object. Returns TRUE if we have a lock of an equal to given or stronger
+  a object. Returns true if we have a lock of an equal to given or stronger
   type.
 
   @param mdl_key       Key to check for ownership
@@ -4720,8 +4721,8 @@ MDL_context::owns_equal_or_stronger_lock(
   @param mdl_type      Lock type. Pass in the weakest type to find
                        out if there is at least some lock.
 
-  @return TRUE if current context contains satisfied lock for the object,
-          FALSE otherwise.
+  @return true if current context contains satisfied lock for the object,
+          false otherwise.
 */
 
 bool
@@ -4799,7 +4800,7 @@ retry:
 
   @pre The ticket must match an acquired lock.
 
-  @return TRUE if there is a conflicting lock request, FALSE otherwise.
+  @return true if there is a conflicting lock request, false otherwise.
 */
 
 bool MDL_ticket::has_pending_conflicting_lock() const
@@ -4864,10 +4865,10 @@ void MDL_context::release_statement_locks()
 /**
   Does this savepoint have this lock?
 
-  @retval TRUE  The ticket is older than the savepoint or
+  @retval true  The ticket is older than the savepoint or
                 is an LT, HA or GLR ticket. Thus it belongs
                 to the savepoint or has explicit duration.
-  @retval FALSE The ticket is newer than the savepoint.
+  @retval false The ticket is newer than the savepoint.
                 and is not an LT, HA or GLR ticket.
 */
 
@@ -4885,15 +4886,15 @@ bool MDL_context::has_lock(const MDL_savepoint &mdl_savepoint,
   while ((ticket= s_it++) && ticket != mdl_savepoint.m_stmt_ticket)
   {
     if (ticket == mdl_ticket)
-      return FALSE;
+      return false;
   }
 
   while ((ticket= t_it++) && ticket != mdl_savepoint.m_trans_ticket)
   {
     if (ticket == mdl_ticket)
-      return FALSE;
+      return false;
   }
-  return TRUE;
+  return true;
 }
 
 
@@ -4928,8 +4929,8 @@ bool MDL_context::has_locks(MDL_key::enum_mdl_namespace mdl_namespace) const
   Do we hold any locks which are possibly being waited
   for by another MDL_context?
 
-  @retval TRUE  A lock being 'waited_for' was found.
-  @retval FALSE No one waits for the lock(s) we hold.
+  @retval true  A lock being 'waited_for' was found.
+  @retval false No one waits for the lock(s) we hold.
 
   @note Should only be called from the thread which
         owns the MDL_context

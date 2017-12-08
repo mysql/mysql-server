@@ -1076,10 +1076,10 @@ private:
 }
 }
 
-static ::Mysql::Tools::Upgrade::Program program;
 
 int main(int argc, char **argv)
 {
+  ::Mysql::Tools::Upgrade::Program program;
   program.run(argc, argv);
   return 0;
 }

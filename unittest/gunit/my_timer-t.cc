@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "my_sys.h"
+#include "my_systime.h"
 #include "my_thread.h"
 #include "my_timer.h"
 #include "unittest/gunit/thr_template.cc"

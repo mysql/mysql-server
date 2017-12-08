@@ -20,6 +20,7 @@
 
 #include "sql/histograms/singleton.h"
 
+#include <iterator>
 #include <new>
 #include <utility>          // std::make_pair
 
@@ -30,6 +31,9 @@
 #include "mysql_time.h"
 #include "sql/histograms/value_map.h"      // Value_map
 #include "sql/json_dom.h"   // Json_*
+#include "template_utils.h"
+
+struct MEM_ROOT;
 
 namespace histograms {
 

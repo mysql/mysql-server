@@ -19,11 +19,10 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
-#include "sql/log.h"     // LogErr
 #include "sql/rpl_mi.h"
 #include "sql/rpl_rli.h" // Relay_log_info
 

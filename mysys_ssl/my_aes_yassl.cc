@@ -78,7 +78,7 @@ public:
     if (m_need_iv)
     {
       if (!iv)
-        return TRUE;
+        return true;
       cbc.SetKey(key, block_size, iv);
     }
     else
@@ -225,6 +225,6 @@ bool my_aes_needs_iv(my_aes_opmode opmode)
 {
   MyCipherCtx<TaoCrypt::ENCRYPTION> enc(opmode);
 
-  return enc.needs_iv() ? TRUE : FALSE;
+  return enc.needs_iv() ? true : false;
 }
 

@@ -44,11 +44,11 @@
     init_dynamic_array() initiates array and allocate space for 
     init_alloc eilements. 
     Array is usable even if space allocation failed, hence, the
-    function never returns TRUE.
+    function never returns true.
     Static buffers must begin immediately after the array structure.
 
   RETURN VALUE
-    FALSE	Ok
+    false	Ok
 */
 
 bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
@@ -77,7 +77,7 @@ bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
   array->size_of_element=element_size;
   array->m_psi_key= psi_key;
   if ((array->buffer= static_cast<uchar*>(init_buffer)))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   /* 
     Since the dynamic array is usable even if allocation fails here malloc
     should not throw an error
@@ -85,7 +85,7 @@ bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
   if (!(array->buffer= (uchar*) my_malloc(psi_key,
                                           element_size*init_alloc, MYF(0))))
     array->max_element=0;
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 } 
 
 
@@ -98,8 +98,8 @@ bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
       element
 
   RETURN VALUE
-    TRUE	Insert failed
-    FALSE	Ok
+    true	Insert failed
+    false	Ok
 */
 
 bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element)
@@ -108,7 +108,7 @@ bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element)
   if (array->elements == array->max_element)
   {						/* Call only when nessesary */
     if (!(buffer= static_cast<uchar*>(alloc_dynamic(array))))
-      return TRUE;
+      return true;
   }
   else
   {
@@ -116,7 +116,7 @@ bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element)
     array->elements++;
   }
   memcpy(buffer,element,(size_t) array->size_of_element);
-  return FALSE;
+  return false;
 }
 
 

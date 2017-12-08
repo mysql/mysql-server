@@ -27,6 +27,7 @@
 #include <time.h>
 
 #include "my_dir.h"
+#include "my_io.h"
 #include "my_sys.h"
 #endif /* XCOM_STANDALONE */
 

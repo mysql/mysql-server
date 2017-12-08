@@ -203,8 +203,8 @@ from_base64_table[]=
  * @param  decoder  Pointer to MY_BASE64_DECODER
  *
  * @return
- *   FALSE on success (there are some more non-space input characters)
- *   TRUE  on error (end-of-input found)
+ *   false on success (there are some more non-space input characters)
+ *   true  on error (end-of-input found)
  */
 static inline bool
 my_base64_decoder_skip_spaces(MY_BASE64_DECODER *decoder)
@@ -212,11 +212,11 @@ my_base64_decoder_skip_spaces(MY_BASE64_DECODER *decoder)
   for ( ; decoder->src < decoder->end; decoder->src++)
   {
     if (from_base64_table[(uchar) *decoder->src] != -2)
-      return FALSE;
+      return false;
   }
   if (decoder->state > 0)
     decoder->error= 1; /* Unexpected end-of-input found */
-  return TRUE;
+  return true;
 }
 
 
@@ -228,8 +228,8 @@ my_base64_decoder_skip_spaces(MY_BASE64_DECODER *decoder)
  * @param decoder base64 decoding stream
  *
  * @return
- *   FALSE on success
- *   TRUE  on error (invalid base64 character found)
+ *   false on success
+ *   true  on error (invalid base64 character found)
  */
 static inline bool
 my_base64_add(MY_BASE64_DECODER *decoder)
@@ -237,9 +237,9 @@ my_base64_add(MY_BASE64_DECODER *decoder)
   int res;
   decoder->c <<= 6;
   if ((res= from_base64_table[(uchar) *decoder->src++]) < 0)
-    return (decoder->error= TRUE);
+    return (decoder->error= true);
   decoder->c+= (uint) res;
-  return FALSE;
+  return false;
 }
 
 
@@ -250,14 +250,14 @@ my_base64_add(MY_BASE64_DECODER *decoder)
  *
  * @param  decoder  Pointer to MY_BASE64_DECODER
  * @return
- *  FALSE on success (a valid base64 encoding character found)
- *  TRUE  on error (unexpected character or unexpected end-of-input found)
+ *  false on success (a valid base64 encoding character found)
+ *  true  on error (unexpected character or unexpected end-of-input found)
  */
 static inline bool
 my_base64_decoder_getch(MY_BASE64_DECODER *decoder)
 {
   if (my_base64_decoder_skip_spaces(decoder))
-    return TRUE; /* End-of-input */
+    return true; /* End-of-input */
 
   if (!my_base64_add(decoder)) /* Valid base64 character found */
   {
@@ -267,10 +267,10 @@ my_base64_decoder_getch(MY_BASE64_DECODER *decoder)
       DBUG_ASSERT(decoder->state == 3);
       decoder->error= 1;
       decoder->src--;
-      return TRUE; /* expected '=', but encoding character found */
+      return true; /* expected '=', but encoding character found */
     }
     decoder->state++;
-    return FALSE;
+    return false;
   }
 
   /* Process error */
@@ -279,7 +279,7 @@ my_base64_decoder_getch(MY_BASE64_DECODER *decoder)
   case 0:
   case 1:
     decoder->src--;
-    return TRUE; /* base64 character expected */
+    return true; /* base64 character expected */
 
   case 2:
   case 3:
@@ -291,17 +291,17 @@ my_base64_decoder_getch(MY_BASE64_DECODER *decoder)
     else
     {
       decoder->src--;
-      return TRUE; /* base64 character or '=' expected */
+      return true; /* base64 character or '=' expected */
     }
     break;
 
   default:
     DBUG_ASSERT(0);
-    return TRUE; /* Wrong state, should not happen */
+    return true; /* Wrong state, should not happen */
   }
 
   decoder->state++;
-  return FALSE;
+  return false;
 }
 
 

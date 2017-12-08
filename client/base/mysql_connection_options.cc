@@ -24,6 +24,7 @@
 
 #include "client/base/abstract_options_provider.h"
 #include "client/base/abstract_program.h"
+#include "m_ctype.h"
 #include "mysys_err.h"
 #include "typelib.h"
 

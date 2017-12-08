@@ -17,6 +17,7 @@
 #include "sql/srv_session.h"
 
 #include <stddef.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <atomic>
 #include <list>
@@ -24,7 +25,6 @@
 #include <new>
 #include <utility>
 
-#include "decimal.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -36,6 +36,7 @@
 #include "my_psi_config.h"
 #include "my_thread.h"
 #include "my_thread_local.h"     // my_get_thread_local & my_set_thread_local
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
@@ -45,8 +46,7 @@
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
-#include "mysql/udf_registration_types.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
 #include "pfs_thread_provider.h"
 #include "rwlock_scoped_lock.h"
@@ -54,7 +54,6 @@
 #include "sql/conn_handler/connection_handler_manager.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"         // ER_DEFAULT
-#include "sql/histograms/value_map.h"
 #include "sql/log.h"             // Query log
 #include "sql/mysqld.h"          // current_thd
 #include "sql/mysqld_thd_manager.h" // Global_THD_manager
@@ -68,6 +67,8 @@
 #include "sql/sql_thd_internal_api.h" // thd_set_thread_stack
 #include "sql/system_variables.h"
 #include "thr_mutex.h"
+
+struct decimal_t;
 
 /**
   @file
@@ -626,7 +627,7 @@ static void err_handle_ok(void * ctx, uint server_status, uint warn_count,
   if (pctx && pctx->handler)
   {
     char buf[256];
-    my_snprintf(buf, sizeof(buf),
+    snprintf(buf, sizeof(buf),
                 "OK status=%u warnings=%u affected=%llu last_id=%llu",
                 server_status, warn_count, affected_rows, last_insert_id);
     pctx->handler(pctx->handler_context, 0, buf);

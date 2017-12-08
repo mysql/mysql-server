@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -16,18 +16,16 @@
  */
 
 #include <gtest/gtest.h>
+#include <stdio.h>
 
+#include "m_ctype.h"
 #include "my_sys.h"
-#include "mysql/service_my_snprintf.h"
 
 const CHARSET_INFO *data_ctx_charset= &my_charset_utf8mb4_general_ci;
 
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
-
-  my_snprintf_service_st service_sprintf = { my_snprintf, my_vsnprintf };
-  my_snprintf_service = &service_sprintf;
 
   my_init();
 

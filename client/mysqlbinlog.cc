@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <algorithm>
@@ -47,7 +48,6 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_time.h"
-#include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"
 #include "print_version.h"
 #include "sql/log_event.h"
@@ -1264,7 +1264,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
     case binary_log::DELETE_ROWS_EVENT_V1:
     case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
     {
-      bool stmt_end= FALSE;
+      bool stmt_end= false;
       Table_map_log_event *ignored_map= NULL;
       if (ev_type == binary_log::WRITE_ROWS_EVENT ||
           ev_type == binary_log::DELETE_ROWS_EVENT ||
@@ -1276,7 +1276,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
       {
         Rows_log_event *new_ev= (Rows_log_event*) ev;
         if (new_ev->get_flags(Rows_log_event::STMT_END_F))
-          stmt_end= TRUE;
+          stmt_end= true;
         ignored_map= print_event_info->m_table_map_ignored.get_table(new_ev->get_table_id());
       }
 
@@ -1310,7 +1310,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
         if (skip_event)
         {
           // set the unflushed_events flag to false
-          print_event_info->have_unflushed_events= FALSE;
+          print_event_info->have_unflushed_events= false;
 
           // append END-MARKER(') with delimiter
           IO_CACHE *const body_cache= &print_event_info->body_cache;
@@ -1362,11 +1362,11 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
       }
 
       ev->print(result_file, print_event_info);
-      print_event_info->have_unflushed_events= TRUE;
+      print_event_info->have_unflushed_events= true;
       /* Flush head,body and footer cache to result_file */
       if (stmt_end)
       {
-        print_event_info->have_unflushed_events= FALSE;
+        print_event_info->have_unflushed_events= false;
         if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache,
                                                 result_file, stop_never /* flush result file */) ||
             copy_event_cache_to_file_and_reinit(&print_event_info->body_cache,
@@ -1903,7 +1903,7 @@ get_one_option(int optid, const struct my_option *opt,
     exit(0);
   case 's':
     warning(CLIENT_WARN_DEPRECATED_NO_REPLACEMENT_MSG("--short-form"));
-    short_form= TRUE;
+    short_form= true;
     break;
   case OPT_WAIT_SERVER_ID:
     warning(CLIENT_WARN_DEPRECATED_MSG("--stop-never-slave-server-id", "--connection-server-id"));
@@ -2151,6 +2151,7 @@ static Exit_status check_master_version()
   switch (*version) {
   case '5':
   case '8':
+  case '9':
     /*
       The server is soon going to send us its Format_description log
       event.
@@ -2387,7 +2388,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         {
           if (output_file != 0)
           {
-            my_snprintf(log_file_name, sizeof(log_file_name), "%s%s",
+            snprintf(log_file_name, sizeof(log_file_name), "%s%s",
                         output_file, rev->new_log_ident);
           }
           else
@@ -2953,7 +2954,6 @@ inline bool gtid_client_init()
 
 int main(int argc, char** argv)
 {
-  char **defaults_argv;
   Exit_status retval= OK_CONTINUE;
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
@@ -2970,32 +2970,31 @@ int main(int argc, char** argv)
   */
   buff_ev= new Buff_ev(PSI_NOT_INSTRUMENTED);
 
-  my_getopt_use_args_separator= TRUE;
-  if (load_defaults("my", load_default_groups, &argc, &argv))
+  my_getopt_use_args_separator= true;
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
+  if (load_defaults("my", load_default_groups, &argc, &argv, &alloc))
     exit(1);
-  my_getopt_use_args_separator= FALSE;
-  defaults_argv= argv;
+  my_getopt_use_args_separator= false;
 
   parse_args(&argc, &argv);
 
   if (!argc)
   {
     usage();
-    free_defaults(defaults_argv);
     my_end(my_end_arg);
-    exit(1);
+    return EXIT_FAILURE;
   }
 
   if (gtid_client_init())
   {
     error("Could not initialize GTID structuress.");
-    exit(1);
+    return EXIT_FAILURE;
   }
 
   umask(((~my_umask) & 0666));
   /* Check for argument conflicts and do any post-processing */
   if (args_post_process() == ERROR_STOP)
-    exit(1);
+    return EXIT_FAILURE;
 
   if (opt_base64_output_mode == BASE64_OUTPUT_UNSPEC)
     opt_base64_output_mode= BASE64_OUTPUT_AUTO;
@@ -3010,7 +3009,7 @@ int main(int argc, char** argv)
   if (!dirname_for_local_load)
   {
     if (init_tmpdir(&tmpdir, 0))
-      exit(1);
+      return EXIT_FAILURE;
     dirname_for_local_load= my_strdup(PSI_NOT_INSTRUMENTED,
                                       my_tmpdir(&tmpdir), MY_WME);
   }
@@ -3085,15 +3084,11 @@ int main(int argc, char** argv)
     my_fclose(result_file, MYF(0));
   cleanup();
 
-  if (defaults_argv)
-    free_defaults(defaults_argv);
   my_free_open_file_info();
   load_processor.destroy();
   /* We cannot free DBUG, it is used in global destructors after exit(). */
   my_end(my_end_arg | MY_DONT_FREE_DBUG);
   gtid_client_cleanup();
 
-  exit(retval == ERROR_STOP ? 1 : 0);
-  /* Keep compilers happy. */
-  DBUG_RETURN(retval == ERROR_STOP ? 1 : 0);
+  return(retval == ERROR_STOP ? EXIT_FAILURE : EXIT_SUCCESS);
 }

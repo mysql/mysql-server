@@ -16,7 +16,6 @@
 #define SQL_USER_CACHE_INCLUDED
 
 #include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/graph_selectors.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
@@ -32,7 +31,6 @@
 #include "lf.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
-#include "mem_root_fwd.h"
 #include "mf_wcomp.h"                   // wild_many, wild_one, wild_prefix
 #include "my_alloc.h"
 #include "my_inttypes.h"
@@ -40,28 +38,14 @@
 #include "my_sys.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/mysql_lex_string.h"
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/mysql_statement.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"                  // SCRAMBLE_LENGTH
 #include "mysql_time.h"                 // MYSQL_TIME
-#include "prealloced_array.h"           // Prealloced_array
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_internal.h" // List_of_authid, Authid
-#include "sql/dd/properties.h"
-#include "sql/handler.h"
-#include "sql/key.h"
-#include "sql/my_decimal.h"
-#include "sql/sql_alloc.h"              // Sql_alloc
 #include "sql/sql_connect.h"            // USER_RESOURCES
-#include "sql/sql_plugin_ref.h"
-#include "sql/table.h"
-#include "sql_string.h"
-#include "typelib.h"
 #include "violite.h"                    // SSL_type
 
 class Security_context;
-/* Forward Declarations */
 class String;
 class THD;
 struct TABLE;
@@ -272,7 +256,7 @@ public:
 };
 
 
-class GRANT_COLUMN :public Sql_alloc
+class GRANT_COLUMN
 {
 public:
   ulong rights;
@@ -281,7 +265,7 @@ public:
 };
 
 
-class GRANT_NAME :public Sql_alloc
+class GRANT_NAME
 {
 public:
   ACL_HOST_AND_IP host;
@@ -447,7 +431,7 @@ typedef std::unordered_map<std::string, Role_vertex_descriptor >
   Role_index_map;
 
 /** Container for global, schema, table/view and routine ACL maps */
-class Acl_map : public Sql_alloc
+class Acl_map
 {
 public:
   Acl_map(Security_context *sctx, uint64 ver);

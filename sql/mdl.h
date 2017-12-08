@@ -22,7 +22,7 @@
 #include <unordered_map>
 
 #include "m_string.h"
-#include "mem_root_fwd.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -33,12 +33,7 @@
 #include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/components/services/psi_mdl_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/psi/mysql_cond.h"
-#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_mdl.h"
-#include "mysql/psi/psi_stage.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/sql_plist.h"
 
@@ -46,9 +41,9 @@ class MDL_context;
 class MDL_lock;
 class MDL_ticket;
 class THD;
+struct LF_PINS;
 struct MDL_key;
-
-typedef struct st_lf_pins LF_PINS;
+struct MEM_ROOT;
 
 /**
   @def ENTER_COND(C, M, S, O)
@@ -649,10 +644,10 @@ public:
   }
 
 private:
-  uint16 m_length;
-  uint16 m_db_name_length;
-  uint16 m_object_name_length;
-  char m_ptr[MAX_MDLKEY_LENGTH];
+  uint16 m_length{0};
+  uint16 m_db_name_length{0};
+  uint16 m_object_name_length{0};
+  char m_ptr[MAX_MDLKEY_LENGTH]{0};
   static PSI_stage_info m_namespace_to_wait_state_name[NAMESPACE_END];
 private:
   MDL_key(const MDL_key &);                     /* not implemented */
@@ -668,35 +663,32 @@ private:
   sites and hence different lifetimes. The allocation of lock requests is
   controlled from outside of the MDL subsystem, while allocation of granted
   locks (tickets) is controlled within the MDL subsystem.
-
-  MDL_request is a C structure, you don't need to call a constructor
-  or destructor for it.
 */
 
 class MDL_request
 {
 public:
   /** Type of metadata lock. */
-  enum          enum_mdl_type type;
+  enum_mdl_type type{MDL_INTENTION_EXCLUSIVE};
   /** Duration for requested lock. */
-  enum enum_mdl_duration duration;
+  enum_mdl_duration duration{MDL_STATEMENT};
 
   /**
     Pointers for participating in the list of lock requests for this context.
   */
-  MDL_request *next_in_list;
-  MDL_request **prev_in_list;
+  MDL_request *next_in_list{nullptr};
+  MDL_request **prev_in_list{nullptr};
   /**
     Pointer to the lock ticket object for this lock request.
     Valid only if this lock request is satisfied.
   */
-  MDL_ticket *ticket;
+  MDL_ticket *ticket{nullptr};
 
   /** A lock is requested based on a fully qualified name and type. */
   MDL_key key;
 
-  const char *m_src_file;
-  uint m_src_line;
+  const char *m_src_file{nullptr};
+  uint m_src_line{0};
 
 public:
   static void *operator new(size_t size, MEM_ROOT *mem_root,
@@ -1504,13 +1496,13 @@ private:
 
   MDL_context_owner *m_owner;
   /**
-    TRUE -  if for this context we will break protocol and try to
+    true -  if for this context we will break protocol and try to
             acquire table-level locks while having only S lock on
             some table.
             To avoid deadlocks which might occur during concurrent
             upgrade of SNRW lock on such object to X lock we have to
             abort waits for table-level locks for such connections.
-    FALSE - Otherwise.
+    false - Otherwise.
   */
   bool m_needs_thr_lock_abort;
 
@@ -1624,7 +1616,7 @@ extern mysql_mutex_t LOCK_open;
   max_write_lock_count high priority, strong locks successively,
   to avoid starving out weak, lower priority locks.
 */
-extern "C" ulong max_write_lock_count;
+extern ulong max_write_lock_count;
 
 extern int32 mdl_locks_unused_locks_low_water;
 

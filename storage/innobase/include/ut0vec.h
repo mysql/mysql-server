@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -131,7 +131,7 @@ ib_vector_resize(
 
 /********************************************************************
 Test whether a vector is empty or not.
-@return TRUE if empty */
+@return true if empty */
 UNIV_INLINE
 ibool
 ib_vector_is_empty(

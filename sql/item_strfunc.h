@@ -32,22 +32,21 @@
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql/derror.h"
+#include "mysql_time.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"         // Item_bool_func
 #include "sql/item_func.h"            // Item_func
-#include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/sql_const.h"
 #include "sql/sql_digest.h"  // DIGEST_HASH_TO_STRING[_LENGTH]
-#include "sql/table.h"
 #include "sql_string.h"
 
 class MY_LOCALE;
 class PT_item_list;
 class THD;
+class my_decimal;
 template <class T> class List;
 
 CHARSET_INFO *

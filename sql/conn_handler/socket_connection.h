@@ -27,8 +27,6 @@
 #include "my_psi_config.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_socket.h"  // MYSQL_SOCKET
-#include "mysql/psi/psi_statement.h"
-#include "mysql/udf_registration_types.h"
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif

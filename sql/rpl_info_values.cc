@@ -29,17 +29,17 @@ Rpl_info_values::Rpl_info_values(int param_ninfo): value(0),
   @c ninfo which is set while calling the constructor. Each value is created
   with the default size of @c FN_REFLEN.
 
-  @retval FALSE No error
-  @retval TRUE Failure
+  @retval false No error
+  @retval true Failure
 */
 bool Rpl_info_values::init()
 {
   DBUG_ENTER("Rpl_info_values::init");
 
   if (!value && !(value= new String[ninfo]))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 Rpl_info_values::~Rpl_info_values()

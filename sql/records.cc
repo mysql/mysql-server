@@ -31,7 +31,6 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/field.h"
 #include "sql/filesort.h"        // filesort_free_buffers
 #include "sql/handler.h"
@@ -45,7 +44,6 @@
 #include "sql/sql_sort.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql_string.h"
 #include "thr_lock.h"
 #include "varlen_sort.h"
 
@@ -87,7 +85,7 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
 {
   int error;
   empty_record(table);
-  memset(info, 0, sizeof(*info));
+  new (info) READ_RECORD;
   info->thd= thd;
   info->table= table;
   info->record= table->record[0];
@@ -211,7 +209,7 @@ bool init_read_record(READ_RECORD *info,THD *thd,
   if (!table)
     table= qep_tab->table();
 
-  memset(info, 0, sizeof(*info));
+  new (info) READ_RECORD;
   info->thd=thd;
   info->table=table;
   info->forms= &info->table;		/* Only one table */
@@ -377,7 +375,7 @@ void end_read_record(READ_RECORD *info)
   }
   if (info->table && info->table->key_read)
   {
-    info->table->set_keyread(FALSE);
+    info->table->set_keyread(false);
   }
   if (info->table && info->table->is_created())
   {

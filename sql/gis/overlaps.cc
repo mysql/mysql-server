@@ -190,21 +190,19 @@ bool Overlaps::eval(const Geometry *g1, const Geometry *g2) const {
 
 // overlaps(Cartesian_point, *)
 
-bool Overlaps::eval(const Cartesian_point *g1,
-                    const Cartesian_point *g2) const {
+bool Overlaps::eval(const Cartesian_point *, const Cartesian_point *) const {
   // The interior of a point can never be within both the interior and exterior
   // of another geometry.
   return false;
 }
 
-bool Overlaps::eval(const Cartesian_point *g1,
-                    const Cartesian_linestring *g2) const {
+bool Overlaps::eval(const Cartesian_point *,
+                    const Cartesian_linestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Cartesian_point *g1,
-                    const Cartesian_polygon *g2) const {
+bool Overlaps::eval(const Cartesian_point *, const Cartesian_polygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -215,21 +213,21 @@ bool Overlaps::eval(const Cartesian_point *g1,
       *this, g1, g2);
 }
 
-bool Overlaps::eval(const Cartesian_point *g1,
-                    const Cartesian_multipoint *g2) const {
+bool Overlaps::eval(const Cartesian_point *,
+                    const Cartesian_multipoint *) const {
   // The interior of a point can never be within both the interior and exterior
   // of another geometry.
   return false;
 }
 
-bool Overlaps::eval(const Cartesian_point *g1,
-                    const Cartesian_multilinestring *g2) const {
+bool Overlaps::eval(const Cartesian_point *,
+                    const Cartesian_multilinestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Cartesian_point *g1,
-                    const Cartesian_multipolygon *g2) const {
+bool Overlaps::eval(const Cartesian_point *,
+                    const Cartesian_multipolygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -238,8 +236,8 @@ bool Overlaps::eval(const Cartesian_point *g1,
 
 // overlaps(Cartesian_linestring, *)
 
-bool Overlaps::eval(const Cartesian_linestring *g1,
-                    const Cartesian_point *g2) const {
+bool Overlaps::eval(const Cartesian_linestring *,
+                    const Cartesian_point *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -249,8 +247,8 @@ bool Overlaps::eval(const Cartesian_linestring *g1,
   return bg::overlaps(*g1, *g2);
 }
 
-bool Overlaps::eval(const Cartesian_linestring *g1,
-                    const Cartesian_polygon *g2) const {
+bool Overlaps::eval(const Cartesian_linestring *,
+                    const Cartesian_polygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -261,8 +259,8 @@ bool Overlaps::eval(const Cartesian_linestring *g1,
       *this, g1, g2);
 }
 
-bool Overlaps::eval(const Cartesian_linestring *g1,
-                    const Cartesian_multipoint *g2) const {
+bool Overlaps::eval(const Cartesian_linestring *,
+                    const Cartesian_multipoint *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -272,8 +270,8 @@ bool Overlaps::eval(const Cartesian_linestring *g1,
   return bg::overlaps(*g1, *g2);
 }
 
-bool Overlaps::eval(const Cartesian_linestring *g1,
-                    const Cartesian_multipolygon *g2) const {
+bool Overlaps::eval(const Cartesian_linestring *,
+                    const Cartesian_multipolygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -282,14 +280,13 @@ bool Overlaps::eval(const Cartesian_linestring *g1,
 
 // overlaps(Cartesian_polygon, *)
 
-bool Overlaps::eval(const Cartesian_polygon *g1,
-                    const Cartesian_point *g2) const {
+bool Overlaps::eval(const Cartesian_polygon *, const Cartesian_point *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Cartesian_polygon *g1,
-                    const Cartesian_linestring *g2) const {
+bool Overlaps::eval(const Cartesian_polygon *,
+                    const Cartesian_linestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -305,14 +302,14 @@ bool Overlaps::eval(const Cartesian_polygon *g1,
       *this, g1, g2);
 }
 
-bool Overlaps::eval(const Cartesian_polygon *g1,
-                    const Cartesian_multipoint *g2) const {
+bool Overlaps::eval(const Cartesian_polygon *,
+                    const Cartesian_multipoint *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Cartesian_polygon *g1,
-                    const Cartesian_multilinestring *g2) const {
+bool Overlaps::eval(const Cartesian_polygon *,
+                    const Cartesian_multilinestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -336,21 +333,21 @@ bool Overlaps::eval(const Cartesian_geometrycollection *g1,
 
 // overlaps(Cartesian_multipoint, *)
 
-bool Overlaps::eval(const Cartesian_multipoint *g1,
-                    const Cartesian_point *g2) const {
+bool Overlaps::eval(const Cartesian_multipoint *,
+                    const Cartesian_point *) const {
   // The interior of a point can never be within both the interior and exterior
   // of another geometry.
   return false;
 }
 
-bool Overlaps::eval(const Cartesian_multipoint *g1,
-                    const Cartesian_linestring *g2) const {
+bool Overlaps::eval(const Cartesian_multipoint *,
+                    const Cartesian_linestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Cartesian_multipoint *g1,
-                    const Cartesian_polygon *g2) const {
+bool Overlaps::eval(const Cartesian_multipoint *,
+                    const Cartesian_polygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -366,14 +363,14 @@ bool Overlaps::eval(const Cartesian_multipoint *g1,
   return bg::overlaps(*g1, *g2);
 }
 
-bool Overlaps::eval(const Cartesian_multipoint *g1,
-                    const Cartesian_multilinestring *g2) const {
+bool Overlaps::eval(const Cartesian_multipoint *,
+                    const Cartesian_multilinestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Cartesian_multipoint *g1,
-                    const Cartesian_multipolygon *g2) const {
+bool Overlaps::eval(const Cartesian_multipoint *,
+                    const Cartesian_multipolygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -382,8 +379,8 @@ bool Overlaps::eval(const Cartesian_multipoint *g1,
 
 // overlaps(Cartesian_multilinestring, *)
 
-bool Overlaps::eval(const Cartesian_multilinestring *g1,
-                    const Cartesian_point *g2) const {
+bool Overlaps::eval(const Cartesian_multilinestring *,
+                    const Cartesian_point *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -393,8 +390,8 @@ bool Overlaps::eval(const Cartesian_multilinestring *g1,
   return bg::overlaps(*g1, *g2);
 }
 
-bool Overlaps::eval(const Cartesian_multilinestring *g1,
-                    const Cartesian_polygon *g2) const {
+bool Overlaps::eval(const Cartesian_multilinestring *,
+                    const Cartesian_polygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -405,8 +402,8 @@ bool Overlaps::eval(const Cartesian_multilinestring *g1,
       *this, g1, g2);
 }
 
-bool Overlaps::eval(const Cartesian_multilinestring *g1,
-                    const Cartesian_multipoint *g2) const {
+bool Overlaps::eval(const Cartesian_multilinestring *,
+                    const Cartesian_multipoint *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -416,8 +413,8 @@ bool Overlaps::eval(const Cartesian_multilinestring *g1,
   return bg::overlaps(*g1, *g2);
 }
 
-bool Overlaps::eval(const Cartesian_multilinestring *g1,
-                    const Cartesian_multipolygon *g2) const {
+bool Overlaps::eval(const Cartesian_multilinestring *,
+                    const Cartesian_multipolygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -426,14 +423,14 @@ bool Overlaps::eval(const Cartesian_multilinestring *g1,
 
 // overlaps(Cartesian_multipolygon, *)
 
-bool Overlaps::eval(const Cartesian_multipolygon *g1,
-                    const Cartesian_point *g2) const {
+bool Overlaps::eval(const Cartesian_multipolygon *,
+                    const Cartesian_point *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Cartesian_multipolygon *g1,
-                    const Cartesian_linestring *g2) const {
+bool Overlaps::eval(const Cartesian_multipolygon *,
+                    const Cartesian_linestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -449,14 +446,14 @@ bool Overlaps::eval(const Cartesian_multipolygon *g1,
       *this, g1, g2);
 }
 
-bool Overlaps::eval(const Cartesian_multipolygon *g1,
-                    const Cartesian_multipoint *g2) const {
+bool Overlaps::eval(const Cartesian_multipolygon *,
+                    const Cartesian_multipoint *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Cartesian_multipolygon *g1,
-                    const Cartesian_multilinestring *g2) const {
+bool Overlaps::eval(const Cartesian_multipolygon *,
+                    const Cartesian_multilinestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -470,21 +467,20 @@ bool Overlaps::eval(const Cartesian_multipolygon *g1,
 
 // overlaps(Geographic_point, *)
 
-bool Overlaps::eval(const Geographic_point *g1,
-                    const Geographic_point *g2) const {
+bool Overlaps::eval(const Geographic_point *, const Geographic_point *) const {
   // The interior of a point can never be within both the interior and exterior
   // of another geometry.
   return false;
 }
 
-bool Overlaps::eval(const Geographic_point *g1,
-                    const Geographic_linestring *g2) const {
+bool Overlaps::eval(const Geographic_point *,
+                    const Geographic_linestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Geographic_point *g1,
-                    const Geographic_polygon *g2) const {
+bool Overlaps::eval(const Geographic_point *,
+                    const Geographic_polygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -495,21 +491,21 @@ bool Overlaps::eval(const Geographic_point *g1,
       *this, g1, g2);
 }
 
-bool Overlaps::eval(const Geographic_point *g1,
-                    const Geographic_multipoint *g2) const {
+bool Overlaps::eval(const Geographic_point *,
+                    const Geographic_multipoint *) const {
   // The interior of a point can never be within both the interior and exterior
   // of another geometry.
   return false;
 }
 
-bool Overlaps::eval(const Geographic_point *g1,
-                    const Geographic_multilinestring *g2) const {
+bool Overlaps::eval(const Geographic_point *,
+                    const Geographic_multilinestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Geographic_point *g1,
-                    const Geographic_multipolygon *g2) const {
+bool Overlaps::eval(const Geographic_point *,
+                    const Geographic_multipolygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -518,8 +514,8 @@ bool Overlaps::eval(const Geographic_point *g1,
 
 // overlaps(Geographic_linestring, *)
 
-bool Overlaps::eval(const Geographic_linestring *g1,
-                    const Geographic_point *g2) const {
+bool Overlaps::eval(const Geographic_linestring *,
+                    const Geographic_point *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -529,8 +525,8 @@ bool Overlaps::eval(const Geographic_linestring *g1,
   return bg::overlaps(*g1, *g2, m_geographic_ll_aa_strategy);
 }
 
-bool Overlaps::eval(const Geographic_linestring *g1,
-                    const Geographic_polygon *g2) const {
+bool Overlaps::eval(const Geographic_linestring *,
+                    const Geographic_polygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -541,8 +537,8 @@ bool Overlaps::eval(const Geographic_linestring *g1,
       *this, g1, g2);
 }
 
-bool Overlaps::eval(const Geographic_linestring *g1,
-                    const Geographic_multipoint *g2) const {
+bool Overlaps::eval(const Geographic_linestring *,
+                    const Geographic_multipoint *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -552,8 +548,8 @@ bool Overlaps::eval(const Geographic_linestring *g1,
   return bg::overlaps(*g1, *g2, m_geographic_ll_aa_strategy);
 }
 
-bool Overlaps::eval(const Geographic_linestring *g1,
-                    const Geographic_multipolygon *g2) const {
+bool Overlaps::eval(const Geographic_linestring *,
+                    const Geographic_multipolygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -562,14 +558,14 @@ bool Overlaps::eval(const Geographic_linestring *g1,
 
 // overlaps(Geographic_polygon, *)
 
-bool Overlaps::eval(const Geographic_polygon *g1,
-                    const Geographic_point *g2) const {
+bool Overlaps::eval(const Geographic_polygon *,
+                    const Geographic_point *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Geographic_polygon *g1,
-                    const Geographic_linestring *g2) const {
+bool Overlaps::eval(const Geographic_polygon *,
+                    const Geographic_linestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -585,14 +581,14 @@ bool Overlaps::eval(const Geographic_polygon *g1,
       *this, g1, g2);
 }
 
-bool Overlaps::eval(const Geographic_polygon *g1,
-                    const Geographic_multipoint *g2) const {
+bool Overlaps::eval(const Geographic_polygon *,
+                    const Geographic_multipoint *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Geographic_polygon *g1,
-                    const Geographic_multilinestring *g2) const {
+bool Overlaps::eval(const Geographic_polygon *,
+                    const Geographic_multilinestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -616,21 +612,21 @@ bool Overlaps::eval(const Geographic_geometrycollection *g1,
 
 // overlaps(Geographic_multipoint, *)
 
-bool Overlaps::eval(const Geographic_multipoint *g1,
-                    const Geographic_point *g2) const {
+bool Overlaps::eval(const Geographic_multipoint *,
+                    const Geographic_point *) const {
   // The interior of a point can never be within both the interior and exterior
   // of another geometry.
   return false;
 }
 
-bool Overlaps::eval(const Geographic_multipoint *g1,
-                    const Geographic_linestring *g2) const {
+bool Overlaps::eval(const Geographic_multipoint *,
+                    const Geographic_linestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Geographic_multipoint *g1,
-                    const Geographic_polygon *g2) const {
+bool Overlaps::eval(const Geographic_multipoint *,
+                    const Geographic_polygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -648,14 +644,14 @@ bool Overlaps::eval(const Geographic_multipoint *g1,
   return bg::overlaps(*g1, *g2);
 }
 
-bool Overlaps::eval(const Geographic_multipoint *g1,
-                    const Geographic_multilinestring *g2) const {
+bool Overlaps::eval(const Geographic_multipoint *,
+                    const Geographic_multilinestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Geographic_multipoint *g1,
-                    const Geographic_multipolygon *g2) const {
+bool Overlaps::eval(const Geographic_multipoint *,
+                    const Geographic_multipolygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -664,8 +660,8 @@ bool Overlaps::eval(const Geographic_multipoint *g1,
 
 // overlaps(Geographic_multilinestring, *)
 
-bool Overlaps::eval(const Geographic_multilinestring *g1,
-                    const Geographic_point *g2) const {
+bool Overlaps::eval(const Geographic_multilinestring *,
+                    const Geographic_point *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -675,8 +671,8 @@ bool Overlaps::eval(const Geographic_multilinestring *g1,
   return bg::overlaps(*g1, *g2, m_geographic_ll_aa_strategy);
 }
 
-bool Overlaps::eval(const Geographic_multilinestring *g1,
-                    const Geographic_polygon *g2) const {
+bool Overlaps::eval(const Geographic_multilinestring *,
+                    const Geographic_polygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -687,8 +683,8 @@ bool Overlaps::eval(const Geographic_multilinestring *g1,
       *this, g1, g2);
 }
 
-bool Overlaps::eval(const Geographic_multilinestring *g1,
-                    const Geographic_multipoint *g2) const {
+bool Overlaps::eval(const Geographic_multilinestring *,
+                    const Geographic_multipoint *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -698,8 +694,8 @@ bool Overlaps::eval(const Geographic_multilinestring *g1,
   return bg::overlaps(*g1, *g2, m_geographic_ll_aa_strategy);
 }
 
-bool Overlaps::eval(const Geographic_multilinestring *g1,
-                    const Geographic_multipolygon *g2) const {
+bool Overlaps::eval(const Geographic_multilinestring *,
+                    const Geographic_multipolygon *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -708,14 +704,14 @@ bool Overlaps::eval(const Geographic_multilinestring *g1,
 
 // overlaps(Geographic_multipolygon, *)
 
-bool Overlaps::eval(const Geographic_multipolygon *g1,
-                    const Geographic_point *g2) const {
+bool Overlaps::eval(const Geographic_multipolygon *,
+                    const Geographic_point *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Geographic_multipolygon *g1,
-                    const Geographic_linestring *g2) const {
+bool Overlaps::eval(const Geographic_multipolygon *,
+                    const Geographic_linestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
@@ -731,14 +727,14 @@ bool Overlaps::eval(const Geographic_multipolygon *g1,
       *this, g1, g2);
 }
 
-bool Overlaps::eval(const Geographic_multipolygon *g1,
-                    const Geographic_multipoint *g2) const {
+bool Overlaps::eval(const Geographic_multipolygon *,
+                    const Geographic_multipoint *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }
 
-bool Overlaps::eval(const Geographic_multipolygon *g1,
-                    const Geographic_multilinestring *g2) const {
+bool Overlaps::eval(const Geographic_multipolygon *,
+                    const Geographic_multilinestring *) const {
   // If dim(g1) != dim(g2), return NULL (SQL/MM 2015, Part 3, Sect. 5.1.54).
   throw null_value_exception();
 }

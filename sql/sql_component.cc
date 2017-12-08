@@ -17,9 +17,11 @@
 #include "sql/sql_component.h"
 
 #include <stddef.h>
+#include <string.h>
 #include <vector>
 
 #include "../components/mysql_server/server_component.h" // imp_*
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/components/my_service.h"
@@ -31,6 +33,7 @@
 #include "sql/resourcegroups/resource_group_mgr.h" // Resource_group_mgr
 #include "sql/sql_class.h"     // THD
 #include "sql/sql_plugin.h"    // end_transaction
+#include "sql/thd_raii.h"
 
 bool Sql_cmd_install_component::execute(THD *thd)
 {

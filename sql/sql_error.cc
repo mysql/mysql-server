@@ -51,24 +51,22 @@ This file contains the implementation of error and warnings related
 #include "decimal.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"   // ER_THD
 #include "sql/item.h"
 #include "sql/log.h"      // sql_print_warning
 #include "sql/my_decimal.h"
 #include "sql/protocol.h"
-#include "sql/session_tracker.h"
 #include "sql/sql_class.h" // THD
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_servers.h"
 #include "sql/system_variables.h"
 #include "sql/thr_malloc.h"
 
@@ -216,8 +214,7 @@ static void copy_string(MEM_ROOT *mem_root, String* dst, const String* src)
 
 
 Sql_condition::Sql_condition(MEM_ROOT *mem_root)
- :Sql_alloc(),
-  m_class_origin((const char*) NULL, 0, & my_charset_utf8_bin),
+ :m_class_origin((const char*) NULL, 0, & my_charset_utf8_bin),
   m_subclass_origin((const char*) NULL, 0, & my_charset_utf8_bin),
   m_constraint_catalog((const char*) NULL, 0, & my_charset_utf8_bin),
   m_constraint_schema((const char*) NULL, 0, & my_charset_utf8_bin),
@@ -241,8 +238,7 @@ Sql_condition::Sql_condition(MEM_ROOT *mem_root, uint mysql_errno,
                              const char* returned_sqlstate,
                              Sql_condition::enum_severity_level severity,
                              const char* message_text)
- :Sql_alloc(),
-  m_class_origin((const char*) NULL, 0, & my_charset_utf8_bin),
+ :m_class_origin((const char*) NULL, 0, & my_charset_utf8_bin),
   m_subclass_origin((const char*) NULL, 0, & my_charset_utf8_bin),
   m_constraint_catalog((const char*) NULL, 0, & my_charset_utf8_bin),
   m_constraint_schema((const char*) NULL, 0, & my_charset_utf8_bin),
@@ -788,8 +784,7 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
   DBUG_ASSERT(format != NULL);
 
   va_start(args,format);
-  my_vsnprintf_ex(&my_charset_utf8_general_ci, warning,
-                  sizeof(warning), format, args);
+  vsnprintf(warning, sizeof(warning), format, args);
   va_end(args);
   push_warning(thd, severity, code, warning);
   DBUG_VOID_RETURN;
@@ -944,7 +939,7 @@ ErrConvString::ErrConvString(const my_decimal *nr)
 }
 
 
-ErrConvString::ErrConvString(const struct st_mysql_time *ltime, uint dec)
+ErrConvString::ErrConvString(const MYSQL_TIME *ltime, uint dec)
 {
   buf_length= my_TIME_to_str(ltime, err_buffer,
                              MY_MIN(dec, DATETIME_MAX_DECIMALS));
@@ -1000,7 +995,7 @@ size_t err_conv(char *buff, size_t to_length, const char *from,
           *to= 0;
           break;
         }
-        res+= my_snprintf(to, 5, "\\x%02X", (uint) char_code);
+        res+= snprintf(to, 5, "\\x%02X", (uint) char_code);
         to+=4;
         from++;
       }
@@ -1085,7 +1080,7 @@ size_t convert_error_message(char *to, size_t to_length,
       length= (wc <= 0xFFFF) ? 6/* '\1234' format*/ : 9 /* '\+123456' format*/;
       if ((uchar*)(to + length) >= to_end)
         break;
-      cnvres= my_snprintf(to, 9,
+      cnvres= snprintf(to, 9,
                           (wc <= 0xFFFF) ? "\\%04X" : "\\+%06X", (uint) wc);
       to+= cnvres;
     }

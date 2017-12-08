@@ -16,7 +16,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "mysql/mysql_lex_string.h"
+#include "lex_string.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/mem_root_array.h"
 
@@ -43,7 +43,6 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref);
 
 bool insert_view_fields(List<Item> *list, TABLE_LIST *view);
 
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 bool check_duplicate_names(const Create_col_name_list *column_names,
                            List<Item>& item_list, bool gen_unique_view_names);

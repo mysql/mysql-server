@@ -53,7 +53,7 @@ int chars_2_decimal(const char *chars, my_decimal *to)
 std::atomic<uint> expected_error{0};
 extern "C" void test_error_handler_hook(uint err, const char *str, myf)
 {
-  EXPECT_EQ(expected_error, err) << str;
+  EXPECT_EQ(expected_error.load(), err) << str;
 }
 
 void setup_server_for_unit_tests()

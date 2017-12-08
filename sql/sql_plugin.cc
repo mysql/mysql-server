@@ -17,7 +17,6 @@
 
 #include "my_config.h"
 
-#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -26,6 +25,7 @@
 #include "m_string.h"
 #include "map_helpers.h"
 #include "mutex_lock.h"        // MUTEX_LOCK
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -39,9 +39,11 @@
 #include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/system_variable_source_type.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/plugin_auth.h"
 #include "mysql/plugin_clone.h"
@@ -52,9 +54,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
@@ -68,6 +68,7 @@
 #include "sql/dd/dd_schema.h"            // dd::Schema_MDL_locker
 #include "sql/dd/info_schema/metadata.h" // dd::info_schema::store_dynamic_p...
 #include "sql/dd/string_type.h" // dd::String_type
+#include "sql/dd_sql_view.h"      // update_referencing_views_metadata
 #include "sql/debug_sync.h"    // DEBUG_SYNC
 #include "sql/derror.h"        // ER_THD
 #include "sql/field.h"
@@ -90,19 +91,20 @@
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"     // check_string_char_length
 #include "sql/sql_plugin_var.h"
-#include "sql/sql_servers.h"
 #include "sql/sql_show.h"      // add_status_vars
 #include "sql/sql_table.h"
-#include "sql/strfunc.h"       // find_type
 #include "sql/sys_vars_resource_mgr.h"
 #include "sql/sys_vars_shared.h" // intern_find_sys_var
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
+#include "sql/thr_malloc.h"
 #include "sql/transaction.h"   // trans_rollback_stmt
 #include "sql_string.h"
 #include "template_utils.h"    // pointer_cast
 #include "thr_lock.h"
 #include "thr_mutex.h"
+#include "typelib.h"
 
 
 /**
@@ -682,7 +684,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
            (ver >> 8) < (list_of_services[i].version >> 8)))
       {
         char buf[MYSQL_ERRMSG_SIZE];
-        my_snprintf(buf, sizeof(buf),
+        snprintf(buf, sizeof(buf),
                     "service '%s' interface version mismatch",
                     list_of_services[i].name);
         mysql_mutex_unlock(&LOCK_plugin);
@@ -873,9 +875,9 @@ static SHOW_COMP_OPTION plugin_status(const LEX_CSTRING &name, int type)
 
 bool plugin_is_ready(const LEX_CSTRING &name, int type)
 {
-  bool rc= FALSE;
+  bool rc= false;
   if (plugin_status(name, type) == SHOW_OPTION_YES)
-    rc= TRUE;
+    rc= true;
   return rc;
 }
 
@@ -962,15 +964,14 @@ static st_plugin_int *plugin_insert_or_reuse(st_plugin_int *plugin)
     tmp= *it;
     if (tmp->state == PLUGIN_IS_FREED)
     {
-      memcpy(tmp, plugin, sizeof(st_plugin_int));
+      *tmp = std::move(*plugin);
       DBUG_RETURN(tmp);
     }
   }
   if (plugin_array->push_back(plugin))
     DBUG_RETURN(NULL);
   tmp= plugin_array->back()=
-    static_cast<st_plugin_int*>(memdup_root(&plugin_mem_root, plugin,
-                                            sizeof(st_plugin_int)));
+    new (&plugin_mem_root) st_plugin_int(std::move(*plugin));
   DBUG_RETURN(tmp);
 }
 
@@ -998,12 +999,8 @@ static bool plugin_add(MEM_ROOT *tmp_root,
     report_error(report, ER_UDF_EXISTS, name->str);
     DBUG_RETURN(true);
   }
-  /* Clear the whole struct to catch future extensions. */
-  memset(&tmp, 0, sizeof(tmp));
-  if (!(tmp.plugin_dl = plugin_dl_add(dl, report)))
-  {
+  if (! (tmp.plugin_dl= plugin_dl_add(dl, report)))
     DBUG_RETURN(true);
-  }
   /* Find plugin by name */
   for (plugin= tmp.plugin_dl->plugins; plugin->info; plugin++)
   {
@@ -1477,7 +1474,7 @@ static bool plugin_init_initialize_and_reap()
     mysql_mutex_unlock(&LOCK_plugin);
     if (plugin_ptr->load_option == PLUGIN_FORCE ||
         plugin_ptr->load_option == PLUGIN_FORCE_PLUS_PERMANENT)
-      reaped_mandatory_plugin= TRUE;
+      reaped_mandatory_plugin= true;
     plugin_deinitialize(plugin_ptr, true);
     mysql_mutex_lock(&LOCK_plugin_delete);
     mysql_mutex_lock(&LOCK_plugin);
@@ -1571,7 +1568,6 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv)
     for (struct st_mysql_plugin *plugin= *builtins; plugin->info; plugin++)
     {
       struct st_plugin_int tmp;
-      memset(&tmp, 0, sizeof(tmp));
       tmp.plugin= plugin;
       tmp.name.str= (char *)plugin->name;
       tmp.name.length= strlen(plugin->name);
@@ -1728,8 +1724,7 @@ static bool register_builtin(st_mysql_plugin *plugin,
     DBUG_RETURN(true);
 
   *ptr= plugin_array->back()=
-    static_cast<st_plugin_int*>(memdup_root(&plugin_mem_root, tmp,
-                                            sizeof(st_plugin_int)));
+    new (&plugin_mem_root) st_plugin_int(std::move(*tmp));
 
   plugin_hash[plugin->type]->emplace(to_string((*ptr)->name), *ptr);
 
@@ -1776,7 +1771,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     DBUG_VOID_RETURN;
   }
   table= tables.table;
-  if (init_read_record(&read_record_info, new_thd, table, NULL, 1, 1, FALSE))
+  if (init_read_record(&read_record_info, new_thd, table, NULL, 1, 1, false))
   {
     close_trans_system_tables(new_thd);
     DBUG_VOID_RETURN;
@@ -1826,7 +1821,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
            my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
   }
   end_read_record(&read_record_info);
-  table->m_needs_reopen= TRUE;                  // Force close to free memory
+  table->m_needs_reopen= true;                  // Force close to free memory
 
   close_trans_system_tables(new_thd);
 
@@ -1861,7 +1856,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
     if (p == buffer + sizeof(buffer) - 1)
     {
       LogErr(ERROR_LEVEL, ER_PLUGIN_LOAD_PARAMETER_TOO_LONG);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
 
     switch ((*(p++)= *(list++))) {
@@ -1948,10 +1943,10 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
       continue;
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 error:
   LogErr(ERROR_LEVEL, ER_PLUGIN_CANT_LOAD, name.str, dl.str);
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 /*
@@ -2207,7 +2202,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   TABLE *table;
   bool error= true;
   int argc= orig_argc;
-  char **argv= orig_argv, **default_argv= NULL;
+  char **argv= orig_argv;
   st_plugin_int *tmp= nullptr;
   LEX_CSTRING name_cstr= {name->str, name->length};
   bool store_infoschema_metadata= false;
@@ -2257,30 +2252,30 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   DEBUG_SYNC(thd, "acquired_LOCK_plugin");
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
-  if (my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups,
-                       &argc, &argv, NULL))
   {
-    mysql_rwlock_unlock(&LOCK_system_variables_hash);
-    mysql_mutex_unlock(&LOCK_plugin);
-    report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
-    goto err;
+    MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
+    if (my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups,
+                         &argc, &argv, &alloc, NULL))
+    {
+      mysql_rwlock_unlock(&LOCK_system_variables_hash);
+      mysql_mutex_unlock(&LOCK_plugin);
+      report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
+      goto err;
+    }
+    /*
+     Append static variables present in mysqld-auto.cnf file for the
+     newly installed plugin to process those options which are specific
+     to this plugin.
+    */
+    if (pv && pv->append_read_only_variables(&argc, &argv, true))
+    {
+      mysql_rwlock_unlock(&LOCK_system_variables_hash);
+      mysql_mutex_unlock(&LOCK_plugin);
+      report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
+      goto err;
+    }
+    error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
   }
-  default_argv= argv;
-  /*
-   Append static variables present in mysqld-auto.cnf file for the
-   newly installed plugin to process those options which are specific
-   to this plugin.
-  */
-  if (pv && pv->append_read_only_variables(&argc, &argv, TRUE))
-  {
-    mysql_rwlock_unlock(&LOCK_system_variables_hash);
-    mysql_mutex_unlock(&LOCK_plugin);
-    report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
-    goto err;
-  }
-  error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
-  if (default_argv)
-    free_defaults(default_argv);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
   /* LOCK_plugin already unlocked by plugin_add() if error */
@@ -2652,7 +2647,7 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
   DBUG_ENTER("plugin_foreach_with_mask");
 
   if (!initialized)
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   state_mask= ~state_mask; // do it only once
 
@@ -2697,15 +2692,15 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
         mysql_mutex_unlock(&LOCK_plugin);
       }
       plugin= plugins[idx];
-      /* It will stop iterating on first engine error when "func" returns TRUE */
+      /* It will stop iterating on first engine error when "func" returns true */
       if (plugin && (*funcs)(thd, plugin_int_to_ref(plugin), arg))
           goto err;
     }
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 err:
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
@@ -3189,7 +3184,7 @@ static void plugin_vars_free_values(sys_var *vars)
   Used in plugin.h:THDVAR_SET(thd, name, value) macro.
 */
 
-void plugin_thdvar_safe_update(THD *thd, st_mysql_sys_var *var, char **dest, const char *value)
+void plugin_thdvar_safe_update(THD *thd, SYS_VAR *var, char **dest, const char *value)
 {
   DBUG_ASSERT(thd == current_thd);
 
@@ -3265,7 +3260,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
   char *optname;
 
   int index= 0, offset= 0;
-  st_mysql_sys_var *opt, **plugin_option;
+  SYS_VAR *opt, **plugin_option;
   st_bookmark *v;
 
   /** Used to circumvent the const attribute on my_option::name */
@@ -3515,7 +3510,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
 static my_option *construct_help_options(MEM_ROOT *mem_root,
                                          st_plugin_int *p)
 {
-  st_mysql_sys_var **opt;
+  SYS_VAR **opt;
   my_option *opts;
   uint count= EXTRA_OPTIONS;
   DBUG_ENTER("construct_help_options");
@@ -3597,9 +3592,13 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   bool disable_plugin;
   enum_plugin_load_option plugin_load_option= tmp->load_option;
 
-  MEM_ROOT *mem_root= alloc_root_inited(&tmp->mem_root) ?
-                      &tmp->mem_root : &plugin_mem_root;
-  st_mysql_sys_var **opt;
+  /*
+    We should use tmp->mem_root here instead of the global plugin_mem_root,
+    but tmp->root is not always properly freed, so it will cause leaks in
+    Valgrind (e.g. the main.validate_password_plugin test).
+  */
+  MEM_ROOT *mem_root= &plugin_mem_root;
+  SYS_VAR **opt;
   my_option *opts= NULL;
   LEX_STRING plugin_name;
   char *varname;
@@ -3687,7 +3686,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   error= 1;
   for (opt= tmp->plugin->system_vars; opt && *opt; opt++)
   {
-    st_mysql_sys_var *o;
+    SYS_VAR *o;
     const my_option** optp= (const my_option**)&opts;
     if (((o= *opt)->flags & PLUGIN_VAR_NOSYSVAR))
       continue;
@@ -3726,7 +3725,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   if (mysqld_server_started)
   {
     Persisted_variables_cache *pv= Persisted_variables_cache::get_instance();
-    if (pv && pv->set_persist_options(TRUE))
+    if (pv && pv->set_persist_options(true))
     {
       LogErr(ERROR_LEVEL, ER_PLUGIN_CANT_SET_PERSISTENT_OPTIONS,
              tmp->name.str);

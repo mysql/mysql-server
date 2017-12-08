@@ -21,14 +21,15 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_getopt.h"
 #include "my_sys.h"
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #define PERROR_VERSION "2.11"
 #include "storage/ndb/include/mgmapi/mgmapi_error.h"
-#include "storage/ndb/src/kernel/error/ndbd_exit_codes.c"
-#include "storage/ndb/src/ndbapi/ndberror.c"
+#include "storage/ndb/src/kernel/error/ndbd_exit_codes.cpp"
+#include "storage/ndb/src/ndbapi/ndberror.cpp"
 #endif
 #include "print_version.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
@@ -49,7 +50,7 @@ int mgmapi_error_string(int err_no, char *str, int size)
   {
     if ((int)ndb_mgm_error_msgs[i].code == err_no)
     {
-      my_snprintf(str, size-1, "%s", ndb_mgm_error_msgs[i].msg);
+      snprintf(str, size-1, "%s", ndb_mgm_error_msgs[i].msg);
       str[size-1]= '\0';
       return 0;
     }

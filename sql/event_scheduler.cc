@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_command.h"
 #include "my_dbug.h"
@@ -28,6 +29,7 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -35,7 +37,6 @@
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -57,7 +58,6 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"           // Sql_condition
 #include "sql/system_variables.h"
-#include "sql/table.h"
 #include "sql_string.h"
 #include "thr_mutex.h"
 

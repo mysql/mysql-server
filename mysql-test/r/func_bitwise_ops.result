@@ -346,7 +346,7 @@ SELECT _vbn | 2147483647 FROM at;
 _vbn | 2147483647
 2147483647
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '????'
 SELECT _tbl | 2147483647 FROM at;
 _tbl | 2147483647
 2147483647
@@ -460,7 +460,7 @@ SELECT _vbn & 2147483647 FROM at;
 _vbn & 2147483647
 0
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '????'
 SELECT _tbl & 2147483647 FROM at;
 _tbl & 2147483647
 0
@@ -574,7 +574,7 @@ SELECT _vbn ^ 2147483647 FROM at;
 _vbn ^ 2147483647
 2147483647
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '????'
 SELECT _tbl ^ 2147483647 FROM at;
 _tbl ^ 2147483647
 2147483647

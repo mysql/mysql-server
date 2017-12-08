@@ -25,7 +25,9 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
+#include "mysql/plugin.h"
 #include "sql/current_thd.h"
+#include "sql/field.h"
 #include "sql/sql_base.h"                // enum_tdc_remove_table_type
 #include "sql/sql_class.h"
 #include "sql/sql_plugin.h"
@@ -117,7 +119,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked,
     if (heap_prepare_hp_create_info(table, single_instance,
                                     delete_on_close, &create_info))
       goto end;
-    create_info.pin_share= TRUE;
+    create_info.pin_share= true;
 
     rc= heap_create(name, &create_info, &internal_share, &created_new_share);
     my_free(create_info.keydef);

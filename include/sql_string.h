@@ -30,21 +30,21 @@
 #include "lex_string.h"
 #include "m_ctype.h"                         // my_convert
 #include "m_string.h"                        // LEX_CSTRING
-#include "mem_root_fwd.h"
+#include "memory_debugging.h"
+#include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_sys.h"                          // alloc_root
 #include "mysql/mysql_lex_string.h"          // LEX_STRING
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"       // my_free
 
+struct MEM_ROOT;
+
 #ifdef MYSQL_SERVER
-extern "C" {
 extern PSI_memory_key key_memory_String_value;
-}
 #define STRING_PSI_MEMORY_KEY key_memory_String_value
 #else
 #define STRING_PSI_MEMORY_KEY PSI_NOT_INSTRUMENTED
@@ -135,8 +135,8 @@ public:
 
 class String;
 
-typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_io_cache IO_CACHE;
+struct CHARSET_INFO;
+struct IO_CACHE;
 
 int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *to, String *from, size_t from_length);
@@ -671,20 +671,7 @@ public:
 
     @return allocated string or NULL
   */
-  char *dup(MEM_ROOT *root) const
-  {
-    if (m_length > 0 && m_ptr[m_length - 1] == 0)
-      return static_cast<char *>(memdup_root(root, m_ptr, m_length));
-
-    char *ret= static_cast<char*>(alloc_root(root, m_length + 1));
-    if (ret != NULL)
-    {
-      if (m_length > 0)
-        memcpy(ret, m_ptr, m_length);
-      ret[m_length]= 0;
-    }
-    return ret;
-  }
+  char *dup(MEM_ROOT *root) const;
 };
 
 static inline void swap(String &a, String &b) noexcept

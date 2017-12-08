@@ -20,10 +20,9 @@
 #ifndef X_TESTS_DRIVER_COMMON_UTILS_STRING_PARSING_H_
 #define X_TESTS_DRIVER_COMMON_UTILS_STRING_PARSING_H_
 
+#include <stdio.h>
 #include <stdexcept>
 #include <string>
-
-#include "mysql/service_my_snprintf.h"
 
 namespace aux {
 
@@ -45,9 +44,9 @@ void unhex(const Input_type &input, Output_type &output) {
 
       if (std::string::npos == pos) {
         char tmp[1024];
-        my_snprintf(tmp, sizeof(tmp),
-                    "Invalid hexadecimal character %c at position %d", data,
-                    pos);
+        snprintf(tmp, sizeof(tmp),
+                 "Invalid hexadecimal character %c at position %zu", data,
+                 pos);
         throw std::logic_error(tmp);
       }
 

@@ -1,24 +1,26 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+ */
 
 /**
-  @file mysys/my_alloc.cc
-  Routines to handle mallocing of results which will be freed the same time.
-*/
+ * @file mysys/my_alloc.cc
+ * Implementation of MEM_ROOT.
+ *
+ * This file follows Google coding style.
+ */
 
-#include <stdarg.h>
 #include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
@@ -27,551 +29,243 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
-#include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_err.h"
+#include "template_utils.h"
 
-static inline bool is_mem_available(MEM_ROOT *mem_root, size_t size);
-
-/*
-  For instrumented code: don't preallocate memory in alloc_root().
-  This gives a lot more memory chunks, each with a red-zone around them.
- */
-#if !defined(HAVE_VALGRIND) && !defined(HAVE_ASAN)
-#define PREALLOCATE_MEMORY_CHUNKS
+// For instrumented code: Always use malloc(); never reuse a chunk.
+// This gives a lot more memory chunks, each with a red-zone around them.
+#if defined(HAVE_VALGRIND) || defined(HAVE_ASAN)
+#define MEM_ROOT_SINGLE_CHUNKS 1
+#else
+#define MEM_ROOT_SINGLE_CHUNKS 0
 #endif
 
+MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t length) {
+  DBUG_ENTER("MEM_ROOT::AllocBlock");
 
-/*
-  Initialize memory root
-
-  SYNOPSIS
-    init_alloc_root()
-      mem_root       - memory root to initialize
-      block_size     - size of chunks (blocks) used for memory allocation
-                       (It is external size of chunk i.e. it should include
-                        memory required for internal structures, thus it
-                        should be no less than ALLOC_ROOT_MIN_BLOCK_SIZE)
-      pre_alloc_size - if non-0, then size of block that should be
-                       pre-allocated during memory root initialization.
-
-  DESCRIPTION
-    This function prepares memory root for further use, sets initial size of
-    chunk for memory allocation and pre-allocates first block if specified.
-    Altough error can happen during execution of this function if
-    pre_alloc_size is non-0 it won't be reported. Instead it will be
-    reported as error in first alloc_root() on this memory root.
-*/
-
-void init_alloc_root(PSI_memory_key key,
-                     MEM_ROOT *mem_root, size_t block_size,
-		     size_t pre_alloc_size MY_ATTRIBUTE((unused)))
-{
-  DBUG_ENTER("init_alloc_root");
-  DBUG_PRINT("enter",("root: %p", mem_root));
-
-  mem_root->free= mem_root->used= mem_root->pre_alloc= 0;
-  mem_root->min_malloc= 32;
-  mem_root->block_size= block_size - ALLOC_ROOT_MIN_BLOCK_SIZE;
-  mem_root->error_handler= 0;
-  mem_root->block_num= 4;			/* We shift this with >>2 */
-  mem_root->first_block_usage= 0;
-  mem_root->m_psi_key= key;
-  mem_root->max_capacity= 0;
-  mem_root->allocated_size= 0;
-  mem_root->error_for_capacity_exceeded= FALSE;
-
-#if defined(PREALLOCATE_MEMORY_CHUNKS)
-  if (pre_alloc_size)
-  {
-    if ((mem_root->free= mem_root->pre_alloc=
-	 (USED_MEM*) my_malloc(key,
-                               pre_alloc_size+ ALIGN_SIZE(sizeof(USED_MEM)),
-			       MYF(0))))
-    {
-      mem_root->free->size= (uint)(pre_alloc_size+ALIGN_SIZE(sizeof(USED_MEM)));
-      mem_root->free->left= (uint)pre_alloc_size;
-      mem_root->free->next= 0;
-      mem_root->allocated_size+= pre_alloc_size+ ALIGN_SIZE(sizeof(USED_MEM));
+  if (m_max_capacity != 0 && (m_allocated_size > m_max_capacity ||
+                              length > m_max_capacity - m_allocated_size)) {
+    if (m_error_for_capacity_exceeded) {
+      my_error(EE_CAPACITY_EXCEEDED, MYF(0),
+               static_cast<ulonglong>(m_max_capacity));
+      // NOTE: No early return; we will abort the query at the next safe point.
+    } else {
+      DBUG_RETURN(nullptr);
     }
   }
-#endif
+
+  Block *new_block = static_cast<Block *>(
+      my_malloc(m_psi_key, length + ALIGN_SIZE(sizeof(Block)),
+                MYF(MY_WME | ME_FATALERROR)));
+  if (new_block == nullptr) {
+    if (m_error_handler) (m_error_handler)();
+    DBUG_RETURN(nullptr);
+  }
+
+  m_allocated_size += length;
+
+  // Make the default block size 50% larger next time.
+  // This ensures O(1) total mallocs (assuming Clear() is not called).
+  m_block_size += m_block_size / 2;
+  DBUG_RETURN(new_block);
+}
+
+void *MEM_ROOT::AllocSlow(size_t length) {
+  DBUG_ENTER("MEM_ROOT::alloc");
+  DBUG_PRINT("enter", ("root: %p", this));
+
+  // We need to allocate a new block to satisfy this allocation;
+  // otherwise, the fast path in Alloc() would not have sent us here.
+  // We plan to allocate a block of <block_size> bytes; see if that
+  // would be enough or not.
+  if (length >= m_block_size || MEM_ROOT_SINGLE_CHUNKS) {
+    // The next block we'd allocate would _not_ be big enough
+    // (or we're in Valgrind/ASAN mode, and want everything in single chunks).
+    // Allocate an entirely new block, not disturbing anything;
+    // since the new block isn't going to be used for the next allocation
+    // anyway, we can just as well keep the previous one.
+    Block *new_block = AllocBlock(length);
+    if (new_block == nullptr) DBUG_RETURN(nullptr);
+
+    if (m_current_block == nullptr) {
+      // This is the only block, so it has to be the current block, too.
+      // However, it will be full, so we won't be allocating from it
+      // unless ClearForReuse() is called.
+      new_block->prev = nullptr;
+      m_current_block = new_block;
+      m_current_free_end = pointer_cast<char *>(new_block) +
+                           ALIGN_SIZE(sizeof(*new_block)) + length;
+      m_current_free_start = m_current_free_end;
+    } else {
+      // Insert the new block in the second-to-last position.
+      new_block->prev = m_current_block->prev;
+      m_current_block->prev = new_block;
+    }
+
+    DBUG_RETURN(pointer_cast<char *>(new_block) +
+                ALIGN_SIZE(sizeof(*new_block)));
+  } else {
+    // The normal case: Throw away the current block, allocate a new block,
+    // and use that to satisfy the new allocation.
+    const size_t new_block_size = m_block_size;
+    Block *new_block = AllocBlock(new_block_size);  // Will modify block_size.
+    if (new_block == nullptr) DBUG_RETURN(nullptr);
+
+    new_block->prev = m_current_block;
+    m_current_block = new_block;
+
+    char *new_mem =
+        pointer_cast<char *>(new_block) + ALIGN_SIZE(sizeof(*new_block));
+    m_current_free_start = new_mem + length;
+    m_current_free_end = new_mem + new_block_size;
+    DBUG_RETURN(new_mem);
+  }
+}
+
+void MEM_ROOT::Clear() {
+  DBUG_ENTER("MEM_ROOT::Clear()");
+  DBUG_PRINT("enter", ("root: %p", this));
+
+  // Already cleared, or memset() to zero, so just ignore.
+  if (m_current_block == nullptr) DBUG_VOID_RETURN;
+
+  Block *start = m_current_block;
+
+  m_current_block = nullptr;
+  m_block_size = m_orig_block_size;
+  m_current_free_start = &s_dummy_target;
+  m_current_free_end = &s_dummy_target;
+  m_allocated_size = 0;
+
+  FreeBlocks(start);
   DBUG_VOID_RETURN;
 }
 
-/** This is a no-op unless the build is debug or for Valgrind. */
-#define TRASH_MEM(X) TRASH(((char*)(X) + ((X)->size-(X)->left)), (X)->left)
+void MEM_ROOT::ClearForReuse() {
+  DBUG_ENTER("MEM_ROOT::ClearForReuse()");
 
-
-/*
-  SYNOPSIS
-    reset_root_defaults()
-    mem_root        memory root to change defaults of
-    block_size      new value of block size. Must be greater or equal
-                    than ALLOC_ROOT_MIN_BLOCK_SIZE (this value is about
-                    68 bytes and depends on platform and compilation flags)
-    pre_alloc_size  new size of preallocated block. If not zero,
-                    must be equal to or greater than block size,
-                    otherwise means 'no prealloc'.
-  DESCRIPTION
-    Function aligns and assigns new value to block size; then it tries to
-    reuse one of existing blocks as prealloc block, or malloc new one of
-    requested size. If no blocks can be reused, all unused blocks are freed
-    before allocation.
-*/
-
-void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
-                         size_t pre_alloc_size MY_ATTRIBUTE((unused)))
-{
-  DBUG_ASSERT(alloc_root_inited(mem_root));
-
-  mem_root->block_size= block_size - ALLOC_ROOT_MIN_BLOCK_SIZE;
-#if defined(PREALLOCATE_MEMORY_CHUNKS)
-  if (pre_alloc_size)
-  {
-    size_t size= pre_alloc_size + ALIGN_SIZE(sizeof(USED_MEM));
-    if (!mem_root->pre_alloc || mem_root->pre_alloc->size != size)
-    {
-      USED_MEM *mem, **prev= &mem_root->free;
-      /*
-        Free unused blocks, so that consequent calls
-        to reset_root_defaults won't eat away memory.
-      */
-      while (*prev)
-      {
-        mem= *prev;
-        if (mem->size == (uint)size)
-        {
-          /* We found a suitable block, no need to do anything else */
-          mem_root->pre_alloc= mem;
-          return;
-        }
-        if (mem->left + ALIGN_SIZE(sizeof(USED_MEM)) == mem->size)
-        {
-          /* remove block from the list and free it */
-          *prev= mem->next;
-          {
-            mem->left= mem->size;
-            mem_root->allocated_size-= mem->size;
-            TRASH_MEM(mem);
-            my_free(mem);
-          }
-        }
-        else
-          prev= &mem->next;
-      }
-      /* Allocate new prealloc block and add it to the end of free list */
-      if (is_mem_available(mem_root, size) &&
-          (mem= (USED_MEM *) my_malloc(mem_root->m_psi_key,
-                                       size, MYF(0))))
-      {
-        mem->size= (uint)size;
-        mem->left= (uint)pre_alloc_size;
-        mem->next= *prev;
-        *prev= mem_root->pre_alloc= mem;
-        mem_root->allocated_size+= size;
-      }
-      else
-      {
-        mem_root->pre_alloc= 0;
-      }
-    }
+  if (MEM_ROOT_SINGLE_CHUNKS) {
+    Clear();
+    DBUG_VOID_RETURN;
   }
-  else
-#endif
-    mem_root->pre_alloc= 0;
+
+  // Already cleared, or memset() to zero, so just ignore.
+  if (m_current_block == nullptr) DBUG_VOID_RETURN;
+
+  // Keep the last block, which is usually the biggest one.
+  m_current_free_start = pointer_cast<char *>(m_current_block) +
+                         ALIGN_SIZE(sizeof(*m_current_block));
+  Block *start = m_current_block->prev;
+  m_current_block->prev = nullptr;
+  m_allocated_size = m_current_free_end - m_current_free_start;
+
+  FreeBlocks(start);
+  DBUG_VOID_RETURN;
 }
 
-
-/**
-  Function allocates the requested memory in the mem_root specified.
-  If max_capacity is defined for the mem_root, it only allocates
-  if the requested size can be allocated without exceeding the limit.
-  However, when error_for_capacity_exceeded is set, an error is flagged
-  (see set_error_reporting), but allocation is still performed.
-
-  @param mem_root           memory root to allocate memory from
-  @param length             size to be allocated
-
-  @returns                  Pointer to the memory thats been allocated
-  @retval
-  NULL                      Memory is not available.
-*/
-
-void *alloc_root(MEM_ROOT *mem_root, size_t length)
-{
-#if !defined(PREALLOCATE_MEMORY_CHUNKS)
-  USED_MEM *next;
-  DBUG_ENTER("alloc_root");
-  DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
-
-  DBUG_ASSERT(alloc_root_inited(mem_root));
-
-  DBUG_EXECUTE_IF("simulate_out_of_memory",
-                  {
-                    if (mem_root->error_handler)
-                      (*mem_root->error_handler)();
-                    DBUG_SET("-d,simulate_out_of_memory");
-                    DBUG_RETURN((void*) 0); /* purecov: inspected */
-                  });
-
-  length+=ALIGN_SIZE(sizeof(USED_MEM));
-  if (!is_mem_available(mem_root, length))
-  {
-    if (mem_root->error_for_capacity_exceeded)
-      my_error(EE_CAPACITY_EXCEEDED, MYF(0),
-               (ulonglong) mem_root->max_capacity);
-    else
-      DBUG_RETURN(NULL);
+void MEM_ROOT::FreeBlocks(Block *start) {
+  // The MEM_ROOT might be allocated on itself, so make sure we don't
+  // touch it after we've started freeing.
+  for (Block *block = start; block != nullptr;) {
+    Block *prev = block->prev;
+    my_free(block);
+    block = prev;
   }
-  if (!(next = (USED_MEM*) my_malloc(mem_root->m_psi_key,
-                                     length,MYF(MY_WME | ME_FATALERROR))))
-  {
-    if (mem_root->error_handler)
-      (*mem_root->error_handler)();
-    DBUG_RETURN((uchar*) 0);			/* purecov: inspected */
-  }
-  mem_root->allocated_size+= length;
-  next->next= mem_root->used;
-  next->size= (uint)length;
-  next->left= (uint)(length - ALIGN_SIZE(sizeof(USED_MEM)));
-  mem_root->used= next;
-  DBUG_PRINT("exit",("ptr: 0x%lx", (long) (((char*) next)+
-                                           ALIGN_SIZE(sizeof(USED_MEM)))));
-  DBUG_RETURN((uchar*) (((char*) next)+ALIGN_SIZE(sizeof(USED_MEM))));
-#else
-  size_t get_size, block_size;
-  uchar* point;
-  USED_MEM *next= 0;
-  USED_MEM **prev;
-  DBUG_ENTER("alloc_root");
-  DBUG_PRINT("enter",("root: %p", mem_root));
-  DBUG_ASSERT(alloc_root_inited(mem_root));
-
-  DBUG_EXECUTE_IF("simulate_out_of_memory",
-                  {
-                    /* Avoid reusing an already allocated block */
-                    if (mem_root->error_handler)
-                      (*mem_root->error_handler)();
-                    DBUG_SET("-d,simulate_out_of_memory");
-                    DBUG_RETURN((void*) 0); /* purecov: inspected */
-                  });
-  length= ALIGN_SIZE(length);
-  if ((*(prev= &mem_root->free)) != NULL)
-  {
-    if ((*prev)->left < length &&
-	mem_root->first_block_usage++ >= ALLOC_MAX_BLOCK_USAGE_BEFORE_DROP &&
-	(*prev)->left < ALLOC_MAX_BLOCK_TO_DROP)
-    {
-      next= *prev;
-      *prev= next->next;			/* Remove block from list */
-      next->next= mem_root->used;
-      mem_root->used= next;
-      mem_root->first_block_usage= 0;
-    }
-    for (next= *prev ; next && next->left < length ; next= next->next)
-      prev= &next->next;
-  }
-  if (! next)
-  {						/* Time to alloc new block */
-    block_size= mem_root->block_size * (mem_root->block_num >> 2);
-    get_size= length+ALIGN_SIZE(sizeof(USED_MEM));
-    get_size= MY_MAX(get_size, block_size);
-
-    if (!is_mem_available(mem_root, get_size))
-    {
-      if (mem_root->error_for_capacity_exceeded)
-        my_error(EE_CAPACITY_EXCEEDED, MYF(0),
-                 (ulonglong) mem_root->max_capacity);
-      else
-        DBUG_RETURN(NULL);
-    }
-    if (!(next = (USED_MEM*) my_malloc(mem_root->m_psi_key,
-                                       get_size,MYF(MY_WME | ME_FATALERROR))))
-    {
-      if (mem_root->error_handler)
-	(*mem_root->error_handler)();
-      DBUG_RETURN((void*) 0);                      /* purecov: inspected */
-    }
-    mem_root->allocated_size+= get_size;
-    mem_root->block_num++;
-    next->next= *prev;
-    next->size= (uint)get_size;
-    next->left= (uint)(get_size-ALIGN_SIZE(sizeof(USED_MEM)));
-    *prev=next;
-  }
-
-  point= (uchar*) ((char*) next+ (next->size-next->left));
-  /*TODO: next part may be unneded due to mem_root->first_block_usage counter*/
-  if ((next->left-= (uint)length) < mem_root->min_malloc)
-  {						/* Full block */
-    *prev= next->next;				/* Remove block from list */
-    next->next= mem_root->used;
-    mem_root->used= next;
-    mem_root->first_block_usage= 0;
-  }
-  DBUG_PRINT("exit",("ptr: %p", point));
-  DBUG_RETURN((void*) point);
-#endif
 }
 
+void MEM_ROOT::Claim() {
+  DBUG_ENTER("MEM_ROOT::Claim()");
+  DBUG_PRINT("enter", ("root: %p", this));
+
+  for (Block *block = m_current_block; block != nullptr; block = block->prev) {
+    my_claim(block);
+  }
+
+  DBUG_VOID_RETURN;
+}
 
 /*
-  Allocate many pointers at the same time.
+ * Allocate many pointers at the same time.
+ *
+ * DESCRIPTION
+ *   ptr1, ptr2, etc all point into big allocated memory area.
+ *
+ * SYNOPSIS
+ *   multi_alloc_root()
+ *     root               Memory root
+ *     ptr1, length1      Multiple arguments terminated by a NULL pointer
+ *     ptr2, length2      ...
+ *     ...
+ *     NULL
+ *
+ * RETURN VALUE
+ *   A pointer to the beginning of the allocated memory block
+ *   in case of success or NULL if out of memory.
+ */
 
-  DESCRIPTION
-    ptr1, ptr2, etc all point into big allocated memory area.
-
-  SYNOPSIS
-    multi_alloc_root()
-      root               Memory root
-      ptr1, length1      Multiple arguments terminated by a NULL pointer
-      ptr2, length2      ...
-      ...
-      NULL
-
-  RETURN VALUE
-    A pointer to the beginning of the allocated memory block
-    in case of success or NULL if out of memory.
-*/
-
-void *multi_alloc_root(MEM_ROOT *root, ...)
-{
+void *multi_alloc_root(MEM_ROOT *root, ...) {
   va_list args;
   char **ptr, *start, *res;
   size_t tot_length, length;
   DBUG_ENTER("multi_alloc_root");
 
   va_start(args, root);
-  tot_length= 0;
-  while ((ptr= va_arg(args, char **)))
-  {
-    length= va_arg(args, uint);
-    tot_length+= ALIGN_SIZE(length);
+  tot_length = 0;
+  while ((ptr = va_arg(args, char **))) {
+    length = va_arg(args, uint);
+    tot_length += ALIGN_SIZE(length);
   }
   va_end(args);
 
-  if (!(start= (char*) alloc_root(root, tot_length)))
-    DBUG_RETURN(0);                            /* purecov: inspected */
+  if (!(start = static_cast<char *>(alloc_root(root, tot_length))))
+    DBUG_RETURN(0); /* purecov: inspected */
 
   va_start(args, root);
-  res= start;
-  while ((ptr= va_arg(args, char **)))
-  {
-    *ptr= res;
-    length= va_arg(args, uint);
-    res+= ALIGN_SIZE(length);
+  res = start;
+  while ((ptr = va_arg(args, char **))) {
+    *ptr = res;
+    length = va_arg(args, uint);
+    res += ALIGN_SIZE(length);
   }
   va_end(args);
-  DBUG_RETURN((void*) start);
+  DBUG_RETURN((void *)start);
 }
 
-/* Mark all data in blocks free for reusage */
-
-static inline void mark_blocks_free(MEM_ROOT* root)
-{
-  USED_MEM *next;
-  USED_MEM **last;
-
-  /* iterate through (partially) free blocks, mark them free */
-  last= &root->free;
-  for (next= root->free; next; next= *(last= &next->next))
-  {
-    next->left= next->size - (uint)ALIGN_SIZE(sizeof(USED_MEM));
-    TRASH_MEM(next);
-  }
-
-  /* Combine the free and the used list */
-  *last= next=root->used;
-
-  /* now go through the used blocks and mark them free */
-  for (; next; next= next->next)
-  {
-    next->left= next->size - (uint)ALIGN_SIZE(sizeof(USED_MEM));
-    TRASH_MEM(next);
-  }
-
-  /* Now everything is set; Indicate that nothing is used anymore */
-  root->used= 0;
-  root->first_block_usage= 0;
-}
-
-void claim_root(MEM_ROOT *root)
-{
-  USED_MEM *next,*old;
-  DBUG_ENTER("claim_root");
-  DBUG_PRINT("enter",("root: %p", root));
-
-  for (next=root->used; next ;)
-  {
-    old=next; next= next->next ;
-    my_claim(old);
-  }
-
-  for (next=root->free ; next ;)
-  {
-    old=next; next= next->next;
-    my_claim(old);
-  }
-
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Deallocate everything used by alloc_root or just move
-  used blocks to free list if called with MY_USED_TO_FREE
-
-  SYNOPSIS
-    free_root()
-      root		Memory root
-      MyFlags		Flags for what should be freed:
-
-        MY_MARK_BLOCKS_FREED	Don't free blocks, just mark them free
-        MY_KEEP_PREALLOC	If this is not set, then free also the
-        		        preallocated block
-
-  NOTES
-    One can call this function either with root block initialised with
-    init_alloc_root() or with a zero()-ed block.
-    It's also safe to call this multiple times with the same mem_root.
-*/
-
-void free_root(MEM_ROOT *root, myf MyFlags)
-{
-  USED_MEM *next,*old;
-  DBUG_ENTER("free_root");
-  DBUG_PRINT("enter",("root: %p  flags: %u", root, (uint) MyFlags));
-
-  if (MyFlags & MY_MARK_BLOCKS_FREE)
-  {
-    mark_blocks_free(root);
-    DBUG_VOID_RETURN;
-  }
-  if (!(MyFlags & MY_KEEP_PREALLOC))
-    root->pre_alloc=0;
-
-  for (next=root->used; next ;)
-  {
-    old=next; next= next->next ;
-    if (old != root->pre_alloc)
-    {
-      old->left= old->size;
-      TRASH_MEM(old);
-      my_free(old);
-    }
-  }
-  for (next=root->free ; next ;)
-  {
-    old=next; next= next->next;
-    if (old != root->pre_alloc)
-    {
-      old->left= old->size;
-      TRASH_MEM(old);
-      my_free(old);
-    }
-  }
-  root->used=root->free=0;
-  if (root->pre_alloc)
-  {
-    root->free=root->pre_alloc;
-    root->free->left=root->pre_alloc->size-(uint)ALIGN_SIZE(sizeof(USED_MEM));
-    root->allocated_size= root->pre_alloc->size;
-    TRASH_MEM(root->pre_alloc);
-    root->free->next=0;
-  }
-  else
-    root->allocated_size= 0;
-  root->block_num= 4;
-  root->first_block_usage= 0;
-  DBUG_VOID_RETURN;
-}
-
-
-extern "C" char *strdup_root(MEM_ROOT *root, const char *str)
-{
+char *strdup_root(MEM_ROOT *root, const char *str) {
   return strmake_root(root, str, strlen(str));
 }
 
-
-extern "C" char *safe_strdup_root(MEM_ROOT *root, const char *str)
-{
+char *safe_strdup_root(MEM_ROOT *root, const char *str) {
   return str ? strdup_root(root, str) : 0;
 }
 
+void free_root(MEM_ROOT *root, myf flags) {
+  if (root != nullptr) {
+    if ((flags & MY_MARK_BLOCKS_FREE) || (flags & MY_KEEP_PREALLOC))
+      root->ClearForReuse();
+    else
+      root->Clear();
+  }
+}
 
-char *strmake_root(MEM_ROOT *root, const char *str, size_t len)
-{
+char *strmake_root(MEM_ROOT *root, const char *str, size_t len) {
   char *pos;
-  if ((pos= static_cast<char*>(alloc_root(root,len+1))))
-  {
-    if (len > 0)
-      memcpy(pos,str,len);
-    pos[len]=0;
+  if ((pos = static_cast<char *>(alloc_root(root, len + 1)))) {
+    if (len > 0) memcpy(pos, str, len);
+    pos[len] = 0;
   }
   return pos;
 }
 
-
-void *memdup_root(MEM_ROOT *root, const void *str, size_t len)
-{
+void *memdup_root(MEM_ROOT *root, const void *str, size_t len) {
   char *pos;
-  if ((pos= (char*)alloc_root(root,len)))
-    memcpy(pos,str,len);
+  if ((pos = static_cast<char *>(alloc_root(root, len)))) {
+    memcpy(pos, str, len);
+  }
   return pos;
 }
 
-/**
-  Check if the set max_capacity is exceeded if the requested
-  size is allocated
-
-  @param mem_root           memory root to check for allocation
-  @param size               requested size to be allocated
-
-  @retval
-  1 Memory is available
-  @retval
-  0 Memory is not available
-*/
-static inline bool is_mem_available(MEM_ROOT *mem_root, size_t size)
-{
-  if (mem_root->max_capacity)
-  {
-    if ((mem_root->allocated_size + size) > mem_root->max_capacity)
-      return 0;
-  }
-  return 1;
-}
-
-/**
-  set max_capacity for this mem_root. Should be called after init_alloc_root.
-  If the max_capacity specified is less than what is already pre_alloced
-  in init_alloc_root, only the future allocations are affected.
-
-  @param mem_root         memory root to set the max capacity
-  @param max_value        Maximum capacity this mem_root can hold
-*/
-void set_memroot_max_capacity(MEM_ROOT *mem_root, size_t max_value)
-{
-  DBUG_ASSERT(alloc_root_inited(mem_root));
-  mem_root->max_capacity= max_value;
-}
-
-/**
-  Enable/disable error reporting for exceeding max_capacity. If error
-  reporting is enabled, an error is flagged to indicate that the capacity
-  is exceeded. However allocation will still happen for the requested memory.
-
-  @param mem_root        memory root
-  @param report_error    set to true if error should be reported
-                         else set to false
-*/
-void set_memroot_error_reporting(MEM_ROOT *mem_root, bool report_error)
-{
-  DBUG_ASSERT(alloc_root_inited(mem_root));
-  mem_root->error_for_capacity_exceeded= report_error;
-}
-
+char MEM_ROOT::s_dummy_target;

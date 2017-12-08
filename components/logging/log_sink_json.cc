@@ -55,12 +55,12 @@ enum enum_log_json_pretty_print
 static enum_log_json_pretty_print   pretty= JSON_PAD;
 
 // This is private and specific to the component, and opaque to the server.
-typedef struct _my_state
+struct my_state
 {
   int   id;          ///< stream-id
   void *errstream;   ///< pointer to errstream in the server
   char *ext;         ///< file extension of a given error stream
-} my_state;
+};
 
 
 /**

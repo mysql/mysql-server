@@ -15,10 +15,10 @@
 
 #include "sql/opt_explain_format.h"
 
+#include "m_ctype.h"
 #include "my_dbug.h"
 #include "sql/current_thd.h"
 #include "sql/sql_class.h"
-#include "sql/table.h"
 
 bool qep_row::mem_root_str::is_empty()
 {

@@ -20,6 +20,7 @@
 #include "sql/dd/sdi_fwd.h"               // RJ_Document
 
 class THD;
+struct MDL_key;
 
 namespace histograms {
   class Histogram;

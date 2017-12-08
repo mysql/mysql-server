@@ -21,11 +21,14 @@
 
 #include "sql/sql_update.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <atomic>
 
 #include "binary_log_types.h"
+#include "lex_string.h"
 #include "m_ctype.h"
+#include "my_alloc.h"
 #include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -34,9 +37,7 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"         // Prealloced_array
@@ -72,6 +73,7 @@
 #include "sql/sql_data_change.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"        // build_equal_items, substitute_gc
 #include "sql/sql_partition.h"        // partition_key_modified
@@ -86,7 +88,6 @@
 #include "sql/temp_table_param.h"
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"
-#include "sql_string.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 
@@ -180,13 +181,13 @@ bool compare_records(const TABLE *table)
           
           if (((table->record[0][null_byte_index]) & field->null_bit) !=
               ((table->record[1][null_byte_index]) & field->null_bit))
-            return TRUE;
+            return true;
         }
         if (field->cmp_binary_offset(table->s->rec_buff_length))
-          return TRUE;
+          return true;
       }
     }
-    return FALSE;
+    return false;
   }
   
   /* 
@@ -201,15 +202,15 @@ bool compare_records(const TABLE *table)
   if (memcmp(table->null_flags,
 	     table->null_flags+table->s->rec_buff_length,
 	     table->s->null_bytes))
-    return TRUE;				// Diff in NULL value
+    return true;				// Diff in NULL value
   /* Compare updated fields */
   for (Field **ptr= table->field ; *ptr ; ptr++)
   {
     if (bitmap_is_set(table->write_set, (*ptr)->field_index) &&
 	(*ptr)->cmp_binary_offset(table->s->rec_buff_length))
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -487,7 +488,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
       }
 
       char buff[MYSQL_ERRMSG_SIZE];
-      my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), 0, 0,
+      snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), 0, 0,
                   (long) thd->get_stmt_da()->current_statement_cond_count());
       my_ok(thd, 0, 0, buff);
 
@@ -910,7 +911,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
 
       if (!error && has_after_triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                            TRG_ACTION_AFTER, TRUE))
+                                            TRG_ACTION_AFTER, true))
       {
         error= 1;
         break;
@@ -1056,7 +1057,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
 
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query().str, thd->query().length,
-                            transactional_table, FALSE, FALSE, errcode))
+                            transactional_table, false, false, errcode))
       {
         error=1;				// Rollback update
       }
@@ -1074,7 +1075,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
   if (error < 0)
   {
     char buff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO),
+    snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO),
                 (long) found_rows, (long) updated_rows,
                 (long) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
@@ -1599,7 +1600,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   }
 
   /*
-    Set exclude_from_table_unique_test value back to FALSE. It is needed for
+    Set exclude_from_table_unique_test value back to false. It is needed for
     further check whether to use record cache.
   */
   select->exclude_from_table_unique_test= false;
@@ -1823,7 +1824,7 @@ bool Query_result_update::prepare(List<Item>&,
     DBUG_RETURN(true);
 
   /* Allocate copy fields */
-  uint max_fields= 0;
+  max_fields= 0;
   for (uint i= 0; i < update_table_count; i++)
     set_if_bigger(max_fields,
                   fields_for_table[i]->elements + select->leaf_table_count);
@@ -1917,13 +1918,13 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab,
   case JT_SYSTEM:
   case JT_CONST:
   case JT_EQ_REF:
-    return TRUE;				// At most one matching row
+    return true;				// At most one matching row
   case JT_REF:
   case JT_REF_OR_NULL:
     return !is_key_used(table, join_tab->ref().key, table->write_set);
   case JT_ALL:
     if (bitmap_is_overlapping(&table->tmp_set, table->write_set))
-      return FALSE;
+      return false;
     /* If range search on index */
     if (join_tab->quick())
       return !join_tab->quick()->is_keys_used(table->write_set);
@@ -1931,11 +1932,11 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab,
     if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
 	table->s->primary_key < MAX_KEY)
       return !is_key_used(table, table->s->primary_key, table->write_set);
-    return TRUE;
+    return true;
   default:
     break;					// Avoid compler warning
   }
-  return FALSE;
+  return false;
 
 }
 
@@ -2197,8 +2198,7 @@ void Query_result_update::cleanup()
       }
     }
   }
-  if (copy_field)
-    delete [] copy_field;
+  destroy_array(copy_field, max_fields);
   thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;		// Restore this setting
   DBUG_ASSERT(trans_safe ||
               updated_rows == 0 ||
@@ -2207,7 +2207,7 @@ void Query_result_update::cleanup()
 
   if (update_operations != NULL)
     for (uint i= 0; i < update_table_count; i++)
-      delete update_operations[i];
+      destroy(update_operations[i]);
 }
 
 
@@ -2312,7 +2312,7 @@ bool Query_result_update::send_data(List<Item>&)
       }
       if (!error && table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                            TRG_ACTION_AFTER, TRUE))
+                                            TRG_ACTION_AFTER, true))
         DBUG_RETURN(true);
     }
     else
@@ -2368,7 +2368,7 @@ bool Query_result_update::send_data(List<Item>&)
             create_ondisk_from_heap(thd, tmp_table,
                                          tmp_table_param[offset].start_recinfo,
                                          &tmp_table_param[offset].recinfo,
-                                         error, TRUE, NULL))
+                                         error, true, NULL))
         {
           update_completed= true;
           DBUG_RETURN(true);             // Not a table_is_full error
@@ -2642,7 +2642,7 @@ bool Query_result_update::do_updates()
 
       if (!local_error && table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                            TRG_ACTION_AFTER, TRUE))
+                                            TRG_ACTION_AFTER, true))
         goto err;
     }
 
@@ -2733,7 +2733,7 @@ bool Query_result_update::send_eof()
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query().str, thd->query().length,
-                            transactional_tables, FALSE, FALSE, errcode))
+                            transactional_tables, false, false, errcode))
       {
 	local_error= 1;				// Rollback update
       }
@@ -2759,7 +2759,7 @@ bool Query_result_update::send_eof()
     thd->first_successful_insert_id_in_prev_stmt : 0;
   thd->current_changed_rows= updated_rows;
 
-  my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO),
+  snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO),
               (long) found_rows, (long) updated_rows,
               (long) thd->get_stmt_da()->current_statement_cond_count());
   ::my_ok(thd, thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?

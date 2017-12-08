@@ -1156,7 +1156,7 @@ The following options may be given as the first argument:
  --slave-parallel-type=name 
  Specifies if the slave will use database partitioning or
  information from master to parallelize
- transactions.(Default: DATABASE).
+ transactions.(Default: LOGICAL_CLOCK).
  --slave-parallel-workers=# 
  Number of worker threads for executing events in parallel
  --slave-pending-jobs-size-max=# 
@@ -1165,7 +1165,8 @@ The following options may be given as the first argument:
  master side max_allowed_packet.
  --slave-preserve-commit-order 
  Force slave workers to make commits in the same order as
- on the master. Disabled by default.
+ on the master. Enabled by default.
+ (Defaults to on; use --skip-slave-preserve-commit-order to disable.)
  --slave-rows-search-algorithms=name 
  Set of searching algorithms that the slave will use while
  searching for records from the storage engine to either
@@ -1624,8 +1625,8 @@ slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-max-allowed-packet 1073741824
 slave-net-timeout 60
-slave-parallel-type DATABASE
-slave-parallel-workers 0
+slave-parallel-type LOGICAL_CLOCK
+slave-parallel-workers 4
 slave-pending-jobs-size-max 16777216
 slave-preserve-commit-order FALSE
 slave-rows-search-algorithms INDEX_SCAN,HASH_SCAN

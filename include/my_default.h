@@ -25,7 +25,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 
-C_MODE_START
+struct MEM_ROOT;
 
 extern const char *my_defaults_extra_file;
 extern const char *my_defaults_group_suffix;
@@ -45,23 +45,23 @@ int get_defaults_options(int argc, char **argv,
                          char **defaults, char **extra_defaults,
                          char **group_suffix, char **login_path,
                          bool found_no_defaults);
+
+// extern "C" since it is an (undocumented) part of the libmysql ABI.
+extern "C"
 int my_load_defaults(const char *conf_file, const char **groups,
-                     int *argc, char ***argv, const char ***);
+                     int *argc, char ***argv, MEM_ROOT *alloc, const char ***);
 int check_file_permissions(const char *file_name, bool is_login_file);
 int load_defaults(const char *conf_file, const char **groups,
-                  int *argc, char ***argv);
+                  int *argc, char ***argv, MEM_ROOT *alloc);
 int my_search_option_files(const char *conf_file, int *argc,
                            char ***argv, uint *args_used,
                            Process_option_func func, void *func_ctx,
                            const char **default_directories,
                            bool is_login_file, bool found_no_defaults);
-void free_defaults(char **argv);
 void my_print_default_files(const char *conf_file);
 void print_defaults(const char *conf_file, const char **groups);
 void init_variable_default_paths();
 void update_variable_source(const char* opt_name, const char* config_file);
 void set_variable_source(const char *opt_name, void* value);
-
-C_MODE_END
 
 #endif  // MY_DEFAULT_INCLUDED

@@ -29,7 +29,6 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
@@ -163,7 +162,7 @@ void mysql_client_binlog_statement(THD* thd)
     */
 
     /* when trying to create an rli from a client, there is no channel*/
-    if ((rli= Rpl_info_factory::create_rli(INFO_REPOSITORY_DUMMY, FALSE,
+    if ((rli= Rpl_info_factory::create_rli(INFO_REPOSITORY_DUMMY, false,
                                            (const char*)"", true)))
     {
       thd->rli_fake= rli;

@@ -25,6 +25,7 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysqld.h"                     // mysqld_server_started
 #include "mysqld_error.h"
 #include "mysqld.h"                     // mysqld_server_started
 #include "sql/auth/auth_common.h"
@@ -40,7 +41,6 @@
 #include "sql/derror.h"                 // ER_THD
 #include "sql/error_handler.h"          // Internal_error_handler
 #include "sql/handler.h"                // HA_LEX_CREATE_TMP_TABLE
-#include "sql/key.h"
 #include "sql/mdl.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h"                // sp_name
@@ -53,6 +53,7 @@
 #include "sql/sql_view.h"               // mysql_register_view
 #include "sql/system_variables.h"
 #include "sql/table.h"                  // TABLE_LIST
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "thr_lock.h"
 
@@ -243,12 +244,9 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
     if (prepared_view_ids.find(view_ids.at(idx)) == prepared_view_ids.end())
     {
       // Prepare TABLE_LIST object for the view and push_back
-      TABLE_LIST *vw=
-        static_cast<TABLE_LIST *>(alloc_root(thd->mem_root,
-                                             sizeof(TABLE_LIST)));
+      TABLE_LIST *vw= new (thd->mem_root) TABLE_LIST;
       if (vw == nullptr)
         DBUG_RETURN(true);
-      memset(vw, 0, sizeof(TABLE_LIST));
 
       const char *db_name= strmake_root(thd->mem_root, schema_name.c_str(),
                                         schema_name.length());

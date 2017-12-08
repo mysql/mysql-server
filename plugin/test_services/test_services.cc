@@ -33,7 +33,7 @@ enum t_test_status { BUSY= 0, READY= 1 };
 static volatile t_test_status test_status;
 
 /* declaration of status variable for plugin */
-static struct st_mysql_show_var test_services_status[]=
+static SHOW_VAR test_services_status[]=
 {
   { "test_services_status",
     (char *) &test_status,
@@ -44,10 +44,6 @@ static struct st_mysql_show_var test_services_status[]=
 /* SQL (system) variables to control test execution                     */
 /* SQL (system) variables to switch on/off test of services, default=on */
 /* Only be effective at start od mysqld by setting it as option --loose-...  */
-static int     with_snprintf_val= 0;
-static MYSQL_SYSVAR_INT  (with_snprintf, with_snprintf_val , PLUGIN_VAR_RQCMDARG, 
-		"Switch on/off test of snprintf service", NULL, NULL, 1, 0, 1, 0);
-
 static int     with_log_message_val= 0;
 static MYSQL_SYSVAR_INT  (with_log_message, with_log_message_val, PLUGIN_VAR_RQCMDARG, 
 		"Switch on/off test of log message service", NULL, NULL, 1, 0, 1, 0);
@@ -58,42 +54,11 @@ static MYSQL_SYSVAR_INT(non_default_variable, non_default_variable_value,
                         "A variable that won't accept SET DEFAULT", NULL, NULL,
                         1, 0, 100, 0);
 
-static struct st_mysql_sys_var *test_services_sysvars[]= {
-  MYSQL_SYSVAR(with_snprintf),
+static SYS_VAR *test_services_sysvars[]= {
   MYSQL_SYSVAR(with_log_message),
   MYSQL_SYSVAR(non_default_variable),
   NULL
 };
-
-/* The test cases for snprintf service.  */
-static int test_snprintf()
-{
-  DBUG_ENTER("mysql_outfile");
-  char filename[FN_REFLEN];
-  char buffer[STRING_BUFFER];
-
-
-  fn_format(filename, "test_services", "", ".log",
-            MY_REPLACE_EXT | MY_UNPACK_FILENAME);
-  unlink(filename);
-  outfile= my_open(filename, O_CREAT|O_RDWR, MYF(0));
-
-  my_snprintf(buffer, sizeof(buffer),
-              "Starting test of my_snprintf in test_services.\n");
-  my_write(outfile, (uchar*) buffer, strlen(buffer), MYF(0));
-
-  my_snprintf(buffer, sizeof(buffer),
-              "This is a text output formatted with my_snprintf.\n");
-  my_write(outfile, (uchar*) buffer, strlen(buffer), MYF(0));
-  
-  my_snprintf(buffer, sizeof(buffer),
-              "Shutting down test of my_snprintf in test_services.\n");
-  my_write(outfile, (uchar*) buffer, strlen(buffer), MYF(0));
-
-  my_close(outfile, MYF(0));
-  
-  DBUG_RETURN(0);
-}
 
 /* The test cases for the log_message service. */
 static int test_my_plugin_log_message(void *p)
@@ -118,16 +83,6 @@ static int test_services_plugin_init(void *p)
 
   int ret=0; 
   test_status= BUSY;
-/* Test of service: snprintf */
-  /* Log the value of the switch in mysqld.err. */
-  ret = my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Test_services with_snprintf_val: %d", 
-		               with_snprintf_val);
-  if (with_snprintf_val==1){
-     ret= test_snprintf();
-  }
-  else {
-     ret = my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Test of snprintf switched off");
-  }
 /* Test of service: my_plugin_log_message */
   /* Log the value of the switch in mysqld.err. */
   ret = my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Test_services with_log_message_val: %d", 

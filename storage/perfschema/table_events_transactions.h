@@ -23,6 +23,7 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "my_inttypes.h"
 #include "sql/rpl_gtid.h"
 #include "storage/perfschema/pfs_column_types.h"
@@ -30,7 +31,12 @@
 #include "storage/perfschema/pfs_events_transactions.h"
 #include "storage/perfschema/table_helper.h"
 
+class Field;
+class Plugin_table;
+struct PFS_events;
 struct PFS_thread;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables

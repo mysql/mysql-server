@@ -27,7 +27,6 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/dd/properties.h" // dd::Properties
@@ -36,6 +35,7 @@
 #include "sql/dd/types/table.h" // dd::Table
 #include "sql/dd_table_share.h" // dd_get_old_field_type
 #include "sql/field.h"         // calc_pack_length
+#include "sql/gis/srid.h"
 #include "sql/handler.h"       // handler
 #include "sql/item.h"          // Item
 #include "sql/my_decimal.h"    // DECIMAL_MAX_SCALE
@@ -288,7 +288,7 @@ bool prepare_default_value(THD *thd, uchar *buf, const TABLE &table,
            (field.flags & NOT_NULL_FLAG))
   {
     regfield->set_notnull();
-    regfield->store((longlong) 1, TRUE);
+    regfield->store((longlong) 1, true);
   }
   else
     regfield->reset();

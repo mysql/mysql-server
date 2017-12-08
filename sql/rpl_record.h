@@ -24,7 +24,7 @@
 class Relay_log_info;
 struct TABLE;
 
-typedef struct st_bitmap MY_BITMAP;
+struct MY_BITMAP;
 
 enum class enum_row_image_type
 {

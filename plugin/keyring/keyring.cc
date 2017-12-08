@@ -40,7 +40,7 @@ using keyring::Logger;
 mysql_rwlock_t LOCK_keyring;
 
 int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
-                            struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
+                            SYS_VAR *var  MY_ATTRIBUTE((unused)),
                             void *save, st_mysql_value *value)
 {
   char            buff[FN_REFLEN+1];
@@ -89,7 +89,7 @@ static MYSQL_SYSVAR_STR(
   MYSQL_DEFAULT_KEYRINGFILE                                    /* default    */
 );
 
-static struct st_mysql_sys_var *keyring_file_system_variables[]= {
+static SYS_VAR *keyring_file_system_variables[]= {
   MYSQL_SYSVAR(data),
   NULL
 };
@@ -110,7 +110,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
 #endif
 
     if (init_keyring_locks())
-      return TRUE;
+      return true;
 
     logger.reset(new Logger(plugin_info));
     if (create_keyring_dir_if_does_not_exist(keyring_file_data_value))
@@ -118,7 +118,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
       logger->log(MY_ERROR_LEVEL, "Could not create keyring directory "
         "The keyring_file will stay unusable until correct path to the keyring "
         "directory gets provided");
-      return FALSE;
+      return false;
     }
     keys.reset(new Keys_container(logger.get()));
     std::vector<std::string> allowedFileVersionsToInit;
@@ -128,23 +128,23 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
     IKeyring_io *keyring_io= new Buffered_file_io(logger.get(), &allowedFileVersionsToInit);
     if (keys->init(keyring_io, keyring_file_data_value))
     {
-      is_keys_container_initialized = FALSE;
+      is_keys_container_initialized = false;
       logger->log(MY_ERROR_LEVEL, "keyring_file initialization failure. Please check"
         " if the keyring_file_data points to readable keyring file or keyring file"
         " can be created in the specified location. "
         "The keyring_file will stay unusable until correct path to the keyring file "
         "gets provided");
-      return FALSE;
+      return false;
     }
-    is_keys_container_initialized = TRUE;
-    return FALSE;
+    is_keys_container_initialized = true;
+    return false;
   }
   catch (...)
   {
     if (logger != NULL)
       logger->log(MY_ERROR_LEVEL, "keyring_file initialization failure due to internal"
                                   " exception inside the plugin");
-    return TRUE;
+    return true;
   }
 }
 
@@ -194,19 +194,19 @@ static bool mysql_key_generate(const char *key_id, const char *key_type,
 
     std::unique_ptr<uchar[]> key(new uchar[key_len]);
     if (key.get() == NULL)
-      return TRUE;
+      return true;
     memset(key.get(), 0, key_len);
-    if (is_keys_container_initialized == FALSE || check_key_for_writing(key_candidate.get(), "generating") ||
+    if (is_keys_container_initialized == false || check_key_for_writing(key_candidate.get(), "generating") ||
         my_rand_buffer(key.get(), key_len))
-      return TRUE;
+      return true;
 
-    return mysql_key_store(key_id, key_type, user_id, key.get(), key_len) == TRUE;
+    return mysql_key_store(key_id, key_type, user_id, key.get(), key_len) == true;
   }
   catch (...)
   {
     if (logger != NULL)
       logger->log(MY_ERROR_LEVEL, "Failed to generate a key due to internal exception inside keyring_file plugin");
-    return TRUE;
+    return true;
   }
 }
 

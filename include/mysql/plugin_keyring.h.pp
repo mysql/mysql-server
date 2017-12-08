@@ -28,29 +28,28 @@ enum enum_mysql_show_scope
   SHOW_SCOPE_SESSION,
   SHOW_SCOPE_ALL
 };
-struct st_mysql_show_var
+struct SHOW_VAR
 {
   const char *name;
   char *value;
   enum enum_mysql_show_type type;
   enum enum_mysql_show_scope scope;
 };
-typedef int (*mysql_show_var_func)(void*, struct st_mysql_show_var*, char *);
+typedef int (*mysql_show_var_func)(void*, SHOW_VAR*, char *);
 typedef void * MYSQL_PLUGIN;
-struct st_mysql_xid {
+struct MYSQL_XID {
   long formatID;
   long gtrid_length;
   long bqual_length;
   char data[128];
 };
-typedef struct st_mysql_xid MYSQL_XID;
-struct st_mysql_sys_var;
+struct SYS_VAR;
 struct st_mysql_value;
 typedef int (*mysql_var_check_func)(void* thd,
-                                    struct st_mysql_sys_var *var,
+                                    SYS_VAR *var,
                                     void *save, struct st_mysql_value *value);
 typedef void (*mysql_var_update_func)(void* thd,
-                                      struct st_mysql_sys_var *var,
+                                      SYS_VAR *var,
                                       void *var_ptr, const void *save);
 struct st_mysql_plugin
 {
@@ -64,8 +63,8 @@ struct st_mysql_plugin
   int (*check_uninstall)(MYSQL_PLUGIN);
   int (*deinit)(MYSQL_PLUGIN);
   unsigned int version;
-  struct st_mysql_show_var *status_vars;
-  struct st_mysql_sys_var **system_vars;
+  SHOW_VAR *status_vars;
+  SYS_VAR **system_vars;
   void * __reserved1;
   unsigned long flags;
 };

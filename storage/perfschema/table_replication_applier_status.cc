@@ -27,12 +27,14 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "sql/plugin_table.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /*Multi source replication */
 #include "sql/rpl_rli.h"
 #include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
+#include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
 

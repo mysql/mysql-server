@@ -28,7 +28,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/debug_sync.h"
 #include "sql/field.h"
@@ -46,12 +45,13 @@
 #include "sql/sql_executor.h"                   // QEP_TAB
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_servers.h"
 #include "sql/sql_table.h"                      // primary_key_name
 #include "sql/table.h"
 #include "sql_string.h"
 #include "thr_lock.h"
 #include "typelib.h"
+
+struct MEM_ROOT;
 
 struct st_find_field
 {
@@ -227,7 +227,7 @@ static int search_topics(THD *thd, QEP_TAB *topics,
   DBUG_ENTER("search_topics");
 
   if (init_read_record(&read_record_info, thd, NULL, topics,
-                       1, 0, FALSE))
+                       1, 0, false))
     DBUG_RETURN(0);
 
   while (!read_record_info.read_record(&read_record_info))
@@ -270,7 +270,7 @@ static int search_keyword(THD *thd, QEP_TAB *keywords,
   READ_RECORD read_record_info;
   DBUG_ENTER("search_keyword");
 
-  if (init_read_record(&read_record_info, thd, NULL, keywords, 1, 0, FALSE))
+  if (init_read_record(&read_record_info, thd, NULL, keywords, 1, 0, false))
     DBUG_RETURN(0);
 
   while (!read_record_info.read_record(&read_record_info) && count<2)
@@ -347,7 +347,7 @@ static int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
     DBUG_RETURN(-1);
   }
 
-  rkey_id->store((longlong) key_id, TRUE);
+  rkey_id->store((longlong) key_id, true);
   rkey_id->get_key_image(buff, rkey_id->pack_length(), Field::itRAW);
   int key_res= relations->file->ha_index_read_map(relations->record[0],
                                                   buff, (key_part_map) 1,
@@ -360,7 +360,7 @@ static int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
     uchar topic_id_buff[8];
     longlong topic_id= rtopic_id->val_int();
     Field *field= find_fields[help_topic_help_topic_id].field;
-    field->store(topic_id, TRUE);
+    field->store(topic_id, true);
     field->get_key_image(topic_id_buff, field->pack_length(), Field::itRAW);
 
     if (!topics->file->ha_index_read_map(topics->record[0], topic_id_buff,
@@ -406,7 +406,7 @@ static int search_categories(THD *thd, QEP_TAB *categories,
   DBUG_ENTER("search_categories");
 
   if (init_read_record(&read_record_info, thd, NULL, categories,
-                       1, 0, FALSE))
+                       1, 0, false))
     DBUG_RETURN(0);
     
   while (!read_record_info.read_record(&read_record_info))
@@ -443,7 +443,7 @@ static void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
   DBUG_ENTER("get_all_items_for_category");
 
   if (init_read_record(&read_record_info, thd, NULL, items,
-                       1, 0, FALSE))
+                       1, 0, false))
     DBUG_VOID_RETURN;
   while (!read_record_info.read_record(&read_record_info))
   {
@@ -666,7 +666,7 @@ static bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
   Item *cond= new Item_func_like(new Item_field(pfname),
 				 new Item_string(mask,mlen,pfname->charset()),
 				 new Item_string("\\",1,&my_charset_latin1),
-                                 FALSE);
+                                 false);
   if (thd->is_fatal_error)
     return true;                                /* purecov: inspected */
   return prepare_simple_select(thd, cond, table, tab);
@@ -681,8 +681,8 @@ static bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
     thd			Thread handler
 
   RETURN VALUES
-    FALSE Success
-    TRUE  Error and send_error already commited
+    false Success
+    true  Error and send_error already commited
 */
 
 bool mysqld_help(THD *thd, const char *mask)
@@ -788,12 +788,12 @@ bool mysqld_help(THD *thd, const char *mask)
     }
     if (!count_categories)
     {
-      if (send_header_2(thd, FALSE))
+      if (send_header_2(thd, false))
 	goto error;
     }
     else if (count_categories > 1)
     {
-      if (send_header_2(thd, FALSE) ||
+      if (send_header_2(thd, false) ||
 	  send_variant_2_list(mem_root,protocol,&categories_list,"Y",0))
 	goto error;
     }
@@ -830,7 +830,7 @@ bool mysqld_help(THD *thd, const char *mask)
                                    &subcategories_list);
       }
       String *cat= categories_list.head();
-      if (send_header_2(thd, TRUE) ||
+      if (send_header_2(thd, true) ||
 	  send_variant_2_list(mem_root,protocol,&topics_list,       "N",cat) ||
 	  send_variant_2_list(mem_root,protocol,&subcategories_list,"Y",cat))
 	goto error;
@@ -844,7 +844,7 @@ bool mysqld_help(THD *thd, const char *mask)
   else
   {
     /* First send header and functions */
-    if (send_header_2(thd, FALSE) ||
+    if (send_header_2(thd, false) ||
 	send_variant_2_list(mem_root,protocol, &topics_list, "N", 0))
       goto error;
 
@@ -867,12 +867,12 @@ bool mysqld_help(THD *thd, const char *mask)
   my_eof(thd);
 
   close_trans_system_tables(thd);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 error:
   close_trans_system_tables(thd);
 
 error2:
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 

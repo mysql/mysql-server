@@ -50,9 +50,9 @@ bool Keys_container::init(IKeyring_io* keyring_io, std::string keyring_storage_u
       load_keys_from_keyring_storage())
   {
     keys_hash->clear();
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
 //Keyring_io passed to this function should be already initialized
@@ -90,13 +90,13 @@ bool Keys_container::store_key_in_hash(IKey *key)
 bool Keys_container::store_key(IKey* key)
 {
   if (flush_to_backup() || store_key_in_hash(key))
-    return TRUE;
+    return true;
   if (flush_to_storage(key, STORE_KEY))
   {
     remove_key_from_hash(key);
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
 IKey* Keys_container::get_key_from_hash(IKey *key)
@@ -164,34 +164,34 @@ bool Keys_container::remove_key(IKey *key)
   IKey* fetched_key_to_delete= get_key_from_hash(key);
   if (fetched_key_to_delete == NULL || flush_to_backup() ||
       remove_key_from_hash(fetched_key_to_delete))
-    return TRUE;
+    return true;
   if (flush_to_storage(fetched_key_to_delete, REMOVE_KEY))
   {
     //reinsert the key
     store_key_in_hash(fetched_key_to_delete);
-    return TRUE;
+    return true;
   }
   //successfully removed the key from hash and flushed to disk, safely remove
   //the key
   delete fetched_key_to_delete;
 
-  return FALSE;
+  return false;
 }
 
 bool Keys_container::load_keys_from_keyring_storage()
 {
-  bool was_error= FALSE;
+  bool was_error= false;
   ISerialized_object *serialized_keys= NULL;
   was_error= keyring_io->get_serialized_object(&serialized_keys);
-  while(was_error == FALSE && serialized_keys != NULL)
+  while(was_error == false && serialized_keys != NULL)
   {
     IKey *key_loaded= NULL;
     while(serialized_keys->has_next_key())
     {
       if (serialized_keys->get_next_key(&key_loaded) || key_loaded == NULL ||
-          key_loaded->is_key_valid() == FALSE || store_key_in_hash(key_loaded))
+          key_loaded->is_key_valid() == false || store_key_in_hash(key_loaded))
       {
-        was_error=TRUE;
+        was_error=true;
         delete key_loaded;
         break;
       }
@@ -199,7 +199,7 @@ bool Keys_container::load_keys_from_keyring_storage()
     }
     delete serialized_keys;
     serialized_keys= NULL;
-    if (was_error == FALSE && keyring_io->has_next_serialized_object())
+    if (was_error == false && keyring_io->has_next_serialized_object())
       was_error= keyring_io->get_serialized_object(&serialized_keys);
   }
   if(was_error)
@@ -217,10 +217,10 @@ bool Keys_container::flush_to_storage(IKey *key, Key_operation operation)
   {
     logger->log(MY_ERROR_LEVEL, "Could not flush keys to keyring");
     delete serialized_object;
-    return TRUE;
+    return true;
   }
   delete serialized_object;
-  return FALSE;
+  return false;
 }
 
 bool Keys_container::flush_to_backup()
@@ -232,10 +232,10 @@ bool Keys_container::flush_to_backup()
   {
     logger->log(MY_ERROR_LEVEL, "Could not flush keys to keyring's backup");
     delete serialized_object;
-    return TRUE;
+    return true;
   }
   delete serialized_object;
-  return FALSE;
+  return false;
 }
 
 } //namespace keyring

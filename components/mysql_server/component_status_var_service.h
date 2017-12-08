@@ -20,8 +20,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <mysql/components/services/component_status_var_service.h>
 #include <mysql/components/service_implementation.h>
 
-extern int add_status_vars(const st_mysql_show_var *);
-extern void remove_status_vars(st_mysql_show_var *);
+extern int add_status_vars(const SHOW_VAR *);
+extern void remove_status_vars(SHOW_VAR *);
 
 /**
   An implementation of the component status variables Service to register
@@ -42,17 +42,17 @@ public:
     to know how to construct status varables for different variable types.
   */
   static DEFINE_BOOL_METHOD(register_variable,
-  (STATUS_VAR *status_var));
+  (SHOW_VAR *status_var));
 
   /**
     Unregister's status variable.
-    @param  status_var STATUS_VAR object with only the name of the variable,
+    @param  status_var SHOW_VAR object with only the name of the variable,
                        which has to be removed from the global list.
     @return Status of performed operation
     @retval false success
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(unregister_variable,
-  (STATUS_VAR *status_var));
+  (SHOW_VAR *status_var));
 };
 #endif /* COMPONENT_STATUS_VARIABLE_SERVICE_H */

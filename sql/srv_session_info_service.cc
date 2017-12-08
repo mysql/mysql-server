@@ -18,8 +18,8 @@
 #include <stdint.h>
 #include <atomic>
 
+#include "lex_string.h"
 #include "my_thread_local.h"
-#include "sql/key.h"
 #include "sql/sql_class.h"
 #include "sql/srv_session.h"
 #include "violite.h"
@@ -36,7 +36,6 @@
 
   @param session  Session
 */
-extern "C"
 THD* srv_session_info_get_thd(Srv_session *session)
 {
   return VALID_SESSION(session)? session->get_thd() : NULL;
@@ -50,7 +49,6 @@ THD* srv_session_info_get_thd(Srv_session *session)
 
   @param session  Session
 */
-extern "C"
 my_thread_id srv_session_info_get_session_id(Srv_session *session)
 {
   return VALID_SESSION(session)? session->get_session_id() : 0;
@@ -65,7 +63,6 @@ my_thread_id srv_session_info_get_session_id(Srv_session *session)
 
   @param session  Session
 */
-extern "C"
 uint16_t srv_session_info_get_client_port(Srv_session *session)
 {
   return VALID_SESSION(session)? session->get_client_port() : 0;
@@ -85,7 +82,6 @@ uint16_t srv_session_info_get_client_port(Srv_session *session)
     0 success
     1 failure
 */
-extern "C"
 int srv_session_info_set_client_port(Srv_session *session, uint16_t port)
 {
   return VALID_SESSION(session)? session->set_client_port(port),0 : 1;
@@ -97,7 +93,6 @@ int srv_session_info_set_client_port(Srv_session *session, uint16_t port)
 
   @param session  Session
 */
-extern "C"
 LEX_CSTRING srv_session_info_get_current_db(Srv_session *session)
 {
   static LEX_CSTRING empty= { NULL, 0 };
@@ -116,7 +111,6 @@ LEX_CSTRING srv_session_info_get_current_db(Srv_session *session)
     0  success
     1  failure
 */
-extern "C"
 int srv_session_info_set_connection_type(Srv_session *session,
                                          enum_vio_type type)
 {
@@ -133,7 +127,6 @@ int srv_session_info_set_connection_type(Srv_session *session,
     0  not killed
     1  killed
 */
-extern "C"
 int srv_session_info_killed(Srv_session *session)
 {
   return (!VALID_SESSION(session) || session->get_thd()->killed)? 1:0;

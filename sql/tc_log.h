@@ -26,8 +26,6 @@
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql/udf_registration_types.h"
 
 class THD;
 
@@ -152,8 +150,9 @@ public:                // only to keep Sun Forte on sol9x86 happy
   } PAGE_STATE;
 
 private:
-  typedef struct st_page {
-    struct st_page *next; // pages are linked in a fifo queue
+  struct PAGE
+  {
+    PAGE *next; // pages are linked in a fifo queue
     my_xid *start, *end;  // usable area of a page
     my_xid *ptr;          // next xid will be written here
     int size, free;       // max and current number of free xid slots on the page
@@ -165,14 +164,14 @@ private:
       became free.
     */
     mysql_cond_t  cond;
-  } PAGE;
+  };
 
   char logname[FN_REFLEN];
   File fd;
   my_off_t file_length;
   uint npages, inited;
   uchar *data;
-  struct st_page *pages, *syncing, *active, *pool, **pool_last_ptr;
+  PAGE *pages, *syncing, *active, *pool, **pool_last_ptr;
   /*
     LOCK_tc is used to protect access both to data members 'syncing',
     'active', 'pool' and to the content of PAGE objects.

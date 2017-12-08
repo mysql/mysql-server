@@ -28,7 +28,7 @@
 #include "mysys_priv.h"     /* key_thread_timer_notifier */
 
 
-enum enum_timer_state { TIMER_SET=FALSE, TIMER_EXPIRED=TRUE };
+enum enum_timer_state { TIMER_SET=false, TIMER_EXPIRED=true };
 
 // Timer notifier thread id.
 static my_thread_handle timer_notify_thread;

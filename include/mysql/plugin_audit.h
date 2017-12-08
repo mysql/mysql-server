@@ -130,7 +130,7 @@ struct mysql_event_general
   MYSQL_LEX_CSTRING              general_user;
   MYSQL_LEX_CSTRING              general_command;
   MYSQL_LEX_CSTRING              general_query;
-  struct charset_info_st         *general_charset;
+  CHARSET_INFO         *general_charset;
   unsigned long long             general_time;
   unsigned long long             general_rows;
   MYSQL_LEX_CSTRING              general_host;
@@ -283,7 +283,7 @@ struct mysql_event_authorization
   /** SQL query text. */
   MYSQL_LEX_CSTRING                    query;
   /** SQL query charset. */
-  const struct charset_info_st         *query_charset;
+  const CHARSET_INFO         *query_charset;
   /** Database name. */
   MYSQL_LEX_CSTRING                    database;
   /** Table name. */
@@ -334,7 +334,7 @@ struct mysql_event_table_access
   /** SQL query. */
   MYSQL_LEX_CSTRING                       query;
   /** SQL query charset. */
-  const struct charset_info_st            *query_charset;
+  const CHARSET_INFO            *query_charset;
   /** Database name. */
   MYSQL_LEX_CSTRING                       table_database;
   /** Table name. */
@@ -520,7 +520,7 @@ struct mysql_event_query
   /** SQL query. */
   MYSQL_LEX_CSTRING            query;
   /** SQL query charset. */
-  const struct charset_info_st *query_charset;
+  const CHARSET_INFO *query_charset;
 };
 
 /**
@@ -552,7 +552,7 @@ struct mysql_event_stored_program
   /** SQL query text. */
   MYSQL_LEX_CSTRING                     query;
   /** SQL query charset. */
-  const struct charset_info_st          *query_charset;
+  const CHARSET_INFO          *query_charset;
   /** The Database the procedure is defined in. */
   MYSQL_LEX_CSTRING                     database;
   /** Name of the stored program. */
@@ -613,7 +613,7 @@ struct mysql_event_authentication
   /** SQL query text. */
   MYSQL_LEX_CSTRING                     query;
   /** SQL query charset. */
-  const struct charset_info_st          *query_charset;
+  const CHARSET_INFO          *query_charset;
   /** User name */
   MYSQL_LEX_CSTRING                     user;
   /** Host name */

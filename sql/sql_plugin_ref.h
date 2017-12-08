@@ -16,6 +16,7 @@
 #ifndef SQL_PLUGIN_REF_INCLUDED
 #define SQL_PLUGIN_REF_INCLUDED
 
+#include "lex_string.h"
 #include "my_alloc.h"
 #include "mysql/mysql_lex_string.h"
 #include "prealloced_array.h"
@@ -35,15 +36,15 @@ enum enum_plugin_load_option {
 
 struct st_plugin_int
 {
-  LEX_STRING name;
-  st_mysql_plugin *plugin;
-  st_plugin_dl *plugin_dl;
-  uint state;
-  uint ref_count;               /* number of threads using the plugin */
-  void *data;                   /* plugin type specific, e.g. handlerton */
+  LEX_STRING name{nullptr, 0};
+  st_mysql_plugin *plugin{nullptr};
+  st_plugin_dl *plugin_dl{nullptr};
+  uint state{0};
+  uint ref_count{0};               /* number of threads using the plugin */
+  void *data{nullptr};                   /* plugin type specific, e.g. handlerton */
   MEM_ROOT mem_root;            /* memory for dynamic plugin structures */
-  sys_var *system_vars;         /* server variables for this plugin */
-  enum_plugin_load_option load_option; /* OFF, ON, FORCE, F+PERMANENT */
+  sys_var *system_vars{nullptr};         /* server variables for this plugin */
+  enum_plugin_load_option load_option{PLUGIN_OFF}; /* OFF, ON, FORCE, F+PERMANENT */
 };
 
 /*

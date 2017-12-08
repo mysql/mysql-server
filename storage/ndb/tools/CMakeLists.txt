@@ -113,8 +113,8 @@ TARGET_LINK_LIBRARIES(ndb_select_count ndbclient_static ndbNDBT)
 
 MYSQL_ADD_EXECUTABLE(ndb_perror
   ndb_perror.cpp
-  ${NDB_SOURCE_DIR}/src/mgmapi/mgmapi_error.c
-  ${NDB_SOURCE_DIR}/src/kernel/error/ndbd_exit_codes.c
+  ${NDB_SOURCE_DIR}/src/mgmapi/mgmapi_error.cpp
+  ${NDB_SOURCE_DIR}/src/kernel/error/ndbd_exit_codes.cpp
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_perror ndbclient_static)
 

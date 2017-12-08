@@ -19,7 +19,10 @@
 #include "sql/item_json_func.h"
 #include "sql/json_diff.h"
 #include "sql/json_dom.h"
+#include "sql/sql_class.h"
+#include "sql/sql_list.h"
 #include "unittest/gunit/base_mock_field.h"
+#include "unittest/gunit/benchmark.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/test_utils.h"
 
@@ -143,9 +146,8 @@ static void do_partial_update(Item_json_func *func,
   Json_diff_vector diffs(Json_diff_vector::allocator_type(thd->mem_root));
   for (const auto &diff : *table->get_logical_diffs(field))
   {
-    Json_dom_ptr dom_ptr= diff.value().clone_dom(thd);
     diffs.add_diff(diff.path(), diff.operation(),
-                   dom_ptr);
+                   diff.value().clone_dom(thd));
   }
 
   /*
@@ -173,9 +175,8 @@ static void do_partial_update(Item_json_func *func,
   diffs.clear();
   for (const auto &diff : *new_diffs)
   {
-    Json_dom_ptr dom_ptr= diff.value().clone_dom(thd);
     diffs.add_diff(diff.path(), diff.operation(),
-                   dom_ptr);
+                   diff.value().clone_dom(thd));
   }
   table->clear_partial_update_diffs();
   store_json(field, orig_json);
@@ -711,5 +712,96 @@ TEST_F(ItemJsonFuncTest, PartialUpdate)
     do_partial_update(set, &m_field, nullptr, nullptr, false, false);
   }
 }
+
+/**
+  Microbenchmark which tests the performance of the JSON_SEARCH function.
+*/
+static void BM_JsonSearch(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  const Json_wrapper doc(parse_json("[\"Apple\", \"Orange\", \"Peach\","
+                                    "{\"key1\":\"Apple\", \"key2\":\"Orange\","
+                                    "\"key3\":\"Peach\"}, 1, 2, 3, 4, 5, 6]"));
+
+  Base_mock_field_json field;
+  Fake_TABLE table(&field);
+  field.make_writable();
+  EXPECT_EQ(TYPE_OK, field.store_json(&doc));
+
+  auto search= new Item_func_json_search(table.in_use,
+                                         new Item_field(&field),
+                                         new_item_string("all"),
+                                         new_item_string("Apple"));
+  EXPECT_FALSE(search->fix_fields(table.in_use, nullptr));
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    Json_wrapper wr;
+    EXPECT_FALSE(search->val_json(&wr));
+    EXPECT_FALSE(search->null_value);
+    EXPECT_EQ(2U, wr.length());
+  }
+
+  StopBenchmarkTiming();
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonSearch);
+
+
+/**
+  Microbenchmark which tests the performance of the JSON_SEARCH
+  function when it's called with arguments that contain wildcards.
+*/
+static void BM_JsonSearch_Wildcard(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  const Json_wrapper doc(parse_json("[{\"key1\": \"abc\","
+                                    "  \"key2\": \"def\","
+                                    "  \"key3\": \"abc\"},"
+                                    " {\"key1\": \"def\","
+                                    "  \"key2\": \"abc\","
+                                    "  \"key3\": \"def\"},"
+                                    " {\"key4\": {\"key4\":\"abc\"}}]"));
+
+  Base_mock_field_json field;
+  Fake_TABLE table(&field);
+  field.make_writable();
+  EXPECT_EQ(TYPE_OK, field.store_json(&doc));
+
+  List<Item> args;
+  args.push_back(new Item_field(&field));
+  args.push_back(new_item_string("all"));
+  args.push_back(new_item_string("abc"));
+  args.push_back(new_item_string(""));          // escape character
+  args.push_back(new_item_string("$[*].key1"));
+  args.push_back(new_item_string("$**.key4"));
+
+  auto search= new Item_func_json_search(table.in_use, args);
+  EXPECT_FALSE(search->fix_fields(table.in_use, nullptr));
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    Json_wrapper wr;
+    EXPECT_FALSE(search->val_json(&wr));
+    EXPECT_FALSE(search->null_value);
+    EXPECT_EQ(2U, wr.length());
+  }
+
+  StopBenchmarkTiming();
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonSearch_Wildcard);
 
 }

@@ -24,7 +24,9 @@
 #include <algorithm>
 #include <functional>
 
+#include "keycache.h"
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -35,9 +37,7 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/events.h"
 #include "sql/field.h"
 #include "sql/item.h"
@@ -50,11 +50,9 @@
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/psi_memory_key.h"
-#include "sql/sql_admin.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
-#include "sql/sql_executor.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h" // JOIN
 #include "sql/sql_select.h"
@@ -170,7 +168,7 @@ TEST_join(JOIN *join)
       else
       {
 	fprintf(DBUG_FILE, "                  quick select used:\n");
-        tab->quick()->dbug_dump(18, FALSE);
+        tab->quick()->dbug_dump(18, false);
       }
     }
     if (tab->ref().key_parts)
@@ -188,7 +186,6 @@ TEST_join(JOIN *join)
 void print_keyuse_array(Opt_trace_context *trace,
                         const Key_use_array *keyuse_array)
 {
-#if !defined(DBUG_OFF) || defined(OPTIMIZER_TRACE)
   if (unlikely(!trace->is_started()))
     return;
   Opt_trace_object wrapper(trace);
@@ -210,7 +207,6 @@ void print_keyuse_array(Opt_trace_context *trace,
       add("equals", keyuse.val).
       add("null_rejecting", keyuse.null_rejecting);
   }
-#endif /* !DBUG_OFF || OPTIMIZER_TRACE */
 }
 
 #ifndef DBUG_OFF
@@ -316,18 +312,16 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
 
 #endif  /* !DBUG_OFF */
 
-C_MODE_START
 static int print_key_cache_status(const char *name, KEY_CACHE *key_cache);
-C_MODE_END
 
-typedef struct st_debug_lock
+struct TABLE_LOCK_INFO
 {
   my_thread_id thread_id;
   char table_name[FN_REFLEN];
   bool waiting;
   const char *lock_text;
   enum thr_lock_type type;
-} TABLE_LOCK_INFO;
+};
 
 typedef Prealloced_array<TABLE_LOCK_INFO, 20> Saved_locks_array;
 
@@ -407,13 +401,13 @@ static void display_table_locks(void)
     THR_LOCK *lock=(THR_LOCK*) list->data;
 
     mysql_mutex_lock(&lock->mutex);
-    push_locks_into_array(&saved_table_locks, lock->write.data, FALSE,
+    push_locks_into_array(&saved_table_locks, lock->write.data, false,
 			  "Locked - write");
-    push_locks_into_array(&saved_table_locks, lock->write_wait.data, TRUE,
+    push_locks_into_array(&saved_table_locks, lock->write_wait.data, true,
 			  "Waiting - write");
-    push_locks_into_array(&saved_table_locks, lock->read.data, FALSE,
+    push_locks_into_array(&saved_table_locks, lock->read.data, false,
 			  "Locked - read");
-    push_locks_into_array(&saved_table_locks, lock->read_wait.data, TRUE,
+    push_locks_into_array(&saved_table_locks, lock->read_wait.data, true,
 			  "Waiting - read");
     mysql_mutex_unlock(&lock->mutex);
   }
@@ -571,9 +565,9 @@ public:
     if (first < last)
     {
       *elem= elems[first++];
-      return TRUE;
+      return true;
     }
-    return FALSE;
+    return false;
   }
 
   void reset()

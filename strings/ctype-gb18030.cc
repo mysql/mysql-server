@@ -21587,8 +21587,8 @@ case_info_code_to_gb18030(uint code)
   @param[in] cs       charset
   @param[in] src      start byte of gb18030 code
   @param[in] srclen   length of gb18030 code in bytes
-  @param[in] is_upper TRUE if we want capital letter
-                      FALSE if small letter is required
+  @param[in] is_upper true if we want capital letter
+                      false if small letter is required
   @retval             the gb18030 code according to is_upper
                       0 if no upper-case or lower-case exists
 */
@@ -21614,8 +21614,8 @@ get_casefolded_code(const CHARSET_INFO *cs, const uchar *src,
   @param[out] dst      start byte of the output of casefolded codes
   @param[out] dstlen   length of the result array
   @param[in]  map      the LOWER map or the UPPER map of gb18030
-  @param[in]  is_upper TRUE if we want capital letter
-                       FALSE if small letter is required
+  @param[in]  is_upper true if we want capital letter
+                       false if small letter is required
   @return              the length of result
 */
 static size_t
@@ -22025,7 +22025,7 @@ my_strnncoll_gb18030_internal(const CHARSET_INFO *cs,
   @param[in] s_length    length of the first string
   @param[in] t           start of the second string
   @param[in] t_length    length of the second string
-  @param[in] t_is_prefix TRUE if t is prefix, otherwise FALSE
+  @param[in] t_is_prefix true if t is prefix, otherwise false
   @retval                0 if two strings are equal
                          1 if the first string is bigger
                          -1 if the second string is bigger

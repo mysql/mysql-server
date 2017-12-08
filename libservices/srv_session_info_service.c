@@ -17,4 +17,4 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *srv_session_info_service= (void*)VERSION_srv_session_info_service;
+SERVICE_VERSION *srv_session_info_service= (void**)VERSION_srv_session_info_service;

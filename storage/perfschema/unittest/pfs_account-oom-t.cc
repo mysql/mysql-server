@@ -20,6 +20,7 @@
 #include "storage/perfschema/pfs_account.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_defaults.h"
+#include "storage/perfschema/pfs_events_transactions.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_host.h"
 #include "storage/perfschema/pfs_instr.h"

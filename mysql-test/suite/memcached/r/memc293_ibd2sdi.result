@@ -402,7 +402,7 @@ affiliates. Other names may be trademarks of their respective
 owners.
 
 IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
-See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
+See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
   -h, --help          Display this help and exit.
   -v, --version       Display version information and exit.
   -d, --dump-file=name 
@@ -963,11 +963,11 @@ affiliates. Other names may be trademarks of their respective
 owners.
 
 Usage: IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
-See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
+See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
   -h, --help          Display this help and exit.
   -v, --version       Display version information and exit.
   -#, --debug[=name]  Output debug log. See
-                      http://dev.mysql.com/doc/refman/8.0/en/dbug-package.html
+                      http://dev.mysql.com/doc/refman/9.0/en/dbug-package.html
   -d, --dump-file=name 
                       Dump the tablespace SDI into the file passed by user.
                       Without the filename, it will default to stdout
@@ -1755,7 +1755,7 @@ affiliates. Other names may be trademarks of their respective
 owners.
 
 IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
-See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
+See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
   -h, --help          Display this help and exit.
   -v, --version       Display version information and exit.
   -d, --dump-file=name 
@@ -1891,7 +1891,7 @@ affiliates. Other names may be trademarks of their respective
 owners.
 
 IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
-See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
+See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
   -h, --help          Display this help and exit.
   -v, --version       Display version information and exit.
   -d, --dump-file=name 
@@ -2027,7 +2027,7 @@ affiliates. Other names may be trademarks of their respective
 owners.
 
 IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
-See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
+See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
   -h, --help          Display this help and exit.
   -v, --version       Display version information and exit.
   -d, --dump-file=name 
@@ -2168,7 +2168,7 @@ affiliates. Other names may be trademarks of their respective
 owners.
 
 IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
-See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
+See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
   -h, --help          Display this help and exit.
   -v, --version       Display version information and exit.
   -d, --dump-file=name 

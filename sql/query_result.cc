@@ -26,18 +26,18 @@
 #endif
 #include <algorithm>
 
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/derror.h"        // ER_THD
 #include "sql/item.h"
 #include "sql/item_func.h"
-#include "sql/key.h"
 #include "sql/mysqld.h"        // key_select_to_file
 #include "sql/parse_tree_nodes.h" // PT_select_var
 #include "sql/protocol.h"
@@ -45,7 +45,9 @@
 #include "sql/sql_class.h"     // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_exchange.h"
 #include "sql/system_variables.h"
+#include "sql_string.h"
 
 using std::min;
 
@@ -73,7 +75,7 @@ void Query_result_send::abort_result_set()
       otherwise the client will hang due to the violation of the
       client/server protocol.
     */
-    thd->sp_runtime_ctx->end_partial_result_set= TRUE;
+    thd->sp_runtime_ctx->end_partial_result_set= true;
   }
   DBUG_VOID_RETURN;
 }
@@ -96,7 +98,7 @@ bool Query_result_send::send_data(List<Item> &items)
   if (thd->send_result_set_row(&items))
   {
     protocol->abort_row();
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   thd->inc_sent_row_count(1);

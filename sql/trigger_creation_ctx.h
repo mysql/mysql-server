@@ -19,13 +19,10 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
-#include "mysql/psi/mysql_statement.h"
-#include "sql/item_create.h"
-#include "sql/key.h"
-#include "sql/session_tracker.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_alloc.h"
 #include "sql/sp_head.h" // Stored_program_creation_ctx
-#include "sql/sql_alloc.h"
-#include "sql/sql_servers.h"
 #include "sql/thr_malloc.h"
 
 class Object_creation_ctx;
@@ -35,8 +32,7 @@ class THD;
   Trigger_creation_ctx -- creation context of triggers.
 */
 
-class Trigger_creation_ctx : public Stored_program_creation_ctx,
-                             public Sql_alloc
+class Trigger_creation_ctx : public Stored_program_creation_ctx
 {
 public:
   static Trigger_creation_ctx *create(THD *thd,
@@ -58,6 +54,11 @@ protected:
   virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
   {
     return new (*THR_MALLOC) Trigger_creation_ctx(thd);
+  }
+
+  virtual void delete_backup_ctx()
+  {
+    destroy(this);
   }
 
 private:

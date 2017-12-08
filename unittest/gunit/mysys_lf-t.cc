@@ -30,7 +30,7 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-
+#include "my_systime.h"
 
 namespace mysys_lf_unittest {
 
@@ -260,7 +260,7 @@ TEST(Mysys, LFHashRandomMatch)
   lf_hash_init2(&hash, sizeof(uint32), LF_HASH_UNIQUE, 0, sizeof(int), NULL,
                 &my_charset_bin, &test_hash, NULL, NULL, NULL);
   /* Right after initialization hash is expected to be empty */
-  EXPECT_EQ(0, hash.count);
+  EXPECT_EQ(0, hash.count.load());
 
   pins= lf_hash_get_pins(&hash);
 
@@ -275,7 +275,7 @@ TEST(Mysys, LFHashRandomMatch)
     rc= lf_hash_insert(&hash, pins, &val);
     EXPECT_EQ(0, rc);
   }
-  EXPECT_EQ(4, hash.count);
+  EXPECT_EQ(4, hash.count.load());
 
   /* Search still should return nothing. */
   fnd= static_cast<uint32 *>(lf_hash_random_match(&hash, pins, &test_match, 0));

@@ -59,9 +59,9 @@ public:
     @param[out] backup        Save the lock info. here
 
     @return
-      @retval TRUE open and lock failed - an error message is pushed into the
+      @retval true open and lock failed - an error message is pushed into the
                                           stack
-      @retval FALSE success
+      @retval false success
   */
   bool open_table(THD* thd, const LEX_STRING dbstr, const LEX_STRING tbstr,
                   uint max_num_field, enum thr_lock_type lock_type,

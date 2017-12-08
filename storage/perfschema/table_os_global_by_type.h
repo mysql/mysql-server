@@ -24,12 +24,16 @@
 
 #include <sys/types.h>
 
-#include "storage/perfschema/pfs_column_types.h"
+#include "my_base.h"
 #include "storage/perfschema/pfs_engine_table.h"
-#include "storage/perfschema/pfs_instr.h"
-#include "storage/perfschema/pfs_instr_class.h"
-#include "storage/perfschema/pfs_program.h"
 #include "storage/perfschema/table_helper.h"
+
+class Field;
+class Plugin_table;
+struct PFS_program;
+struct PFS_table_share;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables

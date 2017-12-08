@@ -27,8 +27,9 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/psi_memory_key.h"
+
+struct MY_BITMAP;
 
 #ifdef MYSQL_SERVER
 #include <memory>
@@ -47,7 +48,7 @@ class THD;
    no index on the slave's table.
  */
 
-typedef struct hash_row_pos_st
+struct HASH_ROW_POS
 {
   /** 
       Points at the position where the row starts in the
@@ -57,7 +58,7 @@ typedef struct hash_row_pos_st
   const uchar *bi_start;
   const uchar *bi_ends;
 
-} HASH_ROW_POS;
+};
 
 struct HASH_ROW_ENTRY;
 
@@ -74,9 +75,9 @@ struct hash_slave_rows_free_entry
    Allocation is done in Hash_slave_rows::make_entry as part of 
    the entry allocation.
  */
-typedef struct hash_row_preamble_st
+struct HASH_ROW_PREAMBLE
 {
-  hash_row_preamble_st()= default;
+  HASH_ROW_PREAMBLE()= default;
   /*
     The actual key.
    */
@@ -97,7 +98,7 @@ typedef struct hash_row_preamble_st
    */
   bool is_search_state_inited;
 
-} HASH_ROW_PREAMBLE;
+};
 
 struct HASH_ROW_ENTRY
 {

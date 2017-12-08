@@ -22,29 +22,21 @@
 
 #include "binary_log_types.h"
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/psi/mysql_statement.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"
-#include "sql/handler.h"
 #include "sql/item.h"        // Item::Type
-#include "sql/item_create.h"
-#include "sql/key.h"
-#include "sql/mdl.h"         // MDL_request
-#include "sql/session_tracker.h"
 #include "sql/sp_head.h"     // Stored_program_creation_ctx
-#include "sql/sql_admin.h"
-#include "sql/sql_alloc.h"
-#include "sql/sql_connect.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_servers.h"
 #include "sql/thr_malloc.h"
 
 class Object_creation_ctx;
 class Query_arena;
 class THD;
+struct LEX_USER;
 
 namespace dd {
   class Routine;
@@ -58,7 +50,6 @@ class sp_cache;
 struct TABLE;
 struct TABLE_LIST;
 
-typedef struct st_hash HASH;
 typedef ulonglong sql_mode_t;
 template <typename T> class SQL_I_List;
 
@@ -146,8 +137,7 @@ enum
   (stored procedures and functions).
 */
 
-class Stored_routine_creation_ctx : public Stored_program_creation_ctx,
-                                    public Sql_alloc
+class Stored_routine_creation_ctx : public Stored_program_creation_ctx
 {
 public:
   static Stored_routine_creation_ctx *
@@ -168,6 +158,11 @@ protected:
   {
     DBUG_ENTER("Stored_routine_creation_ctx::create_backup_ctx");
     DBUG_RETURN(new (*THR_MALLOC) Stored_routine_creation_ctx(thd));
+  }
+
+  virtual void delete_backup_ctx()
+  {
+    destroy(this);
   }
 
 private:

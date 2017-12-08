@@ -176,7 +176,7 @@ row_upd_index_write_log(
 /***********************************************************//**
 Returns TRUE if row update changes size of some field in index or if some
 field to be updated is stored externally in rec or update.
-@return TRUE if the update changes the size of some field in index or
+@return true if the update changes the size of some field in index or
 the field is external in rec or update */
 ibool
 row_upd_changes_field_size_or_external(
@@ -326,7 +326,7 @@ Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
 NOTE: we compare the fields as binary strings!
-@return TRUE if update vector changes an ordering field in the index record */
+@return true if update vector changes an ordering field in the index record */
 ibool
 row_upd_changes_ord_field_binary_func(
 /*==================================*/
@@ -376,7 +376,7 @@ Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
 NOTE: we compare the fields as binary strings!
-@return TRUE if update vector may change an ordering field in an index
+@return true if update vector may change an ordering field in an index
 record */
 ibool
 row_upd_changes_some_index_ord_field_binary(

@@ -2281,8 +2281,6 @@ build_prefix(const LEX_STRING *prefix,
 
 /* Use C linkage for the interface functions. */
 
-C_MODE_START
-
 /**
   Implementation of the mutex instrumentation interface.
   @sa PSI_v1::register_mutex.
@@ -8109,10 +8107,10 @@ pfs_set_thread_connect_attrs_v1(const char *buffer,
       lost += key_len + 1 + sizeof(val);
 
       /* we want UTF-8, so my_convert() is not necessary here. */
-      val_len = my_snprintf(val, sizeof(val) - 1, "%d", lost);
+      val_len = snprintf(val, sizeof(val) - 1, "%d", lost);
 
-      warning_size = my_snprintf(
-        warn_buf, sizeof(warn_buf), "%c%s%c%s", key_len, key, val_len, val);
+      warning_size = snprintf(
+        warn_buf, sizeof(warn_buf), "%c%s%c%s", int(key_len), key, int(val_len), val);
 
       if (warning_size <= copy_size)
       {
@@ -9361,8 +9359,6 @@ get_data_lock_interface(int version)
     return NULL;
   }
 }
-
-C_MODE_END
 
 struct PSI_thread_bootstrap pfs_thread_bootstrap = {get_thread_interface};
 

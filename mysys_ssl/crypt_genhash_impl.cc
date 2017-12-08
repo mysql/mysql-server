@@ -33,13 +33,13 @@
 #endif
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
 #include "crypt_genhash_impl.h"
 #include "m_string.h"
-#include "mysql/service_my_snprintf.h"
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -405,12 +405,12 @@ my_crypt_genhash(char *ctbuffer,
   /* 22. Now make the output string */
   if (custom_rounds)
   {
-    (void) my_snprintf(ctbuffer, ctbufflen,
+    (void) snprintf(ctbuffer, ctbufflen,
                        "%s$rounds=%zu$", crypt_alg_magic, (size_t)rounds);
   }
   else
   {
-    (void) my_snprintf(ctbuffer, ctbufflen,
+    (void) snprintf(ctbuffer, ctbufflen,
                        "%s$", crypt_alg_magic);
   }
   (void) strncat(ctbuffer, (const char *)salt, salt_len);

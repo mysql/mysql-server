@@ -30,6 +30,7 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/psi/mysql_rwlock.h"
 #include "mysqld_error.h"
 #include "plugin/rewriter/rewriter.h"
 #include "plugin/rewriter/rule.h" // Rewrite_result
@@ -84,7 +85,7 @@ static long long status_var_number_reloads;
 
 #define PLUGIN_NAME "Rewriter"
 
-static st_mysql_show_var rewriter_plugin_status_vars[]=
+static SHOW_VAR rewriter_plugin_status_vars[]=
 {
   {PLUGIN_NAME "_number_rewritten_queries",
      pointer_cast<char*>(&status_var_number_rewritten_queries), SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
@@ -108,14 +109,14 @@ static int sys_var_verbose;
 static bool sys_var_enabled;
 
 /// Updater function for the status variable ..._verbose.
-static void update_verbose(MYSQL_THD, struct st_mysql_sys_var *, void *,
+static void update_verbose(MYSQL_THD, SYS_VAR *, void *,
                            const void *save)
 {
   sys_var_verbose= *static_cast<const int*>(save);
 }
 
 /// Updater function for the status variable ..._enabled.
-static void update_enabled(MYSQL_THD, struct st_mysql_sys_var *, void *,
+static void update_enabled(MYSQL_THD, SYS_VAR *, void *,
                            const void *value)
 {
   sys_var_enabled= *static_cast<const bool*>(value);
@@ -143,7 +144,7 @@ static MYSQL_SYSVAR_BOOL(enabled,              // Name.
                          1                     // Default value.
 );
 
-struct st_mysql_sys_var* rewriter_plugin_sys_vars[]=
+SYS_VAR* rewriter_plugin_sys_vars[]=
 {
   MYSQL_SYSVAR(verbose),
   MYSQL_SYSVAR(enabled),

@@ -24,7 +24,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/sql_cmd.h"      // Sql_cmd
 #include "sql/sql_plugin_ref.h" // plugin_ref
 #include "sql/xa_aux.h"       // serialize_xid
@@ -649,7 +648,7 @@ struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type);
   @param[in,out]     thd     Thread context
   @param             plugin  Reference to handlerton
 
-  @return    FALSE   on success, TRUE otherwise.
+  @return    false   on success, true otherwise.
 */
 
 bool detach_native_trx(THD *thd, plugin_ref plugin, void *);

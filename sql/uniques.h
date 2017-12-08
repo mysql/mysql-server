@@ -24,9 +24,7 @@
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "my_tree.h"            // TREE
-#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"   // Prealloced_array
-#include "sql/sql_alloc.h"      // Sql_alloc
 #include "sql/sql_array.h"
 #include "sql/sql_sort.h"       // IWYU pragma: keep
 
@@ -41,7 +39,7 @@ struct TABLE;
    memory simultaneously with iteration, so it should be ~2-3x faster.
  */
 
-class Unique :public Sql_alloc
+class Unique
 {
   Prealloced_array<Merge_chunk, 16> file_ptrs;
   ulong max_elements;

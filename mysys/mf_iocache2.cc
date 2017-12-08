@@ -64,7 +64,7 @@ my_b_copy_to_file(IO_CACHE *cache, FILE *file)
   DBUG_ENTER("my_b_copy_to_file");
 
   /* Reinit the cache to read from the beginning of the cache */
-  if (reinit_io_cache(cache, READ_CACHE, 0L, FALSE, FALSE))
+  if (reinit_io_cache(cache, READ_CACHE, 0L, false, false))
     DBUG_RETURN(1);
   bytes_in_cache= my_b_bytes_in_cache(cache);
   do
@@ -373,7 +373,7 @@ size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
     backtrack= fmt;
     fmt++;
 
-    is_zero_padded= FALSE;
+    is_zero_padded= false;
     minimum_width_sign= 1;
     minimum_width= 0;
     precision= 0;
@@ -385,7 +385,7 @@ process_flags:
       case '-': 
         minimum_width_sign= -1; fmt++; goto process_flags;
       case '0':
-        is_zero_padded= TRUE; fmt++; goto process_flags;
+        is_zero_padded= true; fmt++; goto process_flags;
       case '#':
         /** @todo Implement "#" conversion flag. */  fmt++; goto process_flags;
       case ' ':

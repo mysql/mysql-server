@@ -39,6 +39,7 @@
 #include "control_events.h"
 #include "lex_string.h"
 #include "load_data_events.h"
+#include "m_ctype.h"
 #include "m_string.h"                // native_strncasecmp
 #include "my_bitmap.h"               // MY_BITMAP
 #include "my_dbug.h"
@@ -48,37 +49,37 @@
 #include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/psi/psi_stage.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"               // SERVER_VERSION_LENGTH
 #include "rows_event.h"
-#include "sql/item_create.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"       // OPTION_AUTO_IS_NULL
 #include "sql/rpl_gtid.h"            // enum_group_type
 #include "sql/rpl_utility.h"         // Hash_slave_rows
-#include "sql/session_tracker.h"
 #include "sql/sql_const.h"
-#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "statement_events.h"
 #include "typelib.h"                 // TYPELIB
+#include "uuid.h"
 
+class String;
 class THD;
 class Table_id;
+struct mysql_mutex_t;
+
 enum class enum_row_image_type;
 
 #ifdef MYSQL_SERVER
+#include <stdio.h>
+
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_stage.h"
-#include "mysql/service_my_snprintf.h"
 #include "sql/field.h"
 #include "sql/key.h"
 #include "sql/rpl_filter.h"          // rpl_filter
@@ -114,10 +115,8 @@ typedef bool (*read_log_event_filter_function)(char** buf,
                                                const Format_description_log_event*);
 #endif
 
-extern "C" {
 extern PSI_memory_key key_memory_Incident_log_event_message;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
-}
 extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;
 
 /* Forward declarations */
@@ -130,7 +129,8 @@ using binary_log::Binary_log_event;
 using binary_log::Format_description_event;
 
 typedef ulonglong sql_mode_t;
-typedef struct st_db_worker_hash_entry db_worker_hash_entry;
+struct db_worker_hash_entry;
+
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 #if defined(MYSQL_SERVER)
 int ignored_error_code(int err_code);
@@ -404,7 +404,7 @@ enum enum_base64_output_mode {
   2. Other information on how to print the events, e.g. short_form,
      hexdump_from.  These are not dependent on the last event.
 */
-typedef struct st_print_event_info
+struct PRINT_EVENT_INFO
 {
   /*
     Settings for database, sql_mode etc that comes from the last event
@@ -426,9 +426,9 @@ typedef struct st_print_event_info
   my_thread_id thread_id;
   bool thread_id_printed;
 
-  st_print_event_info();
+  PRINT_EVENT_INFO();
 
-  ~st_print_event_info() {
+  ~PRINT_EVENT_INFO() {
     close_cached_file(&head_cache);
     close_cached_file(&body_cache);
     close_cached_file(&footer_cache);
@@ -484,17 +484,17 @@ typedef struct st_print_event_info
   bool skipped_event_in_transaction;
 
   bool print_table_metadata;
-} PRINT_EVENT_INFO;
+};
 #endif
 
 /*
   A specific to the database-scheduled MTS type.
 */
-typedef struct st_mts_db_names
+struct Mts_db_names
 {
   const char *name[MAX_DBS_IN_EVENT_MTS];
   int  num;
-} Mts_db_names;
+};
 
 /**
   @class Log_event
@@ -1000,9 +1000,9 @@ public:
   /**
      Is called from get_mts_execution_mode() to
 
-     @return TRUE  if the event needs applying with synchronization
+     @return true  if the event needs applying with synchronization
                    agaist Workers, otherwise
-             FALSE
+             false
 
      @note There are incompatile combinations such as referred further events
            are wrapped with BEGIN/COMMIT. Such cases should be identified
@@ -1173,7 +1173,7 @@ public:
 
 
   /**
-     @return TRUE  if events carries partitioning data (database names).
+     @return true  if events carries partitioning data (database names).
   */
   bool contains_partition_info(bool);
 
@@ -1185,9 +1185,9 @@ public:
   virtual uint8 mts_number_dbs() { return 1; }
 
   /**
-    @return TRUE  if the terminal event of a group is marked to
-                  execute in isolation from other Workers,
-            FASE  otherwise
+    @return true   if the terminal event of a group is marked to
+                   execute in isolation from other Workers,
+            false  otherwise
   */
   bool is_mts_group_isolated() { return common_header->flags &
                                         LOG_EVENT_MTS_ISOLATE_F; }
@@ -1198,14 +1198,14 @@ public:
 
      Public access is required by implementation of recovery + skip.
 
-     @return TRUE  if the event starts a group (transaction)
-             FASE  otherwise
+     @return true  if the event starts a group (transaction)
+             false otherwise
   */
 #endif
   virtual bool starts_group() const { return false; }
   /**
-     @return TRUE  if the event ends a group (transaction)
-             FASE  otherwise
+     @return true  if the event ends a group (transaction)
+             false otherwise
   */
   virtual bool ends_group() const { return false; }
 #ifdef MYSQL_SERVER
@@ -1437,7 +1437,7 @@ public:
 
   Query_log_event(THD* thd_arg, const char* query_arg, size_t query_length,
                   bool using_trans, bool immediate, bool suppress_use,
-                  int error, bool ignore_command= FALSE);
+                  int error, bool ignore_command= false);
   const char* get_db() override { return db; }
 
   /**
@@ -1505,7 +1505,7 @@ public:
   }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file) override;
-  virtual bool write_post_header_for_derived(IO_CACHE*) { return FALSE; }
+  virtual bool write_post_header_for_derived(IO_CACHE*) { return false; }
 #endif
 
   /*
@@ -3751,7 +3751,7 @@ public:
     if (!(m_rows_query= (char*) my_malloc(key_memory_Rows_query_log_event_rows_query,
                                           query_len + 1, MYF(MY_WME))))
       return;
-    my_snprintf(m_rows_query, query_len + 1, "%s", query);
+    snprintf(m_rows_query, query_len + 1, "%s", query);
     DBUG_PRINT("enter", ("%s", m_rows_query));
     DBUG_VOID_RETURN;
   }
@@ -3794,7 +3794,7 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
   return         
     my_b_copy_to_file(cache, file) ||
     (flush_stream ? (fflush(file) || ferror(file)) : 0) ||
-    reinit_io_cache(cache, WRITE_CACHE, 0, FALSE, TRUE);
+    reinit_io_cache(cache, WRITE_CACHE, 0, false, true);
 }
 
 #ifdef MYSQL_SERVER
@@ -4315,7 +4315,7 @@ public:
   /**
    Return true if transaction has GTID_NEXT specified, false otherwise.
    */
-  bool is_gtid_specified() { return gtid_specified == TRUE; };
+  bool is_gtid_specified() { return gtid_specified == true; };
 };
 
 /**

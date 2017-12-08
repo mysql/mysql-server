@@ -27,10 +27,8 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
-#include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/sql_class.h" // THD
 #include "sql/sql_list.h"
@@ -61,7 +59,7 @@ static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap)
                        NULL) == NULL)
     DBUG_RETURN(true);
 
-  if (bitmap_init(the_struct, the_bits, number_bits, FALSE) != 0)
+  if (bitmap_init(the_struct, the_bits, number_bits, false) != 0)
     DBUG_RETURN(true);
 
   *bitmap= the_struct;

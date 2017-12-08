@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "log.h"
+#include "mysql/components/services/log_builtins.h"
 #include "migrate_keyring.h"
 #include "mysqld.h"
 #include "mysqld_error.h"

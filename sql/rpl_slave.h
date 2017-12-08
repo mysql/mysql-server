@@ -26,26 +26,18 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_thread.h"                     // my_start_routine
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_thread_bits.h"
-#include "mysql/psi/mysql_cond.h"          // mysql_cond_t
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql/rpl_channel_service_interface.h" // enum_channel_type
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
 
 class Master_info;
 class Relay_log_info;
 class THD;
+struct LEX_MASTER_INFO;
+struct mysql_cond_t;
+struct mysql_mutex_t;
 
-typedef struct st_bitmap MY_BITMAP;
-typedef struct st_lex_master_info LEX_MASTER_INFO;
-typedef struct st_list LIST;
-typedef struct st_mysql MYSQL;
-typedef struct st_net NET;
 typedef struct struct_slave_connection LEX_SLAVE_CONNECTION;
 
 typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;

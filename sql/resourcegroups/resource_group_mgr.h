@@ -16,21 +16,36 @@
 #ifndef RESOURCEGROUPS_RESOURCE_GROUP_MGR_H_
 #define RESOURCEGROUPS_RESOURCE_GROUP_MGR_H_
 
+#include <stdint.h>
 #include <memory>
-#include <unordered_map>
+#include <string>
+#include <vector>
 
-#include "sql/debug_sync.h"
-#include "sql/dd/types/resource_group.h"
-#include "map_helpers.h"
-#include "sql/mdl.h"
-#include "mysql/components/service_implementation.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql/components/service.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/components/services/pfs_notification.h"
 #include "mysql/components/services/pfs_resource_group.h"
-#include "mysql/plugin.h"
-#include "mysql_version.h"
-#include "sql/conn_handler/connection_handler_manager.h"
+#include "mysql/components/services/psi_thread_bits.h"
+#include "mysql/components/services/registry.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "sql/debug_sync.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/sql_class.h"
-#include "sql/resourcegroups/resource_group.h"
+
+namespace dd {
+class Resource_group;
+}  // namespace dd
+namespace resourcegroups {
+class Resource_group;
+}  // namespace resourcegroups
+template <class Key, class Value> class collation_unordered_map;
 
 namespace resourcegroups
 {

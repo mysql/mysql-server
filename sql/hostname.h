@@ -23,7 +23,6 @@
 #include <memory>
 
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 
 #ifdef HAVE_NETINET_IN_H

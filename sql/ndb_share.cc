@@ -17,6 +17,7 @@
 
 #include "sql/ndb_share.h"
 
+#include <iostream>
 #include <sstream>
 
 #include "m_string.h"

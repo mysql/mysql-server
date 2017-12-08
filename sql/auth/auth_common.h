@@ -16,12 +16,8 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
-#include <mysql/components/my_service.h>
-#include <mysql/components/service.h>
-#include <mysql/components/services/dynamic_privilege.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include <functional>
 #include <set>
 #include <utility>
 #include <vector>
@@ -30,23 +26,21 @@
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql/auth/dynamic_privileges_impl.h"
-#include "sql/thr_malloc.h"
 #include "template_utils.h"
 
 /* Forward Declarations */
 class Alter_info;
 class Field_iterator_table_ref;
+class Item;
 class LEX_COLUMN;
 class String;
 class THD;
-template <class T> class List;
-
-typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
-typedef struct st_lex_user LEX_USER;
-typedef struct st_ha_create_information HA_CREATE_INFO;
-class Item;
+struct CHARSET_INFO;
 struct GRANT_INFO;
+struct GRANT_INTERNAL_INFO;
+struct HA_CREATE_INFO;
+struct LEX_USER;
+template <class T> class List;
 
 typedef struct user_conn USER_CONN;
 class Security_context;
@@ -704,8 +698,7 @@ void mysql_rewrite_set_password(THD *thd, String *rlb,
 void append_user(THD *thd, String *str, LEX_USER *user,
                  bool comma, bool ident);
 void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma);
-int check_change_password(THD *thd, const char *host, const char *user,
-                          const char *password, size_t password_len);
+int check_change_password(THD *thd, const char *host, const char *user);
 bool change_password(THD *thd, const char *host, const char *user,
                      char *password);
 bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists,

@@ -21,12 +21,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "m_ctype.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/components/service.h"
 #include "mysql/components/service_implementation.h"
 #include "mysql/components/services/mysql_string.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "sql_string.h"
 
 PSI_memory_key key_memory_string_service_iterator;
@@ -417,9 +415,9 @@ DEFINE_BOOL_METHOD(mysql_string_imp::iterator_create,
     String *str= reinterpret_cast<String *> (string);
     if (str == NULL)
       return true;
-    string_iterator *iterator= (string_iterator *) my_malloc(
+    st_string_iterator *iterator= (st_string_iterator *) my_malloc(
                                key_memory_string_service_iterator,
-                               sizeof(struct st_string_iterator), MYF(0));
+                               sizeof(st_string_iterator), MYF(0));
     iterator->iterator_str= str;
     iterator->iterator_ptr= str->ptr();
     iterator->ctype= 0;
@@ -451,7 +449,7 @@ DEFINE_BOOL_METHOD(mysql_string_imp::iterator_get_next,
   try
   {
     int char_len, tmp_len;
-    string_iterator *iterator= (string_iterator *) iter;
+    st_string_iterator *iterator= (st_string_iterator *) iter;
     if (iterator == NULL)
       return true;
     String *str= iterator->iterator_str;
@@ -493,7 +491,7 @@ DEFINE_METHOD(void, mysql_string_imp::iterator_destroy,
   {
     if (iter == NULL)
       return;
-    my_free((string_iterator *) iter);
+    my_free((st_string_iterator *) iter);
   }
   catch (...)
   {
@@ -517,7 +515,7 @@ DEFINE_BOOL_METHOD(mysql_string_imp::is_upper,
 {
   try
   {
-    string_iterator *iterator= (string_iterator *) iter;
+    st_string_iterator *iterator= (st_string_iterator *) iter;
     if (iterator == NULL)
       return true;
     *out= (iterator->ctype & _MY_U);
@@ -546,7 +544,7 @@ DEFINE_BOOL_METHOD(mysql_string_imp::is_lower,
 {
   try
   {
-    string_iterator *iterator= (string_iterator *) iter;
+    st_string_iterator *iterator= (st_string_iterator *) iter;
     if (iterator == NULL)
       return true;
     *out= (iterator->ctype & _MY_L);
@@ -573,7 +571,7 @@ DEFINE_BOOL_METHOD(mysql_string_imp::is_digit,
 {
   try
   {
-    string_iterator *iterator= (string_iterator *) iter;
+    st_string_iterator *iterator= (st_string_iterator *) iter;
     if (iterator == NULL)
       return true;
     *out= (iterator->ctype & _MY_NMR);

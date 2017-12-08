@@ -289,9 +289,9 @@ ndb_index_stat_opt2str(const Ndb_index_stat_opt& opt, char* str)
       {
         DBUG_ASSERT(v.val == 0 || v.val == 1);
         if (v.val == 0)
-          my_snprintf(ptr, sz, "%s%s=0", sep, v.name);
+          snprintf(ptr, sz, "%s%s=0", sep, v.name);
         else
-          my_snprintf(ptr, sz, "%s%s=1", sep, v.name);
+          snprintf(ptr, sz, "%s%s=1", sep, v.name);
       }
       break;
 
@@ -299,15 +299,15 @@ ndb_index_stat_opt2str(const Ndb_index_stat_opt& opt, char* str)
       {
         uint m;
         if (v.val == 0)
-          my_snprintf(ptr, sz, "%s%s=0", sep, v.name);
+          snprintf(ptr, sz, "%s%s=0", sep, v.name);
         else if (v.val % (m= 1024*1024*1024) == 0)
-          my_snprintf(ptr, sz, "%s%s=%uG", sep, v.name, v.val / m);
+          snprintf(ptr, sz, "%s%s=%uG", sep, v.name, v.val / m);
         else if (v.val % (m= 1024*1024) == 0)
-          my_snprintf(ptr, sz, "%s%s=%uM", sep, v.name, v.val / m);
+          snprintf(ptr, sz, "%s%s=%uM", sep, v.name, v.val / m);
         else if (v.val % (m= 1024) == 0)
-          my_snprintf(ptr, sz, "%s%s=%uK", sep, v.name, v.val / m);
+          snprintf(ptr, sz, "%s%s=%uK", sep, v.name, v.val / m);
         else
-          my_snprintf(ptr, sz, "%s%s=%u", sep, v.name, v.val);
+          snprintf(ptr, sz, "%s%s=%u", sep, v.name, v.val);
       }
       break;
 
@@ -315,24 +315,24 @@ ndb_index_stat_opt2str(const Ndb_index_stat_opt& opt, char* str)
       {
         uint m;
         if (v.val == 0)
-          my_snprintf(ptr, sz, "%s%s=0", sep, v.name);
+          snprintf(ptr, sz, "%s%s=0", sep, v.name);
         else if (v.val % (m= 60*60*24) == 0)
-          my_snprintf(ptr, sz, "%s%s=%ud", sep, v.name, v.val / m);
+          snprintf(ptr, sz, "%s%s=%ud", sep, v.name, v.val / m);
         else if (v.val % (m= 60*60) == 0)
-          my_snprintf(ptr, sz, "%s%s=%uh", sep, v.name, v.val / m);
+          snprintf(ptr, sz, "%s%s=%uh", sep, v.name, v.val / m);
         else if (v.val % (m= 60) == 0)
-          my_snprintf(ptr, sz, "%s%s=%um", sep, v.name, v.val / m);
+          snprintf(ptr, sz, "%s%s=%um", sep, v.name, v.val / m);
         else
-          my_snprintf(ptr, sz, "%s%s=%us", sep, v.name, v.val);
+          snprintf(ptr, sz, "%s%s=%us", sep, v.name, v.val);
       }
       break;
 
     case Ndb_index_stat_opt::Umsec:
       {
         if (v.val == 0)
-          my_snprintf(ptr, sz, "%s%s=0", sep, v.name);
+          snprintf(ptr, sz, "%s%s=0", sep, v.name);
         else
-          my_snprintf(ptr, sz, "%s%s=%ums", sep, v.name, v.val);
+          snprintf(ptr, sz, "%s%s=%ums", sep, v.name, v.val);
       }
       break;
 
@@ -511,7 +511,7 @@ static char ndb_index_stat_option_tmp[ndb_index_stat_option_sz];
  
 int
 ndb_index_stat_option_check(MYSQL_THD,
-                            struct st_mysql_sys_var *var,
+                            SYS_VAR *var,
                             void *save,
                             struct st_mysql_value *value)
 {
@@ -538,7 +538,7 @@ ndb_index_stat_option_check(MYSQL_THD,
 
 void
 ndb_index_stat_option_update(MYSQL_THD,
-                             struct st_mysql_sys_var *var,
+                             SYS_VAR *var,
                              void *var_ptr,
                              const void *save)
 {
@@ -1010,7 +1010,7 @@ ndb_index_stat_alloc(const NDBINDEX *index,
     st->index_id= index->getObjectId();
     st->index_version= index->getObjectVersion();
 #ifndef DBUG_OFF
-    my_snprintf(st->id, sizeof(st->id), "%d.%d", st->index_id, st->index_version);
+    snprintf(st->id, sizeof(st->id), "%d.%d", st->index_id, st->index_version);
 #endif
     if (is->set_index(*index, *table) == 0)
       return st;
@@ -2695,8 +2695,7 @@ ndb_index_stat_round(double x)
   char buf[100];
   if (x < 0.0)
     x= 0.0;
-  // my_snprintf has no float and windows has no snprintf
-  sprintf(buf, "%.0f", x);
+  snprintf(buf, sizeof(buf), "%.0f", x);
   /* mysql provides my_strtoull */
   ulonglong n= my_strtoull(buf, 0, 10);
   return n;
@@ -3068,7 +3067,7 @@ static SHOW_VAR ndb_status_vars_index_stat[]=
 };
 
 int
-show_ndb_status_index_stat(THD*, struct st_mysql_show_var* var, char*)
+show_ndb_status_index_stat(THD*, SHOW_VAR* var, char*)
 {
   /* Just a function to allow moving array into this file */
   var->type = SHOW_ARRAY;

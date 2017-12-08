@@ -38,10 +38,6 @@
   A wrapper to use OpenSSL/yaSSL PRNGs.
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
   Generate random number.
 
@@ -112,8 +108,3 @@ double my_rnd_ssl(struct rand_struct *rand_st)
 
   return (double)res / (double)UINT_MAX;
 }
-
-
-#ifdef __cplusplus
-}
-#endif

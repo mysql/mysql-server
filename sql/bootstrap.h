@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include "mysql/thread_type.h"              // enum_thread_type
 
-typedef struct st_mysql_file MYSQL_FILE;
+struct MYSQL_FILE;
 
 class THD;
 

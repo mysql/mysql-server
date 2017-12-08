@@ -269,7 +269,7 @@ and insert into FTS auxiliary table and its cache.
 @param[in]	ftt		FTS transaction table
 @param[in]	doc_id		doc id
 @param[in]	fts_indexes	affected FTS indexes
-@return TRUE if successful */
+@return true if successful */
 static
 ulint
 fts_add_doc_by_id(
@@ -429,7 +429,7 @@ fts_load_default_stopword(
 
 /****************************************************************//**
 Callback function to read a single stopword value.
-@return Always return TRUE */
+@return Always return true */
 static
 ibool
 fts_read_stopword(
@@ -489,7 +489,7 @@ fts_read_stopword(
 
 /******************************************************************//**
 Load user defined stopword from designated user table
-@return TRUE if load operation is successful */
+@return true if load operation is successful */
 static
 ibool
 fts_load_user_stopword(
@@ -763,7 +763,7 @@ fts_reset_get_doc(
 
 /*******************************************************************//**
 Check an index is in the table->indexes list
-@return TRUE if it exists */
+@return true if it exists */
 static
 ibool
 fts_in_dict_index(
@@ -787,7 +787,7 @@ fts_in_dict_index(
 
 /*******************************************************************//**
 Check an index is in the fts->cache->indexes list
-@return TRUE if it exists */
+@return true if it exists */
 static
 ibool
 fts_in_index_cache(
@@ -814,7 +814,7 @@ fts_in_index_cache(
 /*******************************************************************//**
 Check indexes in the fts->indexes is also present in index cache and
 table->indexes list
-@return TRUE if all indexes match */
+@return true if all indexes match */
 ibool
 fts_check_cached_index(
 /*===================*/
@@ -3784,7 +3784,7 @@ fts_doc_free(
 /*********************************************************************//**
 Callback function for fetch that stores the text of an FTS document,
 converting each column to UTF-16.
-@return always FALSE */
+@return always false */
 ibool
 fts_query_expansion_fetch_doc(
 /*==========================*/
@@ -4099,7 +4099,7 @@ and insert into FTS auxiliary table and its cache.
 @param[in]	ftt		FTS transaction table
 @param[in]	doc_id		doc id
 @param[in]	fts_indexes	affected FTS indexes
-@return TRUE if successful */
+@return true if successful */
 static
 ulint
 fts_add_doc_by_id(
@@ -5359,7 +5359,7 @@ fts_get_token_size(
 
 /*************************************************************//**
 FTS plugin parser 'myql_parser' callback function for document tokenize.
-Refer to 'st_mysql_ftparser_param' for more detail.
+Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
 @return always returns 0 */
 int
 fts_tokenize_document_internal(
@@ -5405,7 +5405,7 @@ fts_tokenize_document_internal(
 
 /******************************************************************//**
 FTS plugin parser 'myql_add_word' callback function for document tokenize.
-Refer to 'st_mysql_ftparser_param' for more detail.
+Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
 @return always returns 0 */
 static
 int
@@ -5643,7 +5643,7 @@ fts_init_doc_id(
 #ifdef FTS_MULT_INDEX
 /*********************************************************************//**
 Check if the index is in the affected set.
-@return TRUE if index is updated */
+@return true if index is updated */
 static
 ibool
 fts_is_index_updated(
@@ -6043,7 +6043,7 @@ fts_cache_append_deleted_doc_ids(
 Wait for the background thread to start. We poll to detect change
 of state, which is acceptable, since the wait should happen only
 once during startup.
-@return true if the thread started else FALSE (i.e timed out) */
+@return true if the thread started else false (i.e timed out) */
 ibool
 fts_wait_for_background_thread_to_start(
 /*====================================*/
@@ -6777,7 +6777,7 @@ This function loads the stopword into the FTS cache. It also
 records/fetches stopword configuration to/from FTS configure
 table, depending on whether we are creating or reloading the
 FTS.
-@return TRUE if load operation is successful */
+@return true if load operation is successful */
 ibool
 fts_load_stopword(
 /*==============*/
@@ -6903,7 +6903,7 @@ cleanup:
 /**********************************************************************//**
 Callback function when we initialize the FTS at the start up
 time. It recovers the maximum Doc IDs presented in the current table.
-@return: always returns TRUE */
+@return: always returns true */
 static
 ibool
 fts_init_get_doc_id(
@@ -6941,7 +6941,7 @@ fts_init_get_doc_id(
 Callback function when we initialize the FTS at the start up
 time. It recovers Doc IDs that have not sync-ed to the auxiliary
 table, and require to bring them back into FTS index.
-@return: always returns TRUE */
+@return: always returns true */
 static
 ibool
 fts_init_recover_doc(
@@ -7048,7 +7048,7 @@ This function brings FTS index in sync when FTS index is first
 used. There are documents that have not yet sync-ed to auxiliary
 tables from last server abnormally shutdown, we will need to bring
 such document into FTS cache before any further operations
-@return TRUE if all OK */
+@return true if all OK */
 ibool
 fts_init_index(
 /*===========*/

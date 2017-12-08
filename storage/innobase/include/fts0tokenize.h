@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -50,11 +50,12 @@ static const char* fts_boolean_syntax = DEFAULT_FTB_SYNTAX;
 #define FTB_RQUOT (fts_boolean_syntax[11])
 
 /** FTS query token */
-typedef struct st_ft_word {
+struct FT_WORD
+{
         uchar* pos;     /*!< word start pointer */
         uint   len;     /*!< word len */
         double weight;  /*!< word weight, unused in innodb */
-} FT_WORD;
+};
 
 /** Tokenizer for ngram referring to ft_get_word(ft_parser.c) in MyISAM.
 Differences: a. code format changed; b. stopword processing removed.

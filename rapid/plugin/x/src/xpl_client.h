@@ -23,7 +23,7 @@
 #include "plugin/x/ngs/include/ngs/client.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
 
-struct st_mysql_show_var;
+struct SHOW_VAR;
 
 namespace xpl {
 class Session;
@@ -70,7 +70,7 @@ class Client : public ngs::Client {
  public:
   bool is_handler_thd(THD *thd);
 
-  void get_status_ssl_cipher_list(st_mysql_show_var *var);
+  void get_status_ssl_cipher_list(SHOW_VAR *var);
 
   void kill();
   ngs::shared_ptr<xpl::Session> get_session();

@@ -22,33 +22,28 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <algorithm>
-#include <memory>
 #include <vector>
 
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_table_map.h"
-#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h" // Prealloced_array
 #include "priority_queue.h"   // Priority_queue
-#include "sql/dd/properties.h"
 #include "sql/field.h"        // Field
 #include "sql/handler.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/malloc_allocator.h" // IWYU pragma: keep
 #include "sql/records.h"      // READ_RECORD
-#include "sql/sql_alloc.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
 #include "sql/table.h"
-#include "sql/thr_malloc.h"
 #include "sql_string.h"
 
 class Item;
@@ -57,8 +52,10 @@ class JOIN;
 class Opt_trace_context;
 class THD;
 class Unique;
+struct TABLE_REF;
 
-typedef struct st_key_part {
+struct KEY_PART
+{
   uint16           key,part;
   /* See KEY_PART_INFO for meaning of the next two: */
   uint16           store_length, length;
@@ -70,10 +67,11 @@ typedef struct st_key_part {
   uint16 flag;
   Field            *field;
   Field::imagetype image_type;
-} KEY_PART;
+};
 
 
-class QUICK_RANGE :public Sql_alloc {
+class QUICK_RANGE
+{
 public:
   uchar *min_key,*max_key;
   uint16 min_length,max_length;
@@ -219,7 +217,7 @@ public:
     delete quick;
   
   NOTE 
-    quick select doesn't use Sql_alloc/MEM_ROOT allocation because "range
+    quick select doesn't use MEM_ROOT allocation because "range
     checked for each record" functionality may create/destroy
     O(#records_in_some_table) quick selects during query execution.
     See Bug#18684036 ELIMINATE LAST FEW HEAP USAGE FROM THE
@@ -438,12 +436,12 @@ typedef Prealloced_array<QUICK_RANGE*, 16> Quick_ranges;
   MRR range sequence, array<QUICK_RANGE> implementation: sequence traversal
   context.
 */
-typedef struct st_quick_range_seq_ctx
+struct QUICK_RANGE_SEQ_CTX
 {
   Quick_ranges::const_iterator first;
   Quick_ranges::const_iterator cur;
   Quick_ranges::const_iterator last;
-} QUICK_RANGE_SEQ_CTX;
+};
 
 range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags);
 uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
@@ -466,7 +464,7 @@ protected:
   friend class TRP_ROR_INTERSECT;
   friend
   QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-                                               struct st_table_ref *ref,
+                                               TABLE_REF *ref,
                                                ha_rows records);
   friend bool get_quick_keys(PARAM *param,
                              QUICK_RANGE_SELECT *quick,KEY_PART *key,
@@ -1068,7 +1066,7 @@ public:
 
 FT_SELECT *get_ft_select(THD *thd, TABLE *table, uint key);
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-                                             struct st_table_ref *ref,
+                                             TABLE_REF *ref,
                                              ha_rows records);
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond);
 void store_key_image_to_rec(Field *field, uchar *ptr, uint len);

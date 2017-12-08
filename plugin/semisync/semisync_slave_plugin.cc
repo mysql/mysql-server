@@ -37,8 +37,6 @@ ReplSemiSyncSlave *repl_semisync= nullptr;
 */
 bool semi_sync_need_reply= false;
 
-C_MODE_START
-
 static int repl_semi_apply_slave(Binlog_relay_IO_param *,
                                  Trans_param *,
                                  int&)
@@ -167,8 +165,6 @@ static int repl_semi_slave_sql_stop(Binlog_relay_IO_param*, bool)
 {
   return 0;
 }
-
-C_MODE_END
 
 static void fix_rpl_semi_sync_slave_enabled(MYSQL_THD,
 					    SYS_VAR*,

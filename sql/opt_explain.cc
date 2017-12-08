@@ -22,11 +22,13 @@
 
 #include <limits.h>
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <atomic>
 
 #include "ft_global.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -40,8 +42,6 @@
 #include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -79,8 +79,8 @@
 #include "sql/sql_partition.h" // for make_used_partitions_str()
 #include "sql/sql_select.h"
 #include "sql/table.h"
-#include "sql_string.h"
 #include "sql/table_function.h"      // Table_function
+#include "sql_string.h"
 
 class Opt_trace_context;
 
@@ -856,14 +856,14 @@ bool Explain_union_result::explain_table_name()
        sl= sl->next_select())
   {
     len+= lastop;
-    lastop= my_snprintf(table_name_buffer + len, NAME_CHAR_LEN - len,
+    lastop= snprintf(table_name_buffer + len, NAME_CHAR_LEN - len,
                         "%u,", sl->select_number);
   }
   if (sl || len + lastop >= NAME_CHAR_LEN)
   {
     memcpy(table_name_buffer + len, STRING_WITH_LEN("...,"));
     len+= 4;
-    lastop= my_snprintf(table_name_buffer + len, NAME_CHAR_LEN - len,
+    lastop= snprintf(table_name_buffer + len, NAME_CHAR_LEN - len,
                         "%u,", last_select->select_number);
   }
   len+= lastop;
@@ -1022,13 +1022,13 @@ bool Explain_table_base::explain_extra_common(int quick_type,
     if (pushed_root == table)
     {
       uint pushed_count= tab->table()->file->number_of_pushed_joins();
-      len= my_snprintf(buf, sizeof(buf)-1,
+      len= snprintf(buf, sizeof(buf)-1,
                        "Parent of %d pushed join@%d",
                        pushed_count, pushed_id);
     }
     else
     {
-      len= my_snprintf(buf, sizeof(buf)-1,
+      len= snprintf(buf, sizeof(buf)-1,
                        "Child of '%s' in pushed join@%d",
                        tab->table()->file->parent_of_pushed_join()->alias,
                        pushed_id);
@@ -1174,12 +1174,12 @@ bool Explain_table_base::explain_extra_common(int quick_type,
       switch (ft_hints->get_op_type())
       {
         case FT_OP_GT:
-          len= my_snprintf(buf, sizeof(buf) - 1,
-                           "rank > %g", ft_hints->get_op_value());
+          len= snprintf(buf, sizeof(buf) - 1,
+                           "rank > %.0g", ft_hints->get_op_value());
           break;
         case FT_OP_GE:
-          len= my_snprintf(buf, sizeof(buf) - 1,
-                           "rank >= %g", ft_hints->get_op_value());
+          len= snprintf(buf, sizeof(buf) - 1,
+                           "rank >= %.0g", ft_hints->get_op_value());
           break;
         default:
           DBUG_ASSERT(0);
@@ -1197,8 +1197,8 @@ bool Explain_table_base::explain_extra_common(int quick_type,
       if (not_first)
         buff.append(", ");
 
-      len= my_snprintf(buf, sizeof(buf) - 1,
-                       "limit = %d", ft_hints->get_limit());
+      len= snprintf(buf, sizeof(buf) - 1,
+                       "limit = %llu", ft_hints->get_limit());
       buff.append(buf, len, cs);
       not_first= true;
     }
@@ -1503,7 +1503,7 @@ bool Explain_join::explain_table_name()
     /* Derived table name generation */
     char table_name_buffer[NAME_LEN];
     const size_t len=
-      my_snprintf(table_name_buffer, sizeof(table_name_buffer) - 1,
+      snprintf(table_name_buffer, sizeof(table_name_buffer) - 1,
                   "<derived%u>",
                   table->pos_in_table_list->query_block_id_for_explain());
     return fmt->entry()->col_table_name.set(table_name_buffer, len);
@@ -1613,7 +1613,7 @@ static void human_readable_size(char *buf, int buf_len, double data_size)
   for (i= 0; data_size > 1024 && i < 5; i++)
     data_size/= 1024;
   const char mult= i == 0 ? 0 : size[i];
-  my_snprintf(buf, buf_len, "%llu%c", (ulonglong)data_size, mult);
+  snprintf(buf, buf_len, "%llu%c", (ulonglong)data_size, mult);
   buf[buf_len - 1]= 0;
 }
 
@@ -1797,7 +1797,7 @@ bool Explain_join::explain_extra()
         {
           char namebuf[NAME_LEN];
           /* Derived table name generation */
-          size_t len= my_snprintf(namebuf, sizeof(namebuf)-1,
+          size_t len= snprintf(namebuf, sizeof(namebuf)-1,
                                   "<derived%u>",
               prev_table->pos_in_table_list->query_block_id_for_explain());
           buff.append(namebuf, len);

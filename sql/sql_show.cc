@@ -21,7 +21,6 @@
 #include "my_config.h"
 
 #include <errno.h>
-#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -41,10 +40,10 @@
 #include "m_string.h"
 #include "mf_wcomp.h"                       // wild_compare,wild_one,wild_many
 #include "mutex_lock.h"                     // MUTEX_LOCK
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_command.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"                         // MY_DIR
 #include "my_io.h"
@@ -53,14 +52,17 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/mysql_lex_string.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
+#include "nullable.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"           // check_grant_db
 #include "sql/auth/sql_security_ctx.h"
@@ -74,7 +76,6 @@
 #include "sql/error_handler.h"              // Internal_error_handler
 #include "sql/field.h"                      // Field
 #include "sql/filesort.h"                   // filesort_free_buffers
-#include "sql/histograms/value_map.h"
 #include "sql/item.h"                       // Item_empty_string
 #include "sql/item_cmpfunc.h"               // Item_cond
 #include "sql/item_func.h"
@@ -85,14 +86,11 @@
 #include "sql/mysqld.h"                     // lower_case_table_names
 #include "sql/mysqld_thd_manager.h"         // Global_THD_manager
 #include "sql/opt_trace.h"                  // fill_optimizer_trace_info
-#include "sql/partition_element.h"
 #include "sql/partition_info.h"             // partition_info
-#include "sql/partitioning/partition_handler.h" // Partition_handler
 #include "sql/protocol.h"                   // Protocol
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/sp_head.h"                    // sp_head
-#include "sql/sql_alloc.h"
 #include "sql/sql_base.h"                   // close_thread_tables
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"                  // THD
@@ -108,17 +106,16 @@
 #include "sql/sql_plugin.h"                 // PLUGIN_IS_DELETED, LOCK_plugin
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_profile.h"
-#include "sql/sql_servers.h"
 #include "sql/sql_table.h"                  // filename_to_tablename
 #include "sql/sql_tmp_table.h"              // create_tmp_table
 #include "sql/sql_trigger.h"                // acquire_shared_mdl_for_trigger
-#include "sql/stateless_allocator.h"
 #include "sql/system_variables.h"
 #include "sql/table_trigger_dispatcher.h"   // Table_trigger_dispatcher
 #include "sql/temp_table_param.h"
 #include "sql/thr_malloc.h"
 #include "sql/trigger.h"                    // Trigger
 #include "sql/tztime.h"                     // Time_zone
+#include "template_utils.h"
 #include "thr_lock.h"
 
 namespace dd {
@@ -193,7 +190,7 @@ static int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 
 static size_t make_version_string(char *buf, size_t buf_length, uint version)
 {
-  return my_snprintf(buf, buf_length, "%d.%d", version>>8,version&0xff);
+  return snprintf(buf, buf_length, "%d.%d", version>>8,version&0xff);
 }
 
 static bool show_plugins(THD *thd, plugin_ref plugin,
@@ -217,7 +214,7 @@ static bool show_plugins(THD *thd, plugin_ref plugin,
   if (plugin == nullptr || plugin_state(plugin) == PLUGIN_IS_FREED)
   {
     mysql_mutex_unlock(&LOCK_plugin);
-    return FALSE;
+    return false;
   }
 
   table->field[0]->store(plugin_name(plugin)->str,
@@ -386,7 +383,7 @@ bool mysqld_show_privileges(THD *thd)
 
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   show_privileges_st *privilege= sys_privileges;
   for (privilege= sys_privileges; privilege->privilege ; privilege++)
@@ -396,7 +393,7 @@ bool mysqld_show_privileges(THD *thd)
     protocol->store(privilege->context, system_charset_info);
     protocol->store(privilege->comment, system_charset_info);
     if (protocol->end_row())
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
   if (iterate_all_dynamic_privileges(thd,
                       /*
@@ -413,10 +410,10 @@ bool mysqld_show_privileges(THD *thd)
                         return false;  
                       }))
   {
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   my_eof(thd);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /*
@@ -429,7 +426,7 @@ bool mysqld_show_privileges(THD *thd)
     db                  database name to set in TABLE_LIST structure
     path                path to database
     wild                filter for found files
-    dir                 read databases in path if TRUE, read .frm files in
+    dir                 read databases in path if true, read .frm files in
                         database otherwise
 
   RETURN
@@ -458,10 +455,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
     else
       wild_length= strlen(wild);
   }
-
-
-
-  memset(&table_list, 0, sizeof(table_list));
 
   if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
   {
@@ -538,15 +531,15 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       table_list.table_name= uname;
       table_list.table_name_length= file_name_len;
       table_list.grant.privilege=col_access;
-      if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
+      if (check_grant(thd, TABLE_ACLS, &table_list, true, 1, true))
         continue;
     }
 
     if (!(file_name= tmp_mem_root ?
                      make_lex_string_root(tmp_mem_root, file_name, uname,
-                                          file_name_len, TRUE) :
+                                          file_name_len, true) :
                      thd->make_lex_string(file_name, uname,
-                                          file_name_len, TRUE)) ||
+                                          file_name_len, true)) ||
         files->push_back(file_name))
     {
       my_dirend(dirp);
@@ -620,7 +613,7 @@ private:
     if (!m_view_access_denied_message_ptr)
     {
       m_view_access_denied_message_ptr= m_view_access_denied_message;
-      my_snprintf(m_view_access_denied_message, MYSQL_ERRMSG_SIZE,
+      snprintf(m_view_access_denied_message, MYSQL_ERRMSG_SIZE,
                   ER_THD(thd, ER_TABLEACCESS_DENIED_ERROR), "SHOW VIEW",
                   m_sctx->priv_user().str,
                   m_sctx->host_or_ip().str, m_top_view->get_table_name());
@@ -694,7 +687,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
   List<Item> field_list;
-  bool error= TRUE;
+  bool error= true;
   DBUG_ENTER("mysqld_show_create");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->table_name));
@@ -755,7 +748,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   if ((table_list->is_view() ?
        view_store_create_info(thd, table_list, &buffer) :
        store_create_info(thd, table_list, &buffer, NULL,
-                         FALSE /* show_database */)))
+                         false /* show_database */)))
     goto exit;
 
   if (table_list->is_view())
@@ -809,7 +802,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   if (protocol->end_row())
     goto exit;
 
-  error= FALSE;
+  error= false;
   my_eof(thd);
 
 exit:
@@ -858,7 +851,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
                                    ER_DEFAULT(ER_DBACCESS_DENIED_ERROR),
                                    sctx->priv_user().str,
                                    sctx->host_or_ip().str, dbname);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (is_infoschema_db(dbname))
@@ -896,7 +889,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   protocol->start_row();
   protocol->store(orig_dbname, strlen(orig_dbname), system_charset_info);
@@ -921,9 +914,9 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
 
   if (protocol->end_row())
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   my_eof(thd);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -1000,7 +993,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
 
 static const char *require_quotes(const char *name, size_t name_length)
 {
-  bool pure_digit= TRUE;
+  bool pure_digit= true;
   const char *end= name + name_length;
 
   for (; name < end ; name++)
@@ -1010,7 +1003,7 @@ static const char *require_quotes(const char *name, size_t name_length)
     if (length == 0 || (length == 1 && !system_charset_info->ident_map[chr]))
       return name;
     if (length == 1 && (chr < '0' || chr > '9'))
-      pure_digit= FALSE;
+      pure_digit= false;
   }
   if (pure_digit)
     return name;
@@ -1346,7 +1339,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   handler *file= table->file;
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
-  bool show_table_options= FALSE;
+  bool show_table_options= false;
   bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                      MODE_ORACLE |
                                                      MODE_MSSQL |
@@ -1624,7 +1617,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   packet->append(STRING_WITH_LEN("\n)"));
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
-    show_table_options= TRUE;
+    show_table_options= true;
 
     // Show tablespace name only if it is explicitly provided by user.
     bool show_tablespace= false;
@@ -1832,7 +1825,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       table->part_info->set_show_version_string(&comment_start);
       if ((part_syntax= generate_partition_syntax(table->part_info,
                                                   &part_syntax_len,
-                                                  FALSE,
+                                                  false,
                                                   show_table_options,
                                                   true, // For proper quoting.
                                                   comment_start.c_ptr())))
@@ -2023,7 +2016,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   Return info about all processes
   returns for each thread: thread id, user, host, db, command, info
 ****************************************************************************/
-class thread_info : public Sql_alloc
+class thread_info
 {
 public:
   thread_info()
@@ -2129,7 +2122,7 @@ public:
     {
       if ((thd_info->host=
            (char*) m_client_thd->alloc(LIST_PROCESS_HOST_LEN+1)))
-        my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN, "%s:%u",
+        snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN, "%s:%u",
                     inspect_sctx_host_or_ip.str, inspect_thd->peer_port);
     }
     else
@@ -2319,7 +2312,7 @@ public:
         m_client_thd->security_context()->host_or_ip().str[0])
     {
       char host[LIST_PROCESS_HOST_LEN + 1];
-      my_snprintf(host, LIST_PROCESS_HOST_LEN, "%s:%u",
+      snprintf(host, LIST_PROCESS_HOST_LEN, "%s:%u",
                   inspect_sctx_host_or_ip.str, inspect_thd->peer_port);
       table->field[2]->store(host, strlen(host), system_charset_info);
     }
@@ -2428,19 +2421,19 @@ static inline int show_var_cmp(const SHOW_VAR *var1, const SHOW_VAR *var2)
 }
 
 class Show_var_cmp :
-  public std::binary_function<const st_mysql_show_var &,
-                              const st_mysql_show_var &, bool>
+  public std::binary_function<const SHOW_VAR &,
+                              const SHOW_VAR &, bool>
 {
 public:
-  bool operator()(const st_mysql_show_var &var1,
-                  const st_mysql_show_var &var2)
+  bool operator()(const SHOW_VAR &var1,
+                  const SHOW_VAR &var2)
   {
     return show_var_cmp(&var1, &var2) < 0;
   }
 };
 
 
-static inline bool is_show_undef(const st_mysql_show_var &var)
+static inline bool is_show_undef(const SHOW_VAR &var)
 {
   return var.type == SHOW_UNDEF;
 }
@@ -2486,7 +2479,7 @@ int add_status_vars(const SHOW_VAR *list)
     while (list->name)
       all_status_vars.push_back(*list++);
   }
-  catch (std::bad_alloc)
+  catch (const std::bad_alloc&)
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
              static_cast<int>(sizeof(Status_var_array::value_type)));
@@ -2563,8 +2556,8 @@ void free_status_vars()
   @param[in,out]   length     filled with buffer length
 
   @return          status
-    @retval        FALSE      if variable is not found in the list
-    @retval        TRUE       if variable is found in the list
+    @retval        false      if variable is not found in the list
+    @retval        true       if variable is found in the list
 */
 
 bool get_status_var(THD *thd, SHOW_VAR *list, const char * name,
@@ -2584,10 +2577,10 @@ bool get_status_var(THD *thd, SHOW_VAR *list, const char * name,
         ((mysql_show_var_func)(list->value))(thd, &tmp, value);
 
       get_one_variable(thd, list, var_type, list->type, NULL, NULL, value, length);
-      return TRUE;
+      return true;
     }
   }
-  return FALSE;
+  return false;
 }
 
 /*
@@ -2895,7 +2888,7 @@ extern ST_SCHEMA_TABLE schema_tables[];
   When the query contain a TABLE_SCHEMA or TABLE_NAME clause,
   narrow the search for data based on the constraints given.
 */
-typedef struct st_lookup_field_values
+struct LOOKUP_FIELD_VALUES
 {
   /**
     Value of a TABLE_SCHEMA clause.
@@ -2919,7 +2912,7 @@ typedef struct st_lookup_field_values
     false when @c table_value is an '=' clause.
   */
   bool wild_table_value;
-} LOOKUP_FIELD_VALUES;
+};
 
 /*
   Store record to I_S table, convert HEAP table
@@ -2943,7 +2936,7 @@ bool schema_table_store_record(THD *thd, TABLE *table)
     Temp_table_param *param= table->pos_in_table_list->schema_table_param;
 
     if (create_ondisk_from_heap(thd, table, param->start_recinfo, 
-                                &param->recinfo, error, FALSE, NULL))
+                                &param->recinfo, error, false, NULL))
       return 1;
   }
   return 0;
@@ -2986,7 +2979,7 @@ bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error)
   Temp_table_param *param= table->pos_in_table_list->schema_table_param;
 
   return (create_ondisk_from_heap(thd, table, param->start_recinfo,
-                              &param->recinfo, error, FALSE, NULL));
+                              &param->recinfo, error, false, NULL));
 }
 
 
@@ -3081,7 +3074,7 @@ static bool get_lookup_value(THD *thd, Item_func *item_func,
                                strlen(item_field->field_name)))
     {
       thd->make_lex_string(&lookup_field_vals->db_value, tmp_str->ptr(),
-                           tmp_str->length(), FALSE);
+                           tmp_str->length(), false);
     }
     /* Lookup value is table name */
     else if (!cs->coll->strnncollsp(cs, (uchar *) field_name2,
@@ -3090,7 +3083,7 @@ static bool get_lookup_value(THD *thd, Item_func *item_func,
                                     strlen(item_field->field_name)))
     {
       thd->make_lex_string(&lookup_field_vals->table_value, tmp_str->ptr(),
-                           tmp_str->length(), FALSE);
+                           tmp_str->length(), false);
     }
   }
   return 0;
@@ -3351,7 +3344,7 @@ static int make_db_list(THD *thd, List<LEX_STRING> *files,
   LEX_STRING *i_s_name_copy= 0;
   i_s_name_copy= thd->make_lex_string(i_s_name_copy,
                                       INFORMATION_SCHEMA_NAME.str,
-                                      INFORMATION_SCHEMA_NAME.length, TRUE);
+                                      INFORMATION_SCHEMA_NAME.length, true);
   *with_i_schema= 0;
   if (lookup_field_vals->wild_db_value)
   {
@@ -3451,7 +3444,7 @@ static bool add_schema_table(THD *thd, plugin_ref plugin,
 
   if ((file_name= thd->make_lex_string(file_name, schema_table->table_name,
                                        strlen(schema_table->table_name),
-                                       TRUE)) &&
+                                       true)) &&
       !file_list->push_back(file_name))
     DBUG_RETURN(0);
   DBUG_RETURN(1);
@@ -3484,7 +3477,7 @@ static int schema_tables_add(THD *thd, List<LEX_STRING> *files,
     }
     if ((file_name= 
          thd->make_lex_string(file_name, tmp_schema_table->table_name,
-                              strlen(tmp_schema_table->table_name), TRUE)) &&
+                              strlen(tmp_schema_table->table_name), true)) &&
         !files->push_back(file_name))
       continue;
     DBUG_RETURN(1);
@@ -3513,7 +3506,7 @@ static int schema_tables_add(THD *thd, List<LEX_STRING> *files,
   @param[in]      table_names           List of table names in database
   @param[in]      lex                   pointer to LEX struct
   @param[in]      lookup_field_vals     pointer to LOOKUP_FIELD_VALUE struct
-  @param[in]      with_i_schema         TRUE means that we add I_S tables to list
+  @param[in]      with_i_schema         true means that we add I_S tables to list
   @param[in]      db_name               database name
 
   @return         Operation status
@@ -3550,7 +3543,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
       {
         if (!(name=
               thd->make_lex_string(name, schema_table->table_name,
-                                   strlen(schema_table->table_name), TRUE)) ||
+                                   strlen(schema_table->table_name), true)) ||
             table_names->push_back(name))
           return 1;
       }
@@ -3629,13 +3622,12 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
       if (!(thd->col_access & TABLE_ACLS))
       {
         TABLE_LIST table_list;
-        memset(&table_list, 0, sizeof(table_list));
         table_list.db= db_name->str;
         table_list.db_length= db_name->length;
         table_list.table_name= const_cast<char*>(name->c_str());
         table_list.table_name_length= name->length();
         table_list.grant.privilege= thd->col_access;
-        if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
+        if (check_grant(thd, TABLE_ACLS, &table_list, true, 1, true))
           continue;
       }
 
@@ -3669,8 +3661,8 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
                                     them we should not wait in case if
                                     conflicting lock is present.
   @return Operation status
-    @retval  FALSE on success
-    @retval  TRUE  fatal error
+    @retval  false on success
+    @retval  true  fatal error
 */
 static bool
 fill_schema_table_by_open(THD *thd, MEM_ROOT *mem_root, 
@@ -3727,9 +3719,9 @@ fill_schema_table_by_open(THD *thd, MEM_ROOT *mem_root,
     are passed to process_table() functions.
   */
   if (!thd->make_lex_string(&db_name_lex_cstr, orig_db_name->str,
-                            orig_db_name->length, FALSE) ||
+                            orig_db_name->length, false) ||
       !thd->make_lex_string(&table_name_lex_cstr, orig_table_name->str,
-                            orig_table_name->length, FALSE))
+                            orig_table_name->length, false))
     goto end;
 
   /*
@@ -3924,9 +3916,9 @@ static uint get_table_open_method(TABLE_LIST *tables,
    @note This function assumes that there are no other metadata lock requests
          in the current metadata locking context.
 
-   @retval FALSE  No error, if lock was obtained TABLE_LIST::mdl_request::ticket
+   @retval false  No error, if lock was obtained TABLE_LIST::mdl_request::ticket
                   is set to non-NULL value.
-   @retval TRUE   Some error occured (probably thread was killed).
+   @retval true   Some error occured (probably thread was killed).
 */
 
 bool
@@ -4042,7 +4034,7 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
     table_name.str= const_cast<char*>(lsel->table_list.first->table_name);
     table_name.length= lsel->table_list.first->table_name_length;
 
-    error= fill_schema_table_by_open(thd, &tmp_mem_root, TRUE,
+    error= fill_schema_table_by_open(thd, &tmp_mem_root, true,
                                      table, schema_table,
                                      &db_name, &table_name,
                                      &open_tables_state_backup,
@@ -4078,10 +4070,10 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 
   if (lookup_field_vals.db_value.length &&
       !lookup_field_vals.wild_db_value)
-    tables->has_db_lookup_value= TRUE;
+    tables->has_db_lookup_value= true;
   if (lookup_field_vals.table_value.length &&
       !lookup_field_vals.wild_table_value) 
-    tables->has_table_lookup_value= TRUE;
+    tables->has_table_lookup_value= true;
 
   if (tables->has_db_lookup_value && tables->has_table_lookup_value)
     partial_cond= 0;
@@ -4156,7 +4148,7 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 
           DEBUG_SYNC(thd, "before_open_in_get_all_tables");
 
-          if (fill_schema_table_by_open(thd, &tmp_mem_root, FALSE,
+          if (fill_schema_table_by_open(thd, &tmp_mem_root, false,
                                         table, schema_table,
                                         db_name, table_name,
                                         &open_tables_state_backup,
@@ -4261,7 +4253,7 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
       For non-temporary tables, EXTRA column value in I_S.columns table
       is stored as below,
 
-      IF (col.is_auto_increment=TRUE,
+      IF (col.is_auto_increment=true,
       CONCAT(IFNULL(CONCAT("on update ", col.update_option, " "),''),
       "auto_increment"),
       CONCAT("on update ", col.update_option)) AS EXTRA,
@@ -4447,14 +4439,14 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
 
       // NON_UNIQUE
       table->field[TMP_TABLE_KEYS_IS_NON_UNIQUE]->store(
-        (longlong) ((key_info->flags & HA_NOSAME) ? 0 : 1), TRUE);
+        (longlong) ((key_info->flags & HA_NOSAME) ? 0 : 1), true);
 
       // INDEX_NAME
       table->field[TMP_TABLE_KEYS_INDEX_NAME]->store(
         key_info->name, strlen(key_info->name), cs);
 
       // SEQ_IN_INDEX
-      table->field[TMP_TABLE_KEYS_SEQ_IN_INDEX]->store((longlong) (j+1), TRUE);
+      table->field[TMP_TABLE_KEYS_SEQ_IN_INDEX]->store((longlong) (j+1), true);
 
       // COLUMN_NAME
       str=(key_part->field ? key_part->field->field_name :
@@ -4478,7 +4470,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
           double records= (show_table->file->stats.records /
                            key->records_per_key(j));
           table->field[TMP_TABLE_KEYS_CARDINALITY]->store(
-            static_cast<longlong>(round(records)), TRUE);
+            static_cast<longlong>(round(records)), true);
           table->field[TMP_TABLE_KEYS_CARDINALITY]->set_notnull();
         }
       }
@@ -4521,7 +4513,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
            show_table->s->field[key_part->fieldnr-1]->key_length()))
       {
         table->field[TMP_TABLE_KEYS_SUB_PART]->store(
-          key_part->length / key_part->field->charset()->mbmaxlen, TRUE);
+          key_part->length / key_part->field->charset()->mbmaxlen, true);
         table->field[TMP_TABLE_KEYS_SUB_PART]->set_notnull();
       }
 
@@ -4561,7 +4553,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
 
 /*
   Convert a string in a given character set to a string which can be
-  used for FRM file storage in which case use_hex is TRUE and we store
+  used for FRM file storage in which case use_hex is true and we store
   the character constants as hex strings in the character set encoding
   their field have. In the case of SHOW CREATE TABLE and the
   PARTITIONS information schema table we instead provide utf8 strings
@@ -4575,12 +4567,12 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
     output_str                     Out value: The string created
     cs                             Character set string is encoded in
                                    NULL for INT_RESULT's here
-    use_hex                        TRUE => hex string created
-                                   FALSE => utf8 constant string created
+    use_hex                        true => hex string created
+                                   false => utf8 constant string created
 
   RETURN VALUES
-    TRUE                           Error
-    FALSE                          Ok
+    true                           Error
+    false                          Ok
 */
 
 int get_cs_converted_part_value_from_string(THD *thd,
@@ -4594,19 +4586,19 @@ int get_cs_converted_part_value_from_string(THD *thd,
   {
     longlong value= item->val_int();
     output_str->set(value, system_charset_info);
-    return FALSE;
+    return false;
   }
   if (!input_str)
   {
     my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
-    return TRUE;
+    return true;
   }
   get_cs_converted_string_value(thd,
                                 input_str,
                                 output_str,
                                 cs,
                                 use_hex);
-  return FALSE;
+  return false;
 }
 
 
@@ -4626,8 +4618,8 @@ static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item*)
     restore_record(table, s->default_values);
     table->field[0]->store(open_list->db, strlen(open_list->db), cs);
     table->field[1]->store(open_list->table, strlen(open_list->table), cs);
-    table->field[2]->store((longlong) open_list->in_use, TRUE);
-    table->field[3]->store((longlong) open_list->locked, TRUE);
+    table->field[2]->store((longlong) open_list->in_use, true);
+    table->field[3]->store((longlong) open_list->locked, true);
     if (schema_table_store_record(thd, table))
       DBUG_RETURN(1);
   }
@@ -4847,7 +4839,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
   my_bitmap_map* bitmaps=
     (my_bitmap_map*) thd->alloc(bitmap_buffer_size(field_count));
   bitmap_init(&table->def_read_set, bitmaps, field_count,
-              FALSE);
+              false);
   table->read_set= &table->def_read_set;
   bitmap_clear_all(table->read_set);
   table_list->schema_table_param= tmp_table_param;
@@ -5101,8 +5093,8 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
   @param qep_tab     JOIN/SELECT table.
 
   @return Error status.
-  @retval TRUE Error.
-  @retval FALSE Success.
+  @retval true Error.
+  @retval false Success.
 */
 static bool do_fill_table(THD *thd,
                           TABLE_LIST *table_list,
@@ -5180,8 +5172,8 @@ static bool do_fill_table(THD *thd,
     executed_place place where I_S table processed
 
   RETURN
-    FALSE success
-    TRUE  error
+    false success
+    true  error
 */
 
 bool get_schema_tables_result(JOIN *join,
@@ -5554,13 +5546,8 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
    fill_open_tables, make_old_format, 0, -1, -1, 1, 0},
-#ifdef OPTIMIZER_TRACE
   {"OPTIMIZER_TRACE", optimizer_trace_info, create_schema_table,
    fill_optimizer_trace_info, NULL, NULL, -1, -1, false, 0},
-#else // for alignment with enum_schema_tables
-  {"OPTIMIZER_TRACE", optimizer_trace_info, create_schema_table,
-   NULL, NULL, NULL, -1, -1, false, 0},
-#endif
   {"PLUGINS", plugin_fields_info, create_schema_table,
    fill_plugins, make_old_format, 0, -1, -1, 0, 0},
   {"PROCESSLIST", processlist_fields_info, create_schema_table,
@@ -5650,8 +5637,8 @@ int finalize_schema_table(st_plugin_int *plugin)
   @param trigger      table trigger to dump.
 
   @return Operation status
-    @retval TRUE Error.
-    @retval FALSE Success.
+    @retval true Error.
+    @retval false Success.
 */
 
 static bool show_create_trigger_impl(THD *thd, Trigger *trigger)
@@ -5868,8 +5855,8 @@ static bool acquire_mdl_for_table(THD *thd, const char *db_name,
   @param trg_name Trigger name.
 
   @return Operation status
-    @retval TRUE Error.
-    @retval FALSE Success.
+    @retval true Error.
+    @retval false Success.
 */
 
 bool show_create_trigger(THD *thd, const sp_name *trg_name)
@@ -5893,7 +5880,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   if (!lst)
     return true;
 
-  if (check_table_access(thd, TRIGGER_ACL, lst, FALSE, 1, TRUE))
+  if (check_table_access(thd, TRIGGER_ACL, lst, false, 1, true))
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "TRIGGER");
     return true;

@@ -35,7 +35,7 @@ Created 12/9/1995 Heikki Tuuri
 
 /************************************************************//**
 Gets a log block flush bit.
-@return TRUE if this block was the first to be written in a log flush */
+@return true if this block was the first to be written in a log flush */
 UNIV_INLINE
 ibool
 log_block_get_flush_bit(
@@ -74,7 +74,7 @@ log_block_set_flush_bit(
 
 /** Gets a log block encrypt bit.
 @param[in]	log_block	log block
-@return TRUE if this block was encrypted */
+@return true if this block was encrypted */
 UNIV_INLINE
 bool
 log_block_get_encrypt_bit(

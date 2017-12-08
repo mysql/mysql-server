@@ -32,7 +32,7 @@ Created 2007/5/9 Sunny Bains
 
 /******************************************************************//**
 Callback function for fetching the config value.
-@return always returns TRUE */
+@return always returns true */
 static
 ibool
 fts_config_fetch_value(
@@ -419,8 +419,8 @@ fts_config_set_ulint(
 
 	ut_a(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
 
-	value.f_len = my_snprintf(
-		(char*) value.f_str, FTS_MAX_INT_LEN, "%lu", int_value);
+	value.f_len = snprintf(
+		(char*) value.f_str, FTS_MAX_INT_LEN, ULINTPF, int_value);
 
 	error = fts_config_set_value(trx, fts_table, name, &value);
 

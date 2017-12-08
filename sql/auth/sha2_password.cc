@@ -14,24 +14,45 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>
 #include <iomanip>                      /* std::setfill(), std::setw() */
 #include <iostream>                     /* For debugging               */
-                                        /* my_validate_password_policy */
-#include <sstream>                      /* std::stringstream           */
+#include <string>
+#include <unordered_map>
+#include <utility>
 
+#include "crypt_genhash_impl.h"
+#include "lex_string.h"
+#include "m_string.h"
+#include "my_compiler.h"
 #include "my_dbug.h"                    /* DBUG instrumentation        */
 #include "my_inttypes.h"                /* typedefs                    */
+#include "my_macros.h"
+#include "mysql/components/services/psi_rwlock_bits.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/plugin.h"
+#include "mysql/plugin_audit.h"
 #include "mysql/plugin_auth.h"          /* MYSQL_SERVER_AUTH_INFO      */
 #include "mysql/plugin_auth_common.h"   /* MYSQL_PLUGIN_VIO            */
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_my_plugin_log.h"/* plugin_log_level            */
 #include "mysql/service_mysql_password_policy.h"
+#include "mysql_com.h"
 #include "rwlock_scoped_lock.h"         /* rwlock_scoped_lock          */
-#include "sql/auth/auth_internal.h"     /* Rsa_authentication_keys     */
+#include "sql/auth/auth_common.h"
 #include "sql/auth/i_sha2_password.h"   /* Internal classes            */
+#include "sql/auth/i_sha2_password_common.h"
 #include "sql/auth/sql_auth_cache.h"    /* ACL_USER                    */
 #include "sql/auth/sql_authentication.h"
 #include "sql/protocol_classic.h"       /* Protocol_classic            */
 #include "sql/sql_const.h"              /* MAX_FIELD_WIDTH             */
+#include "violite.h"
+
+class THD;
+struct SYS_VAR;
 
 #if defined(HAVE_YASSL)
 #include <openssl/ssl.h>
@@ -40,7 +61,7 @@
 char *caching_sha2_rsa_private_key_path;
 char *caching_sha2_rsa_public_key_path;
 #if !defined(HAVE_YASSL)
-bool caching_sha2_auto_generate_rsa_keys= TRUE;
+bool caching_sha2_auto_generate_rsa_keys= true;
 #endif
 Rsa_authentication_keys *g_caching_sha2_rsa_keys= 0;
 
@@ -228,9 +249,7 @@ namespace sha2_password
 
     /* Don't process the password if it is longer than maximum limit */
     if (plaintext_password.length() > CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
-    {
       DBUG_RETURN(true);
-    }
 
     /* Empty authentication string */
     if (!serialized_string.length())
@@ -680,7 +699,7 @@ namespace sha2_password
         break;
       }
       default:
-        DBUG_ASSERT(FALSE);
+        DBUG_ASSERT(false);
         DBUG_RETURN(true);
     }
     DBUG_RETURN(false);
@@ -1337,10 +1356,10 @@ compare_caching_sha2_password_with_hash(
 
   @param [in]  thd MYSQL_THD handle. Unused.
   @param [out] var Status variable structure
-  @param [in]  buff Value buffer. Unused.
+  @param [in]  buff Value buffer
 */
 static int show_caching_sha2_password_rsa_public_key(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                                     struct st_mysql_show_var *var,
+                                                     SHOW_VAR *var,
                                                      char * buff MY_ATTRIBUTE((unused)))
 {
   var->type= SHOW_CHAR;
@@ -1380,11 +1399,11 @@ static MYSQL_SYSVAR_BOOL(auto_generate_rsa_keys, caching_sha2_auto_generate_rsa_
   "Auto generate RSA keys at server startup if correpsonding "
   "system variables are not specified and key files are not present "
   "at the default location.",
-  NULL, NULL, TRUE);
+  NULL, NULL, true);
 #endif
 
 /** Array of system variables. Used in plugin declaration. */
-static struct st_mysql_sys_var* caching_sha2_password_sysvars[]= {
+static SYS_VAR* caching_sha2_password_sysvars[]= {
   MYSQL_SYSVAR(private_key_path),
   MYSQL_SYSVAR(public_key_path),
 #if !defined(HAVE_YASSL)
@@ -1394,7 +1413,7 @@ static struct st_mysql_sys_var* caching_sha2_password_sysvars[]= {
 };
 
 /** Array of status variables. Used in plugin declaration. */
-static struct st_mysql_show_var
+static SHOW_VAR
 caching_sha2_password_status_variables[]={
   {
     "Caching_sha2_password_rsa_public_key",
@@ -1407,7 +1426,6 @@ caching_sha2_password_status_variables[]={
 /**
   Handle an authentication audit event.
 
-  @param [in] thd         MySQL Thread Handle
   @param [in] event_class Event class information
   @param [in] event       Event structure
 
@@ -1415,7 +1433,7 @@ caching_sha2_password_status_variables[]={
 */
 
 static int
-sha2_cache_cleaner_notify(MYSQL_THD thd,
+sha2_cache_cleaner_notify(MYSQL_THD,
                           mysql_event_class_t event_class,
                           const void *event)
 {

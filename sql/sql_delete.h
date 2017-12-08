@@ -24,9 +24,9 @@
 #include "my_table_map.h"
 #include "sql/query_result.h" // Query_result_interceptor
 #include "sql/sql_cmd_dml.h" // Sql_cmd_dml
-#include "sql/sql_lex.h"
 
 class Item;
+class SELECT_LEX_UNIT;
 class THD;
 class Unique;
 struct TABLE;

@@ -20,29 +20,18 @@
 #include <cstdlib>
 #include <new>
 
+#include "memory_debugging.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/check_stack.h"
 #include "sql/mem_root_array.h"
 #include "sql/parse_location.h"
 #include "sql/sql_const.h"
-#include "sql/thr_malloc.h"
 
 class SELECT_LEX;
-class Sql_alloc;
 class THD;
-
-/**
-  Sql_alloc-ed version of Mem_root_array with a trivial destructor of elements
-
-  @tparam Element_type The type of the elements of the container.
-                       Elements must be copyable.
-*/
-template<typename Element_type> using Trivial_array=
-  Mem_root_array<Element_type, Sql_alloc>;
+struct MEM_ROOT;
 
 // uncachable cause
 #define UNCACHEABLE_DEPENDENT   1
@@ -246,7 +235,7 @@ public:
   */
   void error(Context *pc, const POS &pos, const char *msg) const
   {
-    pc->thd->syntax_error_at(pos, msg);
+    pc->thd->syntax_error_at(pos, "%s", msg);
   }
 
   /**
@@ -258,13 +247,18 @@ public:
     @param      format  Error message format string with optional argument list.
   */
   void errorf(Context *pc, const POS &pos, const char *format, ...) const
-  {
-    va_list args;
-    va_start(args, format);
-    pc->thd->vsyntax_error_at(pos, format, args);
-    va_end(args);
-  }
+    MY_ATTRIBUTE((format(printf, 4, 5)));
 };
+
+template<typename Context>
+inline void Parse_tree_node_tmpl<Context>::errorf
+  (Context *pc, const POS &pos, const char *format, ...) const
+{
+  va_list args;
+  va_start(args, format);
+  pc->thd->vsyntax_error_at(pos, format, args);
+  va_end(args);
+}
 
 typedef Parse_tree_node_tmpl<Parse_context> Parse_tree_node;
 

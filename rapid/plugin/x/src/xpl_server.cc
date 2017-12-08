@@ -77,7 +77,7 @@ public:
 #if defined(__APPLE__) || defined(HAVE_PTHREAD_SETNAME_NP)
     char thread_name[16];
     static int worker = 0;
-    my_snprintf(thread_name, sizeof(thread_name), "xpl_worker%i", worker++);
+    snprintf(thread_name, sizeof(thread_name), "xpl_worker%i", worker++);
 #ifdef __APPLE__
     pthread_setname_np(thread_name);
 #else

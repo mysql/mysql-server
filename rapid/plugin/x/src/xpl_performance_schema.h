@@ -21,6 +21,7 @@
 #define _XPL_PERFORMANCE_SCHEMA_H_
 
 #include <mysql/psi/mysql_memory.h>
+#include <mysql/psi/mysql_rwlock.h>
 #include <mysql/psi/mysql_socket.h>
 #include <mysql/psi/mysql_thread.h>
 

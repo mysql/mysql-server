@@ -18,6 +18,7 @@
 
 #include <sys/types.h>
 
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
@@ -25,11 +26,8 @@
 #include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/sql_list.h"                  // List
 #include "sql/sql_plugin_ref.h"            // plugin_ref
-#include "sql/thr_malloc.h"
 
 class Master_info;
 class String;
@@ -40,7 +38,6 @@ struct Binlog_storage_observer;
 struct Binlog_transmit_observer;
 struct Server_state_observer;
 struct Trans_observer;
-struct Trans_table_info;
 
 
 class Observer_info {
@@ -59,9 +56,9 @@ public:
 
   int add_observer(void *observer, st_plugin_int *plugin)
   {
-    int ret= FALSE;
+    int ret= false;
     if (!inited)
-      return TRUE;
+      return true;
     write_lock();
     Observer_info_iterator iter(observer_info_list);
     Observer_info *info= iter++;
@@ -71,19 +68,19 @@ public:
     {
       info= new Observer_info(observer, plugin);
       if (!info || observer_info_list.push_back(info, &memroot))
-        ret= TRUE;
+        ret= true;
     }
     else
-      ret= TRUE;
+      ret= true;
     unlock();
     return ret;
   }
 
   int remove_observer(void *observer)
   {
-    int ret= FALSE;
+    int ret= false;
     if (!inited)
-      return TRUE;
+      return true;
     write_lock();
     Observer_info_iterator iter(observer_info_list);
     Observer_info *info= iter++;
@@ -95,7 +92,7 @@ public:
       delete info;
     }
     else
-      ret= TRUE;
+      ret= true;
     unlock();
     return ret;
   }
@@ -114,21 +111,21 @@ public:
   inline int read_lock()
   {
     if (!inited)
-      return TRUE;
+      return true;
     return mysql_rwlock_rdlock(&lock);
   }
 
   inline int write_lock()
   {
     if (!inited)
-      return TRUE;
+      return true;
     return mysql_rwlock_wrlock(&lock);
   }
 
   inline int unlock()
   {
     if (!inited)
-      return TRUE;
+      return true;
     return mysql_rwlock_unlock(&lock);
   }
 
@@ -145,7 +142,7 @@ public:
 
   ~Delegate()
   {
-    inited= FALSE;
+    inited= false;
     mysql_rwlock_destroy(&lock);
     free_root(&memroot, MYF(0));
   }

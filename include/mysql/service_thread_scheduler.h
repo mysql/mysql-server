@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,14 +22,10 @@
   @file include/mysql/service_thread_scheduler.h
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct Connection_handler_functions;
 struct THD_event_functions;
 
-extern struct my_thread_scheduler_service {
+extern "C" struct my_thread_scheduler_service {
   int (*connection_handler_set)(struct Connection_handler_functions *,
                                 struct THD_event_functions *);
   int (*connection_handler_reset)();
@@ -81,9 +77,5 @@ int my_connection_handler_set(struct Connection_handler_functions *chf,
 int my_connection_handler_reset();
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* SERVICE_THREAD_SCHEDULER_INCLUDED */

@@ -28,6 +28,8 @@
 #include <string>
 
 #include "client/client_priv.h"
+#include "m_ctype.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -327,7 +329,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
                                     opt->name);
     break;
   case OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
+    using_opt_enable_cleartext_plugin= true;
     break;
   }
   if (error)
@@ -345,20 +347,21 @@ int main(int argc,char *argv[])
   int first_command;
   bool can_handle_passwords;
   MYSQL mysql;
-  char **commands, **save_argv, **temp_argv;
+  char **commands, **temp_argv;
 
   MY_INIT(argv[0]);
   mysql_init(&mysql);
-  my_getopt_use_args_separator= TRUE;
-  if (load_defaults("my",load_default_groups,&argc,&argv))
-   exit(1); 
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= true;
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
+  if (load_defaults("my",load_default_groups,&argc,&argv,&alloc))
+   return EXIT_FAILURE;
+  my_getopt_use_args_separator= false;
 
-  save_argv = argv;				/* Save for free_defaults */
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
   {
-    free_defaults(save_argv);
-    exit(ho_error);
+    mysql_close(&mysql);
+    my_end(my_end_arg);
+    return ho_error;
   }
 
   if (debug_info_flag)
@@ -369,7 +372,7 @@ int main(int argc,char *argv[])
   if (argc == 0)
   {
     usage();
-    exit(1);
+    return EXIT_FAILURE;
   }
 
   temp_argv= mask_password(argc, &argv);
@@ -416,7 +419,7 @@ int main(int argc,char *argv[])
 
   first_command= find_type(argv[0], &command_typelib, FIND_TYPE_BASIC);
   can_handle_passwords= first_command == ADMIN_PASSWORD ?
-    TRUE : FALSE;
+    true : false;
   mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_passwords);
 
@@ -529,7 +532,6 @@ int main(int argc,char *argv[])
 #if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
-  free_defaults(save_argv);
   temp_argc--;
   while(temp_argc >= 0)
   {
@@ -538,8 +540,7 @@ int main(int argc,char *argv[])
   }
   my_free(temp_argv);
   my_end(my_end_arg);
-  exit(error ? 1 : 0);
-  return 0;
+  return error ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
 

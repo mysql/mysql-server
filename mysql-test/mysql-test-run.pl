@@ -430,14 +430,15 @@ sub main {
   if ( $opt_report_features ) {
     # Put "report features" as the first test to run
     my $tinfo = My::Test->new
-      (
-       name           => 'report_features',
-       # No result_file => Prints result
-       path           => 'include/report-features.test',
-       template_path  => "include/default_my.cnf",
-       master_opt     => [],
-       slave_opt      => [],
-      );
+    (
+      name           => 'report_features',
+      shortname      => 'report_features',
+      # No result file, prints the output on console.
+      path           => 'include/report-features.test',
+      template_path  => "include/default_my.cnf",
+      master_opt     => [],
+      slave_opt      => [],
+    );
     unshift(@$tests, $tinfo);
   }
 
@@ -620,9 +621,12 @@ sub main {
   if ($opt_valgrind_mysqld or $opt_sanitize) {
     # Create minimalistic "test" for the reporting
     my $tinfo = My::Test->new
-      (
-       name => $opt_valgrind_mysqld ? 'valgrind_report' : 'sanitize_report',
-      );
+    (
+      name      => $opt_valgrind_mysqld ?
+                   'valgrind_report' : 'sanitize_report',
+      shortname => $opt_valgrind_mysqld ?
+                   'valgrind_report' : 'sanitize_report',
+    );
     # Set dummy worker id to align report with normal tests
     $tinfo->{worker} = 0 if $opt_parallel > 1;
     if ($valgrind_reports) {
@@ -7442,9 +7446,10 @@ sub run_ctest() {
 
   # Create minimalistic "test" for the reporting
   $tinfo = My::Test->new
-    (
-     name           => 'unit_tests',
-    );
+  (
+    name      => 'unit_tests',
+    shortname => 'unit_tests',
+  );
   # Set dummy worker id to align report with normal tests
   $tinfo->{worker} = 0 if $opt_parallel > 1;
 

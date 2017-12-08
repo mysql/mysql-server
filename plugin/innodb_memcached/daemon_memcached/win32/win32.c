@@ -278,7 +278,7 @@ int spawn_memcached(int argc, char **argv) {
     STARTUPINFO sinfo = { .cb = sizeof(sinfo) };
     PROCESS_INFORMATION pinfo;
 
-    if (CreateProcess(argv[0], buffer, NULL, NULL, FALSE,
+    if (CreateProcess(argv[0], buffer, NULL, NULL, false,
                       CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW,
                       NULL, NULL, &sinfo, &pinfo)) {
         exit(0);

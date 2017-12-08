@@ -24,26 +24,24 @@
   Temporary table handling functions.
 */
 
+#include <stddef.h>
 #include <sys/types.h>
 
 #include "my_base.h"        // ha_rows
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/item.h"       // Item
 #include "sql/mem_root_array.h"
-#include "sql/table.h"
 #include "sql/temp_table_param.h"
 
 class Create_field;
 class Field;
+class KEY;
 class SJ_TMP_TABLE;
 class THD;
+struct MI_COLUMNDEF;
+struct ORDER;
+struct TABLE;
 template <class T> class List;
-
-typedef struct st_columndef MI_COLUMNDEF;
-class KEY;
-
-typedef struct st_order ORDER;
 
 
 /*

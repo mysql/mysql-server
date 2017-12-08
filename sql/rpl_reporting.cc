@@ -15,11 +15,13 @@
 
 #include "sql/rpl_reporting.h"
 
+#include <stdio.h>
+
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
 #include "sql/log.h"
@@ -66,7 +68,7 @@ int Slave_reporting_capability::has_temporary_error(THD *thd,
 
   /*
     The slave can't be regarded as experiencing a temporary failure in cases of
-    is_fatal_error is TRUE, or if no error is in THD and error_arg is not set.
+    is_fatal_error is true, or if no error is in THD and error_arg is not set.
   */
   if (thd->is_fatal_error || (!thd->is_error() && error_arg == 0))
     DBUG_RETURN(0);
@@ -159,8 +161,8 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
   }
   curr_buff= pbuff;
   if (prefix_msg)
-    curr_buff += my_snprintf(curr_buff, pbuffsize, "%s; ", prefix_msg);
-  my_vsnprintf(curr_buff, pbuffsize - (curr_buff - pbuff), msg, args);
+    curr_buff += snprintf(curr_buff, pbuffsize, "%s; ", prefix_msg);
+  vsnprintf(curr_buff, pbuffsize - (curr_buff - pbuff), msg, args);
 
   mysql_mutex_unlock(&err_lock);
 

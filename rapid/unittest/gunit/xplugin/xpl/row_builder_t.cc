@@ -15,8 +15,8 @@
 
 
 #include <gtest/gtest.h>
-#include <mysql/service_my_snprintf.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <limits>
 #include <set>
 #include <string>

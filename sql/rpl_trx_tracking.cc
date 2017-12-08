@@ -21,12 +21,15 @@
 
 #include "binlog_event.h"
 #include "my_inttypes.h"
+#include "my_sqlcommand.h"
 #include "sql/binlog.h"
 #include "sql/current_thd.h"
 #include "sql/mysqld.h"
 #include "sql/rpl_context.h"
 #include "sql/rpl_transaction_write_set_ctx.h"
+#include "sql/sql_alter.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/system_variables.h"
 #include "sql/transaction_info.h"
 

@@ -28,6 +28,7 @@
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "my_systime.h"
 #include "mysql/psi/mysql_thread.h"
 #include "sql/mysqld.h"  // lower_case_table_names
 #include "sql/table.h"
@@ -52,7 +53,7 @@
   Indicate if the performance schema is enabled.
   This flag is set at startup, and never changes.
 */
-bool pfs_enabled = TRUE;
+bool pfs_enabled = true;
 
 /**
   PFS_INSTRUMENT option settings array

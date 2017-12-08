@@ -33,7 +33,8 @@
 extern "C" {
 #endif
 
-typedef struct st_queue {
+struct QUEUE
+{
   uchar **root;
   void *first_cmp_arg;
   uint elements;
@@ -42,7 +43,7 @@ typedef struct st_queue {
   int max_at_top;	/* Normally 1, set to -1 if queue_top gives max */
   int  (*compare)(void *, uchar *,uchar *);
   uint auto_extent;
-} QUEUE;
+};
 
 void _downheap(QUEUE *queue,uint idx);
 void queue_fix(QUEUE *queue);

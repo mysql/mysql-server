@@ -15,6 +15,8 @@
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_psi.h"
 
+#include "mysql/psi/mysql_thread.h"
+
 
 PSI_thread_key key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
                key_GCS_THD_Gcs_xcom_engine_m_engine_thread,

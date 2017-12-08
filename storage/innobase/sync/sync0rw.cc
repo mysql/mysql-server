@@ -539,7 +539,7 @@ rw_lock_x_lock_wait_func(
 
 /******************************************************************//**
 Low-level function for acquiring an exclusive lock.
-@return FALSE if did not succeed, TRUE if success. */
+@return false if did not succeed, true if success. */
 UNIV_INLINE
 ibool
 rw_lock_x_lock_low(
@@ -619,7 +619,7 @@ rw_lock_x_lock_low(
 
 /******************************************************************//**
 Low-level function for acquiring an sx lock.
-@return FALSE if did not succeed, TRUE if success. */
+@return false if did not succeed, true if success. */
 ibool
 rw_lock_sx_lock_low(
 /*================*/
@@ -1058,7 +1058,7 @@ rw_lock_remove_debug_info(
 /******************************************************************//**
 Checks if the thread has locked the rw-lock in the specified mode, with
 the pass value == 0.
-@return TRUE if locked */
+@return true if locked */
 ibool
 rw_lock_own(
 /*========*/

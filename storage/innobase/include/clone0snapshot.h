@@ -182,7 +182,7 @@ public:
 
 	/** Get maximum file length seen till now
 	@return file name length */
-	uint get_max_file_name_length()
+	size_t get_max_file_name_length()
 	{
 		return(m_max_file_name_len);
 	}
@@ -493,7 +493,7 @@ private:
 	uint		m_num_current_chunks;
 
 	/** Maximum file name length observed till now. */
-	uint		m_max_file_name_len;
+	size_t		m_max_file_name_len;
 
 	/** @name Snapshot file data */
 

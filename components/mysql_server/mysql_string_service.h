@@ -30,12 +30,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 /**
   mysql_string_itrerator structure to provide service to components
 */
-typedef struct st_string_iterator
+struct st_string_iterator
 {
   String *iterator_str;
   const char *iterator_ptr;
   int ctype;
-} string_iterator;
+};
 
 void mysql_string_services_init();
 

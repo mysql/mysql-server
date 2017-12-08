@@ -16,12 +16,12 @@
 #include "sql/dd/upgrade/global.h"
 
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "my_loglevel.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
+ #include "mysql/components/services/log_builtins.h"
 #include "sql/handler.h"
-#include "sql/log.h"                           // LogErr
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/system_variables.h"
@@ -54,7 +54,7 @@ void Check_table_intact::report_error(uint, const char *fmt, ...)
   va_list args;
   char buff[MYSQL_ERRMSG_SIZE];
   va_start(args, fmt);
-  my_vsnprintf(buff, sizeof(buff), fmt, args);
+  vsnprintf(buff, sizeof(buff), fmt, args);
   va_end(args);
 
   LogErr(ERROR_LEVEL, ER_DD_UPGRADE_TABLE_INTACT_ERROR, buff);

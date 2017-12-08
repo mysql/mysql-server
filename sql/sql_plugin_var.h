@@ -21,6 +21,7 @@
 #include <new>
 
 #include "lex_string.h"
+#include "memory_debugging.h"
 #include "my_compiler.h"
 #include "my_getopt.h"
 #include "my_inttypes.h"
@@ -30,13 +31,12 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/set_var.h"
-#include "sql/sql_servers.h"
-#include "sql/thr_malloc.h"
-#include "typelib.h"
 
 class Item;
 class THD;
-struct st_mysql_sys_var;
+struct MEM_ROOT;
+struct SYS_VAR;
+struct TYPELIB;
 struct st_plugin_int;
 
 /*
@@ -100,49 +100,49 @@ typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_double_t, double);
 /****************************************************************************
   default variable data check and update functions
 ****************************************************************************/
-int check_func_bool(THD*, st_mysql_sys_var*,
+int check_func_bool(THD*, SYS_VAR*,
                     void *save, st_mysql_value *value);
 
-int check_func_int(THD *thd, st_mysql_sys_var *var,
+int check_func_int(THD *thd, SYS_VAR *var,
                    void *save, st_mysql_value *value);
 
-int check_func_long(THD *thd, st_mysql_sys_var *var,
+int check_func_long(THD *thd, SYS_VAR *var,
                     void *save, st_mysql_value *value);
 
-int check_func_longlong(THD *thd, st_mysql_sys_var *var,
+int check_func_longlong(THD *thd, SYS_VAR *var,
                         void *save, st_mysql_value *value);
 
-int check_func_str(THD *thd, st_mysql_sys_var*,
+int check_func_str(THD *thd, SYS_VAR*,
                    void *save, st_mysql_value *value);
 
-int check_func_enum(THD*, st_mysql_sys_var *var,
+int check_func_enum(THD*, SYS_VAR *var,
                     void *save, st_mysql_value *value);
 
-int check_func_set(THD*, st_mysql_sys_var *var,
+int check_func_set(THD*, SYS_VAR *var,
                    void *save, st_mysql_value *value);
 
-int check_func_double(THD *thd, st_mysql_sys_var *var,
+int check_func_double(THD *thd, SYS_VAR *var,
                       void *save, st_mysql_value *value);
 
-void update_func_bool(THD*, st_mysql_sys_var*,
+void update_func_bool(THD*, SYS_VAR*,
                       void *tgt, const void *save);
 
-void update_func_int(THD*, st_mysql_sys_var*,
+void update_func_int(THD*, SYS_VAR*,
                      void *tgt, const void *save);
 
-void update_func_long(THD*, st_mysql_sys_var*,
+void update_func_long(THD*, SYS_VAR*,
                       void *tgt, const void *save);
 
-void update_func_longlong(THD*, st_mysql_sys_var*,
+void update_func_longlong(THD*, SYS_VAR*,
                           void *tgt, const void *save);
 
-void update_func_str(THD*, st_mysql_sys_var*,
+void update_func_str(THD*, SYS_VAR*,
                       void *tgt, const void *save);
 
-void update_func_double(THD*, st_mysql_sys_var*,
+void update_func_double(THD*, SYS_VAR*,
                         void *tgt, const void *save);
 
-SHOW_TYPE pluginvar_show_type(st_mysql_sys_var *plugin_var);
+SHOW_TYPE pluginvar_show_type(SYS_VAR *plugin_var);
 
 int item_value_type(st_mysql_value *value);
 const char *item_val_str(st_mysql_value *value, char *buffer, int *length);
@@ -151,15 +151,15 @@ int item_is_unsigned(st_mysql_value *value);
 int item_val_real(st_mysql_value *value, double *buf);
 
 void plugin_opt_set_limits(struct my_option *,
-                           const st_mysql_sys_var *);
+                           const SYS_VAR *);
 
 uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock);
 
 bool plugin_var_memalloc_global_update(THD *thd,
-                                       st_mysql_sys_var *var,
+                                       SYS_VAR *var,
                                        char **dest, const char *value);
 bool plugin_var_memalloc_session_update(THD *thd,
-                                        st_mysql_sys_var *var,
+                                        SYS_VAR *var,
                                         char **dest, const char *value);
 
 /*
@@ -186,7 +186,7 @@ st_bookmark *find_bookmark(const char *plugin, const char *name, int flags);
 /*
   skeleton of a plugin variable - portion of structure common to all.
 */
-struct st_mysql_sys_var
+struct SYS_VAR
 {
   MYSQL_PLUGIN_VAR_HEADER;
 };
@@ -207,7 +207,7 @@ class sys_var_pluginvar: public sys_var
 public:
   bool is_plugin;
   st_plugin_int *plugin;
-  st_mysql_sys_var *plugin_var;
+  SYS_VAR *plugin_var;
   /**
     variable name from whatever is hard-coded in the plugin source
     and doesn't have pluginname- prefix is replaced by an allocated name
@@ -237,7 +237,7 @@ public:
   { my_free(ptr); }
 
   sys_var_pluginvar(sys_var_chain *chain, const char *name_arg,
-                    st_mysql_sys_var *plugin_var_arg)
+                    SYS_VAR *plugin_var_arg)
     :sys_var(chain, name_arg, plugin_var_arg->comment,
              (plugin_var_arg->flags & PLUGIN_VAR_THDLOCAL ? SESSION : GLOBAL) |
              (plugin_var_arg->flags & PLUGIN_VAR_READONLY ? READONLY : 0),

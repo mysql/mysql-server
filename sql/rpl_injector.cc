@@ -171,7 +171,7 @@ int injector::transaction::use_table(server_id_type sid, table tbl)
   server_id_type save_id= m_thd->server_id;
   m_thd->set_server_id(sid);
   error= m_thd->binlog_write_table_map(tbl.get_table(),
-                                       tbl.is_transactional(), FALSE);
+                                       tbl.is_transactional(), false);
   m_thd->set_server_id(save_id);
   DBUG_RETURN(error);
 }

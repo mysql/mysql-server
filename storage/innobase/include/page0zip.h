@@ -89,7 +89,7 @@ page_zip_set_size(
 @param[in]	n_fields	number of fields in the record; ignored if
 tablespace is not compressed
 @param[in]	page_size	page size
-@return FALSE if the entire record can be stored locally on the page */
+@return false if the entire record can be stored locally on the page */
 UNIV_INLINE
 ibool
 page_zip_rec_needs_ext(
@@ -139,7 +139,7 @@ page_zip_set_alloc(
 
 /**********************************************************************//**
 Compress a page.
-@return TRUE on success, FALSE on failure; page_zip will be left
+@return true on success, false on failure; page_zip will be left
 intact on failure. */
 ibool
 page_zip_compress(
@@ -173,7 +173,7 @@ page_zip_fields_encode(
 Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
 inconsistency is detected.
-@return TRUE on success, FALSE on failure */
+@return true on success, false on failure */
 ibool
 page_zip_decompress(
 /*================*/
@@ -188,7 +188,7 @@ page_zip_decompress(
 #ifdef UNIV_ZIP_DEBUG
 /**********************************************************************//**
 Check that the compressed and decompressed pages match.
-@return TRUE if valid, FALSE if not */
+@return true if valid, false if not */
 ibool
 page_zip_validate_low(
 /*==================*/
@@ -221,7 +221,7 @@ page_zip_max_ins_size(
 
 /**********************************************************************//**
 Determine if enough space is available in the modification log.
-@return TRUE if page_zip_write_rec() will succeed */
+@return true if page_zip_write_rec() will succeed */
 UNIV_INLINE
 ibool
 page_zip_available(
@@ -410,7 +410,7 @@ IMPORTANT: if page_zip_reorganize() is invoked on a leaf page of a
 non-clustered index, the caller must update the insert buffer free
 bits in the same mini-transaction in such a way that the modification
 will be redo-logged.
-@return TRUE on success, FALSE on failure; page_zip will be left
+@return true on success, false on failure; page_zip will be left
 intact on failure, but page will be overwritten. */
 ibool
 page_zip_reorganize(

@@ -20,27 +20,24 @@
 
 #include "sql/opt_trace.h"
 
-#include <assert.h>
+#include <float.h>
 #include <stdio.h>
 #include <new>
 
+#include "lex_string.h"
 #include "m_string.h"  // _dig_vec_lower
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql/current_thd.h"
 #include "sql/enum_query_type.h"
 #include "sql/handler.h"
 #include "sql/item.h"  // Item
-#include "sql/key.h"
 #include "sql/table.h"
 #include "sql_string.h" // String
-
-#ifdef OPTIMIZER_TRACE
 
 // gcc.gnu.org/bugzilla/show_bug.cgi?id=29365
 namespace random_name_to_avoid_gcc_bug_29365 {
@@ -353,7 +350,7 @@ Opt_trace_struct& Opt_trace_struct::do_add(const char *key, double val)
 {
   DBUG_ASSERT(started);
   char buf[32];                         // 32 is enough for digits of a double
-  my_snprintf(buf, sizeof(buf), "%g", val);
+  my_gcvt(val, MY_GCVT_ARG_DOUBLE, FLT_DIG, buf, nullptr);
   DBUG_PRINT("opt", ("%s: %s", key, buf));
   stmt->add(key, buf, strlen(buf), false, false);
   return *this;
@@ -391,7 +388,7 @@ Opt_trace_struct& Opt_trace_struct::do_add(const char *key, Item *item)
 Opt_trace_struct& Opt_trace_struct::do_add(const char *key, const Cost_estimate &value)
 {
   char buf[32];                         // 32 is enough for digits of a double
-  my_snprintf(buf, sizeof(buf), "%g", value.total_cost());
+  my_gcvt(value.total_cost(), MY_GCVT_ARG_DOUBLE, FLT_DIG, buf, nullptr);
   DBUG_PRINT("opt", ("%s: %s", key, buf));
   stmt->add(key, buf, strlen(buf), false, false);
   return *this;
@@ -663,7 +660,7 @@ void Opt_trace_stmt::next_line()
 
 const char *Opt_trace_stmt::make_unknown_key()
 {
-  my_snprintf(unknown_key, sizeof(unknown_key),
+  snprintf(unknown_key, sizeof(unknown_key),
               "unknown_key_%u", ++unknown_key_count);
   return unknown_key;
 }
@@ -1361,5 +1358,3 @@ void Opt_trace_iterator::get_value(Opt_trace_info *info) const
 {
   cursor->fill_info(info);
 }
-
-#endif // OPTIMIZER_TRACE

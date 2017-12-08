@@ -55,26 +55,26 @@ public:
   static int main(MYSQL_PLUGIN p);
   static int exit(MYSQL_PLUGIN p);
 
-  template <void (Client::*method)(st_mysql_show_var *)>
-  static void session_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
+  template <void (Client::*method)(SHOW_VAR *)>
+  static void session_status_variable(THD *thd, SHOW_VAR *var, char *buff);
 
   template <typename ReturnType, ReturnType (ngs::IOptions_session::*method)() const>
-  static void session_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
+  static void session_status_variable(THD *thd, SHOW_VAR *var, char *buff);
 
   template <typename ReturnType, ReturnType (Server::*method)()>
-  static void global_status_variable_server_with_return(THD *thd, st_mysql_show_var *var, char *buff);
+  static void global_status_variable_server_with_return(THD *thd, SHOW_VAR *var, char *buff);
 
-  template <void (Server::*method)(st_mysql_show_var *)>
-  static void global_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
+  template <void (Server::*method)(SHOW_VAR *)>
+  static void global_status_variable(THD *thd, SHOW_VAR *var, char *buff);
 
   template <typename ReturnType, xpl::Global_status_variables::Variable xpl::Global_status_variables::*variable>
-  static void global_status_variable_server(THD *thd, st_mysql_show_var *var, char *buff);
+  static void global_status_variable_server(THD *thd, SHOW_VAR *var, char *buff);
 
   template <typename ReturnType, xpl::Common_status_variables::Variable xpl::Common_status_variables::*variable>
-  static void common_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
+  static void common_status_variable(THD *thd, SHOW_VAR *var, char *buff);
 
   template <typename ReturnType, ReturnType (ngs::IOptions_context::*method)()>
-  static void global_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
+  static void global_status_variable(THD *thd, SHOW_VAR *var, char *buff);
 
   ngs::Server &server() { return m_server; }
 
@@ -140,8 +140,8 @@ private:
 };
 
 
-template <void (Client::*method)(st_mysql_show_var *)>
-void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
+template <void (Client::*method)(SHOW_VAR *)>
+void Server::session_status_variable(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_UNDEF;
   var->value= buff;
@@ -159,7 +159,7 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
 
 
 template <typename ReturnType, ReturnType (ngs::IOptions_session::*method)() const>
-void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
+void Server::session_status_variable(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_UNDEF;
   var->value= buff;
@@ -179,8 +179,8 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
 }
 
 
-template <void (Server::*method)(st_mysql_show_var *)>
-void Server::global_status_variable(THD*, st_mysql_show_var *var, char *buff)
+template <void (Server::*method)(SHOW_VAR *)>
+void Server::global_status_variable(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_UNDEF;
   var->value= buff;
@@ -194,7 +194,7 @@ void Server::global_status_variable(THD*, st_mysql_show_var *var, char *buff)
 }
 
 template <typename ReturnType, ReturnType (Server::*method)()>
-void Server::global_status_variable_server_with_return(THD*, st_mysql_show_var *var, char *buff)
+void Server::global_status_variable_server_with_return(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_UNDEF;
   var->value= buff;
@@ -211,7 +211,7 @@ void Server::global_status_variable_server_with_return(THD*, st_mysql_show_var *
 
 
 template <typename ReturnType, xpl::Global_status_variables::Variable xpl::Global_status_variables::*variable>
-void Server::global_status_variable_server(THD*, st_mysql_show_var *var, char *buff)
+void Server::global_status_variable_server(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_UNDEF;
   var->value= buff;
@@ -222,7 +222,7 @@ void Server::global_status_variable_server(THD*, st_mysql_show_var *var, char *b
 
 
 template <typename ReturnType, xpl::Common_status_variables::Variable xpl::Common_status_variables::*variable>
-void Server::common_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
+void Server::common_status_variable(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type = SHOW_UNDEF;
   var->value = buff;
@@ -253,7 +253,7 @@ void Server::common_status_variable(THD *thd, st_mysql_show_var *var, char *buff
 
 
 template <typename ReturnType, ReturnType (ngs::IOptions_context::*method)()>
-void Server::global_status_variable(THD*, st_mysql_show_var *var, char *buff)
+void Server::global_status_variable(THD*, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_UNDEF;
   var->value= buff;

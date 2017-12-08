@@ -122,8 +122,8 @@ const char *group_replication_plugin_name= "group_replication";
 char *group_name_var= NULL;
 bool start_group_replication_at_boot_var= true;
 rpl_sidno group_sidno;
-bool single_primary_mode_var= FALSE;
-bool enforce_update_everywhere_checks_var= TRUE;
+bool single_primary_mode_var= false;
+bool enforce_update_everywhere_checks_var= true;
 
 /* Applier module related */
 bool known_server_reset;
@@ -299,12 +299,15 @@ int plugin_group_replication_set_retrieved_certification_info(void* info)
 }
 
 int log_message(enum plugin_log_level level, const char *format, ...)
+  MY_ATTRIBUTE((format(printf, 2, 3)));
+
+int log_message(enum plugin_log_level level, const char *format, ...)
 {
   va_list args;
   char buff[1024];
 
   va_start(args, format);
-  my_vsnprintf(buff, sizeof(buff), format, args);
+  vsnprintf(buff, sizeof(buff), format, args);
   va_end(args);
   return my_plugin_log_message(&plugin_info_ptr, level, "%s", buff);
 }
@@ -823,7 +826,7 @@ int leave_group()
       case Gcs_operations::NOW_LEAVING:
         goto bypass_message;
     }
-    log_message(log_severity, ss.str().c_str());
+    log_message(log_severity, "%s", ss.str().c_str());
 bypass_message:
     //Wait anyway
     log_message(MY_INFORMATION_LEVEL, "Going to wait for view modification");
@@ -989,7 +992,7 @@ int terminate_plugin_modules(bool flag_stop_async_channel, char **error_message)
         if (*error_message == NULL)
         {
           char err_tmp_arr[MYSQL_ERRMSG_SIZE];
-          size_t err_len= my_snprintf(err_tmp_arr, sizeof(err_tmp_arr),
+          size_t err_len= snprintf(err_tmp_arr, sizeof(err_tmp_arr),
                             "Error stopping all replication channels while"
                             " server was leaving the group. Got error: %d."
                             " Please check the  error log for more details.",
@@ -2510,7 +2513,7 @@ get_bool_value_using_type_lib(struct st_mysql_value *value,
     value->val_int(value, &value_to_check);
   }
 
-  resulting_value = value_to_check > 0 ? TRUE : FALSE;
+  resulting_value = value_to_check > 0 ? true : false;
 
   DBUG_RETURN(true);
 }
@@ -2868,21 +2871,21 @@ static MYSQL_SYSVAR_BOOL(
 static void initialize_ssl_option_map()
 {
   recovery_ssl_opt_map.clear();
-  st_mysql_sys_var* ssl_ca_var= MYSQL_SYSVAR(recovery_ssl_ca);
+  SYS_VAR* ssl_ca_var= MYSQL_SYSVAR(recovery_ssl_ca);
   recovery_ssl_opt_map[ssl_ca_var->name]= RECOVERY_SSL_CA_OPT;
-  st_mysql_sys_var* ssl_capath_var= MYSQL_SYSVAR(recovery_ssl_capath);
+  SYS_VAR* ssl_capath_var= MYSQL_SYSVAR(recovery_ssl_capath);
   recovery_ssl_opt_map[ssl_capath_var->name]= RECOVERY_SSL_CAPATH_OPT;
-  st_mysql_sys_var* ssl_cert_var= MYSQL_SYSVAR(recovery_ssl_cert);
+  SYS_VAR* ssl_cert_var= MYSQL_SYSVAR(recovery_ssl_cert);
   recovery_ssl_opt_map[ssl_cert_var->name]= RECOVERY_SSL_CERT_OPT;
-  st_mysql_sys_var* ssl_cipher_var= MYSQL_SYSVAR(recovery_ssl_cipher);
+  SYS_VAR* ssl_cipher_var= MYSQL_SYSVAR(recovery_ssl_cipher);
   recovery_ssl_opt_map[ssl_cipher_var->name]= RECOVERY_SSL_CIPHER_OPT;
-  st_mysql_sys_var* ssl_key_var= MYSQL_SYSVAR(recovery_ssl_key);
+  SYS_VAR* ssl_key_var= MYSQL_SYSVAR(recovery_ssl_key);
   recovery_ssl_opt_map[ssl_key_var->name]= RECOVERY_SSL_KEY_OPT;
-  st_mysql_sys_var* ssl_crl_var=MYSQL_SYSVAR(recovery_ssl_crl);
+  SYS_VAR* ssl_crl_var=MYSQL_SYSVAR(recovery_ssl_crl);
   recovery_ssl_opt_map[ssl_crl_var->name]= RECOVERY_SSL_CRL_OPT;
-  st_mysql_sys_var* ssl_crlpath_var=MYSQL_SYSVAR(recovery_ssl_crlpath);
+  SYS_VAR* ssl_crlpath_var=MYSQL_SYSVAR(recovery_ssl_crlpath);
   recovery_ssl_opt_map[ssl_crlpath_var->name]= RECOVERY_SSL_CRLPATH_OPT;
-  st_mysql_sys_var* public_key_path_var=MYSQL_SYSVAR(recovery_public_key_path);
+  SYS_VAR* public_key_path_var=MYSQL_SYSVAR(recovery_public_key_path);
   recovery_ssl_opt_map[public_key_path_var->name]= RECOVERY_SSL_PUBLIC_KEY_PATH_OPT;
 }
 
@@ -3033,7 +3036,7 @@ static MYSQL_SYSVAR_BOOL(
   "PRIMARY all others are SECONDARIES. Default: TRUE.",
   check_single_primary_mode,                  /* check func*/
   NULL,                                       /* update func*/
-  TRUE);                                      /* default*/
+  true);                                      /* default*/
 
 static MYSQL_SYSVAR_BOOL(
   enforce_update_everywhere_checks,           /* name */
@@ -3044,7 +3047,7 @@ static MYSQL_SYSVAR_BOOL(
   "update everywhere. Default: FALSE.",
   check_enforce_update_everywhere_checks,     /* check func*/
   NULL,                                       /* update func*/
-  FALSE);                                     /* default*/
+  false);                                     /* default*/
 
 const char* flow_control_mode_values[]= {
   "DISABLED",

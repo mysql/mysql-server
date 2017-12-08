@@ -22,7 +22,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "sql/handler.h"
 #include "sql/query_result.h"     // Query_result_interceptor
 #include "sql/sql_cmd_dml.h"      // Sql_cmd_dml
 #include "sql/sql_data_change.h"  // enum_duplicates
@@ -34,9 +33,11 @@ class Field;
 class Item;
 class SELECT_LEX_UNIT;
 class THD;
+struct HA_CREATE_INFO;
+struct handlerton;
 
 typedef List<Item> List_item;
-typedef struct st_mysql_lock MYSQL_LOCK;
+struct MYSQL_LOCK;
 
 bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                             TABLE_LIST *table_list);

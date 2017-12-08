@@ -18,6 +18,8 @@
 
 #include "sql/item_json_func.h"
 
+#include <string.h>
+
 #include <algorithm>               // std::fill
 #include <cstring>
 #include <memory>
@@ -28,20 +30,19 @@
 #include "binary_log_types.h"
 #include "m_string.h"
 #include "my_compare.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql/current_thd.h"       // current_thd
-#include "sql/histograms/value_map.h"
 #include "sql/item_cmpfunc.h"      // Item_func_like
 #include "sql/item_subselect.h"
 #include "sql/json_diff.h"
 #include "sql/json_dom.h"
 #include "sql/json_path.h"
+#include "sql/my_decimal.h"
 #include "sql/psi_memory_key.h" // key_memory_JSON
-#include "sql/session_tracker.h"
 #include "sql/sql_class.h"      // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
@@ -49,7 +50,6 @@
 #include "sql/sql_time.h"          // field_type_to_timestamp_type
 #include "sql/table.h"
 #include "template_utils.h"        // down_cast
-#include "sql_executor.h"       // Table_function_result
 
 class PT_item_list;
 
@@ -401,14 +401,12 @@ static enum_one_or_all_type parse_one_or_all(const String *candidate,
   Parse and cache a (possibly constant) oneOrAll argument.
 
   @param[in]  arg           The oneOrAll arg passed to the JSON function.
-  @param[in]  string_value  String variable to use for parsing.
   @param[in]  cached_ooa    Previous result of parsing this arg.
   @param[in]  func_name     The name of the calling JSON function.
 
   @returns ooa_one, ooa_all, ooa_null or ooa_error, based on the match
 */
 static enum_one_or_all_type parse_and_cache_ooa(Item *arg,
-                                                String *string_value,
                                                 enum_one_or_all_type *cached_ooa,
                                                 const char *func_name)
 {
@@ -422,7 +420,8 @@ static enum_one_or_all_type parse_and_cache_ooa(Item *arg,
     }
   }
 
-  String *const one_or_all= arg->val_str(string_value);
+  StringBuffer<16> buffer;  // larger than common case: three characters + '\0'
+  String *const one_or_all= arg->val_str(&buffer);
   if (!one_or_all || arg->null_value)
   {
     *cached_ooa= ooa_null;
@@ -492,7 +491,7 @@ bool Json_path_cache::parse_and_cache_path(Item ** args, uint arg_idx,
 }
 
 
-Json_path *Json_path_cache::get_path(uint arg_idx)
+const Json_path *Json_path_cache::get_path(uint arg_idx) const
 {
   const Path_cell &cell= m_arg_idx_to_vector_idx[arg_idx];
 
@@ -877,8 +876,7 @@ longlong Item_func_json_contains_path::val_int()
 
     // arg 1 is the oneOrAll flag
     bool require_all;
-    switch (parse_and_cache_ooa(args[1], &m_one_or_all_value,
-                                &m_cached_ooa, func_name()))
+    switch (parse_and_cache_ooa(args[1], &m_cached_ooa, func_name()))
     {
     case ooa_all:
       {
@@ -2009,7 +2007,7 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const
     return false;
   const auto item_func= down_cast<const Item_func*>(item);
   if (arg_count != item_func->arg_count ||
-      func_name() != item_func->func_name())
+      strcmp(func_name(), item_func->func_name()) != 0)
     return false;
 
   auto cmp= [binary_cmp](const Item *arg1, const Item *arg2)
@@ -2923,7 +2921,8 @@ bool Item_func_json_search::fix_fields(THD *thd, Item **items)
       return true;
     }
 
-    String *escape_str= orig_escape->val_str(&m_escape);
+    StringBuffer<16> buffer;  // larger than common case: one character + '\0'
+    String *escape_str= orig_escape->val_str(&buffer);
     if (thd->is_error())
       return true;
     if (escape_str)
@@ -2978,14 +2977,15 @@ typedef Prealloced_array<std::string, 16> String_set;
    @param[in] wrapper A subdocument of the original document.
    @param[in] path The path location of the subdocument
    @param[in,out] matches The evolving vector of matches.
-   @param[in,out] duplicates Set of paths found already.
+   @param[in,out] duplicates Sorted set of paths found already, which is used
+                             to avoid inserting duplicates into @a matches.
    @param[in] one_match If true, then terminate search after first match.
    @param[in] like_node The LIKE node that's evaluated on the string values.
    @param[in] source_string The input string item of the LIKE node.
    @retval false on success
    @retval true on failure
 */
-static bool find_matches(const Json_wrapper &wrapper, Json_path *path,
+static bool find_matches(const Json_wrapper &wrapper, String *path,
                          Json_dom_vector *matches, String_set *duplicates,
                          bool one_match, Item *like_node,
                          Item_string *source_string)
@@ -3006,14 +3006,8 @@ static bool find_matches(const Json_wrapper &wrapper, Json_path *path,
       if (like_node->val_int())
       {
         // Got a match with the LIKE node. Save the path of the JSON string.
-        char buff[STRING_BUFFER_USUAL_SIZE];
-        String str(buff, sizeof(buff), &my_charset_utf8mb4_bin);
-        str.length(0);
-        if (path->to_string(&str))
-          return true;                        /* purecov: inspected */
-
         std::pair<String_set::iterator, bool> res=
-          duplicates->insert_unique(std::string(str.ptr(), str.length()));
+          duplicates->insert_unique(std::string(path->ptr(), path->length()));
 
         if (res.second)
         {
@@ -3027,16 +3021,17 @@ static bool find_matches(const Json_wrapper &wrapper, Json_path *path,
 
   case enum_json_type::J_OBJECT:
     {
+      const size_t path_length= path->length();
       for (Json_wrapper_object_iterator jwot(wrapper.object_iterator());
            !jwot.empty(); jwot.next())
       {
         std::pair<const std::string, Json_wrapper> pair= jwot.elt();
-        // recurse
-        if (path->append(Json_path_leg(pair.first)) ||
+        // recurse with the member added to the path
+        if (Json_path_leg(pair.first).to_string(path) ||
             find_matches(pair.second, path, matches, duplicates, one_match,
                          like_node, source_string))
           return true;                        /* purecov: inspected */
-        path->pop();
+        path->length(path_length);  // restore the path
 
         if (one_match && !matches->empty())
         {
@@ -3048,14 +3043,15 @@ static bool find_matches(const Json_wrapper &wrapper, Json_path *path,
 
   case enum_json_type::J_ARRAY:
     {
+      const size_t path_length= path->length();
       for (size_t idx= 0; idx < wrapper.length(); idx++)
       {
-        // recurse
-        if (path->append(Json_path_leg(idx)) ||
+        // recurse with the array index added to the path
+        if (Json_path_leg(idx).to_string(path) ||
             find_matches(wrapper[idx], path, matches, duplicates, one_match,
                          like_node, source_string))
           return true;                        /* purecov: inspected */
-        path->pop();
+        path->length(path_length);  // restore the path
 
         if (one_match && !matches->empty())
         {
@@ -3082,6 +3078,12 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
 
   try
   {
+    /*
+      The "duplicates" set is used by find_matches() to track which
+      paths it has added to "matches", so that it doesn't return the
+      same path multiple times if JSON_SEARCH is called with wildcard
+      paths or multiple path arguments.
+    */
     String_set duplicates(key_memory_JSON);
     Json_wrapper docw;
 
@@ -3097,8 +3099,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
 
     // arg 1 is the oneOrAll arg
     bool one_match;
-    switch (parse_and_cache_ooa(args[1], &m_one_or_all_value,
-                                &m_cached_ooa, func_name()))
+    switch (parse_and_cache_ooa(args[1], &m_cached_ooa, func_name()))
     {
     case ooa_all:
       {
@@ -3126,10 +3127,11 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
     // arg 3 is the optional escape character
 
     // the remaining arguments are path expressions
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> path_str;
     if (arg_count < 5) // no user-supplied path expressions
     {
-      Json_path path;
-      if (find_matches(docw, &path, &matches, &duplicates, one_match,
+      path_str.append('$');
+      if (find_matches(docw, &path_str, &matches, &duplicates, one_match,
                        m_like_node, m_source_string_item))
         return error_json();            /* purecov: inspected */
     }
@@ -3157,7 +3159,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
           break;
         }
 
-        Json_path *path= m_path_cache.get_path(i);
+        const Json_path *path= m_path_cache.get_path(i);
 
         /*
           If there are wildcards in the path, then we need to
@@ -3181,11 +3183,14 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
               break;
             }
 
-            Json_path subdocument_path= subdocument->get_location();
+            path_str.length(0);
+            if (subdocument->get_location().to_string(&path_str))
+              return error_json();            /* purecov: inspected */
+
             Json_wrapper subdocument_wrapper(subdocument);
             subdocument_wrapper.set_alias();
 
-            if (find_matches(subdocument_wrapper, &subdocument_path,
+            if (find_matches(subdocument_wrapper, &path_str,
                              &matches, &duplicates, one_match,
                              m_like_node, m_source_string_item))
               return error_json();   /* purecov: inspected */
@@ -3193,21 +3198,26 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
         }
         else // no wildcards in the path
         {
+          if (one_match && (matches.size() > 0))
+            break;
+
           hits.clear();
           if (docw.seek(*path, path->leg_count(), &hits, false, false))
             return error_json();          /* purecov: inspected */
 
-          for (const Json_wrapper &subdocument_wrapper : hits)
-          {
-            if (one_match && (matches.size() > 0))
-            {
-              break;
-            }
+          if (hits.empty())
+            continue;
 
-            if (find_matches(subdocument_wrapper, path, &matches, &duplicates,
-                             one_match, m_like_node, m_source_string_item))
-              return error_json();   /* purecov: inspected */
-          } // end of loop through hits
+          DBUG_ASSERT(hits.size() == 1);   // no wildcards
+
+          path_str.length(0);
+          if (path->to_string(&path_str))
+            return error_json();              /* purecov: inspected */
+
+          if (find_matches(hits[0], &path_str, &matches, &duplicates,
+                           one_match, m_like_node, m_source_string_item))
+            return error_json();           /* purecov: inspected */
+
         }  // end if the user-supplied path expression has wildcards
       }   // end of loop through user-supplied path expressions
     }     // end if there are user-supplied path expressions

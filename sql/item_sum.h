@@ -22,6 +22,7 @@
 #include <limits.h>
 #include <math.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <utility>          // std::forward
 
@@ -36,28 +37,22 @@
 #include "my_table_map.h"
 #include "my_time.h"
 #include "my_tree.h"        // TREE
-#include "mysql/psi/mysql_statement.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
 #include "sql/enum_query_type.h"
-#include "sql/histograms/value_map.h"
 #include "sql/item.h"       // Item_result_field
-#include "sql/item_create.h"
 #include "sql/item_func.h"  // Item_int_func
 #include "sql/json_dom.h"   // Json_wrapper
 #include "sql/mem_root_array.h"
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/parse_tree_nodes.h" // PT_window
-#include "sql/session_tracker.h"
-#include "sql/sql_alloc.h"  // Sql_alloc
+#include "sql/sql_base.h"
+#include "sql/sql_const.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_parse.h"
 #include "sql/sql_udf.h"    // udf_handler
-#include "sql/system_variables.h"
-#include "sql/table.h"
 #include "sql/window.h"
 #include "sql/window_lex.h"
 #include "sql_string.h"
@@ -66,9 +61,9 @@
 class Field;
 class Item_sum;
 class PT_item_list;
-class PT_order_list;
 class THD;
 class Temp_table_param;
+struct ORDER;
 struct TABLE;
 
 /**
@@ -83,7 +78,7 @@ struct TABLE;
   fields (quick_group is false);
 */
 
-class Aggregator : public Sql_alloc
+class Aggregator
 {
   friend class Item_sum;
   friend class Item_sum_sum;
@@ -148,8 +143,6 @@ public:
   virtual bool arg_is_null(bool use_null_value) = 0;
 };
 
-
-class SELECT_LEX;
 
 /**
   Class Item_sum is the base class used for special expressions that SQL calls
@@ -730,7 +723,7 @@ protected:
   void unsupported_as_wf()
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
-    my_snprintf(buff, sizeof(buff), "%s as window function", func_name());
+    snprintf(buff, sizeof(buff), "%s as window function", func_name());
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), buff);
   }
 };
@@ -756,7 +749,7 @@ class Aggregator_distinct : public Aggregator
     expensive calculations (like walking the distinct tree for example) 
     which we must do only once if there are no data changes.
     We can re-use the data for the second and subsequent val_xxx() calls.
-    endup_done set to TRUE also means that the calculated values for
+    endup_done set to true also means that the calculated values for
     the aggregate functions are correct and don't need recalculation.
   */
   bool endup_done;
@@ -940,7 +933,7 @@ public:
     {
        maybe_null|= args[i]->maybe_null;
     }
-    null_value= FALSE;
+    null_value= false;
     return false;
   }
   double val_real() override
@@ -1053,7 +1046,7 @@ class Item_sum_count :public Item_sum_int
   bool resolve_type(THD*) override
   {
     maybe_null= false;
-    null_value= FALSE;
+    null_value= false;
     return false;
   }
   void no_rows_in_result() override { count= 0; }
@@ -1929,7 +1922,6 @@ public:
 };
 
 
-C_MODE_START
 int group_concat_key_cmp_with_distinct(const void* arg, const void* key1,
                                        const void* key2);
 int group_concat_key_cmp_with_order(const void* arg, const void* key1,
@@ -1937,7 +1929,6 @@ int group_concat_key_cmp_with_order(const void* arg, const void* key1,
 int dump_leaf_key(void* key_arg,
                   element_count count MY_ATTRIBUTE((unused)),
                   void* item_arg);
-C_MODE_END
 
 class Item_func_group_concat final : public Item_sum
 {

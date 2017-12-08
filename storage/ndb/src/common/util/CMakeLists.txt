@@ -21,14 +21,14 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/logger)
 
-# "system" does not work, ndbzio.c includes private, non-existing headers.
+# "system" does not work, ndbzio.cpp includes private, non-existing headers.
 IF(WITH_ZLIB STREQUAL "bundled")
   INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_SOURCE_DIR}/extra/zlib)
 ENDIF()
 
 ADD_DEFINITIONS(-DNO_DUMMY_DECL)
 ADD_CONVENIENCE_LIBRARY(ndbgeneral
-            ndbzio.c
+            ndbzio.cpp
             File.cpp
             basename.cpp
             md5_hash.cpp
@@ -44,18 +44,18 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
             NdbOut.cpp
             BaseString.cpp
             NdbSqlUtil.cpp
-            uucode.c
-            random.c
-            ndb_rand.c
+            uucode.cpp
+            random.cpp
+            ndb_rand.cpp
             version.cpp
-            strdup.c
+            strdup.cpp
             ConfigValues.cpp
             ndb_init.cpp
             ndb_opts.cpp
-            basestring_vsnprintf.c
+            basestring_vsnprintf.cpp
             Bitmask.cpp
 	    SparseBitmask.cpp
-            require.c
+            require.cpp
             Vector.cpp
             NdbPack.cpp
             HashMap2.cpp

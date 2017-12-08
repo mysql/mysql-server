@@ -17,7 +17,7 @@
 #ifndef SHA2_PASSWORD_INCLUDED
 #define SHA2_PASSWORD_INCLUDED
 
-#include "my_inttypes.h"
+#include <stddef.h>
 
 bool validate_sha256_scramble(const unsigned char *scramble,
                               size_t scramble_size,

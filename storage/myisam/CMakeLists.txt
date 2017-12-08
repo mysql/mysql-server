@@ -19,18 +19,31 @@ ADD_CONVENIENCE_LIBRARY(myisam_sys
   queues.cc
 )
 
-SET(MYISAM_SOURCES  ft_boolean_search.cc ft_nlq_search.cc ft_parser.c ft_static.c
+SET(MYISAM_SOURCES  ft_boolean_search.cc ft_nlq_search.cc ft_parser.cc ft_static.cc
                                 ha_myisam.cc
-				ft_stopwords.c ft_update.c mi_cache.c mi_changed.c mi_check.c
-				mi_checksum.c mi_close.c mi_create.c mi_dbug.c mi_delete.c 
-				mi_delete_all.c mi_delete_table.c mi_dynrec.c mi_extra.c mi_info.c
-				mi_key.c mi_keycache.c mi_locking.c mi_log.c mi_open.c 
-				mi_packrec.c mi_page.c mi_panic.c mi_preload.c mi_range.c mi_rename.c
-				mi_rfirst.c mi_rlast.c mi_rnext.c mi_rnext_same.c mi_rprev.c mi_rrnd.c
-				mi_rsame.c mi_rsamepos.c mi_scan.c mi_search.c mi_static.cc mi_statrec.c
-				mi_unique.c mi_update.c mi_write.c rt_index.c rt_key.c rt_mbr.c
-				rt_split.c sort.cc sp_key.c mi_extrafunc.h myisamdef.h
-				rt_index.h mi_rkey.c)
+				ft_stopwords.cc ft_update.cc mi_cache.cc mi_changed.cc mi_check.cc
+				mi_checksum.cc mi_close.cc mi_create.cc mi_dbug.cc mi_delete.cc
+				mi_delete_all.cc mi_delete_table.cc mi_dynrec.cc mi_extra.cc mi_info.cc
+				mi_key.cc mi_keycache.cc mi_locking.cc mi_log.cc mi_open.cc
+				mi_packrec.cc mi_page.cc mi_panic.cc mi_preload.cc mi_range.cc mi_rename.cc
+				mi_rfirst.cc mi_rlast.cc mi_rnext.cc mi_rnext_same.cc mi_rprev.cc mi_rrnd.cc
+				mi_rsame.cc mi_rsamepos.cc mi_scan.cc mi_search.cc mi_static.cc mi_statrec.cc
+				mi_unique.cc mi_update.cc mi_write.cc rt_index.cc rt_key.cc rt_mbr.cc
+				rt_split.cc sort.cc sp_key.cc mi_extrafunc.h myisamdef.h
+				rt_index.h mi_rkey.cc)
+
+# MyISAM relies heavily on memset/memcpy of structs, including non-POD ones.
+# As MyISAM is not maintained anymore, it is not worth fixing these,
+# so we turn off the warning instead.
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  ADD_COMPILE_FLAGS(
+    ${MYISAM_SOURCES}
+    myisam_ftdump.cc
+    myisamchk.cc
+    myisamlog.cc
+    myisampack.cc
+    COMPILE_FLAGS "-Wno-class-memaccess")
+ENDIF()
 
 MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES} 
   STORAGE_ENGINE 
@@ -43,34 +56,34 @@ ADD_DEPENDENCIES(myisam_nopfs GenError)
 TARGET_LINK_LIBRARIES(myisam_nopfs mysys myisam_sys)
 SET(MYISAM_NOPFS myisam_nopfs)
 
-MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
+MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.cc)
 TARGET_LINK_LIBRARIES(myisam_ftdump ${MYISAM_NOPFS} mysys_ssl)
 SET_TARGET_PROPERTIES(myisam_ftdump PROPERTIES LINKER_LANGUAGE CXX)
 
 MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.cc)
 TARGET_LINK_LIBRARIES(myisamchk ${MYISAM_NOPFS} mysys_ssl)
 
-MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.c)
+MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.cc)
 TARGET_LINK_LIBRARIES(myisamlog ${MYISAM_NOPFS} ${LIBSOCKET})
 
 MYSQL_ADD_EXECUTABLE(myisampack myisampack.cc)
 TARGET_LINK_LIBRARIES(myisampack ${MYISAM_NOPFS} mysys_ssl)
 
 IF(WITH_UNIT_TESTS AND FALSE)
-  MYSQL_ADD_EXECUTABLE(mi_test1 mi_test1.c SKIP_INSTALL)
+  MYSQL_ADD_EXECUTABLE(mi_test1 mi_test1.cc SKIP_INSTALL)
   TARGET_LINK_LIBRARIES(mi_test1 ${MYISAM_NOPFS} mysys_ssl)
   SET_TARGET_PROPERTIES(mi_test1 PROPERTIES LINKER_LANGUAGE CXX)
 
-  MYSQL_ADD_EXECUTABLE(mi_test2 mi_test2.c SKIP_INSTALL)
+  MYSQL_ADD_EXECUTABLE(mi_test2 mi_test2.cc SKIP_INSTALL)
   TARGET_LINK_LIBRARIES(mi_test2 myisam)
 
-  MYSQL_ADD_EXECUTABLE(mi_test3 mi_test3.c SKIP_INSTALL)
+  MYSQL_ADD_EXECUTABLE(mi_test3 mi_test3.cc SKIP_INSTALL)
   TARGET_LINK_LIBRARIES(mi_test3  myisam)
 
-  MYSQL_ADD_EXECUTABLE(sp_test sp_test.c SKIP_INSTALL)
+  MYSQL_ADD_EXECUTABLE(sp_test sp_test.cc SKIP_INSTALL)
   TARGET_LINK_LIBRARIES(sp_test myisam)
 
-  MYSQL_ADD_EXECUTABLE(rt_test rt_test.c SKIP_INSTALL)
+  MYSQL_ADD_EXECUTABLE(rt_test rt_test.cc SKIP_INSTALL)
   TARGET_LINK_LIBRARIES(rt_test myisam)
 ENDIF()
   

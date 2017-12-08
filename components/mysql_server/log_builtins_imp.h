@@ -180,10 +180,12 @@ public: /* Service Implementations */
 
   static DEFINE_METHOD(size_t,           substitutev, (char *to, size_t n,
                                                        const char *fmt,
-                                                       va_list ap));
+                                                       va_list ap))
+                       MY_ATTRIBUTE((format(printf, 3, 0)));
 
   static DEFINE_METHOD(size_t,           substitute, (char *to, size_t n,
-                                                      const char* fmt, ...));
+                                                      const char* fmt, ...))
+                       MY_ATTRIBUTE((format(printf, 3, 4)));
 };
 
 
@@ -198,7 +200,8 @@ public: /* Service Implementations */
                                            (void *thd,
                                             uint severity, uint code,
                                             char *to, size_t n,
-                                            const char *format, ...));
+                                            const char *format, ...))
+                       MY_ATTRIBUTE((format(printf, 6, 7)));
 };
 
 

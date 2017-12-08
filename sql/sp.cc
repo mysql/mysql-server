@@ -34,6 +34,7 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_sp.h"
@@ -58,7 +59,6 @@
 #include "sql/error_handler.h" // Internal_error_handler
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/key.h"        // key_copy
 #include "sql/lock.h"       // lock_object_name
 #include "sql/log.h"
 #include "sql/log_event.h"  // append_query_string
@@ -81,6 +81,7 @@
 #include "sql/sql_table.h"  // write_bin_log
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"
 #include "sql/transaction_info.h"
@@ -583,7 +584,7 @@ db_load_routine(THD *thd, enum_sp_type type, const char *sp_db,
 
     TODO: why do we force switch here?
   */
-  if (mysql_opt_change_db(thd, { sp_db, sp_db_len }, &saved_cur_db_name, TRUE,
+  if (mysql_opt_change_db(thd, { sp_db, sp_db_len }, &saved_cur_db_name, true,
                           &cur_db_changed))
   {
     ret= SP_INTERNAL_ERROR;
@@ -651,8 +652,6 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
   TABLE table;
   TABLE_SHARE share;
   Field *field;
-  memset(&table, 0, sizeof(table));
-  memset(&share, 0, sizeof(share));
   table.in_use= thd;
   table.s = &share;
   field= sp->create_result_field(0, 0, &table);
@@ -1010,7 +1009,7 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
     */
     Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
-    if (write_bin_log(thd, TRUE, thd->query().str, thd->query().length, true))
+    if (write_bin_log(thd, true, thd->query().str, thd->query().length, true))
       goto err_with_rollback;
   }
 
@@ -1411,7 +1410,7 @@ static bool show_create_routine_from_dd_routine(THD *thd,
       new Item_empty_string(col3_caption,
                             std::max<size_t>(defstr.length(), 1024U));
 
-    stmt_fld->maybe_null= TRUE;
+    stmt_fld->maybe_null= true;
 
     fields.push_back(stmt_fld);
   }
@@ -1688,8 +1687,8 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
                   or functions.
 
   @return
-    @retval FALSE Found.
-    @retval TRUE  Not found
+    @retval false Found.
+    @retval true  Not found
 */
 
 bool
@@ -1711,19 +1710,19 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
     name->init_qname(thd);
     sp_object_found= is_proc ? sp_find_routine(thd, enum_sp_type::PROCEDURE,
                                                name, &thd->sp_proc_cache,
-                                               FALSE) != NULL :
+                                               false) != NULL :
                                sp_find_routine(thd, enum_sp_type::FUNCTION,
                                                name, &thd->sp_func_cache,
-                                               FALSE) != NULL;
+                                               false) != NULL;
     thd->get_stmt_da()->reset_condition_info(thd);
     if (! sp_object_found)
     {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), is_proc ? "PROCEDURE" : "FUNCTION",
                routine->table_name);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -1754,9 +1753,9 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
     of making their copies.
 
   @retval
-    TRUE   new element was added.
+    true   new element was added.
   @retval
-    FALSE  element was not added (because it is already present in
+    false  element was not added (because it is already present in
     the set).
 */
 
@@ -1778,10 +1777,10 @@ sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
     Sroutine_hash_entry *rn=
       (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry));
     if (!rn)              // OOM. Error will be reported using fatal_error().
-      return FALSE;
+      return false;
     rn->m_key= (char *)arena->alloc(key_length);
     if (!rn->m_key)       // Ditto.
-      return FALSE;
+      return false;
     rn->m_key_length= key_length;
     rn->m_db_length= db_length;
     memcpy(rn->m_key, key, key_length);
@@ -1789,9 +1788,9 @@ sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
     prelocking_ctx->sroutines_list.link_in_list(rn, &rn->next);
     rn->belong_to_view= belong_to_view;
     rn->m_cache_version= 0;
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -2103,7 +2102,7 @@ enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
   Generates the CREATE... string from the table information.
 
   @return
-    Returns TRUE on success, FALSE on (alloc) failure.
+    Returns true on success, false on (alloc) failure.
 */
 static bool create_string(THD *thd, String *buf,
                           enum_sp_type type,
@@ -2122,7 +2121,7 @@ static bool create_string(THD *thd, String *buf,
   if (buf->alloc(100 + dblen + 1 + namelen + paramslen + returnslen + bodylen +
 		 chistics->comment.length + 10 /* length of " DEFINER= "*/ +
                  USER_HOST_BUFF_SIZE))
-    return FALSE;
+    return false;
 
   thd->variables.sql_mode= sql_mode;
   buf->append(STRING_WITH_LEN("CREATE "));
@@ -2173,7 +2172,7 @@ static bool create_string(THD *thd, String *buf,
   }
   buf->append(body, bodylen);
   thd->variables.sql_mode= old_sql_mode;
-  return TRUE;
+  return true;
 }
 
 
@@ -2641,9 +2640,9 @@ Item *sp_prepare_func_item(THD* thd, Item **it_addr)
   @param expr_item_ptr          the root item of the expression
 
   @retval
-    FALSE  on success
+    false  on success
   @retval
-    TRUE   on error
+    true   on error
 */
 bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 {

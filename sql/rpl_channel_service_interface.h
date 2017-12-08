@@ -55,7 +55,7 @@ enum enum_multi_threaded_workers_type
  SSL information to be used when creating a channel.
  It maps the SSL options present in a CHANGE MASTER.
 */
-struct st_ssl_info
+struct Channel_ssl_info
 {
   int   use_ssl;                //use SSL
   char* ssl_ca_file_name;       //SSL list of trusted certificate authorities
@@ -68,7 +68,6 @@ struct st_ssl_info
   int   ssl_verify_server_cert; //check the server's Common Name value
   char* tls_version;            //TLS version to use for SSL
 };
-typedef struct st_ssl_info Channel_ssl_info;
 
 void initialize_channel_ssl_info(Channel_ssl_info* channel_ssl_info);
 
@@ -76,7 +75,7 @@ void initialize_channel_ssl_info(Channel_ssl_info* channel_ssl_info);
  Creation information for a channel.
  It includes the data that is usually associated to a change master command
 */
-struct st_channel_info
+struct Channel_creation_info
 {
   enum_channel_type type;
   char* hostname;
@@ -97,7 +96,6 @@ struct st_channel_info
   char* public_key_path;         //RSA Public key information
   int get_public_key;            //Preference to get public key from donor if not available
 };
-typedef struct st_channel_info Channel_creation_info;
 
 void initialize_channel_creation_info(Channel_creation_info* channel_info);
 
@@ -129,14 +127,12 @@ enum enum_channel_until_condition
 /**
   Channel information to connect to a receiver
 */
-struct st_channel_connection_info
+struct Channel_connection_info
 {
   int until_condition; //base on enum_channel_until_condition
   char* gtid;          //Gtids to wait on a until condition
   char* view_id;       //The view id to wait on a until condition
 };
-
-typedef struct st_channel_connection_info Channel_connection_info;
 
 void
 initialize_channel_connection_info(Channel_connection_info* channel_info);

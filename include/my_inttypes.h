@@ -118,12 +118,6 @@ typedef unsigned long my_off_t;
 */
 typedef ptrdiff_t       my_ptrdiff_t;
 
-/* Define some general constants */
-#ifndef TRUE
-#define TRUE            (1)     /* Logical true */
-#define FALSE           (0)     /* Logical false */
-#endif
-
 typedef int             myf;    /* Type of MyFlags in my_funcs */
 
 /* Macros for converting *constants* to the right type */

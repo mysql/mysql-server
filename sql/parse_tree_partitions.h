@@ -297,11 +297,11 @@ class PT_subpartition : public Parse_tree_part_node
 {
   const POS pos;
   const char *name;
-  const Trivial_array<PT_partition_option *> *options;
+  const Mem_root_array<PT_partition_option *> *options;
 public:
   PT_subpartition(const POS &pos,
                   const char *name,
-                  Trivial_array<PT_partition_option *> *options)
+                  Mem_root_array<PT_partition_option *> *options)
   : pos(pos), name(name), options(options)
   {}
 
@@ -373,11 +373,11 @@ class PT_part_value_item_list_paren : public PT_part_values
 {
   typedef PT_part_values super;
 
-  Trivial_array<PT_part_value_item *> *values;
+  Mem_root_array<PT_part_value_item *> *values;
   const POS paren_pos;
 public:
   explicit PT_part_value_item_list_paren(
-    Trivial_array<PT_part_value_item *> *values,
+    Mem_root_array<PT_part_value_item *> *values,
     const POS &paren_pos)
   : values(values), paren_pos(paren_pos)
   {}
@@ -418,12 +418,12 @@ class PT_part_values_in_list : public PT_part_values
   typedef PT_part_values super;
 
   const POS pos;
-  Trivial_array<PT_part_value_item_list_paren *> *list;
+  Mem_root_array<PT_part_value_item_list_paren *> *list;
 
 public:
   explicit PT_part_values_in_list(
     const POS &pos,
-    Trivial_array<PT_part_value_item_list_paren *> *list)
+    Mem_root_array<PT_part_value_item_list_paren *> *list)
   : pos(pos), list(list)
   {}
 
@@ -445,8 +445,8 @@ class PT_part_definition : public Parse_tree_part_node
   partition_type type;
   PT_part_values * const opt_part_values;
   const POS values_pos;
-  Trivial_array<PT_partition_option *> *opt_part_options;
-  Trivial_array<PT_subpartition *> *opt_sub_partitions;
+  Mem_root_array<PT_partition_option *> *opt_part_options;
+  Mem_root_array<PT_subpartition *> *opt_sub_partitions;
   const POS sub_partitions_pos;
 
 public:
@@ -456,8 +456,8 @@ public:
     partition_type type,
     PT_part_values * const opt_part_values,
     const POS &values_pos,
-    Trivial_array<PT_partition_option *> *opt_part_options,
-    Trivial_array<PT_subpartition *> *opt_sub_partitions,
+    Mem_root_array<PT_partition_option *> *opt_part_options,
+    Mem_root_array<PT_subpartition *> *opt_sub_partitions,
     const POS &sub_partitions_pos)
   : pos(pos),
     name(name),
@@ -689,7 +689,7 @@ class PT_partition : public Parse_tree_node
   const uint opt_num_parts;
   PT_sub_partition * const opt_sub_part;
   const POS part_defs_pos;
-  Trivial_array<PT_part_definition *> *part_defs;
+  Mem_root_array<PT_part_definition *> *part_defs;
 
 public:
   partition_info part_info;
@@ -699,7 +699,7 @@ public:
                uint opt_num_parts,
                PT_sub_partition *opt_sub_part,
                const POS &part_defs_pos,
-               Trivial_array<PT_part_definition *> *part_defs)
+               Mem_root_array<PT_part_definition *> *part_defs)
   : part_type_def(part_type_def),
     opt_num_parts(opt_num_parts),
     opt_sub_part(opt_sub_part),

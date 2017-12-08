@@ -195,13 +195,13 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
     {
       tmp_thd= create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
       if (!tmp_thd)
-        return TRUE;
+        return true;
     }
 
     retval= acl_getroot(tmp_thd ? tmp_thd : current_thd,
                         reinterpret_cast<Security_context *> (ctx),
                         (char *) user, (char *) host, (char *) ip, db) ?
-                        TRUE : FALSE;
+                        true : false;
 
     if (tmp_thd)
     {
@@ -366,7 +366,7 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
     }
     else if (!strcmp(name, "privilege_super"))
     {
-      my_svc_bool value= *(my_svc_bool *) pvalue;
+      char value= *(char *) pvalue;
       if (value)
         ctx->set_master_access(ctx->master_access() | (SUPER_ACL));
       else
@@ -374,7 +374,7 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
     }
     else if (!strcmp(name, "privilege_execute"))
     {
-      my_svc_bool value= *(my_svc_bool *) pvalue;
+      char value= *(char *) pvalue;
       if (value)
         ctx->set_master_access(ctx->master_access() | (EXECUTE_ACL));
       else

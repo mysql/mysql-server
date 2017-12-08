@@ -55,13 +55,13 @@ using std::string;
   Struct to store a key and pointer to object
 */
 
-typedef struct st_safe_hash_entry
+struct SAFE_HASH_ENTRY
 {
   char *key;
   uint length;
   uchar *data;
-  struct st_safe_hash_entry *next, **prev;
-} SAFE_HASH_ENTRY;
+  SAFE_HASH_ENTRY *next, **prev;
+};
 
 
 struct SAFE_HASH

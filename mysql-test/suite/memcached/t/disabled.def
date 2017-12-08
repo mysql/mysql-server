@@ -8,4 +8,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-memc286_sdi_create  @solaris : Server eats up all memory 

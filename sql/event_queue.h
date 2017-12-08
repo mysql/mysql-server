@@ -37,14 +37,9 @@
 #include "mysql/components/services/psi_cond_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/psi/mysql_cond.h"
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_stage.h"
 #include "priority_queue.h"                     // Priority_queue
 #include "sql/event_data_objects.h"             // Event_queue_element
 #include "sql/event_parse_data.h"               // Event_parse_data
-#include "sql/malloc_allocator.h"               // IWYU pragma: keep
 #include "sql/malloc_allocator.h"               // IWYU pragma: keep
 
 class THD;

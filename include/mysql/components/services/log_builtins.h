@@ -24,13 +24,16 @@
 #ifndef LOG_BUILTINS_H
 #define LOG_BUILTINS_H
 
-#include <stdarg.h>
-
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
-
 #include <mysql/components/services/log_shared.h>
+#include <stdarg.h>
+
+#include "my_compiler.h"
+#ifdef MYSQL_SERVER
+#include "sql/log.h"
+#endif
 
 
 /**
@@ -598,22 +601,25 @@ BEGIN_SERVICE_DEFINITION(log_builtins_string)
 
 
   /**
-    Wrapper for my_vsnprintf()
-    Replace all % in format string with variables from list
+    Wrapper for std::snprintf()
+    Replace all % in format string with variables from list.
+    Do not use in new code; use std::snprintf() instead.
 
     @param  to    buffer to write the result to
     @param  n     size of that buffer
     @param  fmt   format string
     @param  ap    va_list with valuables for all substitutions in format string
 
-    @retval       return value of my_vsnprintf
+    @retval       return value of snprintf
   */
   DECLARE_METHOD(size_t,           substitutev, (char *to, size_t n,
-                                                 const char *fmt, va_list ap));
+                                                 const char *fmt, va_list ap))
+    MY_ATTRIBUTE((format(printf, 3, 0)));
 
-  // replace all % in format string with variables from list (my_snprintf())
+  // replace all % in format string with variables from list (std::snprintf())
   DECLARE_METHOD(size_t,           substitute, (char *to, size_t n,
-                                                const char* fmt, ...));
+                                                const char* fmt, ...))
+    MY_ATTRIBUTE((format(printf, 3, 4)));
 
 END_SERVICE_DEFINITION(log_builtins_string)
 
@@ -628,7 +634,8 @@ BEGIN_SERVICE_DEFINITION(log_builtins_tmp)
                                            (void *thd,
                                             uint severity, uint code,
                                             char *to, size_t n,
-                                            const char *format, ...));
+                                            const char *format, ...))
+                       MY_ATTRIBUTE((format(printf, 6, 7)));
 END_SERVICE_DEFINITION(log_builtins_tmp)
 
 
@@ -667,9 +674,12 @@ extern SERVICE_TYPE(log_builtins_string) *log_bs;
 #      define error_msg_by_errcode        log_bi->errmsg_by_errcode
 #      define error_code_by_errsymbol     log_bi->errcode_by_errsymbol
 #    else
+
+#include "sql/derror.h"
+
 #      define log_malloc(s)               my_malloc(0, (s), MYF(0))
 #      define log_free                    my_free
-#      define log_msg                     my_vsnprintf
+#      define log_msg                     vsnprintf
 #      define error_msg_by_errcode        get_server_errmsgs
 #      define error_code_by_errsymbol     mysql_symbol_to_errno
 #      define log_set_int                 log_item_set_int
@@ -729,14 +739,7 @@ private:
     @param  ap   va_list of the arguments for % substitution.
   */
   void set_message(const char *fmt, va_list ap)
-  {
-    if ((ll != nullptr) && (msg != nullptr))
-    {
-      size_t         len=    log_msg(msg, LOG_BUFF_MAX - 1, fmt, ap);
-      log_set_lexstring(log_line_item_set(this->ll, LOG_ITEM_LOG_MESSAGE),
-                        msg, len);
-    }
-  }
+    MY_ATTRIBUTE((format(printf, 2, 0)));
 
   /**
     Set the error message (by MySQL error code).
@@ -747,16 +750,7 @@ private:
     @param  errcode  MySQL error code to fetch the message string for
     @param  ap       va_list of the arguments for % substitution.
   */
-  void set_message_by_errcode(longlong errcode, va_list ap)
-  {
-    const char *fmt= error_msg_by_errcode((int) errcode);
-
-    if ((fmt == nullptr) || (*fmt == '\0'))
-      fmt= "invalid error code";
-
-    set_errcode(errcode);
-    set_message(fmt, ap);
-  }
+  void set_message_by_errcode(longlong errcode, va_list ap);
 
 public:
 
@@ -1115,14 +1109,7 @@ public:
     @retval      the LogEvent, for easy fluent-style chaining.
   */
   LogEvent &message(const char *fmt, ...)
-  {
-    va_list args;
-    va_start(args, fmt);
-    set_message(fmt, args);
-    va_end(args);
-
-    return *this;
-  }
+    MY_ATTRIBUTE((format(printf, 2, 3)));
 
   /**
     Find an error message by its MySQL error code.
@@ -1214,6 +1201,37 @@ public:
     return *this;
   }
 };
+
+inline void LogEvent::set_message_by_errcode(longlong errcode, va_list ap)
+{
+  const char *fmt= error_msg_by_errcode((int) errcode);
+
+  if ((fmt == nullptr) || (*fmt == '\0'))
+    fmt= "invalid error code";
+
+  set_errcode(errcode);
+  set_message(fmt, ap);
+}
+
+inline void LogEvent::set_message(const char *fmt, va_list ap)
+{
+  if ((ll != nullptr) && (msg != nullptr))
+  {
+    size_t         len=    log_msg(msg, LOG_BUFF_MAX - 1, fmt, ap);
+    log_set_lexstring(log_line_item_set(this->ll, LOG_ITEM_LOG_MESSAGE),
+                      msg, len);
+  }
+}
+
+inline LogEvent &LogEvent::message(const char *fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  set_message(fmt, args);
+  va_end(args);
+
+  return *this;
+}
 
 #  endif
 

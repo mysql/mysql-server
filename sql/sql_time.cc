@@ -30,14 +30,11 @@
 #include "my_macros.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
 #include "sql/field.h"
-#include "sql/histograms/value_map.h"
 #include "sql/item_timefunc.h" // INTERNAL_FORMAT
 #include "sql/my_decimal.h"
-#include "sql/session_tracker.h"
 #include "sql/sql_class.h" // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
 #include "sql/sql_const.h"
 #include "sql/system_variables.h"
@@ -376,7 +373,7 @@ bool time_add_nanoseconds_with_truncate(MYSQL_TIME *ltime,
     ltime->second_part= nanoseconds/1000;
 
   adjust_time_range(ltime, warnings);
-  return FALSE;
+  return false;
 }
 
 /**
@@ -397,7 +394,7 @@ bool datetime_add_nanoseconds_with_truncate(MYSQL_TIME *ltime,
   */
   if (ltime->second_part == 0)
     ltime->second_part= nanoseconds/1000;
-  return FALSE;
+  return false;
 }
 
 /**

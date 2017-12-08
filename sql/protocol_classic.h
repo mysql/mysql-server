@@ -20,27 +20,24 @@
 #include <sys/types.h>
 
 #include "binary_log_types.h"
+#include "m_ctype.h"
 #include "my_command.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "sql/my_decimal.h"
 #include "sql/protocol.h"        // Protocol
-#include "sql_string.h"
 #include "violite.h"
 
+class Item_param;
 class Proto_field;
 class Send_field;
+class String;
+class i_string;
 class my_decimal;
+template <class T> class I_List;
 template <class T> class List;
 union COM_DATA;
-
-typedef struct st_mysql_field MYSQL_FIELD;
-class Item_param;
-class i_string;
-template <class T> class I_List;
 
 #ifdef __cplusplus
 class THD;

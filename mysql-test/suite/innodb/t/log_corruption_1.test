@@ -1,7 +1,7 @@
 # This test case tests if we handle the corrupted redo logs for dynamic metadata
 # of tables(corrupted index bit in this case) correctly.
 # Since we save the data and log files in advance, anything that will modify
-# the redo logs( or data file) might make it fail. If it fails, we can do
+# the redo logs (or data file) might make it fail. If it fails, we can do
 # as follow to re-generate the log_corruption_1.zip for it
 # 1. In CorruptedIndexPersister::write(), force it to write a bigger number,
 #    such as 100 for the number of corrupted index

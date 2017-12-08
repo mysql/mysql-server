@@ -34,7 +34,12 @@ ENDMACRO()
 
 # Common warning flags for GCC, G++, Clang and Clang++
 SET(MY_WARNING_FLAGS
-    "-Wall -Wextra -Wformat-security -Wvla -Wmissing-format-attribute -Wundef")
+    "-Wall -Wextra -Wformat-security -Wvla -Wundef")
+
+# Gives spurious warnings on 32-bit; see GCC bug 81890.
+IF(SIZEOF_VOIDP EQUAL 8)
+  SET(MY_WARNING_FLAGS "${MY_WARNING_FLAGS} -Wmissing-format-attribute")
+ENDIF()
 
 # Common warning flags for GCC and Clang
 SET(MY_C_WARNING_FLAGS
@@ -106,7 +111,7 @@ ENDIF()
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Disable a few default Clang++ warnings
   SET(MY_CXX_WARNING_FLAGS
-      "${MY_CXX_WARNING_FLAGS} -Wno-null-conversion -Wno-unused-private-field")
+      "${MY_CXX_WARNING_FLAGS} -Wno-null-conversion -Wno-unused-private-field -Wno-string-plus-int")
 
   SET(MY_CXX_WARNING_FLAGS
       "${MY_CXX_WARNING_FLAGS} -Wconditional-uninitialized")

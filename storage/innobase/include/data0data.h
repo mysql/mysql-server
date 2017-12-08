@@ -203,7 +203,7 @@ dfield_dup(
 Tests if two data fields are equal.
 If len==0, tests the data length and content for equality.
 If len>0, tests the first len bytes of the content for equality.
-@return TRUE if both fields are NULL or if they are equal */
+@return true if both fields are NULL or if they are equal */
 UNIV_INLINE
 ibool
 dfield_datas_are_binary_equal(
@@ -215,7 +215,7 @@ dfield_datas_are_binary_equal(
 	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Tests if dfield data length and content is equal to the given.
-@return TRUE if equal */
+@return true if equal */
 UNIV_INLINE
 ibool
 dfield_data_is_binary_equal(
@@ -455,7 +455,7 @@ dtuple_set_types_binary(
 
 /**********************************************************************//**
 Checks if a dtuple contains an SQL null value.
-@return TRUE if some field is SQL null */
+@return true if some field is SQL null */
 UNIV_INLINE
 ibool
 dtuple_contains_null(
@@ -464,7 +464,7 @@ dtuple_contains_null(
 	MY_ATTRIBUTE((warn_unused_result));
 /**********************************************************//**
 Checks that a data field is typed. Asserts an error if not.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dfield_check_typed(
 /*===============*/
@@ -472,7 +472,7 @@ dfield_check_typed(
 	MY_ATTRIBUTE((warn_unused_result));
 /**********************************************************//**
 Checks that a data tuple is typed. Asserts an error if not.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dtuple_check_typed(
 /*===============*/
@@ -482,7 +482,7 @@ dtuple_check_typed(
 /**********************************************************//**
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dtuple_validate(
 /*============*/
@@ -582,14 +582,6 @@ struct dfield_t{
 	unsigned	len;	/*!< data length; UNIV_SQL_NULL if SQL null */
 	dtype_t		type;	/*!< type of data */
 
-	dfield_t()
-	:
-	data(nullptr),
-	ext(FALSE),
-	spatial_status(SPATIAL_UNKNOWN),
-	len(0)
-	{}
-
 	void reset()
 	{
 		data = nullptr;
@@ -605,6 +597,13 @@ struct dfield_t{
 	dfield_t* clone(mem_heap_t* heap);
 
 	byte*	blobref() const;
+
+	dfield_t()
+	  : data(nullptr),
+	    ext(0),
+	    spatial_status(0),
+	    len(0),
+	    type({0, 0, 0, 0}) {}
 
 	/** Print the dfield_t object into the given output stream.
 	@param[in]	out	the output stream.

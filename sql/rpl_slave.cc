@@ -28,7 +28,6 @@
 
 #include "my_config.h"
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
@@ -37,14 +36,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/status_var.h"
 #include "sql/rpl_channel_service_interface.h"
-#include "sql/thr_malloc.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -80,11 +80,9 @@
 #include "my_systime.h"
 #include "my_thread_local.h"                   // thread_local_key_t
 #include "mysql.h"                             // MYSQL
-#include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
@@ -141,6 +139,9 @@
 #include "sql_string.h"
 #include "typelib.h"
 #include "sql/sql_backup_lock.h"               // is_instance_backup_locked
+
+struct mysql_cond_t;
+struct mysql_mutex_t;
 
 using std::min;
 using std::max;
@@ -1210,7 +1211,7 @@ static inline int fill_mts_gaps_and_recover(Master_info* mi)
   DBUG_ENTER("fill_mts_gaps_and_recover");
   Relay_log_info *rli= mi->rli;
   int recovery_error= 0;
-  rli->is_relay_log_recovery= FALSE;
+  rli->is_relay_log_recovery= false;
   Until_mts_gap *until_mg= new Until_mts_gap(rli);
   rli->set_until_option(until_mg);
   rli->until_condition= Relay_log_info::UNTIL_SQL_AFTER_MTS_GAPS;
@@ -1745,7 +1746,7 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
     /*
       Flushes the relay log info regardles of the sync_relay_log_info option.
     */
-    if (mi->rli->flush_info(TRUE))
+    if (mi->rli->flush_info(true))
     {
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
     }
@@ -1827,7 +1828,7 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
     /*
       Flushes the master info regardles of the sync_master_info option.
     */
-    if (mi->flush_info(TRUE))
+    if (mi->flush_info(true))
     {
       mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
@@ -2088,7 +2089,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
   bool is_error= 0;
   DBUG_ENTER("start_slave_threads");
   DBUG_EXECUTE_IF("uninitialized_master-info_structure",
-                   mi->inited= FALSE;);
+                   mi->inited= false;);
 
   if (!mi->inited || !mi->rli->inited)
   {
@@ -2292,12 +2293,12 @@ static bool io_slave_killed(THD* thd, Master_info* mi)
    @param thd   pointer to a THD instance
    @param rli   pointer to Relay_log_info instance
 
-   @return TRUE the killed status is recognized, FALSE a possible killed
+   @return true the killed status is recognized, false a possible killed
            status is deferred.
 */
 bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 {
-  bool is_parallel_warn= FALSE;
+  bool is_parallel_warn= false;
 
   DBUG_ENTER("sql_slave_killed");
 
@@ -2360,11 +2361,11 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
         rli->sql_thread_kill_accepted= difftime(my_time(0),
                                                rli->last_event_start_time) <=
                                                SLAVE_WAIT_GROUP_DONE ?
-                                               FALSE : TRUE;
+                                               false : true;
 
         DBUG_EXECUTE_IF("stop_slave_middle_group",
                         DBUG_EXECUTE_IF("incomplete_group_in_relay_log",
-                                        rli->sql_thread_kill_accepted= TRUE;);); // time is over
+                                        rli->sql_thread_kill_accepted= true;);); // time is over
 
         if (!rli->sql_thread_kill_accepted && !rli->reported_unsafe_warning)
         {
@@ -2428,8 +2429,8 @@ const char *print_slave_db_safe(const char* db)
   Check if the error is caused by network.
   @param[in]   errorno   Number of the error.
   RETURNS:
-  TRUE         network error
-  FALSE        not network error
+  true         network error
+  false        not network error
 */
 
 static bool is_network_error(uint errorno)
@@ -3377,7 +3378,7 @@ static int register_slave_on_master(MYSQL* mysql, Master_info *mi,
   size_t report_host_len=0, report_user_len=0, report_password_len=0;
   DBUG_ENTER("register_slave_on_master");
 
-  *suppress_warnings= FALSE;
+  *suppress_warnings= false;
   if (report_host)
     report_host_len= strlen(report_host);
   if (report_host_len > HOSTNAME_LENGTH)
@@ -3425,12 +3426,12 @@ static int register_slave_on_master(MYSQL* mysql, Master_info *mi,
   {
     if (mysql_errno(mysql) == ER_NET_READ_INTERRUPTED)
     {
-      *suppress_warnings= TRUE;                 // Suppress reconnect warning
+      *suppress_warnings= true;                 // Suppress reconnect warning
     }
     else if (!check_io_slave_killed(mi->info_thd, mi, NULL))
     {
       char buf[256];
-      my_snprintf(buf, sizeof(buf), "%s (Errno: %d)", mysql_error(mysql), 
+      snprintf(buf, sizeof(buf), "%s (Errno: %d)", mysql_error(mysql), 
                   mysql_errno(mysql));
       mi->report(ERROR_LEVEL, ER_SLAVE_MASTER_COM_FAILURE,
                  ER_THD(current_thd, ER_SLAVE_MASTER_COM_FAILURE),
@@ -3998,8 +3999,8 @@ err:
 
   @param mi Pointer to Master_info object for the IO thread.
 
-  @retval FALSE success
-  @retval TRUE failure
+  @retval false success
+  @retval true failure
 
   Currently, show slave status works for a channel too, in multisource
   replication. But using performance schema tables is better.
@@ -4415,7 +4416,7 @@ static int request_dump(THD *thd, MYSQL* mysql, MYSQL_RPL *rpl,
   @param mysql               MySQL connection.
   @param rpl                 Replication stream information.
   @param mi                  Master connection information.
-  @param suppress_warnings   TRUE when a normal net read timeout has caused us
+  @param suppress_warnings   true when a normal net read timeout has caused us
                              to try a reconnect. We do not want to print
                              anything to the error log in this case because
                              this an abnormal event in an idle server.
@@ -4429,7 +4430,7 @@ static ulong read_event(MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
 {
   DBUG_ENTER("read_event");
 
-  *suppress_warnings= FALSE;
+  *suppress_warnings= false;
   /*
     my_real_read() will time us out
     We check if we were told to die, and if not, try reading again
@@ -4448,7 +4449,7 @@ static ulong read_event(MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
         we suppress prints to .err file as long as the reconnect
         happens without problems
       */
-      *suppress_warnings= TRUE;
+      *suppress_warnings= true;
     }
     else if (!mi->abort_slave)
     {
@@ -4647,7 +4648,7 @@ static enum enum_slave_apply_event_and_update_pos_retval
 apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
 {
   int exec_res= 0;
-  bool skip_event= FALSE;
+  bool skip_event= false;
   Log_event *ev= *ptr_ev;
   Log_event::enum_skip_reason reason= Log_event::EVENT_SKIP_NOT;
 
@@ -4715,7 +4716,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
   if (reason == Log_event::EVENT_SKIP_COUNT)
   {
     --rli->slave_skip_counter;
-    skip_event= TRUE;
+    skip_event= true;
   }
   set_timespec_nsec(&rli->ts_exec[0], 0);
   rli->stats_read_time += diff_timespec(&rli->ts_exec[0], &rli->ts_exec[1]);
@@ -5416,9 +5417,9 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
     if (info)
       LogErr(INFORMATION_LEVEL, ER_RPL_IO_THREAD_KILLED, info,
              mi->get_for_channel_str());
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
 /**
@@ -5429,7 +5430,7 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
   @c safe_reconnect(). Variable pointed by @c retry_count is increased -
   if it exceeds @c mi->retry_count then connection is not re-established
   and function signals error.
-  Unless @c suppres_warnings is TRUE, a warning is put in the server error log
+  Unless @c suppres_warnings is true, a warning is put in the server error log
   when reconnecting. The warning message and messages used to report errors
   are taken from @c messages array. In case @c mi->retry_count is exceeded,
   no messages are added to the log.
@@ -5438,7 +5439,7 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
   @param[in]     mysql               MySQL connection.
   @param[in]     mi                  Master connection information.
   @param[in,out] retry_count         Number of attempts to reconnect.
-  @param[in]     suppress_warnings   TRUE when a normal net read timeout 
+  @param[in]     suppress_warnings   true when a normal net read timeout 
                                      has caused to reconnecting.
   @param[in]     messages            Messages to print/log, see 
                                      reconnect_messages[] array.
@@ -5474,8 +5475,8 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
     if (messages[SLAVE_RECON_MSG_COMMAND][0])
     {
       char buf[256];
-      my_snprintf(buf, sizeof(buf), messages[SLAVE_RECON_MSG_FAILED],
-                  mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(),
+      snprintf(buf, sizeof(buf), messages[SLAVE_RECON_MSG_FAILED],
+               mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(),
                                                    llbuff));
 
       mi->report(WARNING_LEVEL, ER_SLAVE_MASTER_COM_FAILURE,
@@ -5665,7 +5666,7 @@ connected:
     if (check_io_slave_killed(mi->info_thd, mi, "Slave I/O thread killed "
                               "while calling get_master_version_and_clock(...)"))
       goto err;
-    suppress_warnings= FALSE;
+    suppress_warnings= false;
     /* Try to reconnect because the error was caused by a transient network problem */
     if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
                              reconnect_messages[SLAVE_RECON_ACT_REG]))
@@ -6083,7 +6084,8 @@ int check_temp_dir(char* tmp_file, const char *channel_name)
     Check permissions to create a file.
    */
   //append the server UUID to the temp file name.
-  uint size_of_tmp_file_name= FN_REFLEN+TEMP_FILE_MAX_LEN * sizeof(char);
+  constexpr uint size_of_tmp_file_name= 768;
+  static_assert(size_of_tmp_file_name >= FN_REFLEN + TEMP_FILE_MAX_LEN, "");
   char *unique_tmp_file_name= (char*)my_malloc(key_memory_rpl_slave_check_temp_dir,
                                                size_of_tmp_file_name, MYF(0));
   /*
@@ -6094,7 +6096,7 @@ int check_temp_dir(char* tmp_file, const char *channel_name)
   */
 
   /* @TODO: dangerous. Prevent this buffer flow */
-  my_snprintf(unique_tmp_file_name, size_of_tmp_file_name,
+  snprintf(unique_tmp_file_name, size_of_tmp_file_name,
               "%s%s%s", tmp_file, channel_name, server_uuid);
   if ((fd= mysql_file_create(key_file_misc,
                              unique_tmp_file_name, CREATE_MODE,
@@ -6310,7 +6312,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
   Log_event *ev= NULL;
   bool is_error= false;
   const char *errmsg= NULL;
-  bool flag_group_seen_begin= FALSE;
+  bool flag_group_seen_begin= false;
   uint recovery_group_cnt= 0;
   bool not_reached_commit= true;
 
@@ -6450,7 +6452,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
 
   if (!above_lwm_jobs.empty())
   {
-    bitmap_init(groups, NULL, MTS_MAX_BITS_IN_GROUP, FALSE);
+    bitmap_init(groups, NULL, MTS_MAX_BITS_IN_GROUP, false);
     rli->recovery_groups_inited= true;
     bitmap_clear_all(groups);
   }
@@ -6461,7 +6463,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
     Slave_worker *w= jg->worker;
     LOG_POS_COORD w_last= { const_cast<char*>(w->get_group_master_log_name()),
                             w->get_group_master_log_pos() };
-    bool checksum_detected= FALSE;
+    bool checksum_detected= false;
 
     LogErr(INFORMATION_LEVEL,
            ER_RPL_MTS_GROUP_RECOVERY_RELAY_LOG_INFO_FOR_WORKER,
@@ -6501,7 +6503,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
           {
             p_fdle->common_footer->checksum_alg=
                                    ev->common_footer->checksum_alg;
-            checksum_detected= TRUE;
+            checksum_detected= true;
           }
           delete ev;
           i++;
@@ -6629,17 +6631,17 @@ end:
    @param rli            pointer to Relay-log-info of Coordinator
    @param period         period of processing GAQ, normally derived from
                          @c mts_checkpoint_period
-   @param force          if TRUE then hang in a loop till some progress
+   @param force          if true then hang in a loop till some progress
    @param need_data_lock False if rli->data_lock mutex is aquired by
                          the caller.
 
-   @return FALSE success, TRUE otherwise
+   @return false success, true otherwise
 */
 bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
                             bool force, bool need_data_lock)
 {
   ulong cnt;
-  bool error= FALSE;
+  bool error= false;
   struct timespec curr_clock;
 
   DBUG_ENTER("checkpoint_routine");
@@ -6648,7 +6650,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
   {
     if (!rli->gaq->count_done(rli))
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(false);
   }
 #endif
 
@@ -6676,7 +6678,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
       We do not need to execute the checkpoint now because
       the time elapsed is not enough.
     */
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
  do
@@ -6762,7 +6764,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
          waiter: set wait_flag; waits....; drops wait_flag;
   */
 
-  error= rli->flush_info(TRUE);
+  error= rli->flush_info(true);
 
   mysql_cond_broadcast(&rli->data_cond);
   if (need_data_lock)
@@ -6920,11 +6922,11 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   rli->mts_wq_underrun_w_id= MTS_WORKER_UNDEF;
   rli->mts_wq_excess_cnt= 0;
   rli->mts_wq_overrun_cnt= 0;
-  rli->mts_wq_oversize= FALSE;
+  rli->mts_wq_oversize= false;
   rli->mts_coordinator_basic_nap= mts_coordinator_basic_nap;
   rli->mts_worker_underrun_level= mts_worker_underrun_level;
   rli->curr_group_seen_begin= rli->curr_group_seen_gtid= false;
-  rli->curr_group_isolated= FALSE;
+  rli->curr_group_isolated= false;
   rli->checkpoint_seqno= 0;
   rli->mts_last_online_stat= my_time(0);
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
@@ -6961,7 +6963,7 @@ end:
     if ((error= rli->mts_finalize_recovery()))
       (void) Rpl_info_factory::reset_workers(rli);
     if (!error)
-      error= rli->flush_info(TRUE);
+      error= rli->flush_info(true);
   }
 
 err:
@@ -8378,7 +8380,7 @@ end:
   purposes.
 */
 
-extern "C" void slave_io_thread_detach_vio()
+void slave_io_thread_detach_vio()
 {
   THD *thd= current_thd;
   if (thd && thd->slave_thread)
@@ -9327,7 +9329,7 @@ bool flush_relay_logs_cmd(THD *thd)
    has a certain bug.
    @param rli Relay_log_info which tells the master's version
    @param bug_id Number of the bug as found in bugs.mysql.com
-   @param report bool report error message, default TRUE
+   @param report bool report error message, default true
 
    @param pred Predicate function that will be called with @c param to
    check for the bug. If the function return @c true, the bug is present,
@@ -9335,7 +9337,7 @@ bool flush_relay_logs_cmd(THD *thd)
 
    @param param  State passed to @c pred function.
 
-   @return TRUE if master has the bug, FALSE if it does not.
+   @return true if master has the bug, false if it does not.
 */
 bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
                         bool (*pred)(const void *), const void *param)
@@ -9369,7 +9371,7 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
         (pred == NULL || (*pred)(param)))
     {
       if (!report)
-	return TRUE;
+	return true;
       // a short message for SHOW SLAVE STATUS (message length constraints)
       my_printf_error(ER_UNKNOWN_ERROR, "master may suffer from"
                       " http://bugs.mysql.com/bug.php?id=%u"
@@ -9407,10 +9409,10 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
                     rli->get_rli_description_event()->server_version,
                     bug_id,
                     fixed_in[0], fixed_in[1], fixed_in[2]);
-      return TRUE;
+      return true;
     }
   }
-  return FALSE;
+  return false;
 }
 
 /**
@@ -9429,10 +9431,10 @@ bool rpl_master_erroneous_autoinc(THD *thd)
   {
     Relay_log_info *c_rli= thd->rli_slave->get_c_rli();
 
-    DBUG_EXECUTE_IF("simulate_bug33029", return TRUE;);
-    return rpl_master_has_bug(c_rli, 33029, FALSE, NULL, NULL);
+    DBUG_EXECUTE_IF("simulate_bug33029", return true;);
+    return rpl_master_has_bug(c_rli, 33029, false, NULL, NULL);
   }
-  return FALSE;
+  return false;
 }
 
 /**
@@ -10945,10 +10947,10 @@ err:
    @param  lex_mi structure that holds all change master options given on
            the change master command.
 
-   @retval TRUE - The CHANGE MASTER is updating a unsupported parameter for the
+   @retval true - The CHANGE MASTER is updating a unsupported parameter for the
                   recovery channel.
 
-   @retval FALSE - Everything is fine. The CHANGE MASTER can execute with the
+   @retval false - Everything is fine. The CHANGE MASTER can execute with the
                    given option(s) for the recovery channel.
 */
 static bool is_invalid_change_master_for_group_replication_recovery(const

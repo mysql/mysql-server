@@ -21,9 +21,11 @@
 
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "sql/handler.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/tc_log.h"
+#include "sql/transaction_info.h"
 #include "unittest/gunit/test_utils.h"
 #include "unittest/gunit/thread_utils.h"
 
@@ -75,7 +77,7 @@ public:
     // Make a slightly randomized name for the file,
     // to avoid recovery from other runs.
     char namebuff[FN_REFLEN];
-    my_snprintf(namebuff, FN_REFLEN,
+    snprintf(namebuff, FN_REFLEN,
                 "tc_log_mmap_test_%d", static_cast<int>(getpid()));
     ASSERT_EQ(0, tc_log_mmap->open(namebuff));
   }

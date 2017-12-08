@@ -97,15 +97,16 @@ TODO:
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+#include <stdio.h>
 #include <time.h>
 
 #include "client/client_priv.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_systime.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
 #include "typelib.h"
@@ -129,8 +130,6 @@ uint master_wakeup;
 native_mutex_t sleeper_mutex;
 native_cond_t sleep_threshold;
 
-static char **defaults_argv;
-
 char **primary_keys;
 unsigned long long primary_keys_number_of;
 
@@ -150,14 +149,14 @@ const char *delimiter= "\n";
 
 const char *create_schema_string= "mysqlslap";
 
-static bool opt_preserve= TRUE, opt_no_drop= FALSE;
+static bool opt_preserve= true, opt_no_drop= false;
 static bool debug_info_flag= 0, debug_check_flag= 0;
-static bool opt_only_print= FALSE;
-static bool opt_compress= FALSE, tty_password= FALSE,
-               opt_silent= FALSE,
-               auto_generate_sql_autoincrement= FALSE,
-               auto_generate_sql_guid_primary= FALSE,
-               auto_generate_sql= FALSE;
+static bool opt_only_print= false;
+static bool opt_compress= false, tty_password= false,
+               opt_silent= false,
+               auto_generate_sql_autoincrement= false,
+               auto_generate_sql_guid_primary= false,
+               auto_generate_sql= false;
 const char *auto_generate_sql_type= "mixed";
 
 static unsigned long connect_flags= CLIENT_MULTI_RESULTS |
@@ -322,19 +321,18 @@ int main(int argc, char **argv)
 
   MY_INIT(argv[0]);
 
-  my_getopt_use_args_separator= TRUE;
-  if (load_defaults("my",load_default_groups,&argc,&argv))
+  my_getopt_use_args_separator= true;
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
+  if (load_defaults("my",load_default_groups,&argc,&argv,&alloc))
   {
     my_end(0);
-    exit(1);
+    return EXIT_FAILURE;
   }
-  my_getopt_use_args_separator= FALSE;
-  defaults_argv=argv;
+  my_getopt_use_args_separator= false;
   if (get_options(&argc,&argv))
   {
-    free_defaults(defaults_argv);
     my_end(0);
-    exit(1);
+    return EXIT_FAILURE;
   }
 
   /* Seed the random number generator if we will be using it. */
@@ -344,9 +342,8 @@ int main(int argc, char **argv)
   if (argc > 2)
   {
     fprintf(stderr,"%s: Too many arguments\n",my_progname);
-    free_defaults(defaults_argv);
     my_end(0);
-    exit(1);
+    return EXIT_FAILURE;
   }
   mysql_init(&mysql);
   if (opt_compress)
@@ -383,9 +380,8 @@ int main(int argc, char **argv)
       fprintf(stderr,"%s: Error when connecting to server: %s\n",
               my_progname,mysql_error(&mysql));
       mysql_close(&mysql);
-      free_defaults(defaults_argv);
       my_end(0);
-      exit(1);
+      return EXIT_FAILURE;
     }
   }
   set_sql_mode(&mysql);
@@ -445,10 +441,9 @@ int main(int argc, char **argv)
   my_free(shared_memory_base_name);
 #endif
   mysql_server_end();
-  free_defaults(defaults_argv);
   my_end(my_end_arg);
 
-  return 0;
+  return EXIT_SUCCESS;
 }
 
 void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
@@ -797,7 +792,7 @@ get_one_option(int optid, const struct my_option *opt,
     usage();
     exit(0);
   case OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
+    using_opt_enable_cleartext_plugin= true;
     break;
   }
   DBUG_RETURN(0);
@@ -1206,7 +1201,7 @@ get_options(int *argc,char ***argv)
     schema.
   */
   if (!opt_no_drop && (create_string || auto_generate_sql))
-    opt_preserve= FALSE;
+    opt_preserve= false;
 
   if (auto_generate_sql && (create_string || user_supplied_query))
   {
@@ -1230,8 +1225,8 @@ get_options(int *argc,char ***argv)
     that we actually added a key!
   */
   if (auto_generate_sql && auto_generate_sql_type[0] == 'k')
-    if ( auto_generate_sql_autoincrement == FALSE &&
-         auto_generate_sql_guid_primary == FALSE)
+    if ( auto_generate_sql_autoincrement == false &&
+         auto_generate_sql_guid_primary == false)
     {
       fprintf(stderr,
               "%s: Can't perform key test without a primary key!\n",
@@ -1253,7 +1248,7 @@ get_options(int *argc,char ***argv)
 
   if (opt_csv_str)
   {
-    opt_silent= TRUE;
+    opt_silent= true;
     
     if (opt_csv_str[0] == '-')
     {
@@ -1272,7 +1267,7 @@ get_options(int *argc,char ***argv)
   }
 
   if (opt_only_print)
-    opt_silent= TRUE;
+    opt_silent= true;
 
   if (num_int_cols_opt)
   {
@@ -1336,12 +1331,12 @@ get_options(int *argc,char ***argv)
       if (verbose >= 2)
         printf("Generating SELECT Statements for Auto\n");
 
-      query_statements= build_select_string(FALSE);
+      query_statements= build_select_string(false);
       for (ptr_statement= query_statements, x= 0; 
            x < auto_generate_sql_unique_query_number; 
            x++, ptr_statement= ptr_statement->next)
       {
-        ptr_statement->next= build_select_string(FALSE);
+        ptr_statement->next= build_select_string(false);
       }
     }
     else if (auto_generate_sql_type[0] == 'k')
@@ -1349,12 +1344,12 @@ get_options(int *argc,char ***argv)
       if (verbose >= 2)
         printf("Generating SELECT for keys Statements for Auto\n");
 
-      query_statements= build_select_string(TRUE);
+      query_statements= build_select_string(true);
       for (ptr_statement= query_statements, x= 0; 
            x < auto_generate_sql_unique_query_number; 
            x++, ptr_statement= ptr_statement->next)
       {
-        ptr_statement->next= build_select_string(TRUE);
+        ptr_statement->next= build_select_string(true);
       }
     }
     else if (auto_generate_sql_type[0] == 'w')
@@ -1404,7 +1399,7 @@ get_options(int *argc,char ***argv)
         }
         else
         {
-          ptr_statement->next= build_select_string(TRUE);
+          ptr_statement->next= build_select_string(true);
           coin= 1;
         }
       }
@@ -1653,7 +1648,7 @@ static void set_sql_mode(MYSQL *mysql)
   {
     char query[512];
     size_t len;
-    len=  my_snprintf(query, HUGE_STRING_LENGTH, "SET sql_mode = `%s`", sql_mode);
+    len=  snprintf(query, sizeof(query), "SET sql_mode = `%s`", sql_mode);
 
     if (run_query(mysql, query, len))
     {

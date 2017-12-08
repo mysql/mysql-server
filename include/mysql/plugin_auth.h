@@ -1,5 +1,5 @@
 #ifndef MYSQL_PLUGIN_AUTH_INCLUDED
-/* Copyright (c) 2010, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@
 /**
   Provides server plugin access to authentication information
 */
-typedef struct st_mysql_server_auth_info
+struct MYSQL_SERVER_AUTH_INFO
 {
   /**
     User name as sent by the client and shown in USER().
@@ -104,7 +104,7 @@ typedef struct st_mysql_server_auth_info
   */
   unsigned int host_or_ip_length;
 
-} MYSQL_SERVER_AUTH_INFO;
+};
 
 /**
   Function provided by the plugin which should perform authentication (using

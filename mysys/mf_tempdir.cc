@@ -41,7 +41,7 @@ bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
 
   Prealloced_array<char*, 10> full_list(key_memory_MY_TMPDIR_full_list);
 
-  memset(tmpdir, 0, sizeof(*tmpdir));
+  *tmpdir= MY_TMPDIR();
   if (!pathlist || !pathlist[0])
   {
     /* Get default temporary directory */
@@ -64,7 +64,7 @@ bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
     if (!(copy= my_strndup(key_memory_MY_TMPDIR_full_list,
                            buff, length, MYF(MY_WME))) ||
         full_list.push_back(copy))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     pathlist=end+1;
   }
   while (*end);
@@ -74,13 +74,13 @@ bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
                                   sizeof(char*) * full_list.size(),
                                   MYF(MY_WME)));
   if (tmpdir->list == NULL)
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   mysql_mutex_init(key_TMPDIR_mutex, &tmpdir->mutex, MY_MUTEX_INIT_FAST);
   memcpy(tmpdir->list, &full_list[0], sizeof(char*) * full_list.size());
   tmpdir->max= full_list.size() - 1;
   tmpdir->cur= 0;
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 

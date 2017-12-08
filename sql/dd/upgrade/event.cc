@@ -28,6 +28,7 @@
 #include "my_sys.h"
 #include "my_time.h"
 #include "my_user.h"                          // parse_user
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -52,6 +53,7 @@
 #include "sql/sql_time.h"                     // interval_type_to_name
 #include "sql/system_variables.h"
 #include "sql/table.h"                        // Table_check_intact
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"                  // trans_commit
 #include "sql/tztime.h"                       // my_tz_find
@@ -411,7 +413,7 @@ static bool update_event_timing_fields(THD *thd, TABLE *table,
   {
     MYSQL_TIME time;
     my_time_t last_executed;
-    bool not_used= FALSE;
+    bool not_used= false;
     table->field[ET_FIELD_LAST_EXECUTED]->get_date(&time,
                                                    TIME_NO_ZERO_DATE);
     last_executed= my_tz_OFFSET0->TIME_to_gmt_sec(&time, &not_used);
@@ -470,7 +472,7 @@ static bool set_status_and_interval_for_event(THD *thd, TABLE *table,
                                               Event_parse_data *et_parse_data)
 {
   char *ptr;
-  bool not_used= FALSE;
+  bool not_used= false;
   MYSQL_TIME time;
 
   if (!table->field[ET_FIELD_INTERVAL_EXPR]->is_null())
@@ -574,7 +576,7 @@ static bool migrate_event_to_dd(THD *thd, TABLE *event_table)
   else
     et_parse_data.comment.length= strlen(et_parse_data.comment.str);
 
-  bool not_used= FALSE;
+  bool not_used= false;
   et_parse_data.starts_null= event_table->field[ET_FIELD_STARTS]->is_null();
   if (!et_parse_data.starts_null)
   {

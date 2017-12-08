@@ -189,11 +189,19 @@ INCLUDE_DIRECTORIES(
   ${GTEST_SOURCE_DIR}/include
 )
 
+# Some tests require Boost.
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+
 # Turn off some warning flags when compiling GUnit
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-undef")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-field-initializers")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-format-attribute")
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-but-set-variable" HAVE_UNUSED_BUT_SET)
+  IF(HAVE_UNUSED_BUT_SET)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-but-set-variable")
+  ENDIF()
 
   MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
   IF(HAVE_UNUSED_TYPEDEFS)
@@ -321,7 +329,6 @@ SET(TESTS
   mysys_my_pwrite
   mysys_my_rdtsc
   mysys_my_symlink
-  mysys_my_vsnprintf
   mysys_my_write
   nullable
   opt_recperkey
@@ -330,10 +337,10 @@ SET(TESTS
   prealloced_array
   priority_queue
   record_buffer
+  sql_class_header
   sql_list
   sql_plist
   sql_string
-  stdcxx
   stl_alloc
   strings_skip_trailing
   strings_strnxfrm
@@ -471,11 +478,11 @@ IF (MERGE_UNITTESTS)
   MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
     ADD_TEST merge_large_tests)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main binlog rpl master slave)
-  TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main sql_gis)
+  TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(merge_large_tests-t
     gunit_large strings dbug mysys ${ICU_LIBRARIES})
   TARGET_LINK_LIBRARIES(merge_large_tests-t
-    sql_main binlog rpl master slave sql_gis sql_main)
+    sql_main binlog rpl master slave sql_gis sql_main sql_dd)
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_large_tests-t perfschema)
@@ -507,23 +514,6 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
     )
 ENDIF()
 
-## BOOST_HEAP_ASSERT generates if () ; else ;
-## Also Boost has unused parameter warnings.
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  ADD_COMPILE_FLAGS(
-    bounded_queue-t.cc
-    COMPILE_FLAGS "-Wno-empty-body -Wno-unused-parameter"
-    )
-ENDIF()
-ADD_COMPILE_FLAGS(
-  bounded_queue-t.cc
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
-ADD_COMPILE_FLAGS(
-  pump_object_filter-t.cc
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
-
 FOREACH(test ${SERVER_TESTS})
   SET(SRC_FILES ${test}-t.cc)
   IF(WIN32)
@@ -534,10 +524,10 @@ FOREACH(test ${SERVER_TESTS})
   ENDIF()
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
   TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main)
-  TARGET_LINK_LIBRARIES(${test}-t sql_main sql_gis)
+  TARGET_LINK_LIBRARIES(${test}-t sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug mysys)
   TARGET_LINK_LIBRARIES(${test}-t
-    sql_main binlog rpl master slave sql_gis sql_main)
+    sql_main binlog rpl master slave sql_gis sql_main sql_dd)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)

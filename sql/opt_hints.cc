@@ -15,28 +15,31 @@
 
 #include "sql/opt_hints.h"
 
+#include <stdio.h>
 #include <string.h>
+#include <algorithm>
 
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_table_map.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"    // ER_THD
 #include "sql/error_handler.h"
+#include "sql/item.h"
 #include "sql/key.h"
 #include "sql/mysqld.h"    // table_alias_charset
-#include "sql/opt_trace.h"
+#include "sql/nested_join.h"
 #include "sql/parse_tree_hints.h"
+#include "sql/set_var.h"
 #include "sql/sql_class.h" // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h" // Sql_condition
 #include "sql/sql_optimizer.h" // JOIN class
 #include "sql/sql_select.h"
-#include "sql/sql_servers.h"
 #include "sql/table.h"
+
+struct MEM_ROOT;
 
 /**
   Information about hints. Sould be
@@ -227,7 +230,7 @@ Opt_hints_qb::Opt_hints_qb(Opt_hints *opt_hints_arg,
     join_order_hints(mem_root_arg), join_order_hints_ignored(0)
 {
   sys_name.str= buff;
-  sys_name.length= my_snprintf(buff, sizeof(buff), "%s%lx",
+  sys_name.length= snprintf(buff, sizeof(buff), "%s%x",
                                sys_qb_prefix.str, select_number);
 }
 
@@ -424,7 +427,7 @@ static table_map get_other_dep(opt_hints_enum type,
   Auxiluary class is used to save/restore table dependencies.
 */
 
-class Join_order_hint_handler : public Sql_alloc
+class Join_order_hint_handler
 {
   JOIN *join;
   table_map *orig_dep_array;     ///< Original table dependencies

@@ -15,10 +15,21 @@
 
 #include "sql/json_diff.h"
 
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "my_alloc.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"                            // DBUG_ASSERT
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
 #include "sql/current_thd.h"                    // current_thd
 #include "sql/debug_sync.h"
 #include "sql/field.h"                          // Field_json
+#include "sql/json_binary.h"
 #include "sql/json_dom.h"                       // Json_dom, Json_wrapper
 #include "sql/json_path.h"                      // Json_path
 #include "sql/log_event.h"                      // net_field_length_checked
@@ -238,15 +249,15 @@ Json_diff_vector::Json_diff_vector(allocator_type arg)
 {}
 
 
-static MEM_ROOT empty_json_diff_vector_mem_root(PSI_NOT_INSTRUMENTED, 256, 0);
+static MEM_ROOT empty_json_diff_vector_mem_root(PSI_NOT_INSTRUMENTED, 256);
 const Json_diff_vector Json_diff_vector::EMPTY_JSON_DIFF_VECTOR{Json_diff_vector::allocator_type{&empty_json_diff_vector_mem_root}};
 
 
 void Json_diff_vector::add_diff(const Json_seekable_path &path,
                                 enum_json_diff_operation operation,
-                                Json_dom_ptr &dom)
+                                Json_dom_ptr dom)
 {
-  m_vector.emplace_back(path, operation, dom);
+  m_vector.emplace_back(path, operation, std::move(dom));
   m_binary_length+= at(size() - 1).binary_length();
 }
 
@@ -361,12 +372,12 @@ bool Json_diff_vector::read_binary(const char **from,
         goto corrupted;
       Json_wrapper wrapper(value);
       Json_dom_ptr dom= wrapper.clone_dom(current_thd);
-      if (dom == NULL)
+      if (dom == nullptr)
         DBUG_RETURN(true); /* purecov: inspected */ // OOM, error is reported
       wrapper.dbug_print();
 
       // Store diff
-      add_diff(path, operation, dom);
+      add_diff(path, operation, std::move(dom));
 
       p+= value_length;
       length -= value_length;

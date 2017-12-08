@@ -86,7 +86,7 @@ static char *validate_password_dictionary_file_last_parsed= NULL;
 static long long validate_password_dictionary_file_words_count= 0;
 static bool check_user_name;
 
-static STATUS_VAR validate_password_status_variables[]= {
+static SHOW_VAR validate_password_status_variables[]= {
   { "validate_password.dictionary_file_last_parsed",
     (char *) &validate_password_dictionary_file_last_parsed,
     SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL },
@@ -455,7 +455,7 @@ readjust_validate_password_length()
 */
 static void
 dictionary_update(MYSQL_THD,
-                  struct st_mysql_sys_var *,
+                  SYS_VAR *,
                   void *var_ptr, const void *save)
 {
   *(const char**)var_ptr= *(const char**)save;
@@ -471,7 +471,7 @@ dictionary_update(MYSQL_THD,
 */
 static void
 length_update(MYSQL_THD,
-              struct st_mysql_sys_var *,
+              SYS_VAR *,
               void *var_ptr, const void *save)
 {
   /* check if there is an actual change */
@@ -628,7 +628,7 @@ DEFINE_BOOL_METHOD(validate_password_imp::validate,
 int register_status_variables()
 {
   if (mysql_service_status_variable_registration->register_variable(
-        (STATUS_VAR *) &validate_password_status_variables))
+        (SHOW_VAR *) &validate_password_status_variables))
   {
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
@@ -758,7 +758,7 @@ int register_system_variables()
   }
 
   BOOL_CHECK_ARG(bool) bool_arg;
-  bool_arg.def_val= TRUE;
+  bool_arg.def_val= true;
   if (mysql_service_component_sys_variable_register->register_variable(
             "validate_password",
             "check_user_name", PLUGIN_VAR_BOOL | PLUGIN_VAR_RQCMDARG,
@@ -805,7 +805,7 @@ number_count:
 int unregister_status_variables()
 {
   if (mysql_service_status_variable_registration->unregister_variable(
-        (STATUS_VAR *) &validate_password_status_variables))
+        (SHOW_VAR *) &validate_password_status_variables))
   {
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)

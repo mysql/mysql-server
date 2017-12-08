@@ -25,6 +25,9 @@
 #include "sql/ndb_name_util.h"
 
 #include "sql/sql_class.h"
+#include "sql/table.h"
+#include "sql/thd_raii.h"
+#include "sql/transaction.h"
 
 #include "sql/dd/dd.h"
 #include "sql/dd/properties.h"

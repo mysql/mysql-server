@@ -73,7 +73,7 @@ static void *mysql_heartbeat(void *p)
 
     result= time(NULL);
     localtime_r(&result, &tm_tmp);
-    my_snprintf(buffer, sizeof(buffer),
+    snprintf(buffer, sizeof(buffer),
                 "Heartbeat at %02d%02d%02d %2d:%02d:%02d\n",
                 tm_tmp.tm_year % 100,
                 tm_tmp.tm_mon+1,
@@ -131,7 +131,7 @@ static int daemon_example_plugin_init(void *p)
     No threads exist at this point in time, so this is thread safe.
   */
   localtime_r(&result, &tm_tmp);
-  my_snprintf(buffer, sizeof(buffer),
+  snprintf(buffer, sizeof(buffer),
               "Starting up at %02d%02d%02d %2d:%02d:%02d\n",
               tm_tmp.tm_year % 100,
               tm_tmp.tm_mon+1,
@@ -185,7 +185,7 @@ static int daemon_example_plugin_deinit(void *p)
   my_thread_cancel(&con->heartbeat_thread);
 
   localtime_r(&result, &tm_tmp);
-  my_snprintf(buffer, sizeof(buffer),
+  snprintf(buffer, sizeof(buffer),
               "Shutting down at %02d%02d%02d %2d:%02d:%02d\n",
               tm_tmp.tm_year % 100,
               tm_tmp.tm_mon+1,

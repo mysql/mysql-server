@@ -32,15 +32,9 @@
   Note that the auth subsystem also uses codes with a CR_ prefix.
 */
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
 void	init_client_errs(void);
 void	finish_client_errs(void);
 extern const char *client_errors[];	/* Error messages */
-#ifdef	__cplusplus
-}
-#endif
 
 #define CR_MIN_ERROR		2000	/* For easier client code */
 #define CR_MAX_ERROR		2999
@@ -120,11 +114,7 @@ extern const char *client_errors[];	/* Error messages */
 /* Add error numbers before CR_ERROR_LAST and change it accordingly. */
 
 /* Visual Studio requires '__inline' for C code */
-#if !defined(__cplusplus) && defined(_MSC_VER)
-static __inline const char* ER_CLIENT(int client_errno)
-#else
 static inline const char* ER_CLIENT(int client_errno)
-#endif
 {
   if (client_errno >= CR_ERROR_FIRST && client_errno <= CR_ERROR_LAST)
     return client_errors[client_errno - CR_ERROR_FIRST];

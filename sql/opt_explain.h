@@ -48,6 +48,8 @@ SELECT_LEX), by calling explain_unit() for each of them.
 */
 
 #include "my_base.h"
+#include "my_sqlcommand.h"
+#include "my_thread_local.h"
 #include "sql/opt_explain_format.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/query_result.h"            // Query_result_send
@@ -78,7 +80,7 @@ public:
   bool need_sort;           ///< Whether to use filesort
   bool used_key_is_modified;///< Whether the key used to scan is modified
   const char *message;      ///< Arbitrary message
-  bool zero_result;         ///< TRUE <=> plan will not be executed
+  bool zero_result;         ///< true <=> plan will not be executed
   ha_rows examined_rows;    ///< # of rows expected to be examined in the table
 
   Modification_plan(THD *thd_arg,

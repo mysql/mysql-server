@@ -31,16 +31,12 @@
 #include "my_base.h"
 #include "my_inttypes.h"
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
-
 #define HA_FT_MAXBYTELEN 336
 #define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN/4)
 
 #define DEFAULT_FTB_SYNTAX "+ -><()~*:\"\"&|"
 
-typedef struct st_ft_info FT_INFO;
+struct FT_INFO;
 struct _ft_vft
 {
   int       (*read_next)(FT_INFO *, char *);
@@ -50,7 +46,7 @@ struct _ft_vft
   void      (*reinit_search)(FT_INFO *);
 };
 
-typedef struct st_ft_info_ext FT_INFO_EXT;
+struct FT_INFO_EXT;
 struct _ft_vft_ext
 {
   uint      (*get_version)();        // Extended API version
@@ -67,13 +63,13 @@ struct _ft_vft_ext
 
 #define FTS_NGRAM_PARSER_NAME "ngram"
 
-struct st_ft_info
+struct FT_INFO
 {
   struct _ft_vft *please; /* INTERCAL style :-) */
 };
 
 #ifndef FT_CORE
-struct st_ft_info_ext
+struct FT_INFO_EXT
 {
   struct _ft_vft     *please; /* INTERCAL style :-) */
   struct _ft_vft_ext *could_you;
@@ -131,7 +127,4 @@ FT_INFO *ft_init_search(uint,void *, uint, uchar *, uint,
                         const CHARSET_INFO *, uchar *);
 bool ft_boolean_check_syntax_string(const uchar *);
 
-#ifdef  __cplusplus
-}
-#endif
 #endif /* FT_GLOBAL_INCLUDED */

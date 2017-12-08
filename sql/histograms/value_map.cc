@@ -28,10 +28,8 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_time.h"     // MYSQL_TIME
 #include "sql/histograms/histogram.h"
-#include "sql/item.h"
 #include "sql/my_decimal.h" // my_decimal_cmp
 #include "sql/psi_memory_key.h" // key_memory_histograms
 #include "sql_string.h"     // String

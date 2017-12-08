@@ -21,9 +21,7 @@
 #include <NdbOut.hpp>
 #include <signaldata/CreateHashMap.hpp>
 #include <NdbBlob.hpp>
-C_MODE_START
 #include "decimal.h"
-C_MODE_END
 
 /* NdbRecord static helper methods */
 

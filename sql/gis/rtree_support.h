@@ -92,13 +92,11 @@ bool mbr_equal_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 /// For both MBRs, the coordinates of the MBR's minimum corners must be smaller
 /// than or equal to the corresponding coordinates of the maximum corner.
 ///
-/// @param[in] srs Ignored.
 /// @param[in] a Ignored.
 /// @param[in] b Ignored.
 ///
 /// @return Always returns true.
-bool mbr_intersect_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
-                       rtr_mbr_t* b);
+bool mbr_intersect_cmp(rtr_mbr_t* a, rtr_mbr_t* b);
 
 /// Returns false.
 ///
@@ -108,13 +106,11 @@ bool mbr_intersect_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 /// For both MBRs, the coordinates of the MBR's minimum corners must be smaller
 /// than or equal to the corresponding coordinates of the maximum corner.
 ///
-/// @param[in] srs Ignored.
 /// @param[in] a Ignored.
 /// @param[in] b Ignored.
 ///
 /// @return Always returns false.
-bool mbr_disjoint_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
-                      rtr_mbr_t* b);
+bool mbr_disjoint_cmp(rtr_mbr_t* a, rtr_mbr_t* b);
 
 /// Checks if one MBR is covered by another MBR.
 ///

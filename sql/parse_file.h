@@ -20,12 +20,9 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "my_alloc.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
-#include "sql/sql_alloc.h"              // Sql_alloc
 
-typedef struct st_mem_root MEM_ROOT;
+struct MEM_ROOT;
 
 #define PARSE_FILE_TIMESTAMPLENGTH 19
 
@@ -88,7 +85,7 @@ class File_parser;
 File_parser *sql_parse_prepare(const LEX_STRING *file_name,
 			       MEM_ROOT *mem_root, bool bad_format_errors);
 
-class File_parser: public Sql_alloc
+class File_parser
 {
   const char *start, *end;
   LEX_STRING file_type;

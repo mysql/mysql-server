@@ -26,7 +26,6 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #ifdef MYSQL_SERVER
 #include "sql/check_stack.h"
@@ -558,7 +557,7 @@ serialize_json_array(const THD *thd, const Json_array *array, String *dest,
   const size_t start_pos= dest->length();
   const size_t size= array->size();
 
-  if (size > 0 && ++depth >= JSON_DOCUMENT_MAX_DEPTH)
+  if (++depth > JSON_DOCUMENT_MAX_DEPTH)
   {
     my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
     return FAILURE;
@@ -629,7 +628,7 @@ serialize_json_object(const THD *thd, const Json_object *object, String *dest,
   const size_t start_pos= dest->length();
   const size_t size= object->cardinality();
 
-  if (size > 0 && ++depth >= JSON_DOCUMENT_MAX_DEPTH)
+  if (++depth > JSON_DOCUMENT_MAX_DEPTH)
   {
     my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
     return FAILURE;

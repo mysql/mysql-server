@@ -423,7 +423,7 @@ row_ins_clust_index_entry_by_modify(
 /*********************************************************************//**
 Returns TRUE if in a cascaded update/delete an ancestor node of node
 updates (not DELETE, but UPDATE) table.
-@return TRUE if an ancestor updates table */
+@return true if an ancestor updates table */
 static
 ibool
 row_ins_cascade_ancestor_updates_table(
@@ -2008,7 +2008,7 @@ row_ins_check_foreign_constraints(
 /***************************************************************//**
 Checks if a unique key violation to rec would occur at the index entry
 insert.
-@return TRUE if error */
+@return true if error */
 static
 ibool
 row_ins_dupl_error_with_rec(
@@ -2485,7 +2485,7 @@ secondary index records in place, other than clearing or setting the
 delete-mark flag. We could be able to update the non-unique fields
 of a unique secondary index record by checking the cursor->up_match,
 but we do not do so, because it could have some locking implications.
-@return TRUE if the existing record should be updated; FALSE if not */
+@return true if the existing record should be updated; false if not */
 UNIV_INLINE
 ibool
 row_ins_must_modify_rec(

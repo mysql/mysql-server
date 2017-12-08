@@ -615,6 +615,8 @@
   @sa cli_safe_read_with_ok(), read_ok_ex(), net_send_ok(), net_send_eof()
 */
 #define CLIENT_DEPRECATE_EOF (1UL << 24)
+
+
 /**
   Verify server certificate.
 
@@ -622,6 +624,7 @@
 
   @deprecated in favor of --ssl-mode.
 */
+#define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 
 
 /**
@@ -630,7 +633,6 @@
 #define CLIENT_OPTIONAL_RESULTSET_METADATA (1UL << 25)
 
 
-#define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 /**
   Don't reset the options after an unsuccessful connect
 
@@ -778,9 +780,8 @@ enum SERVER_STATUS_flags_enum
 #define ONLY_KILL_QUERY         1
 
 #ifndef MYSQL_VIO
-struct st_vio;
-typedef struct st_vio Vio;
-#define MYSQL_VIO Vio*
+struct Vio;
+#define MYSQL_VIO struct Vio*
 #endif
 
 #define MAX_TINYINT_WIDTH       3       /**< Max width for a TINY w.o. sign */
@@ -791,7 +792,8 @@ typedef struct st_vio Vio;
 #define MAX_CHAR_WIDTH		255	/**< Max length for a CHAR colum */
 #define MAX_BLOB_WIDTH		16777216	/**< Default width for blob */
 
-typedef struct st_net {
+typedef struct NET
+{
   MYSQL_VIO vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;					/* For Perl DBI/dbd */
@@ -960,36 +962,28 @@ enum enum_session_state_type
 
 #define net_new_transaction(net) ((net)->pkt_nr=0)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-bool	my_net_init(NET *net, MYSQL_VIO vio);
-void my_net_local_init(NET *net);
-void net_end(NET *net);
-void net_clear(NET *net, bool check_buffer);
-void net_claim_memory_ownership(NET *net);
-bool net_realloc(NET *net, size_t length);
-bool	net_flush(NET *net);
-bool	my_net_write(NET *net,const unsigned char *packet, size_t len);
-bool	net_write_command(NET *net,unsigned char command,
+bool	my_net_init(struct NET *net, MYSQL_VIO vio);
+void my_net_local_init(struct NET *net);
+void net_end(struct NET *net);
+void net_clear(struct NET *net, bool check_buffer);
+void net_claim_memory_ownership(struct NET *net);
+bool net_realloc(struct NET *net, size_t length);
+bool	net_flush(struct NET *net);
+bool	my_net_write(struct NET *net,const unsigned char *packet, size_t len);
+bool	net_write_command(struct NET *net,unsigned char command,
 			  const unsigned char *header, size_t head_len,
 			  const unsigned char *packet, size_t len);
-bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
-unsigned long my_net_read(NET *net);
+bool net_write_packet(struct NET *net, const unsigned char *packet, size_t length);
+unsigned long my_net_read(struct NET *net);
 
-void my_net_set_write_timeout(NET *net, unsigned int timeout);
-void my_net_set_read_timeout(NET *net, unsigned int timeout);
-void my_net_set_retry_count(NET *net, unsigned int retry_count);
+void my_net_set_write_timeout(struct NET *net, unsigned int timeout);
+void my_net_set_read_timeout(struct NET *net, unsigned int timeout);
+void my_net_set_retry_count(struct NET *net, unsigned int retry_count);
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
   double max_value_dbl;
 };
-
-#ifdef __cplusplus
-}
-#endif
 
 /* Include the types here so existing UDFs can keep compiling */
 #include <mysql/udf_registration_types.h>
@@ -1004,10 +998,6 @@ struct rand_struct {
 /** @}*/
 
 /* Prototypes to password functions */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*
   These functions are used for authentication by client and server and
@@ -1041,13 +1031,28 @@ bool generate_sha256_scramble(unsigned char *dst, size_t dst_size,
                               const char *src, size_t src_size,
                               const char *rnd, size_t rnd_size);
 
+// extern "C" since it is an (undocumented) part of the libmysql ABI.
+#ifdef __cplusplus
+extern "C" {
+#endif
 char *get_tty_password(const char *opt_message);
+#ifdef __cplusplus
+}
+#endif
+
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 
 /* Some other useful functions */
 
+// Need to be extern "C" for the time being, due to memcached.
+#ifdef __cplusplus
+extern "C" {
+#endif
 bool my_thread_init(void);
 void my_thread_end(void);
+#ifdef __cplusplus
+}
+#endif
 
 #ifdef STDCALL
 unsigned long STDCALL net_field_length(unsigned char **packet);
@@ -1056,10 +1061,6 @@ unsigned long long net_field_length_ll(unsigned char **packet);
 unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
 unsigned int net_length_size(unsigned long long num);
 unsigned int net_field_length_size(const unsigned char *pos);
-
-#ifdef __cplusplus
-}
-#endif
 
 #define NULL_LENGTH ((unsigned long) ~0) /**< For ::net_store_length() */
 #define MYSQL_STMT_HEADER       4

@@ -19,7 +19,6 @@
 
 /* This file defines structures needed by udf functions */
 
-#include <mysql/components/services/udf_registration.h>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -27,8 +26,6 @@
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"               // Item_result
-#include "sql/sql_alloc.h"           // Sql_alloc
 
 class Item;
 class Item_result_field;
@@ -37,7 +34,7 @@ class THD;
 class my_decimal;
 
 
-typedef struct st_udf_func
+struct udf_func
 {
   LEX_STRING name;
   Item_result returns;
@@ -50,9 +47,9 @@ typedef struct st_udf_func
   Udf_func_clear func_clear;
   Udf_func_add func_add;
   ulong usage_count;
-} udf_func;
+};
 
-class udf_handler :public Sql_alloc
+class udf_handler
 {
  protected:
   udf_func *u_d;

@@ -18,6 +18,7 @@
 
 #include <string.h>
 
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
@@ -26,7 +27,6 @@
 #include "sql/auth/auth_common.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
-#include "sql/key.h"
 #include "sql/protocol_classic.h"
 #include "sql/sql_class.h"
 #include "sql/sql_thd_internal_api.h" // create_thd
@@ -192,12 +192,12 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
   {
     tmp_thd= create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
     if (!tmp_thd)
-      return TRUE;
+      return true;
   }
 
   retval= acl_getroot(tmp_thd ? tmp_thd : current_thd, ctx, (char *) user,
                       (char *) host, (char *) ip, db) ?
-                      TRUE : FALSE;
+                      true : false;
 
   if (tmp_thd)
   {

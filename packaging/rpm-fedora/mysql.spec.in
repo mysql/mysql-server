@@ -18,7 +18,7 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
-%global milestone    rc
+%global milestone    dmr
 
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
@@ -912,16 +912,17 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %endif # compatlib
 
 %changelog
-* Thu Dec 07 2017 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.4-0.1
-- Remove obsoleted mysqltest man pages
-- Do not pass SSL option to 5.6 compat build, just use bundled
+* Thu Dec 07 2017 Bjorn Munch <bjorn.munch@oracle.com> - 9.0.0-0.1
+- Change the global milestone to 'dmr'
 - Add component_validate_password component
 - Include udf_example.so in test package
+- Remove obsoleted mysqltest man pages
+- Do not pass SSL option to 5.6 compat build, just use bundled
 
 * Fri Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
 - Add component_test_status_var_service plugin
 
-* Tue Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
+* Wed Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
 - Add component_test_status_var_service plugin
 
 * Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1

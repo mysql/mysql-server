@@ -20,15 +20,13 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "my_command.h"
 #include "my_sqlcommand.h"
-#include "mysql/components/services/mysql_rwlock_bits.h"
-#include "mysql/psi/mysql_rwlock.h"
 #include "mysql_com.h"               // enum_server_command
 #include "sql/handler.h"             // enum_schema_tables
-#include "sql/key.h"
-#include "sql/system_variables.h"
 
+struct mysql_rwlock_t;
 template <typename T> class SQL_I_List;
 
 /**
@@ -43,12 +41,11 @@ class Parser_state;
 class THD;
 class Table_ident;
 struct LEX;
+struct LEX_USER;
+struct ORDER;
 struct Parse_context;
 struct TABLE_LIST;
 union COM_DATA;
-
-typedef struct st_lex_user LEX_USER;
-typedef struct st_order ORDER;
 
 
 extern "C" int test_if_data_home_dir(const char *dir);

@@ -24,8 +24,10 @@
 #include <list>
 #include <string>
 
-#include "sql/handler.h"
+#include "sql/field.h"
 #include "sql/pfs_priv_util.h"
+#include "sql/plugin_table.h"
+#include "sql/table.h"
 #include "storage/perfschema/pfs_column_values.h"
 #include "storage/perfschema/table_helper.h"
 #include "storage/perfschema/table_plugin_table.h"

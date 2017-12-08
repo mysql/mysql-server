@@ -26,6 +26,8 @@
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
+#include "sql/plugin_table.h"
+#include "sql/table.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_events_stages.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -239,7 +241,7 @@ table_events_stages_common::make_row(PFS_events_stages *stage)
   }
 
   base = base_name(safe_source_file);
-  m_row.m_source_length = my_snprintf(m_row.m_source,
+  m_row.m_source_length = snprintf(m_row.m_source,
                                       sizeof(m_row.m_source),
                                       "%s:%d",
                                       base,

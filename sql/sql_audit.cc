@@ -18,6 +18,7 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -26,6 +27,7 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
@@ -38,7 +40,6 @@
 #include "sql/auto_thd.h"                       // Auto_THD
 #include "sql/current_thd.h"
 #include "sql/error_handler.h"                  // Internal_error_handler
-#include "sql/key.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"                         // sql_statement_names
 #include "sql/sql_class.h"                      // THD
@@ -48,7 +49,6 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_rewrite.h"                    // mysql_rewrite_query
 #include "sql/table.h"
-#include "sql_chars.h"
 #include "sql_string.h"
 #include "thr_mutex.h"
 
@@ -317,7 +317,7 @@ bool check_audit_mask(const unsigned long *lhs,
 */
 inline
 void thd_get_audit_query(THD *thd, MYSQL_LEX_CSTRING *query,
-                         const struct charset_info_st **charset)
+                         const CHARSET_INFO **charset)
 {
   if (!thd->rewritten_query.length())
     mysql_rewrite_query(thd);
@@ -425,7 +425,7 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_sql_command= sql_statement_names[thd->lex->sql_command];
 
   thd_get_audit_query(thd, &event.general_query,
-                      (const charset_info_st**)&event.general_charset);
+                      (const CHARSET_INFO**)&event.general_charset);
 
   event.general_time= thd->query_start_in_secs();
 
@@ -1063,7 +1063,7 @@ int mysql_audit_notify(THD *thd,
   @param         plugin Plugin reference.
   @param[in,out] arg    Opaque st_mysql_subscribe_event pointer.
 
-  @return FALSE is always returned.
+  @return false is always returned.
 */
 static bool acquire_lookup_mask(THD*, plugin_ref plugin, void *arg)
 {
@@ -1075,7 +1075,7 @@ static bool acquire_lookup_mask(THD*, plugin_ref plugin, void *arg)
                         evt->event_subclass))
     add_audit_mask(evt->lookup_mask, audit->class_mask);
 
-  return FALSE;
+  return false;
 }
 
 /**
@@ -1086,7 +1086,7 @@ static bool acquire_lookup_mask(THD*, plugin_ref plugin, void *arg)
   @param         plugin Plugin reference.
   @param[in,out] arg    Opaque st_mysql_subscribe_event pointer.
 
-  @return This function always returns FALSE.
+  @return This function always returns false.
 */
 static bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
 {
@@ -1097,7 +1097,7 @@ static bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
   if (check_audit_mask(data->class_mask, evt->lookup_mask))
   {
     add_audit_mask(evt->not_subscribed_mask, data->class_mask);
-    return FALSE;
+    return false;
   }
 
   /* Copy subscription mask from the plugin into the array. */
@@ -1105,13 +1105,13 @@ static bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
 
   /* Prevent from adding the same plugin more than one time. */
   if (thd->audit_class_plugins.exists(plugin))
-    return FALSE;
+    return false;
 
   /* lock the plugin and add it to the list */
   plugin= my_plugin_lock(NULL, &plugin);
   thd->audit_class_plugins.push_back(plugin);
 
-  return FALSE;
+  return false;
 }
 
 /**
@@ -1283,8 +1283,8 @@ void mysql_audit_finalize()
 
   @param[in] plugin
 
-  @retval FALSE  OK
-  @retval TRUE   There was an error.
+  @retval false  OK
+  @retval true   There was an error.
 */
 
 int initialize_audit_plugin(st_plugin_int *plugin)
@@ -1335,7 +1335,7 @@ int initialize_audit_plugin(st_plugin_int *plugin)
   @param[in] plugin
   @param[in] arg
 
-  @retval FALSE  always
+  @retval false  always
 */
 static bool calc_class_mask(THD*, plugin_ref plugin, void *arg)
 {
@@ -1351,8 +1351,8 @@ static bool calc_class_mask(THD*, plugin_ref plugin, void *arg)
 
   @param[in] plugin
 
-  @retval FALSE  OK
-  @retval TRUE   There was an error.
+  @retval false  OK
+  @retval true   There was an error.
 */
 int finalize_audit_plugin(st_plugin_int *plugin)
 {
@@ -1393,7 +1393,7 @@ int finalize_audit_plugin(st_plugin_int *plugin)
   @param[in] plugin
   @param[in] arg
 
-  @retval FALSE  always
+  @retval false  always
 */
 
 static int plugins_dispatch(THD *thd, plugin_ref plugin, void *arg)
@@ -1414,7 +1414,7 @@ static int plugins_dispatch(THD *thd, plugin_ref plugin, void *arg)
 
 static bool plugins_dispatch_bool(THD *thd, plugin_ref plugin, void *arg)
 {
-  return plugins_dispatch(thd, plugin, arg) ? TRUE : FALSE;
+  return plugins_dispatch(thd, plugin, arg) ? true : false;
 }
 
 /**

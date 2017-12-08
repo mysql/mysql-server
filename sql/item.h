@@ -28,36 +28,32 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "memory_debugging.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
-#include "sql/dd/properties.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"   // Derivation
-#include "sql/handler.h"
 #include "sql/mem_root_array.h"
 #include "sql/my_decimal.h" // my_decimal
 #include "sql/parse_tree_node_base.h" // Parse_tree_node
-#include "sql/sql_alloc.h"
 #include "sql/sql_array.h" // Bounds_checked_array
 #include "sql/sql_const.h"
-#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_trigger_field_support.h" // Table_trigger_field_support
 #include "sql/thr_malloc.h"
 #include "sql/trigger_def.h" // enum_trigger_variable_type
 #include "sql_string.h"
 #include "template_utils.h"
-#include "typelib.h"
 
 class Item;
 class Item_field;
@@ -67,6 +63,8 @@ class SELECT_LEX;
 class Security_context;
 class THD;
 class user_var_entry;
+struct MEM_ROOT;
+struct TYPELIB;
 template <class T> class List;
 template <class T> class List_iterator;
 template <typename T> class SQL_I_List;
@@ -416,7 +414,7 @@ public:
   structure before and after INSERT/CREATE and its SELECT to make correct
   field name resolution.
 */
-struct Name_resolution_context: Sql_alloc
+struct Name_resolution_context
 {
   /*
     The name resolution context to search in when an Item cannot be
@@ -465,9 +463,9 @@ struct Name_resolution_context: Sql_alloc
   TABLE_LIST *view_error_handler_arg;
 
   /**
-    When TRUE, items are resolved in this context against
+    When true, items are resolved in this context against
     SELECT_LEX::item_list, SELECT_lex::group_list and
-    this->table_list. If FALSE, items are resolved only against
+    this->table_list. If false, items are resolved only against
     this->table_list.
 
     @see SELECT_LEX::item_list, SELECT_LEX::group_list
@@ -488,7 +486,7 @@ struct Name_resolution_context: Sql_alloc
 
   void init()
   {
-    resolve_in_select_list= FALSE;
+    resolve_in_select_list= false;
     view_error_handler= false;
     first_name_resolution_table= NULL;
     last_name_resolution_table= NULL;
@@ -497,7 +495,7 @@ struct Name_resolution_context: Sql_alloc
   void resolve_in_table_list_only(TABLE_LIST *tables)
   {
     table_list= first_name_resolution_table= tables;
-    resolve_in_select_list= FALSE;
+    resolve_in_select_list= false;
   }
 };
 
@@ -646,8 +644,8 @@ public:
         it        item which represents new value
 
     RETURN
-      FALSE if parameter value has been set,
-      TRUE if error has occured.
+      false if parameter value has been set,
+      true if error has occured.
   */
   virtual bool set_value(THD *thd, sp_rcontext *ctx, Item **it)= 0;
 
@@ -666,8 +664,8 @@ typedef bool (Item::*Item_processor) (uchar *arg);
                     OUT: Parameter to be passed to the transformer
 
     RETURN 
-      TRUE   Invoke the transformer
-      FALSE  Don't do it
+      true   Invoke the transformer
+      false  Don't do it
 
 */
 typedef bool (Item::*Item_analyzer) (uchar **argp);
@@ -1281,11 +1279,11 @@ public:
 
     SYNOPSIS
       val_int_endpoint()
-        left_endp  FALSE  <=> The interval is "x < const" or "x <= const"
-                   TRUE   <=> The interval is "x > const" or "x >= const"
+        left_endp  false  <=> The interval is "x < const" or "x <= const"
+                   true   <=> The interval is "x > const" or "x >= const"
 
-        incl_endp  IN   FALSE <=> the comparison is '<' or '>'
-                        TRUE  <=> the comparison is '<=' or '>='
+        incl_endp  IN   false <=> the comparison is '<' or '>'
+                        true  <=> the comparison is '<=' or '>='
                    OUT  The same but for the "F(x) $CMP$ F(const)" comparison
 
     DESCRIPTION
@@ -1322,8 +1320,8 @@ public:
       val_real()
 
     RETURN
-      In case of NULL value return 0.0 and set null_value flag to TRUE.
-      If value is not null null_value flag will be reset to FALSE.
+      In case of NULL value return 0.0 and set null_value flag to true.
+      If value is not null null_value flag will be reset to false.
   */
   virtual double val_real()=0;
   /*
@@ -1333,8 +1331,8 @@ public:
       val_int()
 
     RETURN
-      In case of NULL value return 0 and set null_value flag to TRUE.
-      If value is not null null_value flag will be reset to FALSE.
+      In case of NULL value return 0 and set null_value flag to true.
+      If value is not null null_value flag will be reset to false.
   */
   virtual longlong val_int()=0;
   /**
@@ -1489,17 +1487,17 @@ public:
 
     RETURN
       Return pointer on my_decimal (it can be other then passed via argument)
-        if value is not NULL (null_value flag will be reset to FALSE).
+        if value is not NULL (null_value flag will be reset to false).
       In case of NULL value it return 0 pointer and set null_value flag
-        to TRUE.
+        to true.
   */
   virtual my_decimal *val_decimal(my_decimal *decimal_buffer)= 0;
   /*
     Return boolean value of item.
 
     RETURN
-      FALSE value is false or NULL
-      TRUE value is true (not equal to 0)
+      false value is false or NULL
+      true value is true (not equal to 0)
   */
   virtual bool val_bool();
   /**
@@ -1924,7 +1922,7 @@ public:
 
   /*
     Inform the item that there will be no distinction between its result
-    being FALSE or NULL.
+    being false or NULL.
 
     NOTE
       This function will be called for eg. Items that are top-level AND-parts
@@ -2408,22 +2406,22 @@ public:
     Used by the equality propagation. See Item_field::equal_fields_propagator.
 
     @return
-      TRUE  if the context is the same or if fields could be
+      true  if the context is the same or if fields could be
             compared as DATETIME values by the Arg_comparator.
-      FALSE otherwise.
+      false otherwise.
   */
   inline bool has_compatible_context(Item *item) const
   {
     /* Same context. */
     if (cmp_context == INVALID_RESULT || item->cmp_context == cmp_context)
-      return TRUE;
+      return true;
     /* DATETIME comparison context. */
     if (is_temporal_with_date())
       return item->is_temporal_with_date() ||
              item->cmp_context == STRING_RESULT;
     if (item->is_temporal_with_date())
       return is_temporal_with_date() || cmp_context == STRING_RESULT;
-    return FALSE;
+    return false;
   }
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
@@ -2479,16 +2477,16 @@ public:
   }
 
   /*
-    Return TRUE if the item points to a column of an outer-joined table.
+    Return true if the item points to a column of an outer-joined table.
   */
-  virtual bool is_outer_field() const { DBUG_ASSERT(fixed); return FALSE; }
+  virtual bool is_outer_field() const { DBUG_ASSERT(fixed); return false; }
 
   /**
      Check if an item either is a blob field, or will be represented as a BLOB
      field if a field is created based on this item.
 
-     @retval TRUE  If a field based on this item will be a BLOB field,
-     @retval FALSE Otherwise.
+     @retval true  If a field based on this item will be a BLOB field,
+     @retval false Otherwise.
   */
   bool is_blob_field() const;
 
@@ -3257,7 +3255,7 @@ public:
   Item_equal *item_equal;
   bool no_const_subst;
   /*
-    if any_privileges set to TRUE then here real effective privileges will
+    if any_privileges set to true then here real effective privileges will
     be stored
   */
   uint have_privileges;
@@ -3453,7 +3451,7 @@ class Item_null : public Item_basic_constant
   void init()
   {
     maybe_null= true;
-    null_value= TRUE;
+    null_value= true;
     set_data_type(MYSQL_TYPE_NULL);
     max_length= 0;
     fixed= true;
@@ -3674,14 +3672,14 @@ public:
     words, avoid pointing at one item from two different nodes of the tree.
     Return a new basic constant item if parameter value is a basic
     constant, assert otherwise. This method is called only if
-    basic_const_item returned TRUE.
+    basic_const_item returned true.
   */
   Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   Item *clone_item() const override;
   /*
     Implement by-value equality evaluation if parameter value
     is set and is a basic constant (integer, real or string).
-    Otherwise return FALSE.
+    Otherwise return false.
   */
   bool eq(const Item *item, bool binary_cmp) const override;
   /** Item is a argument to a limit clause. */
@@ -4079,7 +4077,7 @@ class Item_string :public Item_basic_constant
   typedef Item_basic_constant super;
 
 protected:
-  explicit Item_string(const POS &pos) : super(pos), m_cs_specified(FALSE)
+  explicit Item_string(const POS &pos) : super(pos), m_cs_specified(false)
   {
     set_data_type(MYSQL_TYPE_VARCHAR);
   }
@@ -4115,21 +4113,21 @@ public:
   Item_string(const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
-    : m_cs_specified(FALSE)
+    : m_cs_specified(false)
   {
     init(str, length, cs, dv, repertoire);
   }
   Item_string(const POS &pos, const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
-    : super(pos), m_cs_specified(FALSE)
+    : super(pos), m_cs_specified(false)
   {
     init(str, length, cs, dv, repertoire);
   }
 
   /* Just create an item and do not fill string representation */
   Item_string(const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
-    : m_cs_specified(FALSE)
+    : m_cs_specified(false)
   {
     collation.set(cs, dv);
     set_data_type(MYSQL_TYPE_VARCHAR);
@@ -4142,7 +4140,7 @@ public:
   Item_string(const Name_string name_par, const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
-    : m_cs_specified(FALSE)
+    : m_cs_specified(false)
   {
     str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
@@ -4156,7 +4154,7 @@ public:
   Item_string(const POS &pos, const Name_string name_par, const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
-    : super(pos), m_cs_specified(FALSE)
+    : super(pos), m_cs_specified(false)
   {
     str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
@@ -4173,7 +4171,7 @@ public:
               const Name_string name_par, const LEX_STRING &literal,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
-    : super(pos), m_cs_specified(FALSE)
+    : super(pos), m_cs_specified(false)
   {
     str_value.set_or_copy_aligned(literal.str ? literal.str : "",
                                   literal.str ? literal.length : 0, cs);
@@ -4238,7 +4236,7 @@ public:
   bool check_partition_func_processor(uchar *) override { return false; }
 
   /**
-    Return TRUE if character-set-introducer was explicitly specified in the
+    Return true if character-set-introducer was explicitly specified in the
     original query for this item (text literal).
 
     This operation is to be called from Item_string::print(). The idea is
@@ -4252,9 +4250,9 @@ public:
     one day when we start using original query as a view definition.
 
     @return This operation returns the value of m_cs_specified attribute.
-      @retval TRUE if character set introducer was explicitly specified in
+      @retval true if character set introducer was explicitly specified in
       the original query.
-      @retval FALSE otherwise.
+      @retval false otherwise.
   */
   inline bool is_cs_specified() const
   {
@@ -4863,7 +4861,7 @@ public:
   /* The aggregate function under which this outer ref is used, if any. */
   Item_sum *in_sum_func;
   /*
-    TRUE <=> that the outer_ref is already present in the select list
+    true <=> that the outer_ref is already present in the select list
     of the outer select.
   */
   bool found_in_select_list;
@@ -4907,7 +4905,7 @@ class Item_in_subselect;
 
 /*
   An object of this class is like Item_ref, and
-  sets owner->was_null=TRUE if it has returned a NULL value from any
+  sets owner->was_null=true if it has returned a NULL value from any
   val_XXX() function. This allows to inject an Item_ref_null_helper
   object into subquery and then check if the subquery has produced a row
   with NULL value.
@@ -5338,7 +5336,7 @@ class Item_cache;
   It caches a value, which is representative of the group, and can compare it
   to another row, and update its value when entering a new group.
 */
-class Cached_item :public Sql_alloc
+class Cached_item
 {
 protected:
   Item *item;              ///< The item whose value to cache.
@@ -5622,11 +5620,11 @@ protected:
   */  
   Field *cached_field;
   /*
-    TRUE <=> cache holds value of the last stored item (i.e actual value).
-    store() stores item to be cached and sets this flag to FALSE.
-    On the first call of val_xxx function if this flag is set to FALSE the 
+    true <=> cache holds value of the last stored item (i.e actual value).
+    store() stores item to be cached and sets this flag to false.
+    On the first call of val_xxx function if this flag is set to false the 
     cache_value() will be called to actually cache value of saved item.
-    cache_value() will set this flag to TRUE.
+    cache_value() will set this flag to true.
   */
   bool value_cached;
 public:
@@ -5636,7 +5634,7 @@ public:
   {
     fixed= true;
     maybe_null= true;
-    null_value= TRUE;
+    null_value= true;
   }
   Item_cache(enum_field_types field_type_arg):
     example(NULL), used_table_map(0), cached_field(NULL),
@@ -5645,7 +5643,7 @@ public:
     set_data_type(field_type_arg);
     fixed= true;
     maybe_null= true;
-    null_value= TRUE;
+    null_value= true;
   }
 
   void set_used_tables(table_map map) { used_table_map= map; }
@@ -5700,7 +5698,7 @@ public:
   /**
      Check if saved item has a non-NULL value.
      Will cache value of saved item if not already done. 
-     @return TRUE if cached value is non-NULL.
+     @return true if cached value is non-NULL.
    */
   bool has_value();
 
@@ -5734,7 +5732,7 @@ public:
   bool basic_const_item() const override
   { return (example != nullptr && example->basic_const_item());}
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
-  virtual void clear() { null_value= TRUE; value_cached= FALSE; }
+  virtual void clear() { null_value= true; value_cached= false; }
   bool is_null() override
   { return value_cached ? null_value : example->is_null(); }
   bool check_gcol_func_processor(uchar *) override { return true; }

@@ -16,9 +16,18 @@
 #ifndef PARSE_TREE_HANDLER_INCLUDED
 #define PARSE_TREE_HANDLER_INCLUDED
 
+#include "lex_string.h"
+#include "my_base.h"
+#include "my_dbug.h"
 #include "parse_tree_nodes.h"
-
 #include "sql/sql_handler.h"         // Sql_cmd_handler_open
+
+class Item;
+class PT_item_list;
+class Sql_cmd;
+class THD;
+class Table_ident;
+struct Parse_context;
 
 
 class PT_handler_open final : public Parse_tree_root

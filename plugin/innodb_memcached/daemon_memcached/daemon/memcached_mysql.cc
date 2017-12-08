@@ -77,9 +77,9 @@ static MYSQL_SYSVAR_UINT(w_batch_size, mci_w_batch_size,
 static MYSQL_SYSVAR_BOOL(enable_binlog, mci_enable_binlog,
 			 PLUGIN_VAR_READONLY,
 			 "whether to enable binlog",
-			 NULL, NULL, FALSE);
+			 NULL, NULL, false);
 
-static struct st_mysql_sys_var *daemon_memcached_sys_var[] = {
+static SYS_VAR *daemon_memcached_sys_var[] = {
 	MYSQL_SYSVAR(engine_lib_name),
 	MYSQL_SYSVAR(engine_lib_path),
 	MYSQL_SYSVAR(option),

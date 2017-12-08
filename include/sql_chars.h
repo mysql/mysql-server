@@ -26,6 +26,8 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 
+struct CHARSET_INFO;
+
 enum MY_ATTRIBUTE((__packed__)) my_lex_states
 {
   MY_LEX_START, MY_LEX_CHAR, MY_LEX_IDENT,
@@ -67,12 +69,9 @@ struct lex_state_maps_st
   enum hint_lex_char_classes hint_map[256];
 };
 
-C_MODE_START
 typedef struct lex_state_maps_st lex_state_maps_st;
-typedef struct charset_info_st charset_info_st;
 
-bool init_state_maps(struct charset_info_st *cs);
-C_MODE_END
+bool init_state_maps(CHARSET_INFO *cs);
 
 #endif /* SQL_LEX_CHARS_INCLUDED */
 

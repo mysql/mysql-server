@@ -73,7 +73,7 @@ private:
   bool do_update_is_transactional();
   uint do_get_rpl_info_type();
 
-  static const bool abort= FALSE;
+  static const bool abort= false;
 
   Rpl_info_dummy& operator=(const Rpl_info_dummy& info);
   Rpl_info_dummy(const Rpl_info_dummy& info);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -97,7 +97,7 @@ ut_align_offset(
 /** Gets the nth bit of a ulint.
 @param[in]	a	ulint
 @param[in]	n	nth bit requested
-@return TRUE if nth bit is 1; 0th bit is defined to be the least significant */
+@return true if nth bit is 1; 0th bit is defined to be the least significant */
 UNIV_INLINE
 ibool
 ut_bit_get_nth(

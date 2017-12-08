@@ -21,6 +21,7 @@
 // STL
 #include <map>
 
+struct CHARSET_INFO;
 class NdbOut;
 class Ndb_cluster_connection;
 
@@ -93,7 +94,7 @@ public:
     uint m_rejects;
     // character set of input file (currently fixed as binary)
     const char* m_charset_name;
-    const struct charset_info_st* m_charset;
+    const CHARSET_INFO* m_charset;
     // csv options
     OptCsv m_optcsv;
     const char* m_csvopt;

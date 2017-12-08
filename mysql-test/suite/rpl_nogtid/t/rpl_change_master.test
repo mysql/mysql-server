@@ -107,7 +107,7 @@ SET SQL_LOG_BIN=1;
 
 connection slave;
 --source include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '', MASTER_SSL=0;
+CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '', master_ssl=0;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

@@ -28,9 +28,7 @@
 #include <algorithm>
 #include <new>
 #include <string>
-#include <utility>                              // std::move
 
-#include "mem_root_fwd.h"
 #include "my_alloc.h"                           // MEM_ROOT
 #include "my_dbug.h"                            // DBUG_ASSERT
 #include "my_inttypes.h"
@@ -509,14 +507,6 @@ public:
     auto ptr= new (&m_mem_root) Json_path_leg(leg);
     return ptr == nullptr || m_path_legs.push_back(ptr);
   }
-
-  /**
-    Pop the last leg element.
-
-    This effectively lets the path point at the container of the original,
-    i.e. an array or an object.
-  */
-  void pop();
 
   /**
     Resets this to an empty path with no legs.

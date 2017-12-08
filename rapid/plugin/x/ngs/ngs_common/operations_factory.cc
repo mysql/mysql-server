@@ -181,7 +181,7 @@ class System: public System_interface {
       NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&s, 0, NULL))
     {
       char text[256];
-      my_snprintf(text, sizeof(text), "Error %i", err);
+      snprintf(text, sizeof(text), "Error %i", err);
       strerr = text;
     }
     else

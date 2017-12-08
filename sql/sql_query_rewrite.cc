@@ -17,6 +17,7 @@
 
 #include <stddef.h>
 
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "mysql/plugin_audit.h"
@@ -24,7 +25,6 @@
 #include "mysql/service_rules_table.h"
 #include "mysql/service_ssl_wrapper.h"
 #include "mysqld_error.h"
-#include "sql/key.h"
 #include "sql/sql_audit.h"
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"

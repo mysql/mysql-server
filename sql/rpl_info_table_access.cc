@@ -15,7 +15,6 @@
 
 #include "sql/rpl_info_table_access.h"
 
-#include <assert.h>
 #include <stddef.h>
 
 #include "binlog_event.h"
@@ -26,7 +25,6 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/thread_type.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
@@ -207,7 +205,7 @@ enum enum_return_id Rpl_info_table_access::scan_info(TABLE* table,
 
   DBUG_ENTER("Rpl_info_table_access::scan_info");
 
-  if ((error= table->file->ha_rnd_init(TRUE)))
+  if ((error= table->file->ha_rnd_init(true)))
     DBUG_RETURN(ERROR_ID);
 
   do
@@ -304,8 +302,8 @@ bool Rpl_info_table_access::count_info(TABLE* table, uint* counter)
   @param[in] field_values  The sequence of values
 
   @return
-    @retval FALSE No error
-    @retval TRUE  Failure
+    @retval false No error
+    @retval true  Failure
 */
 bool Rpl_info_table_access::load_info_values(uint max_num_field, Field **fields,
                                              Rpl_info_values *field_values)
@@ -323,7 +321,7 @@ bool Rpl_info_table_access::load_info_values(uint max_num_field, Field **fields,
     field_idx++;
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**
@@ -336,8 +334,8 @@ bool Rpl_info_table_access::load_info_values(uint max_num_field, Field **fields,
   @param[in] field_values  The sequence of values
 
   @return
-    @retval FALSE No error
-    @retval TRUE  Failure
+    @retval false No error
+    @retval true  Failure
  */
 bool Rpl_info_table_access::store_info_values(uint max_num_field, Field **fields,
                                               Rpl_info_values *field_values)
@@ -355,12 +353,12 @@ bool Rpl_info_table_access::store_info_values(uint max_num_field, Field **fields
     {
       my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0),
                fields[field_idx]->field_name);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
     field_idx++;
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**

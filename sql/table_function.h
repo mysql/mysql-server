@@ -16,15 +16,25 @@
 #ifndef TABLE_FUNCTION_INCLUDED
 #define TABLE_FUNCTION_INCLUDED
 
+#include <sys/types.h>
 #include <array>                        // std::array
 
-#include "sql_alloc.h"                  // Sql_alloc
-#include "sql_list.h"                   // List
 #include "field.h"                      // Field
-#include "table.h"                      // TABLE
-#include "psi_memory_key.h"             // key_memory_JSON
-#include "json_path.h"                  // Json_path
 #include "json_dom.h"                   // Json_wrapper
+#include "json_path.h"                  // Json_path
+#include "lex_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_table_map.h"
+#include "psi_memory_key.h"             // key_memory_JSON
+#include "sql/enum_query_type.h"
+#include "sql/mem_root_array.h"
+#include "sql_list.h"                   // List
+#include "table.h"                      // TABLE
+
+class Item;
+class String;
+class THD;
 
 /**
   Class representing a table function.
@@ -193,7 +203,7 @@ public:
   /// Current m_rowid, used for ORDINALITY columns
   uint m_rowid;
   /**
-    TRUE <=> NESTED PATH associated with this element is producing records.
+    true <=> NESTED PATH associated with this element is producing records.
     Used to turn off (set to null) sibling NESTED PATHs, when one of them is
     used to fill result table.
   */

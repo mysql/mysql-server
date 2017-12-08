@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include <utility>
 
+#include "mysql/mysql_lex_string.h"
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql/dd/impl/sdi.h"    // dd::Sdi_type
 #include "sql/dd/object_id.h"   // dd::Object_id
@@ -26,7 +27,7 @@
 
 class THD;
 struct handlerton;
-struct st_mysql_const_lex_string;
+struct MYSQL_LEX_CSTRING;
 
 namespace dd {
 class Entity_object;
@@ -126,7 +127,7 @@ typedef Prealloced_array<Path_type, 3> Paths_type;
   @retval true if an error occurs
   @retval false otherwise
 */
-bool expand_pattern(THD *thd, const struct st_mysql_lex_string &pattern,
+bool expand_pattern(THD *thd, const MYSQL_LEX_STRING &pattern,
                     Paths_type *paths);
 
 /**

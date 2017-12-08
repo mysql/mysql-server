@@ -42,19 +42,17 @@
 #include "my_sys.h"
 #include "mysql/plugin.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/status_var.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/debug_sync.h"       // debug_sync_update
 #include "sql/handler.h"
 #include "sql/item.h"             // Item
-#include "sql/key.h"
 #include "sql/keycaches.h"        // default_key_cache_base
 #include "sql/mysqld.h"           // max_system_variables
 #include "sql/rpl_gtid.h"
 #include "sql/set_var.h"          // sys_var_chain
-#include "sql/sql_admin.h"
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_connect.h"
 #include "sql/sql_const.h"
@@ -208,7 +206,7 @@ public:
   }
   bool do_check(THD *thd, set_var *var)
   {
-    bool fixed= FALSE;
+    bool fixed= false;
     longlong v;
     ulonglong uv;
 
@@ -312,14 +310,14 @@ public:
   }
 };
 
-typedef Sys_var_integer<int32, GET_UINT, SHOW_INT, FALSE> Sys_var_int32;
-typedef Sys_var_integer<uint, GET_UINT, SHOW_INT, FALSE> Sys_var_uint;
-typedef Sys_var_integer<ulong, GET_ULONG, SHOW_LONG, FALSE> Sys_var_ulong;
-typedef Sys_var_integer<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS, FALSE>
+typedef Sys_var_integer<int32, GET_UINT, SHOW_INT, false> Sys_var_int32;
+typedef Sys_var_integer<uint, GET_UINT, SHOW_INT, false> Sys_var_uint;
+typedef Sys_var_integer<ulong, GET_ULONG, SHOW_LONG, false> Sys_var_ulong;
+typedef Sys_var_integer<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS, false>
   Sys_var_harows;
-typedef Sys_var_integer<ulonglong, GET_ULL, SHOW_LONGLONG, FALSE>
+typedef Sys_var_integer<ulonglong, GET_ULL, SHOW_LONGLONG, false>
   Sys_var_ulonglong;
-typedef Sys_var_integer<long, GET_LONG, SHOW_SIGNED_LONG, TRUE> Sys_var_long;
+typedef Sys_var_integer<long, GET_LONG, SHOW_SIGNED_LONG, true> Sys_var_long;
 
 /**
   Helper class for variables that take values from a TYPELIB
@@ -925,23 +923,23 @@ public:
   }
   bool do_check(THD*, set_var*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return true;
   }
   bool session_update(THD*, set_var*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return true;
   }
   bool global_update(THD*, set_var*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return false;
   }
   void session_save_default(THD*, set_var*)
-  { DBUG_ASSERT(FALSE); }
+  { DBUG_ASSERT(false); }
   void global_save_default(THD*, set_var*)
-  { DBUG_ASSERT(FALSE); }
+  { DBUG_ASSERT(false); }
   bool check_update_type(Item_result)
   { return true; }
 protected:
@@ -1269,7 +1267,7 @@ public:
   Sys_var_test_flag(const char *name_arg, const char *comment, uint mask)
   : Sys_var_bool(name_arg, comment, READ_ONLY NON_PERSIST
           GLOBAL_VAR(test_flag_value),
-          NO_CMD_LINE, DEFAULT(FALSE))
+          NO_CMD_LINE, DEFAULT(false))
   {
     test_flag_mask= mask;
   }
@@ -1591,7 +1589,7 @@ public:
 
     // special code for storage engines (e.g. to handle historical aliases)
     if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
-      plugin= ha_resolve_by_name(thd, &pname, FALSE);
+      plugin= ha_resolve_by_name(thd, &pname, false);
     else
     {
       LEX_CSTRING pname_cstr= { pname.str, pname.length };
@@ -1646,7 +1644,7 @@ public:
 
     plugin_ref plugin;
     if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
-      plugin= ha_resolve_by_name(thd, &pname, FALSE);
+      plugin= ha_resolve_by_name(thd, &pname, false);
     else
     {
       LEX_CSTRING pname_cstr= {pname.str,pname.length};
@@ -1713,7 +1711,7 @@ public:
   }
   bool global_update(THD*, set_var*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return true;
   }
   void session_save_default(THD*, set_var *var)
@@ -1723,7 +1721,7 @@ public:
   }
   void global_save_default(THD*, set_var*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
   }
   uchar *session_value_ptr(THD *running_thd, THD*, LEX_STRING*)
   {
@@ -1731,7 +1729,7 @@ public:
   }
   uchar *global_value_ptr(THD*, LEX_STRING*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return 0;
   }
   bool check_update_type(Item_result type)
@@ -1866,13 +1864,13 @@ public:
   { return update_func(thd, var); }
   bool global_update(THD*, set_var*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return true;
   }
   void session_save_default(THD*, set_var *var)
   { var->value= 0; }
   void global_save_default(THD*, set_var*)
-  { DBUG_ASSERT(FALSE); }
+  { DBUG_ASSERT(false); }
   uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING*)
   {
     running_thd->sys_var_tmp.ulonglong_value= read_func(target_thd);
@@ -1880,7 +1878,7 @@ public:
   }
   uchar *global_value_ptr(THD*, LEX_STRING*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return 0;
   }
 };
@@ -1920,13 +1918,13 @@ public:
   { return update_func(thd, var); }
   bool global_update(THD*, set_var*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return true;
   }
   void session_save_default(THD*, set_var *var)
   { var->value= 0; }
   void global_save_default(THD*, set_var*)
-  { DBUG_ASSERT(FALSE); }
+  { DBUG_ASSERT(false); }
   uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING*)
   {
     running_thd->sys_var_tmp.double_value= read_func(target_thd);
@@ -1934,7 +1932,7 @@ public:
   }
   uchar *global_value_ptr(THD*, LEX_STRING*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return 0;
   }
 };
@@ -1978,24 +1976,24 @@ public:
   }
   bool do_check(THD*, set_var*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return true;
   }
   bool session_update(THD*, set_var*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return true;
   }
   bool global_update(THD*, set_var*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return true;
   }
   void session_save_default(THD*, set_var*) { }
   void global_save_default(THD*, set_var*) { }
   uchar *session_value_ptr(THD*, THD*, LEX_STRING*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return 0;
   }
   uchar *global_value_ptr(THD*, LEX_STRING*)
@@ -2265,7 +2263,7 @@ public:
   bool session_update(THD *thd, set_var *var);
 
   bool global_update(THD*, set_var*)
-  { DBUG_ASSERT(FALSE); return true; }
+  { DBUG_ASSERT(false); return true; }
   void session_save_default(THD*, set_var *var)
   {
     DBUG_ENTER("Sys_var_gtid_next::session_save_default");
@@ -2275,7 +2273,7 @@ public:
     DBUG_VOID_RETURN;
   }
   void global_save_default(THD*, set_var*)
-  { DBUG_ASSERT(FALSE); }
+  { DBUG_ASSERT(false); }
   bool do_check(THD*, set_var*)
   { return false; }
   bool check_update_type(Item_result type)
@@ -2292,7 +2290,7 @@ public:
     DBUG_RETURN((uchar *)ret);
   }
   uchar *global_value_ptr(THD*, LEX_STRING*)
-  { DBUG_ASSERT(FALSE); return NULL; }
+  { DBUG_ASSERT(false); return NULL; }
 };
 
 #ifdef HAVE_GTID_NEXT_LIST
@@ -2326,7 +2324,7 @@ public:
   bool session_update(THD *thd, set_var *var);
 
   bool global_update(THD *thd, set_var *var)
-  { DBUG_ASSERT(FALSE); return true; }
+  { DBUG_ASSERT(false); return true; }
   void session_save_default(THD *thd, set_var *var)
   {
     DBUG_ENTER("Sys_var_gtid_set::session_save_default");
@@ -2338,7 +2336,7 @@ public:
     DBUG_VOID_RETURN;
   }
   void global_save_default(THD *thd, set_var *var)
-  { DBUG_ASSERT(FALSE); }
+  { DBUG_ASSERT(false); }
   bool do_check(THD *thd, set_var *var)
   {
     DBUG_ENTER("Sys_var_gtid_set::do_check");
@@ -2347,7 +2345,7 @@ public:
     if (res == NULL)
     {
       var->save_result.string_value.str= NULL;
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(false);
     }
     DBUG_ASSERT(res->ptr() != NULL);
     var->save_result.string_value.str= thd->strmake(res->ptr(), res->length());
@@ -2380,7 +2378,7 @@ public:
     DBUG_RETURN((uchar *)buf);
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
-  { DBUG_ASSERT(FALSE); return NULL; }
+  { DBUG_ASSERT(false); return NULL; }
 };
 #endif
 
@@ -2408,17 +2406,17 @@ public:
                 flag_arg == sys_var::ONLY_SESSION);
   }
   bool session_update(THD*, set_var*)
-  { DBUG_ASSERT(FALSE); return true; }
+  { DBUG_ASSERT(false); return true; }
   bool global_update(THD*, set_var*)
-  { DBUG_ASSERT(FALSE); return true; }
-  void session_save_default(THD*, set_var*) { DBUG_ASSERT(FALSE); }
-  void global_save_default(THD*, set_var*) { DBUG_ASSERT(FALSE); }
-  bool do_check(THD*, set_var*) { DBUG_ASSERT(FALSE); return true; }
-  bool check_update_type(Item_result) { DBUG_ASSERT(FALSE); return true; }
+  { DBUG_ASSERT(false); return true; }
+  void session_save_default(THD*, set_var*) { DBUG_ASSERT(false); }
+  void global_save_default(THD*, set_var*) { DBUG_ASSERT(false); }
+  bool do_check(THD*, set_var*) { DBUG_ASSERT(false); return true; }
+  bool check_update_type(Item_result) { DBUG_ASSERT(false); return true; }
   virtual uchar *session_value_ptr(THD*, THD*, LEX_STRING*)
-  { DBUG_ASSERT(FALSE); return NULL; }
+  { DBUG_ASSERT(false); return NULL; }
   virtual uchar *global_value_ptr(THD*, LEX_STRING*)
-  { DBUG_ASSERT(FALSE); return NULL; }
+  { DBUG_ASSERT(false); return NULL; }
 };
 
 
@@ -2471,12 +2469,12 @@ public:
 
   bool session_update(THD*, set_var*)
   {
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     return true;
   }
 
   void session_save_default(THD*, set_var*)
-  { DBUG_ASSERT(FALSE); }
+  { DBUG_ASSERT(false); }
 
   bool global_update(THD *thd, set_var *var);
 

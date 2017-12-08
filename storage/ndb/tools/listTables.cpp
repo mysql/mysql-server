@@ -28,6 +28,8 @@
 #include <NdbApi.hpp>
 #include <NDBT.hpp>
 
+#include "my_alloc.h"
+
 static Ndb_cluster_connection *ndb_cluster_connection= 0;
 static Ndb* ndb = 0;
 static const NdbDictionary::Dictionary * dic = 0;

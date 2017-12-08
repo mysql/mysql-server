@@ -16,6 +16,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_compiler.h"
 #include "violite.h"
 
 namespace ssl_wrappe_service
@@ -33,7 +34,6 @@ dummy_function_to_ensure_we_are_linked_into_the_server();
   @param buffer           Character buffer in which the version is going to be placed
   @param buffer_size      Size of the character buffer
 */
-extern "C"
 void ssl_wrapper_version(Vio *vio, char *version, const size_t version_size);
 
 /**
@@ -43,7 +43,6 @@ void ssl_wrapper_version(Vio *vio, char *version, const size_t version_size);
   @param buffer           Character buffer in which the cipher name is going to be placed
   @param buffer_size      Size of the character buffer
 */
-extern "C"
 void ssl_wrapper_cipher(Vio *vio, char *cipher, const size_t cipher_size);
 
 /**
@@ -53,7 +52,6 @@ void ssl_wrapper_cipher(Vio *vio, char *cipher, const size_t cipher_size);
   @param clipher_list              Pointer to an array of c-strings
   @param maximun_num_of_elements   Size of the pointer array
 */
-extern "C"
 long ssl_wrapper_cipher_list(Vio *vio, const char **clipher_list, const size_t maximun_num_of_elements);
 
 /**
@@ -65,7 +63,6 @@ long ssl_wrapper_cipher_list(Vio *vio, const char **clipher_list, const size_t m
     -1 default values should be used
     >0 verification depth
 */
-extern "C"
 long ssl_wrapper_verify_depth(Vio *vio);
 
 /**
@@ -77,7 +74,6 @@ long ssl_wrapper_verify_depth(Vio *vio);
     -1 default values should be used
     >0 verification mode
 */
-extern "C"
 long ssl_wrapper_verify_mode(Vio *vio);
 
 /**
@@ -87,7 +83,6 @@ long ssl_wrapper_verify_mode(Vio *vio);
   @param issuer           Character buffer in which the issuer name is going to be placed
   @param issuer_size      Size of character buffer for the issuer name
 */
-extern "C"
 void ssl_wrapper_get_peer_certificate_issuer(Vio *vio, char *issuer, const size_t issuer_size);
 
 /**
@@ -97,7 +92,6 @@ void ssl_wrapper_get_peer_certificate_issuer(Vio *vio, char *issuer, const size_
   @param subject          Character buffer in which the subject is going to be placed
   @param subject_size     Size of character buffer for the subject
 */
-extern "C"
 void ssl_wrapper_get_peer_certificate_subject(Vio *vio, char *subject, const size_t subject_size);
 
 /**
@@ -109,7 +103,6 @@ void ssl_wrapper_get_peer_certificate_subject(Vio *vio, char *subject, const siz
     X509_V_OK verification of peer certificate succeeded
     -1        verification failed
 */
-extern "C"
 long ssl_wrapper_get_verify_result_and_cert(Vio *vio);
 
 /**
@@ -121,7 +114,6 @@ long ssl_wrapper_get_verify_result_and_cert(Vio *vio);
     -1 default values should be used
     >0 verification depth
 */
-extern "C"
 long ssl_wrapper_ctx_verify_depth(struct st_VioSSLFd *vio_ssl);
 
 /**
@@ -133,7 +125,6 @@ long ssl_wrapper_ctx_verify_depth(struct st_VioSSLFd *vio_ssl);
     -1 default values should be used
     >0 verification mode
 */
-extern "C"
 long ssl_wrapper_ctx_verify_mode(struct st_VioSSLFd *vio_ssl);
 
 /**
@@ -143,7 +134,6 @@ long ssl_wrapper_ctx_verify_mode(struct st_VioSSLFd *vio_ssl);
   @param no_after             Character buffer for to be filed with the date in human readble format
   @param no_after_size        Size of the character buffer
 */
-extern "C"
 void  ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd *vio_ssl, char *no_after, const size_t no_after_size);
 
 /**
@@ -153,20 +143,16 @@ void  ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd *vio_ssl, char *no_aft
   @param no_before            Character buffer for to be filed with the date in human readble format
   @param no_before_size       Size of the character buffer
 */
-extern "C"
 void ssl_wrapper_ctx_server_not_before(struct st_VioSSLFd *vio_ssl, char *no_before, const size_t no_before_size);
 
-extern "C"
 void ssl_wrapper_thread_cleanup();
 
-extern "C"
 long ssl_wrapper_sess_accept(struct st_VioSSLFd *vio_ssl);
 
 /**
   Cleanup data allocated by SSL on thread stack
 
 */
-extern "C"
 long ssl_wrapper_sess_accept_good(struct st_VioSSLFd *vio_ssl);
 
 #endif /* SSL_WRAPPER_INCLUDED */

@@ -1582,7 +1582,7 @@ DROP TABLE t1;
 CREATE TABLE t1(f1 CHAR(1) CHARSET latin1, FULLTEXT(f1)) ENGINE=INNODB;
 EXPLAIN SELECT 1 FROM t1 WHERE 1.238585e+308 <= MATCH(f1) AGAINST ('1' IN BOOLEAN MODE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: rank >= 1e308
+1	SIMPLE	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: rank >= 1e+308
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (1.238585e+308 <= (match `test`.`t1`.`f1` against ('1' in boolean mode)))
 EXPLAIN FORMAT = JSON SELECT 1 FROM t1 WHERE 1.238585e+308 <= MATCH(f1) AGAINST ('1' IN BOOLEAN MODE);
@@ -1610,7 +1610,7 @@ EXPLAIN
       "rows_examined_per_scan": 1,
       "rows_produced_per_join": 1,
       "filtered": "100.00",
-      "ft_hints": "rank >= 1e308",
+      "ft_hints": "rank >= 1e+308",
       "cost_info": {
         "read_cost": "0.25",
         "eval_cost": "0.10",

@@ -344,7 +344,7 @@ dict_table_get_sys_col_no(
 
 /********************************************************************//**
 Check whether the table uses the compact page format.
-@return TRUE if table uses the compact page format */
+@return true if table uses the compact page format */
 UNIV_INLINE
 ibool
 dict_table_is_comp(

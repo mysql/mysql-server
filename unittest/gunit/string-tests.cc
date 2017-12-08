@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 
-extern "C" CHARSET_INFO *system_charset_info;
+extern CHARSET_INFO *system_charset_info;
 
 TEST(StringTest, EmptyString)
 {

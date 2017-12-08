@@ -20,12 +20,13 @@
 #include <unordered_map>
 #include <utility>
 
+#include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_list.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "sql/auth/sql_security_ctx.h"
+#include "mysql/status_var.h"
 #include "sql/current_thd.h"
 #include "sql/item.h"
 #include "sql/mysqld.h"
@@ -38,6 +39,7 @@
 #include "sql/sys_vars_shared.h" // intern_find_sys_var
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "typelib.h"
 
 /**
   Set value for global variable with PLUGIN_VAR_MEMALLOC flag.
@@ -53,7 +55,7 @@
 */
 
 bool plugin_var_memalloc_global_update(THD *thd,
-                                       st_mysql_sys_var *var,
+                                       SYS_VAR *var,
                                        char **dest, const char *value)
 {
   char *old_value= *dest;
@@ -110,7 +112,7 @@ bool plugin_var_memalloc_global_update(THD *thd,
 */
 
 bool plugin_var_memalloc_session_update(THD *thd,
-                                        st_mysql_sys_var *var,
+                                        SYS_VAR *var,
                                         char **dest, const char *value)
 
 {
@@ -148,7 +150,7 @@ bool plugin_var_memalloc_session_update(THD *thd,
   DBUG_RETURN(false);
 }
 
-SHOW_TYPE pluginvar_show_type(st_mysql_sys_var *plugin_var)
+SHOW_TYPE pluginvar_show_type(SYS_VAR *plugin_var)
 {
   switch (plugin_var->flags & PLUGIN_VAR_TYPEMASK) {
   case PLUGIN_VAR_BOOL:
@@ -575,7 +577,7 @@ bool sys_var_pluginvar::on_check_pluginvar(sys_var *self MY_ATTRIBUTE((unused)),
   default variable data check and update functions
 ****************************************************************************/
 
-int check_func_bool(THD*, st_mysql_sys_var*,
+int check_func_bool(THD*, SYS_VAR*,
                            void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -598,14 +600,14 @@ int check_func_bool(THD*, st_mysql_sys_var*,
       goto err;
     result= (int) tmp;
   }
-  *(bool *) save= result ? TRUE : FALSE;
+  *(bool *) save= result ? true : false;
   return 0;
 err:
   return 1;
 }
 
 
-int check_func_int(THD *thd, st_mysql_sys_var *var,
+int check_func_int(THD *thd, SYS_VAR *var,
                           void *save, st_mysql_value *value)
 {
   bool fixed1, fixed2;
@@ -634,7 +636,7 @@ int check_func_int(THD *thd, st_mysql_sys_var *var,
 }
 
 
-int check_func_long(THD *thd, st_mysql_sys_var *var,
+int check_func_long(THD *thd, SYS_VAR *var,
                           void *save, st_mysql_value *value)
 {
   bool fixed1, fixed2;
@@ -663,7 +665,7 @@ int check_func_long(THD *thd, st_mysql_sys_var *var,
 }
 
 
-int check_func_longlong(THD *thd, st_mysql_sys_var *var,
+int check_func_longlong(THD *thd, SYS_VAR *var,
                                void *save, st_mysql_value *value)
 {
   bool fixed1, fixed2;
@@ -691,7 +693,7 @@ int check_func_longlong(THD *thd, st_mysql_sys_var *var,
                               value->is_unsigned(value), orig);
 }
 
-int check_func_str(THD *thd, st_mysql_sys_var*,
+int check_func_str(THD *thd, SYS_VAR*,
                           void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -706,7 +708,7 @@ int check_func_str(THD *thd, st_mysql_sys_var*,
 }
 
 
-int check_func_enum(THD*, st_mysql_sys_var *var,
+int check_func_enum(THD*, SYS_VAR *var,
                            void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -744,7 +746,7 @@ err:
 }
 
 
-int check_func_set(THD*, st_mysql_sys_var *var,
+int check_func_set(THD*, SYS_VAR *var,
                           void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE], *error= 0;
@@ -784,7 +786,7 @@ err:
   return 1;
 }
 
-int check_func_double(THD *thd, st_mysql_sys_var *var,
+int check_func_double(THD *thd, SYS_VAR *var,
                              void *save, st_mysql_value *value)
 {
   double v;
@@ -799,41 +801,41 @@ int check_func_double(THD *thd, st_mysql_sys_var *var,
 }
 
 
-void update_func_bool(THD*, st_mysql_sys_var*,
+void update_func_bool(THD*, SYS_VAR*,
                              void *tgt, const void *save)
 {
-  *(bool *) tgt= *(bool *) save ? TRUE : FALSE;
+  *(bool *) tgt= *(bool *) save ? true : false;
 }
 
 
-void update_func_int(THD*, st_mysql_sys_var*,
+void update_func_int(THD*, SYS_VAR*,
                             void *tgt, const void *save)
 {
   *(int *)tgt= *(int *) save;
 }
 
 
-void update_func_long(THD*, st_mysql_sys_var*,
+void update_func_long(THD*, SYS_VAR*,
                              void *tgt, const void *save)
 {
   *(long *)tgt= *(long *) save;
 }
 
 
-void update_func_longlong(THD*, st_mysql_sys_var*,
+void update_func_longlong(THD*, SYS_VAR*,
                                  void *tgt, const void *save)
 {
   *(longlong *)tgt= *(ulonglong *) save;
 }
 
 
-void update_func_str(THD*, st_mysql_sys_var*,
+void update_func_str(THD*, SYS_VAR*,
                              void *tgt, const void *save)
 {
   *(char **) tgt= *(char **) save;
 }
 
-void update_func_double(THD*, st_mysql_sys_var*,
+void update_func_double(THD*, SYS_VAR*,
                                void *tgt, const void *save)
 {
   *(double *) tgt= *(double *) save;
@@ -879,7 +881,7 @@ st_bookmark *find_bookmark(const char *plugin, const char *name,
 }
 
 void plugin_opt_set_limits(struct my_option *options,
-                           const st_mysql_sys_var *opt)
+                           const SYS_VAR *opt)
 {
   switch (opt->flags & (PLUGIN_VAR_TYPEMASK |
                         PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_THDLOCAL)) {

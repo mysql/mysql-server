@@ -24,6 +24,7 @@
 #include "sql/json_dom.h"
 #include "sql/json_path.h"
 #include "sql/my_decimal.h"
+#include "sql/sql_class.h"
 #include "sql/sql_time.h"
 #include "sql_string.h"
 #include "template_utils.h"     // down_cast
@@ -1180,25 +1181,20 @@ static void do_apply_json_diffs_tests(Field_json *field)
   {
     SCOPED_TRACE("");
     diffs.clear();
-    Json_int *int_ptr= new (std::nothrow) Json_int(3);
-    Json_dom_ptr dom_ptr= int_ptr->clone();
     diffs.add_diff(parse_path("$.a"), enum_json_diff_operation::REPLACE,
-                   dom_ptr);
+                   create_dom_ptr<Json_int>(3));
     expect_success("{\"a\": 1, \"b\": 2}", "{\"a\": 3, \"b\": 2}");
     expect_rejected("{\"b\": 2}");
     expect_rejected("[1,2,3]");
     expect_rejected("123");
     expect_rejected(nullptr);
-    delete int_ptr;
   }
 
   {
     SCOPED_TRACE("");
     diffs.clear();
-    Json_int *int_ptr= new (std::nothrow) Json_int(3);
-    Json_dom_ptr dom_ptr= int_ptr->clone();
     diffs.add_diff(parse_path("$.a[1]"), enum_json_diff_operation::REPLACE,
-                   dom_ptr);
+                   create_dom_ptr<Json_int>(3));
     expect_success("{\"a\": [1,2], \"b\": 2}", "{\"a\":[1,3], \"b\": 2}");
     expect_rejected("{\"a\": 2}");
     expect_rejected("{\"b\": 2}");
@@ -1206,16 +1202,13 @@ static void do_apply_json_diffs_tests(Field_json *field)
     expect_rejected("[1,2,3]");
     expect_rejected("123");
     expect_rejected(nullptr);
-    delete int_ptr;
   }
 
   {
     SCOPED_TRACE("");
     diffs.clear();
-    Json_int *int_ptr= new (std::nothrow) Json_int(3);
-    Json_dom_ptr dom_ptr= int_ptr->clone();
     diffs.add_diff(parse_path("$.a[2]"), enum_json_diff_operation::INSERT,
-                   dom_ptr);
+                   create_dom_ptr<Json_int>(3));
     expect_success("{\"a\":[]}", "{\"a\":[3]}");
     expect_success("{\"a\":[1]}", "{\"a\":[1,3]}");
     expect_success("{\"a\":[1,2]}", "{\"a\":[1,2,3]}");
@@ -1223,22 +1216,18 @@ static void do_apply_json_diffs_tests(Field_json *field)
     expect_rejected("{\"a\": 1, \"b\": 2}");
     expect_rejected("[]");
     expect_rejected(nullptr);
-    delete int_ptr;
   }
 
   {
     SCOPED_TRACE("");
     diffs.clear();
-    Json_int *int_ptr= new (std::nothrow) Json_int(3);
-    Json_dom_ptr dom_ptr= int_ptr->clone();
     diffs.add_diff(parse_path("$.a.b"), enum_json_diff_operation::INSERT,
-                   dom_ptr);
+                   create_dom_ptr<Json_int>(3));
     expect_success("{\"a\":{\"c\":1}}", "{\"a\":{\"b\":3,\"c\":1}}");
     expect_rejected("{}");
     expect_rejected("[]");
     expect_rejected("{\"a\":{\"b\":1}}");
     expect_rejected(nullptr);
-    delete int_ptr;
   }
 
   {
@@ -1309,12 +1298,9 @@ static void do_apply_json_diffs_tests(Field_json *field)
                      enum_json_diff_operation::REMOVE })
     {
       diffs.clear();
-      Json_int *int_ptr= new (std::nothrow) Json_int(1);
-      Json_dom_ptr dom_ptr= int_ptr->clone();
-      diffs.add_diff(parse_path("$"), op, dom_ptr);
+      diffs.add_diff(parse_path("$"), op, create_dom_ptr<Json_int>(1));
       expect_rejected("[1,2,3]");
       expect_rejected(nullptr);
-      delete int_ptr;
     }
   }
 }

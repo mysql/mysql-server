@@ -25,7 +25,7 @@
 
 using namespace mysqld;
 
-xpl_show_var::xpl_show_var(st_mysql_show_var *var)
+xpl_show_var::xpl_show_var(SHOW_VAR *var)
 : m_var(var)
 {}
 

@@ -243,9 +243,9 @@ page_zip_compress_write_log(
 	/* Add the space occupied by BLOB pointers. */
 	trailer_size += page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
 	ut_a(page_zip->m_end > PAGE_DATA);
-#if FIL_PAGE_DATA > PAGE_DATA
-# error "FIL_PAGE_DATA > PAGE_DATA"
-#endif
+
+	static_assert(FIL_PAGE_DATA <= PAGE_DATA, "FIL_PAGE_DATA > PAGE_DATA");
+
 	ut_a(page_zip->m_end + trailer_size <= page_zip_get_size(page_zip));
 
 	log_ptr = mlog_write_initial_log_record_fast((page_t*) page,
@@ -1028,7 +1028,7 @@ func_exit:
 
 /**********************************************************************//**
 Compress a page.
-@return TRUE on success, FALSE on failure; page_zip will be left
+@return true on success, false on failure; page_zip will be left
 intact on failure. */
 ibool
 page_zip_compress(
@@ -1392,7 +1392,7 @@ err_exit:
 Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
 inconsistency is detected.
-@return TRUE on success, FALSE on failure */
+@return true on success, false on failure */
 ibool
 page_zip_decompress(
 /*================*/
@@ -1481,7 +1481,7 @@ int page_zip_fail_func(const char* fmt, ...);
 
 /**********************************************************************//**
 Check that the compressed and decompressed pages match.
-@return TRUE if valid, FALSE if not */
+@return true if valid, false if not */
 ibool
 page_zip_validate_low(
 /*==================*/
@@ -1678,7 +1678,7 @@ func_exit:
 
 /**********************************************************************//**
 Check that the compressed and decompressed pages match.
-@return TRUE if valid, FALSE if not */
+@return true if valid, false if not */
 ibool
 page_zip_validate(
 /*==============*/
@@ -1694,7 +1694,7 @@ page_zip_validate(
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Assert that the compressed and decompressed page headers match.
-@return TRUE */
+@return true */
 static
 ibool
 page_zip_header_cmp(
@@ -2799,9 +2799,9 @@ page_zip_write_header_log(
 
 	ut_ad(offset < PAGE_DATA);
 	ut_ad(offset + length < PAGE_DATA);
-#if PAGE_DATA > 255
-# error "PAGE_DATA > 255"
-#endif
+
+	static_assert(PAGE_DATA <= 255, "PAGE_DATA > 255");
+
 	ut_ad(length < 256);
 
 	/* If no logging is requested, we may return now */
@@ -2829,7 +2829,7 @@ IMPORTANT: if page_zip_reorganize() is invoked on a leaf page of a
 non-clustered index, the caller must update the insert buffer free
 bits in the same mini-transaction in such a way that the modification
 will be redo-logged.
-@return TRUE on success, FALSE on failure; page_zip will be left
+@return true on success, false on failure; page_zip will be left
 intact on failure, but page will be overwritten. */
 ibool
 page_zip_reorganize(

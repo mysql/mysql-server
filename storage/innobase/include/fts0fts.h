@@ -1029,7 +1029,7 @@ fts_valid_stopword_table(
 						name */
 /****************************************************************//**
 This function loads specified stopword into FTS cache
-@return TRUE if success */
+@return true if success */
 ibool
 fts_load_stopword(
 /*==============*/
@@ -1060,7 +1060,7 @@ This function brings FTS index in sync when FTS index is first
 used. There are documents that have not yet sync-ed to auxiliary
 tables from last server abnormally shutdown, we will need to bring
 such document into FTS cache before any further operations
-@return TRUE if all OK */
+@return true if all OK */
 ibool
 fts_init_index(
 /*===========*/
@@ -1101,7 +1101,7 @@ fts_rename_aux_tables(
 /*******************************************************************//**
 Check indexes in the fts->indexes is also present in index cache and
 table->indexes list
-@return TRUE if all indexes match */
+@return true if all indexes match */
 ibool
 fts_check_cached_index(
 /*===================*/

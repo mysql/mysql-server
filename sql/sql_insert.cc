@@ -19,8 +19,8 @@
 
 #include "sql/sql_insert.h"
 
-#include <assert.h>
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 #include <atomic>
 #include <map>
@@ -28,7 +28,9 @@
 
 #include "binary_log_types.h"
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -37,7 +39,6 @@
 #include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -47,7 +48,6 @@
 #include "sql/auth/auth_common.h"     // check_grant_all_columns
 #include "sql/binlog.h"
 #include "sql/dd/cache/dictionary_client.h"
-#include "sql/dd/dd_schema.h"         // dd::Schema_MDL_locker
 #include "sql/dd/dd.h"                // dd::get_dictionary
 #include "sql/dd/dictionary.h"        // dd::Dictionary
 #include "sql/dd_sql_view.h"          // update_referencing_views_metadata
@@ -55,10 +55,13 @@
 #include "sql/derror.h"               // ER_THD
 #include "sql/discrete_interval.h"
 #include "sql/field.h"
+#include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/lock.h"                 // mysql_unlock_tables
+#include "sql/mdl.h"
 #include "sql/mysqld.h"               // stage_update
+#include "sql/nested_join.h"
 #include "sql/opt_explain.h"          // Modification_plan
 #include "sql/opt_explain_format.h"
 #include "sql/partition_info.h"       // partition_info
@@ -75,7 +78,6 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_optimizer.h"        // Prepare_error_tracker
 #include "sql/sql_resolver.h"         // validate_gc_assignment
-#include "sql/sql_servers.h"
 #include "sql/sql_show.h"             // store_create_info
 #include "sql/sql_table.h"            // quick_rm_table
 #include "sql/sql_tmp_table.h"        // create_tmp_field
@@ -83,6 +85,7 @@
 #include "sql/sql_view.h"             // check_key_in_view
 #include "sql/system_variables.h"
 #include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"          // trans_commit_stmt
 #include "sql/transaction_info.h"
@@ -90,6 +93,10 @@
 #include "sql_string.h"
 #include "template_utils.h"
 #include "thr_lock.h"
+
+namespace dd {
+class Table;
+}  // namespace dd
 
 
 static bool check_view_insertability(THD *thd, TABLE_LIST *view,
@@ -530,7 +537,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
     DBUG_ASSERT(c_rli != NULL);
     if(info.get_duplicate_handling() == DUP_UPDATE &&
        insert_table->next_number_field != NULL &&
-       rpl_master_has_bug(c_rli, 24432, TRUE, NULL, NULL))
+       rpl_master_has_bug(c_rli, 24432, true, NULL, NULL))
       DBUG_RETURN(true);
   }
 
@@ -742,7 +749,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
 	*/
         if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                               thd->query().str, thd->query().length,
-			           transactional_table, FALSE, FALSE,
+			           transactional_table, false, false,
                                    errcode))
 	  has_error= true;
       }
@@ -772,7 +779,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
   // Remember to restore warning handling before leaving
   thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
-  insert_table->auto_increment_field_not_null= FALSE;
+  insert_table->auto_increment_field_not_null= false;
 
   DBUG_ASSERT(has_error == thd->get_stmt_da()->is_error());
   if (has_error)
@@ -794,12 +801,12 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
       thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
         info.stats.touched : info.stats.updated;
     if (lex->is_ignore())
-      my_snprintf(buff, sizeof(buff),
+      snprintf(buff, sizeof(buff),
                   ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.records - info.stats.copied),
                   (long) thd->get_stmt_da()->current_statement_cond_count());
     else
-      my_snprintf(buff, sizeof(buff),
+      snprintf(buff, sizeof(buff),
                   ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.deleted + updated),
                   (long) thd->get_stmt_da()->current_statement_cond_count());
@@ -1907,7 +1914,7 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         // Execute the 'AFTER, ON UPDATE' trigger
         trg_error= (table->triggers &&
                     table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                      TRG_ACTION_AFTER, TRUE));
+                                                      TRG_ACTION_AFTER, true));
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
@@ -1985,7 +1992,7 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         {
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                                TRG_ACTION_BEFORE, TRUE))
+                                                TRG_ACTION_BEFORE, true))
             goto before_trg_err;
           if ((error=table->file->ha_delete_row(table->record[1])))
             goto err;
@@ -1995,7 +2002,7 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
               Transaction_ctx::STMT);
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                                TRG_ACTION_AFTER, TRUE))
+                                                TRG_ACTION_AFTER, true))
           {
             trg_error= 1;
             goto ok_or_after_trg_err;
@@ -2047,7 +2054,7 @@ after_trg_n_copied_inc:
   thd->record_first_successful_insert_id_in_cur_stmt(table->file->insert_id_for_cur_row);
   trg_error= (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
-                                                TRG_ACTION_AFTER, TRUE));
+                                                TRG_ACTION_AFTER, true));
 
 ok_or_after_trg_err:
   if (key)
@@ -2166,7 +2173,7 @@ bool Query_result_insert::prepare(List<Item>&, SELECT_LEX_UNIT *u)
     DBUG_ASSERT(c_rli != NULL);
     if (duplicate_handling == DUP_UPDATE &&
         table->next_number_field != NULL &&
-        rpl_master_has_bug(c_rli, 24432, TRUE, NULL, NULL))
+        rpl_master_has_bug(c_rli, 24432, true, NULL, NULL))
       DBUG_RETURN(true);
   }
 
@@ -2222,7 +2229,7 @@ void Query_result_insert::cleanup()
   if (table)
   {
     table->next_number_field=0;
-    table->auto_increment_field_not_null= FALSE;
+    table->auto_increment_field_not_null= false;
     table->file->ha_reset();
   }
   thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
@@ -2246,7 +2253,7 @@ bool Query_result_insert::send_data(List<Item> &values)
   thd->check_for_truncated_fields= CHECK_FIELD_ERROR_FOR_NULL;
   if (thd->is_error())
   {
-    table->auto_increment_field_not_null= FALSE;
+    table->auto_increment_field_not_null= false;
     DBUG_RETURN(true);
   }
   if (table_list)                               // Not CREATE ... SELECT
@@ -2260,7 +2267,7 @@ bool Query_result_insert::send_data(List<Item> &values)
   }
 
   error= write_record(thd, table, &info, &update);
-  table->auto_increment_field_not_null= FALSE;
+  table->auto_increment_field_not_null= false;
 
   DEBUG_SYNC(thd, "create_select_after_write_rows_event");
 
@@ -2401,12 +2408,12 @@ bool Query_result_insert::send_eof()
 
   char buff[160];
   if (thd->lex->is_ignore())
-    my_snprintf(buff, sizeof(buff),
+    snprintf(buff, sizeof(buff),
                 ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.records - info.stats.copied),
                 (long) thd->get_stmt_da()->current_statement_cond_count());
   else
-    my_snprintf(buff, sizeof(buff),
+    snprintf(buff, sizeof(buff),
                 ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.deleted+info.stats.updated),
                 (long) thd->get_stmt_da()->current_statement_cond_count());
@@ -2483,7 +2490,7 @@ void Query_result_insert::abort_result_set()
           /* error of writing binary log is ignored */
           (void) thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query().str,
                                    thd->query().length,
-                                   transactional_table, FALSE, FALSE, errcode);
+                                   transactional_table, false, false, errcode);
         }
     }
     DBUG_ASSERT(transactional_table || !changed ||
@@ -2561,7 +2568,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   DBUG_ENTER("create_table_from_items");
 
-  memset(&tmp_table, 0, sizeof(tmp_table));
   tmp_table.s= &share;
   init_tmp_table_share(thd, &share, "", 0, "", "", nullptr);
 
@@ -2964,12 +2970,11 @@ int Query_result_create::binlog_show_create_table()
   int result;
   TABLE_LIST tmp_table_list;
 
-  memset(&tmp_table_list, 0, sizeof(tmp_table_list));
   tmp_table_list.table= table;
   query.length(0);      // Have to zero it since constructor doesn't
 
   result= store_create_info(thd, &tmp_table_list, &query, create_info,
-                            /* show_database */ TRUE);
+                            /* show_database */ true);
   DBUG_ASSERT(result == 0); /* store_create_info() always return 0 */
 
   if (mysql_bin_log.is_open())
@@ -2986,7 +2991,7 @@ int Query_result_create::binlog_show_create_table()
                               query.ptr(), query.length(),
                               /* is_trans */ false,
                               /* direct */ true,
-                              /* suppress_use */ FALSE,
+                              /* suppress_use */ false,
                               errcode);
     DEBUG_SYNC(thd, "create_select_after_write_create_event");
   }
@@ -3277,7 +3282,7 @@ void Query_result_create::abort_result_set()
     thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
   }
   /* possible error of writing binary log is ignored deliberately */
-  (void) thd->binlog_flush_pending_rows_event(TRUE, TRUE);
+  (void) thd->binlog_flush_pending_rows_event(true, true);
 
   if (m_plock)
   {
@@ -3288,7 +3293,7 @@ void Query_result_create::abort_result_set()
 
   if (table)
   {
-    table->auto_increment_field_not_null= FALSE;
+    table->auto_increment_field_not_null= false;
     drop_open_table();
     table=0;                                    // Safety
   }

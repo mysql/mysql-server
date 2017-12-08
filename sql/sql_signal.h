@@ -19,7 +19,6 @@
 #include <string.h>
 
 #include "my_sqlcommand.h"
-#include "sql/sql_alloc.h"   // Sql_alloc
 #include "sql/sql_cmd.h"     // Sql_cmd
 #include "sql/sql_error.h"   // Sql_condition
 
@@ -61,7 +60,7 @@ enum enum_condition_item_name
   the collection of assignments to condition items in the SIGNAL and RESIGNAL
   statements.
 */
-class Set_signal_information : public Sql_alloc
+class Set_signal_information
 {
 public:
   Set_signal_information()

@@ -14,26 +14,49 @@
 
 #include "sql/resourcegroups/resource_group_sql_cmd.h"
 
+#include <stdint.h>
+#include <string.h>
+#include <memory>
+#include <new>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_thread_bits.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "pfs_thread_provider.h"
 #include "sql/auth/auth_acls.h"             // SUPER_ACL
 #include "sql/auth/auth_common.h"           // check_readonly
+#include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"                // current_thd
-#include "sql/derror.h"                     // ER_THD
 #include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 #include "sql/dd/dd_resource_group.h"       // resource_group_exists, etc.
-#include "sql/dd/types/resource_group.h"    // dd::Resource_group
 #include "sql/dd/string_type.h"             // String_type
-#include "sql/field.h"                      // convert_decimal2longlong
-#include "sql/lock.h"                       // lock_object_name
-#include "sql/log.h"                        // sql_print_warning
+#include "sql/derror.h"                     // ER_THD
 #include "sql/mdl.h"
-#include "sql/my_decimal.h"
 #include "sql/mysqld_thd_manager.h"         // Find_thd_with_id
-#include "sql/opt_explain.h"                // explain_query
+#include "sql/parse_tree_helpers.h"
 #include "sql/resourcegroups/resource_group.h"             // Resource_group
 #include "sql/resourcegroups/resource_group_mgr.h"         // Resource_group_mgr
-#include "sql/sql_class.h"                  // THD
 #include "sql/resourcegroups/thread_resource_control.h" // Thread_resource_control
+#include "sql/sql_class.h"                  // THD
+#include "sql/sql_error.h"
 #include "sql/sql_lex.h"                    // is_invalid_string
+#include "sql/system_variables.h"
+#include "sql/thd_raii.h"
+
+namespace dd {
+class Resource_group;
+}  // namespace dd
 
 
 namespace
@@ -84,7 +107,7 @@ static bool acquire_exclusive_mdl_for_resource_group(THD *thd,
 
 bool validate_vcpu_range_vector(
   std::vector<resourcegroups::Range> *vcpu_range_vector,
-  const Trivial_array<resourcegroups::Range> *cpu_list,
+  const Mem_root_array<resourcegroups::Range> *cpu_list,
   uint32_t num_vcpus)
 {
   DBUG_ENTER("resourcegroups::validate_vcpu_range_vector");

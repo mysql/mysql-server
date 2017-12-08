@@ -17,17 +17,19 @@
 
 #include <errno.h>
 
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"           // EE_*
-#include "sql/key.h"
+#include "sql/mdl.h"
 #include "sql/sql_class.h"       // THD
 #include "sql/sql_lex.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"           // TABLE_LIST
 #include "sql/transaction_info.h"
+#include "sql_string.h"
 
 
 /**

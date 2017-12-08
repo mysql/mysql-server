@@ -62,7 +62,6 @@
 #include "sql/gis/length.h"
 #include "sql/gis/srid.h"
 #include "sql/gis/wkb_parser.h"
-#include "sql/gis_bg_traits.h"
 #include "sql/gstream.h"  // Gis_read_stream
 #include "sql/item_geofunc_internal.h"
 #include "sql/json_dom.h" // Json_wrapper
@@ -2714,7 +2713,7 @@ bool geometry_to_json(Json_wrapper *wr, Item *geometry_arg, const char *calling_
 */
 bool Item_func_as_geojson::val_json(Json_wrapper *wr)
 {
-  DBUG_ASSERT(fixed == TRUE);
+  DBUG_ASSERT(fixed == true);
 
   if ((arg_count > 1 && parse_maxdecimaldigits_argument()) ||
       (arg_count > 2 && parse_options_argument()))
@@ -3069,7 +3068,7 @@ bool Item_func_geohash::fill_and_check_fields()
 */
 String *Item_func_geohash::val_str_ascii(String *str)
 {
-  DBUG_ASSERT(fixed == TRUE);
+  DBUG_ASSERT(fixed == true);
 
   if (fill_and_check_fields())
   {
@@ -3574,7 +3573,7 @@ double Item_func_latlongfromgeohash::round_latlongitude(double latlongitude,
 */
 double Item_func_latlongfromgeohash::val_real()
 {
-  DBUG_ASSERT(fixed == TRUE);
+  DBUG_ASSERT(fixed == true);
 
   String buf;
   String *input_value= args[0]->val_str_ascii(&buf);
@@ -4229,7 +4228,7 @@ public:
   }
 
 
-  virtual void on_wkb_end(const void *wkb)
+  virtual void on_wkb_end(const void *wkb MY_ATTRIBUTE((unused)))
   {
     if (pt_start)
       DBUG_ASSERT(static_cast<const char *>(pt_start) + POINT_DATA_SIZE == wkb);
@@ -5116,7 +5115,7 @@ bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref)
 
 String *Item_func_pointfromgeohash::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == TRUE);
+  DBUG_ASSERT(fixed == true);
 
   String argument_value;
   String *geohash= args[0]->val_str_ascii(&argument_value);
@@ -5636,7 +5635,8 @@ public:
 
   virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)
+                            const void *wkb, uint32 len,
+                            bool has_hdr MY_ATTRIBUTE((unused)))
   {
     if (!m_isvalid)
       return;

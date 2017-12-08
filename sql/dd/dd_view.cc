@@ -29,6 +29,7 @@
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/udf_registration_types.h"
@@ -66,6 +67,7 @@
 #include "sql/sql_tmp_table.h"                // create_tmp_field
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                  // trans_commit
 #include "sql/tztime.h"                       // Time_zone
 
@@ -271,7 +273,6 @@ static bool fill_dd_view_columns(THD *thd,
   TABLE table;
   TABLE_SHARE share;
   init_tmp_table_share(thd, &share, "", 0, "", "", nullptr);
-  memset(&table, 0, sizeof(table));
   table.s= &share;
   handler *file= get_new_handler(&share, false, thd->mem_root,
                                  ha_default_temp_handlerton(thd));

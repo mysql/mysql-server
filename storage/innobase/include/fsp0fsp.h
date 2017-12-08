@@ -681,7 +681,7 @@ Frees part of a segment. This function can be used to free a segment
 by repeatedly calling this function in different mini-transactions.
 Doing the freeing in a single mini-transaction might result in
 too big a mini-transaction.
-@return TRUE if freeing completed */
+@return true if freeing completed */
 ibool
 fseg_free_step(
 /*===========*/
@@ -696,7 +696,7 @@ fseg_free_step(
 /**********************************************************************//**
 Frees part of a segment. Differs from fseg_free_step because this function
 leaves the header page unfreed.
-@return TRUE if freeing completed, except the header page */
+@return true if freeing completed, except the header page */
 ibool
 fseg_free_step_not_header(
 /*======================*/
@@ -710,7 +710,7 @@ fseg_free_step_not_header(
 /** Checks if a page address is an extent descriptor page address.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
-@return TRUE if a descriptor page */
+@return true if a descriptor page */
 UNIV_INLINE
 ibool
 fsp_descr_page(
@@ -846,7 +846,7 @@ xdes_calc_descriptor_index(
 @param[in]	descr	descriptor
 @param[in]	bit	XDES_FREE_BIT or XDES_CLEAN_BIT
 @param[in]	offset	page offset within extent: 0 ... FSP_EXTENT_SIZE - 1
-@return TRUE if free */
+@return true if free */
 UNIV_INLINE
 ibool
 xdes_get_bit(

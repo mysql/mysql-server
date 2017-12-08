@@ -25,6 +25,8 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_thread.h"
+#include "sql/plugin_table.h"
+#include "sql/table.h"
 #include "sql/sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_events_statements.h"
@@ -352,7 +354,7 @@ table_events_statements_common::make_row_part_1(
   }
 
   base = base_name(safe_source_file);
-  m_row.m_source_length = my_snprintf(m_row.m_source,
+  m_row.m_source_length = snprintf(m_row.m_source,
                                       sizeof(m_row.m_source),
                                       "%s:%d",
                                       base,

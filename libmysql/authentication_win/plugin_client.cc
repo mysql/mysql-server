@@ -49,7 +49,7 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 */
 
 extern "C"
-st_mysql_client_plugin_AUTHENTICATION win_auth_client_plugin=
+auth_plugin_t win_auth_client_plugin=
 {
   MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
   MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,

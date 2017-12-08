@@ -22,19 +22,16 @@
 #define _m_ctype_h
 
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include <stdbool.h>
 
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_sharedlib.h"
-
-#ifdef	__cplusplus
-extern "C" {
-#endif
 
 #define MY_CS_NAME_SIZE			32
 #define MY_CS_CTYPE_TABLE_SIZE		257
@@ -77,7 +74,7 @@ static inline void MY_PUT_MB2(unsigned char *s, uint16 code)
 
 
 
-typedef struct unicase_info_char_st
+typedef struct MY_UNICASE_CHARACTER
 {
   uint32 toupper;
   uint32 tolower;
@@ -85,7 +82,7 @@ typedef struct unicase_info_char_st
 } MY_UNICASE_CHARACTER;
 
 
-typedef struct unicase_info_st
+typedef struct MY_UNICASE_INFO
 {
   my_wc_t maxchar;
   const MY_UNICASE_CHARACTER **page;
@@ -99,7 +96,7 @@ extern MY_UNICASE_INFO my_unicase_unicode520;
 
 struct MY_UCA_INFO;
 
-typedef struct uni_ctype_st
+typedef struct MY_UNI_CTYPE
 {
   uchar  pctype;
   uchar  *ctype;
@@ -156,7 +153,7 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_STRXFRM_PAD_TO_MAXLEN   0x00000080 /* if pad tail(for filesort) */
 
 
-typedef struct my_uni_idx_st
+typedef struct MY_UNI_IDX
 {
   uint16      from;
   uint16      to;
@@ -170,18 +167,22 @@ typedef struct
   uint mb_len;
 } my_match_t;
 
-struct charset_info_st;
+struct CHARSET_INFO;
+#ifndef __cplusplus
+typedef struct CHARSET_INFO CHARSET_INFO;
+#endif
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
-typedef struct my_charset_loader_st
+typedef struct MY_CHARSET_LOADER
 {
-  char error[128];
+  char error[192];
   void *(*once_alloc)(size_t);
   void *(*mem_malloc)(size_t);
   void *(*mem_realloc)(void *, size_t);
   void (*mem_free)(void *);
   void (*reporter)(enum loglevel, const char *format, ...)
     MY_ATTRIBUTE((format(printf, 2, 3)));
-  int  (*add_collation)(struct charset_info_st *cs);
+  int  (*add_collation)(CHARSET_INFO *cs);
 } MY_CHARSET_LOADER;
 
 
@@ -190,12 +191,12 @@ extern int (*my_string_stack_guard)(int);
 enum Pad_attribute { PAD_SPACE, NO_PAD };
 
 /* See strings/CHARSET_INFO.txt for information about this structure  */
-typedef struct my_collation_handler_st
+typedef struct MY_COLLATION_HANDLER
 {
-  bool (*init)(struct charset_info_st *, MY_CHARSET_LOADER *);
-  void (*uninit)(struct charset_info_st *);
+  bool (*init)(CHARSET_INFO *, MY_CHARSET_LOADER *);
+  void (*uninit)(CHARSET_INFO *);
   /* Collation routines */
-  int     (*strnncoll)(const struct charset_info_st *,
+  int     (*strnncoll)(const CHARSET_INFO *,
 		       const uchar *, size_t, const uchar *, size_t, bool);
   /**
     Compare the two strings under the pad rules given by the collation.
@@ -206,7 +207,7 @@ typedef struct my_collation_handler_st
     compared under the collation's normal comparison rules, so that e.g 'a' is
     equal to 'a '.
   */
-  int     (*strnncollsp)(const struct charset_info_st *,
+  int     (*strnncollsp)(const CHARSET_INFO *,
                          const uchar *, size_t, const uchar *, size_t);
   /**
     Transform the string into a form such that memcmp() between transformed
@@ -232,7 +233,7 @@ typedef struct my_collation_handler_st
 
     @return Number of bytes written to dst.
   */
-  size_t  (*strnxfrm)(const struct charset_info_st *,
+  size_t  (*strnxfrm)(const CHARSET_INFO *,
                       uchar *dst, size_t dstlen, uint num_codepoints,
                       const uchar *src, size_t srclen, uint flags);
 
@@ -246,22 +247,22 @@ typedef struct my_collation_handler_st
       ie., one that's cs->mbmaxlen * max_num_codepoints. So for e.g.
       the utf8mb4 string "foo", you will need to give in 12, not 3.
   */
-  size_t    (*strnxfrmlen)(const struct charset_info_st *, size_t num_bytes);
-  bool (*like_range)(const struct charset_info_st *,
+  size_t    (*strnxfrmlen)(const CHARSET_INFO *, size_t num_bytes);
+  bool (*like_range)(const CHARSET_INFO *,
 		     const char *s, size_t s_length,
 		     char w_prefix, char w_one, char w_many,
 		     size_t res_length,
 		     char *min_str, char *max_str,
 		     size_t *min_len, size_t *max_len);
-  int     (*wildcmp)(const struct charset_info_st *,
+  int     (*wildcmp)(const CHARSET_INFO *,
   		     const char *str,const char *str_end,
                      const char *wildstr,const char *wildend,
                      int escape,int w_one, int w_many);
 
-  int  (*strcasecmp)(const struct charset_info_st *, const char *,
+  int  (*strcasecmp)(const CHARSET_INFO *, const char *,
                      const char *);
   
-  uint (*strstr)(const struct charset_info_st *,
+  uint (*strstr)(const CHARSET_INFO *,
                  const char *b, size_t b_length,
                  const char *s, size_t s_length,
                  my_match_t *match, uint nmatch);
@@ -277,9 +278,9 @@ typedef struct my_collation_handler_st
     nr1 and nr2 are both in/out parameters. nr1 is the actual hash value;
     nr2 holds extra state between invocations.
   */
-  void (*hash_sort)(const struct charset_info_st *cs, const uchar *key,
+  void (*hash_sort)(const CHARSET_INFO *cs, const uchar *key,
                     size_t len, ulong *nr1, ulong *nr2);
-  bool (*propagate)(const struct charset_info_st *cs, const uchar *str,
+  bool (*propagate)(const CHARSET_INFO *cs, const uchar *str,
                     size_t len);
 } MY_COLLATION_HANDLER;
 
@@ -289,23 +290,23 @@ extern MY_COLLATION_HANDLER my_collation_8bit_simple_ci_handler;
 extern MY_COLLATION_HANDLER my_collation_ucs2_uca_handler;
 
 /* Some typedef to make it easy for C++ to make function pointers */
-typedef int (*my_charset_conv_mb_wc)(const struct charset_info_st *,
+typedef int (*my_charset_conv_mb_wc)(const CHARSET_INFO *,
                                      my_wc_t *, const uchar *, const uchar *);
-typedef int (*my_charset_conv_wc_mb)(const struct charset_info_st *, my_wc_t,
+typedef int (*my_charset_conv_wc_mb)(const CHARSET_INFO *, my_wc_t,
                                      uchar *, uchar *);
-typedef size_t (*my_charset_conv_case)(const struct charset_info_st *,
+typedef size_t (*my_charset_conv_case)(const CHARSET_INFO *,
                                        char *, size_t, char *, size_t);
 
 
 /* See strings/CHARSET_INFO.txt about information on this structure  */
-typedef struct my_charset_handler_st
+typedef struct MY_CHARSET_HANDLER
 {
-  bool (*init)(struct charset_info_st *, MY_CHARSET_LOADER *loader);
+  bool (*init)(CHARSET_INFO *, MY_CHARSET_LOADER *loader);
   /* Multibyte routines */
-  uint    (*ismbchar)(const struct charset_info_st *, const char *,
+  uint    (*ismbchar)(const CHARSET_INFO *, const char *,
                       const char *);
-  uint    (*mbcharlen)(const struct charset_info_st *, uint c);
-  size_t  (*numchars)(const struct charset_info_st *, const char *b,
+  uint    (*mbcharlen)(const CHARSET_INFO *, uint c);
+  size_t  (*numchars)(const CHARSET_INFO *, const char *b,
                       const char *e);
 
   /**
@@ -314,9 +315,9 @@ typedef struct my_charset_handler_st
     exactly "pos" codepoints long, returns a value equal or greater to
     (e-b).
   */
-  size_t  (*charpos)(const struct charset_info_st *, const char *b,
+  size_t  (*charpos)(const CHARSET_INFO *, const char *b,
                      const char *e, size_t pos);
-  size_t  (*well_formed_len)(const struct charset_info_st *,
+  size_t  (*well_formed_len)(const CHARSET_INFO *,
                              const char *b,const char *e,
                              size_t nchars, int *error);
   /**
@@ -334,9 +335,9 @@ typedef struct my_charset_handler_st
     If you call this function, be aware of this special exception and consider
     the implications.
   */
-  size_t  (*lengthsp)(const struct charset_info_st *, const char *ptr,
+  size_t  (*lengthsp)(const CHARSET_INFO *, const char *ptr,
                       size_t length);
-  size_t  (*numcells)(const struct charset_info_st *, const char *b,
+  size_t  (*numcells)(const CHARSET_INFO *, const char *b,
                       const char *e);
   
   /* Unicode conversion */
@@ -344,46 +345,46 @@ typedef struct my_charset_handler_st
   my_charset_conv_wc_mb wc_mb;
 
   /* CTYPE scanner */
-  int (*ctype)(const struct charset_info_st *cs, int *ctype,
+  int (*ctype)(const CHARSET_INFO *cs, int *ctype,
                const uchar *s, const uchar *e);
   
   /* Functions for case and sort conversion */
-  size_t  (*caseup_str)(const struct charset_info_st *, char *);
-  size_t  (*casedn_str)(const struct charset_info_st *, char *);
+  size_t  (*caseup_str)(const CHARSET_INFO *, char *);
+  size_t  (*casedn_str)(const CHARSET_INFO *, char *);
 
   my_charset_conv_case caseup;
   my_charset_conv_case casedn;
 
   /* Charset dependant snprintf() */
-  size_t (*snprintf)(const struct charset_info_st *, char *to, size_t n,
+  size_t (*snprintf)(const CHARSET_INFO *, char *to, size_t n,
                      const char *fmt,
                      ...) MY_ATTRIBUTE((format(printf, 4, 5)));
-  size_t (*long10_to_str)(const struct charset_info_st *, char *to, size_t n,
+  size_t (*long10_to_str)(const CHARSET_INFO *, char *to, size_t n,
                           int radix, long int val);
-  size_t (*longlong10_to_str)(const struct charset_info_st *, char *to,
+  size_t (*longlong10_to_str)(const CHARSET_INFO *, char *to,
                               size_t n, int radix, longlong val);
   
-  void (*fill)(const struct charset_info_st *, char *to, size_t len,
+  void (*fill)(const CHARSET_INFO *, char *to, size_t len,
                int fill);
   
   /* String-to-number conversion routines */
-  long        (*strntol)(const struct charset_info_st *, const char *s,
+  long        (*strntol)(const CHARSET_INFO *, const char *s,
                          size_t l, int base, char **e, int *err);
-  ulong      (*strntoul)(const struct charset_info_st *, const char *s,
+  ulong      (*strntoul)(const CHARSET_INFO *, const char *s,
                          size_t l, int base, char **e, int *err);
-  longlong   (*strntoll)(const struct charset_info_st *, const char *s,
+  longlong   (*strntoll)(const CHARSET_INFO *, const char *s,
                          size_t l, int base, char **e, int *err);
-  ulonglong (*strntoull)(const struct charset_info_st *, const char *s,
+  ulonglong (*strntoull)(const CHARSET_INFO *, const char *s,
                          size_t l, int base, char **e, int *err);
-  double      (*strntod)(const struct charset_info_st *, char *s,
+  double      (*strntod)(const CHARSET_INFO *, char *s,
                          size_t l, char **e, int *err);
-  longlong    (*strtoll10)(const struct charset_info_st *cs,
+  longlong    (*strtoll10)(const CHARSET_INFO *cs,
                            const char *nptr, char **endptr, int *error);
-  ulonglong   (*strntoull10rnd)(const struct charset_info_st *cs,
+  ulonglong   (*strntoull10rnd)(const CHARSET_INFO *cs,
                                 const char *str, size_t length,
                                 int unsigned_fl,
                                 char **endptr, int *error);
-  size_t        (*scan)(const struct charset_info_st *, const char *b,
+  size_t        (*scan)(const CHARSET_INFO *, const char *b,
                         const char *e, int sq);
 } MY_CHARSET_HANDLER;
 
@@ -392,7 +393,7 @@ extern MY_CHARSET_HANDLER my_charset_ascii_handler;
 extern MY_CHARSET_HANDLER my_charset_ucs2_handler;
 
 /* See strings/CHARSET_INFO.txt about information on this structure  */
-typedef struct charset_info_st
+struct CHARSET_INFO
 {
   uint      number;
   uint      primary_number;
@@ -436,7 +437,7 @@ typedef struct charset_info_st
     Note that this is fundamentally about the behavior of coll->strnxfrm.
   */
   enum Pad_attribute pad_attribute;
-} CHARSET_INFO;
+};
 #define ILLEGAL_CHARSET_INFO_NUMBER (~0U)
 
 
@@ -448,7 +449,9 @@ typedef struct charset_info_st
 */
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_bin;
+C_MODE_START
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_latin1;
+C_MODE_END
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_filename;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_0900_ai_ci;
 
@@ -483,7 +486,7 @@ extern void my_hash_sort_simple(const CHARSET_INFO *cs,
 extern size_t my_lengthsp_8bit(const CHARSET_INFO *cs, const char *ptr,
                                size_t length);
 
-extern uint my_instr_simple(const struct charset_info_st *,
+extern uint my_instr_simple(const CHARSET_INFO *,
                             const char *b, size_t b_length,
                             const char *s, size_t s_length,
                             my_match_t *match, uint nmatch);
@@ -510,7 +513,7 @@ int my_mb_ctype_mb(const CHARSET_INFO *,int *, const uchar *,const uchar *);
 size_t my_scan_8bit(const CHARSET_INFO *cs, const char *b, const char *e,
                     int sq);
 
-size_t my_snprintf_8bit(const struct charset_info_st *, char *to, size_t n,
+size_t my_snprintf_8bit(const CHARSET_INFO *, char *to, size_t n,
                         const char *fmt, ...)
   MY_ATTRIBUTE((format(printf, 4, 5)));
 
@@ -614,7 +617,7 @@ size_t my_charpos_mb(const CHARSET_INFO *, const char *b, const char *e,
                      size_t pos);
 size_t my_well_formed_len_mb(const CHARSET_INFO *, const char *b,
                              const char *e, size_t pos, int *error);
-uint my_instr_mb(const struct charset_info_st *,
+uint my_instr_mb(const CHARSET_INFO *,
                  const char *b, size_t b_length,
                  const char *s, size_t s_length,
                  my_match_t *match, uint nmatch);
@@ -684,9 +687,6 @@ size_t my_strxfrm_pad(const CHARSET_INFO *cs,
                       uint nweights, uint flags);
 
 bool my_charset_is_ascii_compatible(const CHARSET_INFO *cs);
-
-extern size_t my_vsnprintf_ex(const CHARSET_INFO *cs, char *to, size_t n,
-                              const char* fmt, va_list ap);
 
 size_t my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
                   const char *from, size_t from_length,
@@ -782,9 +782,5 @@ values < 0x7F. */
 #define my_strntoll(s, a, b, c, d, e) ((s)->cset->strntoll((s),(a),(b),(c),(d),(e)))
 #define my_strntoull(s, a, b, c,d, e) ((s)->cset->strntoull((s),(a),(b),(c),(d),(e)))
 #define my_strntod(s, a, b, c, d)     ((s)->cset->strntod((s),(a),(b),(c),(d)))
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif /* _m_ctype_h */

@@ -21,13 +21,14 @@
 #ifndef SQL_OPT_EXEC_SHARED_INCLUDED
 #define SQL_OPT_EXEC_SHARED_INCLUDED
 
+#include "item.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "sql/sql_alloc.h"      // Sql_alloc
 
 class JOIN;
 class Item_func_match;
 class store_key;
+struct POSITION;
 class QUICK_SELECT_I;
 
 /**
@@ -48,7 +49,7 @@ typedef int8 plan_idx;
 #define PRE_FIRST_PLAN_IDX (-1) ///< right before the first (first's index is 0)
 
 
-typedef struct st_table_ref : public Sql_alloc
+struct TABLE_REF
 {
   bool		key_err;
   /** True if something was read into buffer in join_read_key.  */
@@ -97,13 +98,13 @@ typedef struct st_table_ref : public Sql_alloc
   ha_rows       use_count;
 
   /*
-    TRUE <=> disable the "cache" as doing lookup with the same key value may
+    true <=> disable the "cache" as doing lookup with the same key value may
     produce different results (because of Index Condition Pushdown)
   */
   bool          disable_cache;
 
-  st_table_ref()
-    : key_err(TRUE),
+  TABLE_REF()
+    : key_err(true),
       key_parts(0),
       key_length(0),
       key(-1),
@@ -116,7 +117,7 @@ typedef struct st_table_ref : public Sql_alloc
       depend_map(0),
       null_ref_key(NULL),
       use_count(0),
-      disable_cache(FALSE)
+      disable_cache(false)
   {
   }
 
@@ -131,10 +132,10 @@ typedef struct st_table_ref : public Sql_alloc
       for (uint i= 0 ; i < key_parts ; i++)
       {
         if ((null_rejecting & 1 << i) && items[i]->is_null())
-          return TRUE;
+          return true;
       }
     }
-    return FALSE;
+    return false;
   }
 
 
@@ -157,13 +158,12 @@ typedef struct st_table_ref : public Sql_alloc
     }
     return false;
   }
-} TABLE_REF;
+};
 
 
-struct st_cache_field;
+struct CACHE_FIELD;
 class QEP_operation;
 class Filesort;
-typedef struct st_position POSITION;
 class Semijoin_mat_exec;
 
 /*
@@ -221,7 +221,7 @@ enum join_type { /*
 
 
 /// Holds members common to JOIN_TAB and QEP_TAB.
-class QEP_shared : public Sql_alloc
+class QEP_shared
 {
 public:
   QEP_shared() :

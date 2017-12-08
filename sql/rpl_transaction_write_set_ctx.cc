@@ -15,7 +15,6 @@
 
 #include "sql/rpl_transaction_write_set_ctx.h"
 
-#include <assert.h>
 #include <stddef.h>
 #include <utility>
 

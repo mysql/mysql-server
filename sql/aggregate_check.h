@@ -449,23 +449,20 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"    // Item_func_any_value
 #include "sql/item_sum.h"        // Item_sum
 #include "sql/mem_root_array.h"  // Mem_root_array
-#include "sql/sql_alloc.h"       // Sql_alloc
 #include "sql/sql_lex.h"
 
 class Opt_trace_context;
 class Opt_trace_object;
-class SELECT_LEX;
 class THD;
 struct TABLE_LIST;
-struct st_mem_root;
 template <class T> class List;
 
 /**
@@ -539,7 +536,7 @@ private:
 /**
    Checks for queries which have DISTINCT.
 */
-class Distinct_check: public Item_tree_walker, public Sql_alloc
+class Distinct_check: public Item_tree_walker
 {
 public:
 
@@ -573,11 +570,11 @@ private:
 /**
    Checks for queries which have GROUP BY or aggregate functions.
 */
-class Group_check: public Item_tree_walker, public Sql_alloc
+class Group_check: public Item_tree_walker
 {
 public:
 
-  Group_check(SELECT_LEX *select_arg, st_mem_root *root)
+  Group_check(SELECT_LEX *select_arg, MEM_ROOT *root)
     : select(select_arg), search_in_underlying(false),
     non_null_in_source(false),
     table(NULL), group_in_fd(~0ULL), m_root(root), fd(root),
@@ -587,7 +584,7 @@ public:
   ~Group_check()
   {
     for (uint j= 0; j < mat_tables.size(); ++j)
-      delete mat_tables.at(j);
+      destroy(mat_tables.at(j));
   }
 
   bool check_query(THD *thd);
@@ -639,7 +636,7 @@ private:
   ulonglong group_in_fd;
 
   /// Memory for allocations (like of 'fd')
-  st_mem_root *const m_root;
+  MEM_ROOT *const m_root;
 
   /**
      Columns which are local to 'select' and functionally dependent on an
@@ -660,7 +657,7 @@ private:
   bool is_child() const { return table != NULL; }
 
   /// Private ctor, for a Group_check to build a child Group_check
-  Group_check(SELECT_LEX *select_arg, st_mem_root *root,
+  Group_check(SELECT_LEX *select_arg, MEM_ROOT *root,
               TABLE_LIST *table_arg)
     : select(select_arg), search_in_underlying(false),
     non_null_in_source(false), table(table_arg),

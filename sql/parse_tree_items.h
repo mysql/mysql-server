@@ -27,10 +27,8 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
-#include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/item_create.h"    // Create_func
@@ -43,7 +41,6 @@
 #include "sql/parse_tree_helpers.h" // Parse_tree_item
 #include "sql/parse_tree_node_base.h"
 #include "sql/protocol.h"
-#include "sql/session_tracker.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h"        // sp_head
 #include "sql/sql_class.h"
@@ -51,12 +48,12 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"      // negate_expression
-#include "sql/sql_udf.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
 
 class PT_subquery;
 class PT_window;
+struct udf_func;
 
 class PTI_table_wild : public Parse_tree_item
 {
@@ -458,7 +455,7 @@ public:
     init(literal.str, literal.length, cs,
          DERIVATION_COERCIBLE, MY_REPERTOIRE_UNICODE30);
     set_repertoire_from_value();
-    set_cs_specified(TRUE);
+    set_cs_specified(true);
     return false;
   }
 };
@@ -548,7 +545,7 @@ public:
       return true;
 
     set_repertoire_from_value();
-    set_cs_specified(TRUE);
+    set_cs_specified(true);
     return check_well_formed_result(&str_value, true, true) == NULL;
   }
 };
@@ -571,7 +568,7 @@ public:
     if (super::itemize(pc, res))
       return true;
 
-    set_cs_specified(TRUE);
+    set_cs_specified(true);
     return check_well_formed_result(&str_value, true, true) == NULL;
   }
 };

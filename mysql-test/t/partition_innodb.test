@@ -1130,6 +1130,10 @@ DROP TABLE t1;
 #Create one partition in general tablespace and other in different path
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR;
+--source include/restart_mysqld.inc
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLESPACE ts1 ADD DATAFILE '$MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR

@@ -19,13 +19,16 @@
 
 #include <mysql/plugin.h>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"     // ER_THD
+#include "sql/field.h"
 #include "sql/ndb_log.h"
 #include "sql/ndb_tdc.h"
 #include "sql/sql_class.h"
 #include "sql/sql_table.h"  // build_table_filename
+#include "sql/table.h"
 #include "storage/ndb/src/ndbapi/NdbInfo.hpp"
 #include "sql/ndb_dummy_ts.h"
 
@@ -102,7 +105,7 @@ static bool opt_ndbinfo_offline;
 
 static
 void
-offline_update(THD* thd, struct st_mysql_sys_var* var,
+offline_update(THD* thd, SYS_VAR* var,
                void* var_ptr, const void* save)
 {
   DBUG_ENTER("offline_update");
@@ -306,6 +309,11 @@ generate_sql(const NdbInfo::Table* ndb_tab, BaseString& sql)
 static void
 warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
              const char* format, ...)
+  MY_ATTRIBUTE((format(printf, 3, 4)));
+
+static void
+warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
+             const char* format, ...)
 {
   BaseString msg;
   DBUG_ENTER("warn_incompatible");
@@ -315,7 +323,7 @@ warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
   va_list args;
   char explanation[128];
   va_start(args,format);
-  my_vsnprintf(explanation, sizeof(explanation), format, args);
+  vsnprintf(explanation, sizeof(explanation), format, args);
   va_end(args);
 
   msg.assfmt("Table '%s%s' is defined differently in NDB, %s. The "
@@ -867,7 +875,7 @@ ndbinfo_deinit(void *plugin)
   DBUG_RETURN(0);
 }
 
-struct st_mysql_sys_var* ndbinfo_system_variables[]= {
+SYS_VAR* ndbinfo_system_variables[]= {
   MYSQL_SYSVAR(max_rows),
   MYSQL_SYSVAR(max_bytes),
   MYSQL_SYSVAR(show_hidden),

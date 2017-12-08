@@ -29,7 +29,7 @@
 
 using namespace xpl;
 
-charset_info_st* Query_string_builder::m_charset = NULL;
+CHARSET_INFO* Query_string_builder::m_charset = NULL;
 std::once_flag Query_string_builder::m_charset_initialized;
 
 void Query_string_builder::init_charset()

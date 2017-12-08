@@ -32,8 +32,6 @@
 #include "psi_base.h"
 #include "mysql/components/services/psi_cond_bits.h"
 
-C_MODE_START
-
 /** Entry point for the performance schema interface. */
 struct PSI_cond_bootstrap
 {
@@ -47,7 +45,6 @@ struct PSI_cond_bootstrap
   */
   void *(*get_interface)(int version);
 };
-typedef struct PSI_cond_bootstrap PSI_cond_bootstrap;
 
 #ifdef HAVE_PSI_COND_INTERFACE
 
@@ -80,7 +77,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_cond_service_t *psi_cond_service;
 #endif /* HAVE_PSI_COND_INTERFACE */
 
 /** @} (end of group psi_abi_cond) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_MUTEX_H */

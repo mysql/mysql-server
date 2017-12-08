@@ -21,7 +21,6 @@
 #include <memory>
 
 #include "prealloced_array.h"
-#include "sql/sql_alloc.h"
 
 namespace prealloced_array_unittest {
 
@@ -524,7 +523,7 @@ TEST_F(PreallocedArrayTest, NoMemLeaksShrinkToFitPrealloc)
   A simple class to verify that Prealloced_array also works for
   classes which have their own operator new/delete.
  */
-class TestAlloc : public Sql_alloc
+class TestAlloc
 {
 public:
   explicit TestAlloc(int val)
@@ -534,15 +533,17 @@ public:
   int getval() const { return m_int; }
 private:
   int m_int;
+
+  static void *operator new(size_t) { throw std::bad_alloc(); }
 };
 
 
 /*
   There is no THD and no mem-root available for the execution of this test.
   This shows that the memory management of Prealloced_array works OK for
-  classes inheriting from Sql_alloc.
+  classes with custom new/delete.
  */
-TEST_F(PreallocedArrayTest, SqlAlloc)
+TEST_F(PreallocedArrayTest, CustomNewDelete)
 {
   Prealloced_array<TestAlloc, 1> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)

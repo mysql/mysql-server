@@ -1,1 +1,2 @@
 --log-slave-updates=off
+--slave-preserve-commit-order=OFF

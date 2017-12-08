@@ -26,6 +26,7 @@ Created 2012-02-08 by Sunny Bains.
 #include <errno.h>
 #include <my_aes.h>
 #include <sys/types.h>
+#include <memory>
 #include <vector>
 
 #include "btr0pcur.h"
@@ -244,7 +245,6 @@ public:
 	/** Default constructor */
 	RecIterator() UNIV_NOTHROW
 	{
-		memset(&m_cur, 0x0, sizeof(m_cur));
 	}
 
 	/** Position the cursor on the first user record. */
@@ -2323,7 +2323,8 @@ row_import_discard_changes(
 
 	table->ibd_file_missing = TRUE;
 
-	fil_close_tablespace(trx, table->space);
+	err = fil_close_tablespace(trx, table->space);
+	ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_NOT_FOUND);
 }
 
 /*****************************************************************//**
@@ -2676,7 +2677,7 @@ row_import_cfg_read_index_fields(
 
 	dict_field_t*	field = index->m_fields;
 
-	memset(field, 0x0, sizeof(*field) * n_fields);
+        std::uninitialized_fill_n(field, n_fields, dict_field_t());
 
 	for (ulint i = 0; i < n_fields; ++i, ++field) {
 		byte*		ptr = row;
@@ -3644,8 +3645,6 @@ row_import_for_mysql(
 	row_import	cfg;
 	ulint		space_flags = 0;
 
-	memset(&cfg, 0x0, sizeof(cfg));
-
 	err = row_import_read_cfg(table, table_def, trx->mysql_thd, cfg);
 
 	/* Check if the table column definitions match the contents
@@ -3804,13 +3803,15 @@ row_import_for_mysql(
 	dd_get_and_save_data_dir_path(table, table_def, true);
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		ut_a(table->data_dir_path);
 
-		filepath = fil_make_filepath(
-			table->data_dir_path, table->name.m_name, IBD, true);
+		ut_a(table->data_dir_path != nullptr);
+
+		const auto	dir = table->data_dir_path;
+
+		filepath = Fil_path::make(dir, table->name.m_name, IBD, true);
 	} else {
-		filepath = fil_make_filepath(
-			NULL, table->name.m_name, IBD, false);
+		filepath = Fil_path::make_ibd_from_table_name(
+			table->name.m_name);
 	}
 
 	DBUG_EXECUTE_IF(

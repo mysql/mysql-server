@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -69,17 +69,17 @@ struct ut_list_base {
 	typedef NodePtr node_ptr;
 	typedef ut_list_node<Type> node_type;
 
-	ulint		count;			/*!< count of nodes in list */
-	elem_type*	start;			/*!< pointer to list start,
-						NULL if empty */
-	elem_type*	end;			/*!< pointer to list end,
-						NULL if empty */
-	node_ptr	node;			/*!< Pointer to member field
-						that is used as a link node */
+	ulint		count{0};			/*!< count of nodes in list */
+	elem_type*	start{nullptr};			/*!< pointer to list start,
+							NULL if empty */
+	elem_type*	end{nullptr};			/*!< pointer to list end,
+							NULL if empty */
+	node_ptr	node{nullptr};			/*!< Pointer to member field
+							that is used as a link node */
 #ifdef UNIV_DEBUG
-	ulint		init;			/*!< UT_LIST_INITIALISED if
-						the list was initialised with
-						UT_LIST_INIT() */
+	ulint		init{0};			/*!< UT_LIST_INITIALISED if
+							the list was initialised with
+							UT_LIST_INIT() */
 #endif /* UNIV_DEBUG */
 
 	void reverse()

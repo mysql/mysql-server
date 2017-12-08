@@ -42,7 +42,7 @@
 #include "mysys/mysys_priv.h"
 #include "thr_mutex.h"
 
-static bool my_thread_global_init_done= FALSE;
+static bool my_thread_global_init_done= false;
 #ifndef DBUG_OFF
 static uint    THR_thread_count= 0;
 static uint    my_thread_end_wait_time= 5;
@@ -55,12 +55,9 @@ static thread_local int THR_myerrno= 0;
 static thread_local int THR_winerrno= 0;
 #endif
 
-C_MODE_START
 mysql_mutex_t THR_LOCK_myisam_mmap;
 mysql_mutex_t THR_LOCK_myisam;
 mysql_mutex_t THR_LOCK_heap;
-C_MODE_END
-
 mysql_mutex_t THR_LOCK_malloc;
 mysql_mutex_t THR_LOCK_open;
 mysql_mutex_t THR_LOCK_lock;
@@ -85,7 +82,7 @@ static void install_sigabrt_handler();
 struct st_my_thread_var
 {
   my_thread_id id;
-  struct _db_code_state_ *dbug;
+  struct CODE_STATE *dbug;
 };
 
 static struct st_my_thread_var *mysys_thread_var()
@@ -150,15 +147,15 @@ void my_thread_global_reinit()
 /**
   initialize thread environment
 
-  @retval  FALSE  ok
-  @retval  TRUE   error
+  @retval  false  ok
+  @retval  true   error
 */
 
 bool my_thread_global_init()
 {
   if (my_thread_global_init_done)
-    return FALSE;
-  my_thread_global_init_done= TRUE;
+    return false;
+  my_thread_global_init_done= true;
 
 #if defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
@@ -201,7 +198,7 @@ bool my_thread_global_init()
   mysql_cond_init(key_THR_COND_threads, &THR_COND_threads);
 #endif
 
-  return FALSE;
+  return false;
 }
 
 
@@ -209,7 +206,7 @@ void my_thread_global_end()
 {
 #ifndef DBUG_OFF
   struct timespec abstime;
-  bool all_threads_killed= TRUE;
+  bool all_threads_killed= true;
 
   set_timespec(&abstime, my_thread_end_wait_time);
   mysql_mutex_lock(&THR_LOCK_threads);
@@ -231,7 +228,7 @@ void my_thread_global_end()
                          "%d threads didn't exit", THR_thread_count);
         /* purecov: end */
 #endif
-      all_threads_killed= FALSE;
+      all_threads_killed= false;
       break;
     }
   }
@@ -260,7 +257,7 @@ void my_thread_global_end()
   }
 #endif
 
-  my_thread_global_init_done= FALSE;
+  my_thread_global_init_done= false;
 }
 
 
@@ -270,18 +267,18 @@ void my_thread_global_end()
   @note This function may called multiple times for a thread, for example
   if one uses my_init() followed by mysql_server_init().
 
-  @retval FALSE  ok
-  @retval TRUE   Fatal error; mysys/dbug functions can't be used
+  @retval false  ok
+  @retval true   Fatal error; mysys/dbug functions can't be used
 */
 
-bool my_thread_init()
+extern "C" bool my_thread_init()
 {
 #ifndef DBUG_OFF
   struct st_my_thread_var *tmp;
 #endif
 
   if (!my_thread_global_init_done)
-    return TRUE; /* cannot proceed with unintialized library */
+    return true; /* cannot proceed with unintialized library */
 
 #ifdef _WIN32
   install_sigabrt_handler();
@@ -289,10 +286,10 @@ bool my_thread_init()
 
 #ifndef DBUG_OFF
   if (mysys_thread_var())
-    return FALSE;
+    return false;
 
   if (!(tmp= (struct st_my_thread_var *) calloc(1, sizeof(*tmp))))
-    return TRUE;
+    return true;
 
   mysql_mutex_lock(&THR_LOCK_threads);
   tmp->id= ++thread_id;
@@ -301,7 +298,7 @@ bool my_thread_init()
   set_mysys_thread_var(tmp);
 #endif
 
-  return FALSE;
+  return false;
 }
 
 
@@ -313,7 +310,7 @@ bool my_thread_init()
   mysql_server_end() and then ends with a mysql_end().
 */
 
-void my_thread_end()
+extern "C" void my_thread_end()
 {
 #ifndef DBUG_OFF
   struct st_my_thread_var *tmp= mysys_thread_var();
@@ -396,7 +393,7 @@ void set_my_thread_var_id(my_thread_id id)
 }
 
 
-struct _db_code_state_ **my_thread_var_dbug()
+CODE_STATE **my_thread_var_dbug()
 {
   struct st_my_thread_var *tmp= THR_mysys;
   return tmp ? &tmp->dbug : NULL;

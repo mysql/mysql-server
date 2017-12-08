@@ -13,9 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
+#if !defined(HAVE_YASSL) && !defined(HAVE_PSI_INTERFACE)
+#include "mysql/psi/mysql_rwlock.h"
+#endif
 #include "mysql/service_mysql_alloc.h"
 #include "vio/vio_priv.h"
 
@@ -75,7 +79,7 @@ static const char tls_cipher_blocked[]= "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!R
                                         "!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:";
 #endif
 
-static bool     ssl_initialized         = FALSE;
+static bool     ssl_initialized         = false;
 
 /*
   Diffie-Hellman key.
@@ -386,12 +390,12 @@ static void set_lock_callback_functions(bool init)
 
 static void init_lock_callback_functions()
 {
-  set_lock_callback_functions(TRUE);
+  set_lock_callback_functions(true);
 }
 
 static void deinit_lock_callback_functions()
 {
-  set_lock_callback_functions(FALSE);
+  set_lock_callback_functions(false);
 }
 
 void vio_ssl_end()
@@ -411,7 +415,7 @@ void vio_ssl_end()
       mysql_rwlock_destroy(&openssl_stdlocks[i].lock);
     OPENSSL_free(openssl_stdlocks);
 
-    ssl_initialized= FALSE;
+    ssl_initialized= false;
   }
 }
 
@@ -421,7 +425,7 @@ void ssl_start()
 {
   if (!ssl_initialized)
   {
-    ssl_initialized= TRUE;
+    ssl_initialized= true;
 
     SSL_library_init();
     OpenSSL_add_all_algorithms();
@@ -685,7 +689,7 @@ new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
     verify= SSL_VERIFY_NONE;
 
   if (!(ssl_fd= new_VioSSLFd(key_file, cert_file, ca_file,
-                             ca_path, cipher, TRUE, error,
+                             ca_path, cipher, true, error,
                              crl_file, crl_path, ssl_ctx_flags)))
   {
     return 0;
@@ -709,7 +713,7 @@ new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
   struct st_VioSSLFd *ssl_fd;
   int verify= SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
   if (!(ssl_fd= new_VioSSLFd(key_file, cert_file, ca_file,
-                             ca_path, cipher, FALSE, error,
+                             ca_path, cipher, false, error,
                              crl_file, crl_path, ssl_ctx_flags)))
   {
     return 0;

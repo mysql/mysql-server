@@ -102,11 +102,12 @@
 extern "C" {
 #endif
 
-typedef struct st_ft_word {
+struct FT_WORD
+{
   uchar * pos;
   uint	 len;
   double weight;
-} FT_WORD;
+};
 
 int is_stopword(char *word, uint len);
 

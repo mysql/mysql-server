@@ -33,8 +33,6 @@
 #include "mysql/service_mysql_alloc.h"
 #include "sql_string.h"
 
-C_MODE_START
-
 /*
   wait-free dynamic array, see lf_dynarray.c
 
@@ -75,7 +73,8 @@ typedef struct {
   std::atomic<uint32> pins_in_array;       /* number of elements in array */
 } LF_PINBOX;
 
-typedef struct st_lf_pins {
+struct LF_PINS
+{
   std::atomic<void *> pin[LF_PINBOX_PINS];
   LF_PINBOX *pinbox;
   void  *purgatory;
@@ -85,7 +84,7 @@ typedef struct st_lf_pins {
 #if SIZEOF_INT*2+SIZEOF_CHARP*(LF_PINBOX_PINS+2) != 64
   char pad[64-sizeof(uint32)*2-sizeof(void*)*(LF_PINBOX_PINS+2)];
 #endif
-} LF_PINS;
+};
 
 /*
   compile-time assert, to require "no less than N" pins
@@ -130,14 +129,15 @@ void lf_pinbox_free(LF_PINS *pins, void *addr);
 */
 typedef void lf_allocator_func(uchar *);
 
-typedef struct st_lf_allocator {
+struct LF_ALLOCATOR
+{
   LF_PINBOX pinbox;
   std::atomic<uchar *> top;
   uint element_size;
   std::atomic<uint32> mallocs;
   lf_allocator_func *constructor; /* called, when an object is malloc()'ed */
   lf_allocator_func *destructor;  /* called, when an object is free()'d    */
-} LF_ALLOCATOR;
+};
 
 #define lf_alloc_init(A, B, C) lf_alloc_init2(A, B, C, NULL, NULL)
 void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
@@ -154,9 +154,9 @@ static inline void lf_alloc_direct_free(LF_ALLOCATOR *allocator, void *addr)
 
 void *lf_alloc_new(LF_PINS *pins);
 
-struct st_lf_hash;
+struct LF_HASH;
 
-typedef uint lf_hash_func(const struct st_lf_hash *, const uchar *, size_t);
+typedef uint lf_hash_func(const LF_HASH *, const uchar *, size_t);
 typedef void lf_hash_init_func(uchar *dst, const uchar* src);
 
 #define LF_HASH_UNIQUE 1
@@ -177,7 +177,8 @@ extern const int LF_HASH_OVERHEAD;
  */
 typedef const uchar *(*hash_get_key_function)(const uchar *arg, size_t *length);
 
-typedef struct st_lf_hash {
+struct LF_HASH
+{
   LF_DYNARRAY array;                    /* hash itself */
   LF_ALLOCATOR alloc;                   /* allocator for elements */
   hash_get_key_function get_key;        /* see HASH */
@@ -199,7 +200,7 @@ typedef struct st_lf_hash {
      lf_hash_insert.
   */
   lf_hash_init_func *initialize;
-} LF_HASH;
+};
 
 #define lf_hash_init(A, B, C, D, E, F, G) \
           lf_hash_init2(A, B, C, D, E, F, G, NULL, NULL, NULL, NULL)
@@ -232,8 +233,6 @@ static inline void lf_hash_search_unpin(LF_PINS *pins)
 typedef int lf_hash_match_func(const uchar *el);
 void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
                            lf_hash_match_func *match, uint rand_val);
-
-C_MODE_END
 
 #endif
 

@@ -31,7 +31,6 @@
 #include "sql/rpl_channel_service_interface.h" // enum_channel_type
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_mi.h"
 
 class Master_info;
 

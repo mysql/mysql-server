@@ -153,7 +153,7 @@ private:
   st_transaction* hash_next;
 };
 
-typedef struct st_mem_root MEM_ROOT;
+struct MEM_ROOT;
 
 /**
  * Allocator type which internally uses a MySQLD mem_root

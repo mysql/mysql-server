@@ -24,6 +24,7 @@
 
 struct NDB_SHARE;
 class Ndb_cluster_connection;
+struct SHOW_VAR;
 
 class Ndb_index_stat_thread : public Ndb_component
 {
@@ -77,6 +78,6 @@ void ndb_index_stat_end();
 */
 
 int
-show_ndb_status_index_stat(THD* thd, struct st_mysql_show_var* var, char* buff);
+show_ndb_status_index_stat(THD* thd, SHOW_VAR* var, char* buff);
 
 #endif

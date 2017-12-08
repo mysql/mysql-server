@@ -27,11 +27,7 @@
 #include "my_sys.h"
 #include "mysql_com.h"                    // MYSQL_ERRMSG_SIZE
 #include "mysqld_error.h"                 // ER_PARSE_ERROR
-#include "sql/dd/properties.h"
-#include "sql/sql_alloc.h"                // Sql_alloc
-#include "sql/table.h"                    // TABLE
 #include "sql/table_trigger_field_support.h" // Table_trigger_field_support
-#include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"              // enum_trigger_action_time_type
 
 class Field;
@@ -40,6 +36,7 @@ class String;
 class THD;
 class Trigger;
 class Trigger_chain;
+struct MEM_ROOT;
 
 namespace dd {
 class Table;
@@ -54,8 +51,7 @@ template <class T> class List;
   This class holds all information about triggers of a table.
 */
 
-class Table_trigger_dispatcher : public Sql_alloc,
-                                 public Table_trigger_field_support
+class Table_trigger_dispatcher : public Table_trigger_field_support
 {
 public:
   static Table_trigger_dispatcher *create(TABLE *subject_table);

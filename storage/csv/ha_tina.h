@@ -31,7 +31,8 @@
 
 #define TINA_VERSION 1
 
-typedef struct st_tina_share {
+struct TINA_SHARE
+{
   char *table_name;
   char data_file_name[FN_REFLEN];
   uint table_name_length, use_count;
@@ -55,7 +56,7 @@ typedef struct st_tina_share {
   bool crashed;             /* Meta file is crashed */
   ha_rows rows_recorded;    /* Number of rows in tables */
   uint data_file_version;   /* Version of the data file used */
-} TINA_SHARE;
+};
 
 struct tina_set {
   my_off_t begin;

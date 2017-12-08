@@ -37,7 +37,7 @@ class Schema;
 }  // namespace dd
 struct TABLE;
 
-typedef struct st_ha_create_information HA_CREATE_INFO;
+struct HA_CREATE_INFO;
 template <class T> class List;
 
 namespace dd {

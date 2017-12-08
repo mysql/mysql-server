@@ -34,6 +34,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "sql/tztime.h"                 // struct Time_zone
 

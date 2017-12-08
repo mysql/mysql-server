@@ -48,8 +48,6 @@
 */
 #include "mysql/components/services/thr_mutex_bits.h"
 
-C_MODE_START
-
 /* Define mutex types, see my_thr_init.c */
 #define MY_MUTEX_INIT_SLOW   NULL
 
@@ -69,8 +67,8 @@ extern native_mutexattr_t my_errorcheck_mutexattr;
 #define MY_MUTEX_INIT_ERRCHK   NULL
 #endif
 
-static inline int native_mutex_init(native_mutex_t *mutex,
-                                    const native_mutexattr_t *attr)
+static inline int native_mutex_init
+  (native_mutex_t *mutex, const native_mutexattr_t *attr MY_ATTRIBUTE((unused)))
 {
 #ifdef _WIN32
   InitializeCriticalSection(mutex);
@@ -130,13 +128,13 @@ static inline int native_mutex_destroy(native_mutex_t *mutex)
 
 #ifdef SAFE_MUTEX
 /* safe_mutex adds checking to mutex for easier debugging */
-typedef struct st_safe_mutex_t
+struct safe_mutex_t
 {
   native_mutex_t global, mutex;
   const char *file;
   uint line, count;
   my_thread_t thread;
-} safe_mutex_t;
+};
 
 void safe_mutex_global_init();
 int safe_mutex_init(safe_mutex_t *mp, const native_mutexattr_t *attr,
@@ -181,7 +179,7 @@ static inline int my_mutex_lock(my_mutex_t *mp
                                 )
 {
 #ifdef SAFE_MUTEX
-  return safe_mutex_lock(mp->m_u.m_safe_ptr, FALSE, file, line);
+  return safe_mutex_lock(mp->m_u.m_safe_ptr, false, file, line);
 #else
   return native_mutex_lock(& mp->m_u.m_native);
 #endif
@@ -194,7 +192,7 @@ static inline int my_mutex_trylock(my_mutex_t *mp
                                    )
 {
 #ifdef SAFE_MUTEX
-  return safe_mutex_lock(mp->m_u.m_safe_ptr, TRUE, file, line);
+  return safe_mutex_lock(mp->m_u.m_safe_ptr, true, file, line);
 #else
   return native_mutex_trylock(& mp->m_u.m_native);
 #endif
@@ -228,7 +226,5 @@ static inline int my_mutex_destroy(my_mutex_t *mp
   return native_mutex_destroy(& mp->m_u.m_native);
 #endif
 }
-
-C_MODE_END
 
 #endif /* THR_MUTEX_INCLUDED */

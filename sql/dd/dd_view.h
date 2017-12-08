@@ -17,10 +17,9 @@
 #define DD_VIEW_INCLUDED
 
 
+struct MEM_ROOT;
 class THD;
 struct TABLE_LIST;
-
-typedef struct st_mem_root MEM_ROOT;
 
 namespace dd {
 class Schema;

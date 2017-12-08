@@ -15,6 +15,8 @@
 
 #include "sql/rpl_filter.h"
 
+#include "my_config.h"
+
 #include <string.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -722,7 +724,7 @@ Rpl_filter::build_do_table_hash()
   if (do_table_array_inited)
   {
     free_string_array(&do_table_array);
-    do_table_array_inited= FALSE;
+    do_table_array_inited= false;
   }
 
   DBUG_RETURN(0);
@@ -749,7 +751,7 @@ Rpl_filter::build_ignore_table_hash()
   if (ignore_table_array_inited)
   {
     free_string_array(&ignore_table_array);
-    ignore_table_array_inited= FALSE;
+    ignore_table_array_inited= false;
   }
 
   DBUG_RETURN(0);
@@ -1641,8 +1643,8 @@ void Sql_cmd_change_repl_filter::set_filter_value(List<Item>* item_list,
 
   @param thd A pointer to the thread handler object.
 
-  @retval FALSE success
-  @retval TRUE error
+  @retval false success
+  @retval true error
  */
 bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
 {

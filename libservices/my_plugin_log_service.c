@@ -16,4 +16,4 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *my_plugin_log_service= (void*)VERSION_my_plugin_log;
+SERVICE_VERSION *my_plugin_log_service= (void**)VERSION_my_plugin_log;

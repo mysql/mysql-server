@@ -43,7 +43,6 @@
 #include "sql/item_subselect.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_explain_format.h"             // Explain_sort_clause
-#include "sql/sql_alloc.h"
 #include "sql/sql_array.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -60,8 +59,7 @@
 class COND_EQUAL;
 class Item_sum;
 class Window;
-struct TABLE;
-struct TABLE_LIST;
+struct MYSQL_LOCK;
 
 typedef Bounds_checked_array<Item_null_result*> Item_null_array;
 
@@ -71,14 +69,14 @@ typedef Mem_root_array<Key_use> Key_use_array;
 class Cost_model_server;
 
 
-typedef struct st_sargable_param
+struct SARGABLE_PARAM
 {
   Field *field;              /* field against which to check sargability */
   Item **arg_value;          /* values of potential keys for lookups     */
   uint num_values;           /* number of values in the above array      */
-} SARGABLE_PARAM;
+};
 
-typedef struct st_rollup
+struct ROLLUP
 {
   enum State { STATE_NONE, STATE_INITED, STATE_READY };
   State state;
@@ -86,7 +84,7 @@ typedef struct st_rollup
   Ref_item_array *ref_item_arrays;
   List<Item> *fields_list;  ///< SELECT list
   List<Item> *all_fields;   ///< Including hidden fields
-} ROLLUP;
+};
 
 /**
   Wrapper for ORDER* pointer to trace origins of ORDER list 
@@ -173,7 +171,7 @@ public:
   bool can_ignore_order() { return ignore_order; }
 };
 
-class JOIN :public Sql_alloc
+class JOIN
 {
   JOIN(const JOIN &rhs);                        /**< not implemented */
   JOIN& operator=(const JOIN &rhs);             /**< not implemented */
@@ -432,7 +430,7 @@ public:
   /**
     If we have the GROUP BY statement in the query,
     but the group_list was emptied by optimizer, this
-    flag is TRUE.
+    flag is true.
     It happens when fields in the GROUP BY are from
     constant table
   */
@@ -671,7 +669,7 @@ public:
   List<Semijoin_mat_exec> sjm_exec_list;
   /* end of allocation caching storage */
 
-  /** Exec time only: TRUE <=> current group has been sent */
+  /** Exec time only: true <=> current group has been sent */
   bool group_sent;
   /// If true, calculate found rows for this query block
   bool calc_found_rows;
@@ -702,7 +700,7 @@ public:
   bool alloc_func_list();
   bool make_sum_func_list(List<Item> &all_fields,
                           List<Item> &send_fields,
-                          bool before_group_by, bool recompute= FALSE);
+                          bool before_group_by, bool recompute= false);
 
   /**
      Overwrites one slice of ref_items with the contents of another slice.

@@ -25,13 +25,11 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "mem_root_fwd.h"
 #include "my_alloc.h"                   // MEM_ROOT
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_time.h"                    // interval_type
 #include "mysql/components/services/psi_statement_bits.h"
-#include "mysql/psi/psi_statement.h"
 
 class String;
 class THD;

@@ -100,10 +100,10 @@ PSI_memory_key mi_key_memory_stPageList_pages;
 PSI_memory_key mi_key_memory_keycache_thread_var;
 PSI_memory_key key_memory_QUEUE;
 
-#ifdef HAVE_PSI_MUTEX_INTERFACE
 PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
   mi_key_mutex_MI_SORT_INFO_mutex, mi_key_mutex_MI_CHECK_print_msg;
 
+#ifdef HAVE_PSI_MUTEX_INTERFACE
 static PSI_mutex_info all_myisam_mutexes[]=
 {
   { &mi_key_mutex_MI_SORT_INFO_mutex, "MI_SORT_INFO::mutex", 0, 0, PSI_DOCUMENT_ME},
@@ -112,10 +112,10 @@ static PSI_mutex_info all_myisam_mutexes[]=
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
 PSI_rwlock_key mi_key_rwlock_MYISAM_SHARE_key_root_lock,
   mi_key_rwlock_MYISAM_SHARE_mmap_lock;
 
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 static PSI_rwlock_info all_myisam_rwlocks[]=
 {
   { &mi_key_rwlock_MYISAM_SHARE_key_root_lock, "MYISAM_SHARE::key_root_lock", 0, 0, PSI_DOCUMENT_ME},
@@ -123,10 +123,10 @@ static PSI_rwlock_info all_myisam_rwlocks[]=
 };
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
-#ifdef HAVE_PSI_COND_INTERFACE
 PSI_cond_key mi_key_cond_MI_SORT_INFO_cond;
 PSI_cond_key mi_keycache_thread_var_suspend;
 
+#ifdef HAVE_PSI_COND_INTERFACE
 static PSI_cond_info all_myisam_conds[]=
 {
   { &mi_key_cond_MI_SORT_INFO_cond, "MI_SORT_INFO::cond", 0, 0, PSI_DOCUMENT_ME},
@@ -134,10 +134,10 @@ static PSI_cond_info all_myisam_conds[]=
 };
 #endif /* HAVE_PSI_COND_INTERFACE */
 
-#ifdef HAVE_PSI_FILE_INTERFACE
 PSI_file_key mi_key_file_datatmp, mi_key_file_dfile, mi_key_file_kfile,
   mi_key_file_log;
 
+#ifdef HAVE_PSI_FILE_INTERFACE
 static PSI_file_info all_myisam_files[]=
 {
   { & mi_key_file_datatmp, "data_tmp", 0, 0, PSI_DOCUMENT_ME},
@@ -147,9 +147,9 @@ static PSI_file_info all_myisam_files[]=
 };
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
 PSI_thread_key mi_key_thread_find_all_keys;
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
 static PSI_thread_info all_myisam_threads[]=
 {
   { &mi_key_thread_find_all_keys, "find_all_keys", 0, 0, PSI_DOCUMENT_ME}

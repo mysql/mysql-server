@@ -16,21 +16,20 @@
 #ifndef SQL_TABLE_INCLUDED
 #define SQL_TABLE_INCLUDED
 
-#include <map>
 #include <stddef.h>
 #include <sys/types.h>
+#include <map>
 #include <set>
 #include <utility>
 #include <vector>
 
-#include "binary_log_types.h"  // enum_field_types
 #include "dd/string_type.h"
 #include "m_ctype.h"
 #include "mdl.h"
+#include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/psi/mysql_mutex.h"
 
 class Alter_info;
 class Alter_table_ctx;
@@ -41,19 +40,18 @@ class THD;
 class handler;
 struct TABLE;
 struct TABLE_LIST;
-struct TABLE_SHARE;
 struct handlerton;
 
 namespace dd {
+  class Foreign_key;
   class Schema;
   class Table;
-  class Foreign_key;
 }
 
-typedef struct st_ha_check_opt HA_CHECK_OPT;
-typedef struct st_ha_create_information HA_CREATE_INFO;
-typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_mysql_mutex mysql_mutex_t;
+struct HA_CHECK_OPT;
+struct HA_CREATE_INFO;
+
+typedef mysql_mutex_t mysql_mutex_t;
 template<typename T> class List;
 
 
@@ -341,9 +339,9 @@ find_fk_parent_key(const dd::Table *parent_table_def,
   @param[in,out]  alter_ctx    Runtime context for ALTER TABLE.
   @param[in]      used_fields  used_fields from HA_CREATE_INFO.
 
-  @retval TRUE   error, out of memory or a semantical error in ALTER
+  @retval true   error, out of memory or a semantical error in ALTER
                  TABLE instructions
-  @retval FALSE  success
+  @retval false  success
 
 */
 bool prepare_fields_and_keys(THD *thd,
@@ -415,7 +413,7 @@ bool validate_comment_length(THD *thd, const char *comment_str,
                              uint err_code, const char *comment_name);
 int write_bin_log(THD *thd, bool clear_error,
                   const char *query, size_t query_length,
-                  bool is_trans= FALSE);
+                  bool is_trans= false);
 void promote_first_timestamp_column(List<Create_field> *column_definitions);
 
 

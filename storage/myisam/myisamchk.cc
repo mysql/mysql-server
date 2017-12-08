@@ -45,7 +45,6 @@
 #endif
 
 static uint decode_bits;
-static char **default_argv;
 static const char *load_default_groups[]= { "myisamchk", 0 };
 static const char *set_collation_name, *opt_tmpdir;
 static CHARSET_INFO *set_collation;
@@ -75,7 +74,7 @@ static const char *field_pack[]=
 
 static const char *myisam_stats_method_str="nulls_unequal";
 
-static void get_options(int *argc,char * * *argv);
+static void get_options(int *argc,char * * *argv, MEM_ROOT *alloc);
 static void usage(void);
 static int myisamchk(MI_CHECK *param, char *filename);
 static void descript(MI_CHECK *param, MI_INFO *info, char * name);
@@ -112,7 +111,8 @@ int main(int argc, char **argv)
 
   myisamchk_init(&check_param);
   check_param.using_global_keycache = 0;
-  get_options(&argc,(char***) &argv);
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
+  get_options(&argc,(char***) &argv, &alloc);
   myisam_quick_table_bits=decode_bits;
   error=0;
   while (--argc >= 0)
@@ -152,7 +152,6 @@ int main(int argc, char **argv)
     printf("\nTotal of all %d MyISAM-files:\nData records: %9s   Deleted blocks: %9s\n",check_param.total_files,llstr(check_param.total_records,buff),
 	   llstr(check_param.total_deleted,buff2));
   }
-  free_defaults(default_argv);
   free_tmpdir(&myisamchk_tmpdir);
   ft_free_stopwords();
   my_end(check_param.testflag & T_INFO ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
@@ -737,14 +736,13 @@ get_one_option(int optid,
 }
 
 
-static void get_options(int *argc,char ***argv)
+static void get_options(int *argc,char ***argv, MEM_ROOT *alloc)
 {
   int ho_error;
 
-  if (load_defaults("my", load_default_groups, argc, argv))
+  if (load_defaults("my", load_default_groups, argc, argv, alloc))
     exit(1);
 
-  default_argv= *argv;
   if (isatty(fileno(stdout)))
     check_param.testflag|=T_WRITE_LOOP;
 
@@ -1018,13 +1016,13 @@ static int myisamchk(MI_CHECK *param, char * filename)
             on how myisamchk is run, so we must copy file stats from old to new.
           */
           if (param->testflag & T_REP_BY_SORT)
-            error= mi_repair_by_sort(param, info, filename, rep_quick, FALSE);
+            error= mi_repair_by_sort(param, info, filename, rep_quick, false);
           else
-            error= mi_repair_parallel(param, info, filename, rep_quick, FALSE);
+            error= mi_repair_parallel(param, info, filename, rep_quick, false);
 	  state_updated=1;
 	}
 	else if (param->testflag & T_REP_ANY)
-	  error= mi_repair(param, info, filename, rep_quick, FALSE);
+	  error= mi_repair(param, info, filename, rep_quick, false);
       }
       if (!error && param->testflag & T_SORT_RECORDS)
       {
@@ -1065,12 +1063,12 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  {
 	    if (param->verbose)
 	      puts("Table had a compressed index;  We must now recreate the index");
-	    error= mi_repair_by_sort(param, info, filename, 1, FALSE);
+	    error= mi_repair_by_sort(param, info, filename, 1, false);
 	  }
 	}
       }
       if (!error && param->testflag & T_SORT_INDEX)
-	error= mi_sort_index(param, info, filename, FALSE);
+	error= mi_sort_index(param, info, filename, false);
       if (!error)
 	share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
 				 STATE_CRASHED_ON_REPAIR);

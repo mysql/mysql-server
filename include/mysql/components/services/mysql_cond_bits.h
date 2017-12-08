@@ -31,9 +31,15 @@
 
 /**
   An instrumented cond structure.
-  @sa mysql_cond_t
+  @c mysql_cond_t is a drop-in replacement for @c native_cond_t.
+  @sa mysql_cond_init
+  @sa mysql_cond_wait
+  @sa mysql_cond_timedwait
+  @sa mysql_cond_signal
+  @sa mysql_cond_broadcast
+  @sa mysql_cond_destroy
 */
-struct st_mysql_cond
+struct mysql_cond_t
 {
   /** The real condition */
   native_cond_t m_cond;
@@ -44,18 +50,6 @@ struct st_mysql_cond
   */
   struct PSI_cond *m_psi;
 };
-
-/**
-  Type of an instrumented condition.
-  @c mysql_cond_t is a drop-in replacement for @c native_cond_t.
-  @sa mysql_cond_init
-  @sa mysql_cond_wait
-  @sa mysql_cond_timedwait
-  @sa mysql_cond_signal
-  @sa mysql_cond_broadcast
-  @sa mysql_cond_destroy
-*/
-typedef struct st_mysql_cond mysql_cond_t;
 
 /** @} (end of group psi_api_cond) */
 

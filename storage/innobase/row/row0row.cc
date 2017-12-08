@@ -964,7 +964,7 @@ row_build_row_ref_in_tuple(
 
 /***************************************************************//**
 Searches the clustered index record for a row, if we have the row reference.
-@return TRUE if found */
+@return true if found */
 ibool
 row_search_on_row_ref(
 /*==================*/
@@ -1111,6 +1111,10 @@ row_search_index_entry(
 	}
 
 	switch (btr_pcur_get_btr_cur(pcur)->flag) {
+	case BTR_CUR_UNSET:
+		ut_ad(0);
+		break;
+
 	case BTR_CUR_DELETE_REF:
 		ut_a(mode & BTR_DELETE && !dict_index_is_spatial(index));
 		return(ROW_NOT_DELETED_REF);

@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
 /* For MY_STAT */
 #include "my_dir.h"
+#include "my_io.h"
 /* For my_chsize */
 #include "my_sys.h"
 #include "mysql/psi/psi_socket.h"
@@ -47,6 +48,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #endif
 
 #include "my_macros.h"
+#include "mysql/components/services/mysql_socket_bits.h"
 #include "pfs_socket_provider.h"
 
 #ifndef PSI_SOCKET_CALL
@@ -72,45 +74,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
   {                                       \
   } while (0)
 #endif
-
-/** An instrumented socket. */
-struct st_mysql_socket
-{
-  /** The real socket descriptor. */
-  my_socket fd;
-
-  /**
-    The instrumentation hook.
-    Note that this hook is not conditionally defined,
-    for binary compatibility of the @c MYSQL_SOCKET interface.
-  */
-  struct PSI_socket *m_psi;
-};
-
-/**
-  An instrumented socket.
-  @c MYSQL_SOCKET is a replacement for @c my_socket.
-*/
-typedef struct st_mysql_socket MYSQL_SOCKET;
-
-/**
-  @def MYSQL_INVALID_SOCKET
-  MYSQL_SOCKET initial value.
-*/
-// MYSQL_SOCKET MYSQL_INVALID_SOCKET= {INVALID_SOCKET, NULL};
-#define MYSQL_INVALID_SOCKET mysql_socket_invalid()
-
-/**
-  MYSQL_SOCKET helper. Initialize instrumented socket.
-  @sa mysql_socket_getfd
-  @sa mysql_socket_setfd
-*/
-static inline MYSQL_SOCKET
-mysql_socket_invalid()
-{
-  MYSQL_SOCKET mysql_socket = {INVALID_SOCKET, NULL};
-  return mysql_socket;
-}
 
 /**
   Set socket descriptor and address.

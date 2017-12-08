@@ -30,7 +30,6 @@
 #include "my_inttypes.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/gis/srid.h"
 #include "sql/inplace_vector.h"
 #include "sql_string.h"                 // String
@@ -876,13 +875,6 @@ public:
       dim= GEOM_DIM - 1;
       nomem= 1;
     }
-
-    Flags_t &operator=(const Flags_t &rhs)
-    {
-      memcpy(this, &rhs, sizeof(rhs));
-      return *this;
-    }
-
 
     uint64 bo:1;
     uint64 dim:2;

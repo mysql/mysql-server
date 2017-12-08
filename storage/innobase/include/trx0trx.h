@@ -404,7 +404,7 @@ Determines if a transaction is in the given state.
 The caller must hold trx_sys->mutex, or it must be the thread
 that is serving a running transaction.
 A running RW transaction must be in trx_sys->rw_trx_list.
-@return TRUE if trx->state == state */
+@return true if trx->state == state */
 UNIV_INLINE
 bool
 trx_state_eq(
@@ -416,7 +416,7 @@ trx_state_eq(
 /**********************************************************************//**
 Asserts that a transaction has been started.
 The caller must hold trx_sys->mutex.
-@return TRUE if started */
+@return true if started */
 ibool
 trx_assert_started(
 /*===============*/
@@ -426,14 +426,14 @@ trx_assert_started(
 
 /**********************************************************************//**
 Determines if the currently running transaction has been interrupted.
-@return TRUE if interrupted */
+@return true if interrupted */
 ibool
 trx_is_interrupted(
 /*===============*/
 	const trx_t*	trx);	/*!< in: transaction */
 /**********************************************************************//**
 Determines if the currently running transaction is in strict mode.
-@return TRUE if strict */
+@return true if strict */
 ibool
 trx_is_strict(
 /*==========*/

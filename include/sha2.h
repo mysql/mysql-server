@@ -31,10 +31,6 @@
 
 #include <sha.hpp>
 
-#    ifdef __cplusplus
-extern "C" {
-#    endif
-
 #ifndef SHA512_DIGEST_LENGTH
 #define SHA512_DIGEST_LENGTH TaoCrypt::SHA512::DIGEST_SIZE
 #endif
@@ -61,10 +57,6 @@ GEN_YASSL_SHA2_BRIDGE(256)
 GEN_YASSL_SHA2_BRIDGE(224)
 
 #undef GEN_YASSL_SHA2_BRIDGE
-
-#    ifdef __cplusplus
-}
-#    endif
 
 #  endif /* HAVE_YASSL */
 

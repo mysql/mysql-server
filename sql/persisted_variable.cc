@@ -17,11 +17,11 @@
 
 #include "my_config.h"
 
-#include <algorithm>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <memory>
 #include <new>
 #include <utility>
@@ -38,18 +38,19 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_file_bits.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/plugin.h"
+#include "mysql/components/services/system_variable_source_type.h"
+#include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
+#include "mysql/status_var.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-#include "pfs_mutex_provider.h"
 #include "prealloced_array.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
@@ -58,16 +59,14 @@
 #include "sql/json_dom.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
-#include "sql/psi_memory_key.h"
 #include "sql/set_var.h"
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_servers.h"
 #include "sql/sql_show.h"
-#include "sql/sql_table.h"
 #include "sql/sys_vars_shared.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "thr_mutex.h"
 #include "typelib.h"
@@ -144,7 +143,7 @@ int Persisted_variables_cache::init(int *argc, char ***argv)
 #endif
 
   int temp_argc= *argc;
-  MEM_ROOT alloc;
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   char *ptr, **res, *datadir= NULL;
   char dir[FN_REFLEN]= { 0 };
   const char *dirs= NULL;
@@ -167,9 +166,9 @@ int Persisted_variables_cache::init(int *argc, char ***argv)
   res= (char **) (ptr);
   memcpy((uchar *) res, (char *) (*argv), (*argc) * sizeof(char *));
 
-  my_getopt_skip_unknown= TRUE;
+  my_getopt_skip_unknown= true;
   if (my_handle_options(&temp_argc, &res, persist_options,
-                        NULL, NULL, TRUE))
+                        NULL, NULL, true))
   {
     free_root(&alloc, MYF(0));
     return 1;
@@ -199,8 +198,6 @@ int Persisted_variables_cache::init(int *argc, char ***argv)
     &m_LOCK_persist_file, MY_MUTEX_INIT_FAST);
 
   m_instance= this;
-  ro_persisted_argv= NULL;
-  ro_persisted_plugin_argv= NULL;
   return 0;
 }
 
@@ -339,8 +336,8 @@ const char* Persisted_variables_cache::get_variable_name(sys_var *system_var)
   stream to persisted config file
 
   @return Error state
-    @retval TRUE An error occurred
-    @retval FALSE Success
+    @retval true An error occurred
+    @retval false Success
 */
 bool Persisted_variables_cache::flush_to_file()
 {
@@ -424,7 +421,7 @@ bool Persisted_variables_cache::flush_to_file()
   else
   {
     /* write to file */
-    if ((mysql_file_fputs(dest.c_ptr(), m_fd)) < 0)
+    if (mysql_file_fputs(dest.c_ptr(), m_fd) < 0)
     {
       ret= true;
     }
@@ -441,13 +438,13 @@ bool Persisted_variables_cache::flush_to_file()
 
   @param [in] flag    File open mode
   @return Error state
-    @retval TRUE An error occurred
-    @retval FALSE Success
+    @retval true An error occurred
+    @retval false Success
 */
 bool Persisted_variables_cache::open_persist_file(int flag)
 {
   m_fd= mysql_file_fopen(key_persist_file_cnf,
-                         m_persist_filename.c_str(), flag, MYF(0));
+                       m_persist_filename.c_str(), flag, MYF(0));
   return (m_fd ? 0 : 1);
 }
 
@@ -465,8 +462,8 @@ void Persisted_variables_cache::close_persist_file()
   load_persist_file() read persisted config file
 
   @return Error state
-    @retval TRUE An error occurred
-    @retval FALSE Success
+    @retval true An error occurred
+    @retval false Success
 */
 bool Persisted_variables_cache::load_persist_file()
 {
@@ -482,12 +479,12 @@ bool Persisted_variables_cache::load_persist_file()
   persisted_globals_load is set to false
 
    @param [in] plugin_options      Flag which tells what options are being set.
-                                   If set to FALSE non plugin variables are set
+                                   If set to false non plugin variables are set
                                    else plugin variables are set
 
   @return Error state
-    @retval TRUE An error occurred
-    @retval FALSE Success
+    @retval true An error occurred
+    @retval false Success
 */
 bool Persisted_variables_cache::set_persist_options(bool plugin_options)
 {
@@ -774,7 +771,7 @@ int Persisted_variables_cache::read_persist_file()
   @param [in] argc                      Pointer to argc of original program
   @param [in] argv                      Pointer to argv of original program
   @param [in] plugin_options            This flag tells wether options are handled
-                                        during plugin install. If set to TRUE
+                                        during plugin install. If set to true
                                         options are handled as part of install
                                         plugin.
 
@@ -788,7 +785,6 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
   TYPELIB group;
   MEM_ROOT alloc;
   const char *type_name= "mysqld";
-  char *ptr, **res;
   map<string, string>::const_iterator iter;
 
   if (*argc < 2 || no_defaults || !persisted_globals_load)
@@ -819,21 +815,9 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
   */
   if (my_args.size())
   {
-    if (!(ptr= (char *) alloc_root(&alloc, sizeof(alloc) +
-        (my_args.size() + *argc + 2) * sizeof(char *))))
+    char **res= new (&alloc) char*[my_args.size() + *argc + 2];
+    if (res == nullptr)
       goto err;
-    if (plugin_options)
-    {
-      /* free previously allocated memory */
-      if (ro_persisted_plugin_argv)
-      {
-        free_defaults(ro_persisted_plugin_argv);
-        ro_persisted_plugin_argv= NULL;
-      }
-      ro_persisted_plugin_argv= res= (char **) (ptr + sizeof(alloc));
-    }
-    else
-      ro_persisted_argv= res= (char **) (ptr + sizeof(alloc));
     memset(res, 0, (sizeof(char *) * (my_args.size() + *argc + 2)));
     /* copy all arguments to new array */
     memcpy((uchar *) (res), (char *) (*argv), (*argc) * sizeof(char *));
@@ -851,11 +835,12 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
     res[my_args.size() + *argc + 1] = 0;  /* last null */
     (*argc)+= (int)my_args.size() + 1;
     *argv= res;
-    *(MEM_ROOT *) ptr= std::move(alloc);
+    if (plugin_options)
+      ro_persisted_plugin_argv_alloc= std::move(alloc);  // Possibly overwrite previous.
+    else
+      ro_persisted_argv_alloc= std::move(alloc);
     return 0;
   }
-  else
-    free_root(&alloc, MYF(0));
   return 0;
 
 err:
@@ -871,7 +856,7 @@ err:
   @param [in] thd                     Pointer to connection handle.
   @param [in] name                    Name of variable to remove, if NULL all
                                       variables are removed from config file.
-  @param [in] if_exists               Bool value when set to TRUE reports
+  @param [in] if_exists               Bool value when set to true reports
                                       warning else error if variable is not
                                       present in the config file.
 
@@ -966,14 +951,6 @@ void Persisted_variables_cache::cleanup()
 {
   mysql_mutex_destroy(&m_LOCK_persist_variables);
   mysql_mutex_destroy(&m_LOCK_persist_file);
-  if (ro_persisted_argv)
-  {
-    free_defaults(ro_persisted_argv);
-    ro_persisted_argv= NULL;
-  }
-  if (ro_persisted_plugin_argv)
-  {
-    free_defaults(ro_persisted_plugin_argv);
-    ro_persisted_plugin_argv= NULL;
-  }
+  free_root(&ro_persisted_argv_alloc, MYF(0));
+  free_root(&ro_persisted_plugin_argv_alloc, MYF(0));
 }

@@ -172,7 +172,7 @@ index.
 @param[in]	table	table
 @param[in]	index	index
 @param[in]	add_v	new virtual columns added along with an add index call
-@return TRUE if the column names were found */
+@return true if the column names were found */
 static
 ibool
 dict_index_find_cols(
@@ -232,14 +232,14 @@ dict_table_remove_from_cache_low(
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Validate the dictionary table LRU list.
-@return TRUE if validate OK */
+@return true if validate OK */
 static
 ibool
 dict_lru_validate(void);
 /*===================*/
 /**********************************************************************//**
 Check if table is in the dictionary table LRU list.
-@return TRUE if table found */
+@return true if table found */
 static
 ibool
 dict_lru_find_table(
@@ -247,7 +247,7 @@ dict_lru_find_table(
 	const dict_table_t*	find_table);	/*!< in: table to find */
 /**********************************************************************//**
 Check if a table exists in the dict table non-LRU list.
-@return TRUE if table found */
+@return true if table found */
 static
 ibool
 dict_non_lru_find_table(
@@ -263,7 +263,7 @@ ib_mutex_t	dict_foreign_err_mutex;
 
 /********************************************************************//**
 Checks if the database name in two table names is the same.
-@return TRUE if same db name */
+@return true if same db name */
 ibool
 dict_tables_have_same_db(
 /*=====================*/
@@ -923,7 +923,7 @@ dict_table_autoinc_unlock(
 @param[in]	index		index
 @param[in]	n		column number
 @param[in]	is_virtual	whether it is a virtual col
-@return TRUE if contains the column or its prefix */
+@return true if contains the column or its prefix */
 ibool
 dict_index_contains_col_or_prefix(
 	const dict_index_t*	index,
@@ -1066,7 +1066,7 @@ dict_table_mysql_pos_to_innodb(
 /********************************************************************//**
 Checks if a column is in the ordering columns of the clustered index of a
 table. Column prefixes are treated like whole columns.
-@return TRUE if the column, or its prefix, is in the clustered key */
+@return true if the column, or its prefix, is in the clustered key */
 ibool
 dict_table_col_in_clustered_key(
 /*============================*/
@@ -1400,7 +1400,7 @@ dict_table_add_to_cache(
 
 /**********************************************************************//**
 Test whether a table can be evicted from the LRU cache.
-@return TRUE if table can be evicted. */
+@return true if table can be evicted. */
 static
 ibool
 dict_table_can_be_evicted(
@@ -1630,7 +1630,7 @@ struct dict_foreign_remove_partial
 
 /**********************************************************************//**
 Renames a table object.
-@return TRUE if success */
+@return true if success */
 dberr_t
 dict_table_rename_in_cache(
 /*=======================*/
@@ -1666,14 +1666,20 @@ dict_table_rename_in_cache(
 	HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
 			dict_table_t*, table2, ut_ad(table2->cached),
 			(ut_strcmp(table2->name.m_name, new_name) == 0));
+
 	DBUG_EXECUTE_IF("dict_table_rename_in_cache_failure",
 		if (table2 == NULL) {
 			table2 = (dict_table_t*) -1;
 		} );
-	if (table2) {
-		ib::error() << "Cannot rename table '" << old_name
+
+	if (table2 != nullptr) {
+
+		ib::error()
+			<< "Cannot rename table '" << old_name
 			<< "' to '" << new_name << "' since the"
-			" dictionary cache already contains '" << new_name << "'.";
+			" dictionary cache already contains '"
+			<< new_name << "'.";
+
 		return(DB_ERROR);
 	}
 
@@ -1689,22 +1695,28 @@ dict_table_rename_in_cache(
 		/* Make sure the data_dir_path is set. */
 		dd_get_and_save_data_dir_path<dd::Table>(table, NULL, true);
 
-		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-			ut_a(table->data_dir_path);
+		std::string	path = dict_table_get_datadir(table);
 
-			filepath = fil_make_filepath(
-				table->data_dir_path, table->name.m_name,
-				IBD, true);
-		} else {
-			filepath = fil_make_filepath(
-				NULL, table->name.m_name, IBD, false);
-		}
+		filepath = Fil_path::make(path, table->name.m_name, IBD, true);
 
 		if (filepath == NULL) {
 			return(DB_OUT_OF_MEMORY);
 		}
 
-		fil_delete_tablespace(table->space, BUF_REMOVE_ALL_NO_WRITE);
+		err = fil_delete_tablespace(
+                        table->space, BUF_REMOVE_ALL_NO_WRITE);
+
+                ut_a(err == DB_SUCCESS
+		     || err == DB_TABLESPACE_NOT_FOUND
+		     || err == DB_IO_ERROR);
+
+		if (err == DB_IO_ERROR) {
+
+			ib::info()
+				<< "IO error while deleting: " << table->space
+				<< " during rename of '" << old_name << "' to"
+				<< " '" << new_name << "'";
+		}
 
 		/* Delete any temp file hanging around. */
 		if (os_file_status(filepath, &exists, &ftype)
@@ -1724,11 +1736,14 @@ dict_table_rename_in_cache(
 		ut_ad(!table->is_temporary());
 
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-			new_path = os_file_make_new_pathname(
-				old_path, new_name);
+			std::string	new_ibd;
+
+			new_ibd = Fil_path::make_new_ibd(old_path, new_name);
+
+			new_path = mem_strdup(new_ibd.c_str());
+
 		} else {
-			new_path = fil_make_filepath(
-				NULL, new_name, IBD, false);
+			new_path = Fil_path::make_ibd_from_table_name(new_name);
 		}
 
 		/* New filepath must not exist. */
@@ -1746,7 +1761,8 @@ dict_table_rename_in_cache(
 		dd_filename_to_spacename(new_name, &new_tablespace_name);
 
 		bool	success = fil_rename_tablespace(
-			table->space, old_path, new_tablespace_name.c_str(), new_path);
+			table->space, old_path, new_tablespace_name.c_str(),
+			new_path);
 
 		clone_mark_active();
 
@@ -2179,7 +2195,7 @@ dict_partitioned_table_remove_from_cache(
 {
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	uint16_t	name_len = strlen(name);
+	size_t	name_len = strlen(name);
 
 	for (uint32_t i = 0; i < hash_get_n_cells(dict_sys->table_id_hash);
 	     ++i) {
@@ -2202,8 +2218,9 @@ dict_partitioned_table_remove_from_cache(
 
 			if ((strncmp(name, prev_table->name.m_name, name_len)
 			     == 0)
-			    && (strncmp(prev_table->name.m_name + name_len,
-					part_sep, strlen(part_sep)) == 0)) {
+			    && strncmp(prev_table->name.m_name + name_len,
+					PART_SEPARATOR,
+					PART_SEPARATOR_LEN) == 0) {
 
 				btr_drop_ahi_for_table(prev_table);
 				dict_table_remove_from_cache(prev_table);
@@ -2229,7 +2246,7 @@ dict_table_remove_from_cache_debug(
 /****************************************************************//**
 If the given column name is reserved for InnoDB system columns, return
 TRUE.
-@return TRUE if name is reserved */
+@return true if name is reserved */
 ibool
 dict_col_name_is_reserved(
 /*======================*/
@@ -2346,7 +2363,7 @@ dict_index_node_ptr_max_size(
 /****************************************************************//**
 If a record of this index might not fit on a single B-tree page,
 return TRUE.
-@return TRUE if the index record could become too big */
+@return true if the index record could become too big */
 static
 bool
 dict_index_too_big_for_tree(
@@ -2896,7 +2913,7 @@ index.
 @param[in]	table	table
 @param[in,out]	index	index
 @param[in]	add_v	new virtual columns added along with an add index call
-@return TRUE if the column names were found */
+@return true if the column names were found */
 static
 ibool
 dict_index_find_cols(
@@ -3441,7 +3458,7 @@ dict_index_build_internal_fts(
 
 /*********************************************************************//**
 Checks if a table is referenced by foreign keys.
-@return TRUE if table is referenced by a foreign key */
+@return true if table is referenced by a foreign key */
 ibool
 dict_table_is_referenced_by_foreign_key(
 /*====================================*/
@@ -5210,7 +5227,7 @@ syntax_error:
 /**********************************************************************//**
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
 no comparison can occur with the page number field in a node pointer.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dict_index_check_search_tuple(
 /*==========================*/
@@ -6082,7 +6099,7 @@ dict_persist_log_margin()
 	/* Extra marge for root split, we always leave this margin,
 	since we don't know exactly it will split root or not */
 	static const uint32_t		log_margin_per_split_root =
-		univ_page_size.physical() * 1.5;
+		univ_page_size.physical() / 2 * 3; /* Add 50% margin. */
 
 	/* Read without holding the dict_persist_t::mutex */
 	uint32_t	num_dirty_tables = dict_persist->num_dirty_tables;
@@ -6527,7 +6544,7 @@ dict_close(void)
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Validate the dictionary table LRU list.
-@return TRUE if valid */
+@return true if valid */
 static
 ibool
 dict_lru_validate(void)
@@ -6556,7 +6573,7 @@ dict_lru_validate(void)
 
 /**********************************************************************//**
 Check if a table exists in the dict table LRU list.
-@return TRUE if table found in LRU list */
+@return true if table found in LRU list */
 static
 ibool
 dict_lru_find_table(
@@ -6584,7 +6601,7 @@ dict_lru_find_table(
 
 /**********************************************************************//**
 Check if a table exists in the dict table non-LRU list.
-@return TRUE if table found in non-LRU list */
+@return true if table found in non-LRU list */
 static
 ibool
 dict_non_lru_find_table(
@@ -8151,5 +8168,21 @@ dd_sdi_acquire_shared_mdl(
 	}
 
 	return(DB_SUCCESS);
+}
+
+/** Get the tablespace data directory if set, otherwise empty string.
+@return the data directory */
+std::string
+dict_table_get_datadir(const dict_table_t* table)
+{
+	std::string	path;
+
+	if (DICT_TF_HAS_DATA_DIR(table->flags)
+		&& table->data_dir_path != nullptr) {
+
+		path.assign(table->data_dir_path);
+	}
+
+	return(path);
 }
 #endif /* !UNIV_HOTBACKUP */

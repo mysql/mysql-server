@@ -24,18 +24,19 @@
 
 #include "my_config.h"
 
+#include <stdio.h>
 #include <utility>
 
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"
 #include "sql/field.h"
 #include "sql/item_func.h"
 #include "sql/item_row.h"
 #include "sql/key.h"
+#include "sql/nested_join.h"
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_nodes.h"
@@ -44,7 +45,6 @@
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "sql/window.h"
 #include "template_utils.h"
@@ -229,7 +229,7 @@ bool Group_check::check_query(THD *thd)
             Item *expr= *(o->item);
             if (check_expression(thd, expr, false))
             {
-              my_snprintf(buff, sizeof(buff),
+              snprintf(buff, sizeof(buff),
                           "PARTITION BY or ORDER BY clause of window '%s'",
                           w->printable_name());
               place= buff;
@@ -1164,7 +1164,6 @@ void Group_check::find_fd_in_joined_table(List<TABLE_LIST> *join_list)
 /// Writes "check information" to the optimizer trace
 void Group_check::to_opt_trace(THD *thd)
 {
-#ifdef OPTIMIZER_TRACE
   if (fd.empty() && !whole_tables_fd)
     return;
   Opt_trace_context *ctx= &thd->opt_trace;
@@ -1173,7 +1172,6 @@ void Group_check::to_opt_trace(THD *thd)
   Opt_trace_object trace_wrapper(ctx);
   Opt_trace_object trace_fds(ctx, "functional_dependencies_of_GROUP_columns");
   to_opt_trace2(ctx, &trace_fds);
-#endif
 }
 
 /**
@@ -1183,7 +1181,6 @@ void Group_check::to_opt_trace(THD *thd)
 void Group_check::to_opt_trace2(Opt_trace_context *ctx,
                                 Opt_trace_object *parent)
 {
-#ifdef OPTIMIZER_TRACE
   if (table)
     parent->add_utf8_table(table);
   if (whole_tables_fd)
@@ -1213,7 +1210,6 @@ void Group_check::to_opt_trace2(Opt_trace_context *ctx,
       mat_tables.at(j)->to_opt_trace2(ctx, &trace_wrapper);
     }
   }
-#endif
 }
 
 

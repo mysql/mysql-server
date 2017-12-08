@@ -43,6 +43,9 @@
 #ifndef _WIN32
 #include <netdb.h>
 #endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
 #include <stdio.h>
 #include <string>
 
@@ -62,7 +65,6 @@
 #include "mysql/client_authentication.h"
 #include "mysql/plugin_auth_common.h"
 #include "mysql/psi/mysql_memory.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
@@ -331,8 +333,8 @@ void net_clear_error(NET *net)
 */
 
 void set_mysql_extended_error(MYSQL *mysql, int errcode,
-                                     const char *sqlstate,
-                                     const char *format, ...)
+                              const char *sqlstate,
+                              const char *format, ...)
 {
   NET *net;
   va_list args;
@@ -343,7 +345,7 @@ void set_mysql_extended_error(MYSQL *mysql, int errcode,
   net= &mysql->net;
   net->last_errno= errcode;
   va_start(args, format);
-  my_vsnprintf(net->last_error, sizeof(net->last_error)-1,
+  vsnprintf(net->last_error, sizeof(net->last_error)-1,
                format, args);
   va_end(args);
   my_stpcpy(net->sqlstate, sqlstate);
@@ -512,7 +514,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
     prefix= name_prefixes[i];
     suffix_pos = strxmov(tmp, prefix , shared_memory_base_name, "_", NullS);
     my_stpcpy(suffix_pos, "CONNECT_REQUEST");
-    event_connect_request= OpenEvent(event_access_rights, FALSE, tmp);
+    event_connect_request= OpenEvent(event_access_rights, false, tmp);
     if (event_connect_request)
     {
       break;
@@ -524,13 +526,13 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
     goto err;
   }
   my_stpcpy(suffix_pos, "CONNECT_ANSWER");
-  if (!(event_connect_answer= OpenEvent(event_access_rights,FALSE,tmp)))
+  if (!(event_connect_answer= OpenEvent(event_access_rights,false,tmp)))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_ANSWER_ERROR;
     goto err;
   }
   my_stpcpy(suffix_pos, "CONNECT_DATA");
-  if (!(handle_connect_file_map= OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)))
+  if (!(handle_connect_file_map= OpenFileMapping(FILE_MAP_WRITE,false,tmp)))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_FILE_MAP_ERROR;
     goto err;
@@ -544,7 +546,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   }
 
   my_stpcpy(suffix_pos, "CONNECT_NAMED_MUTEX");
-  connect_named_mutex= OpenMutex(SYNCHRONIZE, FALSE, tmp);
+  connect_named_mutex= OpenMutex(SYNCHRONIZE, false, tmp);
   if (connect_named_mutex == NULL)
   {
     error_allow= CR_SHARED_MEMORY_CONNECT_SET_ERROR;
@@ -594,7 +596,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   suffix_pos = strxmov(tmp, prefix , shared_memory_base_name, "_", connect_number_char,
 		       "_", NullS);
   my_stpcpy(suffix_pos, "DATA");
-  if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL)
+  if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE,false,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_FILE_MAP_ERROR;
     goto err2;
@@ -608,35 +610,35 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   }
 
   my_stpcpy(suffix_pos, "SERVER_WROTE");
-  if ((event_server_wrote = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
+  if ((event_server_wrote = OpenEvent(event_access_rights,false,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   my_stpcpy(suffix_pos, "SERVER_READ");
-  if ((event_server_read = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
+  if ((event_server_read = OpenEvent(event_access_rights,false,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   my_stpcpy(suffix_pos, "CLIENT_WROTE");
-  if ((event_client_wrote = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
+  if ((event_client_wrote = OpenEvent(event_access_rights,false,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   my_stpcpy(suffix_pos, "CLIENT_READ");
-  if ((event_client_read = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
+  if ((event_client_read = OpenEvent(event_access_rights,false,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   my_stpcpy(suffix_pos, "CONNECTION_CLOSED");
-  if ((event_conn_closed = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
+  if ((event_conn_closed = OpenEvent(event_access_rights,false,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
@@ -750,7 +752,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
   my_ulonglong affected_rows, insert_id;
   char *db;
 
-  struct charset_info_st *saved_cs;
+  CHARSET_INFO *saved_cs;
   char charset_name[64];
   bool is_charset;
 
@@ -1060,10 +1062,10 @@ void read_ok_ex(MYSQL *mysql, ulong length)
   or packet is an error message
 
   @param[in]    mysql           connection handle
-  @param[in]    parse_ok        if set to TRUE then parse OK packet
+  @param[in]    parse_ok        if set to true then parse OK packet
                                 if it is received
   @param[out]   is_data_packet
-                                if set to TRUE then packet received is
+                                if set to true then packet received is
                                 a "data packet", that is not OK or ERR
                                 packet or EOF in case of old servers
 
@@ -1082,7 +1084,7 @@ cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok,
   MYSQL_TRACE(READ_PACKET, mysql, ());
 
   if (is_data_packet)
-    *is_data_packet= FALSE;
+    *is_data_packet= false;
 
   if (net->vio != 0)
     len=my_net_read(net);
@@ -1173,7 +1175,7 @@ cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok,
       0xFE - we detect that case below.
     */
     if (is_data_packet)
-      *is_data_packet= TRUE;
+      *is_data_packet= true;
     /*
        For a packet starting with 0xFE detect if it is OK packet or a
        huge data packet. Note that old servers do not send OK packets
@@ -1187,7 +1189,7 @@ cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok,
         return len;
       /* otherwise we have OK packet starting with 0xFE */
       if (is_data_packet)
-        *is_data_packet= FALSE;
+        *is_data_packet= false;
       /* parse it if requested */
       if (parse_ok)
         read_ok_ex(mysql, len);
@@ -1198,7 +1200,7 @@ cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok,
         (net->read_pos[0] == 254) && (len < 8))
     {
       if (is_data_packet)
-        *is_data_packet= FALSE;
+        *is_data_packet= false;
     }
   }
   return len;
@@ -1212,7 +1214,7 @@ cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok,
 
   @param[in]  mysql           connection handle
   @param[out] is_data_packet
-                              if set to TRUE then the packet received
+                              if set to true then the packet received
                               was a "data packet".
 
   @retval The length of the packet that was read or packet_error in case of
@@ -1242,7 +1244,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 {
   NET *net= &mysql->net;
   bool result= 1;
-  bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : FALSE;
+  bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : false;
   DBUG_ENTER("cli_advanced_command");
 
   if (mysql->net.vio == 0)
@@ -1406,8 +1408,8 @@ void free_old_query(MYSQL *mysql)
   Get the EOF packet, and update mysql->status
   and mysql->warning_count.
 
-  @return  TRUE if a communication or protocol error, an error
-           is set in this case, FALSE otherwise.
+  @return  true if a communication or protocol error, an error
+           is set in this case, false otherwise.
 */
 
 static bool flush_one_result(MYSQL *mysql)
@@ -1430,7 +1432,7 @@ static bool flush_one_result(MYSQL *mysql)
       cli_safe_read() has set an error for us, just return.
     */
     if (packet_length == packet_error)
-      return TRUE;
+      return true;
   }
   while (mysql->net.read_pos[0] == 0 || is_data_packet);
 
@@ -1456,15 +1458,15 @@ static bool flush_one_result(MYSQL *mysql)
   else
     MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
 #endif
-  return FALSE;
+  return false;
 }
 
 
 /**
   Read a packet from network. If it's an OK packet, flush it.
 
-  @return  TRUE if error, FALSE otherwise. In case of 
-           success, is_ok_packet is set to TRUE or FALSE,
+  @return  true if error, false otherwise. In case of 
+           success, is_ok_packet is set to true or false,
            based on what we got from network.
 */
 
@@ -1474,7 +1476,7 @@ static bool opt_flush_ok_packet(MYSQL *mysql, bool *is_ok_packet)
   ulong packet_length= cli_safe_read(mysql, &is_data_packet);
 
   if (packet_length == packet_error)
-    return TRUE;
+    return true;
 
   /* cli_safe_read always reads a non-empty packet. */
   DBUG_ASSERT(packet_length);
@@ -1494,7 +1496,7 @@ static bool opt_flush_ok_packet(MYSQL *mysql, bool *is_ok_packet)
 #endif
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -1663,10 +1665,10 @@ mysql_free_result(MYSQL_RES *result)
         mysql->unbuffered_fetch_owner= 0;
       if (mysql->status == MYSQL_STATUS_USE_RESULT)
       {
-        (*mysql->methods->flush_use_result)(mysql, FALSE);
+        (*mysql->methods->flush_use_result)(mysql, false);
         mysql->status=MYSQL_STATUS_READY;
         if (mysql->unbuffered_fetch_owner)
-          *mysql->unbuffered_fetch_owner= TRUE;
+          *mysql->unbuffered_fetch_owner= true;
       }
     }
     free_rows(result->data);
@@ -1822,7 +1824,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
   argc=1; argv=argv_buff; argv_buff[0]= (char*) "client";
   groups[0]= (char*) "client"; groups[1]= (char*) group; groups[2]=0;
 
-  my_load_defaults(filename, groups, &argc, &argv, NULL);
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
+  my_load_defaults(filename, groups, &argc, &argv, &alloc, nullptr);
   if (argc != 1)				/* If some default option */
   {
     char **option=argv;
@@ -2036,7 +2039,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
         case OPT_enable_cleartext_plugin:
           ENSURE_EXTENSIONS_PRESENT(options);
           options->extension->enable_cleartext_plugin= 
-            (!opt_arg || atoi(opt_arg) != 0) ? TRUE : FALSE;
+            (!opt_arg || atoi(opt_arg) != 0) ? true : false;
           break;
         case OPT_optional_resultset_metadata:
           if (!opt_arg || atoi(opt_arg) != 0)
@@ -2051,7 +2054,6 @@ void mysql_read_default_options(struct st_mysql_options *options,
       }
     }
   }
-  free_defaults(argv);
   DBUG_VOID_RETURN;
 }
 
@@ -2412,7 +2414,6 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   }
   init_alloc_root(PSI_NOT_INSTRUMENTED,
                   result->alloc, 8192, 0); /* Assume rowlength < 8192 */
-  result->alloc->min_malloc= sizeof(MYSQL_ROWS);
   prev_ptr= &result->data;
   result->rows=0;
   result->fields=fields;
@@ -2614,7 +2615,7 @@ mysql_init(MYSQL *mysql)
   mysql->options.shared_memory_base_name= (char*) def_shared_memory_base_name;
 #endif
 
-  mysql->options.report_data_truncation= TRUE;  /* default */
+  mysql->options.report_data_truncation= true;  /* default */
 
   /* Initialize extensions. */
   if (!(mysql->extension= mysql_extension_init(mysql)))
@@ -2652,7 +2653,7 @@ mysql_init(MYSQL *mysql)
 
 /*
   MYSQL::extension handling (see sql_common.h for declaration
-  of st_mysql_extension structure). 
+  of MYSQL_EXTENSION structure). 
 */
 
 MYSQL_EXTENSION* mysql_extension_init(MYSQL *mysql MY_ATTRIBUTE((unused)))
@@ -2666,7 +2667,7 @@ MYSQL_EXTENSION* mysql_extension_init(MYSQL *mysql MY_ATTRIBUTE((unused)))
 }
 
 
-void mysql_extension_free(struct st_mysql_extension* ext)
+void mysql_extension_free(MYSQL_EXTENSION* ext)
 {
   if (!ext)
     return;
@@ -2948,12 +2949,12 @@ typedef enum my_cs_match_type_enum
 } my_cs_match_type;
 
 
-typedef struct str2str_st
+struct MY_CSET_OS_NAME
 {
   const char *os_name;
   const char *my_name;
   my_cs_match_type param;
-} MY_CSET_OS_NAME;
+};
 
 const MY_CSET_OS_NAME charsets[]=
 {
@@ -2998,9 +2999,6 @@ const MY_CSET_OS_NAME charsets[]=
   {"cp28598",        "hebrew",   my_cs_exact},
   {"cp28599",        "latin5",   my_cs_exact},
   {"cp28603",        "latin7",   my_cs_exact},
-#ifdef UNCOMMENT_THIS_WHEN_WL_4579_IS_DONE
-  {"cp28605",        "latin9",   my_cs_exact},
-#endif
   {"cp38598",        "hebrew",   my_cs_exact},
   {"cp51932",        "ujis",     my_cs_exact},
   {"cp51936",        "gb2312",   my_cs_exact},
@@ -3043,13 +3041,6 @@ const MY_CSET_OS_NAME charsets[]=
   {"ISO_8859-13",    "latin7",   my_cs_exact},
   {"ISO8859-13",     "latin7",   my_cs_exact},
   {"ISO-8859-13",    "latin7",   my_cs_exact},
-
-#ifdef UNCOMMENT_THIS_WHEN_WL_4579_IS_DONE
-  {"iso885915",      "latin9",   my_cs_exact},
-  {"ISO_8859-15",    "latin9",   my_cs_exact},
-  {"ISO8859-15",     "latin9",   my_cs_exact},
-  {"ISO-8859-15",    "latin9",   my_cs_exact},
-#endif
 
   {"iso88592",       "latin2",   my_cs_exact},
   {"ISO_8859-2",     "latin2",   my_cs_exact},
@@ -3156,7 +3147,7 @@ mysql_autodetect_character_set(MYSQL *mysql)
 #ifdef _WIN32
   char cpbuf[64];
   {
-    my_snprintf(cpbuf, sizeof(cpbuf), "cp%d", (int) GetConsoleCP());
+    snprintf(cpbuf, sizeof(cpbuf), "cp%d", (int) GetConsoleCP());
     csname= my_os_charset_to_mysql_charset(cpbuf);
   }
 #elif defined(HAVE_NL_LANGINFO)
@@ -3212,7 +3203,6 @@ mysql_set_character_set_with_default_collation(MYSQL *mysql)
 }
 
 
-C_MODE_START
 int mysql_init_character_set(MYSQL *mysql)
 {
   /* Set character set */
@@ -3250,12 +3240,10 @@ int mysql_init_character_set(MYSQL *mysql)
   }
   return 0;
 }
-C_MODE_END
 
 /*********** client side authentication support **************************/
 
-typedef struct st_mysql_client_plugin_AUTHENTICATION auth_plugin_t;
-static int client_mpvio_write_packet(struct st_plugin_vio*, const uchar*, int);
+static int client_mpvio_write_packet(MYSQL_PLUGIN_VIO*, const uchar*, int);
 static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 
@@ -3426,10 +3414,10 @@ static size_t get_length_store_length(size_t length)
 
 
 /* this is a "superset" of MYSQL_PLUGIN_VIO, in C++ I use inheritance */
-typedef struct {
-  int (*read_packet)(struct st_plugin_vio *vio, uchar **buf);
-  int (*write_packet)(struct st_plugin_vio *vio, const uchar *pkt, int pkt_len);
-  void (*info)(struct st_plugin_vio *vio, struct st_plugin_vio_info *info);
+struct MCPVIO_EXT {
+  int (*read_packet)(MYSQL_PLUGIN_VIO *vio, uchar **buf);
+  int (*write_packet)(MYSQL_PLUGIN_VIO *vio, const uchar *pkt, int pkt_len);
+  void (*info)(MYSQL_PLUGIN_VIO *vio, MYSQL_PLUGIN_VIO_INFO *info);
   /* -= end of MYSQL_PLUGIN_VIO =- */
   MYSQL *mysql;
   auth_plugin_t *plugin;            /**< what plugin we're under */
@@ -3441,7 +3429,7 @@ typedef struct {
   int packets_read, packets_written; /**< counters for send/received packets */
   int mysql_change_user;            /**< if it's mysql_change_user() */
   int last_read_packet_len;         /**< the length of the last *read* packet */
-} MCPVIO_EXT;
+};
 
 
 /*
@@ -4107,7 +4095,7 @@ error:
   This function is called by a client authentication plugin, when it wants
   to read data from the server.
 */
-static int client_mpvio_read_packet(struct st_plugin_vio *mpv, uchar **buf)
+static int client_mpvio_read_packet(MYSQL_PLUGIN_VIO *mpv, uchar **buf)
 {
   MCPVIO_EXT *mpvio= (MCPVIO_EXT*)mpv;
   MYSQL *mysql= mpvio->mysql;
@@ -4168,7 +4156,7 @@ static int client_mpvio_read_packet(struct st_plugin_vio *mpv, uchar **buf)
   It transparently wraps the data into a change user or authentication
   handshake packet, if neccessary.
 */
-static int client_mpvio_write_packet(struct st_plugin_vio *mpv,
+static int client_mpvio_write_packet(MYSQL_PLUGIN_VIO *mpv,
                                      const uchar *pkt, int pkt_len)
 {
   int res;
@@ -4215,11 +4203,11 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
   memset(info, 0, sizeof(*info));
   switch (vio->type) {
   case VIO_TYPE_TCPIP:
-    info->protocol= st_plugin_vio_info::MYSQL_VIO_TCP;
+    info->protocol= MYSQL_PLUGIN_VIO_INFO::MYSQL_VIO_TCP;
     info->socket= (int)vio_fd(vio);
     return;
   case VIO_TYPE_SOCKET:
-    info->protocol= st_plugin_vio_info::MYSQL_VIO_SOCKET;
+    info->protocol= MYSQL_PLUGIN_VIO_INFO::MYSQL_VIO_SOCKET;
     info->socket= (int)vio_fd(vio);
     return;
   case VIO_TYPE_SSL:
@@ -4229,19 +4217,19 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
       if (getsockname(vio_fd(vio), &addr, &addrlen))
         return;
       info->protocol= addr.sa_family == AF_UNIX ?
-        st_plugin_vio_info::MYSQL_VIO_SOCKET :
-        st_plugin_vio_info::MYSQL_VIO_TCP;
+        MYSQL_PLUGIN_VIO_INFO::MYSQL_VIO_SOCKET :
+        MYSQL_PLUGIN_VIO_INFO::MYSQL_VIO_TCP;
       info->socket= (int)vio_fd(vio);
       return;
     }
 #ifdef _WIN32
   case VIO_TYPE_NAMEDPIPE:
-    info->protocol= st_plugin_vio_info::MYSQL_VIO_PIPE;
+    info->protocol= MYSQL_PLUGIN_VIO_INFO::MYSQL_VIO_PIPE;
     info->handle= vio->hPipe;
     return;
 #if defined (_WIN32)
   case VIO_TYPE_SHARED_MEMORY:
-    info->protocol= st_plugin_vio_info::MYSQL_VIO_MEMORY;
+    info->protocol= MYSQL_PLUGIN_VIO_INFO::MYSQL_VIO_MEMORY;
     info->handle= vio->handle_file_map; /* or what ? */
     return;
 #endif
@@ -4272,9 +4260,9 @@ static bool check_plugin_enabled(MYSQL *mysql, auth_plugin_t *plugin)
                              ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD),
                              clear_password_client_plugin.name,
                              "plugin not enabled");
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -4346,7 +4334,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
 
   MYSQL_TRACE(AUTH_PLUGIN, mysql, (auth_plugin->name));
 
-  res= auth_plugin->authenticate_user((struct st_plugin_vio *)&mpvio, mysql);
+  res= auth_plugin->authenticate_user((MYSQL_PLUGIN_VIO *)&mpvio, mysql);
   DBUG_PRINT ("info", ("authenticate_user returned %s", 
                        res == CR_OK ? "CR_OK" : 
                        res == CR_ERROR ? "CR_ERROR" :
@@ -4424,7 +4412,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
     MYSQL_TRACE(AUTH_PLUGIN, mysql, (auth_plugin->name));
 
     mpvio.plugin= auth_plugin;
-    res= auth_plugin->authenticate_user((struct st_plugin_vio *)&mpvio, mysql);
+    res= auth_plugin->authenticate_user((MYSQL_PLUGIN_VIO *)&mpvio, mysql);
 
     DBUG_PRINT ("info", ("second authenticate_user returned %s", 
                          res == CR_OK ? "CR_OK" : 
@@ -4495,14 +4483,14 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                       "_platform", MACHINE_TYPE);
 #ifdef _WIN32
-  my_snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId());
+  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId());
 #else
-  my_snprintf(buff, buf_len, "%lu", (ulong) getpid());
+  snprintf(buff, buf_len, "%lu", (ulong) getpid());
 #endif
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_pid", buff);
 
 #ifdef _WIN32
-  my_snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
+  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_thread", buff);
 #endif
 
@@ -4523,7 +4511,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   const char    *scramble_plugin;
   ulong		pkt_length;
   NET		*net= &mysql->net;
-  bool          scramble_buffer_allocated= FALSE;
+  bool          scramble_buffer_allocated= false;
 #ifdef _WIN32
   HANDLE	hPipe=INVALID_HANDLE_VALUE;
 #endif
@@ -4632,7 +4620,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       mysql->options.protocol=MYSQL_PROTOCOL_MEMORY;
       unix_socket = 0;
       host=mysql->options.shared_memory_base_name;
-      my_snprintf(host_info=buff, sizeof(buff)-1,
+      snprintf(host_info=buff, sizeof(buff)-1,
                   ER_CLIENT(CR_SHARED_MEMORY_CONNECTION), host);
     }
   }
@@ -4718,7 +4706,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     else
     {
       net->vio= vio_new_win32pipe(hPipe);
-      my_snprintf(host_info=buff, sizeof(buff)-1,
+      snprintf(host_info=buff, sizeof(buff)-1,
                   ER_CLIENT(CR_NAMEDPIPE_CONNECTION), unix_socket);
     }
   }
@@ -4743,7 +4731,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     if (!host)
       host= LOCAL_HOST;
 
-    my_snprintf(host_info=buff, sizeof(buff)-1, ER_CLIENT(CR_TCP_CONNECTION), host);
+    snprintf(host_info=buff, sizeof(buff)-1, ER_CLIENT(CR_TCP_CONNECTION), host);
     DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host, port));
 
     memset(&hints, 0, sizeof(hints));
@@ -4752,7 +4740,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     hints.ai_family= AF_UNSPEC;
 
     DBUG_PRINT("info",("IPV6 getaddrinfo %s", host));
-    my_snprintf(port_buf, NI_MAXSERV, "%d", port);
+    snprintf(port_buf, NI_MAXSERV, "%d", port);
     gai_errno= getaddrinfo(host, port_buf, &hints, &res_lst);
 
     if (gai_errno != 0) 
@@ -4943,7 +4931,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     goto error;
   }
-  vio_keepalive(net->vio,TRUE);
+  vio_keepalive(net->vio,true);
 
   /* If user set read_timeout, let it override the default */
   if (mysql->options.read_timeout)
@@ -5123,7 +5111,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
       goto error;
     }
-    scramble_buffer_allocated= TRUE;
+    scramble_buffer_allocated= true;
     memcpy(scramble_buffer, scramble_data, scramble_data_len);
   }
   else
@@ -5142,9 +5130,9 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
                       scramble_plugin, db))
     goto error;
 
-  if (scramble_buffer_allocated == TRUE)
+  if (scramble_buffer_allocated == true)
   {
-    scramble_buffer_allocated= FALSE;
+    scramble_buffer_allocated= false;
     my_free(scramble_buffer);
   }
 
@@ -5678,7 +5666,7 @@ void mysql_detach_stmt_list(LIST **stmt_list MY_ATTRIBUTE((unused)),
   char buff[MYSQL_ERRMSG_SIZE];
   DBUG_ENTER("mysql_detach_stmt_list");
 
-  my_snprintf(buff, sizeof(buff)-1, ER_CLIENT(CR_STMT_CLOSED), func_name);
+  snprintf(buff, sizeof(buff)-1, ER_CLIENT(CR_STMT_CLOSED), func_name);
   for (; element; element= element->next)
   {
     MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
@@ -6177,7 +6165,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_OPT_GET_SERVER_PUBLIC_KEY:
     ENSURE_EXTENSIONS_PRESENT(&mysql->options);
     mysql->options.extension->get_server_public_key=
-    (*(bool*) arg) ? TRUE : FALSE;
+    (*(bool*) arg) ? true : false;
     break;
 
   case MYSQL_OPT_CONNECT_ATTR_RESET:
@@ -6214,7 +6202,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_ENABLE_CLEARTEXT_PLUGIN:
     ENSURE_EXTENSIONS_PRESENT(&mysql->options);
     mysql->options.extension->enable_cleartext_plugin= 
-      (*(bool*) arg) ? TRUE : FALSE;
+      (*(bool*) arg) ? true : false;
     break;
   case MYSQL_OPT_RETRY_COUNT:
      ENSURE_EXTENSIONS_PRESENT(&mysql->options);
@@ -6311,11 +6299,11 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
     *((uint *)arg)= mysql->options.write_timeout;
     break;
   case MYSQL_OPT_COMPRESS:
-    *((bool *)arg) = mysql->options.compress ? TRUE : FALSE;
+    *((bool *)arg) = mysql->options.compress ? true : false;
     break;
   case MYSQL_OPT_LOCAL_INFILE:			/* Allow LOAD DATA LOCAL ?*/
     *((uint *)arg)= (mysql->options.client_flag & CLIENT_LOCAL_FILES) ?
-                    TRUE : FALSE;
+                    true : false;
     break;
   case MYSQL_READ_DEFAULT_FILE:
     *((char **)arg)= mysql->options.my_cnf_file;
@@ -6398,16 +6386,16 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
   case MYSQL_OPT_GET_SERVER_PUBLIC_KEY:
     *((bool *)arg)= (mysql->options.extension &&
                      mysql->options.extension->get_server_public_key) ?
-                       TRUE : FALSE;
+                       true : false;
     break;
   case MYSQL_ENABLE_CLEARTEXT_PLUGIN:
     *((bool *)arg)= (mysql->options.extension &&
                         mysql->options.extension->enable_cleartext_plugin) ?
-			TRUE : FALSE;
+			true : false;
     break;
   case MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS:
     *((bool*)arg)= (mysql->options.client_flag &
-                       CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS) ? TRUE : FALSE;
+                       CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS) ? true : false;
     break;
 
   case MYSQL_OPT_MAX_ALLOWED_PACKET:
@@ -6423,7 +6411,7 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
 
   case MYSQL_OPT_OPTIONAL_RESULTSET_METADATA:
     *((bool *) arg)= (mysql->options.client_flag &
-                      CLIENT_OPTIONAL_RESULTSET_METADATA) ? TRUE : FALSE;
+                      CLIENT_OPTIONAL_RESULTSET_METADATA) ? true : false;
     break;
 
   case MYSQL_OPT_NAMED_PIPE:			/* This option is depricated */
@@ -6674,7 +6662,7 @@ mysql_get_server_version(MYSQL *mysql)
 */
 int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
 {
-  struct charset_info_st *cs;
+  CHARSET_INFO *cs;
   const char *save_csdir= charsets_dir;
 
   if (mysql->options.charset_dir)

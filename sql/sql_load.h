@@ -16,17 +16,23 @@
 #ifndef SQL_LOAD_INCLUDED
 #define SQL_LOAD_INCLUDED
 
-#include "sql/query_result.h"                   /* sql_exchange */
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
 #include "sql/sql_cmd.h"                        /* Sql_cmd */
 #include "sql/sql_data_change.h"                /* enum_duplicates */
+#include "sql/sql_exchange.h"                   /* sql_exchange */
 #include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql_string.h"
 
 class Item;
-class THD;
-class sql_exchange;
 class READ_INFO;
+class THD;
 struct TABLE_LIST;
-template <class T> class List;
 
 class Sql_cmd_load_table final : public Sql_cmd
 {

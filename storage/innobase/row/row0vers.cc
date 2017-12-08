@@ -402,7 +402,7 @@ index record, because it is >= the purge view.
 @param[in,out]	mtr		mini transaction holding the latch on the
 				clustered index record; it will also hold
 				the latch on purge_view
-@return TRUE if earlier version should be preserved */
+@return true if earlier version should be preserved */
 ibool
 row_vers_must_preserve_del_marked(
 /*==============================*/
@@ -734,10 +734,10 @@ row_vers_vc_matches_cluster(
 				/* For multi-byte character sets (like utf8mb4)
 				and index on prefix of varchar vcol, we log
 				prefix_len * mbmaxlen bytes but the actual
-				secondaary index record size can be less than
-				that. For comparision, use actual length of
+				secondary index record size can be less than
+				that. For comparison, use actual length of
 				secondary index record */
-				uint8_t mbmax_len =
+				ulint mbmax_len =
 					DATA_MBMAXLEN(field2->type.mbminmaxlen);
 				if (ind_field->prefix_len != 0
 				    && !dfield_is_null(field2)
@@ -855,7 +855,7 @@ purge view, should have ientry as its secondary index entry. We check
 if there is any not delete marked version of the record where the trx
 id >= purge view, and the secondary index entry and ientry are identified in
 the alphabetical ordering; exactly in this case we return TRUE.
-@return TRUE if earlier version should have */
+@return true if earlier version should have */
 ibool
 row_vers_old_has_index_entry(
 /*=========================*/

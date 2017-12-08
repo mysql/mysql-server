@@ -40,6 +40,7 @@
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_user.h"                          // parse_user
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -82,6 +83,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"                        // Table_check_intact
 #include "sql/table_trigger_dispatcher.h"     // Table_trigger_dispatcher
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"                  // trans_commit
 #include "sql/trigger.h"                      // Trigger
@@ -1035,7 +1037,7 @@ static bool migrate_view_to_dd(THD *thd,
   table_list.timestamp.str= table_list.timestamp_buffer;
 
   // Prepare default values for old format
-  table_list.view_suid= TRUE;
+  table_list.view_suid= true;
   table_list.definer.user.str= table_list.definer.host.str= 0;
   table_list.definer.user.length= table_list.definer.host.length= 0;
 
@@ -1341,7 +1343,7 @@ static bool fix_generated_columns_for_upgrade(THD *thd,
                                               List<Create_field> &create_fields)
 {
   Create_field *sql_field;
-  bool error_reported= FALSE;
+  bool error_reported= false;
   bool error= false;
 
   if (table->s->vfields)
@@ -1357,7 +1359,7 @@ static bool fix_generated_columns_for_upgrade(THD *thd,
       if (sql_field->gcol_info && (*field_ptr)->gcol_info)
       {
         if (unpack_gcol_info(thd, table, *field_ptr,
-                             FALSE, &error_reported))
+                             false, &error_reported))
         {
           error= true;
           break;
@@ -1639,7 +1641,6 @@ static bool migrate_table_to_dd(THD *thd,
     }
 
     // Fix pointers in TABLE, TABLE_SHARE
-    memset(table, 0, sizeof(*table));
     table->s= &share;
     table->in_use= thd;
     table->mem_root= std::move(mem_root);

@@ -48,7 +48,8 @@ struct innodb_idx_translate_t {
 };
 
 /** InnoDB table share */
-typedef struct st_innobase_share {
+struct INNOBASE_SHARE
+{
 	const char*	table_name;	/*!< InnoDB table name */
 	uint		use_count;	/*!< reference count,
 					incremented in get_share()
@@ -59,7 +60,7 @@ typedef struct st_innobase_share {
 	innodb_idx_translate_t
 			idx_trans_tbl;	/*!< index translation table between
 					MySQL and InnoDB */
-} INNOBASE_SHARE;
+};
 
 /** Prebuilt structures in an InnoDB table handle used within MySQL */
 struct row_prebuilt_t;
@@ -725,15 +726,6 @@ trx_t*
 innobase_trx_allocate(
 	MYSQL_THD	thd);	/*!< in: user thread handle */
 
-/** Gets the InnoDB transaction handle for a MySQL handler object, creates
-an InnoDB transaction struct if the corresponding MySQL thread struct still
-lacks one.
-@param[in]	thd	MySQL thd (connection) object
-@return InnoDB transaction handle */
-trx_t*
-check_trx_exists(
-	THD*	thd);
-
 /** Match index columns between MySQL and InnoDB.
 This function checks whether the index column information
 is consistent between KEY info from mysql and that from innodb index.
@@ -1114,7 +1106,7 @@ public:
 
 /**
 Initialize the table FTS stopword list
-@return TRUE if success */
+@return true if success */
 ibool
 innobase_fts_load_stopword(
 /*=======================*/
@@ -1230,12 +1222,6 @@ by InnoDB.
 page_cur_mode_t
 convert_search_mode_to_innobase(
 	enum ha_rkey_function	find_flag);
-
-/** Commits a transaction in an InnoDB database.
-@param[in]	trx	Transaction handle. */
-void
-innobase_commit_low(
-	trx_t*	trx);
 
 extern bool	innobase_stats_on_metadata;
 

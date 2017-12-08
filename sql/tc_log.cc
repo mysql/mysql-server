@@ -26,9 +26,9 @@
 #include "my_alloc.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
-#include "sql/histograms/histogram.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
@@ -116,7 +116,7 @@ ulong tc_log_max_pages_used=0, tc_log_page_size=0, tc_log_cur_pages_used=0;
 int TC_LOG_MMAP::open(const char *opt_name)
 {
   uint i;
-  bool crashed=FALSE;
+  bool crashed=false;
   PAGE *pg;
 
   DBUG_ASSERT(total_ha_2pc > 1);
@@ -142,7 +142,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
   else
   {
     inited= 1;
-    crashed= TRUE;
+    crashed= true;
     LogErr(INFORMATION_LEVEL, ER_TC_RECOVERING_AFTER_CRASH_USING, opt_name);
     if (tc_heuristic_recover != TC_HEURISTIC_NOT_USED)
     {
@@ -537,8 +537,7 @@ int TC_LOG_MMAP::recover()
   }
 
   {
-    MEM_ROOT mem_root(
-      PSI_INSTRUMENT_ME, tc_log_page_size/3, tc_log_page_size/3);
+    MEM_ROOT mem_root(PSI_INSTRUMENT_ME, tc_log_page_size/3);
     memroot_unordered_set<my_xid> xids(&mem_root);
 
     for ( ; p < end_p ; p++)

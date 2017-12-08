@@ -23,17 +23,15 @@
 #include "gtest/gtest.h"
 #include "my_compiler.h"
 #include "my_sys.h"
-#include "my_thread_local.h"
-#include "mysql/psi/mysql_mutex.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "sql/error_handler.h"
-#include "sql/set_var.h"
-#include "sql/sql_class.h"
 #include "sql/sql_error.h"
 #include "nullable.h"
 
 
 class THD;
 class my_decimal;
+struct MEM_ROOT;
 
 extern thread_local THD *current_thd;
 extern thread_local MEM_ROOT **THR_MALLOC;

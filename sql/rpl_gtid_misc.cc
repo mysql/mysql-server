@@ -22,17 +22,16 @@
 #include <atomic>
 
 #include "control_events.h"
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_thread.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/rpl_gtid.h"
 #include "typelib.h"
+
+struct mysql_mutex_t;
 
 #ifdef MYSQL_SERVER
 #include "mysql/thread_type.h"

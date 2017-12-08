@@ -26,8 +26,6 @@
 
 struct timeval;
 
-C_MODE_START
-
 extern ulonglong log_10_int[20];
 extern uchar days_in_month[];
 extern const char my_zero_datetime6[]; /* "0000-00-00 00:00:00.000000" */
@@ -103,12 +101,12 @@ static const my_time_flags_t TIME_INVALID_DATES=     64;
   Structure to return status from
     str_to_datetime(), str_to_time(), number_to_datetime(), number_to_time()
 */
-typedef struct st_mysql_time_status
+struct MYSQL_TIME_STATUS
 {
   int warnings;
   uint fractional_digits;
   uint nanoseconds;
-} MYSQL_TIME_STATUS;
+};
 
 static inline void my_time_status_init(MYSQL_TIME_STATUS *status)
 {
@@ -160,7 +158,7 @@ bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
 bool check_time_mmssff_range(const MYSQL_TIME *ltime);
 bool check_time_range_quick(const MYSQL_TIME *ltime);
 bool check_datetime_range(const MYSQL_TIME *ltime);
-void adjust_time_range(struct st_mysql_time *, int *warning);
+void adjust_time_range(MYSQL_TIME *, int *warning);
 
 long calc_daynr(uint year,uint month,uint day);
 uint calc_days_in_year(uint year);
@@ -178,8 +176,8 @@ void my_init_time(void);
     estimate.
 
   RETURN VALUES
-    TRUE    The value seems sane
-    FALSE   The MYSQL_TIME value is definitely out of range
+    true    The value seems sane
+    false   The MYSQL_TIME value is definitely out of range
 */
 
 static inline bool validate_timestamp_range(const MYSQL_TIME *t)
@@ -187,9 +185,9 @@ static inline bool validate_timestamp_range(const MYSQL_TIME *t)
   if ((t->year > TIMESTAMP_MAX_YEAR || t->year < TIMESTAMP_MIN_YEAR) ||
       (t->year == TIMESTAMP_MAX_YEAR && (t->month > 1 || t->day > 19)) ||
       (t->year == TIMESTAMP_MIN_YEAR && (t->month < 12 || t->day < 31)))
-    return FALSE;
+    return false;
 
-  return TRUE;
+  return true;
 }
 
 my_time_t 
@@ -241,7 +239,5 @@ enum interval_type
   INTERVAL_MINUTE_SECOND, INTERVAL_DAY_MICROSECOND, INTERVAL_HOUR_MICROSECOND,
   INTERVAL_MINUTE_MICROSECOND, INTERVAL_SECOND_MICROSECOND, INTERVAL_LAST
 };
-
-C_MODE_END
 
 #endif /* _my_time_h_ */

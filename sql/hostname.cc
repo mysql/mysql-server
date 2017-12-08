@@ -31,6 +31,7 @@
 #include "map_helpers.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "thr_mutex.h"
@@ -404,7 +405,7 @@ static inline bool is_ip_loopback(const struct sockaddr *ip)
     }
 
   default:
-    return FALSE;
+    return false;
   }
 }
 
@@ -416,7 +417,7 @@ static inline bool is_hostname_valid(const char *hostname)
   */
 
   if (!my_isdigit(&my_charset_latin1, hostname[0]))
-    return TRUE;
+    return true;
 
   const char *p= hostname + 1;
 

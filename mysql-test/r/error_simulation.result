@@ -50,6 +50,7 @@ DROP TABLE t1;
 # Bug#42064: low memory crash when importing hex strings, in Item_hex_string::Item_hex_string
 #
 CREATE TABLE t1(a BLOB);
+call mtr.add_suppression(".*Out of memory *");
 SET SESSION debug="+d,bug42064_simulate_oom";
 INSERT INTO t1 VALUES("");
 Got one of the listed errors

@@ -24,20 +24,19 @@
 
 #include "my_config.h"
 
-#include <mysql/psi/mysql_socket.h>
 #include <stddef.h>
-
-#include "my_thread.h" /* my_thread_handle */
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 #include <sys/types.h>
 
 #include "my_inttypes.h"
-#include "my_io.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
+#include "mysql/components/services/my_io_bits.h"
+#include "mysql/components/services/my_thread_bits.h"
+#include "mysql/components/services/mysql_socket_bits.h"
 
-struct st_vio;
+struct Vio;
 
 /* Simple vio interface in C;  The functions are implemented in violite.c */
 
@@ -53,17 +52,14 @@ struct st_vio;
 #include <atomic>
 #endif
 
-#ifdef	__cplusplus
-extern "C" {
-#endif /* __cplusplus */
-
 #ifdef HAVE_PSI_INTERFACE
 void init_vio_psi_keys();
 #endif
 
 #ifndef MYSQL_VIO
-struct st_vio;
-typedef struct st_vio Vio;
+struct Vio;
+
+typedef Vio Vio;
 #define MYSQL_VIO Vio*
 #endif
 
@@ -197,7 +193,9 @@ int vio_getnameinfo(const struct sockaddr *sa,
                     int flags);
 
 #ifdef HAVE_OPENSSL
+extern "C" {
 #include <openssl/opensslv.h>
+}
 #if OPENSSL_VERSION_NUMBER < 0x0090700f
 #define DES_cblock des_cblock
 #define DES_key_schedule des_key_schedule
@@ -217,8 +215,10 @@ int vio_getnameinfo(const struct sockaddr *sa,
 /* Set yaSSL to use same type as MySQL do for socket handles */
 typedef my_socket YASSL_SOCKET_T;
 #define YASSL_SOCKET_T_DEFINED
+extern "C" {
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+}
 
 enum enum_ssl_init_error
 {
@@ -284,9 +284,12 @@ enum SSL_type
   SSL_TYPE_SPECIFIED
 };
 
-#ifdef __cplusplus
-/* This structure is for every connection on both sides */
-struct st_vio
+/*
+ This structure is for every connection on both sides.
+ Note that it has a non-default move assignment operator, so if adding more
+ members, you'll need to update operator=.
+*/
+struct Vio
 {
   MYSQL_SOCKET  mysql_socket;           /* Instrumented socket */
   bool          localhost= { false };   /* Are we from localhost? */
@@ -359,7 +362,12 @@ struct st_vio
   int (*io_wait)(MYSQL_VIO, enum enum_vio_io_event, int)= { nullptr };
   bool (*connect)(MYSQL_VIO, struct sockaddr *, socklen_t, int)= { nullptr };
 #ifdef _WIN32
+#ifdef __clang__
+  OVERLAPPED overlapped = { 0, 0, {{ 0, 0 }}, nullptr };
+#else
+  // MSVC, at least up to 2015, gives an internal error on the above.
   OVERLAPPED overlapped = { 0 };
+#endif
   HANDLE hPipe { nullptr };
 #endif
 #ifdef HAVE_OPENSSL
@@ -378,20 +386,18 @@ struct st_vio
 #endif /* _WIN32 */
 
 private:
-  friend st_vio *internal_vio_create(uint flags);
-  friend void internal_vio_delete(st_vio *vio);
+  friend Vio *internal_vio_create(uint flags);
+  friend void internal_vio_delete(Vio *vio);
   friend bool vio_reset(Vio* vio, enum_vio_type type,
                         my_socket sd, void *ssl, uint flags);
 
-  explicit st_vio(uint flags);
-  ~st_vio();
+  explicit Vio(uint flags);
+  ~Vio();
 
 public:
-  st_vio(const st_vio&) = delete;
-  st_vio &operator=(const st_vio&) = delete;
+  Vio(const Vio&) = delete;
+  Vio &operator=(const Vio&) = delete;
+  Vio &operator=(Vio&& vio);
 };
-
-}
-#endif /* __cpluscplus */
 
 #endif /* vio_violite_h_ */

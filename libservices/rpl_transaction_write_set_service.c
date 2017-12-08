@@ -15,4 +15,4 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *transaction_write_set_service= (void*)VERSION_transaction_write_set_service;
+SERVICE_VERSION *transaction_write_set_service= (void**)VERSION_transaction_write_set_service;

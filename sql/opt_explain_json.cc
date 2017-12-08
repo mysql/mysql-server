@@ -18,13 +18,13 @@
 #include "my_config.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <sys/types.h>
 
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "mysql/service_my_snprintf.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"        // current_thd
 #include "sql/enum_query_type.h"
 #include "sql/item.h"
@@ -37,8 +37,8 @@
 #include "sql/query_result.h"       // Query_result
 #include "sql/sql_class.h"          // THD
 #include "sql/sql_list.h"
-#include "sql/sql_parse.h"
 #include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql/temp_table_param.h"
 #include "sql/window.h"
 #include "sql_string.h"
@@ -657,14 +657,14 @@ static void add_string_array(Opt_trace_context *json, const char *list_name,
 static void print_cost(char *buf, uint buf_len, double cost)
 {
   if (cost < 100000000000000.0)
-    my_snprintf(buf, buf_len, "%.2f", cost);
+    snprintf(buf, buf_len, "%.2f", cost);
   else
-    my_snprintf(buf, buf_len, "%.14g", cost);
+    snprintf(buf, buf_len, "%.14g", cost);
 }
 
 static void print_filtered(char *buf, uint buf_len, double filtered)
 {
-  my_snprintf(buf, buf_len, "%.2f", filtered);
+  snprintf(buf, buf_len, "%.2f", filtered);
 }
 
 
@@ -2242,7 +2242,6 @@ bool Explain_format_JSON::end_context(enum_parsing_context ctx)
   if (current_context->parent == NULL)
   {
     Item* item;
-#ifdef OPTIMIZER_TRACE
     Opt_trace_context json; 
     const size_t max_size= ULONG_MAX;
     if (json.start(true,           // support_I_S (enable JSON generation)
@@ -2273,7 +2272,6 @@ bool Explain_format_JSON::end_context(enum_parsing_context ctx)
                             system_charset_info);
     }
     else
-#endif
       item= new Item_null();
 
     List<Item> field_list;

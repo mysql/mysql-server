@@ -42,11 +42,11 @@ SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS}
                      -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/innodb_memcache/cache-src")
 
 SET(INNODB_ENGINE_SOURCES
-		src/innodb_config.c
-		src/innodb_utility.c
-		src/hash_item_util.c
-		src/innodb_engine.c
-		src/innodb_api.c
+		src/innodb_config.cc
+		src/innodb_utility.cc
+		src/hash_item_util.cc
+		src/innodb_engine.cc
+		src/innodb_api.cc
 		src/embedded_default_engine.c
 		src/handler_api.cc
 		cache-src/assoc.c

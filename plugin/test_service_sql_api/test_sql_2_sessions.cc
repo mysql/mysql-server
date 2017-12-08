@@ -40,7 +40,7 @@ static File outfile;
 static void WRITE_STR(const char *format)
 {
   char buffer[STRING_BUFFER_SIZE];
-  my_snprintf(buffer,sizeof(buffer),format);
+  snprintf(buffer,sizeof(buffer),"%s",format);
   my_write(outfile,(uchar*)buffer,strlen(buffer),MYF(0));
 }
 
@@ -49,7 +49,7 @@ template<typename T>
 void WRITE_VAL(const char *format, T value)
 {
   char buffer[STRING_BUFFER_SIZE];
-  my_snprintf(buffer,sizeof(buffer),format,value);
+  snprintf(buffer,sizeof(buffer),format,value);
   my_write(outfile,(uchar*)buffer,strlen(buffer),MYF(0));
 }
 
@@ -58,7 +58,7 @@ template<typename T1, typename T2>
 void WRITE_VAL(const char *format, T1 value1, T2 value2)
 {
   char buffer[STRING_BUFFER_SIZE];
-  my_snprintf(buffer,sizeof(buffer),format,value1,value2);
+  snprintf(buffer,sizeof(buffer),format,value1,value2);
   my_write(outfile,(uchar*)buffer,strlen(buffer),MYF(0));
 }
 
@@ -291,7 +291,7 @@ static int sql_get_integer(void * ctx, longlong value)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer), "%d", value);
+  size_t len= snprintf(buffer, sizeof(buffer), "%lld", value);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col]= len;
@@ -310,7 +310,7 @@ static int sql_get_longlong(void * ctx, longlong value, uint is_unsigned)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           is_unsigned? "%llu":"%lld", value);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
@@ -331,11 +331,11 @@ static int sql_get_decimal(void * ctx, const decimal_t * value)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           "%s%d.%d(%d)[%s]",
                           value->sign? "+":"-",
                           value->intg, value->frac, value->len,
-                          value->buf);
+                          (char *)value->buf);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
 
@@ -360,7 +360,7 @@ static int sql_get_double(void * ctx, double value, uint32 decimals)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer), "%3.7g", value);
+  size_t len= snprintf(buffer, sizeof(buffer), "%3.7g", value);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col]= len;
@@ -381,7 +381,7 @@ static int sql_get_date(void * ctx, const MYSQL_TIME * value)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           "%s%4d-%02d-%02d",
                           value->neg? "-":"",
                           value->year, value->month, value->day);
@@ -412,7 +412,7 @@ static int sql_get_time(void * ctx, const MYSQL_TIME * value, uint decimals)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           "%s%02d:%02d:%02d",
                           value->neg? "-":"",
                           value->day? (value->day*24 + value->hour):value->hour,
@@ -445,7 +445,7 @@ static int sql_get_datetime(void * ctx, const MYSQL_TIME * value, uint decimals)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           "%s%4d-%02d-%02d %02d:%02d:%02d",
                           value->neg? "-":"",
                           value->year, value->month, value->day,

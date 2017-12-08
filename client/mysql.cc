@@ -37,6 +37,7 @@
 #include <math.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <time.h>
@@ -54,7 +55,6 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
-#include "mysql/service_my_snprintf.h"
 #include "typelib.h"
 #include "violite.h"
 
@@ -137,18 +137,18 @@ const static std::string HI_DEFAULTS("*IDENTIFIED*:*PASSWORD*");
 /** used for matching which history lines to ignore */
 static Pattern_matcher ignore_matcher;
 
-typedef struct st_status
+struct STATUS
 {
   int exit_status;
   ulong query_start_line;
   char *file_name;
   LINE_BUFFER *line_buff;
   bool batch,add_to_history;
-} STATUS;
+};
 
 
 static HashTable ht;
-static char **defaults_argv;
+static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 
 enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;
@@ -177,8 +177,8 @@ static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int connect_flag=CLIENT_INTERACTIVE;
-static bool opt_binary_mode= FALSE;
-static bool opt_connect_expired_password= FALSE;
+static bool opt_binary_mode= false;
+static bool opt_connect_expired_password= false;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
@@ -243,7 +243,7 @@ const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
   For using this feature in test case, we add the option in debug code.
 */
 #ifndef DBUG_OFF
-static bool opt_build_completion_hash = FALSE;
+static bool opt_build_completion_hash = false;
 #endif
 
 #ifdef _WIN32
@@ -1211,7 +1211,7 @@ inline int get_command_index(char cmd_char)
 
 static int delimiter_index= -1;
 static int charset_index= -1;
-static bool real_binary_mode= FALSE;
+static bool real_binary_mode= false;
 
 #ifdef _WIN32
 BOOL windows_ctrl_handler(DWORD fdwCtrlType)
@@ -1222,14 +1222,14 @@ BOOL windows_ctrl_handler(DWORD fdwCtrlType)
   case CTRL_BREAK_EVENT:
     handle_ctrlc_signal(SIGINT);
     /* Indicate that signal has beed handled. */  
-    return TRUE;
+    return true;
   case CTRL_CLOSE_EVENT:
   case CTRL_LOGOFF_EVENT:
   case CTRL_SHUTDOWN_EVENT:
     handle_quit_signal(SIGINT + 1);
   }
   /* Pass signal to the next control handler function. */
-  return FALSE;
+  return false;
 }
 #endif
 
@@ -1300,36 +1300,32 @@ int main(int argc,char *argv[])
   my_win_translate_command_line_args(&my_charset_utf8mb4_bin, &argc, &argv);
 #endif
 
-  my_getopt_use_args_separator= TRUE;
-  if (load_defaults("my",load_default_groups,&argc,&argv))
+  my_getopt_use_args_separator= true;
+  if (load_defaults("my",load_default_groups,&argc,&argv,&argv_alloc))
   {
     my_end(0);
-    exit(1);
+    return EXIT_FAILURE;
   }
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= false;
 
-  defaults_argv=argv;
   if (get_options(argc, (char **) argv))
   {
-    free_defaults(defaults_argv);
     my_end(0);
-    exit(1);
+    return EXIT_FAILURE;
   }
   if (status.batch && !status.line_buff &&
       !(status.line_buff= batch_readline_init(MAX_BATCH_BUFFER_SIZE, stdin)))
   {
     put_info("Can't initialize batch_readline - may be the input source is "
              "a directory or a block device.", INFO_ERROR, 0);
-    free_defaults(defaults_argv);
     my_end(0);
-    exit(1);
+    return EXIT_FAILURE;
   }
   if (mysql_server_init(0, nullptr, nullptr))
   {
     put_error(NULL);
-    free_defaults(defaults_argv);
     my_end(0);
-    exit(1);
+    return EXIT_FAILURE;
   }
   glob_buffer.mem_realloc(512);
   completion_hash_init(&ht, 128);
@@ -1350,7 +1346,7 @@ int main(int argc,char *argv[])
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
   signal(SIGHUP, handle_quit_signal);           // Catch SIGHUP to clean up
 #else
-  SetConsoleCtrlHandler((PHANDLER_ROUTINE) windows_ctrl_handler, TRUE);
+  SetConsoleCtrlHandler((PHANDLER_ROUTINE) windows_ctrl_handler, true);
 #endif
 
 
@@ -1363,7 +1359,7 @@ int main(int argc,char *argv[])
 
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
-  my_snprintf((char*) glob_buffer.ptr(), glob_buffer.alloced_length(),
+  snprintf((char*) glob_buffer.ptr(), glob_buffer.alloced_length(),
 	   "Your MySQL connection id is %lu\nServer version: %s\n",
 	   mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
@@ -1381,7 +1377,6 @@ int main(int argc,char *argv[])
       to the default patterns. In case both are specified, pattern(s) supplied
       using --histignore option will be used.
     */
-
     if (opt_histignore)
       ignore_matcher.add_patterns(opt_histignore);
     else if (getenv("MYSQL_HISTIGNORE"))
@@ -1428,7 +1423,7 @@ int main(int argc,char *argv[])
 					      MYF(MY_WME))))
         {
 	  fprintf(stderr, "Couldn't allocate memory for temp histfile!\n");
-	  exit(1);
+	  return EXIT_FAILURE;
         }
         sprintf(histfile_tmp, "%s.TMP", histfile);
       }
@@ -1516,7 +1511,6 @@ void mysql_end(int sig)
 #endif
   my_free(current_prompt);
   mysql_server_end();
-  free_defaults(defaults_argv);
   my_end(my_end_arg);
   exit(status.exit_status);
 }
@@ -1940,7 +1934,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     using_opt_local_infile=1;
     break;
   case OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
+    using_opt_enable_cleartext_plugin= true;
     break;
   case OPT_TEE:
     if (argument == disabled_my_option)
@@ -2327,10 +2321,10 @@ static int read_and_execute(bool interactive)
 
   /*
     If the function is called by 'source' command, it will return to interactive
-    mode, so real_binary_mode should be FALSE. Otherwise, it will exit the
-    program, it is safe to set real_binary_mode to FALSE.
+    mode, so real_binary_mode should be false. Otherwise, it will exit the
+    program, it is safe to set real_binary_mode to false.
   */
-  real_binary_mode= FALSE;
+  real_binary_mode= false;
   return status.exit_status;
 }
 
@@ -2741,10 +2735,8 @@ static bool add_line(String &buffer, char *line, size_t line_length,
 
 #ifdef HAVE_READLINE
 
-C_MODE_START
 static char *new_command_generator(const char *text, int);
 static char **new_mysql_completion(const char *text, int start, int end);
-C_MODE_END
 
 /*
   Tell the GNU Readline library how to complete.  We want to try to complete
@@ -3141,7 +3133,7 @@ static void add_filtered_history(const char *string)
 
 void add_syslog(const char *line) {
   char buff[MAX_SYSLOG_MESSAGE_SIZE];
-  my_snprintf(buff, sizeof(buff), "SYSTEM_USER:'%s', MYSQL_USER:'%s', "
+  snprintf(buff, sizeof(buff), "SYSTEM_USER:'%s', MYSQL_USER:'%s', "
               "CONNECTION_ID:%lu, DB_SERVER:'%s', DB:'%s', QUERY:'%s'",
               /* use the cached user/sudo_user value. */
               current_os_sudouser ? current_os_sudouser :
@@ -3485,7 +3477,7 @@ com_go(String *buffer,char *line MY_ATTRIBUTE((unused)))
   do
   {
     char *pos;
-    bool batchmode= (status.batch && verbose <= 1) ? TRUE : FALSE;
+    bool batchmode= (status.batch && verbose <= 1);
     buff[0]= 0;
 
     if (quick)
@@ -3892,13 +3884,13 @@ print_table_data(MYSQL_RES *result)
       if (opt_binhex && is_binary_field(field))
         print_as_hex(PAGER, cur[off], lengths[off], field_max_length);
       else if (field_max_length > MAX_COLUMN_LENGTH)
-        tee_print_sized_data(buffer, data_length, MAX_COLUMN_LENGTH+extra_padding, FALSE);
+        tee_print_sized_data(buffer, data_length, MAX_COLUMN_LENGTH+extra_padding, false);
       else
       {
         if (num_flag[off] != 0) /* if it is numeric, we right-justify it */
-          tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, TRUE);
+          tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, true);
         else 
-          tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, FALSE);
+          tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, false);
       }
       tee_fputs(" |", PAGER);
     }
@@ -4690,7 +4682,7 @@ com_use(String *buffer MY_ATTRIBUTE((unused)), char *line)
 
   if (0 < (warnings= mysql_warning_count(&mysql)))
   {
-    my_snprintf(buff, sizeof(buff),
+    snprintf(buff, sizeof(buff),
                 "Database changed, %u warning%s", warnings,
                 warnings > 1 ? "s" : "");
     put_info(buff, INFO_INFO);
@@ -4958,8 +4950,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 static void
 init_connection_options(MYSQL *mysql)
 {
-  bool handle_expired= (opt_connect_expired_password || !status.batch) ?
-    TRUE : FALSE;
+  bool handle_expired= (opt_connect_expired_password || !status.batch);
 
   if (opt_init_command)
     mysql_options(mysql, MYSQL_INIT_COMMAND, opt_init_command);

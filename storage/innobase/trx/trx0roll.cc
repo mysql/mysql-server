@@ -56,7 +56,7 @@ rollback */
 static const ulint TRX_ROLL_TRUNC_THRESHOLD = 1;
 
 /** true if trx_rollback_or_clean_all_recovered() thread is active */
-bool			trx_rollback_or_clean_is_active;
+bool                    trx_rollback_or_clean_is_active;
 
 /** In crash recovery, the current trx to be rolled back; NULL otherwise */
 static const trx_t*	trx_roll_crash_recv_trx	= NULL;
@@ -594,7 +594,7 @@ trx_release_savepoint_for_mysql(
 /*******************************************************************//**
 Determines if this transaction is rolling back an incomplete transaction
 in crash recovery.
-@return TRUE if trx is an incomplete transaction that is being rolled
+@return true if trx is an incomplete transaction that is being rolled
 back in crash recovery */
 ibool
 trx_is_recv(
@@ -696,7 +696,7 @@ trx_rollback_active(
 Rollback or clean up any resurrected incomplete transactions. It assumes
 that the caller holds the trx_sys_t::mutex and it will release the
 lock if it does a clean up or rollback.
-@return TRUE if the transaction was cleaned up or rolled back
+@return true if the transaction was cleaned up or rolled back
 and trx_sys->mutex was released. */
 static
 ibool
@@ -819,11 +819,11 @@ void
 trx_recovery_rollback_thread()
 {
 #ifdef UNIV_PFS_THREAD
-	THD*	thd = create_thd(false, true, true,
-				 trx_recovery_rollback_thread_key.m_value);
+	THD*	thd = create_thd(
+		false, true, true, trx_recovery_rollback_thread_key.m_value);
 #else
 	THD*	thd = create_thd(false, true, true, 0);
-#endif
+#endif /* UNIV_PFS_THREAD */
 
 	my_thread_init();
 
@@ -831,7 +831,7 @@ trx_recovery_rollback_thread()
 
 	trx_rollback_or_clean_recovered(TRUE);
 
-	trx_rollback_or_clean_is_active = false;
+        trx_rollback_or_clean_is_active = false;
 
 	destroy_thd(thd);
 

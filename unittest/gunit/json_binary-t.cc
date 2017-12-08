@@ -22,6 +22,7 @@
 #include "sql/error_handler.h"
 #include "sql/json_binary.h"
 #include "sql/json_dom.h"
+#include "sql/sql_class.h"
 #include "sql/sql_time.h"
 #include "sql_string.h"
 #include "unittest/gunit/benchmark.h"

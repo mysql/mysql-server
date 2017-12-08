@@ -18,14 +18,15 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <memory>
 #include <utility>              // std::forward
 
-#include "binary_log_types.h"
 #include "m_ctype.h"
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
@@ -34,17 +35,16 @@
 #include "sql/item_strfunc.h"   // Item_str_func
 #include "sql/json_path.h"      // Json_path
 #include "sql/mem_root_array.h" // Mem_root_array
-#include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql_string.h"
-#include "psi_memory_key.h"     // key_memory_JSON
-#include <vector>
 
 class Item_func_like;
+class Json_dom;
 class Json_scalar_holder;
 class Json_wrapper;
 class PT_item_list;
 class THD;
+class my_decimal;
 
 /** For use by JSON_CONTAINS_PATH() and JSON_SEARCH() */
 enum enum_one_or_all_type
@@ -116,7 +116,7 @@ public:
 
     @returns the already parsed path, possibly NULL
   */
-  Json_path *get_path(uint arg_idx);
+  const Json_path *get_path(uint arg_idx) const;
 
   /**
     Reset the cache for re-use when a statement is re-executed.
@@ -344,7 +344,6 @@ class Item_func_json_contains final : public Item_int_func
 class Item_func_json_contains_path final : public Item_int_func
 {
   String m_doc_value;
-  String m_one_or_all_value;
   enum_one_or_all_type m_cached_ooa;
 
   // Cache for constant path expressions
@@ -638,28 +637,21 @@ public:
 class Item_func_json_search :public Item_json_func
 {
   String m_doc_value;
-  String m_one_or_all_value;
   enum_one_or_all_type m_cached_ooa;
-  String m_escape;
 
   // LIKE machinery
   Item_string *m_source_string_item;
   Item_func_like *m_like_node;
 public:
   /**
-   Construct a JSON_SEARCH() node.
+    Construct a JSON_SEARCH() node.
 
-   @param     thd Current session.
-   @param[in] pos Parser position
-   @param[in] a   Nodes which must be fixed (i.e. bound/resolved)
-
-   @returns a JSON_SEARCH() node.
+    @param args arguments to pass to Item_json_func's constructor
   */
-  Item_func_json_search(THD *thd, const POS &pos, PT_item_list *a)
-    : Item_json_func(thd, pos, a),
+  template <typename... Args> Item_func_json_search(Args&&... args)
+    : Item_json_func(std::forward<Args>(args)...),
     m_cached_ooa(ooa_uninitialized)
   {}
-
 
   const char *func_name() const override { return "json_search"; }
 

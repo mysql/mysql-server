@@ -22,19 +22,10 @@
 
 #include "my_config.h"
 
-#include "m_ctype.h"                    /* CHARSET_INFO */
-#include "m_string.h"                   /* STRING_WITH_LEN */
-#include "my_alloc.h"                   /* USED_MEM */
-#include "my_compiler.h"
-#include "my_inttypes.h"
-#include "my_io.h"
-#include "my_macros.h"
-#include "my_psi_config.h"              /* IWYU pragma: keep */
-#include "my_sharedlib.h"
-
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
+#include <limits.h>
 #ifdef _WIN32
 #include <malloc.h>
 #endif
@@ -43,49 +34,44 @@
 #endif
 #include <stdarg.h>
 #include <stdio.h>
-#include <string.h>
+#ifdef HAVE_SYS_SELECT_H
+#include <sys/select.h>
+#endif
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <time.h>
 
+#include "m_string.h"                   /* IWYU pragma: keep */
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
+#include "my_psi_config.h"              /* IWYU pragma: keep */
+#include "my_sharedlib.h"
+#include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
 #include "mysql/psi/mysql_mutex.h"      /* mysql_mutex_t */
-#include "mysql/psi/mysql_rwlock.h"     /* mysql_rwlock_t */
-#include "mysql/psi/mysql_thread.h"     /* mysql_thread_t */
-#include "mysql/psi/psi_data_lock.h"    /* PSI_data_lock_service_t */
-#include "mysql/psi/psi_error.h"        /* PSI_error_service_t */
 #include "mysql/psi/psi_file.h"         /* PSI_file_service_t */
-#include "mysql/psi/psi_idle.h"         /* PSI_idle_service_t */
-#include "mysql/psi/psi_mdl.h"          /* PSI_mdl_service_t */
-#include "mysql/psi/psi_memory.h"       /* PSI_memory_service_t */
-#include "mysql/psi/psi_socket.h"       /* PSI_socket_service_t */
-#include "mysql/psi/psi_stage.h"        /* PSI_stage_info */
-#include "mysql/psi/psi_statement.h"    /* PSI_statement_service_t */
-#include "mysql/psi/psi_table.h"        /* PSI_table_service_t */
-#include "mysql/psi/psi_transaction.h"  /* PSI_transaction_service_t */
+#include "mysql/psi/psi_stage.h"
 
-C_MODE_START
+struct CHARSET_INFO;
+struct MY_CHARSET_LOADER;
 
-#ifdef HAVE_VALGRIND
-# include <valgrind/valgrind.h>
-
-# define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) VALGRIND_MALLOCLIKE_BLOCK(p1, p2, p3, p4)
-# define MEM_FREELIKE_BLOCK(p1, p2) VALGRIND_FREELIKE_BLOCK(p1, p2)
-# include <valgrind/memcheck.h>
-
-# define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
-# define MEM_DEFINED_IF_ADDRESSABLE(a,len) \
-    VALGRIND_MAKE_MEM_DEFINED_IF_ADDRESSABLE(a,len)
-# define MEM_NOACCESS(a,len) VALGRIND_MAKE_MEM_NOACCESS(a,len)
-# define MEM_CHECK_ADDRESSABLE(a,len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a,len)
-#else /* HAVE_VALGRIND */
-# define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) do {} while (0)
-# define MEM_FREELIKE_BLOCK(p1, p2) do {} while (0)
-# define MEM_UNDEFINED(a,len) ((void) 0)
-# define MEM_DEFINED_IF_ADDRESSABLE(a,len) ((void) 0)
-# define MEM_NOACCESS(a,len) ((void) 0)
-# define MEM_CHECK_ADDRESSABLE(a,len) ((void) 0)
-#endif /* HAVE_VALGRIND */
+struct PSI_cond_bootstrap;
+struct PSI_data_lock_bootstrap;
+struct PSI_error_bootstrap;
+struct PSI_file_bootstrap;
+struct PSI_idle_bootstrap;
+struct PSI_mdl_bootstrap;
+struct PSI_memory_bootstrap;
+struct PSI_mutex_bootstrap;
+struct PSI_rwlock_bootstrap;
+struct PSI_socket_bootstrap;
+struct PSI_stage_bootstrap;
+struct PSI_statement_bootstrap;
+struct PSI_table_bootstrap;
+struct PSI_thread_bootstrap;
+struct PSI_transaction_bootstrap;
+struct MEM_ROOT;
 
 #define MY_INIT(name)   { my_progname= name; my_init(); }
 
@@ -195,24 +181,8 @@ extern PSI_memory_key key_memory_max_alloca;
 #define my_safe_afree(ptr, size, max_alloca_sz) if (size > max_alloca_sz) \
                                                my_free(ptr)
 
-#if !defined(DBUG_OFF) || defined(HAVE_VALGRIND)
-/**
-  Put bad content in memory to be sure it will segfault if dereferenced.
-  With Valgrind, verify that memory is addressable, and mark it undefined.
-  We cache value of B because if B is expression which depends on A, memset()
-  trashes value of B.
-*/
-#define TRASH(A,B) do {                                                 \
-    const size_t l= (B);                                                \
-    MEM_CHECK_ADDRESSABLE(A, l);                                        \
-    memset(A, 0x8F, l);                                                 \
-    MEM_UNDEFINED(A, l);                                                \
-  } while (0)
-#else
-#define TRASH(A,B) do {} while(0)
-#endif
 #if defined(ENABLED_DEBUG_SYNC)
-extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
+extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #define DEBUG_SYNC_C(_sync_point_name_) do {                            \
     if (debug_sync_C_callback_ptr != NULL)                              \
       (*debug_sync_C_callback_ptr)(STRING_WITH_LEN(_sync_point_name_)); } \
@@ -228,14 +198,8 @@ extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 
 #ifdef HAVE_LINUX_LARGE_PAGES
 extern uint my_get_large_page_size(void);
-extern uchar * my_large_malloc(PSI_memory_key key, size_t size, myf my_flags);
-extern void my_large_free(uchar *ptr);
-extern bool my_use_large_pages;
-extern uint    my_large_page_size;
 #else
 #define my_get_large_page_size() (0)
-#define my_large_malloc(A,B,C) my_malloc((A),(B),(C))
-#define my_large_free(A) my_free((A))
 #endif /* HAVE_LINUX_LARGE_PAGES */
 
 #define my_alloca(SZ) alloca((size_t) (SZ))
@@ -343,32 +307,32 @@ struct st_my_file_info
 
 extern struct st_my_file_info *my_file_info;
 
-typedef struct st_dynamic_array
+struct DYNAMIC_ARRAY
 {
-  uchar *buffer;
-  uint elements,max_element;
-  uint alloc_increment;
-  uint size_of_element;
-  PSI_memory_key m_psi_key;
-} DYNAMIC_ARRAY;
+  uchar *buffer{nullptr};
+  uint elements{0},max_element{0};
+  uint alloc_increment{0};
+  uint size_of_element{0};
+  PSI_memory_key m_psi_key{PSI_NOT_INSTRUMENTED};
+};
 
-typedef struct st_my_tmpdir
+struct MY_TMPDIR
 {
-  char **list;
-  uint cur, max;
+  char **list{nullptr};
+  uint cur{0}, max{0};
   mysql_mutex_t mutex;
-} MY_TMPDIR;
+};
 
-typedef struct st_dynamic_string
+struct DYNAMIC_STRING
 {
   char *str;
   size_t length,max_length,alloc_increment;
-} DYNAMIC_STRING;
+};
 
-struct st_io_cache;
-typedef int (*IO_CACHE_CALLBACK)(struct st_io_cache*);
+struct IO_CACHE;
+typedef int (*IO_CACHE_CALLBACK)(IO_CACHE*);
 
-typedef struct st_io_cache_share
+struct IO_CACHE_SHARE
 {
   mysql_mutex_t       mutex;           /* To sync on reads into buffer. */
   mysql_cond_t        cond;            /* To wait for signals. */
@@ -376,45 +340,45 @@ typedef struct st_io_cache_share
   /* Offset in file corresponding to the first byte of buffer. */
   my_off_t              pos_in_file;
   /* If a synchronized write cache is the source of the data. */
-  struct st_io_cache    *source_cache;
+  IO_CACHE    *source_cache;
   uchar                 *buffer;         /* The read buffer. */
   uchar                 *read_end;       /* Behind last valid byte of buffer. */
   int                   running_threads; /* threads not in lock. */
   int                   total_threads;   /* threads sharing the cache. */
   int                   error;           /* Last error. */
-} IO_CACHE_SHARE;
+};
 
-typedef struct st_io_cache		/* Used when cacheing files */
+struct IO_CACHE		/* Used when cacheing files */
 {
   /* Offset in file corresponding to the first byte of uchar* buffer. */
-  my_off_t pos_in_file;
+  my_off_t pos_in_file{0};
   /*
     The offset of end of file for READ_CACHE and WRITE_CACHE.
     For SEQ_READ_APPEND it the maximum of the actual end of file and
     the position represented by read_end.
   */
-  my_off_t end_of_file;
+  my_off_t end_of_file{0};
   /* Points to current read position in the buffer */
-  uchar	*read_pos;
+  uchar	*read_pos{nullptr};
   /* the non-inclusive boundary in the buffer for the currently valid read */
-  uchar  *read_end;
-  uchar  *buffer;				/* The read buffer */
+  uchar  *read_end{nullptr};
+  uchar  *buffer{nullptr};				/* The read buffer */
   /* Used in ASYNC_IO */
-  uchar  *request_pos;
+  uchar  *request_pos{nullptr};
 
   /* Only used in WRITE caches and in SEQ_READ_APPEND to buffer writes */
-  uchar  *write_buffer;
+  uchar  *write_buffer{nullptr};
   /*
     Only used in SEQ_READ_APPEND, and points to the current read position
     in the write buffer. Note that reads in SEQ_READ_APPEND caches can
     happen from both read buffer (uchar* buffer) and write buffer
     (uchar* write_buffer).
   */
-  uchar *append_read_pos;
+  uchar *append_read_pos{nullptr};
   /* Points to current write position in the write buffer */
-  uchar *write_pos;
+  uchar *write_pos{nullptr};
   /* The non-inclusive boundary of the valid write area */
-  uchar *write_end;
+  uchar *write_end{nullptr};
 
   /*
     Current_pos and current_end are convenience variables used by
@@ -422,7 +386,7 @@ typedef struct st_io_cache		/* Used when cacheing files */
     current_pos points to &write_pos, and current_end to &write_end in a
     WRITE_CACHE, and &read_pos and &read_end respectively otherwise
   */
-  uchar  **current_pos, **current_end;
+  uchar  **current_pos{nullptr}, **current_end{nullptr};
 
   /*
     The lock is for append buffer used in SEQ_READ_APPEND cache
@@ -436,7 +400,7 @@ typedef struct st_io_cache		/* Used when cacheing files */
     It should be set to NULL to disable the feature.  Only
     READ_CACHE mode is supported.
   */
-  IO_CACHE_SHARE *share;
+  IO_CACHE_SHARE *share{nullptr};
 
   /*
     A caller will use my_b_read() macro to read from the cache
@@ -446,18 +410,18 @@ typedef struct st_io_cache		/* Used when cacheing files */
     my_b_read() will call read_function to fetch the data. read_function
     must never be invoked directly.
   */
-  int (*read_function)(struct st_io_cache *,uchar *,size_t);
+  int (*read_function)(IO_CACHE *,uchar *,size_t) {nullptr};
   /*
     Same idea as in the case of read_function, except my_b_write() needs to
     be replaced with my_b_append() for a SEQ_READ_APPEND cache
   */
-  int (*write_function)(struct st_io_cache *,const uchar *,size_t);
+  int (*write_function)(IO_CACHE *,const uchar *,size_t) {nullptr};
   /*
     Specifies the type of the cache. Depending on the type of the cache
     certain operations might not be available and yield unpredicatable
     results. Details to be documented later
   */
-  enum cache_type type;
+  cache_type type{TYPE_NOT_SET};
   /*
     Callbacks when the actual read I/O happens. These were added and
     are currently used for binary logging of LOAD DATA INFILE - when a
@@ -465,20 +429,20 @@ typedef struct st_io_cache		/* Used when cacheing files */
     when IO_CACHE is closed, we create an end event. These functions could,
     of course be used for other things
   */
-  IO_CACHE_CALLBACK pre_read;
-  IO_CACHE_CALLBACK post_read;
-  IO_CACHE_CALLBACK pre_close;
+  IO_CACHE_CALLBACK pre_read{nullptr};
+  IO_CACHE_CALLBACK post_read{nullptr};
+  IO_CACHE_CALLBACK pre_close{nullptr};
   /*
     Counts the number of times, when we were forced to use disk. We use it to
     increase the binlog_cache_disk_use and binlog_stmt_cache_disk_use status
     variables.
   */
-  ulong disk_writes;
-  void* arg;				/* for use by pre/post_read */
-  char *file_name;			/* if used with 'open_cached_file' */
-  char *dir,*prefix;
-  File file; /* file descriptor */
-  PSI_file_key file_key; /* instrumented file key */
+  ulong disk_writes{0};
+  void* arg{nullptr};				/* for use by pre/post_read */
+  char *file_name{nullptr};			/* if used with 'open_cached_file' */
+  char *dir{nullptr}, *prefix{nullptr};
+  File file{-1}; /* file descriptor */
+  PSI_file_key file_key{PSI_NOT_INSTRUMENTED}; /* instrumented file key */
 
   /*
     seek_not_done is set by my_b_seek() to inform the upcoming read/write
@@ -487,21 +451,21 @@ typedef struct st_io_cache		/* Used when cacheing files */
     "hard" error, and the actual number of I/O-ed bytes if the read/write was
     partial.
   */
-  bool seek_not_done;
-  int error;
+  bool seek_not_done{false};
+  int error{0};
   /* buffer_length is memory size allocated for buffer or write_buffer */
-  size_t	buffer_length;
+  size_t	buffer_length{0};
   /* read_length is the same as buffer_length except when we use async io */
-  size_t  read_length;
-  myf	myflags;			/* Flags used to my_read/my_write */
+  size_t  read_length{0};
+  myf	myflags{0};			/* Flags used to my_read/my_write */
   /*
     alloced_buffer is 1 if the buffer was allocated by init_io_cache() and
     0 if it was supplied by the user.
     Currently READ_NET is the only one that will use a buffer allocated
     somewhere else
   */
-  bool alloced_buffer;
-} IO_CACHE;
+  bool alloced_buffer{false};
+};
 
 typedef int (*qsort_cmp)(const void *,const void *);
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
@@ -510,11 +474,11 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
   Subset of struct stat fields filled by stat/lstat/fstat that uniquely
   identify a file
 */
-typedef struct st_file_id
+struct ST_FILE_ID
 {
   dev_t st_dev;
   ino_t st_ino;
-} ST_FILE_ID;
+};
 
 typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
   MY_ATTRIBUTE((format(printf, 2, 3)));
@@ -563,6 +527,23 @@ my_off_t my_b_safe_tell(IO_CACHE* info); /* picks the correct tell() */
 					  *(info)->current_pos)
 
 typedef uint32 ha_checksum;
+
+/*
+  How much overhead does malloc have. The code often allocates
+  something like 1024-MALLOC_OVERHEAD bytes
+*/
+#define MALLOC_OVERHEAD 8
+
+/* Typical record cache */
+#define RECORD_CACHE_SIZE      (uint) (64*1024-MALLOC_OVERHEAD)
+
+/** struct for once_alloc (block) */
+struct USED_MEM
+{
+  USED_MEM *next;                 /**< Next block in use */
+  unsigned int left;              /**< memory left in block  */
+  unsigned int size;              /**< size of block */
+};
 
 
 	/* Prototypes for mysys and my_func functions */
@@ -619,7 +600,8 @@ extern my_off_t my_ftell(FILE *stream);
 /* Platform-independent SysLog support */
 
 /* facilities on unixoid syslog. harmless on systemd / Win platforms. */
-typedef struct st_syslog_facility { int id; const char *name; } SYSLOG_FACILITY;
+struct SYSLOG_FACILITY
+{ int id; const char *name; };
 extern SYSLOG_FACILITY syslog_facility[];
 
 enum my_syslog_options { MY_SYSLOG_PIDS= 1 };
@@ -641,7 +623,7 @@ extern int check_if_legal_tablename(const char *path);
 extern bool is_filename_allowed(const char *name, size_t length,
                    bool allow_current_dir);
 #else /* _WIN32 */
-# define is_filename_allowed(name, length, allow_cwd) (TRUE)
+# define is_filename_allowed(name, length, allow_cwd) (true)
 #endif /* _WIN32 */ 
 
 #ifdef _WIN32
@@ -678,14 +660,16 @@ extern void my_printf_error(uint my_err, const char *format,
                             myf MyFlags, ...)
   MY_ATTRIBUTE((format(printf, 2, 4)));
 extern void my_printv_error(uint error, const char *format, myf MyFlags,
-                            va_list ap);
+                            va_list ap)
+  MY_ATTRIBUTE((format(printf, 2, 0)));
 extern int my_error_register(const char* (*get_errmsg) (int),
                              int first, int last);
 extern bool my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_stderr(uint my_err, const char *str, myf MyFlags);
 void my_message_local_stderr(enum loglevel ll,
-                             const char *format, va_list args);
+                             const char *format, va_list args)
+  MY_ATTRIBUTE((format(printf, 2, 0)));
 extern void my_message_local(enum loglevel ll, const char *format, ...);
 extern bool my_init(void);
 extern void my_end(int infoflag);
@@ -813,25 +797,12 @@ extern bool dynstr_set(DYNAMIC_STRING *str, const char *init_str);
 extern bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size);
 extern bool dynstr_trunc(DYNAMIC_STRING *str, size_t n);
 extern void dynstr_free(DYNAMIC_STRING *str);
-#define alloc_root_inited(A) ((A)->min_malloc != 0)
-#define ALLOC_ROOT_MIN_BLOCK_SIZE (MALLOC_OVERHEAD + sizeof(USED_MEM) + 8)
-#define clear_alloc_root(A) do { (A)->free= (A)->used= (A)->pre_alloc= 0; (A)->min_malloc=0;} while(0)
-extern void init_alloc_root(PSI_memory_key key,
-                            MEM_ROOT *mem_root, size_t block_size,
-			    size_t pre_alloc_size);
-extern void *alloc_root(MEM_ROOT *mem_root, size_t Size);
+#define alloc_root_inited(A) ((A)->inited())
 extern void *multi_alloc_root(MEM_ROOT *mem_root, ...);
-extern void claim_root(MEM_ROOT *root);
-extern void free_root(MEM_ROOT *root, myf MyFLAGS);
-extern void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
-                                size_t prealloc_size);
 extern char *strdup_root(MEM_ROOT *root,const char *str);
 extern char *safe_strdup_root(MEM_ROOT *root, const char *str);
 extern char *strmake_root(MEM_ROOT *root,const char *str,size_t len);
 extern void *memdup_root(MEM_ROOT *root,const void *str, size_t len);
-extern void set_memroot_max_capacity(MEM_ROOT *mem_root, size_t size);
-extern void set_memroot_error_reporting(MEM_ROOT *mem_root,
-                                       bool report_error);
 extern bool my_compress(uchar *, size_t *, size_t *);
 extern bool my_uncompress(uchar *, size_t , size_t *);
 extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
@@ -1003,8 +974,7 @@ extern MYSQL_PLUGIN_IMPORT PSI_data_lock_bootstrap *psi_data_lock_hook;
 extern void set_psi_data_lock_service(void *psi);
 #endif /* HAVE_PSI_INTERFACE */
 
-struct st_mysql_file;
-extern struct st_mysql_file *mysql_stdin;
+struct MYSQL_FILE;
+extern MYSQL_FILE *mysql_stdin;
 
-C_MODE_END
 #endif /* _my_sys_h */

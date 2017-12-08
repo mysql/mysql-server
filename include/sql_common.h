@@ -27,11 +27,13 @@
 #include <sys/types.h>
 
 #include "errmsg.h"
-#include "mem_root_fwd.h"
 #include "my_command.h"
+#include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_list.h"
 #include "mysql_com.h"
+
+struct MEM_ROOT;
 
 #ifdef	__cplusplus
 extern "C" {
@@ -60,20 +62,22 @@ void mysql_close_free_options(MYSQL *mysql);
   received from the server. LIST functions are used for manipulation
   of the members of the structure.
 */
-typedef struct st_session_track_info_node {
+struct STATE_INFO_NODE
+{
   /** head_node->data is a LEX_STRING which contains the variable name. */
   LIST *head_node;
   LIST *current_node;
-} STATE_INFO_NODE;
+};
 
 /**
   Store the change info received from the server in an array of linked lists
   with STATE_INFO_NODE elements (one per state type).
 */
-typedef struct st_session_track_info {
+struct STATE_INFO
+{
   /** Array of STATE_NODE_INFO elements (one per state type). */
-  struct st_session_track_info_node info_list[SESSION_TRACK_END + 1];
-} STATE_INFO;
+  STATE_INFO_NODE info_list[SESSION_TRACK_END + 1];
+};
 
 /*
   Access to MYSQL::extension member.
@@ -84,14 +88,15 @@ typedef struct st_session_track_info {
 
 struct st_mysql_trace_info;
 
-typedef struct st_mysql_extension {
+struct MYSQL_EXTENSION
+{
   struct st_mysql_trace_info *trace_data;
-  struct st_session_track_info state_change;
-} MYSQL_EXTENSION;
+  STATE_INFO state_change;
+};
 
 /* "Constructor/destructor" for MYSQL extension structure. */
-struct st_mysql_extension* mysql_extension_init(struct st_mysql*);
-void mysql_extension_free(struct st_mysql_extension*);
+MYSQL_EXTENSION* mysql_extension_init(MYSQL*);
+void mysql_extension_free(MYSQL_EXTENSION*);
 
 /*
   Note: Allocated extension structure is freed in mysql_close_free()
@@ -99,7 +104,7 @@ void mysql_extension_free(struct st_mysql_extension*);
 */
 #define MYSQL_EXTENSION_PTR(H)                                    \
 (                                                                 \
- (struct st_mysql_extension*)                                     \
+ (MYSQL_EXTENSION*)                                     \
  ( (H)->extension ?                                               \
    (H)->extension : ((H)->extension= mysql_extension_init(H))     \
  )                                                                \
@@ -122,7 +127,7 @@ struct st_mysql_options_extention {
   unsigned int retry_count;
 };
 
-typedef struct st_mysql_methods
+struct MYSQL_METHODS
 {
   bool (*read_query_result)(MYSQL *mysql);
   bool (*advanced_command)(MYSQL *mysql,
@@ -151,7 +156,7 @@ typedef struct st_mysql_methods
   int (*read_rows_from_cursor)(MYSQL_STMT *stmt);
   void (*free_rows)(MYSQL_DATA *cur);
 #endif
-} MYSQL_METHODS;
+};
 
 #define simple_command(mysql, command, arg, length, skip_check) \
   ((mysql)->methods \
@@ -164,7 +169,7 @@ typedef struct st_mysql_methods
                                            0, arg, length, 1, stmt) \
     : (set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate), 1))
 
-extern struct charset_info_st *default_client_charset_info;
+extern CHARSET_INFO *default_client_charset_info;
 MYSQL_FIELD *unpack_fields(MYSQL *mysql, MYSQL_ROWS *data,MEM_ROOT *alloc,
                            uint fields, bool default_value,
                            uint server_capabilities);
@@ -193,12 +198,13 @@ void set_stmt_error(MYSQL_STMT *stmt, int errcode, const char *sqlstate,
                     const char *err);
 void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate);
 void set_mysql_extended_error(MYSQL *mysql, int errcode, const char *sqlstate,
-                              const char *format, ...);
+                              const char *format, ...)
+  MY_ATTRIBUTE((format(printf, 4, 5)));
 
 /* client side of the pluggable authentication */
-struct st_plugin_vio_info;
+struct MYSQL_PLUGIN_VIO_INFO;
 
-void mpvio_info(MYSQL_VIO vio, struct st_plugin_vio_info *info);
+void mpvio_info(MYSQL_VIO vio, MYSQL_PLUGIN_VIO_INFO *info);
 int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
                     const char *data_plugin, const char *db);
 int mysql_client_plugin_init();

@@ -13,21 +13,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "thread_attrs_api.h"
-
-#include <errno.h>
-#include <pthread.h>
 #include <sched.h>
+#include <stdint.h>
+#include <string.h>
 #include <sys/resource.h>
-#include <sys/syscall.h>
-#include <sys/time.h>
-#include <sys/types.h>
+#include <syscall.h>
 #include <unistd.h>
+
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "my_thread_os_id.h"
+#include "mysql_com.h"
+#include "thread_attrs_api.h"
 #include <linux/capability.h>
+#include <vector>
 
 #include "my_dbug.h"     // DBUG_*
+#include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
-#include "sql/log.h"         // LogErr
 
 namespace resourcegroups
 {

@@ -21,11 +21,8 @@
 
 #include "my_bitmap.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
-#include "sql/handler.h"
 #include "sql/lock.h"                         // Tablespace_hash_set
 #include "sql/partition_element.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_bitmap.h"                   // Bitmap
 #include "sql/sql_data_change.h"              // enum_duplicates
 #include "sql/sql_list.h"
@@ -35,14 +32,17 @@ class Item;
 class Partition_handler;
 class String;
 class THD;
+class handler;
+struct HA_CREATE_INFO;
 struct TABLE;
+struct handlerton;
 
 #define NOT_A_PARTITION_ID UINT_MAX32
 
 class Create_field;
 class partition_info;
+struct PARTITION_ITERATOR;
 struct TABLE_LIST;
-struct st_partition_iter;
 
 /**
   A "Get next" function for partition iterator.
@@ -63,7 +63,7 @@ struct st_partition_iter;
     @retval NOT_A_PARTITION_ID if there are no more partitions.
     @retval [sub]partition_id  of the next partition
 */
-typedef uint32 (*partition_iter_func)(st_partition_iter* part_iter);
+typedef uint32 (*partition_iter_func)(PARTITION_ITERATOR* part_iter);
 
 /**
   Partition set iterator. Used to enumerate a set of [sub]partitions
@@ -80,7 +80,7 @@ typedef uint32 (*partition_iter_func)(st_partition_iter* part_iter);
   Cleanup is not needed.
 */
 
-typedef struct st_partition_iter
+struct PARTITION_ITERATOR
 {
   partition_iter_func get_next;
   /*
@@ -97,9 +97,9 @@ typedef struct st_partition_iter
 
   struct st_field_value_range
   {
-    longlong start;
-    longlong cur;
-    longlong end;
+    ulonglong start;
+    ulonglong cur;
+    ulonglong end;
   };
 
   union
@@ -108,7 +108,7 @@ typedef struct st_partition_iter
     struct st_field_value_range  field_vals;
   };
   partition_info *part_info;
-} PARTITION_ITERATOR;
+};
 
 
 typedef struct {
@@ -213,7 +213,7 @@ public:
 };
 
 
-class partition_info : public Sql_alloc
+class partition_info
 {
 public:
   /*
@@ -415,7 +415,7 @@ public:
     part_field_buffers(NULL), subpart_field_buffers(NULL),
     restore_part_field_ptrs(NULL), restore_subpart_field_ptrs(NULL),
     part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
-    bitmaps_are_initialized(FALSE),
+    bitmaps_are_initialized(false),
     list_array(NULL), err_value(0),
     part_func_string(NULL), subpart_func_string(NULL),
     num_columns(0), table(NULL),
@@ -427,13 +427,13 @@ public:
     num_list_values(0), num_part_fields(0), num_subpart_fields(0),
     num_full_part_fields(0), has_null_part_id(0), linear_hash_mask(0),
     key_algorithm(enum_key_algorithm::KEY_ALGORITHM_NONE),
-    use_default_partitions(TRUE), use_default_num_partitions(TRUE),
-    use_default_subpartitions(TRUE), use_default_num_subpartitions(TRUE),
-    default_partitions_setup(FALSE), defined_max_value(FALSE),
-    list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
-    linear_hash_ind(FALSE), fixed(FALSE),
-    is_auto_partitioned(FALSE),
-    has_null_value(FALSE), column_list(FALSE), is_pruning_completed(false)
+    use_default_partitions(true), use_default_num_partitions(true),
+    use_default_subpartitions(true), use_default_num_subpartitions(true),
+    default_partitions_setup(false), defined_max_value(false),
+    list_of_part_fields(false), list_of_subpart_fields(false),
+    linear_hash_ind(false), fixed(false),
+    is_auto_partitioned(false),
+    has_null_value(false), column_list(false), is_pruning_completed(false)
   {
     partitions.empty();
     temp_partitions.empty();
@@ -553,7 +553,7 @@ private:
   bool is_full_part_expr_in_fields(List<Item> &fields);
 };
 
-uint32 get_next_partition_id_range(struct st_partition_iter* part_iter);
+uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter);
 bool check_partition_dirs(partition_info *part_info);
 
 /* Initialize the iterator to return a single partition with given part_id */
@@ -563,7 +563,7 @@ static inline void init_single_partition_iterator(uint32 part_id,
 {
   part_iter->part_nums.start= part_iter->part_nums.cur= part_id;
   part_iter->part_nums.end= part_id+1;
-  part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
+  part_iter->ret_null_part= part_iter->ret_null_part_orig= false;
   part_iter->get_next= get_next_partition_id_range;
 }
 
@@ -574,7 +574,7 @@ void init_all_partitions_iterator(partition_info *part_info,
 {
   part_iter->part_nums.start= part_iter->part_nums.cur= 0;
   part_iter->part_nums.end= part_info->num_parts;
-  part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
+  part_iter->ret_null_part= part_iter->ret_null_part_orig= false;
   part_iter->get_next= get_next_partition_id_range;
 }
 

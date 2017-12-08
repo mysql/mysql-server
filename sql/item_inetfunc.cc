@@ -24,13 +24,13 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h" //current_thd
 #include "sql/derror.h"     //THD
 #include "sql/enum_query_type.h"
 #include "sql/item.h"
 #include "sql/sql_error.h"
-#include "sql/table.h"
 #include "sql_string.h"
 
 #ifdef HAVE_NETINET_IN_H
@@ -870,7 +870,9 @@ bool Item_func_is_ipv4_compat::calc_value(const String *arg) const
   if ((int) arg->length() != IN6_ADDR_SIZE || arg->charset() != &my_charset_bin)
     return false;
 
-  return IN6_IS_ADDR_V4COMPAT((struct in6_addr *) arg->ptr());
+  in6_addr addr;
+  memcpy(&addr, arg->ptr(), sizeof(addr));
+  return IN6_IS_ADDR_V4COMPAT(&addr);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -890,5 +892,7 @@ bool Item_func_is_ipv4_mapped::calc_value(const String *arg) const
   if ((int) arg->length() != IN6_ADDR_SIZE || arg->charset() != &my_charset_bin)
     return false;
 
-  return IN6_IS_ADDR_V4MAPPED((struct in6_addr *) arg->ptr());
+  in6_addr addr;
+  memcpy(&addr, arg->ptr(), sizeof(addr));
+  return IN6_IS_ADDR_V4MAPPED(&addr);
 }

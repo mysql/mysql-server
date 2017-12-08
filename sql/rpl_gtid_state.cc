@@ -19,6 +19,7 @@
 #include <atomic>
 
 #include "control_events.h"
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -31,7 +32,6 @@
 #include "sql/binlog.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"        // DEBUG_SYNC
-#include "sql/key.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"            // opt_bin_log
 #include "sql/rpl_context.h"

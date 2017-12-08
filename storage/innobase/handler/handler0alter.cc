@@ -6075,7 +6075,7 @@ to rebuild the template.
 				by ALTER TABLE and holding data used
 				during in-place alter.
 @param[in]	table		table being altered
-@return TRUE if needs rebuild. */
+@return true if needs rebuild. */
 static
 bool
 alter_templ_needs_rebuild(
@@ -8202,7 +8202,7 @@ public:
 	{
 		if (ctx_array) {
 			for (uint i = 0; i < m_tot_parts; i++) {
-				delete ctx_array[i];
+				destroy(ctx_array[i]);
 			}
 			ut_free(ctx_array);
 		}
@@ -10510,7 +10510,7 @@ ha_innopart::prepare_inplace_alter_table(
 
 	/* Clean up all ins/upd nodes. */
 	clear_ins_upd_nodes();
-	/* Based on Sql_alloc class, return NULL for new on failure.
+	/*
 	This object will be freed by server, so always use 'new'
 	and there is no need to free on failure */
 	ctx_parts = new (*THR_MALLOC) ha_innopart_inplace_ctx(thd, m_tot_parts);

@@ -23,15 +23,10 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "mem_root_fwd.h"
 #include "my_alloc.h"           /* MEM_ROOT */
 #include "my_base.h"		/* get 'enum ha_rkey_function' */
 #include "my_inttypes.h"
 #include "my_sys.h"             /* qsort2_cmp */
-
-#ifdef	__cplusplus
-extern "C" {
-#endif
 
 /* Worst case tree is half full. This gives use 2^(MAX_TREE_HEIGHT/2) leafs */
 #define MAX_TREE_HEIGHT	64
@@ -51,26 +46,30 @@ typedef int (*tree_walk_action)(void *,element_count,void *);
 typedef enum { free_init, free_free, free_end } TREE_FREE;
 typedef void (*tree_element_free)(void*, TREE_FREE, const void *);
 
-typedef struct st_tree_element {
-  struct st_tree_element *left,*right;
+struct TREE_ELEMENT
+{
+  TREE_ELEMENT() : count(0), colour(0) {}
+
+  TREE_ELEMENT *left{nullptr},*right{nullptr};
   uint32 count:31,
 	 colour:1;			/* black is marked as 1 */
-} TREE_ELEMENT;
+};
 
 #define ELEMENT_CHILD(element, offs) (*(TREE_ELEMENT**)((char*)element + offs))
 
-typedef struct st_tree {
-  TREE_ELEMENT *root,null_element;
-  TREE_ELEMENT **parents[MAX_TREE_HEIGHT];
-  uint offset_to_key,elements_in_tree,size_of_element;
-  ulong memory_limit, allocated;
-  qsort2_cmp compare;
-  const void *custom_arg;
+struct TREE
+{
+  TREE_ELEMENT *root{nullptr},null_element;
+  TREE_ELEMENT **parents[MAX_TREE_HEIGHT] {nullptr};
+  uint offset_to_key{0}, elements_in_tree{0}, size_of_element{0};
+  ulong memory_limit{0}, allocated{0};
+  qsort2_cmp compare{nullptr};
+  const void *custom_arg{nullptr};
   MEM_ROOT mem_root;
-  bool with_delete;
-  tree_element_free free;
-  uint flag;
-} TREE;
+  bool with_delete{false};
+  tree_element_free free{nullptr};
+  uint flag{0};
+};
 
 	/* Functions on whole tree */
 void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,
@@ -102,7 +101,4 @@ ha_rows tree_record_pos(TREE *tree, const void *key,
 
 #define TREE_ELEMENT_EXTRA_SIZE (sizeof(TREE_ELEMENT) + sizeof(void*))
 
-#ifdef	__cplusplus
-}
-#endif
 #endif

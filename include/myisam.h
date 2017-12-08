@@ -37,10 +37,6 @@
 #include "my_io.h"
 #include "my_macros.h"
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 /*
   Limit max keys according to HA_MAX_POSSIBLE_KEY
 */
@@ -128,7 +124,7 @@ extern "C" {
 
 	/* Param to/from mi_status */
 
-typedef struct st_mi_isaminfo		/* Struct from h_info */
+struct MI_ISAMINFO		/* Struct from h_info */
 {
   ha_rows records;			/* Records in database */
   ha_rows deleted;			/* Deleted records in database */
@@ -156,10 +152,10 @@ typedef struct st_mi_isaminfo		/* Struct from h_info */
   uint  reflength;
   ulong record_offset;
   ulong *rec_per_key;			/* for sql optimizing */
-} MI_ISAMINFO;
+};
 
 
-typedef struct st_mi_create_info
+struct MI_CREATE_INFO
 {
   const char *index_file_name, *data_file_name;	/* If using symlinks */
   ha_rows max_rows;
@@ -170,16 +166,16 @@ typedef struct st_mi_create_info
   uint old_options;
   uint16 language;
   bool with_auto_increment;
-} MI_CREATE_INFO;
+};
 
-struct st_myisam_info;			/* For referense */
-struct st_mi_isam_share;
-typedef struct st_myisam_info MI_INFO;
-struct st_mi_s_param;
+struct MI_INFO;			/* For referense */
+struct MYISAM_SHARE;
+struct MI_INFO;
+struct MI_KEY_PARAM;
 
-typedef struct st_mi_keydef		/* Key definition with open & info */
+struct MI_KEYDEF		/* Key definition with open & info */
 {
-  struct st_mi_isam_share *share;       /* Pointer to base (set in mi_open) */
+  MYISAM_SHARE *share;       /* Pointer to base (set in mi_open) */
   uint16 keysegs;			/* Number of key-segment */
   uint16 flag;				/* NOSAME, PACK_USED */
 
@@ -195,41 +191,41 @@ typedef struct st_mi_keydef		/* Key definition with open & info */
 
   HA_KEYSEG *seg,*end;
   struct st_mysql_ftparser *parser;     /* Fulltext [pre]parser */
-  int (*bin_search)(struct st_myisam_info *info,struct st_mi_keydef *keyinfo,
+  int (*bin_search)(MI_INFO *info,MI_KEYDEF *keyinfo,
 		    uchar *page,uchar *key,
 		    uint key_len,uint comp_flag,uchar * *ret_pos,
 		    uchar *buff, bool *was_last_key);
-  uint (*get_key)(struct st_mi_keydef *keyinfo,uint nod_flag,uchar * *page,
+  uint (*get_key)(MI_KEYDEF *keyinfo,uint nod_flag,uchar * *page,
 		  uchar *key);
-  int (*pack_key)(struct st_mi_keydef *keyinfo,uint nod_flag,uchar *next_key,
+  int (*pack_key)(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
 		  uchar *org_key, uchar *prev_key, uchar *key,
-		  struct st_mi_s_param *s_temp);
-  void (*store_key)(struct st_mi_keydef *keyinfo, uchar *key_pos,
-		    struct st_mi_s_param *s_temp);
-  int (*ck_insert)(struct st_myisam_info *inf, uint k_nr, uchar *k, uint klen);
-  int (*ck_delete)(struct st_myisam_info *inf, uint k_nr, uchar *k, uint klen);
-} MI_KEYDEF;
+		  MI_KEY_PARAM *s_temp);
+  void (*store_key)(MI_KEYDEF *keyinfo, uchar *key_pos,
+		    MI_KEY_PARAM *s_temp);
+  int (*ck_insert)(MI_INFO *inf, uint k_nr, uchar *k, uint klen);
+  int (*ck_delete)(MI_INFO *inf, uint k_nr, uchar *k, uint klen);
+};
 
 
 #define MI_UNIQUE_HASH_LENGTH	4
 
-typedef struct st_unique_def		/* Segment definition of unique */
+struct MI_UNIQUEDEF		/* Segment definition of unique */
 {
   uint16 keysegs;			/* Number of key-segment */
   uchar key;				/* Mapped to which key */
   uint8 null_are_equal;
   HA_KEYSEG *seg,*end;
-} MI_UNIQUEDEF;
+};
 
-typedef struct st_mi_decode_tree	/* Decode huff-table */
+struct MI_DECODE_TREE	/* Decode huff-table */
 {
   uint16 *table;
   uint	 quick_table_bits;
   uchar	 *intervalls;
-} MI_DECODE_TREE;
+};
 
 
-struct st_mi_bit_buff;
+struct MI_BIT_BUFF;
 
 /*
   Note that null markers should always be first in a row !
@@ -237,7 +233,7 @@ struct st_mi_bit_buff;
   type, length, null_bit and null_pos
 */
 
-typedef struct st_columndef		/* column information */
+struct MI_COLUMNDEF		/* column information */
 {
   int16  type;				/* en_fieldtype */
   uint16 length;			/* length of field */
@@ -245,12 +241,12 @@ typedef struct st_columndef		/* column information */
   uint8  null_bit;			/* If column may be 0 */
   uint16 null_pos;			/* position for null marker */
 
-  void (*unpack)(struct st_columndef *rec,struct st_mi_bit_buff *buff,
+  void (*unpack)(MI_COLUMNDEF *rec,MI_BIT_BUFF *buff,
 		 uchar *start,uchar *end);
   enum en_fieldtype base_type;
   uint space_length_bits,pack_type;
   MI_DECODE_TREE *huff_tree;
-} MI_COLUMNDEF;
+};
 
 
 extern char * myisam_log_filename;		/* Name of logfile */
@@ -268,50 +264,50 @@ extern mysql_mutex_t THR_LOCK_myisam_mmap;
 
 	/* Prototypes for myisam-functions */
 
-extern int mi_close_share(struct st_myisam_info *file, bool *closed_share);
+extern int mi_close_share(MI_INFO *file, bool *closed_share);
 #define mi_close(file) mi_close_share(file, NULL)
-extern int mi_delete(struct st_myisam_info *file,const uchar *buff);
-extern struct st_myisam_info *mi_open_share(const char *name,
-                                            struct st_mi_isam_share *old_share,
+extern int mi_delete(MI_INFO *file,const uchar *buff);
+extern MI_INFO *mi_open_share(const char *name,
+                                            MYISAM_SHARE *old_share,
                                             int mode,
                                             uint wait_if_locked);
 #define mi_open(name, mode, wait_if_locked) \
   mi_open_share(name, NULL, mode, wait_if_locked)
 extern int mi_panic(enum ha_panic_function function);
-extern int mi_rfirst(struct st_myisam_info *file,uchar *buf,int inx);
+extern int mi_rfirst(MI_INFO *file,uchar *buf,int inx);
 extern int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
                    key_part_map keypart_map, enum ha_rkey_function search_flag);
-extern int mi_rlast(struct st_myisam_info *file,uchar *buf,int inx);
-extern int mi_rnext(struct st_myisam_info *file,uchar *buf,int inx);
-extern int mi_rnext_same(struct st_myisam_info *info, uchar *buf);
-extern int mi_rprev(struct st_myisam_info *file,uchar *buf,int inx);
-extern int mi_rrnd(struct st_myisam_info *file,uchar *buf, my_off_t pos);
-extern int mi_scan_init(struct st_myisam_info *file);
-extern int mi_scan(struct st_myisam_info *file,uchar *buf);
-extern int mi_rsame(struct st_myisam_info *file,uchar *record,int inx);
-extern int mi_rsame_with_pos(struct st_myisam_info *file,uchar *record,
+extern int mi_rlast(MI_INFO *file,uchar *buf,int inx);
+extern int mi_rnext(MI_INFO *file,uchar *buf,int inx);
+extern int mi_rnext_same(MI_INFO *info, uchar *buf);
+extern int mi_rprev(MI_INFO *file,uchar *buf,int inx);
+extern int mi_rrnd(MI_INFO *file,uchar *buf, my_off_t pos);
+extern int mi_scan_init(MI_INFO *file);
+extern int mi_scan(MI_INFO *file,uchar *buf);
+extern int mi_rsame(MI_INFO *file,uchar *record,int inx);
+extern int mi_rsame_with_pos(MI_INFO *file,uchar *record,
 			     int inx, my_off_t pos);
-extern int mi_update(struct st_myisam_info *file,const uchar *old,
+extern int mi_update(MI_INFO *file,const uchar *old,
 		     uchar *new_record);
-extern int mi_write(struct st_myisam_info *file,uchar *buff);
-extern my_off_t mi_position(struct st_myisam_info *file);
-extern int mi_status(struct st_myisam_info *info, MI_ISAMINFO *x, uint flag);
-extern int mi_lock_database(struct st_myisam_info *file,int lock_type);
+extern int mi_write(MI_INFO *file,uchar *buff);
+extern my_off_t mi_position(MI_INFO *file);
+extern int mi_status(MI_INFO *info, MI_ISAMINFO *x, uint flag);
+extern int mi_lock_database(MI_INFO *file,int lock_type);
 extern int mi_create(const char *name,uint keys,MI_KEYDEF *keydef,
 		     uint columns, MI_COLUMNDEF *columndef,
 		     uint uniques, MI_UNIQUEDEF *uniquedef,
 		     MI_CREATE_INFO *create_info, uint flags);
 extern int mi_delete_table(const char *name);
 extern int mi_rename(const char *from, const char *to);
-extern int mi_extra(struct st_myisam_info *file,
+extern int mi_extra(MI_INFO *file,
 		    enum ha_extra_function function,
 		    void *extra_arg);
-extern int mi_reset(struct st_myisam_info *file);
+extern int mi_reset(MI_INFO *file);
 extern ha_rows mi_records_in_range(MI_INFO *info, int inx,
                                    key_range *min_key, key_range *max_key);
 extern int mi_log(int activate_log);
-extern int mi_is_changed(struct st_myisam_info *info);
-extern int mi_delete_all_rows(struct st_myisam_info *info);
+extern int mi_is_changed(MI_INFO *info);
+extern int mi_delete_all_rows(MI_INFO *info);
 extern ulong _mi_calc_blob_length(uint length , const uchar *pos);
 extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 
@@ -335,13 +331,13 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 
 /* these struct is used by my_check to tell it what to do */
 
-typedef struct st_sort_key_blocks		/* Used when sorting */
+struct SORT_KEY_BLOCKS		/* Used when sorting */
 {
   uchar *buff,*end_pos;
   uchar lastkey[MI_MAX_POSSIBLE_KEY_BUFF];
   uint last_length;
   int inited;
-} SORT_KEY_BLOCKS;
+};
 
 
 /* 
@@ -360,73 +356,73 @@ typedef enum
   MI_STATS_METHOD_IGNORE_NULLS
 } enum_mi_stats_method;
 
-typedef struct st_mi_check_param
+struct MI_CHECK
 {
-  ulonglong auto_increment_value;
-  ulonglong max_data_file_length;
-  ulonglong keys_in_use;
-  ulonglong max_record_length;
-  ulonglong sort_buffer_length;
-  my_off_t search_after_block;
-  my_off_t new_file_pos,key_file_blocks;
-  my_off_t keydata,totaldata,key_blocks,start_check_pos;
-  ha_rows total_records,total_deleted;
-  ha_checksum record_checksum,glob_crc;
-  ulonglong use_buffers;
-  ulong read_buffer_length, write_buffer_length, sort_key_blocks;
-  uint out_flag,warning_printed,error_printed,verbose;
-  uint opt_sort_key,total_files,max_level;
-  uint testflag, key_cache_block_size;
-  uint16 language;
-  bool using_global_keycache, opt_follow_links;
-  bool retry_repair, force_sort;
-  char temp_filename[FN_REFLEN],*isam_file_name;
-  MY_TMPDIR *tmpdir;
-  int tmpfile_createflag;
-  myf myf_rw;
+  ulonglong auto_increment_value{0};
+  ulonglong max_data_file_length{0};
+  ulonglong keys_in_use{~(ulonglong) 0};
+  ulonglong max_record_length{LLONG_MAX};
+  ulonglong sort_buffer_length{0};
+  my_off_t search_after_block{HA_OFFSET_ERROR};
+  my_off_t new_file_pos{0},key_file_blocks{0};
+  my_off_t keydata,totaldata{0},key_blocks{0},start_check_pos{0};
+  ha_rows total_records{0},total_deleted{0};
+  ha_checksum record_checksum{0},glob_crc{0};
+  ulonglong use_buffers{0};
+  ulong read_buffer_length{0}, write_buffer_length{0}, sort_key_blocks{0};
+  uint out_flag{0},warning_printed{0},error_printed{0},verbose{0};
+  uint opt_sort_key{0},total_files{0},max_level{0};
+  uint testflag{0}, key_cache_block_size{KEY_CACHE_BLOCK_SIZE};
+  uint16 language{0};
+  bool using_global_keycache{false}, opt_follow_links{true};
+  bool retry_repair{false}, force_sort{false};
+  char temp_filename[FN_REFLEN]{0},*isam_file_name{nullptr};
+  MY_TMPDIR *tmpdir{nullptr};
+  int tmpfile_createflag{0};
+  myf myf_rw{MY_NABP | MY_WME | MY_WAIT_IF_FULL};
   IO_CACHE read_cache;
   
   /* 
     The next two are used to collect statistics, see update_key_parts for
     description.
   */
-  ulonglong unique_count[MI_MAX_KEY_SEG+1];
-  ulonglong notnull_count[MI_MAX_KEY_SEG+1];
+  ulonglong unique_count[MI_MAX_KEY_SEG+1]{0};
+  ulonglong notnull_count[MI_MAX_KEY_SEG+1]{0};
   
-  ha_checksum key_crc[HA_MAX_POSSIBLE_KEY];
-  ulong rec_per_key_part[MI_MAX_KEY_SEG*HA_MAX_POSSIBLE_KEY];
-  void *thd;
-  const char *db_name, *table_name;
-  const char *op_name;
-  enum_mi_stats_method stats_method;
+  ha_checksum key_crc[HA_MAX_POSSIBLE_KEY]{0};
+  ulong rec_per_key_part[MI_MAX_KEY_SEG*HA_MAX_POSSIBLE_KEY]{0};
+  void *thd{nullptr};
+  const char *db_name{nullptr}, *table_name{nullptr};
+  const char *op_name{nullptr};
+  enum_mi_stats_method stats_method{MI_STATS_METHOD_NULLS_NOT_EQUAL};
   mysql_mutex_t print_msg_mutex;
-  bool need_print_msg_lock;
-} MI_CHECK;
+  bool need_print_msg_lock{false};
+};
 
-typedef struct st_sort_ft_buf
+struct SORT_FT_BUF
 {
   uchar *buf, *end;
   int   count;
   uchar lastkey[MI_MAX_KEY_BUFF];
-} SORT_FT_BUF;
+};
 
-typedef struct st_sort_info
+struct SORT_INFO
 {
-  my_off_t filelength,dupp,buff_length;
-  ha_rows max_records;
-  uint current_key, total_keys;
-  myf myf_rw;
-  enum data_file_type new_data_file_type;
-  MI_INFO *info;
-  MI_CHECK *param;
-  uchar *buff;
-  SORT_KEY_BLOCKS *key_block,*key_block_end;
-  SORT_FT_BUF *ft_buf;
+  my_off_t filelength{0},dupp{0},buff_length{0};
+  ha_rows max_records{0};
+  uint current_key{0}, total_keys{0};
+  myf myf_rw{0};
+  data_file_type new_data_file_type{STATIC_RECORD};
+  MI_INFO *info{nullptr};
+  MI_CHECK *param{nullptr};
+  uchar *buff{nullptr};
+  SORT_KEY_BLOCKS *key_block{nullptr},*key_block_end{nullptr};
+  SORT_FT_BUF *ft_buf{nullptr};
   /* sync things */
-  uint got_error, threads_running;
+  uint got_error{0}, threads_running{0};
   mysql_mutex_t mutex;
   mysql_cond_t  cond;
-} SORT_INFO;
+};
 
 /* functions in mi_check */
 void myisamchk_init(MI_CHECK *param);
@@ -476,7 +472,4 @@ int mi_preload(MI_INFO *info, ulonglong key_map, bool ignore_leaves);
 
 extern st_keycache_thread_var main_thread_keycache_var;
 st_keycache_thread_var *keycache_thread_var();
-#ifdef	__cplusplus
-}
-#endif
 #endif

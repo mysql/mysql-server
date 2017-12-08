@@ -32,6 +32,8 @@ Created 6/9/1994 Heikki Tuuri
 #include "ut0rnd.h"
 #include "mach0data.h"
 
+#include <limits.h>
+
 #include <memory>
 
 /* -------------------- MEMORY HEAPS ----------------------------- */

@@ -38,10 +38,6 @@
 #include "my_tree.h"
 #include "thr_lock.h"
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 	/* defines used by heap-funktions */
 
 #define HP_MAX_LEVELS	4		/* 128^5 records is enough */
@@ -49,7 +45,7 @@ extern "C" {
 
 	/* struct used with heap_funktions */
 
-typedef struct st_heapinfo		/* Struct from heap_info */
+struct HEAPINFO		/* Struct from heap_info */
 {
   ulong records;			/* Records in database */
   ulong deleted;			/* Deleted records in database */
@@ -60,33 +56,33 @@ typedef struct st_heapinfo		/* Struct from heap_info */
   int errkey;
   ulonglong auto_increment;
   time_t create_time;
-} HEAPINFO;
+};
 
 
 	/* Structs used by heap-database-handler */
 
-typedef struct st_heap_ptrs
+struct HP_PTRS
 {
   uchar *blocks[HP_PTRS_IN_NOD];		/* pointers to HP_PTRS or records */
-} HP_PTRS;
+};
 
 struct st_level_info
 {
   /* Number of unused slots in *last_blocks HP_PTRS block (0 for 0th level) */
-  uint free_ptrs_in_block;
+  uint free_ptrs_in_block{0};
   
   /*
     Maximum number of records that can be 'contained' inside of each element
     of last_blocks array. For level 0 - 1, for level 1 - HP_PTRS_IN_NOD, for 
     level 2 - HP_PTRS_IN_NOD^2 and so forth.
   */
-  ulong records_under_level;
+  ulong records_under_level{0};
 
   /*
     Ptr to last allocated HP_PTRS (or records buffer for level 0) on this 
     level.
   */
-  HP_PTRS *last_blocks;			
+  HP_PTRS *last_blocks{nullptr};
 };
 
 
@@ -106,40 +102,40 @@ struct st_level_info
   See hp_get_new_block 
 */
 
-typedef struct st_heap_block
+struct HP_BLOCK
 {
-  HP_PTRS *root;                        /* Top-level block */ 
+  HP_PTRS *root{nullptr};                        /* Top-level block */ 
   struct st_level_info level_info[HP_MAX_LEVELS+1];
-  uint levels;                          /* number of used levels */
-  uint records_in_block;		/* Records in one heap-block */
-  uint recbuffer;			/* Length of one saved record */
-  ulong last_allocated; /* number of records there is allocated space for */
-} HP_BLOCK;
+  uint levels{0};                          /* number of used levels */
+  uint records_in_block{0};		/* Records in one heap-block */
+  uint recbuffer{0};			/* Length of one saved record */
+  ulong last_allocated{0}; /* number of records there is allocated space for */
+};
 
-struct st_heap_info;			/* For referense */
+struct HP_INFO;			/* For referense */
 
-typedef struct st_hp_keydef		/* Key definition with open */
+struct HP_KEYDEF		/* Key definition with open */
 {
-  uint flag;				/* HA_NOSAME | HA_NULL_PART_KEY */
-  uint keysegs;				/* Number of key-segment */
-  uint length;				/* Length of key (automatic) */
-  uint8 algorithm;			/* HASH / BTREE */
-  HA_KEYSEG *seg;
+  uint flag{0};				/* HA_NOSAME | HA_NULL_PART_KEY */
+  uint keysegs{0};				/* Number of key-segment */
+  uint length{0};				/* Length of key (automatic) */
+  uint8 algorithm{0};			/* HASH / BTREE */
+  HA_KEYSEG *seg{nullptr};
   HP_BLOCK block;			/* Where keys are saved */
   /*
     Number of buckets used in hash table. Used only to provide
     #records estimates for heap key scans.
   */
-  ha_rows hash_buckets; 
+  ha_rows hash_buckets{0}; 
   TREE rb_tree;
-  int (*write_key)(struct st_heap_info *info, struct st_hp_keydef *keyinfo,
-		   const uchar *record, uchar *recpos);
-  int (*delete_key)(struct st_heap_info *info, struct st_hp_keydef *keyinfo,
-		   const uchar *record, uchar *recpos, int flag);
-  uint (*get_key_length)(struct st_hp_keydef *keydef, const uchar *key);
-} HP_KEYDEF;
+  int (*write_key)(HP_INFO *info, HP_KEYDEF *keyinfo,
+		   const uchar *record, uchar *recpos){nullptr};
+  int (*delete_key)(HP_INFO *info, HP_KEYDEF *keyinfo,
+		   const uchar *record, uchar *recpos, int flag){nullptr};
+  uint (*get_key_length)(HP_KEYDEF *keydef, const uchar *key){nullptr};
+};
 
-typedef struct st_heap_share
+struct HP_SHARE
 {
   HP_BLOCK block;
   HP_KEYDEF  *keydef;
@@ -163,15 +159,15 @@ typedef struct st_heap_share
   uint auto_key;
   uint auto_key_type;			/* real type of the auto key segment */
   ulonglong auto_increment;
-} HP_SHARE;
+};
 
-struct st_hp_hash_info;
+struct HASH_INFO;
 
-typedef struct st_heap_info
+struct HP_INFO
 {
   HP_SHARE *s;
   uchar *current_ptr;
-  struct st_hp_hash_info *current_hash_ptr;
+  HASH_INFO *current_hash_ptr;
   ulong current_record,next_block;
   int lastinx,errkey;
   int  mode;				/* Mode of file (READONLY..) */
@@ -185,17 +181,17 @@ typedef struct st_heap_info
   bool implicit_emptied;
   THR_LOCK_DATA lock;
   LIST open_list;
-} HP_INFO;
+};
 
 typedef uchar *HEAP_PTR;
   
-typedef struct st_heap_position
+struct HP_HEAP_POSITION
 {
   HEAP_PTR ptr;
   ulong record_no; /* Number of current record in table scan order (starting at 0) */
-} HP_HEAP_POSITION;
+};
   
-typedef struct st_heap_create_info
+struct HP_CREATE_INFO
 {
   HP_KEYDEF *keydef;
   ulong max_records;
@@ -214,7 +210,7 @@ typedef struct st_heap_create_info
     open_count to 1. Is only looked at if not internal_table.
   */
   bool pin_share;
-} HP_CREATE_INFO;
+};
 
 	/* Prototypes for heap-functions */
 
@@ -259,8 +255,4 @@ extern uchar * heap_find(HP_INFO *info,int inx,const uchar *key);
 extern int heap_check_heap(HP_INFO *info, bool print_status);
 extern void heap_position(HP_INFO *info, HP_HEAP_POSITION *pos);
 
-
-#ifdef	__cplusplus
-}
-#endif
 #endif

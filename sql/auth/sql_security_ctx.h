@@ -20,10 +20,9 @@
 #include <utility>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_sharedlib.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/auth/auth_common.h"
 #include "sql/sql_const.h"
@@ -33,8 +32,6 @@
 class Acl_map;
 class THD;
 struct Grant_table_aggregate;
-
-extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 /**
   @class Security_context
@@ -342,8 +339,8 @@ public:
     equal to empty string.
 
     @return Account assignment status
-      @retval TRUE account has been assigned to the security context
-      @retval FALSE account has not yet been assigned to the security context
+      @retval true account has been assigned to the security context
+      @retval false account has not yet been assigned to the security context
   */
 
   bool has_account_assigned() const

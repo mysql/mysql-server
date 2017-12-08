@@ -16,4 +16,4 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *mysql_locking_service= (void*)VERSION_locking_service;
+SERVICE_VERSION *mysql_locking_service= (void**)VERSION_locking_service;

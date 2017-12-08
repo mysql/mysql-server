@@ -22,9 +22,9 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"   // check_global_access
 #include "sql/auth/sql_security_ctx.h"
@@ -34,18 +34,14 @@
 #include "sql/derror.h"             // ER_THD
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/key.h"
 #include "sql/mysqld.h"             // table_alias_charset
 #include "sql/psi_memory_key.h"
 #include "sql/sp_head.h"            // sp_head
 #include "sql/sql_class.h"
-#include "sql/sql_connect.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"          // create_default_definer
-#include "sql/sql_servers.h"
-#include "sql/stateless_allocator.h"
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
 #include "sql/trigger.h"
@@ -150,14 +146,14 @@ Table_trigger_dispatcher::~Table_trigger_dispatcher()
   if (m_record1_field)
   {
     for (Field **fld_ptr= m_record1_field; *fld_ptr; fld_ptr++)
-      delete *fld_ptr;
+      destroy(*fld_ptr);
   }
 
   // Destroy trigger chains.
 
   for (int i= 0; i < (int) TRG_EVENT_MAX; ++i)
     for (int j= 0; j < (int) TRG_ACTION_MAX; ++j)
-      delete m_trigger_map[i][j];
+      destroy(m_trigger_map[i][j]);
 }
 
 
@@ -338,7 +334,7 @@ bool Table_trigger_dispatcher::create_trigger(
 
   if (!tc)
   {
-    delete t;
+    destroy(t);
     return true;
   }
 
@@ -348,7 +344,7 @@ bool Table_trigger_dispatcher::create_trigger(
                       lex->sphead->m_trg_chistics.ordering_clause,
                       lex->sphead->m_trg_chistics.anchor_trigger_name))
   {
-    delete t;
+    destroy(t);
     return true;
   }
 
@@ -618,7 +614,7 @@ void Table_trigger_dispatcher::parse_triggers(THD *thd,
 
       if (fatal_parse_error)
       {
-        delete t;
+        destroy(t);
         it.remove();
       }
 

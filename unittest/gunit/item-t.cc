@@ -23,12 +23,14 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_table_map.h"
+#include "mysys_err.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_create.h"
 #include "sql/item_strfunc.h"
 #include "sql/item_timefunc.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/tztime.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/mock_field_timestamp.h"
@@ -172,7 +174,7 @@ TEST_F(ItemTest, ItemInt)
 {
   const int32 val= 42;
   char stringbuf[10];
-  (void) my_snprintf(stringbuf, sizeof(stringbuf), "%d", val);
+  (void) snprintf(stringbuf, sizeof(stringbuf), "%d", val);
 
   // An Item expects to be owned by current_thd->free_list,
   // so allocate with new, and do not delete it.
@@ -569,22 +571,21 @@ TEST_F(ItemTest, ItemFuncSetUserVar)
 // Test of Item::operator new() when we simulate out-of-memory.
 TEST_F(ItemTest, OutOfMemory)
 {
-  Item_int *null_item= NULL;
   Item_int *item= new Item_int(42);
-  EXPECT_NE(null_item, item);
-  delete null_item;
+  EXPECT_NE(nullptr, item);
 
 #if !defined(DBUG_OFF)
   // Setting debug flags triggers enter/exit trace, so redirect to /dev/null.
   DBUG_SET("o," IF_WIN("NUL", "/dev/null"));
 
   DBUG_SET("+d,simulate_out_of_memory");
+  initializer.set_expected_error(EE_OUTOFMEMORY);
   item= new Item_int(42);
-  EXPECT_EQ(null_item, item);
+  EXPECT_EQ(nullptr, item);
 
   DBUG_SET("+d,simulate_out_of_memory");
   item= new (thd()->mem_root) Item_int(42);
-  EXPECT_EQ(null_item, item);
+  EXPECT_EQ(nullptr, item);
 #endif
 }
 
@@ -776,7 +777,7 @@ TEST_F(ItemTest, MysqlTimeCache)
 extern "C"
 {
   // Verifies that Item_func_conv::val_str does not call my_strntoll()
-  longlong fail_strntoll(const struct charset_info_st*, const char*,
+  longlong fail_strntoll(const CHARSET_INFO*, const char*,
                          size_t, int, char**, int*)
   {
     ADD_FAILURE() << "Unexpected call";
@@ -840,7 +841,7 @@ TEST_F(ItemTest, ItemDecimalTypecast)
 
   {
     char buff[20];
-    my_snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_PRECISION + 1);
+    snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_PRECISION + 1);
     type.length= buff;
     type.dec= NULL;
     initializer.set_expected_error(ER_TOO_BIG_PRECISION);
@@ -856,7 +857,7 @@ TEST_F(ItemTest, ItemDecimalTypecast)
 
   {
     char buff[20];
-    my_snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_SCALE + 1);
+    snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_SCALE + 1);
     type.length= buff;
     type.dec= buff;
     initializer.set_expected_error(ER_TOO_BIG_SCALE);

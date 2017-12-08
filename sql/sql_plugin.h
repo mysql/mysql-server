@@ -23,23 +23,19 @@
 
 #include "lex_string.h"
 #include "map_helpers.h"
-#include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"          // enum_sql_command
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/psi/mysql_mutex.h"
 #include "sql/sql_cmd.h"            // Sql_cmd
 #include "sql/sql_plugin_ref.h"     // plugin_ref
-#include "sql/thr_malloc.h"
 
 class THD;
 class i_string;
+struct MEM_ROOT;
+struct SYS_VAR;
 struct my_option;
 struct st_bookmark;
-struct st_mysql_sys_var;
 template <class T> class I_List;
-
-typedef struct st_mysql_show_var SHOW_VAR;
 
 
 extern const char *global_plugin_typelib_names[];
@@ -179,7 +175,7 @@ extern void plugin_unlock(THD *thd, plugin_ref plugin);
 extern void plugin_unlock_list(THD *thd, plugin_ref *list, size_t count);
 extern void plugin_thdvar_init(THD *thd, bool enable_plugins);
 extern void plugin_thdvar_cleanup(THD *thd, bool enable_plugins);
-extern void plugin_thdvar_safe_update(THD *thd, st_mysql_sys_var *var,
+extern void plugin_thdvar_safe_update(THD *thd, SYS_VAR *var,
                                       char **dest, const char *value);
 extern bool check_valid_path(const char *path, size_t length);
 extern void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock);

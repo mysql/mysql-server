@@ -35,8 +35,6 @@
 #include "sql/dd/types/abstract_table.h" // dd::enum_table_type
 #include "sql/debug_sync.h" // DEBUG_SYNC
 #include "sql/handler.h"
-#include "sql/item_create.h"
-#include "sql/key.h"
 #include "sql/lock.h"       // MYSQL_OPEN_* flags
 #include "sql/mdl.h"
 #include "sql/query_options.h"
@@ -66,12 +64,12 @@ class Table;
   @param  str     The string.
   @param  fields  The list of field names.
 
-  @return TRUE on failure, FALSE otherwise.
+  @return true on failure, false otherwise.
 */
 
 static bool fk_info_append_fields(String *str, List<LEX_STRING> *fields)
 {
-  bool res= FALSE;
+  bool res= false;
   LEX_STRING *field;
   List_iterator_fast<LEX_STRING> it(*fields);
 
@@ -99,7 +97,7 @@ static bool fk_info_append_fields(String *str, List<LEX_STRING> *fields)
 
 static const char *fk_info_str(THD *thd, FOREIGN_KEY_INFO *fk_info)
 {
-  bool res= FALSE;
+  bool res= false;
   char buffer[STRING_BUFFER_USUAL_SIZE*2];
   String str(buffer, sizeof(buffer), system_charset_info);
 
@@ -144,9 +142,9 @@ static const char *fk_info_str(THD *thd, FOREIGN_KEY_INFO *fk_info)
   @param  thd    Thread context.
   @param  table  Table handle.
 
-  @retval FALSE  This table is not parent in a non-self-referencing foreign
+  @retval false  This table is not parent in a non-self-referencing foreign
                  key. Statement can proceed.
-  @retval TRUE   This table is parent in a non-self-referencing foreign key,
+  @retval true   This table is parent in a non-self-referencing foreign key,
                  error was emitted.
 */
 
@@ -162,7 +160,7 @@ fk_truncate_illegal_if_parent(THD *thd, TABLE *table)
     In this case, the table could only be, if at all, a child table.
   */
   if (! table->file->referenced_by_foreign_key())
-    return FALSE;
+    return false;
 
   /*
     This table _is_ referenced by a foreign key. At this point, only
@@ -174,7 +172,7 @@ fk_truncate_illegal_if_parent(THD *thd, TABLE *table)
 
   /* Out of memory when building list. */
   if (thd->is_error())
-    return TRUE;
+    return true;
 
   it.init(fk_list);
 
@@ -200,10 +198,10 @@ fk_truncate_illegal_if_parent(THD *thd, TABLE *table)
   if (fk_info)
   {
     my_error(ER_TRUNCATE_ILLEGAL_FK, MYF(0), fk_info_str(thd, fk_info));
-    return TRUE;
+    return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -379,13 +377,13 @@ static truncate_result handler_truncate_temporary(THD *thd,
   @param  thd     Thread context.
   @param  table   The temporary table.
 
-  @retval  FALSE  Success.
-  @retval  TRUE   Error.
+  @retval  false  Success.
+  @retval  true   Error.
 */
 
 static bool recreate_temporary_table(THD *thd, TABLE *table)
 {
-  bool error= TRUE;
+  bool error= true;
   TABLE_SHARE *share= table->s;
   TABLE *new_table;
   HA_CREATE_INFO create_info;
@@ -401,7 +399,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   mysql_lock_remove(thd, thd->lock, table);
 
   /* Don't free share. */
-  close_temporary_table(thd, table, FALSE, FALSE);
+  close_temporary_table(thd, table, false, false);
 
   /*
     We must use share->normalized_path.str since for temporary tables it
@@ -419,8 +417,8 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
     /* Transfer ownership of dd::Table object to the new TABLE_SHARE. */
     new_table->s->tmp_table_def= share->tmp_table_def;
     share->tmp_table_def= NULL;
-    error= FALSE;
-    thd->thread_specific_used= TRUE;
+    error= false;
+    thd->thread_specific_used= true;
   }
   else
     rm_temporary_table(thd, table_type, share->path.str, share->tmp_table_def);
@@ -441,8 +439,8 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   @param[out] hton              Pointer to handlerton object for the
                                 table's storage engine.
 
-  @retval  FALSE  Success.
-  @retval  TRUE   Error.
+  @retval  false  Success.
+  @retval  true   Error.
 */
 
 bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
@@ -472,8 +470,8 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
   if (thd->locked_tables_mode)
   {
     if (!(table= find_table_for_mdl_upgrade(thd, table_ref->db,
-                                            table_ref->table_name, FALSE)))
-      DBUG_RETURN(TRUE);
+                                            table_ref->table_name, false)))
+      DBUG_RETURN(true);
 
     *hton= table->s->db_type();
 
@@ -485,7 +483,7 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
     DBUG_ASSERT(table_ref->next_global == NULL);
     if (lock_table_names(thd, table_ref, NULL,
                          thd->variables.lock_wait_timeout, 0))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
 
     const char *schema_name= table_ref->db;
     const char *table_name= table_ref->table_name;
@@ -505,7 +503,7 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
     }
 
     if (dd::table_storage_engine(thd, table, hton))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   /*
@@ -518,7 +516,7 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
     DEBUG_SYNC(thd, "upgrade_lock_for_truncate");
     /* To remove the table from the cache we need an exclusive lock. */
     if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     m_ticket_downgrade= table->mdl_ticket;
     /* Close if table is going to be recreated. */
     if ((*hton)->flags & HTON_CAN_RECREATE)
@@ -528,10 +526,10 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
   {
     /* Table is already locked exclusively. Remove cached instances. */
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_ref->db,
-                     table_ref->table_name, FALSE);
+                     table_ref->table_name, false);
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -545,8 +543,8 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
   @param  thd         Thread context.
   @param  table_ref   Table list element for the table to be truncated.
 
-  @retval  FALSE  Success.
-  @retval  TRUE   Error.
+  @retval  false  Success.
+  @retval  true   Error.
 */
 
 bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
@@ -587,7 +585,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
     if (ha_check_storage_engine_flag(tmp_table->s->db_type(), HTON_CAN_RECREATE))
     {
       if ((error= recreate_temporary_table(thd, tmp_table)))
-        binlog_stmt= FALSE; /* No need to binlog failed truncate-by-recreate. */
+        binlog_stmt= false; /* No need to binlog failed truncate-by-recreate. */
 
       DBUG_ASSERT(! thd->get_transaction()->cannot_safely_rollback(
         Transaction_ctx::STMT));
@@ -623,7 +621,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       DBUG_RETURN(true);
 
     if (lock_table(thd, table_ref, &hton))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
 
     dd::Table *table_def= nullptr;
     if (thd->dd_client()->acquire_for_modification(table_ref->db,
@@ -752,11 +750,11 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
   @param  thd   The current thread.
 
-  @return FALSE on success.
+  @return false on success.
 */
 bool Sql_cmd_truncate_table::execute(THD *thd)
 {
-  bool res= TRUE;
+  bool res= true;
   TABLE_LIST *first_table= thd->lex->select_lex->table_list.first;
   DBUG_ENTER("Sql_cmd_truncate_table::execute");
 

@@ -22,31 +22,26 @@
 #include <string.h>
 #include <sys/types.h>
 #include <memory>
-#include <new>
 #include <string>
 #include <vector>
 
-#include "map_helpers.h"
-#include "my_alloc.h"
 #include "my_base.h"              // ha_rows.
+#include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/udf_registration_types.h"
-#include "mysqld_error.h"         // ER_ILLEGAL_HA
 #include "priority_queue.h"
 #include "sql/handler.h"          // Handler_share
 #include "sql/key.h"              // key_rec_cmp
-#include "sql/sql_alloc.h"
 #include "sql/sql_partition.h"    // part_id_range
 
 class Field;
 class THD;
-class partition_element;
 class partition_info;
+struct mysql_mutex_t;
+template <class Key, class Value> class collation_unordered_map;
 
 namespace dd {
 class Table;
@@ -56,9 +51,7 @@ struct TABLE_SHARE;
 
 #define PARTITION_BYTES_IN_POS 2
 
-/* forward declarations */
-typedef struct st_ha_create_information HA_CREATE_INFO;
-typedef struct st_mem_root MEM_ROOT;
+struct MEM_ROOT;
 
 static const uint NO_CURRENT_PART_ID= UINT_MAX32;
 
@@ -84,13 +77,13 @@ enum enum_part_operation {
 };
 
 /** Struct used for partition_name_hash */
-typedef struct st_part_name_def
+struct PART_NAME_DEF
 {
   uchar *partition_name;
   uint length;
   uint32 part_id;
   bool is_subpart;
-} PART_NAME_DEF;
+};
 
 
 /**
@@ -196,7 +189,7 @@ private:
 
   Returned from handler::get_partition_handler().
 */
-class Partition_handler :public Sql_alloc
+class Partition_handler
 {
 public:
   Partition_handler() {}
@@ -400,7 +393,7 @@ struct Key_rec_less
   - *_in_part() functions for row operations.
   - write_row_in_new_part() for handling 'fast' alter partition.
 */
-class Partition_helper : public Sql_alloc
+class Partition_helper
 {
   typedef Priority_queue<uchar *, std::vector<uchar*>, Key_rec_less> Prio_queue;
 public:
@@ -736,7 +729,9 @@ protected:
                        const char *table_name,
                        const char *op_name,
                        const char *fmt,
-                       ...);
+                       ...)
+    MY_ATTRIBUTE((format(printf, 8, 9)));
+
   /**
     Check/fix misplaced rows.
 
@@ -964,7 +959,7 @@ private:
     Find out which partitions we'll need to read when scanning the specified
     range.
 
-    If we need to scan only one partition, set m_ordered_scan_ongoing=FALSE
+    If we need to scan only one partition, set m_ordered_scan_ongoing=false
     as we will not need to do merge ordering.
 
     @param buf            Buffer to later return record in (this function
@@ -1066,10 +1061,10 @@ private:
     Common routine for a number of index_read variants.
 
     @param[out] buf             Buffer where the record should be returned.
-    @param[in]  have_start_key  TRUE <=> the left endpoint is available, i.e.
+    @param[in]  have_start_key  true <=> the left endpoint is available, i.e.
                                 we're in index_read call or in read_range_first
                                 call and the range has left endpoint.
-                                FALSE <=> there is no left endpoint (we're in
+                                false <=> there is no left endpoint (we're in
                                 read_range_first() call and the range has no
                                 left endpoint).
 

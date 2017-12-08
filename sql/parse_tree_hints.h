@@ -23,19 +23,17 @@
 
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_compiler.h"
-#include "mysql/udf_registration_types.h"
-#include "sql/dd/properties.h"
-#include "sql/key.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_hints.h"
-#include "sql/parse_tree_helpers.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/sql_show.h"
-#include "sql/thr_malloc.h"
 #include "sql_string.h"
 
+class Item;
 class THD;
+struct MEM_ROOT;
 
 
 struct Hint_param_table

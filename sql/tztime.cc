@@ -38,6 +38,7 @@
 #include "m_ctype.h"
 #include "m_string.h"          // strmake
 #include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -50,6 +51,7 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_time.h"           // MY_TIME_T_MIN
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_memory_bits.h"
@@ -58,17 +60,13 @@
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/dd/types/event.h"
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/histograms/value_map.h"
 #include "sql/psi_memory_key.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
-#include "sql/sql_servers.h"
 #include "sql/system_variables.h"
 #include "sql/thr_malloc.h"
 #include "sql/tzfile.h"        // TZ_MAX_REV_RANGES
@@ -163,7 +161,7 @@ typedef struct revtinfo
   Structure which fully describes time zone which is
   described in our db or in zoneinfo files.
 */
-typedef struct st_time_zone_info
+struct TIME_ZONE_INFO
 {
   uint leapcnt;  // Number of leap-second corrections
   uint timecnt;  // Number of transitions between time types
@@ -196,7 +194,7 @@ typedef struct st_time_zone_info
   */
   TRAN_TYPE_INFO *fallback_tti;
 
-} TIME_ZONE_INFO;
+};
 
 
 static bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage);
@@ -1394,7 +1392,7 @@ Time_zone_offset::Time_zone_offset(long tz_offset_arg):
 {
   uint hours= abs((int)(offset / SECS_PER_HOUR));
   uint minutes= abs((int)(offset % SECS_PER_HOUR / SECS_PER_MIN));
-  size_t length= my_snprintf(name_buff, sizeof(name_buff), "%s%02d:%02d",
+  size_t length= snprintf(name_buff, sizeof(name_buff), "%s%02d:%02d",
                              (offset>=0) ? "+" : "-", hours, minutes);
   name.set(name_buff, length, &my_charset_latin1);
 }
@@ -1543,7 +1541,7 @@ static const LEX_STRING tz_tables_names[MY_TZ_TABLES_COUNT]=
 
 static const LEX_STRING tz_tables_db_name= { C_STRING_WITH_LEN("mysql")};
 
-class Tz_names_entry: public Sql_alloc
+class Tz_names_entry
 {
 public:
   String name;
@@ -1566,10 +1564,9 @@ public:
 static void
 tz_init_table_list(TABLE_LIST *tz_tabs)
 {
-  memset(tz_tabs, 0, sizeof(TABLE_LIST) * MY_TZ_TABLES_COUNT);
-
   for (int i= 0; i < MY_TZ_TABLES_COUNT; i++)
   {
+    new (&tz_tabs[i]) TABLE_LIST;
     tz_tabs[i].alias= tz_tabs[i].table_name= tz_tables_names[i].str;
     tz_tabs[i].table_name_length= tz_tables_names[i].length;
     tz_tabs[i].db= tz_tables_db_name.str;
@@ -1696,7 +1693,6 @@ my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap)
     leap seconds shared by all time zones.
   */
   thd->set_db(db);
-  memset(&tz_tables[0], 0, sizeof(TABLE_LIST));
   tz_tables[0].alias= tz_tables[0].table_name=
     (char*)"time_zone_leap_second";
   tz_tables[0].table_name_length= 21;
@@ -1726,7 +1722,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap)
   for (TABLE_LIST *tl= tz_tables; tl; tl= tl->next_global)
   {
     /* Force close at the end of the function to free memory. */
-    tl->table->m_needs_reopen= TRUE;
+    tl->table->m_needs_reopen= true;
   }
 
   /*
@@ -1945,7 +1941,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
-  table->field[0]->store((longlong) tzid, TRUE);
+  table->field[0]->store((longlong) tzid, true);
   if (table->file->ha_index_init(0, 1))
     goto end;
 
@@ -1977,7 +1973,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
-  table->field[0]->store((longlong) tzid, TRUE);
+  table->field[0]->store((longlong) tzid, true);
   if (table->file->ha_index_init(0, 1))
     goto end;
 
@@ -2047,7 +2043,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     in ascending order by index scan also satisfies us.
   */
   table= tz_tables->table; 
-  table->field[0]->store((longlong) tzid, TRUE);
+  table->field[0]->store((longlong) tzid, true);
   if (table->file->ha_index_init(0, 1))
     goto end;
 

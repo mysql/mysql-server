@@ -35,8 +35,6 @@
 
 #define PSI_RWLOCK_CALL(M) pfs_ ## M ## _v1
 
-C_MODE_START
-
 void pfs_register_rwlock_v1(const char *category,
                             PSI_rwlock_info_v1 *info,
                             int count);
@@ -63,8 +61,6 @@ void pfs_unlock_rwlock_v1(PSI_rwlock *rwlock);
 void pfs_end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc);
 
 void pfs_end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc);
-
-C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */

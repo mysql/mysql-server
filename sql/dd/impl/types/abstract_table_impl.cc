@@ -30,6 +30,7 @@
 #include "mysqld_error.h"                   // ER_*
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/impl/properties_impl.h"    // Properties_impl
+#include "sql/dd/impl/raw/object_keys.h"
 #include "sql/dd/impl/raw/raw_record.h"     // Raw_record
 #include "sql/dd/impl/sdi_impl.h"           // sdi read/write functions
 #include "sql/dd/impl/tables/columns.h"     // Columns

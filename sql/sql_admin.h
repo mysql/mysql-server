@@ -33,8 +33,8 @@ class THD;
 struct TABLE_LIST;
 template <class T> class List;
 
-typedef struct st_key_cache KEY_CACHE;
-typedef struct st_lex_user LEX_USER;
+struct KEY_CACHE;
+struct LEX_USER;
 
 struct Column_name_comparator
 {

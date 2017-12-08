@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "my_io.h"
-#include "sql/rpl_channel_service_interface.h" // enum_channel_type
 #include "sql/rpl_info_handler.h"          // enum_return_check
 
 class Master_info;

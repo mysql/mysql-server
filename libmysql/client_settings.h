@@ -43,10 +43,10 @@ extern char *	mysql_unix_port;
                              CLIENT_SESSION_TRACK | \
                              CLIENT_DEPRECATE_EOF)
 
-C_MODE_START
 void read_user_name(char *name);
 bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 
+extern "C"
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group);
 void mysql_detach_stmt_list(LIST **stmt_list, const char *func_name);
@@ -66,8 +66,5 @@ int cli_read_binary_rows(MYSQL_STMT *stmt);
 int cli_unbuffered_fetch(MYSQL *mysql, char **row);
 const char * cli_read_statistics(MYSQL *mysql);
 int cli_read_change_user_result(MYSQL *mysql);
-C_MODE_END
 
-C_MODE_START
 extern int mysql_init_character_set(MYSQL *mysql);
-C_MODE_END

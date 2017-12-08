@@ -300,7 +300,7 @@ log_group_set_fields(
 #endif /* !UNIV_HOTBACKUP */
 /************************************************************//**
 Gets a log block flush bit.
-@return TRUE if this block was the first to be written in a log flush */
+@return true if this block was the first to be written in a log flush */
 UNIV_INLINE
 ibool
 log_block_get_flush_bit(
@@ -309,7 +309,7 @@ log_block_get_flush_bit(
 
 /** Gets a log block encrypt bit.
 @param[in]	log_block	log block
-@return TRUE if this block was encrypted */
+@return true if this block was encrypted */
 UNIV_INLINE
 bool
 log_block_get_encrypt_bit(
@@ -445,7 +445,7 @@ log_print(
 	FILE*	file);	/*!< in: file where to print */
 /******************************************************//**
 Peeks the current lsn.
-@return TRUE if success, FALSE if could not get the log system mutex */
+@return true if success, false if could not get the log system mutex */
 ibool
 log_peek_lsn(
 /*=========*/
@@ -553,7 +553,7 @@ because InnoDB never supported more than one copy of the redo log. */
 /** 4 unused (zero-initialized) bytes. */
 #define LOG_HEADER_PAD1		4
 /** LSN of the start of data in this log file
-(with format version 1 and 2). */
+(with format version 1, 2 and 3). */
 #define LOG_HEADER_START_LSN	8
 /** A null-terminated string which will contain either the string 'MEB'
 and the MySQL version if the log file was created by mysqlbackup,
@@ -577,9 +577,13 @@ enum log_header_format_t
 	redo log record. */
 	LOG_HEADER_FORMAT_8_0_1 = 2,
 
+	/** Remove MLOG_FILE_OPEN, MLOG_FILE_CREATE2 and MLOG_FILE_RENAME2
+	Resurrect MLOG_FILE_CREATE and MLOG_FILE_RENAME. */
+	LOG_HEADER_FORMAT_8_0_3 = 3,
+
 	/** The redo log format identifier
 	corresponding to the current format version. */
-	LOG_HEADER_FORMAT_CURRENT = LOG_HEADER_FORMAT_8_0_1
+	LOG_HEADER_FORMAT_CURRENT = LOG_HEADER_FORMAT_8_0_3
 };
 /* @} */
 

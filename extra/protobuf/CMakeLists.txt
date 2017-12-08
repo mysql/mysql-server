@@ -27,6 +27,9 @@
 #   protobuf-2.6.1/vsprojects/
 
 SET(PROTOBUF_MSVC_DISABLED_WARNINGS "/wd4018 /wd4005 /wd4244 /wd4267 /wd4065")
+IF(WIN32_CLANG)
+  SET(PROTOBUF_MSVC_DISABLED_WARNINGS "-Wno-sign-compare")
+ENDIF()
 
 # Turn off some warning flags when compiling protobuf
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")

@@ -159,7 +159,7 @@ SET(CLIENT_SOURCES
   libmysql.cc
   errmsg.cc
   ../sql-common/client.cc
-  ../sql-common/client_plugin.c 
+  ../sql-common/client_plugin.cc
   ../sql-common/client_authentication.cc
   ../sql-common/get_password.cc
   ../sql-common/net_serv.cc
@@ -181,7 +181,7 @@ ENDIF()
 #
 IF (WITH_CLIENT_PROTOCOL_TRACING)
 
-  LIST(APPEND CLIENT_SOURCES mysql_trace.c)
+  LIST(APPEND CLIENT_SOURCES mysql_trace.cc)
   ADD_DEFINITIONS(-D CLIENT_PROTOCOL_TRACING)
 
   IF (WITH_TEST_TRACE_PLUGIN)

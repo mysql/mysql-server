@@ -17,6 +17,8 @@
 
 #include "my_time.h"                          // TIME_to_ulonglong_datetime
 #include "sql/dd/dd.h"                        // dd::create_object
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/properties.h"
 #include "sql/dd/types/index_stat.h"          // dd::Index_stat
 #include "sql/dd/types/table_stat.h"          // dd::Table_stat
 #include "sql/debug_sync.h"                   // DEBUG_SYNC
@@ -26,8 +28,10 @@
 #include "sql/partitioning/partition_handler.h" // Partition_handler
 #include "sql/sql_base.h"                     // open_tables_for_query
 #include "sql/sql_class.h"                    // THD
+#include "sql/sql_lex.h"
 #include "sql/sql_show.h"                     // make_table_list
 #include "sql/sql_time.h"                     // my_longlong_to_datetime_with_warn
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                  // trans_commit
 #include "sql/tztime.h"                       // Time_zone
 
@@ -303,7 +307,6 @@ bool update_table_stats(THD *thd, TABLE_LIST *table)
 {
   // Update the object properties
   HA_CREATE_INFO create_info;
-  memset(&create_info, 0, sizeof(create_info));
 
   TABLE *analyze_table= table->table;
   handler *file= analyze_table->file;
@@ -780,9 +783,9 @@ ulonglong Table_statistics::read_stat_by_open_table(
 
   LEX_CSTRING db_name_lex_cstr, table_name_lex_cstr;
   if (!thd->make_lex_string(&db_name_lex_cstr, schema_name_ptr.ptr(),
-                            schema_name_ptr.length(), FALSE) ||
+                            schema_name_ptr.length(), false) ||
       !thd->make_lex_string(&table_name_lex_cstr, table_name_ptr.ptr(),
-                            table_name_ptr.length(), FALSE))
+                            table_name_ptr.length(), false))
   {
     error= -1;
     goto end;

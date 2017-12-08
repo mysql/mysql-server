@@ -24,6 +24,8 @@
 #include "../src/ndbapi/NdbInfo.hpp"
 #include <NdbSleep.h>
 
+#include "my_alloc.h"
+
 static int loops = 1;
 static int delay = 5;
 const char *load_default_groups[]= { "mysql_cluster",0 };

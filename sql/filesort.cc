@@ -44,9 +44,11 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "priority_queue.h"
@@ -73,7 +75,6 @@
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/psi_memory_key.h"
-#include "sql/session_tracker.h"
 #include "sql/sort_param.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"
@@ -85,7 +86,6 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_optimizer.h"          // JOIN
 #include "sql/sql_sort.h"
-#include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
@@ -356,7 +356,7 @@ static void trace_filesort_information(Opt_trace_context *trace,
 
   @param      thd            Current thread
   @param      filesort       How to sort the table
-  @param      sort_positions Set to TRUE if we want to force sorting by position
+  @param      sort_positions Set to true if we want to force sorting by position
                              (Needed by UPDATE/INSERT or ALTER TABLE or
                               when rowids are required by executor)
   @param[out] examined_rows  Store number of examined rows here
@@ -1150,7 +1150,7 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
       if ((error= qep_tab->quick()->get_next()))
         break;
       file->position(sort_form->record[0]);
-      DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, TRUE););
+      DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, true););
     }
     else					/* Not quick-select */
     {

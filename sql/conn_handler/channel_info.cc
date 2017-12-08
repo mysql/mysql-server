@@ -18,11 +18,11 @@
 #include "sql/conn_handler/channel_info.h"
 
 #include <stddef.h>
+#include <stdio.h>
 #include <new>
 
 #include "my_dbug.h"
 #include "my_stacktrace.h"              // my_safe_snprintf
-#include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
 #include "sql/derror.h"                 // ER_DEFAULT
 #include "sql/protocol_classic.h"
@@ -69,7 +69,7 @@ void Channel_info::send_error_and_close_channel(uint errorcode,
     if (vio_tmp && !my_net_init(&net_tmp, vio_tmp))
     {
       if (error)
-        my_snprintf(error_message_buff, sizeof(error_message_buff),
+        snprintf(error_message_buff, sizeof(error_message_buff),
                     ER_DEFAULT(errorcode), error);
       net_send_error(&net_tmp, errorcode, error ? error_message_buff:
                      ER_DEFAULT(errorcode));

@@ -35,7 +35,8 @@
 #include <string.h>
 
 #include "mysql_com.h"
-#include "sql/histograms/value_map.h"
+#include "sql/my_decimal.h"
+#include "typelib.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -46,7 +47,6 @@
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
 #include "sql/dd/info_schema/table_stats.h"
 #include "sql/dd/object_id.h" // dd::Object_id
@@ -1016,7 +1016,7 @@ bool Item_date_literal::eq(const Item *item, bool) const
 {
   return
     item->basic_const_item() && type() == item->type() &&
-    func_name() == ((Item_func *) item)->func_name() &&
+    strcmp(func_name(), ((Item_func *) item)->func_name()) == 0 &&
     cached_time.eq(((Item_date_literal *) item)->cached_time);
 }
 
@@ -1033,7 +1033,7 @@ bool Item_datetime_literal::eq(const Item *item, bool) const
 {
   return
     item->basic_const_item() && type() == item->type() &&
-    func_name() == ((Item_func *) item)->func_name() &&
+    strcmp(func_name(), ((Item_func *) item)->func_name()) == 0 &&
     cached_time.eq(((Item_datetime_literal *) item)->cached_time);
 }
 
@@ -1050,7 +1050,7 @@ bool Item_time_literal::eq(const Item *item, bool) const
 {
   return
     item->basic_const_item() && type() == item->type() &&
-    func_name() == ((Item_func *) item)->func_name() &&
+    strcmp(func_name(), ((Item_func *) item)->func_name()) == 0 &&
     cached_time.eq(((Item_time_literal *) item)->cached_time);
 }
 
@@ -1210,7 +1210,7 @@ longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
       Even if the evaluation return NULL, the calc_daynr is useful for pruning
     */
     if (args[0]->data_type() != MYSQL_TYPE_DATE)
-      *incl_endp= TRUE;
+      *incl_endp= true;
     return res;
   }
   
@@ -1239,7 +1239,7 @@ longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
     /* do nothing */
     ;
   else
-    *incl_endp= TRUE;
+    *incl_endp= true;
   return res;
 }
 
@@ -1518,7 +1518,7 @@ longlong Item_func_year::val_int_endpoint(bool left_endp, bool *incl_endp)
       !(ltime.hour || ltime.minute || ltime.second || ltime.second_part))
     ; /* do nothing */
   else
-    *incl_endp= TRUE;
+    *incl_endp= true;
   return ltime.year;
 }
 
@@ -1820,7 +1820,7 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime,
 
   if ((null_value= (fuzzy_date & TIME_NO_ZERO_DATE) &&
        (ltime->year == 0 || ltime->month == 0 || ltime->day == 0)))
-    return TRUE;
+    return true;
 
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return 0;
@@ -2142,7 +2142,7 @@ bool Item_func_date_format::eq(const Item *item, bool binary_cmp) const
 
   if (item->type() != FUNC_ITEM)
     return 0;
-  if (func_name() != ((Item_func*) item)->func_name())
+  if (strcmp(func_name(), ((Item_func*) item)->func_name()) != 0)
     return 0;
   if (this == item)
     return 1;
@@ -2864,7 +2864,7 @@ bool Item_func_add_time::val_datetime(MYSQL_TIME *time,
   longlong seconds;
   int l_sign= sign;
 
-  null_value= FALSE;
+  null_value= false;
   if (data_type() == MYSQL_TYPE_DATETIME)  // TIMESTAMP function
   {
     if (get_arg0_date(&l_time1, fuzzy_date) || 

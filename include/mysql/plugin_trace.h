@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,10 +26,6 @@
 
 
 #include <mysql/client_plugin.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*
   Lists of protocol stages and trace events
@@ -248,7 +244,7 @@ enum trace_event {
 */
 
 struct st_mysql_client_plugin_TRACE;
-struct st_mysql;
+struct MYSQL;
 
 /**
   Trace plugin tracing_start() method.
@@ -268,7 +264,7 @@ struct st_mysql;
 
 typedef
 void* (tracing_start_callback)(struct st_mysql_client_plugin_TRACE *self,
-                               struct st_mysql *connection_handle,
+                               MYSQL *connection_handle,
                                enum protocol_stage stage);
 
 /**
@@ -285,7 +281,7 @@ void* (tracing_start_callback)(struct st_mysql_client_plugin_TRACE *self,
 
 typedef
 void (tracing_stop_callback)(struct st_mysql_client_plugin_TRACE *self,
-                             struct st_mysql *connection_handle,
+                             MYSQL *connection_handle,
                              void   *plugin_data);
 
 /**
@@ -307,7 +303,7 @@ void (tracing_stop_callback)(struct st_mysql_client_plugin_TRACE *self,
 typedef
 int (trace_event_handler)(struct st_mysql_client_plugin_TRACE *self,
                           void *plugin_data,
-                          struct st_mysql *connection_handle,
+                          MYSQL *connection_handle,
                           enum protocol_stage stage,
                           enum trace_event event,
                           struct st_trace_event_args args);
@@ -338,10 +334,6 @@ struct st_mysql_client_plugin_TRACE *trace_plugin;
 const char* protocol_stage_name(enum protocol_stage stage);
 const char* trace_event_name(enum trace_event ev);
 
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif

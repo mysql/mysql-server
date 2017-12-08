@@ -18,6 +18,9 @@
 
 #include <stddef.h>
 
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/mysql_rwlock.h"
+
 PSI_mutex_key  key_GR_LOCK_applier_module_run,
                key_GR_LOCK_applier_module_suspend,
                key_GR_LOCK_cert_broadcast_run,

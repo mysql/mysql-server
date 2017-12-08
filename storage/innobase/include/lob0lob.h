@@ -1534,7 +1534,7 @@ struct DeleteContext : public BtrContext
 
 /** Determine if an operation on off-page columns is an update.
 @param[in]	op	type of BLOB operation.
-@return TRUE if op != OPCODE_INSERT */
+@return true if op != OPCODE_INSERT */
 inline
 bool
 btr_lob_op_is_update(opcode op)

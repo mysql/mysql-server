@@ -1,4 +1,4 @@
-/*
+ /*
    Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -22,6 +22,7 @@
 #include <HugoTransactions.hpp>
 #include <Bitmask.hpp>
 #include <Vector.hpp>
+#include "my_alloc.h"
 
 static const char* _dbname = "TEST_DB";
 static int g_loops = 7;

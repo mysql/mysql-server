@@ -24,10 +24,10 @@ typedef int myf;
 #include <mysql/components/services/my_thread_bits.h>
 typedef pthread_t my_thread_t;
 typedef pthread_attr_t my_thread_attr_t;
-typedef struct st_my_thread_handle
+struct my_thread_handle
 {
-  my_thread_t thread;
-} my_thread_handle;
+  my_thread_t thread{0};
+};
 #include <mysql/components/services/my_io_bits.h>
 typedef int File;
 typedef mode_t MY_MODE;

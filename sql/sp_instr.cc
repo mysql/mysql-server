@@ -27,6 +27,7 @@
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
@@ -40,7 +41,6 @@
 #include "sql/field.h"
 #include "sql/item.h"                 // Item_splocal
 #include "sql/item_cmpfunc.h"         // Item_func_eq
-#include "sql/key.h"
 #include "sql/log.h"                  // Query_logger
 #include "sql/mdl.h"
 #include "sql/mysqld.h"               // next_query_id
@@ -88,13 +88,13 @@ public:
 
   1. Statements
 
-  Statements that have is_update_query(stmt) == TRUE are written into the
+  Statements that have is_update_query(stmt) == true are written into the
   binary log verbatim.
   Examples:
     UPDATE tbl SET tbl.x = spfunc_w_side_effects()
     UPDATE tbl SET tbl.x=1 WHERE spfunc_w_side_effect_that_returns_false(tbl.y)
 
-  Statements that have is_update_query(stmt) == FALSE (e.g. SELECTs) are not
+  Statements that have is_update_query(stmt) == false (e.g. SELECTs) are not
   written into binary log. Instead we catch function calls the statement
   makes and write it into binary log separately (see #3).
 
@@ -885,7 +885,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
 
 #if defined(ENABLED_PROFILING)
   /* This SP-instr is profilable and will be captured. */
-  thd->profiling.set_query_source(m_query.str, m_query.length);
+  thd->profiling->set_query_source(m_query.str, m_query.length);
 #endif
 
   /*

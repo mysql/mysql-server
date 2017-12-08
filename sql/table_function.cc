@@ -13,11 +13,39 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "table_function.h"
-#include "sql_class.h"        // THD
-#include "item_json_func.h"
-#include "sql_tmp_table.h"    // create_tmp_table_from_fields
-#include "sql_exception_handler.h"
+#include "sql/table_function.h"
+
+#include <string.h>
+#include <algorithm>
+#include <memory>
+#include <new>
+
+#include "binary_log_types.h"
+#include "m_string.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
+#include "mysql_time.h"
+#include "mysqld_error.h"
+#include "prealloced_array.h"
+#include "sql_string.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_json_func.h"
+#include "sql/json_dom.h"
+#include "sql/json_path.h"
+#include "sql/my_decimal.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_list.h"
+#include "sql/sql_show.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/sql_class.h"        // THD
+#include "sql/sql_exception_handler.h"
+#include "sql/sql_tmp_table.h"    // create_tmp_table_from_fields
+#include "template_utils.h"
 
 /******************************************************************************
   Implementation of Table_function
@@ -42,7 +70,7 @@ bool Table_function::write_row()
   {
     if (!table->file->is_ignorable_error(error) &&
         create_ondisk_from_heap(thd, table, nullptr,
-                                nullptr, error, TRUE, nullptr))
+                                nullptr, error, true, nullptr))
       return true;        // Not a table_is_full error
   }
   return false;
@@ -497,7 +525,7 @@ void Table_function_json::set_subtree_to_null(Json_table_column *root,
                matches and resets ordinality counter.
 
   @param[in]   fld   Column's field to save data to
-  @param[out]  skip  TRUE <=> it's a NESTED PATH node and its path
+  @param[out]  skip  true <=> it's a NESTED PATH node and its path
                      expression didn't return any matches or a
                      previous sibling NESTED PATH clause still producing
                      records, thus all columns of this NESTED PATH node

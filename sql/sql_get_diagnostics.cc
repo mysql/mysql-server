@@ -22,8 +22,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/psi/mysql_statement.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/item.h"
 #include "sql/sp_rcontext.h"          // sp_rcontext

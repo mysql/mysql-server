@@ -37,6 +37,7 @@
 #include "my_pointer_arithmetic.h"
 #include "my_user.h"           // parse_user
 #include "mysql/components/services/psi_error_bits.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_error.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_statement.h"
@@ -50,6 +51,8 @@
 #include "sql/dd/dictionary.h" // is_dd_table_access_allowed
 #include "sql/derror.h"        // ER_THD
 #include "sql/discrete_interval.h"
+#include "sql/gis/srid.h"
+#include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/log_event.h"     // append_query_string, Query_log_event
 #include "sql/mdl.h"
@@ -524,7 +527,7 @@ Pos     Instruction
 [ 7]     uint offp;
 [ 8]     sp_instr_cpush *i;
 [ 9]
-[10]     if (ctx->find_cursor(&$2, &offp, TRUE))
+[10]     if (ctx->find_cursor(&$2, &offp, true))
 [11]     {
 [12]       my_error(ER_SP_DUP_CURS, MYF(0), $2.str);
 [13]       delete $5;
@@ -1996,8 +1999,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   char saved_cur_db_name_buf[NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
-  bool cur_db_changed= FALSE;
-  bool err_status= FALSE;
+  bool cur_db_changed= false;
+  bool err_status= false;
   uint ip= 0;
   sql_mode_t save_sql_mode;
   Query_arena *old_arena;
@@ -2164,7 +2167,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
 #if defined(ENABLED_PROFILING)
   /* Discard the initial part of executing routines. */
-  thd->profiling.discard_current_query();
+  thd->profiling->discard_current_query();
 #endif
   do
   {
@@ -2176,8 +2179,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
      Profiling only records information for segments of code that set the
      source of the query, and almost all kinds of instructions in s-p do not.
     */
-    thd->profiling.finish_current_query();
-    thd->profiling.start_new_query("continuing inside routine");
+    thd->profiling->finish_current_query();
+    thd->profiling->start_new_query("continuing inside routine");
 #endif
 
     /* get_instr returns NULL when we're done. */
@@ -2185,7 +2188,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     if (i == NULL)
     {
 #if defined(ENABLED_PROFILING)
-      thd->profiling.discard_current_query();
+      thd->profiling->discard_current_query();
 #endif
       break;
     }
@@ -2279,7 +2282,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     if (!thd->is_fatal_error && !thd->killed &&
         thd->sp_runtime_ctx->handle_sql_condition(thd, &ip, i))
     {
-      err_status= FALSE;
+      err_status= false;
 #ifdef HAVE_PSI_ERROR_INTERFACE
       if (error_num)
         MYSQL_LOG_ERROR(error_num, PSI_ERROR_OPERATION_HANDLED);
@@ -2287,13 +2290,13 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     }
 
     /* Reset sp_rcontext::end_partial_result_set flag. */
-    thd->sp_runtime_ctx->end_partial_result_set= FALSE;
+    thd->sp_runtime_ctx->end_partial_result_set= false;
 
   } while (!err_status && !thd->killed && !thd->is_fatal_error);
 
 #if defined(ENABLED_PROFILING)
-  thd->profiling.finish_current_query();
-  thd->profiling.start_new_query("tail end of routine");
+  thd->profiling->finish_current_query();
+  thd->profiling->start_new_query("tail end of routine");
 #endif
 
   /* Restore query context. */
@@ -2391,7 +2394,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
                       thd->is_error()));
 
   if (thd->killed)
-    err_status= TRUE;
+    err_status= true;
   /*
     If the DB has changed, the pointer has changed too, but the
     original thd->db will then have been freed
@@ -2441,7 +2444,7 @@ bool sp_head::execute_trigger(THD *thd,
                               GRANT_INFO *grant_info)
 {
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
-  bool err_status= FALSE;
+  bool err_status= false;
   MEM_ROOT call_mem_root;
   Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
@@ -2522,7 +2525,7 @@ bool sp_head::execute_trigger(THD *thd,
 
   if (!trigger_runtime_ctx)
   {
-    err_status= TRUE;
+    err_status= true;
     goto err_with_cleanup;
   }
 
@@ -2535,7 +2538,7 @@ bool sp_head::execute_trigger(THD *thd,
 
   locker= MYSQL_START_SP(&psi_state, m_sp_share);
 #endif
-  err_status= execute(thd, FALSE);
+  err_status= execute(thd, false);
 #ifdef HAVE_PSI_SP_INTERFACE
   MYSQL_END_SP(locker);
 #endif
@@ -2561,12 +2564,12 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                                Field *return_value_fld)
 {
   ulonglong binlog_save_options= 0;
-  bool need_binlog_call= FALSE;
+  bool need_binlog_call= false;
   uint arg_no;
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
   char buf[STRING_BUFFER_USUAL_SIZE];
   String binlog_buf(buf, sizeof(buf), &my_charset_bin);
-  bool err_status= FALSE;
+  bool err_status= false;
   MEM_ROOT call_mem_root;
   Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
@@ -2614,7 +2617,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   if (!func_runtime_ctx)
   {
     thd->restore_active_arena(&call_arena, &backup_arena);
-    err_status= TRUE;
+    err_status= true;
     goto err_with_cleanup;
   }
 
@@ -2693,7 +2696,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   Security_context *save_security_ctx;
   if (set_security_ctx(thd, &save_security_ctx))
   {
-    err_status= TRUE;
+    err_status= true;
     goto err_with_cleanup;
   }
 
@@ -2737,7 +2740,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
 
   locker= MYSQL_START_SP(&psi_state, m_sp_share);
 #endif
-  err_status= execute(thd, TRUE);
+  err_status= execute(thd, true);
 #ifdef HAVE_PSI_SP_INTERFACE
   MYSQL_END_SP(locker);
 #endif
@@ -2752,14 +2755,14 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     {
       int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
       Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
-                            thd->binlog_evt_union.unioned_events_trans, FALSE, FALSE, errcode);
+                            thd->binlog_evt_union.unioned_events_trans, false, false, errcode);
       if (mysql_bin_log.write_event(&qinfo) &&
           thd->binlog_evt_union.unioned_events_trans)
       {
         push_warning(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                      "Invoked ROUTINE modified a transactional table but MySQL "
                      "failed to reflect this change in the binary log");
-        err_status= TRUE;
+        err_status= true;
       }
       thd->user_var_events.clear();
       /* Forget those values, in case more function calls are binlogged: */
@@ -2775,7 +2778,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     if (!thd->sp_runtime_ctx->is_return_value_set())
     {
       my_error(ER_SP_NORETURNEND, MYF(0), m_name.str);
-      err_status= TRUE;
+      err_status= true;
     }
   }
 
@@ -2801,7 +2804,7 @@ err_with_cleanup:
 
 bool sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
-  bool err_status= FALSE;
+  bool err_status= false;
   uint params = m_root_parsing_ctx->context_var_count();
   /* Query start time may be reset in a multi-stmt SP; keep this for later. */
   ulonglong utime_before_sp_exec= thd->utime_after_lock;
@@ -2872,7 +2875,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
         if (!srp)
         {
           my_error(ER_SP_NOT_VAR_ARG, MYF(0), i+1, m_qname.str);
-          err_status= TRUE;
+          err_status= true;
           break;
         }
       }
@@ -2884,7 +2887,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
         if (!null_item ||
             proc_runtime_ctx->set_variable(thd, i, (Item **)&null_item))
         {
-          err_status= TRUE;
+          err_status= true;
           break;
         }
       }
@@ -2892,7 +2895,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
       {
         if (proc_runtime_ctx->set_variable(thd, i, it_args.ref()))
         {
-          err_status= TRUE;
+          err_status= true;
           break;
         }
       }
@@ -2945,7 +2948,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
   {
     DBUG_PRINT("info", ("Disabling slow log for the execution"));
     save_enable_slow_log= true;
-    thd->enable_slow_log= FALSE;
+    thd->enable_slow_log= false;
   }
   if (!(m_flags & LOG_GENERAL_LOG) && !(thd->variables.option_bits & OPTION_LOG_OFF))
   {
@@ -2969,7 +2972,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
   locker= MYSQL_START_SP(&psi_state, m_sp_share);
 #endif
   if (!err_status)
-    err_status= execute(thd, TRUE);
+    err_status= execute(thd, true);
 #ifdef HAVE_PSI_SP_INTERFACE
   MYSQL_END_SP(locker);
 #endif
@@ -3013,7 +3016,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
 
       if (srp->set_value(thd, parent_sp_runtime_ctx, proc_runtime_ctx->get_item_addr(i)))
       {
-        err_status= TRUE;
+        err_status= true;
         break;
       }
 
@@ -3072,7 +3075,7 @@ bool sp_head::reset_lex(THD *thd)
   /* And keep the SP stuff too */
   sublex->sphead= oldlex->sphead;
   sublex->set_sp_current_parsing_ctx(oldlex->get_sp_current_parsing_ctx());
-  sublex->sp_lex_in_use= FALSE;
+  sublex->sp_lex_in_use= false;
 
   /* Reset part of parser state which needs this. */
   thd->m_parser_state->m_yacc.reset_before_substatement();

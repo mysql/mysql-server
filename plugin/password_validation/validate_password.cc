@@ -16,6 +16,7 @@
 #include <mysql/plugin_validate_password.h>
 #include <mysql/service_my_plugin_log.h>
 #include <mysql/service_mysql_string.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -35,7 +36,6 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_rwlock.h"
 #include "mysql/service_locking.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_security_context.h"
 #include "typelib.h"
@@ -132,7 +132,7 @@ static void dictionary_activate(set_type *dict_words)
   /* fetch the start time */
   start_time= my_time(MYF(0));
   localtime_r(&start_time, &tm);
-  my_snprintf(timebuf, sizeof(timebuf), "%04d-%02d-%02d %02d:%02d:%02d",
+  snprintf(timebuf, sizeof(timebuf), "%04d-%02d-%02d %02d:%02d:%02d",
               tm.tm_year + 1900,
               tm.tm_mon + 1,
               tm.tm_mday,
@@ -567,7 +567,7 @@ static int validate_password_deinit(void *arg MY_ATTRIBUTE((unused)))
 */
 static void
 dictionary_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                  struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+                  SYS_VAR *var MY_ATTRIBUTE((unused)),
                   void *var_ptr, const void *save)
 {
   *(const char**)var_ptr= *(const char**)save;
@@ -583,7 +583,7 @@ dictionary_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 */
 static void
 length_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-              struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+              SYS_VAR *var MY_ATTRIBUTE((unused)),
               void *var_ptr, const void *save)
 {
   /* check if there is an actual change */
@@ -641,9 +641,9 @@ static MYSQL_SYSVAR_BOOL(check_user_name, check_user_name,
   PLUGIN_VAR_NOCMDARG,
   "Check if the password matches the login or the effective user names "
   "or the reverse of them",
-  NULL, NULL, TRUE);
+  NULL, NULL, true);
 
-static struct st_mysql_sys_var* validate_password_system_variables[]= {
+static SYS_VAR* validate_password_system_variables[]= {
   MYSQL_SYSVAR(length),
   MYSQL_SYSVAR(number_count),
   MYSQL_SYSVAR(mixed_case_count),
@@ -654,7 +654,7 @@ static struct st_mysql_sys_var* validate_password_system_variables[]= {
   NULL
 };
 
-static struct st_mysql_show_var validate_password_status_variables[]= {
+static SHOW_VAR validate_password_status_variables[]= {
     { "validate_password_dictionary_file_last_parsed",
       (char *) &validate_password_dictionary_file_last_parsed,
       SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL },

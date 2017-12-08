@@ -158,7 +158,7 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 SELECT name, server_version, space_version FROM information_schema.innodb_tablespaces where name="mysql";
 name	server_version	space_version
-mysql	8.0.4	1
+mysql	9.0.0	1
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 t1.ibd

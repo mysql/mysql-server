@@ -191,10 +191,10 @@ class XSession {
     /** Tells XSession what should happen when XProtocol notice handler
       didn't consume received notice.
 
-      * TRUE - consume it.
-      * FALSE - allow to return the notice by XProtocol::recv_single_message
+      * true - consume it.
+      * false - allow to return the notice by XProtocol::recv_single_message
 
-      Default: TRUE
+      Default: true
       Option type: BOOL
      */
     Consume_all_notices

@@ -28,88 +28,88 @@
 */
 
 
-typedef struct st_com_init_db_data
+struct COM_INIT_DB_DATA
 {
   const char *db_name;
   unsigned long length;
-} COM_INIT_DB_DATA;
+};
 
-typedef struct st_com_refresh_data
+struct COM_REFRESH_DATA
 {
   unsigned char options;
-} COM_REFRESH_DATA;
+};
 
-typedef struct st_com_kill_data
+struct COM_KILL_DATA
 {
   unsigned long id;
-} COM_KILL_DATA;
+};
 
-typedef struct st_com_set_option_data
+struct COM_SET_OPTION_DATA
 {
   unsigned int opt_command;
-} COM_SET_OPTION_DATA;
+};
 
-typedef struct st_ps_param
+struct PS_PARAM
 {
   unsigned char null_bit;
   enum enum_field_types type;
   unsigned char unsigned_type;
   const unsigned char *value;
   unsigned long length;
-} PS_PARAM;
+};
 
-typedef struct st_com_stmt_execute_data
+struct COM_STMT_EXECUTE_DATA
 {
   unsigned long stmt_id;
   unsigned long open_cursor;
   PS_PARAM *parameters;
   unsigned long parameter_count;
   unsigned char has_new_types;
-} COM_STMT_EXECUTE_DATA;
+};
 
-typedef struct st_com_stmt_fetch_data
+struct COM_STMT_FETCH_DATA
 {
   unsigned long stmt_id;
   unsigned long num_rows;
-} COM_STMT_FETCH_DATA;
+};
 
-typedef struct st_com_stmt_send_long_data_data
+struct COM_STMT_SEND_LONG_DATA_DATA
 {
   unsigned long stmt_id;
   unsigned int  param_number;
   unsigned char *longdata;
   unsigned long length;
-} COM_STMT_SEND_LONG_DATA_DATA;
+};
 
-typedef struct st_com_stmt_prepare_data
+struct COM_STMT_PREPARE_DATA
 {
   const char *query;
   unsigned int length;
-} COM_STMT_PREPARE_DATA;
+};
 
-typedef struct st_stmt_close_data
+struct COM_STMT_CLOSE_DATA
 {
   unsigned int stmt_id;
-} COM_STMT_CLOSE_DATA;
+};
 
-typedef struct st_com_stmt_reset_data
+struct COM_STMT_RESET_DATA
 {
   unsigned int stmt_id;
-} COM_STMT_RESET_DATA;
+};
 
-typedef struct st_com_query_data
+struct COM_QUERY_DATA
 {
   const char *query;
   unsigned int length;
-} COM_QUERY_DATA;
+};
 
-typedef struct st_com_field_list_data
+struct COM_FIELD_LIST_DATA
 {
   unsigned char   *table_name;
   unsigned int    table_name_length;
   const unsigned char *query;
   unsigned int        query_length;
-} COM_FIELD_LIST_DATA;
+};
 
 union COM_DATA {
   COM_INIT_DB_DATA com_init_db;

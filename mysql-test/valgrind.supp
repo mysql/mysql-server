@@ -898,9 +898,9 @@
    Memcheck:Param
    write(buf)
    ...
-   fun:my_b_flush_io_cache
-   fun:_my_b_write
-   fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
+   fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
+   fun:_Z11_my_b_writeP8IO_CACHEPKhm
+   fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP8IO_CACHES4_
    ...
    fun:_Z8filesortP3THDP8FilesortbPyS3_S3_
 }
@@ -910,7 +910,7 @@
    Memcheck:Param
    write(buf)
    ...
-   fun:my_b_flush_io_cache
+   fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
    fun:_Z8filesortP3THDP8FilesortbPyS3_S3_
 }
 
@@ -986,7 +986,7 @@
    fun:_dlerror_run
    fun:dlclose
    fun:_ZL15free_plugin_memP12st_plugin_dl
-   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
+   fun:_ZL13plugin_dl_delPK16MYSQL_LEX_STRING
    fun:_ZL10plugin_delP13st_plugin_int
    fun:_ZL12reap_pluginsv
    fun:_Z15plugin_shutdownv
@@ -1176,7 +1176,7 @@
    ...
    fun:dlopen*
    ...
-   fun:_ZL13plugin_dl_addPK19st_mysql_lex_stringi*
+   fun:_ZL13plugin_dl_addPK16MYSQL_LEX_STRINGi*
    ...
 }
 
@@ -1198,7 +1198,7 @@
    obj:*
    obj:*
    obj:*
-   fun:_ZN14Trans_delegate13before_commitEP3THDbP11st_io_cacheS3_y
+   fun:_ZN14Trans_delegate13before_commitEP3THDbP8IO_CACHES3_y
    fun:_ZN13MYSQL_BIN_LOG6commitEP3THDb
    fun:_Z17trans_commit_stmtP3THD
 }
@@ -1220,7 +1220,7 @@
    obj:*
    obj:*
    obj:*
-   fun:_ZN14Trans_delegate13before_commitEP3THDbP11st_io_cacheS3_y
+   fun:_ZN14Trans_delegate13before_commitEP3THDbP8IO_CACHES3_y
    fun:_ZN13MYSQL_BIN_LOG6commitEP3THDb
    fun:_Z15ha_commit_transP3THDbb
 }
@@ -1244,7 +1244,7 @@
    obj:*
    obj:*
    obj:*
-   fun:_ZN14Trans_delegate13before_commitEP3THDbP11st_io_cacheS3_y
+   fun:_ZN14Trans_delegate13before_commitEP3THDbP8IO_CACHES3_y
 }
 
 {
@@ -1697,15 +1697,23 @@
   ...
 }
 
-# Temp workaround for
+# Workarounds for
 #
 # Bug#26116237 SYSCALL PARAM PPOLL(SIGMASK) POINTS TO UNADDRESSABLE BYTE
 {
-   RPL temp workaround
+   RPL workaround 1
    Memcheck:Param
    ppoll(sigmask)
    fun:ppoll
    fun:vio_io_wait
+}
+
+{
+   RPL workaround 2
+   Memcheck:Param
+   ppoll(sigmask)
+   fun:ppoll
+   fun:_Z11vio_io_waitP3Vio17enum_vio_io_eventi
 }
 
 # Workarounds for

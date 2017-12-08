@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "lex_string.h"
 #include "m_ctype.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -27,23 +28,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "mysql/components/my_service.h"
 #include "mysql/components/service.h"
 #include "mysql/components/services/dynamic_privilege.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/registry.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_plugin_registry.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_internal.h"
 #include "sql/auth/sql_auth_cache.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/auth/sql_user_table.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/handler.h"
+#include "sql/key.h"
 #include "sql/records.h"
 #include "sql/sql_const.h"
-#include "sql/sql_servers.h"
 #include "sql/table.h"
 
 class THD;
@@ -111,7 +111,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst)
   TABLE *table= tablelst[0].table;
   table->use_all_columns();
   if (init_read_record(&read_record_info, thd, table,
-                       NULL, 1, 1, FALSE))
+                       NULL, 1, 1, false))
   {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);

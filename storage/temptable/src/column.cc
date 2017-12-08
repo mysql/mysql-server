@@ -20,6 +20,7 @@ TempTable Column implementation. */
 #include "my_dbug.h"       /* DBUG_ASSERT() */
 #include "sql/field.h"     /* Field */
 #include "sql/key.h"       /* KEY */
+#include "sql/table.h"
 
 namespace temptable {
 

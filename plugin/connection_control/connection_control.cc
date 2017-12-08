@@ -189,7 +189,7 @@ static struct st_mysql_audit connection_control_descriptor=
 
 static int
 check_failed_connections_threshold(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                   struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+                                   SYS_VAR *var MY_ATTRIBUTE((unused)),
                                    void *save MY_ATTRIBUTE((unused)),
                                    struct st_mysql_value *value)
 {
@@ -222,7 +222,7 @@ check_failed_connections_threshold(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 
 static void
 update_failed_connections_threshold(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                    struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+                                    SYS_VAR *var MY_ATTRIBUTE((unused)),
                                     void *var_ptr MY_ATTRIBUTE((unused)),
                                     const void *save)
 {
@@ -272,7 +272,7 @@ static MYSQL_SYSVAR_LONGLONG(
 
 static int
 check_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                           struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+                           SYS_VAR *var MY_ATTRIBUTE((unused)),
                            void *save MY_ATTRIBUTE((unused)),
                            struct st_mysql_value *value)
 {
@@ -306,7 +306,7 @@ check_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 
 static void
 update_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                            struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+                            SYS_VAR *var MY_ATTRIBUTE((unused)),
                             void *var_ptr MY_ATTRIBUTE((unused)),
                             const void *save)
 {
@@ -352,7 +352,7 @@ static MYSQL_SYSVAR_LONGLONG(
 
 static int
 check_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                           struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+                           SYS_VAR *var MY_ATTRIBUTE((unused)),
                            void *save MY_ATTRIBUTE((unused)),
                            struct st_mysql_value *value)
 {
@@ -386,7 +386,7 @@ check_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 
 static void
 update_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                            struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+                            SYS_VAR *var MY_ATTRIBUTE((unused)),
                             void *var_ptr MY_ATTRIBUTE((unused)),
                             const void *save)
 {
@@ -416,7 +416,7 @@ static MYSQL_SYSVAR_LONGLONG(
 
 
 /** Array of system variables. Used in plugin declaration. */
-struct st_mysql_sys_var *
+SYS_VAR *
 connection_control_system_variables[OPT_LAST + 1]=
 {
   MYSQL_SYSVAR(failed_connections_threshold),
@@ -437,7 +437,7 @@ connection_control_system_variables[OPT_LAST + 1]=
 */
 
 static int show_delay_generated(MYSQL_THD,
-                                struct st_mysql_show_var *var,
+                                SHOW_VAR *var,
                                 char *buff)
 {
   var->type= SHOW_LONGLONG;
@@ -450,7 +450,7 @@ static int show_delay_generated(MYSQL_THD,
 
 
 /** Array of status variables. Used in plugin declaration. */
-struct st_mysql_show_var
+SHOW_VAR
 connection_control_status_variables[STAT_LAST + 1]={
   {
     "Connection_control_delay_generated",

@@ -16,5 +16,5 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *mysql_password_policy_service= (void*)VERSION_mysql_password_policy;
+SERVICE_VERSION *mysql_password_policy_service= (void**)VERSION_mysql_password_policy;
 

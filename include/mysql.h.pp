@@ -26,12 +26,10 @@ typedef enum enum_field_types {
   MYSQL_TYPE_STRING=254,
   MYSQL_TYPE_GEOMETRY=255
 } enum_field_types;
-#include "mem_root_fwd.h"
-struct st_mem_root;
-typedef struct st_mem_root MEM_ROOT;
 #include "my_list.h"
-typedef struct st_list {
-  struct st_list *prev,*next;
+typedef struct LIST
+{
+  struct LIST *prev,*next;
   void *data;
 } LIST;
 typedef int (*list_walk_action)(void *,void *);
@@ -97,10 +95,10 @@ enum SERVER_STATUS_flags_enum
   SERVER_STATUS_IN_TRANS_READONLY= 8192,
   SERVER_SESSION_STATE_CHANGED= (1UL << 14)
 };
-struct st_vio;
-typedef struct st_vio Vio;
-typedef struct st_net {
-  Vio* vio;
+struct Vio;
+typedef struct NET
+{
+  struct Vio* vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;
   unsigned long remain_in_buf,length, buf_length, where_b;
@@ -153,22 +151,22 @@ enum enum_session_state_type
   SESSION_TRACK_TRANSACTION_CHARACTERISTICS,
   SESSION_TRACK_TRANSACTION_STATE
 };
-bool my_net_init(NET *net, Vio* vio);
-void my_net_local_init(NET *net);
-void net_end(NET *net);
-void net_clear(NET *net, bool check_buffer);
-void net_claim_memory_ownership(NET *net);
-bool net_realloc(NET *net, size_t length);
-bool net_flush(NET *net);
-bool my_net_write(NET *net,const unsigned char *packet, size_t len);
-bool net_write_command(NET *net,unsigned char command,
+bool my_net_init(struct NET *net, struct Vio* vio);
+void my_net_local_init(struct NET *net);
+void net_end(struct NET *net);
+void net_clear(struct NET *net, bool check_buffer);
+void net_claim_memory_ownership(struct NET *net);
+bool net_realloc(struct NET *net, size_t length);
+bool net_flush(struct NET *net);
+bool my_net_write(struct NET *net,const unsigned char *packet, size_t len);
+bool net_write_command(struct NET *net,unsigned char command,
      const unsigned char *header, size_t head_len,
      const unsigned char *packet, size_t len);
-bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
-unsigned long my_net_read(NET *net);
-void my_net_set_write_timeout(NET *net, unsigned int timeout);
-void my_net_set_read_timeout(NET *net, unsigned int timeout);
-void my_net_set_retry_count(NET *net, unsigned int retry_count);
+bool net_write_packet(struct NET *net, const unsigned char *packet, size_t length);
+unsigned long my_net_read(struct NET *net);
+void my_net_set_write_timeout(struct NET *net, unsigned int timeout);
+void my_net_set_read_timeout(struct NET *net, unsigned int timeout);
+void my_net_set_retry_count(struct NET *net, unsigned int retry_count);
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
   double max_value_dbl;
@@ -183,7 +181,7 @@ enum Item_result
   ROW_RESULT,
   DECIMAL_RESULT
 };
-typedef struct st_udf_args
+typedef struct UDF_ARGS
 {
   unsigned int arg_count;
   enum Item_result *arg_type;
@@ -194,7 +192,7 @@ typedef struct st_udf_args
   unsigned long *attribute_lengths;
   void *extension;
 } UDF_ARGS;
-typedef struct st_udf_init
+typedef struct UDF_INIT
 {
   bool maybe_null;
   unsigned int decimals;
@@ -256,38 +254,40 @@ struct st_mysql_client_plugin
 {
   int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *);
 };
-struct st_mysql;
+struct MYSQL;
 #include "plugin_auth_common.h"
-typedef struct st_plugin_vio_info
+struct MYSQL_PLUGIN_VIO_INFO
 {
   enum { MYSQL_VIO_INVALID, MYSQL_VIO_TCP, MYSQL_VIO_SOCKET,
          MYSQL_VIO_PIPE, MYSQL_VIO_MEMORY } protocol;
   int socket;
-} MYSQL_PLUGIN_VIO_INFO;
-typedef struct st_plugin_vio
+};
+typedef struct MYSQL_PLUGIN_VIO
 {
-  int (*read_packet)(struct st_plugin_vio *vio,
+  int (*read_packet)(struct MYSQL_PLUGIN_VIO *vio,
                      unsigned char **buf);
-  int (*write_packet)(struct st_plugin_vio *vio,
+  int (*write_packet)(struct MYSQL_PLUGIN_VIO *vio,
                       const unsigned char *packet,
                       int packet_len);
-  void (*info)(struct st_plugin_vio *vio, struct st_plugin_vio_info *info);
+  void (*info)(struct MYSQL_PLUGIN_VIO *vio,
+               struct MYSQL_PLUGIN_VIO_INFO *info);
 } MYSQL_PLUGIN_VIO;
-struct st_mysql_client_plugin_AUTHENTICATION
+struct auth_plugin_t
 {
   int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *);
-  int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct st_mysql *mysql);
+  int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct MYSQL *mysql);
 };
+typedef struct auth_plugin_t st_mysql_client_plugin_AUTHENTICATION;
 struct st_mysql_client_plugin *
-mysql_load_plugin(struct st_mysql *mysql, const char *name, int type,
+mysql_load_plugin(struct MYSQL *mysql, const char *name, int type,
                   int argc, ...);
 struct st_mysql_client_plugin *
-mysql_load_plugin_v(struct st_mysql *mysql, const char *name, int type,
+mysql_load_plugin_v(struct MYSQL *mysql, const char *name, int type,
                     int argc, va_list args);
 struct st_mysql_client_plugin *
-mysql_client_find_plugin(struct st_mysql *mysql, const char *name, int type);
+mysql_client_find_plugin(struct MYSQL *mysql, const char *name, int type);
 struct st_mysql_client_plugin *
-mysql_client_register_plugin(struct st_mysql *mysql,
+mysql_client_register_plugin(struct MYSQL *mysql,
                              struct st_mysql_client_plugin *plugin);
 int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
@@ -298,7 +298,7 @@ enum enum_mysql_timestamp_type
   MYSQL_TIMESTAMP_NONE= -2, MYSQL_TIMESTAMP_ERROR= -1,
   MYSQL_TIMESTAMP_DATE= 0, MYSQL_TIMESTAMP_DATETIME= 1, MYSQL_TIMESTAMP_TIME= 2
 };
-typedef struct st_mysql_time
+typedef struct MYSQL_TIME
 {
   unsigned int year, month, day, hour, minute, second;
   unsigned long second_part;
@@ -317,7 +317,8 @@ static inline const char* ER_CLIENT(int client_errno)
 }
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
-typedef struct st_mysql_field {
+typedef struct MYSQL_FIELD
+{
   char *name;
   char *org_name;
   char *table;
@@ -342,15 +343,18 @@ typedef struct st_mysql_field {
 } MYSQL_FIELD;
 typedef char **MYSQL_ROW;
 typedef unsigned int MYSQL_FIELD_OFFSET;
-typedef struct st_mysql_rows {
-  struct st_mysql_rows *next;
+typedef struct MYSQL_ROWS
+{
+  struct MYSQL_ROWS *next;
   MYSQL_ROW data;
   unsigned long length;
 } MYSQL_ROWS;
 typedef MYSQL_ROWS *MYSQL_ROW_OFFSET;
-typedef struct st_mysql_data {
+struct MEM_ROOT;
+typedef struct MYSQL_DATA
+{
   MYSQL_ROWS *data;
-  MEM_ROOT *alloc;
+  struct MEM_ROOT *alloc;
   my_ulonglong rows;
   unsigned int fields;
 } MYSQL_DATA;
@@ -430,17 +434,17 @@ typedef struct character_set
   unsigned int mbminlen;
   unsigned int mbmaxlen;
 } MY_CHARSET_INFO;
-struct st_mysql_methods;
-struct st_mysql_stmt;
-typedef struct st_mysql
+struct MYSQL_METHODS;
+struct MYSQL_STMT;
+typedef struct MYSQL
 {
   NET net;
   unsigned char *connector_fd;
   char *host,*user,*passwd,*unix_socket,*server_version,*host_info;
   char *info, *db;
-  struct charset_info_st *charset;
+  struct CHARSET_INFO *charset;
   MYSQL_FIELD *fields;
-  MEM_ROOT *field_alloc;
+  struct MEM_ROOT *field_alloc;
   my_ulonglong affected_rows;
   my_ulonglong insert_id;
   my_ulonglong extra_info;
@@ -460,36 +464,38 @@ typedef struct st_mysql
   bool reconnect;
   char scramble[20 +1];
   LIST *stmts;
-  const struct st_mysql_methods *methods;
+  const struct MYSQL_METHODS *methods;
   void *thd;
   bool *unbuffered_fetch_owner;
   void *extension;
 } MYSQL;
-typedef struct st_mysql_res {
+typedef struct MYSQL_RES
+{
   my_ulonglong row_count;
   MYSQL_FIELD *fields;
-  MYSQL_DATA *data;
+  struct MYSQL_DATA *data;
   MYSQL_ROWS *data_cursor;
   unsigned long *lengths;
   MYSQL *handle;
-  const struct st_mysql_methods *methods;
+  const struct MYSQL_METHODS *methods;
   MYSQL_ROW row;
   MYSQL_ROW current_row;
-  MEM_ROOT *field_alloc;
+  struct MEM_ROOT *field_alloc;
   unsigned int field_count, current_field;
   bool eof;
   bool unbuffered_fetch_cancelled;
   enum enum_resultset_metadata metadata;
   void *extension;
 } MYSQL_RES;
-typedef struct st_mysql_rpl {
+typedef struct MYSQL_RPL
+{
   size_t file_name_length;
   const char *file_name;
   my_ulonglong start_position;
   unsigned int server_id;
   unsigned int flags;
   size_t gtid_set_encoded_size;
-  void (*fix_gtid_set)(struct st_mysql_rpl *rpl,
+  void (*fix_gtid_set)(struct MYSQL_RPL *rpl,
                                       unsigned char *packet_gtid_set);
   void *gtid_set_arg;
   unsigned long size;
@@ -625,17 +631,17 @@ enum enum_mysql_stmt_state
   MYSQL_STMT_INIT_DONE= 1, MYSQL_STMT_PREPARE_DONE, MYSQL_STMT_EXECUTE_DONE,
   MYSQL_STMT_FETCH_DONE
 };
-typedef struct st_mysql_bind
+typedef struct MYSQL_BIND
 {
   unsigned long *length;
   bool *is_null;
   void *buffer;
   bool *error;
   unsigned char *row_ptr;
-  void (*store_param_func)(NET *net, struct st_mysql_bind *param);
-  void (*fetch_result)(struct st_mysql_bind *, MYSQL_FIELD *,
+  void (*store_param_func)(NET *net, struct MYSQL_BIND *param);
+  void (*fetch_result)(struct MYSQL_BIND *, MYSQL_FIELD *,
                        unsigned char **row);
-  void (*skip_result)(struct st_mysql_bind *, MYSQL_FIELD *,
+  void (*skip_result)(struct MYSQL_BIND *, MYSQL_FIELD *,
         unsigned char **row);
   unsigned long buffer_length;
   unsigned long offset;
@@ -649,10 +655,10 @@ typedef struct st_mysql_bind
   bool is_null_value;
   void *extension;
 } MYSQL_BIND;
-struct st_mysql_stmt_extension;
-typedef struct st_mysql_stmt
+struct MYSQL_STMT_EXT;
+typedef struct MYSQL_STMT
 {
-  MEM_ROOT *mem_root;
+  struct MEM_ROOT *mem_root;
   LIST list;
   MYSQL *mysql;
   MYSQL_BIND *params;
@@ -660,7 +666,7 @@ typedef struct st_mysql_stmt
   MYSQL_FIELD *fields;
   MYSQL_DATA result;
   MYSQL_ROWS *data_cursor;
-  int (*read_row_func)(struct st_mysql_stmt *stmt,
+  int (*read_row_func)(struct MYSQL_STMT *stmt,
                                   unsigned char **row);
   my_ulonglong affected_rows;
   my_ulonglong insert_id;
@@ -679,7 +685,7 @@ typedef struct st_mysql_stmt
   unsigned char bind_result_done;
   bool unbuffered_fetch_cancelled;
   bool update_max_length;
-  struct st_mysql_stmt_extension *extension;
+  struct MYSQL_STMT_EXT *extension;
 } MYSQL_STMT;
 enum enum_stmt_attr_type
 {

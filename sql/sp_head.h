@@ -21,31 +21,23 @@
 #include <string>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/components/services/psi_statement_bits.h"
-#include "mysql/psi/mysql_statement.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/field.h"
-#include "sql/handler.h"
-#include "sql/item_create.h"
-#include "sql/key.h"
 #include "sql/mem_root_array.h" // Mem_root_array
-#include "sql/session_tracker.h"
 #include "sql/set_var.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_class.h"     // Query_arena
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_plugin.h"
-#include "sql/sql_servers.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 
@@ -54,7 +46,7 @@ class Item_trigger_field;
 class Sroutine_hash_entry;
 class Table_trigger_field_support;
 class sp_head;
-struct PSI_sp_share;
+struct MY_BITMAP;
 
 /**
   @defgroup Stored_Routines Stored Routines
@@ -131,7 +123,7 @@ protected:
 
 ///////////////////////////////////////////////////////////////////////////
 
-class sp_name : public Sql_alloc
+class sp_name
 {
 public:
 

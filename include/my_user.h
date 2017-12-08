@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -25,12 +25,8 @@
 
 #include "my_macros.h"
 
-C_MODE_START
-
 void parse_user(const char *user_id_str, size_t user_id_len,
                 char *user_name_str, size_t *user_name_len,
                 char *host_name_str, size_t *host_name_len);
-
-C_MODE_END
 
 #endif /* _my_user_h_ */

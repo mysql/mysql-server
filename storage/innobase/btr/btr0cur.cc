@@ -4994,7 +4994,7 @@ that mtr holds an x-latch on the tree and on the cursor page. To avoid
 deadlocks, mtr must also own x-latches to brothers of page, if those
 brothers exist. NOTE: it is assumed that the caller has reserved enough
 free extents so that the compression will always succeed if done!
-@return TRUE if compression occurred */
+@return true if compression occurred */
 ibool
 btr_cur_compress_if_useful(
 /*=======================*/
@@ -5042,7 +5042,7 @@ btr_cur_compress_if_useful(
 Removes the record on which the tree cursor is positioned on a leaf page.
 It is assumed that the mtr has an x-latch on the page where the cursor is
 positioned, but no latch on the whole tree.
-@return TRUE if success, i.e., the page did not become too empty */
+@return true if success, i.e., the page did not become too empty */
 ibool
 btr_cur_optimistic_delete_func(
 /*===========================*/
@@ -5150,7 +5150,7 @@ or if it is the only page on the level. It is assumed that mtr holds
 an x-latch on the tree and on the cursor page. To avoid deadlocks,
 mtr must also own x-latches to brothers of page, if those brothers
 exist.
-@return TRUE if compression occurred and FALSE if not or something
+@return true if compression occurred and false if not or something
 wrong. */
 ibool
 btr_cur_pessimistic_delete(

@@ -16,35 +16,9 @@
 #include "sql/sql_tablespace.h"
 
 #include <string.h>
-#include <sys/types.h>
-
-#include "sql/auth/auth_acls.h"                   // CREATE_TABLESPACE_ACL
-#include "sql/dd/cache/dictionary_client.h"       // dd::Dictionary_client
-#include "sql/dd/dd.h"                            // dd::create_object
-#include "sql/dd/dd_tablespace.h"                 // dd::create_tablespace
-#include "sql/dd/impl/sdi_utils.h"                // dd::sdi_utils::make_guard
-#include "sql/dd/string_type.h"
-#include "sql/dd/types/tablespace.h"              // dd::fetch_tablespace_table_refs
-#include "sql/dd/types/tablespace_file.h"         // dd::Tablespace_file
-
-
-
-#include "sql/debug_sync.h"                       // DBUG_SYNC
-#include "sql/derror.h"                           // ER_THD
-#include "sql/handler.h"                          // st_alter_tablespace
-#include "sql/key.h"
-#include "sql/lock.h"                             // lock_tablespace_name
-#include "sql/parse_tree_helpers.h"               // resolve_engine
-
-#include "sql/sql_base.h"                         // TDC_RT_REMOVE_ALL
-#include "sql/sql_class.h"                        // THD
-#include "sql/sql_const.h"
-
-#include "sql/sql_error.h"
-#include "sql/sql_table.h"                        // write_bin_log
-#include "sql/strfunc.h"                          // lex_cstring_handle
-#include "sql/table.h"                            // ident_name_check
-#include "sql/transaction.h"                      // trans_commit_stmt
+#include <memory>
+#include <string>
+#include <utility>
 
 #include "m_ctype.h"
 #include "my_base.h"
@@ -54,6 +28,29 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql/auth/auth_acls.h"                   // CREATE_TABLESPACE_ACL
+#include "sql/auth/auth_common.h"
+#include "sql/dd/cache/dictionary_client.h"       // dd::Dictionary_client
+#include "sql/dd/dd.h"                            // dd::create_object
+#include "sql/dd/impl/sdi_utils.h"                // dd::sdi_utils::make_guard
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/tablespace.h"              // dd::fetch_tablespace_table_refs
+#include "sql/dd/types/tablespace_file.h"         // dd::Tablespace_file
+#include "sql/debug_sync.h"                       // DBUG_SYNC
+#include "sql/derror.h"                           // ER_THD
+#include "sql/handler.h"                          // st_alter_tablespace
+#include "sql/mdl.h"
+#include "sql/parse_tree_helpers.h"               // resolve_engine
+#include "sql/sql_base.h"                         // TDC_RT_REMOVE_ALL
+#include "sql/sql_class.h"                        // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_table.h"                        // write_bin_log
+#include "sql/strfunc.h"                          // lex_cstring_handle
+#include "sql/system_variables.h"
+#include "sql/thd_raii.h"
+#include "sql/transaction.h"                      // trans_commit_stmt
 
 namespace {
 

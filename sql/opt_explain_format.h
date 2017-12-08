@@ -30,15 +30,14 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "sql/parse_tree_node_base.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_list.h"
-#include "sql/thr_malloc.h"
 #include "sql_string.h"
 
 class Opt_trace_object;
 class Query_result;
 class SELECT_LEX_UNIT;
 class Window;
+struct MEM_ROOT;
 
 enum class enum_explain_type;
 
@@ -94,7 +93,7 @@ enum Extra_tag
 /**
   Emulate lazy computation
 */
-class Lazy: public Sql_alloc
+class Lazy
 {
 public:
   virtual ~Lazy() {}
@@ -116,7 +115,7 @@ public:
   In structured EXPLAIN implementation Explain_context is a base class for
   notes of an intermediate tree.
 */
-struct Explain_context : Sql_alloc
+struct Explain_context
 {
   enum_parsing_context type; ///< type tag
 
@@ -143,7 +142,7 @@ enum enum_mod_type { MT_NONE, MT_INSERT, MT_UPDATE, MT_DELETE, MT_REPLACE };
   CTX_TABLE/CTX_QEP_TAB context node of the intermediate tree.
 */
 
-class qep_row : public Sql_alloc
+class qep_row
 {
 private:
   /* Don't copy this structure */
@@ -269,7 +268,7 @@ public:
   /**
     Part of traditional "extra" column or related hierarchical property
   */
-  struct extra: public Sql_alloc
+  struct extra
   {
     /**
       A property name or a constant text head of the "extra" column part
@@ -517,7 +516,7 @@ public:
   Base class for structured and hierarchical EXPLAIN output formatters
 */
 
-class Explain_format : public Sql_alloc
+class Explain_format
 {
 private:
   /* Don't copy Explain_format values */

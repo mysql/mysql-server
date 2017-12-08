@@ -90,7 +90,8 @@
 #include "storage/example/ha_example.h"
 
 #include "my_dbug.h"
-#include "sql/sql_class.h"       // MYSQL_HANDLERTON_INTERFACE_VERSION
+#include "mysql/plugin.h"
+#include "sql/sql_class.h"
 #include "sql/sql_plugin.h"
 #include "typelib.h"
 
@@ -190,8 +191,8 @@ static st_handler_tablename ha_example_system_tables[]= {
                                     layer system table.
 
   @return
-    @retval TRUE   Given db.table_name is supported system table.
-    @retval FALSE  Given db.table_name is not a supported system table.
+    @retval true   Given db.table_name is supported system table.
+    @retval false  Given db.table_name is not a supported system table.
 */
 static bool example_is_supported_system_table(const char *db,
                                               const char *table_name,
@@ -832,7 +833,7 @@ int ha_example::create(const char *name, TABLE*,
   THD *thd = ha_thd();
   char *buf = (char *) my_malloc(PSI_NOT_INSTRUMENTED, SHOW_VAR_FUNC_BUFF_SIZE,
                                  MYF(MY_FAE));
-  my_snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE, "Last creation '%s'", name);
+  snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE, "Last creation '%s'", name);
   THDVAR_SET(thd, last_create_thdvar, buf);
   my_free(buf);
 
@@ -906,7 +907,7 @@ static MYSQL_THDVAR_DOUBLE(
   1000.5,
   0);
 
-static struct st_mysql_sys_var* example_system_variables[]= {
+static SYS_VAR* example_system_variables[]= {
   MYSQL_SYSVAR(enum_var),
   MYSQL_SYSVAR(ulong_var),
   MYSQL_SYSVAR(double_var),
@@ -916,16 +917,16 @@ static struct st_mysql_sys_var* example_system_variables[]= {
   NULL
 };
 
-// this is an example of SHOW_FUNC and of my_snprintf() service
-static int show_func_example(MYSQL_THD, struct st_mysql_show_var *var,
+// this is an example of SHOW_FUNC
+static int show_func_example(MYSQL_THD, SHOW_VAR *var,
                              char *buf)
 {
   var->type= SHOW_CHAR;
   var->value= buf; // it's of SHOW_VAR_FUNC_BUFF_SIZE bytes
-  my_snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE,
+  snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE,
               "enum_var is %lu, ulong_var is %lu, "
-              "double_var is %f, %.6b", // %b is a MySQL extension
-              srv_enum_var, srv_ulong_var, srv_double_var, "really");
+              "double_var is %f",
+              srv_enum_var, srv_ulong_var, srv_double_var);
   return 0;
 }
 
@@ -941,14 +942,14 @@ struct example_vars_t
 
 example_vars_t example_vars= {100, 20.01, "three hundred", true, 0, 8250};
 
-static st_mysql_show_var show_status_example[]=
+static SHOW_VAR show_status_example[]=
 {
   {"var1", (char *)&example_vars.var1, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"var2", (char *)&example_vars.var2, SHOW_DOUBLE, SHOW_SCOPE_GLOBAL},
   {0,0,SHOW_UNDEF, SHOW_SCOPE_UNDEF} // null terminator required
 };
 
-static struct st_mysql_show_var show_array_example[]=
+static SHOW_VAR show_array_example[]=
 {
   {"array", (char *)show_status_example, SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
   {"var3", (char *)&example_vars.var3, SHOW_CHAR, SHOW_SCOPE_GLOBAL},
@@ -956,7 +957,7 @@ static struct st_mysql_show_var show_array_example[]=
   {0,0,SHOW_UNDEF, SHOW_SCOPE_UNDEF}
 };
 
-static struct st_mysql_show_var func_status[]=
+static SHOW_VAR func_status[]=
 {
   {"example_func_example", (char *)show_func_example, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
   {"example_status_var5", (char *)&example_vars.var5, SHOW_BOOL, SHOW_SCOPE_GLOBAL},

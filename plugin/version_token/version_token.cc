@@ -40,6 +40,7 @@
 #include "sql/derror.h"
 #include "sql/locking_service.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 
 #ifdef WIN32
 #define PLUGIN_EXPORT extern "C" __declspec(dllexport)
@@ -137,7 +138,7 @@ static MYSQL_THDVAR_ULONG(session_number,
 
 
 static void update_session_version_tokens(MYSQL_THD thd,
-                                          struct st_mysql_sys_var*,
+                                          SYS_VAR*,
 					  void *var_ptr, const void *save)
 {
   THDVAR(thd, session_number)= 0;
@@ -409,7 +410,7 @@ static int parse_vtokens(char *input, enum command type)
 
               if (!thd->get_stmt_da()->is_set())
               {
-                my_snprintf(error_str, sizeof(error_str),
+                snprintf(error_str, sizeof(error_str),
                             ER_THD(thd, ER_VTOKEN_PLUGIN_TOKEN_MISMATCH),
                             (int) token_name.length, token_name.str,
                             (int) it->second.size(),
@@ -426,7 +427,7 @@ static int parse_vtokens(char *input, enum command type)
 	  {
             if (!thd->get_stmt_da()->is_set())
             {
-              my_snprintf(error_str, sizeof(error_str),
+              snprintf(error_str, sizeof(error_str),
                           ER_THD(thd, ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND),
                           (int) token_name.length, token_name.str);
 
@@ -646,7 +647,7 @@ static int version_tokens_deinit(void *arg MY_ATTRIBUTE((unused)))
   return 0;
 }
 
-static struct st_mysql_sys_var* system_variables[]={
+static SYS_VAR* system_variables[]={
   MYSQL_SYSVAR(session_number),
   MYSQL_SYSVAR(session),
   NULL
@@ -1085,7 +1086,7 @@ PLUGIN_EXPORT char *version_tokens_show(UDF_INIT *initid, UDF_ARGS*,
 
 static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
-  initid->maybe_null= FALSE;
+  initid->maybe_null= false;
   initid->decimals= 0;
   initid->max_length= 1;
   initid->ptr= NULL;
@@ -1104,14 +1105,14 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
   {
     strcpy(message,
            "Requires at least two arguments: (lock(...),timeout).");
-    return TRUE;
+    return true;
   }
 
   // Timeout is the last argument, should be INT
   if (args->arg_type[args->arg_count - 1] != INT_RESULT)
   {
     strcpy(message, "Wrong argument type - expected integer.");
-    return TRUE;
+    return true;
   }
 
   // All other arguments should be strings
@@ -1120,11 +1121,11 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
     if (args->arg_type[i] != STRING_RESULT)
     {
       strcpy(message, "Wrong argument type - expected string.");
-      return TRUE;
+      return true;
     }
   }
 
-  return FALSE;
+  return false;
 }
 
 PLUGIN_EXPORT bool version_tokens_lock_shared_init(
@@ -1198,10 +1199,10 @@ PLUGIN_EXPORT bool version_tokens_unlock_init(UDF_INIT*, UDF_ARGS *args,
   if (args->arg_count != 0)
   {
     strcpy(message, "Requires no arguments.");
-    return TRUE;
+    return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 long long version_tokens_unlock(UDF_INIT*, UDF_ARGS*,

@@ -2,3 +2,4 @@
 --log-slave-updates=off
 --slave-parallel-workers=2
 --slave-transaction-retries=0
+--slave-preserve-commit-order=OFF

@@ -13,12 +13,15 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "storage/perfschema/unittest/pfs_unit_test_conf.h"
+
 #include <string.h> /* memset */
 
 #include "my_thread.h"
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_account.h"
 #include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_events_transactions.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_host.h"
 #include "storage/perfschema/pfs_instr.h"

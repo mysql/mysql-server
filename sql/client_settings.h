@@ -43,6 +43,4 @@
 #define mysql_server_init(a,b,c) mysql_client_plugin_init()
 #define mysql_server_end()       mysql_client_plugin_deinit()
 
-C_MODE_START
 void slave_io_thread_detach_vio();
-C_MODE_END

@@ -29,7 +29,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
@@ -605,7 +604,7 @@ geocol_relcheck_within(const typename BG_geometry_collection::
                        Geometry_list *gv1,
                        const typename BG_geometry_collection::
                        Geometry_list *gv2,
-                       enum Functype spatial_rel)
+                       enum Functype spatial_rel MY_ATTRIBUTE((unused)))
 {
   int tres= 0;
 
@@ -1059,14 +1058,10 @@ template<typename Geom_types>
 int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
                                           bool *pnull_value)
 {
-  typedef typename Geom_types::Point Point;
-  typedef typename Geom_types::Multipoint Multipoint;
   typedef typename Geom_types::Linestring Linestring;
   typedef typename Geom_types::Multilinestring Multilinestring;
   typedef typename Geom_types::Polygon Polygon;
   typedef typename Geom_types::Multipolygon Multipolygon;
-  typedef std::set<Point, bgpt_lt> Point_set;
-  typedef std::vector<Point> Point_vector;
 
   int result= 0;
   Geometry::wkbType gt1= g1->get_type();
@@ -1182,11 +1177,6 @@ template<typename Geom_types>
 int Item_func_spatial_rel::touches_check(Geometry *g1, Geometry *g2,
                                          bool *pnull_value)
 {
-  typedef typename Geom_types::Linestring Linestring;
-  typedef typename Geom_types::Multilinestring Multilinestring;
-  typedef typename Geom_types::Polygon Polygon;
-  typedef typename Geom_types::Multipolygon Multipolygon;
-
   int result= 0;
   Geometry::wkbType gt1= g1->get_type();
   Geometry::wkbType gt2= g2->get_type();
@@ -1354,7 +1344,7 @@ int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
     result= crosses_check<Geom_types>(g1, g2, pnull_value);
     break;
   default:
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     break;
   }
 

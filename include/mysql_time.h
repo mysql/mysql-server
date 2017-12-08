@@ -48,7 +48,7 @@ enum enum_mysql_timestamp_type
   value (time_type == MYSQL_TIMESTAMP_TIME) days and hour member can hold
   bigger values.
 */
-typedef struct st_mysql_time
+typedef struct MYSQL_TIME
 {
   unsigned int  year, month, day, hour, minute, second;
   unsigned long second_part;  /**< microseconds */

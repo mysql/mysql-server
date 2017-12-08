@@ -42,6 +42,7 @@
 #include "m_ctype.h"
 #include "m_string.h"           // my_stpcpy
 #include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -52,8 +53,8 @@
 #include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
-#include "mysql/components/service.h"
 #include "mysql/components/service_implementation.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/components/services/psi_memory_bits.h"
@@ -65,7 +66,6 @@
 #include "mysqld_error.h"       // ER_*
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/item_create.h"
 #include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"         // opt_allow_suspicious_udfs
@@ -76,9 +76,9 @@
 #include "sql/sql_const.h"
 #include "sql/sql_parse.h"      // check_string_char_length
 #include "sql/sql_plugin.h"     // check_valid_path
-#include "sql/sql_servers.h"
 #include "sql/sql_table.h"      // write_bin_log
 #include "sql/table.h"          // TABLE_LIST
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"    // trans_*
 #include "thr_lock.h"
@@ -257,7 +257,7 @@ void udf_read_functions_table()
   }
 
   table= tables.table;
-  if (init_read_record(&read_record_info, new_thd, table, NULL, 1, 1, FALSE))
+  if (init_read_record(&read_record_info, new_thd, table, NULL, 1, 1, false))
     goto end;
   while (!(error= read_record_info.read_record(&read_record_info)))
   {
@@ -331,7 +331,7 @@ void udf_read_functions_table()
   if (error > 0)
     LogErr(ERROR_LEVEL, ER_UNKNOWN_ERROR_NUMBER, my_errno());
   end_read_record(&read_record_info);
-  table->m_needs_reopen= TRUE;                  // Force close to free memory
+  table->m_needs_reopen= true;                  // Force close to free memory
 
 end:
   close_trans_system_tables(new_thd);
@@ -745,10 +745,10 @@ bool mysql_create_function(THD *thd,udf_func *udf)
   table->use_all_columns();
   restore_record(table, s->default_values);	// Default values for fields
   table->field[0]->store(udf->name.str, udf->name.length, system_charset_info);
-  table->field[1]->store((longlong) udf->returns, TRUE);
+  table->field[1]->store((longlong) udf->returns, true);
   table->field[2]->store(udf->dl, strlen(udf->dl), system_charset_info);
   if (table->s->fields >= 4)			// If not old func format
-    table->field[3]->store((longlong) udf->type, TRUE);
+    table->field[3]->store((longlong) udf->type, true);
   error = (table->file->ha_write_row(table->record[0]) != 0);
 
   // Binlog the create function.
@@ -923,11 +923,11 @@ DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register,
   udf_func *ufunc;
 
   if (!func && !init_func && !deinit_func)
-    return TRUE;
+    return true;
 
   ufunc= alloc_udf(name, return_type, func, init_func, deinit_func);
   if (!ufunc)
-    return TRUE;
+    return true;
   ufunc->type= Item_udftype::UDFTYPE_FUNCTION;
 
   return udf_register_inner(ufunc);
@@ -946,11 +946,11 @@ DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register_aggregate,
   udf_func *ufunc;
 
   if (!func && !add_func && !clear_func && !init_func && !deinit_func)
-    return TRUE;
+    return true;
 
   ufunc= alloc_udf(name, return_type, func, init_func, deinit_func);
   if (!ufunc)
-    return TRUE;
+    return true;
   ufunc->type= Item_udftype::UDFTYPE_AGGREGATE;
   ufunc->func_add= add_func;
   ufunc->func_clear= clear_func;
@@ -985,7 +985,7 @@ DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_unregister,
       udf= NULL;
   }
   mysql_rwlock_unlock(&THR_LOCK_udf);
-  return udf != NULL ? FALSE : TRUE;
+  return udf != NULL ? false : true;
 }
 
 void udf_hash_rlock(void)

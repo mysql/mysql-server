@@ -32,15 +32,12 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/plugin.h"
-#include "mysql/psi/mysql_statement.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/status_var.h"
 #include "mysql/thread_type.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
-#include "sql/key.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/rpl_context.h"
@@ -554,7 +551,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(THD *thd, LEX_STRING var
     {
       if (find_sys_var_ex(thd, var.str, var.length, throw_error, true))
       {
-	if (insert(NULL, var) == TRUE)
+	if (insert(NULL, var) == true)
 	{
 	/* Error inserting into the hash. */
 	  unlock_plugin_mutex();
@@ -576,7 +573,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(THD *thd, LEX_STRING var
     }
     else
     {
-      if (insert(NULL, var) == TRUE)
+      if (insert(NULL, var) == true)
       {
       /* Error inserting into the hash. */
 	return true;                            /* Error */

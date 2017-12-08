@@ -1,4 +1,4 @@
-/*  Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
     
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -27,7 +27,8 @@
 #include <stdarg.h>
 #endif
 
-#if defined __SUNPRO_C || defined __SUNPRO_CC || defined _MSC_VER
+#if defined __SUNPRO_C || defined __SUNPRO_CC || \
+  (defined _MSC_VER && !defined __clang__)
 # define MY_ATTRIBUTE(A)
 #endif
 
@@ -40,16 +41,12 @@ enum plugin_log_level
 };  
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
    @ingroup group_ext_plugin_services
 
    Enables plugins to log messages into the server's error log.
 */
-extern struct my_plugin_log_service
+extern "C" struct my_plugin_log_service
 {
   /** Write a message to the log */
   int (*my_plugin_log_message)(MYSQL_PLUGIN *, enum plugin_log_level, const char *, ...)
@@ -66,10 +63,6 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin, enum plugin_log_level level,
                           const char *format, ...)
   MY_ATTRIBUTE((format(printf, 3, 4)));
 
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif

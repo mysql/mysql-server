@@ -15,12 +15,14 @@
 
 #include "sql/rpl_rli_pdb.h"
 
-#include <assert.h>
+#include "my_config.h"
+
 #include <string.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 
+#include <stdio.h>
 #include <algorithm>
 #include <atomic>
 #include <memory>
@@ -28,7 +30,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "config.h"
 #include "lex_string.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -38,12 +39,12 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
-#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/thread_type.h"
 #include "mysqld_error.h"
 #include "sql/binlog.h"
@@ -60,7 +61,6 @@
 #include "sql/sql_lex.h"
 #include "sql/table.h"
 #include "sql/transaction_info.h"
-#include "sql_string.h"
 #include "thr_mutex.h"
 
 #ifndef DBUG_OFF
@@ -253,7 +253,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli
 #endif
                            , uint param_id, const char *param_channel
                           )
-  : Relay_log_info(FALSE
+  : Relay_log_info(false
 #ifdef HAVE_PSI_INTERFACE
                    ,param_key_info_run_lock, param_key_info_data_lock,
                    param_key_info_sleep_lock, param_key_info_thd_lock,
@@ -325,8 +325,8 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
 
   id= i;
   curr_group_exec_parts.clear();
-  relay_log_change_notified= FALSE; // the 1st group to contain relaylog name
-  checkpoint_notified= FALSE;       // the same as above
+  relay_log_change_notified= false; // the 1st group to contain relaylog name
+  checkpoint_notified= false;       // the same as above
   master_log_change_notified= false;// W learns master log during 1st group exec
   fd_change_notified= false; // W is to learn master FD version same as above
   server_version= version_product(rli->slave_version_split);
@@ -340,7 +340,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   DBUG_ASSERT(!jobs.inited_queue);
   jobs.avail= 0;
   jobs.len= 0;
-  jobs.overfill= FALSE;    //  todo: move into Slave_jobs_queue constructor
+  jobs.overfill= false;    //  todo: move into Slave_jobs_queue constructor
   jobs.waited_overfill= 0;
   jobs.entry= jobs.size= c_rli->mts_slave_worker_queue_len_max;
   jobs.inited_queue= true;
@@ -419,8 +419,8 @@ int Slave_worker::rli_init_info(bool is_gaps_collecting_phase)
   if (handler->init_info())
     goto err;
 
-  bitmap_init(&group_executed, NULL, num_bits, FALSE);
-  bitmap_init(&group_shifted, NULL, num_bits, FALSE);
+  bitmap_init(&group_executed, NULL, num_bits, false);
+  bitmap_init(&group_shifted, NULL, num_bits, false);
 
   if (is_gaps_collecting_phase &&
       (DBUG_EVALUATE_IF("mts_slave_worker_init_at_gaps_fails", true, false) ||
@@ -503,7 +503,7 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
   int temp_internal_id= 0;
 
   if (from->prepare_info_for_read())
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   if (from->get_info(&temp_internal_id, 0) ||
       from->get_info(group_relay_log_name,
@@ -533,7 +533,7 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
                      (uchar *) 0) ||
       /* default is empty string */
       from->get_info(channel, sizeof(channel),(char*)""))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   DBUG_ASSERT(nbytes <= no_bytes_in_map(&group_executed));
 
@@ -544,7 +544,7 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
   checkpoint_master_log_pos= temp_checkpoint_master_log_pos;
   checkpoint_seqno= temp_checkpoint_seqno;
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /*
@@ -572,9 +572,9 @@ bool Slave_worker::set_info_search_keys(Rpl_info_handler *to)
 
   /* primary keys are Id and channel_name */
   if(to->set_info(0, (int)internal_id ) || to->set_info(LINE_FOR_CHANNEL, channel))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 bool Slave_worker::write_info(Rpl_info_handler *to)
@@ -599,9 +599,9 @@ bool Slave_worker::write_info(Rpl_info_handler *to)
       to->set_info(nbytes) ||
       to->set_info(buffer, (size_t) nbytes)||
       to->set_info(channel))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**
@@ -610,7 +610,7 @@ bool Slave_worker::write_info(Rpl_info_handler *to)
    This worker won't contribute to recovery bitmap at future
    slave restart (see @c mts_recovery_groups).
 
-   @return FALSE as success TRUE as failure
+   @return false as success true as failure
 */
 bool Slave_worker::reset_recovery_info()
 {
@@ -929,7 +929,7 @@ static void move_temp_tables_to_entry(THD* thd, db_worker_hash_entry* entry)
                        the Assigne Partition Hash where
                        the entry's pointer is stored at return.
    @param  need_temp_tables
-                       if FALSE migration of temporary tables not needed
+                       if false migration of temporary tables not needed
    @param  last_worker caller opts for this Worker, it must be
                        rli->last_assigned_worker if one is determined.
 
@@ -1214,7 +1214,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
       commit_positions(ev, ptr_g, true);
       DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
            sql_print_information("Crashing crash_after_commit_and_update_pos.");
-           flush_info(TRUE);
+           flush_info(true);
            DBUG_SUICIDE();
       );
     }
@@ -1376,9 +1376,9 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
    @note   The caller makes sure the args are within the valid
            range, incl cases the queue is empty or full.
 
-   @return TRUE  if the first arg identifies a queue entity ordered
+   @return true  if the first arg identifies a queue entity ordered
                  after one defined by the 2nd arg,
-           FALSE otherwise.
+           false otherwise.
 */
 template <typename Element_type>
 bool circular_buffer_queue<Element_type>::gt(ulong i, ulong k)
@@ -1390,10 +1390,10 @@ bool circular_buffer_queue<Element_type>::gt(ulong i, ulong k)
     if (k >= entry)
       return i > k;
     else
-      return FALSE;
+      return false;
   else
     if (k >= entry)
-      return TRUE;
+      return true;
     else
       return i > k;
 }
@@ -1405,7 +1405,7 @@ Slave_committed_queue::Slave_committed_queue(ulong max, uint n)
   if (max >= (ulong) -1 || !inited_queue)
     return;
   else
-    inited= TRUE;
+    inited= true;
 
   last_done.resize(n);
 
@@ -1663,7 +1663,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   {
     char coordinator_errmsg[MAX_SLAVE_ERRMSG];
 
-    my_snprintf(coordinator_errmsg, MAX_SLAVE_ERRMSG,
+    snprintf(coordinator_errmsg, MAX_SLAVE_ERRMSG,
                 "Coordinator stopped because there were error(s) in the "
                 "worker(s). "
                 "The most recent failure being: Worker %u failed executing "
@@ -1685,7 +1685,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
     c_rli->fill_coord_err_buf(level, err_code, coordinator_errmsg);
   }
 
-  my_snprintf(buff_coord, sizeof(buff_coord),
+  snprintf(buff_coord, sizeof(buff_coord),
               "Worker %u failed executing transaction '%s' at "
               "master log %s, end_log_pos %llu",
               internal_id, buff_gtid, log_name, log_pos);
@@ -1983,8 +1983,6 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
 
   relay_log_number_to_name(start_relay_number, file_name);
 
-  memset(&relay_io, 0, sizeof(IO_CACHE));
-
   while (!arrive_end)
   {
     Log_event *ev= NULL;
@@ -2234,7 +2232,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
   while ( (!big_event && new_pend_size > rli->mts_pending_jobs_size_max)
           || (big_event && rli->mts_pending_jobs_size != 0 ))
   {
-    rli->mts_wq_oversize= TRUE;
+    rli->mts_wq_oversize= true;
     rli->wq_size_waits_cnt++; // waiting due to the total size
     thd->ENTER_COND(&rli->pending_jobs_cond, &rli->pending_jobs_lock,
                     &stage_slave_waiting_worker_to_free_events, &old_stage);
@@ -2294,7 +2292,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
   {
     thd->ENTER_COND(&worker->jobs_cond, &worker->jobs_lock,
                     &stage_slave_waiting_worker_queue, &old_stage);
-    worker->jobs.overfill= TRUE;
+    worker->jobs.overfill= true;
     worker->jobs.waited_overfill++;
     rli->mts_wq_overfill_cnt++;
     mysql_cond_wait(&worker->jobs_cond, &worker->jobs_lock);
@@ -2341,7 +2339,7 @@ static void remove_item_from_jobs(slave_job_item *job_item,
   de_queue(&worker->jobs, job_item);
   /* possible overfill */
   if (worker->jobs.len == worker->jobs.size - 1 &&
-      worker->jobs.overfill == TRUE)
+      worker->jobs.overfill == true)
   {
     worker->jobs.overfill= false;
     // todo: worker->hungry_cnt++;
@@ -2415,7 +2413,7 @@ static void remove_item_from_jobs(slave_job_item *job_item,
   if (rli->mts_pending_jobs_size < rli->mts_pending_jobs_size_max &&
       rli->mts_wq_oversize)  // TODO: unit/general test wq_oversize
   {
-    rli->mts_wq_oversize= FALSE;
+    rli->mts_wq_oversize= false;
     mysql_cond_signal(&rli->pending_jobs_cond);
   }
 

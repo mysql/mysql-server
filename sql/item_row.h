@@ -23,16 +23,16 @@
 #include "my_table_map.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"
+#include "mysql_time.h"
 #include "sql/enum_query_type.h"
 #include "sql/item.h" // Item
-#include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
 
 class SELECT_LEX;
 class Send_field;
 class String;
 class THD;
+class my_decimal;
 template <class T> class List;
 
 /**

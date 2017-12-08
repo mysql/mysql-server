@@ -81,8 +81,8 @@ MY_MODE get_file_perm(ulong perm_flags)
   @param my_flags : Error handling
 
   @return
-    @retval TRUE : Error changing file permission
-    @retval FALSE : File permission changed successfully
+    @retval true : Error changing file permission
+    @retval false : File permission changed successfully
 */
 
 bool my_chmod(const char *filename, ulong perm_flags, myf my_flags)
@@ -107,5 +107,5 @@ bool my_chmod(const char *filename, ulong perm_flags, myf my_flags)
              errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }
 
-  DBUG_RETURN(ret_val ? TRUE : FALSE);
+  DBUG_RETURN(ret_val ? true : false);
 }

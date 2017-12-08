@@ -31,6 +31,7 @@
 */
 
 
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -45,7 +46,6 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
-#include "mysql/service_my_snprintf.h"
 #include "strings/mb_wc.h"
 #include "strings/str_uca_type.h"
 #include "strings/uca900_data.h"
@@ -541,7 +541,7 @@ static const char da_cldr_30[]=
                      "<<< AA";
 
 static Coll_param da_coll_param= {
-  nullptr, FALSE, CASE_FIRST_UPPER
+  nullptr, false, CASE_FIRST_UPPER
 };
 
 /* Lithuanian */
@@ -594,7 +594,7 @@ static Reorder_param fa_reorder_param= {
 };
 
 static Coll_param fa_coll_param= {
-  &fa_reorder_param, TRUE
+  &fa_reorder_param, true
 };
 #endif
 
@@ -656,7 +656,7 @@ static Reorder_param hr_reorder_param= {
 };
 
 static Coll_param hr_coll_param= {
-  &hr_reorder_param, FALSE, CASE_FIRST_OFF
+  &hr_reorder_param, false, CASE_FIRST_OFF
 };
 
 /* Sinhala */
@@ -676,7 +676,7 @@ static const char vi_cldr_30[]=
   "&u       < \\u01B0 <<< \\u01AF";
 
 static Coll_param vi_coll_param= {
-  nullptr, TRUE, CASE_FIRST_OFF
+  nullptr, true, CASE_FIRST_OFF
 };
 
 static Reorder_param ja_reorder_param= {
@@ -960,8 +960,8 @@ my_uca_contraction2_weight(const std::vector<MY_CONTRACTION> *cont_nodes,
   @param wc       Code point
 
   @return
-  @retval   FALSE - cannot be previous context head
-  @retval   TRUE  - can be previous context head
+  @retval   false - cannot be previous context head
+  @retval   true  - can be previous context head
 */
 
 static inline bool
@@ -978,8 +978,8 @@ my_uca_can_be_previous_context_head(const char *flags, my_wc_t wc)
   @param wc       Code point
 
   @return
-  @retval   FALSE - cannot be contraction tail
-  @retval   TRUE - can be contraction tail
+  @retval   false - cannot be contraction tail
+  @retval   true - can be contraction tail
 */
 
 static inline bool
@@ -2659,7 +2659,7 @@ my_coll_lexem_num_to_str(my_coll_lexem_num term)
 }
 
 
-typedef struct my_coll_lexem_st
+struct MY_COLL_LEXEM
 {
   my_coll_lexem_num term;
   const char *beg;
@@ -2667,7 +2667,7 @@ typedef struct my_coll_lexem_st
   const char *prev;
   int   diff;
   int   code;
-} MY_COLL_LEXEM;
+};
 
 
 /*
@@ -2740,7 +2740,7 @@ static void my_coll_lexem_print_error(MY_COLL_LEXEM *lexem,
   size_t len= lexem->end - lexem->prev;
   strmake (tail, lexem->prev, (size_t) MY_MIN(len, sizeof(tail)-1));
   errstr[errsize-1]= '\0';
-  my_snprintf(errstr, errsize - 1,
+  snprintf(errstr, errsize - 1,
               "%s at '%s' for COLLATION : %s", txt[0] ? txt : "Syntax error",
               tail, col_name);
 }
@@ -2922,14 +2922,14 @@ ex:
 
 #define MY_UCA_MAX_EXPANSION  6  /* Maximum expansion length   */
 
-typedef struct my_coll_rule_item_st
+struct MY_COLL_RULE
 {
   my_wc_t base[MY_UCA_MAX_EXPANSION];    /* Base character                  */
   my_wc_t curr[MY_UCA_MAX_CONTRACTION];  /* Current character               */
   int diff[4];      /* Primary, Secondary, Tertiary, Quaternary difference  */
   size_t before_level;                   /* "reset before" indicator        */
   bool with_context;
-} MY_COLL_RULE;
+};
 
 
 /**
@@ -3013,7 +3013,7 @@ typedef enum
 } my_coll_shift_method;
 
 
-typedef struct my_coll_rules_st
+struct MY_COLL_RULES
 {
   MY_UCA_INFO *uca;          /* Unicode weight data               */
   size_t nrules;             /* Number of rules in the rule array */
@@ -3021,7 +3021,7 @@ typedef struct my_coll_rules_st
   MY_COLL_RULE *rule;        /* Rule array                        */
   MY_CHARSET_LOADER *loader;
   my_coll_shift_method shift_after_method;
-} MY_COLL_RULES;
+};
 
 
 /**
@@ -3104,13 +3104,13 @@ my_coll_rule_shift_at_level(MY_COLL_RULE *r, int level)
 }
 
 
-typedef struct my_coll_rule_parser_st
+struct MY_COLL_RULE_PARSER
 {
   MY_COLL_LEXEM tok[2]; /* Current token and next token for look-ahead */
   MY_COLL_RULE rule;    /* Currently parsed rule */
   MY_COLL_RULES *rules; /* Rule list pointer     */
   char errstr[128];     /* Error message         */
-} MY_COLL_RULE_PARSER;
+};
 
 
 /**
@@ -3199,7 +3199,7 @@ my_coll_parser_init(MY_COLL_RULE_PARSER *p,
 static int
 my_coll_parser_expected_error(MY_COLL_RULE_PARSER *p, my_coll_lexem_num term)
 {
-  my_snprintf(p->errstr, sizeof(p->errstr),
+  snprintf(p->errstr, sizeof(p->errstr),
               "%s expected", my_coll_lexem_num_to_str(term));
   return 0;
 }
@@ -3217,7 +3217,7 @@ my_coll_parser_expected_error(MY_COLL_RULE_PARSER *p, my_coll_lexem_num term)
 static int
 my_coll_parser_too_long_error(MY_COLL_RULE_PARSER *p, const char *name)
 {
-  my_snprintf(p->errstr, sizeof(p->errstr), "%s is too long", name);
+  snprintf(p->errstr, sizeof(p->errstr), "%s is too long", name);
   return 0;
 }
 
@@ -3592,7 +3592,7 @@ my_coll_parser_scan_shift_sequence(MY_COLL_RULE_PARSER *p)
       It's OK as Unicode's CLDR does not have longer examples.
     */
     my_coll_parser_scan(p);
-    p->rule.with_context= TRUE;
+    p->rule.with_context= true;
     if (!my_coll_parser_scan_character_list(p, p->rule.curr + 1,
                                             MY_UCA_MAX_EXPANSION - 1,
                                             "context"))
@@ -4093,8 +4093,8 @@ my_char_weight_put(MY_UCA_INFO *dst, uint16 *to,
   @param page     page number
 
   @return
-  @retval         FALSE on success
-  @retval         TRUE  on error
+  @retval         false on success
+  @retval         true  on error
 */
 static bool
 my_uca_copy_page(CHARSET_INFO *cs,
@@ -4105,7 +4105,7 @@ my_uca_copy_page(CHARSET_INFO *cs,
 {
   const uint dst_size= 256 * dst->lengths[page] * sizeof(uint16);
   if (!(dst->weights[page]= (uint16 *) (loader->once_alloc)(dst_size)))
-    return TRUE;
+    return true;
 
   DBUG_ASSERT(src->lengths[page] <= dst->lengths[page]);
   memset(dst->weights[page], 0, dst_size);
@@ -4123,7 +4123,7 @@ my_uca_copy_page(CHARSET_INFO *cs,
              src->lengths[page] * sizeof(uint16));
     }
   }
-  return FALSE;
+  return false;
 }
 
 static bool
@@ -4166,7 +4166,7 @@ apply_primary_shift_900(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules,
   }
   else
   {
-    my_snprintf(loader->error, sizeof(loader->error),
+    snprintf(loader->error, sizeof(loader->error),
                 "Can't reset before "
                 "a primary ignorable character U+%04lX", r->base[0]);
     return true;
@@ -4204,7 +4204,7 @@ apply_tertiary_shift_900(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules,
   }
   else
   {
-    my_snprintf(loader->error, sizeof(loader->error),
+    snprintf(loader->error, sizeof(loader->error),
                 "Can't reset before "
                 "a tertiary ignorable character U+%04lX", r->base[0]);
     return true;
@@ -4275,10 +4275,10 @@ apply_shift(MY_CHARSET_LOADER *loader,
       }
       else
       {
-        my_snprintf(loader->error, sizeof(loader->error),
+        snprintf(loader->error, sizeof(loader->error),
                     "Can't reset before "
                     "a primary ignorable character U+%04lX", r->base[0]);
-        return TRUE;
+        return true;
       }
     }
   }
@@ -4288,7 +4288,7 @@ apply_shift(MY_CHARSET_LOADER *loader,
     DBUG_ASSERT(to[0] == 0);
     to[0]= r->diff[level];
   }
-  return FALSE; 
+  return false; 
 }
 
 static MY_CONTRACTION*
@@ -4418,18 +4418,18 @@ check_rules(MY_CHARSET_LOADER *loader,
   {
     if (r->curr[0] > dst->maxchar)
     {
-      my_snprintf(loader->error, sizeof(loader->error),
+      snprintf(loader->error, sizeof(loader->error),
                   "Shift character out of range: u%04X", (uint) r->curr[0]);
-      return TRUE;
+      return true;
     }
     else if (r->base[0] > src->maxchar)
     {
-      my_snprintf(loader->error, sizeof(loader->error),
+      snprintf(loader->error, sizeof(loader->error),
                   "Reset character out of range: u%04X", (uint) r->base[0]);
-      return TRUE;
+      return true;
     }
   }
-  return FALSE;
+  return false;
 }
 
 static void
@@ -4480,18 +4480,18 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
   dst->maxchar= src->maxchar;
 
   if (check_rules(loader, rules, dst, src))
-    return TRUE;
+    return true;
 
   /* Allocate memory for pages and their lengths */
   if (lengths_are_temporary)
   {
     if (!(dst->lengths= (uchar *) (loader->mem_malloc)(npages)))
-      return TRUE;
+      return true;
     if (!(dst->weights= (uint16 **) (loader->once_alloc)(npages *
                                                          sizeof(uint16 *))))
     {
       (loader->mem_free)(dst->lengths);
-      return TRUE;
+      return true;
     }
   }
   else
@@ -4499,7 +4499,7 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
     if (!(dst->lengths= (uchar *) (loader->once_alloc)(npages)) ||
         !(dst->weights= (uint16 **) (loader->once_alloc)(npages *
                                                          sizeof(uint16 *))))
-      return TRUE;
+      return true;
   }
 
   /*
@@ -4578,9 +4578,9 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
   for (r= rules->rule; r < rlast;  r++)
   {
     if (apply_one_rule(cs, loader, rules, r, level, dst))
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 /**
@@ -5157,6 +5157,8 @@ my_coll_init_uca(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
   cs->ctype= my_charset_utf8_unicode_ci.ctype;
   if (!cs->caseinfo)
     cs->caseinfo= &my_unicase_default;
+  if (!cs->uca)
+    cs->uca= &my_uca_v400;
   return create_tailoring(cs, loader);
 }
 

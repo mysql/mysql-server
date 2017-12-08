@@ -16,6 +16,7 @@
 #include "sql/sql_admin.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <string>
@@ -31,9 +32,9 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "myisam.h"                          // TT_USEFRM
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -72,6 +73,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_trigger_dispatcher.h"    // Table_trigger_dispatcher
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                 // trans_rollback_stmt
 #include "sql_string.h"
 #include "thr_lock.h"
@@ -106,7 +108,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   int error= 0;
   TABLE tmp_table, *table;
   TABLE_SHARE *share;
-  bool has_mdl_lock= FALSE;
+  bool has_mdl_lock= false;
   char from[FN_REFLEN],tmp[FN_REFLEN+32];
   const char **ext;
   MY_STAT stat_info;
@@ -142,7 +144,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     if (lock_table_names(thd, table_list, table_list->next_global,
                          thd->variables.lock_wait_timeout, 0))
       DBUG_RETURN(0);
-    has_mdl_lock= TRUE;
+    has_mdl_lock= true;
 
     key_length= get_table_def_key(table_list, &key);
 
@@ -153,7 +155,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     if (share == NULL)
       DBUG_RETURN(0);				// Can't open frm file
 
-    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE,
+    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, false,
                               NULL))
     {
       mysql_mutex_lock(&LOCK_open);
@@ -202,7 +204,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   if (!mysql_file_stat(key_file_misc, from, &stat_info, MYF(0)))
     goto end;				// Can't use USE_FRM flag
 
-  my_snprintf(tmp, sizeof(tmp), "%s-%lx_%x",
+  snprintf(tmp, sizeof(tmp), "%s-%lx_%x",
 	      from, current_pid, thd->thread_id());
 
   if (table_list->table)
@@ -277,8 +279,8 @@ end:
 
   @param  sql_errno  Error number to check.
 
-  @retval TRUE       Error does not indicate table corruption.
-  @retval FALSE      Error could indicate table corruption.
+  @retval true       Error does not indicate table corruption.
+  @retval false      Error could indicate table corruption.
 */
 
 static inline bool table_not_corrupt_error(uint sql_errno)
@@ -419,7 +421,7 @@ send_histogram_results(THD *thd, const histograms::results_map &results,
         message.append(combined_name);
         message.append("' doesn't exist.");
         break;
-      case histograms::Message::READ_ONLY:
+      case histograms::Message::SERVER_READ_ONLY:
         message_type.assign("Error");
         message.assign("The server is in read-only mode.");
         combined_name.clear();
@@ -458,8 +460,8 @@ update_histogram(THD *thd, TABLE_LIST *table, histograms::results_map &results)
 
 /*
   RETURN VALUES
-    FALSE Message sent to net (admin operation went ok)
-    TRUE  Message should be sent by caller
+    false Message sent to net (admin operation went ok)
+    true  Message should be sent by caller
           (admin operation or network communication failed)
 */
 static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
@@ -508,7 +510,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   item->maybe_null = 1;
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /*
     Close all temporary tables which were pre-open to simplify
@@ -753,7 +755,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      length= my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_OPEN_AS_READONLY),
+      length= snprintf(buff, sizeof(buff), ER_THD(thd, ER_OPEN_AS_READONLY),
                           table_name);
       protocol->store(buff, length, system_charset_info);
       trans_commit_stmt(thd, ignore_grl_on_analyze);
@@ -763,7 +765,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         table->table->m_needs_reopen= true;
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
-      lex->reset_query_tables_list(FALSE);
+      lex->reset_query_tables_list(false);
       /*
         Restore Query_tables_list::sql_command value to make statement
         safe for re-execution.
@@ -938,7 +940,7 @@ send_result_message:
     case HA_ADMIN_NOT_IMPLEMENTED:
       {
        char buf[MYSQL_ERRMSG_SIZE];
-       size_t length=my_snprintf(buf, sizeof(buf),
+       size_t length=snprintf(buf, sizeof(buf),
                                  ER_THD(thd, ER_CHECK_NOT_IMPLEMENTED),
                                  operator_name);
 	protocol->store(STRING_WITH_LEN("note"), system_charset_info);
@@ -955,7 +957,7 @@ send_result_message:
         tbl_name.append('.');
         tbl_name.append(String(table_name,system_charset_info));
 
-        size_t length= my_snprintf(buf, sizeof(buf),
+        size_t length= snprintf(buf, sizeof(buf),
                                    ER_THD(thd, ER_BAD_TABLE_ERROR),
                                    tbl_name.c_ptr());
         protocol->store(STRING_WITH_LEN("note"), system_charset_info);
@@ -978,7 +980,7 @@ send_result_message:
       protocol->store(STRING_WITH_LEN("status"), system_charset_info);
       protocol->store(STRING_WITH_LEN("Operation need committed state"),
                       system_charset_info);
-      open_for_modify= FALSE;
+      open_for_modify= false;
       break;
 
     case HA_ADMIN_ALREADY_DONE:
@@ -1148,11 +1150,11 @@ send_result_message:
 
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
       if (table->table->file->ha_table_flags() & HA_CAN_REPAIR)
-        length= my_snprintf(buf, sizeof(buf),
+        length= snprintf(buf, sizeof(buf),
                             ER_THD(thd, ER_TABLE_NEEDS_UPGRADE),
                             table->table_name);
       else
-        length= my_snprintf(buf, sizeof(buf),
+        length= snprintf(buf, sizeof(buf),
                             ER_THD(thd, ER_TABLE_NEEDS_REBUILD),
                             table->table_name);
       protocol->store(buf, length, system_charset_info);
@@ -1172,13 +1174,13 @@ send_result_message:
         In-place upgrade does not allow pre 5.0 decimal to 8.0. Recreation of tables
         will not create pre 5.0 decimal types. Hence, control should never reach here.
       */
-      DBUG_ASSERT(FALSE);
+      DBUG_ASSERT(false);
 
       char buf[MYSQL_ERRMSG_SIZE];
       size_t length;
 
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      length= my_snprintf(buf, sizeof(buf), "Table upgrade required for "
+      length= snprintf(buf, sizeof(buf), "Table upgrade required for "
                           "`%-.64s`.`%-.64s`. Please dump/reload table to "
                           "fix it!", table->db, table->table_name);
       protocol->store(buf, length, system_charset_info);
@@ -1189,7 +1191,7 @@ send_result_message:
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       {
         char buf[MYSQL_ERRMSG_SIZE];
-        size_t length=my_snprintf(buf, sizeof(buf),
+        size_t length=snprintf(buf, sizeof(buf),
                                 "Unknown - internal error %d during operation",
                                 result_code);
         protocol->store(STRING_WITH_LEN("error"), system_charset_info);
@@ -1212,7 +1214,7 @@ send_result_message:
       else if (open_for_modify || fatal_error)
       {
         tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
-                         table->db, table->table_name, FALSE);
+                         table->db, table->table_name, false);
       }
       else
       {
@@ -1256,7 +1258,7 @@ send_result_message:
   if (gtid_rollback_must_be_skipped)
     thd->skip_gtid_rollback= false;
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 err:
   if (gtid_rollback_must_be_skipped)
@@ -1273,7 +1275,7 @@ err:
     table->table->m_needs_reopen= true;
   close_thread_tables(thd);			// Shouldn't be needed
   thd->mdl_context.release_transactional_locks();
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -1286,8 +1288,8 @@ err:
     tables	Table list (one table only)
 
   RETURN VALUES
-   FALSE ok
-   TRUE  error
+   false ok
+   true  error
 */
 
 bool Sql_cmd_cache_index::assign_to_keycache(THD* thd, TABLE_LIST* tables)
@@ -1302,7 +1304,7 @@ bool Sql_cmd_cache_index::assign_to_keycache(THD* thd, TABLE_LIST* tables)
   {
     mysql_mutex_unlock(&LOCK_global_system_variables);
     my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), m_key_cache_name.str);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   mysql_mutex_unlock(&LOCK_global_system_variables);
   if (!key_cache->key_cache_inited)
@@ -1329,8 +1331,8 @@ bool Sql_cmd_cache_index::assign_to_keycache(THD* thd, TABLE_LIST* tables)
     tables	Table list (one table only)
 
   RETURN VALUES
-    FALSE ok
-    TRUE  error
+    false ok
+    true  error
 */
 
 bool Sql_cmd_load_index::preload_keys(THD* thd, TABLE_LIST* tables)
@@ -1391,7 +1393,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
     if (read_only)
     {
       // Do not try to update histograms when in read_only mode.
-      results.emplace("", histograms::Message::READ_ONLY);
+      results.emplace("", histograms::Message::SERVER_READ_ONLY);
       res= false;
     }
     else
@@ -1455,7 +1457,7 @@ bool Sql_cmd_analyze_table::execute(THD *thd)
   DBUG_ENTER("Sql_cmd_analyze_table::execute");
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
-                         FALSE, UINT_MAX, FALSE))
+                         false, UINT_MAX, false))
     goto error;
 
   DBUG_EXECUTE_IF("simulate_analyze_table_lock_wait_timeout_error",
@@ -1497,11 +1499,11 @@ bool Sql_cmd_check_table::execute(THD *thd)
 {
   TABLE_LIST *first_table= thd->lex->select_lex->get_table_list();
   thr_lock_type lock_type = TL_READ_NO_INSERT;
-  bool res= TRUE;
+  bool res= true;
   DBUG_ENTER("Sql_cmd_check_table::execute");
 
   if (check_table_access(thd, SELECT_ACL, first_table,
-                         TRUE, UINT_MAX, FALSE))
+                         true, UINT_MAX, false))
     goto error; /* purecov: inspected */
   thd->enable_slow_log= opt_log_slow_admin_statements;
 
@@ -1520,11 +1522,11 @@ error:
 bool Sql_cmd_optimize_table::execute(THD *thd)
 {
   TABLE_LIST *first_table= thd->lex->select_lex->get_table_list();
-  bool res= TRUE;
+  bool res= true;
   DBUG_ENTER("Sql_cmd_optimize_table::execute");
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
-                         FALSE, UINT_MAX, FALSE))
+                         false, UINT_MAX, false))
     goto error; /* purecov: inspected */
   thd->enable_slow_log= opt_log_slow_admin_statements;
   res= (specialflag & SPECIAL_NO_NEW_FUNC) ?
@@ -1551,11 +1553,11 @@ error:
 bool Sql_cmd_repair_table::execute(THD *thd)
 {
   TABLE_LIST *first_table= thd->lex->select_lex->get_table_list();
-  bool res= TRUE;
+  bool res= true;
   DBUG_ENTER("Sql_cmd_repair_table::execute");
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
-                         FALSE, UINT_MAX, FALSE))
+                         false, UINT_MAX, false))
     goto error; /* purecov: inspected */
   thd->enable_slow_log= opt_log_slow_admin_statements;
   res= mysql_admin_table(thd, first_table, &thd->lex->check_opt, "repair",
@@ -1583,7 +1585,7 @@ error:
 bool Sql_cmd_shutdown::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_shutdown::execute");
-  bool res= TRUE;
+  bool res= true;
   res= !shutdown(thd, SHUTDOWN_DEFAULT);
 
   DBUG_RETURN(res);

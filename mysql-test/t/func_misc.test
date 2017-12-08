@@ -815,6 +815,12 @@ DROP TABLE t2;
 select inet_aton("0.255.255.255.255");
 select inet_aton("255.255.255.2551");
 
+--echo #
+--echo # Bug #27004825: UBSAN: ITEM_FUNC_IS_IPV4_MAPPED - MEMBER ACCESS WITHIN MISALIGNED ADDRESS
+--echo #
+SELECT IS_IPV4_MAPPED(MIN(AES_ENCRYPT(1,2)));
+SELECT IS_IPV4_COMPAT(MIN(AES_ENCRYPT(1,2)));
+
 --echo
 --echo # -- Done.
 --echo

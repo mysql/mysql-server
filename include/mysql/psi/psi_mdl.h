@@ -31,8 +31,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_mdl_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_MDL_VERSION_1
   Performance Schema Metadata Lock Interface number for version 1.
@@ -84,7 +82,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_mdl_service_t *psi_mdl_service;
 #endif /* HAVE_PSI_METADATA_INTERFACE */
 
 /** @} (end of group psi_abi_mdl) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_MDL_H */

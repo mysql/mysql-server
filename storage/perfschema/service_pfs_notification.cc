@@ -28,7 +28,7 @@
 #include "pfs_thread_provider.h"
 #include "storage/perfschema/pfs_server.h"
 
-extern "C" int pfs_get_thread_system_attrs_by_id_v1(
+int pfs_get_thread_system_attrs_by_id_v1(
   PSI_thread *thread, ulonglong thread_id, PSI_thread_attrs *thread_attrs);
 
 /**

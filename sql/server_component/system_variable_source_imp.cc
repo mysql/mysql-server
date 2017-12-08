@@ -14,7 +14,9 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "components/mysql_server/system_variable_source_imp.h"
+
 #include "components/mysql_server/server_component.h"
+#include "mysql/components/service_implementation.h"
 #include "sql/set_var.h"
 
 void mysql_comp_system_variable_source_init()

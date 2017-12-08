@@ -23,8 +23,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_time.h"                 // interval_type
-#include "mysql/udf_registration_types.h"
-#include "sql/sql_alloc.h"           // Sql_alloc
 
 class Item;
 class THD;
@@ -35,7 +33,7 @@ class sp_name;
 #define EVEX_MICROSECOND_UNSUP  -6
 #define EVEX_MAX_INTERVAL_VALUE 1000000000L
 
-class Event_parse_data : public Sql_alloc
+class Event_parse_data
 {
 public:
   /*

@@ -20,6 +20,7 @@
 #include "my_config.h"
 
 #include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -41,7 +42,6 @@
 #include "my_xml.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"
@@ -207,7 +207,6 @@ copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from)
 }
 
 
-extern "C" {
 static int add_collation(CHARSET_INFO *cs)
 {
   if (cs->name && (cs->number ||
@@ -370,7 +369,6 @@ my_free_c(void *ptr)
 {
   my_free(ptr);
 }
-} // extern C
 
 /**
   Initialize character set loader to use mysys memory management functions.
@@ -409,7 +407,7 @@ my_read_charset_file(MY_CHARSET_LOADER *loader,
        ((len= (uint)stat_info.st_size) > MY_MAX_ALLOWED_BUF) ||
        !(buf= (uchar*) my_malloc(key_memory_charset_file,
                                  len,myflags)))
-    return TRUE;
+    return true;
   
   if ((fd= mysql_file_open(key_file_charset, filename, O_RDONLY, myflags)) < 0)
     goto error;
@@ -426,11 +424,11 @@ my_read_charset_file(MY_CHARSET_LOADER *loader,
   }
   
   my_free(buf);
-  return FALSE;
+  return false;
 
 error:
   my_free(buf);
-  return TRUE;
+  return true;
 }
 
 char *get_charsets_dir(char *buf)
@@ -470,7 +468,6 @@ void add_compiled_collation(CHARSET_INFO *cs)
 
 static std::once_flag charsets_initialized;
 
-extern "C" {
 static void init_available_charsets(void)
 {
   char fname[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
@@ -488,20 +485,19 @@ static void init_available_charsets(void)
   my_stpcpy(get_charsets_dir(fname), MY_CHARSET_INDEX);
   my_read_charset_file(&loader, fname, MYF(0));
 }
-}
 
 static const char*
 get_collation_name_alias(const char *name, char *buf, size_t bufsize)
 {
   if (!native_strncasecmp(name, "utf8mb3_", 8))
   {
-    my_snprintf(buf, bufsize, "utf8_%s", name + 8);
+    snprintf(buf, bufsize, "utf8_%s", name + 8);
     return buf;
   }
   /* CLDR's tailoring data for Norwegian is same as Danish */
   if (!native_strncasecmp(name, "utf8mb4_no_0900_", 16))
   {
-    my_snprintf(buf, bufsize, "utf8mb4_da_0900_%s", name + 16);
+    snprintf(buf, bufsize, "utf8mb4_da_0900_%s", name + 16);
     return buf;
   }
   return NULL;
@@ -743,14 +739,14 @@ get_charset_by_csname(const char *cs_name, uint cs_flags, myf flags)
 
   The function tries to resolve character set by the specified name. If
   there is character set with the given name, it is assigned to the "cs"
-  parameter and FALSE is returned. If there is no such character set,
-  "default_cs" is assigned to the "cs" and TRUE is returned.
+  parameter and false is returned. If there is no such character set,
+  "default_cs" is assigned to the "cs" and true is returned.
 
   @param[in] cs_name    Character set name.
   @param[in] default_cs Default character set.
   @param[out] cs        Variable to store character set.
 
-  @return FALSE if character set was resolved successfully; TRUE if there
+  @return false if character set was resolved successfully; true if there
   is no character set with given name.
 */
 
@@ -763,10 +759,10 @@ bool resolve_charset(const char *cs_name,
   if (*cs == NULL)
   {
     *cs= default_cs;
-    return TRUE;
+    return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -775,14 +771,14 @@ bool resolve_charset(const char *cs_name,
 
   The function tries to resolve collation by the specified name. If there
   is collation with the given name, it is assigned to the "cl" parameter
-  and FALSE is returned. If there is no such collation, "default_cl" is
-  assigned to the "cl" and TRUE is returned.
+  and false is returned. If there is no such collation, "default_cl" is
+  assigned to the "cl" and true is returned.
 
   @param[out] cl        Variable to store collation.
   @param[in] cl_name    Collation name.
   @param[in] default_cl Default collation.
 
-  @return FALSE if collation was resolved successfully; TRUE if there is no
+  @return false if collation was resolved successfully; true if there is no
   collation with given name.
 */
 
@@ -795,10 +791,10 @@ bool resolve_collation(const char *cl_name,
   if (*cl == NULL)
   {
     *cl= default_cl;
-    return TRUE;
+    return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -833,7 +829,7 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
-  bool overflow= FALSE;
+  bool overflow= false;
   bool use_mb_flag= use_mb(charset_info);
   for (end= from + length; from < end; from++)
   {
@@ -843,7 +839,7 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
     {
       if (to + tmp_length > to_end)
       {
-        overflow= TRUE;
+        overflow= true;
         break;
       }
       while (tmp_length--)
@@ -893,7 +889,7 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
     {
       if (to + 2 > to_end)
       {
-        overflow= TRUE;
+        overflow= true;
         break;
       }
       *to++= '\\';
@@ -903,7 +899,7 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
     {
       if (to + 1 > to_end)
       {
-        overflow= TRUE;
+        overflow= true;
         break;
       }
       *to++= *from;
@@ -972,7 +968,7 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
-  bool overflow= FALSE;
+  bool overflow= false;
   bool use_mb_flag= use_mb(charset_info);
   for (end= from + length; from < end; from++)
   {
@@ -981,7 +977,7 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
     {
       if (to + tmp_length > to_end)
       {
-        overflow= TRUE;
+        overflow= true;
         break;
       }
       while (tmp_length--)
@@ -998,7 +994,7 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
     {
       if (to + 2 > to_end)
       {
-        overflow= TRUE;
+        overflow= true;
         break;
       }
       *to++= quote;
@@ -1008,7 +1004,7 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
     {
       if (to + 1 > to_end)
       {
-        overflow= TRUE;
+        overflow= true;
         break;
       }
       *to++= *from;

@@ -20,12 +20,14 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "mysql/udf_registration_types.h"
 #include "scope_guard.h"
 #include "sql/dd/info_schema/show.h"         // build_show_...
 #include "sql/dd/types/abstract_table.h" // dd::enum_table_type::BASE_TABLE
 #include "sql/derror.h"     // ER_THD
+#include "sql/gis/srid.h"
 #include "sql/item_timefunc.h"
 #include "sql/key_spec.h"
 #include "sql/mdl.h"
@@ -41,6 +43,7 @@
 #include "sql/sp_pcontext.h"
 #include "sql/sql_base.h"                    // find_temporary_table
 #include "sql/sql_call.h"   // Sql_cmd_call...
+#include "sql/sql_cmd.h"
 #include "sql/sql_cmd_ddl_table.h"
 #include "sql/sql_data_change.h"
 #include "sql/sql_delete.h" // Sql_cmd_delete...
@@ -50,10 +53,9 @@
 #include "sql/sql_select.h" // Sql_cmd_select...
 #include "sql/sql_update.h" // Sql_cmd_update...
 #include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"
 #include "sql_string.h"
-
-class Sql_cmd;
 
 
 PT_joined_table *PT_table_reference::add_cross_join(PT_cross_join* cj)
@@ -1261,7 +1263,7 @@ static bool setup_index(keytype key_type,
       {
         my_error(ER_WRONG_USAGE, MYF(0),"spatial/fulltext/hash index",
                  "explicit index order");
-        return TRUE;
+        return true;
       }
     }
   }
@@ -1891,7 +1893,6 @@ bool PT_table_locking_clause::set_lock_for_tables(Parse_context *pc)
   {
     SELECT_LEX *select= pc->select;
 
-    SQL_I_List<TABLE_LIST> tables= select->table_list;
     TABLE_LIST *table_list= select->find_table_by_name(table_ident);
 
     THD *thd= pc->thd;

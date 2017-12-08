@@ -44,7 +44,7 @@ ibool	buf_dblwr_being_created = FALSE;
 
 /****************************************************************//**
 Determines if a page number is located inside the doublewrite buffer.
-@return TRUE if the location is inside the two blocks of the
+@return true if the location is inside the two blocks of the
 doublewrite buffer */
 ibool
 buf_dblwr_page_inside(
@@ -659,10 +659,12 @@ buf_dblwr_recover_page(
 		/* Write the good page from the doublewrite
 		buffer to the intended position. */
 
-		fil_io(write_request, true,
+		err = fil_io(write_request, true,
 			page_id, page_size,
 			0, page_size.physical(),
 			const_cast<byte*>(page), NULL);
+
+		ut_a(err == DB_SUCCESS);
 
 		ib::info()
 			<< "Recovered page "
@@ -969,15 +971,19 @@ buf_dblwr_write_block_to_datafile(
 		type |= IORequest::DO_NOT_WAKE;
 	}
 
+	dberr_t         err;
 	IORequest	request(type);
 
 	if (bpage->zip.data != NULL) {
 		ut_ad(bpage->size.is_compressed());
 
-		fil_io(request, sync, bpage->id, bpage->size, 0,
-		       bpage->size.physical(),
-		       (void*) bpage->zip.data,
-		       (void*) bpage);
+		err = fil_io(
+			request, sync, bpage->id, bpage->size, 0,
+			bpage->size.physical(), (void*) bpage->zip.data,
+			(void*) bpage);
+
+		ut_a(err == DB_SUCCESS);
+
 	} else {
 		ut_ad(!bpage->size.is_compressed());
 
@@ -990,9 +996,11 @@ buf_dblwr_write_block_to_datafile(
 		ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 		buf_dblwr_check_page_lsn(block->frame);
 
-		fil_io(request,
-		       sync, bpage->id, bpage->size, 0, bpage->size.physical(),
-		       block->frame, block);
+		err = fil_io(
+			request, sync, bpage->id, bpage->size, 0,
+			bpage->size.physical(), block->frame, block);
+
+		ut_a(err == DB_SUCCESS);
 	}
 }
 
@@ -1006,9 +1014,10 @@ void
 buf_dblwr_flush_buffered_writes(void)
 /*=================================*/
 {
+	ulint		len;
+	dberr_t		err;
 	byte*		write_buf;
 	ulint		first_free;
-	ulint		len;
 
 	if (!srv_use_doublewrite_buf || buf_dblwr == NULL) {
 		/* Sync the writes to the disk. */
@@ -1092,9 +1101,12 @@ try_again:
 	len = ut_min(TRX_SYS_DOUBLEWRITE_BLOCK_SIZE,
 		     buf_dblwr->first_free) * UNIV_PAGE_SIZE;
 
-	fil_io(IORequestWrite, true,
-	       page_id_t(TRX_SYS_SPACE, buf_dblwr->block1), univ_page_size,
-	       0, len, (void*) write_buf, NULL);
+	err = fil_io(
+		IORequestWrite, true,
+		page_id_t(TRX_SYS_SPACE, buf_dblwr->block1), univ_page_size,
+		0, len, (void*) write_buf, NULL);
+
+		ut_a(err == DB_SUCCESS);
 
 	if (buf_dblwr->first_free <= TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
 		/* No unwritten pages in the second block. */
@@ -1108,9 +1120,12 @@ try_again:
 	write_buf = buf_dblwr->write_buf
 		    + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
 
-	fil_io(IORequestWrite, true,
-	       page_id_t(TRX_SYS_SPACE, buf_dblwr->block2), univ_page_size,
-	       0, len, (void*) write_buf, NULL);
+	err = fil_io(
+		IORequestWrite, true,
+		page_id_t(TRX_SYS_SPACE, buf_dblwr->block2), univ_page_size,
+		0, len, (void*) write_buf, NULL);
+
+	ut_a(err == DB_SUCCESS);
 
 flush:
 	/* increment the doublewrite flushed pages counter */
@@ -1241,10 +1256,11 @@ buf_dblwr_write_single_page(
 	buf_page_t*	bpage,	/*!< in: buffer block to write */
 	bool		sync)	/*!< in: true if sync IO requested */
 {
+	page_no_t	i;
+	dberr_t         err;
 	ulint		n_slots;
 	page_no_t	size;
 	page_no_t	offset;
-	page_no_t	i;
 
 	ut_a(buf_page_in_file(bpage));
 	ut_a(srv_use_doublewrite_buf);
@@ -1330,21 +1346,22 @@ retry:
 		       + bpage->size.physical(), 0x0,
 		       univ_page_size.physical() - bpage->size.physical());
 
-		fil_io(IORequestWrite, true,
-		       page_id_t(TRX_SYS_SPACE, offset), univ_page_size, 0,
-		       univ_page_size.physical(),
-		       (void*) (buf_dblwr->write_buf
-				+ univ_page_size.physical() * i),
-		       NULL);
+		err = fil_io(
+			IORequestWrite, true, page_id_t(TRX_SYS_SPACE, offset),
+			univ_page_size, 0, univ_page_size.physical(),
+			(void*) (buf_dblwr->write_buf
+				 + univ_page_size.physical() * i), NULL);
 	} else {
 		/* It is a regular page. Write it directly to the
 		doublewrite buffer */
-		fil_io(IORequestWrite, true,
-		       page_id_t(TRX_SYS_SPACE, offset), univ_page_size, 0,
-		       univ_page_size.physical(),
-		       (void*) ((buf_block_t*) bpage)->frame,
-		       NULL);
+
+		err = fil_io(
+			IORequestWrite, true, page_id_t(TRX_SYS_SPACE, offset),
+			univ_page_size, 0, univ_page_size.physical(),
+			(void*) ((buf_block_t*) bpage)->frame, NULL);
 	}
+
+	ut_a(err == DB_SUCCESS);
 
 	/* Now flush the doublewrite buffer data to disk */
 	fil_flush(TRX_SYS_SPACE);

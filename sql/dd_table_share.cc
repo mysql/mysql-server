@@ -33,13 +33,14 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
+#include "nullable.h"
 #include "sql/dd/collection.h"
 #include "sql/dd/dd_table.h"                  // dd::FIELD_NAME_SEPARATOR_CHAR
 #include "sql/dd/dd_tablespace.h"             // dd::get_tablespace_name
@@ -49,6 +50,7 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/column.h"              // dd::enum_column_types
 #include "sql/dd/types/column_type_element.h" // dd::Column_type_element
+#include "sql/dd/types/foreign_key.h"
 #include "sql/dd/types/foreign_key_element.h" // dd::Foreign_key_element
 #include "sql/dd/types/index.h"               // dd::Index
 #include "sql/dd/types/index_element.h"       // dd::Index_element
@@ -58,6 +60,7 @@
 #include "sql/default_values.h"               // prepare_default_value_buffer...
 #include "sql/error_handler.h"                // Internal_error_handler
 #include "sql/field.h"
+#include "sql/gis/srid.h"
 #include "sql/handler.h"
 #include "sql/key.h"
 #include "sql/log.h"
@@ -71,13 +74,16 @@
 #include "sql/sql_partition.h"                // generate_partition_syntax
 #include "sql/sql_plugin.h"                   // plugin_unlock
 #include "sql/sql_plugin_ref.h"
-#include "sql/sql_servers.h"
 #include "sql/sql_table.h"                    // primary_key_name
 #include "sql/strfunc.h"                      // lex_cstring_handle
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql_string.h"
+#include "sql/thd_raii.h"
 #include "typelib.h"
+
+namespace histograms {
+class Histogram;
+}  // namespace histograms
 
 
 enum_field_types dd_get_old_field_type(dd::enum_column_types type)
@@ -572,7 +578,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_d
     // OOM error message already reported
     return true; /* purecov: inspected */
   }
-  bitmap_init(&share->all_set, bitmaps, share->fields, FALSE);
+  bitmap_init(&share->all_set, bitmaps, share->fields, false);
   bitmap_set_all(&share->all_set);
 
   return false;
@@ -2069,7 +2075,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   case dd::Table::PT_AUTO:
     part_info->key_algorithm= enum_key_algorithm::KEY_ALGORITHM_55;
     part_info->part_type= partition_type::HASH;
-    part_info->list_of_part_fields= TRUE;
+    part_info->list_of_part_fields= true;
     part_info->is_auto_partitioned= true;
     share->auto_partitioned= true;
     break;

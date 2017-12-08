@@ -22,7 +22,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/rpl_gtid.h"
 
 class Log_event;

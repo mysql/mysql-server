@@ -42,7 +42,7 @@ class Weak_object;
 class Object_table;
 }  // namespace dd
 
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 
 namespace dd {
 

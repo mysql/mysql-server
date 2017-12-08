@@ -40,7 +40,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -48,6 +47,7 @@
 #include "sql/item_cmpfunc.h"
 #include "sql/key.h"
 #include "sql/merge_sort.h"     // merge_sort
+#include "sql/nested_join.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_hints.h"      // hint_table_state
 #include "sql/opt_range.h"      // QUICK_SELECT_I
@@ -57,7 +57,6 @@
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"      // THD
 #include "sql/sql_const.h"
-#include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
@@ -497,7 +496,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
           create quick select over another index), so we can't compare
           them to (**). We'll make indirect judgements instead.
           The sufficient conditions for re-use are:
-          (C1) All e_i in (**) are constants, i.e. table_deps==FALSE. (if
+          (C1) All e_i in (**) are constants, i.e. table_deps==false. (if
           this is not satisfied we have no way to know which ranges
           will be actually scanned by 'ref' until we execute the
           join)
@@ -945,7 +944,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
   @param remaining_tables  set of tables not included in the partial plan yet.
   @param idx               the index in join->position[] where 'tab' is added
                            to the partial plan.
-  @param disable_jbuf      TRUE<=> Don't use join buffering
+  @param disable_jbuf      true<=> Don't use join buffering
   @param prefix_rowcount   estimate for the number of records returned by the
                            partial plan
   @param[out] pos          Table access plan
@@ -3255,7 +3254,7 @@ prev_record_reads(JOIN *join, uint idx, table_map found_ref)
 /**
   @brief Fix semi-join strategies for the picked join order
 
-  @return FALSE if success, TRUE if error
+  @return false if success, true if error
 
   @details
     Fix semi-join strategies for the picked join order. This is a step that
@@ -3437,7 +3436,7 @@ bool Optimize_table_order::fix_semijoin_strategies()
 
   DBUG_ASSERT(remaining_tables == (join->all_table_map&~join->const_table_map));
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -3526,10 +3525,10 @@ bool Optimize_table_order::fix_semijoin_strategies()
   @param tab   Table we're going to extend the current partial join with
 
   @retval
-    FALSE  Join order extended, nested joins info about current join
+    false  Join order extended, nested joins info about current join
     order (see NOTE section) updated.
   @retval
-    TRUE   Requested join order extension not allowed.
+    true   Requested join order extension not allowed.
 */
 
 bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab)
@@ -4642,7 +4641,6 @@ backout_nj_state(const table_map remaining_tables MY_ATTRIBUTE((unused)),
 static void trace_plan_prefix(JOIN *join, uint idx,
                               table_map excluded_tables)
 {
-#ifdef OPTIMIZER_TRACE
   THD * const thd= join->thd;
   Opt_trace_array plan_prefix(&thd->opt_trace, "plan_prefix");
   for (uint i= 0; i < idx; i++)
@@ -4658,7 +4656,6 @@ static void trace_plan_prefix(JOIN *join, uint idx,
       plan_prefix.add_utf8(str.ptr(), str.length());
     }
   }
-#endif
 }
 
 /**

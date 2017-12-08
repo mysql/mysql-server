@@ -15,7 +15,6 @@
 
 #include "sql/rpl_binlog_sender.h"
 
-#include <assert.h>
 #include <stdio.h>
 #include <algorithm>
 #include <atomic>
@@ -34,10 +33,10 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "sql/debug_sync.h"          // debug_sync_set_action
 #include "sql/derror.h"              // ER_THD
 #include "sql/item_func.h"           // user_var_entry
@@ -54,6 +53,7 @@
 #include "sql/rpl_reporting.h"       // MAX_SLAVE_ERRMSG
 #include "sql/sql_class.h"           // THD
 #include "sql/system_variables.h"
+#include "sql_string.h"
 #include "typelib.h"
 
 #ifndef DBUG_OFF
@@ -270,7 +270,7 @@ void Binlog_sender::run()
     if (!mysql_bin_log.is_open())
     {
       if (mysql_bin_log.open_index_file(mysql_bin_log.get_index_fname(),
-					log_file, FALSE))
+					log_file, false))
       {
         set_fatal_error("Binary log is not open and failed to open index file "
                         "to retrieve next file.");
@@ -322,7 +322,7 @@ void Binlog_sender::run()
     if (is_fatal_error())
     {
       /* output events range to error message */
-      my_snprintf(error_text, sizeof(error_text),
+      snprintf(error_text, sizeof(error_text),
                   "%s; the first event '%s' at %lld, "
                   "the last event read from '%s' at %lld, "
                   "the last byte read from '%s' at %lld.",

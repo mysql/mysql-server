@@ -22,6 +22,7 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysys_err.h"
@@ -44,7 +45,6 @@
 #include "my_pointer_arithmetic.h"
 #include "my_thread_local.h"
 #include "mysql.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysql_version.h"
@@ -87,10 +87,10 @@ static void append_wild(char *to,char *end,const char *wild);
 static bool mysql_client_init= 0;
 static bool org_my_init_done= 0;
 
-typedef struct st_mysql_stmt_extension
+struct MYSQL_STMT_EXT
 {
   MEM_ROOT fields_mem_root;
-} MYSQL_STMT_EXT;
+};
 
 
 /*
@@ -301,7 +301,7 @@ bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   if (mysql_init_character_set(mysql))
   {
     mysql->charset= saved_cs;
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /*
@@ -491,13 +491,13 @@ err:
   Default handlers for LOAD LOCAL INFILE
 ****************************************************************************/
 
-typedef struct st_default_local_infile
+struct default_local_infile_data
 {
   int fd;
   int error_num;
   const char *filename;
   char error_msg[LOCAL_INFILE_ERROR_LEN];
-} default_local_infile_data;
+};
 
 
 /*
@@ -538,7 +538,7 @@ static int default_local_infile_init(void **ptr, const char *filename,
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     data->error_num= my_errno();
-    my_snprintf(data->error_msg, sizeof(data->error_msg)-1,
+    snprintf(data->error_msg, sizeof(data->error_msg)-1,
                 EE(EE_FILENOTFOUND), tmp_name, data->error_num,
                 my_strerror(errbuf, sizeof(errbuf), data->error_num));
     return 1;
@@ -571,7 +571,7 @@ static int default_local_infile_read(void *ptr, char *buf, uint buf_len)
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     data->error_num= EE_READ; /* the errmsg for not entire file read */
-    my_snprintf(data->error_msg, sizeof(data->error_msg)-1,
+    snprintf(data->error_msg, sizeof(data->error_msg)-1,
                 EE(EE_READ), data->filename,
                 my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
@@ -1593,7 +1593,6 @@ mysql_stmt_init(MYSQL *mysql)
 
   init_alloc_root(PSI_NOT_INSTRUMENTED, stmt->mem_root, 2048, 2048);
   init_alloc_root(PSI_NOT_INSTRUMENTED, stmt->result.alloc, 4096, 4096);
-  stmt->result.alloc->min_malloc= sizeof(MYSQL_ROWS);
   mysql->stmts= list_add(mysql->stmts, &stmt->list);
   stmt->list.data= stmt;
   stmt->state= MYSQL_STMT_INIT_DONE;
@@ -1674,8 +1673,8 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
       These members must be reset for API to
       function in case of error or misuse.
     */
-    stmt->bind_param_done= FALSE;
-    stmt->bind_result_done= FALSE;
+    stmt->bind_param_done= false;
+    stmt->bind_result_done= false;
     stmt->param_count= stmt->field_count= 0;
     free_root(stmt->mem_root, MYF(MY_KEEP_PREALLOC));
     free_root(&stmt->extension->fields_mem_root, MYF(0));
@@ -2183,7 +2182,7 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
   uchar buff[4 /* size of stmt id */ +
              5 /* execution flags */];
   bool res;
-  bool is_data_packet= FALSE;
+  bool is_data_packet= false;
   ulong      pkt_len;
   MYSQL_ROWS **prev_ptr= NULL;
   DBUG_ENTER("execute");
@@ -2537,17 +2536,17 @@ bool STDCALL mysql_stmt_attr_set(MYSQL_STMT *stmt,
   {
     ulong prefetch_rows= value ? *(ulong*) value : DEFAULT_PREFETCH_ROWS;
     if (value == 0)
-      return TRUE;
+      return true;
     stmt->prefetch_rows= prefetch_rows;
     break;
   }
   default:
     goto err_not_implemented;
   }
-  return FALSE;
+  return false;
 err_not_implemented:
   set_stmt_error(stmt, CR_NOT_IMPLEMENTED, unknown_sqlstate, NULL);
-  return TRUE;
+  return true;
 }
 
 
@@ -2566,9 +2565,9 @@ bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt,
     *(ulong*) value= stmt->prefetch_rows;
     break;
   default:
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -2577,10 +2576,6 @@ bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt,
   information sent during statement execute.
 
   @pre mysql->field_count is not zero
-
-  @retval TRUE   if error: out of memory or the new
-                 result set has a different number of columns
-  @retval FALSE  success
 */
 
 static void reinit_result_set_metadata(MYSQL_STMT *stmt)
@@ -2640,7 +2635,7 @@ static void prepare_to_fetch_result(MYSQL_STMT *stmt)
   else
   {
     stmt->mysql->unbuffered_fetch_owner= &stmt->unbuffered_fetch_cancelled;
-    stmt->unbuffered_fetch_cancelled= FALSE;
+    stmt->unbuffered_fetch_cancelled= false;
     stmt->read_row_func= stmt_read_row_unbuffered;
   }
 }
@@ -2859,7 +2854,7 @@ static bool int_is_null_false= 0;
 
     Binding integer types.
       For integer types you might also need to set MYSQL_BIND::is_unsigned
-      member. Set it to TRUE when binding unsigned char, unsigned short,
+      member. Set it to true when binding unsigned char, unsigned short,
       unsigned int, unsigned long, unsigned long long.
 
     Binding floating point types.
@@ -2876,8 +2871,8 @@ static bool int_is_null_false= 0;
       zero-initialized the entire structure.  If you set
       MYSQL_TYPE::is_null to point to an application buffer of type
       'bool', then this buffer will be checked on each execution:
-      this way you can set the buffer to TRUE, or any non-0 value for
-      NULLs, and to FALSE or 0 for not NULL data.
+      this way you can set the buffer to true, or any non-0 value for
+      NULLs, and to false or 0 for not NULL data.
 
     Binding text strings and sequences of bytes.
       For strings, in addition to MYSQL_BIND::buffer_type and
@@ -3055,8 +3050,8 @@ bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
       param->length= &param->buffer_length;
   }
   /* We have to send/resend type information to MySQL */
-  stmt->send_types_to_server= TRUE;
-  stmt->bind_param_done= TRUE;
+  stmt->send_types_to_server= true;
+  stmt->bind_param_done= true;
   DBUG_RETURN(0);
 }
 
@@ -3681,7 +3676,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
   case MYSQL_TYPE_LONGLONG:
   {
     longlong value= (longlong) TIME_to_ulonglong(my_time);
-    fetch_long_with_conversion(param, field, value, TRUE);
+    fetch_long_with_conversion(param, field, value, true);
     break;
   }
   default:
@@ -3993,7 +3988,7 @@ static void skip_result_string(MYSQL_BIND *param MY_ATTRIBUTE((unused)),
     type2   field type, obtained from result set metadata
 
   RETURN
-    TRUE or FALSE
+    true or false
 */
 
 static bool is_binary_compatible(enum enum_field_types type1,
@@ -4013,11 +4008,11 @@ static bool is_binary_compatible(enum enum_field_types type1,
    const enum enum_field_types **range, *type;
 
   if (type1 == type2)
-    return TRUE;
+    return true;
   for (range= range_list; range != range_list_end; ++range)
   {
     /* check that both type1 and type2 are in the same range */
-    bool type1_found= FALSE, type2_found= FALSE;
+    bool type1_found= false, type2_found= false;
     for (type= *range; *type != MYSQL_TYPE_NULL; type++)
     {
       type1_found|= type1 == *type;
@@ -4026,7 +4021,7 @@ static bool is_binary_compatible(enum enum_field_types type1,
     if (type1_found || type2_found)
       return type1_found && type2_found;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -4050,9 +4045,9 @@ static bool is_binary_compatible(enum enum_field_types type1,
     only.
 
   RETURN
-    TRUE   fetch function for this typecode was not found (typecode
+    true   fetch function for this typecode was not found (typecode
           is not supported by the client library)
-    FALSE  success
+    false  success
 */
 
 static bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
@@ -4127,7 +4122,7 @@ static bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
   default:
     DBUG_PRINT("error", ("Unknown param->buffer_type: %u",
                          (uint) param->buffer_type));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   if (! is_binary_compatible(param->buffer_type, field->type))
     param->fetch_result= fetch_result_with_conversion;
@@ -4199,9 +4194,9 @@ static bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
     break;
   default:
     DBUG_PRINT("error", ("Unknown field->type: %u", (uint) field->type));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -4807,9 +4802,9 @@ static bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
         if (stmt->field_count && mysql->status != MYSQL_STATUS_READY)
         {
           /* There is a result set and it belongs to this statement */
-          (*mysql->methods->flush_use_result)(mysql, FALSE);
+          (*mysql->methods->flush_use_result)(mysql, false);
           if (mysql->unbuffered_fetch_owner)
-            *mysql->unbuffered_fetch_owner= TRUE;
+            *mysql->unbuffered_fetch_owner= true;
           mysql->status= MYSQL_STATUS_READY;
         }
       }
@@ -4892,9 +4887,9 @@ bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
           Flush result set of the connection. If it does not belong
           to this statement, set a warning.
         */
-        (*mysql->methods->flush_use_result)(mysql, TRUE);
+        (*mysql->methods->flush_use_result)(mysql, true);
         if (mysql->unbuffered_fetch_owner)
-          *mysql->unbuffered_fetch_owner= TRUE;
+          *mysql->unbuffered_fetch_owner= true;
         mysql->status= MYSQL_STATUS_READY;
       }
       int4store(buff, stmt->stmt_id);
@@ -5083,7 +5078,7 @@ int STDCALL mysql_stmt_next_result(MYSQL_STMT *stmt)
     mysql->status= MYSQL_STATUS_STATEMENT_GET_RESULT;
 
   stmt->state= MYSQL_STMT_EXECUTE_DONE;
-  stmt->bind_result_done= FALSE;
+  stmt->bind_result_done= false;
   stmt->field_count= mysql->field_count;
 
   if (mysql->field_count)

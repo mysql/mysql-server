@@ -12,6 +12,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -19,6 +20,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "lex_string.h"
@@ -26,29 +28,37 @@
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
+#include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_time.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
+#include "mysql/plugin_audit.h"
 #include "mysql/plugin_auth.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
 #include "password.h"                   /* my_make_scrambled_password */
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/dynamic_privilege_table.h"
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/field.h"
+#include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/log_event.h"              /* append_query_string */
 #include "sql/protocol.h"
+#include "sql/sql_audit.h"
 #include "sql/sql_class.h"
 #include "sql/sql_connect.h"
 #include "sql/sql_const.h"
@@ -60,6 +70,7 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql_string.h"
 #include "violite.h"
                                         /* key_restore */
@@ -73,7 +84,6 @@
 #include "sql/derror.h"                 /* ER_THD */
 #include "sql/log.h"
 #include "sql/mysqld.h"
-#include "sql/sys_vars_shared.h"
 
 /**
   Auxiliary function for constructing a  user list string.
@@ -82,8 +92,8 @@
   @param thd     Thread context
   @param str     A String to store the user list.
   @param user    A LEX_USER which will be appended into user list.
-  @param comma   If TRUE, append a ',' before the the user.
-  @param ident   If TRUE, append ' IDENTIFIED BY/WITH...' after the user,
+  @param comma   If true, append a ',' before the the user.
+  @param ident   If true, append ' IDENTIFIED BY/WITH...' after the user,
                  if the given user has credentials set with 'IDENTIFIED BY/WITH'
  */
 void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
@@ -242,8 +252,7 @@ enum enum_acl_lists
   PROXY_USERS_ACL
 };
 
-int check_change_password(THD *thd, const char *host, const char *user,
-                          const char *new_password, size_t new_password_len)
+int check_change_password(THD *thd, const char *host, const char *user)
 {
   Security_context *sctx;
   if (!initialized)
@@ -310,7 +319,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   if (!acl_cache_lock.lock())
     DBUG_RETURN(true);
 
-  if (!(acl_user= find_acl_user(user_name->host.str, user_name->user.str, TRUE)))
+  if (!(acl_user= find_acl_user(user_name->host.str, user_name->user.str, true)))
   {
     String wrong_users;
     append_user(thd, &wrong_users, user_name, wrong_users.length() > 0, false);
@@ -903,7 +912,7 @@ bool set_and_validate_user_attributes(THD *thd,
   if (thd->lex->mqh.specified_limits)
     what_to_set|= RESOURCE_ATTR;
 
-  if ((acl_user= find_acl_user(Str->host.str, Str->user.str, TRUE)))
+  if ((acl_user= find_acl_user(Str->host.str, Str->user.str, true)))
     user_exists= true;
 
   /* copy password expire attributes to individual user */
@@ -1151,7 +1160,7 @@ bool set_and_validate_user_attributes(THD *thd,
           hence does not support SET PASSWORD
         */
         char warning_buffer[MYSQL_ERRMSG_SIZE];
-        my_snprintf(warning_buffer, sizeof(warning_buffer),
+        snprintf(warning_buffer, sizeof(warning_buffer),
                     "SET PASSWORD has no significance for user '%s'@'%s' as "
                     "authentication plugin does not support it.",
                     Str->user.str, Str->host.str);
@@ -1225,7 +1234,7 @@ bool set_and_validate_user_attributes(THD *thd,
       if (!thd->is_error())
       {
         String error_user;
-        append_user(thd, &error_user, Str, FALSE, FALSE);
+        append_user(thd, &error_user, Str, false, false);
         my_error(ER_CANNOT_USER, MYF(0), cmd, error_user.c_ptr_safe());
       }
       return(1);
@@ -1339,7 +1348,7 @@ bool change_password(THD *thd, const char *host, const char *user,
                       host,user,new_password));
   DBUG_ASSERT(host != 0);                        // Ensured by parent
 
-  if (check_change_password(thd, host, user, new_password, new_password_len))
+  if (check_change_password(thd, host, user))
     DBUG_RETURN(true);
 
   /*
@@ -1369,7 +1378,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   }
 
   ACL_USER *acl_user;
-  if (!(acl_user= find_acl_user(host, user, TRUE)))
+  if (!(acl_user= find_acl_user(host, user, true)))
   {
     my_error(ER_PASSWORD_NO_MATCH, MYF(0));
     commit_and_close_mysql_tables(thd);
@@ -1379,7 +1388,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   DBUG_ASSERT(acl_user->plugin.length != 0);
   is_role= acl_user->is_role;
 
-  if (!(combo=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+  if (!(combo=(LEX_USER*) thd->alloc(sizeof(LEX_USER))))
     DBUG_RETURN(true);
 
   combo->user.str= user;
@@ -1515,7 +1524,7 @@ bool rename_matching_grants(T *hash, Matcher &matches, LEX_USER *user_to)
   {
     grant_name->set_user_details(user_to->host.str, grant_name->db,
                                  user_to->user.str, grant_name->tname,
-                                 TRUE);
+                                 true);
     hash->emplace(grant_name->hash_key,
                   unique_ptr_destroy_only<Elem>(grant_name));
   }
@@ -1989,8 +1998,8 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
     list                        The users to create.
 
   RETURN
-    FALSE       OK.
-    TRUE        Error.
+    false       OK.
+    true        Error.
 */
 
 bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool is_role)
@@ -2082,7 +2091,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
       if (if_not_exists)
       {
         String warn_user;
-        append_user(thd, &warn_user, user_name, FALSE, FALSE);
+        append_user(thd, &warn_user, user_name, false, false);
         push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_USER_ALREADY_EXISTS,
                             ER_THD(thd, ER_USER_ALREADY_EXISTS),
@@ -2249,7 +2258,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
       if (if_exists)
       {
         String warn_user;
-        append_user(thd, &warn_user, user_name, FALSE, FALSE);
+        append_user(thd, &warn_user, user_name, false, false);
         push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_USER_DOES_NOT_EXIST,
                             ER_THD(thd, ER_USER_DOES_NOT_EXIST),
@@ -2257,7 +2266,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
       }
       else
       {
-        append_user(thd, &wrong_users, user_name, wrong_users.length() > 0, FALSE);
+        append_user(thd, &wrong_users, user_name, wrong_users.length() > 0, false);
         result= 1;
       }
       continue;
@@ -2317,8 +2326,8 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     list                        The user name pairs: (from, to).
 
   RETURN
-    FALSE       OK.
-    TRUE        Error.
+    false       OK.
+    true        Error.
 */
 
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
@@ -2420,7 +2429,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
         break;
       }
 
-      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0, FALSE);
+      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0, false);
       result= 1;
       continue;
     }
@@ -2486,8 +2495,8 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     list                        The user names.
 
   RETURN
-    FALSE       OK.
-    TRUE        Error.
+    false       OK.
+    true        Error.
 */
 
 bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
@@ -2590,7 +2599,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     }
 
     acl_user= find_acl_user(user_from->host.str,
-                            user_from->user.str, TRUE);
+                            user_from->user.str, true);
 
     if (history_check_done)
     {
@@ -2629,7 +2638,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
       if (if_exists)
       {
         String warn_user;
-        append_user(thd, &warn_user, user_from, FALSE, FALSE);
+        append_user(thd, &warn_user, user_from, false, false);
         push_warning_printf(thd, Sql_condition::SL_NOTE,
           ER_USER_DOES_NOT_EXIST,
           ER_THD(thd, ER_USER_DOES_NOT_EXIST),
@@ -2666,7 +2675,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
       if (if_exists)
       {
         String warn_user;
-        append_user(thd, &warn_user, user_from, FALSE, FALSE);
+        append_user(thd, &warn_user, user_from, false, false);
         push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_USER_DOES_NOT_EXIST,
                             ER_THD(thd, ER_USER_DOES_NOT_EXIST),

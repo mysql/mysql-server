@@ -20,13 +20,11 @@
 #include <sys/types.h>
 #include <new>
 
-#include "mysql/udf_registration_types.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_class.h"                      /* Query_arena */
-#include "sql/sql_servers.h"
 
 class JOIN;
 class Query_result;
+struct MEM_ROOT;
 
 /**
   @file
@@ -43,7 +41,7 @@ class Query_result;
   its base class.
 */
 
-class Server_side_cursor: protected Query_arena, public Sql_alloc
+class Server_side_cursor: protected Query_arena
 {
 protected:
   /** Row destination used for fetch */

@@ -17,7 +17,7 @@
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
-%global milestone    rc
+%global milestone    dmr
 
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
@@ -230,8 +230,8 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
          pfs_example_plugin_employee.so qa_auth_client.so qa_auth_interface.so \
          qa_auth_server.so replication_observers_example_plugin.so \
          test_security_context.so test_services_plugin_registry.so \
-	 udf_example.so \
-         test_udf_services.so component_test_backup_lock_service.so ; do
+         udf_example.so \
+	 test_udf_services.so component_test_backup_lock_service.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
 
@@ -399,16 +399,17 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
-* Thu Dec 07 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
-- Add mysqlbackup
+* Thu Dec 07 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
+- Change the global milestone to 'dmr'
 - Add keyring_encrypted_file.so plugin
 - Do not package udf_example.so
+- Add mysqlbackup
 - Add component_validate_password component
 
 * Thu Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
 - Add component_test_component_sys_status_service plugin
 
-* Tue Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
+* Wed Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
 - Add component_test_status_var_service plugin
 
 * Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1

@@ -216,7 +216,7 @@ ha_search_with_data(
 /*********************************************************//**
 Looks for an element when we know the pointer to the data, and deletes
 it from the hash table, if found.
-@return TRUE if found */
+@return true if found */
 UNIV_INLINE
 ibool
 ha_search_and_delete_if_found(

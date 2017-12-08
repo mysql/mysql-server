@@ -85,20 +85,13 @@ ulong my_default_record_cache_size=RECORD_CACHE_SIZE;
 USED_MEM* my_once_root_block=0;			/* pointer to first block */
 uint	  my_once_extra=ONCE_ALLOC_INIT;	/* Memory to alloc / block */
 
-	/* from my_largepage.c */
-#ifdef HAVE_LINUX_LARGE_PAGES
-bool my_use_large_pages= 0;
-uint my_large_page_size= 0;
-#endif
-
 	/* from errors.c */
-extern "C" {
 void (*error_handler_hook)(uint error, const char *str, myf MyFlags)=
   my_message_stderr;
 void (*fatal_error_handler_hook)(uint error, const char *str, myf MyFlags)=
   my_message_stderr;
-void (*local_message_hook)(enum loglevel ll, const char *format, va_list args)=
-  my_message_local_stderr;
+void (*local_message_hook)(enum loglevel ll, const char *format, va_list args)
+  MY_ATTRIBUTE((format(printf, 2, 0)))= my_message_local_stderr;
 
 static void enter_cond_dummy(void *a MY_ATTRIBUTE((unused)),
                              mysql_cond_t *b MY_ATTRIBUTE((unused)),
@@ -162,7 +155,6 @@ int (*is_killed_hook)(const void *)= is_killed_dummy;
 */
 void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-} // extern C
 
 #ifdef _WIN32
 /* from my_getsystime.c */

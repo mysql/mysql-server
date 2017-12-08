@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -118,7 +118,7 @@ enum enum_ft_token_type
   position: Start position in bytes of the word in the document, used by InnoDB FTS.
 */
 
-typedef struct st_mysql_ftparser_boolean_info
+struct MYSQL_FTPARSER_BOOLEAN_INFO
 {
   enum enum_ft_token_type type;
   int yesno;
@@ -129,7 +129,7 @@ typedef struct st_mysql_ftparser_boolean_info
   /* These are parser state and must be removed. */
   char prev;
   char *quot;
-} MYSQL_FTPARSER_BOOLEAN_INFO;
+};
 
 /*
   The following flag means that buffer with a string (document, word)
@@ -138,8 +138,8 @@ typedef struct st_mysql_ftparser_boolean_info
   to survive between two successive calls of the parsing function, she
   needs to save a copy of it. The flag may be set by MySQL before calling
   st_mysql_ftparser::parse(), or it may be set by a plugin before calling
-  st_mysql_ftparser_param::mysql_parse() or
-  st_mysql_ftparser_param::mysql_add_word().
+  MYSQL_FTPARSER_PARAM::mysql_parse() or
+  MYSQL_FTPARSER_PARAM::mysql_add_word().
 */
 #define MYSQL_FTFLAGS_NEED_COPY 1
 
@@ -181,21 +181,21 @@ typedef struct st_mysql_ftparser_boolean_info
   nothing.  See  enum_ftparser_mode above.
 */
 
-typedef struct st_mysql_ftparser_param
+struct MYSQL_FTPARSER_PARAM
 {
-  int (*mysql_parse)(struct st_mysql_ftparser_param *,
+  int (*mysql_parse)(MYSQL_FTPARSER_PARAM *,
                      char *doc, int doc_len);
-  int (*mysql_add_word)(struct st_mysql_ftparser_param *,
+  int (*mysql_add_word)(MYSQL_FTPARSER_PARAM *,
                         char *word, int word_len,
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
   void *mysql_ftparam;
-  const struct charset_info_st *cs;
+  const CHARSET_INFO *cs;
   char *doc;
   int length;
   int flags;
   enum enum_ftparser_mode mode;
-} MYSQL_FTPARSER_PARAM;
+};
 
 /*
   Full-text parser descriptor.

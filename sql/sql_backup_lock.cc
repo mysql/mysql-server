@@ -15,9 +15,17 @@
 
 #include "sql_backup_lock.h"
 
+#include <utility>
+
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "mysqld_error.h"     // ER_SPECIFIC_ACCESS_DENIED_ERROR
-#include "sql_class.h"        // THD
 #include "sql/auth/sql_security_ctx.h" // Security_context
+#include "sql/mdl.h"
+#include "sql/system_variables.h"
+#include "sql_class.h"        // THD
 
 /**
   Check if a current user has the privilege BACKUP_ADMIN required to run

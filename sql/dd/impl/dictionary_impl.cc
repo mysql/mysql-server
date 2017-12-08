@@ -40,6 +40,7 @@
 #include "sql/dd/impl/tables/dd_properties.h" // get_actual_dd_version()
 #include "sql/dd/impl/types/plugin_table_impl.h" // dd::Plugin_table_impl
 #include "sql/dd/info_schema/metadata.h"   // dd::info_schema::store_dynamic...
+#include "sql/dd/impl/types/plugin_table_impl.h"
 #include "sql/dd/types/object_table_definition.h"
 #include "sql/dd/types/system_view.h"
 #include "sql/dd/upgrade/upgrade.h"        // dd::upgrade
@@ -47,6 +48,7 @@
 #include "sql/handler.h"
 #include "sql/mdl.h"
 #include "sql/opt_costconstantcache.h"     // init_optimizer_cost_module
+#include "sql/plugin_table.h"
 #include "sql/sql_class.h"                 // THD
 #include "sql/system_variables.h"
 

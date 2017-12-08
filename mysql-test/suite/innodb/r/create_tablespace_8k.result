@@ -867,6 +867,8 @@ test/t_zip4k_to_file_per_table	test/t_zip4k_to_file_per_table	39	5	Compressed	40
 DROP TABLE `t_zip1k_to_file_per_table`;
 DROP TABLE `t_zip2k_to_file_per_table`;
 DROP TABLE `t_zip4k_to_file_per_table`;
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: '.*s_.k.ibd' read failed! - attempted to read 4 bytes, read only 0 bytes at offset 8226");
+call mtr.add_suppression("\\[Warning\\].*InnoDB: Ignoring '.*s_.k.ibd' invalid tablespace ID in the header");
 #
 # Clean-up.
 #

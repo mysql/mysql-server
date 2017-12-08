@@ -21,6 +21,7 @@
 #include <string>
 
 #include "sql/item_func.h"
+#include "sql/nested_join.h"
 #include "sql/sql_lex.h"
 #include "template_utils.h"
 #include "thr_lock.h"

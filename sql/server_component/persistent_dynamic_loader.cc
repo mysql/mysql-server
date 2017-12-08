@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "../components/mysql_server/dynamic_loader.h"
 #include "../components/mysql_server/persistent_dynamic_loader.h"
 #include "../components/mysql_server/server_component.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "mutex_lock.h"
 #include "my_base.h"
@@ -35,12 +36,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
-#include "mysql/components/service.h"
 #include "mysql/components/service_implementation.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/udf_registration_types.h"
+#include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
@@ -52,12 +52,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "sql/log.h" // error_log_print
 #include "sql/mysqld.h"
 #include "sql/records.h"
-#include "sql/session_tracker.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "sql_string.h"
 #include "thr_lock.h"
@@ -220,7 +220,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
     });
 
     if (init_read_record(
-      &read_record_info, thd, component_table, NULL, 1, 1, FALSE))
+      &read_record_info, thd, component_table, NULL, 1, 1, false))
     {
       push_warning(thd, Sql_condition::SL_WARNING,
         ER_COMPONENT_TABLE_INCORRECT,

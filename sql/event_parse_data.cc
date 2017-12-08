@@ -17,31 +17,27 @@
 #include "sql/event_parse_data.h"
 
 #include <string.h>
-#include <algorithm>
 
+#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/thread_type.h"
-#include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"                       // ER_INVALID_CHARACTER_STRING
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/types/event.h"
 #include "sql/derror.h"                         // ER_THD
-#include "sql/histograms/value_map.h"
 #include "sql/item.h"
-#include "sql/item_create.h"
 #include "sql/item_timefunc.h"                  // get_interval_value
-#include "sql/key.h"
 #include "sql/mysqld.h"                         // server_id
 #include "sql/sp_head.h"                        // sp_name
 #include "sql/sql_class.h"                      // THD
-#include "sql/sql_connect.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_time.h"                       // TIME_to_timestamp
+#include "sql/table.h"
 #include "sql_string.h"                         // validate_string
 
 

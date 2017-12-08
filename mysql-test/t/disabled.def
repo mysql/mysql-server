@@ -16,7 +16,7 @@ ds_mrr-big @solaris      : Bug#14168107 2012-04-03 Hemant disabled new test adde
 # For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
 
 # Disabled list(Due to InnoDB issues)
-main.internal_tmp_disk_storage_engine : 2017-04-13 Allen Disabled it since it's failing on pb2.
+main.internal_tmp_disk_storage_engine : Bug#26917416 2017-04-13 Allen Disabled it since it's failing on pb2.
 main.innodb_mysql_sync           : Bug#25887335 2017-04-13 Allen Disabled it since it's failing on pb2.
 
 # log_components_syslog    : WL#9343 2017-02-07 Tatiana provided for review/QA; should not be run routinely to prevent spamming the test host's log. may be removed later.

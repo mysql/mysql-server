@@ -2909,7 +2909,8 @@ handle_ok
 ------------------------------------------------------------------
 ------------------------------------------------------------------
 [CS_TEXT_REPRESENTATION]
-COM_QUERY: query[CREATE PROCEDURE p1(   IN v0 INT,    OUT v_str_1 CHAR(32),    OUT v_dbl_1 DOUBLE(4, 2),    OUT v_dec_1 DECIMAL(6, 3),    OUT v_int_1 INT,    IN v1 INT,    INOUT v_str_2 CHAR(64),    INOUT v_dbl_2 DOUBLE(5, 3),    INOUT v_dec_2 DECIMAL(7, 4),    INOUT v_int_2 INT)BEGIN    SET v0 = -1;    SET v1 = -1;    SET v_str_1 = 'test_1';    SET v_dbl_1 = 12.34;    SET v_dec_1 = 567.891;    SET v_int_1 = 2345;    SET v_str_2 = 'test_2';    SET v_dbl_2 = 67.891;    SET v_dec_2 = 234.6789;    SET v_int_2handle_ok
+COM_QUERY: query[CREATE PROCEDURE p1(   IN v0 INT,    OUT v_str_1 CHAR(32),    OUT v_dbl_1 DOUBLE(4, 2),    OUT v_dec_1 DECIMAL(6, 3),    OUT v_int_1 INT,    IN v1 INT,    INOUT v_str_2 CHAR(64),    INOUT v_dbl_2 DOUBLE(5, 3),    INOUT v_dec_2 DECIMAL(7, 4),    INOUT v_int_2 INT)BEGIN    SET v0 = -1;    SET v1 = -1;    SET v_str_1 = 'test_1';    SET v_dbl_1 = 12.34;    SET v_dec_1 = 567.891;    SET v_int_1 = 2345;    SET v_str_2 = 'test_2';    SET v_dbl_2 = 67.891;    SET v_dec_2 = 234.6789;    SET v_int_2 = 6789;    SELECT * FROM t3;    SELECT * FROM t4; END]
+handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 
@@ -7492,7 +7493,8 @@ handle_ok
 ------------------------------------------------------------------
 ------------------------------------------------------------------
 [CS_TEXT_REPRESENTATION]
-COM_QUERY: query[CREATE PROCEDURE p1(   IN v0 INT,    OUT v_str_1 CHAR(32),    OUT v_dbl_1 DOUBLE(4, 2),    OUT v_dec_1 DECIMAL(6, 3),    OUT v_int_1 INT,    IN v1 INT,    INOUT v_str_2 CHAR(64),    INOUT v_dbl_2 DOUBLE(5, 3),    INOUT v_dec_2 DECIMAL(7, 4),    INOUT v_int_2 INT)BEGIN    SET v0 = -1;    SET v1 = -1;    SET v_str_1 = 'test_1';    SET v_dbl_1 = 12.34;    SET v_dec_1 = 567.891;    SET v_int_1 = 2345;    SET v_str_2 = 'test_2';    SET v_dbl_2 = 67.891;    SET v_dec_2 = 234.6789;    SET v_int_2handle_ok
+COM_QUERY: query[CREATE PROCEDURE p1(   IN v0 INT,    OUT v_str_1 CHAR(32),    OUT v_dbl_1 DOUBLE(4, 2),    OUT v_dec_1 DECIMAL(6, 3),    OUT v_int_1 INT,    IN v1 INT,    INOUT v_str_2 CHAR(64),    INOUT v_dbl_2 DOUBLE(5, 3),    INOUT v_dec_2 DECIMAL(7, 4),    INOUT v_int_2 INT)BEGIN    SET v0 = -1;    SET v1 = -1;    SET v_str_1 = 'test_1';    SET v_dbl_1 = 12.34;    SET v_dec_1 = 567.891;    SET v_int_1 = 2345;    SET v_str_2 = 'test_2';    SET v_dbl_2 = 67.891;    SET v_dec_2 = 234.6789;    SET v_int_2 = 6789;    SELECT * FROM t3;    SELECT * FROM t4; END]
+handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
 	[end] server status: AUTOCOMMIT 

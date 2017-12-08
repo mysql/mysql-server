@@ -33,18 +33,16 @@
 */
 
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
+#include "my_sys.h"
 #include "mysql_com.h"
 #include "sql/current_thd.h"
 #include "sql/protocol_classic.h"
 #include "sql/sql_class.h"                      // THD
-#include "sql_string.h"
-
-extern "C" {
 
 /**
   Read buffered from the net.
@@ -92,5 +90,3 @@ int _my_b_net_read(IO_CACHE *info, uchar *Buffer,
 
   DBUG_RETURN(0);
 }
-
-} /* extern "C" */

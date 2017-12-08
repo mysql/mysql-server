@@ -39,7 +39,7 @@ class Spatial_reference_system;
 
 /*************************************************************//**
 Returns TRUE if two columns are equal for comparison purposes.
-@return TRUE if the columns are considered equal in comparisons */
+@return true if the columns are considered equal in comparisons */
 ibool
 cmp_cols_are_equal(
 /*===============*/
@@ -181,7 +181,7 @@ cmp_dtuple_rec(
 @param[in]	rec	B-tree record
 @param[in]	index	B-tree index
 @param[in]	offsets	rec_get_offsets(rec)
-@return TRUE if prefix */
+@return true if prefix */
 ibool
 cmp_dtuple_is_prefix_of_rec(
 	const dtuple_t*		dtuple,

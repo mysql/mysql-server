@@ -32,9 +32,9 @@ class Key_use;
 class Opt_trace_object;
 class THD;
 struct TABLE_LIST;
+struct POSITION;
 
 typedef ulonglong nested_join_map;
-typedef struct st_position POSITION;
 
 /**
   This class determines the optimal join order for tables within

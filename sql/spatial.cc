@@ -20,6 +20,7 @@
 #include <map>
 #include <memory>
 #include <new>
+#include <type_traits>
 #include <utility>
 
 #include "m_ctype.h"
@@ -660,7 +661,7 @@ public:
 
   virtual void on_wkb_start(Geometry::wkbByteOrder bo,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)
+                            const void *, uint32, bool has_hdr)
   {
     if (!is_ok)
       return;
@@ -1134,15 +1135,15 @@ public:
   {
   }
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)
+                            const void *, uint32, bool)
   {
     if (geotype != Geometry::wkb_geometrycollection)
       num++;
   }
 
-  virtual void on_wkb_end(const void *wkb)
+  virtual void on_wkb_end(const void *)
   {
   }
 };

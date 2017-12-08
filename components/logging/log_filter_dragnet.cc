@@ -1601,7 +1601,7 @@ DEFINE_METHOD(int, log_service_imp::variable_update,
 
 
 static int check_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                  st_mysql_sys_var *self
+                                  SYS_VAR *self
                                     MY_ATTRIBUTE((unused)),
                                   void *save
                                     MY_ATTRIBUTE((unused)),
@@ -1679,7 +1679,7 @@ static int check_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 */
 static void update_var_filter_rules(MYSQL_THD thd
                                       MY_ATTRIBUTE((unused)),
-                                    st_mysql_sys_var *self
+                                    SYS_VAR *self
                                       MY_ATTRIBUTE((unused)),
                                     void *var_ptr,
                                     const void *save)

@@ -92,7 +92,7 @@ they will be released by this function after flushing. This is loosely based on
 buf_flush_batch() and buf_flush_page().
 @param[in,out]	buf_pool	buffer pool instance
 @param[in,out]	block		buffer control block
-@return TRUE if the page was flushed and the mutex released */
+@return true if the page was flushed and the mutex released */
 ibool
 buf_flush_page_try(
 	buf_pool_t*	buf_pool,
@@ -208,12 +208,14 @@ i.e., the transition FILE_PAGE => NOT_USED allowed. The caller must hold the
 LRU list and block mutexes.
 @param[in]	bpage	buffer control block, must be buf_page_in_file() and
 			in the LRU list
-@return TRUE if can replace immediately */
+@return true if can replace immediately */
 ibool
 buf_flush_ready_for_replace(
 	buf_page_t*	bpage);
 
 #ifdef UNIV_DEBUG
+struct SYS_VAR;
+
 /** Disables page cleaner threads (coordinator and workers).
 It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
 @param[in]	thd		thread handle
@@ -223,7 +225,7 @@ It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
 void
 buf_flush_page_cleaner_disabled_debug_update(
 	THD*				thd,
-	struct st_mysql_sys_var*	var,
+	SYS_VAR*	var,
 	void*				var_ptr,
 	const void*			save);
 #endif /* UNIV_DEBUG */
@@ -240,7 +242,7 @@ buf_flush_wait_LRU_batch_end();
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /******************************************************************//**
 Validates the flush list.
-@return TRUE if ok */
+@return true if ok */
 ibool
 buf_flush_validate(
 /*===============*/
@@ -271,7 +273,7 @@ returns true.
 @param[in]	bpage		buffer control block
 @param[in]	flush_type	type of flush
 @param[in]	sync		true if sync IO request
-@return TRUE if page was flushed */
+@return true if page was flushed */
 ibool
 buf_flush_page(
 	buf_pool_t*	buf_pool,

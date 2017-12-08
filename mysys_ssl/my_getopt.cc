@@ -126,7 +126,7 @@ int handle_options(int *argc, char ***argv,
 		   const struct my_option *longopts,
                    my_get_one_option get_one_option)
 {
-  return my_handle_options(argc, argv, longopts, get_one_option, NULL, FALSE);
+  return my_handle_options(argc, argv, longopts, get_one_option, NULL, false);
 }
 
 union ull_dbl
@@ -221,7 +221,7 @@ double getopt_ulonglong2double(ulonglong v)
                              exit, argv [out] would contain all the remaining
                              unparsed options along with the matched command.
 
-  @param [in] ignore_unknown_option When set to TRUE, options are continued to
+  @param [in] ignore_unknown_option When set to true, options are continued to
                                     be read even when unknown options are
 				    encountered.
 
@@ -412,7 +412,7 @@ int my_handle_options(int *argc, char ***argv,
 		  case OPT_DISABLE: /* fall through */
 		    /*
 		      double negation is actually enable again,
-		      for example: --skip-option=0 -> option = TRUE
+		      for example: --skip-option=0 -> option = true
 		    */
 		    optend= (optend && *optend == '0' && !(*(optend + 1))) ?
 		      enabled_my_option : disabled_my_option;
@@ -719,13 +719,13 @@ done:
 
 void print_cmdline_password_warning()
 {
-  static bool password_warning_announced= FALSE;
+  static bool password_warning_announced= false;
 
   if (!password_warning_announced)
   {
     my_message_local(WARNING_LEVEL, "Using a password on the command line "
                                     "interface can be insecure.");
-    password_warning_announced= TRUE;
+    password_warning_announced= true;
   }
 }
 
@@ -1182,7 +1182,7 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
                                bool *fix)
 {
   longlong old= num;
-  bool adjusted= FALSE;
+  bool adjusted= false;
   char buf1[255], buf2[255];
   ulonglong block_size= (optp->block_size ? (ulonglong) optp->block_size : 1L);
   const longlong max_of_type=
@@ -1192,13 +1192,13 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
       optp->max_value) /* if max value is not set -> no upper limit */
   {
     num= (ulonglong) optp->max_value;
-    adjusted= TRUE;
+    adjusted= true;
   }
 
   if (num > max_of_type)
   {
     num= max_of_type;
-    adjusted= TRUE;
+    adjusted= true;
   }
 
   num= (num / block_size);
@@ -1208,7 +1208,7 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
   {
     num= optp->min_value;
     if (old < optp->min_value)
-      adjusted= TRUE;
+      adjusted= true;
   }
 
   if (fix)
@@ -1241,7 +1241,7 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
   ulonglong num;
 
   /* If a negative number is specified as a value for the option. */
-  if (arg == NULL || is_negative_num(arg) == TRUE)
+  if (arg == NULL || is_negative_num(arg) == true)
   {
     num= (ulonglong) optp->min_value;
     my_getopt_error_reporter(WARNING_LEVEL,
@@ -1258,7 +1258,7 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
                                  bool *fix)
 {
-  bool adjusted= FALSE;
+  bool adjusted= false;
   ulonglong old= num;
   char buf1[255], buf2[255];
   const ulonglong max_of_type=
@@ -1268,13 +1268,13 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
       optp->max_value) /* if max value is not set -> no upper limit */
   {
     num= (ulonglong) optp->max_value;
-    adjusted= TRUE;
+    adjusted= true;
   }
 
   if (num > max_of_type)
   {
     num= max_of_type;
-    adjusted= TRUE;
+    adjusted= true;
   }
 
   if (optp->block_size > 1)
@@ -1287,7 +1287,7 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
   {
     num= (ulonglong) optp->min_value;
     if (old < (ulonglong) optp->min_value)
-      adjusted= TRUE;
+      adjusted= true;
   }
 
   if (fix)
@@ -1303,7 +1303,7 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
 double getopt_double_limit_value(double num, const struct my_option *optp,
                                  bool *fix)
 {
-  bool adjusted= FALSE;
+  bool adjusted= false;
   double old= num;
   double min, max;
 
@@ -1312,12 +1312,12 @@ double getopt_double_limit_value(double num, const struct my_option *optp,
   if (max && num > max)
   {
     num= max;
-    adjusted= TRUE;
+    adjusted= true;
   }
   if (num < min)
   {
     num= min;
-    adjusted= TRUE;
+    adjusted= true;
   }
   if (fix)
     *fix= adjusted;

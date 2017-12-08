@@ -337,7 +337,7 @@ bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size)
   /* 1: Words that should be filled with 1 */
   for (; word_ptr < end_prefix; word_ptr++)
     if (*word_ptr != 0xFFFFFFFF)
-      return FALSE;
+      return false;
 
   DBUG_ASSERT(map->n_bits > 0);
   last_word= *map->last_word_ptr & ~map->last_word_mask;
@@ -348,14 +348,14 @@ bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size)
     if (word_ptr == map->last_word_ptr)
       return uint4korr((uchar*)&last_word) == (uint32)((1 << prefix_bits) - 1U);
     else if (uint4korr((uchar*)word_ptr) != (uint32)((1 << prefix_bits) - 1U))
-      return FALSE;
+      return false;
     word_ptr++;
   }
 
   /* 3: Words that should be filled with 0 */
   for (; word_ptr < map->last_word_ptr; word_ptr++)
     if (*word_ptr != 0)
-      return FALSE;
+      return false;
 
   /*
     We can end up here in two situations:
@@ -378,10 +378,10 @@ bool bitmap_is_set_all(const MY_BITMAP *map)
   DBUG_ASSERT(map->n_bits > 0);
   for (; data_ptr < end; data_ptr++)
     if (*data_ptr != 0xFFFFFFFF)
-      return FALSE;
+      return false;
   if ((*map->last_word_ptr | map->last_word_mask) != 0xFFFFFFFF)
-    return FALSE;
-  return TRUE;
+    return false;
+  return true;
 }
 
 
@@ -393,10 +393,10 @@ bool bitmap_is_clear_all(const MY_BITMAP *map)
   DBUG_ASSERT(map->n_bits > 0);
   for (; data_ptr < end; data_ptr++)
     if (*data_ptr)
-      return FALSE;
+      return false;
   if (*map->last_word_ptr & ~map->last_word_mask)
-    return FALSE;
-  return TRUE;
+    return false;
+  return true;
 }
 
 /* Return TRUE if map1 is a subset of map2 */
@@ -411,15 +411,15 @@ bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2)
   end= map1->last_word_ptr;
   for (; m1 < end; m1++, m2++)
     if (*m1 & ~(*m2))
-      return FALSE;
+      return false;
 
   DBUG_ASSERT(map1->n_bits > 0);
   DBUG_ASSERT(map2->n_bits > 0);
 
   if ((*map1->last_word_ptr & ~map1->last_word_mask) &
       ~(*map2->last_word_ptr & ~map2->last_word_mask))
-    return FALSE;
-  return TRUE;
+    return false;
+  return true;
 }
 
 /* True if bitmaps has any common bits */
@@ -437,12 +437,12 @@ bool bitmap_is_overlapping(const MY_BITMAP *map1, const MY_BITMAP *map2)
   end= map1->last_word_ptr;
   for (; m1 < end; m1++, m2++)
     if (*m1 & *m2)
-      return TRUE;
+      return true;
 
   if ((*map1->last_word_ptr & ~map1->last_word_mask) &
       (*map2->last_word_ptr & ~map2->last_word_mask))
-    return TRUE;
-  return FALSE;
+    return true;
+  return false;
 }
 
 

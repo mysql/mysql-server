@@ -19,6 +19,7 @@
 
 #include <stddef.h>
 
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -30,6 +31,7 @@
 #include "sql/sql_executor.h" // QEP_TAB
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h" // JOIN
+#include "sql/sql_select.h"
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
 
@@ -58,7 +60,7 @@ namespace AQP
 
   Join_plan::~Join_plan()
   {
-    delete[] m_table_accesses;
+    destroy_array(m_table_accesses, m_access_count);
     m_table_accesses= NULL;
   }
 
@@ -387,7 +389,7 @@ namespace AQP
            **/
 
           const KEY *key_info= qep_tab->table()->s->key_info;
-          DBUG_EXECUTE("info", quick->dbug_dump(0, TRUE););
+          DBUG_EXECUTE("info", quick->dbug_dump(0, true););
 
           // Temporary assert as we are still investigation the relation between 
           // 'quick->index == MAX_KEY' and the different quick_types

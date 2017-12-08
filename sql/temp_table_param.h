@@ -18,11 +18,11 @@
 
 #include "my_base.h"
 #include "sql/mem_root_array.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_list.h"
+#include "sql/window.h"
 
 
-struct st_columndef;
+struct MI_COLUMNDEF;
 class KEY;
 class Copy_field;
 class Item;
@@ -63,7 +63,7 @@ typedef Mem_root_array<Func_ptr> Func_ptr_array;
   used only internally by the query execution engine.
 */
 
-class Temp_table_param :public Sql_alloc
+class Temp_table_param
 {
 public:
   /// Is used by copy_fields() to copy non-column expressions.
@@ -71,7 +71,7 @@ public:
   Copy_field *copy_field, *copy_field_end;
   uchar	    *group_buff;
   Func_ptr_array *items_to_copy;             /* Fields in tmp table */
-  st_columndef *recinfo,*start_recinfo;
+  MI_COLUMNDEF *recinfo,*start_recinfo;
 
   /**
     After temporary table creation, points to an index on the table
@@ -135,14 +135,14 @@ public:
   bool precomputed_group_by;
   bool force_copy_fields;
   /**
-    TRUE <=> don't actually create table handler when creating the result
+    true <=> don't actually create table handler when creating the result
     table. This allows range optimizer to add indexes later.
     Used for materialized derived tables/views.
     @see TABLE_LIST::update_derived_keys.
   */
   bool skip_create_table;
   /*
-    If TRUE, create_tmp_field called from create_tmp_table will convert
+    If true, create_tmp_field called from create_tmp_table will convert
     all BIT fields to 64-bit longs. This is a workaround the limitation
     that MEMORY tables cannot index BIT columns.
   */

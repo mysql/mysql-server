@@ -26,9 +26,11 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"
+#include "mysql/plugin_audit.h"
 #include "mysql/plugin_auth.h"  // st_mysql_auth
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
@@ -39,7 +41,6 @@
 #include "sql/auth/auth_common.h" // ACL_internal_schema_access
 #include "sql/auth/auth_internal.h" // auth_plugin_is_built_in
 #include "sql/auth/dynamic_privilege_table.h"
-#include "sql/auth/role_tables.h"
 #include "sql/auth/sql_authentication.h" // sha256_password_plugin_name
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/auth/sql_user_table.h"
@@ -48,14 +49,14 @@
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/field.h"          // Field
 #include "sql/handler.h"
-#include "sql/histograms/value_map.h"
 #include "sql/item_func.h"      // mqh_used
-#include "sql/log.h"
+#include "sql/key.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"         // my_localhost
 #include "sql/psi_memory_key.h" // key_memory_acl_mem
 #include "sql/records.h"        // READ_RECORD
 #include "sql/set_var.h"
+#include "sql/sql_audit.h"
 #include "sql/sql_base.h"       // open_and_lock_tables
 #include "sql/sql_class.h"      // THD
 #include "sql/sql_const.h"
@@ -63,8 +64,6 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"     // my_plugin_lock_by_name
 #include "sql/sql_plugin_ref.h"
-#include "sql/sql_servers.h"
-#include "sql/sql_thd_internal_api.h" // create_thd
 #include "sql/sql_time.h"       // str_to_time_with_warn
 #include "sql/system_variables.h"
 #include "sql/table.h"          // TABLE
@@ -136,7 +135,7 @@ bool initialized=0;
 bool acl_cache_initialized= false;
 bool allow_all_hosts=1;
 uint grant_version=0; /* Version of priv tables */
-bool validate_user_plugins= TRUE;
+bool validate_user_plugins= true;
 
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + \
@@ -336,7 +335,7 @@ ACL_PROXY_USER::check_validity(bool check_no_resolve)
            user ? user : "",
            host.get_host() ? host.get_host() : "");
   }
-  return FALSE;
+  return false;
 }
 
 bool
@@ -362,10 +361,10 @@ ACL_PROXY_USER::matches(const char *host_arg, const char *user_arg,
   DBUG_RETURN(host.compare_hostname(host_arg, ip_arg) &&
               proxied_host.compare_hostname(host_arg, ip_arg) &&
               (!user ||
-               (user_arg && !wild_compare(user_arg, user, TRUE))) &&
+               (user_arg && !wild_compare(user_arg, user, true))) &&
               (any_proxy_user || !proxied_user ||
                (proxied_user && !wild_compare(proxied_user_arg, proxied_user,
-                                              TRUE))));
+                                              true))));
 }
 
 bool
@@ -429,21 +428,21 @@ ACL_PROXY_USER::store_pk(TABLE *table,
   if (table->field[MYSQL_PROXIES_PRIV_HOST]->store(host.str,
                                                    host.length,
                                                    system_charset_info))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   if (table->field[MYSQL_PROXIES_PRIV_USER]->store(user.str,
                                                    user.length,
                                                    system_charset_info))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   if (table->field[MYSQL_PROXIES_PRIV_PROXIED_HOST]->store(proxied_host.str,
                                                            proxied_host.length,
                                                            system_charset_info))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   if (table->field[MYSQL_PROXIES_PRIV_PROXIED_USER]->store(proxied_user.str,
                                                            proxied_user.length,
                                                            system_charset_info))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 int
@@ -453,10 +452,10 @@ ACL_PROXY_USER::store_with_grant(TABLE * table,
   DBUG_ENTER("ACL_PROXY_USER::store_with_grant");
   DBUG_PRINT("info", ("with_grant=%s", with_grant ? "TRUE" : "FALSE"));
   if (table->field[MYSQL_PROXIES_PRIV_WITH_GRANT]->store(with_grant ? 1 : 0,
-                                                         TRUE))
-    DBUG_RETURN(TRUE);
+                                                         true))
+    DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 int
@@ -470,15 +469,15 @@ ACL_PROXY_USER::store_data_record(TABLE *table,
 {
   DBUG_ENTER("ACL_PROXY_USER::store_pk");
   if (store_pk(table,  host, user, proxied_host, proxied_user))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   if (store_with_grant(table, with_grant))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   if (table->field[MYSQL_PROXIES_PRIV_GRANTOR]->store(grantor,
                                                       strlen(grantor),
                                                       system_charset_info))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**
@@ -636,15 +635,15 @@ ulong get_sort(uint count,...)
   Host name has to be resolved if it actually contains *name*.
 
   For example:
-    192.168.1.1               --> FALSE
-    192.168.1.0/255.255.255.0 --> FALSE
-    %                         --> FALSE
-    192.168.1.%               --> FALSE
-    AB%                       --> FALSE
+    192.168.1.1               --> false
+    192.168.1.0/255.255.255.0 --> false
+    %                         --> false
+    192.168.1.%               --> false
+    AB%                       --> false
 
-    AAAAFFFF                  --> TRUE (Hostname)
-    AAAA:FFFF:1234:5678       --> FALSE
-    ::1                       --> FALSE
+    AAAAFFFF                  --> true (Hostname)
+    AAAA:FFFF:1234:5678       --> false
+    ::1                       --> false
 
   This function does not check if the given string is a valid host name or
   not. It assumes that the argument is a valid host name.
@@ -652,8 +651,8 @@ ulong get_sort(uint count,...)
   @param hostname   the string to check.
 
   @return a flag telling if the argument needs to be resolved or not.
-  @retval TRUE the argument is a host name and needs to be resolved.
-  @retval FALSE the argument is either an IP address, or a patter and
+  @retval true the argument is a host name and needs to be resolved.
+  @retval false the argument is either an IP address, or a patter and
           should not be resolved.
 */
 
@@ -664,7 +663,7 @@ bool hostname_requires_resolving(const char *hostname)
   DBUG_ASSERT(specialflag & SPECIAL_NO_RESOLVE);
 
   if (!hostname)
-    return FALSE;
+    return false;
 
   /*
     If the string contains any of {':', '%', '_', '/'}, it is definitely
@@ -681,7 +680,7 @@ bool hostname_requires_resolving(const char *hostname)
       case '%':
       case '_':
       case '/':
-        return FALSE;
+        return false;
     }
   }
 
@@ -694,10 +693,10 @@ bool hostname_requires_resolving(const char *hostname)
   for (const char *p= hostname; *p; ++p)
   {
     if (*p != '.' && !my_isdigit(&my_charset_latin1, *p))
-      return TRUE; /* a "letter" has been found. */
+      return true; /* a "letter" has been found. */
   }
 
-  return FALSE; /* all characters are either dots or digits. */
+  return false; /* all characters are either dots or digits. */
 }
 
 
@@ -745,7 +744,7 @@ GRANT_NAME::GRANT_NAME(const char *h, const char *d,const char *u,
 
 GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
                          const char *t, ulong p, ulong c)
-  : GRANT_NAME(h,d,u,t,p, FALSE), cols(c),
+  : GRANT_NAME(h,d,u,t,p, false), cols(c),
     hash_columns(system_charset_info, key_memory_acl_memex)
 {
 }
@@ -823,13 +822,6 @@ bool GRANT_TABLE::init(TABLE *col_privs)
   {
     uchar key[MAX_KEY_LENGTH];
     uint key_prefix_len;
-
-    if (!col_privs->key_info)
-    {
-      my_error(ER_TABLE_CORRUPT, MYF(0), col_privs->s->db.str,
-               col_privs->s->table_name.str);
-      return true;
-    }
 
     KEY_PART_INFO *key_part= col_privs->key_info->key_part;
     col_privs->field[0]->store(host.get_host(),
@@ -970,8 +962,8 @@ find_acl_user(const char *host, const char *user, bool exact)
     user                 user name
 
   RETURN
-   FALSE  user not fond
-   TRUE   there are such user
+   false  user not fond
+   true   there are such user
 */
 
 bool is_acl_user(THD *thd, const char *host, const char *user)
@@ -986,7 +978,7 @@ bool is_acl_user(THD *thd, const char *host, const char *user)
   if (!acl_cache_lock.lock(false))
     return res;
 
-  res= find_acl_user(host, user, TRUE) != NULL;
+  res= find_acl_user(host, user, true) != NULL;
   return res;
 }
 
@@ -1023,7 +1015,7 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
   bool find_any = check_proxy_users && !*authenticated_as;
 
   if(!find_any)
-    *proxy_used= TRUE;
+    *proxy_used= true;
   for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
        proxy != acl_proxy_users->end(); ++proxy)
   {
@@ -1035,7 +1027,7 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
       if (!find_any)
 	  {
         DBUG_PRINT("info", ("returning specific match as authenticated_as was specified"));
-        *proxy_used = TRUE;
+        *proxy_used = true;
         DBUG_RETURN(proxy);
       }
       else
@@ -1048,13 +1040,13 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
           if (find_acl_user(
             proxy->get_proxied_host(),
             proxy->get_proxied_user(),
-            TRUE))
+            true))
           {
             DBUG_PRINT("info", ("setting proxy_used to true, as \
               find_all search matched real user=%s host=%s",
               proxy->get_proxied_user(),
               proxy->get_proxied_host()));
-            *proxy_used = TRUE;
+            *proxy_used = true;
             strcpy(authenticated_as, proxy->get_proxied_user());
           }
           else
@@ -1294,8 +1286,8 @@ void rebuild_check_host(void)
       db                 current data base name
 
   RETURN
-    FALSE  OK
-    TRUE   Error
+    false  OK
+    true   Error
 */
 
 bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
@@ -1319,7 +1311,7 @@ bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
       here if mysqld's been started with --skip-grant-tables option.
     */
     sctx->skip_grants();
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
   sctx->set_master_access(0);
@@ -1330,7 +1322,7 @@ bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
   Acl_cache_lock_guard acl_cache_lock(thd,
                                       Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock(false))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /*
      Find acl entry in user database.
@@ -1581,7 +1573,7 @@ void roles_init(THD *thd)
 
   SYNOPSIS
     acl_init()
-      dont_read_acl_tables  TRUE if we want to skip loading data from
+      dont_read_acl_tables  true if we want to skip loading data from
                             privilege tables and disable privilege checking.
 
   NOTES
@@ -1669,15 +1661,15 @@ bool acl_init(bool dont_read_acl_tables)
               tables in that order.
 
   RETURN VALUES
-    FALSE  Success
-    TRUE   Error
+    false  Success
+    true   Error
 */
 
 static bool acl_load(THD *thd, TABLE_LIST *tables)
 {
   TABLE *table;
   READ_RECORD read_record_info;
-  bool return_val= TRUE;
+  bool return_val= true;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   char tmp_name[NAME_LEN+1];
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
@@ -1712,7 +1704,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
     Prepare reading from the mysql.user table
   */
   if (init_read_record(&read_record_info, thd, table=tables[0].table,
-                       NULL, 1, 1, FALSE))
+                       NULL, 1, 1, false))
     goto end;
   table->use_all_columns();
   acl_users->clear();
@@ -2139,7 +2131,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
     Prepare reading from the mysql.db table
   */
   if (init_read_record(&read_record_info, thd, table=tables[1].table,
-                       NULL, 1, 1, FALSE))
+                       NULL, 1, 1, false))
     goto end;
   table->use_all_columns();
   acl_dbs->clear();
@@ -2205,7 +2197,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
   if (tables[2].table)
   {
     if (init_read_record(&read_record_info, thd, table= tables[2].table,
-                         NULL, 1, 1, FALSE))
+                         NULL, 1, 1, false))
       goto end;
     table->use_all_columns();
     while (!(read_rec_errcode= read_record_info.read_record(&read_record_info)))
@@ -2241,7 +2233,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
   {
     if (populate_dynamic_privilege_caches(thd, &tables[3]))
     {
-      return_val= TRUE;
+      return_val= true;
       goto end;
     }
   }
@@ -2251,14 +2243,14 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
   }
 
   initialized=1;
-  return_val= FALSE;
+  return_val= false;
 
 end:
   thd->variables.sql_mode= old_sql_mode;
   if (table_schema)
     delete table_schema;
   DBUG_EXECUTE_IF("induce_acl_load_failure",
-                  return_val= TRUE;);
+                  return_val= true;);
   DBUG_RETURN(return_val);
 }
 
@@ -2400,8 +2392,8 @@ static bool is_expected_or_transient_error(THD *thd)
     for user/db-level privilege checking.
 
   RETURN VALUE
-    FALSE  Success
-    TRUE   Failure
+    false  Success
+    true   Failure
 */
 
 bool acl_reload(THD *thd)
@@ -2409,7 +2401,7 @@ bool acl_reload(THD *thd)
   TABLE_LIST tables[4];
 
   MEM_ROOT old_mem;
-  bool return_val= TRUE;
+  bool return_val= true;
   Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users= NULL;
   Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs= NULL;
   Prealloced_array<ACL_PROXY_USER,
@@ -2604,8 +2596,8 @@ bool grant_init(bool skip_grant_tables)
   @see grant_reload_procs_priv
 
   @return Error state
-    @retval TRUE An error occurred
-    @retval FALSE Success
+    @retval true An error occurred
+    @retval false Success
 */
 
 static bool grant_load_procs_priv(TABLE *p_table)
@@ -2657,7 +2649,7 @@ static bool grant_load_procs_priv(TABLE *p_table)
       GRANT_NAME *mem_check;
       malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_NAME>>
         *hash;
-      if (!(mem_check=new (memex_ptr) GRANT_NAME(p_table, TRUE)))
+      if (!(mem_check=new (memex_ptr) GRANT_NAME(p_table, true)))
       {
         /* This could only happen if we are out memory */
         goto end_unlock;
@@ -2737,8 +2729,8 @@ end_unlock:
   @see grant_reload
 
   @return Error state
-    @retval FALSE Success
-    @retval TRUE Error
+    @retval false Success
+    @retval true Error
 */
 
 static bool grant_load(THD *thd, TABLE_LIST *tables)
@@ -2862,17 +2854,16 @@ end_index_init:
   @brief Helper function to grant_reload. Reloads procs_priv table is it
     exists.
 
-  @param thd A pointer to the thread handler object.
   @param table A pointer to the table list.
 
   @see grant_reload
 
   @return Error state
-    @retval FALSE Success
-    @retval TRUE An error has occurred.
+    @retval false Success
+    @retval true An error has occurred.
 */
 
-static bool grant_reload_procs_priv(THD *thd, TABLE_LIST *table)
+static bool grant_reload_procs_priv(TABLE_LIST *table)
 {
   DBUG_ENTER("grant_reload_procs_priv");
 
@@ -2883,7 +2874,7 @@ static bool grant_reload_procs_priv(THD *thd, TABLE_LIST *table)
   unique_ptr<
     malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_NAME>>>
       old_func_priv_hash(move(func_priv_hash));
-  bool return_val= FALSE;
+  bool return_val= false;
 
   if ((return_val= grant_load_procs_priv(table->table)))
   {
@@ -2908,8 +2899,8 @@ static bool grant_reload_procs_priv(THD *thd, TABLE_LIST *table)
   for table/column-level privilege checking.
 
   @return Error state
-    @retval FALSE Success
-    @retval TRUE  Error
+    @retval false Success
+    @retval true  Error
 */
 
 bool grant_reload(THD *thd)
@@ -2975,7 +2966,7 @@ bool grant_reload(THD *thd)
       pre 4.1 privilage tables
     */
     if ((return_val= (grant_load(thd, tables) ||
-                      grant_reload_procs_priv(thd, &tables[2]))
+                      grant_reload_procs_priv(&tables[2]))
        ))
     {                                             // Error. Revert to old hash
       DBUG_PRINT("error",("Reverting to old privileges"));
@@ -3126,7 +3117,7 @@ void acl_update_user(const char *user, const char *host,
 }
 
 
-void acl_insert_user(THD *thd, const char *user, const char *host,
+void acl_insert_user(THD *thd MY_ATTRIBUTE((unused)), const char *user, const char *host,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -3316,7 +3307,7 @@ void get_mqh(THD *thd, const char *user, const char *host, USER_CONN *uc)
                                       Acl_cache_lock_mode::READ_MODE);
 
   if (initialized && acl_cache_lock.lock(false) &&
-      (acl_user= find_acl_user(host,user, FALSE)))
+      (acl_user= find_acl_user(host,user, false)))
     uc->user_resources= acl_user->user_resource;
   else
     memset(&uc->user_resources, 0, sizeof(uc->user_resources));
@@ -3514,7 +3505,7 @@ Acl_map::~Acl_map()
     // Db_access_map is automatically destroyed and cleaned up.
 }
 
-Acl_map::Acl_map(const Acl_map &map)
+Acl_map::Acl_map(const Acl_map &)
 {
   // An Acl_map should not be copied
   DBUG_ASSERT(false);
@@ -3540,7 +3531,7 @@ Acl_map &Acl_map::operator=(Acl_map &&map)
 }
 
 Acl_map &
-Acl_map::operator=(const Acl_map &map)
+Acl_map::operator=(const Acl_map &)
 {
   return *this;
 }
@@ -3823,7 +3814,7 @@ public:
     @param [in] msg           Message string. Unused.
   */
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD *thd MY_ATTRIBUTE((unused)),
                                 uint sql_errno,
                                 const char *sqlstate MY_ATTRIBUTE((unused)),
                                 Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),

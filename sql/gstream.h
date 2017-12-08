@@ -24,8 +24,6 @@
 #include "m_string.h"
 #include "mysql/service_mysql_alloc.h"
 
-typedef struct charset_info_st CHARSET_INFO;
-
 class Gis_read_stream
 {
 public:

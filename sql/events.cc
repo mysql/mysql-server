@@ -31,6 +31,7 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/psi/mysql_cond.h"
@@ -40,7 +41,6 @@
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"          // ER_*
 #include "sql/auth/auth_acls.h"
@@ -62,17 +62,17 @@
 #include "sql/mysqld.h"            // LOCK_global_system_variables
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
-#include "sql/session_tracker.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h"           // Stored_program_creation_ctx
 #include "sql/sql_class.h"         // THD
-#include "sql/sql_connect.h"
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_show.h"          // append_definer
 #include "sql/sql_table.h"         // write_bin_log
 #include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "sql/tztime.h"            // Time_zone
 #include "sql_string.h"            // String

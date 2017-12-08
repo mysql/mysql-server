@@ -16,13 +16,12 @@
 #ifndef DD_SDI_API_INCLUDED
 #define DD_SDI_API_INCLUDED
 
-
 #include <memory>
 
-#include "mem_root_fwd.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/table.h"
 
+struct MEM_ROOT;
 class MDL_request;
 class THD;
 struct TABLE_LIST;

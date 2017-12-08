@@ -16,7 +16,6 @@
 #ifndef FAKE_TABLE_H
 #define FAKE_TABLE_H
 
-#include <gmock/gmock.h>
 #include <string.h>
 #include <sys/types.h>
 #include <ostream>
@@ -26,23 +25,25 @@
 #include "gmock/gmock-generated-nice-strict.h"
 #include "gtest/gtest.h"
 #include "lex_string.h"
+#include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
-#include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/sql_bitmap.h"
-#include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
-#include "sql/sql_plugin_ref.h"
 #include "sql/table.h"
+#include "sql/thr_malloc.h"
 #include "unittest/gunit/handler-t.h"
 #include "unittest/gunit/mock_field_long.h" // todo: put this #include first
+
+class handler;
+struct handlerton;
 
 using ::testing::NiceMock;
 using std::vector;
@@ -127,7 +128,7 @@ class Fake_TABLE: public TABLE
   void initialize()
   {
     TABLE *as_table= static_cast<TABLE*>(this);
-    memset(as_table, 0, sizeof(*as_table));
+    new (as_table) TABLE();
     s= &table_share;
     in_use= current_thd;
     null_row= '\0';

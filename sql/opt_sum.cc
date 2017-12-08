@@ -58,7 +58,6 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_table_map.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -268,7 +267,7 @@ int opt_sum_query(THD *thd,
   int const_result= 1;
   bool recalc_const_item= false;
   ulonglong count= 1;
-  bool is_exact_count= TRUE, maybe_exact_count= TRUE;
+  bool is_exact_count= true, maybe_exact_count= true;
   table_map removed_tables= 0, outer_tables= 0, used_tables= 0;
   Item *item;
   int error;
@@ -334,7 +333,7 @@ int opt_sum_query(THD *thd,
     {
       maybe_exact_count&= (table_filled &&
                            (tl->table->file->ha_table_flags() & HA_HAS_RECORDS));
-      is_exact_count= FALSE;
+      is_exact_count= false;
       count= 1;                                 // ensure count != 0
       force_index|= tl->table->force_index;
     }
@@ -474,7 +473,7 @@ int opt_sum_query(THD *thd,
           if ((error= table->file->ha_index_init((uint) ref.key, 1)))
           {
             table->file->print_error(error, MYF(0));
-            table->set_keyread(FALSE);
+            table->set_keyread(false);
             DBUG_RETURN(error);
           }
 
@@ -513,7 +512,7 @@ int opt_sum_query(THD *thd,
 	  if (!error && reckey_in_range(is_max, &ref, item_field, 
 			                conds, range_fl, prefix_len))
 	    error= HA_ERR_KEY_NOT_FOUND;
-          table->set_keyread(FALSE);
+          table->set_keyread(false);
           table->file->ha_index_end();
           if (error)
 	  {
@@ -549,7 +548,7 @@ int opt_sum_query(THD *thd,
                                  Aggregator::DISTINCT_AGGREGATOR :
                                  Aggregator::SIMPLE_AGGREGATOR);
         /*
-          If count == 0 (so is_exact_count == TRUE) and
+          If count == 0 (so is_exact_count == true) and
           there're no outer joins, set to NULL,
           otherwise set to the constant value.
         */
@@ -742,17 +741,17 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
 {
   DBUG_ENTER("matching_cond");
   if (!cond)
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   if (!(cond->used_tables() & map))
   {
     /* Condition doesn't restrict the used table */
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   if (cond->type() == Item::COND_ITEM)
   {
     if (((Item_cond*) cond)->functype() == Item_func::COND_OR_FUNC)
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(false);
 
     /* AND */
     List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
@@ -761,16 +760,16 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     {
       if (!matching_cond(max_fl, ref, keyinfo, field_part, item, map,
                          key_part_used, range_fl, prefix_len))
-        DBUG_RETURN(FALSE);
+        DBUG_RETURN(false);
     }
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (cond->type() != Item::FUNC_ITEM)
-    DBUG_RETURN(FALSE);                                 // Not operator, can't optimize
+    DBUG_RETURN(false);                                 // Not operator, can't optimize
 
   bool eq_type= 0;                            // =, <=> or IS NULL
-  bool is_null_safe_eq= FALSE;                // The operator is NULL safe, e.g. <=> 
+  bool is_null_safe_eq= false;                // The operator is NULL safe, e.g. <=> 
   bool noeq_type= 0;                          // < or >  
   bool less_fl= 0;                            // < or <= 
   bool is_null= 0;                            // IS NULL
@@ -780,10 +779,10 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   case Item_func::ISNULL_FUNC:
     is_null= 1;     /* fall through */
   case Item_func::EQ_FUNC:
-    eq_type= TRUE;
+    eq_type= true;
     break;
   case Item_func::EQUAL_FUNC:
-    eq_type= is_null_safe_eq= TRUE;
+    eq_type= is_null_safe_eq= true;
     break;
   case Item_func::LT_FUNC:
     noeq_type= 1;   /* fall through */
@@ -806,7 +805,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     eq_type= 1;
     break;
   default:
-    DBUG_RETURN(FALSE);                                        // Can't optimize function
+    DBUG_RETURN(false);                                        // Can't optimize function
   }
   
   Item *args[3];
@@ -814,11 +813,11 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
 
   /* Test if this is a comparison of a field and constant */
   if (!simple_pred((Item_func*) cond, args, &inv))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   if (!is_null_safe_eq && !is_null &&
       (args[1]->is_null() || (between && args[2]->is_null())))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   if (inv && !eq_type)
     less_fl= !less_fl;                         // Convert '<' -> '>' (etc)
@@ -830,14 +829,14 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
 
   {
     if (part > field_part)
-      DBUG_RETURN(FALSE);                     // Field is beyond the tested parts
+      DBUG_RETURN(false);                     // Field is beyond the tested parts
     if (part->field->eq(((Item_field*) args[0])->field))
       break;                        // Found a part of the key for the field
   }
 
   bool is_field_part= part == field_part;
   if (!(is_field_part || eq_type))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   key_part_map org_key_part_used= *key_part_used;
   if (eq_type || between || max_fl == less_fl)
@@ -866,7 +865,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
       all other cases the WHERE condition is always false anyway.
     */
       (eq_type || *range_fl == 0))
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(false);
 
   if (org_key_part_used != *key_part_used ||
       (is_field_part && 
@@ -929,11 +928,11 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   {
     if ((!is_null && !cond->val_int()) ||
         (is_null && !part->field->is_null()))
-     DBUG_RETURN(FALSE);                       // Impossible test
+     DBUG_RETURN(false);                       // Impossible test
   }
   else if (is_field_part)
     *range_fl&= ~(max_fl ? NO_MIN_RANGE : NO_MAX_RANGE);
-  DBUG_RETURN(TRUE);  
+  DBUG_RETURN(true);  
 }
 
 
@@ -1067,7 +1066,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
             converted (for example to upper case)
           */
           if (field->part_of_key.is_set(idx))
-            table->set_keyread(TRUE);
+            table->set_keyread(true);
           DBUG_RETURN(true);
         }
       }

@@ -21,11 +21,9 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "prealloced_array.h"             // Prealloced_array
 #include "sql/item.h"
 #include "sql/query_result.h"             // Query_result_interceptor
-#include "sql/sql_alloc.h"
 #include "sql/sql_array.h"
 #include "sql/sql_error.h"
 #include "sql/table.h"
@@ -67,7 +65,7 @@ template <class T> class List;
   runtime context needs a reference to the parsing context.
 */
 
-class sp_rcontext : public Sql_alloc
+class sp_rcontext
 {
 public:
   /// Construct and properly initialize a new sp_rcontext instance. The static
@@ -396,7 +394,7 @@ private:
 
   /// Array of CASE expression holders.
   Bounds_checked_array<Item_cache *> m_case_expr_holders;
-}; // class sp_rcontext : public Sql_alloc
+};
 
 ///////////////////////////////////////////////////////////////////////////
 // sp_cursor declaration.
@@ -422,7 +420,7 @@ private:
     uint get_field_count() { return field_count; }
     void set_spvar_list(List<sp_variable> *vars) { spvar_list= vars; }
 
-    virtual bool send_eof() { return FALSE; }
+    virtual bool send_eof() { return false; }
     virtual bool send_data(List<Item> &items);
     virtual bool prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   };

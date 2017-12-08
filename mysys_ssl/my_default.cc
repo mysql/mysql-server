@@ -40,12 +40,14 @@
 #include "my_config.h"
 
 #include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_aes.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -57,7 +59,6 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql_version.h"             // MYSQL_PERSIST_CONFIG_NAME
 #include "mysys/mysys_priv.h"
 #include "mysys_ssl/my_default_priv.h"
@@ -160,7 +161,7 @@ bool my_getopt_is_ro_persist_args_separator(const char* arg)
   in order to separate arguments received from config file
   and command line.
 */
-bool my_getopt_use_args_separator= FALSE;
+bool my_getopt_use_args_separator= false;
 bool my_getopt_is_args_separator(const char* arg)
 {
   return (arg == args_separator);
@@ -175,10 +176,10 @@ static const char *my_login_path= 0;
 static char my_defaults_file_buffer[FN_REFLEN];
 static char my_defaults_extra_file_buffer[FN_REFLEN];
 
-static bool defaults_already_read= FALSE;
+static bool defaults_already_read= false;
 
 /* Set to TRUE, if --no-defaults is found. */
-bool no_defaults= FALSE;
+bool no_defaults= false;
 
 /* Which directories are searched for options (and in which order) */
 
@@ -361,7 +362,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       my_defaults_file= my_defaults_file_buffer;
     }
 
-    defaults_already_read= TRUE;
+    defaults_already_read= true;
     init_variable_default_paths();
 
     /*
@@ -640,6 +641,7 @@ int get_defaults_options(int argc, char **argv,
 				Points to an null terminated array of pointers
     argc			Pointer to argc of original program
     argv			Pointer to argv of original program
+    alloc			MEM_ROOT to allocate new argv on
 
   NOTES
 
@@ -651,13 +653,13 @@ int get_defaults_options(int argc, char **argv,
     1 The given conf_file didn't exists
 */
 int load_defaults(const char *conf_file, const char **groups,
-                  int *argc, char ***argv)
+                  int *argc, char ***argv, MEM_ROOT *alloc)
 {
-  return my_load_defaults(conf_file, groups, argc, argv, &default_directories);
+  return my_load_defaults(conf_file, groups, argc, argv, alloc, &default_directories);
 }
 
 /** A global to turn off or on reading the mylogin file. On by default */
-bool my_defaults_read_login_file= TRUE;
+bool my_defaults_read_login_file= true;
 /*
   Read options from configurations files
 
@@ -669,6 +671,7 @@ bool my_defaults_read_login_file= TRUE;
 				Points to an null terminated array of pointers
     argc			Pointer to argc of original program
     argv			Pointer to argv of original program
+    alloc			MEM_ROOT to allocate new argv on
     default_directories         Pointer to a location where a pointer to the list
                                 of default directories will be stored
 
@@ -681,9 +684,9 @@ bool my_defaults_read_login_file= TRUE;
    NOTES
     In case of fatal error, the function will print a warning and do
     exit(1)
- 
-    To free used memory one should call free_defaults() with the argument
-    that was put in *argv
+
+    argv will be replaced with a set of filtered arguments, allocated on
+    the MEM_ROOT given in as "alloc". You must free this MEM_ROOT yourself.
 
    RETURN
      - If successful, 0 is returned. If 'default_directories' is not NULL,
@@ -696,14 +699,13 @@ bool my_defaults_read_login_file= TRUE;
 */
 
 int my_load_defaults(const char *conf_file, const char **groups,
-                  int *argc, char ***argv, const char ***default_directories)
+                  int *argc, char ***argv, MEM_ROOT *alloc, const char ***default_directories)
 {
   My_args my_args(key_memory_defaults);
   TYPELIB group;
   bool found_print_defaults= 0;
   uint args_used= 0;
   int error= 0;
-  MEM_ROOT alloc;
   char *ptr,**res;
   struct handle_option_ctx ctx;
   const char **dirs;
@@ -712,15 +714,14 @@ int my_load_defaults(const char *conf_file, const char **groups,
   uint args_sep= my_getopt_use_args_separator ? 1 : 0;
   DBUG_ENTER("load_defaults");
 
-  init_alloc_root(key_memory_defaults, &alloc,512,0);
-  if ((dirs= init_default_directories(&alloc)) == NULL)
+  if ((dirs= init_default_directories(alloc)) == NULL)
     goto err;
   /*
     Check if the user doesn't want any default option processing
     --no-defaults is always the first option
   */
   if (*argc >= 2 && !strcmp(argv[0][1], "--no-defaults"))
-    no_defaults= found_no_defaults= TRUE;
+    no_defaults= found_no_defaults= true;
 
   group.count=0;
   group.name= "defaults";
@@ -729,7 +730,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
   for (; *groups ; groups++)
     group.count++;
 
-  ctx.alloc= &alloc;
+  ctx.alloc= alloc;
   ctx.m_args= &my_args;
   ctx.group= &group;
 
@@ -737,7 +738,6 @@ int my_load_defaults(const char *conf_file, const char **groups,
                                      &args_used, handle_default_option,
                                      (void *) &ctx, dirs, false, found_no_defaults)))
   {
-    free_root(&alloc,MYF(0));
     DBUG_RETURN(error);
   }
 
@@ -749,7 +749,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
                                      handle_default_option, (void *) &ctx,
                                      dirs, true, found_no_defaults)))
     {
-      free_root(&alloc, MYF(0));
+      free_root(alloc, MYF(0));
       DBUG_RETURN(error);
     }
   }
@@ -757,11 +757,10 @@ int my_load_defaults(const char *conf_file, const char **groups,
     Here error contains <> 0 only if we have a fully specified conf_file
     or a forced default file
   */
-  if (!(ptr=(char*)
-        alloc_root(&alloc,sizeof(alloc)+
+  if (!(ptr=(char*) alloc_root(alloc,
                    (my_args.size() + *argc + 1 + args_sep) *sizeof(char*))))
     goto err;
-  res= (char**) (ptr+sizeof(alloc));
+  res= (char**) (ptr);
 
   /* copy name + found arguments + command line arguments to new array */
   res[0]= argv[0][0];  /* Name MUST be set */
@@ -796,7 +795,6 @@ int my_load_defaults(const char *conf_file, const char **groups,
 
   (*argc)+= my_args.size() + args_sep;
   *argv= res;
-  *(MEM_ROOT*) ptr= std::move(alloc);           /* Save alloc root for free */
 
   if (default_directories)
     *default_directories= dirs;
@@ -828,14 +826,6 @@ int my_load_defaults(const char *conf_file, const char **groups,
                    "Fatal error in defaults handling. Program aborted!");
   exit(1);
   return 0;					/* Keep compiler happy */
-}
-
-
-void free_defaults(char **argv)
-{
-  MEM_ROOT ptr;
-  memcpy(&ptr, ((char *) argv) - sizeof(ptr), sizeof(ptr));
-  free_root(&ptr,MYF(0));
 }
 
 
@@ -1618,7 +1608,7 @@ static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs)
     return 1;  /* Failure */
   /* Should never fail if DEFAULT_DIRS_SIZE is correct size */
   err= array_append_string_unique(p, dirs, DEFAULT_DIRS_SIZE);
-  DBUG_ASSERT(err == FALSE);
+  DBUG_ASSERT(err == false);
 
   return 0;
 }
@@ -1759,15 +1749,15 @@ int my_default_get_login_file(char *file_name, size_t file_name_size)
   size_t rc;
 
   if (getenv("MYSQL_TEST_LOGIN_FILE"))
-    rc= my_snprintf(file_name, file_name_size, "%s",
+    rc= snprintf(file_name, file_name_size, "%s",
                     getenv("MYSQL_TEST_LOGIN_FILE"));
 #ifdef _WIN32
   else if (getenv("APPDATA"))
-    rc= my_snprintf(file_name, file_name_size, "%s\\MySQL\\.mylogin.cnf",
+    rc= snprintf(file_name, file_name_size, "%s\\MySQL\\.mylogin.cnf",
                     getenv("APPDATA"));
 #else
   else if (getenv("HOME"))
-    rc= my_snprintf(file_name, file_name_size, "%s/.mylogin.cnf",
+    rc= snprintf(file_name, file_name_size, "%s/.mylogin.cnf",
                     getenv("HOME"));
 #endif
   else

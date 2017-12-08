@@ -2024,7 +2024,7 @@ trx_undo_truncate_tablespace(
 	in truncated tablespaces. */
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	mtr_x_lock(fil_space_get_latch(space_id, NULL), &mtr);
+	mtr_x_lock(fil_space_get_latch(space_id), &mtr);
 
 	for (auto rseg : *undo_trunc->rsegs()) {
 		trx_rsegf_t*	rseg_header;

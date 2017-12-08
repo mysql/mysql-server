@@ -56,13 +56,11 @@ static inline struct tm *gmtime_r(const time_t *clock, struct tm *res)
 }
 #endif /* _WIN32 */
 
-C_MODE_START
 ulonglong my_getsystime(void);
 
 void set_timespec_nsec(struct timespec *abstime, ulonglong nsec);
 
 void set_timespec(struct timespec *abstime, ulonglong sec);
-C_MODE_END
 
 /**
    Compare two timespec structs.

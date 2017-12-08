@@ -16,26 +16,25 @@
 #ifndef SQL_ERROR_H
 #define SQL_ERROR_H
 
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/service_my_snprintf.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
-#include "sql/sql_alloc.h"
 #include "sql/sql_list.h"
 #include "sql/sql_plist.h" /* I_P_List */
-#include "sql/thr_malloc.h"
 #include "sql_string.h"                        /* String */
 
 class THD;
 class my_decimal;
+struct MYSQL_TIME;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -44,7 +43,7 @@ class my_decimal;
   A SQL condition can be a completion condition (note, warning),
   or an exception condition (error, not found).
 */
-class Sql_condition : public Sql_alloc
+class Sql_condition
 {
 public:
   /**
@@ -248,7 +247,7 @@ public:
 
   ErrConvString(longlong nr)
   {
-    buf_length= my_snprintf(err_buffer, sizeof(err_buffer), "%lld", nr);
+    buf_length= snprintf(err_buffer, sizeof(err_buffer), "%lld", nr);
   }
 
   ErrConvString(longlong nr, bool unsigned_flag)
@@ -259,7 +258,7 @@ public:
 
   ErrConvString(double nr);
   ErrConvString(const my_decimal *nr);
-  ErrConvString(const struct st_mysql_time *ltime, uint dec);
+  ErrConvString(const MYSQL_TIME *ltime, uint dec);
  
   ~ErrConvString() { };
   char *ptr() { return err_buffer; }

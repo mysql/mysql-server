@@ -23,12 +23,12 @@
 #include "my_sqlcommand.h"
 #include "sql/query_result.h" // Query_result_interceptor
 #include "sql/sql_cmd_dml.h" // Sql_cmd_dml
-#include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 
 class COPY_INFO;
 class Copy_field;
 class Item;
+class SELECT_LEX_UNIT;
 class THD;
 class Temp_table_param;
 struct TABLE;
@@ -76,6 +76,8 @@ class Query_result_update final : public Query_result_interceptor
   List <TABLE> unupdated_check_opt_tables;
   /// ???
   Copy_field *copy_field;
+  /// Length of the copy_field array.
+  size_t max_fields{0};
   /// True if the full update operation is complete
   bool update_completed;
   /// True if all tables to be updated are transactional.

@@ -35,7 +35,6 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h" // check_routine_access, check_table_access
 #include "sql/item.h"           // class Item
-#include "sql/key.h"
 #include "sql/protocol.h"
 #include "sql/sp.h"             // sp_find_routine
 #include "sql/sp_head.h"

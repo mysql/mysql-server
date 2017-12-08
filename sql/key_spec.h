@@ -21,14 +21,12 @@
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_base.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/mem_root_array.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_list.h"
-#include "sql/thr_malloc.h"
 
 class Create_field;
 class THD;
+struct MEM_ROOT;
 
 
 enum keytype {
@@ -85,7 +83,7 @@ public:
 extern KEY_CREATE_INFO default_key_create_info;
 
 
-class Key_part_spec : public Sql_alloc
+class Key_part_spec
 {
 public:
   Key_part_spec(const LEX_CSTRING &name, uint len, enum_order ord)
@@ -108,14 +106,14 @@ public:
 
   const LEX_CSTRING field_name;
   const uint length;
-  /// TRUE <=> ascending, FALSE <=> descending.
+  /// true <=> ascending, false <=> descending.
   const bool is_ascending;
-  /// TRUE <=> ASC/DESC is explicitly specified, FALSE <=> implicit ASC
+  /// true <=> ASC/DESC is explicitly specified, false <=> implicit ASC
   const bool is_explicit;
 };
 
 
-class Key_spec : public Sql_alloc
+class Key_spec
 {
 public:
   const keytype type;

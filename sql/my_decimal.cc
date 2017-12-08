@@ -35,7 +35,6 @@
 #include "sql/field.h"                          // my_charset_numeric
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"                      // Sql_condition
-#include "sql/system_variables.h"
 
 
 /**
@@ -177,7 +176,7 @@ str_set_decimal(uint mask, const my_decimal *val,
     /* For ASCII-compatible character sets we can use my_decimal2string */
     my_decimal2string(mask, val, fixed_prec, fixed_dec, filler, str);
     str->set_charset(cs);
-    return FALSE;
+    return false;
   }
   else
   {
@@ -302,7 +301,7 @@ int str2my_decimal(uint mask, const char *from, size_t length,
 static my_decimal *lldiv_t2my_decimal(const lldiv_t *lld, bool neg,
                                       my_decimal *dec)
 {
-  if (int2my_decimal(E_DEC_FATAL_ERROR, lld->quot, FALSE, dec))
+  if (int2my_decimal(E_DEC_FATAL_ERROR, lld->quot, false, dec))
     return dec;
   if (lld->rem)
   {

@@ -23,11 +23,11 @@
 #include <algorithm>
 
 #include "m_ctype.h"
+#include "my_alloc.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "sql/mysqld.h"
 #include "sql/psi_memory_key.h"
-#include "sql/sql_servers.h"
 #include "sql_string.h"
 
 using std::min;
@@ -39,7 +39,7 @@ void init_sql_alloc(PSI_memory_key key,
                     MEM_ROOT *mem_root, size_t block_size, size_t pre_alloc)
 {
   init_alloc_root(key, mem_root, block_size, pre_alloc);
-  mem_root->error_handler=sql_alloc_error_handler;
+  mem_root->set_error_handler(sql_alloc_error_handler);
 }
 
 void *sql_alloc(size_t Size)

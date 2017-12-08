@@ -34,7 +34,6 @@
 #include "sql/handler.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
-#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql_string.h"
 
@@ -438,8 +437,8 @@ void key_unpack(String *to, TABLE *table, KEY *key)
     about saving/restoring its state if it also uses this bitmap.
 
   RETURN VALUE
-    TRUE   Key uses field from bitmap
-    FALSE  Otherwise
+    true   Key uses field from bitmap
+    false  Otherwise
 */
 
 bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields)

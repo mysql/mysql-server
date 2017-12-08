@@ -61,7 +61,7 @@ public:
     Signals that a view modification has been cancelled
 
     @param[in]  errnr  error that did cause the view modification to
-                       be cancelled
+                     be cancelled
   */
   void cancel_view_modification(int errnr=
                                 GROUP_REPLICATION_CONFIGURATION_ERROR);

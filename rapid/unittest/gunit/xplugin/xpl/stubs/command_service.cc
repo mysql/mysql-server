@@ -17,22 +17,14 @@
 #include "my_dbug.h"
 #include "mysql/service_command.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-  int command_service_run_command(MYSQL_SESSION,
-                                enum enum_server_command,
-                                const union COM_DATA*,
-                                const CHARSET_INFO*,
-                                const struct st_command_service_cbs*,
-                                enum cs_text_or_binary,
-                                void*)
-  {
-    DBUG_ASSERT(0);
-    return 0;
-  }
-
-#ifdef __cplusplus
+int command_service_run_command(MYSQL_SESSION,
+                              enum enum_server_command,
+                              const union COM_DATA*,
+                              const CHARSET_INFO*,
+                              const struct st_command_service_cbs*,
+                              enum cs_text_or_binary,
+                              void*)
+{
+  DBUG_ASSERT(0);
+  return 0;
 }
-#endif

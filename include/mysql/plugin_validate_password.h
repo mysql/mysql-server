@@ -55,8 +55,8 @@ struct st_mysql_validate_password
     Checks if a password is valid by the password policy
 
     @param password  The password to validate
-    @retval TRUE   password meets the password validation plugin policy
-    @retval FALSE  password does not meet the validation policy
+    @retval true   password meets the password validation plugin policy
+    @retval false  password does not meet the validation policy
   */
   int (*validate_password)(mysql_string_handle password);
   /**

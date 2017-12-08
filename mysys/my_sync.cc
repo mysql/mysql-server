@@ -37,7 +37,6 @@
 #include "mysys/mysys_priv.h"
 #endif
 
-extern "C" {
 static void (*before_sync_wait)(void)= 0;
 static void (*after_sync_wait)(void)= 0;
 
@@ -47,7 +46,6 @@ void thr_set_sync_wait_callback(void (*before_wait)(void),
   before_sync_wait= before_wait;
   after_sync_wait= after_wait;
 }
-} // extern C
 
 /*
   Sync data in file to disk

@@ -20,30 +20,27 @@
 #include <new>
 
 #include "lex_string.h"
+#include "my_alloc.h"
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
-#include "mysql/com_data.h"
 #include "mysql/components/services/psi_statement_bits.h"
-#include "mysql/psi/psi_statement.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql/key.h"
 #include "sql/protocol_classic.h"
 #include "sql/query_result.h" // Query_result_send
-#include "sql/sql_alloc.h"
 #include "sql/sql_class.h" // Query_arena
 #include "sql/sql_error.h"
 #include "sql/sql_list.h"
-#include "sql/sql_servers.h"
 
 class Item;
 class Item_param;
 class Prepared_statement;
 class String;
 struct LEX;
+struct PS_PARAM;
 struct TABLE_LIST;
+union COM_DATA;
 
 /**
   An interface that is used to take an action when
@@ -84,7 +81,7 @@ public:
   */
   bool report_error(THD *thd);
   bool is_invalidated() const { return m_invalidated; }
-  void reset_reprepare_observer() { m_invalidated= FALSE; }
+  void reset_reprepare_observer() { m_invalidated= false; }
 private:
   bool m_invalidated;
 };
@@ -140,7 +137,7 @@ class Ed_row;
   automatic type conversion.
 */
 
-class Ed_result_set final : public Sql_alloc
+class Ed_result_set final
 {
 public:
   operator List<Ed_row>&() { return *m_rows; }
@@ -222,9 +219,9 @@ public:
     be used.
 
     @return execution status
-    @retval FALSE  success, use get_field_count()
+    @retval false  success, use get_field_count()
                    to determine what to do next.
-    @retval TRUE   error, use get_last_error()
+    @retval true   error, use get_last_error()
                    to see the error number.
   */
   bool execute_direct(LEX_STRING sql_text);
@@ -235,10 +232,10 @@ public:
 
     @return execution status
       
-    @retval  FALSE  success, use get_field_count() 
+    @retval  false  success, use get_field_count() 
                     if your code fragment is supposed to
                     return a result set
-    @retval  TRUE   failure
+    @retval  true   failure
   */
   bool execute_direct(Server_runnable *server_runnable);
 
@@ -287,7 +284,7 @@ struct Ed_column final : public LEX_STRING
 
 /** One result set record. */
 
-class Ed_row final : public Sql_alloc
+class Ed_row final
 {
 public:
   const Ed_column &operator[](const unsigned int column_index) const

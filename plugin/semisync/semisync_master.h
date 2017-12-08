@@ -463,7 +463,12 @@ public:
   {
     if (m_ack_array)
     {
-      memset(m_ack_array, 0, sizeof(AckInfo) * m_size);
+      for (unsigned i = 0; i < m_size; ++i)
+      {
+        m_ack_array[i].clear();
+        m_ack_array[i].server_id= 0;
+        m_ack_array[i].binlog_pos= 0;
+      }
       m_empty_slot= m_size;
     }
     m_greatest_ack.clear();

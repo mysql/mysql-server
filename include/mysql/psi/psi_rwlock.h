@@ -39,8 +39,6 @@
   is not needed in C++, but required for C.
 */
 
-C_MODE_START
-
 /** Entry point for the performance schema interface. */
 struct PSI_rwlock_bootstrap
 {
@@ -89,7 +87,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_rwlock_service_t *psi_rwlock_service;
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
 /** @} (end of group psi_abi_rwlock) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_RWLOCK_H */

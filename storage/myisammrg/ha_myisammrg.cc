@@ -65,8 +65,8 @@
 
   The version check is done in myisammrg_attach_children_callback(),
   which is called for every child. ha_myisammrg::attach_children()
-  initializes 'need_compat_check' to FALSE and
-  myisammrg_attach_children_callback() sets it ot TRUE if a table
+  initializes 'need_compat_check' to false and
+  myisammrg_attach_children_callback() sets it ot true if a table
   def version mismatches the remembered child def version.
 
   The children chain remains in the statement query list until the table
@@ -102,6 +102,7 @@
 #include "sql/debug_sync.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"                      // THD
+#include "sql/sql_lex.h"
 #include "sql/sql_show.h"                       // append_identifier
 #include "sql/sql_table.h"                     // build_table_filename
 #include "sql/thr_malloc.h"                     // int_sql_alloc
@@ -129,7 +130,7 @@ ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
   :handler(hton, table_arg), file(0), is_cloned(0)
 {
   init_sql_alloc(rg_key_memory_children, &children_mem_root,
-                 FN_REFLEN + ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+                 FN_REFLEN, 0);
 }
 
 
@@ -375,7 +376,7 @@ int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
       DBUG_RETURN(my_errno() ? my_errno() : -1); 
     }
 
-    file->children_attached= TRUE;
+    file->children_attached= true;
 
     info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   }
@@ -565,7 +566,7 @@ public:
   Mrg_attach_children_callback_param(TABLE_LIST *parent_l_arg,
                                      TABLE_LIST *first_child,
                                      List<Mrg_child_def> &child_def_list)
-    :need_compat_check(FALSE),
+    :need_compat_check(false),
     parent_l(parent_l_arg),
     next_child_attach(first_child),
     def_it(child_def_list),
@@ -639,7 +640,7 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
                       mrg_child_def->get_child_def_version(),
                       child->s->get_table_def_version()));
   if (mrg_child_def->get_child_def_version() != child->s->get_table_def_version())
-    param->need_compat_check= TRUE;
+    param->need_compat_check= true;
 
   /*
     If child is temporary, parent must be temporary as well. Other
@@ -708,7 +709,7 @@ handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root)
     return NULL;
   
   /* Inform ha_myisammrg::open() that it is a cloned handler */
-  new_handler->is_cloned= TRUE;
+  new_handler->is_cloned= true;
   /*
     Allocate handler->ref here because otherwise ha_open will allocate it
     on this->table->mem_root and we will not be able to reclaim that memory 
@@ -716,14 +717,14 @@ handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root)
   */
   if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
   {
-    delete new_handler;
+    destroy(new_handler);
     return NULL;
   }
 
   if (new_handler->ha_open(table, name, table->db_stat,
                            HA_OPEN_IGNORE_IF_LOCKED, NULL))
   {
-    delete new_handler;
+    destroy(new_handler);
     return NULL;
   }
  

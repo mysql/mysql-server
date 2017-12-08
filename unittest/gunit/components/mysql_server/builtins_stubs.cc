@@ -53,10 +53,8 @@ int         log_vmessage(int log_type MY_ATTRIBUTE((unused)),
 int         log_message(int log_type MY_ATTRIBUTE((unused)), ...)
 { return -1;   }
 
-C_MODE_START
 const char *get_server_errmsgs(int mysql_errcode MY_ATTRIBUTE((unused)))
 { return NULL; }
-C_MODE_END
 
 void push_warning(THD *thd
                     MY_ATTRIBUTE((unused)),

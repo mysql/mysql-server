@@ -27,8 +27,6 @@
 #include "my_psi_config.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/binlog.h"
 #include "sql/log_event.h"           // Format_description_log_event
@@ -38,12 +36,10 @@
 #include "sql/rpl_trx_boundary_parser.h" // Transaction_boundary_parser
 #include "sql/sql_const.h"
 
-class Relay_log_info;
 class Rpl_info_handler;
 class Server_ids;
 class THD;
-
-typedef struct st_mysql MYSQL;
+struct MYSQL;
 
 #define DEFAULT_CONNECT_RETRY 60
 
@@ -313,7 +309,7 @@ public:
 
   int mi_init_info();
   void end_info();
-  int flush_info(bool force= FALSE);
+  int flush_info(bool force= false);
   void set_relay_log_info(Relay_log_info *info);
 
   bool shall_ignore_server_id(ulong s_id);
@@ -322,8 +318,8 @@ public:
      A buffer to hold " for channel <channel_name>
      used in error messages per channel
    */
-  char for_channel_str[CHANNEL_NAME_LENGTH+15];
-  char for_channel_uppercase_str[CHANNEL_NAME_LENGTH+15];
+  char for_channel_str[CHANNEL_NAME_LENGTH+31];
+  char for_channel_uppercase_str[CHANNEL_NAME_LENGTH+31];
 
   /**
     @return The pointer to the Gtid_monitoring_info

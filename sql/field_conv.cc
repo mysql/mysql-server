@@ -39,13 +39,13 @@
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
+#include "nullable.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
-#include "sql/histograms/value_map.h"
 #include "sql/item_timefunc.h"           // Item_func_now_local
 #include "sql/my_decimal.h"
-#include "sql/session_tracker.h"
 #include "sql/sql_class.h"                      // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
@@ -243,7 +243,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
 
   if (field == field->table->next_number_field)
   {
-    field->table->auto_increment_field_not_null= FALSE;
+    field->table->auto_increment_field_not_null= false;
     return TYPE_OK;		        // field is set in fill_record()
   }
 

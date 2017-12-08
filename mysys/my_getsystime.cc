@@ -26,7 +26,7 @@
 
 #include "my_inttypes.h"
 #include "my_sys.h"
-#if HAVE_SYS_TIME_H
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #if defined(_WIN32)
@@ -76,7 +76,7 @@ bool win_init_get_system_time_as_file_time()
   @retval current high-resolution time.
 */
 
-extern "C" ulonglong my_getsystime()
+ulonglong my_getsystime()
 {
 #ifdef HAVE_CLOCK_GETTIME
   struct timespec tp;

@@ -195,7 +195,7 @@ get_buf_dump_dir()
 	/* The dump file should be created in the default data directory if
 	innodb_data_home_dir is set as an empty string. */
 	if (strcmp(srv_data_home, "") == 0) {
-		dump_dir = fil_path_to_mysql_datadir;
+		dump_dir = MySQL_datadir_path;
 	} else {
 		dump_dir = srv_data_home;
 	}

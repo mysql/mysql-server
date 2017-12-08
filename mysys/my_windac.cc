@@ -43,11 +43,11 @@ static bool is_nt()
   around while SECURITY_ATTRIBUTES is in use.
 */
 
-typedef struct st_my_security_attr
+struct My_security_attr
 {
   PSID everyone_sid;
   PACL dacl;
-} My_security_attr;
+};
 
 
 /*
@@ -180,14 +180,14 @@ int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
     *perror= "Could not initialize security descriptor";
     goto error;
   }
-  if (! SetSecurityDescriptorDacl(sd, TRUE, dacl, FALSE))
+  if (! SetSecurityDescriptorDacl(sd, true, dacl, false))
   {
     *perror= "Failed to install DACL";
     goto error;
   }
 
   sa->nLength= sizeof(*sa);
-  sa->bInheritHandle= TRUE;
+  sa->bInheritHandle= true;
   sa->lpSecurityDescriptor= sd;
   /* Save pointers to everyone_sid and dacl to be able to clean them up */
   attr= (My_security_attr*) (((char*) sa) + ALIGN_SIZE(sizeof(*sa)));

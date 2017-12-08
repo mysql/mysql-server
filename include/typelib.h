@@ -21,19 +21,31 @@
   @file include/typelib.h
 */
 
-#include "mem_root_fwd.h"
 #include "my_inttypes.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+struct MEM_ROOT;
 
-typedef struct st_typelib {     /* Different types saved here */
-  size_t count;                 /* How many types */
-  const char *name;             /* Name of typelib */
-  const char **type_names;
-  unsigned int *type_lengths;
-} TYPELIB;
+struct TYPELIB
+{     /* Different types saved here */
+  /*
+    These constructors are no longer needed when we go to C++14, where
+    aggregate initialization is allowed on classes that have default
+    member initializers.
+  */
+  TYPELIB() {}
+
+  TYPELIB(size_t count_arg, const char *name_arg,
+          const char **type_names_arg, unsigned int *type_lengths_arg)
+    : count(count_arg), name(name_arg),
+      type_names(type_names_arg), type_lengths(type_lengths_arg)
+  {
+  }
+
+  size_t count{0};                 /* How many types */
+  const char *name{nullptr};             /* Name of typelib */
+  const char **type_names{nullptr};
+  unsigned int *type_lengths{nullptr};
+};
 
 extern my_ulonglong find_typeset(char *x, TYPELIB *typelib,int *error_position);
 extern int find_type_or_exit(const char *x, TYPELIB *typelib,
@@ -59,9 +71,5 @@ my_ulonglong find_set_from_flags(const TYPELIB *lib, unsigned int default_name,
                               my_ulonglong cur_set, my_ulonglong default_set,
                               const char *str, unsigned int length,
                               char **err_pos, unsigned int *err_len);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _typelib_h */

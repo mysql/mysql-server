@@ -116,7 +116,7 @@ bool Client::is_handler_thd(THD *thd) {
   return thd && session && (session->is_handled_by(thd));
 }
 
-void Client::get_status_ssl_cipher_list(st_mysql_show_var *var) {
+void Client::get_status_ssl_cipher_list(SHOW_VAR *var) {
   std::vector<std::string> ciphers = connection().options()->ssl_cipher_list();
 
   mysqld::xpl_show_var(var).assign(ngs::join(ciphers, ":"));

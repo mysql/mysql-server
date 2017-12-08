@@ -26,7 +26,7 @@
     case OPT_SSL_MODE:
       opt_ssl_mode= find_type_or_exit(argument, &ssl_mode_typelib,
                                       opt->name);
-      ssl_mode_set_explicitly= TRUE;
+      ssl_mode_set_explicitly= true;
       break;
     case OPT_SSL_CA:
     case OPT_SSL_CAPATH:

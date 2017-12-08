@@ -22,15 +22,17 @@
 #include <atomic>
 #include <list>
 
-#include "libbinlogevents/include/control_events.h"     // binary_log::Uuid
+#include "libbinlogevents/include/uuid.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
+#include "my_thread_local.h"
 #include "mysql/psi/mysql_rwlock.h" // mysql_rwlock_t
 #include "prealloced_array.h"   // Prealloced_array
 #include "template_utils.h"
 #include "typelib.h"
 
 struct TABLE_LIST;
+class THD;
 
 /**
   Report an error from code that can be linked into either the server
@@ -50,14 +52,12 @@ struct TABLE_LIST;
 #endif
 
 
-extern "C" {
 extern PSI_memory_key key_memory_Gtid_set_to_string;
 extern PSI_memory_key key_memory_Owned_gtids_to_string;
 extern PSI_memory_key key_memory_Gtid_state_to_string;
 extern PSI_memory_key key_memory_Group_cache_to_string;
 extern PSI_memory_key key_memory_Gtid_set_Interval_chunk;
 extern PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
-}
 
 extern std::atomic<ulong> gtid_mode_counter;
 

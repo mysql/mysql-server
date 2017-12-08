@@ -24,7 +24,6 @@
 #include <stddef.h>
 #include <string.h>
 #include <algorithm>
-#include <deque>
 #include <iterator>
 #include <memory>
 #include <set>
@@ -839,7 +838,7 @@ public:
     if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result))
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -856,7 +855,7 @@ public:
     {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -876,7 +875,7 @@ public:
         linestrings->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -926,7 +925,7 @@ public:
     if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result))
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -943,7 +942,7 @@ public:
     {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -963,7 +962,7 @@ public:
         linestrings->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -1019,7 +1018,7 @@ public:
     {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -1039,7 +1038,7 @@ public:
         linestrings->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -1177,7 +1176,7 @@ public:
     if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result))
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -1194,7 +1193,7 @@ public:
     {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -1214,7 +1213,7 @@ public:
         linestrings->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -1270,7 +1269,7 @@ public:
     {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -1286,7 +1285,7 @@ public:
         res->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -1294,7 +1293,7 @@ public:
     {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -1421,7 +1420,7 @@ public:
       if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, NULL))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        null_value= TRUE;
+        null_value= true;
         return NULL;
       }
       Linestring *ls= new Linestring();
@@ -1436,7 +1435,7 @@ public:
       if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        null_value= TRUE;
+        null_value= true;
         return NULL;
       }
       retgeo= res.release();
@@ -1492,7 +1491,7 @@ public:
       if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, NULL))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        null_value= TRUE;
+        null_value= true;
         return NULL;
       }
       Linestring *ls= new Linestring();
@@ -1507,7 +1506,7 @@ public:
       if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        null_value= TRUE;
+        null_value= true;
         return NULL;
       }
       retgeo= res.release();
@@ -1596,7 +1595,7 @@ public:
       if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, NULL))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        null_value= TRUE;
+        null_value= true;
         return NULL;
       }
       Linestring *ls= new Linestring();
@@ -1611,7 +1610,7 @@ public:
       if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        null_value= TRUE;
+        null_value= true;
         return NULL;
       }
       retgeo= res.release();
@@ -1667,7 +1666,7 @@ public:
       if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, NULL))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        null_value= TRUE;
+        null_value= true;
         return NULL;
       }
       Linestring *ls= new Linestring();
@@ -1682,7 +1681,7 @@ public:
       if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        null_value= TRUE;
+        null_value= true;
         return NULL;
       }
       retgeo= res.release();
@@ -1760,7 +1759,7 @@ public:
         res->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -1794,7 +1793,7 @@ public:
         res->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -1863,7 +1862,7 @@ public:
         res->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      null_value= TRUE;
+      null_value= true;
       return NULL;
     }
 
@@ -1931,9 +1930,6 @@ Geometry *Item_func_spatial_operation::
 intersection_operation(Geometry *g1, Geometry *g2,
                        String *result)
 {
-  typedef typename Geom_types::Coordinate_type Coord_type;
-  typedef typename Geom_types::Coordinate_system Coordsys;
-
   BG_setop_wrapper<Geom_types> wrap(this);
   Geometry *retgeo= NULL;
   Geometry::wkbType gt1= g1->get_type();
@@ -2085,9 +2081,6 @@ template <typename Geom_types>
 Geometry *Item_func_spatial_operation::
 union_operation(Geometry *g1, Geometry *g2, String *result)
 {
-  typedef typename Geom_types::Coordinate_type Coord_type;
-  typedef typename Geom_types::Coordinate_system Coordsys;
-
   BG_setop_wrapper<Geom_types> wrap(this);
   Geometry *retgeo= NULL;
   Geometry::wkbType gt1= g1->get_type();
@@ -2401,7 +2394,6 @@ template <typename Geom_types>
 Geometry *Item_func_spatial_operation::
 symdifference_operation(Geometry *g1, Geometry *g2, String *result)
 {
-  typedef typename Geom_types::Coordinate_type Coord_type;
   typedef typename Geom_types::Coordinate_system Coordsys;
 
   BG_setop_wrapper<Geom_types> wrap(this);
@@ -3699,7 +3691,7 @@ geocol_difference(const BG_geometry_collection &bggc1,
       wkbres= wkbstrs.append_object();
       if (wkbres == NULL)
       {
-        null_value= TRUE;
+        null_value= true;
         return NULL;
       }
       Geometry *g0= bg_geo_set_op<Coordsys>(g11, geom, wkbres);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,8 +36,6 @@ struct PSI_thread;
 
 #define PSI_MEMORY_CALL(M) pfs_ ## M ## _v1
 
-C_MODE_START
-
 void pfs_register_memory_v1
     (const char *category, struct PSI_memory_info_v1 *info, int count);
 
@@ -51,8 +49,6 @@ pfs_memory_realloc_v1
 
 void pfs_memory_free_v1
   (PSI_memory_key key, size_t size, PSI_thread *owner);
-
-C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */

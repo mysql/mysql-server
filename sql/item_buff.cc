@@ -25,6 +25,7 @@
 #include <algorithm>
 
 #include "binary_log_types.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
@@ -97,8 +98,8 @@ bool Cached_item_str::cmp(void)
   if (null_value != item->null_value)
   {
     if ((null_value= item->null_value))
-      DBUG_RETURN(TRUE);			// New value was null
-    tmp=TRUE;
+      DBUG_RETURN(true);			// New value was null
+    tmp=true;
   }
   else if (null_value)
     DBUG_RETURN(0);				// new and old value was null
@@ -122,7 +123,7 @@ Cached_item_json::Cached_item_json(Item *item)
 
 Cached_item_json::~Cached_item_json()
 {
-  delete m_value;
+  destroy(m_value);
 }
 
 
@@ -185,9 +186,9 @@ bool Cached_item_real::cmp(void)
   {
     null_value= item->null_value;
     value=nr;
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 bool Cached_item_int::cmp(void)
@@ -200,9 +201,9 @@ bool Cached_item_int::cmp(void)
   {
     null_value= item->null_value;
     value=nr;
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -215,9 +216,9 @@ bool Cached_item_temporal::cmp(void)
   {
     null_value= item->null_value;
     value= nr;
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 

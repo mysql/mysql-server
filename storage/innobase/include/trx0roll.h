@@ -41,7 +41,7 @@ extern bool	trx_rollback_or_clean_is_active;
 /*******************************************************************//**
 Determines if this transaction is rolling back an incomplete transaction
 in crash recovery.
-@return TRUE if trx is an incomplete transaction that is being rolled
+@return true if trx is an incomplete transaction that is being rolled
 back in crash recovery */
 ibool
 trx_is_recv(

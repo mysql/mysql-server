@@ -24,20 +24,19 @@
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
+#include "mysql_time.h"
 #include "sql/item.h"
 #include "sql/item_func.h"  // Item etc.
 #include "sql/mem_root_array.h"
-#include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"  // resourcegroups::Range
 #include "sql/set_var.h"    // enum_var_type
 #include "sql/sql_list.h"
-#include "sql/table.h"
-#include "sql/thr_malloc.h"
 
 class String;
 class THD;
+class my_decimal;
+struct MEM_ROOT;
 struct handlerton;
 
 /**
@@ -243,7 +242,7 @@ bool resolve_engine(THD *thd,
                     bool strict,
                     handlerton **ret);
 bool apply_privileges(THD *thd,
-                      const Trivial_array<class PT_role_or_privilege *> &privs);
+                      const Mem_root_array<class PT_role_or_privilege *> &privs);
 
 
 inline bool is_identifier(const char *str, const char *ident)

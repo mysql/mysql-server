@@ -290,7 +290,7 @@ row_build_row_ref_fast(
 /***************************************************************//**
 Searches the clustered index record for a row, if we have the row
 reference.
-@return TRUE if found */
+@return true if found */
 ibool
 row_search_on_row_ref(
 /*==================*/

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,8 +32,6 @@
 
 #define PSI_STAGE_CALL(M) pfs_ ## M ## _v1
 
-C_MODE_START
-
 void pfs_register_stage_v1(const char *category,
                            PSI_stage_info_v1 **info_array,
                            int count);
@@ -42,8 +40,6 @@ PSI_stage_progress_v1* pfs_start_stage_v1(PSI_stage_key key, const char *src_fil
 PSI_stage_progress_v1* pfs_get_current_stage_progress_v1();
 
 void pfs_end_stage_v1();
-
-C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */

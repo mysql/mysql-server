@@ -23,7 +23,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/handler.h"
 #include "sql/sql_executor.h" // QEP_operation
 
@@ -51,7 +50,8 @@ class JOIN;
   The CACHE_FIELD structure used to describe fields of records that
   are written into a join cache buffer from record buffers and backward.
 */
-typedef struct st_cache_field {
+struct CACHE_FIELD
+{
   uchar *str;   /**< buffer from/to where the field is to be copied */ 
   uint length;  /**< maximal number of bytes to be copied from/to str */
   /* 
@@ -69,7 +69,7 @@ typedef struct st_cache_field {
   */ 
   uint referenced_field_no; 
   /// Used to chain rowid copy objects belonging to one join_tab
-  st_cache_field *next_copy_rowid;
+  CACHE_FIELD *next_copy_rowid;
   /* The remaining structure fields are used as containers for temp values */
   uint blob_length; /**< length of the blob to be copied */
   uint offset;      /**< field offset to be saved in cache buffer */
@@ -81,7 +81,7 @@ typedef struct st_cache_field {
     str= buffer;
   }
   bool buffer_is_bound() const { return str != NULL; }
-} CACHE_FIELD;
+};
 
 
 /**
@@ -543,7 +543,7 @@ public:
 
   virtual enum_join_cache_type cache_type() const= 0;
 
-  /* TRUE <=> cache reads rows by key */
+  /* true <=> cache reads rows by key */
   bool is_key_access() const
   { return cache_type() & (ALG_BKA | ALG_BKA_UNIQUE ); }
 

@@ -34,7 +34,7 @@
 #include "typelib.h"
 
 struct TABLE_SHARE;
-typedef struct st_ha_create_information HA_CREATE_INFO;
+struct HA_CREATE_INFO;
 
 #define HA_RECOVER_DEFAULT	1	/* Automatic recover active */
 #define HA_RECOVER_BACKUP	2	/* Make a backupfile on recover */
@@ -63,7 +63,7 @@ class Myisam_handler_share: public Handler_share
 public:
   Myisam_handler_share() : m_share(NULL) {}
   ~Myisam_handler_share() {}
-  struct st_mi_isam_share *m_share;
+  MYISAM_SHARE *m_share;
 };
 
 class ha_myisam: public handler

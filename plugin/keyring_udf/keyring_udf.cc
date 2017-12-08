@@ -21,6 +21,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "mysql/plugin.h"
 #include "sql/current_thd.h"
 #include "sql/sql_class.h" // THD
 
@@ -34,19 +35,19 @@
 #define PLUGIN_EXPORT extern "C"
 #endif
 
-static bool is_keyring_udf_initialized= FALSE;
+static bool is_keyring_udf_initialized= false;
 
 static int keyring_udf_init(void*)
 {
   DBUG_ENTER("keyring_udf_init");
-  is_keyring_udf_initialized= TRUE;
+  is_keyring_udf_initialized= true;
   DBUG_RETURN(0);
 }
 
 static int keyring_udf_deinit(void*)
 {
   DBUG_ENTER("keyring_udf_deinit");
-  is_keyring_udf_initialized= FALSE;
+  is_keyring_udf_initialized= false;
   DBUG_RETURN(0);
 }
 
@@ -85,14 +86,14 @@ static bool get_current_user(std::string *current_user)
   if (thd_get_security_context(thd, &sec_ctx) ||
       security_context_get_option(sec_ctx, "priv_user", &user) ||
       security_context_get_option(sec_ctx, "priv_host", &host))
-    return TRUE;
+    return true;
 
   if(user.length)
     current_user->append(user.str, user.length);
   DBUG_ASSERT(host.length);
   current_user->append("@").append(host.str, host.length);
 
-  return FALSE;
+  return false;
 }
 
 enum what_to_validate
@@ -122,29 +123,29 @@ static bool validate(UDF_ARGS *args, uint expected_arg_count,
   MYSQL_SECURITY_CONTEXT sec_ctx;
   my_svc_bool has_current_user_execute_privilege= 0;
 
-  if(is_keyring_udf_initialized == FALSE)
+  if(is_keyring_udf_initialized == false)
   {
     strcpy(message, "This function requires keyring_udf plugin which is not installed."
                     " Please install keyring_udf plugin and try again.");
-    return TRUE;
+    return true;
   }
 
   if (thd_get_security_context(thd, &sec_ctx) ||
       security_context_get_option(sec_ctx, "privilege_execute",
                                   &has_current_user_execute_privilege))
-    return TRUE;
+    return true;
 
-  if (has_current_user_execute_privilege == FALSE)
+  if (has_current_user_execute_privilege == false)
   {
     strcpy(message, "The user is not privileged to execute this function. "
                     "User needs to have EXECUTE permission.");
-    return TRUE;
+    return true;
   }
 
   if (args->arg_count != expected_arg_count)
   {
     strcpy(message, "Mismatch in number of arguments to the function.");
-    return TRUE;
+    return true;
   }
 
   if (to_validate & VALIDATE_KEY_ID && (args->args[0] == NULL ||
@@ -152,7 +153,7 @@ static bool validate(UDF_ARGS *args, uint expected_arg_count,
   {
     strcpy(message, "Mismatch encountered. A string argument is expected "
       "for key id.");
-    return TRUE;
+    return true;
   }
 
   if (to_validate & VALIDATE_KEY_TYPE && (args->args[1] == NULL ||
@@ -160,7 +161,7 @@ static bool validate(UDF_ARGS *args, uint expected_arg_count,
   {
     strcpy(message, "Mismatch encountered. A string argument is expected "
       "for key type.");
-    return TRUE;
+    return true;
   }
 
   if (to_validate & VALIDATE_KEY_LENGTH)
@@ -169,7 +170,7 @@ static bool validate(UDF_ARGS *args, uint expected_arg_count,
     {
       strcpy(message, "Mismatch encountered. An integer argument is expected "
         "for key length.");
-      return TRUE;
+      return true;
     }
     long long key_length= *reinterpret_cast<long long*>(args->args[2]);
 
@@ -177,7 +178,7 @@ static bool validate(UDF_ARGS *args, uint expected_arg_count,
     {
       sprintf(message, "%s%d", "The key is to long. The max length of the key is ",
         MAX_KEYRING_UDF_KEY_TEXT_LENGTH);
-      return TRUE;
+      return true;
     }
   }
 
@@ -186,9 +187,9 @@ static bool validate(UDF_ARGS *args, uint expected_arg_count,
   {
     strcpy(message, "Mismatch encountered. A string argument is expected "
       "for key.");
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
 static bool keyring_udf_func_init(UDF_INIT *initid, UDF_ARGS *args, char *message,
@@ -200,7 +201,7 @@ static bool keyring_udf_func_init(UDF_INIT *initid, UDF_ARGS *args, char *messag
   uint expected_arg_count= get_args_count_from_validation_request(to_validate);
 
   if (validate(args, expected_arg_count , to_validate, message))
-    return TRUE;
+    return true;
 
   if (max_lenth_to_return)
     initid->max_length= *max_lenth_to_return; //if no max_length_to_return passed to the function
@@ -211,12 +212,12 @@ static bool keyring_udf_func_init(UDF_INIT *initid, UDF_ARGS *args, char *messag
   {
     initid->ptr= new(std::nothrow) char[size_of_memory_to_allocate];
     if (initid->ptr == NULL)
-      return TRUE;
+      return true;
     else
       memset(initid->ptr, 0, size_of_memory_to_allocate);
   }
 
-  return FALSE;
+  return false;
 }
 
 PLUGIN_EXPORT
@@ -262,7 +263,7 @@ static bool fetch(const char* function_name, char *key_id, char **a_key,
 {
   std::string current_user;
   if (get_current_user(&current_user))
-    return TRUE;
+    return true;
 
   char *key_type= NULL, *key= NULL;
   size_t key_len= 0;
@@ -276,7 +277,7 @@ static bool fetch(const char* function_name, char *key_id, char **a_key,
       my_free(key);
     if (key_type != NULL)
       my_free(key_type);
-    return TRUE;
+    return true;
   }
 
   DBUG_ASSERT((key == NULL && key_len == 0) || (key != NULL &&
@@ -294,7 +295,7 @@ static bool fetch(const char* function_name, char *key_id, char **a_key,
   if (a_key_len != NULL)
     *a_key_len= key_len;
 
-  return FALSE;
+  return false;
 }
 
 PLUGIN_EXPORT

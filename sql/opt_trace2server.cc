@@ -40,10 +40,8 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
-#include "sql/key.h"
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
-#include "sql/session_tracker.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h" // sp_head
 #include "sql/sp_instr.h" // sp_printable
@@ -51,15 +49,12 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h" // sql_command_flags
-#include "sql/sql_profile.h"
 #include "sql/sql_show.h" // schema_table_stored_record
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql_string.h"
 
 class Item;
-
-#ifdef OPTIMIZER_TRACE
 
 namespace {
 
@@ -579,8 +574,6 @@ int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item*)
 
   return 0;
 }
-
-#endif // OPTIMIZER_TRACE
 
 ST_FIELD_INFO optimizer_trace_info[]=
 {

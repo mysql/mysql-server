@@ -407,7 +407,7 @@ affiliates. Other names may be trademarks of their respective
 owners.
 
 IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
-See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
+See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
   -h, --help          Display this help and exit.
   -v, --version       Display version information and exit.
   -d, --dump-file=name 
@@ -817,7 +817,7 @@ affiliates. Other names may be trademarks of their respective
 owners.
 
 IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
-See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
+See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
   -h, --help          Display this help and exit.
   -v, --version       Display version information and exit.
   -d, --dump-file=name 
@@ -958,7 +958,7 @@ affiliates. Other names may be trademarks of their respective
 owners.
 
 IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
-See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
+See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
   -h, --help          Display this help and exit.
   -v, --version       Display version information and exit.
   -d, --dump-file=name 

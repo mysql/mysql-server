@@ -21,6 +21,7 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysqld_error.h"
 #include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
@@ -30,6 +31,7 @@
 #include "sql/sql_class.h"      // THD
 #include "sql/sql_connect.h"
 #include "sql/sql_db.h"         // get_default_db_collation
+#include "sql/sql_lex.h"
 #include "sql/system_variables.h"
 #include "sql/tztime.h"         // Time_zone
 #include "sql_string.h"

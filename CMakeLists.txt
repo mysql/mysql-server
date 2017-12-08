@@ -118,7 +118,8 @@ ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
 ENDIF()
 
-IF(CMAKE_GENERATOR MATCHES "Visual Studio [1-9][0-9].*")
+IF(CMAKE_GENERATOR MATCHES "Visual Studio [1-9][0-9].*" AND
+   CMAKE_GENERATOR_TOOLSET STREQUAL "")
   # Switch to 64 bit toolset on Windows (32 bit is default).
   # This is recommended as the 32 bit linker will run into address space issues
   # and not exit for long time.
@@ -315,6 +316,7 @@ MACRO (MY_CHECK_C_COMPILER_FLAG FLAG RESULT)
   SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
   SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${FLAG}")
   CHECK_C_SOURCE_COMPILES("int main(void) { return 0; }" ${RESULT}
+    FAIL_REGEX "unknown argument ignored"
     FAIL_REGEX "argument unused during compilation"
     FAIL_REGEX "unsupported .*option"
     FAIL_REGEX "unknown .*option"
@@ -331,6 +333,7 @@ MACRO (MY_CHECK_CXX_COMPILER_FLAG FLAG RESULT)
   SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
   SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${FLAG}")
   CHECK_CXX_SOURCE_COMPILES("int main(void) { return 0; }" ${RESULT}
+    FAIL_REGEX "unknown argument ignored"
     FAIL_REGEX "argument unused during compilation"
     FAIL_REGEX "unsupported .*option"
     FAIL_REGEX "unknown .*option"
@@ -368,26 +371,48 @@ ENDMACRO()
 
 OPTION(WITH_ASAN "Enable address sanitizer" OFF)
 IF(WITH_ASAN)
-  MY_SANITIZER_CHECK("-fsanitize=address" TRUE WITH_ASAN_OK)
-  IF(WITH_ASAN_OK)
-    OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" ON)
+  IF(WIN32_CLANG)
+    # Feature detection of -faddress=sanitize is problematic with Clang on
+    # Windows, since Clang (at least as of 5.0.0) requires /MT, but CMake
+    # default is /MD, and this code is run before the one in
+    # cmake/os/Windows.cmake, which sets /MT for ASAN on Win32 Clang.
+    # Just enable it unconditionally; we know it's working.
+    SET(CMAKE_C_FLAGS_DEBUG
+      "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address -fsanitize-address-use-after-scope -Wno-error")
+    SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+      "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize=address -fsanitize-address-use-after-scope")
+    SET(CMAKE_CXX_FLAGS_DEBUG
+      "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize-address-use-after-scope -Wno-error")
+    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize=address -fsanitize-address-use-after-scope")
     SET(HAVE_ASAN 1)
-    # This works with clang, but not gcc it seems.
-    MY_CHECK_CXX_COMPILER_FLAG(
-      "-fsanitize=address -fsanitize-address-use-after-scope"
-      HAVE_SANITIZE_SCOPE)
-    IF(WITH_ASAN_SCOPE AND HAVE_SANITIZE_SCOPE)
-      SET(CMAKE_C_FLAGS_DEBUG
-        "${CMAKE_C_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
-      SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-        "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
-      SET(CMAKE_CXX_FLAGS_DEBUG
-        "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
-      SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-        "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
-    ENDIF()
+
+    # Get the path to the ASAN support libraries.
+    GET_FILENAME_COMPONENT(ASAN_LIB_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
+    SET(ASAN_LIB_DIR "${ASAN_LIB_DIR}/../lib/clang/${CMAKE_CXX_COMPILER_VERSION}/lib/windows")
+    GET_FILENAME_COMPONENT(ASAN_LIB_DIR ${ASAN_LIB_DIR} REALPATH)
   ELSE()
-    MESSAGE(FATAL_ERROR "Do not know how to enable address sanitizer")
+    MY_SANITIZER_CHECK("-fsanitize=address" TRUE WITH_ASAN_OK)
+    IF(WITH_ASAN_OK)
+      OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" ON)
+      SET(HAVE_ASAN 1)
+      # This works with clang, but not gcc it seems.
+      MY_CHECK_CXX_COMPILER_FLAG(
+        "-fsanitize=address -fsanitize-address-use-after-scope"
+        HAVE_SANITIZE_SCOPE)
+      IF(WITH_ASAN_SCOPE AND HAVE_SANITIZE_SCOPE)
+        SET(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
+        SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+          "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
+        SET(CMAKE_CXX_FLAGS_DEBUG
+          "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
+        SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+          "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
+      ENDIF()
+    ELSE()
+      MESSAGE(FATAL_ERROR "Do not know how to enable address sanitizer")
+    ENDIF()
   ENDIF()
 ENDIF()
 
@@ -537,8 +562,6 @@ ENDIF()
 OPTION(ENABLED_LOCAL_INFILE
  "If we should enable LOAD DATA LOCAL by default" OFF)
 MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
-
-OPTION(OPTIMIZER_TRACE "Support tracing of Optimizer" ON)
 
 #
 # Options related to client-side protocol tracing

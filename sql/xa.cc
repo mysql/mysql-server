@@ -29,6 +29,7 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"       // MYSQL_XIDDATASIZE
@@ -152,7 +153,7 @@ static bool xacommit_handlerton(THD*, plugin_ref plugin, void *arg)
     return false;
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -187,7 +188,7 @@ static bool xarollback_handlerton(THD*, plugin_ref plugin, void *arg)
     }
     return false;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -412,7 +413,7 @@ static Transaction_ctx* find_trn_for_recover_and_check_its_state(
     my_error(ER_XAER_NOTA, MYF(0));
     return nullptr;
   }
-  else if (thd->in_multi_stmt_transaction_mode())
+  else if (thd->in_active_multi_stmt_transaction())
   {
     my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
     return nullptr;
@@ -1552,7 +1553,7 @@ bool applier_reset_xa_trans(THD *thd)
   @param[in,out]     thd     Thread context
   @param             plugin  Reference to handlerton
 
-  @return    FALSE   on success, TRUE otherwise.
+  @return    false   on success, true otherwise.
 */
 
 bool detach_native_trx(THD *thd, plugin_ref plugin, void*)
@@ -1568,5 +1569,5 @@ bool detach_native_trx(THD *thd, plugin_ref plugin, void*)
                                             &thd->get_ha_data(hton->slot)->ha_ptr_backup);
   }
 
-  return FALSE;
+  return false;
 }

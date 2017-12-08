@@ -24,18 +24,21 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "my_inttypes.h"
-#include "mysql_com.h"
+#include "sql/rpl_gtid.h"
 #include "sql/rpl_info.h" /*CHANNEL_NAME_LENGTH*/
-#include "sql/rpl_mi.h"
-#include "sql/rpl_msr.h"
-#include "sql/rpl_rli_pdb.h"
-#include "storage/perfschema/pfs_column_types.h"
+#include "sql/rpl_reporting.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
 
-class Slave_worker;
+class Field;
 class Master_info;
+class Plugin_table;
+class Slave_worker;
+struct TABLE;
+struct THR_LOCK;
+struct mysql_mutex_t;
 
 /**
   @addtogroup performance_schema_tables

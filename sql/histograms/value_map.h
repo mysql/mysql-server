@@ -26,22 +26,22 @@
 #include <utility>              // std::pair
 #include <vector>               // std::vector
 
+#include "m_ctype.h"
+#include "my_alloc.h"
 #include "my_base.h"            // ha_rows
-#include "sql/histograms/equi_height_bucket.h"
+#include "mysql_time.h"
 #include "sql/histograms/value_map_type.h"
-#include "sql/memroot_allocator.h" // Memroot_allocator
-#include "sql/thr_malloc.h"
 
 class String;
-class THD;
 class my_decimal;
 template <class T> class Memroot_allocator;
-
-typedef struct st_mysql_time MYSQL_TIME;
 
 namespace histograms {
 
 class Histogram;
+namespace equi_height {
+template <class T> class Bucket;
+}  // namespace equi_height
 
 /**
   The maximum number of characters to evaluate when building histograms. For

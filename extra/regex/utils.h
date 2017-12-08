@@ -1,3 +1,5 @@
+#include <limits.h>
+
 /* utility definitions */
 #ifdef _POSIX2_RE_DUP_MAX
 #define	DUPMAX		_POSIX2_RE_DUP_MAX	/* xxx is this right? */

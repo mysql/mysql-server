@@ -139,18 +139,17 @@
 typedef mysql_cond_t KEYCACHE_CONDVAR;
 
 /* descriptor of the page in the key cache block buffer */
-struct st_keycache_page
+struct KEYCACHE_PAGE
 {
   int file;               /* file to which the page belongs to  */
   my_off_t filepos;       /* position of the page in the file   */
 };
-typedef struct st_keycache_page KEYCACHE_PAGE;
 
 /* element in the chain of a hash table bucket */
-struct st_hash_link
+struct HASH_LINK
 {
-  struct st_hash_link *next, **prev; /* to connect links in the same bucket  */
-  struct st_block_link *block;       /* reference to the block for the page: */
+  HASH_LINK *next, **prev; /* to connect links in the same bucket  */
+  BLOCK_LINK *block;       /* reference to the block for the page: */
   File file;                         /* from such a file                     */
   my_off_t diskpos;                  /* with such an offset                  */
   uint requests;                     /* number of requests for the page      */
@@ -177,13 +176,13 @@ struct st_hash_link
 enum BLOCK_TEMPERATURE { BLOCK_COLD /*free*/ , BLOCK_WARM , BLOCK_HOT };
 
 /* key cache block */
-struct st_block_link
+struct BLOCK_LINK
 {
-  struct st_block_link
+  BLOCK_LINK
     *next_used, **prev_used;   /* to connect links in the LRU chain (ring)   */
-  struct st_block_link
+  BLOCK_LINK
     *next_changed, **prev_changed; /* for lists of file dirty/clean blocks   */
-  struct st_hash_link *hash_link; /* backward ptr to referring hash_link     */
+  HASH_LINK *hash_link; /* backward ptr to referring hash_link     */
   KEYCACHE_WQUEUE wqueue[2]; /* queues on waiting requests for new/old pages */
   uint requests;          /* number of requests for the block                */
   uchar *buffer;           /* buffer for the block page                       */
@@ -325,7 +324,7 @@ int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
         blocks--;
       /* Allocate memory for cache page buffers */
       if ((keycache->block_mem=
-	   static_cast<uchar*>(my_large_malloc(key_memory_KEY_CACHE,
+	   static_cast<uchar*>(my_malloc(key_memory_KEY_CACHE,
                            (size_t) blocks * keycache->key_cache_block_size,
                                                MYF(0)))))
       {
@@ -337,7 +336,7 @@ int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
                                                            length,
                                                            MYF(0))))
           break;
-        my_large_free(keycache->block_mem);
+        my_free(keycache->block_mem);
         keycache->block_mem= 0;
       }
       if (blocks < 8)
@@ -413,7 +412,7 @@ err:
   keycache->blocks=  0;
   if (keycache->block_mem)
   {
-    my_large_free((uchar*) keycache->block_mem);
+    my_free((uchar*) keycache->block_mem);
     keycache->block_mem= NULL;
   }
   if (keycache->block_root)
@@ -639,7 +638,7 @@ void end_key_cache(KEY_CACHE *keycache, bool cleanup)
   {
     if (keycache->block_mem)
     {
-      my_large_free((uchar*) keycache->block_mem);
+      my_free((uchar*) keycache->block_mem);
       keycache->block_mem= NULL;
       my_free(keycache->block_root);
       keycache->block_root= NULL;
@@ -1176,12 +1175,12 @@ static void reg_requests(KEY_CACHE *keycache, BLOCK_LINK *block, int count)
 
   NOTES.
     Every linking to the LRU ring decrements by one a special block
-    counter (if it's positive). If the at_end parameter is TRUE the block is
+    counter (if it's positive). If the at_end parameter is true the block is
     added either at the end of warm sub-chain or at the end of hot sub-chain.
     It is added to the hot subchain if its counter is zero and number of
     blocks in warm sub-chain is not less than some low limit (determined by
     the division_limit parameter). Otherwise the block is added to the warm
-    sub-chain. If the at_end parameter is FALSE the block is always added
+    sub-chain. If the at_end parameter is false the block is always added
     at beginning of the warm sub-chain.
     Thus a warm block can be promoted to the hot sub-chain when its counter
     becomes zero for the first time.
@@ -2064,7 +2063,7 @@ restart:
               and hash_link refer to each other. Hence we need to assign
               the hash_link first, but then we would not know if it was
               linked before. Hence we would not know if to unlink it. So
-              unlink it here and call link_to_file_list(..., FALSE).
+              unlink it here and call link_to_file_list(..., false).
             */
             unlink_changed(block);
           }
@@ -2278,7 +2277,7 @@ static void read_block(KEY_CACHE *keycache,
     The function ensures that a block of data of size length from file
     positioned at filepos is in the buffers for some key cache blocks.
     Then the function either copies the data into the buffer buff, or,
-    if return_buffer is TRUE, it just returns the pointer to the key cache
+    if return_buffer is true, it just returns the pointer to the key cache
     buffer with the data.
     Filepos must be a multiple of 'block_length', but it doesn't
     have to be a multiple of key_cache_block_size;
@@ -2291,7 +2290,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
                       uint block_length,
                       int return_buffer MY_ATTRIBUTE((unused)))
 {
-  bool locked_and_incremented= FALSE;
+  bool locked_and_incremented= false;
   int error=0;
   uchar *start= buff;
   DBUG_ENTER("key_cache_read");
@@ -2332,7 +2331,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
                     thread_var);
     /* Register the I/O for the next resize. */
     inc_counter_for_resize_op(keycache);
-    locked_and_incremented= TRUE;
+    locked_and_incremented= true;
     /* Requested data may not always be aligned to cache blocks. */
     offset= (uint) (filepos % keycache->key_cache_block_size);
     /* Read data in key_cache_block_size increments */
@@ -2510,7 +2509,7 @@ int key_cache_insert(KEY_CACHE *keycache,
     uint read_length;
     uint offset;
     int page_st;
-    bool locked_and_incremented= FALSE;
+    bool locked_and_incremented= false;
 
     /*
       When the keycache is once initialized, we use the cache_lock to
@@ -2527,7 +2526,7 @@ int key_cache_insert(KEY_CACHE *keycache,
 	goto no_key_cache;
     /* Register the pseudo I/O for the next resize. */
     inc_counter_for_resize_op(keycache);
-    locked_and_incremented= TRUE;
+    locked_and_incremented= true;
     /* Loaded data may not always be aligned to cache blocks. */
     offset= (uint) (filepos % keycache->key_cache_block_size);
     /* Load data in key_cache_block_size increments. */
@@ -2573,7 +2572,7 @@ int key_cache_insert(KEY_CACHE *keycache,
             hash_link). So we cannot call remove_reader() on the block.
             And we cannot access the hash_link directly here. We need to
             wait until the assignment is complete. read_block() executes
-            the correct wait when called with primary == FALSE.
+            the correct wait when called with primary == false.
 
             Or
 
@@ -2731,11 +2730,11 @@ int key_cache_insert(KEY_CACHE *keycache,
     The function copies the data of size length from buff into buffers
     for key cache blocks that are  assigned to contain the portion of
     the file starting with position filepos.
-    It ensures that this data is flushed to the file if dont_write is FALSE.
+    It ensures that this data is flushed to the file if dont_write is false.
     Filepos must be a multiple of 'block_length', but it doesn't
     have to be a multiple of key_cache_block_size;
 
-    dont_write is always TRUE in the server (info->lock_type is never F_UNLCK).
+    dont_write is always true in the server (info->lock_type is never F_UNLCK).
 */
 
 int key_cache_write(KEY_CACHE *keycache,
@@ -2745,7 +2744,7 @@ int key_cache_write(KEY_CACHE *keycache,
                     uint block_length  MY_ATTRIBUTE((unused)),
                     int dont_write)
 {
-  bool locked_and_incremented= FALSE;
+  bool locked_and_incremented= false;
   int error=0;
   DBUG_ENTER("key_cache_write");
   DBUG_PRINT("enter",
@@ -2801,7 +2800,7 @@ int key_cache_write(KEY_CACHE *keycache,
                     thread_var);
     /* Register the I/O for the next resize. */
     inc_counter_for_resize_op(keycache);
-    locked_and_incremented= TRUE;
+    locked_and_incremented= true;
     /* Requested data may not always be aligned to cache blocks. */
     offset= (uint) (filepos % keycache->key_cache_block_size);
     /* Write data in key_cache_block_size increments. */
@@ -3628,7 +3627,7 @@ restart:
             if (!(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH |
                                    BLOCK_REASSIGNED)))
             {
-              struct st_hash_link *next_hash_link= NULL;
+              HASH_LINK *next_hash_link= NULL;
               my_off_t next_diskpos= 0;
               File next_file= 0;
               uint next_status= 0;

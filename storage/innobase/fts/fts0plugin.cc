@@ -103,7 +103,7 @@ fts_query_get_oper_node(
 
 /******************************************************************//**
 FTS plugin parser 'myql_add_word' callback function for query parse.
-Refer to 'st_mysql_ftparser_param' for more detail.
+Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
 Note:
 a. Parse logic refers to 'ftb_query_add_word' from ft_boolean_search.c in MYISAM;
 b. Parse node or tree refers to fts0pars.y.
@@ -226,7 +226,7 @@ fts_query_add_word_for_parser(
 
 /******************************************************************//**
 FTS plugin parser 'myql_parser' callback function for query parse.
-Refer to 'st_mysql_ftparser_param' for more detail.
+Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
 @return 0 if parse successfully */
 static
 int

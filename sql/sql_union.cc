@@ -34,6 +34,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "memory_debugging.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_sys.h"
@@ -62,13 +64,12 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"                  // JOIN
-#include "sql/sql_parse.h"
 #include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"                  // tmp tables
+#include "sql/table_function.h"                     // Table_function
 #include "sql/thr_malloc.h"
 #include "sql/window.h"                         // Window
 #include "template_utils.h"
-#include "sql/table_function.h"                     // Table_function
 
 bool Query_result_union::prepare(List<Item>&, SELECT_LEX_UNIT *u)
 {
@@ -784,7 +785,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
                                           create_options, "", false,
                                           instantiate_tmp_table))
       goto err;
-    memset(&result_table_list, 0, sizeof(result_table_list));
+    result_table_list= TABLE_LIST();
     result_table_list.db= (char*) "";
     result_table_list.table_name= result_table_list.alias= (char*) "union";
     result_table_list.table= table= union_result->table;
@@ -1148,7 +1149,6 @@ public:
 #endif
 
     row_count= new_row_count;
-#ifdef OPTIMIZER_TRACE
     Opt_trace_context &trace= thd->opt_trace;
     /*
       If recursive query blocks have been executed at least once, and repeated
@@ -1161,7 +1161,6 @@ public:
       flags|= DISABLED_TRACE;
       trace.disable_I_S_for_this_and_children();
     }
-#endif
 
     flags|= EXEC_RECURSIVE;
 
@@ -1227,10 +1226,8 @@ public:
   {
     if (unit->is_recursive())
     {
-#ifdef OPTIMIZER_TRACE
       if (flags & DISABLED_TRACE)
         thd->opt_trace.restore_I_S();
-#endif
       if (flags & POP_HANDLER)
       {
         thd->pop_internal_handler();
@@ -1418,7 +1415,7 @@ bool SELECT_LEX_UNIT::cleanup(bool full)
   if (full && union_result)
   {
     union_result->cleanup();
-    delete union_result;
+    destroy(union_result);
     union_result= NULL; // Safety
     if (table)
       free_tmp_table(thd, table);
@@ -1618,7 +1615,7 @@ bool SELECT_LEX::cleanup(bool full)
     {
       DBUG_ASSERT(join->select_lex == this);
       error= join->destroy();
-      delete join;
+      destroy(join);
       join= NULL;
     }
     else

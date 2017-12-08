@@ -17,10 +17,9 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/sql_class.h"
 #include "sql_string.h"
 
@@ -131,8 +130,7 @@ void sp_pcontext::init(uint var_offset,
 
 
 sp_pcontext::sp_pcontext(THD *thd)
-  : Sql_alloc(),
-    m_level(0),
+  : m_level(0),
     m_max_var_index(0), m_max_cursor_index(0),
     m_parent(NULL), m_pboundary(0),
     m_vars(thd->mem_root),
@@ -149,8 +147,7 @@ sp_pcontext::sp_pcontext(THD *thd)
 
 sp_pcontext::sp_pcontext(THD *thd, sp_pcontext *prev,
                          sp_pcontext::enum_scope scope)
-  : Sql_alloc(),
-    m_level(prev->m_level + 1),
+  : m_level(prev->m_level + 1),
     m_max_var_index(0), m_max_cursor_index(0),
     m_parent(prev), m_pboundary(0),
     m_vars(thd->mem_root),
@@ -170,7 +167,7 @@ sp_pcontext::sp_pcontext(THD *thd, sp_pcontext *prev,
 sp_pcontext::~sp_pcontext()
 {
   for (size_t i= 0; i < m_children.size(); ++i)
-    delete m_children.at(i);
+    destroy(m_children.at(i));
 }
 
 

@@ -42,21 +42,21 @@ struct st_ft_info_nlq : public FT_INFO
   FT_DOC    doc[1];
 };
 
-typedef struct st_all_in_one
+struct ALL_IN_ONE
 {
   MI_INFO    *info;
   uint	      keynr;
   const CHARSET_INFO *charset;
   uchar      *keybuff;
   TREE	      dtree;
-} ALL_IN_ONE;
+};
 
-typedef struct st_ft_superdoc
+struct FT_SUPERDOC
 {
     FT_DOC   doc;
     FT_WORD *word_ptr;
     double   tmp_weight;
-} FT_SUPERDOC;
+};
 
 static int FT_SUPERDOC_cmp(const void* cmp_arg MY_ATTRIBUTE((unused)),
 			   const void* a, const void *b)

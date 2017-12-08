@@ -36,7 +36,6 @@
 #include "sql/auth/sql_auth_cache.h"
 #include "sql/auth/sql_authorization.h"
 #include "sql/current_thd.h"
-#include "sql/key.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 
@@ -197,9 +196,9 @@ void Security_context::copy_security_ctx (const Security_context &src_sctx)
   Memory management of a "temporary" security context is
   responsibility of the module that creates it.
 
-  @retval TRUE  there is no user with the given credentials. The erro
+  @retval true  there is no user with the given credentials. The erro
                 is reported in the thread.
-  @retval FALSE success
+  @retval false success
 */
 
 bool
@@ -231,13 +230,13 @@ change_security_context(THD *thd,
     {
       my_error(ER_NO_SUCH_USER, MYF(0), definer_user.str,
                definer_host.str);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
     *backup= thd->security_context();
     thd->set_security_context(this);
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 

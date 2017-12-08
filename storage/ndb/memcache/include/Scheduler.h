@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -23,6 +23,8 @@
 #include "ndbmemcache_global.h"
 #include <memcached/types.h>
 #include "thread_identifier.h"
+
+#include "storage/ndb/include/ndbapi/NdbTransaction.hpp"
 
 
 typedef struct scheduler_options_st {

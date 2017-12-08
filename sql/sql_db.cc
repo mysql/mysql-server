@@ -22,9 +22,6 @@
 #include "my_config.h"
 
 #include <errno.h>
-
-#include "my_loglevel.h"
-#include "mysql/udf_registration_types.h"
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -48,14 +45,14 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"       // EE_*
-#include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h" // SELECT_ACL
 #include "sql/auth/sql_security_ctx.h"
@@ -73,7 +70,6 @@
 #include "sql/error_handler.h" // Drop_table_error_handler
 #include "sql/events.h"      // Events
 #include "sql/handler.h"
-#include "sql/key.h"
 #include "sql/lock.h"        // lock_schema_name
 #include "sql/log.h"         // log_*()
 #include "sql/log_event.h"   // Query_log_event
@@ -91,6 +87,7 @@
 #include "sql/sql_table.h"   // build_table_filename
 #include "sql/system_variables.h"
 #include "sql/table.h"       // TABLE_LIST
+#include "sql/thd_raii.h"
 #include "sql/transaction.h" // trans_rollback_stmt
 #include "sql_string.h"
 #include "typelib.h"
@@ -174,7 +171,7 @@ static bool write_db_cmd_to_binlog(THD *thd, const char *db, bool trx_cache)
 {
   if (mysql_bin_log.is_open())
   {
-    int errcode= query_error_code(thd, TRUE);
+    int errcode= query_error_code(thd, true);
     Query_log_event qinfo(thd, thd->query().str, thd->query().length,
                           trx_cache, false,
                           /* suppress_use */ true, errcode);
@@ -1193,7 +1190,7 @@ static void backup_current_db_name(THD *thd,
 
 
 /**
-  Return TRUE if db1_name is equal to db2_name, FALSE otherwise.
+  Return true if db1_name is equal to db2_name, false otherwise.
 
   The function allows to compare database names according to the MySQL
   rules. The database names db1 and db2 are equal if:
@@ -1222,7 +1219,7 @@ cmp_db_names(const char *db1_name,
 
   @param thd          thread handle
   @param new_db_name  database name
-  @param force_switch if force_switch is FALSE, then the operation will fail if
+  @param force_switch if force_switch is false, then the operation will fail if
 
                         - new_db_name is NULL or empty;
 
@@ -1233,7 +1230,7 @@ cmp_db_names(const char *db1_name,
 
                         - OR new database does not exist;
 
-                      if force_switch is TRUE, then
+                      if force_switch is true, then
 
                         - if new_db_name is NULL or empty, the current
                           database will be NULL, @@collation_database will
@@ -1501,7 +1498,7 @@ bool mysql_opt_change_db(THD *thd,
   *cur_db_changed= !cmp_db_names(thd->db().str, new_db_name.str);
 
   if (!*cur_db_changed)
-    return FALSE;
+    return false;
 
   backup_current_db_name(thd, saved_db_name);
 

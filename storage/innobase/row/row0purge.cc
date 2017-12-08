@@ -96,7 +96,7 @@ row_purge_node_create(
 /***********************************************************//**
 Repositions the pcur in the purge node on the clustered index record,
 if found. If the record is not found, close pcur.
-@return TRUE if the record was found */
+@return true if the record was found */
 static
 ibool
 row_purge_reposition_pcur(
@@ -294,7 +294,7 @@ row_purge_poss_sec(
 /***************************************************************
 Removes a secondary index entry if possible, by modifying the
 index tree.  Does not try to buffer the delete.
-@return TRUE if success or if not found */
+@return true if success or if not found */
 static MY_ATTRIBUTE((warn_unused_result))
 ibool
 row_purge_remove_sec_if_poss_tree(

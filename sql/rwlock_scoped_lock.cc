@@ -20,6 +20,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "my_compiler.h"
 #include "mysql/psi/mysql_rwlock.h"
 
+struct mysql_rwlock_t;
+
 /**
   Acquires lock on specified lock object.
   The lock may be NULL, in which case this is a no-op.

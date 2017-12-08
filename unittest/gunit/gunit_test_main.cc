@@ -26,9 +26,8 @@
 #include "mysql/psi/mysql_mutex.h"
 
 class Cost_constant_cache;
-extern "C" {
-  CHARSET_INFO *system_charset_info= NULL;
-}
+CHARSET_INFO *system_charset_info= NULL;
+class THD;
 
 namespace {
 
@@ -55,7 +54,7 @@ struct my_option unittest_options[] =
 
 extern "C" bool get_one_option(int, const struct my_option *, char *)
 {
-  return FALSE;
+  return false;
 }
 
 }  // namespace

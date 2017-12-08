@@ -20,16 +20,13 @@
 
 #include "control_events.h" // enum_incidents
 #include "lex_string.h"
-#include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/table.h"      // TABLE
 
 class MYSQL_BIN_LOG;
 class THD;
-
-typedef struct st_bitmap MY_BITMAP;
+struct MY_BITMAP;
 
 
 /*

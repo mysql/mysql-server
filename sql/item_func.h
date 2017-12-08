@@ -29,7 +29,6 @@
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_base.h"
-#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -41,6 +40,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
@@ -51,11 +51,9 @@
 #include "sql/set_var.h" // enum_var_type
 #include "sql/sql_const.h"
 #include "sql/sql_udf.h" // udf_handler
-#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "template_utils.h"
 
 class Json_wrapper;
 class PT_item_list;
@@ -63,8 +61,8 @@ class Protocol;
 class SELECT_LEX;
 class THD;
 class sp_rcontext;
+struct MY_BITMAP;
 template <class T> class List;
-class Table_function_result;
 
 /* Function items used by mysql */
 
@@ -1292,7 +1290,7 @@ class Item_func_rand final : public Item_real_func
   typedef Item_real_func super;
 
   struct rand_struct *rand;
-  bool first_eval; // TRUE if val_real() is called 1st time
+  bool first_eval; // true if val_real() is called 1st time
 public:
   Item_func_rand(const POS &pos, Item *a)
     :Item_real_func(pos, a), rand(0), first_eval(true)

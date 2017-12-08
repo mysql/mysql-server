@@ -69,7 +69,7 @@ dict_stats_set_persistent(
 
 /*********************************************************************//**
 Check whether persistent statistics is enabled for a given table.
-@return TRUE if enabled, FALSE otherwise */
+@return true if enabled, false otherwise */
 UNIV_INLINE
 ibool
 dict_stats_is_persistent_enabled(
@@ -93,7 +93,7 @@ dict_stats_auto_recalc_set(
 
 /*********************************************************************//**
 Check whether auto recalc is enabled for a given table.
-@return TRUE if enabled, FALSE otherwise */
+@return true if enabled, false otherwise */
 UNIV_INLINE
 ibool
 dict_stats_auto_recalc_is_enabled(

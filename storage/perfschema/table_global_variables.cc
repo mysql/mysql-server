@@ -28,6 +28,8 @@
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/mysqld.h"
+#include "sql/plugin_table.h"
+#include "sql/table.h"
 #include "sql/sql_class.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_column_values.h"

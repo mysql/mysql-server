@@ -17,6 +17,7 @@
 #ifndef AUTH_INTERNAL_INCLUDED
 #define AUTH_INTERNAL_INCLUDED
 
+#include <map>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -329,8 +330,7 @@ void get_privilege_access_maps(ACL_USER *acl_user,
 bool clear_default_roles(THD *thd, TABLE *table,
                          const Auth_id_ref &user_auth_id,
                          std::vector<Role_id > *default_roles);
-void get_granted_roles(THD *thd, LEX_USER *user,
-                       List_of_granted_roles *granted_roles);
+void get_granted_roles(LEX_USER *user, List_of_granted_roles *granted_roles);
 int iterate_granted_roles(Auth_id_ref &authid,
          std::function<bool (const std::pair<const Auth_id_ref &, bool> &p)> f);
 void revoke_role(THD *thd, ACL_USER *role, ACL_USER *user);
@@ -364,8 +364,7 @@ User_to_dynamic_privileges_map *get_dynamic_privileges_map();
 User_to_dynamic_privileges_map *
 swap_dynamic_privileges_map(User_to_dynamic_privileges_map *map);
 bool populate_roles_caches(THD *thd, TABLE_LIST * tablelst);
-void grant_role(THD *thd, ACL_USER *role, const ACL_USER *user,
-                bool with_admin_opt);
+void grant_role(ACL_USER *role, const ACL_USER *user, bool with_admin_opt);
 void get_mandatory_roles(std::vector< Role_id > *mandatory_roles);
 extern std::vector<Role_id > *g_mandatory_roles;
 void create_role_vertex(ACL_USER *role_acl_user);

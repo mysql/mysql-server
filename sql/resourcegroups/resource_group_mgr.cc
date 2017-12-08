@@ -15,16 +15,45 @@
 
 #include "resource_group_mgr.h"
 
+#include "my_config.h"
+
+#include <string.h>
+#include <sys/types.h>
+#include <bitset>
+#include <new>
+#include <unordered_map>
+#include <utility>
+
+#include "m_ctype.h"
+#include "map_helpers.h"
+#include "my_compiler.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"  // LogErr
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_plugin_registry.h"
+#include "mysql/thread_type.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "pfs_thread_provider.h"
 #include "sql/auth/auth_acls.h"                  // SUPER_ACL
+#include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"                     // current_thd
 #include "sql/dd/cache/dictionary_client.h"      // Dictionary_client
 #include "sql/dd/dd_resource_group.h"            // dd::create_resource_group
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/resource_group.h"
+#include "sql/handler.h"
 #include "sql/log.h"                             // LogErr
 #include "sql/mysqld.h"                          // key_resource_group_mgr*
-#include "sql/mysqld_thd_manager.h"              // Global_THD_manager
-#include "sql/sql_class.h"                       // class THD
-#include "sql_string.h"                          // to_lex_cstring
+#include "sql/resourcegroups/platform/thread_attrs_api.h"
+#include "sql/resourcegroups/resource_group.h"
 #include "sql/resourcegroups/thread_resource_control.h"
+#include "sql/sql_class.h"                       // class THD
+#include "sql/system_variables.h"
+#include "sql/thd_raii.h"
+#include "sql_string.h"                          // to_lex_cstring
 
 namespace resourcegroups
 {

@@ -37,7 +37,7 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
 Returns TRUE if the roll pointer is of the insert type.
-@return TRUE if insert undo log */
+@return true if insert undo log */
 UNIV_INLINE
 ibool
 trx_undo_roll_ptr_is_insert(

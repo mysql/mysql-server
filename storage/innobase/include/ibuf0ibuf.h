@@ -232,7 +232,7 @@ routine.
 
 For instance, a read-ahead of non-ibuf pages is forbidden by threads
 that are executing an insert buffer routine.
-@return TRUE if inside an insert buffer routine */
+@return true if inside an insert buffer routine */
 UNIV_INLINE
 ibool
 ibuf_inside(
@@ -243,7 +243,7 @@ ibuf_inside(
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
-@return TRUE if a bitmap page */
+@return true if a bitmap page */
 UNIV_INLINE
 ibool
 ibuf_bitmap_page(
@@ -261,7 +261,7 @@ bitmap page)
 @param[in,out]	mtr		mtr which will contain an x-latch to the
 bitmap page if the page is not one of the fixed address ibuf pages, or NULL,
 in which case a new transaction is created.
-@return TRUE if level 2 or level 3 page */
+@return true if level 2 or level 3 page */
 ibool
 ibuf_page_low(
 	const page_id_t&	page_id,
@@ -281,7 +281,7 @@ Must not be called when recv_no_ibuf_operations==true.
 @param[in]	page_id		tablespace/page identifier
 @param[in]	page_size	page size
 @param[in,out]	mtr		mini-transaction or NULL
-@return TRUE if level 2 or level 3 page */
+@return true if level 2 or level 3 page */
 # define ibuf_page(page_id, page_size, mtr)	\
 	ibuf_page_low(page_id, page_size, TRUE, __FILE__, __LINE__, mtr)
 
@@ -292,7 +292,7 @@ Must not be called when recv_no_ibuf_operations==true.
 @param[in]	page_id		tablespace/page identifier
 @param[in]	page_size	page size
 @param[in,out]	mtr		mini-transaction or NULL
-@return TRUE if level 2 or level 3 page */
+@return true if level 2 or level 3 page */
 # define ibuf_page(page_id, page_size, mtr)	\
 	ibuf_page_low(page_id, page_size, __FILE__, __LINE__, mtr)
 
@@ -314,7 +314,7 @@ is clustered or unique.
 @param[in]	page_id		page id where to insert
 @param[in]	page_size	page size
 @param[in,out]	thr		query thread
-@return TRUE if success */
+@return true if success */
 ibool
 ibuf_insert(
 	ibuf_op_t		op,

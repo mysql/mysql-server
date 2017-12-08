@@ -25,7 +25,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#if HAVE_SYS_TIME_H
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/types.h>
@@ -55,7 +55,6 @@
 #include "mysql/psi/psi_rwlock.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_thread.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysys/my_static.h"
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"
@@ -77,7 +76,7 @@ static bool my_win_init();
 #define SCALE_SEC       100
 #define SCALE_USEC      10000
 
-bool my_init_done= FALSE;
+bool my_init_done= false;
 ulong  my_thread_stack_size= 65536;
 MYSQL_FILE *mysql_stdin= NULL;
 static MYSQL_FILE instrumented_stdin;
@@ -121,17 +120,17 @@ int set_crt_report_leaks()
   Initialize my_sys functions, resources and variables
 
   @return Initialization result
-    @retval FALSE Success
-    @retval TRUE  Error. Couldn't initialize environment
+    @retval false Success
+    @retval true  Error. Couldn't initialize environment
 */
 bool my_init()
 {
   char *str;
 
   if (my_init_done)
-    return FALSE;
+    return false;
 
-  my_init_done= TRUE;
+  my_init_done= true;
 
 #if defined(MY_MSCRT_DEBUG)
   set_crt_report_leaks();
@@ -152,10 +151,10 @@ bool my_init()
   mysql_stdin= & instrumented_stdin;
 
   if (my_thread_global_init())
-    return TRUE;
+    return true;
 
   if (my_thread_init())
-    return TRUE;
+    return true;
 
   /* $HOME is needed early to parse configuration files located in ~/ */
   if ((home_dir= getenv("HOME")) != 0)
@@ -169,7 +168,7 @@ bool my_init()
       DBUG_RETURN(TRUE);
 #endif
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 } /* my_init */
 
@@ -193,7 +192,7 @@ void my_end(int infoflag)
     if (my_file_opened | my_stream_opened)
     {
       char ebuff[512];
-      my_snprintf(ebuff, sizeof(ebuff), EE(EE_OPEN_WARNING),
+      snprintf(ebuff, sizeof(ebuff), EE(EE_OPEN_WARNING),
                   my_file_opened, my_stream_opened);
       my_message_stderr(EE_OPEN_WARNING, ebuff, MYF(0));
       DBUG_PRINT("error", ("%s", ebuff));
@@ -250,7 +249,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
     WSACleanup();
 #endif /* _WIN32 */
 
-  my_init_done= FALSE;
+  my_init_done= false;
 } /* my_end */
 
 
@@ -291,7 +290,7 @@ int handle_rtc_failure(int err_type, const char *file, int line,
   char   buff[2048];
   size_t len;
 
-  len= my_snprintf(buff, sizeof(buff), "At %s:%d: ", file, line);
+  len= snprintf(buff, sizeof(buff), "At %s:%d: ", file, line);
 
   va_start(args, format);
   vsnprintf(buff + len, sizeof(buff) - len, format, args);
@@ -422,11 +421,11 @@ static bool win32_have_tcpip()
       if (RegOpenKeyEx ( HKEY_LOCAL_MACHINE, WINSOCKKEY, 0, KEY_READ,
 			 &hTcpipRegKey) != ERROR_SUCCESS)
 	if (!getenv("HAVE_TCPIP") || have_tcpip)	/* Provide a workaround */
-	  return (FALSE);
+	  return (false);
     }
   }
   RegCloseKey ( hTcpipRegKey);
-  return (TRUE);
+  return (true);
 }
 
 
@@ -533,9 +532,9 @@ static PSI_mutex_info all_mysys_mutexes[]=
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
 PSI_rwlock_key key_SAFE_HASH_lock;
 
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 static PSI_rwlock_info all_mysys_rwlocks[]=
 {
   { &key_SAFE_HASH_lock, "SAFE_HASH::lock", 0, 0, PSI_DOCUMENT_ME}

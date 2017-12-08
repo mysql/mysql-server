@@ -31,22 +31,6 @@
 
 /**
   An instrumented mutex structure.
-  @sa mysql_mutex_t
-*/
-struct st_mysql_mutex
-{
-  /** The real mutex. */
-  my_mutex_t m_mutex;
-  /**
-    The instrumentation hook.
-    Note that this hook is not conditionally defined,
-    for binary compatibility of the @c mysql_mutex_t interface.
-  */
-  struct PSI_mutex *m_psi;
-};
-
-/**
-  Type of an instrumented mutex.
   @c mysql_mutex_t is a drop-in replacement for @c my_mutex_t.
   @sa mysql_mutex_assert_owner
   @sa mysql_mutex_assert_not_owner
@@ -55,7 +39,17 @@ struct st_mysql_mutex
   @sa mysql_mutex_unlock
   @sa mysql_mutex_destroy
 */
-typedef struct st_mysql_mutex mysql_mutex_t;
+struct mysql_mutex_t
+{
+  /** The real mutex. */
+  my_mutex_t m_mutex;
+  /**
+    The instrumentation hook.
+    Note that this hook is not conditionally defined,
+    for binary compatibility of the @c mysql_mutex_t interface.
+  */
+  struct PSI_mutex *m_psi{nullptr};
+};
 
 /** @} (end of group psi_api_mutex) */
 

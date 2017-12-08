@@ -773,7 +773,7 @@ def	view_with_column_names	v2	f	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int
 def	view_with_column_names	v3	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
 def	view_with_column_names	v3	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
 # Restart on the upgraded data dir
-# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1
+# restart: --loose-skip-log-bin --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=MYSQLD_DATADIR1
 # Execute FTS queries that modify FTS pages
 select count(*) from sakila.film_text;
 count(*)

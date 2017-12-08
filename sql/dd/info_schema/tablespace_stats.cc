@@ -15,6 +15,7 @@
 
 #include "sql/dd/info_schema/tablespace_stats.h"  // dd::info_schema::Tables...
 
+#include "sql/dd/properties.h"
 #include "sql/error_handler.h"                    // Info_schema_error_handler
 #include "sql/sql_class.h"                        // THD
 

@@ -20,15 +20,16 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/mysql_lex_string.h"
+#include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"
 #include "sql/handler.h"
-#include "sql/key.h"
 #include "sql/mysqld.h"
 #include "sql/parse_tree_nodes.h"
+#include "sql/resourcegroups/platform/thread_attrs_api.h"
 #include "sql/resourcegroups/resource_group_mgr.h" // Resource_group_mgr
 #include "sql/sp_head.h"
 #include "sql/sp_instr.h"
@@ -133,7 +134,7 @@ bool find_sys_var_null_base(THD *thd, struct sys_var_with_base *tmp)
   @param var_type the scope of the variable
   @param val      the value being assigned to the variable
 
-  @return TRUE if error, FALSE otherwise.
+  @return true if error, false otherwise.
 */
 
 bool
@@ -159,19 +160,19 @@ set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
   {
     my_error(ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION, MYF(0),
              var_with_base->var->name.str);
-    return TRUE;
+    return true;
   }
 
   if (val && val->type() == Item::FIELD_ITEM &&
       ((Item_field*)val)->table_name)
   {
     my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var_with_base->var->name.str);
-    return TRUE;
+    return true;
   }
 
   if (! (var= new (*THR_MALLOC) set_var(var_type, var_with_base->var,
                                         &var_with_base->base_name, val)))
-    return TRUE;
+    return true;
 
   return lex->var_list.push_back(var);
 }
@@ -455,7 +456,7 @@ bool resolve_engine(THD *thd,
 */
 
 bool apply_privileges(THD *thd,
-                      const Trivial_array<class PT_role_or_privilege *> &privs)
+                      const Mem_root_array<class PT_role_or_privilege *> &privs)
 {
   LEX * const lex= thd->lex;
 

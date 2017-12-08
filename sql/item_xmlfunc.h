@@ -17,7 +17,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/item_strfunc.h" // Item_str_func
 #include "sql/parse_tree_node_base.h"
 #include "sql_string.h"
@@ -36,12 +35,12 @@ public:
   Item_xml_str_func(const POS &pos, Item *a, Item *b):
     Item_str_func(pos, a,b)
   {
-    maybe_null= TRUE;
+    maybe_null= true;
   }
   Item_xml_str_func(const POS &pos, Item *a, Item *b, Item *c):
     Item_str_func(pos, a,b,c)
   {
-    maybe_null= TRUE;
+    maybe_null= true;
   }
   bool resolve_type(THD *thd) override;
   String *parse_xml(String *raw_xml, String *parsed_xml_buf);

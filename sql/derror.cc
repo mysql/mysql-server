@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -27,19 +28,17 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"                         // lc_messages_dir
 #include "sql/psi_memory_key.h"
-#include "sql/session_tracker.h"
 #include "sql/sql_class.h"                      // THD
 #include "sql/sql_locale.h"
 #include "sql/system_variables.h"
-#include "sql/table.h"
 #include "storage/perfschema/pfs_error.h"
 
 CHARSET_INFO *error_message_charset_info;
@@ -107,7 +106,6 @@ const char* ER_THD(const THD *thd, int mysql_errno)
 }
 
 
-C_MODE_START
 const char *get_server_errmsgs(int mysql_errno)
 {
   if (current_thd)
@@ -127,7 +125,6 @@ const char *get_server_errmsgs(int mysql_errno)
 
   return nullptr;
 }
-C_MODE_END
 
 
 bool init_errmessage()

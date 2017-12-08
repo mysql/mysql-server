@@ -326,7 +326,7 @@ private:
 
     uint event_len= uint4korr(((uchar*)(packet->payload)) + EVENT_LEN_OFFSET);
     log_event= Log_event::read_log_event((const char*)packet->payload, event_len,
-                                         &errmsg, format_descriptor, TRUE);
+                                         &errmsg, format_descriptor, true);
 
     if (unlikely(!log_event))
     {

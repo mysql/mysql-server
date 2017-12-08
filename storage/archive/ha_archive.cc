@@ -29,6 +29,7 @@
 #include "my_dir.h"
 #include "my_psi_config.h"
 #include "myisam.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
 #include "sql/derror.h"
@@ -226,8 +227,8 @@ static const char *ha_archive_exts[] = {
     void *
 
   RETURN
-    FALSE       OK
-    TRUE        Error
+    false       OK
+    true        Error
 */
 
 static int archive_db_init(void *p)
@@ -276,7 +277,7 @@ ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
 
   /* The size of the offset value we will use for position() */
   ref_length= sizeof(my_off_t);
-  archive_reader_open= FALSE;
+  archive_reader_open= false;
 }
 
 
@@ -553,10 +554,10 @@ int ha_archive::init_archive_reader()
     if (!(azopen(&archive, share->data_file_name, O_RDONLY)))
     {
       DBUG_PRINT("ha_archive", ("Could not open archive read file"));
-      share->crashed= TRUE;
+      share->crashed= true;
       DBUG_RETURN(1);
     }
-    archive_reader_open= TRUE;
+    archive_reader_open= true;
   }
 
   DBUG_RETURN(0);
@@ -803,7 +804,7 @@ int ha_archive::real_write_row(uchar *buf, azio_stream *writer)
   }
 
   if (!bulk_insert)
-    share->dirty= TRUE;
+    share->dirty= true;
 
   DBUG_RETURN(0);
 }
@@ -979,7 +980,7 @@ int ha_archive::index_read_idx(uchar *buf, uint index, const uchar *key,
 
   DBUG_ENTER("ha_archive::index_read_idx");
 
-  rc= rnd_init(TRUE);
+  rc= rnd_init(true);
 
   if (rc)
     goto error;
@@ -1327,7 +1328,7 @@ int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
   if (rc)
     DBUG_RETURN(HA_ADMIN_CORRUPT);
 
-  share->crashed= FALSE;
+  share->crashed= false;
   DBUG_RETURN(0);
 }
 
@@ -1443,9 +1444,9 @@ int ha_archive::optimize(THD*, HA_CHECK_OPT* check_opt)
   }
 
   azclose(&writer);
-  share->dirty= FALSE;
+  share->dirty= false;
   azclose(&archive);
-  archive_reader_open= FALSE;
+  archive_reader_open= false;
 
   // make the file we just wrote be our data file
   rc= my_rename(writer_filename, share->data_file_name, MYF(0));
@@ -1530,7 +1531,7 @@ int ha_archive::info(uint flag)
     DBUG_PRINT("ha_archive", ("archive flushing out rows for scan"));
     DBUG_ASSERT(share->archive_write_open);
     azflush(&(share->archive_write), Z_SYNC_FLUSH);
-    share->dirty= FALSE;
+    share->dirty= false;
   }
 
   /* 
@@ -1631,7 +1632,7 @@ void ha_archive::start_bulk_insert(ha_rows rows)
 {
   DBUG_ENTER("ha_archive::start_bulk_insert");
   if (!rows || rows >= ARCHIVE_MIN_ROWS_TO_USE_BULK_INSERT)
-    bulk_insert= TRUE;
+    bulk_insert= true;
   DBUG_VOID_RETURN;
 }
 
@@ -1643,7 +1644,7 @@ void ha_archive::start_bulk_insert(ha_rows rows)
 int ha_archive::end_bulk_insert()
 {
   DBUG_ENTER("ha_archive::end_bulk_insert");
-  bulk_insert= FALSE;
+  bulk_insert= false;
   mysql_mutex_lock(&share->mutex);
   if (share->archive_write_open)
     share->dirty= true;
@@ -1744,7 +1745,7 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT*)
 
 error:
   thd_proc_info(thd, old_proc_info);
-  share->crashed= FALSE;
+  share->crashed= false;
   DBUG_RETURN(HA_ADMIN_CORRUPT);
 }
 

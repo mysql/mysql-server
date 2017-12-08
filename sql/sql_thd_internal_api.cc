@@ -21,8 +21,6 @@
 #include <string.h>
 
 #include "m_string.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "pfs_thread_provider.h"
 #ifdef HAVE_UNISTD_H
@@ -52,6 +50,9 @@
 #include "sql/system_variables.h"
 #include "sql/transaction_info.h"
 #include "violite.h"
+
+struct mysql_cond_t;
+struct mysql_mutex_t;
 
 int thd_init(THD *thd, char *stack_start,
              bool bound MY_ATTRIBUTE((unused)),
@@ -201,7 +202,7 @@ enum_tx_isolation thd_get_trx_isolation(const THD *thd)
 }
 
 
-const struct charset_info_st *thd_charset(THD *thd)
+const CHARSET_INFO *thd_charset(THD *thd)
 {
   return(thd->charset());
 }
@@ -311,7 +312,7 @@ bool is_mysql_datadir_path(const char *path)
                                              path_len,
                                              reinterpret_cast<uchar*>(mysql_data_dir),
                                              mysql_data_home_len,
-                                             TRUE);
+                                             true);
 }
 
 

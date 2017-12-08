@@ -18,12 +18,13 @@
 #include "my_config.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 
 #include "my_loglevel.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/udf_registration_types.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -31,7 +32,6 @@
 #include <list>
 
 #include "control_events.h"
-#include "m_ctype.h"
 #include "m_string.h"                  // my_strtoll
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -39,7 +39,6 @@
 #include "my_stacktrace.h"             // my_safe_printf_stderr
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h" // my_snprintf
 #include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"
 #include "sql/rpl_gtid.h"
@@ -56,10 +55,8 @@
 #include "client/mysqlbinlog.h"
 #endif
 
-extern "C" {
 PSI_memory_key key_memory_Gtid_set_to_string;
 PSI_memory_key key_memory_Gtid_set_Interval_chunk;
-}
 
 using std::min;
 using std::max;
@@ -1032,7 +1029,7 @@ static size_t get_string_length(rpl_gno gno)
   } while (tmp_gno != 0);
 #ifndef DBUG_OFF
   char buf[22];
-  DBUG_ASSERT(my_snprintf(buf, 22, "%lld", gno) == len);
+  DBUG_ASSERT(snprintf(buf, 22, "%lld", gno) == ssize_t(len));
 #endif
   return len;
 }

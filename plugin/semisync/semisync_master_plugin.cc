@@ -47,8 +47,6 @@ static inline bool is_semi_sync_dump()
   return THR_RPL_SEMI_SYNC_DUMP;
 }
 
-C_MODE_START
-
 static int repl_semi_report_binlog_update(Binlog_storage_param*,
                                           const char *log_file,
                                           my_off_t log_pos)
@@ -230,8 +228,6 @@ static int repl_semi_reset_master(Binlog_transmit_param*)
     return 1;
   return 0;
 }
-
-C_MODE_END
 
 /*
   semisync system variables

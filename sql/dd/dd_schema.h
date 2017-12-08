@@ -23,7 +23,7 @@
 class MDL_ticket;
 class THD;
 
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 
 
 namespace dd {

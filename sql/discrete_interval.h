@@ -27,7 +27,7 @@
     0 <= k <= (auto_inc_interval_values-1) }
   Where "increment" is maintained separately by the user of this class (and is
   currently only thd->variables.auto_increment_increment).
-  It mustn't derive from Sql_alloc, because SET INSERT_ID needs to
+  It mustn't be allocated on a MEM_ROOT, because SET INSERT_ID needs to
   allocate memory which must stay allocated for use by the next statement.
 */
 class Discrete_interval {

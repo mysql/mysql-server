@@ -22,8 +22,6 @@
 
 #include "my_config.h"
 
-struct st_my_timer;
-
 /* POSIX timers API. */
 #ifdef HAVE_POSIX_TIMERS
 # include <time.h>  /* timer_t */
@@ -34,17 +32,15 @@ struct st_my_timer;
 
   typedef uintptr_t os_timer_t;
 #elif defined(_WIN32)
-  typedef struct st_os_timer
+  struct os_timer_t
   {
     HANDLE timer_handle;
     bool timer_state;
-  } os_timer_t;
+  };
 #endif
 
-typedef struct st_my_timer my_timer_t;
-
 /* Non-copyable timer object. */
-struct st_my_timer
+struct my_timer_t
 {
   /* Timer ID used to identify the timer in timer requests. */
   os_timer_t id;

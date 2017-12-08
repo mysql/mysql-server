@@ -64,7 +64,7 @@
   ~~~~
 </li><li>
   Create a new file `libservices/foo_service.c` using the following template:
-  @include service_foo.c
+  @include service_foo.cc
 </li><li>
   Add the new file to libservices/CMakeLists.txt (MYSQLSERVICES_SOURCES)
 </li><li>
@@ -244,11 +244,6 @@ static struct srv_session_info_service_st srv_session_info_handler= {
   srv_session_info_thread_count
 };
 
-static struct my_snprintf_service_st my_snprintf_handler = {
-  my_snprintf,
-  my_vsnprintf
-};
-
 static struct thd_alloc_service_st thd_alloc_handler= {
   thd_alloc,
   thd_calloc,
@@ -364,7 +359,6 @@ static struct st_service_ref list_of_services[]=
   { "command_service",     VERSION_command, &command_handler },
   { "srv_session_info_service",
      VERSION_srv_session_info_service, &srv_session_info_handler },
-  { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
   { "thd_alloc_service",   VERSION_thd_alloc,   &thd_alloc_handler },
   { "thd_wait_service",    VERSION_thd_wait,    &thd_wait_handler },
   { "my_thread_scheduler_service",

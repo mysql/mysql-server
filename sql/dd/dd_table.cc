@@ -28,6 +28,7 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -76,10 +77,12 @@
 #include "sql/sql_parse.h"
 #include "sql/sql_partition.h"                // expr_to_string
 #include "sql/sql_plugin_ref.h"
+#include "sql/sql_show.h"
 #include "sql/sql_table.h"                    // primary_key_name
 #include "sql/srs_fetcher.h"
 #include "sql/strfunc.h"                      // lex_cstring_handle
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql_string.h"
 #include "typelib.h"
 
@@ -567,8 +570,6 @@ fill_dd_columns_from_create_fields(THD *thd,
   // We prepare these once, and reuse them for all fields.
   TABLE table;
   TABLE_SHARE share;
-  memset(&table, 0, sizeof(table));
-  memset(&share, 0, sizeof(share));
   table.s= &share;
   table.in_use= thd;
   table.s->db_low_byte_first= file->low_byte_first();
@@ -980,8 +981,6 @@ bool is_candidate_primary_key(THD *thd,
   // Use temporary objects to get Field*
   TABLE_SHARE share;
   TABLE table;
-  memset(&share, 0, sizeof(share));
-  memset(&table, 0, sizeof(table));
   table.s= &share;
   table.in_use= thd;
 
@@ -1079,7 +1078,6 @@ void fill_dd_indexes_from_keyinfo(THD *thd,
   TABLE_SHARE *table_share= const_cast<TABLE_SHARE *>(file->get_table_share());
   if (table_share == nullptr)
   {
-    memset(&dummy_table_share, 0, sizeof(TABLE_SHARE));
     dummy_table_share.key_info= const_cast<KEY *>(keyinfo);
     /*
       Primary key number in table share is set while iterating through all
@@ -2654,8 +2652,6 @@ dd::String_type get_sql_type_by_field_info(THD *thd,
 
   TABLE_SHARE share;
   TABLE table;
-  memset(&share, 0, sizeof(share));
-  memset(&table, 0, sizeof(table));
   table.s= &share;
   table.in_use= thd;
 

@@ -19,6 +19,9 @@
 --source include/have_debug_sync.inc
 call mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 
+# Error message suppression
+call mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
+
 --source include/have_myisam.inc
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
@@ -28,7 +31,6 @@ call mtr.add_suppression("Statement is unsafe because it is being used inside a 
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
 call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
 call mtr.add_suppression("QUERY.* is not expected in an event stream");
-CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since*");
 # Disable GTID auto positioning
 --source include/stop_slave.inc

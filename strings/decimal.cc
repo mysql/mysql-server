@@ -117,7 +117,7 @@
 
       0 < decimal_digit <= DIG_MAX < DIG_BASE
 
-  in the struct st_decimal_t:
+  in the decimal_t:
 
     intg is the number of *decimal* digits (NOT number of decimal_digit_t's !)
          before the point
@@ -166,7 +166,7 @@ static inline dec1 div_by_pow10(dec1 x, int p)
     case 7: return static_cast<uint32_t>(x) / 10000000;
     case 8: return static_cast<uint32_t>(x) / 100000000;
     default:
-      DBUG_ASSERT(FALSE);
+      DBUG_ASSERT(false);
       return x / powers10[p];
   }
 }
@@ -185,7 +185,7 @@ static inline dec1 mod_by_pow10(dec1 x, int p)
     case 7: return static_cast<uint32_t>(x) % 10000000;
     case 8: return static_cast<uint32_t>(x) % 100000000;
     default:
-      DBUG_ASSERT(FALSE);
+      DBUG_ASSERT(false);
       return x % powers10[p];
   }
 }
@@ -290,7 +290,7 @@ static inline int count_leading_zeroes(int i, dec1 val)
   case 2: if (val >= 100) break; ++ret;  // Fall through.
   case 1: if (val >= 10) break; ++ret;  // Fall through.
   case 0: if (val >= 1) break; ++ret;  // Fall through.
-  default: { DBUG_ASSERT(FALSE); }
+  default: { DBUG_ASSERT(false); }
   }
   return ret;
 }
@@ -326,7 +326,7 @@ static inline int count_trailing_zeroes(int i, dec1 val)
   case 7: if ((uval % 10000000) != 0) break; ++ret;  // Fall through.
   case 8: if ((uval % 100000000) != 0) break; ++ret;  // Fall through.
   case 9: if ((uval % 1000000000) != 0) break; ++ret;  // Fall through.
-  default: { DBUG_ASSERT(FALSE); }
+  default: { DBUG_ASSERT(false); }
   }
   return ret;
 }
@@ -1029,7 +1029,7 @@ string2decimal(const char *from, decimal_t *to, char **end)
   }
   /* Avoid returning negative zero, cfr. decimal_cmp() */
   if (to->sign && decimal_is_zero(to))
-    to->sign= FALSE;
+    to->sign= false;
   return error;
 
 fatal_error:
@@ -1754,7 +1754,7 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
   buf1+=intg0+frac0-1;
   if (scale == frac0*DIG_PER_DEC1)
   {
-    int do_inc= FALSE;
+    int do_inc= false;
     DBUG_ASSERT(frac0+intg0 >= 0);
     switch (round_digit) {
     case 0:
@@ -1764,7 +1764,7 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
       {
         if (*p0)
         {
-          do_inc= TRUE;
+          do_inc= true;
           break;
         }
       }

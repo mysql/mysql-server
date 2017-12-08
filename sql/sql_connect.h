@@ -23,7 +23,7 @@
 
 class THD;
 
-typedef struct st_lex_user LEX_USER;
+struct LEX_USER;
 
 /*
   This structure specifies the maximum amount of resources which

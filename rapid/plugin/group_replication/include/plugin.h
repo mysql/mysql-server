@@ -40,11 +40,10 @@
 //Definition of system var structures
 
 //Definition of system vars structure for access their information in the plugin
-struct st_mysql_sys_var
+struct SYS_VAR
 {
   MYSQL_PLUGIN_VAR_HEADER;
 };
-typedef st_mysql_sys_var SYS_VAR;
 
 //Plugin variables
 extern const char *group_replication_plugin_name;

@@ -27,10 +27,11 @@ Created 5/11/1994 Heikki Tuuri
 
 #include <errno.h>
 #include <time.h>
+#include <string>
 
 #include "ha_prototypes.h"
 
-#if HAVE_SYS_TIME_H
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 
@@ -38,6 +39,7 @@ Created 5/11/1994 Heikki Tuuri
 # include <mysql_com.h>
 #endif /* !UNIV_HOTBACKUP */
 
+#include "mysql_com.h"
 #include "os0thread.h"
 #include "ut0ut.h"
 
@@ -624,6 +626,10 @@ ut_strerr(
 	case DB_COMPUTE_VALUE_FAILED:
 		return("Compute generated column failed");
 
+	case DB_ERROR_UNSET:
+		;
+                /* Fall through. */
+
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
 	}
@@ -661,12 +667,13 @@ ut_basename_noext(
                                              ^-- beg, len=9
 	*/
 
-	const char*	beg = strrchr(file, OS_PATH_SEPARATOR);
+	std::string::size_type pos = std::string(file).find_last_of("/\\");
+	const char*	beg;
 
-	if (beg == NULL) {
+	if (pos == std::string::npos) {
 		beg = file;
 	} else {
-		beg++;
+		beg = file + pos + 1;
 	}
 
 	size_t		len = strlen(beg);

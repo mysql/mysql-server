@@ -23,6 +23,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 #include <string>
 
 #include "m_string.h"
@@ -31,10 +32,10 @@
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
@@ -240,8 +241,8 @@ static bool handle_bootstrap_impl(THD *thd)
     thd->set_query_id(next_query_id());
     DBUG_PRINT("query",("%-.4096s",thd->query().str));
 #if defined(ENABLED_PROFILING)
-    thd->profiling.start_new_query();
-    thd->profiling.set_query_source(thd->query().str, thd->query().length);
+    thd->profiling->start_new_query();
+    thd->profiling->set_query_source(thd->query().str, thd->query().length);
 #endif
 
     thd->set_time();
@@ -264,7 +265,7 @@ static bool handle_bootstrap_impl(THD *thd)
     thd->send_statement_status();
 
 #if defined(ENABLED_PROFILING)
-    thd->profiling.finish_current_query();
+    thd->profiling->finish_current_query();
 #endif
 
     if (bootstrap_error)

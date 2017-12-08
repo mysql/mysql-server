@@ -29,7 +29,7 @@
 static const char *log_filename= "test_sql_all_col_types";
 
 
-#define STRING_BUFFER_SIZE 512
+#define STRING_BUFFER_SIZE 1100
 
 static const char *sep = "========================================================================\n";
 
@@ -38,19 +38,19 @@ static const char *sep = "======================================================
 
 #define WRITE_STR(format) \
   { \
-    my_snprintf(buffer, sizeof(buffer), (format)); \
+    snprintf(buffer, sizeof(buffer), "%s", (format)); \
     my_write(outfile, (uchar*) buffer, strlen(buffer), MYF(0)); \
   }
 
 #define WRITE_VAL(format,value) \
   { \
-    my_snprintf(buffer,sizeof(buffer), (format), (value)); \
+    snprintf(buffer,sizeof(buffer), (format), (value)); \
     my_write(outfile,(uchar*)buffer, strlen(buffer), MYF(0)); \
   }
 
 #define WRITE_VAL2(format,value1, value2) \
   { \
-    my_snprintf(buffer, sizeof(buffer), (format), (value1), (value2)); \
+    snprintf(buffer, sizeof(buffer), (format), (value1), (value2)); \
     my_write(outfile,(uchar*) buffer, strlen(buffer), MYF(0)); \
   }
 
@@ -269,7 +269,7 @@ static int sql_get_integer(void * ctx, longlong value)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer), "%d", value);
+  size_t len= snprintf(buffer, sizeof(buffer), "%lld", value);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col]= len;
@@ -288,7 +288,7 @@ static int sql_get_longlong(void * ctx, longlong value, uint is_unsigned)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           is_unsigned? "%llu":"%lld", value);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
@@ -338,7 +338,7 @@ static int sql_get_double(void * ctx, double value, uint32 decimals)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer), "%3.7g", value);
+  size_t len= snprintf(buffer, sizeof(buffer), "%3.7g", value);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col]= len;
@@ -359,7 +359,7 @@ static int sql_get_date(void * ctx, const MYSQL_TIME * value)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           "%s%4d-%02d-%02d",
                           value->neg? "-":"",
                           value->year, value->month, value->day);
@@ -390,7 +390,7 @@ static int sql_get_time(void * ctx, const MYSQL_TIME * value, uint decimals)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           "%s%02d:%02d:%02d",
                           value->neg? "-":"",
                           value->day? (value->day*24 + value->hour):value->hour,
@@ -423,7 +423,7 @@ static int sql_get_datetime(void * ctx, const MYSQL_TIME * value, uint decimals)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           "%s%4d-%02d-%02d %02d:%02d:%02d",
                           value->neg? "-":"",
                           value->year, value->month, value->day,
@@ -700,7 +700,7 @@ static void get_data_bin(struct st_plugin_ctx *pctx)
       case MYSQL_TYPE_TIMESTAMP2:
         {
           char buffer[1024];
-          size_t len= my_snprintf(buffer, sizeof(buffer),
+          size_t len= snprintf(buffer, sizeof(buffer),
                                   "%s%4d-%02d-%02d %02d:%02d:%02d",
                                   pctx->sql_datetime_value[row][col].neg? "-":"",
                                   pctx->sql_datetime_value[row][col].year, 
@@ -718,7 +718,7 @@ static void get_data_bin(struct st_plugin_ctx *pctx)
       case MYSQL_TYPE_NEWDATE:
         {
           char buffer[1024];
-          size_t len= my_snprintf(buffer, sizeof(buffer),
+          size_t len= snprintf(buffer, sizeof(buffer),
                                   "%s%4d-%02d-%02d",
                                   pctx->sql_date_value[row][col].neg? "-":"",
                                   pctx->sql_date_value[row][col].year, 
@@ -736,7 +736,7 @@ static void get_data_bin(struct st_plugin_ctx *pctx)
       case MYSQL_TYPE_TIME2:
         {
           char buffer[1024];
-          size_t len= my_snprintf(buffer, sizeof(buffer),
+          size_t len= snprintf(buffer, sizeof(buffer),
                                   "%s%02d:%02d:%02d",
                                    pctx->sql_time_value[row][col].neg? "-":"",
                                    pctx->sql_time_value[row][col].day? 

@@ -233,7 +233,7 @@ row_log_tmpfile(
 
 /** Allocate the memory for the log buffer.
 @param[in,out]	log_buf	Buffer used for log operation
-@return TRUE if success, false if not */
+@return true if success, false if not */
 static MY_ATTRIBUTE((warn_unused_result))
 bool
 row_log_block_allocate(
@@ -1836,6 +1836,7 @@ row_log_table_apply_delete_low(
 			      pcur, mtr);
 #ifdef UNIV_DEBUG
 		switch (btr_pcur_get_btr_cur(pcur)->flag) {
+		case BTR_CUR_UNSET:
 		case BTR_CUR_DELETE_REF:
 		case BTR_CUR_DEL_MARK_IBUF:
 		case BTR_CUR_DELETE_IBUF:
@@ -1929,6 +1930,7 @@ row_log_table_apply_delete(
 		      &pcur, &mtr);
 #ifdef UNIV_DEBUG
 	switch (btr_pcur_get_btr_cur(&pcur)->flag) {
+	case BTR_CUR_UNSET:
 	case BTR_CUR_DELETE_REF:
 	case BTR_CUR_DEL_MARK_IBUF:
 	case BTR_CUR_DELETE_IBUF:
@@ -2083,6 +2085,7 @@ row_log_table_apply_update(
 		      BTR_MODIFY_TREE, &pcur, &mtr);
 #ifdef UNIV_DEBUG
 	switch (btr_pcur_get_btr_cur(&pcur)->flag) {
+	case BTR_CUR_UNSET:
 	case BTR_CUR_DELETE_REF:
 	case BTR_CUR_DEL_MARK_IBUF:
 	case BTR_CUR_DELETE_IBUF:

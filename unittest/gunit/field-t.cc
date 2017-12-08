@@ -19,6 +19,7 @@
 #include "my_inttypes.h"
 #include "sql/field.h"
 #include "sql/my_decimal.h"
+#include "sql/sql_class.h"
 #include "sql/sql_time.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/test_utils.h"

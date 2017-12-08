@@ -32,11 +32,7 @@
 
 extern mysql_mutex_t THR_LOCK_lock;
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
-struct st_thr_lock;
+struct THR_LOCK;
 
 extern ulong locks_immediate,locks_waited ;
 
@@ -92,8 +88,20 @@ enum thr_locked_row_action { THR_DEFAULT, THR_WAIT, THR_NOWAIT, THR_SKIP };
 
 struct Lock_descriptor
 {
-  enum thr_lock_type type;
-  enum thr_locked_row_action action;
+  /*
+    These constructors are no longer needed when we go to C++14, where
+    aggregate initialization is allowed on classes that have default
+    member initializers.
+  */
+  Lock_descriptor() {}
+
+  Lock_descriptor(thr_lock_type type_arg, thr_locked_row_action action_arg)
+    : type(type_arg), action(action_arg)
+  {
+  }
+
+  thr_lock_type type{TL_UNLOCK};
+  thr_locked_row_action action{THR_DEFAULT};
 };
 
 enum enum_thr_lock_result { THR_LOCK_SUCCESS= 0, THR_LOCK_ABORTED= 1,
@@ -108,29 +116,31 @@ extern enum thr_lock_type thr_upgraded_concurrent_insert_lock;
   of an instance of this structure is used to uniquely identify the thread.
 */
 
-typedef struct st_thr_lock_info
+struct THR_LOCK_INFO
 {
   my_thread_id thread_id;
   mysql_cond_t *suspend;
-} THR_LOCK_INFO;
-
-
-typedef struct st_thr_lock_data {
-  THR_LOCK_INFO *owner;
-  struct st_thr_lock_data *next,**prev;
-  struct st_thr_lock *lock;
-  mysql_cond_t *cond;
-  enum thr_lock_type type;
-  void *status_param;			/* Param to status functions */
-  void *debug_print_param;
-  struct PSI_table *m_psi;
-} THR_LOCK_DATA;
-
-struct st_lock_list {
-  THR_LOCK_DATA *data,**last;
 };
 
-typedef struct st_thr_lock {
+
+struct THR_LOCK_DATA
+{
+  THR_LOCK_INFO *owner{nullptr};
+  THR_LOCK_DATA *next{nullptr},**prev{nullptr};
+  THR_LOCK *lock{nullptr};
+  mysql_cond_t *cond{nullptr};
+  thr_lock_type type{TL_IGNORE};
+  void *status_param{nullptr};			/* Param to status functions */
+  void *debug_print_param{nullptr};
+  struct PSI_table *m_psi{nullptr};
+};
+
+struct st_lock_list {
+  THR_LOCK_DATA *data{nullptr},**last{nullptr};
+};
+
+struct THR_LOCK
+{
   LIST list;
   mysql_mutex_t mutex;
   struct st_lock_list read_wait;
@@ -138,14 +148,14 @@ typedef struct st_thr_lock {
   struct st_lock_list write_wait;
   struct st_lock_list write;
   /* write_lock_count is incremented for write locks and reset on read locks */
-  ulong write_lock_count;
-  uint read_no_write_count;
-  void (*get_status)(void*, int);	/* When one gets a lock */
-  void (*copy_status)(void*,void*);
-  void (*update_status)(void*);		/* Before release of write */
-  void (*restore_status)(void*);         /* Before release of read */
-  bool (*check_status)(void *);
-} THR_LOCK;
+  ulong write_lock_count{0};
+  uint read_no_write_count{0};
+  void (*get_status)(void*, int){0};	/* When one gets a lock */
+  void (*copy_status)(void*,void*){0};
+  void (*update_status)(void*){0};		/* Before release of write */
+  void (*restore_status)(void*){0};         /* Before release of read */
+  bool (*check_status)(void *){0};
+};
 
 
 extern LIST *thr_lock_thread_list;
@@ -173,7 +183,4 @@ void    thr_downgrade_write_lock(THR_LOCK_DATA *data,
                                  enum thr_lock_type new_lock_type);
 void thr_set_lock_wait_callback(void (*before_wait)(void),
                                 void (*after_wait)(void));
-#ifdef	__cplusplus
-}
-#endif
 #endif /* _thr_lock_h */

@@ -19,6 +19,7 @@
 #include <ndb_opts.h>
 
 #include <ndb_version.h>
+#include "my_alloc.h"
 #include "my_default.h"
 
 static const char *load_default_groups[]= { "mysql_cluster", 0 };
@@ -144,17 +145,17 @@ bool ndb_is_load_default_arg_separator(const char* arg)
 extern "C"
 int
 ndb_load_defaults(const char* conf_file, const char** groups,
-                  int *argc, char*** argv)
+                  int *argc, char*** argv, MEM_ROOT *mem_root)
 {
   return my_load_defaults(conf_file ? conf_file : MYSQL_CONFIG_NAME,
-                          groups, argc, argv, NULL);
+                          groups, argc, argv, mem_root, NULL);
 }
 
 extern "C"
 void
-ndb_free_defaults(char** argv)
+ndb_free_defaults(MEM_ROOT *mem_root)
 {
-  free_defaults(argv);
+  free_root(mem_root, MYF(0));
 }
 
 static Ndb_opts * registeredNdbOpts;
@@ -181,6 +182,7 @@ Ndb_opts::Ndb_opts(int & argc_ref, char** & argv_ref,
                    struct my_option * long_options,
                    const char * default_groups[])
 :
+  opts_mem_root(),
   main_argc_ptr(& argc_ref),
   main_argv_ptr(& argv_ref),
   mycnf_default_groups(default_groups ? default_groups : load_default_groups),
@@ -188,15 +190,13 @@ Ndb_opts::Ndb_opts(int & argc_ref, char** & argv_ref,
   short_usage_fn(g_ndb_opt_short_usage)
 {
   NDB_INIT(argv_ref[0]);   // ndb_init() can safely be called more than once
-  ndb_load_defaults(NULL, mycnf_default_groups, main_argc_ptr, main_argv_ptr);
+  ndb_load_defaults(NULL, mycnf_default_groups, main_argc_ptr, main_argv_ptr, &opts_mem_root);
   Ndb_opts::registerUsage(this);
-  defaults_argv = * main_argv_ptr;
 };
 
 Ndb_opts::~Ndb_opts()
 {
   Ndb_opts::release();
-  ndb_free_defaults(defaults_argv);
   ndb_end(0);  // ndb_end() can safely be called more than once
 }
 

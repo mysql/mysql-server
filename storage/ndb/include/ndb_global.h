@@ -25,13 +25,18 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_systime.h"
-#include <mysql/service_my_snprintf.h>
 #include <mysql/service_mysql_alloc.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
+
+/* Legacy definitions. */
+#ifndef TRUE
+#define TRUE true
+#define FALSE false
 #endif
 
 /*
@@ -299,7 +304,6 @@ extern "C" {
 /*
  * require is like a normal assert, only it's always on (eg. in release)
  */
-C_MODE_START
 typedef int(*RequirePrinter)(const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 void require_failed(int exitcode, RequirePrinter p,
@@ -307,7 +311,6 @@ void require_failed(int exitcode, RequirePrinter p,
                     ATTRIBUTE_NORETURN;
 int ndbout_printer(const char * fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
-C_MODE_END
 /*
  *  this allows for an exit() call if exitcode is not zero
  *  and takes a Printer to print the error

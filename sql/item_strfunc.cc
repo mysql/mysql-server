@@ -29,6 +29,9 @@
 
 #include "sql/item_strfunc.h"
 
+#include <stdio.h>
+#include <string.h>
+#include <zconf.h>
 #include <zlib.h>
 #include <algorithm>
 #include <atomic>
@@ -58,7 +61,6 @@
 #include "myisampack.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_password_policy.h"
 #include "mysqld_error.h"
 #include "password.h"                // my_make_scrambled_password
@@ -69,16 +71,18 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"         // current_thd
 #include "sql/dd/info_schema/table_stats.h"
+#include "sql/dd/info_schema/tablespace_stats.h"
 #include "sql/dd/properties.h"       // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd_sql_view.h"         // push_view_warning_or_error
 #include "sql/error_handler.h"       // Internal_error_handler
 #include "sql/derror.h"              // ER_THD
 #include "sql/handler.h"
-#include "sql/key.h"
+#include "sql/my_decimal.h"
 #include "sql/mysqld.h"              // binary_keyword etc
-#include "resourcegroups/resource_group_mgr.h"  // num_vcpus
+#include "sql/resourcegroups/resource_group_mgr.h"  // num_vcpus
 #include "sql/rpl_gtid.h"
+#include "sql/sql_base.h"
 #include "sql/sql_class.h"           // THD
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
@@ -86,6 +90,7 @@
 #include "sql/sql_show.h" // grant_types
 #include "sql/strfunc.h"             // hexchar_to_int
 #include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql/val_int_compare.h"     // Integer_value
 #include "template_utils.h"
 #include "typelib.h"
@@ -284,7 +289,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
 
   if (input_string == NULL)
   {
-    null_value= TRUE;
+    null_value= true;
     return (String *) NULL;
   }
 
@@ -331,7 +336,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
         Sql_condition::SL_WARNING,
         ER_WRONG_PARAMETERS_TO_NATIVE_FCT,
         ER_THD(current_thd, ER_WRONG_PARAMETERS_TO_NATIVE_FCT), "sha2");
-    null_value= TRUE;
+    null_value= true;
     return NULL;
   }
 
@@ -347,7 +352,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
   /* We poked raw bytes in.  We must inform the the String of its length. */
   str->length(digest_length*2); /* Each byte as two nybbles */
 
-  null_value= FALSE;
+  null_value= false;
   return str;
 
 #else
@@ -356,7 +361,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
     ER_FEATURE_DISABLED,
     ER_THD(current_thd, ER_FEATURE_DISABLED),
     "sha2", "--with-ssl");
-  null_value= TRUE;
+  null_value= true;
   return (String *) NULL;
 #endif /* defined(HAVE_OPENSSL) */
 }
@@ -456,7 +461,7 @@ public:
   {
     const unsigned char *iv_str= NULL;
 
-    *error_generated= FALSE;
+    *error_generated= false;
 
     if (my_aes_needs_iv(aes_opmode))
     {
@@ -467,7 +472,7 @@ public:
         if (!iv || iv->length() < MY_AES_IV_SIZE)
         {
           my_error(ER_AES_INVALID_IV, MYF(0), func_name, (long long) MY_AES_IV_SIZE);
-          *error_generated= TRUE;
+          *error_generated= true;
           return NULL;
         }
         iv_str= (unsigned char *) iv->ptr();
@@ -475,7 +480,7 @@ public:
       else
       {
         my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), func_name);
-        *error_generated= TRUE;
+        *error_generated= true;
         return NULL;
       }
     }
@@ -679,14 +684,14 @@ String *Item_func_random_bytes::val_str(String*)
   if (n_bytes == 0 || n_bytes > MAX_RANDOM_BYTES_BUFFER)
   {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "length", func_name());
-    null_value= TRUE;
+    null_value= true;
     return NULL;
   }
 
   if (str_value.alloc(n_bytes))
   {
     my_error(ER_OUTOFMEMORY, n_bytes);
-    null_value= TRUE;
+    null_value= true;
     return NULL;
   }
 
@@ -696,7 +701,7 @@ String *Item_func_random_bytes::val_str(String*)
   {
     my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0), func_name(),
              "SSL library can't generate random bytes");
-    null_value= TRUE;
+    null_value= true;
     return NULL;
   }
 
@@ -2216,7 +2221,7 @@ bool Item_func_user::init(const char *user, const char *host)
     if (str_value.alloc((uint) res_length))
     {
       null_value=1;
-      return TRUE;
+      return true;
     }
 
     res_length=cs->cset->snprintf(cs, (char*)str_value.ptr(),
@@ -2224,7 +2229,7 @@ bool Item_func_user::init(const char *user, const char *host)
     str_value.length((uint) res_length);
     str_value.mark_as_const();
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -2275,7 +2280,7 @@ bool Item_func_current_user::itemize(Parse_context *pc, Item **res)
 bool Item_func_current_user::fix_fields(THD *thd, Item **ref)
 {
   if (Item_func_sysconst::fix_fields(thd, ref))
-    return TRUE;
+    return true;
 
   Security_context *ctx=
                          (context->security_ctx
@@ -2532,7 +2537,7 @@ String *Item_func_format::val_str_ascii(String *str)
     double nr= args[0]->val_real();
     if ((null_value=args[0]->null_value))
       return 0; /* purecov: inspected */
-    nr= my_double_round(nr, (longlong) dec, FALSE, FALSE);
+    nr= my_double_round(nr, (longlong) dec, false, false);
     str->set_real(nr, dec, &my_charset_numeric);
     if (!std::isfinite(nr))
       return str;
@@ -3690,7 +3695,7 @@ bool Item_func_weight_string::eq(const Item *item, bool binary_cmp) const
     return 1;
   if (item->type() != FUNC_ITEM ||
       functype() != ((Item_func*)item)->functype() ||
-      func_name() != ((Item_func*)item)->func_name())
+      strcmp(func_name(), ((Item_func*)item)->func_name()) != 0)
     return 0;
 
   Item_func_weight_string *wstr= (Item_func_weight_string*)item;
@@ -4008,7 +4013,7 @@ String *Item_char_typecast::val_str(String *str)
     if (res->length() > (length= (uint32) res->charpos(cast_length)))
     {                                           // Safe even if const arg
       char char_type[40];
-      my_snprintf(char_type, sizeof(char_type), "%s(%lu)",
+      snprintf(char_type, sizeof(char_type), "%s(%lu)",
                   cast_cs == &my_charset_bin ? "BINARY" : "CHAR",
                   (ulong) length);
 
@@ -4114,7 +4119,6 @@ bool Item_load_file::itemize(Parse_context *pc, Item **res)
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 
 String *Item_load_file::val_str(String *str)
 {
@@ -4899,7 +4903,6 @@ String *Item_func_get_dd_column_privileges::val_str(String *str)
 
       THD *thd= current_thd;
       GRANT_INFO grant_info;
-      memset(&grant_info, 0, sizeof (grant_info));
       fill_effective_table_privileges(thd,
                                       &grant_info,
                                       schema_name_ptr->c_ptr_safe(),
@@ -5114,7 +5117,7 @@ String *Item_func_get_dd_create_options::val_str(String *str)
 String *Item_func_internal_get_comment_or_error::val_str(String *str)
 {
   DBUG_ENTER("Item_func_internal_get_comment_or_error::val_str");
-  null_value= FALSE;
+  null_value= false;
 
   // Read arguements
   String schema;
@@ -5133,7 +5136,7 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str)
       view_ptr == nullptr ||
       comment_ptr == nullptr)
   {
-    null_value= TRUE;
+    null_value= true;
     DBUG_RETURN(nullptr);
   }
 
@@ -5189,7 +5192,7 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str)
 String *Item_func_get_partition_nodegroup::val_str(String *str)
 {
   DBUG_ENTER("Item_func_get_partition_nodegroup::val_str");
-  null_value= FALSE;
+  null_value= false;
 
   String options;
   String *options_ptr= args[0]->val_str(&options);
@@ -5425,14 +5428,14 @@ mysqld_collation_get_by_name(const char *name, CHARSET_INFO *name_cs)
 String *Item_func_convert_cpu_id_mask::val_str(String *str)
 {
   DBUG_ENTER("Item_func_convert_cpu_id_mask::val_str");
-  null_value= FALSE;
+  null_value= false;
 
   String  cpu_mask;
   String *cpu_mask_str= args[0]->val_str(&cpu_mask);
 
   if (cpu_mask_str == nullptr || cpu_mask_str->length() == 0)
   {
-    null_value= TRUE;
+    null_value= true;
     DBUG_RETURN(nullptr);
   }
 

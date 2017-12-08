@@ -35,9 +35,7 @@
 #include "client/mysqlbinlog.h" // IWYU pragma: keep
 #endif
 
-extern "C" {
 PSI_memory_key key_memory_Sid_map_Node;
-}
 
 Sid_map::Sid_map(Checkable_rwlock *_sid_lock)
   : sid_lock(_sid_lock),

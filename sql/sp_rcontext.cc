@@ -18,6 +18,7 @@
 #include <atomic>
 #include <new>
 
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
@@ -89,7 +90,7 @@ sp_rcontext *sp_rcontext::create(THD *thd,
       ctx->init_var_table(thd) ||
       ctx->init_var_items(thd))
   {
-    delete ctx;
+    destroy(ctx);
     return NULL;
   }
 

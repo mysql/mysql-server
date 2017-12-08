@@ -154,13 +154,13 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
 }
 
 DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::register_variable,
-  (STATUS_VAR *))
+  (SHOW_VAR *))
 {
   return true;
 }
 
 DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::unregister_variable,
-  (STATUS_VAR *))
+  (SHOW_VAR *))
 {
   return true;
 }
@@ -236,12 +236,10 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
 /* TODO following code resembles symbols used in sql library, these should be
   some day extracted to be reused both in sql library and server component unit
   tests. */
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 
-extern "C"
-{
-  CHARSET_INFO *system_charset_info= &my_charset_latin1;
-}
+CHARSET_INFO *system_charset_info= &my_charset_latin1;
+
 char opt_plugin_dir[FN_REFLEN];
 
 bool check_string_char_length(const LEX_CSTRING &, const char *,

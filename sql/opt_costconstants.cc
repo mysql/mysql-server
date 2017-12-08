@@ -20,7 +20,6 @@
 #include "my_dbug.h"
 #include "mysql/psi/psi_base.h"
 #include "sql/handler.h"
-#include "sql/key.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/table.h"          // TABLE
 

@@ -15,6 +15,7 @@
 
 #include "sql/rpl_mi.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
@@ -22,8 +23,8 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
@@ -171,9 +172,9 @@ Master_info::Master_info(
   gtid_monitoring_info= new Gtid_monitoring_info(&data_lock);
 
   /*channel is set in base class, rpl_info.cc*/
-  my_snprintf(for_channel_str, sizeof(for_channel_str)-1,
+  snprintf(for_channel_str, sizeof(for_channel_str)-1,
              " for channel '%s'", channel);
-  my_snprintf(for_channel_uppercase_str, sizeof(for_channel_uppercase_str)-1,
+  snprintf(for_channel_uppercase_str, sizeof(for_channel_uppercase_str)-1,
              " FOR CHANNEL '%s'", channel);
 
   m_channel_lock= new Checkable_rwlock(
@@ -206,8 +207,8 @@ Master_info::~Master_info()
 
    @param      s_id    the master server identifier
 
-   @retval   TRUE    if s_id is in the list of ignored master  servers,
-   @retval   FALSE   otherwise.
+   @retval   true    if s_id is in the list of ignored master  servers,
+   @retval   false   otherwise.
  */
 bool Master_info::shall_ignore_server_id(ulong s_id)
 {
@@ -331,7 +332,7 @@ int Master_info::mi_init_info()
   }
 
   inited= 1;
-  if (flush_info(TRUE))
+  if (flush_info(true))
     goto err;
 
   DBUG_RETURN(0);
@@ -547,9 +548,9 @@ bool Master_info::set_info_search_keys(Rpl_info_handler *to)
   DBUG_ENTER("Master_info::set_info_search_keys");
 
   if (to->set_info(LINE_FOR_CHANNEL-1, channel))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -592,9 +593,9 @@ bool Master_info::write_info(Rpl_info_handler *to)
       to->set_info(tls_version) ||
       to->set_info(public_key_path) ||
       to->set_info(get_public_key))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 void Master_info::set_password(const char* password_arg)

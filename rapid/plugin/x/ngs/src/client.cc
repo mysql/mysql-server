@@ -64,7 +64,7 @@ Client::Client(Connection_ptr connection,
   m_msg_buffer_size(0),
   m_supports_expired_passwords(false)
 {
-  my_snprintf(m_id, sizeof(m_id), "%llu", static_cast<ulonglong>(client_id));
+  snprintf(m_id, sizeof(m_id), "%llu", static_cast<ulonglong>(client_id));
 }
 
 

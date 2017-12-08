@@ -4,6 +4,7 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
+
 ## Test starts here
 --let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_docpath.tmp
 --write_file $xtest_file

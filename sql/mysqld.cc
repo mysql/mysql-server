@@ -374,6 +374,7 @@
 #include "ft_global.h"
 #include "keycache.h"                   // KEY_CACHE
 #include "m_string.h"
+#include "my_alloc.h"
 #include "migrate_keyring.h"            // Migrate_keyring
 #include "my_base.h"
 #include "my_bitmap.h"                  // MY_BITMAP
@@ -389,7 +390,9 @@
 #include "my_time.h"
 #include "my_timer.h"                   // my_timer_initialize
 #include "myisam.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
@@ -442,7 +445,6 @@
 #include "sql/event_data_objects.h"     // init_scheduler_psi_keys
 #include "sql/events.h"                 // Events
 #include "sql/handler.h"
-#include "sql/histograms/value_map.h"
 #include "sql/hostname.h"               // hostname_cache_init
 #include "sql/init.h"                   // unireg_init
 #include "sql/item.h"
@@ -462,6 +464,7 @@
 #include "sql/options_mysqld.h"         // OPT_THREAD_CACHE_SIZE
 #include "sql/partitioning/partition_handler.h" // partitioning_init
 #include "sql/persisted_variable.h"     // Persisted_variables_cache
+#include "sql/plugin_table.h"
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"         // key_memory_MYSQL_RELAY_LOG_index
 #include "sql/query_options.h"
@@ -483,7 +486,6 @@
 #include "sql/session_tracker.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h"                // init_sp_psi_keys
-#include "sql/sql_admin.h"
 #include "sql/sql_audit.h"              // mysql_audit_general
 #include "sql/sql_base.h"
 #include "sql/sql_callback.h"           // MUSQL_CALLBACK
@@ -503,13 +505,13 @@
 #include "sql/sql_show.h"
 #include "sql/sql_table.h"              // build_table_filename
 #include "sql/sql_test.h"               // mysql_print_status
-#include "sql/sql_time.h"               // Date_time_format
 #include "sql/sql_udf.h"
-#include "sql/strfunc.h"
 #include "sql/sys_vars.h"               // fixup_enforce_gtid_consistency_...
 #include "sql/sys_vars_shared.h"        // intern_find_sys_var
 #include "sql/table_cache.h"            // table_cache_manager
 #include "sql/tc_log.h"                 // tc_log
+#include "sql/thd_raii.h"
+#include "sql/thr_malloc.h"
 #include "sql/transaction.h"
 #include "sql/tztime.h"                 // Time_zone
 #include "sql/xa.h"
@@ -519,6 +521,7 @@
 #include "storage/perfschema/pfs_services.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
+#include "typelib.h"
 #include "violite.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -535,7 +538,6 @@
 #ifdef MY_MSCRT_DEBUG
 #include <crtdbg.h>
 #endif
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fenv.h>
@@ -1005,7 +1007,7 @@ ulong stored_program_cache_size= 0;
 */
 bool avoid_temporal_upgrade;
 
-bool persisted_globals_load= TRUE;
+bool persisted_globals_load= true;
 
 bool opt_keyring_operations= true;
 
@@ -1219,14 +1221,9 @@ char *opt_binlog_index_name;
 char *mysql_home_ptr, *pidfile_name_ptr;
 char *default_auth_plugin;
 /**
-  Initial command line arguments (arguments), after load_defaults().
-  This memory is allocated by @c load_defaults() and should be freed
-  using @c free_defaults().
-  Do not modify defaults_argv,
-  use remaining_argc / remaining_argv instead to parse the command
-  line arguments in multiple steps.
+  Memory for allocating command line arguments, after load_defaults().
 */
-static char **defaults_argv;
+static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 /** Remaining command line arguments (count), filtered by handle_options().*/
 static int remaining_argc;
 /** Remaining command line arguments (arguments), filtered by handle_options().*/
@@ -1360,8 +1357,6 @@ struct System_status_var* get_thd_status_var(THD *thd)
   return & thd->status_var;
 }
 
-C_MODE_START
-
 static void option_error_reporter(enum loglevel level, const char *format, ...)
   MY_ATTRIBUTE((format(printf, 2, 3)));
 
@@ -1403,7 +1398,6 @@ static void charset_error_reporter(enum loglevel level,
   error_log_printf(level, format, args);
   va_end(args);
 }
-C_MODE_END
 
 struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 
@@ -1826,7 +1820,7 @@ void kill_mysql(void)
     }
     /*
       or:
-      HANDLE hEvent=OpenEvent(0, FALSE, "MySqlShutdown");
+      HANDLE hEvent=OpenEvent(0, false, "MySqlShutdown");
       SetEvent(hEventShutdown);
       CloseHandle(hEvent);
     */
@@ -2054,8 +2048,6 @@ static void clean_up(bool print_message)
   multi_keycache_free();
   query_logger.cleanup();
   my_free_open_file_info();
-  if (defaults_argv)
-    free_defaults(defaults_argv);
   free_tmpdir(&mysql_tmpdir_list);
   my_free(opt_bin_logname);
   free_max_user_conn();
@@ -2571,9 +2563,9 @@ static BOOL WINAPI console_event_handler( DWORD type )
        kill_mysql();
      else
        LogErr(WARNING_LEVEL, ER_NOT_RIGHT_NOW);
-     DBUG_RETURN(TRUE);
+     DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -2609,7 +2601,7 @@ static void wait_for_debugger(int timeout_sec)
 
 LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
 {
-   static BOOL first_time= TRUE;
+   static BOOL first_time= true;
    if(!first_time)
    {
      /*
@@ -2619,7 +2611,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
      */
      return EXCEPTION_EXECUTE_HANDLER;
    }
-   first_time= FALSE;
+   first_time= false;
 #ifdef DEBUG_UNHANDLED_EXCEPTION_FILTER
    /*
     Unfortunately there is no clean way to debug unhandled exception filters,
@@ -2655,7 +2647,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
 void my_init_signals()
 {
   if(opt_console)
-    SetConsoleCtrlHandler(console_event_handler,TRUE);
+    SetConsoleCtrlHandler(console_event_handler,true);
 
     /* Avoid MessageBox()es*/
   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
@@ -3568,8 +3560,6 @@ int init_common_variables()
   {
       DBUG_PRINT("info", ("Large page set, large_page_size = %d",
                  opt_large_page_size));
-      my_use_large_pages= 1;
-      my_large_page_size= opt_large_page_size;
   }
   else
   {
@@ -4329,14 +4319,10 @@ static int init_server_auto_options()
   }
 
   /* load all options in 'auto.cnf'. */
-  if (my_load_defaults(fname, groups, &argc, &argv, NULL))
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
+  if (my_load_defaults(fname, groups, &argc, &argv, &alloc, NULL))
     DBUG_RETURN(1);
 
-  /*
-    Record the origial pointer allocated by my_load_defaults for free,
-    because argv will be changed by handle_options
-   */
-  char **old_argv= argv;
   if (handle_options(&argc, &argv, auto_options, mysqld_get_one_option))
     DBUG_RETURN(1);
 
@@ -4368,7 +4354,7 @@ static int init_server_auto_options()
   else
   {
     DBUG_PRINT("info", ("generating server_uuid"));
-    flush= TRUE;
+    flush= true;
     /* server_uuid will be set in the function */
     if (generate_server_uuid())
       goto err;
@@ -4383,17 +4369,11 @@ static int init_server_auto_options()
       LogErr(WARNING_LEVEL, ER_CREATING_NEW_UUID, server_uuid);
     }
   }
-  /*
-    The uuid has been copied to server_uuid, so the memory allocated by
-    my_load_defaults can be freed now.
-   */
-  free_defaults(old_argv);
 
   if (flush)
     DBUG_RETURN(flush_auto_options(fname));
   DBUG_RETURN(0);
 err:
-  free_defaults(argv);
   DBUG_RETURN(1);
 }
 
@@ -4405,7 +4385,7 @@ initialize_storage_engine(char *se_name, const char *se_kind,
   LEX_STRING name= { se_name, strlen(se_name) };
   plugin_ref plugin;
   handlerton *hton;
-  if ((plugin= ha_resolve_by_name(0, &name, FALSE)))
+  if ((plugin= ha_resolve_by_name(0, &name, false)))
     hton= plugin_data<handlerton*>(plugin);
   else
   {
@@ -4658,7 +4638,7 @@ static int init_server_components()
       to avoid creating the file in an otherwise empty datadir, which will
       cause a succeeding 'mysqld --initialize' to fail.
     */
-    if (!opt_help && mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
+    if (!opt_help && mysql_bin_log.open_index_file(opt_binlog_index_name, ln, true))
     {
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
@@ -5059,10 +5039,12 @@ static int init_server_components()
   query_logger.set_handlers(log_output_options);
 
   // Open slow log file if enabled.
+  query_logger.set_log_file(QUERY_LOG_SLOW);
   if (opt_slow_log && query_logger.reopen_log_file(QUERY_LOG_SLOW))
     opt_slow_log= false;
 
   // Open general log file if enabled.
+  query_logger.set_log_file(QUERY_LOG_GENERAL);
   if (opt_general_log && query_logger.reopen_log_file(QUERY_LOG_GENERAL))
     opt_general_log= false;
 
@@ -5229,7 +5211,7 @@ extern "C" void *handle_shutdown(void *arg)
 
 static void create_shutdown_thread()
 {
-  hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
+  hEventShutdown=CreateEvent(0, false, false, shutdown_event_name);
   my_thread_attr_t thr_attr;
   DBUG_ENTER("create_shutdown_thread");
 
@@ -5319,14 +5301,13 @@ int mysqld_main(int argc, char **argv)
 
   orig_argc= argc;
   orig_argv= argv;
-  my_getopt_use_args_separator= TRUE;
-  my_defaults_read_login_file= FALSE;
-  if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv))
+  my_getopt_use_args_separator= true;
+  my_defaults_read_login_file= false;
+  if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, &argv_alloc))
   {
     flush_error_log_messages();
     return 1;
   }
-  defaults_argv= argv;
 
   /*
    Initialize variables cache for persisted variables, load persisted
@@ -5337,7 +5318,7 @@ int mysqld_main(int argc, char **argv)
       persisted_variables_cache.load_persist_file() ||
       persisted_variables_cache.append_read_only_variables(&argc, &argv))
     return 1;
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= false;
   remaining_argc= argc;
   remaining_argv= argv;
 
@@ -6061,7 +6042,7 @@ int mysqld_main(int argc, char **argv)
       /* Add back the program name handle_options removes */
       remaining_argc++;
       remaining_argv--;
-      my_getopt_skip_unknown= TRUE;
+      my_getopt_skip_unknown= true;
 
       if (remaining_argc > 1)
       {
@@ -6619,13 +6600,13 @@ static bool read_init_file(char *file_name)
 
   if (!(file= mysql_file_fopen(key_file_init, file_name,
                                O_RDONLY, MYF(MY_WME))))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   (void) bootstrap::run_bootstrap_thread(file, NULL, SYSTEM_THREAD_INIT_FILE);
   mysql_file_fclose(file, MYF(MY_WME));
 
   LogErr(INFORMATION_LEVEL, ER_END_INITFILE, file_name);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -6652,7 +6633,7 @@ static int handle_early_options()
 
   my_getopt_register_get_addr(NULL);
   /* Skip unknown options so that they may be processed later */
-  my_getopt_skip_unknown= TRUE;
+  my_getopt_skip_unknown= true;
 
   /* Add the system variables parsed early */
   sys_var_add_options(&all_early_options, sys_var::PARSE_EARLY);
@@ -6677,7 +6658,7 @@ static int handle_early_options()
     remaining_argv--;
 
     if (opt_initialize_insecure)
-      opt_initialize= TRUE;
+      opt_initialize= true;
   }
 
   // Swap with an empty vector, i.e. delete elements and free allocated space.
@@ -8244,7 +8225,7 @@ static int mysql_init_variables()
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
   prepared_stmt_count= 0;
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
-  memset(&mysql_tmpdir_list, 0, sizeof(mysql_tmpdir_list));
+  new (&mysql_tmpdir_list) MY_TMPDIR;
   memset(&global_status_var, 0, sizeof(global_status_var));
   opt_large_pages= 0;
   opt_super_large_pages= 0;
@@ -9119,7 +9100,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   }
 
   /* Skip unknown options so that they may be processed later by plugins */
-  my_getopt_skip_unknown= TRUE;
+  my_getopt_skip_unknown= true;
 
   if ((ho_error= handle_options(argc_ptr, argv_ptr, &all_options[0],
                                 mysqld_get_one_option)))
@@ -9349,8 +9330,8 @@ static char *get_relative_path(const char *path)
   @param path null terminated character string
 
   @return
-    @retval TRUE The path is secure
-    @retval FALSE The path isn't secure
+    @retval true The path is secure
+    @retval false The path isn't secure
 */
 
 bool is_secure_file_path(const char *path)
@@ -9361,15 +9342,15 @@ bool is_secure_file_path(const char *path)
     All paths are secure if opt_secure_file_priv is 0
   */
   if (!opt_secure_file_priv[0])
-    return TRUE;
+    return true;
 
   opt_secure_file_priv_len= strlen(opt_secure_file_priv);
 
   if (strlen(path) >= FN_REFLEN)
-    return FALSE;
+    return false;
 
   if (!my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
-    return FALSE;
+    return false;
 
   if (my_realpath(buff1, path, 0))
   {
@@ -9378,17 +9359,17 @@ bool is_secure_file_path(const char *path)
     */
     int length= (int)dirname_length(path);
     if (length >= FN_REFLEN)
-      return FALSE;
+      return false;
     memcpy(buff2, path, length);
     buff2[length]= '\0';
     if (length == 0 || my_realpath(buff1, buff2, 0))
-      return FALSE;
+      return false;
   }
   convert_dirname(buff2, buff1, NullS);
   if (!lower_case_file_system)
   {
     if (strncmp(opt_secure_file_priv, buff2, opt_secure_file_priv_len))
-      return FALSE;
+      return false;
   }
   else
   {
@@ -9396,10 +9377,10 @@ bool is_secure_file_path(const char *path)
                                             (uchar *) buff2, strlen(buff2),
                                             (uchar *) opt_secure_file_priv,
                                             opt_secure_file_priv_len,
-                                            TRUE))
-      return FALSE;
+                                            true))
+      return false;
   }
-  return TRUE;
+  return true;
 }
 
 
@@ -9500,7 +9481,7 @@ static bool check_secure_file_priv_path()
           opt_datadir_len,
           (uchar *) opt_secure_file_priv,
           opt_secure_file_priv_len,
-          TRUE))
+          true))
     {
       warn= true;
       strcpy(whichdir, "Data directory");
@@ -9534,7 +9515,7 @@ static bool check_secure_file_priv_path()
           opt_plugindir_len,
           (uchar *) opt_secure_file_priv,
           opt_secure_file_priv_len,
-          TRUE))
+          true))
       {
         warn= true;
         strcpy(whichdir, "Plugin directory");

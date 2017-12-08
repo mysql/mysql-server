@@ -24,7 +24,6 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"  // my_thread_id
-#include "mysql/udf_registration_types.h"
 #include "sql/rpl_gtid.h"     // Gitd_specification
 #include "sql/sql_plugin_ref.h" // plugin_ref
 
@@ -32,8 +31,7 @@ class MY_LOCALE;
 class Time_zone;
 
 typedef ulonglong sql_mode_t;
-typedef struct st_list LIST;
-typedef struct charset_info_st CHARSET_INFO;
+struct LIST;
 
 // Values for binlog_format sysvar
 enum enum_binlog_format {

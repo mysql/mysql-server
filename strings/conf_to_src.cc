@@ -205,7 +205,7 @@ static int my_read_charset_file(const char *filename)
     exit(1);
   }
   
-  return FALSE;
+  return false;
 }
 
 static int

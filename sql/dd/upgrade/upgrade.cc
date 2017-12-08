@@ -32,6 +32,7 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"             // mysql_file_open
@@ -63,6 +64,7 @@
 #include "sql/stateless_allocator.h"
 #include "sql/strfunc.h"                      // lex_cstring_handle
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                  // trans_rollback
 
 namespace dd {
@@ -192,9 +194,9 @@ static bool ha_finish_upgrade(THD *thd,
   if (hton->finish_upgrade)
   {
     if (hton->finish_upgrade(thd, *(static_cast<bool *>(failed_upgrade))))
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -800,10 +802,10 @@ static bool ha_migrate_tablespaces(THD *thd,
     if (error)
     {
       LogErr(ERROR_LEVEL, ER_DD_UPGRADE_TABLESPACE_MIGRATION_FAILED, error);
-      return TRUE;
+      return true;
     }
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -892,9 +894,9 @@ static bool upgrade_logs(THD *thd,
   if (hton->upgrade_logs)
   {
     if (hton->upgrade_logs(thd))
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 

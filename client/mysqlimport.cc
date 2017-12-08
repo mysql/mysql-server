@@ -20,18 +20,19 @@
 **			    into a table(s).
 */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <time.h>
 
 #include "client/client_priv.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_systime.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"
 #include "print_version.h"
@@ -262,7 +263,7 @@ get_one_option(int optid, const struct my_option *opt,
     break;
 #endif
   case OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
+    using_opt_enable_cleartext_plugin= true;
     break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
@@ -338,7 +339,7 @@ static int write_to_table(char *filename, MYSQL *mysql)
   {
     if (verbose)
       fprintf(stdout, "Deleting the old data from table %s\n", tablename);
-    my_snprintf(sql_statement, FN_REFLEN*16+256, "DELETE FROM %s", tablename);
+    snprintf(sql_statement, FN_REFLEN*16+256, "DELETE FROM %s", tablename);
     if (mysql_query(mysql, sql_statement))
     {
       db_error_with_table(mysql, tablename);
@@ -633,19 +634,16 @@ error:
 int main(int argc, char **argv)
 {
   int error=0;
-  char **argv_to_free;
   MY_INIT(argv[0]);
 
-  my_getopt_use_args_separator= TRUE;
-  if (load_defaults("my",load_default_groups,&argc,&argv))
+  my_getopt_use_args_separator= true;
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
+  if (load_defaults("my",load_default_groups,&argc,&argv,&alloc))
     return 1;
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= false;
 
-  /* argv is changed in the program */
-  argv_to_free= argv;
   if (get_options(&argc, &argv))
   {
-    free_defaults(argv_to_free);
     return(1);
   }
 
@@ -732,7 +730,6 @@ int main(int argc, char **argv)
     MYSQL *mysql= 0;
     if (!(mysql= db_connect(current_host,current_db,current_user,opt_password)))
     {
-      free_defaults(argv_to_free);
       return(1); /* purecov: deadcode */
     }
 
@@ -754,7 +751,6 @@ int main(int argc, char **argv)
 #if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
-  free_defaults(argv_to_free);
   my_end(my_end_arg);
   return(exitcode);
 }

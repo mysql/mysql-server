@@ -28,29 +28,28 @@ enum enum_mysql_show_scope
   SHOW_SCOPE_SESSION,
   SHOW_SCOPE_ALL
 };
-struct st_mysql_show_var
+struct SHOW_VAR
 {
   const char *name;
   char *value;
   enum enum_mysql_show_type type;
   enum enum_mysql_show_scope scope;
 };
-typedef int (*mysql_show_var_func)(void*, struct st_mysql_show_var*, char *);
+typedef int (*mysql_show_var_func)(void*, SHOW_VAR*, char *);
 typedef void * MYSQL_PLUGIN;
-struct st_mysql_xid {
+struct MYSQL_XID {
   long formatID;
   long gtrid_length;
   long bqual_length;
   char data[128];
 };
-typedef struct st_mysql_xid MYSQL_XID;
-struct st_mysql_sys_var;
+struct SYS_VAR;
 struct st_mysql_value;
 typedef int (*mysql_var_check_func)(void* thd,
-                                    struct st_mysql_sys_var *var,
+                                    SYS_VAR *var,
                                     void *save, struct st_mysql_value *value);
 typedef void (*mysql_var_update_func)(void* thd,
-                                      struct st_mysql_sys_var *var,
+                                      SYS_VAR *var,
                                       void *var_ptr, const void *save);
 struct st_mysql_plugin
 {
@@ -64,8 +63,8 @@ struct st_mysql_plugin
   int (*check_uninstall)(MYSQL_PLUGIN);
   int (*deinit)(MYSQL_PLUGIN);
   unsigned int version;
-  struct st_mysql_show_var *status_vars;
-  struct st_mysql_sys_var **system_vars;
+  SHOW_VAR *status_vars;
+  SYS_VAR **system_vars;
   void * __reserved1;
   unsigned long flags;
 };
@@ -125,18 +124,16 @@ void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
 void thd_set_ha_data(void* thd, const struct handlerton *hton,
                      const void *ha_data);
 #include "mysql/mysql_lex_string.h"
-struct st_mysql_lex_string
+struct MYSQL_LEX_STRING
 {
   char *str;
   size_t length;
 };
-typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
-struct st_mysql_const_lex_string
+struct MYSQL_LEX_CSTRING
 {
   const char *str;
   size_t length;
 };
-typedef struct st_mysql_const_lex_string MYSQL_LEX_CSTRING;
 #include "my_command.h"
 enum enum_server_command
 {
@@ -373,7 +370,7 @@ struct mysql_event_general
   MYSQL_LEX_CSTRING general_user;
   MYSQL_LEX_CSTRING general_command;
   MYSQL_LEX_CSTRING general_query;
-  struct charset_info_st *general_charset;
+  CHARSET_INFO *general_charset;
   unsigned long long general_time;
   unsigned long long general_rows;
   MYSQL_LEX_CSTRING general_host;
@@ -436,7 +433,7 @@ struct mysql_event_authorization
   unsigned int connection_id;
   enum_sql_command_t sql_command_id;
   MYSQL_LEX_CSTRING query;
-  const struct charset_info_st *query_charset;
+  const CHARSET_INFO *query_charset;
   MYSQL_LEX_CSTRING database;
   MYSQL_LEX_CSTRING table;
   MYSQL_LEX_CSTRING object;
@@ -457,7 +454,7 @@ struct mysql_event_table_access
   unsigned long connection_id;
   enum_sql_command_t sql_command_id;
   MYSQL_LEX_CSTRING query;
-  const struct charset_info_st *query_charset;
+  const CHARSET_INFO *query_charset;
   MYSQL_LEX_CSTRING table_database;
   MYSQL_LEX_CSTRING table_name;
 };
@@ -526,7 +523,7 @@ struct mysql_event_query
   unsigned long connection_id;
   enum_sql_command_t sql_command_id;
   MYSQL_LEX_CSTRING query;
-  const struct charset_info_st *query_charset;
+  const CHARSET_INFO *query_charset;
 };
 typedef enum
 {
@@ -538,7 +535,7 @@ struct mysql_event_stored_program
   unsigned long connection_id;
   enum_sql_command_t sql_command_id;
   MYSQL_LEX_CSTRING query;
-  const struct charset_info_st *query_charset;
+  const CHARSET_INFO *query_charset;
   MYSQL_LEX_CSTRING database;
   MYSQL_LEX_CSTRING name;
   void *parameters;
@@ -558,7 +555,7 @@ struct mysql_event_authentication
   unsigned int connection_id;
   enum_sql_command_t sql_command_id;
   MYSQL_LEX_CSTRING query;
-  const struct charset_info_st *query_charset;
+  const CHARSET_INFO *query_charset;
   MYSQL_LEX_CSTRING user;
   MYSQL_LEX_CSTRING host;
   MYSQL_LEX_CSTRING authentication_plugin;

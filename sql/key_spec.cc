@@ -22,14 +22,15 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/dd.h"     // dd::get_dictionary
 #include "sql/dd/dictionary.h" // dd::Dictionary::check_dd...
 #include "sql/derror.h"  // ER_THD
 #include "sql/field.h"   // Create_field
 #include "sql/sql_class.h" // THD
 #include "sql/sql_parse.h" // check_string_char_length
+#include "sql/table.h"
 
 KEY_CREATE_INFO default_key_create_info;
 

@@ -22,6 +22,8 @@
 #include "plugin/x/src/xpl_performance_schema.h"
 #include "mysql/service_plugin_registry.h"
 #include "sql/replication.h"
+#include "violite.h"
+
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
@@ -34,7 +36,7 @@
 
 #include <atomic>
 
-typedef struct st_vio Vio;
+typedef Vio Vio;
 
 PSI_thread_key KEY_thread_x_worker = PSI_NOT_INSTRUMENTED;
 PSI_thread_key KEY_thread_x_acceptor = PSI_NOT_INSTRUMENTED;
@@ -81,84 +83,69 @@ int unregister_server_state_observer(Server_state_observer*, void*)
   return 0;
 }
 
-extern "C"
 void ssl_wrapper_version(Vio*, char*, const size_t)
 {
 }
 
-extern "C"
 void ssl_wrapper_cipher(Vio*, char*, const size_t)
 {
 }
 
-extern "C"
 long ssl_wrapper_cipher_list(Vio*, const char**, const size_t)
 {
   return 0;
 }
 
-extern "C"
 long ssl_wrapper_verify_depth(Vio*)
 {
   return 0;
 }
 
-extern "C"
 long ssl_wrapper_verify_mode(Vio*)
 {
   return 0;
 }
 
-extern "C"
 void ssl_wrapper_get_peer_certificate_issuer(Vio*, char*, const size_t)
 {
 }
 
-extern "C"
 void ssl_wrapper_get_peer_certificate_subject(Vio*, char*, const size_t)
 {
 }
 
-extern "C"
 long ssl_wrapper_get_verify_result_and_cert(Vio*)
 {
   return 0;
 }
 
-extern "C"
 long ssl_wrapper_ctx_verify_depth(struct st_VioSSLFd*)
 {
   return 0;
 }
 
-extern "C"
 long ssl_wrapper_ctx_verify_mode(struct st_VioSSLFd*)
 {
   return 0;
 }
 
-extern "C"
 void  ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd*, char*, const size_t)
 {
 }
 
-extern "C"
 void ssl_wrapper_ctx_server_not_before(struct st_VioSSLFd*, char*, const size_t)
 {
 }
 
-extern "C"
 void ssl_wrapper_thread_cleanup()
 {
 }
 
-extern "C"
 long ssl_wrapper_sess_accept(struct st_VioSSLFd*)
 {
   return 0;
 }
 
-extern "C"
 long ssl_wrapper_sess_accept_good(struct st_VioSSLFd*)
 {
   return 0;

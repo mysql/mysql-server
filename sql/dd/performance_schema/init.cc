@@ -43,13 +43,15 @@
 #include "sql/dd/types/object_table_definition.h"
 #include "sql/dd/types/table.h"
 #include "sql/derror.h"
-#include "sql/handler.h"                   // Plugin_table
+#include "sql/handler.h"
+#include "sql/plugin_table.h"
 #include "sql/set_var.h"
 #include "sql/sql_class.h"                 // THD
 #include "sql/sql_list.h"
 #include "sql/stateless_allocator.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 
 namespace dd {
 class Schema;

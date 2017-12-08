@@ -36,11 +36,11 @@
 #define MY_XML_EXCLAM   '!'
 #define MY_XML_CDATA    'D'
 
-typedef struct xml_attr_st
+struct MY_XML_ATTR
 {
   const char *beg;
   const char *end;
-} MY_XML_ATTR;
+};
 
 
 /*
@@ -515,7 +515,6 @@ void my_xml_parser_free(MY_XML_PARSER *p)
 }
 
 
-extern "C" {
 void my_xml_set_value_handler(MY_XML_PARSER *p,
 			      int (*action)(MY_XML_PARSER *p, const char *s,
 					    size_t l))
@@ -537,7 +536,6 @@ void my_xml_set_leave_handler(MY_XML_PARSER *p,
 {
   p->leave_xml=action;
 }
-} // extern "C"
 
 
 void my_xml_set_user_data(MY_XML_PARSER *p, void *user_data)

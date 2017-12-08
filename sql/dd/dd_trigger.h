@@ -19,10 +19,10 @@
 #include "lex_string.h"
 #include "sql/trigger_def.h" // enum_trigger_order_type
 
+struct MEM_ROOT;
 class THD;
 class Trigger;
 
-typedef struct st_mem_root MEM_ROOT;
 template <class T> class List;
 
 namespace dd

@@ -17,17 +17,18 @@
 
 #include "sql/ndb_log.h"
 
+#include <stdio.h>
+
+#include "my_dbug.h"
+#include "mysqld_error.h"
 /*
   Implements a logging interface for the ndbcluster
   plugin using the LogEvent class as defined in log_builtins.h
+  Beware, the #include ordering here matters!
 */
 #include "sql/log.h"
 #include <mysql/components/services/log_builtins.h>
 
-#include "my_dbug.h"
-#include "mysqld_error.h"
-
-#include <mysql/service_my_snprintf.h>
 
 /*
   Print message to MySQL Server's error log(s)
@@ -51,7 +52,7 @@ ndb_log_print(enum ndb_log_loglevel loglevel,
 
   // Assemble the message
   char msg_buf[512];
-  (void)my_vsnprintf(msg_buf, sizeof(msg_buf), fmt, args);
+  (void)vsnprintf(msg_buf, sizeof(msg_buf), fmt, args);
 
   // Print message to MySQL error log
   switch (loglevel)

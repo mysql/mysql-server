@@ -24,9 +24,9 @@
   MAINTAINER:
   Note that this file is part of the public API,
   because mysql.h exports
-    struct st_mem_root
+    struct MEM_ROOT
   See
-    - PSI_memory_key st_mem_root::m_psi_key
+    - PSI_memory_key MEM_ROOT::m_psi_key
     - include/mysql.h.pp
 */
 
@@ -47,10 +47,6 @@
   Using a zero key always disable the instrumentation.
 */
 typedef unsigned int PSI_memory_key;
-
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
 
 /**
   @def PSI_MEMORY_VERSION_1
@@ -108,10 +104,6 @@ typedef struct PSI_memory_service_v1 PSI_memory_service_t;
 extern MYSQL_PLUGIN_IMPORT PSI_memory_service_t *psi_memory_service;
 
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
 
 /** @} (end of group psi_abi_memory) */
 

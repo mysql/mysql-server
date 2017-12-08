@@ -15,6 +15,7 @@
 
 #include "sql/item_xmlfunc.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -25,7 +26,7 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_xml.h"             // my_xml_node_type
-#include "mysql/service_my_snprintf.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/check_stack.h"
@@ -34,13 +35,11 @@
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"   // Item_bool_func
 #include "sql/item_func.h"
-#include "sql/session_tracker.h"
 #include "sql/sp_pcontext.h"    // sp_variable
 #include "sql/sql_class.h"      // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
-#include "sql/system_variables.h"
 
 /*
   TODO: future development directions:
@@ -68,7 +67,7 @@
 
 
 /* Structure to store a parsed XML tree */
-typedef struct my_xml_node_st
+struct MY_XML_NODE
 {
   uint level;                 /* level in XML tree, 0 means root node   */
   enum my_xml_node_type type; /* node type: node, or attribute, or text */
@@ -76,40 +75,41 @@ typedef struct my_xml_node_st
   const char *beg;            /* beginning of the name or text          */
   const char *end;            /* end of the name or text                */
   const char *tagend;         /* where this tag ends                    */
-} MY_XML_NODE;
+};
 
 
 /* Lexical analizer token */
-typedef struct my_xpath_lex_st
+struct MY_XPATH_LEX
 {
   int        term;  /* token type, see MY_XPATH_LEX_XXXXX below */
   const char *beg;  /* beginnign of the token                   */
   const char *end;  /* end of the token                         */
-} MY_XPATH_LEX;
+};
 
 
 /* Structure to store nodesets */
-typedef struct my_xpath_flt_st
+struct MY_XPATH_FLT
 {
   uint num;     /* absolute position in MY_XML_NODE array */
   uint pos;     /* relative position in context           */
   uint size;    /* context size                           */
-} MY_XPATH_FLT;
+};
 
+struct MY_XPATH;
 
 /* XPath function creator */
-typedef struct my_xpath_function_names_st
+struct MY_XPATH_FUNC
 {
   const char *name;  /* function name           */
   size_t length;     /* function name length    */
   size_t minargs;    /* min number of arguments */
   size_t maxargs;    /* max number of arguments */
-  Item *(*create)(struct my_xpath_st *xpath, Item **args, uint nargs);
-} MY_XPATH_FUNC;
+  Item *(*create)(MY_XPATH *xpath, Item **args, uint nargs);
+};
 
 
 /* XPath query parser */
-typedef struct my_xpath_st
+struct MY_XPATH
 {
   int debug;
   MY_XPATH_LEX query;    /* Whole query                               */
@@ -125,7 +125,7 @@ typedef struct my_xpath_st
   String *pxml;          /* Parsed XML, an array of MY_XML_NODE       */
   const CHARSET_INFO *cs;/* character set/collation string comparison */
   int error;
-} MY_XPATH;
+};
 
 
 /* Dynamic array of MY_XPATH_FLT */
@@ -367,7 +367,7 @@ public:
 /*
   Condition iterator: goes through all nodes in the current
   context and checks a condition, returning those nodes
-  giving TRUE condition result.
+  giving true condition result.
 */
 class Item_nodeset_func_predicate :public Item_nodeset_func
 {
@@ -2742,9 +2742,9 @@ append_node(String *str, MY_XML_NODE *node)
    - At the same time, it avoids excessive memory use.
   */
   if (str->reserve(sizeof(MY_XML_NODE), 2 * str->length() + 512))
-    return TRUE;
+    return true;
   str->q_append((const char*) node, sizeof(MY_XML_NODE));
-  return FALSE;
+  return false;
 }
 
 
@@ -2878,7 +2878,7 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
   if ((rc= my_xml_parse(&p, raw_xml->ptr(), raw_xml->length())) != MY_XML_OK)
   {
     char buf[128];
-    my_snprintf(buf, sizeof(buf)-1, "parse error at line %d pos %lu: %s",
+    snprintf(buf, sizeof(buf)-1, "parse error at line %d pos %lu: %s",
                 my_xml_error_lineno(&p) + 1,
                 (ulong) my_xml_error_pos(&p) + 1,
                 my_xml_error_string(&p));
@@ -2895,11 +2895,11 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
 String *Item_func_xml_extractvalue::val_str(String *str)
 {
   String *res;
-  null_value= FALSE;
+  null_value= false;
   if (!nodeset_func && parse_xpath(args[1]))
   {
     DBUG_ASSERT(maybe_null);
-    null_value= TRUE;
+    null_value= true;
     return NULL;
   }
 
@@ -2920,11 +2920,11 @@ String *Item_func_xml_update::val_str(String *str)
 {
   String *res, *nodeset, *rep;
 
-  null_value= FALSE;
+  null_value= false;
   if (!nodeset_func && parse_xpath(args[1]))
   {
     DBUG_ASSERT(maybe_null);
-    null_value= TRUE;
+    null_value= true;
     return NULL;
   }
 

@@ -74,7 +74,7 @@ public:
 
     // enable TCP_NODELAY
     vio_fastsend(vio);
-    vio_keepalive(vio, TRUE);
+    vio_keepalive(vio, true);
 
     return vio;
   }

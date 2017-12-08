@@ -35,11 +35,7 @@
 
 #define PSI_ERROR_CALL(M) pfs_ ## M ## _v1
 
-C_MODE_START
-
 void pfs_log_error_v1(uint error_num, PSI_error_operation error_operation);
-
-C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */

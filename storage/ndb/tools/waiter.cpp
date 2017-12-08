@@ -1,5 +1,4 @@
 /*
-<<<<<<< HEAD
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -29,6 +28,8 @@
 #include <NDBT.hpp>
 
 #include <kernel/NodeBitmask.hpp>
+
+#include "my_alloc.h"
 
 static int
 waitClusterStatus(const char* _addr, ndb_mgm_node_status _status);

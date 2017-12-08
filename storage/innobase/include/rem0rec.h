@@ -227,7 +227,7 @@ rec_set_deleted_flag_new(
 
 /******************************************************//**
 The following function tells if a new-style record is a node pointer.
-@return TRUE if node pointer */
+@return true if node pointer */
 UNIV_INLINE
 ibool
 rec_get_node_ptr_flag(
@@ -278,7 +278,7 @@ rec_set_heap_no_new(
 /******************************************************//**
 The following function is used to test whether the data offsets
 in the record are stored in one-byte or two-byte format.
-@return TRUE if 1-byte form */
+@return true if 1-byte form */
 UNIV_INLINE
 ibool
 rec_get_1byte_offs_flag(
@@ -730,7 +730,7 @@ rec_copy_prefix_to_dtuple(
 #endif /* !UNIV_HOTBACKUP */
 /***************************************************************//**
 Validates the consistency of a physical record.
-@return TRUE if ok */
+@return true if ok */
 ibool
 rec_validate(
 /*=========*/
@@ -893,12 +893,12 @@ rec_get_trx_id(
 
 /* Maximum lengths for the data in a physical record if the offsets
 are given in one byte (resp. two byte) format. */
-#define REC_1BYTE_OFFS_LIMIT	0x7FUL
-#define REC_2BYTE_OFFS_LIMIT	0x7FFFUL
+constexpr ulint REC_1BYTE_OFFS_LIMIT = 0x7FUL;
+constexpr ulint REC_2BYTE_OFFS_LIMIT = 0x7FFFUL;
 
 /* The data size of record must be smaller than this because we reserve
 two upmost bits in a two byte offset for special purposes */
-#define REC_MAX_DATA_SIZE	16384
+constexpr ulint REC_MAX_DATA_SIZE = 16384;
 
 #include "rem0rec.ic"
 

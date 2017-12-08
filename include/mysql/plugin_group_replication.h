@@ -33,14 +33,14 @@
 
   All callbacks are mandatory.
 */
-typedef struct st_group_replication_connection_status_callbacks
+struct GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS
 {
   void* const context;
   void (*set_channel_name)(void* const context, const char& value, size_t length);
   void (*set_group_name)(void* const context, const char& value, size_t length);
   void (*set_source_uuid)(void* const context, const char& value, size_t length);
   void (*set_service_state)(void* const context, bool state);
-} GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS;
+};
 
 /*
   Callbacks for get_group_members_info function.
@@ -51,7 +51,7 @@ typedef struct st_group_replication_connection_status_callbacks
 
   All callbacks are mandatory.
 */
-typedef struct st_group_replication_group_members_callbacks
+struct GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS
 {
   void* const context;
   void (*set_channel_name)(void* const context, const char& value, size_t length);
@@ -61,7 +61,7 @@ typedef struct st_group_replication_group_members_callbacks
   void (*set_member_state)(void* const context, const char& value, size_t length);
   void (*set_member_role)(void* const context, const char& value, size_t length);
   void (*set_member_version)(void* const context, const char& value, size_t length);
-} GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS;
+};
 
 /*
   Callbacks for get_group_member_stats_info function.
@@ -72,7 +72,7 @@ typedef struct st_group_replication_group_members_callbacks
 
   All callbacks are mandatory.
 */
-typedef struct st_group_replication_member_stats_callbacks
+struct GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS
 {
   void* const context;
   void (*set_channel_name)(void* const context, const char& value, size_t length);
@@ -88,7 +88,7 @@ typedef struct st_group_replication_member_stats_callbacks
   void (*set_transactions_remote_applied)(void* const context, unsigned long long int value);
   void (*set_transactions_local_proposed)(void* const context, unsigned long long int value);
   void (*set_transactions_local_rollback)(void* const context, unsigned long long int value);
-} GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS;
+};
 
 struct st_mysql_group_replication
 {

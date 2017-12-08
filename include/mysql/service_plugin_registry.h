@@ -21,10 +21,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <mysql/components/services/registry.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
   @ingroup group_ext_plugin_services
   A bridge service allowing plugins to work with the registry.
@@ -40,7 +36,7 @@ extern "C" {
   acquire otherwise resources will be leaked and normal unload order
   may be affected.
 */
-extern struct plugin_registry_service_st
+extern "C" struct plugin_registry_service_st
 {
   /**
     Acquire a pointer to the registry service
@@ -119,8 +115,6 @@ extern struct plugin_registry_service_st
   SERVICE_TYPE(registry) * mysql_plugin_registry_acquire();
   int mysql_plugin_registry_release(SERVICE_TYPE(registry) *);
 #endif
-#ifdef __cplusplus
-}
-#endif
+
 #define MYSQL_SERVICE_PLUGIN_REGISTRY_INCLUDED
 #endif /* MYSQL_SERVICE_PLUGIN_REGISTRY_INCLUDED */

@@ -26,6 +26,7 @@
 #include "sql/ndb_table_guard.h"
 #include "sql/ndb_tdc.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_table.h"
 #include "template_utils.h"
 
@@ -48,7 +49,7 @@ typedef NdbDictionary::ForeignKey NDBFK;
   Unlike indexes, no references to global dictionary are kept.
 */
 
-struct Ndb_fk_item : Sql_alloc
+struct Ndb_fk_item
 {
   FOREIGN_KEY_INFO f_key_info;
   int update_action;    // NDBFK::FkAction
@@ -57,7 +58,7 @@ struct Ndb_fk_item : Sql_alloc
   bool is_parent;
 };
 
-struct Ndb_fk_data : Sql_alloc
+struct Ndb_fk_data
 {
   List<Ndb_fk_item> list;
   uint cnt_child;
@@ -238,7 +239,7 @@ template <size_t buf_size>
 const char *
 lex2str(const LEX_CSTRING& str, char (&buf)[buf_size])
 {
-  my_snprintf(buf, buf_size, "%.*s", (int)str.length, str.str);
+  snprintf(buf, buf_size, "%.*s", (int)str.length, str.str);
   return buf;
 }
 
@@ -279,64 +280,15 @@ class Fk_util
 
   void
   info(const char* fmt, ...) const
-  {
-    va_list args;
-    char msg[MYSQL_ERRMSG_SIZE];
-    va_start(args,fmt);
-    my_vsnprintf(msg, sizeof(msg), fmt, args);
-    va_end(args);
-
-    // Push as warning if user has turned on ndb_show_foreign_key_mock_tables
-    if (ndb_show_foreign_key_mock_tables(m_thd))
-    {
-      push_warning(m_thd, Sql_condition::SL_WARNING, ER_YES, msg);
-    }
-
-    // Print info to log
-    ndb_log_info("%s", msg);
-  }
-
+    MY_ATTRIBUTE((format(printf, 2, 3)));
 
   void
   warn(const char* fmt, ...) const
-  {
-    va_list args;
-    char msg[MYSQL_ERRMSG_SIZE];
-    va_start(args,fmt);
-    my_vsnprintf(msg, sizeof(msg), fmt, args);
-    va_end(args);
-    push_warning(m_thd, Sql_condition::SL_WARNING, ER_CANNOT_ADD_FOREIGN, msg);
-
-    // Print warning to log
-    ndb_log_warning("%s", msg);
-  }
-
+    MY_ATTRIBUTE((format(printf, 2, 3)));
 
   void
   error(const NdbDictionary::Dictionary* dict, const char* fmt, ...) const
-  {
-    va_list args;
-    char msg[MYSQL_ERRMSG_SIZE];
-    va_start(args,fmt);
-    my_vsnprintf(msg, sizeof(msg), fmt, args);
-    va_end(args);
-    push_warning(m_thd, Sql_condition::SL_WARNING,
-                 ER_CANNOT_ADD_FOREIGN, msg);
-
-    char ndb_msg[MYSQL_ERRMSG_SIZE] = {0};
-    if (dict)
-    {
-      // Extract message from Ndb
-      const NdbError& error = dict->getNdbError();
-      my_snprintf(ndb_msg, sizeof(ndb_msg),
-                  "%d '%s'", error.code, error.message);
-      push_warning_printf(m_thd, Sql_condition::SL_WARNING,
-                          ER_CANNOT_ADD_FOREIGN, "Ndb error: %s", ndb_msg);
-    }
-    // Print error to log
-    ndb_log_error("%s, Ndb error: %s", msg, ndb_msg);
-  }
-
+    MY_ATTRIBUTE((format(printf, 3, 4)));
 
   void
   remove_index_global(NdbDictionary::Dictionary* dict, const NdbDictionary::Index* index) const
@@ -399,7 +351,7 @@ class Fk_util
       }
 
       char fk_name[FN_REFLEN+1];
-      my_snprintf(fk_name, sizeof(fk_name), "%s",
+      snprintf(fk_name, sizeof(fk_name), "%s",
                   name);
       DBUG_PRINT("info", ("Setting new fk name: %s", fk_name));
       new_fk.setName(fk_name);
@@ -504,7 +456,7 @@ class Fk_util
               mock_tab.get_table()->getColumn(fk.getParentColumnNo(j));
           if (!col)
           {
-            error(NULL, "Could not find column '%s' in mock table '%s'",
+            error(NULL, "Could not find column %d in mock table '%s'",
                   fk.getParentColumnNo(j), mock_name);
             continue;
           }
@@ -621,7 +573,7 @@ class Fk_util
           DBUG_PRINT("col", ("[%u] %s", i, col->getName()));
           if (!col)
           {
-            error(NULL, "Could not find column '%s' in parent table '%s'",
+            error(NULL, "Could not find column %d in parent table '%s'",
                   fk.getParentColumnNo(j), table->getName());
             continue;
           }
@@ -726,7 +678,7 @@ public:
     DBUG_ENTER("format_name");
     DBUG_PRINT("enter", ("child_id: %d, fk_index: %u, parent_name: %s",
                          child_id, fk_index, parent_name));
-    const size_t len = my_snprintf(buf, buf_size, "NDB$FKM_%d_%u_%s",
+    const size_t len = snprintf(buf, buf_size, "NDB$FKM_%d_%u_%s",
                                    child_id, fk_index, parent_name);
     if (len >= buf_size - 1)
     {
@@ -1307,6 +1259,63 @@ public:
   }
 };
 
+void Fk_util::info(const char* fmt, ...) const
+{
+  va_list args;
+  char msg[MYSQL_ERRMSG_SIZE];
+  va_start(args,fmt);
+  vsnprintf(msg, sizeof(msg), fmt, args);
+  va_end(args);
+
+  // Push as warning if user has turned on ndb_show_foreign_key_mock_tables
+  if (ndb_show_foreign_key_mock_tables(m_thd))
+  {
+    push_warning(m_thd, Sql_condition::SL_WARNING, ER_YES, msg);
+  }
+
+  // Print info to log
+  ndb_log_info("%s", msg);
+}
+
+void Fk_util::warn(const char* fmt, ...) const
+{
+  va_list args;
+  char msg[MYSQL_ERRMSG_SIZE];
+  va_start(args,fmt);
+  vsnprintf(msg, sizeof(msg), fmt, args);
+  va_end(args);
+  push_warning(m_thd, Sql_condition::SL_WARNING, ER_CANNOT_ADD_FOREIGN, msg);
+
+  // Print warning to log
+  ndb_log_warning("%s", msg);
+}
+
+void Fk_util::error(const NdbDictionary::Dictionary* dict, const char* fmt, ...) const
+{
+  va_list args;
+  char msg[MYSQL_ERRMSG_SIZE];
+  va_start(args,fmt);
+  vsnprintf(msg, sizeof(msg), fmt, args);
+  va_end(args);
+  push_warning(m_thd, Sql_condition::SL_WARNING,
+               ER_CANNOT_ADD_FOREIGN, msg);
+
+  char ndb_msg[MYSQL_ERRMSG_SIZE] = {0};
+  if (dict)
+  {
+    // Extract message from Ndb
+    const NdbError& error = dict->getNdbError();
+    snprintf(ndb_msg, sizeof(ndb_msg),
+                "%d '%s'", error.code, error.message);
+    push_warning_printf(m_thd, Sql_condition::SL_WARNING,
+                        ER_CANNOT_ADD_FOREIGN, "Ndb error: %s", ndb_msg);
+  }
+  // Print error to log
+  ndb_log_error("%s, Ndb error: %s", msg, ndb_msg);
+}
+
+
+
 bool ndb_fk_util_build_list(THD* thd, NdbDictionary::Dictionary* dict,
                             const NdbDictionary::Table* table, List<char> &mock_list)
 {
@@ -1489,19 +1498,19 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
      */
     if (fk->ref_db.str != 0 && fk->ref_db.length != 0)
     {
-      my_snprintf(parent_db, sizeof(parent_db), "%*s",
+      snprintf(parent_db, sizeof(parent_db), "%*s",
                   (int)fk->ref_db.length,
                   fk->ref_db.str);
     }
     else
     {
       /* parent db missing - so the db is same as child's */
-      my_snprintf(parent_db, sizeof(parent_db), "%*s",
+      snprintf(parent_db, sizeof(parent_db), "%*s",
                   (int)sizeof(m_dbname), m_dbname);
     }
     if (fk->ref_table.str != 0 && fk->ref_table.length != 0)
     {
-      my_snprintf(parent_name, sizeof(parent_name), "%*s",
+      snprintf(parent_name, sizeof(parent_name), "%*s",
                   (int)fk->ref_table.length,
                   fk->ref_table.str);
     }
@@ -1644,7 +1653,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     else
     {
       // The fk has no name, generate a name
-      my_snprintf(fk_name, sizeof(fk_name), "FK_%u_%u",
+      snprintf(fk_name, sizeof(fk_name), "FK_%u_%u",
                   parent_index ?
                   parent_index->getObjectId() :
                   parent_tab.get_table()->getObjectId(),
@@ -2569,7 +2578,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 
       char new_name[FN_LEN + 1];
       name= fk_split_name(db_and_name, fk.getName());
-      my_snprintf(new_name, sizeof(new_name), "%s",
+      snprintf(new_name, sizeof(new_name), "%s",
                   name);
       fk.setName(new_name);
       setDbName(ndb, db_and_name);
@@ -2816,7 +2825,7 @@ ha_ndbcluster::recreate_fk_for_truncate(THD* thd, Ndb* ndb, const char* tab_name
       }
 
       char fk_name[FN_REFLEN+1];
-      my_snprintf(fk_name, sizeof(fk_name), "%s",
+      snprintf(fk_name, sizeof(fk_name), "%s",
                   name);
       DBUG_PRINT("info", ("Setting new fk name: %s", fk_name));
       fk->setName(fk_name);

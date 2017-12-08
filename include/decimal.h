@@ -23,8 +23,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 
-C_MODE_START
-
 typedef enum
 {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR}
   decimal_round_mode;
@@ -39,11 +37,11 @@ typedef int32 decimal_digit_t;
     sign false means positive, true means negative
     buf  is an array of decimal_digit_t's
  */
-typedef struct st_decimal_t {
+struct decimal_t {
   int    intg, frac, len;
   bool sign;
   decimal_digit_t *buf;
-} decimal_t;
+};
 
 #ifndef MYSQL_ABI_CHECK
 int string2decimal(const char *from, decimal_t *to, char **end);
@@ -142,8 +140,6 @@ static inline int decimal_string_size(const decimal_t *dec)
 
 #define E_DEC_ERROR            31
 #define E_DEC_FATAL_ERROR      30
-
-C_MODE_END
 
 #endif // MYSQL_ABI_CHECK
 

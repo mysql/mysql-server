@@ -42,12 +42,12 @@ typedef pthread_t        my_thread_t;
 typedef pthread_attr_t   my_thread_attr_t;
 #endif
 
-typedef struct st_my_thread_handle
+struct my_thread_handle
 {
-  my_thread_t thread;
+  my_thread_t thread{0};
 #ifdef _WIN32
-  HANDLE handle;
+  HANDLE handle{INVALID_HANDLE_VALUE};
 #endif
-} my_thread_handle;
+};
 
 #endif /* COMPONENTS_SERVICES_MY_THREAD_BITS_H */

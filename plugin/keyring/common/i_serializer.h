@@ -45,7 +45,7 @@ namespace keyring
     virtual ISerialized_object* serialize
       (const collation_unordered_map<std::string, std::unique_ptr<IKey>>
          &keys_hash,
-       IKey *key, Key_operation operation)= 0;
+       IKey *key, const Key_operation operation)= 0;
     virtual ~ISerializer()
     {}
   };
