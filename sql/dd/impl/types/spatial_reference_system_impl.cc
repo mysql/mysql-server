@@ -85,11 +85,14 @@ bool Spatial_reference_system_impl::restore_attributes(const Raw_record &r)
 
   m_last_altered= r.read_int(Spatial_reference_systems::FIELD_LAST_ALTERED);
   m_created= r.read_int(Spatial_reference_systems::FIELD_CREATED);
-  m_organization= r.read_str(Spatial_reference_systems::FIELD_ORGANIZATION);
-  m_organization_coordsys_id= r.read_int(
-                     Spatial_reference_systems::FIELD_ORGANIZATION_COORDSYS_ID);
+  if (!r.is_null(Spatial_reference_systems::FIELD_ORGANIZATION))
+    m_organization= r.read_str(Spatial_reference_systems::FIELD_ORGANIZATION);
+  if (!r.is_null(Spatial_reference_systems::FIELD_ORGANIZATION_COORDSYS_ID))
+    m_organization_coordsys_id=
+        r.read_int(Spatial_reference_systems::FIELD_ORGANIZATION_COORDSYS_ID);
   m_definition= r.read_str(Spatial_reference_systems::FIELD_DEFINITION);
-  m_description= r.read_str(Spatial_reference_systems::FIELD_DESCRIPTION);
+  if (!r.is_null(Spatial_reference_systems::FIELD_DESCRIPTION))
+    m_description= r.read_str(Spatial_reference_systems::FIELD_DESCRIPTION);
 
   return parse_definition();
 }
@@ -107,12 +110,20 @@ bool Spatial_reference_system_impl::store_attributes(Raw_record *r)
          r->store(Spatial_reference_systems::FIELD_LAST_ALTERED,
                   m_last_altered) ||
          r->store(Spatial_reference_systems::FIELD_CREATED, m_created) ||
-         r->store(Spatial_reference_systems::FIELD_ORGANIZATION,
-                  m_organization) ||
+         r->store(
+             Spatial_reference_systems::FIELD_ORGANIZATION,
+             m_organization.has_value() ? m_organization.value() : "",
+             !m_organization.has_value()) ||
          r->store(Spatial_reference_systems::FIELD_ORGANIZATION_COORDSYS_ID,
-                  m_organization_coordsys_id) ||
+                  m_organization_coordsys_id.has_value()
+                      ? m_organization_coordsys_id.value()
+                      : 0,
+                  !m_organization_coordsys_id.has_value()) ||
          r->store(Spatial_reference_systems::FIELD_DEFINITION, m_definition) ||
-         r->store(Spatial_reference_systems::FIELD_DESCRIPTION, m_description);
+         r->store(
+             Spatial_reference_systems::FIELD_DESCRIPTION,
+             m_description.has_value() ? m_description.value() : "",
+             !m_description.has_value());
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -124,11 +135,20 @@ void Spatial_reference_system_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w)
   Entity_object_impl::serialize(wctx, w);
   write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
   write(w, m_created, STRING_WITH_LEN("created"));
-  write(w, m_organization, STRING_WITH_LEN("organization"));
-  write(w, m_organization_coordsys_id,
+  write(w, !m_organization.has_value(), STRING_WITH_LEN("organization_null"));
+  write(w, m_organization.has_value() ? m_organization.value() : "",
+        STRING_WITH_LEN("organization"));
+  write(w, !m_organization_coordsys_id.has_value(),
+        STRING_WITH_LEN("organization_coordsys_id_null"));
+  write(w,
+        m_organization_coordsys_id.has_value()
+            ? m_organization_coordsys_id.value()
+            : 0,
         STRING_WITH_LEN("organization_coordsys_id"));
   write(w, m_definition, STRING_WITH_LEN("definition"));
-  write(w, m_description, STRING_WITH_LEN("description"));
+  write(w, !m_description.has_value(), STRING_WITH_LEN("description_null"));
+  write(w, m_description.has_value() ? m_description.value() : "",
+        STRING_WITH_LEN("description"));
   w->EndObject();
 }
 
@@ -140,10 +160,29 @@ bool Spatial_reference_system_impl::deserialize(Sdi_rcontext *rctx,
   Entity_object_impl::deserialize(rctx, val);
   read(&m_last_altered, val, "last_altered");
   read(&m_created, val, "created");
-  read(&m_organization, val, "organization");
-  read(&m_organization_coordsys_id, val, "organization_coordsys_id");
+  bool is_null;
+  read(&is_null, val, "organization_null");
+  if (!is_null)
+  {
+    String_type s;
+    read(&s, val, "organization");
+    m_organization= Mysql::Nullable<String_type>(s);
+  }
+  read(&is_null, val, "organization_coordsys_id_null");
+  if (!is_null)
+  {
+    gis::srid_t id= 0;
+    read(&id, val, "organization_coordsys_id");
+    m_organization_coordsys_id= Mysql::Nullable<gis::srid_t>(id);
+  }
   read(&m_definition, val, "definition");
-  read(&m_description, val, "description");
+  read(&is_null, val, "description_null");
+  if (!is_null)
+  {
+    String_type s;
+    read(&s, val, "description");
+    m_description= Mysql::Nullable<String_type>(s);
+  }
 
   return parse_definition();
 }

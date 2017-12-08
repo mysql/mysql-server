@@ -16,7 +16,10 @@
 #ifndef DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 #define DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 
+#include <cstddef>                        // std::nullptr_t
+
 #include "my_inttypes.h"
+#include "nullable.h"
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 #include "sql/dd/types/entity_object.h"   // dd::Entity_object
 #include "sql/gis/srid.h"
@@ -87,16 +90,19 @@ public:
   // organization
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &organization() const = 0;
+  virtual const Mysql::Nullable<String_type> &organization() const = 0;
   virtual void set_organization(const String_type &organization) = 0;
+  virtual void set_organization(std::nullptr_t) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // organization_coordsys_id
   /////////////////////////////////////////////////////////////////////////
 
-  virtual gis::srid_t organization_coordsys_id() const = 0;
+  virtual const Mysql::Nullable<gis::srid_t> &organization_coordsys_id()
+      const = 0;
   virtual void
     set_organization_coordsys_id(gis::srid_t organization_coordsys_id) = 0;
+  virtual void set_organization_coordsys_id(std::nullptr_t) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // definition
@@ -129,8 +135,9 @@ public:
   // description
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &description() const = 0;
+  virtual const Mysql::Nullable<String_type> &description() const = 0;
   virtual void set_description(const String_type &description) = 0;
+  virtual void set_description(std::nullptr_t) = 0;
 
   /**
     Allocate a new object and invoke the copy constructor
