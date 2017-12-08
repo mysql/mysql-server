@@ -2445,8 +2445,15 @@ bool Dictionary_client::store(T* object)
   // Store dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);
 
-  // Make sure the object has an invalid object id.
-  DBUG_ASSERT(object->id() == INVALID_OBJECT_ID);
+  // Most DD objects have invalid object IDs when they're created. The ID is
+  // replaced with an auto-generated (AUTO_INCREMENT) value when they are
+  // stored.
+  //
+  // Spatial reference systems are different since the ID is the SRID, which is
+  // a user specified value. Therefore, spatial reference systems have valid IDs
+  // at this point, while other objects do not.
+  DBUG_ASSERT(object->id() == INVALID_OBJECT_ID ||
+              dynamic_cast<Spatial_reference_system *>(object));
 
   // Check proper MDL lock.
   DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
