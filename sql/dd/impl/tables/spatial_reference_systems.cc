@@ -60,7 +60,8 @@ Spatial_reference_systems::Spatial_reference_systems()
                          "DEFAULT CURRENT_TIMESTAMP");
   m_target_def.add_field(FIELD_ORGANIZATION,
                          "FIELD_ORGANIZATION",
-                         "organization CHARACTER VARYING(256)\n");
+                         "organization CHARACTER VARYING(256)\n"
+                         "COLLATE utf8_general_ci");
   m_target_def.add_field(FIELD_ORGANIZATION_COORDSYS_ID,
                          "FIELD_ORGANIZATION_COORDSYS_ID",
                          "organization_coordsys_id INTEGER UNSIGNED");
@@ -73,10 +74,17 @@ Spatial_reference_systems::Spatial_reference_systems()
                          "description CHARACTER VARYING(2048)");
 
   m_target_def.add_index("PRIMARY KEY (id)");
-  m_target_def.add_index("UNIQUE KEY (catalog_id, name)");
+  m_target_def.add_index("UNIQUE KEY SRS_NAME (catalog_id, name)");
+  m_target_def.add_index(
+      "UNIQUE KEY ORGANIZATION_AND_ID (catalog_id, organization, "
+      "organization_coordsys_id)");
 
-  m_target_def.add_foreign_key("FOREIGN KEY (catalog_id) REFERENCES \
-                                  catalogs(id)");
+  m_target_def.add_foreign_key(
+      "FOREIGN KEY (catalog_id) REFERENCES catalogs(id)");
+
+  m_target_def.add_populate_statement(
+      "INSERT INTO st_spatial_reference_systems (id, catalog_id, name, "
+      "definition) VALUES (0, 1, '', '')");
 }
 
 

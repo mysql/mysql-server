@@ -1607,7 +1607,7 @@ struct dict_sys_t{
 	static constexpr table_id_t	s_dynamic_meta_table_id = 33;
 
 	/** The clustered index ID of mysql.innodb_dynamic_metadata */
-        static constexpr space_index_t	s_dynamic_meta_index_id = 90;
+        static constexpr space_index_t	s_dynamic_meta_index_id = 91;
 };
 
 /** Structure for persisting dynamic metadata of data dictionary */
