@@ -1194,7 +1194,7 @@ void THD::awake(THD::killed_state state_to_set)
     While exiting kill immune mode, awake() is called again with the killed
     state saved in THD::kill_immunizer object.
   */
-  if (kill_immunizer)
+  if (kill_immunizer && kill_immunizer->is_active())
   {
     kill_immunizer->save_killed_state(state_to_set);
     DBUG_VOID_RETURN;
@@ -1217,8 +1217,10 @@ void THD::awake(THD::killed_state state_to_set)
 
   if (state_to_set != THD::KILL_QUERY && state_to_set != THD::KILL_TIMEOUT)
   {
-    if (this != current_thd)
+    if (this != current_thd || kill_immunizer)
     {
+      DBUG_ASSERT(!kill_immunizer || !kill_immunizer->is_active());
+
       /*
         Before sending a signal, let's close the socket of the thread
         that is being killed ("this", which is not the current thread).
