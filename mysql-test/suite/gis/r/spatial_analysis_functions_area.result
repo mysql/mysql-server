@@ -382,13 +382,6 @@ ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 2000))
 # Geographic SRS (should fail)
 SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
 ERROR 22S00: st_area(POINT) has not been implemented for geographic spatial reference systems.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (5000001, 1, 'TEST5000001', 'Foo', 5000001, 'FOOBAR', '');
-SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 5000001));
-ERROR SR002: Can't parse the spatial reference system definition of SRID 5000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 5000001;
 #
 # WL#11096 Don't do Cartesian computations on geographic geometries
 #

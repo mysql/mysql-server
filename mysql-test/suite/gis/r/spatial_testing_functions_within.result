@@ -2281,21 +2281,6 @@ ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 )
 1
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (25000001, 1, 'TEST25000001', 'Foo', 25000001, 'FOOBAR', '');
-SELECT ST_WITHIN(
-ST_GEOMFROMTEXT('POINT(0 0)', 25000001),
-ST_GEOMFROMTEXT('POINT(0 0)', 25000001)
-);
-ERROR SR002: Can't parse the spatial reference system definition of SRID 25000001.
-SELECT MBRWITHIN(
-ST_GEOMFROMTEXT('POINT(0 0)', 25000001),
-ST_GEOMFROMTEXT('POINT(0 0)', 25000001)
-);
-ERROR SR002: Can't parse the spatial reference system definition of SRID 25000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 25000001;
 #
 # WL#10827 Ellipsoidal R-tree support functions
 #

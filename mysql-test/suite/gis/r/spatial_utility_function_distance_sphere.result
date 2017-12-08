@@ -526,13 +526,6 @@ ERROR 22S00: st_distance_sphere(POINT, POINT) has not been implemented for proje
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)', 4326));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)', 4326))
 157249.59776850493
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (33333333, 1, 'TEST33333333', 'Foo', 33333333, 'FOOBAR', '');
-SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 33333333), ST_GEOMFROMTEXT('POINT(1 1)', 33333333));
-ERROR SR002: Can't parse the spatial reference system definition of SRID 33333333.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 33333333;
 #
 # WL#11096 Don't do Cartesian computations on geographic geometries
 #

@@ -1647,15 +1647,6 @@ SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
 --echo # Geographic SRS (should pass)
 SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
 
---echo # Unparseable SRS definition (should fail)
-# Assume SRID 19000001 is undefined
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (19000001, 1, 'TEST19000001', 'Foo', 19000001, 'FOOBAR', '');
---error ER_SRS_PARSE_ERROR
-SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 19000001));
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 19000001;
-
 --echo #
 --echo # WL#8579 Spatial Reference Systems
 --echo # GIS functions that do not depend on any SRS
@@ -1710,18 +1701,9 @@ CALL geom_prop_func(2000);
 --error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
 CALL geom_prop_func(4326);
 
---echo # Unparseable SRS definition (should fail)
-# Assume SRID 44444444 is undefined
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (44444444, 1, 'TEST44444444', 'Foo', 44444444, 'FOOBAR', '');
---error ER_SRS_PARSE_ERROR
-CALL geom_prop_func(44444444);
-
 # clean up
 
 DROP PROCEDURE geom_prop_func;
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 44444444;
 
 --echo #
 --echo # WL#11096 Don't do Cartesian computations on geographic geometries

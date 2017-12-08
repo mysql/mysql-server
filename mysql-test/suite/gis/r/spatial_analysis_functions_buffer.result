@@ -1217,13 +1217,6 @@ DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 2000), 1));
 # Geographic SRS (should fail)
 DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 1));
 ERROR 22S00: st_buffer(POINT, ...) has not been implemented for geographic spatial reference systems.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (6000001, 1, 'TEST6000001', 'Foo', 6000001, 'FOOBAR', '');
-DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 6000001), 1));
-ERROR SR002: Can't parse the spatial reference system definition of SRID 6000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 6000001;
 #
 # Bug #24947868 BOOST::GEOMETRY::BUFFER RETURNS INVALID MULTIPOLYGON
 #

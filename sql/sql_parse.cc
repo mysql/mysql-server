@@ -6272,16 +6272,12 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
               lex->sql_command != SQLCOM_ALTER_TABLE,
              ptr->db, ptr->db_length, ptr->table_name))
   {
-    // TODO: Allow access to 'st_spatial_reference_systems' until
-    // dedicated DDL statements for adding reference systems are
-    // implemented.
     // We must allow creation of the system views even for non-system
     // threads since this is expected by the mysql_upgrade utility.
     if (!(lex->sql_command == SQLCOM_CREATE_VIEW &&
           dd::get_dictionary()->is_system_view_name(
                                   lex->query_tables->db,
-                                  lex->query_tables->table_name)) &&
-        strcmp(ptr->table_name, "st_spatial_reference_systems"))
+                                  lex->query_tables->table_name)))
     {
       my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
                ER_THD(thd, dictionary->table_type_error_code(ptr->db,
