@@ -29,25 +29,6 @@ Innodb copy snapshot data
 #include "buf0dump.h"
 #include "dict0dict.h"
 
-/** Callback to add a tablespace file node to current snapshot
-@param[in]	node	file node
-@param[in]	context	snapshot
-@return	error code */
-static dberr_t
-add_node_callback(
-	fil_node_t*	node,
-	void*		context)
-{
-	dberr_t err;
-
-	Clone_Snapshot*	snapshot;
-	snapshot = static_cast<Clone_Snapshot*>(context);
-
-	err = snapshot->add_node(node);
-
-	return(err);
-}
-
 /** Callback to add an archived redo file to current snapshot
 @param[in]	file_name	file name
 @param[in]	file_size	file size in bytes
@@ -204,18 +185,14 @@ Clone_Snapshot::init_file_copy()
 		return(err);
 	}
 
-	/* Collect data file metadata from tablespace nodes. */
-	void*	context;
-	bool	include_log;
-
-	context = static_cast<void*>(this);
-
-	/* For blocking clone, include redo files in file list. */
-	include_log = (m_snapshot_type == HA_CLONE_BLOCKING);
+	/* Do not include redo files in file list. */
+	bool	include_log = (m_snapshot_type == HA_CLONE_BLOCKING);
 
 	/* Iterate all tablespace files and add persistent data files. */
-	err = fil_iterate_tablespace_files(include_log,
-		context, add_node_callback);
+	err = Fil_iterator::for_each_file(include_log, [&] (fil_node_t* file)
+	{
+		return(add_node(file));
+	});
 
 	if (err != DB_SUCCESS) {
 
@@ -783,14 +760,16 @@ Clone_Handle::send_file_metadata(
 		ut_ad(file_desc.m_state == CLONE_SNAPSHOT_FILE_COPY);
 		ut_ad(file_meta->m_file_index == 0);
 
-		file_desc.m_file_meta.m_file_name = SRV_BUF_DUMP_FILENAME_DEFAULT;
+		file_desc.m_file_meta.m_file_name =
+			SRV_BUF_DUMP_FILENAME_DEFAULT;
+
 		file_desc.m_file_meta.m_file_name_len
 			= static_cast<uint32_t>(
 				strlen(SRV_BUF_DUMP_FILENAME_DEFAULT)) + 1;
 
 	} else if (!fsp_is_ibd_tablespace(
 			static_cast<space_id_t>(file_meta->m_space_id))
-		   && is_absolute_path(file_meta->m_file_name)) {
+		   && Fil_path::is_absolute_path(file_meta->m_file_name)) {
 
 		/* For system tablespace, remove absolute path. */
 		ut_ad(file_desc.m_state == CLONE_SNAPSHOT_FILE_COPY);

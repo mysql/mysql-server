@@ -1228,6 +1228,7 @@ ERROR HY000: MySQL server has gone away
 #
 # Bug#23743035: ADD A COPY_FILES_WILDCARD COMMAND
 #
+README_tablespace_portable_linux.txt
 bug20683959loaddata.txt
 bug30435_10k_items.txt
 bug30435_5k.txt
@@ -1252,6 +1253,7 @@ numbers.txt
 wl5766_data.txt
 words.dat
 words2.dat
+README_tablespace_portable_linux.txt
 bug20683959loaddata.txt
 bug30435_10k_items.txt
 bug30435_5k.txt

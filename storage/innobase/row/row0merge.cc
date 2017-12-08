@@ -3640,23 +3640,24 @@ row_merge_file_create_low(
 	performance schema */
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
+
 	locker = PSI_FILE_CALL(get_thread_file_name_locker)(
-				&state, innodb_temp_file_key.m_value,
-				PSI_FILE_OPEN,
-				"Innodb Merge Temp File", &locker);
+		&state, innodb_temp_file_key.m_value, PSI_FILE_OPEN,
+		"Innodb Merge Temp File", &locker);
+
 	if (locker != NULL) {
-		PSI_FILE_CALL(start_file_open_wait)(locker,
-						__FILE__,
-						__LINE__);
+		PSI_FILE_CALL(start_file_open_wait)(locker, __FILE__, __LINE__);
 	}
-#endif
+#endif /* UNIV_PFS_IO */
 	fd = innobase_mysql_tmpfile(path);
 #ifdef UNIV_PFS_IO
 	 if (locker != NULL) {
+
 		PSI_FILE_CALL(end_file_open_wait_and_bind_to_descriptor)(
-				locker, fd);
-		}
-#endif
+			locker, fd);
+
+	}
+#endif /* UNIV_PFS_IO */
 
 	if (fd < 0) {
 		ib::error() << "Cannot create temporary merge file";
@@ -3741,19 +3742,12 @@ row_make_new_pathname(
 	dict_table_t*	table,		/*!< in: table to be renamed */
 	const char*	new_name)	/*!< in: new name */
 {
-	char*	new_path;
-	char*	old_path;
-
 	ut_ad(dict_table_is_file_per_table(table));
 
-	old_path = fil_space_get_first_path(table->space);
-	ut_a(old_path);
+	auto	old_path = fil_space_get_first_path(table->space);
+	auto	new_path = Fil_path::make_new_ibd(old_path, new_name);
 
-	new_path = os_file_make_new_pathname(old_path, new_name);
-
-	ut_free(old_path);
-
-	return(new_path);
+	return(mem_strdup(new_path.c_str()));
 }
 
 /** Create the index and load in to the dictionary.
