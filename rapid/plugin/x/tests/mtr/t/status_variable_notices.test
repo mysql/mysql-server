@@ -6,7 +6,7 @@
 ## Test starts here
 --let $xtest_result= $MYSQL_TMP_DIR/status_variable_notices.tmp
 --write_file $xtest_result
--->import assert_status_variable.macro
+-->import assert_variable.macro
 -->quiet
 -->stmtadmin enable_notices	{"notice":["warnings"]}
 -->recvresult

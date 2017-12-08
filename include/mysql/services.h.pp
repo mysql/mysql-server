@@ -14,6 +14,7 @@ extern "C" struct srv_session_service_st
   int (*detach_session)(MYSQL_SESSION session);
   int (*close_session)(MYSQL_SESSION session);
   int (*server_is_available)();
+  int (*attach_session)(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd);
 } *srv_session_service;
 int srv_session_init_thread(const void *plugin);
 void srv_session_deinit_thread();
@@ -21,6 +22,7 @@ MYSQL_SESSION srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx);
 int srv_session_detach(MYSQL_SESSION session);
 int srv_session_close(MYSQL_SESSION session);
 int srv_session_server_is_available();
+int srv_session_attach(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd);
 #include "mysql/com_data.h"
 struct COM_INIT_DB_DATA
 {

@@ -15,3 +15,21 @@
 -->callmacro Assert_status_variable	Mysqlx_notice_warning_sent	%MYSQLXTEST_NO_OF_WARNINGS%
 -->endmacro
 
+
+-->macro Assert_global_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
+-->quiet
+-->stmtsql SHOW GLOBAL VARIABLES LIKE '%VARIABLE_NAME%';
+-->recvtovar %VARIABLE_VALUE% Value
+-->echo Verify [Global variable "%VARIABLE_NAME%" needs to have a value of %EXPECTED_VALUE%]
+-->assert_eq %EXPECTED_VALUE%	%VARIABLE_VALUE%
+-->noquiet
+-->endmacro
+
+-->macro Assert_session_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
+-->quiet
+-->stmtsql SELECT @@%VARIABLE_NAME% as Value;
+-->recvtovar %VARIABLE_VALUE% Value
+-->echo Verify [Session variable "%VARIABLE_NAME%" needs to have a value of %EXPECTED_VALUE%]
+-->assert_eq %EXPECTED_VALUE%	%VARIABLE_VALUE%
+-->noquiet
+-->endmacro

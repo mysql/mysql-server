@@ -120,6 +120,11 @@ public:
   */
   static unsigned int thread_count(const void *plugin_name);
 
+  /**
+    Check if current physical thread was created to be used with this class.
+  */
+  static bool is_srv_session_thread();
+
 
   /* Non-static members follow */
 

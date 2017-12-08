@@ -28,7 +28,6 @@
 #undef max_allowed_packet
 #endif // max_allowed_packet
 
-
 struct SYS_VAR;
 class THD;
 
@@ -67,11 +66,12 @@ public:
   static char        *socket;
   static unsigned int port_open_timeout;
   static char        *bind_address;
+  static uint32_t     m_interactive_timeout;
 
   static Ssl_config ssl_config;
 
 public:
-  typedef ngs::function<void()> Value_changed_callback;
+  typedef ngs::function<void(THD*)> Value_changed_callback;
 
   static void clean_callbacks();
   static void registry_callback(Value_changed_callback callcback);
@@ -83,22 +83,18 @@ public:
   static void setup_system_variable_from_env_or_compile_opt(char *&cnf_option, const char *env_variable, const char *compile_option);
 
 private:
-  struct Executor
-  {
-    void operator() (const Value_changed_callback & callback) { callback(); };
-  };
-
   static const char *get_system_variable_impl(const char *cnf_option, const char *env_variable, const char *compile_option);
 
   static std::vector<Value_changed_callback> m_callbacks;
 };
 
 template<typename Copy_type>
-void Plugin_system_variables::update_func(THD*, SYS_VAR*, void *tgt, const void *save)
+void Plugin_system_variables::update_func(THD *thd, SYS_VAR*, void *tgt, const void *save)
 {
   *(Copy_type*)tgt = *(Copy_type*) save;
 
-  std::for_each(m_callbacks.begin(), m_callbacks.end(), Executor());
+  std::for_each(m_callbacks.begin(), m_callbacks.end(),
+      [&thd](const Value_changed_callback &callback) { callback(thd); });
 }
 
 } // namespace xpl

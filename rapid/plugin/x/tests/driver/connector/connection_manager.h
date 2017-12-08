@@ -47,6 +47,7 @@ class Connection_manager {
   void safe_close(const std::string &name);
 
   void connect_default(const bool send_cap_password_expired = false,
+                       const bool client_interactive = false,
                        const bool no_auth = false,
                        const bool use_plain_auth = false);
   void create(const std::string &name, const std::string &user,

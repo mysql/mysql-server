@@ -42,6 +42,7 @@ class Driver_command_line_options : public Command_line_options {
   std::string m_run_file;
   bool        m_has_file;
   bool        m_cap_expired_password;
+  bool        m_client_interactive;
   bool        m_use_plain_auth;
 
   Execution_context::Options m_context_options;

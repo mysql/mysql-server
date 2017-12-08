@@ -34,6 +34,7 @@ unsigned int Plugin_system_variables::connect_timeout;
 char        *Plugin_system_variables::socket;
 unsigned int Plugin_system_variables::port_open_timeout;
 char        *Plugin_system_variables::bind_address;
+uint32_t     Plugin_system_variables::m_interactive_timeout;
 
 Ssl_config Plugin_system_variables::ssl_config;
 

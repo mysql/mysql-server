@@ -38,29 +38,6 @@
 
 typedef Vio Vio;
 
-PSI_thread_key KEY_thread_x_worker = PSI_NOT_INSTRUMENTED;
-PSI_thread_key KEY_thread_x_acceptor = PSI_NOT_INSTRUMENTED;
-
-PSI_mutex_key KEY_mutex_x_client_session = PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_obuffer = PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_lock_list_access = PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_scheduler_dynamic_worker_pending = PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_scheduler_dynamic_thread_exit = PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_queue = PSI_NOT_INSTRUMENTED;
-
-PSI_cond_key KEY_cond_x_scheduler_dynamic_worker_pending = PSI_NOT_INSTRUMENTED;
-PSI_cond_key KEY_cond_x_scheduler_dynamic_thread_exit = PSI_NOT_INSTRUMENTED;
-PSI_cond_key KEY_cond_x_queue = PSI_NOT_INSTRUMENTED;
-
-PSI_rwlock_key KEY_rwlock_x_client_list_clients = PSI_NOT_INSTRUMENTED;
-
-PSI_memory_key KEY_memory_x_recv_buffer = PSI_NOT_INSTRUMENTED;
-PSI_memory_key KEY_memory_x_send_buffer = PSI_NOT_INSTRUMENTED;
-
-PSI_socket_key KEY_socket_x_tcpip = PSI_NOT_INSTRUMENTED;
-PSI_socket_key KEY_socket_x_unix = PSI_NOT_INSTRUMENTED;
-PSI_socket_key KEY_socket_x_client_connection = PSI_NOT_INSTRUMENTED;
-
 const char  *my_localhost;
 std::atomic<int32> connection_events_loop_aborted_flag;
 

@@ -301,7 +301,8 @@ bool Protocol_encoder::flush_buffer()
 
   if (is_valid_socket)
   {
-    const ssize_t result = m_socket->write(m_buffer->get_buffers());
+    const ssize_t result = m_socket->write(m_buffer->get_buffers(),
+        m_write_timeout);
     if (result <= 0)
     {
       log_info("Error writing to client: %s (%i)", strerror(errno), errno);
