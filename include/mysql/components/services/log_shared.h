@@ -18,7 +18,6 @@
 
 #include <mysql/mysql_lex_string.h>
 
-#include "my_basename.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 
@@ -26,6 +25,17 @@
 #ifndef LOG_SUBSYSTEM_TAG
 #define LOG_SUBSYSTEM_TAG NULL
 #endif
+
+#ifndef MY_BASENAME
+constexpr int basename_index(const char * const path, const int index)
+{
+  return (path [index] == '/' || path [index] == '\\') ?
+    index + 1 : basename_index(path, index - 1);
+}
+
+#define MY_BASENAME __FILE__ + basename_index(__FILE__, sizeof(__FILE__) - 1)
+#endif
+
 
 /**
   The logging sub-system internally uses the log_line structure to pass

@@ -179,7 +179,7 @@ TEST(ut0new, edgecases)
 #ifdef UNIV_PFS_MEMORY
 	ret = alloc1.allocate(16);
 	ASSERT_TRUE(ret != NULL);
-	ret = alloc1.reallocate(ret, 0, THIS_FILE_PSI_KEY);
+	ret = alloc1.reallocate(ret, 0, __FILE__);
 	EXPECT_EQ(null_ptr, ret);
 
 	ret = UT_NEW_ARRAY_NOKEY(byte, 0);
@@ -195,7 +195,7 @@ TEST(ut0new, edgecases)
 #ifdef UNIV_PFS_MEMORY
 	ret = alloc2.allocate(16);
 	ASSERT_TRUE(ret != NULL);
-	void *ret2 = alloc2.reallocate(ret, too_many_elements, THIS_FILE_PSI_KEY);
+	void *ret2 = alloc2.reallocate(ret, too_many_elements, __FILE__);
 	EXPECT_EQ(null_ptr, ret2);
 	/* If reallocate fails due to too many elements,
 	memory is still allocated. Do explicit deallocate do avoid mem leak. */
@@ -211,7 +211,7 @@ TEST(ut0new, edgecases)
 	}
 	EXPECT_TRUE(threw);
 
-	ret = alloc2.allocate(too_many_elements, NULL, PSI_NOT_INSTRUMENTED, false, false);
+	ret = alloc2.allocate(too_many_elements, NULL, NULL, false, false);
 	EXPECT_EQ(null_ptr, ret);
 
 	threw = false;
