@@ -78,7 +78,9 @@ void check_exit_hook()
 } // namespace
 
 
+#ifndef XPLUGIN_UNIT_TESTS
 static SERVICE_TYPE(registry) *reg_srv= nullptr;
+#endif
 SERVICE_TYPE(log_builtins) *log_bi= nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
 
