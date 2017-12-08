@@ -24,7 +24,6 @@
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/foreign_key_element.h" // dd::Foreign_key_element
-#include "sql/dd/types/object_type.h"        // dd::Object_id
 
 namespace dd {
 
@@ -66,8 +65,9 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return Foreign_key_element::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
+
+  static void register_tables(Open_dictionary_tables_ctx *otx);
 
   virtual bool validate() const;
 
@@ -141,17 +141,6 @@ private:
   const Column *m_column;
   uint m_ordinal_position;
   String_type m_referenced_column_name;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Foreign_key_element_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Foreign_key_element_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

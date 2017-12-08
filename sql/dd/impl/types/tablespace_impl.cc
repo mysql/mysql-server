@@ -43,7 +43,8 @@
 #include "sql/dd/impl/tables/tablespaces.h"          // Tablespaces
 #include "sql/dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "sql/dd/types/partition.h"                  // Partition
-#include "sql/dd/types/partition_index.h"            // Partition_index
+#include "sql/dd/impl/types/index_impl.h"            // Index_impl
+#include "sql/dd/impl/types/partition_index_impl.h"  // Partition_index_impl
 #include "sql/dd/impl/types/tablespace_file_impl.h"  // Tablespace_file_impl
 #include "sql/dd/properties.h"
 #include "sql/dd/string_type.h"                      // dd::String_type
@@ -75,23 +76,6 @@ namespace dd {
 
 class Sdi_rcontext;
 class Sdi_wcontext;
-
-///////////////////////////////////////////////////////////////////////////
-// Tablespace implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Entity_object_table &Tablespace::OBJECT_TABLE()
-{
-  return Tablespaces::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Tablespace::TYPE()
-{
-  static Tablespace_type s_instance;
-  return s_instance;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 // Tablespace_impl implementation.
@@ -143,7 +127,7 @@ bool Tablespace_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Tablespace_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "No files associated with this tablespace.");
     return true;
   }
@@ -152,7 +136,7 @@ bool Tablespace_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Tablespace_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Engine name is not set.");
     return true;
   }
@@ -269,7 +253,7 @@ Tablespace_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Tablespace::update_id_key(id_key_type *key, Object_id id)
+bool Tablespace::update_id_key(Id_key *key, Object_id id)
 {
   key->update(id);
   return false;
@@ -277,7 +261,7 @@ bool Tablespace::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Tablespace::update_name_key(name_key_type *key,
+bool Tablespace::update_name_key(Name_key *key,
                                       const String_type &name)
 { return Tablespaces::update_object_key(key, name); }
 
@@ -364,10 +348,15 @@ bool Tablespace_impl::remove_file(String_type data_file)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Tablespace_type implementation.
+
+const Object_table &Tablespace_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Tablespace_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Tablespace_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Tablespaces>();
 

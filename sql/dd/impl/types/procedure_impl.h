@@ -24,7 +24,6 @@
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/object_type.h"          // dd::Object_type
 #include "sql/dd/types/procedure.h"            // dd::Procedure
 #include "sql/dd/types/routine.h"
 #include "sql/dd/types/view.h"
@@ -50,7 +49,7 @@ public:
 
 public:
 
-  virtual bool update_routine_name_key(name_key_type *key,
+  virtual bool update_routine_name_key(Name_key *key,
                                        Object_id schema_id,
                                        const String_type &name) const;
 
@@ -140,7 +139,7 @@ public:
   { return Routine_impl::add_parameter(); }
   virtual const Parameter_collection &parameters() const
   { return Routine_impl::parameters(); }
-  virtual bool update_name_key(name_key_type *key) const
+  virtual bool update_name_key(Name_key *key) const
   { return Routine::update_name_key(key); }
 
 private:
@@ -149,17 +148,6 @@ private:
   {
     return new Procedure_impl(*this);
   }
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Procedure_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Procedure_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -32,13 +32,6 @@ class Parameters : public Object_table_impl
 public:
   static const Parameters &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("parameters");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_ID,
@@ -58,13 +51,21 @@ public:
     FIELD_OPTIONS
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_ROUTINE_ID_ORDINAL_POSITION,
+    INDEX_K_COLLATION_ID
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_ROUTINE_ID,
+    FK_COLLATION_ID
+  };
+
   Parameters();
 
-  virtual const String_type &name() const
-  { return Parameters::table_name(); }
-
-public:
   static Object_key *create_key_by_routine_id(Object_id routine_id);
 
   static Object_key *create_primary_key(Object_id routine_id,

@@ -23,6 +23,29 @@
 #include "mysql/udf_registration_types.h"
 #include "sql/dd/dd_kill_immunizer.h" // dd::DD_kill_immunizer
 #include "sql/dd/string_type.h"       // dd::String_type
+#include "sql/dd/impl/types/abstract_table_impl.h"
+#include "sql/dd/impl/types/charset_impl.h"
+#include "sql/dd/impl/types/collation_impl.h"
+#include "sql/dd/impl/types/column_impl.h"
+#include "sql/dd/impl/types/column_statistics_impl.h"
+#include "sql/dd/impl/types/event_impl.h"
+#include "sql/dd/impl/types/foreign_key_impl.h"
+#include "sql/dd/impl/types/function_impl.h"
+#include "sql/dd/impl/types/index_stat_impl.h"
+#include "sql/dd/impl/types/parameter_impl.h"
+#include "sql/dd/impl/types/partition_impl.h"
+#include "sql/dd/impl/types/procedure_impl.h"
+#include "sql/dd/impl/types/resource_group_impl.h"
+#include "sql/dd/impl/types/routine_impl.h"
+#include "sql/dd/impl/types/schema_impl.h"
+#include "sql/dd/impl/types/spatial_reference_system_impl.h"
+#include "sql/dd/impl/types/table_impl.h"
+#include "sql/dd/impl/types/table_stat_impl.h"
+#include "sql/dd/impl/types/tablespace_impl.h"
+#include "sql/dd/impl/types/trigger_impl.h"
+#include "sql/dd/impl/types/view_impl.h"
+#include "sql/dd/impl/types/view_routine_impl.h"
+#include "sql/dd/impl/types/view_table_impl.h"
 #include "sql/discrete_interval.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -56,15 +79,15 @@ public:
 
   template <typename T>
   Raw_table *get_table() const
-  { return get_table(T::OBJECT_TABLE().name()); }
+  { return get_table(T::DD_table::instance().name()); }
 
   template <typename X>
   void register_tables()
-  { X::TYPE().register_tables(this); }
+  { X::Impl::register_tables(this); }
 
   template <typename X>
   void add_table()
-  { this->add_table(X::table_name()); }
+  { this->add_table(X::instance().name()); }
 
   /**
     Open all the DD tables in list Open_dictionary_tables_ctx::m_tables.

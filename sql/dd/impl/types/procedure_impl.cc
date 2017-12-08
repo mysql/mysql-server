@@ -29,18 +29,10 @@ using dd::tables::Routines;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// Procedure implementation.
+// Procedure_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-const Object_type &Procedure::TYPE()
-{
-  static Procedure_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-bool Procedure_impl::update_routine_name_key(name_key_type *key,
+bool Procedure_impl::update_routine_name_key(Name_key *key,
                                              Object_id schema_id,
                                              const String_type &name) const
 {
@@ -50,7 +42,7 @@ bool Procedure_impl::update_routine_name_key(name_key_type *key,
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Procedure::update_name_key(name_key_type *key,
+bool Procedure::update_name_key(Name_key *key,
                                 Object_id schema_id,
                                 const String_type &name)
 {
@@ -75,18 +67,6 @@ void Procedure_impl::debug_print(String_type &outb) const
   << "} ";
 
   outb= ss.str();
-}
-
-
-///////////////////////////////////////////////////////////////////////////
-// Procedure_type implementation.
-///////////////////////////////////////////////////////////////////////////
-
-void Procedure_type::register_tables(Open_dictionary_tables_ctx *otx) const
-{
-  otx->add_table<Routines>();
-
-  otx->register_tables<Parameter>();
 }
 
 ///////////////////////////////////////////////////////////////////////////

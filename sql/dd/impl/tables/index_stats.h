@@ -39,12 +39,6 @@ public:
 
   static const Index_stats &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("index_stats");
-    return s_table_name;
-  }
-
   enum enum_fields
   {
     FIELD_SCHEMA_NAME,
@@ -55,15 +49,19 @@ public:
     FIELD_CACHED_TIME
   };
 
-public:
-  virtual const String_type &name() const
-  { return Index_stats::table_name(); }
+  enum enum_indexes
+  {
+    INDEX_UK_SCHEMA_TABLE_INDEX_COLUMN
+  };
+
+  enum enum_foreign_keys
+  {
+  };
 
   virtual Index_stat *create_entity_object(const Raw_record &) const
   { return new (std::nothrow) Index_stat_impl(); }
 
-public:
-  static Index_stat::name_key_type *create_object_key(
+  static Index_stat::Name_key *create_object_key(
                                       const String_type &schema_name,
                                       const String_type &table_name,
                                       const String_type &index_name,

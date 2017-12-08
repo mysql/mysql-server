@@ -6611,7 +6611,7 @@ OBSOLETE_ER_NO_SUCH_PARTITION__UNUSED
   nor "Partition '%-.64s' doesn't exist"
   norwegian-ny "Partition '%-.64s' doesn't exist"
   pol "Partition '%-.64s' doesn't exist"
-  por "Particion '%-.64s' n�o existe"
+  por "Particion '%-.64s' n?o existe"
   rum "Partition '%-.64s' nu exista"
   serbian "Partition '%-.64s' ne postoji"
   slo "Partition '%-.64s' doesn't exist"
@@ -8106,13 +8106,13 @@ ER_DD_NO_WRITES_NO_REPOPULATION
   eng "Skip re-populating collations and character sets tables in %s%sread-only mode."
 
 ER_DD_VERSION_FOUND
-  eng "Found data dictionary with version %d"
+  eng "Using data dictionary with version '%d'."
 
 ER_DD_VERSION_INSTALLED
-  eng "Installed data dictionary with version %d"
+  eng "Installed data dictionary with version '%d'."
 
 ER_DD_VERSION_UNSUPPORTED
-  eng "Data Dictionary version %d not supported"
+  eng "Data Dictionary version '%d' not supported."
 
 ER_VIEW_UNKNOWN_CHARSET_OR_COLLATION
   eng "View '%s'.'%s': unknown charset name and/or collation name (client: '%s'; connection: '%s')."
@@ -11547,6 +11547,35 @@ ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE SR006
 ER_SRS_ATTRIBUTE_STRING_TOO_LONG SR006
   eng "Attribute %s is too long. The maximum length is %u characters."
 
+ER_LCTN_CHANGED
+  eng "Different lower_case_table_names settings for server ('%u') and data dictionary ('%u')."
+
+ER_DD_INITIALIZE
+  eng "Data dictionary initializing version '%u'."
+
+ER_DD_RESTART
+  eng "Data dictionary restarting version '%u'."
+
+ER_DD_UPGRADE
+  eng "Data dictionary upgrading from version '%u' to '%u'."
+
+ER_DD_UPGRADE_OFF
+  eng "Data dictionary upgrade prohibited by the command line option '--no_dd_upgrade'."
+
+ER_DD_UPGRADE_VERSION_NOT_SUPPORTED
+  eng "Upgrading the data dictionary from dictionary version '%u' is not supported."
+
+ER_DD_UPGRADE_SCHEMA_UNAVAILABLE
+  eng "Upgrading the data dictionary failed, temporary schema name '%-.192s' not available."
+
+ER_DD_MINOR_DOWNGRADE
+  eng "Data dictionary minor downgrade from version '%u' to '%u'."
+
+ER_DD_MINOR_DOWNGRADE_VERSION_NOT_SUPPORTED
+  eng "Minor downgrade of the Data dictionary from dictionary version '%u' is not supported."
+
+ER_DD_NO_VERSION_FOUND
+  eng "No data dictionary version number found."
 #
 #  End of 8.0 error messages.
 #

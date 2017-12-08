@@ -38,12 +38,6 @@ class Spatial_reference_systems : public Entity_object_table_impl
 public:
   static const Spatial_reference_systems &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("st_spatial_reference_systems");
-    return s_table_name;
-  }
-
   enum enum_fields
   {
     FIELD_ID,
@@ -54,13 +48,23 @@ public:
     FIELD_ORGANIZATION,
     FIELD_ORGANIZATION_COORDSYS_ID,
     FIELD_DEFINITION,
-    FIELD_DESCRIPTION
+    FIELD_DESCRIPTION,
+    FIELD_OPTIONS
+  };
+
+  enum enum_indexes
+  {
+    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_CATALOG_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+    INDEX_UK_CATALOG_ID_ORG_ID
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_CATALOG_ID
   };
 
   Spatial_reference_systems();
-
-  virtual const String_type &name() const
-  { return Spatial_reference_systems::table_name(); }
 
   virtual Spatial_reference_system*
     create_entity_object(const Raw_record &) const;

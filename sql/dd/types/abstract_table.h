@@ -25,10 +25,9 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Entity_object_table;
+class Abstract_table_impl;
 class Column;
 class Item_name_key;
-class Object_type;
 class Primary_id_key;
 class Properties;
 class Se_private_id_key;
@@ -63,29 +62,27 @@ enum class enum_table_type
 class Abstract_table : virtual public Entity_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Entity_object_table &OBJECT_TABLE();
-
-  typedef Abstract_table cache_partition_type;
-  typedef tables::Tables cache_partition_table_type;
-  typedef Primary_id_key id_key_type;
-  typedef Item_name_key name_key_type;
-  typedef Se_private_id_key aux_key_type;
+  typedef Abstract_table_impl Impl;
+  typedef Abstract_table Cache_partition;
+  typedef tables::Tables DD_table;
+  typedef Primary_id_key Id_key;
+  typedef Item_name_key Name_key;
+  typedef Se_private_id_key Aux_key;
   typedef Collection<Column*> Column_collection;
 
   // We need a set of functions to update a preallocated key.
-  virtual bool update_id_key(id_key_type *key) const
+  virtual bool update_id_key(Id_key *key) const
   { return update_id_key(key, id()); }
 
-  static bool update_id_key(id_key_type *key, Object_id id);
+  static bool update_id_key(Id_key *key, Object_id id);
 
-  virtual bool update_name_key(name_key_type *key) const
+  virtual bool update_name_key(Name_key *key) const
   { return update_name_key(key, schema_id(), name()); }
 
-  static bool update_name_key(name_key_type *key, Object_id schema_id,
+  static bool update_name_key(Name_key *key, Object_id schema_id,
                               const String_type &name);
 
-  virtual bool update_aux_key(aux_key_type*) const
+  virtual bool update_aux_key(Aux_key*) const
   { return true; }
 
 public:

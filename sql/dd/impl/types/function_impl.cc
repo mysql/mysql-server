@@ -33,15 +33,7 @@ using dd::tables::Routines;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// Function implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Function::TYPE()
-{
-  static Function_type s_instance;
-  return s_instance;
-}
-
+// Function_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 Function_impl::Function_impl()
@@ -69,7 +61,7 @@ bool Function_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Routine_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Result_collation_id ID is not set");
     return true;
   }
@@ -143,7 +135,7 @@ bool Function_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Function_impl::update_routine_name_key(name_key_type *key,
+bool Function_impl::update_routine_name_key(Name_key *key,
                                             Object_id schema_id,
                                             const String_type &name) const
 {
@@ -152,7 +144,7 @@ bool Function_impl::update_routine_name_key(name_key_type *key,
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Function::update_name_key(name_key_type *key,
+bool Function::update_name_key(Name_key *key,
                                Object_id schema_id,
                                const String_type &name)
 {
@@ -195,17 +187,6 @@ void Function_impl::debug_print(String_type &outb) const
   outb= ss.str();
 }
 /* purecov: end */
-
-///////////////////////////////////////////////////////////////////////////
-// Routine_type implementation.
-///////////////////////////////////////////////////////////////////////////
-
-void Function_type::register_tables(Open_dictionary_tables_ctx *otx) const
-{
-  otx->add_table<Routines>();
-
-  otx->register_tables<Parameter>();
-}
 
 ///////////////////////////////////////////////////////////////////////////
 

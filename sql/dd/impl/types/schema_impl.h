@@ -27,8 +27,7 @@
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/entity_object_table.h" // dd::Entity_object_table
-#include "sql/dd/types/object_type.h"         // dd::Object_type
-#include "sql/dd/types/schema.h"              // dd:Schema
+#include "sql/dd/types/schema.h"              // dd::Schema
 #include "sql/sql_time.h"                     // gmt_time_to_local_time
 
 class THD;
@@ -39,6 +38,7 @@ namespace dd {
 
 class Event;
 class Function;
+class Object_table;
 class Open_dictionary_tables_ctx;
 class Procedure;
 class Raw_record;
@@ -65,8 +65,7 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return Schema::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
 
@@ -75,6 +74,8 @@ public:
   virtual bool restore_attributes(const Raw_record &r);
 
 public:
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
   /////////////////////////////////////////////////////////////////////////
   // Default collation.
   /////////////////////////////////////////////////////////////////////////
@@ -161,17 +162,6 @@ private:
   {
     return new Schema_impl(*this);
   }
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Schema_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Schema_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

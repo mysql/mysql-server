@@ -42,12 +42,6 @@ public:
 
   static const Table_stats &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("table_stats");
-    return s_table_name;
-  }
-
   enum enum_fields
   {
     FIELD_SCHEMA_NAME,
@@ -65,16 +59,19 @@ public:
     FIELD_CACHED_TIME
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_SCHEMA_ID_TABLE_NAME
+  };
 
-  virtual const String_type &name() const
-  { return Table_stats::table_name(); }
+  enum enum_foreign_keys
+  {
+  };
 
   virtual Table_stat *create_entity_object(const Raw_record &) const
   { return new (std::nothrow) Table_stat_impl(); }
 
-public:
-  static Table_stat::name_key_type *create_object_key(const String_type &schema_name,
+  static Table_stat::Name_key *create_object_key(const String_type &schema_name,
                                                       const String_type &table_name);
 };
 

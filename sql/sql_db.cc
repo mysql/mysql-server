@@ -300,7 +300,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   bool schema_dir_exists= (mysql_file_stat(key_file_misc,
                                        path, &stat_info, MYF(0)) != NULL);
   if (thd->is_dd_system_thread() &&
-      (!opt_initialize || dd::upgrade::in_progress()) &&
+      (!opt_initialize || dd::upgrade_57::in_progress()) &&
       dd::get_dictionary()->is_dd_schema_name(db))
   {
     /*

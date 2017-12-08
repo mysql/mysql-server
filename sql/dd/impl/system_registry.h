@@ -373,15 +373,17 @@ public:
     - The dd::Table objects representing the SECOND order tables can be
       fetched from the dd tables as long as the core table objects are
       present.
-    - The SUPPORT tables are not needed by the data dictionary, but the
-      server manages these based on requests from e.g. storage engines.
+    - The DDSE tables are not needed by the data dictionary, but the
+      server manages these based on requests from the DD storage engine.
+    - The PFS tables are not needed by the data dictionary, but the
+      server manages these based on requests from the performance schema.
   */
   enum class Types
   {
     INERT,
     CORE,
     SECOND,
-    SUPPORT,
+    DDSE,
     PFS
   };
 
@@ -393,7 +395,7 @@ public:
       case Types::INERT:   return "INERT";
       case Types::CORE:    return "CORE";
       case Types::SECOND:  return "SECOND";
-      case Types::SUPPORT: return "SUPPORT";
+      case Types::DDSE:    return "DDSE";
       case Types::PFS:     return "PFS";
       default:             return "";
     }
@@ -405,7 +407,7 @@ public:
     if (type == Types::INERT || type == Types::CORE || type == Types::SECOND)
       return ER_NO_SYSTEM_TABLE_ACCESS_FOR_DICTIONARY_TABLE;
 
-    if (type == Types::SUPPORT || type ==Types::PFS)
+    if (type == Types::DDSE || type ==Types::PFS)
       return ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE;
 
     DBUG_ASSERT(false);
@@ -427,7 +429,8 @@ public:
   static System_tables *instance();
 
   // Add predefined system tables.
-  void init();
+  void add_inert_dd_tables();
+  void add_remaining_dd_tables();
 
   // Add a new system table by delegation to the wrapped registry.
   void add(const String_type &schema_name, const String_type &table_name,

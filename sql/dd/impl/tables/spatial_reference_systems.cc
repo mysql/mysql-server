@@ -21,6 +21,7 @@
 #include "m_ctype.h"
 #include "sql/dd/impl/raw/object_keys.h"                // Parent_id_range_key
 #include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/tables/dd_properties.h"               // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/dd/impl/types/spatial_reference_system_impl.h"// dd::Spatial_refere...
 
@@ -41,7 +42,7 @@ Spatial_reference_systems::Spatial_reference_systems()
   // Note: The maximum length of various strings is hard-coded here. These
   // lengths must match those in sql/sql_cmd_srs.cc.
 
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("st_spatial_reference_systems");
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",
@@ -75,15 +76,25 @@ Spatial_reference_systems::Spatial_reference_systems()
   m_target_def.add_field(FIELD_DESCRIPTION,
                          "FIELD_DESCRIPTION",
                          "description CHARACTER VARYING(2048)");
+  m_target_def.add_field(FIELD_OPTIONS,
+                         "FIELD_OPTIONS",
+                         "options MEDIUMTEXT");
 
-  m_target_def.add_index("PRIMARY KEY (id)");
-  m_target_def.add_index("UNIQUE KEY SRS_NAME (catalog_id, name)");
-  m_target_def.add_index(
-      "UNIQUE KEY ORGANIZATION_AND_ID (catalog_id, organization, "
-      "organization_coordsys_id)");
+  m_target_def.add_index(INDEX_PK_ID,
+                         "INDEX_PK_ID",
+                         "PRIMARY KEY (id)");
+  m_target_def.add_index(INDEX_UK_CATALOG_ID_NAME,
+                         "INDEX_UK_CATALOG_ID_NAME",
+                         "UNIQUE KEY SRS_NAME (catalog_id, name)");
+  m_target_def.add_index(INDEX_UK_CATALOG_ID_ORG_ID,
+                         "INDEX_UK_CATALOG_ID_ORG_ID",
+                         "UNIQUE KEY ORGANIZATION_AND_ID (catalog_id, "
+                         "organization, organization_coordsys_id)");
 
-  m_target_def.add_foreign_key(
-      "FOREIGN KEY (catalog_id) REFERENCES catalogs(id)");
+  m_target_def.add_foreign_key(FK_CATALOG_ID,
+                               "FK_CATALOG_ID",
+                               "FOREIGN KEY (catalog_id) REFERENCES \
+                                  catalogs(id)");
 
   m_target_def.add_populate_statement(
       "INSERT INTO st_spatial_reference_systems (id, catalog_id, name, "
@@ -123,8 +134,8 @@ bool Spatial_reference_systems::update_object_key(Item_name_key *key,
 Object_key *
 Spatial_reference_systems::create_key_by_catalog_id(Object_id catalog_id)
 {
-  return new (std::nothrow) Parent_id_range_key(1, FIELD_CATALOG_ID,
-                                                catalog_id);
+  return new (std::nothrow) Parent_id_range_key(
+          INDEX_UK_CATALOG_ID_NAME, FIELD_CATALOG_ID, catalog_id);
 }
 /* purecov: end */
 

@@ -21,6 +21,7 @@
 #include "mysql_com.h"
 #include "sql/dd/impl/raw/object_keys.h" // Parent_id_range_key
 #include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/dd/impl/types/schema_impl.h"              // dd::Schema_impl
 #include "sql/dd/string_type.h"         // dd::String_type
@@ -40,7 +41,7 @@ const Schemata &Schemata::instance()
 
 Schemata::Schemata()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("schemata");
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",
@@ -63,18 +64,32 @@ Schemata::Schemata()
   m_target_def.add_field(FIELD_LAST_ALTERED,
                          "FIELD_LAST_ALTERED",
                          "last_altered TIMESTAMP NOT NULL DEFAULT NOW()");
+  m_target_def.add_field(FIELD_OPTIONS,
+                         "FIELD_OPTIONS",
+                         "options MEDIUMTEXT");
 
-  m_target_def.add_index("PRIMARY KEY (id)");
-  m_target_def.add_index("UNIQUE KEY (catalog_id, name)");
+  m_target_def.add_index(INDEX_PK_ID,
+                         "INDEX_PK_ID",
+                         "PRIMARY KEY (id)");
+  m_target_def.add_index(INDEX_UK_CATALOG_ID_NAME,
+                         "INDEX_UK_CATALOG_ID_NAME",
+                         "UNIQUE KEY (catalog_id, name)");
+  m_target_def.add_index(INDEX_K_DEFAULT_COLLATION_ID,
+                         "INDEX_K_DEFAULT_COLLATION_ID",
+                         "KEY (default_collation_id)");
 
-  m_target_def.add_foreign_key("FOREIGN KEY (catalog_id) REFERENCES \
+  m_target_def.add_foreign_key(FK_CATALOG_ID,
+                               "FK_CATALOG_ID",
+                               "FOREIGN KEY (catalog_id) REFERENCES \
                                 catalogs(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (default_collation_id) \
+  m_target_def.add_foreign_key(FK_DEFAULT_COLLATION_ID,
+                               "FK_DEFAULT_COLLATION_ID",
+                               "FOREIGN KEY (default_collation_id) \
                                 REFERENCES collations(id)");
 
   m_target_def.add_populate_statement(
-  "INSERT INTO schemata (catalog_id, name, default_collation_id) VALUES "
-    "(1,'information_schema',33)");
+  "INSERT INTO schemata (catalog_id, name, default_collation_id, created, last_altered, options) VALUES "
+    "(1,'information_schema',33, now(), now(), NULL)");
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -103,7 +118,8 @@ Schema *Schemata::create_entity_object(const Raw_record &) const
 Object_key *Schemata::create_key_by_catalog_id(
   Object_id catalog_id)
 {
-  return new (std::nothrow) Parent_id_range_key(1, FIELD_CATALOG_ID, catalog_id);
+  return new (std::nothrow) Parent_id_range_key(
+          INDEX_UK_CATALOG_ID_NAME, FIELD_CATALOG_ID, catalog_id);
 }
 /* purecov: end */
 

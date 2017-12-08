@@ -28,6 +28,7 @@
 #include "sql/dd/impl/cache/storage_adapter.h"    // Storage_adapter
 #include "sql/dd/impl/raw/object_keys.h"          // Global_name_key
 #include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
 #include "sql/dd/impl/types/collation_impl.h"     // dd::Collation_impl
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/dd/object_id.h"
@@ -48,7 +49,7 @@ const Collations &Collations::instance()
 
 Collations::Collations()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("collations");
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",
@@ -68,11 +69,23 @@ Collations::Collations()
   m_target_def.add_field(FIELD_PAD_ATTRIBUTE,
                          "FIELD_PAD_ATTRIBUTE",
                          "pad_attribute VARCHAR(9) NOT NULL");
+  m_target_def.add_field(FIELD_OPTIONS,
+                         "FIELD_OPTIONS",
+                         "options MEDIUMTEXT");
 
-  m_target_def.add_index("PRIMARY KEY(id)");
-  m_target_def.add_index("UNIQUE KEY(name)");
+  m_target_def.add_index(INDEX_PK_ID,
+                         "INDEX_PK_ID",
+                         "PRIMARY KEY(id)");
+  m_target_def.add_index(INDEX_UK_NAME,
+                         "INDEX_UK_NAME",
+                         "UNIQUE KEY(name)");
+  m_target_def.add_index(INDEX_K_CHARACTER_SET_ID,
+                         "INDEX_K_CHARACTER_SET_ID",
+                         "KEY(character_set_id)");
 
-  m_target_def.add_foreign_key("FOREIGN KEY (character_set_id) REFERENCES "
+  m_target_def.add_foreign_key(FK_CHARACTER_SET_ID,
+                               "FK_CHARCTER_SET_ID",
+                               "FOREIGN KEY (character_set_id) REFERENCES "
                                "character_sets(id)");
 }
 

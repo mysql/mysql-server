@@ -19,7 +19,7 @@
 class THD;
 
 namespace dd {
-namespace upgrade {
+namespace upgrade_57 {
 
 /**
   Migrate all SP/SF from mysql.proc to mysql.routines dd table.

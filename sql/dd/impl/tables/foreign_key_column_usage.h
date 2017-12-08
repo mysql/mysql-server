@@ -32,13 +32,6 @@ class Foreign_key_column_usage : public Object_table_impl
 public:
   static const Foreign_key_column_usage &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("foreign_key_column_usage");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_FOREIGN_KEY_ID,
@@ -47,13 +40,21 @@ public:
     FIELD_REFERENCED_COLUMN_NAME
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_FOREIGN_KEY_ID_ORDINAL_POSITION,
+    INDEX_UK_FOREIGN_KEY_ID_COLUMN_ID,
+    INDEX_K_COLUMN_ID
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_FOREIGN_KEY_ID,
+    FK_COLUMN_ID
+  };
+
   Foreign_key_column_usage();
 
-  virtual const String_type &name() const
-  { return Foreign_key_column_usage::table_name(); }
-
-public:
   static Object_key *create_key_by_foreign_key_id(Object_id fk_id);
 
   static Object_key *create_primary_key(

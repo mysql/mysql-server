@@ -18,6 +18,16 @@
 #include "my_dbug.h"
 #include "sql/dd/cache/multi_map_base.h"
 #include "sql/dd/impl/cache/cache_element.h"  // Cache_element
+#include "sql/dd/impl/tables/character_sets.h"
+#include "sql/dd/impl/tables/collations.h"
+#include "sql/dd/impl/tables/column_statistics.h"
+#include "sql/dd/impl/tables/events.h"
+#include "sql/dd/impl/tables/resource_groups.h"
+#include "sql/dd/impl/tables/routines.h"
+#include "sql/dd/impl/tables/schemata.h"
+#include "sql/dd/impl/tables/spatial_reference_systems.h"
+#include "sql/dd/impl/tables/tables.h"
+#include "sql/dd/impl/tables/tablespaces.h"
 
 namespace dd {
 class Abstract_table;
@@ -47,18 +57,18 @@ void Local_multi_map<T>::put(Cache_element<T> *element)
   DBUG_ASSERT(!e);
 
   // Get all keys that were created within the element.
-  const typename T::id_key_type *id_key= element->id_key();
-  const typename T::name_key_type *name_key= element->name_key();
-  const typename T::aux_key_type *aux_key= element->aux_key();
+  const typename T::Id_key *id_key= element->id_key();
+  const typename T::Name_key *name_key= element->name_key();
+  const typename T::Aux_key *aux_key= element->aux_key();
 
   // There must be at least one key.
   DBUG_ASSERT(id_key || name_key || aux_key);
 
   // None of the keys may exist.
   DBUG_ASSERT(
-    (!id_key || !m_map<typename T::id_key_type>()->is_present(*id_key)) &&
-    (!name_key || !m_map<typename T::name_key_type>()->is_present(*name_key)) &&
-    (!aux_key || !m_map<typename T::aux_key_type>()->is_present(*aux_key)));
+    (!id_key || !m_map<typename T::Id_key>()->is_present(*id_key)) &&
+    (!name_key || !m_map<typename T::Name_key>()->is_present(*name_key)) &&
+    (!aux_key || !m_map<typename T::Aux_key>()->is_present(*aux_key)));
 #endif
 
   // Add the keys and the element to the maps.
@@ -77,15 +87,15 @@ void Local_multi_map<T>::remove(Cache_element<T> *element)
   DBUG_ASSERT(e);
 
   // Get all keys that were created within the element.
-  const typename T::id_key_type *id_key= element->id_key();
-  const typename T::name_key_type *name_key= element->name_key();
-  const typename T::aux_key_type *aux_key= element->aux_key();
+  const typename T::Id_key *id_key= element->id_key();
+  const typename T::Name_key *name_key= element->name_key();
+  const typename T::Aux_key *aux_key= element->aux_key();
 
   // All non-null keys must exist.
   DBUG_ASSERT(
-    (!id_key || m_map<typename T::id_key_type>()->is_present(*id_key)) &&
-    (!name_key || m_map<typename T::name_key_type>()->is_present(*name_key)) &&
-    (!aux_key || m_map<typename T::aux_key_type>()->is_present(*aux_key)));
+    (!id_key || m_map<typename T::Id_key>()->is_present(*id_key)) &&
+    (!name_key || m_map<typename T::Name_key>()->is_present(*name_key)) &&
+    (!aux_key || m_map<typename T::Aux_key>()->is_present(*aux_key)));
 #endif
 
   // Remove the keys and the element from the maps.
@@ -115,6 +125,19 @@ void Local_multi_map<T>::erase()
   }
 }
 
+/* purecov: begin inspected */
+template <typename T>
+void Local_multi_map<T>::dump() const
+{
+#ifndef DBUG_OFF
+  fprintf(stderr, "  --------------------------------\n");
+  fprintf(stderr, "  Local multi map for '%s'\n",
+          T::DD_table::instance().name().c_str());
+  Multi_map_base<T>::dump();
+  fprintf(stderr, "  --------------------------------\n");
+#endif
+}
+/* purecov: end */
 
 // Explicitly instantiate the types for the various usages.
 template class Local_multi_map<Abstract_table>;

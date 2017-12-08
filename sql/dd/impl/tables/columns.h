@@ -32,16 +32,9 @@ class Columns : public Object_table_impl
 public:
   static const Columns &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("columns");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
-    FIELD_ID,
+    FIELD_ID= static_cast<uint>(Common_field::ID),
     FIELD_TABLE_ID,
     FIELD_NAME,
     FIELD_ORDINAL_POSITION,
@@ -72,13 +65,24 @@ public:
     FIELD_SRS_ID
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_TABLE_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+    INDEX_UK_TABLE_ID_ORDINAL_POSITION,
+    INDEX_K_COLLATION_ID,
+    INDEX_K_SRS_ID
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_TABLE_ID,
+    FK_COLLATION_ID,
+    FK_SRS_ID
+  };
+
   Columns();
 
-  virtual const String_type &name() const
-  { return Columns::table_name(); }
-
-public:
   static Object_key *create_key_by_table_id(Object_id table_id);
 };
 

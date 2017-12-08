@@ -28,23 +28,6 @@ using dd::tables::Collations;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// Collation implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Entity_object_table &Collation::OBJECT_TABLE()
-{
-  return Collations::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Collation::TYPE()
-{
-  static Collation_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Collation_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -54,7 +37,7 @@ bool Collation_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Collation_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Charset ID is not set");
     return true;
   }
@@ -91,7 +74,7 @@ bool Collation_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Collation::update_id_key(id_key_type *key, Object_id id)
+bool Collation::update_id_key(Id_key *key, Object_id id)
 {
   key->update(id);
   return false;
@@ -99,14 +82,19 @@ bool Collation::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Collation::update_name_key(name_key_type *key, const String_type &name)
+bool Collation::update_name_key(Name_key *key, const String_type &name)
 { return Collations::update_object_key(key, name); }
 
 ///////////////////////////////////////////////////////////////////////////
-// Collation_type implementation.
-///////////////////////////////////////////////////////////////////////////
 
-void Collation_type::register_tables(Open_dictionary_tables_ctx *otx) const
+const Object_table &Collation_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
+  ///////////////////////////////////////////////////////////////////////////
+
+void Collation_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Collations>();
 }

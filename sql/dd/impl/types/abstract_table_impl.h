@@ -31,7 +31,6 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"      // dd::Abstract_table
 #include "sql/dd/types/column.h"              // IWYU pragma: keep
-#include "sql/dd/types/object_type.h"         // dd::Object_type
 #include "sql/sql_time.h"                     // gmt_time_to_local_time
 
 class Time_zone;
@@ -40,6 +39,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Object_table;
 class Open_dictionary_tables_ctx;
 class Sdi_rcontext;
 class Sdi_wcontext;
@@ -49,6 +49,10 @@ class Abstract_table_impl : public Entity_object_impl,
                             virtual public Abstract_table
 {
 public:
+  virtual const Object_table &object_table() const;
+
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
   virtual bool validate() const;
 
   virtual bool restore_children(Open_dictionary_tables_ctx *otx);
@@ -206,20 +210,6 @@ private:
 
 protected:
   Abstract_table_impl(const Abstract_table_impl &src);
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Abstract_table_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  {
-    DBUG_ASSERT(false);
-    return NULL;
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

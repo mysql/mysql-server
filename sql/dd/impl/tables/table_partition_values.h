@@ -32,13 +32,6 @@ class Table_partition_values : public Object_table_impl
 public:
   static const Table_partition_values &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("table_partition_values");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_PARTITION_ID,
@@ -48,13 +41,18 @@ public:
     FIELD_MAX_VALUE
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_PARTITION_ID_LIST_NUM_COLUMN_NUM
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_TABLE_PARTITION_ID
+  };
+
   Table_partition_values();
 
-  virtual const String_type &name() const
-  { return Table_partition_values::table_name(); }
-
-public:
   static Object_key *create_key_by_partition_id(Object_id partition_id);
 
   static Object_key *create_primary_key(Object_id partition_id,

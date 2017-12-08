@@ -51,23 +51,6 @@ class Sdi_rcontext;
 class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
-// Foreign_key_element implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_table &Foreign_key_element::OBJECT_TABLE()
-{
-  return Foreign_key_column_usage::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Foreign_key_element::TYPE()
-{
-  static Foreign_key_element_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Foreign_key_element_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -89,7 +72,7 @@ bool Foreign_key_element_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Foreign_key_element_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "No foreign key associated with this element.");
     return true;
   }
@@ -98,7 +81,7 @@ bool Foreign_key_element_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Foreign_key_element_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "No Column is associated with this key element.");
     return true;
   }
@@ -107,7 +90,7 @@ bool Foreign_key_element_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Foreign_key_element_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Referenced column name is not set.");
     return true;
   }
@@ -228,10 +211,15 @@ Foreign_key_element_impl(const Foreign_key_element_impl &src,
 {}
 
 ///////////////////////////////////////////////////////////////////////////
-// Foreign_key_element_type implementation.
+
+const Object_table &Foreign_key_element_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Foreign_key_element_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Foreign_key_element_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Foreign_key_column_usage>();
 }

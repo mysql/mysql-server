@@ -43,23 +43,6 @@ using dd::tables::Parameter_type_elements;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// Parameter_type_element implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_table &Parameter_type_element::OBJECT_TABLE()
-{
-  return Parameter_type_elements::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Parameter_type_element::TYPE()
-{
-  static Parameter_type_element_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Parameter_type_element_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -77,7 +60,7 @@ bool Parameter_type_element_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Parameter_type_element_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "No parameter associated with this object.");
     return true;
   }
@@ -105,7 +88,7 @@ bool Parameter_type_element_impl::restore_attributes(const Raw_record &r)
         r.read_ref_id(Parameter_type_elements::FIELD_PARAMETER_ID)))
     return true;
 
-  m_index= r.read_uint(Parameter_type_elements::FIELD_INDEX);
+  m_index= r.read_uint(Parameter_type_elements::FIELD_ELEMENT_INDEX);
   m_name= r.read_str(Parameter_type_elements::FIELD_NAME);
 
   return false;
@@ -117,7 +100,7 @@ bool Parameter_type_element_impl::store_attributes(Raw_record *r)
 {
   return r->store(Parameter_type_elements::FIELD_PARAMETER_ID,
                   m_parameter->id()) ||
-         r->store(Parameter_type_elements::FIELD_INDEX, m_index) ||
+         r->store(Parameter_type_elements::FIELD_ELEMENT_INDEX, m_index) ||
          r->store(Parameter_type_elements::FIELD_NAME, m_name);
 }
 
@@ -159,10 +142,15 @@ Parameter_type_element_impl(const Parameter_type_element_impl &src,
 {}
 
 ///////////////////////////////////////////////////////////////////////////
-// Parameter_type_element_type implementation.
+
+const Object_table &Parameter_type_element_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Parameter_type_element_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Parameter_type_element_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Parameter_type_elements>();
 }

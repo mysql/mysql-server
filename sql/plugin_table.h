@@ -19,6 +19,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "sql/dd/string_type.h"// String_type
 #include "sql/sql_list.h"      // List
 
 /**
@@ -66,6 +67,24 @@ public:
 
   const char *get_tablespace_name() const
   { return m_tablespace_name; }
+
+  dd::String_type get_ddl() const
+  {
+    dd::Stringstream_type ss;
+    ss << "CREATE TABLE ";
+
+    if (m_schema_name != nullptr)
+      ss << m_schema_name << ".";
+
+    ss << m_table_name << "(\n";
+    ss << m_table_definition << ")";
+    ss << m_table_options;
+
+    if (m_tablespace_name != nullptr)
+      ss << " " << "TABLESPACE=" << m_tablespace_name;
+
+    return ss.str();
+  }
 };
 
 /**

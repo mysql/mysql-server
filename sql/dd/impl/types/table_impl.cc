@@ -28,11 +28,13 @@
 #include "my_sys.h"
 #include "mysqld_error.h"                            // ER_*
 #include "sql/current_thd.h"                         // current_thd
+#include "sql/dd/impl/dictionary_impl.h"             // Dictionary_impl
 #include "sql/dd/impl/properties_impl.h"             // Properties_impl
 #include "sql/dd/impl/raw/raw_record.h"              // Raw_record
 #include "sql/dd/impl/raw/raw_record_set.h"          // Raw_record_set
-#include  "sql/dd/impl/raw/raw_table.h"              // Raw_table
+#include "sql/dd/impl/raw/raw_table.h"               // Raw_table
 #include "sql/dd/impl/sdi_impl.h"                    // sdi read/write functions
+#include "sql/dd/impl/tables/columns.h"              // Columns
 #include "sql/dd/impl/tables/foreign_keys.h"         // Foreign_keys
 #include "sql/dd/impl/tables/indexes.h"              // Indexes
 #include "sql/dd/impl/tables/schemata.h"             // Schemata
@@ -63,16 +65,6 @@ namespace dd {
 
 class Sdi_rcontext;
 class Sdi_wcontext;
-
-///////////////////////////////////////////////////////////////////////////
-// Table implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Table::TYPE()
-{
-  static Table_type s_instance;
-  return s_instance;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 // Table_impl implementation.
@@ -130,7 +122,7 @@ bool Table_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Table_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Collation ID not set.");
     return true;
   }
@@ -139,7 +131,7 @@ bool Table_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Table_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Engine name is not set.");
     return true;
   }
@@ -173,9 +165,9 @@ bool Table_impl::load_foreign_key_parents(Open_dictionary_tables_ctx *otx)
   // 2. Build a key for searching the FK table.
   const int index_no= 3; // Key on tables::Foreign_keys.
   Table_reference_range_key parent_ref_key(index_no,
-      tables::Foreign_keys::FIELD_REFERENCED_CATALOG,
+      tables::Foreign_keys::FIELD_REFERENCED_TABLE_CATALOG,
       String_type(Dictionary_impl::default_catalog_name()),
-      tables::Foreign_keys::FIELD_REFERENCED_SCHEMA,
+      tables::Foreign_keys::FIELD_REFERENCED_TABLE_SCHEMA,
       schema_rec->read_str(tables::Schemata::FIELD_NAME),
       tables::Foreign_keys::FIELD_REFERENCED_TABLE,
       name());
@@ -1012,7 +1004,7 @@ Partition *Table_impl::get_partition(const String_type &name)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Table::update_aux_key(aux_key_type *key,
+bool Table::update_aux_key(Aux_key *key,
                            const String_type &engine,
                            Object_id se_private_id)
 {
@@ -1022,11 +1014,9 @@ bool Table::update_aux_key(aux_key_type *key,
   return true;
 }
 
-////////////////////////////////////////////////////////////////////////////
-// Table_type implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-void Table_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Table_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Tables>();
 

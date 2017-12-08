@@ -28,7 +28,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"               // current_thd
 #include "sql/dd/impl/dictionary_impl.h"   // Dictionary_impl
-#include "sql/dd/impl/raw/object_keys.h"   // id_key_type
+#include "sql/dd/impl/raw/object_keys.h"   // Primary_id_key
 #include "sql/dd/impl/raw/raw_record.h"    // Raw_record
 #include "sql/dd/impl/sdi_impl.h"          // sdi read/write functions
 #include "sql/dd/impl/tables/column_statistics.h" // Column_statistics
@@ -38,19 +38,6 @@
 #include "template_utils.h"
 
 namespace dd {
-
-const Entity_object_table &Column_statistics::OBJECT_TABLE()
-{
-  return dd::tables::Column_statistics::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Column_statistics::TYPE()
-{
-  static Column_statistics_type s_instance;
-  return s_instance;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -200,7 +187,7 @@ bool Column_statistics_impl::deserialize(Sdi_rcontext *rctx,
 }
 
 ///////////////////////////////////////////////////////////////////////////
-bool Column_statistics::update_id_key(id_key_type *key, Object_id id)
+bool Column_statistics::update_id_key(Id_key *key, Object_id id)
 {
   key->update(id);
   return false;
@@ -208,7 +195,7 @@ bool Column_statistics::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Column_statistics::update_name_key(name_key_type *key,
+bool Column_statistics::update_name_key(Name_key *key,
                                         const String_type &name)
 {
   return dd::tables::Column_statistics::update_object_key(
@@ -216,11 +203,16 @@ bool Column_statistics::update_name_key(name_key_type *key,
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Column_statistics_type implementation.
+
+const Object_table &Column_statistics_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 void
-Column_statistics_type::register_tables(Open_dictionary_tables_ctx *otx) const
+Column_statistics_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<dd::tables::Column_statistics>();
 }

@@ -27,16 +27,18 @@ namespace dd {
 class Column;
 class Index;
 class Index_element_impl;
-class Object_type;
+
+namespace tables {
+  class Index_column_usage;
+};
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Index_element : virtual public Weak_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Object_table &OBJECT_TABLE();
   typedef Index_element_impl Impl;
+  typedef tables::Index_column_usage DD_table;
 
 public:
   enum enum_index_element_order

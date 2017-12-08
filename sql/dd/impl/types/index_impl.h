@@ -28,7 +28,6 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/index.h"               // dd::Index
 #include "sql/dd/types/index_element.h"       // IWYU pragma: keep
-#include "sql/dd/types/object_type.h"         // dd::Object_type
 
 namespace dd {
 
@@ -60,8 +59,7 @@ public:
   virtual ~Index_impl();
 
 public:
-  virtual const Object_table &object_table() const
-  { return Index::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
 
@@ -88,6 +86,8 @@ public:
   { return m_ordinal_position; }
 
 public:
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
   /////////////////////////////////////////////////////////////////////////
   // Table.
   /////////////////////////////////////////////////////////////////////////
@@ -272,17 +272,6 @@ private:
   // References to loosely-coupled objects.
 
   Object_id m_tablespace_id;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Index_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Index_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

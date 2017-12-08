@@ -470,13 +470,15 @@ public:
   Routine_name_key()
   { }
 
-  Routine_name_key(int container_id_column_no,
+  Routine_name_key(int index_no,
+                   int container_id_column_no,
                    Object_id container_id,
                    int type_column_no,
                    uint type,
                    int name_column_no,
                    const String_type &object_name)
-   :m_container_id_column_no(container_id_column_no),
+   :m_index_no(index_no),
+    m_container_id_column_no(container_id_column_no),
     m_type_column_no(type_column_no),
     m_name_column_no(name_column_no),
     m_container_id(container_id),
@@ -485,13 +487,15 @@ public:
   { }
 
   // Update a preallocated instance.
-  void update(int container_id_column_no,
+  void update(int index_no,
+              int container_id_column_no,
               Object_id container_id,
               int type_column_no,
               uint type,
               int name_column_no,
               const String_type &object_name)
   {
+    m_index_no= index_no;
     m_container_id_column_no= container_id_column_no;
     m_type_column_no= type_column_no;
     m_name_column_no= name_column_no;
@@ -508,6 +512,7 @@ public:
   bool operator <(const Routine_name_key &rhs) const;
 
 private:
+  int m_index_no;
   int m_container_id_column_no;
   int m_type_column_no;
   int m_name_column_no;

@@ -19,7 +19,7 @@
 class THD;
 
 namespace dd {
-namespace upgrade {
+namespace upgrade_57 {
 
 /**
   Migrate plugin table to Data Dictionary.

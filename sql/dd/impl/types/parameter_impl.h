@@ -29,7 +29,6 @@
 #include "sql/dd/properties.h"                // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/column.h"
-#include "sql/dd/types/object_type.h"         // dd::Object_type
 #include "sql/dd/types/parameter.h"           // dd::Parameter
 #include "sql/dd/types/parameter_type_element.h" // IWYU pragma: keep
 
@@ -59,8 +58,7 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return Parameter::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
 
@@ -80,6 +78,8 @@ public:
   { m_ordinal_position= ordinal_position; }
 
 public:
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
   /////////////////////////////////////////////////////////////////////////
   // Name is nullable in case of function return type.
   /////////////////////////////////////////////////////////////////////////
@@ -324,17 +324,6 @@ private:
   // References to loosely-coupled objects.
 
   Object_id m_collation_id;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Parameter_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Parameter_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

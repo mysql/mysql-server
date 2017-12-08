@@ -38,6 +38,8 @@ class View;
 
 typedef String_type Sdi_type;
 
+static constexpr std::uint64_t sdi_version= 1;
+
 /**
   @defgroup serialize_api (De)serialize api functions.
   @ingroup sdi

@@ -39,23 +39,6 @@ using dd::tables::Spatial_reference_systems;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// Spatial reference system implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Entity_object_table &Spatial_reference_system::OBJECT_TABLE()
-{
-  return Spatial_reference_systems::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Spatial_reference_system::TYPE()
-{
-  static Spatial_reference_system_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Spatial_reference_system_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -207,7 +190,7 @@ bool Spatial_reference_system_impl::parse_definition()
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Spatial_reference_system::update_id_key(id_key_type *key, Object_id id)
+bool Spatial_reference_system::update_id_key(Id_key *key, Object_id id)
 {
   key->update(id);
   return false;
@@ -215,7 +198,7 @@ bool Spatial_reference_system::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Spatial_reference_system::update_name_key(name_key_type *key,
+bool Spatial_reference_system::update_name_key(Name_key *key,
                                                const String_type &name)
 {
   return Spatial_reference_systems::update_object_key(key,
@@ -224,11 +207,16 @@ bool Spatial_reference_system::update_name_key(name_key_type *key,
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Spatial_reference_system_type implementation.
+
+const Object_table &Spatial_reference_system_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Spatial_reference_system_type::register_tables(
-                      Open_dictionary_tables_ctx *otx) const
+void Spatial_reference_system_impl::register_tables(
+                      Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Spatial_reference_systems>();
 }

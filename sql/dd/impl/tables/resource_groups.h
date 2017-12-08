@@ -38,12 +38,6 @@ public:
 
   static const Resource_groups &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("resource_groups");
-    return s_table_name;
-  }
-
   enum enum_fields
   {
     FIELD_ID,
@@ -51,14 +45,21 @@ public:
     FIELD_RESOURCE_GROUP_TYPE,
     FIELD_RESOURCE_GROUP_ENABLED,
     FIELD_CPU_ID_MASK,
-    FIELD_THREAD_PRIORITY
+    FIELD_THREAD_PRIORITY,
+    FIELD_OPTIONS
+  };
+
+  enum enum_indexes
+  {
+    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_RESOURCE_GROUP_NAME= static_cast<uint>(Common_index::UK_NAME)
+  };
+
+  enum enum_foreign_keys
+  {
   };
 
 public:
-
-  const String_type &name() const override
-  { return Resource_groups::table_name(); }
-
   Resource_group *create_entity_object(const Raw_record &) const override
   { return new (std::nothrow) Resource_group_impl(); }
 

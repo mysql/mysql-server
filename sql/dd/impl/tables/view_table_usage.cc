@@ -19,6 +19,7 @@
 #include <string>
 
 #include "sql/dd/impl/raw/object_keys.h"  // dd::Parent_id_range_key
+#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/mysqld.h"
 #include "sql/stateless_allocator.h"
@@ -38,7 +39,7 @@ const View_table_usage &View_table_usage::instance()
 
 View_table_usage::View_table_usage()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("view_table_usage");
 
   m_target_def.add_field(FIELD_VIEW_ID,
                          "FIELD_VIEW_ID",
@@ -59,11 +60,18 @@ View_table_usage::View_table_usage()
                          String_type(Object_table_definition_impl::
                                      fs_name_collation()->name));
 
-  m_target_def.add_index("PRIMARY KEY(view_id, table_catalog, "
-                         "table_schema, table_name)");
-  m_target_def.add_index("KEY (table_catalog, table_schema, table_name)");
+  m_target_def.add_index(
+                      INDEX_PK_VIEW_ID_TABLE_CATALOG_TABLE_SCHEMA_TABLE_NAME,
+                      "INDEX_PK_VIEW_ID_TABLE_CATALOG_TABLE_SCHEMA_TABLE_NAME",
+                      "PRIMARY KEY(view_id, table_catalog, "
+                      "table_schema, table_name)");
+  m_target_def.add_index(INDEX_K_TABLE_CATALOG_TABLE_SCHEMA_TABLE_NAME,
+                         "INDEX_K_TABLE_CATALOG_TABLE_SCHEMA_TABLE_NAME",
+                         "KEY (table_catalog, table_schema, table_name)");
 
-  m_target_def.add_foreign_key("FOREIGN KEY (view_id) REFERENCES "
+  m_target_def.add_foreign_key(FK_VIEW_ID,
+                               "FK_VIEW_ID",
+                               "FOREIGN KEY (view_id) REFERENCES "
                                "tables(id)");
 }
 
@@ -72,7 +80,9 @@ View_table_usage::View_table_usage()
 Object_key *View_table_usage::create_key_by_view_id(
   Object_id view_id)
 {
-  return new (std::nothrow) Parent_id_range_key(0, FIELD_VIEW_ID, view_id);
+  return new (std::nothrow) Parent_id_range_key(
+          INDEX_PK_VIEW_ID_TABLE_CATALOG_TABLE_SCHEMA_TABLE_NAME,
+          FIELD_VIEW_ID, view_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -83,17 +93,16 @@ Object_key *View_table_usage::create_primary_key(
   const String_type &table_schema,
   const String_type &table_name)
 {
-  const int index_no= 0;
-
-  return new (std::nothrow) Composite_obj_id_3char_key(index_no,
-                                                       FIELD_VIEW_ID,
-                                                       view_id,
-                                                       FIELD_TABLE_CATALOG,
-                                                       table_catalog,
-                                                       FIELD_TABLE_SCHEMA,
-                                                       table_schema,
-                                                       FIELD_TABLE_NAME,
-                                                       table_name);
+  return new (std::nothrow) Composite_obj_id_3char_key(
+          INDEX_PK_VIEW_ID_TABLE_CATALOG_TABLE_SCHEMA_TABLE_NAME,
+          FIELD_VIEW_ID,
+          view_id,
+          FIELD_TABLE_CATALOG,
+          table_catalog,
+          FIELD_TABLE_SCHEMA,
+          table_schema,
+          FIELD_TABLE_NAME,
+          table_name);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -103,15 +112,14 @@ Object_key *View_table_usage::create_key_by_name(
   const String_type &table_schema,
   const String_type &table_name)
 {
-  const int index_no= 1;
-
-  return new (std::nothrow) Table_reference_range_key(index_no,
-                                                 FIELD_TABLE_CATALOG,
-                                                 table_catalog,
-                                                 FIELD_TABLE_SCHEMA,
-                                                 table_schema,
-                                                 FIELD_TABLE_NAME,
-                                                 table_name);
+  return new (std::nothrow) Table_reference_range_key(
+          INDEX_K_TABLE_CATALOG_TABLE_SCHEMA_TABLE_NAME,
+          FIELD_TABLE_CATALOG,
+          table_catalog,
+          FIELD_TABLE_SCHEMA,
+          table_schema,
+          FIELD_TABLE_NAME,
+          table_name);
 }
 
 }

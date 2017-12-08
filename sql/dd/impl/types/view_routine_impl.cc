@@ -37,23 +37,6 @@ using dd::tables::View_routine_usage;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// View_routine implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_table &View_routine::OBJECT_TABLE()
-{
-  return View_routine_usage::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &View_routine::TYPE()
-{
-  static View_routine_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // View_routine_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -84,7 +67,7 @@ bool View_routine_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             View_routine_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "No function is associated with this view stored function"
              " object.");
     return true;
@@ -164,10 +147,15 @@ View_routine_impl(const View_routine_impl &src,
 {}
 
 ///////////////////////////////////////////////////////////////////////////
-//View_routine_type implementation.
+
+const Object_table &View_routine_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void View_routine_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void View_routine_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<View_routine_usage>();
 }

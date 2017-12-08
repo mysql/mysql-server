@@ -28,7 +28,6 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/foreign_key.h"         // dd::Foreign_key
 #include "sql/dd/types/foreign_key_element.h" // IWYU pragma: keep
-#include "sql/dd/types/object_type.h"         // dd::Object_type
 
 namespace dd {
 
@@ -61,8 +60,9 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return Foreign_key::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
+
+  static void register_tables(Open_dictionary_tables_ctx *otx);
 
   virtual bool validate() const;
 
@@ -236,17 +236,6 @@ public:
   {
     return new Foreign_key_impl(*this, parent);
   }
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Foreign_key_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Foreign_key_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

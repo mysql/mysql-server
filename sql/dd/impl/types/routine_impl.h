@@ -27,8 +27,6 @@
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/entity_object_table.h"  // dd::Entity_object_table
-#include "sql/dd/types/object_type.h"          // dd::Object_type
 #include "sql/dd/types/parameter.h"            // dd::Parameter
 #include "sql/dd/types/routine.h"              // dd::Routine
 #include "sql/dd/types/view.h"
@@ -52,8 +50,7 @@ public:
   virtual ~Routine_impl();
 
 public:
-  virtual const Object_table &object_table() const
-  { return Routine::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
 
@@ -70,6 +67,8 @@ public:
   virtual void debug_print(String_type &outb) const;
 
 public:
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
   /////////////////////////////////////////////////////////////////////////
   // schema.
   /////////////////////////////////////////////////////////////////////////
@@ -282,21 +281,6 @@ private:
 
 protected:
   Routine_impl(const Routine_impl &src);
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Routine_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  {
-    // We never would create a Routine object.
-    DBUG_ASSERT(false);
-    return NULL;
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

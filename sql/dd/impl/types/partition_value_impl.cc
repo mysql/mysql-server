@@ -47,23 +47,6 @@ using dd::tables::Table_partition_values;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// Partition_value implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_table &Partition_value::OBJECT_TABLE()
-{
-  return Table_partition_values::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Partition_value::TYPE()
-{
-  static Partition_value_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Partition_value_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -85,7 +68,7 @@ bool Partition_value_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Partition_value_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "No partition object associated.");
     return true;
   }
@@ -211,10 +194,15 @@ Partition_value_impl(const Partition_value_impl &src,
 {}
 
 ///////////////////////////////////////////////////////////////////////////
-// Partition_value_type implementation.
+
+const Object_table &Partition_value_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Partition_value_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Partition_value_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Table_partition_values>();
 }

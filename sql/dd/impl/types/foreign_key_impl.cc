@@ -53,23 +53,6 @@ class Sdi_rcontext;
 class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
-// Foreign_key implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_table &Foreign_key::OBJECT_TABLE()
-{
-  return  Foreign_keys::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Foreign_key::TYPE()
-{
-  static Foreign_key_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Foreign_key_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -149,7 +132,7 @@ bool Foreign_key_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Foreign_key_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "No table object associated with this foreign key.");
     return true;
   }
@@ -158,7 +141,7 @@ bool Foreign_key_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Foreign_key_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Referenced table catalog name is not set.");
     return true;
   }
@@ -167,7 +150,7 @@ bool Foreign_key_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Foreign_key_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Referenced table schema name is not set.");
     return true;
   }
@@ -176,7 +159,7 @@ bool Foreign_key_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Foreign_key_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Referenced table name is not set.");
     return true;
   }
@@ -229,8 +212,8 @@ bool Foreign_key_impl::restore_attributes(const Raw_record &r)
   m_update_rule= (enum_rule)          r.read_int(Foreign_keys::FIELD_UPDATE_RULE);
   m_delete_rule= (enum_rule)          r.read_int(Foreign_keys::FIELD_DELETE_RULE);
 
-  m_referenced_table_catalog_name= r.read_str(Foreign_keys::FIELD_REFERENCED_CATALOG);
-  m_referenced_table_schema_name=  r.read_str(Foreign_keys::FIELD_REFERENCED_SCHEMA);
+  m_referenced_table_catalog_name= r.read_str(Foreign_keys::FIELD_REFERENCED_TABLE_CATALOG);
+  m_referenced_table_schema_name=  r.read_str(Foreign_keys::FIELD_REFERENCED_TABLE_SCHEMA);
   m_referenced_table_name=         r.read_str(Foreign_keys::FIELD_REFERENCED_TABLE);
 
   return false;
@@ -249,8 +232,8 @@ bool Foreign_key_impl::store_attributes(Raw_record *r)
     r->store(Foreign_keys::FIELD_MATCH_OPTION, m_match_option) ||
     r->store(Foreign_keys::FIELD_UPDATE_RULE, m_update_rule) ||
     r->store(Foreign_keys::FIELD_DELETE_RULE, m_delete_rule) ||
-    r->store(Foreign_keys::FIELD_REFERENCED_CATALOG, m_referenced_table_catalog_name) ||
-    r->store(Foreign_keys::FIELD_REFERENCED_SCHEMA, m_referenced_table_schema_name) ||
+    r->store(Foreign_keys::FIELD_REFERENCED_TABLE_CATALOG, m_referenced_table_catalog_name) ||
+    r->store(Foreign_keys::FIELD_REFERENCED_TABLE_SCHEMA, m_referenced_table_schema_name) ||
     r->store(Foreign_keys::FIELD_REFERENCED_TABLE, m_referenced_table_name);
 }
 
@@ -359,10 +342,15 @@ Foreign_key_impl::Foreign_key_impl(const Foreign_key_impl &src,
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Foreign_key_type implementation.
+
+const Object_table &Foreign_key_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Foreign_key_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Foreign_key_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Foreign_keys>();
 

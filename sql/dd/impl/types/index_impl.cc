@@ -54,23 +54,6 @@ class Sdi_wcontext;
 class Table;
 
 ///////////////////////////////////////////////////////////////////////////
-// Index implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_table &Index::OBJECT_TABLE()
-{
-  return Indexes::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Index::TYPE()
-{
-  static Index_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Index_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -160,7 +143,7 @@ bool Index_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Index_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "No table object associated with this index.");
     return true;
   }
@@ -168,7 +151,7 @@ bool Index_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Index_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Engine name is not set.");
     return true;
   }
@@ -177,7 +160,7 @@ bool Index_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Index_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "The index has no elements.");
     return true;
   }
@@ -465,10 +448,15 @@ Index_impl::Index_impl(const Index_impl &src, Table_impl *parent)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Index_type implementation.
+
+const Object_table &Index_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Index_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Index_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Indexes>();
 

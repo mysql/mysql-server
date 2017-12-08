@@ -56,23 +56,6 @@ class Sdi_rcontext;
 class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
-// Partition implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_table &Partition::OBJECT_TABLE()
-{
-  return Table_partitions::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Partition::TYPE()
-{
-  static Partition_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Partition_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -182,7 +165,7 @@ bool Partition_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Partition_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "No table object associated with this partition.");
     return true;
   }
@@ -191,7 +174,7 @@ bool Partition_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Partition_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Engine name is not set.");
     return true;
   }
@@ -204,7 +187,7 @@ bool Partition_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Partition_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Partition parent_partition_id not set.");
     return true;
   }
@@ -213,7 +196,7 @@ bool Partition_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Partition_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Partition number not set.");
     return true;
   }
@@ -529,10 +512,15 @@ Partition_impl::Partition_impl(const Partition_impl &src,
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Partition_type implementation.
+
+const Object_table &Partition_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Partition_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Partition_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Table_partitions>();
 

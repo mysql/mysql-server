@@ -26,15 +26,13 @@
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/collation.h"           // dd::Collation
-#include "sql/dd/types/entity_object_table.h" // dd::Entity_object_table
-#include "sql/dd/types/object_type.h"         // dd::Object_type
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Open_dictionary_tables_ctx;
 class Object_table;
+class Open_dictionary_tables_ctx;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -52,8 +50,9 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return Collation::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
+
+  static void register_tables(Open_dictionary_tables_ctx *otx);
 
   virtual bool validate() const;
 
@@ -140,17 +139,6 @@ private:
   {
     return new Collation_impl(*this);
   }
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Collation_type : public Object_type
-{
-public:
-  virtual Collation *create_object() const
-  { return new (std::nothrow) Collation_impl(); }
-
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
 };
 
 ///////////////////////////////////////////////////////////////////////////

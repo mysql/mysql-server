@@ -30,14 +30,6 @@ class Table;
 ///////////////////////////////////////////////////////////////////////////
 
 /**
-  The hard coded version of the dictionary tables. This version number is
-  stored in mysql.dd_properties when dictionary tables are created.
-
-  This version number will be used in the upgrade of dictionary tables.
-*/
-static const uint DD_VERSION= 80004;
-
-/**
   The purpose of this interface is to enable retrieving the SQL statements
   necessary to create and populate a DD table. An Object_table instance
   may use one or more instances implementing this interface to keep track
@@ -51,39 +43,66 @@ public:
   { };
 
   /**
+    Set the name of the table.
+
+    @param name    Table name.
+  */
+  virtual void set_table_name(const String_type &name)= 0;
+
+  /**
+    Add a field to the object table definition.
+
+    @param field_number      Positional index of the field.
+    @param field_name        Label which can be used to refer to the field.
+    @param field_definition  Complete field definition with name, type etc.
+  */
+  virtual void add_field(int field_number, const String_type &field_name,
+                 const String_type field_definition)= 0;
+
+  /**
+    Add an index to the object table definition.
+
+    @param index_number      Positional index (sic!) of the index.
+    @param index_name        Label which can be used to refer to the index.
+    @param index_definition  Complete index definition.
+  */
+  virtual void add_index(int index_number, const String_type &index_name,
+                         const String_type &index_definition)= 0;
+
+  /**
     Get the SQL DDL statement for creating the dictionary table.
 
     @return String containing the SQL DDL statement for the target table.
-   */
-  virtual String_type build_ddl_create_table() const= 0;
-
-  /**
-    Get the SQL DDL statement for adding foreign keys for the table.
-
-    @return String containing the SQL DDL statement for adding foreign keys.
-   */
-  virtual String_type build_ddl_add_cyclic_foreign_keys() const= 0;
+  */
+  virtual String_type get_ddl() const= 0;
 
   /**
     Get the SQL DML statements for populating the table.
 
     @return Vector of strings containing SQL DML statements
-   */
-  virtual const std::vector<String_type> &dml_populate_statements() const= 0;
+  */
+  virtual const std::vector<String_type> &get_dml() const= 0;
 
   /**
-    Get dd version of the meta data representing the object table.
+    Store the elements of the object table definition into a property
+    object.
 
-    @return actual or target dd version, depending on context
+    @param [out] table_def_properties  Properties object containing the
+                                       definition.
   */
-  virtual uint dd_version() const= 0;
+  virtual void store_into_properties(
+    Properties *table_def_properties) const= 0;
 
   /**
-    Set dd version of the meta data representing the object table.
+    Restore the elements of the object table definition from a property
+    object.
 
-    @param version actual or target dd version, depending on context
+    @param table_def_properties  Properties object containing the
+                                 definition.
+    @return Operation outcome, false if no error.
   */
-  virtual void dd_version(uint version)= 0;
+  virtual bool restore_from_properties(
+    const Properties &table_def_properties)= 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

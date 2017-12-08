@@ -27,8 +27,6 @@
 #include "sql/dd/properties.h"
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/entity_object_table.h" // dd::Entity_object_table
-#include "sql/dd/types/object_type.h"         // dd::Object_type
 #include "sql/dd/types/tablespace.h"          // dd::Tablespace
 #include "sql/dd/types/tablespace_file.h"     // dd::Tablespace_file
 
@@ -38,6 +36,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Object_table;
 class Open_dictionary_tables_ctx;
 class Properties;
 class Sdi_rcontext;
@@ -55,8 +54,7 @@ public:
   virtual ~Tablespace_impl();
 
 public:
-  virtual const Object_table &object_table() const
-  { return Tablespace::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
 
@@ -79,6 +77,8 @@ public:
   virtual bool is_empty(THD *thd, bool *empty) const;
 
 public:
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
   /////////////////////////////////////////////////////////////////////////
   // comment.
   /////////////////////////////////////////////////////////////////////////
@@ -166,17 +166,6 @@ private:
   {
     return new Tablespace_impl(*this);
   }
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Tablespace_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Tablespace_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

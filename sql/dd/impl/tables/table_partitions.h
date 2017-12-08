@@ -36,13 +36,6 @@ class Table_partitions : public Object_table_impl
 public:
   static const Table_partitions &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("table_partitions");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_ID,
@@ -59,13 +52,24 @@ public:
     FIELD_TABLESPACE_ID
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_TABLE_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+    INDEX_UK_TABLE_ID_PARENT_PARTITION_ID_NUMBER,
+    INDEX_UK_ENGINE_SE_PRIVATE_ID,
+    INDEX_K_ENGINE,
+    INDEX_K_TABLESPACE_ID
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_TABLE_ID,
+    FK_TABLESPACE_ID
+  };
+
   Table_partitions();
 
-  virtual const String_type &name() const
-  { return Table_partitions::table_name(); }
-
-public:
   static Object_key *create_key_by_table_id(Object_id table_id);
 
   static Object_key *create_key_by_parent_partition_id(

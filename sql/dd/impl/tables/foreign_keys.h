@@ -32,13 +32,6 @@ class Foreign_keys : public Object_table_impl
 public:
   static const Foreign_keys &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("foreign_keys");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_ID,
@@ -49,18 +42,27 @@ public:
     FIELD_MATCH_OPTION,
     FIELD_UPDATE_RULE,
     FIELD_DELETE_RULE,
-    FIELD_REFERENCED_CATALOG,
-    FIELD_REFERENCED_SCHEMA,
-    FIELD_REFERENCED_TABLE
+    FIELD_REFERENCED_TABLE_CATALOG,
+    FIELD_REFERENCED_TABLE_SCHEMA,
+    FIELD_REFERENCED_TABLE,
+    FIELD_OPTIONS
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_SCHEMA_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+    INDEX_UK_TABLE_ID_NAME,
+    INDEX_K_REF_CATALOG_REF_SCHEMA_REF_TABLE
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_SCHEMA_ID
+  };
+
   Foreign_keys();
 
-  virtual const String_type &name() const
-  { return Foreign_keys::table_name(); }
-
-public:
   static Object_key *create_key_by_table_id(Object_id table_id);
 
   static Object_key *create_key_by_referenced_name(

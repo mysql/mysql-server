@@ -38,13 +38,6 @@ class Schemata : public Entity_object_table_impl
 public:
   static const Schemata &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("schemata");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_ID,
@@ -52,18 +45,27 @@ public:
     FIELD_NAME,
     FIELD_DEFAULT_COLLATION_ID,
     FIELD_CREATED,
-    FIELD_LAST_ALTERED
+    FIELD_LAST_ALTERED,
+    FIELD_OPTIONS
   };
 
-public:
-  Schemata();
+  enum enum_indexes
+  {
+    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_CATALOG_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+    INDEX_K_DEFAULT_COLLATION_ID
+  };
 
-  virtual const String_type &name() const
-  { return Schemata::table_name(); }
+  enum enum_foreign_keys
+  {
+    FK_CATALOG_ID,
+    FK_DEFAULT_COLLATION_ID
+  };
+
+  Schemata();
 
   virtual Schema *create_entity_object(const Raw_record &) const;
 
-public:
   static bool update_object_key(Item_name_key *key,
                                 Object_id catalog_id,
                                 const String_type &schema_name);

@@ -25,7 +25,7 @@ namespace tables {
 
 Resource_groups::Resource_groups()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("resource_groups");
 
   m_target_def.add_field(FIELD_ID, "FIELD_ID",
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
@@ -41,9 +41,16 @@ Resource_groups::Resource_groups()
                          "cpu_id_mask VARCHAR(1024) NOT NULL");
   m_target_def.add_field(FIELD_THREAD_PRIORITY, "FIELD_THREAD_PRIORITY",
                          "thread_priority int NOT NULL");
+  m_target_def.add_field(FIELD_OPTIONS,
+                         "FIELD_OPTIONS",
+                         "options MEDIUMTEXT");
 
-  m_target_def.add_index("PRIMARY KEY(id)");
-  m_target_def.add_index("UNIQUE KEY (resource_group_name)");
+  m_target_def.add_index(INDEX_PK_ID,
+                         "INDEX_PK_ID",
+                         "PRIMARY KEY(id)");
+  m_target_def.add_index(INDEX_UK_RESOURCE_GROUP_NAME,
+                         "INDEX_UK_RESOURCE_GROUP_NAME",
+                         "UNIQUE KEY (resource_group_name)");
 }
 
 const Resource_groups &Resource_groups::instance()

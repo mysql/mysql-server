@@ -16,6 +16,7 @@
 #ifndef DD_TABLES__CATALOGS_INCLUDED
 #define DD_TABLES__CATALOGS_INCLUDED
 
+#include "sql/dd/impl/tables/dd_properties.h"    // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_impl.h"
 
 namespace dd {
@@ -33,39 +34,56 @@ public:
     return *s_instance;
   }
 
-  static const String_type &table_name()
+  enum enum_fields
   {
-    static String_type s_table_name("catalogs");
-    return s_table_name;
-  }
+    FIELD_ID= static_cast<uint>(Common_field::ID),
+    FIELD_NAME,
+    FIELD_CREATED,
+    FIELD_LAST_ALTERED,
+    FIELD_OPTIONS
+  };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_NAME= static_cast<uint>(Common_index::UK_NAME)
+  };
+
   Catalogs()
   {
-    m_target_def.table_name(table_name());
+    m_target_def.set_table_name("catalogs");
 
-    m_target_def.add_field(0, "FIELD_ID",
-            "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
-    m_target_def.add_field(1, "FIELD_NAME",
-            "name VARCHAR(64) NOT NULL COLLATE " +
-            String_type(Object_table_definition_impl::
-                        fs_name_collation()->name));
-    m_target_def.add_field(2, "FIELD_CREATED",
-            "created TIMESTAMP NOT NULL\n"
-            "  DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-    m_target_def.add_field(3, "FIELD_LAST_ALTERED",
-            "last_altered TIMESTAMP NOT NULL DEFAULT NOW()");
+    m_target_def.add_field(FIELD_ID,
+                           "FIELD_ID",
+                           "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
+    m_target_def.add_field(FIELD_NAME,
+                           "FIELD_NAME",
+                           "name VARCHAR(64) NOT NULL COLLATE " +
+                           String_type(Object_table_definition_impl::
+                             fs_name_collation()->name));
+    m_target_def.add_field(FIELD_CREATED,
+                           "FIELD_CREATED",
+                           "created TIMESTAMP NOT NULL\n"
+                           "  DEFAULT CURRENT_TIMESTAMP"
+                           "  ON UPDATE CURRENT_TIMESTAMP");
+    m_target_def.add_field(FIELD_LAST_ALTERED,
+                           "FIELD_LAST_ALTERED",
+                           "last_altered TIMESTAMP NOT NULL DEFAULT NOW()");
+    m_target_def.add_field(FIELD_OPTIONS,
+                           "FIELD_OPTIONS",
+                           "options MEDIUMTEXT");
 
-    m_target_def.add_index("PRIMARY KEY (id)");
-    m_target_def.add_index("UNIQUE KEY (name)");
+    m_target_def.add_index(INDEX_PK_ID,
+                           "INDEX_PK_ID",
+                           "PRIMARY KEY (id)");
+    m_target_def.add_index(INDEX_UK_NAME,
+                           "INDEX_UK_NAME",
+                           "UNIQUE KEY (name)");
 
     m_target_def.add_populate_statement(
-      "INSERT INTO catalogs(id, name, created, last_altered) "
-        "VALUES (1, 'def', now(), now())");
+      "INSERT INTO catalogs(id, name, options, created, last_altered) "
+        "VALUES (1, 'def', NULL, now(), now())");
   }
-
-  virtual const String_type &name() const
-  { return Catalogs::table_name(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

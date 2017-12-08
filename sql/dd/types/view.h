@@ -23,7 +23,6 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Object_type;
 class View_impl;
 class View_table;
 class View_routine;
@@ -33,7 +32,6 @@ class View_routine;
 class View : virtual public Abstract_table
 {
 public:
-  static const Object_type &TYPE();
   typedef Collection<View_table*> View_tables;
   typedef Collection<View_routine*> View_routines;
   typedef View_impl Impl;

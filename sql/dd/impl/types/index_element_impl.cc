@@ -49,23 +49,6 @@ using dd::tables::Index_column_usage;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// Index_element implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_table &Index_element::OBJECT_TABLE()
-{
-  return Index_column_usage::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Index_element::TYPE()
-{
-  static Index_element_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Index_element_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -75,7 +58,7 @@ bool Index_element_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Index_element_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "No index object associated with this element.");
     return true;
   }
@@ -230,10 +213,15 @@ Index_element_impl::Index_element_impl(const Index_element_impl &src,
 {}
 
 ///////////////////////////////////////////////////////////////////////////
-//Index_element_type implementation.
+
+const Object_table &Index_element_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Index_element_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Index_element_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Index_column_usage>();
 }

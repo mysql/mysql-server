@@ -20,7 +20,6 @@
 #include "sql/dd/types/abstract_table.h" // dd::Abstract_table
 #include "sql/dd/types/foreign_key.h"  // IWYU pragma: keep
 #include "sql/dd/types/index.h"        // IWYU pragma: keep
-#include "sql/dd/types/object_type.h"  // IWYU pragma: keep
 #include "sql/dd/types/trigger.h"      // dd::Trigger::enum_*
 
 namespace dd {
@@ -28,6 +27,7 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Partition;
+class Table_impl;
 class Trigger;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -35,7 +35,7 @@ class Trigger;
 class Table : virtual public Abstract_table
 {
 public:
-  static const Object_type &TYPE();
+  typedef Table_impl Impl;
   typedef Collection<Index*> Index_collection;
   typedef Collection<Foreign_key*> Foreign_key_collection;
   typedef std::vector<Foreign_key_parent*> Foreign_key_parent_collection;
@@ -54,10 +54,10 @@ public:
 
   // We need a set of functions to update a preallocated se private id key,
   // which requires special handling for table objects.
-  virtual bool update_aux_key(aux_key_type *key) const
+  virtual bool update_aux_key(Aux_key *key) const
   { return update_aux_key(key, engine(), se_private_id()); }
 
-  static bool update_aux_key(aux_key_type *key,
+  static bool update_aux_key(Aux_key *key,
                              const String_type &engine,
                              Object_id se_private_id);
 

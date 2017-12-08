@@ -171,18 +171,7 @@ public:
     Debug dump of the local multi map to stderr.
   */
 
-  /* purecov: begin inspected */
-  void dump() const
-  {
-#ifndef DBUG_OFF
-    fprintf(stderr, "  --------------------------------\n");
-    fprintf(stderr, "  Local multi map for '%s'\n",
-            T::OBJECT_TABLE().name().c_str());
-    Multi_map_base<T>::dump();
-    fprintf(stderr, "  --------------------------------\n");
-#endif
-  }
-  /* purecov: end */
+  void dump() const;
 };
 
 } // namespace cache

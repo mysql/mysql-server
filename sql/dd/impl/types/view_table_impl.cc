@@ -37,23 +37,6 @@ using dd::tables::View_table_usage;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// View_table implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_table &View_table::OBJECT_TABLE()
-{
-  return View_table_usage::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &View_table::TYPE()
-{
-  static View_table_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // View_table_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -84,7 +67,7 @@ bool View_table_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             View_table_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "No view is associated with this view table object.");
     return true;
   }
@@ -159,10 +142,15 @@ View_table_impl(const View_table_impl &src,
 {}
 
 ///////////////////////////////////////////////////////////////////////////
-// View_table_type implementation.
+
+const Object_table &View_table_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void View_table_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void View_table_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<View_table_usage>();
 }

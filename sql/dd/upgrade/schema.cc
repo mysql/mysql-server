@@ -44,7 +44,7 @@
 #include "sql_string.h"
 
 namespace dd {
-namespace upgrade {
+namespace upgrade_57 {
 
 /**
   Returns the collation id for the database specified.

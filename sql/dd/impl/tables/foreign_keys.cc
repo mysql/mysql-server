@@ -19,6 +19,7 @@
 #include <string>
 
 #include "sql/dd/impl/raw/object_keys.h" // Parent_id_range_key
+#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/mysqld.h"
 #include "sql/stateless_allocator.h"
@@ -34,7 +35,7 @@ const Foreign_keys &Foreign_keys::instance()
 
 Foreign_keys::Foreign_keys()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("foreign_keys");
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",
@@ -69,14 +70,14 @@ Foreign_keys::Foreign_keys()
                          "  'CASCADE', 'SET NULL',\n"
                          "  'SET DEFAULT'\n"
                          ") NOT NULL");
-  m_target_def.add_field(FIELD_REFERENCED_CATALOG,
-                         "FIELD_REFERENCED_CATALOG",
+  m_target_def.add_field(FIELD_REFERENCED_TABLE_CATALOG,
+                         "FIELD_REFERENCED_TABLE_CATALOG",
                          "referenced_table_catalog "
                          "VARCHAR(64) NOT NULL COLLATE " +
                          String_type(Object_table_definition_impl::
                                      fs_name_collation()->name));
-  m_target_def.add_field(FIELD_REFERENCED_SCHEMA,
-                         "FIELD_REFERENCED_SCHEMA",
+  m_target_def.add_field(FIELD_REFERENCED_TABLE_SCHEMA,
+                         "FIELD_REFERENCED_TABLE_SCHEMA",
                          "referenced_table_schema "
                          "VARCHAR(64) NOT NULL COLLATE " +
                          String_type(Object_table_definition_impl::
@@ -87,14 +88,27 @@ Foreign_keys::Foreign_keys()
                          "VARCHAR(64) NOT NULL COLLATE " +
                          String_type(Object_table_definition_impl::
                                      fs_name_collation()->name));
+  m_target_def.add_field(FIELD_OPTIONS,
+                         "FIELD_OPTIONS",
+                         "options MEDIUMTEXT");
 
-  m_target_def.add_index("PRIMARY KEY (id)");
-  m_target_def.add_index("UNIQUE KEY (schema_id, name)");
-  m_target_def.add_index("UNIQUE KEY (table_id, name)");
-  m_target_def.add_index("KEY (referenced_table_catalog, "
+  m_target_def.add_index(INDEX_PK_ID,
+                         "INDEX_PK_ID",
+                         "PRIMARY KEY (id)");
+  m_target_def.add_index(INDEX_UK_SCHEMA_ID_NAME,
+                         "INDEX_UK_SCHEMA_ID_NAME",
+                         "UNIQUE KEY (schema_id, name)");
+  m_target_def.add_index(INDEX_UK_TABLE_ID_NAME,
+                         "INDEX_UK_TABLE_ID_NAME",
+                         "UNIQUE KEY (table_id, name)");
+  m_target_def.add_index(INDEX_K_REF_CATALOG_REF_SCHEMA_REF_TABLE,
+                         "INDEX_K_REF_CATALOG_REF_SCHEMA_REF_TABLE",
+                         "KEY (referenced_table_catalog, "
                          "referenced_table_schema, referenced_table_name)");
 
-  m_target_def.add_foreign_key("FOREIGN KEY (schema_id) REFERENCES "
+  m_target_def.add_foreign_key(FK_SCHEMA_ID,
+                               "FK_SCHEMA_ID",
+                               "FOREIGN KEY (schema_id) REFERENCES "
                                "schemata(id)");
 }
 
@@ -102,7 +116,8 @@ Foreign_keys::Foreign_keys()
 
 Object_key *Foreign_keys::create_key_by_table_id(Object_id table_id)
 {
-  return new (std::nothrow) Parent_id_range_key(2, FIELD_TABLE_ID, table_id);
+  return new (std::nothrow) Parent_id_range_key(
+          INDEX_UK_TABLE_ID_NAME, FIELD_TABLE_ID, table_id);
 }
 
 
@@ -111,15 +126,14 @@ Object_key *Foreign_keys::create_key_by_referenced_name(
   const String_type &referenced_schema,
   const String_type &referenced_table)
 {
-  const int index_no= 3;
-
-  return new (std::nothrow) Table_reference_range_key(index_no,
-                                                 FIELD_REFERENCED_CATALOG,
-                                                 referenced_catalog,
-                                                 FIELD_REFERENCED_SCHEMA,
-                                                 referenced_schema,
-                                                 FIELD_REFERENCED_TABLE,
-                                                 referenced_table);
+  return new (std::nothrow) Table_reference_range_key(
+          INDEX_K_REF_CATALOG_REF_SCHEMA_REF_TABLE,
+          FIELD_REFERENCED_TABLE_CATALOG,
+          referenced_catalog,
+          FIELD_REFERENCED_TABLE_SCHEMA,
+          referenced_schema,
+          FIELD_REFERENCED_TABLE,
+          referenced_table);
 }
 
 ///////////////////////////////////////////////////////////////////////////

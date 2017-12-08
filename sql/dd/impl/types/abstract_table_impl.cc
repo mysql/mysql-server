@@ -53,21 +53,6 @@ class Sdi_rcontext;
 class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
-// Abstract_table implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Abstract_table::TYPE()
-{
-  static Abstract_table_type s_instance;
-  return s_instance;
-}
-
-const Entity_object_table &Abstract_table::OBJECT_TABLE()
-{
-  return Tables::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Abstract_table_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -104,7 +89,7 @@ bool Abstract_table_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Abstract_table_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Schema ID is not set");
     return true;
   }
@@ -196,7 +181,7 @@ bool Abstract_table_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Abstract_table::update_id_key(id_key_type *key, Object_id id)
+bool Abstract_table::update_id_key(Id_key *key, Object_id id)
 {
   key->update(id);
   return false;
@@ -241,7 +226,7 @@ bool Abstract_table_impl::deserialize(Sdi_rcontext *rctx,
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Abstract_table::update_name_key(name_key_type *key,
+bool Abstract_table::update_name_key(Name_key *key,
                                      Object_id schema_id,
                                      const String_type &name)
 { return Tables::update_object_key(key, schema_id, name); }
@@ -347,11 +332,16 @@ const Column *Abstract_table_impl::get_column(const String_type name) const
   return NULL;
 }
 
-////////////////////////////////////////////////////////////////////////////
-// Table_type implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-void Abstract_table_type::register_tables(Open_dictionary_tables_ctx *otx) const
+const Object_table &Abstract_table_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+void Abstract_table_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->register_tables<Table>();
   otx->register_tables<View>();

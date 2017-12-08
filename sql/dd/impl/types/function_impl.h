@@ -29,7 +29,6 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/column.h"
 #include "sql/dd/types/function.h"             // dd::Function
-#include "sql/dd/types/object_type.h"          // dd::Object_type
 #include "sql/dd/types/routine.h"
 #include "sql/dd/types/view.h"
 
@@ -51,7 +50,7 @@ public:
   virtual ~Function_impl()
   { }
 
-  virtual bool update_routine_name_key(name_key_type *key,
+  virtual bool update_routine_name_key(Name_key *key,
                                        Object_id schema_id,
                                        const String_type &name) const;
 
@@ -273,7 +272,7 @@ public:
   { return Routine_impl::add_parameter(); }
   virtual const Parameter_collection &parameters() const
   { return Routine_impl::parameters(); }
-  virtual bool update_name_key(name_key_type *key) const
+  virtual bool update_name_key(Name_key *key) const
   { return Function::update_name_key(key); }
 
 private:
@@ -301,17 +300,6 @@ private:
   {
     return new Function_impl(*this);
   }
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Function_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Function_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -840,6 +840,7 @@ ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 ulong slow_start_timeout;
 #endif
 
+bool opt_no_dd_upgrade= false;
 bool opt_initialize= 0;
 bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
 bool opt_enable_named_pipe= 0;
@@ -2075,7 +2076,7 @@ static void clean_up(bool print_message)
     tc_log= NULL;
   }
 
-  if (dd::upgrade::in_progress())
+  if (dd::upgrade_57::in_progress())
     delete_dictionary_tablespace();
 
   delegates_destroy();
@@ -4965,7 +4966,7 @@ static int init_server_components()
                                PLUGIN_INIT_SKIP_PLUGIN_TABLE) : 0)))
   {
     // Delete all DD tables in case of error in initializing plugins.
-    if (dd::upgrade::in_progress())
+    if (dd::upgrade_57::in_progress())
       (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
 
     LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_DYNAMIC_PLUGINS);
@@ -4989,10 +4990,10 @@ static int init_server_components()
     dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE) returned.
     So make its copy to call init_pfs_tables() with right argument value later.
   */
-  bool dd_upgrade_was_initiated= dd::upgrade::in_progress();
+  bool dd_upgrade_was_initiated= dd::upgrade_57::in_progress();
 #endif
   // Populate DD tables with meta data from 5.7 in case of upgrade
-  if (!opt_help && dd::upgrade::in_progress() &&
+  if (!opt_help && dd::upgrade_57::in_progress() &&
       dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE))
   {
     LogErr(ERROR_LEVEL, ER_DD_POPULATING_TABLES_FAILED);
@@ -5003,7 +5004,7 @@ static int init_server_components()
     Store server and plugin IS tables metadata into new DD.
     This is done after all the plugins are registered.
   */
-  if (!opt_help && !opt_initialize && !dd::upgrade::in_progress() &&
+  if (!opt_help && !opt_initialize && !dd::upgrade_57::in_progress() &&
       dd::init(dd::enum_dd_init_type::DD_UPDATE_I_S_METADATA))
   {
     LogErr(ERROR_LEVEL, ER_DD_UPDATING_PLUGIN_MD_FAILED);
@@ -7004,6 +7005,11 @@ struct my_option my_long_early_options[]=
    "Port number to use for connection.",
    &opt_keyring_migration_port, &opt_keyring_migration_port,
    0, GET_ULONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-dd-upgrade", 0,
+   "Abort restart if automatic upgrade or downgrade of the data dictionary "
+   "is needed.",
+   &opt_no_dd_upgrade, &opt_no_dd_upgrade, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 
@@ -9962,7 +9968,7 @@ static void delete_dictionary_tablespace()
   (void) mysql_file_delete(key_file_misc, path, MYF(MY_WME));
 
   // Drop file which tracks progress of upgrade.
-  dd::upgrade::Upgrade_status().remove();
+  dd::upgrade_57::Upgrade_status().remove();
 }
 
 /**

@@ -31,7 +31,6 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/column.h"              // dd::Column
 #include "sql/dd/types/column_type_element.h" // IWYU pragma: keep
-#include "sql/dd/types/object_type.h"         // dd::Object_type
 #include "sql/gis/srid.h"                     // gis::srid_t
 
 using Mysql::Nullable;
@@ -65,8 +64,9 @@ public:
   virtual ~Column_impl();
 
 public:
-  virtual const Object_table &object_table() const
-  { return Column::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
+
+  static void register_tables(Open_dictionary_tables_ctx *otx);
 
   virtual bool validate() const;
 
@@ -508,17 +508,6 @@ private:
   enum_column_key m_column_key;
 
   Nullable<gis::srid_t> m_srs_id;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Column_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Column_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

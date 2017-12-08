@@ -3684,11 +3684,13 @@ extern LEX_STRING SLOW_LOG_NAME;
 /* information schema */
 extern LEX_STRING INFORMATION_SCHEMA_NAME;
 
-/* mysql schema */
+/* mysql schema name and DD ID */
 extern LEX_STRING MYSQL_SCHEMA_NAME;
+static const uint MYSQL_SCHEMA_DD_ID= 1;
 
-/* mysql tablespace */
+/* mysql tablespace name and DD ID */
 extern LEX_STRING MYSQL_TABLESPACE_NAME;
+static const uint MYSQL_TABLESPACE_DD_ID= 1;
 
 /* replication's tables */
 extern LEX_STRING RLI_INFO_NAME;

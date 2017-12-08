@@ -164,7 +164,6 @@ const String_type &lookup_schema_name(Sdi_wcontext *wctx)
   return *wctx->m_schema_name;
 }
 
-static constexpr std::uint64_t sdi_version= 1;
 template <typename T>
 String_type generic_serialize(THD *thd, const char *dd_object_type,
                               size_t dd_object_type_size, const T &dd_obj,

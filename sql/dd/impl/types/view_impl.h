@@ -29,8 +29,6 @@
 #include "sql/dd/properties.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
-#include "sql/dd/types/entity_object_table.h"  // dd::Entity_object_table
-#include "sql/dd/types/object_type.h"
 #include "sql/dd/types/view.h"                 // dd::View
 #include "sql/dd/types/view_routine.h"         // IWYU pragma: keep
 #include "sql/dd/types/view_table.h"           // IWYU pragma: keep
@@ -58,8 +56,7 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return View::OBJECT_TABLE(); }
+  static void register_tables(Open_dictionary_tables_ctx *otx);
 
   virtual bool validate() const;
 
@@ -291,17 +288,6 @@ private:
   {
     return new View_impl(*this);
   }
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class View_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) View_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

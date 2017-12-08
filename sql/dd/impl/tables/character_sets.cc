@@ -28,6 +28,7 @@
 #include "sql/dd/impl/cache/storage_adapter.h"    // Storage_adapter
 #include "sql/dd/impl/raw/object_keys.h"          // Global_name_key
 #include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
 #include "sql/dd/impl/types/charset_impl.h"       // dd::Charset_impl
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/dd/object_id.h"
@@ -48,7 +49,7 @@ const Character_sets &Character_sets::instance()
 
 Character_sets::Character_sets()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("character_sets");
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",
@@ -60,23 +61,30 @@ Character_sets::Character_sets()
                          "FIELD_DEFAULT_COLLATION_ID",
                          "default_collation_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_COMMENT,
-                 "FIELD_COMMENT",
-                 "comment VARCHAR(2048) COLLATE utf8_general_ci NOT NULL");
+                         "FIELD_COMMENT",
+                         "comment VARCHAR(2048)"
+                         " COLLATE utf8_general_ci NOT NULL");
   m_target_def.add_field(FIELD_MB_MAX_LENGTH,
                          "FIELD_MB_MAX_LENGTH",
                          "mb_max_length INT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_OPTIONS,
+                         "FIELD_OPTIONS",
+                         "options MEDIUMTEXT");
 
-  m_target_def.add_index("PRIMARY KEY(id)");
-  m_target_def.add_index("UNIQUE KEY(name)");
-  /*
-    Create supporting index for foreign key on default_collation_id in advance
-    So later ALTER TABLE which adds this cyclic foreign key is metadata-only
-    change.
-  */
-  m_target_def.add_index("KEY(default_collation_id)");
+  m_target_def.add_index(INDEX_PK_ID,
+                         "INDEX_PK_ID",
+                         "PRIMARY KEY(id)");
+  m_target_def.add_index(INDEX_UK_NAME,
+                         "INDEX_UK_NAME",
+                         "UNIQUE KEY(name)");
+  m_target_def.add_index(INDEX_K_DEFAULT_COLLATION_ID,
+                         "INDEX_K_DEFAULT_COLLATION_ID",
+                         "KEY(default_collation_id)");
 
-  m_target_def.add_cyclic_foreign_key("FOREIGN KEY (default_collation_id) "
-                                      "REFERENCES collations(id)");
+  m_target_def.add_foreign_key(FK_DEFAULT_COLLATION_ID,
+                               "FK_DEFAULT_COLLATION_ID",
+                               "FOREIGN KEY (default_collation_id) "
+                               "REFERENCES collations(id)");
 }
 
 ///////////////////////////////////////////////////////////////////////////

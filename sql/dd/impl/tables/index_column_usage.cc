@@ -18,6 +18,7 @@
 #include <new>
 
 #include "sql/dd/impl/raw/object_keys.h" // dd::Parent_id_range_key
+#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
@@ -33,7 +34,7 @@ const Index_column_usage &Index_column_usage::instance()
 
 Index_column_usage::Index_column_usage()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("index_column_usage");
 
   m_target_def.add_field(FIELD_INDEX_ID,
                          "FIELD_INDEX_ID",
@@ -60,12 +61,23 @@ Index_column_usage::Index_column_usage()
                          "FIELD_HIDDEN",
                          "hidden BOOL NOT NULL");
 
-  m_target_def.add_index("UNIQUE KEY (index_id, ordinal_position)");
-  m_target_def.add_index("UNIQUE KEY (index_id, column_id, hidden)");
+  m_target_def.add_index(INDEX_UK_INDEX_ID_ORDINAL_POSITION,
+                         "INDEX_UK_INDEX_ID_ORDINAL_POSITION",
+                         "UNIQUE KEY (index_id, ordinal_position)");
+  m_target_def.add_index(INDEX_UK_INDEX_ID_COLUMN_ID_HIDDEN,
+                         "INDEX_UK_INDEX_ID_COLUMN_ID_HIDDEN",
+                         "UNIQUE KEY (index_id, column_id, hidden)");
+  m_target_def.add_index(INDEX_K_COLUMN_ID,
+                         "INDEX_K_COLUMN_ID",
+                         "KEY (column_id)");
 
-  m_target_def.add_foreign_key("FOREIGN KEY f1(index_id) REFERENCES "
+  m_target_def.add_foreign_key(FK_INDEX_ID,
+                               "FK_INDEX_ID",
+                               "FOREIGN KEY (index_id) REFERENCES "
                                "indexes(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY f2(column_id) REFERENCES "
+  m_target_def.add_foreign_key(FK_COLUMN_ID,
+                               "FK_COLUMN_ID",
+                               "FOREIGN KEY (column_id) REFERENCES "
                                "columns(id)");
 }
 
@@ -74,7 +86,8 @@ Index_column_usage::Index_column_usage()
 Object_key *Index_column_usage::create_key_by_index_id(
   Object_id index_id)
 {
-  return new (std::nothrow) Parent_id_range_key(0, FIELD_INDEX_ID, index_id);
+  return new (std::nothrow) Parent_id_range_key(
+          INDEX_UK_INDEX_ID_ORDINAL_POSITION, FIELD_INDEX_ID, index_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -82,9 +95,8 @@ Object_key *Index_column_usage::create_key_by_index_id(
 Object_key *Index_column_usage::create_primary_key(
   Object_id index_id, int ordinal_position)
 {
-  const int INDEX_NO= 0;
-
-  return new (std::nothrow) Composite_pk(INDEX_NO,
+  return new (std::nothrow) Composite_pk(
+                          INDEX_UK_INDEX_ID_ORDINAL_POSITION,
                           FIELD_INDEX_ID, index_id,
                           FIELD_ORDINAL_POSITION, ordinal_position);
 }

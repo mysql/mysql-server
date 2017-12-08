@@ -26,9 +26,7 @@
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/entity_object_table.h"  // dd::Entity_object_table
 #include "sql/dd/types/event.h"                // dd::Event
-#include "sql/dd/types/object_type.h"          // dd::Object_type
 #include "sql/sql_time.h"                         // gmt_time_to_local_time
 
 namespace dd {
@@ -50,8 +48,9 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return Event::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
+
+  static void register_tables(Open_dictionary_tables_ctx *otx);
 
   virtual bool validate() const;
 
@@ -371,17 +370,6 @@ private:
   {
     return new Event_impl(*this);
   }
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Event_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Event_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

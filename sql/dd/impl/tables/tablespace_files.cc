@@ -18,6 +18,7 @@
 #include <new>
 
 #include "sql/dd/impl/raw/object_keys.h" // Parent_id_range_key
+#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
@@ -33,7 +34,7 @@ const Tablespace_files &Tablespace_files::instance()
 
 Tablespace_files::Tablespace_files()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("tablespace_files");
 
   m_target_def.add_field(FIELD_TABLESPACE_ID,
                          "FIELD_TABLESPACE_ID",
@@ -48,10 +49,16 @@ Tablespace_files::Tablespace_files()
                          "FIELD_SE_PRIVATE_DATA",
                          "se_private_data MEDIUMTEXT");
 
-  m_target_def.add_index("UNIQUE KEY (tablespace_id, ordinal_position)");
-  m_target_def.add_index("UNIQUE KEY (file_name)");
+  m_target_def.add_index(INDEX_UK_TABLESPACE_ID_ORDINAL_POSITION,
+                         "INEDX_UK_TABLESPACE_ID_ORDINAL_POSITION",
+                         "UNIQUE KEY (tablespace_id, ordinal_position)");
+  m_target_def.add_index(INDEX_UK_FILE_NAME,
+                         "INEDX_UK_FILE_NAME",
+                         "UNIQUE KEY (file_name)");
 
-  m_target_def.add_foreign_key("FOREIGN KEY (tablespace_id) \
+  m_target_def.add_foreign_key(FK_TABLESPACE_ID,
+                               "FK_TABLESPACE_ID",
+                               "FOREIGN KEY (tablespace_id) \
                                 REFERENCES tablespaces(id)");
 }
 
@@ -60,8 +67,9 @@ Tablespace_files::Tablespace_files()
 Object_key *Tablespace_files::create_key_by_tablespace_id(
   Object_id tablespace_id)
 {
-  return new (std::nothrow) Parent_id_range_key(0, FIELD_TABLESPACE_ID,
-                                               tablespace_id);
+  return new (std::nothrow) Parent_id_range_key(
+          INDEX_UK_TABLESPACE_ID_ORDINAL_POSITION, FIELD_TABLESPACE_ID,
+          tablespace_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -69,9 +77,8 @@ Object_key *Tablespace_files::create_key_by_tablespace_id(
 Object_key *Tablespace_files::create_primary_key(
   Object_id tablespace_id, int ordinal_position)
 {
-  const int INDEX_NO= 0;
-
-  return new (std::nothrow) Composite_pk(INDEX_NO,
+  return new (std::nothrow) Composite_pk(
+                          INDEX_UK_TABLESPACE_ID_ORDINAL_POSITION,
                           FIELD_TABLESPACE_ID, tablespace_id,
                           FIELD_ORDINAL_POSITION, ordinal_position);
 }

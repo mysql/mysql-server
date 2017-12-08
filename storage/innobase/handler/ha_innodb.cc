@@ -84,6 +84,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 # include "dd/dictionary.h"
 # include "dd/properties.h"
 # include "dd/types/index.h"
+# include "dd/types/object_table.h"
+# include "dd/types/object_table_definition.h"
 # include "dd/types/partition.h"
 # include "dd/types/table.h"
 # include "dd/types/tablespace.h"
@@ -3453,11 +3455,18 @@ and add them to the appropriate out parameter.
 @retval	false			Success - no errors. */
 static
 bool
-innobase_dict_init(
+innobase_ddse_dict_init(
 	dict_init_mode_t		dict_init_mode,
 	uint				version,
-	List<const Plugin_table>*	tables,
+	List<const dd::Object_table>*	tables,
 	List<const Plugin_tablespace>*	tablespaces);
+
+/** Initialize the set of hard coded DD table ids.
+@param[in]	dd_table_id		Table id of DD table. */
+static
+void
+innobase_dict_register_dd_table_id(
+	dd::Object_id		dd_table_id);
 
 /** Validate the DD tablespace data against what's read during the
 directory scan on startup. */
@@ -4828,8 +4837,11 @@ innodb_init(
 	innobase_hton->file_extensions = ha_innobase_exts;
 	innobase_hton->data = &innodb_api_cb;
 
-	innobase_hton->dict_init=
-		innobase_dict_init;
+	innobase_hton->ddse_dict_init=
+		innobase_ddse_dict_init;
+
+	innobase_hton->dict_register_dd_table_id=
+		innobase_dict_register_dd_table_id;
 
 	innobase_hton->dict_cache_reset=
 		innobase_dict_cache_reset;
@@ -5102,7 +5114,7 @@ innobase_init_files(
 
 	ut_ad(dict_init_mode == DICT_INIT_CREATE_FILES
 	      || dict_init_mode == DICT_INIT_CHECK_FILES
-	      || dict_init_mode == DICT_INIT_UPGRADE_FILES);
+	      || dict_init_mode == DICT_INIT_UPGRADE_57_FILES);
 
 	bool	create = (dict_init_mode == DICT_INIT_CREATE_FILES);
 
@@ -5114,7 +5126,7 @@ innobase_init_files(
 		DBUG_RETURN(innodb_init_abort());
 	}
 
-	srv_is_upgrade_mode = (dict_init_mode == DICT_INIT_UPGRADE_FILES);
+	srv_is_upgrade_mode = (dict_init_mode == DICT_INIT_UPGRADE_57_FILES);
 
 	/* InnoDB files should be found in the following locations only. */
 	std::string	directories;
@@ -5186,7 +5198,7 @@ innobase_init_files(
 	bool	ret;
 
 	// For upgrade from 5.7, create mysql.ibd
-	create |= (dict_init_mode == DICT_INIT_UPGRADE_FILES);
+	create |= (dict_init_mode == DICT_INIT_UPGRADE_57_FILES);
 	ret = create
 		? dd_create_hardcoded(dict_sys_t::s_space_id,
 				      dict_sys_t::s_dd_space_file_name)
@@ -12320,114 +12332,134 @@ and add them to the appropriate out parameter.
 @retval	false			Success - no errors. */
 static
 bool
-innobase_dict_init(
+innobase_ddse_dict_init(
 	dict_init_mode_t		dict_init_mode,
 	uint				version,
-	List<const Plugin_table>*	tables,
+	List<const dd::Object_table>*	tables,
 	List<const Plugin_tablespace>*	tablespaces)
 {
-	DBUG_ENTER("innobase_dict_init");
+	DBUG_ENTER("innobase_ddse_ict_init");
 
 	DBUG_ASSERT(tables && tables->is_empty());
 	DBUG_ASSERT(tablespaces && tablespaces->is_empty());
 
-	static Plugin_table innodb_table_stats(
-		/* Schema Name */
-		"mysql",
-		/* Table Name */
-		"innodb_table_stats",
-		/* Definition */
-		"  database_name VARCHAR(64) NOT NULL, \n"
-		"  table_name VARCHAR(" NAME_CHAR_LEN_PARTITIONS_STR
-		") NOT NULL, \n"
-		"  last_update TIMESTAMP NOT NULL \n"
-		"  DEFAULT CURRENT_TIMESTAMP \n"
-		"  ON UPDATE CURRENT_TIMESTAMP, \n"
-		"  n_rows BIGINT UNSIGNED NOT NULL, \n"
-		"  clustered_index_size BIGINT UNSIGNED NOT NULL, \n"
-		"  sum_of_other_index_sizes BIGINT UNSIGNED NOT NULL, \n"
-		"  PRIMARY KEY (database_name, table_name) \n",
-		/* Options */
-		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
-		"DEFAULT CHARSET=utf8 COLLATE=utf8_bin "
-		"STATS_PERSISTENT=0",
-		/* Tablespace */
-		MYSQL_TABLESPACE_NAME.str);
+	dd::Object_table *innodb_dynamic_metadata =
+		dd::Object_table::create_object_table();
+	innodb_dynamic_metadata->set_hidden(false);
+	dd::Object_table_definition *def =
+		innodb_dynamic_metadata->target_table_definition();
+	def->set_table_name("innodb_dynamic_metadata");
+	def->add_field(0, "table_id",
+		"table_id BIGINT UNSIGNED NOT NULL");
+	def->add_field(1, "version",
+		"version BIGINT UNSIGNED NOT NULL");
+	def->add_field(2, "metadata",
+		"metadata BLOB NOT NULL");
+	def->add_index(0, "index_pk", "PRIMARY KEY (table_id)");
+	/* Options and tablespace are set at the SQL layer. */
 
-	static Plugin_table innodb_index_stats(
-		/* Schema Name */
-		"mysql",
-		/* Table Name */
-		"innodb_index_stats",
-		/* Definition */
-		"  database_name VARCHAR(64) NOT NULL, \n"
-		"  table_name VARCHAR(" NAME_CHAR_LEN_PARTITIONS_STR
-		") NOT NULL, \n"
-		"  index_name VARCHAR(64) NOT NULL, \n"
-		"  last_update TIMESTAMP NOT NULL NOT NULL \n"
+	dd::Object_table *innodb_table_stats =
+		dd::Object_table::create_object_table();
+	innodb_table_stats->set_hidden(false);
+	def = innodb_table_stats->target_table_definition();
+	def->set_table_name("innodb_table_stats");
+	def->add_field(0, "database_name",
+		"database_name VARCHAR(64) NOT NULL");
+	def->add_field(1, "table_name",
+		"table_name VARCHAR(" NAME_CHAR_LEN_PARTITIONS_STR
+		") NOT NULL");
+	def->add_field(2, "last_update", "last_update TIMESTAMP NOT NULL \n"
 		"  DEFAULT CURRENT_TIMESTAMP \n"
-		"  ON UPDATE CURRENT_TIMESTAMP, \n"
+		"  ON UPDATE CURRENT_TIMESTAMP");
+	def->add_field(3, "n_rows",
+		"n_rows BIGINT UNSIGNED NOT NULL");
+	def->add_field(4, "clustered_index_size",
+		"clustered_index_size BIGINT UNSIGNED NOT NULL");
+	def->add_field(5, "sum_of_other_index_sizes",
+		"sum_of_other_index_sizes BIGINT UNSIGNED NOT NULL");
+	def->add_index(0, "index_pk",
+		"PRIMARY KEY (database_name, table_name)");
+	/* Options and tablespace are set at the SQL layer. */
+
+	dd::Object_table *innodb_index_stats =
+		dd::Object_table::create_object_table();
+	innodb_index_stats->set_hidden(false);
+	def = innodb_index_stats->target_table_definition();
+	def->set_table_name("innodb_index_stats");
+	def->add_field(0, "database_name",
+		"database_name VARCHAR(64) NOT NULL");
+	def->add_field(1, "table_name",
+		"table_name VARCHAR(" NAME_CHAR_LEN_PARTITIONS_STR
+		") NOT NULL");
+	def->add_field(2, "index_name",
+		"index_name VARCHAR(64) NOT NULL");
+	def->add_field(3, "last_update",
+		"last_update TIMESTAMP NOT NULL"
+		"  DEFAULT CURRENT_TIMESTAMP"
+		"  ON UPDATE CURRENT_TIMESTAMP");
 		/*
 			There are at least: stat_name='size'
 				stat_name='n_leaf_pages'
 				stat_name='n_diff_pfx%'
 		*/
-		"  stat_name VARCHAR(64) NOT NULL, \n"
-		"  stat_value BIGINT UNSIGNED NOT NULL, \n"
-		"  sample_size BIGINT UNSIGNED, \n"
-		"  stat_description VARCHAR(1024) NOT NULL, \n"
-		"  PRIMARY KEY (database_name, table_name, "
-			"index_name, stat_name) \n",
-		/* Options */
-		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
-		"DEFAULT CHARSET=utf8 COLLATE=utf8_bin "
-		"STATS_PERSISTENT=0",
-		/* Tablespace */
-		MYSQL_TABLESPACE_NAME.str);
+	def->add_field(4, "stat_name",
+		"stat_name VARCHAR(64) NOT NULL");
+	def->add_field(5, "stat_value",
+		"stat_value BIGINT UNSIGNED NOT NULL");
+	def->add_field(6, "sample_size",
+		"sample_size BIGINT UNSIGNED");
+	def->add_field(7, "stat_description",
+		"stat_description VARCHAR(1024) NOT NULL");
+	def->add_index(0, "index_pk",
+		"PRIMARY KEY (database_name, table_name, "
+			"index_name, stat_name)");
+	/* Options and tablespace are set at the SQL layer. */
 
-	static const Plugin_table innodb_dynamic_metadata(
-		/* Schema Name */
-		"mysql",
-		/* Table Name */
-		"innodb_dynamic_metadata",
-		/* Definition */
-		"  table_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,\n"
-		"  version BIGINT UNSIGNED NOT NULL,\n"
-		"  metadata BLOB NOT NULL\n",
-		/* Options */
-		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
-		" STATS_PERSISTENT=0",
-		/* Tablespace */
-		MYSQL_TABLESPACE_NAME.str);
+	dd::Object_table *innodb_ddl_log =
+		dd::Object_table::create_object_table();
+	innodb_ddl_log->set_hidden(false);
+	def = innodb_ddl_log->target_table_definition();
+	def->set_table_name("innodb_ddl_log");
+	def->add_field(0, "id",
+		"id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
+	def->add_field(1, "thread_id",
+		"thread_id BIGINT UNSIGNED NOT NULL");
+	def->add_field(2, "type",
+		"type INT UNSIGNED NOT NULL");
+	def->add_field(3, "space_id",
+		"space_id INT UNSIGNED");
+	def->add_field(4, "page_no",
+		"page_no INT UNSIGNED");
+	def->add_field(5, "index_id",
+		"index_id BIGINT UNSIGNED");
+	def->add_field(6, "table_id",
+		"table_id BIGINT UNSIGNED");
+	def->add_field(7, "old_file_path",
+		"old_file_path VARCHAR(512) COLLATE UTF8_BIN");
+	def->add_field(8, "new_file_path",
+		"new_file_path VARCHAR(512) COLLATE UTF8_BIN");
+	def->add_index(0, "index_pk",
+		"PRIMARY KEY(id)");
+	def->add_index(1, "index_k_thread_id",
+		"KEY(thread_id)");
+	/* Options and tablespace are set at the SQL layer. */
 
-	static const Plugin_table innodb_ddl_log(
-		/* Schema Name */
-		"mysql",
-		/* Table Name */
-		"innodb_ddl_log",
-		/* Definition */
-		" id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,\n"
-		" thread_id BIGINT UNSIGNED NOT NULL,\n"
-		" type INT UNSIGNED NOT NULL,\n"
-		" space_id INT UNSIGNED,\n"
-		" page_no INT UNSIGNED,\n"
-		" index_id BIGINT UNSIGNED,\n"
-		" table_id BIGINT UNSIGNED,\n"
-		" old_file_path VARCHAR(512) COLLATE UTF8_BIN,\n"
-		" new_file_path VARCHAR(512) COLLATE UTF8_BIN,\n"
-		" KEY(thread_id)\n",
-		/* Options */
-		" ENGINE=INNODB"
-		" STATS_PERSISTENT=0",
-		/* Tablespace */
-		MYSQL_TABLESPACE_NAME.str);
-
-	tables->push_back(&innodb_table_stats);
-	tables->push_back(&innodb_index_stats);
-	tables->push_back(&innodb_ddl_log);
-	tables->push_back(&innodb_dynamic_metadata);
+	tables->push_back(innodb_dynamic_metadata);
+	tables->push_back(innodb_table_stats);
+	tables->push_back(innodb_index_stats);
+	tables->push_back(innodb_ddl_log);
 
 	DBUG_RETURN(innobase_init_files(dict_init_mode, tablespaces));
+}
+
+/** Initialize the set of hard coded DD table ids.
+@param[in]	dd_table_id	 Table id of DD table. */
+static
+void
+innobase_dict_register_dd_table_id(
+	dd::Object_id		dd_table_id)
+{
+	dict_sys_t::s_dd_table_ids.insert(dd_table_id);
 }
 
 /** Parse the table name into normal name and remote path if needed.
@@ -14374,27 +14406,33 @@ ha_innobase::upgrade_table(
 
 /** Get storage-engine private data for a data dictionary table.
 @param[in,out]	dd_table	data dictionary table definition
-@param[in]	dd_version	data dictionary version
+@param		reset		reset counters
 @retval		true		an error occurred
 @retval		false		success */
 bool
 ha_innobase::get_se_private_data(
 	dd::Table*	dd_table,
-	uint		dd_version)
+	bool		reset)
 {
 	static uint	n_tables = 0;
 	static uint	n_indexes = 0;
 	static uint	n_pages = 4;
 
+	/* Reset counters on second create during upgrade. */
+	if (reset)
+	{
+		n_tables = 0;
+		n_indexes = 0;
+		n_pages = 4;
+		// Also need to reset the set of DD table ids.
+		dict_sys_t::s_dd_table_ids.clear();
+	}
 #ifdef UNIV_DEBUG
 	const uint	n_indexes_old = n_indexes;
 #endif
 
 	DBUG_ENTER("ha_innobase::get_se_private_data");
 	DBUG_ASSERT(dd_table != nullptr);
-	DBUG_ASSERT((dd_version == 0)
-		    == (dd_table->name() == innodb_dd_table[0].name));
-	DBUG_ASSERT((dd_version == 0) == (n_tables == 0));
 	DBUG_ASSERT(n_tables < innodb_dd_table_size);
 
 	if ((*(const_cast<const dd::Table*>(
@@ -14416,6 +14454,13 @@ ha_innobase::get_se_private_data(
 	dd_table->set_se_private_id(++n_tables);
 	dd_table->set_tablespace_id(dict_sys_t::s_dd_space_id);
 
+	/* Set the table id for each column to be conform with the
+	implementation in dd_write_table(). */
+	for (auto dd_column : *dd_table->table().columns()) {
+		dd_column->se_private_data().set_uint64(
+			dd_index_key_strings[DD_TABLE_ID], n_tables);
+	}
+
 	for (dd::Index* i : *dd_table->indexes()) {
 		i->set_tablespace_id(dict_sys_t::s_dd_space_id);
 
@@ -14429,6 +14474,9 @@ ha_innobase::get_se_private_data(
 		p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], n_pages++);
 		p.set_uint64(dd_index_key_strings[DD_INDEX_ID], ++n_indexes);
 		p.set_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], 0);
+		p.set_uint64(dd_index_key_strings[DD_INDEX_SPACE_ID],
+			dict_sys_t::s_space_id);
+		p.set_uint64(dd_index_key_strings[DD_TABLE_ID], n_tables);
 	}
 
 	DBUG_ASSERT(n_indexes - n_indexes_old == data.n_indexes);
@@ -14711,7 +14759,7 @@ ha_innobase::truncate(dd::Table *table_def)
 	Purge might be holding a reference to the table. */
 	DBUG_ASSERT(m_prebuilt->table->n_ref_count >= 1);
 
-	if (dict_sys_t::is_hardcoded(m_prebuilt->table->id)) {
+	if (dict_sys_t::is_dd_table_id(m_prebuilt->table->id)) {
 		ut_ad(!m_prebuilt->table->is_temporary());
 		my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
 		DBUG_RETURN(HA_ERR_UNSUPPORTED);
@@ -14864,7 +14912,7 @@ ha_innobase::delete_table(
 	const dd::Table*	table_def)
 {
 	if (table_def != NULL
-	    && dict_sys_t::is_hardcoded(table_def->se_private_id())) {
+	    && dict_sys_t::is_dd_table_id(table_def->se_private_id())) {
 		my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
 		return(HA_ERR_UNSUPPORTED);
 	}
@@ -15388,7 +15436,7 @@ ha_innobase::rename_table(
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
-	if (dict_sys_t::is_hardcoded(to_table_def->se_private_id())) {
+	if (dict_sys_t::is_dd_table_id(to_table_def->se_private_id())) {
 		my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
 		DBUG_RETURN(HA_ERR_UNSUPPORTED);
 	}

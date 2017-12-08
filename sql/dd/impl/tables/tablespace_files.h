@@ -32,13 +32,6 @@ class Tablespace_files : public Object_table_impl
 public:
   static const Tablespace_files &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("tablespace_files");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_TABLESPACE_ID,
@@ -47,13 +40,19 @@ public:
     FIELD_SE_PRIVATE_DATA
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_UK_TABLESPACE_ID_ORDINAL_POSITION,
+    INDEX_UK_FILE_NAME
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_TABLESPACE_ID
+  };
+
   Tablespace_files();
 
-  virtual const String_type &name() const
-  { return Tablespace_files::table_name(); }
-
-public:
   static Object_key *create_key_by_tablespace_id(
     Object_id tablespace_id);
 

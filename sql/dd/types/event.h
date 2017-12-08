@@ -26,8 +26,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Entity_object_table;
-class Object_type;
+class Event_impl;
 class Void_key;
 class Item_name_key;
 
@@ -40,28 +39,26 @@ namespace tables {
 class Event : virtual public Entity_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Entity_object_table &OBJECT_TABLE();
-
-  typedef Event cache_partition_type;
-  typedef tables::Events cache_partition_table_type;
-  typedef Primary_id_key id_key_type;
-  typedef Item_name_key name_key_type;
-  typedef Void_key aux_key_type;
+  typedef Event_impl Impl;
+  typedef Event Cache_partition;
+  typedef tables::Events DD_table;
+  typedef Primary_id_key Id_key;
+  typedef Item_name_key Name_key;
+  typedef Void_key Aux_key;
 
   // We need a set of functions to update a preallocated key.
-  virtual bool update_id_key(id_key_type *key) const
+  virtual bool update_id_key(Id_key *key) const
   { return update_id_key(key, id()); }
 
-  static bool update_id_key(id_key_type *key, Object_id id);
+  static bool update_id_key(Id_key *key, Object_id id);
 
-  virtual bool update_name_key(name_key_type *key) const
+  virtual bool update_name_key(Name_key *key) const
   { return update_name_key(key, schema_id(), name()); }
 
-  static bool update_name_key(name_key_type *key, Object_id schema_id,
+  static bool update_name_key(Name_key *key, Object_id schema_id,
                               const String_type &name);
 
-  virtual bool update_aux_key(aux_key_type*) const
+  virtual bool update_aux_key(Aux_key*) const
   { return true; }
 
 public:

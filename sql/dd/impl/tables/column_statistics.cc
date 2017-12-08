@@ -19,6 +19,7 @@
 #include <string>
 
 #include "sql/dd/impl/raw/object_keys.h"                // Parent_id_range_key
+#include "sql/dd/impl/tables/dd_properties.h"           // TARGET_DD_VERSION
 #include "sql/dd/impl/types/column_statistics_impl.h"   // Column_statistic_impl
 #include "sql/dd/impl/types/object_table_definition_impl.h" // Object_table_defi ...
 #include "sql/mysqld.h"
@@ -41,7 +42,7 @@ const Column_statistics & Column_statistics::instance()
 
 Column_statistics::Column_statistics()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("column_statistics");
 
   m_target_def.add_field(FIELD_ID, "FIELD_ID",
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
@@ -62,13 +63,24 @@ Column_statistics::Column_statistics()
                           utf8_tolower_ci");
   m_target_def.add_field(FIELD_HISTOGRAM, "FIELD_HISTOGRAM",
                          "histogram JSON NOT NULL");
+  m_target_def.add_field(FIELD_OPTIONS,
+                         "FIELD_OPTIONS",
+                         "options MEDIUMTEXT");
 
-  m_target_def.add_index("PRIMARY KEY (id)");
-  m_target_def.add_index("UNIQUE KEY (catalog_id, name)");
-  m_target_def.add_index("UNIQUE KEY (catalog_id, schema_name, \
-                                      table_name, column_name)");
+  m_target_def.add_index(INDEX_PK_ID,
+                         "INDEX_PK_ID",
+                         "PRIMARY KEY (id)");
+  m_target_def.add_index(INDEX_UK_CATALOG_ID_NAME,
+                         "INDEX_UK_CATALOG_ID_NAME",
+                         "UNIQUE KEY (catalog_id, name)");
+  m_target_def.add_index(INDEX_UK_CATALOG_ID_SCHEMA_NAME_TABLE_NAME_COLUMN_NAME,
+                       "INDEX_UK_CATALOG_ID_SCHEMA_NAME_TABLE_NAME_COLUMN_NAME",
+                       "UNIQUE KEY (catalog_id, schema_name, \
+                                    table_name, column_name)");
 
-  m_target_def.add_foreign_key("FOREIGN KEY (catalog_id) REFERENCES \
+  m_target_def.add_foreign_key(FK_CATALOG_ID,
+                               "FK_CATALOGS_ID",
+                               "FOREIGN KEY (catalog_id) REFERENCES \
                                 catalogs (id)");
 }
 

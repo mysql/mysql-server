@@ -46,13 +46,6 @@ public:
     return *s_instance;
   }
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("triggers");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_ID,
@@ -70,16 +63,30 @@ public:
     FIELD_DEFINER,
     FIELD_CLIENT_COLLATION_ID,
     FIELD_CONNECTION_COLLATION_ID,
-    FIELD_SCHEMA_COLLATION_ID
+    FIELD_SCHEMA_COLLATION_ID,
+    FIELD_OPTIONS
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_SCHEMA_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+    INDEX_UK_TABLE_ID_EVENT_TYPE_ACTION_TIMING_ACTION_ORDER,
+    INDEX_K_CLIENT_COLLATION_ID,
+    INDEX_K_CONNECTION_COLLATION_ID,
+    INDEX_K_SCHEMA_COLLATION_ID
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_SCHEMA_ID,
+    FK_TABLE_ID,
+    FK_CLIENT_COLLATION_ID,
+    FK_CONNECTION_COLLATION_ID,
+    FK_SCHEMA_COLLATION_ID
+  };
+
   Triggers();
-
-  virtual const String_type &name() const
-  { return Triggers::table_name(); }
-
-public:
 
   /**
     Create a key to find all triggers for a given schema.

@@ -30,9 +30,8 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Entity_object_table;
+class Column_statistics_impl;
 class Item_name_key;
-class Object_type;
 class Primary_id_key;
 class Void_key;
 
@@ -48,27 +47,25 @@ protected:
   /// MEM_ROOT on which the histogram data is allocated.
   MEM_ROOT m_mem_root;
 public:
-  static const Object_type &TYPE();
-  static const Entity_object_table &OBJECT_TABLE();
-
-  typedef Column_statistics cache_partition_type;
-  typedef tables::Column_statistics cache_partition_table_type;
-  typedef Primary_id_key id_key_type;
-  typedef Item_name_key name_key_type;
-  typedef Void_key aux_key_type;
+  typedef Column_statistics_impl Impl;
+  typedef Column_statistics Cache_partition;
+  typedef tables::Column_statistics DD_table;
+  typedef Primary_id_key Id_key;
+  typedef Item_name_key Name_key;
+  typedef Void_key Aux_key;
 
   // We need a set of functions to update a preallocated key.
-  bool update_id_key(id_key_type *key) const
+  bool update_id_key(Id_key *key) const
   { return update_id_key(key, id()); }
 
-  static bool update_id_key(id_key_type *key, Object_id id);
+  static bool update_id_key(Id_key *key, Object_id id);
 
-  bool update_name_key(name_key_type *key) const
+  bool update_name_key(Name_key *key) const
   { return update_name_key(key, name()); }
 
-  static bool update_name_key(name_key_type *key, const String_type &name);
+  static bool update_name_key(Name_key *key, const String_type &name);
 
-  bool update_aux_key(aux_key_type*) const
+  bool update_aux_key(Aux_key*) const
   { return true; }
 
   virtual ~Column_statistics()

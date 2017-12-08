@@ -32,7 +32,6 @@
 #include "sql/dd/impl/types/table_impl.h"      // dd::Table_impl
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
-#include "sql/dd/types/object_type.h"          // dd::Object_type
 #include "sql/dd/types/trigger.h"              // dd::Trigger
 
 namespace dd {
@@ -58,8 +57,7 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const override
-  { return Trigger::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const override;
 
   virtual bool validate() const override;
 
@@ -78,6 +76,8 @@ public:
   { return m_ordinal_position; }
 
 public:
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
   /////////////////////////////////////////////////////////////////////////
   // Table.
   /////////////////////////////////////////////////////////////////////////
@@ -296,17 +296,6 @@ private:
   Object_id m_client_collation_id;
   Object_id m_connection_collation_id;
   Object_id m_schema_collation_id;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Trigger_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Trigger_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

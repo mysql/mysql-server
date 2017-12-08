@@ -25,13 +25,12 @@
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/charset.h"              // dd::Charset
-#include "sql/dd/types/entity_object_table.h"  // dd::Entity_object_table
-#include "sql/dd/types/object_type.h"          // dd::Object_type
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Object_table;
 class Open_dictionary_tables_ctx;
 class Raw_record;
 class Weak_object;
@@ -52,8 +51,9 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return Charset::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
+
+  static void register_tables(Open_dictionary_tables_ctx *otx);
 
   virtual bool validate() const;
 
@@ -128,17 +128,6 @@ private:
   {
     return new Charset_impl(*this);
   }
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Charset_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Charset_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

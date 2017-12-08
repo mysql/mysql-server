@@ -67,6 +67,7 @@ SET(DD_SOURCES
   dd/dd_trigger.cc
   dd/dd_view.cc
 
+  dd/impl/bootstrap_ctx.cc
   dd/impl/bootstrapper.cc
   dd/impl/dd.cc
   dd/impl/dictionary_impl.cc
@@ -164,6 +165,7 @@ SET(DD_SOURCES
   dd/impl/types/function_impl.cc
   dd/impl/types/index_element_impl.cc
   dd/impl/types/index_impl.cc
+  dd/impl/types/object_table_impl.cc
   dd/impl/types/parameter_impl.cc
   dd/impl/types/parameter_type_element_impl.cc
   dd/impl/types/partition_impl.cc

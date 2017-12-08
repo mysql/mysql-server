@@ -37,13 +37,6 @@ class Routines : public Entity_object_table_impl
 public:
   static const Routines &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("routines");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_ID,
@@ -72,18 +65,33 @@ public:
     FIELD_SCHEMA_COLLATION_ID,
     FIELD_CREATED,
     FIELD_LAST_ALTERED,
-    FIELD_COMMENT
+    FIELD_COMMENT,
+    FIELD_OPTIONS
   };
 
-public:
-  Routines();
+  enum enum_indexes
+  {
+    INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_SCHEMA_ID_TYPE_NAME,
+    INDEX_K_RESULT_COLLATION_ID,
+    INDEX_K_CLIENT_COLLATION_ID,
+    INDEX_K_CONNECTION_COLLATION_ID,
+    INDEX_K_SCHEMA_COLLATION_ID
+  };
 
-  virtual const String_type &name() const
-  { return Routines::table_name(); }
+  enum enum_foreign_keys
+  {
+    FK_SCHEMA_ID,
+    FK_RESULT_COLLATION_ID,
+    FK_CLIENT_COLLATION_ID,
+    FK_CONNECTION_COLLATION_ID,
+    FK_SCHEMA_COLLATION_ID
+  };
+
+  Routines();
 
   virtual Routine *create_entity_object(const Raw_record &) const;
 
-public:
   static bool update_object_key(Routine_name_key *key,
                                 Object_id schema_id,
                                 Routine::enum_routine_type type,

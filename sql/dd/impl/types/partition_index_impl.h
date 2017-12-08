@@ -27,7 +27,6 @@
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/index.h"
-#include "sql/dd/types/object_type.h"           // dd::Object_type
 #include "sql/dd/types/partition_index.h"       // dd::Partition_index
 
 namespace dd {
@@ -62,8 +61,7 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return Partition_index::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
 
@@ -84,6 +82,8 @@ public:
   { return -1; }
 
 public:
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
   /////////////////////////////////////////////////////////////////////////
   // Partition.
   /////////////////////////////////////////////////////////////////////////
@@ -166,17 +166,6 @@ private:
   // References to loosely-coupled objects.
 
   Object_id m_tablespace_id;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Partition_index_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Partition_index_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

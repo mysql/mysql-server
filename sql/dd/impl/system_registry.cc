@@ -82,7 +82,7 @@ template <typename X>
 void register_table(dd::System_tables::Types type)
 {
   dd::System_tables::instance()->add(MYSQL_SCHEMA_NAME.str,
-                                     X::instance().table_name(),
+                                     X::instance().name(),
                                      type, &X::instance());
 }
 
@@ -122,45 +122,69 @@ System_tablespaces * System_tablespaces::instance()
 }
 
 
-void System_tables::init()
+/*
+  Initialize the System_tables registry with the INERT DD
+  tables.
+*/
+void System_tables::add_inert_dd_tables()
 {
   // Se header file for explanation of table categories.
   dd::System_tables::Types inert=  dd::System_tables::Types::INERT;
+  register_table<DD_properties>(inert);
+}
+
+
+/*
+  Initialize the System_tables registry with the non-INERT DD
+  tables. All actual tables should have an entry in the
+  System_tables registry, except in the case of a minor
+  downgrade. Thus, the System_tables registry should contain
+  all tables from all supported versions. Tables that are
+  abandoned should be marked as such, see below.
+*/
+void System_tables::add_remaining_dd_tables()
+{
+  // Se header file for explanation of table categories.
   dd::System_tables::Types core=   dd::System_tables::Types::CORE;
   dd::System_tables::Types second= dd::System_tables::Types::SECOND;
 
-  // Order below is dictated by the foreign key constraints.
-  register_table<DD_properties>(inert);
-
+  register_table<Catalogs>(core);
   register_table<Character_sets>(core);
   register_table<Collations>(core);
-  register_table<Tablespaces>(core);
-  register_table<Tablespace_files>(core);
-  register_table<Catalogs>(core);
   register_table<dd::tables::Column_statistics>(core);
+  register_table<Column_type_elements>(core);
+  register_table<Columns>(core);
+  register_table<Events>(second);
+  register_table<Foreign_key_column_usage>(core);
+  register_table<Foreign_keys>(core);
+  register_table<Index_column_usage>(core);
+  register_table<Index_partitions>(core);
+  register_table<Index_stats>(second);
+  register_table<Indexes>(core);
+  register_table<Parameter_type_elements>(second);
+  register_table<Parameters>(second);
+  register_table<Resource_groups>(core);
+  register_table<Routines>(second);
   register_table<Schemata>(core);
   register_table<Spatial_reference_systems>(second);
-  register_table<Tables>(core);
-  register_table<View_table_usage>(core);
-  register_table<View_routine_usage>(core);
-  register_table<Columns>(core);
-  register_table<Indexes>(core);
-  register_table<Index_column_usage>(core);
-  register_table<Column_type_elements>(core);
-  register_table<Foreign_keys>(core);
-  register_table<Foreign_key_column_usage>(core);
-  register_table<Table_partitions>(core);
   register_table<Table_partition_values>(core);
-  register_table<Index_partitions>(core);
-
+  register_table<Table_partitions>(core);
   register_table<Table_stats>(second);
-  register_table<Index_stats>(second);
-  register_table<Events>(second);
-  register_table<Routines>(second);
-  register_table<Parameters>(second);
-  register_table<Parameter_type_elements>(second);
+  register_table<Tables>(core);
+  register_table<Tablespace_files>(core);
+  register_table<Tablespaces>(core);
   register_table<Triggers>(core);
-  register_table<Resource_groups>(core);
+  register_table<View_routine_usage>(core);
+  register_table<View_table_usage>(core);
+
+  /*
+    Mark abandoned tables. E.g., if done as shown below, note that when
+    the last version becomes unsupported, we will get a build error here
+    that makes sure the abandoned table will not be left unnoticed. When
+    that happens, the source code for the table can be removed:
+
+    Collations::instance().set_abandoned(bootstrap::DD_VERSION_80004);
+  */
 }
 
 void System_views::init()

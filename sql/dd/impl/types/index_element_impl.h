@@ -25,7 +25,6 @@
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/index_element.h"     // dd::Index_element
-#include "sql/dd/types/object_type.h"       // dd::Object_type
 
 namespace dd {
 
@@ -72,8 +71,7 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return Index_element::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
 
@@ -89,6 +87,8 @@ public:
   { m_ordinal_position= ordinal_position; }
 
 public:
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
   /////////////////////////////////////////////////////////////////////////
   // index.
   /////////////////////////////////////////////////////////////////////////
@@ -182,17 +182,6 @@ private:
   // References to other objects
   Index_impl *m_index;
   Column *m_column;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Index_element_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Index_element_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

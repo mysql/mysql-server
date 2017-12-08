@@ -41,13 +41,6 @@ class Tables : public Entity_object_table_impl
 public:
   static const Tables &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("tables");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_ID,
@@ -86,16 +79,28 @@ public:
     FIELD_VIEW_COLUMN_NAMES
   };
 
-public:
-  Tables();
+  enum enum_indexes
+  {
+    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_SCHEMA_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+    INDEX_UK_ENGINE_SE_PRIVATE_ID,
+    INDEX_K_ENGINE,
+    INDEX_K_COLLATION_ID,
+    INDEX_K_TABLESPACE_ID
+  };
 
-  virtual const String_type &name() const
-  { return Tables::table_name(); }
+  enum enum_foreign_keys
+  {
+    FK_SCHEMA_ID,
+    FK_COLLATION_ID,
+    FK_TABLESPACE_ID
+  };
+
+  Tables();
 
   virtual Abstract_table *create_entity_object(
     const Raw_record &r) const;
 
-public:
   static bool update_object_key(Item_name_key *key,
                                 Object_id schema_id,
                                 const String_type &table_name);

@@ -26,6 +26,7 @@ Data dictionary interface */
 #include "dict0dict.h"
 #include "dict0types.h"
 #include "dict0mem.h"
+
 #ifndef UNIV_HOTBACKUP
 # include <dd/properties.h>
 # include "sess0sess.h"
@@ -41,7 +42,6 @@ Data dictionary interface */
 # include "dd/types/index_element.h"
 # include "dd/types/partition.h"
 # include "dd/types/partition_index.h"
-# include "dd/types/object_type.h"
 # include "dd/types/tablespace.h"
 # include "dd/types/tablespace_file.h"
 # include "dd_table_share.h"
@@ -126,21 +126,6 @@ enum dd_space_keys {
 	DD_SPACE__LAST
 };
 
-/** enum that defines system table IDs. */
-enum dd_system_id_t {
-	DD_TABLESPACES = 4,
-	DD_DATAFILES = 5,
-	DD_TABLES = 10,
-	DD_COLUMNS = 13,
-	DD_INDEXES = 14,
-	DD_FOREIGN = 17,
-	DD_FOREIGN_COLS = 18,
-	DD_PARTITIONS = 19,
-
-	/* This must be last item. Defines the number of system tables. */
-	DD_LAST_ID
-};
-
 /** InnoDB implicit tablespace name or prefix, which should be same to
 dict_sys_t::s_file_per_table_name */
 static constexpr char reserved_implicit_name[] = "innodb_file_per_table";
@@ -203,6 +188,13 @@ static const dd::String_type	index_file_name_key("index_file_name");
 /** dd::Partition::options() key for DATA DIRECTORY */
 static const dd::String_type	data_file_name_key("data_file_name");
 
+/** Table names needed to process I_S queries. */
+static const dd::String_type	dd_tables_name("mysql/tables");
+static const dd::String_type	dd_partitions_name("mysql/table_partitions");
+static const dd::String_type	dd_tablespaces_name("mysql/tablespaces");
+static const dd::String_type	dd_indexes_name("mysql/indexes");
+static const dd::String_type	dd_columns_name("mysql/columns");
+
 #ifdef UNIV_DEBUG
 
 /** Hard-coded data dictionary information */
@@ -213,42 +205,43 @@ struct innodb_dd_table_t {
 	const uint	n_indexes;
 };
 
-/** The hard-coded data dictionary tables. The number of tables should be
-consistent with dict_sys_t::s_num_hard_coded_tables */
+/** The hard-coded data dictionary tables. */
 const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("dd_properties", 1),
-	INNODB_DD_TABLE("character_sets", 3),
-	INNODB_DD_TABLE("collations", 3),
-	INNODB_DD_TABLE("tablespaces", 2),
-	INNODB_DD_TABLE("tablespace_files", 2),
-	INNODB_DD_TABLE("catalogs", 2),
-	INNODB_DD_TABLE("column_statistics", 3),
-	INNODB_DD_TABLE("schemata", 3),
-	INNODB_DD_TABLE("st_spatial_reference_systems", 3),
-	INNODB_DD_TABLE("tables", 6),
-	INNODB_DD_TABLE("view_table_usage", 2),
-	INNODB_DD_TABLE("view_routine_usage", 2),
-	INNODB_DD_TABLE("columns", 5),
-	INNODB_DD_TABLE("indexes", 3),
-	INNODB_DD_TABLE("index_column_usage", 3),
-	INNODB_DD_TABLE("column_type_elements", 1),
-	INNODB_DD_TABLE("foreign_keys", 4),
-	INNODB_DD_TABLE("foreign_key_column_usage", 3),
-	INNODB_DD_TABLE("table_partitions", 6),
-	INNODB_DD_TABLE("table_partition_values", 1),
-	INNODB_DD_TABLE("index_partitions", 3),
-	INNODB_DD_TABLE("table_stats", 1),
-	INNODB_DD_TABLE("index_stats", 1),
-	INNODB_DD_TABLE("events", 5),
-	INNODB_DD_TABLE("routines", 6),
-	INNODB_DD_TABLE("parameters", 3),
-	INNODB_DD_TABLE("parameter_type_elements", 1),
-	INNODB_DD_TABLE("triggers", 6),
-        INNODB_DD_TABLE("resource_groups", 2),
+
+	INNODB_DD_TABLE("innodb_dynamic_metadata", 1),
 	INNODB_DD_TABLE("innodb_table_stats", 1),
 	INNODB_DD_TABLE("innodb_index_stats", 1),
 	INNODB_DD_TABLE("innodb_ddl_log", 2),
-	INNODB_DD_TABLE("innodb_dynamic_metadata", 1)
+
+	INNODB_DD_TABLE("catalogs", 2),
+	INNODB_DD_TABLE("character_sets", 3),
+	INNODB_DD_TABLE("collations", 3),
+	INNODB_DD_TABLE("column_statistics", 3),
+	INNODB_DD_TABLE("column_type_elements", 1),
+	INNODB_DD_TABLE("columns", 5),
+	INNODB_DD_TABLE("events", 5),
+	INNODB_DD_TABLE("foreign_key_column_usage", 3),
+	INNODB_DD_TABLE("foreign_keys", 4),
+	INNODB_DD_TABLE("index_column_usage", 3),
+	INNODB_DD_TABLE("index_partitions", 3),
+	INNODB_DD_TABLE("index_stats", 1),
+	INNODB_DD_TABLE("indexes", 3),
+	INNODB_DD_TABLE("parameter_type_elements", 1),
+	INNODB_DD_TABLE("parameters", 3),
+        INNODB_DD_TABLE("resource_groups", 2),
+	INNODB_DD_TABLE("routines", 6),
+	INNODB_DD_TABLE("schemata", 3),
+	INNODB_DD_TABLE("st_spatial_reference_systems", 3),
+	INNODB_DD_TABLE("table_partition_values", 1),
+	INNODB_DD_TABLE("table_partitions", 6),
+	INNODB_DD_TABLE("table_stats", 1),
+	INNODB_DD_TABLE("tables", 6),
+	INNODB_DD_TABLE("tablespace_files", 2),
+	INNODB_DD_TABLE("tablespaces", 2),
+	INNODB_DD_TABLE("triggers", 6),
+	INNODB_DD_TABLE("view_routine_usage", 2),
+	INNODB_DD_TABLE("view_table_usage", 2)
 };
 
 /** Number of hard-coded data dictionary tables */
@@ -478,7 +471,7 @@ void dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc);
 @param[in,out]	mdl		mdl lock
 @param[in,out]	pcur		persistent cursor
 @param[in]	mtr		the mini-transaction
-@param[in]	system_id	which dd system table to open
+@param[in]	system_table_name	which dd system table to open
 @param[in,out]	table		dict_table_t obj of dd system table
 @retval the first rec of the dd system table */
 const rec_t*
@@ -487,7 +480,7 @@ dd_startscan_system(
 	MDL_ticket**	mdl,
 	btr_pcur_t*	pcur,
 	mtr_t*		mtr,
-	dd_system_id_t	system_id,
+	const char*	system_table_name,
 	dict_table_t**	table);
 
 /** Process one mysql.tables record and get the dict_table_t

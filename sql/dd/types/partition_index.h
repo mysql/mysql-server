@@ -26,20 +26,22 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Index;
-class Object_type;
 class Partition;
 class Partition_index_impl;
 class Properties;
 class Tablespace;
+
+namespace tables {
+  class Index_partitions;
+};
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Partition_index : virtual public Weak_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Object_table &OBJECT_TABLE();
   typedef Partition_index_impl Impl;
+  typedef tables::Index_partitions DD_table;
 
 public:
   virtual ~Partition_index()

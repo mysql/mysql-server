@@ -21,6 +21,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
+#include "my_time.h"                          // TIME_to_ulonglong_datetime
 #include "mysql_com.h"
 #include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
 #include "sql/dd/dd.h"                        // dd::get_dictionary
@@ -30,6 +31,7 @@
 #include "sql/mysqld.h"                       // lower_case_table_names
 #include "sql/sql_class.h"                    // THD
 #include "sql/system_variables.h"
+#include "sql/tztime.h"                       // Time_zone
 
 namespace dd {
 
@@ -60,6 +62,14 @@ bool create_schema(THD *thd, const char *schema_name,
   schema->set_name(schema_name);
   DBUG_ASSERT(charset_info);
   schema->set_default_collation_id(charset_info->number);
+
+  // Get statement start time.
+  MYSQL_TIME curtime;
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
+  ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
+
+  schema->set_created(ull_curtime);
+  schema->set_last_altered(ull_curtime);
 
   // Store the schema. Error will be reported by the dictionary subsystem.
   return thd->dd_client()->store(schema.get());

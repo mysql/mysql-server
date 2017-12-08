@@ -32,9 +32,11 @@ namespace dd {
 class Abstract_table;
 class Column_impl;
 class Column_type_element;
-class Object_table;
-class Object_type;
 class Properties;
+
+namespace tables {
+  class Columns;
+};
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -77,10 +79,9 @@ enum class enum_column_types
 class Column : virtual public Entity_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Object_table &OBJECT_TABLE();
   typedef Collection<Column_type_element*> Column_type_element_collection;
   typedef Column_impl Impl;
+  typedef tables::Columns DD_table;
 
   enum enum_column_key
   {
