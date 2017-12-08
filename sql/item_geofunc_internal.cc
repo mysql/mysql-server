@@ -49,7 +49,7 @@ class Spatial_reference_system;
 }  // namespace dd
 
 
-bool Srs_fetcher::lock(gis::srid_t srid)
+bool Srs_fetcher::lock(gis::srid_t srid, enum_mdl_type lock_type)
 {
   DBUG_ENTER("lock_srs");
   DBUG_ASSERT(srid != 0);
@@ -61,15 +61,17 @@ bool Srs_fetcher::lock(gis::srid_t srid)
   mdl_request.init_with_source(MDL_key::SRID,
                                "",
                                id_str,
-                               MDL_SHARED_READ,
+                               lock_type,
                                MDL_TRANSACTION,
                                __FILE__,
                                __LINE__);
   if (m_thd->mdl_context.acquire_lock(&mdl_request,
                                       m_thd->variables.lock_wait_timeout))
   {
+    /* purecov: begin inspected */
     // If locking fails, an error has already been flagged.
     DBUG_RETURN(true);
+    /* purecov: end */
   }
 
   DBUG_RETURN(false);
@@ -79,11 +81,23 @@ bool Srs_fetcher::lock(gis::srid_t srid)
 bool Srs_fetcher::acquire(gis::srid_t srid,
                           const dd::Spatial_reference_system **srs)
 {
-  if (lock(srid))
-    return true;
+  if (lock(srid, MDL_SHARED_READ))
+    return true; /* purecov: inspected */
 
   if (m_thd->dd_client()->acquire(srid, srs))
-    return true;
+    return true; /* purecov: inspected */
+  return false;
+}
+
+
+bool Srs_fetcher::acquire_for_modification(gis::srid_t srid,
+                                           dd::Spatial_reference_system **srs)
+{
+  if (lock(srid, MDL_EXCLUSIVE))
+    return true; /* purecov: inspected */
+
+  if (m_thd->dd_client()->acquire_for_modification(srid, srs))
+    return true; /* purecov: inspected */
   return false;
 }
 
@@ -95,7 +109,7 @@ bool Srs_fetcher::srs_exists(THD *thd, gis::srid_t srid, bool *exists)
   Srs_fetcher fetcher(thd);
   const dd::Spatial_reference_system *srs= nullptr;
   if (fetcher.acquire(srid, &srs))
-    return true;
+    return true; /* purecov: inspected */
   *exists= (srs != nullptr);
   return false;
 }
