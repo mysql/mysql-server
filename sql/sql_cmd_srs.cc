@@ -15,7 +15,7 @@
 
 /// @file
 ///
-/// This file implements the CREATE SPATIAL REFERENCE SYSTEM statement.
+/// This file implements the CREATE/DROP SPATIAL REFERENCE SYSTEM statements.
 
 #include "sql/sql_cmd_srs.h"
 
@@ -240,6 +240,59 @@ bool Sql_cmd_create_srs::execute(THD *thd)
   if (thd->dd_client()->store(new_srs.get()))
     return true;
 
+  rollback_guard.commit();
+  if (commit(thd))
+    return true; /* purecov: inspected */
+  my_ok(thd);
+  return false;
+}
+
+
+bool Sql_cmd_drop_srs::execute(THD *thd)
+{
+  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  {
+    my_error(ER_CMD_NEED_SUPER, MYF(0), "DROP SPATIAL REFERENCE SYSTEM");
+    return true;
+  }
+  Disable_autocommit_guard dag(thd);
+  dd::cache::Dictionary_client *dd_client= thd->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
+  auto rollback_guard= create_scope_guard([thd]()
+  {
+    if (rollback(thd))
+      DBUG_ASSERT(false); /* purecov: deadcode */
+  });
+  Srs_fetcher fetcher(thd);
+  dd::Spatial_reference_system *srs= nullptr;
+  if (fetcher.acquire_for_modification(m_srid, &srs))
+    return true; /* purecov: inspected */
+
+  if (srs == nullptr)
+  {
+    if (m_if_exists)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_SRS_NOT_FOUND,
+                          ER_THD(thd, ER_SRS_NOT_FOUND), m_srid);
+      my_ok(thd);
+    }
+    else
+    {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), m_srid);
+    }
+    return !m_if_exists;
+  }
+
+  warn_if_in_reserved_range(m_srid, thd);
+
+  if (srs_is_used(m_srid, thd))
+  {
+    my_error(ER_CANT_MODIFY_SRS_USED_BY_COLUMN, MYF(0), m_srid);
+    return true;
+  }
+
+  if (dd_client->drop(srs))
+    return true; /* purecov: inspected */
   rollback_guard.commit();
   if (commit(thd))
     return true; /* purecov: inspected */

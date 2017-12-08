@@ -2532,6 +2532,7 @@ uint sp_get_flags_for_command(LEX *lex)
   case SQLCOM_CREATE_ROLE:
   case SQLCOM_DROP_ROLE:
   case SQLCOM_CREATE_SRS:
+  case SQLCOM_DROP_SRS:
     flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
     break;
   default:

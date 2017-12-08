@@ -721,6 +721,8 @@ void init_sql_command_flags(void)
                                                 CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_CREATE_SRS]|=        CF_AUTO_COMMIT_TRANS |
                                                 CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_DROP_SRS]|=          CF_AUTO_COMMIT_TRANS |
+                                                CF_ACQUIRE_BACKUP_LOCK;
 
   /*
     The following statements can deal with temporary tables,
@@ -830,6 +832,7 @@ void init_sql_command_flags(void)
   sql_command_flags[SQLCOM_ALTER_INSTANCE]|=   CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_IMPORT]|=           CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_SRS]|=       CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_SRS]|=         CF_DISALLOW_IN_RO_TRANS;
 
   /*
     Mark statements that are allowed to be executed by the plugins.
@@ -979,6 +982,7 @@ void init_sql_command_flags(void)
   sql_command_flags[SQLCOM_IMPORT]|=                  CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_END]|=                     CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_CREATE_SRS]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_SRS]|=                CF_ALLOW_PROTOCOL_PLUGIN;
 
   /*
     Mark DDL statements which require that auto-commit mode to be temporarily
@@ -1041,6 +1045,8 @@ void init_sql_command_flags(void)
   sql_command_flags[SQLCOM_DROP_EVENT]|=       CF_NEEDS_AUTOCOMMIT_OFF |
                                                CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_CREATE_SRS]|=       CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_SRS]|=         CF_NEEDS_AUTOCOMMIT_OFF |
                                                CF_POTENTIAL_ATOMIC_DDL;
 }
 
@@ -4625,6 +4631,7 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_EXPLAIN_OTHER:
   case SQLCOM_RESTART_SERVER:
   case SQLCOM_CREATE_SRS:
+  case SQLCOM_DROP_SRS:
 
     DBUG_ASSERT(lex->m_sql_cmd != nullptr);
     res= lex->m_sql_cmd->execute(thd);

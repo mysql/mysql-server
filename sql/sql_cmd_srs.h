@@ -15,13 +15,14 @@
 
 /// @file
 ///
-/// This file declares the interface of class Sql_cmd_create_srs, which
-/// handles the CREATE SPATIAL REFERENCE SYSTEM statement.
+/// This file declares the interface of classes Sql_cmd_create_srs and
+/// Sql_cmd_drop_srs, which handles the CREATE/DROP SPATIAL REFERENCE
+/// SYSTEM statements, respectively.
 
 #ifndef SQL_SQL_CMD_SRS_H_INCLUDED
 #define SQL_SQL_CMD_SRS_H_INCLUDED
 
-#include "my_sqlcommand.h"           // SQLCOM_CREATE_SRS
+#include "my_sqlcommand.h"           // SQLCOM_CREATE_SRS, SQLCOM_DROP_SRS
 #include "mysql/mysql_lex_string.h"  // MYSQL_LEX_STRING
 #include "sql/dd/types/spatial_reference_system.h"
 #include "sql/gis/srid.h"  // gis::srid_t
@@ -96,6 +97,21 @@ private:
   gis::srid_t m_organization_coordsys_id= 0;
   /// Description of the new SRS.
   MYSQL_LEX_STRING m_description;
+};
+
+class Sql_cmd_drop_srs final : public Sql_cmd
+{
+public:
+  Sql_cmd_drop_srs(gis::srid_t srid, bool if_exists)
+      : m_srid(srid), m_if_exists(if_exists) {}
+  enum_sql_command sql_command_code() const override { return SQLCOM_DROP_SRS; }
+  bool execute(THD* thd) override;
+
+private:
+  /// SRID of the SRS to drop.
+  gis::srid_t m_srid;
+  /// Whether IF EXISTS was specified.
+  bool m_if_exists;
 };
 
 #endif  // SQL_SQL_CMD_SRS_H_INCLUDED

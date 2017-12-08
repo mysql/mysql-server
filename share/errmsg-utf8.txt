@@ -7762,7 +7762,7 @@ ER_SRS_PROJ_PARAMETER_MISSING SR003
   eng "The spatial reference system definition for SRID %u does not specify the mandatory %s (EPSG %u) projection parameter."
 
 ER_WARN_SRS_NOT_FOUND 01000
-  eng "There's no spatial reference system with SRID %u. Calculations in function %s will be done in SRID 0."
+  eng "There's no spatial reference system with SRID %u."
 
 ER_SRS_NOT_CARTESIAN 22S00
   eng "Function %s is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID %u, which is not Cartesian."
