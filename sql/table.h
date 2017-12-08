@@ -2481,20 +2481,6 @@ struct TABLE_LIST
   /// Cleanup field translations for a view
   void cleanup_items();
 
-  /**
-    Check whether the table is a placeholder, ie a derived table, a view or
-    a schema table.
-    A table is also considered to be a placeholder if it does not have a
-    TABLE object for some other reason.
-    A recursive reference in a CTE is also a placeholder: it doesn't need any
-    locking, binary logging...
-  */
-  bool is_placeholder() const
-  {
-    return is_view_or_derived() || schema_table || !table ||
-      m_is_recursive_reference || is_table_function();
-  }
-
   /// Produce a textual identification of this object
   void print(THD *thd, String *str, enum_query_type query_type) const;
 
@@ -2565,6 +2551,29 @@ struct TABLE_LIST
     @returns true if error
   */
   bool set_recursive_reference();
+
+  /**
+    @returns true for a table that represents an optimizer internal table,
+    is a derived table, a recursive reference, a table function.
+    Internal tables are only visible inside a query expression, and is hence
+    not visible in any schema, or need any kind of privilege checking.
+  */
+  bool is_internal() const
+  {
+    return is_derived() || is_recursive_reference() || is_table_function();
+  }
+
+  /**
+    @returns true for a table that is a placeholder, ie a derived table,
+    a view, a recursive reference, a table function or a schema table.
+    A table is also considered to be a placeholder if it does not have a
+    TABLE object for some other reason.
+  */
+  bool is_placeholder() const
+  {
+    return is_view_or_derived() || is_recursive_reference() ||
+           is_table_function() || schema_table || table == nullptr;
+  }
 
   /// Return true if view or derived table and can be merged
   bool is_mergeable() const;

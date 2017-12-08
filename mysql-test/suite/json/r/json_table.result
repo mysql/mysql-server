@@ -1705,3 +1705,17 @@ JEXST INT EXISTS PATH '$.b')
 b
 DROP TABLE t1;
 DROP VIEW v2;
+#
+# Bug#27189940: CREATE VIEW FAILS ON JSON_TABLE() IN SCHEMA-LESS CONNECTIONS
+#
+CREATE VIEW test.v AS SELECT * FROM JSON_TABLE('[1,2,3]', '$[*]' COLUMNS (num INT PATH '$[0]')) AS jt;
+use test;
+SHOW CREATE VIEW test.v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `jt`.`num` AS `num` from json_table('[1,2,3]', '$[*]' columns (num int path '$[0]')) `jt`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM test.v;
+num
+1
+2
+3
+DROP VIEW test.v;
