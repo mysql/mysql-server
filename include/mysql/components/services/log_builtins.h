@@ -28,13 +28,16 @@
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/log_shared.h>
+#if defined(MYSQL_DYNAMIC_PLUGIN)
+#include <mysql/service_plugin_registry.h>
+#endif
 #include <stdarg.h>
+#include <stdio.h>
 
-#include "my_compiler.h"
-#ifdef MYSQL_SERVER
+#include <my_compiler.h>
+#if defined(MYSQL_SERVER) && !defined(MYSQL_DYNAMIC_PLUGIN)
 #include "sql/log.h"
 #endif
-
 
 /**
   Primitives for services to interact with the structured logger:
@@ -651,9 +654,9 @@ BEGIN_SERVICE_DEFINITION(log_builtins_syseventlog)
 END_SERVICE_DEFINITION(log_builtins_syseventlog)
 
 
-#  ifdef __cplusplus
+#ifdef __cplusplus
 
-#    if !defined(LOG_H)
+#if !defined(LOG_H)
 
 extern SERVICE_TYPE(log_builtins)        *log_bi;
 extern SERVICE_TYPE(log_builtins_string) *log_bs;
@@ -686,7 +689,9 @@ extern SERVICE_TYPE(log_builtins_string) *log_bs;
 #      define log_set_float               log_item_set_float
 #      define log_set_lexstring           log_item_set_lexstring
 #      define log_set_cstring             log_item_set_cstring
-#    endif
+#endif // LOG_H
+
+#ifndef DISABLE_ERROR_LOGGING
 
 #define LogErr(severity, ecode, ...) LogEvent().prio(severity)\
                                                .errcode(ecode)\
@@ -696,7 +701,43 @@ extern SERVICE_TYPE(log_builtins_string) *log_bs;
                                                .function(__FUNCTION__)\
                                                .lookup(ecode, ## __VA_ARGS__)
 
+#define LogPluginErr(severity, ecode, ...) \
+  LogEvent().prio(severity)\
+            .errcode(ecode)\
+            .subsys(LOG_SUBSYSTEM_TAG)\
+            .source_line(__LINE__)\
+            .source_file(MY_BASENAME)\
+            .function(__FUNCTION__)\
+            .lookup_quoted(ecode, "Plugin " LOG_SUBSYSTEM_TAG " reported",\
+                           ## __VA_ARGS__)
 
+#define LogPluginErrMsg(severity, ecode, ...) \
+  LogEvent().prio(severity)\
+            .errcode(ecode)\
+            .subsys(LOG_SUBSYSTEM_TAG)\
+            .source_line(__LINE__)\
+            .source_file(MY_BASENAME)\
+            .function(__FUNCTION__)\
+            .message_quoted("Plugin " LOG_SUBSYSTEM_TAG " reported",\
+                            ## __VA_ARGS__)
+
+#else
+
+inline void dummy_log_message(longlong severity MY_ATTRIBUTE((unused)),
+                              longlong ecode MY_ATTRIBUTE((unused)),
+                              ...)
+{
+  return;
+}
+
+#define LogErr(severity, ecode, ...) \
+  dummy_log_message(severity, ecode, ## __VA_ARGS__)
+#define LogPluginErr(severity, ecode, ...) \
+  dummy_log_message(severity, ecode, ## __VA_ARGS__)
+#define LogPluginErrMsg(severity, ecode, ...) \
+  dummy_log_message(severity, ecode, ## __VA_ARGS__)
+
+#endif // DISABLE_ERROR_LOGGING
 
 /**
   Modular logger: fluid API. Server-internal. Lets you use safe and
@@ -710,6 +751,7 @@ class LogEvent
 private:
   log_line     *ll;
   char         *msg;
+  const char   *msg_tag;
 
   /**
     Set MySQL error-code if none has been set yet.
@@ -788,6 +830,7 @@ public:
     }
     else
       msg= nullptr;
+    msg_tag= nullptr;
   }
 
   /**
@@ -798,7 +841,7 @@ public:
 
     @retval      the LogEvent, for easy fluent-style chaining.
   */
-  LogEvent &type(log_type val)
+  LogEvent &type(enum_log_type val)
   {
     log_set_int(log_line_item_set(this->ll, LOG_ITEM_LOG_TYPE), val);
     return *this;
@@ -1112,6 +1155,30 @@ public:
     MY_ATTRIBUTE((format(printf, 2, 3)));
 
   /**
+    Fill in a format string by substituting the % with the given
+    arguments and tag, then add the result as the event's message.
+
+    @param  tag  Tag to prefix to message.
+    @param  fmt  message (treated as a printf-style format-string,
+                 so % substitution will happen)
+    @param  ...  varargs to satisfy any % in the message
+
+    @retval      the LogEvent, for easy fluent-style chaining.
+  */
+  LogEvent &message_quoted(const char *tag, const char *fmt, ...)
+    MY_ATTRIBUTE((format(printf, 3, 4)))
+  {
+    msg_tag= tag;
+
+    va_list args;
+    va_start(args, fmt);
+    set_message(fmt, args);
+    va_end(args);
+
+    return *this;
+  }
+
+  /**
     Find an error message by its MySQL error code.
     Substitute the % in that message with the given
     arguments, then add the result as the event's message.
@@ -1126,6 +1193,18 @@ public:
   {
     va_list args;
     va_start(args, errcode);
+    set_message_by_errcode(errcode, args);
+    va_end(args);
+
+    return *this;
+  }
+
+  LogEvent &lookup_quoted(longlong errcode, const char *tag, ...)
+  {
+    msg_tag= tag;
+
+    va_list args;
+    va_start(args, tag);
     set_message_by_errcode(errcode, args);
     va_end(args);
 
@@ -1217,6 +1296,12 @@ inline void LogEvent::set_message(const char *fmt, va_list ap)
 {
   if ((ll != nullptr) && (msg != nullptr))
   {
+    char buf[LOG_BUFF_MAX];
+    if (msg_tag != nullptr)
+    {
+      snprintf(buf, LOG_BUFF_MAX - 1, "%s: \'%s\'", msg_tag, fmt);
+      fmt= buf;
+    }
     size_t         len=    log_msg(msg, LOG_BUFF_MAX - 1, fmt, ap);
     log_set_lexstring(log_line_item_set(this->ll, LOG_ITEM_LOG_MESSAGE),
                       msg, len);
@@ -1233,6 +1318,77 @@ inline LogEvent &LogEvent::message(const char *fmt, ...)
   return *this;
 }
 
-#  endif
+// Methods initialize and de-initialize logging service for plugins.
+#if defined(MYSQL_DYNAMIC_PLUGIN)
+
+/**
+  Method to de-initialize logging service in plugin.
+
+  param[in]  reg_srv    Pluin registry service.
+*/
+inline void deinit_logging_service_for_plugin(SERVICE_TYPE(registry) **reg_srv)
+{
+  if (log_bi)
+    (*reg_srv)->release((my_h_service)log_bi);
+  if (log_bs)
+    (*reg_srv)->release((my_h_service)log_bs);
+  mysql_plugin_registry_release(*reg_srv);
+  log_bi= nullptr;
+  log_bs= nullptr;
+  *reg_srv= nullptr;
+}
+
+/**
+  Method to de-initialize logging service in plugin.
+
+  param[out]  reg_srv    Pluin registry service.
+
+  @retval     false  Success.
+  @retval     true   Failed.
+*/
+inline bool init_logging_service_for_plugin(SERVICE_TYPE(registry) **reg_srv)
+{
+  my_h_service log_srv= nullptr;
+  my_h_service log_str_srv= nullptr;
+  *reg_srv= mysql_plugin_registry_acquire();
+  if (!(*reg_srv)->acquire("log_builtins.mysql_server", &log_srv) &&
+      !(*reg_srv)->acquire("log_builtins_string.mysql_server", &log_str_srv))
+  {
+    log_bi= reinterpret_cast<SERVICE_TYPE(log_builtins) *>(log_srv);
+    log_bs= reinterpret_cast<SERVICE_TYPE(log_builtins_string) *>(log_str_srv);
+  }
+  else
+  {
+    deinit_logging_service_for_plugin(reg_srv);
+    return true;
+  }
+  return false;
+}
+
+#elif defined(EXTRA_CODE_FOR_UNIT_TESTING)
+
+/**
+  Method is used by unit tests.
+
+  param[in]  reg_srv    Pluin registry service.
+*/
+inline bool init_logging_service_for_plugin(
+  SERVICE_TYPE(registry) **reg_srv MY_ATTRIBUTE((unused)))
+{
+  return false;
+}
+
+/**
+  Method is used by unit tests.
+
+  param[in]  reg_srv    Pluin registry service.
+*/
+inline void deinit_logging_service_for_plugin(
+  SERVICE_TYPE(registry) **reg_srv MY_ATTRIBUTE((unused)))
+{ }
+
+#endif // MYSQL_DYNAMIC_PLUGIN
+
+#endif  // __cplusplus
 
 #endif

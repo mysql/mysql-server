@@ -22,6 +22,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
+#include "mysqld_error.h"
 #include "mysql/psi/mysql_stage.h"
 #include "plugin/semisync/semisync.h"
 #include "plugin/semisync/semisync_master.h"
@@ -95,8 +96,8 @@ bool Ack_receiver::start()
         mysql_thread_create(key_ss_thread_Ack_receiver_thread, &m_pid,
                             &attr, ack_receive_handler, this))
     {
-      sql_print_error("Failed to start semi-sync ACK receiver thread, "
-                      " could not create thread(errno:%d)", errno);
+      LogErr(ERROR_LEVEL, ER_SEMISYNC_FAILED_TO_START_ACK_RECEIVER_THD,
+             errno);
 
       m_status= ST_DOWN;
       return function_exit(kWho, true);
@@ -128,8 +129,7 @@ void Ack_receiver::stop()
     */
     ret= my_thread_join(&m_pid, NULL);
     if (DBUG_EVALUATE_IF("rpl_semisync_simulate_thread_join_failure", -1, ret))
-      sql_print_error("Failed to stop ack receiver thread on my_thread_join, "
-                      "errno(%d)", errno);
+      LogErr(ERROR_LEVEL, ER_SEMISYNC_FAILED_TO_STOP_ACK_RECEIVER_THD, errno);
   }
   function_exit(kWho);
 }
@@ -221,7 +221,7 @@ void Ack_receiver::run()
   Select_socket_listener listener(m_slaves);
 #endif //HAVE_POLL
 
-  sql_print_information("Starting ack receiver thread");
+  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_STARTING_ACK_RECEIVER_THD);
 
   init_net(&net, net_buff, REPLY_MESSAGE_MAX_LENGTH);
 
@@ -259,8 +259,8 @@ void Ack_receiver::run()
       ret= DBUG_EVALUATE_IF("rpl_semisync_simulate_select_error", -1, ret);
 
       if (ret == -1 && errno != EINTR)
-        sql_print_information("Failed to wait on semi-sync dump sockets, "
-                              "error: errno=%d", socket_errno);
+        LogErr(INFORMATION_LEVEL, ER_SEMISYNC_FAILED_TO_WAIT_ON_DUMP_SOCKET,
+               socket_errno);
       /* Sleep 1us, so other threads can catch the m_mutex easily. */
       my_sleep(1);
       continue;
@@ -297,7 +297,7 @@ void Ack_receiver::run()
     mysql_mutex_unlock(&m_mutex);
   }
 end:
-  sql_print_information("Stopping ack receiver thread");
+  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_STOPPING_ACK_RECEIVER_THREAD);
   m_status= ST_DOWN;
   mysql_cond_broadcast(&m_cond);
   mysql_mutex_unlock(&m_mutex);

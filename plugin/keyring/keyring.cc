@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_SUBSYSTEM_TAG "keyring_file"
+
 #include "my_config.h"
 
 #include <mysql/plugin_keyring.h>
@@ -22,6 +24,8 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/keyring/buffered_file_io.h"
 #include "plugin/keyring/common/keyring.h"
 
@@ -94,8 +98,16 @@ static SYS_VAR *keyring_file_system_variables[]= {
   NULL
 };
 
+
+static SERVICE_TYPE(registry) *reg_srv= nullptr;
+SERVICE_TYPE(log_builtins) *log_bi= nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
+
 static int keyring_init(MYSQL_PLUGIN plugin_info)
 {
+  if (init_logging_service_for_plugin(&reg_srv))
+    return true;
+
   try
   {
     SSL_library_init(); //always returns 1
@@ -144,6 +156,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
     if (logger != NULL)
       logger->log(MY_ERROR_LEVEL, "keyring_file initialization failure due to internal"
                                   " exception inside the plugin");
+    deinit_logging_service_for_plugin(&reg_srv);
     return true;
   }
 }
@@ -162,6 +175,9 @@ static int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
   logger.reset();
   keyring_file_data.reset();
   mysql_rwlock_destroy(&LOCK_keyring);
+
+  deinit_logging_service_for_plugin(&reg_srv);
+
   return 0;
 }
 

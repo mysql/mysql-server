@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#define LOG_SUBSYSTEM_TAG "mecab"
+
 #include "my_config.h"
 
 #include <mecab.h>
@@ -20,7 +22,8 @@
 
 #include "my_dbug.h"
 #include "mysqld_error.h"
-#include "sql/log.h"
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
 #include "storage/innobase/include/fts0tokenize.h"
 
 /* We are following InnoDB coding guidelines. */
@@ -43,6 +46,10 @@ static const bool bundle_mecab= true;
 #else
 static const bool bundle_mecab= false;
 #endif
+
+static SERVICE_TYPE(registry) *reg_srv= nullptr;
+SERVICE_TYPE(log_builtins) *log_bi= nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
 
 /** Set MeCab parser charset.
 @param[in]	charset charset string
@@ -83,20 +90,23 @@ mecab_parser_plugin_init(void*)
 	const MeCab::DictionaryInfo*	mecab_dict;
 	std::string			rcfile_arg;
 
+        // Initialize error logging service.
+	if (init_logging_service_for_plugin(&reg_srv))
+	  return(1);
+
 	/* Check mecab version. */
 	if (strcmp(MeCab::Model::version(), mecab_min_supported_version) < 0) {
-		sql_print_error("Mecab v%s is not supported,"
-				" the lowest version supported is v%s.",
-				MeCab::Model::version(),
-				mecab_min_supported_version);
+		LogErr(ERROR_LEVEL, ER_MECAB_NOT_SUPPORTED,
+			MeCab::Model::version(),
+			mecab_min_supported_version);
+		deinit_logging_service_for_plugin(&reg_srv);
 		return(1);
 	}
 
 	if (strcmp(MeCab::Model::version(), mecab_max_supported_version) > 0) {
-		sql_print_warning("Mecab v%s is not verified,"
-				  " the highest version supported is v%s.",
-				  MeCab::Model::version(),
-				  mecab_max_supported_version);
+		LogErr(WARNING_LEVEL, ER_MECAB_NOT_VERIFIED,
+			MeCab::Model::version(),
+			mecab_max_supported_version);
 	}
 
 	/* See src/tagger.cpp for available options.
@@ -111,23 +121,25 @@ mecab_parser_plugin_init(void*)
 	/* It seems we *must* have some kind of mecabrc
 	file available before calling createModel, see
 	load_dictionary_resource() in  src/utils.cpp */
-	sql_print_information("Mecab: Trying createModel(%s)",
-			      rcfile_arg.c_str());
+        LogErr(INFORMATION_LEVEL, ER_MECAB_CREATING_MODEL,
+		rcfile_arg.c_str());
 
 	mecab_model = MeCab::createModel(rcfile_arg.c_str());
 
 	if (mecab_model == NULL) {
-		sql_print_error("Mecab: createModel() failed: %s",
-				MeCab::getLastError());
+		LogErr(ERROR_LEVEL, ER_MECAB_FAILED_TO_CREATE_MODEL,
+			MeCab::getLastError());
+		deinit_logging_service_for_plugin(&reg_srv);
 		return(1);
 	}
 
 	mecab_tagger = mecab_model->createTagger();
 	if (mecab_tagger == NULL) {
-		sql_print_error("Mecab: createTagger() failed: %s",
-				MeCab::getLastError());
+		LogErr(ERROR_LEVEL, ER_MECAB_FAILED_TO_CREATE_TRIGGER,
+			MeCab::getLastError());
 		delete mecab_model;
 		mecab_model= NULL;
+		deinit_logging_service_for_plugin(&reg_srv);
 		return(1);
 	}
 
@@ -140,12 +152,13 @@ mecab_parser_plugin_init(void*)
 		delete mecab_model;
 		mecab_model = NULL;
 
-		sql_print_error("Mecab: Unsupported dictionary charset %s",
-				mecab_dict->charset);
+                LogErr(ERROR_LEVEL, ER_MECAB_UNSUPPORTED_CHARSET,
+			mecab_dict->charset);
+		deinit_logging_service_for_plugin(&reg_srv);
 		return(1);
 	} else {
-		sql_print_information("Mecab: Loaded dictionary charset is %s",
-				      mecab_dict->charset);
+		LogErr(INFORMATION_LEVEL, ER_MECAB_CHARSET_LOADED,
+			mecab_dict->charset);
 		return(0);
 	}
 }
@@ -162,6 +175,7 @@ mecab_parser_plugin_deinit(void*)
 	delete mecab_model;
 	mecab_model = NULL;
 
+	deinit_logging_service_for_plugin(&reg_srv);
 	return(0);
 }
 
@@ -194,12 +208,12 @@ mecab_parse(
 		mecab_lattice->set_sentence(doc, len);
 
 		if(!mecab_tagger->parse(mecab_lattice)) {
-			sql_print_error("Mecab: parse() failed: %s",
-					mecab_lattice->what());
+			LogErr(ERROR_LEVEL, ER_MECAB_PARSE_FAILED,
+				mecab_lattice->what());
 			return(1);
 		}
 	} catch (std::bad_alloc const &) {
-		sql_print_error("Mecab: parse() failed: out of memory.");
+		LogErr(ERROR_LEVEL, ER_MECAB_OOM_WHILE_PARSING_TEXT);
 
 		return(1);
 	}
@@ -288,8 +302,8 @@ mecab_parser_parse(
 	/* Create mecab lattice for parsing */
 	mecab_lattice = mecab_model->createLattice();
 	if (mecab_lattice == NULL) {
-		sql_print_error("Mecab: createLattice() failed: %s",
-				MeCab::getLastError());
+		LogErr(ERROR_LEVEL, ER_MECAB_CREATE_LATTICE_FAILED,
+			MeCab::getLastError());
 		return(1);
 	}
 

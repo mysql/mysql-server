@@ -86,7 +86,7 @@ ActiveTranx::ActiveTranx(mysql_mutex_t *lock,
   for (int idx = 0; idx < num_entries_; ++idx)
     trx_htb_[idx] = NULL;
 
-  sql_print_information("Semi-sync replication initialized for transactions.");
+  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_RPL_INIT_FOR_TRX);
 }
 
 ActiveTranx::~ActiveTranx()
@@ -149,8 +149,8 @@ int ActiveTranx::insert_tranx_node(const char *log_file_name,
   ins_node = allocator_.allocate_node();
   if (!ins_node)
   {
-    sql_print_error("%s: transaction node allocation failed for: (%s, %lu)",
-                    kWho, log_file_name, (unsigned long)log_file_pos);
+    LogErr(ERROR_LEVEL, ER_SEMISYNC_FAILED_TO_ALLOCATE_TRX_NODE,
+           kWho, log_file_name, (unsigned long)log_file_pos);
     result = -1;
     goto l_end;
   }
@@ -181,10 +181,9 @@ int ActiveTranx::insert_tranx_node(const char *log_file_name,
       /* Otherwise, it is an error because the transaction should hold the
        * mysql_bin_log.LOCK_log when appending events.
        */
-      sql_print_error("%s: binlog write out-of-order, tail (%s, %lu), "
-                      "new node (%s, %lu)", kWho,
-                      trx_rear_->log_name_, (unsigned long)trx_rear_->log_pos_,
-                      ins_node->log_name_, (unsigned long)ins_node->log_pos_);
+      LogErr(ERROR_LEVEL, ER_SEMISYNC_BINLOG_WRITE_OUT_OF_ORDER, kWho,
+             trx_rear_->log_name_, (unsigned long)trx_rear_->log_pos_,
+             ins_node->log_name_, (unsigned long)ins_node->log_pos_);
       result = -1;
       goto l_end;
     }
@@ -195,9 +194,9 @@ int ActiveTranx::insert_tranx_node(const char *log_file_name,
   trx_htb_[hash_val]   = ins_node;
 
   if (trace_level_ & kTraceDetail)
-    sql_print_information("%s: insert (%s, %lu) in entry(%u)", kWho,
-                          ins_node->log_name_, (unsigned long)ins_node->log_pos_,
-                          hash_val);
+    LogErr(INFORMATION_LEVEL, ER_SEMISYNC_INSERT_LOG_INFO_IN_ENTRY, kWho,
+           ins_node->log_name_, (unsigned long)ins_node->log_pos_,
+           hash_val);
 
  l_end:
   return function_exit(kWho, result);
@@ -221,8 +220,8 @@ bool ActiveTranx::is_tranx_end_pos(const char *log_file_name,
   }
 
   if (trace_level_ & kTraceDetail)
-    sql_print_information("%s: probe (%s, %lu) in entry(%u)", kWho,
-                          log_file_name, (unsigned long)log_file_pos, hash_val);
+    LogErr(INFORMATION_LEVEL, ER_SEMISYNC_PROBE_LOG_INFO_IN_ENTRY, kWho,
+           log_file_name, (unsigned long)log_file_pos, hash_val);
 
   function_exit(kWho, (entry != NULL));
   return (entry != NULL);
@@ -318,7 +317,8 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
     }
 
     if (trace_level_ & kTraceDetail)
-      sql_print_information("%s: cleared all nodes", kWho);
+      LogErr(INFORMATION_LEVEL,
+             ER_SEMISYNC_CLEARED_ALL_ACTIVE_TRANSACTION_NODES, kWho);
   }
   else if (new_front != trx_front_)
   {
@@ -352,9 +352,9 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
     allocator_.free_nodes_before(trx_front_);
 
     if (trace_level_ & kTraceDetail)
-      sql_print_information("%s: cleared %d nodes back until pos (%s, %lu)",
-                            kWho, n_frees,
-                            trx_front_->log_name_, (unsigned long)trx_front_->log_pos_);
+      LogErr(INFORMATION_LEVEL,
+             ER_SEMISYNC_CLEARED_ACTIVE_TRANSACTION_TILL_POS, kWho, n_frees,
+             trx_front_->log_name_, (unsigned long)trx_front_->log_pos_);
   }
 
   return function_exit(kWho, 0);
@@ -374,13 +374,13 @@ int ReplSemiSyncMaster::reportReplyPacket(uint32 server_id, const uchar *packet,
 
   if (unlikely(packet[REPLY_MAGIC_NUM_OFFSET] != ReplSemiSyncMaster::kPacketMagicNum))
   {
-    sql_print_error("Read semi-sync reply magic number error");
+    LogErr(ERROR_LEVEL, ER_SEMISYNC_REPLY_MAGIC_NO_ERROR);
     goto l_end;
   }
 
   if (unlikely(packet_len < REPLY_BINLOG_NAME_OFFSET))
   {
-    sql_print_error("Read semi-sync reply length error: packet is too small");
+    LogErr(ERROR_LEVEL, ER_SEMISYNC_REPLY_PKT_LENGTH_TOO_SMALL);
     goto l_end;
   }
 
@@ -388,15 +388,15 @@ int ReplSemiSyncMaster::reportReplyPacket(uint32 server_id, const uchar *packet,
   log_file_len = packet_len - REPLY_BINLOG_NAME_OFFSET;
   if (unlikely(log_file_len >= FN_REFLEN))
   {
-    sql_print_error("Read semi-sync reply binlog file length too large");
+    LogErr(ERROR_LEVEL, ER_SEMISYNC_REPLY_BINLOG_FILE_TOO_LARGE);
     goto l_end;
   }
   strncpy(log_file_name, (const char*)packet + REPLY_BINLOG_NAME_OFFSET, log_file_len);
   log_file_name[log_file_len] = 0;
 
   if (trace_level_ & kTraceDetail)
-    sql_print_information("%s: Got reply(%s, %lu) from server %u",
-                          kWho, log_file_name, (ulong)log_file_pos, server_id);
+    LogErr(INFORMATION_LEVEL, ER_SEMISYNC_SERVER_REPLY, kWho, log_file_name,
+           (ulong)log_file_pos, server_id);
 
   handleAck(server_id, log_file_name, log_file_pos);
 
@@ -441,7 +441,7 @@ int ReplSemiSyncMaster::initObject()
 
   if (init_done_)
   {
-    sql_print_warning("%s called twice", kWho);
+    LogErr(WARNING_LEVEL, ER_SEMISYNC_FUNCTION_CALLED_TWICE, kWho);
     return 1;
   }
   init_done_ = true;
@@ -496,11 +496,11 @@ int ReplSemiSyncMaster::enableMaster()
       state_ = (rpl_semi_sync_master_wait_no_slave != 0 ||
                 (rpl_semi_sync_master_clients >=
                  rpl_semi_sync_master_wait_for_slave_count));
-      sql_print_information("Semi-sync replication enabled on the master.");
+      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_RPL_ENABLED_ON_MASTER);
     }
     else
     {
-      sql_print_error("Cannot allocate memory to enable semi-sync on the master.");
+      LogErr(ERROR_LEVEL, ER_SEMISYNC_MASTER_OOM);
       result = -1;
     }
   }
@@ -535,7 +535,7 @@ int ReplSemiSyncMaster::disableMaster()
     ack_container_.clear();
 
     set_master_enabled(false);
-    sql_print_information("Semi-sync replication disabled on the master.");
+    LogErr(INFORMATION_LEVEL, ER_SEMISYNC_DISABLED_ON_MASTER);
   }
 
   unlock();
@@ -596,8 +596,7 @@ void ReplSemiSyncMaster::remove_slave()
           int cmp = ActiveTranx::compare(reply_file_name_, reply_file_pos_ ,
                                          commit_file_name_, commit_file_pos_);
           if (cmp < 0)
-            sql_print_warning("SEMISYNC: Forced shutdown. Some updates might "
-                              "not be replicated.");
+            LogErr(WARNING_LEVEL, ER_SEMISYNC_FORCED_SHUTDOWN);
         }
       }
       switch_off();
@@ -666,8 +665,8 @@ void ReplSemiSyncMaster::reportReplyBinlog(const char *log_file_name,
     reply_file_name_inited_ = true;
 
     if (trace_level_ & kTraceDetail)
-      sql_print_information("%s: Got reply at (%s, %lu)", kWho,
-                            log_file_name, (unsigned long)log_file_pos);
+      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_MASTER_GOT_REPLY_AT_POS, kWho,
+             log_file_name, (unsigned long)log_file_pos);
   }
 
   if (rpl_semi_sync_master_wait_sessions > 0)
@@ -692,7 +691,8 @@ void ReplSemiSyncMaster::reportReplyBinlog(const char *log_file_name,
   if (can_release_threads)
   {
     if (trace_level_ & kTraceDetail)
-      sql_print_information("%s: signal all waiting threads.", kWho);
+      LogErr(INFORMATION_LEVEL,
+             ER_SEMISYNC_MASTER_SIGNAL_ALL_WAITING_THREADS, kWho);
     active_tranxs_->signal_waiting_sessions_up_to(reply_file_name_, reply_file_pos_);
   }
 
@@ -744,9 +744,9 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
 
     if (trace_level_ & kTraceDetail)
     {
-      sql_print_information("%s: wait pos (%s, %lu), repl(%d)\n", kWho,
-                            trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos,
-                            (int)is_on());
+      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_MASTER_TRX_WAIT_POS, kWho,
+             trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos,
+             (int)is_on());
     }
 
     /* Calcuate the waiting period. */
@@ -771,8 +771,8 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
            * wait here.
            */
           if (trace_level_ & kTraceDetail)
-            sql_print_information("%s: Binlog reply is ahead (%s, %lu),",
-                                  kWho, reply_file_name_, (unsigned long)reply_file_pos_);
+            LogErr(INFORMATION_LEVEL, ER_SEMISYNC_BINLOG_REPLY_IS_AHEAD,
+                   kWho, reply_file_name_, (unsigned long)reply_file_pos_);
           break;
         }
       }
@@ -812,8 +812,8 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
 
           rpl_semi_sync_master_wait_pos_backtraverse++;
           if (trace_level_ & kTraceDetail)
-            sql_print_information("%s: move back wait position (%s, %lu),",
-                                  kWho, wait_file_name_, (unsigned long)wait_file_pos_);
+            LogErr(INFORMATION_LEVEL, ER_SEMISYNC_MOVE_BACK_WAIT_POS,
+                   kWho, wait_file_name_, (unsigned long)wait_file_pos_);
         }
       }
       else
@@ -824,8 +824,8 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
         wait_file_name_inited_ = true;
 
         if (trace_level_ & kTraceDetail)
-          sql_print_information("%s: init wait position (%s, %lu),",
-                                kWho, wait_file_name_, (unsigned long)wait_file_pos_);
+          LogErr(INFORMATION_LEVEL, ER_SEMISYNC_INIT_WAIT_POS,
+                 kWho, wait_file_name_, (unsigned long)wait_file_pos_);
       }
 
       /* In semi-synchronous replication, we wait until the binlog-dump
@@ -839,19 +839,18 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       if (connection_events_loop_aborted() && (rpl_semi_sync_master_clients ==
                          rpl_semi_sync_master_wait_for_slave_count - 1) && is_on())
       {
-        sql_print_warning("SEMISYNC: Forced shutdown. Some updates might "
-                          "not be replicated.");
+        LogErr(WARNING_LEVEL, ER_SEMISYNC_FORCED_SHUTDOWN);
         switch_off();
         break;
       }
 
       rpl_semi_sync_master_wait_sessions++;
-      
+
       if (trace_level_ & kTraceDetail)
-        sql_print_information("%s: wait %lu ms for binlog sent (%s, %lu)",
-                              kWho, wait_timeout_,
-                              wait_file_name_, (unsigned long)wait_file_pos_);
-      
+        LogErr(INFORMATION_LEVEL, ER_SEMISYNC_WAIT_TIME_FOR_BINLOG_SENT,
+               kWho, wait_timeout_, wait_file_name_,
+               (unsigned long)wait_file_pos_);
+
       /* wait for the position to be ACK'ed back */
       assert(entry);
       entry->n_waiters++;
@@ -870,10 +869,9 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       if (wait_result != 0)
       {
         /* This is a real wait timeout. */
-        sql_print_warning("Timeout waiting for reply of binlog (file: %s, pos: %lu), "
-                          "semi-sync up to file %s, position %lu.",
-                          trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos,
-                          reply_file_name_, (unsigned long)reply_file_pos_);
+        LogErr(WARNING_LEVEL, ER_SEMISYNC_WAIT_FOR_BINLOG_TIMEDOUT,
+               trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos,
+               reply_file_name_, (unsigned long)reply_file_pos_);
         rpl_semi_sync_master_wait_timeouts++;
         
         /* switch semi-sync off */
@@ -888,10 +886,10 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
         {
           if (trace_level_ & kTraceGeneral)
           {
-            sql_print_information("Assessment of waiting time for commitTrx "
-                                  "failed at wait position (%s, %lu)",
-                                  trx_wait_binlog_name,
-                                  (unsigned long)trx_wait_binlog_pos);
+            LogErr(INFORMATION_LEVEL,
+                   ER_SEMISYNC_WAIT_TIME_ASSESSMENT_FOR_COMMIT_TRX_FAILED,
+                   trx_wait_binlog_name,
+                   (unsigned long)trx_wait_binlog_pos);
           }
           rpl_semi_sync_master_timefunc_fails++;
         }
@@ -972,7 +970,7 @@ int ReplSemiSyncMaster::switch_off()
   rpl_semi_sync_master_off_times++;
   wait_file_name_inited_   = false;
   reply_file_name_inited_  = false;
-  sql_print_information("Semi-sync replication switched OFF.");
+  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_RPL_SWITCHED_OFF);
 
   /* signal waiting sessions */
   active_tranxs_->signal_waiting_sessions_all();
@@ -1010,8 +1008,8 @@ int ReplSemiSyncMaster::try_switch_on(const char *log_file_name,
     /* Switch semi-sync replication on. */
     state_ = true;
 
-    sql_print_information("Semi-sync replication switched ON at (%s, %lu)",
-                          log_file_name, (unsigned long)log_file_pos);
+    LogErr(INFORMATION_LEVEL, ER_SEMISYNC_RPL_SWITCHED_ON,
+           log_file_name, (unsigned long)log_file_pos);
   }
 
   return function_exit(kWho, 0);
@@ -1028,9 +1026,7 @@ int ReplSemiSyncMaster::reserveSyncHeader(unsigned char *header,
     /* No enough space for the extra header, disable semi-sync master */
     if (sizeof(kSyncHeader) > size)
     {
-      sql_print_warning("No enough space in the packet "
-                        "for semi-sync extra header, "
-                        "semi-sync replication disabled");
+      LogErr(WARNING_LEVEL, ER_SEMISYNC_NO_SPACE_IN_THE_PKT);
       disableMaster();
       return 0;
     }
@@ -1123,9 +1119,9 @@ int ReplSemiSyncMaster::updateSyncHeader(unsigned char *packet,
   }
 
   if (trace_level_ & kTraceDetail)
-    sql_print_information("%s: server(%d), (%s, %lu) sync(%d), repl(%d)",
-                          kWho, server_id, log_file_name,
-                          (unsigned long)log_file_pos, sync, (int)is_on());
+    LogErr(INFORMATION_LEVEL, ER_SEMISYNC_SYNC_HEADER_UPDATE_INFO,
+           kWho, server_id, log_file_name,
+           (unsigned long)log_file_pos, sync, (int)is_on());
 
  l_end:
   unlock();
@@ -1191,8 +1187,8 @@ int ReplSemiSyncMaster::writeTranxInBinlog(const char* log_file_name,
         if insert tranx_node failed, print a warning message
         and turn off semi-sync
       */
-      sql_print_warning("Semi-sync failed to insert tranx_node for binlog file: %s, position: %lu",
-                        log_file_name, (ulong)log_file_pos);
+      LogErr(WARNING_LEVEL, ER_SEMISYNC_FAILED_TO_INSERT_TRX_NODE,
+             log_file_name, (ulong)log_file_pos);
       switch_off();
     }
   }
@@ -1220,8 +1216,8 @@ int ReplSemiSyncMaster::skipSlaveReply(const char *event_buf,
   }
 
   if (trace_level_ & kTraceDetail)
-    sql_print_information("%s: Transaction skipped at (%s, %lu)", kWho,
-                          skipped_log_file, (unsigned long)skipped_log_pos);
+    LogErr(INFORMATION_LEVEL, ER_SEMISYNC_TRX_SKIPPED_AT_POS, kWho,
+           skipped_log_file, (unsigned long)skipped_log_pos);
 
   /* Treat skipped event as a received ack */
   handleAck(server_id, skipped_log_file, skipped_log_pos);
@@ -1251,8 +1247,7 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net,
    */
   if (net_flush(net))
   {
-    sql_print_error("Semi-sync master failed on net_flush() "
-                    "before waiting for slave reply");
+    LogErr(ERROR_LEVEL, ER_SEMISYNC_MASTER_FAILED_ON_NET_FLUSH);
     goto l_end;
   }
 
@@ -1348,7 +1343,7 @@ const AckInfo* AckContainer::insert(int server_id, const char *log_file_name,
   if (!m_greatest_ack.less_than(log_file_name, log_file_pos))
   {
     if (trace_level_ & kTraceDetail)
-      sql_print_information("The received ack is smaller than m_greatest_ack");
+      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_RECEIVED_ACK_IS_SMALLER);
 
     goto l_end;
   }
@@ -1385,7 +1380,7 @@ const AckInfo* AckContainer::insert(int server_id, const char *log_file_name,
   m_ack_array[m_empty_slot].set(server_id, log_file_name, log_file_pos);
 
   if (trace_level_ & kTraceDetail)
-    sql_print_information("Add the ack into slot %u", m_empty_slot);
+    LogErr(INFORMATION_LEVEL, ER_SEMISYNC_ADD_ACK_TO_SLOT, m_empty_slot);
 
 l_end:
   function_exit(kWho, 0);

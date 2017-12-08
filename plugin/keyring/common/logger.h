@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ public:
   {
     my_plugin_log_message(&plugin_info_ptr, level, "%s", message);
   }
+
 private:
   MYSQL_PLUGIN plugin_info_ptr;
 };

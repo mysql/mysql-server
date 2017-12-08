@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_SUBSYSTEM_TAG "caching_sha2_password"
+
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -34,6 +36,8 @@
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
+#include "mysql/components/my_service.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/plugin_auth.h"          /* MYSQL_SERVER_AUTH_INFO      */
 #include "mysql/plugin_auth_common.h"   /* MYSQL_PLUGIN_VIO            */
 #include "mysql/psi/mysql_rwlock.h"
@@ -41,6 +45,7 @@
 #include "mysql/service_my_plugin_log.h"/* plugin_log_level            */
 #include "mysql/service_mysql_password_policy.h"
 #include "mysql_com.h"
+#include "mysqld_error.h"               /* ER_*                        */
 #include "rwlock_scoped_lock.h"         /* rwlock_scoped_lock          */
 #include "sql/auth/auth_common.h"
 #include "sql/auth/i_sha2_password.h"   /* Internal classes            */
@@ -269,10 +274,8 @@ namespace sha2_password
                     random, digest, iterations))
     {
       if (m_plugin_info)
-        my_plugin_log_message(&m_plugin_info, MY_ERROR_LEVEL,
-          "Failed to parse stored authentication string for %s."
-          "Please check if mysql.user table not corrupted.",
-          authorization_id.c_str());
+	LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_FAILED_TO_PARSE_AUTH_STRING,
+                     authorization_id.c_str());
       DBUG_RETURN(true);
     }
 
@@ -286,11 +289,9 @@ namespace sha2_password
                                        m_stored_digest_rounds))
     {
       if (m_plugin_info)
-        my_plugin_log_message(&m_plugin_info, MY_ERROR_LEVEL,
-          "Error in generating multi-round hash for %s."
-          "Plugin can not perform authentication without it."
-          "This may be a transient problem.",
-          authorization_id.c_str());
+	LogPluginErr(ERROR_LEVEL,
+                     ER_SHA_PWD_FAILED_TO_GENERATE_MULTI_ROUND_HASH,
+                     authorization_id.c_str());
       DBUG_RETURN(true);
     }
 
@@ -1069,17 +1070,16 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     if (private_key == NULL || public_key == NULL)
     {
       if (caching_sha2_auth_plugin_ref)
-        my_plugin_log_message(&caching_sha2_auth_plugin_ref, MY_ERROR_LEVEL,
-          "Authentication requires either RSA keys or SSL encryption");
+	LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_AUTH_REQUIRES_RSA_OR_SSL);
       DBUG_RETURN(CR_ERROR);
     }
 
     if ((cipher_length= g_caching_sha2_rsa_keys->get_cipher_length()) > MAX_CIPHER_LENGTH)
     {
       if (caching_sha2_auth_plugin_ref)
-        my_plugin_log_message(&caching_sha2_auth_plugin_ref, MY_ERROR_LEVEL,
-          "RSA key cipher length of %u is too long. Max value is %u.",
-          g_caching_sha2_rsa_keys->get_cipher_length(), MAX_CIPHER_LENGTH);
+	LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_RSA_KEY_TOO_LONG,
+                     g_caching_sha2_rsa_keys->get_cipher_length(),
+                     MAX_CIPHER_LENGTH);
       DBUG_RETURN(CR_ERROR);
     }
 

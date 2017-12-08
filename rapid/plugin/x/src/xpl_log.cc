@@ -16,8 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301  USA
  */
-
-
+#include <mysqld_error.h>
 #include "plugin/x/src/xpl_log.h"
 
 #include <stddef.h>
@@ -29,7 +28,7 @@ MYSQL_PLUGIN plugin_handle = NULL;
 
 void plugin_log_message(MYSQL_PLUGIN *p, const plugin_log_level, const char *message)
 {
-  my_plugin_log_message(p, MY_WARNING_LEVEL, "%s", message);
+  LogPluginErr(WARNING_LEVEL, ER_XPLUGIN_ERROR_MSG, message);
 }
 
 } // namespace xpl

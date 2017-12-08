@@ -42,6 +42,10 @@ static ulong rpl_semi_sync_master_wait_point= WAIT_AFTER_COMMIT;
 
 thread_local bool THR_RPL_SEMI_SYNC_DUMP= false;
 
+static SERVICE_TYPE(registry) *reg_srv= nullptr;
+SERVICE_TYPE(log_builtins) *log_bi= nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
+
 static inline bool is_semi_sync_dump()
 {
   return THR_RPL_SEMI_SYNC_DUMP;
@@ -127,8 +131,7 @@ static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
   {
     if (ack_receiver->add_slave(current_thd))
     {
-      sql_print_error("Failed to register slave to semi-sync ACK receiver "
-                      "thread.");
+      LogErr(ERROR_LEVEL, ER_SEMISYNC_FAILED_REGISTER_SLAVE_TO_RECEIVER);
       return -1;
     }
 
@@ -149,10 +152,9 @@ static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
   else
     param->set_dont_observe_flag();
 
-  sql_print_information("Start %s binlog_dump to slave (server_id: %d), pos(%s, %lu)",
-			semi_sync_slave != 0 ? "semi-sync" : "asynchronous",
-			param->server_id, log_file, (unsigned long)log_pos);
-
+  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_START_BINLOG_DUMP_TO_SLAVE,
+         semi_sync_slave != 0 ? "semi-sync" : "asynchronous",
+         param->server_id, log_file, (unsigned long)log_pos);
   return 0;
 }
 
@@ -160,9 +162,10 @@ static int repl_semi_binlog_dump_end(Binlog_transmit_param *param)
 {
   bool semi_sync_slave= is_semi_sync_dump();
 
-  sql_print_information("Stop %s binlog_dump to slave (server_id: %d)",
-                        semi_sync_slave ? "semi-sync" : "asynchronous",
-                        param->server_id);
+  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_STOP_BINLOG_DUMP_TO_SLAVE,
+         semi_sync_slave ? "semi-sync" : "asynchronous",
+         param->server_id);
+
   if (semi_sync_slave)
   {
     ack_receiver->remove_slave(current_thd);
@@ -575,6 +578,10 @@ static void init_semisync_psi_keys(void)
 
 static int semi_sync_master_plugin_init(void *p)
 {
+  // Initialize error logging service.
+  if (init_logging_service_for_plugin(&reg_srv))
+    return 1;
+
 #ifdef HAVE_PSI_INTERFACE
   init_semisync_psi_keys();
 #endif
@@ -594,15 +601,30 @@ static int semi_sync_master_plugin_init(void *p)
   ack_receiver= new Ack_receiver();
 
   if (repl_semisync->initObject())
+  {
+    deinit_logging_service_for_plugin(&reg_srv);
     return 1;
+  }
   if (ack_receiver->init())
+  {
+    deinit_logging_service_for_plugin(&reg_srv);
     return 1;
+  }
   if (register_trans_observer(&trans_observer, p))
+  {
+    deinit_logging_service_for_plugin(&reg_srv);
     return 1;
+  }
   if (register_binlog_storage_observer(&storage_observer, p))
+  {
+    deinit_logging_service_for_plugin(&reg_srv);
     return 1;
+  }
   if (register_binlog_transmit_observer(&transmit_observer, p))
+  {
+    deinit_logging_service_for_plugin(&reg_srv);
     return 1;
+  }
   return 0;
 }
 
@@ -613,17 +635,22 @@ static int semi_sync_master_plugin_deinit(void *p)
 
   if (unregister_trans_observer(&trans_observer, p))
   {
-    sql_print_error("unregister_trans_observer failed");
+    LogErr(ERROR_LEVEL, ER_SEMISYNC_UNREGISTER_TRX_OBSERVER_FAILED);
+    deinit_logging_service_for_plugin(&reg_srv);
     return 1;
   }
   if (unregister_binlog_storage_observer(&storage_observer, p))
   {
-    sql_print_error("unregister_binlog_storage_observer failed");
+    LogErr(ERROR_LEVEL,
+           ER_SEMISYNC_UNREGISTER_BINLOG_STORAGE_OBSERVER_FAILED);
+    deinit_logging_service_for_plugin(&reg_srv);
     return 1;
   }
   if (unregister_binlog_transmit_observer(&transmit_observer, p))
   {
-    sql_print_error("unregister_binlog_transmit_observer failed");
+    LogErr(ERROR_LEVEL,
+           ER_SEMISYNC_UNREGISTER_BINLOG_TRANSMIT_OBSERVER_FAILED);
+    deinit_logging_service_for_plugin(&reg_srv);
     return 1;
   }
   delete ack_receiver;
@@ -631,7 +658,8 @@ static int semi_sync_master_plugin_deinit(void *p)
   delete repl_semisync;
   repl_semisync= nullptr;
 
-  sql_print_information("unregister_replicator OK");
+  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_UNREGISTERED_REPLICATOR);
+  deinit_logging_service_for_plugin(&reg_srv);
   return 0;
 }
 

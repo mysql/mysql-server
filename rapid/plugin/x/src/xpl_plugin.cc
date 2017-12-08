@@ -15,8 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#define LOG_SUBSYSTEM_TAG  MYSQLX_PLUGIN_NAME
+
 #include "my_config.h"
 
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
 #include <stdio.h>                            // Solaris header file bug.
@@ -74,6 +78,11 @@ void check_exit_hook()
 } // namespace
 
 
+static SERVICE_TYPE(registry) *reg_srv= nullptr;
+SERVICE_TYPE(log_builtins) *log_bi= nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
+
+
 /*
   Start the plugin: start webservers
 
@@ -87,7 +96,8 @@ void check_exit_hook()
  */
 int xpl_plugin_init(MYSQL_PLUGIN p)
 {
-
+  if (init_logging_service_for_plugin(&reg_srv))
+    return 1;
 
   xpl::Plugin_system_variables::clean_callbacks();
 
@@ -111,7 +121,9 @@ int xpl_plugin_init(MYSQL_PLUGIN p)
 int xpl_plugin_deinit(MYSQL_PLUGIN p)
 {
   check_exit_hook();
-  return xpl::Server::exit(p);
+  int res= xpl::Server::exit(p);
+  deinit_logging_service_for_plugin(&reg_srv);
+  return res;
 }
 
 

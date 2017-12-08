@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_SUBSYSTEM_TAG "CONNECTION_CONTROL"
+
 #include "plugin/connection_control/connection_control.h"
 
 #include <mysql/plugin_audit.h>         /* mysql_event_connection */
@@ -22,8 +24,14 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql_version.h"
+#include "mysqld_error.h"
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/connection_control/connection_control_coordinator.h" /* g_connection_event_coordinator */
 #include "plugin/connection_control/connection_delay_api.h" /* connection_delay apis */
+
+static SERVICE_TYPE(registry) *reg_srv= nullptr;
+SERVICE_TYPE(log_builtins) *log_bi= nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
 
 namespace connection_control
 {
@@ -36,9 +44,7 @@ namespace connection_control
 
     void handle_error(const char * error_message)
     {
-      my_plugin_log_message(&m_plugin_info,
-                            MY_ERROR_LEVEL,
-                            "%s", error_message);
+      LogPluginErr(ERROR_LEVEL, ER_CONN_CONTROL_ERROR_MSG, error_message);
     }
   private:
     MYSQL_PLUGIN m_plugin_info;
@@ -111,12 +117,17 @@ connection_control_notify(MYSQL_THD thd,
 static int
 connection_control_init(MYSQL_PLUGIN plugin_info)
 {
+  // Initialize error logging service.
+  if (init_logging_service_for_plugin(&reg_srv))
+    return 1;
+
   connection_control_plugin_info= plugin_info;
   Connection_control_error_handler error_handler(connection_control_plugin_info);
   g_connection_event_coordinator= new Connection_event_coordinator();
   if (!g_connection_event_coordinator)
   {
     error_handler.handle_error("Failed to initialize Connection_event_coordinator");
+    deinit_logging_service_for_plugin(&reg_srv);
     return 1;
   }
 
@@ -125,8 +136,10 @@ connection_control_init(MYSQL_PLUGIN plugin_info)
                                   &error_handler))
   {
     delete g_connection_event_coordinator;
+    deinit_logging_service_for_plugin(&reg_srv);
     return 1;
   }
+
   return 0;
 }
 
@@ -146,6 +159,8 @@ connection_control_deinit(void *arg MY_ATTRIBUTE((unused)))
   g_connection_event_coordinator= 0;
   connection_control::deinit_connection_delay_event();
   connection_control_plugin_info= 0;
+
+  deinit_logging_service_for_plugin(&reg_srv);
   return 0;
 }
 

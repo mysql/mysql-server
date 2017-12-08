@@ -14,13 +14,14 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
     02110-1301  USA */
 
+#define LOG_SUBSYSTEM_TAG "Rewriter"
+
 #include "plugin/rewriter/rewriter_plugin.h"
 
 #include "my_config.h"
 
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>
-#include <mysql/service_my_plugin_log.h>
 #include <stddef.h>
 #include <algorithm>
 #include <atomic>
@@ -31,6 +32,8 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_rwlock.h"
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
 #include "mysqld_error.h"
 #include "plugin/rewriter/rewriter.h"
 #include "plugin/rewriter/rule.h" // Rewrite_result
@@ -107,6 +110,10 @@ static int sys_var_verbose;
 
 /// Enabled.
 static bool sys_var_enabled;
+
+static SERVICE_TYPE(registry) *reg_srv= nullptr;
+SERVICE_TYPE(log_builtins) *log_bi= nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
 
 /// Updater function for the status variable ..._verbose.
 static void update_verbose(MYSQL_THD, SYS_VAR *, void *,
@@ -235,6 +242,11 @@ static int rewriter_plugin_init(MYSQL_PLUGIN plugin_ref)
     by a single thread when loading the plugin or starting up the server.
   */
   needs_initial_load= true;
+
+  // Initialize error logging service.
+  if (init_logging_service_for_plugin(&reg_srv))
+    return 1;
+
   return 0;
 }
 
@@ -243,6 +255,7 @@ static int rewriter_plugin_deinit(void*)
   plugin_info= NULL;
   delete rewriter;
   mysql_rwlock_destroy(&LOCK_table);
+  deinit_logging_service_for_plugin(&reg_srv);
   return 0;
 }
 
@@ -275,7 +288,7 @@ static bool reload(MYSQL_THD thd)
     message= MESSAGE_OOM;
   }
   DBUG_ASSERT(message != NULL);
-  my_plugin_log_message(&plugin_info, MY_ERROR_LEVEL, "%s", message);
+  LogPluginErr(ERROR_LEVEL, ER_REWRITER_QUERY_ERROR_MSG, message);
   return true;
 }
 
@@ -333,7 +346,8 @@ static void log_nonrewritten_query(MYSQL_THD thd, const uchar *digest_buf,
                      "literals.");
     else
       message.append("did not match any rule.");
-    my_plugin_log_message(&plugin_info, MY_INFORMATION_LEVEL, "%s", message.c_str());
+    LogPluginErr(INFORMATION_LEVEL, ER_REWRITER_QUERY_ERROR_MSG,
+                 message.c_str());
   }
 }
 
@@ -374,7 +388,7 @@ int rewrite_query_notify(MYSQL_THD thd,
   }
   catch (std::bad_alloc &ba)
   {
-    my_plugin_log_message(&plugin_info, MY_ERROR_LEVEL, "%s", MESSAGE_OOM);
+    LogPluginErr(ERROR_LEVEL, ER_REWRITER_QUERY_ERROR_MSG, MESSAGE_OOM);
   }
 
   mysql_rwlock_unlock(&LOCK_table);
@@ -391,9 +405,8 @@ int rewrite_query_notify(MYSQL_THD thd,
 
     parse_error= services::parse(thd, rewrite_result.new_query, is_prepared);
     if (parse_error != 0)
-      my_plugin_log_message(&plugin_info, MY_ERROR_LEVEL,
-                            "Rewritten query failed to parse:%s\n",
-                            mysql_parser_get_query(thd).str);
+      LogPluginErr(ERROR_LEVEL, ER_REWRITER_QUERY_FAILED,
+                   mysql_parser_get_query(thd).str);
 
     ++status_var_number_rewritten_queries;
   }

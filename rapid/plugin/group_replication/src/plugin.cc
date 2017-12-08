@@ -13,12 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#define LOG_SUBSYSTEM_TAG "group_replication"
+
 #include <cassert>
 #include <sstream>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/group_replication/include/observer_server_actions.h"
 #include "plugin/group_replication/include/observer_server_state.h"
 #include "plugin/group_replication/include/observer_trans.h"
@@ -45,6 +48,10 @@ bool server_shutdown_status= false;
 bool plugin_is_auto_starting= false;
 static bool plugin_is_waiting_to_set_server_read_mode= false;
 static bool plugin_is_being_uninstalled= false;
+
+static SERVICE_TYPE(registry) *reg_srv= nullptr;
+SERVICE_TYPE(log_builtins) *log_bi= nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
 
 /* Plugin modules */
 //The plugin applier
@@ -306,10 +313,19 @@ int log_message(enum plugin_log_level level, const char *format, ...)
   va_list args;
   char buff[1024];
 
+  // Log error if logging service is initialized.
+  if (!log_bi)
+    return 0;
+
   va_start(args, format);
   vsnprintf(buff, sizeof(buff), format, args);
   va_end(args);
-  return my_plugin_log_message(&plugin_info_ptr, level, "%s", buff);
+
+  longlong error_lvl= level == MY_ERROR_LEVEL ? ERROR_LEVEL :
+                      level == MY_WARNING_LEVEL ? WARNING_LEVEL :
+                                                  INFORMATION_LEVEL;
+  LogPluginErr(error_lvl, ER_GRP_RPL_ERROR_MSG, buff);
+  return 0;
 }
 
 static bool initialize_registry_module()
@@ -1077,6 +1093,10 @@ int terminate_plugin_modules(bool flag_stop_async_channel, char **error_message)
 
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
 {
+  // Initialize error logging service.
+  if (init_logging_service_for_plugin(&reg_srv))
+    return 1;
+
   // Register all PSI keys at the time plugin init
 #ifdef HAVE_PSI_INTERFACE
   register_all_group_replication_psi_keys();
@@ -1106,6 +1126,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
     /* purecov: begin inspected */
     log_message(MY_ERROR_LEVEL,
                 "Failure during Group Replication handler initialization");
+    deinit_logging_service_for_plugin(&reg_srv);
     return 1;
     /* purecov: end */
   }
@@ -1116,6 +1137,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
     /* purecov: begin inspected */
     log_message(MY_ERROR_LEVEL,
                 "Failure when registering the server state observers");
+    deinit_logging_service_for_plugin(&reg_srv);
     return 1;
     /* purecov: end */
   }
@@ -1125,6 +1147,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
     /* purecov: begin inspected */
     log_message(MY_ERROR_LEVEL,
                 "Failure when registering the transactions state observers");
+    deinit_logging_service_for_plugin(&reg_srv);
     return 1;
     /* purecov: end */
   }
@@ -1135,6 +1158,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
     /* purecov: begin inspected */
     log_message(MY_ERROR_LEVEL,
                 "Failure when registering the binlog state observers");
+    deinit_logging_service_for_plugin(&reg_srv);
     return 1;
     /* purecov: end */
   }
@@ -1244,6 +1268,8 @@ int plugin_group_replication_deinit(void *p)
   observer_trans_terminate();
 
   plugin_info_ptr= NULL;
+
+  deinit_logging_service_for_plugin(&reg_srv);
 
   return observer_unregister_error;
 }

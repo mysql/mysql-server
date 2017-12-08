@@ -11576,6 +11576,499 @@ ER_DD_MINOR_DOWNGRADE_VERSION_NOT_SUPPORTED
 
 ER_DD_NO_VERSION_FOUND
   eng "No data dictionary version number found."
+
+ER_THREAD_POOL_NOT_SUPPORTED_ON_PLATFORM
+  eng "Thread pool not supported, requires a minimum of %s."
+
+ER_THREAD_POOL_SIZE_TOO_LOW
+  eng "thread_pool_size=0 means thread pool disabled, Allowed range of thread_pool_size is %d-%d."
+
+ER_THREAD_POOL_SIZE_TOO_HIGH
+  eng "thread_pool_size=%lu is too high, %d is maximum, thread pool is disabled. Allowed range of thread_pool_size is %d-%d."
+
+ER_THREAD_POOL_ALGORITHM_INVALID
+  eng "thread_pool_algorithm can be set to 0 and 1, 0 indicates the default low concurrency algorithm, 1 means a high concurrency algorithm."
+
+ER_THREAD_POOL_INVALID_STALL_LIMIT
+  eng "thread_pool_stall_limit can be %d at minimum and %d at maximum, smaller values would render the thread pool fairly useless and higher values could make it possible to have undetected deadlock issues in the MySQL Server."
+
+ER_THREAD_POOL_INVALID_PRIO_KICKUP_TIMER
+  eng "Invalid value of thread_pool_prio_kickup_timer specified. Value of thread_pool_prio_kickup_timer should be in range 0-4294967294."
+
+ER_THREAD_POOL_MAX_UNUSED_THREADS_INVALID
+  eng "thread_pool_max_unused_threads cannot be set higher than %d."
+
+ER_THREAD_POOL_CON_HANDLER_INIT_FAILED
+  eng "Failed to instantiate the connection handler object."
+
+ER_THREAD_POOL_INIT_FAILED
+  eng "Failed to initialize thread pool plugin."
+
+ER_THREAD_POOL_PLUGIN_STARTED
+  eng "Thread pool plugin started successfully with parameters: thread_pool_size = %lu, thread_pool_algorithm = %s, thread_pool_stall_limit = %u, thread_pool_prio_kickup_timer = %u, thread_pool_max_unused_threads = %u, thread_pool_high_priority_connection = %d."
+
+ER_THREAD_POOL_CANNOT_SET_THREAD_SPECIFIC_DATA
+  eng "Can't setup connection teardown thread-specific data."
+
+ER_THREAD_POOL_FAILED_TO_CREATE_CONNECT_HANDLER_THD
+  eng "Creation of connect handler thread failed."
+
+ER_THREAD_POOL_FAILED_TO_CREATE_THD_AND_AUTH_CONN
+  eng "Failed to create thd and authenticate connection."
+
+ER_THREAD_POOL_FAILED_PROCESS_CONNECT_EVENT
+  eng "Failed to process connection event."
+
+ER_THREAD_POOL_FAILED_TO_CREATE_POOL
+  eng "Can't create pool thread (error %d, errno: %d)."
+
+ER_THREAD_POOL_RATE_LIMITED_ERROR_MSGS
+  eng "%.*s."
+
+ER_TRHEAD_POOL_LOW_LEVEL_INIT_FAILED
+  eng "tp_group_low_level_init() failed."
+
+ER_THREAD_POOL_LOW_LEVEL_REARM_FAILED
+  eng "Rearm failed even after 30 seconds, can't continue without notify socket."
+
+ER_THREAD_POOL_BUFFER_TOO_SMALL
+  eng "%s: %s buffer is too small"
+
+ER_MECAB_NOT_SUPPORTED
+  eng "Mecab v%s is not supported, the lowest version supported is v%s."
+
+ER_MECAB_NOT_VERIFIED
+  eng "Mecab v%s is not verified, the highest version supported is v%s."
+
+ER_MECAB_CREATING_MODEL
+  eng "Mecab: Trying createModel(%s)."
+
+ER_MECAB_FAILED_TO_CREATE_MODEL
+  eng "Mecab: createModel() failed: %s."
+
+ER_MECAB_FAILED_TO_CREATE_TRIGGER
+  eng "Mecab: createTagger() failed: %s."
+
+ER_MECAB_UNSUPPORTED_CHARSET
+  eng "Mecab: Unsupported dictionary charset %s."
+
+ER_MECAB_CHARSET_LOADED
+  eng "Mecab: Loaded dictionary charset is %s."
+
+ER_MECAB_PARSE_FAILED
+  eng "Mecab: parse() failed: %s."
+
+ER_MECAB_OOM_WHILE_PARSING_TEXT
+  eng "Mecab: parse() failed: out of memory."
+
+ER_MECAB_CREATE_LATTICE_FAILED
+  eng "Mecab: createLattice() failed: %s."
+
+ER_SEMISYNC_TRACE_ENTER_FUNC
+  eng "---> %s enter."
+
+ER_SEMISYNC_TRACE_EXIT_WITH_INT_EXIT_CODE
+  eng "<--- %s exit (%d)."
+
+ER_SEMISYNC_TRACE_EXIT_WITH_BOOL_EXIT_CODE
+  eng "<--- %s exit (%s)."
+
+ER_SEMISYNC_TRACE_EXIT
+  eng "<--- %s exit."
+
+ER_SEMISYNC_RPL_INIT_FOR_TRX
+  eng "Semi-sync replication initialized for transactions."
+
+ER_SEMISYNC_FAILED_TO_ALLOCATE_TRX_NODE
+  eng "%s: transaction node allocation failed for: (%s, %lu)."
+
+ER_SEMISYNC_BINLOG_WRITE_OUT_OF_ORDER
+  eng "%s: binlog write out-of-order, tail (%s, %lu), new node (%s, %lu)."
+
+ER_SEMISYNC_INSERT_LOG_INFO_IN_ENTRY
+  eng "%s: insert (%s, %lu) in entry(%u)."
+
+ER_SEMISYNC_PROBE_LOG_INFO_IN_ENTRY
+  eng "%s: probe (%s, %lu) in entry(%u)."
+
+ER_SEMISYNC_CLEARED_ALL_ACTIVE_TRANSACTION_NODES
+  eng "%s: cleared all nodes."
+
+ER_SEMISYNC_CLEARED_ACTIVE_TRANSACTION_TILL_POS
+  eng "%s: cleared %d nodes back until pos (%s, %lu)."
+
+ER_SEMISYNC_REPLY_MAGIC_NO_ERROR
+  eng "Read semi-sync reply magic number error."
+
+ER_SEMISYNC_REPLY_PKT_LENGTH_TOO_SMALL
+  eng "Read semi-sync reply length error: packet is too small."
+
+ER_SEMISYNC_REPLY_BINLOG_FILE_TOO_LARGE
+  eng "Read semi-sync reply binlog file length too large."
+
+ER_SEMISYNC_SERVER_REPLY
+  eng "%s: Got reply(%s, %lu) from server %u."
+
+ER_SEMISYNC_FUNCTION_CALLED_TWICE
+  eng "%s called twice."
+
+ER_SEMISYNC_RPL_ENABLED_ON_MASTER
+  eng "Semi-sync replication enabled on the master."
+
+ER_SEMISYNC_MASTER_OOM
+  eng "Cannot allocate memory to enable semi-sync on the master."
+
+ER_SEMISYNC_DISABLED_ON_MASTER
+  eng "Semi-sync replication disabled on the master."
+
+ER_SEMISYNC_FORCED_SHUTDOWN
+  eng "SEMISYNC: Forced shutdown. Some updates might not be replicated."
+
+ER_SEMISYNC_MASTER_GOT_REPLY_AT_POS
+  eng "%s: Got reply at (%s, %lu)."
+
+ER_SEMISYNC_MASTER_SIGNAL_ALL_WAITING_THREADS
+  eng "%s: signal all waiting threads."
+
+ER_SEMISYNC_MASTER_TRX_WAIT_POS
+  eng "%s: wait pos (%s, %lu), repl(%d)."
+
+ER_SEMISYNC_BINLOG_REPLY_IS_AHEAD
+  eng "%s: Binlog reply is ahead (%s, %lu)."
+
+ER_SEMISYNC_MOVE_BACK_WAIT_POS
+  eng "%s: move back wait position (%s, %lu)."
+
+ER_SEMISYNC_INIT_WAIT_POS
+  eng "%s: init wait position (%s, %lu)."
+
+ER_SEMISYNC_WAIT_TIME_FOR_BINLOG_SENT
+  eng "%s: wait %lu ms for binlog sent (%s, %lu)."
+
+ER_SEMISYNC_WAIT_FOR_BINLOG_TIMEDOUT
+  eng "Timeout waiting for reply of binlog (file: %s, pos: %lu), semi-sync up to file %s, position %lu."
+
+ER_SEMISYNC_WAIT_TIME_ASSESSMENT_FOR_COMMIT_TRX_FAILED
+  eng "Assessment of waiting time for commitTrx failed at wait position (%s, %lu)."
+
+ER_SEMISYNC_RPL_SWITCHED_OFF
+  eng "Semi-sync replication switched OFF."
+
+ER_SEMISYNC_RPL_SWITCHED_ON
+  eng "Semi-sync replication switched ON at (%s, %lu)."
+
+ER_SEMISYNC_NO_SPACE_IN_THE_PKT
+  eng "No enough space in the packet for semi-sync extra header, semi-sync replication disabled."
+
+ER_SEMISYNC_SYNC_HEADER_UPDATE_INFO
+  eng "%s: server(%d), (%s, %lu) sync(%d), repl(%d)."
+
+ER_SEMISYNC_FAILED_TO_INSERT_TRX_NODE
+  eng "Semi-sync failed to insert tranx_node for binlog file: %s, position: %lu."
+
+ER_SEMISYNC_TRX_SKIPPED_AT_POS
+  eng "%s: Transaction skipped at (%s, %lu)."
+
+ER_SEMISYNC_MASTER_FAILED_ON_NET_FLUSH
+  eng "Semi-sync master failed on net_flush() before waiting for slave reply."
+
+ER_SEMISYNC_RECEIVED_ACK_IS_SMALLER
+  eng "The received ack is smaller than m_greatest_ack."
+
+ER_SEMISYNC_ADD_ACK_TO_SLOT
+  eng "Add the ack into slot %u."
+
+ER_SEMISYNC_UPDATE_EXISTING_SLAVE_ACK
+  eng "Update an exsiting ack in slot %u."
+
+ER_SEMISYNC_FAILED_TO_START_ACK_RECEIVER_THD
+  eng "Failed to start semi-sync ACK receiver thread,  could not create thread(errno:%d)."
+
+ER_SEMISYNC_STARTING_ACK_RECEIVER_THD
+  eng "Starting ack receiver thread."
+
+ER_SEMISYNC_FAILED_TO_WAIT_ON_DUMP_SOCKET
+  eng "Failed to wait on semi-sync dump sockets, error: errno=%d."
+
+ER_SEMISYNC_STOPPING_ACK_RECEIVER_THREAD
+  eng "Stopping ack receiver thread."
+
+ER_SEMISYNC_FAILED_REGISTER_SLAVE_TO_RECEIVER
+  eng "Failed to register slave to semi-sync ACK receiver thread."
+
+ER_SEMISYNC_START_BINLOG_DUMP_TO_SLAVE
+  eng "Start %s binlog_dump to slave (server_id: %d), pos(%s, %lu)."
+
+ER_SEMISYNC_STOP_BINLOG_DUMP_TO_SLAVE
+  eng "Stop %s binlog_dump to slave (server_id: %d)."
+
+ER_SEMISYNC_UNREGISTER_TRX_OBSERVER_FAILED
+  eng "unregister_trans_observer failed."
+
+ER_SEMISYNC_UNREGISTER_BINLOG_STORAGE_OBSERVER_FAILED
+  eng "unregister_binlog_storage_observer failed."
+
+ER_SEMISYNC_UNREGISTER_BINLOG_TRANSMIT_OBSERVER_FAILED
+  eng "unregister_binlog_transmit_observer failed."
+
+ER_SEMISYNC_UNREGISTERED_REPLICATOR
+  eng "unregister_replicator OK."
+
+ER_SEMISYNC_SOCKET_FD_TOO_LARGE
+  eng "Semisync slave socket fd is %u. select() cannot handle if the socket fd is bigger than %u (FD_SETSIZE)."
+
+ER_SEMISYNC_SLAVE_REPLY
+  eng "%s: reply - %d."
+
+ER_SEMISYNC_MISSING_MAGIC_NO_FOR_SEMISYNC_PKT
+  eng "Missing magic number for semi-sync packet, packet len: %lu."
+
+ER_SEMISYNC_SLAVE_START
+  eng "Slave I/O thread: Start %s replication to master '%s@%s:%d' in log '%s' at position %lu."
+
+ER_SEMISYNC_SLAVE_REPLY_WITH_BINLOG_INFO
+  eng "%s: reply (%s, %lu)."
+
+ER_SEMISYNC_SLAVE_NET_FLUSH_REPLY_FAILED
+  eng "Semi-sync slave net_flush() reply failed."
+
+ER_SEMISYNC_SLAVE_SEND_REPLY_FAILED
+  eng "Semi-sync slave send reply failed: %s (%d)."
+
+ER_SEMISYNC_EXECUTION_FAILED_ON_MASTER
+  eng "Execution failed on master: %s; error %d"
+
+ER_SEMISYNC_NOT_SUPPORTED_BY_MASTER
+  eng "Master server does not support semi-sync, fallback to asynchronous replication"
+
+ER_SEMISYNC_SLAVE_SET_FAILED
+  eng "Set 'rpl_semi_sync_slave=1' on master failed"
+
+ER_SEMISYNC_FAILED_TO_STOP_ACK_RECEIVER_THD
+  eng "Failed to stop ack receiver thread on my_thread_join, errno(%d)."
+
+ER_FIREWALL_FAILED_TO_READ_FIREWALL_TABLES
+  eng "Failed to read the firewall tables"
+
+ER_FIREWALL_FAILED_TO_REG_DYNAMIC_PRIVILEGES
+  eng "Failed to register dynamic privileges"
+
+ER_FIREWALL_RECORDING_STMT_WAS_TRUNCATED
+  eng "Statement was truncated and not recorded: %s"
+
+ER_FIREWALL_RECORDING_STMT_WITHOUT_TEXT
+  eng "Statement with no text was not recorded"
+
+ER_FIREWALL_SUSPICIOUS_STMT
+  eng "SUSPICIOUS STATEMENT from '%s'. Reason: %s Statement: %s"
+
+ER_FIREWALL_ACCESS_DENIED
+  eng "ACCESS DENIED for '%s'. Reason: %s Statement: %s"
+
+ER_FIREWALL_SKIPPED_UNKNOWN_USER_MODE
+  eng "Skipped unknown user mode '%s'"
+
+ER_FIREWALL_RELOADING_CACHE
+  eng "Reloading cache from disk"
+
+ER_FIREWALL_RESET_FOR_USER
+  eng "FIREWALL RESET for '%s'"
+
+ER_FIREWALL_STATUS_FLUSHED
+  eng "Counters are reset to zero"
+
+ER_KEYRING_LOGGER_ERROR_MSG
+  eng "%s"
+
+ER_AUDIT_LOG_FILTER_IS_NOT_INSTALLED
+  eng "Audit Log plugin supports a filtering, which has not been installed yet. Audit Log plugin will run in the legacy mode, which will be disabled in the next release."
+
+ER_AUDIT_LOG_SWITCHING_TO_INCLUDE_LIST
+  eng "Previously exclude list is used, now we start using include list, exclude list is set to NULL."
+
+ER_AUDIT_LOG_CANNOT_SET_LOG_POLICY_WITH_OTHER_POLICIES
+  eng "Cannot set audit_log_policy simultaneously with either audit_log_connection_policy or  audit_log_statement_policy, setting audit_log_connection_policy and audit_log_statement_policy based on audit_log_policy."
+
+ER_AUDIT_LOG_ONLY_INCLUDE_LIST_USED
+  eng "Both include and exclude lists provided, include list is preferred, exclude list is set to NULL."
+
+ER_AUDIT_LOG_INDEX_MAP_CANNOT_ACCESS_DIR
+  eng "Could not access '%s' directory."
+
+ER_AUDIT_LOG_WRITER_RENAME_FILE_FAILED
+  eng "Could not rename file from '%s' to '%s'."
+
+ER_AUDIT_LOG_WRITER_DEST_FILE_ALREADY_EXISTS
+  eng "File '%s' should not exist. It may be incomplete. The server crashed."
+
+ER_AUDIT_LOG_WRITER_RENAME_FILE_FAILED_REMOVE_FILE_MANUALLY
+  eng "Could not rename file from '%s' to '%s'. Remove the file manually."
+
+ER_AUDIT_LOG_WRITER_INCOMPLETE_FILE_RENAMED
+  eng "Incomplete file renamed from '%s' to '%s'."
+
+ER_AUDIT_LOG_WRITER_FAILED_TO_WRITE_TO_FILE
+  eng "Error writing file \'%-.200s\' (errno: %d - %s)."
+
+ER_AUDIT_LOG_EC_WRITER_FAILED_TO_INIT_ENCRYPTION
+  eng "Could not initialize audit log file encryption."
+
+ER_AUDIT_LOG_EC_WRITER_FAILED_TO_INIT_COMPRESSION
+  eng "Could not initialize audit log file compression."
+
+ER_AUDIT_LOG_EC_WRITER_FAILED_TO_CREATE_FILE
+  eng "Could not create '%s' file for audit logging."
+
+ER_AUDIT_LOG_RENAME_LOG_FILE_BEFORE_FLUSH
+  eng "Audit log file (%s) must be manually renamed before audit_log_flush is set to true."
+
+ER_AUDIT_LOG_FILTER_RESULT_MSG
+  eng "%s"
+
+ER_AUDIT_LOG_JSON_READER_FAILED_TO_PARSE
+  eng "Error parsing JSON event. Event not accessible."
+
+ER_AUDIT_LOG_JSON_READER_BUF_TOO_SMALL
+  eng "Buffer is too small to hold JSON event. Number of events skipped: %zu."
+
+ER_AUDIT_LOG_JSON_READER_FAILED_TO_OPEN_FILE
+  eng "Could not open JSON file for reading. Reading next file if exists."
+
+ER_AUDIT_LOG_JSON_READER_FILE_PARSING_ERROR
+  eng "JSON file parsing error. Reading next file if exists"
+
+ER_AUDIT_LOG_FILTER_INVALID_COLUMN_COUNT
+  eng "Invalid column count in the '%s.%s' table."
+
+ER_AUDIT_LOG_FILTER_INVALID_COLUMN_DEFINITION
+  eng "Invalid column definition of the '%s.%s' table."
+
+ER_AUDIT_LOG_FILTER_FAILED_TO_STORE_TABLE_FLDS
+  eng "Could not store field of the %s table."
+
+ER_AUDIT_LOG_FILTER_FAILED_TO_UPDATE_TABLE
+  eng "Could not update %s table."
+
+ER_AUDIT_LOG_FILTER_FAILED_TO_INSERT_INTO_TABLE
+  eng "Could not insert into %s table."
+
+ER_AUDIT_LOG_FILTER_FAILED_TO_DELETE_FROM_TABLE
+  eng "Could not delete from %s table."
+
+ER_AUDIT_LOG_FILTER_FAILED_TO_INIT_TABLE_FOR_READ
+  eng "Could not initialize %s table for reading."
+
+ER_AUDIT_LOG_FILTER_FAILED_TO_READ_TABLE
+  eng "Could not read %s table."
+
+ER_AUDIT_LOG_FILTER_FAILED_TO_CLOSE_TABLE_AFTER_READING
+  eng "Could not close %s table reading."
+
+ER_AUDIT_LOG_FILTER_USER_AND_HOST_CANNOT_BE_EMPTY
+  eng "Both user and host columns of %s table cannot be empty."
+
+ER_AUDIT_LOG_FILTER_FLD_FILTERNAME_CANNOT_BE_EMPTY
+  eng "Filtername column of %s table cannot be empty."
+
+ER_VALIDATE_PWD_DICT_FILE_NOT_SPECIFIED
+  eng "Dictionary file not specified"
+
+ER_VALIDATE_PWD_DICT_FILE_NOT_LOADED
+  eng "Dictionary file not loaded"
+
+ER_VALIDATE_PWD_DICT_FILE_TOO_BIG
+  eng "Dictionary file size exceeded MAX_DICTIONARY_FILE_LENGTH, not loaded"
+
+ER_VALIDATE_PWD_FAILED_TO_READ_DICT_FILE
+  eng "Exception while reading the dictionary file"
+
+ER_VALIDATE_PWD_FAILED_TO_GET_FLD_FROM_SECURITY_CTX
+  eng "Can't retrieve the %s from the security context"
+
+ER_VALIDATE_PWD_FAILED_TO_GET_SECURITY_CTX
+  eng "Can't retrieve the security context"
+
+ER_VALIDATE_PWD_LENGTH_CHANGED
+  eng "Effective value of validate_password_length is changed. New value is %d"
+
+ER_REWRITER_QUERY_ERROR_MSG
+  eng "%s"
+
+ER_REWRITER_QUERY_FAILED
+  eng "Rewritten query failed to parse:%s"
+
+ER_XPLUGIN_STARTUP_FAILED
+  eng "Startup failed with error \"%s\""
+
+ER_XPLUGIN_SERVER_EXITING
+  eng "Exiting"
+
+ER_XPLUGIN_SERVER_EXITED
+  eng "Exit done"
+
+ER_XPLUGIN_USING_SSL_CONF_FROM_SERVER
+  eng "Using SSL configuration from MySQL Server"
+
+ER_XPLUGIN_USING_SSL_CONF_FROM_MYSQLX
+  eng "Using SSL configuration from Mysqlx Plugin"
+
+ER_XPLUGIN_FAILED_TO_USE_SSL_CONF
+  eng "Neither MySQL Server nor Mysqlx Plugin has valid SSL configuration"
+
+ER_XPLUGIN_USING_SSL_FOR_TLS_CONNECTION
+  eng "Using %s for TLS connections"
+
+ER_XPLUGIN_REFERENCE_TO_SECURE_CONN_WITH_XPLUGIN
+  eng "For more information, please see the Using Secure Connections with X Plugin section in the MySQL documentation"
+
+ER_XPLUGIN_ERROR_MSG
+  eng "%s"
+
+ER_SHA_PWD_FAILED_TO_PARSE_AUTH_STRING
+  eng "Failed to parse stored authentication string for %s. Please check if mysql.user table not corrupted"
+
+ER_SHA_PWD_FAILED_TO_GENERATE_MULTI_ROUND_HASH
+  eng "Error in generating multi-round hash for %s. Plugin can not perform authentication without it. This may be a transient problem"
+
+ER_SHA_PWD_AUTH_REQUIRES_RSA_OR_SSL
+  eng "Authentication requires either RSA keys or SSL encryption"
+
+ER_SHA_PWD_RSA_KEY_TOO_LONG
+  eng "RSA key cipher length of %u is too long. Max value is %u"
+
+ER_PLUGIN_COMMON_FAILED_TO_OPEN_FILTER_TABLES
+  eng "Failed to open the %s filter tables"
+
+ER_PLUGIN_COMMON_FAILED_TO_OPEN_TABLE
+  eng "Failed to open '%s.%s' %s table"
+
+ER_AUTH_LDAP_ERROR_LOGGER_ERROR_MSG
+  eng "%s"
+
+ER_CONN_CONTROL_ERROR_MSG
+  eng "%s"
+
+ER_GRP_RPL_ERROR_MSG
+  eng "%s"
+
+ER_SHA_PWD_SALT_FOR_USER_CORRUPT
+  eng "Password salt for user '%s' is corrupt"
+
+ER_SYS_VAR_COMPONENT_OOM
+  eng "Out of memory for component system variable '%s'."
+
+ER_SYS_VAR_COMPONENT_VARIABLE_SET_READ_ONLY
+  eng "variable %s of component %s was forced to be read-only: string variable without update_func and PLUGIN_VAR_MEMALLOC flag."
+
+ER_SYS_VAR_COMPONENT_UNKNOWN_VARIABLE_TYPE
+  eng "Unknown variable type code 0x%x in component '%s'."
+
+ER_SYS_VAR_COMPONENT_FAILED_TO_PARSE_VARIABLE_OPTIONS
+  eng "Parsing options for variable '%s' failed."
+
+ER_SYS_VAR_COMPONENT_FAILED_TO_MAKE_VARIABLE_PERSISTENT
+  eng "Setting persistent options for component variable '%s' failed."
+
 #
 #  End of 8.0 error messages.
 #

@@ -68,7 +68,7 @@ typedef struct MYSQL_LEX_CSTRING LEX_CSTRING;
   log_type -- which log to send data to
   check vs enum_log_table_type and LOG_FILE/LOG_TABLE/LOG_NONE
 */
-typedef enum enum_log_type
+enum enum_log_type
 {
   LOG_TYPE_UNDEF   = 0,
   LOG_TYPE_ERROR   = 1,
@@ -76,7 +76,7 @@ typedef enum enum_log_type
   LOG_TYPE_SLOW    = 4,
   LOG_TYPE_AUDIT   = 8,
   LOG_TYPE_MISC    = 16
-} log_type;
+};
 
 /**
   item_type -- what to log

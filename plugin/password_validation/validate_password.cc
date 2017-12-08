@@ -13,6 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_SUBSYSTEM_TAG "validate_password"
+
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
 #include <mysql/plugin_validate_password.h>
 #include <mysql/service_my_plugin_log.h>
 #include <mysql/service_mysql_string.h>
@@ -38,6 +42,7 @@
 #include "mysql/service_locking.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_security_context.h"
+#include "mysqld_error.h"
 #include "typelib.h"
 #include "sql/sql_error.h"
 
@@ -51,6 +56,10 @@ THD *thd_get_current_thd(); // from sql_class.cc
 #define PASSWORD_SCORE                25
 #define MIN_DICTIONARY_WORD_LENGTH    4
 #define MAX_PASSWORD_LENGTH           100
+
+static SERVICE_TYPE(registry) *reg_srv= nullptr;
+SERVICE_TYPE(log_builtins) *log_bi= nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
 
 /* Read-write lock for dictionary_words cache */
 mysql_rwlock_t LOCK_dict_file;
@@ -165,8 +174,7 @@ static void read_dictionary_file()
   if (validate_password_dictionary_file == NULL)
   {
     if (validate_password_policy == PASSWORD_POLICY_STRONG)
-      my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
-                            "Dictionary file not specified");
+      LogPluginErr(WARNING_LEVEL, ER_VALIDATE_PWD_DICT_FILE_NOT_SPECIFIED);
     /* NULL is a valid value, despite the warning */
     dictionary_activate(&dict_words);
     return;
@@ -176,8 +184,7 @@ static void read_dictionary_file()
     std::ifstream dictionary_stream(validate_password_dictionary_file);
     if (!dictionary_stream || !dictionary_stream.is_open())
     {
-      my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
-                            "Dictionary file not loaded");
+      LogPluginErr(WARNING_LEVEL, ER_VALIDATE_PWD_DICT_FILE_NOT_LOADED);
       return;
     }
     dictionary_stream.seekg(0, std::ios::end);
@@ -186,9 +193,7 @@ static void read_dictionary_file()
     if (file_length > MAX_DICTIONARY_FILE_LENGTH)
     {
       dictionary_stream.close();
-      my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
-                            "Dictionary file size exceeded "
-                            "MAX_DICTIONARY_FILE_LENGTH, not loaded");
+      LogPluginErr(WARNING_LEVEL, ER_VALIDATE_PWD_DICT_FILE_TOO_BIG);
       return;
     }
     for (std::getline(dictionary_stream, words); dictionary_stream.good();
@@ -199,8 +204,7 @@ static void read_dictionary_file()
   }
   catch (...) // no exceptions !
   {
-    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
-                          "Exception while reading the dictionary file");
+    LogPluginErr(WARNING_LEVEL, ER_VALIDATE_PWD_FAILED_TO_READ_DICT_FILE);
   }
 }
 
@@ -329,9 +333,9 @@ static bool is_valid_user(MYSQL_SECURITY_CONTEXT ctx,
 
   if (security_context_get_option(ctx, field_name, &user))
   {
-    my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-                          "Can't retrieve the %s from the"
-                          "security context", logical_name);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_VALIDATE_PWD_FAILED_TO_GET_FLD_FROM_SECURITY_CTX,
+                 logical_name);
     return false;
   }
 
@@ -373,8 +377,7 @@ static bool is_valid_password_by_user_name(mysql_string_handle password)
 
   if (thd_get_security_context(thd_get_current_thd(), &ctx) || !ctx)
   {
-    my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-                          "Can't retrieve the security context");
+    LogPluginErr(ERROR_LEVEL, ER_VALIDATE_PWD_FAILED_TO_GET_SECURITY_CTX);
     return false;
   }
 
@@ -507,10 +510,8 @@ readjust_validate_password_length()
        Raise a warning that effective restriction on password
        length is changed.
     */
-    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
-                          "Effective value of validate_password_length is changed."
-                          " New value is %d",
-                          policy_password_length);
+    LogPluginErr(WARNING_LEVEL, ER_VALIDATE_PWD_LENGTH_CHANGED,
+                 policy_password_length);
 
     validate_password_length= policy_password_length;
   }
@@ -534,6 +535,10 @@ static int validate_password_init(MYSQL_PLUGIN plugin_info)
   push_deprecated_warn(thd_get_current_thd(),
                        "validate password plugin",
                        "validate_password component");
+  // Initialize error logging service.
+  if (init_logging_service_for_plugin(&reg_srv))
+    return (1);
+
   plugin_info_ptr= plugin_info;
 #ifdef HAVE_PSI_INTERFACE
   init_validate_password_psi_keys();
@@ -542,6 +547,7 @@ static int validate_password_init(MYSQL_PLUGIN plugin_info)
   read_dictionary_file();
   /* Check if validate_password_length needs readjustment */
   readjust_validate_password_length();
+
   return (0);
 }
 
@@ -557,6 +563,7 @@ static int validate_password_deinit(void *arg MY_ATTRIBUTE((unused)))
                        "validate_password component");
   free_dictionary_file();
   mysql_rwlock_destroy(&LOCK_dict_file);
+  deinit_logging_service_for_plugin(&reg_srv);
   return (0);
 }
 

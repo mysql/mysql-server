@@ -45,7 +45,7 @@
 #include "print_version.h"
 
 #define MAX_ERROR_NAME_LENGTH 64
-#define MAX_ROWS  2500
+#define MAX_ROWS  5000
 #define HEADER_LENGTH 32                /* Length of header in errmsg.sys */
 #define ERRMSG_VERSION 3                /* Version number of errmsg.sys */
 #define DEFAULT_CHARSET_DIR "../share/charsets"
